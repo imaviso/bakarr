@@ -290,36 +290,42 @@ export function mergeProbedMediaMetadata<
   };
 }
 
-export function parseFfprobeJson(
-  json: string,
-): MediaProbeFailure | MediaProbeMetadataFound | MediaProbeNoMetadata {
-  const parsedOutput = Schema.decodeUnknownEither(FFProbeOutputJsonSchema)(json);
+export function parseFfprobeJson(json: string): Effect.Effect<MediaProbeResult, never> {
+  return decodeFfprobeOutput(json).pipe(
+    Effect.flatMap(normalizeFfprobeDecodedOutput),
+    Effect.catchAll((failure) => Effect.succeed(failure)),
+  );
+}
 
-  if (parsedOutput._tag === "Left") {
-    return new MediaProbeFailure({
-      cause: parsedOutput.left,
-      message: "ffprobe output was invalid",
-    });
-  }
-
-  return normalizeFfprobeDecodedOutput(parsedOutput.right);
+function decodeFfprobeOutput(
+  input: unknown,
+): Effect.Effect<Schema.Schema.Type<typeof FFProbeOutputSchema>, MediaProbeFailure> {
+  return Schema.decodeUnknown(FFProbeOutputJsonSchema)(input).pipe(
+    Effect.mapError(
+      (cause) =>
+        new MediaProbeFailure({
+          cause,
+          message: "ffprobe output was invalid",
+        }),
+    ),
+  );
 }
 
 function normalizeFfprobeDecodedOutput(
   output: Schema.Schema.Type<typeof FFProbeOutputSchema>,
-): MediaProbeFailure | MediaProbeMetadataFound | MediaProbeNoMetadata {
-  const normalized = Schema.decodeUnknownEither(ProbedMediaMetadataFromFFProbeOutputSchema)(output);
-
-  if (normalized._tag === "Left") {
-    return new MediaProbeFailure({
-      cause: normalized.left,
-      message: "ffprobe metadata normalization failed",
-    });
-  }
-
-  return normalized.right
-    ? new MediaProbeMetadataFound({ metadata: normalized.right })
-    : new MediaProbeNoMetadata({});
+): Effect.Effect<MediaProbeMetadataFound | MediaProbeNoMetadata, MediaProbeFailure> {
+  return Schema.decodeUnknown(ProbedMediaMetadataFromFFProbeOutputSchema)(output).pipe(
+    Effect.map((metadata) =>
+      metadata ? new MediaProbeMetadataFound({ metadata }) : new MediaProbeNoMetadata({}),
+    ),
+    Effect.mapError(
+      (cause) =>
+        new MediaProbeFailure({
+          cause,
+          message: "ffprobe metadata normalization failed",
+        }),
+    ),
+  );
 }
 
 export const MediaProbeCommandOutputSchema = Schema.Struct({
@@ -332,6 +338,22 @@ function formatParseCause(cause: unknown) {
   return ParseResult.isParseError(cause)
     ? ParseResult.TreeFormatter.formatErrorSync(cause)
     : undefined;
+}
+
+function logProbeFailure(path: string, failure: MediaProbeFailure): Effect.Effect<void> {
+  const parseError = formatParseCause(failure.cause);
+
+  return yieldLog(path, failure.message, parseError);
+}
+
+function yieldLog(
+  path: string,
+  message: string,
+  parseError: string | undefined,
+): Effect.Effect<void> {
+  return Effect.logWarning(message).pipe(
+    Effect.annotateLogs(parseError ? { path, parse_error: parseError } : { path }),
+  );
 }
 
 function runFfprobeCommand(
@@ -398,34 +420,10 @@ const makeMediaProbe = (
 
     const stdout = String(output.stdout);
 
-    const parsedOutput = Schema.decodeUnknownEither(FFProbeOutputJsonSchema)(stdout);
-
-    if (parsedOutput._tag === "Left") {
-      yield* Effect.logWarning("ffprobe output was invalid").pipe(
-        Effect.annotateLogs({
-          path,
-          parse_error: ParseResult.TreeFormatter.formatErrorSync(parsedOutput.left),
-        }),
-      );
-      return new MediaProbeFailure({
-        cause: parsedOutput.left,
-        message: "ffprobe output was invalid",
-      });
-    }
-
-    const parsedResult = normalizeFfprobeDecodedOutput(parsedOutput.right);
-
-    if (parsedResult._tag === "MediaProbeFailure") {
-      const parseError = formatParseCause(parsedResult.cause);
-
-      if (parseError) {
-        yield* Effect.logWarning(parsedResult.message).pipe(
-          Effect.annotateLogs({ path, parse_error: parseError }),
-        );
-      }
-    }
-
-    return parsedResult;
+    return yield* decodeFfprobeOutput(stdout).pipe(
+      Effect.flatMap(normalizeFfprobeDecodedOutput),
+      Effect.catchAll((failure) => logProbeFailure(path, failure).pipe(Effect.as(failure))),
+    );
   });
 
   return { probeVideoFile };

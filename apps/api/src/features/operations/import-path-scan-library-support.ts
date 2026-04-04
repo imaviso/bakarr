@@ -30,26 +30,25 @@ export const loadMappedEpisodeRows = (input: {
     return Effect.succeed([] as const);
   }
 
+  const byPath =
+    input.candidatePaths.length > 0
+      ? inArray(episodes.filePath, [...input.candidatePaths])
+      : undefined;
+  const byAnimeEpisode =
+    input.candidateAnimeIds.length > 0 && input.episodeNumberCandidates.length > 0
+      ? and(
+          inArray(episodes.animeId, [...input.candidateAnimeIds]),
+          inArray(episodes.number, [...input.episodeNumberCandidates]),
+        )
+      : undefined;
+  const whereClause =
+    byPath && byAnimeEpisode ? or(byPath, byAnimeEpisode) : (byPath ?? byAnimeEpisode);
+
+  if (!whereClause) {
+    return Effect.succeed([] as const);
+  }
+
   return input.tryDatabasePromise("Failed to scan import path", () => {
-    const byPath =
-      input.candidatePaths.length > 0
-        ? inArray(episodes.filePath, [...input.candidatePaths])
-        : undefined;
-    const byAnimeEpisode =
-      input.candidateAnimeIds.length > 0 && input.episodeNumberCandidates.length > 0
-        ? and(
-            inArray(episodes.animeId, [...input.candidateAnimeIds]),
-            inArray(episodes.number, [...input.episodeNumberCandidates]),
-          )
-        : undefined;
-    let whereClause = byAnimeEpisode;
-
-    if (byPath && byAnimeEpisode) {
-      whereClause = or(byPath, byAnimeEpisode);
-    } else if (byPath) {
-      whereClause = byPath;
-    }
-
     const query = input.db
       .select({
         anime_id: episodes.animeId,
@@ -59,17 +58,6 @@ export const loadMappedEpisodeRows = (input: {
       })
       .from(episodes)
       .innerJoin(anime, eq(episodes.animeId, anime.id));
-
-    if (!whereClause) {
-      return Promise.resolve(
-        [] as {
-          anime_id: number;
-          anime_title: string;
-          episode_number: number;
-          file_path: string | null;
-        }[],
-      );
-    }
 
     return query.where(whereClause);
   });

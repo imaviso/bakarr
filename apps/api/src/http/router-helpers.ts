@@ -38,6 +38,7 @@ export const decodePathParams = <A, I extends Readonly<Record<string, string | u
       ParseResult.isParseError(error)
         ? Effect.fail(
             RequestValidationError.make({
+              cause: error,
               message: formatValidationErrorMessage("Invalid path parameters", error),
               status: 400,
             }),
@@ -58,6 +59,7 @@ export const decodeQuery = <
       ParseResult.isParseError(error)
         ? Effect.fail(
             RequestValidationError.make({
+              cause: error,
               message: formatValidationErrorMessage("Invalid query parameters", error),
               status: 400,
             }),
@@ -79,6 +81,7 @@ export const decodeQueryWithLabel = <
       ParseResult.isParseError(error)
         ? Effect.fail(
             RequestValidationError.make({
+              cause: error,
               message: formatValidationErrorMessage(`Invalid query parameters for ${label}`, error),
               status: 400,
             }),
@@ -142,6 +145,7 @@ function mapLabeledBodyDecodeError(label: string, error: unknown) {
     error._tag === "RequestError"
   ) {
     return RequestValidationError.make({
+      cause: error,
       message: `Invalid JSON for ${label}`,
       status: 400,
     });
@@ -149,6 +153,7 @@ function mapLabeledBodyDecodeError(label: string, error: unknown) {
 
   if (ParseResult.isParseError(error)) {
     return RequestValidationError.make({
+      cause: error,
       message: formatValidationErrorMessage(`Invalid request body for ${label}`, error),
       status: 400,
     });

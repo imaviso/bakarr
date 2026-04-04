@@ -18,12 +18,12 @@ export interface RenameLibraryFilesInput {
   readonly animeId: number;
 }
 
-export function renameLibraryFiles(
+export const renameLibraryFiles = Effect.fn("Operations.renameLibraryFiles")((
   input: RenameLibraryFilesInput,
 ): Effect.Effect<
   { failed: number; failures: string[]; renamed: number },
   import("@/db/database.ts").DatabaseError | OperationsPathError | OperationsAnimeNotFoundError
-> {
+> => {
   const { db, eventBus, fs, tryDatabasePromise, animeId } = input;
   return Effect.gen(function* () {
     const animeRow = yield* requireAnime(db, animeId);
@@ -96,4 +96,4 @@ export function renameLibraryFiles(
       renamed,
     };
   });
-}
+});

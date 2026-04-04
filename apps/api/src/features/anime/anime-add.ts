@@ -52,8 +52,9 @@ export const addAnimeEffect = Effect.fn("AnimeAdd.addAnimeEffect")(function* (in
 
   yield* input.fs.mkdir(rootFolder, { recursive: true }).pipe(
     Effect.mapError(
-      () =>
+      (cause) =>
         new AnimePathError({
+          cause,
           message: "Failed to create or access the anime root folder",
         }),
     ),

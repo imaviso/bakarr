@@ -9,7 +9,7 @@ import {
   ConfigValidationError,
 } from "@/features/system/errors.ts";
 import {
-  effectDecodeQualityProfileRow,
+  decodeQualityProfileRow,
   encodeQualityProfileRow,
 } from "@/features/system/config-codec.ts";
 import { appendSystemLog } from "@/features/system/support.ts";
@@ -56,7 +56,7 @@ const makeQualityProfileService = Effect.gen(function* () {
 
   const listProfiles = Effect.fn("QualityProfileService.listProfiles")(function* () {
     const rows = yield* listQualityProfileRows(db);
-    return yield* Effect.forEach(rows, effectDecodeQualityProfileRow);
+    return yield* Effect.forEach(rows, decodeQualityProfileRow);
   });
 
   const listQualities = Effect.fn("QualityProfileService.listQualities")(function* () {

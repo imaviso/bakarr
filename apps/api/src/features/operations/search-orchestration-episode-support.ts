@@ -57,13 +57,15 @@ export function makeSearchEpisodeSupport(input: SearchEpisodeSupportInput) {
   ) {
     const animeRow = yield* requireAnime(db, animeId);
     const runtimeConfig = yield* getRuntimeConfig();
-    const profile = yield* loadQualityProfile(db, animeRow.profileName);
+    const profileOption = yield* loadQualityProfile(db, animeRow.profileName);
 
-    if (!profile) {
+    if (Option.isNone(profileOption)) {
       return yield* new OperationsInputError({
         message: `Quality profile '${animeRow.profileName}' not found`,
       });
     }
+
+    const profile = profileOption.value;
 
     yield* validateQualityProfileSizeLabels(profile);
 
@@ -76,7 +78,7 @@ export function makeSearchEpisodeSupport(input: SearchEpisodeSupportInput) {
     return results
       .map((item) =>
         toEpisodeSearchResult({
-          currentEpisode: Option.getOrNull(currentEpisode),
+          currentEpisode,
           item,
           profile,
           rules,

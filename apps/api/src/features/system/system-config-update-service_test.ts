@@ -15,7 +15,7 @@ import { makeTestConfig } from "@/test/config-fixture.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { makeDatabaseServiceStub } from "@/test/stubs.ts";
 import { assert, describe, it } from "@effect/vitest";
-import { effectDecodeStoredConfigRow } from "@/features/system/config-codec.ts";
+import { decodeStoredConfigRow } from "@/features/system/config-codec.ts";
 import {
   SystemConfigUpdateService,
   SystemConfigUpdateServiceLive,
@@ -51,7 +51,7 @@ describe("SystemConfigUpdateService", () => {
             const updated = yield* updateService.updateConfig(nextConfig);
             const currentConfig = yield* Ref.get(runtimeConfigRef);
             const storedRow = yield* loadSystemConfigRow(db);
-            const storedCore = yield* effectDecodeStoredConfigRow(storedRow);
+            const storedCore = yield* decodeStoredConfigRow(storedRow);
 
             assert.deepStrictEqual(updated.general.images_path, "/images/custom");
             assert.deepStrictEqual(currentConfig.general.images_path, "/images/custom");
@@ -99,7 +99,7 @@ describe("SystemConfigUpdateService", () => {
             });
             const currentConfig = yield* Ref.get(runtimeConfigRef);
             const storedRow = yield* loadSystemConfigRow(db);
-            const storedCore = yield* effectDecodeStoredConfigRow(storedRow);
+            const storedCore = yield* decodeStoredConfigRow(storedRow);
 
             assert.deepStrictEqual(updated.qbittorrent.password, "secret-pass");
             assert.deepStrictEqual(currentConfig.qbittorrent.password, "secret-pass");

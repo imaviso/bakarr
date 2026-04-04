@@ -4,15 +4,19 @@ import type {
   QualityProfile,
   ReleaseProfileRule,
 } from "@packages/shared/index.ts";
+import { Option } from "effect";
 
 import type { ParsedRelease } from "@/features/operations/rss-client-parse.ts";
 import { parseReleaseSourceIdentity } from "@/lib/media-identity.ts";
 import { decideDownloadAction, parseReleaseName } from "@/features/operations/release-ranking.ts";
 
-type CurrentEpisodeState = { downloaded: boolean; filePath?: string } | null;
-
 export function toEpisodeSearchResult(input: {
-  currentEpisode: CurrentEpisodeState;
+  currentEpisode: Option.Option<{
+    downloaded: boolean;
+    filePath?: string;
+    isSeaDex?: boolean;
+    isSeaDexBest?: boolean;
+  }>;
   item: ParsedRelease;
   profile: QualityProfile;
   rules: readonly ReleaseProfileRule[];

@@ -19,7 +19,7 @@ export class DownloadConflictError extends Schema.TaggedError<DownloadConflictEr
 
 export class OperationsInputError extends Schema.TaggedError<OperationsInputError>()(
   "OperationsInputError",
-  { message: Schema.String },
+  { cause: Schema.optional(Schema.Defect), message: Schema.String },
 ) {}
 
 export class OperationsConflictError extends Schema.TaggedError<OperationsConflictError>()(

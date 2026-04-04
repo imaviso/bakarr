@@ -10,8 +10,9 @@ export const loadAnimeRoot = Effect.fn("AnimeFilePathPolicy.loadAnimeRoot")(func
 ) {
   return yield* fs.realPath(rootFolder).pipe(
     Effect.mapError(
-      () =>
+      (cause) =>
         new AnimePathError({
+          cause,
           message: "Anime root folder does not exist",
         }),
     ),
@@ -27,8 +28,9 @@ export const validateEpisodeFilePath = Effect.fn("AnimeFilePathPolicy.validateEp
   }) {
     const resolvedPath = yield* input.fs.realPath(input.filePath).pipe(
       Effect.mapError(
-        () =>
+        (cause) =>
           new AnimePathError({
+            cause,
             message: "File path does not exist or is inaccessible",
           }),
       ),

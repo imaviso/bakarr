@@ -25,7 +25,7 @@ export interface ImportLibraryFilesInput {
   readonly files: readonly LibraryImportFileInput[];
 }
 
-export function importLibraryFiles(
+export const importLibraryFiles = Effect.fn("Operations.importLibraryFiles")((
   input: ImportLibraryFilesInput,
 ): Effect.Effect<
   ImportResult,
@@ -33,7 +33,7 @@ export function importLibraryFiles(
   | import("@/features/operations/errors.ts").OperationsPathError
   | import("@/features/operations/errors.ts").OperationsInfrastructureError
   | import("@/features/operations/errors.ts").OperationsAnimeNotFoundError
-> {
+> => {
   const { db, eventBus, fs, mediaProbe, tryDatabasePromise, files } = input;
   return Effect.gen(function* () {
     const importedFiles: ImportResult["imported_files"] = [];
@@ -86,4 +86,4 @@ export function importLibraryFiles(
       failed_files: failedFiles,
     } satisfies ImportResult;
   });
-}
+});

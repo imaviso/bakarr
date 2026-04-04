@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from "effect";
+import { Context, Effect, Layer, Option } from "effect";
 
 import type { ApiKeyResponse, ChangePasswordRequest } from "@packages/shared/index.ts";
 import { Database, DatabaseError } from "@/db/database.ts";
@@ -43,11 +43,13 @@ const makeAuthCredentialService = Effect.gen(function* () {
     userId: number,
     request: ChangePasswordRequest,
   ) {
-    const row = yield* findUserById(db, userId);
+    const rowOption = yield* findUserById(db, userId);
 
-    if (!row) {
+    if (Option.isNone(rowOption)) {
       return yield* AuthError.make({ message: "User not found", status: 404 });
     }
+
+    const row = rowOption.value;
 
     const verified = yield* verifyPassword(request.current_password, row.passwordHash);
 
@@ -78,23 +80,28 @@ const makeAuthCredentialService = Effect.gen(function* () {
   });
 
   const getApiKey = Effect.fn("AuthCredentialService.getApiKey")(function* (userId: number) {
-    const row = yield* findUserById(db, userId);
+    const rowOption = yield* findUserById(db, userId);
 
-    if (!row) {
+    if (Option.isNone(rowOption)) {
       return yield* AuthError.make({ message: "User not found", status: 404 });
     }
 
+    const row = rowOption.value;
+
+    void row;
     return { api_key: "************************" };
   });
 
   const regenerateApiKey = Effect.fn("AuthCredentialService.regenerateApiKey")(function* (
     userId: number,
   ) {
-    const row = yield* findUserById(db, userId);
+    const rowOption = yield* findUserById(db, userId);
 
-    if (!row) {
+    if (Option.isNone(rowOption)) {
       return yield* AuthError.make({ message: "User not found", status: 404 });
     }
+
+    const row = rowOption.value;
 
     const apiKey = yield* randomHex(24);
     const hashedApiKey = yield* hashToken(apiKey);

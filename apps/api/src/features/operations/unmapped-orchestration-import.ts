@@ -104,8 +104,9 @@ export function makeUnmappedImportWorkflow(input: {
       const libraryPath = yield* getConfigLibraryPath(db);
       const folderName = yield* sanitizePathSegmentEffect(input.folder_name).pipe(
         Effect.mapError(
-          () =>
+          (cause) =>
             new OperationsInputError({
+              cause,
               message: "folder_name must be a single folder name",
             }),
         ),
@@ -155,8 +156,9 @@ export function makeUnmappedImportWorkflow(input: {
       const episodeMappings = yield* Stream.runFold(
         scanVideoFilesStream(fs, folderPath).pipe(
           Stream.mapError(
-            () =>
+            (cause) =>
               new OperationsPathError({
+                cause,
                 message: `Folder is inaccessible: ${folderPath}`,
               }),
           ),

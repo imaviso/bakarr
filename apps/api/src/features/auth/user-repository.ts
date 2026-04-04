@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { Effect } from "effect";
+import { Effect, Option } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
 import { appConfig, sessions, systemLogs, users } from "@/db/schema.ts";
@@ -12,7 +12,7 @@ export const findUserByUsername = Effect.fn("AuthUserRepository.findUserByUserna
   const rows = yield* tryDatabasePromise("Failed to find user by username", () =>
     db.select().from(users).where(eq(users.username, username)).limit(1),
   );
-  return rows[0] ?? null;
+  return Option.fromNullable(rows[0]);
 });
 
 export const findUserByApiKey = Effect.fn("AuthUserRepository.findUserByApiKey")(function* (
@@ -22,7 +22,7 @@ export const findUserByApiKey = Effect.fn("AuthUserRepository.findUserByApiKey")
   const rows = yield* tryDatabasePromise("Failed to find user by API key", () =>
     db.select().from(users).where(eq(users.apiKey, apiKey)).limit(1),
   );
-  return rows[0] ?? null;
+  return Option.fromNullable(rows[0]);
 });
 
 export const findUserById = Effect.fn("AuthUserRepository.findUserById")(function* (
@@ -32,7 +32,7 @@ export const findUserById = Effect.fn("AuthUserRepository.findUserById")(functio
   const rows = yield* tryDatabasePromise("Failed to find user by ID", () =>
     db.select().from(users).where(eq(users.id, userId)).limit(1),
   );
-  return rows[0] ?? null;
+  return Option.fromNullable(rows[0]);
 });
 
 export const changePasswordState = Effect.fn("AuthUserRepository.changePasswordState")(

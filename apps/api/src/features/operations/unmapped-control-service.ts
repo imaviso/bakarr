@@ -79,6 +79,7 @@ const makeUnmappedControlService = Effect.gen(function* () {
         Effect.mapError(
           (error) =>
             new OperationsStoredDataError({
+              cause: error.cause ?? error,
               message: error.message,
             }),
         ),
@@ -171,6 +172,7 @@ const makeUnmappedControlService = Effect.gen(function* () {
           Effect.mapError(
             (error) =>
               new OperationsStoredDataError({
+                cause: error.cause ?? error,
                 message: error.message,
               }),
           ),

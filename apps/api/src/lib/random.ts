@@ -1,5 +1,7 @@
 import { Context, Effect, Layer } from "effect";
 
+import { bytesToHex } from "@/lib/hex.ts";
+
 export interface RandomServiceShape {
   readonly randomBytes: (bytes: number) => Effect.Effect<Uint8Array>;
   readonly randomUuid: Effect.Effect<string>;
@@ -16,7 +18,7 @@ export const RandomServiceLive = Layer.succeed(RandomService, {
 });
 
 export function hexFromBytes(data: Uint8Array): string {
-  return Array.from(data, (v) => v.toString(16).padStart(2, "0")).join("");
+  return bytesToHex(data);
 }
 
 export const randomHexFrom = Effect.fn("Random.randomHexFrom")(

@@ -3,7 +3,7 @@ import { Effect } from "effect";
 import type { Config } from "@packages/shared/index.ts";
 import type { PersistedSystemConfigState } from "@/features/system/config-activation.ts";
 import {
-  effectDecodeStoredConfigRow,
+  decodeStoredConfigRow,
   encodeConfigCore,
   encodeQualityProfileRow,
   type ConfigCore,
@@ -24,7 +24,7 @@ export const resolveCurrentQBitPasswordState = Effect.fn(
       }
     | undefined;
 }) {
-  const currentPasswordResult = yield* effectDecodeStoredConfigRow(input.previousConfigRow).pipe(
+  const currentPasswordResult = yield* decodeStoredConfigRow(input.previousConfigRow).pipe(
     Effect.map((config) => ({
       password: config.qbittorrent.password,
       storedConfigCorrupt: false,

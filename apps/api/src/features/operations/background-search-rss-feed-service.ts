@@ -47,15 +47,15 @@ export const BackgroundSearchRssFeedServiceLive = Layer.effect(
 
     const requireQualityProfile = Effect.fn("BackgroundSearchRssFeed.requireQualityProfile")(
       function* (profileName: string) {
-        const profile = yield* loadQualityProfile(db, profileName);
+        const profileOption = yield* loadQualityProfile(db, profileName);
 
-        if (!profile) {
+        if (Option.isNone(profileOption)) {
           return yield* new OperationsInputError({
             message: `Quality profile '${profileName}' not found`,
           });
         }
 
-        return profile;
+        return profileOption.value;
       },
     );
 
@@ -166,7 +166,7 @@ export const BackgroundSearchRssFeedServiceLive = Layer.effect(
               const action = decideDownloadAction(
                 profile,
                 rules,
-                Option.getOrNull(currentEpisode),
+                currentEpisode,
                 item,
                 runtimeConfig,
               );

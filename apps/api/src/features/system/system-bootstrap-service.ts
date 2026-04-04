@@ -9,7 +9,7 @@ import { RuntimeLogLevelState } from "@/lib/logging.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
 import { DEFAULT_PROFILES, makeDefaultConfig } from "@/features/system/defaults.ts";
 import {
-  effectDecodeConfigCore,
+  decodeConfigCore,
   encodeConfigCore,
   encodeQualityProfileRow,
 } from "@/features/system/config-codec.ts";
@@ -83,7 +83,7 @@ const makeSystemBootstrapService = Effect.gen(function* () {
     const storedConfig = yield* loadSystemConfigRow(db);
 
     if (storedConfig) {
-      const decoded = yield* effectDecodeConfigCore(storedConfig.data).pipe(Effect.either);
+      const decoded = yield* decodeConfigCore(storedConfig.data).pipe(Effect.either);
 
       if (decoded._tag === "Right") {
         yield* applyRuntimeLogLevelFromConfig(runtimeLogLevelState, decoded.right);

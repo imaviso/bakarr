@@ -1,5 +1,7 @@
-import { Effect, Schema } from "effect";
+import { Effect, Option, Schema } from "effect";
 import { timingSafeEqual as nodeTimingSafeEqual } from "node:crypto";
+
+import { bytesToHex, hexToBytes } from "@/lib/hex.ts";
 
 const PASSWORD_SCHEME = "pbkdf2_sha256";
 const ITERATIONS = 310_000;
@@ -14,10 +16,6 @@ function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   const buffer = new ArrayBuffer(bytes.length);
   new Uint8Array(buffer).set(bytes);
   return buffer;
-}
-
-function toHex(bytes: Uint8Array): string {
-  return Buffer.from(bytes).toString("hex");
 }
 
 function timingSafeEqual(left: Uint8Array, right: Uint8Array): boolean {
@@ -70,11 +68,13 @@ const deriveBits = Effect.fn("Password.deriveBits")(function* (
 });
 
 const parseHex = Effect.fn("Password.parseHex")(function* (value: string, message: string) {
-  if (value.length % 2 !== 0 || !/^[0-9a-fA-F]*$/.test(value)) {
+  const decoded = hexToBytes(value);
+
+  if (Option.isNone(decoded)) {
     return yield* new PasswordError({ message });
   }
 
-  return Uint8Array.from(Buffer.from(value, "hex"));
+  return decoded.value;
 });
 
 const parseStoredHash = Effect.fn("Password.parseStoredHash")(function* (storedHash: string) {
@@ -111,7 +111,7 @@ export const hashPassword = Effect.fn("Password.hash")(function* (password: stri
   const keyMaterial = yield* deriveKeyMaterial(password);
   const hash = yield* deriveBits(keyMaterial, toArrayBuffer(salt), ITERATIONS);
 
-  return [PASSWORD_SCHEME, String(ITERATIONS), toHex(salt), toHex(hash)].join("$");
+  return [PASSWORD_SCHEME, String(ITERATIONS), bytesToHex(salt), bytesToHex(hash)].join("$");
 });
 
 export const verifyPassword = Effect.fn("Password.verify")(function* (
@@ -132,7 +132,7 @@ function makeHashPasswordWith(randomBytes: (bytes: number) => Effect.Effect<Uint
     const keyMaterial = yield* deriveKeyMaterial(password);
     const hash = yield* deriveBits(keyMaterial, toArrayBuffer(salt), ITERATIONS);
 
-    return [PASSWORD_SCHEME, String(ITERATIONS), toHex(salt), toHex(hash)].join("$");
+    return [PASSWORD_SCHEME, String(ITERATIONS), bytesToHex(salt), bytesToHex(hash)].join("$");
   });
 }
 

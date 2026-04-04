@@ -3,9 +3,9 @@ import { Context, Effect, Layer } from "effect";
 import type { Config } from "@packages/shared/index.ts";
 import { Database, DatabaseError } from "@/db/database.ts";
 import {
-  effectComposeConfig,
-  effectDecodeStoredConfigRow,
-  effectDecodeQualityProfileRow,
+  composeConfig,
+  decodeStoredConfigRow,
+  decodeQualityProfileRow,
 } from "@/features/system/config-codec.ts";
 import { StoredConfigCorruptError, StoredConfigMissingError } from "@/features/system/errors.ts";
 import { normalizeConfig } from "@/features/system/qbittorrent-config.ts";
@@ -31,7 +31,7 @@ const makeSystemConfigService = Effect.gen(function* () {
     const storedConfig = yield* loadSystemConfigRow(db);
     const profiles = yield* listQualityProfileRows(db);
 
-    const core = yield* effectDecodeStoredConfigRow(storedConfig).pipe(
+    const core = yield* decodeStoredConfigRow(storedConfig).pipe(
       Effect.catchTag("StoredConfigCorruptError", (error) =>
         Effect.fail(
           new StoredConfigCorruptError({
@@ -40,9 +40,9 @@ const makeSystemConfigService = Effect.gen(function* () {
         ),
       ),
     );
-    const decodedProfiles = yield* Effect.forEach(profiles, effectDecodeQualityProfileRow);
+    const decodedProfiles = yield* Effect.forEach(profiles, decodeQualityProfileRow);
 
-    const composedConfig = yield* effectComposeConfig(core, decodedProfiles);
+    const composedConfig = yield* composeConfig(core, decodedProfiles);
 
     return yield* normalizeConfig(composedConfig).pipe(
       Effect.catchTag("ConfigValidationError", (error) =>

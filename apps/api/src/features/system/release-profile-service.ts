@@ -5,8 +5,8 @@ import { Database, DatabaseError } from "@/db/database.ts";
 import { nowIsoFromClock, ClockService } from "@/lib/clock.ts";
 import { StoredConfigCorruptError } from "@/features/system/errors.ts";
 import {
-  effectDecodeReleaseProfileRow,
-  effectEncodeReleaseProfileRow,
+  decodeReleaseProfileRow,
+  encodeReleaseProfileRow,
 } from "@/features/system/config-codec.ts";
 import type {
   CreateReleaseProfileInput,
@@ -47,13 +47,13 @@ const makeReleaseProfileService = Effect.gen(function* () {
 
   const listReleaseProfiles = Effect.fn("ReleaseProfileService.listReleaseProfiles")(function* () {
     const rows = yield* listReleaseProfileRows(db);
-    return yield* Effect.forEach(rows, effectDecodeReleaseProfileRow);
+    return yield* Effect.forEach(rows, decodeReleaseProfileRow);
   });
 
   const createReleaseProfile = Effect.fn("ReleaseProfileService.createReleaseProfile")(function* (
     input: CreateReleaseProfileInput,
   ) {
-    const row = yield* effectEncodeReleaseProfileRow(input);
+    const row = yield* encodeReleaseProfileRow(input);
     const created = yield* insertReleaseProfileRow(db, row);
 
     yield* appendSystemLog(
@@ -63,14 +63,14 @@ const makeReleaseProfileService = Effect.gen(function* () {
       `Release profile '${input.name}' created`,
       nowIso,
     );
-    return yield* effectDecodeReleaseProfileRow(created);
+    return yield* decodeReleaseProfileRow(created);
   });
 
   const updateReleaseProfile = Effect.fn("ReleaseProfileService.updateReleaseProfile")(function* (
     id: number,
     input: UpdateReleaseProfileInput,
   ) {
-    const row = yield* effectEncodeReleaseProfileRow(input);
+    const row = yield* encodeReleaseProfileRow(input);
     yield* updateReleaseProfileRow(db, id, row);
 
     yield* appendSystemLog(

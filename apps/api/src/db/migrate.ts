@@ -1,6 +1,5 @@
 import * as Migrator from "@effect/sql/Migrator";
 import * as SqlClient from "@effect/sql/SqlClient";
-import type * as BunSqliteClient from "@effect/sql-sqlite-bun/SqliteClient";
 import { Effect } from "effect";
 
 import { Database, DatabaseError } from "@/db/database.ts";
@@ -24,10 +23,8 @@ const embeddedDrizzleMigrationLoader = Migrator.fromRecord(
 );
 
 export const runEmbeddedDrizzleMigrations = Effect.fn("Database.runEmbeddedDrizzleMigrations")(
-  function* (client: BunSqliteClient.SqliteClient) {
-    return yield* Migrator.make({})({ loader: embeddedDrizzleMigrationLoader }).pipe(
-      Effect.provideService(SqlClient.SqlClient, client),
-    );
+  function* () {
+    return yield* Migrator.make({})({ loader: embeddedDrizzleMigrationLoader });
   },
 );
 
@@ -44,9 +41,9 @@ export const runEmbeddedDrizzleMigrations = Effect.fn("Database.runEmbeddedDrizz
  * database should not silently serve requests.
  */
 export const migrateDatabase = Effect.fn("Database.migrate")(function* () {
-  const { client } = yield* Database;
+  yield* Database;
 
-  yield* runEmbeddedDrizzleMigrations(client).pipe(
+  yield* runEmbeddedDrizzleMigrations().pipe(
     Effect.mapError(
       (cause) =>
         new DatabaseError({

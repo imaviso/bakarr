@@ -1,5 +1,6 @@
-import { Context, Effect, Layer, Schema } from "effect";
+import { Context, Effect, Layer, Option, Schema } from "effect";
 
+import { bytesToHex, hexToBytes } from "@/lib/hex.ts";
 import { RandomService } from "@/lib/random.ts";
 
 export class StreamTokenSignerError extends Schema.TaggedError<StreamTokenSignerError>()(
@@ -80,13 +81,15 @@ export const StreamTokenSignerLive = Layer.effect(
       }
 
       const signatureBytes = hexToBytes(input.signatureHex);
-      if (signatureBytes === null || signatureBytes.length !== 32) {
+      if (Option.isNone(signatureBytes) || signatureBytes.value.length !== 32) {
         return false;
       }
 
+      const signatureBuffer = Uint8Array.from(signatureBytes.value);
+
       return yield* Effect.tryPromise({
         try: () =>
-          crypto.subtle.verify("HMAC", key, signatureBytes, textEncoder.encode(toPayload(input))),
+          crypto.subtle.verify("HMAC", key, signatureBuffer, textEncoder.encode(toPayload(input))),
         catch: (cause) =>
           new StreamTokenSignerError({
             cause,
@@ -105,26 +108,4 @@ function toPayload(input: {
   readonly expiresAt: number;
 }) {
   return `${input.animeId}:${input.episodeNumber}:${input.expiresAt}`;
-}
-
-function bytesToHex(bytes: Uint8Array) {
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
-function hexToBytes(value: string) {
-  if (value.length % 2 !== 0 || /[^0-9a-f]/i.test(value)) {
-    return null;
-  }
-
-  const bytes = new Uint8Array(value.length / 2);
-
-  for (let index = 0; index < value.length; index += 2) {
-    const byte = Number.parseInt(value.slice(index, index + 2), 16);
-    if (Number.isNaN(byte)) {
-      return null;
-    }
-    bytes[index / 2] = byte;
-  }
-
-  return bytes;
 }

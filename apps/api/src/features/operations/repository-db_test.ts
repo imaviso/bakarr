@@ -93,11 +93,13 @@ it.scoped(
           assert.deepStrictEqual(namingSettings.preferredTitle, defaults.library.preferred_title);
 
           const storedProfile = yield* loadQualityProfile(db, "Default");
-          assert.deepStrictEqual(storedProfile === null, false);
-          assert.deepStrictEqual(storedProfile!.max_size, "4GB");
+          assert.deepStrictEqual(storedProfile._tag, "Some");
+          if (storedProfile._tag === "Some") {
+            assert.deepStrictEqual(storedProfile.value.max_size, "4GB");
+          }
 
           const fallbackProfile = yield* loadQualityProfile(db, "Missing");
-          assert.deepStrictEqual(fallbackProfile, null);
+          assert.deepStrictEqual(fallbackProfile, Option.none());
         }),
       schema,
     }),

@@ -3,6 +3,7 @@ import { ParseResult, Schema } from "effect";
 export class RequestValidationError extends Schema.TaggedError<RequestValidationError>()(
   "RequestValidationError",
   {
+    cause: Schema.optional(Schema.Defect),
     message: Schema.String,
     status: Schema.Literal(400),
   },

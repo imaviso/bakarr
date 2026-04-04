@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, Either, Option } from "effect";
 
 import type {
   DownloadAction,
@@ -15,20 +15,24 @@ export const validateQualityProfileSizeLabels = Effect.fn(
 )(function* (profile: QualityProfile) {
   const minSizeBytesResult = parseSizeLabelToBytes(profile.min_size);
 
-  if (minSizeBytesResult._tag === "Left") {
+  if (Either.isLeft(minSizeBytesResult)) {
     return yield* minSizeBytesResult.left;
   }
 
   const maxSizeBytesResult = parseSizeLabelToBytes(profile.max_size);
 
-  if (maxSizeBytesResult._tag === "Left") {
+  if (Either.isLeft(maxSizeBytesResult)) {
     return yield* maxSizeBytesResult.left;
   }
 
-  const minSizeBytes = minSizeBytesResult.right;
-  const maxSizeBytes = maxSizeBytesResult.right;
+  const minSizeOption = minSizeBytesResult.right;
+  const maxSizeOption = maxSizeBytesResult.right;
 
-  if (minSizeBytes !== null && maxSizeBytes !== null && minSizeBytes > maxSizeBytes) {
+  if (
+    Option.isSome(minSizeOption) &&
+    Option.isSome(maxSizeOption) &&
+    minSizeOption.value > maxSizeOption.value
+  ) {
     return yield* new OperationsInputError({
       message: "Quality profile min_size cannot exceed max_size",
     });

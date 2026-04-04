@@ -38,8 +38,9 @@ export const deleteEpisodeFileEffect = Effect.fn("AnimeFileWrite.deleteEpisodeFi
     if (filePath) {
       const resolvedPath = yield* input.fs.realPath(filePath).pipe(
         Effect.mapError(
-          () =>
+          (cause) =>
             new AnimePathError({
+              cause,
               message: "Episode file path does not exist or is inaccessible",
             }),
         ),
@@ -54,8 +55,9 @@ export const deleteEpisodeFileEffect = Effect.fn("AnimeFileWrite.deleteEpisodeFi
 
       yield* input.fs.remove(filePath).pipe(
         Effect.mapError(
-          () =>
+          (cause) =>
             new AnimePathError({
+              cause,
               message: "Failed to delete episode file from disk",
             }),
         ),

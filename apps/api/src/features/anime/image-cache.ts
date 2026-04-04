@@ -19,7 +19,11 @@ export class ImageCacheError extends Schema.TaggedError<ImageCacheError>()("Imag
 
 export class ImageTooLargeError extends Schema.TaggedError<ImageTooLargeError>()(
   "ImageTooLargeError",
-  { contentLength: Schema.optional(Schema.Number), maxBytes: Schema.Number },
+  {
+    cause: Schema.optional(Schema.Defect),
+    contentLength: Schema.optional(Schema.Number),
+    maxBytes: Schema.Number,
+  },
 ) {}
 
 export const cacheAnimeMetadataImages = Effect.fn("AnimeService.cacheAnimeMetadataImages")(
@@ -140,8 +144,9 @@ const downloadImage = Effect.fn("AnimeService.downloadImage")(function* (
 
   const bytes = yield* collectBoundedBytes(response.stream, MAX_IMAGE_BYTES).pipe(
     Effect.mapError(
-      () =>
+      (cause) =>
         new ImageTooLargeError({
+          cause,
           contentLength: undefined,
           maxBytes: MAX_IMAGE_BYTES,
         }),

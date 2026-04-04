@@ -3,12 +3,12 @@ import { Cause, Effect, Exit } from "effect";
 
 import { qualityProfiles, releaseProfiles } from "@/db/schema.ts";
 import {
-  effectDecodeConfigCore,
-  effectDecodeOptionalNumberList,
-  effectDecodeQualityProfileRow,
-  effectDecodeReleaseProfileRow,
-  effectDecodeReleaseProfileRules,
-  effectDecodeStoredConfigRow,
+  decodeConfigCore,
+  decodeOptionalNumberList,
+  decodeQualityProfileRow,
+  decodeReleaseProfileRow,
+  decodeReleaseProfileRules,
+  decodeStoredConfigRow,
   encodeConfigCore,
   encodeOptionalNumberList,
   encodeQualityProfileRow,
@@ -75,7 +75,7 @@ it.effect("config codec round-trips config core without mutating arrays", () =>
       },
     });
 
-    const decoded = yield* effectDecodeConfigCore(encoded);
+    const decoded = yield* decodeConfigCore(encoded);
     assert.deepStrictEqual(decoded.downloads.remote_path_mappings, [["/remote", "/local"]]);
     assert.deepStrictEqual(decoded.downloads.preferred_groups, ["SubsPlease"]);
     assert.deepStrictEqual(decoded.qbittorrent.trusted_local, true);
@@ -96,9 +96,7 @@ it.effect("profile codecs encode and decode quality and release profile rows", (
     });
 
     assert.deepStrictEqual(
-      yield* effectDecodeQualityProfileRow(
-        qualityRow satisfies typeof qualityProfiles.$inferSelect,
-      ),
+      yield* decodeQualityProfileRow(qualityRow satisfies typeof qualityProfiles.$inferSelect),
       {
         allowed_qualities: ["1080p", "720p"],
         cutoff: "1080p",
@@ -114,13 +112,13 @@ it.effect("profile codecs encode and decode quality and release profile rows", (
       { rule_type: "preferred", score: 10, term: "SubsPlease" },
       { rule_type: "must", score: 0, term: "1080p" },
     ]);
-    assert.deepStrictEqual(yield* effectDecodeReleaseProfileRules(rulesJson), [
+    assert.deepStrictEqual(yield* decodeReleaseProfileRules(rulesJson), [
       { rule_type: "preferred", score: 10, term: "SubsPlease" },
       { rule_type: "must", score: 0, term: "1080p" },
     ]);
 
     assert.deepStrictEqual(
-      yield* effectDecodeReleaseProfileRow({
+      yield* decodeReleaseProfileRow({
         enabled: true,
         id: 1,
         isGlobal: false,
@@ -147,10 +145,10 @@ it.effect(
     Effect.gen(function* () {
       assert.deepStrictEqual(yield* encodeOptionalNumberList([3, 1, 3, 2]), "[1,2,3]");
       assert.deepStrictEqual(yield* encodeOptionalNumberList([]), null);
-      assert.deepStrictEqual(yield* effectDecodeOptionalNumberList("[3,1,2]"), [1, 2, 3]);
+      assert.deepStrictEqual(yield* decodeOptionalNumberList("[3,1,2]"), [1, 2, 3]);
 
       for (const value of ["not-json", "[0,-1,2]"]) {
-        const exit = yield* Effect.exit(effectDecodeOptionalNumberList(value));
+        const exit = yield* Effect.exit(decodeOptionalNumberList(value));
         assert.deepStrictEqual(Exit.isFailure(exit), true);
       }
 
@@ -161,7 +159,7 @@ it.effect(
 
 it.effect("stored config row decoder fails with typed errors for missing and corrupt rows", () =>
   Effect.gen(function* () {
-    const missingExit = yield* Effect.exit(effectDecodeStoredConfigRow(undefined));
+    const missingExit = yield* Effect.exit(decodeStoredConfigRow(undefined));
     assert.deepStrictEqual(Exit.isFailure(missingExit), true);
     if (Exit.isFailure(missingExit)) {
       const failure = Cause.failureOption(missingExit.cause);
@@ -171,7 +169,7 @@ it.effect("stored config row decoder fails with typed errors for missing and cor
       }
     }
 
-    const corruptExit = yield* Effect.exit(effectDecodeStoredConfigRow({ data: "{not-json" }));
+    const corruptExit = yield* Effect.exit(decodeStoredConfigRow({ data: "{not-json" }));
     assert.deepStrictEqual(Exit.isFailure(corruptExit), true);
     if (Exit.isFailure(corruptExit)) {
       const failure = Cause.failureOption(corruptExit.cause);

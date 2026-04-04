@@ -13,6 +13,7 @@ export class AnimeConflictError extends Schema.TaggedError<AnimeConflictError>()
 ) {}
 
 export class AnimePathError extends Schema.TaggedError<AnimePathError>()("AnimePathError", {
+  cause: Schema.optional(Schema.Defect),
   message: Schema.String,
 }) {}
 

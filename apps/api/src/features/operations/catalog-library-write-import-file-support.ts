@@ -16,12 +16,12 @@ export interface WriteLibraryImportFileInput {
   readonly plan: LibraryImportPlan;
 }
 
-export function writeLibraryImportFile(
+export const writeLibraryImportFile = Effect.fn("Operations.writeLibraryImportFile")((
   input: WriteLibraryImportFileInput,
 ): Effect.Effect<
   ImportResult["imported_files"][number],
   OperationsPathError | OperationsInfrastructureError
-> {
+> => {
   const { db, fs, plan } = input;
   return Effect.gen(function* () {
     if (plan.importMode === "move") {
@@ -98,4 +98,4 @@ export function writeLibraryImportFile(
       source_path: plan.sourcePath,
     } satisfies ImportResult["imported_files"][number];
   });
-}
+});

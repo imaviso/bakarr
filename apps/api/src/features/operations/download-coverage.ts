@@ -4,7 +4,7 @@ import type { AppDatabase } from "@/db/database.ts";
 import { downloads } from "@/db/schema.ts";
 import {
   encodeOptionalNumberList,
-  effectDecodeOptionalNumberList,
+  decodeOptionalNumberList,
 } from "@/features/system/config-codec.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
 import {
@@ -34,7 +34,7 @@ export function toCoveredEpisodesJson(
 
 export const parseCoveredEpisodesEffect = Effect.fn("Operations.parseCoveredEpisodesEffect")(
   function* (value: string | null | undefined) {
-    return yield* effectDecodeOptionalNumberList(value).pipe(
+    return yield* decodeOptionalNumberList(value).pipe(
       Effect.mapError(
         (cause) =>
           new OperationsStoredDataError({

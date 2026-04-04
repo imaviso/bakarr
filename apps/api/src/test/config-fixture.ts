@@ -12,7 +12,7 @@ import type { Config } from "@packages/shared/index.ts";
 import { Effect, Schema } from "effect";
 import { ConfigCoreSchema } from "@/features/system/config-schema.ts";
 import {
-  effectComposeConfig,
+  composeConfig,
   type ConfigCore,
   type ConfigCoreEncoded,
 } from "@/features/system/config-codec.ts";
@@ -43,5 +43,5 @@ export function makeTestConfig(
   const modified = override ? override(encoded) : encoded;
   const decoded = Schema.decodeUnknownSync(ConfigCoreSchema)(modified);
 
-  return Effect.runSync(effectComposeConfig(decoded, []));
+  return Effect.runSync(composeConfig(decoded, []));
 }

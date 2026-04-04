@@ -13,26 +13,28 @@ import {
 import { commandArgs, makeCommandExecutorStub } from "@/test/stubs.ts";
 
 it("parseFfprobeJson extracts canonical media metadata", () => {
-  const result = parseFfprobeJson(
-    JSON.stringify({
-      format: {
-        duration: "1440.4",
-      },
-      streams: [
-        {
-          codec_name: "hevc",
-          codec_type: "video",
-          height: 1080,
-          width: 1920,
+  const result = Effect.runSync(
+    parseFfprobeJson(
+      JSON.stringify({
+        format: {
+          duration: "1440.4",
         },
-        {
-          channel_layout: "stereo",
-          channels: 2,
-          codec_name: "aac",
-          codec_type: "audio",
-        },
-      ],
-    }),
+        streams: [
+          {
+            codec_name: "hevc",
+            codec_type: "video",
+            height: 1080,
+            width: 1920,
+          },
+          {
+            channel_layout: "stereo",
+            channels: 2,
+            codec_name: "aac",
+            codec_type: "audio",
+          },
+        ],
+      }),
+    ),
   );
 
   assert.deepStrictEqual(result._tag, "MediaProbeMetadataFound");
@@ -48,7 +50,7 @@ it("parseFfprobeJson extracts canonical media metadata", () => {
 });
 
 it("parseFfprobeJson returns typed failure for invalid output", () => {
-  const result = parseFfprobeJson('{"streams":"bad"}');
+  const result = Effect.runSync(parseFfprobeJson('{"streams":"bad"}'));
 
   assert.deepStrictEqual(result._tag, "MediaProbeFailure");
 });

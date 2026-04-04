@@ -1,4 +1,5 @@
 import { Effect, Exit, Layer } from "effect";
+import * as SqlClient from "@effect/sql/SqlClient";
 
 import { Database } from "@/db/database.ts";
 import { migrateDatabase } from "@/db/migrate.ts";
@@ -25,10 +26,16 @@ it.scoped("migrateDatabase applies embedded migrations idempotently", () =>
               });
 
               const first = yield* Effect.exit(
-                migrateDatabase().pipe(Effect.provide(databaseLayer)),
+                migrateDatabase().pipe(
+                  Effect.provide(databaseLayer),
+                  Effect.provideService(SqlClient.SqlClient, client),
+                ),
               );
               const second = yield* Effect.exit(
-                migrateDatabase().pipe(Effect.provide(databaseLayer)),
+                migrateDatabase().pipe(
+                  Effect.provide(databaseLayer),
+                  Effect.provideService(SqlClient.SqlClient, client),
+                ),
               );
               const tables = yield* client.unsafe<{ name: string }>(
                 "select name from sqlite_master where type = 'table' and name in ('users', 'anime', 'downloads') order by name",

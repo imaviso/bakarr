@@ -16,7 +16,9 @@ export interface EventBusShape {
 
 export class EventBus extends Context.Tag("@bakarr/api/EventBus")<EventBus, EventBusShape>() {}
 
-export function makeEventBus(options: { readonly capacity?: number } = {}) {
+export const makeEventBus = Effect.fn("Events.makeEventBus")((
+  options: { readonly capacity?: number } = {},
+) => {
   const capacity = options.capacity ?? DEFAULT_EVENT_BUS_CAPACITY;
 
   return Effect.gen(function* () {
@@ -57,6 +59,6 @@ export function makeEventBus(options: { readonly capacity?: number } = {}) {
       subscribe,
     } satisfies EventBusShape;
   });
-}
+});
 
 export const EventBusLive = Layer.effect(EventBus, makeEventBus());

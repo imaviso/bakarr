@@ -28,8 +28,9 @@ export const scanAnimeFolderEffect = Effect.fn("AnimeFileScan.scanAnimeFolderEff
     const animeRow = yield* getAnimeRowEffect(input.db, input.animeId);
     const files = yield* collectVideoFiles(input.fs, animeRow.rootFolder).pipe(
       Effect.mapError(
-        () =>
+        (cause) =>
           new AnimePathError({
+            cause,
             message: "Anime root folder does not exist or is inaccessible",
           }),
       ),

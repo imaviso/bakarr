@@ -29,10 +29,10 @@ interface CoalescedInfoEvent {
   readonly emitAt: number;
 }
 
-export function makeEventPublisher(options?: {
+export const makeEventPublisher = Effect.fn("Events.makeEventPublisher")((options?: {
   readonly infoEventToastWindowMs?: number;
   readonly publish?: (event: NotificationEvent) => Effect.Effect<void>;
-}) {
+}) => {
   const infoEventToastWindowMs = options?.infoEventToastWindowMs ?? INFO_EVENT_TOAST_WINDOW_MS;
 
   return Effect.gen(function* () {
@@ -72,7 +72,7 @@ export function makeEventPublisher(options?: {
       shutdown: infoPublisher.shutdown,
     } satisfies ManagedEventPublisher;
   });
-}
+});
 
 export const EventPublisherLive = Layer.scoped(
   EventPublisher,

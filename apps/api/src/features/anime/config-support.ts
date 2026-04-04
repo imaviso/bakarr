@@ -4,7 +4,7 @@ import { Effect } from "effect";
 import type { AppDatabase } from "@/db/database.ts";
 import { appConfig } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
-import { effectDecodeConfigCore, effectDecodeImagePath } from "@/features/system/config-codec.ts";
+import { decodeConfigCore, decodeImagePath } from "@/features/system/config-codec.ts";
 import { makeDefaultConfig } from "@/features/system/defaults.ts";
 import { AnimeStoredDataError } from "@/features/anime/errors.ts";
 
@@ -20,7 +20,7 @@ export const resolveAnimeRootFolderEffect = Effect.fn("AnimeConfigSupport.resolv
       db.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1),
     );
     const configCore = rows[0]
-      ? yield* effectDecodeConfigCore(rows[0].data).pipe(
+      ? yield* decodeConfigCore(rows[0].data).pipe(
           Effect.mapError(
             (cause) =>
               new AnimeStoredDataError({
@@ -58,7 +58,7 @@ export const getConfiguredImagesPathEffect = Effect.fn(
     db.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1),
   );
 
-  return yield* effectDecodeImagePath(rows[0]).pipe(
+  return yield* decodeImagePath(rows[0]).pipe(
     Effect.mapError(
       (cause) =>
         new AnimeStoredDataError({
@@ -77,7 +77,7 @@ export const getConfiguredLibraryPathEffect = Effect.fn(
   );
 
   const configCore = rows[0]
-    ? yield* effectDecodeConfigCore(rows[0].data).pipe(
+    ? yield* decodeConfigCore(rows[0].data).pipe(
         Effect.mapError(
           (cause) =>
             new AnimeStoredDataError({

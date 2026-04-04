@@ -50,15 +50,15 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
 
     const requireQualityProfile = Effect.fn("BackgroundSearchMissing.requireQualityProfile")(
       function* (profileName: string) {
-        const profile = yield* loadQualityProfile(db, profileName);
+        const profileOption = yield* loadQualityProfile(db, profileName);
 
-        if (!profile) {
+        if (Option.isNone(profileOption)) {
           return yield* new OperationsInputError({
             message: `Quality profile '${profileName}' not found`,
           });
         }
 
-        return profile;
+        return profileOption.value;
       },
     );
 
@@ -129,13 +129,7 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
         );
         const best = candidates
           .map((item) => ({
-            action: decideDownloadAction(
-              profile,
-              rules,
-              Option.getOrNull(currentEpisode),
-              item,
-              runtimeConfig,
-            ),
+            action: decideDownloadAction(profile, rules, currentEpisode, item, runtimeConfig),
             item,
           }))
           .find((entry) => entry.action.Accept || entry.action.Upgrade);

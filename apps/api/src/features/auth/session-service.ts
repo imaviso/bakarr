@@ -102,14 +102,16 @@ const makeAuthSessionService = Effect.gen(function* () {
   const hashToken = tokenHasher.hashToken;
 
   const login = Effect.fn("AuthSessionService.login")(function* (request: LoginRequest) {
-    const row = yield* findUserByUsername(db, request.username);
+    const rowOption = yield* findUserByUsername(db, request.username);
 
-    if (!row) {
+    if (Option.isNone(rowOption)) {
       return yield* AuthError.make({
         message: "Invalid username or password",
         status: 401,
       });
     }
+
+    const row = rowOption.value;
 
     const verified = yield* verifyPassword(request.password, row.passwordHash);
 
@@ -148,11 +150,13 @@ const makeAuthSessionService = Effect.gen(function* () {
   ) {
     const hashedApiKey = yield* hashToken(request.api_key);
 
-    const row = yield* findUserByApiKey(db, hashedApiKey);
+    const rowOption = yield* findUserByApiKey(db, hashedApiKey);
 
-    if (!row) {
+    if (Option.isNone(rowOption)) {
       return yield* AuthError.make({ message: "Invalid API key", status: 401 });
     }
+
+    const row = rowOption.value;
 
     const token = yield* createSession(
       db,
@@ -237,9 +241,9 @@ const makeAuthSessionService = Effect.gen(function* () {
     }
 
     const hashedApiKey = yield* hashToken(apiKey);
-    const row = yield* findUserByApiKey(db, hashedApiKey);
+    const rowOption = yield* findUserByApiKey(db, hashedApiKey);
 
-    return row ? Option.some(toAuthUser(row)) : Option.none();
+    return Option.map(rowOption, toAuthUser);
   });
 
   const logout = Effect.fn("AuthSessionService.logout")(function* (

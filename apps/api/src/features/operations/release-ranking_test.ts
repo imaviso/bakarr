@@ -1,5 +1,5 @@
 import { assert, it } from "@effect/vitest";
-import { Effect, Either } from "effect";
+import { Effect, Either, Option } from "effect";
 
 import { defaultAppConfig } from "@/config.ts";
 import type { Config, QualityProfile } from "@packages/shared/index.ts";
@@ -108,7 +108,7 @@ it("decide download accepts new release and upgrades higher quality", () => {
   const accepted = decideDownloadAction(
     baseProfile,
     [],
-    null,
+    Option.none(),
     {
       group: "SubsPlease",
       isSeaDex: false,
@@ -127,12 +127,12 @@ it("decide download accepts new release and upgrades higher quality", () => {
   const upgraded = decideDownloadAction(
     baseProfile,
     [],
-    {
+    Option.some({
       downloaded: true,
       filePath: "[Group] Show - 01 [720p WEB-DL].mkv",
       isSeaDex: false,
       isSeaDexBest: false,
-    },
+    }),
     {
       group: "SubsPlease",
       isSeaDex: false,
@@ -153,12 +153,12 @@ it("seadex release can upgrade same-quality current file", () => {
   const decision = decideDownloadAction(
     baseProfile,
     [],
-    {
+    Option.some({
       downloaded: true,
       filePath: "[Group] Show - 01 [1080p WEB-DL].mkv",
       isSeaDex: false,
       isSeaDexBest: false,
-    },
+    }),
     {
       group: "SubsPlease",
       isSeaDex: true,
@@ -180,12 +180,12 @@ it("seadex scoring is disabled when runtime config disables seadex", () => {
   const decision = decideDownloadAction(
     baseProfile,
     [],
-    {
+    Option.some({
       downloaded: true,
       filePath: "[Group] Show - 01 [1080p WEB-DL].mkv",
       isSeaDex: false,
       isSeaDexBest: false,
-    },
+    }),
     {
       group: "SubsPlease",
       isSeaDex: true,
@@ -212,7 +212,7 @@ it("seadex tags and config preferences boost release score", () => {
   const preferred = decideDownloadAction(
     baseProfile,
     [],
-    null,
+    Option.none(),
     {
       group: "OtherGroup",
       isSeaDex: true,
@@ -243,7 +243,7 @@ it("seadex tags and config preferences boost release score", () => {
   const fallback = decideDownloadAction(
     baseProfile,
     [],
-    null,
+    Option.none(),
     {
       group: "OtherGroup",
       isSeaDex: true,
@@ -281,7 +281,7 @@ it("negative SeaDex notes can reduce release score", () => {
   const recommended = decideDownloadAction(
     baseProfile,
     [],
-    null,
+    Option.none(),
     {
       group: "OtherGroup",
       isSeaDex: true,
@@ -309,7 +309,7 @@ it("negative SeaDex notes can reduce release score", () => {
   const problematic = decideDownloadAction(
     baseProfile,
     [],
-    null,
+    Option.none(),
     {
       group: "OtherGroup",
       isSeaDex: true,
@@ -344,7 +344,7 @@ it("SeaDex best metadata outranks high-seeder non-SeaDex releases", () => {
   const seadex = decideDownloadAction(
     baseProfile,
     [],
-    null,
+    Option.none(),
     {
       group: "sam",
       isSeaDex: true,
@@ -368,7 +368,7 @@ it("SeaDex best metadata outranks high-seeder non-SeaDex releases", () => {
   const popular = decideDownloadAction(
     baseProfile,
     [],
-    null,
+    Option.none(),
     {
       group: "Judas",
       isSeaDex: false,
@@ -397,7 +397,7 @@ it("SeaDex notes mentioning the release group boost the matching release", () =>
   const matched = decideDownloadAction(
     baseProfile,
     [],
-    null,
+    Option.none(),
     {
       group: "ABdex",
       isSeaDex: true,
@@ -421,7 +421,7 @@ it("SeaDex notes mentioning the release group boost the matching release", () =>
   const unmatched = decideDownloadAction(
     baseProfile,
     [],
-    null,
+    Option.none(),
     {
       group: "LostYears",
       isSeaDex: true,
@@ -537,12 +537,12 @@ it("cutoff blocks better-quality upgrades once cutoff is met", () => {
   const decision = decideDownloadAction(
     profileWith4kAllowed,
     [],
-    {
+    Option.some({
       downloaded: true,
       filePath: "[Group] Show - 01 [1080p WEB-DL].mkv",
       isSeaDex: false,
       isSeaDexBest: false,
-    },
+    }),
     {
       group: "SubsPlease",
       isSeaDex: false,
@@ -566,12 +566,12 @@ it("unknown current quality does not block higher-quality upgrade", () => {
       allowed_qualities: ["2160p", "1080p", "720p"],
     },
     [],
-    {
+    Option.some({
       downloaded: true,
       filePath: "Show Episode 01",
       isSeaDex: false,
       isSeaDexBest: false,
-    },
+    }),
     {
       group: "SubsPlease",
       isSeaDex: false,

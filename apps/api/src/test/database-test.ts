@@ -53,7 +53,9 @@ export const withSqliteTestDbEffect = Effect.fn("Test.withSqliteTestDbEffect")(f
               );
 
               yield* configureDatabasePragmas(client);
-              yield* runEmbeddedDrizzleMigrations(client);
+              yield* runEmbeddedDrizzleMigrations().pipe(
+                Effect.provideService(SqlClient.SqlClient, client),
+              );
 
               return yield* input.run(db, databaseFile);
             }),

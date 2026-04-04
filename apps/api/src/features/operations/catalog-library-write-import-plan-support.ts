@@ -47,12 +47,12 @@ export interface LibraryImportPlan {
   readonly sourceMetadata?: import("@packages/shared/index.ts").DownloadSourceMetadata;
 }
 
-export function buildLibraryImportPlan(
+export const buildLibraryImportPlan = Effect.fn("Operations.buildLibraryImportPlan")((
   input: BuildLibraryImportPlanInput,
 ): Effect.Effect<
   LibraryImportPlan,
   import("@/db/database.ts").DatabaseError | OperationsPathError | OperationsAnimeNotFoundError
-> {
+> => {
   const { db, file, fs, mediaProbe, tryDatabasePromise } = input;
   return Effect.gen(function* () {
     const resolvedSource = yield* fs.realPath(file.source_path).pipe(
@@ -133,4 +133,4 @@ export function buildLibraryImportPlan(
       sourcePath: file.source_path,
     } satisfies LibraryImportPlan;
   });
-}
+});

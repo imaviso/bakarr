@@ -1,5 +1,7 @@
 import { Context, Effect, Layer, Schema } from "effect";
 
+import { bytesToHex } from "@/lib/hex.ts";
+
 export class TokenHasherError extends Schema.TaggedError<TokenHasherError>()("TokenHasherError", {
   cause: Schema.optional(Schema.Defect),
   message: Schema.String,
@@ -28,8 +30,6 @@ export const TokenHasherLive = Layer.succeed(TokenHasher, {
         }),
     });
 
-    return Array.from(new Uint8Array(hashBuffer))
-      .map((byte) => byte.toString(16).padStart(2, "0"))
-      .join("");
+    return bytesToHex(new Uint8Array(hashBuffer));
   }),
 });

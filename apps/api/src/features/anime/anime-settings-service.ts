@@ -79,7 +79,11 @@ const makeAnimeSettingsService = Effect.gen(function* () {
 
     const configuredLibraryPath = yield* getConfiguredLibraryPathEffect(db).pipe(
       Effect.mapError(
-        () => new AnimePathError({ message: "Configured library root is inaccessible" }),
+        (cause) =>
+          new AnimePathError({
+            cause,
+            message: "Configured library root is inaccessible",
+          }),
       ),
     );
 
@@ -88,22 +92,25 @@ const makeAnimeSettingsService = Effect.gen(function* () {
     yield* assertPathWithinLibraryRoot(fs, trimmedPath, canonicalLibraryRoot);
     yield* requireAnimeExistsEffect(db, id);
 
-    yield* fs
-      .mkdir(trimmedPath, { recursive: true })
-      .pipe(
-        Effect.mapError(
-          () =>
-            new AnimePathError({ message: "Failed to create or access the requested anime path" }),
-        ),
-      );
+    yield* fs.mkdir(trimmedPath, { recursive: true }).pipe(
+      Effect.mapError(
+        (cause) =>
+          new AnimePathError({
+            cause,
+            message: "Failed to create or access the requested anime path",
+          }),
+      ),
+    );
 
-    const canonicalPath = yield* fs
-      .realPath(trimmedPath)
-      .pipe(
-        Effect.mapError(
-          () => new AnimePathError({ message: "Path does not exist or is inaccessible" }),
-        ),
-      );
+    const canonicalPath = yield* fs.realPath(trimmedPath).pipe(
+      Effect.mapError(
+        (cause) =>
+          new AnimePathError({
+            cause,
+            message: "Path does not exist or is inaccessible",
+          }),
+      ),
+    );
 
     const existingRootOwner = yield* findAnimeRootFolderOwnerEffect(db, canonicalPath);
 

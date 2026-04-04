@@ -5,6 +5,7 @@ import type {
   QualityProfile,
   ReleaseProfileRule,
 } from "@packages/shared/index.ts";
+import { Either, Option } from "effect";
 
 import {
   cutoffQuality,
@@ -23,7 +24,7 @@ import type {
 export function decideDownloadAction(
   profile: QualityProfile,
   rules: readonly ReleaseProfileRule[],
-  current: RankedCurrentEpisode | null,
+  current: Option.Option<RankedCurrentEpisode>,
   release: RankedRelease,
   config: Config,
 ): DownloadAction {
@@ -48,15 +49,17 @@ export function decideDownloadAction(
 
   const score = calculateReleaseScore(release, rules, config);
 
-  if (!current || !current.downloaded) {
+  if (Option.isNone(current) || !current.value.downloaded) {
     return accept(release, releaseQuality, score);
   }
+
+  const currentEpisode = current.value;
 
   if (!profile.upgrade_allowed) {
     return reject("upgrades disabled");
   }
 
-  const currentAssessment = assessCurrentEpisode(current, rules, config);
+  const currentAssessment = assessCurrentEpisode(currentEpisode, rules, config);
   const cutoffRank = cutoffQuality(profile.cutoff).rank;
   const currentMeetsCutoff = currentAssessment.quality.rank <= cutoffRank;
   const seadexPreferred = profile.seadex_preferred && config.downloads.use_seadex;
@@ -88,17 +91,25 @@ export function decideDownloadAction(
 
 function evaluateSizeGuard(profile: QualityProfile, releaseSizeBytes: number) {
   const minSizeBytes = parseSizeLabelToBytes(profile.min_size);
-  const maxSizeBytes = parseSizeLabelToBytes(profile.max_size);
-
-  if (minSizeBytes._tag === "Left" || maxSizeBytes._tag === "Left") {
+  if (Either.isLeft(minSizeBytes)) {
     return { _tag: "Pass" as const };
   }
 
-  if (minSizeBytes.right !== null && releaseSizeBytes < minSizeBytes.right) {
+  const maxSizeBytes = parseSizeLabelToBytes(profile.max_size);
+  if (Either.isLeft(maxSizeBytes)) {
+    return { _tag: "Pass" as const };
+  }
+
+  const minBytesValue = minSizeBytes.right;
+  const maxBytesValue = maxSizeBytes.right;
+  const min = Option.isSome(minBytesValue) ? minBytesValue.value : null;
+  const max = Option.isSome(maxBytesValue) ? maxBytesValue.value : null;
+
+  if (min !== null && releaseSizeBytes < min) {
     return { _tag: "Reject" as const, reason: "size too small" };
   }
 
-  if (maxSizeBytes.right !== null && releaseSizeBytes > maxSizeBytes.right) {
+  if (max !== null && releaseSizeBytes > max) {
     return { _tag: "Reject" as const, reason: "size too big" };
   }
 
