@@ -3,7 +3,7 @@ import * as PlatformError from "@effect/platform/Error";
 import { Cause, Effect, Exit } from "effect";
 
 import { makeTestConfig } from "@/test/config-fixture.ts";
-import { commandName, makeCommandExecutorStub } from "@/test/stubs.ts";
+import { commandArgs, commandName, makeCommandExecutorStub } from "@/test/stubs.ts";
 import {
   DiskSpaceError,
   makeDiskSpaceInspector,
@@ -128,5 +128,31 @@ it.effect("getDiskSpaceSafe returns real values for valid path", () =>
     assert.deepStrictEqual(typeof result.total, "number");
     assert.deepStrictEqual(result.free, 768000);
     assert.deepStrictEqual(result.total, 1024000);
+  }),
+);
+
+it.effect("getDiskSpaceSafe falls back to an existing parent path", () =>
+  Effect.gen(function* () {
+    let observedPath: string | undefined;
+    const commandExecutorStub = makeCommandExecutorStub((command) => {
+      const name = commandName(command);
+      const args = commandArgs(command);
+
+      if (name !== "df") {
+        return Effect.die(new Error(`unexpected command: ${name ?? "unknown"}`));
+      }
+
+      observedPath = args[1];
+      return Effect.succeed(
+        "Filesystem 1024-blocks Used Available Capacity Mounted on\n/dev/test 1000 250 750 25% /tmp",
+      );
+    });
+
+    const missingPath = "/tmp/bakarr-disk-space-missing/probe";
+    const result = yield* makeDiskSpaceInspector(commandExecutorStub).getDiskSpaceSafe(missingPath);
+
+    assert.deepStrictEqual(result.free, 768000);
+    assert.deepStrictEqual(result.total, 1024000);
+    assert.deepStrictEqual(observedPath, "/tmp");
   }),
 );

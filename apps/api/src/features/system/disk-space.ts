@@ -1,4 +1,6 @@
 import { Command, CommandExecutor } from "@effect/platform";
+import { existsSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import { Context, Effect, Layer, Schema } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
@@ -73,10 +75,11 @@ export function makeDiskSpaceInspector(
   commandExecutor: CommandExecutor.CommandExecutor,
 ): DiskSpaceInspectorShape {
   const getDiskSpace = Effect.fn("DiskSpaceInspector.getDiskSpace")(function* (path: string) {
-    const output = yield* runDfCommand(commandExecutor, path);
+    const probePath = resolveDiskProbePath(path);
+    const output = yield* runDfCommand(commandExecutor, probePath);
 
-    return yield* mapDfOutputToDiskSpaceEffect(path, output).pipe(
-      Effect.mapError(toDiskSpaceError(`Failed to parse disk space for ${path}`)),
+    return yield* mapDfOutputToDiskSpaceEffect(probePath, output).pipe(
+      Effect.mapError(toDiskSpaceError(`Failed to parse disk space for ${probePath}`)),
     );
   });
 
@@ -241,4 +244,23 @@ function toNonNegativeNumber(value: bigint | number, message: string) {
 function toDiskSpaceError(message: string) {
   return (cause: unknown) =>
     cause instanceof DiskSpaceError ? cause : new DiskSpaceError({ cause, message });
+}
+
+function resolveDiskProbePath(path: string): string {
+  const trimmedPath = path.trim();
+  if (trimmedPath.length === 0) {
+    return ".";
+  }
+
+  let candidate = resolve(trimmedPath);
+
+  while (!existsSync(candidate)) {
+    const parent = dirname(candidate);
+    if (parent === candidate) {
+      return ".";
+    }
+    candidate = parent;
+  }
+
+  return candidate;
 }
