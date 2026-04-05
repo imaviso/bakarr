@@ -40,6 +40,19 @@ export class RssTransport extends Context.Tag("@bakarr/api/RssTransport")<
   RssTransportShape
 >() {}
 
+interface RssTransportRequestConfig {
+  readonly headers: Record<string, string>;
+  readonly hostname: string;
+  readonly lookup:
+    | ((...lookupArgs: unknown[]) => void)
+    | undefined;
+  readonly method: "GET";
+  readonly path: string;
+  readonly port: number | undefined;
+  readonly protocol: string;
+  readonly servername: string | undefined;
+}
+
 export const RssTransportLive = Layer.effect(
   RssTransport,
   Effect.sync(() => {
@@ -72,54 +85,21 @@ async function executePinnedHttpRequest(input: {
   readonly signal?: AbortSignal;
   readonly target: PinnedRequestTarget;
 }): Promise<RssTransportResponse> {
-  const requestImpl = input.target.parsedUrl.protocol === "https:" ? httpsRequest : httpRequest;
-  const pinnedTarget = input.target._tag === "Pinned" ? input.target : undefined;
-  const lookup = pinnedTarget
-    ? (...lookupArgs: unknown[]) => {
-        const callback = lookupArgs[lookupArgs.length - 1];
-
-        if (typeof callback !== "function") {
-          return;
-        }
-
-        const options = lookupArgs[1];
-        const shouldReturnAll =
-          typeof options === "object" &&
-          options !== null &&
-          "all" in options &&
-          options.all === true;
-
-        if (shouldReturnAll) {
-          callback(null, [
-            {
-              address: pinnedTarget.pinnedAddress,
-              family: pinnedTarget.pinnedAddressFamily,
-            },
-          ]);
-          return;
-        }
-
-        callback(null, pinnedTarget.pinnedAddress, pinnedTarget.pinnedAddressFamily);
-      }
-    : undefined;
+  const parsedUrl = input.target.parsedUrl;
+  const requestImpl = parsedUrl.protocol === "https:" ? httpsRequest : httpRequest;
+  const requestConfig = buildRssTransportRequestConfig(input.target);
 
   return await new Promise<RssTransportResponse>((resolve, reject) => {
     const request = requestImpl(
       {
-        headers: {
-          Accept: "application/rss+xml, application/xml, text/xml",
-          "User-Agent": "bakarr/1.0",
-        },
-        hostname: input.target.parsedUrl.hostname,
-        lookup,
-        method: "GET",
-        path: `${input.target.parsedUrl.pathname}${input.target.parsedUrl.search}`,
-        port: input.target.parsedUrl.port ? Number(input.target.parsedUrl.port) : undefined,
-        protocol: input.target.parsedUrl.protocol,
-        servername:
-          input.target.parsedUrl.protocol === "https:"
-            ? input.target.parsedUrl.hostname
-            : undefined,
+        headers: requestConfig.headers,
+        hostname: requestConfig.hostname,
+        lookup: requestConfig.lookup,
+        method: requestConfig.method,
+        path: requestConfig.path,
+        port: requestConfig.port,
+        protocol: requestConfig.protocol,
+        servername: requestConfig.servername,
       },
       (response) => {
         const chunks: Uint8Array[] = [];
@@ -205,6 +185,56 @@ async function executePinnedHttpRequest(input: {
     }
     request.end();
   });
+}
+
+function buildRssTransportRequestConfig(target: PinnedRequestTarget): RssTransportRequestConfig {
+  const parsedUrl = target.parsedUrl;
+  const pinnedTarget = target._tag === "Pinned" ? target : undefined;
+  const isHttps = parsedUrl.protocol === "https:";
+
+  return {
+    headers: {
+      Accept: "application/rss+xml, application/xml, text/xml",
+      "User-Agent": "bakarr/1.0",
+    },
+    hostname: parsedUrl.hostname,
+    lookup: pinnedTarget && !isHttps ? makePinnedLookup(pinnedTarget) : undefined,
+    method: "GET",
+    path: `${parsedUrl.pathname}${parsedUrl.search}`,
+    port: parsedUrl.port ? Number(parsedUrl.port) : undefined,
+    protocol: parsedUrl.protocol,
+    servername: isHttps ? parsedUrl.hostname : undefined,
+  };
+}
+
+function makePinnedLookup(pinnedTarget: Extract<PinnedRequestTarget, { _tag: "Pinned" }>) {
+  return (...lookupArgs: unknown[]) => {
+    const callback = lookupArgs[lookupArgs.length - 1];
+
+    if (typeof callback !== "function") {
+      return;
+    }
+
+    const options = lookupArgs[1];
+    const shouldReturnAll =
+      typeof options === "object" && options !== null && "all" in options && options.all === true;
+
+    if (shouldReturnAll) {
+      callback(null, [
+        {
+          address: pinnedTarget.pinnedAddress,
+          family: pinnedTarget.pinnedAddressFamily,
+        },
+      ]);
+      return;
+    }
+
+    callback(null, pinnedTarget.pinnedAddress, pinnedTarget.pinnedAddressFamily);
+  };
+}
+
+export function buildRssTransportRequestConfigForTest(target: PinnedRequestTarget) {
+  return buildRssTransportRequestConfig(target);
 }
 
 function normalizeNodeHeaders(headers: Record<string, string | string[] | undefined>) {

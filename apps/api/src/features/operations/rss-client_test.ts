@@ -6,6 +6,7 @@ import { DnsLookupError, DnsResolver } from "@/lib/dns-resolver.ts";
 import { ExternalCallError } from "@/lib/effect-retry.ts";
 import { RssClient, RssClientLive } from "@/features/operations/rss-client.ts";
 import {
+  buildRssTransportRequestConfigForTest,
   formatRssTransportFailureMessage,
   RssTransport,
   RssTransportPayloadTooLargeError,
@@ -460,6 +461,19 @@ it("formatRssTransportFailureMessage includes TLS mismatch detail", () => {
 
   assert.match(message, /ERR_TLS_CERT_ALTNAME_INVALID/);
   assert.match(message, /186\.2\.163\.20/);
+});
+
+it("RssTransport does not pin DNS lookup for HTTPS targets", () => {
+  const config = buildRssTransportRequestConfigForTest({
+    _tag: "Pinned",
+    parsedUrl: new URL("https://nyaa.si/?page=rss&q=Akane-banashi&c=1_0&f=0"),
+    pinnedAddress: "186.2.163.20",
+    pinnedAddressFamily: 4,
+  });
+
+  assert.deepStrictEqual(config.hostname, "nyaa.si");
+  assert.deepStrictEqual(config.lookup, undefined);
+  assert.deepStrictEqual(config.servername, "nyaa.si");
 });
 
 it.effect("RssClient fails with a typed parse error for invalid RSS payloads", () =>
