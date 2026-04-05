@@ -48,6 +48,47 @@ bun run --cwd apps/web check
 bun run --cwd apps/web lint
 ```
 
+## Nix
+
+This repo now exposes a Bun-based package and a NixOS module from `flake.nix`.
+
+Build and run locally:
+
+```sh
+nix build .#bakarr
+nix run .#bakarr-api
+```
+
+Inspect flake outputs:
+
+```sh
+nix flake show
+```
+
+### NixOS service
+
+Import the module and enable the service:
+
+```nix
+{
+  imports = [ inputs.bakarr.nixosModules.bakarr ];
+
+  services.bakarr = {
+    enable = true;
+    port = 8000;
+    openFirewall = true;
+
+    environment = {
+      BAKARR_BOOTSTRAP_USERNAME = "admin";
+      SESSION_COOKIE_SECURE = false;
+    };
+  };
+}
+```
+
+The systemd service stores state under `/var/lib/bakarr` by default and sets
+`DATABASE_FILE=/var/lib/bakarr/bakarr.sqlite`.
+
 ## Notes
 
 - API uses SQLite/Drizzle migrations under `apps/api/drizzle`
