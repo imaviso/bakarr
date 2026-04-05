@@ -3,7 +3,8 @@
   stdenvNoCC,
   bun,
   nodejs,
-  makeBinaryWrapper,
+  ffmpeg,
+  makeWrapper,
   writableTmpDirAsHomeHook,
   src ? ../.,
 }:
@@ -81,7 +82,7 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   nativeBuildInputs = [
     bun
     nodejs
-    makeBinaryWrapper
+    makeWrapper
     writableTmpDirAsHomeHook
   ];
 
@@ -122,6 +123,8 @@ stdenvNoCC.mkDerivation (finalAttrs: {
 
     mkdir -p $out/bin
     makeWrapper ${lib.getExe bun} $out/bin/bakarr-api \
+      --prefix PATH : ${lib.makeBinPath [ ffmpeg ]} \
+      --run 'if [ -z "$DATABASE_FILE" ]; then if [ -n "$XDG_STATE_HOME" ]; then state_home="$XDG_STATE_HOME"; elif [ -n "$HOME" ]; then state_home="$HOME/.local/state"; else state_home="/tmp"; fi; export DATABASE_FILE="$state_home/bakarr/bakarr.sqlite"; fi; mkdir -p "$(dirname "$DATABASE_FILE")"' \
       --add-flags "run $out/share/bakarr/apps/api/main.ts"
 
     runHook postInstall
