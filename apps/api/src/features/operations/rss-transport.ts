@@ -74,6 +74,34 @@ async function executePinnedHttpRequest(input: {
 }): Promise<RssTransportResponse> {
   const requestImpl = input.target.parsedUrl.protocol === "https:" ? httpsRequest : httpRequest;
   const pinnedTarget = input.target._tag === "Pinned" ? input.target : undefined;
+  const lookup = pinnedTarget
+    ? (...lookupArgs: unknown[]) => {
+        const callback = lookupArgs[lookupArgs.length - 1];
+
+        if (typeof callback !== "function") {
+          return;
+        }
+
+        const options = lookupArgs[1];
+        const shouldReturnAll =
+          typeof options === "object" &&
+          options !== null &&
+          "all" in options &&
+          options.all === true;
+
+        if (shouldReturnAll) {
+          callback(null, [
+            {
+              address: pinnedTarget.pinnedAddress,
+              family: pinnedTarget.pinnedAddressFamily,
+            },
+          ]);
+          return;
+        }
+
+        callback(null, pinnedTarget.pinnedAddress, pinnedTarget.pinnedAddressFamily);
+      }
+    : undefined;
 
   return await new Promise<RssTransportResponse>((resolve, reject) => {
     const request = requestImpl(
@@ -83,38 +111,15 @@ async function executePinnedHttpRequest(input: {
           "User-Agent": "bakarr/1.0",
         },
         hostname: input.target.parsedUrl.hostname,
-        lookup: pinnedTarget
-          ? (...lookupArgs) => {
-              const callback = lookupArgs[lookupArgs.length - 1];
-
-              if (typeof callback !== "function") {
-                return;
-              }
-
-              const options = lookupArgs[1];
-              const shouldReturnAll =
-                typeof options === "object" &&
-                options !== null &&
-                "all" in options &&
-                options.all === true;
-
-              if (shouldReturnAll) {
-                callback(null, [
-                  {
-                    address: pinnedTarget.pinnedAddress,
-                    family: pinnedTarget.pinnedAddressFamily,
-                  },
-                ]);
-                return;
-              }
-
-              callback(null, pinnedTarget.pinnedAddress, pinnedTarget.pinnedAddressFamily);
-            }
-          : undefined,
+        lookup,
         method: "GET",
         path: `${input.target.parsedUrl.pathname}${input.target.parsedUrl.search}`,
         port: input.target.parsedUrl.port ? Number(input.target.parsedUrl.port) : undefined,
         protocol: input.target.parsedUrl.protocol,
+        servername:
+          input.target.parsedUrl.protocol === "https:"
+            ? input.target.parsedUrl.hostname
+            : undefined,
       },
       (response) => {
         const chunks: Uint8Array[] = [];

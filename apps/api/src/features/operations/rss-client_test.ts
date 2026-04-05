@@ -446,6 +446,22 @@ it("formatRssTransportFailureMessage includes useful network failure details", (
   assert.match(message, /feeds\.example/);
 });
 
+it("formatRssTransportFailureMessage includes TLS mismatch detail", () => {
+  const cause = Object.assign(
+    new Error(
+      'ERR_TLS_CERT_ALTNAME_INVALID fetching "https://186.2.163.20/?page=rss&q=Akane-banashi&c=1_0&f=0"',
+    ),
+    {
+      code: "ERR_TLS_CERT_ALTNAME_INVALID",
+    },
+  );
+
+  const message = formatRssTransportFailureMessage(cause);
+
+  assert.match(message, /ERR_TLS_CERT_ALTNAME_INVALID/);
+  assert.match(message, /186\.2\.163\.20/);
+});
+
 it.effect("RssClient fails with a typed parse error for invalid RSS payloads", () =>
   Effect.gen(function* () {
     const exit = yield* Effect.exit(
