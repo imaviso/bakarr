@@ -77,8 +77,13 @@ export const buildRenamePreview = Effect.fn("OperationsService.buildRenamePrevie
 
   const results: RenamePreviewItem[] = [];
   for (const [filePath, groupRows] of fileGroups) {
-    const episodeNumbers = groupRows.map((r) => r.number).sort((a, b) => a - b);
+    const episodeNumbers = groupRows.map((r) => r.number).toSorted((a, b) => a - b);
     const [primaryEpisode] = episodeNumbers;
+
+    if (primaryEpisode === undefined) {
+      continue;
+    }
+
     const extension = filePath.includes(".") ? filePath.slice(filePath.lastIndexOf(".")) : ".mkv";
     const plan = buildEpisodeFilenamePlan({
       animeRow,
@@ -175,8 +180,8 @@ export function analyzeScannedFile(
       audio_channels: metadata.audio_channels,
       audio_codec: metadata.audio_codec,
       coverage_summary: summarizeEpisodeCoverage({
-        airDate: metadata.air_date,
-        episodeNumbers,
+        ...(metadata.air_date === undefined ? {} : { airDate: metadata.air_date }),
+        ...(episodeNumbers.length === 0 ? {} : { episodeNumbers }),
       }),
       episode_number: primaryEpisode ?? 0,
       episode_numbers: episodeNumbers.length > 0 ? episodeNumbers : undefined,
@@ -185,7 +190,7 @@ export function analyzeScannedFile(
       group,
       match_reason: describeScannedFileMatch({
         needsManualMapping,
-        sourceIdentity: sourceIdentityDto,
+        ...(sourceIdentityDto === undefined ? {} : { sourceIdentity: sourceIdentityDto }),
       }),
       parsed_title: parsed.parsed_title,
       quality: metadata.quality,

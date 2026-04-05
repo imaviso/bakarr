@@ -18,6 +18,40 @@ import {
   shouldRemoveTorrentOnImport,
 } from "@/features/operations/download-support.ts";
 
+function makeAnimeRow(overrides: Partial<typeof anime.$inferSelect>): typeof anime.$inferSelect {
+  return {
+    addedAt: "2024-01-01T00:00:00.000Z",
+    bannerImage: null,
+    coverImage: null,
+    description: null,
+    endDate: null,
+    endYear: null,
+    episodeCount: 12,
+    format: "TV",
+    genres: "[]",
+    id: 1,
+    malId: null,
+    monitored: true,
+    nextAiringAt: null,
+    nextAiringEpisode: null,
+    profileName: "Default",
+    recommendedAnime: null,
+    releaseProfileIds: "[]",
+    relatedAnime: null,
+    rootFolder: "/library/Anime",
+    score: null,
+    startDate: null,
+    startYear: null,
+    status: "RELEASING",
+    studios: "[]",
+    synonyms: null,
+    titleEnglish: null,
+    titleNative: null,
+    titleRomaji: "Anime",
+    ...overrides,
+  };
+}
+
 const testRandomUuid = () => Effect.succeed("test-uuid-0000");
 
 it("download support helpers use config values and defaults", () => {
@@ -65,10 +99,10 @@ it.scoped("importDownloadedFile keeps existing destination when staging copy fai
       const exit = yield* Effect.exit(
         importDownloadedFile(
           failingFs,
-          {
+          makeAnimeRow({
             rootFolder: animeRoot,
             titleRomaji: "Naruto",
-          } as typeof anime.$inferSelect,
+          }),
           1,
           sourcePath,
           "copy",
@@ -102,10 +136,10 @@ it.scoped("importDownloadedFile surfaces stat access errors instead of treating 
       const exit = yield* Effect.exit(
         importDownloadedFile(
           accessErrorFs,
-          {
+          makeAnimeRow({
             rootFolder: animeRoot,
             titleRomaji: "Naruto",
-          } as typeof anime.$inferSelect,
+          }),
           1,
           sourcePath,
           "copy",
@@ -154,10 +188,10 @@ it.scoped(
         const exit = yield* Effect.exit(
           importDownloadedFile(
             crossFilesystemFs,
-            {
+            makeAnimeRow({
               rootFolder: animeRoot,
               titleRomaji: "Naruto",
-            } as typeof anime.$inferSelect,
+            }),
             1,
             sourcePath,
             "move",
@@ -198,12 +232,12 @@ it.scoped(
 
         const destination = yield* importDownloadedFile(
           fs,
-          {
+          makeAnimeRow({
             rootFolder: animeRoot,
             startDate: "2025-04-03",
             startYear: 2025,
             titleRomaji: "Rock Is a Lady's Modesty",
-          } as typeof anime.$inferSelect,
+          }),
           1,
           sourcePath,
           "copy",
@@ -229,7 +263,7 @@ it.scoped("importDownloadedFile respects preferred title when building destinati
 
       const destination = yield* importDownloadedFile(
         fs,
-        {
+        makeAnimeRow({
           format: "MOVIE",
           rootFolder: animeRoot,
           startDate: "2016-08-26",
@@ -237,7 +271,7 @@ it.scoped("importDownloadedFile respects preferred title when building destinati
           titleEnglish: "Your Name.",
           titleNative: "君の名は。",
           titleRomaji: "Kimi no Na wa.",
-        } as typeof anime.$inferSelect,
+        }),
         1,
         sourcePath,
         "copy",
@@ -264,13 +298,13 @@ it.scoped("importDownloadedFile uses episode DB metadata and fallback naming pla
 
       const destination = yield* importDownloadedFile(
         fs,
-        {
+        makeAnimeRow({
           format: "TV",
           rootFolder: animeRoot,
           startDate: "2025-01-01",
           startYear: 2025,
           titleRomaji: "Show",
-        } as typeof anime.$inferSelect,
+        }),
         1,
         sourcePath,
         "copy",
@@ -298,13 +332,13 @@ it.scoped("importDownloadedFile reuses stored provenance when source path is wea
 
       const destination = yield* importDownloadedFile(
         fs,
-        {
+        makeAnimeRow({
           format: "TV",
           rootFolder: animeRoot,
           startDate: "2025-01-01",
           startYear: 2025,
           titleRomaji: "Show",
-        } as typeof anime.$inferSelect,
+        }),
         1,
         sourcePath,
         "copy",
@@ -340,13 +374,13 @@ it.scoped("importDownloadedFile uses local media metadata when heuristics are mi
 
       const destination = yield* importDownloadedFile(
         fs,
-        {
+        makeAnimeRow({
           format: "TV",
           rootFolder: animeRoot,
           startDate: "2025-01-01",
           startYear: 2025,
           titleRomaji: "Show",
-        } as typeof anime.$inferSelect,
+        }),
         1,
         sourcePath,
         "copy",

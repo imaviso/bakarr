@@ -32,7 +32,7 @@ export function buildEpisodeFileMappingIndex(
       const episodeNumbers = new Set([...(existing.episode_numbers ?? []), row.episode_number]);
       byPath.set(row.file_path, {
         ...existing,
-        episode_numbers: [...episodeNumbers].sort((left, right) => left - right),
+        episode_numbers: [...episodeNumbers].toSorted((left, right) => left - right),
       });
       continue;
     }
@@ -51,7 +51,7 @@ export function buildEpisodeFileMappingIndex(
 export function buildScannedFileLibrarySignals(input: {
   file: Pick<ScannedFile, "episode_number" | "episode_numbers" | "source_path">;
   mappingIndex: EpisodeFileMappingIndex;
-  targetAnime?: { id: number; title: string };
+  targetAnime?: { id: number; title: string } | undefined;
 }) {
   const existing_mapping = input.mappingIndex.byPath.get(input.file.source_path);
   const episodeNumbers = toEpisodeNumbers(input.file);
@@ -78,7 +78,7 @@ export function buildScannedFileLibrarySignals(input: {
   const episode_conflict: FileEpisodeMapping = {
     anime_id: targetAnime.id,
     anime_title: targetAnime.title,
-    episode_numbers: [...new Set(conflicts.map((row) => row.episode_number))].sort(
+    episode_numbers: [...new Set(conflicts.map((row) => row.episode_number))].toSorted(
       (left, right) => left - right,
     ),
     file_path: conflicts[0]?.file_path ?? undefined,

@@ -19,7 +19,7 @@ export const loadUnmappedFolderSnapshot = Effect.fn("OperationsService.loadUnmap
   function* (input: {
     db: AppDatabase;
     fs: FileSystemShape;
-    nowIso?: () => Effect.Effect<string>;
+    nowIso?: () => Effect.Effect<string> | undefined;
     tryDatabasePromise: TryDatabasePromise;
   }) {
     const root = yield* getConfigLibraryPath(input.db);

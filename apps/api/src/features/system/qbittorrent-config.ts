@@ -74,11 +74,11 @@ function isPrivateQBitHost(hostname: string): boolean {
   try {
     const parsed = ipaddr.parse(normalized);
 
-    if (parsed.kind() === "ipv4") {
-      return isPrivateIpv4Address(parsed as ipaddr.IPv4);
+    if (parsed instanceof ipaddr.IPv4) {
+      return isPrivateIpv4Address(parsed);
     }
 
-    return isPrivateIpv6Address(parsed as ipaddr.IPv6);
+    return isPrivateIpv6Address(parsed);
   } catch {
     return false;
   }

@@ -48,6 +48,9 @@ const QUALITY_DEFS: ReadonlyArray<Quality & { readonly sourceKind: QualitySource
   makeQuality(QUALITY_ID.SDTV_480P, "SDTV 480p", "sdtv", 480, 15, "SDTV"),
   makeQuality(QUALITY_ID.UNKNOWN, "Unknown", "unknown", 0, 99, "Unknown"),
 ];
+const UNKNOWN_QUALITY =
+  QUALITY_DEFS[QUALITY_DEFS.length - 1] ?? makeQuality(99, "Unknown", "unknown", 0, 99, "Unknown");
+const BLURAY_1080P = QUALITY_DEFS[5] ?? makeQuality(3, "BluRay 1080p", "bluray", 1080, 6, "BluRay");
 
 export function parseResolution(title: string): string | undefined {
   return parseResolutionLabel(title);
@@ -59,7 +62,7 @@ export function parseQualityFromTitle(title: string): Quality {
   const source = inferSource(lower);
 
   if (!parsedResolution && source === "Unknown") {
-    return stripSourceKind(QUALITY_DEFS[QUALITY_DEFS.length - 1]);
+    return stripSourceKind(UNKNOWN_QUALITY);
   }
 
   const resolution = parsedResolution ? Number(parsedResolution.replace("p", "")) : 1080;
@@ -72,7 +75,7 @@ export function parseQualityFromTitle(title: string): Quality {
     return stripSourceKind(exact);
   }
 
-  return stripSourceKind(QUALITY_DEFS[QUALITY_DEFS.length - 1]);
+  return stripSourceKind(UNKNOWN_QUALITY);
 }
 
 export function cutoffQuality(label: string): Quality {
@@ -86,7 +89,7 @@ export function cutoffQuality(label: string): Quality {
   const exact = QUALITY_DEFS.find(
     (quality) => quality.resolution === resolution && quality.sourceKind === "BluRay",
   );
-  return stripSourceKind(exact ?? QUALITY_DEFS[5]);
+  return stripSourceKind(exact ?? BLURAY_1080P);
 }
 
 export function hasSourceMarkers(title: string): boolean {

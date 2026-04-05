@@ -143,15 +143,17 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
           continue;
         }
 
+        const decisionReason =
+          best.action.Upgrade?.reason ??
+          (best.action.Accept
+            ? `Accepted (${best.action.Accept.quality.name}, score ${best.action.Accept.score})`
+            : undefined);
+
         const queueResult = yield* queueService.queueReleaseIfEligible({
           action: best.action,
           animeRow: row.anime,
           contextMessage: "Failed to queue missing-episode search",
-          decisionReason:
-            best.action.Upgrade?.reason ??
-            (best.action.Accept
-              ? `Accepted (${best.action.Accept.quality.name}, score ${best.action.Accept.score})`
-              : undefined),
+          ...(decisionReason === undefined ? {} : { decisionReason }),
           episodeNumber: row.episodes.number,
           eventMessage: `Queued ${best.item.title}`,
           eventType: "download.search_missing.queued",

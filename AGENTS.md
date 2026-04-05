@@ -27,5 +27,5 @@ framework bridges that keep old patterns alive.
 
 - root: `bun run dev`, `bun run check`, `bun run test`, `bun run build`,
   `bun run lint`
-- api: `bun run check`, `bun run lint`, `bun run test`
-- web: `bun run check`, `bun run build`, `bun run lint`
+- api: `bun run check`, `bun run test`
+- web: `bun run check`, `bun run build`

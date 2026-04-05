@@ -446,16 +446,20 @@ function makeAniListStub(metadata: {
   format: string;
   genres?: string[];
   id: number;
-  recommendedAnime?: Array<{
-    id: number;
-    relation_type?: string;
-    title: { english?: string; romaji?: string; native?: string };
-  }>;
-  relatedAnime?: Array<{
-    id: number;
-    relation_type?: string;
-    title: { english?: string; romaji?: string; native?: string };
-  }>;
+  recommendedAnime?:
+    | Array<{
+        id: number;
+        relation_type?: string;
+        title: { english?: string; romaji?: string; native?: string };
+      }>
+    | undefined;
+  relatedAnime?:
+    | Array<{
+        id: number;
+        relation_type?: string;
+        title: { english?: string; romaji?: string; native?: string };
+      }>
+    | undefined;
   startDate?: string;
   startYear?: number;
   status: string;
@@ -527,19 +531,25 @@ it.scoped("listAnimeEffect respects limit and offset", () =>
         }
 
         const page1 = yield* listAnimeEffect(appDb, { limit: 3, offset: 0 });
+        const page1First = page1.items[0];
+        assert(page1First);
         assert.deepStrictEqual(page1.items.length, 3);
-        assert.deepStrictEqual(page1.items[0].id, 1);
+        assert.deepStrictEqual(page1First.id, 1);
         assert.deepStrictEqual(page1.has_more, true);
         assert.deepStrictEqual(page1.total, 10);
 
         const page2 = yield* listAnimeEffect(appDb, { limit: 3, offset: 3 });
+        const page2First = page2.items[0];
+        assert(page2First);
         assert.deepStrictEqual(page2.items.length, 3);
-        assert.deepStrictEqual(page2.items[0].id, 4);
+        assert.deepStrictEqual(page2First.id, 4);
         assert.deepStrictEqual(page2.has_more, true);
 
         const page4 = yield* listAnimeEffect(appDb, { limit: 3, offset: 9 });
+        const page4First = page4.items[0];
+        assert(page4First);
         assert.deepStrictEqual(page4.items.length, 1);
-        assert.deepStrictEqual(page4.items[0].id, 10);
+        assert.deepStrictEqual(page4First.id, 10);
         assert.deepStrictEqual(page4.has_more, false);
       }),
     schema,
@@ -661,8 +671,10 @@ it.scoped("listAnimeEffect aggregates episode download counts", () =>
         );
 
         const result = yield* listAnimeEffect(appDb);
+        const firstItem = result.items[0];
+        assert(firstItem);
         assert.deepStrictEqual(result.items.length, 1);
-        assert.deepStrictEqual(result.items[0].progress.downloaded, 2);
+        assert.deepStrictEqual(firstItem.progress.downloaded, 2);
       }),
     schema,
   }),
@@ -709,12 +721,16 @@ it.scoped("listAnimeEffect filters by monitored status", () =>
         assert.deepStrictEqual(allResults.items.length, 2);
 
         const monitoredOnly = yield* listAnimeEffect(appDb, { monitored: true });
+        const monitoredFirst = monitoredOnly.items[0];
+        assert(monitoredFirst);
         assert.deepStrictEqual(monitoredOnly.total, 1);
-        assert.deepStrictEqual(monitoredOnly.items[0].id, 1);
+        assert.deepStrictEqual(monitoredFirst.id, 1);
 
         const unmonitoredOnly = yield* listAnimeEffect(appDb, { monitored: false });
+        const unmonitoredFirst = unmonitoredOnly.items[0];
+        assert(unmonitoredFirst);
         assert.deepStrictEqual(unmonitoredOnly.total, 1);
-        assert.deepStrictEqual(unmonitoredOnly.items[0].id, 2);
+        assert.deepStrictEqual(unmonitoredFirst.id, 2);
       }),
     schema,
   }),
@@ -754,7 +770,8 @@ it.scoped("listAnimeEffect includes progress and metadata fields needed by list 
         const result = yield* listAnimeEffect(appDb);
         assert.deepStrictEqual(result.items.length, 1);
 
-        const [anime] = result.items;
+        const anime = result.items[0];
+        assert(anime);
         assert.deepStrictEqual(anime.progress.downloaded, 1);
         assert.deepStrictEqual(anime.progress.total, 3);
         assert.deepStrictEqual(anime.progress.downloaded_percent, 33);

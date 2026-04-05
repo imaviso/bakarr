@@ -96,7 +96,7 @@ const makeAuthBootstrapService = Effect.gen(function* () {
 
     yield* announceBootstrapCredentials({
       username: config.bootstrapUsername,
-      password: config.bootstrapPasswordIsEnvOverride ? undefined : bootstrapPassword,
+      ...(config.bootstrapPasswordIsEnvOverride ? {} : { password: bootstrapPassword }),
     });
   });
 

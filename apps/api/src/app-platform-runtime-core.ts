@@ -15,7 +15,7 @@ import { RuntimeLoggerLayer } from "@/lib/logging.ts";
 import { TokenHasherLive } from "@/security/token-hasher.ts";
 
 export interface AppPlatformRuntimeOptions {
-  readonly commandExecutorLayer?: Layer.Layer<CommandExecutor.CommandExecutor, never, never>;
+  readonly commandExecutorLayer?: Layer.Layer<CommandExecutor.CommandExecutor>;
   readonly configProvider?: ConfigProvider.ConfigProvider;
 }
 

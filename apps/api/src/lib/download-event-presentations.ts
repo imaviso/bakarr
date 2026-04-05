@@ -11,9 +11,9 @@ import { tryDatabasePromise } from "@/lib/effect-db.ts";
 const DownloadEventMetadataJsonSchema = Schema.parseJson(DownloadEventMetadataSchema);
 
 export interface DownloadEventPresentationContext {
-  readonly animeImage?: string;
-  readonly animeTitle?: string;
-  readonly torrentName?: string;
+  readonly animeImage?: string | undefined;
+  readonly animeTitle?: string | undefined;
+  readonly torrentName?: string | undefined;
 }
 
 export interface DownloadEventRowLike {
@@ -146,7 +146,7 @@ const loadRowsByChunk = Effect.fn("DownloadEventPresentations.loadRowsByChunk")(
         concurrency: CHUNK_LOAD_CONCURRENCY,
       });
 
-      return chunkResults.flatMap((chunk) => [...chunk]);
+      return chunkResults.flatMap((chunk) => chunk);
     }),
 );
 

@@ -89,6 +89,7 @@ it("toNyaaSearchResult maps daily releases to parsed air date", () => {
 
 it("fallbackReleases builds a trusted placeholder release from title", () => {
   const [release] = fallbackReleases("naruto", "Naruto Shippuden");
+  assert(release);
 
   assert.deepStrictEqual(release.group, "SubsPlease");
   assert.deepStrictEqual(release.isSeaDex, false);

@@ -112,7 +112,6 @@ it("inferCoveredEpisodeNumbers prefers explicit ranges and falls back to missing
       isBatch: true,
       missingEpisodes: [3, 4, 5, 6],
       requestedEpisode: 3,
-      totalEpisodes: undefined,
     }),
     [3, 4, 5],
   );
@@ -123,7 +122,6 @@ it("inferCoveredEpisodeNumbers prefers explicit ranges and falls back to missing
       isBatch: true,
       missingEpisodes: [5, 6, 7],
       requestedEpisode: 5,
-      totalEpisodes: undefined,
     }),
     [5, 6, 7],
   );
@@ -134,7 +132,6 @@ it("inferCoveredEpisodeNumbers prefers explicit ranges and falls back to missing
       isBatch: true,
       missingEpisodes: [5, 6, 8, 9],
       requestedEpisode: 5,
-      totalEpisodes: undefined,
     }),
     [5, 6],
   );
@@ -145,7 +142,6 @@ it("inferCoveredEpisodeNumbers prefers explicit ranges and falls back to missing
       isBatch: false,
       missingEpisodes: [5, 6, 7],
       requestedEpisode: 5,
-      totalEpisodes: undefined,
     }),
     [5],
   );

@@ -21,6 +21,10 @@ const TOKEN_FIELD_MAP = {
 
 type NamingToken = keyof typeof TOKEN_FIELD_MAP;
 
+function isNamingToken(value: string): value is NamingToken {
+  return value in TOKEN_FIELD_MAP;
+}
+
 const PROBEABLE_NAMING_FIELDS = new Set<string>([
   "audio_channels",
   "audio_codec",
@@ -39,9 +43,9 @@ export function inspectNamingFormat(format: string): readonly NamingToken[] {
   const tokens = new Set<NamingToken>();
 
   for (const match of format.matchAll(/\{([a-z_]+)(?::\d+)?\}/g)) {
-    const token = match[1] as NamingToken;
+    const token = match[1];
 
-    if (token in TOKEN_FIELD_MAP) {
+    if (token && isNamingToken(token)) {
       tokens.add(token);
     }
   }

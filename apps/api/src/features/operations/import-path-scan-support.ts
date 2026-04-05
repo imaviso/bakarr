@@ -49,11 +49,11 @@ export const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathE
   }) {
     const discovery = yield* discoverImportScanFiles({
       fs: input.fs,
-      limit: input.limit,
+      ...(input.limit === undefined ? {} : { limit: input.limit }),
       path: input.path,
     });
     const animeRows = yield* loadImportScanAnimeRows({
-      animeId: input.animeId,
+      ...(input.animeId === undefined ? {} : { animeId: input.animeId }),
       db: input.db,
       tryDatabasePromise: input.tryDatabasePromise,
     });
@@ -172,7 +172,14 @@ export const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathE
         });
         const namingPlan = buildScannedFileNamingPlan({
           animeRow: namingAnimeRow,
-          episodeRows: selectEpisodeRowsForFile(file, episodeRowsByAnimeEpisode, targetAnime?.id),
+          ...(() => {
+            const episodeRows = selectEpisodeRowsForFile(
+              file,
+              episodeRowsByAnimeEpisode,
+              targetAnime?.id,
+            );
+            return episodeRows === undefined ? {} : { episodeRows };
+          })(),
           file,
           namingSettings,
         });
@@ -184,8 +191,10 @@ export const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathE
           coverage_summary:
             file.coverage_summary ??
             summarizeEpisodeCoverage({
-              airDate: file.air_date,
-              episodeNumbers: file.episode_numbers,
+              ...(file.air_date === undefined ? {} : { airDate: file.air_date }),
+              ...(file.episode_numbers === undefined
+                ? {}
+                : { episodeNumbers: file.episode_numbers }),
             }),
           episode_number: file.episode_number,
           episode_numbers: file.episode_numbers,

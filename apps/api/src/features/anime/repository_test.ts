@@ -1,14 +1,13 @@
 import { assert, it } from "@effect/vitest";
 import { eq } from "drizzle-orm";
-import { Cause, Effect, Exit, Schema } from "effect";
-import { ConfigCoreSchema } from "@/features/system/config-schema.ts";
+import { Cause, Effect, Exit } from "effect";
 
 import * as schema from "@/db/schema.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { anime, appConfig, episodes, qualityProfiles, systemLogs } from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { encodeConfigCore } from "@/features/system/config-codec.ts";
-import { makeDefaultConfig } from "@/features/system/defaults.ts";
+import { encodeConfigCore, toConfigCore } from "@/features/system/config-codec.ts";
+import { makeTestConfig } from "@/test/config-fixture.ts";
 import { qualityProfileExistsEffect } from "@/features/anime/profile-support.ts";
 
 import {
@@ -317,20 +316,29 @@ it.scoped("anime repository helpers use stored config when available", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
+        const testConfig = makeTestConfig("./test.sqlite", (config) => ({
+          ...config,
+          downloads: {
+            ...config.downloads,
+            create_anime_folders: false,
+          },
+          general: {
+            ...config.general,
+            images_path: "./custom-images",
+          },
+          library: {
+            ...config.library,
+            library_path: "/anime-library",
+          },
+        }));
+        const encodedConfig = yield* toConfigCore(testConfig).pipe(
+          Effect.flatMap((core) => encodeConfigCore(core)),
+        );
+
         yield* Effect.promise(() =>
           db.insert(appConfig).values({
             id: 1,
-            data: (() => {
-              const base = Schema.encodeSync(ConfigCoreSchema)(makeDefaultConfig("./test.sqlite"));
-              return Effect.runSync(
-                encodeConfigCore({
-                  ...base,
-                  downloads: { ...base.downloads, create_anime_folders: false },
-                  general: { ...base.general, images_path: "./custom-images" },
-                  library: { ...base.library, library_path: "/anime-library" },
-                }),
-              );
-            })(),
+            data: encodedConfig,
             updatedAt: "2024-01-01T00:00:00.000Z",
           }),
         );

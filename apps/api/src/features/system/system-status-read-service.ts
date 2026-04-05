@@ -5,7 +5,7 @@ import { AppConfig } from "@/config.ts";
 import { AppRuntime } from "@/app-runtime.ts";
 import { Database, type DatabaseError } from "@/db/database.ts";
 import {
-  BackgroundJobStatusError,
+  type BackgroundJobStatusError,
   BackgroundJobStatusService,
 } from "@/features/system/background-job-status-service.ts";
 import { findBackgroundJobStatus } from "@/features/system/background-status.ts";

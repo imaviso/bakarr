@@ -6,8 +6,8 @@ import { collectBoundedBytes } from "@/lib/bounded-stream.ts";
 import type { FileSystemShape } from "@/lib/filesystem.ts";
 
 export interface CachedAnimeImages {
-  readonly bannerImage?: string;
-  readonly coverImage?: string;
+  readonly bannerImage?: string | undefined;
+  readonly coverImage?: string | undefined;
 }
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -103,7 +103,7 @@ const findCachedImagePath = Effect.fn("AnimeService.findCachedImagePath")(functi
   const [existing] = entries
     .filter((entry) => entry.isFile && entry.name.startsWith(`${kind}.`))
     .map((entry) => entry.name)
-    .sort();
+    .toSorted();
 
   if (!existing) {
     return undefined;
@@ -166,7 +166,8 @@ const downloadImage = Effect.fn("AnimeService.downloadImage")(function* (
 });
 
 function inferImageExtension(url: string, contentType: string | null) {
-  const normalizedType = contentType?.split(";")[0].trim().toLowerCase();
+  const [mediaType] = contentType?.split(";") ?? [];
+  const normalizedType = mediaType?.trim().toLowerCase();
 
   switch (normalizedType) {
     case "image/jpeg":

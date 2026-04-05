@@ -12,8 +12,8 @@ export function isNotFoundError(error: { cause?: unknown }): boolean {
     return true;
   }
 
-  if (cause instanceof Error && "code" in cause) {
-    const { code } = cause as { code?: string };
+  if (cause instanceof Error) {
+    const code = getErrorCode(cause);
     return code === "ENOENT" || code === "NotFound";
   }
 
@@ -27,8 +27,8 @@ export function isNotFoundError(error: { cause?: unknown }): boolean {
 /** Check if an error wraps a cross-device rename error (EXDEV). */
 export function isCrossFilesystemError(error: { cause?: unknown }): boolean {
   const { cause } = error;
-  if (cause instanceof Error && "code" in cause) {
-    return (cause as { code?: string }).code === "EXDEV";
+  if (cause instanceof Error) {
+    return getErrorCode(cause) === "EXDEV";
   }
   return false;
 }
@@ -38,4 +38,13 @@ export function isSystemNotFoundError(error: unknown): boolean {
   return (
     typeof error === "object" && error !== null && "reason" in error && error.reason === "NotFound"
   );
+}
+
+function getErrorCode(error: Error): string | undefined {
+  if (!("code" in error)) {
+    return undefined;
+  }
+
+  const code = error.code;
+  return typeof code === "string" ? code : undefined;
 }

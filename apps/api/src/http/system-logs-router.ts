@@ -20,11 +20,11 @@ export const logsRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const query = yield* decodeQueryWithLabel(SystemLogsQuerySchema, "system logs");
         return yield* (yield* SystemLogService).getLogs({
-          endDate: query.end_date,
-          eventType: query.event_type,
-          level: query.level,
+          ...(query.end_date === undefined ? {} : { endDate: query.end_date }),
+          ...(query.event_type === undefined ? {} : { eventType: query.event_type }),
+          ...(query.level === undefined ? {} : { level: query.level }),
           page: query.page ?? 1,
-          startDate: query.start_date,
+          ...(query.start_date === undefined ? {} : { startDate: query.start_date }),
         });
       }),
       jsonResponse,
@@ -44,10 +44,10 @@ export const logsRouter = HttpRouter.empty.pipe(
         const query = yield* decodeQueryWithLabel(SystemLogExportQuerySchema, "system log export");
         const service = yield* SystemLogService;
         const input = {
-          endDate: query.end_date,
-          eventType: query.event_type,
-          level: query.level,
-          startDate: query.start_date,
+          ...(query.end_date === undefined ? {} : { endDate: query.end_date }),
+          ...(query.event_type === undefined ? {} : { eventType: query.event_type }),
+          ...(query.level === undefined ? {} : { level: query.level }),
+          ...(query.start_date === undefined ? {} : { startDate: query.start_date }),
         };
 
         if ((query.format ?? "json") === "csv") {

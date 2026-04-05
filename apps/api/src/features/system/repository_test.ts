@@ -336,7 +336,12 @@ it.scoped("system repository query helpers filter logs and count system state", 
           pageSize: 10,
         });
         assert.deepStrictEqual(scanPage.total, 1);
-        assert.deepStrictEqual(scanPage.rows[0].message, "scan start");
+        const [scanRow] = scanPage.rows;
+        assert.deepStrictEqual(scanRow !== undefined, true);
+        if (!scanRow) {
+          return;
+        }
+        assert.deepStrictEqual(scanRow.message, "scan start");
 
         const errorPage = yield* loadSystemLogPage(db, {
           level: "error",
@@ -345,7 +350,12 @@ it.scoped("system repository query helpers filter logs and count system state", 
           startDate: "2024-01-02T00:00:00.000Z",
         });
         assert.deepStrictEqual(errorPage.total, 1);
-        assert.deepStrictEqual(errorPage.rows[0].eventType, "downloads.error");
+        const [errorRow] = errorPage.rows;
+        assert.deepStrictEqual(errorRow !== undefined, true);
+        if (!errorRow) {
+          return;
+        }
+        assert.deepStrictEqual(errorRow.eventType, "downloads.error");
 
         assert.deepStrictEqual(yield* countQueuedDownloads(db), 1);
         assert.deepStrictEqual(yield* countActiveDownloads(db), 1);

@@ -38,16 +38,16 @@ export function buildCanonicalEpisodeNamingInput(input: {
 }): CanonicalEpisodeNamingInput {
   const warnings = deriveCanonicalInputWarnings(input.episodeNumbers, input.episodeRows);
   const pathInput = buildEpisodeNamingInputFromPath({
-    animeStartDate: input.animeStartDate,
+    ...(input.animeStartDate === undefined ? {} : { animeStartDate: input.animeStartDate }),
     animeTitle: input.animeTitle,
     episodeNumbers: input.episodeNumbers,
     filePath: input.filePath,
-    rootFolder: input.rootFolder,
-    season: input.season,
+    ...(input.rootFolder === undefined ? {} : { rootFolder: input.rootFolder }),
+    ...(input.season === undefined ? {} : { season: input.season }),
   });
 
   const explicitAirDate = pickCanonicalAirDate(
-    input.episodeRows,
+    input.episodeRows ?? [],
     input.downloadSourceMetadata,
     pathInput.sourceIdentity,
   );
@@ -83,10 +83,10 @@ export function buildCanonicalEpisodeNamingInput(input: {
         pathInput.videoCodec ??
         input.localMediaMetadata?.video_codec,
       year: selectAnimeYearForNaming({
-        endDate: input.animeEndDate,
-        endYear: input.animeEndYear,
-        startDate: input.animeStartDate,
-        startYear: input.animeStartYear,
+        ...(input.animeEndDate === undefined ? {} : { endDate: input.animeEndDate }),
+        ...(input.animeEndYear === undefined ? {} : { endYear: input.animeEndYear }),
+        ...(input.animeStartDate === undefined ? {} : { startDate: input.animeStartDate }),
+        ...(input.animeStartYear === undefined ? {} : { startYear: input.animeStartYear }),
       }),
     },
     warnings,
@@ -116,18 +116,22 @@ export function buildEpisodeFilenamePlan(input: {
 }): EpisodeFilenamePlan {
   const titleSelection = selectAnimeTitleForNamingDetails(input.animeRow, input.preferredTitle);
   const canonical = buildCanonicalEpisodeNamingInput({
-    animeEndDate: input.animeRow.endDate,
-    animeEndYear: input.animeRow.endYear,
-    animeStartDate: input.animeRow.startDate,
-    animeStartYear: input.animeRow.startYear,
+    ...(input.animeRow.endDate === undefined ? {} : { animeEndDate: input.animeRow.endDate }),
+    ...(input.animeRow.endYear === undefined ? {} : { animeEndYear: input.animeRow.endYear }),
+    ...(input.animeRow.startDate === undefined ? {} : { animeStartDate: input.animeRow.startDate }),
+    ...(input.animeRow.startYear === undefined ? {} : { animeStartYear: input.animeRow.startYear }),
     animeTitle: titleSelection.title,
-    downloadSourceMetadata: input.downloadSourceMetadata,
+    ...(input.downloadSourceMetadata === undefined
+      ? {}
+      : { downloadSourceMetadata: input.downloadSourceMetadata }),
     episodeNumbers: input.episodeNumbers,
-    episodeRows: input.episodeRows,
+    ...(input.episodeRows === undefined ? {} : { episodeRows: input.episodeRows }),
     filePath: input.filePath,
-    localMediaMetadata: input.localMediaMetadata,
-    rootFolder: input.animeRow.rootFolder,
-    season: input.season,
+    ...(input.localMediaMetadata === undefined
+      ? {}
+      : { localMediaMetadata: input.localMediaMetadata }),
+    ...(input.animeRow.rootFolder === undefined ? {} : { rootFolder: input.animeRow.rootFolder }),
+    ...(input.season === undefined ? {} : { season: input.season }),
   });
   const renderPlan = resolveFilenameRenderPlan({
     animeFormat: input.animeRow.format,
@@ -202,7 +206,7 @@ function pickCanonicalEpisodeTitle(
 }
 
 function pickCanonicalAirDate(
-  episodeRows: readonly { aired?: string | null }[] | undefined,
+  episodeRows: readonly { aired?: string | null }[],
   downloadSourceMetadata: DownloadSourceMetadata | undefined,
   sourceIdentity?: SharedParsedEpisodeIdentity,
 ) {

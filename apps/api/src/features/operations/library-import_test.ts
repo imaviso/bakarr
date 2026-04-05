@@ -14,10 +14,8 @@ import {
 } from "@/features/operations/library-import.ts";
 import { anime } from "@/db/schema.ts";
 import { OperationsStoredDataError } from "@/features/operations/errors.ts";
-import { encodeConfigCore } from "@/features/system/config-codec.ts";
-import { Schema } from "effect";
-import { ConfigCoreSchema } from "@/features/system/config-schema.ts";
-import { makeDefaultConfig } from "@/features/system/defaults.ts";
+import { encodeConfigCore, toConfigCore } from "@/features/system/config-codec.ts";
+import { makeTestConfig } from "@/test/config-fixture.ts";
 
 it("analyzeScannedFile strips release noise and extracts metadata", () => {
   const result = analyzeScannedFile({
@@ -143,19 +141,16 @@ it.scoped("buildRenamePreview fills naming tokens from existing file metadata", 
         const rootFolder = "/mnt/media2/Shows/Nisemonogatari (2012)";
         const namingFormat =
           "{title} - S{season:02}E{episode:02} - {episode_title} [{quality} {resolution}][{video_codec}][{audio_codec} {audio_channels}][{group}]";
+        const testConfig = makeTestConfig(databaseFile, (config) => ({
+          ...config,
+          library: { ...config.library, naming_format: namingFormat },
+        }));
+        const encodedConfig = yield* encodeConfigCore(yield* toConfigCore(testConfig));
 
         yield* Effect.tryPromise(() =>
           appDb.insert(appConfig).values({
             id: 1,
-            data: (() => {
-              const base = Schema.encodeSync(ConfigCoreSchema)(makeDefaultConfig(databaseFile));
-              return Effect.runSync(
-                encodeConfigCore({
-                  ...base,
-                  library: { ...base.library, naming_format: namingFormat },
-                }),
-              );
-            })(),
+            data: encodedConfig,
             updatedAt: "2024-01-01T00:00:00.000Z",
           }),
         );
@@ -183,17 +178,19 @@ it.scoped("buildRenamePreview fills naming tokens from existing file metadata", 
         );
 
         const preview = yield* buildRenamePreview(appDb, 1);
+        const firstPreview = preview[0];
+        assert(firstPreview);
 
         assert.deepStrictEqual(preview.length, 1);
         assert.deepStrictEqual(
-          preview[0].new_filename,
+          firstPreview.new_filename,
           "Nisemonogatari - S01E01 - Karen Bee, Part 1 [1080p][HEVC][AAC][MTBB].mkv",
         );
-        assert.deepStrictEqual(preview[0].fallback_used, undefined);
-        assert.deepStrictEqual(preview[0].format_used, namingFormat);
-        assert.deepStrictEqual(preview[0].metadata_snapshot?.episode_title, "Karen Bee, Part 1");
-        assert.deepStrictEqual(preview[0].metadata_snapshot?.title_source, "preferred_romaji");
-        assert.deepStrictEqual(preview[0].metadata_snapshot?.video_codec, "HEVC");
+        assert.deepStrictEqual(firstPreview.fallback_used, undefined);
+        assert.deepStrictEqual(firstPreview.format_used, namingFormat);
+        assert.deepStrictEqual(firstPreview.metadata_snapshot?.episode_title, "Karen Bee, Part 1");
+        assert.deepStrictEqual(firstPreview.metadata_snapshot?.title_source, "preferred_romaji");
+        assert.deepStrictEqual(firstPreview.metadata_snapshot?.video_codec, "HEVC");
       }),
     schema,
   }),
@@ -204,23 +201,20 @@ it.scoped("buildRenamePreview respects preferred English title and movie naming 
     run: (db, databaseFile) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
+        const testConfig = makeTestConfig(databaseFile, (config) => ({
+          ...config,
+          library: {
+            ...config.library,
+            movie_naming_format: "{title} ({year})",
+            preferred_title: "english",
+          },
+        }));
+        const encodedConfig = yield* encodeConfigCore(yield* toConfigCore(testConfig));
 
         yield* Effect.tryPromise(() =>
           appDb.insert(appConfig).values({
             id: 1,
-            data: (() => {
-              const base = Schema.encodeSync(ConfigCoreSchema)(makeDefaultConfig(databaseFile));
-              return Effect.runSync(
-                encodeConfigCore({
-                  ...base,
-                  library: {
-                    ...base.library,
-                    movie_naming_format: "{title} ({year})",
-                    preferred_title: "english",
-                  },
-                }),
-              );
-            })(),
+            data: encodedConfig,
             updatedAt: "2024-01-01T00:00:00.000Z",
           }),
         );
@@ -250,12 +244,14 @@ it.scoped("buildRenamePreview respects preferred English title and movie naming 
         );
 
         const preview = yield* buildRenamePreview(appDb, 1);
+        const firstPreview = preview[0];
+        assert(firstPreview);
 
         assert.deepStrictEqual(preview.length, 1);
-        assert.deepStrictEqual(preview[0].new_filename, "Your Name. (2016).mkv");
-        assert.deepStrictEqual(preview[0].format_used, "{title} ({year})");
-        assert.deepStrictEqual(preview[0].metadata_snapshot?.title, "Your Name.");
-        assert.deepStrictEqual(preview[0].metadata_snapshot?.title_source, "preferred_english");
+        assert.deepStrictEqual(firstPreview.new_filename, "Your Name. (2016).mkv");
+        assert.deepStrictEqual(firstPreview.format_used, "{title} ({year})");
+        assert.deepStrictEqual(firstPreview.metadata_snapshot?.title, "Your Name.");
+        assert.deepStrictEqual(firstPreview.metadata_snapshot?.title_source, "preferred_english");
       }),
     schema,
   }),
@@ -267,19 +263,16 @@ it.scoped("buildRenamePreview reports fallback when season metadata is missing",
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
         const namingFormat = "{title} - S{season:02}E{episode:02}";
+        const testConfig = makeTestConfig(databaseFile, (config) => ({
+          ...config,
+          library: { ...config.library, naming_format: namingFormat },
+        }));
+        const encodedConfig = yield* encodeConfigCore(yield* toConfigCore(testConfig));
 
         yield* Effect.tryPromise(() =>
           appDb.insert(appConfig).values({
             id: 1,
-            data: (() => {
-              const base = Schema.encodeSync(ConfigCoreSchema)(makeDefaultConfig(databaseFile));
-              return Effect.runSync(
-                encodeConfigCore({
-                  ...base,
-                  library: { ...base.library, naming_format: namingFormat },
-                }),
-              );
-            })(),
+            data: encodedConfig,
             updatedAt: "2024-01-01T00:00:00.000Z",
           }),
         );
@@ -305,12 +298,14 @@ it.scoped("buildRenamePreview reports fallback when season metadata is missing",
         );
 
         const preview = yield* buildRenamePreview(appDb, 1);
+        const firstPreview = preview[0];
+        assert(firstPreview);
 
-        assert.deepStrictEqual(preview[0].new_filename, "Show - 01.mkv");
-        assert.deepStrictEqual(preview[0].fallback_used, true);
-        assert.deepStrictEqual(preview[0].missing_fields, ["season"]);
-        assert.deepStrictEqual(preview[0].warnings?.length, 2);
-        assert.deepStrictEqual(preview[0].metadata_snapshot?.source_identity?.label, "01");
+        assert.deepStrictEqual(firstPreview.new_filename, "Show - 01.mkv");
+        assert.deepStrictEqual(firstPreview.fallback_used, true);
+        assert.deepStrictEqual(firstPreview.missing_fields, ["season"]);
+        assert.deepStrictEqual(firstPreview.warnings?.length, 2);
+        assert.deepStrictEqual(firstPreview.metadata_snapshot?.source_identity?.label, "01");
       }),
     schema,
   }),

@@ -9,7 +9,7 @@ import type {
 } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import {
-  BackgroundJobStatusError,
+  type BackgroundJobStatusError,
   BackgroundJobStatusService,
 } from "@/features/system/background-job-status-service.ts";
 import type { OperationsStoredDataError } from "@/features/operations/errors.ts";

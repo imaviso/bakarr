@@ -200,7 +200,7 @@ export function extractTitleBeforeNumber(value: string): string {
   let cleaned = value.replace(/^\[[^\]]+\]\s*/g, "");
 
   cleaned = cleaned
-    .replace(/[\s._-]+\d{1,4}(?:v\d+)?(?:[\s._\-\[(].*)?$/, "")
+    .replace(/[\s._-]+\d{1,4}(?:v\d+)?(?:[\s._\-[(].*)?$/, "")
     .replace(/\[[^\]]*?(?:1080p|720p|2160p|480p|x264|x265|hevc|aac|flac)[^\]]*\]/gi, "")
     .replace(
       /\b(?:1080p|720p|2160p|480p|x264|x265|hevc|aac|flac|dual audio|webrip|web-dl|bluray|batch|complete)\b/gi,
@@ -230,6 +230,9 @@ export function extractGroup(value: string): string | undefined {
 
   for (let index = bracketGroups.length - 1; index >= 0; index -= 1) {
     const candidate = bracketGroups[index];
+    if (!candidate) {
+      continue;
+    }
 
     if (!looksLikeMetadataTag(candidate)) {
       return candidate;
@@ -258,7 +261,8 @@ function extractSequelHint(folderName: string): string | undefined {
   const lower = folderName.toLowerCase().trim();
 
   const romanMatch = folderName.match(/\b(II|III|IV|V|VI)$/i);
-  if (romanMatch) return romanMatch[1].toUpperCase();
+  const romanNumeral = romanMatch?.[1];
+  if (romanNumeral) return romanNumeral.toUpperCase();
 
   const ordinalMatch = lower.match(/(\d+)(?:st|nd|rd|th)\s+season/);
   if (ordinalMatch) return `Season ${ordinalMatch[1]}`;
@@ -288,7 +292,7 @@ function looksLikeMetadataTag(value: string): boolean {
 
 function choosePreferredTitleAlias(value: string): string {
   const aliases = value
-    .split(/[\/|]/)
+    .split(/[/|]/)
     .map((part) => part.trim())
     .filter((part) => part.length > 0);
 
@@ -298,6 +302,9 @@ function choosePreferredTitleAlias(value: string): string {
 
   const latinAlias = aliases.find((alias) => /[a-z]/i.test(alias));
   const base = latinAlias ?? aliases[0];
+  if (!base) {
+    return value;
+  }
 
   const mixedAlias = extractLatinAliasFromMixedTitle(base);
   return mixedAlias ?? base;
@@ -314,7 +321,7 @@ function extractLatinAliasFromMixedTitle(value: string): string | undefined {
   }
 
   const chunks = value
-    .split(/[_|\/\u00B7\-]+/u)
+    .split(/[_|/\u00B7-]+/u)
     .map((part) => part.trim())
     .filter((part) => part.length > 0);
 

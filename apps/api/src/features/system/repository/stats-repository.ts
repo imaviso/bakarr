@@ -18,12 +18,21 @@ const countDownloadsWhere = Effect.fn("SystemStatsRepository.countDownloadsWhere
   db: AppDatabase,
   condition: SQL,
 ) {
-  const [{ value }] = yield* tryDatabasePromise("Failed to count downloads", () =>
+  const countRows = yield* tryDatabasePromise("Failed to count downloads", () =>
     db.select({ value: count() }).from(downloads).where(condition),
   );
+  const countRow = countRows[0];
 
-  return value;
+  if (!countRow) {
+    return 0;
+  }
+
+  return countRow.value;
 });
+
+function requireSingleRow<T>(rows: ReadonlyArray<T>, fallback: T): T {
+  return rows[0] ?? fallback;
+}
 
 export const countQueuedDownloads = Effect.fn("SystemStatsRepository.countQueuedDownloads")(
   function* (db: AppDatabase) {
@@ -58,41 +67,41 @@ export const countCompletedDownloads = Effect.fn("SystemStatsRepository.countCom
 export const countAnimeRows = Effect.fn("SystemStatsRepository.countAnimeRows")(function* (
   db: AppDatabase,
 ) {
-  const [{ value }] = yield* tryDatabasePromise("Failed to count anime", () =>
+  const countRows = yield* tryDatabasePromise("Failed to count anime", () =>
     db.select({ value: count() }).from(anime),
   );
-
-  return value;
+  const countRow = requireSingleRow(countRows, { value: 0 });
+  return countRow.value;
 });
 
 export const countMonitoredAnimeRows = Effect.fn("SystemStatsRepository.countMonitoredAnimeRows")(
   function* (db: AppDatabase) {
-    const [{ value }] = yield* tryDatabasePromise("Failed to count anime", () =>
+    const countRows = yield* tryDatabasePromise("Failed to count anime", () =>
       db.select({ value: count() }).from(anime).where(eq(anime.monitored, true)),
     );
-
-    return value;
+    const countRow = requireSingleRow(countRows, { value: 0 });
+    return countRow.value;
   },
 );
 
 export const countEpisodeRows = Effect.fn("SystemStatsRepository.countEpisodeRows")(function* (
   db: AppDatabase,
 ) {
-  const [{ value }] = yield* tryDatabasePromise("Failed to count episodes", () =>
+  const countRows = yield* tryDatabasePromise("Failed to count episodes", () =>
     db.select({ value: count() }).from(episodes),
   );
-
-  return value;
+  const countRow = requireSingleRow(countRows, { value: 0 });
+  return countRow.value;
 });
 
 export const countDownloadedEpisodeRows = Effect.fn(
   "SystemStatsRepository.countDownloadedEpisodeRows",
 )(function* (db: AppDatabase) {
-  const [{ value }] = yield* tryDatabasePromise("Failed to count episodes", () =>
+  const countRows = yield* tryDatabasePromise("Failed to count episodes", () =>
     db.select({ value: count() }).from(episodes).where(eq(episodes.downloaded, true)),
   );
-
-  return value;
+  const countRow = requireSingleRow(countRows, { value: 0 });
+  return countRow.value;
 });
 
 export const countUpToDateAnimeRows = Effect.fn("SystemStatsRepository.countUpToDateAnimeRows")(
@@ -124,26 +133,26 @@ export const countUpToDateAnimeRows = Effect.fn("SystemStatsRepository.countUpTo
 export const countRssFeedRows = Effect.fn("SystemStatsRepository.countRssFeedRows")(function* (
   db: AppDatabase,
 ) {
-  const [{ value }] = yield* tryDatabasePromise("Failed to count RSS feeds", () =>
+  const countRows = yield* tryDatabasePromise("Failed to count RSS feeds", () =>
     db.select({ value: count() }).from(rssFeeds),
   );
-
-  return value;
+  const countRow = requireSingleRow(countRows, { value: 0 });
+  return countRow.value;
 });
 
 export const loadSystemLibraryStatsAggregate = Effect.fn(
   "SystemStatsRepository.loadSystemLibraryStatsAggregate",
 )(function* (db: AppDatabase) {
-  const [{ totalAnime }] = yield* tryDatabasePromise("Failed to count anime", () =>
+  const totalAnimeRows = yield* tryDatabasePromise("Failed to count anime", () =>
     db.select({ totalAnime: count() }).from(anime),
   );
-  const [{ monitoredAnime }] = yield* tryDatabasePromise("Failed to count monitored anime", () =>
+  const monitoredAnimeRows = yield* tryDatabasePromise("Failed to count monitored anime", () =>
     db.select({ monitoredAnime: count() }).from(anime).where(eq(anime.monitored, true)),
   );
-  const [{ totalEpisodes }] = yield* tryDatabasePromise("Failed to count episodes", () =>
+  const totalEpisodesRows = yield* tryDatabasePromise("Failed to count episodes", () =>
     db.select({ totalEpisodes: count() }).from(episodes),
   );
-  const [{ downloadedEpisodes }] = yield* tryDatabasePromise(
+  const downloadedEpisodesRows = yield* tryDatabasePromise(
     "Failed to count downloaded episodes",
     () =>
       db
@@ -151,10 +160,10 @@ export const loadSystemLibraryStatsAggregate = Effect.fn(
         .from(episodes)
         .where(eq(episodes.downloaded, true)),
   );
-  const [{ totalRssFeeds }] = yield* tryDatabasePromise("Failed to count RSS feeds", () =>
+  const totalRssFeedsRows = yield* tryDatabasePromise("Failed to count RSS feeds", () =>
     db.select({ totalRssFeeds: count() }).from(rssFeeds),
   );
-  const [{ completedDownloads }] = yield* tryDatabasePromise(
+  const completedDownloadsRows = yield* tryDatabasePromise(
     "Failed to count completed downloads",
     () =>
       db
@@ -162,6 +171,17 @@ export const loadSystemLibraryStatsAggregate = Effect.fn(
         .from(downloads)
         .where(eq(downloads.status, "completed")),
   );
+  const totalAnime = requireSingleRow(totalAnimeRows, { totalAnime: 0 }).totalAnime;
+  const monitoredAnime = requireSingleRow(monitoredAnimeRows, { monitoredAnime: 0 }).monitoredAnime;
+  const totalEpisodes = requireSingleRow(totalEpisodesRows, { totalEpisodes: 0 }).totalEpisodes;
+  const downloadedEpisodes = requireSingleRow(downloadedEpisodesRows, {
+    downloadedEpisodes: 0,
+  }).downloadedEpisodes;
+  const totalRssFeeds = requireSingleRow(totalRssFeedsRows, { totalRssFeeds: 0 }).totalRssFeeds;
+  const completedDownloads = requireSingleRow(completedDownloadsRows, {
+    completedDownloads: 0,
+  }).completedDownloads;
+
   const upToDateAnime = yield* countUpToDateAnimeRows(db);
 
   return {
@@ -178,19 +198,19 @@ export const loadSystemLibraryStatsAggregate = Effect.fn(
 export const loadSystemDownloadStatsAggregate = Effect.fn(
   "SystemStatsRepository.loadSystemDownloadStatsAggregate",
 )(function* (db: AppDatabase) {
-  const [{ queuedDownloads }] = yield* tryDatabasePromise("Failed to count queued downloads", () =>
+  const queuedDownloadsRows = yield* tryDatabasePromise("Failed to count queued downloads", () =>
     db.select({ queuedDownloads: count() }).from(downloads).where(eq(downloads.status, "queued")),
   );
-  const [{ activeDownloads }] = yield* tryDatabasePromise("Failed to count active downloads", () =>
+  const activeDownloadsRows = yield* tryDatabasePromise("Failed to count active downloads", () =>
     db
       .select({ activeDownloads: count() })
       .from(downloads)
       .where(sql`${downloads.status} in ('downloading', 'paused')`),
   );
-  const [{ failedDownloads }] = yield* tryDatabasePromise("Failed to count failed downloads", () =>
+  const failedDownloadsRows = yield* tryDatabasePromise("Failed to count failed downloads", () =>
     db.select({ failedDownloads: count() }).from(downloads).where(eq(downloads.status, "error")),
   );
-  const [{ importedDownloads }] = yield* tryDatabasePromise(
+  const importedDownloadsRows = yield* tryDatabasePromise(
     "Failed to count imported downloads",
     () =>
       db
@@ -198,6 +218,19 @@ export const loadSystemDownloadStatsAggregate = Effect.fn(
         .from(downloads)
         .where(eq(downloads.status, "imported")),
   );
+
+  const queuedDownloads = requireSingleRow(queuedDownloadsRows, {
+    queuedDownloads: 0,
+  }).queuedDownloads;
+  const activeDownloads = requireSingleRow(activeDownloadsRows, {
+    activeDownloads: 0,
+  }).activeDownloads;
+  const failedDownloads = requireSingleRow(failedDownloadsRows, {
+    failedDownloads: 0,
+  }).failedDownloads;
+  const importedDownloads = requireSingleRow(importedDownloadsRows, {
+    importedDownloads: 0,
+  }).importedDownloads;
 
   return {
     activeDownloads,
@@ -252,9 +285,10 @@ export const loadSystemLogPage = Effect.fn("SystemStatsRepository.loadSystemLogP
     .limit(input.pageSize)
     .offset((input.page - 1) * input.pageSize);
 
-  const [{ value: total }] = yield* tryDatabasePromise("Failed to load system logs", () =>
+  const totalRows = yield* tryDatabasePromise("Failed to load system logs", () =>
     whereClause ? countQuery.where(whereClause) : countQuery,
   );
+  const total = requireSingleRow(totalRows, { value: 0 }).value;
   const rows = yield* tryDatabasePromise("Failed to load system logs", () =>
     whereClause ? rowsQuery.where(whereClause) : rowsQuery,
   );

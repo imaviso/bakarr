@@ -85,7 +85,7 @@ const readDotenvFile = Effect.fn("Config.readDotenvFile")(
 );
 
 const decodeDotenvBytes = Effect.fn("Config.decodeDotenvBytes")(
-  (path: string, bytes: Uint8Array): Effect.Effect<string, DotenvReadError, never> =>
+  (path: string, bytes: Uint8Array): Effect.Effect<string, DotenvReadError> =>
     Effect.try({
       try: () => new TextDecoder().decode(bytes),
       catch: (cause) =>
@@ -102,14 +102,14 @@ const DOTENV_KEY_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 function parseDotenvText(
   path: string,
   source: string,
-): Effect.Effect<Map<string, string>, DotenvParseError, never> {
+): Effect.Effect<Map<string, string>, DotenvParseError> {
   return Effect.gen(function* () {
     const normalizedSource = source.replace(/^\uFEFF/, "");
     const lines = normalizedSource.split(/\r?\n/);
 
     for (let index = 0; index < lines.length; index += 1) {
       const lineNumber = index + 1;
-      const rawLine = lines[index];
+      const rawLine = lines[index]!;
       const trimmed = rawLine.trim();
 
       if (trimmed.length === 0 || trimmed.startsWith("#")) {

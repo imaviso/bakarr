@@ -57,16 +57,22 @@ export const scanAnimeFolderEffect = Effect.fn("AnimeFileScan.scanAnimeFolderEff
       const parsed = parseFileSourceIdentity(file.path);
       const metadata = buildScannedFileMetadata({
         filePath: file.path,
-        group: parsed.group,
-        sourceIdentity: toSharedParsedEpisodeIdentity(parsed.source_identity),
+        ...(parsed.group === undefined ? {} : { group: parsed.group }),
+        ...(toSharedParsedEpisodeIdentity(parsed.source_identity) === undefined
+          ? {}
+          : { sourceIdentity: toSharedParsedEpisodeIdentity(parsed.source_identity) }),
       });
 
       const probeInput = {
-        audio_channels: metadata.audio_channels,
-        audio_codec: metadata.audio_codec,
-        duration_seconds: metadata.duration_seconds,
-        resolution: parsed.resolution ?? undefined,
-        video_codec: metadata.video_codec,
+        ...(metadata.audio_channels === undefined
+          ? {}
+          : { audio_channels: metadata.audio_channels }),
+        ...(metadata.audio_codec === undefined ? {} : { audio_codec: metadata.audio_codec }),
+        ...(metadata.duration_seconds === undefined
+          ? {}
+          : { duration_seconds: metadata.duration_seconds }),
+        ...(parsed.resolution === undefined ? {} : { resolution: parsed.resolution }),
+        ...(metadata.video_codec === undefined ? {} : { video_codec: metadata.video_codec }),
       };
 
       const probeResult = shouldProbeDetailedMediaMetadata(probeInput)
@@ -104,13 +110,23 @@ export const scanAnimeFolderEffect = Effect.fn("AnimeFileScan.scanAnimeFolderEff
           downloaded: true,
           filePath: file.path,
           fileSize: file.size,
-          durationSeconds: mergedMetadata.duration_seconds,
+          ...(mergedMetadata.duration_seconds === undefined
+            ? {}
+            : { durationSeconds: mergedMetadata.duration_seconds }),
           groupName: parsed.group ?? null,
-          resolution: mergedMetadata.resolution,
-          quality: metadata.quality,
-          videoCodec: mergedMetadata.video_codec,
-          audioCodec: mergedMetadata.audio_codec,
-          audioChannels: mergedMetadata.audio_channels,
+          ...(mergedMetadata.resolution === undefined
+            ? {}
+            : { resolution: mergedMetadata.resolution }),
+          ...(metadata.quality === undefined ? {} : { quality: metadata.quality }),
+          ...(mergedMetadata.video_codec === undefined
+            ? {}
+            : { videoCodec: mergedMetadata.video_codec }),
+          ...(mergedMetadata.audio_codec === undefined
+            ? {}
+            : { audioCodec: mergedMetadata.audio_codec }),
+          ...(mergedMetadata.audio_channels === undefined
+            ? {}
+            : { audioChannels: mergedMetadata.audio_channels }),
           title: null,
         });
       }

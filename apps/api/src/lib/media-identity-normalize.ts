@@ -23,12 +23,19 @@ export function normalizeSourceText(value: string): string {
 
 function applyChineseAnimePreSubstitutions(value: string): string {
   const withSeasonMarker = value.match(
-    /^\[(?<group>[^\]]+)\]\s*★[^\[]+★\s*\[(?<title>[^\]]+)\]\[(?<episode>\d{1,4}(?:-\d{1,4})?)\](?<rest>.*)$/u,
+    /^\[(?<group>[^\]]+)\]\s*★[^[]+★\s*\[(?<title>[^\]]+)\]\[(?<episode>\d{1,4}(?:-\d{1,4})?)\](?<rest>.*)$/u,
   );
 
   if (withSeasonMarker?.groups) {
-    const preferredTitle = preferredTitleAlias(withSeasonMarker.groups.title);
-    return `[${withSeasonMarker.groups.group}] ${preferredTitle} - ${withSeasonMarker.groups.episode}${withSeasonMarker.groups.rest}`;
+    const group = pickGroupValue(withSeasonMarker.groups, "group");
+    const title = pickGroupValue(withSeasonMarker.groups, "title");
+    const episode = pickGroupValue(withSeasonMarker.groups, "episode");
+    const rest = pickGroupValue(withSeasonMarker.groups, "rest") ?? "";
+
+    if (group && title && episode) {
+      const preferredTitle = preferredTitleAlias(title);
+      return `[${group}] ${preferredTitle} - ${episode}${rest}`;
+    }
   }
 
   const withTwoTitlesAndYear = value.match(
@@ -36,8 +43,15 @@ function applyChineseAnimePreSubstitutions(value: string): string {
   );
 
   if (withTwoTitlesAndYear?.groups) {
-    const preferredTitle = preferredTitleAlias(withTwoTitlesAndYear.groups.titleB);
-    return `[${withTwoTitlesAndYear.groups.group}] ${preferredTitle} - ${withTwoTitlesAndYear.groups.episode}${withTwoTitlesAndYear.groups.rest}`;
+    const group = pickGroupValue(withTwoTitlesAndYear.groups, "group");
+    const title = pickGroupValue(withTwoTitlesAndYear.groups, "titleB");
+    const episode = pickGroupValue(withTwoTitlesAndYear.groups, "episode");
+    const rest = pickGroupValue(withTwoTitlesAndYear.groups, "rest") ?? "";
+
+    if (group && title && episode) {
+      const preferredTitle = preferredTitleAlias(title);
+      return `[${group}] ${preferredTitle} - ${episode}${rest}`;
+    }
   }
 
   const withOneTitleAndYear = value.match(
@@ -45,8 +59,15 @@ function applyChineseAnimePreSubstitutions(value: string): string {
   );
 
   if (withOneTitleAndYear?.groups) {
-    const preferredTitle = preferredTitleAlias(withOneTitleAndYear.groups.title);
-    return `[${withOneTitleAndYear.groups.group}] ${preferredTitle} - ${withOneTitleAndYear.groups.episode}${withOneTitleAndYear.groups.rest}`;
+    const group = pickGroupValue(withOneTitleAndYear.groups, "group");
+    const title = pickGroupValue(withOneTitleAndYear.groups, "title");
+    const episode = pickGroupValue(withOneTitleAndYear.groups, "episode");
+    const rest = pickGroupValue(withOneTitleAndYear.groups, "rest") ?? "";
+
+    if (group && title && episode) {
+      const preferredTitle = preferredTitleAlias(title);
+      return `[${group}] ${preferredTitle} - ${episode}${rest}`;
+    }
   }
 
   const withBracketedTitleAndEpisode = value.match(
@@ -54,8 +75,15 @@ function applyChineseAnimePreSubstitutions(value: string): string {
   );
 
   if (withBracketedTitleAndEpisode?.groups) {
-    const preferredTitle = preferredTitleAlias(withBracketedTitleAndEpisode.groups.title);
-    return `[${withBracketedTitleAndEpisode.groups.group}] ${preferredTitle} - ${withBracketedTitleAndEpisode.groups.episode}${withBracketedTitleAndEpisode.groups.rest}`;
+    const group = pickGroupValue(withBracketedTitleAndEpisode.groups, "group");
+    const title = pickGroupValue(withBracketedTitleAndEpisode.groups, "title");
+    const episode = pickGroupValue(withBracketedTitleAndEpisode.groups, "episode");
+    const rest = pickGroupValue(withBracketedTitleAndEpisode.groups, "rest") ?? "";
+
+    if (group && title && episode) {
+      const preferredTitle = preferredTitleAlias(title);
+      return `[${group}] ${preferredTitle} - ${episode}${rest}`;
+    }
   }
 
   return value;
@@ -63,7 +91,7 @@ function applyChineseAnimePreSubstitutions(value: string): string {
 
 function preferredTitleAlias(value: string): string {
   const aliases = value
-    .split(/[\/|]/)
+    .split(/[/|]/)
     .map((part) => part.replace(/[._]+/g, " ").trim())
     .filter((part) => part.length > 0);
 
@@ -72,7 +100,7 @@ function preferredTitleAlias(value: string): string {
   }
 
   const latinAlias = aliases.find((alias) => /[a-z]/i.test(alias));
-  const base = latinAlias ?? aliases[0];
+  const base = latinAlias ?? aliases[0]!;
 
   const mixedAlias = extractLatinAliasFromMixedTitle(base);
   return mixedAlias ?? base;
@@ -89,7 +117,7 @@ function extractLatinAliasFromMixedTitle(value: string): string | undefined {
   }
 
   const chunks = value
-    .split(/[_|\/\u00B7\-]+/u)
+    .split(/[_|/\u00B7-]+/u)
     .map((part) => part.trim())
     .filter((part) => part.length > 0);
 
@@ -100,4 +128,13 @@ function extractLatinAliasFromMixedTitle(value: string): string | undefined {
 
   const tailLatin = value.match(/([A-Za-z][A-Za-z0-9 '&:;,.!?-]{2,})$/);
   return tailLatin?.[1]?.trim();
+}
+
+function pickGroupValue(groups: RegExpMatchArray["groups"], key: string): string | undefined {
+  if (!groups) {
+    return undefined;
+  }
+
+  const value = groups[key];
+  return typeof value === "string" ? value : undefined;
 }

@@ -3,7 +3,7 @@ import { Context, Effect, Layer } from "effect";
 import type { OpsDashboard } from "@packages/shared/index.ts";
 import { Database } from "@/db/database.ts";
 import {
-  BackgroundJobStatusError,
+  type BackgroundJobStatusError,
   BackgroundJobStatusService,
 } from "@/features/system/background-job-status-service.ts";
 import { countRunningBackgroundJobStatuses } from "@/features/system/background-status.ts";

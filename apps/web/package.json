@@ -5,10 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port 3000",
-    "build": "bun run check && vite build",
+    "build": "vite build",
     "preview": "vite preview",
-    "check": "tsc --noEmit",
-    "lint": "oxlint --type-aware --type-check"
+    "check": "tsc --noEmit"
   },
   "dependencies": {
     "@ark-ui/solid": "^5.34.1",

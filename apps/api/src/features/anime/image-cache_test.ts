@@ -168,14 +168,21 @@ it.scoped("cacheAnimeMetadataImages fails oversized images by streamed bytes", (
   ),
 );
 
-function makeImageHttpClient(createResponse?: (url: string) => Response | Promise<Response>) {
+function makeImageHttpClient(
+  createResponse?: (url: string) => Response | Promise<Response> | undefined,
+) {
   return HttpClient.make((request) =>
     Effect.tryPromise({
-      try: async () =>
-        HttpClientResponse.fromWeb(
-          request,
-          createResponse ? await createResponse(request.url) : await fetch(request.url),
-        ),
+      try: async () => {
+        const response = createResponse
+          ? await createResponse(request.url)
+          : await fetch(request.url);
+        if (!response) {
+          throw new Error(`missing response for ${request.url}`);
+        }
+
+        return HttpClientResponse.fromWeb(request, response);
+      },
       catch: (cause) =>
         new HttpClientError.RequestError({
           request,

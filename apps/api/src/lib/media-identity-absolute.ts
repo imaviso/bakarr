@@ -82,6 +82,9 @@ export function parseAbsoluteIdentity(
 
   if (candidates.length > 0) {
     const num = candidates[candidates.length - 1];
+    if (num === undefined) {
+      return undefined;
+    }
 
     if (options?.avoidSeasonOnlyFallback && looksLikeSeasonOnlyNumber(extensionless, num)) {
       return undefined;

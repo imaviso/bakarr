@@ -48,17 +48,15 @@ function runStaticRequest(input: {
   readonly assets: Record<string, EmbeddedWebAsset>;
   readonly url: string;
 }) {
-  return Effect.gen(function* () {
-    return yield* Effect.sync(() =>
-      HttpServerResponse.toWeb(
-        createEmbeddedWebResponse({
-          assets: input.assets,
-          method: "GET",
-          pathname: new URL(input.url).pathname,
-        }),
-      ),
-    );
-  });
+  return Effect.sync(() =>
+    HttpServerResponse.toWeb(
+      createEmbeddedWebResponse({
+        assets: input.assets,
+        method: "GET",
+        pathname: new URL(input.url).pathname,
+      }),
+    ),
+  );
 }
 
 function makeAssets(input: Record<string, string>) {

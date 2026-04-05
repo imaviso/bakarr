@@ -23,18 +23,20 @@ export const SystemEventsServiceLive = Layer.effect(
     const eventBus = yield* EventBus;
     const downloadsReadService = yield* CatalogDownloadReadService;
 
-    const buildEventsStream = Effect.fn("SystemEventsService.buildEventsStream")(function* () {
-      return Stream.unwrapScoped(
-        Effect.gen(function* () {
-          const subscription = yield* eventBus.subscribe();
-          const downloads: readonly DownloadStatus[] =
-            yield* downloadsReadService.getDownloadProgressBootstrap();
-          const bufferedEvents = yield* subscription.takeBuffered;
+    const buildEventsStream = Effect.fn("SystemEventsService.buildEventsStream")(() =>
+      Effect.succeed(
+        Stream.unwrapScoped(
+          Effect.gen(function* () {
+            const subscription = yield* eventBus.subscribe();
+            const downloads: readonly DownloadStatus[] =
+              yield* downloadsReadService.getDownloadProgressBootstrap();
+            const bufferedEvents = yield* subscription.takeBuffered;
 
-          return buildDownloadProgressEventStream(downloads, bufferedEvents, subscription);
-        }),
-      );
-    });
+            return buildDownloadProgressEventStream(downloads, bufferedEvents, subscription);
+          }),
+        ),
+      ),
+    );
 
     return SystemEventsService.of({ buildEventsStream });
   }),

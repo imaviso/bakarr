@@ -13,6 +13,6 @@ export interface NamingSettings {
 }
 
 export interface DownloadPresentationContext {
-  readonly animeImage?: string;
-  readonly importedPath?: string;
+  readonly animeImage?: string | undefined;
+  readonly importedPath?: string | undefined;
 }

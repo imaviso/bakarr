@@ -42,7 +42,7 @@ type SearchNyaaReleases = (
   config: Config,
   category?: string,
   filter?: string,
-) => Effect.Effect<readonly ParsedRelease[], SearchReleaseSourceError, never>;
+) => Effect.Effect<readonly ParsedRelease[], SearchReleaseSourceError>;
 
 export function makeSearchReleaseSupport(input: {
   db: AppDatabase;
@@ -225,7 +225,7 @@ function collectEpisodeSearchReleases(
   episodeNumber: number,
   config: Config,
   searchNyaaReleases: SearchNyaaReleases,
-): Effect.Effect<ParsedRelease[], SearchReleaseSourceError, never> {
+): Effect.Effect<ParsedRelease[], SearchReleaseSourceError> {
   return Effect.gen(function* () {
     const results: ParsedRelease[] = [];
 

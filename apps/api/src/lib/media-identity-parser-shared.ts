@@ -16,14 +16,32 @@ export function rangeArray(start: number, end: number): number[] {
 
 export function formatSeasonLabel(season: number, episodes: number[]): string {
   const s = String(season).padStart(2, "0");
-  if (episodes.length === 1) {
-    return `S${s}E${String(episodes[0]).padStart(2, "0")}`;
+  const sorted = [...episodes].toSorted((a, b) => a - b);
+  const [firstEpisode] = sorted;
+  if (firstEpisode === undefined) {
+    return `S${s}`;
   }
-  const sorted = [...episodes].sort((a, b) => a - b);
-  const first = String(sorted[0]).padStart(2, "0");
-  const last = String(sorted[sorted.length - 1]).padStart(2, "0");
 
-  const isContiguous = sorted.every((n, i) => i === 0 || n === sorted[i - 1] + 1);
+  if (sorted.length === 1) {
+    return `S${s}E${String(firstEpisode).padStart(2, "0")}`;
+  }
+
+  const lastEpisode = sorted[sorted.length - 1];
+  if (lastEpisode === undefined) {
+    return `S${s}E${String(firstEpisode).padStart(2, "0")}`;
+  }
+
+  const first = String(firstEpisode).padStart(2, "0");
+  const last = String(lastEpisode).padStart(2, "0");
+
+  const isContiguous = sorted.every((n, i) => {
+    if (i === 0) {
+      return true;
+    }
+
+    const previous = sorted[i - 1];
+    return previous !== undefined && n === previous + 1;
+  });
   if (isContiguous) {
     return `S${s}E${first}-E${last}`;
   }

@@ -191,12 +191,12 @@ export const BackgroundSearchRssFeedServiceLive = Layer.effect(
                 action,
                 animeRow,
                 contextMessage: "Failed to run RSS check",
+                ...(decisionReason === undefined ? {} : { decisionReason }),
                 episodeNumber,
                 eventMessage: `Queued ${item.title} from RSS`,
                 eventType: "download.rss.queued",
                 item,
                 missingEpisodes,
-                decisionReason,
               });
 
               if (queueResult._tag === "skipped") {

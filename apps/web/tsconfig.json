@@ -1,23 +1,12 @@
 {
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     // General
-    "target": "ES2022",
     "jsx": "preserve",
     "jsxImportSource": "solid-js",
-    "lib": ["DOM", "DOM.Iterable", "ES2022", "ES2023.Array"],
     // Modules
-    "module": "esnext",
-    "esModuleInterop": true,
     "isolatedModules": true,
-    // Type Checking & Safety
-    "skipLibCheck": true,
-    "strict": true,
-    "noEmit": true,
-    "noImplicitAny": true,
-    "strictNullChecks": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "moduleResolution": "bundler",
+
     "types": ["vite/client"],
     "paths": {
       "@bakarr/shared": ["../../packages/shared/src/index.ts"],

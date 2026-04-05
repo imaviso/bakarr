@@ -28,7 +28,7 @@ export interface QualityProfileServiceShape {
     QualityProfile[],
     DatabaseError | StoredConfigCorruptError
   >;
-  readonly listQualities: () => Effect.Effect<Quality[], never>;
+  readonly listQualities: () => Effect.Effect<Quality[]>;
   readonly createProfile: (
     profile: QualityProfile,
   ) => Effect.Effect<QualityProfile, DatabaseError | StoredConfigCorruptError>;
@@ -59,9 +59,9 @@ const makeQualityProfileService = Effect.gen(function* () {
     return yield* Effect.forEach(rows, decodeQualityProfileRow);
   });
 
-  const listQualities = Effect.fn("QualityProfileService.listQualities")(function* () {
-    return [...DEFAULT_QUALITIES];
-  });
+  const listQualities = Effect.fn("QualityProfileService.listQualities")(() =>
+    Effect.succeed([...DEFAULT_QUALITIES]),
+  );
 
   const createProfile = Effect.fn("QualityProfileService.createProfile")(function* (
     profile: QualityProfile,

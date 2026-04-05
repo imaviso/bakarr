@@ -19,9 +19,7 @@ it.scoped("migrateDatabase applies embedded migrations idempotently", () =>
               const databaseLayer = Layer.succeed(Database, {
                 client,
                 get db(): never {
-                  return Effect.runSync(
-                    Effect.dieMessage("migrateDatabase should not access drizzle db"),
-                  );
+                  throw new Error("migrateDatabase should not access drizzle db");
                 },
               });
 

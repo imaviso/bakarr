@@ -14,7 +14,7 @@ export const listEpisodesEffect = Effect.fn("AnimeQueryEpisodes.listEpisodesEffe
     );
 
     return rows
-      .sort((left, right) => left.number - right.number)
+      .toSorted((left, right) => left.number - right.number)
       .map((row): Episode => {
         const timeline = deriveEpisodeTimelineMetadata(row.aired ?? undefined, input.now);
 

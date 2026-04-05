@@ -122,8 +122,8 @@ function toMkdirOptions(
 ): PlatformFileSystem.MakeDirectoryOptions | undefined {
   if (!options) return undefined;
   return {
-    recursive: options.recursive,
-    mode: options.mode,
+    ...(options.recursive !== undefined ? { recursive: options.recursive } : {}),
+    ...(options.mode !== undefined ? { mode: options.mode } : {}),
   };
 }
 
@@ -131,7 +131,7 @@ function toRemoveOptions(options?: RemoveOptions): PlatformFileSystem.RemoveOpti
   if (!options) return undefined;
   return {
     force: true,
-    recursive: options.recursive,
+    ...(options.recursive !== undefined ? { recursive: options.recursive } : {}),
   };
 }
 

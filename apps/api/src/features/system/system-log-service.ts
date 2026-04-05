@@ -69,12 +69,12 @@ const makeSystemLogService = Effect.gen(function* () {
     const safePage = Math.max(1, input.page);
     const safePageSize = Math.max(1, Math.min(input.pageSize ?? PAGE_SIZE, 10_000));
     const { rows, total } = yield* loadSystemLogPage(db, {
-      endDate: input.endDate,
-      eventType: input.eventType,
-      level: input.level,
+      ...(input.endDate === undefined ? {} : { endDate: input.endDate }),
+      ...(input.eventType === undefined ? {} : { eventType: input.eventType }),
+      ...(input.level === undefined ? {} : { level: input.level }),
       page: safePage,
       pageSize: safePageSize,
-      startDate: input.startDate,
+      ...(input.startDate === undefined ? {} : { startDate: input.startDate }),
     });
 
     return {

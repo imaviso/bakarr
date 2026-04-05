@@ -92,7 +92,7 @@ export function toBackgroundJobStatus(
 }
 
 export function backgroundJobNames(rows: ReadonlyArray<{ name: string }>): string[] {
-  return [...new Set([...BACKGROUND_JOB_NAMES, ...rows.map((row) => row.name)])].sort();
+  return [...new Set([...BACKGROUND_JOB_NAMES, ...rows.map((row) => row.name)])].toSorted();
 }
 
 function describeJobSchedule(config: Config, name: string) {

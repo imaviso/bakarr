@@ -35,12 +35,17 @@ it.scoped("upsertEpisodeFilesAtomic inserts multiple episodes atomically", () =>
           appDb.select().from(schema.episodes).where(eq(schema.episodes.animeId, 1)),
         );
         assert.deepStrictEqual(rows.length, 3);
+        const [firstRow] = rows;
+        assert.deepStrictEqual(firstRow !== undefined, true);
+        if (!firstRow) {
+          return;
+        }
 
-        const numbers = rows.map((r) => r.number).sort((a, b) => a - b);
+        const numbers = rows.map((r) => r.number).toSorted((a, b) => a - b);
         assert.deepStrictEqual(numbers, [1, 2, 3]);
 
-        assert.deepStrictEqual(rows[0].downloaded, true);
-        assert.deepStrictEqual(rows[0].filePath, "/test/episode.mkv");
+        assert.deepStrictEqual(firstRow.downloaded, true);
+        assert.deepStrictEqual(firstRow.filePath, "/test/episode.mkv");
       }),
     schema,
   }),
@@ -86,10 +91,16 @@ it.scoped("upsertEpisodeFilesAtomic updates existing episodes", () =>
         );
 
         assert.deepStrictEqual(rows.length, 2);
-        assert.deepStrictEqual(rows[0].downloaded, true);
-        assert.deepStrictEqual(rows[0].filePath, "/new.mkv");
-        assert.deepStrictEqual(rows[1].downloaded, true);
-        assert.deepStrictEqual(rows[1].filePath, "/new.mkv");
+        const [firstRow, secondRow] = rows;
+        assert.deepStrictEqual(firstRow !== undefined, true);
+        assert.deepStrictEqual(secondRow !== undefined, true);
+        if (!firstRow || !secondRow) {
+          return;
+        }
+        assert.deepStrictEqual(firstRow.downloaded, true);
+        assert.deepStrictEqual(firstRow.filePath, "/new.mkv");
+        assert.deepStrictEqual(secondRow.downloaded, true);
+        assert.deepStrictEqual(secondRow.filePath, "/new.mkv");
       }),
     schema,
   }),

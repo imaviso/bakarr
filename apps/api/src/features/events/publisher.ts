@@ -38,7 +38,7 @@ export const makeEventPublisher = Effect.fn("Events.makeEventPublisher")((option
   return Effect.gen(function* () {
     const publishEvent = options?.publish ?? (yield* EventBus).publish;
     const clock = yield* ClockService;
-    const infoPublisher: LatestValuePublisher<CoalescedInfoEvent, never, never> =
+    const infoPublisher: LatestValuePublisher<CoalescedInfoEvent, never> =
       yield* makeLatestValuePublisher<CoalescedInfoEvent, never, never>((value) =>
         Effect.gen(function* () {
           const now = yield* clock.currentTimeMillis;

@@ -39,7 +39,7 @@ export function isDnsNoRecordError(cause: unknown): boolean {
   }
 
   const { name } = cause;
-  const { code } = cause as { code?: unknown };
+  const code = getErrorCode(cause);
   const message = cause.message.toLowerCase();
 
   return (
@@ -51,4 +51,13 @@ export function isDnsNoRecordError(cause: unknown): boolean {
     message.includes("enodata") ||
     message.includes("enotfound")
   );
+}
+
+function getErrorCode(error: Error): string | undefined {
+  if (!("code" in error)) {
+    return undefined;
+  }
+
+  const code = error.code;
+  return typeof code === "string" ? code : undefined;
 }

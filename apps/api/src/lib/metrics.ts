@@ -127,7 +127,7 @@ export function renderBakarrPrometheusMetrics(
 
   for (const pair of [...snapshot]
     .filter((item) => item.metricKey.name.startsWith("bakarr_"))
-    .sort(compareMetricPairs)) {
+    .toSorted(compareMetricPairs)) {
     const metricName = pair.metricKey.name;
     const tags = normalizeTags(pair.metricKey.tags);
     const state = pair.metricState;
@@ -237,7 +237,7 @@ function compareMetricPairs(
 function normalizeTags(tags: ReadonlyArray<{ readonly key: string; readonly value: string }>) {
   return [...tags]
     .map((tag) => [tag.key, tag.value] as const)
-    .sort(([left], [right]) => left.localeCompare(right));
+    .toSorted(([left], [right]) => left.localeCompare(right));
 }
 
 function formatLabels(tags: ReadonlyArray<readonly [string, string]>) {

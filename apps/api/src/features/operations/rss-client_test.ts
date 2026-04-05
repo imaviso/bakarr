@@ -261,9 +261,14 @@ it.effect("RssClient handles non-redirect valid feed", () =>
     const items = yield* fetchFeedItemsEffect(makeRssHttpClient(), () =>
       Promise.resolve(["93.184.216.34"]),
     );
+    const [firstItem] = items;
+    assert.deepStrictEqual(firstItem !== undefined, true);
+    if (!firstItem) {
+      return;
+    }
 
     assert.deepStrictEqual(items.length, 1);
-    assert.deepStrictEqual(items[0].title, "[SubsPlease] Example Show - 01 (1080p) [SeaDex]");
+    assert.deepStrictEqual(firstItem.title, "[SubsPlease] Example Show - 01 (1080p) [SeaDex]");
   }),
 );
 

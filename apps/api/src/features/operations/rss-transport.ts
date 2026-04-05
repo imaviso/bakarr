@@ -42,7 +42,7 @@ export class RssTransport extends Context.Tag("@bakarr/api/RssTransport")<
 
 export const RssTransportLive = Layer.effect(
   RssTransport,
-  Effect.gen(function* () {
+  Effect.sync(() => {
     const execute = Effect.fn("RssTransport.execute")(function* (target: PinnedRequestTarget) {
       return yield* Effect.tryPromise({
         try: (signal) =>

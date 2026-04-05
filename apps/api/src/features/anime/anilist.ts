@@ -247,7 +247,7 @@ const callAniList = <A, I>(
   operation: string,
   query: string,
   variables: Record<string, unknown>,
-  schema: Schema.Schema<A, I, never>,
+  schema: Schema.Schema<A, I>,
 ): Effect.Effect<A, ExternalCallError> =>
   Effect.gen(function* () {
     const request = yield* HttpClientRequest.post(ANILIST_URL).pipe(

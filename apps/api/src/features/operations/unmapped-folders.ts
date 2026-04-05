@@ -40,7 +40,7 @@ export function buildUnmappedFolderSearchQueries(folderName: string): string[] {
 
 export const suggestUnmappedFolders = Effect.fn("Operations.suggestUnmappedFolders")(function* (
   folders: readonly UnmappedFolderInput[],
-  search: (query: string) => Effect.Effect<AnimeSearchResult[], never>,
+  search: (query: string) => Effect.Effect<AnimeSearchResult[]>,
   options?: { readonly concurrency?: number },
 ) {
   const queriesByFolder = new Map(
@@ -203,20 +203,19 @@ function annotateUnmappedSuggestions(
   primaryQuery: string | undefined,
   matches: readonly AnimeSearchResult[],
 ) {
-  return [...matches]
-    .map((candidate) => ({
-      ...candidate,
-      match_confidence: roundConfidence(scoreAnimeSearchResultMatch(query, candidate)),
-      match_reason:
-        query === primaryQuery
-          ? `Matched AniList search for the normalized folder title from ${JSON.stringify(
-              folderName,
-            )}`
-          : `Matched AniList search after removing season or release noise from ${JSON.stringify(
-              folderName,
-            )}`,
-    }))
-    .sort((left, right) => (right.match_confidence ?? 0) - (left.match_confidence ?? 0));
+  const matchReason =
+    query === primaryQuery
+      ? `Matched AniList search for the normalized folder title from ${JSON.stringify(folderName)}`
+      : `Matched AniList search after removing season or release noise from ${JSON.stringify(folderName)}`;
+
+  return matches
+    .map((candidate) =>
+      Object.assign({}, candidate, {
+        match_confidence: roundConfidence(scoreAnimeSearchResultMatch(query, candidate)),
+        match_reason: matchReason,
+      }),
+    )
+    .toSorted((left, right) => (right.match_confidence ?? 0) - (left.match_confidence ?? 0));
 }
 
 function roundConfidence(value: number) {

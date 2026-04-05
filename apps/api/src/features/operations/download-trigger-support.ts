@@ -49,7 +49,9 @@ export const prepareTriggerDownload = Effect.fn("Operations.prepareTriggerDownlo
     const parsedRelease = parseReleaseName(input.triggerInput.title);
     const effectiveIsBatch = input.triggerInput.is_batch ?? parsedRelease.isBatch;
     const requestedEpisode = resolveRequestedEpisodeNumber({
-      explicitEpisode: input.triggerInput.episode_number,
+      ...(input.triggerInput.episode_number === undefined
+        ? {}
+        : { explicitEpisode: input.triggerInput.episode_number }),
       inferredEpisodes: parsedRelease.episodeNumbers,
       isBatch: effectiveIsBatch,
     });
@@ -75,17 +77,30 @@ export const prepareTriggerDownload = Effect.fn("Operations.prepareTriggerDownlo
     const coveredEpisodes = yield* toCoveredEpisodesJson(inferredCoveredEpisodes);
     const sourceMetadata = mergeDownloadSourceMetadata(
       buildDownloadSourceMetadataFromRelease({
-        chosenFromSeadex:
-          input.triggerInput.release_metadata?.chosen_from_seadex ??
-          input.triggerInput.release_metadata?.is_seadex,
-        decisionReason: input.triggerInput.decision_reason,
-        group: input.triggerInput.group,
+        ...(() => {
+          const chosenFromSeadex =
+            input.triggerInput.release_metadata?.chosen_from_seadex ??
+            input.triggerInput.release_metadata?.is_seadex;
+          return chosenFromSeadex === undefined ? {} : { chosenFromSeadex };
+        })(),
+        ...(input.triggerInput.decision_reason === undefined
+          ? {}
+          : { decisionReason: input.triggerInput.decision_reason }),
+        ...(input.triggerInput.group === undefined ? {} : { group: input.triggerInput.group }),
         indexer: "Nyaa",
-        previousQuality: input.triggerInput.release_metadata?.previous_quality,
-        previousScore: input.triggerInput.release_metadata?.previous_score,
+        ...(input.triggerInput.release_metadata?.previous_quality === undefined
+          ? {}
+          : { previousQuality: input.triggerInput.release_metadata.previous_quality }),
+        ...(input.triggerInput.release_metadata?.previous_score === undefined
+          ? {}
+          : { previousScore: input.triggerInput.release_metadata.previous_score }),
         selectionKind: input.triggerInput.release_metadata?.selection_kind ?? "manual",
-        selectionScore: input.triggerInput.release_metadata?.selection_score,
-        sourceUrl: input.triggerInput.release_metadata?.source_url,
+        ...(input.triggerInput.release_metadata?.selection_score === undefined
+          ? {}
+          : { selectionScore: input.triggerInput.release_metadata.selection_score }),
+        ...(input.triggerInput.release_metadata?.source_url === undefined
+          ? {}
+          : { sourceUrl: input.triggerInput.release_metadata.source_url }),
         title: input.triggerInput.title,
       }),
       input.triggerInput.release_metadata,
@@ -177,7 +192,15 @@ export const insertQueuedDownload = Effect.fn("Operations.insertQueuedDownload")
     return yield* insertError;
   }
 
-  return insertResult.right[0].id;
+  const insertedRow = insertResult.right[0];
+
+  if (!insertedRow) {
+    return yield* new OperationsInfrastructureError({
+      message: "Failed to trigger download",
+    });
+  }
+
+  return insertedRow.id;
 });
 
 export const addMagnetToQueuedDownload = Effect.fn("Operations.addMagnetToQueuedDownload")(

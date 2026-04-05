@@ -112,18 +112,30 @@ export const BackgroundSearchQueueServiceLive = Layer.effect(
             sourceMetadata: mergeDownloadSourceMetadata(
               buildDownloadSourceMetadataFromRelease({
                 ...buildDownloadSelectionMetadata(input.action),
-                decisionReason: input.decisionReason,
-                group: input.item.group,
+                ...(input.decisionReason === undefined
+                  ? {}
+                  : { decisionReason: input.decisionReason }),
+                ...(input.item.group === undefined ? {} : { group: input.item.group }),
                 indexer: "Nyaa",
                 isSeadex: input.item.isSeaDex,
                 isSeadexBest: input.item.isSeaDexBest,
                 remake: input.item.remake,
-                seadexComparison: input.item.seaDexComparison,
-                seadexDualAudio: input.item.seaDexDualAudio,
-                seadexNotes: input.item.seaDexNotes,
-                seadexReleaseGroup: input.item.seaDexReleaseGroup,
-                seadexTags: input.item.seaDexTags,
-                sourceUrl: input.item.viewUrl,
+                ...(input.item.seaDexComparison === undefined
+                  ? {}
+                  : { seadexComparison: input.item.seaDexComparison }),
+                ...(input.item.seaDexDualAudio === undefined
+                  ? {}
+                  : { seadexDualAudio: input.item.seaDexDualAudio }),
+                ...(input.item.seaDexNotes === undefined
+                  ? {}
+                  : { seadexNotes: input.item.seaDexNotes }),
+                ...(input.item.seaDexReleaseGroup === undefined
+                  ? {}
+                  : { seadexReleaseGroup: input.item.seaDexReleaseGroup }),
+                ...(input.item.seaDexTags === undefined
+                  ? {}
+                  : { seadexTags: input.item.seaDexTags }),
+                ...(input.item.viewUrl === undefined ? {} : { sourceUrl: input.item.viewUrl }),
                 title: input.item.title,
                 trusted: input.item.trusted,
               }),

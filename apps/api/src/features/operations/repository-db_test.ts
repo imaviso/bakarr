@@ -1,6 +1,5 @@
 import { assert, it } from "@effect/vitest";
 import { Cause, Effect, Option, Schema } from "effect";
-import { ConfigCoreSchema } from "@/features/system/config-schema.ts";
 
 import * as schema from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
@@ -11,6 +10,7 @@ import {
   encodeQualityProfileRow,
   encodeReleaseProfileRules,
 } from "@/features/system/config-codec.ts";
+import { ConfigCoreSchema } from "@/features/system/config-schema.ts";
 import { makeDefaultConfig } from "@/features/system/defaults.ts";
 import {
   getConfigLibraryPath,
@@ -39,47 +39,45 @@ it.scoped(
       run: (db, databaseFile) =>
         Effect.gen(function* () {
           const defaults = makeDefaultConfig(databaseFile);
+          const encodedDefaults = yield* Schema.encode(ConfigCoreSchema)(defaults);
+          const decodedConfig = yield* Schema.decodeUnknown(ConfigCoreSchema)({
+            ...encodedDefaults,
+            library: {
+              ...encodedDefaults.library,
+              import_mode: "move",
+              library_path: "/anime-library",
+            },
+          });
+          const configData = yield* encodeConfigCore(decodedConfig);
+          const qualityProfileRow = yield* encodeQualityProfileRow({
+            allowed_qualities: ["1080p", "720p"],
+            cutoff: "1080p",
+            max_size: "4GB",
+            min_size: null,
+            name: "Default",
+            seadex_preferred: true,
+            upgrade_allowed: true,
+          });
 
           yield* Effect.promise(() =>
             db.insert(appConfig).values({
               id: 1,
-              data: (() => {
-                const base = Schema.encodeSync(ConfigCoreSchema)(defaults);
-                return Effect.runSync(
-                  encodeConfigCore({
-                    ...base,
-                    library: {
-                      ...base.library,
-                      import_mode: "move",
-                      library_path: "/anime-library",
-                    },
-                  }),
-                );
-              })(),
+              data: configData,
               updatedAt: "2024-01-01T00:00:00.000Z",
             }),
           );
-          yield* Effect.promise(() =>
-            db.insert(qualityProfiles).values(
-              Effect.runSync(
-                encodeQualityProfileRow({
-                  allowed_qualities: ["1080p", "720p"],
-                  cutoff: "1080p",
-                  max_size: "4GB",
-                  min_size: null,
-                  name: "Default",
-                  seadex_preferred: true,
-                  upgrade_allowed: true,
-                }),
-              ),
-            ),
-          );
+          yield* Effect.promise(() => db.insert(qualityProfiles).values(qualityProfileRow));
 
           const runtimeConfig = yield* loadRuntimeConfig(db);
           assert.deepStrictEqual(runtimeConfig.library.library_path, "/anime-library");
           assert.deepStrictEqual(runtimeConfig.library.import_mode, "move");
           assert.deepStrictEqual(runtimeConfig.profiles.length, 1);
-          assert.deepStrictEqual(runtimeConfig.profiles[0].name, "Default");
+          const [firstProfile] = runtimeConfig.profiles;
+          assert.deepStrictEqual(firstProfile !== undefined, true);
+          if (!firstProfile) {
+            return;
+          }
+          assert.deepStrictEqual(firstProfile.name, "Default");
 
           assert.deepStrictEqual(yield* getConfigLibraryPath(db), "/anime-library");
           assert.deepStrictEqual(yield* currentImportMode(db), "move");
@@ -109,6 +107,17 @@ it.scoped("operations repository helpers load anime release rules and episode st
   withSqliteTestDbEffect({
     run: (db, _databaseFile) =>
       Effect.gen(function* () {
+        const releaseProfileIds = yield* encodeNumberList([2]);
+        const globalRules = yield* encodeReleaseProfileRules([
+          { rule_type: "preferred", score: 10, term: "SubsPlease" },
+        ]);
+        const assignedRules = yield* encodeReleaseProfileRules([
+          { rule_type: "must", score: 0, term: "1080p" },
+        ]);
+        const ignoredRules = yield* encodeReleaseProfileRules([
+          { rule_type: "must_not", score: 0, term: "Dub" },
+        ]);
+
         yield* Effect.promise(() =>
           db.insert(anime).values({
             id: 20,
@@ -135,7 +144,7 @@ it.scoped("operations repository helpers load anime release rules and episode st
             rootFolder: "/library/Naruto",
             addedAt: "2024-01-01T00:00:00.000Z",
             monitored: true,
-            releaseProfileIds: Effect.runSync(encodeNumberList([2])),
+            releaseProfileIds,
           }),
         );
         yield* Effect.promise(() =>
@@ -145,29 +154,21 @@ it.scoped("operations repository helpers load anime release rules and episode st
               name: "Global",
               enabled: true,
               isGlobal: true,
-              rules: Effect.runSync(
-                encodeReleaseProfileRules([
-                  { rule_type: "preferred", score: 10, term: "SubsPlease" },
-                ]),
-              ),
+              rules: globalRules,
             },
             {
               id: 2,
               name: "Assigned",
               enabled: true,
               isGlobal: false,
-              rules: Effect.runSync(
-                encodeReleaseProfileRules([{ rule_type: "must", score: 0, term: "1080p" }]),
-              ),
+              rules: assignedRules,
             },
             {
               id: 3,
               name: "Ignored",
               enabled: true,
               isGlobal: false,
-              rules: Effect.runSync(
-                encodeReleaseProfileRules([{ rule_type: "must_not", score: 0, term: "Dub" }]),
-              ),
+              rules: ignoredRules,
             },
           ]),
         );

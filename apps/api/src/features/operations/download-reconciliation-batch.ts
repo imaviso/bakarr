@@ -161,12 +161,14 @@ export const reconcileBatchDownloadEffect = Effect.fn("OperationsService.reconci
 
       const initialNamingPlan = buildEpisodeFilenamePlan({
         animeRow: input.animeRow,
-        downloadSourceMetadata: input.storedSourceMetadata,
         episodeNumbers: relevantEpisodes,
         episodeRows: episodeRowsForNaming,
         filePath: path,
         namingFormat,
         preferredTitle: input.runtimeConfig.library.preferred_title,
+        ...(input.storedSourceMetadata
+          ? { downloadSourceMetadata: input.storedSourceMetadata }
+          : {}),
       });
       const localMediaMetadata = hasMissingLocalMediaNamingFields(initialNamingPlan.missingFields)
         ? yield* input.mediaProbe
@@ -185,13 +187,15 @@ export const reconcileBatchDownloadEffect = Effect.fn("OperationsService.reconci
         path,
         input.importMode,
         {
-          downloadSourceMetadata: input.storedSourceMetadata,
           episodeNumbers: relevantEpisodes,
           episodeRows: episodeRowsForNaming,
-          localMediaMetadata,
           namingFormat,
           preferredTitle: input.runtimeConfig.library.preferred_title,
           randomUuid: input.randomUuid,
+          ...(input.storedSourceMetadata
+            ? { downloadSourceMetadata: input.storedSourceMetadata }
+            : {}),
+          ...(localMediaMetadata ? { localMediaMetadata } : {}),
         },
       ).pipe(Effect.mapError(mapReconciliationInfrastructureError));
       yield* upsertEpisodeFilesAtomic(
@@ -238,7 +242,7 @@ export const reconcileBatchDownloadEffect = Effect.fn("OperationsService.reconci
     const eventMetadata = yield* encodeDownloadEventMetadata({
       covered_episodes: storedCoveredEpisodes,
       imported_path: input.animeRow.rootFolder,
-      source_metadata: input.storedSourceMetadata,
+      ...(input.storedSourceMetadata ? { source_metadata: input.storedSourceMetadata } : {}),
     });
 
     yield* finalizeDownloadImport({

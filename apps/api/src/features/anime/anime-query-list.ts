@@ -59,10 +59,12 @@ export const listAnimeEffect = Effect.fn("AnimeQueryList.listAnimeEffect")(funct
     );
 
     for (const stat of episodeStats) {
+      const latestDownloadedEpisode =
+        stat.latestDownloadedEpisode === null ? undefined : Number(stat.latestDownloadedEpisode);
+
       episodeStatsByAnimeId.set(stat.animeId, {
         downloaded: Number(stat.downloadedCount ?? 0),
-        latestDownloadedEpisode:
-          stat.latestDownloadedEpisode === null ? undefined : Number(stat.latestDownloadedEpisode),
+        ...(latestDownloadedEpisode === undefined ? {} : { latestDownloadedEpisode }),
       });
     }
   }
@@ -121,7 +123,7 @@ function toAnimeDtoProgress(
   const sortedMissing = total
     ? [...missingNumbers]
         .filter((number) => number >= 1 && number <= total)
-        .sort((left, right) => left - right)
+        .toSorted((left, right) => left - right)
     : [];
   const downloadedPercent =
     total && total > 0 ? Math.min(100, Math.round((downloaded / total) * 100)) : undefined;

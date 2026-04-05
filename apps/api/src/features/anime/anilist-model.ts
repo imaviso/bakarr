@@ -131,6 +131,33 @@ export const AniListSearchPayloadSchema = Schema.Struct({
   data: AniListSearchDataSchema,
 });
 
+type AniListDateInput = {
+  readonly day?: number | null | undefined;
+  readonly month?: number | null | undefined;
+  readonly year?: number | null | undefined;
+};
+
+type AniListDiscoveryNodeInput = {
+  readonly averageScore?: number | null | undefined;
+  readonly coverImage?:
+    | {
+        readonly extraLarge?: string | null | undefined;
+        readonly large?: string | null | undefined;
+      }
+    | undefined;
+  readonly format?: string | null | undefined;
+  readonly id: number;
+  readonly startDate?: AniListDateInput | undefined;
+  readonly status?: string | null | undefined;
+  readonly title?:
+    | {
+        readonly english?: string | null | undefined;
+        readonly native?: string | null | undefined;
+        readonly romaji?: string | null | undefined;
+      }
+    | undefined;
+};
+
 const AniListDetailMediaSchema = Schema.Struct({
   airingSchedule: Schema.optional(Schema.NullOr(AniListAiringConnectionSchema)),
   averageScore: Schema.optional(Schema.NullOr(Schema.Number)),
@@ -280,9 +307,7 @@ export const AnimeMetadataFromAniListSchema = Schema.transform(
   },
 );
 
-function toIsoDate(
-  date: { year?: number | null; month?: number | null; day?: number | null } | undefined,
-): string | undefined {
+function toIsoDate(date?: AniListDateInput): string | undefined {
   if (!date?.year || !date?.month) {
     return undefined;
   }
@@ -315,7 +340,7 @@ function normalizeFutureAiringSchedule(
 
   return [...schedule]
     .filter((entry) => Number.isFinite(entry.episode) && entry.episode > 0)
-    .sort((left, right) => left.episode - right.episode)
+    .toSorted((left, right) => left.episode - right.episode)
     .map((entry) => ({
       airingAt: new Date(entry.airingAt * 1000).toISOString(),
       episode: entry.episode,
@@ -325,27 +350,8 @@ function normalizeFutureAiringSchedule(
 function normalizeDiscoveryEntries(
   edges:
     | ReadonlyArray<{
-        relationType?: string | null;
-        node?: {
-          averageScore?: number | null;
-          coverImage?: {
-            extraLarge?: string | null;
-            large?: string | null;
-          };
-          format?: string | null;
-          id: number;
-          startDate?: {
-            year?: number | null;
-            month?: number | null;
-            day?: number | null;
-          };
-          status?: string | null;
-          title?: {
-            english?: string | null;
-            native?: string | null;
-            romaji?: string | null;
-          };
-        } | null;
+        readonly relationType?: string | null | undefined;
+        readonly node?: AniListDiscoveryNodeInput | null | undefined;
       }>
     | undefined,
 ) {
@@ -371,26 +377,7 @@ function normalizeDiscoveryEntries(
 function normalizeRecommendations(
   nodes:
     | ReadonlyArray<{
-        mediaRecommendation?: {
-          averageScore?: number | null;
-          coverImage?: {
-            extraLarge?: string | null;
-            large?: string | null;
-          };
-          format?: string | null;
-          id: number;
-          startDate?: {
-            year?: number | null;
-            month?: number | null;
-            day?: number | null;
-          };
-          status?: string | null;
-          title?: {
-            english?: string | null;
-            native?: string | null;
-            romaji?: string | null;
-          };
-        } | null;
+        readonly mediaRecommendation?: AniListDiscoveryNodeInput | null | undefined;
       }>
     | undefined,
 ) {
@@ -414,23 +401,7 @@ function normalizeRecommendations(
 }
 
 function toDiscoveryEntry(
-  node: {
-    averageScore?: number | null;
-    coverImage?: { extraLarge?: string | null; large?: string | null };
-    format?: string | null;
-    id: number;
-    startDate?: {
-      year?: number | null;
-      month?: number | null;
-      day?: number | null;
-    };
-    status?: string | null;
-    title?: {
-      english?: string | null;
-      native?: string | null;
-      romaji?: string | null;
-    };
-  },
+  node: AniListDiscoveryNodeInput,
   relationType?: string,
 ): AnimeDiscoveryEntry {
   return {

@@ -1,7 +1,6 @@
 import { Config as EffectConfig, Context, Effect, Layer, Option, Redacted, Schema } from "effect";
 
 import { PositiveIntSchema } from "@/lib/domain-schema.ts";
-import { randomHexFrom, RandomService } from "@/lib/random.ts";
 
 const PortSchema = Schema.Number.pipe(Schema.int(), Schema.between(1, 65_535));
 
@@ -23,7 +22,7 @@ export interface AppConfigOverrides {
   readonly databaseFile?: string;
   readonly port?: number;
   readonly bootstrapUsername?: string;
-  readonly bootstrapPassword?: string | Redacted.Redacted<string>;
+  readonly bootstrapPassword?: string | Redacted.Redacted;
   readonly sessionCookieName?: string;
   readonly sessionCookieSecure?: boolean;
   readonly sessionDurationDays?: number;
@@ -36,7 +35,7 @@ const PositiveIntConfigSchema = Schema.NumberFromString.pipe(Schema.compose(Posi
 
 export const defaultAppConfig = new AppConfigModel({
   appVersion: "0.1.0",
-  bootstrapPassword: Redacted.make("generated-at-runtime"),
+  bootstrapPassword: Redacted.make("admin"),
   bootstrapPasswordIsEnvOverride: false,
   bootstrapUsername: "admin",
   databaseFile: "./bakarr.sqlite",
@@ -51,7 +50,6 @@ export class AppConfig extends Context.Tag("@bakarr/api/AppConfig")<AppConfig, A
     return Layer.effect(
       AppConfig,
       Effect.gen(function* () {
-        const random = yield* RandomService;
         const appVersion = yield* readConfigValue(
           overrides.appVersion,
           Schema.Config("BAKARR_APP_VERSION", Schema.String).pipe(
@@ -68,10 +66,9 @@ export class AppConfig extends Context.Tag("@bakarr/api/AppConfig")<AppConfig, A
                 Effect.map(Option.some),
                 Effect.orElse(() => Effect.succeed(Option.none())),
               );
-        const generatedBootstrapPassword = Redacted.make(yield* randomHexFrom(random, 32));
         const bootstrapPassword = Option.getOrElse(
           bootstrapPasswordFromEnv,
-          () => generatedBootstrapPassword,
+          () => defaultAppConfig.bootstrapPassword,
         );
         const bootstrapPasswordIsEnvOverride = Option.isSome(bootstrapPasswordFromEnv);
         const bootstrapUsername = yield* readConfigValue(
@@ -133,7 +130,7 @@ function readConfigValue<A>(override: A | undefined, config: EffectConfig.Config
   return override === undefined ? config : EffectConfig.succeed(override);
 }
 
-function normalizePasswordOverride(override: string | Redacted.Redacted<string> | undefined) {
+function normalizePasswordOverride(override: string | Redacted.Redacted | undefined) {
   if (override === undefined) {
     return undefined;
   }

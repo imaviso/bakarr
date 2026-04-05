@@ -12,8 +12,8 @@ export type MediaArtifactKind = "episode" | "extra" | "sample" | "unknown";
 export interface ParsedMediaFile {
   kind: MediaArtifactKind;
   parsed_title: string;
-  source_identity?: ParsedEpisodeIdentity;
-  group?: string;
-  resolution?: string;
-  skip_reason?: string;
+  source_identity?: ParsedEpisodeIdentity | undefined;
+  group?: string | undefined;
+  resolution?: string | undefined;
+  skip_reason?: string | undefined;
 }

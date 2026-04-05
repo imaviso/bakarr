@@ -43,7 +43,12 @@ export const resolveAnimeRootFolderEffect = Effect.fn("AnimeConfigSupport.resolv
 
     const safeSegment = toSafePathSegment(title);
 
-    if (baseRootFolder.split("/").filter(Boolean).pop() === safeSegment) {
+    const baseRootLastSegment = baseRootFolder
+      .split("/")
+      .toReversed()
+      .find((segment) => segment.length > 0);
+
+    if (baseRootLastSegment === safeSegment) {
       return baseRootFolder;
     }
 

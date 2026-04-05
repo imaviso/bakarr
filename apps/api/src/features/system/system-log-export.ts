@@ -25,7 +25,7 @@ export interface SystemLogExportStreamShape {
 }
 
 interface SystemLogExportPlan {
-  readonly conditions: readonly SQL<unknown>[];
+  readonly conditions: readonly SQL[];
   readonly limit: number;
 }
 
@@ -72,9 +72,10 @@ export const loadSystemLogExportHeader = Effect.fn("SystemLogExport.loadHeader")
   nowIso: () => Effect.Effect<string>,
 ) {
   const countQuery = db.select({ value: sql<number>`count(*)` }).from(systemLogs);
-  const [{ value }] = yield* tryDatabasePromise("Failed to load system logs", () =>
+  const countRows = yield* tryDatabasePromise("Failed to load system logs", () =>
     plan.conditions.length > 0 ? countQuery.where(and(...plan.conditions)) : countQuery,
   );
+  const value = countRows[0]?.value;
   const total = Number(value ?? 0);
 
   return {

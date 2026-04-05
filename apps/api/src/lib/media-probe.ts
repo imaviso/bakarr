@@ -62,127 +62,128 @@ class FFProbeOutputSchema extends Schema.Class<FFProbeOutputSchema>("FFProbeOutp
   format: Schema.optional(FFProbeFormatSchema),
 }) {}
 const FFProbeOutputJsonSchema = Schema.parseJson(FFProbeOutputSchema);
+
+const normalizeResolution = (stream?: { width?: number; height?: number }) => {
+  const height = stream?.height ?? stream?.width;
+
+  if (!height) {
+    return undefined;
+  }
+
+  if (height >= 2160) return "2160p";
+  if (height >= 1440) return "1440p";
+  if (height >= 1080) return "1080p";
+  if (height >= 720) return "720p";
+  if (height >= 480) return "480p";
+
+  return `${height}p`;
+};
+
+const normalizeVideoCodec = (codec?: string) => {
+  const normalized = codec?.toLowerCase().replace(/[^a-z0-9]+/g, "");
+
+  switch (normalized) {
+    case "h264":
+    case "avc":
+    case "avc1":
+    case "x264":
+      return "AVC";
+    case "h265":
+    case "hevc":
+    case "x265":
+      return "HEVC";
+    case "av1":
+      return "AV1";
+    case "vp9":
+      return "VP9";
+    case "mpeg2video":
+      return "MPEG-2";
+    case "vc1":
+      return "VC-1";
+    default:
+      return codec?.toUpperCase();
+  }
+};
+
+const normalizeAudioCodec = (codec?: string) => {
+  const normalized = codec?.toLowerCase().replace(/[^a-z0-9]+/g, "");
+
+  switch (normalized) {
+    case "aac":
+      return "AAC";
+    case "ac3":
+      return "AC3";
+    case "eac3":
+      return "E-AC3";
+    case "flac":
+      return "FLAC";
+    case "mp3":
+      return "MP3";
+    case "opus":
+      return "Opus";
+    case "vorbis":
+      return "Vorbis";
+    case "truehd":
+      return "TrueHD";
+    case "dts":
+    case "dtshdma":
+      return "DTS";
+    case "pcm":
+    case "pcms16le":
+    case "pcms24le":
+      return "PCM";
+    default:
+      return codec?.toUpperCase();
+  }
+};
+
+const normalizeAudioChannels = (input: { channels?: number; channel_layout?: string }) => {
+  const layout = input.channel_layout?.toLowerCase();
+
+  if (layout === "mono") return "1.0";
+  if (layout === "stereo") return "2.0";
+  if (layout === "2.1") return "2.1";
+  if (layout === "5.1") return "5.1";
+  if (layout === "7.1") return "7.1";
+
+  switch (input.channels) {
+    case 1:
+      return "1.0";
+    case 2:
+      return "2.0";
+    case 3:
+      return "3.0";
+    case 4:
+      return "4.0";
+    case 5:
+      return "5.0";
+    case 6:
+      return "5.1";
+    case 8:
+      return "7.1";
+    default:
+      return input.channels ? `${input.channels}.0` : undefined;
+  }
+};
+
+const normalizeDurationSeconds = (value?: string) => {
+  if (!value) {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return undefined;
+  }
+
+  return Math.round(parsed);
+};
+
 const ProbedMediaMetadataFromFFProbeOutputSchema = Schema.transform(
   FFProbeOutputSchema,
   Schema.NullOr(ProbedMediaMetadataSchema),
   {
     decode: (output) => {
-      const normalizeResolution = (stream?: { width?: number; height?: number }) => {
-        const height = stream?.height ?? stream?.width;
-
-        if (!height) {
-          return undefined;
-        }
-
-        if (height >= 2160) return "2160p";
-        if (height >= 1440) return "1440p";
-        if (height >= 1080) return "1080p";
-        if (height >= 720) return "720p";
-        if (height >= 480) return "480p";
-
-        return `${height}p`;
-      };
-
-      const normalizeVideoCodec = (codec?: string) => {
-        const normalized = codec?.toLowerCase().replace(/[^a-z0-9]+/g, "");
-
-        switch (normalized) {
-          case "h264":
-          case "avc":
-          case "avc1":
-          case "x264":
-            return "AVC";
-          case "h265":
-          case "hevc":
-          case "x265":
-            return "HEVC";
-          case "av1":
-            return "AV1";
-          case "vp9":
-            return "VP9";
-          case "mpeg2video":
-            return "MPEG-2";
-          case "vc1":
-            return "VC-1";
-          default:
-            return codec?.toUpperCase();
-        }
-      };
-
-      const normalizeAudioCodec = (codec?: string) => {
-        const normalized = codec?.toLowerCase().replace(/[^a-z0-9]+/g, "");
-
-        switch (normalized) {
-          case "aac":
-            return "AAC";
-          case "ac3":
-            return "AC3";
-          case "eac3":
-            return "E-AC3";
-          case "flac":
-            return "FLAC";
-          case "mp3":
-            return "MP3";
-          case "opus":
-            return "Opus";
-          case "vorbis":
-            return "Vorbis";
-          case "truehd":
-            return "TrueHD";
-          case "dts":
-          case "dtshdma":
-            return "DTS";
-          case "pcm":
-          case "pcms16le":
-          case "pcms24le":
-            return "PCM";
-          default:
-            return codec?.toUpperCase();
-        }
-      };
-
-      const normalizeAudioChannels = (input: { channels?: number; channel_layout?: string }) => {
-        const layout = input.channel_layout?.toLowerCase();
-
-        if (layout === "mono") return "1.0";
-        if (layout === "stereo") return "2.0";
-        if (layout === "2.1") return "2.1";
-        if (layout === "5.1") return "5.1";
-        if (layout === "7.1") return "7.1";
-
-        switch (input.channels) {
-          case 1:
-            return "1.0";
-          case 2:
-            return "2.0";
-          case 3:
-            return "3.0";
-          case 4:
-            return "4.0";
-          case 5:
-            return "5.0";
-          case 6:
-            return "5.1";
-          case 8:
-            return "7.1";
-          default:
-            return input.channels ? `${input.channels}.0` : undefined;
-        }
-      };
-
-      const normalizeDurationSeconds = (value?: string) => {
-        if (!value) {
-          return undefined;
-        }
-
-        const parsed = Number(value);
-        if (!Number.isFinite(parsed) || parsed <= 0) {
-          return undefined;
-        }
-
-        return Math.round(parsed);
-      };
-
       const { streams } = output;
       const videoStream = streams.find((s) => s.codec_type === "video");
       const audioStream = streams.find((s) => s.codec_type === "audio");
@@ -190,12 +191,21 @@ const ProbedMediaMetadataFromFFProbeOutputSchema = Schema.transform(
 
       const metadata = {
         duration_seconds: normalizeDurationSeconds(videoStream?.duration ?? format?.duration),
-        resolution: normalizeResolution(videoStream),
+        resolution: normalizeResolution(
+          videoStream
+            ? {
+                ...(videoStream.width !== undefined ? { width: videoStream.width } : {}),
+                ...(videoStream.height !== undefined ? { height: videoStream.height } : {}),
+              }
+            : undefined,
+        ),
         video_codec: normalizeVideoCodec(videoStream?.codec_name),
         audio_codec: normalizeAudioCodec(audioStream?.codec_name),
         audio_channels: normalizeAudioChannels({
-          channels: audioStream?.channels,
-          channel_layout: audioStream?.channel_layout,
+          ...(audioStream?.channels !== undefined ? { channels: audioStream.channels } : {}),
+          ...(audioStream?.channel_layout !== undefined
+            ? { channel_layout: audioStream.channel_layout }
+            : {}),
         }),
       } satisfies ProbedMediaMetadata;
 
@@ -239,7 +249,7 @@ const ProbedMediaMetadataFromFFProbeOutputSchema = Schema.transform(
 );
 
 export interface MediaProbeShape {
-  readonly probeVideoFile: (path: string) => Effect.Effect<MediaProbeResult, never>;
+  readonly probeVideoFile: (path: string) => Effect.Effect<MediaProbeResult>;
 }
 
 export class MediaProbe extends Context.Tag("@bakarr/api/MediaProbe")<
@@ -248,32 +258,32 @@ export class MediaProbe extends Context.Tag("@bakarr/api/MediaProbe")<
 >() {}
 
 export function shouldProbeMediaMetadata(input: {
-  duration_seconds?: number;
-  resolution?: string;
-  video_codec?: string;
-  audio_codec?: string;
-  audio_channels?: string;
+  duration_seconds?: number | undefined;
+  resolution?: string | undefined;
+  video_codec?: string | undefined;
+  audio_codec?: string | undefined;
+  audio_channels?: string | undefined;
 }) {
   return !input.resolution || !input.video_codec || !input.audio_codec || !input.audio_channels;
 }
 
 export function shouldProbeDetailedMediaMetadata(input: {
-  duration_seconds?: number;
-  resolution?: string;
-  video_codec?: string;
-  audio_codec?: string;
-  audio_channels?: string;
+  duration_seconds?: number | undefined;
+  resolution?: string | undefined;
+  video_codec?: string | undefined;
+  audio_codec?: string | undefined;
+  audio_channels?: string | undefined;
 }) {
   return !input.duration_seconds || shouldProbeMediaMetadata(input);
 }
 
 export function mergeProbedMediaMetadata<
   T extends {
-    duration_seconds?: number;
-    resolution?: string;
-    video_codec?: string;
-    audio_codec?: string;
-    audio_channels?: string;
+    duration_seconds?: number | undefined;
+    resolution?: string | undefined;
+    video_codec?: string | undefined;
+    audio_codec?: string | undefined;
+    audio_channels?: string | undefined;
   },
 >(input: T, probed?: ProbedMediaMetadata): T {
   if (!probed) {
@@ -291,7 +301,7 @@ export function mergeProbedMediaMetadata<
 }
 
 export const parseFfprobeJson = Effect.fn("MediaProbe.parseFfprobeJson")(
-  (json: string): Effect.Effect<MediaProbeResult, never> =>
+  (json: string): Effect.Effect<MediaProbeResult> =>
     decodeFfprobeOutput(json).pipe(
       Effect.flatMap(normalizeFfprobeDecodedOutput),
       Effect.catchAll((failure) => Effect.succeed(failure)),
@@ -363,7 +373,7 @@ function runFfprobeCommand(
   ) => Effect.Effect<string, unknown>,
   args: readonly string[],
   timeoutMs: number,
-): Effect.Effect<MediaProbeCommandOutput | MediaProbeFailure, never, never> {
+): Effect.Effect<MediaProbeCommandOutput | MediaProbeFailure> {
   return Effect.suspend(() => executeString(Command.make("ffprobe", ...args))).pipe(
     Effect.map((stdout) => ({ stdout }) satisfies MediaProbeCommandOutput),
     Effect.mapError(

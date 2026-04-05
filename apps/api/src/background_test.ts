@@ -290,12 +290,12 @@ function counterDelta(
 
 function counterValue(snapshot: MetricSnapshot, name: string, labels: Record<string, string>) {
   const pair = findMetric(snapshot, name, labels);
-  return (pair?.metricState as { readonly count: number } | undefined)?.count ?? 0;
+  return readCountMetricState(pair?.metricState) ?? 0;
 }
 
 function gaugeValue(snapshot: MetricSnapshot, name: string, labels: Record<string, string>) {
   const pair = findMetric(snapshot, name, labels);
-  return (pair?.metricState as { readonly value: number } | undefined)?.value;
+  return readValueMetricState(pair?.metricState);
 }
 
 function histogramCountDelta(
@@ -309,7 +309,25 @@ function histogramCountDelta(
 
 function histogramCount(snapshot: MetricSnapshot, name: string, labels: Record<string, string>) {
   const pair = findMetric(snapshot, name, labels);
-  return (pair?.metricState as { readonly count: number } | undefined)?.count ?? 0;
+  return readCountMetricState(pair?.metricState) ?? 0;
+}
+
+function readCountMetricState(metricState: unknown): number | undefined {
+  if (typeof metricState !== "object" || metricState === null || !("count" in metricState)) {
+    return undefined;
+  }
+
+  const { count } = metricState;
+  return typeof count === "number" ? count : undefined;
+}
+
+function readValueMetricState(metricState: unknown): number | undefined {
+  if (typeof metricState !== "object" || metricState === null || !("value" in metricState)) {
+    return undefined;
+  }
+
+  const { value } = metricState;
+  return typeof value === "number" ? value : undefined;
 }
 
 function findMetric(snapshot: MetricSnapshot, name: string, labels: Record<string, string>) {

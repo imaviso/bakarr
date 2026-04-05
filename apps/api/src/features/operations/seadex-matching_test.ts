@@ -73,12 +73,9 @@ it("findSeaDexReleaseMatch does not match on tracker alone", () => {
   });
   const candidates = [
     makeSeaDexRelease({
-      infoHash: undefined,
       isBest: true,
       releaseGroup: "Okay-Subs",
       tracker: "Nyaa",
-      url: undefined,
-      groupedUrl: undefined,
     }),
   ];
 

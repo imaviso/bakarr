@@ -99,7 +99,13 @@ export const queueParsedReleaseDownload = Effect.fn("OperationsService.queuePars
       return yield* dbError;
     }
 
-    const insertedId = insertResult.right[0].id;
+    const insertedRow = insertResult.right[0];
+    if (!insertedRow) {
+      return yield* new OperationsInfrastructureError({
+        message: "Failed to read inserted download id",
+      });
+    }
+    const insertedId = insertedRow.id;
     let status = "queued";
 
     const qbitResult = yield* Effect.either(

@@ -43,6 +43,10 @@ describe("BackgroundSearchRssWorkerService", () => {
               .where(eq(schema.backgroundJobs.name, "rss"))
               .limit(1),
           );
+          assert.deepStrictEqual(job !== undefined, true);
+          if (!job) {
+            return;
+          }
 
           assert.deepStrictEqual(Exit.isSuccess(result.exit), true);
           assert.deepStrictEqual(result.calls, ["rss", "missing"]);
@@ -101,6 +105,10 @@ describe("BackgroundSearchRssWorkerService", () => {
               .where(eq(schema.backgroundJobs.name, "rss"))
               .limit(1),
           );
+          assert.deepStrictEqual(job !== undefined, true);
+          if (!job) {
+            return;
+          }
 
           assert.deepStrictEqual(job.lastStatus, "failed");
           assert.deepStrictEqual(job.isRunning, false);
@@ -153,6 +161,10 @@ describe("BackgroundSearchRssWorkerService", () => {
               .where(eq(schema.backgroundJobs.name, "rss"))
               .limit(1),
           );
+          assert.deepStrictEqual(job !== undefined, true);
+          if (!job) {
+            return;
+          }
 
           assert.deepStrictEqual(job.lastStatus, "failed");
           assert.deepStrictEqual(job.isRunning, false);

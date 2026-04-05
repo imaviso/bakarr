@@ -15,7 +15,7 @@ export const scanVideoFiles = Effect.fn("Operations.scanVideoFiles")(function* (
 ) {
   const files = yield* Stream.runCollect(scanVideoFilesStream(fs, path));
 
-  return Array.from(files).sort((left, right) => left.name.localeCompare(right.name));
+  return Array.from(files).toSorted((left, right) => left.name.localeCompare(right.name));
 });
 
 interface ScannerEntry {
@@ -44,12 +44,11 @@ export function scanVideoFilesStream(
 
       const nextVisited = new Set(state.visited);
 
-      const readDirectoryEffect: Effect.Effect<ScannerEntry[], FileSystemError, never> =
-        fs.readDirStream
-          ? Stream.runCollect(
-              fs.readDirStream(current).pipe(Stream.map((entry) => entry as ScannerEntry)),
-            ).pipe(Effect.map((chunk) => Array.from(chunk)))
-          : fs.readDir(current);
+      const readDirectoryEffect: Effect.Effect<ScannerEntry[], FileSystemError> = fs.readDirStream
+        ? Stream.runCollect(
+            fs.readDirStream(current).pipe(Stream.map((entry) => entry as ScannerEntry)),
+          ).pipe(Effect.map((chunk) => Array.from(chunk)))
+        : fs.readDir(current);
 
       const entries = yield* readDirectoryEffect;
 

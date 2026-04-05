@@ -4,6 +4,10 @@ import { Effect, Either, Fiber, TestClock } from "effect";
 import type { ClockServiceShape } from "@/lib/clock.ts";
 import { ExternalCallError, makeTryExternal, makeTryExternalEffect } from "@/lib/effect-retry.ts";
 
+class TestFailureError extends Error {
+  readonly _tag = "TestFailureError";
+}
+
 it.effect("tryExternal retries transient failures", () =>
   Effect.gen(function* () {
     let attempts = 0;
@@ -58,7 +62,7 @@ it.effect("tryExternalEffect does not retry non-idempotent failures", () =>
       "test.non-idempotent",
       Effect.sync(() => {
         attempts += 1;
-      }).pipe(Effect.zipRight(Effect.fail(new Error("boom")))),
+      }).pipe(Effect.zipRight(Effect.fail(new TestFailureError()))),
       { idempotent: false },
     )().pipe(Effect.either);
 

@@ -46,7 +46,7 @@ export const discoverImportScanFiles = Effect.fn("Operations.discoverImportScanF
       ),
     );
     const truncated = scannedFiles.length > limit;
-    const files = (truncated ? scannedFiles.slice(0, limit) : scannedFiles).sort((a, b) =>
+    const files = (truncated ? scannedFiles.slice(0, limit) : scannedFiles).toSorted((a, b) =>
       a.path.localeCompare(b.path),
     );
     const analyzed = files.map((file) => analyzeScannedFile(file, canonicalPath));

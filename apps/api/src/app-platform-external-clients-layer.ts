@@ -11,10 +11,10 @@ import { SeaDexClientLive, type SeaDexClient } from "@/features/operations/seade
 import { DnsResolverLive } from "@/lib/dns-resolver.ts";
 
 export interface AppExternalClientLayerOptions {
-  readonly aniListLayer?: Layer.Layer<AniListClient, never, never>;
-  readonly qbitLayer?: Layer.Layer<QBitTorrentClient, never, never>;
-  readonly rssLayer?: Layer.Layer<RssClient, never, never>;
-  readonly seadexLayer?: Layer.Layer<SeaDexClient, never, never>;
+  readonly aniListLayer?: Layer.Layer<AniListClient>;
+  readonly qbitLayer?: Layer.Layer<QBitTorrentClient>;
+  readonly rssLayer?: Layer.Layer<RssClient>;
+  readonly seadexLayer?: Layer.Layer<SeaDexClient>;
 }
 
 export function makeAppExternalClientLayer(options?: AppExternalClientLayerOptions) {

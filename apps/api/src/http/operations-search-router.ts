@@ -40,7 +40,10 @@ export const searchRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const query = yield* decodeQueryWithLabel(CalendarQuerySchema, "calendar");
-        return yield* (yield* CatalogLibraryReadService).getCalendarWithDefaults(query);
+        return yield* (yield* CatalogLibraryReadService).getCalendarWithDefaults({
+          ...(query.end === undefined ? {} : { end: query.end }),
+          ...(query.start === undefined ? {} : { start: query.start }),
+        });
       }),
       jsonResponse,
     ),
@@ -78,7 +81,19 @@ export const searchRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const body = yield* decodeJsonBodyWithLabel(SearchDownloadBodySchema, "search download");
-        yield* (yield* DownloadTriggerService).triggerDownload(body);
+        yield* (yield* DownloadTriggerService).triggerDownload({
+          anime_id: body.anime_id,
+          ...(body.decision_reason === undefined ? {} : { decision_reason: body.decision_reason }),
+          ...(body.episode_number === undefined ? {} : { episode_number: body.episode_number }),
+          ...(body.group === undefined ? {} : { group: body.group }),
+          ...(body.info_hash === undefined ? {} : { info_hash: body.info_hash }),
+          ...(body.is_batch === undefined ? {} : { is_batch: body.is_batch }),
+          magnet: body.magnet,
+          ...(body.release_metadata === undefined
+            ? {}
+            : { release_metadata: body.release_metadata }),
+          title: body.title,
+        });
       }),
       successResponse,
     ),
@@ -90,7 +105,7 @@ export const searchRouter = HttpRouter.empty.pipe(
         const body = yield* decodeOptionalJsonBodyWithLabel(
           SearchMissingBodySchema,
           "search missing downloads",
-          new SearchMissingBodySchema({ anime_id: undefined }),
+          new SearchMissingBodySchema({}),
         );
         yield* (yield* SearchBackgroundMissingService).triggerSearchMissing(body.anime_id);
       }),

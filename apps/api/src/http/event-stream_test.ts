@@ -28,6 +28,10 @@ it.effect("buildDownloadProgressStream seeds the initial SSE payload", () =>
     );
 
     const [connected, progress] = Array.from(chunks);
+    assert.deepStrictEqual(progress !== undefined, true);
+    if (!progress) {
+      return;
+    }
 
     assert.deepStrictEqual(connected, ": connected\n\n");
     assert.deepStrictEqual(progress.startsWith("data: "), true);

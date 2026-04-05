@@ -1,17 +1,16 @@
 import { eq } from "drizzle-orm";
-import { Effect, Schema } from "effect";
+import { Effect } from "effect";
 import { dirname } from "node:path";
 
 import { anime, appConfig, episodes } from "@/db/schema.ts";
-import { encodeConfigCore } from "@/features/system/config-codec.ts";
-import { ConfigCoreSchema } from "@/features/system/config-schema.ts";
-import { makeDefaultConfig } from "@/features/system/defaults.ts";
+import { encodeConfigCore, toConfigCore } from "@/features/system/config-codec.ts";
 import { makeUnmappedImportWorkflow } from "@/features/operations/unmapped-orchestration-import.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
 import { assert, it } from "@effect/vitest";
 import { makeTestFileSystemEffect, writeTextFile } from "@/test/filesystem-test.ts";
 import { withSqliteRawClientEffect, withSqliteTestDbEffect } from "@/test/database-test.ts";
 import * as schema from "@/db/schema.ts";
+import { makeTestConfig } from "@/test/config-fixture.ts";
 
 it.scoped("unmapped import rolls back when a later insert fails", () =>
   withSqliteTestDbEffect({
@@ -20,20 +19,19 @@ it.scoped("unmapped import rolls back when a later insert fails", () =>
         const fs = yield* makeTestFileSystemEffect();
         const libraryRoot = dirname(databaseFile);
         const appDb = db;
-        const baseConfig = Schema.encodeSync(ConfigCoreSchema)(makeDefaultConfig(databaseFile));
+        const testConfig = makeTestConfig(databaseFile, (config) => ({
+          ...config,
+          library: {
+            ...config.library,
+            library_path: libraryRoot,
+          },
+        }));
+        const encodedConfig = yield* encodeConfigCore(yield* toConfigCore(testConfig));
 
         yield* Effect.tryPromise(() =>
           appDb.insert(appConfig).values({
             id: 1,
-            data: Effect.runSync(
-              encodeConfigCore({
-                ...baseConfig,
-                library: {
-                  ...baseConfig.library,
-                  library_path: libraryRoot,
-                },
-              }),
-            ),
+            data: encodedConfig,
             updatedAt: "2024-01-01T00:00:00.000Z",
           }),
         );
@@ -82,6 +80,10 @@ it.scoped("unmapped import rolls back when a later insert fails", () =>
         const [animeRow] = yield* Effect.tryPromise(() =>
           appDb.select().from(anime).where(eq(anime.id, 20)).limit(1),
         );
+        assert.deepStrictEqual(animeRow !== undefined, true);
+        if (!animeRow) {
+          return;
+        }
         assert.deepStrictEqual(animeRow.profileName, "Default");
         assert.deepStrictEqual(animeRow.rootFolder, "/library/Old Show");
 

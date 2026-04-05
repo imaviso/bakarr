@@ -273,7 +273,7 @@ it.effect("QBitTorrentClient shares in-flight login across concurrent requests",
   }),
 );
 
-function makeQBitClient(onRequest?: () => void) {
+function makeQBitClient(onRequest?: () => void | undefined) {
   return HttpClient.make((request, url) => {
     onRequest?.();
 

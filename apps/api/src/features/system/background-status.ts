@@ -28,7 +28,7 @@ export function composeBackgroundJobStatuses(
   rows: ReadonlyArray<BackgroundJobHistoryRow>,
 ): BackgroundJobStatus[] {
   const rowsByName = new Map(rows.map((row) => [row.name, row] as const));
-  const names = [...new Set([...BACKGROUND_JOB_NAMES, ...rows.map((row) => row.name)])].sort();
+  const names = [...new Set([...BACKGROUND_JOB_NAMES, ...rows.map((row) => row.name)])].toSorted();
 
   return names.map((name) =>
     composeBackgroundJobStatus(config, liveSnapshot, rowsByName.get(name), name),
@@ -112,7 +112,7 @@ function latestStatusCandidate(
   ].filter((candidate): candidate is Candidate => candidate !== undefined);
 
   return (
-    candidates.sort((left, right) => right.at.localeCompare(left.at))[0] ?? {
+    candidates.toSorted((left, right) => right.at.localeCompare(left.at))[0] ?? {
       message: undefined,
       status: undefined,
     }

@@ -186,7 +186,7 @@ function upgrade(
   quality: Quality,
   score: number,
   current: {
-    filePath?: string;
+    filePath?: string | undefined;
     quality: Quality;
     score: number;
   },

@@ -72,6 +72,7 @@ export const buildLibraryImportPlan = Effect.fn("Operations.buildLibraryImportPl
     const allEpisodeNumbers = file.episode_numbers?.length
       ? file.episode_numbers
       : [file.episode_number];
+    const episodeNumbersForQuery = [...allEpisodeNumbers];
     const episodeRows = yield* tryDatabasePromise("Failed to import files", () =>
       db
         .select({ aired: episodes.aired, title: episodes.title })
@@ -79,7 +80,7 @@ export const buildLibraryImportPlan = Effect.fn("Operations.buildLibraryImportPl
         .where(
           and(
             eq(episodes.animeId, file.anime_id),
-            inArray(episodes.number, allEpisodeNumbers as number[]),
+            inArray(episodes.number, episodeNumbersForQuery),
           ),
         ),
     );
@@ -88,13 +89,15 @@ export const buildLibraryImportPlan = Effect.fn("Operations.buildLibraryImportPl
       : ".mkv";
     const initialNamingPlan = buildEpisodeFilenamePlan({
       animeRow,
-      downloadSourceMetadata: file.source_metadata,
+      ...(file.source_metadata === undefined
+        ? {}
+        : { downloadSourceMetadata: file.source_metadata }),
       episodeNumbers: allEpisodeNumbers,
       episodeRows,
       filePath: file.source_path,
       namingFormat,
       preferredTitle: namingSettings.preferredTitle,
-      season: file.season,
+      ...(file.season === undefined ? {} : { season: file.season }),
     });
     const localMediaMetadata = hasMissingLocalMediaNamingFields(initialNamingPlan.missingFields)
       ? yield* mediaProbe
@@ -108,14 +111,16 @@ export const buildLibraryImportPlan = Effect.fn("Operations.buildLibraryImportPl
     const namingPlan = localMediaMetadata
       ? buildEpisodeFilenamePlan({
           animeRow,
-          downloadSourceMetadata: file.source_metadata,
+          ...(file.source_metadata === undefined
+            ? {}
+            : { downloadSourceMetadata: file.source_metadata }),
           episodeNumbers: allEpisodeNumbers,
           episodeRows,
           filePath: file.source_path,
           localMediaMetadata,
           namingFormat,
           preferredTitle: namingSettings.preferredTitle,
-          season: file.season,
+          ...(file.season === undefined ? {} : { season: file.season }),
         })
       : initialNamingPlan;
     const destination = `${animeRow.rootFolder.replace(/\/$/, "")}/${namingPlan.baseName}${extension}`;
@@ -126,10 +131,10 @@ export const buildLibraryImportPlan = Effect.fn("Operations.buildLibraryImportPl
       destination,
       importMode,
       episodeNumber: file.episode_number,
-      localMediaMetadata,
+      ...(localMediaMetadata === undefined ? {} : { localMediaMetadata }),
       namingPlan,
       resolvedSource,
-      sourceMetadata: file.source_metadata,
+      ...(file.source_metadata === undefined ? {} : { sourceMetadata: file.source_metadata }),
       sourcePath: file.source_path,
     } satisfies LibraryImportPlan;
   });

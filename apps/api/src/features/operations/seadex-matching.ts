@@ -64,13 +64,13 @@ export function findSeaDexReleaseMatch(
       candidate,
       score: scoreSeaDexCandidate({
         candidate,
-        dualAudioHint,
-        normalizedGroup,
-        releaseTracker,
-        releaseUrlKey,
+        ...(dualAudioHint !== undefined ? { dualAudioHint } : {}),
+        ...(normalizedGroup ? { normalizedGroup } : {}),
+        ...(releaseTracker ? { releaseTracker } : {}),
+        ...(releaseUrlKey ? { releaseUrlKey } : {}),
       }),
     }))
-    .sort(
+    .toSorted(
       (left, right) =>
         right.score - left.score || Number(right.candidate.isBest) - Number(left.candidate.isBest),
     );

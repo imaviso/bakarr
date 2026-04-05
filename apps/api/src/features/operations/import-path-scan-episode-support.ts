@@ -29,6 +29,13 @@ export function selectEpisodeRowsForFile(
 
   return episodeNumbers.flatMap((episodeNumber) => {
     const row = rowsByAnimeEpisode.get(`${animeId}:${episodeNumber}`);
-    return row ? [{ aired: row.aired, title: row.title }] : [];
+    return row
+      ? [
+          {
+            ...(row.aired === undefined ? {} : { aired: row.aired }),
+            ...(row.title === undefined ? {} : { title: row.title }),
+          },
+        ]
+      : [];
   });
 }

@@ -42,10 +42,14 @@ export function resolveSourceIdentityToEpisodeNumbers(input: {
       if (ep) matched.push(ep.number);
     }
     if (matched.length === 0) return undefined;
+    const [primaryEpisode] = matched;
+    if (primaryEpisode === undefined) {
+      return undefined;
+    }
     return {
       anime_id: animeRow.id,
       episode_numbers: matched,
-      primary_episode_number: matched[0],
+      primary_episode_number: primaryEpisode,
       source_identity,
     };
   }
@@ -56,20 +60,28 @@ export function resolveSourceIdentityToEpisodeNumbers(input: {
     }
     const eps = source_identity.episode_numbers.filter((n: number) => n > 0 && n < 2000);
     if (eps.length === 0) return undefined;
+    const [primaryEpisode] = eps;
+    if (primaryEpisode === undefined) {
+      return undefined;
+    }
     return {
       anime_id: animeRow.id,
       episode_numbers: eps,
-      primary_episode_number: eps[0],
+      primary_episode_number: primaryEpisode,
       source_identity,
     };
   }
 
   const eps = source_identity.episode_numbers.filter((n: number) => n > 0 && n < 2000);
   if (eps.length === 0) return undefined;
+  const [primaryEpisode] = eps;
+  if (primaryEpisode === undefined) {
+    return undefined;
+  }
   return {
     anime_id: animeRow.id,
     episode_numbers: eps,
-    primary_episode_number: eps[0],
+    primary_episode_number: primaryEpisode,
     source_identity,
   };
 }
@@ -131,7 +143,11 @@ export function rankAnimeCandidates(input: {
   });
 
   scores.sort((a, b) => b.score - a.score);
-  return scores[0].score > 0 ? scores[0].candidate : undefined;
+  const [bestScore] = scores;
+  if (!bestScore) {
+    return undefined;
+  }
+  return bestScore.score > 0 ? bestScore.candidate : undefined;
 }
 
 function isSpecialLikeEntry(candidate: AnimeCandidate): boolean {

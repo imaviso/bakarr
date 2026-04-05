@@ -124,6 +124,9 @@ function collectSeasonEpisodes(value: string): number[] {
   if (!fullMatch) return [];
 
   const [, , episodePart] = fullMatch;
+  if (!episodePart) {
+    return [];
+  }
   const epMatches = episodePart.matchAll(/e(\d{1,4})/gi);
   const episodes: number[] = [];
   for (const m of epMatches) {

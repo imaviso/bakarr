@@ -13,8 +13,8 @@ export interface ScannedFileMetadata {
 
 export function buildScannedFileMetadata(input: {
   filePath: string;
-  group?: string;
-  sourceIdentity?: SharedParsedEpisodeIdentity;
+  group?: string | undefined;
+  sourceIdentity?: SharedParsedEpisodeIdentity | undefined;
 }): ScannedFileMetadata {
   const warnings: string[] = [];
   const multipleEpisodes =
@@ -40,24 +40,31 @@ export function buildScannedFileMetadata(input: {
     warnings.push("No reliable episode identity found in filename");
   }
 
+  const airDate =
+    input.sourceIdentity?.scheme === "daily"
+      ? normalizeAirDate(input.sourceIdentity.air_dates?.[0])
+      : undefined;
+  const audioChannels = extractAudioChannels(input.filePath);
+  const audioCodec = extractAudioCodec(input.filePath);
+  const quality = extractQualitySourceLabel(input.filePath);
+  const videoCodec = extractVideoCodec(input.filePath);
+  const finalEpisodeTitle = multipleEpisodes ? undefined : episodeTitle;
+
   return {
-    air_date:
-      input.sourceIdentity?.scheme === "daily"
-        ? normalizeAirDate(input.sourceIdentity.air_dates?.[0])
-        : undefined,
-    audio_channels: extractAudioChannels(input.filePath),
-    audio_codec: extractAudioCodec(input.filePath),
-    episode_title: multipleEpisodes ? undefined : episodeTitle,
-    quality: extractQualitySourceLabel(input.filePath),
-    video_codec: extractVideoCodec(input.filePath),
+    ...(airDate ? { air_date: airDate } : {}),
+    ...(audioChannels ? { audio_channels: audioChannels } : {}),
+    ...(audioCodec ? { audio_codec: audioCodec } : {}),
+    ...(finalEpisodeTitle ? { episode_title: finalEpisodeTitle } : {}),
+    ...(quality ? { quality } : {}),
+    ...(videoCodec ? { video_codec: videoCodec } : {}),
     warnings,
   };
 }
 
 export function extractEpisodeTitleFromPath(input: {
   filePath: string;
-  group?: string;
-  sourceIdentity?: SharedParsedEpisodeIdentity;
+  group?: string | undefined;
+  sourceIdentity?: SharedParsedEpisodeIdentity | undefined;
 }) {
   if (!input.sourceIdentity) {
     return undefined;
@@ -85,10 +92,14 @@ export function extractEpisodeTitleFromPath(input: {
       break;
     }
 
-    const content = bracketMatch[1].trim();
+    const content = bracketMatch[1];
+    if (!content) {
+      break;
+    }
+    const normalizedContent = content.trim();
     if (
-      looksLikeMetadataTag(content) ||
-      (input.group && content.toLowerCase() === input.group.toLowerCase())
+      looksLikeMetadataTag(normalizedContent) ||
+      (input.group && normalizedContent.toLowerCase() === input.group.toLowerCase())
     ) {
       remainder = remainder.slice(0, bracketMatch.index).trimEnd();
       continue;
@@ -162,12 +173,13 @@ export function extractQualitySourceLabel(value: string) {
 
 export function extractVideoCodec(value: string) {
   const match = value.match(/\b(x265|hevc|h[ .-]?265|x264|avc|h[ .-]?264|av1|vp9)\b/i);
+  const rawCodec = match?.[1];
 
-  if (!match) {
+  if (!rawCodec) {
     return undefined;
   }
 
-  const codec = match[1].toLowerCase().replace(/[ .-]/g, "");
+  const codec = rawCodec.toLowerCase().replace(/[ .-]/g, "");
 
   switch (codec) {
     case "x265":
@@ -187,18 +199,19 @@ export function extractVideoCodec(value: string) {
     case "vp9":
       return "VP9";
     default:
-      return match[1];
+      return rawCodec;
   }
 }
 
 export function extractAudioCodec(value: string) {
   const match = value.match(/\b(truehd|eac3|ddp|ac3|dts(?:-hd)?|flac|opus|aac)\b/i);
+  const rawCodec = match?.[1];
 
-  if (!match) {
+  if (!rawCodec) {
     return undefined;
   }
 
-  const codec = match[1].toLowerCase();
+  const codec = rawCodec.toLowerCase();
 
   switch (codec) {
     case "eac3":
@@ -220,7 +233,7 @@ export function extractAudioCodec(value: string) {
     case "aac":
       return "AAC";
     default:
-      return match[1];
+      return rawCodec;
   }
 }
 

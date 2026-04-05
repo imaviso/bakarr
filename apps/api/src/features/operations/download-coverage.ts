@@ -16,7 +16,7 @@ import type { QBitTorrentFile } from "@/features/operations/qbittorrent.ts";
 import { OperationsStoredDataError } from "@/features/operations/errors.ts";
 import { eq } from "drizzle-orm";
 
-const IN_FLIGHT_STATUSES = ["queued", "downloading", "paused"];
+const IN_FLIGHT_STATUSES = new Set(["queued", "downloading", "paused"]);
 
 export function toCoveredEpisodesJson(
   episodes: readonly number[],
@@ -63,7 +63,7 @@ export const hasOverlappingDownload = Effect.fn("Operations.hasOverlappingDownlo
       .limit(1),
   );
 
-  if (existingByHash[0] && IN_FLIGHT_STATUSES.includes(existingByHash[0].status)) {
+  if (existingByHash[0] && IN_FLIGHT_STATUSES.has(existingByHash[0].status)) {
     return true;
   }
 
@@ -76,7 +76,7 @@ export const hasOverlappingDownload = Effect.fn("Operations.hasOverlappingDownlo
   );
 
   for (const row of rows) {
-    if (!IN_FLIGHT_STATUSES.includes(row.status)) {
+    if (!IN_FLIGHT_STATUSES.has(row.status)) {
       continue;
     }
 
@@ -98,7 +98,7 @@ export function inferCoveredEpisodeNumbers(input: {
   readonly requestedEpisode: number;
 }): readonly number[] {
   if (input.explicitEpisodes.length > 0) {
-    return [...new Set(input.explicitEpisodes)].sort((left, right) => left - right);
+    return [...new Set(input.explicitEpisodes)].toSorted((left, right) => left - right);
   }
 
   if (!input.isBatch) {
@@ -107,17 +107,26 @@ export function inferCoveredEpisodeNumbers(input: {
 
   const filtered = [...new Set(input.missingEpisodes)]
     .filter((episode) => episode >= input.requestedEpisode)
-    .sort((left, right) => left - right);
+    .toSorted((left, right) => left - right);
 
   if (filtered.length > 0) {
-    const contiguous: number[] = [filtered[0]];
+    const firstFiltered = filtered[0];
+
+    if (firstFiltered === undefined) {
+      return [input.requestedEpisode];
+    }
+
+    const contiguous: number[] = [firstFiltered];
 
     for (let index = 1; index < filtered.length; index += 1) {
-      if (filtered[index] !== contiguous[contiguous.length - 1] + 1) {
+      const current = filtered[index];
+      const previous = contiguous[contiguous.length - 1];
+
+      if (current === undefined || previous === undefined || current !== previous + 1) {
         break;
       }
 
-      contiguous.push(filtered[index]);
+      contiguous.push(current);
     }
 
     return contiguous;
@@ -158,7 +167,7 @@ export function inferCoveredEpisodesFromTorrentContents(input: {
     }
   }
 
-  return [...episodes].sort((left, right) => left - right);
+  return [...episodes].toSorted((left, right) => left - right);
 }
 
 export function resolveReconciledBatchEpisodeNumbers(input: {

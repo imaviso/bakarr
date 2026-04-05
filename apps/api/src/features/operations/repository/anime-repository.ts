@@ -37,7 +37,7 @@ export const loadCurrentEpisodeState = Effect.fn("AnimeRepository.loadCurrentEpi
     return row
       ? Option.some({
           downloaded: row.downloaded,
-          filePath: row.filePath ?? undefined,
+          ...(row.filePath == null ? {} : { filePath: row.filePath }),
         })
       : Option.none();
   },

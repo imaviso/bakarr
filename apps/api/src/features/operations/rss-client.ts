@@ -70,7 +70,7 @@ const makeFetchItems = (
       }
       visitedUrls.add(currentUrl);
 
-      const target = yield* resolvePinnedRequestTarget(currentUrl, dns).pipe(
+      const target = (yield* resolvePinnedRequestTarget(currentUrl, dns).pipe(
         Effect.tapError((error) =>
           Effect.logWarning("RSS feed rejected by SSRF guardrail").pipe(
             Effect.annotateLogs({
@@ -80,7 +80,7 @@ const makeFetchItems = (
             }),
           ),
         ),
-      );
+      )) satisfies PinnedRequestTarget;
       const response = yield* tryExternalEffect("rss.fetch", executeRequest(target), {
         isRetryableError: isRetryableRssFetchError,
       })().pipe(
@@ -128,7 +128,11 @@ const makeFetchItems = (
 
         const redirectResult = yield* Effect.try({
           try: () => new URL(location, currentUrl),
-          catch: (cause) => new InvalidRedirectUrlError(cause),
+          catch: (cause) =>
+            new RssFeedRejectedError({
+              cause,
+              message: "Invalid redirect URL",
+            }),
         }).pipe(Effect.either);
 
         if (Either.isLeft(redirectResult)) {
@@ -195,13 +199,5 @@ function sanitizeRssUrlForLogs(url: string): string {
     return `${parsed.protocol}//${parsed.host}${parsed.pathname}`;
   } catch {
     return "[invalid-url]";
-  }
-}
-
-class InvalidRedirectUrlError extends Error {
-  constructor(cause: unknown) {
-    super("Invalid redirect URL");
-    this.name = "InvalidRedirectUrlError";
-    this.cause = cause;
   }
 }

@@ -17,7 +17,7 @@ export interface BrowseEntry {
   readonly is_directory: boolean;
   readonly name: string;
   readonly path: string;
-  readonly size?: number;
+  readonly size?: number | undefined;
 }
 
 export interface BrowseResult {
@@ -26,7 +26,7 @@ export interface BrowseResult {
   readonly has_more: boolean;
   readonly limit: number;
   readonly offset: number;
-  readonly parent_path?: string;
+  readonly parent_path?: string | undefined;
   readonly total: number;
 }
 
@@ -66,7 +66,7 @@ const makeLibraryBrowseService = Effect.gen(function* () {
       ...roots.map((r) => r.path),
       config.downloads.root_path,
       config.library.library_path,
-    ].filter(Boolean) as string[];
+    ].filter(Boolean);
 
     const requestedPath = input.path || ".";
 
@@ -93,7 +93,6 @@ const makeLibraryBrowseService = Effect.gen(function* () {
         has_more: offset + limit < total,
         limit,
         offset,
-        parent_path: undefined,
         total,
       } satisfies BrowseResult;
     }
@@ -119,8 +118,8 @@ const makeLibraryBrowseService = Effect.gen(function* () {
     }
 
     return yield* browseFsPath(fs, canonicalPath, {
-      limit: input.limit,
-      offset: input.offset,
+      ...(input.limit === undefined ? {} : { limit: input.limit }),
+      ...(input.offset === undefined ? {} : { offset: input.offset }),
     });
   });
 
@@ -139,7 +138,7 @@ export const LibraryBrowseServiceLive = Layer.effect(
 function browseFsPath(
   fs: FileSystemShape,
   path: string,
-  options: { readonly limit?: number; readonly offset?: number },
+  options: { readonly limit?: number | undefined; readonly offset?: number | undefined },
 ): Effect.Effect<BrowseResult, OperationsPathError> {
   return Effect.gen(function* () {
     const offset = Math.max(0, options.offset ?? 0);
@@ -177,7 +176,7 @@ function browseFsPath(
     const paginatedBase = allEntries.slice(offset, offset + limit);
     const hasMore = offset + limit < total;
 
-    const paginatedEntries = yield* Effect.forEach(
+    const paginatedEntries: BrowseEntry[] = yield* Effect.forEach(
       paginatedBase,
       (entry) =>
         entry.is_directory
@@ -185,7 +184,7 @@ function browseFsPath(
           : fs.stat(entry.path).pipe(
               Effect.map((stats) => ({
                 ...entry,
-                size: stats.isFile ? stats.size : undefined,
+                ...(stats.isFile ? { size: stats.size } : {}),
               })),
               Effect.mapError(
                 (cause) =>
@@ -204,7 +203,10 @@ function browseFsPath(
       has_more: hasMore,
       limit,
       offset,
-      parent_path: path === "." ? undefined : path.split("/").slice(0, -1).join("/") || "/",
+      ...(() => {
+        const parentPath = path === "." ? undefined : path.split("/").slice(0, -1).join("/") || "/";
+        return parentPath === undefined ? {} : { parent_path: parentPath };
+      })(),
       total,
     };
   });

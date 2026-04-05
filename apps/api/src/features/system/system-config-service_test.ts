@@ -15,7 +15,7 @@ import {
 
 describe("SystemConfigService", () => {
   it.effect("redactConfigSecrets strips qBittorrent password for API responses", () =>
-    Effect.gen(function* () {
+    Effect.sync(() => {
       const redacted = redactConfigSecrets(
         makeTestConfig("./test.sqlite", (config) => ({
           ...config,

@@ -56,15 +56,15 @@ export const downloadsRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const query = yield* decodeQueryWithLabel(DownloadEventsQuerySchema, "download events");
         return yield* (yield* CatalogDownloadReadService).listDownloadEvents({
-          animeId: query.anime_id,
-          cursor: query.cursor,
-          downloadId: query.download_id,
-          direction: query.direction,
-          endDate: query.end_date,
-          eventType: query.event_type,
-          limit: query.limit,
-          startDate: query.start_date,
-          status: query.status,
+          ...(query.anime_id === undefined ? {} : { animeId: query.anime_id }),
+          ...(query.cursor === undefined ? {} : { cursor: query.cursor }),
+          ...(query.download_id === undefined ? {} : { downloadId: query.download_id }),
+          ...(query.direction === undefined ? {} : { direction: query.direction }),
+          ...(query.end_date === undefined ? {} : { endDate: query.end_date }),
+          ...(query.event_type === undefined ? {} : { eventType: query.event_type }),
+          ...(query.limit === undefined ? {} : { limit: query.limit }),
+          ...(query.start_date === undefined ? {} : { startDate: query.start_date }),
+          ...(query.status === undefined ? {} : { status: query.status }),
         });
       }),
       jsonResponse,
@@ -80,14 +80,14 @@ export const downloadsRouter = HttpRouter.empty.pipe(
         );
         const service = yield* CatalogDownloadReadService;
         const input = {
-          animeId: query.anime_id,
-          downloadId: query.download_id,
-          endDate: query.end_date,
-          eventType: query.event_type,
-          limit: query.limit,
-          order: query.order,
-          startDate: query.start_date,
-          status: query.status,
+          ...(query.anime_id === undefined ? {} : { animeId: query.anime_id }),
+          ...(query.download_id === undefined ? {} : { downloadId: query.download_id }),
+          ...(query.end_date === undefined ? {} : { endDate: query.end_date }),
+          ...(query.event_type === undefined ? {} : { eventType: query.event_type }),
+          ...(query.limit === undefined ? {} : { limit: query.limit }),
+          ...(query.order === undefined ? {} : { order: query.order }),
+          ...(query.start_date === undefined ? {} : { startDate: query.start_date }),
+          ...(query.status === undefined ? {} : { status: query.status }),
         };
 
         if ((query.format ?? "json") === "csv") {

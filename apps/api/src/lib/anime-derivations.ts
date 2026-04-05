@@ -40,15 +40,20 @@ export function summarizeEpisodeCoverage(input: {
 
   const episodeNumbers = [...new Set(input.episodeNumbers ?? [])]
     .filter((value) => Number.isFinite(value) && value > 0)
-    .sort((left, right) => left - right);
+    .toSorted((left, right) => left - right);
 
   if (episodeNumbers.length <= 1) {
     return undefined;
   }
 
-  const isContiguous = episodeNumbers.every(
-    (value, index) => index === 0 || value === episodeNumbers[index - 1] + 1,
-  );
+  const isContiguous = episodeNumbers.every((value, index) => {
+    if (index === 0) {
+      return true;
+    }
+
+    const previous = episodeNumbers[index - 1];
+    return previous !== undefined && value === previous + 1;
+  });
 
   if (isContiguous) {
     return `Episodes ${episodeNumbers[0]}-${episodeNumbers[episodeNumbers.length - 1]}`;

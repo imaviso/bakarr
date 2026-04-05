@@ -81,7 +81,7 @@ export function makeDiskSpaceInspector(
   });
 
   const getDiskSpaceSafe = Effect.fn("DiskSpaceInspector.getDiskSpaceSafe")(
-    (path: string): Effect.Effect<DiskSpace, DiskSpaceError, never> =>
+    (path: string): Effect.Effect<DiskSpace, DiskSpaceError> =>
       getDiskSpace(path).pipe(
         Effect.tapError((error) =>
           Effect.logError("Failed to inspect storage volume").pipe(

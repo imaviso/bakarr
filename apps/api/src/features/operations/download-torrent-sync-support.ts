@@ -15,7 +15,7 @@ import { recordDownloadEvent } from "@/features/operations/job-support.ts";
 import type { ExternalCallError } from "@/lib/effect-retry.ts";
 import { mapQBitState } from "@/features/operations/download-orchestration-shared.ts";
 import type { DownloadTorrentActionSupportInput } from "@/features/operations/download-torrent-action-support.ts";
-import { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
+import { type RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 
 export interface DownloadTorrentSyncSupportInput extends DownloadTorrentActionSupportInput {
   readonly getRuntimeConfig: () => Effect.Effect<
@@ -105,7 +105,7 @@ export function makeDownloadTorrentSyncSupport(input: DownloadTorrentSyncSupport
         eventType: "download.coverage_refined",
         metadataJson: {
           covered_episodes: inferredEpisodes,
-          source_metadata: input.sourceMetadata,
+          ...(input.sourceMetadata ? { source_metadata: input.sourceMetadata } : {}),
         },
         message: `Refined batch episodes from qBittorrent file list: ${inferredEpisodes.join(", ")}`,
         metadata: encodedInferredEpisodes,
@@ -192,18 +192,20 @@ export function makeDownloadTorrentSyncSupport(input: DownloadTorrentSyncSupport
         );
 
         if (existing && existing.isBatch && !preservedImported) {
+          const sourceMetadata = yield* decodeDownloadSourceMetadata(existing.sourceMetadata);
           yield* refineBatchCoverageFromTorrentFiles({
             animeId: existing.animeId,
             downloadId: existing.id,
             existingCoveredEpisodes: existing.coveredEpisodes,
             infoHash: torrent.hash.toLowerCase(),
-            sourceMetadata: yield* decodeDownloadSourceMetadata(existing.sourceMetadata),
             torrentName: torrent.name,
+            ...(sourceMetadata ? { sourceMetadata } : {}),
           });
         }
 
         if (existing && existing.status !== nextStatus) {
           const coveredEpisodes = yield* parseCoveredEpisodesEffect(existing.coveredEpisodes);
+          const statusSourceMetadata = yield* decodeDownloadSourceMetadata(existing.sourceMetadata);
           yield* recordDownloadEvent(
             db,
             {
@@ -213,7 +215,7 @@ export function makeDownloadTorrentSyncSupport(input: DownloadTorrentSyncSupport
               fromStatus: existing.status,
               metadataJson: {
                 covered_episodes: coveredEpisodes,
-                source_metadata: yield* decodeDownloadSourceMetadata(existing.sourceMetadata),
+                ...(statusSourceMetadata ? { source_metadata: statusSourceMetadata } : {}),
               },
               message: `${existing.torrentName} moved to ${nextStatus}`,
               toStatus: nextStatus,

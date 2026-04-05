@@ -75,7 +75,7 @@ export const reconcileSingleDownloadEffect = Effect.fn(
     input.fs,
     input.resolvedContentRoot,
     input.row.episodeNumber,
-    { expectedAirDate },
+    expectedAirDate ? { expectedAirDate } : undefined,
   ).pipe(
     Effect.mapError(
       (cause) =>
@@ -110,12 +110,12 @@ export const reconcileSingleDownloadEffect = Effect.fn(
   );
   const initialNamingPlan = buildEpisodeFilenamePlan({
     animeRow: input.animeRow,
-    downloadSourceMetadata: input.storedSourceMetadata,
     episodeNumbers: [input.row.episodeNumber],
     episodeRows,
     filePath: resolvedPathValue,
     namingFormat,
     preferredTitle: input.runtimeConfig.library.preferred_title,
+    ...(input.storedSourceMetadata ? { downloadSourceMetadata: input.storedSourceMetadata } : {}),
   });
   const localMediaMetadata = hasMissingLocalMediaNamingFields(initialNamingPlan.missingFields)
     ? yield* input.mediaProbe
@@ -134,12 +134,12 @@ export const reconcileSingleDownloadEffect = Effect.fn(
     resolvedPathValue,
     input.importMode,
     {
-      downloadSourceMetadata: input.storedSourceMetadata,
       episodeRows,
-      localMediaMetadata,
       namingFormat,
       preferredTitle: input.runtimeConfig.library.preferred_title,
       randomUuid: input.randomUuid,
+      ...(input.storedSourceMetadata ? { downloadSourceMetadata: input.storedSourceMetadata } : {}),
+      ...(localMediaMetadata ? { localMediaMetadata } : {}),
     },
   ).pipe(Effect.mapError(mapReconciliationInfrastructureError));
   yield* upsertEpisodeFile(input.db, input.row.animeId, input.row.episodeNumber, managedPath).pipe(
@@ -150,7 +150,7 @@ export const reconcileSingleDownloadEffect = Effect.fn(
   const eventMetadata = yield* encodeDownloadEventMetadata({
     covered_episodes: storedCoveredEpisodes,
     imported_path: managedPath,
-    source_metadata: input.storedSourceMetadata,
+    ...(input.storedSourceMetadata ? { source_metadata: input.storedSourceMetadata } : {}),
   });
 
   yield* finalizeDownloadImport({

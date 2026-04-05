@@ -6,12 +6,9 @@
   "scripts": {
     "dev": "bun run --watch main.ts",
     "start": "bun run main.ts",
-    "build": "bun run lint",
     "build:binary": "bun run --cwd ../web build && bun run generate:embedded-artifacts && bun build --production --compile --bytecode --minify --sourcemap --format=esm --outfile=./build/bakarr ./main.ts",
     "check": "tsc --noEmit",
     "generate:embedded-artifacts": "bun run ./tools/generate-embedded-artifacts.ts",
-    "lint": "oxlint --type-check --type-aware",
-    "lint:types": "oxlint --type-check --type-aware src",
     "test": "vitest run",
     "test:watch": "vitest",
     "db:generate": "bunx drizzle-kit generate",

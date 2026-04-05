@@ -235,15 +235,27 @@ export function formatEpisodeSegment(input: {
 
   if (input.episode_numbers.length === 0) return "00";
 
-  const sorted = [...input.episode_numbers].sort((a, b) => a - b);
-  const pad = sorted[sorted.length - 1] >= 100 ? 3 : 2;
+  const sorted = [...input.episode_numbers].toSorted((a, b) => a - b);
+  const lastEpisode = sorted[sorted.length - 1];
+  if (lastEpisode === undefined) {
+    return "00";
+  }
+
+  const pad = lastEpisode >= 100 ? 3 : 2;
 
   if (sorted.length === 1) {
     return String(sorted[0]).padStart(pad, "0");
   }
 
   // Check if contiguous
-  const isContiguous = sorted.every((n, i) => i === 0 || n === sorted[i - 1] + 1);
+  const isContiguous = sorted.every((n, i) => {
+    if (i === 0) {
+      return true;
+    }
+
+    const previous = sorted[i - 1];
+    return previous !== undefined && n === previous + 1;
+  });
 
   if (isContiguous) {
     return `${String(sorted[0]).padStart(pad, "0")}-${String(sorted[sorted.length - 1]).padStart(

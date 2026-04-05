@@ -45,7 +45,9 @@ export const addAnimeEffect = Effect.fn("AnimeAdd.addAnimeEffect")(function* (in
     input.db,
     input.animeInput.root_folder,
     validMetadata.title.romaji,
-    { useExistingRoot: input.animeInput.use_existing_root },
+    input.animeInput.use_existing_root === undefined
+      ? {}
+      : { useExistingRoot: input.animeInput.use_existing_root },
   );
 
   yield* checkRootFolderNotOwnedEffect(input.db, rootFolder);
@@ -63,8 +65,10 @@ export const addAnimeEffect = Effect.fn("AnimeAdd.addAnimeEffect")(function* (in
   const cachedImages = yield* input.imageCacheService
     .cacheMetadataImages({
       animeId: validMetadata.id,
-      bannerImage: validMetadata.bannerImage,
-      coverImage: validMetadata.coverImage,
+      ...(validMetadata.bannerImage === undefined
+        ? {}
+        : { bannerImage: validMetadata.bannerImage }),
+      ...(validMetadata.coverImage === undefined ? {} : { coverImage: validMetadata.coverImage }),
     })
     .pipe(
       Effect.mapError((cause) =>

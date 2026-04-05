@@ -36,7 +36,7 @@ export type { ConfigCore, ConfigCoreEncoded };
  */
 export function makeTestConfig(
   databasePath: string,
-  override?: (encoded: ConfigCoreEncoded) => ConfigCoreEncoded,
+  override?: (encoded: ConfigCoreEncoded) => ConfigCoreEncoded | undefined,
 ): Config {
   const core = makeDefaultConfig(databasePath);
   const encoded = Schema.encodeSync(ConfigCoreSchema)(core);

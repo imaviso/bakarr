@@ -85,7 +85,7 @@ export function makeSearchEpisodeSupport(input: SearchEpisodeSupportInput) {
           runtimeConfig,
         }),
       )
-      .sort(compareEpisodeSearchResults) as EpisodeSearchResult[];
+      .toSorted(compareEpisodeSearchResults) as EpisodeSearchResult[];
   });
 
   return {

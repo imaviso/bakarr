@@ -37,10 +37,8 @@ export const animeStreamRouter = HttpRouter.empty.pipe(
           signatureHex: query.sig,
         });
 
-        const byteRange = yield* parseEpisodeStreamRange(
-          request.headers.range,
-          streamFile.fileSize,
-        );
+        const rangeHeader = request.headers["range"];
+        const byteRange = yield* parseEpisodeStreamRange(rangeHeader, streamFile.fileSize);
         const contentLength = (
           byteRange ? byteRange.end - byteRange.start + 1 : streamFile.fileSize
         ).toString();
@@ -56,7 +54,11 @@ export const animeStreamRouter = HttpRouter.empty.pipe(
         }
 
         return HttpServerResponse.stream(
-          createFileChunkStream(fs, streamFile.filePath, { range: byteRange }),
+          createFileChunkStream(
+            fs,
+            streamFile.filePath,
+            byteRange === undefined ? {} : { range: byteRange },
+          ),
           {
             contentType: contentType(streamFile.fileName),
             headers,

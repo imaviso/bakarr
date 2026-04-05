@@ -32,10 +32,8 @@ API checks:
 
 ```sh
 bun run check:api
-bun run lint:api
 bun run --cwd apps/api check
 bun run --cwd apps/api test
-bun run --cwd apps/api lint
 ```
 
 Web checks:
@@ -45,7 +43,6 @@ bun run check:web
 bun run lint:web
 bun run --cwd apps/web build
 bun run --cwd apps/web check
-bun run --cwd apps/web lint
 ```
 
 ## Nix

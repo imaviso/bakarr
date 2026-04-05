@@ -153,7 +153,7 @@ function buildImportFilePlan(input: {
   options: {
     namingFormat?: string;
     preferredTitle?: PreferredTitle;
-    episodeRows?: readonly { title?: string | null; aired?: string | null }[];
+    episodeRows?: readonly { title?: string | null; aired?: string | null }[] | undefined;
     downloadSourceMetadata?: DownloadSourceMetadata;
     localMediaMetadata?: ProbedMediaMetadata;
     season?: number;
@@ -168,14 +168,18 @@ function buildImportFilePlan(input: {
     const namingFormat = input.options.namingFormat ?? "{title} - {episode_segment}";
     const namingPlan = buildEpisodeFilenamePlan({
       animeRow: input.animeRow,
-      downloadSourceMetadata: input.options.downloadSourceMetadata,
       episodeNumbers: input.episodeNumbers,
-      episodeRows: input.options.episodeRows,
       filePath: input.sourcePath,
-      localMediaMetadata: input.options.localMediaMetadata,
       namingFormat,
       preferredTitle: input.options.preferredTitle ?? "romaji",
-      season: input.options.season,
+      ...(input.options.episodeRows ? { episodeRows: input.options.episodeRows } : {}),
+      ...(input.options.downloadSourceMetadata
+        ? { downloadSourceMetadata: input.options.downloadSourceMetadata }
+        : {}),
+      ...(input.options.localMediaMetadata
+        ? { localMediaMetadata: input.options.localMediaMetadata }
+        : {}),
+      ...(input.options.season !== undefined ? { season: input.options.season } : {}),
     });
     const destination = `${input.animeRow.rootFolder.replace(/\/$/, "")}/${namingPlan.baseName}${extension}`;
     const suffix = yield* input.randomUuid();

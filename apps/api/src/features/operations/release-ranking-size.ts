@@ -18,8 +18,19 @@ export function parseSizeLabelToBytes(
     );
   }
 
-  const amount = Number.parseFloat(match[1]);
-  const unit = match[2].toUpperCase();
+  const amountRaw = match[1];
+  const unitRaw = match[2];
+
+  if (!amountRaw || !unitRaw) {
+    return Either.left(
+      new OperationsInputError({
+        message: `Invalid quality profile size label: ${value}`,
+      }),
+    );
+  }
+
+  const amount = Number.parseFloat(amountRaw);
+  const unit = unitRaw.toUpperCase();
 
   if (!Number.isFinite(amount) || amount < 0) {
     return Either.left(

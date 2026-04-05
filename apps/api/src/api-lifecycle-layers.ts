@@ -31,17 +31,20 @@ export function makeApiLifecycleLayers(
   options?: ApiLifecycleOptions,
 ) {
   const platformBaseLayer = makeAppPlatformCoreRuntimeLayer(overrides, options);
+  const platformBaseWithCommandLayer = options?.commandExecutorLayer
+    ? Layer.mergeAll(platformBaseLayer, options.commandExecutorLayer)
+    : platformBaseLayer;
   const externalClientOverridesLayer = makeAppExternalClientLayer({
-    aniListLayer: options?.aniListLayer,
-    qbitLayer: options?.qbitLayer,
-    rssLayer: options?.rssLayer,
-    seadexLayer: options?.seadexLayer,
-  }).pipe(Layer.provideMerge(platformBaseLayer));
-  const commandLayer = options?.commandExecutorLayer;
+    ...(options?.aniListLayer ? { aniListLayer: options.aniListLayer } : {}),
+    ...(options?.qbitLayer ? { qbitLayer: options.qbitLayer } : {}),
+    ...(options?.rssLayer ? { rssLayer: options.rssLayer } : {}),
+    ...(options?.seadexLayer ? { seadexLayer: options.seadexLayer } : {}),
+  }).pipe(Layer.provideMerge(platformBaseWithCommandLayer));
 
-  const platformExternalLayer = commandLayer
-    ? Layer.mergeAll(platformBaseLayer, commandLayer, externalClientOverridesLayer)
-    : Layer.mergeAll(platformBaseLayer, externalClientOverridesLayer);
+  const platformExternalLayer = Layer.mergeAll(
+    platformBaseWithCommandLayer,
+    externalClientOverridesLayer,
+  );
 
   const infrastructureLayer = Layer.mergeAll(MediaProbeLive, DiskSpaceInspectorLive).pipe(
     Layer.provideMerge(platformExternalLayer),

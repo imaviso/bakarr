@@ -47,7 +47,7 @@ export function makeBackgroundWorkerSpawner(input: {
     }
 
     if (Cause.isDie(exit.cause)) {
-      return yield* Effect.failCause(exit.cause as Cause.Cause<never>);
+      return yield* Effect.failCause(exit.cause);
     }
 
     yield* Effect.logWarning("background worker run failed; keeping daemon alive").pipe(
@@ -62,7 +62,7 @@ export function makeBackgroundWorkerSpawner(input: {
     );
   });
 
-  const resilientRun = <E>(workerName: BackgroundWorkerName, task: Effect.Effect<void, E>) =>
+  const resilientRun = <E, R>(workerName: BackgroundWorkerName, task: Effect.Effect<void, E, R>) =>
     task.pipe(
       Effect.exit,
       Effect.flatMap((exit) => keepWorkerAlive(workerName, exit)),
@@ -162,72 +162,69 @@ export const withLockEffectOrFail = Effect.fn("Background.withLockEffectOrFail")
     }),
   );
 
-  const runner = yield* makeSkippingSerializedEffectRunner(
-    Effect.gen(function* () {
-      const startedAt = yield* clock.currentMonotonicMillis;
-      yield* monitor.markRunStarted(workerName);
+  const monitoredTask = Effect.gen(function* () {
+    const startedAt = yield* clock.currentMonotonicMillis;
+    yield* monitor.markRunStarted(workerName);
 
-      const exit = yield* Effect.exit(taskWithTimeout);
-      const finishedAt = yield* clock.currentMonotonicMillis;
-      const durationMs = durationMsSince(startedAt, finishedAt);
+    const exit = yield* Effect.exit(taskWithTimeout);
+    const finishedAt = yield* clock.currentMonotonicMillis;
+    const durationMs = durationMsSince(startedAt, finishedAt);
 
-      if (exit._tag === "Success") {
-        yield* monitor.markRunSucceeded(workerName, durationMs);
-        return;
-      }
-
-      if (Cause.isInterruptedOnly(exit.cause)) {
-        yield* monitor.markRunInterrupted(workerName);
-        return;
-      }
-
-      const timeoutErrorOption = getWorkerTimeoutError(exit.cause);
-      const errorMessage = Option.match(timeoutErrorOption, {
-        onNone: () => Cause.pretty(exit.cause),
-        onSome: (timeoutError) => timeoutError.message,
-      });
-
-      yield* monitor.markRunFailed(workerName, errorMessage, durationMs);
-      yield* Effect.logError(
-        Option.isSome(timeoutErrorOption)
-          ? "background worker timed out"
-          : "background worker failed",
-      ).pipe(
-        Effect.annotateLogs(
-          compactLogAnnotations({
-            cause: Cause.pretty(exit.cause),
-            component: "background",
-            durationMs,
-            event: Option.isSome(timeoutErrorOption)
-              ? "background.worker.timeout"
-              : "background.worker.failed",
-            timeoutMs: Option.isSome(timeoutErrorOption)
-              ? timeoutErrorOption.value.timeoutMs
-              : undefined,
-            workerName,
-            ...errorLogAnnotations(errorMessage),
-          }),
-        ),
-      );
-
-      if (Cause.isDie(exit.cause)) {
-        return yield* Effect.failCause(exit.cause as Cause.Cause<never>);
-      }
-
-      return yield* Effect.failCause(exit.cause);
-    }),
-  );
-
-  const lockedTask = Effect.gen(function* () {
-    const result = yield* runner.trigger;
-
-    if (Option.isNone(result)) {
-      yield* monitor.markRunSkipped(workerName);
+    if (exit._tag === "Success") {
+      yield* monitor.markRunSucceeded(workerName, durationMs);
       return;
     }
+
+    if (Cause.isInterruptedOnly(exit.cause)) {
+      yield* monitor.markRunInterrupted(workerName);
+      return;
+    }
+
+    const timeoutErrorOption = getWorkerTimeoutError(exit.cause);
+    const errorMessage = Option.match(timeoutErrorOption, {
+      onNone: () => Cause.pretty(exit.cause),
+      onSome: (timeoutError) => timeoutError.message,
+    });
+
+    yield* monitor.markRunFailed(workerName, errorMessage, durationMs);
+    yield* Effect.logError(
+      Option.isSome(timeoutErrorOption)
+        ? "background worker timed out"
+        : "background worker failed",
+    ).pipe(
+      Effect.annotateLogs(
+        compactLogAnnotations({
+          cause: Cause.pretty(exit.cause),
+          component: "background",
+          durationMs,
+          event: Option.isSome(timeoutErrorOption)
+            ? "background.worker.timeout"
+            : "background.worker.failed",
+          timeoutMs: Option.isSome(timeoutErrorOption)
+            ? timeoutErrorOption.value.timeoutMs
+            : undefined,
+          workerName,
+          ...errorLogAnnotations(errorMessage),
+        }),
+      ),
+    );
+
+    if (Cause.isDie(exit.cause)) {
+      return yield* Effect.failCause(exit.cause);
+    }
+
+    return yield* Effect.failCause(exit.cause);
   });
 
-  return lockedTask;
+  return yield* makeSkippingSerializedEffectRunner(monitoredTask).pipe(
+    Effect.map((runner) =>
+      runner.trigger.pipe(
+        Effect.flatMap((result) =>
+          Option.isNone(result) ? monitor.markRunSkipped(workerName) : Effect.void,
+        ),
+      ),
+    ),
+  );
 });
 
 function getWorkerTimeoutError(cause: Cause.Cause<unknown>) {
@@ -243,7 +240,7 @@ function getWorkerTimeoutError(cause: Cause.Cause<unknown>) {
 export const forkSupervisedWorker = Effect.fn("Background.forkSupervisedWorker")(function* (
   scope: Scope.Scope,
   workerName: BackgroundWorkerName,
-  task: Effect.Effect<void, never>,
+  task: Effect.Effect<void, unknown>,
   monitor: BackgroundWorkerMonitorShape,
 ) {
   yield* monitor.markDaemonStarted(workerName);
@@ -257,7 +254,7 @@ export const forkSupervisedWorker = Effect.fn("Background.forkSupervisedWorker")
 });
 
 export function repeatWorker(
-  task: Effect.Effect<void, never>,
+  task: Effect.Effect<void, unknown>,
   options:
     | {
         readonly cronExpression: string;

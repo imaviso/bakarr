@@ -75,7 +75,7 @@ export const collectVideoFiles = Effect.fn("AnimeService.collectVideoFiles")(fun
     }
   }
 
-  return entries.sort((left, right) => left.name.localeCompare(right.name));
+  return entries.toSorted((left, right) => left.name.localeCompare(right.name));
 });
 
 function isVideoFile(name: string) {

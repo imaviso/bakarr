@@ -37,12 +37,14 @@ export const upsertEpisodeEffect = Effect.fn("AnimeRepository.upsertEpisode")(fu
       .limit(1),
   );
 
-  if (rows[0]) {
+  const existingRow = rows[0];
+
+  if (existingRow) {
     yield* tryDatabasePromise("Failed to upsert episode", () =>
       db
         .update(episodes)
-        .set(buildEpisodePatchSet(patch, rows[0]))
-        .where(eq(episodes.id, rows[0].id)),
+        .set(buildEpisodePatchSet(patch, existingRow))
+        .where(eq(episodes.id, existingRow.id)),
     );
     return;
   }
@@ -80,7 +82,9 @@ export const upsertEpisodeEffect = Effect.fn("AnimeRepository.upsertEpisode")(fu
       .limit(1),
   );
 
-  if (!existingRows[0]) {
+  const conflictRow = existingRows[0];
+
+  if (!conflictRow) {
     return yield* new AnimeStoredDataError({
       message: "Failed to upsert episode",
     });
@@ -89,8 +93,8 @@ export const upsertEpisodeEffect = Effect.fn("AnimeRepository.upsertEpisode")(fu
   yield* tryDatabasePromise("Failed to upsert episode", () =>
     db
       .update(episodes)
-      .set(buildEpisodePatchSet(patch, existingRows[0]))
-      .where(eq(episodes.id, existingRows[0].id)),
+      .set(buildEpisodePatchSet(patch, conflictRow))
+      .where(eq(episodes.id, conflictRow.id)),
   );
 });
 

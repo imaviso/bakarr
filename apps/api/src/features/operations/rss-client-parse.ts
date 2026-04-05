@@ -218,8 +218,15 @@ function parseSizeToBytes(size: string): Option.Option<number> {
     return Option.none();
   }
 
-  const value = Number.parseFloat(match[1]);
-  const unit = match[2].toUpperCase();
+  const valueRaw = match[1];
+  const unitRaw = match[2];
+
+  if (!valueRaw || !unitRaw) {
+    return Option.none();
+  }
+
+  const value = Number.parseFloat(valueRaw);
+  const unit = unitRaw.toUpperCase();
   let multiplier = 1024 ** 4;
 
   if (unit === "B") {

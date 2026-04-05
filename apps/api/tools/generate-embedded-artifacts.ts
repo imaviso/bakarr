@@ -28,7 +28,7 @@ await writeFile(
 
 async function renderEmbeddedMigrationModule(filePaths: readonly string[]) {
   const entries = await Promise.all(
-    [...filePaths].sort().map(async (filePath) => {
+    [...filePaths].toSorted().map(async (filePath) => {
       const relativePath = toPosixPath(path.relative(drizzleRoot, filePath));
       const migrationName = relativePath.replace(/\.sql$/u, "");
       const sql = await readFile(filePath, "utf8");
@@ -44,21 +44,24 @@ async function renderEmbeddedMigrationModule(filePaths: readonly string[]) {
     "export type EmbeddedDrizzleMigrations = Record<string, readonly string[]>;",
     "",
     "export const embeddedDrizzleMigrations = {",
-    ...entries.flatMap(([migrationName, statements]) => [
-      `  ${JSON.stringify(migrationName)}: [`,
-      ...statements.map((statement) => `    ${JSON.stringify(statement)},`),
-      "  ],",
-    ]),
-    "} as const satisfies EmbeddedDrizzleMigrations;",
-    "",
   ];
 
-  return `${lines.join("\n")}`;
+  for (const [migrationName, statements] of entries) {
+    lines.push(`  ${JSON.stringify(migrationName)}: [`);
+    for (const statement of statements) {
+      lines.push(`    ${JSON.stringify(statement)},`);
+    }
+    lines.push("  ],");
+  }
+
+  lines.push("} as const satisfies EmbeddedDrizzleMigrations;", "");
+
+  return lines.join("\n");
 }
 
 async function renderEmbeddedWebAssetsModule(filePaths: readonly string[]) {
   const entries = await Promise.all(
-    [...filePaths].sort().map(async (filePath) => {
+    [...filePaths].toSorted().map(async (filePath) => {
       const relativePath = toPosixPath(path.relative(webDistRoot, filePath));
       const body = await readFile(filePath);
 
@@ -93,7 +96,7 @@ async function renderEmbeddedWebAssetsModule(filePaths: readonly string[]) {
     "",
   ];
 
-  return `${lines.join("\n")}`;
+  return lines.join("\n");
 }
 
 async function collectFiles(root: string): Promise<string[]> {

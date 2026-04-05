@@ -28,17 +28,17 @@ import type { ParsedEpisodeIdentity } from "@packages/shared/index.ts";
 export interface NamingInput {
   readonly title: string;
   readonly episodeNumbers: readonly number[];
-  readonly sourceIdentity?: ParsedEpisodeIdentity;
-  readonly season?: number;
-  readonly year?: number;
-  readonly episodeTitle?: string;
-  readonly group?: string;
-  readonly resolution?: string;
-  readonly quality?: string;
-  readonly videoCodec?: string;
-  readonly audioCodec?: string;
-  readonly audioChannels?: string;
-  readonly airDate?: string;
+  readonly sourceIdentity?: ParsedEpisodeIdentity | undefined;
+  readonly season?: number | undefined;
+  readonly year?: number | undefined;
+  readonly episodeTitle?: string | undefined;
+  readonly group?: string | undefined;
+  readonly resolution?: string | undefined;
+  readonly quality?: string | undefined;
+  readonly videoCodec?: string | undefined;
+  readonly audioCodec?: string | undefined;
+  readonly audioChannels?: string | undefined;
+  readonly airDate?: string | undefined;
 }
 
 export function renderEpisodeFilename(format: string, input: NamingInput): string {
@@ -127,8 +127,8 @@ function normalizeWrappedSegments(value: string, open: "(" | "[", close: ")" | "
 }
 
 function normalizeQualityForFormat(input: {
-  quality?: string;
-  resolution?: string;
+  quality?: string | undefined;
+  resolution?: string | undefined;
   formatHasResolutionToken: boolean;
 }) {
   const quality = input.quality?.trim();

@@ -53,7 +53,10 @@ export const resolveCompletedContentPath = Effect.fn("Operations.resolveComplete
     }
 
     if (candidates.length === 1) {
-      return Option.some(candidates[0].path);
+      const [onlyCandidate] = candidates;
+      if (onlyCandidate) {
+        return Option.some(onlyCandidate.path);
+      }
     }
 
     return Option.none();

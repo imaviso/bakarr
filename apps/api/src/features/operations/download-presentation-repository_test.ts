@@ -12,6 +12,8 @@ it.scoped("download presentation contexts load imported paths", () =>
   withSqliteTestDbEffect({
     run: (db, _databaseFile) =>
       Effect.gen(function* () {
+        const releaseProfileIds = yield* encodeNumberList([]);
+
         yield* Effect.promise(() =>
           db.insert(anime).values({
             addedAt: "2024-01-01T00:00:00.000Z",
@@ -29,7 +31,7 @@ it.scoped("download presentation contexts load imported paths", () =>
             nextAiringAt: null,
             nextAiringEpisode: null,
             profileName: "Default",
-            releaseProfileIds: Effect.runSync(encodeNumberList([])),
+            releaseProfileIds,
             rootFolder: "/library/Naruto",
             score: null,
             startDate: null,
@@ -84,6 +86,10 @@ it.scoped("download presentation contexts load imported paths", () =>
             })
             .returning(),
         );
+        assert.deepStrictEqual(row !== undefined, true);
+        if (!row) {
+          return;
+        }
 
         const contexts = yield* loadDownloadPresentationContexts(db, [row]);
 
@@ -166,6 +172,10 @@ it.scoped("download presentation contexts fail for corrupt covered episode metad
             })
             .returning(),
         );
+        assert.deepStrictEqual(row !== undefined, true);
+        if (!row) {
+          return;
+        }
 
         const exit = yield* Effect.exit(loadDownloadPresentationContexts(db, [row]));
 

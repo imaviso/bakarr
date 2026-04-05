@@ -16,9 +16,9 @@ export const RandomServiceLive = Layer.succeed(RandomService, {
   randomBytes: Effect.fn("RandomService.randomBytes")(
     (bytes: number): Effect.Effect<Uint8Array> => Effect.sync(() => randomBytesSync(bytes)),
   ),
-  randomUuid: Effect.fn("RandomService.randomUuid")(
-    (): Effect.Effect<string> => Effect.sync(() => crypto.randomUUID()),
-  )(),
+  randomUuid: Effect.sync(() => crypto.randomUUID()).pipe(
+    Effect.withSpan("RandomService.randomUuid"),
+  ),
 });
 
 export function hexFromBytes(data: Uint8Array): string {
@@ -60,8 +60,9 @@ export function randomBytesSync(bytes: number): Uint8Array {
  * Generate random UUID. Use in service/orchestration code.
  */
 export const randomUuid = Effect.fn("Random.randomUuid")(
-  (): Effect.Effect<string> => Effect.sync(() => crypto.randomUUID()),
-)();
+  (): Effect.Effect<string> =>
+    Effect.sync(() => crypto.randomUUID()).pipe(Effect.withSpan("Random.randomUuid")),
+);
 
 export function randomUuidSync(): string {
   return crypto.randomUUID();

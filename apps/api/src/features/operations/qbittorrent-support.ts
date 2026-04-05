@@ -175,7 +175,14 @@ export const makeLogin = (execute: ReturnType<typeof makeExecute>) =>
       });
     }
 
-    return cookie.split(";")[0];
+    const [sessionCookie] = cookie.split(";");
+    if (!sessionCookie) {
+      return yield* QBitTorrentClientError.make({
+        message: "qBittorrent returned an invalid session cookie",
+      });
+    }
+
+    return sessionCookie;
   });
 
 export const makePostHashesAction = (

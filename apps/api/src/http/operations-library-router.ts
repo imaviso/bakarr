@@ -37,9 +37,9 @@ export const libraryRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const query = yield* decodeQueryWithLabel(BrowseQuerySchema, "library browse");
         return yield* (yield* LibraryBrowseService).browse({
-          limit: query.limit,
-          offset: query.offset,
-          path: query.path,
+          ...(query.limit === undefined ? {} : { limit: query.limit }),
+          ...(query.offset === undefined ? {} : { offset: query.offset }),
+          ...(query.path === undefined ? {} : { path: query.path }),
         });
       }),
       jsonResponse,
@@ -86,7 +86,11 @@ export const libraryRouter = HttpRouter.empty.pipe(
           ImportUnmappedFolderBodySchema,
           "import unmapped folder",
         );
-        yield* (yield* UnmappedImportService).importUnmappedFolder(body);
+        yield* (yield* UnmappedImportService).importUnmappedFolder({
+          anime_id: body.anime_id,
+          folder_name: body.folder_name,
+          ...(body.profile_name === undefined ? {} : { profile_name: body.profile_name }),
+        });
       }),
       successResponse,
     ),
@@ -98,8 +102,8 @@ export const libraryRouter = HttpRouter.empty.pipe(
         const body = yield* decodeJsonBodyWithLabel(ScanImportPathBodySchema, "scan import path");
         return yield* Effect.flatMap(ImportPathScanService, (service) =>
           service.scanImportPath({
-            animeId: body.anime_id,
-            limit: body.limit,
+            ...(body.anime_id === undefined ? {} : { animeId: body.anime_id }),
+            ...(body.limit === undefined ? {} : { limit: body.limit }),
             path: body.path,
           }),
         );
@@ -112,7 +116,16 @@ export const libraryRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const body = yield* decodeJsonBodyWithLabel(ImportFilesBodySchema, "import files");
-        return yield* (yield* CatalogLibraryWriteService).importFiles(body.files);
+        return yield* (yield* CatalogLibraryWriteService).importFiles(
+          body.files.map((file) =>
+            Object.assign(
+              { anime_id: file.anime_id, episode_number: file.episode_number },
+              file.episode_numbers === undefined ? {} : { episode_numbers: file.episode_numbers },
+              file.season === undefined ? {} : { season: file.season },
+              { source_path: file.source_path },
+            ),
+          ),
+        );
       }),
       jsonResponse,
     ),

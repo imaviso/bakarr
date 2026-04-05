@@ -43,10 +43,10 @@ export const ImportPathScanServiceLive = Layer.effect(
     }) {
       return yield* scanImportPathEffect({
         aniList,
-        animeId: input.animeId,
+        ...(input.animeId === undefined ? {} : { animeId: input.animeId }),
         db,
         fs,
-        limit: input.limit,
+        ...(input.limit === undefined ? {} : { limit: input.limit }),
         mediaProbe,
         path: input.path,
         tryDatabasePromise,

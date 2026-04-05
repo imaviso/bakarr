@@ -104,7 +104,7 @@ const loadRowsByChunk = Effect.fn("OperationsRepository.loadRowsByChunk")(
         concurrency: CHUNK_LOAD_CONCURRENCY,
       });
 
-      return chunkResults.flatMap((chunk) => [...chunk]);
+      return chunkResults.flatMap((chunk) => chunk);
     }),
 );
 

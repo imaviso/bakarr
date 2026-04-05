@@ -67,11 +67,11 @@ function mergeEpisodeCachedMetadata(
 function toEpisodeProbeCachePatch(
   row: EpisodeMediaCacheRow,
   metadata: {
-    readonly audio_channels?: string;
-    readonly audio_codec?: string;
-    readonly duration_seconds?: number;
-    readonly resolution?: string;
-    readonly video_codec?: string;
+    readonly audio_channels?: string | undefined;
+    readonly audio_codec?: string | undefined;
+    readonly duration_seconds?: number | undefined;
+    readonly resolution?: string | undefined;
+    readonly video_codec?: string | undefined;
   },
 ) {
   return {
@@ -152,8 +152,8 @@ export const listAnimeFilesEffect = Effect.fn("AnimeFileList.listAnimeFilesEffec
 
       const metadata = buildScannedFileMetadata({
         filePath: file.path,
-        group: parsed.group,
-        sourceIdentity: sharedIdentity,
+        ...(parsed.group === undefined ? {} : { group: parsed.group }),
+        ...(sharedIdentity === undefined ? {} : { sourceIdentity: sharedIdentity }),
       });
 
       const baseFile: VideoFile = {
@@ -189,8 +189,32 @@ export const listAnimeFilesEffect = Effect.fn("AnimeFileList.listAnimeFilesEffec
 
       if (probedMetadata && cachedRowsForFile.length > 0) {
         yield* tryDatabasePromise("Failed to cache probed media metadata", async () => {
+          const cacheMetadataInput: {
+            readonly audio_channels?: string;
+            readonly audio_codec?: string;
+            readonly duration_seconds?: number;
+            readonly resolution?: string;
+            readonly video_codec?: string;
+          } = {
+            ...(probedMetadata.audio_channels === undefined
+              ? {}
+              : { audio_channels: probedMetadata.audio_channels }),
+            ...(probedMetadata.audio_codec === undefined
+              ? {}
+              : { audio_codec: probedMetadata.audio_codec }),
+            ...(probedMetadata.duration_seconds === undefined
+              ? {}
+              : { duration_seconds: probedMetadata.duration_seconds }),
+            ...(probedMetadata.resolution === undefined
+              ? {}
+              : { resolution: probedMetadata.resolution }),
+            ...(probedMetadata.video_codec === undefined
+              ? {}
+              : { video_codec: probedMetadata.video_codec }),
+          };
+
           for (const row of cachedRowsForFile) {
-            const patch = toEpisodeProbeCachePatch(row, mergedMetadata);
+            const patch = toEpisodeProbeCachePatch(row, cacheMetadataInput);
             if (!hasEpisodeProbeCachePatch(patch)) {
               continue;
             }

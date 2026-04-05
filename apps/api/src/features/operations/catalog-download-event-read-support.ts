@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, gt, gte, lt, lte, or, sql, type SQL } from "drizzle-orm";
-import { Chunk, Effect, Option, Stream } from "effect";
+import { Chunk, Effect, Option, Schema, Stream } from "effect";
 
 import type { DownloadEvent, DownloadEventsPage } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
@@ -52,12 +52,22 @@ type DownloadEventQueryInput = {
 };
 
 interface DownloadEventExportPlan {
-  readonly baseConditions: readonly SQL<unknown>[];
+  readonly baseConditions: readonly SQL[];
   readonly limit: number;
   readonly order: "asc" | "desc";
 }
 
 const textEncoder = new TextEncoder();
+const DownloadEventExportHeaderJsonSchema = Schema.parseJson(
+  Schema.Struct({
+    exported: Schema.Number,
+    generated_at: Schema.String,
+    limit: Schema.Number,
+    order: Schema.Literal("asc", "desc"),
+    total: Schema.Number,
+    truncated: Schema.Boolean,
+  }),
+);
 
 export function makeCatalogDownloadEventReads(input: {
   readonly db: AppDatabase;
@@ -106,7 +116,7 @@ export function makeCatalogDownloadEventReads(input: {
     });
     const hasExtraRow = rows.length > limit;
     const pageRows = hasExtraRow ? rows.slice(0, limit) : rows;
-    const orderedRows = queryInput.direction === "prev" ? [...pageRows].reverse() : pageRows;
+    const orderedRows = queryInput.direction === "prev" ? [...pageRows].toReversed() : pageRows;
     const contexts = yield* loadDownloadEventPresentationContexts(db, orderedRows);
     const events = yield* Effect.forEach(orderedRows, (row) =>
       toDownloadEvent(row, contexts.get(row.id)),
@@ -146,14 +156,17 @@ export function makeCatalogDownloadEventReads(input: {
   )(function* (queryInput: DownloadEventExportQuery = {}) {
     const plan = buildDownloadEventExportPlan(queryInput);
     const metadata = yield* loadDownloadEventExportMetadata(db, tryDatabasePromise, plan, nowIso);
-    const suffixMetadata = JSON.stringify({
+    const header = {
       exported: metadata.exported,
       generated_at: metadata.generated_at,
       limit: metadata.limit,
       order: metadata.order,
       total: metadata.total,
       truncated: metadata.truncated,
-    });
+    } satisfies DownloadEventExportHeader;
+    const suffixMetadata = yield* Schema.encode(DownloadEventExportHeaderJsonSchema)(header).pipe(
+      Effect.orDie,
+    );
     const objectPrefix = textEncoder.encode('{"events":[');
     const objectSuffix = textEncoder.encode(`],${suffixMetadata.slice(1)}`);
 
@@ -170,14 +183,7 @@ export function makeCatalogDownloadEventReads(input: {
     );
 
     return {
-      header: {
-        exported: metadata.exported,
-        generated_at: metadata.generated_at,
-        limit: metadata.limit,
-        order: metadata.order,
-        total: metadata.total,
-        truncated: metadata.truncated,
-      },
+      header,
       stream,
     } satisfies DownloadEventExportStreamShape;
   });
@@ -317,7 +323,7 @@ function streamDownloadEvents(
           return Option.none<readonly [Chunk.Chunk<DownloadEvent>, typeof state]>();
         }
 
-        let cursorCondition: SQL<unknown> | undefined;
+        let cursorCondition: SQL | undefined;
 
         if (state.cursor !== undefined) {
           cursorCondition =

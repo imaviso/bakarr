@@ -93,7 +93,11 @@ export const makeBackgroundWorkerMonitor = Effect.fn("Background.makeBackgroundW
             }),
           ),
           setBackgroundWorkerRunRunning(workerName, false),
-          recordBackgroundWorkerRun({ durationMs, status: "failure", worker: workerName }),
+          recordBackgroundWorkerRun({
+            ...(durationMs !== undefined ? { durationMs } : {}),
+            status: "failure",
+            worker: workerName,
+          }),
         ],
         { concurrency: "unbounded", discard: true },
       );
@@ -129,7 +133,11 @@ export const makeBackgroundWorkerMonitor = Effect.fn("Background.makeBackgroundW
             }),
           ),
           setBackgroundWorkerRunRunning(workerName, false),
-          recordBackgroundWorkerRun({ durationMs, status: "success", worker: workerName }),
+          recordBackgroundWorkerRun({
+            ...(durationMs !== undefined ? { durationMs } : {}),
+            status: "success",
+            worker: workerName,
+          }),
         ],
         { concurrency: "unbounded", discard: true },
       );

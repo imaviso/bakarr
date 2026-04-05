@@ -8,7 +8,7 @@ export function parseEpisodeStreamRange(
   fileSize: number,
 ): Effect.Effect<FileByteRange | undefined, EpisodeStreamRangeError> {
   if (!rangeHeader) {
-    return Effect.sync(() => undefined as undefined);
+    return Effect.sync(() => undefined);
   }
 
   const normalizedHeader = rangeHeader.trim();
@@ -30,7 +30,8 @@ export function parseEpisodeStreamRange(
       return failRange(fileSize);
     }
 
-    const suffixLength = parseStrictPositiveInteger(suffixMatch[1]);
+    const suffixValue = suffixMatch[1];
+    const suffixLength = suffixValue ? parseStrictPositiveInteger(suffixValue) : undefined;
 
     if (suffixLength === undefined || fileSize <= 0) {
       return failRange(fileSize);
@@ -51,8 +52,11 @@ export function parseEpisodeStreamRange(
     return failRange(fileSize);
   }
 
-  const start = parseStrictNonNegativeInteger(match[1]);
-  const end = match[2].length > 0 ? parseStrictNonNegativeInteger(match[2]) : fileSize - 1;
+  const startValue = match[1];
+  const endValue = match[2];
+  const start = startValue ? parseStrictNonNegativeInteger(startValue) : undefined;
+  const end =
+    endValue && endValue.length > 0 ? parseStrictNonNegativeInteger(endValue) : fileSize - 1;
 
   if (start === undefined || end === undefined || !isValidAbsoluteRange(start, end, fileSize)) {
     return failRange(fileSize);

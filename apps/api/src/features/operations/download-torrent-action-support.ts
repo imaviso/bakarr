@@ -59,24 +59,22 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
       if (action === "pause") {
         yield* torrentClientService
           .pauseTorrentIfEnabled(row.infoHash)
-          .pipe(Effect.flatMap(() => Effect.void))
-          .pipe(Effect.mapError(mapQBitError("Failed to pause download")));
+          .pipe(Effect.asVoid, Effect.mapError(mapQBitError("Failed to pause download")));
       } else if (action === "resume") {
         yield* torrentClientService
           .resumeTorrentIfEnabled(row.infoHash)
-          .pipe(Effect.flatMap(() => Effect.void))
-          .pipe(Effect.mapError(mapQBitError("Failed to resume download")));
+          .pipe(Effect.asVoid, Effect.mapError(mapQBitError("Failed to resume download")));
       } else {
         yield* torrentClientService
           .deleteTorrentIfEnabled(row.infoHash, deleteFiles)
-          .pipe(Effect.flatMap(() => Effect.void))
-          .pipe(Effect.mapError(mapQBitError("Failed to remove download")));
+          .pipe(Effect.asVoid, Effect.mapError(mapQBitError("Failed to remove download")));
       }
     }
 
     const coveredEpisodes = yield* parseCoveredEpisodesEffect(row.coveredEpisodes);
 
     if (action === "delete") {
+      const sourceMetadata = yield* decodeDownloadSourceMetadata(row.sourceMetadata);
       yield* recordDownloadEvent(
         db,
         {
@@ -86,7 +84,7 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
           fromStatus: row.status,
           metadataJson: {
             covered_episodes: coveredEpisodes,
-            source_metadata: yield* decodeDownloadSourceMetadata(row.sourceMetadata),
+            ...(sourceMetadata ? { source_metadata: sourceMetadata } : {}),
           },
           message: `Deleted ${row.torrentName}`,
           toStatus: "deleted",
@@ -109,6 +107,7 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
         .where(eq(downloads.id, id)),
     );
 
+    const actionSourceMetadata = yield* decodeDownloadSourceMetadata(row.sourceMetadata);
     yield* recordDownloadEvent(
       db,
       {
@@ -118,7 +117,7 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
         fromStatus: row.status,
         metadataJson: {
           covered_episodes: coveredEpisodes,
-          source_metadata: yield* decodeDownloadSourceMetadata(row.sourceMetadata),
+          ...(actionSourceMetadata ? { source_metadata: actionSourceMetadata } : {}),
         },
         message: `${action === "pause" ? "Paused" : "Resumed"} ${row.torrentName}`,
         toStatus: action === "pause" ? "paused" : "downloading",
@@ -174,6 +173,7 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
         .where(eq(downloads.id, id)),
     );
 
+    const retrySourceMetadata = yield* decodeDownloadSourceMetadata(row.sourceMetadata);
     yield* recordDownloadEvent(
       db,
       {
@@ -183,7 +183,7 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
         fromStatus: row.status,
         metadataJson: {
           covered_episodes: coveredEpisodes,
-          source_metadata: yield* decodeDownloadSourceMetadata(row.sourceMetadata),
+          ...(retrySourceMetadata ? { source_metadata: retrySourceMetadata } : {}),
         },
         message: `Retried ${row.torrentName}`,
         toStatus: startedInQBit ? "downloading" : "queued",

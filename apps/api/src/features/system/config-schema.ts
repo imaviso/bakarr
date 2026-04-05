@@ -33,8 +33,8 @@ export const NumberListSchema = Schema.transform(
   Schema.Array(PositiveIntSchema),
   Schema.Array(PositiveIntSchema),
   {
-    decode: (values) => [...new Set(values)].sort((left, right) => left - right),
-    encode: (values) => [...new Set(values)].sort((left, right) => left - right),
+    decode: (values) => [...new Set(values)].toSorted((left, right) => left - right),
+    encode: (values) => [...new Set(values)].toSorted((left, right) => left - right),
   },
 );
 

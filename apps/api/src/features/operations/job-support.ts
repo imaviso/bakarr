@@ -38,11 +38,13 @@ export const recordDownloadEvent = Effect.fn("JobSupport.recordDownloadEvent")(f
     toStatus?: string | null;
     message: string;
     metadata?: string | null;
-    metadataJson?: {
-      covered_episodes?: readonly number[];
-      imported_path?: string;
-      source_metadata?: DownloadSourceMetadata;
-    };
+    metadataJson?:
+      | {
+          covered_episodes?: readonly number[];
+          imported_path?: string;
+          source_metadata?: DownloadSourceMetadata;
+        }
+      | undefined;
   },
   nowIso: NowIso,
 ) {
@@ -259,6 +261,6 @@ export const loadMissingEpisodeNumbers = Effect.fn("JobSupport.loadMissingEpisod
         .from(episodes)
         .where(and(eq(episodes.animeId, animeId), eq(episodes.downloaded, false))),
     );
-    return rows.map((row) => row.number).sort((left, right) => left - right);
+    return rows.map((row) => row.number).toSorted((left, right) => left - right);
   },
 );

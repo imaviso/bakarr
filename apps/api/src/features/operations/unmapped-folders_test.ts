@@ -70,17 +70,23 @@ it.effect(
       );
 
       assert.deepStrictEqual(calls, ["Scissor Seven Season 4", "Scissor Seven", "Mono"]);
-      assert.deepStrictEqual(suggestions[0].search_queries, [
+      const [firstSuggestion, secondSuggestion] = suggestions;
+      assert.deepStrictEqual(firstSuggestion !== undefined, true);
+      assert.deepStrictEqual(secondSuggestion !== undefined, true);
+      if (!firstSuggestion || !secondSuggestion) {
+        return;
+      }
+      assert.deepStrictEqual(firstSuggestion.search_queries, [
         "Scissor Seven Season 4",
         "Scissor Seven",
       ]);
-      assert.deepStrictEqual(suggestions[0].suggested_matches[0]?.id, 1);
-      assert.deepStrictEqual(suggestions[0].suggested_matches[0]?.match_confidence, 1);
+      assert.deepStrictEqual(firstSuggestion.suggested_matches[0]?.id, 1);
+      assert.deepStrictEqual(firstSuggestion.suggested_matches[0]?.match_confidence, 1);
       assert.deepStrictEqual(
-        suggestions[0].suggested_matches[0]?.match_reason,
+        firstSuggestion.suggested_matches[0]?.match_reason,
         'Matched AniList search after removing season or release noise from "Scissor.Seven.S04.1080p.NF.WEB-DL.AAC2.0.H.264-VARYG"',
       );
-      assert.deepStrictEqual(suggestions[1].suggested_matches[0]?.id, 2);
+      assert.deepStrictEqual(secondSuggestion.suggested_matches[0]?.id, 2);
     }),
 );
 
