@@ -6,6 +6,7 @@ import { DnsLookupError, DnsResolver } from "@/lib/dns-resolver.ts";
 import { ExternalCallError } from "@/lib/effect-retry.ts";
 import { RssClient, RssClientLive } from "@/features/operations/rss-client.ts";
 import {
+  formatRssTransportFailureMessage,
   RssTransport,
   RssTransportPayloadTooLargeError,
   RssTransportError,
@@ -430,6 +431,20 @@ it.effect("RssClient maps transport payload-too-large into typed RSS too-large e
     assertRssFailure(exit, RssFeedTooLargeError, /maximum size/i);
   }),
 );
+
+it("formatRssTransportFailureMessage includes useful network failure details", () => {
+  const cause = Object.assign(new Error("getaddrinfo ENOTFOUND feeds.example"), {
+    code: "ENOTFOUND",
+    hostname: "feeds.example",
+    syscall: "getaddrinfo",
+  });
+
+  const message = formatRssTransportFailureMessage(cause);
+
+  assert.match(message, /RSS transport request failed/);
+  assert.match(message, /ENOTFOUND/);
+  assert.match(message, /feeds\.example/);
+});
 
 it.effect("RssClient fails with a typed parse error for invalid RSS payloads", () =>
   Effect.gen(function* () {

@@ -59,7 +59,7 @@ export const RssTransportLive = Layer.effect(
               })
             : new RssTransportError({
                 cause,
-                message: "RSS transport request failed",
+                message: formatRssTransportFailureMessage(cause),
               }),
       });
     });
@@ -208,4 +208,33 @@ function normalizeNodeHeaders(headers: Record<string, string | string[] | undefi
       .filter(([, value]) => value !== undefined)
       .map(([key, value]) => [key, Array.isArray(value) ? value.join(", ") : value]),
   );
+}
+
+export function formatRssTransportFailureMessage(cause: unknown): string {
+  if (cause instanceof Error) {
+    const details = [
+      cause.name,
+      readErrorStringField(cause, "code"),
+      readErrorStringField(cause, "syscall"),
+      readErrorStringField(cause, "hostname"),
+      cause.message,
+    ]
+      .filter((value): value is string => typeof value === "string" && value.length > 0)
+      .join(" ");
+
+    return details.length > 0
+      ? `RSS transport request failed: ${details}`
+      : "RSS transport request failed";
+  }
+
+  return "RSS transport request failed";
+}
+
+function readErrorStringField(error: Error, key: "code" | "hostname" | "syscall") {
+  if (!(key in error)) {
+    return undefined;
+  }
+
+  const value = error[key as keyof Error];
+  return typeof value === "string" ? value : undefined;
 }
