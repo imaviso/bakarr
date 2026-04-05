@@ -112,15 +112,15 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     bun run --cwd apps/web build
     bun run --cwd apps/api generate:embedded-artifacts
 
-    bun build \
+    bun --cwd apps/api build \
       --production \
       --compile \
       --bytecode \
       --minify \
       --sourcemap \
       --format=esm \
-      --outfile=apps/api/build/bakarr \
-      apps/api/main.ts
+      --outfile=./build/bakarr \
+      ./main.ts
 
     runHook postBuild
   '';
