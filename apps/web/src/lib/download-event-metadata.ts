@@ -23,6 +23,13 @@ export function getDownloadEventMetadataSummary(input: DownloadEventLike) {
       (sourceMetadata?.source_identity?.episode_numbers?.length ?? 0) > 1) ||
     sourceMetadata?.source_identity?.scheme === "season";
 
+  const sourceSummaryInput = {
+    ...(sourceMetadata?.group === undefined ? {} : { group: sourceMetadata.group }),
+    ...(sourceMetadata?.indexer === undefined ? {} : { indexer: sourceMetadata.indexer }),
+    ...(sourceMetadata?.quality === undefined ? {} : { quality: sourceMetadata.quality }),
+    ...(sourceMetadata?.resolution === undefined ? {} : { resolution: sourceMetadata.resolution }),
+  };
+
   return {
     coverage: formatDownloadEventCoverage(coveredEpisodes),
     decision: formatDownloadDecisionSummary({
@@ -33,11 +40,6 @@ export function getDownloadEventMetadataSummary(input: DownloadEventLike) {
     }),
     importedPath: input.metadata_json?.imported_path,
     parsed: formatDownloadParsedMeta({ source_metadata: sourceMetadata }),
-    source: formatReleaseSourceSummary({
-      group: sourceMetadata?.group,
-      indexer: sourceMetadata?.indexer,
-      quality: sourceMetadata?.quality,
-      resolution: sourceMetadata?.resolution,
-    }),
+    source: formatReleaseSourceSummary(sourceSummaryInput),
   };
 }

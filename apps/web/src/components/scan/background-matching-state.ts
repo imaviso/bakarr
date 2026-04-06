@@ -3,7 +3,7 @@ import type { BackgroundJobStatus } from "~/lib/api";
 export interface BackgroundMatchingStateInput {
   failedCount: number;
   hasOutstandingWork: boolean;
-  job?: BackgroundJobStatus;
+  job?: BackgroundJobStatus | undefined;
   matchingCount: number;
   pausedCount: number;
 }

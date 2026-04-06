@@ -47,6 +47,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip
 import { ReleaseMetadataSummary } from "~/components/release-metadata-summary";
 import {
   createGrabReleaseMutation,
+  type DownloadSourceMetadata,
   createNyaaSearchQuery,
   type NyaaSearchResult,
   type ParsedEpisodeIdentity,
@@ -470,6 +471,8 @@ function ReleaseRow(props: { result: NyaaSearchResult; animeId: number; onGrab: 
 
   const handleGrab = () => {
     const selection = selectionMetadata();
+    const parsedEpisodeNumber = parseFloat(epNum());
+    const episodeNumber = Number.isFinite(parsedEpisodeNumber) ? parsedEpisodeNumber : undefined;
     const releaseSourceIdentity = (): ParsedEpisodeIdentity | undefined => {
       if (!props.result.parsed_episode_label) {
         return undefined;
@@ -493,39 +496,56 @@ function ReleaseRow(props: { result: NyaaSearchResult; animeId: number; onGrab: 
 
       return undefined;
     };
+    const sourceIdentity = releaseSourceIdentity();
+
+    const releaseMetadata: DownloadSourceMetadata = {
+      ...(props.result.parsed_air_date === undefined ? {} : { air_date: props.result.parsed_air_date }),
+      ...(selection.chosen_from_seadex === undefined
+        ? {}
+        : { chosen_from_seadex: selection.chosen_from_seadex }),
+      ...(props.result.parsed_group === undefined ? {} : { group: props.result.parsed_group }),
+      ...(props.result.indexer === undefined ? {} : { indexer: props.result.indexer }),
+      ...(props.result.is_seadex === undefined ? {} : { is_seadex: props.result.is_seadex }),
+      ...(props.result.is_seadex_best === undefined
+        ? {}
+        : { is_seadex_best: props.result.is_seadex_best }),
+      parsed_title: props.result.title,
+      ...(props.result.parsed_quality === undefined ? {} : { quality: props.result.parsed_quality }),
+      ...(props.result.remake === undefined ? {} : { remake: props.result.remake }),
+      ...(props.result.parsed_resolution === undefined
+        ? {}
+        : { resolution: props.result.parsed_resolution }),
+      ...(props.result.seadex_comparison === undefined
+        ? {}
+        : { seadex_comparison: props.result.seadex_comparison }),
+      ...(props.result.seadex_dual_audio === undefined
+        ? {}
+        : { seadex_dual_audio: props.result.seadex_dual_audio }),
+      ...(props.result.seadex_notes === undefined ? {} : { seadex_notes: props.result.seadex_notes }),
+      ...(props.result.seadex_release_group === undefined
+        ? {}
+        : { seadex_release_group: props.result.seadex_release_group }),
+      ...(props.result.seadex_tags === undefined ? {} : { seadex_tags: props.result.seadex_tags }),
+      selection_kind: selection.selection_kind,
+      ...(sourceIdentity === undefined ? {} : { source_identity: sourceIdentity }),
+      ...(props.result.view_url === undefined ? {} : { source_url: props.result.view_url }),
+      ...(props.result.trusted === undefined ? {} : { trusted: props.result.trusted }),
+    };
+
+    const payload = {
+      anime_id: props.animeId,
+      decision_reason: decisionReason(),
+      magnet: props.result.magnet,
+      ...(episodeNumber === undefined ? {} : { episode_number: episodeNumber }),
+      ...(props.result.parsed_group === undefined ? {} : { group: props.result.parsed_group }),
+      ...(props.result.info_hash === undefined ? {} : { info_hash: props.result.info_hash }),
+      release_metadata: releaseMetadata,
+      title: props.result.title,
+      ...(isBatch() ? { is_batch: true } : {}),
+    };
 
     grabMutation.mutate(
-      {
-        anime_id: props.animeId,
-        decision_reason: decisionReason(),
-        magnet: props.result.magnet,
-        episode_number: Number.isFinite(parseFloat(epNum())) ? parseFloat(epNum()) : undefined,
-        group: props.result.parsed_group,
-        info_hash: props.result.info_hash,
-        release_metadata: {
-          air_date: props.result.parsed_air_date,
-          chosen_from_seadex: selection.chosen_from_seadex,
-          group: props.result.parsed_group,
-          indexer: props.result.indexer,
-          is_seadex: props.result.is_seadex,
-          is_seadex_best: props.result.is_seadex_best,
-          parsed_title: props.result.title,
-          quality: props.result.parsed_quality,
-          remake: props.result.remake,
-          resolution: props.result.parsed_resolution,
-          seadex_comparison: props.result.seadex_comparison,
-          seadex_dual_audio: props.result.seadex_dual_audio,
-          seadex_notes: props.result.seadex_notes,
-          seadex_release_group: props.result.seadex_release_group,
-          seadex_tags: props.result.seadex_tags,
-          selection_kind: selection.selection_kind,
-          source_identity: releaseSourceIdentity(),
-          source_url: props.result.view_url,
-          trusted: props.result.trusted,
-        },
-        title: props.result.title,
-        is_batch: isBatch(),
-      },
+      payload,
       {
         onSuccess: () => {
           setPopoverOpen(false);

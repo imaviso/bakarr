@@ -106,43 +106,93 @@ export function FilterItem(props: FilterItemProps) {
       <Show
         when={column()?.type === "text" || column()?.type === "date"}
         fallback={
-          <Select
-            value={Array.isArray(props.filter.value) ? props.filter.value[0] : props.filter.value}
-            onChange={(val) => handleValueChange(val || "")}
-            options={column()?.options?.map((o) => o.value) || []}
-            placeholder="Select value"
-            itemComponent={(itemProps) => {
-              const option = () =>
-                column()?.options?.find((o) => o.value === itemProps.item.rawValue);
-              return (
-                <SelectItem item={itemProps.item}>
-                  <Show when={option()?.icon}>
-                    <span class="mr-2">{option()?.icon}</span>
-                  </Show>
-                  {option()?.label}
-                </SelectItem>
-              );
-            }}
-          >
-            <SelectTrigger class="w-[160px] h-8 px-2 bg-background focus:ring-0 focus:ring-offset-0 border-muted-foreground/20">
-              <SelectValue<string>>
-                {(state) => {
-                  const option = column()?.options?.find((o) => o.value === state.selectedOption());
+          <Show
+            when={(() => {
+              const currentValue = Array.isArray(props.filter.value)
+                ? props.filter.value[0]
+                : props.filter.value;
+              return currentValue === undefined ? undefined : currentValue;
+            })()}
+            fallback={
+              <Select
+                value={null}
+                onChange={(val) => handleValueChange(val || "")}
+                options={column()?.options?.map((o) => o.value) || []}
+                placeholder="Select value"
+                itemComponent={(itemProps) => {
+                  const option = () =>
+                    column()?.options?.find((o) => o.value === itemProps.item.rawValue);
                   return (
-                    <Show when={option} fallback="Select value">
-                      <div class="flex items-center">
-                        <Show when={option?.icon}>
-                          <span class="mr-2">{option?.icon}</span>
-                        </Show>
-                        {option?.label}
-                      </div>
-                    </Show>
+                    <SelectItem item={itemProps.item}>
+                      <Show when={option()?.icon}>
+                        <span class="mr-2">{option()?.icon}</span>
+                      </Show>
+                      {option()?.label}
+                    </SelectItem>
                   );
                 }}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent />
-          </Select>
+              >
+                <SelectTrigger class="w-[160px] h-8 px-2 bg-background focus:ring-0 focus:ring-offset-0 border-muted-foreground/20">
+                  <SelectValue<string>>
+                    {(state) => {
+                      const option = column()?.options?.find((o) => o.value === state.selectedOption());
+                      return (
+                        <Show when={option} fallback="Select value">
+                          <div class="flex items-center">
+                            <Show when={option?.icon}>
+                              <span class="mr-2">{option?.icon}</span>
+                            </Show>
+                            {option?.label}
+                          </div>
+                        </Show>
+                      );
+                    }}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent />
+              </Select>
+            }
+          >
+            {(selectedValue) => (
+              <Select
+                value={selectedValue()}
+                onChange={(val) => handleValueChange(val || "")}
+                options={column()?.options?.map((o) => o.value) || []}
+                placeholder="Select value"
+                itemComponent={(itemProps) => {
+                  const option = () =>
+                    column()?.options?.find((o) => o.value === itemProps.item.rawValue);
+                  return (
+                    <SelectItem item={itemProps.item}>
+                      <Show when={option()?.icon}>
+                        <span class="mr-2">{option()?.icon}</span>
+                      </Show>
+                      {option()?.label}
+                    </SelectItem>
+                  );
+                }}
+              >
+                <SelectTrigger class="w-[160px] h-8 px-2 bg-background focus:ring-0 focus:ring-offset-0 border-muted-foreground/20">
+                  <SelectValue<string>>
+                    {(state) => {
+                      const option = column()?.options?.find((o) => o.value === state.selectedOption());
+                      return (
+                        <Show when={option} fallback="Select value">
+                          <div class="flex items-center">
+                            <Show when={option?.icon}>
+                              <span class="mr-2">{option?.icon}</span>
+                            </Show>
+                            {option?.label}
+                          </div>
+                        </Show>
+                      );
+                    }}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent />
+              </Select>
+            )}
+          </Show>
         }
       >
         <TextField>

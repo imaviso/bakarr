@@ -4,11 +4,11 @@ import type { ReleaseFlag } from "~/lib/release-metadata";
 import { releaseFlagBadgeClass } from "~/lib/release-metadata";
 
 interface ReleaseMetadataSummaryProps {
-  flags?: readonly ReleaseFlag[];
-  sourceSummary?: string;
-  parsedSummary?: string;
-  sourceUrl?: string;
-  compact?: boolean;
+  flags?: readonly ReleaseFlag[] | undefined;
+  sourceSummary?: string | undefined;
+  parsedSummary?: string | undefined;
+  sourceUrl?: string | undefined;
+  compact?: boolean | undefined;
 }
 
 export function ReleaseMetadataSummary(props: ReleaseMetadataSummaryProps) {

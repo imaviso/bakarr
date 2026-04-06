@@ -47,8 +47,17 @@ import {
 
 interface ImportDialogProps {
   trigger?: JSX.Element;
-  animeId?: number;
+  animeId?: number | undefined;
   tooltip?: string;
+}
+
+function getDroppedFilePath(file: File): string | undefined {
+  if (!Object.hasOwn(file, "path")) {
+    return undefined;
+  }
+
+  const value = Reflect.get(file, "path");
+  return typeof value === "string" ? value : undefined;
 }
 
 function toInputMode(value: string | null | undefined): "browser" | "manual" {
@@ -116,8 +125,12 @@ export function ImportDialog(props: ImportDialogProps) {
   };
 
   const handleScan = () => {
+    const animeId = props.animeId;
     scanMutation.mutate(
-      { path: path(), anime_id: props.animeId },
+      {
+        path: path(),
+        ...(animeId === undefined ? {} : { anime_id: animeId }),
+      },
       {
         onSuccess: (data) => {
           const preselected = new Map<string, ImportFileRequest>();
@@ -249,10 +262,14 @@ export function ImportDialog(props: ImportDialogProps) {
           buildImportFileRequest({
             animeId: newAnimeId,
             episodeNumber: existing.episode_number,
-            episodeNumbers: existing.episode_numbers,
+            ...(existing.episode_numbers === undefined
+              ? {}
+              : { episodeNumbers: existing.episode_numbers }),
             file,
-            season: existing.season,
-            sourceMetadata: existing.source_metadata,
+            ...(existing.season === undefined ? {} : { season: existing.season }),
+            ...(existing.source_metadata === undefined
+              ? {}
+              : { sourceMetadata: existing.source_metadata }),
           }),
         );
       }
@@ -274,10 +291,12 @@ export function ImportDialog(props: ImportDialogProps) {
       buildImportFileRequest({
         animeId: current.anime_id,
         episodeNumber: episode,
-        episodeNumbers: current.episode_numbers,
+        ...(current.episode_numbers === undefined ? {} : { episodeNumbers: current.episode_numbers }),
         file,
         season,
-        sourceMetadata: current.source_metadata,
+        ...(current.source_metadata === undefined
+          ? {}
+          : { sourceMetadata: current.source_metadata }),
       }),
     );
     setSelectedFiles(newSelected);
@@ -300,10 +319,13 @@ export function ImportDialog(props: ImportDialogProps) {
     const items = e.dataTransfer?.items;
     if (items && items.length > 0) {
       const item = items[0];
+      if (!item) {
+        return;
+      }
       if (item.kind === "file") {
         const file = item.getAsFile();
         if (file) {
-          const droppedPath = (file as File & { path?: string }).path;
+          const droppedPath = getDroppedFilePath(file);
           if (droppedPath) {
             setPath(droppedPath);
             setInputMode("manual");
@@ -502,14 +524,14 @@ export function ImportDialog(props: ImportDialogProps) {
               <ul class="divide-y border rounded-none" aria-label="Scanned files for import">
                 <For each={scannedFiles()}>
                   {(file) => (
-                    <FileRow
-                      file={file}
-                      animeList={animeListQuery.data || []}
+                      <FileRow
+                        file={file}
+                        animeList={animeListQuery.data || []}
                       candidates={candidates()}
                       isSelected={selectedFiles().has(file.source_path)}
                       selectedAnimeId={selectedFiles().get(file.source_path)?.anime_id}
                       currentEpisode={selectedFiles().get(file.source_path)?.episode_number}
-                      currentSeason={selectedFiles().get(file.source_path)?.season}
+                        currentSeason={selectedFiles().get(file.source_path)?.season ?? null}
                       onToggle={(id) => toggleFile(file, id)}
                       onAnimeChange={(id) => updateFileAnime(file, id)}
                       onMappingChange={(s, e) => updateFileMapping(file, s, e)}

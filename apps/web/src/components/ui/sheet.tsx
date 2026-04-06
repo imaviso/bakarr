@@ -1,8 +1,7 @@
-import type { Component, ComponentProps, JSX, ValidComponent } from "solid-js";
+import type { Component, ComponentProps, JSX } from "solid-js";
 import { splitProps } from "solid-js";
 
 import * as SheetPrimitive from "@kobalte/core/dialog";
-import type { PolymorphicProps } from "@kobalte/core/polymorphic";
 import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "~/lib/utils";
@@ -34,14 +33,12 @@ const SheetPortal: Component<PortalProps> = (props) => {
   );
 };
 
-type DialogOverlayProps<T extends ValidComponent = "div"> = SheetPrimitive.DialogOverlayProps<T> & {
+type DialogOverlayProps = ComponentProps<typeof SheetPrimitive.Overlay> & {
   class?: string | undefined;
 };
 
-const SheetOverlay = <T extends ValidComponent = "div">(
-  props: PolymorphicProps<T, DialogOverlayProps<T>>,
-) => {
-  const [local, others] = splitProps(props as DialogOverlayProps, ["class"]);
+const SheetOverlay: Component<DialogOverlayProps> = (props) => {
+  const [local, others] = splitProps(props, ["class"]);
   return (
     <SheetPrimitive.Overlay
       class={cn(
@@ -72,13 +69,11 @@ const sheetVariants = cva(
   },
 );
 
-type DialogContentProps<T extends ValidComponent = "div"> = SheetPrimitive.DialogContentProps<T> &
+type DialogContentProps = ComponentProps<typeof SheetPrimitive.Content> &
   VariantProps<typeof sheetVariants> & { class?: string | undefined; children?: JSX.Element };
 
-const SheetContent = <T extends ValidComponent = "div">(
-  props: PolymorphicProps<T, DialogContentProps<T>>,
-) => {
-  const [local, others] = splitProps(props as DialogContentProps, [
+const SheetContent: Component<DialogContentProps> = (props) => {
+  const [local, others] = splitProps(props, [
     "position",
     "class",
     "children",
@@ -133,14 +128,12 @@ const SheetFooter: Component<ComponentProps<"div">> = (props) => {
   );
 };
 
-type DialogTitleProps<T extends ValidComponent = "h2"> = SheetPrimitive.DialogTitleProps<T> & {
+type DialogTitleProps = ComponentProps<typeof SheetPrimitive.Title> & {
   class?: string | undefined;
 };
 
-const SheetTitle = <T extends ValidComponent = "h2">(
-  props: PolymorphicProps<T, DialogTitleProps<T>>,
-) => {
-  const [local, others] = splitProps(props as DialogTitleProps, ["class"]);
+const SheetTitle: Component<DialogTitleProps> = (props) => {
+  const [local, others] = splitProps(props, ["class"]);
   return (
     <SheetPrimitive.Title
       class={cn("text-lg font-semibold text-foreground", local.class)}
@@ -149,13 +142,12 @@ const SheetTitle = <T extends ValidComponent = "h2">(
   );
 };
 
-type DialogDescriptionProps<T extends ValidComponent = "p"> =
-  SheetPrimitive.DialogDescriptionProps<T> & { class?: string | undefined };
+type DialogDescriptionProps = ComponentProps<typeof SheetPrimitive.Description> & {
+  class?: string | undefined;
+};
 
-const SheetDescription = <T extends ValidComponent = "p">(
-  props: PolymorphicProps<T, DialogDescriptionProps<T>>,
-) => {
-  const [local, others] = splitProps(props as DialogDescriptionProps, ["class"]);
+const SheetDescription: Component<DialogDescriptionProps> = (props) => {
+  const [local, others] = splitProps(props, ["class"]);
   return (
     <SheetPrimitive.Description
       class={cn("text-sm text-muted-foreground", local.class)}

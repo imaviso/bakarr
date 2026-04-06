@@ -1,33 +1,34 @@
 type MediaMetadataInput = {
-  audio_channels?: string;
-  audio_codec?: string;
-  duration_seconds?: number;
-  group?: string;
-  quality?: string;
-  resolution?: string;
-  video_codec?: string;
+  audio_channels?: string | undefined;
+  audio_codec?: string | undefined;
+  duration_seconds?: number | undefined;
+  group?: string | undefined;
+  quality?: string | undefined;
+  resolution?: string | undefined;
+  video_codec?: string | undefined;
 };
 
 type NamingMetadataSnapshot = {
-  air_date?: string;
-  audio_channels?: string;
-  audio_codec?: string;
-  duration_seconds?: number;
-  episode_title?: string;
-  group?: string;
-  quality?: string;
-  resolution?: string;
-  season?: number;
-  source_identity?: { label: string };
+  air_date?: string | undefined;
+  audio_channels?: string | undefined;
+  audio_codec?: string | undefined;
+  duration_seconds?: number | undefined;
+  episode_title?: string | undefined;
+  group?: string | undefined;
+  quality?: string | undefined;
+  resolution?: string | undefined;
+  season?: number | undefined;
+  source_identity?: { label: string } | undefined;
   title_source?:
     | "preferred_english"
     | "preferred_native"
     | "preferred_romaji"
     | "fallback_english"
     | "fallback_native"
-    | "fallback_romaji";
-  video_codec?: string;
-  year?: number;
+    | "fallback_romaji"
+    | undefined;
+  video_codec?: string | undefined;
+  year?: number | undefined;
 };
 
 export function mediaMetadataBadges(input: MediaMetadataInput) {
@@ -100,7 +101,7 @@ export function formatEpisodeNumberList(numbers?: readonly number[]) {
 
 export function formatFileEpisodeMapping(input?: {
   anime_title: string;
-  episode_numbers?: readonly number[];
+  episode_numbers?: readonly number[] | undefined;
 }) {
   if (!input) {
     return undefined;
@@ -112,17 +113,17 @@ export function formatFileEpisodeMapping(input?: {
 }
 
 export function buildFileDecisionSummary(input: {
-  coverage_summary?: string;
+  coverage_summary?: string | undefined;
   existing_mapping?: {
     anime_title: string;
-    episode_numbers?: readonly number[];
-  };
+    episode_numbers?: readonly number[] | undefined;
+  } | undefined;
   episode_conflict?: {
     anime_title: string;
-    episode_numbers?: readonly number[];
-  };
-  match_reason?: string;
-  warnings?: readonly string[];
+    episode_numbers?: readonly number[] | undefined;
+  } | undefined;
+  match_reason?: string | undefined;
+  warnings?: readonly string[] | undefined;
 }) {
   const details: string[] = [];
 
@@ -189,8 +190,8 @@ export function namingMetadataBadges(snapshot?: NamingMetadataSnapshot) {
 
 export function summarizeImportNamingOutcome(
   importedFiles?: readonly {
-    naming_fallback_used?: boolean;
-    naming_warnings?: readonly string[];
+    naming_fallback_used?: boolean | undefined;
+    naming_warnings?: readonly string[] | undefined;
   }[],
 ) {
   if (!importedFiles?.length) {

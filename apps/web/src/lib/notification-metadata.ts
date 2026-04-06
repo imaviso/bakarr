@@ -3,16 +3,22 @@ import { formatDownloadDecisionSummary, formatDownloadParsedMeta } from "~/lib/d
 import { formatReleaseSourceSummary } from "~/lib/release-metadata";
 
 export function formatDownloadNotificationDescription(input: {
-  imported_path?: string;
-  covered_episodes?: number[];
-  is_batch?: boolean;
-  source_metadata?: DownloadSourceMetadata;
+  imported_path?: string | undefined;
+  covered_episodes?: number[] | undefined;
+  is_batch?: boolean | undefined;
+  source_metadata?: DownloadSourceMetadata | undefined;
 }) {
   const releaseSummary = formatReleaseSourceSummary({
-    group: input.source_metadata?.group,
-    indexer: input.source_metadata?.indexer,
-    quality: input.source_metadata?.quality,
-    resolution: input.source_metadata?.resolution,
+    ...(input.source_metadata?.group === undefined ? {} : { group: input.source_metadata.group }),
+    ...(input.source_metadata?.indexer === undefined
+      ? {}
+      : { indexer: input.source_metadata.indexer }),
+    ...(input.source_metadata?.quality === undefined
+      ? {}
+      : { quality: input.source_metadata.quality }),
+    ...(input.source_metadata?.resolution === undefined
+      ? {}
+      : { resolution: input.source_metadata.resolution }),
   });
   const parsedSummary = formatDownloadParsedMeta({
     source_metadata: input.source_metadata,

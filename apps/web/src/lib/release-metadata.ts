@@ -6,10 +6,10 @@ export interface ReleaseFlag {
 }
 
 export function formatReleaseSourceSummary(input: {
-  group?: string;
-  indexer?: string;
-  quality?: string;
-  resolution?: string;
+  group?: string | undefined;
+  indexer?: string | undefined;
+  quality?: string | undefined;
+  resolution?: string | undefined;
 }) {
   const combinedQuality =
     input.quality && input.resolution && input.quality.includes(input.resolution)
@@ -26,8 +26,8 @@ export function formatReleaseSourceSummary(input: {
 }
 
 export function formatReleaseParsedSummary(input: {
-  parsed_air_date?: string;
-  parsed_episode_label?: string;
+  parsed_air_date?: string | undefined;
+  parsed_episode_label?: string | undefined;
 }) {
   if (
     input.parsed_episode_label &&
@@ -41,11 +41,11 @@ export function formatReleaseParsedSummary(input: {
 }
 
 export function getReleaseFlags(input: {
-  is_seadex?: boolean;
-  is_seadex_best?: boolean;
-  remake?: boolean;
-  seadex_dual_audio?: boolean;
-  trusted?: boolean;
+  is_seadex?: boolean | undefined;
+  is_seadex_best?: boolean | undefined;
+  remake?: boolean | undefined;
+  seadex_dual_audio?: boolean | undefined;
+  trusted?: boolean | undefined;
 }) {
   const flags: ReleaseFlag[] = [];
 

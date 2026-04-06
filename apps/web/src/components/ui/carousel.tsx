@@ -23,10 +23,10 @@ type CarouselOptions = NonNullable<UseCarouselParameters[0]>;
 type CarouselPlugin = NonNullable<UseCarouselParameters[1]>;
 
 type CarouselProps = {
-  opts?: ReturnType<CarouselOptions>;
-  plugins?: ReturnType<CarouselPlugin>;
+  opts?: ReturnType<CarouselOptions> | undefined;
+  plugins?: ReturnType<CarouselPlugin> | undefined;
   orientation?: "horizontal" | "vertical";
-  setApi?: (api: CarouselApi) => void;
+  setApi?: ((api: CarouselApi) => void) | undefined;
 };
 
 type CarouselContextProps = {
@@ -120,17 +120,19 @@ const Carousel: Component<CarouselProps & ComponentProps<"div">> = (rawProps) =>
   });
 
   const value = createMemo(
-    () =>
-      ({
+    () => {
+      const orientation = local.orientation || (local.opts?.axis === "y" ? "vertical" : "horizontal");
+      return {
         carouselRef,
         api,
-        opts: local.opts,
-        orientation: local.orientation || (local.opts?.axis === "y" ? "vertical" : "horizontal"),
+        ...(local.opts === undefined ? {} : { opts: local.opts }),
+        orientation,
         scrollPrev,
         scrollNext,
         canScrollPrev,
         canScrollNext,
-      }) satisfies CarouselContextProps,
+      } satisfies CarouselContextProps;
+    },
   );
 
   return (

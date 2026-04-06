@@ -4,12 +4,12 @@ export type Step = "scan" | "review";
 
 export interface FileRowProps {
   file: ScannedFile;
-  animeList: { id: number; title: { romaji: string; english?: string } }[];
+  animeList: { id: number; title: { romaji: string; english?: string | undefined } }[];
   candidates: AnimeSearchResult[];
   isSelected: boolean;
-  selectedAnimeId?: number;
-  currentEpisode?: number;
-  currentSeason?: number | null;
+  selectedAnimeId?: number | undefined;
+  currentEpisode?: number | undefined;
+  currentSeason?: number | null | undefined;
   onToggle: (animeId: number) => void;
   onAnimeChange: (animeId: number) => void;
   onMappingChange: (season: number, episode: number) => void;

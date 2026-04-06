@@ -32,19 +32,26 @@ function parseOptionalPositiveInt(value: string) {
 export function buildDownloadEventsExportInput(
   fields: DownloadEventsExportFields,
   options?: {
-    limit?: number;
-    order?: "asc" | "desc";
+    limit?: number | undefined;
+    order?: "asc" | "desc" | undefined;
   },
 ): DownloadEventsExportInput {
+  const animeId = parseOptionalPositiveInt(fields.animeId);
+  const downloadId = parseOptionalPositiveInt(fields.downloadId);
+  const endDate = fields.endDate || undefined;
+  const eventType = fields.eventType === "all" ? undefined : fields.eventType;
+  const startDate = fields.startDate || undefined;
+  const status = fields.status || undefined;
+
   return {
-    animeId: parseOptionalPositiveInt(fields.animeId),
-    downloadId: parseOptionalPositiveInt(fields.downloadId),
-    endDate: fields.endDate || undefined,
-    eventType: fields.eventType === "all" ? undefined : fields.eventType,
+    ...(animeId === undefined ? {} : { animeId }),
+    ...(downloadId === undefined ? {} : { downloadId }),
+    ...(endDate === undefined ? {} : { endDate }),
+    ...(eventType === undefined ? {} : { eventType }),
     limit: options?.limit ?? 10_000,
     order: options?.order ?? "desc",
-    startDate: fields.startDate || undefined,
-    status: fields.status || undefined,
+    ...(startDate === undefined ? {} : { startDate }),
+    ...(status === undefined ? {} : { status }),
   };
 }
 

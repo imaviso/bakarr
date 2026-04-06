@@ -85,11 +85,13 @@ export async function fetchApi<T>(
     headers.set("Content-Type", "application/json");
   }
 
-  const res = await fetch(endpoint, {
+  const requestInit: RequestInit = {
     ...options,
-    signal,
     headers,
-  });
+    ...(signal === undefined ? {} : { signal }),
+  };
+
+  const res = await fetch(endpoint, requestInit);
 
   if (res.status === 401 && !options?.skipAutoLogoutOnUnauthorized) {
     void logout();
@@ -531,12 +533,14 @@ export function nyaaSearchQueryOptions(
     filter?: string;
   } = {},
 ) {
+  const queryKeyOptions = {
+    ...(options.anime_id === undefined ? {} : { animeId: options.anime_id }),
+    ...(options.category === undefined ? {} : { category: options.category }),
+    ...(options.filter === undefined ? {} : { filter: options.filter }),
+  };
+
   return queryOptions({
-    queryKey: animeKeys.search.releases(query, {
-      animeId: options.anime_id,
-      category: options.category,
-      filter: options.filter,
-    }),
+    queryKey: animeKeys.search.releases(query, queryKeyOptions),
     queryFn: ({ signal }) => {
       const params = new URLSearchParams();
       params.append("query", query);
@@ -558,18 +562,23 @@ export function nyaaSearchQueryOptions(
 export function createNyaaSearchQuery(
   query: () => string,
   options: {
-    anime_id?: () => number;
+    anime_id?: () => number | undefined;
     category?: () => string | undefined;
     filter?: () => string | undefined;
-    enabled?: () => boolean;
+    enabled?: () => boolean | undefined;
   } = {},
 ) {
   return useQuery(() => ({
-    ...nyaaSearchQueryOptions(query(), {
-      anime_id: options.anime_id?.(),
-      category: options.category?.(),
-      filter: options.filter?.(),
-    }),
+    ...(() => {
+      const animeId = options.anime_id?.();
+      const category = options.category?.();
+      const filter = options.filter?.();
+      return nyaaSearchQueryOptions(query(), {
+        ...(animeId === undefined ? {} : { anime_id: animeId }),
+        ...(category === undefined ? {} : { category }),
+        ...(filter === undefined ? {} : { filter }),
+      });
+    })(),
     enabled: (options.enabled?.() ?? true) && !!query(),
   }));
 }
@@ -1405,10 +1414,12 @@ export async function exportDownloadEvents(
 
   triggerBlobDownload(payload, fileName);
 
+  const generatedAt = response.headers.get("x-bakarr-generated-at") ?? undefined;
+
   return {
     exported: parseExportCountHeader(response.headers.get("x-bakarr-exported-events")),
     format,
-    generatedAt: response.headers.get("x-bakarr-generated-at") ?? undefined,
+    ...(generatedAt === undefined ? {} : { generatedAt }),
     limit: parseExportCountHeader(response.headers.get("x-bakarr-export-limit")),
     total: parseExportCountHeader(response.headers.get("x-bakarr-total-events")),
     truncated: parseExportTruncatedHeader(response.headers.get("x-bakarr-export-truncated")),

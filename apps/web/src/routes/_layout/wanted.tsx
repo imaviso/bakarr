@@ -68,11 +68,13 @@ function WantedPage() {
 
   const paddingTop = createMemo(() => {
     const items = rowVirtualizer.getVirtualItems();
-    return items.length > 0 ? items[0].start : 0;
+    const [first] = items;
+    return first ? first.start : 0;
   });
   const paddingBottom = createMemo(() => {
     const items = rowVirtualizer.getVirtualItems();
-    return items.length > 0 ? rowVirtualizer.getTotalSize() - items[items.length - 1].end : 0;
+    const last = items[items.length - 1];
+    return last ? rowVirtualizer.getTotalSize() - last.end : 0;
   });
 
   const [searchModalState, setSearchModalState] = createSignal<{
@@ -158,14 +160,23 @@ function WantedPage() {
                           <WantedRow
                             item={safeItem()}
                             airingPreferences={airingPreferences()}
-                            onSearch={() =>
-                              setSearchModalState({
-                                open: true,
-                                animeId: safeItem().anime_id,
-                                episodeNumber: safeItem().episode_number,
-                                episodeTitle: safeItem().episode_title,
-                              })
-                            }
+                            onSearch={() => {
+                              const episodeTitle = safeItem().episode_title;
+                              setSearchModalState(
+                                episodeTitle === undefined
+                                  ? {
+                                      open: true,
+                                      animeId: safeItem().anime_id,
+                                      episodeNumber: safeItem().episode_number,
+                                    }
+                                  : {
+                                      open: true,
+                                      animeId: safeItem().anime_id,
+                                      episodeNumber: safeItem().episode_number,
+                                      episodeTitle,
+                                    },
+                              );
+                            }}
                           />
                         )}
                       </Show>
@@ -193,7 +204,9 @@ function WantedPage() {
       <SearchModal
         animeId={searchModalState().animeId}
         episodeNumber={searchModalState().episodeNumber}
-        episodeTitle={searchModalState().episodeTitle}
+        {...(searchModalState().episodeTitle === undefined
+          ? {}
+          : { episodeTitle: searchModalState().episodeTitle })}
         open={searchModalState().open}
         onOpenChange={(open) => setSearchModalState((prev) => ({ ...prev, open }))}
       />

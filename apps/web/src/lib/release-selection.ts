@@ -1,24 +1,24 @@
 import type { DownloadAction, DownloadSelectionKind } from "@bakarr/shared";
 
 export interface CompactSelectionMetadata {
-  chosen_from_seadex?: boolean;
-  previous_quality?: string;
-  previous_score?: number;
+  chosen_from_seadex?: boolean | undefined;
+  previous_quality?: string | undefined;
+  previous_score?: number | undefined;
   selection_kind: DownloadSelectionKind;
-  selection_score?: number;
+  selection_score?: number | undefined;
 }
 
 export interface SelectionDetailInput {
-  previous_quality?: string;
-  previous_score?: number;
-  selection_score?: number;
+  previous_quality?: string | undefined;
+  previous_score?: number | undefined;
+  selection_score?: number | undefined;
 }
 
 export interface ReleaseConfidenceInput {
-  is_seadex?: boolean;
-  is_seadex_best?: boolean;
-  remake?: boolean;
-  trusted?: boolean;
+  is_seadex?: boolean | undefined;
+  is_seadex_best?: boolean | undefined;
+  remake?: boolean | undefined;
+  trusted?: boolean | undefined;
 }
 
 export interface ReleaseConfidenceMetadata {
@@ -71,10 +71,10 @@ export function selectionMetadataFromDownloadAction(
 }
 
 export function formatSelectionSummary(input: {
-  previous_quality?: string;
-  previous_score?: number;
-  selection_kind?: DownloadSelectionKind;
-  selection_score?: number;
+  previous_quality?: string | undefined;
+  previous_score?: number | undefined;
+  selection_kind?: DownloadSelectionKind | undefined;
+  selection_score?: number | undefined;
 }) {
   const label = selectionKindLabel(input.selection_kind);
   const detail = formatSelectionDetail(input);

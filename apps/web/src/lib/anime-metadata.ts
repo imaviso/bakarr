@@ -2,16 +2,16 @@ import type { Anime, AnimeSearchResult, Config } from "~/lib/api";
 
 type AnimeDateContext = {
   season?: Anime["season"];
-  season_year?: number;
-  start_date?: string;
-  start_year?: number;
+  season_year?: number | undefined;
+  start_date?: string | undefined;
+  start_year?: number | undefined;
 };
 
 type AnimeNextAiringContext = Anime["next_airing_episode"];
 
 export interface AiringDisplayPreferences {
   dayStartHour: number;
-  timeZone?: string;
+  timeZone?: string | undefined;
 }
 
 export function getAiringDisplayPreferences(library?: Config["library"]): AiringDisplayPreferences {
@@ -21,7 +21,7 @@ export function getAiringDisplayPreferences(library?: Config["library"]): Airing
 
   return {
     dayStartHour,
-    timeZone,
+    ...(timeZone === undefined ? {} : { timeZone }),
   };
 }
 
@@ -58,7 +58,12 @@ export function animeDateSubtitle(anime: AnimeDateContext) {
 }
 
 export function animeSearchSubtitle(anime: AnimeSearchResult) {
-  return animeDateSubtitle(anime);
+  return animeDateSubtitle({
+    ...(anime.season === undefined ? {} : { season: anime.season }),
+    ...(anime.season_year === undefined ? {} : { season_year: anime.season_year }),
+    ...(anime.start_date === undefined ? {} : { start_date: anime.start_date }),
+    ...(anime.start_year === undefined ? {} : { start_year: anime.start_year }),
+  });
 }
 
 export function animeDisplayTitle(anime: Pick<Anime, "title"> | Pick<AnimeSearchResult, "title">) {
@@ -66,12 +71,12 @@ export function animeDisplayTitle(anime: Pick<Anime, "title"> | Pick<AnimeSearch
 }
 
 export function animeDiscoverySubtitle(input: {
-  format?: string;
-  relation_type?: string;
+  format?: string | undefined;
+  relation_type?: string | undefined;
   season?: AnimeSearchResult["season"];
-  season_year?: number;
-  start_year?: number;
-  status?: string;
+  season_year?: number | undefined;
+  start_year?: number | undefined;
+  status?: string | undefined;
 }) {
   return [
     input.relation_type ? formatRelationType(input.relation_type) : undefined,
@@ -258,19 +263,29 @@ function getDateTimeParts(date: Date, timeZone?: string) {
       .formatToParts(date)
       .filter((part) => part.type !== "literal")
       .map((part) => [part.type, part.value]),
-  );
+  ) as Record<string, string>;
+
+  const day = Number(parts["day"]);
+  const hour = Number(parts["hour"]);
+  const minute = Number(parts["minute"]);
+  const month = Number(parts["month"]);
+  const year = Number(parts["year"]);
 
   return {
-    day: Number(parts.day),
-    hour: Number(parts.hour),
-    minute: Number(parts.minute),
-    month: Number(parts.month),
-    year: Number(parts.year),
+    day,
+    hour,
+    minute,
+    month,
+    year,
   };
 }
 
 function formatDateOnly(value: string) {
   const [year, month, day] = value.slice(0, 10).split("-").map(Number);
+
+  if (year === undefined || month === undefined || day === undefined) {
+    return value;
+  }
 
   if (![year, month, day].every(Number.isFinite)) {
     return value;

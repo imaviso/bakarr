@@ -266,10 +266,16 @@ export function formatRssTransportFailureMessage(cause: unknown): string {
 }
 
 function readErrorStringField(error: Error, key: "code" | "hostname" | "syscall") {
-  if (!(key in error)) {
+  const extended = error as Error & {
+    readonly code?: unknown;
+    readonly hostname?: unknown;
+    readonly syscall?: unknown;
+  };
+
+  if (!(key in extended)) {
     return undefined;
   }
 
-  const value = error[key as keyof Error];
+  const value = extended[key];
   return typeof value === "string" ? value : undefined;
 }

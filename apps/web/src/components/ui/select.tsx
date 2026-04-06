@@ -1,7 +1,6 @@
-import type { JSX, ValidComponent } from "solid-js";
+import type { Component, ComponentProps } from "solid-js";
 import { splitProps } from "solid-js";
 
-import type { PolymorphicProps } from "@kobalte/core/polymorphic";
 import * as SelectPrimitive from "@kobalte/core/select";
 import { cva } from "class-variance-authority";
 
@@ -11,16 +10,12 @@ const Select = SelectPrimitive.Root;
 const SelectValue = SelectPrimitive.Value;
 const SelectHiddenSelect = SelectPrimitive.HiddenSelect;
 
-type SelectTriggerProps<T extends ValidComponent = "button"> =
-  SelectPrimitive.SelectTriggerProps<T> & {
+type SelectTriggerProps = ComponentProps<typeof SelectPrimitive.Trigger> & {
     class?: string | undefined;
-    children?: JSX.Element;
   };
 
-const SelectTrigger = <T extends ValidComponent = "button">(
-  props: PolymorphicProps<T, SelectTriggerProps<T>>,
-) => {
-  const [local, others] = splitProps(props as SelectTriggerProps, ["class", "children"]);
+const SelectTrigger: Component<SelectTriggerProps> = (props) => {
+  const [local, others] = splitProps(props, ["class", "children"]);
   return (
     <SelectPrimitive.Trigger
       class={cn(
@@ -48,13 +43,12 @@ const SelectTrigger = <T extends ValidComponent = "button">(
   );
 };
 
-type SelectContentProps<T extends ValidComponent = "div"> =
-  SelectPrimitive.SelectContentProps<T> & { class?: string | undefined };
+type SelectContentProps = ComponentProps<typeof SelectPrimitive.Content> & {
+  class?: string | undefined;
+};
 
-const SelectContent = <T extends ValidComponent = "div">(
-  props: PolymorphicProps<T, SelectContentProps<T>>,
-) => {
-  const [local, others] = splitProps(props as SelectContentProps, ["class"]);
+const SelectContent: Component<SelectContentProps> = (props) => {
+  const [local, others] = splitProps(props, ["class"]);
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Content
@@ -70,15 +64,12 @@ const SelectContent = <T extends ValidComponent = "div">(
   );
 };
 
-type SelectItemProps<T extends ValidComponent = "li"> = SelectPrimitive.SelectItemProps<T> & {
+type SelectItemProps = ComponentProps<typeof SelectPrimitive.Item> & {
   class?: string | undefined;
-  children?: JSX.Element;
 };
 
-const SelectItem = <T extends ValidComponent = "li">(
-  props: PolymorphicProps<T, SelectItemProps<T>>,
-) => {
-  const [local, others] = splitProps(props as SelectItemProps, ["class", "children"]);
+const SelectItem: Component<SelectItemProps> = (props) => {
+  const [local, others] = splitProps(props, ["class", "children"]);
   return (
     <SelectPrimitive.Item
       class={cn(
@@ -123,26 +114,21 @@ const labelVariants = cva(
   },
 );
 
-type SelectLabelProps<T extends ValidComponent = "label"> = SelectPrimitive.SelectLabelProps<T> & {
+type SelectLabelProps = ComponentProps<typeof SelectPrimitive.Label> & {
   class?: string | undefined;
 };
 
-const SelectLabel = <T extends ValidComponent = "label">(
-  props: PolymorphicProps<T, SelectLabelProps<T>>,
-) => {
-  const [local, others] = splitProps(props as SelectLabelProps, ["class"]);
+const SelectLabel: Component<SelectLabelProps> = (props) => {
+  const [local, others] = splitProps(props, ["class"]);
   return <SelectPrimitive.Label class={cn(labelVariants(), local.class)} {...others} />;
 };
 
-type SelectDescriptionProps<T extends ValidComponent = "div"> =
-  SelectPrimitive.SelectDescriptionProps<T> & {
+type SelectDescriptionProps = ComponentProps<typeof SelectPrimitive.Description> & {
     class?: string | undefined;
   };
 
-const SelectDescription = <T extends ValidComponent = "div">(
-  props: PolymorphicProps<T, SelectDescriptionProps<T>>,
-) => {
-  const [local, others] = splitProps(props as SelectDescriptionProps, ["class"]);
+const SelectDescription: Component<SelectDescriptionProps> = (props) => {
+  const [local, others] = splitProps(props, ["class"]);
   return (
     <SelectPrimitive.Description
       class={cn(labelVariants({ variant: "description" }), local.class)}
@@ -151,15 +137,12 @@ const SelectDescription = <T extends ValidComponent = "div">(
   );
 };
 
-type SelectErrorMessageProps<T extends ValidComponent = "div"> =
-  SelectPrimitive.SelectErrorMessageProps<T> & {
+type SelectErrorMessageProps = ComponentProps<typeof SelectPrimitive.ErrorMessage> & {
     class?: string | undefined;
   };
 
-const SelectErrorMessage = <T extends ValidComponent = "div">(
-  props: PolymorphicProps<T, SelectErrorMessageProps<T>>,
-) => {
-  const [local, others] = splitProps(props as SelectErrorMessageProps, ["class"]);
+const SelectErrorMessage: Component<SelectErrorMessageProps> = (props) => {
+  const [local, others] = splitProps(props, ["class"]);
   return (
     <SelectPrimitive.ErrorMessage
       class={cn(labelVariants({ variant: "error" }), local.class)}

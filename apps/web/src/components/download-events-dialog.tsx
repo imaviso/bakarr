@@ -19,23 +19,24 @@ import { DownloadEventDetailsDialog } from "~/components/download-event-details-
 import {
   createDownloadEventsQuery,
   type DownloadEvent,
+  type DownloadEventsFilterInput,
   type DownloadEventsExportResult,
 } from "~/lib/api";
 import { runDownloadEventsExport } from "~/lib/download-events-export";
 
 interface DownloadEventsDialogProps {
-  animeId?: number;
-  downloadId?: number;
-  eventType?: string;
+  animeId?: number | undefined;
+  downloadId?: number | undefined;
+  eventType?: string | undefined;
   formatTimestamp: (value: string) => string;
-  limit?: number;
+  limit?: number | undefined;
   title: string;
-  triggerLabel?: string;
-  description?: string;
-  triggerVariant?: "ghost" | "outline" | "default";
-  triggerSize?: "icon" | "sm" | "default";
-  showTriggerLabel?: boolean;
-  exportLimit?: number;
+  triggerLabel?: string | undefined;
+  description?: string | undefined;
+  triggerVariant?: "ghost" | "outline" | "default" | undefined;
+  triggerSize?: "icon" | "sm" | "default" | undefined;
+  showTriggerLabel?: boolean | undefined;
+  exportLimit?: number | undefined;
 }
 
 export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
@@ -46,21 +47,37 @@ export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
     DownloadEventsExportResult | undefined
   >(undefined);
   const [selectedEvent, setSelectedEvent] = createSignal<DownloadEvent | null>(null);
-  const query = createDownloadEventsQuery(() => ({
-    animeId: props.animeId,
-    cursor: cursor(),
-    downloadId: props.downloadId,
-    direction: direction(),
-    eventType: props.eventType,
-    limit: props.limit ?? 25,
-  }));
-  const exportBaseInput = createMemo(() => ({
-    animeId: props.animeId,
-    downloadId: props.downloadId,
-    eventType: props.eventType,
-    limit: props.exportLimit ?? 10_000,
-    order: "desc" as const,
-  }));
+  const query = createDownloadEventsQuery(() => {
+    const input: DownloadEventsFilterInput = {
+      direction: direction(),
+      limit: props.limit ?? 25,
+    };
+
+    if (props.animeId !== undefined) {
+      input.animeId = props.animeId;
+    }
+    const currentCursor = cursor();
+    if (currentCursor !== undefined) {
+      input.cursor = currentCursor;
+    }
+    if (props.downloadId !== undefined) {
+      input.downloadId = props.downloadId;
+    }
+    if (props.eventType !== undefined) {
+      input.eventType = props.eventType;
+    }
+
+    return input;
+  });
+  const exportBaseInput = createMemo(() => {
+    return {
+      ...(props.animeId === undefined ? {} : { animeId: props.animeId }),
+      ...(props.downloadId === undefined ? {} : { downloadId: props.downloadId }),
+      ...(props.eventType === undefined ? {} : { eventType: props.eventType }),
+      limit: props.exportLimit ?? 10_000,
+      order: "desc" as const,
+    };
+  });
   const openExport = (format: "json" | "csv") => {
     void runDownloadEventsExport({
       format,

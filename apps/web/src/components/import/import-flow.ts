@@ -20,15 +20,15 @@ export function buildImportSourceMetadata(
   >,
 ): DownloadSourceMetadata | undefined {
   const metadata: DownloadSourceMetadata = {
-    air_date: file.air_date,
-    audio_channels: file.audio_channels,
-    audio_codec: file.audio_codec,
-    episode_title: file.episode_title,
-    group: file.group,
-    quality: file.quality,
-    resolution: file.resolution,
-    source_identity: file.source_identity,
-    video_codec: file.video_codec,
+    ...(file.air_date === undefined ? {} : { air_date: file.air_date }),
+    ...(file.audio_channels === undefined ? {} : { audio_channels: file.audio_channels }),
+    ...(file.audio_codec === undefined ? {} : { audio_codec: file.audio_codec }),
+    ...(file.episode_title === undefined ? {} : { episode_title: file.episode_title }),
+    ...(file.group === undefined ? {} : { group: file.group }),
+    ...(file.quality === undefined ? {} : { quality: file.quality }),
+    ...(file.resolution === undefined ? {} : { resolution: file.resolution }),
+    ...(file.source_identity === undefined ? {} : { source_identity: file.source_identity }),
+    ...(file.video_codec === undefined ? {} : { video_codec: file.video_codec }),
   };
 
   return Object.values(metadata).some((value) => value !== undefined) ? metadata : undefined;
@@ -60,9 +60,18 @@ export function buildImportFileRequest(input: {
   return {
     anime_id: input.animeId,
     episode_number: input.episodeNumber ?? Math.floor(input.file.episode_number),
-    episode_numbers: input.episodeNumbers ?? input.file.episode_numbers,
-    season: input.season ?? input.file.season,
-    source_metadata: input.sourceMetadata ?? buildImportSourceMetadata(input.file),
+    ...(() => {
+      const episodeNumbers = input.episodeNumbers ?? input.file.episode_numbers;
+      return episodeNumbers === undefined ? {} : { episode_numbers: episodeNumbers };
+    })(),
+    ...(() => {
+      const season = input.season ?? input.file.season;
+      return season === undefined ? {} : { season };
+    })(),
+    ...(() => {
+      const sourceMetadata = input.sourceMetadata ?? buildImportSourceMetadata(input.file);
+      return sourceMetadata === undefined ? {} : { source_metadata: sourceMetadata };
+    })(),
     source_path: input.file.source_path,
   } satisfies ImportFileRequest;
 }
@@ -123,7 +132,10 @@ export function toggleImportCandidateSelection(input: {
     titleLower.match(/season\s+(\d+)/) || titleLower.match(/(\d+)(?:nd|rd|th)\s+season/);
 
   if (seasonMatch) {
-    candidateSeason = Number.parseInt(seasonMatch[1], 10);
+    const [matchedSeason] = seasonMatch.slice(1);
+    if (matchedSeason) {
+      candidateSeason = Number.parseInt(matchedSeason, 10);
+    }
   }
 
   input.files.forEach((file) => {

@@ -64,6 +64,7 @@ import {
   createSearchMissingMutation,
   createSyncDownloadsMutation,
   type Download,
+  type DownloadEventsFilterInput,
   type DownloadEventsExportResult,
   downloadHistoryQueryOptions,
   type DownloadStatus,
@@ -121,7 +122,7 @@ function toDownloadsTab(value: string | null | undefined): DownloadsTab {
   return "queue";
 }
 
-function DownloadStatusIcon(props: { status?: string }) {
+function DownloadStatusIcon(props: { status?: string | undefined }) {
   const presentation = createMemo(() => getDownloadStatusPresentation(props.status));
 
   const icon = () => {
@@ -191,17 +192,43 @@ function DownloadsPage() {
 
   const queue = useActiveDownloads();
   const historyQuery = createDownloadHistoryQuery();
-  const downloadEventsQuery = createDownloadEventsQuery(() => ({
-    animeId: parseOptionalPositiveInt(search().events_anime_id),
-    cursor: search().events_cursor || undefined,
-    downloadId: parseOptionalPositiveInt(search().events_download_id),
-    direction: search().events_direction,
-    endDate: search().events_end_date || undefined,
-    eventType: search().events_event_type === "all" ? undefined : search().events_event_type,
-    limit: 24,
-    startDate: search().events_start_date || undefined,
-    status: search().events_status || undefined,
-  }));
+  const downloadEventsQuery = createDownloadEventsQuery(() => {
+    const input: DownloadEventsFilterInput = {
+      direction: search().events_direction,
+      limit: 24,
+    };
+
+    const animeId = parseOptionalPositiveInt(search().events_anime_id);
+    if (animeId !== undefined) {
+      input.animeId = animeId;
+    }
+    const cursor = search().events_cursor || undefined;
+    if (cursor !== undefined) {
+      input.cursor = cursor;
+    }
+    const downloadId = parseOptionalPositiveInt(search().events_download_id);
+    if (downloadId !== undefined) {
+      input.downloadId = downloadId;
+    }
+    const endDate = search().events_end_date || undefined;
+    if (endDate !== undefined) {
+      input.endDate = endDate;
+    }
+    const eventType = search().events_event_type === "all" ? undefined : search().events_event_type;
+    if (eventType !== undefined) {
+      input.eventType = eventType;
+    }
+    const startDate = search().events_start_date || undefined;
+    if (startDate !== undefined) {
+      input.startDate = startDate;
+    }
+    const status = search().events_status || undefined;
+    if (status !== undefined) {
+      input.status = status;
+    }
+
+    return input;
+  });
   const searchMissing = createSearchMissingMutation();
   const syncDownloads = createSyncDownloadsMutation();
 
@@ -218,11 +245,13 @@ function DownloadsPage() {
   });
   const queuePaddingTop = createMemo(() => {
     const items = queueVirtualizer.getVirtualItems();
-    return items.length > 0 ? items[0].start : 0;
+    const [first] = items;
+    return first ? first.start : 0;
   });
   const queuePaddingBottom = createMemo(() => {
     const items = queueVirtualizer.getVirtualItems();
-    return items.length > 0 ? queueVirtualizer.getTotalSize() - items[items.length - 1].end : 0;
+    const last = items[items.length - 1];
+    return last ? queueVirtualizer.getTotalSize() - last.end : 0;
   });
 
   const historyVirtualizer = createVirtualizer({
@@ -235,11 +264,13 @@ function DownloadsPage() {
   });
   const historyPaddingTop = createMemo(() => {
     const items = historyVirtualizer.getVirtualItems();
-    return items.length > 0 ? items[0].start : 0;
+    const [first] = items;
+    return first ? first.start : 0;
   });
   const historyPaddingBottom = createMemo(() => {
     const items = historyVirtualizer.getVirtualItems();
-    return items.length > 0 ? historyVirtualizer.getTotalSize() - items[items.length - 1].end : 0;
+    const last = items[items.length - 1];
+    return last ? historyVirtualizer.getTotalSize() - last.end : 0;
   });
 
   const updateSearch = (patch: Partial<ReturnType<typeof search>>) => {
@@ -823,11 +854,11 @@ function ActiveDownloadRow(props: { item: DownloadStatus }) {
       </TableCell>
       <TableCell class="font-medium py-2 min-w-[280px] md:min-w-[320px]">
         <div class="flex items-start gap-3">
-          <Avatar class="size-8 rounded-md">
-            <AvatarImage
-              src={props.item.anime_image}
-              alt={props.item.anime_title ?? props.item.name}
-            />
+            <Avatar class="size-8 rounded-md">
+              <AvatarImage
+                {...(props.item.anime_image === undefined ? {} : { src: props.item.anime_image })}
+                alt={props.item.anime_title ?? props.item.name}
+              />
             <AvatarFallback class="rounded-md text-xs font-medium">
               {animeInitials(props.item.anime_title ?? props.item.name)}
             </AvatarFallback>
@@ -1016,7 +1047,7 @@ function ActiveDownloadRow(props: { item: DownloadStatus }) {
           </Show>
           <DownloadEventsDialog
             description="Timeline of queue, status, and import events for this download."
-            downloadId={props.item.id}
+            {...(props.item.id === undefined ? {} : { downloadId: props.item.id })}
             formatTimestamp={(value) => new Date(value).toLocaleString()}
             title={`Download Events${props.item.anime_title ? ` - ${props.item.anime_title}` : ""}`}
             triggerLabel="View download events"
@@ -1075,12 +1106,15 @@ function DownloadRow(props: { item: Download; isHistory?: boolean }) {
   return (
     <TableRow class="group h-12 align-top">
       <TableCell class="py-2 pl-4 w-[42px]">
-        <DownloadStatusIcon status={props.item.status} />
+        <DownloadStatusIcon {...(props.item.status === undefined ? {} : { status: props.item.status })} />
       </TableCell>
       <TableCell class="font-medium py-2 min-w-[280px] md:min-w-[320px]">
         <div class="flex items-start gap-3">
-          <Avatar class="size-8 rounded-md">
-            <AvatarImage src={props.item.anime_image} alt={props.item.anime_title} />
+            <Avatar class="size-8 rounded-md">
+              <AvatarImage
+                {...(props.item.anime_image === undefined ? {} : { src: props.item.anime_image })}
+                alt={props.item.anime_title}
+              />
             <AvatarFallback class="rounded-md text-xs font-medium">
               {animeInitials(props.item.anime_title)}
             </AvatarFallback>

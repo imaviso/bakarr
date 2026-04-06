@@ -757,15 +757,17 @@ function AnimeDetailsPage() {
                                             <IconDots class="h-4 w-4" />
                                           </DropdownMenuTrigger>
                                           <DropdownMenuContent>
-                                            <DropdownMenuItem
-                                              onClick={() =>
-                                                setSearchModalState({
-                                                  open: true,
-                                                  episodeNumber: episode.number,
-                                                  episodeTitle: episode.title,
-                                                })
-                                              }
-                                            >
+                                              <DropdownMenuItem
+                                                onClick={() =>
+                                                  setSearchModalState(() => ({
+                                                    open: true,
+                                                    episodeNumber: episode.number,
+                                                    ...(episode.title === undefined
+                                                      ? {}
+                                                      : { episodeTitle: episode.title }),
+                                                  }))
+                                                }
+                                              >
                                               <Show
                                                 when={episode.downloaded}
                                                 fallback={
@@ -879,7 +881,9 @@ function AnimeDetailsPage() {
       <SearchModal
         animeId={animeId()}
         episodeNumber={searchModalState().episodeNumber}
-        episodeTitle={searchModalState().episodeTitle}
+        {...(searchModalState().episodeTitle === undefined
+          ? {}
+          : { episodeTitle: searchModalState().episodeTitle })}
         open={searchModalState().open}
         onOpenChange={(open) => setSearchModalState((prev) => ({ ...prev, open }))}
       />

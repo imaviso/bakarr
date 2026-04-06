@@ -1,6 +1,6 @@
 export interface TimeZoneOption {
   label: string;
-  note?: string;
+  note?: string | undefined;
   value: string;
 }
 

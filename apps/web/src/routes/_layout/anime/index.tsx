@@ -440,11 +440,13 @@ function AnimeGridView(props: AnimeViewProps) {
 
   const gridPaddingTop = createMemo(() => {
     const items = rowVirtualizer.getVirtualItems();
-    return items.length > 0 ? items[0].start : 0;
+    const [first] = items;
+    return first ? first.start : 0;
   });
   const gridPaddingBottom = createMemo(() => {
     const items = rowVirtualizer.getVirtualItems();
-    return items.length > 0 ? rowVirtualizer.getTotalSize() - items[items.length - 1].end : 0;
+    const last = items[items.length - 1];
+    return last ? rowVirtualizer.getTotalSize() - last.end : 0;
   });
 
   return (
@@ -515,10 +517,7 @@ function AnimeGridView(props: AnimeViewProps) {
                       </Link>
                       <div class="space-y-2">
                         <div class="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
-                          <Badge
-                            variant={statusTone(anime)}
-                            class="h-5 rounded-sm px-1.5 font-normal"
-                          >
+                          <Badge variant={statusTone(anime)} class="h-5 rounded-sm px-1.5 font-normal">
                             {anime.next_airing_episode
                               ? "Airing"
                               : anime.monitored
@@ -546,17 +545,13 @@ function AnimeGridView(props: AnimeViewProps) {
                                     ? "bg-primary"
                                     : "bg-muted-foreground/40",
                               )}
-                              style={{
-                                width: `${progressPercent(anime) ?? 0}%`,
-                              }}
+                              style={{ width: `${progressPercent(anime) ?? 0}%` }}
                             />
                           </div>
                         </div>
                         <div class="line-clamp-1 text-[11px] text-muted-foreground">
-                          {formatNextAiringEpisode(
-                            anime.next_airing_episode,
-                            props.airingPreferences,
-                          ) || nextProgressLabel(anime)}
+                          {formatNextAiringEpisode(anime.next_airing_episode, props.airingPreferences) ||
+                            nextProgressLabel(anime)}
                         </div>
                       </div>
                       <div class="mt-auto flex items-center justify-between gap-2">
@@ -596,7 +591,7 @@ function AnimeGridView(props: AnimeViewProps) {
               </For>
             );
           }}
-        </For>
+          </For>
       </div>
       <div style={{ height: `${gridPaddingBottom()}px` }} aria-hidden="true" />
     </div>
@@ -616,11 +611,13 @@ function AnimeListView(props: AnimeViewProps) {
 
   const paddingTop = createMemo(() => {
     const items = rowVirtualizer.getVirtualItems();
-    return items.length > 0 ? items[0].start : 0;
+    const [first] = items;
+    return first ? first.start : 0;
   });
   const paddingBottom = createMemo(() => {
     const items = rowVirtualizer.getVirtualItems();
-    return items.length > 0 ? rowVirtualizer.getTotalSize() - items[items.length - 1].end : 0;
+    const last = items[items.length - 1];
+    return last ? rowVirtualizer.getTotalSize() - last.end : 0;
   });
 
   return (
@@ -656,6 +653,9 @@ function AnimeListView(props: AnimeViewProps) {
           <For each={rowVirtualizer.getVirtualItems()}>
             {(vRow) => {
               const anime = props.anime[vRow.index];
+              if (!anime) {
+                return null;
+              }
               return (
                 <TableRow>
                   <TableCell>

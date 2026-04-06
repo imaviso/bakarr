@@ -1,4 +1,5 @@
-import type { JSX } from "solid-js";
+import type { Accessor, JSX } from "solid-js";
+import type { Component } from "solid-js";
 import { createMemo } from "solid-js";
 import { FilterContext } from "./filter-context";
 import type { FilterColumnConfig, FilterContextValue, FilterOperator, FilterState } from "./types";
@@ -6,12 +7,16 @@ import type { FilterColumnConfig, FilterContextValue, FilterOperator, FilterStat
 interface FilterProviderProps {
   children: JSX.Element;
   columns: FilterColumnConfig[];
-  value: FilterState[];
+  value: Accessor<FilterState[]>;
   onChange: (filters: FilterState[]) => void;
 }
 
+const FilterContextProvider: Component<{ value: FilterContextValue; children: JSX.Element }> = (props) => {
+  return <FilterContext.Provider value={props.value}>{props.children}</FilterContext.Provider>;
+};
+
 export function FilterProvider(props: FilterProviderProps) {
-  const filters = createMemo(() => props.value);
+  const filters = createMemo(() => props.value());
 
   const addFilter = (columnId: string) => {
     const column = props.columns.find((c) => c.id === columnId);
@@ -26,7 +31,10 @@ export function FilterProvider(props: FilterProviderProps) {
 
     if (column.operators && column.operators.length > 0) {
       if (!column.operators.includes(defaultOperator)) {
-        defaultOperator = column.operators[0];
+        const [firstOperator] = column.operators;
+        if (firstOperator) {
+          defaultOperator = firstOperator;
+        }
       }
     }
 
@@ -36,17 +44,22 @@ export function FilterProvider(props: FilterProviderProps) {
       value: column.type === "multiSelect" ? [] : "",
     };
 
-    props.onChange([...props.value, newFilter]);
+    props.onChange([...props.value(), newFilter]);
   };
 
   const updateFilter = (index: number, updates: Partial<FilterState>) => {
-    const newFilters = [...props.value];
-    newFilters[index] = { ...newFilters[index], ...updates };
+    const newFilters = [...props.value()];
+    const existing = newFilters[index];
+    if (!existing) {
+      return;
+    }
+
+    newFilters[index] = { ...existing, ...updates };
     props.onChange(newFilters);
   };
 
   const removeFilter = (index: number) => {
-    props.onChange(props.value.filter((_, i) => i !== index));
+    props.onChange(props.value().filter((_, i) => i !== index));
   };
 
   const clearAllFilters = () => {
@@ -62,5 +75,5 @@ export function FilterProvider(props: FilterProviderProps) {
     clearAllFilters,
   };
 
-  return <FilterContext.Provider value={contextValue}>{props.children}</FilterContext.Provider>;
+  return <FilterContextProvider value={contextValue}>{props.children}</FilterContextProvider>;
 }

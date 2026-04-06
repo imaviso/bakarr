@@ -254,7 +254,7 @@ export function FileRow(props: FileRowProps) {
         <div class="flex items-center gap-1.5 shrink-0">
           <Show when={props.file.source_identity?.label}>
             <Badge variant="outline" class="text-xs font-mono">
-              {props.file.source_identity!.label}
+              {props.file.source_identity?.label}
             </Badge>
           </Show>
           <Show
@@ -269,7 +269,7 @@ export function FileRow(props: FileRowProps) {
           </Show>
           <EditMappingPopover
             episode={displayEpisode()}
-            season={displaySeason()}
+            season={displaySeason() ?? null}
             onSave={props.onMappingChange}
           />
           <Show when={props.file.needs_manual_mapping}>
@@ -293,9 +293,9 @@ export function FileRow(props: FileRowProps) {
                     }
                   }}
                   options={allOptions()}
-                  optionValue="id"
+                  optionValue={(opt) => opt?.id ?? -1}
                   optionTextValue={(opt) =>
-                    opt.title.english || opt.title.romaji || "Unknown Title"
+                    opt?.title.english || opt?.title.romaji || "Unknown Title"
                   }
                   placeholder="Select anime..."
                   itemComponent={(itemProps) => (
@@ -335,8 +335,8 @@ export function FileRow(props: FileRowProps) {
                 }
               }}
               options={allOptions()}
-              optionValue="id"
-              optionTextValue={(opt) => opt.title.english || opt.title.romaji || "Unknown Title"}
+              optionValue={(opt) => opt?.id ?? -1}
+              optionTextValue={(opt) => opt?.title.english || opt?.title.romaji || "Unknown Title"}
               itemComponent={(itemProps) => (
                 <SelectItem item={itemProps.item}>
                   <span class="flex items-center gap-2">

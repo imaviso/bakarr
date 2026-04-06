@@ -116,7 +116,7 @@ function ImportPage() {
 
   const handleScan = () => {
     scanMutation.mutate(
-      { path: path(), anime_id: undefined },
+      { path: path() },
       {
         onSuccess: (data) => {
           const preselected = new Map<string, ImportFileRequest>();
@@ -248,10 +248,14 @@ function ImportPage() {
           buildImportFileRequest({
             animeId: newAnimeId,
             episodeNumber: existing.episode_number,
-            episodeNumbers: existing.episode_numbers,
+            ...(existing.episode_numbers === undefined
+              ? {}
+              : { episodeNumbers: existing.episode_numbers }),
             file,
-            season: existing.season,
-            sourceMetadata: existing.source_metadata,
+            ...(existing.season === undefined ? {} : { season: existing.season }),
+            ...(existing.source_metadata === undefined
+              ? {}
+              : { sourceMetadata: existing.source_metadata }),
           }),
         );
       }
@@ -273,10 +277,12 @@ function ImportPage() {
       buildImportFileRequest({
         animeId: current.anime_id,
         episodeNumber: episode,
-        episodeNumbers: current.episode_numbers,
+        ...(current.episode_numbers === undefined ? {} : { episodeNumbers: current.episode_numbers }),
         file,
         season,
-        sourceMetadata: current.source_metadata,
+        ...(current.source_metadata === undefined
+          ? {}
+          : { sourceMetadata: current.source_metadata }),
       }),
     );
     setSelectedFiles(newSelected);
@@ -302,6 +308,9 @@ function ImportPage() {
     const items = e.dataTransfer?.items;
     if (items && items.length > 0) {
       const item = items[0];
+      if (!item) {
+        return;
+      }
       if (item.kind === "file") {
         const file = item.getAsFile();
         if (file) {
@@ -639,7 +648,7 @@ function ImportPage() {
                         isSelected={selectedFiles().has(file.source_path)}
                         selectedAnimeId={selectedFiles().get(file.source_path)?.anime_id}
                         currentEpisode={selectedFiles().get(file.source_path)?.episode_number}
-                        currentSeason={selectedFiles().get(file.source_path)?.season}
+                        currentSeason={selectedFiles().get(file.source_path)?.season ?? null}
                         onToggle={(id) => toggleFile(file, id)}
                         onAnimeChange={(id) => updateFileAnime(file, id)}
                         onMappingChange={(s, e) => updateFileMapping(file, s, e)}

@@ -548,7 +548,7 @@ function SizeInput(props: {
   label: string;
   value: string;
   onChange: (value: string | undefined) => void;
-  error?: string;
+  error?: string | undefined;
 }) {
   const [amount, setAmount] = createSignal<string>("");
   const [unit, setUnit] = createSignal<"MB" | "GB">("MB");
@@ -558,8 +558,11 @@ function SizeInput(props: {
     if (props.value) {
       const match = props.value.match(/^(\d+(?:\.\d+)?)\s*(MB|GB)$/i);
       if (match) {
-        setAmount(match[1]);
-        const parsedUnit = parseSizeUnit(match[2]);
+        const [matchedAmount, matchedUnit] = match.slice(1);
+        if (matchedAmount) {
+          setAmount(matchedAmount);
+        }
+        const parsedUnit = matchedUnit ? parseSizeUnit(matchedUnit) : undefined;
         if (parsedUnit) {
           setUnit(parsedUnit);
         }
@@ -762,8 +765,10 @@ function ProfileForm(props: {
                 <SizeInput
                   label="Minimum Size"
                   value={field().state.value || ""}
-                  onChange={field().handleChange}
-                  error={field().state.meta.errors[0]?.message}
+                  onChange={(value) => field().handleChange(value)}
+                  {...(field().state.meta.errors[0]?.message === undefined
+                    ? {}
+                    : { error: field().state.meta.errors[0]?.message })}
                 />
               )}
             </form.Field>
@@ -783,8 +788,10 @@ function ProfileForm(props: {
                 <SizeInput
                   label="Maximum Size"
                   value={field().state.value || ""}
-                  onChange={field().handleChange}
-                  error={field().state.meta.errors[0]?.message}
+                  onChange={(value) => field().handleChange(value)}
+                  {...(field().state.meta.errors[0]?.message === undefined
+                    ? {}
+                    : { error: field().state.meta.errors[0]?.message })}
                 />
               )}
             </form.Field>

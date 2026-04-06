@@ -47,6 +47,10 @@ type SidebarContext = {
 
 const SidebarContext = createContext<SidebarContext | null>(null);
 
+const SidebarContextProvider: Component<{ value: SidebarContext; children: JSX.Element }> = (props) => {
+  return <SidebarContext.Provider value={props.value}>{props.children}</SidebarContext.Provider>;
+};
+
 function useSidebar() {
   const context = useContext(SidebarContext);
   if (!context) {
@@ -129,7 +133,7 @@ const SidebarProvider: Component<SidebarProviderProps> = (rawProps) => {
   // This makes it easier to style the sidebar with Tailwind classes.
   const state = () => (open() ? "expanded" : "collapsed");
 
-  const contextValue = {
+  const contextValue: SidebarContext = {
     state,
     open,
     setOpen,
@@ -140,7 +144,7 @@ const SidebarProvider: Component<SidebarProviderProps> = (rawProps) => {
   };
 
   return (
-    <SidebarContext.Provider value={contextValue}>
+    <SidebarContextProvider value={contextValue}>
       <div
         style={{
           "--sidebar-width": SIDEBAR_WIDTH,
@@ -155,7 +159,7 @@ const SidebarProvider: Component<SidebarProviderProps> = (rawProps) => {
       >
         {local.children}
       </div>
-    </SidebarContext.Provider>
+    </SidebarContextProvider>
   );
 };
 
@@ -198,7 +202,7 @@ const Sidebar: Component<SidebarProps> = (rawProps) => {
         </div>
       </Match>
       <Match when={isMobile()}>
-        <Sheet open={openMobile()} onOpenChange={setOpenMobile} {...others}>
+        <Sheet open={openMobile()} onOpenChange={setOpenMobile}>
           <SheetContent
             data-sidebar="sidebar"
             data-mobile="true"
@@ -208,7 +212,9 @@ const Sidebar: Component<SidebarProps> = (rawProps) => {
             }}
             position={local.side}
           >
-            <div class="flex size-full flex-col">{local.children}</div>
+            <div class={cn("flex size-full flex-col", local.class)} {...others}>
+              {local.children}
+            </div>
           </SheetContent>
         </Sheet>
       </Match>
@@ -258,12 +264,12 @@ const Sidebar: Component<SidebarProps> = (rawProps) => {
   );
 };
 
-type SidebarTriggerProps<T extends ValidComponent = "button"> = ButtonProps<T> & {
+type SidebarTriggerProps = ButtonProps & {
   onClick?: (event: MouseEvent) => void;
 };
 
-const SidebarTrigger = <T extends ValidComponent = "button">(props: SidebarTriggerProps<T>) => {
-  const [local, others] = splitProps(props as SidebarTriggerProps, ["class", "onClick"]);
+const SidebarTrigger: Component<SidebarTriggerProps> = (props) => {
+  const [local, others] = splitProps(props, ["class", "onClick"]);
   const { toggleSidebar } = useSidebar();
 
   return (
@@ -334,12 +340,10 @@ const SidebarInset: Component<ComponentProps<"main">> = (props) => {
   );
 };
 
-type SidebarInputProps<T extends ValidComponent = "input"> = ComponentProps<
-  typeof TextFieldInput<T>
->;
+type SidebarInputProps = ComponentProps<typeof TextFieldInput>;
 
-const SidebarInput = <T extends ValidComponent = "input">(props: SidebarInputProps<T>) => {
-  const [local, others] = splitProps(props as SidebarInputProps, ["class"]);
+const SidebarInput: Component<SidebarInputProps> = (props) => {
+  const [local, others] = splitProps(props, ["class"]);
   return (
     <TextField>
       <TextFieldInput
@@ -368,10 +372,10 @@ const SidebarFooter: Component<ComponentProps<"div">> = (props) => {
   );
 };
 
-type SidebarSeparatorProps<T extends ValidComponent = "hr"> = ComponentProps<typeof Separator<T>>;
+type SidebarSeparatorProps = ComponentProps<typeof Separator>;
 
-const SidebarSeparator = <T extends ValidComponent = "hr">(props: SidebarSeparatorProps<T>) => {
-  const [local, others] = splitProps(props as SidebarSeparatorProps, ["class"]);
+const SidebarSeparator: Component<SidebarSeparatorProps> = (props) => {
+  const [local, others] = splitProps(props, ["class"]);
   return (
     <Separator
       data-sidebar="separator"

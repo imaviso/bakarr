@@ -87,7 +87,7 @@ const Switch = <T extends ValidComponent = "div">(
       <SwitchControl>
         <SwitchThumb />
       </SwitchControl>
-      {local.children as JSX.Element}
+      {typeof local.children === "function" ? local.children(SwitchPrimitive.useSwitchContext()) : local.children}
     </SwitchRoot>
   );
 };

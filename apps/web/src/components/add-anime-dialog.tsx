@@ -155,7 +155,23 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
                   <For each={props.anime.related_anime?.slice(0, 2)}>
                     {(related) => (
                       <div class="inline-flex items-center rounded-none border px-2 py-0.5 text-xs text-muted-foreground">
-                        {[animeDisplayTitle(related), ...animeDiscoverySubtitle(related)]
+                        {[
+                          animeDisplayTitle(related),
+                          ...animeDiscoverySubtitle({
+                            ...(related.format === undefined ? {} : { format: related.format }),
+                            ...(related.relation_type === undefined
+                              ? {}
+                              : { relation_type: related.relation_type }),
+                            ...(related.season === undefined ? {} : { season: related.season }),
+                            ...(related.season_year === undefined
+                              ? {}
+                              : { season_year: related.season_year }),
+                            ...(related.start_year === undefined
+                              ? {}
+                              : { start_year: related.start_year }),
+                            ...(related.status === undefined ? {} : { status: related.status }),
+                          }),
+                        ]
                           .filter(Boolean)
                           .join(" - ")}
                       </div>
@@ -168,7 +184,25 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
                   <For each={props.anime.recommended_anime?.slice(0, 2)}>
                     {(recommended) => (
                       <div class="inline-flex items-center rounded-none border px-2 py-0.5 text-xs text-muted-foreground">
-                        {[animeDisplayTitle(recommended), ...animeDiscoverySubtitle(recommended)]
+                        {[
+                          animeDisplayTitle(recommended),
+                          ...animeDiscoverySubtitle({
+                            ...(recommended.format === undefined ? {} : { format: recommended.format }),
+                            ...(recommended.relation_type === undefined
+                              ? {}
+                              : { relation_type: recommended.relation_type }),
+                            ...(recommended.season === undefined ? {} : { season: recommended.season }),
+                            ...(recommended.season_year === undefined
+                              ? {}
+                              : { season_year: recommended.season_year }),
+                            ...(recommended.start_year === undefined
+                              ? {}
+                              : { start_year: recommended.start_year }),
+                            ...(recommended.status === undefined
+                              ? {}
+                              : { status: recommended.status }),
+                          }),
+                        ]
                           .filter(Boolean)
                           .join(" - ")}
                       </div>

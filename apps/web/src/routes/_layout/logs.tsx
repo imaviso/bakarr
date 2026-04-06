@@ -77,6 +77,7 @@ import {
   createSystemDashboardQuery,
   createSystemJobsQuery,
   type DownloadEvent,
+  type DownloadEventsFilterInput,
   type DownloadEventsExportResult,
   getExportLogsUrl,
   infiniteLogsQueryOptions,
@@ -263,23 +264,49 @@ function LogsPage() {
 
   // Reactively fetch logs based on filters
   const logsQuery = createInfiniteLogsQuery(
-    () => apiParams().level,
-    () => apiParams().eventType,
-    () => apiParams().startDate,
-    () => apiParams().endDate,
+    () => apiParams()["level"],
+    () => apiParams()["eventType"],
+    () => apiParams()["startDate"],
+    () => apiParams()["endDate"],
   );
   const clearLogs = createClearLogsMutation();
-  const downloadEventsQuery = createDownloadEventsQuery(() => ({
-    animeId: parseOptionalPositiveInt(search().download_anime_id),
-    cursor: search().download_cursor || undefined,
-    downloadId: parseOptionalPositiveInt(search().download_download_id),
-    direction: search().download_direction,
-    endDate: search().download_end_date || undefined,
-    eventType: search().download_event_type === "all" ? undefined : search().download_event_type,
-    limit: 24,
-    startDate: search().download_start_date || undefined,
-    status: search().download_status || undefined,
-  }));
+  const downloadEventsQuery = createDownloadEventsQuery(() => {
+    const input: DownloadEventsFilterInput = {
+      direction: search().download_direction,
+      limit: 24,
+    };
+
+    const animeId = parseOptionalPositiveInt(search().download_anime_id);
+    if (animeId !== undefined) {
+      input.animeId = animeId;
+    }
+    const cursor = search().download_cursor || undefined;
+    if (cursor !== undefined) {
+      input.cursor = cursor;
+    }
+    const downloadId = parseOptionalPositiveInt(search().download_download_id);
+    if (downloadId !== undefined) {
+      input.downloadId = downloadId;
+    }
+    const endDate = search().download_end_date || undefined;
+    if (endDate !== undefined) {
+      input.endDate = endDate;
+    }
+    const eventType = search().download_event_type === "all" ? undefined : search().download_event_type;
+    if (eventType !== undefined) {
+      input.eventType = eventType;
+    }
+    const startDate = search().download_start_date || undefined;
+    if (startDate !== undefined) {
+      input.startDate = startDate;
+    }
+    const status = search().download_status || undefined;
+    if (status !== undefined) {
+      input.status = status;
+    }
+
+    return input;
+  });
   const jobsQuery = createSystemJobsQuery();
   const dashboardQuery = createSystemDashboardQuery();
   const updateDownloadEventSearch = (patch: Partial<ReturnType<typeof search>>) => {
@@ -329,11 +356,13 @@ function LogsPage() {
 
   const logsPaddingTop = createMemo(() => {
     const items = rowVirtualizer.getVirtualItems();
-    return items.length > 0 ? items[0].start : 0;
+    const [first] = items;
+    return first ? first.start : 0;
   });
   const logsPaddingBottom = createMemo(() => {
     const items = rowVirtualizer.getVirtualItems();
-    return items.length > 0 ? rowVirtualizer.getTotalSize() - items[items.length - 1].end : 0;
+    const last = items[items.length - 1];
+    return last ? rowVirtualizer.getTotalSize() - last.end : 0;
   });
 
   // Auto-fetch next page when approaching the end
@@ -341,6 +370,9 @@ function LogsPage() {
     const items = rowVirtualizer.getVirtualItems();
     if (items.length === 0) return;
     const lastItem = items[items.length - 1];
+    if (!lastItem) {
+      return;
+    }
     if (
       lastItem.index >= allLogs().length - 20 &&
       logsQuery.hasNextPage &&
@@ -352,10 +384,10 @@ function LogsPage() {
 
   const handleExport = (exportFormat: "json" | "csv") => {
     const url = getExportLogsUrl(
-      apiParams().level,
-      apiParams().eventType,
-      apiParams().startDate,
-      apiParams().endDate,
+      apiParams()["level"],
+      apiParams()["eventType"],
+      apiParams()["startDate"],
+      apiParams()["endDate"],
       exportFormat,
     );
     globalThis.open(url, "_blank");
@@ -449,7 +481,7 @@ function LogsPage() {
         </div>
       </PageHeader>
 
-      <Filter.Provider columns={filterColumns} value={filterStates()} onChange={setFilterStates}>
+      <Filter.Provider columns={filterColumns} value={filterStates} onChange={setFilterStates}>
         <Filter.Root>
           <div class="flex flex-wrap items-center gap-2">
             <Filter.Menu />
@@ -820,52 +852,54 @@ function LogsPage() {
                     const log = () => allLogs()[vRow.index];
                     return (
                       <Show when={log()}>
-                        <TableRow class="group">
-                          <TableCell class="font-mono text-xs text-muted-foreground whitespace-nowrap">
-                            {formatLogTimestamp(log().created_at)}
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant="outline"
-                              class={cn(
-                                "text-xs capitalize pl-1 pr-2 py-0.5",
-                                getLevelColorClass(log().level),
-                              )}
-                            >
-                              {getLevelIcon(log().level)}
-                              {log().level}
-                            </Badge>
-                          </TableCell>
-                          <TableCell class="text-xs font-medium text-muted-foreground capitalize">
-                            {log().event_type}
-                          </TableCell>
-                          <TableCell class="text-sm max-w-[500px]">
-                            <div class="truncate" title={log().message}>
-                              {log().message}
-                            </div>
-                            <Show when={log().details}>
-                              <div
-                                class="text-xs text-muted-foreground mt-0.5 font-mono truncate opacity-70"
-                                title={log().details}
+                        {(entry) => (
+                          <TableRow class="group">
+                            <TableCell class="font-mono text-xs text-muted-foreground whitespace-nowrap">
+                              {formatLogTimestamp(entry().created_at)}
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant="outline"
+                                class={cn(
+                                  "text-xs capitalize pl-1 pr-2 py-0.5",
+                                  getLevelColorClass(entry().level),
+                                )}
                               >
-                                {log().details}
+                                {getLevelIcon(entry().level)}
+                                {entry().level}
+                              </Badge>
+                            </TableCell>
+                            <TableCell class="text-xs font-medium text-muted-foreground capitalize">
+                              {entry().event_type}
+                            </TableCell>
+                            <TableCell class="text-sm max-w-[500px]">
+                              <div class="truncate" title={entry().message}>
+                                {entry().message}
                               </div>
-                            </Show>
-                          </TableCell>
-                          <TableCell>
-                            <Show when={log().details}>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                class="relative after:absolute after:-inset-2 h-8 w-8 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
-                                onClick={() => setSelectedLog(log())}
-                                aria-label="View details"
-                              >
-                                <IconEye class="h-4 w-4" />
-                              </Button>
-                            </Show>
-                          </TableCell>
-                        </TableRow>
+                              <Show when={entry().details}>
+                                <div
+                                  class="text-xs text-muted-foreground mt-0.5 font-mono truncate opacity-70"
+                                  title={entry().details}
+                                >
+                                  {entry().details}
+                                </div>
+                              </Show>
+                            </TableCell>
+                            <TableCell>
+                              <Show when={entry().details}>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  class="relative after:absolute after:-inset-2 h-8 w-8 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+                                  onClick={() => setSelectedLog(entry())}
+                                  aria-label="View details"
+                                >
+                                  <IconEye class="h-4 w-4" />
+                                </Button>
+                              </Show>
+                            </TableCell>
+                          </TableRow>
+                        )}
                       </Show>
                     );
                   }}
@@ -1022,11 +1056,13 @@ function DownloadEventsList(props: {
 
   const paddingTop = createMemo(() => {
     const items = virtualizer.getVirtualItems();
-    return items.length > 0 ? items[0].start : 0;
+    const [first] = items;
+    return first ? first.start : 0;
   });
   const paddingBottom = createMemo(() => {
     const items = virtualizer.getVirtualItems();
-    return items.length > 0 ? virtualizer.getTotalSize() - items[items.length - 1].end : 0;
+    const last = items[items.length - 1];
+    return last ? virtualizer.getTotalSize() - last.end : 0;
   });
 
   return (
@@ -1045,6 +1081,9 @@ function DownloadEventsList(props: {
         <For each={virtualizer.getVirtualItems()}>
           {(vRow) => {
             const event = props.events[vRow.index];
+            if (!event) {
+              return null;
+            }
             return (
               <div class="space-y-2">
                 <DownloadEventRow event={event} />

@@ -10,7 +10,7 @@ import { MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS } from "@bakarr/shared";
 export function BackgroundMatchingCard(props: {
   failedCount: number;
   hasOutstandingWork: boolean;
-  job?: BackgroundJobStatus;
+  job?: BackgroundJobStatus | undefined;
   isRunning: boolean;
   matchedCount: number;
   matchingCount: number;

@@ -31,16 +31,28 @@ export function formatEpisodeCoverage(
   }
 
   if (coveredEpisodes.length === 1) {
-    return `Ep ${coveredEpisodes[0].toString().padStart(2, "0")}`;
+    const first = coveredEpisodes[0];
+    if (first === undefined) {
+      return `Ep ${episodeNumber.toString().padStart(2, "0")}`;
+    }
+    return `Ep ${first.toString().padStart(2, "0")}`;
   }
 
   const sorted = [...coveredEpisodes].toSorted((a, b) => a - b);
-  return `Batch ${sorted[0].toString().padStart(2, "0")}-${sorted[sorted.length - 1]
+  const first = sorted[0];
+  const last = sorted[sorted.length - 1];
+  if (first === undefined || last === undefined) {
+    return `Ep ${episodeNumber.toString().padStart(2, "0")}`;
+  }
+  return `Batch ${first.toString().padStart(2, "0")}-${last
     .toString()
     .padStart(2, "0")}`;
 }
 
-export function formatCoverageMeta(coveredEpisodes?: number[], coveragePending?: boolean) {
+export function formatCoverageMeta(
+  coveredEpisodes?: number[],
+  coveragePending?: boolean,
+) {
   if (coveragePending) {
     return "Waiting for qBittorrent file metadata";
   }
@@ -53,10 +65,10 @@ export function formatCoverageMeta(coveredEpisodes?: number[], coveragePending?:
 }
 
 export function formatDownloadReleaseMeta(input: {
-  group?: string;
-  indexer?: string;
-  quality?: string;
-  resolution?: string;
+  group?: string | undefined;
+  indexer?: string | undefined;
+  quality?: string | undefined;
+  resolution?: string | undefined;
 }) {
   return formatReleaseSourceSummary(input) ?? "";
 }
@@ -137,5 +149,13 @@ export function formatDownloadRankingMeta(item: DownloadLike) {
 }
 
 export function getDownloadReleaseConfidence(item: DownloadLike) {
-  return getReleaseConfidence(item.source_metadata ?? {});
+  const sourceMetadata = item.source_metadata;
+  return getReleaseConfidence({
+    ...(sourceMetadata?.is_seadex === undefined ? {} : { is_seadex: sourceMetadata.is_seadex }),
+    ...(sourceMetadata?.is_seadex_best === undefined
+      ? {}
+      : { is_seadex_best: sourceMetadata.is_seadex_best }),
+    ...(sourceMetadata?.remake === undefined ? {} : { remake: sourceMetadata.remake }),
+    ...(sourceMetadata?.trusted === undefined ? {} : { trusted: sourceMetadata.trusted }),
+  });
 }

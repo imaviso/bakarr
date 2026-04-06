@@ -72,7 +72,7 @@ function DashboardPage() {
               <StatItem
                 label="Missing"
                 value={stats().missing_episodes}
-                tone={stats().missing_episodes > 0 ? "warning" : undefined}
+                {...(stats().missing_episodes > 0 ? { tone: "warning" as const } : {})}
               />
               <div class="h-6 w-px bg-border hidden sm:block" />
               <div class="flex items-center gap-3">
@@ -166,7 +166,12 @@ function DashboardPage() {
   );
 }
 
-function StatItem(props: { label: string; value: number; sub?: string; tone?: "warning" }) {
+function StatItem(props: {
+  label: string;
+  value: number;
+  sub?: string | undefined;
+  tone?: "warning" | undefined;
+}) {
   return (
     <div class="flex items-baseline gap-2">
       <span

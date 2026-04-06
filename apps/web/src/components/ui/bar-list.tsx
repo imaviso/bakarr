@@ -38,7 +38,7 @@ const BarList = <T,>(rawProps: BarListProps<T>) => {
     if (local.sortOrder === "none") {
       return local.data;
     }
-    return local.data.sort((a, b) =>
+    return local.data.toSorted((a, b) =>
       local.sortOrder === "ascending" ? a.value - b.value : b.value - a.value,
     );
   };

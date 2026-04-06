@@ -7,9 +7,9 @@ export function toBatchKindLabel(kind: BatchKind) {
 }
 
 export function inferBatchKind(input: {
-  isBatch?: boolean;
-  coveredEpisodes?: readonly number[];
-  sourceIdentity?: ParsedEpisodeIdentity;
+  isBatch?: boolean | undefined;
+  coveredEpisodes?: readonly number[] | undefined;
+  sourceIdentity?: ParsedEpisodeIdentity | undefined;
 }): BatchKind | undefined {
   const coveredEpisodeCount = input.coveredEpisodes?.length ?? 0;
   const sourceIdentityEpisodeCount =
@@ -28,8 +28,8 @@ export function inferBatchKind(input: {
 }
 
 export function formatManualReleaseSearchDecisionReason(input: {
-  batchKind?: BatchKind;
-  trusted?: boolean;
+  batchKind?: BatchKind | undefined;
+  trusted?: boolean | undefined;
 }) {
   const batchSegment = input.batchKind ? ` ${input.batchKind}` : "";
   const trustedSegment = input.trusted ? " trusted" : "";
@@ -37,10 +37,10 @@ export function formatManualReleaseSearchDecisionReason(input: {
 }
 
 export function formatReleaseSearchDecisionReason(input: {
-  batchKind?: BatchKind;
-  isSeaDex?: boolean;
-  isSeaDexBest?: boolean;
-  trusted?: boolean;
+  batchKind?: BatchKind | undefined;
+  isSeaDex?: boolean | undefined;
+  isSeaDexBest?: boolean | undefined;
+  trusted?: boolean | undefined;
 }) {
   if (input.isSeaDexBest) {
     return input.batchKind

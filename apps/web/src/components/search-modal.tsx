@@ -31,6 +31,7 @@ import {
   createEpisodeSearchQuery,
   createGrabReleaseMutation,
   type DownloadAction,
+  type DownloadSourceMetadata,
   type EpisodeSearchResult,
   type ParsedEpisodeIdentity,
 } from "~/lib/api";
@@ -157,40 +158,61 @@ export function SearchModal(props: SearchModalProps) {
 
       return undefined;
     };
+    const sourceIdentity = releaseSourceIdentity();
+
+    const releaseMetadata: DownloadSourceMetadata = {
+      ...(release.parsed_air_date === undefined ? {} : { air_date: release.parsed_air_date }),
+      ...(selection.chosen_from_seadex === undefined
+        ? {}
+        : { chosen_from_seadex: selection.chosen_from_seadex }),
+      ...(release.group === undefined ? {} : { group: release.group }),
+      ...(release.indexer === undefined ? {} : { indexer: release.indexer }),
+      ...(release.is_seadex === undefined ? {} : { is_seadex: release.is_seadex }),
+      ...(release.is_seadex_best === undefined ? {} : { is_seadex_best: release.is_seadex_best }),
+      parsed_title: release.title,
+      ...(selection.previous_quality === undefined
+        ? {}
+        : { previous_quality: selection.previous_quality }),
+      ...(selection.previous_score === undefined
+        ? {}
+        : { previous_score: selection.previous_score }),
+      ...(release.remake === undefined ? {} : { remake: release.remake }),
+      ...(release.parsed_resolution === undefined
+        ? {}
+        : { resolution: release.parsed_resolution }),
+      ...(release.seadex_comparison === undefined
+        ? {}
+        : { seadex_comparison: release.seadex_comparison }),
+      ...(release.seadex_dual_audio === undefined
+        ? {}
+        : { seadex_dual_audio: release.seadex_dual_audio }),
+      ...(release.seadex_notes === undefined ? {} : { seadex_notes: release.seadex_notes }),
+      ...(release.seadex_release_group === undefined
+        ? {}
+        : { seadex_release_group: release.seadex_release_group }),
+      ...(release.seadex_tags === undefined ? {} : { seadex_tags: release.seadex_tags }),
+      selection_kind: selection.selection_kind,
+      ...(selection.selection_score === undefined
+        ? {}
+        : { selection_score: selection.selection_score }),
+      ...(sourceIdentity === undefined ? {} : { source_identity: sourceIdentity }),
+      ...(release.view_url === undefined ? {} : { source_url: release.view_url }),
+      ...(release.trusted === undefined ? {} : { trusted: release.trusted }),
+    };
+
+    const payload = {
+      anime_id: props.animeId,
+      decision_reason: decisionReason(release),
+      episode_number: props.episodeNumber,
+      title: release.title,
+      magnet: release.link,
+      ...(release.group === undefined ? {} : { group: release.group }),
+      ...(release.info_hash === undefined ? {} : { info_hash: release.info_hash }),
+      release_metadata: releaseMetadata,
+    };
 
     grabRelease.mutate(
-      {
-        anime_id: props.animeId,
-        decision_reason: decisionReason(release),
-        episode_number: props.episodeNumber,
-        title: release.title,
-        magnet: release.link,
-        group: release.group,
-        info_hash: release.info_hash,
-        release_metadata: {
-          air_date: release.parsed_air_date,
-          chosen_from_seadex: selection.chosen_from_seadex,
-          group: release.group,
-          indexer: release.indexer,
-          is_seadex: release.is_seadex,
-          is_seadex_best: release.is_seadex_best,
-          parsed_title: release.title,
-          previous_quality: selection.previous_quality,
-          previous_score: selection.previous_score,
-          remake: release.remake,
-          resolution: release.parsed_resolution,
-          seadex_comparison: release.seadex_comparison,
-          seadex_dual_audio: release.seadex_dual_audio,
-          seadex_notes: release.seadex_notes,
-          seadex_release_group: release.seadex_release_group,
-          seadex_tags: release.seadex_tags,
-          selection_kind: selection.selection_kind,
-          selection_score: selection.selection_score,
-          source_identity: releaseSourceIdentity(),
-          source_url: release.view_url,
-          trusted: release.trusted,
-        },
-      },
+      payload,
       {
         onSuccess: () => {
           props.onOpenChange(false);
