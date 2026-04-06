@@ -16,10 +16,11 @@ const FilterContextProvider: Component<{ value: FilterContextValue; children: JS
 };
 
 export function FilterProvider(props: FilterProviderProps) {
+  const columns = createMemo(() => props.columns);
   const filters = createMemo(() => props.value());
 
   const addFilter = (columnId: string) => {
-    const column = props.columns.find((c) => c.id === columnId);
+    const column = columns().find((c) => c.id === columnId);
     if (!column) return;
 
     let defaultOperator: FilterOperator =
@@ -67,7 +68,7 @@ export function FilterProvider(props: FilterProviderProps) {
   };
 
   const contextValue: FilterContextValue = {
-    columns: props.columns,
+    columns,
     filters,
     addFilter,
     updateFilter,

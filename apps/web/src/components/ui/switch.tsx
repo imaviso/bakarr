@@ -1,7 +1,6 @@
-import type { JSX, ValidComponent } from "solid-js";
+import type { Component, ComponentProps, JSX } from "solid-js";
 import { splitProps } from "solid-js";
 
-import type { PolymorphicProps } from "@kobalte/core";
 import * as SwitchPrimitive from "@kobalte/core/switch";
 
 import { cn } from "~/lib/utils";
@@ -10,22 +9,17 @@ const SwitchRoot = SwitchPrimitive.Root;
 const SwitchDescription = SwitchPrimitive.Description;
 const SwitchErrorMessage = SwitchPrimitive.ErrorMessage;
 
-type SwitchControlProps = SwitchPrimitive.SwitchControlProps & {
+type SwitchControlProps = ComponentProps<typeof SwitchPrimitive.Control> & {
   class?: string | undefined;
   children?: JSX.Element;
 };
 
-const SwitchControl = <T extends ValidComponent = "input">(
-  props: PolymorphicProps<T, SwitchControlProps>,
-) => {
-  const [local, others] = splitProps(props as SwitchControlProps, ["class", "children"]);
+const SwitchControl: Component<SwitchControlProps> = (props) => {
+  const [local, others] = splitProps(props, ["class", "children"]);
   return (
     <>
       <SwitchPrimitive.Input
-        class={cn(
-          "[&:focus-visible+div]:outline-none [&:focus-visible+div]:ring-2 [&:focus-visible+div]:ring-ring [&:focus-visible+div]:ring-offset-2 [&:focus-visible+div]:ring-offset-background",
-          local.class,
-        )}
+        class="[&:focus-visible+div]:outline-none [&:focus-visible+div]:ring-2 [&:focus-visible+div]:ring-ring [&:focus-visible+div]:ring-offset-2 [&:focus-visible+div]:ring-offset-background"
       />
       <SwitchPrimitive.Control
         class={cn(
@@ -40,14 +34,12 @@ const SwitchControl = <T extends ValidComponent = "input">(
   );
 };
 
-type SwitchThumbProps = SwitchPrimitive.SwitchThumbProps & {
+type SwitchThumbProps = ComponentProps<typeof SwitchPrimitive.Thumb> & {
   class?: string | undefined;
 };
 
-const SwitchThumb = <T extends ValidComponent = "div">(
-  props: PolymorphicProps<T, SwitchThumbProps>,
-) => {
-  const [local, others] = splitProps(props as SwitchThumbProps, ["class"]);
+const SwitchThumb: Component<SwitchThumbProps> = (props) => {
+  const [local, others] = splitProps(props, ["class"]);
   return (
     <SwitchPrimitive.Thumb
       class={cn(
@@ -59,14 +51,12 @@ const SwitchThumb = <T extends ValidComponent = "div">(
   );
 };
 
-type SwitchLabelProps = SwitchPrimitive.SwitchLabelProps & {
+type SwitchLabelProps = ComponentProps<typeof SwitchPrimitive.Label> & {
   class?: string | undefined;
 };
 
-const SwitchLabel = <T extends ValidComponent = "label">(
-  props: PolymorphicProps<T, SwitchLabelProps>,
-) => {
-  const [local, others] = splitProps(props as SwitchLabelProps, ["class"]);
+const SwitchLabel: Component<SwitchLabelProps> = (props) => {
+  const [local, others] = splitProps(props, ["class"]);
   return (
     <SwitchPrimitive.Label
       class={cn(
@@ -78,13 +68,15 @@ const SwitchLabel = <T extends ValidComponent = "label">(
   );
 };
 
-const Switch = <T extends ValidComponent = "div">(
-  props: PolymorphicProps<T, SwitchPrimitive.SwitchRootProps>,
-) => {
-  const [local, others] = splitProps(props as SwitchPrimitive.SwitchRootProps, ["children"]);
+type SwitchProps = SwitchPrimitive.SwitchRootProps & {
+  class?: string | undefined;
+};
+
+const Switch: Component<SwitchProps> = (props) => {
+  const [local, others] = splitProps(props, ["children", "class"]);
   return (
     <SwitchRoot {...others}>
-      <SwitchControl>
+      <SwitchControl class={local.class}>
         <SwitchThumb />
       </SwitchControl>
       {typeof local.children === "function" ? local.children(SwitchPrimitive.useSwitchContext()) : local.children}

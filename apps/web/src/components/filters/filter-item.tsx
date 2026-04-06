@@ -20,7 +20,7 @@ interface FilterItemProps {
 export function FilterItem(props: FilterItemProps) {
   const ctx = useFilterContext();
 
-  const column = createMemo(() => ctx.columns.find((c) => c.id === props.filter.columnId));
+  const column = createMemo(() => ctx.columns().find((c) => c.id === props.filter.columnId));
 
   const operatorOptions = createMemo(() => {
     const col = column();

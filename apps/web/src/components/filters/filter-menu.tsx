@@ -13,7 +13,7 @@ export function FilterMenu() {
   const ctx = useFilterContext();
 
   const availableColumns = () =>
-    ctx.columns.filter((col) => !ctx.filters().some((f) => f.columnId === col.id));
+    ctx.columns().filter((col) => !ctx.filters().some((f) => f.columnId === col.id));
 
   return (
     <DropdownMenu>

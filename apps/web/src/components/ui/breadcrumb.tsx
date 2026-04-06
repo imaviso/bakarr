@@ -1,7 +1,6 @@
-import type { Component, ComponentProps, JSX, ValidComponent } from "solid-js";
+import type { Component, ComponentProps, JSX } from "solid-js";
 import { Show, splitProps } from "solid-js";
 
-import type { PolymorphicProps } from "@kobalte/core";
 import * as BreadcrumbPrimitive from "@kobalte/core/breadcrumbs";
 
 import { cn } from "~/lib/utils";
@@ -26,13 +25,12 @@ const BreadcrumbItem: Component<ComponentProps<"li">> = (props) => {
   return <li class={cn("inline-flex items-center gap-1.5", local.class)} {...others} />;
 };
 
-type BreadcrumbLinkProps<T extends ValidComponent = "a"> =
-  BreadcrumbPrimitive.BreadcrumbsLinkProps<T> & { class?: string | undefined };
+type BreadcrumbLinkProps = ComponentProps<typeof BreadcrumbPrimitive.Link> & {
+  class?: string | undefined;
+};
 
-const BreadcrumbLink = <T extends ValidComponent = "a">(
-  props: PolymorphicProps<T, BreadcrumbLinkProps<T>>,
-) => {
-  const [local, others] = splitProps(props as BreadcrumbLinkProps, ["class"]);
+const BreadcrumbLink: Component<BreadcrumbLinkProps> = (props) => {
+  const [local, others] = splitProps(props, ["class"]);
   return (
     <BreadcrumbPrimitive.Link
       class={cn(
@@ -44,16 +42,13 @@ const BreadcrumbLink = <T extends ValidComponent = "a">(
   );
 };
 
-type BreadcrumbSeparatorProps<T extends ValidComponent = "span"> =
-  BreadcrumbPrimitive.BreadcrumbsSeparatorProps<T> & {
-    class?: string | undefined;
-    children?: JSX.Element;
-  };
+type BreadcrumbSeparatorProps = ComponentProps<typeof BreadcrumbPrimitive.Separator> & {
+  class?: string | undefined;
+  children?: JSX.Element;
+};
 
-const BreadcrumbSeparator = <T extends ValidComponent = "span">(
-  props: PolymorphicProps<T, BreadcrumbSeparatorProps<T>>,
-) => {
-  const [local, others] = splitProps(props as BreadcrumbSeparatorProps, ["class", "children"]);
+const BreadcrumbSeparator: Component<BreadcrumbSeparatorProps> = (props) => {
+  const [local, others] = splitProps(props, ["class", "children"]);
   return (
     <BreadcrumbPrimitive.Separator class={cn("[&>svg]:size-3.5", local.class)} {...others}>
       <Show

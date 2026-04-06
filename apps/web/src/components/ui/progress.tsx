@@ -1,18 +1,16 @@
-import type { Component, JSX, ValidComponent } from "solid-js";
+import type { Component, ComponentProps, JSX } from "solid-js";
 import { splitProps } from "solid-js";
 
-import type { PolymorphicProps } from "@kobalte/core/polymorphic";
 import * as ProgressPrimitive from "@kobalte/core/progress";
 
 import { Label } from "~/components/ui/label";
 
-type ProgressRootProps<T extends ValidComponent = "div"> =
-  ProgressPrimitive.ProgressRootProps<T> & { children?: JSX.Element };
+type ProgressRootProps = ComponentProps<typeof ProgressPrimitive.Root> & {
+  children?: JSX.Element;
+};
 
-const Progress = <T extends ValidComponent = "div">(
-  props: PolymorphicProps<T, ProgressRootProps<T>>,
-) => {
-  const [local, others] = splitProps(props as ProgressRootProps, ["children"]);
+const Progress: Component<ProgressRootProps> = (props) => {
+  const [local, others] = splitProps(props, ["children"]);
   return (
     <ProgressPrimitive.Root {...others}>
       {local.children}

@@ -1,19 +1,16 @@
-import type { ValidComponent } from "solid-js";
+import type { Component, ComponentProps } from "solid-js";
 import { splitProps } from "solid-js";
 
 import * as ImagePrimitive from "@kobalte/core/image";
-import type { PolymorphicProps } from "@kobalte/core/polymorphic";
 
 import { cn } from "~/lib/utils";
 
-type AvatarRootProps<T extends ValidComponent = "span"> = ImagePrimitive.ImageRootProps<T> & {
+type AvatarRootProps = ComponentProps<typeof ImagePrimitive.Root> & {
   class?: string | undefined;
 };
 
-const Avatar = <T extends ValidComponent = "span">(
-  props: PolymorphicProps<T, AvatarRootProps<T>>,
-) => {
-  const [local, others] = splitProps(props as AvatarRootProps, ["class"]);
+const Avatar: Component<AvatarRootProps> = (props) => {
+  const [local, others] = splitProps(props, ["class"]);
   return (
     <ImagePrimitive.Root
       class={cn("relative flex size-10 shrink-0 overflow-hidden rounded-full", local.class)}
@@ -22,24 +19,21 @@ const Avatar = <T extends ValidComponent = "span">(
   );
 };
 
-type AvatarImageProps<T extends ValidComponent = "img"> = ImagePrimitive.ImageImgProps<T> & {
+type AvatarImageProps = ComponentProps<typeof ImagePrimitive.Img> & {
   class?: string | undefined;
 };
 
-const AvatarImage = <T extends ValidComponent = "img">(
-  props: PolymorphicProps<T, AvatarImageProps<T>>,
-) => {
-  const [local, others] = splitProps(props as AvatarImageProps, ["class"]);
+const AvatarImage: Component<AvatarImageProps> = (props) => {
+  const [local, others] = splitProps(props, ["class"]);
   return <ImagePrimitive.Img class={cn("aspect-square size-full", local.class)} {...others} />;
 };
 
-type AvatarFallbackProps<T extends ValidComponent = "span"> =
-  ImagePrimitive.ImageFallbackProps<T> & { class?: string | undefined };
+type AvatarFallbackProps = ComponentProps<typeof ImagePrimitive.Fallback> & {
+  class?: string | undefined;
+};
 
-const AvatarFallback = <T extends ValidComponent = "span">(
-  props: PolymorphicProps<T, AvatarFallbackProps<T>>,
-) => {
-  const [local, others] = splitProps(props as AvatarFallbackProps, ["class"]);
+const AvatarFallback: Component<AvatarFallbackProps> = (props) => {
+  const [local, others] = splitProps(props, ["class"]);
   return (
     <ImagePrimitive.Fallback
       class={cn("flex size-full items-center justify-center bg-muted", local.class)}

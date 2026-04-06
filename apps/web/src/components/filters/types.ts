@@ -1,4 +1,4 @@
-import type { JSX } from "solid-js";
+import type { Accessor, JSX } from "solid-js";
 
 export type FilterOperator =
   | "is"
@@ -37,7 +37,7 @@ export interface FilterState {
 }
 
 export interface FilterContextValue {
-  columns: FilterColumnConfig[];
+  columns: Accessor<FilterColumnConfig[]>;
   filters: () => FilterState[];
   addFilter: (columnId: string) => void;
   updateFilter: (index: number, updates: Partial<FilterState>) => void;

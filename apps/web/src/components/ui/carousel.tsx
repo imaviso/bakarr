@@ -106,16 +106,18 @@ const Carousel: Component<CarouselProps & ComponentProps<"div">> = (rawProps) =>
   });
 
   createEffect(() => {
-    if (!api()) {
+    const emblaApi = api();
+    if (!emblaApi) {
       return;
     }
 
-    onSelect(api()!);
-    api()!.on("reInit", onSelect);
-    api()!.on("select", onSelect);
+    onSelect(emblaApi);
+    emblaApi.on("reInit", onSelect);
+    emblaApi.on("select", onSelect);
 
     return () => {
-      api()?.off("select", onSelect);
+      emblaApi.off("reInit", onSelect);
+      emblaApi.off("select", onSelect);
     };
   });
 

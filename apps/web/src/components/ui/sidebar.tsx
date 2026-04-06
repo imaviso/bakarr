@@ -1,4 +1,4 @@
-import type { Accessor, Component, ComponentProps, JSX, ValidComponent } from "solid-js";
+import type { Accessor, Component, ComponentProps, JSX } from "solid-js";
 import {
   createContext,
   createEffect,
@@ -13,8 +13,6 @@ import {
   useContext,
 } from "solid-js";
 
-import type { PolymorphicProps } from "@kobalte/core";
-import { Polymorphic } from "@kobalte/core";
 import type { VariantProps } from "class-variance-authority";
 import { cva } from "class-variance-authority";
 
@@ -410,16 +408,13 @@ const SidebarGroup: Component<ComponentProps<"div">> = (props) => {
   );
 };
 
-type SidebarGroupLabelProps<T extends ValidComponent = "div"> = ComponentProps<T>;
+type SidebarGroupLabelProps = ComponentProps<"div">;
 
-const SidebarGroupLabel = <T extends ValidComponent = "div">(
-  props: PolymorphicProps<T, SidebarGroupLabelProps<T>>,
-) => {
-  const [local, others] = splitProps(props as SidebarGroupLabelProps, ["class"]);
+const SidebarGroupLabel: Component<SidebarGroupLabelProps> = (props) => {
+  const [local, others] = splitProps(props, ["class"]);
 
   return (
-    <Polymorphic<SidebarGroupLabelProps>
-      as="div"
+    <div
       data-sidebar="group-label"
       class={cn(
         "flex h-8 shrink-0 items-center rounded-none px-2 text-xs font-medium text-sidebar-foreground/70 outline-none ring-sidebar-ring transition-[margin,opa] duration-200 ease-linear focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0",
@@ -431,15 +426,12 @@ const SidebarGroupLabel = <T extends ValidComponent = "div">(
   );
 };
 
-type SidebarGroupActionProps<T extends ValidComponent = "button"> = ComponentProps<T>;
+type SidebarGroupActionProps = ComponentProps<"button">;
 
-const SidebarGroupAction = <T extends ValidComponent = "button">(
-  props: PolymorphicProps<T, SidebarGroupActionProps<T>>,
-) => {
-  const [local, others] = splitProps(props as SidebarGroupActionProps, ["class"]);
+const SidebarGroupAction: Component<SidebarGroupActionProps> = (props) => {
+  const [local, others] = splitProps(props, ["class"]);
   return (
-    <Polymorphic<SidebarGroupActionProps>
-      as="button"
+    <button
       data-sidebar="group-action"
       class={cn(
         "absolute right-3 top-3.5 flex aspect-square w-5 items-center justify-center rounded-none p-0 text-sidebar-foreground outline-none ring-sidebar-ring transition-transform hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0",
@@ -498,35 +490,33 @@ const sidebarMenuButtonVariants = cva(
   },
 );
 
-type SidebarMenuButtonProps<T extends ValidComponent = "button"> = ComponentProps<T> &
+type SidebarMenuButtonProps = ComponentProps<"button"> &
   VariantProps<typeof sidebarMenuButtonVariants> & {
     isActive?: boolean;
     tooltip?: string;
   };
 
-const SidebarMenuButton = <T extends ValidComponent = "button">(
-  rawProps: PolymorphicProps<T, SidebarMenuButtonProps<T>>,
-) => {
-  const props = mergeProps(
+const SidebarMenuButton: Component<SidebarMenuButtonProps> = (rawProps) => {
+  const props = mergeProps<SidebarMenuButtonProps[]>(
     {
       isActive: false,
-      variant: "default",
-      size: "default",
+      variant: "default" as const,
+      size: "default" as const,
     },
     rawProps,
   );
-  const [local, others] = splitProps(props as SidebarMenuButtonProps, [
+  const [local, others] = splitProps(props, [
     "isActive",
     "tooltip",
     "variant",
     "size",
     "class",
+    "children",
   ]);
   const { isMobile, state } = useSidebar();
 
   const button = (
-    <Polymorphic<SidebarMenuButtonProps>
-      as="button"
+    <button
       data-sidebar="menu-button"
       data-size={local.size}
       data-active={local.isActive}
@@ -535,7 +525,9 @@ const SidebarMenuButton = <T extends ValidComponent = "button">(
         local.class,
       )}
       {...others}
-    />
+    >
+      {local.children}
+    </button>
   );
 
   return (
@@ -550,19 +542,16 @@ const SidebarMenuButton = <T extends ValidComponent = "button">(
   );
 };
 
-type SidebarMenuActionProps<T extends ValidComponent = "button"> = ComponentProps<T> & {
+type SidebarMenuActionProps = ComponentProps<"button"> & {
   showOnHover?: boolean;
 };
 
-const SidebarMenuAction = <T extends ValidComponent = "button">(
-  rawProps: PolymorphicProps<T, SidebarMenuActionProps<T>>,
-) => {
+const SidebarMenuAction: Component<SidebarMenuActionProps> = (rawProps) => {
   const props = mergeProps({ showOnHover: false }, rawProps);
-  const [local, others] = splitProps(props as SidebarMenuActionProps, ["class", "showOnHover"]);
+  const [local, others] = splitProps(props, ["class", "showOnHover"]);
 
   return (
-    <Polymorphic<SidebarMenuActionProps>
-      as="button"
+    <button
       data-sidebar="menu-action"
       class={cn(
         "absolute right-1 top-1.5 flex aspect-square w-5 items-center justify-center rounded-none p-0 text-sidebar-foreground outline-none ring-sidebar-ring transition-transform hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 peer-hover/menu-button:text-sidebar-accent-foreground [&>svg]:size-4 [&>svg]:shrink-0",
@@ -646,24 +635,22 @@ const SidebarMenuSub: Component<ComponentProps<"ul">> = (props) => {
 
 const SidebarMenuSubItem: Component<ComponentProps<"li">> = (props) => <li {...props} />;
 
-type SidebarMenuSubButtonProps<T extends ValidComponent = "a"> = ComponentProps<T> & {
+type SidebarMenuSubButtonProps = ComponentProps<"a"> & {
   size?: "sm" | "md";
   isActive?: boolean;
 };
 
-const SidebarMenuSubButton = <T extends ValidComponent = "a">(
-  rawProps: PolymorphicProps<T, SidebarMenuSubButtonProps<T>>,
-) => {
+const SidebarMenuSubButton: Component<SidebarMenuSubButtonProps> = (rawProps) => {
   const props = mergeProps({ size: "md" }, rawProps);
-  const [local, others] = splitProps(props as SidebarMenuSubButtonProps, [
+  const [local, others] = splitProps(props, [
     "size",
     "isActive",
     "class",
+    "children",
   ]);
 
   return (
-    <Polymorphic<SidebarMenuSubButtonProps>
-      as="a"
+    <a
       data-sidebar="menu-sub-button"
       data-size={local.size}
       data-active={local.isActive}
@@ -676,7 +663,9 @@ const SidebarMenuSubButton = <T extends ValidComponent = "a">(
         local.class,
       )}
       {...others}
-    />
+    >
+      {local.children}
+    </a>
   );
 };
 
