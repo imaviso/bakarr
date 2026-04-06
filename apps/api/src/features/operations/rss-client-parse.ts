@@ -62,7 +62,7 @@ const ItemsSchema = Schema.transform(
 );
 
 class RssChannelSchema extends Schema.Class<RssChannelSchema>("RssChannelSchema")({
-  item: ItemsSchema,
+  item: Schema.optional(ItemsSchema),
 }) {}
 
 class RssRootInnerSchema extends Schema.Class<RssRootInnerSchema>("RssRootInnerSchema")({
@@ -198,7 +198,9 @@ const parseRssXml = Effect.fn("RssClient.parseRssXml")(function* (xml: string) {
     ),
   );
 
-  return yield* Effect.forEach(decoded.rss.channel.item, (item) =>
+  const items = decoded.rss.channel.item ?? [];
+
+  return yield* Effect.forEach(items, (item) =>
     Schema.decodeUnknown(ParsedReleaseFromRssItemSchema)(item).pipe(
       Effect.mapError(
         (cause) =>

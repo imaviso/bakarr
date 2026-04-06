@@ -476,13 +476,40 @@ it("RssTransport does not pin DNS lookup for HTTPS targets", () => {
   assert.deepStrictEqual(config.servername, "nyaa.si");
 });
 
-it.effect("RssClient fails with a typed parse error for invalid RSS payloads", () =>
+it.effect("RssClient returns an empty result when RSS channel has no items", () =>
+  Effect.gen(function* () {
+    const emptyFeedXml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:nyaa="https://nyaa.si/xmlns/nyaa" version="2.0">
+  <channel>
+    <title>Nyaa - &quot;no-result&quot; - Torrent File RSS</title>
+    <description>RSS Feed for &quot;no-result&quot;</description>
+    <link>https://nyaa.si/</link>
+    <atom:link href="https://nyaa.si/?page=rss" rel="self" type="application/rss+xml" />
+  </channel>
+</rss>`;
+
+    const items = yield* fetchFeedItemsEffect(
+      (_url: string) =>
+        Effect.succeed(
+          new Response(emptyFeedXml, {
+            headers: { "content-type": "application/xml" },
+            status: 200,
+          }),
+        ),
+      () => Promise.resolve(["93.184.216.34"]),
+    );
+
+    assert.deepStrictEqual(items, []);
+  }),
+);
+
+it.effect("RssClient fails with a typed parse error for malformed RSS payloads", () =>
   Effect.gen(function* () {
     const exit = yield* Effect.exit(
       fetchFeedItemsEffect(
         (_url: string) =>
           Effect.succeed(
-            new Response("<rss><channel></channel></rss>", {
+            new Response("<rss><invalid></invalid></rss>", {
               headers: { "content-type": "application/xml" },
               status: 200,
             }),
