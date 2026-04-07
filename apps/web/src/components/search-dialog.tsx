@@ -499,7 +499,9 @@ function ReleaseRow(props: { result: NyaaSearchResult; animeId: number; onGrab: 
     const sourceIdentity = releaseSourceIdentity();
 
     const releaseMetadata: DownloadSourceMetadata = {
-      ...(props.result.parsed_air_date === undefined ? {} : { air_date: props.result.parsed_air_date }),
+      ...(props.result.parsed_air_date === undefined
+        ? {}
+        : { air_date: props.result.parsed_air_date }),
       ...(selection.chosen_from_seadex === undefined
         ? {}
         : { chosen_from_seadex: selection.chosen_from_seadex }),
@@ -510,7 +512,9 @@ function ReleaseRow(props: { result: NyaaSearchResult; animeId: number; onGrab: 
         ? {}
         : { is_seadex_best: props.result.is_seadex_best }),
       parsed_title: props.result.title,
-      ...(props.result.parsed_quality === undefined ? {} : { quality: props.result.parsed_quality }),
+      ...(props.result.parsed_quality === undefined
+        ? {}
+        : { quality: props.result.parsed_quality }),
       ...(props.result.remake === undefined ? {} : { remake: props.result.remake }),
       ...(props.result.parsed_resolution === undefined
         ? {}
@@ -521,7 +525,9 @@ function ReleaseRow(props: { result: NyaaSearchResult; animeId: number; onGrab: 
       ...(props.result.seadex_dual_audio === undefined
         ? {}
         : { seadex_dual_audio: props.result.seadex_dual_audio }),
-      ...(props.result.seadex_notes === undefined ? {} : { seadex_notes: props.result.seadex_notes }),
+      ...(props.result.seadex_notes === undefined
+        ? {}
+        : { seadex_notes: props.result.seadex_notes }),
       ...(props.result.seadex_release_group === undefined
         ? {}
         : { seadex_release_group: props.result.seadex_release_group }),
@@ -544,15 +550,12 @@ function ReleaseRow(props: { result: NyaaSearchResult; animeId: number; onGrab: 
       ...(isBatch() ? { is_batch: true } : {}),
     };
 
-    grabMutation.mutate(
-      payload,
-      {
-        onSuccess: () => {
-          setPopoverOpen(false);
-          props.onGrab();
-        },
+    grabMutation.mutate(payload, {
+      onSuccess: () => {
+        setPopoverOpen(false);
+        props.onGrab();
       },
-    );
+    });
   };
 
   const selectionSummary = () => formatSelectionSummary(selectionMetadata());

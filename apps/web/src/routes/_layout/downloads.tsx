@@ -854,11 +854,11 @@ function ActiveDownloadRow(props: { item: DownloadStatus }) {
       </TableCell>
       <TableCell class="font-medium py-2 min-w-[280px] md:min-w-[320px]">
         <div class="flex items-start gap-3">
-            <Avatar class="size-8 rounded-md">
-              <AvatarImage
-                {...(props.item.anime_image === undefined ? {} : { src: props.item.anime_image })}
-                alt={props.item.anime_title ?? props.item.name}
-              />
+          <Avatar class="size-8 rounded-md">
+            <AvatarImage
+              {...(props.item.anime_image === undefined ? {} : { src: props.item.anime_image })}
+              alt={props.item.anime_title ?? props.item.name}
+            />
             <AvatarFallback class="rounded-md text-xs font-medium">
               {animeInitials(props.item.anime_title ?? props.item.name)}
             </AvatarFallback>
@@ -1106,15 +1106,17 @@ function DownloadRow(props: { item: Download; isHistory?: boolean }) {
   return (
     <TableRow class="group h-12 align-top">
       <TableCell class="py-2 pl-4 w-[42px]">
-        <DownloadStatusIcon {...(props.item.status === undefined ? {} : { status: props.item.status })} />
+        <DownloadStatusIcon
+          {...(props.item.status === undefined ? {} : { status: props.item.status })}
+        />
       </TableCell>
       <TableCell class="font-medium py-2 min-w-[280px] md:min-w-[320px]">
         <div class="flex items-start gap-3">
-            <Avatar class="size-8 rounded-md">
-              <AvatarImage
-                {...(props.item.anime_image === undefined ? {} : { src: props.item.anime_image })}
-                alt={props.item.anime_title}
-              />
+          <Avatar class="size-8 rounded-md">
+            <AvatarImage
+              {...(props.item.anime_image === undefined ? {} : { src: props.item.anime_image })}
+              alt={props.item.anime_title}
+            />
             <AvatarFallback class="rounded-md text-xs font-medium">
               {animeInitials(props.item.anime_title)}
             </AvatarFallback>

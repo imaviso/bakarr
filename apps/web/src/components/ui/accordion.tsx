@@ -8,8 +8,8 @@ import { cn } from "~/lib/utils";
 const Accordion = AccordionPrimitive.Root;
 
 type AccordionItemProps = ComponentProps<typeof AccordionPrimitive.Item> & {
-    class?: string | undefined;
-  };
+  class?: string | undefined;
+};
 
 const AccordionItem: Component<AccordionItemProps> = (props) => {
   const [local, others] = splitProps(props, ["class"]);
@@ -17,8 +17,8 @@ const AccordionItem: Component<AccordionItemProps> = (props) => {
 };
 
 type AccordionTriggerProps = ComponentProps<typeof AccordionPrimitive.Trigger> & {
-    class?: string | undefined;
-  };
+  class?: string | undefined;
+};
 
 const AccordionTrigger: Component<AccordionTriggerProps> = (props) => {
   const [local, others] = splitProps(props, ["class", "children"]);
@@ -50,8 +50,8 @@ const AccordionTrigger: Component<AccordionTriggerProps> = (props) => {
 };
 
 type AccordionContentProps = ComponentProps<typeof AccordionPrimitive.Content> & {
-    class?: string | undefined;
-  };
+  class?: string | undefined;
+};
 
 const AccordionContent: Component<AccordionContentProps> = (props) => {
   const [local, others] = splitProps(props, ["class", "children"]);

@@ -114,14 +114,18 @@ export function formatFileEpisodeMapping(input?: {
 
 export function buildFileDecisionSummary(input: {
   coverage_summary?: string | undefined;
-  existing_mapping?: {
-    anime_title: string;
-    episode_numbers?: readonly number[] | undefined;
-  } | undefined;
-  episode_conflict?: {
-    anime_title: string;
-    episode_numbers?: readonly number[] | undefined;
-  } | undefined;
+  existing_mapping?:
+    | {
+        anime_title: string;
+        episode_numbers?: readonly number[] | undefined;
+      }
+    | undefined;
+  episode_conflict?:
+    | {
+        anime_title: string;
+        episode_numbers?: readonly number[] | undefined;
+      }
+    | undefined;
   match_reason?: string | undefined;
   warnings?: readonly string[] | undefined;
 }) {

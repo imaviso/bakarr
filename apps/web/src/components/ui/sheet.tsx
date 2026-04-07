@@ -73,11 +73,7 @@ type DialogContentProps = ComponentProps<typeof SheetPrimitive.Content> &
   VariantProps<typeof sheetVariants> & { class?: string | undefined; children?: JSX.Element };
 
 const SheetContent: Component<DialogContentProps> = (props) => {
-  const [local, others] = splitProps(props, [
-    "position",
-    "class",
-    "children",
-  ]);
+  const [local, others] = splitProps(props, ["position", "class", "children"]);
   return (
     <SheetPortal position={local.position}>
       <SheetOverlay />

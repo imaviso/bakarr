@@ -7,8 +7,8 @@ import { cva } from "class-variance-authority";
 import { cn } from "~/lib/utils";
 
 type TextFieldRootProps = ComponentProps<typeof TextFieldPrimitive.Root> & {
-    class?: string | undefined;
-  };
+  class?: string | undefined;
+};
 
 const TextField: Component<TextFieldRootProps> = (props) => {
   const [local, others] = splitProps(props, ["class"]);
@@ -16,31 +16,31 @@ const TextField: Component<TextFieldRootProps> = (props) => {
 };
 
 type TextFieldInputProps = ComponentProps<typeof TextFieldPrimitive.Input> & {
-    class?: string | undefined;
-    type?:
-      | "button"
-      | "checkbox"
-      | "color"
-      | "date"
-      | "datetime-local"
-      | "email"
-      | "file"
-      | "hidden"
-      | "image"
-      | "month"
-      | "number"
-      | "password"
-      | "radio"
-      | "range"
-      | "reset"
-      | "search"
-      | "submit"
-      | "tel"
-      | "text"
-      | "time"
-      | "url"
-      | "week";
-  };
+  class?: string | undefined;
+  type?:
+    | "button"
+    | "checkbox"
+    | "color"
+    | "date"
+    | "datetime-local"
+    | "email"
+    | "file"
+    | "hidden"
+    | "image"
+    | "month"
+    | "number"
+    | "password"
+    | "radio"
+    | "range"
+    | "reset"
+    | "search"
+    | "submit"
+    | "tel"
+    | "text"
+    | "time"
+    | "url"
+    | "week";
+};
 
 const TextFieldInput: Component<TextFieldInputProps> = (rawProps) => {
   const props = mergeProps<TextFieldInputProps[]>({ type: "text" }, rawProps);
@@ -100,8 +100,8 @@ const TextFieldLabel: Component<TextFieldLabelProps> = (props) => {
 };
 
 type TextFieldDescriptionProps = ComponentProps<typeof TextFieldPrimitive.Description> & {
-    class?: string | undefined;
-  };
+  class?: string | undefined;
+};
 
 const TextFieldDescription: Component<TextFieldDescriptionProps> = (props) => {
   const [local, others] = splitProps(props, ["class"]);
@@ -114,8 +114,8 @@ const TextFieldDescription: Component<TextFieldDescriptionProps> = (props) => {
 };
 
 type TextFieldErrorMessageProps = ComponentProps<typeof TextFieldPrimitive.ErrorMessage> & {
-    class?: string | undefined;
-  };
+  class?: string | undefined;
+};
 
 const TextFieldErrorMessage: Component<TextFieldErrorMessageProps> = (props) => {
   const [local, others] = splitProps(props, ["class"]);

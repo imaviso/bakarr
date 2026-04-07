@@ -292,7 +292,8 @@ function LogsPage() {
     if (endDate !== undefined) {
       input.endDate = endDate;
     }
-    const eventType = search().download_event_type === "all" ? undefined : search().download_event_type;
+    const eventType =
+      search().download_event_type === "all" ? undefined : search().download_event_type;
     if (eventType !== undefined) {
       input.eventType = eventType;
     }

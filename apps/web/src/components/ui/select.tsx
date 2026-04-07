@@ -11,8 +11,8 @@ const SelectValue = SelectPrimitive.Value;
 const SelectHiddenSelect = SelectPrimitive.HiddenSelect;
 
 type SelectTriggerProps = ComponentProps<typeof SelectPrimitive.Trigger> & {
-    class?: string | undefined;
-  };
+  class?: string | undefined;
+};
 
 const SelectTrigger: Component<SelectTriggerProps> = (props) => {
   const [local, others] = splitProps(props, ["class", "children"]);
@@ -124,8 +124,8 @@ const SelectLabel: Component<SelectLabelProps> = (props) => {
 };
 
 type SelectDescriptionProps = ComponentProps<typeof SelectPrimitive.Description> & {
-    class?: string | undefined;
-  };
+  class?: string | undefined;
+};
 
 const SelectDescription: Component<SelectDescriptionProps> = (props) => {
   const [local, others] = splitProps(props, ["class"]);
@@ -138,8 +138,8 @@ const SelectDescription: Component<SelectDescriptionProps> = (props) => {
 };
 
 type SelectErrorMessageProps = ComponentProps<typeof SelectPrimitive.ErrorMessage> & {
-    class?: string | undefined;
-  };
+  class?: string | undefined;
+};
 
 const SelectErrorMessage: Component<SelectErrorMessageProps> = (props) => {
   const [local, others] = splitProps(props, ["class"]);

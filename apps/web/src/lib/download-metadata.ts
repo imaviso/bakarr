@@ -44,15 +44,10 @@ export function formatEpisodeCoverage(
   if (first === undefined || last === undefined) {
     return `Ep ${episodeNumber.toString().padStart(2, "0")}`;
   }
-  return `Batch ${first.toString().padStart(2, "0")}-${last
-    .toString()
-    .padStart(2, "0")}`;
+  return `Batch ${first.toString().padStart(2, "0")}-${last.toString().padStart(2, "0")}`;
 }
 
-export function formatCoverageMeta(
-  coveredEpisodes?: number[],
-  coveragePending?: boolean,
-) {
+export function formatCoverageMeta(coveredEpisodes?: number[], coveragePending?: boolean) {
   if (coveragePending) {
     return "Waiting for qBittorrent file metadata";
   }

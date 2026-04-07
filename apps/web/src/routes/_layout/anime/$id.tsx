@@ -757,17 +757,17 @@ function AnimeDetailsPage() {
                                             <IconDots class="h-4 w-4" />
                                           </DropdownMenuTrigger>
                                           <DropdownMenuContent>
-                                              <DropdownMenuItem
-                                                onClick={() =>
-                                                  setSearchModalState(() => ({
-                                                    open: true,
-                                                    episodeNumber: episode.number,
-                                                    ...(episode.title === undefined
-                                                      ? {}
-                                                      : { episodeTitle: episode.title }),
-                                                  }))
-                                                }
-                                              >
+                                            <DropdownMenuItem
+                                              onClick={() =>
+                                                setSearchModalState(() => ({
+                                                  open: true,
+                                                  episodeNumber: episode.number,
+                                                  ...(episode.title === undefined
+                                                    ? {}
+                                                    : { episodeTitle: episode.title }),
+                                                }))
+                                              }
+                                            >
                                               <Show
                                                 when={episode.downloaded}
                                                 fallback={

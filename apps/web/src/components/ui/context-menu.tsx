@@ -16,8 +16,8 @@ const ContextMenu: Component<ContextMenuPrimitive.ContextMenuRootProps> = (props
 };
 
 type ContextMenuContentProps = ComponentProps<typeof ContextMenuPrimitive.Content> & {
-    class?: string | undefined;
-  };
+  class?: string | undefined;
+};
 
 const ContextMenuContent: Component<ContextMenuContentProps> = (props) => {
   const [local, others] = splitProps(props, ["class"]);
@@ -35,8 +35,8 @@ const ContextMenuContent: Component<ContextMenuContentProps> = (props) => {
 };
 
 type ContextMenuItemProps = ComponentProps<typeof ContextMenuPrimitive.Item> & {
-    class?: string | undefined;
-  };
+  class?: string | undefined;
+};
 
 const ContextMenuItem: Component<ContextMenuItemProps> = (props) => {
   const [local, others] = splitProps(props, ["class"]);
@@ -57,8 +57,8 @@ const ContextMenuShortcut: Component<ComponentProps<"span">> = (props) => {
 };
 
 type ContextMenuSeparatorProps = ComponentProps<typeof ContextMenuPrimitive.Separator> & {
-    class?: string | undefined;
-  };
+  class?: string | undefined;
+};
 
 const ContextMenuSeparator: Component<ContextMenuSeparatorProps> = (props) => {
   const [local, others] = splitProps(props, ["class"]);
@@ -71,8 +71,8 @@ const ContextMenuSeparator: Component<ContextMenuSeparatorProps> = (props) => {
 };
 
 type ContextMenuSubTriggerProps = ComponentProps<typeof ContextMenuPrimitive.SubTrigger> & {
-    class?: string | undefined;
-  };
+  class?: string | undefined;
+};
 
 const ContextMenuSubTrigger: Component<ContextMenuSubTriggerProps> = (props) => {
   const [local, others] = splitProps(props, ["class", "children"]);
@@ -102,8 +102,8 @@ const ContextMenuSubTrigger: Component<ContextMenuSubTriggerProps> = (props) => 
 };
 
 type ContextMenuSubContentProps = ComponentProps<typeof ContextMenuPrimitive.SubContent> & {
-    class?: string | undefined;
-  };
+  class?: string | undefined;
+};
 
 const ContextMenuSubContent: Component<ContextMenuSubContentProps> = (props) => {
   const [local, others] = splitProps(props, ["class"]);
@@ -119,8 +119,8 @@ const ContextMenuSubContent: Component<ContextMenuSubContentProps> = (props) => 
 };
 
 type ContextMenuCheckboxItemProps = ComponentProps<typeof ContextMenuPrimitive.CheckboxItem> & {
-    class?: string | undefined;
-  };
+  class?: string | undefined;
+};
 
 const ContextMenuCheckboxItem: Component<ContextMenuCheckboxItemProps> = (props) => {
   const [local, others] = splitProps(props, ["class", "children"]);
@@ -154,8 +154,8 @@ const ContextMenuCheckboxItem: Component<ContextMenuCheckboxItemProps> = (props)
 };
 
 type ContextMenuGroupLabelProps = ComponentProps<typeof ContextMenuPrimitive.GroupLabel> & {
-    class?: string | undefined;
-  };
+  class?: string | undefined;
+};
 
 const ContextMenuGroupLabel: Component<ContextMenuGroupLabelProps> = (props) => {
   const [local, others] = splitProps(props, ["class"]);
@@ -168,8 +168,8 @@ const ContextMenuGroupLabel: Component<ContextMenuGroupLabelProps> = (props) => 
 };
 
 type ContextMenuRadioItemProps = ComponentProps<typeof ContextMenuPrimitive.RadioItem> & {
-    class?: string | undefined;
-  };
+  class?: string | undefined;
+};
 
 const ContextMenuRadioItem: Component<ContextMenuRadioItemProps> = (props) => {
   const [local, others] = splitProps(props, ["class", "children"]);

@@ -277,7 +277,9 @@ function ImportPage() {
       buildImportFileRequest({
         animeId: current.anime_id,
         episodeNumber: episode,
-        ...(current.episode_numbers === undefined ? {} : { episodeNumbers: current.episode_numbers }),
+        ...(current.episode_numbers === undefined
+          ? {}
+          : { episodeNumbers: current.episode_numbers }),
         file,
         season,
         ...(current.source_metadata === undefined

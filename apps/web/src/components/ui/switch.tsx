@@ -18,9 +18,7 @@ const SwitchControl: Component<SwitchControlProps> = (props) => {
   const [local, others] = splitProps(props, ["class", "children"]);
   return (
     <>
-      <SwitchPrimitive.Input
-        class="[&:focus-visible+div]:outline-none [&:focus-visible+div]:ring-2 [&:focus-visible+div]:ring-ring [&:focus-visible+div]:ring-offset-2 [&:focus-visible+div]:ring-offset-background"
-      />
+      <SwitchPrimitive.Input class="[&:focus-visible+div]:outline-none [&:focus-visible+div]:ring-2 [&:focus-visible+div]:ring-ring [&:focus-visible+div]:ring-offset-2 [&:focus-visible+div]:ring-offset-background" />
       <SwitchPrimitive.Control
         class={cn(
           "inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent bg-input transition-[color,background-color,box-shadow] data-[disabled]:cursor-not-allowed data-[checked]:bg-primary data-[disabled]:opacity-50",
@@ -79,7 +77,9 @@ const Switch: Component<SwitchProps> = (props) => {
       <SwitchControl class={local.class}>
         <SwitchThumb />
       </SwitchControl>
-      {typeof local.children === "function" ? local.children(SwitchPrimitive.useSwitchContext()) : local.children}
+      {typeof local.children === "function"
+        ? local.children(SwitchPrimitive.useSwitchContext())
+        : local.children}
     </SwitchRoot>
   );
 };

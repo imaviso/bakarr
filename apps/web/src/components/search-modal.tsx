@@ -177,9 +177,7 @@ export function SearchModal(props: SearchModalProps) {
         ? {}
         : { previous_score: selection.previous_score }),
       ...(release.remake === undefined ? {} : { remake: release.remake }),
-      ...(release.parsed_resolution === undefined
-        ? {}
-        : { resolution: release.parsed_resolution }),
+      ...(release.parsed_resolution === undefined ? {} : { resolution: release.parsed_resolution }),
       ...(release.seadex_comparison === undefined
         ? {}
         : { seadex_comparison: release.seadex_comparison }),
@@ -211,20 +209,17 @@ export function SearchModal(props: SearchModalProps) {
       release_metadata: releaseMetadata,
     };
 
-    grabRelease.mutate(
-      payload,
-      {
-        onSuccess: () => {
-          props.onOpenChange(false);
-          toast.success("Download started");
-        },
-        onError: (err) => {
-          toast.error("Failed to queue download", {
-            description: err instanceof Error ? err.message : String(err),
-          });
-        },
+    grabRelease.mutate(payload, {
+      onSuccess: () => {
+        props.onOpenChange(false);
+        toast.success("Download started");
       },
-    );
+      onError: (err) => {
+        toast.error("Failed to queue download", {
+          description: err instanceof Error ? err.message : String(err),
+        });
+      },
+    });
   };
 
   return (

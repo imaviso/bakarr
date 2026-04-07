@@ -37,9 +37,9 @@ const DialogOverlay: Component<DialogOverlayProps> = (props) => {
 };
 
 type DialogContentProps = ComponentProps<typeof DialogPrimitive.Content> & {
-    class?: string | undefined;
-    children?: JSX.Element;
-  };
+  class?: string | undefined;
+  children?: JSX.Element;
+};
 
 const DialogContent: Component<DialogContentProps> = (props) => {
   const [, rest] = splitProps(props, ["class", "children"]);
@@ -107,8 +107,8 @@ const DialogTitle: Component<DialogTitleProps> = (props) => {
 };
 
 type DialogDescriptionProps = ComponentProps<typeof DialogPrimitive.Description> & {
-    class?: string | undefined;
-  };
+  class?: string | undefined;
+};
 
 const DialogDescription: Component<DialogDescriptionProps> = (props) => {
   const [, rest] = splitProps(props, ["class"]);

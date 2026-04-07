@@ -121,21 +121,19 @@ const Carousel: Component<CarouselProps & ComponentProps<"div">> = (rawProps) =>
     };
   });
 
-  const value = createMemo(
-    () => {
-      const orientation = local.orientation || (local.opts?.axis === "y" ? "vertical" : "horizontal");
-      return {
-        carouselRef,
-        api,
-        ...(local.opts === undefined ? {} : { opts: local.opts }),
-        orientation,
-        scrollPrev,
-        scrollNext,
-        canScrollPrev,
-        canScrollNext,
-      } satisfies CarouselContextProps;
-    },
-  );
+  const value = createMemo(() => {
+    const orientation = local.orientation || (local.opts?.axis === "y" ? "vertical" : "horizontal");
+    return {
+      carouselRef,
+      api,
+      ...(local.opts === undefined ? {} : { opts: local.opts }),
+      orientation,
+      scrollPrev,
+      scrollNext,
+      canScrollPrev,
+      canScrollNext,
+    } satisfies CarouselContextProps;
+  });
 
   return (
     <CarouselContext.Provider value={value}>

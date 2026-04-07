@@ -11,7 +11,9 @@ interface FilterProviderProps {
   onChange: (filters: FilterState[]) => void;
 }
 
-const FilterContextProvider: Component<{ value: FilterContextValue; children: JSX.Element }> = (props) => {
+const FilterContextProvider: Component<{ value: FilterContextValue; children: JSX.Element }> = (
+  props,
+) => {
   return <FilterContext.Provider value={props.value}>{props.children}</FilterContext.Provider>;
 };
 

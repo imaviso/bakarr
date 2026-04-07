@@ -135,7 +135,9 @@ export function FilterItem(props: FilterItemProps) {
                 <SelectTrigger class="w-[160px] h-8 px-2 bg-background focus:ring-0 focus:ring-offset-0 border-muted-foreground/20">
                   <SelectValue<string>>
                     {(state) => {
-                      const option = column()?.options?.find((o) => o.value === state.selectedOption());
+                      const option = column()?.options?.find(
+                        (o) => o.value === state.selectedOption(),
+                      );
                       return (
                         <Show when={option} fallback="Select value">
                           <div class="flex items-center">
@@ -175,7 +177,9 @@ export function FilterItem(props: FilterItemProps) {
                 <SelectTrigger class="w-[160px] h-8 px-2 bg-background focus:ring-0 focus:ring-offset-0 border-muted-foreground/20">
                   <SelectValue<string>>
                     {(state) => {
-                      const option = column()?.options?.find((o) => o.value === state.selectedOption());
+                      const option = column()?.options?.find(
+                        (o) => o.value === state.selectedOption(),
+                      );
                       return (
                         <Show when={option} fallback="Select value">
                           <div class="flex items-center">

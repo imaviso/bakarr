@@ -11,8 +11,8 @@ const AlertDialogTrigger = AlertDialogPrimitive.Trigger;
 const AlertDialogPortal = AlertDialogPrimitive.Portal;
 
 type AlertDialogOverlayProps = ComponentProps<typeof AlertDialogPrimitive.Overlay> & {
-    class?: string | undefined;
-  };
+  class?: string | undefined;
+};
 
 const AlertDialogOverlay: Component<AlertDialogOverlayProps> = (props) => {
   const [local, others] = splitProps(props, ["class"]);
@@ -28,9 +28,9 @@ const AlertDialogOverlay: Component<AlertDialogOverlayProps> = (props) => {
 };
 
 type AlertDialogContentProps = ComponentProps<typeof AlertDialogPrimitive.Content> & {
-    class?: string | undefined;
-    children?: JSX.Element;
-  };
+  class?: string | undefined;
+  children?: JSX.Element;
+};
 
 const AlertDialogContent: Component<AlertDialogContentProps> = (props) => {
   const [local, others] = splitProps(props, ["class", "children"]);
@@ -67,8 +67,8 @@ const AlertDialogContent: Component<AlertDialogContentProps> = (props) => {
 };
 
 type AlertDialogTitleProps = ComponentProps<typeof AlertDialogPrimitive.Title> & {
-    class?: string | undefined;
-  };
+  class?: string | undefined;
+};
 
 const AlertDialogTitle: Component<AlertDialogTitleProps> = (props) => {
   const [local, others] = splitProps(props, ["class"]);
@@ -78,8 +78,8 @@ const AlertDialogTitle: Component<AlertDialogTitleProps> = (props) => {
 };
 
 type AlertDialogDescriptionProps = ComponentProps<typeof AlertDialogPrimitive.Description> & {
-    class?: string | undefined;
-  };
+  class?: string | undefined;
+};
 
 const AlertDialogDescription: Component<AlertDialogDescriptionProps> = (props) => {
   const [local, others] = splitProps(props, ["class"]);

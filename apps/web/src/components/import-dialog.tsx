@@ -291,7 +291,9 @@ export function ImportDialog(props: ImportDialogProps) {
       buildImportFileRequest({
         animeId: current.anime_id,
         episodeNumber: episode,
-        ...(current.episode_numbers === undefined ? {} : { episodeNumbers: current.episode_numbers }),
+        ...(current.episode_numbers === undefined
+          ? {}
+          : { episodeNumbers: current.episode_numbers }),
         file,
         season,
         ...(current.source_metadata === undefined
@@ -524,14 +526,14 @@ export function ImportDialog(props: ImportDialogProps) {
               <ul class="divide-y border rounded-none" aria-label="Scanned files for import">
                 <For each={scannedFiles()}>
                   {(file) => (
-                      <FileRow
-                        file={file}
-                        animeList={animeListQuery.data || []}
+                    <FileRow
+                      file={file}
+                      animeList={animeListQuery.data || []}
                       candidates={candidates()}
                       isSelected={selectedFiles().has(file.source_path)}
                       selectedAnimeId={selectedFiles().get(file.source_path)?.anime_id}
                       currentEpisode={selectedFiles().get(file.source_path)?.episode_number}
-                        currentSeason={selectedFiles().get(file.source_path)?.season ?? null}
+                      currentSeason={selectedFiles().get(file.source_path)?.season ?? null}
                       onToggle={(id) => toggleFile(file, id)}
                       onAnimeChange={(id) => updateFileAnime(file, id)}
                       onMappingChange={(s, e) => updateFileMapping(file, s, e)}

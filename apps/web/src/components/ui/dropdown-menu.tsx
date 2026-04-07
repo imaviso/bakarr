@@ -16,8 +16,8 @@ const DropdownMenu: Component<DropdownMenuPrimitive.DropdownMenuRootProps> = (pr
 };
 
 type DropdownMenuContentProps = ComponentProps<typeof DropdownMenuPrimitive.Content> & {
-    class?: string | undefined;
-  };
+  class?: string | undefined;
+};
 
 const DropdownMenuContent: Component<DropdownMenuContentProps> = (props) => {
   const [, rest] = splitProps(props, ["class"]);
@@ -35,8 +35,8 @@ const DropdownMenuContent: Component<DropdownMenuContentProps> = (props) => {
 };
 
 type DropdownMenuItemProps = ComponentProps<typeof DropdownMenuPrimitive.Item> & {
-    class?: string | undefined;
-  };
+  class?: string | undefined;
+};
 
 const DropdownMenuItem: Component<DropdownMenuItemProps> = (props) => {
   const [, rest] = splitProps(props, ["class"]);
@@ -67,8 +67,8 @@ const DropdownMenuLabel: Component<ComponentProps<"div"> & { inset?: boolean }> 
 };
 
 type DropdownMenuSeparatorProps = ComponentProps<typeof DropdownMenuPrimitive.Separator> & {
-    class?: string | undefined;
-  };
+  class?: string | undefined;
+};
 
 const DropdownMenuSeparator: Component<DropdownMenuSeparatorProps> = (props) => {
   const [, rest] = splitProps(props, ["class"]);
@@ -81,8 +81,8 @@ const DropdownMenuSeparator: Component<DropdownMenuSeparatorProps> = (props) => 
 };
 
 type DropdownMenuSubTriggerProps = ComponentProps<typeof DropdownMenuPrimitive.SubTrigger> & {
-    class?: string | undefined;
-  };
+  class?: string | undefined;
+};
 
 const DropdownMenuSubTrigger: Component<DropdownMenuSubTriggerProps> = (props) => {
   const [, rest] = splitProps(props, ["class", "children"]);
@@ -112,8 +112,8 @@ const DropdownMenuSubTrigger: Component<DropdownMenuSubTriggerProps> = (props) =
 };
 
 type DropdownMenuSubContentProps = ComponentProps<typeof DropdownMenuPrimitive.SubContent> & {
-    class?: string | undefined;
-  };
+  class?: string | undefined;
+};
 
 const DropdownMenuSubContent: Component<DropdownMenuSubContentProps> = (props) => {
   const [, rest] = splitProps(props, ["class"]);
@@ -129,8 +129,8 @@ const DropdownMenuSubContent: Component<DropdownMenuSubContentProps> = (props) =
 };
 
 type DropdownMenuCheckboxItemProps = ComponentProps<typeof DropdownMenuPrimitive.CheckboxItem> & {
-    class?: string | undefined;
-  };
+  class?: string | undefined;
+};
 
 const DropdownMenuCheckboxItem: Component<DropdownMenuCheckboxItemProps> = (props) => {
   const [, rest] = splitProps(props, ["class", "children"]);
@@ -164,8 +164,8 @@ const DropdownMenuCheckboxItem: Component<DropdownMenuCheckboxItemProps> = (prop
 };
 
 type DropdownMenuGroupLabelProps = ComponentProps<typeof DropdownMenuPrimitive.GroupLabel> & {
-    class?: string | undefined;
-  };
+  class?: string | undefined;
+};
 
 const DropdownMenuGroupLabel: Component<DropdownMenuGroupLabelProps> = (props) => {
   const [, rest] = splitProps(props, ["class"]);
@@ -178,8 +178,8 @@ const DropdownMenuGroupLabel: Component<DropdownMenuGroupLabelProps> = (props) =
 };
 
 type DropdownMenuRadioItemProps = ComponentProps<typeof DropdownMenuPrimitive.RadioItem> & {
-    class?: string | undefined;
-  };
+  class?: string | undefined;
+};
 
 const DropdownMenuRadioItem: Component<DropdownMenuRadioItemProps> = (props) => {
   const [, rest] = splitProps(props, ["class", "children"]);

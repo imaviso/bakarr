@@ -45,7 +45,9 @@ type SidebarContext = {
 
 const SidebarContext = createContext<SidebarContext | null>(null);
 
-const SidebarContextProvider: Component<{ value: SidebarContext; children: JSX.Element }> = (props) => {
+const SidebarContextProvider: Component<{ value: SidebarContext; children: JSX.Element }> = (
+  props,
+) => {
   return <SidebarContext.Provider value={props.value}>{props.children}</SidebarContext.Provider>;
 };
 
@@ -642,12 +644,7 @@ type SidebarMenuSubButtonProps = ComponentProps<"a"> & {
 
 const SidebarMenuSubButton: Component<SidebarMenuSubButtonProps> = (rawProps) => {
   const props = mergeProps({ size: "md" }, rawProps);
-  const [local, others] = splitProps(props, [
-    "size",
-    "isActive",
-    "class",
-    "children",
-  ]);
+  const [local, others] = splitProps(props, ["size", "isActive", "class", "children"]);
 
   return (
     <a

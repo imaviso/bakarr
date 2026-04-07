@@ -187,11 +187,15 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
                         {[
                           animeDisplayTitle(recommended),
                           ...animeDiscoverySubtitle({
-                            ...(recommended.format === undefined ? {} : { format: recommended.format }),
+                            ...(recommended.format === undefined
+                              ? {}
+                              : { format: recommended.format }),
                             ...(recommended.relation_type === undefined
                               ? {}
                               : { relation_type: recommended.relation_type }),
-                            ...(recommended.season === undefined ? {} : { season: recommended.season }),
+                            ...(recommended.season === undefined
+                              ? {}
+                              : { season: recommended.season }),
                             ...(recommended.season_year === undefined
                               ? {}
                               : { season_year: recommended.season_year }),
