@@ -12,6 +12,7 @@ import {
 import { createForm } from "@tanstack/solid-form";
 import { createFileRoute } from "@tanstack/solid-router";
 import { createEffect, createMemo, createSignal, For, onCleanup, Show, Suspense } from "solid-js";
+import { createStore, reconcile } from "solid-js/store";
 import { toast } from "solid-sonner";
 import * as v from "valibot";
 import { AnimeDiscoveryRow } from "~/components/anime-discovery";
@@ -102,16 +103,16 @@ function AddAnimePage() {
   });
 
   const searchQuery = createAnimeSearchQuery(debouncedQuery);
-  const searchResults = createMemo(() => searchQuery.data?.results ?? []);
+  const [searchResults, setSearchResults] = createStore<AnimeSearchResult[]>([]);
+  createEffect(() => {
+    setSearchResults(reconcile(searchQuery.data?.results ?? [], { key: "id", merge: true }));
+  });
+  const canSearch = createMemo(() => debouncedQuery().trim().length >= 3);
   const searchDegraded = createMemo(() => searchQuery.data?.degraded ?? false);
   const animeListQuery = createAnimeListQuery();
   const libraryIds = createMemo(
     () => new Set((animeListQuery.data ?? []).map((anime) => anime.id)),
   );
-
-  const isAlreadyAdded = (id: number) => {
-    return animeListQuery.data?.some((a) => a.id === id);
-  };
 
   return (
     <div class="space-y-6">
@@ -140,20 +141,32 @@ function AddAnimePage() {
         </div>
       </div>
 
-      <Show
-        when={debouncedQuery()}
-        fallback={
-          <div class="flex flex-col items-center justify-center py-20 text-muted-foreground border-2 border-dashed rounded-lg bg-muted/10">
-            <IconSearch class="h-12 w-12 mb-4 opacity-50" />
-            <h2 class="font-medium text-lg">Search for your next anime</h2>
-            <p class="text-sm mt-1">Type in the search bar above to calculate metadata</p>
+      <div class="space-y-4">
+        <Show when={canSearch() && searchDegraded()}>
+          <div class="flex items-start gap-2 rounded-lg border border-border/70 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+            <IconInfoCircle class="mt-0.5 h-4 w-4 shrink-0" />
+            <p>
+              AniList is temporarily unavailable or rate-limited. Showing local library matches
+              only.
+            </p>
           </div>
-        }
-      >
-        <Show
-          when={!searchQuery.error}
-          fallback={
-            <div class="p-8 text-center text-destructive bg-destructive/10 rounded-lg">
+        </Show>
+        <div
+          class={cn(
+            "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 transition-opacity duration-200",
+            canSearch() && searchQuery.isFetching && searchResults.length > 0 && "opacity-60",
+          )}
+        >
+          <Show when={!canSearch()}>
+            <div class="col-span-full flex flex-col items-center justify-center py-20 text-muted-foreground border-2 border-dashed rounded-lg bg-muted/10">
+              <IconSearch class="h-12 w-12 mb-4 opacity-50" />
+              <h2 class="font-medium text-lg">Search for your next anime</h2>
+              <p class="text-sm mt-1">Type in the search bar above to calculate metadata</p>
+            </div>
+          </Show>
+
+          <Show when={canSearch() && !!searchQuery.error}>
+            <div class="col-span-full p-8 text-center text-destructive bg-destructive/10 rounded-lg">
               <p>Failed to search anime. Please try again.</p>
               <p class="text-sm mt-2 opacity-80">
                 {searchQuery.error instanceof Error
@@ -161,42 +174,33 @@ function AddAnimePage() {
                   : String(searchQuery.error)}
               </p>
             </div>
-          }
-        >
-          <Show when={searchDegraded()}>
-            <div class="col-span-full flex items-start gap-2 rounded-lg border border-border/70 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-              <IconInfoCircle class="mt-0.5 h-4 w-4 shrink-0" />
-              <p>
-                AniList is temporarily unavailable or rate-limited. Showing local library matches
-                only.
-              </p>
-            </div>
           </Show>
-          <div
-            class={cn(
-              "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 transition-opacity duration-200",
-              searchQuery.isFetching && searchResults().length > 0 && "opacity-60",
-            )}
-          >
-            {/* Skeletons: only when fetching with no results to show */}
-            <Show when={searchQuery.isFetching && searchResults().length === 0}>
-              <For each={[1, 2, 3, 4, 5, 6, 7, 8]}>
-                {() => (
-                  <div class="space-y-3">
-                    <Skeleton class="aspect-[2/3] w-full rounded-lg" />
-                    <div class="space-y-2">
-                      <Skeleton class="h-4 w-3/4" />
-                      <Skeleton class="h-3 w-1/2" />
-                    </div>
-                  </div>
-                )}
-              </For>
-            </Show>
 
-            {/* Results: stay mounted while new search loads */}
-            <For each={searchResults()}>
+          <Show
+            when={
+              canSearch() &&
+              !searchQuery.error &&
+              searchQuery.isFetching &&
+              searchResults.length === 0
+            }
+          >
+            <For each={[1, 2, 3, 4, 5, 6, 7, 8]}>
+              {() => (
+                <div class="space-y-3">
+                  <Skeleton class="aspect-[2/3] w-full rounded-lg" />
+                  <div class="space-y-2">
+                    <Skeleton class="h-4 w-3/4" />
+                    <Skeleton class="h-3 w-1/2" />
+                  </div>
+                </div>
+              )}
+            </For>
+          </Show>
+
+          <Show when={canSearch() && !searchQuery.error}>
+            <For each={searchResults}>
               {(anime) => {
-                const added = () => isAlreadyAdded(anime.id);
+                const added = () => libraryIds().has(anime.id);
                 return (
                   <Card class="overflow-hidden flex flex-col transition-colors hover:border-primary/50 group">
                     <div class="relative aspect-[2/3] w-full bg-muted overflow-hidden">
@@ -346,16 +350,15 @@ function AddAnimePage() {
               }}
             </For>
 
-            {/* No results: only after fetch completes with empty results */}
-            <Show when={!searchQuery.isFetching && searchResults().length === 0}>
+            <Show when={!searchQuery.isFetching && searchResults.length === 0}>
               <div class="col-span-full flex flex-col items-center justify-center py-12 text-muted-foreground">
                 <IconAlertTriangle class="h-10 w-10 mb-3 opacity-50" />
                 <p>No results found for "{debouncedQuery()}"</p>
               </div>
             </Show>
-          </div>
-        </Show>
-      </Show>
+          </Show>
+        </div>
+      </div>
 
       <Show when={selectedAnime()}>
         <Suspense

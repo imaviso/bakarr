@@ -41,6 +41,19 @@ function assertEquals<T>(actual: T, expected: T) {
   }
 }
 
+function getFetchInit(firstCall: unknown[] | undefined): RequestInit {
+  if (!firstCall) {
+    throw new Error("Expected fetch to be called");
+  }
+
+  const init = firstCall[1];
+  if (typeof init !== "object" || init === null) {
+    throw new Error("Expected fetch init options");
+  }
+
+  return init;
+}
+
 beforeEach(() => {
   authState.headers = {};
   authState.logoutCalls = 0;
@@ -57,17 +70,8 @@ it("fetchApi merges auth headers and sets JSON content type", async () => {
   const { fetchApi } = await import("./api");
   await fetchApi("/api/anime");
 
-  const firstCall = fetchMock.mock.calls[0];
-  if (!firstCall) {
-    throw new Error("Expected fetch to be called");
-  }
-
-  const init = (firstCall as unknown[])[1] as RequestInit | undefined;
-  if (!init) {
-    throw new Error("Expected fetch init options");
-  }
-
-  const headers = new Headers((init as RequestInit).headers);
+  const init = getFetchInit(fetchMock.mock.calls[0]);
+  const headers = new Headers(init.headers);
   assertEquals(headers.get("X-Api-Key"), "key-1");
   assertEquals(headers.get("Content-Type"), "application/json");
 });
@@ -85,17 +89,8 @@ it("fetchApi preserves explicit content type header", async () => {
     },
   });
 
-  const firstCall = fetchMock.mock.calls[0];
-  if (!firstCall) {
-    throw new Error("Expected fetch to be called");
-  }
-
-  const init = (firstCall as unknown[])[1] as RequestInit | undefined;
-  if (!init) {
-    throw new Error("Expected fetch init options");
-  }
-
-  const headers = new Headers((init as RequestInit).headers);
+  const init = getFetchInit(fetchMock.mock.calls[0]);
+  const headers = new Headers(init.headers);
   assertEquals(headers.get("Content-Type"), "text/plain");
 });
 

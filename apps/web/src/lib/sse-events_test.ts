@@ -7,6 +7,18 @@ function assertEquals<T>(actual: T, expected: T) {
   }
 }
 
+function setEventSourceGlobal(value: unknown) {
+  Object.defineProperty(globalThis, "EventSource", {
+    configurable: true,
+    value,
+    writable: true,
+  });
+}
+
+function isTimeoutCallback(callback: TimerHandler): callback is () => void {
+  return typeof callback === "function";
+}
+
 class EventSourceStub {
   static instances: EventSourceStub[] = [];
 
@@ -42,14 +54,16 @@ class EventSourceStub {
 const originalEventSource = globalThis.EventSource;
 const originalSetTimeout = globalThis.setTimeout;
 const originalClearTimeout = globalThis.clearTimeout;
+const noopSseListener: SseListener = () => {};
+const noopClearTimeout: typeof clearTimeout = () => {};
 
 it("createSseConnection connects only while authenticated", () => {
   EventSourceStub.instances = [];
-  globalThis.EventSource = EventSourceStub as unknown as typeof EventSource;
+  setEventSourceGlobal(EventSourceStub);
 
   const connection = createSseConnection({
     isAuthenticated: () => false,
-    onMessage: (() => {}) as SseListener,
+    onMessage: noopSseListener,
   });
 
   connection.connect();
@@ -58,7 +72,7 @@ it("createSseConnection connects only while authenticated", () => {
   let authenticated = true;
   const authenticatedConnection = createSseConnection({
     isAuthenticated: () => authenticated,
-    onMessage: (() => {}) as SseListener,
+    onMessage: noopSseListener,
   });
 
   authenticatedConnection.connect();
@@ -69,30 +83,31 @@ it("createSseConnection connects only while authenticated", () => {
   authenticatedConnection.disconnect();
   assertEquals(EventSourceStub.instances[0]?.closed, true);
 
-  globalThis.EventSource = originalEventSource;
+  setEventSourceGlobal(originalEventSource);
 });
 
 it("createSseConnection schedules reconnect after error", () => {
   EventSourceStub.instances = [];
-  globalThis.EventSource = EventSourceStub as unknown as typeof EventSource;
+  setEventSourceGlobal(EventSourceStub);
 
   const scheduledCallbacks: Array<() => void> = [];
   let timeoutId = 0;
-  globalThis.setTimeout = ((callback: TimerHandler) => {
-    if (typeof callback !== "function") {
+  const setTimeoutStub: typeof setTimeout = (callback) => {
+    if (!isTimeoutCallback(callback)) {
       throw new Error("Expected function timeout callback");
     }
 
-    scheduledCallbacks.push(callback as () => void);
+    scheduledCallbacks.push(callback);
     timeoutId += 1;
-    return timeoutId as ReturnType<typeof setTimeout>;
-  }) as typeof setTimeout;
-  globalThis.clearTimeout = (() => {}) as typeof clearTimeout;
+    return timeoutId;
+  };
+  globalThis.setTimeout = setTimeoutStub;
+  globalThis.clearTimeout = noopClearTimeout;
 
   let errorCount = 0;
   const connection = createSseConnection({
     isAuthenticated: () => true,
-    onMessage: (() => {}) as SseListener,
+    onMessage: noopSseListener,
     onError: () => {
       errorCount += 1;
     },
@@ -115,7 +130,7 @@ it("createSseConnection schedules reconnect after error", () => {
 
   connection.disconnect();
 
-  globalThis.EventSource = originalEventSource;
+  setEventSourceGlobal(originalEventSource);
   globalThis.setTimeout = originalSetTimeout;
   globalThis.clearTimeout = originalClearTimeout;
 });
