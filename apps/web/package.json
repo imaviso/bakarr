@@ -7,7 +7,8 @@
     "dev": "vite --port 3000",
     "build": "vite build",
     "preview": "vite preview",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@ark-ui/solid": "^5.34.1",

@@ -9,7 +9,7 @@
     "dev": "bun run ./tools/dev.ts",
     "dev:api": "bun run --cwd apps/api dev",
     "dev:web": "bun run --cwd apps/web dev",
-    "build": "bun run build:web && bun run --cwd apps/api generate:embedded-artifacts && bun run build:api",
+    "build": "bun run build:web && bun run build:api",
     "build:api": "bun run --cwd apps/api build",
     "build:web": "bun run --cwd apps/web build",
     "test": "bun run test:api && bun run test:web",

@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "bun run --watch main.ts",
     "start": "bun run main.ts",
-    "build": "bun run --cwd ../web build && bun run generate:embedded-artifacts && bun build --production --compile --bytecode --minify --sourcemap --format=esm --outfile=./build/bakarr ./main.ts",
+    "build": "bun run generate:embedded-artifacts && bun build --production --compile --bytecode --minify --sourcemap --format=esm --outfile=./build/bakarr ./main.ts",
     "check": "tsc --noEmit",
     "generate:embedded-artifacts": "bun run ./tools/generate-embedded-artifacts.ts",
     "test": "vitest run",
