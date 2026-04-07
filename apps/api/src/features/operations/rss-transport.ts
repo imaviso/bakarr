@@ -43,9 +43,7 @@ export class RssTransport extends Context.Tag("@bakarr/api/RssTransport")<
 interface RssTransportRequestConfig {
   readonly headers: Record<string, string>;
   readonly hostname: string;
-  readonly lookup:
-    | ((...lookupArgs: unknown[]) => void)
-    | undefined;
+  readonly lookup: ((...lookupArgs: unknown[]) => void) | undefined;
   readonly method: "GET";
   readonly path: string;
   readonly port: number | undefined;
