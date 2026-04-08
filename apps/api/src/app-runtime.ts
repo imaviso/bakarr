@@ -14,11 +14,13 @@ export class AppRuntime extends Context.Tag("@bakarr/api/AppRuntime")<
       ? Layer.succeed(AppRuntime, { startedAt })
       : Layer.effect(
           AppRuntime,
-          Effect.flatMap(ClockService, (clock) =>
-            Effect.map(clock.currentTimeMillis, (millis) => ({
+          Effect.gen(function* () {
+            const clock = yield* ClockService;
+            const millis = yield* clock.currentTimeMillis;
+            return {
               startedAt: new Date(millis),
-            })),
-          ),
+            };
+          }),
         );
   }
 }

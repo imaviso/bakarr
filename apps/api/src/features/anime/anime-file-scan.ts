@@ -75,14 +75,16 @@ export const scanAnimeFolderEffect = Effect.fn("AnimeFileScan.scanAnimeFolderEff
         ...(metadata.video_codec === undefined ? {} : { video_codec: metadata.video_codec }),
       };
 
-      const probeResult = shouldProbeDetailedMediaMetadata(probeInput)
-        ? yield* input.mediaProbe.probeVideoFile(file.path)
+      const probedMetadata = shouldProbeDetailedMediaMetadata(probeInput)
+        ? yield* input.mediaProbe.probeVideoFile(file.path).pipe(
+            Effect.map((result) =>
+              result._tag === "MediaProbeMetadataFound" ? result.metadata : undefined,
+            ),
+            Effect.catchAll(() => Effect.as(Effect.void, undefined)),
+          )
         : undefined;
 
-      const mergedMetadata = mergeProbedMediaMetadata(
-        probeInput,
-        probeResult?._tag === "MediaProbeMetadataFound" ? probeResult.metadata : undefined,
-      );
+      const mergedMetadata = mergeProbedMediaMetadata(probeInput, probedMetadata);
 
       const identity = parsed.source_identity;
       if (!identity || identity.scheme === "daily") {

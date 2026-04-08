@@ -171,13 +171,12 @@ export const reconcileBatchDownloadEffect = Effect.fn("OperationsService.reconci
           : {}),
       });
       const localMediaMetadata = hasMissingLocalMediaNamingFields(initialNamingPlan.missingFields)
-        ? yield* input.mediaProbe
-            .probeVideoFile(path)
-            .pipe(
-              Effect.map((probeResult) =>
-                probeResult._tag === "MediaProbeMetadataFound" ? probeResult.metadata : undefined,
-              ),
-            )
+        ? yield* input.mediaProbe.probeVideoFile(path).pipe(
+            Effect.map((probeResult) =>
+              probeResult._tag === "MediaProbeMetadataFound" ? probeResult.metadata : undefined,
+            ),
+            Effect.catchAll(() => Effect.as(Effect.void, undefined)),
+          )
         : undefined;
 
       const managedPath = yield* importDownloadedFile(

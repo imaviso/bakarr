@@ -43,7 +43,6 @@ export const makeEventBus = Effect.fn("Events.makeEventBus")((
         takeBuffered: Queue.takeAll(pubsubQueue).pipe(
           Effect.flatMap((pending) =>
             Effect.forEach(pending, (event) => Queue.offer(slidingQueue, event), {
-              concurrency: "unbounded",
               discard: true,
             }).pipe(Effect.as(pending)),
           ),

@@ -117,23 +117,19 @@ function preserveStoredQBitPassword(
   currentPassword: string | null | undefined,
   nextConfig: Config,
 ): Config {
-  const nextPassword = nextConfig.qbittorrent.password?.trim();
-
-  if (!nextConfig.qbittorrent.enabled || nextPassword) {
-    return nextConfig;
-  }
-
-  if (!currentPassword) {
-    return nextConfig;
-  }
-
-  return {
-    ...nextConfig,
-    qbittorrent: {
-      ...nextConfig.qbittorrent,
-      password: currentPassword,
-    },
-  } satisfies Config;
+  return preserveStoredPassword({
+    currentPassword,
+    enabled: nextConfig.qbittorrent.enabled,
+    nextConfig,
+    nextPassword: nextConfig.qbittorrent.password,
+    setPassword: (config, password) => ({
+      ...config,
+      qbittorrent: {
+        ...config.qbittorrent,
+        password,
+      },
+    }),
+  });
 }
 
 function preserveStoredAniDbPassword(
@@ -144,24 +140,40 @@ function preserveStoredAniDbPassword(
     return nextConfig;
   }
 
-  const nextPassword = nextConfig.metadata.anidb.password?.trim();
+  const nextAniDb = nextConfig.metadata.anidb;
 
-  if (!nextConfig.metadata.anidb.enabled || nextPassword) {
-    return nextConfig;
-  }
-
-  if (!currentPassword) {
-    return nextConfig;
-  }
-
-  return {
-    ...nextConfig,
-    metadata: {
-      ...nextConfig.metadata,
-      anidb: {
-        ...nextConfig.metadata.anidb,
-        password: currentPassword,
+  return preserveStoredPassword({
+    currentPassword,
+    enabled: nextAniDb.enabled,
+    nextConfig,
+    nextPassword: nextAniDb.password,
+    setPassword: (config, password) => ({
+      ...config,
+      metadata: {
+        ...config.metadata,
+        anidb: {
+          ...nextAniDb,
+          password,
+        },
       },
-    },
-  } satisfies Config;
+    }),
+  });
+}
+
+function preserveStoredPassword(input: {
+  readonly currentPassword: string | null | undefined;
+  readonly enabled: boolean;
+  readonly nextConfig: Config;
+  readonly nextPassword: string | null | undefined;
+  readonly setPassword: (config: Config, password: string) => Config;
+}): Config {
+  if (!input.enabled || input.nextPassword?.trim()) {
+    return input.nextConfig;
+  }
+
+  if (!input.currentPassword) {
+    return input.nextConfig;
+  }
+
+  return input.setPassword(input.nextConfig, input.currentPassword);
 }

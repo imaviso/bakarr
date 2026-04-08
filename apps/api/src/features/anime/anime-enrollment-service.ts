@@ -7,16 +7,7 @@ import { EventPublisher } from "@/features/events/publisher.ts";
 import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
 import { AnimeMetadataProviderService } from "@/features/anime/anime-metadata-provider-service.ts";
 import { FileSystem } from "@/lib/filesystem.ts";
-import type { ExternalCallError } from "@/lib/effect-retry.ts";
-import type {
-  OperationsError,
-  OperationsInfrastructureError,
-  OperationsPathError,
-  OperationsStoredDataError,
-  RssFeedParseError,
-  RssFeedRejectedError,
-  RssFeedTooLargeError,
-} from "@/features/operations/errors.ts";
+import type { OperationsInfrastructureError } from "@/features/operations/errors.ts";
 import { SearchBackgroundMissingService } from "@/features/operations/background-search-missing-support.ts";
 import type { ProfileNotFoundError } from "@/features/system/errors.ts";
 import type { AddAnimeInput } from "@/features/anime/add-anime-input.ts";
@@ -27,14 +18,7 @@ export type AnimeEnrollmentError =
   | DatabaseError
   | AnimeServiceError
   | ProfileNotFoundError
-  | ExternalCallError
-  | OperationsError
-  | OperationsInfrastructureError
-  | OperationsPathError
-  | OperationsStoredDataError
-  | RssFeedParseError
-  | RssFeedRejectedError
-  | RssFeedTooLargeError;
+  | OperationsInfrastructureError;
 
 export interface AnimeEnrollmentServiceShape {
   /**

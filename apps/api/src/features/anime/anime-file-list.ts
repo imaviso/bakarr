@@ -180,11 +180,14 @@ export const listAnimeFilesEffect = Effect.fn("AnimeFileList.listAnimeFilesEffec
         mergeEpisodeCachedMetadata(cachedRowsForFile),
       );
 
-      const probeResult = shouldProbeDetailedMediaMetadata(mergedWithCachedMetadata)
-        ? yield* input.mediaProbe.probeVideoFile(file.path)
+      const probedMetadata = shouldProbeDetailedMediaMetadata(mergedWithCachedMetadata)
+        ? yield* input.mediaProbe.probeVideoFile(file.path).pipe(
+            Effect.map((result) =>
+              result._tag === "MediaProbeMetadataFound" ? result.metadata : undefined,
+            ),
+            Effect.catchAll(() => Effect.as(Effect.void, undefined)),
+          )
         : undefined;
-      const probedMetadata =
-        probeResult?._tag === "MediaProbeMetadataFound" ? probeResult.metadata : undefined;
       const mergedMetadata = mergeProbedMediaMetadata(mergedWithCachedMetadata, probedMetadata);
 
       if (probedMetadata && cachedRowsForFile.length > 0) {

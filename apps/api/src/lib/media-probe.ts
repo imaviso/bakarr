@@ -1,5 +1,5 @@
 import { Command, CommandExecutor } from "@effect/platform";
-import { Context, Effect, Layer, Option, ParseResult, Schema } from "effect";
+import { Context, Effect, Either, Layer, Option, ParseResult, Schema } from "effect";
 
 const FFPROBE_VERSION_TIMEOUT_MS = 3_000;
 const FFPROBE_PROBE_TIMEOUT_MS = 10_000;
@@ -23,7 +23,7 @@ export class MediaProbeMetadataFound extends Schema.TaggedClass<MediaProbeMetada
   },
 ) {}
 
-export class MediaProbeFailure extends Schema.TaggedClass<MediaProbeFailure>()(
+export class MediaProbeFailure extends Schema.TaggedError<MediaProbeFailure>()(
   "MediaProbeFailure",
   {
     cause: Schema.optional(Schema.Defect),
@@ -36,7 +36,7 @@ export class MediaProbeNoMetadata extends Schema.TaggedClass<MediaProbeNoMetadat
   {},
 ) {}
 
-export type MediaProbeResult = MediaProbeFailure | MediaProbeMetadataFound | MediaProbeNoMetadata;
+export type MediaProbeResult = MediaProbeMetadataFound | MediaProbeNoMetadata;
 
 class FFProbeError extends Schema.TaggedError<FFProbeError>()("FFProbeError", {
   cause: Schema.Defect,
@@ -249,7 +249,7 @@ const ProbedMediaMetadataFromFFProbeOutputSchema = Schema.transform(
 );
 
 export interface MediaProbeShape {
-  readonly probeVideoFile: (path: string) => Effect.Effect<MediaProbeResult>;
+  readonly probeVideoFile: (path: string) => Effect.Effect<MediaProbeResult, MediaProbeFailure>;
 }
 
 export class MediaProbe extends Context.Tag("@bakarr/api/MediaProbe")<
@@ -301,11 +301,8 @@ export function mergeProbedMediaMetadata<
 }
 
 export const parseFfprobeJson = Effect.fn("MediaProbe.parseFfprobeJson")(
-  (json: string): Effect.Effect<MediaProbeResult> =>
-    decodeFfprobeOutput(json).pipe(
-      Effect.flatMap(normalizeFfprobeDecodedOutput),
-      Effect.catchAll((failure) => Effect.succeed(failure)),
-    ),
+  (json: string): Effect.Effect<MediaProbeResult, MediaProbeFailure> =>
+    decodeFfprobeOutput(json).pipe(Effect.flatMap(normalizeFfprobeDecodedOutput)),
 );
 
 function decodeFfprobeOutput(
@@ -373,7 +370,7 @@ function runFfprobeCommand(
   ) => Effect.Effect<string, unknown>,
   args: readonly string[],
   timeoutMs: number,
-): Effect.Effect<MediaProbeCommandOutput | MediaProbeFailure> {
+): Effect.Effect<MediaProbeCommandOutput, MediaProbeFailure> {
   return Effect.suspend(() => executeString(Command.make("ffprobe", ...args))).pipe(
     Effect.map((stdout) => ({ stdout }) satisfies MediaProbeCommandOutput),
     Effect.mapError(
@@ -383,22 +380,23 @@ function runFfprobeCommand(
           message: "ffprobe command failed",
         }),
     ),
-    Effect.timeout(timeoutMs),
-    Effect.catchTag("TimeoutException", () =>
-      Effect.fail(
+    Effect.timeoutFail({
+      duration: `${timeoutMs} millis`,
+      onTimeout: () =>
         new FFProbeError({
           cause: "Timeout",
           message: `ffprobe timed out after ${timeoutMs}ms`,
         }),
-      ),
-    ),
+    }),
     Effect.catchTag("FFProbeError", (error) =>
       Effect.logWarning("ffprobe command failed").pipe(
         Effect.annotateLogs({
           args: args.join(" "),
           error: error.message,
         }),
-        Effect.as(new MediaProbeFailure({ cause: error.cause, message: error.message })),
+        Effect.zipRight(
+          Effect.fail(new MediaProbeFailure({ cause: error.cause, message: error.message })),
+        ),
       ),
     ),
   );
@@ -424,16 +422,11 @@ const makeMediaProbe = (
         FFPROBE_PROBE_TIMEOUT_MS,
       ),
     );
-
-    if (output instanceof MediaProbeFailure) {
-      return output;
-    }
-
     const stdout = String(output.stdout);
 
     return yield* decodeFfprobeOutput(stdout).pipe(
       Effect.flatMap(normalizeFfprobeDecodedOutput),
-      Effect.catchAll((failure) => logProbeFailure(path, failure).pipe(Effect.as(failure))),
+      Effect.tapError((failure) => logProbeFailure(path, failure)),
     );
   });
 
@@ -456,13 +449,13 @@ export const MediaProbeLive = Layer.effect(
       executorOption.value,
       ["-version"],
       FFPROBE_VERSION_TIMEOUT_MS,
-    );
+    ).pipe(Effect.either);
 
-    if (availability instanceof MediaProbeFailure) {
+    if (Either.isLeft(availability)) {
       yield* Effect.logWarning("ffprobe unavailable").pipe(
-        Effect.annotateLogs({ message: availability.message }),
+        Effect.annotateLogs({ message: availability.left.message }),
       );
-      return yield* Effect.die(availability.cause ?? new Error(availability.message));
+      return yield* Effect.die(availability.left.cause ?? new Error(availability.left.message));
     }
 
     return makeMediaProbe(ffprobeSemaphore, executorOption.value);

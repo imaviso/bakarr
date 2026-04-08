@@ -26,15 +26,17 @@ export const backfillEpisodesFromNextAiringEffect = Effect.fn(
     sql`${anime.nextAiringEpisode} > 1`,
   );
 
-  const candidates = yield* tryDatabasePromise("Failed to load next-airing backfill candidates", () =>
-    input.db
-      .select({
-        id: anime.id,
-        nextAiringAt: anime.nextAiringAt,
-        nextAiringEpisode: anime.nextAiringEpisode,
-      })
-      .from(anime)
-      .where(whereClause),
+  const candidates = yield* tryDatabasePromise(
+    "Failed to load next-airing backfill candidates",
+    () =>
+      input.db
+        .select({
+          id: anime.id,
+          nextAiringAt: anime.nextAiringAt,
+          nextAiringEpisode: anime.nextAiringEpisode,
+        })
+        .from(anime)
+        .where(whereClause),
   );
 
   if (candidates.length === 0) {
@@ -42,20 +44,22 @@ export const backfillEpisodesFromNextAiringEffect = Effect.fn(
   }
 
   const candidateIds = candidates.map((candidate) => candidate.id);
-  const existingRows = yield* tryDatabasePromise("Failed to load existing episodes for backfill", () =>
-    input.db
-      .select({
-        animeId: episodes.animeId,
-        number: episodes.number,
-      })
-      .from(episodes)
-      .where(
-        and(
-          inArray(episodes.animeId, candidateIds),
-          gte(episodes.number, 1),
-          lte(episodes.number, MAX_INFERRED_EPISODE_NUMBER),
+  const existingRows = yield* tryDatabasePromise(
+    "Failed to load existing episodes for backfill",
+    () =>
+      input.db
+        .select({
+          animeId: episodes.animeId,
+          number: episodes.number,
+        })
+        .from(episodes)
+        .where(
+          and(
+            inArray(episodes.animeId, candidateIds),
+            gte(episodes.number, 1),
+            lte(episodes.number, MAX_INFERRED_EPISODE_NUMBER),
+          ),
         ),
-      ),
   );
 
   const existingByAnimeId = new Map<number, Set<number>>();

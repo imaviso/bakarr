@@ -67,6 +67,8 @@ export function makeApiLifecycleLayers(
     systemConfigLayer,
     runtimeConfigSnapshotLayer,
   );
+  const withRuntimeSupport = <A, E, R>(layer: Layer.Layer<A, E, R>) =>
+    layer.pipe(Layer.provideMerge(runtimeSupportLayer));
 
   const animeLayer = makeAnimeAppLayer(runtimeSupportLayer);
   const { catalogDownloadReadLayer, operationsLayer, operationsProgressLayer, torrentClientLayer } =
@@ -95,15 +97,17 @@ export function makeApiLifecycleLayers(
     AuthSessionServiceLive,
   ).pipe(Layer.provideMerge(runtimeSupportLayer));
 
-  const libraryLayer = LibraryBrowseServiceLive.pipe(
-    Layer.provideMerge(systemLayer),
-    Layer.provideMerge(operationsLayer),
-    Layer.provideMerge(runtimeSupportLayer),
+  const libraryLayer = withRuntimeSupport(
+    LibraryBrowseServiceLive.pipe(
+      Layer.provideMerge(systemLayer),
+      Layer.provideMerge(operationsLayer),
+    ),
   );
-  const animeEnrollmentLayer = AnimeEnrollmentServiceLive.pipe(
-    Layer.provideMerge(animeLayer),
-    Layer.provideMerge(operationsLayer),
-    Layer.provideMerge(runtimeSupportLayer),
+  const animeEnrollmentLayer = withRuntimeSupport(
+    AnimeEnrollmentServiceLive.pipe(
+      Layer.provideMerge(animeLayer),
+      Layer.provideMerge(operationsLayer),
+    ),
   );
 
   const runtimeWorkerSubgraphLayer = Layer.mergeAll(
@@ -119,7 +123,7 @@ export function makeApiLifecycleLayers(
     animeEnrollmentLayer,
   );
 
-  const appLayer = appFeatureSubgraphLayer.pipe(Layer.provideMerge(runtimeSupportLayer));
+  const appLayer = withRuntimeSupport(appFeatureSubgraphLayer);
 
   return {
     appLayer,

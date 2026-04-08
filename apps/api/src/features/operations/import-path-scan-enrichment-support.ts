@@ -21,11 +21,14 @@ export const enrichImportScanFiles = Effect.fn("Operations.enrichImportScanFiles
         return file;
       }
 
-      const probeResult = yield* input.mediaProbe.probeVideoFile(file.source_path);
-      return mergeProbedMediaMetadata(
-        file,
-        probeResult._tag === "MediaProbeMetadataFound" ? probeResult.metadata : undefined,
+      const probeMetadata = yield* input.mediaProbe.probeVideoFile(file.source_path).pipe(
+        Effect.map((result) =>
+          result._tag === "MediaProbeMetadataFound" ? result.metadata : undefined,
+        ),
+        Effect.catchAll(() => Effect.as(Effect.void, undefined)),
       );
+
+      return mergeProbedMediaMetadata(file, probeMetadata);
     });
 
     return yield* Effect.forEach(input.files, enrichScannedImportFile, {

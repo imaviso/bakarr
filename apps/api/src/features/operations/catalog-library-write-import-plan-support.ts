@@ -100,13 +100,12 @@ export const buildLibraryImportPlan = Effect.fn("Operations.buildLibraryImportPl
       ...(file.season === undefined ? {} : { season: file.season }),
     });
     const localMediaMetadata = hasMissingLocalMediaNamingFields(initialNamingPlan.missingFields)
-      ? yield* mediaProbe
-          .probeVideoFile(file.source_path)
-          .pipe(
-            Effect.map((probeResult) =>
-              probeResult._tag === "MediaProbeMetadataFound" ? probeResult.metadata : undefined,
-            ),
-          )
+      ? yield* mediaProbe.probeVideoFile(file.source_path).pipe(
+          Effect.map((probeResult) =>
+            probeResult._tag === "MediaProbeMetadataFound" ? probeResult.metadata : undefined,
+          ),
+          Effect.catchAll(() => Effect.as(Effect.void, undefined)),
+        )
       : undefined;
     const namingPlan = localMediaMetadata
       ? buildEpisodeFilenamePlan({

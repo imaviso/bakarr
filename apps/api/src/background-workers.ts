@@ -209,10 +209,6 @@ export const withLockEffectOrFail = Effect.fn("Background.withLockEffectOrFail")
       ),
     );
 
-    if (Cause.isDie(exit.cause)) {
-      return yield* Effect.failCause(exit.cause);
-    }
-
     return yield* Effect.failCause(exit.cause);
   });
 

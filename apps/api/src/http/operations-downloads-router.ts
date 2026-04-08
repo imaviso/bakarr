@@ -55,17 +55,9 @@ export const downloadsRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const query = yield* decodeQueryWithLabel(DownloadEventsQuerySchema, "download events");
-        return yield* (yield* CatalogDownloadReadService).listDownloadEvents({
-          ...(query.anime_id === undefined ? {} : { animeId: query.anime_id }),
-          ...(query.cursor === undefined ? {} : { cursor: query.cursor }),
-          ...(query.download_id === undefined ? {} : { downloadId: query.download_id }),
-          ...(query.direction === undefined ? {} : { direction: query.direction }),
-          ...(query.end_date === undefined ? {} : { endDate: query.end_date }),
-          ...(query.event_type === undefined ? {} : { eventType: query.event_type }),
-          ...(query.limit === undefined ? {} : { limit: query.limit }),
-          ...(query.start_date === undefined ? {} : { startDate: query.start_date }),
-          ...(query.status === undefined ? {} : { status: query.status }),
-        });
+        return yield* (yield* CatalogDownloadReadService).listDownloadEvents(
+          toDownloadEventsQueryInput(query),
+        );
       }),
       jsonResponse,
     ),
@@ -79,16 +71,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
           "download events export",
         );
         const service = yield* CatalogDownloadReadService;
-        const input = {
-          ...(query.anime_id === undefined ? {} : { animeId: query.anime_id }),
-          ...(query.download_id === undefined ? {} : { downloadId: query.download_id }),
-          ...(query.end_date === undefined ? {} : { endDate: query.end_date }),
-          ...(query.event_type === undefined ? {} : { eventType: query.event_type }),
-          ...(query.limit === undefined ? {} : { limit: query.limit }),
-          ...(query.order === undefined ? {} : { order: query.order }),
-          ...(query.start_date === undefined ? {} : { startDate: query.start_date }),
-          ...(query.status === undefined ? {} : { status: query.status }),
-        };
+        const input = toDownloadEventsExportInput(query);
 
         if ((query.format ?? "json") === "csv") {
           const streamed = yield* service.streamDownloadEventsExportCsv(input);
@@ -109,14 +92,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
       }),
       (result) => {
         const { format, header } = result;
-        const exportHeaders = {
-          "X-Bakarr-Export-Limit": String(header.limit),
-          "X-Bakarr-Export-Order": header.order,
-          "X-Bakarr-Export-Truncated": String(header.truncated),
-          "X-Bakarr-Exported-Events": String(header.exported),
-          "X-Bakarr-Generated-At": header.generated_at,
-          "X-Bakarr-Total-Events": String(header.total),
-        };
+        const exportHeaders = buildDownloadExportHeaders(header);
 
         if (format === "csv") {
           return HttpServerResponse.stream(result.stream, {
@@ -176,3 +152,67 @@ export const downloadsRouter = HttpRouter.empty.pipe(
     ),
   ),
 );
+
+function toDownloadEventsQueryInput(query: {
+  readonly anime_id?: number | undefined;
+  readonly cursor?: string | undefined;
+  readonly direction?: "next" | "prev" | undefined;
+  readonly download_id?: number | undefined;
+  readonly end_date?: string | undefined;
+  readonly event_type?: string | undefined;
+  readonly limit?: number | undefined;
+  readonly start_date?: string | undefined;
+  readonly status?: string | undefined;
+}) {
+  return {
+    ...(query.anime_id === undefined ? {} : { animeId: query.anime_id }),
+    ...(query.cursor === undefined ? {} : { cursor: query.cursor }),
+    ...(query.download_id === undefined ? {} : { downloadId: query.download_id }),
+    ...(query.direction === undefined ? {} : { direction: query.direction }),
+    ...(query.end_date === undefined ? {} : { endDate: query.end_date }),
+    ...(query.event_type === undefined ? {} : { eventType: query.event_type }),
+    ...(query.limit === undefined ? {} : { limit: query.limit }),
+    ...(query.start_date === undefined ? {} : { startDate: query.start_date }),
+    ...(query.status === undefined ? {} : { status: query.status }),
+  };
+}
+
+function toDownloadEventsExportInput(query: {
+  readonly anime_id?: number | undefined;
+  readonly download_id?: number | undefined;
+  readonly end_date?: string | undefined;
+  readonly event_type?: string | undefined;
+  readonly limit?: number | undefined;
+  readonly order?: "asc" | "desc" | undefined;
+  readonly start_date?: string | undefined;
+  readonly status?: string | undefined;
+}) {
+  return {
+    ...(query.anime_id === undefined ? {} : { animeId: query.anime_id }),
+    ...(query.download_id === undefined ? {} : { downloadId: query.download_id }),
+    ...(query.end_date === undefined ? {} : { endDate: query.end_date }),
+    ...(query.event_type === undefined ? {} : { eventType: query.event_type }),
+    ...(query.limit === undefined ? {} : { limit: query.limit }),
+    ...(query.order === undefined ? {} : { order: query.order }),
+    ...(query.start_date === undefined ? {} : { startDate: query.start_date }),
+    ...(query.status === undefined ? {} : { status: query.status }),
+  };
+}
+
+function buildDownloadExportHeaders(header: {
+  readonly exported: number;
+  readonly generated_at: string;
+  readonly limit: number;
+  readonly order: string;
+  readonly total: number;
+  readonly truncated: boolean;
+}) {
+  return {
+    "X-Bakarr-Export-Limit": String(header.limit),
+    "X-Bakarr-Export-Order": header.order,
+    "X-Bakarr-Export-Truncated": String(header.truncated),
+    "X-Bakarr-Exported-Events": String(header.exported),
+    "X-Bakarr-Generated-At": header.generated_at,
+    "X-Bakarr-Total-Events": String(header.total),
+  };
+}

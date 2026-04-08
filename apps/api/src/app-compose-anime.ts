@@ -11,23 +11,20 @@ import { AnimeStreamServiceLive } from "@/features/anime/anime-stream-service.ts
 import { StreamTokenSignerLive } from "@/features/anime/stream-token-signer.ts";
 
 export function makeAnimeAppLayer<ROut, E, RIn>(runtimeSupportLayer: Layer.Layer<ROut, E, RIn>) {
-  const metadataEnrichmentLayer = AnimeMetadataEnrichmentServiceLive.pipe(
-    Layer.provideMerge(runtimeSupportLayer),
-  );
+  const withRuntime = <A, E2, R2>(layer: Layer.Layer<A, E2, R2>) =>
+    layer.pipe(Layer.provideMerge(runtimeSupportLayer));
+
+  const metadataEnrichmentLayer = withRuntime(AnimeMetadataEnrichmentServiceLive);
   const metadataProviderLayer = AnimeMetadataProviderServiceLive.pipe(
     Layer.provideMerge(metadataEnrichmentLayer),
     Layer.provideMerge(runtimeSupportLayer),
   );
-  const streamTokenSignerLayer = StreamTokenSignerLive.pipe(
-    Layer.provideMerge(runtimeSupportLayer),
-  );
+  const streamTokenSignerLayer = withRuntime(StreamTokenSignerLive);
   const animeMaintenanceLayer = AnimeMaintenanceServiceLive.pipe(
     Layer.provideMerge(metadataProviderLayer),
     Layer.provideMerge(runtimeSupportLayer),
   );
-  const animeStreamLayer = AnimeStreamServiceLive.pipe(
-    Layer.provideMerge(Layer.mergeAll(runtimeSupportLayer, streamTokenSignerLayer)),
-  );
+  const animeStreamLayer = AnimeStreamServiceLive.pipe(Layer.provideMerge(streamTokenSignerLayer));
 
   return Layer.mergeAll(
     AnimeImageCacheServiceLive,

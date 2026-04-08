@@ -50,9 +50,16 @@ it("parseFfprobeJson extracts canonical media metadata", () => {
 });
 
 it("parseFfprobeJson returns typed failure for invalid output", () => {
-  const result = Effect.runSync(parseFfprobeJson('{"streams":"bad"}'));
+  const exit = Effect.runSyncExit(parseFfprobeJson('{"streams":"bad"}'));
 
-  assert.deepStrictEqual(result._tag, "MediaProbeFailure");
+  assert.deepStrictEqual(Exit.isFailure(exit), true);
+  if (Exit.isFailure(exit)) {
+    const failure = Cause.failureOption(exit.cause);
+    assert.deepStrictEqual(failure._tag, "Some");
+    if (failure._tag === "Some") {
+      assert.deepStrictEqual(failure.value._tag, "MediaProbeFailure");
+    }
+  }
 });
 
 it("mergeProbedMediaMetadata fills only missing fields", () => {
@@ -184,20 +191,22 @@ it.effect("MediaProbe returns a typed failure when ffprobe output is invalid", (
     });
     const loggerLayer = Logger.replace(Logger.defaultLogger, logger);
 
-    const result = yield* Effect.flatMap(MediaProbe, (mediaProbe) =>
-      mediaProbe.probeVideoFile("/tmp/invalid.mkv"),
-    ).pipe(
-      Effect.provide(
-        Layer.mergeAll(
-          loggerLayer,
-          MediaProbeLive.pipe(
-            Layer.provide(
-              Layer.succeed(
-                CommandExecutor.CommandExecutor,
-                makeCommandExecutorStub((command) =>
-                  commandArgs(command).includes("-version")
-                    ? Effect.succeed("ffprobe version test")
-                    : Effect.succeed('{"streams":"bad"}'),
+    const result = yield* Effect.either(
+      Effect.flatMap(MediaProbe, (mediaProbe) =>
+        mediaProbe.probeVideoFile("/tmp/invalid.mkv"),
+      ).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            loggerLayer,
+            MediaProbeLive.pipe(
+              Layer.provide(
+                Layer.succeed(
+                  CommandExecutor.CommandExecutor,
+                  makeCommandExecutorStub((command) =>
+                    commandArgs(command).includes("-version")
+                      ? Effect.succeed("ffprobe version test")
+                      : Effect.succeed('{"streams":"bad"}'),
+                  ),
                 ),
               ),
             ),
@@ -206,7 +215,10 @@ it.effect("MediaProbe returns a typed failure when ffprobe output is invalid", (
       ),
     );
 
-    assert.deepStrictEqual(result._tag, "MediaProbeFailure");
+    assert.deepStrictEqual(result._tag, "Left");
+    if (result._tag === "Left") {
+      assert.deepStrictEqual(result.left._tag, "MediaProbeFailure");
+    }
     assert.deepStrictEqual(
       messages.some((message) => message.includes("ffprobe output was invalid")),
       true,
