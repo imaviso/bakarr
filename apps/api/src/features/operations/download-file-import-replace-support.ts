@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Cause, Effect } from "effect";
 
 import { ImportFileError } from "@/features/operations/download-file-import-errors.ts";
 import { isNotFoundError } from "@/lib/fs-errors.ts";
@@ -56,18 +56,24 @@ export const replaceDestinationWithStagedFile = Effect.fn(
     return;
   }
 
-  yield* input.fs.rename(input.backupDestination, input.destination).pipe(
-    Effect.catchTag("FileSystemError", (error) =>
-      Effect.logWarning("Failed to restore backup after rename failure").pipe(
-        Effect.annotateLogs({
-          backup_path: input.backupDestination,
-          destination_path: input.destination,
-          error: String(error),
-        }),
-        Effect.asVoid,
-      ),
-    ),
+  const restoreResult = yield* Effect.either(
+    input.fs.rename(input.backupDestination, input.destination),
   );
+
+  if (restoreResult._tag === "Left") {
+    yield* Effect.logError("Failed to restore backup after rename failure").pipe(
+      Effect.annotateLogs({
+        backup_path: input.backupDestination,
+        destination_path: input.destination,
+        error: String(restoreResult.left),
+      }),
+    );
+
+    return yield* new ImportFileError({
+      message: "Failed to rename temp file to destination and restore backup",
+      cause: Cause.sequential(Cause.fail(commitResult.left), Cause.fail(restoreResult.left)),
+    });
+  }
 
   return yield* new ImportFileError({
     message: "Failed to rename temp file to destination",

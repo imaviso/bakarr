@@ -15,10 +15,12 @@ import { SystemMetricsEndpointServiceLive } from "@/features/system/system-metri
 import { SystemRuntimeMetricsServiceLive } from "@/features/system/system-runtime-metrics-service.ts";
 import { SystemStatusReadServiceLive } from "@/features/system/system-status-read-service.ts";
 
+type LayerRef<Out, Err, Req> = Layer.Layer<Out, Err, Req>;
+
 export function makeSystemAppLayer<BCOut, BCE, BCR, CDOut, CDE, CDR, RSOut, RSE, RSR>(input: {
-  readonly backgroundControllerLayer: Layer.Layer<BCOut, BCE, BCR>;
-  readonly catalogDownloadReadLayer: Layer.Layer<CDOut, CDE, CDR>;
-  readonly runtimeSupportLayer: Layer.Layer<RSOut, RSE, RSR>;
+  readonly backgroundControllerLayer: LayerRef<BCOut, BCE, BCR>;
+  readonly catalogDownloadReadLayer: LayerRef<CDOut, CDE, CDR>;
+  readonly runtimeSupportLayer: LayerRef<RSOut, RSE, RSR>;
 }) {
   const withRuntime = <A, E, R>(layer: Layer.Layer<A, E, R>) =>
     layer.pipe(Layer.provideMerge(input.runtimeSupportLayer));

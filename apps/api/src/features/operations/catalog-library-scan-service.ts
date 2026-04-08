@@ -1,4 +1,4 @@
-import { Cause, Context, Effect, Layer, Ref } from "effect";
+import { Context, Effect, Layer, Ref } from "effect";
 
 import type { AppDatabase, DatabaseError } from "@/db/database.ts";
 import { anime } from "@/db/schema.ts";
@@ -18,6 +18,7 @@ import { FileSystem, type FileSystemShape } from "@/lib/filesystem.ts";
 import { tryDatabasePromise, type TryDatabasePromise } from "@/lib/effect-db.ts";
 import { scanAnimeLibraryRow } from "@/features/operations/catalog-library-scan-row-support.ts";
 import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
+import { markJobFailureOrFailWithError } from "@/lib/job-failure-support.ts";
 
 export interface CatalogLibraryScanServiceShape {
   readonly runLibraryScan: () => Effect.Effect<
@@ -38,19 +39,13 @@ function makeCatalogLibraryScanSupport(input: {
   const failAfterMarkingJobFailure = (
     cause: DatabaseError | OperationsInfrastructureError | OperationsPathError,
   ) =>
-    markJobFailed(input.db, "library_scan", cause, nowIso).pipe(
-      Effect.catchAllCause((markFailureCause) =>
-        Effect.logError("Failed to record library scan job failure").pipe(
-          Effect.annotateLogs({
-            job: "library_scan",
-            mark_job_failed_cause: Cause.pretty(markFailureCause),
-            run_failure: cause.message,
-          }),
-          Effect.zipRight(Effect.failCause(Cause.sequential(Cause.fail(cause), markFailureCause))),
-        ),
-      ),
-      Effect.zipRight(Effect.fail(cause)),
-    );
+    markJobFailureOrFailWithError({
+      error: cause,
+      job: "library_scan",
+      logAnnotations: { run_failure: cause.message },
+      logMessage: "Failed to record library scan job failure",
+      markFailed: markJobFailed(input.db, "library_scan", cause, nowIso),
+    }).pipe(Effect.zipRight(Effect.fail(cause)));
 
   const runLibraryScan = Effect.fn("OperationsService.runLibraryScan")(
     function* () {

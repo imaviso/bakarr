@@ -12,32 +12,30 @@ export const stageSourceIntoTempFile = Effect.fn("Operations.stageSourceIntoTemp
     readonly sourcePath: string;
     readonly tempDestination: string;
   }) {
-    if (input.importMode === "copy") {
-      return yield* input.fs.copyFile(input.sourcePath, input.tempDestination).pipe(
-        Effect.mapError(
-          (cause) =>
-            new ImportFileError({
-              message: `Failed to ${input.importMode} file to temp destination`,
-              cause,
-            }),
-        ),
-      );
+    const stageResult = yield* Effect.either(
+      input.importMode === "copy"
+        ? input.fs.copyFile(input.sourcePath, input.tempDestination)
+        : input.fs
+            .rename(input.sourcePath, input.tempDestination)
+            .pipe(
+              Effect.catchTag("FileSystemError", (error) =>
+                isCrossFilesystemError(error)
+                  ? stageMoveAcrossFilesystems(input.fs, input.sourcePath, input.tempDestination)
+                  : Effect.fail(error),
+              ),
+            ),
+    );
+
+    if (stageResult._tag === "Right") {
+      return;
     }
 
-    return yield* input.fs.rename(input.sourcePath, input.tempDestination).pipe(
-      Effect.catchTag("FileSystemError", (error) =>
-        isCrossFilesystemError(error)
-          ? stageMoveAcrossFilesystems(input.fs, input.sourcePath, input.tempDestination)
-          : Effect.fail(error),
-      ),
-      Effect.mapError(
-        (cause) =>
-          new ImportFileError({
-            message: `Failed to ${input.importMode} file to temp destination`,
-            cause,
-          }),
-      ),
-    );
+    yield* cleanupStagedTempFile(input.fs, input.tempDestination);
+
+    return yield* new ImportFileError({
+      message: `Failed to ${input.importMode} file to temp destination`,
+      cause: stageResult.left,
+    });
   },
 );
 

@@ -7,9 +7,11 @@ import { CatalogRssServiceLive } from "@/features/operations/catalog-rss-service
 import { ImportPathScanServiceLive } from "@/features/operations/import-path-scan-service.ts";
 import { LibraryRootsQueryServiceLive } from "@/features/operations/library-roots-query-service.ts";
 
+type LayerRef<Out, Err, Req> = Layer.Layer<Out, Err, Req>;
+
 export function makeOperationsCatalogLayer<RSOut, RSE, RSR, POut, PE, PR>(input: {
-  readonly operationsProgressLayer: Layer.Layer<POut, PE, PR>;
-  readonly runtimeSupportLayer: Layer.Layer<RSOut, RSE, RSR>;
+  readonly operationsProgressLayer: LayerRef<POut, PE, PR>;
+  readonly runtimeSupportLayer: LayerRef<RSOut, RSE, RSR>;
 }) {
   const catalogLibraryReadLayer = CatalogLibraryReadServiceLive.pipe(
     Layer.provideMerge(input.runtimeSupportLayer),

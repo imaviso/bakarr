@@ -4,13 +4,13 @@ import type { ScannedFile, SkippedFile } from "@packages/shared/index.ts";
 import { scanVideoFilesStream } from "@/features/operations/file-scanner.ts";
 import { resolveImportScanLimit } from "@/features/operations/import-path-scan-policy.ts";
 import { OperationsPathError } from "@/features/operations/errors.ts";
-import { analyzeScannedFile } from "@/features/operations/library-import.ts";
+import { analyzeScannedFile, type AnalyzedFile } from "@/features/operations/library-import.ts";
 import type { FileSystemShape } from "@/lib/filesystem.ts";
 
 export interface DiscoverImportScanFilesResult {
   readonly canonicalPath: string;
-  readonly analyzed: ReturnType<typeof analyzeScannedFile>[];
-  readonly episodeFiles: Array<ReturnType<typeof analyzeScannedFile>>;
+  readonly analyzed: AnalyzedFile[];
+  readonly episodeFiles: AnalyzedFile[];
   readonly skippedFiles: SkippedFile[];
   readonly truncated: boolean;
 }

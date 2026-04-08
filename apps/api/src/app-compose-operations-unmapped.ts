@@ -4,9 +4,11 @@ import { UnmappedControlServiceLive } from "@/features/operations/unmapped-contr
 import { UnmappedImportServiceLive } from "@/features/operations/unmapped-orchestration-import.ts";
 import { UnmappedScanServiceLive } from "@/features/operations/unmapped-scan-service.ts";
 
+type LayerRef<Out, Err, Req> = Layer.Layer<Out, Err, Req>;
+
 export function makeOperationsUnmappedLayer<RSOut, RSE, RSR, OOut, OE, OR>(input: {
-  readonly operationsRuntimeLayer: Layer.Layer<OOut, OE, OR>;
-  readonly runtimeSupportLayer: Layer.Layer<RSOut, RSE, RSR>;
+  readonly operationsRuntimeLayer: LayerRef<OOut, OE, OR>;
+  readonly runtimeSupportLayer: LayerRef<RSOut, RSE, RSR>;
 }) {
   const unmappedScanLayer = UnmappedScanServiceLive.pipe(
     Layer.provideMerge(input.operationsRuntimeLayer),

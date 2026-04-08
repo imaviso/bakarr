@@ -21,15 +21,13 @@ export const systemEventsRouter = HttpRouter.empty.pipe(
           ).pipe(Stream.withSpan("http.events.stream")),
         );
 
-        return Effect.succeed(
-          HttpServerResponse.stream(sseStream, {
-            contentType: "text/event-stream",
-            headers: {
-              "Cache-Control": "no-cache",
-              Connection: "keep-alive",
-            },
-          }),
-        );
+        return HttpServerResponse.stream(sseStream, {
+          contentType: "text/event-stream",
+          headers: {
+            "Cache-Control": "no-cache",
+            Connection: "keep-alive",
+          },
+        });
       },
     ),
   ),

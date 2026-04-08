@@ -5,9 +5,9 @@ import { makeOperationsDownloadLayer } from "@/app-compose-operations-download.t
 import { makeOperationsSearchLayer } from "@/app-compose-operations-search.ts";
 import { makeOperationsUnmappedLayer } from "@/app-compose-operations-unmapped.ts";
 
-export function makeOperationsAppLayers<ROut, E, RIn>(
-  runtimeSupportLayer: Layer.Layer<ROut, E, RIn>,
-) {
+type LayerRef<Out, Err, Req> = Layer.Layer<Out, Err, Req>;
+
+export function makeOperationsAppLayers<ROut, E, RIn>(runtimeSupportLayer: LayerRef<ROut, E, RIn>) {
   const {
     catalogDownloadReadLayer,
     downloadRuntimeLayer,

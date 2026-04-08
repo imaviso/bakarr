@@ -8,10 +8,12 @@ import { BackgroundSearchRssWorkerServiceLive } from "@/features/operations/back
 import { SearchEpisodeServiceLive } from "@/features/operations/search-orchestration-episode-support.ts";
 import { SearchReleaseServiceLive } from "@/features/operations/search-orchestration-release-search.ts";
 
+type LayerRef<Out, Err, Req> = Layer.Layer<Out, Err, Req>;
+
 export function makeOperationsSearchLayer<RSOut, RSE, RSR, DOut, DE, DR, POut, PE, PR>(input: {
-  readonly downloadRuntimeLayer: Layer.Layer<DOut, DE, DR>;
-  readonly operationsProgressLayer: Layer.Layer<POut, PE, PR>;
-  readonly runtimeSupportLayer: Layer.Layer<RSOut, RSE, RSR>;
+  readonly downloadRuntimeLayer: LayerRef<DOut, DE, DR>;
+  readonly operationsProgressLayer: LayerRef<POut, PE, PR>;
+  readonly runtimeSupportLayer: LayerRef<RSOut, RSE, RSR>;
 }) {
   const backgroundSearchQueueLayer = BackgroundSearchQueueServiceLive.pipe(
     Layer.provideMerge(input.downloadRuntimeLayer),

@@ -1,7 +1,7 @@
 import type { Config } from "@packages/shared/index.ts";
 import { Context, Effect, Layer } from "effect";
 
-import { Database, type AppDatabase } from "@/db/database.ts";
+import { Database, type AppDatabase, type DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
 import { FileSystem } from "@/lib/filesystem.ts";
@@ -12,10 +12,36 @@ import { makeDownloadCompletedTorrentReconciliation } from "@/features/operation
 import { makeReconcileDownloadByIdEffect } from "@/features/operations/download-reconciliation-lookup.ts";
 import { tryDatabasePromise, type TryDatabasePromise } from "@/lib/effect-db.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
+import type { ExternalCallError } from "@/lib/effect-retry.ts";
+import type {
+  DownloadConflictError,
+  DownloadNotFoundError,
+  OperationsError,
+} from "@/features/operations/errors.ts";
+import type { MaybeCleanupImportedTorrent } from "@/features/operations/download-reconciliation-shared.ts";
+import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 
-export type DownloadReconciliationServiceShape = ReturnType<
-  typeof makeDownloadReconciliationService
->;
+export interface DownloadReconciliationServiceShape {
+  readonly maybeCleanupImportedTorrent: MaybeCleanupImportedTorrent;
+  readonly reconcileCompletedTorrentEffect: (
+    infoHash: string,
+    contentPath: string | undefined,
+  ) => Effect.Effect<
+    void,
+    ExternalCallError | OperationsError | DatabaseError | RuntimeConfigSnapshotError
+  >;
+  readonly reconcileDownloadByIdEffect: (
+    id: number,
+  ) => Effect.Effect<
+    void,
+    | DownloadConflictError
+    | DownloadNotFoundError
+    | ExternalCallError
+    | OperationsError
+    | DatabaseError
+    | RuntimeConfigSnapshotError
+  >;
+}
 
 export class DownloadReconciliationService extends Context.Tag(
   "@bakarr/api/DownloadReconciliationService",
@@ -48,7 +74,7 @@ export function makeDownloadReconciliationService(input: {
     maybeCleanupImportedTorrent,
     reconcileCompletedTorrentEffect,
     reconcileDownloadByIdEffect,
-  };
+  } satisfies DownloadReconciliationServiceShape;
 }
 
 export const DownloadReconciliationServiceLive = Layer.effect(

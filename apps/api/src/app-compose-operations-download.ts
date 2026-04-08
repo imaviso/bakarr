@@ -13,8 +13,10 @@ import {
 } from "@/features/operations/runtime-support.ts";
 import { TorrentClientServiceLive } from "@/features/operations/torrent-client-service.ts";
 
+type LayerRef<Out, Err, Req> = Layer.Layer<Out, Err, Req>;
+
 export function makeOperationsDownloadLayer<ROut, E, RIn>(
-  runtimeSupportLayer: Layer.Layer<ROut, E, RIn>,
+  runtimeSupportLayer: LayerRef<ROut, E, RIn>,
 ) {
   const coordinatorsLayer = Layer.mergeAll(
     DownloadTriggerCoordinatorLive,

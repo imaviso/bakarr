@@ -1,6 +1,7 @@
 import { Effect, Option } from "effect";
 import { eq } from "drizzle-orm";
 
+import type { DownloadSourceMetadata } from "@packages/shared/index.ts";
 import { DatabaseError, type AppDatabase } from "@/db/database.ts";
 import { anime, downloads } from "@/db/schema.ts";
 import { TorrentClientService } from "@/features/operations/torrent-client-service.ts";
@@ -35,7 +36,7 @@ export interface PreparedTriggerDownload {
   readonly inferredCoveredEpisodes: readonly number[];
   readonly now: string;
   readonly requestedEpisode: number;
-  readonly sourceMetadata: ReturnType<typeof buildDownloadSourceMetadataFromRelease>;
+  readonly sourceMetadata: DownloadSourceMetadata;
 }
 
 export const prepareTriggerDownload = Effect.fn("Operations.prepareTriggerDownload")(

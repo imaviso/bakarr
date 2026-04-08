@@ -17,6 +17,7 @@ import {
 } from "@/lib/job-status.ts";
 import { appendSystemLog } from "@/features/system/support.ts";
 import type { ExternalCallError } from "@/lib/effect-retry.ts";
+import { markJobFailureOrFailWithError } from "@/lib/job-failure-support.ts";
 
 type MetadataRefreshError = DatabaseError | ExternalCallError;
 
@@ -32,17 +33,13 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
     error: E,
     message: string,
   ) =>
-    markJobFailed(input.db, "metadata_refresh", error, nowIso).pipe(
-      Effect.catchAllCause((markFailureCause) =>
-        Effect.logError("Failed to record metadata refresh job failure").pipe(
-          Effect.annotateLogs({
-            job: "metadata_refresh",
-            mark_job_failed_cause: Cause.pretty(markFailureCause),
-            run_failure: error.message,
-          }),
-          Effect.zipRight(Effect.failCause(Cause.sequential(Cause.fail(error), markFailureCause))),
-        ),
-      ),
+    markJobFailureOrFailWithError({
+      error,
+      job: "metadata_refresh",
+      logAnnotations: { run_failure: error.message },
+      logMessage: "Failed to record metadata refresh job failure",
+      markFailed: markJobFailed(input.db, "metadata_refresh", error, nowIso),
+    }).pipe(
       Effect.zipRight(
         appendSystemLog(
           input.db,
@@ -74,19 +71,13 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
       message: "Failed to refresh metadata",
     });
 
-    return markJobFailed(input.db, "metadata_refresh", cause, nowIso).pipe(
-      Effect.catchAllCause((markFailureCause) =>
-        Effect.logError("Failed to record metadata refresh infrastructure failure").pipe(
-          Effect.annotateLogs({
-            job: "metadata_refresh",
-            mark_job_failed_cause: Cause.pretty(markFailureCause),
-            run_failure_cause: Cause.pretty(cause),
-          }),
-          Effect.zipRight(
-            Effect.failCause(Cause.sequential(Cause.fail(infrastructureError), markFailureCause)),
-          ),
-        ),
-      ),
+    return markJobFailureOrFailWithError({
+      error: infrastructureError,
+      job: "metadata_refresh",
+      logAnnotations: { run_failure_cause: Cause.pretty(cause) },
+      logMessage: "Failed to record metadata refresh infrastructure failure",
+      markFailed: markJobFailed(input.db, "metadata_refresh", cause, nowIso),
+    }).pipe(
       Effect.zipRight(
         appendSystemLog(
           input.db,

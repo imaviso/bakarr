@@ -14,6 +14,7 @@ import type { OperationsError } from "@/features/operations/errors.ts";
 import { OperationsProgress } from "@/features/operations/operations-progress-service.ts";
 import type { ExternalCallError } from "@/lib/effect-retry.ts";
 import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
+import { markJobFailureOrFailWithCause } from "@/lib/job-failure-support.ts";
 
 export type BackgroundSearchRssWorkerError = DatabaseError | ExternalCallError | OperationsError;
 
@@ -34,19 +35,13 @@ export function makeBackgroundSearchRssWorkerService(input: {
   readonly rssService: typeof SearchBackgroundRssService.Service;
 }) {
   const markFailureAndRethrowCause = (cause: Cause.Cause<BackgroundSearchRssWorkerError>) =>
-    markJobFailed(input.db, "rss", cause, input.nowIso).pipe(
-      Effect.catchAllCause((markFailureCause) =>
-        Effect.logError("Failed to record rss job failure").pipe(
-          Effect.annotateLogs({
-            job: "rss",
-            mark_job_failed_cause: Cause.pretty(markFailureCause),
-            run_failure_cause: Cause.pretty(cause),
-          }),
-          Effect.zipRight(Effect.failCause(Cause.sequential(cause, markFailureCause))),
-        ),
-      ),
-      Effect.zipRight(Effect.failCause(cause)),
-    );
+    markJobFailureOrFailWithCause({
+      cause,
+      job: "rss",
+      logAnnotations: { run_failure_cause: Cause.pretty(cause) },
+      logMessage: "Failed to record rss job failure",
+      markFailed: markJobFailed(input.db, "rss", cause, input.nowIso),
+    }).pipe(Effect.zipRight(Effect.failCause(cause)));
 
   const runRssWorker = Effect.fn("BackgroundSearchRssWorkerService.runRssWorker")(function* () {
     return yield* Effect.gen(function* () {

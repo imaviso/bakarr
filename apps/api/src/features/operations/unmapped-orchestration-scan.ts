@@ -28,6 +28,7 @@ import type { TryDatabasePromise } from "@/lib/effect-db.ts";
 import type { UnmappedScanCoordinatorShape } from "@/features/operations/runtime-support.ts";
 import type { UnmappedScanQueryShape } from "@/features/operations/unmapped-orchestration-scan-query.ts";
 import { makeUnmappedScanQuerySupport } from "@/features/operations/unmapped-orchestration-scan-query.ts";
+import { markJobFailureOrFailWithError } from "@/lib/job-failure-support.ts";
 
 export interface UnmappedScanWorkflowShape {
   readonly getUnmappedFolders: UnmappedScanQueryShape["getUnmappedFolders"];
@@ -63,19 +64,13 @@ export function makeUnmappedScanWorkflow(input: {
   const failAfterMarkingJobFailure = (
     error: DatabaseError | OperationsPathError | import("./errors.ts").OperationsStoredDataError,
   ) =>
-    markJobFailed(db, "unmapped_scan", error, nowIso).pipe(
-      Effect.catchAllCause((markFailureCause) =>
-        Effect.logError("Failed to record unmapped scan job failure").pipe(
-          Effect.annotateLogs({
-            job: "unmapped_scan",
-            mark_job_failed_cause: Cause.pretty(markFailureCause),
-            run_failure: error.message,
-          }),
-          Effect.zipRight(Effect.failCause(Cause.sequential(Cause.fail(error), markFailureCause))),
-        ),
-      ),
-      Effect.zipRight(Effect.fail(error)),
-    );
+    markJobFailureOrFailWithError({
+      error,
+      job: "unmapped_scan",
+      logAnnotations: { run_failure: error.message },
+      logMessage: "Failed to record unmapped scan job failure",
+      markFailed: markJobFailed(db, "unmapped_scan", error, nowIso),
+    }).pipe(Effect.zipRight(Effect.fail(error)));
 
   const failInfrastructureAfterMarkingJobFailure = (cause: Cause.Cause<unknown>) => {
     const infrastructureError = new OperationsInfrastructureError({
@@ -83,21 +78,13 @@ export function makeUnmappedScanWorkflow(input: {
       cause,
     });
 
-    return markJobFailed(db, "unmapped_scan", cause, nowIso).pipe(
-      Effect.catchAllCause((markFailureCause) =>
-        Effect.logError("Failed to record unmapped scan infrastructure failure").pipe(
-          Effect.annotateLogs({
-            job: "unmapped_scan",
-            mark_job_failed_cause: Cause.pretty(markFailureCause),
-            run_failure_cause: Cause.pretty(cause),
-          }),
-          Effect.zipRight(
-            Effect.failCause(Cause.sequential(Cause.fail(infrastructureError), markFailureCause)),
-          ),
-        ),
-      ),
-      Effect.zipRight(Effect.fail(infrastructureError)),
-    );
+    return markJobFailureOrFailWithError({
+      error: infrastructureError,
+      job: "unmapped_scan",
+      logAnnotations: { run_failure_cause: Cause.pretty(cause) },
+      logMessage: "Failed to record unmapped scan infrastructure failure",
+      markFailed: markJobFailed(db, "unmapped_scan", cause, nowIso),
+    }).pipe(Effect.zipRight(Effect.fail(infrastructureError)));
   };
 
   const runUnmappedScanPass = Effect.fn("OperationsService.runUnmappedScanPass")(
