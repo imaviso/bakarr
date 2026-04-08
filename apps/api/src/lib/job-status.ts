@@ -117,6 +117,44 @@ export const markJobFailed = Effect.fn("JobStatus.markJobFailed")(function* (
   );
 });
 
+export const updateJobProgress = Effect.fn("JobStatus.updateJobProgress")(function* (
+  db: AppDatabase,
+  name: string,
+  progressCurrent: number,
+  progressTotal: number,
+  nowIso: NowIso,
+  message?: string,
+) {
+  const now = yield* nowIso();
+
+  yield* tryDatabasePromise("Failed to update job progress", () =>
+    db
+      .insert(backgroundJobs)
+      .values({
+        isRunning: true,
+        lastMessage: message ?? null,
+        lastRunAt: now,
+        lastStatus: "running",
+        lastSuccessAt: null,
+        name,
+        progressCurrent,
+        progressTotal,
+        runCount: 1,
+      })
+      .onConflictDoUpdate({
+        target: backgroundJobs.name,
+        set: {
+          isRunning: true,
+          lastMessage: message ?? null,
+          lastRunAt: now,
+          lastStatus: "running",
+          progressCurrent,
+          progressTotal,
+        },
+      }),
+  );
+});
+
 export function formatJobFailureMessage(cause: unknown): string {
   if (Cause.isCause(cause)) {
     return Cause.pretty(cause);

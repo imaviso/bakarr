@@ -5,7 +5,7 @@ import type { Scope } from "effect";
 import type { Config } from "@packages/shared/index.ts";
 import type { BackgroundWorkerSpawner } from "@/background-controller-core.ts";
 import { buildBackgroundSchedule, resolveBackgroundWorkerLoopPlan } from "@/background-schedule.ts";
-import type { BackgroundTaskRunnerShape } from "@/background-task-runner.ts";
+import type { BackgroundTaskRunnerError, BackgroundTaskRunnerShape } from "@/background-task-runner.ts";
 import type { BackgroundWorkerMonitorShape } from "@/background-monitor.ts";
 import {
   BACKGROUND_WORKER_NAMES,
@@ -70,7 +70,10 @@ export function makeBackgroundWorkerSpawner(input: {
     config: Config,
   ) {
     const schedule = buildBackgroundSchedule(config);
-    const workerTaskByName: Record<BackgroundWorkerName, () => Effect.Effect<void, unknown>> = {
+    const workerTaskByName: Record<
+      BackgroundWorkerName,
+      () => Effect.Effect<void, BackgroundTaskRunnerError>
+    > = {
       download_sync: taskRunner.runDownloadSyncWorkerTask,
       library_scan: taskRunner.runLibraryScanWorkerTask,
       metadata_refresh: taskRunner.runMetadataRefreshWorkerTask,

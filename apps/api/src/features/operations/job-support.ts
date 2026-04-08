@@ -3,12 +3,13 @@ import { Effect } from "effect";
 
 import type { DownloadSourceMetadata } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
-import { backgroundJobs, downloadEvents, downloads, episodes, systemLogs } from "@/db/schema.ts";
+import { downloadEvents, downloads, episodes, systemLogs } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
 import {
   markJobFailed as markJobFailedBase,
   markJobStarted as markJobStartedBase,
   markJobSucceeded as markJobSucceededBase,
+  updateJobProgress as updateJobProgressBase,
 } from "@/lib/job-status.ts";
 import { encodeDownloadEventMetadata } from "@/features/operations/repository/download-repository.ts";
 
@@ -122,34 +123,7 @@ export const updateJobProgress = Effect.fn("JobSupport.updateJobProgress")(funct
   nowIso: NowIso,
   message?: string,
 ) {
-  const now = yield* nowIso();
-
-  yield* tryDatabasePromise("Failed to update job progress", () =>
-    db
-      .insert(backgroundJobs)
-      .values({
-        isRunning: true,
-        lastMessage: message ?? null,
-        lastRunAt: now,
-        lastStatus: "running",
-        lastSuccessAt: null,
-        name,
-        progressCurrent,
-        progressTotal,
-        runCount: 1,
-      })
-      .onConflictDoUpdate({
-        target: backgroundJobs.name,
-        set: {
-          isRunning: true,
-          lastMessage: message ?? null,
-          lastRunAt: now,
-          lastStatus: "running",
-          progressCurrent,
-          progressTotal,
-        },
-      }),
-  );
+  yield* updateJobProgressBase(db, name, progressCurrent, progressTotal, nowIso, message);
 });
 
 export const loadMissingEpisodeNumbers = Effect.fn("JobSupport.loadMissingEpisodeNumbers")(

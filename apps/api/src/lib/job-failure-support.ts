@@ -2,8 +2,8 @@ import { Cause, Data, Effect } from "effect";
 
 export class JobFailurePersistenceError extends Data.TaggedError("JobFailurePersistenceError")<{
   readonly job: string;
-  readonly mark_failure_cause: string;
-  readonly original_failure: string;
+  readonly mark_failure_cause: Cause.Cause<unknown>;
+  readonly original_failure: unknown;
 }> {}
 
 export function markJobFailureOrFailWithError<E>(input: {
@@ -25,8 +25,8 @@ export function markJobFailureOrFailWithError<E>(input: {
           Effect.fail(
             new JobFailurePersistenceError({
               job: input.job,
-              mark_failure_cause: Cause.pretty(markFailureCause),
-              original_failure: String(input.error),
+              mark_failure_cause: markFailureCause,
+              original_failure: input.error,
             }),
           ),
         ),
@@ -54,8 +54,8 @@ export function markJobFailureOrFailWithCause<E>(input: {
           Effect.fail(
             new JobFailurePersistenceError({
               job: input.job,
-              mark_failure_cause: Cause.pretty(markFailureCause),
-              original_failure: Cause.pretty(input.cause),
+              mark_failure_cause: markFailureCause,
+              original_failure: input.cause,
             }),
           ),
         ),

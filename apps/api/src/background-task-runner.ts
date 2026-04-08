@@ -14,7 +14,7 @@ import { CatalogLibraryScanService } from "@/features/operations/catalog-library
 import { AnimeMaintenanceService } from "@/features/anime/anime-maintenance-service.ts";
 import { BackgroundSearchRssWorkerService } from "@/features/operations/background-search-rss-worker-service.ts";
 
-type BackgroundTaskRunnerError =
+export type BackgroundTaskRunnerError =
   | AnimeServiceError
   | DatabaseError
   | ExternalCallError
