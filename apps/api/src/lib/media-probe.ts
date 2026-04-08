@@ -1,5 +1,7 @@
-import { Command, CommandExecutor } from "@effect/platform";
+import { CommandExecutor } from "@effect/platform";
 import { Context, Effect, Either, Layer, Option, ParseResult, Schema } from "effect";
+
+import { MediaProbeFailure, runFfprobeCommandWith } from "@/lib/media-probe-command.ts";
 
 const FFPROBE_VERSION_TIMEOUT_MS = 3_000;
 const FFPROBE_PROBE_TIMEOUT_MS = 10_000;
@@ -23,14 +25,6 @@ export class MediaProbeMetadataFound extends Schema.TaggedClass<MediaProbeMetada
   },
 ) {}
 
-export class MediaProbeFailure extends Schema.TaggedError<MediaProbeFailure>()(
-  "MediaProbeFailure",
-  {
-    cause: Schema.optional(Schema.Defect),
-    message: Schema.String,
-  },
-) {}
-
 export class MediaProbeNoMetadata extends Schema.TaggedClass<MediaProbeNoMetadata>()(
   "MediaProbeNoMetadata",
   {},
@@ -38,10 +32,7 @@ export class MediaProbeNoMetadata extends Schema.TaggedClass<MediaProbeNoMetadat
 
 export type MediaProbeResult = MediaProbeMetadataFound | MediaProbeNoMetadata;
 
-class FFProbeError extends Schema.TaggedError<FFProbeError>()("FFProbeError", {
-  cause: Schema.Defect,
-  message: Schema.String,
-}) {}
+export { MediaProbeFailure };
 
 class FFProbeStreamSchema extends Schema.Class<FFProbeStreamSchema>("FFProbeStreamSchema")({
   codec_type: Schema.String,
@@ -336,11 +327,10 @@ function normalizeFfprobeDecodedOutput(
   );
 }
 
-export const MediaProbeCommandOutputSchema = Schema.Struct({
-  stdout: Schema.String,
-});
-
-export type MediaProbeCommandOutput = Schema.Schema.Type<typeof MediaProbeCommandOutputSchema>;
+export {
+  MediaProbeCommandOutputSchema,
+  type MediaProbeCommandOutput,
+} from "@/lib/media-probe-command.ts";
 
 function formatParseCause(cause: unknown) {
   return ParseResult.isParseError(cause)
@@ -362,52 +352,6 @@ function yieldLog(
   return Effect.logWarning(message).pipe(
     Effect.annotateLogs(parseError ? { path, parse_error: parseError } : { path }),
   );
-}
-
-function runFfprobeCommand(
-  executeString: (
-    command: Parameters<CommandExecutor.CommandExecutor["string"]>[0],
-  ) => Effect.Effect<string, unknown>,
-  args: readonly string[],
-  timeoutMs: number,
-): Effect.Effect<MediaProbeCommandOutput, MediaProbeFailure> {
-  return Effect.suspend(() => executeString(Command.make("ffprobe", ...args))).pipe(
-    Effect.map((stdout) => ({ stdout }) satisfies MediaProbeCommandOutput),
-    Effect.mapError(
-      (cause) =>
-        new FFProbeError({
-          cause,
-          message: "ffprobe command failed",
-        }),
-    ),
-    Effect.timeoutFail({
-      duration: `${timeoutMs} millis`,
-      onTimeout: () =>
-        new FFProbeError({
-          cause: "Timeout",
-          message: `ffprobe timed out after ${timeoutMs}ms`,
-        }),
-    }),
-    Effect.catchTag("FFProbeError", (error) =>
-      Effect.logWarning("ffprobe command failed").pipe(
-        Effect.annotateLogs({
-          args: args.join(" "),
-          error: error.message,
-        }),
-        Effect.zipRight(
-          Effect.fail(new MediaProbeFailure({ cause: error.cause, message: error.message })),
-        ),
-      ),
-    ),
-  );
-}
-
-function runFfprobeCommandWith(
-  executor: CommandExecutor.CommandExecutor,
-  args: readonly string[],
-  timeoutMs: number,
-) {
-  return runFfprobeCommand(executor.string, args, timeoutMs);
 }
 
 const makeMediaProbe = (

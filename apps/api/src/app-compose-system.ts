@@ -12,7 +12,6 @@ import { SystemEventsServiceLive } from "@/features/system/system-events-service
 import { SystemLibraryStatsReadServiceLive } from "@/features/system/system-library-stats-read-service.ts";
 import { SystemLogServiceLive } from "@/features/system/system-log-service.ts";
 import { SystemMetricsEndpointServiceLive } from "@/features/system/system-metrics-endpoint-service.ts";
-import { SystemReadServiceLive } from "@/features/system/system-read-service.ts";
 import { SystemRuntimeMetricsServiceLive } from "@/features/system/system-runtime-metrics-service.ts";
 import { SystemStatusReadServiceLive } from "@/features/system/system-status-read-service.ts";
 
@@ -52,7 +51,6 @@ export function makeSystemAppLayer<BCOut, BCE, BCR, CDOut, CDE, CDR, RSOut, RSE,
     systemDashboardReadLayer,
     systemRuntimeMetricsLayer,
   );
-  const systemReadLayer = SystemReadServiceLive.pipe(Layer.provideMerge(systemReadSubgraphLayer));
   const systemMetricsEndpointLayer = SystemMetricsEndpointServiceLive.pipe(
     Layer.provideMerge(systemRuntimeMetricsLayer),
   );
@@ -85,7 +83,6 @@ export function makeSystemAppLayer<BCOut, BCE, BCR, CDOut, CDE, CDR, RSOut, RSE,
   return Layer.mergeAll(
     runtimeOnlySubgraphLayer,
     systemReadSubgraphLayer,
-    systemReadLayer,
     orchestrationSubgraphLayer,
   );
 }

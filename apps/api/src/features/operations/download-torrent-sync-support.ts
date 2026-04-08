@@ -34,6 +34,13 @@ export interface DownloadTorrentSyncSupportInput extends DownloadTorrentActionSu
   >;
 }
 
+export interface DownloadTorrentSyncSupportShape {
+  readonly syncDownloadsWithQBitEffect: () => Effect.Effect<
+    void,
+    import("@/features/operations/errors.ts").OperationsError | RuntimeConfigSnapshotError
+  >;
+}
+
 export function makeDownloadTorrentSyncSupport(input: DownloadTorrentSyncSupportInput) {
   const { db, tryDatabasePromise, reconcileCompletedTorrentEffect, torrentClientService } = input;
   const { nowIso } = input;
@@ -238,5 +245,3 @@ export function makeDownloadTorrentSyncSupport(input: DownloadTorrentSyncSupport
     syncDownloadsWithQBitEffect,
   };
 }
-
-export type DownloadTorrentSyncSupportShape = ReturnType<typeof makeDownloadTorrentSyncSupport>;

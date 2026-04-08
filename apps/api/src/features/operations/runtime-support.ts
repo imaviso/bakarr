@@ -3,9 +3,9 @@ import { Context, Effect, Exit, Layer, Scope } from "effect";
 import { makeSerializedFlagCoordinator } from "@/lib/effect-coalescing-serialized-flag-coordinator.ts";
 
 export interface DownloadTriggerCoordinatorShape {
-  readonly runExclusiveDownloadTrigger: <A, E, R>(
-    operation: Effect.Effect<A, E, R>,
-  ) => Effect.Effect<A, E, R>;
+  readonly runExclusiveDownloadTrigger: <A, E>(
+    operation: Effect.Effect<A, E>,
+  ) => Effect.Effect<A, E>;
 }
 
 export class DownloadTriggerCoordinator extends Context.Tag(
@@ -18,7 +18,7 @@ const makeDownloadTriggerCoordinator = Effect.fn(
   const semaphore = yield* Effect.makeSemaphore(1);
 
   return {
-    runExclusiveDownloadTrigger: <A, E, R>(operation: Effect.Effect<A, E, R>) =>
+    runExclusiveDownloadTrigger: <A, E>(operation: Effect.Effect<A, E>) =>
       semaphore.withPermits(1)(operation),
   } satisfies DownloadTriggerCoordinatorShape;
 });
@@ -30,21 +30,18 @@ export const DownloadTriggerCoordinatorLive = Layer.effect(
 
 export interface UnmappedScanCoordinatorShape {
   readonly completeUnmappedScan: () => Effect.Effect<void>;
-  readonly forkUnmappedScanLoop: <A, E, R>(
-    loop: Effect.Effect<A, E, R>,
-  ) => Effect.Effect<void, never, R>;
+  readonly forkUnmappedScanLoop: <A, E>(loop: Effect.Effect<A, E>) => Effect.Effect<void>;
   readonly tryBeginUnmappedScan: () => Effect.Effect<boolean>;
-  readonly withUnmappedScanLease: <A, E, R>(input: {
+  readonly withUnmappedScanLease: <A, E>(input: {
     readonly whenAcquired: Effect.Effect<
       {
         readonly keepLease?: boolean;
         readonly value: A;
       },
-      E,
-      R
+      E
     >;
-    readonly whenBusy: Effect.Effect<A, E, R>;
-  }) => Effect.Effect<A, E, R>;
+    readonly whenBusy: Effect.Effect<A, E>;
+  }) => Effect.Effect<A, E>;
 }
 
 export class UnmappedScanCoordinator extends Context.Tag("@bakarr/api/UnmappedScanCoordinator")<
@@ -61,19 +58,18 @@ const makeUnmappedScanCoordinator = Effect.fn("OperationsService.makeUnmappedSca
 
     return {
       completeUnmappedScan: () => coordinator.finish,
-      forkUnmappedScanLoop: <A, E, R>(loop: Effect.Effect<A, E, R>) =>
+      forkUnmappedScanLoop: <A, E>(loop: Effect.Effect<A, E>) =>
         Effect.forkIn(scope)(loop).pipe(Effect.asVoid),
       tryBeginUnmappedScan: () => coordinator.tryStartAndMarkRunning,
-      withUnmappedScanLease: <A, E, R>(input: {
+      withUnmappedScanLease: <A, E>(input: {
         readonly whenAcquired: Effect.Effect<
           {
             readonly keepLease?: boolean;
             readonly value: A;
           },
-          E,
-          R
+          E
         >;
-        readonly whenBusy: Effect.Effect<A, E, R>;
+        readonly whenBusy: Effect.Effect<A, E>;
       }) =>
         Effect.gen(function* () {
           const acquired = yield* coordinator.tryStartAndMarkRunning;

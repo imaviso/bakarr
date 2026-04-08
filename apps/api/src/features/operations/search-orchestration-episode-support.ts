@@ -38,6 +38,13 @@ export interface SearchEpisodeSupportInput {
 
 export type SearchEpisodeAnimeRow = typeof anime.$inferSelect;
 
+export interface SearchEpisodeServiceShape {
+  readonly searchEpisode: (
+    animeId: number,
+    episodeNumber: number,
+  ) => Effect.Effect<EpisodeSearchResult[], OperationsError | RuntimeConfigSnapshotError>;
+}
+
 export function makeSearchEpisodeSupport(input: SearchEpisodeSupportInput) {
   const { db, getRuntimeConfig, searchEpisodeReleases } = input;
 
@@ -90,10 +97,8 @@ export function makeSearchEpisodeSupport(input: SearchEpisodeSupportInput) {
 
   return {
     searchEpisode,
-  };
+  } satisfies SearchEpisodeServiceShape;
 }
-
-export type SearchEpisodeServiceShape = ReturnType<typeof makeSearchEpisodeSupport>;
 
 export class SearchEpisodeService extends Context.Tag("@bakarr/api/SearchEpisodeService")<
   SearchEpisodeService,

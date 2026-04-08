@@ -1,4 +1,4 @@
-import { createSocket, type Socket } from "node:dgram";
+import { type Socket } from "node:dgram";
 
 import { Context, Effect, Layer, Option, Ref } from "effect";
 
@@ -12,6 +12,11 @@ import {
   scoreAnimeLookupCandidate,
   type AniDbTitleCandidate,
 } from "@/features/anime/anidb-protocol.ts";
+import {
+  closeAniDbSocketEffect,
+  openAniDbSocketEffect,
+  sendAndReceiveAniDbPacket,
+} from "@/features/anime/anidb-socket.ts";
 import type {
   AniDbEpisodeLookupResult,
   AniDbEpisodeLookupInput,
@@ -25,10 +30,7 @@ import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-s
 import { StoredConfigCorruptError } from "@/features/system/errors.ts";
 import { ExternalCallError } from "@/lib/effect-retry.ts";
 
-const ANIDB_HOST = "api.anidb.net";
-const ANIDB_PORT = 9000;
 const ANIDB_PROTO_VERSION = 3;
-const ANIDB_PACKET_TIMEOUT_MS = 10_000;
 const ANIDB_MIN_PACKET_INTERVAL_MS = 2_200;
 const ANIDB_MIN_ANIME_MATCH_SCORE = 70;
 const ANIDB_STRONG_ANIME_MATCH_SCORE = 90;
@@ -93,7 +95,7 @@ export const AniDbClientLive = Layer.effect(
 
       return yield* requestSemaphore.withPermits(1)(
         Effect.acquireUseRelease(
-          openSocketEffect(config.localPort),
+          openAniDbSocketEffect(config.localPort),
           (socket) =>
             withAniDbSessionEffect(
               socket,
@@ -115,7 +117,7 @@ export const AniDbClientLive = Layer.effect(
                 }),
               ),
             ),
-          closeSocketEffect,
+          closeAniDbSocketEffect,
         ),
       );
     });
@@ -362,7 +364,7 @@ const sendAniDbCommandEffect = Effect.fn("AniDbClient.sendCommand")(function* (
   yield* waitForPacketWindowEffect(clock, lastPacketAtRef);
 
   const responseRaw = yield* Effect.tryPromise({
-    try: () => sendAndReceivePacket(socket, command),
+    try: () => sendAndReceiveAniDbPacket(socket, command),
     catch: (cause) =>
       ExternalCallError.make({
         cause,
@@ -399,102 +401,6 @@ const waitForPacketWindowEffect = Effect.fn("AniDbClient.waitForPacketWindow")(f
   const nextPacketAt = yield* clock.currentMonotonicMillis;
   yield* Ref.set(lastPacketAtRef, nextPacketAt);
 });
-
-const openSocketEffect = Effect.fn("AniDbClient.openSocket")(function* (localPort: number) {
-  return yield* Effect.async<Socket, ExternalCallError>((resume) => {
-    const socket = createSocket("udp4");
-
-    const cleanup = () => {
-      socket.off("error", onError);
-      socket.off("listening", onListening);
-    };
-
-    const onError = (cause: Error) => {
-      cleanup();
-      resume(
-        Effect.fail(
-          ExternalCallError.make({
-            cause,
-            message: "AniDB socket bind failed",
-            operation: "anidb.socket.bind",
-          }),
-        ),
-      );
-    };
-
-    const onListening = () => {
-      cleanup();
-      resume(Effect.succeed(socket));
-    };
-
-    socket.once("error", onError);
-    socket.once("listening", onListening);
-    socket.bind(localPort);
-
-    return Effect.sync(cleanup);
-  });
-});
-
-const closeSocketEffect = Effect.fn("AniDbClient.closeSocket")(function* (socket: Socket) {
-  yield* Effect.sync(() => {
-    try {
-      socket.close();
-    } catch {
-      // ignored: socket is already closed
-    }
-  });
-});
-
-function sendAndReceivePacket(socket: Socket, command: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    let done = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-
-    const cleanup = () => {
-      socket.off("message", onMessage);
-      socket.off("error", onError);
-      if (timer !== undefined) {
-        clearTimeout(timer);
-      }
-    };
-
-    const settleFailure = (cause: unknown) => {
-      if (done) {
-        return;
-      }
-
-      done = true;
-      cleanup();
-      reject(cause);
-    };
-
-    const onMessage = (message: Buffer) => {
-      if (done) {
-        return;
-      }
-
-      done = true;
-      cleanup();
-      resolve(message.toString("utf8"));
-    };
-
-    const onError = (cause: Error) => {
-      settleFailure(cause);
-    };
-
-    socket.once("message", onMessage);
-    socket.once("error", onError);
-    timer = setTimeout(() => {
-      settleFailure(new Error("AniDB UDP response timed out"));
-    }, ANIDB_PACKET_TIMEOUT_MS);
-
-    socket.send(Buffer.from(command, "utf8"), ANIDB_PORT, ANIDB_HOST, (cause) => {
-      if (cause) {
-        settleFailure(cause);
-      }
-    });
-  });
-}
 
 function encodeCommandValue(value: string) {
   return encodeURIComponent(value);

@@ -3,7 +3,9 @@ import { Effect } from "effect";
 
 import { SystemLogService } from "@/features/system/system-log-service.ts";
 import {
+  type SystemLogExportQueryInput,
   SystemLogExportQuerySchema,
+  type SystemLogsQueryInput,
   SystemLogsQuerySchema,
 } from "@/http/system-request-schemas.ts";
 import {
@@ -76,13 +78,7 @@ export const logsRouter = HttpRouter.empty.pipe(
   ),
 );
 
-function toSystemLogsQueryInput(query: {
-  readonly end_date?: string | undefined;
-  readonly event_type?: string | undefined;
-  readonly level?: string | undefined;
-  readonly page?: number | undefined;
-  readonly start_date?: string | undefined;
-}) {
+function toSystemLogsQueryInput(query: SystemLogsQueryInput) {
   return {
     ...(query.end_date === undefined ? {} : { endDate: query.end_date }),
     ...(query.event_type === undefined ? {} : { eventType: query.event_type }),
@@ -92,12 +88,7 @@ function toSystemLogsQueryInput(query: {
   };
 }
 
-function toSystemLogExportInput(query: {
-  readonly end_date?: string | undefined;
-  readonly event_type?: string | undefined;
-  readonly level?: string | undefined;
-  readonly start_date?: string | undefined;
-}) {
+function toSystemLogExportInput(query: SystemLogExportQueryInput) {
   return {
     ...(query.end_date === undefined ? {} : { endDate: query.end_date }),
     ...(query.event_type === undefined ? {} : { eventType: query.event_type }),

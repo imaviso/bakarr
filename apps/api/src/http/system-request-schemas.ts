@@ -43,3 +43,6 @@ export class SystemLogExportQuerySchema extends Schema.Class<SystemLogExportQuer
   level: Schema.optional(SystemLogLevelSchema),
   start_date: Schema.optional(IsoDateTimeStringSchema),
 }) {}
+
+export type SystemLogsQueryInput = Schema.Schema.Type<typeof SystemLogsQuerySchema>;
+export type SystemLogExportQueryInput = Schema.Schema.Type<typeof SystemLogExportQuerySchema>;

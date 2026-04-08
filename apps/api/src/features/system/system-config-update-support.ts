@@ -11,6 +11,19 @@ import {
 import { makeDefaultConfig } from "@/features/system/defaults.ts";
 import { StoredConfigCorruptError } from "@/features/system/errors.ts";
 
+interface StoredConfigPasswordState {
+  readonly metadata?:
+    | {
+        readonly anidb?: {
+          readonly password?: string | null | undefined;
+        };
+      }
+    | undefined;
+  readonly qbittorrent: {
+    readonly password?: string | null | undefined;
+  };
+}
+
 export const resolveCurrentQBitPasswordState = Effect.fn(
   "SystemConfigUpdateService.resolveCurrentQBitPasswordState",
 )(function* (input: {
@@ -24,37 +37,16 @@ export const resolveCurrentQBitPasswordState = Effect.fn(
       }
     | undefined;
 }) {
-  const currentPasswordResult = yield* decodeStoredConfigRow(input.previousConfigRow).pipe(
-    Effect.map((config) => ({
-      password: config.qbittorrent.password,
-      storedConfigCorrupt: false,
-    })),
-    Effect.catchTag("StoredConfigMissingError", () =>
-      Effect.succeed({
-        password: makeDefaultConfig(input.appDatabaseFile).qbittorrent.password,
-        storedConfigCorrupt: false,
-      }),
-    ),
-    Effect.catchTag("StoredConfigCorruptError", () =>
-      Effect.succeed({
-        password: null,
-        storedConfigCorrupt: true,
-      }),
-    ),
-  );
-
-  if (
-    currentPasswordResult.storedConfigCorrupt &&
-    input.nextConfig.qbittorrent.enabled &&
-    !input.nextConfig.qbittorrent.password?.trim()
-  ) {
-    return yield* new StoredConfigCorruptError({
-      message:
-        "Stored configuration is corrupt. Re-enter the qBittorrent password before saving repaired config.",
-    });
-  }
-
-  return currentPasswordResult.password;
+  return yield* resolveCurrentStoredPasswordState({
+    appDatabaseFile: input.appDatabaseFile,
+    currentPasswordMessage:
+      "Stored configuration is corrupt. Re-enter the qBittorrent password before saving repaired config.",
+    defaultPassword: (config) => config.qbittorrent.password,
+    nextPassword: input.nextConfig.qbittorrent.password,
+    passwordFromStoredConfig: (config) => config.qbittorrent.password,
+    requiresPassword: input.nextConfig.qbittorrent.enabled,
+    previousConfigRow: input.previousConfigRow,
+  });
 });
 
 export const resolveCurrentAniDbPasswordState = Effect.fn(
@@ -70,14 +62,45 @@ export const resolveCurrentAniDbPasswordState = Effect.fn(
       }
     | undefined;
 }) {
+  return yield* resolveCurrentStoredPasswordState({
+    appDatabaseFile: input.appDatabaseFile,
+    currentPasswordMessage:
+      "Stored configuration is corrupt. Re-enter the AniDB password before saving repaired config.",
+    defaultPassword: (config) => config.metadata?.anidb?.password ?? null,
+    nextPassword: input.nextConfig.metadata?.anidb.password,
+    passwordFromStoredConfig: (config) => config.metadata?.anidb?.password ?? null,
+    requiresPassword: Boolean(input.nextConfig.metadata?.anidb.enabled),
+    previousConfigRow: input.previousConfigRow,
+  });
+});
+
+const resolveCurrentStoredPasswordState = Effect.fn(
+  "SystemConfigUpdateService.resolveCurrentStoredPasswordState",
+)(function* (input: {
+  readonly appDatabaseFile: string;
+  readonly currentPasswordMessage: string;
+  readonly defaultPassword: (config: StoredConfigPasswordState) => string | null | undefined;
+  readonly nextPassword: string | null | undefined;
+  readonly passwordFromStoredConfig: (
+    config: StoredConfigPasswordState,
+  ) => string | null | undefined;
+  readonly previousConfigRow:
+    | {
+        readonly data: string;
+        readonly id: number;
+        readonly updatedAt: string;
+      }
+    | undefined;
+  readonly requiresPassword: boolean;
+}) {
   const currentPasswordResult = yield* decodeStoredConfigRow(input.previousConfigRow).pipe(
     Effect.map((config) => ({
-      password: config.metadata?.anidb.password ?? null,
+      password: input.passwordFromStoredConfig(config) ?? null,
       storedConfigCorrupt: false,
     })),
     Effect.catchTag("StoredConfigMissingError", () =>
       Effect.succeed({
-        password: makeDefaultConfig(input.appDatabaseFile).metadata?.anidb.password ?? null,
+        password: input.defaultPassword(makeDefaultConfig(input.appDatabaseFile)) ?? null,
         storedConfigCorrupt: false,
       }),
     ),
@@ -91,12 +114,11 @@ export const resolveCurrentAniDbPasswordState = Effect.fn(
 
   if (
     currentPasswordResult.storedConfigCorrupt &&
-    input.nextConfig.metadata?.anidb.enabled &&
-    !input.nextConfig.metadata?.anidb.password?.trim()
+    input.requiresPassword &&
+    !input.nextPassword?.trim()
   ) {
     return yield* new StoredConfigCorruptError({
-      message:
-        "Stored configuration is corrupt. Re-enter the AniDB password before saving repaired config.",
+      message: input.currentPasswordMessage,
     });
   }
 

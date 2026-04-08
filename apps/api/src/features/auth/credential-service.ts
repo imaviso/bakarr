@@ -86,9 +86,6 @@ const makeAuthCredentialService = Effect.gen(function* () {
       return yield* AuthError.make({ message: "User not found", status: 404 });
     }
 
-    const row = rowOption.value;
-
-    void row;
     return { api_key: "************************" };
   });
 

@@ -113,6 +113,11 @@ export class DownloadEventsExportQuerySchema extends Schema.Class<DownloadEvents
   status: Schema.optional(DownloadEventStatusStringSchema),
 }) {}
 
+export type DownloadEventsQueryInput = Schema.Schema.Type<typeof DownloadEventsQuerySchema>;
+export type DownloadEventsExportQueryInput = Schema.Schema.Type<
+  typeof DownloadEventsExportQuerySchema
+>;
+
 export class SearchMissingBodySchema extends Schema.Class<SearchMissingBodySchema>(
   "SearchMissingBodySchema",
 )({

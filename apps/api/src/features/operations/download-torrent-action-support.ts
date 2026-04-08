@@ -8,6 +8,7 @@ import {
   DownloadConflictError,
   DownloadNotFoundError,
   OperationsInfrastructureError,
+  OperationsStoredDataError,
 } from "@/features/operations/errors.ts";
 import { decodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
 import { parseCoveredEpisodesEffect } from "@/features/operations/download-coverage.ts";
@@ -24,6 +25,30 @@ export interface DownloadTorrentActionSupportInput {
   readonly getRuntimeConfig: () => Effect.Effect<
     import("@packages/shared/index.ts").Config,
     RuntimeConfigSnapshotError
+  >;
+}
+
+export interface DownloadTorrentActionSupportShape {
+  readonly applyDownloadActionEffect: (
+    id: number,
+    action: "pause" | "resume" | "delete",
+    deleteFiles?: boolean,
+  ) => Effect.Effect<
+    void,
+    | DatabaseError
+    | DownloadNotFoundError
+    | OperationsStoredDataError
+    | OperationsInfrastructureError
+  >;
+  readonly retryDownloadById: (
+    id: number,
+  ) => Effect.Effect<
+    void,
+    | DatabaseError
+    | DownloadNotFoundError
+    | DownloadConflictError
+    | OperationsStoredDataError
+    | OperationsInfrastructureError
   >;
 }
 
@@ -197,5 +222,3 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
     retryDownloadById,
   };
 }
-
-export type DownloadTorrentActionSupportShape = ReturnType<typeof makeDownloadTorrentActionSupport>;

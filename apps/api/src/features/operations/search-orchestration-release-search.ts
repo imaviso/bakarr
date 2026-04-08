@@ -44,6 +44,32 @@ type SearchNyaaReleases = (
   filter?: string,
 ) => Effect.Effect<readonly ParsedRelease[], SearchReleaseSourceError>;
 
+export interface SearchReleaseServiceShape {
+  readonly enrichSeaDexReleases: (
+    animeRow: typeof anime.$inferSelect,
+    releases: readonly ParsedRelease[],
+    config: Config,
+  ) => Effect.Effect<ParsedRelease[], ExternalCallError>;
+  readonly searchEpisodeReleases: (
+    animeRow: typeof anime.$inferSelect,
+    episodeNumber: number,
+    config: Config,
+  ) => Effect.Effect<ParsedRelease[], SearchReleaseSourceError>;
+  readonly searchNyaaReleases: SearchNyaaReleases;
+  readonly searchReleases: (
+    query: string,
+    animeId?: number,
+    category?: string,
+    filter?: string,
+  ) => Effect.Effect<SearchResults, OperationsError | DatabaseError | RuntimeConfigSnapshotError>;
+  readonly searchReleasesBase: (
+    query: string,
+    animeId?: number,
+    category?: string,
+    filter?: string,
+  ) => Effect.Effect<SearchResults, OperationsError | DatabaseError | RuntimeConfigSnapshotError>;
+}
+
 export function makeSearchReleaseSupport(input: {
   db: AppDatabase;
   getRuntimeConfig: () => Effect.Effect<Config, RuntimeConfigSnapshotError>;
@@ -191,7 +217,7 @@ export function makeSearchReleaseSupport(input: {
     searchNyaaReleases,
     searchReleases,
     searchReleasesBase,
-  };
+  } satisfies SearchReleaseServiceShape;
 }
 
 function buildNyaaSearchUrl(query: string, category: string, filter: string) {
@@ -250,8 +276,6 @@ function collectEpisodeSearchReleases(
     return results;
   });
 }
-
-export type SearchReleaseServiceShape = ReturnType<typeof makeSearchReleaseSupport>;
 
 export class SearchReleaseService extends Context.Tag("@bakarr/api/SearchReleaseService")<
   SearchReleaseService,

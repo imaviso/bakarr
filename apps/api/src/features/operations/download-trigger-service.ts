@@ -9,7 +9,13 @@ import {
   prepareTriggerDownload,
 } from "@/features/operations/download-trigger-support.ts";
 import { appendLog, recordDownloadEvent } from "@/features/operations/job-support.ts";
-import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
+import {
+  DownloadConflictError,
+  OperationsAnimeNotFoundError,
+  OperationsInfrastructureError,
+  OperationsInputError,
+  OperationsStoredDataError,
+} from "@/features/operations/errors.ts";
 import type { TriggerDownloadInput } from "@/features/operations/download-orchestration-shared.ts";
 import type { DownloadTriggerCoordinatorShape } from "@/features/operations/runtime-support.ts";
 import { Database } from "@/db/database.ts";
@@ -17,6 +23,20 @@ import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
 import { DownloadProgressSupport } from "@/features/operations/download-progress-support.ts";
 import { DownloadTriggerCoordinator } from "@/features/operations/runtime-support.ts";
+
+export interface DownloadTriggerServiceShape {
+  readonly triggerDownload: (
+    input: TriggerDownloadInput,
+  ) => Effect.Effect<
+    void,
+    | DatabaseError
+    | DownloadConflictError
+    | OperationsAnimeNotFoundError
+    | OperationsInputError
+    | OperationsStoredDataError
+    | OperationsInfrastructureError
+  >;
+}
 
 export function makeDownloadTriggerService(input: {
   readonly db: import("@/db/database.ts").AppDatabase;
@@ -121,10 +141,8 @@ export function makeDownloadTriggerService(input: {
 
   return {
     triggerDownload,
-  };
+  } satisfies DownloadTriggerServiceShape;
 }
-
-export type DownloadTriggerServiceShape = ReturnType<typeof makeDownloadTriggerService>;
 
 export class DownloadTriggerService extends Context.Tag("@bakarr/api/DownloadTriggerService")<
   DownloadTriggerService,

@@ -10,7 +10,12 @@ import { toDownloadStatus } from "@/features/operations/repository/download-repo
 import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
 import { tryDatabasePromise, type TryDatabasePromise } from "@/lib/effect-db.ts";
 
-export type DownloadProgressSupportShape = ReturnType<typeof makeDownloadProgressSupport>;
+export interface DownloadProgressSupportShape {
+  readonly publishDownloadProgress: () => Effect.Effect<
+    void,
+    DatabaseError | OperationsInfrastructureError
+  >;
+}
 
 export class DownloadProgressSupport extends Context.Tag("@bakarr/api/DownloadProgressSupport")<
   DownloadProgressSupport,

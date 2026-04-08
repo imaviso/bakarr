@@ -7,7 +7,9 @@ import { CatalogDownloadReadService } from "@/features/operations/catalog-downlo
 import { IdParamsSchema } from "@/http/common-request-schemas.ts";
 import {
   DeleteDownloadQuerySchema,
+  type DownloadEventsExportQueryInput,
   DownloadEventsExportQuerySchema,
+  type DownloadEventsQueryInput,
   DownloadEventsQuerySchema,
 } from "@/http/operations-request-schemas.ts";
 import {
@@ -153,17 +155,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
   ),
 );
 
-function toDownloadEventsQueryInput(query: {
-  readonly anime_id?: number | undefined;
-  readonly cursor?: string | undefined;
-  readonly direction?: "next" | "prev" | undefined;
-  readonly download_id?: number | undefined;
-  readonly end_date?: string | undefined;
-  readonly event_type?: string | undefined;
-  readonly limit?: number | undefined;
-  readonly start_date?: string | undefined;
-  readonly status?: string | undefined;
-}) {
+function toDownloadEventsQueryInput(query: DownloadEventsQueryInput) {
   return {
     ...(query.anime_id === undefined ? {} : { animeId: query.anime_id }),
     ...(query.cursor === undefined ? {} : { cursor: query.cursor }),
@@ -177,16 +169,7 @@ function toDownloadEventsQueryInput(query: {
   };
 }
 
-function toDownloadEventsExportInput(query: {
-  readonly anime_id?: number | undefined;
-  readonly download_id?: number | undefined;
-  readonly end_date?: string | undefined;
-  readonly event_type?: string | undefined;
-  readonly limit?: number | undefined;
-  readonly order?: "asc" | "desc" | undefined;
-  readonly start_date?: string | undefined;
-  readonly status?: string | undefined;
-}) {
+function toDownloadEventsExportInput(query: DownloadEventsExportQueryInput) {
   return {
     ...(query.anime_id === undefined ? {} : { animeId: query.anime_id }),
     ...(query.download_id === undefined ? {} : { downloadId: query.download_id }),
