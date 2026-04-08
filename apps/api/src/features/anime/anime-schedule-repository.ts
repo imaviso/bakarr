@@ -68,6 +68,7 @@ export const updateAnimeEpisodeAirDatesEffect = Effect.fn(
   nowIso: () => Effect.Effect<string>,
 ) {
   const scheduleMap = buildAiringScheduleMap(futureAiringSchedule);
+  const maxScheduledEpisode = maxEpisodeNumber(scheduleMap);
 
   if ((!episodeCount || episodeCount <= 0) && scheduleMap.size === 0) {
     return;
@@ -79,7 +80,10 @@ export const updateAnimeEpisodeAirDatesEffect = Effect.fn(
   const now = yield* nowIso();
 
   for (const row of existingRows) {
-    if ((!episodeCount || episodeCount <= 0) && !scheduleMap.has(row.number)) {
+    if (
+      (!episodeCount || episodeCount <= 0) &&
+      (maxScheduledEpisode === undefined || row.number > maxScheduledEpisode)
+    ) {
       continue;
     }
 
@@ -167,13 +171,33 @@ function resolveEpisodeNumbers(
     return [] as number[];
   }
 
-  return [
+  const scheduleEpisodeNumbers = [
     ...new Set(
       futureAiringSchedule
         .map((entry) => entry.episode)
         .filter((episode) => Number.isInteger(episode) && episode > 0),
     ),
   ].toSorted((left, right) => left - right);
+
+  const maxScheduled = scheduleEpisodeNumbers[scheduleEpisodeNumbers.length - 1];
+
+  if (maxScheduled === undefined) {
+    return [] as number[];
+  }
+
+  return range(1, maxScheduled);
+}
+
+function maxEpisodeNumber(scheduleMap: ReadonlyMap<number, string>) {
+  let max: number | undefined;
+
+  for (const episodeNumber of scheduleMap.keys()) {
+    if (max === undefined || episodeNumber > max) {
+      max = episodeNumber;
+    }
+  }
+
+  return max;
 }
 
 export { inferAiredAt };

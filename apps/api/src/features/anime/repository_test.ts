@@ -265,10 +265,27 @@ it("buildMissingEpisodeRows uses future schedule when episode count is unknown",
   assert.deepStrictEqual(
     rows.map((row) => ({ aired: row.aired, number: row.number })),
     [
+      { aired: "2026-04-04T22:30:00.000Z", number: 1 },
       { aired: "2026-04-11T22:30:00.000Z", number: 2 },
       { aired: "2026-04-18T22:30:00.000Z", number: 3 },
     ],
   );
+});
+
+it("inferAiredAt backfills earlier episodes from nearest schedule anchor", () => {
+  const airedAt = inferAiredAt(
+    "RELEASING",
+    1,
+    undefined,
+    undefined,
+    undefined,
+    new Map([
+      [2, "2026-04-11T22:30:00.000Z"],
+      [3, "2026-04-18T22:30:00.000Z"],
+    ]),
+  );
+
+  assert.deepStrictEqual(airedAt, "2026-04-04T22:30:00.000Z");
 });
 
 it("inferAiredAt prefers AniList future schedule over heuristics", () => {

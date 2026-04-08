@@ -77,6 +77,15 @@ export function inferAiredAt(
     return scheduledAiringAt;
   }
 
+  const inferredFromSchedule = inferFromNearestScheduledEpisode(
+    episodeNumber,
+    futureAiringSchedule,
+  );
+
+  if (inferredFromSchedule) {
+    return inferredFromSchedule;
+  }
+
   if (!startDate) {
     return status === "FINISHED" ? (fallbackNowIso ?? null) : null;
   }
@@ -99,6 +108,48 @@ export function inferAiredAt(
 
   const weeklyMs = 7 * 24 * 60 * 60 * 1000;
   return new Date(start.getTime() + weeklyMs * (episodeNumber - 1)).toISOString();
+}
+
+function inferFromNearestScheduledEpisode(
+  episodeNumber: number,
+  futureAiringSchedule: ReadonlyMap<number, string> | undefined,
+) {
+  if (!futureAiringSchedule || futureAiringSchedule.size === 0) {
+    return null;
+  }
+
+  let nearest:
+    | {
+        readonly airingAt: number;
+        readonly episode: number;
+      }
+    | undefined;
+
+  for (const [scheduledEpisode, scheduledAiringAt] of futureAiringSchedule) {
+    const scheduledTime = Date.parse(scheduledAiringAt);
+
+    if (!Number.isFinite(scheduledTime)) {
+      continue;
+    }
+
+    if (
+      nearest === undefined ||
+      Math.abs(scheduledEpisode - episodeNumber) < Math.abs(nearest.episode - episodeNumber)
+    ) {
+      nearest = {
+        airingAt: scheduledTime,
+        episode: scheduledEpisode,
+      };
+    }
+  }
+
+  if (!nearest) {
+    return null;
+  }
+
+  const weeklyMs = 7 * 24 * 60 * 60 * 1000;
+  const offset = episodeNumber - nearest.episode;
+  return new Date(nearest.airingAt + offset * weeklyMs).toISOString();
 }
 
 export function scoreAnimeSearchResultMatch(
