@@ -7,10 +7,10 @@ import { CatalogDownloadReadService } from "@/features/operations/catalog-downlo
 import { IdParamsSchema } from "@/http/common-request-schemas.ts";
 import {
   DeleteDownloadQuerySchema,
-  type DownloadEventsExportQueryInput,
   DownloadEventsExportQuerySchema,
-  type DownloadEventsQueryInput,
   DownloadEventsQuerySchema,
+  toDownloadEventsExportQueryParams,
+  toDownloadEventsQueryParams,
 } from "@/http/operations-request-schemas.ts";
 import {
   authedRouteResponse,
@@ -58,7 +58,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const query = yield* decodeQueryWithLabel(DownloadEventsQuerySchema, "download events");
         return yield* (yield* CatalogDownloadReadService).listDownloadEvents(
-          toDownloadEventsQueryInput(query),
+          toDownloadEventsQueryParams(query),
         );
       }),
       jsonResponse,
@@ -73,7 +73,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
           "download events export",
         );
         const service = yield* CatalogDownloadReadService;
-        const input = toDownloadEventsExportInput(query);
+        const input = toDownloadEventsExportQueryParams(query);
 
         if ((query.format ?? "json") === "csv") {
           const streamed = yield* service.streamDownloadEventsExportCsv(input);
@@ -154,33 +154,6 @@ export const downloadsRouter = HttpRouter.empty.pipe(
     ),
   ),
 );
-
-function toDownloadEventsQueryInput(query: DownloadEventsQueryInput) {
-  return {
-    ...(query.anime_id === undefined ? {} : { animeId: query.anime_id }),
-    ...(query.cursor === undefined ? {} : { cursor: query.cursor }),
-    ...(query.download_id === undefined ? {} : { downloadId: query.download_id }),
-    ...(query.direction === undefined ? {} : { direction: query.direction }),
-    ...(query.end_date === undefined ? {} : { endDate: query.end_date }),
-    ...(query.event_type === undefined ? {} : { eventType: query.event_type }),
-    ...(query.limit === undefined ? {} : { limit: query.limit }),
-    ...(query.start_date === undefined ? {} : { startDate: query.start_date }),
-    ...(query.status === undefined ? {} : { status: query.status }),
-  };
-}
-
-function toDownloadEventsExportInput(query: DownloadEventsExportQueryInput) {
-  return {
-    ...(query.anime_id === undefined ? {} : { animeId: query.anime_id }),
-    ...(query.download_id === undefined ? {} : { downloadId: query.download_id }),
-    ...(query.end_date === undefined ? {} : { endDate: query.end_date }),
-    ...(query.event_type === undefined ? {} : { eventType: query.event_type }),
-    ...(query.limit === undefined ? {} : { limit: query.limit }),
-    ...(query.order === undefined ? {} : { order: query.order }),
-    ...(query.start_date === undefined ? {} : { startDate: query.start_date }),
-    ...(query.status === undefined ? {} : { status: query.status }),
-  };
-}
 
 function buildDownloadExportHeaders(header: {
   readonly exported: number;

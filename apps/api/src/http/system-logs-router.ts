@@ -3,10 +3,10 @@ import { Effect } from "effect";
 
 import { SystemLogService } from "@/features/system/system-log-service.ts";
 import {
-  type SystemLogExportQueryInput,
   SystemLogExportQuerySchema,
-  type SystemLogsQueryInput,
   SystemLogsQuerySchema,
+  toSystemLogExportQueryParams,
+  toSystemLogsQueryParams,
 } from "@/http/system-request-schemas.ts";
 import {
   authedRouteResponse,
@@ -21,7 +21,7 @@ export const logsRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const query = yield* decodeQueryWithLabel(SystemLogsQuerySchema, "system logs");
-        return yield* (yield* SystemLogService).getLogs(toSystemLogsQueryInput(query));
+        return yield* (yield* SystemLogService).getLogs(toSystemLogsQueryParams(query));
       }),
       jsonResponse,
     ),
@@ -39,7 +39,7 @@ export const logsRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const query = yield* decodeQueryWithLabel(SystemLogExportQuerySchema, "system log export");
         const service = yield* SystemLogService;
-        const input = toSystemLogExportInput(query);
+        const input = toSystemLogExportQueryParams(query);
 
         if ((query.format ?? "json") === "csv") {
           const exported = yield* service.streamLogExportCsv(input);
@@ -73,25 +73,6 @@ export const logsRouter = HttpRouter.empty.pipe(
     ),
   ),
 );
-
-function toSystemLogsQueryInput(query: SystemLogsQueryInput) {
-  return {
-    ...(query.end_date === undefined ? {} : { endDate: query.end_date }),
-    ...(query.event_type === undefined ? {} : { eventType: query.event_type }),
-    ...(query.level === undefined ? {} : { level: query.level }),
-    page: query.page ?? 1,
-    ...(query.start_date === undefined ? {} : { startDate: query.start_date }),
-  };
-}
-
-function toSystemLogExportInput(query: SystemLogExportQueryInput) {
-  return {
-    ...(query.end_date === undefined ? {} : { endDate: query.end_date }),
-    ...(query.event_type === undefined ? {} : { eventType: query.event_type }),
-    ...(query.level === undefined ? {} : { level: query.level }),
-    ...(query.start_date === undefined ? {} : { startDate: query.start_date }),
-  };
-}
 
 function buildSystemLogExportHeaders(header: {
   readonly exported: number;

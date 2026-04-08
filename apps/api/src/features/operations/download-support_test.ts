@@ -163,6 +163,57 @@ it.scoped("importDownloadedFile surfaces stat access errors instead of treating 
   ),
 );
 
+it.scoped("importDownloadedFile cleans staged temp file when backup rename fails", () =>
+  withFileSystemSandboxEffect(({ fs, root }) =>
+    Effect.gen(function* () {
+      const { animeRoot, sourceRoot } = yield* makeImportRoots(fs, root);
+      const sourcePath = `${sourceRoot}/Naruto - 01.mkv`;
+      const destinationPath = `${animeRoot}/Naruto - 01.mkv`;
+      const tempPath = `${destinationPath}.tmp.test-uuid-0000`;
+
+      yield* writeTextFile(fs, sourcePath, "incoming");
+      yield* writeTextFile(fs, destinationPath, "existing");
+
+      const failingBackupFs = yield* makeNoopTestFileSystemWithOverridesEffect({
+        ...fs,
+        rename: (from, to) =>
+          from === destinationPath && to.includes(".bak.")
+            ? Effect.fail(makeFsError(from, "EACCES", "permission denied"))
+            : fs.rename(from, to),
+      });
+
+      const exit = yield* Effect.exit(
+        importDownloadedFile(
+          failingBackupFs,
+          makeAnimeRow({
+            rootFolder: animeRoot,
+            titleRomaji: "Naruto",
+          }),
+          1,
+          sourcePath,
+          "copy",
+          { randomUuid: testRandomUuid },
+        ),
+      );
+
+      assert.deepStrictEqual(Exit.isFailure(exit), true);
+      if (Exit.isFailure(exit)) {
+        const failure = Cause.failureOption(exit.cause);
+        assert.deepStrictEqual(failure._tag, "Some");
+        if (failure._tag === "Some") {
+          assert.deepStrictEqual(failure.value instanceof ImportFileError, true);
+          assert.deepStrictEqual(failure.value.message, "Failed to back up existing destination");
+        }
+      }
+
+      const tempStat = yield* Effect.exit(fs.stat(tempPath));
+      assert.deepStrictEqual(Exit.isFailure(tempStat), true);
+      assert.deepStrictEqual(yield* readTextFile(fs, destinationPath), "existing");
+      assert.deepStrictEqual(yield* readTextFile(fs, sourcePath), "incoming");
+    }),
+  ),
+);
+
 it.scoped(
   "importDownloadedFile fails when cross-filesystem move cannot delete the source file",
   () =>

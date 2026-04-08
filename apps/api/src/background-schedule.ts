@@ -2,8 +2,20 @@ import * as Cron from "effect/Cron";
 import { Either, Schema } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
+import type { BackgroundWorkerName } from "@/background-worker-model.ts";
 
 const DEFAULT_DOWNLOAD_SYNC_MS = 15_000;
+
+export type BackgroundWorkerLoopPlan =
+  | {
+      readonly cronExpression: string;
+      readonly initialDelayMs?: number;
+    }
+  | {
+      readonly initialDelayMs?: number;
+      readonly intervalMs: number;
+    };
+
 export class BackgroundSchedule extends Schema.Class<BackgroundSchedule>("BackgroundSchedule")({
   downloadSyncMs: Schema.Number,
   initialDelayMs: Schema.Number,
@@ -37,4 +49,47 @@ export function buildBackgroundSchedule(config: Config): BackgroundSchedule {
         ? config.scheduler.check_interval_minutes * 60 * 1000
         : null,
   });
+}
+
+export function resolveBackgroundWorkerLoopPlan(
+  schedule: BackgroundSchedule,
+  workerName: BackgroundWorkerName,
+): BackgroundWorkerLoopPlan | null {
+  switch (workerName) {
+    case "download_sync":
+      return {
+        intervalMs: schedule.downloadSyncMs,
+      };
+    case "rss": {
+      if (schedule.rssCronExpression !== null) {
+        return {
+          cronExpression: schedule.rssCronExpression,
+          initialDelayMs: schedule.initialDelayMs,
+        };
+      }
+
+      if (schedule.rssCheckMs !== null) {
+        return {
+          initialDelayMs: schedule.initialDelayMs,
+          intervalMs: schedule.rssCheckMs,
+        };
+      }
+
+      return null;
+    }
+    case "library_scan":
+      return schedule.libraryScanMs === null
+        ? null
+        : {
+            initialDelayMs: schedule.initialDelayMs,
+            intervalMs: schedule.libraryScanMs,
+          };
+    case "metadata_refresh":
+      return schedule.metadataRefreshMs === null
+        ? null
+        : {
+            initialDelayMs: schedule.initialDelayMs,
+            intervalMs: schedule.metadataRefreshMs,
+          };
+  }
 }

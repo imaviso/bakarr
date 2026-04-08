@@ -4,10 +4,14 @@ import type { Scope } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 import type { BackgroundWorkerSpawner } from "@/background-controller-core.ts";
-import { buildBackgroundSchedule } from "@/background-schedule.ts";
+import { buildBackgroundSchedule, resolveBackgroundWorkerLoopPlan } from "@/background-schedule.ts";
 import type { BackgroundTaskRunnerShape } from "@/background-task-runner.ts";
 import type { BackgroundWorkerMonitorShape } from "@/background-monitor.ts";
-import { type BackgroundWorkerName } from "@/background-worker-model.ts";
+import {
+  BACKGROUND_WORKER_NAMES,
+  BACKGROUND_WORKER_TIMEOUT_MS,
+  type BackgroundWorkerName,
+} from "@/background-worker-model.ts";
 import type { ClockServiceShape } from "@/lib/clock.ts";
 import { makeSkippingSerializedEffectRunner } from "@/lib/effect-coalescing-skipping-serialized-runner.ts";
 import { compactLogAnnotations, durationMsSince, errorLogAnnotations } from "@/lib/logging.ts";
@@ -20,13 +24,6 @@ export class WorkerTimeoutError extends Schema.TaggedError<WorkerTimeoutError>()
     message: Schema.String,
   },
 ) {}
-
-const WORKER_TIMEOUTS: Record<BackgroundWorkerName, number> = {
-  download_sync: 30_000,
-  library_scan: 300_000,
-  metadata_refresh: 60_000,
-  rss: 120_000,
-};
 
 export function makeBackgroundWorkerSpawner(input: {
   readonly taskRunner: BackgroundTaskRunnerShape;
@@ -73,67 +70,23 @@ export function makeBackgroundWorkerSpawner(input: {
     config: Config,
   ) {
     const schedule = buildBackgroundSchedule(config);
-    const downloadSyncLoop = resilientRun("download_sync", taskRunner.runDownloadSyncWorkerTask());
-    const rssLoop = resilientRun("rss", taskRunner.runRssWorkerTask());
-    const libraryLoop = resilientRun("library_scan", taskRunner.runLibraryScanWorkerTask());
-    const metadataRefreshLoop = resilientRun(
-      "metadata_refresh",
-      taskRunner.runMetadataRefreshWorkerTask(),
-    );
+    const workerTaskByName: Record<BackgroundWorkerName, () => Effect.Effect<void, unknown>> = {
+      download_sync: taskRunner.runDownloadSyncWorkerTask,
+      library_scan: taskRunner.runLibraryScanWorkerTask,
+      metadata_refresh: taskRunner.runMetadataRefreshWorkerTask,
+      rss: taskRunner.runRssWorkerTask,
+    };
 
-    yield* forkSupervisedWorker(
-      workerScope,
-      "download_sync",
-      repeatWorker(downloadSyncLoop, {
-        intervalMs: schedule.downloadSyncMs,
-      }),
-      monitor,
-    );
+    for (const workerName of BACKGROUND_WORKER_NAMES) {
+      const loopPlan = resolveBackgroundWorkerLoopPlan(schedule, workerName);
 
-    if (schedule.rssCronExpression !== null) {
-      yield* forkSupervisedWorker(
-        workerScope,
-        "rss",
-        repeatWorker(rssLoop, {
-          cronExpression: schedule.rssCronExpression,
-          initialDelayMs: schedule.initialDelayMs,
-        }),
-        monitor,
-      );
-    } else if (schedule.rssCheckMs !== null) {
-      yield* forkSupervisedWorker(
-        workerScope,
-        "rss",
-        repeatWorker(rssLoop, {
-          initialDelayMs: schedule.initialDelayMs,
-          intervalMs: schedule.rssCheckMs,
-        }),
-        monitor,
-      );
-    }
+      if (loopPlan === null) {
+        continue;
+      }
 
-    if (schedule.libraryScanMs !== null) {
-      yield* forkSupervisedWorker(
-        workerScope,
-        "library_scan",
-        repeatWorker(libraryLoop, {
-          initialDelayMs: schedule.initialDelayMs,
-          intervalMs: schedule.libraryScanMs,
-        }),
-        monitor,
-      );
-    }
+      const loop = resilientRun(workerName, workerTaskByName[workerName]());
 
-    if (schedule.metadataRefreshMs !== null) {
-      yield* forkSupervisedWorker(
-        workerScope,
-        "metadata_refresh",
-        repeatWorker(metadataRefreshLoop, {
-          initialDelayMs: schedule.initialDelayMs,
-          intervalMs: schedule.metadataRefreshMs,
-        }),
-        monitor,
-      );
+      yield* forkSupervisedWorker(workerScope, workerName, repeatWorker(loop, loopPlan), monitor);
     }
   });
 }
@@ -149,7 +102,7 @@ export const withLockEffectOrFail = Effect.fn("Background.withLockEffectOrFail")
   clock: ClockServiceShape,
   timeoutMs?: number,
 ) {
-  const effectiveTimeout = timeoutMs ?? WORKER_TIMEOUTS[workerName];
+  const effectiveTimeout = timeoutMs ?? BACKGROUND_WORKER_TIMEOUT_MS[workerName];
   const taskWithTimeout = task.pipe(
     Effect.timeoutFail({
       duration: `${effectiveTimeout} millis`,

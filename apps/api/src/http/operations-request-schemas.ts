@@ -118,6 +118,56 @@ export type DownloadEventsExportQueryInput = Schema.Schema.Type<
   typeof DownloadEventsExportQuerySchema
 >;
 
+export interface DownloadEventsQueryParams {
+  readonly animeId?: number;
+  readonly cursor?: string;
+  readonly direction?: "next" | "prev";
+  readonly downloadId?: number;
+  readonly endDate?: string;
+  readonly eventType?: string;
+  readonly limit?: number;
+  readonly startDate?: string;
+  readonly status?: string;
+}
+
+export interface DownloadEventsExportQueryParams {
+  readonly animeId?: number;
+  readonly downloadId?: number;
+  readonly endDate?: string;
+  readonly eventType?: string;
+  readonly limit?: number;
+  readonly order?: "asc" | "desc";
+  readonly startDate?: string;
+  readonly status?: string;
+}
+
+export function toDownloadEventsQueryParams(query: DownloadEventsQueryInput) {
+  return {
+    ...(query.anime_id === undefined ? {} : { animeId: query.anime_id }),
+    ...(query.cursor === undefined ? {} : { cursor: query.cursor }),
+    ...(query.direction === undefined ? {} : { direction: query.direction }),
+    ...(query.download_id === undefined ? {} : { downloadId: query.download_id }),
+    ...(query.end_date === undefined ? {} : { endDate: query.end_date }),
+    ...(query.event_type === undefined ? {} : { eventType: query.event_type }),
+    ...(query.limit === undefined ? {} : { limit: query.limit }),
+    ...(query.start_date === undefined ? {} : { startDate: query.start_date }),
+    ...(query.status === undefined ? {} : { status: query.status }),
+  } satisfies DownloadEventsQueryParams;
+}
+
+export function toDownloadEventsExportQueryParams(query: DownloadEventsExportQueryInput) {
+  return {
+    ...(query.anime_id === undefined ? {} : { animeId: query.anime_id }),
+    ...(query.download_id === undefined ? {} : { downloadId: query.download_id }),
+    ...(query.end_date === undefined ? {} : { endDate: query.end_date }),
+    ...(query.event_type === undefined ? {} : { eventType: query.event_type }),
+    ...(query.limit === undefined ? {} : { limit: query.limit }),
+    ...(query.order === undefined ? {} : { order: query.order }),
+    ...(query.start_date === undefined ? {} : { startDate: query.start_date }),
+    ...(query.status === undefined ? {} : { status: query.status }),
+  } satisfies DownloadEventsExportQueryParams;
+}
+
 export class SearchMissingBodySchema extends Schema.Class<SearchMissingBodySchema>(
   "SearchMissingBodySchema",
 )({

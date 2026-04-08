@@ -46,3 +46,37 @@ export class SystemLogExportQuerySchema extends Schema.Class<SystemLogExportQuer
 
 export type SystemLogsQueryInput = Schema.Schema.Type<typeof SystemLogsQuerySchema>;
 export type SystemLogExportQueryInput = Schema.Schema.Type<typeof SystemLogExportQuerySchema>;
+
+export interface SystemLogsQueryParams {
+  readonly endDate?: string;
+  readonly eventType?: string;
+  readonly level?: string;
+  readonly page: number;
+  readonly startDate?: string;
+}
+
+export interface SystemLogExportQueryParams {
+  readonly endDate?: string;
+  readonly eventType?: string;
+  readonly level?: string;
+  readonly startDate?: string;
+}
+
+export function toSystemLogsQueryParams(query: SystemLogsQueryInput) {
+  return {
+    ...(query.end_date === undefined ? {} : { endDate: query.end_date }),
+    ...(query.event_type === undefined ? {} : { eventType: query.event_type }),
+    ...(query.level === undefined ? {} : { level: query.level }),
+    page: query.page ?? 1,
+    ...(query.start_date === undefined ? {} : { startDate: query.start_date }),
+  } satisfies SystemLogsQueryParams;
+}
+
+export function toSystemLogExportQueryParams(query: SystemLogExportQueryInput) {
+  return {
+    ...(query.end_date === undefined ? {} : { endDate: query.end_date }),
+    ...(query.event_type === undefined ? {} : { eventType: query.event_type }),
+    ...(query.level === undefined ? {} : { level: query.level }),
+    ...(query.start_date === undefined ? {} : { startDate: query.start_date }),
+  } satisfies SystemLogExportQueryParams;
+}
