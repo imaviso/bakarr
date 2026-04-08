@@ -3,6 +3,7 @@ import { Effect } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
 import { episodes } from "@/db/schema.ts";
+import { clampInferredEpisodeUpperBound } from "@/features/anime/episode-backfill-policy.ts";
 import { inferAiredAt } from "@/lib/anime-derivations.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
 
@@ -68,7 +69,7 @@ export const updateAnimeEpisodeAirDatesEffect = Effect.fn(
   nowIso: () => Effect.Effect<string>,
 ) {
   const scheduleMap = buildAiringScheduleMap(futureAiringSchedule);
-  const maxScheduledEpisode = maxEpisodeNumber(scheduleMap);
+  const maxScheduledEpisode = clampInferredEpisodeUpperBound(maxEpisodeNumber(scheduleMap));
 
   if ((!episodeCount || episodeCount <= 0) && scheduleMap.size === 0) {
     return;
@@ -180,12 +181,13 @@ function resolveEpisodeNumbers(
   ].toSorted((left, right) => left - right);
 
   const maxScheduled = scheduleEpisodeNumbers[scheduleEpisodeNumbers.length - 1];
+  const upperBound = clampInferredEpisodeUpperBound(maxScheduled);
 
-  if (maxScheduled === undefined) {
+  if (upperBound === undefined) {
     return [] as number[];
   }
 
-  return range(1, maxScheduled);
+  return range(1, upperBound);
 }
 
 function maxEpisodeNumber(scheduleMap: ReadonlyMap<number, string>) {

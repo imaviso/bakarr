@@ -14,6 +14,7 @@ import {
   buildMissingEpisodeRows,
   ensureEpisodesEffect,
 } from "@/features/anime/anime-schedule-repository.ts";
+import { MAX_INFERRED_EPISODE_NUMBER } from "@/features/anime/episode-backfill-policy.ts";
 import { upsertEpisodeEffect } from "@/features/anime/anime-episode-repository.ts";
 import { syncEpisodeMetadataEffect } from "@/features/anime/anime-episode-metadata-sync.ts";
 import { findAnimeRootFolderOwnerEffect } from "@/features/anime/anime-read-repository.ts";
@@ -270,6 +271,28 @@ it("buildMissingEpisodeRows uses future schedule when episode count is unknown",
       { aired: "2026-04-18T22:30:00.000Z", number: 3 },
     ],
   );
+});
+
+it("buildMissingEpisodeRows caps inferred rows when schedule episode is too large", () => {
+  const rows = buildMissingEpisodeRows({
+    animeId: 42,
+    episodeCount: undefined,
+    status: "RELEASING",
+    startDate: undefined,
+    endDate: undefined,
+    futureAiringSchedule: [
+      {
+        airingAt: "2026-04-18T22:30:00.000Z",
+        episode: MAX_INFERRED_EPISODE_NUMBER + 500,
+      },
+    ],
+    resetMissingOnly: true,
+    existingRows: [],
+  });
+
+  assert.deepStrictEqual(rows.length, MAX_INFERRED_EPISODE_NUMBER);
+  assert.deepStrictEqual(rows[0]?.number, 1);
+  assert.deepStrictEqual(rows[rows.length - 1]?.number, MAX_INFERRED_EPISODE_NUMBER);
 });
 
 it("inferAiredAt backfills earlier episodes from nearest schedule anchor", () => {

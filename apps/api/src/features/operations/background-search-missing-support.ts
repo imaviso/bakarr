@@ -5,6 +5,7 @@ import { Database } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { anime, episodes } from "@/db/schema.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
+import { backfillEpisodesFromNextAiringEffect } from "@/features/anime/anime-episode-backfill.ts";
 import {
   decideDownloadAction,
   validateQualityProfileSizeLabels,
@@ -77,6 +78,12 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
     const triggerSearchMissingBase = Effect.fn("operations.search.missing")(function* (
       animeId?: number,
     ) {
+      yield* backfillEpisodesFromNextAiringEffect({
+        ...(animeId === undefined ? {} : { animeId }),
+        db,
+        monitoredOnly: animeId === undefined,
+      });
+
       const title = animeId ? (yield* requireAnime(db, animeId)).titleRomaji : "all anime";
 
       yield* eventBus.publish({
