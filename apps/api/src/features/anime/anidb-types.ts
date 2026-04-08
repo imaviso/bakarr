@@ -18,7 +18,6 @@ export type AniDbLookupSkipReason =
   | "runtime_config_unavailable"
   | "disabled"
   | "missing_credentials"
-  | "missing_episode_count"
   | "missing_title_candidates"
   | "title_not_found";
 

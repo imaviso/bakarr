@@ -5,6 +5,18 @@ import type {
 
 const ANIDB_MAX_TITLE_CANDIDATES = 8;
 
+export type AniDbTitleCandidateSource = "romaji" | "english" | "native" | "synonym";
+
+export interface AniDbTitleCandidate {
+  readonly source: AniDbTitleCandidateSource;
+  readonly value: string;
+}
+
+export interface AniDbAnimeLookupMatch {
+  readonly aid: number;
+  readonly title: string | undefined;
+}
+
 export interface AniDbResponse {
   readonly code: number;
   readonly lines: ReadonlyArray<string>;
@@ -50,6 +62,24 @@ export function parseAid(line: string | undefined): number | undefined {
   return Number.isFinite(aid) && aid > 0 ? aid : undefined;
 }
 
+export function parseAnimeLookupMatch(line: string | undefined): AniDbAnimeLookupMatch | undefined {
+  if (!line) {
+    return undefined;
+  }
+
+  const fields = line.split("|");
+  const aid = parseAid(line);
+
+  if (aid === undefined) {
+    return undefined;
+  }
+
+  return {
+    aid,
+    title: normalizeAniDbText(fields[1]),
+  };
+}
+
 export function parseEpisodeResponse(
   line: string | undefined,
   fallbackEpisodeNumber: number,
@@ -80,11 +110,68 @@ export function buildTitleCandidates(
   title: AniDbEpisodeLookupInput["title"],
   synonyms: ReadonlyArray<string> | undefined,
 ) {
-  const values = [title.romaji, title.english, title.native, ...(synonyms ?? [])]
-    .map((value) => (typeof value === "string" ? value.trim() : ""))
-    .filter((value) => value.length > 0);
+  const candidates: ReadonlyArray<AniDbTitleCandidate> = [
+    { source: "romaji", value: title.romaji },
+    ...(title.english === undefined ? [] : [{ source: "english", value: title.english } as const]),
+    ...(title.native === undefined ? [] : [{ source: "native", value: title.native } as const]),
+    ...(synonyms ?? []).map((value) => ({ source: "synonym", value }) as const),
+  ];
 
-  return [...new Set(values)].slice(0, ANIDB_MAX_TITLE_CANDIDATES);
+  const uniqueCandidates = new Set<string>();
+  const normalizedCandidates: AniDbTitleCandidate[] = [];
+
+  for (const candidate of candidates) {
+    const normalizedValue = candidate.value.trim();
+
+    if (normalizedValue.length === 0) {
+      continue;
+    }
+
+    const dedupeKey = normalizeTitleForMatch(normalizedValue);
+
+    if (uniqueCandidates.has(dedupeKey)) {
+      continue;
+    }
+
+    uniqueCandidates.add(dedupeKey);
+    normalizedCandidates.push({
+      source: candidate.source,
+      value: normalizedValue,
+    });
+  }
+
+  return normalizedCandidates.slice(0, ANIDB_MAX_TITLE_CANDIDATES);
+}
+
+export function scoreAnimeLookupCandidate(
+  candidate: AniDbTitleCandidate,
+  matchedTitle: string | undefined,
+) {
+  const sourceScore = sourcePriorityScore(candidate.source);
+
+  if (matchedTitle === undefined) {
+    return sourceScore;
+  }
+
+  const candidateNormalized = normalizeTitleForMatch(candidate.value);
+  const matchedNormalized = normalizeTitleForMatch(matchedTitle);
+
+  if (candidateNormalized.length === 0 || matchedNormalized.length === 0) {
+    return sourceScore;
+  }
+
+  if (candidateNormalized === matchedNormalized) {
+    return sourceScore + 60;
+  }
+
+  if (
+    candidateNormalized.includes(matchedNormalized) ||
+    matchedNormalized.includes(candidateNormalized)
+  ) {
+    return sourceScore + 40;
+  }
+
+  return sourceScore + scoreTokenOverlap(candidateNormalized, matchedNormalized);
 }
 
 function parseAniDbHeader(
@@ -152,4 +239,48 @@ function normalizeAniDbText(value: string | undefined): string | undefined {
   }
 
   return trimmed.replaceAll("<br />", "\n").replaceAll("`", "'");
+}
+
+function normalizeTitleForMatch(value: string) {
+  return value
+    .normalize("NFKD")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim()
+    .replace(/\s+/gu, " ");
+}
+
+function sourcePriorityScore(source: AniDbTitleCandidateSource) {
+  switch (source) {
+    case "romaji":
+      return 40;
+    case "english":
+      return 34;
+    case "native":
+      return 30;
+    case "synonym":
+      return 24;
+  }
+}
+
+function scoreTokenOverlap(candidate: string, matched: string) {
+  const candidateTokens = new Set(candidate.split(" ").filter((token) => token.length > 0));
+  const matchedTokens = new Set(matched.split(" ").filter((token) => token.length > 0));
+
+  if (candidateTokens.size === 0 || matchedTokens.size === 0) {
+    return 0;
+  }
+
+  let shared = 0;
+  for (const token of candidateTokens) {
+    if (matchedTokens.has(token)) {
+      shared += 1;
+    }
+  }
+
+  if (shared === 0) {
+    return 0;
+  }
+
+  return Math.round((shared / Math.max(candidateTokens.size, matchedTokens.size)) * 30);
 }

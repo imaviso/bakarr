@@ -15,7 +15,7 @@ const AnimeMetadataAiringScheduleItemSchema = Schema.Struct({
   episode: Schema.Number,
 });
 
-const AnimeMetadataEpisodeSchema = Schema.Struct({
+export const AnimeMetadataEpisodeSchema = Schema.Struct({
   aired: Schema.optional(Schema.String),
   number: Schema.Number,
   title: Schema.optional(Schema.String),

@@ -58,6 +58,12 @@ export const episodes = sqliteTable(
   ],
 );
 
+export const anidbEpisodeCache = sqliteTable("anidb_episode_cache", {
+  animeId: integer("anime_id").primaryKey(),
+  episodes: text("episodes").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
 export const users = sqliteTable("users", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   username: text("username").notNull().unique(),

@@ -109,4 +109,7 @@ export const embeddedDrizzleMigrations = {
     "CREATE TABLE `library_roots` (\n\t`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,\n\t`label` text NOT NULL,\n\t`path` text NOT NULL\n);",
     "CREATE UNIQUE INDEX `library_roots_path_unique` ON `library_roots` (`path`);",
   ],
+  "0023_anidb_episode_cache": [
+    "CREATE TABLE `anidb_episode_cache` (\n\t`anime_id` integer PRIMARY KEY NOT NULL,\n\t`episodes` text NOT NULL,\n\t`updated_at` text NOT NULL\n);",
+  ],
 } as const satisfies EmbeddedDrizzleMigrations;

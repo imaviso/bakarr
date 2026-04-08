@@ -35,10 +35,13 @@ export const syncEpisodeMetadataEffect = Effect.fn("AnimeService.syncEpisodeMeta
             continue;
           }
 
-          await tx.insert(episodes).values(insertBase).onConflictDoUpdate({
-            target: [episodes.animeId, episodes.number],
-            set: updateSet,
-          });
+          await tx
+            .insert(episodes)
+            .values(insertBase)
+            .onConflictDoUpdate({
+              target: [episodes.animeId, episodes.number],
+              set: updateSet,
+            });
         }
       }),
     );

@@ -1,23 +1,14 @@
 import { Context, Effect, Layer, Option } from "effect";
 
-import { AniDbClient } from "@/features/anime/anidb.ts";
+import type { DatabaseError } from "@/db/database.ts";
 import { AniListClient } from "@/features/anime/anilist.ts";
 import type { AnimeMetadata } from "@/features/anime/anilist-model.ts";
-import type {
-  AniDbEpisodeLookupResult,
-  AniDbLookupSkipReason,
-} from "@/features/anime/anidb-types.ts";
+import {
+  AnimeMetadataEnrichmentService,
+  type AnimeMetadataEnrichmentCacheState,
+} from "@/features/anime/anime-metadata-enrichment-service.ts";
+import type { AnimeStoredDataError } from "@/features/anime/errors.ts";
 import type { ExternalCallError } from "@/lib/effect-retry.ts";
-
-const ANIDB_ENRICHMENT_TIMEOUT_MS = 1500;
-
-type AniDbLookupOrFailure =
-  | AniDbEpisodeLookupResult
-  | {
-      readonly _tag: "AniDbLookupFailed";
-      readonly message: string;
-      readonly operation: string;
-    };
 
 export type AnimeMetadataLookupResult =
   | {
@@ -42,26 +33,19 @@ export type AnimeMetadataEnrichmentResult =
 
 export type AnimeMetadataDegradationReason =
   | {
-      readonly _tag: "AniDbSkipped";
-      readonly reason: AniDbLookupSkipReason;
-    }
-  | {
-      readonly _tag: "AniDbTimeout";
-      readonly timeoutMs: number;
-    }
-  | {
-      readonly _tag: "AniDbExternalError";
-      readonly message: string;
-      readonly operation: string;
-    }
-  | {
       readonly _tag: "AniDbNoEpisodeMetadata";
+    }
+  | {
+      readonly _tag: "AniDbRefreshPending";
+      readonly cacheState: "missing" | "stale";
     };
+
+export type AnimeMetadataLookupError = ExternalCallError | DatabaseError | AnimeStoredDataError;
 
 export interface AnimeMetadataProviderServiceShape {
   readonly getAnimeMetadataById: (
     id: number,
-  ) => Effect.Effect<AnimeMetadataLookupResult, ExternalCallError>;
+  ) => Effect.Effect<AnimeMetadataLookupResult, AnimeMetadataLookupError>;
 }
 
 export class AnimeMetadataProviderService extends Context.Tag(
@@ -72,7 +56,7 @@ export const AnimeMetadataProviderServiceLive = Layer.effect(
   AnimeMetadataProviderService,
   Effect.gen(function* () {
     const aniList = yield* AniListClient;
-    const aniDb = yield* AniDbClient;
+    const enrichmentService = yield* AnimeMetadataEnrichmentService;
 
     const getAnimeMetadataById = Effect.fn("AnimeMetadataProviderService.getAnimeMetadataById")(
       function* (id: number) {
@@ -83,65 +67,33 @@ export const AnimeMetadataProviderServiceLive = Layer.effect(
         }
 
         const baseMetadata = metadata.value;
+        const cacheState = yield* enrichmentService.getAniDbCacheState(baseMetadata.id);
 
-        const lookup = yield* aniDb
-          .getEpisodeMetadata({
-            episodeCount: baseMetadata.episodeCount,
-            synonyms: baseMetadata.synonyms,
-            title: baseMetadata.title,
-          })
-          .pipe(
-            Effect.map((value): AniDbLookupOrFailure => value),
-            Effect.timeoutOption(`${ANIDB_ENRICHMENT_TIMEOUT_MS} millis`),
-            Effect.catchTag("ExternalCallError", (error) =>
-              Effect.succeed(
-                Option.some<AniDbLookupOrFailure>({
-                  _tag: "AniDbLookupFailed",
-                  message: error.message,
-                  operation: error.operation,
-                }),
-              ),
-            ),
-          );
-
-        if (Option.isNone(lookup)) {
-          const result = {
-            _tag: "Found",
-            enrichment: {
-              _tag: "Degraded",
-              reason: {
-                _tag: "AniDbTimeout",
-                timeoutMs: ANIDB_ENRICHMENT_TIMEOUT_MS,
-              },
-            },
-            metadata: baseMetadata,
-          } as const satisfies AnimeMetadataLookupResult;
-
-          yield* logEnrichmentResult(id, result.enrichment);
-          return result;
+        if (cacheState._tag === "Fresh") {
+          return yield* toFreshLookupResult(baseMetadata, cacheState);
         }
 
-        const lookupValue = lookup.value;
+        yield* enrichmentService.requestAniDbRefresh({
+          animeId: baseMetadata.id,
+          episodeCount: baseMetadata.episodeCount,
+          synonyms: baseMetadata.synonyms,
+          title: baseMetadata.title,
+        });
 
-        if (lookupValue._tag === "AniDbLookupFailed") {
-          const result = {
-            _tag: "Found",
-            enrichment: {
-              _tag: "Degraded",
-              reason: {
-                _tag: "AniDbExternalError",
-                message: lookupValue.message,
-                operation: lookupValue.operation,
-              },
+        const result = {
+          _tag: "Found",
+          enrichment: {
+            _tag: "Degraded",
+            reason: {
+              _tag: "AniDbRefreshPending",
+              cacheState: cacheState._tag === "Missing" ? "missing" : "stale",
             },
-            metadata: baseMetadata,
-          } as const satisfies AnimeMetadataLookupResult;
+          },
+          metadata: baseMetadata,
+        } as const satisfies AnimeMetadataLookupResult;
 
-          yield* logEnrichmentResult(id, result.enrichment);
-          return result;
-        }
-
-        return yield* buildFoundLookupResult(id, baseMetadata, lookupValue);
+        yield* logEnrichmentResult(baseMetadata.id, result.enrichment);
+        return result;
       },
     );
 
@@ -149,26 +101,12 @@ export const AnimeMetadataProviderServiceLive = Layer.effect(
   }),
 );
 
-const buildFoundLookupResult = Effect.fn("AnimeMetadataProviderService.buildFoundLookupResult")(
-  function* (animeId: number, baseMetadata: AnimeMetadata, lookup: AniDbEpisodeLookupResult) {
-    if (lookup._tag === "AniDbLookupSkipped") {
-      const result = {
-        _tag: "Found",
-        enrichment: {
-          _tag: "Degraded",
-          reason: {
-            _tag: "AniDbSkipped",
-            reason: lookup.reason,
-          },
-        },
-        metadata: baseMetadata,
-      } as const satisfies AnimeMetadataLookupResult;
-
-      yield* logEnrichmentResult(animeId, result.enrichment);
-      return result;
-    }
-
-    if (lookup.episodes.length === 0) {
+const toFreshLookupResult = Effect.fn("AnimeMetadataProviderService.toFreshLookupResult")(
+  function* (
+    baseMetadata: AnimeMetadata,
+    cacheState: Extract<AnimeMetadataEnrichmentCacheState, { _tag: "Fresh" }>,
+  ) {
+    if (cacheState.episodes.length === 0) {
       const result = {
         _tag: "Found",
         enrichment: {
@@ -180,7 +118,7 @@ const buildFoundLookupResult = Effect.fn("AnimeMetadataProviderService.buildFoun
         metadata: baseMetadata,
       } as const satisfies AnimeMetadataLookupResult;
 
-      yield* logEnrichmentResult(animeId, result.enrichment);
+      yield* logEnrichmentResult(baseMetadata.id, result.enrichment);
       return result;
     }
 
@@ -188,12 +126,12 @@ const buildFoundLookupResult = Effect.fn("AnimeMetadataProviderService.buildFoun
       _tag: "Found",
       enrichment: {
         _tag: "Enriched",
-        episodes: lookup.episodes.length,
+        episodes: cacheState.episodes.length,
         provider: "AniDB",
       },
       metadata: {
         ...baseMetadata,
-        episodes: [...lookup.episodes],
+        episodes: [...cacheState.episodes],
       },
     } as const satisfies AnimeMetadataLookupResult;
   },
@@ -207,18 +145,11 @@ const logEnrichmentResult = Effect.fn("AnimeMetadataProviderService.logEnrichmen
 
     const reason = result.reason;
 
-    yield* Effect.logWarning("AniDB enrichment degraded").pipe(
+    yield* Effect.logInfo("AniDB enrichment degraded").pipe(
       Effect.annotateLogs({
         animeId,
         reason: reason._tag,
-        ...(reason._tag === "AniDbExternalError"
-          ? {
-              message: reason.message,
-              operation: reason.operation,
-            }
-          : {}),
-        ...(reason._tag === "AniDbSkipped" ? { skipReason: reason.reason } : {}),
-        ...(reason._tag === "AniDbTimeout" ? { timeoutMs: reason.timeoutMs } : {}),
+        ...(reason._tag === "AniDbRefreshPending" ? { cacheState: reason.cacheState } : {}),
       }),
     );
   },

@@ -34,15 +34,15 @@ export function resolveAniDbRuntimeConfig(config: Config): AniDbRuntimeConfig {
 export function normalizeEpisodeCount(
   episodeCount: number | undefined,
   episodeLimit: number,
-): number | undefined {
+): number {
   if (!Number.isFinite(episodeCount) || episodeCount === undefined) {
-    return undefined;
+    return episodeLimit;
   }
 
   const normalized = Math.floor(episodeCount);
 
   if (normalized <= 0) {
-    return undefined;
+    return episodeLimit;
   }
 
   return Math.min(normalized, episodeLimit);

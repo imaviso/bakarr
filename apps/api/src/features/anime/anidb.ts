@@ -6,9 +6,11 @@ import { type DatabaseError } from "@/db/database.ts";
 import { ClockService, type ClockServiceShape } from "@/lib/clock.ts";
 import {
   buildTitleCandidates,
-  parseAid,
+  parseAnimeLookupMatch,
   parseAniDbResponse,
   parseEpisodeResponse,
+  scoreAnimeLookupCandidate,
+  type AniDbTitleCandidate,
 } from "@/features/anime/anidb-protocol.ts";
 import type {
   AniDbEpisodeLookupResult,
@@ -28,6 +30,8 @@ const ANIDB_PORT = 9000;
 const ANIDB_PROTO_VERSION = 3;
 const ANIDB_PACKET_TIMEOUT_MS = 10_000;
 const ANIDB_MIN_PACKET_INTERVAL_MS = 2_200;
+const ANIDB_MIN_ANIME_MATCH_SCORE = 70;
+const ANIDB_STRONG_ANIME_MATCH_SCORE = 90;
 
 interface AniDbClientShape {
   readonly getEpisodeMetadata: (
@@ -51,20 +55,16 @@ export const AniDbClientLive = Layer.effect(
     const getEpisodeMetadata = Effect.fn("AniDbClient.getEpisodeMetadata")(function* (
       input: AniDbEpisodeLookupInput,
     ) {
-      const runtimeConfig = yield* runtimeConfigSnapshot
-        .getRuntimeConfig()
-        .pipe(
-          Effect.map(Option.some),
-          Effect.catchTag("StoredConfigMissingError", () => Effect.succeed(Option.none())),
-          Effect.catchTag("StoredConfigCorruptError", (error) =>
-            logRuntimeConfigError(error, "stored config is corrupt").pipe(
-              Effect.as(Option.none()),
-            ),
-          ),
-          Effect.catchTag("DatabaseError", (error) =>
-            logRuntimeConfigError(error, "database read failed").pipe(Effect.as(Option.none())),
-          ),
-        );
+      const runtimeConfig = yield* runtimeConfigSnapshot.getRuntimeConfig().pipe(
+        Effect.map(Option.some),
+        Effect.catchTag("StoredConfigMissingError", () => Effect.succeed(Option.none())),
+        Effect.catchTag("StoredConfigCorruptError", (error) =>
+          logRuntimeConfigError(error, "stored config is corrupt").pipe(Effect.as(Option.none())),
+        ),
+        Effect.catchTag("DatabaseError", (error) =>
+          logRuntimeConfigError(error, "database read failed").pipe(Effect.as(Option.none())),
+        ),
+      );
 
       if (Option.isNone(runtimeConfig)) {
         return { _tag: "AniDbLookupSkipped", reason: "runtime_config_unavailable" } as const;
@@ -73,10 +73,6 @@ export const AniDbClientLive = Layer.effect(
       const config = resolveAniDbRuntimeConfig(runtimeConfig.value);
 
       const episodeCount = normalizeEpisodeCount(input.episodeCount, config.episodeLimit);
-
-      if (episodeCount === undefined) {
-        return { _tag: "AniDbLookupSkipped", reason: "missing_episode_count" } as const;
-      }
 
       if (!config.enabled) {
         return { _tag: "AniDbLookupSkipped", reason: "disabled" } as const;
@@ -128,10 +124,7 @@ export const AniDbClientLive = Layer.effect(
   }),
 );
 
-const logRuntimeConfigError = (
-  error: DatabaseError | StoredConfigCorruptError,
-  reason: string,
-) =>
+const logRuntimeConfigError = (error: DatabaseError | StoredConfigCorruptError, reason: string) =>
   Effect.logWarning("AniDB metadata lookup skipped due to runtime config load failure").pipe(
     Effect.annotateLogs({
       cause: String(error.cause),
@@ -173,7 +166,7 @@ const fetchAniDbEpisodesEffect = Effect.fn("AniDbClient.fetchEpisodes")(function
   lastPacketAtRef: Ref.Ref<number>;
   sessionToken: string;
   socket: Socket;
-  titleCandidates: ReadonlyArray<string>;
+  titleCandidates: ReadonlyArray<AniDbTitleCandidate>;
 }) {
   const aidOption = yield* resolveAnimeIdEffect({
     clock: input.clock,
@@ -233,12 +226,19 @@ const resolveAnimeIdEffect = Effect.fn("AniDbClient.resolveAnimeId")(function* (
   lastPacketAtRef: Ref.Ref<number>;
   sessionToken: string;
   socket: Socket;
-  titleCandidates: ReadonlyArray<string>;
+  titleCandidates: ReadonlyArray<AniDbTitleCandidate>;
 }) {
+  let bestMatch:
+    | {
+        readonly aid: number;
+        readonly score: number;
+      }
+    | undefined;
+
   for (const candidate of input.titleCandidates) {
     const response = yield* sendAniDbCommandEffect(
       input.socket,
-      `ANIME aname=${encodeCommandValue(candidate)}&s=${input.sessionToken}`,
+      `ANIME aname=${encodeCommandValue(candidate.value)}&s=${input.sessionToken}`,
       input.clock,
       input.lastPacketAtRef,
       "anime",
@@ -256,11 +256,28 @@ const resolveAnimeIdEffect = Effect.fn("AniDbClient.resolveAnimeId")(function* (
       });
     }
 
-    const aid = parseAid(response.lines[0]);
+    const parsedMatch = parseAnimeLookupMatch(response.lines[0]);
 
-    if (aid !== undefined) {
-      return Option.some(aid);
+    if (!parsedMatch) {
+      continue;
     }
+
+    const score = scoreAnimeLookupCandidate(candidate, parsedMatch.title);
+
+    if (score >= ANIDB_STRONG_ANIME_MATCH_SCORE) {
+      return Option.some(parsedMatch.aid);
+    }
+
+    if (bestMatch === undefined || score > bestMatch.score) {
+      bestMatch = {
+        aid: parsedMatch.aid,
+        score,
+      };
+    }
+  }
+
+  if (bestMatch && bestMatch.score >= ANIDB_MIN_ANIME_MATCH_SCORE) {
+    return Option.some(bestMatch.aid);
   }
 
   return Option.none();
