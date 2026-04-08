@@ -2,7 +2,7 @@ import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platf
 import { Deferred, Effect, Either, Ref } from "effect";
 
 import type { ClockService } from "@/lib/clock.ts";
-import { ExternalCallError, makeTryExternalEffect } from "@/lib/effect-retry.ts";
+import { ExternalCallError, type TryExternalEffect } from "@/lib/effect-retry.ts";
 import {
   QBitTorrentClientError,
   type QBitConfig,
@@ -12,6 +12,25 @@ export interface SessionEntry {
   readonly cookie: string;
   readonly createdAt: number;
 }
+
+type ExecuteQBitRequest = (
+  operation: string,
+  request: HttpClientRequest.HttpClientRequest,
+  options?: { readonly idempotent?: boolean },
+) => Effect.Effect<HttpClientResponse.HttpClientResponse, ExternalCallError>;
+
+type WithCachedSession = (
+  config: QBitConfig,
+  operation: (
+    cookie: string,
+  ) => Effect.Effect<
+    HttpClientResponse.HttpClientResponse,
+    ExternalCallError | QBitTorrentClientError
+  >,
+) => Effect.Effect<
+  HttpClientResponse.HttpClientResponse,
+  ExternalCallError | QBitTorrentClientError
+>;
 
 const SESSION_TTL_MS = 30 * 60 * 1000;
 
@@ -140,7 +159,7 @@ export function withSessionCache(
   });
 }
 
-export const makeLogin = (execute: ReturnType<typeof makeExecute>) =>
+export const makeLogin = (execute: ExecuteQBitRequest) =>
   Effect.fn("QBitTorrentClient.login")(function* (config: QBitConfig) {
     const response = yield* execute(
       "qbit.login",
@@ -185,10 +204,7 @@ export const makeLogin = (execute: ReturnType<typeof makeExecute>) =>
     return sessionCookie;
   });
 
-export const makePostHashesAction = (
-  withSession: ReturnType<typeof withSessionCache>,
-  execute: ReturnType<typeof makeExecute>,
-) =>
+export const makePostHashesAction = (withSession: WithCachedSession, execute: ExecuteQBitRequest) =>
   Effect.fn("QBitTorrentClient.postHashesAction")(function* (
     config: QBitConfig,
     path: string,
@@ -211,10 +227,7 @@ export const makePostHashesAction = (
     yield* ensureOk(response, `qBittorrent action failed with status ${response.status}`);
   });
 
-export function makeExecute(
-  client: HttpClient.HttpClient,
-  tryExternalEffect: ReturnType<typeof makeTryExternalEffect>,
-) {
+export function makeExecute(client: HttpClient.HttpClient, tryExternalEffect: TryExternalEffect) {
   return (
     operation: string,
     request: HttpClientRequest.HttpClientRequest,

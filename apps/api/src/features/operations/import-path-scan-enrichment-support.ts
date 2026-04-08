@@ -3,6 +3,7 @@ import { Effect } from "effect";
 import type { ScannedFile } from "@packages/shared/index.ts";
 import {
   mergeProbedMediaMetadata,
+  probeMediaMetadataOrUndefined,
   shouldProbeMediaMetadata,
   type MediaProbeShape,
 } from "@/lib/media-probe.ts";
@@ -21,11 +22,9 @@ export const enrichImportScanFiles = Effect.fn("Operations.enrichImportScanFiles
         return file;
       }
 
-      const probeMetadata = yield* input.mediaProbe.probeVideoFile(file.source_path).pipe(
-        Effect.map((result) =>
-          result._tag === "MediaProbeMetadataFound" ? result.metadata : undefined,
-        ),
-        Effect.catchAll(() => Effect.as(Effect.void, undefined)),
+      const probeMetadata = yield* probeMediaMetadataOrUndefined(
+        input.mediaProbe,
+        file.source_path,
       );
 
       return mergeProbedMediaMetadata(file, probeMetadata);

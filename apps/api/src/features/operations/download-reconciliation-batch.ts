@@ -3,6 +3,7 @@ import { Effect } from "effect";
 
 import { episodes } from "@/db/schema.ts";
 import { classifyMediaArtifact } from "@/lib/media-identity.ts";
+import { probeMediaMetadataOrUndefined } from "@/lib/media-probe.ts";
 import {
   buildEpisodeFilenamePlan,
   hasMissingLocalMediaNamingFields,
@@ -171,12 +172,7 @@ export const reconcileBatchDownloadEffect = Effect.fn("OperationsService.reconci
           : {}),
       });
       const localMediaMetadata = hasMissingLocalMediaNamingFields(initialNamingPlan.missingFields)
-        ? yield* input.mediaProbe.probeVideoFile(path).pipe(
-            Effect.map((probeResult) =>
-              probeResult._tag === "MediaProbeMetadataFound" ? probeResult.metadata : undefined,
-            ),
-            Effect.catchAll(() => Effect.as(Effect.void, undefined)),
-          )
+        ? yield* probeMediaMetadataOrUndefined(input.mediaProbe, path)
         : undefined;
 
       const managedPath = yield* importDownloadedFile(

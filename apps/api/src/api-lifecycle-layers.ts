@@ -132,5 +132,3 @@ export function makeApiLifecycleLayers(
     torrentClientLayer,
   } as const;
 }
-
-export type ApiLifecycleLayers = ReturnType<typeof makeApiLifecycleLayers>;

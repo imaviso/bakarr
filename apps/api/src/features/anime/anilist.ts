@@ -3,7 +3,11 @@ import { Context, Effect, Layer, Option, Schema } from "effect";
 
 import type { AnimeSearchResult } from "@packages/shared/index.ts";
 import { ClockService } from "@/lib/clock.ts";
-import { ExternalCallError, makeTryExternalEffect } from "@/lib/effect-retry.ts";
+import {
+  ExternalCallError,
+  makeTryExternalEffect,
+  type TryExternalEffect,
+} from "@/lib/effect-retry.ts";
 import {
   AnimeMetadataFromAniListSchema,
   AnimeSearchResultFromAniListSchema,
@@ -243,7 +247,7 @@ export const AniListClientLive = Layer.effect(
 
 const callAniList = <A, I>(
   client: HttpClient.HttpClient,
-  tryExternalEffect: ReturnType<typeof makeTryExternalEffect>,
+  tryExternalEffect: TryExternalEffect,
   operation: string,
   query: string,
   variables: Record<string, unknown>,
@@ -283,7 +287,7 @@ const callAniList = <A, I>(
 
 const trySearchRemote = Effect.fn("AniListClient.trySearchRemote")(function* (
   client: HttpClient.HttpClient,
-  tryExternalEffect: ReturnType<typeof makeTryExternalEffect>,
+  tryExternalEffect: TryExternalEffect,
   trimmed: string,
 ) {
   const payload = yield* callAniList(
@@ -310,7 +314,7 @@ const trySearchRemote = Effect.fn("AniListClient.trySearchRemote")(function* (
 
 const tryFetchDetail = Effect.fn("AniListClient.tryFetchDetail")(function* (
   client: HttpClient.HttpClient,
-  tryExternalEffect: ReturnType<typeof makeTryExternalEffect>,
+  tryExternalEffect: TryExternalEffect,
   id: number,
 ) {
   const payload = yield* callAniList(

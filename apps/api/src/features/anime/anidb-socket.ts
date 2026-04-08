@@ -14,6 +14,14 @@ export const openAniDbSocketEffect = Effect.fn("AniDbClient.openSocket")(functio
   return yield* Effect.async<Socket, ExternalCallError>((resume) => {
     const socket = createSocket("udp4");
 
+    const closeSocket = () => {
+      try {
+        socket.close();
+      } catch {
+        // ignored: socket is already closed
+      }
+    };
+
     const cleanup = () => {
       socket.off("error", onError);
       socket.off("listening", onListening);
@@ -21,6 +29,7 @@ export const openAniDbSocketEffect = Effect.fn("AniDbClient.openSocket")(functio
 
     const onError = (cause: Error) => {
       cleanup();
+      closeSocket();
       resume(
         Effect.fail(
           ExternalCallError.make({
@@ -41,7 +50,10 @@ export const openAniDbSocketEffect = Effect.fn("AniDbClient.openSocket")(functio
     socket.once("listening", onListening);
     socket.bind(localPort);
 
-    return Effect.sync(cleanup);
+    return Effect.sync(() => {
+      cleanup();
+      closeSocket();
+    });
   });
 });
 

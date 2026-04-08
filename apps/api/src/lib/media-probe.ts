@@ -1,5 +1,5 @@
 import { CommandExecutor } from "@effect/platform";
-import { Context, Effect, Either, Layer, Option, ParseResult, Schema } from "effect";
+import { Context, Effect, Either, Layer, ParseResult, Schema } from "effect";
 
 import { MediaProbeFailure, runFfprobeCommandWith } from "@/lib/media-probe-command.ts";
 
@@ -291,6 +291,20 @@ export function mergeProbedMediaMetadata<
   };
 }
 
+export const probeMediaMetadataOrUndefined = Effect.fn("MediaProbe.probeMediaMetadataOrUndefined")(
+  function* (mediaProbe: MediaProbeShape, path: string) {
+    const probeResult = yield* Effect.either(mediaProbe.probeVideoFile(path));
+
+    if (Either.isLeft(probeResult)) {
+      return undefined;
+    }
+
+    return probeResult.right._tag === "MediaProbeMetadataFound"
+      ? probeResult.right.metadata
+      : undefined;
+  },
+);
+
 export const parseFfprobeJson = Effect.fn("MediaProbe.parseFfprobeJson")(
   (json: string): Effect.Effect<MediaProbeResult, MediaProbeFailure> =>
     decodeFfprobeOutput(json).pipe(Effect.flatMap(normalizeFfprobeDecodedOutput)),
@@ -381,16 +395,10 @@ export const MediaProbeLive = Layer.effect(
   MediaProbe,
   Effect.gen(function* () {
     const ffprobeSemaphore = yield* Effect.makeSemaphore(FFPROBE_CONCURRENCY_LIMIT);
-    const executorOption = yield* Effect.serviceOption(CommandExecutor.CommandExecutor);
-
-    if (Option.isNone(executorOption)) {
-      const message = "ffprobe is unavailable: command executor missing";
-      yield* Effect.logWarning("ffprobe unavailable").pipe(Effect.annotateLogs({ message }));
-      return yield* Effect.die(new Error(message));
-    }
+    const executor = yield* CommandExecutor.CommandExecutor;
 
     const availability = yield* runFfprobeCommandWith(
-      executorOption.value,
+      executor,
       ["-version"],
       FFPROBE_VERSION_TIMEOUT_MS,
     ).pipe(Effect.either);
@@ -402,6 +410,6 @@ export const MediaProbeLive = Layer.effect(
       return yield* Effect.die(availability.left.cause ?? new Error(availability.left.message));
     }
 
-    return makeMediaProbe(ffprobeSemaphore, executorOption.value);
+    return makeMediaProbe(ffprobeSemaphore, executor);
   }),
 );

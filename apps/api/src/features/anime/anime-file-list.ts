@@ -8,6 +8,7 @@ import type { MediaProbeShape } from "@/lib/media-probe.ts";
 import type { VideoFile } from "@packages/shared/index.ts";
 import {
   mergeProbedMediaMetadata,
+  probeMediaMetadataOrUndefined,
   type ProbedMediaMetadata,
   shouldProbeDetailedMediaMetadata,
 } from "@/lib/media-probe.ts";
@@ -181,12 +182,7 @@ export const listAnimeFilesEffect = Effect.fn("AnimeFileList.listAnimeFilesEffec
       );
 
       const probedMetadata = shouldProbeDetailedMediaMetadata(mergedWithCachedMetadata)
-        ? yield* input.mediaProbe.probeVideoFile(file.path).pipe(
-            Effect.map((result) =>
-              result._tag === "MediaProbeMetadataFound" ? result.metadata : undefined,
-            ),
-            Effect.catchAll(() => Effect.as(Effect.void, undefined)),
-          )
+        ? yield* probeMediaMetadataOrUndefined(input.mediaProbe, file.path)
         : undefined;
       const mergedMetadata = mergeProbedMediaMetadata(mergedWithCachedMetadata, probedMetadata);
 

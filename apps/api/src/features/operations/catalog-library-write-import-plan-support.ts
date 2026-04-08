@@ -5,7 +5,11 @@ import type { ImportMode } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { anime, episodes } from "@/db/schema.ts";
 import type { FileSystemShape } from "@/lib/filesystem.ts";
-import type { MediaProbeShape, ProbedMediaMetadata } from "@/lib/media-probe.ts";
+import {
+  probeMediaMetadataOrUndefined,
+  type MediaProbeShape,
+  type ProbedMediaMetadata,
+} from "@/lib/media-probe.ts";
 import { OperationsAnimeNotFoundError, OperationsPathError } from "@/features/operations/errors.ts";
 import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
 import {
@@ -16,6 +20,7 @@ import {
   buildEpisodeFilenamePlan,
   hasMissingLocalMediaNamingFields,
   selectNamingFormat,
+  type EpisodeFilenamePlan,
 } from "@/features/operations/naming-support.ts";
 import type { TryDatabasePromise } from "@/lib/effect-db.ts";
 
@@ -42,7 +47,7 @@ export interface LibraryImportPlan {
   readonly episodeNumber: number;
   readonly localMediaMetadata?: ProbedMediaMetadata;
   readonly resolvedSource: string;
-  readonly namingPlan: ReturnType<typeof buildEpisodeFilenamePlan>;
+  readonly namingPlan: EpisodeFilenamePlan;
   readonly sourcePath: string;
   readonly sourceMetadata?: import("@packages/shared/index.ts").DownloadSourceMetadata;
 }
@@ -100,12 +105,7 @@ export const buildLibraryImportPlan = Effect.fn("Operations.buildLibraryImportPl
       ...(file.season === undefined ? {} : { season: file.season }),
     });
     const localMediaMetadata = hasMissingLocalMediaNamingFields(initialNamingPlan.missingFields)
-      ? yield* mediaProbe.probeVideoFile(file.source_path).pipe(
-          Effect.map((probeResult) =>
-            probeResult._tag === "MediaProbeMetadataFound" ? probeResult.metadata : undefined,
-          ),
-          Effect.catchAll(() => Effect.as(Effect.void, undefined)),
-        )
+      ? yield* probeMediaMetadataOrUndefined(mediaProbe, file.source_path)
       : undefined;
     const namingPlan = localMediaMetadata
       ? buildEpisodeFilenamePlan({

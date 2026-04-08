@@ -2,7 +2,11 @@ import { Context, Effect, Either, Layer, Stream } from "effect";
 
 import { ClockService } from "@/lib/clock.ts";
 import { DnsResolver } from "@/lib/dns-resolver.ts";
-import { ExternalCallError, makeTryExternalEffect } from "@/lib/effect-retry.ts";
+import {
+  ExternalCallError,
+  makeTryExternalEffect,
+  type TryExternalEffect,
+} from "@/lib/effect-retry.ts";
 import {
   RssFeedParseError,
   RssFeedRejectedError,
@@ -38,7 +42,7 @@ const isRetryableRssFetchError = (error: ExternalCallError) =>
 const makeFetchItems = (
   executeRequest: (target: PinnedRequestTarget) => Effect.Effect<RssTransportResponse, unknown>,
   dns: typeof DnsResolver.Service,
-  tryExternalEffect: ReturnType<typeof makeTryExternalEffect>,
+  tryExternalEffect: TryExternalEffect,
 ) =>
   Effect.fn("RssClient.fetchItems")(function* (url: string) {
     const parsedUrl = yield* Effect.try({

@@ -12,6 +12,17 @@ export class ExternalCallError extends Schema.TaggedError<ExternalCallError>()(
   },
 ) {}
 
+export interface TryExternalEffect {
+  <A, E, R>(
+    operation: string,
+    effect: Effect.Effect<A, E, R>,
+    options?: {
+      readonly idempotent?: boolean;
+      readonly isRetryableError?: (error: ExternalCallError) => boolean;
+    },
+  ): () => Effect.Effect<A, ExternalCallError, R>;
+}
+
 const EXTERNAL_RETRY_DELAYS_MS = [200, 400] as const;
 
 export const makeTryExternal =

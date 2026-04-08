@@ -1,5 +1,6 @@
 import { assert, it } from "@effect/vitest";
 import { CommandExecutor } from "@effect/platform";
+import * as PlatformError from "@effect/platform/Error";
 import { Cause, Effect, Exit, Layer, Logger } from "effect";
 
 import {
@@ -165,20 +166,37 @@ it.effect("MediaProbe enforces global ffprobe concurrency limit", () =>
   }),
 );
 
-it.effect("MediaProbe fails startup when ffprobe is missing", () =>
+it.effect("MediaProbe fails startup when ffprobe version check fails", () =>
   Effect.gen(function* () {
+    const commandExecutorStub = makeCommandExecutorStub((command) =>
+      commandArgs(command).includes("-version")
+        ? Effect.fail(
+            new PlatformError.SystemError({
+              cause: new Error("ffprobe not installed"),
+              description: "ffprobe not installed",
+              method: "string",
+              module: "Command",
+              reason: "Unknown",
+            }),
+          )
+        : Effect.succeed('{"streams":[]}'),
+    );
+
     const exit = yield* Effect.exit(
       Effect.flatMap(MediaProbe, (mediaProbe) =>
         mediaProbe.probeVideoFile("/tmp/missing.mkv"),
-      ).pipe(Effect.provide(MediaProbeLive)),
+      ).pipe(
+        Effect.provide(
+          MediaProbeLive.pipe(
+            Layer.provide(Layer.succeed(CommandExecutor.CommandExecutor, commandExecutorStub)),
+          ),
+        ),
+      ),
     );
 
     assert.deepStrictEqual(Exit.isFailure(exit), true);
     if (Exit.isFailure(exit)) {
-      assert.deepStrictEqual(
-        Cause.pretty(exit.cause).includes("ffprobe is unavailable: command executor missing"),
-        true,
-      );
+      assert.deepStrictEqual(Cause.pretty(exit.cause).includes("ffprobe not installed"), true);
     }
   }),
 );

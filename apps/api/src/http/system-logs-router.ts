@@ -53,26 +53,22 @@ export const logsRouter = HttpRouter.empty.pipe(
         const exportHeaders = buildSystemLogExportHeaders(exported.header);
 
         if (format === "csv") {
-          return Effect.succeed(
-            HttpServerResponse.stream(exported.stream, {
-              contentType: "text/csv; charset=utf-8",
-              headers: {
-                ...exportHeaders,
-                "Content-Disposition": `attachment; filename="bakarr-logs.csv"`,
-              },
-            }),
-          );
-        }
-
-        return Effect.succeed(
-          HttpServerResponse.stream(exported.stream, {
-            contentType: "application/json; charset=utf-8",
+          return HttpServerResponse.stream(exported.stream, {
+            contentType: "text/csv; charset=utf-8",
             headers: {
               ...exportHeaders,
-              "Content-Disposition": `attachment; filename="bakarr-logs.json"`,
+              "Content-Disposition": `attachment; filename="bakarr-logs.csv"`,
             },
-          }),
-        );
+          });
+        }
+
+        return HttpServerResponse.stream(exported.stream, {
+          contentType: "application/json; charset=utf-8",
+          headers: {
+            ...exportHeaders,
+            "Content-Disposition": `attachment; filename="bakarr-logs.json"`,
+          },
+        });
       },
     ),
   ),

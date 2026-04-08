@@ -3,7 +3,11 @@ import { Effect } from "effect";
 import type { AppDatabase } from "@/db/database.ts";
 import type { FileSystemShape } from "@/lib/filesystem.ts";
 import type { MediaProbeShape } from "@/lib/media-probe.ts";
-import { mergeProbedMediaMetadata, shouldProbeDetailedMediaMetadata } from "@/lib/media-probe.ts";
+import {
+  mergeProbedMediaMetadata,
+  probeMediaMetadataOrUndefined,
+  shouldProbeDetailedMediaMetadata,
+} from "@/lib/media-probe.ts";
 import {
   classifyMediaArtifact,
   parseFileSourceIdentity,
@@ -76,12 +80,7 @@ export const scanAnimeFolderEffect = Effect.fn("AnimeFileScan.scanAnimeFolderEff
       };
 
       const probedMetadata = shouldProbeDetailedMediaMetadata(probeInput)
-        ? yield* input.mediaProbe.probeVideoFile(file.path).pipe(
-            Effect.map((result) =>
-              result._tag === "MediaProbeMetadataFound" ? result.metadata : undefined,
-            ),
-            Effect.catchAll(() => Effect.as(Effect.void, undefined)),
-          )
+        ? yield* probeMediaMetadataOrUndefined(input.mediaProbe, file.path)
         : undefined;
 
       const mergedMetadata = mergeProbedMediaMetadata(probeInput, probedMetadata);

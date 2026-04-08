@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { Effect, Option } from "effect";
 
 import { episodes } from "@/db/schema.ts";
+import { probeMediaMetadataOrUndefined } from "@/lib/media-probe.ts";
 import {
   buildEpisodeFilenamePlan,
   hasMissingLocalMediaNamingFields,
@@ -118,12 +119,7 @@ export const reconcileSingleDownloadEffect = Effect.fn(
     ...(input.storedSourceMetadata ? { downloadSourceMetadata: input.storedSourceMetadata } : {}),
   });
   const localMediaMetadata = hasMissingLocalMediaNamingFields(initialNamingPlan.missingFields)
-    ? yield* input.mediaProbe.probeVideoFile(resolvedPathValue).pipe(
-        Effect.map((probeResult) =>
-          probeResult._tag === "MediaProbeMetadataFound" ? probeResult.metadata : undefined,
-        ),
-        Effect.catchAll(() => Effect.as(Effect.void, undefined)),
-      )
+    ? yield* probeMediaMetadataOrUndefined(input.mediaProbe, resolvedPathValue)
     : undefined;
 
   const managedPath = yield* importDownloadedFile(
