@@ -1,4 +1,10 @@
-import { Cause, Effect } from "effect";
+import { Cause, Data, Effect } from "effect";
+
+export class JobFailurePersistenceError extends Data.TaggedError("JobFailurePersistenceError")<{
+  readonly job: string;
+  readonly mark_failure_cause: string;
+  readonly original_failure: string;
+}> {}
 
 export function markJobFailureOrFailWithError<E>(input: {
   readonly error: E;
@@ -16,7 +22,13 @@ export function markJobFailureOrFailWithError<E>(input: {
           ...input.logAnnotations,
         }),
         Effect.zipRight(
-          Effect.failCause(Cause.sequential(Cause.fail(input.error), Cause.die(markFailureCause))),
+          Effect.fail(
+            new JobFailurePersistenceError({
+              job: input.job,
+              mark_failure_cause: Cause.pretty(markFailureCause),
+              original_failure: String(input.error),
+            }),
+          ),
         ),
       ),
     ),
@@ -39,7 +51,13 @@ export function markJobFailureOrFailWithCause<E>(input: {
           ...input.logAnnotations,
         }),
         Effect.zipRight(
-          Effect.failCause(Cause.sequential(input.cause, Cause.die(markFailureCause))),
+          Effect.fail(
+            new JobFailurePersistenceError({
+              job: input.job,
+              mark_failure_cause: Cause.pretty(markFailureCause),
+              original_failure: Cause.pretty(input.cause),
+            }),
+          ),
         ),
       ),
     ),

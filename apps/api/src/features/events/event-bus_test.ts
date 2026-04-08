@@ -34,16 +34,12 @@ it.scoped("event bus uses sliding backpressure for slow subscribers", () =>
     yield* eventBus.publish({ type: "Info", payload: { message: "two" } });
     yield* eventBus.publish({ type: "Info", payload: { message: "three" } });
 
-    const first = yield* takeNextEvent(subscription.stream);
-    const second = yield* takeNextEvent(subscription.stream);
+    const events = yield* Stream.runCollect(subscription.stream.pipe(Stream.take(2)));
 
-    assert.deepStrictEqual(
-      [first, second],
-      [
-        { type: "Info", payload: { message: "two" } },
-        { type: "Info", payload: { message: "three" } },
-      ],
-    );
+    assert.deepStrictEqual(Array.from(events), [
+      { type: "Info", payload: { message: "two" } },
+      { type: "Info", payload: { message: "three" } },
+    ]);
   }),
 );
 

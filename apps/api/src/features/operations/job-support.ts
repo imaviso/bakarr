@@ -1,10 +1,15 @@
-import { and, eq, sql } from "drizzle-orm";
-import { Cause, Effect } from "effect";
+import { and, eq } from "drizzle-orm";
+import { Effect } from "effect";
 
 import type { DownloadSourceMetadata } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { backgroundJobs, downloadEvents, downloads, episodes, systemLogs } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import {
+  markJobFailed as markJobFailedBase,
+  markJobStarted as markJobStartedBase,
+  markJobSucceeded as markJobSucceededBase,
+} from "@/lib/job-status.ts";
 import { encodeDownloadEventMetadata } from "@/features/operations/repository/download-repository.ts";
 
 type NowIso = () => Effect.Effect<string>;
@@ -88,35 +93,7 @@ export const markJobStarted = Effect.fn("JobSupport.markJobStarted")(function* (
   name: string,
   nowIso: NowIso,
 ) {
-  const now = yield* nowIso();
-
-  yield* tryDatabasePromise("Failed to mark job started", () =>
-    db
-      .insert(backgroundJobs)
-      .values({
-        isRunning: true,
-        lastMessage: null,
-        lastRunAt: now,
-        lastStatus: "running",
-        lastSuccessAt: null,
-        name,
-        progressCurrent: null,
-        progressTotal: null,
-        runCount: 1,
-      })
-      .onConflictDoUpdate({
-        target: backgroundJobs.name,
-        set: {
-          isRunning: true,
-          lastMessage: null,
-          lastRunAt: now,
-          lastStatus: "running",
-          progressCurrent: null,
-          progressTotal: null,
-          runCount: sql`${backgroundJobs.runCount} + 1`,
-        },
-      }),
-  );
+  yield* markJobStartedBase(db, name, nowIso);
 });
 
 export const markJobSucceeded = Effect.fn("JobSupport.markJobSucceeded")(function* (
@@ -125,35 +102,7 @@ export const markJobSucceeded = Effect.fn("JobSupport.markJobSucceeded")(functio
   message: string,
   nowIso: NowIso,
 ) {
-  const now = yield* nowIso();
-
-  yield* tryDatabasePromise("Failed to mark job succeeded", () =>
-    db
-      .insert(backgroundJobs)
-      .values({
-        isRunning: false,
-        lastMessage: message,
-        lastRunAt: now,
-        lastStatus: "success",
-        lastSuccessAt: now,
-        name,
-        progressCurrent: null,
-        progressTotal: null,
-        runCount: 1,
-      })
-      .onConflictDoUpdate({
-        target: backgroundJobs.name,
-        set: {
-          isRunning: false,
-          lastMessage: message,
-          lastRunAt: now,
-          lastStatus: "success",
-          lastSuccessAt: now,
-          progressCurrent: null,
-          progressTotal: null,
-        },
-      }),
-  );
+  yield* markJobSucceededBase(db, name, message, nowIso);
 });
 
 export const markJobFailed = Effect.fn("JobSupport.markJobFailed")(function* (
@@ -162,58 +111,8 @@ export const markJobFailed = Effect.fn("JobSupport.markJobFailed")(function* (
   cause: unknown,
   nowIso: NowIso,
 ) {
-  const now = yield* nowIso();
-  const message = formatJobFailureMessage(cause);
-
-  yield* tryDatabasePromise("Failed to mark job failed", () =>
-    db
-      .insert(backgroundJobs)
-      .values({
-        isRunning: false,
-        lastMessage: message,
-        lastRunAt: now,
-        lastStatus: "failed",
-        lastSuccessAt: null,
-        name,
-        progressCurrent: null,
-        progressTotal: null,
-        runCount: 1,
-      })
-      .onConflictDoUpdate({
-        target: backgroundJobs.name,
-        set: {
-          isRunning: false,
-          lastMessage: message,
-          lastRunAt: now,
-          lastStatus: "failed",
-          progressCurrent: null,
-          progressTotal: null,
-        },
-      }),
-  );
+  yield* markJobFailedBase(db, name, cause, nowIso);
 });
-
-function formatJobFailureMessage(cause: unknown): string {
-  if (Cause.isCause(cause)) {
-    return Cause.pretty(cause);
-  }
-
-  if (
-    typeof cause === "object" &&
-    cause !== null &&
-    "_tag" in cause &&
-    "message" in cause &&
-    typeof cause.message === "string"
-  ) {
-    return `${String(cause._tag)}: ${cause.message}`;
-  }
-
-  if (cause instanceof Error) {
-    return `${cause.name}: ${cause.message}`;
-  }
-
-  return String(cause);
-}
 
 export const updateJobProgress = Effect.fn("JobSupport.updateJobProgress")(function* (
   db: AppDatabase,

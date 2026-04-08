@@ -84,7 +84,15 @@ function toEpisodeProbeCachePatch(
   };
 }
 
-function hasEpisodeProbeCachePatch(patch: ReturnType<typeof toEpisodeProbeCachePatch>) {
+interface EpisodeProbeCachePatch {
+  readonly audioChannels?: string | undefined;
+  readonly audioCodec?: string | undefined;
+  readonly durationSeconds?: number | undefined;
+  readonly resolution?: string | undefined;
+  readonly videoCodec?: string | undefined;
+}
+
+function hasEpisodeProbeCachePatch(patch: EpisodeProbeCachePatch) {
   return (
     patch.audioChannels !== undefined ||
     patch.audioCodec !== undefined ||

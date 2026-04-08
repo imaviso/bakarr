@@ -70,7 +70,10 @@ export function makeUnmappedScanWorkflow(input: {
       logAnnotations: { run_failure: error.message },
       logMessage: "Failed to record unmapped scan job failure",
       markFailed: markJobFailed(db, "unmapped_scan", error, nowIso),
-    }).pipe(Effect.zipRight(Effect.fail(error)));
+    }).pipe(
+      Effect.catchTag("JobFailurePersistenceError", () => Effect.void),
+      Effect.zipRight(Effect.fail(error)),
+    );
 
   const failInfrastructureAfterMarkingJobFailure = (cause: Cause.Cause<unknown>) => {
     const infrastructureError = new OperationsInfrastructureError({
@@ -84,7 +87,10 @@ export function makeUnmappedScanWorkflow(input: {
       logAnnotations: { run_failure_cause: Cause.pretty(cause) },
       logMessage: "Failed to record unmapped scan infrastructure failure",
       markFailed: markJobFailed(db, "unmapped_scan", cause, nowIso),
-    }).pipe(Effect.zipRight(Effect.fail(infrastructureError)));
+    }).pipe(
+      Effect.catchTag("JobFailurePersistenceError", () => Effect.void),
+      Effect.zipRight(Effect.fail(infrastructureError)),
+    );
   };
 
   const runUnmappedScanPass = Effect.fn("OperationsService.runUnmappedScanPass")(

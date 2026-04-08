@@ -41,9 +41,7 @@ it.scoped("SystemEventsService does not lose buffered events during stream boots
     );
 
     const events = yield* Effect.flatMap(SystemEventsService, (service) =>
-      service
-        .buildEventsStream()
-        .pipe(Effect.flatMap((stream) => Stream.runCollect(stream.pipe(Stream.take(2))))),
+      Stream.runCollect(service.buildEventsStream().pipe(Stream.take(2))),
     ).pipe(Effect.provide(systemEventsLayer));
 
     assert.deepStrictEqual(Array.from(events), [

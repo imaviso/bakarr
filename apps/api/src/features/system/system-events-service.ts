@@ -7,8 +7,9 @@ import { CatalogDownloadReadService } from "@/features/operations/catalog-downlo
 import type { OperationsStoredDataError } from "@/features/operations/errors.ts";
 
 export interface SystemEventsServiceShape {
-  readonly buildEventsStream: () => Effect.Effect<
-    Stream.Stream<NotificationEvent, DatabaseError | OperationsStoredDataError>
+  readonly buildEventsStream: () => Stream.Stream<
+    NotificationEvent,
+    DatabaseError | OperationsStoredDataError
   >;
 }
 
@@ -23,20 +24,17 @@ export const SystemEventsServiceLive = Layer.effect(
     const eventBus = yield* EventBus;
     const downloadsReadService = yield* CatalogDownloadReadService;
 
-    const buildEventsStream = Effect.fn("SystemEventsService.buildEventsStream")(() =>
-      Effect.succeed(
-        Stream.unwrapScoped(
-          Effect.gen(function* () {
-            const subscription = yield* eventBus.subscribe();
-            const downloads: readonly DownloadStatus[] =
-              yield* downloadsReadService.getDownloadProgressBootstrap();
-            const bufferedEvents = yield* subscription.takeBuffered;
+    const buildEventsStream = () =>
+      Stream.unwrapScoped(
+        Effect.gen(function* () {
+          const subscription = yield* eventBus.subscribe();
+          const downloads: readonly DownloadStatus[] =
+            yield* downloadsReadService.getDownloadProgressBootstrap();
+          const bufferedEvents = yield* subscription.takeBuffered;
 
-            return buildDownloadProgressEventStream(downloads, bufferedEvents, subscription);
-          }),
-        ),
-      ),
-    );
+          return buildDownloadProgressEventStream(downloads, bufferedEvents, subscription);
+        }),
+      );
 
     return SystemEventsService.of({ buildEventsStream });
   }),

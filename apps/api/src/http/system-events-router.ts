@@ -11,7 +11,7 @@ export const systemEventsRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
     "/api/events",
     authedRouteResponse(
-      Effect.flatMap(SystemEventsService, (service) => service.buildEventsStream()),
+      Effect.map(SystemEventsService, (service) => service.buildEventsStream()),
       (stream) => {
         const sseStream = Stream.concat(
           Stream.fromIterable([sseEncoder.encode(": connected\n\n")]),

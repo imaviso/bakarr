@@ -40,6 +40,7 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
       logMessage: "Failed to record metadata refresh job failure",
       markFailed: markJobFailed(input.db, "metadata_refresh", error, nowIso),
     }).pipe(
+      Effect.catchTag("JobFailurePersistenceError", () => Effect.void),
       Effect.zipRight(
         appendSystemLog(
           input.db,
@@ -78,6 +79,7 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
       logMessage: "Failed to record metadata refresh infrastructure failure",
       markFailed: markJobFailed(input.db, "metadata_refresh", cause, nowIso),
     }).pipe(
+      Effect.catchTag("JobFailurePersistenceError", () => Effect.void),
       Effect.zipRight(
         appendSystemLog(
           input.db,

@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, PubSub, Queue, Scope, Stream } from "effect";
+import { Context, Effect, Layer, PubSub, Queue, Ref, Scope, Stream } from "effect";
 
 import type { NotificationEvent } from "@packages/shared/index.ts";
 
@@ -27,29 +27,50 @@ export const makeEventBus = Effect.fn("Events.makeEventBus")((
       yield* PubSub.publish(pubsub, event);
     });
     const subscribe = Effect.fn("EventBus.subscribe")(function* () {
+      const scope = yield* Scope.Scope;
       const pubsubQueue = yield* PubSub.subscribe(pubsub);
       const slidingQueue = yield* Effect.acquireRelease(
         Queue.sliding<NotificationEvent>(capacity),
         Queue.shutdown,
       );
 
-      yield* Queue.take(pubsubQueue).pipe(
-        Effect.flatMap((event) => Queue.offer(slidingQueue, event)),
-        Effect.forever,
-        Effect.forkScoped,
-      );
+      const initializationLock = yield* Effect.makeSemaphore(1);
+      const initializedRef = yield* Ref.make(false);
+
+      const initialize = Effect.fn("EventBus.initializeSubscription")(function* () {
+        yield* initializationLock.withPermits(1)(
+          Effect.gen(function* () {
+            const initialized = yield* Ref.get(initializedRef);
+
+            if (initialized) {
+              return;
+            }
+
+            const pending = yield* Queue.takeAll(pubsubQueue);
+
+            yield* Effect.forEach(pending, (event) => Queue.offer(slidingQueue, event), {
+              discard: true,
+            });
+
+            yield* Queue.take(pubsubQueue).pipe(
+              Effect.flatMap((event) => Queue.offer(slidingQueue, event)),
+              Effect.forever,
+              Effect.forkIn(scope),
+            );
+
+            yield* Ref.set(initializedRef, true);
+          }),
+        );
+      });
 
       return {
-        takeBuffered: Queue.takeAll(pubsubQueue).pipe(
-          Effect.flatMap((pending) =>
-            Effect.forEach(pending, (event) => Queue.offer(slidingQueue, event), {
-              discard: true,
-            }).pipe(Effect.as(pending)),
-          ),
+        takeBuffered: initialize().pipe(
           Effect.zipRight(Queue.takeAll(slidingQueue)),
           Effect.map((events) => Array.from(events)),
         ),
-        stream: Stream.fromQueue(slidingQueue, { shutdown: false }),
+        stream: Stream.unwrapScoped(
+          initialize().pipe(Effect.as(Stream.fromQueue(slidingQueue, { shutdown: false }))),
+        ),
       } satisfies EventSubscription;
     });
 

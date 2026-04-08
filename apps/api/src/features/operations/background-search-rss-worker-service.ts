@@ -41,7 +41,10 @@ export function makeBackgroundSearchRssWorkerService(input: {
       logAnnotations: { run_failure_cause: Cause.pretty(cause) },
       logMessage: "Failed to record rss job failure",
       markFailed: markJobFailed(input.db, "rss", cause, input.nowIso),
-    }).pipe(Effect.zipRight(Effect.failCause(cause)));
+    }).pipe(
+      Effect.catchTag("JobFailurePersistenceError", () => Effect.void),
+      Effect.zipRight(Effect.failCause(cause)),
+    );
 
   const runRssWorker = Effect.fn("BackgroundSearchRssWorkerService.runRssWorker")(function* () {
     return yield* Effect.gen(function* () {

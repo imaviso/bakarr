@@ -45,7 +45,10 @@ function makeCatalogLibraryScanSupport(input: {
       logAnnotations: { run_failure: cause.message },
       logMessage: "Failed to record library scan job failure",
       markFailed: markJobFailed(input.db, "library_scan", cause, nowIso),
-    }).pipe(Effect.zipRight(Effect.fail(cause)));
+    }).pipe(
+      Effect.catchTag("JobFailurePersistenceError", () => Effect.void),
+      Effect.zipRight(Effect.fail(cause)),
+    );
 
   const runLibraryScan = Effect.fn("OperationsService.runLibraryScan")(
     function* () {
