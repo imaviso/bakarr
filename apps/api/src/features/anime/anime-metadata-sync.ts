@@ -3,7 +3,8 @@ import { Effect, Option } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
 import { anime } from "@/db/schema.ts";
-import type { AniListClient } from "@/features/anime/anilist.ts";
+import type { AnimeMetadata } from "@/features/anime/anilist-model.ts";
+import type { AnimeMetadataProviderService } from "@/features/anime/anime-metadata-provider-service.ts";
 import type { AnimeEventPublisher } from "@/features/anime/anime-orchestration-shared.ts";
 import { getAnimeRowEffect } from "@/features/anime/anime-read-repository.ts";
 import {
@@ -15,7 +16,7 @@ import { appendSystemLog } from "@/features/system/support.ts";
 
 export const syncAnimeMetadataEffect = Effect.fn("AnimeMetadataSync.syncAnimeMetadata")(
   function* (input: {
-    aniList: typeof AniListClient.Service;
+    metadataProvider: typeof AnimeMetadataProviderService.Service;
     animeId: number;
     db: AppDatabase;
     eventPublisher: Option.Option<AnimeEventPublisher>;
@@ -23,7 +24,11 @@ export const syncAnimeMetadataEffect = Effect.fn("AnimeMetadataSync.syncAnimeMet
   }) {
     const { nowIso } = input;
     const animeRow = yield* getAnimeRowEffect(input.db, input.animeId);
-    const metadata = yield* input.aniList.getAnimeMetadataById(input.animeId);
+    const metadataLookup = yield* input.metadataProvider.getAnimeMetadataById(input.animeId);
+    const metadata =
+      metadataLookup._tag === "NotFound"
+        ? Option.none<AnimeMetadata>()
+        : Option.some(metadataLookup.metadata);
 
     if (Option.isNone(metadata)) {
       return { animeRow, metadata: undefined, nextAnimeRow: animeRow };

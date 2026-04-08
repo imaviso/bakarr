@@ -1,6 +1,7 @@
 import { Layer } from "effect";
 
 import { AniListClientLive, type AniListClient } from "@/features/anime/anilist.ts";
+import { AniDbClientLive, type AniDbClient } from "@/features/anime/anidb.ts";
 import {
   QBitTorrentClientLive,
   type QBitTorrentClient,
@@ -11,6 +12,7 @@ import { SeaDexClientLive, type SeaDexClient } from "@/features/operations/seade
 import { DnsResolverLive } from "@/lib/dns-resolver.ts";
 
 export interface AppExternalClientLayerOptions {
+  readonly aniDbLayer?: Layer.Layer<AniDbClient>;
   readonly aniListLayer?: Layer.Layer<AniListClient>;
   readonly qbitLayer?: Layer.Layer<QBitTorrentClient>;
   readonly rssLayer?: Layer.Layer<RssClient>;
@@ -18,6 +20,7 @@ export interface AppExternalClientLayerOptions {
 }
 
 export function makeAppExternalClientLayer(options?: AppExternalClientLayerOptions) {
+  const aniDbLayer = options?.aniDbLayer ? options.aniDbLayer : AniDbClientLive;
   const aniListLayer = options?.aniListLayer ? options.aniListLayer : AniListClientLive;
   const rssLayer = options?.rssLayer
     ? options.rssLayer
@@ -25,5 +28,5 @@ export function makeAppExternalClientLayer(options?: AppExternalClientLayerOptio
   const qbitLayer = options?.qbitLayer ? options.qbitLayer : QBitTorrentClientLive;
   const seadexLayer = options?.seadexLayer ? options.seadexLayer : SeaDexClientLive;
 
-  return Layer.mergeAll(aniListLayer, rssLayer, qbitLayer, seadexLayer);
+  return Layer.mergeAll(aniDbLayer, aniListLayer, rssLayer, qbitLayer, seadexLayer);
 }

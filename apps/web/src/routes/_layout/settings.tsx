@@ -1145,6 +1145,19 @@ const ConfigSchema = v.object({
     check_delay_seconds: v.number(),
     metadata_refresh_hours: v.number(),
   }),
+  metadata: v.optional(
+    v.object({
+      anidb: v.object({
+        enabled: v.boolean(),
+        username: v.nullish(v.string()),
+        password: v.nullish(v.string()),
+        client: v.string(),
+        client_version: v.number(),
+        local_port: v.number(),
+        episode_limit: v.number(),
+      }),
+    }),
+  ),
   downloads: v.object({
     root_path: v.pipe(v.string(), v.minLength(1, "Path is required")),
     create_anime_folders: v.boolean(),
@@ -1534,7 +1547,7 @@ function SystemForm(props: {
                 description="Hide noisy retry logs from qBittorrent/Network"
               >
                 <Switch
-                  checked={field().state.value}
+                  checked={Boolean(field().state.value)}
                   onChange={(checked) => field().handleChange(checked)}
                 />
               </SettingRow>
@@ -1770,7 +1783,7 @@ function SystemForm(props: {
                 description="Connect to qBittorrent for downloading"
               >
                 <Switch
-                  checked={field().state.value}
+                  checked={Boolean(field().state.value)}
                   onChange={(checked) => field().handleChange(checked)}
                 />
               </SettingRow>
@@ -1825,6 +1838,126 @@ function SystemForm(props: {
                   onInput={(e) => field().handleChange(e.currentTarget.value)}
                   placeholder="bakarr"
                   class="w-32"
+                />
+              </SettingRow>
+            )}
+          </form.Field>
+        </SettingSection>
+      </Show>
+
+      <Show when={showsAutomation()}>
+        <SettingSection title="Metadata Providers">
+          <SettingRow
+            label="AniDB Runtime Status"
+            description="Live status from /api/system/status"
+          >
+            <Show when={systemStatus.data} fallback={<Badge variant="outline">Unknown</Badge>}>
+              {(data) => (
+                <Badge variant={data().metadata_providers.anidb.enabled ? "secondary" : "outline"}>
+                  {data().metadata_providers.anidb.enabled
+                    ? data().metadata_providers.anidb.configured
+                      ? "Enabled"
+                      : "Missing credentials"
+                    : "Disabled"}
+                </Badge>
+              )}
+            </Show>
+          </SettingRow>
+
+          <form.Field name="metadata.anidb.enabled">
+            {(field) => (
+              <SettingRow
+                label="Enable AniDB Episode Metadata"
+                description="Use AniDB UDP API to enrich AniList metadata with episode titles and dates"
+              >
+                <Switch
+                  checked={Boolean(field().state.value)}
+                  onChange={(checked) => field().handleChange(checked)}
+                />
+              </SettingRow>
+            )}
+          </form.Field>
+
+          <form.Field name="metadata.anidb.username">
+            {(field) => (
+              <SettingRow label="AniDB Username">
+                <Input
+                  value={field().state.value ?? ""}
+                  onInput={(e) => field().handleChange(e.currentTarget.value)}
+                  autocomplete="off"
+                  class="w-40"
+                />
+              </SettingRow>
+            )}
+          </form.Field>
+
+          <form.Field name="metadata.anidb.password">
+            {(field) => (
+              <SettingRow label="AniDB Password">
+                <Input
+                  type="password"
+                  value={field().state.value ?? ""}
+                  onInput={(e) => field().handleChange(e.currentTarget.value)}
+                  autocomplete="off"
+                  class="w-40"
+                />
+              </SettingRow>
+            )}
+          </form.Field>
+
+          <form.Field name="metadata.anidb.client">
+            {(field) => (
+              <SettingRow label="AniDB Client Name" description="4-16 lowercase letters">
+                <Input
+                  value={field().state.value ?? ""}
+                  onInput={(e) => field().handleChange(e.currentTarget.value)}
+                  class="w-32"
+                />
+              </SettingRow>
+            )}
+          </form.Field>
+
+          <form.Field name="metadata.anidb.client_version">
+            {(field) => (
+              <SettingRow label="AniDB Client Version">
+                <Input
+                  type="number"
+                  min="1"
+                  value={(field().state.value ?? 1).toString()}
+                  onInput={(e) => field().handleChange(Number(e.currentTarget.value))}
+                  class="w-20"
+                />
+              </SettingRow>
+            )}
+          </form.Field>
+
+          <form.Field name="metadata.anidb.local_port">
+            {(field) => (
+              <SettingRow label="AniDB Local UDP Port">
+                <Input
+                  type="number"
+                  min="1025"
+                  max="65535"
+                  value={(field().state.value ?? 45553).toString()}
+                  onInput={(e) => field().handleChange(Number(e.currentTarget.value))}
+                  class="w-24"
+                />
+              </SettingRow>
+            )}
+          </form.Field>
+
+          <form.Field name="metadata.anidb.episode_limit">
+            {(field) => (
+              <SettingRow
+                label="AniDB Episode Lookup Limit"
+                description="Maximum episode count fetched per anime during refresh"
+              >
+                <Input
+                  type="number"
+                  min="1"
+                  value={(field().state.value ?? 200).toString()}
+                  onInput={(e) => field().handleChange(Number(e.currentTarget.value))}
+                  class="w-20"
                 />
               </SettingRow>
             )}

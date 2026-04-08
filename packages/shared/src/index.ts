@@ -572,6 +572,12 @@ export interface SystemStatus {
   uptime: number;
   active_torrents: number;
   pending_downloads: number;
+  metadata_providers: {
+    anidb: {
+      enabled: boolean;
+      configured: boolean;
+    };
+  };
   disk_space: {
     free: number;
     total: number;
@@ -586,11 +592,21 @@ export const DiskSpaceSchema: Schema.Schema<SystemStatus["disk_space"]> = Schema
   total: Schema.Number,
 });
 
+export const SystemStatusMetadataProvidersSchema: Schema.Schema<
+  SystemStatus["metadata_providers"]
+> = Schema.Struct({
+  anidb: Schema.Struct({
+    enabled: Schema.Boolean,
+    configured: Schema.Boolean,
+  }),
+});
+
 export const SystemStatusSchema: Schema.Schema<SystemStatus> = Schema.Struct({
   version: Schema.String,
   uptime: Schema.Number,
   active_torrents: Schema.Number,
   pending_downloads: Schema.Number,
+  metadata_providers: SystemStatusMetadataProvidersSchema,
   disk_space: DiskSpaceSchema,
   last_scan: Schema.optional(Schema.NullOr(Schema.String)),
   last_rss: Schema.optional(Schema.NullOr(Schema.String)),
@@ -737,6 +753,30 @@ export const SchedulerConfigSchema: Schema.Schema<{
   metadata_refresh_hours: Schema.Number,
 });
 
+export const AniDbMetadataConfigSchema: Schema.Schema<{
+  enabled: boolean;
+  username?: string | null | undefined;
+  password?: string | null | undefined;
+  client: string;
+  client_version: number;
+  local_port: number;
+  episode_limit: number;
+}> = Schema.Struct({
+  enabled: Schema.Boolean,
+  username: Schema.optional(Schema.NullOr(Schema.String)),
+  password: Schema.optional(Schema.NullOr(Schema.String)),
+  client: Schema.String,
+  client_version: Schema.Number,
+  local_port: Schema.Number,
+  episode_limit: Schema.Number,
+});
+
+export const MetadataProvidersConfigSchema: Schema.Schema<{
+  anidb: Schema.Schema.Type<typeof AniDbMetadataConfigSchema>;
+}> = Schema.Struct({
+  anidb: AniDbMetadataConfigSchema,
+});
+
 export const DownloadsConfigSchema: Schema.Schema<{
   root_path: string;
   create_anime_folders: boolean;
@@ -796,6 +836,7 @@ export const ConfigSchema: Schema.Schema<{
   scheduler: Schema.Schema.Type<typeof SchedulerConfigSchema>;
   downloads: Schema.Schema.Type<typeof DownloadsConfigSchema>;
   library: Schema.Schema.Type<typeof LibraryConfigSchema>;
+  metadata?: Schema.Schema.Type<typeof MetadataProvidersConfigSchema> | undefined;
   profiles: Array<Schema.Schema.Type<typeof QualityProfileSchema>>;
 }> = Schema.mutable(
   Schema.Struct({
@@ -805,6 +846,7 @@ export const ConfigSchema: Schema.Schema<{
     scheduler: SchedulerConfigSchema,
     downloads: DownloadsConfigSchema,
     library: LibraryConfigSchema,
+    metadata: Schema.optional(MetadataProvidersConfigSchema),
     profiles: Schema.mutable(Schema.Array(Schema.suspend(() => QualityProfileSchema))),
   }),
 );

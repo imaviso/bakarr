@@ -57,6 +57,52 @@ export const resolveCurrentQBitPasswordState = Effect.fn(
   return currentPasswordResult.password;
 });
 
+export const resolveCurrentAniDbPasswordState = Effect.fn(
+  "SystemConfigUpdateService.resolveCurrentAniDbPasswordState",
+)(function* (input: {
+  readonly appDatabaseFile: string;
+  readonly nextConfig: Config;
+  readonly previousConfigRow:
+    | {
+        readonly data: string;
+        readonly id: number;
+        readonly updatedAt: string;
+      }
+    | undefined;
+}) {
+  const currentPasswordResult = yield* decodeStoredConfigRow(input.previousConfigRow).pipe(
+    Effect.map((config) => ({
+      password: config.metadata?.anidb.password ?? null,
+      storedConfigCorrupt: false,
+    })),
+    Effect.catchTag("StoredConfigMissingError", () =>
+      Effect.succeed({
+        password: makeDefaultConfig(input.appDatabaseFile).metadata?.anidb.password ?? null,
+        storedConfigCorrupt: false,
+      }),
+    ),
+    Effect.catchTag("StoredConfigCorruptError", () =>
+      Effect.succeed({
+        password: null,
+        storedConfigCorrupt: true,
+      }),
+    ),
+  );
+
+  if (
+    currentPasswordResult.storedConfigCorrupt &&
+    input.nextConfig.metadata?.anidb.enabled &&
+    !input.nextConfig.metadata?.anidb.password?.trim()
+  ) {
+    return yield* new StoredConfigCorruptError({
+      message:
+        "Stored configuration is corrupt. Re-enter the AniDB password before saving repaired config.",
+    });
+  }
+
+  return currentPasswordResult.password;
+});
+
 export const buildPersistedConfigStates = Effect.fn(
   "SystemConfigUpdateService.buildPersistedConfigStates",
 )(function* (input: {

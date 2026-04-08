@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, Option } from "effect";
 
 import { encodeNumberList, encodeStringList } from "@/features/system/config-codec.ts";
 import type { AppDatabase } from "@/db/database.ts";
@@ -7,7 +7,7 @@ import type { FileSystemShape } from "@/lib/filesystem.ts";
 import type { EventPublisherShape } from "@/features/events/publisher.ts";
 import type { AddAnimeInput } from "@/features/anime/add-anime-input.ts";
 import { AnimeImageCacheService } from "@/features/anime/anime-image-cache-service.ts";
-import type { AniListClient } from "@/features/anime/anilist.ts";
+import type { AnimeMetadataProviderService } from "@/features/anime/anime-metadata-provider-service.ts";
 import {
   encodeAnimeDiscoveryEntries,
   encodeAnimeSynonyms,
@@ -17,6 +17,7 @@ import { AnimePathError, AnimeStoredDataError } from "@/features/anime/errors.ts
 import { buildMissingEpisodeRows } from "@/features/anime/anime-schedule-repository.ts";
 import { insertAnimeAggregateAtomicEffect } from "@/features/anime/aggregate-support.ts";
 import { resolveAnimeRootFolderEffect } from "@/features/anime/config-support.ts";
+import { syncEpisodeMetadataEffect } from "@/features/anime/anime-episode-metadata-sync.ts";
 import {
   checkAnimeExistsEffect,
   checkProfileExistsEffect,
@@ -26,7 +27,7 @@ import {
 } from "@/features/anime/anime-add-validation.ts";
 
 export const addAnimeEffect = Effect.fn("AnimeAdd.addAnimeEffect")(function* (input: {
-  aniList: typeof AniListClient.Service;
+  metadataProvider: typeof AnimeMetadataProviderService.Service;
   animeInput: AddAnimeInput;
   db: AppDatabase;
   eventPublisher: Pick<EventPublisherShape, "publishInfo">;
@@ -36,8 +37,10 @@ export const addAnimeEffect = Effect.fn("AnimeAdd.addAnimeEffect")(function* (in
 }) {
   yield* checkAnimeExistsEffect(input.db, input.animeInput.id);
 
-  const metadata = yield* input.aniList.getAnimeMetadataById(input.animeInput.id);
-  const validMetadata = yield* requireAnimeMetadataEffect(metadata);
+  const metadataLookup = yield* input.metadataProvider.getAnimeMetadataById(input.animeInput.id);
+  const validMetadata = yield* requireAnimeMetadataEffect(
+    metadataLookup._tag === "NotFound" ? Option.none() : Option.some(metadataLookup.metadata),
+  );
 
   yield* checkProfileExistsEffect(input.db, input.animeInput.profile_name);
 
@@ -160,6 +163,8 @@ export const addAnimeEffect = Effect.fn("AnimeAdd.addAnimeEffect")(function* (in
       message: `Added ${animeRow.titleRomaji} to library`,
     },
   });
+
+  yield* syncEpisodeMetadataEffect(input.db, animeRow.id, validMetadata.episodes);
 
   yield* input.eventPublisher.publishInfo(`Added ${animeRow.titleRomaji} to library`);
 

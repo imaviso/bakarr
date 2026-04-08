@@ -5,7 +5,7 @@ import { Database, type DatabaseError } from "@/db/database.ts";
 import { AnimeImageCacheService } from "@/features/anime/anime-image-cache-service.ts";
 import { EventPublisher } from "@/features/events/publisher.ts";
 import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
-import { AniListClient } from "@/features/anime/anilist.ts";
+import { AnimeMetadataProviderService } from "@/features/anime/anime-metadata-provider-service.ts";
 import { FileSystem } from "@/lib/filesystem.ts";
 import type { ExternalCallError } from "@/lib/effect-retry.ts";
 import type {
@@ -53,7 +53,7 @@ export class AnimeEnrollmentService extends Context.Tag("@bakarr/api/AnimeEnroll
 const makeAnimeEnrollmentService = Effect.gen(function* () {
   const { db } = yield* Database;
   const eventPublisher = yield* EventPublisher;
-  const aniList = yield* AniListClient;
+  const metadataProvider = yield* AnimeMetadataProviderService;
   const imageCacheService = yield* AnimeImageCacheService;
   const fs = yield* FileSystem;
   const clock = yield* ClockService;
@@ -61,7 +61,7 @@ const makeAnimeEnrollmentService = Effect.gen(function* () {
 
   const enroll = Effect.fn("AnimeEnrollmentService.enroll")(function* (input: AddAnimeInput) {
     const anime = yield* addAnimeEffect({
-      aniList,
+      metadataProvider,
       animeInput: input,
       db,
       eventPublisher,

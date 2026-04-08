@@ -158,6 +158,12 @@ it("shared api schemas accept canonical system and download payloads", () => {
     },
     last_rss: null,
     last_scan: "2024-01-01T00:00:00.000Z",
+    metadata_providers: {
+      anidb: {
+        configured: false,
+        enabled: false,
+      },
+    },
     pending_downloads: 2,
     uptime: 42,
     version: "0.1.0",

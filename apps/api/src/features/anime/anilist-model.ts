@@ -15,12 +15,19 @@ const AnimeMetadataAiringScheduleItemSchema = Schema.Struct({
   episode: Schema.Number,
 });
 
+const AnimeMetadataEpisodeSchema = Schema.Struct({
+  aired: Schema.optional(Schema.String),
+  number: Schema.Number,
+  title: Schema.optional(Schema.String),
+});
+
 export const AnimeMetadataSchema = Schema.Struct({
   bannerImage: Schema.optional(Schema.String),
   coverImage: Schema.optional(Schema.String),
   description: Schema.optional(Schema.String),
   endDate: Schema.optional(Schema.String),
   endYear: Schema.optional(Schema.Number),
+  episodes: Schema.optional(Schema.Array(AnimeMetadataEpisodeSchema)),
   episodeCount: Schema.optional(Schema.Number),
   format: Schema.String,
   futureAiringSchedule: Schema.optional(Schema.Array(AnimeMetadataAiringScheduleItemSchema)),
@@ -40,6 +47,7 @@ export const AnimeMetadataSchema = Schema.Struct({
 });
 
 export type AnimeMetadata = Schema.Schema.Type<typeof AnimeMetadataSchema>;
+export type AnimeMetadataEpisode = Schema.Schema.Type<typeof AnimeMetadataEpisodeSchema>;
 
 const AniListTitleSchema = Schema.Struct({
   english: Schema.optional(Schema.NullOr(Schema.String)),

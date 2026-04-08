@@ -48,6 +48,12 @@ export const SystemStatusReadServiceLive = Layer.effect(
 
     const getSystemStatus = Effect.fn("SystemStatusReadService.getSystemStatus")(function* () {
       const currentConfig = yield* runtimeConfigSnapshot.getRuntimeConfig();
+      const anidbConfig = currentConfig.metadata?.anidb;
+      const aniDbConfigured =
+        typeof anidbConfig?.username === "string" &&
+        anidbConfig.username.trim().length > 0 &&
+        typeof anidbConfig.password === "string" &&
+        anidbConfig.password.trim().length > 0;
       const storagePath = selectStoragePath(currentConfig, appConfig.databaseFile);
       const diskSpace = yield* diskSpaceInspector.getDiskSpaceSafe(storagePath);
       const downloadStats = yield* loadSystemDownloadStatsAggregate(db);
@@ -64,6 +70,12 @@ export const SystemStatusReadServiceLive = Layer.effect(
           metadataRefreshJob?.last_success_at ?? metadataRefreshJob?.last_run_at ?? null,
         last_rss: rssJob?.last_success_at ?? rssJob?.last_run_at ?? null,
         last_scan: scanJob?.last_success_at ?? scanJob?.last_run_at ?? null,
+        metadata_providers: {
+          anidb: {
+            configured: aniDbConfigured,
+            enabled: anidbConfig?.enabled ?? false,
+          },
+        },
         pending_downloads: downloadStats.queuedDownloads,
         uptime: Math.max(0, Math.floor((now - runtime.startedAt.getTime()) / 1000)),
         version: appConfig.appVersion,

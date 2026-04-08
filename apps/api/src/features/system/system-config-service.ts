@@ -8,7 +8,7 @@ import {
   decodeQualityProfileRow,
 } from "@/features/system/config-codec.ts";
 import { StoredConfigCorruptError, StoredConfigMissingError } from "@/features/system/errors.ts";
-import { normalizeConfig } from "@/features/system/qbittorrent-config.ts";
+import { normalizeConfig } from "@/features/system/system-config-normalization.ts";
 import { listQualityProfileRows } from "@/features/system/repository/quality-profile-repository.ts";
 import { loadSystemConfigRow } from "@/features/system/repository/system-config-repository.ts";
 
@@ -63,6 +63,17 @@ export const SystemConfigServiceLive = Layer.effect(SystemConfigService, makeSys
 export function redactConfigSecrets(config: Config): Config {
   return {
     ...config,
+    ...(config.metadata
+      ? {
+          metadata: {
+            ...config.metadata,
+            anidb: {
+              ...config.metadata.anidb,
+              password: null,
+            },
+          },
+        }
+      : {}),
     qbittorrent: {
       ...config.qbittorrent,
       password: null,

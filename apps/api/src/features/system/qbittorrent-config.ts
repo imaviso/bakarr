@@ -137,14 +137,3 @@ export const normalizeQBitTorrentConfig = Effect.fn("SystemConfig.normalizeQBitT
     } satisfies Config["qbittorrent"];
   },
 );
-
-export const normalizeConfig = Effect.fn("SystemConfig.normalizeConfig")(function* (
-  config: Config,
-) {
-  const qbittorrent = yield* normalizeQBitTorrentConfig(config.qbittorrent);
-
-  return {
-    ...config,
-    qbittorrent,
-  } satisfies Config;
-});

@@ -4,7 +4,8 @@ import { Cause, Effect, Option } from "effect";
 import type { AppDatabase } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { anime } from "@/db/schema.ts";
-import type { AniListClient } from "@/features/anime/anilist.ts";
+import type { AnimeMetadataProviderService } from "@/features/anime/anime-metadata-provider-service.ts";
+import { syncEpisodeMetadataEffect } from "@/features/anime/anime-episode-metadata-sync.ts";
 import { syncEpisodeScheduleEffect } from "@/features/anime/anime-episode-schedule-sync.ts";
 import { syncAnimeMetadataEffect } from "@/features/anime/anime-metadata-sync.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
@@ -22,7 +23,7 @@ type MetadataRefreshError = DatabaseError | ExternalCallError;
 export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
   "AnimeService.refreshMetadataForMonitoredAnimeEffect",
 )(function* (input: {
-  aniList: typeof AniListClient.Service;
+  metadataProvider: typeof AnimeMetadataProviderService.Service;
   db: AppDatabase;
   nowIso: () => Effect.Effect<string>;
 }) {
@@ -132,7 +133,7 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
       (animeRow) =>
         Effect.gen(function* () {
           const { metadata, nextAnimeRow } = yield* syncAnimeMetadataEffect({
-            aniList: input.aniList,
+            metadataProvider: input.metadataProvider,
             animeId: animeRow.id,
             db: input.db,
             eventPublisher: Option.none(),
@@ -146,6 +147,7 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
             metadata?.futureAiringSchedule,
             nowIso,
           );
+          yield* syncEpisodeMetadataEffect(input.db, animeRow.id, metadata?.episodes);
           refreshed += 1;
         }),
       { concurrency: 4, discard: true },

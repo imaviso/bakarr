@@ -86,6 +86,9 @@ Import the module and enable the service:
 The systemd service stores state under `/var/lib/bakarr` by default and sets
 `DATABASE_FILE=/var/lib/bakarr/bakarr.sqlite`.
 
+AniDB episode metadata enrichment is configured in the app UI under
+`Settings -> Automation -> Metadata Providers`.
+
 ## Notes
 
 - API uses SQLite/Drizzle migrations under `apps/api/drizzle`

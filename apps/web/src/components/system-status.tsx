@@ -50,6 +50,17 @@ function formatRelativeTime(dateStr: string | null | undefined) {
   return `${diffDays}d ago`;
 }
 
+function formatAniDbProviderStatus(input: {
+  readonly configured: boolean;
+  readonly enabled: boolean;
+}) {
+  if (!input.enabled) {
+    return "AniDB disabled";
+  }
+
+  return input.configured ? "AniDB ready" : "AniDB missing credentials";
+}
+
 export function SystemStatus() {
   const status = createSystemStatusQuery();
   const scanMutation = createTriggerScanMutation();
@@ -141,6 +152,11 @@ export function SystemStatus() {
             </Show>
           </div>
           <p class="text-xs text-muted-foreground">Last refresh</p>
+          <p class="text-xs text-muted-foreground mt-1">
+            <Show when={status.data} fallback="AniDB disabled">
+              {(data) => formatAniDbProviderStatus(data().metadata_providers.anidb)}
+            </Show>
+          </p>
         </CardContent>
       </Card>
 

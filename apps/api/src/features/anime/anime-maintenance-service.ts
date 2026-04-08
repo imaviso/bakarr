@@ -3,7 +3,8 @@ import { Context, Effect, Layer, Option } from "effect";
 
 import { Database, type DatabaseError } from "@/db/database.ts";
 import { anime } from "@/db/schema.ts";
-import { AniListClient } from "@/features/anime/anilist.ts";
+import { AnimeMetadataProviderService } from "@/features/anime/anime-metadata-provider-service.ts";
+import { syncEpisodeMetadataEffect } from "@/features/anime/anime-episode-metadata-sync.ts";
 import { syncEpisodeScheduleEffect } from "@/features/anime/anime-episode-schedule-sync.ts";
 import { syncAnimeMetadataEffect } from "@/features/anime/anime-metadata-sync.ts";
 import type { AnimeServiceError } from "@/features/anime/errors.ts";
@@ -33,7 +34,7 @@ export class AnimeMaintenanceService extends Context.Tag("@bakarr/api/AnimeMaint
 const makeAnimeMaintenanceService = Effect.gen(function* () {
   const { db } = yield* Database;
   const eventPublisher = yield* EventPublisher;
-  const aniList = yield* AniListClient;
+  const metadataProvider = yield* AnimeMetadataProviderService;
   const clock = yield* ClockService;
   const nowIso = () => nowIsoFromClock(clock);
   const metadataRefreshRunner = yield* makeMetadataRefreshRunner();
@@ -49,7 +50,7 @@ const makeAnimeMaintenanceService = Effect.gen(function* () {
     animeId: number,
   ) {
     const { animeRow, metadata, nextAnimeRow } = yield* syncAnimeMetadataEffect({
-      aniList,
+      metadataProvider,
       animeId,
       db,
       eventPublisher: Option.some(eventPublisher),
@@ -63,6 +64,7 @@ const makeAnimeMaintenanceService = Effect.gen(function* () {
       metadata?.futureAiringSchedule,
       nowIso,
     );
+    yield* syncEpisodeMetadataEffect(db, animeId, metadata?.episodes);
     yield* appendSystemLog(
       db,
       "anime.episodes.refreshed",

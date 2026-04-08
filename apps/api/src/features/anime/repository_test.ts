@@ -15,6 +15,7 @@ import {
   ensureEpisodesEffect,
 } from "@/features/anime/anime-schedule-repository.ts";
 import { upsertEpisodeEffect } from "@/features/anime/anime-episode-repository.ts";
+import { syncEpisodeMetadataEffect } from "@/features/anime/anime-episode-metadata-sync.ts";
 import { findAnimeRootFolderOwnerEffect } from "@/features/anime/anime-read-repository.ts";
 import { inferAiredAt } from "@/lib/anime-derivations.ts";
 import { markSearchResultsAlreadyInLibraryEffect } from "@/lib/anime-search-results.ts";
@@ -258,6 +259,43 @@ it("inferAiredAt prefers AniList future schedule over heuristics", () => {
 
   assert.deepStrictEqual(airedAt, "2024-03-20T12:00:00.000Z");
 });
+
+it.scoped("syncEpisodeMetadataEffect applies AniDB episode titles and dates", () =>
+  withSqliteTestDbEffect({
+    run: (db) =>
+      Effect.gen(function* () {
+        yield* insertAnimeEffect(db, 25, 2);
+        yield* ensureEpisodesEffect(
+          db,
+          25,
+          2,
+          "RELEASING",
+          "2024-01-01",
+          undefined,
+          undefined,
+          false,
+          () => Effect.succeed("2024-01-01T00:00:00.000Z"),
+        );
+
+        yield* syncEpisodeMetadataEffect(db, 25, [
+          {
+            aired: "2024-01-02T00:00:00.000Z",
+            number: 1,
+            title: "Opening Move",
+          },
+        ]);
+
+        const rows = yield* Effect.promise(() =>
+          db.select().from(episodes).where(eq(episodes.animeId, 25)),
+        );
+        const first = rows.find((row) => row.number === 1);
+
+        assert.deepStrictEqual(first?.title, "Opening Move");
+        assert.deepStrictEqual(first?.aired, "2024-01-02T00:00:00.000Z");
+      }),
+    schema,
+  }),
+);
 
 it.scoped("resolveAnimeRootFolder can preserve an existing folder root", () =>
   withSqliteTestDbEffect({

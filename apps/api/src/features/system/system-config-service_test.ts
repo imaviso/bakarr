@@ -14,11 +14,18 @@ import {
 } from "@/features/system/system-config-service.ts";
 
 describe("SystemConfigService", () => {
-  it.effect("redactConfigSecrets strips qBittorrent password for API responses", () =>
+  it.effect("redactConfigSecrets strips qBittorrent and AniDB passwords for API responses", () =>
     Effect.sync(() => {
       const redacted = redactConfigSecrets(
         makeTestConfig("./test.sqlite", (config) => ({
           ...config,
+          metadata: {
+            ...config.metadata,
+            anidb: {
+              ...config.metadata!.anidb,
+              password: "anidb-pass",
+            },
+          },
           qbittorrent: {
             ...config.qbittorrent,
             password: "secret-pass",
@@ -26,6 +33,7 @@ describe("SystemConfigService", () => {
         })),
       );
 
+      assert.deepStrictEqual(redacted.metadata?.anidb.password, null);
       assert.deepStrictEqual(redacted.qbittorrent.password, null);
     }),
   );

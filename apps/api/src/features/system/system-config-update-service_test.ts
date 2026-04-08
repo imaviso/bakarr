@@ -109,6 +109,58 @@ describe("SystemConfigUpdateService", () => {
       schema,
     }),
   );
+
+  it.scoped("preserves the stored AniDB password when the update omits it", () =>
+    withSqliteTestDbEffect({
+      run: (db, databaseFile) =>
+        Effect.gen(function* () {
+          const runtimeConfigRef = yield* Ref.make(makeTestConfig(databaseFile));
+          const fullLayer = makeSystemConfigUpdateTestLayer({
+            db,
+            databaseFile,
+            reloads: [],
+            runtimeConfigRef,
+          });
+
+          const nextConfig = makeTestConfig(databaseFile, (config) => ({
+            ...config,
+            metadata: {
+              ...config.metadata,
+              anidb: {
+                ...config.metadata!.anidb,
+                enabled: true,
+                password: "anidb-secret",
+                username: "bakarruser",
+              },
+            },
+          }));
+
+          yield* Effect.gen(function* () {
+            const updateService = yield* SystemConfigUpdateService;
+
+            yield* updateService.updateConfig(nextConfig);
+            const updated = yield* updateService.updateConfig({
+              ...nextConfig,
+              metadata: {
+                ...nextConfig.metadata,
+                anidb: {
+                  ...nextConfig.metadata!.anidb,
+                  password: null,
+                },
+              },
+            });
+            const currentConfig = yield* Ref.get(runtimeConfigRef);
+            const storedRow = yield* loadSystemConfigRow(db);
+            const storedCore = yield* decodeStoredConfigRow(storedRow);
+
+            assert.deepStrictEqual(updated.metadata?.anidb.password, "anidb-secret");
+            assert.deepStrictEqual(currentConfig.metadata?.anidb.password, "anidb-secret");
+            assert.deepStrictEqual(storedCore.metadata?.anidb.password, "anidb-secret");
+          }).pipe(Effect.provide(fullLayer));
+        }),
+      schema,
+    }),
+  );
 });
 
 function makeBackgroundWorkerControllerStub(reloads: Config[]): BackgroundWorkerControllerShape {

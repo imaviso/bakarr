@@ -9,12 +9,13 @@ import { BackgroundWorkerController } from "@/background-controller-core.ts";
 import { persistAndActivateConfig } from "@/features/system/config-activation.ts";
 import { validateConfigUpdate } from "@/features/system/config-update-validation.ts";
 import { toConfigCore } from "@/features/system/config-codec.ts";
-import { normalizeConfig } from "@/features/system/qbittorrent-config.ts";
+import { normalizeConfig } from "@/features/system/system-config-normalization.ts";
 import { ConfigValidationError, StoredConfigCorruptError } from "@/features/system/errors.ts";
 import { appendSystemLog } from "@/features/system/support.ts";
 import { applyRuntimeLogLevelFromConfig } from "@/features/system/runtime-config.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import {
+  resolveCurrentAniDbPasswordState,
   buildPersistedConfigStates,
   resolveCurrentQBitPasswordState,
 } from "@/features/system/system-config-update-support.ts";
@@ -53,7 +54,15 @@ const makeSystemConfigUpdateService = Effect.gen(function* () {
       nextConfig,
       previousConfigRow,
     });
-    const effectiveConfig = preserveStoredQBitPassword(currentPassword, nextConfig);
+    const currentAniDbPassword = yield* resolveCurrentAniDbPasswordState({
+      appDatabaseFile: appConfig.databaseFile,
+      nextConfig,
+      previousConfigRow,
+    });
+    const effectiveConfig = preserveStoredAniDbPassword(
+      currentAniDbPassword,
+      preserveStoredQBitPassword(currentPassword, nextConfig),
+    );
     const normalizedConfig = yield* normalizeConfig(effectiveConfig);
     yield* validateConfigUpdate({
       countAnimeUsingProfile: (profileName) => countAnimeUsingProfile(db, profileName),
@@ -123,6 +132,36 @@ function preserveStoredQBitPassword(
     qbittorrent: {
       ...nextConfig.qbittorrent,
       password: currentPassword,
+    },
+  } satisfies Config;
+}
+
+function preserveStoredAniDbPassword(
+  currentPassword: string | null | undefined,
+  nextConfig: Config,
+): Config {
+  if (!nextConfig.metadata?.anidb) {
+    return nextConfig;
+  }
+
+  const nextPassword = nextConfig.metadata.anidb.password?.trim();
+
+  if (!nextConfig.metadata.anidb.enabled || nextPassword) {
+    return nextConfig;
+  }
+
+  if (!currentPassword) {
+    return nextConfig;
+  }
+
+  return {
+    ...nextConfig,
+    metadata: {
+      ...nextConfig.metadata,
+      anidb: {
+        ...nextConfig.metadata.anidb,
+        password: currentPassword,
+      },
     },
   } satisfies Config;
 }
