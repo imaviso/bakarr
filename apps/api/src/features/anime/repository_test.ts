@@ -247,6 +247,30 @@ it("buildMissingEpisodeRows creates rows only for missing episodes", () => {
   );
 });
 
+it("buildMissingEpisodeRows uses future schedule when episode count is unknown", () => {
+  const rows = buildMissingEpisodeRows({
+    animeId: 42,
+    episodeCount: undefined,
+    status: "RELEASING",
+    startDate: undefined,
+    endDate: undefined,
+    futureAiringSchedule: [
+      { airingAt: "2026-04-11T22:30:00.000Z", episode: 2 },
+      { airingAt: "2026-04-18T22:30:00.000Z", episode: 3 },
+    ],
+    resetMissingOnly: true,
+    existingRows: [],
+  });
+
+  assert.deepStrictEqual(
+    rows.map((row) => ({ aired: row.aired, number: row.number })),
+    [
+      { aired: "2026-04-11T22:30:00.000Z", number: 2 },
+      { aired: "2026-04-18T22:30:00.000Z", number: 3 },
+    ],
+  );
+});
+
 it("inferAiredAt prefers AniList future schedule over heuristics", () => {
   const airedAt = inferAiredAt(
     "RELEASING",

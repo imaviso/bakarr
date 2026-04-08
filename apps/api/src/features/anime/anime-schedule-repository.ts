@@ -27,8 +27,9 @@ export const ensureEpisodesEffect = Effect.fn("AnimeRepository.ensureEpisodes")(
   nowIso: () => Effect.Effect<string>,
 ) {
   const now = yield* nowIso();
+  const hasFutureSchedule = Array.isArray(futureAiringSchedule) && futureAiringSchedule.length > 0;
   const existingRows =
-    !episodeCount || episodeCount <= 0
+    (!episodeCount || episodeCount <= 0) && !hasFutureSchedule
       ? []
       : yield* tryDatabasePromise("Failed to ensure episodes", () =>
           db.select().from(episodes).where(eq(episodes.animeId, animeId)),
@@ -66,17 +67,22 @@ export const updateAnimeEpisodeAirDatesEffect = Effect.fn(
   futureAiringSchedule: ReadonlyArray<FutureAiringScheduleEntry> | undefined,
   nowIso: () => Effect.Effect<string>,
 ) {
-  if (!episodeCount || episodeCount <= 0) {
+  const scheduleMap = buildAiringScheduleMap(futureAiringSchedule);
+
+  if ((!episodeCount || episodeCount <= 0) && scheduleMap.size === 0) {
     return;
   }
 
   const existingRows = yield* tryDatabasePromise("Failed to update anime episode air dates", () =>
     db.select().from(episodes).where(eq(episodes.animeId, animeId)),
   );
-  const scheduleMap = buildAiringScheduleMap(futureAiringSchedule);
   const now = yield* nowIso();
 
   for (const row of existingRows) {
+    if ((!episodeCount || episodeCount <= 0) && !scheduleMap.has(row.number)) {
+      continue;
+    }
+
     const inferred = inferAiredAt(
       status,
       row.number,
@@ -108,14 +114,16 @@ export function buildMissingEpisodeRows(input: {
   resetMissingOnly: boolean;
   existingRows: readonly (typeof episodes.$inferSelect)[];
 }) {
-  if (!input.episodeCount || input.episodeCount <= 0) {
+  const episodeNumbers = resolveEpisodeNumbers(input.episodeCount, input.futureAiringSchedule);
+
+  if (episodeNumbers.length === 0) {
     return [] as (typeof episodes.$inferInsert)[];
   }
 
   const existingByNumber = new Map(input.existingRows.map((row) => [row.number, row]));
   const airingScheduleByEpisode = buildAiringScheduleMap(input.futureAiringSchedule);
 
-  return range(1, input.episodeCount).flatMap((number) => {
+  return episodeNumbers.flatMap((number) => {
     const existing = existingByNumber.get(number);
 
     if (existing) {
@@ -145,6 +153,27 @@ export function buildMissingEpisodeRows(input: {
       } satisfies typeof episodes.$inferInsert,
     ];
   });
+}
+
+function resolveEpisodeNumbers(
+  episodeCount: number | undefined,
+  futureAiringSchedule: ReadonlyArray<FutureAiringScheduleEntry> | undefined,
+) {
+  if (episodeCount && episodeCount > 0) {
+    return range(1, episodeCount);
+  }
+
+  if (!Array.isArray(futureAiringSchedule) || futureAiringSchedule.length === 0) {
+    return [] as number[];
+  }
+
+  return [
+    ...new Set(
+      futureAiringSchedule
+        .map((entry) => entry.episode)
+        .filter((episode) => Number.isInteger(episode) && episode > 0),
+    ),
+  ].toSorted((left, right) => left - right);
 }
 
 export { inferAiredAt };

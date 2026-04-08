@@ -266,6 +266,46 @@ it.scoped("AniListClient decodes detail responses from the provided HttpClient",
   }),
 );
 
+it.scoped("AniListClient keeps next airing as future schedule fallback", () =>
+  Effect.gen(function* () {
+    const clientLayer = AniListClientLive.pipe(
+      Layer.provide(
+        Layer.mergeAll(
+          ClockServiceLive,
+          Layer.succeed(
+            HttpClient.HttpClient,
+            makeAniListClient(() => {}, [], {
+              airingSchedule: {
+                nodes: [],
+              },
+              id: 321,
+              nextAiringEpisode: {
+                airingAt: 1_706_000_000,
+                episode: 13,
+              },
+              status: "RELEASING",
+              title: {
+                romaji: "Remote Detail",
+              },
+            }),
+          ),
+        ),
+      ),
+    );
+
+    const result = yield* Effect.flatMap(AniListClient, (client) =>
+      client.getAnimeMetadataById(321),
+    ).pipe(Effect.provide(clientLayer));
+
+    assert.deepStrictEqual(Option.isSome(result), true);
+    if (Option.isSome(result)) {
+      assert.deepStrictEqual(result.value.futureAiringSchedule, [
+        { airingAt: "2024-01-23T08:53:20.000Z", episode: 13 },
+      ]);
+    }
+  }),
+);
+
 function makeAniListClient(
   onRequest: () => void,
   searchMedia: ReadonlyArray<unknown>,

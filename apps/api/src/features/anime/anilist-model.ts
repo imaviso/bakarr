@@ -262,7 +262,10 @@ export const AnimeMetadataFromAniListSchema = Schema.transform(
       endYear: media.endDate?.year ?? undefined,
       episodeCount: media.episodes ?? undefined,
       format: media.format ?? "TV",
-      futureAiringSchedule: normalizeFutureAiringSchedule(media.airingSchedule?.nodes),
+      futureAiringSchedule: normalizeFutureAiringSchedule(
+        media.airingSchedule?.nodes,
+        media.nextAiringEpisode ?? undefined,
+      ),
       genres: [...(media.genres ?? [])],
       id: media.id,
       malId: media.idMal ?? undefined,
@@ -341,17 +344,36 @@ function toNextAiringEpisode(airing: { airingAt: number; episode: number } | nul
 
 function normalizeFutureAiringSchedule(
   schedule: ReadonlyArray<{ airingAt: number; episode: number }> | undefined,
+  nextAiringEpisode: { airingAt: number; episode: number } | undefined,
 ) {
-  if (!Array.isArray(schedule) || schedule.length === 0) {
+  const merged = [
+    ...(Array.isArray(schedule) ? schedule : []),
+    ...(nextAiringEpisode === undefined ? [] : [nextAiringEpisode]),
+  ];
+
+  if (merged.length === 0) {
     return [];
   }
 
-  return [...schedule]
-    .filter((entry) => Number.isFinite(entry.episode) && entry.episode > 0)
-    .toSorted((left, right) => left.episode - right.episode)
-    .map((entry) => ({
-      airingAt: new Date(entry.airingAt * 1000).toISOString(),
-      episode: entry.episode,
+  const dedupedByEpisode = new Map<number, number>();
+
+  for (const entry of merged) {
+    if (!Number.isFinite(entry.episode) || entry.episode <= 0 || !Number.isFinite(entry.airingAt)) {
+      continue;
+    }
+
+    const existingAiringAt = dedupedByEpisode.get(entry.episode);
+
+    if (existingAiringAt === undefined || entry.airingAt < existingAiringAt) {
+      dedupedByEpisode.set(entry.episode, entry.airingAt);
+    }
+  }
+
+  return [...dedupedByEpisode.entries()]
+    .toSorted((left, right) => left[0] - right[0])
+    .map(([episode, airingAt]) => ({
+      airingAt: new Date(airingAt * 1000).toISOString(),
+      episode,
     }));
 }
 
