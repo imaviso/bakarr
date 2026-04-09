@@ -221,23 +221,12 @@ export function repeatWorker(
       },
 ) {
   const initialDelay = options.initialDelayMs ?? 0;
-  const initialRun = Effect.gen(function* () {
-    if (initialDelay > 0) {
-      yield* Effect.sleep(`${initialDelay} millis`);
-    }
+  const repeatedTask: Effect.Effect<void, unknown> =
+    "cronExpression" in options
+      ? task.pipe(Effect.repeat(Schedule.cron(options.cronExpression)), Effect.asVoid)
+      : task.pipe(Effect.repeat(Schedule.spaced(`${options.intervalMs} millis`)), Effect.asVoid);
 
-    yield* task;
-  });
-
-  if ("cronExpression" in options) {
-    return initialRun.pipe(
-      Effect.zipRight(task.pipe(Effect.repeat(Schedule.cron(options.cronExpression)))),
-      Effect.asVoid,
-    );
-  }
-
-  return initialRun.pipe(
-    Effect.zipRight(task.pipe(Effect.repeat(Schedule.spaced(`${options.intervalMs} millis`)))),
-    Effect.asVoid,
-  );
+  return initialDelay > 0
+    ? Effect.sleep(`${initialDelay} millis`).pipe(Effect.zipRight(repeatedTask), Effect.asVoid)
+    : repeatedTask;
 }

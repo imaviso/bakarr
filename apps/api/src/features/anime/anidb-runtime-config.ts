@@ -12,22 +12,16 @@ export interface AniDbRuntimeConfig {
 }
 
 export function resolveAniDbRuntimeConfig(config: Config): AniDbRuntimeConfig {
-  const anidb = config.metadata?.anidb;
+  const anidb = config.metadata?.anidb ?? DEFAULT_ANIDB_METADATA_CONFIG;
 
   return {
-    enabled: anidb?.enabled ?? false,
-    username: normalizeNullableString(anidb?.username),
-    password: normalizeNullableString(anidb?.password),
-    client: normalizeClientName(anidb?.client),
-    clientVersion: normalizePositiveInt(
-      anidb?.client_version,
-      DEFAULT_ANIDB_METADATA_CONFIG.client_version,
-    ),
-    episodeLimit: normalizePositiveInt(
-      anidb?.episode_limit,
-      DEFAULT_ANIDB_METADATA_CONFIG.episode_limit,
-    ),
-    localPort: normalizeLocalPort(anidb?.local_port),
+    enabled: anidb.enabled,
+    username: anidb.username ?? null,
+    password: anidb.password ?? null,
+    client: anidb.client,
+    clientVersion: anidb.client_version,
+    episodeLimit: anidb.episode_limit,
+    localPort: anidb.local_port,
   };
 }
 
@@ -46,34 +40,4 @@ export function normalizeEpisodeCount(
   }
 
   return Math.min(normalized, episodeLimit);
-}
-
-function normalizeNullableString(value: string | null | undefined) {
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-function normalizeClientName(value: string | null | undefined) {
-  if (typeof value !== "string") {
-    return DEFAULT_ANIDB_METADATA_CONFIG.client;
-  }
-
-  const normalized = value.trim().toLowerCase();
-  return /^[a-z]{4,16}$/.test(normalized) ? normalized : DEFAULT_ANIDB_METADATA_CONFIG.client;
-}
-
-function normalizePositiveInt(value: number | undefined, fallback: number) {
-  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : fallback;
-}
-
-function normalizeLocalPort(value: number | undefined) {
-  if (typeof value === "number" && Number.isInteger(value) && value > 1024 && value <= 65535) {
-    return value;
-  }
-
-  return DEFAULT_ANIDB_METADATA_CONFIG.local_port;
 }

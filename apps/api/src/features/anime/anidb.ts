@@ -61,10 +61,10 @@ export const AniDbClientLive = Layer.effect(
         Effect.map(Option.some),
         Effect.catchTag("StoredConfigMissingError", () => Effect.succeed(Option.none())),
         Effect.catchTag("StoredConfigCorruptError", (error) =>
-          logRuntimeConfigError(error, "stored config is corrupt").pipe(Effect.as(Option.none())),
+          failRuntimeConfigLoad(error, "stored config is corrupt"),
         ),
         Effect.catchTag("DatabaseError", (error) =>
-          logRuntimeConfigError(error, "database read failed").pipe(Effect.as(Option.none())),
+          failRuntimeConfigLoad(error, "database read failed"),
         ),
       );
 
@@ -127,12 +127,23 @@ export const AniDbClientLive = Layer.effect(
 );
 
 const logRuntimeConfigError = (error: DatabaseError | StoredConfigCorruptError, reason: string) =>
-  Effect.logWarning("AniDB metadata lookup skipped due to runtime config load failure").pipe(
+  Effect.logWarning("AniDB metadata lookup failed due to runtime config load failure").pipe(
     Effect.annotateLogs({
       cause: String(error.cause),
       error: error.message,
       reason,
     }),
+  );
+
+const failRuntimeConfigLoad = (error: DatabaseError | StoredConfigCorruptError, reason: string) =>
+  logRuntimeConfigError(error, reason).pipe(
+    Effect.zipRight(
+      ExternalCallError.make({
+        cause: error.cause ?? error,
+        message: "AniDB lookup failed while loading runtime config",
+        operation: "anidb.runtime_config.load",
+      }),
+    ),
   );
 
 const withAniDbSessionEffect = Effect.fn("AniDbClient.withSession")(function* (

@@ -22,6 +22,7 @@ import { LibraryBrowseServiceLive } from "@/features/operations/library-browse-s
 import { RuntimeConfigSnapshotServiceLive } from "@/features/system/runtime-config-snapshot-service.ts";
 import { SystemConfigServiceLive } from "@/features/system/system-config-service.ts";
 import { DiskSpaceInspectorLive } from "@/features/system/disk-space.ts";
+import { provideFrom, provideLayer } from "@/lib/layer-compose.ts";
 import { MediaProbeLive } from "@/lib/media-probe.ts";
 
 export type ApiLifecycleOptions = AppPlatformRuntimeOptions & AppExternalClientLayerOptions;
@@ -30,105 +31,130 @@ export function makeApiLifecycleLayers(
   overrides: Partial<AppConfigShape> = {},
   options?: ApiLifecycleOptions,
 ) {
-  const platformBaseLayer = makeAppPlatformCoreRuntimeLayer(overrides, options);
-  const platformBaseWithCommandLayer = options?.commandExecutorLayer
-    ? Layer.mergeAll(platformBaseLayer, options.commandExecutorLayer)
-    : platformBaseLayer;
+  const buildPlatformLayers = () => {
+    const platformCoreLayer = makeAppPlatformCoreRuntimeLayer(overrides, options);
+    const platformRuntimeLayer = options?.commandExecutorLayer
+      ? Layer.mergeAll(platformCoreLayer, options.commandExecutorLayer)
+      : platformCoreLayer;
 
-  const systemConfigLayer = SystemConfigServiceLive.pipe(
-    Layer.provideMerge(platformBaseWithCommandLayer),
-  );
-  const runtimeConfigSnapshotLayer = RuntimeConfigSnapshotServiceLive.pipe(
-    Layer.provideMerge(systemConfigLayer),
-  );
+    const systemConfigLayer = provideLayer(SystemConfigServiceLive, platformRuntimeLayer);
+    const runtimeConfigSnapshotLayer = provideLayer(
+      RuntimeConfigSnapshotServiceLive,
+      systemConfigLayer,
+    );
 
-  const externalClientOverridesLayer = makeAppExternalClientLayer({
-    ...(options?.aniDbLayer ? { aniDbLayer: options.aniDbLayer } : {}),
-    ...(options?.aniListLayer ? { aniListLayer: options.aniListLayer } : {}),
-    ...(options?.qbitLayer ? { qbitLayer: options.qbitLayer } : {}),
-    ...(options?.rssLayer ? { rssLayer: options.rssLayer } : {}),
-    ...(options?.seadexLayer ? { seadexLayer: options.seadexLayer } : {}),
-  }).pipe(
-    Layer.provideMerge(Layer.mergeAll(platformBaseWithCommandLayer, runtimeConfigSnapshotLayer)),
-  );
+    const externalClientLayer = provideLayer(
+      makeAppExternalClientLayer(options),
+      Layer.mergeAll(platformRuntimeLayer, runtimeConfigSnapshotLayer),
+    );
 
-  const platformExternalLayer = Layer.mergeAll(
-    platformBaseWithCommandLayer,
-    externalClientOverridesLayer,
-  );
+    const platformExternalLayer = Layer.mergeAll(platformRuntimeLayer, externalClientLayer);
+    const infrastructureLayer = provideLayer(
+      Layer.mergeAll(MediaProbeLive, DiskSpaceInspectorLive),
+      platformExternalLayer,
+    );
+    const platformLayer = Layer.mergeAll(platformExternalLayer, infrastructureLayer);
+    const runtimeSupportLayer = Layer.mergeAll(
+      platformLayer,
+      systemConfigLayer,
+      runtimeConfigSnapshotLayer,
+    );
 
-  const infrastructureLayer = Layer.mergeAll(MediaProbeLive, DiskSpaceInspectorLive).pipe(
-    Layer.provideMerge(platformExternalLayer),
-  );
-  const platformLayer = Layer.mergeAll(platformExternalLayer, infrastructureLayer);
+    return {
+      platformLayer,
+      runtimeSupportLayer,
+    } as const;
+  };
 
-  const runtimeSupportLayer = Layer.mergeAll(
-    platformLayer,
-    systemConfigLayer,
-    runtimeConfigSnapshotLayer,
-  );
-  const withRuntimeSupport = <A, E, R>(layer: Layer.Layer<A, E, R>) =>
-    layer.pipe(Layer.provideMerge(runtimeSupportLayer));
+  const { platformLayer, runtimeSupportLayer } = buildPlatformLayers();
+  const withRuntimeSupport = provideFrom(runtimeSupportLayer);
 
-  const animeLayer = makeAnimeAppLayer(runtimeSupportLayer);
-  const { catalogDownloadReadLayer, operationsLayer, operationsProgressLayer, torrentClientLayer } =
-    makeOperationsAppLayers(runtimeSupportLayer);
+  const buildDomainLayers = () => {
+    const animeLayer = makeAnimeAppLayer(runtimeSupportLayer);
+    const {
+      catalogDownloadReadLayer,
+      operationsLayer,
+      operationsProgressLayer,
+      torrentClientLayer,
+    } = makeOperationsAppLayers(runtimeSupportLayer);
+    const appDomainSubgraphLayer = Layer.mergeAll(animeLayer, operationsLayer);
 
-  const appDomainSubgraphLayer = Layer.mergeAll(animeLayer, operationsLayer);
+    return {
+      animeLayer,
+      appDomainSubgraphLayer,
+      catalogDownloadReadLayer,
+      operationsLayer,
+      operationsProgressLayer,
+      torrentClientLayer,
+    } as const;
+  };
 
-  const backgroundTaskRunnerLayer = BackgroundTaskRunnerLive.pipe(
-    Layer.provideMerge(appDomainSubgraphLayer),
-    Layer.provideMerge(runtimeSupportLayer),
-  );
-  const backgroundControllerLayer = BackgroundWorkerControllerLive.pipe(
-    Layer.provideMerge(backgroundTaskRunnerLayer),
-    Layer.provideMerge(runtimeSupportLayer),
-  );
+  const domainLayers = buildDomainLayers();
 
-  const systemLayer = makeSystemAppLayer({
-    backgroundControllerLayer,
-    catalogDownloadReadLayer,
-    runtimeSupportLayer,
-  });
+  const buildBackgroundLayers = () => {
+    const backgroundTaskRunnerLayer = provideLayer(
+      BackgroundTaskRunnerLive,
+      Layer.mergeAll(domainLayers.appDomainSubgraphLayer, runtimeSupportLayer),
+    );
+    const backgroundControllerLayer = provideLayer(
+      BackgroundWorkerControllerLive,
+      Layer.mergeAll(backgroundTaskRunnerLayer, runtimeSupportLayer),
+    );
 
-  const authLayer = Layer.mergeAll(
-    AuthBootstrapServiceLive,
-    AuthCredentialServiceLive,
-    AuthSessionServiceLive,
-  ).pipe(Layer.provideMerge(runtimeSupportLayer));
+    return {
+      backgroundControllerLayer,
+      backgroundTaskRunnerLayer,
+    } as const;
+  };
 
-  const libraryLayer = withRuntimeSupport(
-    LibraryBrowseServiceLive.pipe(
-      Layer.provideMerge(systemLayer),
-      Layer.provideMerge(operationsLayer),
-    ),
-  );
-  const animeEnrollmentLayer = withRuntimeSupport(
-    AnimeEnrollmentServiceLive.pipe(
-      Layer.provideMerge(animeLayer),
-      Layer.provideMerge(operationsLayer),
-    ),
-  );
+  const backgroundLayers = buildBackgroundLayers();
 
-  const runtimeWorkerSubgraphLayer = Layer.mergeAll(
-    backgroundTaskRunnerLayer,
-    backgroundControllerLayer,
-  );
-  const appFeatureSubgraphLayer = Layer.mergeAll(
-    appDomainSubgraphLayer,
-    runtimeWorkerSubgraphLayer,
-    authLayer,
-    systemLayer,
-    libraryLayer,
-    animeEnrollmentLayer,
-  );
+  const buildFeatureLayers = () => {
+    const systemLayer = makeSystemAppLayer({
+      backgroundControllerLayer: backgroundLayers.backgroundControllerLayer,
+      catalogDownloadReadLayer: domainLayers.catalogDownloadReadLayer,
+      runtimeSupportLayer,
+    });
 
-  const appLayer = withRuntimeSupport(appFeatureSubgraphLayer);
+    const authLayer = provideLayer(
+      Layer.mergeAll(AuthBootstrapServiceLive, AuthCredentialServiceLive, AuthSessionServiceLive),
+      runtimeSupportLayer,
+    );
+
+    const libraryLayer = provideLayer(
+      LibraryBrowseServiceLive,
+      Layer.mergeAll(runtimeSupportLayer, systemLayer, domainLayers.operationsLayer),
+    );
+    const animeEnrollmentLayer = provideLayer(
+      AnimeEnrollmentServiceLive,
+      Layer.mergeAll(runtimeSupportLayer, domainLayers.animeLayer, domainLayers.operationsLayer),
+    );
+
+    const runtimeWorkerSubgraphLayer = Layer.mergeAll(
+      backgroundLayers.backgroundTaskRunnerLayer,
+      backgroundLayers.backgroundControllerLayer,
+    );
+    const appFeatureSubgraphLayer = Layer.mergeAll(
+      domainLayers.appDomainSubgraphLayer,
+      runtimeWorkerSubgraphLayer,
+      authLayer,
+      systemLayer,
+      libraryLayer,
+      animeEnrollmentLayer,
+    );
+
+    return {
+      appFeatureSubgraphLayer,
+    } as const;
+  };
+
+  const featureLayers = buildFeatureLayers();
+  const appLayer = withRuntimeSupport(featureLayers.appFeatureSubgraphLayer);
 
   return {
     appLayer,
-    operationsProgressLayer,
+    operationsProgressLayer: domainLayers.operationsProgressLayer,
     platformLayer,
-    torrentClientLayer,
+    torrentClientLayer: domainLayers.torrentClientLayer,
   } as const;
 }

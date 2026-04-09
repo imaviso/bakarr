@@ -14,77 +14,103 @@ import { SystemLogServiceLive } from "@/features/system/system-log-service.ts";
 import { SystemMetricsEndpointServiceLive } from "@/features/system/system-metrics-endpoint-service.ts";
 import { SystemRuntimeMetricsServiceLive } from "@/features/system/system-runtime-metrics-service.ts";
 import { SystemStatusReadServiceLive } from "@/features/system/system-status-read-service.ts";
+import { type AnyLayer, provideFrom, provideLayer } from "@/lib/layer-compose.ts";
 
-type LayerRef<Out, Err, Req> = Layer.Layer<Out, Err, Req>;
+interface SystemAppLayerInput {
+  readonly backgroundControllerLayer: AnyLayer;
+  readonly catalogDownloadReadLayer: AnyLayer;
+  readonly runtimeSupportLayer: AnyLayer;
+}
 
-export function makeSystemAppLayer<BCOut, BCE, BCR, CDOut, CDE, CDR, RSOut, RSE, RSR>(input: {
-  readonly backgroundControllerLayer: LayerRef<BCOut, BCE, BCR>;
-  readonly catalogDownloadReadLayer: LayerRef<CDOut, CDE, CDR>;
-  readonly runtimeSupportLayer: LayerRef<RSOut, RSE, RSR>;
-}) {
-  const withRuntime = <A, E, R>(layer: Layer.Layer<A, E, R>) =>
-    layer.pipe(Layer.provideMerge(input.runtimeSupportLayer));
-  const withBackgroundController = <A, E, R>(layer: Layer.Layer<A, E, R>) =>
-    layer.pipe(Layer.provideMerge(input.backgroundControllerLayer));
+export function makeSystemAppLayer(input: SystemAppLayerInput) {
+  const { backgroundControllerLayer, catalogDownloadReadLayer, runtimeSupportLayer } = input;
+  const withRuntime = provideFrom(runtimeSupportLayer);
+  const withBackgroundController = provideFrom(backgroundControllerLayer);
 
-  const backgroundRuntimeLayer = Layer.mergeAll(
-    input.runtimeSupportLayer,
-    input.backgroundControllerLayer,
-  );
-  const backgroundJobStatusLayer = BackgroundJobStatusServiceLive.pipe(
-    Layer.provideMerge(backgroundRuntimeLayer),
-  );
-  const systemStatusReadLayer = SystemStatusReadServiceLive.pipe(
-    Layer.provideMerge(backgroundJobStatusLayer),
-  );
-  const systemLibraryStatsReadLayer = withRuntime(SystemLibraryStatsReadServiceLive);
-  const systemActivityReadLayer = withRuntime(SystemActivityReadServiceLive);
-  const systemDashboardReadLayer = SystemDashboardReadServiceLive.pipe(
-    Layer.provideMerge(backgroundJobStatusLayer),
-  );
-  const systemRuntimeMetricsLayer = SystemRuntimeMetricsServiceLive.pipe(
-    Layer.provideMerge(systemStatusReadLayer),
-    Layer.provideMerge(systemLibraryStatsReadLayer),
-  );
+  const buildReadLayers = () => {
+    const backgroundRuntimeLayer = Layer.mergeAll(runtimeSupportLayer, backgroundControllerLayer);
+    const backgroundJobStatusLayer = provideLayer(
+      BackgroundJobStatusServiceLive,
+      backgroundRuntimeLayer,
+    );
+    const systemStatusReadLayer = provideLayer(
+      SystemStatusReadServiceLive,
+      backgroundJobStatusLayer,
+    );
+    const systemLibraryStatsReadLayer = withRuntime(SystemLibraryStatsReadServiceLive);
+    const systemActivityReadLayer = withRuntime(SystemActivityReadServiceLive);
+    const systemDashboardReadLayer = provideLayer(
+      SystemDashboardReadServiceLive,
+      backgroundJobStatusLayer,
+    );
+    const systemRuntimeMetricsLayer = provideLayer(
+      SystemRuntimeMetricsServiceLive,
+      Layer.mergeAll(systemStatusReadLayer, systemLibraryStatsReadLayer),
+    );
 
-  const systemReadSubgraphLayer = Layer.mergeAll(
-    backgroundJobStatusLayer,
-    systemStatusReadLayer,
-    systemLibraryStatsReadLayer,
-    systemActivityReadLayer,
-    systemDashboardReadLayer,
-    systemRuntimeMetricsLayer,
-  );
-  const systemMetricsEndpointLayer = SystemMetricsEndpointServiceLive.pipe(
-    Layer.provideMerge(systemRuntimeMetricsLayer),
-  );
-  const imageAssetLayer = withRuntime(ImageAssetServiceLive);
-  const systemEventsLayer = SystemEventsServiceLive.pipe(
-    Layer.provideMerge(input.catalogDownloadReadLayer),
-  );
-  const systemConfigUpdateLayer = withBackgroundController(SystemConfigUpdateServiceLive);
-  const qualityProfileLayer = withRuntime(QualityProfileServiceLive);
-  const releaseProfileLayer = withRuntime(ReleaseProfileServiceLive);
-  const systemLogLayer = withRuntime(SystemLogServiceLive);
-  const systemBootstrapLayer = withRuntime(SystemBootstrapServiceLive);
+    const systemReadSubgraphLayer = Layer.mergeAll(
+      backgroundJobStatusLayer,
+      systemStatusReadLayer,
+      systemLibraryStatsReadLayer,
+      systemActivityReadLayer,
+      systemDashboardReadLayer,
+      systemRuntimeMetricsLayer,
+    );
 
-  const runtimeOnlySubgraphLayer = Layer.mergeAll(
-    systemBootstrapLayer,
-    imageAssetLayer,
-    qualityProfileLayer,
-    releaseProfileLayer,
-    systemLogLayer,
-  );
+    return {
+      systemReadSubgraphLayer,
+      systemRuntimeMetricsLayer,
+    } as const;
+  };
 
-  const orchestrationSubgraphLayer = Layer.mergeAll(
-    systemConfigUpdateLayer,
-    systemEventsLayer,
-    systemMetricsEndpointLayer,
-  );
+  const readLayers = buildReadLayers();
+
+  const buildRuntimeOnlyLayers = () => {
+    const imageAssetLayer = withRuntime(ImageAssetServiceLive);
+    const qualityProfileLayer = withRuntime(QualityProfileServiceLive);
+    const releaseProfileLayer = withRuntime(ReleaseProfileServiceLive);
+    const systemLogLayer = withRuntime(SystemLogServiceLive);
+    const systemBootstrapLayer = withRuntime(SystemBootstrapServiceLive);
+
+    const runtimeOnlySubgraphLayer = Layer.mergeAll(
+      systemBootstrapLayer,
+      imageAssetLayer,
+      qualityProfileLayer,
+      releaseProfileLayer,
+      systemLogLayer,
+    );
+
+    return {
+      runtimeOnlySubgraphLayer,
+    } as const;
+  };
+
+  const runtimeOnlyLayers = buildRuntimeOnlyLayers();
+
+  const buildOrchestrationLayers = () => {
+    const systemMetricsEndpointLayer = provideLayer(
+      SystemMetricsEndpointServiceLive,
+      readLayers.systemRuntimeMetricsLayer,
+    );
+    const systemEventsLayer = provideLayer(SystemEventsServiceLive, catalogDownloadReadLayer);
+    const systemConfigUpdateLayer = withBackgroundController(SystemConfigUpdateServiceLive);
+
+    const orchestrationSubgraphLayer = Layer.mergeAll(
+      systemConfigUpdateLayer,
+      systemEventsLayer,
+      systemMetricsEndpointLayer,
+    );
+
+    return {
+      orchestrationSubgraphLayer,
+    } as const;
+  };
+
+  const orchestrationLayers = buildOrchestrationLayers();
 
   return Layer.mergeAll(
-    runtimeOnlySubgraphLayer,
-    systemReadSubgraphLayer,
-    orchestrationSubgraphLayer,
+    runtimeOnlyLayers.runtimeOnlySubgraphLayer,
+    readLayers.systemReadSubgraphLayer,
+    orchestrationLayers.orchestrationSubgraphLayer,
   );
 }

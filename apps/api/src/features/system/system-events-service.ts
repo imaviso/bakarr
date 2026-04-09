@@ -25,15 +25,16 @@ export const SystemEventsServiceLive = Layer.effect(
     const downloadsReadService = yield* CatalogDownloadReadService;
 
     const buildEventsStream = () =>
-      Stream.unwrapScoped(
-        Effect.gen(function* () {
-          const subscription = yield* eventBus.subscribe();
-          const downloads: readonly DownloadStatus[] =
-            yield* downloadsReadService.getDownloadProgressBootstrap();
-          const bufferedEvents = yield* subscription.takeBufferedOnce;
+      eventBus.withSubscriptionStream((subscription) =>
+        Stream.unwrapScoped(
+          Effect.gen(function* () {
+            const downloads: readonly DownloadStatus[] =
+              yield* downloadsReadService.getDownloadProgressBootstrap();
+            const bufferedEvents = yield* subscription.takeBufferedOnce;
 
-          return buildDownloadProgressEventStream(downloads, bufferedEvents, subscription);
-        }),
+            return buildDownloadProgressEventStream(downloads, bufferedEvents, subscription.stream);
+          }),
+        ),
       );
 
     return SystemEventsService.of({ buildEventsStream });
@@ -43,7 +44,7 @@ export const SystemEventsServiceLive = Layer.effect(
 function buildDownloadProgressEventStream(
   downloads: readonly DownloadStatus[],
   bufferedEvents: readonly NotificationEvent[],
-  subscription: import("@/features/events/event-bus.ts").EventSubscription,
+  stream: Stream.Stream<NotificationEvent>,
 ) {
   const latestBufferedDownloadProgress = bufferedEvents.reduce<NotificationEvent | undefined>(
     (latest, event) => (event.type === "DownloadProgress" ? event : latest),
@@ -63,6 +64,6 @@ function buildDownloadProgressEventStream(
       },
       ...pendingEvents,
     ]),
-    subscription.stream.pipe(Stream.withSpan("system.events.stream")),
+    stream.pipe(Stream.withSpan("system.events.stream")),
   );
 }

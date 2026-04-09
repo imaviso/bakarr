@@ -62,21 +62,25 @@ export interface SystemLogExportQueryParams {
   readonly startDate?: string;
 }
 
+function includeWhenDefined<K extends string, V>(key: K, value: V | undefined) {
+  return value === undefined ? {} : ({ [key]: value } as { readonly [P in K]: V });
+}
+
 export function toSystemLogsQueryParams(query: SystemLogsQueryInput) {
   return {
-    ...(query.end_date === undefined ? {} : { endDate: query.end_date }),
-    ...(query.event_type === undefined ? {} : { eventType: query.event_type }),
-    ...(query.level === undefined ? {} : { level: query.level }),
+    ...includeWhenDefined("endDate", query.end_date),
+    ...includeWhenDefined("eventType", query.event_type),
+    ...includeWhenDefined("level", query.level),
     page: query.page ?? 1,
-    ...(query.start_date === undefined ? {} : { startDate: query.start_date }),
+    ...includeWhenDefined("startDate", query.start_date),
   } satisfies SystemLogsQueryParams;
 }
 
 export function toSystemLogExportQueryParams(query: SystemLogExportQueryInput) {
   return {
-    ...(query.end_date === undefined ? {} : { endDate: query.end_date }),
-    ...(query.event_type === undefined ? {} : { eventType: query.event_type }),
-    ...(query.level === undefined ? {} : { level: query.level }),
-    ...(query.start_date === undefined ? {} : { startDate: query.start_date }),
+    ...includeWhenDefined("endDate", query.end_date),
+    ...includeWhenDefined("eventType", query.event_type),
+    ...includeWhenDefined("level", query.level),
+    ...includeWhenDefined("startDate", query.start_date),
   } satisfies SystemLogExportQueryParams;
 }

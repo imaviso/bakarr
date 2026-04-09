@@ -1,4 +1,4 @@
-import { Cause, Effect, Exit } from "effect";
+import { Cause, Effect, Exit, Stream } from "effect";
 import { eq } from "drizzle-orm";
 
 import type { AppDatabase } from "@/db/database.ts";
@@ -180,7 +180,8 @@ function makeEventBusStub(events: string[]): EventBusShape {
       Effect.sync(() => {
         events.push(event.type);
       }),
-    subscribe: () => Effect.die(new Error("event subscriptions are not used in this test")),
+    withSubscriptionStream: () =>
+      Stream.die(new Error("event subscriptions are not used in this test")),
   };
 }
 

@@ -59,19 +59,13 @@ export const normalizeMetadataProvidersConfig = Effect.fn(
 
 type AniDbMetadataConfig = NonNullable<NonNullable<Config["metadata"]>["anidb"]>;
 
-function normalizeAniDbConfig(anidb: AniDbMetadataConfig | undefined) {
+function normalizeAniDbConfig(anidb: Partial<AniDbMetadataConfig> | undefined) {
   return {
     client: (anidb?.client ?? DEFAULT_ANIDB_METADATA_CONFIG.client).trim().toLowerCase(),
-    client_version: coercePositiveInt(
-      anidb?.client_version,
-      DEFAULT_ANIDB_METADATA_CONFIG.client_version,
-    ),
+    client_version: anidb?.client_version ?? DEFAULT_ANIDB_METADATA_CONFIG.client_version,
     enabled: anidb?.enabled ?? DEFAULT_ANIDB_METADATA_CONFIG.enabled,
-    episode_limit: coercePositiveInt(
-      anidb?.episode_limit,
-      DEFAULT_ANIDB_METADATA_CONFIG.episode_limit,
-    ),
-    local_port: coercePositiveInt(anidb?.local_port, DEFAULT_ANIDB_METADATA_CONFIG.local_port),
+    episode_limit: anidb?.episode_limit ?? DEFAULT_ANIDB_METADATA_CONFIG.episode_limit,
+    local_port: anidb?.local_port ?? DEFAULT_ANIDB_METADATA_CONFIG.local_port,
     password: normalizeNullableString(anidb?.password),
     username: normalizeNullableString(anidb?.username),
   };
@@ -84,8 +78,4 @@ function normalizeNullableString(value: string | null | undefined) {
 
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
-}
-
-function coercePositiveInt(value: number | undefined, fallback: number) {
-  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : fallback;
 }

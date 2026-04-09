@@ -1,12 +1,12 @@
 import { assert, it } from "@effect/vitest";
-import { Deferred, Effect, Fiber, Logger, Metric, Scope, TestClock } from "effect";
+import { Deferred, Effect, Fiber, Logger, Metric, Ref, Scope, TestClock } from "effect";
 import type { ClockServiceShape } from "@/lib/clock.ts";
 
 import type { Config } from "@packages/shared/index.ts";
 import { buildBackgroundSchedule } from "@/background-schedule.ts";
 import { makeBackgroundWorkerController } from "@/background-controller-core.ts";
 import { makeBackgroundWorkerMonitor } from "@/background-monitor.ts";
-import { withLockEffectOrFail } from "@/background-workers.ts";
+import { repeatWorker, withLockEffectOrFail } from "@/background-workers.ts";
 import { makeCoalescedEffectRunner } from "@/lib/effect-coalescing-coalesced-runner.ts";
 import { makeLatestValuePublisher } from "@/lib/effect-coalescing-latest-value-publisher.ts";
 import { makeSkippingSerializedEffectRunner } from "@/lib/effect-coalescing-skipping-serialized-runner.ts";
@@ -152,6 +152,46 @@ it("build background schedule ignores invalid cron and keeps interval", () => {
   assert.deepStrictEqual(schedule.rssCronExpression, null);
   assert.deepStrictEqual(schedule.rssCheckMs, 30 * 60 * 1000);
 });
+
+it.effect("repeatWorker runs exactly once at startup for interval loops", () =>
+  Effect.gen(function* () {
+    const runsRef = yield* Ref.make(0);
+    const worker = repeatWorker(
+      Ref.update(runsRef, (runs) => runs + 1),
+      {
+        intervalMs: 60_000,
+      },
+    );
+    const fiber = yield* Effect.fork(worker);
+
+    yield* Effect.yieldNow();
+
+    const runsAfterStart = yield* Ref.get(runsRef);
+    assert.deepStrictEqual(runsAfterStart, 1);
+
+    yield* Fiber.interrupt(fiber);
+  }),
+);
+
+it.effect("repeatWorker runs exactly once at startup for cron loops", () =>
+  Effect.gen(function* () {
+    const runsRef = yield* Ref.make(0);
+    const worker = repeatWorker(
+      Ref.update(runsRef, (runs) => runs + 1),
+      {
+        cronExpression: "0 * * * *",
+      },
+    );
+    const fiber = yield* Effect.fork(worker);
+
+    yield* Effect.yieldNow();
+
+    const runsAfterStart = yield* Ref.get(runsRef);
+    assert.deepStrictEqual(runsAfterStart, 1);
+
+    yield* Fiber.interrupt(fiber);
+  }),
+);
 
 const testClock: ClockServiceShape = {
   currentMonotonicMillis: Effect.succeed(0),

@@ -4,43 +4,44 @@ import { makeOperationsCatalogLayer } from "@/app-compose-operations-catalog.ts"
 import { makeOperationsDownloadLayer } from "@/app-compose-operations-download.ts";
 import { makeOperationsSearchLayer } from "@/app-compose-operations-search.ts";
 import { makeOperationsUnmappedLayer } from "@/app-compose-operations-unmapped.ts";
+import { type AnyLayer } from "@/lib/layer-compose.ts";
 
-type LayerRef<Out, Err, Req> = Layer.Layer<Out, Err, Req>;
+export function makeOperationsAppLayers(runtimeSupportLayer: AnyLayer) {
+  const buildOperationsSubgraphLayers = () => {
+    const downloadLayers = makeOperationsDownloadLayer(runtimeSupportLayer);
+    const searchLayers = makeOperationsSearchLayer({
+      downloadRuntimeLayer: downloadLayers.downloadRuntimeLayer,
+      operationsProgressLayer: downloadLayers.operationsProgressLayer,
+      runtimeSupportLayer,
+    });
+    const unmappedLayers = makeOperationsUnmappedLayer({
+      operationsRuntimeLayer: downloadLayers.operationsRuntimeLayer,
+      runtimeSupportLayer,
+    });
+    const catalogLayers = makeOperationsCatalogLayer({
+      operationsProgressLayer: downloadLayers.operationsProgressLayer,
+      runtimeSupportLayer,
+    });
 
-export function makeOperationsAppLayers<ROut, E, RIn>(runtimeSupportLayer: LayerRef<ROut, E, RIn>) {
-  const {
-    catalogDownloadReadLayer,
-    downloadRuntimeLayer,
-    downloadSubgraphLayer,
-    operationsProgressLayer,
-    operationsRuntimeLayer,
-    torrentClientLayer,
-  } = makeOperationsDownloadLayer(runtimeSupportLayer);
-  const { searchSubgraphLayer } = makeOperationsSearchLayer({
-    downloadRuntimeLayer,
-    operationsProgressLayer,
-    runtimeSupportLayer,
-  });
-  const { unmappedSubgraphLayer } = makeOperationsUnmappedLayer({
-    operationsRuntimeLayer,
-    runtimeSupportLayer,
-  });
-  const { catalogSubgraphLayer } = makeOperationsCatalogLayer({
-    operationsProgressLayer,
-    runtimeSupportLayer,
-  });
+    const operationsSubgraphLayer = Layer.mergeAll(
+      downloadLayers.downloadSubgraphLayer,
+      searchLayers.searchSubgraphLayer,
+      unmappedLayers.unmappedSubgraphLayer,
+      catalogLayers.catalogSubgraphLayer,
+    );
 
-  const operationsLayer = Layer.mergeAll(
-    downloadSubgraphLayer,
-    searchSubgraphLayer,
-    unmappedSubgraphLayer,
-    catalogSubgraphLayer,
-  );
+    return {
+      downloadLayers,
+      operationsSubgraphLayer,
+    } as const;
+  };
+
+  const operationsLayers = buildOperationsSubgraphLayers();
 
   return {
-    catalogDownloadReadLayer,
-    operationsLayer,
-    operationsProgressLayer,
-    torrentClientLayer,
+    catalogDownloadReadLayer: operationsLayers.downloadLayers.catalogDownloadReadLayer,
+    operationsLayer: operationsLayers.operationsSubgraphLayer,
+    operationsProgressLayer: operationsLayers.downloadLayers.operationsProgressLayer,
+    torrentClientLayer: operationsLayers.downloadLayers.torrentClientLayer,
   } as const;
 }

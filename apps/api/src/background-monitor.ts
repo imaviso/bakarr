@@ -50,14 +50,12 @@ export const makeBackgroundWorkerMonitor = Effect.fn("Background.makeBackgroundW
       update: (stats: BackgroundWorkerStats) => BackgroundWorkerStats,
     ) =>
       Ref.update(state, (current) => {
-        const nextWorkerStats = update(current[workerName]);
-        return new BackgroundWorkerSnapshotModel({
-          download_sync: workerName === "download_sync" ? nextWorkerStats : current.download_sync,
-          library_scan: workerName === "library_scan" ? nextWorkerStats : current.library_scan,
-          metadata_refresh:
-            workerName === "metadata_refresh" ? nextWorkerStats : current.metadata_refresh,
-          rss: workerName === "rss" ? nextWorkerStats : current.rss,
-        });
+        const next = {
+          ...current,
+          [workerName]: update(current[workerName]),
+        } as BackgroundWorkerSnapshot;
+
+        return new BackgroundWorkerSnapshotModel(next);
       });
 
     const mergeWorkerStats = (
@@ -143,42 +141,64 @@ export const makeBackgroundWorkerMonitor = Effect.fn("Background.makeBackgroundW
       );
     });
 
-    return {
-      markDaemonStarted: (workerName: BackgroundWorkerName) =>
-        Effect.zipRight(
-          updateWorker(workerName, (stats) => mergeWorkerStats(stats, { daemonRunning: true })),
-          setBackgroundWorkerDaemonRunning(workerName, true),
-        ),
-      markDaemonStopped: (workerName: BackgroundWorkerName) =>
-        Effect.all(
-          [
-            updateWorker(workerName, (stats) =>
-              mergeWorkerStats(stats, { daemonRunning: false, runRunning: false }),
-            ),
-            setBackgroundWorkerDaemonRunning(workerName, false),
-            setBackgroundWorkerRunRunning(workerName, false),
-          ],
-          { concurrency: "unbounded", discard: true },
-        ),
-      markRunFailed,
-      markRunInterrupted: (workerName: BackgroundWorkerName) =>
-        Effect.zipRight(
-          updateWorker(workerName, (stats) => mergeWorkerStats(stats, { runRunning: false })),
+    const markDaemonStarted = Effect.fn("BackgroundWorkerMonitor.markDaemonStarted")(function* (
+      workerName: BackgroundWorkerName,
+    ) {
+      yield* Effect.zipRight(
+        updateWorker(workerName, (stats) => mergeWorkerStats(stats, { daemonRunning: true })),
+        setBackgroundWorkerDaemonRunning(workerName, true),
+      );
+    });
+
+    const markDaemonStopped = Effect.fn("BackgroundWorkerMonitor.markDaemonStopped")(function* (
+      workerName: BackgroundWorkerName,
+    ) {
+      yield* Effect.all(
+        [
+          updateWorker(workerName, (stats) =>
+            mergeWorkerStats(stats, { daemonRunning: false, runRunning: false }),
+          ),
+          setBackgroundWorkerDaemonRunning(workerName, false),
           setBackgroundWorkerRunRunning(workerName, false),
-        ),
-      markRunSkipped: (workerName: BackgroundWorkerName) =>
-        Effect.all(
-          [
-            updateWorker(workerName, (stats) =>
-              mergeWorkerStats(stats, { skipCount: stats.skipCount + 1 }),
-            ),
-            recordBackgroundWorkerRun({ status: "skipped", worker: workerName }),
-          ],
-          { concurrency: "unbounded", discard: true },
-        ),
+        ],
+        { concurrency: "unbounded", discard: true },
+      );
+    });
+
+    const markRunInterrupted = Effect.fn("BackgroundWorkerMonitor.markRunInterrupted")(function* (
+      workerName: BackgroundWorkerName,
+    ) {
+      yield* Effect.zipRight(
+        updateWorker(workerName, (stats) => mergeWorkerStats(stats, { runRunning: false })),
+        setBackgroundWorkerRunRunning(workerName, false),
+      );
+    });
+
+    const markRunSkipped = Effect.fn("BackgroundWorkerMonitor.markRunSkipped")(function* (
+      workerName: BackgroundWorkerName,
+    ) {
+      yield* Effect.all(
+        [
+          updateWorker(workerName, (stats) =>
+            mergeWorkerStats(stats, { skipCount: stats.skipCount + 1 }),
+          ),
+          recordBackgroundWorkerRun({ status: "skipped", worker: workerName }),
+        ],
+        { concurrency: "unbounded", discard: true },
+      );
+    });
+
+    const snapshot = Effect.fn("BackgroundWorkerMonitor.snapshot")(() => Ref.get(state));
+
+    return {
+      markDaemonStarted,
+      markDaemonStopped,
+      markRunFailed,
+      markRunInterrupted,
+      markRunSkipped,
       markRunStarted,
       markRunSucceeded,
-      snapshot: () => Ref.get(state),
+      snapshot,
     } satisfies BackgroundWorkerMonitorShape;
   },
 );

@@ -6,44 +6,47 @@ import { CatalogLibraryWriteServiceLive } from "@/features/operations/catalog-li
 import { CatalogRssServiceLive } from "@/features/operations/catalog-rss-service.ts";
 import { ImportPathScanServiceLive } from "@/features/operations/import-path-scan-service.ts";
 import { LibraryRootsQueryServiceLive } from "@/features/operations/library-roots-query-service.ts";
+import { type AnyLayer, provideFrom, provideLayer } from "@/lib/layer-compose.ts";
 
-type LayerRef<Out, Err, Req> = Layer.Layer<Out, Err, Req>;
+interface OperationsCatalogLayerInput {
+  readonly operationsProgressLayer: AnyLayer;
+  readonly runtimeSupportLayer: AnyLayer;
+}
 
-export function makeOperationsCatalogLayer<RSOut, RSE, RSR, POut, PE, PR>(input: {
-  readonly operationsProgressLayer: LayerRef<POut, PE, PR>;
-  readonly runtimeSupportLayer: LayerRef<RSOut, RSE, RSR>;
-}) {
-  const runtimeWithProgressLayer = Layer.mergeAll(
-    input.runtimeSupportLayer,
-    input.operationsProgressLayer,
-  );
+export function makeOperationsCatalogLayer(input: OperationsCatalogLayerInput) {
+  const { operationsProgressLayer, runtimeSupportLayer } = input;
+  const withRuntime = provideFrom(runtimeSupportLayer);
 
-  const catalogLibraryReadLayer = CatalogLibraryReadServiceLive.pipe(
-    Layer.provideMerge(input.runtimeSupportLayer),
-  );
-  const catalogLibraryWriteLayer = CatalogLibraryWriteServiceLive.pipe(
-    Layer.provideMerge(input.runtimeSupportLayer),
-  );
-  const catalogLibraryScanLayer = CatalogLibraryScanServiceLive.pipe(
-    Layer.provideMerge(runtimeWithProgressLayer),
-  );
-  const importPathScanLayer = ImportPathScanServiceLive.pipe(
-    Layer.provideMerge(input.runtimeSupportLayer),
-  );
-  const catalogRssLayer = CatalogRssServiceLive.pipe(Layer.provideMerge(input.runtimeSupportLayer));
-  const libraryRootsQueryLayer = LibraryRootsQueryServiceLive.pipe(
-    Layer.provideMerge(input.runtimeSupportLayer),
-  );
-  const catalogSubgraphLayer = Layer.mergeAll(
-    catalogLibraryReadLayer,
-    catalogLibraryWriteLayer,
-    catalogLibraryScanLayer,
-    importPathScanLayer,
-    catalogRssLayer,
-    libraryRootsQueryLayer,
-  );
+  const buildCatalogSubgraphLayers = () => {
+    const runtimeWithProgressLayer = Layer.mergeAll(runtimeSupportLayer, operationsProgressLayer);
+
+    const catalogLibraryReadLayer = withRuntime(CatalogLibraryReadServiceLive);
+    const catalogLibraryWriteLayer = withRuntime(CatalogLibraryWriteServiceLive);
+    const catalogLibraryScanLayer = provideLayer(
+      CatalogLibraryScanServiceLive,
+      runtimeWithProgressLayer,
+    );
+    const importPathScanLayer = withRuntime(ImportPathScanServiceLive);
+    const catalogRssLayer = withRuntime(CatalogRssServiceLive);
+    const libraryRootsQueryLayer = withRuntime(LibraryRootsQueryServiceLive);
+
+    const catalogSubgraphLayer = Layer.mergeAll(
+      catalogLibraryReadLayer,
+      catalogLibraryWriteLayer,
+      catalogLibraryScanLayer,
+      importPathScanLayer,
+      catalogRssLayer,
+      libraryRootsQueryLayer,
+    );
+
+    return {
+      catalogSubgraphLayer,
+    } as const;
+  };
+
+  const catalogLayers = buildCatalogSubgraphLayers();
 
   return {
-    catalogSubgraphLayer,
+    catalogSubgraphLayer: catalogLayers.catalogSubgraphLayer,
   } as const;
 }

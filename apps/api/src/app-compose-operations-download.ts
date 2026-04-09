@@ -12,85 +12,110 @@ import {
   UnmappedScanCoordinatorLive,
 } from "@/features/operations/runtime-support.ts";
 import { TorrentClientServiceLive } from "@/features/operations/torrent-client-service.ts";
+import { type AnyLayer, provideFrom, provideLayer } from "@/lib/layer-compose.ts";
 
-type LayerRef<Out, Err, Req> = Layer.Layer<Out, Err, Req>;
+export function makeOperationsDownloadLayer(runtimeSupportLayer: AnyLayer) {
+  const withRuntime = provideFrom(runtimeSupportLayer);
+  const buildDownloadRuntimeLayers = () => {
+    const operationsRuntimeLayer = Layer.mergeAll(
+      runtimeSupportLayer,
+      DownloadTriggerCoordinatorLive,
+      UnmappedScanCoordinatorLive,
+    );
 
-export function makeOperationsDownloadLayer<ROut, E, RIn>(
-  runtimeSupportLayer: LayerRef<ROut, E, RIn>,
-) {
-  const coordinatorsLayer = Layer.mergeAll(
-    DownloadTriggerCoordinatorLive,
-    UnmappedScanCoordinatorLive,
-  );
-  const operationsRuntimeLayer = Layer.mergeAll(runtimeSupportLayer, coordinatorsLayer);
+    const withOperationsRuntime = provideFrom(operationsRuntimeLayer);
 
-  const torrentClientLayer = TorrentClientServiceLive.pipe(
-    Layer.provideMerge(operationsRuntimeLayer),
-  );
-  const downloadRuntimeLayer = Layer.mergeAll(operationsRuntimeLayer, torrentClientLayer);
-  const downloadReconciliationLayer = DownloadReconciliationServiceLive.pipe(
-    Layer.provideMerge(downloadRuntimeLayer),
-  );
-  const runtimeWithReconciliationLayer = Layer.mergeAll(
-    downloadRuntimeLayer,
-    downloadReconciliationLayer,
-  );
-  const downloadTorrentLifecycleLayer = DownloadTorrentLifecycleServiceLive.pipe(
-    Layer.provideMerge(runtimeWithReconciliationLayer),
-  );
-  const runtimeWithLifecycleLayer = Layer.mergeAll(
-    runtimeWithReconciliationLayer,
-    downloadTorrentLifecycleLayer,
-  );
-  const downloadProgressSupportLayer = DownloadProgressSupportLive.pipe(
-    Layer.provideMerge(runtimeWithLifecycleLayer),
-  );
-  const runtimeWithProgressLayer = Layer.mergeAll(
-    runtimeWithLifecycleLayer,
-    downloadProgressSupportLayer,
-  );
-  const downloadTriggerLayer = DownloadTriggerServiceLive.pipe(
-    Layer.provideMerge(runtimeWithProgressLayer),
-  );
-  const catalogDownloadReadLayer = CatalogDownloadReadServiceLive.pipe(
-    Layer.provideMerge(runtimeSupportLayer),
-  );
-  const commandDependenciesLayer = Layer.mergeAll(
-    runtimeSupportLayer,
-    downloadReconciliationLayer,
-    downloadTorrentLifecycleLayer,
-    downloadProgressSupportLayer,
-  );
-  const catalogDownloadCommandLayer = CatalogDownloadCommandServiceLive.pipe(
-    Layer.provideMerge(commandDependenciesLayer),
-  );
-  const progressDependenciesLayer = Layer.mergeAll(
-    runtimeSupportLayer,
-    downloadReconciliationLayer,
-    downloadTorrentLifecycleLayer,
-    downloadProgressSupportLayer,
-    downloadTriggerLayer,
-    catalogDownloadReadLayer,
-    catalogDownloadCommandLayer,
-  );
-  const operationsProgressLayer = ProgressLive.pipe(Layer.provideMerge(progressDependenciesLayer));
+    const torrentClientLayer = withOperationsRuntime(TorrentClientServiceLive);
+    const downloadRuntimeLayer = Layer.mergeAll(operationsRuntimeLayer, torrentClientLayer);
+
+    const withDownloadRuntime = provideFrom(downloadRuntimeLayer);
+
+    const downloadReconciliationLayer = withDownloadRuntime(DownloadReconciliationServiceLive);
+    const downloadLifecycleRuntimeLayer = Layer.mergeAll(
+      downloadRuntimeLayer,
+      downloadReconciliationLayer,
+    );
+    const withDownloadLifecycleRuntime = provideFrom(downloadLifecycleRuntimeLayer);
+
+    const downloadTorrentLifecycleLayer = withDownloadLifecycleRuntime(
+      DownloadTorrentLifecycleServiceLive,
+    );
+    const downloadProgressRuntimeLayer = Layer.mergeAll(
+      downloadLifecycleRuntimeLayer,
+      downloadTorrentLifecycleLayer,
+    );
+
+    const withDownloadProgressRuntime = provideFrom(downloadProgressRuntimeLayer);
+
+    const downloadProgressSupportLayer = withDownloadProgressRuntime(DownloadProgressSupportLive);
+    const triggerRuntimeLayer = Layer.mergeAll(
+      downloadProgressRuntimeLayer,
+      downloadProgressSupportLayer,
+    );
+
+    const withTriggerRuntime = provideFrom(triggerRuntimeLayer);
+
+    const downloadTriggerLayer = withTriggerRuntime(DownloadTriggerServiceLive);
+
+    return {
+      downloadProgressRuntimeLayer,
+      downloadProgressSupportLayer,
+      downloadReconciliationLayer,
+      downloadRuntimeLayer,
+      downloadTorrentLifecycleLayer,
+      downloadTriggerLayer,
+      operationsRuntimeLayer,
+      torrentClientLayer,
+      triggerRuntimeLayer,
+    } as const;
+  };
+
+  const runtimeLayers = buildDownloadRuntimeLayers();
+  const catalogDownloadReadLayer = withRuntime(CatalogDownloadReadServiceLive);
+
+  const buildDownloadCommandLayers = () => {
+    const commandDependenciesLayer = Layer.mergeAll(
+      runtimeLayers.downloadProgressRuntimeLayer,
+      runtimeLayers.downloadProgressSupportLayer,
+    );
+    const catalogDownloadCommandLayer = provideLayer(
+      CatalogDownloadCommandServiceLive,
+      commandDependenciesLayer,
+    );
+
+    const progressDependenciesLayer = Layer.mergeAll(
+      runtimeLayers.triggerRuntimeLayer,
+      runtimeLayers.downloadTriggerLayer,
+      catalogDownloadReadLayer,
+      catalogDownloadCommandLayer,
+    );
+    const operationsProgressLayer = provideLayer(ProgressLive, progressDependenciesLayer);
+
+    return {
+      catalogDownloadCommandLayer,
+      operationsProgressLayer,
+    } as const;
+  };
+
+  const commandLayers = buildDownloadCommandLayers();
+
   const downloadSubgraphLayer = Layer.mergeAll(
-    torrentClientLayer,
-    downloadReconciliationLayer,
-    downloadTorrentLifecycleLayer,
-    downloadProgressSupportLayer,
-    downloadTriggerLayer,
+    runtimeLayers.torrentClientLayer,
+    runtimeLayers.downloadReconciliationLayer,
+    runtimeLayers.downloadTorrentLifecycleLayer,
+    runtimeLayers.downloadProgressSupportLayer,
+    runtimeLayers.downloadTriggerLayer,
     catalogDownloadReadLayer,
-    catalogDownloadCommandLayer,
-    operationsProgressLayer,
+    commandLayers.catalogDownloadCommandLayer,
+    commandLayers.operationsProgressLayer,
   );
 
   return {
     catalogDownloadReadLayer,
-    downloadRuntimeLayer,
+    downloadRuntimeLayer: runtimeLayers.downloadRuntimeLayer,
     downloadSubgraphLayer,
-    operationsProgressLayer,
-    operationsRuntimeLayer,
-    torrentClientLayer,
+    operationsProgressLayer: commandLayers.operationsProgressLayer,
+    operationsRuntimeLayer: runtimeLayers.operationsRuntimeLayer,
+    torrentClientLayer: runtimeLayers.torrentClientLayer,
   } as const;
 }
