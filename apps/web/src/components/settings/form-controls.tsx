@@ -27,14 +27,18 @@ export function SizeInput(props: {
 }) {
   const [amount, setAmount] = createSignal<string>("");
   const [unit, setUnit] = createSignal<"MB" | "GB">("MB");
+  const [isAmountFocused, setIsAmountFocused] = createSignal(false);
 
   createEffect(() => {
+    if (isAmountFocused()) {
+      return;
+    }
+
     const match = props.value.match(/^(\d+(?:\.\d+)?)\s*(MB|GB)$/i);
     if (!match) {
       if (amount() !== "") {
         setAmount("");
       }
-      setUnit("MB");
       return;
     }
 
@@ -74,11 +78,13 @@ export function SizeInput(props: {
           min="0"
           step="0.1"
           value={amount()}
+          onFocus={() => setIsAmountFocused(true)}
           onInput={(event) => {
             const nextAmount = event.currentTarget.value;
             setAmount(nextAmount);
             updateValue(nextAmount, unit());
           }}
+          onBlur={() => setIsAmountFocused(false)}
           placeholder="0"
           class="flex-1"
         />
@@ -103,6 +109,70 @@ export function SizeInput(props: {
       </div>
       {props.error && <div class="text-[0.8rem] text-destructive">{props.error}</div>}
     </div>
+  );
+}
+
+function parseFiniteNumber(value: string): number | undefined {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return undefined;
+  }
+
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+export function FiniteNumberInput(props: {
+  class?: string;
+  fallbackValue?: number;
+  max?: number | string;
+  min?: number | string;
+  onChange: (value: number) => void;
+  step?: number | string;
+  value: number | undefined;
+}) {
+  const toDisplayValue = () => String(props.value ?? props.fallbackValue ?? 0);
+  const [text, setText] = createSignal(toDisplayValue());
+  const [isFocused, setIsFocused] = createSignal(false);
+
+  createEffect(() => {
+    const next = toDisplayValue();
+    if (!isFocused() && text() !== next) {
+      setText(next);
+    }
+  });
+
+  return (
+    <Input
+      type="number"
+      {...(props.min === undefined ? {} : { min: props.min })}
+      {...(props.max === undefined ? {} : { max: props.max })}
+      {...(props.step === undefined ? {} : { step: props.step })}
+      value={text()}
+      onFocus={() => setIsFocused(true)}
+      onInput={(event) => {
+        const next = event.currentTarget.value;
+        setText(next);
+
+        const parsed = parseFiniteNumber(next);
+        if (parsed !== undefined) {
+          props.onChange(parsed);
+        }
+      }}
+      onBlur={() => {
+        setIsFocused(false);
+
+        const parsed = parseFiniteNumber(text());
+        if (parsed === undefined) {
+          setText(toDisplayValue());
+          return;
+        }
+
+        props.onChange(parsed);
+        setText(String(parsed));
+      }}
+      class={props.class}
+    />
   );
 }
 

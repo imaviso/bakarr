@@ -2,7 +2,6 @@ import {
   IconAlertTriangle,
   IconCheck,
   IconDownload,
-  IconExternalLink,
   IconFilter,
   IconLoader2,
   IconSearch,
@@ -20,7 +19,6 @@ import {
   Show,
   Suspense,
 } from "solid-js";
-import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "~/components/ui/dialog";
@@ -44,14 +42,9 @@ import {
 } from "~/components/ui/table";
 import { TextField, TextFieldInput } from "~/components/ui/text-field";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
+import { ReleaseSeaDexMeta, ReleaseSelectionMeta } from "~/components/release-search/release-meta";
 import { ReleaseMetadataSummary } from "~/components/release-metadata-summary";
-import {
-  createGrabReleaseMutation,
-  type DownloadSourceMetadata,
-  createNyaaSearchQuery,
-  type NyaaSearchResult,
-  type ParsedEpisodeIdentity,
-} from "~/lib/api";
+import { createGrabReleaseMutation, createNyaaSearchQuery, type NyaaSearchResult } from "~/lib/api";
 import { formatReleaseSearchDecisionReason, inferBatchKind } from "~/lib/batch-kind";
 import {
   formatReleaseParsedSummary,
@@ -61,11 +54,10 @@ import {
 import {
   formatSelectionSummary,
   getReleaseConfidence,
-  releaseConfidenceBadgeClass,
-  selectionKindBadgeClass,
   selectionKindLabel,
 } from "~/lib/release-selection";
 import { createDebouncer } from "~/lib/debounce";
+import { buildDownloadSourceMetadata, buildParsedEpisodeIdentity } from "~/lib/release-download";
 import { cn } from "~/lib/utils";
 
 interface SearchDialogProps {
@@ -474,70 +466,33 @@ function ReleaseRow(props: { result: NyaaSearchResult; animeId: number; onGrab: 
     const selection = selectionMetadata();
     const parsedEpisodeNumber = parseFloat(epNum());
     const episodeNumber = Number.isFinite(parsedEpisodeNumber) ? parsedEpisodeNumber : undefined;
-    const releaseSourceIdentity = (): ParsedEpisodeIdentity | undefined => {
-      if (!props.result.parsed_episode_label) {
-        return undefined;
-      }
+    const sourceIdentity = buildParsedEpisodeIdentity({
+      parsedAirDate: props.result.parsed_air_date,
+      parsedEpisodeLabel: props.result.parsed_episode_label,
+      parsedEpisodeNumbers: props.result.parsed_episode_numbers,
+    });
 
-      if (props.result.parsed_air_date) {
-        return {
-          air_dates: [props.result.parsed_air_date],
-          label: props.result.parsed_episode_label,
-          scheme: "daily",
-        };
-      }
-
-      if (props.result.parsed_episode_numbers?.length) {
-        return {
-          episode_numbers: props.result.parsed_episode_numbers,
-          label: props.result.parsed_episode_label,
-          scheme: "absolute",
-        };
-      }
-
-      return undefined;
-    };
-    const sourceIdentity = releaseSourceIdentity();
-
-    const releaseMetadata: DownloadSourceMetadata = {
-      ...(props.result.parsed_air_date === undefined
-        ? {}
-        : { air_date: props.result.parsed_air_date }),
-      ...(selection.chosen_from_seadex === undefined
-        ? {}
-        : { chosen_from_seadex: selection.chosen_from_seadex }),
-      ...(props.result.parsed_group === undefined ? {} : { group: props.result.parsed_group }),
-      ...(props.result.indexer === undefined ? {} : { indexer: props.result.indexer }),
-      ...(props.result.is_seadex === undefined ? {} : { is_seadex: props.result.is_seadex }),
-      ...(props.result.is_seadex_best === undefined
-        ? {}
-        : { is_seadex_best: props.result.is_seadex_best }),
-      parsed_title: props.result.title,
-      ...(props.result.parsed_quality === undefined
-        ? {}
-        : { quality: props.result.parsed_quality }),
-      ...(props.result.remake === undefined ? {} : { remake: props.result.remake }),
-      ...(props.result.parsed_resolution === undefined
-        ? {}
-        : { resolution: props.result.parsed_resolution }),
-      ...(props.result.seadex_comparison === undefined
-        ? {}
-        : { seadex_comparison: props.result.seadex_comparison }),
-      ...(props.result.seadex_dual_audio === undefined
-        ? {}
-        : { seadex_dual_audio: props.result.seadex_dual_audio }),
-      ...(props.result.seadex_notes === undefined
-        ? {}
-        : { seadex_notes: props.result.seadex_notes }),
-      ...(props.result.seadex_release_group === undefined
-        ? {}
-        : { seadex_release_group: props.result.seadex_release_group }),
-      ...(props.result.seadex_tags === undefined ? {} : { seadex_tags: props.result.seadex_tags }),
-      selection_kind: selection.selection_kind,
-      ...(sourceIdentity === undefined ? {} : { source_identity: sourceIdentity }),
-      ...(props.result.view_url === undefined ? {} : { source_url: props.result.view_url }),
-      ...(props.result.trusted === undefined ? {} : { trusted: props.result.trusted }),
-    };
+    const releaseMetadata = buildDownloadSourceMetadata({
+      airDate: props.result.parsed_air_date,
+      chosenFromSeaDex: selection.chosen_from_seadex,
+      group: props.result.parsed_group,
+      indexer: props.result.indexer,
+      isSeaDex: props.result.is_seadex,
+      isSeaDexBest: props.result.is_seadex_best,
+      parsedTitle: props.result.title,
+      quality: props.result.parsed_quality,
+      remake: props.result.remake,
+      resolution: props.result.parsed_resolution,
+      seaDexComparison: props.result.seadex_comparison,
+      seaDexDualAudio: props.result.seadex_dual_audio,
+      seaDexNotes: props.result.seadex_notes,
+      seaDexReleaseGroup: props.result.seadex_release_group,
+      seaDexTags: props.result.seadex_tags,
+      selectionKind: selection.selection_kind,
+      sourceIdentity,
+      sourceUrl: props.result.view_url,
+      trusted: props.result.trusted,
+    });
 
     const payload = {
       anime_id: props.animeId,
@@ -602,76 +557,20 @@ function ReleaseRow(props: { result: NyaaSearchResult; animeId: number; onGrab: 
             sourceSummary={releaseSourceSummary()}
             sourceUrl={props.result.view_url}
           />
-          <Show
-            when={
-              props.result.seadex_notes ||
-              props.result.seadex_tags?.length ||
-              props.result.seadex_comparison
-            }
-          >
-            <div class="flex flex-col gap-1 text-xs text-muted-foreground pr-4">
-              <Show when={props.result.seadex_notes}>
-                <span class="line-clamp-2">{props.result.seadex_notes}</span>
-              </Show>
-              <Show when={props.result.seadex_tags?.length}>
-                <div class="flex flex-wrap gap-1">
-                  <For each={(props.result.seadex_tags || []).slice(0, 4)}>
-                    {(tag) => (
-                      <Badge
-                        variant="secondary"
-                        class="h-4 px-1 text-xs bg-muted/40 text-muted-foreground border-transparent rounded-none"
-                      >
-                        {tag}
-                      </Badge>
-                    )}
-                  </For>
-                </div>
-              </Show>
-              <Show when={props.result.seadex_comparison}>
-                <a
-                  href={props.result.seadex_comparison}
-                  target="_blank"
-                  rel="noreferrer"
-                  class="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 w-fit"
-                >
-                  <IconExternalLink class="h-3 w-3" /> Compare notes
-                </a>
-              </Show>
-            </div>
-          </Show>
-          <Show when={selectionSummary()}>
-            <div class="flex flex-wrap items-center gap-1.5 text-xs pr-4 leading-tight">
-              <Show when={selectionLabel()}>
-                {(label) => (
-                  <Badge
-                    variant="secondary"
-                    class={cn(
-                      "h-4 px-1.5 border-transparent",
-                      selectionKindBadgeClass(selectionMetadata().selection_kind),
-                    )}
-                  >
-                    {label()}
-                  </Badge>
-                )}
-              </Show>
-            </div>
-          </Show>
-          <Show when={releaseConfidence()}>
-            {(confidence) => (
-              <div class="flex flex-wrap items-center gap-1.5 text-xs pr-4 leading-tight">
-                <Badge
-                  variant="secondary"
-                  class={cn(
-                    "h-4 px-1.5 border-transparent",
-                    releaseConfidenceBadgeClass(confidence().tone),
-                  )}
-                >
-                  {confidence().label}
-                </Badge>
-                <div class="text-muted-foreground">{confidence().reason}</div>
-              </div>
-            )}
-          </Show>
+          <ReleaseSeaDexMeta
+            notes={props.result.seadex_notes}
+            tags={props.result.seadex_tags}
+            comparisonUrl={props.result.seadex_comparison}
+            class="pr-4"
+            tagClass="rounded-none"
+          />
+          <ReleaseSelectionMeta
+            selectionKind={selectionMetadata().selection_kind}
+            selectionLabel={selectionLabel()}
+            selectionSummary={selectionSummary()}
+            confidence={releaseConfidence()}
+            class="pr-4"
+          />
         </div>
       </TableCell>
       <TableCell class="py-2.5">
@@ -731,21 +630,11 @@ function ReleaseRow(props: { result: NyaaSearchResult; animeId: number; onGrab: 
                     : "Verify episode number for mapping."}
                 </p>
                 <Show when={selectionSummary()}>
-                  <div class="flex flex-wrap items-center gap-1.5 text-xs leading-tight">
-                    <Show when={selectionLabel()}>
-                      {(label) => (
-                        <Badge
-                          variant="secondary"
-                          class={cn(
-                            "h-4 px-1.5 border-transparent",
-                            selectionKindBadgeClass(selectionMetadata().selection_kind),
-                          )}
-                        >
-                          {label()}
-                        </Badge>
-                      )}
-                    </Show>
-                  </div>
+                  <ReleaseSelectionMeta
+                    selectionKind={selectionMetadata().selection_kind}
+                    selectionLabel={selectionLabel()}
+                    selectionSummary={selectionSummary()}
+                  />
                 </Show>
                 <p class="text-xs text-muted-foreground line-clamp-2">{decisionReason()}</p>
               </div>

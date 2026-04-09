@@ -4,12 +4,10 @@ import {
   IconCalendar,
   IconCheck,
   IconDownload,
-  IconEye,
   IconFileSpreadsheet,
   IconFilter,
   IconInfoCircle,
   IconJson,
-  IconLoader,
   IconRefresh,
   IconTag,
   IconTrash,
@@ -17,8 +15,12 @@ import {
 import { createFileRoute, useNavigate } from "@tanstack/solid-router";
 import { format } from "date-fns";
 import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js";
-import { createVirtualizer } from "@tanstack/solid-virtual";
 import * as v from "valibot";
+import { BackgroundJobCard } from "~/components/logs/background-job-card";
+import { DashboardMetricCard } from "~/components/logs/dashboard-metric-card";
+import { DownloadEventsList } from "~/components/logs/download-events-list";
+import { LogDetailsDialog } from "~/components/logs/log-details-dialog";
+import { SystemLogsTable } from "~/components/logs/system-logs-table";
 import {
   DownloadEventsFilters,
   type DownloadEventsFilterValue,
@@ -38,17 +40,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "~/components/ui/alert-dialog";
-import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import { DownloadEventCard } from "~/components/download-event-card";
 import { Card } from "~/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "~/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -58,15 +51,6 @@ import {
 import { Skeleton } from "~/components/ui/skeleton";
 import { Switch } from "~/components/ui/switch";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "~/components/ui/table";
-import {
-  type BackgroundJobStatus,
   createClearLogsMutation,
   createDownloadEventsQuery,
   createInfiniteLogsQuery,
@@ -121,38 +105,7 @@ function formatLogTimestamp(createdAt: string): string {
   return format(date, "yyyy-MM-dd HH:mm:ss");
 }
 
-function getLevelColorClass(level: string) {
-  switch (level.toLowerCase()) {
-    case "error":
-      return "bg-error/15 text-error hover:bg-error/25 border-error/20";
-    case "warn":
-      return "bg-warning/15 text-warning hover:bg-warning/25 border-warning/20";
-    case "success":
-      return "bg-success/15 text-success hover:bg-success/25 border-success/20";
-    case "info":
-      return "bg-info/15 text-info hover:bg-info/25 border-info/20";
-    default:
-      return "";
-  }
-}
-
-function getLevelIcon(level: string) {
-  switch (level.toLowerCase()) {
-    case "error":
-      return <IconAlertCircle class="h-3.5 w-3.5 mr-1" />;
-    case "warn":
-      return <IconAlertTriangle class="h-3.5 w-3.5 mr-1" />;
-    case "success":
-      return <IconCheck class="h-3.5 w-3.5 mr-1" />;
-    case "info":
-      return <IconInfoCircle class="h-3.5 w-3.5 mr-1" />;
-    default:
-      return <IconInfoCircle class="h-3.5 w-3.5 mr-1" />;
-  }
-}
-
 function LogsPage() {
-  let logsScrollRef: HTMLDivElement | undefined;
   const search = Route.useSearch();
   const navigate = useNavigate();
   const [autoRefresh, setAutoRefresh] = createSignal(false);
@@ -305,43 +258,6 @@ function LogsPage() {
       void dashboardQuery.refetch();
     }, 3000);
     onCleanup(() => clearInterval(interval));
-  });
-
-  const rowVirtualizer = createVirtualizer({
-    get count() {
-      return allLogs().length;
-    },
-    estimateSize: () => 52,
-    overscan: 10,
-    getScrollElement: () => logsScrollRef ?? null,
-  });
-
-  const logsPaddingTop = createMemo(() => {
-    const items = rowVirtualizer.getVirtualItems();
-    const [first] = items;
-    return first ? first.start : 0;
-  });
-  const logsPaddingBottom = createMemo(() => {
-    const items = rowVirtualizer.getVirtualItems();
-    const last = items[items.length - 1];
-    return last ? rowVirtualizer.getTotalSize() - last.end : 0;
-  });
-
-  // Auto-fetch next page when approaching the end
-  createEffect(() => {
-    const items = rowVirtualizer.getVirtualItems();
-    if (items.length === 0) return;
-    const lastItem = items[items.length - 1];
-    if (!lastItem) {
-      return;
-    }
-    if (
-      lastItem.index >= allLogs().length - 20 &&
-      logsQuery.hasNextPage &&
-      !logsQuery.isFetchingNextPage
-    ) {
-      void logsQuery.fetchNextPage();
-    }
   });
 
   const handleExport = (exportFormat: "json" | "csv") => {
@@ -547,7 +463,9 @@ function LogsPage() {
               when={(jobsQuery.data?.length ?? 0) > 0}
               fallback={<div class="text-sm text-muted-foreground">No background job data yet</div>}
             >
-              <For each={jobsQuery.data}>{(job) => <BackgroundJobCard job={job} />}</For>
+              <For each={jobsQuery.data}>
+                {(job) => <BackgroundJobCard job={job} formatTimestamp={formatLogTimestamp} />}
+              </For>
             </Show>
           </Show>
         </div>
@@ -607,334 +525,42 @@ function LogsPage() {
           </div>
           <DownloadEventsList
             events={downloadEventsQuery.data?.events ?? []}
+            formatTimestamp={formatLogTimestamp}
             onSelectEvent={setSelectedDownloadEvent}
           />
         </Show>
       </Card>
 
       <Card class="border-primary/20 flex-1 min-h-0 flex flex-col overflow-hidden">
-        <div
-          ref={(el) => {
-            logsScrollRef = el;
+        <SystemLogsTable
+          logs={allLogs()}
+          isLoading={logsQuery.isLoading}
+          isError={logsQuery.isError}
+          hasNextPage={logsQuery.hasNextPage}
+          isFetchingNextPage={logsQuery.isFetchingNextPage}
+          formatTimestamp={formatLogTimestamp}
+          onFetchNextPage={() => {
+            void logsQuery.fetchNextPage();
           }}
-          class="overflow-y-auto flex-1"
-        >
-          <Table>
-            <TableHeader class="sticky top-0 bg-card z-10 shadow-sm shadow-border/50">
-              <TableRow class="hover:bg-transparent border-none">
-                <TableHead class="w-[160px]">Timestamp</TableHead>
-                <TableHead class="w-[100px]">Level</TableHead>
-                <TableHead class="w-[120px]">Source</TableHead>
-                <TableHead>Message</TableHead>
-                <TableHead class="w-[80px]" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <Show
-                when={!logsQuery.isLoading}
-                fallback={
-                  <For each={[1, 2, 3, 4, 5]}>
-                    {() => (
-                      <TableRow>
-                        <TableCell>
-                          <Skeleton class="h-4 w-32" />
-                        </TableCell>
-                        <TableCell>
-                          <Skeleton class="h-4 w-16" />
-                        </TableCell>
-                        <TableCell>
-                          <Skeleton class="h-4 w-24" />
-                        </TableCell>
-                        <TableCell>
-                          <Skeleton class="h-4 w-full" />
-                        </TableCell>
-                        <TableCell>
-                          <Skeleton class="h-8 w-8" />
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </For>
-                }
-              >
-                <Show when={logsQuery.isError}>
-                  <TableRow>
-                    <TableCell colSpan={5} class="h-24 text-center text-destructive">
-                      Error loading logs. Please try again.
-                    </TableCell>
-                  </TableRow>
-                </Show>
-
-                <Show when={allLogs().length === 0}>
-                  <TableRow>
-                    <TableCell colSpan={5} class="h-24 text-center text-muted-foreground">
-                      No logs found.
-                    </TableCell>
-                  </TableRow>
-                </Show>
-
-                <Show when={logsPaddingTop() > 0}>
-                  <tr aria-hidden="true">
-                    <td
-                      colSpan={5}
-                      style={{
-                        height: `${logsPaddingTop()}px`,
-                        padding: "0",
-                        border: "none",
-                      }}
-                    />
-                  </tr>
-                </Show>
-                <For each={rowVirtualizer.getVirtualItems()}>
-                  {(vRow) => {
-                    const log = () => allLogs()[vRow.index];
-                    return (
-                      <Show when={log()}>
-                        {(entry) => (
-                          <TableRow class="group">
-                            <TableCell class="font-mono text-xs text-muted-foreground whitespace-nowrap">
-                              {formatLogTimestamp(entry().created_at)}
-                            </TableCell>
-                            <TableCell>
-                              <Badge
-                                variant="outline"
-                                class={cn(
-                                  "text-xs capitalize pl-1 pr-2 py-0.5",
-                                  getLevelColorClass(entry().level),
-                                )}
-                              >
-                                {getLevelIcon(entry().level)}
-                                {entry().level}
-                              </Badge>
-                            </TableCell>
-                            <TableCell class="text-xs font-medium text-muted-foreground capitalize">
-                              {entry().event_type}
-                            </TableCell>
-                            <TableCell class="text-sm max-w-[500px]">
-                              <div class="truncate" title={entry().message}>
-                                {entry().message}
-                              </div>
-                              <Show when={entry().details}>
-                                <div
-                                  class="text-xs text-muted-foreground mt-0.5 font-mono truncate opacity-70"
-                                  title={entry().details}
-                                >
-                                  {entry().details}
-                                </div>
-                              </Show>
-                            </TableCell>
-                            <TableCell>
-                              <Show when={entry().details}>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  class="relative after:absolute after:-inset-2 h-8 w-8 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
-                                  onClick={() => setSelectedLog(entry())}
-                                  aria-label="View details"
-                                >
-                                  <IconEye class="h-4 w-4" />
-                                </Button>
-                              </Show>
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </Show>
-                    );
-                  }}
-                </For>
-                <Show when={logsPaddingBottom() > 0}>
-                  <tr aria-hidden="true">
-                    <td
-                      colSpan={5}
-                      style={{
-                        height: `${logsPaddingBottom()}px`,
-                        padding: "0",
-                        border: "none",
-                      }}
-                    />
-                  </tr>
-                </Show>
-              </Show>
-            </TableBody>
-          </Table>
-        </div>
-        <Show when={logsQuery.hasNextPage}>
-          <div class="p-4 flex justify-center border-t shrink-0">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => void logsQuery.fetchNextPage()}
-              disabled={logsQuery.isFetchingNextPage}
-            >
-              <Show when={logsQuery.isFetchingNextPage} fallback="Load More Logs">
-                <IconLoader class="h-4 w-4 animate-spin" />
-                Loading...
-              </Show>
-            </Button>
-          </div>
-        </Show>
+          onSelectLog={setSelectedLog}
+        />
       </Card>
 
-      <Dialog open={!!selectedLog()} onOpenChange={(open) => !open && setSelectedLog(null)}>
-        <DialogContent class="max-w-3xl max-h-[80vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle>Log Details</DialogTitle>
-            <DialogDescription>
-              {selectedLog() && formatLogTimestamp(selectedLog()?.created_at || "")}
-            </DialogDescription>
-          </DialogHeader>
-          <div class="flex-1 overflow-auto space-y-4 py-4">
-            <div class="space-y-1">
-              <div class="text-sm font-medium text-muted-foreground">Message</div>
-              <div class="p-3 rounded-md bg-muted text-sm font-mono whitespace-pre-wrap break-words">
-                {selectedLog()?.message}
-              </div>
-            </div>
-            <Show when={selectedLog()?.details}>
-              <div class="space-y-1">
-                <div class="text-sm font-medium text-muted-foreground">Details</div>
-                <div class="p-3 rounded-md bg-muted text-xs font-mono whitespace-pre-wrap break-words">
-                  {selectedLog()?.details}
-                </div>
-              </div>
-            </Show>
-            <div class="grid grid-cols-2 gap-4 text-sm">
-              <div class="flex gap-1 items-baseline">
-                <span class="text-muted-foreground">Level:</span>
-                <span class="capitalize font-medium">{selectedLog()?.level}</span>
-              </div>
-              <div class="flex gap-1 items-baseline">
-                <span class="text-muted-foreground">Source:</span>
-                <span class="capitalize font-medium">{selectedLog()?.event_type}</span>
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <LogDetailsDialog
+        log={selectedLog()}
+        formatTimestamp={formatLogTimestamp}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedLog(null);
+          }
+        }}
+      />
 
       <DownloadEventDetailsDialog
         event={selectedDownloadEvent()}
         formatTimestamp={formatLogTimestamp}
         onOpenChange={(open) => !open && setSelectedDownloadEvent(null)}
       />
-    </div>
-  );
-}
-
-function BackgroundJobCard(props: { job: BackgroundJobStatus }) {
-  const displayName = () =>
-    props.job.name === "metadata_refresh"
-      ? "Metadata Refresh"
-      : props.job.name.replaceAll("_", " ");
-
-  return (
-    <div class="rounded-lg border border-border/60 bg-card p-3 space-y-2">
-      <div class="flex items-center justify-between gap-2">
-        <div class="font-medium text-sm capitalize">{displayName()}</div>
-        <Badge variant="outline" class={cn(props.job.is_running && "border-info/40 text-info")}>
-          {props.job.is_running ? "Running" : (props.job.last_status ?? "Idle")}
-        </Badge>
-      </div>
-      <div class="space-y-1 text-xs text-muted-foreground">
-        <div>Runs: {props.job.run_count}</div>
-        <div>
-          Schedule: {props.job.schedule_mode ?? "manual"}
-          <Show when={props.job.schedule_value}>
-            <span>({props.job.schedule_value})</span>
-          </Show>
-        </div>
-        <div>
-          Last run: {props.job.last_run_at ? formatLogTimestamp(props.job.last_run_at) : "-"}
-        </div>
-        <div>
-          Last success:{" "}
-          {props.job.last_success_at ? formatLogTimestamp(props.job.last_success_at) : "-"}
-        </div>
-        <Show when={props.job.last_message}>
-          <div class="line-clamp-2">{props.job.last_message}</div>
-        </Show>
-      </div>
-    </div>
-  );
-}
-
-function DashboardMetricCard(props: { label: string; value: number; highlight?: string }) {
-  return (
-    <div
-      aria-label={`${props.label}: ${props.value}`}
-      class="rounded-lg border border-border/60 bg-card p-3 space-y-1"
-    >
-      <div class="text-xs text-muted-foreground">{props.label}</div>
-      <div class={cn("text-2xl font-semibold", props.highlight)}>{props.value}</div>
-    </div>
-  );
-}
-
-function DownloadEventRow(props: { event: DownloadEvent }) {
-  return <DownloadEventCard event={props.event} formatTimestamp={formatLogTimestamp} />;
-}
-
-const EVENT_ROW_HEIGHT_ESTIMATE = 140;
-const EVENT_LIST_MAX_HEIGHT = 600;
-
-function DownloadEventsList(props: {
-  events: DownloadEvent[];
-  onSelectEvent: (event: DownloadEvent) => void;
-}) {
-  let scrollRef: HTMLDivElement | undefined;
-
-  const virtualizer = createVirtualizer({
-    get count() {
-      return props.events.length;
-    },
-    estimateSize: () => EVENT_ROW_HEIGHT_ESTIMATE,
-    getScrollElement: () => scrollRef ?? null,
-    overscan: 4,
-  });
-
-  const paddingTop = createMemo(() => {
-    const items = virtualizer.getVirtualItems();
-    const [first] = items;
-    return first ? first.start : 0;
-  });
-  const paddingBottom = createMemo(() => {
-    const items = virtualizer.getVirtualItems();
-    const last = items[items.length - 1];
-    return last ? virtualizer.getTotalSize() - last.end : 0;
-  });
-
-  return (
-    <div
-      ref={(el) => {
-        scrollRef = el;
-      }}
-      class="overflow-y-auto px-4 pb-4"
-      style={{
-        "max-height": `${EVENT_LIST_MAX_HEIGHT}px`,
-        "overflow-anchor": "none",
-      }}
-    >
-      <div style={{ height: `${paddingTop()}px` }} aria-hidden="true" />
-      <div class="space-y-3">
-        <For each={virtualizer.getVirtualItems()}>
-          {(vRow) => {
-            const event = props.events[vRow.index];
-            if (!event) {
-              return null;
-            }
-            return (
-              <div class="space-y-2">
-                <DownloadEventRow event={event} />
-                <div class="flex justify-end">
-                  <Button variant="outline" size="sm" onClick={() => props.onSelectEvent(event)}>
-                    Details
-                  </Button>
-                </div>
-              </div>
-            );
-          }}
-        </For>
-      </div>
-      <div style={{ height: `${paddingBottom()}px` }} aria-hidden="true" />
     </div>
   );
 }

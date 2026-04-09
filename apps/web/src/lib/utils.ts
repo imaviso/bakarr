@@ -1,12 +1,11 @@
 import { type ClassValue, clsx } from "clsx";
-import { toast } from "solid-sonner";
 import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export async function copyToClipboard(text: string, label = "Text") {
+export async function copyToClipboard(text: string): Promise<boolean> {
   let success = false;
 
   // Try Modern API first
@@ -45,9 +44,5 @@ export async function copyToClipboard(text: string, label = "Text") {
     } catch {}
   }
 
-  if (success) {
-    toast.success(`${label} copied to clipboard`);
-  } else {
-    toast.error(`Failed to copy ${label.toLowerCase()}`);
-  }
+  return success;
 }

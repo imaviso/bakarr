@@ -186,7 +186,12 @@ function AnimeDetailsPage() {
     try {
       const { url } = await getAnimeEpisodeStreamUrl(animeId(), episodeNumber);
       const origin = globalThis.location.origin;
-      await copyToClipboard(`${origin}${url}`, "Stream URL");
+      const copied = await copyToClipboard(`${origin}${url}`);
+      if (copied) {
+        toast.success("Stream URL copied to clipboard");
+      } else {
+        toast.error("Failed to copy stream url");
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Could not copy stream link.";
       toast.error(message);

@@ -1,7 +1,6 @@
 import {
   IconAlertTriangle,
   IconDownload,
-  IconExternalLink,
   IconLoader2,
   IconPlug,
   IconVideo,
@@ -26,14 +25,13 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
+import { ReleaseSeaDexMeta, ReleaseSelectionMeta } from "~/components/release-search/release-meta";
 import { ReleaseMetadataSummary } from "~/components/release-metadata-summary";
 import {
   createEpisodeSearchQuery,
   createGrabReleaseMutation,
   type DownloadAction,
-  type DownloadSourceMetadata,
   type EpisodeSearchResult,
-  type ParsedEpisodeIdentity,
 } from "~/lib/api";
 import { formatReleaseSearchDecisionReason, inferBatchKind } from "~/lib/batch-kind";
 import {
@@ -45,11 +43,10 @@ import {
   formatSelectionDetail,
   formatSelectionSummary,
   getReleaseConfidence,
-  releaseConfidenceBadgeClass,
-  selectionKindBadgeClass,
   selectionKindLabel,
   selectionMetadataFromDownloadAction,
 } from "~/lib/release-selection";
+import { buildDownloadSourceMetadata, buildParsedEpisodeIdentity } from "~/lib/release-download";
 import { cn } from "~/lib/utils";
 
 interface SearchModalProps {
@@ -135,68 +132,35 @@ export function SearchModal(props: SearchModalProps) {
 
   const handleDownload = (release: EpisodeSearchResult) => {
     const selection = selectionMetadataFromDownloadAction(release.download_action);
-    const releaseSourceIdentity = (): ParsedEpisodeIdentity | undefined => {
-      if (!release.parsed_episode_label) {
-        return undefined;
-      }
+    const sourceIdentity = buildParsedEpisodeIdentity({
+      parsedAirDate: release.parsed_air_date,
+      parsedEpisodeLabel: release.parsed_episode_label,
+      parsedEpisodeNumbers: release.parsed_episode_numbers,
+    });
 
-      if (release.parsed_air_date) {
-        return {
-          air_dates: [release.parsed_air_date],
-          label: release.parsed_episode_label,
-          scheme: "daily",
-        };
-      }
-
-      if (release.parsed_episode_numbers?.length) {
-        return {
-          episode_numbers: release.parsed_episode_numbers,
-          label: release.parsed_episode_label,
-          scheme: "absolute",
-        };
-      }
-
-      return undefined;
-    };
-    const sourceIdentity = releaseSourceIdentity();
-
-    const releaseMetadata: DownloadSourceMetadata = {
-      ...(release.parsed_air_date === undefined ? {} : { air_date: release.parsed_air_date }),
-      ...(selection.chosen_from_seadex === undefined
-        ? {}
-        : { chosen_from_seadex: selection.chosen_from_seadex }),
-      ...(release.group === undefined ? {} : { group: release.group }),
-      ...(release.indexer === undefined ? {} : { indexer: release.indexer }),
-      ...(release.is_seadex === undefined ? {} : { is_seadex: release.is_seadex }),
-      ...(release.is_seadex_best === undefined ? {} : { is_seadex_best: release.is_seadex_best }),
-      parsed_title: release.title,
-      ...(selection.previous_quality === undefined
-        ? {}
-        : { previous_quality: selection.previous_quality }),
-      ...(selection.previous_score === undefined
-        ? {}
-        : { previous_score: selection.previous_score }),
-      ...(release.remake === undefined ? {} : { remake: release.remake }),
-      ...(release.parsed_resolution === undefined ? {} : { resolution: release.parsed_resolution }),
-      ...(release.seadex_comparison === undefined
-        ? {}
-        : { seadex_comparison: release.seadex_comparison }),
-      ...(release.seadex_dual_audio === undefined
-        ? {}
-        : { seadex_dual_audio: release.seadex_dual_audio }),
-      ...(release.seadex_notes === undefined ? {} : { seadex_notes: release.seadex_notes }),
-      ...(release.seadex_release_group === undefined
-        ? {}
-        : { seadex_release_group: release.seadex_release_group }),
-      ...(release.seadex_tags === undefined ? {} : { seadex_tags: release.seadex_tags }),
-      selection_kind: selection.selection_kind,
-      ...(selection.selection_score === undefined
-        ? {}
-        : { selection_score: selection.selection_score }),
-      ...(sourceIdentity === undefined ? {} : { source_identity: sourceIdentity }),
-      ...(release.view_url === undefined ? {} : { source_url: release.view_url }),
-      ...(release.trusted === undefined ? {} : { trusted: release.trusted }),
-    };
+    const releaseMetadata = buildDownloadSourceMetadata({
+      airDate: release.parsed_air_date,
+      chosenFromSeaDex: selection.chosen_from_seadex,
+      group: release.group,
+      indexer: release.indexer,
+      isSeaDex: release.is_seadex,
+      isSeaDexBest: release.is_seadex_best,
+      parsedTitle: release.title,
+      previousQuality: selection.previous_quality,
+      previousScore: selection.previous_score,
+      remake: release.remake,
+      resolution: release.parsed_resolution,
+      seaDexComparison: release.seadex_comparison,
+      seaDexDualAudio: release.seadex_dual_audio,
+      seaDexNotes: release.seadex_notes,
+      seaDexReleaseGroup: release.seadex_release_group,
+      seaDexTags: release.seadex_tags,
+      selectionKind: selection.selection_kind,
+      selectionScore: selection.selection_score,
+      sourceIdentity,
+      sourceUrl: release.view_url,
+      trusted: release.trusted,
+    });
 
     const payload = {
       anime_id: props.animeId,
@@ -343,85 +307,18 @@ export function SearchModal(props: SearchModalProps) {
                                       sourceUrl={release.view_url}
                                     />
                                   </div>
-                                  <Show
-                                    when={
-                                      release.seadex_notes ||
-                                      release.seadex_tags?.length ||
-                                      release.seadex_comparison
-                                    }
-                                  >
-                                    <div class="text-xs text-muted-foreground leading-tight flex flex-col gap-1">
-                                      <Show when={release.seadex_notes}>
-                                        <div class="line-clamp-2">{release.seadex_notes}</div>
-                                      </Show>
-                                      <Show when={release.seadex_tags?.length}>
-                                        <div class="flex flex-wrap gap-1">
-                                          <For each={(release.seadex_tags || []).slice(0, 4)}>
-                                            {(tag) => (
-                                              <Badge
-                                                variant="secondary"
-                                                class="h-4 px-1 text-xs bg-muted/40 text-muted-foreground border-transparent"
-                                              >
-                                                {tag}
-                                              </Badge>
-                                            )}
-                                          </For>
-                                        </div>
-                                      </Show>
-                                      <Show when={release.seadex_comparison}>
-                                        <a
-                                          href={release.seadex_comparison}
-                                          target="_blank"
-                                          rel="noreferrer"
-                                          class="inline-flex items-center gap-1 text-primary hover:text-primary/80 w-fit"
-                                        >
-                                          <IconExternalLink class="h-3 w-3" /> Compare notes
-                                        </a>
-                                      </Show>
-                                    </div>
-                                  </Show>
-                                  <Show when={selectionSummary()}>
-                                    <div class="flex flex-wrap items-center gap-1.5 text-xs leading-tight">
-                                      <Show when={selectionLabel()}>
-                                        {(label) => (
-                                          <Badge
-                                            variant="secondary"
-                                            class={cn(
-                                              "h-4 px-1.5 border-transparent",
-                                              selectionKindBadgeClass(
-                                                selectionMetadata().selection_kind,
-                                              ),
-                                            )}
-                                          >
-                                            {label()}
-                                          </Badge>
-                                        )}
-                                      </Show>
-                                      <Show when={selectionDetail()}>
-                                        {(detail) => (
-                                          <div class="text-muted-foreground">{detail()}</div>
-                                        )}
-                                      </Show>
-                                    </div>
-                                  </Show>
-                                  <Show when={releaseConfidence()}>
-                                    {(confidence) => (
-                                      <div class="flex flex-wrap items-center gap-1.5 text-xs leading-tight">
-                                        <Badge
-                                          variant="secondary"
-                                          class={cn(
-                                            "h-4 px-1.5 border-transparent",
-                                            releaseConfidenceBadgeClass(confidence().tone),
-                                          )}
-                                        >
-                                          {confidence().label}
-                                        </Badge>
-                                        <div class="text-muted-foreground">
-                                          {confidence().reason}
-                                        </div>
-                                      </div>
-                                    )}
-                                  </Show>
+                                  <ReleaseSeaDexMeta
+                                    notes={release.seadex_notes}
+                                    tags={release.seadex_tags}
+                                    comparisonUrl={release.seadex_comparison}
+                                  />
+                                  <ReleaseSelectionMeta
+                                    selectionKind={selectionMetadata().selection_kind}
+                                    selectionLabel={selectionLabel()}
+                                    selectionSummary={selectionSummary()}
+                                    selectionDetail={selectionDetail()}
+                                    confidence={releaseConfidence()}
+                                  />
                                 </div>
                               </TableCell>
                               <TableCell class="text-xs">{release.indexer}</TableCell>

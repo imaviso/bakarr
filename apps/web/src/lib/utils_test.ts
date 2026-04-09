@@ -1,21 +1,5 @@
-import { beforeEach, vi } from "vitest";
+import { beforeEach } from "vitest";
 import { it } from "~/test/vitest";
-
-const toastState = vi.hoisted(() => ({
-  errorCalls: [] as string[],
-  successCalls: [] as string[],
-}));
-
-vi.mock("solid-sonner", () => ({
-  toast: {
-    error: (message: string) => {
-      toastState.errorCalls.push(message);
-    },
-    success: (message: string) => {
-      toastState.successCalls.push(message);
-    },
-  },
-}));
 
 function assertEquals<T>(actual: T, expected: T) {
   if (actual !== expected) {
@@ -24,8 +8,6 @@ function assertEquals<T>(actual: T, expected: T) {
 }
 
 beforeEach(() => {
-  toastState.errorCalls = [];
-  toastState.successCalls = [];
   Object.defineProperty(globalThis, "navigator", {
     configurable: true,
     value: {
@@ -60,11 +42,11 @@ it("copyToClipboard uses clipboard API in secure context", async () => {
   });
 
   const { copyToClipboard } = await import("./utils");
-  await copyToClipboard("abc123", "API Key");
+  const copied = await copyToClipboard("abc123");
 
   assertEquals(writes.length, 1);
   assertEquals(writes[0], "abc123");
-  assertEquals(toastState.successCalls[0], "API Key copied to clipboard");
+  assertEquals(copied, true);
 });
 
 it("copyToClipboard uses fallback path when clipboard API is unavailable", async () => {
@@ -112,9 +94,9 @@ it("copyToClipboard uses fallback path when clipboard API is unavailable", async
   });
 
   const { copyToClipboard } = await import("./utils");
-  await copyToClipboard("naruto", "Title");
+  const copied = await copyToClipboard("naruto");
 
   assertEquals(appended.length, 1);
   assertEquals(removed.length, 1);
-  assertEquals(toastState.successCalls[0], "Title copied to clipboard");
+  assertEquals(copied, true);
 });
