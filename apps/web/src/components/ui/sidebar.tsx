@@ -193,7 +193,7 @@ const Sidebar: Component<SidebarProps> = (rawProps) => {
       <Match when={local.collapsible === "none"}>
         <div
           class={cn(
-            "test w-[var(--sidebar-width)] flex h-full flex-col bg-sidebar text-sidebar-foreground",
+            "w-[var(--sidebar-width)] flex h-full flex-col bg-sidebar text-sidebar-foreground",
             local.class,
           )}
           {...others}

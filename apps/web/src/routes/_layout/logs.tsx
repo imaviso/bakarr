@@ -77,13 +77,13 @@ import {
   createSystemDashboardQuery,
   createSystemJobsQuery,
   type DownloadEvent,
-  type DownloadEventsFilterInput,
   type DownloadEventsExportResult,
   getExportLogsUrl,
   infiniteLogsQueryOptions,
   type SystemLog,
 } from "~/lib/api";
 import { formatDateTimeLocalInput, getDateRangePresetHours } from "~/lib/date-presets";
+import { buildDownloadEventsFilterInput } from "~/lib/download-events-filters";
 import {
   buildDownloadEventsExportInput,
   runDownloadEventsExport,
@@ -153,15 +153,6 @@ function getLevelIcon(level: string) {
     default:
       return <IconInfoCircle class="h-3.5 w-3.5 mr-1" />;
   }
-}
-
-function parseOptionalPositiveInt(value: string) {
-  if (!value.trim()) {
-    return undefined;
-  }
-
-  const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
 }
 
 function LogsPage() {
@@ -270,44 +261,18 @@ function LogsPage() {
     () => apiParams()["endDate"],
   );
   const clearLogs = createClearLogsMutation();
-  const downloadEventsQuery = createDownloadEventsQuery(() => {
-    const input: DownloadEventsFilterInput = {
+  const downloadEventsQuery = createDownloadEventsQuery(() =>
+    buildDownloadEventsFilterInput({
+      animeId: search().download_anime_id,
+      cursor: search().download_cursor,
       direction: search().download_direction,
-      limit: 24,
-    };
-
-    const animeId = parseOptionalPositiveInt(search().download_anime_id);
-    if (animeId !== undefined) {
-      input.animeId = animeId;
-    }
-    const cursor = search().download_cursor || undefined;
-    if (cursor !== undefined) {
-      input.cursor = cursor;
-    }
-    const downloadId = parseOptionalPositiveInt(search().download_download_id);
-    if (downloadId !== undefined) {
-      input.downloadId = downloadId;
-    }
-    const endDate = search().download_end_date || undefined;
-    if (endDate !== undefined) {
-      input.endDate = endDate;
-    }
-    const eventType =
-      search().download_event_type === "all" ? undefined : search().download_event_type;
-    if (eventType !== undefined) {
-      input.eventType = eventType;
-    }
-    const startDate = search().download_start_date || undefined;
-    if (startDate !== undefined) {
-      input.startDate = startDate;
-    }
-    const status = search().download_status || undefined;
-    if (status !== undefined) {
-      input.status = status;
-    }
-
-    return input;
-  });
+      downloadId: search().download_download_id,
+      endDate: search().download_end_date,
+      eventType: search().download_event_type,
+      startDate: search().download_start_date,
+      status: search().download_status,
+    }),
+  );
   const jobsQuery = createSystemJobsQuery();
   const dashboardQuery = createSystemDashboardQuery();
   const updateDownloadEventSearch = (patch: Partial<ReturnType<typeof search>>) => {

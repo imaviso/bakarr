@@ -65,6 +65,7 @@ import {
   selectionKindBadgeClass,
   selectionKindLabel,
 } from "~/lib/release-selection";
+import { createDebouncer } from "~/lib/debounce";
 import { cn } from "~/lib/utils";
 
 interface SearchDialogProps {
@@ -106,13 +107,13 @@ export function SearchDialog(props: SearchDialogProps) {
   const [open, setOpen] = createSignal(false);
   const [query, setQuery] = createSignal(props.defaultQuery);
   const [debouncedQuery, setDebouncedQuery] = createSignal(props.defaultQuery);
+  const debouncer = createDebouncer(setDebouncedQuery, 500);
   const [category, setCategory] = createSignal<string>("all_anime");
   const [filter, setFilter] = createSignal<string>("no_filter");
 
   createEffect(() => {
-    const q = query();
-    const timeout = setTimeout(() => setDebouncedQuery(q), 500);
-    onCleanup(() => clearTimeout(timeout));
+    debouncer.schedule(query());
+    onCleanup(() => debouncer.cancel());
   });
 
   createEffect(() => {

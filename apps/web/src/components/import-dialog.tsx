@@ -10,8 +10,7 @@ import {
   IconUpload,
   IconX,
 } from "@tabler/icons-solidjs";
-import { createEffect, createMemo, createSignal, For, type JSX, Show } from "solid-js";
-import { toast } from "solid-sonner";
+import { createEffect, createSignal, For, type JSX, Show } from "solid-js";
 import { FileBrowser } from "~/components/file-browser";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -27,23 +26,10 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { TextField, TextFieldInput, TextFieldLabel } from "~/components/ui/text-field";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
-import {
-  type AnimeSearchResult,
-  createAnimeListQuery,
-  createImportFilesMutation,
-  createScanImportPathMutation,
-  type ImportFileRequest,
-  type ScannedFile,
-} from "~/lib/api";
 import { AddAnimeDialog } from "~/components/add-anime-dialog";
-import { summarizeImportNamingOutcome } from "~/lib/scanned-file";
 import { cn } from "~/lib/utils";
 import { CandidateCard, FileRow, ManualSearch } from "./import";
-import {
-  buildImportFileRequest,
-  findMissingImportCandidates,
-  toggleImportCandidateSelection,
-} from "./import/import-flow";
+import { toImportInputMode, useImportFlow } from "./import/use-import-flow";
 
 interface ImportDialogProps {
   trigger?: JSX.Element;
@@ -51,296 +37,54 @@ interface ImportDialogProps {
   tooltip?: string;
 }
 
-function getDroppedFilePath(file: File): string | undefined {
-  if (!Object.hasOwn(file, "path")) {
-    return undefined;
-  }
-
-  const value = Reflect.get(file, "path");
-  return typeof value === "string" ? value : undefined;
-}
-
-function toInputMode(value: string | null | undefined): "browser" | "manual" {
-  return value === "manual" ? "manual" : "browser";
-}
-
 export function ImportDialog(props: ImportDialogProps) {
   const [open, setOpen] = createSignal(false);
-  const [path, setPath] = createSignal("");
-  const [step, setStep] = createSignal<"scan" | "review" | "result">("scan");
-  const [selectedFiles, setSelectedFiles] = createSignal<Map<string, ImportFileRequest>>(new Map());
-  const [inputMode, setInputMode] = createSignal<"browser" | "manual">("browser");
-  const [isDragOver, setIsDragOver] = createSignal(false);
-
-  const [selectedCandidateIds, setSelectedCandidateIds] = createSignal<Set<number>>(new Set());
-  const [manualCandidates, setManualCandidates] = createSignal<AnimeSearchResult[]>([]);
-  const [isSearchOpen, setIsSearchOpen] = createSignal(false);
-  const [pendingAddCandidates, setPendingAddCandidates] = createSignal<AnimeSearchResult[]>([]);
-  const [currentAddIndex, setCurrentAddIndex] = createSignal(0);
-
-  const scanMutation = createScanImportPathMutation();
-  const importMutation = createImportFilesMutation();
-  const animeListQuery = createAnimeListQuery();
-
-  const scannedFiles = createMemo(() => {
-    const files = scanMutation.data?.files || [];
-    return [...files].toSorted((a, b) => {
-      const seasonA = a.season || 0;
-      const seasonB = b.season || 0;
-      if (seasonA !== seasonB) return seasonA - seasonB;
-      return a.episode_number - b.episode_number;
-    });
+  const {
+    activeAddCandidate,
+    advanceAddCandidateDialog,
+    animeListQuery,
+    candidates,
+    closeAddCandidateDialog,
+    handleDragLeave,
+    handleDragOver,
+    handleDrop,
+    handleImport,
+    handleManualAdd,
+    handleScan,
+    importMutation,
+    inputMode,
+    isDragOver,
+    isSearchOpen,
+    libraryIds,
+    manualCandidates,
+    path,
+    reset,
+    scanMutation,
+    scannedFiles,
+    selectedCandidateIds,
+    selectedFiles,
+    setInputMode,
+    setIsSearchOpen,
+    setPath,
+    setStep,
+    skippedFiles,
+    step,
+    toggleCandidate,
+    toggleFile,
+    updateFileAnime,
+    updateFileMapping,
+  } = useImportFlow({
+    animeId: () => props.animeId,
+    beforeImport: () => {
+      setOpen(false);
+    },
   });
-
-  const skippedFiles = createMemo(() => scanMutation.data?.skipped || []);
-
-  const candidates = createMemo(() => [
-    ...(scanMutation.data?.candidates || []),
-    ...manualCandidates().filter(
-      (mc) => !scanMutation.data?.candidates.some((c) => c.id === mc.id),
-    ),
-  ]);
-  const libraryIds = createMemo(
-    () => new Set((animeListQuery.data ?? []).map((anime) => anime.id)),
-  );
-
-  const resetDialog = () => {
-    setStep("scan");
-    setPath("");
-    setSelectedFiles(new Map());
-    setSelectedCandidateIds(new Set<number>());
-    setManualCandidates([]);
-  };
 
   createEffect(() => {
     if (!open()) {
-      resetDialog();
+      reset();
     }
   });
-
-  const handleManualAdd = (candidate: AnimeSearchResult) => {
-    setManualCandidates((prev) => [...prev, candidate]);
-    setIsSearchOpen(false);
-    toggleCandidate(candidate, true);
-  };
-
-  const handleScan = () => {
-    const animeId = props.animeId;
-    scanMutation.mutate(
-      {
-        path: path(),
-        ...(animeId === undefined ? {} : { anime_id: animeId }),
-      },
-      {
-        onSuccess: (data) => {
-          const preselected = new Map<string, ImportFileRequest>();
-          const newSelectedCandidates = new Set<number>();
-
-          data.files.forEach((file) => {
-            if (file.matched_anime) {
-              preselected.set(
-                file.source_path,
-                buildImportFileRequest({
-                  animeId: file.matched_anime.id,
-                  file,
-                }),
-              );
-            } else if (file.suggested_candidate_id) {
-              preselected.set(
-                file.source_path,
-                buildImportFileRequest({
-                  animeId: file.suggested_candidate_id,
-                  file,
-                }),
-              );
-              newSelectedCandidates.add(file.suggested_candidate_id);
-            }
-          });
-          setSelectedFiles(preselected);
-          setSelectedCandidateIds(newSelectedCandidates);
-          setStep("review");
-        },
-      },
-    );
-  };
-
-  const toggleCandidate = (candidate: AnimeSearchResult, forceSelect = false) => {
-    const next = toggleImportCandidateSelection({
-      candidate,
-      files: scanMutation.data?.files || [],
-      forceSelect,
-      selectedCandidateIds: selectedCandidateIds(),
-      selectedFiles: selectedFiles(),
-    });
-
-    setSelectedCandidateIds(next.selectedCandidateIds);
-    setSelectedFiles(next.selectedFiles);
-  };
-
-  const activeAddCandidate = createMemo(() => pendingAddCandidates()[currentAddIndex()]);
-
-  const closeAddCandidateDialog = () => {
-    setPendingAddCandidates([]);
-    setCurrentAddIndex(0);
-  };
-
-  const advanceAddCandidateDialog = () => {
-    if (currentAddIndex() + 1 >= pendingAddCandidates().length) {
-      closeAddCandidateDialog();
-      return;
-    }
-
-    setCurrentAddIndex((index) => index + 1);
-  };
-
-  const handleImport = () => {
-    const files = Array.from(selectedFiles().values());
-
-    const missingCandidates = findMissingImportCandidates({
-      files,
-      localAnimeIds: new Set(animeListQuery.data?.map((a) => a.id) || []),
-      candidates: candidates(),
-    });
-
-    if (missingCandidates.length > 0) {
-      setPendingAddCandidates(missingCandidates);
-      setCurrentAddIndex(0);
-      return;
-    }
-
-    setOpen(false);
-
-    const toastId = toast.loading(`Importing ${files.length} file(s)...`);
-    importMutation
-      .mutateAsync(files)
-      .then((data) => {
-        const imported = data?.imported || 0;
-        const failed = data?.failed || 0;
-        const namingDetail = summarizeImportNamingOutcome(data?.imported_files);
-        if (failed > 0) {
-          toast.warning(
-            namingDetail
-              ? `Imported ${imported} file(s), ${failed} failed. ${namingDetail}.`
-              : `Imported ${imported} file(s), ${failed} failed`,
-            {
-              id: toastId,
-            },
-          );
-        } else {
-          toast.success(
-            namingDetail
-              ? `Successfully imported ${imported} file(s). ${namingDetail}.`
-              : `Successfully imported ${imported} file(s)`,
-            {
-              id: toastId,
-            },
-          );
-        }
-      })
-      .catch((err) => {
-        toast.error(`Import failed: ${err.message}`, { id: toastId });
-      });
-  };
-
-  const toggleFile = (file: ScannedFile, targetAnimeId: number) => {
-    const newSelected = new Map(selectedFiles());
-    if (newSelected.has(file.source_path)) {
-      newSelected.delete(file.source_path);
-    } else {
-      newSelected.set(file.source_path, buildImportFileRequest({ animeId: targetAnimeId, file }));
-    }
-    setSelectedFiles(newSelected);
-  };
-
-  const updateFileAnime = (file: ScannedFile, newAnimeId: number) => {
-    const newSelected = new Map(selectedFiles());
-    if (newSelected.has(file.source_path)) {
-      const existing = newSelected.get(file.source_path);
-      if (existing) {
-        newSelected.set(
-          file.source_path,
-          buildImportFileRequest({
-            animeId: newAnimeId,
-            episodeNumber: existing.episode_number,
-            ...(existing.episode_numbers === undefined
-              ? {}
-              : { episodeNumbers: existing.episode_numbers }),
-            file,
-            ...(existing.season === undefined ? {} : { season: existing.season }),
-            ...(existing.source_metadata === undefined
-              ? {}
-              : { sourceMetadata: existing.source_metadata }),
-          }),
-        );
-      }
-      setSelectedFiles(newSelected);
-    }
-  };
-
-  const updateFileMapping = (file: ScannedFile, season: number, episode: number) => {
-    const newSelected = new Map(selectedFiles());
-    const current = newSelected.get(file.source_path) || {
-      ...buildImportFileRequest({
-        animeId: file.matched_anime?.id || 0,
-        file,
-      }),
-    };
-
-    newSelected.set(
-      file.source_path,
-      buildImportFileRequest({
-        animeId: current.anime_id,
-        episodeNumber: episode,
-        ...(current.episode_numbers === undefined
-          ? {}
-          : { episodeNumbers: current.episode_numbers }),
-        file,
-        season,
-        ...(current.source_metadata === undefined
-          ? {}
-          : { sourceMetadata: current.source_metadata }),
-      }),
-    );
-    setSelectedFiles(newSelected);
-  };
-
-  const handleDragOver = (e: DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragOver(true);
-  };
-  const handleDragLeave = (e: DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragOver(false);
-  };
-  const handleDrop = (e: DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragOver(false);
-    const items = e.dataTransfer?.items;
-    if (items && items.length > 0) {
-      const item = items[0];
-      if (!item) {
-        return;
-      }
-      if (item.kind === "file") {
-        const file = item.getAsFile();
-        if (file) {
-          const droppedPath = getDroppedFilePath(file);
-          if (droppedPath) {
-            setPath(droppedPath);
-            setInputMode("manual");
-          }
-        }
-      }
-    }
-    const textData = e.dataTransfer?.getData("text/plain");
-    if (textData && (textData.startsWith("/") || textData.startsWith("file://"))) {
-      setPath(textData.replace("file://", ""));
-      setInputMode("manual");
-    }
-  };
 
   return (
     <>
@@ -382,7 +126,7 @@ export function ImportDialog(props: ImportDialogProps) {
             <div class="space-y-4 py-4 flex-1 min-h-0 flex flex-col">
               <Tabs
                 value={inputMode()}
-                onChange={(value) => setInputMode(toInputMode(value))}
+                onChange={(value) => setInputMode(toImportInputMode(value))}
                 class="flex-1 flex flex-col min-h-0"
               >
                 <TabsList class="grid w-full grid-cols-2">
@@ -608,11 +352,6 @@ export function ImportDialog(props: ImportDialogProps) {
             }}
             onSuccess={() => {
               advanceAddCandidateDialog();
-              queueMicrotask(() => {
-                if (pendingAddCandidates().length === 0) {
-                  handleImport();
-                }
-              });
             }}
           />
         )}

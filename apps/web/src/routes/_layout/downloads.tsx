@@ -64,11 +64,11 @@ import {
   createSearchMissingMutation,
   createSyncDownloadsMutation,
   type Download,
-  type DownloadEventsFilterInput,
   type DownloadEventsExportResult,
   downloadHistoryQueryOptions,
   type DownloadStatus,
 } from "~/lib/api";
+import { buildDownloadEventsFilterInput } from "~/lib/download-events-filters";
 import {
   formatSelectionDetail,
   releaseConfidenceBadgeClass,
@@ -172,15 +172,6 @@ function formatEta(seconds: number): string {
   return `${Math.floor(hours / 24)}d ${hours % 24}h`;
 }
 
-function parseOptionalPositiveInt(value: string) {
-  if (!value.trim()) {
-    return undefined;
-  }
-
-  const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
-}
-
 function DownloadsPage() {
   let queueScrollRef: HTMLDivElement | undefined;
   let historyScrollRef: HTMLDivElement | undefined;
@@ -192,43 +183,18 @@ function DownloadsPage() {
 
   const queue = useActiveDownloads();
   const historyQuery = createDownloadHistoryQuery();
-  const downloadEventsQuery = createDownloadEventsQuery(() => {
-    const input: DownloadEventsFilterInput = {
+  const downloadEventsQuery = createDownloadEventsQuery(() =>
+    buildDownloadEventsFilterInput({
+      animeId: search().events_anime_id,
+      cursor: search().events_cursor,
       direction: search().events_direction,
-      limit: 24,
-    };
-
-    const animeId = parseOptionalPositiveInt(search().events_anime_id);
-    if (animeId !== undefined) {
-      input.animeId = animeId;
-    }
-    const cursor = search().events_cursor || undefined;
-    if (cursor !== undefined) {
-      input.cursor = cursor;
-    }
-    const downloadId = parseOptionalPositiveInt(search().events_download_id);
-    if (downloadId !== undefined) {
-      input.downloadId = downloadId;
-    }
-    const endDate = search().events_end_date || undefined;
-    if (endDate !== undefined) {
-      input.endDate = endDate;
-    }
-    const eventType = search().events_event_type === "all" ? undefined : search().events_event_type;
-    if (eventType !== undefined) {
-      input.eventType = eventType;
-    }
-    const startDate = search().events_start_date || undefined;
-    if (startDate !== undefined) {
-      input.startDate = startDate;
-    }
-    const status = search().events_status || undefined;
-    if (status !== undefined) {
-      input.status = status;
-    }
-
-    return input;
-  });
+      downloadId: search().events_download_id,
+      endDate: search().events_end_date,
+      eventType: search().events_event_type,
+      startDate: search().events_start_date,
+      status: search().events_status,
+    }),
+  );
   const searchMissing = createSearchMissingMutation();
   const syncDownloads = createSyncDownloadsMutation();
 

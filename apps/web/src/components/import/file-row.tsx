@@ -40,11 +40,7 @@ export function FileRow(props: FileRowProps) {
   const allOptions = createMemo<AnimeOption[]>(() => {
     const candidateOptions = props.candidates
       .filter((candidate) => !props.animeList.some((anime) => anime.id === candidate.id))
-      .map((candidate) =>
-        Object.assign(candidate, {
-          source: "candidate" as const,
-        }),
-      );
+      .map((candidate) => ({ ...candidate, source: "candidate" as const }));
 
     return [
       ...props.animeList.map((a) => ({ ...a, source: "library" as const })),

@@ -52,6 +52,7 @@ import {
   systemConfigQueryOptions,
 } from "~/lib/api";
 import { animeAltTitles, animeDisplayTitle, animeSearchSubtitle } from "~/lib/anime-metadata";
+import { createDebouncer } from "~/lib/debounce";
 import { formatMatchConfidence } from "~/lib/scanned-file";
 import { cn } from "~/lib/utils";
 
@@ -77,6 +78,7 @@ function AddAnimePage() {
   const search = Route.useSearch();
   const [query, setQuery] = createSignal("");
   const [debouncedQuery, setDebouncedQuery] = createSignal("");
+  const debouncer = createDebouncer(setDebouncedQuery, 500);
   const [selectedAnime, setSelectedAnime] = createSignal<AnimeSearchResult | null>(null);
 
   // Get ID from search params (now properly typed via Valibot transform)
@@ -97,9 +99,8 @@ function AddAnimePage() {
 
   // Regular search functionality
   createEffect(() => {
-    const q = query();
-    const timeout = setTimeout(() => setDebouncedQuery(q), 500);
-    onCleanup(() => clearTimeout(timeout));
+    debouncer.schedule(query());
+    onCleanup(() => debouncer.cancel());
   });
 
   const searchQuery = createAnimeSearchQuery(debouncedQuery);
