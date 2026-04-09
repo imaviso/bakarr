@@ -13,8 +13,9 @@ export function makeOperationsUnmappedLayer<RSOut, RSE, RSR, OOut, OE, OR>(input
   const unmappedScanLayer = UnmappedScanServiceLive.pipe(
     Layer.provideMerge(input.operationsRuntimeLayer),
   );
+  const runtimeWithScanLayer = Layer.mergeAll(input.runtimeSupportLayer, unmappedScanLayer);
   const unmappedControlLayer = UnmappedControlServiceLive.pipe(
-    Layer.provideMerge(Layer.mergeAll(input.runtimeSupportLayer, unmappedScanLayer)),
+    Layer.provideMerge(runtimeWithScanLayer),
   );
   const unmappedImportLayer = UnmappedImportServiceLive.pipe(
     Layer.provideMerge(input.runtimeSupportLayer),

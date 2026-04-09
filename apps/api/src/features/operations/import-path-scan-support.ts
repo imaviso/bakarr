@@ -9,8 +9,8 @@ import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
 import {
   findBestLocalAnimeMatch,
   scoreAnimeRowMatch,
-  toAnimeSearchCandidate,
-} from "@/features/operations/library-import.ts";
+} from "@/features/operations/library-import-analysis-support.ts";
+import { toAnimeSearchCandidate } from "@/features/operations/library-import.ts";
 import type { TryDatabasePromise } from "@/lib/effect-db.ts";
 import { summarizeEpisodeCoverage } from "@/lib/anime-derivations.ts";
 import {

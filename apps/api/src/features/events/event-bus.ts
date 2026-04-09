@@ -1,17 +1,17 @@
-import { Context, Effect, Exit, Layer, PubSub, Queue, Ref, Scope, Stream } from "effect";
+import { Context, Effect, Layer, Option, PubSub, Queue, Ref, Scope, Stream } from "effect";
 
 import type { NotificationEvent } from "@packages/shared/index.ts";
 
 export const DEFAULT_EVENT_BUS_CAPACITY = 256;
 
 export interface EventSubscription {
-  readonly takeBuffered: Effect.Effect<readonly NotificationEvent[]>;
+  readonly takeBufferedOnce: Effect.Effect<readonly NotificationEvent[], never, Scope.Scope>;
   readonly stream: Stream.Stream<NotificationEvent>;
 }
 
 export interface EventBusShape {
   readonly publish: (event: NotificationEvent) => Effect.Effect<void>;
-  readonly subscribe: () => Effect.Effect<EventSubscription>;
+  readonly subscribe: () => Effect.Effect<EventSubscription, never, Scope.Scope>;
 }
 
 export class EventBus extends Context.Tag("@bakarr/api/EventBus")<EventBus, EventBusShape>() {}
@@ -27,22 +27,22 @@ export const makeEventBus = Effect.fn("Events.makeEventBus")((
       yield* PubSub.publish(pubsub, event);
     });
     const subscribe = Effect.fn("EventBus.subscribe")(function* () {
-      const subscriptionScope = yield* Scope.make();
-      const pubsubQueue = yield* PubSub.subscribe(pubsub).pipe(
-        Effect.provideService(Scope.Scope, subscriptionScope),
+      const pubsubQueue = yield* PubSub.subscribe(pubsub);
+      const slidingQueue = yield* Effect.acquireRelease(
+        Queue.sliding<NotificationEvent>(capacity),
+        Queue.shutdown,
       );
-      const slidingQueue = yield* Queue.sliding<NotificationEvent>(capacity);
-
       const initializationLock = yield* Effect.makeSemaphore(1);
-      const initializedRef = yield* Ref.make(false);
-      const bufferedRef = yield* Ref.make<readonly NotificationEvent[]>([]);
+      const initialBufferedRef = yield* Ref.make<Option.Option<readonly NotificationEvent[]>>(
+        Option.none(),
+      );
 
       const initialize = Effect.fn("EventBus.initializeSubscription")(function* () {
         yield* initializationLock.withPermits(1)(
           Effect.gen(function* () {
-            const initialized = yield* Ref.get(initializedRef);
+            const initialized = yield* Ref.get(initialBufferedRef);
 
-            if (initialized) {
+            if (Option.isSome(initialized)) {
               return;
             }
 
@@ -55,29 +55,27 @@ export const makeEventBus = Effect.fn("Events.makeEventBus")((
             yield* Queue.take(pubsubQueue).pipe(
               Effect.flatMap((event) => Queue.offer(slidingQueue, event)),
               Effect.forever,
-              Effect.forkIn(subscriptionScope),
+              Effect.forkScoped,
             );
 
-            yield* Ref.set(bufferedRef, Array.from(pending));
-            yield* Ref.set(initializedRef, true);
+            yield* Ref.set(initialBufferedRef, Option.some(Array.from(pending)));
           }),
         );
       });
 
       return {
-        takeBuffered: initialize().pipe(
-          Effect.zipRight(Ref.get(bufferedRef)),
-          Effect.map((events) => Array.from(events)),
-        ),
-        stream: Stream.unwrapScoped(
-          initialize().pipe(
-            Effect.as(
-              Stream.fromQueue(slidingQueue, { shutdown: false }).pipe(
-                Stream.ensuring(Queue.shutdown(slidingQueue)),
-                Stream.ensuring(Scope.close(subscriptionScope, Exit.void)),
-              ),
+        takeBufferedOnce: initialize().pipe(
+          Effect.zipRight(
+            Ref.modify(initialBufferedRef, (state) =>
+              Option.match(state, {
+                onNone: () => [[], Option.none()] as const,
+                onSome: (events) => [events, Option.none()] as const,
+              }),
             ),
           ),
+        ),
+        stream: Stream.unwrapScoped(
+          initialize().pipe(Effect.as(Stream.fromQueue(slidingQueue, { shutdown: false }))),
         ),
       } satisfies EventSubscription;
     });

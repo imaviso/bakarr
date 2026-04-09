@@ -2,26 +2,36 @@ import { HttpApp, HttpServerResponse } from "@effect/platform";
 import { Effect, Schema, Stream } from "effect";
 
 import { assert, it } from "@effect/vitest";
-import { makeEventBus } from "@/features/events/event-bus.ts";
-import { NotificationEventSchema } from "@packages/shared/index.ts";
-import { buildDownloadProgressStream } from "@/http/event-stream.ts";
+import { NotificationEventSchema, type DownloadStatus } from "@packages/shared/index.ts";
+import { buildNotificationEventSseStream } from "@/http/event-stream.ts";
 
 const sampleDownload = {
+  anime_id: 10,
+  anime_title: "Example Show",
   downloaded_bytes: 256,
+  episode_number: 1,
   eta: 0,
   hash: "abc123",
+  id: 1,
+  is_batch: false,
   name: "Example Episode",
   progress: 0.5,
   speed: 1024,
   state: "downloading",
   total_bytes: 512,
-} as const;
+} as const satisfies DownloadStatus;
 
-it.effect("buildDownloadProgressStream seeds the initial SSE payload", () =>
+it.effect("buildNotificationEventSseStream seeds the initial SSE payload", () =>
   Effect.gen(function* () {
-    const eventBus = yield* makeEventBus({ capacity: 8 });
     const chunks = yield* Stream.runCollect(
-      buildDownloadProgressStream([sampleDownload], eventBus).pipe(
+      buildNotificationEventSseStream(
+        Stream.fromIterable([
+          {
+            type: "DownloadProgress",
+            payload: { downloads: [sampleDownload] },
+          } as const,
+        ]),
+      ).pipe(
         Stream.take(2),
         Stream.map((chunk) => new TextDecoder().decode(chunk)),
       ),
@@ -48,12 +58,11 @@ it.effect("buildDownloadProgressStream seeds the initial SSE payload", () =>
   }),
 );
 
-it.effect("buildDownloadProgressResponse sets SSE headers", () =>
+it.effect("buildNotificationEventSseStream response sets SSE headers", () =>
   Effect.gen(function* () {
-    const eventBus = yield* makeEventBus({ capacity: 8 });
     const handler = HttpApp.toWebHandler(
       Effect.succeed(
-        HttpServerResponse.stream(buildDownloadProgressStream([sampleDownload], eventBus), {
+        HttpServerResponse.stream(buildNotificationEventSseStream(Stream.empty), {
           contentType: "text/event-stream",
           headers: {
             "Cache-Control": "no-cache",

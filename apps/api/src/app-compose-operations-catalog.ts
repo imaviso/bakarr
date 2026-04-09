@@ -13,6 +13,11 @@ export function makeOperationsCatalogLayer<RSOut, RSE, RSR, POut, PE, PR>(input:
   readonly operationsProgressLayer: LayerRef<POut, PE, PR>;
   readonly runtimeSupportLayer: LayerRef<RSOut, RSE, RSR>;
 }) {
+  const runtimeWithProgressLayer = Layer.mergeAll(
+    input.runtimeSupportLayer,
+    input.operationsProgressLayer,
+  );
+
   const catalogLibraryReadLayer = CatalogLibraryReadServiceLive.pipe(
     Layer.provideMerge(input.runtimeSupportLayer),
   );
@@ -20,7 +25,7 @@ export function makeOperationsCatalogLayer<RSOut, RSE, RSR, POut, PE, PR>(input:
     Layer.provideMerge(input.runtimeSupportLayer),
   );
   const catalogLibraryScanLayer = CatalogLibraryScanServiceLive.pipe(
-    Layer.provideMerge(Layer.mergeAll(input.runtimeSupportLayer, input.operationsProgressLayer)),
+    Layer.provideMerge(runtimeWithProgressLayer),
   );
   const importPathScanLayer = ImportPathScanServiceLive.pipe(
     Layer.provideMerge(input.runtimeSupportLayer),

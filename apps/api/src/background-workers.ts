@@ -5,7 +5,10 @@ import type { Scope } from "effect";
 import type { Config } from "@packages/shared/index.ts";
 import type { BackgroundWorkerSpawner } from "@/background-controller-core.ts";
 import { buildBackgroundSchedule, resolveBackgroundWorkerLoopPlan } from "@/background-schedule.ts";
-import type { BackgroundTaskRunnerError, BackgroundTaskRunnerShape } from "@/background-task-runner.ts";
+import type {
+  BackgroundTaskRunnerError,
+  BackgroundTaskRunnerShape,
+} from "@/background-task-runner.ts";
 import type { BackgroundWorkerMonitorShape } from "@/background-monitor.ts";
 import {
   BACKGROUND_WORKER_NAMES,

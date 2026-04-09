@@ -1,11 +1,6 @@
 import { Effect, Schema, Stream } from "effect";
 
-import {
-  NotificationEventSchema,
-  type DownloadStatus,
-  type NotificationEvent,
-} from "@packages/shared/index.ts";
-import type { EventBusShape } from "@/features/events/event-bus.ts";
+import { NotificationEventSchema, type NotificationEvent } from "@packages/shared/index.ts";
 
 const sseEncoder = new TextEncoder();
 const NotificationEventJsonSchema = Schema.parseJson(NotificationEventSchema);
@@ -36,26 +31,12 @@ export const encodeNotificationEventSse = Effect.fn("Http.encodeNotificationEven
   return encodeSseChunk(`data: ${encodedEvent}`);
 });
 
-export function buildDownloadProgressStream(
-  downloads: readonly DownloadStatus[],
-  eventBus: EventBusShape,
-) {
-  return Stream.unwrapScoped(
-    Effect.gen(function* () {
-      const subscription = yield* eventBus.subscribe();
-      const initialEvents = Stream.fromIterable([
-        encodeSseChunk(": connected"),
-        yield* encodeNotificationEventSse({
-          type: "DownloadProgress",
-          payload: { downloads: [...downloads] },
-        }),
-      ]);
-      const liveEvents = Stream.merge(
-        subscription.stream.pipe(Stream.mapEffect(encodeNotificationEventSse)),
-        Stream.tick("15 seconds").pipe(Stream.as(encodeSseChunk(": keep-alive"))),
-      ).pipe(Stream.withSpan("http.events.stream"));
-
-      return Stream.concat(initialEvents, liveEvents);
-    }),
+export function buildNotificationEventSseStream<E>(events: Stream.Stream<NotificationEvent, E>) {
+  return Stream.concat(
+    Stream.fromIterable([encodeSseChunk(": connected")]),
+    Stream.merge(
+      events.pipe(Stream.mapEffect(encodeNotificationEventSse)),
+      Stream.tick("15 seconds").pipe(Stream.as(encodeSseChunk(": keep-alive"))),
+    ).pipe(Stream.withSpan("http.events.stream")),
   );
 }

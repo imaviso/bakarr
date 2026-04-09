@@ -6,8 +6,8 @@ import { buildUnmappedFolderSearchQueries } from "@/features/operations/unmapped
 import {
   findBestLocalAnimeMatch,
   scoreAnimeRowMatch,
-  toAnimeSearchCandidate,
-} from "@/features/operations/library-import.ts";
+} from "@/features/operations/library-import-analysis-support.ts";
+import { toAnimeSearchCandidate } from "@/features/operations/library-import.ts";
 
 export const findLocalFolderAnimeMatch = Effect.fn("OperationsService.findLocalFolderAnimeMatch")(
   function* (folderName: string, animeRows: ReadonlyArray<typeof anime.$inferSelect>) {

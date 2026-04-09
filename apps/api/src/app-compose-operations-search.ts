@@ -18,44 +18,46 @@ export function makeOperationsSearchLayer<RSOut, RSE, RSR, DOut, DE, DR, POut, P
   const backgroundSearchQueueLayer = BackgroundSearchQueueServiceLive.pipe(
     Layer.provideMerge(input.downloadRuntimeLayer),
   );
+  const runtimeWithQueueLayer = Layer.mergeAll(
+    input.runtimeSupportLayer,
+    backgroundSearchQueueLayer,
+  );
   const backgroundSearchRssFeedLayer = BackgroundSearchRssFeedServiceLive.pipe(
-    Layer.provideMerge(Layer.mergeAll(input.runtimeSupportLayer, backgroundSearchQueueLayer)),
+    Layer.provideMerge(runtimeWithQueueLayer),
   );
   const searchReleaseLayer = SearchReleaseServiceLive.pipe(
     Layer.provideMerge(input.runtimeSupportLayer),
   );
+  const runtimeWithReleaseLayer = Layer.mergeAll(input.runtimeSupportLayer, searchReleaseLayer);
   const searchEpisodeLayer = SearchEpisodeServiceLive.pipe(
-    Layer.provideMerge(Layer.mergeAll(input.runtimeSupportLayer, searchReleaseLayer)),
+    Layer.provideMerge(runtimeWithReleaseLayer),
+  );
+  const missingSearchDependenciesLayer = Layer.mergeAll(
+    input.runtimeSupportLayer,
+    backgroundSearchQueueLayer,
+    input.operationsProgressLayer,
+    searchReleaseLayer,
   );
   const searchBackgroundMissingLayer = SearchBackgroundMissingServiceLive.pipe(
-    Layer.provideMerge(
-      Layer.mergeAll(
-        input.runtimeSupportLayer,
-        backgroundSearchQueueLayer,
-        input.operationsProgressLayer,
-        searchReleaseLayer,
-      ),
-    ),
+    Layer.provideMerge(missingSearchDependenciesLayer),
+  );
+  const rssSearchDependenciesLayer = Layer.mergeAll(
+    input.runtimeSupportLayer,
+    backgroundSearchRssFeedLayer,
+    backgroundSearchQueueLayer,
+    input.operationsProgressLayer,
   );
   const searchBackgroundRssLayer = SearchBackgroundRssServiceLive.pipe(
-    Layer.provideMerge(
-      Layer.mergeAll(
-        input.runtimeSupportLayer,
-        backgroundSearchRssFeedLayer,
-        backgroundSearchQueueLayer,
-        input.operationsProgressLayer,
-      ),
-    ),
+    Layer.provideMerge(rssSearchDependenciesLayer),
+  );
+  const rssWorkerDependenciesLayer = Layer.mergeAll(
+    input.runtimeSupportLayer,
+    searchBackgroundRssLayer,
+    searchBackgroundMissingLayer,
+    input.operationsProgressLayer,
   );
   const backgroundSearchRssWorkerLayer = BackgroundSearchRssWorkerServiceLive.pipe(
-    Layer.provideMerge(
-      Layer.mergeAll(
-        input.runtimeSupportLayer,
-        searchBackgroundRssLayer,
-        searchBackgroundMissingLayer,
-        input.operationsProgressLayer,
-      ),
-    ),
+    Layer.provideMerge(rssWorkerDependenciesLayer),
   );
 
   const searchSubgraphLayer = Layer.mergeAll(

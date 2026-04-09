@@ -24,6 +24,8 @@ export function makeSystemAppLayer<BCOut, BCE, BCR, CDOut, CDE, CDR, RSOut, RSE,
 }) {
   const withRuntime = <A, E, R>(layer: Layer.Layer<A, E, R>) =>
     layer.pipe(Layer.provideMerge(input.runtimeSupportLayer));
+  const withBackgroundController = <A, E, R>(layer: Layer.Layer<A, E, R>) =>
+    layer.pipe(Layer.provideMerge(input.backgroundControllerLayer));
 
   const backgroundRuntimeLayer = Layer.mergeAll(
     input.runtimeSupportLayer,
@@ -60,9 +62,7 @@ export function makeSystemAppLayer<BCOut, BCE, BCR, CDOut, CDE, CDR, RSOut, RSE,
   const systemEventsLayer = SystemEventsServiceLive.pipe(
     Layer.provideMerge(input.catalogDownloadReadLayer),
   );
-  const systemConfigUpdateLayer = SystemConfigUpdateServiceLive.pipe(
-    Layer.provideMerge(input.backgroundControllerLayer),
-  );
+  const systemConfigUpdateLayer = withBackgroundController(SystemConfigUpdateServiceLive);
   const qualityProfileLayer = withRuntime(QualityProfileServiceLive);
   const releaseProfileLayer = withRuntime(ReleaseProfileServiceLive);
   const systemLogLayer = withRuntime(SystemLogServiceLive);

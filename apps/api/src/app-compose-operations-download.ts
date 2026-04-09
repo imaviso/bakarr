@@ -31,41 +31,49 @@ export function makeOperationsDownloadLayer<ROut, E, RIn>(
   const downloadReconciliationLayer = DownloadReconciliationServiceLive.pipe(
     Layer.provideMerge(downloadRuntimeLayer),
   );
+  const runtimeWithReconciliationLayer = Layer.mergeAll(
+    downloadRuntimeLayer,
+    downloadReconciliationLayer,
+  );
   const downloadTorrentLifecycleLayer = DownloadTorrentLifecycleServiceLive.pipe(
-    Layer.provideMerge(Layer.mergeAll(downloadRuntimeLayer, downloadReconciliationLayer)),
+    Layer.provideMerge(runtimeWithReconciliationLayer),
+  );
+  const runtimeWithLifecycleLayer = Layer.mergeAll(
+    runtimeWithReconciliationLayer,
+    downloadTorrentLifecycleLayer,
   );
   const downloadProgressSupportLayer = DownloadProgressSupportLive.pipe(
-    Layer.provideMerge(Layer.mergeAll(downloadRuntimeLayer, downloadTorrentLifecycleLayer)),
+    Layer.provideMerge(runtimeWithLifecycleLayer),
+  );
+  const runtimeWithProgressLayer = Layer.mergeAll(
+    runtimeWithLifecycleLayer,
+    downloadProgressSupportLayer,
   );
   const downloadTriggerLayer = DownloadTriggerServiceLive.pipe(
-    Layer.provideMerge(Layer.mergeAll(downloadRuntimeLayer, downloadProgressSupportLayer)),
+    Layer.provideMerge(runtimeWithProgressLayer),
   );
   const catalogDownloadReadLayer = CatalogDownloadReadServiceLive.pipe(
     Layer.provideMerge(runtimeSupportLayer),
   );
+  const commandDependenciesLayer = Layer.mergeAll(
+    runtimeSupportLayer,
+    downloadReconciliationLayer,
+    downloadTorrentLifecycleLayer,
+    downloadProgressSupportLayer,
+  );
   const catalogDownloadCommandLayer = CatalogDownloadCommandServiceLive.pipe(
-    Layer.provideMerge(
-      Layer.mergeAll(
-        runtimeSupportLayer,
-        downloadReconciliationLayer,
-        downloadTorrentLifecycleLayer,
-        downloadProgressSupportLayer,
-      ),
-    ),
+    Layer.provideMerge(commandDependenciesLayer),
   );
-  const operationsProgressLayer = ProgressLive.pipe(
-    Layer.provideMerge(
-      Layer.mergeAll(
-        runtimeSupportLayer,
-        downloadReconciliationLayer,
-        downloadTorrentLifecycleLayer,
-        downloadProgressSupportLayer,
-        downloadTriggerLayer,
-        catalogDownloadReadLayer,
-        catalogDownloadCommandLayer,
-      ),
-    ),
+  const progressDependenciesLayer = Layer.mergeAll(
+    runtimeSupportLayer,
+    downloadReconciliationLayer,
+    downloadTorrentLifecycleLayer,
+    downloadProgressSupportLayer,
+    downloadTriggerLayer,
+    catalogDownloadReadLayer,
+    catalogDownloadCommandLayer,
   );
+  const operationsProgressLayer = ProgressLive.pipe(Layer.provideMerge(progressDependenciesLayer));
   const downloadSubgraphLayer = Layer.mergeAll(
     torrentClientLayer,
     downloadReconciliationLayer,

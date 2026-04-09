@@ -30,7 +30,7 @@ export const SystemEventsServiceLive = Layer.effect(
           const subscription = yield* eventBus.subscribe();
           const downloads: readonly DownloadStatus[] =
             yield* downloadsReadService.getDownloadProgressBootstrap();
-          const bufferedEvents = yield* subscription.takeBuffered;
+          const bufferedEvents = yield* subscription.takeBufferedOnce;
 
           return buildDownloadProgressEventStream(downloads, bufferedEvents, subscription);
         }),
