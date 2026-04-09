@@ -2,7 +2,7 @@ import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platf
 import { Deferred, Effect, Either, Ref } from "effect";
 
 import type { ClockService } from "@/lib/clock.ts";
-import { ExternalCallError, type TryExternalEffect } from "@/lib/effect-retry.ts";
+import { ExternalCallError, type ExternalCallShape } from "@/lib/effect-retry.ts";
 import {
   QBitTorrentClientError,
   type QBitConfig,
@@ -227,12 +227,15 @@ export const makePostHashesAction = (withSession: WithCachedSession, execute: Ex
     yield* ensureOk(response, `qBittorrent action failed with status ${response.status}`);
   });
 
-export function makeExecute(client: HttpClient.HttpClient, tryExternalEffect: TryExternalEffect) {
+export function makeExecute(
+  client: HttpClient.HttpClient,
+  tryExternalEffect: ExternalCallShape["tryExternalEffect"],
+) {
   return (
     operation: string,
     request: HttpClientRequest.HttpClientRequest,
     options?: { readonly idempotent?: boolean },
-  ) => tryExternalEffect(operation, client.execute(request), options)();
+  ) => tryExternalEffect(operation, client.execute(request), options);
 }
 
 export function ensureOk(response: HttpClientResponse.HttpClientResponse, message: string) {

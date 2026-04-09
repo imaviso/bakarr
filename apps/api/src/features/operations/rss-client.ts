@@ -1,12 +1,7 @@
 import { Context, Effect, Either, Layer, Stream } from "effect";
 
-import { ClockService } from "@/lib/clock.ts";
 import { DnsResolver } from "@/lib/dns-resolver.ts";
-import {
-  ExternalCallError,
-  makeTryExternalEffect,
-  type TryExternalEffect,
-} from "@/lib/effect-retry.ts";
+import { ExternalCall, ExternalCallError, type ExternalCallShape } from "@/lib/effect-retry.ts";
 import {
   RssFeedParseError,
   RssFeedRejectedError,
@@ -42,7 +37,7 @@ const isRetryableRssFetchError = (error: ExternalCallError) =>
 const makeFetchItems = (
   executeRequest: (target: PinnedRequestTarget) => Effect.Effect<RssTransportResponse, unknown>,
   dns: typeof DnsResolver.Service,
-  tryExternalEffect: TryExternalEffect,
+  externalCall: ExternalCallShape,
 ) =>
   Effect.fn("RssClient.fetchItems")(function* (url: string) {
     const parsedUrl = yield* Effect.try({
@@ -85,18 +80,20 @@ const makeFetchItems = (
           ),
         ),
       )) satisfies PinnedRequestTarget;
-      const response = yield* tryExternalEffect("rss.fetch", executeRequest(target), {
-        isRetryableError: isRetryableRssFetchError,
-      })().pipe(
-        Effect.mapError((error) =>
-          error.cause instanceof RssTransportPayloadTooLargeError
-            ? new RssFeedTooLargeError({
-                cause: error.cause,
-                message: error.cause.message,
-              })
-            : error,
-        ),
-      );
+      const response = yield* externalCall
+        .tryExternalEffect("rss.fetch", executeRequest(target), {
+          isRetryableError: isRetryableRssFetchError,
+        })
+        .pipe(
+          Effect.mapError((error) =>
+            error.cause instanceof RssTransportPayloadTooLargeError
+              ? new RssFeedTooLargeError({
+                  cause: error.cause,
+                  message: error.cause.message,
+                })
+              : error,
+          ),
+        );
 
       if (response.status >= 400) {
         yield* Effect.logWarning("RSS feed returned upstream error status").pipe(
@@ -186,13 +183,12 @@ const makeFetchItems = (
 export const RssClientLive = Layer.effect(
   RssClient,
   Effect.gen(function* () {
-    const clock = yield* ClockService;
     const dns = yield* DnsResolver;
+    const externalCall = yield* ExternalCall;
     const transport = yield* RssTransport;
-    const tryExternalEffect = makeTryExternalEffect(clock);
 
     return {
-      fetchItems: makeFetchItems(transport.execute, dns, tryExternalEffect),
+      fetchItems: makeFetchItems(transport.execute, dns, externalCall),
     } satisfies RssClientShape;
   }),
 );

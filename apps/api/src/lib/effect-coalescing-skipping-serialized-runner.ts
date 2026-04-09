@@ -1,5 +1,12 @@
 import { Effect, Option, Ref } from "effect";
 
+/**
+ * Skipping serialized runner.
+ *
+ * Only one execution is allowed at a time. Overlapping `trigger` calls are dropped and return
+ * `Option.none()` instead of waiting for the current run.
+ */
+
 export interface SkippingSerializedEffectRunner<A, E, R = never> {
   readonly trigger: Effect.Effect<Option.Option<A>, E, R>;
 }

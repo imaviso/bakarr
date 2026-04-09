@@ -7,40 +7,69 @@ import { tryDatabasePromise } from "@/lib/effect-db.ts";
 
 type NowIso = () => Effect.Effect<string>;
 
+interface JobUpsertInput {
+  readonly errorMessage: string;
+  readonly isRunning: boolean;
+  readonly lastMessage: string | null;
+  readonly lastStatus: "failed" | "running" | "success";
+  readonly lastSuccessAt: string | null;
+  readonly progressCurrent: number | null;
+  readonly progressTotal: number | null;
+  readonly incrementRunCount?: boolean;
+}
+
+const upsertJobStatus = Effect.fn("JobStatus.upsertJobStatus")(function* (
+  db: AppDatabase,
+  name: string,
+  nowIso: NowIso,
+  input: JobUpsertInput,
+) {
+  const now = yield* nowIso();
+  const insertValues = {
+    isRunning: input.isRunning,
+    lastMessage: input.lastMessage,
+    lastRunAt: now,
+    lastStatus: input.lastStatus,
+    lastSuccessAt: input.lastSuccessAt,
+    name,
+    progressCurrent: input.progressCurrent,
+    progressTotal: input.progressTotal,
+    runCount: 1,
+  };
+  const updateValues = {
+    isRunning: input.isRunning,
+    lastMessage: input.lastMessage,
+    lastRunAt: now,
+    lastStatus: input.lastStatus,
+    lastSuccessAt: input.lastSuccessAt,
+    progressCurrent: input.progressCurrent,
+    progressTotal: input.progressTotal,
+    ...(input.incrementRunCount ? { runCount: sql`${backgroundJobs.runCount} + 1` } : {}),
+  };
+
+  yield* tryDatabasePromise(input.errorMessage, () =>
+    db.insert(backgroundJobs).values(insertValues).onConflictDoUpdate({
+      target: backgroundJobs.name,
+      set: updateValues,
+    }),
+  );
+});
+
 export const markJobStarted = Effect.fn("JobStatus.markJobStarted")(function* (
   db: AppDatabase,
   name: string,
   nowIso: NowIso,
 ) {
-  const now = yield* nowIso();
-
-  yield* tryDatabasePromise("Failed to mark job started", () =>
-    db
-      .insert(backgroundJobs)
-      .values({
-        isRunning: true,
-        lastMessage: null,
-        lastRunAt: now,
-        lastStatus: "running",
-        lastSuccessAt: null,
-        name,
-        progressCurrent: null,
-        progressTotal: null,
-        runCount: 1,
-      })
-      .onConflictDoUpdate({
-        target: backgroundJobs.name,
-        set: {
-          isRunning: true,
-          lastMessage: null,
-          lastRunAt: now,
-          lastStatus: "running",
-          progressCurrent: null,
-          progressTotal: null,
-          runCount: sql`${backgroundJobs.runCount} + 1`,
-        },
-      }),
-  );
+  yield* upsertJobStatus(db, name, nowIso, {
+    errorMessage: "Failed to mark job started",
+    isRunning: true,
+    lastMessage: null,
+    lastStatus: "running",
+    lastSuccessAt: null,
+    progressCurrent: null,
+    progressTotal: null,
+    incrementRunCount: true,
+  });
 });
 
 export const markJobSucceeded = Effect.fn("JobStatus.markJobSucceeded")(function* (
@@ -51,33 +80,15 @@ export const markJobSucceeded = Effect.fn("JobStatus.markJobSucceeded")(function
 ) {
   const now = yield* nowIso();
 
-  yield* tryDatabasePromise("Failed to mark job succeeded", () =>
-    db
-      .insert(backgroundJobs)
-      .values({
-        isRunning: false,
-        lastMessage: message,
-        lastRunAt: now,
-        lastStatus: "success",
-        lastSuccessAt: now,
-        name,
-        progressCurrent: null,
-        progressTotal: null,
-        runCount: 1,
-      })
-      .onConflictDoUpdate({
-        target: backgroundJobs.name,
-        set: {
-          isRunning: false,
-          lastMessage: message,
-          lastRunAt: now,
-          lastStatus: "success",
-          lastSuccessAt: now,
-          progressCurrent: null,
-          progressTotal: null,
-        },
-      }),
-  );
+  yield* upsertJobStatus(db, name, () => Effect.succeed(now), {
+    errorMessage: "Failed to mark job succeeded",
+    isRunning: false,
+    lastMessage: message,
+    lastStatus: "success",
+    lastSuccessAt: now,
+    progressCurrent: null,
+    progressTotal: null,
+  });
 });
 
 export const markJobFailed = Effect.fn("JobStatus.markJobFailed")(function* (
@@ -86,35 +97,17 @@ export const markJobFailed = Effect.fn("JobStatus.markJobFailed")(function* (
   cause: unknown,
   nowIso: NowIso,
 ) {
-  const now = yield* nowIso();
   const message = formatJobFailureMessage(cause);
 
-  yield* tryDatabasePromise("Failed to mark job failed", () =>
-    db
-      .insert(backgroundJobs)
-      .values({
-        isRunning: false,
-        lastMessage: message,
-        lastRunAt: now,
-        lastStatus: "failed",
-        lastSuccessAt: null,
-        name,
-        progressCurrent: null,
-        progressTotal: null,
-        runCount: 1,
-      })
-      .onConflictDoUpdate({
-        target: backgroundJobs.name,
-        set: {
-          isRunning: false,
-          lastMessage: message,
-          lastRunAt: now,
-          lastStatus: "failed",
-          progressCurrent: null,
-          progressTotal: null,
-        },
-      }),
-  );
+  yield* upsertJobStatus(db, name, nowIso, {
+    errorMessage: "Failed to mark job failed",
+    isRunning: false,
+    lastMessage: message,
+    lastStatus: "failed",
+    lastSuccessAt: null,
+    progressCurrent: null,
+    progressTotal: null,
+  });
 });
 
 export const updateJobProgress = Effect.fn("JobStatus.updateJobProgress")(function* (
@@ -125,34 +118,15 @@ export const updateJobProgress = Effect.fn("JobStatus.updateJobProgress")(functi
   nowIso: NowIso,
   message?: string,
 ) {
-  const now = yield* nowIso();
-
-  yield* tryDatabasePromise("Failed to update job progress", () =>
-    db
-      .insert(backgroundJobs)
-      .values({
-        isRunning: true,
-        lastMessage: message ?? null,
-        lastRunAt: now,
-        lastStatus: "running",
-        lastSuccessAt: null,
-        name,
-        progressCurrent,
-        progressTotal,
-        runCount: 1,
-      })
-      .onConflictDoUpdate({
-        target: backgroundJobs.name,
-        set: {
-          isRunning: true,
-          lastMessage: message ?? null,
-          lastRunAt: now,
-          lastStatus: "running",
-          progressCurrent,
-          progressTotal,
-        },
-      }),
-  );
+  yield* upsertJobStatus(db, name, nowIso, {
+    errorMessage: "Failed to update job progress",
+    isRunning: true,
+    lastMessage: message ?? null,
+    lastStatus: "running",
+    lastSuccessAt: null,
+    progressCurrent,
+    progressTotal,
+  });
 });
 
 export function formatJobFailureMessage(cause: unknown): string {

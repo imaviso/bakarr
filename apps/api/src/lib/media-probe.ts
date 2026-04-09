@@ -54,6 +54,54 @@ class FFProbeOutputSchema extends Schema.Class<FFProbeOutputSchema>("FFProbeOutp
 }) {}
 const FFProbeOutputJsonSchema = Schema.parseJson(FFProbeOutputSchema);
 
+const VIDEO_CODEC_LABELS: Record<string, string> = {
+  av1: "AV1",
+  avc: "AVC",
+  avc1: "AVC",
+  h264: "AVC",
+  h265: "HEVC",
+  hevc: "HEVC",
+  mpeg2video: "MPEG-2",
+  vc1: "VC-1",
+  vp9: "VP9",
+  x264: "AVC",
+  x265: "HEVC",
+};
+
+const AUDIO_CODEC_LABELS: Record<string, string> = {
+  aac: "AAC",
+  ac3: "AC3",
+  dts: "DTS",
+  dtshdma: "DTS",
+  eac3: "E-AC3",
+  flac: "FLAC",
+  mp3: "MP3",
+  opus: "Opus",
+  pcm: "PCM",
+  pcms16le: "PCM",
+  pcms24le: "PCM",
+  truehd: "TrueHD",
+  vorbis: "Vorbis",
+};
+
+const AUDIO_CHANNEL_LAYOUT_LABELS: Record<string, string> = {
+  "2.1": "2.1",
+  "5.1": "5.1",
+  "7.1": "7.1",
+  mono: "1.0",
+  stereo: "2.0",
+};
+
+const AUDIO_CHANNEL_COUNT_LABELS: Record<number, string> = {
+  1: "1.0",
+  2: "2.0",
+  3: "3.0",
+  4: "4.0",
+  5: "5.0",
+  6: "5.1",
+  8: "7.1",
+};
+
 const normalizeResolution = (stream?: { width?: number; height?: number }) => {
   const height = stream?.height ?? stream?.width;
 
@@ -71,90 +119,38 @@ const normalizeResolution = (stream?: { width?: number; height?: number }) => {
 };
 
 const normalizeVideoCodec = (codec?: string) => {
-  const normalized = codec?.toLowerCase().replace(/[^a-z0-9]+/g, "");
-
-  switch (normalized) {
-    case "h264":
-    case "avc":
-    case "avc1":
-    case "x264":
-      return "AVC";
-    case "h265":
-    case "hevc":
-    case "x265":
-      return "HEVC";
-    case "av1":
-      return "AV1";
-    case "vp9":
-      return "VP9";
-    case "mpeg2video":
-      return "MPEG-2";
-    case "vc1":
-      return "VC-1";
-    default:
-      return codec?.toUpperCase();
+  if (!codec) {
+    return undefined;
   }
+
+  const normalized = codec.toLowerCase().replace(/[^a-z0-9]+/g, "");
+  return VIDEO_CODEC_LABELS[normalized] ?? codec.toUpperCase();
 };
 
 const normalizeAudioCodec = (codec?: string) => {
-  const normalized = codec?.toLowerCase().replace(/[^a-z0-9]+/g, "");
-
-  switch (normalized) {
-    case "aac":
-      return "AAC";
-    case "ac3":
-      return "AC3";
-    case "eac3":
-      return "E-AC3";
-    case "flac":
-      return "FLAC";
-    case "mp3":
-      return "MP3";
-    case "opus":
-      return "Opus";
-    case "vorbis":
-      return "Vorbis";
-    case "truehd":
-      return "TrueHD";
-    case "dts":
-    case "dtshdma":
-      return "DTS";
-    case "pcm":
-    case "pcms16le":
-    case "pcms24le":
-      return "PCM";
-    default:
-      return codec?.toUpperCase();
+  if (!codec) {
+    return undefined;
   }
+
+  const normalized = codec.toLowerCase().replace(/[^a-z0-9]+/g, "");
+  return AUDIO_CODEC_LABELS[normalized] ?? codec.toUpperCase();
 };
 
 const normalizeAudioChannels = (input: { channels?: number; channel_layout?: string }) => {
   const layout = input.channel_layout?.toLowerCase();
 
-  if (layout === "mono") return "1.0";
-  if (layout === "stereo") return "2.0";
-  if (layout === "2.1") return "2.1";
-  if (layout === "5.1") return "5.1";
-  if (layout === "7.1") return "7.1";
-
-  switch (input.channels) {
-    case 1:
-      return "1.0";
-    case 2:
-      return "2.0";
-    case 3:
-      return "3.0";
-    case 4:
-      return "4.0";
-    case 5:
-      return "5.0";
-    case 6:
-      return "5.1";
-    case 8:
-      return "7.1";
-    default:
-      return input.channels ? `${input.channels}.0` : undefined;
+  if (layout) {
+    const layoutLabel = AUDIO_CHANNEL_LAYOUT_LABELS[layout];
+    if (layoutLabel) {
+      return layoutLabel;
+    }
   }
+
+  if (input.channels === undefined) {
+    return undefined;
+  }
+
+  return AUDIO_CHANNEL_COUNT_LABELS[input.channels] ?? `${input.channels}.0`;
 };
 
 const normalizeDurationSeconds = (value?: string) => {
@@ -346,14 +342,10 @@ export {
   type MediaProbeCommandOutput,
 } from "@/lib/media-probe-command.ts";
 
-function formatParseCause(cause: unknown) {
-  return ParseResult.isParseError(cause)
-    ? ParseResult.TreeFormatter.formatErrorSync(cause)
-    : undefined;
-}
-
 function logProbeFailure(path: string, failure: MediaProbeFailure): Effect.Effect<void> {
-  const parseError = formatParseCause(failure.cause);
+  const parseError = ParseResult.isParseError(failure.cause)
+    ? ParseResult.TreeFormatter.formatErrorSync(failure.cause)
+    : undefined;
 
   return yieldLog(path, failure.message, parseError);
 }

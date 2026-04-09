@@ -117,8 +117,7 @@ export function buildTitleCandidates(
     ...(synonyms ?? []).map((value) => ({ source: "synonym", value }) as const),
   ];
 
-  const uniqueCandidates = new Set<string>();
-  const normalizedCandidates: AniDbTitleCandidate[] = [];
+  const dedupedCandidates = new Map<string, AniDbTitleCandidate>();
 
   for (const candidate of candidates) {
     const normalizedValue = candidate.value.trim();
@@ -129,18 +128,15 @@ export function buildTitleCandidates(
 
     const dedupeKey = normalizeTitleForMatch(normalizedValue);
 
-    if (uniqueCandidates.has(dedupeKey)) {
-      continue;
+    if (!dedupedCandidates.has(dedupeKey)) {
+      dedupedCandidates.set(dedupeKey, {
+        source: candidate.source,
+        value: normalizedValue,
+      });
     }
-
-    uniqueCandidates.add(dedupeKey);
-    normalizedCandidates.push({
-      source: candidate.source,
-      value: normalizedValue,
-    });
   }
 
-  return normalizedCandidates.slice(0, ANIDB_MAX_TITLE_CANDIDATES);
+  return Array.from(dedupedCandidates.values()).slice(0, ANIDB_MAX_TITLE_CANDIDATES);
 }
 
 export function scoreAnimeLookupCandidate(

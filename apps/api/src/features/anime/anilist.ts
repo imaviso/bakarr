@@ -2,12 +2,7 @@ import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platf
 import { Context, Effect, Layer, Option, Schema } from "effect";
 
 import type { AnimeSearchResult } from "@packages/shared/index.ts";
-import { ClockService } from "@/lib/clock.ts";
-import {
-  ExternalCallError,
-  makeTryExternalEffect,
-  type TryExternalEffect,
-} from "@/lib/effect-retry.ts";
+import { ExternalCall, ExternalCallError, type ExternalCallShape } from "@/lib/effect-retry.ts";
 import {
   AnimeMetadataFromAniListSchema,
   AnimeSearchResultFromAniListSchema,
@@ -217,8 +212,7 @@ export const AniListClientLive = Layer.effect(
   AniListClient,
   Effect.gen(function* () {
     const client = yield* HttpClient.HttpClient;
-    const clock = yield* ClockService;
-    const tryExternalEffect = makeTryExternalEffect(clock);
+    const externalCall = yield* ExternalCall;
 
     const searchAnimeMetadata = Effect.fn("AniListClient.searchAnimeMetadata")(function* (
       query: string,
@@ -229,13 +223,13 @@ export const AniListClientLive = Layer.effect(
         return [];
       }
 
-      return yield* trySearchRemote(client, tryExternalEffect, trimmed);
+      return yield* trySearchRemote(client, externalCall, trimmed);
     });
 
     const getAnimeMetadataById = Effect.fn("AniListClient.getAnimeMetadataById")(function* (
       id: number,
     ) {
-      return yield* tryFetchDetail(client, tryExternalEffect, id);
+      return yield* tryFetchDetail(client, externalCall, id);
     });
 
     return {
@@ -247,7 +241,7 @@ export const AniListClientLive = Layer.effect(
 
 const callAniList = <A, I>(
   client: HttpClient.HttpClient,
-  tryExternalEffect: TryExternalEffect,
+  externalCall: ExternalCallShape,
   operation: string,
   query: string,
   variables: Record<string, unknown>,
@@ -264,7 +258,10 @@ const callAniList = <A, I>(
         }),
       ),
     );
-    const response = yield* tryExternalEffect(`anilist.${operation}`, client.execute(request))();
+    const response = yield* externalCall.tryExternalEffect(
+      `anilist.${operation}`,
+      client.execute(request),
+    );
 
     if (response.status < 200 || response.status >= 300) {
       return yield* ExternalCallError.make({
@@ -287,12 +284,12 @@ const callAniList = <A, I>(
 
 const trySearchRemote = Effect.fn("AniListClient.trySearchRemote")(function* (
   client: HttpClient.HttpClient,
-  tryExternalEffect: TryExternalEffect,
+  externalCall: ExternalCallShape,
   trimmed: string,
 ) {
   const payload = yield* callAniList(
     client,
-    tryExternalEffect,
+    externalCall,
     "search",
     SEARCH_ANIME_QUERY,
     { search: trimmed },
@@ -314,12 +311,12 @@ const trySearchRemote = Effect.fn("AniListClient.trySearchRemote")(function* (
 
 const tryFetchDetail = Effect.fn("AniListClient.tryFetchDetail")(function* (
   client: HttpClient.HttpClient,
-  tryExternalEffect: TryExternalEffect,
+  externalCall: ExternalCallShape,
   id: number,
 ) {
   const payload = yield* callAniList(
     client,
-    tryExternalEffect,
+    externalCall,
     "detail",
     DETAIL_ANIME_QUERY,
     { id },

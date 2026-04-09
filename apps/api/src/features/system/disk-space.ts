@@ -1,7 +1,7 @@
 import { Command, CommandExecutor } from "@effect/platform";
 import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { Context, Effect, Layer, Schema } from "effect";
+import { Context, Effect, Either, Layer, Schema } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 
@@ -37,33 +37,29 @@ export class DiskSpaceInspector extends Context.Tag("@bakarr/api/DiskSpaceInspec
 
 export const mapBlockStatsToDiskSpaceEffect = Effect.fn("DiskSpace.mapBlockStatsToDiskSpace")(
   function* (stat: BlockStatsShape) {
-    const blockSize = toPositiveNumber(stat.bsize, "Invalid block size");
-    if (blockSize._tag === "Left") {
-      return yield* blockSize.left;
-    }
-    const availableBlocks = toNonNegativeNumber(stat.bavail, "Invalid available block count");
-    if (availableBlocks._tag === "Left") {
-      return yield* availableBlocks.left;
-    }
-    const totalBlocks = toPositiveNumber(stat.blocks, "Invalid total block count");
-    if (totalBlocks._tag === "Left") {
-      return yield* totalBlocks.left;
-    }
-    const free = clampDiskBytes(availableBlocks.right * blockSize.right);
-    if (free._tag === "Left") {
-      return yield* free.left;
-    }
-    const total = clampDiskBytes(totalBlocks.right * blockSize.right);
-    if (total._tag === "Left") {
-      return yield* total.left;
-    }
+    const blockSize = yield* fromEither(toPositiveNumber(stat.bsize, "Invalid block size"));
+    const availableBlocks = yield* fromEither(
+      toNonNegativeNumber(stat.bavail, "Invalid available block count"),
+    );
+    const totalBlocks = yield* fromEither(
+      toPositiveNumber(stat.blocks, "Invalid total block count"),
+    );
+    const free = yield* fromEither(clampDiskBytes(availableBlocks * blockSize));
+    const total = yield* fromEither(clampDiskBytes(totalBlocks * blockSize));
 
     return {
-      free: free.right,
-      total: total.right,
+      free,
+      total,
     };
   },
 );
+
+function fromEither<A>(either: Either.Either<A, DiskSpaceError>): Effect.Effect<A, DiskSpaceError> {
+  return Either.match(either, {
+    onLeft: Effect.fail,
+    onRight: Effect.succeed,
+  });
+}
 
 function runDfCommand(commandExecutor: CommandExecutor.CommandExecutor, path: string) {
   return commandExecutor
@@ -124,34 +120,25 @@ export function selectStoragePath(config: Config, databaseFile: string): string 
   return databaseFile;
 }
 
-function clampDiskBytes(value: number) {
+function clampDiskBytes(value: number): Either.Either<number, DiskSpaceError> {
   if (!Number.isFinite(value) || value < 0) {
-    return {
-      _tag: "Left" as const,
-      left: new DiskSpaceError({ message: "Invalid disk byte count" }),
-    };
+    return Either.left(new DiskSpaceError({ message: "Invalid disk byte count" }));
   }
 
-  return {
-    _tag: "Right" as const,
-    right: Math.min(value, Number.MAX_SAFE_INTEGER),
-  };
+  return Either.right(Math.min(value, Number.MAX_SAFE_INTEGER));
 }
 
 const mapDfOutputToDiskSpaceEffect = Effect.fn("DiskSpace.mapDfOutputToDiskSpaceEffect")(function* (
   path: string,
   output: string,
 ) {
-  const result = mapDfOutputToDiskSpaceEither(path, output);
-
-  if (result._tag === "Left") {
-    return yield* result.left;
-  }
-
-  return result.right;
+  return yield* fromEither(mapDfOutputToDiskSpaceEither(path, output));
 });
 
-function mapDfOutputToDiskSpaceEither(path: string, output: string) {
+function mapDfOutputToDiskSpaceEither(
+  path: string,
+  output: string,
+): Either.Either<DiskSpace, DiskSpaceError> {
   const lines = output
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -159,86 +146,70 @@ function mapDfOutputToDiskSpaceEither(path: string, output: string) {
   const dataLine = lines.at(-1);
 
   if (!dataLine) {
-    return {
-      _tag: "Left" as const,
-      left: new DiskSpaceError({ message: `df returned no data for path: ${path}` }),
-    };
+    return Either.left(new DiskSpaceError({ message: `df returned no data for path: ${path}` }));
   }
 
   const columns = dataLine.split(/\s+/);
 
   if (columns.length < 4) {
-    return {
-      _tag: "Left" as const,
-      left: new DiskSpaceError({ message: `Unexpected df output for path: ${path}` }),
-    };
+    return Either.left(new DiskSpaceError({ message: `Unexpected df output for path: ${path}` }));
   }
 
   const total = Number(columns[1]);
   const available = Number(columns[3]);
 
   if (!Number.isFinite(total) || total <= 0) {
-    return {
-      _tag: "Left" as const,
-      left: new DiskSpaceError({ message: `Invalid total blocks from df for path: ${path}` }),
-    };
+    return Either.left(
+      new DiskSpaceError({ message: `Invalid total blocks from df for path: ${path}` }),
+    );
   }
 
   if (!Number.isFinite(available) || available < 0) {
-    return {
-      _tag: "Left" as const,
-      left: new DiskSpaceError({ message: `Invalid available blocks from df for path: ${path}` }),
-    };
+    return Either.left(
+      new DiskSpaceError({ message: `Invalid available blocks from df for path: ${path}` }),
+    );
   }
 
   const free = clampDiskBytes(available * 1024);
-  if (free._tag === "Left") {
-    return free;
-  }
-  const totalBytes = clampDiskBytes(total * 1024);
-  if (totalBytes._tag === "Left") {
-    return totalBytes;
+  if (Either.isLeft(free)) {
+    return Either.left(free.left);
   }
 
-  return {
-    _tag: "Right" as const,
-    right: {
-      free: free.right,
-      total: totalBytes.right,
-    },
-  };
+  const totalBytes = clampDiskBytes(total * 1024);
+  if (Either.isLeft(totalBytes)) {
+    return Either.left(totalBytes.left);
+  }
+
+  return Either.right({
+    free: free.right,
+    total: totalBytes.right,
+  });
 }
 
-function toPositiveNumber(value: bigint | number, message: string) {
+function toPositiveNumber(
+  value: bigint | number,
+  message: string,
+): Either.Either<number, DiskSpaceError> {
   const numeric = typeof value === "bigint" ? Number(value) : value;
 
   if (!Number.isFinite(numeric) || numeric <= 0) {
-    return {
-      _tag: "Left" as const,
-      left: new DiskSpaceError({ message }),
-    };
+    return Either.left(new DiskSpaceError({ message }));
   }
 
-  return {
-    _tag: "Right" as const,
-    right: Math.min(numeric, Number.MAX_SAFE_INTEGER),
-  };
+  return Either.right(Math.min(numeric, Number.MAX_SAFE_INTEGER));
 }
 
-function toNonNegativeNumber(value: bigint | number, message: string) {
+function toNonNegativeNumber(
+  value: bigint | number,
+  message: string,
+): Either.Either<number, DiskSpaceError> {
   const numeric = typeof value === "bigint" ? Number(value) : value;
 
   if (!Number.isFinite(numeric) || numeric < 0) {
-    return {
-      _tag: "Left" as const,
-      left: new DiskSpaceError({ message }),
-    };
+    return Either.left(new DiskSpaceError({ message }));
   }
 
-  return {
-    _tag: "Right" as const,
-    right: Math.min(numeric, Number.MAX_SAFE_INTEGER),
-  };
+  return Either.right(Math.min(numeric, Number.MAX_SAFE_INTEGER));
 }
 
 function toDiskSpaceError(message: string) {

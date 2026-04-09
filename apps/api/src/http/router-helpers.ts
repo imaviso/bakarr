@@ -67,10 +67,11 @@ export const routeResponse = <A, E, R, E2, R2>(
   onSuccess: (value: A) => Effect.Effect<HttpServerResponse.HttpServerResponse, E2, R2>,
   mapError: (error: unknown) => RouteErrorResponse = mapRouteError,
 ) =>
-  Effect.flatMap(HttpServerRequest.HttpServerRequest, (request) => {
+  Effect.gen(function* () {
+    const request = yield* HttpServerRequest.HttpServerRequest;
     const url = new URL(request.url, "http://bakarr.local");
 
-    return effect.pipe(
+    return yield* effect.pipe(
       Effect.flatMap(onSuccess),
       Effect.tapErrorCause((cause) =>
         Effect.logError("HTTP route failed").pipe(

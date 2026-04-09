@@ -26,29 +26,45 @@ export class BackgroundSchedule extends Schema.Class<BackgroundSchedule>("Backgr
 }) {}
 
 export function buildBackgroundSchedule(config: Config): BackgroundSchedule {
-  const cronExpression = config.scheduler.enabled
-    ? config.scheduler.cron_expression?.trim() || null
+  const rssCronExpression = resolveRssCronExpression(config);
+  const libraryScanMs = toPositiveMilliseconds(
+    config.library.auto_scan_interval_hours,
+    60 * 60 * 1000,
+  );
+  const metadataRefreshMs = config.scheduler.enabled
+    ? toPositiveMilliseconds(config.scheduler.metadata_refresh_hours, 60 * 60 * 1000)
     : null;
-  const parsedCron = cronExpression ? Cron.parse(cronExpression) : null;
-  const rssCronExpression = parsedCron && Either.isRight(parsedCron) ? cronExpression : null;
+  const rssCheckMs =
+    config.scheduler.enabled && rssCronExpression === null
+      ? toPositiveMilliseconds(config.scheduler.check_interval_minutes, 60 * 1000)
+      : null;
 
   return new BackgroundSchedule({
     initialDelayMs: Math.max(config.scheduler.check_delay_seconds, 0) * 1000,
     downloadSyncMs: DEFAULT_DOWNLOAD_SYNC_MS,
-    libraryScanMs:
-      config.library.auto_scan_interval_hours > 0
-        ? config.library.auto_scan_interval_hours * 60 * 60 * 1000
-        : null,
-    metadataRefreshMs:
-      config.scheduler.enabled && config.scheduler.metadata_refresh_hours > 0
-        ? config.scheduler.metadata_refresh_hours * 60 * 60 * 1000
-        : null,
+    libraryScanMs,
+    metadataRefreshMs,
     rssCronExpression,
-    rssCheckMs:
-      config.scheduler.enabled && !rssCronExpression && config.scheduler.check_interval_minutes > 0
-        ? config.scheduler.check_interval_minutes * 60 * 1000
-        : null,
+    rssCheckMs,
   });
+}
+
+function resolveRssCronExpression(config: Config): string | null {
+  if (!config.scheduler.enabled) {
+    return null;
+  }
+
+  const cronExpression = config.scheduler.cron_expression?.trim();
+
+  if (!cronExpression) {
+    return null;
+  }
+
+  return Either.isRight(Cron.parse(cronExpression)) ? cronExpression : null;
+}
+
+function toPositiveMilliseconds(value: number, unitMs: number): number | null {
+  return value > 0 ? value * unitMs : null;
 }
 
 export function resolveBackgroundWorkerLoopPlan(

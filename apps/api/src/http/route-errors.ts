@@ -1,4 +1,4 @@
-import { Match, Schema } from "effect";
+import { Match } from "effect";
 
 import type { RouteErrorResponse } from "@/http/route-types.ts";
 import { DatabaseError } from "@/db/database.ts";
@@ -11,24 +11,20 @@ import { mapAnimeRouteError } from "@/http/route-errors-anime.ts";
 import { mapOperationsRouteError } from "@/http/route-errors-operations.ts";
 import { mapSystemRouteError } from "@/http/route-errors-system.ts";
 
-const commonTaggedRouteErrorSchemas = [
-  DatabaseError,
-  ExternalCallError,
-  PasswordError,
-  RequestValidationError,
-  TokenHasherError,
-  WorkerTimeoutError,
-] as const;
+type CommonRouteError =
+  | DatabaseError
+  | ExternalCallError
+  | PasswordError
+  | RequestValidationError
+  | TokenHasherError
+  | WorkerTimeoutError;
 
-type CommonRouteError = Schema.Schema.Type<Schema.Union<[...typeof commonTaggedRouteErrorSchemas]>>;
-
-type TaggedCommonRouteError = Extract<CommonRouteError, { _tag: string }>;
-type TaggedCommonRouteErrorTag = TaggedCommonRouteError["_tag"];
-
-const messageStatus = (status: number) => (error: { readonly message: string }) => ({
-  message: error.message,
-  status,
-});
+const messageStatus =
+  (status: number) =>
+  (error: { readonly message: string }): RouteErrorResponse => ({
+    message: error.message,
+    status,
+  });
 
 const serviceUnavailable = () => ({
   message: "External service unavailable",
@@ -40,25 +36,32 @@ const authCryptoFailure = () => ({
   status: 500,
 });
 
-const taggedCommonRouteErrorMappers: {
-  [K in TaggedCommonRouteErrorTag]: (
-    error: Extract<TaggedCommonRouteError, { _tag: K }>,
-  ) => RouteErrorResponse;
-} = {
+const taggedCommonRouteErrorMappers = {
   DatabaseError: messageStatus(500),
   ExternalCallError: serviceUnavailable,
   PasswordError: authCryptoFailure,
-  RequestValidationError: (error) => ({
+  RequestValidationError: (error: RequestValidationError): RouteErrorResponse => ({
     message: error.message,
     status: error.status,
   }),
   TokenHasherError: authCryptoFailure,
   WorkerTimeoutError: messageStatus(500),
-};
+} as const;
 
-const CommonRouteErrorSchema = Schema.Union(...commonTaggedRouteErrorSchemas);
+function asCommonRouteError(error: unknown): CommonRouteError | undefined {
+  if (
+    error instanceof DatabaseError ||
+    error instanceof ExternalCallError ||
+    error instanceof PasswordError ||
+    error instanceof RequestValidationError ||
+    error instanceof TokenHasherError ||
+    error instanceof WorkerTimeoutError
+  ) {
+    return error;
+  }
 
-const isCommonTaggedRouteError = Schema.is(CommonRouteErrorSchema);
+  return undefined;
+}
 
 export function mapRouteError(error: unknown): RouteErrorResponse {
   const animeRouteError = mapAnimeRouteError(error);
@@ -76,13 +79,15 @@ export function mapRouteError(error: unknown): RouteErrorResponse {
     return systemRouteError;
   }
 
-  if (isCommonTaggedRouteError(error)) {
-    return mapTaggedCommonRouteError(error);
+  const commonRouteError = asCommonRouteError(error);
+
+  if (commonRouteError !== undefined) {
+    return mapTaggedCommonRouteError(commonRouteError);
   }
 
   return { message: "Unexpected server error", status: 500 };
 }
 
-function mapTaggedCommonRouteError(error: TaggedCommonRouteError): RouteErrorResponse {
+function mapTaggedCommonRouteError(error: CommonRouteError): RouteErrorResponse {
   return Match.valueTags(error, taggedCommonRouteErrorMappers);
 }

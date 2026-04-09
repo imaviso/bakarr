@@ -2,7 +2,7 @@ import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platf
 import { Context, Deferred, Effect, Layer, Ref, Schema } from "effect";
 
 import { ClockService } from "@/lib/clock.ts";
-import { ExternalCallError, makeTryExternalEffect } from "@/lib/effect-retry.ts";
+import { ExternalCall, ExternalCallError } from "@/lib/effect-retry.ts";
 import {
   authorizedRequest,
   ensureOk,
@@ -89,13 +89,13 @@ export const QBitTorrentClientLive = Layer.effect(
   Effect.gen(function* () {
     const client = yield* HttpClient.HttpClient;
     const clock = yield* ClockService;
-    const tryExternalEffect = makeTryExternalEffect(clock);
+    const externalCall = yield* ExternalCall;
     const sessionsRef = yield* Ref.make<Map<string, SessionEntry>>(new Map());
     const sessionLoginRef = yield* Ref.make<
       Map<string, Deferred.Deferred<string, ExternalCallError | QBitTorrentClientError>>
     >(new Map());
 
-    const execute = makeExecute(client, tryExternalEffect);
+    const execute = makeExecute(client, externalCall.tryExternalEffect);
     const login = makeLogin(execute);
     const withSession = withSessionCache(sessionsRef, sessionLoginRef, clock, login);
     const postHashesAction = makePostHashesAction(withSession, execute);

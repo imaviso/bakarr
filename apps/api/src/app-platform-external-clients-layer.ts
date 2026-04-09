@@ -19,14 +19,18 @@ export interface AppExternalClientLayerOptions {
   readonly seadexLayer?: Layer.Layer<SeaDexClient>;
 }
 
+const defaultRssLayer = RssClientLive.pipe(
+  Layer.provide(Layer.mergeAll(DnsResolverLive, RssTransportLive)),
+);
+
+const orDefault = <A>(value: A | undefined, fallback: A): A => value ?? fallback;
+
 export function makeAppExternalClientLayer(options?: AppExternalClientLayerOptions) {
-  const aniDbLayer = options?.aniDbLayer ? options.aniDbLayer : AniDbClientLive;
-  const aniListLayer = options?.aniListLayer ? options.aniListLayer : AniListClientLive;
-  const rssLayer = options?.rssLayer
-    ? options.rssLayer
-    : RssClientLive.pipe(Layer.provide(Layer.mergeAll(DnsResolverLive, RssTransportLive)));
-  const qbitLayer = options?.qbitLayer ? options.qbitLayer : QBitTorrentClientLive;
-  const seadexLayer = options?.seadexLayer ? options.seadexLayer : SeaDexClientLive;
+  const aniDbLayer = orDefault(options?.aniDbLayer, AniDbClientLive);
+  const aniListLayer = orDefault(options?.aniListLayer, AniListClientLive);
+  const rssLayer = orDefault(options?.rssLayer, defaultRssLayer);
+  const qbitLayer = orDefault(options?.qbitLayer, QBitTorrentClientLive);
+  const seadexLayer = orDefault(options?.seadexLayer, SeaDexClientLive);
 
   return Layer.mergeAll(aniDbLayer, aniListLayer, rssLayer, qbitLayer, seadexLayer);
 }

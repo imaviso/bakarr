@@ -63,7 +63,13 @@ export interface SystemLogExportQueryParams {
 }
 
 function includeWhenDefined<K extends string, V>(key: K, value: V | undefined) {
-  return value === undefined ? {} : ({ [key]: value } as { readonly [P in K]: V });
+  const result: Partial<Record<K, V>> = {};
+
+  if (value !== undefined) {
+    result[key] = value;
+  }
+
+  return result;
 }
 
 export function toSystemLogsQueryParams(query: SystemLogsQueryInput) {

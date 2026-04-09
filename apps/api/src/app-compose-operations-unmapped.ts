@@ -5,14 +5,14 @@ import { UnmappedImportServiceLive } from "@/features/operations/unmapped-orches
 import { UnmappedScanServiceLive } from "@/features/operations/unmapped-scan-service.ts";
 import { provideFrom, provideLayer } from "@/lib/layer-compose.ts";
 
-interface OperationsUnmappedLayerInput<ORTOut, ORTE, ORTR, RSOut, RSE, RSR> {
-  readonly operationsRuntimeLayer: Layer.Layer<ORTOut, ORTE, ORTR>;
-  readonly runtimeSupportLayer: Layer.Layer<RSOut, RSE, RSR>;
+type AnyLayer = Layer.Layer<any, any>;
+
+interface OperationsUnmappedLayerInput {
+  readonly operationsRuntimeLayer: AnyLayer;
+  readonly runtimeSupportLayer: AnyLayer;
 }
 
-export function makeOperationsUnmappedLayer<ORTOut, ORTE, ORTR, RSOut, RSE, RSR>(
-  input: OperationsUnmappedLayerInput<ORTOut, ORTE, ORTR, RSOut, RSE, RSR>,
-) {
+export function makeOperationsUnmappedLayer(input: OperationsUnmappedLayerInput) {
   const { operationsRuntimeLayer, runtimeSupportLayer } = input;
   const withRuntime = provideFrom(runtimeSupportLayer);
 

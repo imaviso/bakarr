@@ -38,6 +38,15 @@ const LOG_LEVELS = {
   warn: LogLevel.Warning,
 } as const;
 
+const LOG_LEVEL_ALIASES: Record<string, LogLevel.LogLevel> = {
+  debug: LOG_LEVELS.debug,
+  error: LOG_LEVELS.error,
+  info: LOG_LEVELS.info,
+  trace: LOG_LEVELS.trace,
+  warn: LOG_LEVELS.warn,
+  warning: LOG_LEVELS.warn,
+};
+
 export interface RuntimeLogLevelStateShape {
   readonly get: Effect.Effect<LogLevel.LogLevel>;
   readonly set: (level: string | undefined) => Effect.Effect<void>;
@@ -100,32 +109,32 @@ export const setRuntimeLogLevel = Effect.fn("Logging.setRuntimeLogLevel")(functi
   yield* state.set(level);
 });
 
-const RuntimeLoggerLive = Layer.unwrapEffect(
-  Effect.gen(function* () {
-    const state = yield* RuntimeLogLevelState;
-    const sink = yield* RuntimeLogSink;
+const makeRuntimeLoggerLayer = Effect.fn("Logging.makeRuntimeLoggerLayer")(function* () {
+  const state = yield* RuntimeLogLevelState;
+  const sink = yield* RuntimeLogSink;
 
-    return Logger.replace(
-      Logger.defaultLogger,
-      Logger.make<unknown, void>((options) =>
-        Effect.gen(function* () {
-          const runtimeLogLevel = yield* state.get;
+  return Logger.replace(
+    Logger.defaultLogger,
+    Logger.make<unknown, void>((options) =>
+      Effect.gen(function* () {
+        const runtimeLogLevel = yield* state.get;
 
-          if (options.logLevel.ordinal < runtimeLogLevel.ordinal) {
-            return;
-          }
+        if (options.logLevel.ordinal < runtimeLogLevel.ordinal) {
+          return;
+        }
 
-          const line = Logger.jsonLogger.log(options);
+        const line = Logger.jsonLogger.log(options);
 
-          yield* sink.write({
-            levelLabel: options.logLevel.label,
-            line,
-          });
-        }),
-      ),
-    );
-  }),
-);
+        yield* sink.write({
+          levelLabel: options.logLevel.label,
+          line,
+        });
+      }),
+    ),
+  );
+});
+
+const RuntimeLoggerLive = Layer.unwrapEffect(makeRuntimeLoggerLayer());
 
 const RuntimeLoggerDependencies = Layer.mergeAll(RuntimeLogLevelStateLive, RuntimeLogSinkLive);
 
@@ -135,20 +144,11 @@ export const RuntimeLoggerLayer = Layer.mergeAll(
 );
 
 function parseRuntimeLogLevel(level: string | undefined) {
-  switch (level?.toLowerCase()) {
-    case "error":
-      return LOG_LEVELS.error;
-    case "warn":
-    case "warning":
-      return LOG_LEVELS.warn;
-    case "debug":
-      return LOG_LEVELS.debug;
-    case "trace":
-      return LOG_LEVELS.trace;
-    case "info":
-    default:
-      return LOG_LEVELS.info;
+  if (!level) {
+    return LOG_LEVELS.info;
   }
+
+  return LOG_LEVEL_ALIASES[level.toLowerCase()] ?? LOG_LEVELS.info;
 }
 
 function formatUnknown(value: unknown): string | undefined {

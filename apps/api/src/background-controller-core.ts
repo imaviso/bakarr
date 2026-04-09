@@ -28,8 +28,7 @@ export const makeBackgroundWorkerController = Effect.fn(
   const lifecycleSemaphore = yield* Effect.makeSemaphore(1);
 
   const isStarted = Effect.fn("BackgroundWorkerController.isStarted")(function* () {
-    const scope = yield* Ref.get(scopeRef);
-    return scope !== null;
+    return (yield* Ref.get(scopeRef)) !== null;
   });
 
   const stopCurrent = Effect.fn("BackgroundWorkerController.stopCurrent")(function* () {
@@ -38,6 +37,20 @@ export const makeBackgroundWorkerController = Effect.fn(
     if (current !== null) {
       yield* Scope.close(current, Exit.succeed(void 0));
     }
+  });
+
+  const spawnWorkerScope = Effect.fn("BackgroundWorkerController.spawnWorkerScope")(function* (
+    config: Config,
+  ) {
+    const scope = yield* Scope.make();
+    const exit = yield* Effect.exit(options.spawnWorkers(scope, config));
+
+    if (exit._tag === "Failure") {
+      yield* Scope.close(scope, Exit.void);
+      return yield* Effect.failCause(exit.cause);
+    }
+
+    return scope;
   });
 
   const start = Effect.fn("BackgroundWorkerController.start")(function* (config: Config) {
@@ -49,14 +62,7 @@ export const makeBackgroundWorkerController = Effect.fn(
           return;
         }
 
-        const scope = yield* Scope.make();
-        const exit = yield* Effect.exit(options.spawnWorkers(scope, config));
-
-        if (exit._tag === "Failure") {
-          yield* Scope.close(scope, Exit.void);
-          return yield* Effect.failCause(exit.cause);
-        }
-
+        const scope = yield* spawnWorkerScope(config);
         yield* Ref.set(scopeRef, scope);
       }),
     );
@@ -65,17 +71,8 @@ export const makeBackgroundWorkerController = Effect.fn(
   const reload = Effect.fn("BackgroundWorkerController.reload")(function* (config: Config) {
     yield* lifecycleSemaphore.withPermits(1)(
       Effect.gen(function* () {
-        const current = yield* Ref.get(scopeRef);
-
-        const scope = yield* Scope.make();
-        const exit = yield* Effect.exit(options.spawnWorkers(scope, config));
-
-        if (exit._tag === "Failure") {
-          yield* Scope.close(scope, Exit.void);
-          return yield* Effect.failCause(exit.cause);
-        }
-
-        yield* Ref.set(scopeRef, scope);
+        const scope = yield* spawnWorkerScope(config);
+        const current = yield* Ref.getAndSet(scopeRef, scope);
 
         if (current !== null) {
           yield* Scope.close(current, Exit.succeed(void 0));

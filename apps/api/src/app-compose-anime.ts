@@ -11,37 +11,29 @@ import { AnimeStreamServiceLive } from "@/features/anime/anime-stream-service.ts
 import { StreamTokenSignerLive } from "@/features/anime/stream-token-signer.ts";
 import { provideLayer } from "@/lib/layer-compose.ts";
 
-export function makeAnimeAppLayer<RSOut, RSE, RSR>(
-  runtimeSupportLayer: Layer.Layer<RSOut, RSE, RSR>,
-) {
-  const buildAnimeSubgraphLayers = () => {
-    const metadataEnrichmentLayer = AnimeMetadataEnrichmentServiceLive;
-    const metadataProviderLayer = provideLayer(
-      AnimeMetadataProviderServiceLive,
-      metadataEnrichmentLayer,
-    );
-    const animeMaintenanceLayer = provideLayer(AnimeMaintenanceServiceLive, metadataProviderLayer);
-    const streamTokenSignerLayer = StreamTokenSignerLive;
-    const animeStreamLayer = provideLayer(AnimeStreamServiceLive, streamTokenSignerLayer);
+type AnyLayer = Layer.Layer<any, any>;
 
-    const animeSubgraphLayer = Layer.mergeAll(
-      AnimeImageCacheServiceLive,
-      AnimeQueryServiceLive,
-      AnimeFileServiceLive,
-      animeMaintenanceLayer,
-      metadataEnrichmentLayer,
-      metadataProviderLayer,
-      AnimeSettingsServiceLive,
-      streamTokenSignerLayer,
-      animeStreamLayer,
-    );
+export function makeAnimeAppLayer(runtimeSupportLayer: AnyLayer) {
+  const metadataEnrichmentLayer = AnimeMetadataEnrichmentServiceLive;
+  const metadataProviderLayer = provideLayer(
+    AnimeMetadataProviderServiceLive,
+    metadataEnrichmentLayer,
+  );
+  const animeMaintenanceLayer = provideLayer(AnimeMaintenanceServiceLive, metadataProviderLayer);
+  const streamTokenSignerLayer = StreamTokenSignerLive;
+  const animeStreamLayer = provideLayer(AnimeStreamServiceLive, streamTokenSignerLayer);
 
-    return {
-      animeSubgraphLayer,
-    } as const;
-  };
+  const animeSubgraphLayer = Layer.mergeAll(
+    AnimeImageCacheServiceLive,
+    AnimeQueryServiceLive,
+    AnimeFileServiceLive,
+    animeMaintenanceLayer,
+    metadataEnrichmentLayer,
+    metadataProviderLayer,
+    AnimeSettingsServiceLive,
+    streamTokenSignerLayer,
+    animeStreamLayer,
+  );
 
-  const animeLayers = buildAnimeSubgraphLayers();
-
-  return provideLayer(animeLayers.animeSubgraphLayer, runtimeSupportLayer);
+  return provideLayer(animeSubgraphLayer, runtimeSupportLayer);
 }

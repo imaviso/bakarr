@@ -1,26 +1,25 @@
-function someCauseInChain(
-  cause: unknown,
-  predicate: (error: { code?: string | number; errno?: number; message?: string }) => boolean,
-): boolean {
+interface SqliteLikeError {
+  readonly code?: string | number;
+  readonly errno?: number;
+  readonly message?: string;
+}
+
+function* causeChain(cause: unknown): Generator<SqliteLikeError> {
   const seen = new Set<unknown>();
   let current: unknown = cause;
 
   while (current && typeof current === "object" && !seen.has(current)) {
     seen.add(current);
+    yield current as SqliteLikeError;
+    current = "cause" in current ? (current as { cause?: unknown }).cause : undefined;
+  }
+}
 
-    if (
-      predicate(
-        current as {
-          code?: string | number;
-          errno?: number;
-          message?: string;
-        },
-      )
-    ) {
+function someCauseInChain(cause: unknown, predicate: (error: SqliteLikeError) => boolean): boolean {
+  for (const error of causeChain(cause)) {
+    if (predicate(error)) {
       return true;
     }
-
-    current = "cause" in current ? (current as { cause?: unknown }).cause : undefined;
   }
 
   return false;

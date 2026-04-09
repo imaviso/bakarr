@@ -8,7 +8,6 @@ import type {
   LoginResponse,
 } from "@packages/shared/index.ts";
 import { AppConfig } from "@/config.ts";
-import type { AppDatabase } from "@/db/database.ts";
 import { Database, DatabaseError } from "@/db/database.ts";
 import { sessions, users } from "@/db/schema.ts";
 import { nowIsoFromClock, ClockService } from "@/lib/clock.ts";
@@ -55,41 +54,6 @@ export class AuthSessionService extends Context.Tag("@bakarr/api/AuthSessionServ
 const DAY_MS = 24 * 60 * 60 * 1000;
 const SESSION_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
-const expiresAtIso = Effect.fn("AuthSessionService.expiresAtIso")(function* (
-  durationDays: number,
-  currentTimeMillis: () => Effect.Effect<number>,
-) {
-  const now = yield* currentTimeMillis();
-  return new Date(now + durationDays * DAY_MS).toISOString();
-});
-
-const createSession = Effect.fn("AuthSessionService.createSession")(function* (
-  db: AppDatabase,
-  durationDays: number,
-  hashToken: (token: string) => Effect.Effect<string, TokenHasherError>,
-  userId: number,
-  randomHex: (bytes: number) => Effect.Effect<string>,
-  nowIso: () => Effect.Effect<string>,
-  currentTimeMillis: () => Effect.Effect<number>,
-) {
-  const token = yield* randomHex(32);
-  const tokenHash = yield* hashToken(token);
-  const now = yield* nowIso();
-  const expiresAt = yield* expiresAtIso(durationDays, currentTimeMillis);
-
-  yield* tryDatabasePromise("Failed to create session", () =>
-    db.insert(sessions).values({
-      createdAt: now,
-      expiresAt,
-      lastSeenAt: now,
-      token: tokenHash,
-      userId,
-    }),
-  );
-
-  return token;
-});
-
 const makeAuthSessionService = Effect.gen(function* () {
   const { db } = yield* Database;
   const config = yield* AppConfig;
@@ -100,6 +64,30 @@ const makeAuthSessionService = Effect.gen(function* () {
   const currentTimeMillis = () => clock.currentTimeMillis;
   const randomHex = (bytes: number) => randomHexFrom(random, bytes);
   const hashToken = tokenHasher.hashToken;
+
+  const expiresAtIso = Effect.fn("AuthSessionService.expiresAtIso")(function* () {
+    const now = yield* currentTimeMillis();
+    return new Date(now + config.sessionDurationDays * DAY_MS).toISOString();
+  });
+
+  const createSession = Effect.fn("AuthSessionService.createSession")(function* (userId: number) {
+    const token = yield* randomHex(32);
+    const tokenHash = yield* hashToken(token);
+    const now = yield* nowIso();
+    const expiresAt = yield* expiresAtIso();
+
+    yield* tryDatabasePromise("Failed to create session", () =>
+      db.insert(sessions).values({
+        createdAt: now,
+        expiresAt,
+        lastSeenAt: now,
+        token: tokenHash,
+        userId,
+      }),
+    );
+
+    return token;
+  });
 
   const login = Effect.fn("AuthSessionService.login")(function* (request: LoginRequest) {
     const rowOption = yield* findUserByUsername(db, request.username);
@@ -122,15 +110,7 @@ const makeAuthSessionService = Effect.gen(function* () {
       });
     }
 
-    const token = yield* createSession(
-      db,
-      config.sessionDurationDays,
-      hashToken,
-      row.id,
-      randomHex,
-      nowIso,
-      currentTimeMillis,
-    );
+    const token = yield* createSession(row.id);
 
     yield* writeAuthLog(
       db,
@@ -158,15 +138,7 @@ const makeAuthSessionService = Effect.gen(function* () {
 
     const row = rowOption.value;
 
-    const token = yield* createSession(
-      db,
-      config.sessionDurationDays,
-      hashToken,
-      row.id,
-      randomHex,
-      nowIso,
-      currentTimeMillis,
-    );
+    const token = yield* createSession(row.id);
 
     yield* writeAuthLog(
       db,
@@ -214,7 +186,7 @@ const makeAuthSessionService = Effect.gen(function* () {
           nowMillis - lastSeenAtMillis >= SESSION_REFRESH_INTERVAL_MS;
 
         if (needsRefresh) {
-          const expiresAt = yield* expiresAtIso(config.sessionDurationDays, currentTimeMillis);
+          const expiresAt = yield* expiresAtIso();
           yield* tryDatabasePromise("Failed to resolve the current user", () =>
             db
               .update(sessions)

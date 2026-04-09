@@ -1,5 +1,19 @@
 import { Deferred, Effect, Exit, Ref, Scope } from "effect";
 
+/**
+ * Latest-value coalescing publisher.
+ *
+ * State machine:
+ * - `idle`: no completion deferred and no running publish loop.
+ * - `publishing`: a publish is running and newer offered values replace `latest`.
+ * - `completing`: flush waits on the current completion deferred until the loop drains.
+ *
+ * Semantics:
+ * - Multiple `offer` calls while publishing coalesce to the most recent value.
+ * - `flush` waits for the currently active publish cycle to settle.
+ * - `shutdown` closes the runner scope and interrupts any forked loop.
+ */
+
 export interface LatestValuePublisher<A, E, R = never> {
   readonly flush: Effect.Effect<void, E>;
   readonly offer: (value: A) => Effect.Effect<void, never, R>;

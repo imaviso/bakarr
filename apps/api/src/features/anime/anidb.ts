@@ -196,37 +196,45 @@ const fetchAniDbEpisodesEffect = Effect.fn("AniDbClient.fetchEpisodes")(function
     } as const satisfies AniDbEpisodeLookupResult;
   }
 
-  const episodes: AniDbEpisodeMetadata[] = [];
+  const reachedEndRef = yield* Ref.make(false);
+  const episodeNumbers = Array.from({ length: input.episodeCount }, (_, index) => index + 1);
+  const episodeResults = yield* Effect.forEach(
+    episodeNumbers,
+    (episodeNumber) =>
+      Effect.gen(function* () {
+        const reachedEnd = yield* Ref.get(reachedEndRef);
 
-  for (let episodeNumber = 1; episodeNumber <= input.episodeCount; episodeNumber += 1) {
-    const response = yield* sendAniDbCommandEffect(
-      input.socket,
-      `EPISODE aid=${aidOption.value}&epno=${episodeNumber}&s=${input.sessionToken}`,
-      input.clock,
-      input.lastPacketAtRef,
-      "episode",
-    );
+        if (reachedEnd) {
+          return Option.none<AniDbEpisodeMetadata>();
+        }
 
-    if (response.code === 340) {
-      break;
-    }
+        const response = yield* sendAniDbCommandEffect(
+          input.socket,
+          `EPISODE aid=${aidOption.value}&epno=${episodeNumber}&s=${input.sessionToken}`,
+          input.clock,
+          input.lastPacketAtRef,
+          "episode",
+        );
 
-    if (response.code !== 240) {
-      return yield* ExternalCallError.make({
-        cause: new Error(`AniDB EPISODE failed with code ${response.code}`),
-        message: "AniDB episode lookup failed",
-        operation: "anidb.episode.response",
-      });
-    }
+        if (response.code === 340) {
+          yield* Ref.set(reachedEndRef, true);
+          return Option.none<AniDbEpisodeMetadata>();
+        }
 
-    const parsedEpisode = parseEpisodeResponse(response.lines[0], episodeNumber);
+        if (response.code !== 240) {
+          return yield* ExternalCallError.make({
+            cause: new Error(`AniDB EPISODE failed with code ${response.code}`),
+            message: "AniDB episode lookup failed",
+            operation: "anidb.episode.response",
+          });
+        }
 
-    if (!parsedEpisode) {
-      continue;
-    }
+        return Option.fromNullable(parseEpisodeResponse(response.lines[0], episodeNumber));
+      }),
+    { concurrency: 1 },
+  );
 
-    episodes.push(parsedEpisode);
-  }
+  const episodes = episodeResults.filter(Option.isSome).map((result) => result.value);
 
   return {
     _tag: "AniDbLookupSuccess",

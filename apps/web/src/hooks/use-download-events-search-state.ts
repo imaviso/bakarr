@@ -73,6 +73,7 @@ export function useDownloadEventsSearchState<TSearch extends Record<string, unkn
   const applyDateRangePreset = (hours: number) => {
     const end = new Date();
     const start = new Date(end.getTime() - hours * 60 * 60 * 1000);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
     options.updateSearch({
       [options.keys.cursor]: "",
       [options.keys.direction]: "next",
@@ -82,29 +83,34 @@ export function useDownloadEventsSearchState<TSearch extends Record<string, unkn
   };
 
   const updateFilter = (field: keyof DownloadEventsFilterValue, value: string) => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
     const patch = {
       [options.keys.cursor]: "",
       [options.keys.direction]: "next",
     } as Partial<TSearch>;
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+    const typedValue = value as TSearch[keyof TSearch];
+
     if (field === "animeId") {
-      patch[options.keys.animeId] = value as TSearch[keyof TSearch];
+      patch[options.keys.animeId] = typedValue;
     } else if (field === "downloadId") {
-      patch[options.keys.downloadId] = value as TSearch[keyof TSearch];
+      patch[options.keys.downloadId] = typedValue;
     } else if (field === "endDate") {
-      patch[options.keys.endDate] = value as TSearch[keyof TSearch];
+      patch[options.keys.endDate] = typedValue;
     } else if (field === "eventType") {
-      patch[options.keys.eventType] = value as TSearch[keyof TSearch];
+      patch[options.keys.eventType] = typedValue;
     } else if (field === "startDate") {
-      patch[options.keys.startDate] = value as TSearch[keyof TSearch];
+      patch[options.keys.startDate] = typedValue;
     } else {
-      patch[options.keys.status] = value as TSearch[keyof TSearch];
+      patch[options.keys.status] = typedValue;
     }
 
     options.updateSearch(patch);
   };
 
   const resetFilters = () => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
     options.updateSearch({
       [options.keys.animeId]: "",
       [options.keys.cursor]: "",

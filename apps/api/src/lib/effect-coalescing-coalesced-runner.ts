@@ -1,5 +1,13 @@
 import { Deferred, Effect, Ref, Scope } from "effect";
 
+/**
+ * Coalesced runner.
+ *
+ * If `trigger` is called while an execution is running, a single pending rerun is recorded.
+ * After the current run succeeds, the runner immediately drains one more run, and repeats
+ * until no pending trigger remains.
+ */
+
 export interface CoalescedEffectRunner<E, R = never> {
   readonly trigger: Effect.Effect<void, E, R>;
 }

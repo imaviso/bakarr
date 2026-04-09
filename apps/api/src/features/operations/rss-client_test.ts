@@ -3,7 +3,7 @@ import { Cause, Effect, Exit, Layer } from "effect";
 
 import { ClockServiceLive } from "@/lib/clock.ts";
 import { DnsLookupError, DnsResolver } from "@/lib/dns-resolver.ts";
-import { ExternalCallError } from "@/lib/effect-retry.ts";
+import { ExternalCallError, ExternalCallLive } from "@/lib/effect-retry.ts";
 import { RssClient, RssClientLive } from "@/features/operations/rss-client.ts";
 import {
   buildRssTransportRequestConfigForTest,
@@ -18,6 +18,8 @@ import {
   RssFeedRejectedError,
   RssFeedTooLargeError,
 } from "@/features/operations/errors.ts";
+
+const ExternalCallTestLayer = ExternalCallLive.pipe(Layer.provide(ClockServiceLive));
 
 function makeDnsLayer(mock: (name: string, type: "A" | "AAAA") => Promise<string[]>) {
   return Layer.succeed(DnsResolver, {
@@ -74,6 +76,7 @@ function rssLayer(
     Layer.provide(
       Layer.mergeAll(
         ClockServiceLive,
+        ExternalCallTestLayer,
         Layer.succeed(RssTransport, transport),
         makeDnsLayer(dnsMock),
       ),
@@ -572,6 +575,7 @@ it.scoped("RssClient handles redirects manually when the transport returns 302 r
               Layer.provide(
                 Layer.mergeAll(
                   ClockServiceLive,
+                  ExternalCallTestLayer,
                   Layer.succeed(RssTransport, {
                     execute: (target) => {
                       calls.push(target.parsedUrl.href);

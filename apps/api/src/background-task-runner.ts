@@ -57,37 +57,36 @@ export const BackgroundTaskRunnerLive = Layer.effect(
       yield* backgroundSearchRssWorkerService.runRssWorker();
     });
 
-    const runDownloadSyncWorkerTask = yield* withLockEffectOrFail(
+    const downloadSyncWorkerTask = yield* withLockEffectOrFail(
       "download_sync",
       runDownloadSyncTask(),
       monitor,
       clock,
     );
-    const runLibraryScanWorkerTask = yield* withLockEffectOrFail(
+    const libraryScanWorkerTask = yield* withLockEffectOrFail(
       "library_scan",
       runLibraryScanTask(),
       monitor,
       clock,
     );
-    const runMetadataRefreshWorkerTask = yield* withLockEffectOrFail(
+    const metadataRefreshWorkerTask = yield* withLockEffectOrFail(
       "metadata_refresh",
       runMetadataRefreshTask(),
       monitor,
       clock,
     );
-    const runRssWorkerTask = yield* withLockEffectOrFail("rss", runRssTask(), monitor, clock);
+    const rssWorkerTask = yield* withLockEffectOrFail("rss", runRssTask(), monitor, clock);
+
+    const runDownloadSyncWorkerTask = () => downloadSyncWorkerTask;
+    const runLibraryScanWorkerTask = () => libraryScanWorkerTask;
+    const runMetadataRefreshWorkerTask = () => metadataRefreshWorkerTask;
+    const runRssWorkerTask = () => rssWorkerTask;
 
     return BackgroundTaskRunner.of({
-      runDownloadSyncWorkerTask: Effect.fn("BackgroundTaskRunner.runDownloadSyncWorkerTask")(
-        () => runDownloadSyncWorkerTask,
-      ),
-      runLibraryScanWorkerTask: Effect.fn("BackgroundTaskRunner.runLibraryScanWorkerTask")(
-        () => runLibraryScanWorkerTask,
-      ),
-      runMetadataRefreshWorkerTask: Effect.fn("BackgroundTaskRunner.runMetadataRefreshWorkerTask")(
-        () => runMetadataRefreshWorkerTask,
-      ),
-      runRssWorkerTask: Effect.fn("BackgroundTaskRunner.runRssWorkerTask")(() => runRssWorkerTask),
+      runDownloadSyncWorkerTask,
+      runLibraryScanWorkerTask,
+      runMetadataRefreshWorkerTask,
+      runRssWorkerTask,
     });
   }),
 );

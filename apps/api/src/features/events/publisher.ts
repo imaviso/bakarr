@@ -30,6 +30,7 @@ interface CoalescedInfoEvent {
 }
 
 export const makeEventPublisher = Effect.fn("Events.makeEventPublisher")((options?: {
+  readonly getCurrentTime?: Effect.Effect<number>;
   readonly infoEventToastWindowMs?: number;
   readonly publish?: (event: NotificationEvent) => Effect.Effect<void>;
 }) => {
@@ -38,10 +39,11 @@ export const makeEventPublisher = Effect.fn("Events.makeEventPublisher")((option
   return Effect.gen(function* () {
     const publishEvent = options?.publish ?? (yield* EventBus).publish;
     const clock = yield* ClockService;
+    const getCurrentTime = options?.getCurrentTime ?? clock.currentTimeMillis;
     const infoPublisher: LatestValuePublisher<CoalescedInfoEvent, never> =
       yield* makeLatestValuePublisher<CoalescedInfoEvent, never, never>((value) =>
         Effect.gen(function* () {
-          const now = yield* clock.currentTimeMillis;
+          const now = yield* getCurrentTime;
           const remainingMs = value.emitAt - now;
 
           if (remainingMs > 0) {
@@ -55,7 +57,7 @@ export const makeEventPublisher = Effect.fn("Events.makeEventPublisher")((option
       yield* publishEvent(event);
     });
     const publishInfo = Effect.fn("EventPublisher.publishInfo")(function* (message: string) {
-      const now = yield* clock.currentTimeMillis;
+      const now = yield* getCurrentTime;
 
       yield* infoPublisher.offer({
         emitAt: now + infoEventToastWindowMs,

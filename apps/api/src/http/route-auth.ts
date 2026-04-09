@@ -22,20 +22,23 @@ export function mapAuthRouteError(error: unknown): RouteErrorResponse {
   return mapRouteError(error);
 }
 
+function extractApiKeyFromHeaders(headers: Readonly<Record<string, string | undefined>>) {
+  const headerApiKey = headers["x-api-key"];
+
+  if (headerApiKey) {
+    return headerApiKey;
+  }
+
+  const authorization = headers["authorization"];
+  return authorization?.startsWith("Bearer ") ? authorization.slice("Bearer ".length) : undefined;
+}
+
 export const requireViewerFromHttpRequest = Effect.fn("Http.requireViewerFromHttpRequest")(
   function* () {
     const request = yield* HttpServerRequest.HttpServerRequest;
     const config = yield* AppConfig;
     const sessionToken = request.cookies[config.sessionCookieName];
-    const headerApiKey = request.headers["x-api-key"];
-    const authorization = request.headers["authorization"];
-    let apiKey: string | undefined;
-
-    if (headerApiKey) {
-      apiKey = headerApiKey;
-    } else if (authorization?.startsWith("Bearer ")) {
-      apiKey = authorization.slice("Bearer ".length);
-    }
+    const apiKey = extractApiKeyFromHeaders(request.headers);
 
     const viewer = yield* Effect.flatMap(AuthSessionService, (auth) =>
       auth.resolveViewer(sessionToken, apiKey),

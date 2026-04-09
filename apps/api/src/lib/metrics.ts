@@ -125,52 +125,85 @@ export function renderBakarrPrometheusMetrics(
   const metricLines: string[] = [];
   const seenTypes = new Set<string>();
 
-  for (const pair of [...snapshot]
-    .filter((item) => item.metricKey.name.startsWith("bakarr_"))
-    .toSorted(compareMetricPairs)) {
-    const metricName = pair.metricKey.name;
-    const tags = normalizeTags(pair.metricKey.tags);
-    const state = pair.metricState;
-
-    if (isHistogramState(state)) {
-      if (!seenTypes.has(metricName)) {
-        metricLines.push(`# TYPE ${metricName} histogram`);
-        seenTypes.add(metricName);
-      }
-
-      for (const [boundary, count] of state.buckets) {
-        metricLines.push(
-          `${metricName}_bucket${formatLabels([...tags, ["le", formatNumber(boundary)]])} ${count}`,
-        );
-      }
-
-      metricLines.push(
-        `${metricName}_bucket${formatLabels([...tags, ["le", "+Inf"]])} ${state.count}`,
-      );
-      metricLines.push(`${metricName}_sum${formatLabels(tags)} ${state.sum}`);
-      metricLines.push(`${metricName}_count${formatLabels(tags)} ${state.count}`);
-      continue;
-    }
-
-    if (isGaugeState(state)) {
-      if (!seenTypes.has(metricName)) {
-        metricLines.push(`# TYPE ${metricName} gauge`);
-        seenTypes.add(metricName);
-      }
-      metricLines.push(`${metricName}${formatLabels(tags)} ${formatNumber(state.value)}`);
-      continue;
-    }
-
-    if (isCounterState(state)) {
-      if (!seenTypes.has(metricName)) {
-        metricLines.push(`# TYPE ${metricName} counter`);
-        seenTypes.add(metricName);
-      }
-      metricLines.push(`${metricName}${formatLabels(tags)} ${formatNumber(state.count)}`);
-    }
+  for (const pair of sortMetricPairs(filterBakarrMetrics(snapshot))) {
+    renderMetricPair(pair, metricLines, seenTypes);
   }
 
   return metricLines;
+}
+
+type MetricPair = {
+  readonly metricKey: {
+    readonly name: string;
+    readonly tags: ReadonlyArray<{ readonly key: string; readonly value: string }>;
+  };
+  readonly metricState: unknown;
+};
+
+function filterBakarrMetrics(snapshot: ReadonlyArray<MetricPair>) {
+  return snapshot.filter((item) => item.metricKey.name.startsWith("bakarr_"));
+}
+
+function sortMetricPairs(snapshot: ReadonlyArray<MetricPair>) {
+  return [...snapshot].toSorted(compareMetricPairs);
+}
+
+function renderMetricPair(pair: MetricPair, metricLines: string[], seenTypes: Set<string>) {
+  const metricName = pair.metricKey.name;
+  const tags = normalizeTags(pair.metricKey.tags);
+  const state = pair.metricState;
+
+  if (isHistogramState(state)) {
+    ensureMetricType(metricLines, seenTypes, metricName, "histogram");
+    metricLines.push(...renderHistogramMetricLines(metricName, tags, state));
+    return;
+  }
+
+  if (isGaugeState(state)) {
+    ensureMetricType(metricLines, seenTypes, metricName, "gauge");
+    metricLines.push(`${metricName}${formatLabels(tags)} ${formatNumber(state.value)}`);
+    return;
+  }
+
+  if (isCounterState(state)) {
+    ensureMetricType(metricLines, seenTypes, metricName, "counter");
+    metricLines.push(`${metricName}${formatLabels(tags)} ${formatNumber(state.count)}`);
+  }
+}
+
+function ensureMetricType(
+  metricLines: string[],
+  seenTypes: Set<string>,
+  metricName: string,
+  type: "counter" | "gauge" | "histogram",
+) {
+  if (seenTypes.has(metricName)) {
+    return;
+  }
+
+  metricLines.push(`# TYPE ${metricName} ${type}`);
+  seenTypes.add(metricName);
+}
+
+function renderHistogramMetricLines(
+  metricName: string,
+  tags: ReadonlyArray<readonly [string, string]>,
+  state: {
+    readonly buckets: ReadonlyArray<readonly [number, number]>;
+    readonly count: number;
+    readonly sum: number;
+  },
+) {
+  const lines = state.buckets.map(
+    ([boundary, count]) =>
+      `${metricName}_bucket${formatLabels([...tags, ["le", formatNumber(boundary)]])} ${count}`,
+  );
+
+  lines.push(`${metricName}_bucket${formatLabels([...tags, ["le", "+Inf"]])} ${state.count}`);
+  lines.push(`${metricName}_sum${formatLabels(tags)} ${state.sum}`);
+  lines.push(`${metricName}_count${formatLabels(tags)} ${state.count}`);
+
+  return lines;
 }
 
 function withHttpTags<Type, In, Out>(

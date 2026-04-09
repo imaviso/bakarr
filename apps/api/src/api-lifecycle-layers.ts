@@ -35,22 +35,26 @@ export function makeApiLifecycleLayers(
   overrides: Partial<AppConfigShape> = {},
   options?: ApiLifecycleOptions,
 ) {
+  // Platform core: config, database, runtime primitives, logging.
   const platformCoreLayer = makeAppPlatformCoreRuntimeLayer(overrides, options);
   const platformRuntimeLayer = options?.commandExecutorLayer
     ? Layer.mergeAll(platformCoreLayer, options.commandExecutorLayer)
     : platformCoreLayer;
 
+  // Runtime config graph: system config -> validated runtime snapshot.
   const systemConfigLayer = provideLayer(SystemConfigServiceLive, platformRuntimeLayer);
   const runtimeConfigSnapshotLayer = provideLayer(
     RuntimeConfigSnapshotServiceLive,
     systemConfigLayer,
   );
 
+  // External clients depend on runtime config + platform runtime.
   const externalClientLayer = provideLayer(
     makeAppExternalClientLayer(options),
     Layer.mergeAll(platformRuntimeLayer, runtimeConfigSnapshotLayer),
   );
 
+  // Infrastructure layer adds command-backed probing services.
   const platformExternalLayer = Layer.mergeAll(platformRuntimeLayer, externalClientLayer);
   const infrastructureLayer = provideLayer(
     Layer.mergeAll(MediaProbeLive, DiskSpaceInspectorLive),
@@ -64,11 +68,13 @@ export function makeApiLifecycleLayers(
   );
   const withRuntimeSupport = provideFrom(runtimeSupportLayer);
 
+  // Domain feature subgraphs.
   const animeLayer = makeAnimeAppLayer(runtimeSupportLayer);
   const { catalogDownloadReadLayer, operationsLayer, operationsProgressLayer, torrentClientLayer } =
     makeOperationsAppLayers(runtimeSupportLayer);
   const appDomainSubgraphLayer = Layer.mergeAll(animeLayer, operationsLayer);
 
+  // Background worker runtime sits on top of domain + runtime support.
   const backgroundTaskRunnerLayer = provideLayer(
     BackgroundTaskRunnerLive,
     Layer.mergeAll(appDomainSubgraphLayer, runtimeSupportLayer),
@@ -82,6 +88,7 @@ export function makeApiLifecycleLayers(
     backgroundControllerLayer,
   );
 
+  // System + auth + orchestration features.
   const systemLayer = makeSystemAppLayer({
     backgroundControllerLayer,
     catalogDownloadReadLayer,
@@ -110,7 +117,7 @@ export function makeApiLifecycleLayers(
     libraryLayer,
     animeEnrollmentLayer,
   );
-  const appLayer = withRuntimeSupport(appFeatureSubgraphLayer);
+  const appLayer: Layer.Layer<any, any> = withRuntimeSupport(appFeatureSubgraphLayer);
 
   return {
     appLayer,

@@ -2,7 +2,7 @@ import { assert, it } from "@effect/vitest";
 import { Effect, Either, Fiber, TestClock } from "effect";
 
 import type { ClockServiceShape } from "@/lib/clock.ts";
-import { ExternalCallError, makeTryExternal, makeTryExternalEffect } from "@/lib/effect-retry.ts";
+import { ExternalCallError, makeExternalCall } from "@/lib/effect-retry.ts";
 
 class TestFailureError extends Error {
   readonly _tag = "TestFailureError";
@@ -11,17 +11,19 @@ class TestFailureError extends Error {
 it.effect("tryExternal retries transient failures", () =>
   Effect.gen(function* () {
     let attempts = 0;
-    const tryExternal = makeTryExternal(testClock);
+    const externalCall = makeExternalCall(testClock);
 
-    const fiber = yield* tryExternal("test.retry", () => {
-      attempts += 1;
+    const fiber = yield* externalCall
+      .tryExternal("test.retry", () => {
+        attempts += 1;
 
-      if (attempts < 3) {
-        throw new Error("transient");
-      }
+        if (attempts < 3) {
+          throw new Error("transient");
+        }
 
-      return Promise.resolve("ok");
-    })().pipe(Effect.fork);
+        return Promise.resolve("ok");
+      })
+      .pipe(Effect.fork);
 
     yield* TestClock.adjust("1 second");
 
@@ -34,15 +36,17 @@ it.effect("tryExternal retries transient failures", () =>
 
 it.effect("tryExternal wraps timeout failures as ExternalCallError", () =>
   Effect.gen(function* () {
-    const tryExternal = makeTryExternal(testClock);
-    const fiber = yield* tryExternal("test.timeout", async (signal) => {
-      signal.throwIfAborted();
-      await new Promise((_, reject) => {
-        signal.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
-      });
+    const externalCall = makeExternalCall(testClock);
+    const fiber = yield* externalCall
+      .tryExternal("test.timeout", async (signal) => {
+        signal.throwIfAborted();
+        await new Promise((_, reject) => {
+          signal.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
+        });
 
-      return "never";
-    })().pipe(Effect.either, Effect.fork);
+        return "never";
+      })
+      .pipe(Effect.either, Effect.fork);
 
     yield* TestClock.adjust("31 seconds");
 
@@ -56,15 +60,17 @@ it.effect("tryExternal wraps timeout failures as ExternalCallError", () =>
 it.effect("tryExternalEffect does not retry non-idempotent failures", () =>
   Effect.gen(function* () {
     let attempts = 0;
-    const tryExternalEffect = makeTryExternalEffect(testClock);
+    const externalCall = makeExternalCall(testClock);
 
-    const result = yield* tryExternalEffect(
-      "test.non-idempotent",
-      Effect.sync(() => {
-        attempts += 1;
-      }).pipe(Effect.zipRight(Effect.fail(new TestFailureError()))),
-      { idempotent: false },
-    )().pipe(Effect.either);
+    const result = yield* externalCall
+      .tryExternalEffect(
+        "test.non-idempotent",
+        Effect.sync(() => {
+          attempts += 1;
+        }).pipe(Effect.zipRight(Effect.fail(new TestFailureError()))),
+        { idempotent: false },
+      )
+      .pipe(Effect.either);
 
     assert.ok(Either.isLeft(result));
     assert.ok(result.left instanceof ExternalCallError);

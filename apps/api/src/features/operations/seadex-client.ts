@@ -1,8 +1,7 @@
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
 import { Context, Effect, Layer, Option, Schema } from "effect";
 
-import { ClockService } from "@/lib/clock.ts";
-import { ExternalCallError, makeTryExternalEffect } from "@/lib/effect-retry.ts";
+import { ExternalCall, ExternalCallError } from "@/lib/effect-retry.ts";
 
 interface SeaDexClientShape {
   readonly getEntryByAniListId: (
@@ -64,8 +63,7 @@ export const SeaDexClientLive = Layer.effect(
   SeaDexClient,
   Effect.gen(function* () {
     const client = yield* HttpClient.HttpClient;
-    const clock = yield* ClockService;
-    const tryExternalEffect = makeTryExternalEffect(clock);
+    const externalCall = yield* ExternalCall;
 
     const getEntryByAniListId = Effect.fn("SeaDexClient.getEntryByAniListId")(function* (
       aniListId: number,
@@ -95,7 +93,10 @@ export const SeaDexClientLive = Layer.effect(
       const request = HttpClientRequest.get(
         `${SEADEX_API_BASE}/entries/records?${params.toString()}`,
       );
-      const response = yield* tryExternalEffect("seadex.entry", client.execute(request))();
+      const response = yield* externalCall.tryExternalEffect(
+        "seadex.entry",
+        client.execute(request),
+      );
 
       if (response.status < 200 || response.status >= 300) {
         return yield* ExternalCallError.make({

@@ -4,6 +4,9 @@ import { Effect, Layer, Option } from "effect";
 
 import { AniListClient, AniListClientLive } from "@/features/anime/anilist.ts";
 import { ClockServiceLive } from "@/lib/clock.ts";
+import { ExternalCallLive } from "@/lib/effect-retry.ts";
+
+const ExternalCallTestLayer = ExternalCallLive.pipe(Layer.provide(ClockServiceLive));
 
 it.scoped("AniListClient decodes search responses from the provided HttpClient", () =>
   Effect.gen(function* () {
@@ -13,6 +16,7 @@ it.scoped("AniListClient decodes search responses from the provided HttpClient",
       Layer.provide(
         Layer.mergeAll(
           ClockServiceLive,
+          ExternalCallTestLayer,
           Layer.succeed(
             HttpClient.HttpClient,
             makeAniListClient(
@@ -138,6 +142,7 @@ it.scoped("AniListClient decodes detail responses from the provided HttpClient",
       Layer.provide(
         Layer.mergeAll(
           ClockServiceLive,
+          ExternalCallTestLayer,
           Layer.succeed(
             HttpClient.HttpClient,
             makeAniListClient(
@@ -272,6 +277,7 @@ it.scoped("AniListClient keeps next airing as future schedule fallback", () =>
       Layer.provide(
         Layer.mergeAll(
           ClockServiceLive,
+          ExternalCallTestLayer,
           Layer.succeed(
             HttpClient.HttpClient,
             makeAniListClient(() => {}, [], {

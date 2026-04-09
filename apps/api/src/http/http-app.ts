@@ -17,17 +17,20 @@ export function createHttpApp(
   } = {},
 ) {
   const staticWebAssets = options.staticWebAssets ?? embeddedWebAssets;
-
-  return HttpRouter.empty.pipe(
+  const operationsRouter = HttpRouter.concatAll(
+    downloadsRouter,
+    rssRouter,
+    libraryRouter,
+    searchRouter,
+  );
+  const apiRouter = HttpRouter.empty.pipe(
     HttpRouter.concat(HttpRouter.prefixAll(authRouter, "/api/auth")),
     HttpRouter.concat(HttpRouter.prefixAll(animeRouter, "/api")),
-    HttpRouter.concat(
-      HttpRouter.prefixAll(
-        HttpRouter.concatAll(downloadsRouter, rssRouter, libraryRouter, searchRouter),
-        "/api",
-      ),
-    ),
+    HttpRouter.concat(HttpRouter.prefixAll(operationsRouter, "/api")),
     HttpRouter.concat(systemRouter),
+  );
+
+  return apiRouter.pipe(
     HttpRouter.get(
       "*",
       Effect.gen(function* () {

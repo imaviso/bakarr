@@ -9,6 +9,7 @@ import { BackgroundWorkerMonitorLive } from "@/background-monitor.ts";
 import { EventBusLive } from "@/features/events/event-bus.ts";
 import { EventPublisherLive } from "@/features/events/publisher.ts";
 import { ClockServiceLive } from "@/lib/clock.ts";
+import { ExternalCallLive } from "@/lib/effect-retry.ts";
 import { FileSystemLive } from "@/lib/filesystem.ts";
 import { RandomServiceLive } from "@/lib/random.ts";
 import { RuntimeLoggerLayer } from "@/lib/logging.ts";
@@ -27,18 +28,22 @@ export function makeAppPlatformCoreRuntimeLayer(
     RandomServiceLive,
     FetchHttpClient.layer,
   );
+  const withCoreSupport = <A, E, R>(layer: Layer.Layer<A, E, R>) =>
+    layer.pipe(Layer.provide(coreSupportLayer));
+
   const configBaseLayer = options?.configProvider
     ? AppConfig.layer(overrides).pipe(
         Layer.provide(Layer.setConfigProvider(options.configProvider)),
       )
     : AppConfig.layer(overrides);
-  const configLayer = configBaseLayer.pipe(Layer.provide(coreSupportLayer));
-  const runtimeLayer = AppRuntime.layer().pipe(Layer.provide(coreSupportLayer));
+  const configLayer = withCoreSupport(configBaseLayer);
+  const runtimeLayer = withCoreSupport(AppRuntime.layer());
+  const externalCallLayer = withCoreSupport(ExternalCallLive);
   const databaseLayer = DatabaseLayerLive.pipe(Layer.provide(configLayer));
   const eventBusLayer = EventBusLive;
   const eventSupportLayer = Layer.mergeAll(eventBusLayer, coreSupportLayer);
   const eventPublisherLayer = EventPublisherLive.pipe(Layer.provide(eventSupportLayer));
-  const backgroundMonitorLayer = BackgroundWorkerMonitorLive.pipe(Layer.provide(coreSupportLayer));
+  const backgroundMonitorLayer = withCoreSupport(BackgroundWorkerMonitorLive);
 
   return Layer.mergeAll(
     BunContext.layer,
@@ -47,6 +52,7 @@ export function makeAppPlatformCoreRuntimeLayer(
     runtimeLayer,
     RuntimeLoggerLayer,
     databaseLayer,
+    externalCallLayer,
     eventBusLayer,
     eventPublisherLayer,
     backgroundMonitorLayer,

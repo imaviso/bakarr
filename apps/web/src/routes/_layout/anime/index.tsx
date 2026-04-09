@@ -193,7 +193,7 @@ function AnimeIndexPage() {
             <DropdownMenuContent>
               <DropdownMenuRadioGroup
                 value={search().filter}
-                onChange={(value) => updateFilter(value as "all" | "monitored" | "unmonitored")}
+                onChange={(value) => updateFilter(value)}
               >
                 <DropdownMenuRadioItem value="all">All Anime</DropdownMenuRadioItem>
                 <DropdownMenuRadioItem value="monitored">Monitored</DropdownMenuRadioItem>

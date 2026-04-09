@@ -1,5 +1,12 @@
 import { Deferred, Effect, Ref } from "effect";
 
+/**
+ * Single-flight runner.
+ *
+ * Concurrent `trigger` calls share one in-flight execution and all wait on the same deferred.
+ * The next call after completion starts a fresh execution.
+ */
+
 export interface SingleFlightEffectRunner<A, E, R = never> {
   readonly trigger: Effect.Effect<A, E, R>;
 }

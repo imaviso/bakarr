@@ -80,6 +80,18 @@ export interface FileSystemShape {
 
 const DIRECTORY_STAT_CONCURRENCY = 16;
 
+const FILE_TYPE_FLAGS = {
+  Directory: { isDirectory: true, isFile: false, isSymlink: false },
+  File: { isDirectory: false, isFile: true, isSymlink: false },
+  SymbolicLink: { isDirectory: false, isFile: false, isSymlink: true },
+} as const;
+
+const UNKNOWN_FILE_TYPE_FLAGS = {
+  isDirectory: false,
+  isFile: false,
+  isSymlink: false,
+} as const;
+
 export class FileSystem extends Context.Tag("@bakarr/api/FileSystem")<
   FileSystem,
   FileSystemShape
@@ -106,15 +118,11 @@ function toOpenFlag(options: OpenFileOptions): PlatformFileSystem.OpenFlag {
     return read ? "a+" : "a";
   }
 
-  if (write) {
-    if (truncate || create) {
-      return read ? "w+" : "w";
-    }
-
-    return read ? "r+" : "w";
+  if (!write) {
+    return "r";
   }
 
-  return "r";
+  return truncate || create ? (read ? "w+" : "w") : read ? "r+" : "w";
 }
 
 function toMkdirOptions(
@@ -136,21 +144,34 @@ function toRemoveOptions(options?: RemoveOptions): PlatformFileSystem.RemoveOpti
 }
 
 function toFileInfo(info: PlatformFileSystem.File.Info): FileInfo {
+  const typeFlags = toFileTypeFlags(info.type);
+
   return {
-    isDirectory: info.type === "Directory",
-    isFile: info.type === "File",
-    isSymlink: info.type === "SymbolicLink",
+    ...typeFlags,
     size: Number(info.size),
   };
 }
 
 function toDirEntry(name: string, info: PlatformFileSystem.File.Info): DirEntry {
+  const typeFlags = toFileTypeFlags(info.type);
+
   return {
+    ...typeFlags,
     name,
-    isDirectory: info.type === "Directory",
-    isFile: info.type === "File",
-    isSymlink: info.type === "SymbolicLink",
   };
+}
+
+function toFileTypeFlags(type: string) {
+  switch (type) {
+    case "Directory":
+      return FILE_TYPE_FLAGS.Directory;
+    case "File":
+      return FILE_TYPE_FLAGS.File;
+    case "SymbolicLink":
+      return FILE_TYPE_FLAGS.SymbolicLink;
+    default:
+      return UNKNOWN_FILE_TYPE_FLAGS;
+  }
 }
 
 function toOpenFileHandle(file: PlatformFileSystem.File, path: string | URL): FileHandle {

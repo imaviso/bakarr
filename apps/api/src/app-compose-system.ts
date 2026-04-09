@@ -16,15 +16,15 @@ import { SystemRuntimeMetricsServiceLive } from "@/features/system/system-runtim
 import { SystemStatusReadServiceLive } from "@/features/system/system-status-read-service.ts";
 import { provideFrom, provideLayer } from "@/lib/layer-compose.ts";
 
-interface SystemAppLayerInput<BCOut, BCE, BCR, CDOut, CDE, CDR, RSOut, RSE, RSR> {
-  readonly backgroundControllerLayer: Layer.Layer<BCOut, BCE, BCR>;
-  readonly catalogDownloadReadLayer: Layer.Layer<CDOut, CDE, CDR>;
-  readonly runtimeSupportLayer: Layer.Layer<RSOut, RSE, RSR>;
+type AnyLayer = Layer.Layer<any, any>;
+
+interface SystemAppLayerInput {
+  readonly backgroundControllerLayer: AnyLayer;
+  readonly catalogDownloadReadLayer: AnyLayer;
+  readonly runtimeSupportLayer: AnyLayer;
 }
 
-export function makeSystemAppLayer<BCOut, BCE, BCR, CDOut, CDE, CDR, RSOut, RSE, RSR>(
-  input: SystemAppLayerInput<BCOut, BCE, BCR, CDOut, CDE, CDR, RSOut, RSE, RSR>,
-) {
+export function makeSystemAppLayer(input: SystemAppLayerInput) {
   const { backgroundControllerLayer, catalogDownloadReadLayer, runtimeSupportLayer } = input;
   const withRuntime = provideFrom(runtimeSupportLayer);
   const withBackgroundController = provideFrom(backgroundControllerLayer);

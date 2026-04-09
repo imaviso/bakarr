@@ -252,29 +252,31 @@ function collectEpisodeSearchReleases(
   config: Config,
   searchNyaaReleases: SearchNyaaReleases,
 ): Effect.Effect<ParsedRelease[], SearchReleaseSourceError> {
-  return Effect.gen(function* () {
-    const results: ParsedRelease[] = [];
+  const seenInfoHashes = new Set<string>();
 
-    for (const query of buildEpisodeSearchQueries(animeRow, episodeNumber)) {
-      const items = yield* searchNyaaReleases(query, config);
+  return Effect.forEach(
+    buildEpisodeSearchQueries(animeRow, episodeNumber),
+    (query) =>
+      seenInfoHashes.size >= 10
+        ? Effect.succeed([] as readonly ParsedRelease[])
+        : searchNyaaReleases(query, config).pipe(
+            Effect.map((items) =>
+              items.filter((item) => {
+                if (seenInfoHashes.size >= 10 || !shouldKeepEpisodeRelease(item, episodeNumber)) {
+                  return false;
+                }
 
-      for (const item of items) {
-        if (!shouldKeepEpisodeRelease(item, episodeNumber)) {
-          continue;
-        }
+                if (seenInfoHashes.has(item.infoHash)) {
+                  return false;
+                }
 
-        if (!results.some((existing) => existing.infoHash === item.infoHash)) {
-          results.push(item);
-        }
-      }
-
-      if (results.length >= 10) {
-        break;
-      }
-    }
-
-    return results;
-  });
+                seenInfoHashes.add(item.infoHash);
+                return true;
+              }),
+            ),
+          ),
+    { concurrency: 1 },
+  ).pipe(Effect.map((groups) => groups.flat().slice(0, 10)));
 }
 
 export class SearchReleaseService extends Context.Tag("@bakarr/api/SearchReleaseService")<

@@ -41,8 +41,41 @@ export interface NamingInput {
   readonly airDate?: string | undefined;
 }
 
+const RESOLUTION_TOKEN_PATTERN = /\{resolution\}/;
+
+const TOKEN_PATTERNS = {
+  airDate: /\{air_date\}/g,
+  audioChannels: /\{audio_channels\}/g,
+  audioCodec: /\{audio_codec\}/g,
+  episode: /\{episode(?::(\d+))?\}/g,
+  episodeSegment: /\{episode_segment\}/g,
+  episodeTitle: /\{episode_title\}/g,
+  group: /\{group\}/g,
+  quality: /\{quality\}/g,
+  resolution: /\{resolution\}/g,
+  season: /\{season(?::(\d+))?\}/g,
+  sourceEpisodeSegment: /\{source_episode_segment\}/g,
+  title: /\{title\}/g,
+  videoCodec: /\{video_codec\}/g,
+  year: /\{year\}/g,
+} as const;
+
+const CLEANUP_PATTERNS = {
+  duplicateDashSeparator: /(?:\s*-\s*){2,}/g,
+  emptyRoundBracket: /\(\)/g,
+  emptySquareBracket: /\[\]/g,
+  leadingDashSeparator: /^\s*-\s+/g,
+  multiWhitespace: /\s{2,}/g,
+  trailingDashSeparator: /\s+-\s*$/g,
+} as const;
+
+const WRAPPED_SEGMENT_PATTERNS: Record<"(" | "[", RegExp> = {
+  "(": /\(([^)]*)\)/g,
+  "[": /\[([^\]]*)\]/g,
+};
+
 export function renderEpisodeFilename(format: string, input: NamingInput): string {
-  const formatHasResolutionToken = /\{resolution\}/.test(format);
+  const formatHasResolutionToken = RESOLUTION_TOKEN_PATTERN.test(format);
   const primaryEpisode = input.episodeNumbers[0] ?? 0;
   const segment = formatEpisodeSegment({
     episode_numbers: input.episodeNumbers,
@@ -55,37 +88,37 @@ export function renderEpisodeFilename(format: string, input: NamingInput): strin
 
   let result = format;
 
-  result = result.replace(/\{title\}/g, sanitizeFilename(input.title));
+  result = result.replace(TOKEN_PATTERNS.title, sanitizeFilename(input.title));
 
-  result = result.replace(/\{episode(?::(\d+))?\}/g, (_, padStr) => {
+  result = result.replace(TOKEN_PATTERNS.episode, (_, padStr) => {
     const pad = padStr ? Number(padStr) : 2;
     return String(primaryEpisode).padStart(pad, "0");
   });
 
-  result = result.replace(/\{episode_segment\}/g, segment);
+  result = result.replace(TOKEN_PATTERNS.episodeSegment, segment);
 
-  result = result.replace(/\{source_episode_segment\}/g, sourceSegment || segment);
+  result = result.replace(TOKEN_PATTERNS.sourceEpisodeSegment, sourceSegment || segment);
 
-  result = result.replace(/\{air_date\}/g, input.airDate ?? "");
+  result = result.replace(TOKEN_PATTERNS.airDate, input.airDate ?? "");
 
-  result = result.replace(/\{season(?::(\d+))?\}/g, (_, padStr) => {
+  result = result.replace(TOKEN_PATTERNS.season, (_, padStr) => {
     const pad = padStr ? Number(padStr) : 2;
     return input.season === undefined ? "" : String(input.season).padStart(pad, "0");
   });
 
   result = result.replace(
-    /\{episode_title\}/g,
+    TOKEN_PATTERNS.episodeTitle,
     input.episodeTitle ? sanitizeFilename(input.episodeTitle) : "",
   );
 
-  result = result.replace(/\{year\}/g, input.year ? String(input.year) : "");
+  result = result.replace(TOKEN_PATTERNS.year, input.year ? String(input.year) : "");
 
-  result = result.replace(/\{group\}/g, input.group ?? "");
+  result = result.replace(TOKEN_PATTERNS.group, input.group ?? "");
 
-  result = result.replace(/\{resolution\}/g, input.resolution ?? "");
+  result = result.replace(TOKEN_PATTERNS.resolution, input.resolution ?? "");
 
   result = result.replace(
-    /\{quality\}/g,
+    TOKEN_PATTERNS.quality,
     normalizeQualityForFormat({
       formatHasResolutionToken,
       quality: input.quality,
@@ -93,32 +126,30 @@ export function renderEpisodeFilename(format: string, input: NamingInput): strin
     }) ?? "",
   );
 
-  result = result.replace(/\{video_codec\}/g, input.videoCodec ?? "");
+  result = result.replace(TOKEN_PATTERNS.videoCodec, input.videoCodec ?? "");
 
-  result = result.replace(/\{audio_codec\}/g, input.audioCodec ?? "");
+  result = result.replace(TOKEN_PATTERNS.audioCodec, input.audioCodec ?? "");
 
-  result = result.replace(/\{audio_channels\}/g, input.audioChannels ?? "");
+  result = result.replace(TOKEN_PATTERNS.audioChannels, input.audioChannels ?? "");
 
   result = normalizeWrappedSegments(result, "[", "]");
   result = normalizeWrappedSegments(result, "(", ")");
 
   // Clean up empty segments that may leave dangling separators
   result = result
-    .replace(/\[\]/g, "")
-    .replace(/\(\)/g, "")
-    .replace(/\s{2,}/g, " ")
-    .replace(/(?:\s*-\s*){2,}/g, " - ")
-    .replace(/\s+-\s*$/g, "")
-    .replace(/^\s*-\s+/g, "")
+    .replace(CLEANUP_PATTERNS.emptySquareBracket, "")
+    .replace(CLEANUP_PATTERNS.emptyRoundBracket, "")
+    .replace(CLEANUP_PATTERNS.multiWhitespace, " ")
+    .replace(CLEANUP_PATTERNS.duplicateDashSeparator, " - ")
+    .replace(CLEANUP_PATTERNS.trailingDashSeparator, "")
+    .replace(CLEANUP_PATTERNS.leadingDashSeparator, "")
     .trim();
 
   return result;
 }
 
 function normalizeWrappedSegments(value: string, open: "(" | "[", close: ")" | "]") {
-  const openEscaped = open === "[" ? "\\[" : "\\(";
-  const closeEscaped = close === "]" ? "\\]" : "\\)";
-  const pattern = new RegExp(`${openEscaped}([^${closeEscaped}]*)${closeEscaped}`, "g");
+  const pattern = WRAPPED_SEGMENT_PATTERNS[open];
 
   return value.replace(pattern, (_, inner: string) => {
     const normalized = inner.replace(/\s+/g, " ").trim();

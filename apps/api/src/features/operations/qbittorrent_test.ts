@@ -3,7 +3,10 @@ import { HttpClient, HttpClientError, HttpClientResponse } from "@effect/platfor
 import { Cause, Deferred, Effect, Exit, Fiber, Layer, TestClock } from "effect";
 
 import { ClockService, ClockServiceLive } from "@/lib/clock.ts";
+import { ExternalCallLive } from "@/lib/effect-retry.ts";
 import { QBitTorrentClient, QBitTorrentClientLive } from "@/features/operations/qbittorrent.ts";
+
+const ExternalCallWithLiveClock = ExternalCallLive.pipe(Layer.provide(ClockServiceLive));
 
 it.scoped("QBitTorrentClient uses provided HttpClient", () =>
   Effect.gen(function* () {
@@ -21,6 +24,7 @@ it.scoped("QBitTorrentClient uses provided HttpClient", () =>
           Layer.provide(
             Layer.mergeAll(
               ClockServiceLive,
+              ExternalCallWithLiveClock,
               Layer.succeed(
                 HttpClient.HttpClient,
                 makeQBitClient(() => {
@@ -71,6 +75,7 @@ it.effect("QBitTorrentClient can load torrent contents", () =>
           Layer.provide(
             Layer.mergeAll(
               ClockServiceLive,
+              ExternalCallWithLiveClock,
               Layer.succeed(HttpClient.HttpClient, makeQBitClient()),
             ),
           ),
@@ -100,13 +105,16 @@ it.effect(
     Effect.gen(function* () {
       const loginCalls: string[] = [];
       const infoCookies: string[] = [];
+      const testClockLayer = Layer.succeed(ClockService, {
+        currentMonotonicMillis: TestClock.currentTimeMillis,
+        currentTimeMillis: TestClock.currentTimeMillis,
+      });
+      const externalCallLayer = ExternalCallLive.pipe(Layer.provide(testClockLayer));
       const clientLayer = QBitTorrentClientLive.pipe(
         Layer.provide(
           Layer.mergeAll(
-            Layer.succeed(ClockService, {
-              currentMonotonicMillis: TestClock.currentTimeMillis,
-              currentTimeMillis: TestClock.currentTimeMillis,
-            }),
+            testClockLayer,
+            externalCallLayer,
             Layer.succeed(
               HttpClient.HttpClient,
               HttpClient.make((request, url) => {
@@ -209,6 +217,7 @@ it.effect("QBitTorrentClient shares in-flight login across concurrent requests",
       Layer.provide(
         Layer.mergeAll(
           ClockServiceLive,
+          ExternalCallWithLiveClock,
           Layer.succeed(
             HttpClient.HttpClient,
             HttpClient.make((request, url) => {

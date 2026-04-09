@@ -1,5 +1,12 @@
 import { Effect, Ref } from "effect";
 
+/**
+ * Minimal serialized execution flag.
+ *
+ * `tryStartAndMarkRunning` acquires the running flag atomically, and `finish` clears it.
+ * This is the lightest coalescing primitive when only a boolean guard is needed.
+ */
+
 export interface SerializedFlagCoordinator {
   readonly finish: Effect.Effect<void>;
   readonly tryStartAndMarkRunning: Effect.Effect<boolean>;
