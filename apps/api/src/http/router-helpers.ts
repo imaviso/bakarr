@@ -34,17 +34,7 @@ export const decodePathParams = <A, I extends Readonly<Record<string, string | u
   schema: Schema.Schema<A, I, R>,
 ) =>
   HttpRouter.schemaPathParams(schema).pipe(
-    Effect.catchAll((error) =>
-      ParseResult.isParseError(error)
-        ? Effect.fail(
-            RequestValidationError.make({
-              cause: error,
-              message: formatValidationErrorMessage("Invalid path parameters", error),
-              status: 400,
-            }),
-          )
-        : Effect.fail(error),
-    ),
+    Effect.mapError((error) => mapParseValidationError(error, "Invalid path parameters")),
   );
 
 export const decodeQuery = <
@@ -55,17 +45,7 @@ export const decodeQuery = <
   schema: Schema.Schema<A, I, R>,
 ) =>
   HttpServerRequest.schemaSearchParams(schema).pipe(
-    Effect.catchAll((error) =>
-      ParseResult.isParseError(error)
-        ? Effect.fail(
-            RequestValidationError.make({
-              cause: error,
-              message: formatValidationErrorMessage("Invalid query parameters", error),
-              status: 400,
-            }),
-          )
-        : Effect.fail(error),
-    ),
+    Effect.mapError((error) => mapParseValidationError(error, "Invalid query parameters")),
   );
 
 export const decodeQueryWithLabel = <
@@ -77,16 +57,8 @@ export const decodeQueryWithLabel = <
   label: string,
 ) =>
   HttpServerRequest.schemaSearchParams(schema).pipe(
-    Effect.catchAll((error) =>
-      ParseResult.isParseError(error)
-        ? Effect.fail(
-            RequestValidationError.make({
-              cause: error,
-              message: formatValidationErrorMessage(`Invalid query parameters for ${label}`, error),
-              status: 400,
-            }),
-          )
-        : Effect.fail(error),
+    Effect.mapError((error) =>
+      mapParseValidationError(error, `Invalid query parameters for ${label}`),
     ),
   );
 
@@ -136,6 +108,18 @@ export const authedRouteResponse = <A, E, R, E2, R2>(
   onSuccess: (value: A) => Effect.Effect<HttpServerResponse.HttpServerResponse, E2, R2>,
   mapError: (error: unknown) => RouteErrorResponse = mapAuthRouteError,
 ) => routeResponse(Effect.zipRight(requireViewerFromHttpRequest(), effect), onSuccess, mapError);
+
+function mapParseValidationError(error: unknown, message: string) {
+  if (!ParseResult.isParseError(error)) {
+    return error;
+  }
+
+  return RequestValidationError.make({
+    cause: error,
+    message: formatValidationErrorMessage(message, error),
+    status: 400,
+  });
+}
 
 function mapLabeledBodyDecodeError(label: string, error: unknown) {
   if (

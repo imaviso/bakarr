@@ -16,10 +16,12 @@ const makeDownloadTriggerCoordinator = Effect.fn(
   "OperationsService.makeDownloadTriggerCoordinator",
 )(function* () {
   const semaphore = yield* Effect.makeSemaphore(1);
+  const runExclusiveDownloadTrigger = Effect.fn(
+    "DownloadTriggerCoordinator.runExclusiveDownloadTrigger",
+  )(<A, E>(operation: Effect.Effect<A, E>) => semaphore.withPermits(1)(operation));
 
   return {
-    runExclusiveDownloadTrigger: <A, E>(operation: Effect.Effect<A, E>) =>
-      semaphore.withPermits(1)(operation),
+    runExclusiveDownloadTrigger,
   } satisfies DownloadTriggerCoordinatorShape;
 });
 
@@ -56,12 +58,17 @@ const makeUnmappedScanCoordinator = Effect.fn("OperationsService.makeUnmappedSca
 
     yield* Effect.addFinalizer(() => Scope.close(scope, Exit.void));
 
-    return {
-      completeUnmappedScan: () => coordinator.finish,
-      forkUnmappedScanLoop: <A, E>(loop: Effect.Effect<A, E>) =>
-        Effect.forkIn(scope)(loop).pipe(Effect.asVoid),
-      tryBeginUnmappedScan: () => coordinator.tryStartAndMarkRunning,
-      withUnmappedScanLease: <A, E>(input: {
+    const completeUnmappedScan = Effect.fn("UnmappedScanCoordinator.completeUnmappedScan")(
+      () => coordinator.finish,
+    );
+    const forkUnmappedScanLoop = Effect.fn("UnmappedScanCoordinator.forkUnmappedScanLoop")(
+      <A, E>(loop: Effect.Effect<A, E>) => Effect.forkIn(scope)(loop).pipe(Effect.asVoid),
+    );
+    const tryBeginUnmappedScan = Effect.fn("UnmappedScanCoordinator.tryBeginUnmappedScan")(
+      () => coordinator.tryStartAndMarkRunning,
+    );
+    const withUnmappedScanLease = Effect.fn("UnmappedScanCoordinator.withUnmappedScanLease")(
+      <A, E>(input: {
         readonly whenAcquired: Effect.Effect<
           {
             readonly keepLease?: boolean;
@@ -91,6 +98,13 @@ const makeUnmappedScanCoordinator = Effect.fn("OperationsService.makeUnmappedSca
           yield* coordinator.finish;
           return yield* Effect.failCause(exit.cause);
         }),
+    );
+
+    return {
+      completeUnmappedScan,
+      forkUnmappedScanLoop,
+      tryBeginUnmappedScan,
+      withUnmappedScanLease,
     } satisfies UnmappedScanCoordinatorShape;
   },
 );

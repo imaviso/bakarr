@@ -7,15 +7,17 @@ import { SearchBackgroundRssServiceLive } from "@/features/operations/background
 import { BackgroundSearchRssWorkerServiceLive } from "@/features/operations/background-search-rss-worker-service.ts";
 import { SearchEpisodeServiceLive } from "@/features/operations/search-orchestration-episode-support.ts";
 import { SearchReleaseServiceLive } from "@/features/operations/search-orchestration-release-search.ts";
-import { type AnyLayer, provideFrom, provideLayer } from "@/lib/layer-compose.ts";
+import { provideFrom, provideLayer } from "@/lib/layer-compose.ts";
 
-interface OperationsSearchLayerInput {
-  readonly downloadRuntimeLayer: AnyLayer;
-  readonly operationsProgressLayer: AnyLayer;
-  readonly runtimeSupportLayer: AnyLayer;
+interface OperationsSearchLayerInput<DRTOut, DRTE, DRTR, OPOut, OPE, OPR, RSOut, RSE, RSR> {
+  readonly downloadRuntimeLayer: Layer.Layer<DRTOut, DRTE, DRTR>;
+  readonly operationsProgressLayer: Layer.Layer<OPOut, OPE, OPR>;
+  readonly runtimeSupportLayer: Layer.Layer<RSOut, RSE, RSR>;
 }
 
-export function makeOperationsSearchLayer(input: OperationsSearchLayerInput) {
+export function makeOperationsSearchLayer<DRTOut, DRTE, DRTR, OPOut, OPE, OPR, RSOut, RSE, RSR>(
+  input: OperationsSearchLayerInput<DRTOut, DRTE, DRTR, OPOut, OPE, OPR, RSOut, RSE, RSR>,
+) {
   const { downloadRuntimeLayer, operationsProgressLayer, runtimeSupportLayer } = input;
   const withRuntime = provideFrom(runtimeSupportLayer);
   const runtimeWithProgressLayer = Layer.mergeAll(runtimeSupportLayer, operationsProgressLayer);

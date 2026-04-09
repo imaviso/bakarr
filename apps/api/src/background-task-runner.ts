@@ -34,68 +34,6 @@ export class BackgroundTaskRunner extends Context.Tag("@bakarr/api/BackgroundTas
   BackgroundTaskRunnerShape
 >() {}
 
-const makeBackgroundTaskRunner = Effect.fn("Background.makeBackgroundTaskRunner")(
-  function* (input: {
-    readonly downloadCommandService: typeof CatalogDownloadCommandService.Service;
-    readonly catalogLibraryScanService: typeof CatalogLibraryScanService.Service;
-    readonly animeMaintenanceService: typeof AnimeMaintenanceService.Service;
-    readonly backgroundSearchRssWorkerService: typeof BackgroundSearchRssWorkerService.Service;
-    readonly monitor: typeof BackgroundWorkerMonitor.Service;
-    readonly clock: typeof ClockService.Service;
-  }) {
-    const runDownloadSyncTask = Effect.fn("Background.runDownloadSyncTask")(function* () {
-      yield* input.downloadCommandService.syncDownloads();
-    });
-    const runLibraryScanTask = Effect.fn("Background.runLibraryScanTask")(function* () {
-      yield* input.catalogLibraryScanService.runLibraryScan();
-    });
-    const runMetadataRefreshTask = Effect.fn("Background.runMetadataRefreshTask")(function* () {
-      yield* input.animeMaintenanceService.refreshMetadataForMonitoredAnime().pipe(Effect.asVoid);
-    });
-    const runRssTask = Effect.fn("Background.runRssTask")(function* () {
-      yield* input.backgroundSearchRssWorkerService.runRssWorker();
-    });
-
-    const runDownloadSyncWorkerTask = yield* withLockEffectOrFail(
-      "download_sync",
-      runDownloadSyncTask(),
-      input.monitor,
-      input.clock,
-    );
-    const runLibraryScanWorkerTask = yield* withLockEffectOrFail(
-      "library_scan",
-      runLibraryScanTask(),
-      input.monitor,
-      input.clock,
-    );
-    const runMetadataRefreshWorkerTask = yield* withLockEffectOrFail(
-      "metadata_refresh",
-      runMetadataRefreshTask(),
-      input.monitor,
-      input.clock,
-    );
-    const runRssWorkerTask = yield* withLockEffectOrFail(
-      "rss",
-      runRssTask(),
-      input.monitor,
-      input.clock,
-    );
-
-    return {
-      runDownloadSyncWorkerTask: Effect.fn("BackgroundTaskRunner.runDownloadSyncWorkerTask")(
-        () => runDownloadSyncWorkerTask,
-      ),
-      runLibraryScanWorkerTask: Effect.fn("BackgroundTaskRunner.runLibraryScanWorkerTask")(
-        () => runLibraryScanWorkerTask,
-      ),
-      runMetadataRefreshWorkerTask: Effect.fn("BackgroundTaskRunner.runMetadataRefreshWorkerTask")(
-        () => runMetadataRefreshWorkerTask,
-      ),
-      runRssWorkerTask: Effect.fn("BackgroundTaskRunner.runRssWorkerTask")(() => runRssWorkerTask),
-    } satisfies BackgroundTaskRunnerShape;
-  },
-);
-
 export const BackgroundTaskRunnerLive = Layer.effect(
   BackgroundTaskRunner,
   Effect.gen(function* () {
@@ -106,13 +44,50 @@ export const BackgroundTaskRunnerLive = Layer.effect(
     const monitor = yield* BackgroundWorkerMonitor;
     const clock = yield* ClockService;
 
-    return yield* makeBackgroundTaskRunner({
-      animeMaintenanceService,
-      backgroundSearchRssWorkerService,
-      catalogLibraryScanService,
-      clock,
-      downloadCommandService,
+    const runDownloadSyncTask = Effect.fn("Background.runDownloadSyncTask")(function* () {
+      yield* downloadCommandService.syncDownloads();
+    });
+    const runLibraryScanTask = Effect.fn("Background.runLibraryScanTask")(function* () {
+      yield* catalogLibraryScanService.runLibraryScan();
+    });
+    const runMetadataRefreshTask = Effect.fn("Background.runMetadataRefreshTask")(function* () {
+      yield* animeMaintenanceService.refreshMetadataForMonitoredAnime().pipe(Effect.asVoid);
+    });
+    const runRssTask = Effect.fn("Background.runRssTask")(function* () {
+      yield* backgroundSearchRssWorkerService.runRssWorker();
+    });
+
+    const runDownloadSyncWorkerTask = yield* withLockEffectOrFail(
+      "download_sync",
+      runDownloadSyncTask(),
       monitor,
+      clock,
+    );
+    const runLibraryScanWorkerTask = yield* withLockEffectOrFail(
+      "library_scan",
+      runLibraryScanTask(),
+      monitor,
+      clock,
+    );
+    const runMetadataRefreshWorkerTask = yield* withLockEffectOrFail(
+      "metadata_refresh",
+      runMetadataRefreshTask(),
+      monitor,
+      clock,
+    );
+    const runRssWorkerTask = yield* withLockEffectOrFail("rss", runRssTask(), monitor, clock);
+
+    return BackgroundTaskRunner.of({
+      runDownloadSyncWorkerTask: Effect.fn("BackgroundTaskRunner.runDownloadSyncWorkerTask")(
+        () => runDownloadSyncWorkerTask,
+      ),
+      runLibraryScanWorkerTask: Effect.fn("BackgroundTaskRunner.runLibraryScanWorkerTask")(
+        () => runLibraryScanWorkerTask,
+      ),
+      runMetadataRefreshWorkerTask: Effect.fn("BackgroundTaskRunner.runMetadataRefreshWorkerTask")(
+        () => runMetadataRefreshWorkerTask,
+      ),
+      runRssWorkerTask: Effect.fn("BackgroundTaskRunner.runRssWorkerTask")(() => runRssWorkerTask),
     });
   }),
 );

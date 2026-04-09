@@ -9,9 +9,11 @@ import { AnimeQueryServiceLive } from "@/features/anime/query-service.ts";
 import { AnimeSettingsServiceLive } from "@/features/anime/anime-settings-service.ts";
 import { AnimeStreamServiceLive } from "@/features/anime/anime-stream-service.ts";
 import { StreamTokenSignerLive } from "@/features/anime/stream-token-signer.ts";
-import { type AnyLayer, provideLayer } from "@/lib/layer-compose.ts";
+import { provideLayer } from "@/lib/layer-compose.ts";
 
-export function makeAnimeAppLayer(runtimeSupportLayer: AnyLayer) {
+export function makeAnimeAppLayer<RSOut, RSE, RSR>(
+  runtimeSupportLayer: Layer.Layer<RSOut, RSE, RSR>,
+) {
   const buildAnimeSubgraphLayers = () => {
     const metadataEnrichmentLayer = AnimeMetadataEnrichmentServiceLive;
     const metadataProviderLayer = provideLayer(

@@ -3,14 +3,16 @@ import { Layer } from "effect";
 import { UnmappedControlServiceLive } from "@/features/operations/unmapped-control-service.ts";
 import { UnmappedImportServiceLive } from "@/features/operations/unmapped-orchestration-import.ts";
 import { UnmappedScanServiceLive } from "@/features/operations/unmapped-scan-service.ts";
-import { type AnyLayer, provideFrom, provideLayer } from "@/lib/layer-compose.ts";
+import { provideFrom, provideLayer } from "@/lib/layer-compose.ts";
 
-interface OperationsUnmappedLayerInput {
-  readonly operationsRuntimeLayer: AnyLayer;
-  readonly runtimeSupportLayer: AnyLayer;
+interface OperationsUnmappedLayerInput<ORTOut, ORTE, ORTR, RSOut, RSE, RSR> {
+  readonly operationsRuntimeLayer: Layer.Layer<ORTOut, ORTE, ORTR>;
+  readonly runtimeSupportLayer: Layer.Layer<RSOut, RSE, RSR>;
 }
 
-export function makeOperationsUnmappedLayer(input: OperationsUnmappedLayerInput) {
+export function makeOperationsUnmappedLayer<ORTOut, ORTE, ORTR, RSOut, RSE, RSR>(
+  input: OperationsUnmappedLayerInput<ORTOut, ORTE, ORTR, RSOut, RSE, RSR>,
+) {
   const { operationsRuntimeLayer, runtimeSupportLayer } = input;
   const withRuntime = provideFrom(runtimeSupportLayer);
 

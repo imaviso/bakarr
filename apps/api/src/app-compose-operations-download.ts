@@ -12,9 +12,11 @@ import {
   UnmappedScanCoordinatorLive,
 } from "@/features/operations/runtime-support.ts";
 import { TorrentClientServiceLive } from "@/features/operations/torrent-client-service.ts";
-import { type AnyLayer, provideFrom, provideLayer } from "@/lib/layer-compose.ts";
+import { provideFrom, provideLayer } from "@/lib/layer-compose.ts";
 
-export function makeOperationsDownloadLayer(runtimeSupportLayer: AnyLayer) {
+export function makeOperationsDownloadLayer<RSOut, RSE, RSR>(
+  runtimeSupportLayer: Layer.Layer<RSOut, RSE, RSR>,
+) {
   const withRuntime = provideFrom(runtimeSupportLayer);
   const buildDownloadRuntimeLayers = () => {
     const operationsRuntimeLayer = Layer.mergeAll(
