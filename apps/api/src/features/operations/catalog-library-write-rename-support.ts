@@ -1,6 +1,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { Effect, Either } from "effect";
 
+import type { Config } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { episodes } from "@/db/schema.ts";
 import type { FileSystemShape } from "@/lib/filesystem.ts";
@@ -14,6 +15,7 @@ export interface RenameLibraryFilesInput {
   readonly db: AppDatabase;
   readonly eventBus: typeof EventBus.Service;
   readonly fs: FileSystemShape;
+  readonly runtimeConfig: Config;
   readonly tryDatabasePromise: TryDatabasePromise;
   readonly animeId: number;
 }
@@ -24,10 +26,10 @@ export const renameLibraryFiles = Effect.fn("Operations.renameLibraryFiles")((
   { failed: number; failures: string[]; renamed: number },
   import("@/db/database.ts").DatabaseError | OperationsPathError | OperationsAnimeNotFoundError
 > => {
-  const { db, eventBus, fs, tryDatabasePromise, animeId } = input;
+  const { db, eventBus, fs, runtimeConfig, tryDatabasePromise, animeId } = input;
   return Effect.gen(function* () {
     const animeRow = yield* requireAnime(db, animeId);
-    const preview = yield* buildRenamePreview(db, animeId);
+    const preview = yield* buildRenamePreview(db, animeId, runtimeConfig);
     let renamed = 0;
     const failures: string[] = [];
 

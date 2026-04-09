@@ -19,21 +19,17 @@ import { reconcileBatchDownloadEffect } from "@/features/operations/download-rec
 import { reconcileSingleDownloadEffect } from "@/features/operations/download-reconciliation-single.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 
-export function makeDownloadCompletedTorrentReconciliation(input: {
-  readonly db: AppDatabase;
-  readonly fs: import("@/lib/filesystem.ts").FileSystemShape;
-  readonly mediaProbe: import("@/lib/media-probe.ts").MediaProbeShape;
-  readonly torrentClientService: typeof TorrentClientService.Service;
-  readonly eventBus: typeof EventBus.Service;
-  readonly tryDatabasePromise: import("@/lib/effect-db.ts").TryDatabasePromise;
-  readonly nowIso: () => Effect.Effect<string>;
-  readonly randomUuid: () => Effect.Effect<string>;
-  readonly getRuntimeConfig: () => Effect.Effect<Config, RuntimeConfigSnapshotError>;
-}) {
-  const { db, fs, mediaProbe, eventBus, tryDatabasePromise, torrentClientService } = input;
-  const { nowIso } = input;
-  const { randomUuid } = input;
-
+export function makeDownloadCompletedTorrentReconciliation(
+  db: AppDatabase,
+  fs: import("@/lib/filesystem.ts").FileSystemShape,
+  mediaProbe: import("@/lib/media-probe.ts").MediaProbeShape,
+  torrentClientService: typeof TorrentClientService.Service,
+  eventBus: typeof EventBus.Service,
+  tryDatabasePromise: import("@/lib/effect-db.ts").TryDatabasePromise,
+  nowIso: () => Effect.Effect<string>,
+  randomUuid: () => Effect.Effect<string>,
+  getRuntimeConfig: () => Effect.Effect<Config, RuntimeConfigSnapshotError>,
+) {
   const maybeCleanupImportedTorrent = Effect.fn("OperationsService.maybeCleanupImportedTorrent")(
     function* (config: Config | null | undefined, infoHash: string | null) {
       if (!infoHash || !shouldRemoveTorrentOnImport(config)) {
@@ -90,7 +86,7 @@ export function makeDownloadCompletedTorrentReconciliation(input: {
         row,
         tryDatabasePromise,
         contentPath,
-        getRuntimeConfig: input.getRuntimeConfig,
+        getRuntimeConfig,
       });
 
       if (Option.isNone(context)) {

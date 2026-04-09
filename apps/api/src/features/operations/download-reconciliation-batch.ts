@@ -180,7 +180,7 @@ export const reconcileBatchDownloadEffect = Effect.fn("OperationsService.reconci
         input.animeRow,
         primaryEpisode,
         path,
-        input.importMode,
+        input.runtimeConfig.library.import_mode,
         {
           episodeNumbers: relevantEpisodes,
           episodeRows: episodeRowsForNaming,

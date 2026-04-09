@@ -16,6 +16,8 @@ import {
 } from "@/features/operations/catalog-library-write-import-support.ts";
 import { renameLibraryFiles } from "@/features/operations/catalog-library-write-rename-support.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
+import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 
 export interface CatalogLibraryWriteServiceShape {
   readonly importFiles: (
@@ -26,12 +28,13 @@ export interface CatalogLibraryWriteServiceShape {
     | OperationsPathError
     | OperationsInfrastructureError
     | OperationsAnimeNotFoundError
+    | RuntimeConfigSnapshotError
   >;
   readonly renameFiles: (
     animeId: number,
   ) => Effect.Effect<
     RenameResult,
-    DatabaseError | OperationsPathError | OperationsAnimeNotFoundError
+    DatabaseError | OperationsPathError | OperationsAnimeNotFoundError | RuntimeConfigSnapshotError
   >;
 }
 
@@ -46,26 +49,31 @@ export const CatalogLibraryWriteServiceLive = Layer.effect(
     const eventBus = yield* EventBus;
     const fs = yield* FileSystem;
     const mediaProbe = yield* MediaProbe;
+    const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
 
     const importFiles = Effect.fn("OperationsService.importFiles")(function* (
       files: readonly LibraryImportFileInput[],
     ) {
+      const runtimeConfig = yield* runtimeConfigSnapshot.getRuntimeConfig();
       return yield* importLibraryFiles({
         db,
         eventBus,
         files,
         fs,
         mediaProbe,
+        runtimeConfig,
         tryDatabasePromise,
       });
     });
 
     const renameFiles = Effect.fn("OperationsService.renameFiles")(function* (animeId: number) {
+      const runtimeConfig = yield* runtimeConfigSnapshot.getRuntimeConfig();
       return yield* renameLibraryFiles({
         animeId,
         db,
         eventBus,
         fs,
+        runtimeConfig,
         tryDatabasePromise,
       });
     });

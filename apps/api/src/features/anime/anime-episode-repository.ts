@@ -4,7 +4,6 @@ import { Effect } from "effect";
 import type { AppDatabase } from "@/db/database.ts";
 import { episodes } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
-import { AnimeStoredDataError } from "@/features/anime/errors.ts";
 
 type EpisodeWriteDb = Pick<AppDatabase, "insert" | "select" | "update">;
 
@@ -29,72 +28,29 @@ export const upsertEpisodeEffect = Effect.fn("AnimeRepository.upsertEpisode")(fu
   episodeNumber: number,
   patch: UpsertEpisodePatch,
 ) {
-  const rows = yield* tryDatabasePromise("Failed to upsert episode", () =>
-    db
-      .select()
-      .from(episodes)
-      .where(and(eq(episodes.animeId, animeId), eq(episodes.number, episodeNumber)))
-      .limit(1),
-  );
+  const values = buildInsertEpisodeValues(animeId, episodeNumber, patch);
+  const conflictSet = buildEpisodeConflictSet(patch);
 
-  const existingRow = rows[0];
-
-  if (existingRow) {
+  if (Object.keys(conflictSet).length === 0) {
     yield* tryDatabasePromise("Failed to upsert episode", () =>
       db
-        .update(episodes)
-        .set(buildEpisodePatchSet(patch, existingRow))
-        .where(eq(episodes.id, existingRow.id)),
+        .insert(episodes)
+        .values(values)
+        .onConflictDoNothing({
+          target: [episodes.animeId, episodes.number],
+        }),
     );
     return;
   }
 
-  const insertResult = yield* Effect.either(
-    tryDatabasePromise("Failed to upsert episode", () =>
-      db.insert(episodes).values({
-        aired: patch.aired ?? null,
-        animeId,
-        downloaded: patch.downloaded ?? false,
-        filePath: patch.filePath ?? null,
-        fileSize: patch.fileSize ?? null,
-        durationSeconds: patch.durationSeconds ?? null,
-        groupName: patch.groupName ?? null,
-        resolution: patch.resolution ?? null,
-        quality: patch.quality ?? null,
-        videoCodec: patch.videoCodec ?? null,
-        audioCodec: patch.audioCodec ?? null,
-        audioChannels: patch.audioChannels ?? null,
-        number: episodeNumber,
-        title: patch.title ?? null,
-      }),
-    ),
-  );
-
-  if (insertResult._tag === "Right") {
-    return;
-  }
-
-  const existingRows = yield* tryDatabasePromise("Failed to upsert episode", () =>
-    db
-      .select()
-      .from(episodes)
-      .where(and(eq(episodes.animeId, animeId), eq(episodes.number, episodeNumber)))
-      .limit(1),
-  );
-
-  const conflictRow = existingRows[0];
-
-  if (!conflictRow) {
-    return yield* new AnimeStoredDataError({
-      message: "Failed to upsert episode",
-    });
-  }
-
   yield* tryDatabasePromise("Failed to upsert episode", () =>
     db
-      .update(episodes)
-      .set(buildEpisodePatchSet(patch, conflictRow))
-      .where(eq(episodes.id, conflictRow.id)),
+      .insert(episodes)
+      .values(values)
+      .onConflictDoUpdate({
+        target: [episodes.animeId, episodes.number],
+        set: conflictSet,
+      }),
   );
 });
 
@@ -175,19 +131,42 @@ export const bulkMapEpisodeFilesAtomicEffect = Effect.fn(
   );
 });
 
-function buildEpisodePatchSet(patch: UpsertEpisodePatch, existing: typeof episodes.$inferSelect) {
+function buildInsertEpisodeValues(
+  animeId: number,
+  episodeNumber: number,
+  patch: UpsertEpisodePatch,
+) {
   return {
-    aired: patch.aired ?? existing.aired,
-    audioChannels: patch.audioChannels ?? existing.audioChannels,
-    audioCodec: patch.audioCodec ?? existing.audioCodec,
-    downloaded: patch.downloaded ?? existing.downloaded,
-    durationSeconds: patch.durationSeconds ?? existing.durationSeconds,
-    filePath: patch.filePath ?? existing.filePath,
-    fileSize: patch.fileSize ?? existing.fileSize,
-    groupName: patch.groupName ?? existing.groupName,
-    quality: patch.quality ?? existing.quality,
-    resolution: patch.resolution ?? existing.resolution,
-    title: patch.title ?? existing.title,
-    videoCodec: patch.videoCodec ?? existing.videoCodec,
+    aired: patch.aired ?? null,
+    animeId,
+    audioChannels: patch.audioChannels ?? null,
+    audioCodec: patch.audioCodec ?? null,
+    downloaded: patch.downloaded ?? false,
+    durationSeconds: patch.durationSeconds ?? null,
+    filePath: patch.filePath ?? null,
+    fileSize: patch.fileSize ?? null,
+    groupName: patch.groupName ?? null,
+    number: episodeNumber,
+    quality: patch.quality ?? null,
+    resolution: patch.resolution ?? null,
+    title: patch.title ?? null,
+    videoCodec: patch.videoCodec ?? null,
+  } satisfies typeof episodes.$inferInsert;
+}
+
+function buildEpisodeConflictSet(patch: UpsertEpisodePatch) {
+  return {
+    ...(patch.aired === undefined ? {} : { aired: patch.aired }),
+    ...(patch.audioChannels === undefined ? {} : { audioChannels: patch.audioChannels }),
+    ...(patch.audioCodec === undefined ? {} : { audioCodec: patch.audioCodec }),
+    ...(patch.downloaded === undefined ? {} : { downloaded: patch.downloaded }),
+    ...(patch.durationSeconds === undefined ? {} : { durationSeconds: patch.durationSeconds }),
+    ...(patch.filePath === undefined ? {} : { filePath: patch.filePath }),
+    ...(patch.fileSize === undefined ? {} : { fileSize: patch.fileSize }),
+    ...(patch.groupName === undefined ? {} : { groupName: patch.groupName }),
+    ...(patch.quality === undefined ? {} : { quality: patch.quality }),
+    ...(patch.resolution === undefined ? {} : { resolution: patch.resolution }),
+    ...(patch.title === undefined ? {} : { title: patch.title }),
+    ...(patch.videoCodec === undefined ? {} : { videoCodec: patch.videoCodec }),
   };
 }

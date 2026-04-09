@@ -143,46 +143,26 @@ export const countRssFeedRows = Effect.fn("SystemStatsRepository.countRssFeedRow
 export const loadSystemLibraryStatsAggregate = Effect.fn(
   "SystemStatsRepository.loadSystemLibraryStatsAggregate",
 )(function* (db: AppDatabase) {
-  const totalAnimeRows = yield* tryDatabasePromise("Failed to count anime", () =>
-    db.select({ totalAnime: count() }).from(anime),
+  const [
+    totalAnime,
+    monitoredAnime,
+    totalEpisodes,
+    downloadedEpisodes,
+    totalRssFeeds,
+    completedDownloads,
+    upToDateAnime,
+  ] = yield* Effect.all(
+    [
+      countAnimeRows(db),
+      countMonitoredAnimeRows(db),
+      countEpisodeRows(db),
+      countDownloadedEpisodeRows(db),
+      countRssFeedRows(db),
+      countCompletedDownloads(db),
+      countUpToDateAnimeRows(db),
+    ],
+    { concurrency: "unbounded" },
   );
-  const monitoredAnimeRows = yield* tryDatabasePromise("Failed to count monitored anime", () =>
-    db.select({ monitoredAnime: count() }).from(anime).where(eq(anime.monitored, true)),
-  );
-  const totalEpisodesRows = yield* tryDatabasePromise("Failed to count episodes", () =>
-    db.select({ totalEpisodes: count() }).from(episodes),
-  );
-  const downloadedEpisodesRows = yield* tryDatabasePromise(
-    "Failed to count downloaded episodes",
-    () =>
-      db
-        .select({ downloadedEpisodes: count() })
-        .from(episodes)
-        .where(eq(episodes.downloaded, true)),
-  );
-  const totalRssFeedsRows = yield* tryDatabasePromise("Failed to count RSS feeds", () =>
-    db.select({ totalRssFeeds: count() }).from(rssFeeds),
-  );
-  const completedDownloadsRows = yield* tryDatabasePromise(
-    "Failed to count completed downloads",
-    () =>
-      db
-        .select({ completedDownloads: count() })
-        .from(downloads)
-        .where(eq(downloads.status, "completed")),
-  );
-  const totalAnime = requireSingleRow(totalAnimeRows, { totalAnime: 0 }).totalAnime;
-  const monitoredAnime = requireSingleRow(monitoredAnimeRows, { monitoredAnime: 0 }).monitoredAnime;
-  const totalEpisodes = requireSingleRow(totalEpisodesRows, { totalEpisodes: 0 }).totalEpisodes;
-  const downloadedEpisodes = requireSingleRow(downloadedEpisodesRows, {
-    downloadedEpisodes: 0,
-  }).downloadedEpisodes;
-  const totalRssFeeds = requireSingleRow(totalRssFeedsRows, { totalRssFeeds: 0 }).totalRssFeeds;
-  const completedDownloads = requireSingleRow(completedDownloadsRows, {
-    completedDownloads: 0,
-  }).completedDownloads;
-
-  const upToDateAnime = yield* countUpToDateAnimeRows(db);
 
   return {
     completedDownloads,
@@ -198,39 +178,15 @@ export const loadSystemLibraryStatsAggregate = Effect.fn(
 export const loadSystemDownloadStatsAggregate = Effect.fn(
   "SystemStatsRepository.loadSystemDownloadStatsAggregate",
 )(function* (db: AppDatabase) {
-  const queuedDownloadsRows = yield* tryDatabasePromise("Failed to count queued downloads", () =>
-    db.select({ queuedDownloads: count() }).from(downloads).where(eq(downloads.status, "queued")),
+  const [queuedDownloads, activeDownloads, failedDownloads, importedDownloads] = yield* Effect.all(
+    [
+      countQueuedDownloads(db),
+      countActiveDownloads(db),
+      countFailedDownloads(db),
+      countImportedDownloads(db),
+    ],
+    { concurrency: "unbounded" },
   );
-  const activeDownloadsRows = yield* tryDatabasePromise("Failed to count active downloads", () =>
-    db
-      .select({ activeDownloads: count() })
-      .from(downloads)
-      .where(sql`${downloads.status} in ('downloading', 'paused')`),
-  );
-  const failedDownloadsRows = yield* tryDatabasePromise("Failed to count failed downloads", () =>
-    db.select({ failedDownloads: count() }).from(downloads).where(eq(downloads.status, "error")),
-  );
-  const importedDownloadsRows = yield* tryDatabasePromise(
-    "Failed to count imported downloads",
-    () =>
-      db
-        .select({ importedDownloads: count() })
-        .from(downloads)
-        .where(eq(downloads.status, "imported")),
-  );
-
-  const queuedDownloads = requireSingleRow(queuedDownloadsRows, {
-    queuedDownloads: 0,
-  }).queuedDownloads;
-  const activeDownloads = requireSingleRow(activeDownloadsRows, {
-    activeDownloads: 0,
-  }).activeDownloads;
-  const failedDownloads = requireSingleRow(failedDownloadsRows, {
-    failedDownloads: 0,
-  }).failedDownloads;
-  const importedDownloads = requireSingleRow(importedDownloadsRows, {
-    importedDownloads: 0,
-  }).importedDownloads;
 
   return {
     activeDownloads,

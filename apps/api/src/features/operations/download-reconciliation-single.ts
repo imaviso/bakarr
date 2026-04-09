@@ -127,7 +127,7 @@ export const reconcileSingleDownloadEffect = Effect.fn(
     input.animeRow,
     input.row.episodeNumber,
     resolvedPathValue,
-    input.importMode,
+    input.runtimeConfig.library.import_mode,
     {
       episodeRows,
       namingFormat,

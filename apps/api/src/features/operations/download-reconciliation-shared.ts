@@ -8,7 +8,6 @@ import type { FileSystemShape } from "@/lib/filesystem.ts";
 import type { MediaProbeShape } from "@/lib/media-probe.ts";
 import type { TryDatabasePromise } from "@/lib/effect-db.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
-import { currentImportMode } from "@/features/operations/repository/config-repository.ts";
 import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
 import { decodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
 import { resolveAccessibleDownloadPath } from "@/features/operations/download-paths.ts";
@@ -33,7 +32,6 @@ export type DownloadReconciliationContext = {
   readonly eventBus: typeof EventBus.Service;
   readonly row: DownloadRow;
   readonly animeRow: AnimeRow;
-  readonly importMode: Config["library"]["import_mode"];
   readonly runtimeConfig: Config;
   readonly storedSourceMetadata: DownloadSourceMetadata | undefined;
   readonly resolvedContentRoot: string;
@@ -130,7 +128,6 @@ export const loadDownloadReconciliationContext = Effect.fn(
 ) {
   const storedSourceMetadata = yield* decodeDownloadSourceMetadata(input.row.sourceMetadata);
   const animeRow = yield* requireAnime(input.db, input.row.animeId);
-  const importMode = yield* currentImportMode(input.db);
   const runtimeConfig = yield* input.getRuntimeConfig();
   const resolvedContentRoot = yield* resolveAccessibleDownloadPath(
     input.fs,
@@ -145,7 +142,6 @@ export const loadDownloadReconciliationContext = Effect.fn(
   return Option.some({
     db: input.db,
     animeRow,
-    importMode,
     eventBus: input.eventBus,
     fs: input.fs,
     mediaProbe: input.mediaProbe,

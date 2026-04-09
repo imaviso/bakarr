@@ -177,7 +177,7 @@ it.scoped("buildRenamePreview fills naming tokens from existing file metadata", 
           }),
         );
 
-        const preview = yield* buildRenamePreview(appDb, 1);
+        const preview = yield* buildRenamePreview(appDb, 1, testConfig);
         const firstPreview = preview[0];
         assert(firstPreview);
 
@@ -243,7 +243,7 @@ it.scoped("buildRenamePreview respects preferred English title and movie naming 
           }),
         );
 
-        const preview = yield* buildRenamePreview(appDb, 1);
+        const preview = yield* buildRenamePreview(appDb, 1, testConfig);
         const firstPreview = preview[0];
         assert(firstPreview);
 
@@ -297,7 +297,7 @@ it.scoped("buildRenamePreview reports fallback when season metadata is missing",
           }),
         );
 
-        const preview = yield* buildRenamePreview(appDb, 1);
+        const preview = yield* buildRenamePreview(appDb, 1, testConfig);
         const firstPreview = preview[0];
         assert(firstPreview);
 

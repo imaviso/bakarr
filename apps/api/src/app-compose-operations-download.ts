@@ -18,106 +18,80 @@ export function makeOperationsDownloadLayer<RSOut, RSE, RSR>(
   runtimeSupportLayer: Layer.Layer<RSOut, RSE, RSR>,
 ) {
   const withRuntime = provideFrom(runtimeSupportLayer);
-  const buildDownloadRuntimeLayers = () => {
-    const operationsRuntimeLayer = Layer.mergeAll(
-      runtimeSupportLayer,
-      DownloadTriggerCoordinatorLive,
-      UnmappedScanCoordinatorLive,
-    );
+  const operationsRuntimeLayer = Layer.mergeAll(
+    runtimeSupportLayer,
+    DownloadTriggerCoordinatorLive,
+    UnmappedScanCoordinatorLive,
+  );
 
-    const withOperationsRuntime = provideFrom(operationsRuntimeLayer);
+  const withOperationsRuntime = provideFrom(operationsRuntimeLayer);
 
-    const torrentClientLayer = withOperationsRuntime(TorrentClientServiceLive);
-    const downloadRuntimeLayer = Layer.mergeAll(operationsRuntimeLayer, torrentClientLayer);
+  const torrentClientLayer = withOperationsRuntime(TorrentClientServiceLive);
+  const downloadRuntimeLayer = Layer.mergeAll(operationsRuntimeLayer, torrentClientLayer);
 
-    const withDownloadRuntime = provideFrom(downloadRuntimeLayer);
+  const withDownloadRuntime = provideFrom(downloadRuntimeLayer);
 
-    const downloadReconciliationLayer = withDownloadRuntime(DownloadReconciliationServiceLive);
-    const downloadLifecycleRuntimeLayer = Layer.mergeAll(
-      downloadRuntimeLayer,
-      downloadReconciliationLayer,
-    );
-    const withDownloadLifecycleRuntime = provideFrom(downloadLifecycleRuntimeLayer);
+  const downloadReconciliationLayer = withDownloadRuntime(DownloadReconciliationServiceLive);
+  const downloadLifecycleRuntimeLayer = Layer.mergeAll(
+    downloadRuntimeLayer,
+    downloadReconciliationLayer,
+  );
+  const withDownloadLifecycleRuntime = provideFrom(downloadLifecycleRuntimeLayer);
 
-    const downloadTorrentLifecycleLayer = withDownloadLifecycleRuntime(
-      DownloadTorrentLifecycleServiceLive,
-    );
-    const downloadProgressRuntimeLayer = Layer.mergeAll(
-      downloadLifecycleRuntimeLayer,
-      downloadTorrentLifecycleLayer,
-    );
+  const downloadTorrentLifecycleLayer = withDownloadLifecycleRuntime(
+    DownloadTorrentLifecycleServiceLive,
+  );
+  const downloadProgressRuntimeLayer = Layer.mergeAll(
+    downloadLifecycleRuntimeLayer,
+    downloadTorrentLifecycleLayer,
+  );
 
-    const withDownloadProgressRuntime = provideFrom(downloadProgressRuntimeLayer);
+  const withDownloadProgressRuntime = provideFrom(downloadProgressRuntimeLayer);
 
-    const downloadProgressSupportLayer = withDownloadProgressRuntime(DownloadProgressSupportLive);
-    const triggerRuntimeLayer = Layer.mergeAll(
-      downloadProgressRuntimeLayer,
-      downloadProgressSupportLayer,
-    );
+  const downloadProgressSupportLayer = withDownloadProgressRuntime(DownloadProgressSupportLive);
+  const triggerRuntimeLayer = Layer.mergeAll(
+    downloadProgressRuntimeLayer,
+    downloadProgressSupportLayer,
+  );
 
-    const withTriggerRuntime = provideFrom(triggerRuntimeLayer);
+  const withTriggerRuntime = provideFrom(triggerRuntimeLayer);
 
-    const downloadTriggerLayer = withTriggerRuntime(DownloadTriggerServiceLive);
-
-    return {
-      downloadProgressRuntimeLayer,
-      downloadProgressSupportLayer,
-      downloadReconciliationLayer,
-      downloadRuntimeLayer,
-      downloadTorrentLifecycleLayer,
-      downloadTriggerLayer,
-      operationsRuntimeLayer,
-      torrentClientLayer,
-      triggerRuntimeLayer,
-    } as const;
-  };
-
-  const runtimeLayers = buildDownloadRuntimeLayers();
+  const downloadTriggerLayer = withTriggerRuntime(DownloadTriggerServiceLive);
   const catalogDownloadReadLayer = withRuntime(CatalogDownloadReadServiceLive);
+  const commandDependenciesLayer = Layer.mergeAll(
+    downloadProgressRuntimeLayer,
+    downloadProgressSupportLayer,
+  );
+  const catalogDownloadCommandLayer = provideLayer(
+    CatalogDownloadCommandServiceLive,
+    commandDependenciesLayer,
+  );
 
-  const buildDownloadCommandLayers = () => {
-    const commandDependenciesLayer = Layer.mergeAll(
-      runtimeLayers.downloadProgressRuntimeLayer,
-      runtimeLayers.downloadProgressSupportLayer,
-    );
-    const catalogDownloadCommandLayer = provideLayer(
-      CatalogDownloadCommandServiceLive,
-      commandDependenciesLayer,
-    );
-
-    const progressDependenciesLayer = Layer.mergeAll(
-      runtimeLayers.triggerRuntimeLayer,
-      runtimeLayers.downloadTriggerLayer,
-      catalogDownloadReadLayer,
-      catalogDownloadCommandLayer,
-    );
-    const operationsProgressLayer = provideLayer(ProgressLive, progressDependenciesLayer);
-
-    return {
-      catalogDownloadCommandLayer,
-      operationsProgressLayer,
-    } as const;
-  };
-
-  const commandLayers = buildDownloadCommandLayers();
+  const progressDependenciesLayer = Layer.mergeAll(
+    triggerRuntimeLayer,
+    downloadTriggerLayer,
+    catalogDownloadReadLayer,
+    catalogDownloadCommandLayer,
+  );
+  const operationsProgressLayer = provideLayer(ProgressLive, progressDependenciesLayer);
 
   const downloadSubgraphLayer = Layer.mergeAll(
-    runtimeLayers.torrentClientLayer,
-    runtimeLayers.downloadReconciliationLayer,
-    runtimeLayers.downloadTorrentLifecycleLayer,
-    runtimeLayers.downloadProgressSupportLayer,
-    runtimeLayers.downloadTriggerLayer,
+    torrentClientLayer,
+    downloadReconciliationLayer,
+    downloadTorrentLifecycleLayer,
+    downloadProgressSupportLayer,
+    downloadTriggerLayer,
     catalogDownloadReadLayer,
-    commandLayers.catalogDownloadCommandLayer,
-    commandLayers.operationsProgressLayer,
+    catalogDownloadCommandLayer,
+    operationsProgressLayer,
   );
 
   return {
     catalogDownloadReadLayer,
-    downloadRuntimeLayer: runtimeLayers.downloadRuntimeLayer,
+    downloadRuntimeLayer,
     downloadSubgraphLayer,
-    operationsProgressLayer: commandLayers.operationsProgressLayer,
-    operationsRuntimeLayer: runtimeLayers.operationsRuntimeLayer,
-    torrentClientLayer: runtimeLayers.torrentClientLayer,
+    operationsProgressLayer,
+    operationsRuntimeLayer,
+    torrentClientLayer,
   } as const;
 }

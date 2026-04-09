@@ -9,6 +9,10 @@ import { buildRenamePreview } from "@/features/operations/library-import.ts";
 import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
 import { deriveEpisodeTimelineMetadata } from "@/lib/anime-derivations.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import {
+  RuntimeConfigSnapshotService,
+  type RuntimeConfigSnapshotError,
+} from "@/features/system/runtime-config-snapshot-service.ts";
 
 export interface CatalogLibraryReadServiceShape {
   readonly getWantedMissing: (limit: number) => Effect.Effect<MissingEpisode[], DatabaseError>;
@@ -22,7 +26,10 @@ export interface CatalogLibraryReadServiceShape {
   ) => Effect.Effect<CalendarEvent[], DatabaseError>;
   readonly getRenamePreview: (
     animeId: number,
-  ) => Effect.Effect<RenamePreviewItem[], OperationsError | DatabaseError>;
+  ) => Effect.Effect<
+    RenamePreviewItem[],
+    OperationsError | DatabaseError | RuntimeConfigSnapshotError
+  >;
 }
 
 export class CatalogLibraryReadService extends Context.Tag("@bakarr/api/CatalogLibraryReadService")<
@@ -35,6 +42,7 @@ export const CatalogLibraryReadServiceLive = Layer.effect(
   Effect.gen(function* () {
     const { db } = yield* Database;
     const clock = yield* ClockService;
+    const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
     const nowIso = () => nowIsoFromClock(clock);
 
     const getWantedMissing = Effect.fn("OperationsService.getWantedMissing")(function* (
@@ -138,7 +146,8 @@ export const CatalogLibraryReadServiceLive = Layer.effect(
     const getRenamePreview = Effect.fn("OperationsService.getRenamePreview")(function* (
       animeId: number,
     ) {
-      return yield* buildRenamePreview(db, animeId);
+      const runtimeConfig = yield* runtimeConfigSnapshot.getRuntimeConfig();
+      return yield* buildRenamePreview(db, animeId, runtimeConfig);
     });
 
     return CatalogLibraryReadService.of({

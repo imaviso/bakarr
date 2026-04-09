@@ -1,4 +1,4 @@
-import { CommandExecutor, FetchHttpClient } from "@effect/platform";
+import { FetchHttpClient } from "@effect/platform";
 import { BunContext } from "@effect/platform-bun";
 import { ConfigProvider, Layer } from "effect";
 
@@ -15,7 +15,6 @@ import { RuntimeLoggerLayer } from "@/lib/logging.ts";
 import { TokenHasherLive } from "@/security/token-hasher.ts";
 
 export interface AppPlatformRuntimeOptions {
-  readonly commandExecutorLayer?: Layer.Layer<CommandExecutor.CommandExecutor>;
   readonly configProvider?: ConfigProvider.ConfigProvider;
 }
 

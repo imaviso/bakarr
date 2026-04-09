@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import { and, eq, inArray } from "drizzle-orm";
-import type { ImportMode } from "@packages/shared/index.ts";
+import type { Config, ImportMode } from "@packages/shared/index.ts";
 
 import type { AppDatabase } from "@/db/database.ts";
 import { anime, episodes } from "@/db/schema.ts";
@@ -13,10 +13,6 @@ import {
 import { OperationsAnimeNotFoundError, OperationsPathError } from "@/features/operations/errors.ts";
 import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
 import {
-  currentImportMode,
-  currentNamingSettings,
-} from "@/features/operations/repository/config-repository.ts";
-import {
   buildEpisodeFilenamePlan,
   hasMissingLocalMediaNamingFields,
   selectNamingFormat,
@@ -28,6 +24,7 @@ export interface BuildLibraryImportPlanInput {
   readonly db: AppDatabase;
   readonly fs: FileSystemShape;
   readonly mediaProbe: MediaProbeShape;
+  readonly runtimeConfig: Config;
   readonly tryDatabasePromise: TryDatabasePromise;
   readonly file: {
     source_path: string;
@@ -58,7 +55,7 @@ export const buildLibraryImportPlan = Effect.fn("Operations.buildLibraryImportPl
   LibraryImportPlan,
   import("@/db/database.ts").DatabaseError | OperationsPathError | OperationsAnimeNotFoundError
 > => {
-  const { db, file, fs, mediaProbe, tryDatabasePromise } = input;
+  const { db, file, fs, mediaProbe, runtimeConfig, tryDatabasePromise } = input;
   return Effect.gen(function* () {
     const resolvedSource = yield* fs.realPath(file.source_path).pipe(
       Effect.mapError(
@@ -71,8 +68,12 @@ export const buildLibraryImportPlan = Effect.fn("Operations.buildLibraryImportPl
     );
 
     const animeRow = yield* requireAnime(db, file.anime_id);
-    const importMode = yield* currentImportMode(db);
-    const namingSettings = yield* currentNamingSettings(db);
+    const importMode = runtimeConfig.library.import_mode;
+    const namingSettings = {
+      movieNamingFormat: runtimeConfig.library.movie_naming_format,
+      namingFormat: runtimeConfig.library.naming_format,
+      preferredTitle: runtimeConfig.library.preferred_title,
+    };
     const namingFormat = selectNamingFormat(animeRow, namingSettings);
     const allEpisodeNumbers = file.episode_numbers?.length
       ? file.episode_numbers

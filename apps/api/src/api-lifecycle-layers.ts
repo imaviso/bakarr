@@ -1,3 +1,4 @@
+import { CommandExecutor } from "@effect/platform";
 import { Layer } from "effect";
 
 import { makeAnimeAppLayer } from "@/app-compose-anime.ts";
@@ -25,7 +26,10 @@ import { DiskSpaceInspectorLive } from "@/features/system/disk-space.ts";
 import { provideFrom, provideLayer } from "@/lib/layer-compose.ts";
 import { MediaProbeLive } from "@/lib/media-probe.ts";
 
-export type ApiLifecycleOptions = AppPlatformRuntimeOptions & AppExternalClientLayerOptions;
+export type ApiLifecycleOptions = AppPlatformRuntimeOptions &
+  AppExternalClientLayerOptions & {
+    readonly commandExecutorLayer?: Layer.Layer<CommandExecutor.CommandExecutor>;
+  };
 
 export function makeApiLifecycleLayers(
   overrides: Partial<AppConfigShape> = {},

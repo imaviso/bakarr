@@ -1,7 +1,7 @@
 import { and, eq, sql } from "drizzle-orm";
 import { Effect, Schema } from "effect";
 
-import type { AnimeSearchResult, RenamePreviewItem } from "@packages/shared/index.ts";
+import type { AnimeSearchResult, Config, RenamePreviewItem } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { anime, episodes } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
@@ -12,7 +12,6 @@ import {
 import { OperationsStoredDataError } from "@/features/operations/errors.ts";
 import { deriveAnimeSeason, extractYearFromDate } from "@/lib/anime-date-utils.ts";
 import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
-import { currentNamingSettings } from "@/features/operations/repository/config-repository.ts";
 
 export {
   analyzeScannedFile,
@@ -46,9 +45,14 @@ const decodeAnimeGenres = Effect.fn("Operations.decodeAnimeGenres")(function* (
 export const buildRenamePreview = Effect.fn("OperationsService.buildRenamePreview")(function* (
   db: AppDatabase,
   animeId: number,
+  runtimeConfig: Config,
 ) {
   const animeRow = yield* requireAnime(db, animeId);
-  const namingSettings = yield* currentNamingSettings(db);
+  const namingSettings = {
+    movieNamingFormat: runtimeConfig.library.movie_naming_format,
+    namingFormat: runtimeConfig.library.naming_format,
+    preferredTitle: runtimeConfig.library.preferred_title,
+  };
   const namingFormat = selectNamingFormat(animeRow, namingSettings);
   const rows = yield* tryDatabasePromise("Failed to load episodes for rename preview", () =>
     db
