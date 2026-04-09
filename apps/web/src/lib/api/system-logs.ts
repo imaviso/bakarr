@@ -1,25 +1,28 @@
 import {
+  infiniteQueryOptions,
   keepPreviousData,
-  queryOptions,
+  useInfiniteQuery,
   useMutation,
-  useQuery,
   useQueryClient,
 } from "@tanstack/solid-query";
 import type { SystemLogsResponse } from "./contracts";
 import { API_BASE, fetchApi } from "./client";
 import { animeKeys } from "./keys";
 
-export function systemLogsQueryOptions(
-  page = 1,
+export function infiniteLogsQueryOptions(
   level?: string,
   eventType?: string,
   startDate?: string,
   endDate?: string,
 ) {
-  return queryOptions({
-    queryKey: animeKeys.system.logs(page, level, eventType, startDate, endDate),
-    queryFn: ({ signal }) => {
-      const params = new URLSearchParams({ page: page.toString() });
+  return infiniteQueryOptions({
+    queryKey: [
+      ...animeKeys.system.logs(1, level, eventType, startDate, endDate).slice(0, 2),
+      "infinite",
+      { level, eventType, startDate, endDate },
+    ] as const,
+    queryFn: ({ pageParam = 1, signal }) => {
+      const params = new URLSearchParams({ page: pageParam.toString() });
       if (level) params.append("level", level);
       if (eventType) params.append("event_type", eventType);
       if (startDate) params.append("start_date", startDate);
@@ -31,20 +34,26 @@ export function systemLogsQueryOptions(
       );
     },
     placeholderData: keepPreviousData,
+    getNextPageParam: (lastPage, allPages) => {
+      if (allPages.length >= lastPage.total_pages) {
+        return undefined;
+      }
+      return allPages.length + 1;
+    },
+    initialPageParam: 1,
     staleTime: 1000 * 10,
   });
 }
 
-export function createSystemLogsQuery(
-  page: () => number,
+export function createInfiniteLogsQuery(
   level: () => string | undefined,
   eventType: () => string | undefined,
   startDate: () => string | undefined,
   endDate: () => string | undefined,
 ) {
-  return useQuery(() => ({
-    ...systemLogsQueryOptions(page(), level(), eventType(), startDate(), endDate()),
-  }));
+  return useInfiniteQuery(() =>
+    infiniteLogsQueryOptions(level(), eventType(), startDate(), endDate()),
+  );
 }
 
 export function getExportLogsUrl(

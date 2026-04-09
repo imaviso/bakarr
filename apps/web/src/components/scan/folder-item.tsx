@@ -94,6 +94,10 @@ export function FolderItem(props: { folder: UnmappedFolder }) {
   const existingAnime = createMemo(() =>
     selectedAnime()?.already_in_library ? selectedAnime() : null,
   );
+  const selectedAnimeIds = createMemo(() => {
+    const animeId = selectedAnime()?.id;
+    return animeId === undefined ? new Set<number>() : new Set([animeId]);
+  });
   const importLabel = createMemo(() =>
     existingAnime() ? "Use existing anime" : "Add and use folder",
   );
@@ -280,7 +284,7 @@ export function FolderItem(props: { folder: UnmappedFolder }) {
                       {(related) => (
                         <AnimeDiscoveryRow
                           entry={related}
-                          libraryIds={new Set([anime().id])}
+                          libraryIds={selectedAnimeIds()}
                           compact
                         />
                       )}
@@ -293,7 +297,7 @@ export function FolderItem(props: { folder: UnmappedFolder }) {
                       {(recommended) => (
                         <AnimeDiscoveryRow
                           entry={recommended}
-                          libraryIds={new Set([anime().id])}
+                          libraryIds={selectedAnimeIds()}
                           compact
                         />
                       )}

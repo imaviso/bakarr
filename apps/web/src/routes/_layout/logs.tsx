@@ -21,10 +21,7 @@ import { DashboardMetricCard } from "~/components/logs/dashboard-metric-card";
 import { DownloadEventsList } from "~/components/logs/download-events-list";
 import { LogDetailsDialog } from "~/components/logs/log-details-dialog";
 import { SystemLogsTable } from "~/components/logs/system-logs-table";
-import {
-  DownloadEventsFilters,
-  type DownloadEventsFilterValue,
-} from "~/components/download-events/download-events-filters";
+import { DownloadEventsFilters } from "~/components/download-events/download-events-filters";
 import { Filter, type FilterColumnConfig, type FilterState } from "~/components/filters";
 import { GeneralError } from "~/components/general-error";
 import { PageHeader } from "~/components/page-header";
@@ -50,6 +47,7 @@ import {
 } from "~/components/ui/dropdown-menu";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Switch } from "~/components/ui/switch";
+import { useDownloadEventsSearchState } from "~/hooks/use-download-events-search-state";
 import {
   createClearLogsMutation,
   createDownloadEventsQuery,
@@ -62,12 +60,7 @@ import {
   infiniteLogsQueryOptions,
   type SystemLog,
 } from "~/lib/api";
-import { formatDateTimeLocalInput, getDateRangePresetHours } from "~/lib/date-presets";
-import { buildDownloadEventsFilterInput } from "~/lib/download-events-filters";
-import {
-  buildDownloadEventsExportInput,
-  runDownloadEventsExport,
-} from "~/lib/download-events-export";
+import { runDownloadEventsExport } from "~/lib/download-events-export";
 import { cn } from "~/lib/utils";
 
 const LogsSearchSchema = v.object({
@@ -210,20 +203,9 @@ function LogsPage() {
     () => apiParams()["endDate"],
   );
   const clearLogs = createClearLogsMutation();
-  const downloadEventsQuery = createDownloadEventsQuery(() =>
-    buildDownloadEventsFilterInput({
-      animeId: search().download_anime_id,
-      cursor: search().download_cursor,
-      direction: search().download_direction,
-      downloadId: search().download_download_id,
-      endDate: search().download_end_date,
-      eventType: search().download_event_type,
-      startDate: search().download_start_date,
-      status: search().download_status,
-    }),
-  );
   const jobsQuery = createSystemJobsQuery();
   const dashboardQuery = createSystemDashboardQuery();
+
   const updateDownloadEventSearch = (patch: Partial<ReturnType<typeof search>>) => {
     void navigate({
       to: ".",
@@ -231,20 +213,23 @@ function LogsPage() {
       replace: true,
     });
   };
-  const activeDownloadEventsPreset = createMemo(() =>
-    getDateRangePresetHours(search().download_start_date, search().download_end_date),
-  );
 
-  const applyDownloadEventsDateRangePreset = (hours: number) => {
-    const end = new Date();
-    const start = new Date(end.getTime() - hours * 60 * 60 * 1000);
-    updateDownloadEventSearch({
-      download_cursor: "",
-      download_direction: "next",
-      download_end_date: formatDateTimeLocalInput(end),
-      download_start_date: formatDateTimeLocalInput(start),
-    });
-  };
+  const downloadEventsSearchState = useDownloadEventsSearchState({
+    keys: {
+      animeId: "download_anime_id",
+      cursor: "download_cursor",
+      direction: "download_direction",
+      downloadId: "download_download_id",
+      endDate: "download_end_date",
+      eventType: "download_event_type",
+      startDate: "download_start_date",
+      status: "download_status",
+    },
+    search,
+    updateSearch: updateDownloadEventSearch,
+  });
+
+  const downloadEventsQuery = createDownloadEventsQuery(downloadEventsSearchState.queryInput);
 
   // Flatten all pages of logs
   const allLogs = createMemo(() => logsQuery.data?.pages.flatMap((page) => page.logs) ?? []);
@@ -274,62 +259,10 @@ function LogsPage() {
   const handleDownloadEventsExport = (exportFormat: "json" | "csv") => {
     void runDownloadEventsExport({
       format: exportFormat,
-      input: buildDownloadEventsExportInput({
-        animeId: search().download_anime_id,
-        downloadId: search().download_download_id,
-        endDate: search().download_end_date,
-        eventType: search().download_event_type,
-        startDate: search().download_start_date,
-        status: search().download_status,
-      }),
+      input: downloadEventsSearchState.exportInput(),
       onComplete: (result) => {
         setLastDownloadEventsExport(result);
       },
-    });
-  };
-
-  const downloadEventsFilterValue = createMemo<DownloadEventsFilterValue>(() => ({
-    animeId: search().download_anime_id,
-    downloadId: search().download_download_id,
-    endDate: search().download_end_date,
-    eventType: search().download_event_type,
-    startDate: search().download_start_date,
-    status: search().download_status,
-  }));
-
-  const updateDownloadEventsFilter = (field: keyof DownloadEventsFilterValue, value: string) => {
-    const patch: Partial<ReturnType<typeof search>> = {
-      download_cursor: "",
-      download_direction: "next",
-    };
-
-    if (field === "animeId") {
-      patch.download_anime_id = value;
-    } else if (field === "downloadId") {
-      patch.download_download_id = value;
-    } else if (field === "endDate") {
-      patch.download_end_date = value;
-    } else if (field === "eventType") {
-      patch.download_event_type = value;
-    } else if (field === "startDate") {
-      patch.download_start_date = value;
-    } else {
-      patch.download_status = value;
-    }
-
-    updateDownloadEventSearch(patch);
-  };
-
-  const resetDownloadEventFilters = () => {
-    updateDownloadEventSearch({
-      download_anime_id: "",
-      download_cursor: "",
-      download_direction: "next",
-      download_download_id: "",
-      download_end_date: "",
-      download_event_type: "all",
-      download_start_date: "",
-      download_status: "",
     });
   };
 
@@ -482,11 +415,11 @@ function LogsPage() {
             </div>
             <DownloadEventsFilters
               eventTypeSelectId="download-event-type"
-              value={downloadEventsFilterValue()}
-              onFieldChange={updateDownloadEventsFilter}
-              onApplyPreset={applyDownloadEventsDateRangePreset}
-              activePreset={activeDownloadEventsPreset()}
-              onClear={resetDownloadEventFilters}
+              value={downloadEventsSearchState.filterValue()}
+              onFieldChange={downloadEventsSearchState.updateFilter}
+              onApplyPreset={downloadEventsSearchState.applyDateRangePreset}
+              activePreset={downloadEventsSearchState.activePreset()}
+              onClear={downloadEventsSearchState.resetFilters}
               clearLabel="Reset"
               onExport={handleDownloadEventsExport}
               showPagination

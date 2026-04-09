@@ -5,10 +5,7 @@ import { createVirtualizer } from "@tanstack/solid-virtual";
 import { toast } from "solid-sonner";
 import * as v from "valibot";
 import { ActiveDownloadRow, DownloadRow } from "~/components/downloads/download-rows";
-import {
-  DownloadEventsFilters,
-  type DownloadEventsFilterValue,
-} from "~/components/download-events/download-events-filters";
+import { DownloadEventsFilters } from "~/components/download-events/download-events-filters";
 import { GeneralError } from "~/components/general-error";
 import { DownloadEventCard } from "~/components/download-event-card";
 import { PageHeader } from "~/components/page-header";
@@ -26,6 +23,7 @@ import {
   TableRow,
 } from "~/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
+import { useDownloadEventsSearchState } from "~/hooks/use-download-events-search-state";
 import { useActiveDownloads } from "~/hooks/use-active-downloads";
 import {
   createDownloadEventsQuery,
@@ -35,12 +33,7 @@ import {
   type DownloadEventsExportResult,
   downloadHistoryQueryOptions,
 } from "~/lib/api";
-import { buildDownloadEventsFilterInput } from "~/lib/download-events-filters";
-import { formatDateTimeLocalInput, getDateRangePresetHours } from "~/lib/date-presets";
-import {
-  buildDownloadEventsExportInput,
-  runDownloadEventsExport,
-} from "~/lib/download-events-export";
+import { runDownloadEventsExport } from "~/lib/download-events-export";
 
 const DownloadsSearchSchema = v.object({
   events_anime_id: v.optional(v.string(), ""),
@@ -80,20 +73,32 @@ function DownloadsPage() {
     DownloadEventsExportResult | undefined
   >(undefined);
 
+  const updateSearch = (patch: Partial<ReturnType<typeof search>>) => {
+    void navigate({
+      to: ".",
+      search: { ...search(), ...patch },
+      replace: true,
+    });
+  };
+
+  const eventsSearchState = useDownloadEventsSearchState({
+    keys: {
+      animeId: "events_anime_id",
+      cursor: "events_cursor",
+      direction: "events_direction",
+      downloadId: "events_download_id",
+      endDate: "events_end_date",
+      eventType: "events_event_type",
+      startDate: "events_start_date",
+      status: "events_status",
+    },
+    search,
+    updateSearch,
+  });
+
   const queue = useActiveDownloads();
   const historyQuery = createDownloadHistoryQuery();
-  const downloadEventsQuery = createDownloadEventsQuery(() =>
-    buildDownloadEventsFilterInput({
-      animeId: search().events_anime_id,
-      cursor: search().events_cursor,
-      direction: search().events_direction,
-      downloadId: search().events_download_id,
-      endDate: search().events_end_date,
-      eventType: search().events_event_type,
-      startDate: search().events_start_date,
-      status: search().events_status,
-    }),
-  );
+  const downloadEventsQuery = createDownloadEventsQuery(eventsSearchState.queryInput);
   const searchMissing = createSearchMissingMutation();
   const syncDownloads = createSyncDownloadsMutation();
 
@@ -138,87 +143,13 @@ function DownloadsPage() {
     return last ? historyVirtualizer.getTotalSize() - last.end : 0;
   });
 
-  const updateSearch = (patch: Partial<ReturnType<typeof search>>) => {
-    void navigate({
-      to: ".",
-      search: { ...search(), ...patch },
-      replace: true,
-    });
-  };
-  const activeEventsPreset = createMemo(() =>
-    getDateRangePresetHours(search().events_start_date, search().events_end_date),
-  );
-
-  const applyEventsDateRangePreset = (hours: number) => {
-    const end = new Date();
-    const start = new Date(end.getTime() - hours * 60 * 60 * 1000);
-    updateSearch({
-      events_cursor: "",
-      events_direction: "next",
-      events_end_date: formatDateTimeLocalInput(end),
-      events_start_date: formatDateTimeLocalInput(start),
-    });
-  };
-
   const handleDownloadEventsExport = (format: "json" | "csv") => {
     void runDownloadEventsExport({
       format,
-      input: buildDownloadEventsExportInput({
-        animeId: search().events_anime_id,
-        downloadId: search().events_download_id,
-        endDate: search().events_end_date,
-        eventType: search().events_event_type,
-        startDate: search().events_start_date,
-        status: search().events_status,
-      }),
+      input: eventsSearchState.exportInput(),
       onComplete: (result) => {
         setLastDownloadEventsExport(result);
       },
-    });
-  };
-
-  const eventsFilterValue = createMemo<DownloadEventsFilterValue>(() => ({
-    animeId: search().events_anime_id,
-    downloadId: search().events_download_id,
-    endDate: search().events_end_date,
-    eventType: search().events_event_type,
-    startDate: search().events_start_date,
-    status: search().events_status,
-  }));
-
-  const updateEventsFilter = (field: keyof DownloadEventsFilterValue, value: string) => {
-    const patch: Partial<ReturnType<typeof search>> = {
-      events_cursor: "",
-      events_direction: "next",
-    };
-
-    if (field === "animeId") {
-      patch.events_anime_id = value;
-    } else if (field === "downloadId") {
-      patch.events_download_id = value;
-    } else if (field === "endDate") {
-      patch.events_end_date = value;
-    } else if (field === "eventType") {
-      patch.events_event_type = value;
-    } else if (field === "startDate") {
-      patch.events_start_date = value;
-    } else {
-      patch.events_status = value;
-    }
-
-    updateSearch(patch);
-  };
-
-  const clearEventsFilters = () => {
-    updateSearch({
-      events_anime_id: "",
-      events_cursor: "",
-      events_direction: "next",
-      events_download_id: "",
-      events_end_date: "",
-      events_event_type: "all",
-      events_start_date: "",
-      events_status: "",
     });
   };
 
@@ -383,11 +314,11 @@ function DownloadsPage() {
             <div class="p-4 border-b border-border/60 space-y-3">
               <DownloadEventsFilters
                 eventTypeSelectId="events-event-type"
-                value={eventsFilterValue()}
-                onFieldChange={updateEventsFilter}
-                onApplyPreset={applyEventsDateRangePreset}
-                activePreset={activeEventsPreset()}
-                onClear={clearEventsFilters}
+                value={eventsSearchState.filterValue()}
+                onFieldChange={eventsSearchState.updateFilter}
+                onApplyPreset={eventsSearchState.applyDateRangePreset}
+                activePreset={eventsSearchState.activePreset()}
+                onClear={eventsSearchState.resetFilters}
                 onExport={handleDownloadEventsExport}
               />
             </div>
