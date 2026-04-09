@@ -15,6 +15,12 @@ import {
   findMissingImportCandidates,
   toggleImportCandidateSelection,
 } from "./import-flow";
+import { createImportDropzoneHandlers } from "./import-dropzone";
+import {
+  toggleSelectedImportFile,
+  updateSelectedImportFileAnime,
+  updateSelectedImportFileMapping,
+} from "./import-file-selection";
 import type { Step } from "./types";
 
 interface ImportFlowOptions {
@@ -26,15 +32,6 @@ interface ImportFlowOptions {
 
 export function toImportInputMode(value: string | null | undefined): "browser" | "manual" {
   return value === "manual" ? "manual" : "browser";
-}
-
-function getDroppedFilePath(file: File): string | undefined {
-  if (!Object.hasOwn(file, "path")) {
-    return undefined;
-  }
-
-  const value = Reflect.get(file, "path");
-  return typeof value === "string" ? value : undefined;
 }
 
 export function useImportFlow(options: ImportFlowOptions = {}) {
@@ -222,110 +219,24 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
   };
 
   const toggleFile = (file: ScannedFile, targetAnimeId: number) => {
-    const next = new Map(selectedFiles());
-    if (next.has(file.source_path)) {
-      next.delete(file.source_path);
-    } else {
-      next.set(file.source_path, buildImportFileRequest({ animeId: targetAnimeId, file }));
-    }
+    const next = toggleSelectedImportFile(selectedFiles(), file, targetAnimeId);
     setSelectedFiles(next);
   };
 
   const updateFileAnime = (file: ScannedFile, newAnimeId: number) => {
-    const next = new Map(selectedFiles());
-    if (!next.has(file.source_path)) {
-      return;
-    }
-
-    const existing = next.get(file.source_path);
-    if (!existing) {
-      return;
-    }
-
-    next.set(
-      file.source_path,
-      buildImportFileRequest({
-        animeId: newAnimeId,
-        episodeNumber: existing.episode_number,
-        ...(existing.episode_numbers === undefined
-          ? {}
-          : { episodeNumbers: existing.episode_numbers }),
-        file,
-        ...(existing.season === undefined ? {} : { season: existing.season }),
-        ...(existing.source_metadata === undefined
-          ? {}
-          : { sourceMetadata: existing.source_metadata }),
-      }),
-    );
-
+    const next = updateSelectedImportFileAnime(selectedFiles(), file, newAnimeId);
     setSelectedFiles(next);
   };
 
   const updateFileMapping = (file: ScannedFile, season: number, episode: number) => {
-    const next = new Map(selectedFiles());
-    const current =
-      next.get(file.source_path) ??
-      buildImportFileRequest({
-        animeId: file.matched_anime?.id ?? 0,
-        file,
-      });
-
-    next.set(
-      file.source_path,
-      buildImportFileRequest({
-        animeId: current.anime_id,
-        episodeNumber: episode,
-        ...(current.episode_numbers === undefined
-          ? {}
-          : { episodeNumbers: current.episode_numbers }),
-        file,
-        season,
-        ...(current.source_metadata === undefined
-          ? {}
-          : { sourceMetadata: current.source_metadata }),
-      }),
-    );
+    const next = updateSelectedImportFileMapping(selectedFiles(), file, season, episode);
     setSelectedFiles(next);
   };
-
-  const handleDragOver = (event: DragEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setIsDragOver(true);
-  };
-
-  const handleDragLeave = (event: DragEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setIsDragOver(false);
-  };
-
-  const handleDrop = (event: DragEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setIsDragOver(false);
-
-    const items = event.dataTransfer?.items;
-    if (items && items.length > 0) {
-      const item = items[0];
-      if (item?.kind === "file") {
-        const file = item.getAsFile();
-        if (file) {
-          const droppedPath = getDroppedFilePath(file);
-          if (droppedPath) {
-            setPath(droppedPath);
-            setInputMode("manual");
-          }
-        }
-      }
-    }
-
-    const textData = event.dataTransfer?.getData("text/plain");
-    if (textData && (textData.startsWith("/") || textData.startsWith("file://"))) {
-      setPath(textData.replace("file://", ""));
-      setInputMode("manual");
-    }
-  };
+  const dropzoneHandlers = createImportDropzoneHandlers({
+    setInputMode,
+    setIsDragOver,
+    setPath,
+  });
 
   return {
     activeAddCandidate,
@@ -334,9 +245,9 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
     candidates,
     closeAddCandidateDialog,
     currentAddIndex,
-    handleDragLeave,
-    handleDragOver,
-    handleDrop,
+    handleDragLeave: dropzoneHandlers.handleDragLeave,
+    handleDragOver: dropzoneHandlers.handleDragOver,
+    handleDrop: dropzoneHandlers.handleDrop,
     handleImport,
     handleManualAdd,
     handleScan,

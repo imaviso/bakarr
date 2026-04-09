@@ -3,10 +3,7 @@ import {
   IconArrowDown,
   IconCheck,
   IconClock,
-  IconDownload,
   IconExternalLink,
-  IconFileSpreadsheet,
-  IconJson,
   IconPlayerPause,
   IconPlayerPlay,
   IconRefresh,
@@ -19,6 +16,10 @@ import { createMemo, createSignal, For, Show } from "solid-js";
 import { createVirtualizer } from "@tanstack/solid-virtual";
 import { toast } from "solid-sonner";
 import * as v from "valibot";
+import {
+  DownloadEventsFilters,
+  type DownloadEventsFilterValue,
+} from "~/components/download-events/download-events-filters";
 import { GeneralError } from "~/components/general-error";
 import { DownloadEventCard } from "~/components/download-event-card";
 import { PageHeader } from "~/components/page-header";
@@ -29,7 +30,6 @@ import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
 import { Progress } from "~/components/ui/progress";
 import { Skeleton } from "~/components/ui/skeleton";
-import { TextField, TextFieldInput, TextFieldLabel } from "~/components/ui/text-field";
 import {
   Table,
   TableBody,
@@ -39,19 +39,6 @@ import {
   TableRow,
 } from "~/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "~/components/ui/dropdown-menu";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "~/components/ui/select";
 import { useActiveDownloads } from "~/hooks/use-active-downloads";
 import {
   createDeleteDownloadMutation,
@@ -278,6 +265,51 @@ function DownloadsPage() {
     });
   };
 
+  const eventsFilterValue = createMemo<DownloadEventsFilterValue>(() => ({
+    animeId: search().events_anime_id,
+    downloadId: search().events_download_id,
+    endDate: search().events_end_date,
+    eventType: search().events_event_type,
+    startDate: search().events_start_date,
+    status: search().events_status,
+  }));
+
+  const updateEventsFilter = (field: keyof DownloadEventsFilterValue, value: string) => {
+    const patch: Partial<ReturnType<typeof search>> = {
+      events_cursor: "",
+      events_direction: "next",
+    };
+
+    if (field === "animeId") {
+      patch.events_anime_id = value;
+    } else if (field === "downloadId") {
+      patch.events_download_id = value;
+    } else if (field === "endDate") {
+      patch.events_end_date = value;
+    } else if (field === "eventType") {
+      patch.events_event_type = value;
+    } else if (field === "startDate") {
+      patch.events_start_date = value;
+    } else {
+      patch.events_status = value;
+    }
+
+    updateSearch(patch);
+  };
+
+  const clearEventsFilters = () => {
+    updateSearch({
+      events_anime_id: "",
+      events_cursor: "",
+      events_direction: "next",
+      events_download_id: "",
+      events_end_date: "",
+      events_event_type: "all",
+      events_start_date: "",
+      events_status: "",
+    });
+  };
+
   return (
     <div class="flex flex-col flex-1 min-h-0 gap-4">
       <PageHeader title="Downloads" subtitle="Manage active downloads and history">
@@ -437,179 +469,15 @@ function DownloadsPage() {
 
           <TabsContent value="events" class="flex-1 mt-0 min-h-0 overflow-hidden flex flex-col">
             <div class="p-4 border-b border-border/60 space-y-3">
-              <div class="grid gap-3 md:grid-cols-[1fr_1fr_240px_auto]">
-                <TextField>
-                  <TextFieldLabel>Anime ID</TextFieldLabel>
-                  <TextFieldInput
-                    type="number"
-                    value={search().events_anime_id}
-                    onInput={(event) =>
-                      updateSearch({
-                        events_cursor: "",
-                        events_direction: "next",
-                        events_anime_id: event.currentTarget.value,
-                      })
-                    }
-                    placeholder="Any anime"
-                  />
-                </TextField>
-                <TextField>
-                  <TextFieldLabel>Download ID</TextFieldLabel>
-                  <TextFieldInput
-                    type="number"
-                    value={search().events_download_id}
-                    onInput={(event) =>
-                      updateSearch({
-                        events_cursor: "",
-                        events_direction: "next",
-                        events_download_id: event.currentTarget.value,
-                      })
-                    }
-                    placeholder="Any download"
-                  />
-                </TextField>
-                <div class="flex flex-col gap-1">
-                  <label class="text-sm font-medium" for="events-event-type">
-                    Event Type
-                  </label>
-                  <Select
-                    name="events-event-type"
-                    value={search().events_event_type}
-                    onChange={(value) =>
-                      value &&
-                      updateSearch({
-                        events_cursor: "",
-                        events_direction: "next",
-                        events_event_type: value,
-                      })
-                    }
-                    options={[
-                      "all",
-                      "download.queued",
-                      "download.imported",
-                      "download.imported.batch",
-                      "download.retried",
-                      "download.status_changed",
-                      "download.coverage_refined",
-                      "download.deleted",
-                      "download.search_missing.queued",
-                      "download.rss.queued",
-                    ]}
-                    itemComponent={(props) => (
-                      <SelectItem item={props.item}>{props.item.rawValue}</SelectItem>
-                    )}
-                  >
-                    <SelectTrigger id="events-event-type">
-                      <SelectValue<string>>
-                        {(state) => state.selectedOption() ?? "all"}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent />
-                  </Select>
-                </div>
-                <div class="flex items-end gap-2">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger as={Button} variant="outline">
-                      <IconDownload class="h-4 w-4" />
-                      Export
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                      <DropdownMenuItem onClick={() => handleDownloadEventsExport("json")}>
-                        <IconJson class="h-4 w-4 mr-2" />
-                        Export as JSON
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleDownloadEventsExport("csv")}>
-                        <IconFileSpreadsheet class="h-4 w-4 mr-2" />
-                        Export as CSV
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </div>
-              <div class="grid gap-3 md:grid-cols-[220px_220px_220px_auto]">
-                <TextField>
-                  <TextFieldLabel>Status</TextFieldLabel>
-                  <TextFieldInput
-                    value={search().events_status}
-                    onInput={(event) =>
-                      updateSearch({
-                        events_cursor: "",
-                        events_direction: "next",
-                        events_status: event.currentTarget.value,
-                      })
-                    }
-                    placeholder="Any status"
-                  />
-                </TextField>
-                <TextField>
-                  <TextFieldLabel>Start Date</TextFieldLabel>
-                  <TextFieldInput
-                    type="datetime-local"
-                    value={search().events_start_date}
-                    onInput={(event) =>
-                      updateSearch({
-                        events_cursor: "",
-                        events_direction: "next",
-                        events_start_date: event.currentTarget.value,
-                      })
-                    }
-                  />
-                </TextField>
-                <TextField>
-                  <TextFieldLabel>End Date</TextFieldLabel>
-                  <TextFieldInput
-                    type="datetime-local"
-                    value={search().events_end_date}
-                    onInput={(event) =>
-                      updateSearch({
-                        events_cursor: "",
-                        events_direction: "next",
-                        events_end_date: event.currentTarget.value,
-                      })
-                    }
-                  />
-                </TextField>
-                <div class="flex items-end justify-end gap-2 flex-wrap">
-                  <Button
-                    variant={activeEventsPreset() === 24 ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => applyEventsDateRangePreset(24)}
-                  >
-                    24h
-                  </Button>
-                  <Button
-                    variant={activeEventsPreset() === 168 ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => applyEventsDateRangePreset(24 * 7)}
-                  >
-                    7d
-                  </Button>
-                  <Button
-                    variant={activeEventsPreset() === 720 ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => applyEventsDateRangePreset(24 * 30)}
-                  >
-                    30d
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() =>
-                      updateSearch({
-                        events_anime_id: "",
-                        events_cursor: "",
-                        events_direction: "next",
-                        events_download_id: "",
-                        events_end_date: "",
-                        events_event_type: "all",
-                        events_start_date: "",
-                        events_status: "",
-                      })
-                    }
-                  >
-                    Clear Filters
-                  </Button>
-                </div>
-              </div>
+              <DownloadEventsFilters
+                eventTypeSelectId="events-event-type"
+                value={eventsFilterValue()}
+                onFieldChange={updateEventsFilter}
+                onApplyPreset={applyEventsDateRangePreset}
+                activePreset={activeEventsPreset()}
+                onClear={clearEventsFilters}
+                onExport={handleDownloadEventsExport}
+              />
             </div>
             <Show when={lastDownloadEventsExport()?.truncated}>
               <div class="mx-4 mt-4 rounded-md border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-warning">

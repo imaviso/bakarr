@@ -11,7 +11,7 @@ import {
   StringListEditor,
 } from "~/components/settings/form-controls";
 import { formatLastRun } from "~/components/settings/system-settings-schema";
-import type { SettingsFormApi } from "~/components/settings/system-settings-types";
+import type { SettingsFormApi } from "~/components/settings/system-settings-form-factory";
 import { handleFiniteNumberInput } from "~/components/settings/system-settings-utils";
 import type { SystemStatus } from "~/lib/api";
 

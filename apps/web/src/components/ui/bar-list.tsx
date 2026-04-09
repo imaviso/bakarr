@@ -1,5 +1,5 @@
 import type { ComponentProps, JSX } from "solid-js";
-import { For, mergeProps, Show, splitProps } from "solid-js";
+import { createMemo, For, mergeProps, Show, splitProps } from "solid-js";
 import { Dynamic } from "solid-js/web";
 
 import { cn } from "~/lib/utils";
@@ -43,12 +43,12 @@ const BarList = <T,>(rawProps: BarListProps<T>) => {
     );
   };
 
-  const widths = () => {
+  const widths = createMemo(() => {
     const maxValue = Math.max(...sortedData().map((item) => item.value), 0);
     return sortedData().map((item) =>
       item.value === 0 ? 0 : Math.max((item.value / maxValue) * 100, 2),
     );
-  };
+  });
 
   return (
     <div

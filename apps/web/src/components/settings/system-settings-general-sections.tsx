@@ -15,7 +15,7 @@ import {
   PREFERRED_TITLE_OPTIONS,
   preferredTitleLabel,
 } from "~/components/settings/system-settings-schema";
-import type { SettingsFormApi } from "~/components/settings/system-settings-types";
+import type { SettingsFormApi } from "~/components/settings/system-settings-form-factory";
 import { handleFiniteNumberInput } from "~/components/settings/system-settings-utils";
 
 interface SystemSettingsGeneralSectionsProps {

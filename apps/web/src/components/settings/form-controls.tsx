@@ -29,25 +29,29 @@ export function SizeInput(props: {
   const [unit, setUnit] = createSignal<"MB" | "GB">("MB");
 
   createEffect(() => {
-    if (props.value) {
-      const match = props.value.match(/^(\d+(?:\.\d+)?)\s*(MB|GB)$/i);
-      if (match) {
-        const [matchedAmount, matchedUnit] = match.slice(1);
-        if (matchedAmount) {
-          setAmount(matchedAmount);
-        }
-        const parsedUnit = matchedUnit ? parseSizeUnit(matchedUnit) : undefined;
-        if (parsedUnit) {
-          setUnit(parsedUnit);
-        }
+    const match = props.value.match(/^(\d+(?:\.\d+)?)\s*(MB|GB)$/i);
+    if (!match) {
+      if (amount() !== "") {
+        setAmount("");
       }
+      setUnit("MB");
+      return;
+    }
+
+    const [matchedAmount, matchedUnit] = match.slice(1);
+    if (matchedAmount && amount() !== matchedAmount) {
+      setAmount(matchedAmount);
+    }
+    const parsedUnit = matchedUnit ? parseSizeUnit(matchedUnit) : undefined;
+    if (parsedUnit && unit() !== parsedUnit) {
+      setUnit(parsedUnit);
     }
   });
 
-  const updateValue = () => {
-    const numericAmount = amount();
+  const updateValue = (nextAmount = amount(), nextUnit = unit()) => {
+    const numericAmount = nextAmount;
     if (numericAmount && !Number.isNaN(Number(numericAmount)) && Number(numericAmount) > 0) {
-      props.onChange(`${numericAmount} ${unit()}`);
+      props.onChange(`${numericAmount} ${nextUnit}`);
       return;
     }
     props.onChange(undefined);
@@ -71,8 +75,9 @@ export function SizeInput(props: {
           step="0.1"
           value={amount()}
           onInput={(event) => {
-            setAmount(event.currentTarget.value);
-            updateValue();
+            const nextAmount = event.currentTarget.value;
+            setAmount(nextAmount);
+            updateValue(nextAmount, unit());
           }}
           placeholder="0"
           class="flex-1"
@@ -82,7 +87,7 @@ export function SizeInput(props: {
           onChange={(value) => {
             if (value) {
               setUnit(value);
-              updateValue();
+              updateValue(amount(), value);
             }
           }}
           options={["MB", "GB"]}
@@ -152,9 +157,13 @@ export function StringListEditor(props: {
   value: string[];
 }) {
   const [text, setText] = createSignal(formatStringList(props.value));
+  const [isFocused, setIsFocused] = createSignal(false);
 
   createEffect(() => {
-    setText(formatStringList(props.value));
+    const next = formatStringList(props.value);
+    if (!isFocused() && text() !== next) {
+      setText(next);
+    }
   });
 
   const commit = () => {
@@ -167,8 +176,12 @@ export function StringListEditor(props: {
         value={text()}
         rows={props.rows ?? 4}
         placeholder={props.placeholder}
+        onFocus={() => setIsFocused(true)}
         onInput={(event) => setText(event.currentTarget.value)}
-        onBlur={commit}
+        onBlur={() => {
+          setIsFocused(false);
+          commit();
+        }}
       />
     </TextField>
   );
@@ -198,9 +211,13 @@ export function PathMappingsEditor(props: {
   value: string[][];
 }) {
   const [text, setText] = createSignal(formatPathMappings(props.value));
+  const [isFocused, setIsFocused] = createSignal(false);
 
   createEffect(() => {
-    setText(formatPathMappings(props.value));
+    const next = formatPathMappings(props.value);
+    if (!isFocused() && text() !== next) {
+      setText(next);
+    }
   });
 
   return (
@@ -209,8 +226,12 @@ export function PathMappingsEditor(props: {
         value={text()}
         rows={props.rows ?? 4}
         placeholder={props.placeholder}
+        onFocus={() => setIsFocused(true)}
         onInput={(event) => setText(event.currentTarget.value)}
-        onBlur={() => props.onChange(parsePathMappings(text()))}
+        onBlur={() => {
+          setIsFocused(false);
+          props.onChange(parsePathMappings(text()));
+        }}
       />
     </TextField>
   );

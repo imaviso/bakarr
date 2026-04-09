@@ -19,6 +19,10 @@ import { format } from "date-fns";
 import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js";
 import { createVirtualizer } from "@tanstack/solid-virtual";
 import * as v from "valibot";
+import {
+  DownloadEventsFilters,
+  type DownloadEventsFilterValue,
+} from "~/components/download-events/download-events-filters";
 import { Filter, type FilterColumnConfig, type FilterState } from "~/components/filters";
 import { GeneralError } from "~/components/general-error";
 import { PageHeader } from "~/components/page-header";
@@ -53,7 +57,6 @@ import {
 } from "~/components/ui/dropdown-menu";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Switch } from "~/components/ui/switch";
-import { TextField, TextFieldInput, TextFieldLabel } from "~/components/ui/text-field";
 import {
   Table,
   TableBody,
@@ -62,13 +65,6 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "~/components/ui/select";
 import {
   type BackgroundJobStatus,
   createClearLogsMutation,
@@ -376,6 +372,51 @@ function LogsPage() {
     });
   };
 
+  const downloadEventsFilterValue = createMemo<DownloadEventsFilterValue>(() => ({
+    animeId: search().download_anime_id,
+    downloadId: search().download_download_id,
+    endDate: search().download_end_date,
+    eventType: search().download_event_type,
+    startDate: search().download_start_date,
+    status: search().download_status,
+  }));
+
+  const updateDownloadEventsFilter = (field: keyof DownloadEventsFilterValue, value: string) => {
+    const patch: Partial<ReturnType<typeof search>> = {
+      download_cursor: "",
+      download_direction: "next",
+    };
+
+    if (field === "animeId") {
+      patch.download_anime_id = value;
+    } else if (field === "downloadId") {
+      patch.download_download_id = value;
+    } else if (field === "endDate") {
+      patch.download_end_date = value;
+    } else if (field === "eventType") {
+      patch.download_event_type = value;
+    } else if (field === "startDate") {
+      patch.download_start_date = value;
+    } else {
+      patch.download_status = value;
+    }
+
+    updateDownloadEventSearch(patch);
+  };
+
+  const resetDownloadEventFilters = () => {
+    updateDownloadEventSearch({
+      download_anime_id: "",
+      download_cursor: "",
+      download_direction: "next",
+      download_download_id: "",
+      download_end_date: "",
+      download_event_type: "all",
+      download_start_date: "",
+      download_status: "",
+    });
+  };
+
   return (
     <div class="flex flex-col flex-1 min-h-0 gap-6">
       <PageHeader title="System Logs" subtitle="View, filter, and export system events and errors">
@@ -521,201 +562,31 @@ function LogsPage() {
                 Latest queued, retried, reconciled, and imported download actions
               </p>
             </div>
-            <div class="grid gap-3 md:grid-cols-[1fr_1fr_220px_auto]">
-              <TextField>
-                <TextFieldLabel>Anime ID</TextFieldLabel>
-                <TextFieldInput
-                  type="number"
-                  value={search().download_anime_id}
-                  onInput={(event) =>
-                    updateDownloadEventSearch({
-                      download_cursor: "",
-                      download_direction: "next",
-                      download_anime_id: event.currentTarget.value,
-                    })
-                  }
-                  placeholder="Any anime"
-                />
-              </TextField>
-              <TextField>
-                <TextFieldLabel>Download ID</TextFieldLabel>
-                <TextFieldInput
-                  type="number"
-                  value={search().download_download_id}
-                  onInput={(event) =>
-                    updateDownloadEventSearch({
-                      download_cursor: "",
-                      download_direction: "next",
-                      download_download_id: event.currentTarget.value,
-                    })
-                  }
-                  placeholder="Any download"
-                />
-              </TextField>
-              <div class="flex flex-col gap-1">
-                <label class="text-sm font-medium" for="download-event-type">
-                  Event Type
-                </label>
-                <Select
-                  name="download-event-type"
-                  value={search().download_event_type}
-                  onChange={(value) =>
-                    value &&
-                    updateDownloadEventSearch({
-                      download_cursor: "",
-                      download_direction: "next",
-                      download_event_type: value,
-                    })
-                  }
-                  options={[
-                    "all",
-                    "download.queued",
-                    "download.imported",
-                    "download.imported.batch",
-                    "download.retried",
-                    "download.status_changed",
-                    "download.coverage_refined",
-                    "download.deleted",
-                    "download.search_missing.queued",
-                    "download.rss.queued",
-                  ]}
-                  itemComponent={(props) => (
-                    <SelectItem item={props.item}>{props.item.rawValue}</SelectItem>
-                  )}
-                >
-                  <SelectTrigger>
-                    <SelectValue<string>>{(state) => state.selectedOption() ?? "all"}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent />
-                </Select>
-              </div>
-              <div class="flex items-end justify-end gap-2 flex-wrap">
-                <Button
-                  variant={activeDownloadEventsPreset() === 24 ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => applyDownloadEventsDateRangePreset(24)}
-                >
-                  24h
-                </Button>
-                <Button
-                  variant={activeDownloadEventsPreset() === 168 ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => applyDownloadEventsDateRangePreset(24 * 7)}
-                >
-                  7d
-                </Button>
-                <Button
-                  variant={activeDownloadEventsPreset() === 720 ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => applyDownloadEventsDateRangePreset(24 * 30)}
-                >
-                  30d
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    updateDownloadEventSearch({
-                      download_anime_id: "",
-                      download_cursor: "",
-                      download_direction: "next",
-                      download_download_id: "",
-                      download_end_date: "",
-                      download_event_type: "all",
-                      download_start_date: "",
-                      download_status: "",
-                    })
-                  }
-                >
-                  Reset
-                </Button>
-              </div>
-            </div>
-            <div class="grid gap-3 md:grid-cols-[220px_220px_220px_auto]">
-              <TextField>
-                <TextFieldLabel>Status</TextFieldLabel>
-                <TextFieldInput
-                  value={search().download_status}
-                  onInput={(event) =>
-                    updateDownloadEventSearch({
-                      download_cursor: "",
-                      download_direction: "next",
-                      download_status: event.currentTarget.value,
-                    })
-                  }
-                  placeholder="Any status"
-                />
-              </TextField>
-              <TextField>
-                <TextFieldLabel>Start Date</TextFieldLabel>
-                <TextFieldInput
-                  type="datetime-local"
-                  value={search().download_start_date}
-                  onInput={(event) =>
-                    updateDownloadEventSearch({
-                      download_cursor: "",
-                      download_direction: "next",
-                      download_start_date: event.currentTarget.value,
-                    })
-                  }
-                />
-              </TextField>
-              <TextField>
-                <TextFieldLabel>End Date</TextFieldLabel>
-                <TextFieldInput
-                  type="datetime-local"
-                  value={search().download_end_date}
-                  onInput={(event) =>
-                    updateDownloadEventSearch({
-                      download_cursor: "",
-                      download_direction: "next",
-                      download_end_date: event.currentTarget.value,
-                    })
-                  }
-                />
-              </TextField>
-              <div class="flex items-end justify-end gap-2">
-                <DropdownMenu>
-                  <DropdownMenuTrigger as={Button} variant="outline">
-                    <IconDownload class="h-4 w-4" />
-                    Export
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuItem onClick={() => handleDownloadEventsExport("json")}>
-                      <IconJson class="h-4 w-4 mr-2" />
-                      Export as JSON
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleDownloadEventsExport("csv")}>
-                      <IconFileSpreadsheet class="h-4 w-4 mr-2" />
-                      Export as CSV
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    updateDownloadEventSearch({
-                      download_cursor: downloadEventsQuery.data?.prev_cursor ?? "",
-                      download_direction: "prev",
-                    })
-                  }
-                  disabled={!downloadEventsQuery.data?.prev_cursor}
-                >
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    updateDownloadEventSearch({
-                      download_cursor: downloadEventsQuery.data?.next_cursor ?? "",
-                      download_direction: "next",
-                    })
-                  }
-                  disabled={!downloadEventsQuery.data?.has_more}
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
+            <DownloadEventsFilters
+              eventTypeSelectId="download-event-type"
+              value={downloadEventsFilterValue()}
+              onFieldChange={updateDownloadEventsFilter}
+              onApplyPreset={applyDownloadEventsDateRangePreset}
+              activePreset={activeDownloadEventsPreset()}
+              onClear={resetDownloadEventFilters}
+              clearLabel="Reset"
+              onExport={handleDownloadEventsExport}
+              showPagination
+              onPrevious={() =>
+                updateDownloadEventSearch({
+                  download_cursor: downloadEventsQuery.data?.prev_cursor ?? "",
+                  download_direction: "prev",
+                })
+              }
+              previousDisabled={!downloadEventsQuery.data?.prev_cursor}
+              onNext={() =>
+                updateDownloadEventSearch({
+                  download_cursor: downloadEventsQuery.data?.next_cursor ?? "",
+                  download_direction: "next",
+                })
+              }
+              nextDisabled={!downloadEventsQuery.data?.has_more}
+            />
             <Show when={lastDownloadEventsExport()?.truncated}>
               <div class="rounded-md border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-warning">
                 Last export was truncated: exported

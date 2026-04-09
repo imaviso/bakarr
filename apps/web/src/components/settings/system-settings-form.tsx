@@ -1,12 +1,9 @@
-import { createForm } from "@tanstack/solid-form";
 import { createSignal, Show } from "solid-js";
 import { toast } from "solid-sonner";
 import { SystemSettingsAutomationSections } from "~/components/settings/system-settings-automation-sections";
+import { createSystemSettingsForm } from "~/components/settings/system-settings-form-factory";
 import { SystemSettingsGeneralSections } from "~/components/settings/system-settings-general-sections";
-import {
-  ConfigSchema,
-  type ConfigSettingsMode,
-} from "~/components/settings/system-settings-schema";
+import { type ConfigSettingsMode } from "~/components/settings/system-settings-schema";
 import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
 import {
@@ -52,21 +49,18 @@ function SystemForm(props: {
   mode: ConfigSettingsMode;
   onSubmit: (values: Config) => Promise<void>;
 }) {
-  const form = createForm(() => ({
+  const form = createSystemSettingsForm({
     defaultValues: props.defaultValues,
-    validators: {
-      onChange: ConfigSchema,
-    },
-    onSubmit: async ({ value, formApi }) => {
+    onSubmit: async (value) => {
       try {
         await props.onSubmit(value);
-        formApi.reset(value);
         toast.success("Settings saved successfully");
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Failed to save settings");
+        throw error;
       }
     },
-  }));
+  });
 
   const systemStatus = createSystemStatusQuery();
   const triggerScan = createTriggerScanMutation();
