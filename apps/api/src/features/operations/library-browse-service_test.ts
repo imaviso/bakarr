@@ -8,10 +8,6 @@ import {
   LibraryBrowseService,
   LibraryBrowseServiceLive,
 } from "@/features/operations/library-browse-service.ts";
-import {
-  LibraryRootsQueryService,
-  type LibraryRootsQueryServiceShape,
-} from "@/features/operations/library-roots-query-service.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 
 describe("LibraryBrowseService", () => {
@@ -119,13 +115,19 @@ function browseEffect(fs: FileSystemShape, input: { readonly path?: string }) {
         Layer.provide(
           Layer.mergeAll(
             Layer.succeed(FileSystem, fs),
-            Layer.succeed(LibraryRootsQueryService, {
-              listRoots: () =>
-                Effect.succeed([{ id: 1, label: "default", path: "/allowed/library" }]),
-            } satisfies LibraryRootsQueryServiceShape),
             Layer.succeed(
               RuntimeConfigSnapshotService,
-              makeRuntimeConfigSnapshotStub(makeTestConfig("./test.sqlite")),
+              makeRuntimeConfigSnapshotStub(
+                makeTestConfig("./test.sqlite", (config) => ({
+                  ...config,
+                  downloads: { ...config.downloads, root_path: "/allowed/downloads" },
+                  library: {
+                    ...config.library,
+                    library_path: "/allowed/library",
+                    recycle_path: "/allowed/recycle",
+                  },
+                })),
+              ),
             ),
           ),
         ),

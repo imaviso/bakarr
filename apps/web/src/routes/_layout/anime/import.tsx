@@ -13,7 +13,7 @@ import {
   IconX,
 } from "@tabler/icons-solidjs";
 import { createFileRoute, Link, useNavigate } from "@tanstack/solid-router";
-import { For, Show, Suspense } from "solid-js";
+import { createEffect, createMemo, createSignal, For, Show, Suspense } from "solid-js";
 import * as v from "valibot";
 import { AddAnimeDialog } from "~/components/add-anime-dialog";
 import { FileBrowser } from "~/components/file-browser";
@@ -33,7 +33,12 @@ import {
 } from "~/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { TextField, TextFieldInput, TextFieldLabel } from "~/components/ui/text-field";
-import { animeListQueryOptions, profilesQueryOptions } from "~/lib/api";
+import {
+  animeListQueryOptions,
+  createSystemConfigQuery,
+  profilesQueryOptions,
+  systemConfigQueryOptions,
+} from "~/lib/api";
 import { cn } from "~/lib/utils";
 
 const ImportSearchSchema = v.object({
@@ -53,6 +58,7 @@ export const Route = createFileRoute("/_layout/anime/import")({
     await Promise.all([
       queryClient.ensureQueryData(animeListQueryOptions()),
       queryClient.ensureQueryData(profilesQueryOptions()),
+      queryClient.ensureQueryData(systemConfigQueryOptions()),
     ]);
   },
   component: ImportPage,
@@ -71,6 +77,10 @@ const steps: { id: Step; label: string; description: string }[] = [
 function ImportPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
+  const configQuery = createSystemConfigQuery();
+  const [selectedBrowseRoot, setSelectedBrowseRoot] = createSignal<
+    "library" | "recycle" | "downloads"
+  >("library");
   const {
     activeAddCandidate,
     advanceAddCandidateDialog,
@@ -115,6 +125,47 @@ function ImportPage() {
   });
 
   const currentStepIndex = () => steps.findIndex((s) => s.id === step());
+  const allowedRoots = createMemo(() => {
+    const config = configQuery.data;
+    if (!config) return [] as const;
+    return [
+      {
+        key: "library" as const,
+        label: "Library",
+        path: config.library.library_path.trim(),
+      },
+      {
+        key: "recycle" as const,
+        label: "Recycle",
+        path: config.library.recycle_path.trim(),
+      },
+      {
+        key: "downloads" as const,
+        label: "Downloads",
+        path: config.downloads.root_path.trim(),
+      },
+    ].filter((root) => root.path.length > 0);
+  });
+  const activeBrowseRoot = createMemo(
+    () =>
+      allowedRoots().find((root) => root.key === selectedBrowseRoot()) ?? allowedRoots()[0] ?? null,
+  );
+
+  createEffect(() => {
+    const root = activeBrowseRoot();
+    if (!root) return;
+    if (!path()) {
+      setPath(root.path);
+    }
+  });
+
+  createEffect(() => {
+    const roots = allowedRoots();
+    if (roots.length === 0) return;
+    if (!roots.some((root) => root.key === selectedBrowseRoot())) {
+      setSelectedBrowseRoot(roots[0]!.key);
+    }
+  });
 
   return (
     <>
@@ -206,6 +257,9 @@ function ImportPage() {
                   Choose a folder containing video files to import. Files will be renamed and
                   organized according to your naming format.
                 </p>
+                <p class="text-xs text-muted-foreground mt-2">
+                  Allowed roots: library, recycle, and downloads paths from system settings.
+                </p>
               </div>
 
               {/* Content */}
@@ -228,6 +282,29 @@ function ImportPage() {
 
                   <TabsContent value="browser" class="flex-1 mt-6 min-h-0 overflow-hidden">
                     <div class="h-full border rounded-lg overflow-hidden bg-background">
+                      <Show when={allowedRoots().length > 0}>
+                        <div class="border-b bg-muted/20 px-3 py-2">
+                          <Tabs
+                            value={activeBrowseRoot()?.key ?? ""}
+                            onChange={(next) => {
+                              const root = allowedRoots().find((item) => item.key === next);
+                              if (!root) return;
+                              setSelectedBrowseRoot(root.key);
+                              setPath(root.path);
+                            }}
+                          >
+                            <TabsList class="h-8 w-fit">
+                              <For each={allowedRoots()}>
+                                {(root) => (
+                                  <TabsTrigger value={root.key} class="px-3 text-xs">
+                                    {root.label}
+                                  </TabsTrigger>
+                                )}
+                              </For>
+                            </TabsList>
+                          </Tabs>
+                        </div>
+                      </Show>
                       <Suspense
                         fallback={
                           <div class="h-full flex items-center justify-center">
@@ -235,11 +312,16 @@ function ImportPage() {
                           </div>
                         }
                       >
-                        <FileBrowser
-                          onSelect={(selectedPath) => setPath(selectedPath)}
-                          directoryOnly
-                          height="100%"
-                        />
+                        <Show when={activeBrowseRoot()} keyed>
+                          {(root) => (
+                            <FileBrowser
+                              onSelect={(selectedPath) => setPath(selectedPath)}
+                              directoryOnly
+                              initialPath={root.path}
+                              height="100%"
+                            />
+                          )}
+                        </Show>
                       </Suspense>
                     </div>
                   </TabsContent>
@@ -275,7 +357,8 @@ function ImportPage() {
                           />
                         </TextField>
                         <p id="folder-formats-help" class="text-xs text-muted-foreground">
-                          Supported formats: mkv, mp4, avi, webm, m4v
+                          Supported formats: mkv, mp4, avi, webm, m4v. Paths must stay inside
+                          library, recycle, or downloads roots.
                         </p>
                       </div>
                     </section>

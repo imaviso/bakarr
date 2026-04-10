@@ -1,8 +1,6 @@
 import { Context, Effect, Layer } from "effect";
 
-import { DatabaseError } from "@/db/database.ts";
 import { FileSystem, isWithinPathRoot, type FileSystemShape } from "@/lib/filesystem.ts";
-import { LibraryRootsQueryService } from "@/features/operations/library-roots-query-service.ts";
 import {
   RuntimeConfigSnapshotService,
   type RuntimeConfigSnapshotError,
@@ -31,7 +29,6 @@ export interface BrowseResult {
 }
 
 export type LibraryBrowseError =
-  | DatabaseError
   | OperationsInputError
   | OperationsPathError
   | RuntimeConfigSnapshotError;
@@ -51,7 +48,6 @@ export class LibraryBrowseService extends Context.Tag("@bakarr/api/LibraryBrowse
 
 const makeLibraryBrowseService = Effect.gen(function* () {
   const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
-  const libraryRootsService = yield* LibraryRootsQueryService;
   const fs = yield* FileSystem;
 
   const browse = Effect.fn("LibraryBrowseService.browse")(function* (input: {
@@ -60,13 +56,14 @@ const makeLibraryBrowseService = Effect.gen(function* () {
     readonly offset?: number;
   }) {
     const config = yield* runtimeConfigSnapshot.getRuntimeConfig();
-    const roots = yield* libraryRootsService.listRoots();
 
     const allowedPrefixes = [
-      ...roots.map((r) => r.path),
-      config.downloads.root_path,
-      config.library.library_path,
-    ].filter(Boolean);
+      ...new Set(
+        [config.library.library_path, config.library.recycle_path, config.downloads.root_path]
+          .map((path) => path.trim())
+          .filter((path) => path.length > 0),
+      ),
+    ];
 
     const requestedPath = input.path || ".";
 
@@ -113,7 +110,7 @@ const makeLibraryBrowseService = Effect.gen(function* () {
 
     if (!isAllowed) {
       return yield* new OperationsInputError({
-        message: "Path is outside allowed library roots",
+        message: "Path is outside allowed import roots",
       });
     }
 
