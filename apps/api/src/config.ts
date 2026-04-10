@@ -1,4 +1,4 @@
-import { Config as EffectConfig, Context, Effect, Layer, Option, Redacted, Schema } from "effect";
+import { Config as EffectConfig, Context, Effect, Layer, Option, Schema } from "effect";
 
 import { PositiveIntSchema } from "@/lib/domain-schema.ts";
 import { randomHexSync } from "@/lib/random.ts";
@@ -7,7 +7,7 @@ const PortSchema = Schema.Number.pipe(Schema.int(), Schema.between(1, 65_535));
 
 export class AppConfigModel extends Schema.Class<AppConfigModel>("AppConfigModel")({
   appVersion: Schema.String,
-  bootstrapPassword: Schema.Redacted(Schema.String),
+  bootstrapPassword: Schema.String,
   bootstrapPasswordIsEnvOverride: Schema.Boolean,
   bootstrapUsername: Schema.String,
   databaseFile: Schema.String,
@@ -23,7 +23,7 @@ export interface AppConfigOverrides {
   readonly databaseFile?: string;
   readonly port?: number;
   readonly bootstrapUsername?: string;
-  readonly bootstrapPassword?: string | Redacted.Redacted;
+  readonly bootstrapPassword?: string;
   readonly sessionCookieName?: string;
   readonly sessionCookieSecure?: boolean;
   readonly sessionDurationDays?: number;
@@ -38,7 +38,7 @@ const GENERATED_BOOTSTRAP_PASSWORD_BYTES = 18;
 
 export const defaultAppConfig = new AppConfigModel({
   appVersion: "0.1.0",
-  bootstrapPassword: Redacted.make(randomHexSync(GENERATED_BOOTSTRAP_PASSWORD_BYTES)),
+  bootstrapPassword: randomHexSync(GENERATED_BOOTSTRAP_PASSWORD_BYTES),
   bootstrapPasswordIsEnvOverride: false,
   bootstrapUsername: "admin",
   databaseFile: "./bakarr.sqlite",
@@ -59,13 +59,10 @@ export class AppConfig extends Context.Tag("@bakarr/api/AppConfig")<AppConfig, A
             EffectConfig.orElse(() => EffectConfig.succeed(defaultAppConfig.appVersion)),
           ),
         );
-        const normalizedBootstrapPasswordOverride = normalizePasswordOverride(
-          overrides.bootstrapPassword,
-        );
         const bootstrapPasswordFromEnv =
-          normalizedBootstrapPasswordOverride !== undefined
-            ? Option.some(normalizedBootstrapPasswordOverride)
-            : yield* EffectConfig.redacted("BAKARR_BOOTSTRAP_PASSWORD").pipe(
+          overrides.bootstrapPassword !== undefined
+            ? Option.some(overrides.bootstrapPassword)
+            : yield* Schema.Config("BAKARR_BOOTSTRAP_PASSWORD", Schema.String).pipe(
                 Effect.map(Option.some),
                 Effect.orElse(() => Effect.succeed(Option.none())),
               );
@@ -131,12 +128,4 @@ export const AppConfigLive = AppConfig.layer();
 
 function readConfigValue<A>(override: A | undefined, config: EffectConfig.Config<A>) {
   return override === undefined ? config : EffectConfig.succeed(override);
-}
-
-function normalizePasswordOverride(override: string | Redacted.Redacted | undefined) {
-  if (override === undefined) {
-    return undefined;
-  }
-
-  return typeof override === "string" ? Redacted.make(override) : override;
 }

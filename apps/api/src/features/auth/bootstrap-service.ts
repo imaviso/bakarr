@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Redacted } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import { AppConfig } from "@/config.ts";
 import { Database, DatabaseError } from "@/db/database.ts";
@@ -62,7 +62,7 @@ const makeAuthBootstrapService = Effect.gen(function* () {
       return;
     }
 
-    const bootstrapPassword = Redacted.value(config.bootstrapPassword);
+    const bootstrapPassword = config.bootstrapPassword;
 
     const now = yield* nowIso();
     const passwordHash = yield* hashPassword(bootstrapPassword);

@@ -4,7 +4,7 @@ import { it } from "@effect/vitest";
 import { CommandExecutor } from "@effect/platform";
 import { HttpApp } from "@effect/platform";
 import * as Context from "effect/Context";
-import { Effect, Layer, ManagedRuntime, Option, Redacted, Stream } from "effect";
+import { Effect, Layer, ManagedRuntime, Option, Stream } from "effect";
 import * as Exit from "effect/Exit";
 import * as EffectLayer from "effect/Layer";
 import * as Scope from "effect/Scope";
@@ -4633,7 +4633,7 @@ async function createTestContext(options?: {
   const runtime = ManagedRuntime.make(
     makeApiLifecycleLayers(
       {
-        bootstrapPassword: Redacted.make("admin"),
+        bootstrapPassword: "admin",
         bootstrapUsername: "admin",
         databaseFile,
         port: 9999,
