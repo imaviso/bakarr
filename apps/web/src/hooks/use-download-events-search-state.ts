@@ -5,33 +5,42 @@ import { formatDateTimeLocalInput, getDateRangePresetHours } from "~/lib/date-pr
 import { buildDownloadEventsExportInput } from "~/lib/download-events-export";
 import { buildDownloadEventsFilterInput } from "~/lib/download-events-filters";
 
-interface DownloadEventsSearchKeys<TSearch extends Record<string, unknown>> {
-  animeId: keyof TSearch;
-  cursor: keyof TSearch;
-  direction: keyof TSearch;
-  downloadId: keyof TSearch;
-  endDate: keyof TSearch;
-  eventType: keyof TSearch;
-  startDate: keyof TSearch;
-  status: keyof TSearch;
+interface DownloadEventsSearchKeys {
+  animeId: string;
+  cursor: string;
+  direction: string;
+  downloadId: string;
+  endDate: string;
+  eventType: string;
+  startDate: string;
+  status: string;
 }
 
-interface UseDownloadEventsSearchStateOptions<TSearch extends Record<string, unknown>> {
-  keys: DownloadEventsSearchKeys<TSearch>;
-  search: Accessor<TSearch>;
-  updateSearch: (patch: Partial<TSearch>) => void;
+interface UseDownloadEventsSearchStateOptions {
+  keys: DownloadEventsSearchKeys;
+  search: Accessor<Record<string, string | undefined>>;
+  updateSearch: (patch: Partial<Record<string, string>>) => void;
 }
 
-export function useDownloadEventsSearchState<TSearch extends Record<string, unknown>>(
-  options: UseDownloadEventsSearchStateOptions<TSearch>,
-) {
-  const read = (key: keyof TSearch): string => {
-    const value = options.search()[key];
-    return typeof value === "string" ? value : "";
+export function useDownloadEventsSearchState(options: UseDownloadEventsSearchStateOptions) {
+  const read = (key: string): string => options.search()[key] ?? "";
+
+  const readDirection = (key: string): "next" | "prev" => (read(key) === "prev" ? "prev" : "next");
+
+  const patchWithCursorReset = (patch: Partial<Record<string, string>>) => ({
+    ...patch,
+    [options.keys.cursor]: "",
+    [options.keys.direction]: "next",
+  });
+
+  const filterKeyByField: Record<keyof DownloadEventsFilterValue, string> = {
+    animeId: options.keys.animeId,
+    downloadId: options.keys.downloadId,
+    endDate: options.keys.endDate,
+    eventType: options.keys.eventType,
+    startDate: options.keys.startDate,
+    status: options.keys.status,
   };
-
-  const readDirection = (key: keyof TSearch): "next" | "prev" =>
-    read(key) === "prev" ? "prev" : "next";
 
   const filterValue = createMemo<DownloadEventsFilterValue>(() => ({
     animeId: read(options.keys.animeId),
@@ -73,44 +82,24 @@ export function useDownloadEventsSearchState<TSearch extends Record<string, unkn
   const applyDateRangePreset = (hours: number) => {
     const end = new Date();
     const start = new Date(end.getTime() - hours * 60 * 60 * 1000);
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
-    options.updateSearch({
-      [options.keys.cursor]: "",
-      [options.keys.direction]: "next",
-      [options.keys.endDate]: formatDateTimeLocalInput(end),
-      [options.keys.startDate]: formatDateTimeLocalInput(start),
-    } as Partial<TSearch>);
+
+    options.updateSearch(
+      patchWithCursorReset({
+        [options.keys.endDate]: formatDateTimeLocalInput(end),
+        [options.keys.startDate]: formatDateTimeLocalInput(start),
+      }),
+    );
   };
 
   const updateFilter = (field: keyof DownloadEventsFilterValue, value: string) => {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
-    const patch = {
-      [options.keys.cursor]: "",
-      [options.keys.direction]: "next",
-    } as Partial<TSearch>;
-
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
-    const typedValue = value as TSearch[keyof TSearch];
-
-    if (field === "animeId") {
-      patch[options.keys.animeId] = typedValue;
-    } else if (field === "downloadId") {
-      patch[options.keys.downloadId] = typedValue;
-    } else if (field === "endDate") {
-      patch[options.keys.endDate] = typedValue;
-    } else if (field === "eventType") {
-      patch[options.keys.eventType] = typedValue;
-    } else if (field === "startDate") {
-      patch[options.keys.startDate] = typedValue;
-    } else {
-      patch[options.keys.status] = typedValue;
-    }
-
-    options.updateSearch(patch);
+    options.updateSearch(
+      patchWithCursorReset({
+        [filterKeyByField[field]]: value,
+      }),
+    );
   };
 
   const resetFilters = () => {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
     options.updateSearch({
       [options.keys.animeId]: "",
       [options.keys.cursor]: "",
@@ -120,7 +109,7 @@ export function useDownloadEventsSearchState<TSearch extends Record<string, unkn
       [options.keys.eventType]: "all",
       [options.keys.startDate]: "",
       [options.keys.status]: "",
-    } as Partial<TSearch>);
+    });
   };
 
   return {

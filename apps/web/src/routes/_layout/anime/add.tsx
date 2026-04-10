@@ -13,7 +13,7 @@ import { createEffect, createMemo, createSignal, For, onCleanup, Show, Suspense 
 import { createStore, reconcile } from "solid-js/store";
 import { toast } from "solid-sonner";
 import * as v from "valibot";
-import { AddAnimeDialog } from "~/components/anime/add-anime-dialog";
+import { AddAnimeDialog } from "~/components/add-anime-dialog";
 import { AnimeDiscoveryRow } from "~/components/anime-discovery";
 import { GeneralError } from "~/components/general-error";
 import { Badge } from "~/components/ui/badge";
@@ -53,7 +53,6 @@ export const Route = createFileRoute("/_layout/anime/add")({
 });
 
 function AddAnimePage() {
-  // const _navigate = useNavigate();
   const search = Route.useSearch();
   const [query, setQuery] = createSignal("");
   const [debouncedQuery, setDebouncedQuery] = createSignal("");

@@ -1,6 +1,6 @@
 import type { DownloadEvent } from "@bakarr/shared";
 import { formatDownloadDecisionSummary, formatDownloadParsedMeta } from "~/lib/download-metadata";
-import { formatReleaseSourceSummary } from "~/lib/release-metadata";
+import { buildReleaseSourceSummaryInput, formatReleaseSourceSummary } from "~/lib/release-metadata";
 
 type DownloadEventLike = Pick<DownloadEvent, "metadata_json">;
 
@@ -23,12 +23,7 @@ export function getDownloadEventMetadataSummary(input: DownloadEventLike) {
       (sourceMetadata?.source_identity?.episode_numbers?.length ?? 0) > 1) ||
     sourceMetadata?.source_identity?.scheme === "season";
 
-  const sourceSummaryInput = {
-    ...(sourceMetadata?.group === undefined ? {} : { group: sourceMetadata.group }),
-    ...(sourceMetadata?.indexer === undefined ? {} : { indexer: sourceMetadata.indexer }),
-    ...(sourceMetadata?.quality === undefined ? {} : { quality: sourceMetadata.quality }),
-    ...(sourceMetadata?.resolution === undefined ? {} : { resolution: sourceMetadata.resolution }),
-  };
+  const sourceSummaryInput = buildReleaseSourceSummaryInput(sourceMetadata);
 
   return {
     coverage: formatDownloadEventCoverage(coveredEpisodes),

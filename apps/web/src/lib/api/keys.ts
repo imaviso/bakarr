@@ -5,7 +5,6 @@ export const animeKeys = {
   episodes: (id: number) => ["anime", "detail", id, "episodes"] as const,
   files: (id: number) => ["anime", "detail", id, "files"] as const,
   search: {
-    all: ["search"] as const,
     query: (q: string) => ["anime", "search", q] as const,
     episode: (animeId: number, episodeNumber: number) =>
       ["search", "episode", animeId, episodeNumber] as const,
@@ -50,7 +49,6 @@ export const animeKeys = {
   browse: (path: string, offset?: number, limit?: number) =>
     ["browse", path, { offset: offset ?? 0, limit: limit ?? 0 }] as const,
   auth: {
-    all: ["auth"] as const,
     me: () => ["auth", "me"] as const,
     apiKey: () => ["auth", "api-key"] as const,
   },

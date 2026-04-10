@@ -21,8 +21,14 @@ function getStoredAuth(): AuthState {
     const stored = localStorage.getItem(AUTH_STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
+      const apiKey = normalizeApiKey(
+        typeof parsed === "object" && parsed && "apiKey" in parsed
+          ? String(parsed.apiKey ?? "")
+          : undefined,
+      );
       return {
         username: parsed.username,
+        ...(apiKey === undefined ? {} : { apiKey }),
         isAuthenticated: Boolean(parsed.isAuthenticated),
       };
     }
@@ -37,8 +43,10 @@ const [auth, setAuth] = createSignal<AuthState>(getStoredAuth());
 
 function saveAuth(state: AuthState) {
   if (state.isAuthenticated) {
+    const apiKey = normalizeApiKey(state.apiKey);
     const toStore = {
       username: state.username,
+      ...(apiKey === undefined ? {} : { apiKey }),
       isAuthenticated: state.isAuthenticated,
     };
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(toStore));

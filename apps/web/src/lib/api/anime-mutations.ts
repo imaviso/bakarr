@@ -3,6 +3,32 @@ import type { AddAnimeRequest, Anime, DownloadSourceMetadata, ScanFolderResult }
 import { API_BASE, fetchApi } from "./client";
 import { animeKeys } from "./keys";
 
+export interface GrabReleaseInput {
+  animeId: number;
+  decisionReason?: string;
+  magnet: string;
+  episodeNumber?: number;
+  title: string;
+  group?: string;
+  infoHash?: string;
+  isBatch?: boolean;
+  releaseMetadata?: DownloadSourceMetadata;
+}
+
+function toGrabReleaseRequest(input: GrabReleaseInput) {
+  return {
+    anime_id: input.animeId,
+    ...(input.decisionReason === undefined ? {} : { decision_reason: input.decisionReason }),
+    magnet: input.magnet,
+    ...(input.episodeNumber === undefined ? {} : { episode_number: input.episodeNumber }),
+    title: input.title,
+    ...(input.group === undefined ? {} : { group: input.group }),
+    ...(input.infoHash === undefined ? {} : { info_hash: input.infoHash }),
+    ...(input.isBatch ? { is_batch: true } : {}),
+    ...(input.releaseMetadata === undefined ? {} : { release_metadata: input.releaseMetadata }),
+  };
+}
+
 export function createAddAnimeMutation() {
   const queryClient = useQueryClient();
   return useMutation(() => ({
@@ -242,20 +268,10 @@ export function createBulkMapEpisodesMutation() {
 export function createGrabReleaseMutation() {
   const queryClient = useQueryClient();
   return useMutation(() => ({
-    mutationFn: (data: {
-      anime_id: number;
-      decision_reason?: string;
-      magnet: string;
-      episode_number?: number;
-      title: string;
-      group?: string;
-      info_hash?: string;
-      is_batch?: boolean;
-      release_metadata?: DownloadSourceMetadata;
-    }) =>
+    mutationFn: (data: GrabReleaseInput) =>
       fetchApi<void>(`${API_BASE}/search/download`, {
         method: "POST",
-        body: JSON.stringify(data),
+        body: JSON.stringify(toGrabReleaseRequest(data)),
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: animeKeys.downloads.queue() });

@@ -25,14 +25,6 @@ export function getAiringDisplayPreferences(library?: Config["library"]): Airing
   };
 }
 
-export function formatAiringDateTime(value?: string) {
-  return formatAiringDateTimeWithPreferences(value);
-}
-
-export function formatAiringTime(value?: string) {
-  return formatAiringTimeWithPreferences(value);
-}
-
 export function formatAnimeDate(date?: string, year?: number) {
   if (date) {
     return new Date(`${date}T00:00:00Z`).toLocaleDateString();

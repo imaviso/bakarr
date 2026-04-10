@@ -14,6 +14,7 @@ import {
 } from "@tabler/icons-solidjs";
 import { createFileRoute, Link, useNavigate } from "@tanstack/solid-router";
 import { For, Show, Suspense } from "solid-js";
+import * as v from "valibot";
 import { AddAnimeDialog } from "~/components/add-anime-dialog";
 import { FileBrowser } from "~/components/file-browser";
 import { GeneralError } from "~/components/general-error";
@@ -35,7 +36,19 @@ import { TextField, TextFieldInput, TextFieldLabel } from "~/components/ui/text-
 import { animeListQueryOptions, profilesQueryOptions } from "~/lib/api";
 import { cn } from "~/lib/utils";
 
+const ImportSearchSchema = v.object({
+  animeId: v.optional(
+    v.pipe(
+      v.string(),
+      v.check((value) => !Number.isNaN(Number(value)) && Number(value) > 0, "Invalid anime id"),
+      v.transform(Number),
+      v.integer(),
+    ),
+  ),
+});
+
 export const Route = createFileRoute("/_layout/anime/import")({
+  validateSearch: (search) => v.parse(ImportSearchSchema, search),
   loader: async ({ context: { queryClient } }) => {
     await Promise.all([
       queryClient.ensureQueryData(animeListQueryOptions()),
@@ -57,6 +70,7 @@ const steps: { id: Step; label: string; description: string }[] = [
 
 function ImportPage() {
   const navigate = useNavigate();
+  const search = Route.useSearch();
   const {
     activeAddCandidate,
     advanceAddCandidateDialog,
@@ -91,6 +105,7 @@ function ImportPage() {
     updateFileAnime,
     updateFileMapping,
   } = useImportFlow({
+    animeId: () => search().animeId,
     onImportSuccess: () => {
       void navigate({
         to: "/anime",

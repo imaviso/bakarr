@@ -18,7 +18,6 @@ import {
 } from "@tabler/icons-solidjs";
 import { Link } from "@tanstack/solid-router";
 import { Show } from "solid-js";
-import { ImportDialog } from "~/components/import-dialog";
 import { SearchDialog } from "~/components/search-dialog";
 import {
   AlertDialog,
@@ -220,16 +219,12 @@ export function AnimeDetailsHeader(props: AnimeDetailsHeaderProps) {
             <TooltipContent>Rename Files</TooltipContent>
           </Tooltip>
 
-          <ImportDialog
-            animeId={props.animeId}
-            tooltip="Import Files"
-            trigger={
-              <Button variant="outline" size="sm" class="shrink-0">
-                <IconFolderSearch class="min-[1670px]:mr-2 h-4 w-4" />
-                <span class="hidden min-[1670px]:inline">Import</span>
-              </Button>
-            }
-          />
+          <Link to="/anime/import" search={{ animeId: props.animeId }} class="shrink-0">
+            <Button variant="outline" size="sm">
+              <IconFolderSearch class="min-[1670px]:mr-2 h-4 w-4" />
+              <span class="hidden min-[1670px]:inline">Import</span>
+            </Button>
+          </Link>
 
           <Tooltip>
             <TooltipTrigger

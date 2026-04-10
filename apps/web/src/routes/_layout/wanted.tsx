@@ -48,8 +48,8 @@ export const Route = createFileRoute("/_layout/wanted")({
 
 function WantedPage() {
   let scrollRef: HTMLDivElement | undefined;
-  const [limit] = createSignal(100);
-  const wantedQuery = createWantedQuery(limit);
+  const limit = 100;
+  const wantedQuery = createWantedQuery(() => limit);
   const configQuery = createSystemConfigQuery();
   const searchMissing = createSearchMissingMutation();
   const data = createMemo(() => wantedQuery.data ?? []);

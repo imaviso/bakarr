@@ -11,7 +11,7 @@ import {
   IconSettings,
 } from "@tabler/icons-solidjs";
 import { useNavigate } from "@tanstack/solid-router";
-import { createEffect, createMemo, createSignal, For, onCleanup, Show, Suspense } from "solid-js";
+import { createMemo, createSignal, For, onCleanup, onMount, Show, Suspense } from "solid-js";
 import {
   Command,
   CommandDialog,
@@ -152,7 +152,7 @@ export function CommandPalette() {
   const [inputValue, setInputValue] = createSignal("");
   const navigate = useNavigate();
 
-  createEffect(() => {
+  onMount(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();

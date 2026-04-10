@@ -163,14 +163,14 @@ export function SearchModal(props: SearchModalProps) {
     });
 
     const payload = {
-      anime_id: props.animeId,
-      decision_reason: decisionReason(release),
-      episode_number: props.episodeNumber,
+      animeId: props.animeId,
+      decisionReason: decisionReason(release),
+      episodeNumber: props.episodeNumber,
       title: release.title,
       magnet: release.link,
       ...(release.group === undefined ? {} : { group: release.group }),
-      ...(release.info_hash === undefined ? {} : { info_hash: release.info_hash }),
-      release_metadata: releaseMetadata,
+      ...(release.info_hash === undefined ? {} : { infoHash: release.info_hash }),
+      releaseMetadata,
     };
 
     grabRelease.mutate(payload, {

@@ -5,12 +5,23 @@ export interface ReleaseFlag {
   label: string;
 }
 
-export function formatReleaseSourceSummary(input: {
+interface ReleaseSourceLike {
   group?: string | undefined;
   indexer?: string | undefined;
   quality?: string | undefined;
   resolution?: string | undefined;
-}) {
+}
+
+export function buildReleaseSourceSummaryInput(input?: ReleaseSourceLike) {
+  return {
+    ...(input?.group === undefined ? {} : { group: input.group }),
+    ...(input?.indexer === undefined ? {} : { indexer: input.indexer }),
+    ...(input?.quality === undefined ? {} : { quality: input.quality }),
+    ...(input?.resolution === undefined ? {} : { resolution: input.resolution }),
+  };
+}
+
+export function formatReleaseSourceSummary(input: ReleaseSourceLike) {
   const combinedQuality =
     input.quality && input.resolution && input.quality.includes(input.resolution)
       ? input.quality

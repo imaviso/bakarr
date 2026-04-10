@@ -6,17 +6,18 @@ type ApiRequestOptions = RequestInit & {
   skipAutoLogoutOnUnauthorized?: boolean;
 };
 
-export async function fetchApi<T>(
+export async function fetchApiResponse(
   endpoint: string,
   options?: ApiRequestOptions,
   signal?: AbortSignal,
-): Promise<T> {
+): Promise<Response> {
   const headers = new Headers(options?.headers);
   const authHeaders = new Headers(getAuthHeaders());
   for (const [key, value] of authHeaders.entries()) {
     headers.set(key, value);
   }
-  if (!headers.has("Content-Type")) {
+
+  if (!headers.has("Content-Type") && options?.body !== undefined) {
     headers.set("Content-Type", "application/json");
   }
 
@@ -37,6 +38,16 @@ export async function fetchApi<T>(
     const errorText = await res.text();
     throw new Error(errorText || `API error: ${res.status}`);
   }
+
+  return res;
+}
+
+export async function fetchApi<T>(
+  endpoint: string,
+  options?: ApiRequestOptions,
+  signal?: AbortSignal,
+): Promise<T> {
+  const res = await fetchApiResponse(endpoint, options, signal);
 
   // oxlint-disable-next-line typescript-eslint/no-unsafe-assignment
   const json: unknown = await res.json();

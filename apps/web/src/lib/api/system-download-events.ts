@@ -1,55 +1,47 @@
 import { queryOptions, useQuery } from "@tanstack/solid-query";
-import { getAuthHeaders, logout } from "~/lib/auth";
+import { triggerBlobDownload } from "~/lib/blob-download";
 import type {
   DownloadEventsExportInput,
   DownloadEventsExportResult,
   DownloadEventsFilterInput,
   DownloadEventsPage,
 } from "./contracts";
-import { API_BASE, fetchApi } from "./client";
+import { API_BASE, fetchApi, fetchApiResponse } from "./client";
 import { animeKeys } from "./keys";
-
-export function downloadEventsQueryOptions(limit = 25) {
-  return downloadEventsQueryOptionsWithFilters({ limit });
-}
 
 function buildDownloadEventsSearchParams(input: DownloadEventsFilterInput) {
   const params = new URLSearchParams();
 
-  if (input.animeId !== undefined) {
-    params.set("anime_id", String(input.animeId));
-  }
-  if (input.downloadId !== undefined) {
-    params.set("download_id", String(input.downloadId));
-  }
+  appendDownloadEventsCommonParams(params, input);
+
   if (input.cursor) {
     params.set("cursor", input.cursor);
   }
   if (input.direction) {
     params.set("direction", input.direction);
   }
-  if (input.eventType) {
-    params.set("event_type", input.eventType);
-  }
-  if (input.status) {
-    params.set("status", input.status);
-  }
-  if (input.startDate) {
-    params.set("start_date", input.startDate);
-  }
-  if (input.endDate) {
-    params.set("end_date", input.endDate);
-  }
-  if (input.limit !== undefined) {
-    params.set("limit", String(input.limit));
-  }
-
   return params;
 }
 
 function buildDownloadEventsExportSearchParams(input: DownloadEventsExportInput) {
   const params = new URLSearchParams();
 
+  appendDownloadEventsCommonParams(params, input);
+
+  if (input.order) {
+    params.set("order", input.order);
+  }
+
+  return params;
+}
+
+function appendDownloadEventsCommonParams(
+  params: URLSearchParams,
+  input: Pick<
+    DownloadEventsExportInput,
+    "animeId" | "downloadId" | "endDate" | "eventType" | "limit" | "startDate" | "status"
+  >,
+) {
   if (input.animeId !== undefined) {
     params.set("anime_id", String(input.animeId));
   }
@@ -71,11 +63,6 @@ function buildDownloadEventsExportSearchParams(input: DownloadEventsExportInput)
   if (input.limit !== undefined) {
     params.set("limit", String(input.limit));
   }
-  if (input.order) {
-    params.set("order", input.order);
-  }
-
-  return params;
 }
 
 export function downloadEventsQueryOptionsWithFilters(input: DownloadEventsFilterInput) {
@@ -115,17 +102,6 @@ function parseExportTruncatedHeader(value: string | null): boolean {
   return value?.toLowerCase() === "true";
 }
 
-function triggerBlobDownload(blob: Blob, fileName: string) {
-  const objectUrl = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = objectUrl;
-  anchor.download = fileName;
-  document.body.append(anchor);
-  anchor.click();
-  anchor.remove();
-  URL.revokeObjectURL(objectUrl);
-}
-
 function parseContentDispositionFilename(headerValue: string | null): string | undefined {
   if (!headerValue) {
     return undefined;
@@ -148,21 +124,7 @@ export async function exportDownloadEvents(
   input: DownloadEventsExportInput,
   format: "json" | "csv" = "json",
 ): Promise<DownloadEventsExportResult> {
-  const endpoint = getDownloadEventsExportUrl(input, format);
-  const response = await fetch(endpoint, {
-    method: "GET",
-    headers: getAuthHeaders(),
-  });
-
-  if (response.status === 401) {
-    void logout();
-    throw new Error("Session expired");
-  }
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(errorText || `API error: ${response.status}`);
-  }
+  const response = await requestDownloadEventsExport(input, format);
 
   const payload = await response.blob();
   const fallbackName = `download-events.${format}`;
@@ -181,4 +143,13 @@ export async function exportDownloadEvents(
     total: parseExportCountHeader(response.headers.get("x-bakarr-total-events")),
     truncated: parseExportTruncatedHeader(response.headers.get("x-bakarr-export-truncated")),
   };
+}
+
+async function requestDownloadEventsExport(
+  input: DownloadEventsExportInput,
+  format: "json" | "csv",
+): Promise<Response> {
+  return fetchApiResponse(getDownloadEventsExportUrl(input, format), {
+    method: "GET",
+  });
 }

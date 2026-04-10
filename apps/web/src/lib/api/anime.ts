@@ -137,13 +137,13 @@ export function createEpisodeSearchQuery(animeId: () => number, episodeNumber: (
 export function nyaaSearchQueryOptions(
   query: string,
   options: {
-    anime_id?: number;
+    animeId?: number;
     category?: string;
     filter?: string;
   } = {},
 ) {
   const queryKeyOptions = {
-    ...(options.anime_id === undefined ? {} : { animeId: options.anime_id }),
+    ...(options.animeId === undefined ? {} : { animeId: options.animeId }),
     ...(options.category === undefined ? {} : { category: options.category }),
     ...(options.filter === undefined ? {} : { filter: options.filter }),
   };
@@ -153,8 +153,8 @@ export function nyaaSearchQueryOptions(
     queryFn: ({ signal }) => {
       const params = new URLSearchParams();
       params.append("query", query);
-      if (options.anime_id) {
-        params.append("anime_id", options.anime_id.toString());
+      if (options.animeId) {
+        params.append("anime_id", options.animeId.toString());
       }
       if (options.category) params.append("category", options.category);
       if (options.filter) params.append("filter", options.filter);
@@ -171,7 +171,7 @@ export function nyaaSearchQueryOptions(
 export function createNyaaSearchQuery(
   query: () => string,
   options: {
-    anime_id?: () => number | undefined;
+    animeId?: () => number | undefined;
     category?: () => string | undefined;
     filter?: () => string | undefined;
     enabled?: () => boolean | undefined;
@@ -179,11 +179,11 @@ export function createNyaaSearchQuery(
 ) {
   return useQuery(() => ({
     ...(() => {
-      const animeId = options.anime_id?.();
+      const animeId = options.animeId?.();
       const category = options.category?.();
       const filter = options.filter?.();
       return nyaaSearchQueryOptions(query(), {
-        ...(animeId === undefined ? {} : { anime_id: animeId }),
+        ...(animeId === undefined ? {} : { animeId }),
         ...(category === undefined ? {} : { category }),
         ...(filter === undefined ? {} : { filter }),
       });

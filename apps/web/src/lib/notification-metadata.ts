@@ -1,6 +1,6 @@
 import type { DownloadSourceMetadata, NotificationEvent } from "@bakarr/shared";
 import { formatDownloadDecisionSummary, formatDownloadParsedMeta } from "~/lib/download-metadata";
-import { formatReleaseSourceSummary } from "~/lib/release-metadata";
+import { buildReleaseSourceSummaryInput, formatReleaseSourceSummary } from "~/lib/release-metadata";
 
 export function formatDownloadNotificationDescription(input: {
   imported_path?: string | undefined;
@@ -8,18 +8,9 @@ export function formatDownloadNotificationDescription(input: {
   is_batch?: boolean | undefined;
   source_metadata?: DownloadSourceMetadata | undefined;
 }) {
-  const releaseSummary = formatReleaseSourceSummary({
-    ...(input.source_metadata?.group === undefined ? {} : { group: input.source_metadata.group }),
-    ...(input.source_metadata?.indexer === undefined
-      ? {}
-      : { indexer: input.source_metadata.indexer }),
-    ...(input.source_metadata?.quality === undefined
-      ? {}
-      : { quality: input.source_metadata.quality }),
-    ...(input.source_metadata?.resolution === undefined
-      ? {}
-      : { resolution: input.source_metadata.resolution }),
-  });
+  const releaseSummary = formatReleaseSourceSummary(
+    buildReleaseSourceSummaryInput(input.source_metadata),
+  );
   const parsedSummary = formatDownloadParsedMeta({
     source_metadata: input.source_metadata,
   });

@@ -232,7 +232,7 @@ function SearchResults(props: {
   const [sortAsc, setSortAsc] = createSignal(false);
 
   const searchQuery = createNyaaSearchQuery(() => props.query, {
-    anime_id: () => props.animeId,
+    animeId: () => props.animeId,
     category: () => props.category,
     filter: () => props.filter,
   });
@@ -495,15 +495,15 @@ function ReleaseRow(props: { result: NyaaSearchResult; animeId: number; onGrab: 
     });
 
     const payload = {
-      anime_id: props.animeId,
-      decision_reason: decisionReason(),
+      animeId: props.animeId,
+      decisionReason: decisionReason(),
       magnet: props.result.magnet,
-      ...(episodeNumber === undefined ? {} : { episode_number: episodeNumber }),
+      ...(episodeNumber === undefined ? {} : { episodeNumber }),
       ...(props.result.parsed_group === undefined ? {} : { group: props.result.parsed_group }),
-      ...(props.result.info_hash === undefined ? {} : { info_hash: props.result.info_hash }),
-      release_metadata: releaseMetadata,
+      ...(props.result.info_hash === undefined ? {} : { infoHash: props.result.info_hash }),
+      releaseMetadata,
       title: props.result.title,
-      ...(isBatch() ? { is_batch: true } : {}),
+      ...(isBatch() ? { isBatch: true } : {}),
     };
 
     grabMutation.mutate(payload, {

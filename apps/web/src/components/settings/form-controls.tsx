@@ -122,6 +122,25 @@ function parseFiniteNumber(value: string): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+function createBufferedTextState(initialValue: () => string) {
+  const [text, setText] = createSignal(initialValue());
+  const [isFocused, setIsFocused] = createSignal(false);
+
+  createEffect(() => {
+    const next = initialValue();
+    if (!isFocused() && text() !== next) {
+      setText(next);
+    }
+  });
+
+  return {
+    isFocused,
+    setIsFocused,
+    setText,
+    text,
+  };
+}
+
 export function FiniteNumberInput(props: {
   class?: string;
   fallbackValue?: number;
@@ -132,15 +151,7 @@ export function FiniteNumberInput(props: {
   value: number | undefined;
 }) {
   const toDisplayValue = () => String(props.value ?? props.fallbackValue ?? 0);
-  const [text, setText] = createSignal(toDisplayValue());
-  const [isFocused, setIsFocused] = createSignal(false);
-
-  createEffect(() => {
-    const next = toDisplayValue();
-    if (!isFocused() && text() !== next) {
-      setText(next);
-    }
-  });
+  const buffered = createBufferedTextState(toDisplayValue);
 
   return (
     <Input
@@ -148,11 +159,11 @@ export function FiniteNumberInput(props: {
       {...(props.min === undefined ? {} : { min: props.min })}
       {...(props.max === undefined ? {} : { max: props.max })}
       {...(props.step === undefined ? {} : { step: props.step })}
-      value={text()}
-      onFocus={() => setIsFocused(true)}
+      value={buffered.text()}
+      onFocus={() => buffered.setIsFocused(true)}
       onInput={(event) => {
         const next = event.currentTarget.value;
-        setText(next);
+        buffered.setText(next);
 
         const parsed = parseFiniteNumber(next);
         if (parsed !== undefined) {
@@ -160,16 +171,16 @@ export function FiniteNumberInput(props: {
         }
       }}
       onBlur={() => {
-        setIsFocused(false);
+        buffered.setIsFocused(false);
 
-        const parsed = parseFiniteNumber(text());
+        const parsed = parseFiniteNumber(buffered.text());
         if (parsed === undefined) {
-          setText(toDisplayValue());
+          buffered.setText(toDisplayValue());
           return;
         }
 
         props.onChange(parsed);
-        setText(String(parsed));
+        buffered.setText(String(parsed));
       }}
       class={props.class}
     />
@@ -226,30 +237,22 @@ export function StringListEditor(props: {
   splitOnComma?: boolean;
   value: string[];
 }) {
-  const [text, setText] = createSignal(formatStringList(props.value));
-  const [isFocused, setIsFocused] = createSignal(false);
-
-  createEffect(() => {
-    const next = formatStringList(props.value);
-    if (!isFocused() && text() !== next) {
-      setText(next);
-    }
-  });
+  const buffered = createBufferedTextState(() => formatStringList(props.value));
 
   const commit = () => {
-    props.onChange(parseStringList(text(), props.splitOnComma ?? false));
+    props.onChange(parseStringList(buffered.text(), props.splitOnComma ?? false));
   };
 
   return (
     <TextField class={props.class}>
       <TextFieldTextArea
-        value={text()}
+        value={buffered.text()}
         rows={props.rows ?? 4}
         placeholder={props.placeholder}
-        onFocus={() => setIsFocused(true)}
-        onInput={(event) => setText(event.currentTarget.value)}
+        onFocus={() => buffered.setIsFocused(true)}
+        onInput={(event) => buffered.setText(event.currentTarget.value)}
         onBlur={() => {
-          setIsFocused(false);
+          buffered.setIsFocused(false);
           commit();
         }}
       />
@@ -280,27 +283,19 @@ export function PathMappingsEditor(props: {
   rows?: number;
   value: string[][];
 }) {
-  const [text, setText] = createSignal(formatPathMappings(props.value));
-  const [isFocused, setIsFocused] = createSignal(false);
-
-  createEffect(() => {
-    const next = formatPathMappings(props.value);
-    if (!isFocused() && text() !== next) {
-      setText(next);
-    }
-  });
+  const buffered = createBufferedTextState(() => formatPathMappings(props.value));
 
   return (
     <TextField class={props.class}>
       <TextFieldTextArea
-        value={text()}
+        value={buffered.text()}
         rows={props.rows ?? 4}
         placeholder={props.placeholder}
-        onFocus={() => setIsFocused(true)}
-        onInput={(event) => setText(event.currentTarget.value)}
+        onFocus={() => buffered.setIsFocused(true)}
+        onInput={(event) => buffered.setText(event.currentTarget.value)}
         onBlur={() => {
-          setIsFocused(false);
-          props.onChange(parsePathMappings(text()));
+          buffered.setIsFocused(false);
+          props.onChange(parsePathMappings(buffered.text()));
         }}
       />
     </TextField>
