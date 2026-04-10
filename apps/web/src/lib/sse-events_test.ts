@@ -1,5 +1,10 @@
 import { it } from "~/test/vitest";
-import { createSseConnection, type SseListener } from "./sse-events";
+import {
+  createSseConnection,
+  setSharedSseAuthenticated,
+  subscribeSharedSse,
+  type SseListener,
+} from "./sse-events";
 
 function assertEquals<T>(actual: T, expected: T) {
   if (actual !== expected) {
@@ -55,6 +60,8 @@ const originalEventSource = globalThis.EventSource;
 const originalSetTimeout = globalThis.setTimeout;
 const originalClearTimeout = globalThis.clearTimeout;
 const noopSseListener: SseListener = () => {};
+const uniqueSseListenerA: SseListener = () => {};
+const uniqueSseListenerB: SseListener = () => {};
 const noopClearTimeout: typeof clearTimeout = () => {};
 
 it("createSseConnection connects only while authenticated", () => {
@@ -133,4 +140,24 @@ it("createSseConnection schedules reconnect after error", () => {
   setEventSourceGlobal(originalEventSource);
   globalThis.setTimeout = originalSetTimeout;
   globalThis.clearTimeout = originalClearTimeout;
+});
+
+it("shared SSE hub uses a single EventSource for subscribers", () => {
+  EventSourceStub.instances = [];
+  setEventSourceGlobal(EventSourceStub);
+
+  const unsubscribeA = subscribeSharedSse({ onMessage: uniqueSseListenerA });
+  const unsubscribeB = subscribeSharedSse({ onMessage: uniqueSseListenerB });
+
+  setSharedSseAuthenticated(true);
+
+  assertEquals(EventSourceStub.instances.length, 1);
+
+  unsubscribeA();
+  assertEquals(EventSourceStub.instances[0]?.closed, false);
+
+  unsubscribeB();
+  assertEquals(EventSourceStub.instances[0]?.closed, true);
+
+  setEventSourceGlobal(originalEventSource);
 });

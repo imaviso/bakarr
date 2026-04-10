@@ -20,7 +20,7 @@ import { FileBrowser } from "~/components/file-browser";
 import { GeneralError } from "~/components/general-error";
 import { CandidateCard, FileRow, ManualSearch } from "~/components/import";
 import { toImportInputMode, useImportFlow } from "~/components/import/use-import-flow";
-import type { Step } from "~/components/import/types";
+import type { FileRowAnimeOption, Step } from "~/components/import/types";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import {
@@ -40,6 +40,17 @@ import {
   systemConfigQueryOptions,
 } from "~/lib/api";
 import { cn } from "~/lib/utils";
+
+type BrowseRootKey = "library" | "recycle" | "downloads";
+type AllowedRoot = {
+  key: BrowseRootKey;
+  label: string;
+  path: string;
+};
+
+function titleLabel(title: { romaji?: string | undefined; english?: string | undefined }) {
+  return title.english || title.romaji || "Unknown title";
+}
 
 const ImportSearchSchema = v.object({
   animeId: v.optional(
@@ -78,9 +89,8 @@ function ImportPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
   const configQuery = createSystemConfigQuery();
-  const [selectedBrowseRoot, setSelectedBrowseRoot] = createSignal<
-    "library" | "recycle" | "downloads"
-  >("library");
+  const [selectedBrowseRoot, setSelectedBrowseRoot] = createSignal<BrowseRootKey>("library");
+  const [pathAutofillEnabled, setPathAutofillEnabled] = createSignal(true);
   const {
     activeAddCandidate,
     advanceAddCandidateDialog,
@@ -125,26 +135,58 @@ function ImportPage() {
   });
 
   const currentStepIndex = () => steps.findIndex((s) => s.id === step());
-  const allowedRoots = createMemo(() => {
+  const allowedRoots = createMemo<AllowedRoot[]>(() => {
     const config = configQuery.data;
-    if (!config) return [] as const;
-    return [
+    if (!config) return [];
+    const roots: AllowedRoot[] = [
       {
-        key: "library" as const,
+        key: "library",
         label: "Library",
         path: config.library.library_path.trim(),
       },
       {
-        key: "recycle" as const,
+        key: "recycle",
         label: "Recycle",
         path: config.library.recycle_path.trim(),
       },
       {
-        key: "downloads" as const,
+        key: "downloads",
         label: "Downloads",
         path: config.downloads.root_path.trim(),
       },
-    ].filter((root) => root.path.length > 0);
+    ];
+
+    return roots.filter((root) => root.path.length > 0);
+  });
+  const animeOptions = createMemo<FileRowAnimeOption[]>(() => {
+    const animeList = animeListQuery.data ?? [];
+    const candidateList = candidates();
+    const animeIds = new Set(animeList.map((anime) => anime.id));
+
+    return [
+      ...animeList.map((anime) => ({
+        id: anime.id,
+        source: "library" as const,
+        title: {
+          romaji: titleLabel(anime.title),
+          ...(anime.title.english ? { english: anime.title.english } : {}),
+        },
+      })),
+      ...candidateList
+        .filter((candidate) => !animeIds.has(candidate.id))
+        .map((candidate) => ({
+          id: candidate.id,
+          source: "candidate" as const,
+          title: {
+            romaji: titleLabel(candidate.title),
+            ...(candidate.title.english ? { english: candidate.title.english } : {}),
+          },
+        })),
+    ].toSorted((left, right) => {
+      const leftTitle = titleLabel(left.title);
+      const rightTitle = titleLabel(right.title);
+      return leftTitle.localeCompare(rightTitle);
+    });
   });
   const activeBrowseRoot = createMemo(
     () =>
@@ -154,7 +196,7 @@ function ImportPage() {
   createEffect(() => {
     const root = activeBrowseRoot();
     if (!root) return;
-    if (!path()) {
+    if (!path() && pathAutofillEnabled()) {
       setPath(root.path);
     }
   });
@@ -290,6 +332,7 @@ function ImportPage() {
                               const root = allowedRoots().find((item) => item.key === next);
                               if (!root) return;
                               setSelectedBrowseRoot(root.key);
+                              setPathAutofillEnabled(true);
                               setPath(root.path);
                             }}
                           >
@@ -315,7 +358,10 @@ function ImportPage() {
                         <Show when={activeBrowseRoot()} keyed>
                           {(root) => (
                             <FileBrowser
-                              onSelect={(selectedPath) => setPath(selectedPath)}
+                              onSelect={(selectedPath) => {
+                                setPathAutofillEnabled(false);
+                                setPath(selectedPath);
+                              }}
                               directoryOnly
                               initialPath={root.path}
                               height="100%"
@@ -347,7 +393,13 @@ function ImportPage() {
                         or enter the path manually below
                       </p>
                       <div class="w-full max-w-lg mt-6 space-y-2">
-                        <TextField value={path()} onChange={setPath}>
+                        <TextField
+                          value={path()}
+                          onChange={(value) => {
+                            setPathAutofillEnabled(false);
+                            setPath(value);
+                          }}
+                        >
                           <TextFieldLabel>Folder Path</TextFieldLabel>
                           <TextFieldInput
                             id="folder-path-input"
@@ -379,7 +431,10 @@ function ImportPage() {
                         variant="ghost"
                         size="icon"
                         class="h-6 w-6"
-                        onClick={() => setPath("")}
+                        onClick={() => {
+                          setPathAutofillEnabled(false);
+                          setPath("");
+                        }}
                       >
                         <IconX class="h-3 w-3" />
                       </Button>
@@ -509,8 +564,7 @@ function ImportPage() {
                     {(file) => (
                       <FileRow
                         file={file}
-                        animeList={animeListQuery.data || []}
-                        candidates={candidates()}
+                        animeOptions={animeOptions()}
                         isSelected={selectedFiles().has(file.source_path)}
                         selectedAnimeId={selectedFiles().get(file.source_path)?.anime_id}
                         currentEpisode={selectedFiles().get(file.source_path)?.episode_number}

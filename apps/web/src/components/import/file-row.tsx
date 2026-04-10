@@ -20,11 +20,7 @@ import {
   scannedFileMetadataBadges,
 } from "~/lib/scanned-file";
 import { cn } from "~/lib/utils";
-import type { FileRowProps } from "./types";
-
-type AnimeOption = (FileRowProps["animeList"][number] | FileRowProps["candidates"][number]) & {
-  source: "library" | "candidate";
-};
+import type { FileRowAnimeOption, FileRowProps } from "./types";
 
 export function FileRow(props: FileRowProps) {
   const matchedAnimeId = () => props.file.matched_anime?.id || props.selectedAnimeId;
@@ -37,20 +33,6 @@ export function FileRow(props: FileRowProps) {
   const displaySeason = () =>
     props.currentSeason !== undefined ? props.currentSeason : props.file.season;
 
-  const allOptions = createMemo<AnimeOption[]>(() => {
-    const candidateOptions = props.candidates
-      .filter((candidate) => !props.animeList.some((anime) => anime.id === candidate.id))
-      .map((candidate) => Object.assign({}, candidate, { source: "candidate" as const }));
-
-    return [
-      ...props.animeList.map((anime) => Object.assign({}, anime, { source: "library" as const })),
-      ...candidateOptions,
-    ].toSorted((a, b) => {
-      const titleA = a.title.english || a.title.romaji || "";
-      const titleB = b.title.english || b.title.romaji || "";
-      return titleA.localeCompare(titleB);
-    });
-  });
   const metadataBadges = createMemo(() => scannedFileMetadataBadges(props.file));
   const fileSize = createMemo(() => formatFileSize(props.file.size));
   const matchConfidence = createMemo(() => formatMatchConfidence(props.file.match_confidence));
@@ -288,7 +270,7 @@ export function FileRow(props: FileRowProps) {
                       props.onToggle(newId);
                     }
                   }}
-                  options={allOptions()}
+                  options={props.animeOptions}
                   optionValue={(opt) => opt?.id ?? -1}
                   optionTextValue={(opt) =>
                     opt?.title.english || opt?.title.romaji || "Unknown Title"
@@ -309,7 +291,7 @@ export function FileRow(props: FileRowProps) {
                   )}
                 >
                   <SelectTrigger class="h-8 text-xs flex-1">
-                    <SelectValue<AnimeOption>>
+                    <SelectValue<FileRowProps["animeOptions"][number]>>
                       {(_state) => <span class="text-muted-foreground">Select anime...</span>}
                     </SelectValue>
                   </SelectTrigger>
@@ -320,7 +302,9 @@ export function FileRow(props: FileRowProps) {
           >
             <IconCheck class="h-4 w-4 text-success shrink-0" />
             <Select
-              value={allOptions().find((o) => o.id === (props.selectedAnimeId || matchedAnimeId()))}
+              value={props.animeOptions.find(
+                (option) => option.id === (props.selectedAnimeId || matchedAnimeId()),
+              )}
               onChange={(v) => {
                 if (v) {
                   const newId = v.id;
@@ -330,7 +314,7 @@ export function FileRow(props: FileRowProps) {
                   }
                 }
               }}
-              options={allOptions()}
+              options={props.animeOptions}
               optionValue={(opt) => opt?.id ?? -1}
               optionTextValue={(opt) => opt?.title.english || opt?.title.romaji || "Unknown Title"}
               itemComponent={(itemProps) => (
@@ -348,7 +332,7 @@ export function FileRow(props: FileRowProps) {
               )}
             >
               <SelectTrigger class="h-8 text-xs flex-1">
-                <SelectValue<AnimeOption>>
+                <SelectValue<FileRowAnimeOption>>
                   {(state) =>
                     state.selectedOption()?.title.english ||
                     state.selectedOption()?.title.romaji ||

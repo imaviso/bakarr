@@ -81,12 +81,16 @@ function statusTone(anime: Anime) {
 export function AnimeGridView(props: AnimeLibraryViewProps) {
   let scrollRef: HTMLDivElement | undefined;
   const [colCount, setColCount] = createSignal(getColCount());
+  const [viewportWidth, setViewportWidth] = createSignal(globalThis.innerWidth);
 
   onMount(() => {
     let rafId: number;
     const handler = () => {
       cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(() => setColCount(getColCount()));
+      rafId = requestAnimationFrame(() => {
+        setViewportWidth(globalThis.innerWidth);
+        setColCount(getColCount());
+      });
     };
     globalThis.addEventListener("resize", handler);
     onCleanup(() => {
@@ -99,7 +103,7 @@ export function AnimeGridView(props: AnimeLibraryViewProps) {
 
   const estimateRowSize = createMemo(() => {
     const cols = colCount();
-    const vw = globalThis.innerWidth;
+    const vw = viewportWidth();
     const containerW = Math.max(280, vw - (vw >= 768 ? 260 : 0) - 48);
     const colW = (containerW - (cols - 1) * 16) / cols;
     return Math.round(colW * 1.5 + 68 + 16);

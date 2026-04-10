@@ -42,7 +42,7 @@ const ChangePasswordSchema = v.object({
 type ChangePasswordFormData = v.InferOutput<typeof ChangePasswordSchema>;
 
 export function AccountSettingsForm() {
-  const { auth, loginSuccess } = useAuth();
+  const { auth } = useAuth();
   const changePassword = createChangePasswordMutation();
   const regenerateApiKey = createRegenerateApiKeyMutation();
 
@@ -89,11 +89,7 @@ export function AccountSettingsForm() {
 
   const handleRegenerateApiKey = async () => {
     try {
-      const result = await regenerateApiKey.mutateAsync();
-      const currentAuth = auth();
-      if (currentAuth.isAuthenticated && result.api_key) {
-        loginSuccess(currentAuth.username || "", result.api_key);
-      }
+      await regenerateApiKey.mutateAsync();
       toast.success("API key regenerated successfully");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to regenerate API key");
@@ -103,7 +99,7 @@ export function AccountSettingsForm() {
   const copyApiKey = async () => {
     const key = currentApiKey();
     if (!key) {
-      toast.error("Regenerate your API key to reveal and copy it.");
+      toast.error("API keys are never stored client-side. Use the backend response directly.");
       return;
     }
 
@@ -225,7 +221,7 @@ export function AccountSettingsForm() {
         </CardHeader>
         <CardContent class="space-y-4">
           <p class="text-sm text-muted-foreground">
-            Use this API key to authenticate external applications and streaming clients.
+            API keys are not persisted in the browser. Regenerate and store it safely when needed.
           </p>
 
           <div class="flex items-center gap-2 max-w-xl">
@@ -233,7 +229,7 @@ export function AccountSettingsForm() {
               <Input
                 type={showApiKey() ? "text" : "password"}
                 value={currentApiKey()}
-                placeholder="Regenerate API key to reveal a new one"
+                placeholder="API key is not stored in this client"
                 readOnly
                 class="pr-20 font-mono text-sm"
               />
@@ -271,8 +267,8 @@ export function AccountSettingsForm() {
           </div>
 
           <p class="text-xs text-muted-foreground">
-            Existing API keys are stored hashed and cannot be shown again. Regenerate to reveal a
-            new key for streaming links and external clients.
+            Existing API keys are stored hashed server-side and cannot be retrieved. Regenerate to
+            create a new one for external clients.
           </p>
 
           <AlertDialog>

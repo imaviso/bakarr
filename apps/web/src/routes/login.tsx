@@ -41,7 +41,7 @@ function formatFieldErrors(errors: readonly unknown[]) {
 }
 
 function LoginPage() {
-  const { loginSuccess } = useAuth();
+  const { syncAuthenticatedUser } = useAuth();
   const navigate = useNavigate();
   const loginMutation = createLoginMutation();
   const apiKeyLoginMutation = createApiKeyLoginMutation();
@@ -55,7 +55,7 @@ function LoginPage() {
     onSubmit: async ({ value }) => {
       try {
         const data = await loginMutation.mutateAsync(value);
-        loginSuccess(value.username);
+        syncAuthenticatedUser(value.username);
         if (data.must_change_password) {
           toast.info("Please change your password before continuing.");
           void navigate({ to: "/settings" });
@@ -180,7 +180,7 @@ function LoginPage() {
                 const data = await apiKeyLoginMutation.mutateAsync({
                   api_key: enteredApiKey,
                 });
-                loginSuccess(data.username, enteredApiKey);
+                syncAuthenticatedUser(data.username);
                 if (data.must_change_password) {
                   toast.info("Please change your password before continuing.");
                   void navigate({ to: "/settings" });

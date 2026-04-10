@@ -2,10 +2,15 @@ import type { AnimeSearchResult, ScannedFile } from "~/lib/api";
 
 export type Step = "scan" | "review";
 
+export type FileRowAnimeOption = {
+  id: number;
+  title: { romaji: string; english?: string | undefined };
+  source: "library" | "candidate";
+};
+
 export interface FileRowProps {
   file: ScannedFile;
-  animeList: { id: number; title: { romaji: string; english?: string | undefined } }[];
-  candidates: AnimeSearchResult[];
+  animeOptions: FileRowAnimeOption[];
   isSelected: boolean;
   selectedAnimeId?: number | undefined;
   currentEpisode?: number | undefined;

@@ -10,7 +10,7 @@ import {
 } from "@tabler/icons-solidjs";
 import { useQuery } from "@tanstack/solid-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/solid-router";
-import { createEffect, createMemo, createSignal, on, onCleanup, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, on, onCleanup, onMount, Show } from "solid-js";
 import * as v from "valibot";
 import { AnimeListSkeleton } from "~/components/anime-list-skeleton";
 import { AnimeGridView, AnimeListView } from "~/components/anime/anime-library-views";
@@ -41,26 +41,26 @@ const MonitorFilterSchema = v.fallback(v.picklist(["all", "monitored", "unmonito
 
 const ViewModeSchema = v.fallback(v.picklist(["grid", "list"]), "grid");
 
+const DEFAULT_ANIME_SEARCH = {
+  filter: "all",
+  q: "",
+  view: "grid",
+} as const;
+
 const AnimeSearchSchema = v.object({
-  q: v.optional(v.string(), ""),
-  filter: v.optional(MonitorFilterSchema, "all"),
-  view: v.optional(ViewModeSchema, "grid"),
+  q: v.optional(v.string(), DEFAULT_ANIME_SEARCH.q),
+  filter: v.optional(MonitorFilterSchema, DEFAULT_ANIME_SEARCH.filter),
+  view: v.optional(ViewModeSchema, DEFAULT_ANIME_SEARCH.view),
+});
+
+const StoredAnimeSearchSchema = v.object({
+  q: v.optional(v.string()),
+  filter: v.optional(v.picklist(["all", "monitored", "unmonitored"])),
+  view: v.optional(v.picklist(["grid", "list"])),
 });
 
 export const Route = createFileRoute("/_layout/anime/")({
-  validateSearch: (search) => {
-    const stored = (() => {
-      if (typeof window === "undefined") return {};
-      try {
-        const item = localStorage.getItem("bakarr_anime_search");
-        return item ? JSON.parse(item) : {};
-      } catch {
-        return {};
-      }
-    })();
-
-    return v.parse(AnimeSearchSchema, { ...stored, ...search });
-  },
+  validateSearch: (search) => v.parse(AnimeSearchSchema, search),
   loader: async ({ context: { queryClient } }) => {
     await Promise.all([
       queryClient.ensureQueryData(animeListQueryOptions()),
@@ -82,6 +82,40 @@ function AnimeIndexPage() {
   );
 
   const [localQuery, setLocalQuery] = createSignal(search().q);
+
+  onMount(() => {
+    const stored = readStoredAnimeSearch();
+
+    if (!stored) {
+      return;
+    }
+
+    const current = search();
+    const isExplicitSearch =
+      current.q !== DEFAULT_ANIME_SEARCH.q ||
+      current.filter !== DEFAULT_ANIME_SEARCH.filter ||
+      current.view !== DEFAULT_ANIME_SEARCH.view;
+
+    if (isExplicitSearch) {
+      return;
+    }
+
+    const next = {
+      filter: stored.filter ?? current.filter,
+      q: stored.q ?? current.q,
+      view: stored.view ?? current.view,
+    };
+
+    if (next.q === current.q && next.filter === current.filter && next.view === current.view) {
+      return;
+    }
+
+    void navigate({
+      to: ".",
+      search: next,
+      replace: true,
+    });
+  });
 
   createEffect(
     on(
@@ -326,4 +360,22 @@ function AnimeIndexPage() {
       </Show>
     </div>
   );
+}
+
+function readStoredAnimeSearch() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    const raw = localStorage.getItem("bakarr_anime_search");
+
+    if (!raw) {
+      return;
+    }
+
+    return v.parse(StoredAnimeSearchSchema, JSON.parse(raw));
+  } catch {
+    return;
+  }
 }

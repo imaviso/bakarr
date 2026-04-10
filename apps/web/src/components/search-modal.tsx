@@ -30,10 +30,8 @@ import { ReleaseMetadataSummary } from "~/components/release-metadata-summary";
 import {
   createEpisodeSearchQuery,
   createGrabReleaseMutation,
-  type DownloadAction,
   type EpisodeSearchResult,
 } from "~/lib/api";
-import { formatReleaseSearchDecisionReason, inferBatchKind } from "~/lib/batch-kind";
 import {
   formatReleaseParsedSummary,
   formatReleaseSourceSummary,
@@ -46,7 +44,10 @@ import {
   selectionKindLabel,
   selectionMetadataFromDownloadAction,
 } from "~/lib/release-selection";
-import { buildDownloadSourceMetadata, buildParsedEpisodeIdentity } from "~/lib/release-download";
+import {
+  actionReasonFromDownloadAction,
+  buildGrabInputFromEpisodeResult,
+} from "~/lib/release-grab";
 import { cn } from "~/lib/utils";
 
 interface SearchModalProps {
@@ -55,47 +56,6 @@ interface SearchModalProps {
   episodeTitle?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}
-
-function decisionReason(release: EpisodeSearchResult) {
-  const batchKind = inferBatchKind({
-    coveredEpisodes: release.parsed_episode_numbers,
-    isBatch:
-      (release.parsed_episode_numbers?.length ?? 0) > 1 ||
-      (release.parsed_episode_label !== undefined && release.parsed_episode_numbers === undefined),
-    sourceIdentity: release.parsed_air_date
-      ? {
-          air_dates: [release.parsed_air_date],
-          label: release.parsed_episode_label ?? release.parsed_air_date,
-          scheme: "daily",
-        }
-      : release.parsed_episode_numbers
-        ? {
-            episode_numbers: release.parsed_episode_numbers,
-            label:
-              release.parsed_episode_label ??
-              String(release.parsed_episode_numbers[0] ?? "").padStart(2, "0"),
-            scheme: "absolute",
-          }
-        : undefined,
-  });
-
-  if (release.download_action.Upgrade) {
-    return `Upgrade: ${release.download_action.Upgrade.reason}`;
-  }
-  if (release.download_action.Accept) {
-    return `Accepted ${release.download_action.Accept.quality.name} (score ${release.download_action.Accept.score})`;
-  }
-  if (release.download_action.Reject) {
-    return `Manual override: ${release.download_action.Reject.reason}`;
-  }
-
-  return formatReleaseSearchDecisionReason({
-    batchKind,
-    isSeaDex: release.is_seadex,
-    isSeaDexBest: release.is_seadex_best,
-    trusted: release.trusted,
-  });
 }
 
 function formatSize(bytes: number) {
@@ -108,12 +68,6 @@ function formatSize(bytes: number) {
     unitIndex++;
   }
   return `${size.toFixed(1)} ${units[unitIndex]}`;
-}
-
-function getActionReason(action: DownloadAction) {
-  if (action.Reject) return action.Reject.reason;
-  if (action.Upgrade) return action.Upgrade.reason;
-  return null;
 }
 
 export function SearchModal(props: SearchModalProps) {
@@ -131,47 +85,11 @@ export function SearchModal(props: SearchModalProps) {
   });
 
   const handleDownload = (release: EpisodeSearchResult) => {
-    const selection = selectionMetadataFromDownloadAction(release.download_action);
-    const sourceIdentity = buildParsedEpisodeIdentity({
-      parsedAirDate: release.parsed_air_date,
-      parsedEpisodeLabel: release.parsed_episode_label,
-      parsedEpisodeNumbers: release.parsed_episode_numbers,
-    });
-
-    const releaseMetadata = buildDownloadSourceMetadata({
-      airDate: release.parsed_air_date,
-      chosenFromSeaDex: selection.chosen_from_seadex,
-      group: release.group,
-      indexer: release.indexer,
-      isSeaDex: release.is_seadex,
-      isSeaDexBest: release.is_seadex_best,
-      parsedTitle: release.title,
-      previousQuality: selection.previous_quality,
-      previousScore: selection.previous_score,
-      remake: release.remake,
-      resolution: release.parsed_resolution,
-      seaDexComparison: release.seadex_comparison,
-      seaDexDualAudio: release.seadex_dual_audio,
-      seaDexNotes: release.seadex_notes,
-      seaDexReleaseGroup: release.seadex_release_group,
-      seaDexTags: release.seadex_tags,
-      selectionKind: selection.selection_kind,
-      selectionScore: selection.selection_score,
-      sourceIdentity,
-      sourceUrl: release.view_url,
-      trusted: release.trusted,
-    });
-
-    const payload = {
+    const payload = buildGrabInputFromEpisodeResult({
       animeId: props.animeId,
-      decisionReason: decisionReason(release),
       episodeNumber: props.episodeNumber,
-      title: release.title,
-      magnet: release.link,
-      ...(release.group === undefined ? {} : { group: release.group }),
-      ...(release.info_hash === undefined ? {} : { infoHash: release.info_hash }),
-      releaseMetadata,
-    };
+      result: release,
+    });
 
     grabRelease.mutate(payload, {
       onSuccess: () => {
@@ -257,7 +175,7 @@ export function SearchModal(props: SearchModalProps) {
                         {(release) => {
                           const action = release.download_action;
                           const isRejected = !!action.Reject;
-                          const reason = getActionReason(action);
+                          const reason = actionReasonFromDownloadAction(action);
                           const selectionMetadata = () =>
                             selectionMetadataFromDownloadAction(action);
                           const selectionSummary = () =>

@@ -6,8 +6,6 @@ export interface AuthState {
   isAuthenticated: boolean;
 }
 
-const AUTH_STORAGE_KEY = "bakarr_auth";
-
 function normalizeApiKey(apiKey?: string) {
   const value = apiKey?.trim();
   if (!value || /^\*+$/.test(value)) {
@@ -16,43 +14,10 @@ function normalizeApiKey(apiKey?: string) {
   return value;
 }
 
-function getStoredAuth(): AuthState {
-  try {
-    const stored = localStorage.getItem(AUTH_STORAGE_KEY);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      const apiKey = normalizeApiKey(
-        typeof parsed === "object" && parsed && "apiKey" in parsed
-          ? String(parsed.apiKey ?? "")
-          : undefined,
-      );
-      return {
-        username: parsed.username,
-        ...(apiKey === undefined ? {} : { apiKey }),
-        isAuthenticated: Boolean(parsed.isAuthenticated),
-      };
-    }
-  } catch {
-    localStorage.removeItem(AUTH_STORAGE_KEY);
-  }
-  return { isAuthenticated: false };
-}
-
 // Global Auth State
-const [auth, setAuth] = createSignal<AuthState>(getStoredAuth());
+const [auth, setAuth] = createSignal<AuthState>({ isAuthenticated: false });
 
 function saveAuth(state: AuthState) {
-  if (state.isAuthenticated) {
-    const apiKey = normalizeApiKey(state.apiKey);
-    const toStore = {
-      username: state.username,
-      ...(apiKey === undefined ? {} : { apiKey }),
-      isAuthenticated: state.isAuthenticated,
-    };
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(toStore));
-  } else {
-    localStorage.removeItem(AUTH_STORAGE_KEY);
-  }
   setAuth(state);
 }
 
@@ -64,34 +29,34 @@ export const loginSuccess = (username: string, apiKey?: string) => {
   });
 };
 
-export const loginApiKey = (apiKey: string) => {
+export const syncAuthenticatedUser = (username: string) => {
   saveAuth({
-    apiKey: normalizeApiKey(apiKey),
+    ...auth(),
     isAuthenticated: true,
+    username,
   });
+};
+
+export const clearAuthState = () => {
+  saveAuth({ isAuthenticated: false });
 };
 
 export const logout = async () => {
   try {
     await fetch("/api/auth/logout", { method: "POST" });
   } catch {}
-  saveAuth({ isAuthenticated: false });
+  clearAuthState();
   globalThis.location.href = "/login";
 };
 
-export const getAuthHeaders = (): HeadersInit => {
-  const state = auth();
-  if (state.apiKey) {
-    return { "X-Api-Key": state.apiKey };
-  }
-  return {};
-};
+export const getAuthHeaders = (): HeadersInit => ({});
 
 // Create the auth context
 interface AuthContextValue {
   auth: Accessor<AuthState>;
   loginSuccess: (username: string, apiKey?: string) => void;
-  loginApiKey: (apiKey: string) => void;
+  syncAuthenticatedUser: (username: string) => void;
+  clearAuthState: () => void;
   logout: () => Promise<void>;
   getAuthHeaders: () => HeadersInit;
 }
@@ -101,7 +66,8 @@ const AuthContext = createContext<AuthContextValue>();
 const authContextValue: AuthContextValue = {
   auth,
   loginSuccess,
-  loginApiKey,
+  syncAuthenticatedUser,
+  clearAuthState,
   logout,
   getAuthHeaders,
 };

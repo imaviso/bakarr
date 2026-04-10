@@ -5,7 +5,7 @@ import type { NotificationEvent } from "@bakarr/shared";
 import { animeKeys } from "~/lib/api";
 import { useAuth } from "~/lib/auth";
 import { getNotificationToastCopy } from "~/lib/notification-metadata";
-import { createSseConnection } from "~/lib/sse-events";
+import { setSharedSseAuthenticated, subscribeSharedSse } from "~/lib/sse-events";
 
 export function SseToastListener() {
   const queryClient = useQueryClient();
@@ -140,8 +140,7 @@ export function SseToastListener() {
     }
   };
 
-  const sse = createSseConnection({
-    isAuthenticated: () => auth().isAuthenticated,
+  const unsubscribe = subscribeSharedSse({
     onMessage: (event) => {
       try {
         const data: NotificationEvent = JSON.parse(event.data);
@@ -154,14 +153,14 @@ export function SseToastListener() {
 
   createEffect(() => {
     if (auth().isAuthenticated) {
-      sse.connect();
+      setSharedSseAuthenticated(true);
     } else {
-      sse.disconnect();
+      setSharedSseAuthenticated(false);
     }
   });
 
   onCleanup(() => {
-    sse.disconnect();
+    unsubscribe();
   });
 
   return null;

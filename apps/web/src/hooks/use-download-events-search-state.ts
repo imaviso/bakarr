@@ -2,19 +2,10 @@ import type { Accessor } from "solid-js";
 import { createMemo } from "solid-js";
 import type { DownloadEventsFilterValue } from "~/components/download-events/download-events-filters";
 import { formatDateTimeLocalInput, getDateRangePresetHours } from "~/lib/date-presets";
+import type { DownloadEventsSearchKeys } from "~/lib/download-events-search";
+import { createDownloadEventsSearchDefaults } from "~/lib/download-events-search";
 import { buildDownloadEventsExportInput } from "~/lib/download-events-export";
 import { buildDownloadEventsFilterInput } from "~/lib/download-events-filters";
-
-interface DownloadEventsSearchKeys {
-  animeId: string;
-  cursor: string;
-  direction: string;
-  downloadId: string;
-  endDate: string;
-  eventType: string;
-  startDate: string;
-  status: string;
-}
 
 interface UseDownloadEventsSearchStateOptions {
   keys: DownloadEventsSearchKeys;
@@ -100,16 +91,7 @@ export function useDownloadEventsSearchState(options: UseDownloadEventsSearchSta
   };
 
   const resetFilters = () => {
-    options.updateSearch({
-      [options.keys.animeId]: "",
-      [options.keys.cursor]: "",
-      [options.keys.direction]: "next",
-      [options.keys.downloadId]: "",
-      [options.keys.endDate]: "",
-      [options.keys.eventType]: "all",
-      [options.keys.startDate]: "",
-      [options.keys.status]: "",
-    });
+    options.updateSearch(createDownloadEventsSearchDefaults(options.keys));
   };
 
   return {

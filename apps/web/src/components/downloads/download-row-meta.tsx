@@ -11,6 +11,7 @@ import {
   selectionKindBadgeClass,
   selectionKindLabel,
 } from "~/lib/release-selection";
+import { safeExternalUrl } from "~/lib/urls";
 
 function animeInitials(title: string) {
   return title
@@ -44,6 +45,8 @@ interface DownloadRowMetaProps {
 }
 
 export function DownloadRowMeta(props: DownloadRowMetaProps) {
+  const sourceUrl = () => safeExternalUrl(props.sourceUrl);
+
   return (
     <div class="flex items-start gap-3">
       <Avatar class="size-8 rounded-md">
@@ -108,12 +111,12 @@ export function DownloadRowMeta(props: DownloadRowMetaProps) {
               Remake
             </Badge>
           </Show>
-          <Show when={props.sourceUrl}>
-            {(sourceUrl) => (
+          <Show when={sourceUrl()}>
+            {(safeUrl) => (
               <a
-                href={sourceUrl()}
+                href={safeUrl()}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 class="inline-flex items-center gap-1 text-primary hover:text-primary/80"
               >
                 <IconExternalLink class="h-3 w-3" /> Source

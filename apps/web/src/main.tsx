@@ -6,7 +6,8 @@ import { routeTree } from "./routeTree.gen";
 import "@fontsource-variable/geist";
 // oxlint-disable-next-line import/no-unassigned-import
 import "./styles.css";
-import { getAuthState } from "~/lib/auth";
+import { getAuthState, syncAuthenticatedUser } from "~/lib/auth";
+import { API_BASE, fetchApiResponse } from "~/lib/api/client";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -44,7 +45,15 @@ declare module "@tanstack/solid-router" {
 }
 const rootElement = document.getElementById("app");
 
-if (rootElement && !rootElement.innerHTML) {
+void bootstrap();
+
+async function bootstrap() {
+  await hydrateSessionState();
+
+  if (!rootElement || rootElement.innerHTML) {
+    return;
+  }
+
   render(
     () => (
       <QueryClientProvider client={queryClient}>
@@ -53,4 +62,26 @@ if (rootElement && !rootElement.innerHTML) {
     ),
     rootElement,
   );
+}
+
+async function hydrateSessionState() {
+  const response = await fetchApiResponse(`${API_BASE}/auth/me`, {
+    skipAutoLogoutOnUnauthorized: true,
+  }).catch(() => undefined);
+
+  if (!response || response.status === 401 || !response.ok) {
+    return;
+  }
+
+  const raw = await response.json();
+
+  if (
+    typeof raw === "object" &&
+    raw !== null &&
+    "username" in raw &&
+    typeof raw.username === "string" &&
+    raw.username.length > 0
+  ) {
+    syncAuthenticatedUser(raw.username);
+  }
 }

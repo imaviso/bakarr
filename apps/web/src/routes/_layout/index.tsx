@@ -13,6 +13,7 @@ import {
   createLibraryStatsQuery,
   libraryStatsQueryOptions,
 } from "~/lib/api";
+import { createDownloadsRouteSearch } from "~/lib/download-events-search";
 
 export const Route = createFileRoute("/_layout/")({
   loader: async ({ context: { queryClient } }) => {
@@ -82,20 +83,7 @@ function DashboardPage() {
                     <IconArrowRight class="ml-1 h-3.5 w-3.5" />
                   </Button>
                 </Link>
-                <Link
-                  to="/downloads"
-                  search={{
-                    events_anime_id: "",
-                    events_cursor: "",
-                    events_direction: "next",
-                    events_download_id: "",
-                    events_end_date: "",
-                    events_event_type: "all",
-                    events_start_date: "",
-                    events_status: "",
-                    tab: "queue",
-                  }}
-                >
+                <Link to="/downloads" search={createDownloadsRouteSearch({ tab: "queue" })}>
                   <Button variant="ghost" size="sm" class="text-xs">
                     {stats().recent_downloads} recent downloads
                     <IconArrowRight class="ml-1 h-3.5 w-3.5" />
@@ -114,20 +102,7 @@ function DashboardPage() {
             Recent Activity
           </h2>
           <Show when={activityQuery.data && activityQuery.data?.length > 5}>
-            <Link
-              to="/downloads"
-              search={{
-                events_anime_id: "",
-                events_cursor: "",
-                events_direction: "next",
-                events_download_id: "",
-                events_end_date: "",
-                events_event_type: "all",
-                events_start_date: "",
-                events_status: "",
-                tab: "queue",
-              }}
-            >
+            <Link to="/downloads" search={createDownloadsRouteSearch({ tab: "queue" })}>
               <Button variant="ghost" size="sm">
                 View All
               </Button>

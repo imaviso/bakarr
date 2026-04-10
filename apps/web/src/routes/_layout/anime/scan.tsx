@@ -7,8 +7,7 @@ import {
   IconTrash,
 } from "@tabler/icons-solidjs";
 import { createFileRoute, useNavigate } from "@tanstack/solid-router";
-import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
-import { createStore, reconcile } from "solid-js/store";
+import { createMemo, createSignal, For, Show } from "solid-js";
 import { toast } from "solid-sonner";
 import { GeneralError } from "~/components/general-error";
 import { BackgroundMatchingCard } from "~/components/scan/background-matching-card";
@@ -56,10 +55,7 @@ function LibraryScanPage() {
     null | "pause_queued" | "reset_failed"
   >(null);
 
-  const [folders, setFolders] = createStore<UnmappedFolder[]>([]);
-  createEffect(() => {
-    setFolders(reconcile(scanState.data?.folders ?? [], { key: "path", merge: true }));
-  });
+  const folders = createMemo<UnmappedFolder[]>(() => scanState.data?.folders ?? []);
 
   const isScanning = () => scanState.data?.is_scanning;
   const hasOutstandingMatches = () => scanState.data?.has_outstanding_matches;
@@ -82,7 +78,7 @@ function LibraryScanPage() {
     let matched = 0;
     let failed = 0;
     let paused = 0;
-    for (const f of folders) {
+    for (const f of folders()) {
       if (f.suggested_matches[0]?.already_in_library) exact++;
       switch (f.match_status) {
         case "pending":
@@ -188,7 +184,7 @@ function LibraryScanPage() {
             </div>
 
             <div class="flex flex-wrap items-center gap-2 lg:justify-end">
-              <StatChip label="Unmapped" value={String(folders.length)} />
+              <StatChip label="Unmapped" value={String(folders().length)} />
               <StatChip label="Queued" value={String(counts().queued + counts().matching)} />
               <StatChip label="Paused" value={String(counts().paused)} />
               <StatChip label="Already in library" value={String(counts().exact)} tone="info" />
@@ -288,7 +284,7 @@ function LibraryScanPage() {
           when={scanState.isLoading}
           fallback={
             <Show
-              when={folders.length > 0}
+              when={folders().length > 0}
               fallback={
                 <EmptyScanState
                   hasOutstandingMatches={Boolean(hasOutstandingMatches())}
@@ -297,7 +293,7 @@ function LibraryScanPage() {
               }
             >
               <div class="space-y-4">
-                <Show when={folders.length > 0 || unmappedJob()}>
+                <Show when={folders().length > 0 || unmappedJob()}>
                   <BackgroundMatchingCard
                     job={unmappedJob()}
                     failedCount={counts().failed}
@@ -307,11 +303,11 @@ function LibraryScanPage() {
                     matchingCount={counts().matching}
                     pausedCount={counts().paused}
                     queuedCount={counts().queued}
-                    totalCount={folders.length}
+                    totalCount={folders().length}
                   />
                 </Show>
                 <ul role="list" class="space-y-3">
-                  <For each={folders}>
+                  <For each={folders()}>
                     {(folder) => (
                       <li>
                         <FolderItem folder={folder} />

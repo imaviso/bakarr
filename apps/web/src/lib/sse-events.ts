@@ -1,5 +1,114 @@
 export type SseListener = (event: MessageEvent<string>) => void;
 
+const sharedListeners = new Set<SseListener>();
+const sharedErrorListeners = new Set<() => void>();
+let sharedSource: EventSource | null = null;
+let sharedReconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+let sharedIsAuthenticated = false;
+
+function clearSharedReconnectTimeout() {
+  if (!sharedReconnectTimeout) {
+    return;
+  }
+
+  clearTimeout(sharedReconnectTimeout);
+  sharedReconnectTimeout = null;
+}
+
+function disconnectSharedSource() {
+  if (sharedSource) {
+    sharedSource.close();
+    sharedSource = null;
+  }
+
+  clearSharedReconnectTimeout();
+}
+
+function shouldConnectSharedSource() {
+  return sharedIsAuthenticated && sharedListeners.size > 0;
+}
+
+function dispatchSharedError() {
+  for (const listener of sharedErrorListeners) {
+    listener();
+  }
+}
+
+function dispatchSharedMessage(event: MessageEvent<string>) {
+  for (const listener of sharedListeners) {
+    listener(event);
+  }
+}
+
+function scheduleSharedReconnect(delay: number) {
+  if (sharedReconnectTimeout || !shouldConnectSharedSource()) {
+    return;
+  }
+
+  sharedReconnectTimeout = setTimeout(() => {
+    sharedReconnectTimeout = null;
+    connectSharedSource(delay);
+  }, delay);
+}
+
+function connectSharedSource(reconnectDelayMs = 5000) {
+  if (!shouldConnectSharedSource()) {
+    disconnectSharedSource();
+    return;
+  }
+
+  if (sharedSource) {
+    return;
+  }
+
+  sharedSource = connectEventSource(dispatchSharedMessage, () => {
+    if (sharedSource) {
+      sharedSource.close();
+      sharedSource = null;
+    }
+
+    dispatchSharedError();
+    scheduleSharedReconnect(reconnectDelayMs);
+  });
+}
+
+export function setSharedSseAuthenticated(isAuthenticated: boolean) {
+  sharedIsAuthenticated = isAuthenticated;
+
+  if (!shouldConnectSharedSource()) {
+    disconnectSharedSource();
+    return;
+  }
+
+  connectSharedSource();
+}
+
+export function subscribeSharedSse(options: {
+  onMessage: SseListener;
+  onError?: () => void;
+  reconnectDelayMs?: number;
+}) {
+  sharedListeners.add(options.onMessage);
+
+  if (options.onError) {
+    sharedErrorListeners.add(options.onError);
+  }
+
+  connectSharedSource(options.reconnectDelayMs);
+
+  return () => {
+    sharedListeners.delete(options.onMessage);
+
+    if (options.onError) {
+      sharedErrorListeners.delete(options.onError);
+    }
+
+    if (!shouldConnectSharedSource()) {
+      disconnectSharedSource();
+    }
+  };
+}
+
 function connectEventSource(onEvent: SseListener, onError: () => void): EventSource {
   const source = new EventSource("/api/events");
   source.addEventListener("message", onEvent);

@@ -1,4 +1,4 @@
-import { Show } from "solid-js";
+import { createMemo, Show } from "solid-js";
 import type { DownloadEvent } from "@bakarr/shared";
 import { getDownloadEventMetadataSummary } from "~/lib/download-event-metadata";
 
@@ -8,7 +8,7 @@ interface DownloadEventCardProps {
 }
 
 export function DownloadEventCard(props: DownloadEventCardProps) {
-  const summary = () => getDownloadEventMetadataSummary(props.event);
+  const metadataSummary = createMemo(() => getDownloadEventMetadataSummary(props.event));
 
   return (
     <div class="rounded-lg border border-border/60 bg-card p-3 space-y-1">
@@ -42,27 +42,32 @@ export function DownloadEventCard(props: DownloadEventCardProps) {
         <Show when={props.event.download_id !== undefined}>
           <span>Download #{props.event.download_id}</span>
         </Show>
-        <Show when={summary().coverage}>
+        <Show when={metadataSummary().coverage}>
           <span class="inline-flex items-center rounded-none border h-5 px-1.5 text-xs">
-            {summary().coverage}
+            {metadataSummary().coverage}
           </span>
         </Show>
       </div>
       <Show
-        when={summary().source || summary().parsed || summary().decision || summary().importedPath}
+        when={
+          metadataSummary().source ||
+          metadataSummary().parsed ||
+          metadataSummary().decision ||
+          metadataSummary().importedPath
+        }
       >
         <div class="space-y-1 text-[11px] text-muted-foreground">
-          <Show when={summary().source}>
-            <div>{summary().source}</div>
+          <Show when={metadataSummary().source}>
+            <div>{metadataSummary().source}</div>
           </Show>
-          <Show when={summary().parsed}>
-            <div>{summary().parsed}</div>
+          <Show when={metadataSummary().parsed}>
+            <div>{metadataSummary().parsed}</div>
           </Show>
-          <Show when={summary().decision}>
-            <div>{summary().decision}</div>
+          <Show when={metadataSummary().decision}>
+            <div>{metadataSummary().decision}</div>
           </Show>
-          <Show when={summary().importedPath}>
-            <div class="font-mono break-all">{summary().importedPath}</div>
+          <Show when={metadataSummary().importedPath}>
+            <div class="font-mono break-all">{metadataSummary().importedPath}</div>
           </Show>
         </div>
       </Show>

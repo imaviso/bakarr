@@ -34,6 +34,7 @@ import { Badge } from "~/components/ui/badge";
 import { Button, buttonVariants } from "~/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
 import type { Anime } from "~/lib/api";
+import { createLogsRouteSearch } from "~/lib/download-events-search";
 import { cn } from "~/lib/utils";
 
 interface AnimeDetailsHeaderProps {
@@ -242,16 +243,7 @@ export function AnimeDetailsHeader(props: AnimeDetailsHeaderProps) {
 
           <Link
             to="/logs"
-            search={{
-              download_anime_id: String(props.animeId),
-              download_cursor: "",
-              download_direction: "next",
-              download_download_id: "",
-              download_end_date: "",
-              download_event_type: "all",
-              download_start_date: "",
-              download_status: "",
-            }}
+            search={createLogsRouteSearch({ animeId: String(props.animeId) })}
             class="shrink-0"
           >
             <Button variant="outline" size="sm">

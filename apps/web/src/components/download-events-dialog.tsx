@@ -1,11 +1,5 @@
-import { createMemo, createSignal, For, Show } from "solid-js";
-import {
-  IconAlertTriangle,
-  IconEye,
-  IconFileSpreadsheet,
-  IconJson,
-  IconLoader,
-} from "@tabler/icons-solidjs";
+import { createMemo, createSignal, Show } from "solid-js";
+import { IconAlertTriangle, IconEye, IconFileSpreadsheet, IconJson } from "@tabler/icons-solidjs";
 import { Button } from "~/components/ui/button";
 import {
   Dialog,
@@ -14,7 +8,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "~/components/ui/dialog";
-import { DownloadEventCard } from "~/components/download-event-card";
 import { DownloadEventDetailsDialog } from "~/components/download-event-details-dialog";
 import {
   createDownloadEventsQuery,
@@ -23,6 +16,7 @@ import {
   type DownloadEventsExportResult,
 } from "~/lib/api";
 import { runDownloadEventsExport } from "~/lib/download-events-export";
+import { DownloadEventsFeed } from "~/components/download-events/download-events-feed";
 
 interface DownloadEventsDialogProps {
   animeId?: number | undefined;
@@ -141,63 +135,40 @@ export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
           </DialogHeader>
 
           <div class="flex-1 overflow-y-auto space-y-3 py-2 pr-1">
-            <Show
-              when={!query.isLoading}
-              fallback={
-                <div class="flex items-center gap-2 text-sm text-muted-foreground">
-                  <IconLoader class="h-4 w-4 animate-spin" />
-                  Loading download events...
-                </div>
-              }
-            >
-              <Show
-                when={events().length > 0}
-                fallback={
-                  <div class="text-sm text-muted-foreground">
-                    No download events found for this selection.
-                  </div>
-                }
-              >
-                <div class="text-xs text-muted-foreground">
-                  Showing {events().length} of {query.data?.total ?? 0} events
-                </div>
-                <For each={events()}>
-                  {(event) => (
-                    <div class="space-y-2">
-                      <DownloadEventCard event={event} formatTimestamp={props.formatTimestamp} />
-                      <div class="flex justify-end">
-                        <Button variant="outline" size="sm" onClick={() => setSelectedEvent(event)}>
-                          Details
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </For>
-                <div class="flex justify-end gap-2 pt-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={!query.data?.prev_cursor}
-                    onClick={() => {
-                      setCursor(query.data?.prev_cursor);
-                      setDirection("prev");
-                    }}
-                  >
-                    Previous
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={!query.data?.next_cursor}
-                    onClick={() => {
-                      setCursor(query.data?.next_cursor);
-                      setDirection("next");
-                    }}
-                  >
-                    Next
-                  </Button>
-                </div>
-              </Show>
+            <DownloadEventsFeed
+              events={events()}
+              formatTimestamp={props.formatTimestamp}
+              isLoading={query.isLoading}
+              total={query.data?.total}
+              emptyText="No download events found for this selection."
+              onSelectEvent={setSelectedEvent}
+              class="space-y-3"
+            />
+            <Show when={events().length > 0}>
+              <div class="flex justify-end gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!query.data?.prev_cursor}
+                  onClick={() => {
+                    setCursor(query.data?.prev_cursor);
+                    setDirection("prev");
+                  }}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!query.data?.next_cursor}
+                  onClick={() => {
+                    setCursor(query.data?.next_cursor);
+                    setDirection("next");
+                  }}
+                >
+                  Next
+                </Button>
+              </div>
             </Show>
           </div>
         </DialogContent>

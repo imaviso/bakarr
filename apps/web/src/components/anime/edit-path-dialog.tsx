@@ -28,6 +28,7 @@ export function EditPathDialog(props: EditPathDialogProps) {
   createEffect(() => {
     if (props.open) {
       setPath(props.currentPath);
+      setRescan(true);
     }
   });
 
