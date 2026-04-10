@@ -6,7 +6,7 @@ import {
   IconInfoCircle,
   IconLoader,
 } from "@tabler/icons-solidjs";
-import { createEffect, createMemo, For, Show } from "solid-js";
+import { createEffect, createMemo, For, Show, type JSX } from "solid-js";
 import { createVirtualizer } from "@tanstack/solid-virtual";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -235,7 +235,7 @@ export function SystemLogsTable(props: SystemLogsTableProps) {
 }
 
 function CardShell(props: {
-  children: any;
+  children: JSX.Element;
   hasNextPage: boolean;
   isFetchingNextPage: boolean;
   onFetchNextPage: () => void;

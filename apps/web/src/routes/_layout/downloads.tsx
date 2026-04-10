@@ -1,7 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/solid-router";
 import { GeneralError } from "~/components/general-error";
 import { downloadHistoryQueryOptions } from "~/lib/api";
-import { parseDownloadsSearch, useDownloadsRouteState } from "./downloads-route-state";
+import {
+  normalizeDownloadsSearch,
+  parseDownloadsSearch,
+  type DownloadsSearchPatch,
+} from "./downloads-search";
+import { useDownloadsRouteState } from "./downloads-route-state";
 import { DownloadsView } from "./downloads-view";
 
 export const Route = createFileRoute("/_layout/downloads")({
@@ -17,10 +22,13 @@ function DownloadsPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
 
-  const updateSearch = (patch: Partial<Record<string, string>>) => {
+  const updateSearch = (patch: DownloadsSearchPatch) => {
     void navigate({
       to: ".",
-      search: { ...search(), ...patch },
+      search: (previous) =>
+        normalizeDownloadsSearch(
+          parseDownloadsSearch({ ...(previous as Record<string, unknown>), ...patch }),
+        ),
       replace: true,
     });
   };
@@ -30,5 +38,5 @@ function DownloadsPage() {
     updateSearch,
   });
 
-  return <DownloadsView searchTab={search().tab} state={state} />;
+  return <DownloadsView searchTab={search().tab ?? "queue"} state={state} />;
 }

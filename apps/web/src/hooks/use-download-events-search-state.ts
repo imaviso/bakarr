@@ -10,15 +10,16 @@ import { buildDownloadEventsFilterInput } from "~/lib/download-events-filters";
 interface UseDownloadEventsSearchStateOptions {
   keys: DownloadEventsSearchKeys;
   search: Accessor<Record<string, string | undefined>>;
-  updateSearch: (patch: Partial<Record<string, string>>) => void;
+  updateSearch: (patch: Partial<Record<string, string | undefined>>) => void;
 }
 
 export function useDownloadEventsSearchState(options: UseDownloadEventsSearchStateOptions) {
-  const read = (key: string): string => options.search()[key] ?? "";
+  const searchState = createMemo(() => options.search());
+  const read = (key: string): string => searchState()[key] ?? "";
 
   const readDirection = (key: string): "next" | "prev" => (read(key) === "prev" ? "prev" : "next");
 
-  const patchWithCursorReset = (patch: Partial<Record<string, string>>) => ({
+  const patchWithCursorReset = (patch: Partial<Record<string, string | undefined>>) => ({
     ...patch,
     [options.keys.cursor]: "",
     [options.keys.direction]: "next",

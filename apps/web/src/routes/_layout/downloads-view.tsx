@@ -6,16 +6,15 @@ import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "~/components/ui/tabs";
+import { formatUiTimestamp } from "~/lib/date-time";
 import { DownloadsEventsTab } from "~/routes/_layout/downloads-events-tab";
 import { DownloadsHistoryTab } from "~/routes/_layout/downloads-history-tab";
 import { DownloadsQueueTab } from "~/routes/_layout/downloads-queue-tab";
-import type { useDownloadsRouteState } from "~/routes/_layout/downloads-route-state";
-
-type DownloadsRouteState = ReturnType<typeof useDownloadsRouteState>;
+import type { DownloadsViewState } from "~/routes/_layout/downloads-view-types";
 
 interface DownloadsViewProps {
   searchTab: string;
-  state: DownloadsRouteState;
+  state: DownloadsViewState;
 }
 
 export function DownloadsView(props: DownloadsViewProps) {
@@ -25,7 +24,7 @@ export function DownloadsView(props: DownloadsViewProps) {
         <div class="flex items-center gap-2">
           <DownloadEventsDialog
             description="Recent queue, retry, status, and import events across all downloads."
-            formatTimestamp={(value) => new Date(value).toLocaleString()}
+            formatTimestamp={formatUiTimestamp}
             limit={50}
             showTriggerLabel
             title="Download Event Feed"

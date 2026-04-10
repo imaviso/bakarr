@@ -13,7 +13,7 @@ export interface DownloadEventsSearchKeys {
   status: string;
 }
 
-export const DOWNLOADS_EVENTS_SEARCH_KEYS: DownloadEventsSearchKeys = {
+export const DOWNLOADS_EVENTS_SEARCH_KEYS = {
   animeId: "events_anime_id",
   cursor: "events_cursor",
   direction: "events_direction",
@@ -22,9 +22,9 @@ export const DOWNLOADS_EVENTS_SEARCH_KEYS: DownloadEventsSearchKeys = {
   eventType: "events_event_type",
   startDate: "events_start_date",
   status: "events_status",
-};
+} as const satisfies DownloadEventsSearchKeys;
 
-export const LOGS_DOWNLOAD_EVENTS_SEARCH_KEYS: DownloadEventsSearchKeys = {
+export const LOGS_DOWNLOAD_EVENTS_SEARCH_KEYS = {
   animeId: "download_anime_id",
   cursor: "download_cursor",
   direction: "download_direction",
@@ -33,7 +33,7 @@ export const LOGS_DOWNLOAD_EVENTS_SEARCH_KEYS: DownloadEventsSearchKeys = {
   eventType: "download_event_type",
   startDate: "download_start_date",
   status: "download_status",
-};
+} as const satisfies DownloadEventsSearchKeys;
 
 export function createDownloadsRouteSearch(input?: {
   animeId?: string | undefined;

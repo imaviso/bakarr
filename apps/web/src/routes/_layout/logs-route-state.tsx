@@ -1,20 +1,11 @@
-import { format } from "date-fns";
 import type { Accessor } from "solid-js";
+import { formatUiTimestamp } from "~/lib/date-time";
 import { useLogsActions } from "~/routes/_layout/use-logs-actions";
 import { useLogsFilters } from "~/routes/_layout/use-logs-filters";
 import { useLogsQueries } from "~/routes/_layout/use-logs-queries";
 
 export function formatLogTimestamp(createdAt: string): string {
-  const normalized = createdAt.includes("T") ? createdAt : createdAt.replace(" ", "T");
-  const hasTimezone = /([zZ]|[+-]\d{2}:\d{2})$/.test(normalized);
-  const candidate = hasTimezone ? normalized : `${normalized}Z`;
-  const date = new Date(candidate);
-
-  if (Number.isNaN(date.getTime())) {
-    return createdAt;
-  }
-
-  return format(date, "yyyy-MM-dd HH:mm:ss");
+  return formatUiTimestamp(createdAt);
 }
 
 interface UseLogsRouteStateOptions {

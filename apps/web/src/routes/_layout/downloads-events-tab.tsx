@@ -4,13 +4,15 @@ import { DownloadEventsFilters } from "~/components/download-events/download-eve
 import { Button } from "~/components/ui/button";
 import { TabsContent } from "~/components/ui/tabs";
 import { type DownloadEventsExportResult } from "~/lib/api";
-import type { useDownloadsRouteState } from "~/routes/_layout/downloads-route-state";
-
-type DownloadsRouteState = ReturnType<typeof useDownloadsRouteState>;
+import { formatUiTimestamp } from "~/lib/date-time";
+import type {
+  DownloadsEventsQuery,
+  DownloadsEventsSearchState,
+} from "~/routes/_layout/downloads-view-types";
 
 interface DownloadsEventsTabProps {
-  downloadEventsQuery: DownloadsRouteState["downloadEventsQuery"];
-  eventsSearchState: DownloadsRouteState["eventsSearchState"];
+  downloadEventsQuery: DownloadsEventsQuery;
+  eventsSearchState: DownloadsEventsSearchState;
   canGoToPreviousEventsPage: boolean;
   canGoToNextEventsPage: boolean;
   handleDownloadEventsExport: (format: "json" | "csv") => void;
@@ -45,7 +47,7 @@ export function DownloadsEventsTab(props: DownloadsEventsTabProps) {
       <div class="flex-1 overflow-y-auto p-4 space-y-3">
         <DownloadEventsFeed
           events={props.downloadEventsQuery.data?.events ?? []}
-          formatTimestamp={(value) => new Date(value).toLocaleString()}
+          formatTimestamp={formatUiTimestamp}
           isLoading={props.downloadEventsQuery.isLoading}
           total={props.downloadEventsQuery.data?.total}
           emptyText="No download events found."

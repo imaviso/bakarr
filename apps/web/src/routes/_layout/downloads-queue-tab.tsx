@@ -10,12 +10,10 @@ import {
   TableRow,
 } from "~/components/ui/table";
 import { TabsContent } from "~/components/ui/tabs";
-import type { useDownloadsRouteState } from "~/routes/_layout/downloads-route-state";
-
-type DownloadsRouteState = ReturnType<typeof useDownloadsRouteState>;
+import type { DownloadStatus } from "~/lib/api";
 
 interface DownloadsQueueTabProps {
-  queue: DownloadsRouteState["queue"];
+  queue: DownloadStatus[];
 }
 
 export function DownloadsQueueTab(props: DownloadsQueueTabProps) {

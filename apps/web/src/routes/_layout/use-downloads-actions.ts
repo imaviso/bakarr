@@ -1,0 +1,92 @@
+import { createSignal, type Accessor } from "solid-js";
+import { toast } from "solid-sonner";
+import {
+  createSearchMissingMutation,
+  createSyncDownloadsMutation,
+  type DownloadEventsExportInput,
+  type DownloadEventsExportResult,
+} from "~/lib/api";
+import {
+  createDownloadEventsCursorPatch,
+  DOWNLOADS_EVENTS_SEARCH_KEYS,
+} from "~/lib/download-events-search";
+import { runDownloadEventsExport } from "~/lib/download-events-export";
+import { toDownloadsTab } from "~/routes/_layout/downloads-search";
+import type { DownloadsSearchPatch } from "~/routes/_layout/downloads-search";
+
+interface UseDownloadsActionsOptions {
+  updateSearch: (patch: DownloadsSearchPatch) => void;
+  eventsExportInput: Accessor<DownloadEventsExportInput>;
+  eventsPage: Accessor<{
+    nextCursor?: string | undefined;
+    prevCursor?: string | undefined;
+  }>;
+}
+
+export function useDownloadsActions(options: UseDownloadsActionsOptions) {
+  const [lastDownloadEventsExport, setLastDownloadEventsExport] = createSignal<
+    DownloadEventsExportResult | undefined
+  >(undefined);
+  const searchMissing = createSearchMissingMutation();
+  const syncDownloads = createSyncDownloadsMutation();
+
+  const handleDownloadEventsExport = (format: "json" | "csv") => {
+    void runDownloadEventsExport({
+      format,
+      input: options.eventsExportInput(),
+      onComplete: (result) => {
+        setLastDownloadEventsExport(result);
+      },
+    });
+  };
+
+  const goToPreviousEventsPage = () => {
+    options.updateSearch(
+      createDownloadEventsCursorPatch(
+        DOWNLOADS_EVENTS_SEARCH_KEYS,
+        "prev",
+        options.eventsPage().prevCursor ?? "",
+      ),
+    );
+  };
+
+  const goToNextEventsPage = () => {
+    options.updateSearch(
+      createDownloadEventsCursorPatch(
+        DOWNLOADS_EVENTS_SEARCH_KEYS,
+        "next",
+        options.eventsPage().nextCursor ?? "",
+      ),
+    );
+  };
+
+  const syncDownloadsWithToast = () =>
+    toast.promise(syncDownloads.mutateAsync(), {
+      loading: "Syncing downloads...",
+      success: "Download state synced",
+      error: (error) => `Failed to sync downloads: ${error.message}`,
+    });
+
+  const searchMissingWithToast = () =>
+    toast.promise(searchMissing.mutateAsync(undefined), {
+      loading: "Triggering global search...",
+      success: "Global search triggered in background",
+      error: (error) => `Failed to trigger search: ${error.message}`,
+    });
+
+  const handleTabChange = (value: string | undefined) => {
+    options.updateSearch({ tab: toDownloadsTab(value) });
+  };
+
+  return {
+    goToNextEventsPage,
+    goToPreviousEventsPage,
+    handleDownloadEventsExport,
+    handleTabChange,
+    lastDownloadEventsExport,
+    searchMissing,
+    searchMissingWithToast,
+    syncDownloads,
+    syncDownloadsWithToast,
+  };
+}

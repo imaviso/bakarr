@@ -11,13 +11,12 @@ import {
   TableRow,
 } from "~/components/ui/table";
 import { TabsContent } from "~/components/ui/tabs";
-import type { useDownloadsRouteState } from "~/routes/_layout/downloads-route-state";
-
-type DownloadsRouteState = ReturnType<typeof useDownloadsRouteState>;
+import type { DownloadsHistoryQuery } from "~/routes/_layout/downloads-view-types";
+import type { Download } from "~/lib/api";
 
 interface DownloadsHistoryTabProps {
-  history: DownloadsRouteState["history"];
-  historyQuery: DownloadsRouteState["historyQuery"];
+  history: () => Download[];
+  historyQuery: DownloadsHistoryQuery;
 }
 
 export function DownloadsHistoryTab(props: DownloadsHistoryTabProps) {
