@@ -31,6 +31,6 @@ export const announceBootstrapCredentials = Effect.fn(
   }
 
   yield* Effect.logInfo(
-    "\n* INITIAL SETUP: Bootstrap user created. Log in with the configured credentials and change your password.\n",
+    `\n* INITIAL SETUP: Bootstrap user created.\n${details}* Please log in and change your password.\n`,
   );
 });

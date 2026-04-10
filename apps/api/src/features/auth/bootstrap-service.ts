@@ -96,6 +96,10 @@ const makeAuthBootstrapService = Effect.gen(function* () {
 
     yield* announceBootstrapCredentials({
       username: config.bootstrapUsername,
+      // Intentionally print only generated bootstrap passwords. The bootstrap
+      // account is forced to rotate credentials on first login
+      // (`mustChangePassword: true`), but operator-provided credentials from
+      // env/config should never be echoed back to logs.
       ...(config.bootstrapPasswordIsEnvOverride ? {} : { password: bootstrapPassword }),
     });
   });

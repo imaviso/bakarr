@@ -34,5 +34,9 @@ it.effect("announceBootstrapCredentials logs a fallback message when terminal di
       messages.some((message) => message.includes("INITIAL SETUP")),
       true,
     );
+    assert.deepStrictEqual(
+      messages.some((message) => message.includes("Password: secret-pass")),
+      true,
+    );
   }),
 );
