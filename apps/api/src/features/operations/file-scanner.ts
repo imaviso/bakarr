@@ -1,5 +1,5 @@
 import { Chunk, Effect, Option, Stream } from "effect";
-import { FileSystemError, type FileSystemShape } from "@/lib/filesystem.ts";
+import { FileSystemError, type DirEntry, type FileSystemShape } from "@/lib/filesystem.ts";
 
 const SCAN_STAT_CONCURRENCY = 16;
 
@@ -18,43 +18,29 @@ export const scanVideoFiles = Effect.fn("Operations.scanVideoFiles")(function* (
   return Array.from(files).toSorted((left, right) => left.name.localeCompare(right.name));
 });
 
-interface ScannerEntry {
-  readonly name: string;
-  readonly isDirectory: boolean;
-  readonly isFile: boolean;
-  readonly isSymlink: boolean;
-}
-
 export function scanVideoFilesStream(
   fs: FileSystemShape,
   path: string,
 ): Stream.Stream<ScannedVideoFile, FileSystemError> {
   return Stream.unfoldChunkEffect({ stack: [path], visited: new Set<string>() }, (state) =>
     Effect.gen(function* () {
-      if (state.stack.length === 0) {
+      const current = state.stack.pop();
+
+      if (current === undefined) {
         return Option.none();
       }
 
-      const nextStack = [...state.stack];
-      const current = nextStack.pop();
-
-      if (!current) {
-        return Option.none();
-      }
-
-      const nextVisited = new Set(state.visited);
-
-      const readDirectoryEffect: Effect.Effect<ScannerEntry[], FileSystemError> = fs.readDirStream
-        ? Stream.runCollect(
-            fs.readDirStream(current).pipe(Stream.map((entry) => entry as ScannerEntry)),
-          ).pipe(Effect.map((chunk) => Array.from(chunk)))
+      const readDirectoryEffect: Effect.Effect<DirEntry[], FileSystemError> = fs.readDirStream
+        ? Stream.runCollect(fs.readDirStream(current)).pipe(
+            Effect.map((chunk) => Array.from(chunk)),
+          )
         : fs.readDir(current);
 
       const entries = yield* readDirectoryEffect;
 
-      const symlinkEntries: ScannerEntry[] = [];
-      const fileEntries: ScannerEntry[] = [];
-      const dirEntries: ScannerEntry[] = [];
+      const symlinkEntries: DirEntry[] = [];
+      const fileEntries: DirEntry[] = [];
+      const dirEntries: DirEntry[] = [];
 
       for (const entry of entries) {
         if (entry.isSymlink) {
@@ -67,25 +53,24 @@ export function scanVideoFilesStream(
       }
 
       for (const entry of dirEntries) {
-        const fullPath = `${current.replace(/\/$/, "")}/${entry.name}`;
-        nextStack.push(fullPath);
+        state.stack.push(`${current.replace(/\/$/, "")}/${entry.name}`);
       }
 
-      const processSymlink = (entry: ScannerEntry) =>
+      const processSymlink = (entry: DirEntry) =>
         Effect.gen(function* () {
           const fullPath = `${current.replace(/\/$/, "")}/${entry.name}`;
           const realPath = yield* fs.realPath(fullPath);
 
-          if (nextVisited.has(realPath)) {
+          if (state.visited.has(realPath)) {
             return Option.none<ScannedVideoFile>();
           }
 
-          nextVisited.add(realPath);
+          state.visited.add(realPath);
 
           const realInfo = yield* fs.stat(fullPath);
 
           if (realInfo.isDirectory) {
-            nextStack.push(fullPath);
+            state.stack.push(fullPath);
             return Option.none<ScannedVideoFile>();
           }
 
@@ -100,7 +85,7 @@ export function scanVideoFilesStream(
           return Option.none<ScannedVideoFile>();
         });
 
-      const processFile = (entry: ScannerEntry) =>
+      const processFile = (entry: DirEntry) =>
         Effect.gen(function* () {
           const fullPath = `${current.replace(/\/$/, "")}/${entry.name}`;
           const stats = yield* fs.stat(fullPath);
@@ -124,10 +109,7 @@ export function scanVideoFilesStream(
         ...fileResults,
       ];
 
-      return Option.some([
-        Chunk.fromIterable(files),
-        { stack: nextStack, visited: nextVisited },
-      ] as const);
+      return Option.some([Chunk.fromIterable(files), state] as const);
     }),
   ).pipe(Stream.withSpan("Operations.scanVideoFilesStream"));
 }

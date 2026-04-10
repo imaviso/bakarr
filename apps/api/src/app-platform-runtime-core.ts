@@ -45,7 +45,7 @@ export function makeAppPlatformCoreRuntimeLayer(
   const eventPublisherLayer = EventPublisherLive.pipe(Layer.provide(eventSupportLayer));
   const backgroundMonitorLayer = withCoreSupport(BackgroundWorkerMonitorLive);
 
-  return Layer.mergeAll(
+  const platformCoreLayer = Layer.mergeAll(
     BunContext.layer,
     coreSupportLayer,
     configLayer,
@@ -53,10 +53,15 @@ export function makeAppPlatformCoreRuntimeLayer(
     RuntimeLoggerLayer,
     databaseLayer,
     externalCallLayer,
+  );
+
+  const infrastructureLayer = Layer.mergeAll(
     eventBusLayer,
     eventPublisherLayer,
     backgroundMonitorLayer,
     FileSystemLive,
     TokenHasherLive,
   );
+
+  return Layer.mergeAll(platformCoreLayer, infrastructureLayer);
 }

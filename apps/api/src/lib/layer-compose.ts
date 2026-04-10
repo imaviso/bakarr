@@ -3,6 +3,11 @@ import { Layer } from "effect";
 export const provideLayer = <A, E, R, DOut, DE, DR>(
   layer: Layer.Layer<A, E, R>,
   dependencies: Layer.Layer<DOut, DE, DR>,
+) => layer.pipe(Layer.provide(dependencies));
+
+export const provideLayerMerge = <A, E, R, DOut, DE, DR>(
+  layer: Layer.Layer<A, E, R>,
+  dependencies: Layer.Layer<DOut, DE, DR>,
 ) => layer.pipe(Layer.provideMerge(dependencies));
 
 export const provideFrom =

@@ -9,15 +9,15 @@ import { SearchEpisodeServiceLive } from "@/features/operations/search-orchestra
 import { SearchReleaseServiceLive } from "@/features/operations/search-orchestration-release-search.ts";
 import { provideFrom, provideLayer } from "@/lib/layer-compose.ts";
 
-type AnyLayer = Layer.Layer<any, any>;
-
-interface OperationsSearchLayerInput {
-  readonly downloadRuntimeLayer: AnyLayer;
-  readonly operationsProgressLayer: AnyLayer;
-  readonly runtimeSupportLayer: AnyLayer;
+interface OperationsSearchLayerInput<DRTOut, DRTE, DRTR, OPOut, OPE, OPR, RSOut, RSE, RSR> {
+  readonly downloadRuntimeLayer: Layer.Layer<DRTOut, DRTE, DRTR>;
+  readonly operationsProgressLayer: Layer.Layer<OPOut, OPE, OPR>;
+  readonly runtimeSupportLayer: Layer.Layer<RSOut, RSE, RSR>;
 }
 
-export function makeOperationsSearchLayer(input: OperationsSearchLayerInput) {
+export function makeOperationsSearchLayer<DRTOut, DRTE, DRTR, OPOut, OPE, OPR, RSOut, RSE, RSR>(
+  input: OperationsSearchLayerInput<DRTOut, DRTE, DRTR, OPOut, OPE, OPR, RSOut, RSE, RSR>,
+) {
   const { downloadRuntimeLayer, operationsProgressLayer, runtimeSupportLayer } = input;
   const withRuntime = provideFrom(runtimeSupportLayer);
   const runtimeWithProgressLayer = Layer.mergeAll(runtimeSupportLayer, operationsProgressLayer);

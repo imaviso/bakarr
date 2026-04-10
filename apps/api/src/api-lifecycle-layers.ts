@@ -117,7 +117,8 @@ export function makeApiLifecycleLayers(
     libraryLayer,
     animeEnrollmentLayer,
   );
-  const appLayer: Layer.Layer<any, any> = withRuntimeSupport(appFeatureSubgraphLayer);
+  const featureLayer = withRuntimeSupport(appFeatureSubgraphLayer);
+  const appLayer = Layer.mergeAll(runtimeSupportLayer, featureLayer);
 
   return {
     appLayer,

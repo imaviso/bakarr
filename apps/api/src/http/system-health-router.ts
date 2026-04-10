@@ -16,6 +16,7 @@ export const healthRouter = HttpRouter.empty.pipe(
       Effect.flatMap(SystemStatusReadService, (service) => service.getSystemStatus()).pipe(
         Effect.map(() => ({ checks: { database: true }, ready: true }) as const),
         Effect.catchTags({
+          ConfigValidationError: () => Effect.succeed(notReadyResponse),
           DatabaseError: () => Effect.succeed(notReadyResponse),
           DiskSpaceError: () => Effect.succeed(notReadyResponse),
           StoredConfigCorruptError: () => Effect.succeed(notReadyResponse),

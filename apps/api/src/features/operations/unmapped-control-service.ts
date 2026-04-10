@@ -65,25 +65,102 @@ const makeUnmappedControlService = Effect.gen(function* () {
   const scanService = yield* UnmappedScanService;
   const nowIso = () => nowIsoFromClock(clock);
 
+  const toStoredDataError = (error: { cause?: unknown; message: string }) =>
+    new OperationsStoredDataError({
+      cause: error.cause ?? error,
+      message: error.message,
+    });
+
+  const decodeStoredFolder = Effect.fn("OperationsService.decodeStoredFolder")(function* (
+    row: Parameters<typeof decodeUnmappedFolderMatchRow>[0],
+  ) {
+    return yield* decodeUnmappedFolderMatchRow(row).pipe(Effect.mapError(toStoredDataError));
+  });
+
+  const loadCurrentFolder = Effect.fn("OperationsService.loadCurrentFolder")(function* (
+    path: string,
+  ) {
+    const row = yield* loadUnmappedFolderMatchRow(db, path);
+
+    if (!row) {
+      return yield* new OperationsInputError({ message: "Unmapped folder not found" });
+    }
+
+    return yield* decodeStoredFolder(row);
+  });
+
+  const transitionFolderForAction = (
+    folder: UnmappedFolder,
+    action: "pause" | "resume" | "reset",
+  ) => {
+    if (action === "pause") {
+      return markUnmappedFolderPaused(folder);
+    }
+
+    if (action === "resume") {
+      return markUnmappedFolderPending(folder);
+    }
+
+    return resetUnmappedFolderMatch(folder);
+  };
+
+  const refreshFolderMatch = Effect.fn("OperationsService.refreshFolderMatch")(function* (
+    current: UnmappedFolder,
+    path: string,
+  ) {
+    const snapshot = yield* loadUnmappedFolderSnapshot({
+      db,
+      fs,
+      nowIso,
+      tryDatabasePromise,
+    });
+    const target = snapshot.folders.find((folder) => folder.path === path);
+
+    if (!target) {
+      return yield* new OperationsInputError({ message: "Unmapped folder not found" });
+    }
+
+    const matchingFolder = markUnmappedFolderMatching(target);
+    yield* upsertUnmappedFolderMatchRows(db, [matchingFolder], yield* nowIso());
+
+    const matchResult = yield* scanService.matchAndPersistUnmappedFolder(
+      matchingFolder,
+      snapshot.animeRows,
+    );
+
+    if (matchResult._tag === "Failed") {
+      return yield* new OperationsConflictError({
+        message: matchResult.folder.last_match_error ?? "Failed to refresh folder match",
+      });
+    }
+
+    yield* appendLog(
+      db,
+      "library.unmapped.control",
+      "info",
+      `refreshed unmapped folder ${current.name}`,
+      nowIso,
+    );
+
+    return { folderCount: 1, folderPath: path };
+  });
+
+  const appendControlActionLog = Effect.fn("OperationsService.appendControlActionLog")(function* (
+    action: "pause" | "resume" | "reset",
+    folderName: string,
+  ) {
+    yield* appendLog(
+      db,
+      "library.unmapped.control",
+      "info",
+      `${action} unmapped folder ${folderName}`,
+      nowIso,
+    );
+  });
+
   const controlUnmappedFolder = Effect.fn("OperationsService.controlUnmappedFolder")(
     function* (input: { action: "pause" | "resume" | "reset" | "refresh"; path: string }) {
-      const row = yield* loadUnmappedFolderMatchRow(db, input.path);
-
-      if (!row) {
-        return yield* new OperationsInputError({
-          message: "Unmapped folder not found",
-        });
-      }
-
-      const current: UnmappedFolder = yield* decodeUnmappedFolderMatchRow(row).pipe(
-        Effect.mapError(
-          (error) =>
-            new OperationsStoredDataError({
-              cause: error.cause ?? error,
-              message: error.message,
-            }),
-        ),
-      );
+      const current = yield* loadCurrentFolder(input.path);
 
       if (current.match_status === "matching") {
         return yield* new OperationsConflictError({
@@ -91,72 +168,18 @@ const makeUnmappedControlService = Effect.gen(function* () {
         });
       }
 
-      let nextFolder: UnmappedFolder = current;
-
-      switch (input.action) {
-        case "pause":
-          nextFolder = markUnmappedFolderPaused(current);
-          break;
-        case "resume":
-          nextFolder = markUnmappedFolderPending(current);
-          break;
-        case "reset":
-          nextFolder = resetUnmappedFolderMatch(current);
-          break;
-        case "refresh":
-          nextFolder = resetUnmappedFolderMatch(current);
-          break;
-      }
+      const nextFolder =
+        input.action === "refresh"
+          ? resetUnmappedFolderMatch(current)
+          : transitionFolderForAction(current, input.action);
 
       yield* upsertUnmappedFolderMatchRows(db, [nextFolder], yield* nowIso());
 
       if (input.action === "refresh") {
-        const snapshot = yield* loadUnmappedFolderSnapshot({
-          db,
-          fs,
-          nowIso,
-          tryDatabasePromise,
-        });
-        const target = snapshot.folders.find((folder) => folder.path === input.path);
-
-        if (!target) {
-          return yield* new OperationsInputError({
-            message: "Unmapped folder not found",
-          });
-        }
-
-        const matchingFolder = markUnmappedFolderMatching(target);
-        yield* upsertUnmappedFolderMatchRows(db, [matchingFolder], yield* nowIso());
-
-        const matchResult = yield* scanService.matchAndPersistUnmappedFolder(
-          matchingFolder,
-          snapshot.animeRows,
-        );
-
-        if (matchResult._tag === "Failed") {
-          return yield* new OperationsConflictError({
-            message: matchResult.folder.last_match_error ?? "Failed to refresh folder match",
-          });
-        }
-
-        yield* appendLog(
-          db,
-          "library.unmapped.control",
-          "info",
-          `refreshed unmapped folder ${current.name}`,
-          nowIso,
-        );
-
-        return { folderCount: 1, folderPath: input.path };
+        return yield* refreshFolderMatch(current, input.path);
       }
 
-      yield* appendLog(
-        db,
-        "library.unmapped.control",
-        "info",
-        `${input.action} unmapped folder ${current.name}`,
-        nowIso,
-      );
+      yield* appendControlActionLog(input.action, current.name);
 
       return { folderCount: 0, folderPath: input.path };
     },
@@ -167,17 +190,7 @@ const makeUnmappedControlService = Effect.gen(function* () {
       action: "pause_queued" | "resume_paused" | "reset_failed" | "retry_failed";
     }) {
       const rows = yield* listUnmappedFolderMatchRows(db);
-      const folders = yield* Effect.forEach(rows, (row) =>
-        decodeUnmappedFolderMatchRow(row).pipe(
-          Effect.mapError(
-            (error) =>
-              new OperationsStoredDataError({
-                cause: error.cause ?? error,
-                message: error.message,
-              }),
-          ),
-        ),
-      );
+      const folders = yield* Effect.forEach(rows, (row) => decodeStoredFolder(row));
 
       let nextFolders: UnmappedFolder[];
 

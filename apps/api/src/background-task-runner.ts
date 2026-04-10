@@ -77,10 +77,18 @@ export const BackgroundTaskRunnerLive = Layer.effect(
     );
     const rssWorkerTask = yield* withLockEffectOrFail("rss", runRssTask(), monitor, clock);
 
-    const runDownloadSyncWorkerTask = () => downloadSyncWorkerTask;
-    const runLibraryScanWorkerTask = () => libraryScanWorkerTask;
-    const runMetadataRefreshWorkerTask = () => metadataRefreshWorkerTask;
-    const runRssWorkerTask = () => rssWorkerTask;
+    const runDownloadSyncWorkerTask = Effect.fn("BackgroundTaskRunner.runDownloadSyncWorkerTask")(
+      () => downloadSyncWorkerTask,
+    );
+    const runLibraryScanWorkerTask = Effect.fn("BackgroundTaskRunner.runLibraryScanWorkerTask")(
+      () => libraryScanWorkerTask,
+    );
+    const runMetadataRefreshWorkerTask = Effect.fn(
+      "BackgroundTaskRunner.runMetadataRefreshWorkerTask",
+    )(() => metadataRefreshWorkerTask);
+    const runRssWorkerTask = Effect.fn("BackgroundTaskRunner.runRssWorkerTask")(
+      () => rssWorkerTask,
+    );
 
     return BackgroundTaskRunner.of({
       runDownloadSyncWorkerTask,

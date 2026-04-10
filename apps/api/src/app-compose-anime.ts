@@ -11,9 +11,9 @@ import { AnimeStreamServiceLive } from "@/features/anime/anime-stream-service.ts
 import { StreamTokenSignerLive } from "@/features/anime/stream-token-signer.ts";
 import { provideLayer } from "@/lib/layer-compose.ts";
 
-type AnyLayer = Layer.Layer<any, any>;
-
-export function makeAnimeAppLayer(runtimeSupportLayer: AnyLayer) {
+export function makeAnimeAppLayer<RSOut, RSE, RSR>(
+  runtimeSupportLayer: Layer.Layer<RSOut, RSE, RSR>,
+) {
   const metadataEnrichmentLayer = AnimeMetadataEnrichmentServiceLive;
   const metadataProviderLayer = provideLayer(
     AnimeMetadataProviderServiceLive,

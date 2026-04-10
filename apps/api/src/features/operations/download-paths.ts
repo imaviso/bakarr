@@ -1,6 +1,7 @@
 import { Effect, Option } from "effect";
 
 import type { FileSystemShape } from "@/lib/filesystem.ts";
+import { isNotFoundError } from "@/lib/fs-errors.ts";
 import { classifyMediaArtifact, parseFileSourceIdentity } from "@/lib/media-identity.ts";
 import { scanVideoFiles } from "@/features/operations/file-scanner.ts";
 
@@ -21,25 +22,23 @@ export const resolveCompletedContentPath = Effect.fn("Operations.resolveComplete
     episodeNumber: number,
     options?: { expectedAirDate?: string },
   ) {
-    const statResult = yield* Effect.either(fs.stat(contentPath));
+    const stat = yield* statMaybe(fs, contentPath);
 
-    if (statResult._tag === "Left") {
+    if (Option.isNone(stat)) {
       return Option.none();
     }
 
-    const stat = statResult.right;
+    const statValue = stat.value;
 
-    if (stat.isFile) {
+    if (statValue.isFile) {
       return Option.some(contentPath);
     }
 
-    if (!stat.isDirectory) {
+    if (!statValue.isDirectory) {
       return Option.none();
     }
 
-    const files = yield* scanVideoFiles(fs, contentPath).pipe(
-      Effect.catchTag("FileSystemError", () => Effect.succeed([])),
-    );
+    const files = yield* scanVideoFiles(fs, contentPath);
     const candidates = files.filter((file) => {
       const classification = classifyMediaArtifact(file.path, file.name);
       return classification.kind !== "extra" && classification.kind !== "sample";
@@ -67,25 +66,23 @@ export const resolveBatchContentPaths = Effect.fn("Operations.resolveBatchConten
   fs: FileSystemShape,
   contentPath: string,
 ) {
-  const statResult = yield* Effect.either(fs.stat(contentPath));
+  const stat = yield* statMaybe(fs, contentPath);
 
-  if (statResult._tag === "Left") {
+  if (Option.isNone(stat)) {
     return [];
   }
 
-  const stat = statResult.right;
+  const statValue = stat.value;
 
-  if (stat.isFile) {
+  if (statValue.isFile) {
     return [contentPath];
   }
 
-  if (!stat.isDirectory) {
+  if (!statValue.isDirectory) {
     return [];
   }
 
-  const files = yield* scanVideoFiles(fs, contentPath).pipe(
-    Effect.catchTag("FileSystemError", () => Effect.succeed([])),
-  );
+  const files = yield* scanVideoFiles(fs, contentPath);
   return files
     .filter((file) => {
       const classification = classifyMediaArtifact(file.path, file.name);
@@ -99,9 +96,9 @@ export const resolveAccessibleDownloadPath = Effect.fn("Operations.resolveAccess
     const candidates = [contentPath, ...applyRemotePathMappings(contentPath, remotePathMappings)];
 
     for (const candidate of candidates) {
-      const statResult = yield* Effect.either(fs.stat(candidate));
+      const stat = yield* statMaybe(fs, candidate);
 
-      if (statResult._tag === "Right") {
+      if (Option.isSome(stat)) {
         return Option.some(candidate);
       }
     }
@@ -140,6 +137,15 @@ export function applyRemotePathMappings(
 }
 
 export { scanVideoFiles };
+
+const statMaybe = Effect.fn("Operations.statMaybe")(function* (fs: FileSystemShape, path: string) {
+  return yield* fs.stat(path).pipe(
+    Effect.map(Option.some),
+    Effect.catchTag("FileSystemError", (error) =>
+      isNotFoundError(error) ? Effect.succeed(Option.none()) : Effect.fail(error),
+    ),
+  );
+});
 
 function matchesCompletedDownloadFile(
   path: string,

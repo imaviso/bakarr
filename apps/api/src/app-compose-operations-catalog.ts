@@ -8,14 +8,14 @@ import { ImportPathScanServiceLive } from "@/features/operations/import-path-sca
 import { LibraryRootsQueryServiceLive } from "@/features/operations/library-roots-query-service.ts";
 import { provideFrom, provideLayer } from "@/lib/layer-compose.ts";
 
-type AnyLayer = Layer.Layer<any, any>;
-
-interface OperationsCatalogLayerInput {
-  readonly operationsProgressLayer: AnyLayer;
-  readonly runtimeSupportLayer: AnyLayer;
+interface OperationsCatalogLayerInput<OPOut, OPE, OPR, RSOut, RSE, RSR> {
+  readonly operationsProgressLayer: Layer.Layer<OPOut, OPE, OPR>;
+  readonly runtimeSupportLayer: Layer.Layer<RSOut, RSE, RSR>;
 }
 
-export function makeOperationsCatalogLayer(input: OperationsCatalogLayerInput) {
+export function makeOperationsCatalogLayer<OPOut, OPE, OPR, RSOut, RSE, RSR>(
+  input: OperationsCatalogLayerInput<OPOut, OPE, OPR, RSOut, RSE, RSR>,
+) {
   const { operationsProgressLayer, runtimeSupportLayer } = input;
   const withRuntime = provideFrom(runtimeSupportLayer);
   const runtimeWithProgressLayer = Layer.mergeAll(runtimeSupportLayer, operationsProgressLayer);

@@ -16,30 +16,41 @@ import { SystemRuntimeMetricsServiceLive } from "@/features/system/system-runtim
 import { SystemStatusReadServiceLive } from "@/features/system/system-status-read-service.ts";
 import { provideFrom, provideLayer } from "@/lib/layer-compose.ts";
 
-type AnyLayer = Layer.Layer<any, any>;
-
-interface SystemAppLayerInput {
-  readonly backgroundControllerLayer: AnyLayer;
-  readonly catalogDownloadReadLayer: AnyLayer;
-  readonly runtimeSupportLayer: AnyLayer;
+interface SystemAppLayerInput<BCOut, BCE, BCR, CDOut, CDE, CDR, RSOut, RSE, RSR> {
+  readonly backgroundControllerLayer: Layer.Layer<BCOut, BCE, BCR>;
+  readonly catalogDownloadReadLayer: Layer.Layer<CDOut, CDE, CDR>;
+  readonly runtimeSupportLayer: Layer.Layer<RSOut, RSE, RSR>;
 }
 
-export function makeSystemAppLayer(input: SystemAppLayerInput) {
+export function makeSystemAppLayer<BCOut, BCE, BCR, CDOut, CDE, CDR, RSOut, RSE, RSR>(
+  input: SystemAppLayerInput<BCOut, BCE, BCR, CDOut, CDE, CDR, RSOut, RSE, RSR>,
+) {
   const { backgroundControllerLayer, catalogDownloadReadLayer, runtimeSupportLayer } = input;
   const withRuntime = provideFrom(runtimeSupportLayer);
-  const withBackgroundController = provideFrom(backgroundControllerLayer);
+  const runtimeWithBackgroundControllerLayer = Layer.mergeAll(
+    runtimeSupportLayer,
+    backgroundControllerLayer,
+  );
+  const withRuntimeAndBackgroundController = provideFrom(runtimeWithBackgroundControllerLayer);
 
-  const backgroundRuntimeLayer = Layer.mergeAll(runtimeSupportLayer, backgroundControllerLayer);
+  const backgroundRuntimeLayer = runtimeWithBackgroundControllerLayer;
   const backgroundJobStatusLayer = provideLayer(
     BackgroundJobStatusServiceLive,
     backgroundRuntimeLayer,
   );
-  const systemStatusReadLayer = provideLayer(SystemStatusReadServiceLive, backgroundJobStatusLayer);
+  const runtimeWithBackgroundJobStatusLayer = Layer.mergeAll(
+    runtimeSupportLayer,
+    backgroundJobStatusLayer,
+  );
+  const systemStatusReadLayer = provideLayer(
+    SystemStatusReadServiceLive,
+    runtimeWithBackgroundJobStatusLayer,
+  );
   const systemLibraryStatsReadLayer = withRuntime(SystemLibraryStatsReadServiceLive);
   const systemActivityReadLayer = withRuntime(SystemActivityReadServiceLive);
   const systemDashboardReadLayer = provideLayer(
     SystemDashboardReadServiceLive,
-    backgroundJobStatusLayer,
+    runtimeWithBackgroundJobStatusLayer,
   );
   const systemRuntimeMetricsLayer = provideLayer(
     SystemRuntimeMetricsServiceLive,
@@ -64,8 +75,11 @@ export function makeSystemAppLayer(input: SystemAppLayerInput) {
   );
 
   const orchestrationSubgraphLayer = Layer.mergeAll(
-    withBackgroundController(SystemConfigUpdateServiceLive),
-    provideLayer(SystemEventsServiceLive, catalogDownloadReadLayer),
+    withRuntimeAndBackgroundController(SystemConfigUpdateServiceLive),
+    provideLayer(
+      SystemEventsServiceLive,
+      Layer.mergeAll(runtimeSupportLayer, catalogDownloadReadLayer),
+    ),
     provideLayer(SystemMetricsEndpointServiceLive, systemRuntimeMetricsLayer),
   );
 

@@ -1,6 +1,7 @@
 import { Config as EffectConfig, Context, Effect, Layer, Option, Redacted, Schema } from "effect";
 
 import { PositiveIntSchema } from "@/lib/domain-schema.ts";
+import { randomHexSync } from "@/lib/random.ts";
 
 const PortSchema = Schema.Number.pipe(Schema.int(), Schema.between(1, 65_535));
 
@@ -33,9 +34,11 @@ const PortConfigSchema = Schema.NumberFromString.pipe(Schema.compose(PortSchema)
 
 const PositiveIntConfigSchema = Schema.NumberFromString.pipe(Schema.compose(PositiveIntSchema));
 
+const GENERATED_BOOTSTRAP_PASSWORD_BYTES = 18;
+
 export const defaultAppConfig = new AppConfigModel({
   appVersion: "0.1.0",
-  bootstrapPassword: Redacted.make("admin"),
+  bootstrapPassword: Redacted.make(randomHexSync(GENERATED_BOOTSTRAP_PASSWORD_BYTES)),
   bootstrapPasswordIsEnvOverride: false,
   bootstrapUsername: "admin",
   databaseFile: "./bakarr.sqlite",

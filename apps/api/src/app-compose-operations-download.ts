@@ -14,9 +14,9 @@ import {
 import { TorrentClientServiceLive } from "@/features/operations/torrent-client-service.ts";
 import { provideFrom, provideLayer } from "@/lib/layer-compose.ts";
 
-type AnyLayer = Layer.Layer<any, any>;
-
-export function makeOperationsDownloadLayer(runtimeSupportLayer: AnyLayer) {
+export function makeOperationsDownloadLayer<RSOut, RSE, RSR>(
+  runtimeSupportLayer: Layer.Layer<RSOut, RSE, RSR>,
+) {
   const withRuntime = provideFrom(runtimeSupportLayer);
   const operationsRuntimeLayer = Layer.mergeAll(
     runtimeSupportLayer,

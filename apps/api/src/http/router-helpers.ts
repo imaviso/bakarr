@@ -1,5 +1,5 @@
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
-import { Cause, Effect, ParseResult, Schema } from "effect";
+import { Cause, Effect, Option, ParseResult, Schema } from "effect";
 
 import { mapRouteError } from "@/http/route-errors.ts";
 import { mapAuthRouteError, requireViewerFromHttpRequest } from "@/http/route-auth.ts";
@@ -82,9 +82,12 @@ export const routeResponse = <A, E, R, E2, R2>(
           }),
         ),
       ),
-      Effect.catchAll((error) =>
+      Effect.catchAllCause((cause) =>
         Effect.sync(() => {
-          const mapped = mapError(error);
+          const mapped = Option.match(Cause.failureOption(cause), {
+            onNone: () => mapError(cause),
+            onSome: (error) => mapError(error),
+          });
           const response = HttpServerResponse.text(mapped.message, {
             status: mapped.status,
           });

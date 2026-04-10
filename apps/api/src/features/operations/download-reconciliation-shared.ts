@@ -8,6 +8,7 @@ import type { FileSystemShape } from "@/lib/filesystem.ts";
 import type { MediaProbeShape } from "@/lib/media-probe.ts";
 import type { TryDatabasePromise } from "@/lib/effect-db.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
+import { OperationsPathError } from "@/features/operations/errors.ts";
 import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
 import { decodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
 import { resolveAccessibleDownloadPath } from "@/features/operations/download-paths.ts";
@@ -133,6 +134,14 @@ export const loadDownloadReconciliationContext = Effect.fn(
     input.fs,
     input.contentPath,
     runtimeConfig.downloads.remote_path_mappings,
+  ).pipe(
+    Effect.mapError(
+      (cause) =>
+        new OperationsPathError({
+          cause,
+          message: `Download content path is inaccessible: ${input.contentPath}`,
+        }),
+    ),
   );
 
   if (Option.isNone(resolvedContentRoot)) {
