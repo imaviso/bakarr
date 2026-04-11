@@ -37,6 +37,13 @@ export const importLibraryFiles = Effect.fn("Operations.importLibraryFiles")((
 > => {
   const { db, eventBus, fs, mediaProbe, runtimeConfig, tryDatabasePromise, files } = input;
   return Effect.gen(function* () {
+    yield* eventBus.publish({
+      type: "ImportStarted",
+      payload: {
+        count: files.length,
+      },
+    });
+
     const importedFiles: ImportResult["imported_files"] = [];
     const failedFiles: ImportResult["failed_files"] = [];
 

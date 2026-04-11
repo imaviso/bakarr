@@ -30,6 +30,15 @@ export const renameLibraryFiles = Effect.fn("Operations.renameLibraryFiles")((
   return Effect.gen(function* () {
     const animeRow = yield* requireAnime(db, animeId);
     const preview = yield* buildRenamePreview(db, animeId, runtimeConfig);
+
+    yield* eventBus.publish({
+      type: "RenameStarted",
+      payload: {
+        anime_id: animeId,
+        title: animeRow.titleRomaji,
+      },
+    });
+
     let renamed = 0;
     const failures: string[] = [];
 

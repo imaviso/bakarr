@@ -22,6 +22,7 @@ import {
 } from "@/features/system/system-config-update-service.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { loadSystemConfigRow } from "@/features/system/repository/system-config-repository.ts";
+import { EventPublisher } from "@/features/events/publisher.ts";
 
 describe("SystemConfigUpdateService", () => {
   it.scoped("persists updated config and reloads background workers", () =>
@@ -190,6 +191,10 @@ function makeSystemConfigUpdateTestLayer(input: {
     Layer.succeed(RuntimeConfigSnapshotService, {
       getRuntimeConfig: () => Ref.get(input.runtimeConfigRef),
       replaceRuntimeConfig: (config) => Ref.set(input.runtimeConfigRef, config),
+    }),
+    Layer.succeed(EventPublisher, {
+      publish: () => Effect.void,
+      publishInfo: () => Effect.void,
     }),
   );
 

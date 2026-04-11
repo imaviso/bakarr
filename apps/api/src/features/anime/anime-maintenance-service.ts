@@ -8,6 +8,7 @@ import { AnimeImageCacheService } from "@/features/anime/anime-image-cache-servi
 import { syncEpisodeMetadataEffect } from "@/features/anime/anime-episode-metadata-sync.ts";
 import { syncEpisodeScheduleEffect } from "@/features/anime/anime-episode-schedule-sync.ts";
 import { syncAnimeMetadataEffect } from "@/features/anime/anime-metadata-sync.ts";
+import { getAnimeRowEffect } from "@/features/anime/anime-read-repository.ts";
 import type { AnimeServiceError } from "@/features/anime/errors.ts";
 import { makeMetadataRefreshRunner } from "@/features/anime/metadata-refresh.ts";
 import { EventPublisher } from "@/features/events/publisher.ts";
@@ -51,6 +52,13 @@ const makeAnimeMaintenanceService = Effect.gen(function* () {
   const refreshEpisodes = Effect.fn("AnimeMaintenanceService.refreshEpisodes")(function* (
     animeId: number,
   ) {
+    const startAnimeRow = yield* getAnimeRowEffect(db, animeId);
+
+    yield* eventPublisher.publish({
+      type: "RefreshStarted",
+      payload: { anime_id: animeId, title: startAnimeRow.titleRomaji },
+    });
+
     const { animeRow, metadata, nextAnimeRow } = yield* syncAnimeMetadataEffect({
       imageCacheService,
       metadataProvider,
@@ -84,7 +92,10 @@ const makeAnimeMaintenanceService = Effect.gen(function* () {
   const refreshMetadataForMonitoredAnime = Effect.fn(
     "AnimeMaintenanceService.refreshMetadataForMonitoredAnime",
   )(function* () {
-    return yield* metadataRefreshRunner.trigger;
+    yield* eventPublisher.publishInfo("Metadata refresh started");
+    const result = yield* metadataRefreshRunner.trigger;
+    yield* eventPublisher.publishInfo(`Metadata refresh finished (${result.refreshed} anime)`);
+    return result;
   });
 
   return AnimeMaintenanceService.of({

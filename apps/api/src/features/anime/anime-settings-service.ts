@@ -131,6 +131,8 @@ const makeAnimeSettingsService = Effect.gen(function* () {
       `Updated path for anime ${id}`,
       nowIso,
     );
+
+    yield* eventPublisher.publishInfo(`Updated path for anime ${id}`);
   });
 
   const updateProfile = Effect.fn("AnimeSettingsService.updateProfile")(function* (

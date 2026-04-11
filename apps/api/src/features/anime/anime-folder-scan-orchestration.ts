@@ -5,6 +5,7 @@ import type { FileSystemShape } from "@/lib/filesystem.ts";
 import type { MediaProbeShape } from "@/lib/media-probe.ts";
 import type { AnimeEventPublisher } from "@/features/anime/anime-orchestration-shared.ts";
 import { scanAnimeFolderEffect } from "@/features/anime/anime-file-scan.ts";
+import { getAnimeRowEffect } from "@/features/anime/anime-read-repository.ts";
 import { appendSystemLog } from "@/features/system/support.ts";
 
 export const scanAnimeFolderOrchestrationEffect = Effect.fn(
@@ -18,6 +19,16 @@ export const scanAnimeFolderOrchestrationEffect = Effect.fn(
   nowIso: () => Effect.Effect<string>;
 }) {
   const { nowIso } = input;
+  const startAnimeRow = yield* getAnimeRowEffect(input.db, input.animeId);
+
+  yield* input.eventPublisher.publish({
+    type: "ScanFolderStarted",
+    payload: {
+      anime_id: input.animeId,
+      title: startAnimeRow.titleRomaji,
+    },
+  });
+
   const { animeRow, found, total } = yield* scanAnimeFolderEffect({
     animeId: input.animeId,
     db: input.db,

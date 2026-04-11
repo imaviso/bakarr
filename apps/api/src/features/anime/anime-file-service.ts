@@ -80,6 +80,9 @@ const makeAnimeFileService = Effect.gen(function* () {
     episodeNumber: number,
   ) {
     yield* deleteEpisodeFileEffect({ animeId, db, episodeNumber, fs });
+    yield* eventPublisher.publishInfo(
+      `Deleted mapped file for anime ${animeId} episode ${episodeNumber}`,
+    );
   });
 
   const mapEpisodeFile = Effect.fn("AnimeFileService.mapEpisodeFile")(function* (
@@ -88,6 +91,7 @@ const makeAnimeFileService = Effect.gen(function* () {
     filePath: string,
   ) {
     yield* mapEpisodeFileEffect({ animeId, db, episodeNumber, filePath, fs });
+    yield* eventPublisher.publishInfo(`Mapped file for anime ${animeId} episode ${episodeNumber}`);
   });
 
   const bulkMapEpisodeFiles = Effect.fn("AnimeFileService.bulkMapEpisodeFiles")(function* (
@@ -95,6 +99,9 @@ const makeAnimeFileService = Effect.gen(function* () {
     mappings: readonly { episode_number: number; file_path: string }[],
   ) {
     yield* bulkMapEpisodeFilesEffect({ animeId, db, fs, mappings });
+    yield* eventPublisher.publishInfo(
+      `Updated ${mappings.length} episode mapping(s) for anime ${animeId}`,
+    );
   });
 
   return AnimeFileService.of({

@@ -14,6 +14,8 @@ import {
 } from "./src/api-startup.ts";
 import { makeApiLifecycleLayers } from "./src/api-lifecycle-layers.ts";
 
+const SERVER_IDLE_TIMEOUT_SECONDS = 60 * 60;
+
 /**
  * Startup sequence (blocking, ordered, fail-fast):
  *
@@ -40,7 +42,14 @@ const mainProgram = Effect.fn("api.main")(function* () {
   yield* Effect.addFinalizer(() => logServerStopping());
 
   return yield* Layer.launch(
-    HttpServer.serve(httpApp).pipe(Layer.provide(BunHttpServer.layer({ port: config.port }))),
+    HttpServer.serve(httpApp).pipe(
+      Layer.provide(
+        BunHttpServer.layer({
+          idleTimeout: SERVER_IDLE_TIMEOUT_SECONDS,
+          port: config.port,
+        }),
+      ),
+    ),
   );
 });
 
