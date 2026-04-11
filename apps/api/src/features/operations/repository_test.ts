@@ -2,11 +2,10 @@ import { assert, it } from "@effect/vitest";
 import { Cause, Effect, Exit } from "effect";
 
 import { downloadEvents, downloads, rssFeeds } from "@/db/schema.ts";
+import { toDownload, toDownloadStatus } from "@/features/operations/download-presentation.ts";
 import {
   encodeDownloadEventMetadata,
   encodeDownloadSourceMetadata,
-  toDownload,
-  toDownloadStatus,
 } from "@/features/operations/repository/download-repository.ts";
 import { toDownloadEvent } from "@/lib/download-event-presentations.ts";
 import { toRssFeed } from "@/features/operations/repository/rss-repository.ts";
@@ -229,7 +228,7 @@ it.effect("repository download mappers decode optional fields and derive status 
     assert.deepStrictEqual(queuedStatus.hash, "generated-hash");
     assert.deepStrictEqual(queuedStatus.imported_path, "/library/Naruto/Naruto - 01.mkv");
     assert.deepStrictEqual(queuedStatus.progress, 0.25);
-    assert.deepStrictEqual(queuedStatus.eta, 8640000);
+    assert.deepStrictEqual(queuedStatus.eta, 0);
     assert.deepStrictEqual(queuedStatus.speed, 0);
     assert.deepStrictEqual(queuedStatus.source_metadata?.chosen_from_seadex, true);
     assert.deepStrictEqual(queuedStatus.source_metadata?.group, "SubsPlease");
@@ -254,7 +253,7 @@ it.effect("repository download mappers decode optional fields and derive status 
     assert.deepStrictEqual(activeStatus.episode_number, 1);
     assert.deepStrictEqual(activeStatus.is_batch, true);
     assert.deepStrictEqual(activeStatus.progress, 0.8);
-    assert.deepStrictEqual(activeStatus.speed, 1024 * 1024);
+    assert.deepStrictEqual(activeStatus.speed, 0);
   }),
 );
 

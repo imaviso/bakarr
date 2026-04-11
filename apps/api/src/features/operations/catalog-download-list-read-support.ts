@@ -5,8 +5,8 @@ import type { Download, DownloadHistoryPage } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import { downloads } from "@/db/schema.ts";
+import { toDownload } from "@/features/operations/download-presentation.ts";
 import { loadDownloadPresentationContexts } from "@/features/operations/repository/download-presentation-repository.ts";
-import { toDownload } from "@/features/operations/repository/download-repository.ts";
 import type { OperationsStoredDataError } from "@/features/operations/errors.ts";
 import type { TryDatabasePromise } from "@/lib/effect-db.ts";
 

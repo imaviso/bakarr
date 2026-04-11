@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-import type { ExternalCallError } from "@/lib/effect-retry.ts";
+import { ExternalCallError } from "@/lib/effect-retry.ts";
 
 export class DownloadNotFoundError extends Schema.TaggedError<DownloadNotFoundError>()(
   "DownloadNotFoundError",
@@ -83,6 +83,7 @@ export function isOperationsError(cause: unknown): cause is OperationsError {
     cause instanceof OperationsInfrastructureError ||
     cause instanceof RssFeedParseError ||
     cause instanceof RssFeedRejectedError ||
-    cause instanceof RssFeedTooLargeError
+    cause instanceof RssFeedTooLargeError ||
+    cause instanceof ExternalCallError
   );
 }

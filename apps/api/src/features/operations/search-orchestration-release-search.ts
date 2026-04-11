@@ -24,6 +24,7 @@ import {
 } from "@/features/operations/search-support.ts";
 import { parseReleaseName } from "@/features/operations/release-ranking.ts";
 import {
+  isOperationsError,
   OperationsInputError,
   OperationsInfrastructureError,
   type OperationsError,
@@ -62,12 +63,6 @@ export interface SearchReleaseServiceShape {
     category?: string,
     filter?: string,
   ) => Effect.Effect<SearchResults, OperationsError | DatabaseError | RuntimeConfigSnapshotError>;
-  readonly searchReleasesBase: (
-    query: string,
-    animeId?: number,
-    category?: string,
-    filter?: string,
-  ) => Effect.Effect<SearchResults, OperationsError | DatabaseError | RuntimeConfigSnapshotError>;
 }
 
 export function makeSearchReleaseSupport(input: {
@@ -79,9 +74,7 @@ export function makeSearchReleaseSupport(input: {
   const { db, getRuntimeConfig, rssClient, seadexClient } = input;
 
   const mapSearchReleaseError = (cause: unknown): SearchReleaseError =>
-    cause instanceof DatabaseError ||
-    cause instanceof ExternalCallError ||
-    cause instanceof OperationsInputError
+    cause instanceof DatabaseError || cause instanceof ExternalCallError || isOperationsError(cause)
       ? cause
       : new OperationsInfrastructureError({
           message: "Failed to search releases",
@@ -155,7 +148,7 @@ export function makeSearchReleaseSupport(input: {
     return enriched;
   });
 
-  const searchReleasesBase = Effect.fn("OperationsService.searchReleasesBase")(function* (
+  const searchReleasesInternal = Effect.fn("OperationsService.searchReleasesInternal")(function* (
     query: string,
     animeId?: number,
     category?: string,
@@ -206,9 +199,7 @@ export function makeSearchReleaseSupport(input: {
     category?: string,
     filter?: string,
   ) {
-    return yield* searchReleasesBase(query, animeId, category, filter).pipe(
-      Effect.mapError(mapSearchReleaseError),
-    );
+    return yield* searchReleasesInternal(query, animeId, category, filter);
   });
 
   return {
@@ -216,7 +207,6 @@ export function makeSearchReleaseSupport(input: {
     searchEpisodeReleases,
     searchNyaaReleases,
     searchReleases,
-    searchReleasesBase,
   } satisfies SearchReleaseServiceShape;
 }
 

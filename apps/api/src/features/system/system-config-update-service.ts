@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from "effect";
+import { Context, Effect, Layer, Option } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 import { AppConfig } from "@/config.ts";
@@ -117,7 +117,7 @@ export const SystemConfigUpdateServiceLive = Layer.effect(
 );
 
 function preserveStoredQBitPassword(
-  currentPassword: string | null | undefined,
+  currentPassword: Option.Option<string>,
   nextConfig: Config,
 ): Config {
   return preserveStoredPassword({
@@ -136,7 +136,7 @@ function preserveStoredQBitPassword(
 }
 
 function preserveStoredAniDbPassword(
-  currentPassword: string | null | undefined,
+  currentPassword: Option.Option<string>,
   nextConfig: Config,
 ): Config {
   if (!nextConfig.metadata?.anidb) {
@@ -164,19 +164,27 @@ function preserveStoredAniDbPassword(
 }
 
 function preserveStoredPassword(input: {
-  readonly currentPassword: string | null | undefined;
+  readonly currentPassword: Option.Option<string>;
   readonly enabled: boolean;
   readonly nextConfig: Config;
   readonly nextPassword: string | null | undefined;
   readonly setPassword: (config: Config, password: string) => Config;
 }): Config {
-  if (!input.enabled || input.nextPassword?.trim()) {
+  if (!input.enabled || Option.isSome(toNonEmptyPasswordOption(input.nextPassword))) {
     return input.nextConfig;
   }
 
-  if (!input.currentPassword) {
+  if (Option.isNone(input.currentPassword)) {
     return input.nextConfig;
   }
 
-  return input.setPassword(input.nextConfig, input.currentPassword);
+  return input.setPassword(input.nextConfig, input.currentPassword.value);
+}
+
+function toNonEmptyPasswordOption(value: string | null | undefined): Option.Option<string> {
+  if (value === null || value === undefined) {
+    return Option.none();
+  }
+
+  return value.trim().length > 0 ? Option.some(value) : Option.none();
 }

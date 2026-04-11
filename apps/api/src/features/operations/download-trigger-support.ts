@@ -81,58 +81,15 @@ export const prepareTriggerDownload = Effect.fn("Operations.prepareTriggerDownlo
     const chosenFromSeadex =
       selectionMetadata.chosen_from_seadex ??
       (releaseContext?.is_seadex_best || releaseContext?.is_seadex ? true : undefined);
-    const sourceMetadata = buildDownloadSourceMetadataFromRelease({
-      ...(chosenFromSeadex === undefined ? {} : { chosenFromSeadex }),
-      decisionReason: deriveTriggerDecisionReason({
-        ...(releaseContext?.download_action === undefined
-          ? {}
-          : { action: releaseContext.download_action }),
-        isBatch: effectiveIsBatch,
-        isSeadex: releaseContext?.is_seadex,
-        isSeadexBest: releaseContext?.is_seadex_best,
-        trusted: releaseContext?.trusted,
+    const sourceMetadata = buildDownloadSourceMetadataFromRelease(
+      toSourceMetadataInput({
+        chosenFromSeadex,
+        effectiveIsBatch,
+        releaseContext,
+        selectionMetadata,
+        title: input.triggerInput.title,
       }),
-      ...(releaseContext?.group === undefined ? {} : { group: releaseContext.group }),
-      ...(releaseContext?.indexer === undefined
-        ? { indexer: "Nyaa" }
-        : { indexer: releaseContext.indexer }),
-      ...(selectionMetadata.previous_quality === undefined
-        ? {}
-        : { previousQuality: selectionMetadata.previous_quality }),
-      ...(selectionMetadata.previous_score === undefined
-        ? {}
-        : { previousScore: selectionMetadata.previous_score }),
-      ...(releaseContext?.parsed_resolution === undefined
-        ? {}
-        : { resolution: releaseContext.parsed_resolution }),
-      selectionKind: selectionMetadata.selection_kind ?? "manual",
-      ...(selectionMetadata.selection_score === undefined
-        ? {}
-        : { selectionScore: selectionMetadata.selection_score }),
-      ...(releaseContext?.source_url === undefined ? {} : { sourceUrl: releaseContext.source_url }),
-      ...(releaseContext?.trusted === undefined ? {} : { trusted: releaseContext.trusted }),
-      ...(releaseContext?.remake === undefined ? {} : { remake: releaseContext.remake }),
-      ...(releaseContext?.is_seadex === undefined ? {} : { isSeadex: releaseContext.is_seadex }),
-      ...(releaseContext?.is_seadex_best === undefined
-        ? {}
-        : { isSeadexBest: releaseContext.is_seadex_best }),
-      ...(releaseContext?.seadex_release_group === undefined
-        ? {}
-        : { seadexReleaseGroup: releaseContext.seadex_release_group }),
-      ...(releaseContext?.seadex_tags === undefined
-        ? {}
-        : { seadexTags: releaseContext.seadex_tags }),
-      ...(releaseContext?.seadex_notes === undefined
-        ? {}
-        : { seadexNotes: releaseContext.seadex_notes }),
-      ...(releaseContext?.seadex_comparison === undefined
-        ? {}
-        : { seadexComparison: releaseContext.seadex_comparison }),
-      ...(releaseContext?.seadex_dual_audio === undefined
-        ? {}
-        : { seadexDualAudio: releaseContext.seadex_dual_audio }),
-      title: input.triggerInput.title,
-    });
+    );
     const explicitInfoHash = releaseContext?.info_hash
       ? Option.some(releaseContext.info_hash.toLowerCase())
       : Option.none();
@@ -235,22 +192,32 @@ export const addMagnetToQueuedDownload = Effect.fn("Operations.addMagnetToQueued
   function* (input: {
     readonly db: AppDatabase;
     readonly insertedId: number;
-    readonly magnet: string | null | undefined;
+    readonly magnet: string;
     readonly torrentClientService: typeof TorrentClientService.Service;
     readonly tryDatabasePromise: TryDatabasePromise;
   }) {
-    if (!input.magnet) {
-      return "queued" as const;
-    }
-
     const qbitResult = yield* Effect.either(
       input.torrentClientService.addTorrentUrlIfEnabled(input.magnet),
     );
 
     if (qbitResult._tag === "Left") {
-      yield* input.tryDatabasePromise("Cleanup failed download", () =>
-        input.db.delete(downloads).where(eq(downloads.id, input.insertedId)),
+      const cleanupResult = yield* Effect.either(
+        input.tryDatabasePromise("Cleanup failed download", () =>
+          input.db.delete(downloads).where(eq(downloads.id, input.insertedId)),
+        ),
       );
+
+      if (cleanupResult._tag === "Left") {
+        yield* Effect.logWarning(
+          "Failed to clean up queued download after qBittorrent add failure",
+        ).pipe(
+          Effect.annotateLogs({
+            cleanupError: cleanupResult.left.message,
+            downloadId: input.insertedId,
+          }),
+        );
+      }
+
       return yield* new OperationsInfrastructureError({
         message: "Failed to trigger download",
         cause: qbitResult.left,
@@ -299,4 +266,63 @@ function deriveTriggerDecisionReason(input: {
 
   const trustedSegment = input.trusted ? " trusted" : "";
   return `Manual${batchSegment.toLowerCase()} grab from${trustedSegment} release search`;
+}
+
+function toSourceMetadataInput(input: {
+  chosenFromSeadex: boolean | undefined;
+  effectiveIsBatch: boolean;
+  releaseContext: TriggerDownloadInput["release_context"];
+  selectionMetadata: ReturnType<typeof buildDownloadSelectionMetadata>;
+  title: string;
+}) {
+  const releaseContext = input.releaseContext;
+
+  return {
+    ...(input.chosenFromSeadex === undefined ? {} : { chosenFromSeadex: input.chosenFromSeadex }),
+    decisionReason: deriveTriggerDecisionReason({
+      action: releaseContext?.download_action,
+      isBatch: input.effectiveIsBatch,
+      isSeadex: releaseContext?.is_seadex,
+      isSeadexBest: releaseContext?.is_seadex_best,
+      trusted: releaseContext?.trusted,
+    }),
+    ...(releaseContext?.group === undefined ? {} : { group: releaseContext.group }),
+    indexer: releaseContext?.indexer ?? "Nyaa",
+    ...(releaseContext?.is_seadex === undefined ? {} : { isSeadex: releaseContext.is_seadex }),
+    ...(releaseContext?.is_seadex_best === undefined
+      ? {}
+      : { isSeadexBest: releaseContext.is_seadex_best }),
+    ...(input.selectionMetadata.previous_quality === undefined
+      ? {}
+      : { previousQuality: input.selectionMetadata.previous_quality }),
+    ...(input.selectionMetadata.previous_score === undefined
+      ? {}
+      : { previousScore: input.selectionMetadata.previous_score }),
+    ...(releaseContext?.remake === undefined ? {} : { remake: releaseContext.remake }),
+    ...(releaseContext?.parsed_resolution === undefined
+      ? {}
+      : { resolution: releaseContext.parsed_resolution }),
+    ...(releaseContext?.seadex_comparison === undefined
+      ? {}
+      : { seadexComparison: releaseContext.seadex_comparison }),
+    ...(releaseContext?.seadex_dual_audio === undefined
+      ? {}
+      : { seadexDualAudio: releaseContext.seadex_dual_audio }),
+    ...(releaseContext?.seadex_notes === undefined
+      ? {}
+      : { seadexNotes: releaseContext.seadex_notes }),
+    ...(releaseContext?.seadex_release_group === undefined
+      ? {}
+      : { seadexReleaseGroup: releaseContext.seadex_release_group }),
+    ...(releaseContext?.seadex_tags === undefined
+      ? {}
+      : { seadexTags: releaseContext.seadex_tags }),
+    selectionKind: input.selectionMetadata.selection_kind ?? "manual",
+    ...(input.selectionMetadata.selection_score === undefined
+      ? {}
+      : { selectionScore: input.selectionMetadata.selection_score }),
+    ...(releaseContext?.source_url === undefined ? {} : { sourceUrl: releaseContext.source_url }),
+    title: input.title,
+    ...(releaseContext?.trusted === undefined ? {} : { trusted: releaseContext.trusted }),
+  };
 }

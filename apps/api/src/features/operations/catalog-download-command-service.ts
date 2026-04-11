@@ -41,11 +41,7 @@ export const CatalogDownloadCommandServiceLive = Layer.effect(
     const mapCommandError =
       (message: string) =>
       (cause: unknown): DatabaseError | OperationsError => {
-        if (
-          cause instanceof DatabaseError ||
-          cause instanceof OperationsInfrastructureError ||
-          isOperationsError(cause)
-        ) {
+        if (cause instanceof DatabaseError || isOperationsError(cause)) {
           return cause;
         }
 

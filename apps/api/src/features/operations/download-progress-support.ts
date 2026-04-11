@@ -5,8 +5,8 @@ import { Database, type AppDatabase } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { downloads } from "@/db/schema.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
+import { toDownloadStatus } from "@/features/operations/download-presentation.ts";
 import { loadDownloadPresentationContexts } from "@/features/operations/repository/download-presentation-repository.ts";
-import { toDownloadStatus } from "@/features/operations/repository/download-repository.ts";
 import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
 import { tryDatabasePromise, type TryDatabasePromise } from "@/lib/effect-db.ts";
 

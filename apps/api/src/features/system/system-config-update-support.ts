@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, Option } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 import type { PersistedSystemConfigState } from "@/features/system/config-activation.ts";
@@ -95,18 +95,20 @@ const resolveCurrentStoredPasswordState = Effect.fn(
 }) {
   const currentPasswordResult = yield* decodeStoredConfigRow(input.previousConfigRow).pipe(
     Effect.map((config) => ({
-      password: input.passwordFromStoredConfig(config) ?? null,
+      password: toNonEmptyPasswordOption(input.passwordFromStoredConfig(config)),
       storedConfigCorrupt: false,
     })),
     Effect.catchTag("StoredConfigMissingError", () =>
       Effect.succeed({
-        password: input.defaultPassword(makeDefaultConfig(input.appDatabaseFile)) ?? null,
+        password: toNonEmptyPasswordOption(
+          input.defaultPassword(makeDefaultConfig(input.appDatabaseFile)),
+        ),
         storedConfigCorrupt: false,
       }),
     ),
     Effect.catchTag("StoredConfigCorruptError", () =>
       Effect.succeed({
-        password: null,
+        password: Option.none<string>(),
         storedConfigCorrupt: true,
       }),
     ),
@@ -115,7 +117,7 @@ const resolveCurrentStoredPasswordState = Effect.fn(
   if (
     currentPasswordResult.storedConfigCorrupt &&
     input.requiresPassword &&
-    !input.nextPassword?.trim()
+    Option.isNone(toNonEmptyPasswordOption(input.nextPassword))
   ) {
     return yield* new StoredConfigCorruptError({
       message: input.currentPasswordMessage,
@@ -124,6 +126,14 @@ const resolveCurrentStoredPasswordState = Effect.fn(
 
   return currentPasswordResult.password;
 });
+
+function toNonEmptyPasswordOption(value: string | null | undefined): Option.Option<string> {
+  if (value === null || value === undefined) {
+    return Option.none();
+  }
+
+  return value.trim().length > 0 ? Option.some(value) : Option.none();
+}
 
 export const buildPersistedConfigStates = Effect.fn(
   "SystemConfigUpdateService.buildPersistedConfigStates",
