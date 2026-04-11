@@ -27,6 +27,9 @@ export type {
   EpisodeSearchResult,
   FailedImport,
   ImportedFile,
+  ImportCandidateSelectionRequest,
+  ImportCandidateSelectionResult,
+  ImportFileSelection,
   ImportResult,
   LibraryStats,
   LoginRequest,
@@ -42,7 +45,13 @@ export type {
   RenamePreviewItem,
   RenameResult,
   RssFeed,
+  SearchDownloadReleaseContext,
+  SearchDownloadRequest,
+  SearchReleaseCategory,
+  SearchReleaseFilter,
   ScannedFile,
+  ScannerMatchCounts,
+  ScannerMatchStatus,
   ScannerState,
   ScanResult,
   SearchResults,
@@ -54,6 +63,14 @@ export type {
   VideoFile,
 } from "@bakarr/shared";
 
+export {
+  DOWNLOAD_EVENT_TYPE_FILTER_OPTIONS,
+  SEARCH_RELEASE_CATEGORY_LABELS,
+  SEARCH_RELEASE_CATEGORY_OPTIONS,
+  SEARCH_RELEASE_FILTER_LABELS,
+  SEARCH_RELEASE_FILTER_OPTIONS,
+} from "@bakarr/shared";
+
 export interface ScanFolderResult {
   found: number;
   total: number;
@@ -62,9 +79,9 @@ export type ImportFileRequest = Pick<
   ImportedFile,
   "anime_id" | "episode_number" | "source_path"
 > & {
-  season?: number;
-  episode_numbers?: number[];
-  source_metadata?: DownloadSourceMetadata;
+  season?: number | undefined;
+  episode_numbers?: number[] | undefined;
+  source_metadata?: DownloadSourceMetadata | undefined;
 };
 
 export type ReleaseProfileCreateRequest = Pick<ReleaseProfile, "is_global" | "name" | "rules">;

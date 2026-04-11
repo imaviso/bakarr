@@ -3,16 +3,13 @@ import { createMemo, createSignal } from "solid-js";
 import {
   type AnimeSearchResult,
   createAnimeListQuery,
+  createImportCandidateSelectionMutation,
   createImportFilesMutation,
   createScanImportPathMutation,
   type ImportFileRequest,
   type ScannedFile,
 } from "~/lib/api";
-import {
-  buildImportFileRequest,
-  findMissingImportCandidates,
-  toggleImportCandidateSelection,
-} from "./import-flow";
+import { buildImportFileRequest, findMissingImportCandidates } from "./import-flow";
 import { createImportDropzoneHandlers } from "./import-dropzone";
 import {
   toggleSelectedImportFile,
@@ -47,6 +44,7 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
 
   const scanMutation = createScanImportPathMutation();
   const importMutation = createImportFilesMutation();
+  const importSelectionMutation = createImportCandidateSelectionMutation();
   const animeListQuery = createAnimeListQuery();
 
   const scannedFiles = createMemo(() => {
@@ -140,16 +138,23 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
   };
 
   const toggleCandidate = (candidate: AnimeSearchResult, forceSelect = false) => {
-    const next = toggleImportCandidateSelection({
-      candidate,
-      files: scanMutation.data?.files ?? [],
-      forceSelect,
-      selectedCandidateIds: selectedCandidateIds(),
-      selectedFiles: selectedFiles(),
-    });
-
-    setSelectedCandidateIds(next.selectedCandidateIds);
-    setSelectedFiles(next.selectedFiles);
+    importSelectionMutation.mutate(
+      {
+        candidate_id: candidate.id,
+        candidate_title:
+          candidate.title.english || candidate.title.romaji || candidate.title.native || "",
+        force_select: forceSelect,
+        files: scanMutation.data?.files ?? [],
+        selected_candidate_ids: [...selectedCandidateIds()],
+        selected_files: [...selectedFiles().values()],
+      },
+      {
+        onSuccess: (next) => {
+          setSelectedCandidateIds(new Set(next.selected_candidate_ids));
+          setSelectedFiles(new Map(next.selected_files.map((file) => [file.source_path, file])));
+        },
+      },
+    );
   };
 
   const closeAddCandidateDialog = () => {
@@ -228,6 +233,7 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
     handleManualAdd,
     handleScan,
     importMutation,
+    importSelectionMutation,
     inputMode,
     isDragOver,
     isSearchOpen,

@@ -66,28 +66,22 @@ function LibraryScanPage() {
 
   const isScanning = () => scanState.data?.is_scanning;
   const hasOutstandingMatches = () => scanState.data?.has_outstanding_matches;
-  const unmappedJob = createMemo(() =>
-    systemJobs.data?.find((job) => job.name === "unmapped_scan"),
-  );
-  const isWorkerRunning = () =>
-    isBackgroundMatchingRunning({
-      failedCount: counts().failed,
-      hasOutstandingWork: Boolean(hasOutstandingMatches()),
-      job: unmappedJob(),
-      matchingCount: counts().matching,
-      pausedCount: counts().paused,
-    });
-  const isRescanning = () => scanMutation.isPending || isWorkerRunning();
+  const matchStatus = () => scanState.data?.match_status;
   const counts = createMemo(() => {
+    const serverCounts = scanState.data?.match_counts;
+    if (serverCounts) {
+      return serverCounts;
+    }
+
     let exact = 0;
     let queued = 0;
     let matching = 0;
     let matched = 0;
     let failed = 0;
     let paused = 0;
-    for (const f of folders()) {
-      if (f.suggested_matches[0]?.already_in_library) exact++;
-      switch (f.match_status) {
+    for (const folder of folders()) {
+      if (folder.suggested_matches[0]?.already_in_library) exact++;
+      switch (folder.match_status) {
         case "pending":
           queued++;
           break;
@@ -107,6 +101,19 @@ function LibraryScanPage() {
     }
     return { exact, queued, matching, matched, failed, paused };
   });
+  const unmappedJob = createMemo(() =>
+    systemJobs.data?.find((job) => job.name === "unmapped_scan"),
+  );
+  const isWorkerRunning = () =>
+    isBackgroundMatchingRunning({
+      failedCount: counts().failed,
+      hasOutstandingWork: Boolean(hasOutstandingMatches()),
+      job: unmappedJob(),
+      matchingCount: counts().matching,
+      pausedCount: counts().paused,
+      status: matchStatus(),
+    });
+  const isRescanning = () => scanMutation.isPending || isWorkerRunning();
   const runBulkAction = (
     action: "pause_queued" | "resume_paused" | "reset_failed" | "retry_failed",
   ) => {
@@ -292,6 +299,7 @@ function LibraryScanPage() {
                     failedCount={counts().failed}
                     hasOutstandingWork={Boolean(hasOutstandingMatches())}
                     isRunning={isWorkerRunning()}
+                    status={matchStatus()}
                     matchedCount={counts().matched}
                     matchingCount={counts().matching}
                     pausedCount={counts().paused}

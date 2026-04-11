@@ -83,15 +83,10 @@ export const searchRouter = HttpRouter.empty.pipe(
         const body = yield* decodeJsonBodyWithLabel(SearchDownloadBodySchema, "search download");
         yield* (yield* DownloadTriggerService).triggerDownload({
           anime_id: body.anime_id,
-          ...(body.decision_reason === undefined ? {} : { decision_reason: body.decision_reason }),
           ...(body.episode_number === undefined ? {} : { episode_number: body.episode_number }),
-          ...(body.group === undefined ? {} : { group: body.group }),
-          ...(body.info_hash === undefined ? {} : { info_hash: body.info_hash }),
           ...(body.is_batch === undefined ? {} : { is_batch: body.is_batch }),
           magnet: body.magnet,
-          ...(body.release_metadata === undefined
-            ? {}
-            : { release_metadata: body.release_metadata }),
+          ...(body.release_context === undefined ? {} : { release_context: body.release_context }),
           title: body.title,
         });
       }),

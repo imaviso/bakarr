@@ -7,10 +7,12 @@ import { ImportPathScanService } from "@/features/operations/import-path-scan-se
 import { UnmappedControlService } from "@/features/operations/unmapped-control-service.ts";
 import { UnmappedImportService } from "@/features/operations/unmapped-orchestration-import.ts";
 import { UnmappedScanService } from "@/features/operations/unmapped-scan-service.ts";
+import { applyImportCandidateSelection } from "@/features/operations/import-selection-support.ts";
 import {
   BulkControlUnmappedFoldersBodySchema,
   BrowseQuerySchema,
   ControlUnmappedFolderBodySchema,
+  ImportCandidateSelectionBodySchema,
   ImportFilesBodySchema,
   ImportUnmappedFolderBodySchema,
   ScanImportPathBodySchema,
@@ -107,6 +109,27 @@ export const libraryRouter = HttpRouter.empty.pipe(
             path: body.path,
           }),
         );
+      }),
+      jsonResponse,
+    ),
+  ),
+  HttpRouter.post(
+    "/library/import/selection",
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const body = yield* decodeJsonBodyWithLabel(
+          ImportCandidateSelectionBodySchema,
+          "build import selection",
+        );
+
+        return applyImportCandidateSelection({
+          candidate_id: body.candidate_id,
+          candidate_title: body.candidate_title,
+          ...(body.force_select === undefined ? {} : { force_select: body.force_select }),
+          files: body.files,
+          selected_candidate_ids: body.selected_candidate_ids,
+          selected_files: body.selected_files,
+        });
       }),
       jsonResponse,
     ),

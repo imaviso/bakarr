@@ -459,7 +459,22 @@ export interface Download {
   last_error_at?: string | undefined;
   reconciled_at?: string | undefined;
   source_metadata?: DownloadSourceMetadata | undefined;
+  allowed_actions?: DownloadAllowedAction[] | undefined;
 }
+
+export const DOWNLOAD_ALLOWED_ACTION_VALUES = [
+  "pause",
+  "resume",
+  "retry",
+  "reconcile",
+  "delete",
+] as const;
+
+export type DownloadAllowedAction = (typeof DOWNLOAD_ALLOWED_ACTION_VALUES)[number];
+
+export const DownloadAllowedActionSchema: Schema.Schema<DownloadAllowedAction> = Schema.Literal(
+  ...DOWNLOAD_ALLOWED_ACTION_VALUES,
+);
 
 export const DownloadSchema: Schema.Schema<Download> = Schema.mutable(
   Schema.Struct({
@@ -492,6 +507,7 @@ export const DownloadSchema: Schema.Schema<Download> = Schema.mutable(
     last_error_at: Schema.optional(Schema.String),
     reconciled_at: Schema.optional(Schema.String),
     source_metadata: Schema.optional(Schema.suspend(() => DownloadSourceMetadataSchema)),
+    allowed_actions: Schema.optional(Schema.mutable(Schema.Array(DownloadAllowedActionSchema))),
   }),
 );
 
@@ -1446,6 +1462,54 @@ export const ImportResultSchema: Schema.Schema<ImportResult> = Schema.mutable(
   }),
 );
 
+export interface ImportFileSelection {
+  anime_id: number;
+  episode_number: number;
+  episode_numbers?: number[] | undefined;
+  season?: number | undefined;
+  source_metadata?: DownloadSourceMetadata | undefined;
+  source_path: string;
+}
+
+export const ImportFileSelectionSchema: Schema.Schema<ImportFileSelection> = Schema.Struct({
+  anime_id: Schema.Number,
+  episode_number: Schema.Number,
+  episode_numbers: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
+  season: Schema.optional(Schema.Number),
+  source_metadata: Schema.optional(Schema.suspend(() => DownloadSourceMetadataSchema)),
+  source_path: Schema.String,
+});
+
+export interface ImportCandidateSelectionRequest {
+  candidate_id: number;
+  candidate_title: string;
+  force_select?: boolean | undefined;
+  files: ScannedFile[];
+  selected_candidate_ids: number[];
+  selected_files: ImportFileSelection[];
+}
+
+export const ImportCandidateSelectionRequestSchema: Schema.Schema<ImportCandidateSelectionRequest> =
+  Schema.Struct({
+    candidate_id: Schema.Number,
+    candidate_title: Schema.String,
+    force_select: Schema.optional(Schema.Boolean),
+    files: Schema.mutable(Schema.Array(ScannedFileSchema)),
+    selected_candidate_ids: Schema.mutable(Schema.Array(Schema.Number)),
+    selected_files: Schema.mutable(Schema.Array(ImportFileSelectionSchema)),
+  });
+
+export interface ImportCandidateSelectionResult {
+  selected_candidate_ids: number[];
+  selected_files: ImportFileSelection[];
+}
+
+export const ImportCandidateSelectionResultSchema: Schema.Schema<ImportCandidateSelectionResult> =
+  Schema.Struct({
+    selected_candidate_ids: Schema.mutable(Schema.Array(Schema.Number)),
+    selected_files: Schema.mutable(Schema.Array(ImportFileSelectionSchema)),
+  });
+
 export interface DownloadAction {
   Accept?:
     | {
@@ -1499,6 +1563,61 @@ export const DownloadActionSchema: Schema.Schema<DownloadAction> = Schema.Struct
   Accept: Schema.optional(DownloadActionAcceptSchema),
   Upgrade: Schema.optional(DownloadActionUpgradeSchema),
   Reject: Schema.optional(DownloadActionRejectSchema),
+});
+
+export interface SearchDownloadReleaseContext {
+  group?: string | undefined;
+  indexer?: string | undefined;
+  info_hash?: string | undefined;
+  parsed_resolution?: string | undefined;
+  trusted?: boolean | undefined;
+  remake?: boolean | undefined;
+  source_url?: string | undefined;
+  is_seadex?: boolean | undefined;
+  is_seadex_best?: boolean | undefined;
+  seadex_release_group?: string | undefined;
+  seadex_tags?: string[] | undefined;
+  seadex_notes?: string | undefined;
+  seadex_comparison?: string | undefined;
+  seadex_dual_audio?: boolean | undefined;
+  download_action?: DownloadAction | undefined;
+}
+
+export const SearchDownloadReleaseContextSchema: Schema.Schema<SearchDownloadReleaseContext> =
+  Schema.Struct({
+    group: Schema.optional(Schema.String),
+    indexer: Schema.optional(Schema.String),
+    info_hash: Schema.optional(Schema.String),
+    parsed_resolution: Schema.optional(Schema.String),
+    trusted: Schema.optional(Schema.Boolean),
+    remake: Schema.optional(Schema.Boolean),
+    source_url: Schema.optional(Schema.String),
+    is_seadex: Schema.optional(Schema.Boolean),
+    is_seadex_best: Schema.optional(Schema.Boolean),
+    seadex_release_group: Schema.optional(Schema.String),
+    seadex_tags: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),
+    seadex_notes: Schema.optional(Schema.String),
+    seadex_comparison: Schema.optional(Schema.String),
+    seadex_dual_audio: Schema.optional(Schema.Boolean),
+    download_action: Schema.optional(DownloadActionSchema),
+  });
+
+export interface SearchDownloadRequest {
+  anime_id: number;
+  magnet: string;
+  title: string;
+  episode_number?: number | undefined;
+  is_batch?: boolean | undefined;
+  release_context?: SearchDownloadReleaseContext | undefined;
+}
+
+export const SearchDownloadRequestSchema: Schema.Schema<SearchDownloadRequest> = Schema.Struct({
+  anime_id: Schema.Number,
+  magnet: Schema.String,
+  title: Schema.String,
+  episode_number: Schema.optional(Schema.Number),
+  is_batch: Schema.optional(Schema.Boolean),
+  release_context: Schema.optional(SearchDownloadReleaseContextSchema),
 });
 
 export interface NyaaSearchResult {
@@ -1617,6 +1736,47 @@ export interface SearchResults {
   results: NyaaSearchResult[];
   seadex_groups: string[];
 }
+
+export const SEARCH_RELEASE_CATEGORY_OPTIONS = [
+  "anime_english",
+  "anime_non_english",
+  "anime_raw",
+  "all_anime",
+] as const;
+
+export type SearchReleaseCategory = (typeof SEARCH_RELEASE_CATEGORY_OPTIONS)[number];
+
+export const SEARCH_RELEASE_CATEGORY_LABELS: Record<SearchReleaseCategory, string> = {
+  anime_english: "Anime (English)",
+  anime_non_english: "Anime (Non-Eng)",
+  anime_raw: "Anime (Raw)",
+  all_anime: "All Anime",
+};
+
+export const SEARCH_RELEASE_FILTER_OPTIONS = ["no_filter", "no_remakes", "trusted_only"] as const;
+
+export type SearchReleaseFilter = (typeof SEARCH_RELEASE_FILTER_OPTIONS)[number];
+
+export const SEARCH_RELEASE_FILTER_LABELS: Record<SearchReleaseFilter, string> = {
+  no_filter: "No Filter",
+  no_remakes: "No Remakes",
+  trusted_only: "Trusted Only",
+};
+
+export const DOWNLOAD_EVENT_TYPE_FILTER_OPTIONS = [
+  "all",
+  "download.queued",
+  "download.imported",
+  "download.imported.batch",
+  "download.retried",
+  "download.status_changed",
+  "download.coverage_refined",
+  "download.deleted",
+  "download.search_missing.queued",
+  "download.rss.queued",
+] as const;
+
+export type DownloadEventTypeFilterOption = (typeof DOWNLOAD_EVENT_TYPE_FILTER_OPTIONS)[number];
 
 export const SearchResultsSchema: Schema.Schema<SearchResults> = Schema.mutable(
   Schema.Struct({
@@ -1742,7 +1902,38 @@ export interface ScannerState {
   is_scanning: boolean;
   folders: UnmappedFolder[];
   last_updated?: string | undefined;
+  match_status: ScannerMatchStatus;
+  match_counts: ScannerMatchCounts;
 }
+
+export type ScannerMatchStatus = "running" | "retrying" | "queued" | "paused" | "failed" | "idle";
+
+export const ScannerMatchStatusSchema: Schema.Schema<ScannerMatchStatus> = Schema.Literal(
+  "running",
+  "retrying",
+  "queued",
+  "paused",
+  "failed",
+  "idle",
+);
+
+export interface ScannerMatchCounts {
+  exact: number;
+  queued: number;
+  matching: number;
+  matched: number;
+  failed: number;
+  paused: number;
+}
+
+export const ScannerMatchCountsSchema: Schema.Schema<ScannerMatchCounts> = Schema.Struct({
+  exact: Schema.Number,
+  queued: Schema.Number,
+  matching: Schema.Number,
+  matched: Schema.Number,
+  failed: Schema.Number,
+  paused: Schema.Number,
+});
 
 export const ScannerStateSchema: Schema.Schema<ScannerState> = Schema.mutable(
   Schema.Struct({
@@ -1750,6 +1941,8 @@ export const ScannerStateSchema: Schema.Schema<ScannerState> = Schema.mutable(
     is_scanning: Schema.Boolean,
     folders: Schema.mutable(Schema.Array(UnmappedFolderSchema)),
     last_updated: Schema.optional(Schema.String),
+    match_status: ScannerMatchStatusSchema,
+    match_counts: ScannerMatchCountsSchema,
   }),
 );
 
@@ -1773,6 +1966,7 @@ export interface DownloadStatus {
   covered_episodes?: number[] | undefined;
   coverage_pending?: boolean | undefined;
   source_metadata?: DownloadSourceMetadata | undefined;
+  allowed_actions?: DownloadAllowedAction[] | undefined;
 }
 
 export const DownloadStatusSchema: Schema.Schema<DownloadStatus> = Schema.Struct({
@@ -1795,6 +1989,7 @@ export const DownloadStatusSchema: Schema.Schema<DownloadStatus> = Schema.Struct
   covered_episodes: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
   coverage_pending: Schema.optional(Schema.Boolean),
   source_metadata: Schema.optional(Schema.suspend(() => DownloadSourceMetadataSchema)),
+  allowed_actions: Schema.optional(Schema.mutable(Schema.Array(DownloadAllowedActionSchema))),
 });
 
 export type NotificationEvent =

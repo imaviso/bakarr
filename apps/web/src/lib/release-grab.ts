@@ -1,7 +1,11 @@
-import type { DownloadAction, EpisodeSearchResult, NyaaSearchResult } from "~/lib/api";
+import type {
+  DownloadAction,
+  EpisodeSearchResult,
+  NyaaSearchResult,
+  SearchDownloadReleaseContext,
+  SearchDownloadRequest,
+} from "~/lib/api";
 import { formatReleaseSearchDecisionReason, inferBatchKind } from "~/lib/batch-kind";
-import { buildDownloadSourceMetadata, buildParsedEpisodeIdentity } from "~/lib/release-download";
-import { selectionMetadataFromDownloadAction } from "~/lib/release-selection";
 
 export interface NyaaSelectionMetadata {
   chosen_from_seadex?: boolean | undefined;
@@ -42,51 +46,16 @@ export function buildGrabInputFromNyaaResult(input: {
   result: NyaaSearchResult;
   episodeNumber?: number | undefined;
   isBatch?: boolean | undefined;
-}) {
+}): SearchDownloadRequest {
   const { animeId, episodeNumber, isBatch, result } = input;
-  const selection = selectionMetadataFromNyaaResult(result);
-  const sourceIdentity = buildParsedEpisodeIdentity({
-    parsedAirDate: result.parsed_air_date,
-    parsedEpisodeLabel: result.parsed_episode_label,
-    parsedEpisodeNumbers: result.parsed_episode_numbers,
-  });
 
   return {
-    animeId,
-    decisionReason: decisionReasonFromNyaaResult({
-      coveredEpisodes: result.parsed_episode_numbers,
-      isBatch,
-      isSeaDex: result.is_seadex,
-      isSeaDexBest: result.is_seadex_best,
-      trusted: result.trusted,
-    }),
+    anime_id: animeId,
     magnet: result.magnet,
-    ...(episodeNumber === undefined ? {} : { episodeNumber }),
-    ...(result.parsed_group === undefined ? {} : { group: result.parsed_group }),
-    ...(result.info_hash === undefined ? {} : { infoHash: result.info_hash }),
-    releaseMetadata: buildDownloadSourceMetadata({
-      airDate: result.parsed_air_date,
-      chosenFromSeaDex: selection.chosen_from_seadex,
-      group: result.parsed_group,
-      indexer: result.indexer,
-      isSeaDex: result.is_seadex,
-      isSeaDexBest: result.is_seadex_best,
-      parsedTitle: result.title,
-      quality: result.parsed_quality,
-      remake: result.remake,
-      resolution: result.parsed_resolution,
-      seaDexComparison: result.seadex_comparison,
-      seaDexDualAudio: result.seadex_dual_audio,
-      seaDexNotes: result.seadex_notes,
-      seaDexReleaseGroup: result.seadex_release_group,
-      seaDexTags: result.seadex_tags,
-      selectionKind: selection.selection_kind,
-      sourceIdentity,
-      sourceUrl: result.view_url,
-      trusted: result.trusted,
-    }),
+    ...(episodeNumber === undefined ? {} : { episode_number: episodeNumber }),
+    release_context: toReleaseContextFromNyaaResult(result),
     title: result.title,
-    ...(isBatch ? { isBatch: true } : {}),
+    ...(isBatch ? { is_batch: true } : {}),
   };
 }
 
@@ -133,45 +102,13 @@ export function buildGrabInputFromEpisodeResult(input: {
   animeId: number;
   episodeNumber: number;
   result: EpisodeSearchResult;
-}) {
-  const selection = selectionMetadataFromDownloadAction(input.result.download_action);
-  const sourceIdentity = buildParsedEpisodeIdentity({
-    parsedAirDate: input.result.parsed_air_date,
-    parsedEpisodeLabel: input.result.parsed_episode_label,
-    parsedEpisodeNumbers: input.result.parsed_episode_numbers,
-  });
-
+}): SearchDownloadRequest {
   return {
-    animeId: input.animeId,
-    decisionReason: decisionReasonFromEpisodeResult(input.result),
-    episodeNumber: input.episodeNumber,
+    anime_id: input.animeId,
+    episode_number: input.episodeNumber,
     title: input.result.title,
     magnet: input.result.link,
-    ...(input.result.group === undefined ? {} : { group: input.result.group }),
-    ...(input.result.info_hash === undefined ? {} : { infoHash: input.result.info_hash }),
-    releaseMetadata: buildDownloadSourceMetadata({
-      airDate: input.result.parsed_air_date,
-      chosenFromSeaDex: selection.chosen_from_seadex,
-      group: input.result.group,
-      indexer: input.result.indexer,
-      isSeaDex: input.result.is_seadex,
-      isSeaDexBest: input.result.is_seadex_best,
-      parsedTitle: input.result.title,
-      previousQuality: selection.previous_quality,
-      previousScore: selection.previous_score,
-      remake: input.result.remake,
-      resolution: input.result.parsed_resolution,
-      seaDexComparison: input.result.seadex_comparison,
-      seaDexDualAudio: input.result.seadex_dual_audio,
-      seaDexNotes: input.result.seadex_notes,
-      seaDexReleaseGroup: input.result.seadex_release_group,
-      seaDexTags: input.result.seadex_tags,
-      selectionKind: selection.selection_kind,
-      selectionScore: selection.selection_score,
-      sourceIdentity,
-      sourceUrl: input.result.view_url,
-      trusted: input.result.trusted,
-    }),
+    release_context: toReleaseContextFromEpisodeResult(input.result),
   };
 }
 
@@ -179,4 +116,61 @@ export function actionReasonFromDownloadAction(action: DownloadAction) {
   if (action.Reject) return action.Reject.reason;
   if (action.Upgrade) return action.Upgrade.reason;
   return null;
+}
+
+function toReleaseContextFromNyaaResult(result: NyaaSearchResult): SearchDownloadReleaseContext {
+  return {
+    ...(result.parsed_group === undefined ? {} : { group: result.parsed_group }),
+    indexer: result.indexer,
+    ...(result.info_hash === undefined ? {} : { info_hash: result.info_hash }),
+    ...(result.parsed_resolution === undefined
+      ? {}
+      : { parsed_resolution: result.parsed_resolution }),
+    ...(result.trusted === undefined ? {} : { trusted: result.trusted }),
+    ...(result.remake === undefined ? {} : { remake: result.remake }),
+    ...(result.view_url === undefined ? {} : { source_url: result.view_url }),
+    ...(result.is_seadex === undefined ? {} : { is_seadex: result.is_seadex }),
+    ...(result.is_seadex_best === undefined ? {} : { is_seadex_best: result.is_seadex_best }),
+    ...(result.seadex_release_group === undefined
+      ? {}
+      : { seadex_release_group: result.seadex_release_group }),
+    ...(result.seadex_tags === undefined ? {} : { seadex_tags: result.seadex_tags }),
+    ...(result.seadex_notes === undefined ? {} : { seadex_notes: result.seadex_notes }),
+    ...(result.seadex_comparison === undefined
+      ? {}
+      : { seadex_comparison: result.seadex_comparison }),
+    ...(result.seadex_dual_audio === undefined
+      ? {}
+      : { seadex_dual_audio: result.seadex_dual_audio }),
+  };
+}
+
+function toReleaseContextFromEpisodeResult(
+  result: EpisodeSearchResult,
+): SearchDownloadReleaseContext {
+  return {
+    ...(result.group === undefined ? {} : { group: result.group }),
+    indexer: result.indexer,
+    ...(result.info_hash === undefined ? {} : { info_hash: result.info_hash }),
+    ...(result.parsed_resolution === undefined
+      ? {}
+      : { parsed_resolution: result.parsed_resolution }),
+    ...(result.trusted === undefined ? {} : { trusted: result.trusted }),
+    ...(result.remake === undefined ? {} : { remake: result.remake }),
+    ...(result.view_url === undefined ? {} : { source_url: result.view_url }),
+    ...(result.is_seadex === undefined ? {} : { is_seadex: result.is_seadex }),
+    ...(result.is_seadex_best === undefined ? {} : { is_seadex_best: result.is_seadex_best }),
+    ...(result.seadex_release_group === undefined
+      ? {}
+      : { seadex_release_group: result.seadex_release_group }),
+    ...(result.seadex_tags === undefined ? {} : { seadex_tags: result.seadex_tags }),
+    ...(result.seadex_notes === undefined ? {} : { seadex_notes: result.seadex_notes }),
+    ...(result.seadex_comparison === undefined
+      ? {}
+      : { seadex_comparison: result.seadex_comparison }),
+    ...(result.seadex_dual_audio === undefined
+      ? {}
+      : { seadex_dual_audio: result.seadex_dual_audio }),
+    download_action: result.download_action,
+  };
 }

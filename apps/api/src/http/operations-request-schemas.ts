@@ -1,6 +1,13 @@
 import { Schema } from "effect";
 
-import { DownloadSourceMetadataSchema } from "@packages/shared/index.ts";
+import {
+  SEARCH_RELEASE_CATEGORY_OPTIONS,
+  SEARCH_RELEASE_FILTER_OPTIONS,
+  DownloadSourceMetadataSchema,
+  ImportFileSelectionSchema,
+  ScannedFileSchema,
+  SearchDownloadReleaseContextSchema,
+} from "@packages/shared/index.ts";
 import {
   AnimeIdFromStringSchema,
   AnimeIdSchema,
@@ -19,14 +26,11 @@ import {
 const RssFeedNameStringSchema = Schema.String.pipe(Schema.minLength(1));
 const ProfileNameStringSchema = Schema.String.pipe(Schema.minLength(1));
 const SearchQueryStringSchema = Schema.String.pipe(Schema.minLength(1));
-const SearchCategoryStringSchema = Schema.String.pipe(Schema.minLength(1));
-const SearchFilterStringSchema = Schema.String.pipe(Schema.minLength(1));
+const SearchCategoryStringSchema = Schema.Literal(...SEARCH_RELEASE_CATEGORY_OPTIONS);
+const SearchFilterStringSchema = Schema.Literal(...SEARCH_RELEASE_FILTER_OPTIONS);
 const DownloadCursorStringSchema = Schema.String.pipe(Schema.minLength(1));
 const DownloadEventTypeStringSchema = Schema.String.pipe(Schema.minLength(1));
 const DownloadEventStatusStringSchema = Schema.String.pipe(Schema.minLength(1));
-const DecisionReasonStringSchema = Schema.String.pipe(Schema.minLength(1));
-const ReleaseGroupStringSchema = Schema.String.pipe(Schema.minLength(1));
-const TorrentInfoHashStringSchema = Schema.String.pipe(Schema.minLength(1));
 const MagnetLinkStringSchema = Schema.String.pipe(Schema.minLength(1));
 const ReleaseTitleStringSchema = Schema.String.pipe(Schema.minLength(1));
 
@@ -209,17 +213,25 @@ export class ScanImportPathBodySchema extends Schema.Class<ScanImportPathBodySch
   path: AbsoluteFilesystemPathStringSchema,
 }) {}
 
+export class ImportCandidateSelectionBodySchema extends Schema.Class<ImportCandidateSelectionBodySchema>(
+  "ImportCandidateSelectionBodySchema",
+)({
+  candidate_id: AnimeIdSchema,
+  candidate_title: Schema.String,
+  force_select: Schema.optional(Schema.Boolean),
+  files: Schema.mutable(Schema.Array(ScannedFileSchema)),
+  selected_candidate_ids: Schema.mutable(Schema.Array(AnimeIdSchema)),
+  selected_files: Schema.mutable(Schema.Array(ImportFileSelectionSchema)),
+}) {}
+
 export class SearchDownloadBodySchema extends Schema.Class<SearchDownloadBodySchema>(
   "SearchDownloadBodySchema",
 )({
   anime_id: AnimeIdSchema,
-  decision_reason: Schema.optional(DecisionReasonStringSchema),
   episode_number: Schema.optional(EpisodeNumberSchema),
-  group: Schema.optional(ReleaseGroupStringSchema),
-  info_hash: Schema.optional(TorrentInfoHashStringSchema),
   is_batch: Schema.optional(Schema.Boolean),
   magnet: MagnetLinkStringSchema,
-  release_metadata: Schema.optional(DownloadSourceMetadataSchema),
+  release_context: Schema.optional(SearchDownloadReleaseContextSchema),
   title: ReleaseTitleStringSchema,
 }) {}
 

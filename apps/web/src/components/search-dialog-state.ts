@@ -1,22 +1,19 @@
 import { createEffect, createMemo, createSignal, on, onCleanup, type Accessor } from "solid-js";
-import { createGrabReleaseMutation, createNyaaSearchQuery, type NyaaSearchResult } from "~/lib/api";
+import {
+  createGrabReleaseMutation,
+  createNyaaSearchQuery,
+  SEARCH_RELEASE_CATEGORY_LABELS,
+  SEARCH_RELEASE_FILTER_LABELS,
+  type NyaaSearchResult,
+} from "~/lib/api";
 import { createDebouncer } from "~/lib/debounce";
 import { buildReleaseDisplay, buildSelectionDisplayFromNyaaResult } from "~/lib/release-display";
 import { getReleaseConfidence } from "~/lib/release-selection";
 import { buildGrabInputFromNyaaResult } from "~/lib/release-grab";
 
-export const CATEGORY_LABELS: Record<string, string> = {
-  anime_english: "Anime (English)",
-  anime_non_english: "Anime (Non-Eng)",
-  anime_raw: "Anime (Raw)",
-  all_anime: "All Anime",
-};
+export const CATEGORY_LABELS: Record<string, string> = SEARCH_RELEASE_CATEGORY_LABELS;
 
-export const FILTER_LABELS: Record<string, string> = {
-  no_filter: "No Filter",
-  no_remakes: "No Remakes",
-  trusted_only: "Trusted Only",
-};
+export const FILTER_LABELS: Record<string, string> = SEARCH_RELEASE_FILTER_LABELS;
 
 export function formatSearchResultAge(dateStr: string) {
   const date = new Date(dateStr);

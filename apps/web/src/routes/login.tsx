@@ -55,7 +55,7 @@ function LoginPage() {
     onSubmit: async ({ value }) => {
       try {
         const data = await loginMutation.mutateAsync(value);
-        syncAuthenticatedUser(value.username);
+        syncAuthenticatedUser(data.username);
         if (data.must_change_password) {
           toast.info("Please change your password before continuing.");
           void navigate({ to: "/settings" });

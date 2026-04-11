@@ -18,6 +18,7 @@ import {
 import type { DownloadStatusPresentation } from "~/lib/download-status";
 
 interface ActiveDownloadActionsProps {
+  allowedActions?: readonly string[] | undefined;
   downloadId?: number | undefined;
   statusPresentation: DownloadStatusPresentation;
   animeTitle?: string | undefined;
@@ -52,25 +53,38 @@ export function ActiveDownloadActions(props: ActiveDownloadActionsProps) {
     retryDownload.mutate(props.downloadId);
   };
 
+  const canPause = () =>
+    props.allowedActions?.includes("pause") ??
+    !(
+      props.statusPresentation.label.toLowerCase().includes("paused") ||
+      props.statusPresentation.label.toLowerCase().includes("queued") ||
+      props.statusPresentation.tone === "destructive"
+    );
+  const canResume = () =>
+    props.allowedActions?.includes("resume") ??
+    (props.statusPresentation.label.toLowerCase().includes("paused") ||
+      props.statusPresentation.label.toLowerCase().includes("queued") ||
+      props.statusPresentation.tone === "destructive");
+  const canRetry = () =>
+    props.allowedActions?.includes("retry") ?? props.statusPresentation.tone === "destructive";
+
   return (
     <div class="flex items-center justify-end gap-1 opacity-100 md:opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
       <Show
-        when={
-          props.statusPresentation.label.toLowerCase().includes("paused") ||
-          props.statusPresentation.label.toLowerCase().includes("queued") ||
-          props.statusPresentation.tone === "destructive"
-        }
+        when={canResume()}
         fallback={
-          <Button
-            variant="ghost"
-            size="icon"
-            class="relative after:absolute after:-inset-2 h-7 w-7"
-            aria-label="Pause download"
-            onClick={handlePause}
-            disabled={!props.downloadId || pauseDownload.isPending}
-          >
-            <IconPlayerPause class="h-4 w-4" />
-          </Button>
+          <Show when={canPause()}>
+            <Button
+              variant="ghost"
+              size="icon"
+              class="relative after:absolute after:-inset-2 h-7 w-7"
+              aria-label="Pause download"
+              onClick={handlePause}
+              disabled={!props.downloadId || pauseDownload.isPending}
+            >
+              <IconPlayerPause class="h-4 w-4" />
+            </Button>
+          </Show>
         }
       >
         <Button
@@ -91,7 +105,7 @@ export function ActiveDownloadActions(props: ActiveDownloadActionsProps) {
         title={`Download Events${props.animeTitle ? ` - ${props.animeTitle}` : ""}`}
         triggerLabel="View download events"
       />
-      <Show when={props.statusPresentation.tone === "destructive"}>
+      <Show when={canRetry()}>
         <Button
           variant="ghost"
           size="icon"
@@ -108,6 +122,7 @@ export function ActiveDownloadActions(props: ActiveDownloadActionsProps) {
 }
 
 interface HistoryDownloadActionsProps {
+  allowedActions?: readonly string[] | undefined;
   downloadId: number;
   animeTitle: string;
   status?: string | undefined;
@@ -131,6 +146,14 @@ export function HistoryDownloadActions(props: HistoryDownloadActionsProps) {
     reconcileDownload.mutate(props.downloadId);
   };
 
+  const canReconcile = () =>
+    props.allowedActions?.includes("reconcile") ??
+    (props.status?.toLowerCase() === "completed" && !props.reconciledAt);
+  const canRetry = () =>
+    props.allowedActions?.includes("retry") ??
+    (props.status?.toLowerCase() === "failed" || props.status?.toLowerCase() === "error");
+  const canDelete = () => props.allowedActions?.includes("delete") ?? true;
+
   return (
     <div class="flex items-center justify-end gap-1 opacity-100 md:opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
       <DownloadEventsDialog
@@ -140,7 +163,7 @@ export function HistoryDownloadActions(props: HistoryDownloadActionsProps) {
         title={`Download Events - ${props.animeTitle}`}
         triggerLabel="View download events"
       />
-      <Show when={props.status?.toLowerCase() === "completed" && !props.reconciledAt}>
+      <Show when={canReconcile()}>
         <Button
           variant="ghost"
           size="icon"
@@ -152,9 +175,7 @@ export function HistoryDownloadActions(props: HistoryDownloadActionsProps) {
           <IconCheck class="h-4 w-4" />
         </Button>
       </Show>
-      <Show
-        when={props.status?.toLowerCase() === "failed" || props.status?.toLowerCase() === "error"}
-      >
+      <Show when={canRetry()}>
         <Button
           variant="ghost"
           size="icon"
@@ -166,16 +187,18 @@ export function HistoryDownloadActions(props: HistoryDownloadActionsProps) {
           <IconRefresh class="h-4 w-4" />
         </Button>
       </Show>
-      <Button
-        variant="ghost"
-        size="icon"
-        class="relative after:absolute after:-inset-2 h-7 w-7"
-        aria-label="Remove download"
-        onClick={handleDelete}
-        disabled={deleteDownload.isPending}
-      >
-        <IconTrash class="h-4 w-4" />
-      </Button>
+      <Show when={canDelete()}>
+        <Button
+          variant="ghost"
+          size="icon"
+          class="relative after:absolute after:-inset-2 h-7 w-7"
+          aria-label="Remove download"
+          onClick={handleDelete}
+          disabled={deleteDownload.isPending}
+        >
+          <IconTrash class="h-4 w-4" />
+        </Button>
+      </Show>
     </div>
   );
 }

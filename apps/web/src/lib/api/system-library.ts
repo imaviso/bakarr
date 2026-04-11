@@ -8,6 +8,8 @@ import {
 import type {
   BrowseResult,
   BulkUnmappedFolderControlRequest,
+  ImportCandidateSelectionRequest,
+  ImportCandidateSelectionResult,
   ImportFileRequest,
   ImportResult,
   ScannerState,
@@ -118,6 +120,16 @@ export function createImportFilesMutation() {
       void queryClient.invalidateQueries({ queryKey: animeKeys.library.all });
       void queryClient.invalidateQueries({ queryKey: animeKeys.system.status() });
     },
+  }));
+}
+
+export function createImportCandidateSelectionMutation() {
+  return useMutation(() => ({
+    mutationFn: (data: ImportCandidateSelectionRequest) =>
+      fetchApi<ImportCandidateSelectionResult>(`${API_BASE}/library/import/selection`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
   }));
 }
 

@@ -142,6 +142,7 @@ export function ActiveDownloadRow(props: { item: DownloadStatus }) {
       </TableCell>
       <TableCell class="text-right py-2 pr-4">
         <ActiveDownloadActions
+          allowedActions={props.item.allowed_actions}
           downloadId={props.item.id}
           statusPresentation={statusPresentation()}
           animeTitle={props.item.anime_title}
@@ -232,6 +233,7 @@ export function DownloadRow(props: { item: Download; isHistory?: boolean }) {
       </TableCell>
       <TableCell class="text-right py-2 pr-4">
         <HistoryDownloadActions
+          allowedActions={props.item.allowed_actions}
           downloadId={props.item.id}
           animeTitle={props.item.anime_title}
           status={props.item.status}

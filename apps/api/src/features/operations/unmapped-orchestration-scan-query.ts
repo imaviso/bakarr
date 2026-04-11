@@ -113,6 +113,7 @@ export function makeUnmappedScanQuerySupport(input: {
     );
 
     const hasOutstandingMatches = folders.some(isUnmappedFolderOutstanding);
+    const matchCounts = countScannerMatches(folders);
     const now = yield* nowIso();
 
     return {
@@ -120,6 +121,13 @@ export function makeUnmappedScanQuerySupport(input: {
       folders,
       is_scanning: Boolean(job?.isRunning),
       last_updated: job?.lastRunAt ?? now,
+      match_counts: matchCounts,
+      match_status: resolveScannerMatchStatus({
+        hasOutstandingMatches,
+        isRunning: Boolean(job?.isRunning),
+        lastStatus: job?.lastStatus,
+        matchCounts,
+      }),
     } satisfies ScannerState;
   });
 
@@ -164,4 +172,75 @@ export function makeUnmappedScanQuerySupport(input: {
     loadQueuedUnmappedFolders,
     matchAndPersistUnmappedFolder,
   } satisfies UnmappedScanQueryShape;
+}
+
+function countScannerMatches(folders: ScannerState["folders"]) {
+  let exact = 0;
+  let queued = 0;
+  let matching = 0;
+  let matched = 0;
+  let failed = 0;
+  let paused = 0;
+
+  for (const folder of folders) {
+    if (folder.suggested_matches[0]?.already_in_library) {
+      exact += 1;
+    }
+
+    switch (folder.match_status) {
+      case "pending":
+        queued += 1;
+        break;
+      case "matching":
+        matching += 1;
+        break;
+      case "done":
+        matched += 1;
+        break;
+      case "failed":
+        failed += 1;
+        break;
+      case "paused":
+        paused += 1;
+        break;
+    }
+  }
+
+  return {
+    exact,
+    failed,
+    matched,
+    matching,
+    paused,
+    queued,
+  } satisfies ScannerState["match_counts"];
+}
+
+function resolveScannerMatchStatus(input: {
+  hasOutstandingMatches: boolean;
+  isRunning: boolean;
+  lastStatus: string | null | undefined;
+  matchCounts: ScannerState["match_counts"];
+}): ScannerState["match_status"] {
+  if (input.matchCounts.matching > 0 || (input.isRunning && input.hasOutstandingMatches)) {
+    return "running";
+  }
+
+  if (input.matchCounts.failed > 0 && input.hasOutstandingMatches) {
+    return "retrying";
+  }
+
+  if (input.hasOutstandingMatches) {
+    return "queued";
+  }
+
+  if (input.matchCounts.paused > 0) {
+    return "paused";
+  }
+
+  if (input.lastStatus === "failed") {
+    return "failed";
+  }
+
+  return "idle";
 }

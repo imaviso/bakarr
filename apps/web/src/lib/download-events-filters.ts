@@ -3,21 +3,11 @@ import {
   parseOptionalPositiveInt,
   type DownloadEventsFilterFields,
 } from "~/lib/download-events-query-model";
+import { DOWNLOAD_EVENT_TYPE_FILTER_OPTIONS } from "~/lib/api";
 
 interface DownloadEventsSearchInput extends DownloadEventsFilterFields {}
 
-export const DOWNLOAD_EVENT_TYPE_OPTIONS = [
-  "all",
-  "download.queued",
-  "download.imported",
-  "download.imported.batch",
-  "download.retried",
-  "download.status_changed",
-  "download.coverage_refined",
-  "download.deleted",
-  "download.search_missing.queued",
-  "download.rss.queued",
-] as const;
+export const DOWNLOAD_EVENT_TYPE_OPTIONS = DOWNLOAD_EVENT_TYPE_FILTER_OPTIONS;
 
 export function buildDownloadEventsFilterInput(input: DownloadEventsSearchInput) {
   return buildDownloadEventsFilterInputModel(input);

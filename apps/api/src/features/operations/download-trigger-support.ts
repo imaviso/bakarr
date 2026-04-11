@@ -1,7 +1,7 @@
 import { Effect, Option } from "effect";
 import { eq } from "drizzle-orm";
 
-import type { DownloadSourceMetadata } from "@packages/shared/index.ts";
+import type { DownloadAction, DownloadSourceMetadata } from "@packages/shared/index.ts";
 import { DatabaseError, type AppDatabase } from "@/db/database.ts";
 import { anime, downloads } from "@/db/schema.ts";
 import { TorrentClientService } from "@/features/operations/torrent-client-service.ts";
@@ -9,8 +9,8 @@ import { requireAnime } from "@/features/operations/repository/anime-repository.
 import { encodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
 import { loadMissingEpisodeNumbers } from "@/features/operations/job-support.ts";
 import {
+  buildDownloadSelectionMetadata,
   buildDownloadSourceMetadataFromRelease,
-  mergeDownloadSourceMetadata,
 } from "@/features/operations/naming-support.ts";
 import {
   hasOverlappingDownload,
@@ -76,38 +76,65 @@ export const prepareTriggerDownload = Effect.fn("Operations.prepareTriggerDownlo
           requestedEpisode,
         });
     const coveredEpisodes = yield* toCoveredEpisodesJson(inferredCoveredEpisodes);
-    const sourceMetadata = mergeDownloadSourceMetadata(
-      buildDownloadSourceMetadataFromRelease({
-        ...(() => {
-          const chosenFromSeadex =
-            input.triggerInput.release_metadata?.chosen_from_seadex ??
-            input.triggerInput.release_metadata?.is_seadex;
-          return chosenFromSeadex === undefined ? {} : { chosenFromSeadex };
-        })(),
-        ...(input.triggerInput.decision_reason === undefined
+    const releaseContext = input.triggerInput.release_context;
+    const selectionMetadata = buildDownloadSelectionMetadata(releaseContext?.download_action);
+    const chosenFromSeadex =
+      selectionMetadata.chosen_from_seadex ??
+      (releaseContext?.is_seadex_best || releaseContext?.is_seadex ? true : undefined);
+    const sourceMetadata = buildDownloadSourceMetadataFromRelease({
+      ...(chosenFromSeadex === undefined ? {} : { chosenFromSeadex }),
+      decisionReason: deriveTriggerDecisionReason({
+        ...(releaseContext?.download_action === undefined
           ? {}
-          : { decisionReason: input.triggerInput.decision_reason }),
-        ...(input.triggerInput.group === undefined ? {} : { group: input.triggerInput.group }),
-        indexer: "Nyaa",
-        ...(input.triggerInput.release_metadata?.previous_quality === undefined
-          ? {}
-          : { previousQuality: input.triggerInput.release_metadata.previous_quality }),
-        ...(input.triggerInput.release_metadata?.previous_score === undefined
-          ? {}
-          : { previousScore: input.triggerInput.release_metadata.previous_score }),
-        selectionKind: input.triggerInput.release_metadata?.selection_kind ?? "manual",
-        ...(input.triggerInput.release_metadata?.selection_score === undefined
-          ? {}
-          : { selectionScore: input.triggerInput.release_metadata.selection_score }),
-        ...(input.triggerInput.release_metadata?.source_url === undefined
-          ? {}
-          : { sourceUrl: input.triggerInput.release_metadata.source_url }),
-        title: input.triggerInput.title,
+          : { action: releaseContext.download_action }),
+        isBatch: effectiveIsBatch,
+        isSeadex: releaseContext?.is_seadex,
+        isSeadexBest: releaseContext?.is_seadex_best,
+        trusted: releaseContext?.trusted,
       }),
-      input.triggerInput.release_metadata,
-    );
-    const explicitInfoHash = input.triggerInput.info_hash
-      ? Option.some(input.triggerInput.info_hash.toLowerCase())
+      ...(releaseContext?.group === undefined ? {} : { group: releaseContext.group }),
+      ...(releaseContext?.indexer === undefined
+        ? { indexer: "Nyaa" }
+        : { indexer: releaseContext.indexer }),
+      ...(selectionMetadata.previous_quality === undefined
+        ? {}
+        : { previousQuality: selectionMetadata.previous_quality }),
+      ...(selectionMetadata.previous_score === undefined
+        ? {}
+        : { previousScore: selectionMetadata.previous_score }),
+      ...(releaseContext?.parsed_resolution === undefined
+        ? {}
+        : { resolution: releaseContext.parsed_resolution }),
+      selectionKind: selectionMetadata.selection_kind ?? "manual",
+      ...(selectionMetadata.selection_score === undefined
+        ? {}
+        : { selectionScore: selectionMetadata.selection_score }),
+      ...(releaseContext?.source_url === undefined ? {} : { sourceUrl: releaseContext.source_url }),
+      ...(releaseContext?.trusted === undefined ? {} : { trusted: releaseContext.trusted }),
+      ...(releaseContext?.remake === undefined ? {} : { remake: releaseContext.remake }),
+      ...(releaseContext?.is_seadex === undefined ? {} : { isSeadex: releaseContext.is_seadex }),
+      ...(releaseContext?.is_seadex_best === undefined
+        ? {}
+        : { isSeadexBest: releaseContext.is_seadex_best }),
+      ...(releaseContext?.seadex_release_group === undefined
+        ? {}
+        : { seadexReleaseGroup: releaseContext.seadex_release_group }),
+      ...(releaseContext?.seadex_tags === undefined
+        ? {}
+        : { seadexTags: releaseContext.seadex_tags }),
+      ...(releaseContext?.seadex_notes === undefined
+        ? {}
+        : { seadexNotes: releaseContext.seadex_notes }),
+      ...(releaseContext?.seadex_comparison === undefined
+        ? {}
+        : { seadexComparison: releaseContext.seadex_comparison }),
+      ...(releaseContext?.seadex_dual_audio === undefined
+        ? {}
+        : { seadexDualAudio: releaseContext.seadex_dual_audio }),
+      title: input.triggerInput.title,
+    });
+    const explicitInfoHash = releaseContext?.info_hash
+      ? Option.some(releaseContext.info_hash.toLowerCase())
       : Option.none();
     const inferredInfoHash = parseMagnetInfoHash(input.triggerInput.magnet);
     const infoHash = Option.getOrNull(
@@ -167,7 +194,7 @@ export const insertQueuedDownload = Effect.fn("Operations.insertQueuedDownload")
           errorMessage: null,
           etaSeconds: null,
           externalState: "queued",
-          groupName: input.triggerInput.group ?? null,
+          groupName: input.triggerInput.release_context?.group ?? null,
           infoHash: input.plan.infoHash,
           lastSyncedAt: input.plan.now,
           magnet: input.triggerInput.magnet,
@@ -244,3 +271,32 @@ export const addMagnetToQueuedDownload = Effect.fn("Operations.addMagnetToQueued
     return "queued" as const;
   },
 );
+
+function deriveTriggerDecisionReason(input: {
+  action?: DownloadAction | undefined;
+  isBatch: boolean;
+  isSeadex?: boolean | undefined;
+  isSeadexBest?: boolean | undefined;
+  trusted?: boolean | undefined;
+}) {
+  if (input.action?.Upgrade) {
+    return input.action.Upgrade.reason;
+  }
+
+  if (input.action?.Accept) {
+    return `Accepted (${input.action.Accept.quality.name}, score ${input.action.Accept.score})`;
+  }
+
+  const batchSegment = input.isBatch ? " Batch" : "";
+
+  if (input.isSeadexBest) {
+    return `${batchSegment} SeaDex Best release`.trim();
+  }
+
+  if (input.isSeadex) {
+    return `${batchSegment} SeaDex recommended release`.trim();
+  }
+
+  const trustedSegment = input.trusted ? " trusted" : "";
+  return `Manual${batchSegment.toLowerCase()} grab from${trustedSegment} release search`;
+}

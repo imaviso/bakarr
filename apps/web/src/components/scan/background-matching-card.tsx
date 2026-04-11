@@ -1,6 +1,6 @@
 import { createMemo, Show } from "solid-js";
 import { Badge } from "~/components/ui/badge";
-import { type BackgroundJobStatus } from "~/lib/api";
+import { type BackgroundJobStatus, type ScannerMatchStatus } from "~/lib/api";
 import {
   backgroundMatchingStatusLabel,
   backgroundMatchingStatusVariant,
@@ -12,6 +12,7 @@ export function BackgroundMatchingCard(props: {
   hasOutstandingWork: boolean;
   job?: BackgroundJobStatus | undefined;
   isRunning: boolean;
+  status?: ScannerMatchStatus | undefined;
   matchedCount: number;
   matchingCount: number;
   pausedCount: number;
@@ -71,6 +72,7 @@ export function BackgroundMatchingCard(props: {
                 job: props.job,
                 matchingCount: props.matchingCount,
                 pausedCount: props.pausedCount,
+                status: props.status,
               })}
             >
               {backgroundMatchingStatusLabel({
@@ -79,6 +81,7 @@ export function BackgroundMatchingCard(props: {
                 job: props.job,
                 matchingCount: props.matchingCount,
                 pausedCount: props.pausedCount,
+                status: props.status,
               })}
             </Badge>
           </div>

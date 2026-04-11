@@ -1,6 +1,11 @@
 import { Effect, Schema } from "effect";
 
-import type { Download, DownloadSourceMetadata, DownloadStatus } from "@packages/shared/index.ts";
+import type {
+  Download,
+  DownloadAllowedAction,
+  DownloadSourceMetadata,
+  DownloadStatus,
+} from "@packages/shared/index.ts";
 import {
   DownloadEventMetadataSchema,
   DownloadSourceMetadataSchema,
@@ -53,6 +58,7 @@ export const toDownload = Effect.fn("OperationsRepository.toDownload")(function*
     speed_bytes: row.speedBytes ?? undefined,
     status: row.status,
     source_metadata: sourceMetadata,
+    allowed_actions: allowedDownloadActions(row.status, row.reconciledAt),
     torrent_name: row.torrentName,
     total_bytes: row.totalBytes ?? undefined,
   } satisfies Download;
@@ -95,8 +101,57 @@ export const toDownloadStatus = Effect.fn("OperationsRepository.toDownloadStatus
     source_metadata: sourceMetadata,
     state: row.status,
     total_bytes: totalBytes,
+    allowed_actions: allowedDownloadRuntimeActions(row.status),
   } satisfies DownloadStatus;
 });
+
+function allowedDownloadActions(
+  status: string | null | undefined,
+  reconciledAt: string | null | undefined,
+): DownloadAllowedAction[] | undefined {
+  const normalized = status?.toLowerCase();
+  const actions = new Set<DownloadAllowedAction>();
+
+  actions.add("delete");
+
+  if (normalized === "failed" || normalized === "error") {
+    actions.add("retry");
+  }
+
+  if (normalized === "completed" && !reconciledAt) {
+    actions.add("reconcile");
+  }
+
+  if (normalized === "downloading") {
+    actions.add("pause");
+  }
+
+  if (normalized === "queued" || normalized === "paused") {
+    actions.add("resume");
+  }
+
+  return actions.size > 0 ? [...actions] : undefined;
+}
+
+function allowedDownloadRuntimeActions(
+  status: string | null | undefined,
+): DownloadAllowedAction[] | undefined {
+  const normalized = status?.toLowerCase();
+
+  if (normalized === "downloading") {
+    return ["pause"];
+  }
+
+  if (normalized === "queued" || normalized === "paused") {
+    return ["resume"];
+  }
+
+  if (normalized === "failed" || normalized === "error") {
+    return ["retry", "resume"];
+  }
+
+  return undefined;
+}
 
 export function encodeDownloadSourceMetadata(
   value: DownloadSourceMetadata,

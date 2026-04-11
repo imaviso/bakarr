@@ -395,7 +395,7 @@ function ReleaseRow(props: { result: NyaaSearchResult; animeId: number; onGrab: 
                   />
                 </Show>
                 <p class="text-xs text-muted-foreground line-clamp-2">
-                  {state.grabPayload().decisionReason}
+                  Decision and source metadata are resolved server-side at queue time.
                 </p>
               </div>
               <div class="flex items-center space-x-2">

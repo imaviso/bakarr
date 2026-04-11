@@ -374,6 +374,15 @@ it("shared search and scanner schemas accept canonical payloads", () => {
     has_outstanding_matches: true,
     is_scanning: true,
     last_updated: "2024-01-01T00:00:00.000Z",
+    match_counts: {
+      exact: 1,
+      failed: 0,
+      matched: 1,
+      matching: 0,
+      paused: 0,
+      queued: 0,
+    },
+    match_status: "running",
   });
 
   assertEquals(anime._tag, "Right");

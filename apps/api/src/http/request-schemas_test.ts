@@ -142,7 +142,7 @@ it("SearchDownloadBodySchema rejects non-positive and fractional identifiers", (
       anime_id: 0,
       episode_number: 1.5,
       magnet: "magnet:?xt=urn:btih:test",
-      release_metadata: {
+      release_context: {
         group: "SubsPlease",
       },
       title: "Example release",
@@ -158,28 +158,31 @@ it("SearchDownloadBodySchema rejects non-positive and fractional identifiers", (
   }
 });
 
-it("SearchDownloadBodySchema accepts structured release metadata", () => {
+it("SearchDownloadBodySchema accepts structured release context", () => {
   const result = Schema.decodeUnknownEither(SearchDownloadBodySchema)({
     anime_id: 1,
-    decision_reason: "Accepted (WEB-DL 1080p, score 12)",
     episode_number: 2,
-    info_hash: "abcdef",
     magnet: "magnet:?xt=urn:btih:test",
-    release_metadata: {
-      air_date: "2025-03-14",
-      chosen_from_seadex: true,
-      group: "SubsPlease",
-      parsed_title: "[SubsPlease] Show - 02 (1080p)",
-      previous_quality: "WEB-DL 720p",
-      previous_score: 7,
-      resolution: "1080p",
-      selection_kind: "upgrade",
-      selection_score: 12,
-      source_identity: {
-        episode_numbers: [2],
-        label: "02",
-        scheme: "absolute",
+    release_context: {
+      download_action: {
+        Accept: {
+          is_seadex: true,
+          quality: {
+            id: 2,
+            name: "WEB-DL 1080p",
+            rank: 100,
+            resolution: 1080,
+            source: "WEB-DL",
+          },
+          score: 12,
+        },
       },
+      group: "SubsPlease",
+      info_hash: "abcdef",
+      is_seadex: true,
+      parsed_resolution: "1080p",
+      source_url: "https://nyaa.si/view/1",
+      trusted: true,
     },
     title: "[SubsPlease] Show - 02 (1080p)",
   });

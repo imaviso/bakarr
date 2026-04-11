@@ -3,11 +3,8 @@ export interface TriggerDownloadInput {
   readonly magnet: string;
   readonly episode_number?: number;
   readonly title: string;
-  readonly group?: string;
-  readonly info_hash?: string;
   readonly is_batch?: boolean;
-  readonly decision_reason?: string;
-  readonly release_metadata?: import("@packages/shared/index.ts").DownloadSourceMetadata;
+  readonly release_context?: import("@packages/shared/index.ts").SearchDownloadReleaseContext;
 }
 
 export function resolveRequestedEpisodeNumber(input: {

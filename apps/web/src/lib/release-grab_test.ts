@@ -72,7 +72,11 @@ it("buildGrabInputFromNyaaResult maps fields consistently", () => {
     },
   });
 
-  if (payload.animeId !== 55 || payload.episodeNumber !== 3 || payload.infoHash !== "hash123") {
+  if (
+    payload.anime_id !== 55 ||
+    payload.episode_number !== 3 ||
+    payload.release_context?.info_hash !== "hash123"
+  ) {
     throw new Error(`Unexpected Nyaa payload mapping: ${JSON.stringify(payload)}`);
   }
 });
@@ -139,9 +143,9 @@ it("buildGrabInputFromEpisodeResult includes selected metadata", () => {
   });
 
   if (
-    payload.animeId !== 88 ||
-    payload.episodeNumber !== 7 ||
-    payload.infoHash !== "hash-episode"
+    payload.anime_id !== 88 ||
+    payload.episode_number !== 7 ||
+    payload.release_context?.info_hash !== "hash-episode"
   ) {
     throw new Error(`Unexpected episode payload mapping: ${JSON.stringify(payload)}`);
   }
