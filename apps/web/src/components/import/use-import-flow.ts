@@ -1,6 +1,5 @@
 import type { Accessor } from "solid-js";
 import { createMemo, createSignal } from "solid-js";
-import { toast } from "solid-sonner";
 import {
   type AnimeSearchResult,
   createAnimeListQuery,
@@ -9,7 +8,6 @@ import {
   type ImportFileRequest,
   type ScannedFile,
 } from "~/lib/api";
-import { summarizeImportNamingOutcome } from "~/lib/scanned-file";
 import {
   buildImportFileRequest,
   findMissingImportCandidates,
@@ -159,7 +157,7 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
     setCurrentAddIndex(0);
   };
 
-  const handleImport = async () => {
+  const handleImport = () => {
     const files = Array.from(selectedFiles().values());
     const missingCandidates = findMissingImportCandidates({
       files,
@@ -175,33 +173,11 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
 
     options.beforeImport?.();
 
-    const toastId = toast.loading(`Importing ${files.length} file(s)...`);
-
-    try {
-      const result = await importMutation.mutateAsync(files);
-      const namingDetail = summarizeImportNamingOutcome(result.imported_files);
-
-      if (result.failed > 0) {
-        toast.warning(
-          namingDetail
-            ? `Imported ${result.imported} file(s), ${result.failed} failed. ${namingDetail}.`
-            : `Imported ${result.imported} file(s), ${result.failed} failed.`,
-          { id: toastId },
-        );
-      } else {
-        toast.success(
-          namingDetail
-            ? `Imported ${result.imported} file(s). ${namingDetail}.`
-            : `Imported ${result.imported} file(s).`,
-          { id: toastId },
-        );
-      }
-
-      options.onImportSuccess?.();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      toast.error(`Import failed: ${message}`, { id: toastId });
-    }
+    importMutation.mutate(files, {
+      onSuccess: () => {
+        options.onImportSuccess?.();
+      },
+    });
   };
 
   const advanceAddCandidateDialog = () => {
@@ -209,7 +185,7 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
       closeAddCandidateDialog();
       if (options.autoImportAfterMissingCandidatesResolved ?? true) {
         queueMicrotask(() => {
-          void handleImport();
+          handleImport();
         });
       }
       return;

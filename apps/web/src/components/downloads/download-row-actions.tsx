@@ -6,7 +6,6 @@ import {
   IconTrash,
 } from "@tabler/icons-solidjs";
 import { Show } from "solid-js";
-import { toast } from "solid-sonner";
 import { DownloadEventsDialog } from "~/components/download-events-dialog";
 import { Button } from "~/components/ui/button";
 import {
@@ -34,11 +33,7 @@ export function ActiveDownloadActions(props: ActiveDownloadActionsProps) {
       return;
     }
 
-    toast.promise(pauseDownload.mutateAsync(props.downloadId), {
-      loading: "Pausing download...",
-      success: "Download paused",
-      error: (err) => `Failed to pause download: ${err.message}`,
-    });
+    pauseDownload.mutate(props.downloadId);
   };
 
   const handleResume = () => {
@@ -46,11 +41,7 @@ export function ActiveDownloadActions(props: ActiveDownloadActionsProps) {
       return;
     }
 
-    toast.promise(resumeDownload.mutateAsync(props.downloadId), {
-      loading: "Resuming download...",
-      success: "Download resumed",
-      error: (err) => `Failed to resume download: ${err.message}`,
-    });
+    resumeDownload.mutate(props.downloadId);
   };
 
   const handleRetry = () => {
@@ -58,11 +49,7 @@ export function ActiveDownloadActions(props: ActiveDownloadActionsProps) {
       return;
     }
 
-    toast.promise(retryDownload.mutateAsync(props.downloadId), {
-      loading: "Retrying download...",
-      success: "Download retried",
-      error: (err) => `Failed to retry download: ${err.message}`,
-    });
+    retryDownload.mutate(props.downloadId);
   };
 
   return (
@@ -133,27 +120,15 @@ export function HistoryDownloadActions(props: HistoryDownloadActionsProps) {
   const deleteDownload = createDeleteDownloadMutation();
 
   const handleRetry = () => {
-    toast.promise(retryDownload.mutateAsync(props.downloadId), {
-      loading: "Retrying download...",
-      success: "Download retried",
-      error: (err) => `Failed to retry download: ${err.message}`,
-    });
+    retryDownload.mutate(props.downloadId);
   };
 
   const handleDelete = () => {
-    toast.promise(deleteDownload.mutateAsync({ downloadId: props.downloadId }), {
-      loading: "Removing download...",
-      success: "Download removed",
-      error: (err) => `Failed to remove download: ${err.message}`,
-    });
+    deleteDownload.mutate({ downloadId: props.downloadId });
   };
 
   const handleReconcile = () => {
-    toast.promise(reconcileDownload.mutateAsync(props.downloadId), {
-      loading: "Reconciling download...",
-      success: "Download reconciled",
-      error: (err) => `Failed to reconcile download: ${err.message}`,
-    });
+    reconcileDownload.mutate(props.downloadId);
   };
 
   return (

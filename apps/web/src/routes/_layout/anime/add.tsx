@@ -11,7 +11,6 @@ import {
 import { createFileRoute } from "@tanstack/solid-router";
 import { createEffect, createMemo, createSignal, For, onCleanup, Show, Suspense } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
-import { toast } from "solid-sonner";
 import * as v from "valibot";
 import { AddAnimeDialog } from "~/components/add-anime-dialog";
 import { AnimeDiscoveryRow } from "~/components/anime-discovery";
@@ -352,9 +351,7 @@ function AddAnimePage() {
             open={!!selectedAnime()}
             onOpenChange={(open) => !open && setSelectedAnime(null)}
             onSuccess={() => {
-              const title = selectedAnime()?.title.romaji ?? "anime";
               setSelectedAnime(null);
-              toast.success(`Added ${title} to library`);
             }}
           />
         </Suspense>

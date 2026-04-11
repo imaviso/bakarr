@@ -11,7 +11,6 @@ import {
   getAnimeEpisodeStreamUrl,
 } from "~/lib/api";
 import { copyToClipboard } from "~/lib/utils";
-import { toast } from "solid-sonner";
 
 interface UseAnimeDetailsActionsOptions {
   animeId: () => number;
@@ -28,31 +27,20 @@ export function useAnimeDetailsActions(options: UseAnimeDetailsActionsOptions) {
   const updateProfile = createUpdateAnimeProfileMutation();
   const updateReleaseProfiles = createUpdateAnimeReleaseProfilesMutation();
 
-  const handlePlayInMpv = async (episodeNumber: number) => {
-    try {
+  const handlePlayInMpv = (episodeNumber: number) => {
+    void (async () => {
       const { url } = await getAnimeEpisodeStreamUrl(options.animeId(), episodeNumber);
       const origin = globalThis.location.origin;
       globalThis.open(`mpv://${origin}${url}`, "_self");
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Could not generate stream link.";
-      toast.error(message);
-    }
+    })();
   };
 
-  const handleCopyStreamLink = async (episodeNumber: number) => {
-    try {
+  const handleCopyStreamLink = (episodeNumber: number) => {
+    void (async () => {
       const { url } = await getAnimeEpisodeStreamUrl(options.animeId(), episodeNumber);
       const origin = globalThis.location.origin;
-      const copied = await copyToClipboard(`${origin}${url}`);
-      if (copied) {
-        toast.success("Stream URL copied to clipboard");
-      } else {
-        toast.error("Failed to copy stream url");
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Could not copy stream link.";
-      toast.error(message);
-    }
+      await copyToClipboard(`${origin}${url}`);
+    })();
   };
 
   const handleToggleMonitor = (isMonitored: boolean) => {
@@ -71,11 +59,7 @@ export function useAnimeDetailsActions(options: UseAnimeDetailsActionsOptions) {
   };
 
   const handleScanFolder = () => {
-    void toast.promise(scanFolder.mutateAsync(options.animeId()), {
-      loading: "Scanning folder...",
-      success: (data) => `Scan complete. Found ${data.found} new episodes.`,
-      error: (err) => `Scan failed: ${err.message}`,
-    });
+    scanFolder.mutate(options.animeId());
   };
 
   const handleDeleteAnime = (onSuccess: () => void) => {
@@ -83,20 +67,10 @@ export function useAnimeDetailsActions(options: UseAnimeDetailsActionsOptions) {
   };
 
   const handleDeleteEpisodeFile = (episodeNumber: number) => {
-    deleteEpisodeFile.mutate(
-      {
-        animeId: options.animeId(),
-        episodeNumber,
-      },
-      {
-        onSuccess: () => {
-          toast.success("Episode file deleted");
-        },
-        onError: (err) => {
-          toast.error(`Failed to delete file: ${err.message}`);
-        },
-      },
-    );
+    deleteEpisodeFile.mutate({
+      animeId: options.animeId(),
+      episodeNumber,
+    });
   };
 
   return {

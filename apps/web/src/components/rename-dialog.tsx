@@ -1,6 +1,5 @@
 import { IconAlertTriangle, IconCheck, IconInfoCircle, IconLoader2 } from "@tabler/icons-solidjs";
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
-import { toast } from "solid-sonner";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -91,14 +90,6 @@ export function RenameDialog(props: RenameDialogProps) {
     executeRename.mutate(props.animeId, {
       onSuccess: (data: RenameResult) => {
         setResult(data);
-        if (data.failed === 0) {
-          toast.success(`Successfully renamed ${data.renamed} episodes`);
-        } else {
-          toast.warning(`Renamed ${data.renamed}, failed ${data.failed} episodes`);
-        }
-      },
-      onError: (error) => {
-        toast.error(`Rename failed: ${error.message}`);
       },
     });
   };

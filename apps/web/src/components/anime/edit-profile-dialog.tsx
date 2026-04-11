@@ -1,6 +1,5 @@
 import { createForm } from "@tanstack/solid-form";
 import { createSignal, For, Show } from "solid-js";
-import { toast } from "solid-sonner";
 import * as v from "valibot";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -85,14 +84,8 @@ function EditProfileDialogContent(props: EditProfileDialogProps) {
         );
       }
 
-      try {
-        await Promise.all(operations);
-        props.onOpenChange(false);
-        toast.success("Settings updated successfully");
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown error";
-        toast.error(`Failed to update settings: ${message}`);
-      }
+      await Promise.all(operations);
+      props.onOpenChange(false);
     },
   }));
 

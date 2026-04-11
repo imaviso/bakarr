@@ -314,7 +314,7 @@ export function FolderItem(props: { folder: UnmappedFolder }) {
         <Button
           size="sm"
           disabled={!state.selectedAnime() || state.isImporting()}
-          onClick={() => void state.handleImport()}
+          onClick={() => state.handleImport()}
           class="justify-start"
         >
           <Show

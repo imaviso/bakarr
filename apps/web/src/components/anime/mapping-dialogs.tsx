@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/solid-query";
 import { createSignal, For, Show } from "solid-js";
-import { toast } from "solid-sonner";
 import { IconRefresh } from "@tabler/icons-solidjs";
 import { Button } from "~/components/ui/button";
 import {
@@ -86,12 +85,8 @@ export function BulkMappingDialog(props: BulkMappingDialogProps) {
       },
       {
         onSuccess: () => {
-          toast.success(`Successfully mapped ${entries.length} episodes`);
           props.onOpenChange(false);
           setMappings({});
-        },
-        onError: (error: Error) => {
-          toast.error(`Failed to map episodes: ${error.message}`);
         },
       },
     );
@@ -210,12 +205,8 @@ export function ManualMappingDialog(props: ManualMappingDialogProps) {
       },
       {
         onSuccess: () => {
-          toast.success("Episode mapped successfully");
           props.onOpenChange(false);
           setSelectedFile(null);
-        },
-        onError: (error) => {
-          toast.error(`Failed to map episode: ${error.message}`);
         },
       },
     );

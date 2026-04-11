@@ -1,5 +1,4 @@
 import { createEffect, createMemo, createSignal, type Accessor } from "solid-js";
-import { toast } from "solid-sonner";
 import {
   type AddAnimeRequest,
   type AnimeSearchResult,
@@ -11,7 +10,6 @@ import {
   type UnmappedFolder,
 } from "~/lib/api";
 import { runFolderBackgroundMatchAction } from "~/components/scan/background-matching-actions";
-import { normalizeApiErrorMessage } from "~/components/scan/folder-item-utils";
 
 export function createFolderItemController(folder: Accessor<UnmappedFolder>) {
   const addAnimeMutation = createAddAnimeMutation();
@@ -64,68 +62,63 @@ export function createFolderItemController(folder: Accessor<UnmappedFolder>) {
   const isControlling = () => controlMutation.isPending;
 
   const handleControl = (action: "pause" | "resume" | "reset" | "refresh") => {
-    const labels: Record<typeof action, string> = {
-      pause: "Paused automatic matching",
-      refresh: "Refreshing match",
-      reset: "Reset match state",
-      resume: "Resumed automatic matching",
-    };
-
-    toast.promise(
-      runFolderBackgroundMatchAction({
-        action,
-        control: (data) => controlMutation.mutateAsync(data),
-        path: folder().path,
-        startScan: () => scanMutation.mutateAsync(),
-      }),
-      {
-        loading: `${labels[action]}...`,
-        success: labels[action],
-        error: (err) => `Failed to ${action} folder: ${err.message}`,
-      },
-    );
+    void runFolderBackgroundMatchAction({
+      action,
+      control: (data) => controlMutation.mutateAsync(data),
+      path: folder().path,
+      startScan: () => scanMutation.mutateAsync(),
+    });
   };
 
-  const handleImport = async () => {
+  const handleImport = () => {
     const anime = selectedAnime();
     if (!anime) return;
 
-    try {
-      let animeId = anime.id;
-
-      if (!anime.already_in_library) {
-        const profileName = selectedProfile()?.name;
-        if (!profileName) {
-          throw new Error("No quality profile is available yet.");
-        }
-
-        const payload: AddAnimeRequest = {
-          id: anime.id,
-          monitor_and_search: false,
-          monitored: true,
-          profile_name: profileName,
-          release_profile_ids: [],
-          root_folder: folder().path,
-          use_existing_root: true,
-        };
-        const createdAnime = await addAnimeMutation.mutateAsync(payload);
-        animeId = createdAnime.id;
-      }
-
-      await importMutation.mutateAsync({
-        anime_id: animeId,
-        folder_name: folder().name,
-      });
-      const action = anime.already_in_library ? "Linked" : "Added";
-      setManualMatch(null);
-      toast.success(`${action} ${anime.title.romaji}`);
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? normalizeApiErrorMessage(error.message)
-          : "Failed to import folder";
-      toast.error(message);
+    if (anime.already_in_library) {
+      importMutation.mutate(
+        {
+          anime_id: anime.id,
+          folder_name: folder().name,
+        },
+        {
+          onSuccess: () => {
+            setManualMatch(null);
+          },
+        },
+      );
+      return;
     }
+
+    const profileName = selectedProfile()?.name;
+    if (!profileName) {
+      return;
+    }
+
+    const payload: AddAnimeRequest = {
+      id: anime.id,
+      monitor_and_search: false,
+      monitored: true,
+      profile_name: profileName,
+      release_profile_ids: [],
+      root_folder: folder().path,
+      use_existing_root: true,
+    };
+
+    addAnimeMutation.mutate(payload, {
+      onSuccess: (createdAnime) => {
+        importMutation.mutate(
+          {
+            anime_id: createdAnime.id,
+            folder_name: folder().name,
+          },
+          {
+            onSuccess: () => {
+              setManualMatch(null);
+            },
+          },
+        );
+      },
+    });
   };
 
   return {

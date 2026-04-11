@@ -2,7 +2,6 @@ import { IconDots, IconSearch } from "@tabler/icons-solidjs";
 import { createFileRoute, Link } from "@tanstack/solid-router";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { createVirtualizer } from "@tanstack/solid-virtual";
-import { toast } from "solid-sonner";
 import * as v from "valibot";
 import { GeneralError } from "~/components/general-error";
 import { PageHeader } from "~/components/page-header";
@@ -89,11 +88,7 @@ function WantedPage() {
   });
 
   const handleSearchAll = () => {
-    toast.promise(searchMissing.mutateAsync(undefined), {
-      loading: "Triggering global search...",
-      success: "Global search triggered in background",
-      error: (err) => `Failed to trigger search: ${err.message}`,
-    });
+    searchMissing.mutate(undefined);
   };
 
   return (

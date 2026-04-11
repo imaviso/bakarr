@@ -1,5 +1,4 @@
 import { createSignal, type Accessor } from "solid-js";
-import { toast } from "solid-sonner";
 import {
   createSearchMissingMutation,
   createSyncDownloadsMutation,
@@ -60,19 +59,13 @@ export function useDownloadsActions(options: UseDownloadsActionsOptions) {
     );
   };
 
-  const syncDownloadsWithToast = () =>
-    toast.promise(syncDownloads.mutateAsync(), {
-      loading: "Syncing downloads...",
-      success: "Download state synced",
-      error: (error) => `Failed to sync downloads: ${error.message}`,
-    });
+  const triggerSyncDownloads = () => {
+    syncDownloads.mutate();
+  };
 
-  const searchMissingWithToast = () =>
-    toast.promise(searchMissing.mutateAsync(undefined), {
-      loading: "Triggering global search...",
-      success: "Global search triggered in background",
-      error: (error) => `Failed to trigger search: ${error.message}`,
-    });
+  const triggerSearchMissing = () => {
+    searchMissing.mutate(undefined);
+  };
 
   const handleTabChange = (value: string | undefined) => {
     options.updateSearch({ tab: toDownloadsTab(value) });
@@ -85,8 +78,8 @@ export function useDownloadsActions(options: UseDownloadsActionsOptions) {
     handleTabChange,
     lastDownloadEventsExport,
     searchMissing,
-    searchMissingWithToast,
+    triggerSearchMissing,
     syncDownloads,
-    syncDownloadsWithToast,
+    triggerSyncDownloads,
   };
 }

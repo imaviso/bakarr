@@ -72,7 +72,7 @@ export interface DownloadsViewState {
   queue: DownloadStatus[];
   queueCount: Accessor<number>;
   searchMissing: DownloadsMutationLike;
-  searchMissingWithToast: () => unknown;
+  triggerSearchMissing: () => void;
   syncDownloads: DownloadsMutationLike;
-  syncDownloadsWithToast: () => unknown;
+  triggerSyncDownloads: () => void;
 }

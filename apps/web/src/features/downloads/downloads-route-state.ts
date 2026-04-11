@@ -41,8 +41,8 @@ export function useDownloadsRouteState(options: UseDownloadsRouteStateOptions) {
     queue: queries.queue,
     queueCount: queries.queueCount,
     searchMissing: actions.searchMissing,
-    searchMissingWithToast: actions.searchMissingWithToast,
+    triggerSearchMissing: actions.triggerSearchMissing,
     syncDownloads: actions.syncDownloads,
-    syncDownloadsWithToast: actions.syncDownloadsWithToast,
+    triggerSyncDownloads: actions.triggerSyncDownloads,
   };
 }

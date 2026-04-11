@@ -7,11 +7,33 @@ import { useAuth } from "~/lib/auth";
 import { getNotificationToastCopy } from "~/lib/notification-metadata";
 import { setSharedSseAuthenticated, subscribeSharedSse } from "~/lib/sse-events";
 
+const EVENT_TOAST_ID: Partial<Record<NotificationEvent["type"], string>> = {
+  DownloadFinished: "ops.download",
+  DownloadStarted: "ops.download",
+  ImportFinished: "ops.import",
+  ImportStarted: "ops.import",
+  LibraryScanFinished: "ops.library-scan",
+  LibraryScanStarted: "ops.library-scan",
+  RefreshFinished: "ops.refresh",
+  RefreshStarted: "ops.refresh",
+  RenameFinished: "ops.rename",
+  RenameStarted: "ops.rename",
+  RssCheckFinished: "ops.rss",
+  RssCheckStarted: "ops.rss",
+  ScanFolderFinished: "ops.scan-folder",
+  ScanFolderStarted: "ops.scan-folder",
+  SearchMissingFinished: "ops.search-missing",
+  SearchMissingStarted: "ops.search-missing",
+};
+
 export function SseToastListener() {
   const queryClient = useQueryClient();
   const { auth } = useAuth();
 
   const handleEvent = (event: NotificationEvent) => {
+    const toastId = EVENT_TOAST_ID[event.type];
+    const toastOptions = toastId ? { id: toastId } : undefined;
+
     switch (event.type) {
       case "ScanStarted":
         toast.info("Library scan started");
@@ -22,13 +44,17 @@ export function SseToastListener() {
       case "DownloadStarted":
         {
           const copy = getNotificationToastCopy(event);
-          toast.info(copy?.message ?? `Download started: ${event.payload.title}`, {
+          toast.loading(copy?.message ?? `Download started: ${event.payload.title}`, {
             description: copy?.description,
+            ...toastOptions,
           });
         }
         break;
       case "DownloadFinished":
         {
+          if (toastId) {
+            toast.dismiss(toastId);
+          }
           const copy = getNotificationToastCopy(event);
           toast.success(copy?.message ?? `Download finished: ${event.payload.title}`, {
             description: copy?.description,
@@ -42,9 +68,12 @@ export function SseToastListener() {
         }
         break;
       case "RefreshStarted":
-        toast.info(`Refreshing metadata for ${event.payload.title}`);
+        toast.loading(`Refreshing metadata for ${event.payload.title}`, toastOptions);
         break;
       case "RefreshFinished":
+        if (toastId) {
+          toast.dismiss(toastId);
+        }
         toast.success(`Metadata refreshed for ${event.payload.title}`);
         void queryClient.invalidateQueries({ queryKey: animeKeys.all });
         if (event.payload.anime_id) {
@@ -57,17 +86,23 @@ export function SseToastListener() {
         }
         break;
       case "SearchMissingStarted":
-        toast.info(`Searching missing episodes for ${event.payload.title}`);
+        toast.loading(`Searching missing episodes for ${event.payload.title}`, toastOptions);
         break;
       case "SearchMissingFinished":
+        if (toastId) {
+          toast.dismiss(toastId);
+        }
         toast.success(
           `Search complete for ${event.payload.title}. Found ${event.payload.count} releases.`,
         );
         break;
       case "ScanFolderStarted":
-        toast.info(`Scanning folder for ${event.payload.title}`);
+        toast.loading(`Scanning folder for ${event.payload.title}`, toastOptions);
         break;
       case "ScanFolderFinished":
+        if (toastId) {
+          toast.dismiss(toastId);
+        }
         toast.success(
           `Folder scan complete for ${event.payload.title}. Found ${event.payload.found} files.`,
         );
@@ -82,9 +117,12 @@ export function SseToastListener() {
         void queryClient.invalidateQueries({ queryKey: animeKeys.all });
         break;
       case "RenameStarted":
-        toast.info(`Renaming files for ${event.payload.title}`);
+        toast.loading(`Renaming files for ${event.payload.title}`, toastOptions);
         break;
       case "RenameFinished":
+        if (toastId) {
+          toast.dismiss(toastId);
+        }
         toast.success(
           `Renaming complete for ${event.payload.title}. Renamed ${event.payload.count} files.`,
         );
@@ -95,10 +133,13 @@ export function SseToastListener() {
         }
         break;
       case "ImportStarted":
-        toast.info(`Importing ${event.payload.count} files...`);
+        toast.loading(`Importing ${event.payload.count} files...`, toastOptions);
         break;
       case "ImportFinished":
         {
+          if (toastId) {
+            toast.dismiss(toastId);
+          }
           const copy = getNotificationToastCopy(event);
           toast.success(
             copy?.message ??
@@ -111,17 +152,24 @@ export function SseToastListener() {
         void queryClient.invalidateQueries({ queryKey: animeKeys.all });
         break;
       case "LibraryScanStarted":
-        toast.info("Library file scan started");
+        toast.loading("Library file scan started", toastOptions);
         break;
       case "LibraryScanFinished":
+        if (toastId) {
+          toast.dismiss(toastId);
+        }
         toast.success(
           `Library file scan finished. Scanned ${event.payload.scanned}, Matched ${event.payload.matched}`,
         );
+        void queryClient.invalidateQueries({ queryKey: animeKeys.system.jobs() });
         break;
       case "RssCheckStarted":
-        toast.info("RSS check started");
+        toast.loading("RSS check started", toastOptions);
         break;
       case "RssCheckFinished":
+        if (toastId) {
+          toast.dismiss(toastId);
+        }
         toast.success(`RSS check finished. Found ${event.payload.new_items} new items.`);
         break;
       case "Error":

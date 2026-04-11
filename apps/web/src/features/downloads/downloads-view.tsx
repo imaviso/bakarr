@@ -36,7 +36,7 @@ export function DownloadsView(props: DownloadsViewProps) {
             variant="outline"
             size="sm"
             onClick={() => {
-              void props.state.syncDownloadsWithToast();
+              props.state.triggerSyncDownloads();
             }}
             disabled={props.state.syncDownloads.isPending}
           >
@@ -47,7 +47,7 @@ export function DownloadsView(props: DownloadsViewProps) {
             variant="outline"
             size="sm"
             onClick={() => {
-              void props.state.searchMissingWithToast();
+              props.state.triggerSearchMissing();
             }}
             disabled={props.state.searchMissing.isPending}
           >

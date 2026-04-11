@@ -6,7 +6,6 @@ import {
   IconRefresh,
 } from "@tabler/icons-solidjs";
 import { Show } from "solid-js";
-import { toast } from "solid-sonner";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import {
@@ -67,15 +66,11 @@ export function SystemStatus() {
   const rssMutation = createTriggerRssCheckMutation();
 
   const handleScan = () => {
-    scanMutation.mutate(undefined, {
-      onSuccess: () => toast.success("Library scan triggered"),
-    });
+    scanMutation.mutate();
   };
 
   const handleRss = () => {
-    rssMutation.mutate(undefined, {
-      onSuccess: () => toast.success("RSS check triggered"),
-    });
+    rssMutation.mutate();
   };
 
   return (

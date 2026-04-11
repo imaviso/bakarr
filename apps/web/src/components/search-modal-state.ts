@@ -1,5 +1,4 @@
 import { createEffect, on, type Accessor } from "solid-js";
-import { toast } from "solid-sonner";
 import {
   createEpisodeSearchQuery,
   createGrabReleaseMutation,
@@ -33,17 +32,8 @@ export function useSearchModalState(options: SearchModalStateOptions) {
       result: release,
     });
 
-    grabRelease.mutate(payload, {
-      onSuccess: () => {
-        options.onClose();
-        toast.success("Download started");
-      },
-      onError: (err) => {
-        toast.error("Failed to queue download", {
-          description: err instanceof Error ? err.message : String(err),
-        });
-      },
-    });
+    grabRelease.mutate(payload);
+    options.onClose();
   };
 
   return {

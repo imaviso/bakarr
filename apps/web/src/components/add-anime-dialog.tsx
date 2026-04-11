@@ -8,7 +8,6 @@ import {
 } from "@tabler/icons-solidjs";
 import { createForm } from "@tanstack/solid-form";
 import { createMemo, For, Show } from "solid-js";
-import { toast } from "solid-sonner";
 import * as v from "valibot";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
@@ -292,7 +291,6 @@ function AddAnimeForm(props: AddAnimeFormProps) {
         monitored: value.monitor,
         release_profile_ids: value.release_profile_ids,
       });
-      toast.success(`Added ${props.anime.title.romaji} to library`);
       props.onSuccess();
     },
   }));

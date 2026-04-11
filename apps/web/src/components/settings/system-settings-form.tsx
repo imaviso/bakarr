@@ -1,5 +1,4 @@
 import { Show } from "solid-js";
-import { toast } from "solid-sonner";
 import { SystemSettingsAutomationSections } from "~/components/settings/system-settings-automation-sections";
 import { createSystemSettingsForm } from "~/components/settings/system-settings-form-factory";
 import { SystemSettingsGeneralSections } from "~/components/settings/system-settings-general-sections";
@@ -26,8 +25,8 @@ export function GeneralSettingsForm(props: { mode: ConfigSettingsMode }) {
         <SystemForm
           mode={props.mode}
           defaultValues={config()}
-          onSubmit={async (values) => {
-            await updateConfig.mutateAsync(values);
+          onSubmit={(values) => {
+            updateConfig.mutate(values);
           }}
           isSaving={updateConfig.isPending}
         />
@@ -40,19 +39,11 @@ function SystemForm(props: {
   defaultValues: Config;
   isSaving?: boolean;
   mode: ConfigSettingsMode;
-  onSubmit: (values: Config) => Promise<void>;
+  onSubmit: (values: Config) => void;
 }) {
   const form = createSystemSettingsForm({
     defaultValues: props.defaultValues,
-    onSubmit: async (value) => {
-      try {
-        await props.onSubmit(value);
-        toast.success("Settings saved successfully");
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Failed to save settings");
-        throw error;
-      }
-    },
+    onSubmit: props.onSubmit,
   });
 
   const systemStatus = createSystemStatusQuery();
@@ -62,31 +53,16 @@ function SystemForm(props: {
   const showsGeneral = () => props.mode === "general";
   const showsAutomation = () => props.mode === "automation";
 
-  const handleTriggerScan = async () => {
-    try {
-      await triggerScan.mutateAsync();
-      toast.success("Library scan started");
-    } catch {
-      toast.error("Failed to start scan");
-    }
+  const handleTriggerScan = () => {
+    triggerScan.mutate();
   };
 
-  const handleTriggerRss = async () => {
-    try {
-      await triggerRss.mutateAsync();
-      toast.success("RSS check started");
-    } catch {
-      toast.error("Failed to start RSS check");
-    }
+  const handleTriggerRss = () => {
+    triggerRss.mutate();
   };
 
-  const handleTriggerMetadataRefresh = async () => {
-    try {
-      await triggerMetadataRefresh.mutateAsync();
-      toast.success("Metadata refresh started");
-    } catch {
-      toast.error("Failed to start metadata refresh");
-    }
+  const handleTriggerMetadataRefresh = () => {
+    triggerMetadataRefresh.mutate();
   };
 
   return (

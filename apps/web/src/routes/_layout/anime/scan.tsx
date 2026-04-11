@@ -8,7 +8,6 @@ import {
 } from "@tabler/icons-solidjs";
 import { createFileRoute, useNavigate } from "@tanstack/solid-router";
 import { createMemo, createSignal, For, Show } from "solid-js";
-import { toast } from "solid-sonner";
 import { GeneralError } from "~/components/general-error";
 import { BackgroundMatchingCard } from "~/components/scan/background-matching-card";
 import { runBulkBackgroundMatchAction } from "~/components/scan/background-matching-actions";
@@ -111,25 +110,11 @@ function LibraryScanPage() {
   const runBulkAction = (
     action: "pause_queued" | "resume_paused" | "reset_failed" | "retry_failed",
   ) => {
-    const labels: Record<typeof action, string> = {
-      pause_queued: "Pausing queued folders",
-      reset_failed: "Resetting failed folders",
-      resume_paused: "Starting paused folders",
-      retry_failed: "Retrying failed folders",
-    };
-
-    toast.promise(
-      runBulkBackgroundMatchAction({
-        action,
-        control: (data) => bulkControlMutation.mutateAsync(data),
-        startScan: () => scanMutation.mutateAsync(),
-      }),
-      {
-        loading: `${labels[action]}...`,
-        success: labels[action],
-        error: (err) => `Failed to run bulk action: ${err.message}`,
-      },
-    );
+    void runBulkBackgroundMatchAction({
+      action,
+      control: (data) => bulkControlMutation.mutateAsync(data),
+      startScan: () => scanMutation.mutateAsync(),
+    });
   };
   const confirmBulkMeta = createMemo(() => {
     const action = confirmBulkAction();

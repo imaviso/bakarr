@@ -1,5 +1,4 @@
 import { createEffect, createSignal } from "solid-js";
-import { toast } from "solid-sonner";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import {
@@ -32,17 +31,11 @@ export function EditPathDialog(props: EditPathDialogProps) {
     }
   });
 
-  const handleSubmit = async (event: Event) => {
+  const handleSubmit = (event: Event) => {
     event.preventDefault();
 
-    try {
-      await props.updatePath({ id: props.animeId, path: path(), rescan: rescan() });
-      props.onOpenChange(false);
-      toast.success("Path updated successfully");
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to update path";
-      toast.error(message);
-    }
+    void props.updatePath({ id: props.animeId, path: path(), rescan: rescan() });
+    props.onOpenChange(false);
   };
 
   return (

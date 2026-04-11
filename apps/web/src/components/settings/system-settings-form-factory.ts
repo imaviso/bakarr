@@ -4,7 +4,7 @@ import type { Config } from "~/lib/api";
 
 interface CreateSystemSettingsFormOptions {
   defaultValues: Config;
-  onSubmit: (values: Config) => Promise<void>;
+  onSubmit: (values: Config) => void;
 }
 
 export function createSystemSettingsForm(options: CreateSystemSettingsFormOptions) {
@@ -13,9 +13,8 @@ export function createSystemSettingsForm(options: CreateSystemSettingsFormOption
     validators: {
       onChange: ConfigSchema,
     },
-    onSubmit: async ({ value, formApi }) => {
-      await options.onSubmit(value);
-      formApi.reset(value);
+    onSubmit: ({ value }) => {
+      options.onSubmit(value);
     },
   }));
 }
