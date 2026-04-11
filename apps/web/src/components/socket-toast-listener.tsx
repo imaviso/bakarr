@@ -1,11 +1,11 @@
 import { useQueryClient } from "@tanstack/solid-query";
 import { createEffect, onCleanup } from "solid-js";
 import { toast } from "solid-sonner";
-import type { NotificationEvent } from "@bakarr/shared";
+import { decodeNotificationEventWire, type NotificationEvent } from "@bakarr/shared";
 import { animeKeys } from "~/lib/api";
 import { useAuth } from "~/lib/auth";
 import { getNotificationToastCopy } from "~/lib/notification-metadata";
-import { setSharedSseAuthenticated, subscribeSharedSse } from "~/lib/sse-events";
+import { setSharedSocketAuthenticated, subscribeSharedSocket } from "~/lib/socket-events";
 
 const EVENT_TOAST_ID: Partial<Record<NotificationEvent["type"], string>> = {
   DownloadFinished: "ops.download",
@@ -26,7 +26,7 @@ const EVENT_TOAST_ID: Partial<Record<NotificationEvent["type"], string>> = {
   SearchMissingStarted: "ops.search-missing",
 };
 
-export function SseToastListener() {
+export function SocketToastListener() {
   const queryClient = useQueryClient();
   const { auth } = useAuth();
 
@@ -188,22 +188,23 @@ export function SseToastListener() {
     }
   };
 
-  const unsubscribe = subscribeSharedSse({
+  const unsubscribe = subscribeSharedSocket({
     onMessage: (event) => {
-      try {
-        const data: NotificationEvent = JSON.parse(event.data);
-        handleEvent(data);
-      } catch {
-        // Ignore malformed SSE payloads.
+      const decoded = decodeNotificationEventWire(event.data);
+
+      if (decoded._tag === "Left") {
+        return;
       }
+
+      handleEvent(decoded.right);
     },
   });
 
   createEffect(() => {
     if (auth().isAuthenticated) {
-      setSharedSseAuthenticated(true);
+      setSharedSocketAuthenticated(true);
     } else {
-      setSharedSseAuthenticated(false);
+      setSharedSocketAuthenticated(false);
     }
   });
 

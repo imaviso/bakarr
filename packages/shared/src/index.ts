@@ -2011,3 +2011,10 @@ export const NotificationEventSchema: Schema.Schema<NotificationEvent> = Schema.
     }),
   ),
 );
+
+export const NotificationEventWireSchema: Schema.Schema<NotificationEvent, string> =
+  Schema.parseJson(NotificationEventSchema);
+
+export const decodeNotificationEventWire = Schema.decodeUnknownEither(NotificationEventWireSchema);
+
+export const encodeNotificationEventWire = Schema.encode(NotificationEventWireSchema);

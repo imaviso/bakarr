@@ -59,7 +59,7 @@ beforeEach(() => {
   authState.logoutCalls = 0;
 });
 
-it("fetchApi merges auth headers and sets JSON content type", async () => {
+it("fetchApi merges auth headers without forcing content type for bodyless requests", async () => {
   const fetchMock = vi.fn(() =>
     Promise.resolve(createResponse({ ok: true, status: 200, json: { id: 1 } })),
   );
@@ -73,6 +73,23 @@ it("fetchApi merges auth headers and sets JSON content type", async () => {
   const init = getFetchInit(fetchMock.mock.calls[0]);
   const headers = new Headers(init.headers);
   assertEquals(headers.get("X-Api-Key"), "key-1");
+  assertEquals(headers.get("Content-Type"), null);
+});
+
+it("fetchApi sets JSON content type when request body is present", async () => {
+  const fetchMock = vi.fn(() =>
+    Promise.resolve(createResponse({ ok: true, status: 200, json: { id: 1 } })),
+  );
+  vi.stubGlobal("fetch", fetchMock);
+
+  const { fetchApi } = await import("./api");
+  await fetchApi("/api/anime", {
+    body: JSON.stringify({ id: 1 }),
+    method: "POST",
+  });
+
+  const init = getFetchInit(fetchMock.mock.calls[0]);
+  const headers = new Headers(init.headers);
   assertEquals(headers.get("Content-Type"), "application/json");
 });
 

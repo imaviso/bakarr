@@ -2,7 +2,7 @@ import { useIsFetching } from "@tanstack/solid-query";
 import { createFileRoute, Outlet, redirect } from "@tanstack/solid-router";
 import { Show } from "solid-js";
 import { AppSidebar } from "~/components/app-sidebar";
-import { SseToastListener } from "~/components/sse-toast-listener";
+import { SocketToastListener } from "~/components/socket-toast-listener";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "~/components/ui/sidebar";
 
 export const Route = createFileRoute("/_layout")({
@@ -48,7 +48,7 @@ function LayoutComponent() {
         >
           <Outlet />
         </main>
-        <SseToastListener />
+        <SocketToastListener />
       </SidebarInset>
     </SidebarProvider>
   );

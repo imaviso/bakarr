@@ -30,6 +30,8 @@ import {
   LoginResponseSchema,
   MissingEpisodeSchema,
   NotificationEventSchema,
+  decodeNotificationEventWire,
+  encodeNotificationEventWire,
   OpsDashboardSchema,
   PreferredTitleSchema,
   QualityProfileSchema,
@@ -1155,5 +1157,23 @@ it("shared config and notification schemas reject invalid payloads", () => {
 
   if (config._tag === "Left") {
     assertMatch(config.left.message, /copy|move|items count/i);
+  }
+});
+
+it("notification wire codec round-trips canonical payloads", async () => {
+  const encoded = encodeNotificationEventWire({
+    payload: {
+      title: "[SubsPlease] Naruto - 01 (1080p)",
+    },
+    type: "DownloadStarted",
+  });
+
+  const decoded = decodeNotificationEventWire(encoded);
+
+  assertEquals(decoded._tag, "Right");
+
+  if (decoded._tag === "Right") {
+    assertEquals(decoded.right.type, "DownloadStarted");
+    assertEquals(decoded.right.payload.title, "[SubsPlease] Naruto - 01 (1080p)");
   }
 });

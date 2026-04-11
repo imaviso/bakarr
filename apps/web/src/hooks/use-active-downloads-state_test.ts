@@ -1,5 +1,5 @@
 import { it } from "~/test/vitest";
-import { parseDownloadProgressFromSse } from "./use-active-downloads-state";
+import { parseDownloadProgressFromSocketMessage } from "./use-active-downloads-state";
 
 function assertEquals<T>(actual: T, expected: T) {
   if (actual !== expected) {
@@ -7,8 +7,8 @@ function assertEquals<T>(actual: T, expected: T) {
   }
 }
 
-it("parseDownloadProgressFromSse returns download list for DownloadProgress events", () => {
-  const result = parseDownloadProgressFromSse(
+it("parseDownloadProgressFromSocketMessage returns downloads for DownloadProgress", () => {
+  const result = parseDownloadProgressFromSocketMessage(
     JSON.stringify({
       type: "DownloadProgress",
       payload: {
@@ -32,15 +32,15 @@ it("parseDownloadProgressFromSse returns download list for DownloadProgress even
   assertEquals(result?.[0]?.hash, "abc");
 });
 
-it("parseDownloadProgressFromSse returns undefined for unrelated events", () => {
-  const result = parseDownloadProgressFromSse(
+it("parseDownloadProgressFromSocketMessage returns undefined for unrelated events", () => {
+  const result = parseDownloadProgressFromSocketMessage(
     JSON.stringify({ type: "ScanStarted", payload: { path: "/library" } }),
   );
 
   assertEquals(result, undefined);
 });
 
-it("parseDownloadProgressFromSse returns undefined for malformed payloads", () => {
-  const result = parseDownloadProgressFromSse("not-json");
+it("parseDownloadProgressFromSocketMessage returns undefined for malformed payloads", () => {
+  const result = parseDownloadProgressFromSocketMessage("not-json");
   assertEquals(result, undefined);
 });

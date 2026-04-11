@@ -2,8 +2,8 @@ import { createEffect, onCleanup, onMount } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
 import type { DownloadStatus } from "~/lib/api";
 import { useAuth } from "~/lib/auth";
-import { setSharedSseAuthenticated, subscribeSharedSse } from "~/lib/sse-events";
-import { parseDownloadProgressFromSse } from "~/hooks/use-active-downloads-state";
+import { setSharedSocketAuthenticated, subscribeSharedSocket } from "~/lib/socket-events";
+import { parseDownloadProgressFromSocketMessage } from "~/hooks/use-active-downloads-state";
 
 export function useActiveDownloads() {
   const [downloads, setDownloads] = createStore<DownloadStatus[]>([]);
@@ -11,9 +11,9 @@ export function useActiveDownloads() {
   let unsubscribe: (() => void) | undefined;
 
   onMount(() => {
-    unsubscribe = subscribeSharedSse({
+    unsubscribe = subscribeSharedSocket({
       onMessage: (event) => {
-        const downloads = parseDownloadProgressFromSse(event.data);
+        const downloads = parseDownloadProgressFromSocketMessage(event.data);
         if (downloads) {
           setDownloads(reconcile(downloads, { key: "hash", merge: true }));
         }
@@ -23,12 +23,12 @@ export function useActiveDownloads() {
 
   createEffect(() => {
     if (!auth().isAuthenticated) {
-      setSharedSseAuthenticated(false);
+      setSharedSocketAuthenticated(false);
       setDownloads(reconcile([]));
       return;
     }
 
-    setSharedSseAuthenticated(true);
+    setSharedSocketAuthenticated(true);
   });
 
   onCleanup(() => {

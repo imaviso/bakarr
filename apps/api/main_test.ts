@@ -106,7 +106,7 @@ async function withEventsStreamReader<A>(
   });
 
   assert.deepStrictEqual(eventsResponse["status"], 200);
-  assert.deepStrictEqual(eventsResponse.headers.get("content-type"), "text/event-stream");
+  assert.match(eventsResponse.headers.get("content-type") ?? "", /^application\/x-ndjson/);
   assert(eventsResponse.body);
 
   const reader = eventsResponse.body.getReader();
@@ -3715,7 +3715,6 @@ itWithTestContext("events endpoint streams initial state and live notifications"
 
     await withEventsStreamReader(ctx, sessionCookie, async (reader) => {
       const initialChunk = await readUntilMatch(reader, /"type":"DownloadProgress"/);
-      assert.match(initialChunk, /: connected/);
       assert.match(initialChunk, /"type":"DownloadProgress"/);
       assert.match(initialChunk, /"downloads":\[\]/);
 
@@ -3777,7 +3776,7 @@ itWithTestContext(
 
       await withEventsStreamReader(ctx, sessionCookie, async (secondReader) => {
         const secondInitial = await readUntilMatch(secondReader, /"type":"DownloadProgress"/);
-        assert.match(secondInitial, /: connected/);
+        assert.match(secondInitial, /"type":"DownloadProgress"/);
 
         const triggerDownload = await ctx.app.request("/api/search/download", {
           body: JSON.stringify({
