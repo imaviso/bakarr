@@ -30,7 +30,7 @@ export const addAnimeEffect = Effect.fn("AnimeAdd.addAnimeEffect")(function* (in
   metadataProvider: typeof AnimeMetadataProviderService.Service;
   animeInput: AddAnimeInput;
   db: AppDatabase;
-  eventPublisher: Pick<EventPublisherShape, "publishInfo">;
+  eventPublisher: Pick<EventPublisherShape, "publish">;
   fs: FileSystemShape;
   imageCacheService: typeof AnimeImageCacheService.Service;
   nowIso: () => Effect.Effect<string>;
@@ -166,7 +166,10 @@ export const addAnimeEffect = Effect.fn("AnimeAdd.addAnimeEffect")(function* (in
 
   yield* syncEpisodeMetadataEffect(input.db, animeRow.id, validMetadata.episodes);
 
-  yield* input.eventPublisher.publishInfo(`Added ${animeRow.titleRomaji} to library`);
+  yield* input.eventPublisher.publish({
+    type: "Info",
+    payload: { message: `Added ${animeRow.titleRomaji} to library` },
+  });
 
   const persistedEpisodeRows = yield* fetchPersistedEpisodeRowsEffect(input.db, animeRow.id);
 

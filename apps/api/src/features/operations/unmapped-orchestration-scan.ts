@@ -2,6 +2,7 @@ import { Cause, Effect } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
+import type { EventBusShape } from "@/features/events/event-bus.ts";
 import { type FileSystemShape } from "@/lib/filesystem.ts";
 import type { AniListClient } from "@/features/anime/anilist.ts";
 import {
@@ -45,12 +46,13 @@ export interface UnmappedScanWorkflowShape {
 export function makeUnmappedScanWorkflow(input: {
   aniList: typeof AniListClient.Service;
   db: AppDatabase;
+  eventBus: EventBusShape;
   unmappedScanCoordinator: UnmappedScanCoordinatorShape;
   fs: FileSystemShape;
   nowIso: () => Effect.Effect<string>;
   tryDatabasePromise: TryDatabasePromise;
 }) {
-  const { aniList, db, fs, tryDatabasePromise, unmappedScanCoordinator } = input;
+  const { aniList, db, eventBus, fs, tryDatabasePromise, unmappedScanCoordinator } = input;
   const { nowIso } = input;
   const { getUnmappedFolders, loadQueuedUnmappedFolders, matchAndPersistUnmappedFolder } =
     makeUnmappedScanQuerySupport({
@@ -202,6 +204,8 @@ export function makeUnmappedScanWorkflow(input: {
           } as const;
         }
 
+        yield* eventBus.publish({ type: "ScanStarted" });
+
         const loop = unmappedScanLoop().pipe(
           Effect.catchAllCause((cause) =>
             Effect.logError("Unmapped scan loop failed").pipe(
@@ -209,6 +213,7 @@ export function makeUnmappedScanWorkflow(input: {
               Effect.zipRight(Effect.failCause(cause)),
             ),
           ),
+          Effect.ensuring(eventBus.publish({ type: "ScanFinished" })),
           Effect.ensuring(unmappedScanCoordinator.completeUnmappedScan()),
         );
 

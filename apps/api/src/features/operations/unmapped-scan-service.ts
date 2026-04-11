@@ -4,6 +4,7 @@ import { Database } from "@/db/database.ts";
 import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
 import { FileSystem } from "@/lib/filesystem.ts";
 import { AniListClient } from "@/features/anime/anilist.ts";
+import { EventBus } from "@/features/events/event-bus.ts";
 import {
   makeUnmappedScanWorkflow,
   type UnmappedScanWorkflowShape,
@@ -28,11 +29,13 @@ const makeUnmappedScanService = Effect.gen(function* () {
   const aniList = yield* AniListClient;
   const fs = yield* FileSystem;
   const clock = yield* ClockService;
+  const eventBus = yield* EventBus;
   const unmappedScanCoordinator = yield* UnmappedScanCoordinator;
 
   const scanWorkflow = makeUnmappedScanWorkflow({
     aniList,
     db,
+    eventBus,
     unmappedScanCoordinator,
     fs,
     nowIso: () => nowIsoFromClock(clock),

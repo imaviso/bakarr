@@ -1,11 +1,6 @@
 import { Context, Effect, Layer } from "effect";
 
 import type { NotificationEvent } from "@packages/shared/index.ts";
-import { ClockService } from "@/lib/clock.ts";
-import {
-  type LatestValuePublisher,
-  makeLatestValuePublisher,
-} from "@/lib/effect-coalescing-latest-value-publisher.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 
 export interface EventPublisherShape {
@@ -22,56 +17,25 @@ export class EventPublisher extends Context.Tag("@bakarr/api/EventPublisher")<
   EventPublisherShape
 >() {}
 
-const INFO_EVENT_TOAST_WINDOW_MS = 250;
-
-interface CoalescedInfoEvent {
-  readonly event: NotificationEvent;
-  readonly emitAt: number;
-}
-
 export const makeEventPublisher = Effect.fn("Events.makeEventPublisher")((options?: {
-  readonly getCurrentTime?: Effect.Effect<number>;
-  readonly infoEventToastWindowMs?: number;
   readonly publish?: (event: NotificationEvent) => Effect.Effect<void>;
 }) => {
-  const infoEventToastWindowMs = options?.infoEventToastWindowMs ?? INFO_EVENT_TOAST_WINDOW_MS;
-
   return Effect.gen(function* () {
     const publishEvent = options?.publish ?? (yield* EventBus).publish;
-    const clock = yield* ClockService;
-    const getCurrentTime = options?.getCurrentTime ?? clock.currentTimeMillis;
-    const infoPublisher: LatestValuePublisher<CoalescedInfoEvent, never> =
-      yield* makeLatestValuePublisher<CoalescedInfoEvent, never, never>((value) =>
-        Effect.gen(function* () {
-          const now = yield* getCurrentTime;
-          const remainingMs = value.emitAt - now;
-
-          if (remainingMs > 0) {
-            yield* Effect.sleep(`${remainingMs} millis`);
-          }
-
-          yield* publishEvent(value.event);
-        }),
-      );
     const publish = Effect.fn("EventPublisher.publish")(function* (event: NotificationEvent) {
       yield* publishEvent(event);
     });
     const publishInfo = Effect.fn("EventPublisher.publishInfo")(function* (message: string) {
-      const now = yield* getCurrentTime;
-
-      yield* infoPublisher.offer({
-        emitAt: now + infoEventToastWindowMs,
-        event: {
-          type: "Info",
-          payload: { message },
-        },
+      yield* publishEvent({
+        type: "Info",
+        payload: { message },
       });
     });
 
     return {
       publish,
       publishInfo,
-      shutdown: infoPublisher.shutdown,
+      shutdown: Effect.void,
     } satisfies ManagedEventPublisher;
   });
 });
