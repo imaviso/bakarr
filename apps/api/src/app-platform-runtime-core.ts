@@ -41,8 +41,7 @@ export function makeAppPlatformCoreRuntimeLayer(
   const externalCallLayer = withCoreSupport(ExternalCallLive);
   const databaseLayer = DatabaseLayerLive.pipe(Layer.provide(configLayer));
   const eventBusLayer = EventBusLive;
-  const eventSupportLayer = Layer.mergeAll(eventBusLayer, coreSupportLayer);
-  const eventPublisherLayer = EventPublisherLive.pipe(Layer.provide(eventSupportLayer));
+  const eventPublisherLayer = EventPublisherLive.pipe(Layer.provideMerge(eventBusLayer));
   const backgroundMonitorLayer = withCoreSupport(BackgroundWorkerMonitorLive);
 
   const platformCoreLayer = Layer.mergeAll(
@@ -56,7 +55,6 @@ export function makeAppPlatformCoreRuntimeLayer(
   );
 
   const infrastructureLayer = Layer.mergeAll(
-    eventBusLayer,
     eventPublisherLayer,
     backgroundMonitorLayer,
     FileSystemLive,
