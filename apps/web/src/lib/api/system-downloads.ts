@@ -1,12 +1,13 @@
 import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/solid-query";
-import type { Download } from "./contracts";
+import type { Download, DownloadStatus } from "./contracts";
 import { API_BASE, fetchApi } from "./client";
 import { animeKeys } from "./keys";
 
 export function downloadQueueQueryOptions() {
   return queryOptions({
     queryKey: animeKeys.downloads.queue(),
-    queryFn: ({ signal }) => fetchApi<Download[]>(`${API_BASE}/downloads/queue`, undefined, signal),
+    queryFn: ({ signal }) =>
+      fetchApi<DownloadStatus[]>(`${API_BASE}/downloads/queue`, undefined, signal),
     refetchInterval: 5000,
   });
 }
