@@ -68,6 +68,9 @@ export function parseAbsoluteIdentity(
     .replace(/\(.*?\)/g, "")
     .replace(/(?:480|720|1080|2160)[pi]/gi, "")
     .replace(/[hx]26[45]/gi, "")
+    .replace(/\b(?:8|10|12)[ .-]*bit\b/gi, "")
+    .replace(/\b(?:aac|flac|opus|ac3|eac3|ddp|truehd|dts(?:-hd)?)[ .-]*[1-9](?:[ .][0-9])?\b/gi, "")
+    .replace(/\b[1-9]\.[0-9](?:\s*ch)?\b/gi, "")
     .replace(/[._-]/g, " ");
 
   const candidates: number[] = [];

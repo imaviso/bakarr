@@ -687,4 +687,10 @@ it("episode parser handles ranges and season packs", () => {
   );
   assert.deepStrictEqual(seasonPack.isBatch, true);
   assert.deepStrictEqual(seasonPack.episodeNumbers, []);
+
+  const seasonPackWithChannels = parseReleaseName(
+    "Classroom.of.the.Elite.S03.1080p.BluRay.10-Bit.Dual-Audio.FLAC5.1.x265-YURASUKA",
+  );
+  assert.deepStrictEqual(seasonPackWithChannels.isBatch, true);
+  assert.deepStrictEqual(seasonPackWithChannels.episodeNumbers, []);
 });

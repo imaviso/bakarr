@@ -325,6 +325,15 @@ it("parseReleaseSourceIdentity: season-only title does not fall back to absolute
   assert.deepStrictEqual(result.kind, "unknown");
 });
 
+it("parseReleaseSourceIdentity: season packs with FLAC5.1 do not parse as episode 1", () => {
+  const result = parseReleaseSourceIdentity(
+    "Classroom.of.the.Elite.S03.1080p.BluRay.10-Bit.Dual-Audio.FLAC5.1.x265-YURASUKA",
+  );
+
+  assert.deepStrictEqual(result.source_identity, undefined);
+  assert.deepStrictEqual(result.kind, "unknown");
+});
+
 it("parseReleaseSourceIdentity: Chinese 第xx话 pattern maps to absolute episode", () => {
   const result = parseReleaseSourceIdentity(
     "【千夏字幕组】【天使降临到了我身边！_Anime Series Title】[第05话][1080p_HEVC][简繁外挂]",
