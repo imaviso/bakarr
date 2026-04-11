@@ -4,6 +4,7 @@ import { Cause, Effect, Option } from "effect";
 import type { AppDatabase } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { anime } from "@/db/schema.ts";
+import { AnimeImageCacheService } from "@/features/anime/anime-image-cache-service.ts";
 import type { AnimeMetadataProviderService } from "@/features/anime/anime-metadata-provider-service.ts";
 import { syncEpisodeMetadataEffect } from "@/features/anime/anime-episode-metadata-sync.ts";
 import { syncEpisodeScheduleEffect } from "@/features/anime/anime-episode-schedule-sync.ts";
@@ -24,6 +25,7 @@ type MetadataRefreshError = DatabaseError | ExternalCallError;
 export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
   "AnimeService.refreshMetadataForMonitoredAnimeEffect",
 )(function* (input: {
+  imageCacheService: typeof AnimeImageCacheService.Service;
   metadataProvider: typeof AnimeMetadataProviderService.Service;
   db: AppDatabase;
   nowIso: () => Effect.Effect<string>;
@@ -126,6 +128,7 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
       (animeRow) =>
         Effect.gen(function* () {
           const { metadata, nextAnimeRow } = yield* syncAnimeMetadataEffect({
+            imageCacheService: input.imageCacheService,
             metadataProvider: input.metadataProvider,
             animeId: animeRow.id,
             db: input.db,

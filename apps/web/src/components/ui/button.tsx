@@ -40,10 +40,11 @@ type ButtonProps = ComponentProps<typeof ButtonPrimitive.Root> &
   };
 
 const Button: Component<ButtonProps> = (props) => {
-  const [local, others] = splitProps(props, ["variant", "size", "class"]);
+  const [local, others] = splitProps(props, ["variant", "size", "class", "type"]);
   return (
     <ButtonPrimitive.Root
       class={cn(buttonVariants({ variant: local.variant, size: local.size }), local.class)}
+      type={local.type ?? "button"}
       {...others}
     />
   );

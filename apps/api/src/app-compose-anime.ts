@@ -14,17 +14,21 @@ import { provideLayer } from "@/lib/layer-compose.ts";
 export function makeAnimeAppLayer<RSOut, RSE, RSR>(
   runtimeSupportLayer: Layer.Layer<RSOut, RSE, RSR>,
 ) {
+  const imageCacheLayer = AnimeImageCacheServiceLive;
   const metadataEnrichmentLayer = AnimeMetadataEnrichmentServiceLive;
   const metadataProviderLayer = provideLayer(
     AnimeMetadataProviderServiceLive,
     metadataEnrichmentLayer,
   );
-  const animeMaintenanceLayer = provideLayer(AnimeMaintenanceServiceLive, metadataProviderLayer);
+  const animeMaintenanceLayer = provideLayer(
+    AnimeMaintenanceServiceLive,
+    Layer.mergeAll(metadataProviderLayer, imageCacheLayer),
+  );
   const streamTokenSignerLayer = StreamTokenSignerLive;
   const animeStreamLayer = provideLayer(AnimeStreamServiceLive, streamTokenSignerLayer);
 
   const animeSubgraphLayer = Layer.mergeAll(
-    AnimeImageCacheServiceLive,
+    imageCacheLayer,
     AnimeQueryServiceLive,
     AnimeFileServiceLive,
     animeMaintenanceLayer,

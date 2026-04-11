@@ -3,6 +3,7 @@ import { Effect, Option } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
 import { anime } from "@/db/schema.ts";
+import { AnimeImageCacheService } from "@/features/anime/anime-image-cache-service.ts";
 import type { AnimeMetadata } from "@/features/anime/anilist-model.ts";
 import type { AnimeMetadataProviderService } from "@/features/anime/anime-metadata-provider-service.ts";
 import type { AnimeEventPublisher } from "@/features/anime/anime-orchestration-shared.ts";
@@ -16,6 +17,7 @@ import { appendSystemLog } from "@/features/system/support.ts";
 
 export const syncAnimeMetadataEffect = Effect.fn("AnimeMetadataSync.syncAnimeMetadata")(
   function* (input: {
+    imageCacheService: typeof AnimeImageCacheService.Service;
     metadataProvider: typeof AnimeMetadataProviderService.Service;
     animeId: number;
     db: AppDatabase;
@@ -35,14 +37,34 @@ export const syncAnimeMetadataEffect = Effect.fn("AnimeMetadataSync.syncAnimeMet
     }
     const metadataValue = metadata.value;
 
+    const cachedImages = yield* input.imageCacheService
+      .cacheMetadataImages({
+        animeId: metadataValue.id,
+        ...(metadataValue.bannerImage === undefined
+          ? {}
+          : { bannerImage: metadataValue.bannerImage }),
+        ...(metadataValue.coverImage === undefined ? {} : { coverImage: metadataValue.coverImage }),
+      })
+      .pipe(
+        Effect.catchAll((error) =>
+          Effect.logWarning("Failed to refresh cached anime metadata images").pipe(
+            Effect.annotateLogs({ animeId: input.animeId, error }),
+            Effect.as({
+              bannerImage: animeRow.bannerImage ?? undefined,
+              coverImage: animeRow.coverImage ?? undefined,
+            }),
+          ),
+        ),
+      );
+
     const relatedAnime = yield* encodeAnimeDiscoveryEntries(metadataValue.relatedAnime);
     const recommendedAnime = yield* encodeAnimeDiscoveryEntries(metadataValue.recommendedAnime);
     const synonyms = yield* encodeAnimeSynonyms(metadataValue.synonyms);
 
     const nextAnimeRow = {
       ...animeRow,
-      bannerImage: metadataValue.bannerImage ?? animeRow.bannerImage,
-      coverImage: metadataValue.coverImage ?? animeRow.coverImage,
+      bannerImage: cachedImages.bannerImage ?? animeRow.bannerImage,
+      coverImage: cachedImages.coverImage ?? animeRow.coverImage,
       description: metadataValue.description ?? animeRow.description,
       endDate: metadataValue.endDate ?? null,
       endYear: metadataValue.endYear ?? null,

@@ -4,6 +4,7 @@ import { Context, Effect, Layer, Option } from "effect";
 import { Database, type DatabaseError } from "@/db/database.ts";
 import { anime } from "@/db/schema.ts";
 import { AnimeMetadataProviderService } from "@/features/anime/anime-metadata-provider-service.ts";
+import { AnimeImageCacheService } from "@/features/anime/anime-image-cache-service.ts";
 import { syncEpisodeMetadataEffect } from "@/features/anime/anime-episode-metadata-sync.ts";
 import { syncEpisodeScheduleEffect } from "@/features/anime/anime-episode-schedule-sync.ts";
 import { syncAnimeMetadataEffect } from "@/features/anime/anime-metadata-sync.ts";
@@ -35,6 +36,7 @@ const makeAnimeMaintenanceService = Effect.gen(function* () {
   const { db } = yield* Database;
   const eventPublisher = yield* EventPublisher;
   const metadataProvider = yield* AnimeMetadataProviderService;
+  const imageCacheService = yield* AnimeImageCacheService;
   const clock = yield* ClockService;
   const nowIso = () => nowIsoFromClock(clock);
   const metadataRefreshRunner = yield* makeMetadataRefreshRunner();
@@ -50,6 +52,7 @@ const makeAnimeMaintenanceService = Effect.gen(function* () {
     animeId: number,
   ) {
     const { animeRow, metadata, nextAnimeRow } = yield* syncAnimeMetadataEffect({
+      imageCacheService,
       metadataProvider,
       animeId,
       db,

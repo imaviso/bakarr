@@ -290,7 +290,7 @@ export function FolderItem(props: { folder: UnmappedFolder }) {
         </AlertDialog>
 
         <Dialog open={state.manualDialogOpen()} onOpenChange={state.setManualDialogOpen}>
-          <DialogTrigger as={Button} variant="ghost" size="sm" class="justify-start">
+          <DialogTrigger as={Button} type="button" variant="ghost" size="sm" class="justify-start">
             <IconSearch class="mr-2 h-4 w-4" />
             Change match
           </DialogTrigger>
