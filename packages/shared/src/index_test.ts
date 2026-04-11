@@ -1,5 +1,5 @@
 import { assertEquals, assertMatch, it } from "./test/vitest.ts";
-import { Schema } from "effect";
+import { Effect, Schema } from "effect";
 
 import {
   ActivityItemSchema,
@@ -1160,13 +1160,15 @@ it("shared config and notification schemas reject invalid payloads", () => {
   }
 });
 
-it("notification wire codec round-trips canonical payloads", async () => {
-  const encoded = encodeNotificationEventWire({
-    payload: {
-      title: "[SubsPlease] Naruto - 01 (1080p)",
-    },
-    type: "DownloadStarted",
-  });
+it("notification wire codec round-trips canonical payloads", () => {
+  const encoded = Effect.runSync(
+    encodeNotificationEventWire({
+      payload: {
+        title: "[SubsPlease] Naruto - 01 (1080p)",
+      },
+      type: "DownloadStarted",
+    }),
+  );
 
   const decoded = decodeNotificationEventWire(encoded);
 
@@ -1176,4 +1178,16 @@ it("notification wire codec round-trips canonical payloads", async () => {
     assertEquals(decoded.right.type, "DownloadStarted");
     assertEquals(decoded.right.payload.title, "[SubsPlease] Naruto - 01 (1080p)");
   }
+});
+
+it("notification schema accepts auth notification events", () => {
+  const passwordChanged = Schema.decodeUnknownEither(NotificationEventSchema)({
+    type: "PasswordChanged",
+  });
+  const apiKeyRegenerated = Schema.decodeUnknownEither(NotificationEventSchema)({
+    type: "ApiKeyRegenerated",
+  });
+
+  assertEquals(passwordChanged._tag, "Right");
+  assertEquals(apiKeyRegenerated._tag, "Right");
 });

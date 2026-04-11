@@ -1858,6 +1858,8 @@ export type NotificationEvent =
       type: "RssCheckProgress";
       payload: { current: number; total: number; feed_name: string };
     }
+  | { type: "PasswordChanged" }
+  | { type: "ApiKeyRegenerated" }
   | { type: "Error"; payload: { message: string } }
   | { type: "Info"; payload: { message: string } }
   | { type: "DownloadProgress"; payload: { downloads: DownloadStatus[] } }
@@ -1991,6 +1993,8 @@ export const NotificationEventSchema: Schema.Schema<NotificationEvent> = Schema.
         feed_name: Schema.String,
       }),
     }),
+    Schema.Struct({ type: Schema.Literal("PasswordChanged") }),
+    Schema.Struct({ type: Schema.Literal("ApiKeyRegenerated") }),
     Schema.Struct({
       type: Schema.Literal("Error"),
       payload: Schema.Struct({ message: Schema.String }),

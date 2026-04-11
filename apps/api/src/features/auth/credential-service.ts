@@ -7,6 +7,7 @@ import { randomHexFrom, RandomService } from "@/lib/random.ts";
 import { hashPasswordWith, verifyPassword } from "@/security/password.ts";
 import { TokenHasher, type TokenHasherError } from "@/security/token-hasher.ts";
 import { AuthError, type AuthCryptoError } from "@/features/auth/errors.ts";
+import { EventPublisher } from "@/features/events/publisher.ts";
 import {
   changePasswordState,
   findUserById,
@@ -34,6 +35,7 @@ const makeAuthCredentialService = Effect.gen(function* () {
   const clock = yield* ClockService;
   const random = yield* RandomService;
   const tokenHasher = yield* TokenHasher;
+  const eventPublisher = yield* EventPublisher;
   const nowIso = () => nowIsoFromClock(clock);
   const randomHex = (bytes: number) => randomHexFrom(random, bytes);
   const hashPassword = hashPasswordWith(random.randomBytes);
@@ -77,6 +79,8 @@ const makeAuthCredentialService = Effect.gen(function* () {
       userId,
       username: row.username,
     });
+
+    yield* eventPublisher.publish({ type: "PasswordChanged" });
   });
 
   const getApiKey = Effect.fn("AuthCredentialService.getApiKey")(function* (userId: number) {
@@ -111,6 +115,8 @@ const makeAuthCredentialService = Effect.gen(function* () {
       userId,
       username: row.username,
     });
+
+    yield* eventPublisher.publish({ type: "ApiKeyRegenerated" });
 
     return { api_key: apiKey };
   });

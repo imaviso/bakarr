@@ -172,6 +172,13 @@ export function SocketToastListener() {
         }
         toast.success(`RSS check finished. Found ${event.payload.new_items} new items.`);
         break;
+      case "PasswordChanged":
+        toast.success("Password changed successfully");
+        break;
+      case "ApiKeyRegenerated":
+        toast.success("API key regenerated successfully");
+        void queryClient.invalidateQueries({ queryKey: animeKeys.auth.apiKey() });
+        break;
       case "Error":
         toast.error(event.payload.message);
         break;

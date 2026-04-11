@@ -76,7 +76,6 @@ export function AccountSettingsForm() {
           current_password: value.currentPassword,
           new_password: value.newPassword,
         });
-        toast.success("Password changed successfully");
         formApi.reset();
       } catch (error) {
         const message = error instanceof Error ? error.message : "Failed to change password";
@@ -91,7 +90,6 @@ export function AccountSettingsForm() {
   const handleRegenerateApiKey = async () => {
     try {
       await regenerateApiKey.mutateAsync();
-      toast.success("API key regenerated successfully");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to regenerate API key");
     }
