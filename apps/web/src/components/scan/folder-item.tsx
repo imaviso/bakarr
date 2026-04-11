@@ -8,8 +8,7 @@ import {
   IconSearch,
   IconTrash,
 } from "@tabler/icons-solidjs";
-import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
-import { toast } from "solid-sonner";
+import { For, Show } from "solid-js";
 import { AnimeDiscoveryRow } from "~/components/anime-discovery";
 import {
   AlertDialog,
@@ -38,137 +37,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
-import {
-  type AddAnimeRequest,
-  type AnimeSearchResult,
-  createAddAnimeMutation,
-  createControlUnmappedFolderMutation,
-  createImportUnmappedFolderMutation,
-  createProfilesQuery,
-  createScanLibraryMutation,
-  type UnmappedFolder,
-} from "~/lib/api";
+import type { UnmappedFolder } from "~/lib/api";
 import { animeDisplayTitle, animeSearchSubtitle } from "~/lib/anime-metadata";
 import { formatFileSize } from "~/lib/scanned-file";
 import { cn } from "~/lib/utils";
-import { runFolderBackgroundMatchAction } from "./background-matching-actions";
-import { MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS } from "@bakarr/shared";
+import { createFolderItemController } from "~/components/scan/folder-item-controller";
+import {
+  emptyMatchMessage,
+  folderMatchHint,
+  folderStatusLabel,
+  formatConfidencePercent,
+} from "~/components/scan/folder-item-utils";
 import { ManualMatchSearch } from "./manual-match-search";
 
 export function FolderItem(props: { folder: UnmappedFolder }) {
-  const addAnimeMutation = createAddAnimeMutation();
-  const controlMutation = createControlUnmappedFolderMutation();
-  const importMutation = createImportUnmappedFolderMutation();
-  const scanMutation = createScanLibraryMutation();
-  const profilesQuery = createProfilesQuery();
-  const [manualMatch, setManualMatch] = createSignal<AnimeSearchResult | null>(null);
-  const [manualDialogOpen, setManualDialogOpen] = createSignal(false);
-  const [resetConfirmOpen, setResetConfirmOpen] = createSignal(false);
-  const [selectedProfileName, setSelectedProfileName] = createSignal<string>("");
-
-  const selectedAnime = createMemo(() => {
-    const manual = manualMatch();
-    if (manual) {
-      return manual;
-    }
-
-    const suggested = props.folder.suggested_matches[0];
-    return suggested ?? null;
-  });
-
-  const selectedProfile = createMemo(() => {
-    const selectedName = selectedProfileName();
-    const profiles = profilesQuery.data ?? [];
-    const fallbackName = profiles[0]?.name ?? "";
-    const resolvedName = selectedName || fallbackName;
-
-    return profiles.find((profile) => profile.name === resolvedName) ?? profiles[0];
-  });
-
-  createEffect(() => {
-    if (!selectedProfileName() && profilesQuery.data?.[0]?.name) {
-      setSelectedProfileName(profilesQuery.data[0].name);
-    }
-  });
-
-  const existingAnime = createMemo(() =>
-    selectedAnime()?.already_in_library ? selectedAnime() : null,
-  );
-  const selectedAnimeIds = createMemo(() => {
-    const animeId = selectedAnime()?.id;
-    return animeId === undefined ? new Set<number>() : new Set([animeId]);
-  });
-  const importLabel = createMemo(() =>
-    existingAnime() ? "Use existing anime" : "Add and use folder",
-  );
-
-  const isImporting = () => addAnimeMutation.isPending || importMutation.isPending;
-  const isControlling = () => controlMutation.isPending;
-
-  const handleControl = (action: "pause" | "resume" | "reset" | "refresh") => {
-    const labels: Record<typeof action, string> = {
-      pause: "Paused automatic matching",
-      refresh: "Refreshing match",
-      reset: "Reset match state",
-      resume: "Resumed automatic matching",
-    };
-
-    toast.promise(
-      runFolderBackgroundMatchAction({
-        action,
-        control: (data) => controlMutation.mutateAsync(data),
-        path: props.folder.path,
-        startScan: () => scanMutation.mutateAsync(),
-      }),
-      {
-        loading: `${labels[action]}...`,
-        success: labels[action],
-        error: (err) => `Failed to ${action} folder: ${err.message}`,
-      },
-    );
-  };
-
-  const handleImport = async () => {
-    const anime = selectedAnime();
-    if (!anime) return;
-
-    try {
-      let animeId = anime.id;
-
-      if (!anime.already_in_library) {
-        const profileName = selectedProfile()?.name;
-        if (!profileName) {
-          throw new Error("No quality profile is available yet.");
-        }
-
-        const payload: AddAnimeRequest = {
-          id: anime.id,
-          monitor_and_search: false,
-          monitored: true,
-          profile_name: profileName,
-          release_profile_ids: [],
-          root_folder: props.folder.path,
-          use_existing_root: true,
-        };
-        const createdAnime = await addAnimeMutation.mutateAsync(payload);
-        animeId = createdAnime.id;
-      }
-
-      await importMutation.mutateAsync({
-        anime_id: animeId,
-        folder_name: props.folder.name,
-      });
-      const action = anime.already_in_library ? "Linked" : "Added";
-      setManualMatch(null);
-      toast.success(`${action} ${anime.title.romaji}`);
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? normalizeApiErrorMessage(error.message)
-          : "Failed to import folder";
-      toast.error(message);
-    }
-  };
+  const state = createFolderItemController(() => props.folder);
 
   return (
     <div class="grid gap-4 border border-border/70 bg-background/85 p-4 shadow-sm lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_auto] lg:items-start">
@@ -213,7 +96,7 @@ export function FolderItem(props: { folder: UnmappedFolder }) {
 
       <div class="min-w-0 border border-border/60 bg-muted/20 p-3">
         <Show
-          when={selectedAnime()}
+          when={state.selectedAnime()}
           fallback={
             <div class="flex min-h-[88px] items-center text-sm text-muted-foreground italic">
               {emptyMatchMessage(props.folder)}
@@ -240,7 +123,7 @@ export function FolderItem(props: { folder: UnmappedFolder }) {
                   <Show when={anime().already_in_library}>
                     <Badge variant="secondary">Already in library</Badge>
                   </Show>
-                  <Show when={manualMatch()}>
+                  <Show when={state.manualMatch()}>
                     <Badge variant="outline">Manual match</Badge>
                   </Show>
                 </div>
@@ -268,7 +151,7 @@ export function FolderItem(props: { folder: UnmappedFolder }) {
                     </Badge>
                   </Show>
                 </div>
-                <Show when={anime().match_reason && !manualMatch()}>
+                <Show when={anime().match_reason && !state.manualMatch()}>
                   <p class="text-[11px] text-muted-foreground line-clamp-2">
                     {anime().match_reason}
                   </p>
@@ -284,7 +167,7 @@ export function FolderItem(props: { folder: UnmappedFolder }) {
                       {(related) => (
                         <AnimeDiscoveryRow
                           entry={related}
-                          libraryIds={selectedAnimeIds()}
+                          libraryIds={state.selectedAnimeIds()}
                           compact
                         />
                       )}
@@ -297,7 +180,7 @@ export function FolderItem(props: { folder: UnmappedFolder }) {
                       {(recommended) => (
                         <AnimeDiscoveryRow
                           entry={recommended}
-                          libraryIds={selectedAnimeIds()}
+                          libraryIds={state.selectedAnimeIds()}
                           compact
                         />
                       )}
@@ -310,9 +193,9 @@ export function FolderItem(props: { folder: UnmappedFolder }) {
                       Quality profile for the new anime
                     </span>
                     <Select
-                      value={selectedProfile()?.name ?? null}
-                      onChange={(value) => value && setSelectedProfileName(value)}
-                      options={(profilesQuery.data ?? []).map((profile) => profile.name)}
+                      value={state.selectedProfile()?.name ?? null}
+                      onChange={(value) => value && state.setSelectedProfileName(value)}
+                      options={(state.profilesQuery.data ?? []).map((profile) => profile.name)}
                       placeholder="Select profile..."
                       itemComponent={(itemProps) => (
                         <SelectItem item={itemProps.item}>{itemProps.item.rawValue}</SelectItem>
@@ -340,11 +223,11 @@ export function FolderItem(props: { folder: UnmappedFolder }) {
             size="sm"
             variant="outline"
             disabled={
-              isControlling() ||
+              state.isControlling() ||
               props.folder.match_status === "matching" ||
               props.folder.match_status === "paused"
             }
-            onClick={() => handleControl("pause")}
+            onClick={() => state.handleControl("pause")}
             class="justify-start"
           >
             <IconPlayerPause class="mr-2 h-4 w-4" />
@@ -353,12 +236,8 @@ export function FolderItem(props: { folder: UnmappedFolder }) {
           <Button
             size="sm"
             variant="outline"
-            disabled={
-              isControlling() ||
-              props.folder.match_status === "matching" ||
-              props.folder.match_status !== "paused"
-            }
-            onClick={() => handleControl("resume")}
+            disabled={state.isControlling() || props.folder.match_status !== "paused"}
+            onClick={() => state.handleControl("resume")}
             class="justify-start"
           >
             <IconPlayerPlay class="mr-2 h-4 w-4" />
@@ -367,18 +246,18 @@ export function FolderItem(props: { folder: UnmappedFolder }) {
           <Button
             size="sm"
             variant="outline"
-            disabled={isControlling() || props.folder.match_status === "matching"}
-            onClick={() => handleControl("refresh")}
+            disabled={state.isControlling() || props.folder.match_status === "matching"}
+            onClick={() => state.handleControl("refresh")}
             class="justify-start"
           >
-            <IconRefresh class={cn("mr-2 h-4 w-4", isControlling() && "animate-spin")} />
+            <IconRefresh class={cn("mr-2 h-4 w-4", state.isControlling() && "animate-spin")} />
             Refresh
           </Button>
           <Button
             size="sm"
             variant="outline"
-            disabled={isControlling() || props.folder.match_status === "matching"}
-            onClick={() => setResetConfirmOpen(true)}
+            disabled={state.isControlling() || props.folder.match_status === "matching"}
+            onClick={() => state.setResetConfirmOpen(true)}
             class="justify-start"
           >
             <IconTrash class="mr-2 h-4 w-4" />
@@ -386,7 +265,7 @@ export function FolderItem(props: { folder: UnmappedFolder }) {
           </Button>
         </div>
 
-        <AlertDialog open={resetConfirmOpen()} onOpenChange={setResetConfirmOpen}>
+        <AlertDialog open={state.resetConfirmOpen()} onOpenChange={state.setResetConfirmOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Reset match for {props.folder.name}?</AlertDialogTitle>
@@ -400,8 +279,8 @@ export function FolderItem(props: { folder: UnmappedFolder }) {
               <AlertDialogAction
                 class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 onClick={() => {
-                  handleControl("reset");
-                  setResetConfirmOpen(false);
+                  state.handleControl("reset");
+                  state.setResetConfirmOpen(false);
                 }}
               >
                 Reset match
@@ -410,7 +289,7 @@ export function FolderItem(props: { folder: UnmappedFolder }) {
           </AlertDialogContent>
         </AlertDialog>
 
-        <Dialog open={manualDialogOpen()} onOpenChange={setManualDialogOpen}>
+        <Dialog open={state.manualDialogOpen()} onOpenChange={state.setManualDialogOpen}>
           <DialogTrigger as={Button} variant="ghost" size="sm" class="justify-start">
             <IconSearch class="mr-2 h-4 w-4" />
             Change match
@@ -425,8 +304,8 @@ export function FolderItem(props: { folder: UnmappedFolder }) {
             </DialogHeader>
             <ManualMatchSearch
               onSelect={(anime) => {
-                setManualMatch(anime);
-                setManualDialogOpen(false);
+                state.setManualMatch(anime);
+                state.setManualDialogOpen(false);
               }}
             />
           </DialogContent>
@@ -434,16 +313,16 @@ export function FolderItem(props: { folder: UnmappedFolder }) {
 
         <Button
           size="sm"
-          disabled={!selectedAnime() || isImporting()}
-          onClick={() => void handleImport()}
+          disabled={!state.selectedAnime() || state.isImporting()}
+          onClick={() => void state.handleImport()}
           class="justify-start"
         >
           <Show
-            when={isImporting()}
+            when={state.isImporting()}
             fallback={
               <>
                 <IconCheck class="mr-2 h-4 w-4" />
-                {importLabel()}
+                {state.importLabel()}
               </>
             }
           >
@@ -454,103 +333,4 @@ export function FolderItem(props: { folder: UnmappedFolder }) {
       </div>
     </div>
   );
-}
-
-function folderStatusLabel(folder: UnmappedFolder) {
-  switch (folder.match_status) {
-    case "matching":
-      return "Matching";
-    case "paused":
-      return "Paused";
-    case "done":
-      return folder.suggested_matches.length > 0 ? "Matched" : "No match";
-    case "failed":
-      return hasAutomaticRetryRemaining(folder) ? "Retrying soon" : "Needs review";
-    case "pending":
-    default:
-      return "Queued";
-  }
-}
-
-function folderMatchHint(folder: UnmappedFolder) {
-  switch (folder.match_status) {
-    case "matching":
-      return "Searching AniList in the background now.";
-    case "paused":
-      return "Automatic matching is paused for this folder. Start it again or refresh when you are ready.";
-    case "failed":
-      return hasAutomaticRetryRemaining(folder)
-        ? folder.last_match_error
-          ? `Last attempt failed: ${folder.last_match_error}. Another background pass is queued.`
-          : "The last attempt failed. Another background pass is queued."
-        : folder.last_match_error
-          ? `Automatic matching stopped after ${MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS} failed attempts: ${folder.last_match_error}`
-          : `Automatic matching stopped after ${MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS} failed attempts.`;
-    case "done":
-      return folder.suggested_matches.length > 0
-        ? "Automatic suggestions are ready. You can import immediately or change the match."
-        : "No automatic match was found in the latest background pass. Search manually to continue.";
-    case "pending":
-    default:
-      return "Queued for the next background match pass. Folders are processed one by one.";
-  }
-}
-
-function emptyMatchMessage(folder: UnmappedFolder) {
-  switch (folder.match_status) {
-    case "matching":
-      return "Matching in background...";
-    case "paused":
-      return "Automatic matching is paused for this folder.";
-    case "failed":
-      return hasAutomaticRetryRemaining(folder)
-        ? "Automatic match failed for now. Another retry is queued."
-        : "Automatic matching is paused. Search for an anime to import.";
-    case "pending":
-      return "Queued for the next background match pass. Search for an anime to import now, or wait for suggestions.";
-    case "done":
-    default:
-      return "No automatic match yet. Search for an anime to import.";
-  }
-}
-
-function hasAutomaticRetryRemaining(folder: UnmappedFolder) {
-  return (
-    folder.match_status === "failed" &&
-    (folder.match_attempts ?? 0) < MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS
-  );
-}
-
-function normalizeApiErrorMessage(message: string) {
-  const trimmed = message.trim();
-
-  if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
-    try {
-      const parsed: unknown = JSON.parse(trimmed);
-      if (parsed && typeof parsed === "object") {
-        const maybeError = "error" in parsed ? parsed.error : undefined;
-        if (typeof maybeError === "string" && maybeError.trim()) {
-          return maybeError;
-        }
-        const maybeMessage = "message" in parsed ? parsed.message : undefined;
-        if (typeof maybeMessage === "string" && maybeMessage.trim()) {
-          return maybeMessage;
-        }
-      }
-      return trimmed;
-    } catch {
-      return trimmed;
-    }
-  }
-
-  return trimmed;
-}
-
-function formatConfidencePercent(value?: number) {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return "Unknown";
-  }
-
-  const clamped = Math.max(0, Math.min(1, value));
-  return `${Math.round(clamped * 100)}%`;
 }

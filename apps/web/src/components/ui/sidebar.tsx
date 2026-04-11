@@ -1,12 +1,12 @@
 import type { Accessor, Component, ComponentProps, JSX } from "solid-js";
 import {
   createContext,
-  createEffect,
   createMemo,
   createSignal,
   Match,
   mergeProps,
   onCleanup,
+  onMount,
   Show,
   splitProps,
   Switch,
@@ -63,7 +63,7 @@ function useSidebar() {
 export function useIsMobile(fallback = false) {
   const [isMobile, setIsMobile] = createSignal(fallback);
 
-  createEffect(() => {
+  onMount(() => {
     const mql = globalThis.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
     const onChange = (e: MediaQueryListEvent | MediaQueryList) => {
       setIsMobile(e.matches);
@@ -117,7 +117,7 @@ const SidebarProvider: Component<SidebarProviderProps> = (rawProps) => {
   };
 
   // Adds a keyboard shortcut to toggle the sidebar.
-  createEffect(() => {
+  onMount(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === SIDEBAR_KEYBOARD_SHORTCUT && (event.metaKey || event.ctrlKey)) {
         event.preventDefault();

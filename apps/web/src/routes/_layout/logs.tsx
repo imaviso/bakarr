@@ -1,9 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/solid-router";
 import { GeneralError } from "~/components/general-error";
+import { useLogsRouteState } from "~/features/logs/logs-route-state";
+import { parseLogsSearch } from "~/features/logs/logs-search";
+import { LogsView } from "~/features/logs/logs-view";
 import { infiniteLogsQueryOptions } from "~/lib/api";
-import { useLogsRouteState } from "~/routes/_layout/logs-route-state";
-import { parseLogsSearch } from "~/routes/_layout/logs-search";
-import { LogsView } from "~/routes/_layout/logs-view";
 
 export const Route = createFileRoute("/_layout/logs")({
   validateSearch: parseLogsSearch,

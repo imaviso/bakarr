@@ -32,6 +32,7 @@ import {
 } from "~/components/ui/text-field";
 import { createChangePasswordMutation, createRegenerateApiKeyMutation } from "~/lib/api";
 import { useAuth } from "~/lib/auth";
+import { copyToClipboard } from "~/lib/utils";
 
 const ChangePasswordSchema = v.object({
   currentPassword: v.pipe(v.string(), v.minLength(1, "Current password is required")),
@@ -103,8 +104,13 @@ export function AccountSettingsForm() {
       return;
     }
 
-    await navigator.clipboard.writeText(key);
-    toast.success("API key copied to clipboard");
+    const copied = await copyToClipboard(key);
+    if (copied) {
+      toast.success("API key copied to clipboard");
+      return;
+    }
+
+    toast.error("Failed to copy API key");
   };
 
   return (

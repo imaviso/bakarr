@@ -1,13 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/solid-router";
 import { GeneralError } from "~/components/general-error";
-import { downloadHistoryQueryOptions } from "~/lib/api";
 import {
   normalizeDownloadsSearch,
   parseDownloadsSearch,
   type DownloadsSearchPatch,
-} from "./downloads-search";
-import { useDownloadsRouteState } from "./downloads-route-state";
-import { DownloadsView } from "./downloads-view";
+} from "~/features/downloads/downloads-search";
+import { useDownloadsRouteState } from "~/features/downloads/downloads-route-state";
+import { DownloadsView } from "~/features/downloads/downloads-view";
+import { downloadHistoryQueryOptions } from "~/lib/api";
 
 export const Route = createFileRoute("/_layout/downloads")({
   validateSearch: parseDownloadsSearch,

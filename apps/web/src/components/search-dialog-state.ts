@@ -1,17 +1,9 @@
-import { createEffect, createMemo, createSignal, onCleanup } from "solid-js";
+import { createEffect, createMemo, createSignal, on, onCleanup, type Accessor } from "solid-js";
 import { createGrabReleaseMutation, createNyaaSearchQuery, type NyaaSearchResult } from "~/lib/api";
-import {
-  formatReleaseParsedSummary,
-  formatReleaseSourceSummary,
-  getReleaseFlags,
-} from "~/lib/release-metadata";
-import {
-  formatSelectionSummary,
-  getReleaseConfidence,
-  selectionKindLabel,
-} from "~/lib/release-selection";
 import { createDebouncer } from "~/lib/debounce";
-import { buildGrabInputFromNyaaResult, selectionMetadataFromNyaaResult } from "~/lib/release-grab";
+import { buildReleaseDisplay, buildSelectionDisplayFromNyaaResult } from "~/lib/release-display";
+import { getReleaseConfidence } from "~/lib/release-selection";
+import { buildGrabInputFromNyaaResult } from "~/lib/release-grab";
 
 export const CATEGORY_LABELS: Record<string, string> = {
   anime_english: "Anime (English)",
@@ -41,10 +33,10 @@ export function formatSearchResultAge(dateStr: string) {
   });
 }
 
-export function useSearchDialogState(defaultQuery: string) {
+export function useSearchDialogState(defaultQuery: Accessor<string>) {
   const [open, setOpen] = createSignal(false);
-  const [query, setQuery] = createSignal(defaultQuery);
-  const [debouncedQuery, setDebouncedQuery] = createSignal(defaultQuery);
+  const [query, setQuery] = createSignal(defaultQuery());
+  const [debouncedQuery, setDebouncedQuery] = createSignal(defaultQuery());
   const [category, setCategory] = createSignal<string>("all_anime");
   const [filter, setFilter] = createSignal<string>("no_filter");
   const debouncer = createDebouncer(setDebouncedQuery, 500);
@@ -55,14 +47,17 @@ export function useSearchDialogState(defaultQuery: string) {
 
   onCleanup(() => debouncer.cancel());
 
-  createEffect(() => {
-    if (!open()) {
-      return;
-    }
+  createEffect(
+    on(open, (isOpen) => {
+      if (!isOpen) {
+        return;
+      }
 
-    setQuery(defaultQuery);
-    setDebouncedQuery(defaultQuery);
-  });
+      const nextQuery = defaultQuery();
+      setQuery(nextQuery);
+      setDebouncedQuery(nextQuery);
+    }),
+  );
 
   return {
     category,
@@ -160,7 +155,22 @@ export function useSearchDialogReleaseRowState(input: {
   const [isBatch, setIsBatch] = createSignal(detectedIsBatch);
   const [popoverOpen, setPopoverOpen] = createSignal(false);
 
-  const selectionMetadata = createMemo(() => selectionMetadataFromNyaaResult(input.result));
+  const selectionDisplay = createMemo(() => buildSelectionDisplayFromNyaaResult(input.result));
+  const releaseDisplay = createMemo(() =>
+    buildReleaseDisplay({
+      group: input.result.parsed_group,
+      indexer: input.result.indexer,
+      is_seadex: input.result.is_seadex,
+      is_seadex_best: input.result.is_seadex_best,
+      parsed_air_date: input.result.parsed_air_date,
+      parsed_episode_label: input.result.parsed_episode_label,
+      quality: input.result.parsed_quality,
+      remake: input.result.remake,
+      resolution: input.result.parsed_resolution,
+      seadex_dual_audio: input.result.seadex_dual_audio,
+      trusted: input.result.trusted,
+    }),
+  );
   const grabPayload = createMemo(() => {
     const parsedEpisodeNumber = parseFloat(episodeNumberInput());
     const episodeNumber = Number.isFinite(parsedEpisodeNumber) ? parsedEpisodeNumber : undefined;
@@ -172,24 +182,13 @@ export function useSearchDialogReleaseRowState(input: {
       result: input.result,
     });
   });
-  const selectionSummary = createMemo(() => formatSelectionSummary(selectionMetadata()));
-  const selectionLabel = createMemo(() => selectionKindLabel(selectionMetadata().selection_kind));
-  const releaseConfidence = createMemo(() => getReleaseConfidence(input.result));
-  const releaseFlags = createMemo(() => getReleaseFlags(input.result));
-  const releaseSourceSummary = createMemo(() =>
-    formatReleaseSourceSummary({
-      group: input.result.parsed_group,
-      indexer: input.result.indexer,
-      quality: input.result.parsed_quality,
-      resolution: input.result.parsed_resolution,
-    }),
-  );
-  const releaseParsedSummary = createMemo(() =>
-    formatReleaseParsedSummary({
-      parsed_air_date: input.result.parsed_air_date,
-      parsed_episode_label: input.result.parsed_episode_label,
-    }),
-  );
+  const selectionMetadata = createMemo(() => selectionDisplay().metadata);
+  const selectionSummary = createMemo(() => selectionDisplay().summary);
+  const selectionLabel = createMemo(() => selectionDisplay().label);
+  const releaseConfidence = createMemo(() => getReleaseConfidence(releaseDisplay().confidence));
+  const releaseFlags = createMemo(() => releaseDisplay().flags);
+  const releaseSourceSummary = createMemo(() => releaseDisplay().sourceSummary);
+  const releaseParsedSummary = createMemo(() => releaseDisplay().parsedSummary);
 
   const handleGrab = () => {
     grabMutation.mutate(grabPayload(), {

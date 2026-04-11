@@ -35,6 +35,7 @@ interface SystemLogsTableProps {
 
 export function SystemLogsTable(props: SystemLogsTableProps) {
   let logsScrollRef: HTMLDivElement | undefined;
+  let lastRequestedLength = -1;
 
   const rowVirtualizer = createVirtualizer({
     get count() {
@@ -57,17 +58,24 @@ export function SystemLogsTable(props: SystemLogsTableProps) {
   });
 
   createEffect(() => {
+    if (!props.hasNextPage) {
+      lastRequestedLength = -1;
+      return;
+    }
+
     const items = rowVirtualizer.getVirtualItems();
     if (items.length === 0) return;
     const lastItem = items[items.length - 1];
     if (!lastItem) {
       return;
     }
+
     if (
       lastItem.index >= props.logs.length - 20 &&
-      props.hasNextPage &&
+      lastRequestedLength !== props.logs.length &&
       !props.isFetchingNextPage
     ) {
+      lastRequestedLength = props.logs.length;
       props.onFetchNextPage();
     }
   });

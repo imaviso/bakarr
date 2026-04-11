@@ -3,12 +3,12 @@ import { DownloadEventsFeed } from "~/components/download-events/download-events
 import { DownloadEventsFilters } from "~/components/download-events/download-events-filters";
 import { Button } from "~/components/ui/button";
 import { TabsContent } from "~/components/ui/tabs";
-import { type DownloadEventsExportResult } from "~/lib/api";
-import { formatUiTimestamp } from "~/lib/date-time";
 import type {
   DownloadsEventsQuery,
   DownloadsEventsSearchState,
-} from "~/routes/_layout/downloads-view-types";
+} from "~/features/downloads/downloads-view-types";
+import { type DownloadEventsExportResult } from "~/lib/api";
+import { formatUiTimestamp } from "~/lib/date-time";
 
 interface DownloadsEventsTabProps {
   downloadEventsQuery: DownloadsEventsQuery;

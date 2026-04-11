@@ -11,7 +11,7 @@ import {
   TableRow,
 } from "~/components/ui/table";
 import { TabsContent } from "~/components/ui/tabs";
-import type { DownloadsHistoryQuery } from "~/routes/_layout/downloads-view-types";
+import type { DownloadsHistoryQuery } from "~/features/downloads/downloads-view-types";
 import type { Download } from "~/lib/api";
 
 interface DownloadsHistoryTabProps {

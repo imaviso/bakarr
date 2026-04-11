@@ -6,7 +6,6 @@ import {
   IconSettings,
 } from "@tabler/icons-solidjs";
 import { createFileRoute } from "@tanstack/solid-router";
-import { createSignal } from "solid-js";
 import { GeneralError } from "~/components/general-error";
 import { PageHeader } from "~/components/page-header";
 import { AccountSettingsForm } from "~/components/settings/account-settings-form";
@@ -36,20 +35,13 @@ export const Route = createFileRoute("/_layout/settings")({
 });
 
 function SettingsPage() {
-  const [activeTab, setActiveTab] = createSignal("general");
-
   return (
     <div class="space-y-6">
       <PageHeader title="Settings">
         <SystemStatus />
       </PageHeader>
 
-      <Tabs
-        defaultValue="general"
-        value={activeTab()}
-        onChange={setActiveTab}
-        class="w-full space-y-6"
-      >
+      <Tabs defaultValue="general" class="w-full space-y-6">
         <TabsList class="w-full justify-start border-b rounded-none p-0 h-auto bg-transparent mb-6 overflow-x-auto [-webkit-mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)] [mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)] sm:[-webkit-mask-image:none] sm:[mask-image:none]">
           <TabsTrigger
             value="general"

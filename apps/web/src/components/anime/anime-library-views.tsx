@@ -29,8 +29,7 @@ interface AnimeLibraryViewProps {
   deleteAnime: ReturnType<typeof createDeleteAnimeMutation>;
 }
 
-function getColCount() {
-  const w = globalThis.innerWidth;
+function getColCount(w: number) {
   if (w >= 1536) return 6;
   if (w >= 1280) return 5;
   if (w >= 1024) return 4;
@@ -80,21 +79,23 @@ function statusTone(anime: Anime) {
 
 export function AnimeGridView(props: AnimeLibraryViewProps) {
   let scrollRef: HTMLDivElement | undefined;
-  const [colCount, setColCount] = createSignal(getColCount());
-  const [viewportWidth, setViewportWidth] = createSignal(globalThis.innerWidth);
+  const [viewportWidth, setViewportWidth] = createSignal(
+    typeof window === "undefined" ? 1280 : window.innerWidth,
+  );
+  const colCount = createMemo(() => getColCount(viewportWidth()));
 
   onMount(() => {
     let rafId: number;
     const handler = () => {
       cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(() => {
-        setViewportWidth(globalThis.innerWidth);
-        setColCount(getColCount());
+        setViewportWidth(window.innerWidth);
       });
     };
-    globalThis.addEventListener("resize", handler);
+    handler();
+    window.addEventListener("resize", handler);
     onCleanup(() => {
-      globalThis.removeEventListener("resize", handler);
+      window.removeEventListener("resize", handler);
       cancelAnimationFrame(rafId);
     });
   });

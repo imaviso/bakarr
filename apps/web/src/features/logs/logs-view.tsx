@@ -15,6 +15,8 @@ import { DownloadEventsFilters } from "~/components/download-events/download-eve
 import { Filter } from "~/components/filters";
 import { PageHeader } from "~/components/page-header";
 import { DownloadEventDetailsDialog } from "~/components/download-event-details-dialog";
+import { logsFilterColumns } from "~/features/logs/logs-filter-config";
+import { formatLogTimestamp, type useLogsRouteState } from "~/features/logs/logs-route-state";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,8 +39,6 @@ import {
 import { Skeleton } from "~/components/ui/skeleton";
 import { Switch } from "~/components/ui/switch";
 import { cn } from "~/lib/utils";
-import { formatLogTimestamp, type useLogsRouteState } from "~/routes/_layout/logs-route-state";
-import { logsFilterColumns } from "~/routes/_layout/logs-filter-config";
 
 type LogsRouteState = ReturnType<typeof useLogsRouteState>;
 

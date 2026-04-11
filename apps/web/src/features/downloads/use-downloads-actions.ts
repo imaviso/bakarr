@@ -11,8 +11,8 @@ import {
   DOWNLOADS_EVENTS_SEARCH_KEYS,
 } from "~/lib/download-events-search";
 import { runDownloadEventsExport } from "~/lib/download-events-export";
-import { toDownloadsTab } from "~/routes/_layout/downloads-search";
-import type { DownloadsSearchPatch } from "~/routes/_layout/downloads-search";
+import { toDownloadsTab } from "~/features/downloads/downloads-search";
+import type { DownloadsSearchPatch } from "~/features/downloads/downloads-search";
 
 interface UseDownloadsActionsOptions {
   updateSearch: (patch: DownloadsSearchPatch) => void;

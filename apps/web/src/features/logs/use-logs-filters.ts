@@ -1,6 +1,6 @@
 import { createMemo, type Accessor } from "solid-js";
 import type { FilterState } from "~/components/filters";
-import { parseLogsSearch, type LogsSearchState } from "~/routes/_layout/logs-search";
+import { parseLogsSearch, type LogsSearchState } from "~/features/logs/logs-search";
 
 interface UseLogsFiltersOptions {
   search: Accessor<Record<string, string | undefined>>;

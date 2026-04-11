@@ -1,8 +1,8 @@
 import type { Accessor } from "solid-js";
+import { useLogsActions } from "~/features/logs/use-logs-actions";
+import { useLogsFilters } from "~/features/logs/use-logs-filters";
+import { useLogsQueries } from "~/features/logs/use-logs-queries";
 import { formatUiTimestamp } from "~/lib/date-time";
-import { useLogsActions } from "~/routes/_layout/use-logs-actions";
-import { useLogsFilters } from "~/routes/_layout/use-logs-filters";
-import { useLogsQueries } from "~/routes/_layout/use-logs-queries";
 
 export function formatLogTimestamp(createdAt: string): string {
   return formatUiTimestamp(createdAt);

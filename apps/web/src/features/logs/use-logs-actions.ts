@@ -8,7 +8,7 @@ import {
 } from "~/lib/download-events-search";
 import { runDownloadEventsExport } from "~/lib/download-events-export";
 import type { DownloadEventsExportInput } from "~/lib/api";
-import type { LogsFilterParams } from "~/routes/_layout/use-logs-filters";
+import type { LogsFilterParams } from "~/features/logs/use-logs-filters";
 
 interface UseLogsActionsOptions {
   logsParams: Accessor<LogsFilterParams>;

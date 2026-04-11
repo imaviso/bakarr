@@ -56,6 +56,14 @@ function LibraryScanPage() {
   >(null);
 
   const folders = createMemo<UnmappedFolder[]>(() => scanState.data?.folders ?? []);
+  const foldersByPath = createMemo(() => {
+    const lookup = new Map<string, UnmappedFolder>();
+    for (const folder of folders()) {
+      lookup.set(folder.path, folder);
+    }
+    return lookup;
+  });
+  const folderPaths = createMemo(() => folders().map((folder) => folder.path));
 
   const isScanning = () => scanState.data?.is_scanning;
   const hasOutstandingMatches = () => scanState.data?.has_outstanding_matches;
@@ -307,12 +315,20 @@ function LibraryScanPage() {
                   />
                 </Show>
                 <ul role="list" class="space-y-3">
-                  <For each={folders()}>
-                    {(folder) => (
-                      <li>
-                        <FolderItem folder={folder} />
-                      </li>
-                    )}
+                  <For each={folderPaths()}>
+                    {(path) => {
+                      const folder = () => foldersByPath().get(path);
+
+                      return (
+                        <Show when={folder()}>
+                          {(resolvedFolder) => (
+                            <li>
+                              <FolderItem folder={resolvedFolder()} />
+                            </li>
+                          )}
+                        </Show>
+                      );
+                    }}
                   </For>
                 </ul>
               </div>

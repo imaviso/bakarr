@@ -1,7 +1,10 @@
 import type { Accessor } from "solid-js";
-import { useDownloadsActions } from "~/routes/_layout/use-downloads-actions";
-import { useDownloadsQueries } from "~/routes/_layout/use-downloads-queries";
-import type { DownloadsSearchPatch, DownloadsSearchState } from "~/routes/_layout/downloads-search";
+import { useDownloadsActions } from "~/features/downloads/use-downloads-actions";
+import { useDownloadsQueries } from "~/features/downloads/use-downloads-queries";
+import type {
+  DownloadsSearchPatch,
+  DownloadsSearchState,
+} from "~/features/downloads/downloads-search";
 
 interface UseDownloadsRouteStateOptions {
   search: Accessor<DownloadsSearchState>;

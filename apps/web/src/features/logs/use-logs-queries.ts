@@ -8,7 +8,7 @@ import {
 } from "~/lib/api";
 import { LOGS_DOWNLOAD_EVENTS_SEARCH_KEYS } from "~/lib/download-events-search";
 import { useDownloadEventsSearchState } from "~/hooks/use-download-events-search-state";
-import type { LogsFilterParams } from "~/routes/_layout/use-logs-filters";
+import type { LogsFilterParams } from "~/features/logs/use-logs-filters";
 
 interface UseLogsQueriesOptions {
   logsParams: Accessor<LogsFilterParams>;

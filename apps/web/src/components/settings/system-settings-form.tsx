@@ -1,4 +1,4 @@
-import { createSignal, Show } from "solid-js";
+import { Show } from "solid-js";
 import { toast } from "solid-sonner";
 import { SystemSettingsAutomationSections } from "~/components/settings/system-settings-automation-sections";
 import { createSystemSettingsForm } from "~/components/settings/system-settings-form-factory";
@@ -19,26 +19,19 @@ import {
 export function GeneralSettingsForm(props: { mode: ConfigSettingsMode }) {
   const configQuery = createSystemConfigQuery();
   const updateConfig = createUpdateSystemConfigMutation();
-  const [hasLoaded, setHasLoaded] = createSignal(false);
 
   return (
-    <Show when={configQuery.data || hasLoaded()} fallback={<Skeleton class="h-96 rounded-lg" />}>
-      <div
-        ref={() => {
-          if (configQuery.data) {
-            setHasLoaded(true);
-          }
-        }}
-      >
+    <Show when={configQuery.data} fallback={<Skeleton class="h-96 rounded-lg" />}>
+      {(config) => (
         <SystemForm
           mode={props.mode}
-          defaultValues={configQuery.data!}
+          defaultValues={config()}
           onSubmit={async (values) => {
             await updateConfig.mutateAsync(values);
           }}
           isSaving={updateConfig.isPending}
         />
-      </div>
+      )}
     </Show>
   );
 }

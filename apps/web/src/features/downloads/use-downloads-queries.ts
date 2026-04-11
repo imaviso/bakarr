@@ -1,9 +1,12 @@
 import { createMemo, type Accessor } from "solid-js";
 import { useDownloadEventsSearchState } from "~/hooks/use-download-events-search-state";
 import { useActiveDownloads } from "~/hooks/use-active-downloads";
+import type {
+  DownloadsSearchPatch,
+  DownloadsSearchState,
+} from "~/features/downloads/downloads-search";
 import { createDownloadEventsQuery, createDownloadHistoryQuery } from "~/lib/api";
 import { DOWNLOADS_EVENTS_SEARCH_KEYS } from "~/lib/download-events-search";
-import type { DownloadsSearchPatch, DownloadsSearchState } from "~/routes/_layout/downloads-search";
 
 interface UseDownloadsQueriesOptions {
   search: Accessor<DownloadsSearchState>;
