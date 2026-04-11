@@ -1,4 +1,3 @@
-import type { Accessor } from "solid-js";
 import { SystemSettingsAutomationDownloadClientSection } from "~/components/settings/system-settings-automation-download-client-section";
 import { SystemSettingsAutomationDownloadDefaultsSection } from "~/components/settings/system-settings-automation-download-defaults-section";
 import { SystemSettingsAutomationIndexerSection } from "~/components/settings/system-settings-automation-indexer-section";
@@ -13,7 +12,7 @@ interface SystemSettingsAutomationSectionsProps {
   onTriggerMetadataRefresh: () => void;
   onTriggerRss: () => void;
   onTriggerScan: () => void;
-  systemStatus: Accessor<SystemStatus | undefined>;
+  systemStatus: SystemStatus | undefined;
   triggerMetadataRefreshPending: boolean;
   triggerRssPending: boolean;
   triggerScanPending: boolean;

@@ -69,7 +69,7 @@ export interface DownloadsViewState {
   history: Accessor<Download[]>;
   historyQuery: DownloadsHistoryQuery;
   lastDownloadEventsExport: Accessor<DownloadEventsExportResult | undefined>;
-  queue: DownloadStatus[];
+  queue: Accessor<DownloadStatus[]>;
   queueCount: Accessor<number>;
   searchMissing: DownloadsMutationLike;
   triggerSearchMissing: () => void;

@@ -24,7 +24,7 @@ export function useDownloadsQueries(options: UseDownloadsQueriesOptions) {
   const historyQuery = createDownloadHistoryQuery();
   const downloadEventsQuery = createDownloadEventsQuery(eventsSearchState.queryInput);
 
-  const queueCount = createMemo(() => queue.length);
+  const queueCount = createMemo(() => queue().length);
   const history = createMemo(() => historyQuery.data ?? []);
   const canGoToPreviousEventsPage = createMemo(() =>
     Boolean(downloadEventsQuery.data?.prev_cursor),

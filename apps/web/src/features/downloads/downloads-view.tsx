@@ -93,7 +93,7 @@ export function DownloadsView(props: DownloadsViewProps) {
             </TabsList>
           </div>
 
-          <DownloadsQueueTab queue={props.state.queue} />
+          <DownloadsQueueTab queue={props.state.queue()} />
 
           <DownloadsEventsTab
             downloadEventsQuery={props.state.downloadEventsQuery}

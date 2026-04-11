@@ -1,4 +1,3 @@
-import type { Accessor } from "solid-js";
 import { Show } from "solid-js";
 import { FiniteNumberInput, SettingRow, SettingSection } from "~/components/settings/form-controls";
 import type { SettingsFormApi } from "~/components/settings/system-settings-form-factory";
@@ -9,7 +8,7 @@ import type { SystemStatus } from "~/lib/api";
 
 interface SystemSettingsAutomationMetadataSectionProps {
   form: SettingsFormApi;
-  systemStatus: Accessor<SystemStatus | undefined>;
+  systemStatus: SystemStatus | undefined;
 }
 
 export function SystemSettingsAutomationMetadataSection(
@@ -18,7 +17,7 @@ export function SystemSettingsAutomationMetadataSection(
   return (
     <SettingSection title="Metadata Providers">
       <SettingRow label="AniDB Runtime Status" description="Live status from /api/system/status">
-        <Show when={props.systemStatus()} fallback={<Badge variant="outline">Unknown</Badge>}>
+        <Show when={props.systemStatus} fallback={<Badge variant="outline">Unknown</Badge>}>
           {(status) => (
             <Badge variant={status().metadata_providers.anidb.enabled ? "secondary" : "outline"}>
               {status().metadata_providers.anidb.enabled

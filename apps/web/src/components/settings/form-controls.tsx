@@ -107,7 +107,9 @@ export function SizeInput(props: {
           <SelectContent />
         </Select>
       </div>
-      {props.error && <div class="text-[0.8rem] text-destructive">{props.error}</div>}
+      <Show when={props.error}>
+        <div class="text-[0.8rem] text-destructive">{props.error}</div>
+      </Show>
     </div>
   );
 }

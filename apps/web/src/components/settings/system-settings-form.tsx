@@ -84,7 +84,7 @@ function SystemForm(props: {
       <Show when={showsAutomation()}>
         <SystemSettingsAutomationSections
           form={form}
-          systemStatus={() => systemStatus.data}
+          systemStatus={systemStatus.data}
           onTriggerScan={handleTriggerScan}
           onTriggerRss={handleTriggerRss}
           onTriggerMetadataRefresh={handleTriggerMetadataRefresh}

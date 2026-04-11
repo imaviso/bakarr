@@ -1,4 +1,4 @@
-import { createEffect, createSignal } from "solid-js";
+import { createEffect, createSignal, on } from "solid-js";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import {
@@ -24,12 +24,17 @@ export function EditPathDialog(props: EditPathDialogProps) {
   const [path, setPath] = createSignal(props.currentPath);
   const [rescan, setRescan] = createSignal(true);
 
-  createEffect(() => {
-    if (props.open) {
-      setPath(props.currentPath);
-      setRescan(true);
-    }
-  });
+  createEffect(
+    on(
+      () => props.open,
+      (isOpen) => {
+        if (isOpen) {
+          setPath(props.currentPath);
+          setRescan(true);
+        }
+      },
+    ),
+  );
 
   const handleSubmit = (event: Event) => {
     event.preventDefault();

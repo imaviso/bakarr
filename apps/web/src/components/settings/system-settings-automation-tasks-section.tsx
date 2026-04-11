@@ -1,4 +1,3 @@
-import type { Accessor } from "solid-js";
 import { SettingRow, SettingSection } from "~/components/settings/form-controls";
 import { formatLastRun } from "~/components/settings/system-settings-schema";
 import { Button } from "~/components/ui/button";
@@ -8,7 +7,7 @@ interface SystemSettingsAutomationTasksSectionProps {
   onTriggerMetadataRefresh: () => void;
   onTriggerRss: () => void;
   onTriggerScan: () => void;
-  systemStatus: Accessor<SystemStatus | undefined>;
+  systemStatus: SystemStatus | undefined;
   triggerMetadataRefreshPending: boolean;
   triggerRssPending: boolean;
   triggerScanPending: boolean;
@@ -21,7 +20,7 @@ export function SystemSettingsAutomationTasksSection(
     <SettingSection title="Tasks">
       <SettingRow
         label="Library Scan"
-        description={`Last run: ${formatLastRun(props.systemStatus()?.last_scan)}`}
+        description={`Last run: ${formatLastRun(props.systemStatus?.last_scan)}`}
       >
         <Button
           type="button"
@@ -36,7 +35,7 @@ export function SystemSettingsAutomationTasksSection(
 
       <SettingRow
         label="RSS Check"
-        description={`Last run: ${formatLastRun(props.systemStatus()?.last_rss)}`}
+        description={`Last run: ${formatLastRun(props.systemStatus?.last_rss)}`}
       >
         <Button
           type="button"

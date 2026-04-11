@@ -608,7 +608,9 @@ const SidebarMenuSkeleton: Component<SidebarMenuSkeletonProps> = (rawProps) => {
       class={cn("flex h-8 items-center gap-2 rounded-none px-2", local.class)}
       {...others}
     >
-      {local.showIcon && <Skeleton class="size-4 rounded-none" data-sidebar="menu-skeleton-icon" />}
+      <Show when={local.showIcon}>
+        <Skeleton class="size-4 rounded-none" data-sidebar="menu-skeleton-icon" />
+      </Show>
       <Skeleton
         class="max-w-[var(--skeleton-width)] h-4 flex-1"
         data-sidebar="menu-skeleton-text"
