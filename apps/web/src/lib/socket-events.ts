@@ -141,13 +141,22 @@ function connectWebSocket(
   onError: () => void,
   onClose: () => void,
 ): WebSocket {
+  const textDecoder = new TextDecoder();
   const socket = new WebSocket(buildWebSocketUrl());
+  socket.binaryType = "arraybuffer";
   socket.addEventListener("message", (event) => {
-    if (typeof event.data !== "string") {
+    const payload =
+      typeof event.data === "string"
+        ? event.data
+        : event.data instanceof ArrayBuffer
+          ? textDecoder.decode(new Uint8Array(event.data))
+          : undefined;
+
+    if (payload === undefined) {
       return;
     }
 
-    onEvent(toMessageEvent(event.data));
+    onEvent(toMessageEvent(payload));
   });
   socket.addEventListener("close", onClose);
   socket.addEventListener("error", onError);

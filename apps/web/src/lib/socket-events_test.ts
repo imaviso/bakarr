@@ -170,6 +170,34 @@ it("shared socket hub uses a single WebSocket for subscribers", () => {
   setWebSocketGlobal(originalWebSocket);
 });
 
+it("shared socket hub decodes binary websocket frames", () => {
+  WebSocketStub.instances = [];
+  setWebSocketGlobal(WebSocketStub);
+
+  const received: string[] = [];
+  const unsubscribe = subscribeSharedSocket({
+    onMessage: (event) => {
+      received.push(event.data);
+    },
+  });
+
+  setSharedSocketAuthenticated(true);
+
+  const socket = WebSocketStub.instances[0];
+  if (!socket) {
+    throw new Error("Expected shared socket instance");
+  }
+
+  const encoded = new TextEncoder().encode('{"type":"Info","payload":{"message":"hello"}}');
+  socket.emit("message", { data: encoded.buffer });
+
+  assertEquals(received.length, 1);
+  assertEquals(received[0], '{"type":"Info","payload":{"message":"hello"}}');
+
+  unsubscribe();
+  setWebSocketGlobal(originalWebSocket);
+});
+
 it("shared socket hub notifies subscriber error listeners on socket error", () => {
   WebSocketStub.instances = [];
   setWebSocketGlobal(WebSocketStub);
