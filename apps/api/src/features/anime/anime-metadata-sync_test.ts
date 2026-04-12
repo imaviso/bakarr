@@ -6,6 +6,7 @@ import type { AppDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
 import { anime } from "@/db/schema.ts";
 import type { AnimeMetadata } from "@/features/anime/anilist-model.ts";
+import { ImageCacheError } from "@/features/anime/anime-image-cache-service.ts";
 import { syncAnimeMetadataEffect } from "@/features/anime/anime-metadata-sync.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 
@@ -90,7 +91,14 @@ it.scoped("syncAnimeMetadataEffect keeps existing image paths if caching fails",
 
         const result = yield* syncAnimeMetadataEffect({
           imageCacheService: {
-            cacheMetadataImages: () => Effect.fail({ _tag: "CacheFailed" } as const),
+            cacheMetadataImages: () =>
+              Effect.fail(
+                new ImageCacheError({
+                  animeId,
+                  cause: new Error("cache failed"),
+                  message: "Failed to cache anime metadata images",
+                }),
+              ),
           },
           metadataProvider: {
             getAnimeMetadataById: () =>

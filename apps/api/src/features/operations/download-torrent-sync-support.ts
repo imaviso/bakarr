@@ -1,7 +1,7 @@
 import { eq, inArray } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type { DownloadSourceMetadata } from "@packages/shared/index.ts";
+import type { Config, DownloadSourceMetadata } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import { downloads } from "@/db/schema.ts";
 import { shouldReconcileCompletedDownloads } from "@/features/operations/download-support.ts";
@@ -12,32 +12,27 @@ import {
 } from "@/features/operations/download-coverage.ts";
 import { decodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
 import { recordDownloadEvent } from "@/features/operations/job-support.ts";
+import type { OperationsError } from "@/features/operations/errors.ts";
 import type { ExternalCallError } from "@/lib/effect-retry.ts";
 import { mapQBitState } from "@/features/operations/download-orchestration-shared.ts";
 import type { DownloadTorrentActionSupportInput } from "@/features/operations/download-torrent-action-support.ts";
 import { type RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 
 export interface DownloadTorrentSyncSupportInput extends DownloadTorrentActionSupportInput {
-  readonly getRuntimeConfig: () => Effect.Effect<
-    import("@packages/shared/index.ts").Config,
-    RuntimeConfigSnapshotError
-  >;
+  readonly getRuntimeConfig: () => Effect.Effect<Config, RuntimeConfigSnapshotError>;
   readonly reconcileCompletedTorrentEffect: (
     infoHash: string,
     contentPath: string | undefined,
   ) => Effect.Effect<
     void,
-    | ExternalCallError
-    | import("@/features/operations/errors.ts").OperationsError
-    | DatabaseError
-    | RuntimeConfigSnapshotError
+    ExternalCallError | OperationsError | DatabaseError | RuntimeConfigSnapshotError
   >;
 }
 
 export interface DownloadTorrentSyncSupportShape {
   readonly syncDownloadsWithQBitEffect: () => Effect.Effect<
     void,
-    import("@/features/operations/errors.ts").OperationsError | RuntimeConfigSnapshotError
+    OperationsError | RuntimeConfigSnapshotError
   >;
 }
 

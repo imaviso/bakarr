@@ -7,10 +7,6 @@ import { MediaProbe } from "@/lib/media-probe.ts";
 import { FileSystem } from "@/lib/filesystem.ts";
 import type { OperationsAnimeNotFoundError } from "@/features/operations/errors.ts";
 import {
-  OperationsInfrastructureError,
-  OperationsPathError,
-} from "@/features/operations/errors.ts";
-import {
   importLibraryFiles,
   type LibraryImportFileInput,
 } from "@/features/operations/catalog-library-write-import-support.ts";
@@ -22,19 +18,12 @@ import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-confi
 export interface CatalogLibraryWriteServiceShape {
   readonly importFiles: (
     files: readonly LibraryImportFileInput[],
-  ) => Effect.Effect<
-    ImportResult,
-    | DatabaseError
-    | OperationsPathError
-    | OperationsInfrastructureError
-    | OperationsAnimeNotFoundError
-    | RuntimeConfigSnapshotError
-  >;
+  ) => Effect.Effect<ImportResult, RuntimeConfigSnapshotError>;
   readonly renameFiles: (
     animeId: number,
   ) => Effect.Effect<
     RenameResult,
-    DatabaseError | OperationsPathError | OperationsAnimeNotFoundError | RuntimeConfigSnapshotError
+    DatabaseError | OperationsAnimeNotFoundError | RuntimeConfigSnapshotError
   >;
 }
 

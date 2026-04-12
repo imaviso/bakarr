@@ -10,7 +10,6 @@ import {
 } from "@tabler/icons-solidjs";
 import { createFileRoute } from "@tanstack/solid-router";
 import { createEffect, createMemo, createSignal, For, onCleanup, Show, Suspense } from "solid-js";
-import { createStore, reconcile } from "solid-js/store";
 import * as v from "valibot";
 import { AddAnimeDialog } from "~/components/add-anime-dialog";
 import { AnimeDiscoveryRow } from "~/components/anime-discovery";
@@ -57,6 +56,7 @@ function AddAnimePage() {
   const [debouncedQuery, setDebouncedQuery] = createSignal("");
   const debouncer = createDebouncer(setDebouncedQuery, 500);
   const [selectedAnime, setSelectedAnime] = createSignal<AnimeSearchResult | null>(null);
+  const [autoSelectedAnilistId, setAutoSelectedAnilistId] = createSignal<number | null>(null);
 
   // Get ID from search params (now properly typed via Valibot transform)
   const anilistId = () => {
@@ -69,9 +69,26 @@ function AddAnimePage() {
 
   // Auto-select anime when fetched by ID
   createEffect(() => {
-    if (anilistIdQuery.data && !selectedAnime()) {
-      setSelectedAnime(anilistIdQuery.data);
+    const currentAnilistId = anilistId();
+
+    if (currentAnilistId === null) {
+      if (autoSelectedAnilistId() !== null) {
+        setAutoSelectedAnilistId(null);
+      }
+      return;
     }
+
+    if (autoSelectedAnilistId() === currentAnilistId) {
+      return;
+    }
+
+    const fetchedAnime = anilistIdQuery.data;
+    if (!fetchedAnime || fetchedAnime.id !== currentAnilistId || selectedAnime()) {
+      return;
+    }
+
+    setSelectedAnime(fetchedAnime);
+    setAutoSelectedAnilistId(currentAnilistId);
   });
 
   // Regular search functionality
@@ -81,10 +98,7 @@ function AddAnimePage() {
   });
 
   const searchQuery = createAnimeSearchQuery(debouncedQuery);
-  const [searchResults, setSearchResults] = createStore<AnimeSearchResult[]>([]);
-  createEffect(() => {
-    setSearchResults(reconcile(searchQuery.data?.results ?? [], { key: "id", merge: true }));
-  });
+  const searchResults = createMemo(() => searchQuery.data?.results ?? []);
   const canSearch = createMemo(() => debouncedQuery().trim().length >= 3);
   const searchDegraded = createMemo(() => searchQuery.data?.degraded ?? false);
   const animeListQuery = createAnimeListQuery();
@@ -132,7 +146,7 @@ function AddAnimePage() {
         <div
           class={cn(
             "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 transition-opacity duration-200",
-            canSearch() && searchQuery.isFetching && searchResults.length > 0 && "opacity-60",
+            canSearch() && searchQuery.isFetching && searchResults().length > 0 && "opacity-60",
           )}
         >
           <Show when={!canSearch()}>
@@ -159,7 +173,7 @@ function AddAnimePage() {
               canSearch() &&
               !searchQuery.error &&
               searchQuery.isFetching &&
-              searchResults.length === 0
+              searchResults().length === 0
             }
           >
             <For each={[1, 2, 3, 4, 5, 6, 7, 8]}>
@@ -176,7 +190,7 @@ function AddAnimePage() {
           </Show>
 
           <Show when={canSearch() && !searchQuery.error}>
-            <For each={searchResults}>
+            <For each={searchResults()}>
               {(anime) => {
                 const added = () => libraryIds().has(anime.id);
                 return (
@@ -328,7 +342,7 @@ function AddAnimePage() {
               }}
             </For>
 
-            <Show when={!searchQuery.isFetching && searchResults.length === 0}>
+            <Show when={!searchQuery.isFetching && searchResults().length === 0}>
               <div class="col-span-full flex flex-col items-center justify-center py-12 text-muted-foreground">
                 <IconAlertTriangle class="h-10 w-10 mb-3 opacity-50" />
                 <p>No results found for "{debouncedQuery()}"</p>

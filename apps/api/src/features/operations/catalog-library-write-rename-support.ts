@@ -2,7 +2,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { Effect, Either } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
-import type { AppDatabase } from "@/db/database.ts";
+import type { AppDatabase, DatabaseError } from "@/db/database.ts";
 import { episodes } from "@/db/schema.ts";
 import type { FileSystemShape } from "@/lib/filesystem.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
@@ -24,7 +24,7 @@ export const renameLibraryFiles = Effect.fn("Operations.renameLibraryFiles")((
   input: RenameLibraryFilesInput,
 ): Effect.Effect<
   { failed: number; failures: string[]; renamed: number },
-  import("@/db/database.ts").DatabaseError | OperationsPathError | OperationsAnimeNotFoundError
+  DatabaseError | OperationsAnimeNotFoundError
 > => {
   const { db, eventBus, fs, runtimeConfig, tryDatabasePromise, animeId } = input;
   return Effect.gen(function* () {

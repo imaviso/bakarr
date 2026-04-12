@@ -4,12 +4,8 @@ import type { NotificationEvent } from "@packages/shared/index.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 
 export interface EventPublisherShape {
-  readonly publish: (event: NotificationEvent) => Effect.Effect<void>;
-  readonly publishInfo: (message: string) => Effect.Effect<void>;
-}
-
-interface ManagedEventPublisher extends EventPublisherShape {
-  readonly shutdown: Effect.Effect<void>;
+  readonly publish: (event: NotificationEvent) => Effect.Effect<void, never, never>;
+  readonly publishInfo: (message: string) => Effect.Effect<void, never, never>;
 }
 
 export class EventPublisher extends Context.Tag("@bakarr/api/EventPublisher")<
@@ -18,7 +14,7 @@ export class EventPublisher extends Context.Tag("@bakarr/api/EventPublisher")<
 >() {}
 
 export const makeEventPublisher = Effect.fn("Events.makeEventPublisher")((options?: {
-  readonly publish?: (event: NotificationEvent) => Effect.Effect<void>;
+  readonly publish?: (event: NotificationEvent) => Effect.Effect<void, never, never>;
 }) => {
   return Effect.gen(function* () {
     const publishEvent = options?.publish ?? (yield* EventBus).publish;
@@ -35,16 +31,8 @@ export const makeEventPublisher = Effect.fn("Events.makeEventPublisher")((option
     return {
       publish,
       publishInfo,
-      shutdown: Effect.void,
-    } satisfies ManagedEventPublisher;
+    } satisfies EventPublisherShape;
   });
 });
 
-export const EventPublisherLive = Layer.scoped(
-  EventPublisher,
-  Effect.gen(function* () {
-    const publisher = yield* makeEventPublisher();
-    yield* Effect.addFinalizer(() => publisher.shutdown);
-    return publisher;
-  }),
-);
+export const EventPublisherLive = Layer.effect(EventPublisher, makeEventPublisher());

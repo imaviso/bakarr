@@ -18,7 +18,6 @@ it.scoped("event publisher emits each info message in order", () =>
     yield* publisher.publishInfo("one");
     yield* publisher.publishInfo("two");
     yield* publisher.publishInfo("three");
-    yield* publisher.shutdown;
 
     assert.deepStrictEqual(yield* Ref.get(state), ["one", "two", "three"]);
   }).pipe(Effect.provide(Layer.mergeAll(makeUnusedEventBusLayer("unused in publisher test")))),

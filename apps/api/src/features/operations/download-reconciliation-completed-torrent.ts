@@ -18,14 +18,17 @@ import {
 import { reconcileBatchDownloadEffect } from "@/features/operations/download-reconciliation-batch.ts";
 import { reconcileSingleDownloadEffect } from "@/features/operations/download-reconciliation-single.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
+import type { TryDatabasePromise } from "@/lib/effect-db.ts";
+import type { FileSystemShape } from "@/lib/filesystem.ts";
+import type { MediaProbeShape } from "@/lib/media-probe.ts";
 
 export function makeDownloadCompletedTorrentReconciliation(
   db: AppDatabase,
-  fs: import("@/lib/filesystem.ts").FileSystemShape,
-  mediaProbe: import("@/lib/media-probe.ts").MediaProbeShape,
+  fs: FileSystemShape,
+  mediaProbe: MediaProbeShape,
   torrentClientService: typeof TorrentClientService.Service,
   eventBus: typeof EventBus.Service,
-  tryDatabasePromise: import("@/lib/effect-db.ts").TryDatabasePromise,
+  tryDatabasePromise: TryDatabasePromise,
   nowIso: () => Effect.Effect<string>,
   randomUuid: () => Effect.Effect<string>,
   getRuntimeConfig: () => Effect.Effect<Config, RuntimeConfigSnapshotError>,

@@ -4,6 +4,7 @@ import { Effect, Option } from "effect";
 import type { AppDatabase } from "@/db/database.ts";
 import { anime } from "@/db/schema.ts";
 import { AnimeImageCacheService } from "@/features/anime/anime-image-cache-service.ts";
+import { ImageCacheError } from "@/features/anime/anime-image-cache-service.ts";
 import type { AnimeMetadata } from "@/features/anime/anilist-model.ts";
 import type { AnimeMetadataProviderService } from "@/features/anime/anime-metadata-provider-service.ts";
 import type { AnimeEventPublisher } from "@/features/anime/anime-orchestration-shared.ts";
@@ -46,9 +47,13 @@ export const syncAnimeMetadataEffect = Effect.fn("AnimeMetadataSync.syncAnimeMet
         ...(metadataValue.coverImage === undefined ? {} : { coverImage: metadataValue.coverImage }),
       })
       .pipe(
-        Effect.catchAll((error) =>
+        Effect.catchTag("ImageCacheError", (error: ImageCacheError) =>
           Effect.logWarning("Failed to refresh cached anime metadata images").pipe(
-            Effect.annotateLogs({ animeId: input.animeId, error }),
+            Effect.annotateLogs({
+              animeId: input.animeId,
+              error: error.message,
+              imageCacheAnimeId: error.animeId,
+            }),
             Effect.as({
               bannerImage: animeRow.bannerImage ?? undefined,
               coverImage: animeRow.coverImage ?? undefined,

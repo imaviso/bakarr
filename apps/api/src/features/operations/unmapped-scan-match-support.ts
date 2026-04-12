@@ -2,17 +2,19 @@ import { Effect } from "effect";
 
 import type { ScannerState } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
+import type { AniListClient } from "@/features/anime/anilist.ts";
 import { markSearchResultsAlreadyInLibraryEffect } from "@/lib/anime-search-results.ts";
 import { mergeLocalFolderMatch } from "@/features/operations/unmapped-folder-match-support.ts";
 import {
   buildUnmappedFolderSearchQueries,
   mergeUnmappedFolderSuggestions,
 } from "@/features/operations/unmapped-folders.ts";
+import { anime } from "@/db/schema.ts";
 
 export const matchSingleUnmappedFolder = Effect.fn("OperationsService.matchSingleUnmappedFolder")(
   function* (input: {
-    aniList: typeof import("@/features/anime/anilist.ts").AniListClient.Service;
-    animeRows: ReadonlyArray<typeof import("@/db/schema.ts").anime.$inferSelect>;
+    aniList: typeof AniListClient.Service;
+    animeRows: ReadonlyArray<typeof anime.$inferSelect>;
     db: AppDatabase;
     folder: ScannerState["folders"][number];
     nowIso: () => Effect.Effect<string>;

@@ -32,11 +32,9 @@ export function makeSystemAppLayer<BCOut, BCE, BCR, CDOut, CDE, CDR, RSOut, RSE,
     backgroundControllerLayer,
   );
   const withRuntimeAndBackgroundController = provideFrom(runtimeWithBackgroundControllerLayer);
-
-  const backgroundRuntimeLayer = runtimeWithBackgroundControllerLayer;
   const backgroundJobStatusLayer = provideLayer(
     BackgroundJobStatusServiceLive,
-    backgroundRuntimeLayer,
+    runtimeWithBackgroundControllerLayer,
   );
   const runtimeWithBackgroundJobStatusLayer = Layer.mergeAll(
     runtimeSupportLayer,

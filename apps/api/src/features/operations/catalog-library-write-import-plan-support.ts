@@ -1,8 +1,8 @@
 import { Effect } from "effect";
 import { and, eq, inArray } from "drizzle-orm";
-import type { Config, ImportMode } from "@packages/shared/index.ts";
+import type { Config, DownloadSourceMetadata, ImportMode } from "@packages/shared/index.ts";
 
-import type { AppDatabase } from "@/db/database.ts";
+import type { AppDatabase, DatabaseError } from "@/db/database.ts";
 import { anime, episodes } from "@/db/schema.ts";
 import type { FileSystemShape } from "@/lib/filesystem.ts";
 import {
@@ -32,7 +32,7 @@ export interface BuildLibraryImportPlanInput {
     episode_number: number;
     episode_numbers?: readonly number[];
     season?: number;
-    source_metadata?: import("@packages/shared/index.ts").DownloadSourceMetadata;
+    source_metadata?: DownloadSourceMetadata;
   };
 }
 
@@ -46,14 +46,14 @@ export interface LibraryImportPlan {
   readonly resolvedSource: string;
   readonly namingPlan: EpisodeFilenamePlan;
   readonly sourcePath: string;
-  readonly sourceMetadata?: import("@packages/shared/index.ts").DownloadSourceMetadata;
+  readonly sourceMetadata?: DownloadSourceMetadata;
 }
 
 export const buildLibraryImportPlan = Effect.fn("Operations.buildLibraryImportPlan")((
   input: BuildLibraryImportPlanInput,
 ): Effect.Effect<
   LibraryImportPlan,
-  import("@/db/database.ts").DatabaseError | OperationsPathError | OperationsAnimeNotFoundError
+  DatabaseError | OperationsPathError | OperationsAnimeNotFoundError
 > => {
   const { db, file, fs, mediaProbe, runtimeConfig, tryDatabasePromise } = input;
   return Effect.gen(function* () {

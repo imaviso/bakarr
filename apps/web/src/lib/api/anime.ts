@@ -108,11 +108,15 @@ export function animeSearchQueryOptions(query: string) {
 }
 
 export function createAnimeSearchQuery(query: () => string) {
-  return useQuery(() => ({
-    ...animeSearchQueryOptions(query()),
-    enabled: query().length >= 3,
-    placeholderData: (prev: AnimeSearchResponse | undefined) => prev,
-  }));
+  return useQuery(() => {
+    const normalizedQuery = query().trim();
+
+    return {
+      ...animeSearchQueryOptions(normalizedQuery),
+      enabled: normalizedQuery.length >= 3,
+      placeholderData: (prev: AnimeSearchResponse | undefined) => prev,
+    };
+  });
 }
 
 export function episodeSearchQueryOptions(animeId: number, episodeNumber: number) {
@@ -177,19 +181,23 @@ export function createNyaaSearchQuery(
     enabled?: () => boolean | undefined;
   } = {},
 ) {
-  return useQuery(() => ({
-    ...(() => {
-      const animeId = options.animeId?.();
-      const category = options.category?.();
-      const filter = options.filter?.();
-      return nyaaSearchQueryOptions(query(), {
-        ...(animeId === undefined ? {} : { animeId }),
-        ...(category === undefined ? {} : { category }),
-        ...(filter === undefined ? {} : { filter }),
-      });
-    })(),
-    enabled: (options.enabled?.() ?? true) && !!query(),
-  }));
+  return useQuery(() => {
+    const normalizedQuery = query().trim();
+
+    return {
+      ...(() => {
+        const animeId = options.animeId?.();
+        const category = options.category?.();
+        const filter = options.filter?.();
+        return nyaaSearchQueryOptions(normalizedQuery, {
+          ...(animeId === undefined ? {} : { animeId }),
+          ...(category === undefined ? {} : { category }),
+          ...(filter === undefined ? {} : { filter }),
+        });
+      })(),
+      enabled: (options.enabled?.() ?? true) && normalizedQuery.length > 0,
+    };
+  });
 }
 
 export function animeByAnilistIdQueryOptions(id: number) {

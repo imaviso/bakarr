@@ -4,6 +4,7 @@ import type { AppDatabase } from "@/db/database.ts";
 import { anime } from "@/db/schema.ts";
 import { OperationsPathError } from "@/features/operations/errors.ts";
 import { scanVideoFilesStream } from "@/features/operations/file-scanner.ts";
+import type { FileSystemShape } from "@/lib/filesystem.ts";
 import {
   countLibraryScanFile,
   type LibraryScanCounts,
@@ -11,7 +12,7 @@ import {
 
 export const scanAnimeLibraryRow = Effect.fn("OperationsService.scanAnimeLibraryRow")(function* (
   db: AppDatabase,
-  fs: import("@/lib/filesystem.ts").FileSystemShape,
+  fs: FileSystemShape,
   animeRow: typeof anime.$inferSelect,
 ) {
   return yield* scanVideoFilesStream(fs, animeRow.rootFolder).pipe(

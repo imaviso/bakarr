@@ -8,9 +8,9 @@ import { animeListQueryOptions, profilesQueryOptions, systemConfigQueryOptions }
 const ImportSearchSchema = v.object({
   animeId: v.optional(
     v.pipe(
-      v.string(),
-      v.check((value) => !Number.isNaN(Number(value)) && Number(value) > 0, "Invalid anime id"),
-      v.transform(Number),
+      v.union([v.string(), v.number()]),
+      v.transform((value) => (typeof value === "number" ? value : Number(value))),
+      v.check((value) => Number.isInteger(value) && value > 0, "Invalid anime id"),
       v.integer(),
     ),
   ),

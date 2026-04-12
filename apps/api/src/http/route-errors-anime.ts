@@ -6,6 +6,7 @@ import {
   AnimePathError,
   AnimeStoredDataError,
 } from "@/features/anime/errors.ts";
+import { ImageCacheError } from "@/features/anime/anime-image-cache-service.ts";
 import {
   EpisodeStreamAccessError,
   EpisodeStreamRangeError,
@@ -14,6 +15,7 @@ import type { RouteErrorResponse } from "@/http/route-types.ts";
 
 const AnimeRouteErrorSchema = Schema.Union(
   AnimeConflictError,
+  ImageCacheError,
   AnimeNotFoundError,
   AnimePathError,
   AnimeStoredDataError,
@@ -34,6 +36,7 @@ const animeRouteErrorMappers: {
   ) => RouteErrorResponse;
 } = {
   AnimeConflictError: messageStatus(409),
+  ImageCacheError: messageStatus(500),
   AnimeNotFoundError: messageStatus(404),
   AnimePathError: messageStatus(400),
   AnimeStoredDataError: messageStatus(500),

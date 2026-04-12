@@ -18,9 +18,9 @@ import {
 } from "@/features/operations/errors.ts";
 import type { TriggerDownloadInput } from "@/features/operations/download-orchestration-shared.ts";
 import type { DownloadTriggerCoordinatorShape } from "@/features/operations/runtime-support.ts";
-import { Database } from "@/db/database.ts";
+import { Database, type AppDatabase } from "@/db/database.ts";
 import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { tryDatabasePromise, type TryDatabasePromise } from "@/lib/effect-db.ts";
 import { DownloadProgressSupport } from "@/features/operations/download-progress-support.ts";
 import { DownloadTriggerCoordinator } from "@/features/operations/runtime-support.ts";
 
@@ -39,10 +39,10 @@ export interface DownloadTriggerServiceShape {
 }
 
 export function makeDownloadTriggerService(input: {
-  readonly db: import("@/db/database.ts").AppDatabase;
+  readonly db: AppDatabase;
   readonly torrentClientService: typeof TorrentClientService.Service;
   readonly eventBus: typeof EventBus.Service;
-  readonly tryDatabasePromise: import("@/lib/effect-db.ts").TryDatabasePromise;
+  readonly tryDatabasePromise: TryDatabasePromise;
   readonly nowIso: () => Effect.Effect<string>;
   readonly downloadTriggerCoordinator: DownloadTriggerCoordinatorShape;
   readonly publishDownloadProgress: () => Effect.Effect<

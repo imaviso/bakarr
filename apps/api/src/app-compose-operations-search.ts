@@ -22,79 +22,57 @@ export function makeOperationsSearchLayer<DRTOut, DRTE, DRTR, OPOut, OPE, OPR, R
   const withRuntime = provideFrom(runtimeSupportLayer);
   const runtimeWithProgressLayer = Layer.mergeAll(runtimeSupportLayer, operationsProgressLayer);
 
-  const buildSearchCoreLayers = () => {
-    const backgroundSearchQueueLayer = provideLayer(
-      BackgroundSearchQueueServiceLive,
-      downloadRuntimeLayer,
-    );
-    const runtimeWithQueueLayer = Layer.mergeAll(runtimeSupportLayer, backgroundSearchQueueLayer);
-    const backgroundSearchRssFeedLayer = provideLayer(
-      BackgroundSearchRssFeedServiceLive,
-      runtimeWithQueueLayer,
-    );
-    const searchReleaseLayer = withRuntime(SearchReleaseServiceLive);
+  const backgroundSearchQueueLayer = provideLayer(
+    BackgroundSearchQueueServiceLive,
+    downloadRuntimeLayer,
+  );
+  const runtimeWithQueueLayer = Layer.mergeAll(runtimeSupportLayer, backgroundSearchQueueLayer);
+  const backgroundSearchRssFeedLayer = provideLayer(
+    BackgroundSearchRssFeedServiceLive,
+    runtimeWithQueueLayer,
+  );
+  const searchReleaseLayer = withRuntime(SearchReleaseServiceLive);
+  const runtimeWithReleaseLayer = Layer.mergeAll(runtimeSupportLayer, searchReleaseLayer);
+  const searchEpisodeLayer = provideLayer(SearchEpisodeServiceLive, runtimeWithReleaseLayer);
 
-    const runtimeWithReleaseLayer = Layer.mergeAll(runtimeSupportLayer, searchReleaseLayer);
-    const searchEpisodeLayer = provideLayer(SearchEpisodeServiceLive, runtimeWithReleaseLayer);
+  const missingSearchDependenciesLayer = Layer.mergeAll(
+    runtimeWithProgressLayer,
+    backgroundSearchQueueLayer,
+    searchReleaseLayer,
+  );
+  const searchBackgroundMissingLayer = provideLayer(
+    SearchBackgroundMissingServiceLive,
+    missingSearchDependenciesLayer,
+  );
 
-    return {
-      backgroundSearchQueueLayer,
-      backgroundSearchRssFeedLayer,
-      searchEpisodeLayer,
-      searchReleaseLayer,
-    } as const;
-  };
+  const rssSearchDependenciesLayer = Layer.mergeAll(
+    runtimeWithProgressLayer,
+    backgroundSearchRssFeedLayer,
+    backgroundSearchQueueLayer,
+  );
+  const searchBackgroundRssLayer = provideLayer(
+    SearchBackgroundRssServiceLive,
+    rssSearchDependenciesLayer,
+  );
 
-  const coreLayers = buildSearchCoreLayers();
-
-  const buildSearchOrchestrationLayers = () => {
-    const missingSearchDependenciesLayer = Layer.mergeAll(
-      runtimeWithProgressLayer,
-      coreLayers.backgroundSearchQueueLayer,
-      coreLayers.searchReleaseLayer,
-    );
-    const searchBackgroundMissingLayer = provideLayer(
-      SearchBackgroundMissingServiceLive,
-      missingSearchDependenciesLayer,
-    );
-
-    const rssSearchDependenciesLayer = Layer.mergeAll(
-      runtimeWithProgressLayer,
-      coreLayers.backgroundSearchRssFeedLayer,
-      coreLayers.backgroundSearchQueueLayer,
-    );
-    const searchBackgroundRssLayer = provideLayer(
-      SearchBackgroundRssServiceLive,
-      rssSearchDependenciesLayer,
-    );
-
-    const rssWorkerDependenciesLayer = Layer.mergeAll(
-      runtimeWithProgressLayer,
-      searchBackgroundRssLayer,
-      searchBackgroundMissingLayer,
-    );
-    const backgroundSearchRssWorkerLayer = provideLayer(
-      BackgroundSearchRssWorkerServiceLive,
-      rssWorkerDependenciesLayer,
-    );
-
-    return {
-      backgroundSearchRssWorkerLayer,
-      searchBackgroundMissingLayer,
-      searchBackgroundRssLayer,
-    } as const;
-  };
-
-  const orchestrationLayers = buildSearchOrchestrationLayers();
+  const rssWorkerDependenciesLayer = Layer.mergeAll(
+    runtimeWithProgressLayer,
+    searchBackgroundRssLayer,
+    searchBackgroundMissingLayer,
+  );
+  const backgroundSearchRssWorkerLayer = provideLayer(
+    BackgroundSearchRssWorkerServiceLive,
+    rssWorkerDependenciesLayer,
+  );
 
   const searchSubgraphLayer = Layer.mergeAll(
-    coreLayers.backgroundSearchQueueLayer,
-    coreLayers.backgroundSearchRssFeedLayer,
-    coreLayers.searchReleaseLayer,
-    coreLayers.searchEpisodeLayer,
-    orchestrationLayers.searchBackgroundMissingLayer,
-    orchestrationLayers.searchBackgroundRssLayer,
-    orchestrationLayers.backgroundSearchRssWorkerLayer,
+    backgroundSearchQueueLayer,
+    backgroundSearchRssFeedLayer,
+    searchReleaseLayer,
+    searchEpisodeLayer,
+    searchBackgroundMissingLayer,
+    searchBackgroundRssLayer,
+    backgroundSearchRssWorkerLayer,
   );
 
   return {

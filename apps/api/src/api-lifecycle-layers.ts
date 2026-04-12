@@ -2,10 +2,10 @@ import { CommandExecutor } from "@effect/platform";
 import { Layer } from "effect";
 
 import { makeAnimeAppLayer } from "@/app-compose-anime.ts";
+import { makeAuthAppLayer } from "@/app-compose-auth.ts";
+import { makeBackgroundAppLayers } from "@/app-compose-background.ts";
 import { makeOperationsAppLayers } from "@/app-compose-operations.ts";
 import { makeSystemAppLayer } from "@/app-compose-system.ts";
-import { BackgroundWorkerControllerLive } from "@/background-controller-core.ts";
-import { BackgroundTaskRunnerLive } from "@/background-task-runner.ts";
 import {
   makeAppExternalClientLayer,
   type AppExternalClientLayerOptions,
@@ -16,9 +16,6 @@ import {
 } from "@/app-platform-runtime-core.ts";
 import type { AppConfigShape } from "@/config.ts";
 import { AnimeEnrollmentServiceLive } from "@/features/anime/anime-enrollment-service.ts";
-import { AuthBootstrapServiceLive } from "@/features/auth/bootstrap-service.ts";
-import { AuthCredentialServiceLive } from "@/features/auth/credential-service.ts";
-import { AuthSessionServiceLive } from "@/features/auth/session-service.ts";
 import { LibraryBrowseServiceLive } from "@/features/operations/library-browse-service.ts";
 import { RuntimeConfigSnapshotServiceLive } from "@/features/system/runtime-config-snapshot-service.ts";
 import { SystemConfigServiceLive } from "@/features/system/system-config-service.ts";
@@ -75,18 +72,10 @@ export function makeApiLifecycleLayers(
   const appDomainSubgraphLayer = Layer.mergeAll(animeLayer, operationsLayer);
 
   // Background worker runtime sits on top of domain + runtime support.
-  const backgroundTaskRunnerLayer = provideLayer(
-    BackgroundTaskRunnerLive,
-    Layer.mergeAll(appDomainSubgraphLayer, runtimeSupportLayer),
-  );
-  const backgroundControllerLayer = provideLayer(
-    BackgroundWorkerControllerLive,
-    Layer.mergeAll(backgroundTaskRunnerLayer, runtimeSupportLayer),
-  );
-  const runtimeWorkerSubgraphLayer = Layer.mergeAll(
-    backgroundTaskRunnerLayer,
-    backgroundControllerLayer,
-  );
+  const { backgroundControllerLayer, runtimeWorkerSubgraphLayer } = makeBackgroundAppLayers({
+    appDomainSubgraphLayer,
+    runtimeSupportLayer,
+  });
 
   // System + auth + orchestration features.
   const systemLayer = makeSystemAppLayer({
@@ -95,10 +84,7 @@ export function makeApiLifecycleLayers(
     runtimeSupportLayer,
   });
 
-  const authLayer = provideLayer(
-    Layer.mergeAll(AuthBootstrapServiceLive, AuthCredentialServiceLive, AuthSessionServiceLive),
-    runtimeSupportLayer,
-  );
+  const authLayer = makeAuthAppLayer(runtimeSupportLayer);
 
   const libraryLayer = provideLayer(
     LibraryBrowseServiceLive,

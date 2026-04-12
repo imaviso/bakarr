@@ -124,8 +124,6 @@ export class AppConfig extends Context.Tag("@bakarr/api/AppConfig")<AppConfig, A
   }
 }
 
-export const AppConfigLive = AppConfig.layer();
-
 function readConfigValue<A>(override: A | undefined, config: EffectConfig.Config<A>) {
   return override === undefined ? config : EffectConfig.succeed(override);
 }

@@ -1,9 +1,15 @@
 import { HttpClient } from "@effect/platform";
-import { Context, Effect, Layer } from "effect";
+import { Context, Effect, Layer, Schema } from "effect";
 
 import { FileSystem } from "@/lib/filesystem.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
-import { cacheAnimeMetadataImages } from "@/features/anime/image-cache.ts";
+import { cacheAnimeMetadataImages, type CachedAnimeImages } from "@/features/anime/image-cache.ts";
+
+export class ImageCacheError extends Schema.TaggedError<ImageCacheError>()("ImageCacheError", {
+  animeId: Schema.Number,
+  cause: Schema.Defect,
+  message: Schema.String,
+}) {}
 
 export interface AnimeImageCacheServiceShape {
   readonly cacheMetadataImages: (input: {
@@ -15,7 +21,7 @@ export interface AnimeImageCacheServiceShape {
       readonly bannerImage?: string;
       readonly coverImage?: string;
     },
-    unknown
+    ImageCacheError
   >;
 }
 
@@ -45,9 +51,18 @@ export const AnimeImageCacheServiceLive = Layer.effect(
     const cacheMetadataImages = Effect.fn("AnimeImageCacheService.cacheMetadataImages")(function* (
       input: ImageCacheInput,
     ) {
-      const config = yield* runtimeConfigSnapshot.getRuntimeConfig();
+      const config = yield* runtimeConfigSnapshot.getRuntimeConfig().pipe(
+        Effect.mapError(
+          (cause) =>
+            new ImageCacheError({
+              animeId: input.animeId,
+              cause,
+              message: "Failed to resolve runtime config for image caching",
+            }),
+        ),
+      );
 
-      const images: import("@/features/anime/image-cache.ts").CachedAnimeImages = {
+      const images: CachedAnimeImages = {
         ...(input.bannerImage === undefined ? {} : { bannerImage: input.bannerImage ?? undefined }),
         ...(input.coverImage === undefined ? {} : { coverImage: input.coverImage ?? undefined }),
       };
@@ -57,6 +72,15 @@ export const AnimeImageCacheServiceLive = Layer.effect(
         config.general.images_path,
         input.animeId,
         images,
+      ).pipe(
+        Effect.mapError(
+          (cause) =>
+            new ImageCacheError({
+              animeId: input.animeId,
+              cause,
+              message: "Failed to cache anime metadata images",
+            }),
+        ),
       );
 
       return {

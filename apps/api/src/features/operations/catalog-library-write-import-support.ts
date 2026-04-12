@@ -7,6 +7,7 @@ import type { MediaProbeShape } from "@/lib/media-probe.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { buildLibraryImportPlan } from "@/features/operations/catalog-library-write-import-plan-support.ts";
 import { writeLibraryImportFile } from "@/features/operations/catalog-library-write-import-file-support.ts";
+import type { TryDatabasePromise } from "@/lib/effect-db.ts";
 
 export interface LibraryImportFileInput {
   readonly source_path: string;
@@ -22,19 +23,13 @@ export interface ImportLibraryFilesInput {
   readonly fs: FileSystemShape;
   readonly mediaProbe: MediaProbeShape;
   readonly runtimeConfig: Config;
-  readonly tryDatabasePromise: import("@/lib/effect-db.ts").TryDatabasePromise;
+  readonly tryDatabasePromise: TryDatabasePromise;
   readonly files: readonly LibraryImportFileInput[];
 }
 
 export const importLibraryFiles = Effect.fn("Operations.importLibraryFiles")((
   input: ImportLibraryFilesInput,
-): Effect.Effect<
-  ImportResult,
-  | import("@/db/database.ts").DatabaseError
-  | import("@/features/operations/errors.ts").OperationsPathError
-  | import("@/features/operations/errors.ts").OperationsInfrastructureError
-  | import("@/features/operations/errors.ts").OperationsAnimeNotFoundError
-> => {
+): Effect.Effect<ImportResult> => {
   const { db, eventBus, fs, mediaProbe, runtimeConfig, tryDatabasePromise, files } = input;
   return Effect.gen(function* () {
     yield* eventBus.publish({

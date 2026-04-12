@@ -35,6 +35,7 @@ const makeSystemConfigService = Effect.gen(function* () {
       Effect.catchTag("StoredConfigCorruptError", (error) =>
         Effect.fail(
           new StoredConfigCorruptError({
+            cause: error.cause,
             message: `${error.message}. Re-save config to repair.`,
           }),
         ),
@@ -48,6 +49,7 @@ const makeSystemConfigService = Effect.gen(function* () {
       Effect.catchTag("ConfigValidationError", (error) =>
         Effect.fail(
           new StoredConfigCorruptError({
+            cause: error.cause,
             message: `Stored configuration is corrupt and could not be normalized: ${error.message}`,
           }),
         ),
