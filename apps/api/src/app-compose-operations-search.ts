@@ -7,7 +7,6 @@ import { SearchBackgroundRssServiceLive } from "@/features/operations/background
 import { BackgroundSearchRssWorkerServiceLive } from "@/features/operations/background-search-rss-worker-service.ts";
 import { SearchEpisodeServiceLive } from "@/features/operations/search-orchestration-episode-support.ts";
 import { SearchReleaseServiceLive } from "@/features/operations/search-orchestration-release-search.ts";
-import { provideFrom, provideLayer } from "@/lib/layer-compose.ts";
 
 interface OperationsSearchLayerInput<DRTOut, DRTE, DRTR, OPOut, OPE, OPR, RSOut, RSE, RSR> {
   readonly downloadRuntimeLayer: Layer.Layer<DRTOut, DRTE, DRTR>;
@@ -19,30 +18,26 @@ export function makeOperationsSearchLayer<DRTOut, DRTE, DRTR, OPOut, OPE, OPR, R
   input: OperationsSearchLayerInput<DRTOut, DRTE, DRTR, OPOut, OPE, OPR, RSOut, RSE, RSR>,
 ) {
   const { downloadRuntimeLayer, operationsProgressLayer, runtimeSupportLayer } = input;
-  const withRuntime = provideFrom(runtimeSupportLayer);
   const runtimeWithProgressLayer = Layer.mergeAll(runtimeSupportLayer, operationsProgressLayer);
 
-  const backgroundSearchQueueLayer = provideLayer(
-    BackgroundSearchQueueServiceLive,
-    downloadRuntimeLayer,
+  const backgroundSearchQueueLayer = BackgroundSearchQueueServiceLive.pipe(
+    Layer.provide(downloadRuntimeLayer),
   );
   const runtimeWithQueueLayer = Layer.mergeAll(runtimeSupportLayer, backgroundSearchQueueLayer);
-  const backgroundSearchRssFeedLayer = provideLayer(
-    BackgroundSearchRssFeedServiceLive,
-    runtimeWithQueueLayer,
+  const backgroundSearchRssFeedLayer = BackgroundSearchRssFeedServiceLive.pipe(
+    Layer.provide(runtimeWithQueueLayer),
   );
-  const searchReleaseLayer = withRuntime(SearchReleaseServiceLive);
+  const searchReleaseLayer = SearchReleaseServiceLive.pipe(Layer.provide(runtimeSupportLayer));
   const runtimeWithReleaseLayer = Layer.mergeAll(runtimeSupportLayer, searchReleaseLayer);
-  const searchEpisodeLayer = provideLayer(SearchEpisodeServiceLive, runtimeWithReleaseLayer);
+  const searchEpisodeLayer = SearchEpisodeServiceLive.pipe(Layer.provide(runtimeWithReleaseLayer));
 
   const missingSearchDependenciesLayer = Layer.mergeAll(
     runtimeWithProgressLayer,
     backgroundSearchQueueLayer,
     searchReleaseLayer,
   );
-  const searchBackgroundMissingLayer = provideLayer(
-    SearchBackgroundMissingServiceLive,
-    missingSearchDependenciesLayer,
+  const searchBackgroundMissingLayer = SearchBackgroundMissingServiceLive.pipe(
+    Layer.provide(missingSearchDependenciesLayer),
   );
 
   const rssSearchDependenciesLayer = Layer.mergeAll(
@@ -50,9 +45,8 @@ export function makeOperationsSearchLayer<DRTOut, DRTE, DRTR, OPOut, OPE, OPR, R
     backgroundSearchRssFeedLayer,
     backgroundSearchQueueLayer,
   );
-  const searchBackgroundRssLayer = provideLayer(
-    SearchBackgroundRssServiceLive,
-    rssSearchDependenciesLayer,
+  const searchBackgroundRssLayer = SearchBackgroundRssServiceLive.pipe(
+    Layer.provide(rssSearchDependenciesLayer),
   );
 
   const rssWorkerDependenciesLayer = Layer.mergeAll(
@@ -60,9 +54,8 @@ export function makeOperationsSearchLayer<DRTOut, DRTE, DRTR, OPOut, OPE, OPR, R
     searchBackgroundRssLayer,
     searchBackgroundMissingLayer,
   );
-  const backgroundSearchRssWorkerLayer = provideLayer(
-    BackgroundSearchRssWorkerServiceLive,
-    rssWorkerDependenciesLayer,
+  const backgroundSearchRssWorkerLayer = BackgroundSearchRssWorkerServiceLive.pipe(
+    Layer.provide(rssWorkerDependenciesLayer),
   );
 
   const searchSubgraphLayer = Layer.mergeAll(

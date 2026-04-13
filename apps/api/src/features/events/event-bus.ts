@@ -10,7 +10,7 @@ export interface EventSubscription {
 }
 
 export interface EventBusShape {
-  readonly publish: (event: NotificationEvent) => Effect.Effect<void, never, never>;
+  readonly publish: (event: NotificationEvent) => Effect.Effect<void>;
   readonly withSubscriptionStream: <A, E>(
     use: (subscription: EventSubscription) => Stream.Stream<A, E>,
   ) => Stream.Stream<A, E>;

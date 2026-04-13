@@ -18,21 +18,18 @@ import {
   makeCatalogDownloadProgressReads,
   type DownloadRuntimeSummary,
 } from "@/features/operations/catalog-download-progress-read-support.ts";
+import { OperationsStoredDataError } from "@/features/operations/errors.ts";
 import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
 
+type ReadError = DatabaseError | OperationsStoredDataError;
+
 export interface CatalogDownloadReadServiceShape {
-  readonly listDownloadQueue: () => Effect.Effect<
-    Download[],
-    DatabaseError | import("./errors.ts").OperationsStoredDataError
-  >;
+  readonly listDownloadQueue: () => Effect.Effect<Download[], ReadError>;
   readonly listDownloadHistory: (input?: {
     readonly cursor?: string;
     readonly limit?: number;
-  }) => Effect.Effect<
-    DownloadHistoryPage,
-    DatabaseError | import("./errors.ts").OperationsStoredDataError
-  >;
+  }) => Effect.Effect<DownloadHistoryPage, ReadError>;
   readonly listDownloadEvents: (input?: {
     readonly animeId?: number;
     readonly cursor?: string;
@@ -43,10 +40,7 @@ export interface CatalogDownloadReadServiceShape {
     readonly limit?: number;
     readonly startDate?: string;
     readonly status?: string;
-  }) => Effect.Effect<
-    DownloadEventsPage,
-    DatabaseError | import("./errors.ts").OperationsStoredDataError
-  >;
+  }) => Effect.Effect<DownloadEventsPage, ReadError>;
   readonly streamDownloadEventsExportJson: (input?: {
     readonly animeId?: number;
     readonly downloadId?: number;
@@ -56,10 +50,7 @@ export interface CatalogDownloadReadServiceShape {
     readonly order?: "asc" | "desc";
     readonly startDate?: string;
     readonly status?: string;
-  }) => Effect.Effect<
-    DownloadEventExportStreamShape,
-    DatabaseError | import("./errors.ts").OperationsStoredDataError
-  >;
+  }) => Effect.Effect<DownloadEventExportStreamShape, ReadError>;
   readonly streamDownloadEventsExportCsv: (input?: {
     readonly animeId?: number;
     readonly downloadId?: number;
@@ -69,20 +60,11 @@ export interface CatalogDownloadReadServiceShape {
     readonly order?: "asc" | "desc";
     readonly startDate?: string;
     readonly status?: string;
-  }) => Effect.Effect<
-    DownloadEventCsvExportStreamShape,
-    DatabaseError | import("./errors.ts").OperationsStoredDataError
-  >;
-  readonly getDownloadProgress: () => Effect.Effect<
-    DownloadStatus[],
-    DatabaseError | import("./errors.ts").OperationsStoredDataError
-  >;
+  }) => Effect.Effect<DownloadEventCsvExportStreamShape, ReadError>;
+  readonly getDownloadProgress: () => Effect.Effect<DownloadStatus[], ReadError>;
   readonly getDownloadProgressBootstrap: (input?: {
     readonly limit?: number;
-  }) => Effect.Effect<
-    DownloadStatus[],
-    DatabaseError | import("./errors.ts").OperationsStoredDataError
-  >;
+  }) => Effect.Effect<DownloadStatus[], ReadError>;
   readonly getDownloadRuntimeSummary: () => Effect.Effect<DownloadRuntimeSummary, DatabaseError>;
 }
 

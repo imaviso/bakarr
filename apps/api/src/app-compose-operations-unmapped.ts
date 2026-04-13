@@ -3,7 +3,6 @@ import { Layer } from "effect";
 import { UnmappedControlServiceLive } from "@/features/operations/unmapped-control-service.ts";
 import { UnmappedImportServiceLive } from "@/features/operations/unmapped-orchestration-import.ts";
 import { UnmappedScanServiceLive } from "@/features/operations/unmapped-scan-service.ts";
-import { provideFrom, provideLayer } from "@/lib/layer-compose.ts";
 
 interface OperationsUnmappedLayerInput<ORTOut, ORTE, ORTR, RSOut, RSE, RSR> {
   readonly operationsRuntimeLayer: Layer.Layer<ORTOut, ORTE, ORTR>;
@@ -14,11 +13,10 @@ export function makeOperationsUnmappedLayer<ORTOut, ORTE, ORTR, RSOut, RSE, RSR>
   input: OperationsUnmappedLayerInput<ORTOut, ORTE, ORTR, RSOut, RSE, RSR>,
 ) {
   const { operationsRuntimeLayer, runtimeSupportLayer } = input;
-  const withRuntime = provideFrom(runtimeSupportLayer);
-  const unmappedScanLayer = provideLayer(UnmappedScanServiceLive, operationsRuntimeLayer);
+  const unmappedScanLayer = UnmappedScanServiceLive.pipe(Layer.provide(operationsRuntimeLayer));
   const runtimeWithScanLayer = Layer.mergeAll(runtimeSupportLayer, unmappedScanLayer);
-  const unmappedControlLayer = provideLayer(UnmappedControlServiceLive, runtimeWithScanLayer);
-  const unmappedImportLayer = withRuntime(UnmappedImportServiceLive);
+  const unmappedControlLayer = UnmappedControlServiceLive.pipe(Layer.provide(runtimeWithScanLayer));
+  const unmappedImportLayer = UnmappedImportServiceLive.pipe(Layer.provide(runtimeSupportLayer));
   const unmappedSubgraphLayer = Layer.mergeAll(
     unmappedScanLayer,
     unmappedControlLayer,

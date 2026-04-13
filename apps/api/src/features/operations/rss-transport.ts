@@ -196,7 +196,7 @@ function buildRssTransportRequestConfig(target: PinnedRequestTarget): RssTranspo
       "User-Agent": "bakarr/1.0",
     },
     hostname: parsedUrl.hostname,
-    lookup: pinnedTarget && !isHttps ? makePinnedLookup(pinnedTarget) : undefined,
+    lookup: pinnedTarget ? makePinnedLookup(pinnedTarget) : undefined,
     method: "GET",
     path: `${parsedUrl.pathname}${parsedUrl.search}`,
     port: parsedUrl.port ? Number(parsedUrl.port) : undefined,

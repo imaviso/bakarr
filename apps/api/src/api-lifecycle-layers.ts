@@ -20,7 +20,6 @@ import { LibraryBrowseServiceLive } from "@/features/operations/library-browse-s
 import { RuntimeConfigSnapshotServiceLive } from "@/features/system/runtime-config-snapshot-service.ts";
 import { SystemConfigServiceLive } from "@/features/system/system-config-service.ts";
 import { DiskSpaceInspectorLive } from "@/features/system/disk-space.ts";
-import { provideFrom, provideLayer } from "@/lib/layer-compose.ts";
 import { MediaProbeLive } from "@/lib/media-probe.ts";
 
 export type ApiLifecycleOptions = AppPlatformRuntimeOptions &
@@ -39,23 +38,20 @@ export function makeApiLifecycleLayers(
     : platformCoreLayer;
 
   // Runtime config graph: system config -> validated runtime snapshot.
-  const systemConfigLayer = provideLayer(SystemConfigServiceLive, platformRuntimeLayer);
-  const runtimeConfigSnapshotLayer = provideLayer(
-    RuntimeConfigSnapshotServiceLive,
-    systemConfigLayer,
+  const systemConfigLayer = SystemConfigServiceLive.pipe(Layer.provide(platformRuntimeLayer));
+  const runtimeConfigSnapshotLayer = RuntimeConfigSnapshotServiceLive.pipe(
+    Layer.provide(systemConfigLayer),
   );
 
   // External clients depend on runtime config + platform runtime.
-  const externalClientLayer = provideLayer(
-    makeAppExternalClientLayer(options),
-    Layer.mergeAll(platformRuntimeLayer, runtimeConfigSnapshotLayer),
+  const externalClientLayer = makeAppExternalClientLayer(options).pipe(
+    Layer.provide(Layer.mergeAll(platformRuntimeLayer, runtimeConfigSnapshotLayer)),
   );
 
   // Infrastructure layer adds command-backed probing services.
   const platformExternalLayer = Layer.mergeAll(platformRuntimeLayer, externalClientLayer);
-  const infrastructureLayer = provideLayer(
-    Layer.mergeAll(MediaProbeLive, DiskSpaceInspectorLive),
-    platformExternalLayer,
+  const infrastructureLayer = Layer.mergeAll(MediaProbeLive, DiskSpaceInspectorLive).pipe(
+    Layer.provide(platformExternalLayer),
   );
   const platformLayer = Layer.mergeAll(platformExternalLayer, infrastructureLayer);
   const runtimeSupportLayer = Layer.mergeAll(
@@ -63,7 +59,6 @@ export function makeApiLifecycleLayers(
     systemConfigLayer,
     runtimeConfigSnapshotLayer,
   );
-  const withRuntimeSupport = provideFrom(runtimeSupportLayer);
 
   // Domain feature subgraphs.
   const animeLayer = makeAnimeAppLayer(runtimeSupportLayer);
@@ -86,13 +81,11 @@ export function makeApiLifecycleLayers(
 
   const authLayer = makeAuthAppLayer(runtimeSupportLayer);
 
-  const libraryLayer = provideLayer(
-    LibraryBrowseServiceLive,
-    Layer.mergeAll(systemLayer, operationsLayer),
+  const libraryLayer = LibraryBrowseServiceLive.pipe(
+    Layer.provide(Layer.mergeAll(systemLayer, operationsLayer)),
   );
-  const animeEnrollmentLayer = provideLayer(
-    AnimeEnrollmentServiceLive,
-    Layer.mergeAll(animeLayer, operationsLayer),
+  const animeEnrollmentLayer = AnimeEnrollmentServiceLive.pipe(
+    Layer.provide(Layer.mergeAll(animeLayer, operationsLayer)),
   );
 
   const appFeatureSubgraphLayer = Layer.mergeAll(
@@ -103,7 +96,7 @@ export function makeApiLifecycleLayers(
     libraryLayer,
     animeEnrollmentLayer,
   );
-  const featureLayer = withRuntimeSupport(appFeatureSubgraphLayer);
+  const featureLayer = appFeatureSubgraphLayer.pipe(Layer.provide(runtimeSupportLayer));
   const appLayer = Layer.mergeAll(runtimeSupportLayer, featureLayer);
 
   return {

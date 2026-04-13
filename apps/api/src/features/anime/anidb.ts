@@ -102,8 +102,7 @@ export const AniDbClientLive = Layer.effect(
               config.clientVersion,
               clock,
               lastPacketAtRef,
-            ).pipe(
-              Effect.flatMap((sessionToken) =>
+              (sessionToken) =>
                 fetchAniDbEpisodesEffect({
                   clock,
                   episodeCount,
@@ -112,7 +111,6 @@ export const AniDbClientLive = Layer.effect(
                   socket,
                   titleCandidates,
                 }),
-              ),
             ),
           closeAniDbSocketEffect,
         ),

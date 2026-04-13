@@ -10,7 +10,7 @@ import { ExternalCallError } from "@/lib/effect-retry.ts";
 const ANIDB_PROTO_VERSION = 3;
 const ANIDB_MIN_PACKET_INTERVAL_MS = 2_200;
 
-export const withAniDbSessionEffect = Effect.fn("AniDbClient.withSession")(function* (
+export const withAniDbSessionEffect = Effect.fn("AniDbClient.withSession")(function* <A>(
   socket: Socket,
   username: string,
   password: string,
@@ -18,6 +18,7 @@ export const withAniDbSessionEffect = Effect.fn("AniDbClient.withSession")(funct
   clientVersion: number,
   clock: ClockServiceShape,
   lastPacketAtRef: Ref.Ref<number>,
+  use: (sessionToken: string) => Effect.Effect<A, ExternalCallError>,
 ) {
   return yield* Effect.acquireUseRelease(
     authenticateAniDbEffect(
@@ -29,7 +30,7 @@ export const withAniDbSessionEffect = Effect.fn("AniDbClient.withSession")(funct
       clock,
       lastPacketAtRef,
     ),
-    Effect.succeed,
+    use,
     (sessionToken) =>
       logoutAniDbEffect(socket, sessionToken, clock, lastPacketAtRef).pipe(
         Effect.catchTag("ExternalCallError", () => Effect.void),

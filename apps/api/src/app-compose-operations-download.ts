@@ -12,59 +12,53 @@ import {
   UnmappedScanCoordinatorLive,
 } from "@/features/operations/runtime-support.ts";
 import { TorrentClientServiceLive } from "@/features/operations/torrent-client-service.ts";
-import { provideFrom, provideLayer } from "@/lib/layer-compose.ts";
 
 export function makeOperationsDownloadLayer<RSOut, RSE, RSR>(
   runtimeSupportLayer: Layer.Layer<RSOut, RSE, RSR>,
 ) {
-  const withRuntime = provideFrom(runtimeSupportLayer);
   const operationsRuntimeLayer = Layer.mergeAll(
     runtimeSupportLayer,
     DownloadTriggerCoordinatorLive,
     UnmappedScanCoordinatorLive,
   );
 
-  const withOperationsRuntime = provideFrom(operationsRuntimeLayer);
-
-  const torrentClientLayer = withOperationsRuntime(TorrentClientServiceLive);
+  const torrentClientLayer = TorrentClientServiceLive.pipe(Layer.provide(operationsRuntimeLayer));
   const downloadRuntimeLayer = Layer.mergeAll(operationsRuntimeLayer, torrentClientLayer);
 
-  const withDownloadRuntime = provideFrom(downloadRuntimeLayer);
-
-  const downloadReconciliationLayer = withDownloadRuntime(DownloadReconciliationServiceLive);
+  const downloadReconciliationLayer = DownloadReconciliationServiceLive.pipe(
+    Layer.provide(downloadRuntimeLayer),
+  );
   const downloadLifecycleRuntimeLayer = Layer.mergeAll(
     downloadRuntimeLayer,
     downloadReconciliationLayer,
   );
-  const withDownloadLifecycleRuntime = provideFrom(downloadLifecycleRuntimeLayer);
 
-  const downloadTorrentLifecycleLayer = withDownloadLifecycleRuntime(
-    DownloadTorrentLifecycleServiceLive,
+  const downloadTorrentLifecycleLayer = DownloadTorrentLifecycleServiceLive.pipe(
+    Layer.provide(downloadLifecycleRuntimeLayer),
   );
   const downloadProgressRuntimeLayer = Layer.mergeAll(
     downloadLifecycleRuntimeLayer,
     downloadTorrentLifecycleLayer,
   );
 
-  const withDownloadProgressRuntime = provideFrom(downloadProgressRuntimeLayer);
-
-  const downloadProgressSupportLayer = withDownloadProgressRuntime(DownloadProgressSupportLive);
+  const downloadProgressSupportLayer = DownloadProgressSupportLive.pipe(
+    Layer.provide(downloadProgressRuntimeLayer),
+  );
   const triggerRuntimeLayer = Layer.mergeAll(
     downloadProgressRuntimeLayer,
     downloadProgressSupportLayer,
   );
 
-  const withTriggerRuntime = provideFrom(triggerRuntimeLayer);
-
-  const downloadTriggerLayer = withTriggerRuntime(DownloadTriggerServiceLive);
-  const catalogDownloadReadLayer = withRuntime(CatalogDownloadReadServiceLive);
+  const downloadTriggerLayer = DownloadTriggerServiceLive.pipe(Layer.provide(triggerRuntimeLayer));
+  const catalogDownloadReadLayer = CatalogDownloadReadServiceLive.pipe(
+    Layer.provide(runtimeSupportLayer),
+  );
   const commandDependenciesLayer = Layer.mergeAll(
     downloadProgressRuntimeLayer,
     downloadProgressSupportLayer,
   );
-  const catalogDownloadCommandLayer = provideLayer(
-    CatalogDownloadCommandServiceLive,
-    commandDependenciesLayer,
+  const catalogDownloadCommandLayer = CatalogDownloadCommandServiceLive.pipe(
+    Layer.provide(commandDependenciesLayer),
   );
 
   const progressDependenciesLayer = Layer.mergeAll(
@@ -73,7 +67,7 @@ export function makeOperationsDownloadLayer<RSOut, RSE, RSR>(
     catalogDownloadReadLayer,
     catalogDownloadCommandLayer,
   );
-  const operationsProgressLayer = provideLayer(ProgressLive, progressDependenciesLayer);
+  const operationsProgressLayer = ProgressLive.pipe(Layer.provide(progressDependenciesLayer));
 
   const downloadSubgraphLayer = Layer.mergeAll(
     torrentClientLayer,

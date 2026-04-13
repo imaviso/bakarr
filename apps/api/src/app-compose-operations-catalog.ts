@@ -6,7 +6,6 @@ import { CatalogLibraryWriteServiceLive } from "@/features/operations/catalog-li
 import { CatalogRssServiceLive } from "@/features/operations/catalog-rss-service.ts";
 import { ImportPathScanServiceLive } from "@/features/operations/import-path-scan-service.ts";
 import { LibraryRootsQueryServiceLive } from "@/features/operations/library-roots-query-service.ts";
-import { provideFrom, provideLayer } from "@/lib/layer-compose.ts";
 
 interface OperationsCatalogLayerInput<OPOut, OPE, OPR, RSOut, RSE, RSR> {
   readonly operationsProgressLayer: Layer.Layer<OPOut, OPE, OPR>;
@@ -17,18 +16,22 @@ export function makeOperationsCatalogLayer<OPOut, OPE, OPR, RSOut, RSE, RSR>(
   input: OperationsCatalogLayerInput<OPOut, OPE, OPR, RSOut, RSE, RSR>,
 ) {
   const { operationsProgressLayer, runtimeSupportLayer } = input;
-  const withRuntime = provideFrom(runtimeSupportLayer);
   const runtimeWithProgressLayer = Layer.mergeAll(runtimeSupportLayer, operationsProgressLayer);
 
-  const catalogLibraryReadLayer = withRuntime(CatalogLibraryReadServiceLive);
-  const catalogLibraryWriteLayer = withRuntime(CatalogLibraryWriteServiceLive);
-  const catalogLibraryScanLayer = provideLayer(
-    CatalogLibraryScanServiceLive,
-    runtimeWithProgressLayer,
+  const catalogLibraryReadLayer = CatalogLibraryReadServiceLive.pipe(
+    Layer.provide(runtimeSupportLayer),
   );
-  const importPathScanLayer = withRuntime(ImportPathScanServiceLive);
-  const catalogRssLayer = withRuntime(CatalogRssServiceLive);
-  const libraryRootsQueryLayer = withRuntime(LibraryRootsQueryServiceLive);
+  const catalogLibraryWriteLayer = CatalogLibraryWriteServiceLive.pipe(
+    Layer.provide(runtimeSupportLayer),
+  );
+  const catalogLibraryScanLayer = CatalogLibraryScanServiceLive.pipe(
+    Layer.provide(runtimeWithProgressLayer),
+  );
+  const importPathScanLayer = ImportPathScanServiceLive.pipe(Layer.provide(runtimeSupportLayer));
+  const catalogRssLayer = CatalogRssServiceLive.pipe(Layer.provide(runtimeSupportLayer));
+  const libraryRootsQueryLayer = LibraryRootsQueryServiceLive.pipe(
+    Layer.provide(runtimeSupportLayer),
+  );
 
   const catalogSubgraphLayer = Layer.mergeAll(
     catalogLibraryReadLayer,

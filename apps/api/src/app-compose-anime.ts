@@ -9,23 +9,20 @@ import { AnimeQueryServiceLive } from "@/features/anime/query-service.ts";
 import { AnimeSettingsServiceLive } from "@/features/anime/anime-settings-service.ts";
 import { AnimeStreamServiceLive } from "@/features/anime/anime-stream-service.ts";
 import { StreamTokenSignerLive } from "@/features/anime/stream-token-signer.ts";
-import { provideLayer } from "@/lib/layer-compose.ts";
 
 export function makeAnimeAppLayer<RSOut, RSE, RSR>(
   runtimeSupportLayer: Layer.Layer<RSOut, RSE, RSR>,
 ) {
   const imageCacheLayer = AnimeImageCacheServiceLive;
   const metadataEnrichmentLayer = AnimeMetadataEnrichmentServiceLive;
-  const metadataProviderLayer = provideLayer(
-    AnimeMetadataProviderServiceLive,
-    metadataEnrichmentLayer,
+  const metadataProviderLayer = AnimeMetadataProviderServiceLive.pipe(
+    Layer.provide(metadataEnrichmentLayer),
   );
-  const animeMaintenanceLayer = provideLayer(
-    AnimeMaintenanceServiceLive,
-    Layer.mergeAll(metadataProviderLayer, imageCacheLayer),
+  const animeMaintenanceLayer = AnimeMaintenanceServiceLive.pipe(
+    Layer.provide(Layer.mergeAll(metadataProviderLayer, imageCacheLayer)),
   );
   const streamTokenSignerLayer = StreamTokenSignerLive;
-  const animeStreamLayer = provideLayer(AnimeStreamServiceLive, streamTokenSignerLayer);
+  const animeStreamLayer = AnimeStreamServiceLive.pipe(Layer.provide(streamTokenSignerLayer));
 
   const animeSubgraphLayer = Layer.mergeAll(
     imageCacheLayer,
@@ -39,5 +36,5 @@ export function makeAnimeAppLayer<RSOut, RSE, RSR>(
     animeStreamLayer,
   );
 
-  return provideLayer(animeSubgraphLayer, runtimeSupportLayer);
+  return animeSubgraphLayer.pipe(Layer.provide(runtimeSupportLayer));
 }

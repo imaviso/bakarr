@@ -4,8 +4,8 @@ import type { NotificationEvent } from "@packages/shared/index.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 
 export interface EventPublisherShape {
-  readonly publish: (event: NotificationEvent) => Effect.Effect<void, never, never>;
-  readonly publishInfo: (message: string) => Effect.Effect<void, never, never>;
+  readonly publish: (event: NotificationEvent) => Effect.Effect<void>;
+  readonly publishInfo: (message: string) => Effect.Effect<void>;
 }
 
 export class EventPublisher extends Context.Tag("@bakarr/api/EventPublisher")<
@@ -14,7 +14,7 @@ export class EventPublisher extends Context.Tag("@bakarr/api/EventPublisher")<
 >() {}
 
 export const makeEventPublisher = Effect.fn("Events.makeEventPublisher")((options?: {
-  readonly publish?: (event: NotificationEvent) => Effect.Effect<void, never, never>;
+  readonly publish?: (event: NotificationEvent) => Effect.Effect<void>;
 }) => {
   return Effect.gen(function* () {
     const publishEvent = options?.publish ?? (yield* EventBus).publish;
