@@ -178,6 +178,30 @@ it.effect("RssClient fails with a typed rejection when DNS resolution fails", ()
   }),
 );
 
+it.effect("RssClient rejects IP-literal feed URLs before network access", () =>
+  Effect.gen(function* () {
+    let httpCalled = false;
+
+    const exit = yield* Effect.exit(
+      Effect.flatMap(RssClient, (client) =>
+        client.fetchItems("https://93.184.216.34/feed.xml"),
+      ).pipe(
+        Effect.provide(
+          rssLayer(
+            makeTrackingHttpClient(() => {
+              httpCalled = true;
+            }),
+            (_name, _type) => Promise.resolve(["93.184.216.34"]),
+          ),
+        ),
+      ),
+    );
+
+    assertRssFailure(exit, RssFeedRejectedError, /ip-literal feed urls are not allowed/i);
+    assert.deepStrictEqual(httpCalled, false);
+  }),
+);
+
 it.effect("RssClient fails with a typed rejection when a redirect targets a private address", () =>
   Effect.gen(function* () {
     let requestCount = 0;
@@ -190,13 +214,36 @@ it.effect("RssClient fails with a typed rejection when a redirect targets a priv
       ),
     );
 
-    assertRssFailure(exit, RssFeedRejectedError, /private|loopback|link-local|ssrf/i);
+    assertRssFailure(exit, RssFeedRejectedError, /private|loopback|link-local|ssrf|ip-literal/i);
     assert.deepStrictEqual(
       requestCount,
       1,
       "Should only make initial request, not follow redirect",
     );
   }),
+);
+
+it.effect(
+  "RssClient fails with a typed rejection when a redirect targets a public IP literal",
+  () =>
+    Effect.gen(function* () {
+      let requestCount = 0;
+
+      const exit = yield* Effect.exit(
+        fetchFeedItemsEffect(
+          makeRedirectHttpClient(() => requestCount++, "https://93.184.216.34/private.xml"),
+          (_name, type) =>
+            type === "A" ? Promise.resolve(["93.184.216.34"]) : Promise.reject(makeNotFoundError()),
+        ),
+      );
+
+      assertRssFailure(exit, RssFeedRejectedError, /ip-literal feed urls are not allowed/i);
+      assert.deepStrictEqual(
+        requestCount,
+        1,
+        "Should only make initial request, not follow redirect",
+      );
+    }),
 );
 
 it.effect("RssClient fails with a typed rejection when a chained redirect becomes private", () =>
@@ -225,7 +272,7 @@ it.effect("RssClient fails with a typed rejection when a chained redirect become
       ),
     );
 
-    assertRssFailure(exit, RssFeedRejectedError, /private|loopback|link-local|ssrf/i);
+    assertRssFailure(exit, RssFeedRejectedError, /private|loopback|link-local|ssrf|ip-literal/i);
     assert.deepStrictEqual(
       redirectChain.length,
       1,
@@ -603,7 +650,7 @@ it.scoped("RssClient handles redirects manually when the transport returns 302 r
       ),
     );
 
-    assertRssFailure(exit, RssFeedRejectedError, /private|loopback|link-local|ssrf/i);
+    assertRssFailure(exit, RssFeedRejectedError, /private|loopback|link-local|ssrf|ip-literal/i);
     assert.deepStrictEqual(calls.length, 1);
     assert.deepStrictEqual(calls[0], "https://feeds.example/releases.xml");
   }),

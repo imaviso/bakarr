@@ -71,16 +71,9 @@ export const resolvePinnedRequestTarget = Effect.fn("RssClient.resolvePinnedRequ
     }
 
     if (isIpLiteral(hostname)) {
-      if (isPrivateIpAddress(hostname)) {
-        return yield* new RssFeedRejectedError({
-          message: `IP ${hostname} is private/reserved`,
-        });
-      }
-
-      return {
-        _tag: "Unpinned",
-        parsedUrl,
-      } satisfies PinnedRequestTarget;
+      return yield* new RssFeedRejectedError({
+        message: `IP-literal feed URLs are not allowed: ${hostname}`,
+      });
     }
 
     const resolvedAddrs = yield* resolveFeedAddresses(hostname, dns);
