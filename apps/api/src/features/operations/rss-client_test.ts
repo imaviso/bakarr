@@ -513,7 +513,7 @@ it("formatRssTransportFailureMessage includes TLS mismatch detail", () => {
   assert.match(message, /186\.2\.163\.20/);
 });
 
-it("RssTransport pins DNS lookup for HTTPS targets", () => {
+it("RssTransport does not pin DNS lookup for HTTPS targets", () => {
   const config = buildRssTransportRequestConfigForTest({
     _tag: "Pinned",
     parsedUrl: new URL("https://nyaa.si/?page=rss&q=Akane-banashi&c=1_0&f=0"),
@@ -522,7 +522,7 @@ it("RssTransport pins DNS lookup for HTTPS targets", () => {
   });
 
   assert.deepStrictEqual(config.hostname, "nyaa.si");
-  assert.strictEqual(typeof config.lookup, "function");
+  assert.deepStrictEqual(config.lookup, undefined);
   assert.deepStrictEqual(config.servername, "nyaa.si");
 });
 
