@@ -112,7 +112,6 @@ function AnimeDetailsPage() {
 
               {/* Details */}
               <div class="lg:col-span-3 space-y-6">
-                {/* Synopsis */}
                 <Show when={anime().description}>
                   <Card>
                     <CardHeader class="pb-3">
@@ -121,6 +120,19 @@ function AnimeDetailsPage() {
                     <CardContent>
                       <p class="text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
                         {anime().description}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </Show>
+
+                <Show when={anime().background}>
+                  <Card>
+                    <CardHeader class="pb-3">
+                      <CardTitle class="text-base">Background</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p class="text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
+                        {anime().background}
                       </p>
                     </CardContent>
                   </Card>
