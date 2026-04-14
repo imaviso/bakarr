@@ -12,7 +12,7 @@ import { ClockService, type ClockServiceShape } from "@/lib/clock.ts";
 import { FileSystem, type FileSystemShape } from "@/lib/filesystem.ts";
 
 export const MANAMI_DATASET_URL =
-  "https://raw.githubusercontent.com/manami-project/anime-offline-database/master/anime-offline-database-minified.json";
+  "https://github.com/manami-project/anime-offline-database/releases/latest/download/anime-offline-database-minified.json";
 
 export const MANAMI_CACHE_DIR_NAME = "cache";
 export const MANAMI_CACHE_DATASET_FILE = "manami-anime-offline-database-minified.json";
