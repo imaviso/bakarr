@@ -8,6 +8,10 @@ import {
   type AnimeMetadataEnrichmentCacheState,
 } from "@/features/anime/anime-metadata-enrichment-service.ts";
 import type { AnimeStoredDataError } from "@/features/anime/errors.ts";
+import { JikanClient } from "@/features/anime/jikan.ts";
+import type { JikanNormalizedAnime } from "@/features/anime/jikan-model.ts";
+import { ManamiClient } from "@/features/anime/manami.ts";
+import { mergeAnimeMetadata } from "@/features/anime/metadata-merge.ts";
 import type { ExternalCallError } from "@/lib/effect-retry.ts";
 
 export type AnimeMetadataLookupResult =
@@ -56,6 +60,8 @@ export const AnimeMetadataProviderServiceLive = Layer.effect(
   AnimeMetadataProviderService,
   Effect.gen(function* () {
     const aniList = yield* AniListClient;
+    const jikan = yield* JikanClient;
+    const manami = yield* ManamiClient;
     const enrichmentService = yield* AnimeMetadataEnrichmentService;
 
     const getAnimeMetadataById = Effect.fn("AnimeMetadataProviderService.getAnimeMetadataById")(
@@ -67,17 +73,44 @@ export const AnimeMetadataProviderServiceLive = Layer.effect(
         }
 
         const baseMetadata = metadata.value;
-        const cacheState = yield* enrichmentService.getAniDbCacheState(baseMetadata.id);
+        const manamiMetadata = yield* manami.getByAniListId(baseMetadata.id);
+        const effectiveMalId =
+          baseMetadata.malId === undefined
+            ? yield* manami.resolveMalIdFromAniListId(baseMetadata.id)
+            : Option.some(baseMetadata.malId);
+
+        if (baseMetadata.malId === undefined && Option.isSome(effectiveMalId)) {
+          yield* Effect.logInfo("Resolved MAL id from Manami").pipe(
+            Effect.annotateLogs({
+              animeId: baseMetadata.id,
+              malId: effectiveMalId.value,
+              provider: "Manami",
+            }),
+          );
+        }
+
+        const jikanMetadata = Option.isSome(effectiveMalId)
+          ? yield* jikan.getAnimeByMalId(effectiveMalId.value)
+          : Option.none<JikanNormalizedAnime>();
+        const malToAniListId = yield* resolveMalToAniListIdMap(jikanMetadata, manami);
+        const mergedMetadata = mergeAnimeMetadata({
+          anilist: baseMetadata,
+          ...(Option.isSome(jikanMetadata) ? { jikan: jikanMetadata.value } : {}),
+          ...(malToAniListId === undefined ? {} : { malToAniListId }),
+          ...(Option.isSome(manamiMetadata) ? { manami: manamiMetadata.value } : {}),
+        });
+
+        const cacheState = yield* enrichmentService.getAniDbCacheState(mergedMetadata.id);
 
         if (cacheState._tag === "Fresh") {
-          return yield* toFreshLookupResult(baseMetadata, cacheState);
+          return yield* toFreshLookupResult(mergedMetadata, cacheState);
         }
 
         yield* enrichmentService.requestAniDbRefresh({
-          animeId: baseMetadata.id,
-          episodeCount: baseMetadata.episodeCount,
-          synonyms: baseMetadata.synonyms,
-          title: baseMetadata.title,
+          animeId: mergedMetadata.id,
+          episodeCount: mergedMetadata.episodeCount,
+          synonyms: mergedMetadata.synonyms,
+          title: mergedMetadata.title,
         });
 
         const result = {
@@ -89,10 +122,10 @@ export const AnimeMetadataProviderServiceLive = Layer.effect(
               cacheState: cacheState._tag === "Missing" ? "missing" : "stale",
             },
           },
-          metadata: baseMetadata,
+          metadata: mergedMetadata,
         } as const satisfies AnimeMetadataLookupResult;
 
-        yield* logEnrichmentResult(baseMetadata.id, result.enrichment);
+        yield* logEnrichmentResult(mergedMetadata.id, result.enrichment);
         return result;
       },
     );
@@ -148,9 +181,43 @@ const logEnrichmentResult = Effect.fn("AnimeMetadataProviderService.logEnrichmen
     yield* Effect.logInfo("AniDB enrichment degraded").pipe(
       Effect.annotateLogs({
         animeId,
+        provider: "AniDB",
         reason: reason._tag,
         ...(reason._tag === "AniDbRefreshPending" ? { cacheState: reason.cacheState } : {}),
       }),
     );
+  },
+);
+
+interface ManamiMalIdResolver {
+  readonly resolveAniListIdFromMalId: (
+    malId: number,
+  ) => Effect.Effect<Option.Option<number>, ExternalCallError>;
+}
+
+const resolveMalToAniListIdMap = Effect.fn("AnimeMetadataProviderService.resolveMalToAniListIdMap")(
+  function* (jikanMetadata: Option.Option<JikanNormalizedAnime>, manami: ManamiMalIdResolver) {
+    if (Option.isNone(jikanMetadata) || jikanMetadata.value.relations.length === 0) {
+      return undefined;
+    }
+
+    const uniqueMalIds = [
+      ...new Set(jikanMetadata.value.relations.map((relation) => relation.malId)),
+    ];
+    const pairs = yield* Effect.forEach(uniqueMalIds, (malId) =>
+      manami
+        .resolveAniListIdFromMalId(malId)
+        .pipe(Effect.map((animeId) => [malId, animeId] as const)),
+    );
+
+    const output = new Map<number, number>();
+
+    for (const [malId, animeId] of pairs) {
+      if (Option.isSome(animeId)) {
+        output.set(malId, animeId.value);
+      }
+    }
+
+    return output.size > 0 ? output : undefined;
   },
 );

@@ -75,6 +75,14 @@ export const SystemStatusReadServiceLive = Layer.effect(
             configured: aniDbConfigured,
             enabled: anidbConfig?.enabled ?? false,
           },
+          jikan: {
+            configured: true,
+            enabled: true,
+          },
+          manami: {
+            configured: true,
+            enabled: true,
+          },
         },
         pending_downloads: downloadStats.queuedDownloads,
         uptime: Math.max(0, Math.floor((now - runtime.startedAt.getTime()) / 1000)),

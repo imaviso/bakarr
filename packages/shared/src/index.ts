@@ -593,6 +593,14 @@ export interface SystemStatus {
       enabled: boolean;
       configured: boolean;
     };
+    jikan: {
+      enabled: boolean;
+      configured: boolean;
+    };
+    manami: {
+      enabled: boolean;
+      configured: boolean;
+    };
   };
   disk_space: {
     free: number;
@@ -612,6 +620,14 @@ export const SystemStatusMetadataProvidersSchema: Schema.Schema<
   SystemStatus["metadata_providers"]
 > = Schema.Struct({
   anidb: Schema.Struct({
+    enabled: Schema.Boolean,
+    configured: Schema.Boolean,
+  }),
+  jikan: Schema.Struct({
+    enabled: Schema.Boolean,
+    configured: Schema.Boolean,
+  }),
+  manami: Schema.Struct({
     enabled: Schema.Boolean,
     configured: Schema.Boolean,
   }),

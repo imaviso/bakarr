@@ -165,6 +165,14 @@ it("shared api schemas accept canonical system and download payloads", () => {
         configured: false,
         enabled: false,
       },
+      jikan: {
+        configured: true,
+        enabled: true,
+      },
+      manami: {
+        configured: true,
+        enabled: true,
+      },
     },
     pending_downloads: 2,
     uptime: 42,

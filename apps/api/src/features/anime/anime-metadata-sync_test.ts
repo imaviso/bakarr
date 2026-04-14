@@ -8,6 +8,10 @@ import { anime } from "@/db/schema.ts";
 import type { AnimeMetadata } from "@/features/anime/anilist-model.ts";
 import { ImageCacheError } from "@/features/anime/anime-image-cache-service.ts";
 import { syncAnimeMetadataEffect } from "@/features/anime/anime-metadata-sync.ts";
+import {
+  decodeStoredDiscoveryEntriesEffect,
+  decodeStoredSynonymsEffect,
+} from "@/features/anime/decode-support.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 
 it.scoped("syncAnimeMetadataEffect stores locally cached image paths", () =>
@@ -131,6 +135,91 @@ it.scoped("syncAnimeMetadataEffect keeps existing image paths if caching fails",
         );
         assert.deepStrictEqual(row?.bannerImage, "/api/images/anime/502/banner-old.jpg");
         assert.deepStrictEqual(row?.coverImage, "/api/images/anime/502/cover-old.jpg");
+      }),
+    schema,
+  }),
+);
+
+it.scoped("syncAnimeMetadataEffect persists enrichment metadata fields from provider output", () =>
+  withSqliteTestDbEffect({
+    run: (db) =>
+      Effect.gen(function* () {
+        const appDb: AppDatabase = db;
+        const animeId = 503;
+
+        yield* insertAnimeRow(appDb, animeId, {
+          bannerImage: "/api/images/anime/503/banner-old.jpg",
+          coverImage: "/api/images/anime/503/cover-old.jpg",
+        });
+
+        const metadata: AnimeMetadata = {
+          ...makeMetadata(animeId),
+          malId: 99003,
+          recommendedAnime: [{ id: 8101, title: { romaji: "Recommendation from enrichment" } }],
+          relatedAnime: [
+            { id: 7101, title: { romaji: "Mapped relation one" } },
+            { id: 7102, title: { romaji: "Mapped relation two" } },
+          ],
+          synonyms: ["Mapped Alias", "Provider Alias"],
+        };
+
+        const result = yield* syncAnimeMetadataEffect({
+          imageCacheService: {
+            cacheMetadataImages: () =>
+              Effect.succeed({
+                bannerImage: "/api/images/anime/503/banner.jpg",
+                coverImage: "/api/images/anime/503/cover.jpg",
+              }),
+          },
+          metadataProvider: {
+            getAnimeMetadataById: () =>
+              Effect.succeed({
+                _tag: "Found",
+                enrichment: {
+                  _tag: "Degraded",
+                  reason: { _tag: "AniDbNoEpisodeMetadata" },
+                },
+                metadata,
+              }),
+          },
+          animeId,
+          db: appDb,
+          eventPublisher: Option.none(),
+          nowIso: () => Effect.succeed("2026-04-11T00:00:00.000Z"),
+        });
+
+        const [row] = yield* Effect.promise(() =>
+          appDb.select().from(anime).where(eq(anime.id, animeId)),
+        );
+        assert(row);
+
+        const persistedRelated = yield* decodeStoredDiscoveryEntriesEffect(
+          row.relatedAnime,
+          "relatedAnime",
+        );
+        const persistedRecommended = yield* decodeStoredDiscoveryEntriesEffect(
+          row.recommendedAnime,
+          "recommendedAnime",
+        );
+        const persistedSynonyms = yield* decodeStoredSynonymsEffect(row.synonyms);
+        const nextRelated = yield* decodeStoredDiscoveryEntriesEffect(
+          result.nextAnimeRow.relatedAnime,
+          "relatedAnime",
+        );
+        const nextRecommended = yield* decodeStoredDiscoveryEntriesEffect(
+          result.nextAnimeRow.recommendedAnime,
+          "recommendedAnime",
+        );
+        const nextSynonyms = yield* decodeStoredSynonymsEffect(result.nextAnimeRow.synonyms);
+
+        assert.deepStrictEqual(row.malId, 99003);
+        assert.deepStrictEqual(result.nextAnimeRow.malId, 99003);
+        assert.deepStrictEqual(persistedRelated, metadata.relatedAnime);
+        assert.deepStrictEqual(persistedRecommended, metadata.recommendedAnime);
+        assert.deepStrictEqual(persistedSynonyms, metadata.synonyms);
+        assert.deepStrictEqual(nextRelated, metadata.relatedAnime);
+        assert.deepStrictEqual(nextRecommended, metadata.recommendedAnime);
+        assert.deepStrictEqual(nextSynonyms, metadata.synonyms);
       }),
     schema,
   }),

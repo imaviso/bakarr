@@ -16,6 +16,8 @@ import { makeApiLifecycleLayers } from "./src/api-lifecycle-layers.ts";
 import { createHttpApp } from "./src/http/http-app.ts";
 import { commandArgs, commandName } from "./src/test/stubs.ts";
 import { AniListClient } from "./src/features/anime/anilist.ts";
+import { JikanClient } from "./src/features/anime/jikan.ts";
+import { ManamiClient } from "./src/features/anime/manami.ts";
 import { type QBitTorrent, QBitTorrentClient } from "./src/features/operations/qbittorrent.ts";
 import { mapQBitState } from "./src/features/operations/download-orchestration-shared.ts";
 import { RssClient } from "./src/features/operations/rss-client.ts";
@@ -30,6 +32,8 @@ declare global {
 }
 
 type TestContextOptions = {
+  readonly jikanLayer?: Layer.Layer<JikanClient>;
+  readonly manamiLayer?: Layer.Layer<ManamiClient>;
   readonly qbitLayer?: Layer.Layer<QBitTorrentClient>;
   readonly rssLayer?: Layer.Layer<RssClient>;
   readonly seadexLayer?: Layer.Layer<SeaDexClient>;
@@ -4623,7 +4627,20 @@ const testSeaDexLayer = Layer.succeed(SeaDexClient, {
     Effect.succeed(Option.fromNullable(TEST_SEADEX_ENTRIES.get(aniListId))),
 });
 
+const testJikanLayer = Layer.succeed(JikanClient, {
+  getAnimeByMalId: () => Effect.succeed(Option.none()),
+});
+
+const testManamiLayer = Layer.succeed(ManamiClient, {
+  getByAniListId: () => Effect.succeed(Option.none()),
+  getByMalId: () => Effect.succeed(Option.none()),
+  resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
+  resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
+});
+
 async function createTestContext(options?: {
+  jikanLayer?: Layer.Layer<JikanClient>;
+  manamiLayer?: Layer.Layer<ManamiClient>;
   qbitLayer?: Layer.Layer<QBitTorrentClient>;
   rssLayer?: Layer.Layer<RssClient>;
   seadexLayer?: Layer.Layer<SeaDexClient>;
@@ -4661,6 +4678,8 @@ async function createTestContext(options?: {
           }),
         ),
         ...(options?.qbitLayer ? { qbitLayer: options.qbitLayer } : {}),
+        jikanLayer: options?.jikanLayer ?? testJikanLayer,
+        manamiLayer: options?.manamiLayer ?? testManamiLayer,
         rssLayer: options?.rssLayer ?? testRssLayer,
         seadexLayer: options?.seadexLayer ?? testSeaDexLayer,
       },
