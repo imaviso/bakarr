@@ -87,12 +87,15 @@ export const addAnimeEffect = Effect.fn("AnimeAdd.addAnimeEffect")(function* (in
 
   const animeRow = {
     addedAt: createdAt,
+    background: validMetadata.background ?? null,
     bannerImage: cachedImages.bannerImage ?? null,
     coverImage: cachedImages.coverImage ?? null,
     description: validMetadata.description ?? null,
+    duration: validMetadata.duration ?? null,
     endDate: validMetadata.endDate ?? null,
     endYear: validMetadata.endYear ?? null,
     episodeCount: validMetadata.episodeCount ?? null,
+    favorites: validMetadata.favorites ?? null,
     format: validMetadata.format,
     genres: yield* encodeStringList(validMetadata.genres ?? []).pipe(
       Effect.mapError(
@@ -105,10 +108,14 @@ export const addAnimeEffect = Effect.fn("AnimeAdd.addAnimeEffect")(function* (in
     ),
     id: validMetadata.id,
     malId: validMetadata.malId ?? null,
+    members: validMetadata.members ?? null,
     monitored: input.animeInput.monitored,
     nextAiringAt: validMetadata.nextAiringEpisode?.airingAt ?? null,
     nextAiringEpisode: validMetadata.nextAiringEpisode?.episode ?? null,
+    popularity: validMetadata.popularity ?? null,
     profileName: input.animeInput.profile_name,
+    rank: validMetadata.rank ?? null,
+    rating: validMetadata.rating ?? null,
     releaseProfileIds: yield* encodeNumberList(input.animeInput.release_profile_ids).pipe(
       Effect.mapError(
         (cause) =>
@@ -120,6 +127,7 @@ export const addAnimeEffect = Effect.fn("AnimeAdd.addAnimeEffect")(function* (in
     ),
     rootFolder,
     score: validMetadata.score ?? null,
+    source: validMetadata.source ?? null,
     startDate: validMetadata.startDate ?? null,
     startYear: validMetadata.startYear ?? null,
     status: validMetadata.status,

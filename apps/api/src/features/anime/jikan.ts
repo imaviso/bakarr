@@ -4,8 +4,10 @@ import { Context, Effect, Layer, Option, Schema } from "effect";
 import {
   JikanAnimeDetailFullPayloadSchema,
   JikanAnimeDetailPayloadSchema,
+  JikanAnimeRecommendationsPayloadSchema,
   JikanNormalizedAnimeFromDetailSchema,
   JikanNormalizedAnimeFromFullSchema,
+  normalizeJikanRecommendations,
   type JikanNormalizedAnime,
 } from "@/features/anime/jikan-model.ts";
 import { ExternalCall, ExternalCallError, type ExternalCallShape } from "@/lib/effect-retry.ts";
@@ -30,38 +32,65 @@ export const JikanClientLive = Layer.effect(
     const externalCall = yield* ExternalCall;
 
     const getAnimeByMalId = Effect.fn("JikanClient.getAnimeByMalId")(function* (malId: number) {
-      const full = yield* fetchFullDetail(client, externalCall, malId);
+      const detail = yield* fetchDetail(client, externalCall, malId);
 
-      if (Option.isSome(full)) {
-        return full;
+      if (Option.isNone(detail)) {
+        return Option.none<JikanNormalizedAnime>();
       }
 
-      return yield* fetchBasicDetail(client, externalCall, malId);
+      const recommendations = yield* fetchRecommendations(client, externalCall, malId);
+
+      return Option.some({
+        ...detail.value,
+        recommendations,
+      });
     });
 
     return JikanClient.of({ getAnimeByMalId });
   }),
 );
 
-const fetchFullDetail = Effect.fn("JikanClient.fetchFullDetail")(function* (
+const fetchDetail = Effect.fn("JikanClient.fetchDetail")(function* (
   client: HttpClient.HttpClient,
   externalCall: ExternalCallShape,
   malId: number,
 ) {
-  const response = yield* callJikan(client, externalCall, malId, "full");
+  const fullResponse = yield* callJikan(
+    client,
+    externalCall,
+    `/anime/${malId}/full`,
+    "jikan.detail.full",
+  );
 
-  if (Option.isNone(response)) {
+  if (Option.isSome(fullResponse)) {
+    return yield* decodeFullDetail(fullResponse.value);
+  }
+
+  const basicResponse = yield* callJikan(
+    client,
+    externalCall,
+    `/anime/${malId}`,
+    "jikan.detail.basic",
+  );
+
+  if (Option.isNone(basicResponse)) {
     return Option.none<JikanNormalizedAnime>();
   }
 
+  return yield* decodeBasicDetail(basicResponse.value);
+});
+
+const decodeFullDetail = Effect.fn("JikanClient.decodeFullDetail")(function* (
+  response: HttpClientResponse.HttpClientResponse,
+) {
   const payload = yield* HttpClientResponse.schemaBodyJson(JikanAnimeDetailFullPayloadSchema)(
-    response.value,
+    response,
   ).pipe(
     Effect.mapError((cause) =>
       ExternalCallError.make({
         cause,
-        message: "Jikan full response decode failed",
-        operation: "jikan.detail.full.json",
+        message: "Jikan detail response decode failed",
+        operation: "jikan.detail.json",
       }),
     ),
   );
@@ -72,8 +101,8 @@ const fetchFullDetail = Effect.fn("JikanClient.fetchFullDetail")(function* (
     Effect.mapError((cause) =>
       ExternalCallError.make({
         cause,
-        message: "Jikan full response normalization failed",
-        operation: "jikan.detail.full.normalize",
+        message: "Jikan detail response normalization failed",
+        operation: "jikan.detail.normalize",
       }),
     ),
   );
@@ -81,25 +110,17 @@ const fetchFullDetail = Effect.fn("JikanClient.fetchFullDetail")(function* (
   return Option.some(normalized);
 });
 
-const fetchBasicDetail = Effect.fn("JikanClient.fetchBasicDetail")(function* (
-  client: HttpClient.HttpClient,
-  externalCall: ExternalCallShape,
-  malId: number,
+const decodeBasicDetail = Effect.fn("JikanClient.decodeBasicDetail")(function* (
+  response: HttpClientResponse.HttpClientResponse,
 ) {
-  const response = yield* callJikan(client, externalCall, malId, "basic");
-
-  if (Option.isNone(response)) {
-    return Option.none<JikanNormalizedAnime>();
-  }
-
   const payload = yield* HttpClientResponse.schemaBodyJson(JikanAnimeDetailPayloadSchema)(
-    response.value,
+    response,
   ).pipe(
     Effect.mapError((cause) =>
       ExternalCallError.make({
         cause,
         message: "Jikan detail response decode failed",
-        operation: "jikan.detail.basic.json",
+        operation: "jikan.detail.json",
       }),
     ),
   );
@@ -111,7 +132,7 @@ const fetchBasicDetail = Effect.fn("JikanClient.fetchBasicDetail")(function* (
       ExternalCallError.make({
         cause,
         message: "Jikan detail response normalization failed",
-        operation: "jikan.detail.basic.normalize",
+        operation: "jikan.detail.normalize",
       }),
     ),
   );
@@ -119,29 +140,55 @@ const fetchBasicDetail = Effect.fn("JikanClient.fetchBasicDetail")(function* (
   return Option.some(normalized);
 });
 
-const callJikan = Effect.fn("JikanClient.callJikan")(function* (
+const fetchRecommendations = Effect.fn("JikanClient.fetchRecommendations")(function* (
   client: HttpClient.HttpClient,
   externalCall: ExternalCallShape,
   malId: number,
-  mode: "full" | "basic",
 ) {
-  const pathSuffix = mode === "full" ? "/full" : "";
+  const response = yield* callJikan(
+    client,
+    externalCall,
+    `/anime/${malId}/recommendations`,
+    "jikan.detail.recommendations",
+  );
 
+  if (Option.isNone(response)) {
+    return [];
+  }
+
+  const payload = yield* HttpClientResponse.schemaBodyJson(JikanAnimeRecommendationsPayloadSchema)(
+    response.value,
+  ).pipe(
+    Effect.mapError((cause) =>
+      ExternalCallError.make({
+        cause,
+        message: "Jikan recommendations decode failed",
+        operation: "jikan.detail.recommendations.json",
+      }),
+    ),
+  );
+
+  return normalizeJikanRecommendations(payload.data);
+});
+
+const callJikan = Effect.fn("JikanClient.callJikan")(function* (
+  client: HttpClient.HttpClient,
+  externalCall: ExternalCallShape,
+  path: string,
+  operation: string,
+) {
   const url = yield* Effect.try({
-    try: () => `${JIKAN_URL}/anime/${malId}${pathSuffix}`,
+    try: () => `${JIKAN_URL}${path}`,
     catch: (cause) =>
       ExternalCallError.make({
         cause,
         message: "Failed to build Jikan request URL",
-        operation: `jikan.detail.${mode}.request`,
+        operation: `${operation}.request`,
       }),
   });
 
   const request = HttpClientRequest.get(url);
-  const response = yield* externalCall.tryExternalEffect(
-    `jikan.detail.${mode}`,
-    client.execute(request),
-  );
+  const response = yield* externalCall.tryExternalEffect(operation, client.execute(request));
 
   if (response.status === 404) {
     return Option.none<HttpClientResponse.HttpClientResponse>();
@@ -149,9 +196,9 @@ const callJikan = Effect.fn("JikanClient.callJikan")(function* (
 
   if (response.status < 200 || response.status >= 300) {
     return yield* ExternalCallError.make({
-      cause: new Error(`Jikan detail ${mode} failed with status ${response.status}`),
-      message: `Jikan detail ${mode} failed`,
-      operation: `jikan.detail.${mode}.response`,
+      cause: new Error(`Jikan ${operation} failed with status ${response.status}`),
+      message: `Jikan ${operation} failed`,
+      operation: `${operation}.response`,
     });
   }
 

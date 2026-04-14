@@ -209,7 +209,15 @@ export interface Anime {
     native?: string | undefined;
   };
   format: string;
+  source?: string | undefined;
   description?: string | undefined;
+  background?: string | undefined;
+  duration?: string | undefined;
+  rating?: string | undefined;
+  rank?: number | undefined;
+  popularity?: number | undefined;
+  members?: number | undefined;
+  favorites?: number | undefined;
   score?: number | undefined;
   genres?: string[] | undefined;
   studios?: string[] | undefined;
@@ -241,7 +249,15 @@ export const AnimeSchema: Schema.Schema<Anime> = Schema.mutable(
     mal_id: Schema.optional(Schema.Number),
     title: AnimeTitleSchema,
     format: Schema.String,
+    source: Schema.optional(Schema.String),
     description: Schema.optional(Schema.String),
+    background: Schema.optional(Schema.String),
+    duration: Schema.optional(Schema.String),
+    rating: Schema.optional(Schema.String),
+    rank: Schema.optional(Schema.Number),
+    popularity: Schema.optional(Schema.Number),
+    members: Schema.optional(Schema.Number),
+    favorites: Schema.optional(Schema.Number),
     score: Schema.optional(Schema.Number),
     genres: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),
     studios: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),
@@ -1809,6 +1825,13 @@ export interface AnimeSearchResult {
     native?: string | undefined;
   };
   format?: string | undefined;
+  source?: string | undefined;
+  duration?: string | undefined;
+  rating?: string | undefined;
+  rank?: number | undefined;
+  popularity?: number | undefined;
+  members?: number | undefined;
+  favorites?: number | undefined;
   episode_count?: number | undefined;
   status?: string | undefined;
   start_date?: string | undefined;
@@ -1840,6 +1863,13 @@ export const AnimeSearchResultSchema: Schema.Schema<AnimeSearchResult> = Schema.
   id: Schema.Number,
   title: AnimeSearchResultTitleSchema,
   format: Schema.optional(Schema.String),
+  source: Schema.optional(Schema.String),
+  duration: Schema.optional(Schema.String),
+  rating: Schema.optional(Schema.String),
+  rank: Schema.optional(Schema.Number),
+  popularity: Schema.optional(Schema.Number),
+  members: Schema.optional(Schema.Number),
+  favorites: Schema.optional(Schema.Number),
   episode_count: Schema.optional(Schema.Number),
   status: Schema.optional(Schema.String),
   start_date: Schema.optional(Schema.String),

@@ -9,6 +9,8 @@ interface AnimeDetailsSidebarProps {
 }
 
 export function AnimeDetailsSidebar(props: AnimeDetailsSidebarProps) {
+  const compactNumber = new Intl.NumberFormat(undefined, { notation: "compact" });
+
   return (
     <div class="space-y-4">
       <Card class="overflow-hidden">
@@ -34,6 +36,67 @@ export function AnimeDetailsSidebar(props: AnimeDetailsSidebarProps) {
           <CardContent class="p-3 flex items-center justify-between">
             <span class="text-sm font-medium">Score</span>
             <span class="font-bold text-lg">{props.anime.score}</span>
+          </CardContent>
+        </Card>
+      </Show>
+
+      <Show
+        when={
+          props.anime.source ||
+          props.anime.duration ||
+          props.anime.rating ||
+          props.anime.rank ||
+          props.anime.popularity ||
+          props.anime.members ||
+          props.anime.favorites
+        }
+      >
+        <Card>
+          <CardContent class="p-3">
+            <dl class="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+              <Show when={props.anime.source}>
+                <div>
+                  <dt class="text-muted-foreground">Source</dt>
+                  <dd class="font-medium">{props.anime.source}</dd>
+                </div>
+              </Show>
+              <Show when={props.anime.duration}>
+                <div>
+                  <dt class="text-muted-foreground">Duration</dt>
+                  <dd class="font-medium">{props.anime.duration}</dd>
+                </div>
+              </Show>
+              <Show when={props.anime.rating}>
+                <div class="col-span-2">
+                  <dt class="text-muted-foreground">Rating</dt>
+                  <dd class="font-medium">{props.anime.rating}</dd>
+                </div>
+              </Show>
+              <Show when={props.anime.rank}>
+                <div>
+                  <dt class="text-muted-foreground">Rank</dt>
+                  <dd class="font-medium">#{props.anime.rank}</dd>
+                </div>
+              </Show>
+              <Show when={props.anime.popularity}>
+                <div>
+                  <dt class="text-muted-foreground">Popularity</dt>
+                  <dd class="font-medium">#{props.anime.popularity}</dd>
+                </div>
+              </Show>
+              <Show when={props.anime.members}>
+                <div>
+                  <dt class="text-muted-foreground">Members</dt>
+                  <dd class="font-medium">{compactNumber.format(props.anime.members ?? 0)}</dd>
+                </div>
+              </Show>
+              <Show when={props.anime.favorites}>
+                <div>
+                  <dt class="text-muted-foreground">Favorites</dt>
+                  <dd class="font-medium">{compactNumber.format(props.anime.favorites ?? 0)}</dd>
+                </div>
+              </Show>
+            </dl>
           </CardContent>
         </Card>
       </Show>

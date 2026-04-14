@@ -20,6 +20,15 @@ const SEARCH_ANIME_QUERY = `query ($search: String) {
       format
       status
       episodes
+      duration
+      favourites
+      popularity
+      rankings {
+        rank
+        type
+        allTime
+      }
+      source
       description(asHtml: false)
       genres
       synonyms
@@ -115,6 +124,15 @@ const DETAIL_ANIME_QUERY = `query ($id: Int) {
     }
     description(asHtml: false)
     averageScore
+    duration
+    favourites
+    popularity
+    rankings {
+      rank
+      type
+      allTime
+    }
+    source
     genres
     synonyms
     nextAiringEpisode {

@@ -2,8 +2,10 @@ import type { AnimeDiscoveryEntry } from "@packages/shared/index.ts";
 import type { AnimeMetadata } from "@/features/anime/anilist-model.ts";
 import type { JikanNormalizedAnime } from "@/features/anime/jikan-model.ts";
 import type { ManamiAnimeEntry } from "@/features/anime/manami-model.ts";
+import { extractYearFromDate } from "@/lib/anime-date-utils.ts";
 
 type JikanRelationTarget = JikanNormalizedAnime["relations"][number];
+type JikanRecommendationTarget = NonNullable<JikanNormalizedAnime["recommendations"]>[number];
 
 export interface MetadataMergeInput {
   readonly anilist: AnimeMetadata;
@@ -15,26 +17,45 @@ export interface MetadataMergeInput {
 export function mergeAnimeMetadata(input: MetadataMergeInput): AnimeMetadata {
   const { anilist, jikan, manami, malToAniListId } = input;
   const relationMap = malToAniListId ?? new Map<number, number>();
+  const startDate = fillDate(anilist.startDate, jikan?.startDate);
+  const endDate = fillDate(anilist.endDate, jikan?.endDate);
   const jikanRelationEntries = convertJikanRelationsToDiscoveryEntries(
     jikan?.relations,
+    relationMap,
+  );
+  const jikanRecommendationEntries = convertJikanRecommendationsToDiscoveryEntries(
+    jikan?.recommendations,
     relationMap,
   );
 
   return {
     ...anilist,
-    description: pickFirst(anilist.description, jikan?.synopsis),
-    endDate: fillDate(anilist.endDate, jikan?.endDate),
+    background: pickFirst(anilist.background, jikan?.background),
+    description: pickFirst(anilist.description, jikan?.synopsis, jikan?.background),
+    duration: pickFirst(anilist.duration, jikan?.duration),
+    endDate,
+    endYear: anilist.endYear ?? jikan?.endYear ?? extractYearFromDate(endDate),
     episodeCount: anilist.episodeCount ?? jikan?.episodeCount,
+    favorites: anilist.favorites ?? jikan?.favorites,
     format: fillFormat(anilist.format, jikan?.format),
     genres: mergeGenres(anilist.genres, jikan?.genres, manami?.tags),
     id: anilist.id,
+    members: anilist.members ?? jikan?.members,
+    popularity: anilist.popularity ?? jikan?.popularity,
+    rank: anilist.rank ?? jikan?.rank,
+    rating: pickFirst(anilist.rating, jikan?.rating),
     score: mergeScore(anilist.score, jikan?.score),
-    startDate: fillDate(anilist.startDate, jikan?.startDate),
+    source: pickFirst(anilist.source, jikan?.source),
+    startDate,
+    startYear: anilist.startYear ?? jikan?.startYear ?? extractYearFromDate(startDate),
     status: fillStatus(anilist.status, jikan?.status),
     studios: mergeStudios(anilist.studios, jikan?.studios, manami?.studios),
     synonyms: mergeSynonyms(anilist.synonyms, jikan?.titleVariants, manami?.synonyms),
     title: mergeTitle(anilist, jikan, manami),
-    recommendedAnime: mergeDiscoveryEntries(anilist.recommendedAnime, jikanRelationEntries),
+    recommendedAnime: mergeDiscoveryEntries(
+      mergeDiscoveryEntries(anilist.recommendedAnime, jikanRecommendationEntries),
+      jikanRelationEntries,
+    ),
     relatedAnime: mergeDiscoveryEntries(anilist.relatedAnime, jikanRelationEntries),
   };
 }
@@ -128,6 +149,35 @@ export function convertJikanRelationsToDiscoveryEntries(
       relation_type: relation.relation,
       title: {
         romaji: normalizeString(relation.title),
+      },
+    });
+  }
+
+  return output;
+}
+
+export function convertJikanRecommendationsToDiscoveryEntries(
+  recommendations: ReadonlyArray<JikanRecommendationTarget> | undefined,
+  malToAniListId: ReadonlyMap<number, number>,
+): AnimeDiscoveryEntry[] {
+  if (!recommendations || recommendations.length === 0) {
+    return [];
+  }
+
+  const output: AnimeDiscoveryEntry[] = [];
+  const seen = new Set<number>();
+
+  for (const recommendation of recommendations) {
+    const animeId = malToAniListId.get(recommendation.malId);
+    if (animeId === undefined || seen.has(animeId)) {
+      continue;
+    }
+
+    seen.add(animeId);
+    output.push({
+      id: animeId,
+      title: {
+        romaji: normalizeString(recommendation.title),
       },
     });
   }

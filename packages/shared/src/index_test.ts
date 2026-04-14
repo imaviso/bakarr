@@ -295,11 +295,14 @@ it("shared search and scanner schemas accept canonical payloads", () => {
     banner_image: "https://example.com/naruto-banner.jpg",
     cover_image: "https://example.com/naruto.jpg",
     description: "A ninja story",
+    duration: "24 min",
     end_year: 2024,
     episode_count: 12,
+    favorites: 1000,
     format: "TV",
     genres: ["Action", "Adventure"],
     id: 20,
+    members: 250000,
     match_confidence: 0.94,
     match_reason: "Matched AniList search for the normalized folder title",
     recommended_anime: [
@@ -331,6 +334,7 @@ it("shared search and scanner schemas accept canonical payloads", () => {
     start_date: "2024-01-07",
     start_year: 2024,
     status: "RELEASING",
+    source: "MANGA",
     synonyms: ["Naruto Alt"],
     title: {
       english: "Naruto",
@@ -443,15 +447,19 @@ it("shared nested dto schemas reject invalid payloads", () => {
 it("shared media schemas accept canonical anime, episode, download, and calendar payloads", () => {
   const anime = Schema.decodeUnknownEither(AnimeSchema)({
     added_at: "2024-01-01T00:00:00.000Z",
+    background: "World reset event",
     banner_image: "https://example.com/naruto-banner.jpg",
     cover_image: "https://example.com/naruto-cover.jpg",
     description: "A ninja story",
+    duration: "24 min",
     end_year: 2024,
     episode_count: 12,
+    favorites: 22000,
     format: "TV",
     genres: ["Action", "Adventure"],
     id: 20,
     mal_id: 1735,
+    members: 500000,
     monitored: true,
     next_airing_episode: {
       airing_at: "2024-01-15T00:00:00.000Z",
@@ -469,6 +477,9 @@ it("shared media schemas accept canonical anime, episode, download, and calendar
     },
     release_profile_ids: [1, 2],
     root_folder: "/library/Naruto",
+    popularity: 14,
+    rank: 8,
+    rating: "PG-13 - Teens 13 or older",
     related_anime: [
       {
         id: 21,
@@ -500,6 +511,7 @@ it("shared media schemas accept canonical anime, episode, download, and calendar
     start_year: 2024,
     status: "RELEASING",
     studios: ["Pierrot"],
+    source: "MANGA",
     synonyms: ["Naruto Alt"],
     title: {
       english: "Naruto",

@@ -7,6 +7,7 @@ import {
   AnimeMetadataEnrichmentService,
   type AnimeMetadataEnrichmentCacheState,
 } from "@/features/anime/anime-metadata-enrichment-service.ts";
+import { mergeAnimeMetadataEpisodes } from "@/features/anime/episode-merge.ts";
 import type { AnimeStoredDataError } from "@/features/anime/errors.ts";
 import { JikanClient } from "@/features/anime/jikan.ts";
 import type { JikanNormalizedAnime } from "@/features/anime/jikan-model.ts";
@@ -139,6 +140,8 @@ const toFreshLookupResult = Effect.fn("AnimeMetadataProviderService.toFreshLooku
     baseMetadata: AnimeMetadata,
     cacheState: Extract<AnimeMetadataEnrichmentCacheState, { _tag: "Fresh" }>,
   ) {
+    const mergedEpisodes = mergeLookupEpisodes(baseMetadata, cacheState);
+
     if (cacheState.episodes.length === 0) {
       const result = {
         _tag: "Found",
@@ -164,11 +167,18 @@ const toFreshLookupResult = Effect.fn("AnimeMetadataProviderService.toFreshLooku
       },
       metadata: {
         ...baseMetadata,
-        episodes: [...cacheState.episodes],
+        episodes: mergedEpisodes,
       },
     } as const satisfies AnimeMetadataLookupResult;
   },
 );
+
+const mergeLookupEpisodes = (
+  metadata: AnimeMetadata,
+  cacheState: Extract<AnimeMetadataEnrichmentCacheState, { _tag: "Fresh" }>,
+): AnimeMetadata["episodes"] => {
+  return mergeAnimeMetadataEpisodes(metadata.episodes, cacheState.episodes);
+};
 
 const logEnrichmentResult = Effect.fn("AnimeMetadataProviderService.logEnrichmentResult")(
   function* (animeId: number, result: AnimeMetadataEnrichmentResult) {
@@ -197,13 +207,24 @@ interface ManamiMalIdResolver {
 
 const resolveMalToAniListIdMap = Effect.fn("AnimeMetadataProviderService.resolveMalToAniListIdMap")(
   function* (jikanMetadata: Option.Option<JikanNormalizedAnime>, manami: ManamiMalIdResolver) {
-    if (Option.isNone(jikanMetadata) || jikanMetadata.value.relations.length === 0) {
+    if (Option.isNone(jikanMetadata)) {
       return undefined;
     }
 
+    const recommendationMalIds = (jikanMetadata.value.recommendations ?? []).map(
+      (recommendation) => recommendation.malId,
+    );
     const uniqueMalIds = [
-      ...new Set(jikanMetadata.value.relations.map((relation) => relation.malId)),
+      ...new Set([
+        ...jikanMetadata.value.relations.map((relation) => relation.malId),
+        ...recommendationMalIds,
+      ]),
     ];
+
+    if (uniqueMalIds.length === 0) {
+      return undefined;
+    }
+
     const pairs = yield* Effect.forEach(uniqueMalIds, (malId) =>
       manami
         .resolveAniListIdFromMalId(malId)

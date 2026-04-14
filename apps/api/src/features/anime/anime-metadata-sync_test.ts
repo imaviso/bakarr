@@ -154,12 +154,20 @@ it.scoped("syncAnimeMetadataEffect persists enrichment metadata fields from prov
 
         const metadata: AnimeMetadata = {
           ...makeMetadata(animeId),
+          background: "background",
+          duration: "24 min",
+          favorites: 99,
           malId: 99003,
+          members: 123,
+          popularity: 12,
+          rank: 9,
+          rating: "PG-13 - Teens 13 or older",
           recommendedAnime: [{ id: 8101, title: { romaji: "Recommendation from enrichment" } }],
           relatedAnime: [
             { id: 7101, title: { romaji: "Mapped relation one" } },
             { id: 7102, title: { romaji: "Mapped relation two" } },
           ],
+          source: "MANGA",
           synonyms: ["Mapped Alias", "Provider Alias"],
         };
 
@@ -213,6 +221,14 @@ it.scoped("syncAnimeMetadataEffect persists enrichment metadata fields from prov
         const nextSynonyms = yield* decodeStoredSynonymsEffect(result.nextAnimeRow.synonyms);
 
         assert.deepStrictEqual(row.malId, 99003);
+        assert.deepStrictEqual(row.background, "background");
+        assert.deepStrictEqual(row.duration, "24 min");
+        assert.deepStrictEqual(row.favorites, 99);
+        assert.deepStrictEqual(row.members, 123);
+        assert.deepStrictEqual(row.popularity, 12);
+        assert.deepStrictEqual(row.rank, 9);
+        assert.deepStrictEqual(row.rating, "PG-13 - Teens 13 or older");
+        assert.deepStrictEqual(row.source, "MANGA");
         assert.deepStrictEqual(result.nextAnimeRow.malId, 99003);
         assert.deepStrictEqual(persistedRelated, metadata.relatedAnime);
         assert.deepStrictEqual(persistedRecommended, metadata.recommendedAnime);

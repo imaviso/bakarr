@@ -155,12 +155,27 @@ it.scoped("AniListClient decodes detail responses from the provided HttpClient",
                 bannerImage: "https://example.com/banner.png",
                 coverImage: { large: "https://example.com/cover.png" },
                 description: "Remote description",
+                duration: 24,
                 endDate: { day: 3, month: 2, year: 2024 },
                 episodes: 12,
+                favourites: 12000,
                 format: "TV",
                 genres: ["Action"],
                 id: 321,
                 idMal: 654,
+                popularity: 450000,
+                rankings: [
+                  {
+                    allTime: true,
+                    rank: 9,
+                    type: "RATED",
+                  },
+                  {
+                    allTime: true,
+                    rank: 15,
+                    type: "POPULAR",
+                  },
+                ],
                 recommendations: {
                   nodes: [
                     {
@@ -215,6 +230,7 @@ it.scoped("AniListClient decodes detail responses from the provided HttpClient",
                 startDate: { day: 2, month: 1, year: 2024 },
                 status: "FINISHED",
                 studios: { nodes: [{ name: "Studio Remote" }] },
+                source: "MANGA",
                 synonyms: ["Remote Alias"],
                 title: {
                   english: "Remote Detail",
@@ -259,6 +275,12 @@ it.scoped("AniListClient decodes detail responses from the provided HttpClient",
       assert.deepStrictEqual(result.value.relatedAnime?.length, expected.relatedAnime.length);
       assert.deepStrictEqual(result.value.relatedAnime?.[0]?.id, expected.relatedAnime[0]?.id);
       assert.deepStrictEqual(result.value.score, expected.score);
+      assert.deepStrictEqual(result.value.duration, expected.duration);
+      assert.deepStrictEqual(result.value.favorites, expected.favorites);
+      assert.deepStrictEqual(result.value.members, expected.members);
+      assert.deepStrictEqual(result.value.popularity, expected.popularity);
+      assert.deepStrictEqual(result.value.rank, expected.rank);
+      assert.deepStrictEqual(result.value.source, expected.source);
       assert.deepStrictEqual(result.value.startDate, expected.startDate);
       assert.deepStrictEqual(result.value.startYear, expected.startYear);
       assert.deepStrictEqual(result.value.status, expected.status);
@@ -422,6 +444,7 @@ function expectedDetailResult() {
     endYear: 2024,
     episodeCount: 12,
     format: "TV",
+    source: "MANGA",
     futureAiringSchedule: [
       { airingAt: "2024-01-23T08:53:20.000Z", episode: 13 },
       { airingAt: "2024-01-30T08:53:20.000Z", episode: 14 },
@@ -429,6 +452,11 @@ function expectedDetailResult() {
     genres: ["Action"],
     id: 321,
     malId: 654,
+    duration: "24 min",
+    favorites: 12000,
+    members: 450000,
+    popularity: 15,
+    rank: 9,
     nextAiringEpisode: { airingAt: "2024-01-23T08:53:20.000Z", episode: 13 },
     recommendedAnime: [
       {

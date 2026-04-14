@@ -50,7 +50,7 @@ it.effect("backfills MAL id via Manami and merges metadata for AniDB refresh", (
 
   const providerLayer = makeProviderLayer({
     cacheState: { _tag: "Missing" },
-    jikanMetadata: {
+    jikanMetadata: makeJikanMetadata({
       endDate: "2024-06-30",
       episodeCount: 24,
       format: "TV",
@@ -68,7 +68,7 @@ it.effect("backfills MAL id via Manami and merges metadata for AniDB refresh", (
         romaji: "Merged Romaji",
       },
       titleVariants: ["Merged Alias"],
-    },
+    }),
     malIdFromAniListId: 777,
     manamiEntry: {
       sources: ["https://anilist.co/anime/1003"],
@@ -161,7 +161,10 @@ it.effect("returns enriched metadata when AniDB cache is fresh", () => {
 
 it.effect("merges Jikan/Manami metadata before applying AniDB episode enrichment", () => {
   const providerLayer = makeProviderLayer({
-    aniListIdByMalId: new Map([[202, 4004]]),
+    aniListIdByMalId: new Map([
+      [202, 4004],
+      [303, 5005],
+    ]),
     cacheState: {
       _tag: "Fresh",
       episodes: [
@@ -174,19 +177,44 @@ it.effect("merges Jikan/Manami metadata before applying AniDB episode enrichment
       updatedAt: "2024-01-02T00:00:00.000Z",
     },
     jikanMetadata: {
+      airing: false,
+      approved: true,
+      background: undefined,
+      broadcast: {},
+      demographics: [],
+      duration: undefined,
       endDate: undefined,
+      endYear: undefined,
       episodeCount: undefined,
+      explicitGenres: [],
+      favorites: undefined,
       format: undefined,
       genres: ["Drama"],
+      images: {},
+      licensors: [],
       malId: 1002,
+      members: undefined,
+      popularity: undefined,
+      producers: [],
+      rank: undefined,
+      rating: undefined,
+      recommendations: [{ malId: 303, title: "Recommended from Jikan" }],
       relations: [{ malId: 202, relation: "Sequel", title: "Related from Jikan" }],
       score: undefined,
+      scoredBy: undefined,
+      season: undefined,
+      source: undefined,
       startDate: undefined,
+      startYear: undefined,
       status: undefined,
       studios: [],
       synopsis: "Jikan Synopsis",
+      themes: [],
       title: {},
       titleVariants: [],
+      trailer: {},
+      url: "https://myanimelist.net/anime/1002",
+      year: undefined,
     },
     manamiEntry: {
       sources: ["https://anilist.co/anime/1002"],
@@ -214,6 +242,21 @@ it.effect("merges Jikan/Manami metadata before applying AniDB episode enrichment
       assert.deepStrictEqual(result.metadata.description, "Jikan Synopsis");
       assert.deepStrictEqual(result.metadata.genres, ["Action", "Drama", "Mystery"]);
       assert.deepStrictEqual(result.metadata.relatedAnime, [
+        {
+          id: 4004,
+          relation_type: "Sequel",
+          title: {
+            romaji: "Related from Jikan",
+          },
+        },
+      ]);
+      assert.deepStrictEqual(result.metadata.recommendedAnime, [
+        {
+          id: 5005,
+          title: {
+            romaji: "Recommended from Jikan",
+          },
+        },
         {
           id: 4004,
           relation_type: "Sequel",
@@ -306,7 +349,7 @@ it.effect("bubbles Jikan getAnimeByMalId failure when MAL id available", () => {
 it.effect("bubbles Manami resolveAniListIdFromMalId failure during relation mapping", () => {
   const providerLayer = makeProviderLayer({
     cacheState: { _tag: "Missing" },
-    jikanMetadata: {
+    jikanMetadata: makeJikanMetadata({
       endDate: undefined,
       episodeCount: undefined,
       format: undefined,
@@ -320,7 +363,7 @@ it.effect("bubbles Manami resolveAniListIdFromMalId failure during relation mapp
       synopsis: undefined,
       title: {},
       titleVariants: [],
-    },
+    }),
     metadata: makeMetadata(1006, {
       malId: 606,
     }),
@@ -429,5 +472,51 @@ function makeMetadata(id: number, overrides?: Partial<AnimeMetadata>): AnimeMeta
       english: overrides?.title?.english,
       native: overrides?.title?.native,
     },
+  };
+}
+
+function makeJikanMetadata(overrides: Partial<JikanNormalizedAnime>): JikanNormalizedAnime {
+  const malId = overrides.malId ?? 1;
+
+  return {
+    airing: false,
+    approved: true,
+    background: undefined,
+    broadcast: {},
+    demographics: [],
+    duration: undefined,
+    endDate: undefined,
+    endYear: undefined,
+    episodeCount: undefined,
+    explicitGenres: [],
+    favorites: undefined,
+    format: undefined,
+    genres: [],
+    images: {},
+    licensors: [],
+    members: undefined,
+    popularity: undefined,
+    producers: [],
+    rank: undefined,
+    rating: undefined,
+    recommendations: [],
+    relations: [],
+    score: undefined,
+    scoredBy: undefined,
+    season: undefined,
+    source: undefined,
+    startDate: undefined,
+    startYear: undefined,
+    status: undefined,
+    studios: [],
+    synopsis: undefined,
+    themes: [],
+    title: {},
+    titleVariants: [],
+    trailer: {},
+    year: undefined,
+    ...overrides,
+    malId: overrides.malId ?? malId,
+    url: overrides.url ?? `https://myanimelist.net/anime/${overrides.malId ?? malId}`,
   };
 }

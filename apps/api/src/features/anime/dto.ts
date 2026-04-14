@@ -61,17 +61,22 @@ export const toAnimeDto = Effect.fn("AnimeDto.toAnimeDto")(function* (
 
   return {
     added_at: row.addedAt,
+    background: row.background ?? undefined,
     banner_image: row.bannerImage ?? undefined,
     cover_image: row.coverImage ?? undefined,
     description: row.description ?? undefined,
+    duration: row.duration ?? undefined,
     end_date: row.endDate ?? undefined,
     end_year: row.endYear ?? undefined,
     episode_count: row.episodeCount ?? undefined,
+    favorites: row.favorites ?? undefined,
     format: row.format,
     genres,
     id: row.id,
     mal_id: row.malId ?? undefined,
+    members: row.members ?? undefined,
     monitored: row.monitored,
+    popularity: row.popularity ?? undefined,
     next_airing_episode:
       row.nextAiringEpisode && row.nextAiringAt
         ? {
@@ -92,8 +97,11 @@ export const toAnimeDto = Effect.fn("AnimeDto.toAnimeDto")(function* (
     },
     release_profile_ids: releaseProfileIds,
     root_folder: row.rootFolder,
+    rank: row.rank ?? undefined,
+    rating: row.rating ?? undefined,
     related_anime: relatedAnime,
     score: row.score ?? undefined,
+    source: row.source ?? undefined,
     season,
     season_year: seasonYear,
     start_date: row.startDate ?? undefined,

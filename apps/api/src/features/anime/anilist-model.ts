@@ -17,27 +17,36 @@ const AnimeMetadataAiringScheduleItemSchema = Schema.Struct({
 
 export const AnimeMetadataEpisodeSchema = Schema.Struct({
   aired: Schema.optional(Schema.String),
+  durationSeconds: Schema.optional(Schema.Number),
   number: Schema.Number,
   title: Schema.optional(Schema.String),
 });
 
 export const AnimeMetadataSchema = Schema.Struct({
+  background: Schema.optional(Schema.String),
   bannerImage: Schema.optional(Schema.String),
   coverImage: Schema.optional(Schema.String),
   description: Schema.optional(Schema.String),
+  duration: Schema.optional(Schema.String),
   endDate: Schema.optional(Schema.String),
   endYear: Schema.optional(Schema.Number),
   episodes: Schema.optional(Schema.Array(AnimeMetadataEpisodeSchema)),
   episodeCount: Schema.optional(Schema.Number),
+  favorites: Schema.optional(Schema.Number),
   format: Schema.String,
   futureAiringSchedule: Schema.optional(Schema.Array(AnimeMetadataAiringScheduleItemSchema)),
   genres: Schema.optional(Schema.Array(Schema.String)),
   id: Schema.Number,
   malId: Schema.optional(Schema.Number),
+  members: Schema.optional(Schema.Number),
   nextAiringEpisode: Schema.optional(AnimeMetadataAiringScheduleItemSchema),
+  popularity: Schema.optional(Schema.Number),
+  rank: Schema.optional(Schema.Number),
+  rating: Schema.optional(Schema.String),
   recommendedAnime: Schema.optional(Schema.Array(AnimeDiscoveryEntrySchema)),
   relatedAnime: Schema.optional(Schema.Array(AnimeDiscoveryEntrySchema)),
   score: Schema.optional(Schema.Number),
+  source: Schema.optional(Schema.String),
   startDate: Schema.optional(Schema.String),
   startYear: Schema.optional(Schema.Number),
   status: Schema.String,
@@ -101,17 +110,28 @@ const AniListStudioConnectionSchema = Schema.Struct({
   nodes: Schema.Array(AniListStudioNodeSchema),
 });
 
+const AniListRankingSchema = Schema.Struct({
+  allTime: Schema.optional(Schema.NullOr(Schema.Boolean)),
+  rank: Schema.optional(Schema.NullOr(Schema.Number)),
+  type: Schema.optional(Schema.NullOr(Schema.String)),
+});
+
 const AniListSearchMediaSchema = Schema.Struct({
   bannerImage: Schema.optional(Schema.NullOr(Schema.String)),
   coverImage: Schema.optional(AniListCoverImageSchema),
   description: Schema.optional(Schema.NullOr(Schema.String)),
+  duration: Schema.optional(Schema.NullOr(Schema.Number)),
   endDate: Schema.optional(AniListDateSchema),
   episodes: Schema.optional(Schema.NullOr(Schema.Number)),
+  favourites: Schema.optional(Schema.NullOr(Schema.Number)),
   format: Schema.optional(Schema.NullOr(Schema.String)),
   genres: Schema.optional(Schema.Array(Schema.String)),
   id: Schema.Number,
+  popularity: Schema.optional(Schema.NullOr(Schema.Number)),
+  rankings: Schema.optional(Schema.Array(AniListRankingSchema)),
   relations: Schema.optional(AniListRelationConnectionSchema),
   recommendations: Schema.optional(AniListRecommendationConnectionSchema),
+  source: Schema.optional(Schema.NullOr(Schema.String)),
   startDate: Schema.optional(AniListDateSchema),
   status: Schema.optional(Schema.NullOr(Schema.String)),
   synonyms: Schema.optional(Schema.Array(Schema.String)),
@@ -172,15 +192,20 @@ const AniListDetailMediaSchema = Schema.Struct({
   bannerImage: Schema.optional(Schema.NullOr(Schema.String)),
   coverImage: Schema.optional(AniListCoverImageSchema),
   description: Schema.optional(Schema.NullOr(Schema.String)),
+  duration: Schema.optional(Schema.NullOr(Schema.Number)),
   endDate: Schema.optional(AniListDateSchema),
   episodes: Schema.optional(Schema.NullOr(Schema.Number)),
+  favourites: Schema.optional(Schema.NullOr(Schema.Number)),
   format: Schema.optional(Schema.NullOr(Schema.String)),
   genres: Schema.optional(Schema.Array(Schema.String)),
   id: Schema.Number,
   idMal: Schema.optional(Schema.NullOr(Schema.Number)),
   nextAiringEpisode: Schema.optional(Schema.NullOr(AniListAiringScheduleSchema)),
+  popularity: Schema.optional(Schema.NullOr(Schema.Number)),
+  rankings: Schema.optional(Schema.Array(AniListRankingSchema)),
   recommendations: Schema.optional(AniListRecommendationConnectionSchema),
   relations: Schema.optional(AniListRelationConnectionSchema),
+  source: Schema.optional(Schema.NullOr(Schema.String)),
   startDate: Schema.optional(AniListDateSchema),
   status: Schema.optional(Schema.NullOr(Schema.String)),
   studios: Schema.optional(AniListStudioConnectionSchema),
@@ -205,16 +230,23 @@ export const AnimeSearchResultFromAniListSchema = Schema.transform(
       banner_image: entry.bannerImage ?? undefined,
       cover_image: entry.coverImage?.extraLarge ?? entry.coverImage?.large ?? undefined,
       description: entry.description ?? undefined,
+      duration: normalizeDuration(entry.duration),
       end_date: toIsoDate(entry.endDate),
       end_year: entry.endDate?.year ?? undefined,
       episode_count: entry.episodes ?? undefined,
+      favorites: entry.favourites ?? undefined,
       format: entry.format ?? undefined,
       genres: entry.genres ? [...entry.genres] : undefined,
       id: entry.id,
+      members: entry.popularity ?? undefined,
+      popularity: pickAniListRanking(entry.rankings, "POPULAR"),
+      rank: pickAniListRanking(entry.rankings, "RATED"),
+      rating: undefined,
       recommended_anime: normalizeRecommendations(entry.recommendations?.nodes),
       related_anime: normalizeDiscoveryEntries(entry.relations?.edges),
       season: deriveAnimeSeason(toIsoDate(entry.startDate)),
       season_year: entry.startDate?.year ?? undefined,
+      source: entry.source ?? undefined,
       start_date: toIsoDate(entry.startDate),
       start_year: entry.startDate?.year ?? undefined,
       status: entry.status ?? undefined,
@@ -231,13 +263,18 @@ export const AnimeSearchResultFromAniListSchema = Schema.transform(
         ? { extraLarge: entry.cover_image, large: entry.cover_image }
         : undefined,
       description: entry.description,
+      duration: parseDurationMinutes(entry.duration),
       endDate: undefined,
       episodes: entry.episode_count,
+      favourites: entry.favorites,
       format: entry.format,
       genres: entry.genres,
       id: entry.id,
+      popularity: entry.members ?? entry.popularity,
+      rankings: undefined,
       recommendations: undefined,
       relations: undefined,
+      source: entry.source,
       startDate: undefined,
       status: entry.status,
       synonyms: entry.synonyms,
@@ -255,12 +292,15 @@ export const AnimeMetadataFromAniListSchema = Schema.transform(
   AnimeMetadataSchema,
   {
     decode: (media) => ({
+      background: undefined,
       bannerImage: media.bannerImage ?? undefined,
       coverImage: media.coverImage?.extraLarge ?? media.coverImage?.large ?? undefined,
       description: media.description ?? undefined,
+      duration: normalizeDuration(media.duration),
       endDate: toIsoDate(media.endDate),
       endYear: media.endDate?.year ?? undefined,
       episodeCount: media.episodes ?? undefined,
+      favorites: media.favourites ?? undefined,
       format: media.format ?? "TV",
       futureAiringSchedule: normalizeFutureAiringSchedule(
         media.airingSchedule?.nodes,
@@ -269,10 +309,15 @@ export const AnimeMetadataFromAniListSchema = Schema.transform(
       genres: [...(media.genres ?? [])],
       id: media.id,
       malId: media.idMal ?? undefined,
+      members: media.popularity ?? undefined,
       nextAiringEpisode: toNextAiringEpisode(media.nextAiringEpisode),
+      popularity: pickAniListRanking(media.rankings, "POPULAR"),
+      rank: pickAniListRanking(media.rankings, "RATED"),
+      rating: undefined,
       recommendedAnime: normalizeRecommendations(media.recommendations?.nodes),
       relatedAnime: normalizeDiscoveryEntries(media.relations?.edges),
       score: media.averageScore ?? undefined,
+      source: media.source ?? undefined,
       startDate: toIsoDate(media.startDate),
       startYear: media.startDate?.year ?? undefined,
       status: media.status ?? "UNKNOWN",
@@ -296,15 +341,20 @@ export const AnimeMetadataFromAniListSchema = Schema.transform(
         ? { extraLarge: metadata.coverImage, large: metadata.coverImage }
         : undefined,
       description: metadata.description,
+      duration: parseDurationMinutes(metadata.duration),
       endDate: undefined,
       episodes: metadata.episodeCount,
+      favourites: metadata.favorites,
       format: metadata.format,
       genres: metadata.genres,
       id: metadata.id,
       idMal: metadata.malId,
       nextAiringEpisode: undefined,
+      popularity: metadata.members ?? metadata.popularity,
+      rankings: undefined,
       recommendations: undefined,
       relations: undefined,
+      source: metadata.source,
       startDate: undefined,
       status: metadata.status,
       studios: undefined,
@@ -317,6 +367,55 @@ export const AnimeMetadataFromAniListSchema = Schema.transform(
     }),
   },
 );
+
+function pickAniListRanking(
+  rankings:
+    | ReadonlyArray<{
+        readonly allTime?: boolean | null | undefined;
+        readonly rank?: number | null | undefined;
+        readonly type?: string | null | undefined;
+      }>
+    | undefined,
+  type: "POPULAR" | "RATED",
+) {
+  if (!Array.isArray(rankings) || rankings.length === 0) {
+    return undefined;
+  }
+
+  for (const ranking of rankings) {
+    if (ranking.type !== type || ranking.allTime === false) {
+      continue;
+    }
+
+    if (typeof ranking.rank === "number") {
+      return ranking.rank;
+    }
+  }
+
+  return undefined;
+}
+
+function normalizeDuration(durationMinutes: number | null | undefined) {
+  if (
+    durationMinutes === null ||
+    durationMinutes === undefined ||
+    !Number.isFinite(durationMinutes)
+  ) {
+    return undefined;
+  }
+
+  return `${Math.trunc(durationMinutes)} min`;
+}
+
+function parseDurationMinutes(duration: string | undefined) {
+  if (!duration) {
+    return undefined;
+  }
+
+  const match = /^(\d+)\s*min$/.exec(duration.trim());
+  const minutes = match?.[1];
+  return minutes ? Number.parseInt(minutes, 10) : undefined;
+}
 
 function toIsoDate(date?: AniListDateInput): string | undefined {
   if (!date?.year || !date?.month) {

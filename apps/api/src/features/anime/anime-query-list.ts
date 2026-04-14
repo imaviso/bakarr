@@ -152,17 +152,22 @@ function toAnimeDtoProgress(
 
     return {
       added_at: row.addedAt,
+      background: row.background ?? undefined,
       banner_image: row.bannerImage ?? undefined,
       cover_image: row.coverImage ?? undefined,
       description: row.description ?? undefined,
+      duration: row.duration ?? undefined,
       end_date: row.endDate ?? undefined,
       end_year: row.endYear ?? undefined,
       episode_count: row.episodeCount ?? undefined,
+      favorites: row.favorites ?? undefined,
       format: row.format,
       genres,
       id: row.id,
       mal_id: row.malId ?? undefined,
+      members: row.members ?? undefined,
       monitored: row.monitored,
+      popularity: row.popularity ?? undefined,
       next_airing_episode:
         row.nextAiringAt && row.nextAiringEpisode
           ? {
@@ -185,8 +190,11 @@ function toAnimeDtoProgress(
       related_anime: relatedAnime,
       release_profile_ids: releaseProfileIds,
       root_folder: row.rootFolder,
+      rank: row.rank ?? undefined,
+      rating: row.rating ?? undefined,
       season: deriveAnimeSeason(row.startDate ?? undefined),
       season_year: row.startYear ?? extractYearFromDate(row.startDate),
+      source: row.source ?? undefined,
       start_date: row.startDate ?? undefined,
       start_year: row.startYear ?? undefined,
       status: row.status,
@@ -197,6 +205,6 @@ function toAnimeDtoProgress(
         native: row.titleNative ?? undefined,
         romaji: row.titleRomaji,
       },
-    };
+    } satisfies Anime;
   });
 }

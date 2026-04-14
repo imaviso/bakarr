@@ -10,23 +10,31 @@ it.effect("toAnimeDto builds progress, metadata, and decoded arrays", () =>
     const result = yield* toAnimeDto(
       {
         addedAt: "2024-01-01T00:00:00.000Z",
+        background: "Background lore",
         bannerImage: "/api/images/anime/20/banner.jpg",
         coverImage: "/api/images/anime/20/cover.jpg",
         description: "A ninja story",
+        duration: "24 min",
         endDate: null,
         endYear: 2024,
         episodeCount: 4,
+        favorites: 100,
         format: "TV",
         genres: '["Action","Adventure"]',
         id: 20,
         malId: 1735,
+        members: 300,
         monitored: true,
         nextAiringAt: "2024-01-20T12:00:00.000Z",
         nextAiringEpisode: 5,
+        popularity: 11,
         profileName: "Default",
         releaseProfileIds: "[1,2]",
         rootFolder: "/library/Naruto",
+        rank: 7,
+        rating: "PG-13 - Teens 13 or older",
         score: 79,
+        source: "MANGA",
         startDate: null,
         startYear: 2023,
         status: "RELEASING",
@@ -95,7 +103,14 @@ it.effect("toAnimeDto builds progress, metadata, and decoded arrays", () =>
     );
 
     assert.deepStrictEqual(result.id, 20);
+    assert.deepStrictEqual(result.background, "Background lore");
+    assert.deepStrictEqual(result.duration, "24 min");
+    assert.deepStrictEqual(result.favorites, 100);
     assert.deepStrictEqual(result.genres, ["Action", "Adventure"]);
+    assert.deepStrictEqual(result.members, 300);
+    assert.deepStrictEqual(result.popularity, 11);
+    assert.deepStrictEqual(result.rank, 7);
+    assert.deepStrictEqual(result.rating, "PG-13 - Teens 13 or older");
     assert.deepStrictEqual(result.studios, ["Studio Pierrot"]);
     assert.deepStrictEqual(result.release_profile_ids, [1, 2]);
     assert.deepStrictEqual(result.progress.downloaded, 2);
@@ -114,6 +129,7 @@ it.effect("toAnimeDto builds progress, metadata, and decoded arrays", () =>
     assert.deepStrictEqual(result.start_year, 2023);
     assert.deepStrictEqual(result.synonyms, ["Naruto Alt"]);
     assert.deepStrictEqual(result.end_year, 2024);
+    assert.deepStrictEqual(result.source, "MANGA");
     assert.deepStrictEqual(result.next_airing_episode?.episode, 5);
   }),
 );
@@ -123,23 +139,31 @@ it.effect("toAnimeDto handles anime with unknown episode totals", () =>
     const result = yield* toAnimeDto(
       {
         addedAt: "2024-01-01T00:00:00.000Z",
+        background: null,
         bannerImage: null,
         coverImage: null,
         description: null,
+        duration: null,
         endDate: null,
         endYear: null,
         episodeCount: null,
+        favorites: null,
         format: "MOVIE",
         genres: "[]",
         id: 99,
         malId: null,
+        members: null,
         monitored: false,
         nextAiringAt: null,
         nextAiringEpisode: null,
         profileName: "Default",
+        popularity: null,
         releaseProfileIds: "[]",
         rootFolder: "/library/Movie",
+        rank: null,
+        rating: null,
         score: null,
+        source: null,
         startDate: null,
         startYear: null,
         status: "FINISHED",
@@ -171,23 +195,31 @@ it.effect("toAnimeDto fails with typed stored-data errors for corrupt persisted 
       toAnimeDto(
         {
           addedAt: "2024-01-01T00:00:00.000Z",
+          background: null,
           bannerImage: null,
           coverImage: null,
           description: null,
+          duration: null,
           endDate: null,
           endYear: null,
           episodeCount: 1,
+          favorites: null,
           format: "TV",
           genres: "not-json",
           id: 100,
           malId: null,
+          members: null,
           monitored: false,
           nextAiringAt: null,
           nextAiringEpisode: null,
           profileName: "Default",
+          popularity: null,
           releaseProfileIds: "[]",
           rootFolder: "/library/Bad",
+          rank: null,
+          rating: null,
           score: null,
+          source: null,
           startDate: null,
           startYear: null,
           status: "FINISHED",

@@ -20,12 +20,16 @@ export const syncEpisodeMetadataEffect = Effect.fn("AnimeService.syncEpisodeMeta
         for (const entry of episodeMetadata) {
           const updateSet = {
             ...(entry.aired === undefined ? {} : { aired: entry.aired }),
+            ...(entry.durationSeconds === undefined
+              ? {}
+              : { durationSeconds: entry.durationSeconds }),
             ...(entry.title === undefined ? {} : { title: entry.title }),
           };
 
           const insertBase = {
             aired: entry.aired ?? null,
             animeId,
+            durationSeconds: entry.durationSeconds ?? null,
             number: entry.number,
             title: entry.title ?? null,
           };
