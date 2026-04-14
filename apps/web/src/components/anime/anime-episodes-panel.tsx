@@ -110,7 +110,7 @@ export function AnimeEpisodesPanel(props: AnimeEpisodesPanelProps) {
                           role="listitem"
                           aria-label={`Episode ${episode.number}: ${status}`}
                           class={cn(
-                            "aspect-square rounded-md flex items-center justify-center text-xs font-mono transition-colors",
+                            "aspect-square flex items-center justify-center rounded-none text-xs font-mono transition-colors",
                             episode.downloaded
                               ? "bg-success/20 text-success border border-success/30"
                               : isAired(episode.aired)

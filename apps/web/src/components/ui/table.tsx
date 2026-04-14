@@ -43,9 +43,10 @@ const TableRow: Component<ComponentProps<"tr">> = (props) => {
 };
 
 const TableHead: Component<ComponentProps<"th">> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
+  const [local, others] = splitProps(props, ["class", "scope"]);
   return (
     <th
+      scope={local.scope ?? "col"}
       class={cn(
         "h-10 px-2 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
         local.class,

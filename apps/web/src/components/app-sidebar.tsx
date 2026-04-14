@@ -13,7 +13,6 @@ import { Link, useLocation } from "@tanstack/solid-router";
 import { For, Show } from "solid-js";
 import { CommandPalette } from "~/components/command-palette";
 import { ModeToggle } from "~/components/mode-toggle";
-import { DropdownMenu, DropdownMenuTrigger } from "~/components/ui/dropdown-menu";
 import {
   Sidebar,
   SidebarContent,
@@ -92,18 +91,16 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" class="border-r-0">
       {/* Workspace Header */}
       <SidebarHeader class="p-2 group-data-[collapsible=icon]:p-1">
-        <DropdownMenu>
-          <DropdownMenuTrigger class="flex items-center gap-2 w-full rounded-none px-2 py-1.5 hover:bg-sidebar-accent transition-colors group outline-none group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-            <div class="flex h-6 w-6 items-center justify-center bg-primary text-primary-foreground font-semibold text-xs shrink-0 rounded-none">
-              B
-            </div>
-            <Show when={!isCollapsed()}>
-              <span class="font-semibold text-sm text-sidebar-accent-foreground truncate flex-1 text-left">
-                Bakarr
-              </span>
-            </Show>
-          </DropdownMenuTrigger>
-        </DropdownMenu>
+        <div class="flex items-center gap-2 w-full rounded-none px-2 py-1.5">
+          <div class="flex h-6 w-6 items-center justify-center bg-primary text-primary-foreground font-semibold text-xs shrink-0 rounded-none">
+            B
+          </div>
+          <Show when={!isCollapsed()}>
+            <span class="font-semibold text-sm text-sidebar-accent-foreground truncate flex-1 text-left">
+              Bakarr
+            </span>
+          </Show>
+        </div>
       </SidebarHeader>
 
       {/* Search */}
@@ -126,6 +123,7 @@ export function AppSidebar() {
                       <Link
                         to={item.url}
                         class="w-full"
+                        aria-current={isActive(item.url) ? "page" : undefined}
                         activeOptions={{
                           exact: item.url === "/",
                         }}
@@ -165,7 +163,11 @@ export function AppSidebar() {
                 {(item) => {
                   return (
                     <SidebarMenuItem>
-                      <Link to={item.url} class="w-full">
+                      <Link
+                        to={item.url}
+                        class="w-full"
+                        aria-current={isActive(item.url) ? "page" : undefined}
+                      >
                         <SidebarMenuButton
                           tooltip={item.title}
                           isActive={isActive(item.url)}

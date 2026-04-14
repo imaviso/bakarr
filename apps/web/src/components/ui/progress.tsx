@@ -15,7 +15,7 @@ const Progress: Component<ProgressRootProps> = (props) => {
     <ProgressPrimitive.Root {...others}>
       {local.children}
       <ProgressPrimitive.Track class="relative h-2 w-full overflow-hidden rounded-full bg-secondary">
-        <ProgressPrimitive.Fill class="h-full w-[var(--kb-progress-fill-width)] flex-1 bg-primary transition-[width]" />
+        <ProgressPrimitive.Fill class="h-full w-[var(--kb-progress-fill-width)] flex-1 bg-primary transition-[width] duration-300 ease-out will-change-[width]" />
       </ProgressPrimitive.Track>
     </ProgressPrimitive.Root>
   );

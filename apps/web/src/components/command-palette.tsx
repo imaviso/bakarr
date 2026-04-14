@@ -191,7 +191,7 @@ export function CommandPalette() {
             placeholder="Search library or navigate..."
             value={inputValue()}
             onValueChange={setInputValue}
-            class="focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 border-0"
+            class="focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 border-0 focus-visible:border-b focus-visible:border-primary"
           />
           <SearchResults inputValue={inputValue} animeList={animeList} onSelect={handleSelect} />
         </Command>

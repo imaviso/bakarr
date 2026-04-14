@@ -181,7 +181,7 @@ export function AnimeGridView(props: AnimeLibraryViewProps) {
                     </Show>
                     <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   </Link>
-                  <div class="absolute right-2 top-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
+                  <div class="absolute right-2 top-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 has-[:focus-visible]:opacity-100">
                     <DeleteAnimeDialog
                       title={anime.title.english || anime.title.romaji}
                       onConfirm={() => props.deleteAnime.mutate(anime.id)}
@@ -229,7 +229,7 @@ export function AnimeGridView(props: AnimeLibraryViewProps) {
                       <div class="h-1.5 overflow-hidden bg-muted">
                         <div
                           class={cn(
-                            "h-full transition-[width]",
+                            "h-full transition-[width] duration-300 ease-out will-change-[width]",
                             anime.progress.next_missing_episode
                               ? "bg-warning"
                               : anime.monitored

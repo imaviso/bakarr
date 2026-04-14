@@ -8,6 +8,7 @@ import {
   SelectValue,
 } from "~/components/ui/select";
 import { TextField, TextFieldTextArea } from "~/components/ui/text-field";
+import { cn } from "~/lib/utils";
 
 function parseSizeUnit(value: string): "MB" | "GB" | undefined {
   if (value === "MB" || value === "mb") {
@@ -196,7 +197,7 @@ export function SettingRow(props: {
   label: string;
 }) {
   return (
-    <div class={`flex items-center justify-between py-3 gap-8 ${props.class ?? ""}`}>
+    <div class={cn("flex items-center justify-between py-3 gap-8", props.class)}>
       <div class="flex-1 min-w-0">
         <div class="text-sm font-medium text-foreground">{props.label}</div>
         <Show when={props.description}>
