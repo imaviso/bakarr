@@ -196,6 +196,9 @@ function buildRssTransportRequestConfig(target: PinnedRequestTarget): RssTranspo
       "User-Agent": "bakarr/1.0",
     },
     hostname: parsedUrl.hostname,
+    // Bun's HTTPS stack can validate cert altname against the pinned IP when a custom
+    // lookup is used, causing ERR_TLS_CERT_ALTNAME_INVALID for valid host certs.
+    // Keep pinning for HTTP only; HTTPS stays hostname-based for TLS/SNI validation.
     lookup: pinnedTarget && !isHttps ? makePinnedLookup(pinnedTarget) : undefined,
     method: "GET",
     path: `${parsedUrl.pathname}${parsedUrl.search}`,
