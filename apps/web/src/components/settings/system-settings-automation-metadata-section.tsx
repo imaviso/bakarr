@@ -30,6 +30,40 @@ export function SystemSettingsAutomationMetadataSection(
         </Show>
       </SettingRow>
 
+      <SettingRow
+        label="Jikan Runtime Status"
+        description="MyAnimeList metadata enrichment via Jikan API"
+      >
+        <Show when={props.systemStatus} fallback={<Badge variant="outline">Unknown</Badge>}>
+          {(status) => (
+            <Badge variant={status().metadata_providers.jikan.enabled ? "secondary" : "outline"}>
+              {status().metadata_providers.jikan.enabled
+                ? status().metadata_providers.jikan.configured
+                  ? "Enabled"
+                  : "Misconfigured"
+                : "Disabled"}
+            </Badge>
+          )}
+        </Show>
+      </SettingRow>
+
+      <SettingRow
+        label="Manami Runtime Status"
+        description="Cross-service relation resolution via anime-offline-database"
+      >
+        <Show when={props.systemStatus} fallback={<Badge variant="outline">Unknown</Badge>}>
+          {(status) => (
+            <Badge variant={status().metadata_providers.manami.enabled ? "secondary" : "outline"}>
+              {status().metadata_providers.manami.enabled
+                ? status().metadata_providers.manami.configured
+                  ? "Enabled"
+                  : "Misconfigured"
+                : "Disabled"}
+            </Badge>
+          )}
+        </Show>
+      </SettingRow>
+
       <props.form.Field name="metadata.anidb.enabled">
         {(field) => (
           <SettingRow

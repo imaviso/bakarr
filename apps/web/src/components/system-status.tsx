@@ -49,15 +49,15 @@ function formatRelativeTime(dateStr: string | null | undefined) {
   return `${diffDays}d ago`;
 }
 
-function formatAniDbProviderStatus(input: {
-  readonly configured: boolean;
-  readonly enabled: boolean;
-}) {
+function formatProviderStatus(
+  name: string,
+  input: { readonly configured: boolean; readonly enabled: boolean },
+) {
   if (!input.enabled) {
-    return "AniDB disabled";
+    return `${name} disabled`;
   }
 
-  return input.configured ? "AniDB ready" : "AniDB missing credentials";
+  return input.configured ? `${name} ready` : `${name} misconfigured`;
 }
 
 export function SystemStatus() {
@@ -147,11 +147,23 @@ export function SystemStatus() {
             </Show>
           </div>
           <p class="text-xs text-muted-foreground">Last refresh</p>
-          <p class="text-xs text-muted-foreground mt-1">
-            <Show when={status.data} fallback="AniDB disabled">
-              {(data) => formatAniDbProviderStatus(data().metadata_providers.anidb)}
+          <div class="flex flex-wrap gap-1 mt-1">
+            <Show when={status.data}>
+              {(data) => (
+                <>
+                  <span class="text-xs text-muted-foreground">
+                    {formatProviderStatus("AniDB", data().metadata_providers.anidb)}
+                  </span>
+                  <span class="text-xs text-muted-foreground">
+                    {formatProviderStatus("Jikan", data().metadata_providers.jikan)}
+                  </span>
+                  <span class="text-xs text-muted-foreground">
+                    {formatProviderStatus("Manami", data().metadata_providers.manami)}
+                  </span>
+                </>
+              )}
             </Show>
-          </p>
+          </div>
         </CardContent>
       </Card>
 
