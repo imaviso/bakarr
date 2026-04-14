@@ -35,6 +35,7 @@ import {
 import { filterAnimeLibrary } from "~/lib/anime-library-filter";
 import { getAiringDisplayPreferences } from "~/lib/anime-metadata";
 import { createDebouncer } from "~/lib/debounce";
+import { usePageTitle } from "~/lib/page-title";
 import { cn } from "~/lib/utils";
 
 const MonitorFilterSchema = v.fallback(v.picklist(["all", "monitored", "unmonitored"]), "all");
@@ -72,6 +73,7 @@ export const Route = createFileRoute("/_layout/anime/")({
 });
 
 function AnimeIndexPage() {
+  usePageTitle(() => "Library");
   const deleteAnime = createDeleteAnimeMutation();
   const animeQuery = useQuery(animeListQueryOptions);
   const configQuery = createSystemConfigQuery();

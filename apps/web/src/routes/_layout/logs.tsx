@@ -4,6 +4,7 @@ import { useLogsRouteState } from "~/features/logs/logs-route-state";
 import { parseLogsSearch } from "~/features/logs/logs-search";
 import { LogsView } from "~/features/logs/logs-view";
 import { infiniteLogsQueryOptions } from "~/lib/api";
+import { usePageTitle } from "~/lib/page-title";
 
 export const Route = createFileRoute("/_layout/logs")({
   validateSearch: parseLogsSearch,
@@ -24,6 +25,7 @@ export const Route = createFileRoute("/_layout/logs")({
 });
 
 function LogsPage() {
+  usePageTitle(() => "System Logs");
   const search = Route.useSearch();
   const navigate = useNavigate();
 

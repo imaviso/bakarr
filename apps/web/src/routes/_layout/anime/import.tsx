@@ -4,6 +4,7 @@ import { ImportPageContent } from "~/components/import/import-page-content";
 import { createImportPageState } from "~/components/import/import-page-state";
 import { GeneralError } from "~/components/general-error";
 import { animeListQueryOptions, profilesQueryOptions, systemConfigQueryOptions } from "~/lib/api";
+import { usePageTitle } from "~/lib/page-title";
 
 const ImportSearchSchema = v.object({
   animeId: v.optional(
@@ -30,6 +31,7 @@ export const Route = createFileRoute("/_layout/anime/import")({
 });
 
 function ImportPage() {
+  usePageTitle(() => "Import");
   const navigate = useNavigate();
   const search = Route.useSearch();
 

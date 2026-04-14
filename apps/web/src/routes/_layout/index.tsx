@@ -14,6 +14,7 @@ import {
   libraryStatsQueryOptions,
 } from "~/lib/api";
 import { createDownloadsRouteSearch } from "~/lib/download-events-search";
+import { usePageTitle } from "~/lib/page-title";
 
 export const Route = createFileRoute("/_layout/")({
   loader: async ({ context: { queryClient } }) => {
@@ -27,6 +28,7 @@ export const Route = createFileRoute("/_layout/")({
 });
 
 function DashboardPage() {
+  usePageTitle(() => "Dashboard");
   const statsQuery = createLibraryStatsQuery();
   const activityQuery = createActivityQuery();
 

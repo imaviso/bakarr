@@ -8,6 +8,7 @@ import {
 import { useDownloadsRouteState } from "~/features/downloads/downloads-route-state";
 import { DownloadsView } from "~/features/downloads/downloads-view";
 import { downloadHistoryQueryOptions } from "~/lib/api";
+import { usePageTitle } from "~/lib/page-title";
 
 export const Route = createFileRoute("/_layout/downloads")({
   validateSearch: parseDownloadsSearch,
@@ -19,6 +20,7 @@ export const Route = createFileRoute("/_layout/downloads")({
 });
 
 function DownloadsPage() {
+  usePageTitle(() => "Downloads");
   const search = Route.useSearch();
   const navigate = useNavigate();
 

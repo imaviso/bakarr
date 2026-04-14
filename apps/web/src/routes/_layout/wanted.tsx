@@ -29,6 +29,7 @@ import {
   createWantedQuery,
   type MissingEpisode,
 } from "~/lib/api";
+import { usePageTitle } from "~/lib/page-title";
 import {
   formatAiringDateWithPreferences,
   formatNextAiringEpisode,
@@ -46,6 +47,7 @@ export const Route = createFileRoute("/_layout/wanted")({
 });
 
 function WantedPage() {
+  usePageTitle(() => "Wanted");
   let scrollRef: HTMLDivElement | undefined;
   const limit = 100;
   const wantedQuery = createWantedQuery(() => limit);
@@ -224,7 +226,7 @@ function WantedRow(props: {
   return (
     <TableRow>
       <TableCell>
-        <div class="h-10 w-7 rounded overflow-hidden bg-muted">
+        <div class="h-10 w-7 rounded-none overflow-hidden bg-muted">
           <Show when={props.item.anime_image}>
             <img
               src={props.item.anime_image}

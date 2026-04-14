@@ -5,6 +5,7 @@ import { Suspense } from "solid-js";
 import { AnimeCalendar } from "~/components/anime-calendar";
 import { GeneralError } from "~/components/general-error";
 import { calendarQueryOptions } from "~/lib/api";
+import { usePageTitle } from "~/lib/page-title";
 
 export const Route = createFileRoute("/_layout/calendar")({
   loader: async ({ context: { queryClient } }) => {
@@ -18,6 +19,7 @@ export const Route = createFileRoute("/_layout/calendar")({
 });
 
 function CalendarPage() {
+  usePageTitle(() => "Calendar");
   return (
     <Suspense
       fallback={

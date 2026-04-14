@@ -34,6 +34,7 @@ import {
   type UnmappedFolder,
   unmappedFoldersQueryOptions,
 } from "~/lib/api";
+import { usePageTitle } from "~/lib/page-title";
 import { cn } from "~/lib/utils";
 
 export const Route = createFileRoute("/_layout/anime/scan")({
@@ -45,6 +46,7 @@ export const Route = createFileRoute("/_layout/anime/scan")({
 });
 
 function LibraryScanPage() {
+  usePageTitle(() => "Library Scan");
   const scanState = createUnmappedFoldersQuery();
   const systemJobs = createSystemJobsQuery();
   const bulkControlMutation = createBulkControlUnmappedFoldersMutation();

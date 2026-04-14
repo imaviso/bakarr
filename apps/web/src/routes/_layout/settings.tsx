@@ -20,6 +20,7 @@ import {
   releaseProfilesQueryOptions,
   systemConfigQueryOptions,
 } from "~/lib/api";
+import { usePageTitle } from "~/lib/page-title";
 
 export const Route = createFileRoute("/_layout/settings")({
   loader: async ({ context: { queryClient } }) => {
@@ -35,6 +36,7 @@ export const Route = createFileRoute("/_layout/settings")({
 });
 
 function SettingsPage() {
+  usePageTitle(() => "Settings");
   return (
     <div class="space-y-6">
       <PageHeader title="Settings">

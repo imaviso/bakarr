@@ -31,6 +31,7 @@ import {
 import { animeAltTitles, animeDisplayTitle, animeSearchSubtitle } from "~/lib/anime-metadata";
 import { createDebouncer } from "~/lib/debounce";
 import { formatMatchConfidence } from "~/lib/scanned-file";
+import { usePageTitle } from "~/lib/page-title";
 import { cn } from "~/lib/utils";
 
 const searchSchema = v.object({
@@ -51,6 +52,7 @@ export const Route = createFileRoute("/_layout/anime/add")({
 });
 
 function AddAnimePage() {
+  usePageTitle(() => "Add Anime");
   const search = Route.useSearch();
   const [query, setQuery] = createSignal("");
   const [debouncedQuery, setDebouncedQuery] = createSignal("");

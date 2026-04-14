@@ -18,6 +18,7 @@ import {
   profilesQueryOptions,
   releaseProfilesQueryOptions,
 } from "~/lib/api";
+import { usePageTitle } from "~/lib/page-title";
 
 const IdParamSchema = v.pipe(
   v.string(),
@@ -52,6 +53,7 @@ function AnimeDetailsPage() {
   const navigate = useNavigate();
 
   const animeQuery = useQuery(() => animeDetailsQueryOptions(animeId()));
+  usePageTitle(() => animeQuery.data?.title?.english || animeQuery.data?.title?.romaji);
   const episodesQuery = useQuery(() => episodesQueryOptions(animeId()));
   const profilesQuery = useQuery(profilesQueryOptions);
   const releaseProfilesQuery = useQuery(releaseProfilesQueryOptions);

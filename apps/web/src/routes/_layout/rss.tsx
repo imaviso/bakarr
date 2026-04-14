@@ -51,6 +51,7 @@ import {
   type RssFeed,
   rssFeedsQueryOptions,
 } from "~/lib/api";
+import { usePageTitle } from "~/lib/page-title";
 
 export const Route = createFileRoute("/_layout/rss")({
   validateSearch: (search) => v.parse(v.object({}), search),
@@ -65,6 +66,7 @@ export const Route = createFileRoute("/_layout/rss")({
 });
 
 function RssPage() {
+  usePageTitle(() => "RSS Feeds");
   const [isAdding, setIsAdding] = createSignal(false);
   const feedsQuery = createRssFeedsQuery();
   const deleteFeed = createDeleteRssFeedMutation();
@@ -188,7 +190,12 @@ function FeedCard(props: {
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={props.onDelete}>Delete</AlertDialogAction>
+              <AlertDialogAction
+                class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={props.onDelete}
+              >
+                Delete
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
