@@ -11,6 +11,8 @@ data/
 dist/
 build/
 result/
+generated/
+
 bakarr.sqlite
 bakarr.sqlite-shm
 bakarr.sqlite-wal
