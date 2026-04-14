@@ -79,7 +79,10 @@ it.effect("manami index construction keeps first entry for duplicate ids", () =>
         },
       ],
       lastUpdate: "2026-01-02",
-      license: "ODbL-1.0",
+      license: {
+        name: "Open Data Commons Open Database License (ODbL) v1.0 + Database Contents License (DbCL) v1.0",
+        url: "https://github.com/manami-project/anime-offline-database/blob/2026-14/LICENSE",
+      },
       repository: "https://github.com/manami-project/anime-offline-database",
     });
     const indexes = buildManamiIndexes(dataset);
@@ -131,7 +134,10 @@ it.scoped("ManamiClient maps decode failures as ExternalCallError with json oper
                 {
                   data: "invalid",
                   lastUpdate: "2026-01-02",
-                  license: "ODbL-1.0",
+                  license: {
+                    name: "Open Data Commons Open Database License (ODbL) v1.0 + Database Contents License (DbCL) v1.0",
+                    url: "https://github.com/manami-project/anime-offline-database/blob/2026-14/LICENSE",
+                  },
                   repository: "https://github.com/manami-project/anime-offline-database",
                 },
                 { status: 200 },
@@ -382,7 +388,10 @@ const SYNTHETIC_DATASET = {
     },
   ],
   lastUpdate: "2026-01-02",
-  license: "ODbL-1.0",
+  license: {
+    name: "Open Data Commons Open Database License (ODbL) v1.0 + Database Contents License (DbCL) v1.0",
+    url: "https://github.com/manami-project/anime-offline-database/blob/2026-14/LICENSE",
+  },
   repository: "https://github.com/manami-project/anime-offline-database",
 };
 

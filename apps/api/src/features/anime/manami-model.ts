@@ -24,7 +24,10 @@ export type ManamiAnimeEntry = Schema.Schema.Type<typeof ManamiAnimeEntrySchema>
 export const ManamiDatasetSchema = Schema.Struct({
   data: Schema.Array(ManamiAnimeEntrySchema),
   lastUpdate: DatasetDateStringSchema,
-  license: Schema.String,
+  license: Schema.Struct({
+    name: Schema.String,
+    url: HttpUrlStringSchema,
+  }),
   repository: HttpUrlStringSchema,
 });
 
