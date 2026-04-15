@@ -199,30 +199,44 @@ const fetchRecommendations = Effect.fn("JikanClient.fetchRecommendations")(funct
   externalCall: ExternalCallShape,
   malId: number,
 ) {
-  const response = yield* callJikan(
-    client,
-    externalCall,
-    `/anime/${malId}/recommendations`,
-    "jikan.detail.recommendations",
-  );
+  return yield* Effect.gen(function* () {
+    const response = yield* callJikan(
+      client,
+      externalCall,
+      `/anime/${malId}/recommendations`,
+      "jikan.detail.recommendations",
+    );
 
-  if (Option.isNone(response)) {
-    return [];
-  }
+    if (Option.isNone(response)) {
+      return [];
+    }
 
-  const payload = yield* HttpClientResponse.schemaBodyJson(JikanAnimeRecommendationsPayloadSchema)(
-    response.value,
-  ).pipe(
-    Effect.mapError((cause) =>
-      ExternalCallError.make({
-        cause,
-        message: "Jikan recommendations decode failed",
-        operation: "jikan.detail.recommendations.json",
-      }),
+    const payload = yield* HttpClientResponse.schemaBodyJson(
+      JikanAnimeRecommendationsPayloadSchema,
+    )(response.value).pipe(
+      Effect.mapError((cause) =>
+        ExternalCallError.make({
+          cause,
+          message: "Jikan recommendations decode failed",
+          operation: "jikan.detail.recommendations.json",
+        }),
+      ),
+    );
+
+    return normalizeJikanRecommendations(payload.data);
+  }).pipe(
+    Effect.catchTag("ExternalCallError", (error) =>
+      Effect.logWarning(
+        "Jikan recommendations unavailable; continuing without recommendations",
+      ).pipe(
+        Effect.annotateLogs({
+          externalOperation: "jikan.detail.recommendations",
+          operation: error.operation,
+        }),
+        Effect.as([]),
+      ),
     ),
   );
-
-  return normalizeJikanRecommendations(payload.data);
 });
 
 const callJikan = Effect.fn("JikanClient.callJikan")(function* (

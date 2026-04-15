@@ -355,6 +355,63 @@ it.scoped("JikanClient ignores missing recommendations endpoint", () =>
   }),
 );
 
+it.scoped("JikanClient ignores failing recommendations endpoint", () =>
+  Effect.gen(function* () {
+    const clientLayer = JikanClientLive.pipe(
+      Layer.provide(
+        Layer.mergeAll(
+          ClockServiceLive,
+          ExternalCallTestLayer,
+          Layer.succeed(
+            HttpClient.HttpClient,
+            HttpClient.make((request) =>
+              Effect.sync(() => {
+                if (request.url.endsWith("/anime/55/full")) {
+                  return HttpClientResponse.fromWeb(
+                    request,
+                    new Response(JSON.stringify(buildDetailPayload(55)), {
+                      headers: { "content-type": "application/json" },
+                      status: 200,
+                    }),
+                  );
+                }
+
+                if (request.url.endsWith("/anime/55/recommendations")) {
+                  return HttpClientResponse.fromWeb(
+                    request,
+                    new Response(JSON.stringify({ message: "Service Unavailable" }), {
+                      headers: { "content-type": "application/json" },
+                      status: 503,
+                    }),
+                  );
+                }
+
+                return HttpClientResponse.fromWeb(
+                  request,
+                  new Response(JSON.stringify({ message: "Not Found" }), {
+                    headers: { "content-type": "application/json" },
+                    status: 404,
+                  }),
+                );
+              }),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    const result = yield* Effect.flatMap(JikanClient, (client) => client.getAnimeByMalId(55)).pipe(
+      Effect.provide(clientLayer),
+    );
+
+    assert.deepStrictEqual(Option.isSome(result), true);
+    if (Option.isSome(result)) {
+      assert.deepStrictEqual(result.value.malId, 55);
+      assert.deepStrictEqual(result.value.recommendations, []);
+    }
+  }),
+);
+
 it.scoped("JikanClient decodes seasonal anime response and applies limit", () =>
   Effect.gen(function* () {
     const clientLayer = JikanClientLive.pipe(
