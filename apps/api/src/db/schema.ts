@@ -192,6 +192,28 @@ export const backgroundJobs = sqliteTable("background_jobs", {
   runCount: integer("run_count").notNull().default(0),
 });
 
+export const operationsTasks = sqliteTable(
+  "operations_tasks",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    taskKey: text("task_key").notNull(),
+    status: text("status").notNull(),
+    progressCurrent: integer("progress_current"),
+    progressTotal: integer("progress_total"),
+    message: text("message"),
+    createdAt: text("created_at").notNull(),
+    startedAt: text("started_at"),
+    finishedAt: text("finished_at"),
+    updatedAt: text("updated_at").notNull(),
+    animeId: integer("anime_id"),
+    payload: text("payload"),
+  },
+  (table) => [
+    index("operations_tasks_key_created_idx").on(table.taskKey, table.createdAt),
+    index("operations_tasks_status_updated_idx").on(table.status, table.updatedAt),
+  ],
+);
+
 export const unmappedFolderMatches = sqliteTable("unmapped_folder_matches", {
   path: text("path").primaryKey(),
   name: text("name").notNull(),
@@ -237,3 +259,4 @@ export type DownloadEventRow = typeof downloadEvents.$inferSelect;
 export type LibraryRoot = typeof libraryRoots.$inferSelect;
 export type UnmappedFolderMatchRow = typeof unmappedFolderMatches.$inferSelect;
 export type SeasonalAnimeCacheRow = typeof seasonalAnimeCache.$inferSelect;
+export type OperationsTaskRow = typeof operationsTasks.$inferSelect;

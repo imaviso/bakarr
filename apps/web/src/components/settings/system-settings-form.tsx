@@ -1,4 +1,4 @@
-import { Show } from "solid-js";
+import { createSignal, Show } from "solid-js";
 import { SystemSettingsAutomationSections } from "~/components/settings/system-settings-automation-sections";
 import { createSystemSettingsForm } from "~/components/settings/system-settings-form-factory";
 import { SystemSettingsGeneralSections } from "~/components/settings/system-settings-general-sections";
@@ -6,6 +6,7 @@ import { type ConfigSettingsMode } from "~/components/settings/system-settings-s
 import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
 import {
+  createSystemTaskQuery,
   createSystemConfigQuery,
   createSystemStatusQuery,
   createTriggerMetadataRefreshMutation,
@@ -47,6 +48,8 @@ function SystemForm(props: {
   });
 
   const systemStatus = createSystemStatusQuery();
+  const [latestSystemTaskId, setLatestSystemTaskId] = createSignal<number | undefined>(undefined);
+  createSystemTaskQuery(latestSystemTaskId);
   const triggerScan = createTriggerScanMutation();
   const triggerRss = createTriggerRssCheckMutation();
   const triggerMetadataRefresh = createTriggerMetadataRefreshMutation();
@@ -54,15 +57,27 @@ function SystemForm(props: {
   const showsAutomation = () => props.mode === "automation";
 
   const handleTriggerScan = () => {
-    triggerScan.mutate();
+    triggerScan.mutate(undefined, {
+      onSuccess: (accepted) => {
+        setLatestSystemTaskId(accepted.task_id);
+      },
+    });
   };
 
   const handleTriggerRss = () => {
-    triggerRss.mutate();
+    triggerRss.mutate(undefined, {
+      onSuccess: (accepted) => {
+        setLatestSystemTaskId(accepted.task_id);
+      },
+    });
   };
 
   const handleTriggerMetadataRefresh = () => {
-    triggerMetadataRefresh.mutate();
+    triggerMetadataRefresh.mutate(undefined, {
+      onSuccess: (accepted) => {
+        setLatestSystemTaskId(accepted.task_id);
+      },
+    });
   };
 
   return (

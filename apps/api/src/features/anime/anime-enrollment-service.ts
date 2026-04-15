@@ -7,18 +7,14 @@ import { EventPublisher } from "@/features/events/publisher.ts";
 import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
 import { AnimeMetadataProviderService } from "@/features/anime/anime-metadata-provider-service.ts";
 import { FileSystem } from "@/lib/filesystem.ts";
-import type { OperationsInfrastructureError } from "@/features/operations/errors.ts";
 import { SearchBackgroundMissingService } from "@/features/operations/background-search-missing-support.ts";
+import { OperationsTaskLauncherService } from "@/features/operations/operations-task-launcher-service.ts";
 import type { ProfileNotFoundError } from "@/features/system/errors.ts";
 import type { AddAnimeInput } from "@/features/anime/add-anime-input.ts";
 import type { AnimeServiceError } from "@/features/anime/errors.ts";
 import { addAnimeEffect } from "@/features/anime/anime-add.ts";
 
-export type AnimeEnrollmentError =
-  | DatabaseError
-  | AnimeServiceError
-  | ProfileNotFoundError
-  | OperationsInfrastructureError;
+export type AnimeEnrollmentError = DatabaseError | AnimeServiceError | ProfileNotFoundError;
 
 export interface AnimeEnrollmentServiceShape {
   /**
@@ -42,6 +38,7 @@ const makeAnimeEnrollmentService = Effect.gen(function* () {
   const fs = yield* FileSystem;
   const clock = yield* ClockService;
   const searchBackgroundService = yield* SearchBackgroundMissingService;
+  const taskLauncher = yield* OperationsTaskLauncherService;
 
   const enroll = Effect.fn("AnimeEnrollmentService.enroll")(function* (input: AddAnimeInput) {
     const anime = yield* addAnimeEffect({
@@ -55,7 +52,18 @@ const makeAnimeEnrollmentService = Effect.gen(function* () {
     });
 
     if (input.monitor_and_search) {
-      yield* searchBackgroundService.triggerSearchMissing(anime.id);
+      yield* taskLauncher
+        .launch({
+          animeId: anime.id,
+          failureMessage: `Post-enrollment missing-episode search failed for anime ${anime.id}`,
+          operation: () => searchBackgroundService.triggerSearchMissing(anime.id),
+          queuedMessage: `Queued post-enrollment missing-episode search for anime ${anime.id}`,
+          runningMessage: `Searching missing episodes for anime ${anime.id}`,
+          successMessage: () =>
+            `Finished post-enrollment missing-episode search for anime ${anime.id}`,
+          taskKey: "downloads_search_missing_manual",
+        })
+        .pipe(Effect.ignore);
     }
 
     return anime;

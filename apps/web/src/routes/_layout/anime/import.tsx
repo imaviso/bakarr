@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/solid-router";
+import { createLibraryImportTaskQuery } from "~/lib/api";
 import * as v from "valibot";
 import { ImportPageContent } from "~/components/import/import-page-content";
 import { createImportPageState } from "~/components/import/import-page-state";
@@ -44,6 +45,7 @@ function ImportPage() {
       });
     },
   });
+  createLibraryImportTaskQuery(() => state.latestImportTaskId());
 
   return <ImportPageContent state={state} />;
 }

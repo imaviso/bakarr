@@ -65,6 +65,22 @@ export const makeEventBus = Effect.fn("Events.makeEventBus")((
 
 export const EventBusLive = Layer.effect(EventBus, makeEventBus());
 
+export const EventBusNoopLive = Layer.succeed(
+  EventBus,
+  EventBus.of({
+    publish: () => Effect.void,
+    withSubscriptionStream: <A, E>(use: (subscription: EventSubscription) => Stream.Stream<A, E>) =>
+      Stream.unwrap(
+        Effect.succeed(
+          use({
+            stream: Stream.empty,
+            takeBufferedOnce: Effect.succeed([]),
+          }),
+        ),
+      ),
+  }),
+);
+
 function makeInitializedSubscription(input: {
   readonly initialBufferedRef: Ref.Ref<Option.Option<readonly NotificationEvent[]>>;
   readonly initializationLock: Effect.Semaphore;

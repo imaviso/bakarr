@@ -10,6 +10,7 @@ import {
   createUpdateAnimeReleaseProfilesMutation,
   getAnimeEpisodeStreamUrl,
 } from "~/lib/api";
+import { createSignal } from "solid-js";
 import { copyToClipboard } from "~/lib/utils";
 
 interface UseAnimeDetailsActionsOptions {
@@ -26,6 +27,7 @@ export function useAnimeDetailsActions(options: UseAnimeDetailsActionsOptions) {
   const updatePath = createUpdateAnimePathMutation();
   const updateProfile = createUpdateAnimeProfileMutation();
   const updateReleaseProfiles = createUpdateAnimeReleaseProfilesMutation();
+  const [latestScanTaskId, setLatestScanTaskId] = createSignal<number | undefined>(undefined);
 
   const handlePlayInMpv = (episodeNumber: number) => {
     void (async () => {
@@ -59,7 +61,11 @@ export function useAnimeDetailsActions(options: UseAnimeDetailsActionsOptions) {
   };
 
   const handleScanFolder = () => {
-    scanFolder.mutate(options.animeId());
+    scanFolder.mutate(options.animeId(), {
+      onSuccess: (accepted) => {
+        setLatestScanTaskId(accepted.task_id);
+      },
+    });
   };
 
   const handleDeleteAnime = (onSuccess: () => void) => {
@@ -85,6 +91,7 @@ export function useAnimeDetailsActions(options: UseAnimeDetailsActionsOptions) {
     isRefreshPending: () => refreshEpisodes.isPending,
     isSearchMissingPending: () => searchMissing.isPending,
     isToggleMonitorPending: () => toggleMonitor.isPending,
+    latestScanTaskId,
     isUpdatingPath: () => updatePath.isPending,
     isUpdatingProfile: () => updateProfile.isPending,
     isUpdatingReleaseProfiles: () => updateReleaseProfiles.isPending,

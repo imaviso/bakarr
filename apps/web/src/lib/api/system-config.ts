@@ -5,7 +5,14 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/solid-query";
-import type { BackgroundJobStatus, Config, OpsDashboard, SystemStatus } from "./contracts";
+import { toast } from "solid-sonner";
+import type {
+  AsyncOperationAccepted,
+  BackgroundJobStatus,
+  Config,
+  OpsDashboard,
+  SystemStatus,
+} from "./contracts";
 import { API_BASE, fetchApi } from "./client";
 import { animeKeys } from "./keys";
 
@@ -52,20 +59,55 @@ export function createSystemStatusQuery() {
 }
 
 export function createTriggerScanMutation() {
+  const queryClient = useQueryClient();
   return useMutation(() => ({
-    mutationFn: () => fetchApi(`${API_BASE}/system/tasks/scan`, { method: "POST" }),
+    mutationFn: () =>
+      fetchApi<AsyncOperationAccepted>(`${API_BASE}/system/tasks/scan`, { method: "POST" }),
+    onSuccess: (accepted) => {
+      toast.info(accepted.message);
+      void queryClient.invalidateQueries({ queryKey: animeKeys.system.tasks.all() });
+      if (accepted.task_id !== undefined) {
+        void queryClient.invalidateQueries({
+          queryKey: animeKeys.system.tasks.byId(accepted.task_id),
+        });
+      }
+    },
   }));
 }
 
 export function createTriggerRssCheckMutation() {
+  const queryClient = useQueryClient();
   return useMutation(() => ({
-    mutationFn: () => fetchApi(`${API_BASE}/system/tasks/rss`, { method: "POST" }),
+    mutationFn: () =>
+      fetchApi<AsyncOperationAccepted>(`${API_BASE}/system/tasks/rss`, { method: "POST" }),
+    onSuccess: (accepted) => {
+      toast.info(accepted.message);
+      void queryClient.invalidateQueries({ queryKey: animeKeys.system.tasks.all() });
+      if (accepted.task_id !== undefined) {
+        void queryClient.invalidateQueries({
+          queryKey: animeKeys.system.tasks.byId(accepted.task_id),
+        });
+      }
+    },
   }));
 }
 
 export function createTriggerMetadataRefreshMutation() {
+  const queryClient = useQueryClient();
   return useMutation(() => ({
-    mutationFn: () => fetchApi(`${API_BASE}/system/tasks/metadata-refresh`, { method: "POST" }),
+    mutationFn: () =>
+      fetchApi<AsyncOperationAccepted>(`${API_BASE}/system/tasks/metadata-refresh`, {
+        method: "POST",
+      }),
+    onSuccess: (accepted) => {
+      toast.info(accepted.message);
+      void queryClient.invalidateQueries({ queryKey: animeKeys.system.tasks.all() });
+      if (accepted.task_id !== undefined) {
+        void queryClient.invalidateQueries({
+          queryKey: animeKeys.system.tasks.byId(accepted.task_id),
+        });
+      }
+    },
   }));
 }
 

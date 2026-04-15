@@ -3,6 +3,7 @@ import type { DownloadSourceMetadata, ImportedFile, ReleaseProfile, RssFeed } fr
 export type {
   ActivityItem,
   Anime,
+  AsyncOperationAccepted,
   AnimeListResponse,
   AnimeSearchResponse,
   AnimeSearchResult,
@@ -38,6 +39,10 @@ export type {
   MissingEpisode,
   NyaaSearchResult,
   OpsDashboard,
+  OperationTask,
+  OperationTaskKey,
+  OperationTaskPayload,
+  OperationTaskStatus,
   ParsedEpisodeIdentity,
   Quality,
   QualityProfile,

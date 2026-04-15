@@ -13,6 +13,7 @@ import { useAnimeDetailsActions } from "~/hooks/use-anime-details-actions";
 import { useAnimeDetailsDialogState } from "~/hooks/use-anime-details-dialog-state";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import {
+  createAnimeScanTaskQuery,
   animeDetailsQueryOptions,
   episodesQueryOptions,
   profilesQueryOptions,
@@ -58,6 +59,10 @@ function AnimeDetailsPage() {
   const profilesQuery = useQuery(profilesQueryOptions);
   const releaseProfilesQuery = useQuery(releaseProfilesQueryOptions);
   const actions = useAnimeDetailsActions({ animeId });
+  createAnimeScanTaskQuery(() => {
+    const taskId = actions.latestScanTaskId();
+    return taskId === undefined ? { animeId: animeId() } : { animeId: animeId(), taskId };
+  });
   const dialogState = useAnimeDetailsDialogState();
 
   const episodesData = createMemo(() => episodesQuery.data ?? []);

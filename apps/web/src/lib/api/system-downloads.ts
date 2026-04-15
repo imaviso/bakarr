@@ -1,5 +1,6 @@
 import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/solid-query";
-import type { Download, DownloadStatus } from "./contracts";
+import { toast } from "solid-sonner";
+import type { AsyncOperationAccepted, Download, DownloadStatus } from "./contracts";
 import { API_BASE, fetchApi } from "./client";
 import { animeKeys } from "./keys";
 
@@ -33,12 +34,17 @@ export function createSearchMissingMutation() {
   const queryClient = useQueryClient();
   return useMutation(() => ({
     mutationFn: (animeId?: number) =>
-      fetchApi(`${API_BASE}/downloads/search-missing`, {
+      fetchApi<AsyncOperationAccepted>(`${API_BASE}/downloads/search-missing`, {
         method: "POST",
         body: JSON.stringify({ anime_id: animeId }),
       }),
-    onSuccess: () => {
+    onSuccess: (accepted) => {
+      toast.info(accepted.message);
       void queryClient.invalidateQueries({ queryKey: animeKeys.downloads.all });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.system.tasks.all() });
+      void queryClient.invalidateQueries({
+        queryKey: animeKeys.system.tasks.byId(accepted.task_id),
+      });
     },
   }));
 }
@@ -102,9 +108,15 @@ export function createDeleteDownloadMutation() {
 export function createSyncDownloadsMutation() {
   const queryClient = useQueryClient();
   return useMutation(() => ({
-    mutationFn: () => fetchApi(`${API_BASE}/downloads/sync`, { method: "POST" }),
-    onSuccess: () => {
+    mutationFn: () =>
+      fetchApi<AsyncOperationAccepted>(`${API_BASE}/downloads/sync`, { method: "POST" }),
+    onSuccess: (accepted) => {
+      toast.info(accepted.message);
       invalidateDownloadQueries(queryClient);
+      void queryClient.invalidateQueries({ queryKey: animeKeys.system.tasks.all() });
+      void queryClient.invalidateQueries({
+        queryKey: animeKeys.system.tasks.byId(accepted.task_id),
+      });
     },
   }));
 }

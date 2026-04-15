@@ -5,10 +5,11 @@ import {
   IconDownload,
   IconRefresh,
 } from "@tabler/icons-solidjs";
-import { Show } from "solid-js";
+import { createSignal, Show } from "solid-js";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import {
+  createSystemTaskQuery,
   createSystemStatusQuery,
   createTriggerRssCheckMutation,
   createTriggerScanMutation,
@@ -62,15 +63,27 @@ function formatProviderStatus(
 
 export function SystemStatus() {
   const status = createSystemStatusQuery();
+  const [latestScanTaskId, setLatestScanTaskId] = createSignal<number | undefined>(undefined);
+  const [latestRssTaskId, setLatestRssTaskId] = createSignal<number | undefined>(undefined);
+  createSystemTaskQuery(latestScanTaskId);
+  createSystemTaskQuery(latestRssTaskId);
   const scanMutation = createTriggerScanMutation();
   const rssMutation = createTriggerRssCheckMutation();
 
   const handleScan = () => {
-    scanMutation.mutate();
+    scanMutation.mutate(undefined, {
+      onSuccess: (accepted) => {
+        setLatestScanTaskId(accepted.task_id);
+      },
+    });
   };
 
   const handleRss = () => {
-    rssMutation.mutate();
+    rssMutation.mutate(undefined, {
+      onSuccess: (accepted) => {
+        setLatestRssTaskId(accepted.task_id);
+      },
+    });
   };
 
   return (

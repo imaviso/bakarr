@@ -26,8 +26,13 @@ interface CreateImportPageStateOptions {
 }
 
 export function createImportPageState(options: CreateImportPageStateOptions) {
+  const [latestImportTaskId, setLatestImportTaskId] = createSignal<number | undefined>(undefined);
+
   const flow = useImportFlow({
     animeId: options.animeId,
+    onImportQueued: (taskId) => {
+      setLatestImportTaskId(taskId);
+    },
     onImportSuccess: options.onImportSuccess,
   });
 
@@ -165,6 +170,7 @@ export function createImportPageState(options: CreateImportPageStateOptions) {
     configQuery,
     currentStepIndex,
     flow,
+    latestImportTaskId,
     manualCandidateIds,
     selectBrowseRoot,
     setPathFromBrowserSelection,

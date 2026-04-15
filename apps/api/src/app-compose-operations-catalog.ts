@@ -6,6 +6,7 @@ import { CatalogLibraryWriteServiceLive } from "@/features/operations/catalog-li
 import { CatalogRssServiceLive } from "@/features/operations/catalog-rss-service.ts";
 import { ImportPathScanServiceLive } from "@/features/operations/import-path-scan-service.ts";
 import { LibraryRootsQueryServiceLive } from "@/features/operations/library-roots-query-service.ts";
+import { OperationsTaskServiceLive } from "@/features/operations/operations-task-service.ts";
 
 interface OperationsCatalogLayerInput<OPOut, OPE, OPR, RSOut, RSE, RSR> {
   readonly operationsProgressLayer: Layer.Layer<OPOut, OPE, OPR>;
@@ -21,8 +22,10 @@ export function makeOperationsCatalogLayer<OPOut, OPE, OPR, RSOut, RSE, RSR>(
   const catalogLibraryReadLayer = CatalogLibraryReadServiceLive.pipe(
     Layer.provide(runtimeSupportLayer),
   );
+  const operationsTaskLayer = OperationsTaskServiceLive.pipe(Layer.provide(runtimeSupportLayer));
+  const runtimeWithOperationsTaskLayer = Layer.mergeAll(runtimeSupportLayer, operationsTaskLayer);
   const catalogLibraryWriteLayer = CatalogLibraryWriteServiceLive.pipe(
-    Layer.provide(runtimeSupportLayer),
+    Layer.provide(runtimeWithOperationsTaskLayer),
   );
   const catalogLibraryScanLayer = CatalogLibraryScanServiceLive.pipe(
     Layer.provide(runtimeWithProgressLayer),
@@ -35,6 +38,7 @@ export function makeOperationsCatalogLayer<OPOut, OPE, OPR, RSOut, RSE, RSR>(
 
   const catalogSubgraphLayer = Layer.mergeAll(
     catalogLibraryReadLayer,
+    operationsTaskLayer,
     catalogLibraryWriteLayer,
     catalogLibraryScanLayer,
     importPathScanLayer,

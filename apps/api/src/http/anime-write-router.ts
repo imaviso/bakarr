@@ -5,12 +5,16 @@ import { AnimeFileService } from "@/features/anime/anime-file-service.ts";
 import { AnimeEnrollmentService } from "@/features/anime/anime-enrollment-service.ts";
 import { AnimeMaintenanceService } from "@/features/anime/anime-maintenance-service.ts";
 import { AnimeSettingsService } from "@/features/anime/anime-settings-service.ts";
+import { OperationsTaskNotFoundError } from "@/features/operations/errors.ts";
+import { OperationsTaskLauncherService } from "@/features/operations/operations-task-launcher-service.ts";
+import { OperationsTaskService } from "@/features/operations/operations-task-service.ts";
 import { CatalogLibraryWriteService } from "@/features/operations/catalog-library-write-service.ts";
 import {
   AddAnimeInputSchema,
   AnimeEpisodeParamsSchema,
   BulkEpisodeMappingsBodySchema,
   FilePathBodySchema,
+  AnimeOperationsTaskIdParamsSchema,
   MonitoredBodySchema,
   PathBodySchema,
   ProfileNameBodySchema,
@@ -18,6 +22,7 @@ import {
 } from "@/http/anime-request-schemas.ts";
 import { IdParamsSchema } from "@/http/common-request-schemas.ts";
 import {
+  acceptedResponse,
   authedRouteResponse,
   decodeJsonBodyWithLabel,
   decodePathParams,
@@ -100,9 +105,18 @@ export const animeWriteRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        yield* (yield* AnimeMaintenanceService).refreshEpisodes(params.id);
+        const animeMaintenanceService = yield* AnimeMaintenanceService;
+        return yield* (yield* OperationsTaskLauncherService).launch({
+          animeId: params.id,
+          failureMessage: `Episode metadata refresh failed for anime ${params.id}`,
+          operation: () => animeMaintenanceService.refreshEpisodes(params.id),
+          queuedMessage: `Queued episode metadata refresh for anime ${params.id}`,
+          runningMessage: `Refreshing episode metadata for anime ${params.id}`,
+          successMessage: () => `Finished episode metadata refresh for anime ${params.id}`,
+          taskKey: "anime_refresh_episodes_manual",
+        });
       }),
-      successResponse,
+      acceptedResponse,
     ),
   ),
   HttpRouter.post(
@@ -110,7 +124,66 @@ export const animeWriteRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        return yield* (yield* AnimeFileService).scanFolder(params.id);
+        const animeFileService = yield* AnimeFileService;
+        return yield* (yield* OperationsTaskLauncherService).launch({
+          animeId: params.id,
+          failureMessage: `Folder scan failed for anime ${params.id}`,
+          operation: () => animeFileService.scanFolder(params.id),
+          queuedMessage: `Queued folder scan for anime ${params.id}`,
+          runningMessage: `Scanning folder for anime ${params.id}`,
+          successMessage: (result: { readonly found: number; readonly total: number }) =>
+            `Folder scan completed for anime ${params.id}: found ${result.found} files`,
+          successProgress: (result: { readonly found: number; readonly total: number }) => ({
+            progressCurrent: result.found,
+            progressTotal: result.total,
+          }),
+          successPayload: (result: { readonly found: number; readonly total: number }) => ({
+            anime_id: params.id,
+            found: result.found,
+            total: result.total,
+          }),
+          failurePayload: () => ({
+            anime_id: params.id,
+          }),
+          taskKey: "anime_scan_folder",
+        });
+      }),
+      acceptedResponse,
+    ),
+  ),
+  HttpRouter.get(
+    "/anime/:id/episodes/scan/tasks",
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        return yield* (yield* OperationsTaskService).listTasks({
+          animeId: params.id,
+          taskKey: "anime_scan_folder",
+        });
+      }),
+      jsonResponse,
+    ),
+  ),
+  HttpRouter.get(
+    "/anime/:id/episodes/scan/tasks/:taskId",
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(AnimeOperationsTaskIdParamsSchema);
+        const task = yield* (yield* OperationsTaskService).getTask(params.taskId);
+
+        if (task.task_key !== "anime_scan_folder") {
+          return yield* new OperationsTaskNotFoundError({
+            message: `Anime scan task ${params.taskId} not found`,
+          });
+        }
+
+        if (task.anime_id !== undefined && task.anime_id !== params.id) {
+          return yield* new OperationsTaskNotFoundError({
+            message: `Anime scan task ${params.taskId} not found`,
+          });
+        }
+
+        return task;
       }),
       jsonResponse,
     ),

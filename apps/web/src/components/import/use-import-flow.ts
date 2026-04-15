@@ -1,5 +1,6 @@
 import type { Accessor } from "solid-js";
 import { createMemo, createSignal } from "solid-js";
+import { toast } from "solid-sonner";
 import {
   type AnimeSearchResult,
   createAnimeListQuery,
@@ -23,6 +24,7 @@ interface ImportFlowOptions {
   autoImportAfterMissingCandidatesResolved?: boolean;
   beforeImport?: () => void;
   onImportSuccess?: () => void;
+  onImportQueued?: (taskId: number | undefined) => void;
 }
 
 export function toImportInputMode(value: string | null | undefined): "browser" | "manual" {
@@ -179,7 +181,9 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
     options.beforeImport?.();
 
     importMutation.mutate(files, {
-      onSuccess: () => {
+      onSuccess: (accepted) => {
+        toast.info(accepted.message);
+        options.onImportQueued?.(accepted.task_id);
         options.onImportSuccess?.();
       },
     });

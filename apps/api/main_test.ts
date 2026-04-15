@@ -932,7 +932,12 @@ itWithTestContext("system library scan task maps files across anime roots", asyn
       headers: { Cookie: sessionCookie },
       method: "POST",
     });
-    assert.deepStrictEqual(scanTaskResponse["status"], 200);
+    const acceptedScanTask = await expectAcceptedTaskResponse(scanTaskResponse);
+    await waitForSystemTask({
+      ctx,
+      sessionCookie,
+      taskId: acceptedScanTask.task_id,
+    });
 
     const episodesResponse = await ctx.app.request("/api/anime/20/episodes", {
       headers: { Cookie: sessionCookie },
@@ -1039,7 +1044,12 @@ itWithTestContext("unmapped scan task updates job state for discovered folders",
       headers: { Cookie: sessionCookie },
       method: "POST",
     });
-    assert.deepStrictEqual(scanResponse["status"], 200);
+    const acceptedFirstScan = await expectAcceptedTaskResponse(scanResponse);
+    await waitForSystemTask({
+      ctx,
+      sessionCookie,
+      taskId: acceptedFirstScan.task_id,
+    });
 
     const client = createClient({ url: `file:${ctx.databaseFile}` });
 
@@ -1088,7 +1098,12 @@ itWithTestContext("unmapped scan task updates job state for discovered folders",
         headers: { Cookie: sessionCookie },
         method: "POST",
       });
-      assert.deepStrictEqual(secondScanResponse["status"], 200);
+      const acceptedSecondScan = await expectAcceptedTaskResponse(secondScanResponse);
+      await waitForSystemTask({
+        ctx,
+        sessionCookie,
+        taskId: acceptedSecondScan.task_id,
+      });
 
       await waitForSql(
         client,
@@ -1166,7 +1181,12 @@ itWithTestContext("unmapped folders mark already-imported anime suggestions", as
       headers: { Cookie: sessionCookie },
       method: "POST",
     });
-    assert.deepStrictEqual(scanResponse["status"], 200);
+    const acceptedScan = await expectAcceptedTaskResponse(scanResponse);
+    await waitForSystemTask({
+      ctx,
+      sessionCookie,
+      taskId: acceptedScan.task_id,
+    });
 
     const client = createClient({ url: `file:${ctx.databaseFile}` });
 
@@ -1236,8 +1256,18 @@ itWithTestContext("concurrent unmapped scan requests coalesce into one run", asy
       }),
     ]);
 
-    assert.deepStrictEqual(firstScanResponse["status"], 200);
-    assert.deepStrictEqual(secondScanResponse["status"], 200);
+    const firstAccepted = await expectAcceptedTaskResponse(firstScanResponse);
+    const secondAccepted = await expectAcceptedTaskResponse(secondScanResponse);
+    await waitForSystemTask({
+      ctx,
+      sessionCookie,
+      taskId: firstAccepted.task_id,
+    });
+    await waitForSystemTask({
+      ctx,
+      sessionCookie,
+      taskId: secondAccepted.task_id,
+    });
 
     const client = createClient({ url: `file:${ctx.databaseFile}` });
 
@@ -1304,7 +1334,12 @@ itWithTestContext(
           headers: { Cookie: sessionCookie },
           method: "POST",
         });
-        assert.deepStrictEqual(scanResponse["status"], 200);
+        const acceptedScan = await expectAcceptedTaskResponse(scanResponse);
+        await waitForSystemTask({
+          ctx,
+          sessionCookie,
+          taskId: acceptedScan.task_id,
+        });
 
         await waitForSql(
           client,
@@ -1380,7 +1415,12 @@ itWithTestContext(
           headers: { Cookie: sessionCookie },
           method: "POST",
         });
-        assert.deepStrictEqual(scanResponse["status"], 200);
+        const acceptedScan = await expectAcceptedTaskResponse(scanResponse);
+        await waitForSystemTask({
+          ctx,
+          sessionCookie,
+          taskId: acceptedScan.task_id,
+        });
 
         await waitForSql(
           client,
@@ -1455,7 +1495,12 @@ itWithTestContext("failed unmapped folders stop retrying after three attempts", 
         headers: { Cookie: sessionCookie },
         method: "POST",
       });
-      assert.deepStrictEqual(scanResponse["status"], 200);
+      const acceptedScan = await expectAcceptedTaskResponse(scanResponse);
+      await waitForSystemTask({
+        ctx,
+        sessionCookie,
+        taskId: acceptedScan.task_id,
+      });
 
       const rows = await waitForSql(
         client,
@@ -1681,7 +1726,12 @@ itWithTestContext(
           headers: { Cookie: sessionCookie },
           method: "POST",
         });
-        assert.deepStrictEqual(scanResponse["status"], 200);
+        const acceptedScan = await expectAcceptedTaskResponse(scanResponse);
+        await waitForSystemTask({
+          ctx,
+          sessionCookie,
+          taskId: acceptedScan.task_id,
+        });
 
         rows = await waitForSql(
           client,
@@ -1993,7 +2043,12 @@ it.scoped("download sync auto-imports paused seeding torrents", () =>
                   headers: { Cookie: sessionCookie },
                   method: "POST",
                 });
-                assert.deepStrictEqual(syncResponse["status"], 200);
+                const acceptedSync = await expectAcceptedTaskResponse(syncResponse);
+                await waitForSystemTask({
+                  ctx,
+                  sessionCookie,
+                  taskId: acceptedSync.task_id,
+                });
 
                 const verifyClient = createClient({ url: `file:${ctx.databaseFile}` });
                 try {
@@ -2194,7 +2249,12 @@ it.scoped("download sync refines season-pack coverage from qBittorrent file list
             headers: { Cookie: sessionCookie },
             method: "POST",
           });
-          assert.deepStrictEqual(syncResponse["status"], 200);
+          const acceptedSync = await expectAcceptedTaskResponse(syncResponse);
+          await waitForSystemTask({
+            ctx,
+            sessionCookie,
+            taskId: acceptedSync.task_id,
+          });
 
           const historyResponse = await ctx.app.request("/api/downloads/history", {
             headers: { Cookie: sessionCookie },
@@ -2857,8 +2917,15 @@ itWithTestContext("anime CRUD and episode scan flow works", async (ctx) => {
       method: "POST",
     });
 
-    assert.deepStrictEqual(scanResponse["status"], 200);
-    assert.deepStrictEqual(await scanResponse.json(), { found: 1, total: 1 });
+    const acceptedScan = await expectAcceptedTaskResponse(scanResponse);
+    const completedScanTask = await waitForAnimeScanTask({
+      animeId: 20,
+      ctx,
+      sessionCookie,
+      taskId: acceptedScan.task_id,
+    });
+    assert.deepStrictEqual(completedScanTask.payload?.found, 1);
+    assert.deepStrictEqual(completedScanTask.payload?.total, 1);
 
     const filesResponse = await ctx.app.request("/api/anime/20/files", {
       headers: { Cookie: sessionCookie },
@@ -2940,9 +3007,16 @@ itWithTestContext("rss, wanted, rename, and download helper endpoints work", asy
         `${addedAnime.root_folder}/Hunter x Hunter (2011) - 001.mkv`,
         "episode file",
       );
-      await ctx.app.request("/api/anime/11061/episodes/scan", {
+      const initialAnimeScan = await ctx.app.request("/api/anime/11061/episodes/scan", {
         headers: { Cookie: sessionCookie },
         method: "POST",
+      });
+      const acceptedInitialAnimeScan = await expectAcceptedTaskResponse(initialAnimeScan);
+      await waitForAnimeScanTask({
+        animeId: 11061,
+        ctx,
+        sessionCookie,
+        taskId: acceptedInitialAnimeScan.task_id,
       });
 
       const rssAdd = await ctx.app.request("/api/rss", {
@@ -3046,8 +3120,13 @@ itWithTestContext("rss, wanted, rename, and download helper endpoints work", asy
         method: "POST",
       });
 
-      const importBody = await importExecute.json();
-      assert.deepStrictEqual(importBody.imported, 1);
+      const acceptedImport = await expectAcceptedTaskResponse(importExecute);
+      const completedImportTask = await waitForLibraryImportTask({
+        ctx,
+        sessionCookie,
+        taskId: acceptedImport.task_id,
+      });
+      assert.deepStrictEqual(completedImportTask.payload?.imported, 1);
 
       const releaseSearch = await ctx.app.request("/api/search/releases?query=hunter", {
         headers: { Cookie: sessionCookie },
@@ -3114,7 +3193,12 @@ itWithTestContext("rss, wanted, rename, and download helper endpoints work", asy
         method: "POST",
       });
 
-      assert.deepStrictEqual(syncResponse["status"], 200);
+      const acceptedSync = await expectAcceptedTaskResponse(syncResponse);
+      await waitForSystemTask({
+        ctx,
+        sessionCookie,
+        taskId: acceptedSync.task_id,
+      });
 
       const reconcileResponse = await ctx.app.request(`/api/downloads/${downloadId}/reconcile`, {
         headers: { Cookie: sessionCookie },
@@ -3361,7 +3445,12 @@ itWithTestContext("rss task and missing-search task queue downloads", async (ctx
       method: "POST",
     });
 
-    assert.deepStrictEqual(rssTask["status"], 200);
+    const acceptedRss = await expectAcceptedTaskResponse(rssTask);
+    await waitForSystemTask({
+      ctx,
+      sessionCookie,
+      taskId: acceptedRss.task_id,
+    });
 
     const statusAfterRss = await ctx.app.request("/api/system/status", {
       headers: { Cookie: sessionCookie },
@@ -3417,7 +3506,12 @@ itWithTestContext("rss task and missing-search task queue downloads", async (ctx
       method: "POST",
     });
 
-    assert.deepStrictEqual(searchMissing["status"], 200);
+    const acceptedSearchMissing = await expectAcceptedTaskResponse(searchMissing);
+    await waitForSystemTask({
+      ctx,
+      sessionCookie,
+      taskId: acceptedSearchMissing.task_id,
+    });
 
     const history = await ctx.app.request("/api/downloads/history", {
       headers: { Cookie: sessionCookie },
@@ -3472,7 +3566,12 @@ itWithTestContext("rss task and missing-search task queue downloads", async (ctx
       method: "POST",
     });
 
-    assert.deepStrictEqual(scanTask["status"], 200);
+    const acceptedSystemScan = await expectAcceptedTaskResponse(scanTask);
+    await waitForSystemTask({
+      ctx,
+      sessionCookie,
+      taskId: acceptedSystemScan.task_id,
+    });
 
     const statusAfterScan = await ctx.app.request("/api/system/status", {
       headers: { Cookie: sessionCookie },
@@ -3546,7 +3645,12 @@ itWithTestContext("missing-search ignores episodes that have not aired yet", asy
       method: "POST",
     });
 
-    assert.deepStrictEqual(searchMissing["status"], 200);
+    const acceptedSearchMissing = await expectAcceptedTaskResponse(searchMissing);
+    await waitForSystemTask({
+      ctx,
+      sessionCookie,
+      taskId: acceptedSearchMissing.task_id,
+    });
 
     const history = await ctx.app.request("/api/downloads/history", {
       headers: { Cookie: sessionCookie },
@@ -3600,7 +3704,12 @@ itWithTestContext("wanted and global missing search ignore unmonitored anime", a
       method: "POST",
     });
 
-    assert.deepStrictEqual(globalSearchResponse["status"], 200);
+    const acceptedGlobalSearch = await expectAcceptedTaskResponse(globalSearchResponse);
+    await waitForSystemTask({
+      ctx,
+      sessionCookie,
+      taskId: acceptedGlobalSearch.task_id,
+    });
 
     const historyResponse = await ctx.app.request("/api/downloads/history", {
       headers: { Cookie: sessionCookie },
@@ -3618,7 +3727,12 @@ itWithTestContext("wanted and global missing search ignore unmonitored anime", a
       method: "POST",
     });
 
-    assert.deepStrictEqual(directSearchResponse["status"], 200);
+    const acceptedDirectSearch = await expectAcceptedTaskResponse(directSearchResponse);
+    await waitForSystemTask({
+      ctx,
+      sessionCookie,
+      taskId: acceptedDirectSearch.task_id,
+    });
 
     const directHistoryResponse = await ctx.app.request("/api/downloads/history", {
       headers: { Cookie: sessionCookie },
@@ -3687,10 +3801,14 @@ itWithTestContext("manual import succeeds for files outside configured roots", a
         method: "POST",
       });
 
-      assert.deepStrictEqual(importExecute["status"], 200);
-      const importBody = await importExecute.json();
-      assert.deepStrictEqual(importBody.imported, 1);
-      assert.deepStrictEqual(importBody.failed, 0);
+      const acceptedImport = await expectAcceptedTaskResponse(importExecute);
+      const completedImportTask = await waitForLibraryImportTask({
+        ctx,
+        sessionCookie,
+        taskId: acceptedImport.task_id,
+      });
+      assert.deepStrictEqual(completedImportTask.payload?.imported, 1);
+      assert.deepStrictEqual(completedImportTask.payload?.failed, 0);
     });
   });
 });
@@ -3854,7 +3972,12 @@ itWithTestContext("events stream emits RSS and library scan progress updates", a
         method: "POST",
       });
 
-      assert.deepStrictEqual(rssTask["status"], 200);
+      const acceptedRss = await expectAcceptedTaskResponse(rssTask);
+      await waitForSystemTask({
+        ctx,
+        sessionCookie,
+        taskId: acceptedRss.task_id,
+      });
 
       const rssProgress = await readUntilMatch(reader, /"type":"RssCheckProgress"/);
       assert.match(rssProgress, /"type":"RssCheckProgress"/);
@@ -3864,7 +3987,12 @@ itWithTestContext("events stream emits RSS and library scan progress updates", a
         method: "POST",
       });
 
-      assert.deepStrictEqual(scanTask["status"], 200);
+      const acceptedScan = await expectAcceptedTaskResponse(scanTask);
+      await waitForSystemTask({
+        ctx,
+        sessionCookie,
+        taskId: acceptedScan.task_id,
+      });
 
       const scanProgress = await readUntilMatch(reader, /"type":"LibraryScanProgress"/);
       assert.match(scanProgress, /"type":"LibraryScanProgress"/);
@@ -4868,6 +4996,104 @@ async function waitForSql(
   }
 
   throw new Error(`Timed out waiting for SQL condition: ${sql}`);
+}
+
+async function expectAcceptedTaskResponse(response: Response) {
+  assert.deepStrictEqual(response["status"], 202);
+  const body = await response.json<{
+    readonly data: {
+      readonly accepted_at: string;
+      readonly message: string;
+      readonly status: "queued";
+      readonly task_id: number;
+      readonly task_key: string;
+    };
+    readonly success: true;
+  }>();
+
+  assert.deepStrictEqual(body.success, true);
+  assert.deepStrictEqual(body.data.status, "queued");
+  assert.deepStrictEqual(typeof body.data.task_id, "number");
+
+  return body.data;
+}
+
+async function waitForTaskByPath(input: {
+  readonly ctx: TestContext;
+  readonly path: string;
+  readonly sessionCookie: string;
+  readonly timeoutMs?: number;
+}) {
+  const deadline = Date.now() + (input.timeoutMs ?? 5000);
+  let lastStatus: string | undefined;
+
+  while (Date.now() < deadline) {
+    const response = await input.ctx.app.request(input.path, {
+      headers: { Cookie: input.sessionCookie },
+    });
+    assert.deepStrictEqual(response["status"], 200);
+    const task = await response.json<{
+      readonly id: number;
+      readonly message?: string;
+      readonly payload?: {
+        readonly failed?: number;
+        readonly found?: number;
+        readonly imported?: number;
+        readonly total?: number;
+      };
+      readonly status: "queued" | "running" | "succeeded" | "failed";
+    }>();
+    lastStatus = task.status;
+
+    if (task.status === "succeeded") {
+      return task;
+    }
+
+    if (task.status === "failed") {
+      throw new Error(`Task ${task.id} failed: ${task.message ?? "unknown error"}`);
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+
+  throw new Error(`Timed out waiting for task ${input.path}, last status: ${lastStatus ?? "none"}`);
+}
+
+async function waitForSystemTask(input: {
+  readonly ctx: TestContext;
+  readonly sessionCookie: string;
+  readonly taskId: number;
+}) {
+  return await waitForTaskByPath({
+    ctx: input.ctx,
+    path: `/api/system/tasks/${input.taskId}`,
+    sessionCookie: input.sessionCookie,
+  });
+}
+
+async function waitForAnimeScanTask(input: {
+  readonly animeId: number;
+  readonly ctx: TestContext;
+  readonly sessionCookie: string;
+  readonly taskId: number;
+}) {
+  return await waitForTaskByPath({
+    ctx: input.ctx,
+    path: `/api/anime/${input.animeId}/episodes/scan/tasks/${input.taskId}`,
+    sessionCookie: input.sessionCookie,
+  });
+}
+
+async function waitForLibraryImportTask(input: {
+  readonly ctx: TestContext;
+  readonly sessionCookie: string;
+  readonly taskId: number;
+}) {
+  return await waitForTaskByPath({
+    ctx: input.ctx,
+    path: `/api/library/import/tasks/${input.taskId}`,
+    sessionCookie: input.sessionCookie,
+  });
 }
 
 async function readStreamChunk(reader: EventsReader, timeoutMs = 1000) {

@@ -975,6 +975,92 @@ export const BackgroundJobStatusSchema: Schema.Schema<BackgroundJobStatus> = Sch
   schedule_value: Schema.optional(Schema.String),
 });
 
+export const OPERATION_TASK_KEY_VALUES = [
+  "anime_scan_folder",
+  "library_import",
+  "downloads_search_missing_manual",
+  "anime_refresh_episodes_manual",
+  "downloads_sync_manual",
+  "system_task_scan_manual",
+  "system_task_rss_manual",
+  "system_task_metadata_refresh_manual",
+  "unmapped_scan_manual",
+] as const;
+export type OperationTaskKey = (typeof OPERATION_TASK_KEY_VALUES)[number];
+export const OperationTaskKeySchema: Schema.Schema<OperationTaskKey> = Schema.Literal(
+  ...OPERATION_TASK_KEY_VALUES,
+);
+
+export const OPERATION_TASK_STATUS_VALUES = ["queued", "running", "succeeded", "failed"] as const;
+export type OperationTaskStatus = (typeof OPERATION_TASK_STATUS_VALUES)[number];
+export const OperationTaskStatusSchema: Schema.Schema<OperationTaskStatus> = Schema.Literal(
+  ...OPERATION_TASK_STATUS_VALUES,
+);
+
+export interface OperationTaskPayload {
+  anime_id?: number | undefined;
+  error?: string | undefined;
+  imported?: number | undefined;
+  failed?: number | undefined;
+  found?: number | undefined;
+  total?: number | undefined;
+}
+
+export const OperationTaskPayloadSchema: Schema.Schema<OperationTaskPayload> = Schema.Struct({
+  anime_id: Schema.optional(Schema.Number),
+  error: Schema.optional(Schema.String),
+  imported: Schema.optional(Schema.Number),
+  failed: Schema.optional(Schema.Number),
+  found: Schema.optional(Schema.Number),
+  total: Schema.optional(Schema.Number),
+});
+
+export interface OperationTask {
+  id: number;
+  task_key: OperationTaskKey;
+  status: OperationTaskStatus;
+  progress_current?: number | undefined;
+  progress_total?: number | undefined;
+  message?: string | undefined;
+  created_at: string;
+  started_at?: string | undefined;
+  finished_at?: string | undefined;
+  updated_at: string;
+  anime_id?: number | undefined;
+  payload?: OperationTaskPayload | undefined;
+}
+
+export const OperationTaskSchema: Schema.Schema<OperationTask> = Schema.Struct({
+  id: Schema.Number,
+  task_key: OperationTaskKeySchema,
+  status: OperationTaskStatusSchema,
+  progress_current: Schema.optional(Schema.Number),
+  progress_total: Schema.optional(Schema.Number),
+  message: Schema.optional(Schema.String),
+  created_at: Schema.String,
+  started_at: Schema.optional(Schema.String),
+  finished_at: Schema.optional(Schema.String),
+  updated_at: Schema.String,
+  anime_id: Schema.optional(Schema.Number),
+  payload: Schema.optional(OperationTaskPayloadSchema),
+});
+
+export interface AsyncOperationAccepted {
+  accepted_at: string;
+  message: string;
+  status: "queued";
+  task_key: OperationTaskKey;
+  task_id: number;
+}
+
+export const AsyncOperationAcceptedSchema: Schema.Schema<AsyncOperationAccepted> = Schema.Struct({
+  accepted_at: Schema.String,
+  message: Schema.String,
+  status: Schema.Literal("queued"),
+  task_key: OperationTaskKeySchema,
+  task_id: Schema.Number,
+});
+
 export interface DownloadEventMetadata {
   covered_episodes?: number[] | undefined;
   imported_path?: string | undefined;

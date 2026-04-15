@@ -5,13 +5,14 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/solid-query";
+import { toast } from "solid-sonner";
 import type {
+  AsyncOperationAccepted,
   BrowseResult,
   BulkUnmappedFolderControlRequest,
   ImportCandidateSelectionRequest,
   ImportCandidateSelectionResult,
   ImportFileRequest,
-  ImportResult,
   ScannerState,
   ScanResult,
   UnmappedFolderControlRequest,
@@ -37,10 +38,18 @@ export function createUnmappedFoldersQuery() {
 export function createScanLibraryMutation() {
   const queryClient = useQueryClient();
   return useMutation(() => ({
-    mutationFn: () => fetchApi(`${API_BASE}/library/unmapped/scan`, { method: "POST" }),
-    onSuccess: () => {
+    mutationFn: () =>
+      fetchApi<AsyncOperationAccepted>(`${API_BASE}/library/unmapped/scan`, { method: "POST" }),
+    onSuccess: (accepted) => {
+      toast.info(accepted.message);
       void queryClient.invalidateQueries({ queryKey: animeKeys.library.unmapped() });
       void queryClient.invalidateQueries({ queryKey: animeKeys.system.jobs() });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.system.tasks.all() });
+      if (accepted.task_id !== undefined) {
+        void queryClient.invalidateQueries({
+          queryKey: animeKeys.system.tasks.byId(accepted.task_id),
+        });
+      }
     },
   }));
 }
@@ -111,14 +120,21 @@ export function createImportFilesMutation() {
   const queryClient = useQueryClient();
   return useMutation(() => ({
     mutationFn: (files: ImportFileRequest[]) =>
-      fetchApi<ImportResult>(`${API_BASE}/library/import`, {
+      fetchApi<AsyncOperationAccepted>(`${API_BASE}/library/import`, {
         method: "POST",
         body: JSON.stringify({ files }),
       }),
-    onSuccess: () => {
+    onSuccess: (accepted) => {
+      toast.info(accepted.message);
       void queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
       void queryClient.invalidateQueries({ queryKey: animeKeys.library.all });
       void queryClient.invalidateQueries({ queryKey: animeKeys.system.status() });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.library.importTasks.all() });
+      if (accepted.task_id !== undefined) {
+        void queryClient.invalidateQueries({
+          queryKey: animeKeys.library.importTasks.byId(accepted.task_id),
+        });
+      }
     },
   }));
 }

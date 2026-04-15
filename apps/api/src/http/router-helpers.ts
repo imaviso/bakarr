@@ -104,6 +104,9 @@ export const jsonResponse = <A>(value: A) => HttpServerResponse.json(value);
 
 export const successResponse = () => HttpServerResponse.json({ data: null, success: true });
 
+export const acceptedResponse = <A>(value: A) =>
+  HttpServerResponse.json({ data: value, success: true }, { status: 202 });
+
 export const withAuthViewer = <A, E, R>(effect: (viewer: AuthUser) => Effect.Effect<A, E, R>) =>
   Effect.flatMap(requireViewerFromHttpRequest(), effect);
 

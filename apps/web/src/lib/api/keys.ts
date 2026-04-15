@@ -4,6 +4,11 @@ export const animeKeys = {
   all: ["anime"] as const,
   lists: () => ["anime", "list"] as const,
   detail: (id: number) => ["anime", "detail", id] as const,
+  episodeScanTasks: {
+    all: (animeId: number) => ["anime", "detail", animeId, "scan-tasks"] as const,
+    byId: (animeId: number, taskId: number) =>
+      ["anime", "detail", animeId, "scan-tasks", taskId] as const,
+  },
   episodes: (id: number) => ["anime", "detail", id, "episodes"] as const,
   files: (id: number) => ["anime", "detail", id, "files"] as const,
   search: {
@@ -30,12 +35,20 @@ export const animeKeys = {
     ] as const,
   library: {
     all: ["library"] as const,
+    importTasks: {
+      all: () => ["library", "import", "tasks"] as const,
+      byId: (taskId: number) => ["library", "import", "tasks", taskId] as const,
+    },
     stats: () => ["library", "stats"] as const,
     activity: () => ["library", "activity"] as const,
     unmapped: () => ["library", "unmapped"] as const,
   },
   downloads: {
     all: ["downloads"] as const,
+    tasks: {
+      all: () => ["downloads", "tasks"] as const,
+      byId: (taskId: number) => ["downloads", "tasks", taskId] as const,
+    },
     events: (input?: {
       animeId?: number;
       cursor?: string;
@@ -72,6 +85,10 @@ export const animeKeys = {
     all: ["system"] as const,
     config: () => ["system", "config"] as const,
     dashboard: () => ["system", "dashboard"] as const,
+    tasks: {
+      all: () => ["system", "tasks"] as const,
+      byId: (taskId: number) => ["system", "tasks", taskId] as const,
+    },
     jobs: () => ["system", "jobs"] as const,
     status: () => ["system", "status"] as const,
     logs: (

@@ -3,7 +3,9 @@ import { Effect } from "effect";
 
 import { LibraryBrowseService } from "@/features/operations/library-browse-service.ts";
 import { CatalogLibraryWriteService } from "@/features/operations/catalog-library-write-service.ts";
+import { OperationsTaskNotFoundError } from "@/features/operations/errors.ts";
 import { ImportPathScanService } from "@/features/operations/import-path-scan-service.ts";
+import { OperationsTaskLauncherService } from "@/features/operations/operations-task-launcher-service.ts";
 import { UnmappedControlService } from "@/features/operations/unmapped-control-service.ts";
 import { UnmappedImportService } from "@/features/operations/unmapped-orchestration-import.ts";
 import { UnmappedScanService } from "@/features/operations/unmapped-scan-service.ts";
@@ -18,12 +20,22 @@ import {
   ScanImportPathBodySchema,
 } from "@/http/operations-request-schemas.ts";
 import {
+  acceptedResponse,
   authedRouteResponse,
   decodeJsonBodyWithLabel,
+  decodePathParams,
   decodeQueryWithLabel,
   jsonResponse,
   successResponse,
 } from "@/http/router-helpers.ts";
+import {
+  decodeOperationsTaskQuery,
+  OperationsTaskService,
+} from "@/features/operations/operations-task-service.ts";
+import {
+  OperationsTaskIdParamsSchema,
+  OperationsTaskQuerySchema,
+} from "@/http/anime-request-schemas.ts";
 
 export const libraryRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
@@ -50,8 +62,23 @@ export const libraryRouter = HttpRouter.empty.pipe(
   HttpRouter.post(
     "/library/unmapped/scan",
     authedRouteResponse(
-      Effect.flatMap(UnmappedScanService, (service) => service.runUnmappedScan()),
-      successResponse,
+      Effect.gen(function* () {
+        const service = yield* UnmappedScanService;
+        return yield* (yield* OperationsTaskLauncherService).launch({
+          failureMessage: "Manual unmapped-folder scan failed",
+          operation: () => service.runUnmappedScan(),
+          queuedMessage: "Queued manual unmapped-folder scan",
+          runningMessage: "Running manual unmapped-folder scan",
+          successMessage: (result: { readonly folderCount: number }) =>
+            `Manual unmapped-folder scan finished (${result.folderCount} folder(s))`,
+          successProgress: (result: { readonly folderCount: number }) => ({
+            progressCurrent: result.folderCount,
+            progressTotal: result.folderCount,
+          }),
+          taskKey: "unmapped_scan_manual",
+        });
+      }),
+      acceptedResponse,
     ),
   ),
   HttpRouter.post(
@@ -139,16 +166,83 @@ export const libraryRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const body = yield* decodeJsonBodyWithLabel(ImportFilesBodySchema, "import files");
-        return yield* (yield* CatalogLibraryWriteService).importFiles(
-          body.files.map((file) =>
-            Object.assign(
-              { anime_id: file.anime_id, episode_number: file.episode_number },
-              file.episode_numbers === undefined ? {} : { episode_numbers: file.episode_numbers },
-              file.season === undefined ? {} : { season: file.season },
-              { source_path: file.source_path },
-            ),
+        const files = body.files.map((file) =>
+          Object.assign(
+            { anime_id: file.anime_id, episode_number: file.episode_number },
+            file.episode_numbers === undefined ? {} : { episode_numbers: file.episode_numbers },
+            file.season === undefined ? {} : { season: file.season },
+            { source_path: file.source_path },
           ),
         );
+        const animeId = files[0]?.anime_id;
+
+        const taskLauncher = yield* OperationsTaskLauncherService;
+        const catalogLibraryWrite = yield* CatalogLibraryWriteService;
+
+        return yield* taskLauncher.launch({
+          ...(animeId === undefined ? {} : { animeId }),
+          failureMessage: `Library import failed for ${files.length} file(s)`,
+          operation: (taskId) =>
+            catalogLibraryWrite.importFiles(files, {
+              taskId,
+            }),
+          queuedMessage: `Queued library import for ${files.length} file(s)`,
+          runningMessage: `Importing ${files.length} file(s) into library`,
+          successMessage: (result: { readonly imported: number; readonly failed: number }) =>
+            `Library import finished (${result.imported} imported, ${result.failed} failed)`,
+          successProgress: (result: { readonly imported: number; readonly failed: number }) => ({
+            progressCurrent: result.imported + result.failed,
+            progressTotal: result.imported + result.failed,
+          }),
+          successPayload: (result: { readonly imported: number; readonly failed: number }) => ({
+            ...(animeId === undefined ? {} : { anime_id: animeId }),
+            failed: result.failed,
+            imported: result.imported,
+            total: result.imported + result.failed,
+          }),
+          failurePayload: () => ({
+            ...(animeId === undefined ? {} : { anime_id: animeId }),
+            failed: files.length,
+            total: files.length,
+          }),
+          taskKey: "library_import",
+        });
+      }),
+      acceptedResponse,
+    ),
+  ),
+  HttpRouter.get(
+    "/library/import/tasks",
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const query = yield* decodeQueryWithLabel(
+          OperationsTaskQuerySchema,
+          "library import tasks",
+        );
+        const decoded = yield* decodeOperationsTaskQuery(query);
+
+        return yield* (yield* OperationsTaskService).listTasks({
+          ...(decoded.animeId === undefined ? {} : { animeId: decoded.animeId }),
+          taskKey: "library_import",
+        });
+      }),
+      jsonResponse,
+    ),
+  ),
+  HttpRouter.get(
+    "/library/import/tasks/:taskId",
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(OperationsTaskIdParamsSchema);
+        const task = yield* (yield* OperationsTaskService).getTask(params.taskId);
+
+        if (task.task_key !== "library_import") {
+          return yield* new OperationsTaskNotFoundError({
+            message: `Library import task ${params.taskId} not found`,
+          });
+        }
+
+        return task;
       }),
       jsonResponse,
     ),

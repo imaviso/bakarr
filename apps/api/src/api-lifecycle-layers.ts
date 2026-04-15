@@ -17,6 +17,8 @@ import {
 import type { AppConfigShape } from "@/config.ts";
 import { AnimeEnrollmentServiceLive } from "@/features/anime/anime-enrollment-service.ts";
 import { LibraryBrowseServiceLive } from "@/features/operations/library-browse-service.ts";
+import { OperationsTaskLauncherServiceLive } from "@/features/operations/operations-task-launcher-service.ts";
+import { OperationsTaskServiceLive } from "@/features/operations/operations-task-service.ts";
 import { RuntimeConfigSnapshotServiceLive } from "@/features/system/runtime-config-snapshot-service.ts";
 import { SystemConfigServiceLive } from "@/features/system/system-config-service.ts";
 import { DiskSpaceInspectorLive } from "@/features/system/disk-space.ts";
@@ -81,21 +83,27 @@ export function makeApiLifecycleLayers(
 
   const authLayer = makeAuthAppLayer(runtimeSupportLayer);
 
+  const operationsTaskLayer = OperationsTaskServiceLive.pipe(Layer.provide(runtimeSupportLayer));
+  const operationsTaskLauncherLayer = OperationsTaskLauncherServiceLive.pipe(
+    Layer.provide(Layer.mergeAll(runtimeSupportLayer, operationsLayer, operationsTaskLayer)),
+  );
   const libraryLayer = LibraryBrowseServiceLive.pipe(
     Layer.provide(Layer.mergeAll(systemLayer, operationsLayer)),
   );
   const animeEnrollmentLayer = AnimeEnrollmentServiceLive.pipe(
-    Layer.provide(Layer.mergeAll(animeLayer, operationsLayer)),
+    Layer.provide(Layer.mergeAll(animeLayer, operationsLayer, operationsTaskLauncherLayer)),
   );
 
-  const appFeatureSubgraphLayer = Layer.mergeAll(
+  const appFeatureBaseLayer = Layer.mergeAll(
     appDomainSubgraphLayer,
     runtimeWorkerSubgraphLayer,
     authLayer,
     systemLayer,
     libraryLayer,
     animeEnrollmentLayer,
+    operationsTaskLayer,
   );
+  const appFeatureSubgraphLayer = Layer.mergeAll(appFeatureBaseLayer, operationsTaskLauncherLayer);
   const featureLayer = appFeatureSubgraphLayer.pipe(Layer.provide(runtimeSupportLayer));
   const appLayer = Layer.mergeAll(runtimeSupportLayer, featureLayer);
 

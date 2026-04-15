@@ -4,6 +4,7 @@ import { Effect } from "effect";
 import { DownloadTriggerService } from "@/features/operations/download-trigger-service.ts";
 import { CatalogLibraryReadService } from "@/features/operations/catalog-library-read-service.ts";
 import { SearchBackgroundMissingService } from "@/features/operations/background-search-missing-support.ts";
+import { OperationsTaskLauncherService } from "@/features/operations/operations-task-launcher-service.ts";
 import { SearchEpisodeService } from "@/features/operations/search-orchestration-episode-support.ts";
 import { SearchReleaseService } from "@/features/operations/search-orchestration-release-search.ts";
 import {
@@ -14,6 +15,7 @@ import {
   WantedMissingQuerySchema,
 } from "@/http/operations-request-schemas.ts";
 import {
+  acceptedResponse,
   authedRouteResponse,
   decodeJsonBodyWithLabel,
   decodeOptionalJsonBodyWithLabel,
@@ -102,9 +104,30 @@ export const searchRouter = HttpRouter.empty.pipe(
           "search missing downloads",
           new SearchMissingBodySchema({}),
         );
-        yield* (yield* SearchBackgroundMissingService).triggerSearchMissing(body.anime_id);
+        const searchBackgroundMissingService = yield* SearchBackgroundMissingService;
+        return yield* (yield* OperationsTaskLauncherService).launch({
+          ...(body.anime_id === undefined ? {} : { animeId: body.anime_id }),
+          failureMessage:
+            body.anime_id === undefined
+              ? "Missing-episode search failed"
+              : `Missing-episode search failed for anime ${body.anime_id}`,
+          operation: () => searchBackgroundMissingService.triggerSearchMissing(body.anime_id),
+          queuedMessage:
+            body.anime_id === undefined
+              ? "Queued missing-episode search for monitored anime"
+              : `Queued missing-episode search for anime ${body.anime_id}`,
+          runningMessage:
+            body.anime_id === undefined
+              ? "Searching missing episodes for monitored anime"
+              : `Searching missing episodes for anime ${body.anime_id}`,
+          successMessage: () =>
+            body.anime_id === undefined
+              ? "Finished missing-episode search for monitored anime"
+              : `Finished missing-episode search for anime ${body.anime_id}`,
+          taskKey: "downloads_search_missing_manual",
+        });
       }),
-      successResponse,
+      acceptedResponse,
     ),
   ),
 );

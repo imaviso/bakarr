@@ -12,6 +12,11 @@ export class OperationsAnimeNotFoundError extends Schema.TaggedError<OperationsA
   { message: Schema.String },
 ) {}
 
+export class OperationsTaskNotFoundError extends Schema.TaggedError<OperationsTaskNotFoundError>()(
+  "OperationsTaskNotFoundError",
+  { message: Schema.String },
+) {}
+
 export class DownloadConflictError extends Schema.TaggedError<DownloadConflictError>()(
   "DownloadConflictError",
   { message: Schema.String },
@@ -62,6 +67,7 @@ export type OperationsError =
   | DownloadConflictError
   | OperationsConflictError
   | OperationsAnimeNotFoundError
+  | OperationsTaskNotFoundError
   | OperationsInputError
   | OperationsPathError
   | OperationsStoredDataError
@@ -77,6 +83,7 @@ export function isOperationsError(cause: unknown): cause is OperationsError {
     cause instanceof DownloadConflictError ||
     cause instanceof OperationsConflictError ||
     cause instanceof OperationsAnimeNotFoundError ||
+    cause instanceof OperationsTaskNotFoundError ||
     cause instanceof OperationsInputError ||
     cause instanceof OperationsPathError ||
     cause instanceof OperationsStoredDataError ||

@@ -24,6 +24,7 @@ import {
   TableRow,
 } from "~/components/ui/table";
 import {
+  createSystemTaskQuery,
   createSearchMissingMutation,
   createSystemConfigQuery,
   createWantedQuery,
@@ -52,6 +53,10 @@ function WantedPage() {
   const limit = 100;
   const wantedQuery = createWantedQuery(() => limit);
   const configQuery = createSystemConfigQuery();
+  const [latestMissingSearchTaskId, setLatestMissingSearchTaskId] = createSignal<
+    number | undefined
+  >(undefined);
+  createSystemTaskQuery(latestMissingSearchTaskId);
   const searchMissing = createSearchMissingMutation();
   const data = createMemo(() => wantedQuery.data ?? []);
   const airingPreferences = createMemo(() =>
@@ -90,7 +95,11 @@ function WantedPage() {
   });
 
   const handleSearchAll = () => {
-    searchMissing.mutate(undefined);
+    searchMissing.mutate(undefined, {
+      onSuccess: (accepted) => {
+        setLatestMissingSearchTaskId(accepted.task_id);
+      },
+    });
   };
 
   return (

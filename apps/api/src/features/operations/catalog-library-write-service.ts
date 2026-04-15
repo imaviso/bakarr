@@ -5,7 +5,10 @@ import { Database, type DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { MediaProbe } from "@/lib/media-probe.ts";
 import { FileSystem } from "@/lib/filesystem.ts";
-import type { OperationsAnimeNotFoundError } from "@/features/operations/errors.ts";
+import type {
+  OperationsAnimeNotFoundError,
+  OperationsInfrastructureError,
+} from "@/features/operations/errors.ts";
 import {
   importLibraryFiles,
   type LibraryImportFileInput,
@@ -14,11 +17,13 @@ import { renameLibraryFiles } from "@/features/operations/catalog-library-write-
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
+import { OperationsTaskService } from "@/features/operations/operations-task-service.ts";
 
 export interface CatalogLibraryWriteServiceShape {
   readonly importFiles: (
     files: readonly LibraryImportFileInput[],
-  ) => Effect.Effect<ImportResult, RuntimeConfigSnapshotError>;
+    options?: { readonly taskId?: number },
+  ) => Effect.Effect<ImportResult, RuntimeConfigSnapshotError | OperationsInfrastructureError>;
   readonly renameFiles: (
     animeId: number,
   ) => Effect.Effect<
@@ -39,12 +44,14 @@ export const CatalogLibraryWriteServiceLive = Layer.effect(
     const fs = yield* FileSystem;
     const mediaProbe = yield* MediaProbe;
     const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
+    const operationsTaskService = yield* OperationsTaskService;
 
     const importFiles = Effect.fn("OperationsService.importFiles")(function* (
       files: readonly LibraryImportFileInput[],
+      options?: { readonly taskId?: number },
     ) {
       const runtimeConfig = yield* runtimeConfigSnapshot.getRuntimeConfig();
-      return yield* importLibraryFiles({
+      const result = yield* importLibraryFiles({
         db,
         eventBus,
         files,
@@ -53,6 +60,17 @@ export const CatalogLibraryWriteServiceLive = Layer.effect(
         runtimeConfig,
         tryDatabasePromise,
       });
+
+      if (options?.taskId !== undefined) {
+        yield* operationsTaskService.updateTaskProgress({
+          message: `Imported ${result.imported} file(s), ${result.failed} failed`,
+          progressCurrent: result.imported + result.failed,
+          progressTotal: result.imported + result.failed,
+          taskId: options.taskId,
+        });
+      }
+
+      return result;
     });
 
     const renameFiles = Effect.fn("OperationsService.renameFiles")(function* (animeId: number) {

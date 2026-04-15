@@ -9,7 +9,7 @@ import {
   ReleaseProfileIdSchema,
 } from "@/lib/domain-schema.ts";
 import { AbsoluteFilesystemPathStringSchema } from "@/http/common-request-schemas.ts";
-import { AnimeSeasonSchema } from "@packages/shared/index.ts";
+import { AnimeSeasonSchema, OperationTaskKeySchema } from "@packages/shared/index.ts";
 export { AddAnimeInput as AddAnimeInputSchema } from "@/features/anime/add-anime-input.ts";
 
 const ReleaseProfileIdArraySchema = Schema.Array(ReleaseProfileIdSchema);
@@ -92,4 +92,24 @@ export class SeasonalAnimeQuerySchema extends Schema.Class<SeasonalAnimeQuerySch
   year: Schema.optional(Schema.NumberFromString.pipe(Schema.int(), Schema.between(1970, 2100))),
   limit: Schema.optional(Schema.NumberFromString.pipe(Schema.int(), Schema.between(1, 50))),
   page: Schema.optional(Schema.NumberFromString.pipe(Schema.int(), Schema.positive())),
+}) {}
+
+export class OperationsTaskIdParamsSchema extends Schema.Class<OperationsTaskIdParamsSchema>(
+  "OperationsTaskIdParamsSchema",
+)({
+  taskId: PositiveIntFromStringSchema,
+}) {}
+
+export class AnimeOperationsTaskIdParamsSchema extends Schema.Class<AnimeOperationsTaskIdParamsSchema>(
+  "AnimeOperationsTaskIdParamsSchema",
+)({
+  id: AnimeIdFromStringSchema,
+  taskId: PositiveIntFromStringSchema,
+}) {}
+
+export class OperationsTaskQuerySchema extends Schema.Class<OperationsTaskQuerySchema>(
+  "OperationsTaskQuerySchema",
+)({
+  anime_id: Schema.optional(PositiveIntFromStringSchema),
+  task_key: Schema.optional(OperationTaskKeySchema),
 }) {}

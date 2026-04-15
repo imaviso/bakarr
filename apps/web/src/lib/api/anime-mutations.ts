@@ -1,5 +1,11 @@
 import { useMutation, useQueryClient } from "@tanstack/solid-query";
-import type { AddAnimeRequest, Anime, ScanFolderResult, SearchDownloadRequest } from "./contracts";
+import { toast } from "solid-sonner";
+import type {
+  AddAnimeRequest,
+  Anime,
+  AsyncOperationAccepted,
+  SearchDownloadRequest,
+} from "./contracts";
 import { API_BASE, fetchApi } from "./client";
 import { animeKeys } from "./keys";
 
@@ -156,13 +162,20 @@ export function createRefreshEpisodesMutation() {
   const queryClient = useQueryClient();
   return useMutation(() => ({
     mutationFn: (animeId: number) =>
-      fetchApi(`${API_BASE}/anime/${animeId}/episodes/refresh`, {
+      fetchApi<AsyncOperationAccepted>(`${API_BASE}/anime/${animeId}/episodes/refresh`, {
         method: "POST",
       }),
-    onSuccess: (_, animeId) => {
+    onSuccess: (accepted, animeId) => {
+      toast.info(accepted.message);
       void queryClient.invalidateQueries({ queryKey: animeKeys.detail(animeId) });
       void queryClient.invalidateQueries({ queryKey: animeKeys.episodes(animeId) });
       void queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.system.tasks.all() });
+      if (accepted.task_id !== undefined) {
+        void queryClient.invalidateQueries({
+          queryKey: animeKeys.system.tasks.byId(accepted.task_id),
+        });
+      }
     },
   }));
 }
@@ -171,13 +184,20 @@ export function createScanFolderMutation() {
   const queryClient = useQueryClient();
   return useMutation(() => ({
     mutationFn: (animeId: number) =>
-      fetchApi<ScanFolderResult>(`${API_BASE}/anime/${animeId}/episodes/scan`, {
+      fetchApi<AsyncOperationAccepted>(`${API_BASE}/anime/${animeId}/episodes/scan`, {
         method: "POST",
       }),
-    onSuccess: (_, animeId) => {
+    onSuccess: (accepted, animeId) => {
+      toast.info(accepted.message);
       void queryClient.invalidateQueries({ queryKey: animeKeys.episodes(animeId) });
       void queryClient.invalidateQueries({ queryKey: animeKeys.detail(animeId) });
       void queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.episodeScanTasks.all(animeId) });
+      if (accepted.task_id !== undefined) {
+        void queryClient.invalidateQueries({
+          queryKey: animeKeys.episodeScanTasks.byId(animeId, accepted.task_id),
+        });
+      }
     },
   }));
 }

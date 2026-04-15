@@ -4,6 +4,7 @@ import { Effect } from "effect";
 import { HttpServerResponse } from "@effect/platform";
 import { CatalogDownloadCommandService } from "@/features/operations/catalog-download-command-service.ts";
 import { CatalogDownloadReadService } from "@/features/operations/catalog-download-read-service.ts";
+import { OperationsTaskLauncherService } from "@/features/operations/operations-task-launcher-service.ts";
 import { IdParamsSchema } from "@/http/common-request-schemas.ts";
 import {
   DeleteDownloadQuerySchema,
@@ -13,6 +14,7 @@ import {
   toDownloadEventsQueryParams,
 } from "@/http/operations-request-schemas.ts";
 import {
+  acceptedResponse,
   authedRouteResponse,
   decodePathParams,
   decodeQueryWithLabel,
@@ -135,8 +137,18 @@ export const downloadsRouter = HttpRouter.empty.pipe(
   HttpRouter.post(
     "/downloads/sync",
     authedRouteResponse(
-      Effect.flatMap(CatalogDownloadCommandService, (service) => service.syncDownloads()),
-      successResponse,
+      Effect.gen(function* () {
+        const service = yield* CatalogDownloadCommandService;
+        return yield* (yield* OperationsTaskLauncherService).launch({
+          failureMessage: "Manual download sync failed",
+          operation: () => service.syncDownloads(),
+          queuedMessage: "Queued manual download sync",
+          runningMessage: "Running manual download sync",
+          successMessage: () => "Manual download sync finished",
+          taskKey: "downloads_sync_manual",
+        });
+      }),
+      acceptedResponse,
     ),
   ),
   HttpRouter.del(
