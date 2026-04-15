@@ -1,17 +1,25 @@
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
 import { Context, Effect, Layer, Option, Schema } from "effect";
 
-import type { AnimeSearchResult } from "@packages/shared/index.ts";
+import type { AnimeSearchResult, AnimeSeason } from "@packages/shared/index.ts";
 import { ExternalCall, ExternalCallError, type ExternalCallShape } from "@/lib/effect-retry.ts";
 import {
   AnimeMetadataFromAniListSchema,
   AnimeSearchResultFromAniListSchema,
   AniListDetailPayloadSchema,
   AniListSearchPayloadSchema,
+  AniListSeasonalPayloadSchema,
   type AnimeMetadata,
 } from "@/features/anime/anilist-model.ts";
 
 const ANILIST_URL = "https://graphql.anilist.co";
+
+const ANILIST_SEASON_MAP: Record<AnimeSeason, "WINTER" | "SPRING" | "SUMMER" | "FALL"> = {
+  winter: "WINTER",
+  spring: "SPRING",
+  summer: "SUMMER",
+  fall: "FALL",
+};
 
 const SEARCH_ANIME_QUERY = `query ($search: String) {
   Page(page: 1, perPage: 10) {
@@ -212,6 +220,101 @@ const DETAIL_ANIME_QUERY = `query ($id: Int) {
   }
 }`;
 
+const SEASONAL_ANIME_QUERY = `query ($season: MediaSeason, $seasonYear: Int, $perPage: Int, $page: Int) {
+  Page(page: $page, perPage: $perPage) {
+    pageInfo {
+      hasNextPage
+    }
+    media(season: $season, seasonYear: $seasonYear, type: ANIME, sort: POPULARITY_DESC) {
+      id
+      format
+      status
+      episodes
+      duration
+      favourites
+      popularity
+      rankings {
+        rank
+        type
+        allTime
+      }
+      source
+      description(asHtml: false)
+      genres
+      synonyms
+      startDate {
+        year
+        month
+        day
+      }
+      endDate {
+        year
+        month
+        day
+      }
+      title {
+        romaji
+        english
+        native
+      }
+      coverImage {
+        extraLarge
+        large
+      }
+      bannerImage
+      relations {
+        edges {
+          relationType
+          node {
+            id
+            format
+            status
+            averageScore
+            startDate {
+              year
+              month
+              day
+            }
+            title {
+              romaji
+              english
+              native
+            }
+            coverImage {
+              extraLarge
+              large
+            }
+          }
+        }
+      }
+      recommendations(perPage: 6, sort: RATING_DESC) {
+        nodes {
+          mediaRecommendation {
+            id
+            format
+            status
+            averageScore
+            startDate {
+              year
+              month
+              day
+            }
+            title {
+              romaji
+              english
+              native
+            }
+            coverImage {
+              extraLarge
+              large
+            }
+          }
+        }
+      }
+    }
+  }
+}`;
+
 interface AniListClientShape {
   readonly searchAnimeMetadata: (
     query: string,
@@ -219,6 +322,12 @@ interface AniListClientShape {
   readonly getAnimeMetadataById: (
     id: number,
   ) => Effect.Effect<Option.Option<AnimeMetadata>, ExternalCallError>;
+  readonly getSeasonalAnime: (input: {
+    season: AnimeSeason;
+    year: number;
+    limit: number;
+    page?: number;
+  }) => Effect.Effect<AnimeSearchResult[], ExternalCallError>;
 }
 
 export class AniListClient extends Context.Tag("@bakarr/api/AniListClient")<
@@ -250,8 +359,18 @@ export const AniListClientLive = Layer.effect(
       return yield* tryFetchDetail(client, externalCall, id);
     });
 
+    const getSeasonalAnime = Effect.fn("AniListClient.getSeasonalAnime")(function* (input: {
+      season: AnimeSeason;
+      year: number;
+      limit: number;
+      page?: number;
+    }) {
+      return yield* tryFetchSeasonal(client, externalCall, input);
+    });
+
     return {
       getAnimeMetadataById,
+      getSeasonalAnime,
       searchAnimeMetadata,
     } satisfies AniListClientShape;
   }),
@@ -357,4 +476,43 @@ const tryFetchDetail = Effect.fn("AniListClient.tryFetchDetail")(function* (
   );
 
   return Option.some(decoded);
+});
+
+const tryFetchSeasonal = Effect.fn("AniListClient.tryFetchSeasonal")(function* (
+  client: HttpClient.HttpClient,
+  externalCall: ExternalCallShape,
+  input: { season: AnimeSeason; year: number; limit: number; page?: number },
+) {
+  const seasonEnum = ANILIST_SEASON_MAP[input.season];
+
+  const payload = yield* callAniList(
+    client,
+    externalCall,
+    "seasonal",
+    SEASONAL_ANIME_QUERY,
+    {
+      page: input.page ?? 1,
+      perPage: input.limit,
+      season: seasonEnum,
+      seasonYear: input.year,
+    },
+    AniListSeasonalPayloadSchema,
+  );
+
+  return yield* Effect.forEach(payload.data.Page.media, (entry) =>
+    Schema.decodeUnknown(AnimeSearchResultFromAniListSchema)(entry).pipe(
+      Effect.map((decoded) => ({
+        ...decoded,
+        season: decoded.season ?? input.season,
+        season_year: decoded.season_year ?? input.year,
+      })),
+      Effect.mapError((cause) =>
+        ExternalCallError.make({
+          cause,
+          message: "AniList seasonal result normalization failed",
+          operation: "anilist.seasonal.normalize",
+        }),
+      ),
+    ),
+  );
 });

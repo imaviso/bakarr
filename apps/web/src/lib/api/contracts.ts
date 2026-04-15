@@ -6,6 +6,7 @@ export type {
   AnimeListResponse,
   AnimeSearchResponse,
   AnimeSearchResult,
+  AnimeSeason,
   ApiKeyLoginRequest,
   ApiKeyResponse,
   AuthUser,
@@ -55,6 +56,9 @@ export type {
   ScannerState,
   ScanResult,
   SearchResults,
+  SeasonalAnimeProvider,
+  SeasonalAnimeQueryParams,
+  SeasonalAnimeResponse,
   SkippedFile,
   SystemLog,
   SystemLogsResponse,
@@ -69,6 +73,7 @@ export {
   SEARCH_RELEASE_CATEGORY_OPTIONS,
   SEARCH_RELEASE_FILTER_LABELS,
   SEARCH_RELEASE_FILTER_OPTIONS,
+  SEASONAL_ANIME_PROVIDER_VALUES,
 } from "@bakarr/shared";
 
 export interface ScanFolderResult {

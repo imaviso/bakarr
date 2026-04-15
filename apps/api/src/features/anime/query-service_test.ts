@@ -1,0 +1,166 @@
+import { assert, describe, it } from "@effect/vitest";
+import { Effect, Layer, Option } from "effect";
+
+import type { AnimeSearchResult } from "@packages/shared/index.ts";
+import { ClockService } from "@/lib/clock.ts";
+import * as schema from "@/db/schema.ts";
+import { AnimeQueryService, AnimeQueryServiceLive } from "@/features/anime/query-service.ts";
+import { AniListClient } from "@/features/anime/anilist.ts";
+import { AnimeSeasonalProviderService } from "@/features/anime/anime-seasonal-provider-service.ts";
+import { Database } from "@/db/database.ts";
+import { withSqliteTestDbEffect } from "@/test/database-test.ts";
+
+function makeSeasonalResult(input: {
+  id: number;
+  title: string;
+  alreadyInLibrary?: boolean;
+}): AnimeSearchResult {
+  return {
+    already_in_library: input.alreadyInLibrary ?? false,
+    format: "TV",
+    id: input.id,
+    season: "spring",
+    season_year: 2025,
+    start_year: 2025,
+    status: "RELEASING",
+    title: { romaji: input.title },
+  };
+}
+
+describe("AnimeQueryService.listSeasonalAnime", () => {
+  it.scoped("uses db cache within ttl and skips provider call", () =>
+    withSqliteTestDbEffect({
+      run: (db, _databaseFile, client) =>
+        Effect.gen(function* () {
+          let providerCalls = 0;
+
+          const providerLayer = Layer.succeed(AnimeSeasonalProviderService, {
+            getSeasonalAnime: () => {
+              providerCalls += 1;
+              return Effect.succeed({
+                degraded: false,
+                hasMore: false,
+                provider: "anilist" as const,
+                results: [makeSeasonalResult({ id: 42, title: "Cached Spring" })],
+                season: "spring" as const,
+                year: 2025,
+              });
+            },
+          });
+
+          const baseLayer = Layer.mergeAll(
+            providerLayer,
+            Layer.succeed(AniListClient, {
+              getAnimeMetadataById: () => Effect.succeed(Option.none()),
+              getSeasonalAnime: () => Effect.succeed([]),
+              searchAnimeMetadata: () => Effect.succeed([]),
+            }),
+            Layer.succeed(ClockService, {
+              currentMonotonicMillis: Effect.succeed(0),
+              currentTimeMillis: Effect.succeed(new Date("2025-04-01T10:00:00.000Z").getTime()),
+            }),
+            Layer.succeed(Database, {
+              client,
+              db,
+            }),
+          );
+
+          const queryServiceLayer = AnimeQueryServiceLive.pipe(Layer.provide(baseLayer));
+
+          const listSeasonalAnime = (input: {
+            season: "spring";
+            year: number;
+            page: number;
+            limit: number;
+          }) =>
+            Effect.gen(function* () {
+              const service = yield* AnimeQueryService;
+              return yield* service.listSeasonalAnime(input);
+            }).pipe(Effect.provide(queryServiceLayer));
+
+          const first = yield* listSeasonalAnime({
+            limit: 12,
+            page: 1,
+            season: "spring",
+            year: 2025,
+          });
+
+          assert.deepStrictEqual(first.results.length, 1);
+          assert.deepStrictEqual(providerCalls, 1);
+
+          const second = yield* listSeasonalAnime({
+            limit: 12,
+            page: 1,
+            season: "spring",
+            year: 2025,
+          });
+
+          assert.deepStrictEqual(second.results.length, 1);
+          assert.deepStrictEqual(providerCalls, 1);
+        }),
+      schema,
+    }),
+  );
+
+  it.scoped("re-fetches when ttl expires", () =>
+    withSqliteTestDbEffect({
+      run: (db, _databaseFile, client) =>
+        Effect.gen(function* () {
+          let providerCalls = 0;
+          let currentTime = new Date("2025-04-01T10:00:00.000Z").getTime();
+
+          const providerLayer = Layer.succeed(AnimeSeasonalProviderService, {
+            getSeasonalAnime: () => {
+              providerCalls += 1;
+              return Effect.succeed({
+                degraded: false,
+                hasMore: false,
+                provider: "anilist" as const,
+                results: [makeSeasonalResult({ id: 7, title: `Fetch ${providerCalls}` })],
+                season: "spring" as const,
+                year: 2025,
+              });
+            },
+          });
+
+          const layer = AnimeQueryServiceLive.pipe(
+            Layer.provide(
+              Layer.mergeAll(
+                providerLayer,
+                Layer.succeed(AniListClient, {
+                  getAnimeMetadataById: () => Effect.succeed(Option.none()),
+                  getSeasonalAnime: () => Effect.succeed([]),
+                  searchAnimeMetadata: () => Effect.succeed([]),
+                }),
+                Layer.succeed(ClockService, {
+                  currentMonotonicMillis: Effect.succeed(0),
+                  currentTimeMillis: Effect.sync(() => currentTime),
+                }),
+                Layer.succeed(Database, {
+                  client,
+                  db,
+                }),
+              ),
+            ),
+          );
+
+          const service = yield* AnimeQueryService.pipe(Effect.provide(layer));
+
+          yield* service.listSeasonalAnime({ season: "spring", year: 2025, page: 1, limit: 12 });
+          assert.deepStrictEqual(providerCalls, 1);
+
+          currentTime += 1000 * 60 * 6;
+          const refreshed = yield* service.listSeasonalAnime({
+            season: "spring",
+            year: 2025,
+            page: 1,
+            limit: 12,
+          });
+
+          assert.deepStrictEqual(providerCalls, 2);
+          assert.deepStrictEqual(refreshed.results[0]?.title.romaji, "Fetch 2");
+        }),
+      schema,
+    }),
+  );
+});

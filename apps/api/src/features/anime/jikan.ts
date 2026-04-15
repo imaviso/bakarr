@@ -1,5 +1,6 @@
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
 import { Context, Effect, Layer, Option, Schema } from "effect";
+import type { AnimeSeason } from "@packages/shared/index.ts";
 
 import {
   JikanAnimeDetailFullPayloadSchema,
@@ -7,8 +8,11 @@ import {
   JikanAnimeRecommendationsPayloadSchema,
   JikanNormalizedAnimeFromDetailSchema,
   JikanNormalizedAnimeFromFullSchema,
+  JikanSeasonalEntryFromDetailSchema,
+  JikanSeasonalPayloadSchema,
   normalizeJikanRecommendations,
   type JikanNormalizedAnime,
+  type JikanNormalizedSeasonalEntry,
 } from "@/features/anime/jikan-model.ts";
 import { ExternalCall, ExternalCallError, type ExternalCallShape } from "@/lib/effect-retry.ts";
 
@@ -18,6 +22,12 @@ interface JikanClientShape {
   readonly getAnimeByMalId: (
     malId: number,
   ) => Effect.Effect<Option.Option<JikanNormalizedAnime>, ExternalCallError>;
+  readonly getSeasonalAnime: (input: {
+    season: AnimeSeason;
+    year: number;
+    limit: number;
+    page?: number;
+  }) => Effect.Effect<ReadonlyArray<JikanNormalizedSeasonalEntry>, ExternalCallError>;
 }
 
 export class JikanClient extends Context.Tag("@bakarr/api/JikanClient")<
@@ -46,7 +56,51 @@ export const JikanClientLive = Layer.effect(
       });
     });
 
-    return JikanClient.of({ getAnimeByMalId });
+    const getSeasonalAnime = Effect.fn("JikanClient.getSeasonalAnime")(function* (input: {
+      season: AnimeSeason;
+      year: number;
+      limit: number;
+      page?: number;
+    }) {
+      const response = yield* callJikan(
+        client,
+        externalCall,
+        `/seasons/${input.year}/${input.season}?limit=${input.limit}&page=${input.page ?? 1}`,
+        "jikan.seasonal",
+      );
+
+      if (Option.isNone(response)) {
+        return [];
+      }
+
+      const payload = yield* HttpClientResponse.schemaBodyJson(JikanSeasonalPayloadSchema)(
+        response.value,
+      ).pipe(
+        Effect.mapError((cause) =>
+          ExternalCallError.make({
+            cause,
+            message: "Jikan seasonal response decode failed",
+            operation: "jikan.seasonal.json",
+          }),
+        ),
+      );
+
+      const entries = yield* Effect.forEach(payload.data, (entry) =>
+        Schema.decodeUnknown(JikanSeasonalEntryFromDetailSchema)(entry).pipe(
+          Effect.mapError((cause) =>
+            ExternalCallError.make({
+              cause,
+              message: "Jikan seasonal entry normalization failed",
+              operation: "jikan.seasonal.normalize",
+            }),
+          ),
+        ),
+      );
+
+      return entries.slice(0, input.limit);
+    });
+
+    return JikanClient.of({ getAnimeByMalId, getSeasonalAnime });
   }),
 );
 
@@ -177,15 +231,7 @@ const callJikan = Effect.fn("JikanClient.callJikan")(function* (
   path: string,
   operation: string,
 ) {
-  const url = yield* Effect.try({
-    try: () => `${JIKAN_URL}${path}`,
-    catch: (cause) =>
-      ExternalCallError.make({
-        cause,
-        message: "Failed to build Jikan request URL",
-        operation: `${operation}.request`,
-      }),
-  });
+  const url = `${JIKAN_URL}${path}`;
 
   const request = HttpClientRequest.get(url);
   const response = yield* externalCall.tryExternalEffect(operation, client.execute(request));

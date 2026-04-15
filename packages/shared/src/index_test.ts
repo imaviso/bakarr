@@ -30,6 +30,11 @@ import {
   LoginResponseSchema,
   MissingEpisodeSchema,
   NotificationEventSchema,
+  resolveSeasonFromDate,
+  resolveSeasonWindowFromDate,
+  resolveSeasonYearFromDate,
+  SeasonalAnimeQueryParamsSchema,
+  SeasonalAnimeResponseSchema,
   decodeNotificationEventWire,
   encodeNotificationEventWire,
   OpsDashboardSchema,
@@ -1219,4 +1224,76 @@ it("notification schema accepts auth notification events", () => {
 
   assertEquals(passwordChanged._tag, "Right");
   assertEquals(apiKeyRegenerated._tag, "Right");
+});
+
+it("shared seasonal anime schemas accept canonical payloads", () => {
+  const seasonalResponse = Schema.decodeUnknownEither(SeasonalAnimeResponseSchema)({
+    degraded: false,
+    has_more: true,
+    limit: 25,
+    page: 2,
+    provider: "anilist",
+    season: "spring",
+    year: 2026,
+    results: [
+      {
+        already_in_library: false,
+        cover_image: "https://cdn.example/cover.jpg",
+        format: "TV",
+        id: 101,
+        season: "spring",
+        season_year: 2026,
+        start_year: 2026,
+        status: "RELEASING",
+        title: { romaji: "Kowloon Generic Romance" },
+      },
+    ],
+  });
+  const seasonalQueryParams = Schema.decodeUnknownEither(SeasonalAnimeQueryParamsSchema)({
+    page: 2,
+    season: "winter",
+    year: 2025,
+    limit: 25,
+  });
+
+  assertEquals(seasonalResponse._tag, "Right");
+  assertEquals(seasonalQueryParams._tag, "Right");
+});
+
+it("shared seasonal anime query params reject out-of-range values", () => {
+  const badYearAndLimit = Schema.decodeUnknownEither(SeasonalAnimeQueryParamsSchema)({
+    season: "winter",
+    year: 1800,
+    limit: 0,
+    page: 0,
+  });
+  const badSeason = Schema.decodeUnknownEither(SeasonalAnimeQueryParamsSchema)({
+    season: "autumn",
+    year: 2025,
+    limit: 25,
+  });
+
+  assertEquals(badYearAndLimit._tag, "Left");
+  assertEquals(badSeason._tag, "Left");
+
+  if (badYearAndLimit._tag === "Left") {
+    assertMatch(badYearAndLimit.left.message, /1970|1/);
+  }
+
+  if (badSeason._tag === "Left") {
+    assertMatch(badSeason.left.message, /winter|spring|summer|fall/);
+  }
+});
+
+it("shared season helpers resolve season and year window", () => {
+  assertEquals(resolveSeasonFromDate(new Date("2025-01-15")), "winter");
+  assertEquals(resolveSeasonFromDate(new Date("2025-04-15")), "spring");
+  assertEquals(resolveSeasonFromDate(new Date("2025-07-15")), "summer");
+  assertEquals(resolveSeasonFromDate(new Date("2025-10-15")), "fall");
+  assertEquals(resolveSeasonYearFromDate(new Date("2025-12-15")), 2026);
+  assertEquals(resolveSeasonYearFromDate(new Date("2025-06-15")), 2025);
+
+  const window = resolveSeasonWindowFromDate(new Date("2025-12-20"));
+  assertEquals(window.season, "winter");
+  assertEquals(window.year, 2026);
 });

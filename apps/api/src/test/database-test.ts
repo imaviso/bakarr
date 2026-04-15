@@ -37,7 +37,11 @@ export const withSqliteTestDbEffect = Effect.fn("Test.withSqliteTestDbEffect")(f
   E,
   R,
 >(input: {
-  readonly run: (db: SqliteRemoteDatabase<TSchema>, databaseFile: string) => Effect.Effect<A, E, R>;
+  readonly run: (
+    db: SqliteRemoteDatabase<TSchema>,
+    databaseFile: string,
+    client: BunSqliteClient.SqliteClient,
+  ) => Effect.Effect<A, E, R>;
   readonly schema: TSchema;
 }) {
   return yield* withFileSystemSandboxEffect(({ root }) =>
@@ -57,7 +61,7 @@ export const withSqliteTestDbEffect = Effect.fn("Test.withSqliteTestDbEffect")(f
                 Effect.provideService(SqlClient.SqlClient, client),
               );
 
-              return yield* input.run(db, databaseFile);
+              return yield* input.run(db, databaseFile, client);
             }),
         });
       }),

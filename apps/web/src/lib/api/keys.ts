@@ -1,3 +1,5 @@
+import type { AnimeSeason } from "./contracts";
+
 export const animeKeys = {
   all: ["anime"] as const,
   lists: () => ["anime", "list"] as const,
@@ -12,6 +14,20 @@ export const animeKeys = {
       ["search", "releases", { query, ...options }] as const,
   },
   anilist: (id: number) => ["anime", "anilist", id] as const,
+  seasonal: (input?: {
+    season?: AnimeSeason | undefined;
+    year?: number | undefined;
+    limit?: number | undefined;
+    page?: number | undefined;
+  }) =>
+    [
+      "anime",
+      "seasonal",
+      input?.season ?? null,
+      input?.year ?? null,
+      input?.limit ?? null,
+      input?.page ?? null,
+    ] as const,
   library: {
     all: ["library"] as const,
     stats: () => ["library", "stats"] as const,

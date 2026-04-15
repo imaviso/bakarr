@@ -334,6 +334,77 @@ it.scoped("AniListClient keeps next airing as future schedule fallback", () =>
   }),
 );
 
+it.scoped("AniListClient decodes seasonal responses and backfills missing season/year", () =>
+  Effect.gen(function* () {
+    let requestCount = 0;
+
+    const seasonalMedia = [
+      {
+        id: 1001,
+        title: { english: "Winter 2025 Anime A", romaji: "Winter 2025 Anime A" },
+        format: "TV",
+        status: "RELEASING",
+        episodes: 12,
+        startDate: { day: 5, month: 1, year: 2025 },
+        genres: ["Action", "Drama"],
+        coverImage: { extraLarge: "https://example.com/winter-a.png" },
+        popularity: 200000,
+        favourites: 5000,
+      },
+      {
+        id: 1002,
+        title: { romaji: "No Date Anime" },
+        format: "TV",
+        status: "NOT_YET_RELEASED",
+        episodes: null,
+        genres: ["Comedy"],
+        coverImage: { large: "https://example.com/nodate.png" },
+        popularity: 80000,
+        favourites: 2000,
+      },
+    ];
+
+    const clientLayer = AniListClientLive.pipe(
+      Layer.provide(
+        Layer.mergeAll(
+          ClockServiceLive,
+          ExternalCallTestLayer,
+          Layer.succeed(
+            HttpClient.HttpClient,
+            makeAniListClient(
+              () => {
+                requestCount += 1;
+              },
+              seasonalMedia,
+              null,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    const results = yield* Effect.flatMap(AniListClient, (client) =>
+      client.getSeasonalAnime({ season: "winter", year: 2025, limit: 10 }),
+    ).pipe(Effect.provide(clientLayer));
+
+    assert.deepStrictEqual(results.length, 2);
+
+    const first = results[0];
+    assert.deepStrictEqual(first?.id, 1001);
+    assert.deepStrictEqual(first?.season, "winter");
+    assert.deepStrictEqual(first?.season_year, 2025);
+    assert.deepStrictEqual(first?.start_date, "2025-01-05");
+
+    const second = results[1];
+    assert.deepStrictEqual(second?.id, 1002);
+    assert.deepStrictEqual(second?.season, "winter");
+    assert.deepStrictEqual(second?.season_year, 2025);
+    assert.deepStrictEqual(second?.start_date, undefined);
+
+    assert.deepStrictEqual(requestCount, 1);
+  }),
+);
+
 function makeAniListClient(
   onRequest: () => void,
   searchMedia: ReadonlyArray<unknown>,

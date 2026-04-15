@@ -608,3 +608,110 @@ function toIsoYear(input: string | null | undefined) {
 
   return date ? Number.parseInt(date.slice(0, 4), 10) : undefined;
 }
+
+// Seasonal support
+
+export const JikanSeasonalPayloadSchema = Schema.Struct({
+  data: Schema.Array(JikanAnimeDetailBaseSchema),
+  pagination: Schema.optional(
+    Schema.Struct({
+      has_next_page: Schema.optional(Schema.NullOr(Schema.Boolean)),
+      last_visible_page: Schema.optional(Schema.NullOr(Schema.Number)),
+    }),
+  ),
+});
+
+export const JikanNormalizedSeasonalEntrySchema = Schema.Struct({
+  malId: Schema.Int,
+  title: Schema.Struct({
+    english: Schema.optional(Schema.String),
+    native: Schema.optional(Schema.String),
+    romaji: Schema.optional(Schema.String),
+  }),
+  format: Schema.optional(Schema.String),
+  status: Schema.optional(Schema.String),
+  season: Schema.optional(Schema.String),
+  seasonYear: Schema.optional(Schema.Number),
+  startYear: Schema.optional(Schema.Number),
+  coverImage: Schema.optional(Schema.String),
+  genres: Schema.optional(Schema.Array(Schema.String)),
+  episodeCount: Schema.optional(Schema.Number),
+});
+
+export type JikanNormalizedSeasonalEntry = Schema.Schema.Type<
+  typeof JikanNormalizedSeasonalEntrySchema
+>;
+
+export const JikanSeasonalEntryFromDetailSchema = Schema.transform(
+  JikanAnimeDetailBaseSchema,
+  JikanNormalizedSeasonalEntrySchema,
+  {
+    decode: (data) => normalizeJikanSeasonalEntry(data),
+    encode: (entry) => ({
+      aired: entry.seasonYear
+        ? { from: `${entry.seasonYear}-01-01`, string: undefined, to: undefined }
+        : undefined,
+      airing: undefined,
+      approved: undefined,
+      background: undefined,
+      broadcast: undefined,
+      demographics: undefined,
+      duration: undefined,
+      episodes: entry.episodeCount,
+      explicit_genres: undefined,
+      favorites: undefined,
+      genres: entry.genres?.map((name) => ({ mal_id: 0, name })),
+      images: entry.coverImage
+        ? {
+            jpg: { image_url: entry.coverImage },
+            webp: undefined,
+          }
+        : undefined,
+      licensors: undefined,
+      mal_id: entry.malId,
+      members: undefined,
+      popularity: undefined,
+      producers: undefined,
+      rank: undefined,
+      rating: undefined,
+      score: undefined,
+      scored_by: undefined,
+      season: entry.season,
+      source: undefined,
+      status: entry.status,
+      studios: undefined,
+      synopsis: undefined,
+      themes: undefined,
+      title: entry.title.romaji,
+      title_english: entry.title.english,
+      title_japanese: entry.title.native,
+      title_synonyms: undefined,
+      titles: undefined,
+      trailer: undefined,
+      type: entry.format,
+      url: undefined,
+      year: entry.seasonYear ?? entry.startYear,
+    }),
+  },
+);
+
+function normalizeJikanSeasonalEntry(
+  data: Schema.Schema.Type<typeof JikanAnimeDetailBaseSchema>,
+): JikanNormalizedSeasonalEntry {
+  return {
+    coverImage: data.images?.jpg?.image_url ?? data.images?.webp?.image_url ?? undefined,
+    episodeCount: data.episodes ?? undefined,
+    format: data.type ?? undefined,
+    genres: normalizeEntryNames(data.genres),
+    malId: data.mal_id,
+    season: data.season ?? undefined,
+    seasonYear: data.year ?? undefined,
+    startYear: data.year ?? toIsoYear(data.aired?.from) ?? undefined,
+    status: data.status ?? undefined,
+    title: {
+      english: data.title_english ?? undefined,
+      native: data.title_japanese ?? undefined,
+      romaji: data.title ?? undefined,
+    },
+  };
+}

@@ -4550,6 +4550,7 @@ const testAniListLayer = Layer.succeed(AniListClient, {
   },
   getAnimeMetadataById: (id: number) =>
     Effect.succeed(Option.fromNullable(TEST_ANIME_METADATA.get(id))),
+  getSeasonalAnime: () => Effect.succeed([]),
 });
 
 function deterministicHex(input: string): string {
@@ -4629,6 +4630,7 @@ const testSeaDexLayer = Layer.succeed(SeaDexClient, {
 
 const testJikanLayer = Layer.succeed(JikanClient, {
   getAnimeByMalId: () => Effect.succeed(Option.none()),
+  getSeasonalAnime: () => Effect.succeed([]),
 });
 
 const testManamiLayer = Layer.succeed(ManamiClient, {

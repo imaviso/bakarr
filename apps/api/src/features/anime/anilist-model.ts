@@ -149,6 +149,11 @@ const AniListAiringConnectionSchema = Schema.Struct({
 
 const AniListSearchPageSchema = Schema.Struct({
   media: Schema.Array(AniListSearchMediaSchema),
+  pageInfo: Schema.optional(
+    Schema.Struct({
+      hasNextPage: Schema.optional(Schema.NullOr(Schema.Boolean)),
+    }),
+  ),
 });
 
 const AniListSearchDataSchema = Schema.Struct({
@@ -156,6 +161,10 @@ const AniListSearchDataSchema = Schema.Struct({
 });
 
 export const AniListSearchPayloadSchema = Schema.Struct({
+  data: AniListSearchDataSchema,
+});
+
+export const AniListSeasonalPayloadSchema = Schema.Struct({
   data: AniListSearchDataSchema,
 });
 

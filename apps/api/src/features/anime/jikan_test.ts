@@ -355,6 +355,101 @@ it.scoped("JikanClient ignores missing recommendations endpoint", () =>
   }),
 );
 
+it.scoped("JikanClient decodes seasonal anime response and applies limit", () =>
+  Effect.gen(function* () {
+    const clientLayer = JikanClientLive.pipe(
+      Layer.provide(
+        Layer.mergeAll(
+          ClockServiceLive,
+          ExternalCallTestLayer,
+          Layer.succeed(
+            HttpClient.HttpClient,
+            HttpClient.make((request) =>
+              Effect.sync(() => {
+                if (request.url.includes("/seasons/2025/spring")) {
+                  return HttpClientResponse.fromWeb(
+                    request,
+                    new Response(JSON.stringify(buildSeasonalPayload()), {
+                      headers: { "content-type": "application/json" },
+                      status: 200,
+                    }),
+                  );
+                }
+
+                return HttpClientResponse.fromWeb(
+                  request,
+                  new Response(JSON.stringify({ message: "Not Found" }), {
+                    headers: { "content-type": "application/json" },
+                    status: 404,
+                  }),
+                );
+              }),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    const result = yield* Effect.flatMap(JikanClient, (client) =>
+      client.getSeasonalAnime({ limit: 2, season: "spring", year: 2025 }),
+    ).pipe(Effect.provide(clientLayer));
+
+    assert.deepStrictEqual(result.length, 2);
+    const first = result[0]!;
+    assert.deepStrictEqual(first.malId, 50001);
+    assert.deepStrictEqual(first.title.romaji, "Spring Hero");
+    assert.deepStrictEqual(first.title.english, "Spring Hero");
+    assert.deepStrictEqual(first.title.native, "春のヒーロー");
+    assert.deepStrictEqual(first.format, "TV");
+    assert.deepStrictEqual(first.status, "Currently Airing");
+    assert.deepStrictEqual(first.season, "spring");
+    assert.deepStrictEqual(first.seasonYear, 2025);
+    assert.deepStrictEqual(first.startYear, 2025);
+    assert.deepStrictEqual(first.coverImage, "https://cdn.example/anime/50001.jpg");
+    assert.deepStrictEqual(first.genres, ["Action", "Drama"]);
+    assert.deepStrictEqual(first.episodeCount, 12);
+
+    const second = result[1]!;
+    assert.deepStrictEqual(second.malId, 50002);
+    assert.deepStrictEqual(second.title.romaji, "Spring Fantasy");
+    assert.deepStrictEqual(second.genres, ["Fantasy"]);
+    assert.deepStrictEqual(second.episodeCount, undefined);
+  }),
+);
+
+it.scoped("JikanClient getSeasonalAnime returns empty array on 404", () =>
+  Effect.gen(function* () {
+    const clientLayer = JikanClientLive.pipe(
+      Layer.provide(
+        Layer.mergeAll(
+          ClockServiceLive,
+          ExternalCallTestLayer,
+          Layer.succeed(
+            HttpClient.HttpClient,
+            HttpClient.make((request) =>
+              Effect.sync(() =>
+                HttpClientResponse.fromWeb(
+                  request,
+                  new Response(JSON.stringify({ message: "Not Found" }), {
+                    headers: { "content-type": "application/json" },
+                    status: 404,
+                  }),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    const result = yield* Effect.flatMap(JikanClient, (client) =>
+      client.getSeasonalAnime({ limit: 10, season: "winter", year: 2025 }),
+    ).pipe(Effect.provide(clientLayer));
+
+    assert.deepStrictEqual(result.length, 0);
+  }),
+);
+
 function makeJikanClient(onRequest: () => void) {
   return HttpClient.make((request) =>
     Effect.sync(() => {
@@ -541,6 +636,75 @@ function buildDetailPayload(malId: number) {
       type: "TV",
       url: `https://myanimelist.net/anime/${malId}`,
       year: 2009,
+    },
+  };
+}
+
+function buildSeasonalPayload() {
+  return {
+    data: [
+      {
+        aired: {
+          from: "2025-04-01T00:00:00+00:00",
+          string: "Apr 1, 2025 to Jun 24, 2025",
+          to: "2025-06-24T00:00:00+00:00",
+        },
+        airing: true,
+        approved: true,
+        demographics: [],
+        episodes: 12,
+        genres: [
+          {
+            mal_id: 1,
+            name: "Action",
+            type: "anime",
+            url: "https://myanimelist.net/anime/genre/1/Action",
+          },
+          {
+            mal_id: 8,
+            name: "Drama",
+            type: "anime",
+            url: "https://myanimelist.net/anime/genre/8/Drama",
+          },
+        ],
+        images: {
+          jpg: {
+            image_url: "https://cdn.example/anime/50001.jpg",
+            large_image_url: "https://cdn.example/anime/50001-lg.jpg",
+            small_image_url: "https://cdn.example/anime/50001-sm.jpg",
+          },
+          webp: {
+            image_url: "https://cdn.example/anime/50001.webp",
+          },
+        },
+        mal_id: 50001,
+        score: 8.5,
+        season: "spring",
+        status: "Currently Airing",
+        title: "Spring Hero",
+        title_english: "Spring Hero",
+        title_japanese: "春のヒーロー",
+        type: "TV",
+        url: "https://myanimelist.net/anime/50001",
+        year: 2025,
+      },
+      {
+        aired: { from: "2025-04-05T00:00:00+00:00" },
+        airing: true,
+        genres: [{ mal_id: 10, name: "Fantasy", type: "anime" }],
+        images: {},
+        mal_id: 50002,
+        season: "spring",
+        status: "Currently Airing",
+        title: "Spring Fantasy",
+        type: "TV",
+        url: "https://myanimelist.net/anime/50002",
+        year: 2025,
+      },
+    ],
+    pagination: {
+      has_next_page: true,
+      last_visible_page: 2,
     },
   };
 }

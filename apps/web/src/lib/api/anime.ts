@@ -1,12 +1,20 @@
-import { queryOptions, useQuery } from "@tanstack/solid-query";
+import {
+  infiniteQueryOptions,
+  keepPreviousData,
+  queryOptions,
+  useInfiniteQuery,
+  useQuery,
+} from "@tanstack/solid-query";
 import type {
   Anime,
   AnimeListResponse,
   AnimeSearchResponse,
   AnimeSearchResult,
+  AnimeSeason,
   Episode,
   EpisodeSearchResult,
   SearchResults,
+  SeasonalAnimeResponse,
   VideoFile,
 } from "./contracts";
 import { API_BASE, fetchApi } from "./client";
@@ -226,4 +234,80 @@ export function createAnimeByAnilistIdQuery(id: () => number | null) {
       enabled: true,
     };
   });
+}
+
+export function seasonalAnimeQueryOptions(input?: {
+  season?: AnimeSeason;
+  year?: number;
+  limit?: number;
+  page?: number;
+}) {
+  const season = input?.season;
+  const year = input?.year;
+  const limit = input?.limit ?? 12;
+  const page = input?.page ?? 1;
+
+  const params = new URLSearchParams();
+  if (season !== undefined) params.append("season", season);
+  if (year !== undefined) params.append("year", String(year));
+  params.append("limit", String(limit));
+  params.append("page", String(page));
+
+  return queryOptions({
+    queryKey: animeKeys.seasonal({ season, year, limit, page }),
+    queryFn: ({ signal }) =>
+      fetchApi<SeasonalAnimeResponse>(
+        `${API_BASE}/anime/seasonal?${params.toString()}`,
+        undefined,
+        signal,
+      ),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+}
+
+export function createSeasonalAnimeQuery(
+  input?: () => { season?: AnimeSeason; year?: number; limit?: number; page?: number },
+) {
+  return useQuery(() => {
+    const resolved = input?.();
+    return {
+      ...seasonalAnimeQueryOptions(resolved),
+    };
+  });
+}
+
+export function seasonalAnimeInfiniteQueryOptions(input?: {
+  season?: AnimeSeason;
+  year?: number;
+  limit?: number;
+}) {
+  const season = input?.season;
+  const year = input?.year;
+  const limit = input?.limit ?? 25;
+
+  return infiniteQueryOptions({
+    queryKey: [...animeKeys.seasonal({ season, year, limit }).slice(0, 4), "infinite"] as const,
+    queryFn: ({ pageParam = 1, signal }) => {
+      const params = new URLSearchParams();
+      if (season !== undefined) params.append("season", season);
+      if (year !== undefined) params.append("year", String(year));
+      params.append("limit", String(limit));
+      params.append("page", String(pageParam));
+      return fetchApi<SeasonalAnimeResponse>(
+        `${API_BASE}/anime/seasonal?${params.toString()}`,
+        undefined,
+        signal,
+      );
+    },
+    getNextPageParam: (lastPage) => (lastPage.has_more ? lastPage.page + 1 : undefined),
+    initialPageParam: 1,
+    placeholderData: keepPreviousData,
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+export function createSeasonalAnimeInfiniteQuery(
+  input?: () => { season?: AnimeSeason; year?: number; limit?: number },
+) {
+  return useInfiniteQuery(() => seasonalAnimeInfiniteQueryOptions(input?.()));
 }

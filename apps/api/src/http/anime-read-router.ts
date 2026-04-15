@@ -9,6 +9,7 @@ import { CatalogLibraryReadService } from "@/features/operations/catalog-library
 import {
   ListAnimeQuerySchema,
   SearchAnimeQuerySchema,
+  SeasonalAnimeQuerySchema,
   StreamUrlQuerySchema,
 } from "@/http/anime-request-schemas.ts";
 import { IdParamsSchema } from "@/http/common-request-schemas.ts";
@@ -30,6 +31,16 @@ export const animeReadRouter = HttpRouter.empty.pipe(
           monitored: query.monitored,
           offset: query.offset,
         });
+      }),
+      jsonResponse,
+    ),
+  ),
+  HttpRouter.get(
+    "/anime/seasonal",
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const query = yield* decodeQuery(SeasonalAnimeQuerySchema);
+        return yield* (yield* AnimeQueryService).listSeasonalAnime(query);
       }),
       jsonResponse,
     ),

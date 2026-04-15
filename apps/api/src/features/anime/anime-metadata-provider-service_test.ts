@@ -415,6 +415,7 @@ function makeProviderLayer(input: {
       getAnimeMetadataById: (id: number) =>
         Effect.succeed(Option.some(input.metadata ?? makeMetadata(id))),
       searchAnimeMetadata: () => Effect.succeed([]),
+      getSeasonalAnime: () => Effect.succeed([]),
     }),
     Layer.succeed(JikanClient, {
       getAnimeByMalId: (malId: number) =>
@@ -424,6 +425,7 @@ function makeProviderLayer(input: {
               input.onJikanLookup?.(malId);
               return Option.fromNullable(input.jikanMetadata);
             }),
+      getSeasonalAnime: () => Effect.succeed([]),
     }),
     Layer.succeed(ManamiClient, {
       getByAniListId: () =>

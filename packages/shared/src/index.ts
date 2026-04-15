@@ -1902,6 +1902,87 @@ export const AnimeSearchResponseSchema: Schema.Schema<AnimeSearchResponse> = Sch
   }),
 );
 
+export interface SeasonalAnimeQueryParams {
+  season?: AnimeSeason | undefined;
+  year?: number | undefined;
+  limit?: number | undefined;
+  page?: number | undefined;
+}
+
+export const SeasonalAnimeQueryParamsSchema: Schema.Schema<SeasonalAnimeQueryParams> =
+  Schema.Struct({
+    season: Schema.optional(AnimeSeasonSchema),
+    year: Schema.optional(Schema.Number.pipe(Schema.int(), Schema.between(1970, 2100))),
+    limit: Schema.optional(Schema.Number.pipe(Schema.int(), Schema.between(1, 50))),
+    page: Schema.optional(Schema.Number.pipe(Schema.int(), Schema.positive())),
+  });
+
+export const SEASONAL_ANIME_PROVIDER_VALUES = ["anilist", "jikan_fallback"] as const;
+
+export type SeasonalAnimeProvider = (typeof SEASONAL_ANIME_PROVIDER_VALUES)[number];
+
+export const SeasonalAnimeProviderSchema: Schema.Schema<SeasonalAnimeProvider> = Schema.Literal(
+  ...SEASONAL_ANIME_PROVIDER_VALUES,
+);
+
+export interface SeasonalAnimeResponse {
+  season: AnimeSeason;
+  year: number;
+  page: number;
+  limit: number;
+  has_more: boolean;
+  provider: SeasonalAnimeProvider;
+  degraded: boolean;
+  results: AnimeSearchResult[];
+}
+
+export interface AnimeSeasonWindow {
+  season: AnimeSeason;
+  year: number;
+}
+
+export function resolveSeasonFromDate(now: Date): AnimeSeason {
+  const month = now.getMonth() + 1;
+
+  if (month <= 2 || month === 12) {
+    return "winter";
+  }
+
+  if (month <= 5) {
+    return "spring";
+  }
+
+  if (month <= 8) {
+    return "summer";
+  }
+
+  return "fall";
+}
+
+export function resolveSeasonYearFromDate(now: Date): number {
+  return now.getMonth() + 1 === 12 ? now.getFullYear() + 1 : now.getFullYear();
+}
+
+export function resolveSeasonWindowFromDate(now: Date = new Date()): AnimeSeasonWindow {
+  return {
+    season: resolveSeasonFromDate(now),
+    year: resolveSeasonYearFromDate(now),
+  };
+}
+
+export const SeasonalAnimeResponseSchema: Schema.Schema<SeasonalAnimeResponse> = Schema.mutable(
+  Schema.Struct({
+    season: AnimeSeasonSchema,
+    year: Schema.Number,
+    page: Schema.Number.pipe(Schema.int(), Schema.positive()),
+    limit: Schema.Number.pipe(Schema.int(), Schema.between(1, 50)),
+    has_more: Schema.Boolean,
+    provider: SeasonalAnimeProviderSchema,
+    degraded: Schema.Boolean,
+    results: Schema.mutable(Schema.Array(AnimeSearchResultSchema)),
+  }),
+);
+
 export const UNMAPPED_FOLDER_MATCH_STATUS_VALUES = [
   "pending",
   "matching",

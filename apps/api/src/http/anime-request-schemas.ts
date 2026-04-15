@@ -9,6 +9,7 @@ import {
   ReleaseProfileIdSchema,
 } from "@/lib/domain-schema.ts";
 import { AbsoluteFilesystemPathStringSchema } from "@/http/common-request-schemas.ts";
+import { AnimeSeasonSchema } from "@packages/shared/index.ts";
 export { AddAnimeInput as AddAnimeInputSchema } from "@/features/anime/add-anime-input.ts";
 
 const ReleaseProfileIdArraySchema = Schema.Array(ReleaseProfileIdSchema);
@@ -83,3 +84,12 @@ class StreamUrlQuerySchema extends Schema.Class<StreamUrlQuerySchema>("StreamUrl
 }) {}
 
 export { StreamQuerySchema, StreamUrlQuerySchema };
+
+export class SeasonalAnimeQuerySchema extends Schema.Class<SeasonalAnimeQuerySchema>(
+  "SeasonalAnimeQuerySchema",
+)({
+  season: Schema.optional(AnimeSeasonSchema),
+  year: Schema.optional(Schema.NumberFromString.pipe(Schema.int(), Schema.between(1970, 2100))),
+  limit: Schema.optional(Schema.NumberFromString.pipe(Schema.int(), Schema.between(1, 50))),
+  page: Schema.optional(Schema.NumberFromString.pipe(Schema.int(), Schema.positive())),
+}) {}

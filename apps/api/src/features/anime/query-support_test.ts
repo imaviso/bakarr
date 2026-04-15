@@ -387,6 +387,7 @@ it.scoped("searchAnimeEffect fails when AniList search fails", () =>
                     operation: "anilist.search.response",
                   }),
                 ),
+              getSeasonalAnime: () => Effect.succeed([]),
             },
             db: appDb,
             query: "bake",
@@ -423,6 +424,7 @@ it.scoped("searchAnimeEffect reports non-degraded when AniList search succeeds",
                   title: { romaji: "Bakemonogatari" },
                 } satisfies AnimeSearchResult,
               ]),
+            getSeasonalAnime: () => Effect.succeed([]),
           },
           db: appDb,
           query: "bake",
@@ -469,6 +471,7 @@ function makeAniListStub(metadata: {
   return {
     getAnimeMetadataById: () => Effect.succeed(Option.some(metadata)),
     searchAnimeMetadata: () => Effect.succeed([]),
+    getSeasonalAnime: () => Effect.succeed([]),
   };
 }
 

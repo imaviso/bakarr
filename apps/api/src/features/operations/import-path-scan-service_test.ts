@@ -66,6 +66,7 @@ function scanImportPathEffect(
             Layer.succeed(AniListClient, {
               getAnimeMetadataById: () => Effect.dieMessage("not used in test"),
               searchAnimeMetadata: () => Effect.dieMessage("not used in test"),
+              getSeasonalAnime: () => Effect.dieMessage("not used in test"),
             }),
             Layer.succeed(FileSystem, fs),
             Layer.succeed(MediaProbe, {

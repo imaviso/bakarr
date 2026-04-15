@@ -72,6 +72,16 @@ export const anidbEpisodeCache = sqliteTable("anidb_episode_cache", {
   updatedAt: text("updated_at").notNull(),
 });
 
+export const seasonalAnimeCache = sqliteTable("seasonal_anime_cache", {
+  cacheKey: text("cache_key").primaryKey(),
+  season: text("season").notNull(),
+  year: integer("year").notNull(),
+  page: integer("page").notNull(),
+  limit: integer("limit").notNull(),
+  payload: text("payload").notNull(),
+  fetchedAtMs: integer("fetched_at_ms").notNull(),
+});
+
 export const users = sqliteTable("users", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   username: text("username").notNull().unique(),
@@ -226,3 +236,4 @@ export type BackgroundJobRow = typeof backgroundJobs.$inferSelect;
 export type DownloadEventRow = typeof downloadEvents.$inferSelect;
 export type LibraryRoot = typeof libraryRoots.$inferSelect;
 export type UnmappedFolderMatchRow = typeof unmappedFolderMatches.$inferSelect;
+export type SeasonalAnimeCacheRow = typeof seasonalAnimeCache.$inferSelect;
