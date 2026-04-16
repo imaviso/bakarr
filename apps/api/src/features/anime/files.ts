@@ -57,20 +57,11 @@ export const collectVideoFiles = Effect.fn("AnimeService.collectVideoFiles")(fun
         continue;
       }
 
-      const stats = yield* fs
-        .stat(fullPath)
-        .pipe(
-          Effect.catchTag("FileSystemError", (error) =>
-            isNotFoundError(error)
-              ? Effect.succeed({ size: 0 } as { size: number })
-              : Effect.fail(error),
-          ),
-        );
       entries.push({
         episode_number: parseEpisodeNumber(fullPath),
         name: entry.name,
         path: fullPath,
-        size: stats.size,
+        size: entry.size,
       });
     }
   }

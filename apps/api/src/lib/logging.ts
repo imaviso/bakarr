@@ -136,12 +136,10 @@ const makeRuntimeLoggerLayer = Effect.fn("Logging.makeRuntimeLoggerLayer")(funct
 
 const RuntimeLoggerLive = Layer.unwrapEffect(makeRuntimeLoggerLayer());
 
-export const RuntimeLoggerLayer = Layer.mergeAll(
-  RuntimeLogLevelStateLive,
-  RuntimeLogSinkLive,
-  RuntimeLoggerLive.pipe(
-    Layer.provide(Layer.mergeAll(RuntimeLogLevelStateLive, RuntimeLogSinkLive)),
-  ),
+const RuntimeLoggerDependenciesLive = Layer.mergeAll(RuntimeLogLevelStateLive, RuntimeLogSinkLive);
+
+export const RuntimeLoggerLayer = RuntimeLoggerLive.pipe(
+  Layer.provideMerge(RuntimeLoggerDependenciesLive),
 );
 
 function parseRuntimeLogLevel(level: string | undefined) {

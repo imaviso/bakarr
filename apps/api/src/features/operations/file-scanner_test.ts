@@ -7,14 +7,20 @@ import { makeNoopTestFileSystemWithOverridesEffect } from "@/test/filesystem-tes
 import { scanVideoFiles, scanVideoFilesStream } from "@/features/operations/file-scanner.ts";
 
 const tree = new Map<string, DirEntry[]>([
-  ["/library", [entry("show", { isDirectory: true }), entry("notes.txt", { isFile: true })]],
+  [
+    "/library",
+    [entry("show", { isDirectory: true }), entry("notes.txt", { isFile: true, size: 10 })],
+  ],
   [
     "/library/show",
-    [entry("episode-01.mkv", { isFile: true }), entry("season-2", { isDirectory: true })],
+    [
+      entry("episode-01.mkv", { isFile: true, size: 100 }),
+      entry("season-2", { isDirectory: true }),
+    ],
   ],
   [
     "/library/show/season-2",
-    [entry("episode-02.mp4", { isFile: true }), entry("broken", { isDirectory: true })],
+    [entry("episode-02.mp4", { isFile: true, size: 200 }), entry("broken", { isDirectory: true })],
   ],
 ]);
 
@@ -111,7 +117,7 @@ it.effect("scanVideoFilesStream handles symlink cycles without infinite recursio
           entry("cycle", { isSymlink: true }),
         ],
       ],
-      ["/library/show", [entry("episode.mkv", { isFile: true })]],
+      ["/library/show", [entry("episode.mkv", { isFile: true, size: 100 })]],
     ]);
 
     const symlinkFs = yield* makeNoopTestFileSystemWithOverridesEffect({
@@ -156,12 +162,12 @@ it.effect("scanVideoFilesStream fails when encountering inaccessible subdirector
           entry("show3", { isDirectory: true }),
         ],
       ],
-      ["/library/show1", [entry("video1.mkv", { isFile: true })]],
+      ["/library/show1", [entry("video1.mkv", { isFile: true, size: 100 })]],
       [
         "/library/show2",
         [], // Will cause error
       ],
-      ["/library/show3", [entry("video2.mp4", { isFile: true })]],
+      ["/library/show3", [entry("video2.mp4", { isFile: true, size: 100 })]],
     ]);
 
     const inaccessibleFs = yield* makeNoopTestFileSystemWithOverridesEffect({
@@ -213,13 +219,14 @@ it.effect("scanVideoFilesStream fails when encountering inaccessible subdirector
 
 function entry(
   name: string,
-  options: { isDirectory?: boolean; isFile?: boolean; isSymlink?: boolean },
+  options: { isDirectory?: boolean; isFile?: boolean; isSymlink?: boolean; size?: number },
 ): DirEntry {
   return {
     isDirectory: options.isDirectory ?? false,
     isFile: options.isFile ?? false,
     isSymlink: options.isSymlink ?? false,
     name,
+    size: options.size ?? 0,
   };
 }
 

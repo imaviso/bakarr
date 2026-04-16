@@ -6,7 +6,7 @@ import { Database, DatabaseError } from "@/db/database.ts";
 import { nowIsoFromClock, ClockService } from "@/lib/clock.ts";
 import { RuntimeLogLevelState } from "@/lib/logging.ts";
 import { BackgroundWorkerController } from "@/background-controller-core.ts";
-import { EventPublisher } from "@/features/events/publisher.ts";
+import { EventBus } from "@/features/events/event-bus.ts";
 import { persistAndActivateConfig } from "@/features/system/config-activation.ts";
 import { validateConfigUpdate } from "@/features/system/config-update-validation.ts";
 import { toConfigCore } from "@/features/system/config-codec.ts";
@@ -43,7 +43,7 @@ const makeSystemConfigUpdateService = Effect.gen(function* () {
   const runtimeControl = yield* BackgroundWorkerController;
   const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
   const runtimeLogLevelState = yield* RuntimeLogLevelState;
-  const eventPublisher = yield* EventPublisher;
+  const eventBus = yield* EventBus;
   const nowIso = () => nowIsoFromClock(clock);
 
   const updateConfig = Effect.fn("SystemConfigUpdateService.updateConfig")(function* (
@@ -103,7 +103,7 @@ const makeSystemConfigUpdateService = Effect.gen(function* () {
       "System configuration updated",
       nowIso,
     );
-    yield* eventPublisher.publishInfo("System configuration updated");
+    yield* eventBus.publishInfo("System configuration updated");
 
     return normalizedConfig;
   });

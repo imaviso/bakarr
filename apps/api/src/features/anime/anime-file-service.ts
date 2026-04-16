@@ -2,7 +2,7 @@ import { Context, Effect, Layer } from "effect";
 
 import type { VideoFile } from "@packages/shared/index.ts";
 import { Database, type DatabaseError } from "@/db/database.ts";
-import { EventPublisher } from "@/features/events/publisher.ts";
+import { EventBus } from "@/features/events/event-bus.ts";
 import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
 import { FileSystem } from "@/lib/filesystem.ts";
 import { MediaProbe } from "@/lib/media-probe.ts";
@@ -54,7 +54,7 @@ export class AnimeFileService extends Context.Tag("@bakarr/api/AnimeFileService"
 
 const makeAnimeFileService = Effect.gen(function* () {
   const { db } = yield* Database;
-  const eventPublisher = yield* EventPublisher;
+  const eventBus = yield* EventBus;
   const fs = yield* FileSystem;
   const mediaProbe = yield* MediaProbe;
   const clock = yield* ClockService;
@@ -68,7 +68,7 @@ const makeAnimeFileService = Effect.gen(function* () {
     return yield* scanAnimeFolderOrchestrationEffect({
       animeId,
       db,
-      eventPublisher,
+      eventPublisher: eventBus,
       fs,
       mediaProbe,
       nowIso,
@@ -80,7 +80,7 @@ const makeAnimeFileService = Effect.gen(function* () {
     episodeNumber: number,
   ) {
     yield* deleteEpisodeFileEffect({ animeId, db, episodeNumber, fs });
-    yield* eventPublisher.publishInfo(
+    yield* eventBus.publishInfo(
       `Deleted mapped file for anime ${animeId} episode ${episodeNumber}`,
     );
   });
@@ -91,7 +91,7 @@ const makeAnimeFileService = Effect.gen(function* () {
     filePath: string,
   ) {
     yield* mapEpisodeFileEffect({ animeId, db, episodeNumber, filePath, fs });
-    yield* eventPublisher.publishInfo(`Mapped file for anime ${animeId} episode ${episodeNumber}`);
+    yield* eventBus.publishInfo(`Mapped file for anime ${animeId} episode ${episodeNumber}`);
   });
 
   const bulkMapEpisodeFiles = Effect.fn("AnimeFileService.bulkMapEpisodeFiles")(function* (
@@ -99,7 +99,7 @@ const makeAnimeFileService = Effect.gen(function* () {
     mappings: readonly { episode_number: number; file_path: string }[],
   ) {
     yield* bulkMapEpisodeFilesEffect({ animeId, db, fs, mappings });
-    yield* eventPublisher.publishInfo(
+    yield* eventBus.publishInfo(
       `Updated ${mappings.length} episode mapping(s) for anime ${animeId}`,
     );
   });

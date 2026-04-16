@@ -55,10 +55,11 @@ export class AppConfig extends Context.Tag("@bakarr/api/AppConfig")<AppConfig, A
     return Layer.effect(
       AppConfig,
       Effect.gen(function* () {
+        const defaults = makeDefaultAppConfig();
         const appVersion = yield* readConfigValue(
           overrides.appVersion,
           Schema.Config("BAKARR_APP_VERSION", Schema.String).pipe(
-            EffectConfig.orElse(() => EffectConfig.succeed(makeDefaultAppConfig().appVersion)),
+            EffectConfig.orElse(() => EffectConfig.succeed(defaults.appVersion)),
           ),
         );
         const bootstrapPasswordFromEnv =
@@ -70,51 +71,43 @@ export class AppConfig extends Context.Tag("@bakarr/api/AppConfig")<AppConfig, A
               );
         const bootstrapPassword = Option.getOrElse(
           bootstrapPasswordFromEnv,
-          () => makeDefaultAppConfig().bootstrapPassword,
+          () => defaults.bootstrapPassword,
         );
         const bootstrapPasswordIsEnvOverride = Option.isSome(bootstrapPasswordFromEnv);
         const bootstrapUsername = yield* readConfigValue(
           overrides.bootstrapUsername,
           Schema.Config("BAKARR_BOOTSTRAP_USERNAME", Schema.String).pipe(
-            EffectConfig.orElse(() =>
-              EffectConfig.succeed(makeDefaultAppConfig().bootstrapUsername),
-            ),
+            EffectConfig.orElse(() => EffectConfig.succeed(defaults.bootstrapUsername)),
           ),
         );
         const databaseFile = yield* readConfigValue(
           overrides.databaseFile,
           Schema.Config("DATABASE_FILE", Schema.String).pipe(
-            EffectConfig.orElse(() => EffectConfig.succeed(makeDefaultAppConfig().databaseFile)),
+            EffectConfig.orElse(() => EffectConfig.succeed(defaults.databaseFile)),
           ),
         );
         const port = yield* readConfigValue(
           overrides.port,
           Schema.Config("PORT", PortConfigSchema).pipe(
-            EffectConfig.orElse(() => EffectConfig.succeed(makeDefaultAppConfig().port)),
+            EffectConfig.orElse(() => EffectConfig.succeed(defaults.port)),
           ),
         );
         const sessionCookieName = yield* readConfigValue(
           overrides.sessionCookieName,
           Schema.Config("SESSION_COOKIE_NAME", Schema.String).pipe(
-            EffectConfig.orElse(() =>
-              EffectConfig.succeed(makeDefaultAppConfig().sessionCookieName),
-            ),
+            EffectConfig.orElse(() => EffectConfig.succeed(defaults.sessionCookieName)),
           ),
         );
         const sessionCookieSecure = yield* readConfigValue(
           overrides.sessionCookieSecure,
           Schema.Config("SESSION_COOKIE_SECURE", Schema.BooleanFromString).pipe(
-            EffectConfig.orElse(() =>
-              EffectConfig.succeed(makeDefaultAppConfig().sessionCookieSecure),
-            ),
+            EffectConfig.orElse(() => EffectConfig.succeed(defaults.sessionCookieSecure)),
           ),
         );
         const sessionDurationDays = yield* readConfigValue(
           overrides.sessionDurationDays,
           Schema.Config("SESSION_DURATION_DAYS", PositiveIntConfigSchema).pipe(
-            EffectConfig.orElse(() =>
-              EffectConfig.succeed(makeDefaultAppConfig().sessionDurationDays),
-            ),
+            EffectConfig.orElse(() => EffectConfig.succeed(defaults.sessionDurationDays)),
           ),
         );
 

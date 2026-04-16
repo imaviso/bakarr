@@ -44,10 +44,11 @@ export function makeApiLifecycleLayers(
   const runtimeConfigSnapshotLayer = RuntimeConfigSnapshotServiceLive.pipe(
     Layer.provide(systemConfigLayer),
   );
+  const configRuntimeLayer = Layer.mergeAll(platformRuntimeLayer, runtimeConfigSnapshotLayer);
 
   // External clients depend on runtime config + platform runtime.
   const externalClientLayer = makeAppExternalClientLayer(options).pipe(
-    Layer.provide(Layer.mergeAll(platformRuntimeLayer, runtimeConfigSnapshotLayer)),
+    Layer.provide(configRuntimeLayer),
   );
 
   // Infrastructure layer adds command-backed probing services.
@@ -63,11 +64,12 @@ export function makeApiLifecycleLayers(
   );
 
   // Domain feature subgraphs.
-  const animeLayer = makeAnimeAppLayer(runtimeSupportLayer);
+  const animeLayer = makeAnimeAppLayer();
+  const animeLiveLayer = animeLayer.pipe(Layer.provide(runtimeSupportLayer));
   const operationsTaskLayer = OperationsTaskServiceLive.pipe(Layer.provide(runtimeSupportLayer));
   const { catalogDownloadReadLayer, operationsLayer, operationsProgressLayer, torrentClientLayer } =
     makeOperationsAppLayers(runtimeSupportLayer, operationsTaskLayer);
-  const appDomainSubgraphLayer = Layer.mergeAll(animeLayer, operationsLayer);
+  const appDomainSubgraphLayer = Layer.mergeAll(animeLiveLayer, operationsLayer);
 
   // Background worker runtime sits on top of domain + runtime support.
   const { backgroundControllerLayer, runtimeWorkerSubgraphLayer } = makeBackgroundAppLayers({
@@ -82,7 +84,7 @@ export function makeApiLifecycleLayers(
     runtimeSupportLayer,
   });
 
-  const authLayer = makeAuthAppLayer(runtimeSupportLayer);
+  const authLayer = makeAuthAppLayer().pipe(Layer.provide(runtimeSupportLayer));
 
   const operationsTaskLauncherLayer = OperationsTaskLauncherServiceLive.pipe(
     Layer.provide(Layer.mergeAll(runtimeSupportLayer, operationsLayer, operationsTaskLayer)),
@@ -91,7 +93,7 @@ export function makeApiLifecycleLayers(
     Layer.provide(Layer.mergeAll(systemLayer, operationsLayer)),
   );
   const animeEnrollmentLayer = AnimeEnrollmentServiceLive.pipe(
-    Layer.provide(Layer.mergeAll(animeLayer, operationsLayer, operationsTaskLauncherLayer)),
+    Layer.provide(Layer.mergeAll(animeLiveLayer, operationsLayer, operationsTaskLauncherLayer)),
   );
 
   const appFeatureBaseLayer = Layer.mergeAll(
@@ -104,8 +106,11 @@ export function makeApiLifecycleLayers(
     operationsTaskLayer,
   );
   const appFeatureSubgraphLayer = Layer.mergeAll(appFeatureBaseLayer, operationsTaskLauncherLayer);
-  const featureLayer = appFeatureSubgraphLayer.pipe(Layer.provide(runtimeSupportLayer));
-  const appLayer = Layer.mergeAll(runtimeSupportLayer, featureLayer);
+  const featureLayer = appFeatureSubgraphLayer;
+  const appLayer = Layer.mergeAll(
+    runtimeSupportLayer,
+    featureLayer.pipe(Layer.provide(runtimeSupportLayer)),
+  );
 
   return {
     appLayer,

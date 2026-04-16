@@ -1,3 +1,3 @@
-import type { EventPublisherShape } from "@/features/events/publisher.ts";
+import type { EventBusShape } from "@/features/events/event-bus.ts";
 
-export type AnimeEventPublisher = Pick<EventPublisherShape, "publish" | "publishInfo">;
+export type AnimeEventPublisher = Pick<EventBusShape, "publish" | "publishInfo">;

@@ -180,6 +180,10 @@ function makeEventBusStub(events: string[]): EventBusShape {
       Effect.sync(() => {
         events.push(event.type);
       }),
+    publishInfo: (message) =>
+      Effect.sync(() => {
+        events.push(`Info:${message}`);
+      }),
     withSubscriptionStream: () =>
       Stream.die(new Error("event subscriptions are not used in this test")),
   };

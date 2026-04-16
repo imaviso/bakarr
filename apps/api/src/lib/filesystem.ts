@@ -27,6 +27,7 @@ export interface DirEntry {
   readonly isDirectory: boolean;
   readonly isFile: boolean;
   readonly isSymlink: boolean;
+  readonly size: number;
 }
 
 export interface OpenFileOptions {
@@ -158,6 +159,7 @@ function toDirEntry(name: string, info: PlatformFileSystem.File.Info): DirEntry 
   return {
     ...typeFlags,
     name,
+    size: Number(info.size),
   };
 }
 

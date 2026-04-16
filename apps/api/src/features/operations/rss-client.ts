@@ -137,11 +137,7 @@ const makeFetchItems = (
         }).pipe(Effect.either);
 
         if (Either.isLeft(redirectResult)) {
-          return yield* ExternalCallError.make({
-            cause: redirectResult.left,
-            message: `RSS feed returned invalid redirect URL`,
-            operation: "rss.fetch.redirect",
-          });
+          return yield* redirectResult.left;
         }
 
         const redirectUrl = redirectResult.right;

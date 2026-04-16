@@ -11,7 +11,7 @@ import { syncAnimeMetadataEffect } from "@/features/anime/anime-metadata-sync.ts
 import { getAnimeRowEffect } from "@/features/anime/anime-read-repository.ts";
 import type { AnimeServiceError } from "@/features/anime/errors.ts";
 import { makeMetadataRefreshRunner } from "@/features/anime/metadata-refresh.ts";
-import { EventPublisher } from "@/features/events/publisher.ts";
+import { EventBus } from "@/features/events/event-bus.ts";
 import { appendSystemLog } from "@/features/system/support.ts";
 import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
@@ -35,7 +35,7 @@ export class AnimeMaintenanceService extends Context.Tag("@bakarr/api/AnimeMaint
 
 const makeAnimeMaintenanceService = Effect.gen(function* () {
   const { db } = yield* Database;
-  const eventPublisher = yield* EventPublisher;
+  const eventBus = yield* EventBus;
   const metadataProvider = yield* AnimeMetadataProviderService;
   const imageCacheService = yield* AnimeImageCacheService;
   const clock = yield* ClockService;
@@ -54,7 +54,7 @@ const makeAnimeMaintenanceService = Effect.gen(function* () {
   ) {
     const startAnimeRow = yield* getAnimeRowEffect(db, animeId);
 
-    yield* eventPublisher.publish({
+    yield* eventBus.publish({
       type: "RefreshStarted",
       payload: { anime_id: animeId, title: startAnimeRow.titleRomaji },
     });
@@ -64,7 +64,7 @@ const makeAnimeMaintenanceService = Effect.gen(function* () {
       metadataProvider,
       animeId,
       db,
-      eventPublisher: Option.some(eventPublisher),
+      eventPublisher: Option.some(eventBus),
       nowIso,
     });
 
@@ -83,7 +83,7 @@ const makeAnimeMaintenanceService = Effect.gen(function* () {
       `Refreshed episodes for ${animeRow.titleRomaji}`,
       nowIso,
     );
-    yield* eventPublisher.publish({
+    yield* eventBus.publish({
       type: "RefreshFinished",
       payload: { anime_id: animeId, title: animeRow.titleRomaji },
     });
@@ -92,9 +92,9 @@ const makeAnimeMaintenanceService = Effect.gen(function* () {
   const refreshMetadataForMonitoredAnime = Effect.fn(
     "AnimeMaintenanceService.refreshMetadataForMonitoredAnime",
   )(function* () {
-    yield* eventPublisher.publishInfo("Metadata refresh started");
+    yield* eventBus.publishInfo("Metadata refresh started");
     const result = yield* metadataRefreshRunner.trigger;
-    yield* eventPublisher.publishInfo(`Metadata refresh finished (${result.refreshed} anime)`);
+    yield* eventBus.publishInfo(`Metadata refresh finished (${result.refreshed} anime)`);
     return result;
   });
 

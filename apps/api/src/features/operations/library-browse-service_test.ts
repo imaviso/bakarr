@@ -21,6 +21,7 @@ describe("LibraryBrowseService", () => {
               isFile: true,
               isSymlink: false,
               name: `episode-${String(index + 1).padStart(3, "0")}.mkv`,
+              size: index + 1,
             })),
           ),
       });
@@ -67,7 +68,7 @@ describe("LibraryBrowseService", () => {
     }),
   );
 
-  it.effect("fails when a listed file cannot be statted", () =>
+  it.effect("returns file size from directory entries", () =>
     Effect.gen(function* () {
       const fs = makeBrowseFileSystem({
         readDir: () =>
@@ -77,33 +78,16 @@ describe("LibraryBrowseService", () => {
               isFile: true,
               isSymlink: false,
               name: "episode-01.mkv",
+              size: 42,
             },
           ]),
-        stat: () =>
-          Effect.fail(
-            new FileSystemError({
-              cause: new Error("boom"),
-              message: "Failed to stat path",
-              path: "/allowed/library/episode-01.mkv",
-            }),
-          ),
       });
 
-      const exit = yield* Effect.exit(
-        browseEffect(fs, {
-          path: "/allowed/library",
-        }),
-      );
+      const result = yield* browseEffect(fs, {
+        path: "/allowed/library",
+      });
 
-      assert.deepStrictEqual(exit._tag, "Failure");
-
-      if (Exit.isFailure(exit)) {
-        const failure = Cause.failureOption(exit.cause);
-        assert.deepStrictEqual(failure._tag, "Some");
-        if (failure._tag === "Some") {
-          assert.deepStrictEqual(failure.value._tag, "OperationsPathError");
-        }
-      }
+      assert.deepStrictEqual(result.entries[0]?.size, 42);
     }),
   );
 });

@@ -86,15 +86,11 @@ export function scanVideoFilesStream(
         });
 
       const processFile = (entry: DirEntry) =>
-        Effect.gen(function* () {
-          const fullPath = `${current.replace(/\/$/, "")}/${entry.name}`;
-          const stats = yield* fs.stat(fullPath);
-          return {
-            name: entry.name,
-            path: fullPath,
-            size: stats.size,
-          } satisfies ScannedVideoFile;
-        });
+        Effect.succeed({
+          name: entry.name,
+          path: `${current.replace(/\/$/, "")}/${entry.name}`,
+          size: entry.size,
+        } satisfies ScannedVideoFile);
 
       const symlinkResults = yield* Effect.forEach(symlinkEntries, processSymlink, {
         concurrency: SCAN_STAT_CONCURRENCY,

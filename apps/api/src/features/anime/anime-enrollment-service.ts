@@ -3,7 +3,7 @@ import { Context, Effect, Layer } from "effect";
 import type { Anime } from "@packages/shared/index.ts";
 import { Database, type DatabaseError } from "@/db/database.ts";
 import { AnimeImageCacheService } from "@/features/anime/anime-image-cache-service.ts";
-import { EventPublisher } from "@/features/events/publisher.ts";
+import { EventBus } from "@/features/events/event-bus.ts";
 import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
 import { AnimeMetadataProviderService } from "@/features/anime/anime-metadata-provider-service.ts";
 import { FileSystem } from "@/lib/filesystem.ts";
@@ -32,7 +32,7 @@ export class AnimeEnrollmentService extends Context.Tag("@bakarr/api/AnimeEnroll
 
 const makeAnimeEnrollmentService = Effect.gen(function* () {
   const { db } = yield* Database;
-  const eventPublisher = yield* EventPublisher;
+  const eventBus = yield* EventBus;
   const metadataProvider = yield* AnimeMetadataProviderService;
   const imageCacheService = yield* AnimeImageCacheService;
   const fs = yield* FileSystem;
@@ -45,7 +45,7 @@ const makeAnimeEnrollmentService = Effect.gen(function* () {
       metadataProvider,
       animeInput: input,
       db,
-      eventPublisher,
+      eventPublisher: eventBus,
       fs,
       imageCacheService,
       nowIso: () => nowIsoFromClock(clock),

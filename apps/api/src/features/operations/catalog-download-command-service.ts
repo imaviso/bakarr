@@ -4,7 +4,7 @@ import { DatabaseError } from "@/db/database.ts";
 import { DownloadReconciliationService } from "@/features/operations/download-reconciliation-service.ts";
 import { DownloadTorrentLifecycleService } from "@/features/operations/download-torrent-lifecycle-service.ts";
 import { DownloadProgressSupport } from "@/features/operations/download-progress-support.ts";
-import { EventPublisher } from "@/features/events/publisher.ts";
+import { EventBus } from "@/features/events/event-bus.ts";
 import {
   isOperationsError,
   type OperationsError,
@@ -36,7 +36,7 @@ export const CatalogDownloadCommandServiceLive = Layer.effect(
     const torrentLifecycle = yield* DownloadTorrentLifecycleService;
     const reconciliation = yield* DownloadReconciliationService;
     const progressSupport = yield* DownloadProgressSupport;
-    const eventPublisher = yield* EventPublisher;
+    const eventBus = yield* EventBus;
 
     const mapCommandError =
       (message: string) =>
@@ -73,14 +73,14 @@ export const CatalogDownloadCommandServiceLive = Layer.effect(
       yield* torrentLifecycle
         .applyDownloadActionEffect(id, "pause")
         .pipe(Effect.mapError(mapCommandError("Failed to pause download")));
-      yield* eventPublisher.publishInfo(`Paused download ${id}`);
+      yield* eventBus.publishInfo(`Paused download ${id}`);
     });
 
     const resumeDownload = Effect.fn("OperationsService.resumeDownload")(function* (id: number) {
       yield* torrentLifecycle
         .applyDownloadActionEffect(id, "resume")
         .pipe(Effect.mapError(mapCommandError("Failed to resume download")));
-      yield* eventPublisher.publishInfo(`Resumed download ${id}`);
+      yield* eventBus.publishInfo(`Resumed download ${id}`);
     });
 
     const removeDownload = Effect.fn("OperationsService.removeDownload")(function* (
@@ -90,7 +90,7 @@ export const CatalogDownloadCommandServiceLive = Layer.effect(
       yield* torrentLifecycle
         .applyDownloadActionEffect(id, "delete", deleteFiles)
         .pipe(Effect.mapError(mapCommandError("Failed to remove download")));
-      yield* eventPublisher.publishInfo(`Removed download ${id}`);
+      yield* eventBus.publishInfo(`Removed download ${id}`);
     });
 
     const retryDownload = Effect.fn("OperationsService.retryDownload")(function* (id: number) {
@@ -98,7 +98,7 @@ export const CatalogDownloadCommandServiceLive = Layer.effect(
         .retryDownloadById(id)
         .pipe(Effect.mapError(mapCommandError("Failed to retry download")));
       yield* progressSupport.publishDownloadProgress();
-      yield* eventPublisher.publishInfo(`Retried download ${id}`);
+      yield* eventBus.publishInfo(`Retried download ${id}`);
     });
 
     const reconcileDownload = Effect.fn("OperationsService.reconcileDownload")(function* (
@@ -108,7 +108,7 @@ export const CatalogDownloadCommandServiceLive = Layer.effect(
         .reconcileDownloadByIdEffect(id)
         .pipe(Effect.mapError(mapCommandError("Failed to reconcile download")));
       yield* progressSupport.publishDownloadProgress();
-      yield* eventPublisher.publishInfo(`Reconciled download ${id}`);
+      yield* eventBus.publishInfo(`Reconciled download ${id}`);
     });
 
     const syncDownloads = Effect.fn("OperationsService.syncDownloads")(function* () {
@@ -116,7 +116,7 @@ export const CatalogDownloadCommandServiceLive = Layer.effect(
         Effect.mapError(mapCommandError("Failed to sync downloads")),
       );
       yield* progressSupport.publishDownloadProgress();
-      yield* eventPublisher.publishInfo("Download sync finished");
+      yield* eventBus.publishInfo("Download sync finished");
     });
 
     return CatalogDownloadCommandService.of({

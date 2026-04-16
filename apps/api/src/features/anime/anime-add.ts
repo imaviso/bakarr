@@ -4,7 +4,7 @@ import { encodeNumberList, encodeStringList } from "@/features/system/config-cod
 import type { AppDatabase } from "@/db/database.ts";
 import { ExternalCallError } from "@/lib/effect-retry.ts";
 import type { FileSystemShape } from "@/lib/filesystem.ts";
-import type { EventPublisherShape } from "@/features/events/publisher.ts";
+import type { EventBusShape } from "@/features/events/event-bus.ts";
 import type { AddAnimeInput } from "@/features/anime/add-anime-input.ts";
 import { AnimeImageCacheService } from "@/features/anime/anime-image-cache-service.ts";
 import type { AnimeMetadataProviderService } from "@/features/anime/anime-metadata-provider-service.ts";
@@ -30,7 +30,7 @@ export const addAnimeEffect = Effect.fn("AnimeAdd.addAnimeEffect")(function* (in
   metadataProvider: typeof AnimeMetadataProviderService.Service;
   animeInput: AddAnimeInput;
   db: AppDatabase;
-  eventPublisher: Pick<EventPublisherShape, "publish">;
+  eventPublisher: Pick<EventBusShape, "publish">;
   fs: FileSystemShape;
   imageCacheService: typeof AnimeImageCacheService.Service;
   nowIso: () => Effect.Effect<string>;

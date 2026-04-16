@@ -7,7 +7,6 @@ import { AppConfig, type AppConfigShape } from "@/config.ts";
 import { DatabaseLayerLive } from "@/db/database.ts";
 import { BackgroundWorkerMonitorLive } from "@/background-monitor.ts";
 import { EventBusLive } from "@/features/events/event-bus.ts";
-import { EventPublisherLive } from "@/features/events/publisher.ts";
 import { ClockServiceLive } from "@/lib/clock.ts";
 import { ExternalCallLive } from "@/lib/effect-retry.ts";
 import { FileSystemLive } from "@/lib/filesystem.ts";
@@ -41,7 +40,6 @@ export function makeAppPlatformCoreRuntimeLayer(
   const externalCallLayer = withCoreSupport(ExternalCallLive);
   const databaseLayer = DatabaseLayerLive.pipe(Layer.provide(configLayer));
   const eventBusLayer = EventBusLive;
-  const eventPublisherLayer = EventPublisherLive.pipe(Layer.provideMerge(eventBusLayer));
   const backgroundMonitorLayer = withCoreSupport(BackgroundWorkerMonitorLive);
 
   const platformCoreLayer = Layer.mergeAll(
@@ -55,7 +53,7 @@ export function makeAppPlatformCoreRuntimeLayer(
   );
 
   const infrastructureLayer = Layer.mergeAll(
-    eventPublisherLayer,
+    eventBusLayer,
     backgroundMonitorLayer,
     FileSystemLive,
     TokenHasherLive,

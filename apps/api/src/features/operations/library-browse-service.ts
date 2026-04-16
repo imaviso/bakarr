@@ -9,7 +9,6 @@ import { OperationsInputError, OperationsPathError } from "@/features/operations
 
 const MAX_BROWSE_LIMIT = 500;
 const DEFAULT_BROWSE_LIMIT = 100;
-const DIRECTORY_STAT_CONCURRENCY = 16;
 
 export interface BrowseEntry {
   readonly is_directory: boolean;
@@ -155,6 +154,7 @@ function browseFsPath(
       is_directory: entry.isDirectory,
       name: entry.name,
       path: `${normalizedBasePath}/${entry.name}`,
+      ...(entry.isFile ? { size: entry.size } : {}),
     }));
 
     allEntries.sort(
@@ -173,26 +173,7 @@ function browseFsPath(
     const paginatedBase = allEntries.slice(offset, offset + limit);
     const hasMore = offset + limit < total;
 
-    const paginatedEntries: BrowseEntry[] = yield* Effect.forEach(
-      paginatedBase,
-      (entry) =>
-        entry.is_directory
-          ? Effect.succeed(entry)
-          : fs.stat(entry.path).pipe(
-              Effect.map((stats) => ({
-                ...entry,
-                ...(stats.isFile ? { size: stats.size } : {}),
-              })),
-              Effect.mapError(
-                (cause) =>
-                  new OperationsPathError({
-                    cause,
-                    message: `Path is inaccessible: ${entry.path}`,
-                  }),
-              ),
-            ),
-      { concurrency: DIRECTORY_STAT_CONCURRENCY },
-    );
+    const paginatedEntries: BrowseEntry[] = paginatedBase;
 
     return {
       current_path: path,

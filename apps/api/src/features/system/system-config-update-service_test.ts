@@ -1,4 +1,4 @@
-import { Effect, Layer, Ref } from "effect";
+import { Effect, Layer, Ref, Stream } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 import { AppConfig } from "@/config.ts";
@@ -22,7 +22,7 @@ import {
 } from "@/features/system/system-config-update-service.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { loadSystemConfigRow } from "@/features/system/repository/system-config-repository.ts";
-import { EventPublisher } from "@/features/events/publisher.ts";
+import { EventBus } from "@/features/events/event-bus.ts";
 
 describe("SystemConfigUpdateService", () => {
   it.scoped("persists updated config and reloads background workers", () =>
@@ -192,9 +192,14 @@ function makeSystemConfigUpdateTestLayer(input: {
       getRuntimeConfig: () => Ref.get(input.runtimeConfigRef),
       replaceRuntimeConfig: (config) => Ref.set(input.runtimeConfigRef, config),
     }),
-    Layer.succeed(EventPublisher, {
+    Layer.succeed(EventBus, {
       publish: () => Effect.void,
       publishInfo: () => Effect.void,
+      withSubscriptionStream: (use) =>
+        use({
+          stream: Stream.empty,
+          takeBufferedOnce: Effect.succeed([]),
+        }),
     }),
   );
 

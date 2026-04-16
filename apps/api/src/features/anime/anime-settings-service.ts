@@ -3,7 +3,7 @@ import { Context, Effect, Layer } from "effect";
 
 import { Database, type DatabaseError } from "@/db/database.ts";
 import { anime } from "@/db/schema.ts";
-import { EventPublisher } from "@/features/events/publisher.ts";
+import { EventBus } from "@/features/events/event-bus.ts";
 import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
 import { FileSystem } from "@/lib/filesystem.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
@@ -53,7 +53,7 @@ export class AnimeSettingsService extends Context.Tag("@bakarr/api/AnimeSettings
 
 const makeAnimeSettingsService = Effect.gen(function* () {
   const { db } = yield* Database;
-  const eventPublisher = yield* EventPublisher;
+  const eventBus = yield* EventBus;
   const fs = yield* FileSystem;
   const clock = yield* ClockService;
   const nowIso = () => nowIsoFromClock(clock);
@@ -68,7 +68,7 @@ const makeAnimeSettingsService = Effect.gen(function* () {
     );
     const message = `Anime ${id} monitoring updated`;
     yield* appendSystemLog(db, "anime.updated", "success", message, nowIso);
-    yield* eventPublisher.publishInfo(message);
+    yield* eventBus.publishInfo(message);
   });
 
   const updatePath = Effect.fn("AnimeSettingsService.updatePath")(function* (
@@ -132,7 +132,7 @@ const makeAnimeSettingsService = Effect.gen(function* () {
       nowIso,
     );
 
-    yield* eventPublisher.publishInfo(`Updated path for anime ${id}`);
+    yield* eventBus.publishInfo(`Updated path for anime ${id}`);
   });
 
   const updateProfile = Effect.fn("AnimeSettingsService.updateProfile")(function* (
@@ -153,7 +153,7 @@ const makeAnimeSettingsService = Effect.gen(function* () {
     );
     const message = `Updated profile for anime ${id}`;
     yield* appendSystemLog(db, "anime.updated", "success", message, nowIso);
-    yield* eventPublisher.publishInfo(message);
+    yield* eventBus.publishInfo(message);
   });
 
   const updateReleaseProfiles = Effect.fn("AnimeSettingsService.updateReleaseProfiles")(function* (
@@ -181,7 +181,7 @@ const makeAnimeSettingsService = Effect.gen(function* () {
     );
     const message = `Updated release profiles for anime ${id}`;
     yield* appendSystemLog(db, "anime.updated", "success", message, nowIso);
-    yield* eventPublisher.publishInfo(message);
+    yield* eventBus.publishInfo(message);
   });
 
   return {

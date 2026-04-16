@@ -1,13 +1,17 @@
-import { Effect } from "effect";
+import { Effect, Stream } from "effect";
 
 import type { FileSystemShape } from "@/lib/filesystem.ts";
 import { OperationsPathError } from "@/features/operations/errors.ts";
-import { scanVideoFiles } from "@/features/operations/file-scanner.ts";
+import { scanVideoFilesStream } from "@/features/operations/file-scanner.ts";
 
 export const loadUnmappedFolderVideoSize = Effect.fn(
   "OperationsService.loadUnmappedFolderVideoSize",
 )(function* (fs: FileSystemShape, path: string) {
-  const files = yield* scanVideoFiles(fs, path).pipe(
+  return yield* Stream.runFold(
+    scanVideoFilesStream(fs, path),
+    0,
+    (total, file) => total + file.size,
+  ).pipe(
     Effect.mapError(
       (cause) =>
         new OperationsPathError({
@@ -16,6 +20,4 @@ export const loadUnmappedFolderVideoSize = Effect.fn(
         }),
     ),
   );
-
-  return files.reduce((total, file) => total + file.size, 0);
 });

@@ -11,6 +11,7 @@ export interface EventSubscription {
 
 export interface EventBusShape {
   readonly publish: (event: NotificationEvent) => Effect.Effect<void>;
+  readonly publishInfo: (message: string) => Effect.Effect<void>;
   readonly withSubscriptionStream: <A, E>(
     use: (subscription: EventSubscription) => Stream.Stream<A, E>,
   ) => Stream.Stream<A, E>;
@@ -27,6 +28,12 @@ export const makeEventBus = Effect.fn("Events.makeEventBus")((
     const pubsub = yield* PubSub.sliding<NotificationEvent>(capacity);
     const publish = Effect.fn("EventBus.publish")(function* (event: NotificationEvent) {
       yield* PubSub.publish(pubsub, event);
+    });
+    const publishInfo = Effect.fn("EventBus.publishInfo")(function* (message: string) {
+      yield* publish({
+        type: "Info",
+        payload: { message },
+      });
     });
     const withSubscriptionStream = <A, E>(
       use: (subscription: EventSubscription) => Stream.Stream<A, E>,
@@ -58,6 +65,7 @@ export const makeEventBus = Effect.fn("Events.makeEventBus")((
 
     return {
       publish,
+      publishInfo,
       withSubscriptionStream,
     } satisfies EventBusShape;
   });
@@ -69,6 +77,7 @@ export const EventBusNoopLive = Layer.succeed(
   EventBus,
   EventBus.of({
     publish: () => Effect.void,
+    publishInfo: () => Effect.void,
     withSubscriptionStream: <A, E>(use: (subscription: EventSubscription) => Stream.Stream<A, E>) =>
       use({
         stream: Stream.empty,

@@ -1,9 +1,9 @@
-import { Effect, Option } from "effect";
+import { Effect, Option, Stream } from "effect";
 
 import type { FileSystemShape } from "@/lib/filesystem.ts";
 import { isNotFoundError } from "@/lib/fs-errors.ts";
 import { classifyMediaArtifact, parseFileSourceIdentity } from "@/lib/media-identity.ts";
-import { scanVideoFiles } from "@/features/operations/file-scanner.ts";
+import { scanVideoFiles, scanVideoFilesStream } from "@/features/operations/file-scanner.ts";
 
 export function parseMagnetInfoHash(magnet: string | null | undefined): Option.Option<string> {
   if (!magnet) {
@@ -38,24 +38,43 @@ export const resolveCompletedContentPath = Effect.fn("Operations.resolveComplete
       return Option.none();
     }
 
-    const files = yield* scanVideoFiles(fs, contentPath);
-    const candidates = files.filter((file) => {
-      const classification = classifyMediaArtifact(file.path, file.name);
-      return classification.kind !== "extra" && classification.kind !== "sample";
-    });
-    const matching = candidates.find((file) =>
-      matchesCompletedDownloadFile(file.path, episodeNumber, options?.expectedAirDate),
+    const scanState = yield* Stream.runFold(
+      scanVideoFilesStream(fs, contentPath),
+      {
+        candidateCount: 0,
+        firstCandidatePath: Option.none<string>(),
+        matchingPath: Option.none<string>(),
+      },
+      (state, file) => {
+        const classification = classifyMediaArtifact(file.path, file.name);
+
+        if (classification.kind === "extra" || classification.kind === "sample") {
+          return state;
+        }
+
+        const candidateCount = state.candidateCount + 1;
+        const firstCandidatePath =
+          candidateCount === 1 ? Option.some(file.path) : state.firstCandidatePath;
+        const matchingPath = Option.isSome(state.matchingPath)
+          ? state.matchingPath
+          : matchesCompletedDownloadFile(file.path, episodeNumber, options?.expectedAirDate)
+            ? Option.some(file.path)
+            : Option.none<string>();
+
+        return {
+          candidateCount,
+          firstCandidatePath,
+          matchingPath,
+        };
+      },
     );
 
-    if (matching) {
-      return Option.some(matching.path);
+    if (Option.isSome(scanState.matchingPath)) {
+      return Option.some(scanState.matchingPath.value);
     }
 
-    if (candidates.length === 1) {
-      const [onlyCandidate] = candidates;
-      if (onlyCandidate) {
-        return Option.some(onlyCandidate.path);
-      }
+    if (scanState.candidateCount === 1 && Option.isSome(scanState.firstCandidatePath)) {
+      return Option.some(scanState.firstCandidatePath.value);
     }
 
     return Option.none();
@@ -82,13 +101,16 @@ export const resolveBatchContentPaths = Effect.fn("Operations.resolveBatchConten
     return [];
   }
 
-  const files = yield* scanVideoFiles(fs, contentPath);
-  return files
-    .filter((file) => {
+  return yield* Stream.runFold(
+    scanVideoFilesStream(fs, contentPath),
+    [] as string[],
+    (acc, file) => {
       const classification = classifyMediaArtifact(file.path, file.name);
-      return classification.kind !== "extra" && classification.kind !== "sample";
-    })
-    .map((file) => file.path);
+      return classification.kind === "extra" || classification.kind === "sample"
+        ? acc
+        : [...acc, file.path];
+    },
+  );
 });
 
 export const resolveAccessibleDownloadPath = Effect.fn("Operations.resolveAccessibleDownloadPath")(

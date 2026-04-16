@@ -4,39 +4,11 @@ import { Effect, Ref } from "effect";
 
 import { type ClockServiceShape } from "@/lib/clock.ts";
 import { parseAniDbResponse } from "@/features/anime/anidb-protocol.ts";
-import { sendAndReceiveAniDbPacket } from "@/features/anime/anidb-socket.ts";
+import { sendAndReceiveAniDbPacketEffect } from "@/features/anime/anidb-socket.ts";
 import { ExternalCallError } from "@/lib/effect-retry.ts";
 
 const ANIDB_PROTO_VERSION = 3;
 const ANIDB_MIN_PACKET_INTERVAL_MS = 2_200;
-
-export const withAniDbSessionEffect = Effect.fn("AniDbClient.withSession")(function* <A>(
-  socket: Socket,
-  username: string,
-  password: string,
-  client: string,
-  clientVersion: number,
-  clock: ClockServiceShape,
-  lastPacketAtRef: Ref.Ref<number>,
-  use: (sessionToken: string) => Effect.Effect<A, ExternalCallError>,
-) {
-  return yield* Effect.acquireUseRelease(
-    authenticateAniDbEffect(
-      socket,
-      username,
-      password,
-      client,
-      clientVersion,
-      clock,
-      lastPacketAtRef,
-    ),
-    use,
-    (sessionToken) =>
-      logoutAniDbEffect(socket, sessionToken, clock, lastPacketAtRef).pipe(
-        Effect.catchTag("ExternalCallError", () => Effect.void),
-      ),
-  );
-});
 
 export const sendAniDbCommandEffect = Effect.fn("AniDbClient.sendCommand")(function* (
   socket: Socket,
@@ -47,15 +19,15 @@ export const sendAniDbCommandEffect = Effect.fn("AniDbClient.sendCommand")(funct
 ) {
   yield* waitForPacketWindowEffect(clock, lastPacketAtRef);
 
-  const responseRaw = yield* Effect.tryPromise({
-    try: () => sendAndReceiveAniDbPacket(socket, command),
-    catch: (cause) =>
+  const responseRaw = yield* sendAndReceiveAniDbPacketEffect(socket, command).pipe(
+    Effect.mapError((cause) =>
       ExternalCallError.make({
         cause,
         message: `AniDB ${operation} request failed`,
         operation: `anidb.${operation}.request`,
       }),
-  });
+    ),
+  );
 
   const parsed = parseAniDbResponse(responseRaw);
 
@@ -70,7 +42,7 @@ export const sendAniDbCommandEffect = Effect.fn("AniDbClient.sendCommand")(funct
   return parsed;
 });
 
-const authenticateAniDbEffect = Effect.fn("AniDbClient.authenticate")(function* (
+export const authenticateAniDbEffect = Effect.fn("AniDbClient.authenticate")(function* (
   socket: Socket,
   username: string,
   password: string,
@@ -114,7 +86,7 @@ const authenticateAniDbEffect = Effect.fn("AniDbClient.authenticate")(function* 
   return token;
 });
 
-const logoutAniDbEffect = Effect.fn("AniDbClient.logout")(function* (
+export const logoutAniDbEffect = Effect.fn("AniDbClient.logout")(function* (
   socket: Socket,
   sessionToken: string,
   clock: ClockServiceShape,

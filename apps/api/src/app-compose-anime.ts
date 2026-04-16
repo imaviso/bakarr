@@ -11,9 +11,7 @@ import { AnimeSettingsServiceLive } from "@/features/anime/anime-settings-servic
 import { AnimeStreamServiceLive } from "@/features/anime/anime-stream-service.ts";
 import { StreamTokenSignerLive } from "@/features/anime/stream-token-signer.ts";
 
-export function makeAnimeAppLayer<RSOut, RSE, RSR>(
-  runtimeSupportLayer: Layer.Layer<RSOut, RSE, RSR>,
-) {
+export function makeAnimeAppLayer() {
   const imageCacheLayer = AnimeImageCacheServiceLive;
   const metadataEnrichmentLayer = AnimeMetadataEnrichmentServiceLive;
   const metadataProviderLayer = AnimeMetadataProviderServiceLive.pipe(
@@ -38,5 +36,5 @@ export function makeAnimeAppLayer<RSOut, RSE, RSR>(
     animeStreamLayer,
   ).pipe(Layer.provideMerge(seasonalProviderLayer));
 
-  return animeSubgraphLayer.pipe(Layer.provide(runtimeSupportLayer));
+  return animeSubgraphLayer;
 }

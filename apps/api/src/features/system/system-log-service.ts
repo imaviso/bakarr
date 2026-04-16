@@ -5,7 +5,7 @@ import { Database, DatabaseError } from "@/db/database.ts";
 import { systemLogs } from "@/db/schema.ts";
 import { nowIsoFromClock, ClockService } from "@/lib/clock.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
-import { EventPublisher } from "@/features/events/publisher.ts";
+import { EventBus } from "@/features/events/event-bus.ts";
 import { appendSystemLog } from "@/features/system/support.ts";
 import { loadSystemLogPage } from "@/features/system/repository/stats-repository.ts";
 import {
@@ -55,7 +55,7 @@ export class SystemLogService extends Context.Tag("@bakarr/api/SystemLogService"
 const makeSystemLogService = Effect.gen(function* () {
   const { db } = yield* Database;
   const clock = yield* ClockService;
-  const eventPublisher = yield* EventPublisher;
+  const eventBus = yield* EventBus;
   const nowIso = () => nowIsoFromClock(clock);
 
   const getLogs = Effect.fn("SystemLogService.getLogs")(function* (input: {
@@ -122,7 +122,7 @@ const makeSystemLogService = Effect.gen(function* () {
     eventType: string,
   ) {
     yield* appendSystemLog(db, eventType, "info", message, nowIso);
-    yield* eventPublisher.publishInfo(message);
+    yield* eventBus.publishInfo(message);
   });
 
   return {
