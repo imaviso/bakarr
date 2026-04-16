@@ -1,6 +1,6 @@
 import { Context, Effect, Layer } from "effect";
 
-import type { AsyncOperationAccepted } from "@packages/shared/index.ts";
+import type { AsyncOperationAccepted, OperationTaskPayload } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
 import { compactLogAnnotations, errorLogAnnotations } from "@/lib/logging.ts";
@@ -9,34 +9,26 @@ import {
   OperationsTaskService,
 } from "@/features/operations/operations-task-service.ts";
 
+export interface OperationsTaskLaunchInput<A> {
+  readonly animeId?: number;
+  readonly queuedMessage: string;
+  readonly runningMessage: string;
+  readonly successMessage: (result: A) => string;
+  readonly failureMessage: string;
+  readonly taskKey: OperationsTaskKey;
+  readonly operation: (taskId: number) => Effect.Effect<A, unknown, never>;
+  readonly successProgress?: (result: A) => {
+    readonly progressCurrent?: number;
+    readonly progressTotal?: number;
+  };
+  readonly successPayload?: (result: A) => OperationTaskPayload;
+  readonly failurePayload?: (error: unknown) => OperationTaskPayload;
+}
+
 export interface OperationsTaskLauncherServiceShape {
-  readonly launch: <A>(input: {
-    readonly animeId?: number;
-    readonly queuedMessage: string;
-    readonly runningMessage: string;
-    readonly successMessage: (result: A) => string;
-    readonly failureMessage: string;
-    readonly taskKey: OperationsTaskKey;
-    readonly operation: (taskId: number) => Effect.Effect<A, unknown, never>;
-    readonly successProgress?: (result: A) => {
-      readonly progressCurrent?: number;
-      readonly progressTotal?: number;
-    };
-    readonly successPayload?: (result: A) => {
-      readonly anime_id?: number;
-      readonly failed?: number;
-      readonly found?: number;
-      readonly imported?: number;
-      readonly total?: number;
-    };
-    readonly failurePayload?: (error: unknown) => {
-      readonly anime_id?: number;
-      readonly failed?: number;
-      readonly found?: number;
-      readonly imported?: number;
-      readonly total?: number;
-    };
-  }) => Effect.Effect<AsyncOperationAccepted, DatabaseError | OperationsInfrastructureError, never>;
+  readonly launch: <A>(
+    input: OperationsTaskLaunchInput<A>,
+  ) => Effect.Effect<AsyncOperationAccepted, DatabaseError | OperationsInfrastructureError, never>;
 }
 
 export class OperationsTaskLauncherService extends Context.Tag(
@@ -47,33 +39,7 @@ const makeOperationsTaskLauncherService = Effect.gen(function* () {
   const tasks = yield* OperationsTaskService;
 
   const launch = Effect.fn("OperationsTaskLauncherService.launch")(
-    <A>(input: {
-      readonly animeId?: number;
-      readonly queuedMessage: string;
-      readonly runningMessage: string;
-      readonly successMessage: (result: A) => string;
-      readonly failureMessage: string;
-      readonly taskKey: OperationsTaskKey;
-      readonly operation: (taskId: number) => Effect.Effect<A, unknown, never>;
-      readonly successProgress?: (result: A) => {
-        readonly progressCurrent?: number;
-        readonly progressTotal?: number;
-      };
-      readonly successPayload?: (result: A) => {
-        readonly anime_id?: number;
-        readonly failed?: number;
-        readonly found?: number;
-        readonly imported?: number;
-        readonly total?: number;
-      };
-      readonly failurePayload?: (error: unknown) => {
-        readonly anime_id?: number;
-        readonly failed?: number;
-        readonly found?: number;
-        readonly imported?: number;
-        readonly total?: number;
-      };
-    }) =>
+    <A>(input: OperationsTaskLaunchInput<A>) =>
       Effect.gen(function* () {
         const accepted = yield* tasks.createTask({
           ...(input.animeId === undefined ? {} : { animeId: input.animeId }),
