@@ -63,7 +63,14 @@ const makeAnimeEnrollmentService = Effect.gen(function* () {
             `Finished post-enrollment missing-episode search for anime ${anime.id}`,
           taskKey: "downloads_search_missing_manual",
         })
-        .pipe(Effect.ignore);
+        .pipe(
+          Effect.tapError((error) =>
+            Effect.logWarning("Post-enrollment task launch failed").pipe(
+              Effect.annotateLogs({ animeId: anime.id, error: String(error) }),
+            ),
+          ),
+          Effect.orElseSucceed(() => {}),
+        );
     }
 
     return anime;

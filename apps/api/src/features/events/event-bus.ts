@@ -70,14 +70,10 @@ export const EventBusNoopLive = Layer.succeed(
   EventBus.of({
     publish: () => Effect.void,
     withSubscriptionStream: <A, E>(use: (subscription: EventSubscription) => Stream.Stream<A, E>) =>
-      Stream.unwrap(
-        Effect.succeed(
-          use({
-            stream: Stream.empty,
-            takeBufferedOnce: Effect.succeed([]),
-          }),
-        ),
-      ),
+      use({
+        stream: Stream.empty,
+        takeBufferedOnce: Effect.succeed([]),
+      }),
   }),
 );
 
