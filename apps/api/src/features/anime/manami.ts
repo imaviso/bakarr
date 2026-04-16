@@ -1,6 +1,6 @@
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
 import { dirname, join, resolve } from "node:path";
-import { Context, Effect, Layer, Option, Schema } from "effect";
+import { Context, Effect, Layer, Option, Ref, Schema } from "effect";
 
 import { AppConfig } from "@/config.ts";
 import { buildManamiIndexes } from "@/features/anime/manami-index.ts";
@@ -64,14 +64,33 @@ export const ManamiClientLive = Layer.effect(
     const externalCall = yield* ExternalCall;
     const fs = yield* FileSystem;
     const cachePaths = resolveCachePaths(appConfig.databaseFile);
+    const indexesRef = yield* Ref.make<Option.Option<ReturnType<typeof buildManamiIndexes>>>(
+      Option.none(),
+    );
     const refreshRunner = yield* makeSingleFlightEffectRunner(
       refreshCacheIfNeeded(client, clock, externalCall, fs, cachePaths),
     );
+    const buildIndexesRunner = yield* makeSingleFlightEffectRunner(
+      Effect.gen(function* () {
+        const dataset = yield* readDatasetFromCache(fs, cachePaths);
+        const indexes = buildManamiIndexes(dataset);
+        yield* Ref.set(indexesRef, Option.some(indexes));
+        return indexes;
+      }),
+    );
 
     const loadIndexes = Effect.fn("ManamiClient.loadIndexes")(function* () {
-      yield* refreshRunner.trigger;
-      const dataset = yield* readDatasetFromCache(fs, cachePaths);
-      return buildManamiIndexes(dataset);
+      const refreshed = yield* refreshRunner.trigger;
+
+      if (!refreshed) {
+        const indexes = yield* Ref.get(indexesRef);
+
+        if (Option.isSome(indexes)) {
+          return indexes.value;
+        }
+      }
+
+      return yield* buildIndexesRunner.trigger;
     });
 
     const getByAniListId = Effect.fn("ManamiClient.getByAniListId")(function* (anilistId: number) {
@@ -118,11 +137,12 @@ const refreshCacheIfNeeded = Effect.fn("ManamiClient.refreshCacheIfNeeded")(func
   const fresh = yield* isCacheFresh(fs, paths, now);
 
   if (fresh) {
-    return;
+    return false;
   }
 
   const dataset = yield* downloadManamiDataset(client, externalCall);
   yield* writeDatasetToCache(fs, paths, now, dataset);
+  return true;
 });
 
 const isCacheFresh = Effect.fn("ManamiClient.isCacheFresh")(function* (

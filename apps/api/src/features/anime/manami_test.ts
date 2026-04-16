@@ -214,6 +214,62 @@ it.scoped("ManamiClient downloads once and serves indexed lookups", () =>
   ),
 );
 
+it.scoped("ManamiClient reuses parsed indexes while cache is fresh", () =>
+  withFileSystemSandboxEffect(({ fs, root }) =>
+    Effect.gen(function* () {
+      let requestCount = 0;
+      let datasetReadCount = 0;
+      const countingFs: FileSystemShape = {
+        ...fs,
+        readFile: (path) => {
+          if (typeof path === "string" && path.endsWith(`/${MANAMI_CACHE_DATASET_FILE}`)) {
+            datasetReadCount += 1;
+          }
+
+          return fs.readFile(path);
+        },
+      };
+      const clientLayer = makeManamiClientLayer({
+        fs: countingFs,
+        httpClient: HttpClient.make((request) =>
+          Effect.sync(() => {
+            requestCount += 1;
+            return HttpClientResponse.fromWeb(
+              request,
+              Response.json(SYNTHETIC_DATASET, { status: 200 }),
+            );
+          }),
+        ),
+        root,
+      });
+
+      const result = yield* Effect.flatMap(ManamiClient, (client) =>
+        Effect.gen(function* () {
+          const first = yield* client.getByAniListId(1001);
+          const second = yield* client.getByMalId(3003);
+          const third = yield* client.resolveMalIdFromAniListId(1003);
+          const fourth = yield* client.resolveAniListIdFromMalId(3001);
+
+          return { first, fourth, second, third } as const;
+        }),
+      ).pipe(Effect.provide(clientLayer));
+
+      assert.deepStrictEqual(
+        result.first.pipe(Option.map((entry) => entry.title)),
+        Option.some("Alpha"),
+      );
+      assert.deepStrictEqual(
+        result.second.pipe(Option.map((entry) => entry.title)),
+        Option.some("Gamma"),
+      );
+      assert.deepStrictEqual(result.third, Option.some(3003));
+      assert.deepStrictEqual(result.fourth, Option.some(1001));
+      assert.deepStrictEqual(requestCount, 1);
+      assert.deepStrictEqual(datasetReadCount, 1);
+    }),
+  ),
+);
+
 it.scoped("ManamiClient uses local cache across layer restarts", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
