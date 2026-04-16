@@ -1,5 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
-import { Effect, Layer } from "effect";
+import { Effect, Layer, Schema } from "effect";
 
 import { Database } from "@/db/database.ts";
 import {
@@ -109,7 +109,9 @@ describe("OperationsTaskService", () => {
     Effect.gen(function* () {
       const payload = { imported: 5, failed: 0 };
       const result = yield* encodeTaskPayload(payload);
-      const parsed = JSON.parse(result);
+      const parsed = yield* Schema.decodeUnknown(Schema.parseJson(
+        Schema.Struct({ imported: Schema.Number, failed: Schema.Number }),
+      ))(result);
       assert.deepStrictEqual(parsed, payload);
     }),
   );
