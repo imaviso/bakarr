@@ -231,6 +231,8 @@ export const libraryRouter = HttpRouter.empty.pipe(
 
         return yield* (yield* OperationsTaskService).listTasks({
           ...(decoded.animeId === undefined ? {} : { animeId: decoded.animeId }),
+          ...(decoded.limit === undefined ? {} : { limit: decoded.limit }),
+          ...(decoded.offset === undefined ? {} : { offset: decoded.offset }),
           taskKey: "library_import",
         });
       }),

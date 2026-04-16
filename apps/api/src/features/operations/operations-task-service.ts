@@ -26,6 +26,8 @@ export type OperationsTaskKey = Schema.Schema.Type<typeof OperationTaskKeySchema
 
 const OperationsTaskQuerySchema = Schema.Struct({
   animeId: Schema.optional(Schema.Number),
+  limit: Schema.optional(Schema.Number),
+  offset: Schema.optional(Schema.Number),
   taskKey: Schema.optional(OperationTaskKeySchema),
 });
 
@@ -56,6 +58,8 @@ export interface OperationsTaskServiceShape {
   >;
   readonly listTasks: (input?: {
     readonly animeId?: number;
+    readonly limit?: number;
+    readonly offset?: number;
     readonly taskKey?: OperationsTaskKey;
   }) => Effect.Effect<readonly OperationTask[], DatabaseError | OperationsInfrastructureError>;
   readonly markRunningTask: (input: {
@@ -178,11 +182,9 @@ const makeOperationsTaskService = Effect.gen(function* () {
     const created = rows[0];
 
     if (!created) {
-      return yield* Effect.fail(
-        new OperationsInfrastructureError({
-          message: "Failed to create operations task",
-        }),
-      );
+      return yield* new OperationsInfrastructureError({
+        message: "Failed to create operations task",
+      });
     }
 
     const accepted = {
@@ -323,11 +325,9 @@ const makeOperationsTaskService = Effect.gen(function* () {
     const [row] = rows;
 
     if (!row) {
-      return yield* Effect.fail(
-        new OperationsTaskNotFoundError({
-          message: `Operations task ${taskId} not found`,
-        }),
-      );
+      return yield* new OperationsTaskNotFoundError({
+        message: `Operations task ${taskId} not found`,
+      });
     }
 
     return yield* toOperationsTask(row);
@@ -335,6 +335,8 @@ const makeOperationsTaskService = Effect.gen(function* () {
 
   const listTasks = Effect.fn("OperationsTaskService.listTasks")(function* (input?: {
     readonly animeId?: number;
+    readonly limit?: number;
+    readonly offset?: number;
     readonly taskKey?: OperationsTaskKey;
   }) {
     const query = yield* Schema.decodeUnknown(OperationsTaskQuerySchema)(input ?? {}).pipe(
@@ -359,8 +361,13 @@ const makeOperationsTaskService = Effect.gen(function* () {
             ? eq(operationsTasks.taskKey, query.taskKey)
             : undefined;
     const rows = yield* tryDatabasePromise("Failed to list operations tasks", () => {
-      const query = db.select().from(operationsTasks).orderBy(desc(operationsTasks.id)).limit(100);
-      return whereClause ? query.where(whereClause) : query;
+      const stmt = db
+        .select()
+        .from(operationsTasks)
+        .orderBy(desc(operationsTasks.id))
+        .limit(query.limit ?? 100)
+        .offset(query.offset ?? 0);
+      return whereClause ? stmt.where(whereClause) : stmt;
     });
 
     return yield* Effect.forEach(rows, (row) => toOperationsTask(row));
@@ -386,6 +393,8 @@ export const decodeOperationsTaskQuery = Effect.fn(
   "OperationsTaskService.decodeOperationsTaskQuery",
 )(function* (input: {
   readonly anime_id?: number | undefined;
+  readonly limit?: number | undefined;
+  readonly offset?: number | undefined;
   readonly task_key?: string | undefined;
 }) {
   const taskKeyOption = Option.fromNullable(input.task_key);
@@ -406,6 +415,8 @@ export const decodeOperationsTaskQuery = Effect.fn(
 
   return {
     ...(input.anime_id === undefined ? {} : { animeId: input.anime_id }),
+    ...(input.limit === undefined ? {} : { limit: input.limit }),
+    ...(input.offset === undefined ? {} : { offset: input.offset }),
     ...(Option.isSome(decodedTaskKey) ? { taskKey: decodedTaskKey.value } : {}),
   } as const;
 });

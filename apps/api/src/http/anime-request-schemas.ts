@@ -112,4 +112,6 @@ export class OperationsTaskQuerySchema extends Schema.Class<OperationsTaskQueryS
 )({
   anime_id: Schema.optional(PositiveIntFromStringSchema),
   task_key: Schema.optional(OperationTaskKeySchema),
+  limit: Schema.optional(Schema.NumberFromString.pipe(Schema.int(), Schema.between(1, 500))),
+  offset: Schema.optional(NonNegativeIntFromStringSchema),
 }) {}
