@@ -178,13 +178,21 @@ export const libraryRouter = HttpRouter.empty.pipe(
 
         const taskLauncher = yield* OperationsTaskLauncherService;
         const catalogLibraryWrite = yield* CatalogLibraryWriteService;
+        const operationsTaskService = yield* OperationsTaskService;
 
         return yield* taskLauncher.launch({
           ...(animeId === undefined ? {} : { animeId }),
           failureMessage: `Library import failed for ${files.length} file(s)`,
           operation: (taskId) =>
-            catalogLibraryWrite.importFiles(files, {
-              taskId,
+            Effect.gen(function* () {
+              const result = yield* catalogLibraryWrite.importFiles(files);
+              yield* operationsTaskService.updateTaskProgress({
+                message: `Imported ${result.imported} file(s), ${result.failed} failed`,
+                progressCurrent: result.imported + result.failed,
+                progressTotal: result.imported + result.failed,
+                taskId,
+              });
+              return result;
             }),
           queuedMessage: `Queued library import for ${files.length} file(s)`,
           runningMessage: `Importing ${files.length} file(s) into library`,
