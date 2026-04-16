@@ -120,7 +120,10 @@ it.scoped("resolveImageAsset preserves system config failures", () =>
                 Layer.succeed(
                   RuntimeConfigSnapshotService,
                   makeFailingRuntimeConfigSnapshotStub(
-                    new StoredConfigCorruptError({ message: "stored configuration is corrupt" }),
+                    new StoredConfigCorruptError({
+                      cause: new Error("stored configuration is corrupt"),
+                      message: "stored configuration is corrupt",
+                    }),
                   ),
                 ),
               ),

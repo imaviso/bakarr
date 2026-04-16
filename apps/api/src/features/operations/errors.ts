@@ -59,7 +59,7 @@ export class OperationsStoredDataError extends Schema.TaggedError<OperationsStor
 
 export class OperationsInfrastructureError extends Schema.TaggedError<OperationsInfrastructureError>()(
   "OperationsInfrastructureError",
-  { message: Schema.String, cause: Schema.optional(Schema.Defect) },
+  { cause: Schema.Defect, message: Schema.String },
 ) {}
 
 export type OperationsError =

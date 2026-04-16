@@ -103,6 +103,7 @@ export const queueParsedReleaseDownload = Effect.fn("OperationsService.queuePars
     if (!insertedRow) {
       return yield* new OperationsInfrastructureError({
         message: "Failed to read inserted download id",
+        cause: new Error("Insert returned no rows"),
       });
     }
     const insertedId = insertedRow.id;

@@ -50,7 +50,7 @@ const ReleaseProfileRowSchema = Schema.Struct({
   rules: Schema.String,
 });
 
-function storedConfigCorrupt(message: string, cause?: unknown) {
+function storedConfigCorrupt(message: string, cause: unknown) {
   const detail =
     cause && ParseResult.isParseError(cause)
       ? ParseResult.TreeFormatter.formatErrorSync(cause)

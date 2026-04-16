@@ -225,10 +225,13 @@ const resolveMalToAniListIdMap = Effect.fn("AnimeMetadataProviderService.resolve
       return undefined;
     }
 
-    const pairs = yield* Effect.forEach(uniqueMalIds, (malId) =>
-      manami
-        .resolveAniListIdFromMalId(malId)
-        .pipe(Effect.map((animeId) => [malId, animeId] as const)),
+    const pairs = yield* Effect.forEach(
+      uniqueMalIds,
+      (malId) =>
+        manami
+          .resolveAniListIdFromMalId(malId)
+          .pipe(Effect.map((animeId) => [malId, animeId] as const)),
+      { concurrency: 4 },
     );
 
     const output = new Map<number, number>();

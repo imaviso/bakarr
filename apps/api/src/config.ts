@@ -36,17 +36,19 @@ const PositiveIntConfigSchema = Schema.NumberFromString.pipe(Schema.compose(Posi
 
 const GENERATED_BOOTSTRAP_PASSWORD_BYTES = 18;
 
-export const defaultAppConfig = new AppConfigModel({
-  appVersion: "0.1.0",
-  bootstrapPassword: randomHexSync(GENERATED_BOOTSTRAP_PASSWORD_BYTES),
-  bootstrapPasswordIsEnvOverride: false,
-  bootstrapUsername: "admin",
-  databaseFile: "./bakarr.sqlite",
-  port: 8000,
-  sessionCookieName: "bakarr_session",
-  sessionCookieSecure: true,
-  sessionDurationDays: 30,
-});
+export function makeDefaultAppConfig(): AppConfigShape {
+  return new AppConfigModel({
+    appVersion: "0.1.0",
+    bootstrapPassword: randomHexSync(GENERATED_BOOTSTRAP_PASSWORD_BYTES),
+    bootstrapPasswordIsEnvOverride: false,
+    bootstrapUsername: "admin",
+    databaseFile: "./bakarr.sqlite",
+    port: 8000,
+    sessionCookieName: "bakarr_session",
+    sessionCookieSecure: true,
+    sessionDurationDays: 30,
+  });
+}
 
 export class AppConfig extends Context.Tag("@bakarr/api/AppConfig")<AppConfig, AppConfigShape>() {
   static layer(overrides: AppConfigOverrides = {}) {
@@ -56,7 +58,7 @@ export class AppConfig extends Context.Tag("@bakarr/api/AppConfig")<AppConfig, A
         const appVersion = yield* readConfigValue(
           overrides.appVersion,
           Schema.Config("BAKARR_APP_VERSION", Schema.String).pipe(
-            EffectConfig.orElse(() => EffectConfig.succeed(defaultAppConfig.appVersion)),
+            EffectConfig.orElse(() => EffectConfig.succeed(makeDefaultAppConfig().appVersion)),
           ),
         );
         const bootstrapPasswordFromEnv =
@@ -68,43 +70,51 @@ export class AppConfig extends Context.Tag("@bakarr/api/AppConfig")<AppConfig, A
               );
         const bootstrapPassword = Option.getOrElse(
           bootstrapPasswordFromEnv,
-          () => defaultAppConfig.bootstrapPassword,
+          () => makeDefaultAppConfig().bootstrapPassword,
         );
         const bootstrapPasswordIsEnvOverride = Option.isSome(bootstrapPasswordFromEnv);
         const bootstrapUsername = yield* readConfigValue(
           overrides.bootstrapUsername,
           Schema.Config("BAKARR_BOOTSTRAP_USERNAME", Schema.String).pipe(
-            EffectConfig.orElse(() => EffectConfig.succeed(defaultAppConfig.bootstrapUsername)),
+            EffectConfig.orElse(() =>
+              EffectConfig.succeed(makeDefaultAppConfig().bootstrapUsername),
+            ),
           ),
         );
         const databaseFile = yield* readConfigValue(
           overrides.databaseFile,
           Schema.Config("DATABASE_FILE", Schema.String).pipe(
-            EffectConfig.orElse(() => EffectConfig.succeed(defaultAppConfig.databaseFile)),
+            EffectConfig.orElse(() => EffectConfig.succeed(makeDefaultAppConfig().databaseFile)),
           ),
         );
         const port = yield* readConfigValue(
           overrides.port,
           Schema.Config("PORT", PortConfigSchema).pipe(
-            EffectConfig.orElse(() => EffectConfig.succeed(defaultAppConfig.port)),
+            EffectConfig.orElse(() => EffectConfig.succeed(makeDefaultAppConfig().port)),
           ),
         );
         const sessionCookieName = yield* readConfigValue(
           overrides.sessionCookieName,
           Schema.Config("SESSION_COOKIE_NAME", Schema.String).pipe(
-            EffectConfig.orElse(() => EffectConfig.succeed(defaultAppConfig.sessionCookieName)),
+            EffectConfig.orElse(() =>
+              EffectConfig.succeed(makeDefaultAppConfig().sessionCookieName),
+            ),
           ),
         );
         const sessionCookieSecure = yield* readConfigValue(
           overrides.sessionCookieSecure,
           Schema.Config("SESSION_COOKIE_SECURE", Schema.BooleanFromString).pipe(
-            EffectConfig.orElse(() => EffectConfig.succeed(defaultAppConfig.sessionCookieSecure)),
+            EffectConfig.orElse(() =>
+              EffectConfig.succeed(makeDefaultAppConfig().sessionCookieSecure),
+            ),
           ),
         );
         const sessionDurationDays = yield* readConfigValue(
           overrides.sessionDurationDays,
           Schema.Config("SESSION_DURATION_DAYS", PositiveIntConfigSchema).pipe(
-            EffectConfig.orElse(() => EffectConfig.succeed(defaultAppConfig.sessionDurationDays)),
+            EffectConfig.orElse(() =>
+              EffectConfig.succeed(makeDefaultAppConfig().sessionDurationDays),
+            ),
           ),
         );
 

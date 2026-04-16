@@ -99,6 +99,7 @@ export const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathE
       if (!selectedAnimeRow) {
         return yield* new OperationsInfrastructureError({
           message: `Selected anime ${input.animeId} is unavailable for import scan`,
+          cause: new Error(`Anime ${input.animeId} not found in database`),
         });
       }
 

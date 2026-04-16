@@ -120,6 +120,7 @@ const resolveCurrentStoredPasswordState = Effect.fn(
     Option.isNone(toNonEmptyPasswordOption(input.nextPassword))
   ) {
     return yield* new StoredConfigCorruptError({
+      cause: new Error(input.currentPasswordMessage),
       message: input.currentPasswordMessage,
     });
   }

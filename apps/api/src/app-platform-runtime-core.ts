@@ -37,7 +37,7 @@ export function makeAppPlatformCoreRuntimeLayer(
       )
     : AppConfig.layer(overrides);
   const configLayer = withCoreSupport(configBaseLayer);
-  const runtimeLayer = withCoreSupport(AppRuntime.layer());
+  const runtimeLayer = withCoreSupport(AppRuntime.Live);
   const externalCallLayer = withCoreSupport(ExternalCallLive);
   const databaseLayer = DatabaseLayerLive.pipe(Layer.provide(configLayer));
   const eventBusLayer = EventBusLive;

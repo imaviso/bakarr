@@ -2,7 +2,6 @@ import { Context, Effect, Layer } from "effect";
 
 import { withLockEffectOrFail } from "@/background-workers.ts";
 import { BackgroundWorkerMonitor } from "@/background-monitor.ts";
-import { ClockService } from "@/lib/clock.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import type { WorkerTimeoutError } from "@/background-workers.ts";
 import type { ExternalCallError } from "@/lib/effect-retry.ts";
@@ -42,7 +41,6 @@ export const BackgroundTaskRunnerLive = Layer.effect(
     const animeMaintenanceService = yield* AnimeMaintenanceService;
     const backgroundSearchRssWorkerService = yield* BackgroundSearchRssWorkerService;
     const monitor = yield* BackgroundWorkerMonitor;
-    const clock = yield* ClockService;
 
     const runDownloadSyncTask = Effect.fn("Background.runDownloadSyncTask")(function* () {
       yield* downloadCommandService.syncDownloads();
@@ -61,21 +59,18 @@ export const BackgroundTaskRunnerLive = Layer.effect(
       "download_sync",
       runDownloadSyncTask(),
       monitor,
-      clock,
     );
     const libraryScanWorkerTask = yield* withLockEffectOrFail(
       "library_scan",
       runLibraryScanTask(),
       monitor,
-      clock,
     );
     const metadataRefreshWorkerTask = yield* withLockEffectOrFail(
       "metadata_refresh",
       runMetadataRefreshTask(),
       monitor,
-      clock,
     );
-    const rssWorkerTask = yield* withLockEffectOrFail("rss", runRssTask(), monitor, clock);
+    const rssWorkerTask = yield* withLockEffectOrFail("rss", runRssTask(), monitor);
 
     const runDownloadSyncWorkerTask = Effect.fn("BackgroundTaskRunner.runDownloadSyncWorkerTask")(
       () => downloadSyncWorkerTask,

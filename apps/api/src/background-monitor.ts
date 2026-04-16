@@ -4,12 +4,12 @@ import {
   BACKGROUND_WORKER_NAMES,
   type BackgroundWorkerName,
   type BackgroundWorkerSnapshot,
-  BackgroundWorkerSnapshotModel,
   type BackgroundWorkerStats,
   BackgroundWorkerStatsModel,
   initialBackgroundWorkerSnapshot,
+  updateWorkerInSnapshot,
 } from "@/background-worker-model.ts";
-import { ClockService, nowIsoFromClock, type ClockServiceShape } from "@/lib/clock.ts";
+import { ClockService, isoStringFromMillis } from "@/lib/clock.ts";
 import {
   preRegisterBackgroundWorkerMetrics,
   recordBackgroundWorkerRun,
@@ -41,25 +41,15 @@ export class BackgroundWorkerMonitor extends Context.Tag("@bakarr/api/Background
 >() {}
 
 export const makeBackgroundWorkerMonitor = Effect.fn("Background.makeBackgroundWorkerMonitor")(
-  function* (clock: ClockServiceShape) {
+  function* () {
+    const clock = yield* ClockService;
     const state = yield* Ref.make(initialBackgroundWorkerSnapshot());
     yield* preRegisterBackgroundWorkerMetrics(BACKGROUND_WORKER_NAMES);
 
     const updateWorker = (
       workerName: BackgroundWorkerName,
       update: (stats: BackgroundWorkerStats) => BackgroundWorkerStats,
-    ) =>
-      Ref.update(state, (current) => {
-        const nextStats = update(current[workerName]);
-
-        return new BackgroundWorkerSnapshotModel({
-          download_sync: workerName === "download_sync" ? nextStats : current.download_sync,
-          library_scan: workerName === "library_scan" ? nextStats : current.library_scan,
-          metadata_refresh:
-            workerName === "metadata_refresh" ? nextStats : current.metadata_refresh,
-          rss: workerName === "rss" ? nextStats : current.rss,
-        } satisfies BackgroundWorkerSnapshot);
-      });
+    ) => Ref.update(state, (current) => updateWorkerInSnapshot(current, workerName, update));
 
     const mergeWorkerStats = (
       stats: BackgroundWorkerStats,
@@ -82,7 +72,7 @@ export const makeBackgroundWorkerMonitor = Effect.fn("Background.makeBackgroundW
       error: string,
       durationMs?: number,
     ) {
-      const now = yield* nowIsoFromClock(clock);
+      const now = yield* Effect.map(clock.currentTimeMillis, isoStringFromMillis);
       yield* updateWorker(workerName, (stats) =>
         mergeWorkerStats(stats, {
           failureCount: stats.failureCount + 1,
@@ -102,7 +92,7 @@ export const makeBackgroundWorkerMonitor = Effect.fn("Background.makeBackgroundW
     const markRunStarted = Effect.fn("BackgroundWorkerMonitor.markRunStarted")(function* (
       workerName: BackgroundWorkerName,
     ) {
-      const now = yield* nowIsoFromClock(clock);
+      const now = yield* Effect.map(clock.currentTimeMillis, isoStringFromMillis);
       yield* updateWorker(workerName, (stats) =>
         mergeWorkerStats(stats, { lastStartedAt: now, runRunning: true }),
       );
@@ -113,7 +103,7 @@ export const makeBackgroundWorkerMonitor = Effect.fn("Background.makeBackgroundW
       workerName: BackgroundWorkerName,
       durationMs?: number,
     ) {
-      const now = yield* nowIsoFromClock(clock);
+      const now = yield* Effect.map(clock.currentTimeMillis, isoStringFromMillis);
       yield* updateWorker(workerName, (stats) =>
         mergeWorkerStats(stats, {
           lastSucceededAt: now,
@@ -179,5 +169,5 @@ export const makeBackgroundWorkerMonitor = Effect.fn("Background.makeBackgroundW
 
 export const BackgroundWorkerMonitorLive = Layer.effect(
   BackgroundWorkerMonitor,
-  Effect.flatMap(ClockService, makeBackgroundWorkerMonitor),
+  makeBackgroundWorkerMonitor(),
 );

@@ -1,17 +1,19 @@
 import { assert, it } from "@effect/vitest";
 import { Effect, Either, Fiber, TestClock } from "effect";
 
-import type { ClockServiceShape } from "@/lib/clock.ts";
+import { ClockServiceLive } from "@/lib/clock.ts";
 import { ExternalCallError, makeExternalCall } from "@/lib/effect-retry.ts";
 
 class TestFailureError extends Error {
   readonly _tag = "TestFailureError";
 }
 
+const TestClockLayer = ClockServiceLive;
+
 it.effect("tryExternal retries transient failures", () =>
   Effect.gen(function* () {
     let attempts = 0;
-    const externalCall = makeExternalCall(testClock);
+    const externalCall = yield* makeExternalCall();
 
     const fiber = yield* externalCall
       .tryExternal("test.retry", () => {
@@ -31,12 +33,12 @@ it.effect("tryExternal retries transient failures", () =>
 
     assert.deepStrictEqual(result, "ok");
     assert.deepStrictEqual(attempts, 3);
-  }),
+  }).pipe(Effect.provide(TestClockLayer)),
 );
 
 it.effect("tryExternal wraps timeout failures as ExternalCallError", () =>
   Effect.gen(function* () {
-    const externalCall = makeExternalCall(testClock);
+    const externalCall = yield* makeExternalCall();
     const fiber = yield* externalCall
       .tryExternal("test.timeout", async (signal) => {
         signal.throwIfAborted();
@@ -54,13 +56,13 @@ it.effect("tryExternal wraps timeout failures as ExternalCallError", () =>
 
     assert.ok(Either.isLeft(result));
     assert.ok(result.left instanceof ExternalCallError);
-  }),
+  }).pipe(Effect.provide(TestClockLayer)),
 );
 
 it.effect("tryExternalEffect does not retry non-idempotent failures", () =>
   Effect.gen(function* () {
     let attempts = 0;
-    const externalCall = makeExternalCall(testClock);
+    const externalCall = yield* makeExternalCall();
 
     const result = yield* externalCall
       .tryExternalEffect(
@@ -76,10 +78,5 @@ it.effect("tryExternalEffect does not retry non-idempotent failures", () =>
     assert.ok(result.left instanceof ExternalCallError);
     assert.deepStrictEqual(result.left.operation, "test.non-idempotent");
     assert.deepStrictEqual(attempts, 1);
-  }),
+  }).pipe(Effect.provide(TestClockLayer)),
 );
-
-const testClock: ClockServiceShape = {
-  currentMonotonicMillis: TestClock.currentTimeMillis,
-  currentTimeMillis: TestClock.currentTimeMillis,
-};

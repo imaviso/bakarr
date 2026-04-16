@@ -47,7 +47,7 @@ it("route errors maps known tagged errors to expected responses", () => {
       expected: { message: "bad config", status: 400 },
     },
     {
-      error: new StoredConfigCorruptError({ message: "corrupt" }),
+      error: new StoredConfigCorruptError({ cause: new Error("corrupt"), message: "corrupt" }),
       expected: { message: "corrupt", status: 500 },
     },
     {

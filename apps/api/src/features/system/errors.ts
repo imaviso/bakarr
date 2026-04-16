@@ -9,7 +9,7 @@ export class ConfigValidationError extends Schema.TaggedError<ConfigValidationEr
 
 export class StoredConfigCorruptError extends Schema.TaggedError<StoredConfigCorruptError>()(
   "StoredConfigCorruptError",
-  { cause: Schema.optional(Schema.Defect), message: Schema.String },
+  { cause: Schema.Defect, message: Schema.String },
 ) {}
 
 export class StoredConfigMissingError extends Schema.TaggedError<StoredConfigMissingError>()(

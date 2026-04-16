@@ -78,6 +78,7 @@ export const CatalogRssServiceLive = Layer.effect(
       if (!row) {
         return yield* new OperationsInfrastructureError({
           message: "Failed to add RSS feed",
+          cause: new Error("Insert returned no rows"),
         });
       }
 

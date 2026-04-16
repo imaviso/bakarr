@@ -1,6 +1,6 @@
 import { Context, Effect, Layer, Schema } from "effect";
 
-import { ClockService, type ClockServiceShape } from "@/lib/clock.ts";
+import { ClockService } from "@/lib/clock.ts";
 import { compactLogAnnotations, durationMsSince, errorLogAnnotations } from "@/lib/logging.ts";
 
 export class ExternalCallError extends Schema.TaggedError<ExternalCallError>()(
@@ -37,7 +37,9 @@ export class ExternalCall extends Context.Tag("@bakarr/api/ExternalCall")<
   ExternalCallShape
 >() {}
 
-export function makeExternalCall(clock: ClockServiceShape): ExternalCallShape {
+export const makeExternalCall = Effect.fn("ExternalCall.makeExternalCall")(function* () {
+  const clock = yield* ClockService;
+
   const tryExternalEffect = Effect.fn("ExternalCall.tryExternalEffect")(function* <A, E, R>(
     operation: string,
     effect: Effect.Effect<A, E, R>,
@@ -128,16 +130,10 @@ export function makeExternalCall(clock: ClockServiceShape): ExternalCallShape {
   return {
     tryExternal,
     tryExternalEffect,
-  };
-}
+  } satisfies ExternalCallShape;
+});
 
-export const ExternalCallLive = Layer.effect(
-  ExternalCall,
-  Effect.gen(function* () {
-    const clock = yield* ClockService;
-    return makeExternalCall(clock);
-  }),
-);
+export const ExternalCallLive = Layer.effect(ExternalCall, makeExternalCall());
 
 function toExternalCallError(operation: string, cause: unknown) {
   return cause instanceof ExternalCallError

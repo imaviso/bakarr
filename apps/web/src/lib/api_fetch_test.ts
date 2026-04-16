@@ -67,7 +67,7 @@ it("fetchApi merges auth headers without forcing content type for bodyless reque
 
   authState.headers = { "X-Api-Key": "key-1" };
 
-  const { fetchApi } = await import("./api");
+  const { fetchApi } = await import("./api/client");
   await fetchApi("/api/anime");
 
   const init = getFetchInit(fetchMock.mock.calls[0]);
@@ -82,7 +82,7 @@ it("fetchApi sets JSON content type when request body is present", async () => {
   );
   vi.stubGlobal("fetch", fetchMock);
 
-  const { fetchApi } = await import("./api");
+  const { fetchApi } = await import("./api/client");
   await fetchApi("/api/anime", {
     body: JSON.stringify({ id: 1 }),
     method: "POST",
@@ -99,7 +99,7 @@ it("fetchApi preserves explicit content type header", async () => {
   );
   vi.stubGlobal("fetch", fetchMock);
 
-  const { fetchApi } = await import("./api");
+  const { fetchApi } = await import("./api/client");
   await fetchApi("/api/custom", {
     headers: {
       "Content-Type": "text/plain",
@@ -128,7 +128,7 @@ it("fetchApi unwraps success envelope payload", async () => {
     ),
   );
 
-  const { fetchApi } = await import("./api");
+  const { fetchApi } = await import("./api/client");
   const value = await fetchApi<{ title: string }>("/api/anime/1");
   assertEquals(value.title, "Naruto");
 });
@@ -151,7 +151,7 @@ it("fetchApi throws envelope error when success=false", async () => {
     ),
   );
 
-  const { fetchApi } = await import("./api");
+  const { fetchApi } = await import("./api/client");
   await fetchApi("/api/failure")
     .then(() => {
       throw new Error("Expected fetchApi to throw");
@@ -168,7 +168,7 @@ it("fetchApi triggers logout on 401 by default", async () => {
     vi.fn(() => Promise.resolve(createResponse({ ok: false, status: 401, text: "Unauthorized" }))),
   );
 
-  const { fetchApi } = await import("./api");
+  const { fetchApi } = await import("./api/client");
   await fetchApi("/api/protected")
     .then(() => {
       throw new Error("Expected fetchApi to throw");
@@ -187,7 +187,7 @@ it("fetchApi can skip auto-logout on unauthorized", async () => {
     vi.fn(() => Promise.resolve(createResponse({ ok: false, status: 401, text: "Unauthorized" }))),
   );
 
-  const { fetchApi } = await import("./api");
+  const { fetchApi } = await import("./api/client");
   await fetchApi("/api/protected", { skipAutoLogoutOnUnauthorized: true })
     .then(() => {
       throw new Error("Expected fetchApi to throw");

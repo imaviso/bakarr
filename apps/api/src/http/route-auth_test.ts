@@ -1,7 +1,7 @@
 import { HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { Cause, Effect, Option } from "effect";
 
-import { AppConfigModel, defaultAppConfig, type AppConfigShape, AppConfig } from "@/config.ts";
+import { AppConfigModel, makeDefaultAppConfig, type AppConfigShape, AppConfig } from "@/config.ts";
 import { AuthError } from "@/features/auth/errors.ts";
 import {
   AuthSessionService,
@@ -161,17 +161,18 @@ it.effect("persistSessionResponse omits secure flag when disabled", () =>
 );
 
 function makeConfig(overrides: Partial<AppConfigShape> = {}): AppConfigShape {
+  const defaults = makeDefaultAppConfig();
   return new AppConfigModel({
-    appVersion: overrides.appVersion ?? defaultAppConfig.appVersion,
-    bootstrapPassword: overrides.bootstrapPassword ?? defaultAppConfig.bootstrapPassword,
+    appVersion: overrides.appVersion ?? defaults.appVersion,
+    bootstrapPassword: overrides.bootstrapPassword ?? defaults.bootstrapPassword,
     bootstrapPasswordIsEnvOverride:
-      overrides.bootstrapPasswordIsEnvOverride ?? defaultAppConfig.bootstrapPasswordIsEnvOverride,
-    bootstrapUsername: overrides.bootstrapUsername ?? defaultAppConfig.bootstrapUsername,
-    databaseFile: overrides.databaseFile ?? defaultAppConfig.databaseFile,
-    port: overrides.port ?? defaultAppConfig.port,
-    sessionCookieName: overrides.sessionCookieName ?? defaultAppConfig.sessionCookieName,
-    sessionCookieSecure: overrides.sessionCookieSecure ?? defaultAppConfig.sessionCookieSecure,
-    sessionDurationDays: overrides.sessionDurationDays ?? defaultAppConfig.sessionDurationDays,
+      overrides.bootstrapPasswordIsEnvOverride ?? defaults.bootstrapPasswordIsEnvOverride,
+    bootstrapUsername: overrides.bootstrapUsername ?? defaults.bootstrapUsername,
+    databaseFile: overrides.databaseFile ?? defaults.databaseFile,
+    port: overrides.port ?? defaults.port,
+    sessionCookieName: overrides.sessionCookieName ?? defaults.sessionCookieName,
+    sessionCookieSecure: overrides.sessionCookieSecure ?? defaults.sessionCookieSecure,
+    sessionDurationDays: overrides.sessionDurationDays ?? defaults.sessionDurationDays,
   });
 }
 

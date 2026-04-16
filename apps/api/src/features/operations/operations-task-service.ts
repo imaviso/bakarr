@@ -24,12 +24,12 @@ import { tryDatabasePromise } from "@/lib/effect-db.ts";
 
 export type OperationsTaskKey = Schema.Schema.Type<typeof OperationTaskKeySchema>;
 
-const OperationsTaskQuerySchema = Schema.Struct({
+class OperationsTaskQuery extends Schema.Class<OperationsTaskQuery>("OperationsTaskQuery")({
   animeId: Schema.optional(Schema.Number),
   limit: Schema.optional(Schema.Number),
   offset: Schema.optional(Schema.Number),
   taskKey: Schema.optional(OperationTaskKeySchema),
-});
+}) {}
 
 export interface OperationsTaskServiceShape {
   readonly completeFailedTask: (input: {
@@ -188,6 +188,7 @@ const makeOperationsTaskService = Effect.gen(function* () {
     if (!created) {
       return yield* new OperationsInfrastructureError({
         message: "Failed to create operations task",
+        cause: new Error("Insert returned no rows"),
       });
     }
 
@@ -342,7 +343,7 @@ const makeOperationsTaskService = Effect.gen(function* () {
     readonly offset?: number;
     readonly taskKey?: OperationsTaskKey;
   }) {
-    const query = yield* Schema.decodeUnknown(OperationsTaskQuerySchema)(input ?? {}).pipe(
+    const query = yield* Schema.decodeUnknown(OperationsTaskQuery)(input ?? {}).pipe(
       Effect.mapError(
         (cause) =>
           new OperationsInfrastructureError({

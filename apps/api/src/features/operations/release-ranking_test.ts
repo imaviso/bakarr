@@ -1,7 +1,7 @@
 import { assert, it } from "@effect/vitest";
 import { Effect, Either, Option } from "effect";
 
-import { defaultAppConfig } from "@/config.ts";
+import { makeDefaultAppConfig } from "@/config.ts";
 import type { Config, QualityProfile } from "@packages/shared/index.ts";
 import {
   compareEpisodeSearchResults,
@@ -25,7 +25,7 @@ const baseConfig: Config = {
     use_seadex: true,
   },
   general: {
-    database_path: defaultAppConfig.databaseFile,
+    database_path: makeDefaultAppConfig().databaseFile,
     images_path: "./data/images",
     log_level: "info",
     max_db_connections: 4,

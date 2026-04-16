@@ -9,18 +9,16 @@ export class AppRuntime extends Context.Tag("@bakarr/api/AppRuntime")<
   AppRuntime,
   AppRuntimeShape
 >() {
-  static layer(startedAt?: Date) {
-    return startedAt
-      ? Layer.succeed(AppRuntime, { startedAt })
-      : Layer.effect(
-          AppRuntime,
-          Effect.gen(function* () {
-            const clock = yield* ClockService;
-            const millis = yield* clock.currentTimeMillis;
-            return {
-              startedAt: new Date(millis),
-            };
-          }),
-        );
+  static readonly Live = Layer.effect(
+    AppRuntime,
+    Effect.gen(function* () {
+      const clock = yield* ClockService;
+      const millis = yield* clock.currentTimeMillis;
+      return { startedAt: new Date(millis) };
+    }),
+  );
+
+  static test(startedAt: Date) {
+    return Layer.succeed(AppRuntime, { startedAt });
   }
 }

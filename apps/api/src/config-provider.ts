@@ -109,8 +109,7 @@ function parseDotenvText(
 
     for (let index = 0; index < lines.length; index += 1) {
       const lineNumber = index + 1;
-      const rawLine = lines[index]!;
-      const trimmed = rawLine.trim();
+      const trimmed = lines[index]!.trim();
 
       if (trimmed.length === 0 || trimmed.startsWith("#")) {
         continue;
@@ -138,31 +137,13 @@ function parseDotenvText(
           path,
         });
       }
-
-      const valueText = normalized.slice(equalsIndex + 1).trim();
-
-      if (valueText.startsWith('"') && (!valueText.endsWith('"') || valueText.length === 1)) {
-        return yield* new DotenvParseError({
-          line: lineNumber,
-          message: "Unterminated double-quoted dotenv value",
-          path,
-        });
-      }
-
-      if (valueText.startsWith("'") && (!valueText.endsWith("'") || valueText.length === 1)) {
-        return yield* new DotenvParseError({
-          line: lineNumber,
-          message: "Unterminated single-quoted dotenv value",
-          path,
-        });
-      }
     }
 
     const parsed = parseEnv(normalizedSource);
     const entries = new Map<string, string>();
 
     for (const [key, value] of Object.entries(parsed)) {
-      if (value !== undefined) {
+      if (value !== undefined && DOTENV_KEY_PATTERN.test(key)) {
         entries.set(key, value);
       }
     }

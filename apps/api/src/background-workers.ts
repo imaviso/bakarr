@@ -15,7 +15,7 @@ import {
   BACKGROUND_WORKER_TIMEOUT_MS,
   type BackgroundWorkerName,
 } from "@/background-worker-model.ts";
-import type { ClockServiceShape } from "@/lib/clock.ts";
+import { ClockService } from "@/lib/clock.ts";
 import { makeSkippingSerializedEffectRunner } from "@/lib/effect-coalescing-skipping-serialized-runner.ts";
 import { compactLogAnnotations, durationMsSince, errorLogAnnotations } from "@/lib/logging.ts";
 
@@ -105,9 +105,9 @@ export const withLockEffectOrFail = Effect.fn("Background.withLockEffectOrFail")
   workerName: BackgroundWorkerName,
   task: Effect.Effect<A, E, R>,
   monitor: BackgroundWorkerMonitorShape,
-  clock: ClockServiceShape,
   timeoutMs?: number,
 ) {
+  const clock = yield* ClockService;
   const effectiveTimeout = timeoutMs ?? BACKGROUND_WORKER_TIMEOUT_MS[workerName];
   const taskWithTimeout = task.pipe(
     Effect.timeoutFail({

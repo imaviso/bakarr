@@ -182,6 +182,7 @@ export const insertQueuedDownload = Effect.fn("Operations.insertQueuedDownload")
   if (!insertedRow) {
     return yield* new OperationsInfrastructureError({
       message: "Failed to trigger download",
+      cause: new Error("Insert returned no rows"),
     });
   }
 

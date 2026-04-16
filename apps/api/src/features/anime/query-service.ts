@@ -1,5 +1,4 @@
-import { eq } from "drizzle-orm";
-import { Context, Effect, Layer, Schema } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import { Database, DatabaseError } from "@/db/database.ts";
 import { ClockService } from "@/lib/clock.ts";
@@ -15,11 +14,7 @@ import type {
   SeasonalAnimeQueryParams,
   SeasonalAnimeResponse,
 } from "@packages/shared/index.ts";
-import {
-  SeasonalAnimeResponseSchema,
-  resolveSeasonFromDate,
-  resolveSeasonYearFromDate,
-} from "@packages/shared/index.ts";
+import { resolveSeasonFromDate, resolveSeasonYearFromDate } from "@packages/shared/index.ts";
 import {
   type AnimeServiceError,
   AnimeStoredDataError,
@@ -35,15 +30,11 @@ import {
 import { listEpisodesEffect } from "@/features/anime/anime-query-episodes.ts";
 import { AnimeSeasonalProviderService } from "@/features/anime/anime-seasonal-provider-service.ts";
 import { listSeasonalAnimeEffect } from "@/features/anime/anime-query-seasonal.ts";
-import { seasonalAnimeCache } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
 import { markSearchResultsAlreadyInLibraryEffect } from "@/lib/anime-search-results.ts";
-
-const SEASONAL_ANIME_CACHE_TTL_MS = 1000 * 60 * 5;
-
-const SeasonalAnimeResponseJsonSchema = Schema.parseJson(SeasonalAnimeResponseSchema);
-const decodeSeasonalAnimeResponse = Schema.decodeUnknown(SeasonalAnimeResponseJsonSchema);
-const encodeSeasonalAnimeResponse = Schema.encode(SeasonalAnimeResponseJsonSchema);
+import {
+  readSeasonalAnimeCache,
+  writeSeasonalAnimeCache,
+} from "@/features/anime/seasonal-anime-cache.ts";
 
 /** Clamp a number to [min, max]. */
 function clamp(value: number, min: number, max: number): number {
@@ -127,38 +118,10 @@ export const AnimeQueryServiceLive = Layer.effect(
         });
         const nowMs = now.getTime();
 
-        const cachedRows = yield* tryDatabasePromise("Failed to load seasonal anime cache", () =>
-          db
-            .select({
-              payload: seasonalAnimeCache.payload,
-              fetchedAtMs: seasonalAnimeCache.fetchedAtMs,
-            })
-            .from(seasonalAnimeCache)
-            .where(eq(seasonalAnimeCache.cacheKey, cacheKey))
-            .limit(1),
-        );
-        const cached = cachedRows[0];
-
-        if (cached && nowMs - cached.fetchedAtMs < SEASONAL_ANIME_CACHE_TTL_MS) {
-          const decodedCached = yield* decodeSeasonalAnimeResponse(cached.payload).pipe(
-            Effect.mapError(
-              (cause) =>
-                new DatabaseError({
-                  cause,
-                  message: "Failed to decode seasonal anime cache payload",
-                }),
-            ),
-          );
-
-          const markedResults = yield* markSearchResultsAlreadyInLibraryEffect(
-            db,
-            decodedCached.results,
-          );
-
-          return {
-            ...decodedCached,
-            results: markedResults,
-          } satisfies SeasonalAnimeResponse;
+        const cached = yield* readSeasonalAnimeCache(db, cacheKey, nowMs);
+        if (cached !== null) {
+          const markedResults = yield* markSearchResultsAlreadyInLibraryEffect(db, cached.results);
+          return { ...cached, results: markedResults };
         }
 
         const rawResponse = yield* listSeasonalAnimeEffect({
@@ -171,40 +134,7 @@ export const AnimeQueryServiceLive = Layer.effect(
           year,
         });
 
-        const encodedPayload = yield* encodeSeasonalAnimeResponse(rawResponse).pipe(
-          Effect.mapError(
-            (cause) =>
-              new DatabaseError({
-                cause,
-                message: "Failed to encode seasonal anime cache payload",
-              }),
-          ),
-        );
-
-        yield* tryDatabasePromise("Failed to upsert seasonal anime cache", () =>
-          db
-            .insert(seasonalAnimeCache)
-            .values({
-              cacheKey,
-              season: rawResponse.season,
-              year: rawResponse.year,
-              limit: rawResponse.limit,
-              page: rawResponse.page,
-              payload: encodedPayload,
-              fetchedAtMs: nowMs,
-            })
-            .onConflictDoUpdate({
-              target: seasonalAnimeCache.cacheKey,
-              set: {
-                fetchedAtMs: nowMs,
-                limit: rawResponse.limit,
-                page: rawResponse.page,
-                payload: encodedPayload,
-                season: rawResponse.season,
-                year: rawResponse.year,
-              },
-            }),
-        );
+        yield* writeSeasonalAnimeCache(db, cacheKey, rawResponse, nowMs);
 
         return rawResponse;
       }),

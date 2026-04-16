@@ -69,3 +69,16 @@ export function initialBackgroundWorkerSnapshot(): BackgroundWorkerSnapshot {
     rss: emptyBackgroundWorkerStats(),
   });
 }
+
+export function updateWorkerInSnapshot(
+  snapshot: BackgroundWorkerSnapshot,
+  workerName: BackgroundWorkerName,
+  update: (stats: BackgroundWorkerStats) => BackgroundWorkerStats,
+): BackgroundWorkerSnapshot {
+  return new BackgroundWorkerSnapshotModel({
+    download_sync: workerName === "download_sync" ? update(snapshot.download_sync) : snapshot.download_sync,
+    library_scan: workerName === "library_scan" ? update(snapshot.library_scan) : snapshot.library_scan,
+    metadata_refresh: workerName === "metadata_refresh" ? update(snapshot.metadata_refresh) : snapshot.metadata_refresh,
+    rss: workerName === "rss" ? update(snapshot.rss) : snapshot.rss,
+  });
+}
