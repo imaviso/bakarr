@@ -49,10 +49,13 @@ it.effect("manami index construction maps AniList and MAL lookups", () =>
     const indexes = buildManamiIndexes(dataset);
 
     const fromAniList = indexes.byAniListId.get(1001);
-    const fromMal = indexes.byMalId.get(3003);
+    const mappedAniListId = indexes.aniListIdByMalId.get(3003);
+    const fromMal =
+      mappedAniListId === undefined ? undefined : indexes.byAniListId.get(mappedAniListId);
 
     assert.deepStrictEqual(fromAniList?.title, "Alpha");
     assert.deepStrictEqual(fromMal?.title, "Gamma");
+    assert.deepStrictEqual(indexes.malOnlyByMalId.size, 0);
     assert.deepStrictEqual(indexes.malIdByAniListId.get(1002), undefined);
     assert.deepStrictEqual(indexes.malIdByAniListId.get(1003), 3003);
     assert.deepStrictEqual(indexes.aniListIdByMalId.get(3001), 1001);
@@ -88,7 +91,7 @@ it.effect("manami index construction keeps first entry for duplicate ids", () =>
     const indexes = buildManamiIndexes(dataset);
 
     assert.deepStrictEqual(indexes.byAniListId.get(5001)?.title, "First");
-    assert.deepStrictEqual(indexes.byMalId.get(9001)?.title, "First");
+    assert.deepStrictEqual(indexes.malOnlyByMalId.get(9001), undefined);
     assert.deepStrictEqual(indexes.malIdByAniListId.get(5001), 9001);
     assert.deepStrictEqual(indexes.aniListIdByMalId.get(9001), 5001);
   }),

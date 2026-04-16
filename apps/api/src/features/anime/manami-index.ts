@@ -4,13 +4,13 @@ import { parseAniListIdFromSource, parseMalIdFromSource } from "@/features/anime
 export interface ManamiIndexes {
   readonly aniListIdByMalId: Map<number, number>;
   readonly byAniListId: Map<number, ManamiAnimeEntry>;
-  readonly byMalId: Map<number, ManamiAnimeEntry>;
+  readonly malOnlyByMalId: Map<number, ManamiAnimeEntry>;
   readonly malIdByAniListId: Map<number, number>;
 }
 
 export function buildManamiIndexes(dataset: ManamiDataset): ManamiIndexes {
   const byAniListId = new Map<number, ManamiAnimeEntry>();
-  const byMalId = new Map<number, ManamiAnimeEntry>();
+  const malOnlyByMalId = new Map<number, ManamiAnimeEntry>();
   const malIdByAniListId = new Map<number, number>();
   const aniListIdByMalId = new Map<number, number>();
 
@@ -22,8 +22,8 @@ export function buildManamiIndexes(dataset: ManamiDataset): ManamiIndexes {
       byAniListId.set(aniListId, entry);
     }
 
-    if (malId !== undefined && !byMalId.has(malId)) {
-      byMalId.set(malId, entry);
+    if (aniListId === undefined && malId !== undefined && !malOnlyByMalId.has(malId)) {
+      malOnlyByMalId.set(malId, entry);
     }
 
     if (aniListId !== undefined && malId !== undefined) {
@@ -40,7 +40,7 @@ export function buildManamiIndexes(dataset: ManamiDataset): ManamiIndexes {
   return {
     aniListIdByMalId,
     byAniListId,
-    byMalId,
+    malOnlyByMalId,
     malIdByAniListId,
   };
 }

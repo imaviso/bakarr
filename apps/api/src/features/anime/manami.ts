@@ -100,7 +100,17 @@ export const ManamiClientLive = Layer.effect(
 
     const getByMalId = Effect.fn("ManamiClient.getByMalId")(function* (malId: number) {
       const indexes = yield* loadIndexes();
-      return Option.fromNullable(indexes.byMalId.get(malId));
+      const aniListId = indexes.aniListIdByMalId.get(malId);
+
+      if (aniListId !== undefined) {
+        const mapped = indexes.byAniListId.get(aniListId);
+
+        if (mapped !== undefined) {
+          return Option.some(mapped);
+        }
+      }
+
+      return Option.fromNullable(indexes.malOnlyByMalId.get(malId));
     });
 
     const resolveMalIdFromAniListId = Effect.fn("ManamiClient.resolveMalIdFromAniListId")(

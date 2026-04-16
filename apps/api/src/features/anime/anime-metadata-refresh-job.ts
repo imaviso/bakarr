@@ -17,7 +17,7 @@ import {
   markJobSucceeded,
 } from "@/lib/job-status.ts";
 import { appendSystemLog } from "@/features/system/support.ts";
-import type { ExternalCallError } from "@/lib/effect-retry.ts";
+import { ExternalCallError } from "@/lib/effect-retry.ts";
 import { markJobFailureOrFailWithError } from "@/lib/job-failure-support.ts";
 
 type MetadataRefreshError = DatabaseError | ExternalCallError;
@@ -32,6 +32,7 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
   refreshConcurrency: number;
 }) {
   const { nowIso } = input;
+
   const markFailureAndAppendSystemLog = <E extends MetadataRefreshError>(
     error: E,
     message: string,
@@ -123,6 +124,7 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
       input.db.select().from(anime).where(eq(anime.monitored, true)),
     );
     let refreshed = 0;
+    let skippedExternal = 0;
 
     yield* Effect.forEach(
       animeRows,
@@ -146,11 +148,30 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
           );
           yield* syncEpisodeMetadataEffect(input.db, animeRow.id, metadata?.episodes);
           refreshed += 1;
-        }),
+        }).pipe(
+          Effect.catchTag("ExternalCallError", (error) =>
+            Effect.logWarning(
+              "Skipping metadata refresh for anime after external call failure",
+            ).pipe(
+              Effect.annotateLogs({
+                animeId: animeRow.id,
+                externalOperation: error.operation,
+              }),
+              Effect.tap(() =>
+                Effect.sync(() => {
+                  skippedExternal += 1;
+                }),
+              ),
+            ),
+          ),
+        ),
       { concurrency: input.refreshConcurrency, discard: true },
     );
 
-    const message = `Refreshed ${refreshed} monitored anime`;
+    const message =
+      skippedExternal === 0
+        ? `Refreshed ${refreshed} monitored anime`
+        : `Refreshed ${refreshed} monitored anime (${skippedExternal} skipped due external failures)`;
 
     yield* markJobSucceeded(input.db, "metadata_refresh", message, nowIso);
     yield* appendSystemLog(
@@ -163,9 +184,16 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
 
     return { refreshed };
   }).pipe(
-    Effect.catchTag("ExternalCallError", (error) =>
-      markFailureAndAppendSystemLog(error, error.message),
-    ),
-    Effect.catchAllCause(markFailureCauseAndAppendSystemLog),
+    Effect.catchAllCause((cause) => {
+      const failure = Cause.failureOption(cause);
+
+      if (Option.isSome(failure)) {
+        if (failure.value instanceof ExternalCallError || failure.value instanceof DatabaseError) {
+          return markFailureAndAppendSystemLog(failure.value, failure.value.message);
+        }
+      }
+
+      return markFailureCauseAndAppendSystemLog(cause);
+    }),
   );
 });
