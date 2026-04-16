@@ -1,6 +1,7 @@
-import { Context, Effect, Layer, Schema } from "effect";
+import { Context, Either, Effect, Layer, Schema } from "effect";
 
 import { ClockService } from "@/lib/clock.ts";
+import { PositiveIntFromStringSchema } from "@/lib/domain-schema.ts";
 import { compactLogAnnotations, durationMsSince, errorLogAnnotations } from "@/lib/logging.ts";
 
 export class ExternalCallError extends Schema.TaggedError<ExternalCallError>()(
@@ -18,6 +19,15 @@ export interface ExternalCallOptions {
 }
 
 const EXTERNAL_RETRY_DELAYS_MS = [200, 400] as const;
+const DEFAULT_EXTERNAL_CALL_CONCURRENCY = 8;
+const DEFAULT_MEDIA_EXTERNAL_CALL_CONCURRENCY = 4;
+const DEFAULT_QBIT_EXTERNAL_CALL_CONCURRENCY = 2;
+
+export interface ExternalCallTuningOverrides {
+  readonly defaultConcurrency?: number;
+  readonly mediaConcurrency?: number;
+  readonly qbitConcurrency?: number;
+}
 
 export interface ExternalCallShape {
   readonly tryExternal: <A>(
@@ -37,73 +47,111 @@ export class ExternalCall extends Context.Tag("@bakarr/api/ExternalCall")<
   ExternalCallShape
 >() {}
 
-export const makeExternalCall = Effect.fn("ExternalCall.makeExternalCall")(function* () {
+type ExternalCallPool = "default" | "media" | "qbit";
+
+export const makeExternalCall = Effect.fn("ExternalCall.makeExternalCall")(function* (
+  overrides: ExternalCallTuningOverrides = {},
+) {
   const clock = yield* ClockService;
+  const defaultConcurrency =
+    overrides.defaultConcurrency ??
+    (yield* readExternalConcurrency(
+      "BAKARR_EXTERNAL_CALL_CONCURRENCY",
+      DEFAULT_EXTERNAL_CALL_CONCURRENCY,
+    ));
+  const mediaConcurrency =
+    overrides.mediaConcurrency ??
+    (yield* readExternalConcurrency(
+      "BAKARR_EXTERNAL_CALL_MEDIA_CONCURRENCY",
+      DEFAULT_MEDIA_EXTERNAL_CALL_CONCURRENCY,
+    ));
+  const qbitConcurrency =
+    overrides.qbitConcurrency ??
+    (yield* readExternalConcurrency(
+      "BAKARR_EXTERNAL_CALL_QBIT_CONCURRENCY",
+      DEFAULT_QBIT_EXTERNAL_CALL_CONCURRENCY,
+    ));
+
+  const semaphores = {
+    default: yield* Effect.makeSemaphore(defaultConcurrency),
+    media: yield* Effect.makeSemaphore(mediaConcurrency),
+    qbit: yield* Effect.makeSemaphore(qbitConcurrency),
+  } as const;
+
+  const resolveSemaphore = (operation: string) => semaphores[resolveExternalCallPool(operation)];
 
   const tryExternalEffect = Effect.fn("ExternalCall.tryExternalEffect")(function* <A, E, R>(
     operation: string,
     effect: Effect.Effect<A, E, R>,
     options?: ExternalCallOptions,
   ) {
-    const startedAt = yield* clock.currentMonotonicMillis;
     const allowRetry = options?.idempotent !== false;
+    const isRetryable = options?.isRetryableError ?? (() => true);
     const maxAttempts = allowRetry ? EXTERNAL_RETRY_DELAYS_MS.length + 1 : 1;
 
-    const runAttempt = (attemptNumber: number): Effect.Effect<A, ExternalCallError, R> =>
-      effect.pipe(
-        Effect.timeout("10 seconds"),
-        Effect.scoped,
-        Effect.mapError((cause) => toExternalCallError(operation, cause)),
-        Effect.catchTag("ExternalCallError", (error) => {
-          const isRetryable = options?.isRetryableError?.(error) ?? true;
-          const retryDelayMs =
-            allowRetry && isRetryable ? EXTERNAL_RETRY_DELAYS_MS[attemptNumber - 1] : undefined;
+    return yield* Effect.gen(function* () {
+      const startedAt = yield* clock.currentMonotonicMillis;
+      const semaphore = resolveSemaphore(operation);
+      let attemptNumber = 1;
 
-          if (retryDelayMs === undefined) {
-            return Effect.fail(error);
-          }
+      while (true) {
+        const attemptResult = yield* Effect.either(
+          semaphore.withPermits(1)(
+            effect.pipe(
+              Effect.timeout("10 seconds"),
+              Effect.scoped,
+              Effect.mapError((cause) => toExternalCallError(operation, cause)),
+            ),
+          ),
+        );
 
-          return Effect.logWarning("external call attempt failed; retrying").pipe(
+        if (Either.isRight(attemptResult)) {
+          const finishedAt = yield* clock.currentMonotonicMillis;
+          yield* Effect.logInfo("external call completed").pipe(
+            Effect.annotateLogs({
+              durationMs: durationMsSince(startedAt, finishedAt),
+              maxAttempts,
+              attemptsUsed: attemptNumber,
+            }),
+          );
+
+          return attemptResult.right;
+        }
+
+        const error = attemptResult.left;
+
+        if (!allowRetry || attemptNumber >= maxAttempts || !isRetryable(error)) {
+          const finishedAt = yield* clock.currentMonotonicMillis;
+          yield* Effect.logError("external call failed").pipe(
             Effect.annotateLogs(
               compactLogAnnotations({
-                attempt: attemptNumber,
+                durationMs: durationMsSince(startedAt, finishedAt),
                 maxAttempts,
-                nextDelayMs: retryDelayMs,
+                attemptsUsed: attemptNumber,
                 ...errorLogAnnotations(error),
               }),
             ),
-            Effect.zipRight(Effect.sleep(`${retryDelayMs} millis`)),
-            Effect.zipRight(runAttempt(attemptNumber + 1)),
           );
-        }),
-      );
 
-    return yield* runAttempt(1).pipe(
-      Effect.tapBoth({
-        onSuccess: () =>
-          Effect.gen(function* () {
-            const finishedAt = yield* clock.currentMonotonicMillis;
-            yield* Effect.logInfo("external call completed").pipe(
-              Effect.annotateLogs({
-                durationMs: durationMsSince(startedAt, finishedAt),
-                maxAttempts,
-              }),
-            );
-          }),
-        onFailure: (error) =>
-          Effect.gen(function* () {
-            const finishedAt = yield* clock.currentMonotonicMillis;
-            yield* Effect.logError("external call failed").pipe(
-              Effect.annotateLogs(
-                compactLogAnnotations({
-                  durationMs: durationMsSince(startedAt, finishedAt),
-                  maxAttempts,
-                  ...errorLogAnnotations(error),
-                }),
-              ),
-            );
-          }),
-      }),
+          return yield* error;
+        }
+
+        const retryDelayMs = EXTERNAL_RETRY_DELAYS_MS[attemptNumber - 1]!;
+        yield* Effect.logWarning("external call attempt failed; retrying").pipe(
+          Effect.annotateLogs(
+            compactLogAnnotations({
+              attempt: attemptNumber,
+              maxAttempts,
+              nextDelayMs: retryDelayMs,
+              ...errorLogAnnotations(error),
+            }),
+          ),
+        );
+
+        yield* Effect.sleep(retryDelayMs);
+        attemptNumber += 1;
+      }
+    }).pipe(
       Effect.withLogSpan(operation),
       Effect.annotateLogs({
         component: "external",
@@ -134,6 +182,28 @@ export const makeExternalCall = Effect.fn("ExternalCall.makeExternalCall")(funct
 });
 
 export const ExternalCallLive = Layer.effect(ExternalCall, makeExternalCall());
+
+const readExternalConcurrency = (key: string, fallback: number) =>
+  Schema.Config(key, PositiveIntFromStringSchema).pipe(
+    Effect.catchAll(() => Effect.succeed(fallback)),
+  );
+
+const resolveExternalCallPool = (operation: string): ExternalCallPool => {
+  if (operation.startsWith("qbit.")) {
+    return "qbit";
+  }
+
+  if (
+    operation.startsWith("jikan.") ||
+    operation.startsWith("anilist.") ||
+    operation.startsWith("manami.") ||
+    operation.startsWith("anidb.")
+  ) {
+    return "media";
+  }
+
+  return "default";
+};
 
 function toExternalCallError(operation: string, cause: unknown) {
   return cause instanceof ExternalCallError

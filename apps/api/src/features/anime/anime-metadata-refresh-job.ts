@@ -29,6 +29,7 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
   metadataProvider: typeof AnimeMetadataProviderService.Service;
   db: AppDatabase;
   nowIso: () => Effect.Effect<string>;
+  refreshConcurrency: number;
 }) {
   const { nowIso } = input;
   const markFailureAndAppendSystemLog = <E extends MetadataRefreshError>(
@@ -146,7 +147,7 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
           yield* syncEpisodeMetadataEffect(input.db, animeRow.id, metadata?.episodes);
           refreshed += 1;
         }),
-      { concurrency: 4, discard: true },
+      { concurrency: input.refreshConcurrency, discard: true },
     );
 
     const message = `Refreshed ${refreshed} monitored anime`;

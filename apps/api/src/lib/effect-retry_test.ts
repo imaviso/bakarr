@@ -80,3 +80,33 @@ it.effect("tryExternalEffect does not retry non-idempotent failures", () =>
     assert.deepStrictEqual(attempts, 1);
   }).pipe(Effect.provide(TestClockLayer)),
 );
+
+it.effect("tryExternalEffect retries only when isRetryableError returns true", () =>
+  Effect.gen(function* () {
+    let attempts = 0;
+    const externalCall = yield* makeExternalCall();
+
+    const result = yield* externalCall
+      .tryExternalEffect(
+        "test.non-retryable",
+        Effect.sync(() => {
+          attempts += 1;
+        }).pipe(
+          Effect.zipRight(
+            Effect.fail(
+              new ExternalCallError({
+                cause: new Error("hard fail"),
+                message: "hard fail",
+                operation: "test.non-retryable",
+              }),
+            ),
+          ),
+        ),
+        { isRetryableError: () => false },
+      )
+      .pipe(Effect.either);
+
+    assert.ok(Either.isLeft(result));
+    assert.deepStrictEqual(attempts, 1);
+  }).pipe(Effect.provide(TestClockLayer)),
+);
