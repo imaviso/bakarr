@@ -4,10 +4,11 @@ import { it } from "@effect/vitest";
 import { CommandExecutor } from "@effect/platform";
 import { HttpApp } from "@effect/platform";
 import * as Context from "effect/Context";
-import { Effect, Layer, ManagedRuntime, Option, Stream } from "effect";
+import { Effect, Layer, ManagedRuntime, Option, Schema, Stream } from "effect";
 import * as Exit from "effect/Exit";
 import * as EffectLayer from "effect/Layer";
 import * as Scope from "effect/Scope";
+import { AsyncOperationAcceptedSchema, OperationTaskSchema } from "@packages/shared/index.ts";
 import { mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -5000,22 +5001,14 @@ async function waitForSql(
 
 async function expectAcceptedTaskResponse(response: Response) {
   assert.deepStrictEqual(response["status"], 202);
-  const body = await response.json<{
-    readonly data: {
-      readonly accepted_at: string;
-      readonly message: string;
-      readonly status: "queued";
-      readonly task_id: number;
-      readonly task_key: string;
-    };
-    readonly success: true;
-  }>();
-
+  const raw = await response.json();
+  const body = raw as { data: unknown; success: boolean };
   assert.deepStrictEqual(body.success, true);
-  assert.deepStrictEqual(body.data.status, "queued");
-  assert.deepStrictEqual(typeof body.data.task_id, "number");
+  const accepted = Schema.decodeUnknownSync(AsyncOperationAcceptedSchema)(body.data);
+  assert.deepStrictEqual(accepted.status, "queued");
+  assert.deepStrictEqual(typeof accepted.task_id, "number");
 
-  return body.data;
+  return accepted;
 }
 
 async function waitForTaskByPath(input: {
@@ -5032,17 +5025,8 @@ async function waitForTaskByPath(input: {
       headers: { Cookie: input.sessionCookie },
     });
     assert.deepStrictEqual(response["status"], 200);
-    const task = await response.json<{
-      readonly id: number;
-      readonly message?: string;
-      readonly payload?: {
-        readonly failed?: number;
-        readonly found?: number;
-        readonly imported?: number;
-        readonly total?: number;
-      };
-      readonly status: "queued" | "running" | "succeeded" | "failed";
-    }>();
+    const raw = await response.json();
+    const task = Schema.decodeUnknownSync(OperationTaskSchema)(raw);
     lastStatus = task.status;
 
     if (task.status === "succeeded") {
