@@ -150,12 +150,24 @@ function browseFsPath(
     );
 
     const normalizedBasePath = path.replace(/\/$/, "");
-    const allEntries: BrowseEntry[] = dirEntries.map((entry) => ({
-      is_directory: entry.isDirectory,
-      name: entry.name,
-      path: `${normalizedBasePath}/${entry.name}`,
-      ...(entry.isFile ? { size: entry.size } : {}),
-    }));
+    const allEntries: BrowseEntry[] = dirEntries.map((entry) => {
+      const path = `${normalizedBasePath}/${entry.name}`;
+
+      if (entry.isFile) {
+        return {
+          is_directory: entry.isDirectory,
+          name: entry.name,
+          path,
+          size: entry.size,
+        };
+      }
+
+      return {
+        is_directory: entry.isDirectory,
+        name: entry.name,
+        path,
+      };
+    });
 
     allEntries.sort(
       (left, right) =>

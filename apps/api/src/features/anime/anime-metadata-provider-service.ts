@@ -8,7 +8,7 @@ import {
   type AnimeMetadataEnrichmentCacheState,
 } from "@/features/anime/anime-metadata-enrichment-service.ts";
 import { mergeAnimeMetadataEpisodes } from "@/features/anime/episode-merge.ts";
-import type { AnimeStoredDataError } from "@/features/anime/errors.ts";
+import type { AniDbRuntimeConfigError, AnimeStoredDataError } from "@/features/anime/errors.ts";
 import { JikanClient } from "@/features/anime/jikan.ts";
 import type { JikanNormalizedAnime } from "@/features/anime/jikan-model.ts";
 import { ManamiClient } from "@/features/anime/manami.ts";
@@ -45,7 +45,11 @@ export type AnimeMetadataDegradationReason =
       readonly cacheState: "missing" | "stale";
     };
 
-export type AnimeMetadataLookupError = ExternalCallError | DatabaseError | AnimeStoredDataError;
+export type AnimeMetadataLookupError =
+  | ExternalCallError
+  | DatabaseError
+  | AnimeStoredDataError
+  | AniDbRuntimeConfigError;
 
 export interface AnimeMetadataProviderServiceShape {
   readonly getAnimeMetadataById: (

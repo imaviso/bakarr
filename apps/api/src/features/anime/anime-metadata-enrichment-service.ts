@@ -11,7 +11,7 @@ import {
 import type { AniDbEpisodeLookupInput } from "@/features/anime/anidb-types.ts";
 import type { AnimeMetadataEpisode } from "@/features/anime/anilist-model.ts";
 import { syncEpisodeMetadataEffect } from "@/features/anime/anime-episode-metadata-sync.ts";
-import { type AnimeStoredDataError } from "@/features/anime/errors.ts";
+import { AniDbRuntimeConfigError, type AnimeStoredDataError } from "@/features/anime/errors.ts";
 import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
 
@@ -39,7 +39,10 @@ export type AnimeMetadataEnrichmentCacheState =
 export interface AnimeMetadataEnrichmentServiceShape {
   readonly getAniDbCacheState: (
     animeId: number,
-  ) => Effect.Effect<AnimeMetadataEnrichmentCacheState, DatabaseError | AnimeStoredDataError>;
+  ) => Effect.Effect<
+    AnimeMetadataEnrichmentCacheState,
+    DatabaseError | AnimeStoredDataError | AniDbRuntimeConfigError
+  >;
   readonly requestAniDbRefresh: (request: AniDbRefreshRequest) => Effect.Effect<void>;
 }
 

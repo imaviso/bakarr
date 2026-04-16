@@ -15,10 +15,12 @@ import { SystemMetricsEndpointServiceLive } from "@/features/system/system-metri
 import { SystemRuntimeMetricsServiceLive } from "@/features/system/system-runtime-metrics-service.ts";
 import { SystemStatusReadServiceLive } from "@/features/system/system-status-read-service.ts";
 
+type LayerOf<Out, Error = never, Input = never> = Layer.Layer<Out, Error, Input>;
+
 interface SystemAppLayerInput<BCOut, BCE, BCR, CDOut, CDE, CDR, RSOut, RSE, RSR> {
-  readonly backgroundControllerLayer: Layer.Layer<BCOut, BCE, BCR>;
-  readonly catalogDownloadReadLayer: Layer.Layer<CDOut, CDE, CDR>;
-  readonly runtimeSupportLayer: Layer.Layer<RSOut, RSE, RSR>;
+  readonly backgroundControllerLayer: LayerOf<BCOut, BCE, BCR>;
+  readonly catalogDownloadReadLayer: LayerOf<CDOut, CDE, CDR>;
+  readonly runtimeSupportLayer: LayerOf<RSOut, RSE, RSR>;
 }
 
 export function makeSystemAppLayer<BCOut, BCE, BCR, CDOut, CDE, CDR, RSOut, RSE, RSR>(

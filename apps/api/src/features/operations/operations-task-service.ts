@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, notInArray } from "drizzle-orm";
 import { Context, Effect, Layer, Option, Schema } from "effect";
 
 import type {
@@ -26,6 +26,7 @@ export type OperationsTaskKey = Schema.Schema.Type<typeof OperationTaskKeySchema
 
 class OperationsTaskQuery extends Schema.Class<OperationsTaskQuery>("OperationsTaskQuery")({
   animeId: Schema.optional(Schema.Number),
+  excludeTaskKeys: Schema.optional(Schema.Array(OperationTaskKeySchema)),
   limit: Schema.optional(Schema.Number),
   offset: Schema.optional(Schema.Number),
   taskKey: Schema.optional(OperationTaskKeySchema),
@@ -58,6 +59,7 @@ export interface OperationsTaskServiceShape {
   >;
   readonly listTasks: (input?: {
     readonly animeId?: number;
+    readonly excludeTaskKeys?: readonly OperationsTaskKey[];
     readonly limit?: number;
     readonly offset?: number;
     readonly taskKey?: OperationsTaskKey;
@@ -339,6 +341,7 @@ const makeOperationsTaskService = Effect.gen(function* () {
 
   const listTasks = Effect.fn("OperationsTaskService.listTasks")(function* (input?: {
     readonly animeId?: number;
+    readonly excludeTaskKeys?: readonly OperationsTaskKey[];
     readonly limit?: number;
     readonly offset?: number;
     readonly taskKey?: OperationsTaskKey;
@@ -353,17 +356,23 @@ const makeOperationsTaskService = Effect.gen(function* () {
       ),
     );
 
+    const filteredByAnimeId =
+      query.animeId === undefined ? undefined : eq(operationsTasks.animeId, query.animeId);
+    const filteredByTaskKey =
+      query.taskKey === undefined ? undefined : eq(operationsTasks.taskKey, query.taskKey);
+    const filteredByExcludedTaskKeys =
+      query.excludeTaskKeys === undefined || query.excludeTaskKeys.length === 0
+        ? undefined
+        : notInArray(operationsTasks.taskKey, [...query.excludeTaskKeys]);
+    const conditions = [filteredByAnimeId, filteredByTaskKey, filteredByExcludedTaskKeys].filter(
+      (condition) => condition !== undefined,
+    );
     const whereClause =
-      query.animeId !== undefined && query.taskKey !== undefined
-        ? and(
-            eq(operationsTasks.animeId, query.animeId),
-            eq(operationsTasks.taskKey, query.taskKey),
-          )
-        : query.animeId !== undefined
-          ? eq(operationsTasks.animeId, query.animeId)
-          : query.taskKey !== undefined
-            ? eq(operationsTasks.taskKey, query.taskKey)
-            : undefined;
+      conditions.length === 0
+        ? undefined
+        : conditions.length === 1
+          ? conditions[0]
+          : and(...conditions);
     const rows = yield* tryDatabasePromise("Failed to list operations tasks", () => {
       const stmt = db
         .select()

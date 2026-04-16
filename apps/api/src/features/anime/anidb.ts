@@ -26,6 +26,7 @@ import {
   normalizeEpisodeCount,
   resolveAniDbRuntimeConfig,
 } from "@/features/anime/anidb-runtime-config.ts";
+import { AniDbRuntimeConfigError } from "@/features/anime/errors.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { StoredConfigCorruptError } from "@/features/system/errors.ts";
 import { ExternalCallError } from "@/lib/effect-retry.ts";
@@ -36,7 +37,7 @@ const ANIDB_STRONG_ANIME_MATCH_SCORE = 90;
 interface AniDbClientShape {
   readonly getEpisodeMetadata: (
     input: AniDbEpisodeLookupInput,
-  ) => Effect.Effect<AniDbEpisodeLookupResult, ExternalCallError>;
+  ) => Effect.Effect<AniDbEpisodeLookupResult, ExternalCallError | AniDbRuntimeConfigError>;
 }
 
 export class AniDbClient extends Context.Tag("@bakarr/api/AniDbClient")<
@@ -226,10 +227,9 @@ const logRuntimeConfigError = (error: DatabaseError | StoredConfigCorruptError, 
 const failRuntimeConfigLoad = (error: DatabaseError | StoredConfigCorruptError, reason: string) =>
   logRuntimeConfigError(error, reason).pipe(
     Effect.zipRight(
-      ExternalCallError.make({
+      AniDbRuntimeConfigError.make({
         cause: error.cause ?? error,
         message: "AniDB lookup failed while loading runtime config",
-        operation: "anidb.runtime_config.load",
       }),
     ),
   );

@@ -9,12 +9,17 @@ import { AnimeMetadataProviderService } from "@/features/anime/anime-metadata-pr
 import { FileSystem } from "@/lib/filesystem.ts";
 import { SearchBackgroundMissingService } from "@/features/operations/background-search-missing-support.ts";
 import { OperationsTaskLauncherService } from "@/features/operations/operations-task-launcher-service.ts";
+import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
 import type { ProfileNotFoundError } from "@/features/system/errors.ts";
 import type { AddAnimeInput } from "@/features/anime/add-anime-input.ts";
 import type { AnimeServiceError } from "@/features/anime/errors.ts";
 import { addAnimeEffect } from "@/features/anime/anime-add.ts";
 
-export type AnimeEnrollmentError = DatabaseError | AnimeServiceError | ProfileNotFoundError;
+export type AnimeEnrollmentError =
+  | DatabaseError
+  | AnimeServiceError
+  | ProfileNotFoundError
+  | OperationsInfrastructureError;
 
 export interface AnimeEnrollmentServiceShape {
   /**
@@ -52,25 +57,16 @@ const makeAnimeEnrollmentService = Effect.gen(function* () {
     });
 
     if (input.monitor_and_search) {
-      yield* taskLauncher
-        .launch({
-          animeId: anime.id,
-          failureMessage: `Post-enrollment missing-episode search failed for anime ${anime.id}`,
-          operation: () => searchBackgroundService.triggerSearchMissing(anime.id),
-          queuedMessage: `Queued post-enrollment missing-episode search for anime ${anime.id}`,
-          runningMessage: `Searching missing episodes for anime ${anime.id}`,
-          successMessage: () =>
-            `Finished post-enrollment missing-episode search for anime ${anime.id}`,
-          taskKey: "downloads_search_missing_manual",
-        })
-        .pipe(
-          Effect.tapError((error) =>
-            Effect.logWarning("Post-enrollment task launch failed").pipe(
-              Effect.annotateLogs({ animeId: anime.id, error: String(error) }),
-            ),
-          ),
-          Effect.orElseSucceed(() => {}),
-        );
+      yield* taskLauncher.launch({
+        animeId: anime.id,
+        failureMessage: `Post-enrollment missing-episode search failed for anime ${anime.id}`,
+        operation: () => searchBackgroundService.triggerSearchMissing(anime.id),
+        queuedMessage: `Queued post-enrollment missing-episode search for anime ${anime.id}`,
+        runningMessage: `Searching missing episodes for anime ${anime.id}`,
+        successMessage: () =>
+          `Finished post-enrollment missing-episode search for anime ${anime.id}`,
+        taskKey: "downloads_search_missing_manual",
+      });
     }
 
     return anime;

@@ -1,6 +1,8 @@
 import { and, eq, sql } from "drizzle-orm";
 import { Context, Effect, Layer, Option } from "effect";
 
+import type { QualityProfile, ReleaseProfileRule } from "@packages/shared/index.ts";
+
 import { Database } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { anime, episodes } from "@/db/schema.ts";
@@ -110,6 +112,8 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
       const runtimeConfig = yield* runtimeConfigSnapshot.getRuntimeConfig();
       let queued = 0;
       const missingEpisodesByAnimeId = new Map<number, number[]>();
+      const qualityProfileByName = new Map<string, QualityProfile>();
+      const releaseRulesByAnimeId = new Map<number, readonly ReleaseProfileRule[]>();
 
       for (const row of missingRows) {
         const existing = missingEpisodesByAnimeId.get(row.anime.id);
@@ -121,9 +125,23 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
       }
 
       for (const row of missingRows) {
-        const profile = yield* requireQualityProfile(row.anime.profileName);
-        yield* validateQualityProfileSizeLabels(profile);
-        const rules = yield* loadReleaseRules(db, row.anime);
+        let profile = qualityProfileByName.get(row.anime.profileName);
+
+        if (profile === undefined) {
+          const loadedProfile = yield* requireQualityProfile(row.anime.profileName);
+          yield* validateQualityProfileSizeLabels(loadedProfile);
+          qualityProfileByName.set(row.anime.profileName, loadedProfile);
+          profile = loadedProfile;
+        }
+
+        let rules = releaseRulesByAnimeId.get(row.anime.id);
+
+        if (rules === undefined) {
+          const loadedRules = yield* loadReleaseRules(db, row.anime);
+          releaseRulesByAnimeId.set(row.anime.id, loadedRules);
+          rules = loadedRules;
+        }
+
         const currentEpisode = yield* loadCurrentEpisodeState(
           db,
           row.anime.id,

@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from "effect";
+import { Cause, Context, Effect, Layer, Queue } from "effect";
 
 import type { AsyncOperationAccepted, OperationTaskPayload } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
@@ -35,8 +35,37 @@ export class OperationsTaskLauncherService extends Context.Tag(
   "@bakarr/api/OperationsTaskLauncherService",
 )<OperationsTaskLauncherService, OperationsTaskLauncherServiceShape>() {}
 
+const OPERATIONS_TASK_WORKER_CONCURRENCY = 4;
+
 const makeOperationsTaskLauncherService = Effect.gen(function* () {
   const tasks = yield* OperationsTaskService;
+  const taskQueue = yield* Effect.acquireRelease(
+    Queue.unbounded<Effect.Effect<void, DatabaseError | OperationsInfrastructureError>>(),
+    Queue.shutdown,
+  );
+
+  const runQueuedTask = Effect.fn("OperationsTaskLauncherService.runQueuedTask")(
+    (taskEffect: Effect.Effect<void, DatabaseError | OperationsInfrastructureError>) =>
+      taskEffect.pipe(
+        Effect.catchAllCause((cause) =>
+          Effect.logError("Operations task launcher worker failed").pipe(
+            Effect.annotateLogs({
+              cause: Cause.pretty(cause),
+              component: "operations",
+              event: "operations.task.launcher.worker.failed",
+            }),
+          ),
+        ),
+      ),
+  );
+
+  const workerLoop = Queue.take(taskQueue).pipe(Effect.flatMap(runQueuedTask), Effect.forever);
+
+  yield* Effect.forEach(
+    Array.from({ length: OPERATIONS_TASK_WORKER_CONCURRENCY }),
+    () => workerLoop.pipe(Effect.forkScoped),
+    { discard: true },
+  );
 
   const launch = Effect.fn("OperationsTaskLauncherService.launch")(
     <A>(input: OperationsTaskLaunchInput<A>) =>
@@ -71,12 +100,15 @@ const makeOperationsTaskLauncherService = Effect.gen(function* () {
             taskId,
           });
         }).pipe(
-          Effect.catchAll((error) =>
-            Effect.logError("Operations task failed").pipe(
+          Effect.catchAllCause((cause) => {
+            const error = Cause.squash(cause);
+
+            return Effect.logError("Operations task failed").pipe(
               Effect.annotateLogs(
                 compactLogAnnotations({
                   ...errorLogAnnotations(error),
                   animeId: input.animeId,
+                  cause: Cause.pretty(cause),
                   component: "operations",
                   event: "operations.task.failed",
                   taskId,
@@ -93,11 +125,11 @@ const makeOperationsTaskLauncherService = Effect.gen(function* () {
                   taskId,
                 }),
               ),
-            ),
-          ),
+            );
+          }),
         );
 
-        yield* runTask.pipe(Effect.forkDaemon);
+        yield* Queue.offer(taskQueue, runTask);
 
         return accepted;
       }),
@@ -106,7 +138,7 @@ const makeOperationsTaskLauncherService = Effect.gen(function* () {
   return OperationsTaskLauncherService.of({ launch });
 });
 
-export const OperationsTaskLauncherServiceLive = Layer.effect(
+export const OperationsTaskLauncherServiceLive = Layer.scoped(
   OperationsTaskLauncherService,
   makeOperationsTaskLauncherService,
 );

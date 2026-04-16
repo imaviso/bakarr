@@ -23,10 +23,16 @@ export class AnimeStoredDataError extends Schema.TaggedError<AnimeStoredDataErro
   { cause: Schema.Defect, message: Schema.String },
 ) {}
 
+export class AniDbRuntimeConfigError extends Schema.TaggedError<AniDbRuntimeConfigError>()(
+  "AniDbRuntimeConfigError",
+  { cause: Schema.Defect, message: Schema.String },
+) {}
+
 export type AnimeServiceError =
   | AnimeNotFoundError
   | AnimeConflictError
   | AnimePathError
   | AnimeStoredDataError
+  | AniDbRuntimeConfigError
   | ImageCacheError
   | ExternalCallError;

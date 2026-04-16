@@ -87,7 +87,7 @@ export function makeApiLifecycleLayers(
   const authLayer = makeAuthAppLayer().pipe(Layer.provide(runtimeSupportLayer));
 
   const operationsTaskLauncherLayer = OperationsTaskLauncherServiceLive.pipe(
-    Layer.provide(Layer.mergeAll(runtimeSupportLayer, operationsLayer, operationsTaskLayer)),
+    Layer.provide(operationsTaskLayer),
   );
   const libraryLayer = LibraryBrowseServiceLive.pipe(
     Layer.provide(Layer.mergeAll(systemLayer, operationsLayer)),
@@ -106,10 +106,9 @@ export function makeApiLifecycleLayers(
     operationsTaskLayer,
   );
   const appFeatureSubgraphLayer = Layer.mergeAll(appFeatureBaseLayer, operationsTaskLauncherLayer);
-  const featureLayer = appFeatureSubgraphLayer;
   const appLayer = Layer.mergeAll(
     runtimeSupportLayer,
-    featureLayer.pipe(Layer.provide(runtimeSupportLayer)),
+    appFeatureSubgraphLayer.pipe(Layer.provide(runtimeSupportLayer)),
   );
 
   return {

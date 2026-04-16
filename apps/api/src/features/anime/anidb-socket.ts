@@ -16,7 +16,7 @@ class AniDbSocketPacketError extends Data.TaggedError("AniDbSocketPacketError")<
 export const openAniDbSocketEffect = Effect.fn("AniDbClient.openSocket")(function* (
   localPort: number,
 ) {
-  return yield* Effect.async<Socket, ExternalCallError, never>((resume) => {
+  return yield* Effect.async<Socket, ExternalCallError>((resume) => {
     const socket = createSocket("udp4");
 
     const closeSocket = () => {
@@ -76,7 +76,7 @@ export const closeAniDbSocketEffect = Effect.fn("AniDbClient.closeSocket")(funct
 
 export const sendAndReceiveAniDbPacketEffect = Effect.fn("AniDbClient.sendAndReceivePacket")(
   function* (socket: Socket, command: string) {
-    return yield* Effect.async<string, AniDbSocketPacketError, never>((resume) => {
+    return yield* Effect.async<string, AniDbSocketPacketError>((resume) => {
       let done = false;
       let timer: ReturnType<typeof setTimeout> | undefined;
 

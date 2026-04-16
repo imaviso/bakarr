@@ -1,6 +1,7 @@
 import { Match, Schema } from "effect";
 
 import {
+  AniDbRuntimeConfigError,
   AnimeConflictError,
   AnimeNotFoundError,
   AnimePathError,
@@ -15,6 +16,7 @@ import type { RouteErrorResponse } from "@/http/route-types.ts";
 
 const AnimeRouteErrorSchema = Schema.Union(
   AnimeConflictError,
+  AniDbRuntimeConfigError,
   ImageCacheError,
   AnimeNotFoundError,
   AnimePathError,
@@ -36,6 +38,7 @@ const animeRouteErrorMappers: {
   ) => RouteErrorResponse;
 } = {
   AnimeConflictError: messageStatus(409),
+  AniDbRuntimeConfigError: messageStatus(500),
   ImageCacheError: messageStatus(500),
   AnimeNotFoundError: messageStatus(404),
   AnimePathError: messageStatus(400),

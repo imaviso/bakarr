@@ -22,29 +22,26 @@ export function makeAppPlatformCoreRuntimeLayer(
   overrides: Partial<AppConfigShape> = {},
   options?: AppPlatformRuntimeOptions,
 ) {
-  const coreSupportLayer = Layer.mergeAll(
-    ClockServiceLive,
-    RandomServiceLive,
-    FetchHttpClient.layer,
-  );
-  const withCoreSupport = <A, E, R>(layer: Layer.Layer<A, E, R>) =>
-    layer.pipe(Layer.provide(coreSupportLayer));
+  const clockAndHttpLayer = Layer.mergeAll(ClockServiceLive, FetchHttpClient.layer);
+  const runtimeSupportLayer = Layer.mergeAll(clockAndHttpLayer, RandomServiceLive);
+  const withRuntimeSupport = <A, E, R>(layer: Layer.Layer<A, E, R>) =>
+    layer.pipe(Layer.provide(runtimeSupportLayer));
 
   const configBaseLayer = options?.configProvider
     ? AppConfig.layer(overrides).pipe(
         Layer.provide(Layer.setConfigProvider(options.configProvider)),
       )
     : AppConfig.layer(overrides);
-  const configLayer = withCoreSupport(configBaseLayer);
-  const runtimeLayer = withCoreSupport(AppRuntime.Live);
-  const externalCallLayer = withCoreSupport(ExternalCallLive);
+  const configLayer = configBaseLayer;
+  const runtimeLayer = AppRuntime.Live.pipe(Layer.provide(clockAndHttpLayer));
+  const externalCallLayer = ExternalCallLive.pipe(Layer.provide(clockAndHttpLayer));
   const databaseLayer = DatabaseLayerLive.pipe(Layer.provide(configLayer));
   const eventBusLayer = EventBusLive;
-  const backgroundMonitorLayer = withCoreSupport(BackgroundWorkerMonitorLive);
+  const backgroundMonitorLayer = withRuntimeSupport(BackgroundWorkerMonitorLive);
 
   const platformCoreLayer = Layer.mergeAll(
     BunContext.layer,
-    coreSupportLayer,
+    runtimeSupportLayer,
     configLayer,
     runtimeLayer,
     RuntimeLoggerLayer,

@@ -5,9 +5,11 @@ import { makeOperationsDownloadLayer } from "@/app-compose-operations-download.t
 import { makeOperationsSearchLayer } from "@/app-compose-operations-search.ts";
 import { makeOperationsUnmappedLayer } from "@/app-compose-operations-unmapped.ts";
 
+type LayerOf<Out, Error = never, Input = never> = Layer.Layer<Out, Error, Input>;
+
 export function makeOperationsAppLayers<RSOut, RSE, RSR, OTOut, OTE>(
-  runtimeSupportLayer: Layer.Layer<RSOut, RSE, RSR>,
-  operationsTaskLayer: Layer.Layer<OTOut, OTE>,
+  runtimeSupportLayer: LayerOf<RSOut, RSE, RSR>,
+  operationsTaskLayer: LayerOf<OTOut, OTE>,
 ) {
   const downloadLayers = makeOperationsDownloadLayer(runtimeSupportLayer);
   const searchLayers = makeOperationsSearchLayer({

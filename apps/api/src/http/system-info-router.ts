@@ -43,17 +43,10 @@ export const infoRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const query = yield* decodeQueryWithLabel(OperationsTaskQuerySchema, "system tasks");
         const decoded = yield* decodeOperationsTaskQuery(query);
-        // TODO: Move key exclusion to DB query instead of filtering in JS after fetching
-        return yield* (yield* OperationsTaskService)
-          .listTasks(decoded)
-          .pipe(
-            Effect.map((tasks) =>
-              tasks.filter(
-                (task) =>
-                  task.task_key !== "anime_scan_folder" && task.task_key !== "library_import",
-              ),
-            ),
-          );
+        return yield* (yield* OperationsTaskService).listTasks({
+          ...decoded,
+          excludeTaskKeys: ["anime_scan_folder", "library_import"],
+        });
       }),
       jsonResponse,
     ),
