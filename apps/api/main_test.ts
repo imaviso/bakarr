@@ -5001,10 +5001,9 @@ async function waitForSql(
 
 async function expectAcceptedTaskResponse(response: Response) {
   assert.deepStrictEqual(response["status"], 202);
-  const raw = await response.json();
-  const body = raw as { data: unknown; success: boolean };
-  assert.deepStrictEqual(body.success, true);
-  const accepted = Schema.decodeUnknownSync(AsyncOperationAcceptedSchema)(body.data);
+  const raw: Record<string, unknown> = await response.json();
+  assert.deepStrictEqual(raw["success"], true);
+  const accepted = Schema.decodeUnknownSync(AsyncOperationAcceptedSchema)(raw["data"]);
   assert.deepStrictEqual(accepted.status, "queued");
   assert.deepStrictEqual(typeof accepted.task_id, "number");
 

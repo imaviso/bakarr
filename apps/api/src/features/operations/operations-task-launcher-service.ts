@@ -16,7 +16,7 @@ export interface OperationsTaskLaunchInput<A> {
   readonly successMessage: (result: A) => string;
   readonly failureMessage: string;
   readonly taskKey: OperationsTaskKey;
-  readonly operation: (taskId: number) => Effect.Effect<A, unknown, never>;
+  readonly operation: (taskId: number) => Effect.Effect<A, unknown>;
   readonly successProgress?: (result: A) => {
     readonly progressCurrent?: number;
     readonly progressTotal?: number;
@@ -28,7 +28,7 @@ export interface OperationsTaskLaunchInput<A> {
 export interface OperationsTaskLauncherServiceShape {
   readonly launch: <A>(
     input: OperationsTaskLaunchInput<A>,
-  ) => Effect.Effect<AsyncOperationAccepted, DatabaseError | OperationsInfrastructureError, never>;
+  ) => Effect.Effect<AsyncOperationAccepted, DatabaseError | OperationsInfrastructureError>;
 }
 
 export class OperationsTaskLauncherService extends Context.Tag(

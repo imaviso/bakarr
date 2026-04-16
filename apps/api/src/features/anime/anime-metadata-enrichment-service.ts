@@ -16,6 +16,7 @@ import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
 
 const ANIDB_CACHE_STALE_AFTER_MS = 6 * 60 * 60 * 1000;
+const ANIDB_REFRESH_QUEUE_CAPACITY = 256;
 
 export interface AniDbRefreshRequest extends AniDbEpisodeLookupInput {
   readonly animeId: number;
@@ -53,7 +54,7 @@ export const AnimeMetadataEnrichmentServiceLive = Layer.scoped(
     const aniDb = yield* AniDbClient;
     const clock = yield* ClockService;
     const queue = yield* Effect.acquireRelease(
-      Queue.unbounded<AniDbRefreshRequest>(),
+      Queue.dropping<AniDbRefreshRequest>(ANIDB_REFRESH_QUEUE_CAPACITY),
       Queue.shutdown,
     );
     const queuedAnimeIdsRef = yield* Ref.make(new Set<number>());
@@ -169,7 +170,24 @@ export const AnimeMetadataEnrichmentServiceLive = Layer.scoped(
           return;
         }
 
-        yield* Queue.offer(queue, request);
+        const offered = yield* Queue.offer(queue, request);
+
+        if (offered) {
+          return;
+        }
+
+        yield* Ref.update(queuedAnimeIdsRef, (queuedAnimeIds) => {
+          const nextQueuedAnimeIds = new Set(queuedAnimeIds);
+          nextQueuedAnimeIds.delete(request.animeId);
+          return nextQueuedAnimeIds;
+        });
+
+        yield* Effect.logWarning("AniDB refresh queue full; dropped request").pipe(
+          Effect.annotateLogs({
+            animeId: request.animeId,
+            queueCapacity: ANIDB_REFRESH_QUEUE_CAPACITY,
+          }),
+        );
       },
     );
 

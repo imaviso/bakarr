@@ -5,9 +5,7 @@ import { Database, type DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { MediaProbe } from "@/lib/media-probe.ts";
 import { FileSystem } from "@/lib/filesystem.ts";
-import type {
-  OperationsAnimeNotFoundError,
-} from "@/features/operations/errors.ts";
+import type { OperationsAnimeNotFoundError } from "@/features/operations/errors.ts";
 import {
   importLibraryFiles,
   type LibraryImportFileInput,

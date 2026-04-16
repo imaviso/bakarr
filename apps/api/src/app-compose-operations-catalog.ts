@@ -9,7 +9,7 @@ import { LibraryRootsQueryServiceLive } from "@/features/operations/library-root
 
 interface OperationsCatalogLayerInput<OPOut, OPE, OPR, RSOut, RSE, RSR, OTOut, OTE> {
   readonly operationsProgressLayer: Layer.Layer<OPOut, OPE, OPR>;
-  readonly operationsTaskLayer: Layer.Layer<OTOut, OTE, never>;
+  readonly operationsTaskLayer: Layer.Layer<OTOut, OTE>;
   readonly runtimeSupportLayer: Layer.Layer<RSOut, RSE, RSR>;
 }
 

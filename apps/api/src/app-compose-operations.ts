@@ -7,7 +7,7 @@ import { makeOperationsUnmappedLayer } from "@/app-compose-operations-unmapped.t
 
 export function makeOperationsAppLayers<RSOut, RSE, RSR, OTOut, OTE>(
   runtimeSupportLayer: Layer.Layer<RSOut, RSE, RSR>,
-  operationsTaskLayer: Layer.Layer<OTOut, OTE, never>,
+  operationsTaskLayer: Layer.Layer<OTOut, OTE>,
 ) {
   const downloadLayers = makeOperationsDownloadLayer(runtimeSupportLayer);
   const searchLayers = makeOperationsSearchLayer({

@@ -80,7 +80,9 @@ export class OperationsTaskService extends Context.Tag("@bakarr/api/OperationsTa
 >() {}
 
 export const decodeTaskPayload = Effect.fn("OperationsTaskService.decodeTaskPayload")(
-  (value: string | null | undefined): Effect.Effect<OperationTaskPayload | null, OperationsInfrastructureError> =>
+  (
+    value: string | null | undefined,
+  ): Effect.Effect<OperationTaskPayload | null, OperationsInfrastructureError> =>
     value === undefined || value === null || value.length === 0
       ? Effect.succeed(null)
       : Schema.decodeUnknown(Schema.parseJson(OperationTaskPayloadSchema))(value).pipe(
@@ -95,7 +97,9 @@ export const decodeTaskPayload = Effect.fn("OperationsTaskService.decodeTaskPayl
 );
 
 export const encodeTaskPayload = Effect.fn("OperationsTaskService.encodeTaskPayload")(
-  (payload: OperationTaskPayload | undefined): Effect.Effect<string, OperationsInfrastructureError> =>
+  (
+    payload: OperationTaskPayload | undefined,
+  ): Effect.Effect<string, OperationsInfrastructureError> =>
     payload === undefined
       ? Effect.succeed("")
       : Schema.encodeUnknown(Schema.parseJson(OperationTaskPayloadSchema))(payload).pipe(
@@ -295,10 +299,9 @@ const makeOperationsTaskService = Effect.gen(function* () {
       readonly taskId: number;
     }) {
       const finishedAt = yield* nowIso();
-      const errorMessage =
-        input.error instanceof Error ? input.error.message : String(input.error);
+      const errorMessage = input.error instanceof Error ? input.error.message : String(input.error);
       const payload = yield* encodeTaskPayload({
-        ...(input.payload ?? {}),
+        ...input.payload,
         error: errorMessage,
       });
 

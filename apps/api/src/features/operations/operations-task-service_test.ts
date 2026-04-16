@@ -109,9 +109,9 @@ describe("OperationsTaskService", () => {
     Effect.gen(function* () {
       const payload = { imported: 5, failed: 0 };
       const result = yield* encodeTaskPayload(payload);
-      const parsed = yield* Schema.decodeUnknown(Schema.parseJson(
-        Schema.Struct({ imported: Schema.Number, failed: Schema.Number }),
-      ))(result);
+      const parsed = yield* Schema.decodeUnknown(
+        Schema.parseJson(Schema.Struct({ imported: Schema.Number, failed: Schema.Number })),
+      )(result);
       assert.deepStrictEqual(parsed, payload);
     }),
   );

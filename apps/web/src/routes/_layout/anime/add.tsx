@@ -61,6 +61,7 @@ export const Route = createFileRoute("/_layout/anime/add")({
 });
 
 function AddAnimePage() {
+  // eslint-disable-next-line no-unassigned-vars -- SolidJS ref assigned by component mount
   let searchInputRef: HTMLInputElement | undefined;
   usePageTitle(() => "Add Anime");
   const search = Route.useSearch();
