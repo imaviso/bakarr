@@ -6,23 +6,22 @@ import { CatalogLibraryWriteServiceLive } from "@/features/operations/catalog-li
 import { CatalogRssServiceLive } from "@/features/operations/catalog-rss-service.ts";
 import { ImportPathScanServiceLive } from "@/features/operations/import-path-scan-service.ts";
 import { LibraryRootsQueryServiceLive } from "@/features/operations/library-roots-query-service.ts";
-import { OperationsTaskServiceLive } from "@/features/operations/operations-task-service.ts";
 
-interface OperationsCatalogLayerInput<OPOut, OPE, OPR, RSOut, RSE, RSR> {
+interface OperationsCatalogLayerInput<OPOut, OPE, OPR, RSOut, RSE, RSR, OTOut, OTE> {
   readonly operationsProgressLayer: Layer.Layer<OPOut, OPE, OPR>;
+  readonly operationsTaskLayer: Layer.Layer<OTOut, OTE, never>;
   readonly runtimeSupportLayer: Layer.Layer<RSOut, RSE, RSR>;
 }
 
-export function makeOperationsCatalogLayer<OPOut, OPE, OPR, RSOut, RSE, RSR>(
-  input: OperationsCatalogLayerInput<OPOut, OPE, OPR, RSOut, RSE, RSR>,
+export function makeOperationsCatalogLayer<OPOut, OPE, OPR, RSOut, RSE, RSR, OTOut, OTE>(
+  input: OperationsCatalogLayerInput<OPOut, OPE, OPR, RSOut, RSE, RSR, OTOut, OTE>,
 ) {
-  const { operationsProgressLayer, runtimeSupportLayer } = input;
+  const { operationsProgressLayer, operationsTaskLayer, runtimeSupportLayer } = input;
   const runtimeWithProgressLayer = Layer.mergeAll(runtimeSupportLayer, operationsProgressLayer);
 
   const catalogLibraryReadLayer = CatalogLibraryReadServiceLive.pipe(
     Layer.provide(runtimeSupportLayer),
   );
-  const operationsTaskLayer = OperationsTaskServiceLive.pipe(Layer.provide(runtimeSupportLayer));
   const runtimeWithOperationsTaskLayer = Layer.mergeAll(runtimeSupportLayer, operationsTaskLayer);
   const catalogLibraryWriteLayer = CatalogLibraryWriteServiceLive.pipe(
     Layer.provide(runtimeWithOperationsTaskLayer),

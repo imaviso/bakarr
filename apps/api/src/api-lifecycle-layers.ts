@@ -64,8 +64,9 @@ export function makeApiLifecycleLayers(
 
   // Domain feature subgraphs.
   const animeLayer = makeAnimeAppLayer(runtimeSupportLayer);
+  const operationsTaskLayer = OperationsTaskServiceLive.pipe(Layer.provide(runtimeSupportLayer));
   const { catalogDownloadReadLayer, operationsLayer, operationsProgressLayer, torrentClientLayer } =
-    makeOperationsAppLayers(runtimeSupportLayer);
+    makeOperationsAppLayers(runtimeSupportLayer, operationsTaskLayer);
   const appDomainSubgraphLayer = Layer.mergeAll(animeLayer, operationsLayer);
 
   // Background worker runtime sits on top of domain + runtime support.
@@ -83,7 +84,6 @@ export function makeApiLifecycleLayers(
 
   const authLayer = makeAuthAppLayer(runtimeSupportLayer);
 
-  const operationsTaskLayer = OperationsTaskServiceLive.pipe(Layer.provide(runtimeSupportLayer));
   const operationsTaskLauncherLayer = OperationsTaskLauncherServiceLive.pipe(
     Layer.provide(Layer.mergeAll(runtimeSupportLayer, operationsLayer, operationsTaskLayer)),
   );

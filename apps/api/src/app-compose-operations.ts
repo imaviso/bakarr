@@ -5,8 +5,9 @@ import { makeOperationsDownloadLayer } from "@/app-compose-operations-download.t
 import { makeOperationsSearchLayer } from "@/app-compose-operations-search.ts";
 import { makeOperationsUnmappedLayer } from "@/app-compose-operations-unmapped.ts";
 
-export function makeOperationsAppLayers<RSOut, RSE, RSR>(
+export function makeOperationsAppLayers<RSOut, RSE, RSR, OTOut, OTE>(
   runtimeSupportLayer: Layer.Layer<RSOut, RSE, RSR>,
+  operationsTaskLayer: Layer.Layer<OTOut, OTE, never>,
 ) {
   const downloadLayers = makeOperationsDownloadLayer(runtimeSupportLayer);
   const searchLayers = makeOperationsSearchLayer({
@@ -20,6 +21,7 @@ export function makeOperationsAppLayers<RSOut, RSE, RSR>(
   });
   const catalogLayers = makeOperationsCatalogLayer({
     operationsProgressLayer: downloadLayers.operationsProgressLayer,
+    operationsTaskLayer,
     runtimeSupportLayer,
   });
 
