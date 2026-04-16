@@ -124,14 +124,14 @@ const toOperationsTask = Effect.fn("OperationsTaskService.toOperationsTask")(fun
     id: row.id,
     task_key: row.taskKey,
     status: row.status,
-    ...(row.progressCurrent === null ? {} : { progress_current: row.progressCurrent }),
-    ...(row.progressTotal === null ? {} : { progress_total: row.progressTotal }),
-    ...(row.message === null ? {} : { message: row.message }),
+    progress_current: row.progressCurrent ?? undefined,
+    progress_total: row.progressTotal ?? undefined,
+    message: row.message ?? undefined,
     created_at: row.createdAt,
-    ...(row.startedAt === null ? {} : { started_at: row.startedAt }),
-    ...(row.finishedAt === null ? {} : { finished_at: row.finishedAt }),
+    started_at: row.startedAt ?? undefined,
+    finished_at: row.finishedAt ?? undefined,
     updated_at: row.updatedAt,
-    ...(row.animeId === null ? {} : { anime_id: row.animeId }),
+    anime_id: row.animeId ?? undefined,
     ...(payload === null ? {} : { payload }),
   }).pipe(
     Effect.mapError(
@@ -178,9 +178,11 @@ const makeOperationsTaskService = Effect.gen(function* () {
     const created = rows[0];
 
     if (!created) {
-      return yield* new OperationsInfrastructureError({
-        message: "Failed to create operations task",
-      });
+      return yield* Effect.fail(
+        new OperationsInfrastructureError({
+          message: "Failed to create operations task",
+        }),
+      );
     }
 
     const accepted = {
@@ -292,9 +294,7 @@ const makeOperationsTaskService = Effect.gen(function* () {
     }) {
       const finishedAt = yield* nowIso();
       const errorMessage =
-        typeof input.error === "object" && input.error !== null && "message" in input.error
-          ? String(input.error.message)
-          : String(input.error);
+        input.error instanceof Error ? input.error.message : String(input.error);
       const payload = yield* encodeTaskPayload({
         ...(input.payload ?? {}),
         error: errorMessage,
@@ -323,9 +323,11 @@ const makeOperationsTaskService = Effect.gen(function* () {
     const [row] = rows;
 
     if (!row) {
-      return yield* new OperationsTaskNotFoundError({
-        message: `Operations task ${taskId} not found`,
-      });
+      return yield* Effect.fail(
+        new OperationsTaskNotFoundError({
+          message: `Operations task ${taskId} not found`,
+        }),
+      );
     }
 
     return yield* toOperationsTask(row);

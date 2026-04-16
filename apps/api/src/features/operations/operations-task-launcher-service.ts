@@ -129,7 +129,6 @@ const makeOperationsTaskLauncherService = Effect.gen(function* () {
               ),
             ),
           ),
-          Effect.ignore,
         );
 
         yield* runTask.pipe(Effect.forkDaemon);
