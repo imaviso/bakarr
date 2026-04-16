@@ -4,6 +4,8 @@ import { Effect, Layer } from "effect";
 import { Database } from "@/db/database.ts";
 import {
   decodeOperationsTaskQuery,
+  decodeTaskPayload,
+  encodeTaskPayload,
   OperationsTaskService,
   OperationsTaskServiceLive,
 } from "@/features/operations/operations-task-service.ts";
@@ -65,6 +67,50 @@ describe("OperationsTaskService", () => {
         animeId: 3,
         taskKey: "anime_scan_folder",
       });
+    }),
+  );
+
+  it.effect("decodeTaskPayload returns null for null input", () =>
+    Effect.gen(function* () {
+      const result = yield* decodeTaskPayload(null);
+      assert.strictEqual(result, null);
+    }),
+  );
+
+  it.effect("decodeTaskPayload returns null for undefined input", () =>
+    Effect.gen(function* () {
+      const result = yield* decodeTaskPayload(undefined);
+      assert.strictEqual(result, null);
+    }),
+  );
+
+  it.effect("decodeTaskPayload returns null for empty string", () =>
+    Effect.gen(function* () {
+      const result = yield* decodeTaskPayload("");
+      assert.strictEqual(result, null);
+    }),
+  );
+
+  it.effect("decodeTaskPayload returns parsed payload for valid JSON", () =>
+    Effect.gen(function* () {
+      const result = yield* decodeTaskPayload('{"imported":5,"failed":0}');
+      assert.deepStrictEqual(result, { imported: 5, failed: 0 });
+    }),
+  );
+
+  it.effect("encodeTaskPayload returns empty string for undefined input", () =>
+    Effect.gen(function* () {
+      const result = yield* encodeTaskPayload(undefined);
+      assert.strictEqual(result, "");
+    }),
+  );
+
+  it.effect("encodeTaskPayload returns encoded JSON for valid payload", () =>
+    Effect.gen(function* () {
+      const payload = { imported: 5, failed: 0 };
+      const result = yield* encodeTaskPayload(payload);
+      const parsed = JSON.parse(result);
+      assert.deepStrictEqual(parsed, payload);
     }),
   );
 });

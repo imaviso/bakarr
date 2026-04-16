@@ -75,10 +75,10 @@ export class OperationsTaskService extends Context.Tag("@bakarr/api/OperationsTa
   OperationsTaskServiceShape
 >() {}
 
-const decodeTaskPayload = Effect.fn("OperationsTaskService.decodeTaskPayload")(
-  (value: string | null | undefined) =>
+export const decodeTaskPayload = Effect.fn("OperationsTaskService.decodeTaskPayload")(
+  (value: string | null | undefined): Effect.Effect<OperationTaskPayload | null, OperationsInfrastructureError> =>
     value === undefined || value === null || value.length === 0
-      ? Effect.void
+      ? Effect.succeed(null)
       : Schema.decodeUnknown(Schema.parseJson(OperationTaskPayloadSchema))(value).pipe(
           Effect.mapError(
             (cause) =>
@@ -90,10 +90,10 @@ const decodeTaskPayload = Effect.fn("OperationsTaskService.decodeTaskPayload")(
         ),
 );
 
-const encodeTaskPayload = Effect.fn("OperationsTaskService.encodeTaskPayload")(
-  (payload: OperationTaskPayload | undefined) =>
+export const encodeTaskPayload = Effect.fn("OperationsTaskService.encodeTaskPayload")(
+  (payload: OperationTaskPayload | undefined): Effect.Effect<string, OperationsInfrastructureError> =>
     payload === undefined
-      ? Effect.void
+      ? Effect.succeed("")
       : Schema.encodeUnknown(Schema.parseJson(OperationTaskPayloadSchema))(payload).pipe(
           Effect.mapError(
             (cause) =>
@@ -132,7 +132,7 @@ const toOperationsTask = Effect.fn("OperationsTaskService.toOperationsTask")(fun
     ...(row.finishedAt === null ? {} : { finished_at: row.finishedAt }),
     updated_at: row.updatedAt,
     ...(row.animeId === null ? {} : { anime_id: row.animeId }),
-    ...(payload === undefined ? {} : { payload }),
+    ...(payload === null ? {} : { payload }),
   }).pipe(
     Effect.mapError(
       (cause) =>
@@ -272,7 +272,7 @@ const makeOperationsTaskService = Effect.gen(function* () {
           .set({
             finishedAt,
             message: input.message,
-            payload: payload ?? null,
+            payload: payload.length === 0 ? null : payload,
             progressCurrent: input.progressCurrent ?? 100,
             progressTotal: input.progressTotal ?? 100,
             status: "succeeded",
@@ -306,7 +306,7 @@ const makeOperationsTaskService = Effect.gen(function* () {
           .set({
             finishedAt,
             message: input.message,
-            payload: payload ?? null,
+            payload: payload.length === 0 ? null : payload,
             status: "failed",
             updatedAt: finishedAt,
           })
