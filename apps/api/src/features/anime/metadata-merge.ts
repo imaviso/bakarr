@@ -1,7 +1,7 @@
 import type { AnimeDiscoveryEntry } from "@packages/shared/index.ts";
 import type { AnimeMetadata } from "@/features/anime/anilist-model.ts";
 import type { JikanNormalizedAnime } from "@/features/anime/jikan-model.ts";
-import type { ManamiAnimeEntry } from "@/features/anime/manami-model.ts";
+import type { ManamiLookupEntry } from "@/features/anime/manami.ts";
 import { extractYearFromDate } from "@/lib/anime-date-utils.ts";
 
 type JikanRelationTarget = JikanNormalizedAnime["relations"][number];
@@ -10,7 +10,7 @@ type JikanRecommendationTarget = NonNullable<JikanNormalizedAnime["recommendatio
 export interface MetadataMergeInput {
   readonly anilist: AnimeMetadata;
   readonly jikan?: JikanNormalizedAnime;
-  readonly manami?: ManamiAnimeEntry;
+  readonly manami?: ManamiLookupEntry;
   readonly malToAniListId?: ReadonlyMap<number, number>;
 }
 
@@ -38,7 +38,7 @@ export function mergeAnimeMetadata(input: MetadataMergeInput): AnimeMetadata {
     episodeCount: anilist.episodeCount ?? jikan?.episodeCount,
     favorites: anilist.favorites ?? jikan?.favorites,
     format: fillFormat(anilist.format, jikan?.format),
-    genres: mergeGenres(anilist.genres, jikan?.genres, manami?.tags),
+    genres: mergeGenres(anilist.genres, jikan?.genres),
     id: anilist.id,
     members: anilist.members ?? jikan?.members,
     popularity: anilist.popularity ?? jikan?.popularity,
@@ -49,8 +49,8 @@ export function mergeAnimeMetadata(input: MetadataMergeInput): AnimeMetadata {
     startDate,
     startYear: anilist.startYear ?? jikan?.startYear ?? extractYearFromDate(startDate),
     status: fillStatus(anilist.status, jikan?.status),
-    studios: mergeStudios(anilist.studios, jikan?.studios, manami?.studios),
-    synonyms: mergeSynonyms(anilist.synonyms, jikan?.titleVariants, manami?.synonyms),
+    studios: mergeStudios(anilist.studios, jikan?.studios),
+    synonyms: mergeSynonyms(anilist.synonyms, jikan?.titleVariants),
     title: mergeTitle(anilist, jikan, manami),
     recommendedAnime: mergeDiscoveryEntries(
       mergeDiscoveryEntries(anilist.recommendedAnime, jikanRecommendationEntries),
@@ -63,7 +63,7 @@ export function mergeAnimeMetadata(input: MetadataMergeInput): AnimeMetadata {
 export function mergeTitle(
   anilist: Pick<AnimeMetadata, "title">,
   jikan?: Pick<JikanNormalizedAnime, "title" | "titleVariants">,
-  manami?: Pick<ManamiAnimeEntry, "title" | "synonyms">,
+  manami?: Pick<ManamiLookupEntry, "englishTitle" | "nativeTitle" | "title">,
 ): AnimeMetadata["title"] {
   const fallback = deriveManamiTitleFallback(manami);
 
@@ -77,23 +77,20 @@ export function mergeTitle(
 export function mergeSynonyms(
   anilistSynonyms?: ReadonlyArray<string>,
   jikanTitleVariants?: ReadonlyArray<string>,
-  manamiSynonyms?: ReadonlyArray<string>,
 ) {
-  return mergeStringGroups(anilistSynonyms, jikanTitleVariants, manamiSynonyms);
+  return mergeStringGroups(anilistSynonyms, jikanTitleVariants);
 }
 
 export function mergeGenres(
   anilistGenres?: ReadonlyArray<string>,
   jikanGenres?: ReadonlyArray<string>,
-  manamiTags?: ReadonlyArray<string>,
 ) {
-  return mergeStringGroups(anilistGenres, jikanGenres, manamiTags);
+  return mergeStringGroups(anilistGenres, jikanGenres);
 }
 
 export function mergeStudios(
   anilistStudios?: ReadonlyArray<string>,
   jikanStudios?: ReadonlyArray<string>,
-  manamiStudios?: ReadonlyArray<string>,
 ) {
   const normalizedAniListStudios = normalizeStringList(anilistStudios);
   if (normalizedAniListStudios.length > 0) {
@@ -105,8 +102,7 @@ export function mergeStudios(
     return normalizedJikanStudios;
   }
 
-  const normalizedManamiStudios = normalizeStringList(manamiStudios);
-  return normalizedManamiStudios.length > 0 ? normalizedManamiStudios : undefined;
+  return undefined;
 }
 
 export function mergeScore(anilistScore?: number, jikanScore?: number) {
@@ -208,23 +204,27 @@ export function mergeDiscoveryEntries(
   return out;
 }
 
-function deriveManamiTitleFallback(manami?: Pick<ManamiAnimeEntry, "title" | "synonyms">): {
+function deriveManamiTitleFallback(
+  manami?: Pick<ManamiLookupEntry, "englishTitle" | "nativeTitle" | "title">,
+): {
   english?: string;
   native?: string;
 } {
-  const candidates = normalizeStringList([manami?.title, ...(manami?.synonyms ?? [])]);
-  if (candidates.length === 0) {
+  const title = normalizeString(manami?.title);
+  const englishTitle = normalizeString(manami?.englishTitle);
+  const nativeTitle = normalizeString(manami?.nativeTitle);
+
+  if (title === undefined && englishTitle === undefined && nativeTitle === undefined) {
     return {};
   }
 
-  const englishCandidate = candidates.find((value) => isMostlyLatin(value));
-  const nativeCandidate = candidates.find((value) => !isMostlyLatin(value));
-  const first = candidates[0]!;
+  const english = englishTitle ?? title;
+  const native = nativeTitle ?? title;
 
-  const english = englishCandidate ?? first;
-  const native = nativeCandidate ?? first;
-
-  return { english, native };
+  return {
+    ...(english === undefined ? {} : { english }),
+    ...(native === undefined ? {} : { native }),
+  };
 }
 
 function mergeStringGroups(
@@ -291,10 +291,6 @@ function normalizeString(value: string | undefined) {
 
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
-}
-
-function isMostlyLatin(value: string) {
-  return /^[\p{Script=Latin}\p{M}\p{N}\p{P}\p{Zs}]+$/u.test(value);
 }
 
 function clampInteger(value: number, min: number, max: number) {

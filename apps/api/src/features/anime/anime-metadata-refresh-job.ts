@@ -28,7 +28,7 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
   imageCacheService: typeof AnimeImageCacheService.Service;
   metadataProvider: typeof AnimeMetadataProviderService.Service;
   db: AppDatabase;
-  nowIso: () => Effect.Effect<string>;
+  nowIso: () => Effect.Effect<string, MetadataRefreshError>;
   refreshConcurrency: number;
 }) {
   const { nowIso } = input;
@@ -120,20 +120,20 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
   );
 
   return yield* Effect.gen(function* () {
-    const animeRows = yield* tryDatabasePromise("Failed to refresh metadata", () =>
-      input.db.select().from(anime).where(eq(anime.monitored, true)),
+    const monitoredAnime = yield* tryDatabasePromise("Failed to refresh metadata", () =>
+      input.db.select({ id: anime.id }).from(anime).where(eq(anime.monitored, true)),
     );
     let refreshed = 0;
     let skippedExternal = 0;
 
     yield* Effect.forEach(
-      animeRows,
-      (animeRow) =>
+      monitoredAnime,
+      (monitored) =>
         Effect.gen(function* () {
           const { metadata, nextAnimeRow } = yield* syncAnimeMetadataEffect({
             imageCacheService: input.imageCacheService,
             metadataProvider: input.metadataProvider,
-            animeId: animeRow.id,
+            animeId: monitored.id,
             db: input.db,
             eventPublisher: Option.none(),
             nowIso,
@@ -141,12 +141,12 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
 
           yield* syncEpisodeScheduleEffect(
             input.db,
-            animeRow.id,
+            monitored.id,
             nextAnimeRow,
             metadata?.futureAiringSchedule,
             nowIso,
           );
-          yield* syncEpisodeMetadataEffect(input.db, animeRow.id, metadata?.episodes);
+          yield* syncEpisodeMetadataEffect(input.db, monitored.id, metadata?.episodes);
           refreshed += 1;
         }).pipe(
           Effect.catchTag("ExternalCallError", (error) =>
@@ -154,7 +154,7 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
               "Skipping metadata refresh for anime after external call failure",
             ).pipe(
               Effect.annotateLogs({
-                animeId: animeRow.id,
+                animeId: monitored.id,
                 externalOperation: error.operation,
               }),
               Effect.tap(() =>

@@ -16,7 +16,7 @@ export const buildAiringScheduleMap = (
   futureAiringSchedule: ReadonlyArray<FutureAiringScheduleEntry> | undefined,
 ) => new Map((futureAiringSchedule ?? []).map((entry) => [entry.episode, entry.airingAt]));
 
-export const ensureEpisodesEffect = Effect.fn("AnimeRepository.ensureEpisodes")(function* (
+export const ensureEpisodesEffect = Effect.fn("AnimeRepository.ensureEpisodes")(function* <E>(
   db: AppDatabase,
   animeId: number,
   episodeCount: number | undefined,
@@ -25,7 +25,7 @@ export const ensureEpisodesEffect = Effect.fn("AnimeRepository.ensureEpisodes")(
   endDate: string | undefined,
   futureAiringSchedule: ReadonlyArray<FutureAiringScheduleEntry> | undefined,
   resetMissingOnly: boolean,
-  nowIso: () => Effect.Effect<string>,
+  nowIso: () => Effect.Effect<string, E>,
 ) {
   const now = yield* nowIso();
   const hasFutureSchedule = Array.isArray(futureAiringSchedule) && futureAiringSchedule.length > 0;
@@ -58,7 +58,7 @@ export const ensureEpisodesEffect = Effect.fn("AnimeRepository.ensureEpisodes")(
 
 export const updateAnimeEpisodeAirDatesEffect = Effect.fn(
   "AnimeRepository.updateAnimeEpisodeAirDates",
-)(function* (
+)(function* <E>(
   db: AppDatabase,
   animeId: number,
   episodeCount: number | undefined,
@@ -66,7 +66,7 @@ export const updateAnimeEpisodeAirDatesEffect = Effect.fn(
   startDate: string | undefined,
   endDate: string | undefined,
   futureAiringSchedule: ReadonlyArray<FutureAiringScheduleEntry> | undefined,
-  nowIso: () => Effect.Effect<string>,
+  nowIso: () => Effect.Effect<string, E>,
 ) {
   const scheduleMap = buildAiringScheduleMap(futureAiringSchedule);
   const maxScheduledEpisode = clampInferredEpisodeUpperBound(maxEpisodeNumber(scheduleMap));

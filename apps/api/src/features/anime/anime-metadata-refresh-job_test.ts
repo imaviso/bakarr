@@ -82,7 +82,7 @@ it.scoped(
             message: "clock unavailable",
             operation: "system.now_iso",
           });
-          const nowIso = (() => {
+          const nowIso: () => Effect.Effect<string, ExternalCallError> = (() => {
             let nowIsoCalls = 0;
 
             return () =>
@@ -96,7 +96,7 @@ it.scoped(
                     : Effect.succeed(`2026-04-16T00:00:0${callCount}.000Z`),
                 ),
               );
-          })() as unknown as () => Effect.Effect<string>;
+          })();
 
           const result = yield* refreshMetadataForMonitoredAnimeEffect({
             imageCacheService: {

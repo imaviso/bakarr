@@ -3,16 +3,16 @@ import { assert, it } from "@effect/vitest";
 import { Effect, Either, Layer, Option, Schema } from "effect";
 
 import { AppConfig } from "@/config.ts";
-import { buildManamiIndexes } from "@/features/anime/manami-index.ts";
-import { ManamiDatasetSchema } from "@/features/anime/manami-model.ts";
 import {
-  MANAMI_CACHE_DATASET_FILE,
   MANAMI_CACHE_DIR_NAME,
+  MANAMI_CACHE_DATASET_FILE,
   MANAMI_CACHE_META_FILE,
   MANAMI_CACHE_REFRESH_INTERVAL_MS,
+  MANAMI_CACHE_SQLITE_FILE,
   ManamiClient,
   ManamiClientLive,
 } from "@/features/anime/manami.ts";
+import { ManamiDatasetSchema } from "@/features/anime/manami-model.ts";
 import { parseAniListIdFromSource, parseMalIdFromSource } from "@/features/anime/manami-url.ts";
 import { ClockService, ClockServiceLive } from "@/lib/clock.ts";
 import { ExternalCallError, ExternalCallLive } from "@/lib/effect-retry.ts";
@@ -42,60 +42,6 @@ it("manami source URL parsing extracts AniList and MAL ids", () => {
   assert.deepStrictEqual(parseMalIdFromSource("https://myanimelist.net/anime.php?id=9253"), 9253);
   assert.deepStrictEqual(parseMalIdFromSource("https://anilist.co/anime/5114"), undefined);
 });
-
-it.effect("manami index construction maps AniList and MAL lookups", () =>
-  Effect.gen(function* () {
-    const dataset = yield* decodeSyntheticDataset;
-    const indexes = buildManamiIndexes(dataset);
-
-    const fromAniList = indexes.byAniListId.get(1001);
-    const mappedAniListId = indexes.aniListIdByMalId.get(3003);
-    const fromMal =
-      mappedAniListId === undefined ? undefined : indexes.byAniListId.get(mappedAniListId);
-
-    assert.deepStrictEqual(fromAniList?.title, "Alpha");
-    assert.deepStrictEqual(fromMal?.title, "Gamma");
-    assert.deepStrictEqual(indexes.malOnlyByMalId.size, 0);
-    assert.deepStrictEqual(indexes.malIdByAniListId.get(1002), undefined);
-    assert.deepStrictEqual(indexes.malIdByAniListId.get(1003), 3003);
-    assert.deepStrictEqual(indexes.aniListIdByMalId.get(3001), 1001);
-  }),
-);
-
-it.effect("manami index construction keeps first entry for duplicate ids", () =>
-  Effect.gen(function* () {
-    const dataset = yield* Schema.decodeUnknown(ManamiDatasetSchema)({
-      data: [
-        {
-          sources: [
-            "https://anilist.co/anime/5001/First",
-            "https://myanimelist.net/anime/9001/First",
-          ],
-          title: "First",
-        },
-        {
-          sources: [
-            "https://anilist.co/anime/5001/Second",
-            "https://myanimelist.net/anime/9001/Second",
-          ],
-          title: "Second",
-        },
-      ],
-      lastUpdate: "2026-01-02",
-      license: {
-        name: "Open Data Commons Open Database License (ODbL) v1.0 + Database Contents License (DbCL) v1.0",
-        url: "https://github.com/manami-project/anime-offline-database/blob/2026-14/LICENSE",
-      },
-      repository: "https://github.com/manami-project/anime-offline-database",
-    });
-    const indexes = buildManamiIndexes(dataset);
-
-    assert.deepStrictEqual(indexes.byAniListId.get(5001)?.title, "First");
-    assert.deepStrictEqual(indexes.malOnlyByMalId.get(9001), undefined);
-    assert.deepStrictEqual(indexes.malIdByAniListId.get(5001), 9001);
-    assert.deepStrictEqual(indexes.aniListIdByMalId.get(9001), 5001);
-  }),
-);
 
 it.scoped("ManamiClient maps non-2xx response as ExternalCallError with response operation", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
@@ -162,7 +108,7 @@ it.scoped("ManamiClient maps decode failures as ExternalCallError with json oper
   ),
 );
 
-it.scoped("ManamiClient downloads once and serves indexed lookups", () =>
+it.scoped("ManamiClient downloads once and serves sqlite lookups", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       let requestCount = 0;
@@ -217,63 +163,7 @@ it.scoped("ManamiClient downloads once and serves indexed lookups", () =>
   ),
 );
 
-it.scoped("ManamiClient reuses parsed indexes while cache is fresh", () =>
-  withFileSystemSandboxEffect(({ fs, root }) =>
-    Effect.gen(function* () {
-      let requestCount = 0;
-      let datasetReadCount = 0;
-      const countingFs: FileSystemShape = {
-        ...fs,
-        readFile: (path) => {
-          if (typeof path === "string" && path.endsWith(`/${MANAMI_CACHE_DATASET_FILE}`)) {
-            datasetReadCount += 1;
-          }
-
-          return fs.readFile(path);
-        },
-      };
-      const clientLayer = makeManamiClientLayer({
-        fs: countingFs,
-        httpClient: HttpClient.make((request) =>
-          Effect.sync(() => {
-            requestCount += 1;
-            return HttpClientResponse.fromWeb(
-              request,
-              Response.json(SYNTHETIC_DATASET, { status: 200 }),
-            );
-          }),
-        ),
-        root,
-      });
-
-      const result = yield* Effect.flatMap(ManamiClient, (client) =>
-        Effect.gen(function* () {
-          const first = yield* client.getByAniListId(1001);
-          const second = yield* client.getByMalId(3003);
-          const third = yield* client.resolveMalIdFromAniListId(1003);
-          const fourth = yield* client.resolveAniListIdFromMalId(3001);
-
-          return { first, fourth, second, third } as const;
-        }),
-      ).pipe(Effect.provide(clientLayer));
-
-      assert.deepStrictEqual(
-        result.first.pipe(Option.map((entry) => entry.title)),
-        Option.some("Alpha"),
-      );
-      assert.deepStrictEqual(
-        result.second.pipe(Option.map((entry) => entry.title)),
-        Option.some("Gamma"),
-      );
-      assert.deepStrictEqual(result.third, Option.some(3003));
-      assert.deepStrictEqual(result.fourth, Option.some(1001));
-      assert.deepStrictEqual(requestCount, 1);
-      assert.deepStrictEqual(datasetReadCount, 1);
-    }),
-  ),
-);
-
-it.scoped("ManamiClient uses local cache across layer restarts", () =>
+it.scoped("ManamiClient reuses sqlite cache across layer restarts", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       let firstRunRequests = 0;
@@ -329,7 +219,91 @@ it.scoped("ManamiClient uses local cache across layer restarts", () =>
   ),
 );
 
-it.scoped("ManamiClient refreshes stale local cache", () =>
+it.scoped("ManamiClient rebuilds invalid sqlite cache from local dataset", () =>
+  withFileSystemSandboxEffect(({ fs, root }) =>
+    Effect.gen(function* () {
+      const clockNow = MANAMI_CACHE_REFRESH_INTERVAL_MS / 2;
+      yield* writeCachedDataset(fs, root, SYNTHETIC_DATASET, clockNow - 1);
+      const cacheDir = `${root}/${MANAMI_CACHE_DIR_NAME}`;
+      yield* fs.writeFile(`${cacheDir}/${MANAMI_CACHE_SQLITE_FILE}`, new Uint8Array());
+
+      let requestCount = 0;
+      const clientLayer = makeManamiClientLayer({
+        clockLayer: Layer.succeed(ClockService, {
+          currentMonotonicMillis: Effect.succeed(clockNow),
+          currentTimeMillis: Effect.succeed(clockNow),
+        }),
+        fs,
+        httpClient: HttpClient.make((request) =>
+          Effect.sync(() => {
+            requestCount += 1;
+            return HttpClientResponse.fromWeb(
+              request,
+              Response.json({ message: "network should not be used" }, { status: 502 }),
+            );
+          }),
+        ),
+        root,
+      });
+
+      const result = yield* Effect.flatMap(ManamiClient, (client) =>
+        client.getByAniListId(1001),
+      ).pipe(Effect.provide(clientLayer));
+
+      assert.deepStrictEqual(result.pipe(Option.map((entry) => entry.title)), Option.some("Alpha"));
+      assert.deepStrictEqual(requestCount, 0);
+    }),
+  ),
+);
+
+it.scoped("ManamiClient fills duplicate cross-id links while keeping first title rows", () =>
+  withFileSystemSandboxEffect(({ fs, root }) =>
+    Effect.gen(function* () {
+      let requestCount = 0;
+      const clientLayer = makeManamiClientLayer({
+        fs,
+        httpClient: HttpClient.make((request) =>
+          Effect.sync(() => {
+            requestCount += 1;
+            return HttpClientResponse.fromWeb(
+              request,
+              Response.json(DUPLICATE_LINK_DATASET, { status: 200 }),
+            );
+          }),
+        ),
+        root,
+      });
+
+      const result = yield* Effect.flatMap(ManamiClient, (client) =>
+        Effect.all(
+          [
+            client.resolveMalIdFromAniListId(5001),
+            client.resolveAniListIdFromMalId(9002),
+            client.getByMalId(9001),
+            client.getByMalId(9002),
+          ],
+          { concurrency: "unbounded" },
+        ),
+      ).pipe(Effect.provide(clientLayer));
+
+      const [malFromAniList, aniListFromMal, firstMalLookup, secondMalLookup] = result;
+
+      assert.deepStrictEqual(malFromAniList, Option.some(9001));
+      assert.deepStrictEqual(aniListFromMal, Option.some(5002));
+      assert.deepStrictEqual(
+        firstMalLookup.pipe(Option.map((entry) => entry.title)),
+        Option.some("First AniList"),
+      );
+      assert.deepStrictEqual(
+        secondMalLookup.pipe(Option.map((entry) => entry.title)),
+        Option.some("Second AniList"),
+      );
+      assert.deepStrictEqual(requestCount, 1);
+    }),
+  ),
+);
+
+it.scoped("ManamiClient refreshes stale sqlite cache", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const staleDataset = {
@@ -454,4 +428,35 @@ const SYNTHETIC_DATASET = {
   repository: "https://github.com/manami-project/anime-offline-database",
 };
 
-const decodeSyntheticDataset = Schema.decodeUnknown(ManamiDatasetSchema)(SYNTHETIC_DATASET);
+const DUPLICATE_LINK_DATASET = {
+  data: [
+    {
+      sources: ["https://anilist.co/anime/5001/First-AniList"],
+      title: "First AniList",
+    },
+    {
+      sources: [
+        "https://anilist.co/anime/5001/Second-AniList",
+        "https://myanimelist.net/anime/9001/Second-AniList",
+      ],
+      title: "Second AniList",
+    },
+    {
+      sources: ["https://myanimelist.net/anime/9002/Mal-Only-First"],
+      title: "MAL Only First",
+    },
+    {
+      sources: [
+        "https://anilist.co/anime/5002/Second-AniList",
+        "https://myanimelist.net/anime/9002/Second-AniList",
+      ],
+      title: "Second AniList",
+    },
+  ],
+  lastUpdate: "2026-01-02",
+  license: {
+    name: "Open Data Commons Open Database License (ODbL) v1.0 + Database Contents License (DbCL) v1.0",
+    url: "https://github.com/manami-project/anime-offline-database/blob/2026-14/LICENSE",
+  },
+  repository: "https://github.com/manami-project/anime-offline-database",
+};

@@ -1,21 +1,23 @@
-import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
+import * as BunSqliteClient from "@effect/sql-sqlite-bun/SqliteClient";
+import { HttpClient, HttpClientRequest } from "@effect/platform";
 import { dirname, join, resolve } from "node:path";
-import { Context, Effect, Layer, Option, Ref, Schema } from "effect";
+import { Context, Effect, Layer, Option, Schema } from "effect";
 
 import { AppConfig } from "@/config.ts";
-import { buildManamiIndexes } from "@/features/anime/manami-index.ts";
-import { ManamiDatasetSchema, type ManamiAnimeEntry } from "@/features/anime/manami-model.ts";
-import { isNotFoundError } from "@/lib/fs-errors.ts";
+import { ManamiDatasetSchema, type ManamiDataset } from "@/features/anime/manami-model.ts";
+import { parseAniListIdFromSource, parseMalIdFromSource } from "@/features/anime/manami-url.ts";
 import { makeSingleFlightEffectRunner } from "@/lib/effect-coalescing-single-flight-runner.ts";
 import { ExternalCall, ExternalCallError, type ExternalCallShape } from "@/lib/effect-retry.ts";
 import { ClockService, type ClockServiceShape } from "@/lib/clock.ts";
 import { FileSystem, type FileSystemShape } from "@/lib/filesystem.ts";
+import { isNotFoundError } from "@/lib/fs-errors.ts";
 
 export const MANAMI_DATASET_URL =
   "https://github.com/manami-project/anime-offline-database/releases/latest/download/anime-offline-database-minified.json";
 
 export const MANAMI_CACHE_DIR_NAME = "cache";
 export const MANAMI_CACHE_DATASET_FILE = "manami-anime-offline-database-minified.json";
+export const MANAMI_CACHE_SQLITE_FILE = "manami-anime-offline-database.sqlite";
 export const MANAMI_CACHE_META_FILE = "manami-anime-offline-database-meta.json";
 export const MANAMI_CACHE_REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
@@ -29,13 +31,19 @@ const ManamiCacheMetaSchema = Schema.Struct({
 const ManamiDatasetJsonSchema = Schema.parseJson(ManamiDatasetSchema);
 const ManamiCacheMetaJsonSchema = Schema.parseJson(ManamiCacheMetaSchema);
 
+export interface ManamiLookupEntry {
+  readonly englishTitle?: string;
+  readonly nativeTitle?: string;
+  readonly title: string;
+}
+
 interface ManamiClientShape {
   readonly getByAniListId: (
     anilistId: number,
-  ) => Effect.Effect<Option.Option<ManamiAnimeEntry>, ExternalCallError>;
+  ) => Effect.Effect<Option.Option<ManamiLookupEntry>, ExternalCallError>;
   readonly getByMalId: (
     malId: number,
-  ) => Effect.Effect<Option.Option<ManamiAnimeEntry>, ExternalCallError>;
+  ) => Effect.Effect<Option.Option<ManamiLookupEntry>, ExternalCallError>;
   readonly resolveAniListIdFromMalId: (
     malId: number,
   ) => Effect.Effect<Option.Option<number>, ExternalCallError>;
@@ -48,6 +56,23 @@ interface ManamiCachePaths {
   readonly datasetFile: string;
   readonly directory: string;
   readonly metaFile: string;
+  readonly sqliteFile: string;
+}
+
+type CacheState =
+  | { readonly _tag: "Fresh" }
+  | { readonly _tag: "InvalidSqlite" }
+  | { readonly _tag: "MissingMeta" }
+  | { readonly _tag: "Stale" };
+
+interface LookupRow {
+  readonly english_title: string | null;
+  readonly native_title: string | null;
+  readonly title: string;
+}
+
+interface LookupIdRow {
+  readonly value: number;
 }
 
 export class ManamiClient extends Context.Tag("@bakarr/api/ManamiClient")<
@@ -55,7 +80,7 @@ export class ManamiClient extends Context.Tag("@bakarr/api/ManamiClient")<
   ManamiClientShape
 >() {}
 
-export const ManamiClientLive = Layer.effect(
+export const ManamiClientLive = Layer.scoped(
   ManamiClient,
   Effect.gen(function* () {
     const appConfig = yield* AppConfig;
@@ -64,66 +89,148 @@ export const ManamiClientLive = Layer.effect(
     const externalCall = yield* ExternalCall;
     const fs = yield* FileSystem;
     const cachePaths = resolveCachePaths(appConfig.databaseFile);
-    const indexesRef = yield* Ref.make<Option.Option<ReturnType<typeof buildManamiIndexes>>>(
-      Option.none(),
+    yield* fs.mkdir(cachePaths.directory, { recursive: true }).pipe(
+      Effect.mapError((cause) =>
+        ExternalCallError.make({
+          cause,
+          message: "Manami cache directory creation failed",
+          operation: "manami.dataset.cache.mkdir",
+        }),
+      ),
     );
-    const refreshRunner = yield* makeSingleFlightEffectRunner(
-      refreshCacheIfNeeded(client, clock, externalCall, fs, cachePaths),
-    );
-    const buildIndexesRunner = yield* makeSingleFlightEffectRunner(
-      Effect.gen(function* () {
-        const dataset = yield* readDatasetFromCache(fs, cachePaths);
-        const indexes = buildManamiIndexes(dataset);
-        yield* Ref.set(indexesRef, Option.some(indexes));
-        return indexes;
+    const sqliteContext = yield* Layer.build(
+      BunSqliteClient.layer({
+        create: true,
+        filename: cachePaths.sqliteFile,
+        readwrite: true,
       }),
+    ).pipe(
+      Effect.mapError((cause) =>
+        ExternalCallError.make({
+          cause,
+          message: "Manami sqlite open failed",
+          operation: "manami.sqlite.open",
+        }),
+      ),
+    );
+    const sqliteClient = Context.get(sqliteContext, BunSqliteClient.SqliteClient);
+
+    const refreshRunner = yield* makeSingleFlightEffectRunner(
+      refreshSqliteCacheIfNeeded(client, clock, externalCall, fs, sqliteClient, cachePaths),
     );
 
-    const loadIndexes = Effect.fn("ManamiClient.loadIndexes")(function* () {
-      const refreshed = yield* refreshRunner.trigger;
-
-      if (!refreshed) {
-        const indexes = yield* Ref.get(indexesRef);
-
-        if (Option.isSome(indexes)) {
-          return indexes.value;
-        }
-      }
-
-      return yield* buildIndexesRunner.trigger;
+    const ensureReady = Effect.fn("ManamiClient.ensureReady")(function* () {
+      yield* refreshRunner.trigger;
     });
 
     const getByAniListId = Effect.fn("ManamiClient.getByAniListId")(function* (anilistId: number) {
-      const indexes = yield* loadIndexes();
-      return Option.fromNullable(indexes.byAniListId.get(anilistId));
+      yield* ensureReady();
+
+      return yield* sqliteClient
+        .unsafe<LookupRow>(
+          `
+          SELECT title, english_title, native_title
+          FROM manami_anilist_lookup
+          WHERE anilist_id = ?
+          LIMIT 1
+          `,
+          [anilistId],
+        )
+        .withoutTransform.pipe(
+          Effect.map((rows) => Option.fromNullable(toLookupEntry(rows[0]))),
+          Effect.mapError((cause) =>
+            ExternalCallError.make({
+              cause,
+              message: "Manami sqlite lookup by AniList id failed",
+              operation: "manami.sqlite.lookup.by_anilist",
+            }),
+          ),
+        );
     });
 
     const getByMalId = Effect.fn("ManamiClient.getByMalId")(function* (malId: number) {
-      const indexes = yield* loadIndexes();
-      const aniListId = indexes.aniListIdByMalId.get(malId);
+      yield* ensureReady();
 
-      if (aniListId !== undefined) {
-        const mapped = indexes.byAniListId.get(aniListId);
-
-        if (mapped !== undefined) {
-          return Option.some(mapped);
-        }
-      }
-
-      return Option.fromNullable(indexes.malOnlyByMalId.get(malId));
+      return yield* sqliteClient
+        .unsafe<LookupRow>(
+          `
+          SELECT
+            COALESCE(anilist.title, mal.title) AS title,
+            COALESCE(anilist.english_title, mal.english_title) AS english_title,
+            COALESCE(anilist.native_title, mal.native_title) AS native_title
+          FROM manami_mal_lookup AS mal
+          LEFT JOIN manami_anilist_lookup AS anilist
+            ON anilist.anilist_id = mal.anilist_id
+          WHERE mal.mal_id = ?
+          LIMIT 1
+          `,
+          [malId],
+        )
+        .withoutTransform.pipe(
+          Effect.map((rows) => Option.fromNullable(toLookupEntry(rows[0]))),
+          Effect.mapError((cause) =>
+            ExternalCallError.make({
+              cause,
+              message: "Manami sqlite lookup by MAL id failed",
+              operation: "manami.sqlite.lookup.by_mal",
+            }),
+          ),
+        );
     });
 
     const resolveMalIdFromAniListId = Effect.fn("ManamiClient.resolveMalIdFromAniListId")(
       function* (anilistId: number) {
-        const indexes = yield* loadIndexes();
-        return Option.fromNullable(indexes.malIdByAniListId.get(anilistId));
+        yield* ensureReady();
+
+        return yield* sqliteClient
+          .unsafe<LookupIdRow>(
+            `
+            SELECT mal_id AS value
+            FROM manami_anilist_lookup
+            WHERE anilist_id = ?
+              AND mal_id IS NOT NULL
+            LIMIT 1
+            `,
+            [anilistId],
+          )
+          .withoutTransform.pipe(
+            Effect.map((rows) => Option.fromNullable(rows[0]?.value)),
+            Effect.mapError((cause) =>
+              ExternalCallError.make({
+                cause,
+                message: "Manami sqlite resolve MAL id failed",
+                operation: "manami.sqlite.lookup.resolve_mal",
+              }),
+            ),
+          );
       },
     );
 
     const resolveAniListIdFromMalId = Effect.fn("ManamiClient.resolveAniListIdFromMalId")(
       function* (malId: number) {
-        const indexes = yield* loadIndexes();
-        return Option.fromNullable(indexes.aniListIdByMalId.get(malId));
+        yield* ensureReady();
+
+        return yield* sqliteClient
+          .unsafe<LookupIdRow>(
+            `
+            SELECT anilist_id AS value
+            FROM manami_mal_lookup
+            WHERE mal_id = ?
+              AND anilist_id IS NOT NULL
+            LIMIT 1
+            `,
+            [malId],
+          )
+          .withoutTransform.pipe(
+            Effect.map((rows) => Option.fromNullable(rows[0]?.value)),
+            Effect.mapError((cause) =>
+              ExternalCallError.make({
+                cause,
+                message: "Manami sqlite resolve AniList id failed",
+                operation: "manami.sqlite.lookup.resolve_anilist",
+              }),
+            ),
+          );
       },
     );
 
@@ -136,58 +243,73 @@ export const ManamiClientLive = Layer.effect(
   }),
 );
 
-const refreshCacheIfNeeded = Effect.fn("ManamiClient.refreshCacheIfNeeded")(function* (
+const refreshSqliteCacheIfNeeded = Effect.fn("ManamiClient.refreshSqliteCacheIfNeeded")(function* (
   client: HttpClient.HttpClient,
   clock: ClockServiceShape,
   externalCall: ExternalCallShape,
   fs: FileSystemShape,
+  sqliteClient: BunSqliteClient.SqliteClient,
   paths: ManamiCachePaths,
 ) {
   const now = yield* clock.currentTimeMillis;
-  const fresh = yield* isCacheFresh(fs, paths, now);
+  const cacheState = yield* inspectSqliteCacheState(fs, sqliteClient, paths, now);
 
-  if (fresh) {
+  if (cacheState._tag === "Fresh") {
     return false;
   }
 
+  if (cacheState._tag === "InvalidSqlite") {
+    const rebuildResult = yield* readDatasetFromCache(fs, paths).pipe(
+      Effect.flatMap((dataset) => buildLookupSqliteCache(sqliteClient, dataset)),
+      Effect.either,
+    );
+
+    if (rebuildResult._tag === "Right") {
+      return true;
+    }
+  }
+
   const dataset = yield* downloadManamiDataset(client, externalCall);
-  yield* writeDatasetToCache(fs, paths, now, dataset);
+  yield* writeDatasetToCache(fs, paths, dataset);
+  yield* buildLookupSqliteCache(sqliteClient, dataset);
+  yield* writeCacheMeta(fs, paths, now);
   return true;
 });
 
-const isCacheFresh = Effect.fn("ManamiClient.isCacheFresh")(function* (
+const inspectSqliteCacheState: (
   fs: FileSystemShape,
+  sqliteClient: BunSqliteClient.SqliteClient,
+  paths: ManamiCachePaths,
+  now: number,
+) => Effect.Effect<CacheState, ExternalCallError> = Effect.fn(
+  "ManamiClient.inspectSqliteCacheState",
+)(function* (
+  fs: FileSystemShape,
+  sqliteClient: BunSqliteClient.SqliteClient,
   paths: ManamiCachePaths,
   now: number,
 ) {
   const maybeMeta = yield* readCacheMeta(fs, paths);
 
   if (Option.isNone(maybeMeta)) {
-    return false;
+    return { _tag: "MissingMeta" } as const;
   }
 
   if (now - maybeMeta.value.fetchedAtMs >= MANAMI_CACHE_REFRESH_INTERVAL_MS) {
-    return false;
+    return { _tag: "Stale" } as const;
   }
 
-  const hasDatasetFile = yield* fs.stat(paths.datasetFile).pipe(
-    Effect.as(true),
-    Effect.catchAll((error) => {
-      if (isNotFoundError(error)) {
-        return Effect.succeed(false);
-      }
+  const hasLookupSchema = yield* hasLookupSqliteSchema(sqliteClient).pipe(Effect.either);
 
-      return Effect.fail(
-        ExternalCallError.make({
-          cause: error,
-          message: "Manami dataset cache stat failed",
-          operation: "manami.dataset.cache.stat",
-        }),
-      );
-    }),
-  );
+  if (hasLookupSchema._tag === "Left") {
+    return { _tag: "InvalidSqlite" } as const;
+  }
 
-  return hasDatasetFile;
+  if (!hasLookupSchema.right) {
+    return { _tag: "InvalidSqlite" } as const;
+  }
+
+  return { _tag: "Fresh" } as const;
 });
 
 const readCacheMeta = Effect.fn("ManamiClient.readCacheMeta")(function* (
@@ -205,7 +327,7 @@ const readCacheMeta = Effect.fn("ManamiClient.readCacheMeta")(function* (
         ExternalCallError.make({
           cause: error,
           message: "Manami cache metadata read failed",
-          operation: "manami.dataset.cache.meta.read",
+          operation: "manami.sqlite.cache.meta.read",
         }),
       );
     }),
@@ -215,13 +337,13 @@ const readCacheMeta = Effect.fn("ManamiClient.readCacheMeta")(function* (
     return Option.none<Schema.Schema.Type<typeof ManamiCacheMetaSchema>>();
   }
 
-  const json = yield* decodeUtf8(bytes.value, "manami.dataset.cache.meta.decode");
+  const json = yield* decodeUtf8(bytes.value, "manami.sqlite.cache.meta.decode");
   const metadata = yield* Schema.decode(ManamiCacheMetaJsonSchema)(json).pipe(
     Effect.mapError((cause) =>
       ExternalCallError.make({
         cause,
         message: "Manami cache metadata decode failed",
-        operation: "manami.dataset.cache.meta.json",
+        operation: "manami.sqlite.cache.meta.json",
       }),
     ),
   );
@@ -258,8 +380,7 @@ const readDatasetFromCache = Effect.fn("ManamiClient.readDatasetFromCache")(func
 const writeDatasetToCache = Effect.fn("ManamiClient.writeDatasetToCache")(function* (
   fs: FileSystemShape,
   paths: ManamiCachePaths,
-  fetchedAtMs: number,
-  dataset: Schema.Schema.Type<typeof ManamiDatasetSchema>,
+  dataset: ManamiDataset,
 ) {
   yield* fs.mkdir(paths.directory, { recursive: true }).pipe(
     Effect.mapError((cause) =>
@@ -289,13 +410,19 @@ const writeDatasetToCache = Effect.fn("ManamiClient.writeDatasetToCache")(functi
       }),
     ),
   );
+});
 
+const writeCacheMeta = Effect.fn("ManamiClient.writeCacheMeta")(function* (
+  fs: FileSystemShape,
+  paths: ManamiCachePaths,
+  fetchedAtMs: number,
+) {
   const metaJson = yield* Schema.encode(ManamiCacheMetaJsonSchema)({ fetchedAtMs }).pipe(
     Effect.mapError((cause) =>
       ExternalCallError.make({
         cause,
         message: "Manami cache metadata encode failed",
-        operation: "manami.dataset.cache.meta.encode",
+        operation: "manami.sqlite.cache.meta.encode",
       }),
     ),
   );
@@ -305,7 +432,7 @@ const writeDatasetToCache = Effect.fn("ManamiClient.writeDatasetToCache")(functi
       ExternalCallError.make({
         cause,
         message: "Manami cache metadata write failed",
-        operation: "manami.dataset.cache.meta.write",
+        operation: "manami.sqlite.cache.meta.write",
       }),
     ),
   );
@@ -329,7 +456,17 @@ const downloadManamiDataset = Effect.fn("ManamiClient.downloadDataset")(function
     });
   }
 
-  return yield* HttpClientResponse.schemaBodyJson(ManamiDatasetSchema)(response).pipe(
+  const datasetJson = yield* response.text.pipe(
+    Effect.mapError((cause) =>
+      ExternalCallError.make({
+        cause,
+        message: "Manami dataset read failed",
+        operation: "manami.dataset.read",
+      }),
+    ),
+  );
+
+  return yield* Schema.decode(ManamiDatasetJsonSchema)(datasetJson).pipe(
     Effect.mapError((cause) =>
       ExternalCallError.make({
         cause,
@@ -340,6 +477,202 @@ const downloadManamiDataset = Effect.fn("ManamiClient.downloadDataset")(function
   );
 });
 
+const buildLookupSqliteCache = Effect.fn("ManamiClient.buildLookupSqliteCache")(
+  (
+    sqliteClient: BunSqliteClient.SqliteClient,
+    dataset: ManamiDataset,
+  ): Effect.Effect<void, ExternalCallError> =>
+    sqliteClient
+      .withTransaction(
+        Effect.gen(function* () {
+          yield* sqliteClient
+            .unsafe("DROP TABLE IF EXISTS manami_anilist_lookup")
+            .withoutTransform.pipe(
+              Effect.mapError((cause) =>
+                ExternalCallError.make({
+                  cause,
+                  message: "Manami sqlite schema setup failed",
+                  operation: "manami.sqlite.cache.schema",
+                }),
+              ),
+            );
+          yield* sqliteClient
+            .unsafe("DROP TABLE IF EXISTS manami_mal_lookup")
+            .withoutTransform.pipe(
+              Effect.mapError((cause) =>
+                ExternalCallError.make({
+                  cause,
+                  message: "Manami sqlite schema setup failed",
+                  operation: "manami.sqlite.cache.schema",
+                }),
+              ),
+            );
+          yield* sqliteClient
+            .unsafe(
+              "CREATE TABLE manami_anilist_lookup (anilist_id INTEGER PRIMARY KEY NOT NULL, mal_id INTEGER, title TEXT NOT NULL, english_title TEXT, native_title TEXT)",
+            )
+            .withoutTransform.pipe(
+              Effect.mapError((cause) =>
+                ExternalCallError.make({
+                  cause,
+                  message: "Manami sqlite schema setup failed",
+                  operation: "manami.sqlite.cache.schema",
+                }),
+              ),
+            );
+          yield* sqliteClient
+            .unsafe(
+              "CREATE TABLE manami_mal_lookup (mal_id INTEGER PRIMARY KEY NOT NULL, anilist_id INTEGER, title TEXT NOT NULL, english_title TEXT, native_title TEXT)",
+            )
+            .withoutTransform.pipe(
+              Effect.mapError((cause) =>
+                ExternalCallError.make({
+                  cause,
+                  message: "Manami sqlite schema setup failed",
+                  operation: "manami.sqlite.cache.schema",
+                }),
+              ),
+            );
+
+          yield* Effect.forEach(
+            dataset.data,
+            (entry) =>
+              Effect.gen(function* () {
+                const aniListId = firstParsedId(entry.sources, parseAniListIdFromSource);
+                const malId = firstParsedId(entry.sources, parseMalIdFromSource);
+
+                if (aniListId === undefined && malId === undefined) {
+                  return;
+                }
+
+                const fallback = deriveTitleFallback(entry.title, entry.synonyms);
+
+                if (aniListId !== undefined) {
+                  yield* sqliteClient
+                    .unsafe(
+                      "INSERT INTO manami_anilist_lookup (anilist_id, mal_id, title, english_title, native_title) VALUES (?, ?, ?, ?, ?) ON CONFLICT(anilist_id) DO UPDATE SET mal_id = COALESCE(manami_anilist_lookup.mal_id, excluded.mal_id)",
+                      [
+                        aniListId,
+                        malId ?? null,
+                        entry.title,
+                        fallback.englishTitle ?? null,
+                        fallback.nativeTitle ?? null,
+                      ],
+                    )
+                    .withoutTransform.pipe(
+                      Effect.mapError((cause) =>
+                        ExternalCallError.make({
+                          cause,
+                          message: "Manami sqlite anilist row insert failed",
+                          operation: "manami.sqlite.cache.insert_anilist",
+                        }),
+                      ),
+                    );
+                }
+
+                if (malId !== undefined) {
+                  yield* sqliteClient
+                    .unsafe(
+                      "INSERT INTO manami_mal_lookup (mal_id, anilist_id, title, english_title, native_title) VALUES (?, ?, ?, ?, ?) ON CONFLICT(mal_id) DO UPDATE SET anilist_id = COALESCE(manami_mal_lookup.anilist_id, excluded.anilist_id)",
+                      [
+                        malId,
+                        aniListId ?? null,
+                        entry.title,
+                        fallback.englishTitle ?? null,
+                        fallback.nativeTitle ?? null,
+                      ],
+                    )
+                    .withoutTransform.pipe(
+                      Effect.mapError((cause) =>
+                        ExternalCallError.make({
+                          cause,
+                          message: "Manami sqlite mal row insert failed",
+                          operation: "manami.sqlite.cache.insert_mal",
+                        }),
+                      ),
+                    );
+                }
+              }),
+            { discard: true },
+          );
+        }),
+      )
+      .pipe(
+        Effect.mapError((cause) =>
+          cause instanceof ExternalCallError
+            ? cause
+            : ExternalCallError.make({
+                cause,
+                message: "Manami sqlite cache build failed",
+                operation: "manami.sqlite.cache.build",
+              }),
+        ),
+      ),
+);
+
+const hasLookupSqliteSchema = Effect.fn("ManamiClient.hasLookupSqliteSchema")(
+  (sqliteClient: BunSqliteClient.SqliteClient): Effect.Effect<boolean, ExternalCallError> =>
+    sqliteClient
+      .unsafe<{ name: string }>(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('manami_anilist_lookup', 'manami_mal_lookup')",
+      )
+      .withoutTransform.pipe(
+        Effect.map((rows) => rows.length === 2),
+        Effect.mapError((cause) =>
+          ExternalCallError.make({
+            cause,
+            message: "Manami sqlite cache validation failed",
+            operation: "manami.sqlite.cache.validate",
+          }),
+        ),
+      ),
+);
+
+function toLookupEntry(row: LookupRow | undefined): ManamiLookupEntry | undefined {
+  if (row === undefined) {
+    return undefined;
+  }
+
+  return {
+    ...(row.english_title === null ? {} : { englishTitle: row.english_title }),
+    ...(row.native_title === null ? {} : { nativeTitle: row.native_title }),
+    title: row.title,
+  };
+}
+
+function deriveTitleFallback(title: string, synonyms: ReadonlyArray<string> | undefined) {
+  const candidates = [title, ...(synonyms ?? [])]
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+
+  const englishTitle = candidates.find((value) => isMostlyLatin(value));
+  const nativeTitle = candidates.find((value) => !isMostlyLatin(value));
+
+  return {
+    ...(englishTitle === undefined ? {} : { englishTitle }),
+    ...(nativeTitle === undefined ? {} : { nativeTitle }),
+  };
+}
+
+function isMostlyLatin(value: string): boolean {
+  return /^[\p{Script=Latin}\p{M}\p{N}\p{P}\p{Zs}]+$/u.test(value);
+}
+
+function firstParsedId(
+  sources: ReadonlyArray<string>,
+  parse: (source: string) => number | undefined,
+): number | undefined {
+  for (const source of sources) {
+    const parsed = parse(source);
+
+    if (parsed !== undefined) {
+      return parsed;
+    }
+  }
+
+  return undefined;
+}
+
 const decodeUtf8 = Effect.fn("ManamiClient.decodeUtf8")(
   (bytes: Uint8Array, operation: string): Effect.Effect<string, ExternalCallError> =>
     Effect.try({
@@ -347,7 +680,7 @@ const decodeUtf8 = Effect.fn("ManamiClient.decodeUtf8")(
       catch: (cause) =>
         ExternalCallError.make({
           cause,
-          message: "Manami dataset utf8 decode failed",
+          message: "Manami cache utf8 decode failed",
           operation,
         }),
     }),
@@ -361,5 +694,6 @@ function resolveCachePaths(databaseFile: string): ManamiCachePaths {
     datasetFile: join(directory, MANAMI_CACHE_DATASET_FILE),
     directory,
     metaFile: join(directory, MANAMI_CACHE_META_FILE),
+    sqliteFile: join(directory, MANAMI_CACHE_SQLITE_FILE),
   };
 }

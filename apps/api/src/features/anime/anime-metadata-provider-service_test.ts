@@ -11,8 +11,7 @@ import {
 } from "@/features/anime/anime-metadata-provider-service.ts";
 import { JikanClient } from "@/features/anime/jikan.ts";
 import type { JikanNormalizedAnime } from "@/features/anime/jikan-model.ts";
-import { ManamiClient } from "@/features/anime/manami.ts";
-import type { ManamiAnimeEntry } from "@/features/anime/manami-model.ts";
+import { ManamiClient, type ManamiLookupEntry } from "@/features/anime/manami.ts";
 import { ExternalCallError } from "@/lib/effect-retry.ts";
 
 it.effect("returns refresh pending when AniDB cache is missing", () => {
@@ -71,10 +70,8 @@ it.effect("backfills MAL id via Manami and merges metadata for AniDB refresh", (
     }),
     malIdFromAniListId: 777,
     manamiEntry: {
-      sources: ["https://anilist.co/anime/1003"],
-      studios: ["Studio Manami"],
-      synonyms: ["Manami Alias"],
-      tags: ["Mystery"],
+      englishTitle: "Manami Title",
+      nativeTitle: "Manami Title",
       title: "Manami Title",
     },
     metadata: makeMetadata(1003, {
@@ -102,16 +99,12 @@ it.effect("backfills MAL id via Manami and merges metadata for AniDB refresh", (
       native: "Merged Native",
       romaji: "Anime",
     });
-    assert.deepStrictEqual(refreshRequests[0]?.synonyms, [
-      "Base Alias",
-      "Merged Alias",
-      "Manami Alias",
-    ]);
+    assert.deepStrictEqual(refreshRequests[0]?.synonyms, ["Base Alias", "Merged Alias"]);
 
     assert.deepStrictEqual(result._tag, "Found");
     if (result._tag === "Found") {
       assert.deepStrictEqual(result.metadata.description, "Merged from Jikan");
-      assert.deepStrictEqual(result.metadata.genres, ["Drama", "Mystery"]);
+      assert.deepStrictEqual(result.metadata.genres, ["Drama"]);
       assert.deepStrictEqual(result.enrichment._tag, "Degraded");
     }
   }).pipe(Effect.provide(providerLayer));
@@ -217,8 +210,8 @@ it.effect("merges Jikan/Manami metadata before applying AniDB episode enrichment
       year: undefined,
     },
     manamiEntry: {
-      sources: ["https://anilist.co/anime/1002"],
-      tags: ["Mystery"],
+      englishTitle: "Anime",
+      nativeTitle: "Anime",
       title: "Anime",
     },
     metadata: makeMetadata(1002, {
@@ -240,7 +233,7 @@ it.effect("merges Jikan/Manami metadata before applying AniDB episode enrichment
         provider: "AniDB",
       });
       assert.deepStrictEqual(result.metadata.description, "Jikan Synopsis");
-      assert.deepStrictEqual(result.metadata.genres, ["Action", "Drama", "Mystery"]);
+      assert.deepStrictEqual(result.metadata.genres, ["Action", "Drama"]);
       assert.deepStrictEqual(result.metadata.relatedAnime, [
         {
           id: 4004,
@@ -403,7 +396,7 @@ function makeProviderLayer(input: {
   readonly getAnimeByMalIdError?: ExternalCallError | undefined;
   readonly getByAniListIdError?: ExternalCallError | undefined;
   readonly malIdFromAniListId?: number | undefined;
-  readonly manamiEntry?: ManamiAnimeEntry | undefined;
+  readonly manamiEntry?: ManamiLookupEntry | undefined;
   readonly metadata?: AnimeMetadata | undefined;
   readonly onJikanLookup?: (malId: number) => void;
   readonly onRefresh: (request: AniDbRefreshRequest) => void;

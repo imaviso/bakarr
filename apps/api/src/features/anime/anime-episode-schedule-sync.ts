@@ -8,7 +8,7 @@ import {
 } from "@/features/anime/anime-schedule-repository.ts";
 
 export const syncEpisodeScheduleEffect = Effect.fn("AnimeService.syncEpisodeScheduleEffect")(
-  function* (
+  function* <E>(
     db: AppDatabase,
     animeId: number,
     nextAnimeRow: {
@@ -18,7 +18,7 @@ export const syncEpisodeScheduleEffect = Effect.fn("AnimeService.syncEpisodeSche
       readonly endDate: string | null;
     },
     futureAiringSchedule: ReadonlyArray<FutureAiringScheduleEntry> | undefined,
-    nowIso: () => Effect.Effect<string>,
+    nowIso: () => Effect.Effect<string, E>,
   ) {
     yield* ensureEpisodesEffect(
       db,

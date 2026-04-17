@@ -5,7 +5,7 @@ import { backgroundJobs } from "@/db/schema.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
 
-type NowIso = () => Effect.Effect<string>;
+type NowIso<E = never> = () => Effect.Effect<string, E>;
 
 interface JobUpsertInput {
   readonly errorMessage: string;
@@ -18,10 +18,10 @@ interface JobUpsertInput {
   readonly incrementRunCount?: boolean;
 }
 
-const upsertJobStatus = Effect.fn("JobStatus.upsertJobStatus")(function* (
+const upsertJobStatus = Effect.fn("JobStatus.upsertJobStatus")(function* <E>(
   db: AppDatabase,
   name: string,
-  nowIso: NowIso,
+  nowIso: NowIso<E>,
   input: JobUpsertInput,
 ) {
   const now = yield* nowIso();
@@ -55,10 +55,10 @@ const upsertJobStatus = Effect.fn("JobStatus.upsertJobStatus")(function* (
   );
 });
 
-export const markJobStarted = Effect.fn("JobStatus.markJobStarted")(function* (
+export const markJobStarted = Effect.fn("JobStatus.markJobStarted")(function* <E>(
   db: AppDatabase,
   name: string,
-  nowIso: NowIso,
+  nowIso: NowIso<E>,
 ) {
   yield* upsertJobStatus(db, name, nowIso, {
     errorMessage: "Failed to mark job started",
@@ -72,11 +72,11 @@ export const markJobStarted = Effect.fn("JobStatus.markJobStarted")(function* (
   });
 });
 
-export const markJobSucceeded = Effect.fn("JobStatus.markJobSucceeded")(function* (
+export const markJobSucceeded = Effect.fn("JobStatus.markJobSucceeded")(function* <E>(
   db: AppDatabase,
   name: string,
   message: string,
-  nowIso: NowIso,
+  nowIso: NowIso<E>,
 ) {
   const now = yield* nowIso();
 
@@ -91,11 +91,11 @@ export const markJobSucceeded = Effect.fn("JobStatus.markJobSucceeded")(function
   });
 });
 
-export const markJobFailed = Effect.fn("JobStatus.markJobFailed")(function* (
+export const markJobFailed = Effect.fn("JobStatus.markJobFailed")(function* <E>(
   db: AppDatabase,
   name: string,
   cause: unknown,
-  nowIso: NowIso,
+  nowIso: NowIso<E>,
 ) {
   const message = formatJobFailureMessage(cause);
 
@@ -110,12 +110,12 @@ export const markJobFailed = Effect.fn("JobStatus.markJobFailed")(function* (
   });
 });
 
-export const updateJobProgress = Effect.fn("JobStatus.updateJobProgress")(function* (
+export const updateJobProgress = Effect.fn("JobStatus.updateJobProgress")(function* <E>(
   db: AppDatabase,
   name: string,
   progressCurrent: number,
   progressTotal: number,
-  nowIso: NowIso,
+  nowIso: NowIso<E>,
   message?: string,
 ) {
   yield* upsertJobStatus(db, name, nowIso, {

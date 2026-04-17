@@ -9,7 +9,7 @@ import type { AppDatabase } from "@/db/database.ts";
 import { systemLogs } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
 
-type NowIso = () => Effect.Effect<string>;
+type NowIso<E = never> = () => Effect.Effect<string, E>;
 
 export function normalizeLevel(level: string): "info" | "warn" | "error" | "success" {
   if (level === "warn" || level === "error" || level === "success") {
@@ -38,12 +38,12 @@ export function eventTypeCondition(eventType: string) {
   }
 }
 
-export const appendSystemLog = Effect.fn("SystemSupport.appendSystemLog")(function* (
+export const appendSystemLog = Effect.fn("SystemSupport.appendSystemLog")(function* <E>(
   db: AppDatabase,
   eventType: string,
   level: string,
   message: string,
-  nowIso: NowIso,
+  nowIso: NowIso<E>,
 ) {
   const now = yield* nowIso();
   yield* tryDatabasePromise("Failed to append system log", () =>

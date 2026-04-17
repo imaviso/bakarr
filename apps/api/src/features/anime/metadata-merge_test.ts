@@ -59,10 +59,8 @@ it("merges title/description/date/status/format/score/genres/studios/synonyms fi
       titleVariants: ["Attack on Titan", "  AoT", "Attack on Titan"],
     }),
     manami: {
-      sources: ["https://anilist.co/anime/16498"],
-      studios: ["MAPPA"],
-      synonyms: ["  Attack on Titan  ", "進撃の巨人"],
-      tags: ["Military", "Dark Fantasy"],
+      englishTitle: "Attack on Titan",
+      nativeTitle: "進撃の巨人",
       title: "進撃の巨人",
     },
   });
@@ -86,9 +84,9 @@ it("merges title/description/date/status/format/score/genres/studios/synonyms fi
   assert.deepStrictEqual(merged.endDate, "2013-09-29");
   assert.deepStrictEqual(merged.format, "TV");
   assert.deepStrictEqual(merged.score, 91);
-  assert.deepStrictEqual(merged.genres, ["Action", "Drama", "Shounen", "Military", "Dark Fantasy"]);
+  assert.deepStrictEqual(merged.genres, ["Action", "Drama", "Shounen", "Military"]);
   assert.deepStrictEqual(merged.studios, ["Wit Studio"]);
-  assert.deepStrictEqual(merged.synonyms, ["SNK", "Attack on Titan", "AoT", "進撃の巨人"]);
+  assert.deepStrictEqual(merged.synonyms, ["SNK", "Attack on Titan", "AoT"]);
 });
 
 it("fills date only when primary is nullish", () => {
@@ -193,11 +191,11 @@ it("keeps AniList ranking/source fields when present", () => {
   assert.deepStrictEqual(merged.source, "ORIGINAL");
 });
 
-it("uses studio precedence AniList then Jikan then Manami", () => {
-  assert.deepStrictEqual(mergeStudios(["Bones"], ["MAPPA"], ["Studio Pierrot"]), ["Bones"]);
-  assert.deepStrictEqual(mergeStudios([], ["MAPPA"], ["Studio Pierrot"]), ["MAPPA"]);
-  assert.deepStrictEqual(mergeStudios([], [], ["Studio Pierrot"]), ["Studio Pierrot"]);
-  assert.deepStrictEqual(mergeStudios(undefined, undefined, undefined), undefined);
+it("uses studio precedence AniList then Jikan", () => {
+  assert.deepStrictEqual(mergeStudios(["Bones"], ["MAPPA"]), ["Bones"]);
+  assert.deepStrictEqual(mergeStudios([], ["MAPPA"]), ["MAPPA"]);
+  assert.deepStrictEqual(mergeStudios([], []), undefined);
+  assert.deepStrictEqual(mergeStudios(undefined, undefined), undefined);
 });
 
 it("converts only mapped Jikan relations to discovery entries", () => {
@@ -285,10 +283,11 @@ it("appends mapped relations to related/recommended without duplicates", () => {
 });
 
 it("keeps genre union stable and deduped", () => {
-  assert.deepStrictEqual(
-    mergeGenres(["Action", "Drama"], ["Drama", "Military"], ["Military", "Mystery"]),
-    ["Action", "Drama", "Military", "Mystery"],
-  );
+  assert.deepStrictEqual(mergeGenres(["Action", "Drama"], ["Drama", "Military"]), [
+    "Action",
+    "Drama",
+    "Military",
+  ]);
 });
 
 function makeAniListMetadata(overrides: Partial<AnimeMetadata>): AnimeMetadata {
