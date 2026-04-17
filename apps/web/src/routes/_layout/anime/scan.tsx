@@ -7,7 +7,7 @@ import {
   IconTrash,
 } from "@tabler/icons-solidjs";
 import { createFileRoute, useNavigate } from "@tanstack/solid-router";
-import { createMemo, createSignal, For, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, on, Show } from "solid-js";
 import { GeneralError } from "~/components/general-error";
 import { BackgroundMatchingCard } from "~/components/scan/background-matching-card";
 import { runBulkBackgroundMatchAction } from "~/components/scan/background-matching-actions";
@@ -46,6 +46,8 @@ export const Route = createFileRoute("/_layout/anime/scan")({
 });
 
 function LibraryScanPage() {
+  // eslint-disable-next-line no-unassigned-vars -- SolidJS ref assigned by component mount
+  let folderListRef: HTMLDivElement | undefined;
   usePageTitle(() => "Library Scan");
   const scanState = createUnmappedFoldersQuery();
   const systemJobs = createSystemJobsQuery();
@@ -55,6 +57,7 @@ function LibraryScanPage() {
   const [confirmBulkAction, setConfirmBulkAction] = createSignal<
     null | "pause_queued" | "reset_failed"
   >(null);
+  const [folderListScrollTop, setFolderListScrollTop] = createSignal(0);
 
   const folders = createMemo<UnmappedFolder[]>(
     (previousFolders) => scanState.data?.folders ?? previousFolders ?? [],
@@ -163,6 +166,39 @@ function LibraryScanPage() {
     runBulkAction(action);
     setConfirmBulkAction(null);
   };
+
+  const bindFolderListRef = (el: HTMLDivElement) => {
+    folderListRef = el;
+    const savedTop = folderListScrollTop();
+    if (savedTop <= 0 || el.scrollTop > 0) {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      if (folderListRef === el && el.scrollTop === 0) {
+        el.scrollTop = savedTop;
+      }
+    });
+  };
+
+  createEffect(
+    on(
+      folderPaths,
+      () => {
+        const savedTop = folderListScrollTop();
+        if (!folderListRef || savedTop <= 0 || folderListRef.scrollTop > 0) {
+          return;
+        }
+
+        requestAnimationFrame(() => {
+          if (folderListRef && folderListRef.scrollTop === 0) {
+            folderListRef.scrollTop = savedTop;
+          }
+        });
+      },
+      { defer: true },
+    ),
+  );
 
   return (
     <div class="flex h-full min-w-0 flex-col bg-[radial-gradient(circle_at_top_left,hsl(var(--info)/0.12),transparent_34%),radial-gradient(circle_at_top_right,hsl(var(--primary)/0.08),transparent_28%)]">
@@ -284,7 +320,11 @@ function LibraryScanPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <div class="flex-1 overflow-y-auto overflow-x-hidden px-6 py-6">
+      <div
+        ref={bindFolderListRef}
+        onScroll={(event) => setFolderListScrollTop(event.currentTarget.scrollTop)}
+        class="flex-1 overflow-y-auto overflow-x-hidden px-6 py-6"
+      >
         <Show
           when={scanState.isLoading && folders().length === 0}
           fallback={

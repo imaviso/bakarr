@@ -10,6 +10,10 @@ import {
 } from "~/lib/api";
 import { useAuth } from "~/lib/auth";
 import { getNotificationToastCopy } from "~/lib/notification-metadata";
+import {
+  getNotificationPreferenceKeyForEvent,
+  readNotificationPreferences,
+} from "~/lib/notification-preferences";
 import { setSharedSocketAuthenticated, subscribeSharedSocket } from "~/lib/socket-events";
 
 const EVENT_TOAST_ID: Partial<Record<NotificationEvent["type"], string>> = {
@@ -57,21 +61,30 @@ export function SocketToastListener() {
   const handleEvent = (event: NotificationEvent) => {
     const toastId = EVENT_TOAST_ID[event.type];
     const toastOptions = toastId ? { id: toastId } : undefined;
+    const toastPreferenceKey = getNotificationPreferenceKeyForEvent(event);
+    const notificationsEnabled =
+      toastPreferenceKey === null || readNotificationPreferences()[toastPreferenceKey];
 
     switch (event.type) {
       case "ScanStarted":
-        toast.info("Library scan started");
+        if (notificationsEnabled) {
+          toast.info("Library scan started");
+        }
         break;
       case "ScanFinished":
-        toast.success("Library scan finished");
+        if (notificationsEnabled) {
+          toast.success("Library scan finished");
+        }
         break;
       case "DownloadStarted":
         {
-          const copy = getNotificationToastCopy(event);
-          toast.loading(copy?.message ?? `Download started: ${event.payload.title}`, {
-            description: copy?.description,
-            ...toastOptions,
-          });
+          if (notificationsEnabled) {
+            const copy = getNotificationToastCopy(event);
+            toast.loading(copy?.message ?? `Download started: ${event.payload.title}`, {
+              description: copy?.description,
+              ...toastOptions,
+            });
+          }
         }
         break;
       case "DownloadFinished":
@@ -79,10 +92,13 @@ export function SocketToastListener() {
           if (toastId) {
             toast.dismiss(toastId);
           }
-          const copy = getNotificationToastCopy(event);
-          toast.success(copy?.message ?? `Download finished: ${event.payload.title}`, {
-            description: copy?.description,
-          });
+
+          if (notificationsEnabled) {
+            const copy = getNotificationToastCopy(event);
+            toast.success(copy?.message ?? `Download finished: ${event.payload.title}`, {
+              description: copy?.description,
+            });
+          }
         }
         void queryClient.invalidateQueries({ queryKey: animeKeys.all });
         void queryClient.invalidateQueries({ queryKey: animeKeys.downloads.all });
@@ -95,13 +111,17 @@ export function SocketToastListener() {
         }
         break;
       case "RefreshStarted":
-        toast.loading(`Refreshing metadata for ${event.payload.title}`, toastOptions);
+        if (notificationsEnabled) {
+          toast.loading(`Refreshing metadata for ${event.payload.title}`, toastOptions);
+        }
         break;
       case "RefreshFinished":
         if (toastId) {
           toast.dismiss(toastId);
         }
-        toast.success(`Metadata refreshed for ${event.payload.title}`);
+        if (notificationsEnabled) {
+          toast.success(`Metadata refreshed for ${event.payload.title}`);
+        }
         void queryClient.invalidateQueries({ queryKey: animeKeys.all });
         if (event.payload.anime_id) {
           void queryClient.invalidateQueries({
@@ -113,26 +133,34 @@ export function SocketToastListener() {
         }
         break;
       case "SearchMissingStarted":
-        toast.loading(`Searching missing episodes for ${event.payload.title}`, toastOptions);
+        if (notificationsEnabled) {
+          toast.loading(`Searching missing episodes for ${event.payload.title}`, toastOptions);
+        }
         break;
       case "SearchMissingFinished":
         if (toastId) {
           toast.dismiss(toastId);
         }
-        toast.success(
-          `Search complete for ${event.payload.title}. Found ${event.payload.count} releases.`,
-        );
+        if (notificationsEnabled) {
+          toast.success(
+            `Search complete for ${event.payload.title}. Found ${event.payload.count} releases.`,
+          );
+        }
         break;
       case "ScanFolderStarted":
-        toast.loading(`Scanning folder for ${event.payload.title}`, toastOptions);
+        if (notificationsEnabled) {
+          toast.loading(`Scanning folder for ${event.payload.title}`, toastOptions);
+        }
         break;
       case "ScanFolderFinished":
         if (toastId) {
           toast.dismiss(toastId);
         }
-        toast.success(
-          `Folder scan complete for ${event.payload.title}. Found ${event.payload.found} files.`,
-        );
+        if (notificationsEnabled) {
+          toast.success(
+            `Folder scan complete for ${event.payload.title}. Found ${event.payload.found} files.`,
+          );
+        }
         if (event.payload.anime_id) {
           void queryClient.invalidateQueries({
             queryKey: animeKeys.episodes(event.payload.anime_id),
@@ -144,15 +172,19 @@ export function SocketToastListener() {
         void queryClient.invalidateQueries({ queryKey: animeKeys.all });
         break;
       case "RenameStarted":
-        toast.loading(`Renaming files for ${event.payload.title}`, toastOptions);
+        if (notificationsEnabled) {
+          toast.loading(`Renaming files for ${event.payload.title}`, toastOptions);
+        }
         break;
       case "RenameFinished":
         if (toastId) {
           toast.dismiss(toastId);
         }
-        toast.success(
-          `Renaming complete for ${event.payload.title}. Renamed ${event.payload.count} files.`,
-        );
+        if (notificationsEnabled) {
+          toast.success(
+            `Renaming complete for ${event.payload.title}. Renamed ${event.payload.count} files.`,
+          );
+        }
         if (event.payload.anime_id) {
           void queryClient.invalidateQueries({
             queryKey: animeKeys.episodes(event.payload.anime_id),
@@ -160,21 +192,26 @@ export function SocketToastListener() {
         }
         break;
       case "ImportStarted":
-        toast.loading(`Importing ${event.payload.count} files...`, toastOptions);
+        if (notificationsEnabled) {
+          toast.loading(`Importing ${event.payload.count} files...`, toastOptions);
+        }
         break;
       case "ImportFinished":
         {
           if (toastId) {
             toast.dismiss(toastId);
           }
-          const copy = getNotificationToastCopy(event);
-          toast.success(
-            copy?.message ??
-              `Import finished. Imported ${event.payload.imported}, Failed ${event.payload.failed}`,
-            {
-              description: copy?.description,
-            },
-          );
+
+          if (notificationsEnabled) {
+            const copy = getNotificationToastCopy(event);
+            toast.success(
+              copy?.message ??
+                `Import finished. Imported ${event.payload.imported}, Failed ${event.payload.failed}`,
+              {
+                description: copy?.description,
+              },
+            );
+          }
         }
         void queryClient.invalidateQueries({ queryKey: animeKeys.all });
         void queryClient.invalidateQueries({ queryKey: animeKeys.downloads.all });
@@ -182,7 +219,9 @@ export function SocketToastListener() {
         void queryClient.invalidateQueries({ queryKey: animeKeys.system.status() });
         break;
       case "LibraryScanStarted":
-        toast.loading("Library file scan started", toastOptions);
+        if (notificationsEnabled) {
+          toast.loading("Library file scan started", toastOptions);
+        }
         queryClient.setQueryData<BackgroundJobStatus[]>(animeKeys.system.jobs(), (previousJobs) =>
           updateJobStatus(previousJobs, "unmapped_scan", (job) => ({
             ...job,
@@ -195,9 +234,11 @@ export function SocketToastListener() {
         if (toastId) {
           toast.dismiss(toastId);
         }
-        toast.success(
-          `Library file scan finished. Scanned ${event.payload.scanned}, Matched ${event.payload.matched}`,
-        );
+        if (notificationsEnabled) {
+          toast.success(
+            `Library file scan finished. Scanned ${event.payload.scanned}, Matched ${event.payload.matched}`,
+          );
+        }
         queryClient.setQueryData<BackgroundJobStatus[]>(animeKeys.system.jobs(), (previousJobs) =>
           updateJobStatus(previousJobs, "unmapped_scan", (job) => ({
             ...job,
@@ -212,7 +253,9 @@ export function SocketToastListener() {
         void queryClient.invalidateQueries({ queryKey: animeKeys.library.unmapped() });
         break;
       case "RssCheckStarted":
-        toast.loading("RSS check started", toastOptions);
+        if (notificationsEnabled) {
+          toast.loading("RSS check started", toastOptions);
+        }
         queryClient.setQueryData<BackgroundJobStatus[]>(animeKeys.system.jobs(), (previousJobs) =>
           updateJobStatus(previousJobs, "rss_check", (job) => ({
             ...job,
@@ -225,7 +268,9 @@ export function SocketToastListener() {
         if (toastId) {
           toast.dismiss(toastId);
         }
-        toast.success(`RSS check finished. Found ${event.payload.new_items} new items.`);
+        if (notificationsEnabled) {
+          toast.success(`RSS check finished. Found ${event.payload.new_items} new items.`);
+        }
         queryClient.setQueryData<BackgroundJobStatus[]>(animeKeys.system.jobs(), (previousJobs) =>
           updateJobStatus(previousJobs, "rss_check", (job) => ({
             ...job,
@@ -238,17 +283,25 @@ export function SocketToastListener() {
         void queryClient.invalidateQueries({ queryKey: animeKeys.system.status() });
         break;
       case "PasswordChanged":
-        toast.success("Password changed successfully");
+        if (notificationsEnabled) {
+          toast.success("Password changed successfully");
+        }
         break;
       case "ApiKeyRegenerated":
-        toast.success("API key regenerated successfully");
+        if (notificationsEnabled) {
+          toast.success("API key regenerated successfully");
+        }
         void queryClient.invalidateQueries({ queryKey: animeKeys.auth.apiKey() });
         break;
       case "Error":
-        toast.error(event.payload.message);
+        if (notificationsEnabled) {
+          toast.error(event.payload.message);
+        }
         break;
       case "Info":
-        toast.info(event.payload.message);
+        if (notificationsEnabled) {
+          toast.info(event.payload.message);
+        }
         break;
 
       case "ScanProgress":

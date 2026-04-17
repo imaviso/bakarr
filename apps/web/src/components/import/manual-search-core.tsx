@@ -6,7 +6,7 @@ import {
   IconPlus,
   IconSearch,
 } from "@tabler/icons-solidjs";
-import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import { AnimeDiscoveryRow } from "~/components/anime-discovery";
 import { Badge } from "~/components/ui/badge";
 import { TextField, TextFieldInput } from "~/components/ui/text-field";
@@ -26,6 +26,8 @@ interface ManualSearchCoreProps {
 }
 
 export function ManualSearchCore(props: ManualSearchCoreProps) {
+  // eslint-disable-next-line no-unassigned-vars -- SolidJS ref assigned by component mount
+  let searchInputRef: HTMLInputElement | undefined;
   const [query, setQuery] = createSignal("");
   const [debouncedQuery, setDebouncedQuery] = createSignal("");
   const debouncer = createDebouncer(setDebouncedQuery, 500);
@@ -46,16 +48,20 @@ export function ManualSearchCore(props: ManualSearchCoreProps) {
     return new Set([...existing, ...discovered]);
   });
 
+  onMount(() => {
+    searchInputRef?.focus({ preventScroll: true });
+  });
+
   return (
     <div class="space-y-4">
       <div class="relative">
         <IconSearch class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
         <TextField value={query()} onChange={setQuery}>
           <TextFieldInput
+            ref={searchInputRef}
             placeholder="Search for anime..."
             aria-label="Search anime title"
             class="pl-9"
-            autofocus
           />
         </TextField>
         <Show when={search.isFetching}>

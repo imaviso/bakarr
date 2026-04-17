@@ -24,6 +24,7 @@ import {
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
+import { NotificationSettingsCard } from "~/components/settings/notification-settings-card";
 import {
   TextField,
   TextFieldErrorMessage,
@@ -304,6 +305,8 @@ export function AccountSettingsForm() {
           </AlertDialog>
         </CardContent>
       </Card>
+
+      <NotificationSettingsCard />
     </div>
   );
 }

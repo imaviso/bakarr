@@ -113,7 +113,9 @@ function SettingsPage() {
         <TabsContent value="account" class="mt-0">
           <div class="mb-6">
             <h2 class="text-lg font-medium">Account</h2>
-            <p class="text-sm text-muted-foreground">Manage your password and API access</p>
+            <p class="text-sm text-muted-foreground">
+              Manage your password, API access, and notification preferences
+            </p>
           </div>
           <AccountSettingsForm />
         </TabsContent>
