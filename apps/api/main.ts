@@ -14,7 +14,7 @@ import {
 } from "./src/api-startup.ts";
 import { makeApiLifecycleLayers } from "./src/api-lifecycle-layers.ts";
 
-const SERVER_IDLE_TIMEOUT_SECONDS = 255;
+const SERVER_IDLE_TIMEOUT_SECONDS = 0;
 
 /**
  * Startup sequence (blocking, ordered, fail-fast):
