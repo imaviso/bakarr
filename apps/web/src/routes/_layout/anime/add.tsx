@@ -11,12 +11,10 @@ import {
   createMemo,
   createSignal,
   For,
-  Match,
   on,
   onCleanup,
   onMount,
   Show,
-  Switch,
   Suspense,
 } from "solid-js";
 import { createVirtualizer } from "@tanstack/solid-virtual";
@@ -173,35 +171,29 @@ function AddAnimePage() {
           <TabsIndicator />
         </TabsList>
 
-        <Switch>
-          <Match when={activeTab() === "search"}>
-            <TabsContent value="search" class="mt-6 flex flex-1 min-h-0 flex-col">
-              <SearchResults
-                active
-                canSearch={canSearch()}
-                searchQuery={searchQuery}
-                searchResults={searchResults()}
-                searchDegraded={searchDegraded()}
-                debouncedQuery={debouncedQuery()}
-                libraryIds={libraryIds()}
-                onSelectAnime={setSelectedAnime}
-              />
-            </TabsContent>
-          </Match>
-          <Match when={activeTab() === "seasonal"}>
-            <TabsContent value="seasonal" class="mt-6 flex flex-1 min-h-0 flex-col">
-              <SeasonalAnimeSection
-                active
-                seasonWindow={seasonWindow()}
-                onPrevious={() => setSeasonWindow((prev) => shiftSeasonWindow(prev, -1))}
-                onNext={() => setSeasonWindow((prev) => shiftSeasonWindow(prev, 1))}
-                query={seasonalQuery}
-                libraryIds={libraryIds()}
-                onSelectAnime={setSelectedAnime}
-              />
-            </TabsContent>
-          </Match>
-        </Switch>
+        <TabsContent value="search" forceMount class="mt-6 flex flex-1 min-h-0 flex-col">
+          <SearchResults
+            active={activeTab() === "search"}
+            canSearch={canSearch()}
+            searchQuery={searchQuery}
+            searchResults={searchResults()}
+            searchDegraded={searchDegraded()}
+            debouncedQuery={debouncedQuery()}
+            libraryIds={libraryIds()}
+            onSelectAnime={setSelectedAnime}
+          />
+        </TabsContent>
+        <TabsContent value="seasonal" forceMount class="mt-6 flex flex-1 min-h-0 flex-col">
+          <SeasonalAnimeSection
+            active={activeTab() === "seasonal"}
+            seasonWindow={seasonWindow()}
+            onPrevious={() => setSeasonWindow((prev) => shiftSeasonWindow(prev, -1))}
+            onNext={() => setSeasonWindow((prev) => shiftSeasonWindow(prev, 1))}
+            query={seasonalQuery}
+            libraryIds={libraryIds()}
+            onSelectAnime={setSelectedAnime}
+          />
+        </TabsContent>
       </Tabs>
 
       <Show when={selectedAnime()}>

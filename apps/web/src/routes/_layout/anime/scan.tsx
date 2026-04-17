@@ -56,7 +56,10 @@ function LibraryScanPage() {
     null | "pause_queued" | "reset_failed"
   >(null);
 
-  const folders = createMemo<UnmappedFolder[]>(() => scanState.data?.folders ?? []);
+  const folders = createMemo<UnmappedFolder[]>(
+    (previousFolders) => scanState.data?.folders ?? previousFolders ?? [],
+    [],
+  );
   const foldersByPath = createMemo(() => {
     const lookup = new Map<string, UnmappedFolder>();
     for (const folder of folders()) {
@@ -283,7 +286,7 @@ function LibraryScanPage() {
 
       <div class="flex-1 overflow-y-auto overflow-x-hidden px-6 py-6">
         <Show
-          when={scanState.isLoading}
+          when={scanState.isLoading && folders().length === 0}
           fallback={
             <Show
               when={folders().length > 0}
