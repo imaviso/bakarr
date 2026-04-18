@@ -178,7 +178,7 @@ function LibraryScanPage() {
   };
 
   return (
-    <div class="flex h-full min-w-0 flex-col bg-[radial-gradient(circle_at_top_left,hsl(var(--info)/0.12),transparent_34%),radial-gradient(circle_at_top_right,hsl(var(--primary)/0.08),transparent_28%)] overflow-y-auto overflow-x-hidden">
+    <div class="flex h-full min-w-0 flex-col bg-[radial-gradient(circle_at_top_left,hsl(var(--info)/0.12),transparent_34%),radial-gradient(circle_at_top_right,hsl(var(--primary)/0.08),transparent_28%)] overflow-x-hidden">
       <div class="sticky top-0 z-10 shrink-0 border-b bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/70">
         <div class="px-6 py-5">
           <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -299,6 +299,8 @@ function LibraryScanPage() {
 
       <Dialog
         open={manualMatchDialog() !== null}
+        modal={false}
+        preventScroll={false}
         onOpenChange={(open) => {
           if (!open) {
             setManualMatchDialog(null);
@@ -326,7 +328,7 @@ function LibraryScanPage() {
         </DialogContent>
       </Dialog>
 
-      <div class="flex-1 px-6 py-6">
+      <div class="flex-1 overflow-y-auto px-6 py-6">
         <Show
           when={scanState.isLoading && folders().length === 0}
           fallback={
