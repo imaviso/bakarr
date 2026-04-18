@@ -173,7 +173,15 @@ function LibraryScanPage() {
     }
 
     if (open) {
-      setManualDialogScrollTop(folderListRef.scrollTop);
+      const savedTop = folderListRef.scrollTop;
+      setManualDialogScrollTop(savedTop);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (folderListRef) {
+            folderListRef.scrollTop = savedTop;
+          }
+        });
+      });
       return;
     }
 

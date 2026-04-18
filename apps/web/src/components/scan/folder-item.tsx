@@ -303,7 +303,11 @@ export function FolderItem(props: {
             <IconSearch class="mr-2 h-4 w-4" />
             Change match
           </DialogTrigger>
-          <DialogContent class="sm:max-w-md" onCloseAutoFocus={(event) => event.preventDefault()}>
+          <DialogContent
+            class="sm:max-w-md"
+            onOpenAutoFocus={(event) => event.preventDefault()}
+            onCloseAutoFocus={(event) => event.preventDefault()}
+          >
             <DialogHeader>
               <DialogTitle>Match folder to anime</DialogTitle>
               <DialogDescription>
