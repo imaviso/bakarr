@@ -18,6 +18,7 @@ import { cn } from "~/lib/utils";
 
 interface ManualSearchCoreProps {
   addedIndicator: "badge" | "text";
+  autoFocusInput?: boolean;
   containerClass?: string;
   disableSelectionForAdded: boolean;
   emptyPrompt: string;
@@ -49,7 +50,9 @@ export function ManualSearchCore(props: ManualSearchCoreProps) {
   });
 
   onMount(() => {
-    searchInputRef?.focus({ preventScroll: true });
+    if (props.autoFocusInput ?? true) {
+      searchInputRef?.focus({ preventScroll: true });
+    }
   });
 
   return (

@@ -299,8 +299,6 @@ function LibraryScanPage() {
 
       <Dialog
         open={manualMatchDialog() !== null}
-        modal={false}
-        preventScroll={false}
         onOpenChange={(open) => {
           if (!open) {
             setManualMatchDialog(null);

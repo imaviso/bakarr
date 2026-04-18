@@ -5,6 +5,7 @@ export function ManualMatchSearch(props: { onSelect: (anime: AnimeSearchResult) 
   return (
     <ManualSearchCore
       addedIndicator="badge"
+      autoFocusInput={false}
       containerClass="h-[320px] border border-border/70 bg-background"
       disableSelectionForAdded={false}
       emptyPrompt="Type at least 3 characters to search"
