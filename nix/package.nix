@@ -128,9 +128,6 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   installPhase = ''
     runHook preInstall
 
-    mkdir -p $out/share/bakarr
-    cp -R . $out/share/bakarr/
-
     install -D apps/api/build/bakarr $out/bin/.bakarr-api-wrapped
 
     mkdir -p $out/bin
