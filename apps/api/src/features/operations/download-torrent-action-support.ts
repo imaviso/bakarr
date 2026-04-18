@@ -75,9 +75,10 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
     const [row] = rows;
 
     if (!row) {
-      return yield* new DownloadNotFoundError({
+      yield* new DownloadNotFoundError({
         message: "Download not found",
       });
+      return;
     }
 
     if (row.infoHash) {
@@ -119,36 +120,35 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
       yield* tryDatabasePromise("Failed to remove download", () =>
         db.delete(downloads).where(eq(downloads.id, id)),
       );
-      return;
-    }
+    } else {
+      yield* tryDatabasePromise(`Failed to ${action} download`, () =>
+        db
+          .update(downloads)
+          .set({
+            externalState: action,
+            status: action === "pause" ? "paused" : "downloading",
+          })
+          .where(eq(downloads.id, id)),
+      );
 
-    yield* tryDatabasePromise(`Failed to ${action} download`, () =>
-      db
-        .update(downloads)
-        .set({
-          externalState: action,
-          status: action === "pause" ? "paused" : "downloading",
-        })
-        .where(eq(downloads.id, id)),
-    );
-
-    const actionSourceMetadata = yield* decodeDownloadSourceMetadata(row.sourceMetadata);
-    yield* recordDownloadEvent(
-      db,
-      {
-        animeId: row.animeId,
-        downloadId: row.id,
-        eventType: `download.${action}d`,
-        fromStatus: row.status,
-        metadataJson: {
-          covered_episodes: coveredEpisodes,
-          ...(actionSourceMetadata ? { source_metadata: actionSourceMetadata } : {}),
+      const actionSourceMetadata = yield* decodeDownloadSourceMetadata(row.sourceMetadata);
+      yield* recordDownloadEvent(
+        db,
+        {
+          animeId: row.animeId,
+          downloadId: row.id,
+          eventType: `download.${action}d`,
+          fromStatus: row.status,
+          metadataJson: {
+            covered_episodes: coveredEpisodes,
+            ...(actionSourceMetadata ? { source_metadata: actionSourceMetadata } : {}),
+          },
+          message: `${action === "pause" ? "Paused" : "Resumed"} ${row.torrentName}`,
+          toStatus: action === "pause" ? "paused" : "downloading",
         },
-        message: `${action === "pause" ? "Paused" : "Resumed"} ${row.torrentName}`,
-        toStatus: action === "pause" ? "paused" : "downloading",
-      },
-      nowIso,
-    );
+        nowIso,
+      );
+    }
   });
 
   const retryDownloadById = Effect.fn("OperationsService.retryDownloadById")(function* (
@@ -160,15 +160,17 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
     const [row] = rows;
 
     if (!row) {
-      return yield* new DownloadNotFoundError({
+      yield* new DownloadNotFoundError({
         message: "Download not found",
       });
+      return;
     }
 
     if (!row.magnet) {
-      return yield* new DownloadConflictError({
+      yield* new DownloadConflictError({
         message: "Download cannot be retried without a magnet link",
       });
+      return;
     }
 
     const coveredEpisodes = yield* parseCoveredEpisodesEffect(row.coveredEpisodes);
@@ -177,7 +179,8 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
       .pipe(Effect.either);
 
     if (qbitResult._tag === "Left") {
-      return yield* mapQBitError("Failed to retry download")(qbitResult.left);
+      yield* mapQBitError("Failed to retry download")(qbitResult.left);
+      return;
     }
 
     const startedInQBit = qbitResult.right._tag === "Added";

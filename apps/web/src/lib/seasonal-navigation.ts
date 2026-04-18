@@ -1,4 +1,4 @@
-import { resolveSeasonWindowFromDate, type AnimeSeason } from "@bakarr/shared";
+import type { AnimeSeason } from "~/lib/api/contracts";
 
 export interface SeasonWindow {
   season: AnimeSeason;
@@ -16,7 +16,15 @@ const SEASON_LABELS: Record<AnimeSeason, string> = {
 
 /** Returns the season window for the given date (defaults to now). */
 export function getCurrentSeasonWindow(now?: Date): SeasonWindow {
-  return resolveSeasonWindowFromDate(now ?? new Date());
+  const current = now ?? new Date();
+  const month = current.getMonth() + 1;
+  const season: AnimeSeason =
+    month <= 2 || month === 12 ? "winter" : month <= 5 ? "spring" : month <= 8 ? "summer" : "fall";
+
+  return {
+    season,
+    year: month === 12 ? current.getFullYear() + 1 : current.getFullYear(),
+  };
 }
 
 /** Shift a season window by `delta` seasons (positive = forward, negative = backward).
