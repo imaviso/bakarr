@@ -109,7 +109,7 @@ function SystemForm(props: {
         />
       </Show>
 
-      <div class="sticky bottom-0 pt-4 pb-2 bg-gradient-to-t from-background via-background to-transparent -mx-1 px-1">
+      <div class="border-t border-border/60 pt-4 pb-2">
         <form.Subscribe selector={(state) => [state.canSubmit]}>
           {(state) => (
             <Button type="submit" disabled={!state()[0] || props.isSaving} class="w-full sm:w-auto">
