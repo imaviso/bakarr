@@ -14,6 +14,7 @@ import { runBulkBackgroundMatchAction } from "~/components/scan/background-match
 import { isBackgroundMatchingRunning } from "~/components/scan/background-matching-state";
 import { EmptyScanState } from "~/components/scan/empty-scan-state";
 import { FolderItem } from "~/components/scan/folder-item";
+import { ManualMatchSearch } from "~/components/scan/manual-match-search";
 import { StatChip } from "~/components/scan/stat-chip";
 import {
   AlertDialog,
@@ -27,10 +28,18 @@ import {
 } from "~/components/ui/alert-dialog";
 import { Button } from "~/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "~/components/ui/dialog";
+import {
   createBulkControlUnmappedFoldersMutation,
   createScanLibraryMutation,
   createSystemJobsQuery,
   createUnmappedFoldersQuery,
+  type AnimeSearchResult,
   type UnmappedFolder,
   unmappedFoldersQueryOptions,
 } from "~/lib/api";
@@ -46,8 +55,6 @@ export const Route = createFileRoute("/_layout/anime/scan")({
 });
 
 function LibraryScanPage() {
-  // eslint-disable-next-line no-unassigned-vars -- SolidJS ref assigned by component mount
-  let folderListRef: HTMLDivElement | undefined;
   usePageTitle(() => "Library Scan");
   const scanState = createUnmappedFoldersQuery();
   const systemJobs = createSystemJobsQuery();
@@ -57,7 +64,10 @@ function LibraryScanPage() {
   const [confirmBulkAction, setConfirmBulkAction] = createSignal<
     null | "pause_queued" | "reset_failed"
   >(null);
-  const [manualDialogScrollTop, setManualDialogScrollTop] = createSignal<number | null>(null);
+  const [manualMatchDialog, setManualMatchDialog] = createSignal<{
+    folder: UnmappedFolder;
+    onSelect: (anime: AnimeSearchResult) => void;
+  } | null>(null);
 
   const folders = createMemo<UnmappedFolder[]>(
     (previousFolders) => scanState.data?.folders ?? previousFolders ?? [],
@@ -167,39 +177,8 @@ function LibraryScanPage() {
     setConfirmBulkAction(null);
   };
 
-  const handleManualDialogOpenChange = (open: boolean) => {
-    if (!folderListRef) {
-      return;
-    }
-
-    if (open) {
-      const savedTop = folderListRef.scrollTop;
-      setManualDialogScrollTop(savedTop);
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          if (folderListRef) {
-            folderListRef.scrollTop = savedTop;
-          }
-        });
-      });
-      return;
-    }
-
-    const savedTop = manualDialogScrollTop();
-    if (savedTop === null) {
-      return;
-    }
-
-    requestAnimationFrame(() => {
-      if (folderListRef) {
-        folderListRef.scrollTop = savedTop;
-      }
-      setManualDialogScrollTop(null);
-    });
-  };
-
   return (
-    <div class="flex h-full min-w-0 flex-col bg-[radial-gradient(circle_at_top_left,hsl(var(--info)/0.12),transparent_34%),radial-gradient(circle_at_top_right,hsl(var(--primary)/0.08),transparent_28%)]">
+    <div class="flex h-full min-w-0 flex-col bg-[radial-gradient(circle_at_top_left,hsl(var(--info)/0.12),transparent_34%),radial-gradient(circle_at_top_right,hsl(var(--primary)/0.08),transparent_28%)] overflow-y-auto overflow-x-hidden">
       <div class="sticky top-0 z-10 shrink-0 border-b bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/70">
         <div class="px-6 py-5">
           <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -318,12 +297,36 @@ function LibraryScanPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <div
-        ref={(el) => {
-          folderListRef = el;
+      <Dialog
+        open={manualMatchDialog() !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setManualMatchDialog(null);
+          }
         }}
-        class="flex-1 overflow-y-auto overflow-x-hidden px-6 py-6"
       >
+        <DialogContent
+          class="sm:max-w-md"
+          onOpenAutoFocus={(event) => event.preventDefault()}
+          onCloseAutoFocus={(event) => event.preventDefault()}
+        >
+          <DialogHeader>
+            <DialogTitle>Match folder to anime</DialogTitle>
+            <DialogDescription>
+              Search for the anime to associate with{" "}
+              <span class="font-mono text-xs">{manualMatchDialog()?.folder.name ?? ""}</span>
+            </DialogDescription>
+          </DialogHeader>
+          <ManualMatchSearch
+            onSelect={(anime) => {
+              manualMatchDialog()?.onSelect(anime);
+              setManualMatchDialog(null);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <div class="flex-1 px-6 py-6">
         <Show
           when={scanState.isLoading && folders().length === 0}
           fallback={
@@ -362,7 +365,9 @@ function LibraryScanPage() {
                             <li>
                               <FolderItem
                                 folder={resolvedFolder()}
-                                onManualDialogOpenChange={handleManualDialogOpenChange}
+                                onOpenManualMatch={(dialogState) =>
+                                  setManualMatchDialog(dialogState)
+                                }
                               />
                             </li>
                           )}

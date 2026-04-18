@@ -19,7 +19,6 @@ export function createFolderItemController(folder: Accessor<UnmappedFolder>) {
   const profilesQuery = createProfilesQuery();
 
   const [manualMatch, setManualMatch] = createSignal<AnimeSearchResult | null>(null);
-  const [manualDialogOpen, setManualDialogOpen] = createSignal(false);
   const [resetConfirmOpen, setResetConfirmOpen] = createSignal(false);
   const [selectedProfileName, setSelectedProfileName] = createSignal("");
 
@@ -127,14 +126,12 @@ export function createFolderItemController(folder: Accessor<UnmappedFolder>) {
     importLabel,
     isControlling,
     isImporting,
-    manualDialogOpen,
     manualMatch,
     profilesQuery,
     resetConfirmOpen,
     selectedAnime,
     selectedAnimeIds,
     selectedProfile,
-    setManualDialogOpen,
     setManualMatch,
     setResetConfirmOpen,
     setSelectedProfileName,

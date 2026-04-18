@@ -23,21 +23,13 @@ import {
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "~/components/ui/dialog";
-import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
-import type { UnmappedFolder } from "~/lib/api";
+import type { AnimeSearchResult, UnmappedFolder } from "~/lib/api";
 import { animeDisplayTitle, animeSearchSubtitle } from "~/lib/anime-metadata";
 import { formatFileSize } from "~/lib/scanned-file";
 import { cn } from "~/lib/utils";
@@ -48,11 +40,13 @@ import {
   folderStatusLabel,
   formatConfidencePercent,
 } from "~/components/scan/folder-item-utils";
-import { ManualMatchSearch } from "./manual-match-search";
 
 export function FolderItem(props: {
   folder: UnmappedFolder;
-  onManualDialogOpenChange?: (open: boolean) => void;
+  onOpenManualMatch?: (input: {
+    folder: UnmappedFolder;
+    onSelect: (anime: AnimeSearchResult) => void;
+  }) => void;
 }) {
   const state = createFolderItemController(() => props.folder);
 
@@ -292,37 +286,23 @@ export function FolderItem(props: {
           </AlertDialogContent>
         </AlertDialog>
 
-        <Dialog
-          open={state.manualDialogOpen()}
-          onOpenChange={(open) => {
-            props.onManualDialogOpenChange?.(open);
-            state.setManualDialogOpen(open);
-          }}
-        >
-          <DialogTrigger as={Button} type="button" variant="ghost" size="sm" class="justify-start">
-            <IconSearch class="mr-2 h-4 w-4" />
-            Change match
-          </DialogTrigger>
-          <DialogContent
-            class="sm:max-w-md"
-            onOpenAutoFocus={(event) => event.preventDefault()}
-            onCloseAutoFocus={(event) => event.preventDefault()}
-          >
-            <DialogHeader>
-              <DialogTitle>Match folder to anime</DialogTitle>
-              <DialogDescription>
-                Search for the anime to associate with{" "}
-                <span class="font-mono text-xs">{props.folder.name}</span>
-              </DialogDescription>
-            </DialogHeader>
-            <ManualMatchSearch
-              onSelect={(anime) => {
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          class="justify-start"
+          onClick={() =>
+            props.onOpenManualMatch?.({
+              folder: props.folder,
+              onSelect: (anime) => {
                 state.setManualMatch(anime);
-                state.setManualDialogOpen(false);
-              }}
-            />
-          </DialogContent>
-        </Dialog>
+              },
+            })
+          }
+        >
+          <IconSearch class="mr-2 h-4 w-4" />
+          Change match
+        </Button>
 
         <Button
           size="sm"
