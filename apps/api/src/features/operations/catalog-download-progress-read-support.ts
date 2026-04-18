@@ -58,7 +58,7 @@ export function makeCatalogDownloadProgressReads(input: {
       );
 
       return {
-        active_count: Number(countRows[0]?.count ?? 0),
+        active_count: countRows[0]?.count ?? 0,
       } satisfies DownloadRuntimeSummary;
     },
   );

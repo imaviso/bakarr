@@ -366,18 +366,18 @@ function AnimeIndexPage() {
 
 function readStoredAnimeSearch() {
   if (typeof window === "undefined") {
-    return;
+    return undefined;
   }
 
   try {
     const raw = localStorage.getItem("bakarr_anime_search");
 
     if (!raw) {
-      return;
+      return undefined;
     }
 
     return v.parse(StoredAnimeSearchSchema, JSON.parse(raw));
   } catch {
-    return;
+    return undefined;
   }
 }

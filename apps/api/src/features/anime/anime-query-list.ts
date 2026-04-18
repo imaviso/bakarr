@@ -60,10 +60,10 @@ export const listAnimeEffect = Effect.fn("AnimeQueryList.listAnimeEffect")(funct
 
     for (const stat of episodeStats) {
       const latestDownloadedEpisode =
-        stat.latestDownloadedEpisode === null ? undefined : Number(stat.latestDownloadedEpisode);
+        stat.latestDownloadedEpisode === null ? undefined : stat.latestDownloadedEpisode;
 
       episodeStatsByAnimeId.set(stat.animeId, {
-        downloaded: Number(stat.downloadedCount ?? 0),
+        downloaded: stat.downloadedCount ?? 0,
         ...(latestDownloadedEpisode === undefined ? {} : { latestDownloadedEpisode }),
       });
     }

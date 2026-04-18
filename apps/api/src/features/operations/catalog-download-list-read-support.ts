@@ -51,7 +51,7 @@ export function makeCatalogDownloadListReads(input: {
     const countRows = yield* tryDatabasePromise("Failed to count download history", () =>
       db.select({ count: sql<number>`count(*)` }).from(downloads),
     );
-    const total = Number(countRows[0]?.count ?? 0);
+    const total = countRows[0]?.count ?? 0;
     const nextCursor = hasMore ? pageRows[pageRows.length - 1]?.id : undefined;
 
     return {

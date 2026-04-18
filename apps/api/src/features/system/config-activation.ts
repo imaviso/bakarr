@@ -65,10 +65,12 @@ export const persistAndActivateConfig = Effect.fn(
 
   if (rollbackResult._tag === "Left") {
     yield* recordEvent("config.rollback_failed", rollbackResult.left);
-    return yield* rollbackResult.left;
+    yield* rollbackResult.left;
+    return;
   }
 
-  return yield* Effect.fail(activationResult.left);
+  yield* Effect.fail(activationResult.left);
+  return;
 });
 
 function defaultRecordConfigActivationEvent(event: ConfigActivationEvent, error?: unknown) {

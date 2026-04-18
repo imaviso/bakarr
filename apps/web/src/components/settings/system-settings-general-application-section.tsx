@@ -111,7 +111,7 @@ export function SystemSettingsGeneralApplicationSection(
             description="Hide noisy retry logs from qBittorrent/Network"
           >
             <Switch
-              checked={Boolean(field().state.value)}
+              checked={field().state.value}
               onChange={(checked) => field().handleChange(checked)}
             />
           </SettingRow>

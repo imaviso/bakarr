@@ -53,15 +53,12 @@ export type {
   RssFeed,
   SearchDownloadReleaseContext,
   SearchDownloadRequest,
-  SearchReleaseCategory,
-  SearchReleaseFilter,
   ScannedFile,
   ScannerMatchCounts,
   ScannerMatchStatus,
   ScannerState,
   ScanResult,
   SearchResults,
-  SeasonalAnimeProvider,
   SeasonalAnimeQueryParams,
   SeasonalAnimeResponse,
   SkippedFile,
@@ -72,14 +69,52 @@ export type {
   VideoFile,
 } from "@bakarr/shared";
 
-export {
-  DOWNLOAD_EVENT_TYPE_FILTER_OPTIONS,
-  SEARCH_RELEASE_CATEGORY_LABELS,
-  SEARCH_RELEASE_CATEGORY_OPTIONS,
-  SEARCH_RELEASE_FILTER_LABELS,
-  SEARCH_RELEASE_FILTER_OPTIONS,
-  SEASONAL_ANIME_PROVIDER_VALUES,
-} from "@bakarr/shared";
+export const SEARCH_RELEASE_CATEGORY_OPTIONS = [
+  "anime_english",
+  "anime_non_english",
+  "anime_raw",
+  "all_anime",
+] as const;
+
+export type SearchReleaseCategory = (typeof SEARCH_RELEASE_CATEGORY_OPTIONS)[number];
+
+export const SEARCH_RELEASE_CATEGORY_LABELS: Record<SearchReleaseCategory, string> = {
+  all_anime: "All Anime",
+  anime_english: "Anime (English)",
+  anime_non_english: "Anime (Non-Eng)",
+  anime_raw: "Anime (Raw)",
+};
+
+export const SEARCH_RELEASE_FILTER_OPTIONS = ["no_filter", "no_remakes", "trusted_only"] as const;
+
+export type SearchReleaseFilter = (typeof SEARCH_RELEASE_FILTER_OPTIONS)[number];
+
+export const SEARCH_RELEASE_FILTER_LABELS: Record<SearchReleaseFilter, string> = {
+  no_filter: "No Filter",
+  no_remakes: "No Remakes",
+  trusted_only: "Trusted Only",
+};
+
+export const DOWNLOAD_EVENT_TYPE_FILTER_OPTIONS = [
+  "all",
+  "download.queued",
+  "download.imported",
+  "download.imported.batch",
+  "download.retried",
+  "download.status_changed",
+  "download.coverage_refined",
+  "download.deleted",
+  "download.search_missing.queued",
+  "download.rss.queued",
+] as const;
+
+export type DownloadEventTypeFilterOption = (typeof DOWNLOAD_EVENT_TYPE_FILTER_OPTIONS)[number];
+
+export const SEASONAL_ANIME_PROVIDER_VALUES = ["anilist", "jikan_fallback"] as const;
+
+export type SeasonalAnimeProvider = (typeof SEASONAL_ANIME_PROVIDER_VALUES)[number];
+
+export const MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS = 3;
 
 export interface ScanFolderResult {
   found: number;

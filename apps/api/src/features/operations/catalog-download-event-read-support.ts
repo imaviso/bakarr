@@ -79,7 +79,7 @@ export function makeCatalogDownloadEventReads(input: {
     const events = yield* Effect.forEach(orderedRows, (row) =>
       toDownloadEvent(row, contexts.get(row.id)),
     );
-    const total = Number(totalRows[0]?.count ?? 0);
+    const total = totalRows[0]?.count ?? 0;
     const firstRowId = orderedRows[0]?.id;
     const lastRowId = orderedRows[orderedRows.length - 1]?.id;
     const newerExists = firstRowId

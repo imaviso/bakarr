@@ -92,4 +92,6 @@ export function toSharedParsedEpisodeIdentity(
         scheme: "daily",
       };
   }
+
+  return undefined;
 }

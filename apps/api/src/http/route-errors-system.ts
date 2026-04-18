@@ -52,7 +52,7 @@ const isSystemRouteError = Schema.is(SystemRouteErrorSchema);
 
 export function mapSystemRouteError(error: unknown): RouteErrorResponse | undefined {
   if (!isSystemRouteError(error)) {
-    return;
+    return undefined;
   }
 
   return Match.valueTags(error, systemRouteErrorMappers);

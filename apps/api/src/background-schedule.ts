@@ -108,4 +108,6 @@ export function resolveBackgroundWorkerLoopPlan(
             intervalMs: schedule.metadataRefreshMs,
           };
   }
+
+  return null;
 }

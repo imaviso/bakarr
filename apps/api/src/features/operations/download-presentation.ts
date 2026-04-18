@@ -23,8 +23,7 @@ export const toDownload = Effect.fn("OperationsPresentation.toDownload")(functio
   context?: DownloadPresentationContext,
 ) {
   const coveredEpisodes = yield* decodeCoveredEpisodes(row.coveredEpisodes);
-  const coveragePending =
-    Boolean(row.isBatch) && (!coveredEpisodes || coveredEpisodes.length === 0);
+  const coveragePending = row.isBatch && (!coveredEpisodes || coveredEpisodes.length === 0);
   const sourceMetadata = yield* decodeDownloadSourceMetadata(row.sourceMetadata);
   const policy = resolveDownloadActionPolicy(row.status, row.reconciledAt);
 
@@ -70,8 +69,7 @@ export const toDownloadStatus = Effect.fn("OperationsPresentation.toDownloadStat
   const totalBytes = row.totalBytes ?? 0;
   const downloadedBytes = row.downloadedBytes ?? 0;
   const coveredEpisodes = yield* decodeCoveredEpisodes(row.coveredEpisodes);
-  const coveragePending =
-    Boolean(row.isBatch) && (!coveredEpisodes || coveredEpisodes.length === 0);
+  const coveragePending = row.isBatch && (!coveredEpisodes || coveredEpisodes.length === 0);
   const infoHash =
     row.infoHash ??
     (yield* new OperationsStoredDataError({

@@ -43,11 +43,13 @@ export function makeBackgroundWorkerSpawner(input: {
     }
 
     if (Cause.isInterruptedOnly(exit.cause)) {
-      return yield* Effect.interrupt;
+      yield* Effect.interrupt;
+      return;
     }
 
     if (Cause.isDie(exit.cause)) {
-      return yield* Effect.failCause(exit.cause);
+      yield* Effect.failCause(exit.cause);
+      return;
     }
 
     yield* Effect.logWarning("background worker run failed; keeping daemon alive").pipe(
@@ -168,7 +170,8 @@ export const withLockEffectOrFail = Effect.fn("Background.withLockEffectOrFail")
       ),
     );
 
-    return yield* Effect.failCause(exit.cause);
+    yield* Effect.failCause(exit.cause);
+    return;
   });
 
   return yield* makeSkippingSerializedEffectRunner(monitoredTask).pipe(

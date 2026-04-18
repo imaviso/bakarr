@@ -372,7 +372,7 @@ const makeMediaProbe = (
         FFPROBE_PROBE_TIMEOUT_MS,
       ),
     );
-    const stdout = String(output.stdout);
+    const stdout = output.stdout;
 
     return yield* decodeFfprobeOutput(stdout).pipe(
       Effect.flatMap(normalizeFfprobeDecodedOutput),

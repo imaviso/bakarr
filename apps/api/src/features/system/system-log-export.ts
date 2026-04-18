@@ -76,7 +76,7 @@ export const loadSystemLogExportHeader = Effect.fn("SystemLogExport.loadHeader")
     plan.conditions.length > 0 ? countQuery.where(and(...plan.conditions)) : countQuery,
   );
   const value = countRows[0]?.value;
-  const total = Number(value ?? 0);
+  const total = value ?? 0;
 
   return {
     exported: Math.min(total, plan.limit),

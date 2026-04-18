@@ -257,6 +257,8 @@ function sourcePriorityScore(source: AniDbTitleCandidateSource) {
     case "synonym":
       return 24;
   }
+
+  return 0;
 }
 
 function scoreTokenOverlap(candidate: string, matched: string) {

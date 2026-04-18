@@ -69,16 +69,18 @@ export const replaceDestinationWithStagedFile = Effect.fn(
       }),
     );
 
-    return yield* new ImportFileError({
+    yield* new ImportFileError({
       message: "Failed to rename temp file to destination and restore backup",
       cause: Cause.sequential(Cause.fail(commitResult.left), Cause.fail(restoreResult.left)),
     });
+    return;
   }
 
-  return yield* new ImportFileError({
+  yield* new ImportFileError({
     message: "Failed to rename temp file to destination",
     cause: commitResult.left,
   });
+  return;
 });
 
 const hasExistingFile = Effect.fn("Operations.hasExistingImportDestination")(function* (

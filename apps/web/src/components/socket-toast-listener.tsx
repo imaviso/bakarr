@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/solid-query";
 import { createEffect, onCleanup } from "solid-js";
 import { toast } from "solid-sonner";
-import { decodeNotificationEventWire, type NotificationEvent } from "@bakarr/shared";
+import type { NotificationEvent } from "@bakarr/shared";
 import {
   animeKeys,
   type BackgroundJobStatus,
@@ -15,6 +15,36 @@ import {
   readNotificationPreferences,
 } from "~/lib/notification-preferences";
 import { setSharedSocketAuthenticated, subscribeSharedSocket } from "~/lib/socket-events";
+
+function isNotificationEvent(value: unknown): value is NotificationEvent {
+  if (value === null || typeof value !== "object") {
+    return false;
+  }
+
+  if (!("type" in value) || typeof value.type !== "string") {
+    return false;
+  }
+
+  return true;
+}
+
+function decodeNotificationEventWire(
+  input: string,
+): { _tag: "Left" } | { _tag: "Right"; right: NotificationEvent } {
+  try {
+    const parsed: unknown = JSON.parse(input);
+    if (!isNotificationEvent(parsed)) {
+      return { _tag: "Left" };
+    }
+
+    return {
+      _tag: "Right",
+      right: parsed,
+    };
+  } catch {
+    return { _tag: "Left" };
+  }
+}
 
 const EVENT_TOAST_ID: Partial<Record<NotificationEvent["type"], string>> = {
   DownloadFinished: "ops.download",

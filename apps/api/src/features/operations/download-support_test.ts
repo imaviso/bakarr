@@ -302,7 +302,7 @@ it.scoped(
               : fs.rename(from, to),
           remove: (path, options) =>
             path === sourcePath
-              ? Effect.fail(makeFsError(path.toString(), "EACCES", "permission denied"))
+              ? Effect.fail(makeFsError(path, "EACCES", "permission denied"))
               : fs.remove(path, options),
         });
 

@@ -66,7 +66,7 @@ export const loadDownloadEventExportMetadata = Effect.fn(
       ? totalQuery.where(and(...plan.baseConditions))
       : totalQuery;
   });
-  const total = Number(totalRows[0]?.count ?? 0);
+  const total = totalRows[0]?.count ?? 0;
   const generated_at = yield* nowIso();
 
   return {

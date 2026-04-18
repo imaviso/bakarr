@@ -104,11 +104,12 @@ export const logoutAniDbEffect = Effect.fn("AniDbClient.logout")(function* (
     return;
   }
 
-  return yield* ExternalCallError.make({
+  yield* ExternalCallError.make({
     cause: new Error(`AniDB LOGOUT failed with code ${response.code}`),
     message: "AniDB logout failed",
     operation: "anidb.logout.response",
   });
+  return;
 });
 
 const waitForPacketWindowEffect = Effect.fn("AniDbClient.waitForPacketWindow")(function* (

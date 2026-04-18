@@ -1,11 +1,14 @@
 import { createMemo, Show } from "solid-js";
 import { Badge } from "~/components/ui/badge";
-import { type BackgroundJobStatus, type ScannerMatchStatus } from "~/lib/api";
+import {
+  MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS,
+  type BackgroundJobStatus,
+  type ScannerMatchStatus,
+} from "~/lib/api";
 import {
   backgroundMatchingStatusLabel,
   backgroundMatchingStatusVariant,
 } from "./background-matching-state";
-import { MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS } from "@bakarr/shared";
 
 export function BackgroundMatchingCard(props: {
   failedCount: number;

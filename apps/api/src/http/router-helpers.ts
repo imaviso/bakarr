@@ -100,11 +100,11 @@ export const routeResponse = <A, E, R, E2, R2>(
     );
   });
 
-export const jsonResponse = <A>(value: A) => HttpServerResponse.json(value);
+export const jsonResponse = (value: unknown) => HttpServerResponse.json(value);
 
 export const successResponse = () => HttpServerResponse.json({ data: null, success: true });
 
-export const acceptedResponse = <A>(value: A) =>
+export const acceptedResponse = (value: unknown) =>
   HttpServerResponse.json({ data: value, success: true }, { status: 202 });
 
 export const withAuthViewer = <A, E, R>(effect: (viewer: AuthUser) => Effect.Effect<A, E, R>) =>

@@ -71,7 +71,7 @@ const isOperationsRouteError = Schema.is(OperationsRouteErrorSchema);
 
 export function mapOperationsRouteError(error: unknown): RouteErrorResponse | undefined {
   if (!isOperationsRouteError(error)) {
-    return;
+    return undefined;
   }
 
   return Match.valueTags(error, operationsRouteErrorMappers);

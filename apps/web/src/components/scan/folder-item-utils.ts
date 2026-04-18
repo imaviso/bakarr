@@ -1,5 +1,4 @@
-import { MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS } from "@bakarr/shared";
-import type { UnmappedFolder } from "~/lib/api";
+import { MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS, type UnmappedFolder } from "~/lib/api";
 
 export function folderStatusLabel(folder: UnmappedFolder) {
   switch (folder.match_status) {

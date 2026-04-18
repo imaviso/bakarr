@@ -463,7 +463,7 @@ it.effect("BackgroundWorkerController keeps existing workers when reload spawn f
         Effect.gen(function* () {
           spawnCallCount++;
           if (spawnCallCount === 2) {
-            return yield* Effect.die(new Error("spawn failed"));
+            yield* Effect.die(new Error("spawn failed"));
           }
           yield* runInScope(scope, addTrackedFinalizer(stoppedHandles, spawnCallCount));
         }),

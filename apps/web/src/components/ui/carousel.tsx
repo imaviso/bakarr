@@ -1,5 +1,6 @@
 import type { Accessor, Component, ComponentProps, VoidProps } from "solid-js";
 import {
+  onCleanup,
   createContext,
   createEffect,
   createMemo,
@@ -115,10 +116,10 @@ const Carousel: Component<CarouselProps & ComponentProps<"div">> = (rawProps) =>
     emblaApi.on("reInit", onSelect);
     emblaApi.on("select", onSelect);
 
-    return () => {
+    onCleanup(() => {
       emblaApi.off("reInit", onSelect);
       emblaApi.off("select", onSelect);
-    };
+    });
   });
 
   const value = createMemo(() => {

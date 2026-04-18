@@ -114,7 +114,7 @@ export function makeUnmappedImportWorkflow(input: {
       const folderPath = `${libraryPath.replace(/\/$/, "")}/${folderName}`;
 
       if (!isWithinPathRoot(folderPath, libraryPath)) {
-        return yield* new OperationsInputError({
+        yield* new OperationsInputError({
           message: "folder_name must stay within the library root",
         });
       }
@@ -128,7 +128,7 @@ export function makeUnmappedImportWorkflow(input: {
       );
 
       if (existingOwner[0] && existingOwner[0].id !== input.anime_id) {
-        return yield* new OperationsConflictError({
+        yield* new OperationsConflictError({
           message: `Folder ${folderName} is already mapped to ${existingOwner[0].titleRomaji}`,
         });
       }

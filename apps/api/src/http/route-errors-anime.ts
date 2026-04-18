@@ -55,7 +55,7 @@ const isAnimeRouteError = Schema.is(AnimeRouteErrorSchema);
 
 export function mapAnimeRouteError(error: unknown): RouteErrorResponse | undefined {
   if (!isAnimeRouteError(error)) {
-    return;
+    return undefined;
   }
 
   return Match.valueTags(error, animeRouteErrorMappers);

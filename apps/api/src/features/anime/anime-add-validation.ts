@@ -18,7 +18,7 @@ export const checkAnimeExistsEffect = Effect.fn("AnimeAddValidation.checkAnimeEx
   );
 
   if (existing[0]) {
-    return yield* new AnimeConflictError({
+    yield* new AnimeConflictError({
       message: "Anime already exists",
     });
   }
@@ -38,7 +38,7 @@ export const checkProfileExistsEffect = Effect.fn("AnimeAddValidation.checkProfi
     const profileExists = yield* qualityProfileExistsEffect(db, profileName);
 
     if (!profileExists) {
-      return yield* new ProfileNotFoundError({
+      yield* new ProfileNotFoundError({
         message: `Quality profile '${profileName}' not found`,
       });
     }
@@ -51,7 +51,7 @@ export const checkRootFolderNotOwnedEffect = Effect.fn(
   const existingRootOwner = yield* findAnimeRootFolderOwnerEffect(db, rootFolder);
 
   if (existingRootOwner) {
-    return yield* new AnimeConflictError({
+    yield* new AnimeConflictError({
       message: `Folder is already mapped to ${existingRootOwner.titleRomaji}`,
     });
   }

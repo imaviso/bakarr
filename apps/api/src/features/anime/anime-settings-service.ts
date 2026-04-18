@@ -115,7 +115,7 @@ const makeAnimeSettingsService = Effect.gen(function* () {
     const existingRootOwner = yield* findAnimeRootFolderOwnerEffect(db, canonicalPath);
 
     if (existingRootOwner && existingRootOwner.id !== id) {
-      return yield* new AnimeConflictError({
+      yield* new AnimeConflictError({
         message: `Folder is already mapped to ${existingRootOwner.titleRomaji}`,
       });
     }
@@ -142,7 +142,7 @@ const makeAnimeSettingsService = Effect.gen(function* () {
     const profileExists = yield* qualityProfileExistsEffect(db, profileName);
 
     if (!profileExists) {
-      return yield* new ProfileNotFoundError({
+      yield* new ProfileNotFoundError({
         message: `Quality profile '${profileName}' not found`,
       });
     }

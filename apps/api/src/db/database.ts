@@ -72,7 +72,7 @@ const setAndVerifyPragmas = Effect.fn("Database.setAndVerifyPragmas")(function* 
   const foreignKeysValue = toSqlitePragmaValue(firstRowValue(foreignKeys[0]));
 
   if (journalModeValue.toLowerCase() !== "wal") {
-    return yield* sqlitePragmaMismatchError({
+    yield* sqlitePragmaMismatchError({
       actual: journalModeValue,
       expected: "wal",
       pragma: "journal_mode",
@@ -80,7 +80,7 @@ const setAndVerifyPragmas = Effect.fn("Database.setAndVerifyPragmas")(function* 
   }
 
   if (foreignKeysValue !== "1") {
-    return yield* sqlitePragmaMismatchError({
+    yield* sqlitePragmaMismatchError({
       actual: foreignKeysValue,
       expected: "1",
       pragma: "foreign_keys",

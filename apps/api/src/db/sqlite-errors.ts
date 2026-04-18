@@ -29,7 +29,7 @@ export function isSqliteUniqueConstraint(cause: unknown): boolean {
   return someCauseInChain(cause, (error) => {
     const code =
       typeof error.code === "string" ? error.code : String(error.code ?? error.errno ?? "");
-    const message = String(error.message ?? "");
+    const message = error.message ?? "";
     return (
       code === "SQLITE_CONSTRAINT" ||
       code === "SQLITE_CONSTRAINT_UNIQUE" ||
@@ -45,7 +45,7 @@ export function isSqliteBusyLock(cause: unknown): boolean {
   return someCauseInChain(cause, (error) => {
     const code =
       typeof error.code === "string" ? error.code : String(error.code ?? error.errno ?? "");
-    const message = String(error.message ?? "");
+    const message = error.message ?? "";
     return code === "SQLITE_BUSY" || code === "5" || message.includes("database is locked");
   });
 }

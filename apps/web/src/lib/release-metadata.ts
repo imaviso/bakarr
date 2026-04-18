@@ -94,4 +94,6 @@ export function releaseFlagBadgeClass(kind: ReleaseFlagKind) {
     case "remake":
       return "border-warning/20 text-warning bg-warning/5";
   }
+
+  return "border-border/40 text-muted-foreground bg-muted/20";
 }

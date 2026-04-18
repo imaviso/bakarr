@@ -21,7 +21,7 @@ export function infiniteLogsQueryOptions(
       "infinite",
       { level, eventType, startDate, endDate },
     ] as const,
-    queryFn: ({ pageParam = 1, signal }) => {
+    queryFn: ({ pageParam, signal }) => {
       const params = new URLSearchParams({ page: pageParam.toString() });
       if (level) params.append("level", level);
       if (eventType) params.append("event_type", eventType);

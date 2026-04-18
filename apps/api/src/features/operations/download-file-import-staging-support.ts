@@ -35,16 +35,18 @@ export const stageSourceIntoTempFile = Effect.fn("Operations.stageSourceIntoTemp
     );
 
     if (cleanupResult._tag === "Left") {
-      return yield* new ImportFileError({
+      yield* new ImportFileError({
         message: `Failed to ${input.importMode} file to temp destination and cleanup temp file`,
         cause: Cause.sequential(Cause.fail(stageResult.left), Cause.fail(cleanupResult.left)),
       });
+      return;
     }
 
-    return yield* new ImportFileError({
+    yield* new ImportFileError({
       message: `Failed to ${input.importMode} file to temp destination`,
       cause: stageResult.left,
     });
+    return;
   },
 );
 
@@ -77,12 +79,14 @@ const stageMoveAcrossFilesystems = Effect.fn("Operations.stageMoveAcrossFilesyst
   const cleanupResult = yield* Effect.either(removeStagedTempFileStrict(fs, tempDestination));
 
   if (cleanupResult._tag === "Left") {
-    return yield* Effect.failCause(
+    yield* Effect.failCause(
       Cause.sequential(Cause.fail(removeResult.left), Cause.fail(cleanupResult.left)),
     );
+    return;
   }
 
-  return yield* removeResult.left;
+  yield* removeResult.left;
+  return;
 });
 
 function removeStagedTempFileStrict(fs: FileSystemShape, tempDestination: string) {

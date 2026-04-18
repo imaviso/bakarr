@@ -19,7 +19,7 @@ export function SystemSettingsAutomationDownloadClientSection(
             description="Connect to qBittorrent for downloading"
           >
             <Switch
-              checked={Boolean(field().state.value)}
+              checked={field().state.value}
               onChange={(checked) => field().handleChange(checked)}
             />
           </SettingRow>

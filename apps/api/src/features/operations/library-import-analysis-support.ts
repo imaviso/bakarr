@@ -167,4 +167,6 @@ function describeScannedFileMatch(input: {
     case "daily":
       return `Parsed ${input.sourceIdentity.label} from the filename`;
   }
+
+  return undefined;
 }

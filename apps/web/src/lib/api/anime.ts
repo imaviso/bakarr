@@ -287,7 +287,7 @@ export function seasonalAnimeInfiniteQueryOptions(input?: {
 
   return infiniteQueryOptions({
     queryKey: [...animeKeys.seasonal({ season, year, limit }).slice(0, 4), "infinite"] as const,
-    queryFn: ({ pageParam = 1, signal }) => {
+    queryFn: ({ pageParam, signal }) => {
       const params = new URLSearchParams();
       if (season !== undefined) params.append("season", season);
       if (year !== undefined) params.append("year", String(year));

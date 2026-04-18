@@ -125,7 +125,7 @@ export const countUpToDateAnimeRows = Effect.fn("SystemStatsRepository.countUpTo
     );
 
     return rows.filter(
-      (row) => row.episodeCount !== null && Number(row.downloadedCount) === row.episodeCount,
+      (row) => row.episodeCount !== null && row.downloadedCount === row.episodeCount,
     ).length;
   },
 );

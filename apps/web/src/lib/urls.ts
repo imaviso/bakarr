@@ -1,11 +1,11 @@
 export function safeExternalUrl(input: string | undefined): string | undefined {
   if (!input) {
-    return;
+    return undefined;
   }
 
   const value = input.trim();
   if (!value) {
-    return;
+    return undefined;
   }
 
   try {
@@ -14,6 +14,6 @@ export function safeExternalUrl(input: string | undefined): string | undefined {
       ? parsed.toString()
       : undefined;
   } catch {
-    return;
+    return undefined;
   }
 }

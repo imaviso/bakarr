@@ -195,4 +195,6 @@ export function getNotificationPreferenceKeyForEvent(
     case "SystemStatus":
       return null;
   }
+
+  return null;
 }

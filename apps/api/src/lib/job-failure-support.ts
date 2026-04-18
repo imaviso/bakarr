@@ -6,8 +6,8 @@ export class JobFailurePersistenceError extends Data.TaggedError("JobFailurePers
   readonly original_failure_cause: Cause.Cause<unknown>;
 }> {}
 
-export function markJobFailureOrFailWithError<E, M>(input: {
-  readonly error: E;
+export function markJobFailureOrFailWithError<M>(input: {
+  readonly error: unknown;
   readonly job: string;
   readonly logMessage: string;
   readonly markFailed: Effect.Effect<void, M>;
