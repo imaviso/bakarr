@@ -7,7 +7,7 @@ import {
   IconTrash,
 } from "@tabler/icons-solidjs";
 import { createFileRoute, useNavigate } from "@tanstack/solid-router";
-import { createEffect, createMemo, createSignal, For, on, Show } from "solid-js";
+import { createMemo, createSignal, For, Show } from "solid-js";
 import { GeneralError } from "~/components/general-error";
 import { BackgroundMatchingCard } from "~/components/scan/background-matching-card";
 import { runBulkBackgroundMatchAction } from "~/components/scan/background-matching-actions";
@@ -57,7 +57,7 @@ function LibraryScanPage() {
   const [confirmBulkAction, setConfirmBulkAction] = createSignal<
     null | "pause_queued" | "reset_failed"
   >(null);
-  const [folderListScrollTop, setFolderListScrollTop] = createSignal(0);
+  const [manualDialogScrollTop, setManualDialogScrollTop] = createSignal<number | null>(null);
 
   const folders = createMemo<UnmappedFolder[]>(
     (previousFolders) => scanState.data?.folders ?? previousFolders ?? [],
@@ -167,38 +167,28 @@ function LibraryScanPage() {
     setConfirmBulkAction(null);
   };
 
-  const bindFolderListRef = (el: HTMLDivElement) => {
-    folderListRef = el;
-    const savedTop = folderListScrollTop();
-    if (savedTop <= 0 || el.scrollTop > 0) {
+  const handleManualDialogOpenChange = (open: boolean) => {
+    if (!folderListRef) {
+      return;
+    }
+
+    if (open) {
+      setManualDialogScrollTop(folderListRef.scrollTop);
+      return;
+    }
+
+    const savedTop = manualDialogScrollTop();
+    if (savedTop === null) {
       return;
     }
 
     requestAnimationFrame(() => {
-      if (folderListRef === el && el.scrollTop === 0) {
-        el.scrollTop = savedTop;
+      if (folderListRef) {
+        folderListRef.scrollTop = savedTop;
       }
+      setManualDialogScrollTop(null);
     });
   };
-
-  createEffect(
-    on(
-      folderPaths,
-      () => {
-        const savedTop = folderListScrollTop();
-        if (!folderListRef || savedTop <= 0 || folderListRef.scrollTop > 0) {
-          return;
-        }
-
-        requestAnimationFrame(() => {
-          if (folderListRef && folderListRef.scrollTop === 0) {
-            folderListRef.scrollTop = savedTop;
-          }
-        });
-      },
-      { defer: true },
-    ),
-  );
 
   return (
     <div class="flex h-full min-w-0 flex-col bg-[radial-gradient(circle_at_top_left,hsl(var(--info)/0.12),transparent_34%),radial-gradient(circle_at_top_right,hsl(var(--primary)/0.08),transparent_28%)]">
@@ -321,8 +311,9 @@ function LibraryScanPage() {
       </AlertDialog>
 
       <div
-        ref={bindFolderListRef}
-        onScroll={(event) => setFolderListScrollTop(event.currentTarget.scrollTop)}
+        ref={(el) => {
+          folderListRef = el;
+        }}
         class="flex-1 overflow-y-auto overflow-x-hidden px-6 py-6"
       >
         <Show
@@ -361,7 +352,10 @@ function LibraryScanPage() {
                         <Show when={folder()}>
                           {(resolvedFolder) => (
                             <li>
-                              <FolderItem folder={resolvedFolder()} />
+                              <FolderItem
+                                folder={resolvedFolder()}
+                                onManualDialogOpenChange={handleManualDialogOpenChange}
+                              />
                             </li>
                           )}
                         </Show>

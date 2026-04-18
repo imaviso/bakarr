@@ -50,7 +50,10 @@ import {
 } from "~/components/scan/folder-item-utils";
 import { ManualMatchSearch } from "./manual-match-search";
 
-export function FolderItem(props: { folder: UnmappedFolder }) {
+export function FolderItem(props: {
+  folder: UnmappedFolder;
+  onManualDialogOpenChange?: (open: boolean) => void;
+}) {
   const state = createFolderItemController(() => props.folder);
 
   return (
@@ -289,12 +292,18 @@ export function FolderItem(props: { folder: UnmappedFolder }) {
           </AlertDialogContent>
         </AlertDialog>
 
-        <Dialog open={state.manualDialogOpen()} onOpenChange={state.setManualDialogOpen}>
+        <Dialog
+          open={state.manualDialogOpen()}
+          onOpenChange={(open) => {
+            props.onManualDialogOpenChange?.(open);
+            state.setManualDialogOpen(open);
+          }}
+        >
           <DialogTrigger as={Button} type="button" variant="ghost" size="sm" class="justify-start">
             <IconSearch class="mr-2 h-4 w-4" />
             Change match
           </DialogTrigger>
-          <DialogContent class="sm:max-w-md">
+          <DialogContent class="sm:max-w-md" onCloseAutoFocus={(event) => event.preventDefault()}>
             <DialogHeader>
               <DialogTitle>Match folder to anime</DialogTitle>
               <DialogDescription>
