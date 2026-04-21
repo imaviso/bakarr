@@ -41,13 +41,15 @@ export function DownloadsEventsTab(props: DownloadsEventsTabProps) {
           {props.lastDownloadEventsExport?.total} events ( {props.lastDownloadEventsExport?.limit}).
         </div>
       )}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div className="flex-1 min-h-0 overflow-hidden p-4 space-y-3">
         <DownloadEventsFeed
           events={props.downloadEventsQuery.data?.events ?? []}
           formatTimestamp={formatUiTimestamp}
           isLoading={props.downloadEventsQuery.isLoading}
           total={props.downloadEventsQuery.data?.total}
           emptyText="No download events found."
+          virtualized
+          className="h-full min-h-0 overflow-auto"
         />
       </div>
       <div className="p-4 border-t border-border flex justify-end gap-2">

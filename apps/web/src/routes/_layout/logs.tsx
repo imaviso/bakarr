@@ -25,7 +25,7 @@ export const Route = createFileRoute("/_layout/logs")({
 });
 
 function LogsPage() {
-  usePageTitle(() => "System Logs");
+  usePageTitle("System Logs");
   const search = Route.useSearch();
   const navigate = useNavigate();
 

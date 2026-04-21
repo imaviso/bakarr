@@ -7,9 +7,17 @@ import {
 } from "@phosphor-icons/react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useNavigate } from "@tanstack/react-router";
-import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
-import { useDebouncedValue } from "~/lib/use-debounced-value";
+import {
+  Suspense,
+  lazy,
+  useDeferredValue,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { useContainerWidth } from "~/hooks/use-container-width";
 import * as v from "valibot";
 import { GeneralError } from "~/components/general-error";
 import { PageHeader } from "~/components/page-header";
@@ -65,10 +73,10 @@ export const Route = createFileRoute("/_layout/anime/add")({
 function AddAnimePage() {
   const navigate = useNavigate();
   const searchInputRef = useRef<HTMLInputElement | null>(null);
-  usePageTitle(() => "Add Anime");
+  usePageTitle("Add Anime");
   const search = Route.useSearch();
   const [query, setQuery] = useState("");
-  const debouncedQuery = useDebouncedValue(query, 500);
+  const debouncedQuery = useDeferredValue(query);
   const [selectedAnime, setSelectedAnime] = useState<AnimeSearchResult | null>(null);
   const [seasonWindow, setSeasonWindow] = useState(() => getCurrentSeasonWindow());
 
@@ -77,14 +85,11 @@ function AddAnimePage() {
   const anilistIdQuery = createAnimeByAnilistIdQuery(anilistId);
 
   const searchQuery = createAnimeSearchQuery(debouncedQuery);
-  const searchResults = useMemo(() => searchQuery.data?.results ?? [], [searchQuery.data]);
+  const searchResults = searchQuery.data?.results ?? [];
   const canSearch = debouncedQuery.trim().length >= 3;
-  const searchDegraded = useMemo(() => searchQuery.data?.degraded ?? false, [searchQuery.data]);
+  const searchDegraded = searchQuery.data?.degraded ?? false;
   const animeListQuery = createAnimeListQuery();
-  const libraryIds = useMemo(
-    () => new Set((animeListQuery.data ?? []).map((anime) => anime.id)),
-    [animeListQuery.data],
-  );
+  const libraryIds = new Set((animeListQuery.data ?? []).map((anime) => anime.id));
 
   const seasonalQuery = createSeasonalAnimeInfiniteQuery({
     season: seasonWindow.season,
@@ -92,6 +97,12 @@ function AddAnimePage() {
   });
 
   const [activeTab, setActiveTab] = useState<string>("search");
+
+  useLayoutEffect(() => {
+    if (activeTab === "search") {
+      searchInputRef.current?.focus();
+    }
+  }, [activeTab]);
 
   const selectedAnimeFromSearch =
     anilistId !== null && anilistIdQuery.data?.id === anilistId ? anilistIdQuery.data : null;
@@ -111,17 +122,12 @@ function AddAnimePage() {
     setSelectedAnime(anime);
   };
 
-  useEffect(() => {
-    searchInputRef.current?.focus();
-  }, []);
-
-  useEffect(() => {
-    if (activeTab !== "search") {
-      return;
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    if (value === "search") {
+      searchInputRef.current?.focus();
     }
-
-    searchInputRef.current?.focus();
-  }, [activeTab]);
+  };
 
   return (
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden gap-6">
@@ -132,9 +138,7 @@ function AddAnimePage() {
         <div className="relative w-full sm:max-w-sm">
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            ref={(el) => {
-              searchInputRef.current = el;
-            }}
+            ref={searchInputRef}
             value={query}
             onChange={(event) => setQuery(event.currentTarget.value)}
             placeholder="Search by title..."
@@ -144,7 +148,11 @@ function AddAnimePage() {
         </div>
       </PageHeader>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-1 min-h-0 flex-col">
+      <Tabs
+        value={activeTab}
+        onValueChange={handleTabChange}
+        className="flex flex-1 min-h-0 flex-col"
+      >
         <TabsList className="w-full justify-start">
           <TabsTrigger value="search" className="gap-1.5">
             <MagnifyingGlassIcon className="h-4 w-4" />
@@ -235,44 +243,18 @@ interface SearchResultsProps {
 }
 
 function SearchResults(props: SearchResultsProps) {
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-  const [viewportWidth, setViewportWidth] = useState(
-    typeof window === "undefined" ? 1280 : window.innerWidth,
-  );
-  const colCount = useMemo(() => getSearchColCount(viewportWidth), [viewportWidth]);
-
-  useEffect(() => {
-    let rafId: number;
-    const handler = () => {
-      cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(() => setViewportWidth(window.innerWidth));
-    };
-    handler();
-    window.addEventListener("resize", handler);
-    return () => {
-      window.removeEventListener("resize", handler);
-      cancelAnimationFrame(rafId);
-    };
-  }, []);
-
-  const rowCount = useMemo(
-    () => Math.ceil(props.searchResults.length / colCount),
-    [props.searchResults.length, colCount],
-  );
-
-  const estimateRowSize = useMemo(() => {
-    const cols = colCount;
-    const vw = viewportWidth;
-    const containerW = Math.max(280, vw - (vw >= 768 ? 260 : 0) - 48);
-    const colW = (containerW - (cols - 1) * 16) / cols;
-    return Math.round(colW * 1.5 + 68 + 16);
-  }, [colCount, viewportWidth]);
+  const [containerRef, width, nodeRef] = useContainerWidth();
+  const colCount = getSearchColCount(width);
+  const containerW = Math.max(280, width);
+  const colW = (containerW - (colCount - 1) * 16) / colCount;
+  const estimateRowSize = Math.round(colW * 1.5 + 68 + 16);
+  const rowCount = Math.ceil(props.searchResults.length / colCount);
 
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
     estimateSize: () => estimateRowSize,
     overscan: 4,
-    getScrollElement: () => scrollRef.current,
+    getScrollElement: () => nodeRef.current,
   });
 
   useEffect(() => {
@@ -284,13 +266,14 @@ function SearchResults(props: SearchResultsProps) {
   }, [props.active, rowVirtualizer]);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = 0;
+    const el = nodeRef.current;
+    if (el) {
+      el.scrollTop = 0;
     }
 
     rowVirtualizer.scrollToOffset(0);
     rowVirtualizer.measure();
-  }, [props.debouncedQuery, rowVirtualizer]);
+  }, [props.debouncedQuery, rowVirtualizer, nodeRef]);
 
   const virtualRows = rowVirtualizer.getVirtualItems();
 
@@ -336,7 +319,7 @@ function SearchResults(props: SearchResultsProps) {
         props.searchResults.length === 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
             {[1, 2, 3, 4, 5, 6, 7, 8].map((row) => (
-              <div key={row} className="space-y-3">
+              <div key={`skeleton-${row}`} className="space-y-3">
                 <Skeleton className="aspect-[2/3] w-full rounded-none" />
                 <div className="space-y-2">
                   <Skeleton className="h-4 w-3/4" />
@@ -348,7 +331,11 @@ function SearchResults(props: SearchResultsProps) {
         )}
 
       {props.canSearch && !props.searchQuery.error && props.searchResults.length > 0 && (
-        <div ref={scrollRef} className="h-full overflow-y-auto" style={{ overflowAnchor: "none" }}>
+        <div
+          ref={containerRef}
+          className="h-full min-h-0 overflow-y-auto overflow-x-hidden"
+          style={{ overflowAnchor: "none" }}
+        >
           <div className="relative w-full" style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
             {virtualRows.map((vRow) => (
               <div

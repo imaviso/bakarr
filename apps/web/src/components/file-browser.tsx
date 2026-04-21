@@ -200,7 +200,7 @@ export function FileBrowser(props: FileBrowserProps) {
         {browserQuery.isLoading ? (
           <div className="p-3 space-y-2">
             {[1, 2, 3, 4, 5, 6].map((row) => (
-              <div key={row} className="flex items-center gap-2">
+              <div key={`skeleton-${row}`} className="flex items-center gap-2">
                 <Skeleton className="h-4 w-4" />
                 <Skeleton className="h-4 flex-1" />
               </div>

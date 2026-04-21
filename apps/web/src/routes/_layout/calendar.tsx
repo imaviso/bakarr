@@ -19,7 +19,7 @@ export const Route = createFileRoute("/_layout/calendar")({
 });
 
 function CalendarPage() {
-  usePageTitle(() => "Calendar");
+  usePageTitle("Calendar");
   return (
     <Suspense
       fallback={

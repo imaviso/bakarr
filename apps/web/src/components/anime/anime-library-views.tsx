@@ -1,7 +1,8 @@
 import { TelevisionIcon, TrashIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { useContainerWidth } from "~/hooks/use-container-width";
 import { DeleteAnimeDialog } from "~/components/delete-anime-dialog";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -78,46 +79,18 @@ function statusTone(anime: Anime) {
 }
 
 export function AnimeGridView(props: AnimeLibraryViewProps) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [viewportWidth, setViewportWidth] = useState(
-    typeof window === "undefined" ? 1280 : window.innerWidth,
-  );
-  const colCount = useMemo(() => getColCount(viewportWidth), [viewportWidth]);
-
-  useEffect(() => {
-    let rafId: number;
-    const handler = () => {
-      cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(() => {
-        setViewportWidth(window.innerWidth);
-      });
-    };
-    handler();
-    window.addEventListener("resize", handler);
-    return () => {
-      window.removeEventListener("resize", handler);
-      cancelAnimationFrame(rafId);
-    };
-  }, []);
-
-  const rowCount = useMemo(
-    () => Math.ceil(props.anime.length / colCount),
-    [props.anime.length, colCount],
-  );
-
-  const estimateRowSize = useMemo(() => {
-    const cols = colCount;
-    const vw = viewportWidth;
-    const containerW = Math.max(280, vw - (vw >= 768 ? 260 : 0) - 48);
-    const colW = (containerW - (cols - 1) * 16) / cols;
-    return Math.round(colW * 1.5 + 68 + 16);
-  }, [colCount, viewportWidth]);
+  const [containerRef, width, nodeRef] = useContainerWidth();
+  const colCount = getColCount(width);
+  const containerW = Math.max(280, width);
+  const colW = (containerW - (colCount - 1) * 16) / colCount;
+  const estimateRowSize = Math.round(colW * 1.5 + 68 + 16);
+  const rowCount = Math.ceil(props.anime.length / colCount);
 
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
     estimateSize: () => estimateRowSize,
     overscan: 2,
-    getScrollElement: () => scrollRef.current ?? null,
+    getScrollElement: () => nodeRef.current,
   });
 
   const virtualItems = rowVirtualizer.getVirtualItems();
@@ -128,7 +101,11 @@ export function AnimeGridView(props: AnimeLibraryViewProps) {
   };
 
   return (
-    <div ref={scrollRef} className="h-full overflow-y-auto" style={{ overflowAnchor: "none" }}>
+    <div
+      ref={containerRef}
+      className="h-full min-h-0 overflow-y-auto overflow-x-hidden"
+      style={{ overflowAnchor: "none" }}
+    >
       <div className="relative w-full" style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
         {virtualItems.map((vRow) => (
           <div
@@ -293,10 +270,10 @@ export function AnimeListView(props: AnimeLibraryViewProps) {
   return (
     <div
       ref={scrollRef}
-      className="h-full overflow-y-auto rounded-none border"
+      className="h-full min-h-0 overflow-auto rounded-none border"
       style={{ overflowAnchor: "none" }}
     >
-      <Table>
+      <Table className="table-fixed w-full min-w-[760px] lg:min-w-0">
         <TableHeader className="sticky top-0 bg-card z-10 border-b">
           <TableRow className="hover:bg-transparent border-none">
             <TableHead className="w-[80px]">Cover</TableHead>

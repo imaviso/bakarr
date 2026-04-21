@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useMemo, type ReactNode } from "react";
+import { createContext, useContext, useMemo, useSyncExternalStore, type ReactNode } from "react";
 
 export interface AuthState {
   username?: string | undefined;
@@ -14,13 +14,26 @@ function normalizeApiKey(apiKey?: string) {
   return value;
 }
 
-// Global Auth State
+// Module-level external store (safe for concurrent React)
 let authState: AuthState = { isAuthenticated: false };
-let reactSetAuth: React.Dispatch<React.SetStateAction<AuthState>> | null = null;
+const listeners = new Set<() => void>();
 
 function saveAuth(state: AuthState) {
   authState = state;
-  reactSetAuth?.(state);
+  for (const listener of listeners) {
+    listener();
+  }
+}
+
+function subscribe(callback: () => void) {
+  listeners.add(callback);
+  return () => {
+    listeners.delete(callback);
+  };
+}
+
+function getSnapshot() {
+  return authState;
 }
 
 export const loginSuccess = (username: string, apiKey?: string) => {
@@ -66,13 +79,8 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [auth, setAuth] = useState<AuthState>(authState);
-  useEffect(() => {
-    reactSetAuth = setAuth;
-    return () => {
-      reactSetAuth = null;
-    };
-  }, []);
+  const auth = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       auth,
@@ -84,6 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }),
     [auth],
   );
+
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

@@ -1,5 +1,10 @@
 import { format } from "date-fns";
 
+export function isAired(airedDate?: string): boolean {
+  if (!airedDate) return false;
+  return new Date(airedDate) <= new Date();
+}
+
 export function formatUiTimestamp(value: string): string {
   const normalized = value.includes("T") ? value : value.replace(" ", "T");
   const hasTimezone = /([zZ]|[+-]\d{2}:\d{2})$/.test(normalized);

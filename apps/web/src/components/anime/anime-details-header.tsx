@@ -117,14 +117,14 @@ export function AnimeDetailsHeader(props: AnimeDetailsHeaderProps) {
               {props.anime.title.native && (
                 <>
                   <span>•</span>
-                  <span className="font-japanese">{props.anime.title.native}</span>
+                  <span className="font-japanese truncate">{props.anime.title.native}</span>
                 </>
               )}
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 -mb-2 no-scrollbar md:overflow-visible md:pb-0 md:mb-0">
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 -mb-2 no-scrollbar md:flex-wrap md:overflow-visible md:pb-0 md:mb-0">
           <Tooltip>
             <TooltipTrigger
               render={<Button variant={props.isMonitored ? "default" : "outline"} size="sm" />}

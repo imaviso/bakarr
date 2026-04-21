@@ -14,8 +14,15 @@ interface SearchDialogProps {
 export function SearchDialog(props: SearchDialogProps) {
   const state = useSearchDialogState(props.defaultQuery);
 
+  const handleOpenChange = (open: boolean) => {
+    state.setOpen(open);
+    if (open) {
+      state.setQuery(props.defaultQuery);
+    }
+  };
+
   return (
-    <Dialog open={state.open} onOpenChange={state.setOpen}>
+    <Dialog open={state.open} onOpenChange={handleOpenChange}>
       {props.trigger && (
         <DialogTrigger render={<div className="contents" />}>
           {props.tooltip ? (

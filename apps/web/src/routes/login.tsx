@@ -47,10 +47,6 @@ function LoginPage() {
   const apiKeyLoginMutation = createApiKeyLoginMutation();
   const [apiKey, setApiKey] = useState("");
 
-  const submitLogin = async () => {
-    await form.handleSubmit();
-  };
-
   const form = useForm({
     defaultValues: {
       username: "",
@@ -84,7 +80,7 @@ function LoginPage() {
             Sign in to your account
           </CardDescription>
         </CardHeader>
-        <form action={submitLogin}>
+        <form action={() => form.handleSubmit()}>
           <CardContent className="space-y-4">
             <form.Field
               name="username"

@@ -1,9 +1,10 @@
 import { CaretLeftIcon, CaretRightIcon, InfoIcon } from "@phosphor-icons/react";
 import type { UseInfiniteQueryResult, InfiniteData } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { AnimeSearchResultCard } from "~/components/anime/anime-search-result-card";
 import { Button } from "~/components/ui/button";
+import { useContainerWidth } from "~/hooks/use-container-width";
 import type { AnimeSearchResult, SeasonalAnimeResponse } from "~/lib/api";
 import { formatSeasonWindowLabel } from "~/lib/seasonal-navigation";
 import type { SeasonWindow } from "~/lib/seasonal-navigation";
@@ -27,53 +28,25 @@ function getColCount(w: number) {
 }
 
 export function SeasonalAnimeSection(props: SeasonalAnimeSectionProps) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [viewportWidth, setViewportWidth] = useState(
-    typeof window === "undefined" ? 1280 : window.innerWidth,
-  );
-  const colCount = useMemo(() => getColCount(viewportWidth), [viewportWidth]);
-
-  useEffect(() => {
-    let rafId: number;
-    const handler = () => {
-      cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(() => setViewportWidth(window.innerWidth));
-    };
-    handler();
-    window.addEventListener("resize", handler);
-    return () => {
-      window.removeEventListener("resize", handler);
-      cancelAnimationFrame(rafId);
-    };
-  }, []);
+  const [containerRef, width, nodeRef] = useContainerWidth();
+  const colCount = getColCount(width);
+  const containerW = Math.max(280, width);
+  const colW = (containerW - (colCount - 1) * 16) / colCount;
+  const estimateRowSize = Math.round(colW * 1.5 + 52 + 16);
 
   const allResults = useMemo(
     () => props.query.data?.pages.flatMap((page) => page.results) ?? [],
     [props.query.data],
   );
-  const isDegraded = useMemo(
-    () => props.query.data?.pages.some((page) => page.degraded) ?? false,
-    [props.query.data],
-  );
+  const isDegraded = props.query.data?.pages.some((page) => page.degraded) ?? false;
 
-  const rowCount = useMemo(
-    () => Math.ceil(allResults.length / colCount),
-    [allResults.length, colCount],
-  );
-
-  const estimateRowSize = useMemo(() => {
-    const cols = colCount;
-    const vw = viewportWidth;
-    const containerW = Math.max(280, vw - (vw >= 768 ? 260 : 0) - 48);
-    const colW = (containerW - (cols - 1) * 16) / cols;
-    return Math.round(colW * 1.5 + 52 + 16);
-  }, [colCount, viewportWidth]);
+  const rowCount = Math.ceil(allResults.length / colCount);
 
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
     estimateSize: () => estimateRowSize,
     overscan: 4,
-    getScrollElement: () => scrollRef.current ?? null,
+    getScrollElement: () => nodeRef.current,
   });
 
   useEffect(() => {
@@ -84,12 +57,13 @@ export function SeasonalAnimeSection(props: SeasonalAnimeSectionProps) {
   }, [props.active, rowVirtualizer]);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = 0;
+    const el = nodeRef.current;
+    if (el) {
+      el.scrollTop = 0;
     }
     rowVirtualizer.scrollToOffset(0);
     rowVirtualizer.measure();
-  }, [props.seasonWindow.season, props.seasonWindow.year, rowVirtualizer]);
+  }, [props.seasonWindow.season, props.seasonWindow.year, rowVirtualizer, nodeRef]);
 
   const virtualRows = rowVirtualizer.getVirtualItems();
   const hasNextPage = props.query.hasNextPage;
@@ -192,7 +166,11 @@ export function SeasonalAnimeSection(props: SeasonalAnimeSectionProps) {
       )}
 
       {allResults.length > 0 && (
-        <div ref={scrollRef} className="h-full overflow-y-auto" style={{ overflowAnchor: "none" }}>
+        <div
+          ref={containerRef}
+          className="h-full min-h-0 overflow-y-auto overflow-x-hidden"
+          style={{ overflowAnchor: "none" }}
+        >
           <div className="relative w-full" style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
             {virtualRows.map((vRow) => (
               <div

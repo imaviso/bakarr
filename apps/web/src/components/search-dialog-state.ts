@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import {
   createGrabReleaseMutation,
   createNyaaSearchQuery,
@@ -6,7 +6,6 @@ import {
   SEARCH_RELEASE_FILTER_LABELS,
   type NyaaSearchResult,
 } from "~/lib/api";
-import { createDebouncer } from "~/lib/debounce";
 import { buildReleaseDisplay, buildSelectionDisplayFromNyaaResult } from "~/lib/release-display";
 import { getReleaseConfidence } from "~/lib/release-selection";
 import { buildGrabInputFromNyaaResult } from "~/lib/release-grab";
@@ -33,25 +32,9 @@ export function formatSearchResultAge(dateStr: string) {
 export function useSearchDialogState(defaultQuery: string) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState(defaultQuery);
-  const [debouncedQuery, setDebouncedQuery] = useState(defaultQuery);
+  const debouncedQuery = useDeferredValue(query);
   const [category, setCategory] = useState<string>("all_anime");
   const [filter, setFilter] = useState<string>("no_filter");
-  const debouncer = useMemo(() => createDebouncer(setDebouncedQuery, 500), []);
-
-  useEffect(() => {
-    debouncer.schedule(query);
-    return () => debouncer.cancel();
-  }, [query, debouncer]);
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    const nextQuery = defaultQuery;
-    setQuery(nextQuery);
-    setDebouncedQuery(nextQuery);
-  }, [open, defaultQuery]);
 
   return {
     category,
@@ -81,10 +64,8 @@ export function useSearchDialogResultsState(input: {
     filter: input.filter,
   });
 
-  const results = useMemo(() => searchQuery.data?.results ?? [], [searchQuery.data]);
-
   const sortedResults = useMemo(() => {
-    const list = [...results];
+    const list = [...(searchQuery.data?.results ?? [])];
     return list.toSorted((left, right) => {
       const column = sortCol;
 
@@ -112,7 +93,7 @@ export function useSearchDialogResultsState(input: {
       if (leftValue > rightValue) return sortAsc ? 1 : -1;
       return 0;
     });
-  }, [results, sortCol, sortAsc]);
+  }, [searchQuery.data?.results, sortCol, sortAsc]);
 
   const toggleSort = (column: keyof NyaaSearchResult) => {
     if (sortCol === column) {
@@ -149,48 +130,52 @@ export function useSearchDialogReleaseRowState(input: {
   const [isBatch, setIsBatch] = useState(detectedIsBatch);
   const [popoverOpen, setPopoverOpen] = useState(false);
 
-  const selectionDisplay = useMemo(
-    () => buildSelectionDisplayFromNyaaResult(input.result),
-    [input.result],
-  );
-  const releaseDisplay = useMemo(
-    () =>
-      buildReleaseDisplay({
-        group: input.result.parsed_group,
-        indexer: input.result.indexer,
-        is_seadex: input.result.is_seadex,
-        is_seadex_best: input.result.is_seadex_best,
-        parsed_air_date: input.result.parsed_air_date,
-        parsed_episode_label: input.result.parsed_episode_label,
-        quality: input.result.parsed_quality,
-        remake: input.result.remake,
-        resolution: input.result.parsed_resolution,
-        seadex_dual_audio: input.result.seadex_dual_audio,
-        trusted: input.result.trusted,
-      }),
-    [input.result],
-  );
-  const grabPayload = useMemo(() => {
+  const {
+    grabPayload,
+    releaseConfidence,
+    releaseFlags,
+    releaseParsedSummary,
+    releaseSourceSummary,
+    selectionLabel,
+    selectionMetadata,
+    selectionSummary,
+  } = useMemo(() => {
+    const selectionDisplay = buildSelectionDisplayFromNyaaResult(input.result);
+    const releaseDisplay = buildReleaseDisplay({
+      group: input.result.parsed_group,
+      indexer: input.result.indexer,
+      is_seadex: input.result.is_seadex,
+      is_seadex_best: input.result.is_seadex_best,
+      parsed_air_date: input.result.parsed_air_date,
+      parsed_episode_label: input.result.parsed_episode_label,
+      quality: input.result.parsed_quality,
+      remake: input.result.remake,
+      resolution: input.result.parsed_resolution,
+      seadex_dual_audio: input.result.seadex_dual_audio,
+      trusted: input.result.trusted,
+    });
+
     const parsedEpisodeNumber = parseFloat(episodeNumberInput);
     const episodeNumber = Number.isFinite(parsedEpisodeNumber) ? parsedEpisodeNumber : undefined;
 
-    return buildGrabInputFromNyaaResult({
+    const grabPayload = buildGrabInputFromNyaaResult({
       animeId: input.animeId,
       episodeNumber,
       isBatch: isBatch,
       result: input.result,
     });
+
+    return {
+      grabPayload,
+      releaseConfidence: getReleaseConfidence(releaseDisplay.confidence),
+      releaseFlags: releaseDisplay.flags,
+      releaseParsedSummary: releaseDisplay.parsedSummary,
+      releaseSourceSummary: releaseDisplay.sourceSummary,
+      selectionLabel: selectionDisplay.label,
+      selectionMetadata: selectionDisplay.metadata,
+      selectionSummary: selectionDisplay.summary,
+    };
   }, [episodeNumberInput, isBatch, input.animeId, input.result]);
-  const selectionMetadata = useMemo(() => selectionDisplay.metadata, [selectionDisplay]);
-  const selectionSummary = useMemo(() => selectionDisplay.summary, [selectionDisplay]);
-  const selectionLabel = useMemo(() => selectionDisplay.label, [selectionDisplay]);
-  const releaseConfidence = useMemo(
-    () => getReleaseConfidence(releaseDisplay.confidence),
-    [releaseDisplay],
-  );
-  const releaseFlags = useMemo(() => releaseDisplay.flags, [releaseDisplay]);
-  const releaseSourceSummary = useMemo(() => releaseDisplay.sourceSummary, [releaseDisplay]);
-  const releaseParsedSummary = useMemo(() => releaseDisplay.parsedSummary, [releaseDisplay]);
 
   const handleGrab = () => {
     grabMutation.mutate(grabPayload, {

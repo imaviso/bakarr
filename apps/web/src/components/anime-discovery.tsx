@@ -1,5 +1,4 @@
 import { Link } from "@tanstack/react-router";
-import { useMemo } from "react";
 import { buttonVariants } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import type { Anime } from "~/lib/api";
@@ -16,24 +15,17 @@ interface AnimeDiscoveryRowProps {
 }
 
 export function AnimeDiscoveryRow(props: AnimeDiscoveryRowProps) {
-  const subtitle = useMemo(
-    () =>
-      animeDiscoverySubtitle({
-        ...(props.entry.format === undefined ? {} : { format: props.entry.format }),
-        ...(props.entry.relation_type === undefined
-          ? {}
-          : { relation_type: props.entry.relation_type }),
-        ...(props.entry.season === undefined ? {} : { season: props.entry.season }),
-        ...(props.entry.season_year === undefined ? {} : { season_year: props.entry.season_year }),
-        ...(props.entry.start_year === undefined ? {} : { start_year: props.entry.start_year }),
-        ...(props.entry.status === undefined ? {} : { status: props.entry.status }),
-      }).join(" - "),
-    [props.entry],
-  );
-  const isInLibrary = useMemo(
-    () => props.libraryIds.has(props.entry.id),
-    [props.libraryIds, props.entry.id],
-  );
+  const subtitle = animeDiscoverySubtitle({
+    ...(props.entry.format === undefined ? {} : { format: props.entry.format }),
+    ...(props.entry.relation_type === undefined
+      ? {}
+      : { relation_type: props.entry.relation_type }),
+    ...(props.entry.season === undefined ? {} : { season: props.entry.season }),
+    ...(props.entry.season_year === undefined ? {} : { season_year: props.entry.season_year }),
+    ...(props.entry.start_year === undefined ? {} : { start_year: props.entry.start_year }),
+    ...(props.entry.status === undefined ? {} : { status: props.entry.status }),
+  }).join(" - ");
+  const isInLibrary = props.libraryIds.has(props.entry.id);
 
   return (
     <div
@@ -94,22 +86,13 @@ interface AnimeDiscoverySectionProps {
 }
 
 export function AnimeDiscoverySection(props: AnimeDiscoverySectionProps) {
-  const related = useMemo(() => {
-    const entries = props.anime.related_anime ?? [];
-    return entries.filter((entry) => entry.id !== props.anime.id);
-  }, [props.anime.related_anime, props.anime.id]);
-  const recommended = useMemo(() => {
-    const relatedIds = new Set(related.map((entry) => entry.id));
-    const entries = props.anime.recommended_anime ?? [];
-    return entries.filter((entry) => entry.id !== props.anime.id && !relatedIds.has(entry.id));
-  }, [props.anime.recommended_anime, props.anime.id, related]);
-
-  const hasContent = useMemo(
-    () => related.length > 0 || recommended.length > 0,
-    [related.length, recommended.length],
+  const related = (props.anime.related_anime ?? []).filter((entry) => entry.id !== props.anime.id);
+  const relatedIds = new Set(related.map((entry) => entry.id));
+  const recommended = (props.anime.recommended_anime ?? []).filter(
+    (entry) => entry.id !== props.anime.id && !relatedIds.has(entry.id),
   );
 
-  if (!hasContent) return null;
+  if (related.length === 0 && recommended.length === 0) return null;
 
   return (
     <Card>

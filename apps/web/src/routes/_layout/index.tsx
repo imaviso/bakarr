@@ -28,11 +28,11 @@ export const Route = createFileRoute("/_layout/")({
 });
 
 function DashboardPage() {
-  usePageTitle(() => "Dashboard");
+  usePageTitle("Dashboard");
   const statsQuery = createLibraryStatsQuery();
   const activityQuery = createActivityQuery();
 
-  const recentActivity = useMemo(() => activityQuery.data?.slice(0, 5) ?? [], [activityQuery.data]);
+  const recentActivity = activityQuery.data?.slice(0, 5) ?? [];
 
   const statsSummary = useMemo(() => {
     const s = statsQuery.data;
@@ -186,7 +186,7 @@ function DashboardLoading() {
       aria-label="Loading stats"
     >
       {[1, 2, 3, 4, 5].map((row) => (
-        <div key={row} className="flex items-baseline gap-2">
+        <div key={`skeleton-${row}`} className="flex items-baseline gap-2">
           <div className="h-6 w-8 bg-muted animate-pulse" />
           <div className="h-3 w-14 bg-muted animate-pulse" />
         </div>

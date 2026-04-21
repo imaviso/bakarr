@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { useDownloadEventsSearchState } from "~/hooks/use-download-events-search-state";
 import { useActiveDownloads } from "~/hooks/use-active-downloads";
 import type {
@@ -24,16 +23,9 @@ export function useDownloadsQueries(options: UseDownloadsQueriesOptions) {
   const historyQuery = createDownloadHistoryQuery();
   const downloadEventsQuery = createDownloadEventsQuery(eventsSearchState.queryInput);
 
-  const queueCount = useMemo(() => queue.length, [queue]);
-  const history = useMemo(() => historyQuery.data ?? [], [historyQuery.data]);
-  const canGoToPreviousEventsPage = useMemo(
-    () => Boolean(downloadEventsQuery.data?.prev_cursor),
-    [downloadEventsQuery.data?.prev_cursor],
-  );
-  const canGoToNextEventsPage = useMemo(
-    () => Boolean(downloadEventsQuery.data?.next_cursor),
-    [downloadEventsQuery.data?.next_cursor],
-  );
+  const history = historyQuery.data ?? [];
+  const canGoToPreviousEventsPage = Boolean(downloadEventsQuery.data?.prev_cursor);
+  const canGoToNextEventsPage = Boolean(downloadEventsQuery.data?.next_cursor);
 
   return {
     canGoToNextEventsPage,
@@ -43,6 +35,6 @@ export function useDownloadsQueries(options: UseDownloadsQueriesOptions) {
     history,
     historyQuery,
     queue,
-    queueCount,
+    queueCount: queue.length,
   };
 }

@@ -6,7 +6,7 @@ import {
   PlusIcon,
   MagnifyingGlassIcon,
 } from "@phosphor-icons/react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { AnimeDiscoveryRow } from "~/components/anime-discovery";
 import { Badge } from "~/components/ui/badge";
 import { Input } from "~/components/ui/input";
@@ -32,36 +32,35 @@ export function ManualSearchCore(props: ManualSearchCoreProps) {
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const debouncer = useMemo(() => createDebouncer(setDebouncedQuery, 500), []);
 
-  useEffect(() => {
-    debouncer.schedule(query);
-    return () => debouncer.cancel();
-  }, [query, debouncer]);
+  const handleQueryChange = (value: string) => {
+    setQuery(value);
+    debouncer.schedule(value);
+  };
 
   const search = createAnimeSearchQuery(debouncedQuery);
-  const searchResults = useMemo(() => search.data?.results ?? [], [search.data]);
-  const searchDegraded = useMemo(() => search.data?.degraded ?? false, [search.data]);
+  const searchResults = search.data?.results ?? [];
+  const searchDegraded = search.data?.degraded ?? false;
   const libraryIds = useMemo(() => {
     const existing = props.existingIds ? [...props.existingIds] : [];
-    const discovered = searchResults
+    const discovered = (search.data?.results ?? [])
       .filter((anime) => anime.already_in_library)
       .map((anime) => anime.id);
     return new Set([...existing, ...discovered]);
-  }, [props.existingIds, searchResults]);
-
-  useEffect(() => {
-    if (props.autoFocusInput ?? true) {
-      searchInputRef.current?.focus({ preventScroll: true });
-    }
-  }, [props.autoFocusInput]);
+  }, [props.existingIds, search.data?.results]);
 
   return (
     <div className="space-y-4">
       <div className="relative">
         <MagnifyingGlassIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input
-          ref={searchInputRef}
+          ref={(el) => {
+            searchInputRef.current = el;
+            if (el && (props.autoFocusInput ?? true)) {
+              el.focus({ preventScroll: true });
+            }
+          }}
           value={query}
-          onChange={(event) => setQuery(event.currentTarget.value)}
+          onChange={(event) => handleQueryChange(event.currentTarget.value)}
           placeholder="Search for anime..."
           aria-label="Search anime title"
           className="pl-9"

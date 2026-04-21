@@ -53,7 +53,7 @@ export const Route = createFileRoute("/_layout/wanted")({
 });
 
 function WantedPage() {
-  usePageTitle(() => "Wanted");
+  usePageTitle("Wanted");
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const limit = 100;
   const wantedQuery = createWantedQuery(limit);
@@ -63,7 +63,7 @@ function WantedPage() {
   );
   createSystemTaskQuery(latestMissingSearchTaskId);
   const searchMissing = createSearchMissingMutation();
-  const data = useMemo(() => wantedQuery.data ?? [], [wantedQuery.data]);
+  const data = wantedQuery.data ?? [];
   const airingPreferences = useMemo(
     () => getAiringDisplayPreferences(configQuery.data?.library),
     [configQuery.data],
@@ -116,8 +116,8 @@ function WantedPage() {
       </PageHeader>
 
       <Card className="overflow-hidden flex-1 min-h-0 flex flex-col">
-        <div ref={scrollRef} className="h-full overflow-y-auto">
-          <Table>
+        <div ref={scrollRef} className="h-full min-h-0 overflow-auto">
+          <Table className="table-fixed w-full min-w-[760px] md:min-w-0">
             <TableHeader className="sticky top-0 bg-card z-10 border-b">
               <TableRow className="hover:bg-transparent border-none">
                 <TableHead className="w-[60px]" />

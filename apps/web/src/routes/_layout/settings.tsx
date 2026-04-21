@@ -58,7 +58,7 @@ export const Route = createFileRoute("/_layout/settings")({
 });
 
 function SettingsPage() {
-  usePageTitle(() => "Settings");
+  usePageTitle("Settings");
   return (
     <div className="space-y-6">
       <PageHeader title="Settings">

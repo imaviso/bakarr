@@ -35,13 +35,9 @@ import type {
   AnimeSearchModalState,
 } from "~/components/anime/anime-details-types";
 import type { Episode } from "~/lib/api";
+import { isAired } from "~/lib/date-time";
 import { formatDurationSeconds } from "~/lib/scanned-file";
 import { cn } from "~/lib/utils";
-
-function isAired(airedDate?: string) {
-  if (!airedDate) return false;
-  return new Date(airedDate) <= new Date();
-}
 
 interface AnimeEpisodesPanelProps {
   episodes: Episode[];

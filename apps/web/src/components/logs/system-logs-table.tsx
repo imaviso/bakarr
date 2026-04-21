@@ -87,15 +87,15 @@ export function SystemLogsTable(props: SystemLogsTableProps) {
     >
       <div
         ref={logsScrollRef}
-        className="h-full overflow-y-auto"
+        className="h-full overflow-y-auto overflow-x-hidden"
       >
-        <Table>
+        <Table className="table-fixed w-full">
           <TableHeader className="sticky top-0 bg-card z-10">
             <TableRow className="hover:bg-transparent border-none">
               <TableHead className="w-[160px]">Timestamp</TableHead>
               <TableHead className="w-[100px]">Level</TableHead>
               <TableHead className="w-[120px]">Source</TableHead>
-              <TableHead>Message</TableHead>
+              <TableHead className="w-full">Message</TableHead>
               <TableHead className="w-[80px]" />
             </TableRow>
           </TableHeader>
@@ -150,7 +150,7 @@ export function SystemLogsTable(props: SystemLogsTableProps) {
                             </div>
                             {log.details && (
                               <div
-                                className="text-xs text-muted-foreground mt-0.5 font-mono truncate opacity-70"
+                                className="text-xs text-muted-foreground mt-0.5 font-mono truncate"
                                 title={log.details}
                               >
                                 {log.details}

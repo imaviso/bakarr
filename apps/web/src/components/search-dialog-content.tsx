@@ -268,7 +268,7 @@ function SearchResultsSkeleton() {
         </TableHeader>
         <TableBody>
           {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((row) => (
-            <TableRow key={row} className="hover:bg-transparent border-border">
+            <TableRow key={`skeleton-${row}`} className="hover:bg-transparent border-border">
               <TableCell className="pl-6 py-2.5">
                 <div className="space-y-1.5">
                   <Skeleton className="h-4 w-3/4" />

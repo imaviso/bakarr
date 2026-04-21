@@ -62,7 +62,7 @@ export function DownloadEventsFeed(props: DownloadEventsFeedProps) {
               {isVirtualized ? (
                 <div
                   ref={scrollRef}
-                  className={props.className ?? "overflow-y-auto"}
+                  className={props.className ?? "h-full min-h-0 overflow-auto"}
                   style={{
                     ...(props.maxHeightPx === undefined
                       ? {}

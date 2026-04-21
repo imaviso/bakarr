@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Suspense, lazy, useMemo } from "react";
+import { Suspense, lazy } from "react";
 import * as v from "valibot";
 import { AnimeError } from "~/components/anime-error";
 import { useAnimeDetailsActions } from "~/hooks/use-anime-details-actions";
@@ -14,6 +14,7 @@ import {
   releaseProfilesQueryOptions,
 } from "~/lib/api";
 import { usePageTitle } from "~/lib/page-title";
+import { isAired } from "~/lib/date-time";
 
 const AnimeDetailsDialogsLazy = lazy(() =>
   import("~/components/anime/anime-details-dialogs").then((module) => ({
@@ -66,20 +67,13 @@ export const Route = createFileRoute("/_layout/anime/$id")({
   errorComponent: AnimeError,
 });
 
-function isAired(airedDate?: string) {
-  if (!airedDate) return false;
-  const aired = new Date(airedDate);
-  const now = new Date();
-  return aired <= now;
-}
-
 function AnimeDetailsPage() {
   const params = Route.useParams();
   const animeId = v.parse(IdParamSchema, params.id);
   const navigate = useNavigate();
 
   const animeQuery = useQuery(animeDetailsQueryOptions(animeId));
-  usePageTitle(() => animeQuery.data?.title?.english || animeQuery.data?.title?.romaji);
+  usePageTitle(animeQuery.data?.title?.english || animeQuery.data?.title?.romaji);
   const episodesQuery = useQuery(episodesQueryOptions(animeId));
   const profilesQuery = useQuery(profilesQueryOptions());
   const releaseProfilesQuery = useQuery(releaseProfilesQueryOptions());
@@ -90,24 +84,12 @@ function AnimeDetailsPage() {
   });
   const dialogState = useAnimeDetailsDialogState();
 
-  const episodesData = useMemo(() => episodesQuery.data ?? [], [episodesQuery.data]);
-  const missingCount = useMemo(
-    () => episodesData.filter((e) => !e.downloaded && isAired(e.aired)).length,
-    [episodesData],
-  );
-  const availableCount = useMemo(
-    () => episodesData.filter((e) => e.downloaded).length,
-    [episodesData],
-  );
-  const totalEpisodes = useMemo(
-    () => episodesData.length || animeQuery.data?.episode_count || 0,
-    [episodesData, animeQuery.data],
-  );
+  const episodesData = episodesQuery.data ?? [];
+  const missingCount = episodesData.filter((e) => !e.downloaded && isAired(e.aired)).length;
+  const availableCount = episodesData.filter((e) => e.downloaded).length;
+  const totalEpisodes = episodesData.length || animeQuery.data?.episode_count || 0;
   const isMonitored = animeQuery.data?.monitored ?? true;
-  const libraryIds = useMemo(
-    () => new Set(animeQuery.data ? [animeQuery.data.id] : []),
-    [animeQuery.data],
-  );
+  const libraryIds = new Set(animeQuery.data ? [animeQuery.data.id] : []);
 
   const handleDeleteEpisodeFile = () => {
     actions.handleDeleteEpisodeFile(dialogState.deleteEpisodeState.episodeNumber);

@@ -57,7 +57,7 @@ export const Route = createFileRoute("/_layout/anime/scan")({
 });
 
 function LibraryScanPage() {
-  usePageTitle(() => "Library Scan");
+  usePageTitle("Library Scan");
   const scanState = createUnmappedFoldersQuery();
   const systemJobs = createSystemJobsQuery();
   const bulkControlMutation = createBulkControlUnmappedFoldersMutation();

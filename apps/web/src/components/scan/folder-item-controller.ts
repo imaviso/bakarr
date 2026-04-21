@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   type AddAnimeRequest,
   type AnimeSearchResult,
@@ -31,20 +31,9 @@ export function useFolderItemController(folder: UnmappedFolder) {
     return folder.suggested_matches[0] ?? null;
   }, [manualMatch, folder.suggested_matches]);
 
-  const selectedProfile = useMemo(() => {
-    const selectedName = selectedProfileName;
-    const profiles = profilesQuery.data ?? [];
-    const fallbackName = profiles[0]?.name ?? "";
-    const resolvedName = selectedName || fallbackName;
-
-    return profiles.find((profile) => profile.name === resolvedName) ?? profiles[0];
-  }, [selectedProfileName, profilesQuery.data]);
-
-  useEffect(() => {
-    if (!selectedProfileName && profilesQuery.data?.[0]?.name) {
-      setSelectedProfileName(profilesQuery.data[0].name);
-    }
-  }, [selectedProfileName, profilesQuery.data]);
+  const profiles = profilesQuery.data ?? [];
+  const effectiveProfileName = selectedProfileName || profiles[0]?.name || "";
+  const selectedProfile = profiles.find((p) => p.name === effectiveProfileName) ?? profiles[0];
 
   const existingAnime = useMemo(
     () => (selectedAnime?.already_in_library ? selectedAnime : null),

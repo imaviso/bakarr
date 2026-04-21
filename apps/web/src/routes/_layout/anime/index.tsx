@@ -10,7 +10,7 @@ import {
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as v from "valibot";
 import { AnimeListSkeleton } from "~/components/anime-list-skeleton";
 import { GeneralError } from "~/components/general-error";
@@ -91,43 +91,34 @@ export const Route = createFileRoute("/_layout/anime/")({
 });
 
 function AnimeIndexPage() {
-  usePageTitle(() => "Library");
+  usePageTitle("Library");
   const deleteAnime = createDeleteAnimeMutation();
   const animeQuery = useQuery(animeListQueryOptions());
   const configQuery = createSystemConfigQuery();
   const search = Route.useSearch();
   const navigate = useNavigate();
-  const airingPreferences = useMemo(
-    () => getAiringDisplayPreferences(configQuery.data?.library),
-    [configQuery.data],
-  );
+  const airingPreferences = getAiringDisplayPreferences(configQuery.data?.library);
 
   const [localQuery, setLocalQuery] = useState(search.q);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const stored = readStoredAnimeSearch();
+    if (!stored) return;
 
-    if (!stored) {
-      return;
-    }
-
-    const current = search;
     const isExplicitSearch =
-      current.q !== DEFAULT_ANIME_SEARCH.q ||
-      current.filter !== DEFAULT_ANIME_SEARCH.filter ||
-      current.view !== DEFAULT_ANIME_SEARCH.view;
+      search.q !== DEFAULT_ANIME_SEARCH.q ||
+      search.filter !== DEFAULT_ANIME_SEARCH.filter ||
+      search.view !== DEFAULT_ANIME_SEARCH.view;
 
-    if (isExplicitSearch) {
-      return;
-    }
+    if (isExplicitSearch) return;
 
     const next = {
-      filter: stored.filter ?? current.filter,
-      q: stored.q ?? current.q,
-      view: stored.view ?? current.view,
+      filter: stored.filter ?? search.filter,
+      q: stored.q ?? search.q,
+      view: stored.view ?? search.view,
     };
 
-    if (next.q === current.q && next.filter === current.filter && next.view === current.view) {
+    if (next.q === search.q && next.filter === search.filter && next.view === search.view) {
       return;
     }
 
@@ -136,12 +127,12 @@ function AnimeIndexPage() {
       search: next,
       replace: true,
     });
+    // Intentionally empty deps: restore localStorage into URL exactly once on mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    const urlQ = search.q;
-    setLocalQuery((current) => (current === urlQ ? current : urlQ));
+    setLocalQuery((current) => (current === search.q ? current : search.q));
   }, [search.q]);
 
   const searchRef = useRef(search);
@@ -169,10 +160,6 @@ function AnimeIndexPage() {
       // Ignore persistence errors.
     }
   }, [search]);
-
-  useEffect(() => {
-    return () => debouncer.cancel();
-  }, [debouncer]);
 
   const handleSearchInput = (q: string) => {
     setLocalQuery(q);

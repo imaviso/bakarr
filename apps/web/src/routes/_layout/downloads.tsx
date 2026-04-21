@@ -26,7 +26,7 @@ export const Route = createFileRoute("/_layout/downloads")({
 });
 
 function DownloadsPage() {
-  usePageTitle(() => "Downloads");
+  usePageTitle("Downloads");
   const search = Route.useSearch();
   const navigate = useNavigate();
 

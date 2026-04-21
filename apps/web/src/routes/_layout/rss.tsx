@@ -50,7 +50,6 @@ import {
 import { usePageTitle } from "~/lib/page-title";
 
 export const Route = createFileRoute("/_layout/rss")({
-  validateSearch: (search) => v.parse(v.object({}), search),
   loader: async ({ context: { queryClient } }) => {
     await Promise.all([
       queryClient.ensureQueryData(rssFeedsQueryOptions()),
@@ -62,7 +61,7 @@ export const Route = createFileRoute("/_layout/rss")({
 });
 
 function RssPage() {
-  usePageTitle(() => "RSS Feeds");
+  usePageTitle("RSS Feeds");
   const [isAdding, setIsAdding] = useState(false);
   const feedsQuery = createRssFeedsQuery();
   const deleteFeed = createDeleteRssFeedMutation();
@@ -84,7 +83,7 @@ function RssPage() {
       {feedsQuery.isLoading && (
         <div className="space-y-4">
           {[1, 2, 3].map((row) => (
-            <Skeleton key={row} className="h-20" />
+            <Skeleton key={`skeleton-${row}`} className="h-20" />
           ))}
         </div>
       )}

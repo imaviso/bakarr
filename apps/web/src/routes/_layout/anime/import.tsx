@@ -32,7 +32,7 @@ export const Route = createFileRoute("/_layout/anime/import")({
 });
 
 function ImportPage() {
-  usePageTitle(() => "Import");
+  usePageTitle("Import");
   const navigate = useNavigate();
   const search = Route.useSearch();
 

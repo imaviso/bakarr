@@ -1,17 +1,15 @@
 import { useRouterState } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useRef } from "react";
 
 export function GlobalSpinner() {
   const state = useRouterState();
-  const [hasCompletedInitialLoad, setHasCompletedInitialLoad] = useState(false);
+  const hasBeenIdle = useRef(state.status === "idle");
 
-  useEffect(() => {
-    if (state.status === "idle") {
-      setHasCompletedInitialLoad(true);
-    }
-  }, [state.status]);
+  if (state.status === "idle") {
+    hasBeenIdle.current = true;
+  }
 
-  const isRouting = !hasCompletedInitialLoad && state.status === "pending";
+  const isRouting = !hasBeenIdle.current && state.status === "pending";
 
   return (
     <>

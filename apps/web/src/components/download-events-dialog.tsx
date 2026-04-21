@@ -73,7 +73,7 @@ export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
     });
   };
 
-  const events = useMemo(() => query.data?.events ?? [], [query.data]);
+  const events = query.data?.events ?? [];
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
