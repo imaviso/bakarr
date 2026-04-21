@@ -95,10 +95,10 @@ export function AnimeCalendar() {
       </div>
 
       {/* Calendar Grid */}
-      <Card className="overflow-x-auto border-border/50">
+      <Card className="overflow-x-auto border-border">
         <div className="min-w-0 md:min-w-[800px]">
           {/* Weekday Headers */}
-          <div className="grid grid-cols-7 border-b border-border/50 bg-muted/30">
+          <div className="grid grid-cols-7 border-b border-border bg-muted">
             {weekdays.map((day) => (
               <div
                 key={day}
@@ -120,10 +120,10 @@ export function AnimeCalendar() {
                 <div
                   key={format(day, "yyyy-MM-dd")}
                   className={cn(
-                    "min-h-[120px] border-r border-b border-border/30 p-1.5 transition-colors",
+                    "min-h-[120px] border-r border-b border-border p-1.5 transition-colors",
                     "last:border-r-0 [&:nth-child(7n)]:border-r-0",
-                    !isCurrentMonth && "bg-muted/20 opacity-50",
-                    isCurrentDay && "bg-primary/5",
+                    !isCurrentMonth && "bg-muted opacity-50",
+                    isCurrentDay && "bg-primary/10",
                   )}
                 >
                   {/* Day Number */}

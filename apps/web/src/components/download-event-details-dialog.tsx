@@ -42,7 +42,7 @@ export function DownloadEventDetailsDialog(props: DownloadEventDetailsDialogProp
             <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Message
             </div>
-            <div className="rounded-md border border-border/60 bg-muted/20 p-3">
+            <div className="rounded-none border border-border bg-muted p-3">
               {props.event?.message}
             </div>
           </div>
@@ -86,7 +86,7 @@ export function DownloadEventDetailsDialog(props: DownloadEventDetailsDialogProp
               <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Imported Path
               </div>
-              <div className="rounded-md border border-border/60 bg-muted/20 p-3 font-mono break-all text-xs">
+              <div className="rounded-none border border-border bg-muted p-3 font-mono break-all text-xs">
                 {summary?.importedPath}
               </div>
             </div>
@@ -97,7 +97,7 @@ export function DownloadEventDetailsDialog(props: DownloadEventDetailsDialogProp
               <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Raw Metadata
               </div>
-              <pre className="rounded-md border border-border/60 bg-muted/20 p-3 text-xs overflow-x-auto whitespace-pre-wrap break-all">
+              <pre className="rounded-none border border-border bg-muted p-3 text-xs overflow-x-auto whitespace-pre-wrap break-all">
                 {JSON.stringify(props.event.metadata_json, null, 2)}
               </pre>
             </div>

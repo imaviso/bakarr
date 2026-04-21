@@ -90,7 +90,7 @@ export function SystemLogsTable(props: SystemLogsTableProps) {
         className="h-full overflow-y-auto"
       >
         <Table>
-          <TableHeader className="sticky top-0 bg-card z-10 shadow-sm shadow-border/50">
+          <TableHeader className="sticky top-0 bg-card z-10">
             <TableRow className="hover:bg-transparent border-none">
               <TableHead className="w-[160px]">Timestamp</TableHead>
               <TableHead className="w-[100px]">Level</TableHead>

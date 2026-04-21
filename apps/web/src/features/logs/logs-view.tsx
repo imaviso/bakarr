@@ -136,7 +136,7 @@ export function LogsView(props: LogsViewProps) {
       </div>
 
       <Card className="border-dashed shrink-0">
-        <div className="p-4 border-b border-border/60">
+        <div className="p-4 border-b border-border">
           <h2 className="text-sm font-medium text-foreground">Ops Summary</h2>
           <p className="text-xs text-muted-foreground mt-1">High-level download and worker health</p>
         </div>
@@ -170,7 +170,7 @@ export function LogsView(props: LogsViewProps) {
       </Card>
 
       <Card className="border-dashed shrink-0">
-        <div className="p-4 border-b border-border/60">
+        <div className="p-4 border-b border-border">
           <h2 className="text-sm font-medium text-foreground">Background Jobs</h2>
           <p className="text-xs text-muted-foreground mt-1">Current scheduler and worker visibility</p>
         </div>
@@ -192,7 +192,7 @@ export function LogsView(props: LogsViewProps) {
       </Card>
 
       <Card className="border-dashed shrink-0">
-        <div className="p-4 border-b border-border/60">
+        <div className="p-4 border-b border-border">
           <div className="flex flex-col gap-3">
             <div>
               <h2 className="text-sm font-medium text-foreground">Recent Download Events</h2>
@@ -216,7 +216,7 @@ export function LogsView(props: LogsViewProps) {
               nextDisabled={!props.state.canGoToNextDownloadEventsPage}
             />
             {props.state.lastDownloadEventsExport?.truncated && (
-              <div className="rounded-md border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-warning">
+              <div className="rounded-none border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-warning">
                 Last export was truncated: exported
                 {props.state.lastDownloadEventsExport?.exported} of
                 {props.state.lastDownloadEventsExport?.total} events (limit{" "}

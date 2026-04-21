@@ -106,8 +106,8 @@ export function AnimeEpisodesPanel(props: AnimeEpisodesPanelProps) {
                         episode.downloaded
                           ? "bg-success/20 text-success border border-success/30"
                           : isAired(episode.aired)
-                            ? "bg-warning/10 text-warning/70 border border-warning/20"
-                            : "bg-muted/30 text-muted-foreground/40 border border-transparent",
+                            ? "bg-warning/10 text-warning border border-warning/20"
+                            : "bg-muted text-muted-foreground border border-transparent",
                       )}
                       title={`Episode ${episode.number}: ${status}${
                         episode.aired ? ` (Aired: ${episode.aired})` : ""
@@ -122,7 +122,7 @@ export function AnimeEpisodesPanel(props: AnimeEpisodesPanelProps) {
           </TabsContent>
 
           <TabsContent value="table">
-            <div className="border rounded-md overflow-auto max-h-[600px]">
+            <div className="border rounded-none overflow-auto max-h-[600px]">
               <Table>
                 <TableHeader className="sticky top-0 bg-card z-10">
                   <TableRow>
@@ -181,8 +181,8 @@ export function AnimeEpisodesPanel(props: AnimeEpisodesPanelProps) {
                                   className={cn(
                                     "h-4 w-4",
                                     isAired(episode.aired)
-                                      ? "text-warning/70"
-                                      : "text-muted-foreground/30",
+                                      ? "text-warning"
+                                      : "text-muted-foreground",
                                   )}
                                 />
                               </TooltipTrigger>

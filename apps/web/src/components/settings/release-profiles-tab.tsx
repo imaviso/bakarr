@@ -171,15 +171,15 @@ export function ReleaseProfilesTab() {
 
           {releaseProfilesQuery.isLoading && (
             <div className="space-y-4">
-              <Skeleton key="release-profile-skeleton-1" className="h-32 rounded-lg" />
-              <Skeleton key="release-profile-skeleton-2" className="h-32 rounded-lg" />
+              <Skeleton key="release-profile-skeleton-1" className="h-32 rounded-none" />
+              <Skeleton key="release-profile-skeleton-2" className="h-32 rounded-none" />
             </div>
           )}
 
           {!releaseProfilesQuery.isLoading && releaseProfilesQuery.data?.length === 0 && (
             <Card className="p-12 text-center border-dashed bg-transparent">
               <div className="flex flex-col items-center gap-4">
-                <ListChecksIcon className="h-12 w-12 text-muted-foreground/50" />
+                <ListChecksIcon className="h-12 w-12 text-muted-foreground" />
                 <div>
                   <h3 className="font-medium">No release profiles</h3>
                   <p className="text-sm text-muted-foreground mt-1">

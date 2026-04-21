@@ -74,7 +74,7 @@ export function NotificationSettingsCard() {
           </Button>
         </div>
 
-        <div className="divide-y border border-border/60 bg-muted/10">
+        <div className="divide-y border border-border bg-muted">
           {NOTIFICATION_PREFERENCE_KEYS.map((key) => (
             <div key={key} className="flex items-start justify-between gap-4 p-3">
               <div className="space-y-1">

@@ -118,7 +118,7 @@ function WantedPage() {
       <Card className="overflow-hidden flex-1 min-h-0 flex flex-col">
         <div ref={scrollRef} className="h-full overflow-y-auto">
           <Table>
-            <TableHeader className="sticky top-0 bg-card z-10 shadow-sm shadow-border/50">
+            <TableHeader className="sticky top-0 bg-card z-10 border-b">
               <TableRow className="hover:bg-transparent border-none">
                 <TableHead className="w-[60px]" />
                 <TableHead>Anime</TableHead>

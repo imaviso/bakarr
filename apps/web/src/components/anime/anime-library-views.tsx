@@ -174,7 +174,7 @@ export function AnimeGridView(props: AnimeLibraryViewProps) {
                           <Button
                             size="icon"
                             variant="secondary"
-                            className="relative after:absolute after:-inset-3 h-8 w-8 shadow-sm bg-background/90 hover:bg-destructive hover:text-destructive-foreground"
+                            className="relative after:absolute after:-inset-3 h-8 w-8 bg-background/90 hover:bg-destructive hover:text-destructive-foreground"
                           >
                             <TrashIcon className="h-3.5 w-3.5" />
                           </Button>
@@ -186,7 +186,7 @@ export function AnimeGridView(props: AnimeLibraryViewProps) {
                     <Link
                       to="/anime/$id"
                       params={{ id: anime.id.toString() }}
-                      className="line-clamp-1 text-sm font-medium leading-tight text-foreground/90 transition-colors hover:text-primary"
+                      className="line-clamp-1 text-sm font-medium leading-tight text-foreground transition-colors hover:text-primary"
                       title={anime.title.english || anime.title.romaji}
                     >
                       {anime.title.english || anime.title.romaji}
@@ -195,7 +195,7 @@ export function AnimeGridView(props: AnimeLibraryViewProps) {
                       <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
                         <Badge
                           variant={statusTone(anime)}
-                          className="h-5 rounded-sm px-1.5 font-normal"
+                          className="h-5 rounded-none px-1.5 font-normal"
                         >
                           {anime.next_airing_episode
                             ? "Airing"
@@ -237,7 +237,7 @@ export function AnimeGridView(props: AnimeLibraryViewProps) {
                       <div className="flex items-center gap-1.5">
                         <Badge
                           variant="outline"
-                          className="h-5 rounded-sm border-border/50 px-1.5 text-xs font-normal text-muted-foreground/80 hover:bg-muted hover:text-foreground"
+                          className="h-5 rounded-none border-border px-1.5 text-xs font-normal text-muted-foreground hover:bg-muted hover:text-foreground"
                         >
                           {anime.profile_name}
                         </Badge>
@@ -245,7 +245,7 @@ export function AnimeGridView(props: AnimeLibraryViewProps) {
                       <Tooltip>
                         <TooltipTrigger
                           render={<Button variant="ghost" />}
-                          className="p-1 -mr-1 h-auto hover:bg-muted/50 transition-colors rounded-full"
+                          className="p-1 -mr-1 h-auto hover:bg-muted transition-colors rounded-full"
                         >
                           <div className="flex items-center gap-1.5">
                             <div
@@ -293,11 +293,11 @@ export function AnimeListView(props: AnimeLibraryViewProps) {
   return (
     <div
       ref={scrollRef}
-      className="h-full overflow-y-auto rounded-md border"
+      className="h-full overflow-y-auto rounded-none border"
       style={{ overflowAnchor: "none" }}
     >
       <Table>
-        <TableHeader className="sticky top-0 bg-card z-10 shadow-sm shadow-border/50">
+        <TableHeader className="sticky top-0 bg-card z-10 border-b">
           <TableRow className="hover:bg-transparent border-none">
             <TableHead className="w-[80px]">Cover</TableHead>
             <TableHead>Title</TableHead>

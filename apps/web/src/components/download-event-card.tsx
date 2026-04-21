@@ -14,14 +14,14 @@ export function DownloadEventCard(props: DownloadEventCardProps) {
   );
 
   return (
-    <div className="rounded-lg border border-border/60 bg-card p-3 space-y-1">
+    <div className="rounded-none border border-border bg-card p-3 space-y-1">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           {props.event.anime_image && (
             <img
               src={props.event.anime_image}
               alt={props.event.anime_title ?? props.event.torrent_name ?? props.event.message}
-              className="h-8 w-6 object-cover border border-border/60 shrink-0"
+              className="h-8 w-6 object-cover border border-border shrink-0"
             />
           )}
           <div className="min-w-0">

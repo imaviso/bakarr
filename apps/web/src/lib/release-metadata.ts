@@ -90,10 +90,10 @@ export function releaseFlagBadgeClass(kind: ReleaseFlagKind) {
     case "seadex":
       return "border-info/20 text-info bg-info/5";
     case "dual_audio":
-      return "border-primary/20 text-primary bg-primary/5";
+      return "border-primary/20 text-primary bg-primary/10";
     case "remake":
       return "border-warning/20 text-warning bg-warning/5";
   }
 
-  return "border-border/40 text-muted-foreground bg-muted/20";
+  return "border-border text-muted-foreground bg-muted";
 }

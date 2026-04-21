@@ -43,7 +43,7 @@ function DashboardPage() {
   return (
     <div className="space-y-6">
       <PageHeader title="Dashboard">
-        {statsSummary && <p className="text-xs font-mono text-muted-foreground">{statsSummary}</p>}
+        {statsSummary && <p className="text-xs text-muted-foreground">{statsSummary}</p>}
       </PageHeader>
 
       {/* Stat Bar */}
@@ -87,7 +87,7 @@ function DashboardPage() {
           <DashboardLoading />
         )
       ) : (
-        <div className="p-4 text-center text-destructive border border-destructive/20">
+        <div className="p-4 text-center text-destructive border border-destructive">
           Failed to load stats. Please refresh.
         </div>
       )}
@@ -141,9 +141,7 @@ function StatItem(props: {
   return (
     <div className="flex items-baseline gap-2">
       <span
-        className={`text-xl font-semibold tabular-nums ${
-          props.tone === "warning" ? "text-warning" : "text-foreground"
-        }`}
+        className={`text-xl font-semibold tabular-nums ${props.tone === "warning" ? "text-warning" : "text-foreground"}`}
       >
         {props.value}
       </span>
@@ -159,7 +157,7 @@ function StatItem(props: {
 
 function ActivityRow(props: { item: ActivityItem }) {
   return (
-    <div className="flex items-center gap-4 py-3 hover:bg-muted/30 transition-colors">
+    <div className="flex items-center gap-4 py-3 hover:bg-muted transition-colors">
       <div className="p-2 bg-success/10">
         <CheckIcon className="h-4 w-4 text-success" />
       </div>

@@ -303,7 +303,7 @@ function SearchResults(props: SearchResultsProps) {
   return (
     <div className="flex flex-1 min-h-0 overflow-hidden flex-col gap-4">
       {props.canSearch && props.searchDegraded && (
-        <div className="flex items-start gap-2 rounded-lg border border-border/70 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+        <div className="flex items-start gap-2 rounded-none border border-border bg-muted px-3 py-2 text-xs text-muted-foreground">
           <InfoIcon className="mt-0.5 h-4 w-4 shrink-0" />
           <p>
             AniList is temporarily unavailable or rate-limited. Showing local library matches only.
@@ -312,7 +312,7 @@ function SearchResults(props: SearchResultsProps) {
       )}
 
       {!props.canSearch && (
-        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground border-2 border-dashed rounded-lg bg-muted/10">
+        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground border-2 border-dashed rounded-none bg-muted">
           <MagnifyingGlassIcon className="h-12 w-12 mb-4 opacity-50" />
           <h2 className="font-medium text-lg">Search for your next anime</h2>
           <p className="text-sm mt-1">Type at least 3 characters in the search bar above</p>
@@ -320,7 +320,7 @@ function SearchResults(props: SearchResultsProps) {
       )}
 
       {props.canSearch && !!props.searchQuery.error && (
-        <div className="p-8 text-center text-destructive bg-destructive/10 rounded-lg">
+        <div className="p-8 text-center text-destructive bg-destructive/10 rounded-none">
           <p>Failed to search anime. Please try again.</p>
           <p className="text-sm mt-2 opacity-80">
             {props.searchQuery.error instanceof Error
@@ -337,7 +337,7 @@ function SearchResults(props: SearchResultsProps) {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
             {[1, 2, 3, 4, 5, 6, 7, 8].map((row) => (
               <div key={row} className="space-y-3">
-                <Skeleton className="aspect-[2/3] w-full rounded-lg" />
+                <Skeleton className="aspect-[2/3] w-full rounded-none" />
                 <div className="space-y-2">
                   <Skeleton className="h-4 w-3/4" />
                   <Skeleton className="h-3 w-1/2" />

@@ -243,7 +243,7 @@ export function ReleaseProfileForm(props: {
                   ))}
 
                   {field.state.value.length === 0 && (
-                    <div className="text-sm text-muted-foreground text-center py-8 border border-dashed rounded-lg bg-muted/20">
+                    <div className="text-sm text-muted-foreground text-center py-8 border border-dashed rounded-none bg-muted">
                       No rules defined. Add a rule to start scoring releases.
                     </div>
                   )}

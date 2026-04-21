@@ -92,7 +92,7 @@ function RssPage() {
       {!feedsQuery.isLoading && feedsQuery.data?.length === 0 && (
         <Card className="p-12 text-center border-dashed">
           <div className="flex flex-col items-center gap-4">
-            <RssIcon className="h-12 w-12 text-muted-foreground/50" />
+            <RssIcon className="h-12 w-12 text-muted-foreground" />
             <div>
               <h3 className="font-medium">No RSS feeds</h3>
               <p className="text-sm text-muted-foreground mt-1">
@@ -129,7 +129,7 @@ function FeedCard(props: {
   onDelete: () => void;
 }) {
   return (
-    <Card className="transition-colors duration-150 hover:shadow-sm">
+    <Card className="transition-colors duration-150 hover:">
       <CardContent className="flex items-center gap-4 p-4">
         <Button
           variant="ghost"

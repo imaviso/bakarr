@@ -112,7 +112,7 @@ export function FileBrowser(props: FileBrowserProps) {
       )}
     >
       {/* Path input and navigation */}
-      <div className="flex items-center gap-2 p-2 border-b bg-muted/30 shrink-0">
+      <div className="flex items-center gap-2 p-2 border-b bg-muted shrink-0">
         <Button
           variant="ghost"
           size="icon"
@@ -192,7 +192,7 @@ export function FileBrowser(props: FileBrowserProps) {
       >
         {/* Show spinner when fetching new data while showing old data */}
         {browserQuery.isFetching && !browserQuery.isLoading && (
-          <div className="absolute top-2 right-2 p-1 bg-background/80 rounded-none shadow-sm z-10">
+          <div className="absolute top-2 right-2 p-1 bg-background/80 rounded-none z-10">
             <SpinnerIcon className="h-3 w-3 animate-spin text-primary" />
           </div>
         )}
@@ -234,7 +234,7 @@ export function FileBrowser(props: FileBrowserProps) {
 
       {/* Pagination controls */}
       {pageInfo && pageInfo.total > BROWSE_PAGE_SIZE && (
-        <div className="flex items-center justify-between px-3 py-1.5 border-t bg-muted/30 text-xs text-muted-foreground shrink-0">
+        <div className="flex items-center justify-between px-3 py-1.5 border-t bg-muted text-xs text-muted-foreground shrink-0">
           <span>
             {pageInfo.start}–{pageInfo.end} of {pageInfo.total}
           </span>
@@ -242,7 +242,6 @@ export function FileBrowser(props: FileBrowserProps) {
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6"
               disabled={pageOffset === 0}
               aria-label="Previous page"
               onClick={() => setPageOffset((prev) => Math.max(0, prev - BROWSE_PAGE_SIZE))}
@@ -252,7 +251,6 @@ export function FileBrowser(props: FileBrowserProps) {
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6"
               disabled={!pageInfo.hasMore}
               aria-label="Next page"
               onClick={() => setPageOffset((prev) => prev + BROWSE_PAGE_SIZE)}
@@ -265,7 +263,7 @@ export function FileBrowser(props: FileBrowserProps) {
 
       {/* Selected path indicator */}
       {selectedPath && (
-        <div className="px-3 py-2 border-t bg-primary/5 text-xs">
+        <div className="px-3 py-2 border-t bg-primary/10 text-xs">
           <span className="text-muted-foreground">Selected:</span>
           <span className="font-mono text-primary">{selectedPath}</span>
         </div>
@@ -297,8 +295,8 @@ function FileEntry(props: FileEntryProps) {
     <button
       type="button"
       className={cn(
-        "flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer transition-colors group w-full text-left",
-        props.isSelected ? "bg-primary/10 text-primary" : "hover:bg-muted/50",
+        "flex items-center gap-2 px-2 py-1.5 rounded-none cursor-pointer transition-colors group w-full text-left",
+        props.isSelected ? "bg-primary/10 text-primary" : "hover:bg-muted",
       )}
       onClick={props.onSelect}
       onDoubleClick={props.onNavigate}

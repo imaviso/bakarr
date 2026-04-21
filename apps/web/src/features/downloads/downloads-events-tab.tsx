@@ -23,7 +23,7 @@ interface DownloadsEventsTabProps {
 export function DownloadsEventsTab(props: DownloadsEventsTabProps) {
   return (
     <TabsContent value="events" className="flex-1 mt-0 min-h-0 overflow-hidden flex flex-col">
-      <div className="p-4 border-b border-border/60 space-y-3">
+      <div className="p-4 border-b border-border space-y-3">
         <DownloadEventsFilters
           eventTypeSelectId="events-event-type"
           value={props.eventsSearchState.filterValue}
@@ -35,7 +35,7 @@ export function DownloadsEventsTab(props: DownloadsEventsTabProps) {
         />
       </div>
       {props.lastDownloadEventsExport?.truncated && (
-        <div className="mx-4 mt-4 rounded-md border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-warning">
+        <div className="mx-4 mt-4 rounded-none border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-warning">
           Last export was truncated: exported
           {props.lastDownloadEventsExport?.exported} of
           {props.lastDownloadEventsExport?.total} events ( {props.lastDownloadEventsExport?.limit}).
@@ -50,7 +50,7 @@ export function DownloadsEventsTab(props: DownloadsEventsTabProps) {
           emptyText="No download events found."
         />
       </div>
-      <div className="p-4 border-t border-border/60 flex justify-end gap-2">
+      <div className="p-4 border-t border-border flex justify-end gap-2">
         <Button
           variant="outline"
           onClick={props.goToPreviousEventsPage}

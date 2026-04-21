@@ -202,7 +202,7 @@ export function ManualMappingDialog(props: ManualMappingDialogProps) {
             (() => {
               const files = filesQuery.data;
               return (
-                <div className="border rounded-md max-h-[300px] overflow-y-auto">
+                <div className="border rounded-none max-h-[300px] overflow-y-auto">
                   {files.length === 0 && (
                     <div className="p-4 text-center text-sm text-muted-foreground">
                       No video files found in the anime directory.
@@ -221,7 +221,7 @@ export function ManualMappingDialog(props: ManualMappingDialogProps) {
                         <TableRow
                           key={file.path}
                           className={cn(
-                            "cursor-pointer hover:bg-muted/50 focus:bg-muted focus:outline-none",
+                            "cursor-pointer hover:bg-muted focus:bg-muted focus:outline-none",
                             selectedFile === file.path && "bg-muted",
                           )}
                           onClick={() => setSelectedFile(file.path)}

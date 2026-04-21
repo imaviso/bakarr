@@ -177,15 +177,15 @@ export function QualityProfilesTab() {
 
           {profilesQuery.isLoading && (
             <div className="space-y-4">
-              <Skeleton key="quality-profile-skeleton-1" className="h-32 rounded-lg" />
-              <Skeleton key="quality-profile-skeleton-2" className="h-32 rounded-lg" />
+              <Skeleton key="quality-profile-skeleton-1" className="h-32 rounded-none" />
+              <Skeleton key="quality-profile-skeleton-2" className="h-32 rounded-none" />
             </div>
           )}
 
           {!profilesQuery.isLoading && profilesQuery.data?.length === 0 && (
             <Card className="p-12 text-center border-dashed bg-transparent">
               <div className="flex flex-col items-center gap-4">
-                <SlidersHorizontalIcon className="h-12 w-12 text-muted-foreground/50" />
+                <SlidersHorizontalIcon className="h-12 w-12 text-muted-foreground" />
                 <div>
                   <h3 className="font-medium">No quality profiles</h3>
                   <p className="text-sm text-muted-foreground mt-1">

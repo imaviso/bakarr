@@ -26,14 +26,14 @@ export function LogDetailsDialog(props: LogDetailsDialogProps) {
         <div className="flex-1 overflow-auto space-y-4 py-4">
           <div className="space-y-1">
             <div className="text-sm font-medium text-muted-foreground">Message</div>
-            <div className="p-3 rounded-md bg-muted text-sm font-mono whitespace-pre-wrap break-words">
+            <div className="p-3 rounded-none bg-muted text-sm font-mono whitespace-pre-wrap break-words">
               {props.log?.message}
             </div>
           </div>
           {props.log?.details && (
             <div className="space-y-1">
               <div className="text-sm font-medium text-muted-foreground">Details</div>
-              <div className="p-3 rounded-md bg-muted text-xs font-mono whitespace-pre-wrap break-words">
+              <div className="p-3 rounded-none bg-muted text-xs font-mono whitespace-pre-wrap break-words">
                 {props.log?.details}
               </div>
             </div>

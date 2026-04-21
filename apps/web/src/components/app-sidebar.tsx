@@ -110,7 +110,7 @@ export function AppSidebar() {
       <SidebarContent className="px-3 group-data-[collapsible=icon]:px-0">
         {/* Main Navigation */}
         <SidebarGroup className="py-2 group-data-[collapsible=icon]:px-0">
-          <div className="px-3 pb-2 text-xs font-mono font-medium text-muted-foreground uppercase tracking-widest hidden group-data-[collapsible=icon]:block group-data-[collapsible=icon]:opacity-0">
+          <div className="px-3 pb-2 text-xs font-medium text-muted-foreground uppercase tracking-widest hidden group-data-[collapsible=icon]:block group-data-[collapsible=icon]:opacity-0">
             MAIN
           </div>
           <SidebarGroupContent>
@@ -145,7 +145,7 @@ export function AppSidebar() {
 
         {/* Settings Section */}
         <SidebarGroup className="py-2 mt-auto group-data-[collapsible=icon]:px-0">
-          <div className="px-3 pb-2 text-xs font-mono font-medium text-muted-foreground uppercase tracking-widest hidden group-data-[collapsible=icon]:block group-data-[collapsible=icon]:opacity-0">
+          <div className="px-3 pb-2 text-xs font-medium text-muted-foreground uppercase tracking-widest hidden group-data-[collapsible=icon]:block group-data-[collapsible=icon]:opacity-0">
             SYSTEM
           </div>
           <SidebarGroupContent>
@@ -175,7 +175,7 @@ export function AppSidebar() {
 
       {/* Footer */}
       <SidebarFooter className="p-3 group-data-[collapsible=icon]:p-1">
-        <SidebarSeparator className="mb-2 mx-0 group-data-[collapsible=icon]:mx-0 bg-border/50" />
+        <SidebarSeparator className="mb-2 mx-0 group-data-[collapsible=icon]:mx-0 bg-border" />
         <SidebarMenu className="gap-1 group-data-[collapsible=icon]:items-center">
           <SidebarMenuItem>
             <ModeToggle />

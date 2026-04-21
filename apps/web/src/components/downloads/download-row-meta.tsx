@@ -48,12 +48,12 @@ export function DownloadRowMeta(props: DownloadRowMetaProps) {
 
   return (
     <div className="flex items-start gap-3">
-      <Avatar className="size-8 rounded-md">
+      <Avatar className="size-8 rounded-none">
         <AvatarImage
           {...(props.animeImage === undefined ? {} : { src: props.animeImage })}
           alt={props.animeTitle}
         />
-        <AvatarFallback className="rounded-md text-xs font-medium">
+        <AvatarFallback className="rounded-none text-xs font-medium">
           {animeInitials(props.animeTitle)}
         </AvatarFallback>
       </Avatar>
@@ -116,7 +116,7 @@ export function DownloadRowMeta(props: DownloadRowMetaProps) {
               href={sourceUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-primary hover:text-primary/80"
+              className="inline-flex items-center gap-1 text-primary hover:text-primary"
             >
               <ArrowSquareOutIcon className="h-3 w-3" /> Source
             </a>
@@ -133,7 +133,7 @@ export function DownloadRowMeta(props: DownloadRowMetaProps) {
               </Badge>
             )}
             {props.selectionDetail && (
-              <span className="text-muted-foreground/80 line-clamp-1">{props.selectionDetail}</span>
+              <span className="text-muted-foreground line-clamp-1">{props.selectionDetail}</span>
             )}
           </div>
         )}
@@ -145,7 +145,7 @@ export function DownloadRowMeta(props: DownloadRowMetaProps) {
             >
               {props.confidence.label}
             </Badge>
-            <span className="text-muted-foreground/80 line-clamp-1">{props.confidence.reason}</span>
+            <span className="text-muted-foreground line-clamp-1">{props.confidence.reason}</span>
           </div>
         )}
         {props.children}

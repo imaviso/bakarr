@@ -64,23 +64,23 @@ interface SearchDialogContentProps {
 
 export function SearchDialogContent(props: SearchDialogContentProps) {
   return (
-    <DialogContent className="sm:max-w-7xl w-full h-[85vh] flex flex-col p-0 gap-0 border-none sm:rounded-none bg-background/95 shadow-sm overflow-hidden">
+    <DialogContent className="sm:max-w-7xl w-full h-[85vh] flex flex-col p-0 gap-0 border-none sm:rounded-none bg-background overflow-hidden">
       <DialogTitle className="sr-only">Search Releases</DialogTitle>
 
-      <div className="flex flex-col border-b border-border/40">
+      <div className="flex flex-col border-b border-border">
         <div className="flex items-center px-4 py-3 gap-3">
           <MagnifyingGlassIcon className="h-5 w-5 text-muted-foreground shrink-0" />
           <Input
             value={props.query}
             onChange={(event) => props.setQuery(event.currentTarget.value)}
             placeholder="Search for releases..."
-            className="bg-transparent border-none shadow-none focus-visible:ring-0 text-lg px-0 h-9 placeholder:text-muted-foreground/50"
+            className="bg-transparent border-none shadow-none focus-visible:ring-0 text-lg px-0 h-9 placeholder:text-muted-foreground"
           />
         </div>
 
         <div className="flex items-center gap-2 px-4 pb-3 overflow-x-auto">
           <Select value={props.category} onValueChange={(value) => props.setCategory(value)}>
-            <SelectTrigger className="h-7 w-auto min-w-[130px] text-xs bg-muted/30 border-transparent hover:bg-muted/50 focus:ring-0 gap-2 rounded-none shadow-none px-2.5">
+            <SelectTrigger className="h-7 w-auto min-w-[130px] text-xs bg-muted border-transparent hover:bg-muted focus:ring-0 gap-2 rounded-none shadow-none px-2.5">
               <span className="text-muted-foreground">Category:</span>
               <SelectValue placeholder="Category" />
             </SelectTrigger>
@@ -94,7 +94,7 @@ export function SearchDialogContent(props: SearchDialogContentProps) {
           </Select>
 
           <Select value={props.filter} onValueChange={(value) => props.setFilter(value)}>
-            <SelectTrigger className="h-7 w-auto min-w-[120px] text-xs bg-muted/30 border-transparent hover:bg-muted/50 focus:ring-0 gap-2 rounded-none shadow-none px-2.5">
+            <SelectTrigger className="h-7 w-auto min-w-[120px] text-xs bg-muted border-transparent hover:bg-muted focus:ring-0 gap-2 rounded-none shadow-none px-2.5">
               <FunnelIcon className="h-3 w-3 text-muted-foreground" />
               <SelectValue placeholder="Filter" />
             </SelectTrigger>
@@ -109,7 +109,7 @@ export function SearchDialogContent(props: SearchDialogContentProps) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden relative bg-muted/5">
+      <div className="flex-1 overflow-hidden relative bg-muted">
         <Suspense fallback={<SearchResultsSkeleton />}>
           {props.open && (
             <SearchResults
@@ -123,7 +123,7 @@ export function SearchDialogContent(props: SearchDialogContentProps) {
         </Suspense>
       </div>
 
-      <div className="px-6 py-2.5 border-t border-border/40 bg-background text-xs text-muted-foreground flex gap-6 items-center overflow-x-auto">
+      <div className="px-6 py-2.5 border-t border-border bg-background text-xs text-muted-foreground flex gap-6 items-center overflow-x-auto">
         <span className="flex items-center gap-1.5 whitespace-nowrap">
           <StarIcon weight="fill" className="h-3 w-3 text-success fill-success" /> Trusted
         </span>
@@ -158,8 +158,8 @@ function SearchResults(props: {
   return (
     <div className="h-full overflow-auto">
       <Table>
-        <TableHeader className="sticky top-0 bg-background z-10 border-b border-border/40 shadow-sm">
-          <TableRow className="hover:bg-transparent border-border/40">
+        <TableHeader className="sticky top-0 bg-background z-10 border-b border-border">
+          <TableRow className="hover:bg-transparent border-border">
             <TableHead className="w-[45%] pl-6 h-9 text-xs font-medium">
               Release ({state.searchQuery.data?.results.length ?? 0})
             </TableHead>
@@ -255,8 +255,8 @@ function SearchResultsSkeleton() {
   return (
     <div className="h-full overflow-hidden flex flex-col">
       <Table>
-        <TableHeader className="sticky top-0 bg-background z-10 border-b border-border/40 shadow-sm">
-          <TableRow className="hover:bg-transparent border-border/40">
+        <TableHeader className="sticky top-0 bg-background z-10 border-b border-border">
+          <TableRow className="hover:bg-transparent border-border">
             <TableHead className="w-[45%] pl-6 h-9 text-xs font-medium">Release</TableHead>
             <TableHead className="h-9 text-xs font-medium">Ep</TableHead>
             <TableHead className="h-9 text-xs font-medium">Res</TableHead>
@@ -268,7 +268,7 @@ function SearchResultsSkeleton() {
         </TableHeader>
         <TableBody>
           {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((row) => (
-            <TableRow key={row} className="hover:bg-transparent border-border/40">
+            <TableRow key={row} className="hover:bg-transparent border-border">
               <TableCell className="pl-6 py-2.5">
                 <div className="space-y-1.5">
                   <Skeleton className="h-4 w-3/4" />
@@ -312,7 +312,7 @@ function ReleaseRow(props: { result: NyaaSearchResult; animeId: number; onGrab: 
   });
 
   return (
-    <TableRow className="group border-b border-border/40 transition-colors hover:bg-muted/40 data-[state=selected]:bg-muted">
+    <TableRow className="group border-b border-border transition-colors hover:bg-muted data-[state=selected]:bg-muted">
       <TableCell className="pl-6 py-2.5 max-w-[200px] sm:max-w-[300px] md:max-w-[400px]">
         <ReleasePrimaryCell
           title={props.result.title}
@@ -335,7 +335,7 @@ function ReleaseRow(props: { result: NyaaSearchResult; animeId: number; onGrab: 
       </TableCell>
       <TableCell className="py-2.5">
         {props.result.parsed_episode ? (
-          <span className="font-mono text-xs text-foreground bg-muted/30 px-1.5 py-0.5 rounded-none">
+          <span className="font-mono text-xs text-foreground bg-muted px-1.5 py-0.5 rounded-none">
             {props.result.parsed_episode}
           </span>
         ) : (

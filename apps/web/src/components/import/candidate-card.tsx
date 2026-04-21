@@ -20,9 +20,9 @@ export function CandidateCard(props: CandidateCardProps) {
   return (
     <div
       className={cn(
-        "relative overflow-hidden border bg-background transition-colors hover:shadow-sm",
+        "relative overflow-hidden border bg-background transition-colors hover:",
         props.isSelected
-          ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+          ? "border-primary bg-primary/10 ring-1 ring-primary/20"
           : "border-border hover:border-primary/50",
         props.className,
       )}
@@ -33,7 +33,7 @@ export function CandidateCard(props: CandidateCardProps) {
         onClick={props.onToggle}
         aria-pressed={props.isSelected}
       >
-        <div className="relative h-16 w-12 shrink-0 overflow-hidden bg-muted shadow-sm">
+        <div className="relative h-16 w-12 shrink-0 overflow-hidden bg-muted">
           {props.candidate.cover_image ? (
             <img
               src={props.candidate.cover_image}
@@ -41,13 +41,13 @@ export function CandidateCard(props: CandidateCardProps) {
               className="h-full w-full object-cover"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-muted/50">
-              <FileIcon className="h-4 w-4 text-muted-foreground/50" />
+            <div className="flex h-full w-full items-center justify-center bg-muted">
+              <FileIcon className="h-4 w-4 text-muted-foreground" />
             </div>
           )}
           {props.isSelected && (
             <div className="absolute inset-0 flex items-center justify-center bg-primary/20 backdrop-blur-[1px]">
-              <CheckIcon className="h-5 w-5 text-white drop-shadow-sm" />
+              <CheckIcon className="h-5 w-5 text-white drop-" />
             </div>
           )}
         </div>
@@ -113,7 +113,7 @@ export function CandidateCard(props: CandidateCardProps) {
       </button>
 
       {props.candidate.related_anime?.length || props.candidate.recommended_anime?.length ? (
-        <div className="space-y-1 border-t border-border/60 bg-muted/20 px-3 py-2">
+        <div className="space-y-1 border-t border-border bg-muted px-3 py-2">
           {props.candidate.related_anime?.length ? (
             <>
               {props.candidate.related_anime?.slice(0, 2).map((related) => (

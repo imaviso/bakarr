@@ -151,7 +151,7 @@ function AnimeDetailsPage() {
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             <Suspense
               fallback={
-                <div className="rounded-lg border border-border/50 p-4 text-sm text-muted-foreground">
+                <div className="rounded-none border border-border p-4 text-sm text-muted-foreground">
                   Loading sidebar...
                 </div>
               }
@@ -189,7 +189,7 @@ function AnimeDetailsPage() {
 
               <Suspense
                 fallback={
-                  <div className="rounded-lg border border-border/50 p-4 text-sm text-muted-foreground">
+                  <div className="rounded-none border border-border p-4 text-sm text-muted-foreground">
                     Loading episode panels...
                   </div>
                 }

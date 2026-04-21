@@ -46,7 +46,7 @@ export function GlobalSpinner() {
                 />
               </svg>
             </div>
-            <div className="text-[11px] font-semibold tracking-[0.2em] uppercase text-foreground/80 animate-pulse">
+            <div className="text-[11px] font-semibold tracking-[0.2em] uppercase text-foreground animate-pulse">
               Loading
             </div>
           </div>

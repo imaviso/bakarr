@@ -171,11 +171,11 @@ export function CommandPalette() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex w-full items-center gap-3 overflow-hidden rounded-none border border-border/50 bg-muted/30 px-3 py-2 text-left text-sm text-muted-foreground hover:bg-accent/40 hover:text-foreground transition-colors group-data-[collapsible=icon]:!size-9 group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:bg-transparent"
+        className="flex w-full items-center gap-3 overflow-hidden rounded-none border border-border bg-muted px-3 py-2 text-left text-sm text-muted-foreground hover:bg-accent hover:text-foreground transition-colors group-data-[collapsible=icon]:!size-9 group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:bg-transparent"
       >
         <MagnifyingGlassIcon className="h-4 w-4 shrink-0" />
         <span className="truncate group-data-[collapsible=icon]:hidden">Search...</span>
-        <kbd className="pointer-events-none ml-auto inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-xs font-medium text-muted-foreground group-data-[collapsible=icon]:hidden">
+        <kbd className="pointer-events-none ml-auto inline-flex h-5 select-none items-center gap-1 rounded-none border bg-muted px-1.5 font-mono text-xs font-medium text-muted-foreground group-data-[collapsible=icon]:hidden">
           <CommandIcon className="h-2.5 w-2.5" />K
         </kbd>
       </button>

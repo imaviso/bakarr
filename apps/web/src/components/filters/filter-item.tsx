@@ -80,7 +80,7 @@ export function FilterItem(props: FilterItemProps) {
   };
 
   return (
-    <div className="flex items-center gap-1.5 bg-muted/50 rounded-none p-1 pr-2">
+    <div className="flex items-center gap-1.5 bg-muted rounded-none p-1 pr-2">
       <div className="text-sm font-medium text-muted-foreground px-2">{column?.label}</div>
 
       <Select

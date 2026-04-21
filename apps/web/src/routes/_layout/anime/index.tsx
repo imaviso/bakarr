@@ -294,7 +294,7 @@ function AnimeIndexPage() {
 
           <div className="h-6 w-px bg-border" />
 
-          <div className="flex items-center gap-1 bg-muted/50 p-1">
+          <div className="flex items-center gap-1 bg-muted p-1">
             <Tooltip>
               <TooltipTrigger>
                 <Button
@@ -302,7 +302,7 @@ function AnimeIndexPage() {
                   size="icon"
                   className={cn(
                     "relative after:absolute after:-inset-2 h-7 w-7",
-                    search.view === "grid" ? "bg-background shadow-sm" : "hover:bg-background/50",
+                    search.view === "grid" ? "bg-background " : "hover:bg-background",
                   )}
                   aria-label="Grid view"
                   onClick={() => updateView("grid")}
@@ -320,7 +320,7 @@ function AnimeIndexPage() {
                   size="icon"
                   className={cn(
                     "relative after:absolute after:-inset-2 h-7 w-7",
-                    search.view === "list" ? "bg-background shadow-sm" : "hover:bg-background/50",
+                    search.view === "list" ? "bg-background " : "hover:bg-background",
                   )}
                   aria-label="List view"
                   onClick={() => updateView("list")}
@@ -355,7 +355,7 @@ function AnimeIndexPage() {
           ) : !localQuery && search.filter === "all" ? (
             <Card className="p-12 text-center border-dashed">
               <div className="flex flex-col items-center gap-4">
-                <TelevisionIcon className="h-12 w-12 text-muted-foreground/50" />
+                <TelevisionIcon className="h-12 w-12 text-muted-foreground" />
                 <div>
                   <h2 className="font-medium">No anime yet</h2>
                   <p className="text-sm text-muted-foreground mt-1">

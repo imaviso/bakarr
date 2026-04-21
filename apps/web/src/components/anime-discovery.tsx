@@ -38,7 +38,7 @@ export function AnimeDiscoveryRow(props: AnimeDiscoveryRowProps) {
   return (
     <div
       className={cn(
-        "flex items-start gap-2 border border-border/60 bg-muted/20 text-xs",
+        "flex items-start gap-2 border border-border bg-muted text-xs",
         props.compact ? "p-1.5" : "p-2",
       )}
     >
@@ -47,7 +47,7 @@ export function AnimeDiscoveryRow(props: AnimeDiscoveryRowProps) {
           src={props.entry.cover_image}
           alt={animeDisplayTitle(props.entry)}
           className={cn(
-            "shrink-0 border border-border/60 object-cover",
+            "shrink-0 border border-border object-cover",
             props.compact ? "h-10 w-7" : "h-12 w-8",
           )}
         />

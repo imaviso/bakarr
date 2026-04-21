@@ -5,8 +5,8 @@ export function StatChip(props: { label: string; value: string; tone?: "default"
     <div
       aria-label={`${props.label}: ${props.value}`}
       className={cn(
-        "min-w-[112px] border px-3 py-2 text-right shadow-sm",
-        props.tone === "info" ? "border-info/20 bg-info/5" : "border-border/70 bg-background/80",
+        "min-w-[112px] border px-3 py-2 text-right ",
+        props.tone === "info" ? "border-info/20 bg-info/5" : "border-border bg-background/80",
       )}
     >
       <div className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">

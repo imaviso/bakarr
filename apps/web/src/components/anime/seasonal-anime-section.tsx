@@ -126,7 +126,7 @@ export function SeasonalAnimeSection(props: SeasonalAnimeSectionProps) {
 
   return (
     <section className="flex flex-col flex-1 min-h-0 overflow-hidden gap-4">
-      <div className="flex flex-col gap-3 rounded-lg border border-border/60 bg-muted/20 p-3 sm:flex-row sm:items-center sm:justify-between shrink-0">
+      <div className="flex flex-col gap-3 rounded-none border border-border bg-muted p-3 sm:flex-row sm:items-center sm:justify-between shrink-0">
         <div>
           <h2 className="text-lg font-semibold tracking-tight text-foreground">Seasonal Anime</h2>
           <p className="text-xs text-muted-foreground">
@@ -162,7 +162,7 @@ export function SeasonalAnimeSection(props: SeasonalAnimeSectionProps) {
       </div>
 
       {isDegraded && (
-        <div className="flex items-start gap-2 rounded-lg border border-border/70 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+        <div className="flex items-start gap-2 rounded-none border border-border bg-muted px-3 py-2 text-xs text-muted-foreground">
           <InfoIcon className="mt-0.5 h-4 w-4 shrink-0" />
           <p>
             AniList is temporarily unavailable or rate-limited. Showing Jikan fallback titles mapped
@@ -172,7 +172,7 @@ export function SeasonalAnimeSection(props: SeasonalAnimeSectionProps) {
       )}
 
       {props.query.isError && !props.query.data && (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+        <div className="rounded-none border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
           Failed to load seasonal anime.
           <Button
             type="button"
@@ -186,7 +186,7 @@ export function SeasonalAnimeSection(props: SeasonalAnimeSectionProps) {
       )}
 
       {!props.query.isError && allResults.length === 0 && !props.query.isLoading && (
-        <div className="flex flex-col items-center justify-center py-10 text-muted-foreground border-2 border-dashed rounded-lg bg-muted/10">
+        <div className="flex flex-col items-center justify-center py-10 text-muted-foreground border-2 border-dashed rounded-none bg-muted">
           <p className="text-sm">No seasonal anime found for this period.</p>
         </div>
       )}

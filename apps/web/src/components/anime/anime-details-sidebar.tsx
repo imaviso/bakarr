@@ -22,7 +22,7 @@ export function AnimeDetailsSidebar(props: AnimeDetailsSidebarProps) {
           />
         ) : (
           <div className="w-full aspect-[2/3] bg-muted flex items-center justify-center">
-            <PlayIcon className="h-16 w-16 text-muted-foreground/30" />
+            <PlayIcon className="h-16 w-16 text-muted-foreground" />
           </div>
         )}
       </Card>

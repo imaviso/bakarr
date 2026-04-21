@@ -29,7 +29,7 @@ export function ReleaseSeaDexMeta(props: ReleaseSeaDexMetaProps) {
                   key={tag}
                   variant="secondary"
                   className={cn(
-                    "h-4 px-1 text-xs bg-muted/40 text-muted-foreground border-transparent",
+                    "h-4 px-1 text-xs bg-muted text-muted-foreground border-transparent",
                     props.tagClass,
                   )}
                 >
@@ -43,7 +43,7 @@ export function ReleaseSeaDexMeta(props: ReleaseSeaDexMetaProps) {
               href={props.comparisonUrl}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 w-fit"
+              className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary w-fit"
             >
               <ArrowSquareOutIcon className="h-3 w-3" /> Compare notes
             </a>

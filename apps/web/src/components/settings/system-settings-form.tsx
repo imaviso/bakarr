@@ -32,7 +32,7 @@ export function GeneralSettingsForm(props: { mode: ConfigSettingsMode }) {
           isSaving={updateConfig.isPending}
         />
       ) : (
-        <Skeleton className="h-96 rounded-lg" />
+        <Skeleton className="h-96 rounded-none" />
       )}
     </>
   );
@@ -109,7 +109,7 @@ function SystemForm(props: {
         />
       )}
 
-      <div className="border-t border-border/60 pt-4 pb-2">
+      <div className="border-t border-border pt-4 pb-2">
         <form.Subscribe selector={(state) => [state.canSubmit]}>
           {([canSubmit]) => (
             <Button

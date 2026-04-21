@@ -117,7 +117,7 @@ export function AnimeDetailsHeader(props: AnimeDetailsHeaderProps) {
               {props.anime.title.native && (
                 <>
                   <span>•</span>
-                  <span className="font-japanese opacity-75">{props.anime.title.native}</span>
+                  <span className="font-japanese">{props.anime.title.native}</span>
                 </>
               )}
             </div>
@@ -130,7 +130,7 @@ export function AnimeDetailsHeader(props: AnimeDetailsHeaderProps) {
               render={<Button variant={props.isMonitored ? "default" : "outline"} size="sm" />}
               onClick={props.onToggleMonitor}
               disabled={props.isToggleMonitorPending}
-              className={cn("shrink-0", !props.isMonitored && "text-muted-foreground bg-muted/50")}
+              className={cn("shrink-0", !props.isMonitored && "text-muted-foreground bg-muted")}
             >
               <BookmarkIcon className={cn("h-4 w-4", props.isMonitored && "fill-current")} />
             </TooltipTrigger>
@@ -242,7 +242,7 @@ export function AnimeDetailsHeader(props: AnimeDetailsHeaderProps) {
             <Tooltip>
               <TooltipTrigger
                 render={<AlertDialogTrigger render={<Button variant="ghost" size="icon" />} />}
-                className="text-muted-foreground hover:text-destructive shrink-0 h-9 w-9"
+                className="text-muted-foreground hover:text-destructive shrink-0"
               >
                 <TrashIcon className="h-4 w-4" />
               </TooltipTrigger>

@@ -72,7 +72,7 @@ export function ManualSearchCore(props: ManualSearchCoreProps) {
       </div>
 
       {searchDegraded && (
-        <div className="rounded border border-border/70 bg-muted/30 px-2.5 py-2 text-[11px] text-muted-foreground">
+        <div className="rounded-none border border-border bg-muted px-2.5 py-2 text-[11px] text-muted-foreground">
           <div className="flex items-start gap-2">
             <InfoIcon className="mt-0.5 h-4 w-4 shrink-0" />
             <span>
@@ -98,11 +98,11 @@ export function ManualSearchCore(props: ManualSearchCoreProps) {
                     className={cn(
                       "w-full flex items-center gap-3 p-3 text-left transition-colors",
                       props.disableSelectionForAdded && isAdded
-                        ? "opacity-50 cursor-not-allowed bg-muted/20"
-                        : "hover:bg-muted/50",
+                        ? "opacity-50 cursor-not-allowed bg-muted"
+                        : "hover:bg-muted",
                     )}
                   >
-                    <div className="h-10 w-10 shrink-0 rounded bg-muted overflow-hidden">
+                    <div className="h-10 w-10 shrink-0 rounded-none bg-muted overflow-hidden">
                       {anime.cover_image && (
                         <img
                           src={anime.cover_image}

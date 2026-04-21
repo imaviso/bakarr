@@ -64,7 +64,7 @@ export function FileRow(props: FileRowProps) {
     <li
       className={cn(
         "px-8 py-3 transition-colors list-none",
-        props.isSelected ? "bg-primary/5" : "hover:bg-muted/50",
+        props.isSelected ? "bg-primary/10" : "hover:bg-muted",
       )}
     >
       <div className="flex items-center gap-4 min-w-0">

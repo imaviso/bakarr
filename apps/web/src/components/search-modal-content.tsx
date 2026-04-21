@@ -55,7 +55,7 @@ export function SearchModalContent(props: SearchModalContentProps) {
                 {props.state.searchQuery.data && props.state.searchQuery.data.length > 0 ? (
                   <div className="flex-1 border rounded-none overflow-auto">
                     <Table>
-                      <TableHeader className="bg-muted/50 sticky top-0 z-10 shadow-sm">
+                      <TableHeader className="bg-muted sticky top-0 z-10 border-b">
                         <TableRow>
                           <TableHead>Release</TableHead>
                           <TableHead className="w-[100px]">Indexer</TableHead>
@@ -142,7 +142,7 @@ function SearchReleaseRow(props: {
   const releaseConfidence = getReleaseConfidence(releaseDisplay.confidence);
 
   return (
-    <TableRow className={cn("group", isRejected && "opacity-60 bg-muted/20")}>
+    <TableRow className={cn("group", isRejected && "opacity-60 bg-muted")}>
       <TableCell className="font-medium max-w-[300px]">
         <ReleasePrimaryCell
           title={props.release.title}

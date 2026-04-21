@@ -63,7 +63,7 @@ export function SortableQualityList(props: SortableQualityListProps) {
         <p className="text-xs text-muted-foreground">Drag to reorder. Top items are preferred.</p>
       </div>
 
-      <ul className="border rounded-md divide-y bg-card overflow-hidden">
+      <ul className="border rounded-none divide-y bg-card overflow-hidden">
         {props.value.map((quality) => (
           <li
             key={quality}
@@ -71,11 +71,9 @@ export function SortableQualityList(props: SortableQualityListProps) {
             onDragStart={(event) => handleDragStart(event, quality)}
             onDragOver={(event) => handleDragOver(event, quality)}
             onDragEnd={handleDragEnd}
-            className={`flex items-center gap-3 p-2.5 text-sm group bg-card hover:bg-accent/50 transition-colors cursor-default ${
-              draggedItem === quality ? "opacity-50" : ""
-            }`}
+            className={`flex items-center gap-3 p-2.5 text-sm group bg-card hover:bg-accent transition-colors cursor-default ${draggedItem === quality ? "opacity-50" : ""}`}
           >
-            <DotsSixVerticalIcon className="h-4 w-4 text-muted-foreground/50 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity" />
+            <DotsSixVerticalIcon className="h-4 w-4 text-muted-foreground cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity" />
             <span className="flex-1 font-medium">{quality}</span>
             <Button
               variant="ghost"
@@ -89,7 +87,7 @@ export function SortableQualityList(props: SortableQualityListProps) {
           </li>
         ))}
         {props.value.length === 0 && (
-          <li className="p-4 text-center text-sm text-muted-foreground bg-muted/20">
+          <li className="p-4 text-center text-sm text-muted-foreground bg-muted">
             No qualities selected
           </li>
         )}

@@ -50,7 +50,7 @@ export function FolderItem(props: {
   const state = useFolderItemController(props.folder);
 
   return (
-    <div className="grid gap-4 border border-border/70 bg-background/85 p-4 shadow-sm lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_auto] lg:items-start">
+    <div className="grid gap-4 border border-border bg-background p-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_auto] lg:items-start">
       <div className="min-w-0">
         <div className="flex items-start gap-3">
           <div className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center border border-info/20 bg-info/10 text-info">
@@ -72,7 +72,7 @@ export function FolderItem(props: {
             <p className="text-xs text-muted-foreground">{folderMatchHint(props.folder)}</p>
             {props.folder.search_queries?.length ? (
               <div className="flex flex-wrap items-center gap-1 pt-1">
-                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/80">
+                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                   Search
                 </span>
                 {(props.folder.search_queries ?? []).slice(0, 3).map((query) => (
@@ -91,14 +91,14 @@ export function FolderItem(props: {
         </div>
       </div>
 
-      <div className="min-w-0 border border-border/60 bg-muted/20 p-3">
+      <div className="min-w-0 border border-border bg-muted p-3">
         {state.selectedAnime ? (
           <div className="flex items-start gap-3">
             {state.selectedAnime.cover_image && (
               <img
                 src={state.selectedAnime.cover_image}
                 alt={state.selectedAnime.title.romaji}
-                className="h-16 w-11 shrink-0 border border-border/60 object-cover"
+                className="h-16 w-11 shrink-0 border border-border object-cover"
               />
             )}
             <div className="min-w-0 space-y-2">

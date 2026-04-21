@@ -21,7 +21,7 @@ export function EmptyState(props: EmptyStateProps) {
         {props.icon &&
           (() => {
             const Icon = props.icon;
-            return <Icon className="h-12 w-12 text-muted-foreground/50" />;
+            return <Icon className="h-12 w-12 text-muted-foreground" />;
           })()}
         <div>
           <h3 className="font-medium">{props.title}</h3>

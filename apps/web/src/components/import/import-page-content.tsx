@@ -73,15 +73,11 @@ export function ImportPageContent(props: ImportPageContentProps) {
 
 function ImportTopBar(props: { state: ImportPageState }) {
   return (
-    <div className="shrink-0 border-b bg-muted/30 px-6 py-4">
+    <div className="shrink-0 border-b bg-muted px-6 py-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link to="/anime" search={DEFAULT_ANIME_SEARCH}>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="relative after:absolute after:-inset-2 h-8 w-8"
-            >
+            <Button variant="ghost" size="icon" className="relative after:absolute after:-inset-2">
               <ArrowLeftIcon className="h-4 w-4" />
             </Button>
           </Link>
@@ -108,12 +104,12 @@ function ImportTopBar(props: { state: ImportPageState }) {
                 }}
                 disabled={index > props.state.currentStepIndex}
                 className={cn(
-                  "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
+                  "flex items-center gap-2 px-3 py-1.5 rounded-none text-sm font-medium transition-colors",
                   props.state.flow.step === stepConfig.id
                     ? "bg-primary text-primary-foreground"
                     : index < props.state.currentStepIndex
                       ? "text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"
-                      : "text-muted-foreground/50 cursor-not-allowed",
+                      : "text-muted-foreground cursor-not-allowed",
                 )}
               >
                 <span
@@ -123,7 +119,7 @@ function ImportTopBar(props: { state: ImportPageState }) {
                       ? "bg-primary-foreground/20"
                       : index < props.state.currentStepIndex
                         ? "bg-success/20 text-success"
-                        : "bg-muted-foreground/10",
+                        : "bg-muted",
                   )}
                 >
                   {index < props.state.currentStepIndex ? (
@@ -182,9 +178,9 @@ function ImportScanStep(props: { state: ImportPageState }) {
           </TabsList>
 
           <TabsContent value="browser" className="flex-1 mt-6 min-h-0 overflow-hidden">
-            <div className="h-full border rounded-lg overflow-hidden bg-background">
+            <div className="h-full border rounded-none overflow-hidden bg-background">
               {props.state.allowedRoots.length > 0 && (
-                <div className="border-b bg-muted/20 px-3 py-2">
+                <div className="border-b bg-muted px-3 py-2">
                   <Tabs
                     value={props.state.activeBrowseRoot?.key ?? ""}
                     onValueChange={props.state.selectBrowseRoot}
@@ -224,10 +220,10 @@ function ImportScanStep(props: { state: ImportPageState }) {
             <section
               aria-label="Drop zone for folder import"
               className={cn(
-                "h-full min-h-[300px] border-2 border-dashed rounded-lg p-8 transition-colors flex flex-col items-center justify-center",
+                "h-full min-h-[300px] border-2 border-dashed rounded-none p-8 transition-colors flex flex-col items-center justify-center",
                 props.state.flow.isDragOver
-                  ? "border-primary bg-primary/5"
-                  : "border-muted-foreground/20 hover:border-muted-foreground/40",
+                  ? "border-primary bg-primary/10"
+                  : "border-muted hover:border-muted-foreground",
               )}
               onDragOver={props.state.flow.handleDragOver}
               onDragLeave={props.state.flow.handleDragLeave}
@@ -262,7 +258,7 @@ function ImportScanStep(props: { state: ImportPageState }) {
         </Tabs>
       </div>
 
-      <div className="px-8 py-4 border-t bg-muted/30">
+      <div className="px-8 py-4 border-t bg-muted">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {props.state.flow.path && (
@@ -271,12 +267,7 @@ function ImportScanStep(props: { state: ImportPageState }) {
                 <span className="text-sm font-mono text-muted-foreground truncate max-w-md">
                   {props.state.flow.path}
                 </span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6"
-                  onClick={props.state.clearPath}
-                >
+                <Button variant="ghost" size="icon" onClick={props.state.clearPath}>
                   <XIcon className="h-3 w-3" />
                 </Button>
               </>
@@ -332,7 +323,7 @@ function ImportReviewStep(props: { state: ImportPageState }) {
       </div>
 
       <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
-        <div className="px-8 py-6 border-b bg-muted/20">
+        <div className="px-8 py-6 border-b bg-muted">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-medium flex items-center gap-2">
               <TreeStructureIcon className="h-4 w-4 text-primary" />
@@ -376,7 +367,7 @@ function ImportReviewStep(props: { state: ImportPageState }) {
                   isLocal={props.state.flow.libraryIds.has(candidate.id)}
                   isManual={props.state.manualCandidateIds.has(candidate.id)}
                   onToggle={() => props.state.flow.toggleCandidate(candidate)}
-                  className="rounded-lg"
+                  className=""
                 />
               ))}
             </div>
@@ -408,8 +399,8 @@ function ImportReviewStep(props: { state: ImportPageState }) {
         </ul>
 
         {props.state.flow.skippedFiles.length > 0 && (
-          <details className="mx-8 my-4 border rounded-lg">
-            <summary className="px-4 py-2 text-sm text-muted-foreground cursor-pointer hover:bg-muted/50">
+          <details className="mx-8 my-4 border rounded-none">
+            <summary className="px-4 py-2 text-sm text-muted-foreground cursor-pointer hover:bg-muted">
               {props.state.flow.skippedFiles.length} skipped file(s)
             </summary>
             <div className="divide-y border-t">
@@ -418,7 +409,7 @@ function ImportReviewStep(props: { state: ImportPageState }) {
                   key={file.path}
                   className="px-4 py-2 flex items-center gap-3 text-muted-foreground"
                 >
-                  <FileIcon className="h-4 w-4 shrink-0 opacity-50" />
+                  <FileIcon className="h-4 w-4 shrink-0" />
                   <span className="text-xs font-mono truncate flex-1">
                     {file.path.substring(file.path.lastIndexOf("/") + 1)}
                   </span>
@@ -432,7 +423,7 @@ function ImportReviewStep(props: { state: ImportPageState }) {
         )}
       </div>
 
-      <div className="px-8 py-4 border-t bg-muted/30">
+      <div className="px-8 py-4 border-t bg-muted">
         <div className="flex items-center justify-between">
           <Button variant="ghost" onClick={() => props.state.flow.setStep("scan")}>
             <ArrowLeftIcon className="mr-2 h-4 w-4" />

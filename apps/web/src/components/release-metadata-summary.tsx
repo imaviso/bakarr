@@ -18,9 +18,7 @@ export function ReleaseMetadataSummary(props: ReleaseMetadataSummaryProps) {
           {props.flags?.map((flag) => (
             <span
               key={`${flag.kind}-${flag.label}`}
-              className={`inline-flex items-center rounded-none border h-4 px-1 text-xs ${releaseFlagBadgeClass(
-                flag.kind,
-              )}`}
+              className={`inline-flex items-center rounded-none border h-4 px-1 text-xs ${releaseFlagBadgeClass(flag.kind)}`}
             >
               {flag.label}
             </span>
@@ -38,7 +36,7 @@ export function ReleaseMetadataSummary(props: ReleaseMetadataSummaryProps) {
               href={props.sourceUrl}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1 text-primary hover:text-primary/80"
+              className="inline-flex items-center gap-1 text-primary hover:text-primary"
             >
               <ArrowSquareOutIcon className="h-3 w-3" />
               Source

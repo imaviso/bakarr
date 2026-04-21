@@ -14,7 +14,7 @@ export function BackgroundJobCard(props: BackgroundJobCardProps) {
       : props.job.name.replaceAll("_", " ");
 
   return (
-    <div className="rounded-lg border border-border/60 bg-card p-3 space-y-2">
+    <div className="rounded-none border border-border bg-card p-3 space-y-2">
       <div className="flex items-center justify-between gap-2">
         <div className="font-medium text-sm capitalize">{displayName}</div>
         <Badge variant="outline" className={cn(props.job.is_running && "border-info/40 text-info")}>
