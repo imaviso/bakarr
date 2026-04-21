@@ -17,7 +17,7 @@ export function GlobalSpinner() {
     <>
       {isRouting && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-background/40 backdrop-blur-[2px] transition-opacity duration-300 animate-in fade-in"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-background/40 backdrop-blur-[2px] transition-opacity duration-300 animate-in fade-in pointer-events-none"
           role="status"
           aria-label="Loading application"
         >

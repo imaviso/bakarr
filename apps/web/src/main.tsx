@@ -50,14 +50,14 @@ async function bootstrap() {
     return;
   }
 
+  await hydrateSessionState();
+
   const root = createRoot(rootElement);
   root.render(
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
-
-  void hydrateSessionState();
 }
 
 async function hydrateSessionState() {

@@ -125,8 +125,8 @@ export function SeasonalAnimeSection(props: SeasonalAnimeSectionProps) {
   }, [hasNextPage, virtualRows, rowCount, allResults.length, isFetchingNextPage, fetchNextPage]);
 
   return (
-    <section className="flex flex-col flex-1 min-h-0 space-y-4">
-      <div className="flex flex-col gap-3 rounded-lg border border-border/60 bg-muted/20 p-3 sm:flex-row sm:items-center sm:justify-between">
+    <section className="flex flex-col flex-1 min-h-0 overflow-hidden gap-4">
+      <div className="flex flex-col gap-3 rounded-lg border border-border/60 bg-muted/20 p-3 sm:flex-row sm:items-center sm:justify-between shrink-0">
         <div>
           <h2 className="text-lg font-semibold tracking-tight text-foreground">Seasonal Anime</h2>
           <p className="text-xs text-muted-foreground">
@@ -192,11 +192,7 @@ export function SeasonalAnimeSection(props: SeasonalAnimeSectionProps) {
       )}
 
       {allResults.length > 0 && (
-        <div
-          ref={scrollRef}
-          className="overflow-y-auto flex-1 min-h-0"
-          style={{ overflowAnchor: "none" }}
-        >
+        <div ref={scrollRef} className="h-full overflow-y-auto" style={{ overflowAnchor: "none" }}>
           <div className="relative w-full" style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
             {virtualRows.map((vRow) => (
               <div

@@ -121,159 +121,155 @@ export function AnimeGridView(props: AnimeLibraryViewProps) {
   });
 
   const virtualItems = rowVirtualizer.getVirtualItems();
-  const firstVirtualItem = virtualItems[0];
-  const lastVirtualItem = virtualItems[virtualItems.length - 1];
 
-  const gridPaddingTop = firstVirtualItem ? firstVirtualItem.start : 0;
-  const gridPaddingBottom = lastVirtualItem
-    ? rowVirtualizer.getTotalSize() - lastVirtualItem.end
-    : 0;
-
-  const visibleItems = useMemo(() => {
-    const items: Array<{ anime: Anime; key: number }> = [];
-    const cols = colCount;
-    for (const vRow of virtualItems) {
-      const startIdx = vRow.index * cols;
-      const rowSlice = props.anime.slice(startIdx, startIdx + cols);
-      for (const anime of rowSlice) {
-        items.push({ anime, key: anime.id });
-      }
-    }
-    return items;
-  }, [virtualItems, colCount, props.anime]);
+  const rowItems = (rowIndex: number) => {
+    const startIdx = rowIndex * colCount;
+    return props.anime.slice(startIdx, startIdx + colCount);
+  };
 
   return (
-    <div
-      ref={scrollRef}
-      className="overflow-y-auto flex-1 min-h-0"
-      style={{ overflowAnchor: "none" }}
-    >
-      <div style={{ height: `${gridPaddingTop}px` }} aria-hidden="true" />
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 pb-4">
-        {visibleItems.map((item) => {
-          const anime = item.anime;
-          return (
-            <Card
-              key={item.key}
-              className="group relative flex flex-col overflow-hidden bg-card card-hover transition-colors"
-            >
-              <div className="relative aspect-[2/3] w-full overflow-hidden bg-muted border-b border-border">
-                <Link
-                  to="/anime/$id"
-                  params={{ id: anime.id.toString() }}
-                  className="block h-full w-full"
+    <div ref={scrollRef} className="h-full overflow-y-auto" style={{ overflowAnchor: "none" }}>
+      <div className="relative w-full" style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
+        {virtualItems.map((vRow) => (
+          <div
+            key={vRow.index}
+            data-index={vRow.index}
+            ref={(el) => {
+              if (el) rowVirtualizer.measureElement(el);
+            }}
+            className="absolute left-0 top-0 w-full"
+            style={{ transform: `translateY(${vRow.start}px)` }}
+          >
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
+              {rowItems(vRow.index).map((anime) => (
+                <Card
+                  key={anime.id}
+                  className="group relative flex flex-col overflow-hidden bg-card card-hover transition-colors"
                 >
-                  {anime.cover_image ? (
-                    <img
-                      src={anime.cover_image}
-                      alt={anime.title.english || anime.title.romaji}
-                      loading="lazy"
-                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-muted-foreground">
-                      <TelevisionIcon className="h-12 w-12 opacity-20" />
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                </Link>
-                <div className="absolute right-2 top-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 has-[:focus-visible]:opacity-100">
-                  <DeleteAnimeDialog
-                    title={anime.title.english || anime.title.romaji}
-                    onConfirm={() => props.deleteAnime.mutate(anime.id)}
-                    trigger={
-                      <Button
-                        size="icon"
-                        variant="secondary"
-                        className="relative after:absolute after:-inset-3 h-8 w-8 shadow-sm bg-background/90 hover:bg-destructive hover:text-destructive-foreground"
-                      >
-                        <TrashIcon className="h-3.5 w-3.5" />
-                      </Button>
-                    }
-                  />
-                </div>
-              </div>
-              <div className="flex flex-1 flex-col gap-2 p-3">
-                <Link
-                  to="/anime/$id"
-                  params={{ id: anime.id.toString() }}
-                  className="line-clamp-1 text-sm font-medium leading-tight text-foreground/90 transition-colors hover:text-primary"
-                  title={anime.title.english || anime.title.romaji}
-                >
-                  {anime.title.english || anime.title.romaji}
-                </Link>
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
-                    <Badge
-                      variant={statusTone(anime)}
-                      className="h-5 rounded-sm px-1.5 font-normal"
+                  <div className="relative aspect-[2/3] w-full overflow-hidden bg-muted border-b border-border">
+                    <Link
+                      to="/anime/$id"
+                      params={{ id: anime.id.toString() }}
+                      className="block h-full w-full"
                     >
-                      {anime.next_airing_episode
-                        ? "Airing"
-                        : anime.monitored
-                          ? "Monitored"
-                          : "Unmonitored"}
-                    </Badge>
-                    {animeDateSubtitle(anime) && <span>{animeDateSubtitle(anime)}</span>}
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
-                      <span>{progressSummary(anime)}</span>
-                      {progressPercent(anime) !== null && <span>{progressPercent(anime)}%</span>}
-                    </div>
-                    <div className="h-1.5 overflow-hidden bg-muted">
-                      <div
-                        className={cn(
-                          "h-full transition-[width] duration-300 ease-out will-change-[width]",
-                          anime.progress.next_missing_episode
-                            ? "bg-warning"
-                            : anime.monitored
-                              ? "bg-primary"
-                              : "bg-muted-foreground/40",
-                        )}
-                        style={{ width: `${progressPercent(anime) ?? 0}%` }}
+                      {anime.cover_image ? (
+                        <img
+                          src={anime.cover_image}
+                          alt={anime.title.english || anime.title.romaji}
+                          loading="lazy"
+                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-muted-foreground">
+                          <TelevisionIcon className="h-12 w-12 opacity-20" />
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    </Link>
+                    <div className="absolute right-2 top-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 has-[:focus-visible]:opacity-100">
+                      <DeleteAnimeDialog
+                        title={anime.title.english || anime.title.romaji}
+                        onConfirm={() => props.deleteAnime.mutate(anime.id)}
+                        trigger={
+                          <Button
+                            size="icon"
+                            variant="secondary"
+                            className="relative after:absolute after:-inset-3 h-8 w-8 shadow-sm bg-background/90 hover:bg-destructive hover:text-destructive-foreground"
+                          >
+                            <TrashIcon className="h-3.5 w-3.5" />
+                          </Button>
+                        }
                       />
                     </div>
                   </div>
-                  <div className="line-clamp-1 text-[11px] text-muted-foreground">
-                    {formatNextAiringEpisode(anime.next_airing_episode, props.airingPreferences) ||
-                      nextProgressLabel(anime)}
-                  </div>
-                </div>
-                <div className="mt-auto flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5">
-                    <Badge
-                      variant="outline"
-                      className="h-5 rounded-sm border-border/50 px-1.5 text-xs font-normal text-muted-foreground/80 hover:bg-muted hover:text-foreground"
+                  <div className="flex flex-1 flex-col gap-2 p-3">
+                    <Link
+                      to="/anime/$id"
+                      params={{ id: anime.id.toString() }}
+                      className="line-clamp-1 text-sm font-medium leading-tight text-foreground/90 transition-colors hover:text-primary"
+                      title={anime.title.english || anime.title.romaji}
                     >
-                      {anime.profile_name}
-                    </Badge>
-                  </div>
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={<Button variant="ghost" />}
-                      className="p-1 -mr-1 h-auto hover:bg-muted/50 transition-colors rounded-full"
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <div
-                          className={cn(
-                            "h-1.5 w-1.5 rounded-full",
-                            anime.monitored
-                              ? "bg-success shadow-[0_0_4px_hsl(var(--success)/0.4)]"
-                              : "bg-muted-foreground/40",
-                          )}
-                        />
+                      {anime.title.english || anime.title.romaji}
+                    </Link>
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+                        <Badge
+                          variant={statusTone(anime)}
+                          className="h-5 rounded-sm px-1.5 font-normal"
+                        >
+                          {anime.next_airing_episode
+                            ? "Airing"
+                            : anime.monitored
+                              ? "Monitored"
+                              : "Unmonitored"}
+                        </Badge>
+                        {animeDateSubtitle(anime) && <span>{animeDateSubtitle(anime)}</span>}
                       </div>
-                    </TooltipTrigger>
-                    <TooltipContent>{anime.monitored ? "Monitored" : "Unmonitored"}</TooltipContent>
-                  </Tooltip>
-                </div>
-              </div>
-            </Card>
-          );
-        })}
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                          <span>{progressSummary(anime)}</span>
+                          {progressPercent(anime) !== null && (
+                            <span>{progressPercent(anime)}%</span>
+                          )}
+                        </div>
+                        <div className="h-1.5 overflow-hidden bg-muted">
+                          <div
+                            className={cn(
+                              "h-full transition-[width] duration-300 ease-out will-change-[width]",
+                              anime.progress.next_missing_episode
+                                ? "bg-warning"
+                                : anime.monitored
+                                  ? "bg-primary"
+                                  : "bg-muted-foreground/40",
+                            )}
+                            style={{ width: `${progressPercent(anime) ?? 0}%` }}
+                          />
+                        </div>
+                      </div>
+                      <div className="line-clamp-1 text-[11px] text-muted-foreground">
+                        {formatNextAiringEpisode(
+                          anime.next_airing_episode,
+                          props.airingPreferences,
+                        ) || nextProgressLabel(anime)}
+                      </div>
+                    </div>
+                    <div className="mt-auto flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <Badge
+                          variant="outline"
+                          className="h-5 rounded-sm border-border/50 px-1.5 text-xs font-normal text-muted-foreground/80 hover:bg-muted hover:text-foreground"
+                        >
+                          {anime.profile_name}
+                        </Badge>
+                      </div>
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={<Button variant="ghost" />}
+                          className="p-1 -mr-1 h-auto hover:bg-muted/50 transition-colors rounded-full"
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <div
+                              className={cn(
+                                "h-1.5 w-1.5 rounded-full",
+                                anime.monitored
+                                  ? "bg-success shadow-[0_0_4px_hsl(var(--success)/0.4)]"
+                                  : "bg-muted-foreground/40",
+                              )}
+                            />
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {anime.monitored ? "Monitored" : "Unmonitored"}
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
-      <div style={{ height: `${gridPaddingBottom}px` }} aria-hidden="true" />
     </div>
   );
 }
@@ -297,7 +293,7 @@ export function AnimeListView(props: AnimeLibraryViewProps) {
   return (
     <div
       ref={scrollRef}
-      className="flex-1 min-h-0 overflow-y-auto rounded-md border"
+      className="h-full overflow-y-auto rounded-md border"
       style={{ overflowAnchor: "none" }}
     >
       <Table>
@@ -328,7 +324,7 @@ export function AnimeListView(props: AnimeLibraryViewProps) {
               return null;
             }
             return (
-              <TableRow key={vRow.index}>
+              <TableRow key={anime.id}>
                 <TableCell>
                   <Link
                     to="/anime/$id"

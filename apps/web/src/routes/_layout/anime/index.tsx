@@ -208,8 +208,8 @@ function AnimeIndexPage() {
     });
 
   return (
-    <div className="flex flex-col flex-1 min-h-0">
-      <div className="border-b border-border pb-3 mb-3 space-y-3">
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+      <div className="border-b border-border pb-3 mb-3 space-y-3 shrink-0">
         <div className="flex items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-foreground">Library</h1>
@@ -334,51 +334,53 @@ function AnimeIndexPage() {
         </div>
       </div>
 
-      {!animeQuery.isLoading ? (
-        filteredList.length > 0 ? (
-          <Suspense fallback={<AnimeListSkeleton />}>
-            {search.view === "grid" ? (
-              <AnimeGridViewLazy
-                anime={filteredList}
-                airingPreferences={airingPreferences}
-                deleteAnime={deleteAnime}
-              />
-            ) : (
-              <AnimeListViewLazy
-                anime={filteredList}
-                airingPreferences={airingPreferences}
-                deleteAnime={deleteAnime}
-              />
-            )}
-          </Suspense>
-        ) : !localQuery && search.filter === "all" ? (
-          <Card className="p-12 text-center border-dashed">
-            <div className="flex flex-col items-center gap-4">
-              <TelevisionIcon className="h-12 w-12 text-muted-foreground/50" />
-              <div>
-                <h2 className="font-medium">No anime yet</h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Add your first anime to start monitoring
-                </p>
+      <div className="flex-1 min-h-0 overflow-hidden">
+        {!animeQuery.isLoading ? (
+          filteredList.length > 0 ? (
+            <Suspense fallback={<AnimeListSkeleton />}>
+              {search.view === "grid" ? (
+                <AnimeGridViewLazy
+                  anime={filteredList}
+                  airingPreferences={airingPreferences}
+                  deleteAnime={deleteAnime}
+                />
+              ) : (
+                <AnimeListViewLazy
+                  anime={filteredList}
+                  airingPreferences={airingPreferences}
+                  deleteAnime={deleteAnime}
+                />
+              )}
+            </Suspense>
+          ) : !localQuery && search.filter === "all" ? (
+            <Card className="p-12 text-center border-dashed">
+              <div className="flex flex-col items-center gap-4">
+                <TelevisionIcon className="h-12 w-12 text-muted-foreground/50" />
+                <div>
+                  <h2 className="font-medium">No anime yet</h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Add your first anime to start monitoring
+                  </p>
+                </div>
+                <Link to="/anime/add" className={buttonVariants()}>
+                  <PlusIcon className="mr-2 h-4 w-4" />
+                  Add Anime
+                </Link>
               </div>
-              <Link to="/anime/add" className={buttonVariants()}>
-                <PlusIcon className="mr-2 h-4 w-4" />
-                Add Anime
-              </Link>
-            </div>
-          </Card>
+            </Card>
+          ) : (
+            <p className="text-center text-muted-foreground py-8">
+              {localQuery ? (
+                <>No anime matching &quot;{localQuery}&quot;</>
+              ) : (
+                `No ${search.filter} anime found`
+              )}
+            </p>
+          )
         ) : (
-          <p className="text-center text-muted-foreground py-8">
-            {localQuery ? (
-              <>No anime matching &quot;{localQuery}&quot;</>
-            ) : (
-              `No ${search.filter} anime found`
-            )}
-          </p>
-        )
-      ) : (
-        <AnimeListSkeleton />
-      )}
+          <AnimeListSkeleton />
+        )}
+      </div>
     </div>
   );
 }

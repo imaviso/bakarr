@@ -124,7 +124,7 @@ function AddAnimePage() {
   }, [activeTab]);
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 space-y-6">
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden gap-6">
       <PageHeader
         title="Add Anime"
         subtitle="Search or browse seasonal anime to add to your library"
@@ -301,7 +301,7 @@ function SearchResults(props: SearchResultsProps) {
   };
 
   return (
-    <div className="space-y-4 flex flex-1 min-h-0 flex-col">
+    <div className="flex flex-1 min-h-0 overflow-hidden flex-col gap-4">
       {props.canSearch && props.searchDegraded && (
         <div className="flex items-start gap-2 rounded-lg border border-border/70 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
           <InfoIcon className="mt-0.5 h-4 w-4 shrink-0" />
@@ -348,11 +348,7 @@ function SearchResults(props: SearchResultsProps) {
         )}
 
       {props.canSearch && !props.searchQuery.error && props.searchResults.length > 0 && (
-        <div
-          ref={scrollRef}
-          className="overflow-y-auto flex-1 min-h-0"
-          style={{ overflowAnchor: "none" }}
-        >
+        <div ref={scrollRef} className="h-full overflow-y-auto" style={{ overflowAnchor: "none" }}>
           <div className="relative w-full" style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
             {virtualRows.map((vRow) => (
               <div

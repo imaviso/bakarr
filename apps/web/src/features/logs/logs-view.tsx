@@ -47,7 +47,7 @@ interface LogsViewProps {
 
 export function LogsView(props: LogsViewProps) {
   return (
-    <div className="flex flex-col flex-1 min-h-0 gap-6">
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden gap-6">
       <PageHeader title="System Logs" subtitle="View, filter, and export system events and errors">
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-2">
@@ -119,21 +119,23 @@ export function LogsView(props: LogsViewProps) {
         </div>
       </PageHeader>
 
-      <Filter.Provider
-        columns={logsFilterColumns}
-        value={props.state.filterStates}
-        onChange={props.state.setFilterStates}
-      >
-        <Filter.Root>
-          <div className="flex flex-wrap items-center gap-2">
-            <Filter.Menu />
-            <Filter.List />
-            <Filter.Actions />
-          </div>
-        </Filter.Root>
-      </Filter.Provider>
+      <div className="shrink-0">
+        <Filter.Provider
+          columns={logsFilterColumns}
+          value={props.state.filterStates}
+          onChange={props.state.setFilterStates}
+        >
+          <Filter.Root>
+            <div className="flex flex-wrap items-center gap-2">
+              <Filter.Menu />
+              <Filter.List />
+              <Filter.Actions />
+            </div>
+          </Filter.Root>
+        </Filter.Provider>
+      </div>
 
-      <Card className="border-dashed">
+      <Card className="border-dashed shrink-0">
         <div className="p-4 border-b border-border/60">
           <h2 className="text-sm font-medium text-foreground">Ops Summary</h2>
           <p className="text-xs text-muted-foreground mt-1">High-level download and worker health</p>
@@ -167,7 +169,7 @@ export function LogsView(props: LogsViewProps) {
         </div>
       </Card>
 
-      <Card className="border-dashed">
+      <Card className="border-dashed shrink-0">
         <div className="p-4 border-b border-border/60">
           <h2 className="text-sm font-medium text-foreground">Background Jobs</h2>
           <p className="text-xs text-muted-foreground mt-1">Current scheduler and worker visibility</p>
@@ -189,7 +191,7 @@ export function LogsView(props: LogsViewProps) {
         </div>
       </Card>
 
-      <Card className="border-dashed">
+      <Card className="border-dashed shrink-0">
         <div className="p-4 border-b border-border/60">
           <div className="flex flex-col gap-3">
             <div>

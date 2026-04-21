@@ -102,7 +102,7 @@ function WantedPage() {
   };
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 gap-6">
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden gap-6">
       <PageHeader title="Wanted" subtitle={`${data.length} missing episodes`}>
         <Button
           variant="default"
@@ -116,7 +116,7 @@ function WantedPage() {
       </PageHeader>
 
       <Card className="overflow-hidden flex-1 min-h-0 flex flex-col">
-        <div ref={scrollRef} className="overflow-y-auto flex-1">
+        <div ref={scrollRef} className="h-full overflow-y-auto">
           <Table>
             <TableHeader className="sticky top-0 bg-card z-10 shadow-sm shadow-border/50">
               <TableRow className="hover:bg-transparent border-none">

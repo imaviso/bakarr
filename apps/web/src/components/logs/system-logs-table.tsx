@@ -87,7 +87,7 @@ export function SystemLogsTable(props: SystemLogsTableProps) {
     >
       <div
         ref={logsScrollRef}
-        className="overflow-y-auto flex-1"
+        className="h-full overflow-y-auto"
       >
         <Table>
           <TableHeader className="sticky top-0 bg-card z-10 shadow-sm shadow-border/50">
@@ -229,7 +229,7 @@ function CardShell(props: {
   onFetchNextPage: () => void;
 }) {
   return (
-    <>
+    <div className="flex flex-col h-full overflow-hidden">
       {props.children}
       {props.hasNextPage && (
         <div className="p-4 flex justify-center border-t shrink-0">
@@ -250,7 +250,7 @@ function CardShell(props: {
           </Button>
         </div>
       )}
-    </>
+    </div>
   );
 }
 

@@ -34,7 +34,7 @@ export function DownloadsQueueTab(props: DownloadsQueueTabProps) {
 
   return (
     <TabsContent value="queue" className="flex-1 mt-0 min-h-0 overflow-hidden flex flex-col">
-      <div ref={queueScrollRef} className="overflow-y-auto flex-1">
+      <div ref={queueScrollRef} className="h-full overflow-y-auto">
         <Table className="table-fixed min-w-[820px] md:min-w-0">
           <TableHeader className="sticky top-0 bg-card z-10 shadow-sm shadow-border/50">
             <TableRow className="hover:bg-transparent border-none">

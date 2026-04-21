@@ -24,6 +24,7 @@ export async function fetchApiResponse(
   const requestInit: RequestInit = {
     ...options,
     headers,
+    credentials: "include",
     ...(signal === undefined ? {} : { signal }),
   };
 

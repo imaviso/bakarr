@@ -42,11 +42,6 @@ export function DownloadEventsFeed(props: DownloadEventsFeedProps) {
   });
 
   const virtualItems = virtualizer.getVirtualItems();
-  const firstVirtualItem = virtualItems[0];
-  const lastVirtualItem = virtualItems[virtualItems.length - 1];
-
-  const paddingTop = firstVirtualItem ? firstVirtualItem.start : 0;
-  const paddingBottom = lastVirtualItem ? virtualizer.getTotalSize() - lastVirtualItem.end : 0;
 
   return (
     <>
@@ -75,8 +70,10 @@ export function DownloadEventsFeed(props: DownloadEventsFeedProps) {
                     overflowAnchor: "none",
                   }}
                 >
-                  <div style={{ height: `${paddingTop}px` }} aria-hidden="true" />
-                  <div className="space-y-3">
+                  <div
+                    className="relative w-full"
+                    style={{ height: `${virtualizer.getTotalSize()}px` }}
+                  >
                     {virtualItems.map((virtualRow) => {
                       const event = props.events[virtualRow.index];
                       if (!event) {
@@ -84,16 +81,24 @@ export function DownloadEventsFeed(props: DownloadEventsFeedProps) {
                       }
 
                       return (
-                        <DownloadEventsFeedRow
-                          key={virtualRow.index}
-                          event={event}
-                          formatTimestamp={props.formatTimestamp}
-                          onSelectEvent={props.onSelectEvent}
-                        />
+                        <div
+                          key={event.id ?? virtualRow.index}
+                          data-index={virtualRow.index}
+                          ref={(el) => {
+                            if (el) virtualizer.measureElement(el);
+                          }}
+                          className="absolute left-0 top-0 w-full"
+                          style={{ transform: `translateY(${virtualRow.start}px)` }}
+                        >
+                          <DownloadEventsFeedRow
+                            event={event}
+                            formatTimestamp={props.formatTimestamp}
+                            onSelectEvent={props.onSelectEvent}
+                          />
+                        </div>
                       );
                     })}
                   </div>
-                  <div style={{ height: `${paddingBottom}px` }} aria-hidden="true" />
                 </div>
               ) : (
                 <div className={props.className ?? "space-y-3"}>

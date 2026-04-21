@@ -18,7 +18,7 @@ interface DownloadsViewProps {
 
 export function DownloadsView(props: DownloadsViewProps) {
   return (
-    <div className="flex flex-col flex-1 min-h-0 gap-4">
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden gap-4">
       <PageHeader title="Downloads" subtitle="Manage active downloads and history">
         <div className="flex items-center gap-2">
           <DownloadEventsDialog
