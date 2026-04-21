@@ -1,78 +1,73 @@
-import type { Component, ComponentProps } from "solid-js";
-import { splitProps } from "solid-js";
+import { Tabs as TabsPrimitive } from "@base-ui/react/tabs";
+import { cva, type VariantProps } from "class-variance-authority";
 
-import * as TabsPrimitive from "@kobalte/core/tabs";
+import { cn } from "@/lib/utils";
 
-import { cn } from "~/lib/utils";
+function Tabs({ className, orientation = "horizontal", ...props }: TabsPrimitive.Root.Props) {
+  return (
+    <TabsPrimitive.Root
+      data-slot="tabs"
+      data-orientation={orientation}
+      className={cn("group/tabs flex gap-2 data-horizontal:flex-col", className)}
+      {...props}
+    />
+  );
+}
 
-const Tabs = TabsPrimitive.Root;
+const tabsListVariants = cva(
+  "group/tabs-list inline-flex w-fit items-center justify-center rounded-none p-[3px] text-muted-foreground group-data-horizontal/tabs:h-8 group-data-vertical/tabs:h-fit group-data-vertical/tabs:flex-col data-[variant=line]:rounded-none",
+  {
+    variants: {
+      variant: {
+        default: "bg-muted",
+        line: "gap-1 bg-transparent",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  },
+);
 
-type TabsListProps = ComponentProps<typeof TabsPrimitive.List> & {
-  class?: string | undefined;
-};
-
-const TabsList: Component<TabsListProps> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
+function TabsList({
+  className,
+  variant = "default",
+  ...props
+}: TabsPrimitive.List.Props & VariantProps<typeof tabsListVariants>) {
   return (
     <TabsPrimitive.List
-      class={cn(
-        "inline-flex h-10 items-center justify-center rounded-none bg-muted p-1 text-muted-foreground",
-        local.class,
-      )}
-      {...others}
+      data-slot="tabs-list"
+      data-variant={variant}
+      className={cn(tabsListVariants({ variant }), className)}
+      {...props}
     />
   );
-};
+}
 
-type TabsTriggerProps = ComponentProps<typeof TabsPrimitive.Trigger> & {
-  class?: string | undefined;
-};
-
-const TabsTrigger: Component<TabsTriggerProps> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
+function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
   return (
-    <TabsPrimitive.Trigger
-      class={cn(
-        "inline-flex items-center justify-center whitespace-nowrap rounded-none px-3 py-1.5 text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:pointer-events-none disabled:opacity-50 data-[selected]:bg-background data-[selected]:text-foreground data-[selected]:shadow-sm",
-        local.class,
+    <TabsPrimitive.Tab
+      data-slot="tabs-trigger"
+      className={cn(
+        "relative inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-none border border-transparent px-1.5 py-0.5 text-xs font-medium whitespace-nowrap text-foreground/60 transition-all group-data-vertical/tabs:w-full group-data-vertical/tabs:justify-start group-data-vertical/tabs:py-[calc(--spacing(1.25))] hover:text-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 has-data-[icon=inline-end]:pr-1 has-data-[icon=inline-start]:pl-1 aria-disabled:pointer-events-none aria-disabled:opacity-50 dark:text-muted-foreground dark:hover:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        "group-data-[variant=line]/tabs-list:bg-transparent group-data-[variant=line]/tabs-list:data-active:bg-transparent dark:group-data-[variant=line]/tabs-list:data-active:border-transparent dark:group-data-[variant=line]/tabs-list:data-active:bg-transparent",
+        "data-active:bg-background data-active:text-foreground dark:data-active:border-input dark:data-active:bg-input/30 dark:data-active:text-foreground",
+        "after:absolute after:bg-foreground after:opacity-0 after:transition-opacity group-data-horizontal/tabs:after:inset-x-0 group-data-horizontal/tabs:after:bottom-[-5px] group-data-horizontal/tabs:after:h-0.5 group-data-vertical/tabs:after:inset-y-0 group-data-vertical/tabs:after:-right-1 group-data-vertical/tabs:after:w-0.5 group-data-[variant=line]/tabs-list:data-active:after:opacity-100",
+        className,
       )}
-      {...others}
+      {...props}
     />
   );
-};
+}
 
-type TabsContentProps = ComponentProps<typeof TabsPrimitive.Content> & {
-  class?: string | undefined;
-};
-
-const TabsContent: Component<TabsContentProps> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
+function TabsContent({ className, ...props }: TabsPrimitive.Panel.Props) {
   return (
-    <TabsPrimitive.Content
-      class={cn(
-        "mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-        local.class,
-      )}
-      {...others}
+    <TabsPrimitive.Panel
+      data-slot="tabs-content"
+      className={cn("flex-1 text-xs/relaxed outline-none", className)}
+      {...props}
     />
   );
-};
+}
 
-type TabsIndicatorProps = ComponentProps<typeof TabsPrimitive.Indicator> & {
-  class?: string | undefined;
-};
-
-const TabsIndicator: Component<TabsIndicatorProps> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
-  return (
-    <TabsPrimitive.Indicator
-      class={cn(
-        "duration-250ms absolute transition-[left,width,top,height] data-[orientation=horizontal]:-bottom-px data-[orientation=vertical]:-right-px data-[orientation=horizontal]:h-[2px] data-[orientation=vertical]:w-[2px]",
-        local.class,
-      )}
-      {...others}
-    />
-  );
-};
-
-export { Tabs, TabsContent, TabsIndicator, TabsList, TabsTrigger };
+export { Tabs, TabsList, TabsTrigger, TabsContent, tabsListVariants };

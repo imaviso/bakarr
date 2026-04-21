@@ -5,7 +5,7 @@ import {
   SettingSection,
   StringListEditor,
 } from "~/components/settings/form-controls";
-import type { SettingsFormApi } from "~/components/settings/system-settings-form-factory";
+import type { SettingsFormApi } from "~/components/settings/system-settings-form-hook";
 import { Input } from "~/components/ui/input";
 import { Switch } from "~/components/ui/switch";
 
@@ -22,9 +22,9 @@ export function SystemSettingsAutomationDownloadDefaultsSection(
         {(field) => (
           <SettingRow label="Download Path" description="Where downloaded files are saved">
             <Input
-              value={field().state.value}
-              onInput={(event) => field().handleChange(event.currentTarget.value)}
-              class="w-64"
+              value={field.state.value}
+              onInput={(event) => field.handleChange(event.currentTarget.value)}
+              className="w-64"
             />
           </SettingRow>
         )}
@@ -33,13 +33,13 @@ export function SystemSettingsAutomationDownloadDefaultsSection(
       <props.form.Field name="downloads.max_size_gb">
         {(field) => (
           <SettingRow label="Max Size" description="Maximum file size for downloads">
-            <div class="flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <FiniteNumberInput
-                value={field().state.value}
-                onChange={field().handleChange}
-                class="w-20"
+                value={field.state.value}
+                onChange={field.handleChange}
+                className="w-20"
               />
-              <span class="text-xs text-muted-foreground">GB</span>
+              <span className="text-xs text-muted-foreground">GB</span>
             </div>
           </SettingRow>
         )}
@@ -49,8 +49,8 @@ export function SystemSettingsAutomationDownloadDefaultsSection(
         {(field) => (
           <SettingRow label="Create Anime Folders" description="Organize downloads by anime title">
             <Switch
-              checked={field().state.value}
-              onChange={(checked) => field().handleChange(checked)}
+              checked={field.state.value}
+              onCheckedChange={(checked) => field.handleChange(checked)}
             />
           </SettingRow>
         )}
@@ -60,8 +60,8 @@ export function SystemSettingsAutomationDownloadDefaultsSection(
         {(field) => (
           <SettingRow label="Use SeaDex" description="Prefer SeaDex best releases for scoring">
             <Switch
-              checked={field().state.value}
-              onChange={(checked) => field().handleChange(checked)}
+              checked={field.state.value}
+              onCheckedChange={(checked) => field.handleChange(checked)}
             />
           </SettingRow>
         )}
@@ -74,8 +74,8 @@ export function SystemSettingsAutomationDownloadDefaultsSection(
             description="Boost releases that include dual audio tracks"
           >
             <Switch
-              checked={field().state.value}
-              onChange={(checked) => field().handleChange(checked)}
+              checked={field.state.value}
+              onCheckedChange={(checked) => field.handleChange(checked)}
             />
           </SettingRow>
         )}
@@ -85,10 +85,10 @@ export function SystemSettingsAutomationDownloadDefaultsSection(
         {(field) => (
           <SettingRow label="Preferred Codec" description="Optional codec preference for ranking">
             <Input
-              value={field().state.value ?? ""}
-              onInput={(event) => field().handleChange(event.currentTarget.value)}
+              value={field.state.value ?? ""}
+              onInput={(event) => field.handleChange(event.currentTarget.value)}
               placeholder="HEVC"
-              class="w-28"
+              className="w-28"
             />
           </SettingRow>
         )}
@@ -99,17 +99,17 @@ export function SystemSettingsAutomationDownloadDefaultsSection(
           <SettingRow
             label="Preferred Groups"
             description="One release group per line or comma-separated"
-            class="items-start"
+            className="items-start"
           >
-            <div class="w-80 space-y-2">
+            <div className="w-80 space-y-2">
               <StringListEditor
-                value={field().state.value}
-                onChange={field().handleChange}
+                value={field.state.value}
+                onChange={field.handleChange}
                 placeholder="SubsPlease\nErai-raws"
                 rows={4}
                 splitOnComma
               />
-              <div class="text-xs text-muted-foreground">
+              <div className="text-xs text-muted-foreground">
                 Used by release ranking and missing-episode search.
               </div>
             </div>
@@ -122,16 +122,16 @@ export function SystemSettingsAutomationDownloadDefaultsSection(
           <SettingRow
             label="Remote Path Mappings"
             description="One mapping per line using 'from => to'"
-            class="items-start"
+            className="items-start"
           >
-            <div class="w-80 space-y-2">
+            <div className="w-80 space-y-2">
               <PathMappingsEditor
-                value={field().state.value}
-                onChange={field().handleChange}
+                value={field.state.value}
+                onChange={field.handleChange}
                 placeholder="/downloads => /mnt/downloads\n/data/torrents => /srv/torrents"
                 rows={4}
               />
-              <div class="text-xs text-muted-foreground">
+              <div className="text-xs text-muted-foreground">
                 Used when qBittorrent reports a different path than Bakarr can see locally.
               </div>
             </div>
@@ -146,8 +146,8 @@ export function SystemSettingsAutomationDownloadDefaultsSection(
             description="Import completed torrents automatically after sync"
           >
             <Switch
-              checked={field().state.value ?? true}
-              onChange={(checked) => field().handleChange(checked)}
+              checked={field.state.value ?? true}
+              onCheckedChange={(checked) => field.handleChange(checked)}
             />
           </SettingRow>
         )}
@@ -160,8 +160,8 @@ export function SystemSettingsAutomationDownloadDefaultsSection(
             description="Delete torrent from qBittorrent after import"
           >
             <Switch
-              checked={field().state.value ?? true}
-              onChange={(checked) => field().handleChange(checked)}
+              checked={field.state.value ?? true}
+              onCheckedChange={(checked) => field.handleChange(checked)}
             />
           </SettingRow>
         )}
@@ -174,8 +174,8 @@ export function SystemSettingsAutomationDownloadDefaultsSection(
             description="Remove downloaded data when torrent cleanup runs"
           >
             <Switch
-              checked={field().state.value ?? false}
-              onChange={(checked) => field().handleChange(checked)}
+              checked={field.state.value ?? false}
+              onCheckedChange={(checked) => field.handleChange(checked)}
             />
           </SettingRow>
         )}

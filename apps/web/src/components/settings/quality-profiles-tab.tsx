@@ -1,5 +1,10 @@
-import { IconAdjustments, IconEdit, IconPlus, IconTrash } from "@tabler/icons-solidjs";
-import { createSignal, For, Show } from "solid-js";
+import {
+  SlidersHorizontalIcon,
+  PencilSimpleIcon,
+  PlusIcon,
+  TrashIcon,
+} from "@phosphor-icons/react";
+import { useState } from "react";
 import { ProfileForm } from "~/components/settings/quality-profile-form";
 import {
   AlertDialog,
@@ -27,55 +32,49 @@ interface QualityProfileCardProps {
 
 function QualityProfileCard(props: QualityProfileCardProps) {
   return (
-    <Card class="group transition-colors duration-200 hover:border-primary/50">
-      <CardHeader class="pb-3">
-        <div class="flex justify-between items-start">
-          <div class="space-y-1">
-            <CardTitle class="text-base flex items-center gap-2">
+    <Card className="group transition-colors duration-200 hover:border-primary/50">
+      <CardHeader className="pb-3">
+        <div className="flex justify-between items-start">
+          <div className="space-y-1">
+            <CardTitle className="text-base flex items-center gap-2">
               {props.profile.name}
-              <Show when={props.profile.seadex_preferred}>
+              {props.profile.seadex_preferred && (
                 <Badge
                   variant="secondary"
-                  class="text-xs h-5 px-1.5 font-normal text-muted-foreground"
+                  className="text-xs h-5 px-1.5 font-normal text-muted-foreground"
                 >
                   SeaDex
                 </Badge>
-              </Show>
+              )}
             </CardTitle>
-            <div class="text-xs text-muted-foreground">
-              Cutoff: <span class="font-medium text-foreground">{props.profile.cutoff}</span>
+            <div className="text-xs text-muted-foreground">
+              Cutoff: <span className="font-medium text-foreground">{props.profile.cutoff}</span>
             </div>
-            <Show when={props.profile.min_size || props.profile.max_size}>
-              <div class="text-xs text-muted-foreground flex gap-2">
-                <Show when={props.profile.min_size}>
-                  <span>Min: {props.profile.min_size}</span>
-                </Show>
-                <Show when={props.profile.max_size}>
-                  <span>Max: {props.profile.max_size}</span>
-                </Show>
+            {props.profile.min_size || props.profile.max_size ? (
+              <div className="text-xs text-muted-foreground flex gap-2">
+                {props.profile.min_size && <span>Min: {props.profile.min_size}</span>}
+                {props.profile.max_size && <span>Max: {props.profile.max_size}</span>}
               </div>
-            </Show>
+            ) : null}
           </div>
 
-          <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <Button
               size="icon"
               variant="ghost"
-              class="relative after:absolute after:-inset-2 h-8 w-8"
+              className="relative after:absolute after:-inset-2 h-8 w-8"
               onClick={() => props.onEdit(props.profile)}
               aria-label="Edit profile"
             >
-              <IconEdit class="h-4 w-4" />
+              <PencilSimpleIcon className="h-4 w-4" />
             </Button>
             <AlertDialog>
               <AlertDialogTrigger
-                as={Button}
-                variant="ghost"
-                size="icon"
-                class="relative after:absolute after:-inset-2 h-8 w-8 text-muted-foreground hover:text-destructive"
+                render={<Button variant="ghost" size="icon" />}
+                className="relative after:absolute after:-inset-2 h-8 w-8 text-muted-foreground hover:text-destructive"
                 aria-label="Delete profile"
               >
-                <IconTrash class="h-4 w-4" />
+                <TrashIcon className="h-4 w-4" />
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
@@ -88,7 +87,7 @@ function QualityProfileCard(props: QualityProfileCardProps) {
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                   <AlertDialogAction
-                    class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     onClick={() => props.onDelete(props.profile.name)}
                   >
                     Delete
@@ -100,28 +99,35 @@ function QualityProfileCard(props: QualityProfileCardProps) {
         </div>
       </CardHeader>
 
-      <CardContent class="pt-0">
-        <div class="flex flex-wrap gap-1.5">
-          <For each={props.profile.allowed_qualities}>
-            {(quality) => (
-              <Badge
-                variant="outline"
-                class="text-xs font-normal border-transparent bg-secondary/50 text-secondary-foreground hover:bg-secondary"
-              >
-                {quality}
-              </Badge>
-            )}
-          </For>
+      <CardContent className="pt-0">
+        <div className="flex flex-wrap gap-1.5">
+          {props.profile.allowed_qualities.map((quality) => (
+            <Badge
+              key={quality}
+              variant="outline"
+              className="text-xs font-normal border-transparent bg-secondary/50 text-secondary-foreground hover:bg-secondary"
+            >
+              {quality}
+            </Badge>
+          ))}
         </div>
 
-        <div class="flex gap-4 mt-4 text-sm items-center text-muted-foreground">
-          <span class="flex items-center gap-2">
-            <Switch checked={props.profile.upgrade_allowed} disabled class="pointer-events-none" />
-            <span class={props.profile.upgrade_allowed ? "text-foreground" : ""}>Upgrades</span>
+        <div className="flex gap-4 mt-4 text-sm items-center text-muted-foreground">
+          <span className="flex items-center gap-2">
+            <Switch
+              checked={props.profile.upgrade_allowed}
+              disabled
+              className="pointer-events-none"
+            />
+            <span className={props.profile.upgrade_allowed ? "text-foreground" : ""}>Upgrades</span>
           </span>
-          <span class="flex items-center gap-2">
-            <Switch checked={props.profile.seadex_preferred} disabled class="pointer-events-none" />
-            <span class={props.profile.seadex_preferred ? "text-foreground" : ""}>SeaDex</span>
+          <span className="flex items-center gap-2">
+            <Switch
+              checked={props.profile.seadex_preferred}
+              disabled
+              className="pointer-events-none"
+            />
+            <span className={props.profile.seadex_preferred ? "text-foreground" : ""}>SeaDex</span>
           </span>
         </div>
       </CardContent>
@@ -130,83 +136,84 @@ function QualityProfileCard(props: QualityProfileCardProps) {
 }
 
 export function QualityProfilesTab() {
-  const [editingProfile, setEditingProfile] = createSignal<QualityProfile | null>(null);
-  const [isCreating, setIsCreating] = createSignal(false);
+  const [editingProfile, setEditingProfile] = useState<QualityProfile | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
 
   const profilesQuery = createProfilesQuery();
   const deleteProfile = createDeleteProfileMutation();
 
   return (
-    <Show
-      when={!isCreating() && !editingProfile()}
-      fallback={
-        <div class="mb-6">
-          <Show when={isCreating()}>
+    <>
+      {isCreating || editingProfile ? (
+        <div className="mb-6">
+          {isCreating && (
             <ProfileForm
               onCancel={() => setIsCreating(false)}
               onSuccess={() => setIsCreating(false)}
             />
-          </Show>
-          <Show when={editingProfile()}>
+          )}
+          {editingProfile && (
             <ProfileForm
-              profile={editingProfile()!}
+              profile={editingProfile}
               onCancel={() => setEditingProfile(null)}
               onSuccess={() => setEditingProfile(null)}
             />
-          </Show>
+          )}
         </div>
-      }
-    >
-      <div class="flex justify-between items-center mb-6">
-        <div>
-          <h2 class="text-lg font-medium">Quality Profiles</h2>
-          <p class="text-sm text-muted-foreground">
-            Configure quality profiles for automatic downloads
-          </p>
-        </div>
-        <Button onClick={() => setIsCreating(true)} disabled={isCreating()} size="sm">
-          <IconPlus class="mr-2 h-4 w-4" />
-          Add Profile
-        </Button>
-      </div>
-
-      <Show when={profilesQuery.isLoading}>
-        <div class="space-y-4">
-          <For each={[1, 2]}>{() => <Skeleton class="h-32 rounded-lg" />}</For>
-        </div>
-      </Show>
-
-      <Show when={!profilesQuery.isLoading && profilesQuery.data?.length === 0}>
-        <Card class="p-12 text-center border-dashed bg-transparent">
-          <div class="flex flex-col items-center gap-4">
-            <IconAdjustments class="h-12 w-12 text-muted-foreground/50" />
+      ) : (
+        <>
+          <div className="flex justify-between items-center mb-6">
             <div>
-              <h3 class="font-medium">No quality profiles</h3>
-              <p class="text-sm text-muted-foreground mt-1">
-                Create a profile to define download quality settings
+              <h2 className="text-lg font-medium">Quality Profiles</h2>
+              <p className="text-sm text-muted-foreground">
+                Configure quality profiles for automatic downloads
               </p>
             </div>
-            <Button onClick={() => setIsCreating(true)}>
-              <IconPlus class="mr-2 h-4 w-4" />
-              Create Profile
+            <Button onClick={() => setIsCreating(true)} disabled={isCreating} size="sm">
+              <PlusIcon className="mr-2 h-4 w-4" />
+              Add Profile
             </Button>
           </div>
-        </Card>
-      </Show>
 
-      <Show when={profilesQuery.data && profilesQuery.data.length > 0}>
-        <div class="grid gap-4">
-          <For each={profilesQuery.data}>
-            {(profile) => (
-              <QualityProfileCard
-                profile={profile}
-                onDelete={(name) => deleteProfile.mutate(name)}
-                onEdit={setEditingProfile}
-              />
-            )}
-          </For>
-        </div>
-      </Show>
-    </Show>
+          {profilesQuery.isLoading && (
+            <div className="space-y-4">
+              <Skeleton key="quality-profile-skeleton-1" className="h-32 rounded-lg" />
+              <Skeleton key="quality-profile-skeleton-2" className="h-32 rounded-lg" />
+            </div>
+          )}
+
+          {!profilesQuery.isLoading && profilesQuery.data?.length === 0 && (
+            <Card className="p-12 text-center border-dashed bg-transparent">
+              <div className="flex flex-col items-center gap-4">
+                <SlidersHorizontalIcon className="h-12 w-12 text-muted-foreground/50" />
+                <div>
+                  <h3 className="font-medium">No quality profiles</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Create a profile to define download quality settings
+                  </p>
+                </div>
+                <Button onClick={() => setIsCreating(true)}>
+                  <PlusIcon className="mr-2 h-4 w-4" />
+                  Create Profile
+                </Button>
+              </div>
+            </Card>
+          )}
+
+          {profilesQuery.data && profilesQuery.data.length > 0 && (
+            <div className="grid gap-4">
+              {profilesQuery.data.map((profile) => (
+                <QualityProfileCard
+                  key={profile.name}
+                  profile={profile}
+                  onDelete={(name) => deleteProfile.mutate(name)}
+                  onEdit={setEditingProfile}
+                />
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </>
   );
 }

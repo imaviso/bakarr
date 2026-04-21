@@ -1,5 +1,5 @@
-import { IconCheck } from "@tabler/icons-solidjs";
-import { createMemo, createSignal, For, Show } from "solid-js";
+import { CheckIcon } from "@phosphor-icons/react";
+import { useMemo, useState } from "react";
 import {
   Command,
   CommandEmpty,
@@ -14,55 +14,53 @@ import { formatTimeZoneLabel, getTimeZoneOptions } from "~/lib/timezones";
 import { cn } from "~/lib/utils";
 
 interface TimezonePickerProps {
-  class?: string;
+  className?: string;
   onChange: (value: string) => void;
   value?: string;
 }
 
 export function TimezonePicker(props: TimezonePickerProps) {
-  const [open, setOpen] = createSignal(false);
-  const options = createMemo(() => getTimeZoneOptions(props.value));
-  const selectedValue = createMemo(() => props.value?.trim() || "system");
+  const [open, setOpen] = useState(false);
+  const options = useMemo(() => getTimeZoneOptions(props.value), [props.value]);
+  const selectedValue = props.value?.trim() || "system";
 
   return (
-    <Popover open={open()} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
-        as={Button}
-        variant="outline"
-        class={cn("w-56 justify-between font-normal", props.class)}
+        render={<Button variant="outline" />}
+        className={cn("w-56 justify-between font-normal", props.className)}
       >
-        <span class="truncate">{formatTimeZoneLabel(selectedValue())}</span>
+        <span className="truncate">{formatTimeZoneLabel(selectedValue)}</span>
       </PopoverTrigger>
-      <PopoverContent class="w-[320px] p-0">
+      <PopoverContent className="w-[320px] p-0">
         <Command>
           <CommandInput placeholder="Search timezone..." />
           <CommandList>
             <CommandEmpty>No timezone found.</CommandEmpty>
             <CommandGroup heading="Airing timezone">
-              <For each={options()}>
-                {(option) => (
-                  <CommandItem
-                    value={`${option.value} ${option.label} ${option.note ?? ""}`}
-                    onSelect={() => {
-                      props.onChange(option.value);
-                      setOpen(false);
-                    }}
-                  >
-                    <IconCheck
-                      class={cn(
-                        "mr-2 h-4 w-4",
-                        selectedValue() === option.value ? "opacity-100" : "opacity-0",
-                      )}
-                    />
-                    <div class="min-w-0 flex-1">
-                      <div class="truncate">{option.label}</div>
-                      <Show when={option.note}>
-                        <div class="truncate text-xs text-muted-foreground">{option.note}</div>
-                      </Show>
-                    </div>
-                  </CommandItem>
-                )}
-              </For>
+              {options.map((option) => (
+                <CommandItem
+                  key={option.value}
+                  value={`${option.value} ${option.label} ${option.note ?? ""}`}
+                  onSelect={() => {
+                    props.onChange(option.value);
+                    setOpen(false);
+                  }}
+                >
+                  <CheckIcon
+                    className={cn(
+                      "mr-2 h-4 w-4",
+                      selectedValue === option.value ? "opacity-100" : "opacity-0",
+                    )}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate">{option.label}</div>
+                    {option.note && (
+                      <div className="truncate text-xs text-muted-foreground">{option.note}</div>
+                    )}
+                  </div>
+                </CommandItem>
+              ))}
             </CommandGroup>
           </CommandList>
         </Command>

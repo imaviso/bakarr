@@ -1,9 +1,14 @@
-import { useIsFetching } from "@tanstack/solid-query";
-import { createFileRoute, Outlet, redirect } from "@tanstack/solid-router";
-import { Show } from "solid-js";
+import { useIsFetching } from "@tanstack/react-query";
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { Suspense, lazy } from "react";
 import { AppSidebar } from "~/components/app-sidebar";
-import { SocketToastListener } from "~/components/socket-toast-listener";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "~/components/ui/sidebar";
+
+const SocketToastListenerLazy = lazy(() =>
+  import("~/components/socket-toast-listener").then((module) => ({
+    default: module.SocketToastListener,
+  })),
+);
 
 export const Route = createFileRoute("/_layout")({
   beforeLoad: ({ context, location }) => {
@@ -27,28 +32,30 @@ function LayoutComponent() {
     <SidebarProvider>
       <a
         href="#main-content"
-        class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[200] focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[200] focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground"
       >
         Skip to content
       </a>
       <AppSidebar />
       <SidebarInset>
-        <div class="h-0.5 w-full bg-transparent overflow-hidden fixed top-0 left-0 z-[100] pointer-events-none">
-          <Show when={isFetching() > 0}>
-            <div class="h-full bg-primary animate-progress-indeterminate w-full origin-left" />
-          </Show>
+        <div className="h-0.5 w-full bg-transparent overflow-hidden fixed top-0 left-0 z-[100] pointer-events-none">
+          {isFetching > 0 && (
+            <div className="h-full bg-primary animate-progress-indeterminate w-full origin-left" />
+          )}
         </div>
         {/* Mobile-only sidebar trigger */}
-        <div class="sticky top-0 z-10 flex h-12 items-center px-4 md:hidden">
+        <div className="sticky top-0 z-10 flex h-12 items-center px-4 md:hidden">
           <SidebarTrigger />
         </div>
         <main
           id="main-content"
-          class="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6 min-w-0 overflow-x-hidden min-h-0 overflow-y-auto"
+          className="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6 min-w-0 overflow-x-hidden min-h-0 overflow-y-auto"
         >
           <Outlet />
         </main>
-        <SocketToastListener />
+        <Suspense fallback={null}>
+          <SocketToastListenerLazy />
+        </Suspense>
       </SidebarInset>
     </SidebarProvider>
   );

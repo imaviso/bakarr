@@ -1,14 +1,14 @@
-import { createForm } from "@tanstack/solid-form";
+import { useForm } from "@tanstack/react-form";
 import { ConfigSchema } from "~/components/settings/system-settings-schema";
 import type { Config } from "~/lib/api";
 
-interface CreateSystemSettingsFormOptions {
+interface UseSystemSettingsFormOptions {
   defaultValues: Config;
   onSubmit: (values: Config) => void;
 }
 
-export function createSystemSettingsForm(options: CreateSystemSettingsFormOptions) {
-  return createForm(() => ({
+export function useSystemSettingsForm(options: UseSystemSettingsFormOptions) {
+  return useForm({
     defaultValues: options.defaultValues,
     validators: {
       onChange: ConfigSchema,
@@ -16,7 +16,7 @@ export function createSystemSettingsForm(options: CreateSystemSettingsFormOption
     onSubmit: ({ value }) => {
       options.onSubmit(value);
     },
-  }));
+  });
 }
 
-export type SettingsFormApi = ReturnType<typeof createSystemSettingsForm>;
+export type SettingsFormApi = ReturnType<typeof useSystemSettingsForm>;

@@ -1,8 +1,7 @@
-import { IconExternalLink, IconSparkles } from "@tabler/icons-solidjs";
-import { Link } from "@tanstack/solid-router";
+import { ArrowSquareOutIcon, SparkleIcon } from "@phosphor-icons/react";
+import { Link } from "@tanstack/react-router";
 import type { DownloadSelectionKind } from "@bakarr/shared";
-import type { JSX } from "solid-js";
-import { Show } from "solid-js";
+import type { ReactNode } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import { Badge } from "~/components/ui/badge";
 import type { ReleaseConfidenceMetadata } from "~/lib/release-selection";
@@ -41,135 +40,126 @@ interface DownloadRowMetaProps {
   sourceUrl?: string | undefined;
   trusted?: boolean | undefined;
   remake?: boolean | undefined;
-  children?: JSX.Element;
+  children?: ReactNode;
 }
 
 export function DownloadRowMeta(props: DownloadRowMetaProps) {
-  const sourceUrl = () => safeExternalUrl(props.sourceUrl);
+  const sourceUrl = safeExternalUrl(props.sourceUrl);
 
   return (
-    <div class="flex items-start gap-3">
-      <Avatar class="size-8 rounded-md">
+    <div className="flex items-start gap-3">
+      <Avatar className="size-8 rounded-md">
         <AvatarImage
           {...(props.animeImage === undefined ? {} : { src: props.animeImage })}
           alt={props.animeTitle}
         />
-        <AvatarFallback class="rounded-md text-xs font-medium">
+        <AvatarFallback className="rounded-md text-xs font-medium">
           {animeInitials(props.animeTitle)}
         </AvatarFallback>
       </Avatar>
-      <div class="flex flex-col justify-center min-w-0">
-        <div class="flex items-center gap-2 min-w-0 flex-wrap">
-          <Show
-            when={props.animeId !== undefined}
-            fallback={<span class="line-clamp-1 min-w-0 max-w-full">{props.animeTitle}</span>}
-          >
-            {(animeId) => (
-              <Link
-                to="/anime/$id"
-                params={{ id: animeId().toString() }}
-                class="line-clamp-1 text-sm hover:underline min-w-0 max-w-full"
-                title={props.animeTitle}
-              >
-                {props.animeTitle}
-              </Link>
-            )}
-          </Show>
-          <Show when={props.decisionBadge}>
-            {(badge) => (
-              <Badge variant="secondary" class="h-5 px-1.5 text-xs shrink-0">
-                <IconSparkles class="h-3 w-3" />
-                {badge()}
-              </Badge>
-            )}
-          </Show>
+      <div className="flex flex-col justify-center min-w-0">
+        <div className="flex items-center gap-2 min-w-0 flex-wrap">
+          {props.animeId !== undefined ? (
+            <Link
+              to="/anime/$id"
+              params={{ id: props.animeId.toString() }}
+              className="line-clamp-1 text-sm hover:underline min-w-0 max-w-full"
+              title={props.animeTitle}
+            >
+              {props.animeTitle}
+            </Link>
+          ) : (
+            <span className="line-clamp-1 min-w-0 max-w-full">{props.animeTitle}</span>
+          )}
+          {props.decisionBadge && (
+            <Badge variant="secondary" className="h-5 px-1.5 text-xs shrink-0">
+              <SparkleIcon className="h-3 w-3" />
+              {props.decisionBadge}
+            </Badge>
+          )}
         </div>
-        <span class="line-clamp-1 text-xs text-muted-foreground" title={props.releaseName}>
+        <span className="line-clamp-1 text-xs text-muted-foreground" title={props.releaseName}>
           {props.releaseName}
         </span>
-        <Show when={props.releaseSummary}>
-          {(summary) => <span class="text-xs text-muted-foreground line-clamp-1">{summary()}</span>}
-        </Show>
-        <Show when={props.decisionSummary}>
-          {(summary) => (
-            <span class="text-[11px] text-muted-foreground line-clamp-1">{summary()}</span>
-          )}
-        </Show>
-        <Show when={props.parsedSummary}>
-          {(summary) => (
-            <span class="text-[11px] text-muted-foreground line-clamp-1">{summary()}</span>
-          )}
-        </Show>
-        <div class="flex flex-wrap items-center gap-1.5 text-[11px] leading-tight">
-          <Show when={props.trusted}>
-            <Badge variant="outline" class="h-4 px-1.5 border-success/20 bg-success/5 text-success">
+        {props.releaseSummary && (
+          <span className="text-xs text-muted-foreground line-clamp-1">{props.releaseSummary}</span>
+        )}
+        {props.decisionSummary && (
+          <span className="text-[11px] text-muted-foreground line-clamp-1">
+            {props.decisionSummary}
+          </span>
+        )}
+        {props.parsedSummary && (
+          <span className="text-[11px] text-muted-foreground line-clamp-1">
+            {props.parsedSummary}
+          </span>
+        )}
+        <div className="flex flex-wrap items-center gap-1.5 text-[11px] leading-tight">
+          {props.trusted && (
+            <Badge
+              variant="outline"
+              className="h-4 px-1.5 border-success/20 bg-success/5 text-success"
+            >
               Trusted
             </Badge>
-          </Show>
-          <Show when={props.remake}>
-            <Badge variant="outline" class="h-4 px-1.5 border-warning/20 bg-warning/5 text-warning">
+          )}
+          {props.remake && (
+            <Badge
+              variant="outline"
+              className="h-4 px-1.5 border-warning/20 bg-warning/5 text-warning"
+            >
               Remake
             </Badge>
-          </Show>
-          <Show when={sourceUrl()}>
-            {(safeUrl) => (
-              <a
-                href={safeUrl()}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="inline-flex items-center gap-1 text-primary hover:text-primary/80"
-              >
-                <IconExternalLink class="h-3 w-3" /> Source
-              </a>
-            )}
-          </Show>
+          )}
+          {sourceUrl && (
+            <a
+              href={sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-primary hover:text-primary/80"
+            >
+              <ArrowSquareOutIcon className="h-3 w-3" /> Source
+            </a>
+          )}
         </div>
-        <Show when={props.selectionKind || props.selectionDetail}>
-          <div class="flex flex-wrap items-center gap-1.5 text-[11px] leading-tight">
-            <Show when={selectionKindLabel(props.selectionKind)}>
-              {(label) => (
-                <Badge
-                  variant="secondary"
-                  class={`h-4 px-1.5 ${selectionKindBadgeClass(props.selectionKind)}`}
-                >
-                  {label()}
-                </Badge>
-              )}
-            </Show>
-            <Show when={props.selectionDetail}>
-              {(detail) => <span class="text-muted-foreground/80 line-clamp-1">{detail()}</span>}
-            </Show>
-          </div>
-        </Show>
-        <Show when={props.confidence}>
-          {(confidence) => (
-            <div class="flex flex-wrap items-center gap-1.5 text-[11px] leading-tight">
+        {(props.selectionKind || props.selectionDetail) && (
+          <div className="flex flex-wrap items-center gap-1.5 text-[11px] leading-tight">
+            {selectionKindLabel(props.selectionKind) && (
               <Badge
                 variant="secondary"
-                class={`h-4 px-1.5 ${releaseConfidenceBadgeClass(confidence().tone)}`}
+                className={`h-4 px-1.5 ${selectionKindBadgeClass(props.selectionKind)}`}
               >
-                {confidence().label}
+                {selectionKindLabel(props.selectionKind)}
               </Badge>
-              <span class="text-muted-foreground/80 line-clamp-1">{confidence().reason}</span>
-            </div>
-          )}
-        </Show>
+            )}
+            {props.selectionDetail && (
+              <span className="text-muted-foreground/80 line-clamp-1">{props.selectionDetail}</span>
+            )}
+          </div>
+        )}
+        {props.confidence && (
+          <div className="flex flex-wrap items-center gap-1.5 text-[11px] leading-tight">
+            <Badge
+              variant="secondary"
+              className={`h-4 px-1.5 ${releaseConfidenceBadgeClass(props.confidence.tone)}`}
+            >
+              {props.confidence.label}
+            </Badge>
+            <span className="text-muted-foreground/80 line-clamp-1">{props.confidence.reason}</span>
+          </div>
+        )}
         {props.children}
-        <Show when={props.importedPath}>
-          {(importedPath) => (
-            <span class="text-[11px] text-muted-foreground line-clamp-1">
-              Imported to {importedPath()}
-            </span>
-          )}
-        </Show>
-        <Show when={props.errorMessage}>
-          {(errorMessage) => (
-            <span class="text-xs text-destructive line-clamp-1">{errorMessage()}</span>
-          )}
-        </Show>
-        <Show when={props.downloadId !== undefined}>
-          <span class="text-xs text-muted-foreground">#{props.downloadId}</span>
-        </Show>
+        {props.importedPath && (
+          <span className="text-[11px] text-muted-foreground line-clamp-1">
+            Imported to {props.importedPath}
+          </span>
+        )}
+        {props.errorMessage && (
+          <span className="text-xs text-destructive line-clamp-1">{props.errorMessage}</span>
+        )}
+        {props.downloadId !== undefined && (
+          <span className="text-xs text-muted-foreground">#{props.downloadId}</span>
+        )}
       </div>
     </div>
   );

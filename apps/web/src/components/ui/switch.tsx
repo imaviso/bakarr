@@ -1,95 +1,30 @@
-import type { Component, ComponentProps, JSX } from "solid-js";
-import { splitProps } from "solid-js";
+import { Switch as SwitchPrimitive } from "@base-ui/react/switch";
 
-import * as SwitchPrimitive from "@kobalte/core/switch";
+import { cn } from "@/lib/utils";
 
-import { cn } from "~/lib/utils";
-
-const SwitchRoot = SwitchPrimitive.Root;
-const SwitchDescription = SwitchPrimitive.Description;
-const SwitchErrorMessage = SwitchPrimitive.ErrorMessage;
-
-type SwitchControlProps = ComponentProps<typeof SwitchPrimitive.Control> & {
-  class?: string | undefined;
-  children?: JSX.Element;
-};
-
-const SwitchControl: Component<SwitchControlProps> = (props) => {
-  const [local, others] = splitProps(props, ["class", "children"]);
+function Switch({
+  className,
+  size = "default",
+  ...props
+}: SwitchPrimitive.Root.Props & {
+  size?: "sm" | "default";
+}) {
   return (
-    <>
-      <SwitchPrimitive.Input class="[&:focus-visible+div]:outline-none [&:focus-visible+div]:ring-2 [&:focus-visible+div]:ring-ring [&:focus-visible+div]:ring-offset-2 [&:focus-visible+div]:ring-offset-background" />
-      <SwitchPrimitive.Control
-        class={cn(
-          "inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent bg-input transition-[color,background-color,box-shadow] data-[disabled]:cursor-not-allowed data-[checked]:bg-primary data-[disabled]:opacity-50",
-          local.class,
-        )}
-        {...others}
-      >
-        {local.children}
-      </SwitchPrimitive.Control>
-    </>
-  );
-};
-
-type SwitchThumbProps = ComponentProps<typeof SwitchPrimitive.Thumb> & {
-  class?: string | undefined;
-};
-
-const SwitchThumb: Component<SwitchThumbProps> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
-  return (
-    <SwitchPrimitive.Thumb
-      class={cn(
-        "pointer-events-none block size-5 translate-x-0 rounded-full bg-background shadow-sm ring-0 transition-transform data-[checked]:translate-x-5",
-        local.class,
+    <SwitchPrimitive.Root
+      data-slot="switch"
+      data-size={size}
+      className={cn(
+        "peer group/switch relative inline-flex shrink-0 items-center rounded-full border border-transparent transition-all outline-none after:absolute after:-inset-x-3 after:-inset-y-2 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-1 aria-invalid:ring-destructive/20 data-[size=default]:h-[18.4px] data-[size=default]:w-[32px] data-[size=sm]:h-[14px] data-[size=sm]:w-[24px] dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 data-checked:bg-primary data-unchecked:bg-input dark:data-unchecked:bg-input/80 data-disabled:cursor-not-allowed data-disabled:opacity-50",
+        className,
       )}
-      {...others}
-    />
+      {...props}
+    >
+      <SwitchPrimitive.Thumb
+        data-slot="switch-thumb"
+        className="pointer-events-none block rounded-full bg-background ring-0 transition-transform group-data-[size=default]/switch:size-4 group-data-[size=sm]/switch:size-3 group-data-[size=default]/switch:data-checked:translate-x-[calc(100%-2px)] group-data-[size=sm]/switch:data-checked:translate-x-[calc(100%-2px)] dark:data-checked:bg-primary-foreground group-data-[size=default]/switch:data-unchecked:translate-x-0 group-data-[size=sm]/switch:data-unchecked:translate-x-0 dark:data-unchecked:bg-foreground"
+      />
+    </SwitchPrimitive.Root>
   );
-};
+}
 
-type SwitchLabelProps = ComponentProps<typeof SwitchPrimitive.Label> & {
-  class?: string | undefined;
-};
-
-const SwitchLabel: Component<SwitchLabelProps> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
-  return (
-    <SwitchPrimitive.Label
-      class={cn(
-        "text-sm font-medium leading-none data-[disabled]:cursor-not-allowed data-[disabled]:opacity-70",
-        local.class,
-      )}
-      {...others}
-    />
-  );
-};
-
-type SwitchProps = SwitchPrimitive.SwitchRootProps & {
-  class?: string | undefined;
-};
-
-const Switch: Component<SwitchProps> = (props) => {
-  const [local, others] = splitProps(props, ["children", "class"]);
-  return (
-    <SwitchRoot {...others}>
-      <SwitchControl class={local.class}>
-        <SwitchThumb />
-      </SwitchControl>
-      {typeof local.children === "function"
-        ? local.children(SwitchPrimitive.useSwitchContext())
-        : local.children}
-    </SwitchRoot>
-  );
-};
-
-export {
-  Switch,
-  SwitchControl,
-  SwitchDescription,
-  SwitchErrorMessage,
-  SwitchLabel,
-  SwitchRoot,
-  SwitchThumb,
-};
+export { Switch };

@@ -1,4 +1,4 @@
-import { queryOptions, useQuery } from "@tanstack/solid-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import type { OperationTask, OperationTaskKey } from "./contracts";
 import { API_BASE, fetchApi } from "./client";
 import { animeKeys } from "./keys";
@@ -58,9 +58,9 @@ export function systemTasksQueryOptions(input?: {
 }
 
 export function createSystemTasksQuery(
-  input: () => { readonly animeId?: number; readonly taskKey?: OperationTaskKey } = () => ({}),
+  input: { readonly animeId?: number; readonly taskKey?: OperationTaskKey } = {},
 ) {
-  return useQuery(() => systemTasksQueryOptions(input()));
+  return useQuery(systemTasksQueryOptions(input));
 }
 
 export function systemTaskQueryOptions(taskId: number) {
@@ -72,16 +72,10 @@ export function systemTaskQueryOptions(taskId: number) {
   });
 }
 
-export function createSystemTaskQuery(taskId: () => number | undefined) {
-  return useQuery(() => {
-    const currentTaskId = taskId();
-
-    return {
-      ...(currentTaskId === undefined
-        ? systemTaskQueryOptions(0)
-        : systemTaskQueryOptions(currentTaskId)),
-      enabled: currentTaskId !== undefined,
-    };
+export function createSystemTaskQuery(taskId: number | undefined) {
+  return useQuery({
+    ...(taskId === undefined ? systemTaskQueryOptions(0) : systemTaskQueryOptions(taskId)),
+    enabled: taskId !== undefined,
   });
 }
 
@@ -103,10 +97,8 @@ export function libraryImportTasksQueryOptions(input?: { readonly animeId?: numb
   });
 }
 
-export function createLibraryImportTasksQuery(
-  input: () => { readonly animeId?: number } = () => ({}),
-) {
-  return useQuery(() => libraryImportTasksQueryOptions(input()));
+export function createLibraryImportTasksQuery(input: { readonly animeId?: number } = {}) {
+  return useQuery(libraryImportTasksQueryOptions(input));
 }
 
 export function libraryImportTaskQueryOptions(taskId: number) {
@@ -118,16 +110,12 @@ export function libraryImportTaskQueryOptions(taskId: number) {
   });
 }
 
-export function createLibraryImportTaskQuery(taskId: () => number | undefined) {
-  return useQuery(() => {
-    const currentTaskId = taskId();
-
-    return {
-      ...(currentTaskId === undefined
-        ? libraryImportTaskQueryOptions(0)
-        : libraryImportTaskQueryOptions(currentTaskId)),
-      enabled: currentTaskId !== undefined,
-    };
+export function createLibraryImportTaskQuery(taskId: number | undefined) {
+  return useQuery({
+    ...(taskId === undefined
+      ? libraryImportTaskQueryOptions(0)
+      : libraryImportTaskQueryOptions(taskId)),
+    enabled: taskId !== undefined,
   });
 }
 
@@ -147,16 +135,12 @@ export function animeScanTasksQueryOptions(animeId: number) {
   });
 }
 
-export function createAnimeScanTasksQuery(animeId: () => number | undefined) {
-  return useQuery(() => {
-    const currentAnimeId = animeId();
-
-    return {
-      ...(currentAnimeId === undefined
-        ? animeScanTasksQueryOptions(0)
-        : animeScanTasksQueryOptions(currentAnimeId)),
-      enabled: currentAnimeId !== undefined,
-    };
+export function createAnimeScanTasksQuery(animeId: number | undefined) {
+  return useQuery({
+    ...(animeId === undefined
+      ? animeScanTasksQueryOptions(0)
+      : animeScanTasksQueryOptions(animeId)),
+    enabled: animeId !== undefined,
   });
 }
 
@@ -176,22 +160,19 @@ export function animeScanTaskQueryOptions(input: {
   });
 }
 
-export function createAnimeScanTaskQuery(
-  input: () => { readonly animeId?: number; readonly taskId?: number },
-) {
-  return useQuery(() => {
-    const value = input();
+export function createAnimeScanTaskQuery(input: {
+  readonly animeId?: number;
+  readonly taskId?: number;
+}) {
+  if (input.animeId === undefined || input.taskId === undefined) {
+    return useQuery({
+      ...animeScanTaskQueryOptions({ animeId: 0, taskId: 0 }),
+      enabled: false,
+    });
+  }
 
-    if (value.animeId === undefined || value.taskId === undefined) {
-      return {
-        ...animeScanTaskQueryOptions({ animeId: 0, taskId: 0 }),
-        enabled: false,
-      };
-    }
-
-    return {
-      ...animeScanTaskQueryOptions({ animeId: value.animeId, taskId: value.taskId }),
-      enabled: true,
-    };
+  return useQuery({
+    ...animeScanTaskQueryOptions({ animeId: input.animeId, taskId: input.taskId }),
+    enabled: true,
   });
 }

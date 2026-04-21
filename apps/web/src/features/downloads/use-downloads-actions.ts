@@ -1,4 +1,4 @@
-import { createSignal, type Accessor } from "solid-js";
+import { useState } from "react";
 import {
   createSearchMissingMutation,
   createSyncDownloadsMutation,
@@ -15,15 +15,15 @@ import type { DownloadsSearchPatch } from "~/features/downloads/downloads-search
 
 interface UseDownloadsActionsOptions {
   updateSearch: (patch: DownloadsSearchPatch) => void;
-  eventsExportInput: Accessor<DownloadEventsExportInput>;
-  eventsPage: Accessor<{
+  eventsExportInput: DownloadEventsExportInput;
+  eventsPage: {
     nextCursor?: string | undefined;
     prevCursor?: string | undefined;
-  }>;
+  };
 }
 
 export function useDownloadsActions(options: UseDownloadsActionsOptions) {
-  const [lastDownloadEventsExport, setLastDownloadEventsExport] = createSignal<
+  const [lastDownloadEventsExport, setLastDownloadEventsExport] = useState<
     DownloadEventsExportResult | undefined
   >(undefined);
   const searchMissing = createSearchMissingMutation();
@@ -32,7 +32,7 @@ export function useDownloadsActions(options: UseDownloadsActionsOptions) {
   const handleDownloadEventsExport = (format: "json" | "csv") => {
     void runDownloadEventsExport({
       format,
-      input: options.eventsExportInput(),
+      input: options.eventsExportInput,
       onComplete: (result) => {
         setLastDownloadEventsExport(result);
       },
@@ -44,7 +44,7 @@ export function useDownloadsActions(options: UseDownloadsActionsOptions) {
       createDownloadEventsCursorPatch(
         DOWNLOADS_EVENTS_SEARCH_KEYS,
         "prev",
-        options.eventsPage().prevCursor ?? "",
+        options.eventsPage.prevCursor ?? "",
       ),
     );
   };
@@ -54,7 +54,7 @@ export function useDownloadsActions(options: UseDownloadsActionsOptions) {
       createDownloadEventsCursorPatch(
         DOWNLOADS_EVENTS_SEARCH_KEYS,
         "next",
-        options.eventsPage().nextCursor ?? "",
+        options.eventsPage.nextCursor ?? "",
       ),
     );
   };

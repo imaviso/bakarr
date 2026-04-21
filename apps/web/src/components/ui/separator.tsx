@@ -1,27 +1,19 @@
-import type { Component, ComponentProps } from "solid-js";
-import { splitProps } from "solid-js";
+import { Separator as SeparatorPrimitive } from "@base-ui/react/separator";
 
-import * as SeparatorPrimitive from "@kobalte/core/separator";
+import { cn } from "@/lib/utils";
 
-import { cn } from "~/lib/utils";
-
-type SeparatorRootProps = ComponentProps<typeof SeparatorPrimitive.Root> & {
-  class?: string | undefined;
-};
-
-const Separator: Component<SeparatorRootProps> = (props) => {
-  const [local, others] = splitProps(props, ["class", "orientation"]);
+function Separator({ className, orientation = "horizontal", ...props }: SeparatorPrimitive.Props) {
   return (
-    <SeparatorPrimitive.Root
-      orientation={local.orientation ?? "horizontal"}
-      class={cn(
-        "shrink-0 bg-border",
-        local.orientation === "vertical" ? "h-full w-px" : "h-px w-full",
-        local.class,
+    <SeparatorPrimitive
+      data-slot="separator"
+      orientation={orientation}
+      className={cn(
+        "shrink-0 bg-border data-horizontal:h-px data-horizontal:w-full data-vertical:w-px data-vertical:self-stretch",
+        className,
       )}
-      {...others}
+      {...props}
     />
   );
-};
+}
 
 export { Separator };

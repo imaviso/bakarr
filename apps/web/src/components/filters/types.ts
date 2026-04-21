@@ -1,4 +1,4 @@
-import type { Accessor, JSX } from "solid-js";
+import type { ReactNode } from "react";
 
 export type FilterOperator =
   | "is"
@@ -16,7 +16,7 @@ export type FilterType = "text" | "select" | "multiSelect" | "date";
 export interface FilterOption {
   label: string;
   value: string;
-  icon?: JSX.Element;
+  icon?: ReactNode;
   count?: number;
 }
 
@@ -24,23 +24,24 @@ export interface FilterColumnConfig {
   id: string;
   label: string;
   type: FilterType;
-  icon?: JSX.Element;
+  icon?: ReactNode;
   options?: FilterOption[];
   placeholder?: string;
   operators?: FilterOperator[];
 }
 
 export interface FilterState {
+  id: string;
   columnId: string;
   operator: FilterOperator;
   value: string | string[];
 }
 
 export interface FilterContextValue {
-  columns: Accessor<FilterColumnConfig[]>;
-  filters: () => FilterState[];
+  columns: FilterColumnConfig[];
+  filters: FilterState[];
   addFilter: (columnId: string) => void;
-  updateFilter: (index: number, updates: Partial<FilterState>) => void;
-  removeFilter: (index: number) => void;
+  updateFilter: (id: string, updates: Partial<FilterState>) => void;
+  removeFilter: (id: string) => void;
   clearAllFilters: () => void;
 }

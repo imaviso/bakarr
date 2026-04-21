@@ -1,278 +1,231 @@
-import type { Accessor, Component, ComponentProps, VoidProps } from "solid-js";
-import {
-  onCleanup,
-  createContext,
-  createEffect,
-  createMemo,
-  createSignal,
-  mergeProps,
-  splitProps,
-  useContext,
-} from "solid-js";
+"use client";
 
-import type { CreateEmblaCarouselType } from "embla-carousel-solid";
-import createEmblaCarousel from "embla-carousel-solid";
+import * as React from "react";
+import useEmblaCarousel, { type UseEmblaCarouselType } from "embla-carousel-react";
 
-import { cn } from "~/lib/utils";
-import type { ButtonProps } from "~/components/ui/button";
-import { Button } from "~/components/ui/button";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react";
 
-export type CarouselApi = CreateEmblaCarouselType[1];
-
-type UseCarouselParameters = Parameters<typeof createEmblaCarousel>;
-type CarouselOptions = NonNullable<UseCarouselParameters[0]>;
-type CarouselPlugin = NonNullable<UseCarouselParameters[1]>;
+type CarouselApi = UseEmblaCarouselType[1];
+type UseCarouselParameters = Parameters<typeof useEmblaCarousel>;
+type CarouselOptions = UseCarouselParameters[0];
+type CarouselPlugin = UseCarouselParameters[1];
 
 type CarouselProps = {
-  opts?: ReturnType<CarouselOptions> | undefined;
-  plugins?: ReturnType<CarouselPlugin> | undefined;
+  opts?: CarouselOptions;
+  plugins?: CarouselPlugin;
   orientation?: "horizontal" | "vertical";
-  setApi?: ((api: CarouselApi) => void) | undefined;
+  setApi?: (api: CarouselApi) => void;
 };
 
 type CarouselContextProps = {
-  carouselRef: ReturnType<typeof createEmblaCarousel>[0];
-  api: ReturnType<typeof createEmblaCarousel>[1];
+  carouselRef: ReturnType<typeof useEmblaCarousel>[0];
+  api: ReturnType<typeof useEmblaCarousel>[1];
   scrollPrev: () => void;
   scrollNext: () => void;
-  canScrollPrev: Accessor<boolean>;
-  canScrollNext: Accessor<boolean>;
+  canScrollPrev: boolean;
+  canScrollNext: boolean;
 } & CarouselProps;
 
-const CarouselContext = createContext<Accessor<CarouselContextProps> | null>(null);
+const CarouselContext = React.createContext<CarouselContextProps | null>(null);
 
-const useCarousel = () => {
-  const context = useContext(CarouselContext);
+function useCarousel() {
+  const context = React.useContext(CarouselContext);
 
   if (!context) {
     throw new Error("useCarousel must be used within a <Carousel />");
   }
 
-  return context();
-};
+  return context;
+}
 
-const Carousel: Component<CarouselProps & ComponentProps<"div">> = (rawProps) => {
-  const props = mergeProps<(CarouselProps & ComponentProps<"div">)[]>(
-    { orientation: "horizontal" },
-    rawProps,
+function Carousel({
+  orientation = "horizontal",
+  opts,
+  setApi,
+  plugins,
+  className,
+  children,
+  ...props
+}: React.ComponentProps<"div"> & CarouselProps) {
+  const [carouselRef, api] = useEmblaCarousel(
+    {
+      ...opts,
+      axis: orientation === "horizontal" ? "x" : "y",
+    },
+    plugins,
   );
+  const [canScrollPrev, setCanScrollPrev] = React.useState(false);
+  const [canScrollNext, setCanScrollNext] = React.useState(false);
 
-  const [local, others] = splitProps(props, [
-    "orientation",
-    "opts",
-    "setApi",
-    "plugins",
-    "class",
-    "children",
-  ]);
-
-  const [carouselRef, api] = createEmblaCarousel(
-    () => ({
-      ...local.opts,
-      axis: local.orientation === "horizontal" ? "x" : "y",
-    }),
-    () => (local.plugins === undefined ? [] : local.plugins),
-  );
-  const [canScrollPrev, setCanScrollPrev] = createSignal(false);
-  const [canScrollNext, setCanScrollNext] = createSignal(false);
-
-  const onSelect = (api: NonNullable<ReturnType<CarouselApi>>) => {
+  const onSelect = React.useCallback((api: CarouselApi) => {
+    if (!api) return;
     setCanScrollPrev(api.canScrollPrev());
     setCanScrollNext(api.canScrollNext());
-  };
+  }, []);
 
-  const scrollPrev = () => {
-    api()?.scrollPrev();
-  };
+  const scrollPrev = React.useCallback(() => {
+    api?.scrollPrev();
+  }, [api]);
 
-  const scrollNext = () => {
-    api()?.scrollNext();
-  };
+  const scrollNext = React.useCallback(() => {
+    api?.scrollNext();
+  }, [api]);
 
-  const handleKeyDown = (event: KeyboardEvent) => {
-    if (event.key === "ArrowLeft") {
-      event.preventDefault();
-      scrollPrev();
-    } else if (event.key === "ArrowRight") {
-      event.preventDefault();
-      scrollNext();
-    }
-  };
+  const handleKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        scrollPrev();
+      } else if (event.key === "ArrowRight") {
+        event.preventDefault();
+        scrollNext();
+      }
+    },
+    [scrollPrev, scrollNext],
+  );
 
-  createEffect(() => {
-    if (!api() || !local.setApi) {
-      return;
-    }
-    local.setApi(api);
-  });
+  React.useEffect(() => {
+    if (!api || !setApi) return;
+    setApi(api);
+  }, [api, setApi]);
 
-  createEffect(() => {
-    const emblaApi = api();
-    if (!emblaApi) {
-      return;
-    }
+  React.useEffect(() => {
+    if (!api) return;
+    onSelect(api);
+    api.on("reInit", onSelect);
+    api.on("select", onSelect);
 
-    onSelect(emblaApi);
-    emblaApi.on("reInit", onSelect);
-    emblaApi.on("select", onSelect);
-
-    onCleanup(() => {
-      emblaApi.off("reInit", onSelect);
-      emblaApi.off("select", onSelect);
-    });
-  });
-
-  const value = createMemo(() => {
-    const orientation = local.orientation || (local.opts?.axis === "y" ? "vertical" : "horizontal");
-    return {
-      carouselRef,
-      api,
-      ...(local.opts === undefined ? {} : { opts: local.opts }),
-      orientation,
-      scrollPrev,
-      scrollNext,
-      canScrollPrev,
-      canScrollNext,
-    } satisfies CarouselContextProps;
-  });
+    return () => {
+      api?.off("select", onSelect);
+    };
+  }, [api, onSelect]);
 
   return (
-    <CarouselContext.Provider value={value}>
+    <CarouselContext.Provider
+      value={{
+        carouselRef,
+        api: api,
+        opts,
+        orientation: orientation || (opts?.axis === "y" ? "vertical" : "horizontal"),
+        scrollPrev,
+        scrollNext,
+        canScrollPrev,
+        canScrollNext,
+      }}
+    >
       <div
-        onKeyDown={handleKeyDown}
-        class={cn("relative", local.class)}
+        onKeyDownCapture={handleKeyDown}
+        className={cn("relative", className)}
         role="region"
         aria-roledescription="carousel"
-        {...others}
+        data-slot="carousel"
+        {...props}
       >
-        {local.children}
+        {children}
       </div>
     </CarouselContext.Provider>
   );
-};
+}
 
-const CarouselContent: Component<ComponentProps<"div">> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
+function CarouselContent({ className, ...props }: React.ComponentProps<"div">) {
   const { carouselRef, orientation } = useCarousel();
 
   return (
-    <div ref={carouselRef} class="overflow-hidden">
+    <div ref={carouselRef} className="overflow-hidden" data-slot="carousel-content">
       <div
-        class={cn("flex", orientation === "horizontal" ? "-ml-4" : "-mt-4 flex-col", local.class)}
-        {...others}
+        className={cn("flex", orientation === "horizontal" ? "-ml-4" : "-mt-4 flex-col", className)}
+        {...props}
       />
     </div>
   );
-};
+}
 
-const CarouselItem: Component<ComponentProps<"div">> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
+function CarouselItem({ className, ...props }: React.ComponentProps<"div">) {
   const { orientation } = useCarousel();
 
   return (
     <div
       role="group"
       aria-roledescription="slide"
-      class={cn(
+      data-slot="carousel-item"
+      className={cn(
         "min-w-0 shrink-0 grow-0 basis-full",
         orientation === "horizontal" ? "pl-4" : "pt-4",
-        local.class,
+        className,
       )}
-      {...others}
+      {...props}
     />
   );
-};
+}
 
-type CarouselButtonProps = VoidProps<ButtonProps>;
-
-const CarouselPrevious: Component<CarouselButtonProps> = (rawProps) => {
-  const props = mergeProps<CarouselButtonProps[]>(
-    {
-      variant: "outline",
-      size: "icon",
-    },
-    rawProps,
-  );
-  const [local, others] = splitProps(props, ["class", "variant", "size"]);
+function CarouselPrevious({
+  className,
+  variant = "outline",
+  size = "icon-sm",
+  ...props
+}: React.ComponentProps<typeof Button>) {
   const { orientation, scrollPrev, canScrollPrev } = useCarousel();
 
   return (
     <Button
-      variant={local.variant}
-      size={local.size}
-      class={cn(
-        "absolute size-8 touch-manipulation rounded-full",
+      data-slot="carousel-previous"
+      variant={variant}
+      size={size}
+      className={cn(
+        "absolute touch-manipulation",
         orientation === "horizontal"
-          ? "-left-12 top-1/2 -translate-y-1/2"
+          ? "top-1/2 -left-12 -translate-y-1/2"
           : "-top-12 left-1/2 -translate-x-1/2 rotate-90",
-        local.class,
+        className,
       )}
-      disabled={!canScrollPrev()}
+      disabled={!canScrollPrev}
       onClick={scrollPrev}
-      {...others}
+      {...props}
     >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        class="size-4"
-      >
-        <path d="M5 12l14 0" />
-        <path d="M5 12l6 6" />
-        <path d="M5 12l6 -6" />
-      </svg>
-      <span class="sr-only">Previous slide</span>
+      <CaretLeftIcon />
+      <span className="sr-only">Previous slide</span>
     </Button>
   );
-};
+}
 
-const CarouselNext: Component<CarouselButtonProps> = (rawProps) => {
-  const props = mergeProps<CarouselButtonProps[]>(
-    {
-      variant: "outline",
-      size: "icon",
-    },
-    rawProps,
-  );
-  const [local, others] = splitProps(props, ["class", "variant", "size"]);
+function CarouselNext({
+  className,
+  variant = "outline",
+  size = "icon-sm",
+  ...props
+}: React.ComponentProps<typeof Button>) {
   const { orientation, scrollNext, canScrollNext } = useCarousel();
 
   return (
     <Button
-      variant={local.variant}
-      size={local.size}
-      class={cn(
-        "absolute size-8 touch-manipulation rounded-full",
+      data-slot="carousel-next"
+      variant={variant}
+      size={size}
+      className={cn(
+        "absolute touch-manipulation",
         orientation === "horizontal"
-          ? "-right-12 top-1/2 -translate-y-1/2"
+          ? "top-1/2 -right-12 -translate-y-1/2"
           : "-bottom-12 left-1/2 -translate-x-1/2 rotate-90",
-        local.class,
+        className,
       )}
-      disabled={!canScrollNext()}
+      disabled={!canScrollNext}
       onClick={scrollNext}
-      {...others}
+      {...props}
     >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        class="size-4"
-      >
-        <path d="M5 12l14 0" />
-        <path d="M13 18l6 -6" />
-        <path d="M13 6l6 6" />
-      </svg>
-      <span class="sr-only">Next slide</span>
+      <CaretRightIcon />
+      <span className="sr-only">Next slide</span>
     </Button>
   );
-};
+}
 
-export { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious };
+export {
+  type CarouselApi,
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselPrevious,
+  CarouselNext,
+  useCarousel,
+};

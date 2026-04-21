@@ -1,5 +1,5 @@
-import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/solid-query";
-import { toast } from "solid-sonner";
+import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import type { AsyncOperationAccepted, Download, DownloadStatus } from "./contracts";
 import { API_BASE, fetchApi } from "./client";
 import { animeKeys } from "./keys";
@@ -14,7 +14,7 @@ export function downloadQueueQueryOptions() {
 }
 
 export function createDownloadQueueQuery() {
-  return useQuery(downloadQueueQueryOptions);
+  return useQuery(downloadQueueQueryOptions());
 }
 
 export function downloadHistoryQueryOptions() {
@@ -27,12 +27,12 @@ export function downloadHistoryQueryOptions() {
 }
 
 export function createDownloadHistoryQuery() {
-  return useQuery(downloadHistoryQueryOptions);
+  return useQuery(downloadHistoryQueryOptions());
 }
 
 export function createSearchMissingMutation() {
   const queryClient = useQueryClient();
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: (animeId?: number) =>
       fetchApi<AsyncOperationAccepted>(`${API_BASE}/downloads/search-missing`, {
         method: "POST",
@@ -46,7 +46,7 @@ export function createSearchMissingMutation() {
         queryKey: animeKeys.system.tasks.byId(accepted.task_id),
       });
     },
-  }));
+  });
 }
 
 function invalidateDownloadQueries(queryClient: ReturnType<typeof useQueryClient>) {
@@ -56,18 +56,18 @@ function invalidateDownloadQueries(queryClient: ReturnType<typeof useQueryClient
 
 export function createPauseDownloadMutation() {
   const queryClient = useQueryClient();
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: (downloadId: number) =>
       fetchApi(`${API_BASE}/downloads/${downloadId}/pause`, { method: "POST" }),
     onSuccess: () => {
       invalidateDownloadQueries(queryClient);
     },
-  }));
+  });
 }
 
 export function createResumeDownloadMutation() {
   const queryClient = useQueryClient();
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: (downloadId: number) =>
       fetchApi(`${API_BASE}/downloads/${downloadId}/resume`, {
         method: "POST",
@@ -75,23 +75,23 @@ export function createResumeDownloadMutation() {
     onSuccess: () => {
       invalidateDownloadQueries(queryClient);
     },
-  }));
+  });
 }
 
 export function createRetryDownloadMutation() {
   const queryClient = useQueryClient();
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: (downloadId: number) =>
       fetchApi(`${API_BASE}/downloads/${downloadId}/retry`, { method: "POST" }),
     onSuccess: () => {
       invalidateDownloadQueries(queryClient);
     },
-  }));
+  });
 }
 
 export function createDeleteDownloadMutation() {
   const queryClient = useQueryClient();
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: (input: { downloadId: number; deleteFiles?: boolean }) =>
       fetchApi(
         `${API_BASE}/downloads/${input.downloadId}?delete_files=${
@@ -102,12 +102,12 @@ export function createDeleteDownloadMutation() {
     onSuccess: () => {
       invalidateDownloadQueries(queryClient);
     },
-  }));
+  });
 }
 
 export function createSyncDownloadsMutation() {
   const queryClient = useQueryClient();
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: () =>
       fetchApi<AsyncOperationAccepted>(`${API_BASE}/downloads/sync`, { method: "POST" }),
     onSuccess: (accepted) => {
@@ -118,12 +118,12 @@ export function createSyncDownloadsMutation() {
         queryKey: animeKeys.system.tasks.byId(accepted.task_id),
       });
     },
-  }));
+  });
 }
 
 export function createReconcileDownloadMutation() {
   const queryClient = useQueryClient();
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: (downloadId: number) =>
       fetchApi(`${API_BASE}/downloads/${downloadId}/reconcile`, {
         method: "POST",
@@ -131,5 +131,5 @@ export function createReconcileDownloadMutation() {
     onSuccess: () => {
       invalidateDownloadQueries(queryClient);
     },
-  }));
+  });
 }

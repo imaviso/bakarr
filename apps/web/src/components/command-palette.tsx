@@ -1,17 +1,17 @@
 import {
-  IconCalendar,
-  IconChevronRight,
-  IconCommand,
-  IconDeviceTv,
-  IconDownload,
-  IconHome,
-  IconList,
-  IconRss,
-  IconSearch,
-  IconSettings,
-} from "@tabler/icons-solidjs";
-import { useNavigate } from "@tanstack/solid-router";
-import { createMemo, createSignal, For, onCleanup, onMount, Show, Suspense } from "solid-js";
+  CalendarIcon,
+  CaretRightIcon,
+  CommandIcon,
+  TelevisionIcon,
+  DownloadIcon,
+  HouseIcon,
+  ListIcon,
+  RssIcon,
+  MagnifyingGlassIcon,
+  GearIcon,
+} from "@phosphor-icons/react";
+import { useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useState, Suspense } from "react";
 import {
   Command,
   CommandDialog,
@@ -27,24 +27,24 @@ import { createAnimeListQuery } from "~/lib/api";
 import { animeSearchSubtitle } from "~/lib/anime-metadata";
 
 const navigationRoutes = [
-  { title: "Dashboard", url: "/", icon: IconHome },
-  { title: "Anime Library", url: "/anime", icon: IconDeviceTv },
-  { title: "Add Anime", url: "/anime/add", icon: IconDeviceTv },
-  { title: "RSS Feeds", url: "/rss", icon: IconRss },
-  { title: "Wanted", url: "/wanted", icon: IconSearch },
-  { title: "Calendar", url: "/calendar", icon: IconCalendar },
-  { title: "Downloads", url: "/downloads", icon: IconDownload },
-  { title: "System Logs", url: "/logs", icon: IconList },
-  { title: "Settings", url: "/settings", icon: IconSettings },
+  { title: "Dashboard", url: "/", icon: HouseIcon },
+  { title: "Anime Library", url: "/anime", icon: TelevisionIcon },
+  { title: "Add Anime", url: "/anime/add", icon: TelevisionIcon },
+  { title: "RSS Feeds", url: "/rss", icon: RssIcon },
+  { title: "Wanted", url: "/wanted", icon: MagnifyingGlassIcon },
+  { title: "Calendar", url: "/calendar", icon: CalendarIcon },
+  { title: "Downloads", url: "/downloads", icon: DownloadIcon },
+  { title: "System Logs", url: "/logs", icon: ListIcon },
+  { title: "Settings", url: "/settings", icon: GearIcon },
 ];
 
 function SearchResults(props: {
-  inputValue: () => string;
+  inputValue: string;
   animeList: ReturnType<typeof createAnimeListQuery>;
   onSelect: (path: string) => void;
 }) {
-  const filteredLibrary = createMemo(() => {
-    const query = props.inputValue().toLowerCase().trim();
+  const filteredLibrary = useMemo(() => {
+    const query = props.inputValue.toLowerCase().trim();
     const data = props.animeList.data;
 
     if (!data) return [];
@@ -58,101 +58,96 @@ function SearchResults(props: {
         return title.includes(query) || english.includes(query) || native.includes(query);
       })
       .slice(0, 10);
-  });
+  }, [props.inputValue, props.animeList.data]);
 
-  const filteredRoutes = createMemo(() => {
-    const query = props.inputValue().toLowerCase().trim();
+  const filteredRoutes = useMemo(() => {
+    const query = props.inputValue.toLowerCase().trim();
     if (!query) return navigationRoutes;
     return navigationRoutes.filter((route) => route.title.toLowerCase().includes(query));
-  });
+  }, [props.inputValue]);
 
   return (
     <CommandList>
       <Suspense
         fallback={
           <CommandEmpty>
-            <div class="flex items-center justify-center py-4">
-              <Skeleton class="h-4 w-32" />
+            <div className="flex items-center justify-center py-4">
+              <Skeleton className="h-4 w-32" />
             </div>
           </CommandEmpty>
         }
       >
-        <Show when={props.animeList.isLoading}>
-          <CommandEmpty>Loading library...</CommandEmpty>
-        </Show>
+        {props.animeList.isLoading && <CommandEmpty>Loading library...</CommandEmpty>}
 
-        <Show
-          when={
-            !props.animeList.isLoading &&
-            filteredLibrary().length === 0 &&
-            filteredRoutes().length === 0
-          }
-        >
-          <CommandEmpty>No results found.</CommandEmpty>
-        </Show>
+        {!props.animeList.isLoading &&
+          filteredLibrary.length === 0 &&
+          filteredRoutes.length === 0 && <CommandEmpty>No results found.</CommandEmpty>}
 
         {/* Navigation Routes */}
-        <Show when={filteredRoutes().length > 0}>
+        {filteredRoutes.length > 0 && (
           <CommandGroup heading="Navigation">
-            <For each={filteredRoutes()}>
-              {(route) => (
-                <CommandItem value={`nav-${route.url}`} onSelect={() => props.onSelect(route.url)}>
-                  <route.icon class="mr-2 h-4 w-4 text-muted-foreground" />
-                  <span>{route.title}</span>
-                </CommandItem>
-              )}
-            </For>
+            {filteredRoutes.map((route) => (
+              <CommandItem
+                key={route.url}
+                value={`nav-${route.url}`}
+                onSelect={() => props.onSelect(route.url)}
+              >
+                <route.icon className="mr-2 h-4 w-4 text-muted-foreground" />
+                <span>{route.title}</span>
+              </CommandItem>
+            ))}
           </CommandGroup>
-        </Show>
+        )}
 
         {/* Library Section */}
-        <Show when={!props.animeList.isLoading && filteredLibrary().length > 0}>
-          <CommandSeparator />
-          <CommandGroup heading="Library">
-            <For each={filteredLibrary()}>
-              {(anime) => (
+        {!props.animeList.isLoading && filteredLibrary.length > 0 && (
+          <>
+            <CommandSeparator />
+            <CommandGroup heading="Library">
+              {filteredLibrary.map((anime) => (
                 <CommandItem
+                  key={anime.id}
                   value={`library-${anime.id}`}
                   onSelect={() => props.onSelect(`/anime/${anime.id}`)}
                 >
-                  <Show when={anime.cover_image}>
+                  {anime.cover_image && (
                     <img
                       src={anime.cover_image}
                       alt={anime.title.romaji}
                       loading="lazy"
-                      class="mr-2 h-8 w-6 object-cover"
+                      className="mr-2 h-8 w-6 object-cover"
                     />
-                  </Show>
-                  <div class="flex flex-col">
-                    <span class="font-medium">{anime.title.romaji}</span>
-                    <Show when={anime.title.english && anime.title.english !== anime.title.romaji}>
-                      <span class="text-xs text-muted-foreground">{anime.title.english}</span>
-                    </Show>
-                    <Show when={animeSearchSubtitle(anime) || anime.genres?.length}>
-                      <span class="text-xs text-muted-foreground">
+                  )}
+                  <div className="flex flex-col">
+                    <span className="font-medium">{anime.title.romaji}</span>
+                    {anime.title.english && anime.title.english !== anime.title.romaji && (
+                      <span className="text-xs text-muted-foreground">{anime.title.english}</span>
+                    )}
+                    {(animeSearchSubtitle(anime) || anime.genres?.length) && (
+                      <span className="text-xs text-muted-foreground">
                         {[animeSearchSubtitle(anime), anime.genres?.[0]]
                           .filter((value): value is string => Boolean(value))
                           .join(" • ")}
                       </span>
-                    </Show>
+                    )}
                   </div>
-                  <IconChevronRight class="ml-auto h-4 w-4 text-muted-foreground" />
+                  <CaretRightIcon className="ml-auto h-4 w-4 text-muted-foreground" />
                 </CommandItem>
-              )}
-            </For>
-          </CommandGroup>
-        </Show>
+              ))}
+            </CommandGroup>
+          </>
+        )}
       </Suspense>
     </CommandList>
   );
 }
 
 export function CommandPalette() {
-  const [open, setOpen] = createSignal(false);
-  const [inputValue, setInputValue] = createSignal("");
+  const [open, setOpen] = useState(false);
+  const [inputValue, setInputValue] = useState("");
   const navigate = useNavigate();
 
-  onMount(() => {
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
@@ -161,8 +156,8 @@ export function CommandPalette() {
     };
 
     document.addEventListener("keydown", handleKeyDown);
-    onCleanup(() => document.removeEventListener("keydown", handleKeyDown));
-  });
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const animeList = createAnimeListQuery();
 
@@ -176,22 +171,22 @@ export function CommandPalette() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        class="flex w-full items-center gap-3 overflow-hidden rounded-none border border-border/50 bg-muted/30 px-3 py-2 text-left text-sm text-muted-foreground hover:bg-accent/40 hover:text-foreground transition-colors group-data-[collapsible=icon]:!size-9 group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:bg-transparent"
+        className="flex w-full items-center gap-3 overflow-hidden rounded-none border border-border/50 bg-muted/30 px-3 py-2 text-left text-sm text-muted-foreground hover:bg-accent/40 hover:text-foreground transition-colors group-data-[collapsible=icon]:!size-9 group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:bg-transparent"
       >
-        <IconSearch class="h-4 w-4 shrink-0" />
-        <span class="truncate group-data-[collapsible=icon]:hidden">Search...</span>
-        <kbd class="pointer-events-none ml-auto inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-xs font-medium text-muted-foreground group-data-[collapsible=icon]:hidden">
-          <IconCommand class="h-2.5 w-2.5" />K
+        <MagnifyingGlassIcon className="h-4 w-4 shrink-0" />
+        <span className="truncate group-data-[collapsible=icon]:hidden">Search...</span>
+        <kbd className="pointer-events-none ml-auto inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-xs font-medium text-muted-foreground group-data-[collapsible=icon]:hidden">
+          <CommandIcon className="h-2.5 w-2.5" />K
         </kbd>
       </button>
 
-      <CommandDialog open={open()} onOpenChange={setOpen}>
+      <CommandDialog open={open} onOpenChange={setOpen}>
         <Command shouldFilter={false}>
           <CommandInput
             placeholder="Search library or navigate..."
-            value={inputValue()}
+            value={inputValue}
             onValueChange={setInputValue}
-            class="focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 border-0 focus-visible:border-b focus-visible:border-primary"
+            className="focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 border-0 focus-visible:border-b focus-visible:border-primary"
           />
           <SearchResults inputValue={inputValue} animeList={animeList} onSelect={handleSelect} />
         </Command>

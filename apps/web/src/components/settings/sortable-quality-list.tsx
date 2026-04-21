@@ -1,5 +1,5 @@
-import { IconGripVertical, IconPlus, IconX } from "@tabler/icons-solidjs";
-import { createSignal, For, Show } from "solid-js";
+import { DotsSixVerticalIcon, XIcon } from "@phosphor-icons/react";
+import { useState } from "react";
 import { Button } from "~/components/ui/button";
 import {
   Select,
@@ -16,18 +16,18 @@ interface SortableQualityListProps {
 }
 
 export function SortableQualityList(props: SortableQualityListProps) {
-  const [draggedItem, setDraggedItem] = createSignal<string | null>(null);
+  const [draggedItem, setDraggedItem] = useState<string | null>(null);
 
-  const handleDragStart = (event: DragEvent, item: string) => {
+  const handleDragStart = (event: React.DragEvent<HTMLLIElement>, item: string) => {
     setDraggedItem(item);
     if (event.dataTransfer) {
       event.dataTransfer.effectAllowed = "move";
     }
   };
 
-  const handleDragOver = (event: DragEvent, targetItem: string) => {
+  const handleDragOver = (event: React.DragEvent<HTMLLIElement>, targetItem: string) => {
     event.preventDefault();
-    const dragged = draggedItem();
+    const dragged = draggedItem;
     if (!dragged || dragged === targetItem) return;
 
     const currentList = [...props.value];
@@ -54,68 +54,65 @@ export function SortableQualityList(props: SortableQualityListProps) {
     }
   };
 
-  const unusedQualities = () => props.availableQualities.filter((q) => !props.value.includes(q));
+  const unusedQualities = props.availableQualities.filter((q) => !props.value.includes(q));
 
   return (
-    <div class="space-y-3">
-      <div class="space-y-1">
-        <div class="text-sm font-medium leading-none">Allowed Qualities</div>
-        <p class="text-xs text-muted-foreground">Drag to reorder. Top items are preferred.</p>
+    <div className="space-y-3">
+      <div className="space-y-1">
+        <div className="text-sm font-medium leading-none">Allowed Qualities</div>
+        <p className="text-xs text-muted-foreground">Drag to reorder. Top items are preferred.</p>
       </div>
 
-      <ul class="border rounded-md divide-y bg-card overflow-hidden">
-        <For each={props.value}>
-          {(quality) => (
-            <li
-              draggable="true"
-              onDragStart={(event) => handleDragStart(event, quality)}
-              onDragOver={(event) => handleDragOver(event, quality)}
-              onDragEnd={handleDragEnd}
-              class={`flex items-center gap-3 p-2.5 text-sm group bg-card hover:bg-accent/50 transition-colors cursor-default ${
-                draggedItem() === quality ? "opacity-50" : ""
-              }`}
+      <ul className="border rounded-md divide-y bg-card overflow-hidden">
+        {props.value.map((quality) => (
+          <li
+            key={quality}
+            draggable="true"
+            onDragStart={(event) => handleDragStart(event, quality)}
+            onDragOver={(event) => handleDragOver(event, quality)}
+            onDragEnd={handleDragEnd}
+            className={`flex items-center gap-3 p-2.5 text-sm group bg-card hover:bg-accent/50 transition-colors cursor-default ${
+              draggedItem === quality ? "opacity-50" : ""
+            }`}
+          >
+            <DotsSixVerticalIcon className="h-4 w-4 text-muted-foreground/50 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity" />
+            <span className="flex-1 font-medium">{quality}</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={() => removeQuality(quality)}
+              aria-label={`Remove ${quality}`}
             >
-              <IconGripVertical class="h-4 w-4 text-muted-foreground/50 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity" />
-              <span class="flex-1 font-medium">{quality}</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                class="h-6 w-6 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={() => removeQuality(quality)}
-                aria-label={`Remove ${quality}`}
-              >
-                <IconX class="h-3.5 w-3.5" />
-              </Button>
-            </li>
-          )}
-        </For>
-        <Show when={props.value.length === 0}>
-          <li class="p-4 text-center text-sm text-muted-foreground bg-muted/20">
+              <XIcon className="h-3.5 w-3.5" />
+            </Button>
+          </li>
+        ))}
+        {props.value.length === 0 && (
+          <li className="p-4 text-center text-sm text-muted-foreground bg-muted/20">
             No qualities selected
           </li>
-        </Show>
+        )}
       </ul>
 
       <Select
         value={null}
-        onChange={(value) => value && addQuality(value)}
-        options={unusedQualities()}
-        placeholder="Add quality..."
-        itemComponent={(itemProps) => (
-          <SelectItem item={itemProps.item}>{itemProps.item.rawValue}</SelectItem>
-        )}
+        onValueChange={(value) => {
+          if (value) {
+            addQuality(value);
+          }
+        }}
       >
-        <SelectTrigger class="w-full">
-          <SelectValue<string>>
-            {() => (
-              <div class="flex items-center gap-2 text-muted-foreground">
-                <IconPlus class="h-4 w-4" />
-                Add Quality...
-              </div>
-            )}
-          </SelectValue>
+        <SelectTrigger className="w-full">
+          <SelectValue placeholder="Add Quality..." />
         </SelectTrigger>
-        <SelectContent />
+        <SelectContent>
+          {unusedQualities.map((quality) => (
+            <SelectItem key={quality} value={quality}>
+              {quality}
+            </SelectItem>
+          ))}
+        </SelectContent>
       </Select>
     </div>
   );

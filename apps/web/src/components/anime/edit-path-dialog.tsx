@@ -1,4 +1,4 @@
-import { createEffect, createSignal, on } from "solid-js";
+import { useEffect, useState } from "react";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import {
@@ -9,7 +9,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "~/components/ui/dialog";
-import { TextField, TextFieldInput, TextFieldLabel } from "~/components/ui/text-field";
+import { Input } from "~/components/ui/input";
+import { Label } from "~/components/ui/label";
 
 interface EditPathDialogProps {
   open: boolean;
@@ -21,25 +22,20 @@ interface EditPathDialogProps {
 }
 
 export function EditPathDialog(props: EditPathDialogProps) {
-  const [path, setPath] = createSignal(props.currentPath);
-  const [rescan, setRescan] = createSignal(true);
+  const [path, setPath] = useState(props.currentPath);
+  const [rescan, setRescan] = useState(true);
 
-  createEffect(
-    on(
-      () => props.open,
-      (isOpen) => {
-        if (isOpen) {
-          setPath(props.currentPath);
-          setRescan(true);
-        }
-      },
-    ),
-  );
+  useEffect(() => {
+    if (props.open) {
+      setPath(props.currentPath);
+      setRescan(true);
+    }
+  }, [props.open, props.currentPath]);
 
-  const handleSubmit = (event: Event) => {
+  const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
 
-    void props.updatePath({ id: props.animeId, path: path(), rescan: rescan() });
+    void props.updatePath({ id: props.animeId, path, rescan });
     props.onOpenChange(false);
   };
 
@@ -50,18 +46,21 @@ export function EditPathDialog(props: EditPathDialogProps) {
           <DialogTitle>Edit Root Path</DialogTitle>
           <DialogDescription>Change the folder path for this anime.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} class="space-y-4">
-          <div class="space-y-2">
-            <TextField value={path()} onChange={setPath}>
-              <TextFieldLabel>Path</TextFieldLabel>
-              <TextFieldInput placeholder="/path/to/anime" />
-            </TextField>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="edit-path-input">Path</Label>
+            <Input
+              id="edit-path-input"
+              value={path}
+              onChange={(event) => setPath(event.currentTarget.value)}
+              placeholder="/path/to/anime"
+            />
           </div>
-          <div class="flex items-center space-x-2">
-            <Checkbox id="rescan" checked={rescan()} onChange={setRescan} />
+          <div className="flex items-center space-x-2">
+            <Checkbox id="rescan" checked={rescan} onCheckedChange={setRescan} />
             <label
-              for="rescan"
-              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              htmlFor="rescan"
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             >
               Rescan folder after update
             </label>

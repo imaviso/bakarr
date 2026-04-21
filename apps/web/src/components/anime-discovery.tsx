@@ -1,5 +1,5 @@
-import { Link } from "@tanstack/solid-router";
-import { createMemo, For, Show } from "solid-js";
+import { Link } from "@tanstack/react-router";
+import { useMemo } from "react";
 import { buttonVariants } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import type { Anime } from "~/lib/api";
@@ -16,74 +16,74 @@ interface AnimeDiscoveryRowProps {
 }
 
 export function AnimeDiscoveryRow(props: AnimeDiscoveryRowProps) {
-  const subtitle = createMemo(() =>
-    animeDiscoverySubtitle({
-      ...(props.entry.format === undefined ? {} : { format: props.entry.format }),
-      ...(props.entry.relation_type === undefined
-        ? {}
-        : { relation_type: props.entry.relation_type }),
-      ...(props.entry.season === undefined ? {} : { season: props.entry.season }),
-      ...(props.entry.season_year === undefined ? {} : { season_year: props.entry.season_year }),
-      ...(props.entry.start_year === undefined ? {} : { start_year: props.entry.start_year }),
-      ...(props.entry.status === undefined ? {} : { status: props.entry.status }),
-    }).join(" - "),
+  const subtitle = useMemo(
+    () =>
+      animeDiscoverySubtitle({
+        ...(props.entry.format === undefined ? {} : { format: props.entry.format }),
+        ...(props.entry.relation_type === undefined
+          ? {}
+          : { relation_type: props.entry.relation_type }),
+        ...(props.entry.season === undefined ? {} : { season: props.entry.season }),
+        ...(props.entry.season_year === undefined ? {} : { season_year: props.entry.season_year }),
+        ...(props.entry.start_year === undefined ? {} : { start_year: props.entry.start_year }),
+        ...(props.entry.status === undefined ? {} : { status: props.entry.status }),
+      }).join(" - "),
+    [props.entry],
   );
-  const isInLibrary = createMemo(() => props.libraryIds.has(props.entry.id));
+  const isInLibrary = useMemo(
+    () => props.libraryIds.has(props.entry.id),
+    [props.libraryIds, props.entry.id],
+  );
 
   return (
     <div
-      class={cn(
+      className={cn(
         "flex items-start gap-2 border border-border/60 bg-muted/20 text-xs",
         props.compact ? "p-1.5" : "p-2",
       )}
     >
-      <Show when={props.entry.cover_image}>
+      {props.entry.cover_image && (
         <img
           src={props.entry.cover_image}
           alt={animeDisplayTitle(props.entry)}
-          class={cn(
+          className={cn(
             "shrink-0 border border-border/60 object-cover",
             props.compact ? "h-10 w-7" : "h-12 w-8",
           )}
         />
-      </Show>
-      <div class="min-w-0 flex-1">
-        <div class="font-medium text-foreground">{animeDisplayTitle(props.entry)}</div>
-        <Show when={subtitle()}>
-          <div class="mt-1 text-muted-foreground">{subtitle()}</div>
-        </Show>
+      )}
+      <div className="min-w-0 flex-1">
+        <div className="font-medium text-foreground">{animeDisplayTitle(props.entry)}</div>
+        {subtitle && <div className="mt-1 text-muted-foreground">{subtitle}</div>}
       </div>
-      <Show
-        when={isInLibrary()}
-        fallback={
-          <Link
-            to="/anime/add"
-            search={{ id: props.entry.id.toString() }}
-            onClick={props.onNavigate}
-            aria-label={`Add ${animeDisplayTitle(props.entry)}`}
-            class={buttonVariants({
-              size: "sm",
-              class: props.compact ? "h-6 px-1.5 text-xs" : "h-7 px-2 text-xs",
-            })}
-          >
-            Add
-          </Link>
-        }
-      >
+      {isInLibrary ? (
         <Link
           to="/anime/$id"
           params={{ id: props.entry.id.toString() }}
           onClick={props.onNavigate}
           aria-label={`Open ${animeDisplayTitle(props.entry)}`}
-          class={buttonVariants({
+          className={buttonVariants({
             size: "sm",
             variant: "outline",
-            class: props.compact ? "h-6 px-1.5 text-xs" : "h-7 px-2 text-xs",
+            className: props.compact ? "h-6 px-1.5 text-xs" : "h-7 px-2 text-xs",
           })}
         >
           Open
         </Link>
-      </Show>
+      ) : (
+        <Link
+          to="/anime/add"
+          search={{ id: props.entry.id.toString() }}
+          onClick={props.onNavigate}
+          aria-label={`Add ${animeDisplayTitle(props.entry)}`}
+          className={buttonVariants({
+            size: "sm",
+            className: props.compact ? "h-6 px-1.5 text-xs" : "h-7 px-2 text-xs",
+          })}
+        >
+          Add
+        </Link>
+      )}
     </div>
   );
 }
@@ -94,52 +94,55 @@ interface AnimeDiscoverySectionProps {
 }
 
 export function AnimeDiscoverySection(props: AnimeDiscoverySectionProps) {
-  const related = createMemo(() => {
+  const related = useMemo(() => {
     const entries = props.anime.related_anime ?? [];
     return entries.filter((entry) => entry.id !== props.anime.id);
-  });
-  const recommended = createMemo(() => {
-    const relatedIds = new Set(related().map((entry) => entry.id));
+  }, [props.anime.related_anime, props.anime.id]);
+  const recommended = useMemo(() => {
+    const relatedIds = new Set(related.map((entry) => entry.id));
     const entries = props.anime.recommended_anime ?? [];
     return entries.filter((entry) => entry.id !== props.anime.id && !relatedIds.has(entry.id));
-  });
+  }, [props.anime.recommended_anime, props.anime.id, related]);
 
-  const hasContent = createMemo(() => related().length > 0 || recommended().length > 0);
+  const hasContent = useMemo(
+    () => related.length > 0 || recommended.length > 0,
+    [related.length, recommended.length],
+  );
+
+  if (!hasContent) return null;
 
   return (
-    <Show when={hasContent()}>
-      <Card>
-        <CardHeader class="pb-3">
-          <CardTitle class="text-base">Related & Recommended</CardTitle>
-        </CardHeader>
-        <CardContent class="space-y-4">
-          <Show when={related().length > 0}>
-            <section class="space-y-2">
-              <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                Franchise
-              </div>
-              <div class="space-y-2">
-                <For each={related()}>
-                  {(entry) => <AnimeDiscoveryRow entry={entry} libraryIds={props.libraryIds} />}
-                </For>
-              </div>
-            </section>
-          </Show>
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">Related & Recommended</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {related.length > 0 && (
+          <section className="space-y-2">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Franchise
+            </div>
+            <div className="space-y-2">
+              {related.map((entry) => (
+                <AnimeDiscoveryRow key={entry.id} entry={entry} libraryIds={props.libraryIds} />
+              ))}
+            </div>
+          </section>
+        )}
 
-          <Show when={recommended().length > 0}>
-            <section class="space-y-2">
-              <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                Recommended
-              </div>
-              <div class="space-y-2">
-                <For each={recommended().slice(0, 6)}>
-                  {(entry) => <AnimeDiscoveryRow entry={entry} libraryIds={props.libraryIds} />}
-                </For>
-              </div>
-            </section>
-          </Show>
-        </CardContent>
-      </Card>
-    </Show>
+        {recommended.length > 0 && (
+          <section className="space-y-2">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Recommended
+            </div>
+            <div className="space-y-2">
+              {recommended.slice(0, 6).map((entry) => (
+                <AnimeDiscoveryRow key={entry.id} entry={entry} libraryIds={props.libraryIds} />
+              ))}
+            </div>
+          </section>
+        )}
+      </CardContent>
+    </Card>
   );
 }

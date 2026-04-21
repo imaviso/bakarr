@@ -1,32 +1,66 @@
-import type { Component, ComponentProps, JSX } from "solid-js";
-import { splitProps } from "solid-js";
+"use client";
 
-import * as ProgressPrimitive from "@kobalte/core/progress";
+import { Progress as ProgressPrimitive } from "@base-ui/react/progress";
 
-import { Label } from "~/components/ui/label";
+import { cn } from "@/lib/utils";
 
-type ProgressRootProps = ComponentProps<typeof ProgressPrimitive.Root> & {
-  children?: JSX.Element;
-};
-
-const Progress: Component<ProgressRootProps> = (props) => {
-  const [local, others] = splitProps(props, ["children"]);
+function Progress({ className, children, value, ...props }: ProgressPrimitive.Root.Props) {
   return (
-    <ProgressPrimitive.Root {...others}>
-      {local.children}
-      <ProgressPrimitive.Track class="relative h-2 w-full overflow-hidden rounded-full bg-secondary">
-        <ProgressPrimitive.Fill class="h-full w-[var(--kb-progress-fill-width)] flex-1 bg-primary transition-[width] duration-300 ease-out will-change-[width]" />
-      </ProgressPrimitive.Track>
+    <ProgressPrimitive.Root
+      value={value}
+      data-slot="progress"
+      className={cn("flex flex-wrap gap-3", className)}
+      {...props}
+    >
+      {children}
+      <ProgressTrack>
+        <ProgressIndicator />
+      </ProgressTrack>
     </ProgressPrimitive.Root>
   );
-};
+}
 
-const ProgressLabel: Component<ProgressPrimitive.ProgressLabelProps> = (props) => {
-  return <ProgressPrimitive.Label as={Label} {...props} />;
-};
+function ProgressTrack({ className, ...props }: ProgressPrimitive.Track.Props) {
+  return (
+    <ProgressPrimitive.Track
+      className={cn(
+        "relative flex h-1 w-full items-center overflow-x-hidden rounded-none bg-muted",
+        className,
+      )}
+      data-slot="progress-track"
+      {...props}
+    />
+  );
+}
 
-const ProgressValueLabel: Component<ProgressPrimitive.ProgressValueLabelProps> = (props) => {
-  return <ProgressPrimitive.ValueLabel as={Label} {...props} />;
-};
+function ProgressIndicator({ className, ...props }: ProgressPrimitive.Indicator.Props) {
+  return (
+    <ProgressPrimitive.Indicator
+      data-slot="progress-indicator"
+      className={cn("h-full bg-primary transition-all", className)}
+      {...props}
+    />
+  );
+}
 
-export { Progress, ProgressLabel, ProgressValueLabel };
+function ProgressLabel({ className, ...props }: ProgressPrimitive.Label.Props) {
+  return (
+    <ProgressPrimitive.Label
+      className={cn("text-xs", className)}
+      data-slot="progress-label"
+      {...props}
+    />
+  );
+}
+
+function ProgressValue({ className, ...props }: ProgressPrimitive.Value.Props) {
+  return (
+    <ProgressPrimitive.Value
+      className={cn("ml-auto text-xs text-muted-foreground tabular-nums", className)}
+      data-slot="progress-value"
+      {...props}
+    />
+  );
+}
+
+export { Progress, ProgressTrack, ProgressIndicator, ProgressLabel, ProgressValue };

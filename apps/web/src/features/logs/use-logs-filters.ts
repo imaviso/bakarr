@@ -1,9 +1,9 @@
-import { createMemo, type Accessor } from "solid-js";
+import { useMemo } from "react";
 import type { FilterState } from "~/components/filters";
 import { parseLogsSearch, type LogsSearchState } from "~/features/logs/logs-search";
 
 interface UseLogsFiltersOptions {
-  search: Accessor<Record<string, string | undefined>>;
+  search: Record<string, string | undefined>;
   updateSearch: (patch: Partial<Record<string, string>>) => void;
 }
 
@@ -28,15 +28,26 @@ function toFilterStates(searchState: LogsSearchState): FilterState[] {
   const next: FilterState[] = [];
 
   if (searchState.level) {
-    next.push({ columnId: "level", operator: "is", value: searchState.level });
+    next.push({
+      id: `level:${searchState.level}`,
+      columnId: "level",
+      operator: "is",
+      value: searchState.level,
+    });
   }
 
   if (searchState.eventType) {
-    next.push({ columnId: "eventType", operator: "is", value: searchState.eventType });
+    next.push({
+      id: `eventType:${searchState.eventType}`,
+      columnId: "eventType",
+      operator: "is",
+      value: searchState.eventType,
+    });
   }
 
   if (searchState.startDate) {
     next.push({
+      id: `startDate:${searchState.startDate}`,
       columnId: "startDate",
       operator: "is_after",
       value: toDateInputValue(searchState.startDate),
@@ -45,6 +56,7 @@ function toFilterStates(searchState: LogsSearchState): FilterState[] {
 
   if (searchState.endDate) {
     next.push({
+      id: `endDate:${searchState.endDate}`,
       columnId: "endDate",
       operator: "is_before",
       value: toDateInputValue(searchState.endDate),
@@ -55,17 +67,18 @@ function toFilterStates(searchState: LogsSearchState): FilterState[] {
 }
 
 export function useLogsFilters(options: UseLogsFiltersOptions) {
-  const parsedSearch = createMemo(() =>
-    parseLogsSearch(options.search() as Record<string, unknown>),
+  const parsedSearch = useMemo(() =>
+    parseLogsSearch(options.search as Record<string, unknown>),
+    [options.search],
   );
-  const filterStates = createMemo(() => toFilterStates(parsedSearch()));
+  const filterStates = useMemo(() => toFilterStates(parsedSearch), [parsedSearch]);
 
-  const logsParams = createMemo<LogsFilterParams>(() => ({
-    endDate: parsedSearch().endDate || undefined,
-    eventType: parsedSearch().eventType || undefined,
-    level: parsedSearch().level || undefined,
-    startDate: parsedSearch().startDate || undefined,
-  }));
+  const logsParams = useMemo<LogsFilterParams>(() => ({
+    endDate: parsedSearch.endDate || undefined,
+    eventType: parsedSearch.eventType || undefined,
+    level: parsedSearch.level || undefined,
+    startDate: parsedSearch.startDate || undefined,
+  }), [parsedSearch]);
 
   const setFilterStates = (next: FilterState[]) => {
     const patch: Partial<Record<string, string>> = {

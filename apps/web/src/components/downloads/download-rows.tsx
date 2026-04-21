@@ -1,11 +1,5 @@
-import {
-  IconAlertTriangle,
-  IconArrowDown,
-  IconCheck,
-  IconClock,
-  IconPlayerPause,
-} from "@tabler/icons-solidjs";
-import { createMemo, Show } from "solid-js";
+import { WarningIcon, ArrowDownIcon, CheckIcon, ClockIcon, PauseIcon } from "@phosphor-icons/react";
+import { useMemo } from "react";
 import { DownloadRowMeta } from "~/components/downloads/download-row-meta";
 import {
   ActiveDownloadActions,
@@ -52,20 +46,20 @@ function formatEta(seconds: number): string {
 }
 
 function DownloadStatusIcon(props: { status?: string | undefined }) {
-  const presentation = createMemo(() => getDownloadStatusPresentation(props.status));
+  const presentation = useMemo(() => getDownloadStatusPresentation(props.status), [props.status]);
 
   const icon = () => {
-    switch (presentation().icon) {
+    switch (presentation.icon) {
       case "alert":
-        return <IconAlertTriangle class="h-4 w-4 text-destructive shrink-0" />;
+        return <WarningIcon className="h-4 w-4 text-destructive shrink-0" />;
       case "arrow-down":
-        return <IconArrowDown class="h-4 w-4 text-info shrink-0" />;
+        return <ArrowDownIcon className="h-4 w-4 text-info shrink-0" />;
       case "check":
-        return <IconCheck class="h-4 w-4 text-success shrink-0" />;
+        return <CheckIcon className="h-4 w-4 text-success shrink-0" />;
       case "pause":
-        return <IconPlayerPause class="h-4 w-4 text-warning shrink-0" />;
+        return <PauseIcon className="h-4 w-4 text-warning shrink-0" />;
       default:
-        return <IconClock class="h-4 w-4 text-muted-foreground shrink-0" />;
+        return <ClockIcon className="h-4 w-4 text-muted-foreground shrink-0" />;
     }
   };
 
@@ -77,11 +71,11 @@ export function ActiveDownloadRow(props: { item: DownloadStatus }) {
   const selectionDetail = () => formatSelectionDetail(props.item.source_metadata ?? {});
 
   return (
-    <TableRow class="group h-12 align-top">
-      <TableCell class="py-2 pl-4 w-[42px]">
+    <TableRow className="group h-12 align-top">
+      <TableCell className="py-2 pl-4 w-[42px]">
         <DownloadStatusIcon status={props.item.state} />
       </TableCell>
-      <TableCell class="font-medium py-2 min-w-[280px] md:min-w-[320px]">
+      <TableCell className="font-medium py-2 min-w-[280px] md:min-w-[320px]">
         <DownloadRowMeta
           animeId={props.item.anime_id}
           animeImage={props.item.anime_image}
@@ -104,43 +98,41 @@ export function ActiveDownloadRow(props: { item: DownloadStatus }) {
           trusted={props.item.source_metadata?.trusted}
           remake={props.item.source_metadata?.remake}
         >
-          <Show
-            when={
-              props.item.is_batch ||
-              props.item.covered_episodes?.length ||
-              props.item.coverage_pending
-            }
-          >
-            <span class="text-xs text-muted-foreground line-clamp-1">
+          {(props.item.is_batch ||
+            props.item.covered_episodes?.length ||
+            props.item.coverage_pending) && (
+            <span className="text-xs text-muted-foreground line-clamp-1">
               {formatEpisodeCoverage(
                 props.item.episode_number ?? 1,
                 props.item.covered_episodes,
                 props.item.coverage_pending,
               )}
             </span>
-          </Show>
+          )}
         </DownloadRowMeta>
       </TableCell>
-      <TableCell class="py-2 min-w-[160px] md:min-w-[180px]">
-        <div class="flex items-center gap-2">
-          <Progress value={props.item.progress * 100} class="h-1.5 w-full bg-muted" />
-          <span class="text-xs font-mono text-muted-foreground w-8 text-right">
+      <TableCell className="py-2 min-w-[160px] md:min-w-[180px]">
+        <div className="flex items-center gap-2">
+          <Progress value={props.item.progress * 100} className="h-1.5 w-full bg-muted" />
+          <span className="text-xs font-mono text-muted-foreground w-8 text-right">
             {Math.round(props.item.progress * 100)}%
           </span>
         </div>
       </TableCell>
-      <TableCell class="text-sm text-muted-foreground whitespace-nowrap tabular-nums hidden md:table-cell">
+      <TableCell className="text-sm text-muted-foreground whitespace-nowrap tabular-nums hidden md:table-cell">
         {formatSpeed(props.item.speed)}
       </TableCell>
-      <TableCell class="text-sm text-muted-foreground whitespace-nowrap tabular-nums hidden md:table-cell">
+      <TableCell className="text-sm text-muted-foreground whitespace-nowrap tabular-nums hidden md:table-cell">
         {formatEta(props.item.eta)}
       </TableCell>
-      <TableCell class="py-2">
-        <div class="flex items-center gap-2">
-          <span class="capitalize text-sm text-muted-foreground">{statusPresentation().label}</span>
+      <TableCell className="py-2">
+        <div className="flex items-center gap-2">
+          <span className="capitalize text-sm text-muted-foreground">
+            {statusPresentation().label}
+          </span>
         </div>
       </TableCell>
-      <TableCell class="text-right py-2 pr-4">
+      <TableCell className="text-right py-2 pr-4">
         <ActiveDownloadActions
           allowedActions={props.item.allowed_actions}
           downloadId={props.item.id}
@@ -158,13 +150,13 @@ export function DownloadRow(props: { item: Download; isHistory?: boolean }) {
   const dateStr = props.item.download_date || props.item.added_at;
 
   return (
-    <TableRow class="group h-12 align-top">
-      <TableCell class="py-2 pl-4 w-[42px]">
+    <TableRow className="group h-12 align-top">
+      <TableCell className="py-2 pl-4 w-[42px]">
         <DownloadStatusIcon
           {...(props.item.status === undefined ? {} : { status: props.item.status })}
         />
       </TableCell>
-      <TableCell class="font-medium py-2 min-w-[280px] md:min-w-[320px]">
+      <TableCell className="font-medium py-2 min-w-[280px] md:min-w-[320px]">
         <DownloadRowMeta
           animeId={props.item.anime_id}
           animeImage={props.item.anime_image}
@@ -189,49 +181,47 @@ export function DownloadRow(props: { item: Download; isHistory?: boolean }) {
           remake={props.item.source_metadata?.remake}
         />
       </TableCell>
-      <TableCell class="py-2 min-w-[110px] md:min-w-[120px]">
-        <Badge variant="outline" class="font-normal font-mono text-xs">
+      <TableCell className="py-2 min-w-[110px] md:min-w-[120px]">
+        <Badge variant="outline" className="font-normal font-mono text-xs">
           {formatEpisodeCoverage(
             props.item.episode_number,
             props.item.covered_episodes,
             props.item.coverage_pending,
           )}
         </Badge>
-        <Show when={formatCoverageMeta(props.item.covered_episodes, props.item.coverage_pending)}>
-          {(meta) => <div class="mt-1 text-[11px] text-muted-foreground">{meta()}</div>}
-        </Show>
+        {formatCoverageMeta(props.item.covered_episodes, props.item.coverage_pending) && (
+          <div className="mt-1 text-[11px] text-muted-foreground">
+            {formatCoverageMeta(props.item.covered_episodes, props.item.coverage_pending)}
+          </div>
+        )}
       </TableCell>
-      <Show
-        when={!props.isHistory}
-        fallback={
-          <TableCell class="text-muted-foreground text-sm whitespace-nowrap hidden md:table-cell">
-            {dateStr ? new Date(dateStr).toLocaleString() : "-"}
-          </TableCell>
-        }
-      >
-        <TableCell class="py-2 min-w-[140px] md:min-w-[180px]">
-          <Show
-            when={
-              props.item.status?.toLowerCase() === "downloading" &&
-              props.item.progress !== undefined
-            }
-            fallback={<span class="text-muted-foreground text-sm">-</span>}
-          >
-            <div class="flex items-center gap-2">
-              <Progress value={props.item.progress ?? 0} class="h-1.5 w-full bg-muted" />
-              <span class="text-xs font-mono text-muted-foreground w-8 text-right">
+      {props.isHistory ? (
+        <TableCell className="text-muted-foreground text-sm whitespace-nowrap hidden md:table-cell">
+          {dateStr ? new Date(dateStr).toLocaleString() : "-"}
+        </TableCell>
+      ) : (
+        <TableCell className="py-2 min-w-[140px] md:min-w-[180px]">
+          {props.item.status?.toLowerCase() === "downloading" &&
+          props.item.progress !== undefined ? (
+            <div className="flex items-center gap-2">
+              <Progress value={props.item.progress ?? 0} className="h-1.5 w-full bg-muted" />
+              <span className="text-xs font-mono text-muted-foreground w-8 text-right">
                 {Math.round(props.item.progress ?? 0)}%
               </span>
             </div>
-          </Show>
+          ) : (
+            <span className="text-muted-foreground text-sm">-</span>
+          )}
         </TableCell>
-      </Show>
-      <TableCell class="py-2">
-        <div class="flex items-center gap-2">
-          <span class="capitalize text-sm text-muted-foreground">{statusPresentation().label}</span>
+      )}
+      <TableCell className="py-2">
+        <div className="flex items-center gap-2">
+          <span className="capitalize text-sm text-muted-foreground">
+            {statusPresentation().label}
+          </span>
         </div>
       </TableCell>
-      <TableCell class="text-right py-2 pr-4">
+      <TableCell className="text-right py-2 pr-4">
         <HistoryDownloadActions
           allowedActions={props.item.allowed_actions}
           downloadId={props.item.id}

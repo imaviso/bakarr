@@ -1,6 +1,6 @@
-import { createSignal, Show } from "solid-js";
+import { useState } from "react";
 import { SystemSettingsAutomationSections } from "~/components/settings/system-settings-automation-sections";
-import { createSystemSettingsForm } from "~/components/settings/system-settings-form-factory";
+import { useSystemSettingsForm } from "~/components/settings/system-settings-form-hook";
 import { SystemSettingsGeneralSections } from "~/components/settings/system-settings-general-sections";
 import { type ConfigSettingsMode } from "~/components/settings/system-settings-schema";
 import { Button } from "~/components/ui/button";
@@ -21,18 +21,20 @@ export function GeneralSettingsForm(props: { mode: ConfigSettingsMode }) {
   const updateConfig = createUpdateSystemConfigMutation();
 
   return (
-    <Show when={configQuery.data} fallback={<Skeleton class="h-96 rounded-lg" />}>
-      {(config) => (
+    <>
+      {configQuery.data ? (
         <SystemForm
           mode={props.mode}
-          defaultValues={config()}
+          defaultValues={configQuery.data}
           onSubmit={(values) => {
             updateConfig.mutate(values);
           }}
           isSaving={updateConfig.isPending}
         />
+      ) : (
+        <Skeleton className="h-96 rounded-lg" />
       )}
-    </Show>
+    </>
   );
 }
 
@@ -42,19 +44,19 @@ function SystemForm(props: {
   mode: ConfigSettingsMode;
   onSubmit: (values: Config) => void;
 }) {
-  const form = createSystemSettingsForm({
+  const form = useSystemSettingsForm({
     defaultValues: props.defaultValues,
     onSubmit: props.onSubmit,
   });
 
   const systemStatus = createSystemStatusQuery();
-  const [latestSystemTaskId, setLatestSystemTaskId] = createSignal<number | undefined>(undefined);
+  const [latestSystemTaskId, setLatestSystemTaskId] = useState<number | undefined>(undefined);
   createSystemTaskQuery(latestSystemTaskId);
   const triggerScan = createTriggerScanMutation();
   const triggerRss = createTriggerRssCheckMutation();
   const triggerMetadataRefresh = createTriggerMetadataRefreshMutation();
-  const showsGeneral = () => props.mode === "general";
-  const showsAutomation = () => props.mode === "automation";
+  const showsGeneral = props.mode === "general";
+  const showsAutomation = props.mode === "automation";
 
   const handleTriggerScan = () => {
     triggerScan.mutate(undefined, {
@@ -80,23 +82,21 @@ function SystemForm(props: {
     });
   };
 
+  const submitSystemSettingsForm = async () => {
+    await form.handleSubmit();
+  };
+
   return (
     <form
-      autocomplete="off"
-      onSubmit={(event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        void form.handleSubmit();
-      }}
-      class="space-y-8 pb-24 max-w-3xl"
+      autoComplete="off"
+      action={submitSystemSettingsForm}
+      className="space-y-8 pb-24 max-w-3xl"
     >
       <input type="password" style={{ display: "none" }} />
 
-      <Show when={showsGeneral()}>
-        <SystemSettingsGeneralSections form={form} />
-      </Show>
+      {showsGeneral && <SystemSettingsGeneralSections form={form} />}
 
-      <Show when={showsAutomation()}>
+      {showsAutomation && (
         <SystemSettingsAutomationSections
           form={form}
           systemStatus={systemStatus.data}
@@ -107,12 +107,16 @@ function SystemForm(props: {
           triggerRssPending={triggerRss.isPending}
           triggerMetadataRefreshPending={triggerMetadataRefresh.isPending}
         />
-      </Show>
+      )}
 
-      <div class="border-t border-border/60 pt-4 pb-2">
+      <div className="border-t border-border/60 pt-4 pb-2">
         <form.Subscribe selector={(state) => [state.canSubmit]}>
-          {(state) => (
-            <Button type="submit" disabled={!state()[0] || props.isSaving} class="w-full sm:w-auto">
+          {([canSubmit]) => (
+            <Button
+              type="submit"
+              disabled={!canSubmit || props.isSaving}
+              className="w-full sm:w-auto"
+            >
               {props.isSaving ? "Saving..." : "Save Changes"}
             </Button>
           )}

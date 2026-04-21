@@ -1,4 +1,4 @@
-import { createEffect, createMemo, createSignal, type Accessor } from "solid-js";
+import { useEffect, useMemo, useState } from "react";
 import { createSystemConfigQuery } from "~/lib/api";
 import { toImportInputMode, useImportFlow } from "~/components/import/use-import-flow";
 import type { FileRowAnimeOption, Step } from "~/components/import/types";
@@ -21,15 +21,15 @@ function titleLabel(title: { romaji?: string | undefined; english?: string | und
 }
 
 interface CreateImportPageStateOptions {
-  animeId: Accessor<number | undefined>;
+  animeId: number | undefined;
   onImportSuccess: () => void;
 }
 
 export function createImportPageState(options: CreateImportPageStateOptions) {
-  const [latestImportTaskId, setLatestImportTaskId] = createSignal<number | undefined>(undefined);
+  const [latestImportTaskId, setLatestImportTaskId] = useState<number | undefined>(undefined);
 
   const flow = useImportFlow({
-    animeId: options.animeId,
+    ...(options.animeId === undefined ? {} : { animeId: options.animeId }),
     onImportQueued: (taskId) => {
       setLatestImportTaskId(taskId);
     },
@@ -37,14 +37,15 @@ export function createImportPageState(options: CreateImportPageStateOptions) {
   });
 
   const configQuery = createSystemConfigQuery();
-  const [selectedBrowseRoot, setSelectedBrowseRoot] = createSignal<BrowseRootKey>("library");
-  const [pathAutofillEnabled, setPathAutofillEnabled] = createSignal(true);
+  const [selectedBrowseRoot, setSelectedBrowseRoot] = useState<BrowseRootKey>("library");
+  const [pathAutofillEnabled, setPathAutofillEnabled] = useState(true);
 
-  const currentStepIndex = createMemo(() =>
-    importSteps.findIndex((stepConfig) => stepConfig.id === flow.step()),
+  const currentStepIndex = useMemo(
+    () => importSteps.findIndex((stepConfig) => stepConfig.id === flow.step),
+    [flow.step],
   );
 
-  const allowedRoots = createMemo<AllowedRoot[]>(() => {
+  const allowedRoots = useMemo<AllowedRoot[]>(() => {
     const config = configQuery.data;
     if (!config) {
       return [];
@@ -67,11 +68,11 @@ export function createImportPageState(options: CreateImportPageStateOptions) {
         path: config.downloads.root_path.trim(),
       },
     ].filter((root) => root.path.length > 0);
-  });
+  }, [configQuery.data]);
 
-  const animeOptions = createMemo<FileRowAnimeOption[]>(() => {
+  const animeOptions = useMemo<FileRowAnimeOption[]>(() => {
     const animeList = flow.animeListQuery.data ?? [];
-    const candidateList = flow.candidates();
+    const candidateList = flow.candidates;
     const animeIds = new Set(animeList.map((anime) => anime.id));
 
     return [
@@ -94,49 +95,53 @@ export function createImportPageState(options: CreateImportPageStateOptions) {
           },
         })),
     ].toSorted((left, right) => titleLabel(left.title).localeCompare(titleLabel(right.title)));
-  });
+  }, [flow.animeListQuery.data, flow.candidates]);
 
-  const candidateIds = createMemo(
-    () => new Set(flow.candidates().map((candidate) => candidate.id)),
+  const candidateIds = useMemo(
+    () => new Set(flow.candidates.map((candidate) => candidate.id)),
+    [flow.candidates],
   );
-  const manualCandidateIds = createMemo(
-    () => new Set(flow.manualCandidates().map((candidate) => candidate.id)),
-  );
-
-  const activeBrowseRoot = createMemo(
-    () =>
-      allowedRoots().find((root) => root.key === selectedBrowseRoot()) ?? allowedRoots()[0] ?? null,
+  const manualCandidateIds = useMemo(
+    () => new Set(flow.manualCandidates.map((candidate) => candidate.id)),
+    [flow.manualCandidates],
   );
 
-  createEffect(() => {
-    const root = activeBrowseRoot();
+  const activeBrowseRoot = useMemo(
+    () => allowedRoots.find((root) => root.key === selectedBrowseRoot) ?? allowedRoots[0] ?? null,
+    [allowedRoots, selectedBrowseRoot],
+  );
+  const flowPath = flow.path;
+  const setFlowPath = flow.setPath;
+
+  useEffect(() => {
+    const root = activeBrowseRoot;
     if (!root) {
       return;
     }
 
-    if (!flow.path() && pathAutofillEnabled()) {
-      flow.setPath(root.path);
+    if (!flowPath && pathAutofillEnabled) {
+      setFlowPath(root.path);
     }
-  });
+  }, [activeBrowseRoot, flowPath, pathAutofillEnabled, setFlowPath]);
 
-  createEffect(() => {
-    const roots = allowedRoots();
+  useEffect(() => {
+    const roots = allowedRoots;
     const fallbackRoot = roots[0];
     if (!fallbackRoot) {
       return;
     }
 
-    if (!roots.some((root) => root.key === selectedBrowseRoot())) {
+    if (!roots.some((root) => root.key === selectedBrowseRoot)) {
       setSelectedBrowseRoot(fallbackRoot.key);
     }
-  });
+  }, [allowedRoots, selectedBrowseRoot]);
 
   const setInputMode = (value: string | null | undefined) => {
     flow.setInputMode(toImportInputMode(value));
   };
 
   const selectBrowseRoot = (value: string | null) => {
-    const root = allowedRoots().find((item) => item.key === value);
+    const root = allowedRoots.find((item) => item.key === value);
     if (!root) {
       return;
     }

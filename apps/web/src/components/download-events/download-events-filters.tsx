@@ -1,4 +1,4 @@
-import { IconDownload, IconFileSpreadsheet, IconJson } from "@tabler/icons-solidjs";
+import { DownloadIcon, TableIcon, BracketsCurlyIcon } from "@phosphor-icons/react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,7 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
-import { TextField, TextFieldInput, TextFieldLabel } from "~/components/ui/text-field";
+import { Input } from "~/components/ui/input";
+import { Label } from "~/components/ui/label";
 import { DOWNLOAD_EVENT_TYPE_OPTIONS } from "~/lib/download-events-filters";
 
 export interface DownloadEventsFilterValue {
@@ -44,57 +45,60 @@ interface DownloadEventsFiltersProps {
 export function DownloadEventsFilters(props: DownloadEventsFiltersProps) {
   return (
     <>
-      <div class="grid gap-3 md:grid-cols-[1fr_1fr_240px_auto]">
-        <TextField>
-          <TextFieldLabel>Anime ID</TextFieldLabel>
-          <TextFieldInput
+      <div className="grid gap-3 md:grid-cols-[1fr_1fr_240px_auto]">
+        <div className="space-y-1">
+          <Label htmlFor="download-events-anime-id">Anime ID</Label>
+          <Input
+            id="download-events-anime-id"
             type="number"
             value={props.value.animeId}
-            onInput={(event) => props.onFieldChange("animeId", event.currentTarget.value)}
+            onChange={(event) => props.onFieldChange("animeId", event.currentTarget.value)}
             placeholder="Any anime"
           />
-        </TextField>
-        <TextField>
-          <TextFieldLabel>Download ID</TextFieldLabel>
-          <TextFieldInput
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor="download-events-download-id">Download ID</Label>
+          <Input
+            id="download-events-download-id"
             type="number"
             value={props.value.downloadId}
-            onInput={(event) => props.onFieldChange("downloadId", event.currentTarget.value)}
+            onChange={(event) => props.onFieldChange("downloadId", event.currentTarget.value)}
             placeholder="Any download"
           />
-        </TextField>
-        <div class="flex flex-col gap-1">
-          <label class="text-sm font-medium" for={props.eventTypeSelectId}>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium" htmlFor={props.eventTypeSelectId}>
             Event Type
           </label>
           <Select
-            name={props.eventTypeSelectId}
             value={props.value.eventType}
-            onChange={(value) => value && props.onFieldChange("eventType", value)}
-            options={[...DOWNLOAD_EVENT_TYPE_OPTIONS]}
-            itemComponent={(itemProps) => (
-              <SelectItem item={itemProps.item}>{itemProps.item.rawValue}</SelectItem>
-            )}
+            onValueChange={(value) => props.onFieldChange("eventType", value ?? "")}
           >
             <SelectTrigger id={props.eventTypeSelectId}>
-              <SelectValue<string>>{(state) => state.selectedOption() ?? "all"}</SelectValue>
+              <SelectValue placeholder="all" />
             </SelectTrigger>
-            <SelectContent />
+            <SelectContent>
+              {DOWNLOAD_EVENT_TYPE_OPTIONS.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
           </Select>
         </div>
-        <div class="flex items-end gap-2">
+        <div className="flex items-end gap-2">
           <DropdownMenu>
-            <DropdownMenuTrigger as={Button} variant="outline">
-              <IconDownload class="h-4 w-4" />
+            <DropdownMenuTrigger render={<Button variant="outline" />}>
+              <DownloadIcon className="h-4 w-4" />
               Export
             </DropdownMenuTrigger>
             <DropdownMenuContent>
               <DropdownMenuItem onClick={() => props.onExport("json")}>
-                <IconJson class="h-4 w-4 mr-2" />
+                <BracketsCurlyIcon className="h-4 w-4 mr-2" />
                 Export as JSON
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => props.onExport("csv")}>
-                <IconFileSpreadsheet class="h-4 w-4 mr-2" />
+                <TableIcon className="h-4 w-4 mr-2" />
                 Export as CSV
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -102,32 +106,35 @@ export function DownloadEventsFilters(props: DownloadEventsFiltersProps) {
         </div>
       </div>
 
-      <div class="grid gap-3 md:grid-cols-[220px_220px_220px_auto]">
-        <TextField>
-          <TextFieldLabel>Status</TextFieldLabel>
-          <TextFieldInput
+      <div className="grid gap-3 md:grid-cols-[220px_220px_220px_auto]">
+        <div className="space-y-1">
+          <Label htmlFor="download-events-status">Status</Label>
+          <Input
+            id="download-events-status"
             value={props.value.status}
-            onInput={(event) => props.onFieldChange("status", event.currentTarget.value)}
+            onChange={(event) => props.onFieldChange("status", event.currentTarget.value)}
             placeholder="Any status"
           />
-        </TextField>
-        <TextField>
-          <TextFieldLabel>Start Date</TextFieldLabel>
-          <TextFieldInput
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor="download-events-start">Start Date</Label>
+          <Input
+            id="download-events-start"
             type="datetime-local"
             value={props.value.startDate}
-            onInput={(event) => props.onFieldChange("startDate", event.currentTarget.value)}
+            onChange={(event) => props.onFieldChange("startDate", event.currentTarget.value)}
           />
-        </TextField>
-        <TextField>
-          <TextFieldLabel>End Date</TextFieldLabel>
-          <TextFieldInput
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor="download-events-end">End Date</Label>
+          <Input
+            id="download-events-end"
             type="datetime-local"
             value={props.value.endDate}
-            onInput={(event) => props.onFieldChange("endDate", event.currentTarget.value)}
+            onChange={(event) => props.onFieldChange("endDate", event.currentTarget.value)}
           />
-        </TextField>
-        <div class="flex items-end justify-end gap-2 flex-wrap">
+        </div>
+        <div className="flex items-end justify-end gap-2 flex-wrap">
           <Button
             variant={props.activePreset === 24 ? "default" : "outline"}
             size="sm"

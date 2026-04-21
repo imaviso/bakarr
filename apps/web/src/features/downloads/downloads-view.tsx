@@ -1,5 +1,4 @@
-import { IconRefresh, IconSearch } from "@tabler/icons-solidjs";
-import { Show } from "solid-js";
+import { ArrowClockwiseIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { DownloadEventsDialog } from "~/components/download-events-dialog";
 import { PageHeader } from "~/components/page-header";
 import { Badge } from "~/components/ui/badge";
@@ -19,9 +18,9 @@ interface DownloadsViewProps {
 
 export function DownloadsView(props: DownloadsViewProps) {
   return (
-    <div class="flex flex-col flex-1 min-h-0 gap-4">
+    <div className="flex flex-col flex-1 min-h-0 gap-4">
       <PageHeader title="Downloads" subtitle="Manage active downloads and history">
-        <div class="flex items-center gap-2">
+        <div className="flex items-center gap-2">
           <DownloadEventsDialog
             description="Recent queue, retry, status, and import events across all downloads."
             formatTimestamp={formatUiTimestamp}
@@ -40,7 +39,7 @@ export function DownloadsView(props: DownloadsViewProps) {
             }}
             disabled={props.state.syncDownloads.isPending}
           >
-            <IconRefresh class="h-4 w-4" />
+            <ArrowClockwiseIcon className="h-4 w-4" />
             Sync
           </Button>
           <Button
@@ -51,59 +50,59 @@ export function DownloadsView(props: DownloadsViewProps) {
             }}
             disabled={props.state.searchMissing.isPending}
           >
-            <IconSearch class="h-4 w-4" />
+            <MagnifyingGlassIcon className="h-4 w-4" />
             Search Missing
           </Button>
         </div>
       </PageHeader>
 
-      <Card class="flex-1 overflow-hidden flex flex-col">
+      <Card className="flex-1 overflow-hidden flex flex-col">
         <Tabs
           value={props.searchTab}
           onChange={(value) =>
             props.state.handleTabChange(typeof value === "string" ? value : undefined)
           }
-          class="h-full flex flex-col"
+          className="h-full flex flex-col"
         >
-          <div class="px-4 pt-3 border-b">
-            <TabsList class="w-full justify-start h-auto p-0 pb-px bg-transparent border-b-0 space-x-6">
+          <div className="px-4 pt-3 border-b">
+            <TabsList className="w-full justify-start h-auto p-0 pb-px bg-transparent border-b-0 space-x-6">
               <TabsTrigger
                 value="queue"
-                class="h-9 px-0 pb-3 rounded-none border-b-2 border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent data-[selected]:bg-transparent"
+                className="h-9 px-0 pb-3 rounded-none border-b-2 border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent data-[selected]:bg-transparent"
               >
                 Queue
-                <Show when={props.state.queueCount() > 0}>
-                  <Badge variant="secondary" class="ml-2 h-5 px-1.5 min-w-[1.25rem] text-xs">
-                    {props.state.queueCount()}
+                {props.state.queueCount > 0 && (
+                  <Badge variant="secondary" className="ml-2 h-5 px-1.5 min-w-[1.25rem] text-xs">
+                    {props.state.queueCount}
                   </Badge>
-                </Show>
+                )}
               </TabsTrigger>
               <TabsTrigger
                 value="history"
-                class="h-9 px-0 pb-3 rounded-none border-b-2 border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent data-[selected]:bg-transparent"
+                className="h-9 px-0 pb-3 rounded-none border-b-2 border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent data-[selected]:bg-transparent"
               >
                 History
               </TabsTrigger>
               <TabsTrigger
                 value="events"
-                class="h-9 px-0 pb-3 rounded-none border-b-2 border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent data-[selected]:bg-transparent"
+                className="h-9 px-0 pb-3 rounded-none border-b-2 border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent data-[selected]:bg-transparent"
               >
                 Events
               </TabsTrigger>
             </TabsList>
           </div>
 
-          <DownloadsQueueTab queue={props.state.queue()} />
+          <DownloadsQueueTab queue={props.state.queue} />
 
           <DownloadsEventsTab
             downloadEventsQuery={props.state.downloadEventsQuery}
             eventsSearchState={props.state.eventsSearchState}
-            canGoToPreviousEventsPage={props.state.canGoToPreviousEventsPage()}
-            canGoToNextEventsPage={props.state.canGoToNextEventsPage()}
+            canGoToPreviousEventsPage={props.state.canGoToPreviousEventsPage}
+            canGoToNextEventsPage={props.state.canGoToNextEventsPage}
             handleDownloadEventsExport={props.state.handleDownloadEventsExport}
             goToPreviousEventsPage={props.state.goToPreviousEventsPage}
             goToNextEventsPage={props.state.goToNextEventsPage}
-            lastDownloadEventsExport={props.state.lastDownloadEventsExport()}
+            lastDownloadEventsExport={props.state.lastDownloadEventsExport}
           />
 
           <DownloadsHistoryTab

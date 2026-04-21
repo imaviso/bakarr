@@ -1,5 +1,5 @@
 import type { DownloadSelectionKind } from "@bakarr/shared";
-import { Show, type JSX } from "solid-js";
+import type { ReactNode } from "react";
 import { ReleaseSeaDexMeta, ReleaseSelectionMeta } from "~/components/release-search/release-meta";
 import { ReleaseMetadataSummary } from "~/components/release-metadata-summary";
 import type { ReleaseFlag } from "~/lib/release-metadata";
@@ -10,7 +10,7 @@ import { cn } from "~/lib/utils";
 interface ReleasePrimaryCellProps {
   confidence?: ReleaseConfidenceMetadata | undefined;
   flags: ReleaseFlag[];
-  metadataPrefix?: JSX.Element | undefined;
+  metadataPrefix?: ReactNode | undefined;
   parsedSummary?: string | undefined;
   seadexComparison?: string | undefined;
   seadexNotes?: string | undefined;
@@ -31,33 +31,30 @@ interface ReleasePrimaryCellProps {
 }
 
 export function ReleasePrimaryCell(props: ReleasePrimaryCellProps) {
-  const titleClass = () =>
+  const titleClass =
     props.titleClass ??
     "text-sm font-medium leading-none text-foreground hover:text-primary transition-colors truncate block pr-4";
 
   return (
-    <div class="flex flex-col gap-1.5">
-      <Show
-        when={props.useTooltip}
-        fallback={
-          <a href={props.sourceUrl} target="_blank" rel="noreferrer" class={titleClass()}>
-            {props.title}
-          </a>
-        }
-      >
+    <div className="flex flex-col gap-1.5">
+      {props.useTooltip ? (
         <Tooltip>
           <TooltipTrigger>
-            <a href={props.sourceUrl} target="_blank" rel="noreferrer" class={titleClass()}>
+            <a href={props.sourceUrl} target="_blank" rel="noreferrer" className={titleClass}>
               {props.title}
             </a>
           </TooltipTrigger>
-          <TooltipContent class="max-w-[400px]">
-            <p class="break-words font-normal">{props.title}</p>
+          <TooltipContent className="max-w-[400px]">
+            <p className="break-words font-normal">{props.title}</p>
           </TooltipContent>
         </Tooltip>
-      </Show>
-      <div class={cn("text-xs text-muted-foreground", props.summaryCompact && "space-y-1")}>
-        <Show when={props.metadataPrefix}>{props.metadataPrefix}</Show>
+      ) : (
+        <a href={props.sourceUrl} target="_blank" rel="noreferrer" className={titleClass}>
+          {props.title}
+        </a>
+      )}
+      <div className={cn("text-xs text-muted-foreground", props.summaryCompact && "space-y-1")}>
+        {props.metadataPrefix}
         <ReleaseMetadataSummary
           compact={props.summaryCompact}
           flags={props.flags}
@@ -70,7 +67,7 @@ export function ReleasePrimaryCell(props: ReleasePrimaryCellProps) {
         notes={props.seadexNotes}
         tags={props.seadexTags}
         comparisonUrl={props.seadexComparison}
-        class={props.seadexClass}
+        className={props.seadexClass}
         tagClass={props.seadexTagClass}
       />
       <ReleaseSelectionMeta
@@ -79,7 +76,7 @@ export function ReleasePrimaryCell(props: ReleasePrimaryCellProps) {
         selectionSummary={props.selectionSummary}
         selectionDetail={props.selectionDetail}
         confidence={props.confidence}
-        class={props.selectionClass}
+        className={props.selectionClass}
       />
     </div>
   );
@@ -93,9 +90,9 @@ interface ReleasePeersCellProps {
 
 export function ReleasePeersCell(props: ReleasePeersCellProps) {
   return (
-    <div class="flex items-center justify-end gap-1.5 text-xs font-mono">
+    <div className="flex items-center justify-end gap-1.5 text-xs font-mono">
       <span
-        class={cn(
+        className={cn(
           "font-medium",
           props.emphasizePresence
             ? "text-success"
@@ -106,8 +103,8 @@ export function ReleasePeersCell(props: ReleasePeersCellProps) {
       >
         {props.seeders}
       </span>
-      <span class="text-muted-foreground/30">/</span>
-      <span class={props.emphasizePresence ? "text-error" : "text-muted-foreground"}>
+      <span className="text-muted-foreground/30">/</span>
+      <span className={props.emphasizePresence ? "text-error" : "text-muted-foreground"}>
         {props.leechers}
       </span>
     </div>

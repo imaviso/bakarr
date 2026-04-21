@@ -1,26 +1,26 @@
-import { createSignal } from "solid-js";
+import { useState } from "react";
 import type {
   AnimeEpisodeDialogState,
   AnimeSearchModalState,
 } from "~/components/anime/anime-details-types";
 
 export function useAnimeDetailsDialogState() {
-  const [renameDialogOpen, setRenameDialogOpen] = createSignal(false);
-  const [editPathOpen, setEditPathOpen] = createSignal(false);
-  const [editProfileOpen, setEditProfileOpen] = createSignal(false);
-  const [searchModalState, setSearchModalState] = createSignal<AnimeSearchModalState>({
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [editPathOpen, setEditPathOpen] = useState(false);
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
+  const [searchModalState, setSearchModalState] = useState<AnimeSearchModalState>({
     open: false,
     episodeNumber: 1,
   });
-  const [deleteEpisodeState, setDeleteEpisodeState] = createSignal<AnimeEpisodeDialogState>({
+  const [deleteEpisodeState, setDeleteEpisodeState] = useState<AnimeEpisodeDialogState>({
     open: false,
     episodeNumber: 0,
   });
-  const [mappingDialogState, setMappingDialogState] = createSignal<AnimeEpisodeDialogState>({
+  const [mappingDialogState, setMappingDialogState] = useState<AnimeEpisodeDialogState>({
     open: false,
     episodeNumber: 0,
   });
-  const [bulkMappingOpen, setBulkMappingOpen] = createSignal(false);
+  const [bulkMappingOpen, setBulkMappingOpen] = useState(false);
 
   return {
     bulkMappingOpen,

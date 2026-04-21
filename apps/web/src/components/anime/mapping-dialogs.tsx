@@ -1,6 +1,6 @@
-import { useQuery } from "@tanstack/solid-query";
-import { createSignal, For, Show } from "solid-js";
-import { IconRefresh } from "@tabler/icons-solidjs";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { ArrowClockwiseIcon } from "@phosphor-icons/react";
 import { Button } from "~/components/ui/button";
 import {
   Dialog,
@@ -30,7 +30,6 @@ import {
   createListFilesQuery,
   createMapEpisodeMutation,
   episodesQueryOptions,
-  type VideoFile,
 } from "~/lib/api";
 import { cn } from "~/lib/utils";
 
@@ -48,16 +47,14 @@ interface ManualMappingDialogProps {
 }
 
 export function BulkMappingDialog(props: BulkMappingDialogProps) {
-  const episodesQuery = useQuery(() => episodesQueryOptions(props.animeId));
-  const filesQuery = createListFilesQuery(() => props.animeId);
+  const episodesQuery = useQuery(episodesQueryOptions(props.animeId));
+  const filesQuery = createListFilesQuery(props.animeId);
   const bulkMapMutation = createBulkMapEpisodesMutation();
 
-  const [mappings, setMappings] = createSignal<Record<number, string>>({});
+  const [mappings, setMappings] = useState<Record<number, string>>({});
 
-  const files = () => filesQuery.data || [];
-  const allEpisodes = () => episodesQuery.data || [];
-
-  type MappingOption = { path: string; name: string } | VideoFile;
+  const files = filesQuery.data || [];
+  const allEpisodes = episodesQuery.data || [];
 
   const handleMap = (episodeNumber: number, filePath: string) => {
     setMappings((previous) => {
@@ -68,7 +65,7 @@ export function BulkMappingDialog(props: BulkMappingDialogProps) {
   };
 
   const handleSubmit = () => {
-    const entries = Object.entries(mappings());
+    const entries = Object.entries(mappings);
     if (entries.length === 0) {
       return;
     }
@@ -94,7 +91,7 @@ export function BulkMappingDialog(props: BulkMappingDialogProps) {
 
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-      <DialogContent class="sm:max-w-[800px] max-h-[90vh] flex flex-col">
+      <DialogContent className="sm:max-w-[800px] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Bulk Manual Mapping</DialogTitle>
           <DialogDescription>
@@ -102,81 +99,59 @@ export function BulkMappingDialog(props: BulkMappingDialogProps) {
           </DialogDescription>
         </DialogHeader>
 
-        <div class="flex-1 overflow-y-auto py-4">
-          <Show
-            when={episodesQuery.data && filesQuery.data}
-            fallback={
-              <div class="flex justify-center py-8">
-                <IconRefresh class="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            }
-          >
+        <div className="flex-1 overflow-y-auto py-4">
+          {episodesQuery.data && filesQuery.data ? (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead class="w-[80px]">Episode</TableHead>
+                  <TableHead className="w-[80px]">Episode</TableHead>
                   <TableHead>File to Map</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                <For each={allEpisodes()}>
-                  {(episode) => (
-                    <TableRow>
-                      <TableCell class="font-medium">Ep {episode.number}</TableCell>
-                      <TableCell>
-                        <Select
-                          options={[{ path: "", name: "(Unmap / No File)" }, ...(files() || [])]}
-                          optionValue="path"
-                          optionTextValue="name"
-                          value={
-                            files().find(
-                              (file) =>
-                                file.path === (mappings()[episode.number] ?? episode.file_path),
-                            ) || { path: "", name: "(Unmap / No File)" }
-                          }
-                          onChange={(value) => handleMap(episode.number, value?.path || "")}
-                          placeholder="Select file..."
-                          itemComponent={(itemProps) => {
-                            const item: MappingOption = itemProps.item.rawValue;
-                            const itemSize =
-                              "size" in item ? (item.size / 1024 / 1024).toFixed(1) : null;
-                            const itemEpisode =
-                              "episode_number" in item ? item.episode_number : null;
+                {allEpisodes.map((episode) => (
+                  <TableRow key={episode.number}>
+                    <TableCell className="font-medium">Ep {episode.number}</TableCell>
+                    <TableCell>
+                      <Select
+                        value={mappings[episode.number] ?? episode.file_path ?? ""}
+                        onValueChange={(value) => handleMap(episode.number, value ?? "")}
+                      >
+                        <SelectTrigger className="w-full text-xs h-8">
+                          <SelectValue placeholder="Select file..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">(Unmap / No File)</SelectItem>
+                          {files.map((file) => {
+                            const itemSize = (file.size / 1024 / 1024).toFixed(1);
                             return (
-                              <SelectItem item={itemProps.item}>
-                                {item.name}
-                                <Show when={itemSize}>
-                                  {" ("}
-                                  {itemSize} MB)
-                                </Show>
-                                <Show when={itemEpisode !== null}>{` [Ep ${itemEpisode}]`}</Show>
+                              <SelectItem key={file.path} value={file.path}>
+                                {file.name} ({itemSize} MB)
+                                {file.episode_number !== null ? ` [Ep ${file.episode_number}]` : ""}
                               </SelectItem>
                             );
-                          }}
-                        >
-                          <SelectTrigger class="w-full text-xs h-8">
-                            <SelectValue<MappingOption>>
-                              {(state) => state.selectedOption()?.name}
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent />
-                        </Select>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </For>
+                          })}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
-          </Show>
+          ) : (
+            <div className="flex justify-center py-8">
+              <ArrowClockwiseIcon className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          )}
         </div>
 
-        <DialogFooter class="mt-4">
+        <DialogFooter className="mt-4">
           <Button variant="outline" onClick={() => props.onOpenChange(false)}>
             Cancel
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={Object.keys(mappings()).length === 0 || bulkMapMutation.isPending}
+            disabled={Object.keys(mappings).length === 0 || bulkMapMutation.isPending}
           >
             {bulkMapMutation.isPending ? "Mapping..." : "Save Mappings"}
           </Button>
@@ -187,12 +162,12 @@ export function BulkMappingDialog(props: BulkMappingDialogProps) {
 }
 
 export function ManualMappingDialog(props: ManualMappingDialogProps) {
-  const filesQuery = createListFilesQuery(() => props.animeId);
+  const filesQuery = createListFilesQuery(props.animeId);
   const mapMutation = createMapEpisodeMutation();
-  const [selectedFile, setSelectedFile] = createSignal<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<string | null>(null);
 
   const handleSubmit = () => {
-    const file = selectedFile();
+    const file = selectedFile;
     if (!file) {
       return;
     }
@@ -214,7 +189,7 @@ export function ManualMappingDialog(props: ManualMappingDialogProps) {
 
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-      <DialogContent class="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>Manual Mapping - Episode {props.episodeNumber}</DialogTitle>
           <DialogDescription>
@@ -222,37 +197,32 @@ export function ManualMappingDialog(props: ManualMappingDialogProps) {
           </DialogDescription>
         </DialogHeader>
 
-        <div class="py-4">
-          <Show
-            when={filesQuery.data}
-            fallback={
-              <div class="flex justify-center py-8">
-                <IconRefresh class="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            }
-          >
-            {(files) => (
-              <div class="border rounded-md max-h-[300px] overflow-y-auto">
-                <Show when={files().length === 0}>
-                  <div class="p-4 text-center text-sm text-muted-foreground">
-                    No video files found in the anime directory.
-                  </div>
-                </Show>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead class="w-[30px]" />
-                      <TableHead>Filename</TableHead>
-                      <TableHead class="w-[100px] text-right">Size</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    <For each={files()}>
-                      {(file) => (
+        <div className="py-4">
+          {filesQuery.data ? (
+            (() => {
+              const files = filesQuery.data;
+              return (
+                <div className="border rounded-md max-h-[300px] overflow-y-auto">
+                  {files.length === 0 && (
+                    <div className="p-4 text-center text-sm text-muted-foreground">
+                      No video files found in the anime directory.
+                    </div>
+                  )}
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[30px]" />
+                        <TableHead>Filename</TableHead>
+                        <TableHead className="w-[100px] text-right">Size</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {files.map((file) => (
                         <TableRow
-                          class={cn(
+                          key={file.path}
+                          className={cn(
                             "cursor-pointer hover:bg-muted/50 focus:bg-muted focus:outline-none",
-                            selectedFile() === file.path && "bg-muted",
+                            selectedFile === file.path && "bg-muted",
                           )}
                           onClick={() => setSelectedFile(file.path)}
                           tabIndex={0}
@@ -265,38 +235,42 @@ export function ManualMappingDialog(props: ManualMappingDialogProps) {
                         >
                           <TableCell>
                             <div
-                              class={cn(
+                              className={cn(
                                 "h-4 w-4 rounded-full border border-primary",
-                                selectedFile() === file.path && "bg-primary",
+                                selectedFile === file.path && "bg-primary",
                               )}
                             />
                           </TableCell>
-                          <TableCell class="font-mono text-xs break-all">
+                          <TableCell className="font-mono text-xs break-all">
                             {file.name}
-                            <Show when={file.episode_number}>
-                              <span class="ml-2 text-muted-foreground italic">
+                            {file.episode_number && (
+                              <span className="ml-2 text-muted-foreground italic">
                                 (Mapped to Ep {file.episode_number})
                               </span>
-                            </Show>
+                            )}
                           </TableCell>
-                          <TableCell class="text-right text-xs">
+                          <TableCell className="text-right text-xs">
                             {(file.size / 1024 / 1024).toFixed(1)} MB
                           </TableCell>
                         </TableRow>
-                      )}
-                    </For>
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </Show>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              );
+            })()
+          ) : (
+            <div className="flex justify-center py-8">
+              <ArrowClockwiseIcon className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          )}
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => props.onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={!selectedFile() || mapMutation.isPending}>
+          <Button onClick={handleSubmit} disabled={!selectedFile || mapMutation.isPending}>
             {mapMutation.isPending ? "Mapping..." : "Map File"}
           </Button>
         </DialogFooter>

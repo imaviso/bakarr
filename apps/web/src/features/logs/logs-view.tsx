@@ -1,11 +1,10 @@
 import {
-  IconDownload,
-  IconFileSpreadsheet,
-  IconJson,
-  IconRefresh,
-  IconTrash,
-} from "@tabler/icons-solidjs";
-import { For, Show } from "solid-js";
+  DownloadIcon,
+  TableIcon,
+  BracketsCurlyIcon,
+  ArrowClockwiseIcon,
+  TrashIcon,
+} from "@phosphor-icons/react";
 import { BackgroundJobCard } from "~/components/logs/background-job-card";
 import { DashboardMetricCard } from "~/components/logs/dashboard-metric-card";
 import { DownloadEventsList } from "~/components/logs/download-events-list";
@@ -48,18 +47,18 @@ interface LogsViewProps {
 
 export function LogsView(props: LogsViewProps) {
   return (
-    <div class="flex flex-col flex-1 min-h-0 gap-6">
+    <div className="flex flex-col flex-1 min-h-0 gap-6">
       <PageHeader title="System Logs" subtitle="View, filter, and export system events and errors">
-        <div class="flex items-center gap-2">
-          <div class="flex items-center gap-2">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2">
             <Switch
-              checked={props.state.autoRefresh()}
-              onChange={props.state.setAutoRefresh}
+              checked={props.state.autoRefresh}
+              onCheckedChange={props.state.setAutoRefresh}
               id="auto-refresh"
             />
             <label
-              for="auto-refresh"
-              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+              htmlFor="auto-refresh"
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
             >
               Auto-Refresh
             </label>
@@ -70,32 +69,32 @@ export function LogsView(props: LogsViewProps) {
             onClick={props.state.refreshAll}
             disabled={props.state.logsQuery.isRefetching}
           >
-            <IconRefresh
-              class={cn("h-4 w-4", props.state.logsQuery.isRefetching && "animate-spin")}
+            <ArrowClockwiseIcon
+              className={cn("h-4 w-4", props.state.logsQuery.isRefetching && "animate-spin")}
             />
             Refresh
           </Button>
 
           <DropdownMenu>
-            <DropdownMenuTrigger as={Button} variant="outline" size="sm">
-              <IconDownload class="h-4 w-4" />
+            <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
+              <DownloadIcon className="h-4 w-4" />
               Export
             </DropdownMenuTrigger>
             <DropdownMenuContent>
               <DropdownMenuItem onClick={() => props.state.exportLogs("json")}>
-                <IconJson class="h-4 w-4 mr-2" />
+                <BracketsCurlyIcon className="h-4 w-4 mr-2" />
                 Export as JSON
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => props.state.exportLogs("csv")}>
-                <IconFileSpreadsheet class="h-4 w-4 mr-2" />
+                <TableIcon className="h-4 w-4 mr-2" />
                 Export as CSV
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
           <AlertDialog>
-            <AlertDialogTrigger as={Button} variant="destructive" size="sm">
-              <IconTrash class="h-4 w-4" />
+            <AlertDialogTrigger render={<Button variant="destructive" size="sm" />}>
+              <TrashIcon className="h-4 w-4" />
               Clear Logs
             </AlertDialogTrigger>
             <AlertDialogContent>
@@ -109,7 +108,7 @@ export function LogsView(props: LogsViewProps) {
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction
-                  class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   onClick={props.state.clearLogsWithToast}
                 >
                   Clear Logs
@@ -126,7 +125,7 @@ export function LogsView(props: LogsViewProps) {
         onChange={props.state.setFilterStates}
       >
         <Filter.Root>
-          <div class="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Filter.Menu />
             <Filter.List />
             <Filter.Actions />
@@ -134,117 +133,117 @@ export function LogsView(props: LogsViewProps) {
         </Filter.Root>
       </Filter.Provider>
 
-      <Card class="border-dashed">
-        <div class="p-4 border-b border-border/60">
-          <h2 class="text-sm font-medium text-foreground">Ops Summary</h2>
-          <p class="text-xs text-muted-foreground mt-1">High-level download and worker health</p>
+      <Card className="border-dashed">
+        <div className="p-4 border-b border-border/60">
+          <h2 className="text-sm font-medium text-foreground">Ops Summary</h2>
+          <p className="text-xs text-muted-foreground mt-1">High-level download and worker health</p>
         </div>
-        <div class="p-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-          <Show
-            when={props.state.dashboardQuery.data}
-            fallback={<For each={[1, 2, 3, 4, 5]}>{() => <Skeleton class="h-20 w-full" />}</For>}
-          >
-            {(dashboard) => (
-              <>
-                <DashboardMetricCard label="Queued" value={dashboard().queued_downloads} />
-                <DashboardMetricCard label="Active" value={dashboard().active_downloads} />
-                <DashboardMetricCard
-                  label="Failed"
-                  value={dashboard().failed_downloads}
-                  highlight="text-error"
-                />
-                <DashboardMetricCard
-                  label="Imported"
-                  value={dashboard().imported_downloads}
-                  highlight="text-success"
-                />
-                <DashboardMetricCard
-                  label="Running Jobs"
-                  value={dashboard().running_jobs}
-                  highlight="text-info"
-                />
-              </>
-            )}
-          </Show>
-        </div>
-      </Card>
-
-      <Card class="border-dashed">
-        <div class="p-4 border-b border-border/60">
-          <h2 class="text-sm font-medium text-foreground">Background Jobs</h2>
-          <p class="text-xs text-muted-foreground mt-1">Current scheduler and worker visibility</p>
-        </div>
-        <div class="p-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <Show
-            when={!props.state.jobsQuery.isLoading}
-            fallback={<For each={[1, 2, 3, 4]}>{() => <Skeleton class="h-24 w-full" />}</For>}
-          >
-            <Show
-              when={(props.state.jobsQuery.data?.length ?? 0) > 0}
-              fallback={<div class="text-sm text-muted-foreground">No background job data yet</div>}
-            >
-              <For each={props.state.jobsQuery.data}>
-                {(job) => <BackgroundJobCard job={job} formatTimestamp={formatLogTimestamp} />}
-              </For>
-            </Show>
-          </Show>
+        <div className="p-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+          {props.state.dashboardQuery.data ? (
+            <>
+              <DashboardMetricCard label="Queued" value={props.state.dashboardQuery.data.queued_downloads} />
+              <DashboardMetricCard label="Active" value={props.state.dashboardQuery.data.active_downloads} />
+              <DashboardMetricCard
+                label="Failed"
+                value={props.state.dashboardQuery.data.failed_downloads}
+                highlight="text-error"
+              />
+              <DashboardMetricCard
+                label="Imported"
+                value={props.state.dashboardQuery.data.imported_downloads}
+                highlight="text-success"
+              />
+              <DashboardMetricCard
+                label="Running Jobs"
+                value={props.state.dashboardQuery.data.running_jobs}
+                highlight="text-info"
+              />
+            </>
+          ) : (
+            Array.from({ length: 5 }).map((_, index) => (
+              <Skeleton key={`ops-metric-skeleton-${index}`} className="h-20 w-full" />
+            ))
+          )}
         </div>
       </Card>
 
-      <Card class="border-dashed">
-        <div class="p-4 border-b border-border/60">
-          <div class="flex flex-col gap-3">
+      <Card className="border-dashed">
+        <div className="p-4 border-b border-border/60">
+          <h2 className="text-sm font-medium text-foreground">Background Jobs</h2>
+          <p className="text-xs text-muted-foreground mt-1">Current scheduler and worker visibility</p>
+        </div>
+        <div className="p-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {!props.state.jobsQuery.isLoading ? (
+            (props.state.jobsQuery.data?.length ?? 0) > 0 ? (
+              props.state.jobsQuery.data?.map((job) => (
+                <BackgroundJobCard key={job.name} job={job} formatTimestamp={formatLogTimestamp} />
+              ))
+            ) : (
+              <div className="text-sm text-muted-foreground">No background job data yet</div>
+            )
+          ) : (
+            Array.from({ length: 4 }).map((_, index) => (
+              <Skeleton key={`jobs-skeleton-${index}`} className="h-24 w-full" />
+            ))
+          )}
+        </div>
+      </Card>
+
+      <Card className="border-dashed">
+        <div className="p-4 border-b border-border/60">
+          <div className="flex flex-col gap-3">
             <div>
-              <h2 class="text-sm font-medium text-foreground">Recent Download Events</h2>
-              <p class="text-xs text-muted-foreground mt-1">
+              <h2 className="text-sm font-medium text-foreground">Recent Download Events</h2>
+              <p className="text-xs text-muted-foreground mt-1">
                 Latest queued, retried, reconciled, and imported download actions
               </p>
             </div>
             <DownloadEventsFilters
               eventTypeSelectId="download-event-type"
-              value={props.state.downloadEventsSearchState.filterValue()}
+              value={props.state.downloadEventsSearchState.filterValue}
               onFieldChange={props.state.downloadEventsSearchState.updateFilter}
               onApplyPreset={props.state.downloadEventsSearchState.applyDateRangePreset}
-              activePreset={props.state.downloadEventsSearchState.activePreset()}
+              activePreset={props.state.downloadEventsSearchState.activePreset}
               onClear={props.state.downloadEventsSearchState.resetFilters}
               clearLabel="Reset"
               onExport={props.state.exportDownloadEvents}
               showPagination
               onPrevious={props.state.goToPreviousDownloadEventsPage}
-              previousDisabled={!props.state.canGoToPreviousDownloadEventsPage()}
+              previousDisabled={!props.state.canGoToPreviousDownloadEventsPage}
               onNext={props.state.goToNextDownloadEventsPage}
-              nextDisabled={!props.state.canGoToNextDownloadEventsPage()}
+              nextDisabled={!props.state.canGoToNextDownloadEventsPage}
             />
-            <Show when={props.state.lastDownloadEventsExport()?.truncated}>
-              <div class="rounded-md border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-warning">
+            {props.state.lastDownloadEventsExport?.truncated && (
+              <div className="rounded-md border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-warning">
                 Last export was truncated: exported
-                {props.state.lastDownloadEventsExport()?.exported} of
-                {props.state.lastDownloadEventsExport()?.total} events (limit{" "}
-                {props.state.lastDownloadEventsExport()?.limit}).
+                {props.state.lastDownloadEventsExport?.exported} of
+                {props.state.lastDownloadEventsExport?.total} events (limit{" "}
+                {props.state.lastDownloadEventsExport?.limit}).
               </div>
-            </Show>
+            )}
           </div>
         </div>
-        <Show
-          when={props.state.downloadEventsQuery.data?.events.length}
-          fallback={<div class="p-4 text-sm text-muted-foreground">No recent download events</div>}
-        >
-          <div class="px-4 pt-3 pb-1 text-xs text-muted-foreground">
-            Showing {props.state.downloadEventsQuery.data?.events.length ?? 0} of{" "}
-            {props.state.downloadEventsQuery.data?.total ?? 0} events
-          </div>
-          <DownloadEventsList
-            events={props.state.downloadEventsQuery.data?.events ?? []}
-            formatTimestamp={formatLogTimestamp}
-            onSelectEvent={props.state.setSelectedDownloadEvent}
-            hideCount
-          />
-        </Show>
+        {props.state.downloadEventsQuery.data?.events.length ? (
+          <>
+            <div className="px-4 pt-3 pb-1 text-xs text-muted-foreground">
+              Showing {props.state.downloadEventsQuery.data.events.length} of{" "}
+              {props.state.downloadEventsQuery.data.total ?? 0} events
+            </div>
+            <DownloadEventsList
+              events={props.state.downloadEventsQuery.data.events}
+              formatTimestamp={formatLogTimestamp}
+              onSelectEvent={props.state.setSelectedDownloadEvent}
+              hideCount
+            />
+          </>
+        ) : (
+          <div className="p-4 text-sm text-muted-foreground">No recent download events</div>
+        )}
       </Card>
 
-      <Card class="border-primary/20 flex-1 min-h-0 flex flex-col overflow-hidden">
+      <Card className="border-primary/20 flex-1 min-h-0 flex flex-col overflow-hidden">
         <SystemLogsTable
-          logs={props.state.allLogs()}
+          logs={props.state.allLogs}
           isLoading={props.state.logsQuery.isLoading}
           isError={props.state.logsQuery.isError}
           hasNextPage={props.state.logsQuery.hasNextPage}
@@ -258,7 +257,7 @@ export function LogsView(props: LogsViewProps) {
       </Card>
 
       <LogDetailsDialog
-        log={props.state.selectedLog()}
+        log={props.state.selectedLog}
         formatTimestamp={formatLogTimestamp}
         onOpenChange={(open) => {
           if (!open) {
@@ -268,7 +267,7 @@ export function LogsView(props: LogsViewProps) {
       />
 
       <DownloadEventDetailsDialog
-        event={props.state.selectedDownloadEvent()}
+        event={props.state.selectedDownloadEvent}
         formatTimestamp={formatLogTimestamp}
         onOpenChange={(open) => !open && props.state.setSelectedDownloadEvent(null)}
       />

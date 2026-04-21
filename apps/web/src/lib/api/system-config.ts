@@ -4,8 +4,8 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
-} from "@tanstack/solid-query";
-import { toast } from "solid-sonner";
+} from "@tanstack/react-query";
+import { toast } from "sonner";
 import type {
   AsyncOperationAccepted,
   BackgroundJobStatus,
@@ -25,16 +25,16 @@ export function systemConfigQueryOptions() {
   });
 }
 
-export function createSystemConfigQuery(enabled: () => boolean = () => true) {
-  return useQuery(() => ({
+export function createSystemConfigQuery(enabled: boolean = true) {
+  return useQuery({
     ...systemConfigQueryOptions(),
-    enabled: enabled(),
-  }));
+    enabled,
+  });
 }
 
 export function createUpdateSystemConfigMutation() {
   const queryClient = useQueryClient();
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: (data: Config) =>
       fetchApi(`${API_BASE}/system/config`, {
         method: "PUT",
@@ -43,7 +43,7 @@ export function createUpdateSystemConfigMutation() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: animeKeys.system.config() });
     },
-  }));
+  });
 }
 
 export function systemStatusQueryOptions() {
@@ -55,12 +55,12 @@ export function systemStatusQueryOptions() {
 }
 
 export function createSystemStatusQuery() {
-  return useQuery(systemStatusQueryOptions);
+  return useQuery(systemStatusQueryOptions());
 }
 
 export function createTriggerScanMutation() {
   const queryClient = useQueryClient();
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: () =>
       fetchApi<AsyncOperationAccepted>(`${API_BASE}/system/tasks/scan`, { method: "POST" }),
     onSuccess: (accepted) => {
@@ -72,12 +72,12 @@ export function createTriggerScanMutation() {
         });
       }
     },
-  }));
+  });
 }
 
 export function createTriggerRssCheckMutation() {
   const queryClient = useQueryClient();
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: () =>
       fetchApi<AsyncOperationAccepted>(`${API_BASE}/system/tasks/rss`, { method: "POST" }),
     onSuccess: (accepted) => {
@@ -89,12 +89,12 @@ export function createTriggerRssCheckMutation() {
         });
       }
     },
-  }));
+  });
 }
 
 export function createTriggerMetadataRefreshMutation() {
   const queryClient = useQueryClient();
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: () =>
       fetchApi<AsyncOperationAccepted>(`${API_BASE}/system/tasks/metadata-refresh`, {
         method: "POST",
@@ -108,7 +108,7 @@ export function createTriggerMetadataRefreshMutation() {
         });
       }
     },
-  }));
+  });
 }
 
 export function systemJobsQueryOptions() {
@@ -126,7 +126,7 @@ export function systemJobsQueryOptions() {
 }
 
 export function createSystemJobsQuery() {
-  return useQuery(systemJobsQueryOptions);
+  return useQuery(systemJobsQueryOptions());
 }
 
 export function systemDashboardQueryOptions() {
@@ -139,5 +139,5 @@ export function systemDashboardQueryOptions() {
 }
 
 export function createSystemDashboardQuery() {
-  return useQuery(() => systemDashboardQueryOptions());
+  return useQuery(systemDashboardQueryOptions());
 }

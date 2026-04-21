@@ -1,12 +1,5 @@
-import {
-  IconAlertTriangle,
-  IconDownload,
-  IconLoader2,
-  IconPlug,
-  IconVideo,
-} from "@tabler/icons-solidjs";
+import { WarningIcon, DownloadIcon, SpinnerIcon, PlugIcon, VideoIcon } from "@phosphor-icons/react";
 import { formatDistanceToNow } from "date-fns";
-import { For, Show } from "solid-js";
 import {
   ReleasePeersCell,
   ReleasePrimaryCell,
@@ -45,32 +38,57 @@ interface SearchModalContentProps {
 
 export function SearchModalContent(props: SearchModalContentProps) {
   return (
-    <DialogContent class="sm:max-w-7xl w-full max-h-[85vh] flex flex-col">
+    <DialogContent className="sm:max-w-7xl w-full max-h-[85vh] flex flex-col">
       <DialogHeader>
         <DialogTitle>Manual Search</DialogTitle>
         <DialogDescription>
           Searching for Episode {props.episodeNumber}
-          <Show when={props.episodeTitle}>- {props.episodeTitle}</Show>
+          {props.episodeTitle && `- ${props.episodeTitle}`}
         </DialogDescription>
       </DialogHeader>
 
-      <div class="flex-1 overflow-hidden min-h-[200px] flex flex-col">
-        <Show
-          when={!props.state.searchQuery.isLoading}
-          fallback={
-            <div class="h-full flex flex-col items-center justify-center gap-4 py-8">
-              <IconLoader2 class="h-8 w-8 animate-spin text-muted-foreground" />
-              <p class="text-muted-foreground">Searching releases...</p>
-            </div>
-          }
-        >
-          <Show
-            when={!props.state.searchQuery.error}
-            fallback={
-              <div class="flex flex-col items-center justify-center flex-1 text-error gap-2">
-                <IconAlertTriangle class="h-8 w-8" />
+      <div className="flex-1 overflow-hidden min-h-[200px] flex flex-col">
+        {!props.state.searchQuery.isLoading ? (
+          <>
+            {!props.state.searchQuery.error ? (
+              <>
+                {props.state.searchQuery.data && props.state.searchQuery.data.length > 0 ? (
+                  <div className="flex-1 border rounded-none overflow-auto">
+                    <Table>
+                      <TableHeader className="bg-muted/50 sticky top-0 z-10 shadow-sm">
+                        <TableRow>
+                          <TableHead>Release</TableHead>
+                          <TableHead className="w-[100px]">Indexer</TableHead>
+                          <TableHead className="w-[80px]">Size</TableHead>
+                          <TableHead className="w-[80px]">Peers</TableHead>
+                          <TableHead className="w-[120px]">Profile</TableHead>
+                          <TableHead className="w-[100px]">Action</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {props.state.searchQuery.data.map((release) => (
+                          <SearchReleaseRow
+                            key={release.info_hash ?? release.title}
+                            release={release}
+                            onDownload={props.state.handleDownload}
+                            isDownloading={props.state.grabRelease.isPending}
+                          />
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center flex-1 text-muted-foreground">
+                    <VideoIcon className="h-12 w-12 opacity-20" />
+                    <p className="mt-2">No releases found</p>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center flex-1 text-error gap-2">
+                <WarningIcon className="h-8 w-8" />
                 <p>Error searching for releases</p>
-                <p class="text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   {props.state.searchQuery.error instanceof Error
                     ? props.state.searchQuery.error.message
                     : String(props.state.searchQuery.error)}
@@ -81,50 +99,19 @@ export function SearchModalContent(props: SearchModalContentProps) {
                   onClick={() => {
                     void props.state.searchQuery.refetch();
                   }}
-                  class="mt-2"
+                  className="mt-2"
                 >
                   Retry
                 </Button>
               </div>
-            }
-          >
-            <Show
-              when={props.state.searchQuery.data && props.state.searchQuery.data.length > 0}
-              fallback={
-                <div class="flex flex-col items-center justify-center flex-1 text-muted-foreground">
-                  <IconVideo class="h-12 w-12 opacity-20" />
-                  <p class="mt-2">No releases found</p>
-                </div>
-              }
-            >
-              <div class="flex-1 border rounded-none overflow-auto">
-                <Table>
-                  <TableHeader class="bg-muted/50 sticky top-0 z-10 shadow-sm">
-                    <TableRow>
-                      <TableHead>Release</TableHead>
-                      <TableHead class="w-[100px]">Indexer</TableHead>
-                      <TableHead class="w-[80px]">Size</TableHead>
-                      <TableHead class="w-[80px]">Peers</TableHead>
-                      <TableHead class="w-[120px]">Profile</TableHead>
-                      <TableHead class="w-[100px]">Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    <For each={props.state.searchQuery.data}>
-                      {(release) => (
-                        <SearchReleaseRow
-                          release={release}
-                          onDownload={props.state.handleDownload}
-                          isDownloading={props.state.grabRelease.isPending}
-                        />
-                      )}
-                    </For>
-                  </TableBody>
-                </Table>
-              </div>
-            </Show>
-          </Show>
-        </Show>
+            )}
+          </>
+        ) : (
+          <div className="h-full flex flex-col items-center justify-center gap-4 py-8">
+            <SpinnerIcon className="h-8 w-8 animate-spin text-muted-foreground" />
+            <p className="text-muted-foreground">Searching releases...</p>
+          </div>
+        )}
       </div>
     </DialogContent>
   );
@@ -155,15 +142,15 @@ function SearchReleaseRow(props: {
   const releaseConfidence = getReleaseConfidence(releaseDisplay.confidence);
 
   return (
-    <TableRow class={cn("group", isRejected && "opacity-60 bg-muted/20")}>
-      <TableCell class="font-medium max-w-[300px]">
+    <TableRow className={cn("group", isRejected && "opacity-60 bg-muted/20")}>
+      <TableCell className="font-medium max-w-[300px]">
         <ReleasePrimaryCell
           title={props.release.title}
           sourceUrl={props.release.view_url}
           titleClass="line-clamp-2 text-sm break-all hover:text-primary transition-colors"
           summaryCompact
           metadataPrefix={
-            <span class="flex items-center gap-1">
+            <span className="flex items-center gap-1">
               {formatDistanceToNow(new Date(props.release.publish_date), { addSuffix: true })}
             </span>
           }
@@ -180,9 +167,9 @@ function SearchReleaseRow(props: {
           confidence={releaseConfidence}
         />
       </TableCell>
-      <TableCell class="text-xs">{props.release.indexer}</TableCell>
-      <TableCell class="text-xs font-mono">{formatSize(props.release.size)}</TableCell>
-      <TableCell class="text-xs">
+      <TableCell className="text-xs">{props.release.indexer}</TableCell>
+      <TableCell className="text-xs font-mono">{formatSize(props.release.size)}</TableCell>
+      <TableCell className="text-xs">
         <ReleasePeersCell
           seeders={props.release.seeders}
           leechers={props.release.leechers}
@@ -190,16 +177,16 @@ function SearchReleaseRow(props: {
         />
       </TableCell>
       <TableCell>
-        <Badge variant="secondary" class="w-fit text-xs">
+        <Badge variant="secondary" className="w-fit text-xs">
           {props.release.quality}
         </Badge>
       </TableCell>
       <TableCell>
-        <div class="flex flex-col gap-1 items-end">
+        <div className="flex flex-col gap-1 items-end">
           <Button
             size="sm"
             variant={isRejected ? "ghost" : "default"}
-            class={cn(
+            className={cn(
               "h-7 w-full gap-1 text-xs",
               action.Accept && "bg-success hover:bg-success text-success-foreground",
               action.Upgrade && "bg-info hover:bg-info text-info-foreground",
@@ -208,19 +195,21 @@ function SearchReleaseRow(props: {
             onClick={() => props.onDownload(props.release)}
             disabled={props.isDownloading}
           >
-            <Show when={!props.isDownloading} fallback={<IconPlug class="h-3 w-3 animate-spin" />}>
-              <IconDownload class="h-3.5 w-3.5" />
-            </Show>
+            {props.isDownloading ? (
+              <PlugIcon className="h-3 w-3 animate-spin" />
+            ) : (
+              <DownloadIcon className="h-3.5 w-3.5" />
+            )}
             {isRejected ? "Force" : "Grab"}
           </Button>
-          <Show when={reason}>
+          {reason && (
             <span
-              class="text-xs text-error text-right leading-tight max-w-[100px]"
+              className="text-xs text-error text-right leading-tight max-w-[100px]"
               title={reason || ""}
             >
               {reason}
             </span>
-          </Show>
+          )}
         </div>
       </TableCell>
     </TableRow>

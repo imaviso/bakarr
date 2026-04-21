@@ -1,4 +1,4 @@
-import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/solid-query";
+import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CalendarEvent, RssFeed, RssFeedCreateRequest } from "./contracts";
 import { API_BASE, fetchApi } from "./client";
 import { animeKeys } from "./keys";
@@ -12,7 +12,7 @@ export function rssFeedsQueryOptions() {
 }
 
 export function createRssFeedsQuery() {
-  return useQuery(rssFeedsQueryOptions);
+  return useQuery(rssFeedsQueryOptions());
 }
 
 export function animeRssFeedsQueryOptions(animeId: number) {
@@ -24,16 +24,16 @@ export function animeRssFeedsQueryOptions(animeId: number) {
   });
 }
 
-export function createAnimeRssFeedsQuery(animeId: () => number) {
-  return useQuery(() => ({
-    ...animeRssFeedsQueryOptions(animeId()),
-    enabled: !!animeId(),
-  }));
+export function createAnimeRssFeedsQuery(animeId: number) {
+  return useQuery({
+    ...animeRssFeedsQueryOptions(animeId),
+    enabled: !!animeId,
+  });
 }
 
 export function createAddRssFeedMutation() {
   const queryClient = useQueryClient();
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: (data: RssFeedCreateRequest) =>
       fetchApi<RssFeed>(`${API_BASE}/rss`, {
         method: "POST",
@@ -42,22 +42,22 @@ export function createAddRssFeedMutation() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: animeKeys.rss.all });
     },
-  }));
+  });
 }
 
 export function createDeleteRssFeedMutation() {
   const queryClient = useQueryClient();
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: (id: number) => fetchApi(`${API_BASE}/rss/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: animeKeys.rss.all });
     },
-  }));
+  });
 }
 
 export function createToggleRssFeedMutation() {
   const queryClient = useQueryClient();
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: ({ id, enabled }: { id: number; enabled: boolean }) =>
       fetchApi(`${API_BASE}/rss/${id}/toggle`, {
         method: "PUT",
@@ -66,7 +66,7 @@ export function createToggleRssFeedMutation() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: animeKeys.rss.all });
     },
-  }));
+  });
 }
 
 export function calendarQueryOptions(start: Date, end: Date) {
@@ -82,9 +82,9 @@ export function calendarQueryOptions(start: Date, end: Date) {
   });
 }
 
-export function createCalendarQuery(start: () => Date, end: () => Date) {
-  return useQuery(() => ({
-    ...calendarQueryOptions(start(), end()),
+export function createCalendarQuery(start: Date, end: Date) {
+  return useQuery({
+    ...calendarQueryOptions(start, end),
     placeholderData: (prev: CalendarEvent[] | undefined) => prev,
-  }));
+  });
 }

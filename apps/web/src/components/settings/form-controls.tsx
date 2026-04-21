@@ -1,4 +1,4 @@
-import { createEffect, createSignal, Show, type JSX } from "solid-js";
+import { useEffect, useState, type ReactNode } from "react";
 import { Input } from "~/components/ui/input";
 import {
   Select,
@@ -7,10 +7,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
-import { TextField, TextFieldTextArea } from "~/components/ui/text-field";
+import { Textarea } from "~/components/ui/textarea";
 import { cn } from "~/lib/utils";
 
-function parseSizeUnit(value: string): "MB" | "GB" | undefined {
+function parseSizeUnit(value: string | null): "MB" | "GB" | undefined {
   if (value === "MB" || value === "mb") {
     return "MB";
   }
@@ -26,34 +26,57 @@ export function SizeInput(props: {
   onChange: (value: string | undefined) => void;
   value: string;
 }) {
-  const [amount, setAmount] = createSignal<string>("");
-  const [unit, setUnit] = createSignal<"MB" | "GB">("MB");
-  const [isAmountFocused, setIsAmountFocused] = createSignal(false);
+  const [sizeValue, setSizeValue] = useState<{ amount: string; unit: "MB" | "GB" }>({
+    amount: "",
+    unit: "MB",
+  });
+  const [isAmountFocused, setIsAmountFocused] = useState(false);
 
-  createEffect(() => {
-    if (isAmountFocused()) {
+  const amount = sizeValue.amount;
+  const unit = sizeValue.unit;
+
+  useEffect(() => {
+    let nextSizeValue: { amount: string; unit: "MB" | "GB" } | null = null;
+
+    if (isAmountFocused) {
       return;
     }
 
     const match = props.value.match(/^(\d+(?:\.\d+)?)\s*(MB|GB)$/i);
     if (!match) {
-      if (amount() !== "") {
-        setAmount("");
+      if (amount !== "") {
+        nextSizeValue = {
+          amount: "",
+          unit,
+        };
+      }
+
+      if (nextSizeValue !== null) {
+        setSizeValue(nextSizeValue);
       }
       return;
     }
 
     const [matchedAmount, matchedUnit] = match.slice(1);
-    if (matchedAmount && amount() !== matchedAmount) {
-      setAmount(matchedAmount);
-    }
     const parsedUnit = matchedUnit ? parseSizeUnit(matchedUnit) : undefined;
-    if (parsedUnit && unit() !== parsedUnit) {
-      setUnit(parsedUnit);
-    }
-  });
 
-  const updateValue = (nextAmount = amount(), nextUnit = unit()) => {
+    if (!matchedAmount || !parsedUnit) {
+      return;
+    }
+
+    if (amount !== matchedAmount || unit !== parsedUnit) {
+      nextSizeValue = {
+        amount: matchedAmount,
+        unit: parsedUnit,
+      };
+    }
+
+    if (nextSizeValue !== null) {
+      setSizeValue(nextSizeValue);
+    }
+  }, [props.value, isAmountFocused, amount, unit]);
+
+  const updateValue = (nextAmount = amount, nextUnit = unit) => {
     const numericAmount = nextAmount;
     if (numericAmount && !Number.isNaN(Number(numericAmount)) && Number(numericAmount) > 0) {
       props.onChange(`${numericAmount} ${nextUnit}`);
@@ -65,52 +88,57 @@ export function SizeInput(props: {
   const inputId = `size-input-${props.label.toLowerCase().replace(/\s+/g, "-")}`;
 
   return (
-    <div class="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-1.5">
       <label
-        for={inputId}
-        class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+        htmlFor={inputId}
+        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
       >
         {props.label}
       </label>
-      <div class="flex gap-2">
+      <div className="flex gap-2">
         <Input
           id={inputId}
           type="number"
           min="0"
           step="0.1"
-          value={amount()}
+          value={amount}
           onFocus={() => setIsAmountFocused(true)}
           onInput={(event) => {
             const nextAmount = event.currentTarget.value;
-            setAmount(nextAmount);
-            updateValue(nextAmount, unit());
+            setSizeValue((prev) => ({
+              ...prev,
+              amount: nextAmount,
+            }));
+            updateValue(nextAmount, unit);
           }}
           onBlur={() => setIsAmountFocused(false)}
           placeholder="0"
-          class="flex-1"
+          className="flex-1"
         />
         <Select
-          value={unit()}
-          onChange={(value) => {
-            if (value) {
-              setUnit(value);
-              updateValue(amount(), value);
+          value={unit}
+          onValueChange={(value) => {
+            const parsedUnit = parseSizeUnit(value);
+            if (parsedUnit === undefined) {
+              return;
             }
+            setSizeValue((prev) => ({
+              ...prev,
+              unit: parsedUnit,
+            }));
+            updateValue(amount, parsedUnit);
           }}
-          options={["MB", "GB"]}
-          itemComponent={(itemProps) => (
-            <SelectItem item={itemProps.item}>{itemProps.item.rawValue}</SelectItem>
-          )}
         >
-          <SelectTrigger class="w-20">
-            <SelectValue<string>>{(state) => state.selectedOption()}</SelectValue>
+          <SelectTrigger className="w-20">
+            <SelectValue />
           </SelectTrigger>
-          <SelectContent />
+          <SelectContent>
+            <SelectItem value="MB">MB</SelectItem>
+            <SelectItem value="GB">GB</SelectItem>
+          </SelectContent>
         </Select>
       </div>
-      <Show when={props.error}>
-        <div class="text-[0.8rem] text-destructive">{props.error}</div>
-      </Show>
+      {props.error && <div className="text-[0.8rem] text-destructive">{props.error}</div>}
     </div>
   );
 }
@@ -125,16 +153,15 @@ function parseFiniteNumber(value: string): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-function createBufferedTextState(initialValue: () => string) {
-  const [text, setText] = createSignal(initialValue());
-  const [isFocused, setIsFocused] = createSignal(false);
+function useBufferedTextState(value: string) {
+  const [text, setText] = useState(value);
+  const [isFocused, setIsFocused] = useState(false);
 
-  createEffect(() => {
-    const next = initialValue();
-    if (!isFocused() && text() !== next) {
-      setText(next);
+  useEffect(() => {
+    if (!isFocused && text !== value) {
+      setText(value);
     }
-  });
+  }, [value, isFocused, text]);
 
   return {
     isFocused,
@@ -145,7 +172,7 @@ function createBufferedTextState(initialValue: () => string) {
 }
 
 export function FiniteNumberInput(props: {
-  class?: string;
+  className?: string;
   fallbackValue?: number;
   max?: number | string;
   min?: number | string;
@@ -153,8 +180,8 @@ export function FiniteNumberInput(props: {
   step?: number | string;
   value: number | undefined;
 }) {
-  const toDisplayValue = () => String(props.value ?? props.fallbackValue ?? 0);
-  const buffered = createBufferedTextState(toDisplayValue);
+  const displayValue = String(props.value ?? props.fallbackValue ?? 0);
+  const buffered = useBufferedTextState(displayValue);
 
   return (
     <Input
@@ -162,7 +189,7 @@ export function FiniteNumberInput(props: {
       {...(props.min === undefined ? {} : { min: props.min })}
       {...(props.max === undefined ? {} : { max: props.max })}
       {...(props.step === undefined ? {} : { step: props.step })}
-      value={buffered.text()}
+      value={buffered.text}
       onFocus={() => buffered.setIsFocused(true)}
       onInput={(event) => {
         const next = event.currentTarget.value;
@@ -176,46 +203,46 @@ export function FiniteNumberInput(props: {
       onBlur={() => {
         buffered.setIsFocused(false);
 
-        const parsed = parseFiniteNumber(buffered.text());
+        const parsed = parseFiniteNumber(buffered.text);
         if (parsed === undefined) {
-          buffered.setText(toDisplayValue());
+          buffered.setText(displayValue);
           return;
         }
 
         props.onChange(parsed);
         buffered.setText(String(parsed));
       }}
-      class={props.class}
+      className={props.className}
     />
   );
 }
 
 export function SettingRow(props: {
-  children: JSX.Element;
-  class?: string;
+  children: ReactNode;
+  className?: string;
   description?: string;
   label: string;
 }) {
   return (
-    <div class={cn("flex items-center justify-between py-3 gap-8", props.class)}>
-      <div class="flex-1 min-w-0">
-        <div class="text-sm font-medium text-foreground">{props.label}</div>
-        <Show when={props.description}>
-          <div class="text-xs text-muted-foreground mt-0.5">{props.description}</div>
-        </Show>
+    <div className={cn("flex items-center justify-between py-3 gap-8", props.className)}>
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-medium text-foreground">{props.label}</div>
+        {props.description && (
+          <div className="text-xs text-muted-foreground mt-0.5">{props.description}</div>
+        )}
       </div>
-      <div class="shrink-0">{props.children}</div>
+      <div className="shrink-0">{props.children}</div>
     </div>
   );
 }
 
-export function SettingSection(props: { children: JSX.Element; title: string }) {
+export function SettingSection(props: { children: ReactNode; title: string }) {
   return (
-    <div class="space-y-1">
-      <div class="text-xs font-medium text-muted-foreground uppercase tracking-wider px-0.5 mb-3">
+    <div className="space-y-1">
+      <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-0.5 mb-3">
         {props.title}
       </div>
-      <div class="divide-y divide-border/50">{props.children}</div>
+      <div className="divide-y divide-border/50">{props.children}</div>
     </div>
   );
 }
@@ -225,41 +252,48 @@ function formatStringList(values: string[]) {
 }
 
 function parseStringList(value: string, splitOnComma: boolean) {
-  return value
-    .split(/\n/g)
-    .flatMap((line) => (splitOnComma ? line.split(",") : [line]))
-    .map((item) => item.trim())
-    .filter(Boolean);
+  const parsed: string[] = [];
+
+  for (const line of value.split(/\n/g)) {
+    const items = splitOnComma ? line.split(",") : [line];
+    for (const item of items) {
+      const trimmed = item.trim();
+      if (trimmed.length > 0) {
+        parsed.push(trimmed);
+      }
+    }
+  }
+
+  return parsed;
 }
 
 export function StringListEditor(props: {
-  class?: string;
+  className?: string;
   onChange: (value: string[]) => void;
   placeholder?: string;
   rows?: number;
   splitOnComma?: boolean;
   value: string[];
 }) {
-  const buffered = createBufferedTextState(() => formatStringList(props.value));
+  const buffered = useBufferedTextState(formatStringList(props.value));
 
   const commit = () => {
-    props.onChange(parseStringList(buffered.text(), props.splitOnComma ?? false));
+    props.onChange(parseStringList(buffered.text, props.splitOnComma ?? false));
   };
 
   return (
-    <TextField class={props.class}>
-      <TextFieldTextArea
-        value={buffered.text()}
-        rows={props.rows ?? 4}
-        placeholder={props.placeholder}
-        onFocus={() => buffered.setIsFocused(true)}
-        onInput={(event) => buffered.setText(event.currentTarget.value)}
-        onBlur={() => {
-          buffered.setIsFocused(false);
-          commit();
-        }}
-      />
-    </TextField>
+    <Textarea
+      className={props.className}
+      value={buffered.text}
+      rows={props.rows ?? 4}
+      placeholder={props.placeholder}
+      onFocus={() => buffered.setIsFocused(true)}
+      onInput={(event) => buffered.setText(event.currentTarget.value)}
+      onBlur={() => {
+        buffered.setIsFocused(false);
+        commit();
+      }}
+    />
   );
 }
 
@@ -268,39 +302,47 @@ function formatPathMappings(values: string[][]) {
 }
 
 function parsePathMappings(value: string) {
-  return value
-    .split(/\n/g)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const [from, ...rest] = line.split("=>");
-      return [from?.trim() ?? "", rest.join("=>").trim()] as [string, string];
-    })
-    .filter(([from, to]) => from.length > 0 && to.length > 0);
+  const mappings: [string, string][] = [];
+
+  for (const line of value.split(/\n/g)) {
+    const trimmedLine = line.trim();
+    if (trimmedLine.length === 0) {
+      continue;
+    }
+
+    const [from, ...rest] = trimmedLine.split("=>");
+    const mappedFrom = from?.trim() ?? "";
+    const mappedTo = rest.join("=>").trim();
+
+    if (mappedFrom.length > 0 && mappedTo.length > 0) {
+      mappings.push([mappedFrom, mappedTo]);
+    }
+  }
+
+  return mappings;
 }
 
 export function PathMappingsEditor(props: {
-  class?: string;
+  className?: string;
   onChange: (value: string[][]) => void;
   placeholder?: string;
   rows?: number;
   value: string[][];
 }) {
-  const buffered = createBufferedTextState(() => formatPathMappings(props.value));
+  const buffered = useBufferedTextState(formatPathMappings(props.value));
 
   return (
-    <TextField class={props.class}>
-      <TextFieldTextArea
-        value={buffered.text()}
-        rows={props.rows ?? 4}
-        placeholder={props.placeholder}
-        onFocus={() => buffered.setIsFocused(true)}
-        onInput={(event) => buffered.setText(event.currentTarget.value)}
-        onBlur={() => {
-          buffered.setIsFocused(false);
-          props.onChange(parsePathMappings(buffered.text()));
-        }}
-      />
-    </TextField>
+    <Textarea
+      className={props.className}
+      value={buffered.text}
+      rows={props.rows ?? 4}
+      placeholder={props.placeholder}
+      onFocus={() => buffered.setIsFocused(true)}
+      onInput={(event) => buffered.setText(event.currentTarget.value)}
+      onBlur={() => {
+        buffered.setIsFocused(false);
+        props.onChange(parsePathMappings(buffered.text));
+      }}
+    />
   );
 }

@@ -1,13 +1,13 @@
 import {
-  IconCalendarEvent,
-  IconCheck,
-  IconDeviceTv,
-  IconFolder,
-  IconLoader2,
-  IconPlus,
-} from "@tabler/icons-solidjs";
-import { createForm } from "@tanstack/solid-form";
-import { createMemo, For, Show } from "solid-js";
+  CalendarIcon,
+  CheckIcon,
+  TelevisionIcon,
+  FolderIcon,
+  SpinnerIcon,
+  PlusIcon,
+} from "@phosphor-icons/react";
+import { useForm } from "@tanstack/react-form";
+import { useMemo } from "react";
 import * as v from "valibot";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
@@ -26,7 +26,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
-import { TextField, TextFieldInput, TextFieldLabel } from "~/components/ui/text-field";
+import { Input } from "~/components/ui/input";
+import { Label } from "~/components/ui/label";
 import {
   type AnimeSearchResult,
   createAddAnimeMutation,
@@ -61,15 +62,16 @@ export interface AddAnimeDialogProps {
 
 export function AddAnimeDialog(props: AddAnimeDialogProps) {
   // Only fetch when dialog is open to prevent eager fetching
-  const profilesQuery = createProfilesQuery(() => props.open);
-  const releaseProfilesQuery = createReleaseProfilesQuery(() => props.open);
-  const configQuery = createSystemConfigQuery(() => props.open);
+  const profilesQuery = createProfilesQuery(props.open);
+  const releaseProfilesQuery = createReleaseProfilesQuery(props.open);
+  const configQuery = createSystemConfigQuery(props.open);
 
   // 1. Derive readiness state
-  const isReady = createMemo(
+  const isReady = useMemo(
     () => profilesQuery.isSuccess && configQuery.isSuccess && releaseProfilesQuery.isSuccess,
+    [profilesQuery.isSuccess, configQuery.isSuccess, releaseProfilesQuery.isSuccess],
   );
-  const metadataChips = createMemo(() => {
+  const metadataChips = useMemo(() => {
     const chips: string[] = [];
 
     if (props.anime.format) {
@@ -91,133 +93,134 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
     }
 
     return chips;
-  });
+  }, [props.anime]);
 
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-      <DialogContent class="sm:max-w-[550px]">
+      <DialogContent className="sm:max-w-[550px]">
         <DialogHeader>
-          <DialogTitle class="flex items-center gap-3">
-            <Show
-              when={props.anime.cover_image}
-              fallback={
-                <div class="w-12 h-16 bg-muted rounded-none flex items-center justify-center">
-                  <IconDeviceTv class="h-6 w-6 text-muted-foreground" />
-                </div>
-              }
-            >
+          <DialogTitle className="flex items-center gap-3">
+            {props.anime.cover_image ? (
               <img
                 src={props.anime.cover_image}
                 alt={props.anime.title.romaji}
-                class="w-12 h-16 object-cover rounded-none"
+                className="w-12 h-16 object-cover rounded-none"
               />
-            </Show>
-            <div class="flex-1 min-w-0">
-              <div class="truncate">{props.anime.title.romaji}</div>
-              <Show when={props.anime.title.english}>
-                <div class="text-sm text-muted-foreground font-normal truncate">
+            ) : (
+              <div className="w-12 h-16 bg-muted rounded-none flex items-center justify-center">
+                <TelevisionIcon className="h-6 w-6 text-muted-foreground" />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <div className="truncate">{props.anime.title.romaji}</div>
+              {props.anime.title.english && (
+                <div className="text-sm text-muted-foreground font-normal truncate">
                   {props.anime.title.english}
                 </div>
-              </Show>
-              <Show when={metadataChips().length > 0}>
-                <div class="mt-2 flex flex-wrap gap-1.5">
-                  <For each={metadataChips()}>
-                    {(chip) => (
-                      <div class="inline-flex items-center gap-1 rounded-none border px-2 py-0.5 text-xs text-muted-foreground">
-                        <Show when={chip.includes("/") || /^\d{4}$/.test(chip)}>
-                          <IconCalendarEvent class="h-3 w-3" />
-                        </Show>
-                        <span>{chip}</span>
-                      </div>
-                    )}
-                  </For>
+              )}
+              {metadataChips.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {metadataChips.map((chip) => (
+                    <div
+                      key={chip}
+                      className="inline-flex items-center gap-1 rounded-none border px-2 py-0.5 text-xs text-muted-foreground"
+                    >
+                      {(chip.includes("/") || /^\d{4}$/.test(chip)) && (
+                        <CalendarIcon className="h-3 w-3" />
+                      )}
+                      <span>{chip}</span>
+                    </div>
+                  ))}
                 </div>
-              </Show>
-              <Show when={props.anime.genres?.length}>
-                <div class="mt-2 flex flex-wrap gap-1.5">
-                  <For each={props.anime.genres?.slice(0, 3)}>
-                    {(genre) => (
-                      <div class="inline-flex items-center rounded-none border px-2 py-0.5 text-xs text-muted-foreground">
-                        {genre}
-                      </div>
-                    )}
-                  </For>
+              )}
+              {props.anime.genres && props.anime.genres.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {props.anime.genres.slice(0, 3).map((genre) => (
+                    <div
+                      key={genre}
+                      className="inline-flex items-center rounded-none border px-2 py-0.5 text-xs text-muted-foreground"
+                    >
+                      {genre}
+                    </div>
+                  ))}
                 </div>
-              </Show>
-              <Show when={props.anime.synonyms?.length}>
-                <div class="mt-2 text-[11px] text-muted-foreground line-clamp-2">
-                  Also known as {props.anime.synonyms?.slice(0, 3).join(" • ")}
+              )}
+              {props.anime.synonyms && props.anime.synonyms.length > 0 && (
+                <div className="mt-2 text-[11px] text-muted-foreground line-clamp-2">
+                  Also known as {props.anime.synonyms.slice(0, 3).join(" • ")}
                 </div>
-              </Show>
-              <Show when={props.anime.related_anime?.length}>
-                <div class="mt-2 flex flex-wrap gap-1.5">
-                  <For each={props.anime.related_anime?.slice(0, 2)}>
-                    {(related) => (
-                      <div class="inline-flex items-center rounded-none border px-2 py-0.5 text-xs text-muted-foreground">
-                        {[
-                          animeDisplayTitle(related),
-                          ...animeDiscoverySubtitle({
-                            ...(related.format === undefined ? {} : { format: related.format }),
-                            ...(related.relation_type === undefined
-                              ? {}
-                              : { relation_type: related.relation_type }),
-                            ...(related.season === undefined ? {} : { season: related.season }),
-                            ...(related.season_year === undefined
-                              ? {}
-                              : { season_year: related.season_year }),
-                            ...(related.start_year === undefined
-                              ? {}
-                              : { start_year: related.start_year }),
-                            ...(related.status === undefined ? {} : { status: related.status }),
-                          }),
-                        ]
-                          .filter(Boolean)
-                          .join(" - ")}
-                      </div>
-                    )}
-                  </For>
+              )}
+              {props.anime.related_anime && props.anime.related_anime.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {props.anime.related_anime.slice(0, 2).map((related) => (
+                    <div
+                      key={discoveryPreviewKey(related, "related")}
+                      className="inline-flex items-center rounded-none border px-2 py-0.5 text-xs text-muted-foreground"
+                    >
+                      {[
+                        animeDisplayTitle(related),
+                        ...animeDiscoverySubtitle({
+                          ...(related.format === undefined ? {} : { format: related.format }),
+                          ...(related.relation_type === undefined
+                            ? {}
+                            : { relation_type: related.relation_type }),
+                          ...(related.season === undefined ? {} : { season: related.season }),
+                          ...(related.season_year === undefined
+                            ? {}
+                            : { season_year: related.season_year }),
+                          ...(related.start_year === undefined
+                            ? {}
+                            : { start_year: related.start_year }),
+                          ...(related.status === undefined ? {} : { status: related.status }),
+                        }),
+                      ]
+                        .filter(Boolean)
+                        .join(" - ")}
+                    </div>
+                  ))}
                 </div>
-              </Show>
-              <Show when={props.anime.recommended_anime?.length}>
-                <div class="mt-2 flex flex-wrap gap-1.5">
-                  <For each={props.anime.recommended_anime?.slice(0, 2)}>
-                    {(recommended) => (
-                      <div class="inline-flex items-center rounded-none border px-2 py-0.5 text-xs text-muted-foreground">
-                        {[
-                          animeDisplayTitle(recommended),
-                          ...animeDiscoverySubtitle({
-                            ...(recommended.format === undefined
-                              ? {}
-                              : { format: recommended.format }),
-                            ...(recommended.relation_type === undefined
-                              ? {}
-                              : { relation_type: recommended.relation_type }),
-                            ...(recommended.season === undefined
-                              ? {}
-                              : { season: recommended.season }),
-                            ...(recommended.season_year === undefined
-                              ? {}
-                              : { season_year: recommended.season_year }),
-                            ...(recommended.start_year === undefined
-                              ? {}
-                              : { start_year: recommended.start_year }),
-                            ...(recommended.status === undefined
-                              ? {}
-                              : { status: recommended.status }),
-                          }),
-                        ]
-                          .filter(Boolean)
-                          .join(" - ")}
-                      </div>
-                    )}
-                  </For>
+              )}
+              {props.anime.recommended_anime && props.anime.recommended_anime.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {props.anime.recommended_anime.slice(0, 2).map((recommended) => (
+                    <div
+                      key={discoveryPreviewKey(recommended, "recommended")}
+                      className="inline-flex items-center rounded-none border px-2 py-0.5 text-xs text-muted-foreground"
+                    >
+                      {[
+                        animeDisplayTitle(recommended),
+                        ...animeDiscoverySubtitle({
+                          ...(recommended.format === undefined
+                            ? {}
+                            : { format: recommended.format }),
+                          ...(recommended.relation_type === undefined
+                            ? {}
+                            : { relation_type: recommended.relation_type }),
+                          ...(recommended.season === undefined
+                            ? {}
+                            : { season: recommended.season }),
+                          ...(recommended.season_year === undefined
+                            ? {}
+                            : { season_year: recommended.season_year }),
+                          ...(recommended.start_year === undefined
+                            ? {}
+                            : { start_year: recommended.start_year }),
+                          ...(recommended.status === undefined
+                            ? {}
+                            : { status: recommended.status }),
+                        }),
+                      ]
+                        .filter(Boolean)
+                        .join(" - ")}
+                    </div>
+                  ))}
                 </div>
-              </Show>
-              <Show when={props.anime.match_reason}>
-                <div class="mt-2 text-[11px] text-muted-foreground line-clamp-2">
+              )}
+              {props.anime.match_reason && (
+                <div className="mt-2 text-[11px] text-muted-foreground line-clamp-2">
                   {props.anime.match_reason}
                 </div>
-              </Show>
+              )}
             </div>
           </DialogTitle>
           <DialogDescription>
@@ -229,14 +232,7 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
 
         {/* 2. Only render form when dependencies are loaded */}
         {/* This avoids "Effect syncing" and ensures defaultValues are correct immediately */}
-        <Show
-          when={isReady()}
-          fallback={
-            <div class="h-64 flex items-center justify-center">
-              <IconLoader2 class="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-          }
-        >
+        {isReady ? (
           <AddAnimeForm
             anime={props.anime}
             rootFolder={configQuery.data?.library.library_path ?? ""}
@@ -249,7 +245,11 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
             }}
             onCancel={() => props.onOpenChange(false)}
           />
-        </Show>
+        ) : (
+          <div className="h-64 flex items-center justify-center">
+            <SpinnerIcon className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -270,7 +270,7 @@ interface AddAnimeFormProps {
 function AddAnimeForm(props: AddAnimeFormProps) {
   const addAnimeMutation = createAddAnimeMutation();
 
-  const form = createForm(() => ({
+  const form = useForm({
     // No effects needed. Data is passed as stable props.
     defaultValues: {
       root_folder: props.rootFolder,
@@ -293,151 +293,175 @@ function AddAnimeForm(props: AddAnimeFormProps) {
       });
       props.onSuccess();
     },
-  }));
+  });
+
+  const submitAddAnimeForm = async () => {
+    await form.handleSubmit();
+  };
 
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        void form.handleSubmit();
-      }}
-      class="space-y-5 py-4"
-    >
+    <form action={submitAddAnimeForm} className="space-y-5 py-4">
       <form.Field name="root_folder">
         {(field) => (
-          <TextField value={field().state.value} onChange={field().handleChange}>
-            <TextFieldLabel class="flex items-center gap-2">
-              <IconFolder class="h-4 w-4" />
+          <div className="space-y-2">
+            <Label htmlFor="add-anime-root-folder" className="flex items-center gap-2">
+              <FolderIcon className="h-4 w-4" />
               Root Folder
-            </TextFieldLabel>
-            <TextFieldInput placeholder="/path/to/library" />
-          </TextField>
+            </Label>
+            <Input
+              id="add-anime-root-folder"
+              value={field.state.value}
+              onChange={(event) => field.handleChange(event.currentTarget.value)}
+              placeholder="/path/to/library"
+            />
+          </div>
         )}
       </form.Field>
 
       <form.Field name="profile_name">
         {(field) => (
-          <div class="space-y-2">
-            <div class="text-sm font-medium">Quality Profile</div>
+          <div className="space-y-2">
+            <div className="text-sm font-medium">Quality Profile</div>
             <Select
-              value={field().state.value}
-              onChange={(val) => val && field().handleChange(val)}
-              options={props.profiles.map((p) => p.name)}
-              itemComponent={(itemProps) => (
-                <SelectItem item={itemProps.item}>{itemProps.item.rawValue}</SelectItem>
-              )}
+              value={field.state.value}
+              onValueChange={(value) => {
+                if (value !== null) {
+                  field.handleChange(value);
+                }
+              }}
             >
               <SelectTrigger>
-                <SelectValue<string>>{(state) => state.selectedOption()}</SelectValue>
+                <SelectValue placeholder="Select profile" />
               </SelectTrigger>
-              <SelectContent />
+              <SelectContent>
+                {props.profiles.map((profile) => (
+                  <SelectItem key={profile.name} value={profile.name}>
+                    {profile.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
           </div>
         )}
       </form.Field>
 
-      <Show when={props.releaseProfiles.length > 0}>
+      {props.releaseProfiles.length > 0 && (
         <form.Field name="release_profile_ids" mode="array">
           {(field) => (
-            <div class="space-y-2">
-              <div class="text-sm font-medium">Release Profiles</div>
-              <div class="flex flex-wrap gap-2">
-                <For each={props.releaseProfiles}>
-                  {(profile) => {
-                    const isSelected = () => field().state.value.includes(profile.id);
-                    const checkboxId = `release-profile-${profile.id}`;
-                    return (
-                      <label
-                        for={checkboxId}
-                        class={cn(
-                          "flex items-center gap-2 px-3 py-2 rounded-none border cursor-pointer transition-colors",
-                          isSelected() ? "bg-primary/10 border-primary/30" : "hover:bg-accent",
-                        )}
-                      >
-                        <Checkbox
-                          id={checkboxId}
-                          checked={isSelected()}
-                          onChange={(checked) => {
-                            if (checked) {
-                              field().pushValue(profile.id);
-                            } else {
-                              field().removeValue(field().state.value.indexOf(profile.id));
-                            }
-                          }}
-                        />
-                        <span class="text-sm">{profile.name}</span>
-                      </label>
-                    );
-                  }}
-                </For>
+            <div className="space-y-2">
+              <div className="text-sm font-medium">Release Profiles</div>
+              <div className="flex flex-wrap gap-2">
+                {props.releaseProfiles.map((profile) => {
+                  const isSelected = field.state.value.includes(profile.id);
+                  const checkboxId = `release-profile-${profile.id}`;
+                  return (
+                    <label
+                      key={profile.id}
+                      htmlFor={checkboxId}
+                      className={cn(
+                        "flex items-center gap-2 px-3 py-2 rounded-none border cursor-pointer transition-colors",
+                        isSelected ? "bg-primary/10 border-primary/30" : "hover:bg-accent",
+                      )}
+                    >
+                      <Checkbox
+                        id={checkboxId}
+                        checked={isSelected}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            field.pushValue(profile.id);
+                          } else {
+                            field.removeValue(field.state.value.indexOf(profile.id));
+                          }
+                        }}
+                      />
+                      <span className="text-sm">{profile.name}</span>
+                    </label>
+                  );
+                })}
               </div>
             </div>
           )}
         </form.Field>
-      </Show>
+      )}
 
-      <div class="flex items-center gap-6">
+      <div className="flex items-center gap-6">
         <form.Field name="monitor">
           {(field) => (
-            <label for="monitor-checkbox" class="flex items-center gap-2 cursor-pointer">
+            <label htmlFor="monitor-checkbox" className="flex items-center gap-2 cursor-pointer">
               <Checkbox
                 id="monitor-checkbox"
-                checked={field().state.value}
-                onChange={field().handleChange}
+                checked={field.state.value}
+                onCheckedChange={field.handleChange}
               />
-              <span class="text-sm">Monitor for new episodes</span>
+              <span className="text-sm">Monitor for new episodes</span>
             </label>
           )}
         </form.Field>
 
         <form.Field name="search_now">
           {(field) => (
-            <label for="search-now-checkbox" class="flex items-center gap-2 cursor-pointer">
+            <label htmlFor="search-now-checkbox" className="flex items-center gap-2 cursor-pointer">
               <Checkbox
                 id="search-now-checkbox"
-                checked={field().state.value}
-                onChange={field().handleChange}
+                checked={field.state.value}
+                onCheckedChange={field.handleChange}
               />
-              <span class="text-sm">Search for episodes now</span>
+              <span className="text-sm">Search for episodes now</span>
             </label>
           )}
         </form.Field>
       </div>
 
-      <Show when={props.anime.already_in_library}>
-        <div class="flex items-center gap-2 p-3 bg-warning/10 border border-warning/30 rounded-none text-warning">
-          <IconCheck class="h-4 w-4" />
-          <span class="text-sm">This anime is already in your library</span>
+      {props.anime.already_in_library && (
+        <div className="flex items-center gap-2 p-3 bg-warning/10 border border-warning/30 rounded-none text-warning">
+          <CheckIcon className="h-4 w-4" />
+          <span className="text-sm">This anime is already in your library</span>
         </div>
-      </Show>
+      )}
 
       <DialogFooter>
         <Button type="button" variant="ghost" onClick={props.onCancel}>
           Cancel
         </Button>
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
-          {(state) => (
+          {([canSubmit]) => (
             <Button
               type="submit"
-              disabled={!state()[0] || addAnimeMutation.isPending || props.anime.already_in_library}
+              disabled={!canSubmit || addAnimeMutation.isPending || props.anime.already_in_library}
             >
-              <Show
-                when={!addAnimeMutation.isPending}
-                fallback={
-                  <>
-                    <IconLoader2 class="mr-2 h-4 w-4 animate-spin" />
-                    Adding...
-                  </>
-                }
-              >
-                <IconPlus class="mr-2 h-4 w-4" />
-                Add to Library
-              </Show>
+              {!addAnimeMutation.isPending ? (
+                <>
+                  <PlusIcon className="mr-2 h-4 w-4" />
+                  Add to Library
+                </>
+              ) : (
+                <>
+                  <SpinnerIcon className="mr-2 h-4 w-4 animate-spin" />
+                  Adding...
+                </>
+              )}
             </Button>
           )}
         </form.Subscribe>
       </DialogFooter>
     </form>
   );
+}
+
+function discoveryPreviewKey(
+  entry: NonNullable<AnimeSearchResult["related_anime"]>[number],
+  prefix: "related" | "recommended",
+) {
+  return [
+    prefix,
+    entry.id,
+    animeDisplayTitle(entry),
+    entry.relation_type,
+    entry.season,
+    entry.season_year,
+    entry.start_year,
+    entry.status,
+  ]
+    .filter((value) => value !== undefined && value !== null && value !== "")
+    .join(":");
 }

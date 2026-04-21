@@ -1,17 +1,17 @@
 import {
-  IconArrowUp,
-  IconChevronLeft,
-  IconChevronRight,
-  IconFile,
-  IconFolder,
-  IconFolderOpen,
-  IconHome,
-  IconLoader2,
-} from "@tabler/icons-solidjs";
-import { createMemo, createSignal, For, Show } from "solid-js";
+  ArrowUpIcon,
+  CaretLeftIcon,
+  CaretRightIcon,
+  FileIcon,
+  FolderIcon,
+  FolderOpenIcon,
+  HouseIcon,
+  SpinnerIcon,
+} from "@phosphor-icons/react";
+import { useMemo, useState } from "react";
 import { Button } from "~/components/ui/button";
+import { Input } from "~/components/ui/input";
 import { Skeleton } from "~/components/ui/skeleton";
-import { TextField, TextFieldInput } from "~/components/ui/text-field";
 import { type BrowseEntry, createBrowsePathQuery } from "~/lib/api";
 import { cn } from "~/lib/utils";
 
@@ -29,27 +29,27 @@ interface FileBrowserProps {
 }
 
 export function FileBrowser(props: FileBrowserProps) {
-  const directoryOnly = () => props.directoryOnly ?? true;
-  const initialPath = () => props.initialPath ?? "";
-  const height = () => props.height ?? "300px";
+  const directoryOnly = props.directoryOnly ?? true;
+  const initialPath = props.initialPath ?? "";
+  const height = props.height ?? "300px";
 
-  const [currentPath, setCurrentPath] = createSignal(initialPath());
-  const [manualPath, setManualPath] = createSignal(initialPath());
-  const [selectedPath, setSelectedPath] = createSignal<string | null>(null);
-  const [pageOffset, setPageOffset] = createSignal(0);
+  const [currentPath, setCurrentPath] = useState(initialPath);
+  const [manualPath, setManualPath] = useState(initialPath);
+  const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const [pageOffset, setPageOffset] = useState(0);
 
-  const browserQuery = createBrowsePathQuery(currentPath, () => ({
+  const browserQuery = createBrowsePathQuery(currentPath, {
     limit: BROWSE_PAGE_SIZE,
-    offset: pageOffset(),
-  }));
+    offset: pageOffset,
+  });
 
-  const pageInfo = createMemo(() => {
+  const pageInfo = useMemo(() => {
     const data = browserQuery.data;
     if (!data) return null;
     const start = data.offset + 1;
     const end = data.offset + data.entries.length;
     return { start, end, total: data.total, hasMore: data.has_more };
-  });
+  }, [browserQuery.data]);
 
   const handleNavigate = (path: string) => {
     setCurrentPath(path);
@@ -61,7 +61,7 @@ export function FileBrowser(props: FileBrowserProps) {
   const handleSelect = (entry: BrowseEntry) => {
     if (entry.is_directory) {
       handleNavigate(entry.path);
-    } else if (!directoryOnly()) {
+    } else if (!directoryOnly) {
       setSelectedPath(entry.path);
       props.onSelect(entry.path);
     }
@@ -86,12 +86,12 @@ export function FileBrowser(props: FileBrowserProps) {
   };
 
   const handleManualNavigate = () => {
-    setCurrentPath(manualPath());
+    setCurrentPath(manualPath);
     setSelectedPath(null);
     setPageOffset(0);
   };
 
-  const handleKeyDown = (e: KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
       handleManualNavigate();
     }
@@ -102,17 +102,17 @@ export function FileBrowser(props: FileBrowserProps) {
     return path && path !== "/" ? path.split("/").filter(Boolean) : [];
   };
 
-  const isFullHeight = () => height() === "100%";
+  const isFullHeight = height === "100%";
 
   return (
     <div
-      class={cn(
+      className={cn(
         "border rounded-none overflow-hidden bg-background",
-        isFullHeight() && "h-full flex flex-col",
+        isFullHeight && "h-full flex flex-col",
       )}
     >
       {/* Path input and navigation */}
-      <div class="flex items-center gap-2 p-2 border-b bg-muted/30 shrink-0">
+      <div className="flex items-center gap-2 p-2 border-b bg-muted/30 shrink-0">
         <Button
           variant="ghost"
           size="icon"
@@ -120,7 +120,7 @@ export function FileBrowser(props: FileBrowserProps) {
           title="Go to root"
           aria-label="Go to root directory"
         >
-          <IconHome class="h-4 w-4" />
+          <HouseIcon className="h-4 w-4" />
         </Button>
         <Button
           variant="ghost"
@@ -130,16 +130,16 @@ export function FileBrowser(props: FileBrowserProps) {
           title="Go up"
           aria-label="Go up one directory"
         >
-          <IconArrowUp class="h-4 w-4" />
+          <ArrowUpIcon className="h-4 w-4" />
         </Button>
-        <div class="flex-1">
-          <TextField value={manualPath()} onChange={setManualPath}>
-            <TextFieldInput
-              onKeyDown={handleKeyDown}
-              placeholder="Enter path..."
-              class="h-8 text-sm font-mono"
-            />
-          </TextField>
+        <div className="flex-1">
+          <Input
+            value={manualPath}
+            onChange={(event) => setManualPath(event.currentTarget.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Enter path..."
+            className="h-8 text-sm font-mono"
+          />
         </div>
         <Button
           variant="secondary"
@@ -147,162 +147,129 @@ export function FileBrowser(props: FileBrowserProps) {
           onClick={handleManualNavigate}
           disabled={browserQuery.isFetching}
         >
-          <Show
-            when={!browserQuery.isFetching}
-            fallback={<IconLoader2 class="h-4 w-4 animate-spin" />}
-          >
-            Go
-          </Show>
+          {browserQuery.isFetching ? <SpinnerIcon className="h-4 w-4 animate-spin" /> : "Go"}
         </Button>
       </div>
 
       {/* Breadcrumb trail */}
-      <Show when={breadcrumbs().length > 0}>
-        <div class="flex items-center gap-1 px-3 py-1.5 border-b text-xs text-muted-foreground overflow-x-auto shrink-0">
+      {breadcrumbs().length > 0 && (
+        <div className="flex items-center gap-1 px-3 py-1.5 border-b text-xs text-muted-foreground overflow-x-auto shrink-0">
           <button
             type="button"
             onClick={handleGoHome}
-            class="hover:text-foreground transition-colors shrink-0"
+            className="hover:text-foreground transition-colors shrink-0"
           >
             /
           </button>
-          <For each={breadcrumbs()}>
-            {(part, index) => {
-              const partPath = () =>
-                `/${breadcrumbs()
-                  .slice(0, index() + 1)
-                  .join("/")}`;
-              const isLast = () => index() === breadcrumbs().length - 1;
-              return (
-                <span class="flex items-center gap-1 shrink-0">
-                  <IconChevronRight class="h-3 w-3" />
-                  <button
-                    type="button"
-                    onClick={() => handleNavigate(partPath())}
-                    class={cn(
-                      "hover:text-foreground transition-colors truncate max-w-32",
-                      isLast() && "text-foreground font-medium",
-                    )}
-                  >
-                    {part}
-                  </button>
-                </span>
-              );
-            }}
-          </For>
+          {breadcrumbs().map((part, index) => {
+            const partPath = `/${breadcrumbs()
+              .slice(0, index + 1)
+              .join("/")}`;
+            const isLast = index === breadcrumbs().length - 1;
+            return (
+              <span key={partPath} className="flex items-center gap-1 shrink-0">
+                <CaretRightIcon className="h-3 w-3" />
+                <button
+                  type="button"
+                  onClick={() => handleNavigate(partPath)}
+                  className={cn(
+                    "hover:text-foreground transition-colors truncate max-w-32",
+                    isLast && "text-foreground font-medium",
+                  )}
+                >
+                  {part}
+                </button>
+              </span>
+            );
+          })}
         </div>
-      </Show>
+      )}
 
       {/* File listing */}
       <div
-        class={cn("overflow-auto", isFullHeight() && "flex-1 min-h-0")}
-        style={isFullHeight() ? undefined : { height: height() }}
+        className={cn("overflow-auto", isFullHeight && "flex-1 min-h-0")}
+        style={isFullHeight ? undefined : { height }}
       >
         {/* Show spinner when fetching new data while showing old data */}
-        <Show when={browserQuery.isFetching && !browserQuery.isLoading}>
-          <div class="absolute top-2 right-2 p-1 bg-background/80 rounded-none shadow-sm z-10">
-            <IconLoader2 class="h-3 w-3 animate-spin text-primary" />
+        {browserQuery.isFetching && !browserQuery.isLoading && (
+          <div className="absolute top-2 right-2 p-1 bg-background/80 rounded-none shadow-sm z-10">
+            <SpinnerIcon className="h-3 w-3 animate-spin text-primary" />
           </div>
-        </Show>
+        )}
 
-        <Show
-          when={!browserQuery.isLoading}
-          fallback={
-            <div class="p-3 space-y-2">
-              <For each={Array.from({ length: 6 })}>
-                {() => (
-                  <div class="flex items-center gap-2">
-                    <Skeleton class="h-4 w-4" />
-                    <Skeleton class="h-4 flex-1" />
-                  </div>
-                )}
-              </For>
-            </div>
-          }
-        >
-          <Show
-            when={!browserQuery.error}
-            fallback={
-              <div class="p-4 text-center text-sm text-destructive">
-                {browserQuery.error instanceof Error
-                  ? browserQuery.error.message
-                  : "Failed to load directory"}
+        {browserQuery.isLoading ? (
+          <div className="p-3 space-y-2">
+            {[1, 2, 3, 4, 5, 6].map((row) => (
+              <div key={row} className="flex items-center gap-2">
+                <Skeleton className="h-4 w-4" />
+                <Skeleton className="h-4 flex-1" />
               </div>
-            }
-          >
-            <Show
-              when={browserQuery.data?.entries.length !== 0}
-              fallback={
-                <div class="p-4 text-center text-sm text-muted-foreground">
-                  This directory is empty
-                </div>
-              }
-            >
-              <div class="p-1">
-                <For each={browserQuery.data?.entries}>
-                  {(entry) => (
-                    <FileEntry
-                      entry={entry}
-                      isSelected={selectedPath() === entry.path}
-                      onNavigate={() => handleSelect(entry)}
-                      onSelect={() => handleDirectorySelect(entry)}
-                      directoryOnly={directoryOnly()}
-                    />
-                  )}
-                </For>
-              </div>
-            </Show>
-          </Show>
-        </Show>
+            ))}
+          </div>
+        ) : browserQuery.error ? (
+          <div className="p-4 text-center text-sm text-destructive">
+            {browserQuery.error instanceof Error
+              ? browserQuery.error.message
+              : "Failed to load directory"}
+          </div>
+        ) : browserQuery.data?.entries.length === 0 ? (
+          <div className="p-4 text-center text-sm text-muted-foreground">
+            This directory is empty
+          </div>
+        ) : (
+          <div className="p-1">
+            {browserQuery.data?.entries.map((entry) => (
+              <FileEntry
+                key={entry.path}
+                entry={entry}
+                isSelected={selectedPath === entry.path}
+                onNavigate={() => handleSelect(entry)}
+                onSelect={() => handleDirectorySelect(entry)}
+                directoryOnly={directoryOnly}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Pagination controls */}
-      <Show when={pageInfo()}>
-        {(infoAccessor) => {
-          const info = () => infoAccessor();
-          if (info().total <= BROWSE_PAGE_SIZE) {
-            return null;
-          }
-
-          return (
-            <div class="flex items-center justify-between px-3 py-1.5 border-t bg-muted/30 text-xs text-muted-foreground shrink-0">
-              <span>
-                {info().start}–{info().end} of {info().total}
-              </span>
-              <div class="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  class="h-6 w-6"
-                  disabled={pageOffset() === 0}
-                  aria-label="Previous page"
-                  onClick={() => setPageOffset((prev) => Math.max(0, prev - BROWSE_PAGE_SIZE))}
-                >
-                  <IconChevronLeft class="h-3.5 w-3.5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  class="h-6 w-6"
-                  disabled={!info().hasMore}
-                  aria-label="Next page"
-                  onClick={() => setPageOffset((prev) => prev + BROWSE_PAGE_SIZE)}
-                >
-                  <IconChevronRight class="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            </div>
-          );
-        }}
-      </Show>
+      {pageInfo && pageInfo.total > BROWSE_PAGE_SIZE && (
+        <div className="flex items-center justify-between px-3 py-1.5 border-t bg-muted/30 text-xs text-muted-foreground shrink-0">
+          <span>
+            {pageInfo.start}–{pageInfo.end} of {pageInfo.total}
+          </span>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              disabled={pageOffset === 0}
+              aria-label="Previous page"
+              onClick={() => setPageOffset((prev) => Math.max(0, prev - BROWSE_PAGE_SIZE))}
+            >
+              <CaretLeftIcon className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              disabled={!pageInfo.hasMore}
+              aria-label="Next page"
+              onClick={() => setPageOffset((prev) => prev + BROWSE_PAGE_SIZE)}
+            >
+              <CaretRightIcon className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Selected path indicator */}
-      <Show when={selectedPath()}>
-        <div class="px-3 py-2 border-t bg-primary/5 text-xs">
-          <span class="text-muted-foreground">Selected:</span>
-          <span class="font-mono text-primary">{selectedPath()}</span>
+      {selectedPath && (
+        <div className="px-3 py-2 border-t bg-primary/5 text-xs">
+          <span className="text-muted-foreground">Selected:</span>
+          <span className="font-mono text-primary">{selectedPath}</span>
         </div>
-      </Show>
+      )}
     </div>
   );
 }
@@ -329,34 +296,32 @@ function FileEntry(props: FileEntryProps) {
   return (
     <button
       type="button"
-      class={cn(
+      className={cn(
         "flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer transition-colors group w-full text-left",
         props.isSelected ? "bg-primary/10 text-primary" : "hover:bg-muted/50",
       )}
       onClick={props.onSelect}
-      onDblClick={props.onNavigate}
+      onDoubleClick={props.onNavigate}
       title={props.entry.is_directory ? "Double-click to open, click to select" : props.entry.path}
     >
-      <Show
-        when={props.entry.is_directory}
-        fallback={<IconFile class="h-4 w-4 text-muted-foreground shrink-0" />}
-      >
-        <Show
-          when={props.isSelected}
-          fallback={
-            <IconFolder class="h-4 w-4 text-muted-foreground group-hover:text-foreground shrink-0" />
-          }
-        >
-          <IconFolderOpen class="h-4 w-4 text-primary shrink-0" />
-        </Show>
-      </Show>
-      <span class="text-sm truncate flex-1">{props.entry.name}</span>
-      <Show when={!props.entry.is_directory && props.entry.size}>
-        <span class="text-xs text-muted-foreground shrink-0">{formatSize(props.entry.size)}</span>
-      </Show>
-      <Show when={props.entry.is_directory}>
-        <IconChevronRight class="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-      </Show>
+      {props.entry.is_directory ? (
+        props.isSelected ? (
+          <FolderOpenIcon className="h-4 w-4 text-primary shrink-0" />
+        ) : (
+          <FolderIcon className="h-4 w-4 text-muted-foreground group-hover:text-foreground shrink-0" />
+        )
+      ) : (
+        <FileIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+      )}
+      <span className="text-sm truncate flex-1">{props.entry.name}</span>
+      {!props.entry.is_directory && props.entry.size && (
+        <span className="text-xs text-muted-foreground shrink-0">
+          {formatSize(props.entry.size)}
+        </span>
+      )}
+      {props.entry.is_directory && (
+        <CaretRightIcon className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+      )}
     </button>
   );
 }

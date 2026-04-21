@@ -1,14 +1,14 @@
 import {
-  IconCopy,
-  IconEye,
-  IconEyeOff,
-  IconKey,
-  IconLock,
-  IconRefresh,
-} from "@tabler/icons-solidjs";
-import { createForm } from "@tanstack/solid-form";
-import { createSignal, Show } from "solid-js";
-import { toast } from "solid-sonner";
+  CopyIcon,
+  EyeIcon,
+  EyeSlashIcon,
+  KeyIcon,
+  LockIcon,
+  ArrowClockwiseIcon,
+} from "@phosphor-icons/react";
+import { useForm } from "@tanstack/react-form";
+import { useState } from "react";
+import { toast } from "sonner";
 import * as v from "valibot";
 import {
   AlertDialog,
@@ -24,13 +24,8 @@ import {
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
+import { Label } from "~/components/ui/label";
 import { NotificationSettingsCard } from "~/components/settings/notification-settings-card";
-import {
-  TextField,
-  TextFieldErrorMessage,
-  TextFieldInput,
-  TextFieldLabel,
-} from "~/components/ui/text-field";
 import { createChangePasswordMutation, createRegenerateApiKeyMutation } from "~/lib/api";
 import { useAuth } from "~/lib/auth";
 import { copyToClipboard } from "~/lib/utils";
@@ -48,12 +43,12 @@ export function AccountSettingsForm() {
   const changePassword = createChangePasswordMutation();
   const regenerateApiKey = createRegenerateApiKeyMutation();
 
-  const [showCurrentPassword, setShowCurrentPassword] = createSignal(false);
-  const [showNewPassword, setShowNewPassword] = createSignal(false);
-  const [showApiKey, setShowApiKey] = createSignal(false);
-  const currentApiKey = () => auth().apiKey?.trim() || "";
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
+  const currentApiKey = auth.apiKey?.trim() || "";
 
-  const passwordForm = createForm(() => ({
+  const passwordForm = useForm({
     defaultValues: {
       currentPassword: "",
       newPassword: "",
@@ -61,7 +56,6 @@ export function AccountSettingsForm() {
     } as ChangePasswordFormData,
     validators: {
       onChange: ChangePasswordSchema,
-      onChangeListenTo: ["confirmPassword"],
     },
     onSubmit: async ({ value, formApi }) => {
       if (value.newPassword !== value.confirmPassword) {
@@ -86,7 +80,11 @@ export function AccountSettingsForm() {
         }));
       }
     },
-  }));
+  });
+
+  const submitPasswordForm = async () => {
+    await passwordForm.handleSubmit();
+  };
 
   const handleRegenerateApiKey = async () => {
     try {
@@ -97,7 +95,7 @@ export function AccountSettingsForm() {
   };
 
   const copyApiKey = async () => {
-    const key = currentApiKey();
+    const key = currentApiKey;
     if (!key) {
       toast.error("API keys are never stored client-side. Use the backend response directly.");
       return;
@@ -113,103 +111,112 @@ export function AccountSettingsForm() {
   };
 
   return (
-    <div class="space-y-8">
+    <div className="space-y-8">
       <Card>
         <CardHeader>
-          <CardTitle class="text-base flex items-center gap-2">
-            <IconLock class="h-4 w-4" />
+          <CardTitle className="text-base flex items-center gap-2">
+            <LockIcon className="h-4 w-4" />
             Change Password
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              void passwordForm.handleSubmit();
-            }}
-            class="space-y-4 max-w-md"
-          >
+          <form action={submitPasswordForm} className="space-y-4 max-w-md">
             <passwordForm.Field name="currentPassword">
               {(field) => (
-                <TextField value={field().state.value} onChange={field().handleChange}>
-                  <TextFieldLabel>Current Password</TextFieldLabel>
-                  <div class="relative">
-                    <TextFieldInput
-                      type={showCurrentPassword() ? "text" : "password"}
-                      autocomplete="current-password"
+                <div className="space-y-1">
+                  <Label htmlFor="current-password">Current Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="current-password"
+                      value={field.state.value}
+                      onChange={(event) => field.handleChange(event.currentTarget.value)}
+                      type={showCurrentPassword ? "text" : "password"}
+                      autoComplete="current-password"
                     />
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
-                      class="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                      onClick={() => setShowCurrentPassword(!showCurrentPassword())}
-                      aria-label={showCurrentPassword() ? "Hide password" : "Show password"}
+                      className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                      onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                      aria-label={showCurrentPassword ? "Hide password" : "Show password"}
                     >
-                      <Show
-                        when={showCurrentPassword()}
-                        fallback={<IconEyeOff class="h-4 w-4 text-muted-foreground" />}
-                      >
-                        <IconEye class="h-4 w-4 text-muted-foreground" />
-                      </Show>
+                      {showCurrentPassword ? (
+                        <EyeIcon className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <EyeSlashIcon className="h-4 w-4 text-muted-foreground" />
+                      )}
                     </Button>
                   </div>
-                  <TextFieldErrorMessage>
-                    {field().state.meta.errors[0]?.message}
-                  </TextFieldErrorMessage>
-                </TextField>
+                  {field.state.meta.errors[0]?.message && (
+                    <div className="text-[0.8rem] text-destructive">
+                      {field.state.meta.errors[0]?.message}
+                    </div>
+                  )}
+                </div>
               )}
             </passwordForm.Field>
 
             <passwordForm.Field name="newPassword">
               {(field) => (
-                <TextField value={field().state.value} onChange={field().handleChange}>
-                  <TextFieldLabel>New Password</TextFieldLabel>
-                  <div class="relative">
-                    <TextFieldInput
-                      type={showNewPassword() ? "text" : "password"}
-                      autocomplete="new-password"
+                <div className="space-y-1">
+                  <Label htmlFor="new-password">New Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="new-password"
+                      value={field.state.value}
+                      onChange={(event) => field.handleChange(event.currentTarget.value)}
+                      type={showNewPassword ? "text" : "password"}
+                      autoComplete="new-password"
                     />
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
-                      class="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                      onClick={() => setShowNewPassword(!showNewPassword())}
-                      aria-label={showNewPassword() ? "Hide password" : "Show password"}
+                      className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      aria-label={showNewPassword ? "Hide password" : "Show password"}
                     >
-                      <Show
-                        when={showNewPassword()}
-                        fallback={<IconEyeOff class="h-4 w-4 text-muted-foreground" />}
-                      >
-                        <IconEye class="h-4 w-4 text-muted-foreground" />
-                      </Show>
+                      {showNewPassword ? (
+                        <EyeIcon className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <EyeSlashIcon className="h-4 w-4 text-muted-foreground" />
+                      )}
                     </Button>
                   </div>
-                  <TextFieldErrorMessage>
-                    {field().state.meta.errors[0]?.message}
-                  </TextFieldErrorMessage>
-                </TextField>
+                  {field.state.meta.errors[0]?.message && (
+                    <div className="text-[0.8rem] text-destructive">
+                      {field.state.meta.errors[0]?.message}
+                    </div>
+                  )}
+                </div>
               )}
             </passwordForm.Field>
 
             <passwordForm.Field name="confirmPassword">
               {(field) => (
-                <TextField value={field().state.value} onChange={field().handleChange}>
-                  <TextFieldLabel>Confirm New Password</TextFieldLabel>
-                  <TextFieldInput type="password" autocomplete="new-password" />
-                  <TextFieldErrorMessage>
-                    {field().state.meta.errors[0]?.message}
-                  </TextFieldErrorMessage>
-                </TextField>
+                <div className="space-y-1">
+                  <Label htmlFor="confirm-password">Confirm New Password</Label>
+                  <Input
+                    id="confirm-password"
+                    value={field.state.value}
+                    onChange={(event) => field.handleChange(event.currentTarget.value)}
+                    type="password"
+                    autoComplete="new-password"
+                  />
+                  {field.state.meta.errors[0]?.message && (
+                    <div className="text-[0.8rem] text-destructive">
+                      {field.state.meta.errors[0]?.message}
+                    </div>
+                  )}
+                </div>
               )}
             </passwordForm.Field>
 
             <passwordForm.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
               {(state) => (
-                <Button type="submit" disabled={!state()[0] || changePassword.isPending}>
-                  {state()[1] || changePassword.isPending ? "Changing..." : "Change Password"}
+                <Button type="submit" disabled={!state[0] || changePassword.isPending}>
+                  {state[1] || changePassword.isPending ? "Changing..." : "Change Password"}
                 </Button>
               )}
             </passwordForm.Subscribe>
@@ -219,76 +226,69 @@ export function AccountSettingsForm() {
 
       <Card>
         <CardHeader>
-          <CardTitle class="text-base flex items-center gap-2">
-            <IconKey class="h-4 w-4" />
+          <CardTitle className="text-base flex items-center gap-2">
+            <KeyIcon className="h-4 w-4" />
             API Key
           </CardTitle>
         </CardHeader>
-        <CardContent class="space-y-4">
-          <p class="text-sm text-muted-foreground">
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
             API keys are not persisted in the browser. Regenerate and store it safely when needed.
           </p>
 
-          <div class="flex items-center gap-2 max-w-xl">
-            <div class="flex-1 relative">
+          <div className="flex items-center gap-2 max-w-xl">
+            <div className="flex-1 relative">
               <Input
-                type={showApiKey() ? "text" : "password"}
-                value={currentApiKey()}
+                type={showApiKey ? "text" : "password"}
+                value={currentApiKey}
                 placeholder="API key is not stored in this client"
                 readOnly
-                class="pr-20 font-mono text-sm"
+                className="pr-20 font-mono text-sm"
               />
-              <div class="absolute right-0 top-0 h-full flex items-center gap-1 pr-1">
+              <div className="absolute right-0 top-0 h-full flex items-center gap-1 pr-1">
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
-                  class="relative after:absolute after:-inset-2 h-7 w-7"
-                  onClick={() => setShowApiKey(!showApiKey())}
-                  title={showApiKey() ? "Hide API key" : "Show API key"}
-                  aria-label={showApiKey() ? "Hide API key" : "Show API key"}
+                  className="relative after:absolute after:-inset-2 h-7 w-7"
+                  onClick={() => setShowApiKey(!showApiKey)}
+                  title={showApiKey ? "Hide API key" : "Show API key"}
+                  aria-label={showApiKey ? "Hide API key" : "Show API key"}
                 >
-                  <Show
-                    when={showApiKey()}
-                    fallback={<IconEyeOff class="h-4 w-4 text-muted-foreground" />}
-                  >
-                    <IconEye class="h-4 w-4 text-muted-foreground" />
-                  </Show>
+                  {showApiKey ? (
+                    <EyeIcon className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <EyeSlashIcon className="h-4 w-4 text-muted-foreground" />
+                  )}
                 </Button>
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
-                  class="relative after:absolute after:-inset-2 h-7 w-7"
+                  className="relative after:absolute after:-inset-2 h-7 w-7"
                   onClick={copyApiKey}
-                  disabled={!currentApiKey()}
+                  disabled={!currentApiKey}
                   title="Copy API key"
                   aria-label="Copy API key"
                 >
-                  <IconCopy class="h-4 w-4 text-muted-foreground" />
+                  <CopyIcon className="h-4 w-4 text-muted-foreground" />
                 </Button>
               </div>
             </div>
           </div>
 
-          <p class="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             Existing API keys are stored hashed server-side and cannot be retrieved. Regenerate to
             create a new one for external clients.
           </p>
 
           <AlertDialog>
             <AlertDialogTrigger
-              as={(triggerProps: { onClick: () => void }) => (
-                <Button
-                  variant="outline"
-                  onClick={triggerProps.onClick}
-                  disabled={regenerateApiKey.isPending}
-                >
-                  <IconRefresh class="mr-2 h-4 w-4" />
-                  {regenerateApiKey.isPending ? "Regenerating..." : "Regenerate API Key"}
-                </Button>
-              )}
-            />
+              render={<Button variant="outline" disabled={regenerateApiKey.isPending} />}
+            >
+              <ArrowClockwiseIcon className="mr-2 h-4 w-4" />
+              {regenerateApiKey.isPending ? "Regenerating..." : "Regenerate API Key"}
+            </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Regenerate API Key?</AlertDialogTitle>

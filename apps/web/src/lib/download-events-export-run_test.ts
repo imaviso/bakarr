@@ -23,7 +23,7 @@ vi.mock("~/lib/api", () => ({
   },
 }));
 
-vi.mock("solid-sonner", () => ({
+vi.mock("sonner", () => ({
   toast: {
     promise: <T>(promise: Promise<T>) => {
       mockedToastState.promiseCalls += 1;

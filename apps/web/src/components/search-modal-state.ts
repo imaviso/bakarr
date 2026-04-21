@@ -1,4 +1,4 @@
-import { createEffect, on, type Accessor } from "solid-js";
+import { useEffect } from "react";
 import {
   createEpisodeSearchQuery,
   createGrabReleaseMutation,
@@ -7,9 +7,9 @@ import {
 import { buildGrabInputFromEpisodeResult } from "~/lib/release-grab";
 
 interface SearchModalStateOptions {
-  animeId: Accessor<number>;
-  episodeNumber: Accessor<number>;
-  open: Accessor<boolean>;
+  animeId: number;
+  episodeNumber: number;
+  open: boolean;
   onClose: () => void;
 }
 
@@ -17,18 +17,16 @@ export function useSearchModalState(options: SearchModalStateOptions) {
   const searchQuery = createEpisodeSearchQuery(options.animeId, options.episodeNumber);
   const grabRelease = createGrabReleaseMutation();
 
-  createEffect(
-    on(options.open, (isOpen) => {
-      if (isOpen) {
-        void searchQuery.refetch();
-      }
-    }),
-  );
+  useEffect(() => {
+    if (options.open) {
+      void searchQuery.refetch();
+    }
+  }, [options.open, searchQuery]);
 
   const handleDownload = (release: EpisodeSearchResult) => {
     const payload = buildGrabInputFromEpisodeResult({
-      animeId: options.animeId(),
-      episodeNumber: options.episodeNumber(),
+      animeId: options.animeId,
+      episodeNumber: options.episodeNumber,
       result: release,
     });
 

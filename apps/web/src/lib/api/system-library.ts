@@ -4,8 +4,8 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
-} from "@tanstack/solid-query";
-import { toast } from "solid-sonner";
+} from "@tanstack/react-query";
+import { toast } from "sonner";
 import type {
   AsyncOperationAccepted,
   BrowseResult,
@@ -32,12 +32,12 @@ export function unmappedFoldersQueryOptions() {
 }
 
 export function createUnmappedFoldersQuery() {
-  return useQuery(unmappedFoldersQueryOptions);
+  return useQuery(unmappedFoldersQueryOptions());
 }
 
 export function createScanLibraryMutation() {
   const queryClient = useQueryClient();
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: () =>
       fetchApi<AsyncOperationAccepted>(`${API_BASE}/library/unmapped/scan`, { method: "POST" }),
     onSuccess: (accepted) => {
@@ -51,12 +51,12 @@ export function createScanLibraryMutation() {
         });
       }
     },
-  }));
+  });
 }
 
 export function createControlUnmappedFolderMutation() {
   const queryClient = useQueryClient();
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: (data: UnmappedFolderControlRequest) =>
       fetchApi(`${API_BASE}/library/unmapped/control`, {
         method: "POST",
@@ -66,12 +66,12 @@ export function createControlUnmappedFolderMutation() {
       void queryClient.invalidateQueries({ queryKey: animeKeys.library.unmapped() });
       void queryClient.invalidateQueries({ queryKey: animeKeys.system.jobs() });
     },
-  }));
+  });
 }
 
 export function createBulkControlUnmappedFoldersMutation() {
   const queryClient = useQueryClient();
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: (data: BulkUnmappedFolderControlRequest) =>
       fetchApi(`${API_BASE}/library/unmapped/control/bulk`, {
         method: "POST",
@@ -81,12 +81,12 @@ export function createBulkControlUnmappedFoldersMutation() {
       void queryClient.invalidateQueries({ queryKey: animeKeys.library.unmapped() });
       void queryClient.invalidateQueries({ queryKey: animeKeys.system.jobs() });
     },
-  }));
+  });
 }
 
 export function createImportUnmappedFolderMutation() {
   const queryClient = useQueryClient();
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: (data: UnmappedFolderImportRequest) =>
       fetchApi(`${API_BASE}/library/unmapped/import`, {
         method: "POST",
@@ -103,22 +103,22 @@ export function createImportUnmappedFolderMutation() {
       });
       void queryClient.invalidateQueries({ queryKey: animeKeys.system.status() });
     },
-  }));
+  });
 }
 
 export function createScanImportPathMutation() {
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: (data: { path: string; anime_id?: number }) =>
       fetchApi<ScanResult>(`${API_BASE}/library/import/scan`, {
         method: "POST",
         body: JSON.stringify(data),
       }),
-  }));
+  });
 }
 
 export function createImportFilesMutation() {
   const queryClient = useQueryClient();
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: (files: ImportFileRequest[]) =>
       fetchApi<AsyncOperationAccepted>(`${API_BASE}/library/import`, {
         method: "POST",
@@ -136,17 +136,17 @@ export function createImportFilesMutation() {
         });
       }
     },
-  }));
+  });
 }
 
 export function createImportCandidateSelectionMutation() {
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: (data: ImportCandidateSelectionRequest) =>
       fetchApi<ImportCandidateSelectionResult>(`${API_BASE}/library/import/selection`, {
         method: "POST",
         body: JSON.stringify(data),
       }),
-  }));
+  });
 }
 
 export function browsePathQueryOptions(
@@ -168,10 +168,10 @@ export function browsePathQueryOptions(
 }
 
 export function createBrowsePathQuery(
-  path: () => string,
-  pagination?: () => { limit: number; offset: number },
+  path: string,
+  pagination?: { limit: number; offset: number },
 ) {
-  return useQuery(() => ({
-    ...browsePathQueryOptions(path(), pagination?.()),
-  }));
+  return useQuery({
+    ...browsePathQueryOptions(path, pagination),
+  });
 }

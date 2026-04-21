@@ -47,17 +47,17 @@ export function backgroundMatchingStatusLabel(input: BackgroundMatchingStateInpu
 
 export function backgroundMatchingStatusVariant(
   input: BackgroundMatchingStateInput,
-): "outline" | "warning" | "error" {
+): "outline" | "secondary" | "destructive" {
   if (input.status !== undefined) {
     return toStatusVariant(input.status);
   }
 
   if (isBackgroundMatchingRunning(input) || input.hasOutstandingWork || input.pausedCount > 0) {
-    return "warning";
+    return "secondary";
   }
 
   if (input.failedCount > 0 || input.job?.last_status === "failed") {
-    return "error";
+    return "destructive";
   }
 
   return "outline";
@@ -80,13 +80,13 @@ function toStatusLabel(status: ScannerMatchStatus) {
   }
 }
 
-function toStatusVariant(status: ScannerMatchStatus): "outline" | "warning" | "error" {
+function toStatusVariant(status: ScannerMatchStatus): "outline" | "secondary" | "destructive" {
   if (status === "running" || status === "retrying" || status === "queued" || status === "paused") {
-    return "warning";
+    return "secondary";
   }
 
   if (status === "failed") {
-    return "error";
+    return "destructive";
   }
 
   return "outline";

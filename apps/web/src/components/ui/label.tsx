@@ -1,17 +1,21 @@
-import { type Component, type ComponentProps, splitProps } from "solid-js";
-import { cn } from "~/lib/utils";
+"use client";
 
-const Label: Component<ComponentProps<"label">> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
+import * as React from "react";
+
+import { cn } from "@/lib/utils";
+
+function Label({ className, htmlFor, ...props }: React.ComponentProps<"label">) {
   return (
     <label
-      class={cn(
-        "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
-        local.class,
+      htmlFor={htmlFor}
+      data-slot="label"
+      className={cn(
+        "flex items-center gap-2 text-xs leading-none select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50",
+        className,
       )}
-      {...others}
+      {...props}
     />
   );
-};
+}
 
 export { Label };

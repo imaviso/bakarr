@@ -1,5 +1,5 @@
-import { createMemo, For, Show } from "solid-js";
-import { createVirtualizer } from "@tanstack/solid-virtual";
+import { useRef } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { ActiveDownloadRow } from "~/components/downloads/download-rows";
 import {
   Table,
@@ -17,97 +17,77 @@ interface DownloadsQueueTabProps {
 }
 
 export function DownloadsQueueTab(props: DownloadsQueueTabProps) {
-  let queueScrollRef: HTMLDivElement | undefined;
+  const queueScrollRef = useRef<HTMLDivElement>(null);
 
-  const queueVirtualizer = createVirtualizer({
-    get count() {
-      return props.queue.length;
-    },
+  const queueVirtualizer = useVirtualizer({
+    count: props.queue.length,
     estimateSize: () => 48,
     overscan: 10,
-    getScrollElement: () => queueScrollRef ?? null,
+    getScrollElement: () => queueScrollRef.current,
   });
 
-  const queuePaddingTop = createMemo(() => {
-    const items = queueVirtualizer.getVirtualItems();
-    const [first] = items;
-    return first ? first.start : 0;
-  });
-
-  const queuePaddingBottom = createMemo(() => {
-    const items = queueVirtualizer.getVirtualItems();
-    const last = items[items.length - 1];
-    return last ? queueVirtualizer.getTotalSize() - last.end : 0;
-  });
+  const virtualItems = queueVirtualizer.getVirtualItems();
+  const firstItem = virtualItems[0];
+  const lastItem = virtualItems[virtualItems.length - 1];
+  const queuePaddingTop = firstItem ? firstItem.start : 0;
+  const queuePaddingBottom = lastItem ? queueVirtualizer.getTotalSize() - lastItem.end : 0;
 
   return (
-    <TabsContent value="queue" class="flex-1 mt-0 min-h-0 overflow-hidden flex flex-col">
-      <div
-        ref={(element) => {
-          queueScrollRef = element;
-        }}
-        class="overflow-y-auto flex-1"
-      >
-        <Table class="table-fixed min-w-[820px] md:min-w-0">
-          <TableHeader class="sticky top-0 bg-card z-10 shadow-sm shadow-border/50">
-            <TableRow class="hover:bg-transparent border-none">
-              <TableHead class="w-[50px]">
-                <span class="sr-only">Status</span>
+    <TabsContent value="queue" className="flex-1 mt-0 min-h-0 overflow-hidden flex flex-col">
+      <div ref={queueScrollRef} className="overflow-y-auto flex-1">
+        <Table className="table-fixed min-w-[820px] md:min-w-0">
+          <TableHeader className="sticky top-0 bg-card z-10 shadow-sm shadow-border/50">
+            <TableRow className="hover:bg-transparent border-none">
+              <TableHead className="w-[50px]">
+                <span className="sr-only">Status</span>
               </TableHead>
               <TableHead>Name</TableHead>
-              <TableHead class="w-[200px]">Progress</TableHead>
-              <TableHead class="w-[100px] hidden md:table-cell">Speed</TableHead>
-              <TableHead class="w-[100px] hidden md:table-cell">ETA</TableHead>
-              <TableHead class="w-[120px]">Status</TableHead>
-              <TableHead class="w-[120px] text-right">Actions</TableHead>
+              <TableHead className="w-[200px]">Progress</TableHead>
+              <TableHead className="w-[100px] hidden md:table-cell">Speed</TableHead>
+              <TableHead className="w-[100px] hidden md:table-cell">ETA</TableHead>
+              <TableHead className="w-[120px]">Status</TableHead>
+              <TableHead className="w-[120px] text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            <Show
-              when={props.queue.length > 0}
-              fallback={
-                <TableRow>
-                  <TableCell colSpan={7} class="h-32 text-center text-muted-foreground">
-                    No active downloads
-                  </TableCell>
-                </TableRow>
-              }
-            >
-              <Show when={queuePaddingTop() > 0}>
-                <tr aria-hidden="true">
-                  <td
-                    colSpan={7}
-                    style={{
-                      height: `${queuePaddingTop()}px`,
-                      padding: "0",
-                      border: "none",
-                    }}
-                  />
-                </tr>
-              </Show>
-              <For each={queueVirtualizer.getVirtualItems()}>
-                {(virtualRow) => {
-                  const item = () => props.queue[virtualRow.index];
-                  return (
-                    <Show when={item()}>
-                      {(safeItem) => <ActiveDownloadRow item={safeItem()} />}
-                    </Show>
-                  );
-                }}
-              </For>
-              <Show when={queuePaddingBottom() > 0}>
-                <tr aria-hidden="true">
-                  <td
-                    colSpan={7}
-                    style={{
-                      height: `${queuePaddingBottom()}px`,
-                      padding: "0",
-                      border: "none",
-                    }}
-                  />
-                </tr>
-              </Show>
-            </Show>
+            {props.queue.length > 0 ? (
+              <>
+                {queuePaddingTop > 0 && (
+                  <tr aria-hidden="true">
+                    <td
+                      colSpan={7}
+                      style={{
+                        height: `${queuePaddingTop}px`,
+                        padding: "0",
+                        border: "none",
+                      }}
+                    />
+                  </tr>
+                )}
+                {queueVirtualizer.getVirtualItems().map((virtualRow) => {
+                  const item = props.queue[virtualRow.index];
+                  return item ? <ActiveDownloadRow key={virtualRow.key} item={item} /> : null;
+                })}
+                {queuePaddingBottom > 0 && (
+                  <tr aria-hidden="true">
+                    <td
+                      colSpan={7}
+                      style={{
+                        height: `${queuePaddingBottom}px`,
+                        padding: "0",
+                        border: "none",
+                      }}
+                    />
+                  </tr>
+                )}
+              </>
+            ) : (
+              <TableRow>
+                <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
+                  No active downloads
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </div>

@@ -1,5 +1,5 @@
 import { FiniteNumberInput, SettingRow, SettingSection } from "~/components/settings/form-controls";
-import type { SettingsFormApi } from "~/components/settings/system-settings-form-factory";
+import type { SettingsFormApi } from "~/components/settings/system-settings-form-hook";
 import {
   IMPORT_MODE_OPTIONS,
   importModeLabel,
@@ -29,9 +29,9 @@ export function SystemSettingsGeneralLibrarySection(
         {(field) => (
           <SettingRow label="Library Path" description="Root folder for your anime library">
             <Input
-              value={field().state.value}
-              onInput={(event) => field().handleChange(event.currentTarget.value)}
-              class="w-64"
+              value={field.state.value}
+              onInput={(event) => field.handleChange(event.currentTarget.value)}
+              className="w-64"
             />
           </SettingRow>
         )}
@@ -44,9 +44,9 @@ export function SystemSettingsGeneralLibrarySection(
             description="Deleted files are moved here before permanent deletion"
           >
             <Input
-              value={field().state.value}
-              onInput={(event) => field().handleChange(event.currentTarget.value)}
-              class="w-64"
+              value={field.state.value}
+              onInput={(event) => field.handleChange(event.currentTarget.value)}
+              className="w-64"
             />
           </SettingRow>
         )}
@@ -58,14 +58,14 @@ export function SystemSettingsGeneralLibrarySection(
             label="Recycle Cleanup"
             description="Days to keep files in recycle before cleanup"
           >
-            <div class="flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <FiniteNumberInput
                 min="0"
-                value={field().state.value}
-                onChange={field().handleChange}
-                class="w-20"
+                value={field.state.value}
+                onChange={field.handleChange}
+                className="w-20"
               />
-              <span class="text-xs text-muted-foreground">days</span>
+              <span className="text-xs text-muted-foreground">days</span>
             </div>
           </SettingRow>
         )}
@@ -78,25 +78,23 @@ export function SystemSettingsGeneralLibrarySection(
             description="How files are moved from downloads to library"
           >
             <Select
-              name={field().name}
-              value={field().state.value}
-              onChange={(value) => value && field().handleChange(value)}
-              options={[...IMPORT_MODE_OPTIONS]}
-              placeholder="Select..."
-              itemComponent={(itemProps) => (
-                <SelectItem item={itemProps.item}>
-                  {importModeLabel(itemProps.item.rawValue)}
-                </SelectItem>
-              )}
+              value={field.state.value}
+              onValueChange={(value) => {
+                if (value !== null) {
+                  field.handleChange(value);
+                }
+              }}
             >
-              <SelectTrigger class="w-32">
-                <SelectValue<string>>
-                  {(state) =>
-                    state.selectedOption() ? importModeLabel(state.selectedOption()) : "Select..."
-                  }
-                </SelectValue>
+              <SelectTrigger className="w-32">
+                <SelectValue placeholder="Select..." />
               </SelectTrigger>
-              <SelectContent />
+              <SelectContent>
+                {IMPORT_MODE_OPTIONS.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {importModeLabel(option)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
           </SettingRow>
         )}
@@ -109,27 +107,23 @@ export function SystemSettingsGeneralLibrarySection(
             description="Title language for folder and file naming"
           >
             <Select
-              name={field().name}
-              value={field().state.value}
-              onChange={(value) => value && field().handleChange(value)}
-              options={[...PREFERRED_TITLE_OPTIONS]}
-              placeholder="Select..."
-              itemComponent={(itemProps) => (
-                <SelectItem item={itemProps.item}>
-                  {preferredTitleLabel(itemProps.item.rawValue)}
-                </SelectItem>
-              )}
+              value={field.state.value}
+              onValueChange={(value) => {
+                if (value !== null) {
+                  field.handleChange(value);
+                }
+              }}
             >
-              <SelectTrigger class="w-32">
-                <SelectValue<string>>
-                  {(state) =>
-                    state.selectedOption()
-                      ? preferredTitleLabel(state.selectedOption())
-                      : "Select..."
-                  }
-                </SelectValue>
+              <SelectTrigger className="w-32">
+                <SelectValue placeholder="Select..." />
               </SelectTrigger>
-              <SelectContent />
+              <SelectContent>
+                {PREFERRED_TITLE_OPTIONS.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {preferredTitleLabel(option)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
           </SettingRow>
         )}
@@ -142,8 +136,8 @@ export function SystemSettingsGeneralLibrarySection(
             description="Timezone used for wanted and calendar airing times. Use system for browser local time."
           >
             <TimezonePicker
-              value={field().state.value ?? "system"}
-              onChange={(value) => field().handleChange(value)}
+              value={field.state.value ?? "system"}
+              onChange={(value) => field.handleChange(value)}
             />
           </SettingRow>
         )}
@@ -155,16 +149,16 @@ export function SystemSettingsGeneralLibrarySection(
             label="Airing Day Start"
             description="Treat airings before this hour as part of the previous day in calendar and wanted views"
           >
-            <div class="flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <FiniteNumberInput
                 min="0"
                 max="23"
-                value={field().state.value}
+                value={field.state.value}
                 fallbackValue={0}
-                onChange={field().handleChange}
-                class="w-20"
+                onChange={field.handleChange}
+                className="w-20"
               />
-              <span class="text-xs text-muted-foreground">hour</span>
+              <span className="text-xs text-muted-foreground">hour</span>
             </div>
           </SettingRow>
         )}
@@ -176,13 +170,13 @@ export function SystemSettingsGeneralLibrarySection(
             label="Auto Scan Interval"
             description="Hours between automatic library scans"
           >
-            <div class="flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <FiniteNumberInput
-                value={field().state.value}
-                onChange={field().handleChange}
-                class="w-20"
+                value={field.state.value}
+                onChange={field.handleChange}
+                className="w-20"
               />
-              <span class="text-xs text-muted-foreground">hours</span>
+              <span className="text-xs text-muted-foreground">hours</span>
             </div>
           </SettingRow>
         )}

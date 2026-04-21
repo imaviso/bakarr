@@ -1,5 +1,5 @@
 import { SystemSettingsGeneralApplicationSection } from "~/components/settings/system-settings-general-application-section";
-import type { SettingsFormApi } from "~/components/settings/system-settings-form-factory";
+import type { SettingsFormApi } from "~/components/settings/system-settings-form-hook";
 import { SystemSettingsGeneralLibrarySection } from "~/components/settings/system-settings-general-library-section";
 import { SystemSettingsGeneralNamingSection } from "~/components/settings/system-settings-general-naming-section";
 

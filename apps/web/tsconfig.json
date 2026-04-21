@@ -1,18 +1,19 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    // General
-    "lib": ["ESNext", "DOM", "DOM.Iterable"],
-    "jsx": "preserve",
-    "jsxImportSource": "solid-js",
-    // Modules
-    "isolatedModules": true,
-
+    "composite": true,
+    "module": "Preserve",
+    "moduleResolution": "Bundler",
+    "erasableSyntaxOnly": false,
+    "verbatimModuleSyntax": false,
+    "jsx": "react-jsx",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "types": ["vite/client"],
     "paths": {
       "@bakarr/shared": ["../../packages/shared/src/index.ts"],
+      "@/*": ["./src/*"],
       "~/*": ["./src/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src", "../../packages/shared/src/index.ts"]
 }

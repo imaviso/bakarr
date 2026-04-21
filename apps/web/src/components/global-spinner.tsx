@@ -1,55 +1,57 @@
-import { useRouterState } from "@tanstack/solid-router";
-import { createEffect, createSignal, Show } from "solid-js";
+import { useRouterState } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 
 export function GlobalSpinner() {
   const state = useRouterState();
-  const [hasCompletedInitialLoad, setHasCompletedInitialLoad] = createSignal(false);
+  const [hasCompletedInitialLoad, setHasCompletedInitialLoad] = useState(false);
 
-  createEffect(() => {
-    if (state().status === "idle") {
+  useEffect(() => {
+    if (state.status === "idle") {
       setHasCompletedInitialLoad(true);
     }
-  });
+  }, [state.status]);
 
-  const isRouting = () => !hasCompletedInitialLoad() && state().status === "pending";
+  const isRouting = !hasCompletedInitialLoad && state.status === "pending";
 
   return (
-    <Show when={isRouting()}>
-      <div
-        class="fixed inset-0 z-[100] flex items-center justify-center bg-background/40 backdrop-blur-[2px] transition-opacity duration-300 animate-in fade-in"
-        role="status"
-        aria-label="Loading application"
-      >
-        <div class="relative flex flex-col items-center gap-4">
-          <div class="linear-spinner text-primary">
-            <svg viewBox="0 0 40 40">
-              <title>Loading</title>
-              <circle
-                class="opacity-20"
-                cx="20"
-                cy="20"
-                r="18"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="3"
-              />
-              <circle
-                class="linear-spinner-arc"
-                cx="20"
-                cy="20"
-                r="18"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="3"
-                stroke-linecap="round"
-              />
-            </svg>
-          </div>
-          <div class="text-[11px] font-semibold tracking-[0.2em] uppercase text-foreground/80 animate-pulse">
-            Loading
+    <>
+      {isRouting && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-background/40 backdrop-blur-[2px] transition-opacity duration-300 animate-in fade-in"
+          role="status"
+          aria-label="Loading application"
+        >
+          <div className="relative flex flex-col items-center gap-4">
+            <div className="linear-spinner text-primary">
+              <svg viewBox="0 0 40 40">
+                <title>Loading</title>
+                <circle
+                  className="opacity-20"
+                  cx="20"
+                  cy="20"
+                  r="18"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                />
+                <circle
+                  className="linear-spinner-arc"
+                  cx="20"
+                  cy="20"
+                  r="18"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </div>
+            <div className="text-[11px] font-semibold tracking-[0.2em] uppercase text-foreground/80 animate-pulse">
+              Loading
+            </div>
           </div>
         </div>
-      </div>
-    </Show>
+      )}
+    </>
   );
 }

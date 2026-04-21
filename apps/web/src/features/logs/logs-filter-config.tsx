@@ -1,15 +1,15 @@
 import {
-  IconAlertCircle,
-  IconAlertTriangle,
-  IconCalendar,
-  IconCheck,
-  IconInfoCircle,
-  IconTag,
-} from "@tabler/icons-solidjs";
+  WarningCircleIcon,
+  WarningIcon,
+  CalendarIcon,
+  CheckIcon,
+  InfoIcon,
+  TagIcon,
+} from "@phosphor-icons/react";
 import type { FilterColumnConfig } from "~/components/filters";
 
 function IconFilter() {
-  return <IconTag class="h-4 w-4" />;
+  return <TagIcon className="h-4 w-4" />;
 }
 
 export const logsFilterColumns: FilterColumnConfig[] = [
@@ -23,22 +23,22 @@ export const logsFilterColumns: FilterColumnConfig[] = [
       {
         value: "info",
         label: "Info",
-        icon: <IconInfoCircle class="h-4 w-4 text-info" />,
+        icon: <InfoIcon className="h-4 w-4 text-info" />,
       },
       {
         value: "warn",
         label: "Warn",
-        icon: <IconAlertTriangle class="h-4 w-4 text-warning" />,
+        icon: <WarningIcon className="h-4 w-4 text-warning" />,
       },
       {
         value: "error",
         label: "Error",
-        icon: <IconAlertCircle class="h-4 w-4 text-error" />,
+        icon: <WarningCircleIcon className="h-4 w-4 text-error" />,
       },
       {
         value: "success",
         label: "Success",
-        icon: <IconCheck class="h-4 w-4 text-success" />,
+        icon: <CheckIcon className="h-4 w-4 text-success" />,
       },
     ],
   },
@@ -46,7 +46,7 @@ export const logsFilterColumns: FilterColumnConfig[] = [
     id: "eventType",
     label: "Event Type",
     type: "select",
-    icon: <IconTag class="h-4 w-4" />,
+    icon: <TagIcon className="h-4 w-4" />,
     operators: ["is"],
     options: [
       { value: "Scan", label: "Scan" },
@@ -61,14 +61,14 @@ export const logsFilterColumns: FilterColumnConfig[] = [
     id: "startDate",
     label: "Start Date",
     type: "date",
-    icon: <IconCalendar class="h-4 w-4" />,
+    icon: <CalendarIcon className="h-4 w-4" />,
     operators: ["is_after"],
   },
   {
     id: "endDate",
     label: "End Date",
     type: "date",
-    icon: <IconCalendar class="h-4 w-4" />,
+    icon: <CalendarIcon className="h-4 w-4" />,
     operators: ["is_before"],
   },
 ];

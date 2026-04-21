@@ -1,4 +1,4 @@
-import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/solid-query";
+import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   Quality,
   QualityProfile,
@@ -17,8 +17,8 @@ export function profilesQueryOptions() {
   });
 }
 
-export function createProfilesQuery(enabled: () => boolean = () => true) {
-  return useQuery(() => ({ ...profilesQueryOptions(), enabled: enabled() }));
+export function createProfilesQuery(enabled: boolean = true) {
+  return useQuery({ ...profilesQueryOptions(), enabled });
 }
 
 export function qualitiesQueryOptions() {
@@ -31,7 +31,7 @@ export function qualitiesQueryOptions() {
 }
 
 export function createQualitiesQuery() {
-  return useQuery(qualitiesQueryOptions);
+  return useQuery(qualitiesQueryOptions());
 }
 
 export function releaseProfilesQueryOptions() {
@@ -43,16 +43,16 @@ export function releaseProfilesQueryOptions() {
   });
 }
 
-export function createReleaseProfilesQuery(enabled: () => boolean = () => true) {
-  return useQuery(() => ({
+export function createReleaseProfilesQuery(enabled: boolean = true) {
+  return useQuery({
     ...releaseProfilesQueryOptions(),
-    enabled: enabled(),
-  }));
+    enabled,
+  });
 }
 
 export function createCreateProfileMutation() {
   const queryClient = useQueryClient();
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: (data: QualityProfile) =>
       fetchApi<QualityProfile>(`${API_BASE}/profiles`, {
         method: "POST",
@@ -61,12 +61,12 @@ export function createCreateProfileMutation() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: animeKeys.profiles.all });
     },
-  }));
+  });
 }
 
 export function createUpdateProfileMutation() {
   const queryClient = useQueryClient();
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: ({ name, profile }: { name: string; profile: QualityProfile }) =>
       fetchApi<QualityProfile>(`${API_BASE}/profiles/${name}`, {
         method: "PUT",
@@ -75,22 +75,22 @@ export function createUpdateProfileMutation() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: animeKeys.profiles.all });
     },
-  }));
+  });
 }
 
 export function createDeleteProfileMutation() {
   const queryClient = useQueryClient();
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: (name: string) => fetchApi(`${API_BASE}/profiles/${name}`, { method: "DELETE" }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: animeKeys.profiles.all });
     },
-  }));
+  });
 }
 
 export function createCreateReleaseProfileMutation() {
   const queryClient = useQueryClient();
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: (data: ReleaseProfileCreateRequest) =>
       fetchApi<ReleaseProfile>(`${API_BASE}/release-profiles`, {
         method: "POST",
@@ -99,12 +99,12 @@ export function createCreateReleaseProfileMutation() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: animeKeys.releaseProfiles });
     },
-  }));
+  });
 }
 
 export function createUpdateReleaseProfileMutation() {
   const queryClient = useQueryClient();
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: ({ id, data }: { id: number; data: ReleaseProfileUpdateRequest }) =>
       fetchApi(`${API_BASE}/release-profiles/${id}`, {
         method: "PUT",
@@ -113,16 +113,16 @@ export function createUpdateReleaseProfileMutation() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: animeKeys.releaseProfiles });
     },
-  }));
+  });
 }
 
 export function createDeleteReleaseProfileMutation() {
   const queryClient = useQueryClient();
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: (id: number) =>
       fetchApi(`${API_BASE}/release-profiles/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: animeKeys.releaseProfiles });
     },
-  }));
+  });
 }

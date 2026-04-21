@@ -1,5 +1,4 @@
-import type { Accessor } from "solid-js";
-import { createMemo } from "solid-js";
+import { useCallback, useMemo } from "react";
 import type { DownloadEventsFilterValue } from "~/components/download-events/download-events-filters";
 import { formatDateTimeLocalInput, getDateRangePresetHours } from "~/lib/date-presets";
 import type { DownloadEventsSearchKeys } from "~/lib/download-events-search";
@@ -9,15 +8,12 @@ import { buildDownloadEventsFilterInput } from "~/lib/download-events-filters";
 
 interface UseDownloadEventsSearchStateOptions {
   keys: DownloadEventsSearchKeys;
-  search: Accessor<Record<string, string | undefined>>;
+  search: Record<string, string | undefined>;
   updateSearch: (patch: Partial<Record<string, string | undefined>>) => void;
 }
 
 export function useDownloadEventsSearchState(options: UseDownloadEventsSearchStateOptions) {
-  const searchState = createMemo(() => options.search());
-  const read = (key: string): string => searchState()[key] ?? "";
-
-  const readDirection = (key: string): "next" | "prev" => (read(key) === "prev" ? "prev" : "next");
+  const read = useCallback((key: string): string => options.search[key] ?? "", [options.search]);
 
   const patchWithCursorReset = (patch: Partial<Record<string, string | undefined>>) => ({
     ...patch,
@@ -34,30 +30,8 @@ export function useDownloadEventsSearchState(options: UseDownloadEventsSearchSta
     status: options.keys.status,
   };
 
-  const filterValue = createMemo<DownloadEventsFilterValue>(() => ({
-    animeId: read(options.keys.animeId),
-    downloadId: read(options.keys.downloadId),
-    endDate: read(options.keys.endDate),
-    eventType: read(options.keys.eventType),
-    startDate: read(options.keys.startDate),
-    status: read(options.keys.status),
-  }));
-
-  const queryInput = createMemo(() =>
-    buildDownloadEventsFilterInput({
-      animeId: read(options.keys.animeId),
-      cursor: read(options.keys.cursor),
-      direction: readDirection(options.keys.direction),
-      downloadId: read(options.keys.downloadId),
-      endDate: read(options.keys.endDate),
-      eventType: read(options.keys.eventType),
-      startDate: read(options.keys.startDate),
-      status: read(options.keys.status),
-    }),
-  );
-
-  const exportInput = createMemo(() =>
-    buildDownloadEventsExportInput({
+  const filterValue = useMemo<DownloadEventsFilterValue>(
+    () => ({
       animeId: read(options.keys.animeId),
       downloadId: read(options.keys.downloadId),
       endDate: read(options.keys.endDate),
@@ -65,10 +39,40 @@ export function useDownloadEventsSearchState(options: UseDownloadEventsSearchSta
       startDate: read(options.keys.startDate),
       status: read(options.keys.status),
     }),
+    [read, options.keys],
   );
 
-  const activePreset = createMemo(() =>
-    getDateRangePresetHours(read(options.keys.startDate), read(options.keys.endDate)),
+  const queryInput = useMemo(
+    () =>
+      buildDownloadEventsFilterInput({
+        animeId: read(options.keys.animeId),
+        cursor: read(options.keys.cursor),
+        direction: read(options.keys.direction) === "prev" ? "prev" : "next",
+        downloadId: read(options.keys.downloadId),
+        endDate: read(options.keys.endDate),
+        eventType: read(options.keys.eventType),
+        startDate: read(options.keys.startDate),
+        status: read(options.keys.status),
+      }),
+    [read, options.keys],
+  );
+
+  const exportInput = useMemo(
+    () =>
+      buildDownloadEventsExportInput({
+        animeId: read(options.keys.animeId),
+        downloadId: read(options.keys.downloadId),
+        endDate: read(options.keys.endDate),
+        eventType: read(options.keys.eventType),
+        startDate: read(options.keys.startDate),
+        status: read(options.keys.status),
+      }),
+    [read, options.keys],
+  );
+
+  const activePreset = useMemo(
+    () => getDateRangePresetHours(read(options.keys.startDate), read(options.keys.endDate)),
+    [read, options.keys],
   );
 
   const applyDateRangePreset = (hours: number) => {

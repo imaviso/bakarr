@@ -1,4 +1,4 @@
-import { type Accessor, createContext, createSignal, type JSX, useContext } from "solid-js";
+import { createContext, useContext, useState, useEffect, useMemo, type ReactNode } from "react";
 
 export interface AuthState {
   username?: string | undefined;
@@ -15,10 +15,12 @@ function normalizeApiKey(apiKey?: string) {
 }
 
 // Global Auth State
-const [auth, setAuth] = createSignal<AuthState>({ isAuthenticated: false });
+let authState: AuthState = { isAuthenticated: false };
+let reactSetAuth: React.Dispatch<React.SetStateAction<AuthState>> | null = null;
 
 function saveAuth(state: AuthState) {
-  setAuth(state);
+  authState = state;
+  reactSetAuth?.(state);
 }
 
 export const loginSuccess = (username: string, apiKey?: string) => {
@@ -31,7 +33,7 @@ export const loginSuccess = (username: string, apiKey?: string) => {
 
 export const syncAuthenticatedUser = (username: string) => {
   saveAuth({
-    ...auth(),
+    ...authState,
     isAuthenticated: true,
     username,
   });
@@ -53,7 +55,7 @@ export const getAuthHeaders = (): HeadersInit => ({});
 
 // Create the auth context
 interface AuthContextValue {
-  auth: Accessor<AuthState>;
+  auth: AuthState;
   loginSuccess: (username: string, apiKey?: string) => void;
   syncAuthenticatedUser: (username: string) => void;
   clearAuthState: () => void;
@@ -61,19 +63,28 @@ interface AuthContextValue {
   getAuthHeaders: () => HeadersInit;
 }
 
-const AuthContext = createContext<AuthContextValue>();
+const AuthContext = createContext<AuthContextValue | null>(null);
 
-const authContextValue: AuthContextValue = {
-  auth,
-  loginSuccess,
-  syncAuthenticatedUser,
-  clearAuthState,
-  logout,
-  getAuthHeaders,
-};
-
-export function AuthProvider(props: { children: JSX.Element }) {
-  return <AuthContext.Provider value={authContextValue}>{props.children}</AuthContext.Provider>;
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [auth, setAuth] = useState<AuthState>(authState);
+  useEffect(() => {
+    reactSetAuth = setAuth;
+    return () => {
+      reactSetAuth = null;
+    };
+  }, []);
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      auth,
+      loginSuccess,
+      syncAuthenticatedUser,
+      clearAuthState,
+      logout,
+      getAuthHeaders,
+    }),
+    [auth],
+  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 // Hook to use auth context in components
@@ -85,5 +96,7 @@ export function useAuth() {
   return context;
 }
 
-// Getter function that works outside of Solid components (e.g., in router loaders)
-export { auth as getAuthState };
+// Getter function that works outside of React components (e.g., in router loaders)
+export function getAuthState(): AuthState {
+  return authState;
+}

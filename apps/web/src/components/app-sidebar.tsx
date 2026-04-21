@@ -1,16 +1,15 @@
 import {
-  IconAlertTriangle,
-  IconCalendar,
-  IconDeviceTv,
-  IconDownload,
-  IconHome,
-  IconList,
-  IconLogout,
-  IconRss,
-  IconSettings,
-} from "@tabler/icons-solidjs";
-import { Link, useLocation } from "@tanstack/solid-router";
-import { For, Show } from "solid-js";
+  WarningIcon,
+  CalendarIcon,
+  TelevisionIcon,
+  DownloadIcon,
+  HouseIcon,
+  ListIcon,
+  SignOutIcon,
+  RssIcon,
+  GearIcon,
+} from "@phosphor-icons/react";
+import { Link, useLocation } from "@tanstack/react-router";
 import { CommandPalette } from "~/components/command-palette";
 import { ModeToggle } from "~/components/mode-toggle";
 import {
@@ -33,32 +32,32 @@ const mainItems = [
   {
     title: "Dashboard",
     url: "/",
-    icon: IconHome,
+    icon: HouseIcon,
   },
   {
     title: "Anime",
     url: "/anime",
-    icon: IconDeviceTv,
+    icon: TelevisionIcon,
   },
   {
     title: "RSS Feeds",
     url: "/rss",
-    icon: IconRss,
+    icon: RssIcon,
   },
   {
     title: "Wanted",
     url: "/wanted",
-    icon: IconAlertTriangle,
+    icon: WarningIcon,
   },
   {
     title: "Calendar",
     url: "/calendar",
-    icon: IconCalendar,
+    icon: CalendarIcon,
   },
   {
     title: "Downloads",
     url: "/downloads",
-    icon: IconDownload,
+    icon: DownloadIcon,
   },
 ];
 
@@ -66,12 +65,12 @@ const settingsItems = [
   {
     title: "System Logs",
     url: "/logs",
-    icon: IconList,
+    icon: ListIcon,
   },
   {
     title: "Settings",
     url: "/settings",
-    icon: IconSettings,
+    icon: GearIcon,
   },
 ];
 
@@ -80,71 +79,63 @@ export function AppSidebar() {
   const location = useLocation();
   const { state } = useSidebar();
 
-  const isCollapsed = () => state() === "collapsed";
+  const isCollapsed = state === "collapsed";
 
   const isActive = (url: string) => {
-    if (url === "/") return location().pathname === "/";
-    return location().pathname.startsWith(url);
+    if (url === "/") return location.pathname === "/";
+    return location.pathname.startsWith(url);
   };
 
   return (
-    <Sidebar collapsible="icon" class="border-r-0">
+    <Sidebar collapsible="icon" className="border-r-0">
       {/* Workspace Header */}
-      <SidebarHeader class="p-2 group-data-[collapsible=icon]:p-1">
-        <div class="flex items-center gap-2 w-full rounded-none px-2 py-1.5">
-          <div class="flex h-6 w-6 items-center justify-center bg-primary text-primary-foreground font-semibold text-xs shrink-0 rounded-none">
+      <SidebarHeader className="p-2 group-data-[collapsible=icon]:p-1">
+        <div className="flex items-center gap-2 w-full rounded-none px-2 py-1.5">
+          <div className="flex h-6 w-6 items-center justify-center bg-primary text-primary-foreground font-semibold text-xs shrink-0 rounded-none">
             B
           </div>
-          <Show when={!isCollapsed()}>
-            <span class="font-semibold text-sm text-sidebar-accent-foreground truncate flex-1 text-left">
+          {!isCollapsed && (
+            <span className="font-semibold text-sm text-sidebar-accent-foreground truncate flex-1 text-left">
               Bakarr
             </span>
-          </Show>
+          )}
         </div>
       </SidebarHeader>
 
       {/* Search */}
-      <div class="px-3 pb-1 group-data-[collapsible=icon]:px-1.5">
+      <div className="px-3 pb-1 group-data-[collapsible=icon]:px-1.5">
         <CommandPalette />
       </div>
 
-      <SidebarContent class="px-3 group-data-[collapsible=icon]:px-0">
+      <SidebarContent className="px-3 group-data-[collapsible=icon]:px-0">
         {/* Main Navigation */}
-        <SidebarGroup class="py-2 group-data-[collapsible=icon]:px-0">
-          <div class="px-3 pb-2 text-xs font-mono font-medium text-muted-foreground uppercase tracking-widest hidden group-data-[collapsible=icon]:block group-data-[collapsible=icon]:opacity-0">
+        <SidebarGroup className="py-2 group-data-[collapsible=icon]:px-0">
+          <div className="px-3 pb-2 text-xs font-mono font-medium text-muted-foreground uppercase tracking-widest hidden group-data-[collapsible=icon]:block group-data-[collapsible=icon]:opacity-0">
             MAIN
           </div>
           <SidebarGroupContent>
-            <SidebarMenu class="gap-1 group-data-[collapsible=icon]:items-center">
-              <For each={mainItems}>
-                {(item) => {
-                  return (
-                    <SidebarMenuItem>
-                      <Link
-                        to={item.url}
-                        class="w-full"
-                        aria-current={isActive(item.url) ? "page" : undefined}
-                        activeOptions={{
-                          exact: item.url === "/",
-                        }}
-                      >
-                        <SidebarMenuButton
-                          tooltip={item.title}
-                          isActive={isActive(item.url)}
-                          class="h-9 transition-colors"
-                        >
-                          <item.icon
-                            class={`h-4 w-4 shrink-0 transition-opacity ${
-                              isActive(item.url) ? "opacity-100" : "opacity-50"
-                            }`}
-                          />
-                          <span>{item.title}</span>
-                        </SidebarMenuButton>
-                      </Link>
-                    </SidebarMenuItem>
-                  );
-                }}
-              </For>
+            <SidebarMenu className="gap-1 group-data-[collapsible=icon]:items-center">
+              {mainItems.map((item) => (
+                <SidebarMenuItem key={item.url}>
+                  <Link
+                    to={item.url}
+                    className="w-full"
+                    aria-current={isActive(item.url) ? "page" : undefined}
+                    activeOptions={{
+                      exact: item.url === "/",
+                    }}
+                  >
+                    <SidebarMenuButton
+                      tooltip={item.title}
+                      isActive={isActive(item.url)}
+                      className="h-9 transition-colors"
+                    >
+                      <item.icon className="h-4 w-4 shrink-0" />
+                      <span>{item.title}</span>
+                    </SidebarMenuButton>
+                  </Link>
+                </SidebarMenuItem>
+              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -153,47 +144,39 @@ export function AppSidebar() {
         {/* <ActiveDownloads /> */}
 
         {/* Settings Section */}
-        <SidebarGroup class="py-2 mt-auto group-data-[collapsible=icon]:px-0">
-          <div class="px-3 pb-2 text-xs font-mono font-medium text-muted-foreground uppercase tracking-widest hidden group-data-[collapsible=icon]:block group-data-[collapsible=icon]:opacity-0">
+        <SidebarGroup className="py-2 mt-auto group-data-[collapsible=icon]:px-0">
+          <div className="px-3 pb-2 text-xs font-mono font-medium text-muted-foreground uppercase tracking-widest hidden group-data-[collapsible=icon]:block group-data-[collapsible=icon]:opacity-0">
             SYSTEM
           </div>
           <SidebarGroupContent>
-            <SidebarMenu class="gap-1 group-data-[collapsible=icon]:items-center">
-              <For each={settingsItems}>
-                {(item) => {
-                  return (
-                    <SidebarMenuItem>
-                      <Link
-                        to={item.url}
-                        class="w-full"
-                        aria-current={isActive(item.url) ? "page" : undefined}
-                      >
-                        <SidebarMenuButton
-                          tooltip={item.title}
-                          isActive={isActive(item.url)}
-                          class="h-9 transition-colors"
-                        >
-                          <item.icon
-                            class={`h-4 w-4 shrink-0 transition-opacity ${
-                              isActive(item.url) ? "opacity-100" : "opacity-50"
-                            }`}
-                          />
-                          <span>{item.title}</span>
-                        </SidebarMenuButton>
-                      </Link>
-                    </SidebarMenuItem>
-                  );
-                }}
-              </For>
+            <SidebarMenu className="gap-1 group-data-[collapsible=icon]:items-center">
+              {settingsItems.map((item) => (
+                <SidebarMenuItem key={item.url}>
+                  <Link
+                    to={item.url}
+                    className="w-full"
+                    aria-current={isActive(item.url) ? "page" : undefined}
+                  >
+                    <SidebarMenuButton
+                      tooltip={item.title}
+                      isActive={isActive(item.url)}
+                      className="h-9 transition-colors"
+                    >
+                      <item.icon className="h-4 w-4 shrink-0" />
+                      <span>{item.title}</span>
+                    </SidebarMenuButton>
+                  </Link>
+                </SidebarMenuItem>
+              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
 
       {/* Footer */}
-      <SidebarFooter class="p-3 group-data-[collapsible=icon]:p-1">
-        <SidebarSeparator class="mb-2 mx-0 group-data-[collapsible=icon]:mx-0 bg-border/50" />
-        <SidebarMenu class="gap-1 group-data-[collapsible=icon]:items-center">
+      <SidebarFooter className="p-3 group-data-[collapsible=icon]:p-1">
+        <SidebarSeparator className="mb-2 mx-0 group-data-[collapsible=icon]:mx-0 bg-border/50" />
+        <SidebarMenu className="gap-1 group-data-[collapsible=icon]:items-center">
           <SidebarMenuItem>
             <ModeToggle />
           </SidebarMenuItem>
@@ -203,9 +186,9 @@ export function AppSidebar() {
                 void logout();
               }}
               tooltip="Sign out"
-              class="h-9 transition-colors"
+              className="h-9 transition-colors"
             >
-              <IconLogout class="h-4 w-4 shrink-0 opacity-50" />
+              <SignOutIcon className="h-4 w-4 shrink-0" />
               <span>Sign out</span>
             </SidebarMenuButton>
           </SidebarMenuItem>

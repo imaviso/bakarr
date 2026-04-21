@@ -1,106 +1,103 @@
-import type { Component, ComponentProps, JSX } from "solid-js";
-import { Show, splitProps } from "solid-js";
+import * as React from "react";
+import { mergeProps } from "@base-ui/react/merge-props";
+import { useRender } from "@base-ui/react/use-render";
 
-import * as BreadcrumbPrimitive from "@kobalte/core/breadcrumbs";
+import { cn } from "@/lib/utils";
+import { CaretRightIcon, DotsThreeIcon } from "@phosphor-icons/react";
 
-import { cn } from "~/lib/utils";
+function Breadcrumb({ className, ...props }: React.ComponentProps<"nav">) {
+  return (
+    <nav aria-label="breadcrumb" data-slot="breadcrumb" className={cn(className)} {...props} />
+  );
+}
 
-const Breadcrumb = BreadcrumbPrimitive.Root;
-
-const BreadcrumbList: Component<ComponentProps<"ol">> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
+function BreadcrumbList({ className, ...props }: React.ComponentProps<"ol">) {
   return (
     <ol
-      class={cn(
-        "flex flex-wrap items-center gap-1.5 break-words text-sm text-muted-foreground sm:gap-2.5",
-        local.class,
+      data-slot="breadcrumb-list"
+      className={cn(
+        "flex flex-wrap items-center gap-1.5 text-xs wrap-break-word text-muted-foreground",
+        className,
       )}
-      {...others}
+      {...props}
     />
   );
-};
+}
 
-const BreadcrumbItem: Component<ComponentProps<"li">> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
-  return <li class={cn("inline-flex items-center gap-1.5", local.class)} {...others} />;
-};
-
-type BreadcrumbLinkProps = ComponentProps<typeof BreadcrumbPrimitive.Link> & {
-  class?: string | undefined;
-};
-
-const BreadcrumbLink: Component<BreadcrumbLinkProps> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
+function BreadcrumbItem({ className, ...props }: React.ComponentProps<"li">) {
   return (
-    <BreadcrumbPrimitive.Link
-      class={cn(
-        "transition-colors hover:text-foreground data-[current]:font-normal data-[current]:text-foreground",
-        local.class,
-      )}
-      {...others}
+    <li
+      data-slot="breadcrumb-item"
+      className={cn("inline-flex items-center gap-1", className)}
+      {...props}
     />
   );
-};
+}
 
-type BreadcrumbSeparatorProps = ComponentProps<typeof BreadcrumbPrimitive.Separator> & {
-  class?: string | undefined;
-  children?: JSX.Element;
-};
+function BreadcrumbLink({ className, render, ...props }: useRender.ComponentProps<"a">) {
+  return useRender({
+    defaultTagName: "a",
+    props: mergeProps<"a">(
+      {
+        className: cn("transition-colors hover:text-foreground", className),
+      },
+      props,
+    ),
+    render,
+    state: {
+      slot: "breadcrumb-link",
+    },
+  });
+}
 
-const BreadcrumbSeparator: Component<BreadcrumbSeparatorProps> = (props) => {
-  const [local, others] = splitProps(props, ["class", "children"]);
+function BreadcrumbPage({ className, ...props }: React.ComponentProps<"span">) {
   return (
-    <BreadcrumbPrimitive.Separator class={cn("[&>svg]:size-3.5", local.class)} {...others}>
-      <Show
-        when={local.children}
-        fallback={
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="M9 6l6 6l-6 6" />
-          </svg>
-        }
-      >
-        {local.children}
-      </Show>
-    </BreadcrumbPrimitive.Separator>
+    <span
+      data-slot="breadcrumb-page"
+      role="link"
+      aria-disabled="true"
+      aria-current="page"
+      className={cn("font-normal text-foreground", className)}
+      {...props}
+    />
   );
-};
+}
 
-const BreadcrumbEllipsis: Component<ComponentProps<"span">> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
+function BreadcrumbSeparator({ children, className, ...props }: React.ComponentProps<"li">) {
   return (
-    <span class={cn("flex size-9 items-center justify-center", local.class)} {...others}>
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        class="size-4"
-      >
-        <path d="M5 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
-        <path d="M12 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
-        <path d="M19 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
-      </svg>
-      <span class="sr-only">More</span>
+    <li
+      data-slot="breadcrumb-separator"
+      role="presentation"
+      aria-hidden="true"
+      className={cn("[&>svg]:size-3.5", className)}
+      {...props}
+    >
+      {children ?? <CaretRightIcon />}
+    </li>
+  );
+}
+
+function BreadcrumbEllipsis({ className, ...props }: React.ComponentProps<"span">) {
+  return (
+    <span
+      data-slot="breadcrumb-ellipsis"
+      role="presentation"
+      aria-hidden="true"
+      className={cn("flex size-5 items-center justify-center [&>svg]:size-4", className)}
+      {...props}
+    >
+      <DotsThreeIcon />
+      <span className="sr-only">More</span>
     </span>
   );
-};
+}
 
 export {
   Breadcrumb,
-  BreadcrumbEllipsis,
+  BreadcrumbList,
   BreadcrumbItem,
   BreadcrumbLink,
-  BreadcrumbList,
+  BreadcrumbPage,
   BreadcrumbSeparator,
+  BreadcrumbEllipsis,
 };

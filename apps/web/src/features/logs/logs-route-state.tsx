@@ -1,4 +1,3 @@
-import type { Accessor } from "solid-js";
 import { useLogsActions } from "~/features/logs/use-logs-actions";
 import { useLogsFilters } from "~/features/logs/use-logs-filters";
 import { useLogsQueries } from "~/features/logs/use-logs-queries";
@@ -9,7 +8,7 @@ export function formatLogTimestamp(createdAt: string): string {
 }
 
 interface UseLogsRouteStateOptions {
-  search: Accessor<Record<string, string | undefined>>;
+  search: Record<string, string | undefined>;
   updateSearch: (patch: Partial<Record<string, string>>) => void;
 }
 
@@ -28,10 +27,10 @@ export function useLogsRouteState(options: UseLogsRouteStateOptions) {
   const actions = useLogsActions({
     logsParams: filters.logsParams,
     updateSearch: options.updateSearch,
-    downloadEventsPage: () => ({
+    downloadEventsPage: {
       nextCursor: queries.downloadEventsQuery.data?.next_cursor,
       prevCursor: queries.downloadEventsQuery.data?.prev_cursor,
-    }),
+    },
   });
 
   return {
@@ -47,7 +46,7 @@ export function useLogsRouteState(options: UseLogsRouteStateOptions) {
     exportDownloadEvents: (formatValue: "json" | "csv") =>
       actions.exportDownloadEvents({
         format: formatValue,
-        exportInput: queries.downloadEventsSearchState.exportInput(),
+        exportInput: queries.downloadEventsSearchState.exportInput,
       }),
     exportLogs: actions.exportLogs,
     filterStates: filters.filterStates,

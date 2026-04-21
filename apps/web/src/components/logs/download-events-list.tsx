@@ -19,7 +19,7 @@ export function DownloadEventsList(props: DownloadEventsListProps) {
       showCount={!props.hideCount}
       virtualized
       maxHeightPx={600}
-      class="overflow-y-auto px-4 pb-4"
+      className="overflow-y-auto px-4 pb-4"
     />
   );
 }

@@ -1,43 +1,92 @@
-import type { Component, ComponentProps } from "solid-js";
-import { splitProps } from "solid-js";
+import * as React from "react";
 
-import { cn } from "~/lib/utils";
+import { cn } from "@/lib/utils";
 
-const Card: Component<ComponentProps<"div">> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
+function Card({
+  className,
+  size = "default",
+  ...props
+}: React.ComponentProps<"div"> & { size?: "default" | "sm" }) {
   return (
     <div
-      class={cn("border border-border bg-card text-card-foreground shadow-sm", local.class)}
-      {...others}
+      data-slot="card"
+      data-size={size}
+      className={cn(
+        "group/card flex flex-col gap-4 overflow-hidden rounded-none bg-card py-4 text-xs/relaxed text-card-foreground ring-1 ring-foreground/10 has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:gap-2 data-[size=sm]:py-3 data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-none *:[img:last-child]:rounded-none",
+        className,
+      )}
+      {...props}
     />
   );
-};
+}
 
-const CardHeader: Component<ComponentProps<"div">> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
-  return <div class={cn("flex flex-col space-y-1.5 p-6", local.class)} {...others} />;
-};
-
-const CardTitle: Component<ComponentProps<"h3">> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
+function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
-    <h3 class={cn("text-lg font-semibold leading-none tracking-tight", local.class)} {...others} />
+    <div
+      data-slot="card-header"
+      className={cn(
+        "group/card-header @container/card-header grid auto-rows-min items-start gap-1 rounded-none px-4 group-data-[size=sm]/card:px-3 has-data-[slot=card-action]:grid-cols-[1fr_auto] has-data-[slot=card-description]:grid-rows-[auto_auto] [.border-b]:pb-4 group-data-[size=sm]/card:[.border-b]:pb-3",
+        className,
+      )}
+      {...props}
+    />
   );
-};
+}
 
-const CardDescription: Component<ComponentProps<"p">> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
-  return <p class={cn("text-sm text-muted-foreground", local.class)} {...others} />;
-};
+function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-title"
+      className={cn(
+        "font-heading text-sm font-medium group-data-[size=sm]/card:text-sm",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
 
-const CardContent: Component<ComponentProps<"div">> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
-  return <div class={cn("p-6 pt-0", local.class)} {...others} />;
-};
+function CardDescription({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-description"
+      className={cn("text-xs/relaxed text-muted-foreground", className)}
+      {...props}
+    />
+  );
+}
 
-const CardFooter: Component<ComponentProps<"div">> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
-  return <div class={cn("flex items-center p-6 pt-0", local.class)} {...others} />;
-};
+function CardAction({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-action"
+      className={cn("col-start-2 row-span-2 row-start-1 self-start justify-self-end", className)}
+      {...props}
+    />
+  );
+}
 
-export { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle };
+function CardContent({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-content"
+      className={cn("px-4 group-data-[size=sm]/card:px-3", className)}
+      {...props}
+    />
+  );
+}
+
+function CardFooter({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-footer"
+      className={cn(
+        "flex items-center rounded-none border-t p-4 group-data-[size=sm]/card:p-3",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+export { Card, CardHeader, CardFooter, CardTitle, CardAction, CardDescription, CardContent };

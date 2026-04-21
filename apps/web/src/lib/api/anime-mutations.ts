@@ -1,5 +1,5 @@
-import { useMutation, useQueryClient } from "@tanstack/solid-query";
-import { toast } from "solid-sonner";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import type {
   AddAnimeRequest,
   Anime,
@@ -11,7 +11,7 @@ import { animeKeys } from "./keys";
 
 export function createAddAnimeMutation() {
   const queryClient = useQueryClient();
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: (data: AddAnimeRequest) =>
       fetchApi<Anime>(`${API_BASE}/anime`, {
         method: "POST",
@@ -24,23 +24,23 @@ export function createAddAnimeMutation() {
       });
       void queryClient.invalidateQueries({ queryKey: animeKeys.system.status() });
     },
-  }));
+  });
 }
 
 export function createDeleteAnimeMutation() {
   const queryClient = useQueryClient();
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: (id: number) => fetchApi(`${API_BASE}/anime/${id}`, { method: "DELETE" }),
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
       void queryClient.invalidateQueries({ queryKey: animeKeys.system.status() });
     },
-  }));
+  });
 }
 
 export function createToggleMonitorMutation() {
   const queryClient = useQueryClient();
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: ({ id, monitored }: { id: number; monitored: boolean }) =>
       fetchApi(`${API_BASE}/anime/${id}/monitor`, {
         method: "POST",
@@ -81,12 +81,12 @@ export function createToggleMonitorMutation() {
       void queryClient.invalidateQueries({ queryKey: animeKeys.detail(id) });
       void queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
     },
-  }));
+  });
 }
 
 export function createUpdateAnimePathMutation() {
   const queryClient = useQueryClient();
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: ({ id, path, rescan }: { id: number; path: string; rescan?: boolean }) =>
       fetchApi(`${API_BASE}/anime/${id}/path`, {
         method: "PUT",
@@ -111,12 +111,12 @@ export function createUpdateAnimePathMutation() {
     onSettled: (_, __, { id }) => {
       void queryClient.invalidateQueries({ queryKey: animeKeys.detail(id) });
     },
-  }));
+  });
 }
 
 export function createUpdateAnimeProfileMutation() {
   const queryClient = useQueryClient();
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: ({ id, profileName }: { id: number; profileName: string }) =>
       fetchApi(`${API_BASE}/anime/${id}/profile`, {
         method: "PUT",
@@ -141,12 +141,12 @@ export function createUpdateAnimeProfileMutation() {
     onSettled: (_, __, { id }) => {
       void queryClient.invalidateQueries({ queryKey: animeKeys.detail(id) });
     },
-  }));
+  });
 }
 
 export function createUpdateAnimeReleaseProfilesMutation() {
   const queryClient = useQueryClient();
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: ({ id, releaseProfileIds }: { id: number; releaseProfileIds: number[] }) =>
       fetchApi(`${API_BASE}/anime/${id}/release-profiles`, {
         method: "PUT",
@@ -155,12 +155,12 @@ export function createUpdateAnimeReleaseProfilesMutation() {
     onSuccess: (_, { id }) => {
       void queryClient.invalidateQueries({ queryKey: animeKeys.detail(id) });
     },
-  }));
+  });
 }
 
 export function createRefreshEpisodesMutation() {
   const queryClient = useQueryClient();
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: (animeId: number) =>
       fetchApi<AsyncOperationAccepted>(`${API_BASE}/anime/${animeId}/episodes/refresh`, {
         method: "POST",
@@ -177,12 +177,12 @@ export function createRefreshEpisodesMutation() {
         });
       }
     },
-  }));
+  });
 }
 
 export function createScanFolderMutation() {
   const queryClient = useQueryClient();
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: (animeId: number) =>
       fetchApi<AsyncOperationAccepted>(`${API_BASE}/anime/${animeId}/episodes/scan`, {
         method: "POST",
@@ -199,12 +199,12 @@ export function createScanFolderMutation() {
         });
       }
     },
-  }));
+  });
 }
 
 export function createDeleteEpisodeFileMutation() {
   const queryClient = useQueryClient();
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: ({ animeId, episodeNumber }: { animeId: number; episodeNumber: number }) =>
       fetchApi(`${API_BASE}/anime/${animeId}/episodes/${episodeNumber}/file`, {
         method: "DELETE",
@@ -212,12 +212,12 @@ export function createDeleteEpisodeFileMutation() {
     onSuccess: (_, { animeId }) => {
       void queryClient.invalidateQueries({ queryKey: animeKeys.episodes(animeId) });
     },
-  }));
+  });
 }
 
 export function createMapEpisodeMutation() {
   const queryClient = useQueryClient();
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: ({
       animeId,
       episodeNumber,
@@ -235,12 +235,12 @@ export function createMapEpisodeMutation() {
       void queryClient.invalidateQueries({ queryKey: animeKeys.episodes(animeId) });
       void queryClient.invalidateQueries({ queryKey: animeKeys.files(animeId) });
     },
-  }));
+  });
 }
 
 export function createBulkMapEpisodesMutation() {
   const queryClient = useQueryClient();
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: ({
       animeId,
       mappings,
@@ -256,12 +256,12 @@ export function createBulkMapEpisodesMutation() {
       void queryClient.invalidateQueries({ queryKey: animeKeys.episodes(animeId) });
       void queryClient.invalidateQueries({ queryKey: animeKeys.files(animeId) });
     },
-  }));
+  });
 }
 
 export function createGrabReleaseMutation() {
   const queryClient = useQueryClient();
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: (data: SearchDownloadRequest) =>
       fetchApi<void>(`${API_BASE}/search/download`, {
         method: "POST",
@@ -274,5 +274,5 @@ export function createGrabReleaseMutation() {
       });
       void queryClient.invalidateQueries({ queryKey: animeKeys.library.activity() });
     },
-  }));
+  });
 }

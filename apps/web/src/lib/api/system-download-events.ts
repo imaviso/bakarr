@@ -1,4 +1,4 @@
-import { queryOptions, useQuery } from "@tanstack/solid-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import { triggerBlobDownload } from "~/lib/blob-download";
 import type {
   DownloadEventsExportInput,
@@ -80,8 +80,16 @@ export function downloadEventsQueryOptionsWithFilters(input: DownloadEventsFilte
   });
 }
 
-export function createDownloadEventsQuery(input: () => DownloadEventsFilterInput) {
-  return useQuery(() => downloadEventsQueryOptionsWithFilters(input()));
+export function createDownloadEventsQuery(
+  input: DownloadEventsFilterInput,
+  options?: {
+    enabled?: boolean;
+  },
+) {
+  return useQuery({
+    ...downloadEventsQueryOptionsWithFilters(input),
+    enabled: options?.enabled ?? true,
+  });
 }
 
 export function getDownloadEventsExportUrl(

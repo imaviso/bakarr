@@ -1,5 +1,5 @@
 import { SettingRow, SettingSection } from "~/components/settings/form-controls";
-import type { SettingsFormApi } from "~/components/settings/system-settings-form-factory";
+import type { SettingsFormApi } from "~/components/settings/system-settings-form-hook";
 import { Input } from "~/components/ui/input";
 import { Switch } from "~/components/ui/switch";
 
@@ -19,8 +19,8 @@ export function SystemSettingsAutomationDownloadClientSection(
             description="Connect to qBittorrent for downloading"
           >
             <Switch
-              checked={field().state.value}
-              onChange={(checked) => field().handleChange(checked)}
+              checked={field.state.value}
+              onCheckedChange={(checked) => field.handleChange(checked)}
             />
           </SettingRow>
         )}
@@ -30,10 +30,10 @@ export function SystemSettingsAutomationDownloadClientSection(
         {(field) => (
           <SettingRow label="URL" description="qBittorrent Web UI address">
             <Input
-              value={field().state.value}
-              onInput={(event) => field().handleChange(event.currentTarget.value)}
+              value={field.state.value}
+              onInput={(event) => field.handleChange(event.currentTarget.value)}
               placeholder="http://localhost:8080"
-              class="w-56"
+              className="w-56"
             />
           </SettingRow>
         )}
@@ -43,10 +43,10 @@ export function SystemSettingsAutomationDownloadClientSection(
         {(field) => (
           <SettingRow label="Username">
             <Input
-              value={field().state.value}
-              onInput={(event) => field().handleChange(event.currentTarget.value)}
-              autocomplete="off"
-              class="w-40"
+              value={field.state.value}
+              onInput={(event) => field.handleChange(event.currentTarget.value)}
+              autoComplete="off"
+              className="w-40"
             />
           </SettingRow>
         )}
@@ -57,10 +57,10 @@ export function SystemSettingsAutomationDownloadClientSection(
           <SettingRow label="Password">
             <Input
               type="password"
-              value={field().state.value || ""}
-              onInput={(event) => field().handleChange(event.currentTarget.value)}
-              autocomplete="off"
-              class="w-40"
+              value={field.state.value || ""}
+              onInput={(event) => field.handleChange(event.currentTarget.value)}
+              autoComplete="off"
+              className="w-40"
             />
           </SettingRow>
         )}
@@ -70,10 +70,10 @@ export function SystemSettingsAutomationDownloadClientSection(
         {(field) => (
           <SettingRow label="Category" description="qBittorrent category for downloads">
             <Input
-              value={field().state.value}
-              onInput={(event) => field().handleChange(event.currentTarget.value)}
+              value={field.state.value}
+              onInput={(event) => field.handleChange(event.currentTarget.value)}
               placeholder="bakarr"
-              class="w-32"
+              className="w-32"
             />
           </SettingRow>
         )}

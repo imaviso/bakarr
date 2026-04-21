@@ -4,7 +4,7 @@ import {
   useInfiniteQuery,
   useMutation,
   useQueryClient,
-} from "@tanstack/solid-query";
+} from "@tanstack/react-query";
 import type { SystemLogsResponse } from "./contracts";
 import { API_BASE, fetchApi } from "./client";
 import { animeKeys } from "./keys";
@@ -46,14 +46,12 @@ export function infiniteLogsQueryOptions(
 }
 
 export function createInfiniteLogsQuery(
-  level: () => string | undefined,
-  eventType: () => string | undefined,
-  startDate: () => string | undefined,
-  endDate: () => string | undefined,
+  level: string | undefined,
+  eventType: string | undefined,
+  startDate: string | undefined,
+  endDate: string | undefined,
 ) {
-  return useInfiniteQuery(() =>
-    infiniteLogsQueryOptions(level(), eventType(), startDate(), endDate()),
-  );
+  return useInfiniteQuery(infiniteLogsQueryOptions(level, eventType, startDate, endDate));
 }
 
 export function getExportLogsUrl(
@@ -74,10 +72,10 @@ export function getExportLogsUrl(
 
 export function createClearLogsMutation() {
   const queryClient = useQueryClient();
-  return useMutation(() => ({
+  return useMutation({
     mutationFn: () => fetchApi(`${API_BASE}/system/logs`, { method: "DELETE" }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: animeKeys.system.all });
     },
-  }));
+  });
 }

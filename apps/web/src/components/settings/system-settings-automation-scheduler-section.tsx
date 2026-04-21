@@ -1,5 +1,5 @@
 import { FiniteNumberInput, SettingRow, SettingSection } from "~/components/settings/form-controls";
-import type { SettingsFormApi } from "~/components/settings/system-settings-form-factory";
+import type { SettingsFormApi } from "~/components/settings/system-settings-form-hook";
 import { Input } from "~/components/ui/input";
 import { Switch } from "~/components/ui/switch";
 
@@ -16,8 +16,8 @@ export function SystemSettingsAutomationSchedulerSection(
         {(field) => (
           <SettingRow label="Enable Scheduler" description="Run automated background tasks">
             <Switch
-              checked={field().state.value}
-              onChange={(checked) => field().handleChange(checked)}
+              checked={field.state.value}
+              onCheckedChange={(checked) => field.handleChange(checked)}
             />
           </SettingRow>
         )}
@@ -26,13 +26,13 @@ export function SystemSettingsAutomationSchedulerSection(
       <props.form.Field name="scheduler.check_interval_minutes">
         {(field) => (
           <SettingRow label="Check Interval" description="Minutes between RSS checks">
-            <div class="flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <FiniteNumberInput
-                value={field().state.value}
-                onChange={field().handleChange}
-                class="w-20"
+                value={field.state.value}
+                onChange={field.handleChange}
+                className="w-20"
               />
-              <span class="text-xs text-muted-foreground">min</span>
+              <span className="text-xs text-muted-foreground">min</span>
             </div>
           </SettingRow>
         )}
@@ -42,9 +42,9 @@ export function SystemSettingsAutomationSchedulerSection(
         {(field) => (
           <SettingRow label="Max Concurrent Checks" description="Parallel anime checks">
             <FiniteNumberInput
-              value={field().state.value}
-              onChange={field().handleChange}
-              class="w-20"
+              value={field.state.value}
+              onChange={field.handleChange}
+              className="w-20"
             />
           </SettingRow>
         )}
@@ -53,14 +53,14 @@ export function SystemSettingsAutomationSchedulerSection(
       <props.form.Field name="scheduler.check_delay_seconds">
         {(field) => (
           <SettingRow label="Check Delay" description="Delay between consecutive automated checks">
-            <div class="flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <FiniteNumberInput
                 min="0"
-                value={field().state.value}
-                onChange={field().handleChange}
-                class="w-20"
+                value={field.state.value}
+                onChange={field.handleChange}
+                className="w-20"
               />
-              <span class="text-xs text-muted-foreground">sec</span>
+              <span className="text-xs text-muted-foreground">sec</span>
             </div>
           </SettingRow>
         )}
@@ -69,13 +69,13 @@ export function SystemSettingsAutomationSchedulerSection(
       <props.form.Field name="scheduler.metadata_refresh_hours">
         {(field) => (
           <SettingRow label="Metadata Refresh" description="Hours between metadata updates">
-            <div class="flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <FiniteNumberInput
-                value={field().state.value}
-                onChange={field().handleChange}
-                class="w-20"
+                value={field.state.value}
+                onChange={field.handleChange}
+                className="w-20"
               />
-              <span class="text-xs text-muted-foreground">hours</span>
+              <span className="text-xs text-muted-foreground">hours</span>
             </div>
           </SettingRow>
         )}
@@ -85,10 +85,10 @@ export function SystemSettingsAutomationSchedulerSection(
         {(field) => (
           <SettingRow label="Cron Expression" description="Custom schedule (overrides interval)">
             <Input
-              value={field().state.value || ""}
-              onInput={(event) => field().handleChange(event.currentTarget.value)}
+              value={field.state.value || ""}
+              onInput={(event) => field.handleChange(event.currentTarget.value)}
               placeholder="0 */6 * * *"
-              class="w-36 font-mono text-xs"
+              className="w-36 font-mono text-xs"
             />
           </SettingRow>
         )}

@@ -1,28 +1,24 @@
-import type { Accessor, JSX } from "solid-js";
-import type { Component } from "solid-js";
-import { createMemo } from "solid-js";
+import type { ReactNode } from "react";
 import { FilterContext } from "./filter-context";
 import type { FilterColumnConfig, FilterContextValue, FilterOperator, FilterState } from "./types";
 
 interface FilterProviderProps {
-  children: JSX.Element;
+  children: ReactNode;
   columns: FilterColumnConfig[];
-  value: Accessor<FilterState[]>;
+  value: FilterState[];
   onChange: (filters: FilterState[]) => void;
 }
 
-const FilterContextProvider: Component<{ value: FilterContextValue; children: JSX.Element }> = (
-  props,
-) => {
+function FilterContextProvider(props: { value: FilterContextValue; children: ReactNode }) {
   return <FilterContext.Provider value={props.value}>{props.children}</FilterContext.Provider>;
-};
+}
 
 export function FilterProvider(props: FilterProviderProps) {
-  const columns = createMemo(() => props.columns);
-  const filters = createMemo(() => props.value());
+  const columns = props.columns;
+  const filters = props.value;
 
   const addFilter = (columnId: string) => {
-    const column = columns().find((c) => c.id === columnId);
+    const column = columns.find((c) => c.id === columnId);
     if (!column) return;
 
     let defaultOperator: FilterOperator =
@@ -42,27 +38,29 @@ export function FilterProvider(props: FilterProviderProps) {
     }
 
     const newFilter: FilterState = {
+      id: globalThis.crypto.randomUUID(),
       columnId,
       operator: defaultOperator,
       value: column.type === "multiSelect" ? [] : "",
     };
 
-    props.onChange([...props.value(), newFilter]);
+    props.onChange([...props.value, newFilter]);
   };
 
-  const updateFilter = (index: number, updates: Partial<FilterState>) => {
-    const newFilters = [...props.value()];
-    const existing = newFilters[index];
+  const updateFilter = (id: string, updates: Partial<FilterState>) => {
+    const newFilters = [...props.value];
+    const existingIndex = newFilters.findIndex((filter) => filter.id === id);
+    const existing = existingIndex >= 0 ? newFilters[existingIndex] : undefined;
     if (!existing) {
       return;
     }
 
-    newFilters[index] = { ...existing, ...updates };
+    newFilters[existingIndex] = { ...existing, ...updates };
     props.onChange(newFilters);
   };
 
-  const removeFilter = (index: number) => {
-    props.onChange(props.value().filter((_, i) => i !== index));
+  const removeFilter = (id: string) => {
+    props.onChange(props.value.filter((filter) => filter.id !== id));
   };
 
   const clearAllFilters = () => {

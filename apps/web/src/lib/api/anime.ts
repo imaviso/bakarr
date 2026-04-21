@@ -4,7 +4,7 @@ import {
   queryOptions,
   useInfiniteQuery,
   useQuery,
-} from "@tanstack/solid-query";
+} from "@tanstack/react-query";
 import type {
   Anime,
   AnimeListResponse,
@@ -52,7 +52,7 @@ export function animeListQueryOptions() {
 }
 
 export function createAnimeListQuery() {
-  return useQuery(animeListQueryOptions);
+  return useQuery(animeListQueryOptions());
 }
 
 export function animeDetailsQueryOptions(id: number) {
@@ -63,11 +63,11 @@ export function animeDetailsQueryOptions(id: number) {
   });
 }
 
-export function createAnimeDetailsQuery(id: () => number) {
-  return useQuery(() => ({
-    ...animeDetailsQueryOptions(id()),
-    enabled: !!id(),
-  }));
+export function createAnimeDetailsQuery(id: number) {
+  return useQuery({
+    ...animeDetailsQueryOptions(id),
+    enabled: !!id,
+  });
 }
 
 export function episodesQueryOptions(animeId: number) {
@@ -79,11 +79,11 @@ export function episodesQueryOptions(animeId: number) {
   });
 }
 
-export function createEpisodesQuery(animeId: () => number) {
-  return useQuery(() => ({
-    ...episodesQueryOptions(animeId()),
-    enabled: !!animeId(),
-  }));
+export function createEpisodesQuery(animeId: number) {
+  return useQuery({
+    ...episodesQueryOptions(animeId),
+    enabled: !!animeId,
+  });
 }
 
 export function listFilesQueryOptions(animeId: number) {
@@ -95,11 +95,11 @@ export function listFilesQueryOptions(animeId: number) {
   });
 }
 
-export function createListFilesQuery(animeId: () => number) {
-  return useQuery(() => ({
-    ...listFilesQueryOptions(animeId()),
-    enabled: !!animeId(),
-  }));
+export function createListFilesQuery(animeId: number) {
+  return useQuery({
+    ...listFilesQueryOptions(animeId),
+    enabled: !!animeId,
+  });
 }
 
 export function animeSearchQueryOptions(query: string) {
@@ -115,15 +115,13 @@ export function animeSearchQueryOptions(query: string) {
   });
 }
 
-export function createAnimeSearchQuery(query: () => string) {
-  return useQuery(() => {
-    const normalizedQuery = query().trim();
+export function createAnimeSearchQuery(query: string) {
+  const normalizedQuery = query.trim();
 
-    return {
-      ...animeSearchQueryOptions(normalizedQuery),
-      enabled: normalizedQuery.length >= 3,
-      placeholderData: (prev: AnimeSearchResponse | undefined) => prev,
-    };
+  return useQuery({
+    ...animeSearchQueryOptions(normalizedQuery),
+    enabled: normalizedQuery.length >= 3,
+    placeholderData: (prev: AnimeSearchResponse | undefined) => prev,
   });
 }
 
@@ -139,11 +137,11 @@ export function episodeSearchQueryOptions(animeId: number, episodeNumber: number
   });
 }
 
-export function createEpisodeSearchQuery(animeId: () => number, episodeNumber: () => number) {
-  return useQuery(() => ({
-    ...episodeSearchQueryOptions(animeId(), episodeNumber()),
+export function createEpisodeSearchQuery(animeId: number, episodeNumber: number) {
+  return useQuery({
+    ...episodeSearchQueryOptions(animeId, episodeNumber),
     enabled: false,
-  }));
+  });
 }
 
 export function nyaaSearchQueryOptions(
@@ -181,30 +179,23 @@ export function nyaaSearchQueryOptions(
 }
 
 export function createNyaaSearchQuery(
-  query: () => string,
+  query: string,
   options: {
-    animeId?: () => number | undefined;
-    category?: () => string | undefined;
-    filter?: () => string | undefined;
-    enabled?: () => boolean | undefined;
+    animeId?: number | undefined;
+    category?: string | undefined;
+    filter?: string | undefined;
+    enabled?: boolean | undefined;
   } = {},
 ) {
-  return useQuery(() => {
-    const normalizedQuery = query().trim();
+  const normalizedQuery = query.trim();
 
-    return {
-      ...(() => {
-        const animeId = options.animeId?.();
-        const category = options.category?.();
-        const filter = options.filter?.();
-        return nyaaSearchQueryOptions(normalizedQuery, {
-          ...(animeId === undefined ? {} : { animeId }),
-          ...(category === undefined ? {} : { category }),
-          ...(filter === undefined ? {} : { filter }),
-        });
-      })(),
-      enabled: (options.enabled?.() ?? true) && normalizedQuery.length > 0,
-    };
+  return useQuery({
+    ...nyaaSearchQueryOptions(normalizedQuery, {
+      ...(options.animeId === undefined ? {} : { animeId: options.animeId }),
+      ...(options.category === undefined ? {} : { category: options.category }),
+      ...(options.filter === undefined ? {} : { filter: options.filter }),
+    }),
+    enabled: (options.enabled ?? true) && normalizedQuery.length > 0,
   });
 }
 
@@ -217,22 +208,19 @@ export function animeByAnilistIdQueryOptions(id: number) {
   });
 }
 
-export function createAnimeByAnilistIdQuery(id: () => number | null) {
-  return useQuery(() => {
-    const currentId = id();
-    if (!currentId) {
-      return {
-        queryKey: animeKeys.anilist(0),
-        queryFn: async () => {
-          throw new Error("Query disabled");
-        },
-        enabled: false,
-      };
-    }
-    return {
-      ...animeByAnilistIdQueryOptions(currentId),
-      enabled: true,
-    };
+export function createAnimeByAnilistIdQuery(id: number | null) {
+  if (!id) {
+    return useQuery({
+      queryKey: animeKeys.anilist(0),
+      queryFn: async () => {
+        throw new Error("Query disabled");
+      },
+      enabled: false,
+    });
+  }
+  return useQuery({
+    ...animeByAnilistIdQueryOptions(id),
+    enabled: true,
   });
 }
 
@@ -265,14 +253,14 @@ export function seasonalAnimeQueryOptions(input?: {
   });
 }
 
-export function createSeasonalAnimeQuery(
-  input?: () => { season?: AnimeSeason; year?: number; limit?: number; page?: number },
-) {
-  return useQuery(() => {
-    const resolved = input?.();
-    return {
-      ...seasonalAnimeQueryOptions(resolved),
-    };
+export function createSeasonalAnimeQuery(input?: {
+  season?: AnimeSeason;
+  year?: number;
+  limit?: number;
+  page?: number;
+}) {
+  return useQuery({
+    ...seasonalAnimeQueryOptions(input),
   });
 }
 
@@ -306,8 +294,10 @@ export function seasonalAnimeInfiniteQueryOptions(input?: {
   });
 }
 
-export function createSeasonalAnimeInfiniteQuery(
-  input?: () => { season?: AnimeSeason; year?: number; limit?: number },
-) {
-  return useInfiniteQuery(() => seasonalAnimeInfiniteQueryOptions(input?.()));
+export function createSeasonalAnimeInfiniteQuery(input?: {
+  season?: AnimeSeason;
+  year?: number;
+  limit?: number;
+}) {
+  return useInfiniteQuery(seasonalAnimeInfiniteQueryOptions(input));
 }

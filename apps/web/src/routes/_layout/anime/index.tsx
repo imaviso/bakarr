@@ -1,19 +1,18 @@
 import {
-  IconDeviceTv,
-  IconFilter,
-  IconFolder,
-  IconFolderOpen,
-  IconGridDots,
-  IconList,
-  IconPlus,
-  IconSearch,
-} from "@tabler/icons-solidjs";
-import { useQuery } from "@tanstack/solid-query";
-import { createFileRoute, Link, useNavigate } from "@tanstack/solid-router";
-import { createEffect, createMemo, createSignal, on, onCleanup, onMount, Show } from "solid-js";
+  TelevisionIcon,
+  FunnelIcon,
+  FolderIcon,
+  FolderOpenIcon,
+  SquaresFourIcon,
+  ListIcon,
+  PlusIcon,
+  MagnifyingGlassIcon,
+} from "@phosphor-icons/react";
+import { useQuery } from "@tanstack/react-query";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import * as v from "valibot";
 import { AnimeListSkeleton } from "~/components/anime-list-skeleton";
-import { AnimeGridView, AnimeListView } from "~/components/anime/anime-library-views";
 import { GeneralError } from "~/components/general-error";
 import { Button, buttonVariants } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
@@ -38,6 +37,17 @@ import { createDebouncer } from "~/lib/debounce";
 import { usePageTitle } from "~/lib/page-title";
 import { cn } from "~/lib/utils";
 
+const AnimeGridViewLazy = lazy(() =>
+  import("~/components/anime/anime-library-views").then((module) => ({
+    default: module.AnimeGridView,
+  })),
+);
+const AnimeListViewLazy = lazy(() =>
+  import("~/components/anime/anime-library-views").then((module) => ({
+    default: module.AnimeListView,
+  })),
+);
+
 const MonitorFilterSchema = v.fallback(v.picklist(["all", "monitored", "unmonitored"]), "all");
 
 const ViewModeSchema = v.fallback(v.picklist(["grid", "list"]), "grid");
@@ -47,6 +57,14 @@ const DEFAULT_ANIME_SEARCH = {
   q: "",
   view: "grid",
 } as const;
+
+type MonitorFilter = typeof DEFAULT_ANIME_SEARCH.filter | "monitored" | "unmonitored";
+
+const MONITOR_FILTER_VALUES = new Set<string>(["all", "monitored", "unmonitored"]);
+
+function isMonitorFilter(value: string): value is MonitorFilter {
+  return MONITOR_FILTER_VALUES.has(value);
+}
 
 const AnimeSearchSchema = v.object({
   q: v.optional(v.string(), DEFAULT_ANIME_SEARCH.q),
@@ -75,24 +93,25 @@ export const Route = createFileRoute("/_layout/anime/")({
 function AnimeIndexPage() {
   usePageTitle(() => "Library");
   const deleteAnime = createDeleteAnimeMutation();
-  const animeQuery = useQuery(animeListQueryOptions);
+  const animeQuery = useQuery(animeListQueryOptions());
   const configQuery = createSystemConfigQuery();
   const search = Route.useSearch();
   const navigate = useNavigate();
-  const airingPreferences = createMemo(() =>
-    getAiringDisplayPreferences(configQuery.data?.library),
+  const airingPreferences = useMemo(
+    () => getAiringDisplayPreferences(configQuery.data?.library),
+    [configQuery.data],
   );
 
-  const [localQuery, setLocalQuery] = createSignal(search().q);
+  const [localQuery, setLocalQuery] = useState(search.q);
 
-  onMount(() => {
+  useEffect(() => {
     const stored = readStoredAnimeSearch();
 
     if (!stored) {
       return;
     }
 
-    const current = search();
+    const current = search;
     const isExplicitSearch =
       current.q !== DEFAULT_ANIME_SEARCH.q ||
       current.filter !== DEFAULT_ANIME_SEARCH.filter ||
@@ -117,57 +136,62 @@ function AnimeIndexPage() {
       search: next,
       replace: true,
     });
-  });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  createEffect(
-    on(
-      () => search().q,
-      (urlQ) => {
-        setLocalQuery((current) => (current === urlQ ? current : urlQ));
-      },
-    ),
+  useEffect(() => {
+    const urlQ = search.q;
+    setLocalQuery((current) => (current === urlQ ? current : urlQ));
+  }, [search.q]);
+
+  const searchRef = useRef(search);
+  searchRef.current = search;
+  const debouncer = useMemo(
+    () =>
+      createDebouncer((q: string) => {
+        void navigate({
+          to: ".",
+          search: {
+            q,
+            filter: searchRef.current.filter,
+            view: searchRef.current.view,
+          },
+          replace: true,
+        });
+      }, 250),
+    [navigate],
   );
 
-  const debouncer = createDebouncer((q: string) => {
-    void navigate({
-      to: ".",
-      search: {
-        q,
-        filter: search().filter,
-        view: search().view,
-      },
-      replace: true,
-    });
-  }, 250);
-
-  createEffect(() => {
+  useEffect(() => {
     try {
-      localStorage.setItem("bakarr_anime_search", JSON.stringify(search()));
+      localStorage.setItem("bakarr_anime_search", JSON.stringify(search));
     } catch {
       // Ignore persistence errors.
     }
-  });
+  }, [search]);
 
-  onCleanup(() => debouncer.cancel());
+  useEffect(() => {
+    return () => debouncer.cancel();
+  }, [debouncer]);
 
   const handleSearchInput = (q: string) => {
     setLocalQuery(q);
     debouncer.schedule(q);
   };
 
-  const filteredList = createMemo(() => {
+  const filteredList = useMemo(() => {
     const list = animeQuery.data;
     if (!list) return [];
-    return filterAnimeLibrary(list, localQuery(), search().filter);
-  });
+    return filterAnimeLibrary(list, localQuery, search.filter);
+  }, [animeQuery.data, localQuery, search.filter]);
 
-  const updateFilter = (filter: "all" | "monitored" | "unmonitored") =>
+  const updateFilter = (filter: MonitorFilter) =>
     void navigate({
       to: ".",
       search: {
-        q: search().q,
+        q: search.q,
         filter,
-        view: search().view,
+        view: search.view,
       },
       replace: true,
     });
@@ -176,60 +200,62 @@ function AnimeIndexPage() {
     void navigate({
       to: ".",
       search: {
-        q: search().q,
-        filter: search().filter,
+        q: search.q,
+        filter: search.filter,
         view,
       },
       replace: true,
     });
 
   return (
-    <div class="flex flex-col flex-1 min-h-0">
-      <div class="border-b border-border pb-3 mb-3 space-y-3">
-        <div class="flex items-center justify-between gap-4">
+    <div className="flex flex-col flex-1 min-h-0">
+      <div className="border-b border-border pb-3 mb-3 space-y-3">
+        <div className="flex items-center justify-between gap-4">
           <div>
-            <h1 class="text-2xl font-semibold tracking-tight text-foreground">Library</h1>
-            <p class="text-sm text-muted-foreground mt-1">
-              {filteredList().length === (animeQuery.data?.length ?? 0)
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Library</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              {filteredList.length === (animeQuery.data?.length ?? 0)
                 ? `${animeQuery.data?.length ?? 0} titles`
-                : `${filteredList().length} of ${animeQuery.data?.length ?? 0} titles`}
+                : `${filteredList.length} of ${animeQuery.data?.length ?? 0} titles`}
             </p>
           </div>
           <Link
             to="/anime/add"
-            class={buttonVariants({ class: "gap-1.5 px-2.5 sm:px-4" })}
+            className={buttonVariants({ class: "gap-1.5 px-2.5 sm:px-4" })}
             aria-label="Add anime"
           >
-            <IconPlus class="h-4 w-4" />
-            <span class="hidden sm:inline">Add Anime</span>
+            <PlusIcon className="h-4 w-4" />
+            <span className="hidden sm:inline">Add Anime</span>
           </Link>
         </div>
 
-        <div class="flex items-center gap-2">
-          <div class="relative flex-1">
-            <IconSearch class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Filter anime..."
               aria-label="Filter anime"
-              value={localQuery()}
+              value={localQuery}
               onInput={(event) => handleSearchInput(event.currentTarget.value)}
-              class="pl-9"
+              className="pl-9"
             />
           </div>
 
           <DropdownMenu>
             <DropdownMenuTrigger
-              as={Button}
-              variant="outline"
-              size="icon"
+              render={<Button variant="outline" size="icon" />}
               aria-label="Filter by status"
             >
-              <IconFilter class="h-4 w-4" />
+              <FunnelIcon className="h-4 w-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent>
               <DropdownMenuRadioGroup
-                value={search().filter}
-                onChange={(value) => updateFilter(value)}
+                value={search.filter}
+                onValueChange={(value) => {
+                  if (isMonitorFilter(value)) {
+                    updateFilter(value);
+                  }
+                }}
               >
                 <DropdownMenuRadioItem value="all">All Anime</DropdownMenuRadioItem>
                 <DropdownMenuRadioItem value="monitored">Monitored</DropdownMenuRadioItem>
@@ -238,16 +264,16 @@ function AnimeIndexPage() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <div class="h-6 w-px bg-border" />
+          <div className="h-6 w-px bg-border" />
 
           <Tooltip>
             <TooltipTrigger>
               <Link
                 to="/anime/import"
-                class={buttonVariants({ variant: "outline", size: "icon" })}
+                className={buttonVariants({ variant: "outline", size: "icon" })}
                 aria-label="Import from folder"
               >
-                <IconFolderOpen class="h-4 w-4" />
+                <FolderOpenIcon className="h-4 w-4" />
               </Link>
             </TooltipTrigger>
             <TooltipContent>Import from folder</TooltipContent>
@@ -257,31 +283,31 @@ function AnimeIndexPage() {
             <TooltipTrigger>
               <Link
                 to="/anime/scan"
-                class={buttonVariants({ variant: "outline", size: "icon" })}
+                className={buttonVariants({ variant: "outline", size: "icon" })}
                 aria-label="Scan library"
               >
-                <IconFolder class="h-4 w-4" />
+                <FolderIcon className="h-4 w-4" />
               </Link>
             </TooltipTrigger>
             <TooltipContent>Scan library</TooltipContent>
           </Tooltip>
 
-          <div class="h-6 w-px bg-border" />
+          <div className="h-6 w-px bg-border" />
 
-          <div class="flex items-center gap-1 bg-muted/50 p-1">
+          <div className="flex items-center gap-1 bg-muted/50 p-1">
             <Tooltip>
               <TooltipTrigger>
                 <Button
                   variant="ghost"
                   size="icon"
-                  class={cn(
+                  className={cn(
                     "relative after:absolute after:-inset-2 h-7 w-7",
-                    search().view === "grid" ? "bg-background shadow-sm" : "hover:bg-background/50",
+                    search.view === "grid" ? "bg-background shadow-sm" : "hover:bg-background/50",
                   )}
                   aria-label="Grid view"
                   onClick={() => updateView("grid")}
                 >
-                  <IconGridDots class="h-4 w-4" />
+                  <SquaresFourIcon className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Grid view</TooltipContent>
@@ -292,14 +318,14 @@ function AnimeIndexPage() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  class={cn(
+                  className={cn(
                     "relative after:absolute after:-inset-2 h-7 w-7",
-                    search().view === "list" ? "bg-background shadow-sm" : "hover:bg-background/50",
+                    search.view === "list" ? "bg-background shadow-sm" : "hover:bg-background/50",
                   )}
                   aria-label="List view"
                   onClick={() => updateView("list")}
                 >
-                  <IconList class="h-4 w-4" />
+                  <ListIcon className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>List view</TooltipContent>
@@ -308,58 +334,51 @@ function AnimeIndexPage() {
         </div>
       </div>
 
-      <Show when={!animeQuery.isLoading} fallback={<AnimeListSkeleton />}>
-        <Show
-          when={filteredList().length > 0}
-          fallback={
-            <Show
-              when={!localQuery() && search().filter === "all"}
-              fallback={
-                <p class="text-center text-muted-foreground py-8">
-                  {localQuery() ? (
-                    <>No anime matching "{localQuery()}"</>
-                  ) : (
-                    `No ${search().filter} anime found`
-                  )}
-                </p>
-              }
-            >
-              <Card class="p-12 text-center border-dashed">
-                <div class="flex flex-col items-center gap-4">
-                  <IconDeviceTv class="h-12 w-12 text-muted-foreground/50" />
-                  <div>
-                    <h2 class="font-medium">No anime yet</h2>
-                    <p class="text-sm text-muted-foreground mt-1">
-                      Add your first anime to start monitoring
-                    </p>
-                  </div>
-                  <Link to="/anime/add" class={buttonVariants()}>
-                    <IconPlus class="mr-2 h-4 w-4" />
-                    Add Anime
-                  </Link>
-                </div>
-              </Card>
-            </Show>
-          }
-        >
-          <Show
-            when={search().view === "grid"}
-            fallback={
-              <AnimeListView
-                anime={filteredList()}
-                airingPreferences={airingPreferences()}
+      {!animeQuery.isLoading ? (
+        filteredList.length > 0 ? (
+          <Suspense fallback={<AnimeListSkeleton />}>
+            {search.view === "grid" ? (
+              <AnimeGridViewLazy
+                anime={filteredList}
+                airingPreferences={airingPreferences}
                 deleteAnime={deleteAnime}
               />
-            }
-          >
-            <AnimeGridView
-              anime={filteredList()}
-              airingPreferences={airingPreferences()}
-              deleteAnime={deleteAnime}
-            />
-          </Show>
-        </Show>
-      </Show>
+            ) : (
+              <AnimeListViewLazy
+                anime={filteredList}
+                airingPreferences={airingPreferences}
+                deleteAnime={deleteAnime}
+              />
+            )}
+          </Suspense>
+        ) : !localQuery && search.filter === "all" ? (
+          <Card className="p-12 text-center border-dashed">
+            <div className="flex flex-col items-center gap-4">
+              <TelevisionIcon className="h-12 w-12 text-muted-foreground/50" />
+              <div>
+                <h2 className="font-medium">No anime yet</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Add your first anime to start monitoring
+                </p>
+              </div>
+              <Link to="/anime/add" className={buttonVariants()}>
+                <PlusIcon className="mr-2 h-4 w-4" />
+                Add Anime
+              </Link>
+            </div>
+          </Card>
+        ) : (
+          <p className="text-center text-muted-foreground py-8">
+            {localQuery ? (
+              <>No anime matching &quot;{localQuery}&quot;</>
+            ) : (
+              `No ${search.filter} anime found`
+            )}
+          </p>
+        )
+      ) : (
+        <AnimeListSkeleton />
+      )}
     </div>
   );
 }

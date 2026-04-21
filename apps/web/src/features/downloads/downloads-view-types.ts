@@ -1,4 +1,3 @@
-import type { Accessor } from "solid-js";
 import type {
   Download,
   DownloadEvent,
@@ -8,9 +7,9 @@ import type {
 import type { DownloadEventsFilterValue } from "~/components/download-events/download-events-filters";
 
 export interface DownloadsEventsSearchState {
-  activePreset: Accessor<number | null | undefined>;
+  activePreset: number | null | undefined;
   applyDateRangePreset: (hours: number) => void;
-  exportInput: Accessor<{
+  exportInput: {
     animeId?: number;
     downloadId?: number;
     endDate?: string;
@@ -19,9 +18,9 @@ export interface DownloadsEventsSearchState {
     order?: "asc" | "desc";
     startDate?: string;
     status?: string;
-  }>;
-  filterValue: Accessor<DownloadEventsFilterValue>;
-  queryInput: Accessor<{
+  };
+  filterValue: DownloadEventsFilterValue;
+  queryInput: {
     animeId?: number;
     cursor?: string;
     direction?: "next" | "prev";
@@ -31,7 +30,7 @@ export interface DownloadsEventsSearchState {
     limit?: number;
     startDate?: string;
     status?: string;
-  }>;
+  };
   resetFilters: () => void;
   updateFilter: (field: keyof DownloadEventsFilterValue, value: string) => void;
 }
@@ -58,19 +57,19 @@ export interface DownloadsMutationLike {
 }
 
 export interface DownloadsViewState {
-  canGoToNextEventsPage: Accessor<boolean>;
-  canGoToPreviousEventsPage: Accessor<boolean>;
+  canGoToNextEventsPage: boolean;
+  canGoToPreviousEventsPage: boolean;
   downloadEventsQuery: DownloadsEventsQuery;
   eventsSearchState: DownloadsEventsSearchState;
   goToNextEventsPage: () => void;
   goToPreviousEventsPage: () => void;
   handleDownloadEventsExport: (format: "json" | "csv") => void;
   handleTabChange: (value: string | undefined) => void;
-  history: Accessor<Download[]>;
+  history: Download[];
   historyQuery: DownloadsHistoryQuery;
-  lastDownloadEventsExport: Accessor<DownloadEventsExportResult | undefined>;
-  queue: Accessor<DownloadStatus[]>;
-  queueCount: Accessor<number>;
+  lastDownloadEventsExport: DownloadEventsExportResult | undefined;
+  queue: DownloadStatus[];
+  queueCount: number;
   searchMissing: DownloadsMutationLike;
   triggerSearchMissing: () => void;
   syncDownloads: DownloadsMutationLike;

@@ -1,5 +1,5 @@
-import { createMemo, createSignal, Show } from "solid-js";
-import { IconAlertTriangle, IconEye, IconFileSpreadsheet, IconJson } from "@tabler/icons-solidjs";
+import { useMemo, useState } from "react";
+import { WarningIcon, EyeIcon, TableIcon, BracketsCurlyIcon } from "@phosphor-icons/react";
 import { Button } from "~/components/ui/button";
 import {
   Dialog,
@@ -33,37 +33,28 @@ interface DownloadEventsDialogProps {
   exportLimit?: number | undefined;
 }
 
+interface Pagination {
+  cursor?: string | undefined;
+  direction: "next" | "prev";
+}
+
 export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
-  const [open, setOpen] = createSignal(false);
-  const [cursor, setCursor] = createSignal<string | undefined>(undefined);
-  const [direction, setDirection] = createSignal<"next" | "prev">("next");
-  const [lastExportResult, setLastExportResult] = createSignal<
-    DownloadEventsExportResult | undefined
-  >(undefined);
-  const [selectedEvent, setSelectedEvent] = createSignal<DownloadEvent | null>(null);
-  const query = createDownloadEventsQuery(() => {
-    const input: DownloadEventsFilterInput = {
-      direction: direction(),
-      limit: props.limit ?? 25,
-    };
-
-    if (props.animeId !== undefined) {
-      input.animeId = props.animeId;
-    }
-    const currentCursor = cursor();
-    if (currentCursor !== undefined) {
-      input.cursor = currentCursor;
-    }
-    if (props.downloadId !== undefined) {
-      input.downloadId = props.downloadId;
-    }
-    if (props.eventType !== undefined) {
-      input.eventType = props.eventType;
-    }
-
-    return input;
-  });
-  const exportBaseInput = createMemo(() => {
+  const [open, setOpen] = useState(false);
+  const [pagination, setPagination] = useState<Pagination>({ direction: "next" });
+  const [lastExportResult, setLastExportResult] = useState<DownloadEventsExportResult | undefined>(
+    undefined,
+  );
+  const [selectedEvent, setSelectedEvent] = useState<DownloadEvent | null>(null);
+  const queryInput: DownloadEventsFilterInput = {
+    direction: pagination.direction,
+    limit: props.limit ?? 25,
+    ...(props.animeId === undefined ? {} : { animeId: props.animeId }),
+    ...(pagination.cursor === undefined ? {} : { cursor: pagination.cursor }),
+    ...(props.downloadId === undefined ? {} : { downloadId: props.downloadId }),
+    ...(props.eventType === undefined ? {} : { eventType: props.eventType }),
+  };
+  const query = createDownloadEventsQuery(queryInput, { enabled: open });
+  const exportBaseInput = useMemo(() => {
     return {
       ...(props.animeId === undefined ? {} : { animeId: props.animeId }),
       ...(props.downloadId === undefined ? {} : { downloadId: props.downloadId }),
@@ -71,88 +62,88 @@ export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
       limit: props.exportLimit ?? 10_000,
       order: "desc" as const,
     };
-  });
+  }, [props.animeId, props.downloadId, props.eventType, props.exportLimit]);
   const openExport = (format: "json" | "csv") => {
     void runDownloadEventsExport({
       format,
-      input: exportBaseInput(),
+      input: exportBaseInput,
       onComplete: (result) => {
         setLastExportResult(result);
       },
     });
   };
 
-  const events = createMemo(() => query.data?.events ?? []);
+  const events = useMemo(() => query.data?.events ?? [], [query.data]);
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) {
+      setPagination({ direction: "next" });
+      setLastExportResult(undefined);
+    }
+    setOpen(nextOpen);
+  };
 
   return (
     <>
       <Button
         variant={props.triggerVariant ?? "ghost"}
         size={props.triggerSize ?? "icon"}
-        class={
+        className={
           props.showTriggerLabel ? undefined : "relative after:absolute after:-inset-2 h-7 w-7"
         }
         aria-label={props.triggerLabel ?? "View download events"}
-        onClick={() => {
-          setCursor(undefined);
-          setDirection("next");
-          setOpen(true);
-          void query.refetch();
-        }}
+        onClick={() => handleOpenChange(true)}
       >
-        <IconEye class="h-4 w-4" />
-        <Show when={props.showTriggerLabel}>
-          <span>{props.triggerLabel ?? "View events"}</span>
-        </Show>
+        <EyeIcon className="h-4 w-4" />
+        {props.showTriggerLabel && <span>{props.triggerLabel ?? "View events"}</span>}
       </Button>
 
-      <Dialog open={open()} onOpenChange={setOpen}>
-        <DialogContent class="max-w-3xl max-h-[80vh] flex flex-col">
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent className="max-w-3xl max-h-[80vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>{props.title}</DialogTitle>
             <DialogDescription>
               {props.description ?? "Recent download lifecycle events for this item."}
             </DialogDescription>
-            <div class="flex items-center justify-end gap-2 pt-2">
+            <div className="flex items-center justify-end gap-2 pt-2">
               <Button variant="outline" size="sm" onClick={() => openExport("json")}>
-                <IconJson class="h-4 w-4" />
+                <BracketsCurlyIcon className="h-4 w-4" />
                 Export JSON
               </Button>
               <Button variant="outline" size="sm" onClick={() => openExport("csv")}>
-                <IconFileSpreadsheet class="h-4 w-4" />
+                <TableIcon className="h-4 w-4" />
                 Export CSV
               </Button>
             </div>
-            <Show when={lastExportResult()?.truncated}>
-              <div class="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-warning">
-                <IconAlertTriangle class="h-4 w-4 shrink-0" />
+            {lastExportResult?.truncated && (
+              <div className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-warning">
+                <WarningIcon className="h-4 w-4 shrink-0" />
                 <span>
-                  Last export was truncated: exported {lastExportResult()?.exported} of{" "}
-                  {lastExportResult()?.total} events (limit {lastExportResult()?.limit}).
+                  Last export was truncated: exported {lastExportResult?.exported} of{" "}
+                  {lastExportResult?.total} events (limit {lastExportResult?.limit}).
                 </span>
               </div>
-            </Show>
+            )}
           </DialogHeader>
 
-          <div class="flex-1 overflow-y-auto space-y-3 py-2 pr-1">
+          <div className="flex-1 overflow-y-auto space-y-3 py-2 pr-1">
             <DownloadEventsFeed
-              events={events()}
+              events={events}
               formatTimestamp={props.formatTimestamp}
               isLoading={query.isLoading}
               total={query.data?.total}
               emptyText="No download events found for this selection."
               onSelectEvent={setSelectedEvent}
-              class="space-y-3"
+              className="space-y-3"
             />
-            <Show when={events().length > 0}>
-              <div class="flex justify-end gap-2 pt-2">
+            {events.length > 0 && (
+              <div className="flex justify-end gap-2 pt-2">
                 <Button
                   variant="outline"
                   size="sm"
                   disabled={!query.data?.prev_cursor}
                   onClick={() => {
-                    setCursor(query.data?.prev_cursor);
-                    setDirection("prev");
+                    setPagination({ cursor: query.data?.prev_cursor, direction: "prev" });
                   }}
                 >
                   Previous
@@ -162,20 +153,19 @@ export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
                   size="sm"
                   disabled={!query.data?.next_cursor}
                   onClick={() => {
-                    setCursor(query.data?.next_cursor);
-                    setDirection("next");
+                    setPagination({ cursor: query.data?.next_cursor, direction: "next" });
                   }}
                 >
                   Next
                 </Button>
               </div>
-            </Show>
+            )}
           </div>
         </DialogContent>
       </Dialog>
 
       <DownloadEventDetailsDialog
-        event={selectedEvent()}
+        event={selectedEvent}
         formatTimestamp={props.formatTimestamp}
         onOpenChange={(nextOpen) => !nextOpen && setSelectedEvent(null)}
       />

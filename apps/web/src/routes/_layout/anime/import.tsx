@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/solid-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { createLibraryImportTaskQuery } from "~/lib/api";
 import * as v from "valibot";
 import { ImportPageContent } from "~/components/import/import-page-content";
@@ -37,7 +37,7 @@ function ImportPage() {
   const search = Route.useSearch();
 
   const state = createImportPageState({
-    animeId: () => search().animeId,
+    animeId: search.animeId,
     onImportSuccess: () => {
       void navigate({
         to: "/anime",
@@ -45,7 +45,7 @@ function ImportPage() {
       });
     },
   });
-  createLibraryImportTaskQuery(() => state.latestImportTaskId());
+  createLibraryImportTaskQuery(state.latestImportTaskId);
 
   return <ImportPageContent state={state} />;
 }

@@ -1,5 +1,4 @@
-import { IconPlus } from "@tabler/icons-solidjs";
-import { For, Show } from "solid-js";
+import { PlusIcon } from "@phosphor-icons/react";
 import { Button } from "~/components/ui/button";
 import {
   DropdownMenu,
@@ -12,31 +11,26 @@ import { useFilterContext } from "./filter-context";
 export function FilterMenu() {
   const ctx = useFilterContext();
 
-  const availableColumns = () =>
-    ctx.columns().filter((col) => !ctx.filters().some((f) => f.columnId === col.id));
+  const availableColumns = ctx.columns.filter(
+    (col) => !ctx.filters.some((f) => f.columnId === col.id),
+  );
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        as={Button}
-        variant="outline"
-        size="sm"
-        disabled={availableColumns().length === 0}
+        render={<Button variant="outline" size="sm" />}
+        disabled={availableColumns.length === 0}
       >
-        <IconPlus class="h-4 w-4 mr-2" />
+        <PlusIcon className="h-4 w-4 mr-2" />
         Add Filter
       </DropdownMenuTrigger>
       <DropdownMenuContent>
-        <For each={availableColumns()}>
-          {(column) => (
-            <DropdownMenuItem onClick={() => ctx.addFilter(column.id)}>
-              <Show when={column.icon}>
-                <span class="mr-2">{column.icon}</span>
-              </Show>
-              {column.label}
-            </DropdownMenuItem>
-          )}
-        </For>
+        {availableColumns.map((column) => (
+          <DropdownMenuItem key={column.id} onClick={() => ctx.addFilter(column.id)}>
+            {column.icon && <span className="mr-2">{column.icon}</span>}
+            {column.label}
+          </DropdownMenuItem>
+        ))}
       </DropdownMenuContent>
     </DropdownMenu>
   );

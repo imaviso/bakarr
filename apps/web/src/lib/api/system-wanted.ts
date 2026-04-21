@@ -1,4 +1,4 @@
-import { queryOptions, useQuery } from "@tanstack/solid-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import type { MissingEpisode } from "./contracts";
 import { API_BASE, fetchApi } from "./client";
 import { animeKeys } from "./keys";
@@ -12,6 +12,6 @@ export function wantedQueryOptions(limit = 100) {
   });
 }
 
-export function createWantedQuery(limit: () => number) {
-  return useQuery(() => wantedQueryOptions(limit()));
+export function createWantedQuery(limit: number) {
+  return useQuery(wantedQueryOptions(limit));
 }

@@ -1,5 +1,4 @@
-import { createSignal } from "solid-js";
-import type { Accessor } from "solid-js";
+import { useState } from "react";
 import type { DownloadEvent, DownloadEventsExportResult, SystemLog } from "~/lib/api";
 import { createClearLogsMutation, getExportLogsUrl } from "~/lib/api";
 import {
@@ -11,28 +10,28 @@ import type { DownloadEventsExportInput } from "~/lib/api";
 import type { LogsFilterParams } from "~/features/logs/use-logs-filters";
 
 interface UseLogsActionsOptions {
-  logsParams: Accessor<LogsFilterParams>;
+  logsParams: LogsFilterParams;
   updateSearch: (patch: Partial<Record<string, string>>) => void;
-  downloadEventsPage: Accessor<{
+  downloadEventsPage: {
     nextCursor?: string | undefined;
     prevCursor?: string | undefined;
-  }>;
+  };
 }
 
 export function useLogsActions(options: UseLogsActionsOptions) {
   const clearLogs = createClearLogsMutation();
-  const [lastDownloadEventsExport, setLastDownloadEventsExport] = createSignal<
+  const [lastDownloadEventsExport, setLastDownloadEventsExport] = useState<
     DownloadEventsExportResult | undefined
   >(undefined);
-  const [selectedDownloadEvent, setSelectedDownloadEvent] = createSignal<DownloadEvent | null>(
+  const [selectedDownloadEvent, setSelectedDownloadEvent] = useState<DownloadEvent | null>(
     null,
   );
-  const [selectedLog, setSelectedLog] = createSignal<SystemLog | null>(null);
+  const [selectedLog, setSelectedLog] = useState<SystemLog | null>(null);
 
   const clearLogsWithToast = () => clearLogs.mutate();
 
   const exportLogs = (formatValue: "json" | "csv") => {
-    const logsParams = options.logsParams();
+    const logsParams = options.logsParams;
     const url = getExportLogsUrl(
       logsParams.level,
       logsParams.eventType,
@@ -65,7 +64,7 @@ export function useLogsActions(options: UseLogsActionsOptions) {
       createDownloadEventsCursorPatch(
         LOGS_DOWNLOAD_EVENTS_SEARCH_KEYS,
         "prev",
-        options.downloadEventsPage().prevCursor ?? "",
+        options.downloadEventsPage.prevCursor ?? "",
       ),
     );
   };
@@ -75,7 +74,7 @@ export function useLogsActions(options: UseLogsActionsOptions) {
       createDownloadEventsCursorPatch(
         LOGS_DOWNLOAD_EVENTS_SEARCH_KEYS,
         "next",
-        options.downloadEventsPage().nextCursor ?? "",
+        options.downloadEventsPage.nextCursor ?? "",
       ),
     );
   };

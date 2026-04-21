@@ -1,4 +1,4 @@
-import { createMemo, Show } from "solid-js";
+import { useMemo } from "react";
 import { Badge } from "~/components/ui/badge";
 import {
   MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS,
@@ -22,31 +22,34 @@ export function BackgroundMatchingCard(props: {
   queuedCount: number;
   totalCount: number;
 }) {
-  const progressCurrent = createMemo(() => {
+  const progressCurrent = useMemo(() => {
     const current = props.job?.progress_current;
     if (typeof current === "number") {
       return current;
     }
 
     return props.matchedCount;
-  });
-  const progressTotal = createMemo(() => {
+  }, [props.job?.progress_current, props.matchedCount]);
+
+  const progressTotal = useMemo(() => {
     const total = props.job?.progress_total;
     if (typeof total === "number") {
       return total;
     }
 
     return props.totalCount;
-  });
-  const progressPercent = createMemo(() => {
-    const total = progressTotal();
+  }, [props.job?.progress_total, props.totalCount]);
+
+  const progressPercent = useMemo(() => {
+    const total = progressTotal;
     if (!total) {
       return 0;
     }
 
-    return Math.min(100, Math.round((progressCurrent() / total) * 100));
-  });
-  const explanation = createMemo(() => {
+    return Math.min(100, Math.round((progressCurrent / total) * 100));
+  }, [progressCurrent, progressTotal]);
+
+  const explanation = useMemo(() => {
     if (props.matchingCount > 0) {
       return "Bakarr is trying one folder at a time, then scoring AniList candidates from cleaned folder titles, known year hints, and library overlap signals.";
     }
@@ -60,14 +63,14 @@ export function BackgroundMatchingCard(props: {
     }
 
     return "Finished folders keep their explanation trail so you can see why a match was chosen before importing.";
-  });
+  }, [props.matchingCount, props.failedCount, props.queuedCount]);
 
   return (
-    <div class="border border-border/70 bg-background/80 p-4 shadow-sm">
-      <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div class="space-y-1">
-          <div class="flex flex-wrap items-center gap-2">
-            <p class="text-sm font-semibold text-foreground">Background folder matching</p>
+    <div className="border border-border/70 bg-background/80 p-4 shadow-sm">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="space-y-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-semibold text-foreground">Background folder matching</p>
             <Badge
               variant={backgroundMatchingStatusVariant({
                 failedCount: props.failedCount,
@@ -88,7 +91,7 @@ export function BackgroundMatchingCard(props: {
               })}
             </Badge>
           </div>
-          <p aria-live="polite" class="text-sm text-muted-foreground">
+          <p aria-live="polite" className="text-sm text-muted-foreground">
             {props.matchingCount > 0
               ? "Matching one folder right now to stay under AniList rate limits."
               : props.queuedCount > 0
@@ -101,57 +104,57 @@ export function BackgroundMatchingCard(props: {
                       ? `Some folders hit the ${MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS}-attempt automatic match limit. Choose a manual match to continue.`
                       : "All discovered folders have finished their latest background match pass."}
           </p>
-          <Show when={props.job?.last_message}>
-            <p class="text-xs text-muted-foreground">{props.job?.last_message}</p>
-          </Show>
-          <p class="text-xs text-muted-foreground">{explanation()}</p>
+          {props.job?.last_message && (
+            <p className="text-xs text-muted-foreground">{props.job?.last_message}</p>
+          )}
+          <p className="text-xs text-muted-foreground">{explanation}</p>
         </div>
 
-        <div class="grid grid-cols-2 gap-2 text-right text-xs text-muted-foreground sm:grid-cols-4 lg:min-w-[340px]">
-          <div class="border border-border/60 bg-muted/20 px-3 py-2">
-            <div class="uppercase tracking-[0.18em]">Matched</div>
-            <div class="mt-1 text-lg font-semibold text-foreground">{props.matchedCount}</div>
+        <div className="grid grid-cols-2 gap-2 text-right text-xs text-muted-foreground sm:grid-cols-4 lg:min-w-[340px]">
+          <div className="border border-border/60 bg-muted/20 px-3 py-2">
+            <div className="uppercase tracking-[0.18em]">Matched</div>
+            <div className="mt-1 text-lg font-semibold text-foreground">{props.matchedCount}</div>
           </div>
-          <div class="border border-border/60 bg-muted/20 px-3 py-2">
-            <div class="uppercase tracking-[0.18em]">In queue</div>
-            <div class="mt-1 text-lg font-semibold text-foreground">
+          <div className="border border-border/60 bg-muted/20 px-3 py-2">
+            <div className="uppercase tracking-[0.18em]">In queue</div>
+            <div className="mt-1 text-lg font-semibold text-foreground">
               {props.queuedCount + props.matchingCount}
             </div>
           </div>
-          <div class="border border-border/60 bg-muted/20 px-3 py-2">
-            <div class="uppercase tracking-[0.18em]">Paused</div>
-            <div class="mt-1 text-lg font-semibold text-foreground">{props.pausedCount}</div>
+          <div className="border border-border/60 bg-muted/20 px-3 py-2">
+            <div className="uppercase tracking-[0.18em]">Paused</div>
+            <div className="mt-1 text-lg font-semibold text-foreground">{props.pausedCount}</div>
           </div>
-          <div class="border border-border/60 bg-muted/20 px-3 py-2">
-            <div class="uppercase tracking-[0.18em]">Total</div>
-            <div class="mt-1 text-lg font-semibold text-foreground">{props.totalCount}</div>
+          <div className="border border-border/60 bg-muted/20 px-3 py-2">
+            <div className="uppercase tracking-[0.18em]">Total</div>
+            <div className="mt-1 text-lg font-semibold text-foreground">{props.totalCount}</div>
           </div>
         </div>
       </div>
 
-      <Show when={progressTotal() > 0}>
-        <div class="mt-4 space-y-2">
-          <div class="flex items-center justify-between text-xs text-muted-foreground">
+      {progressTotal > 0 && (
+        <div className="mt-4 space-y-2">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>
-              Progress {progressCurrent()} / {progressTotal()}
+              Progress {progressCurrent} / {progressTotal}
             </span>
-            <span>{progressPercent()}%</span>
+            <span>{progressPercent}%</span>
           </div>
           <div
             role="progressbar"
-            aria-valuenow={progressPercent()}
+            aria-valuenow={progressPercent}
             aria-valuemin={0}
             aria-valuemax={100}
             aria-label="Background matching progress"
-            class="h-2 overflow-hidden bg-muted"
+            className="h-2 overflow-hidden bg-muted"
           >
             <div
-              class="h-full bg-info transition-[width] duration-500"
-              style={{ width: `${progressPercent()}%` }}
+              className="h-full bg-info transition-[width] duration-500"
+              style={{ width: `${progressPercent}%` }}
             />
           </div>
         </div>
-      </Show>
+      )}
     </div>
   );
 }

@@ -1,4 +1,3 @@
-import type { Accessor } from "solid-js";
 import { useDownloadsActions } from "~/features/downloads/use-downloads-actions";
 import { useDownloadsQueries } from "~/features/downloads/use-downloads-queries";
 import type {
@@ -7,7 +6,7 @@ import type {
 } from "~/features/downloads/downloads-search";
 
 interface UseDownloadsRouteStateOptions {
-  search: Accessor<DownloadsSearchState>;
+  search: DownloadsSearchState;
   updateSearch: (patch: DownloadsSearchPatch) => void;
 }
 
@@ -20,10 +19,10 @@ export function useDownloadsRouteState(options: UseDownloadsRouteStateOptions) {
   const actions = useDownloadsActions({
     updateSearch: options.updateSearch,
     eventsExportInput: queries.eventsSearchState.exportInput,
-    eventsPage: () => ({
+    eventsPage: {
       nextCursor: queries.downloadEventsQuery.data?.next_cursor,
       prevCursor: queries.downloadEventsQuery.data?.prev_cursor,
-    }),
+    },
   });
 
   return {

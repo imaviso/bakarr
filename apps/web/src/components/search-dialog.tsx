@@ -1,46 +1,48 @@
-import { type JSX, Show } from "solid-js";
+import type { ReactNode } from "react";
 import { SearchDialogContent } from "~/components/search-dialog-content";
 import { useSearchDialogState } from "~/components/search-dialog-state";
 import { Dialog, DialogTrigger } from "~/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
 
 interface SearchDialogProps {
-  trigger?: JSX.Element;
+  trigger?: ReactNode;
   animeId: number;
   defaultQuery: string;
   tooltip?: string;
 }
 
 export function SearchDialog(props: SearchDialogProps) {
-  const state = useSearchDialogState(() => props.defaultQuery);
+  const state = useSearchDialogState(props.defaultQuery);
 
   return (
-    <Dialog open={state.open()} onOpenChange={state.setOpen}>
-      <Show when={props.trigger}>
-        <DialogTrigger as="div" class="contents">
-          <Show when={props.tooltip} fallback={props.trigger}>
+    <Dialog open={state.open} onOpenChange={state.setOpen}>
+      {props.trigger && (
+        <DialogTrigger render={<div className="contents" />}>
+          {props.tooltip ? (
             <Tooltip>
               <TooltipTrigger>{props.trigger}</TooltipTrigger>
               <TooltipContent>{props.tooltip}</TooltipContent>
             </Tooltip>
-          </Show>
+          ) : (
+            props.trigger
+          )}
         </DialogTrigger>
-      </Show>
+      )}
 
       <SearchDialogContent
         animeId={props.animeId}
-        open={state.open()}
+        open={state.open}
         setOpen={state.setOpen}
-        query={state.query()}
+        query={state.query}
         setQuery={state.setQuery}
-        debouncedQuery={state.debouncedQuery()}
-        category={state.category()}
+        debouncedQuery={state.debouncedQuery}
+        category={state.category}
         setCategory={(value) => {
           if (value) {
             state.setCategory(value);
           }
         }}
-        filter={state.filter()}
+        filter={state.filter}
         setFilter={(value) => {
           if (value) {
             state.setFilter(value);

@@ -1,7 +1,7 @@
-import { IconLoader2 } from "@tabler/icons-solidjs";
-import { createFileRoute } from "@tanstack/solid-router";
+import { SpinnerIcon } from "@phosphor-icons/react";
+import { createFileRoute } from "@tanstack/react-router";
 import { addMonths, endOfMonth, endOfWeek, startOfMonth, startOfWeek, subMonths } from "date-fns";
-import { Suspense } from "solid-js";
+import { Suspense } from "react";
 import { AnimeCalendar } from "~/components/anime-calendar";
 import { GeneralError } from "~/components/general-error";
 import { calendarQueryOptions } from "~/lib/api";
@@ -24,11 +24,11 @@ function CalendarPage() {
     <Suspense
       fallback={
         <div
-          class="flex h-[400px] items-center justify-center"
+          className="flex h-[400px] items-center justify-center"
           role="status"
           aria-label="Loading calendar"
         >
-          <IconLoader2 class="h-8 w-8 animate-spin text-primary" />
+          <SpinnerIcon className="h-8 w-8 animate-spin text-primary" />
         </div>
       }
     >

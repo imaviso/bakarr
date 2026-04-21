@@ -1,4 +1,4 @@
-import { createEffect, onCleanup } from "solid-js";
+import { useEffect } from "react";
 
 const APP_NAME = "Bakarr";
 
@@ -7,12 +7,12 @@ const APP_NAME = "Bakarr";
  * Usage: `usePageTitle(() => "Dashboard")` → "Dashboard — Bakarr"
  */
 export function usePageTitle(title: () => string | undefined) {
-  createEffect(() => {
+  useEffect(() => {
     const segment = title();
     const prev = document.title;
     document.title = segment ? `${segment} — ${APP_NAME}` : APP_NAME;
-    onCleanup(() => {
+    return () => {
       document.title = prev;
-    });
-  });
+    };
+  }, [title]);
 }

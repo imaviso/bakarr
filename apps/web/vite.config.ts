@@ -1,10 +1,11 @@
+import path from "path";
 import { fileURLToPath } from "node:url";
-import { defineConfig, loadEnv } from "vite";
-import solid from "vite-plugin-solid";
+import tailwindcss from "@tailwindcss/vite";
+import react from "@vitejs/plugin-react";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
-import devtools from "solid-devtools/vite";
+import { defineConfig, loadEnv } from "vite";
 
-// https://vitejs.dev/config/
+// https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const rootDir = fileURLToPath(new URL(".", import.meta.url));
   const env = loadEnv(mode, rootDir, "");
@@ -12,19 +13,18 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [
-      mode !== "production" && devtools(),
-      tanstackRouter({ target: "solid", autoCodeSplitting: true }),
-      solid(),
+      tanstackRouter({
+        autoCodeSplitting: true,
+      }),
+      react(),
+      tailwindcss(),
     ],
     resolve: {
       alias: {
-        "~": fileURLToPath(new URL("./src", import.meta.url)),
-        "@bakarr/shared": fileURLToPath(
-          new URL("../../packages/shared/src/index.ts", import.meta.url),
-        ),
+        "@": path.resolve(rootDir, "./src"),
+        "~": path.resolve(rootDir, "./src"),
       },
     },
-
     server: {
       proxy: {
         "/api": {

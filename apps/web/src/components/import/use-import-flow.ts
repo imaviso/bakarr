@@ -1,6 +1,5 @@
-import type { Accessor } from "solid-js";
-import { createMemo, createSignal } from "solid-js";
-import { toast } from "solid-sonner";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import {
   type AnimeSearchResult,
   createAnimeListQuery,
@@ -20,7 +19,7 @@ import {
 import type { Step } from "./types";
 
 interface ImportFlowOptions {
-  animeId?: Accessor<number | undefined>;
+  animeId?: number;
   autoImportAfterMissingCandidatesResolved?: boolean;
   beforeImport?: () => void;
   onImportSuccess?: () => void;
@@ -32,24 +31,24 @@ export function toImportInputMode(value: string | null | undefined): "browser" |
 }
 
 export function useImportFlow(options: ImportFlowOptions = {}) {
-  const [path, setPath] = createSignal("");
-  const [step, setStep] = createSignal<Step>("scan");
-  const [selectedFiles, setSelectedFiles] = createSignal<Map<string, ImportFileRequest>>(new Map());
-  const [inputMode, setInputMode] = createSignal<"browser" | "manual">("browser");
-  const [isDragOver, setIsDragOver] = createSignal(false);
+  const [path, setPath] = useState("");
+  const [step, setStep] = useState<Step>("scan");
+  const [selectedFiles, setSelectedFiles] = useState<Map<string, ImportFileRequest>>(new Map());
+  const [inputMode, setInputMode] = useState<"browser" | "manual">("browser");
+  const [isDragOver, setIsDragOver] = useState(false);
 
-  const [selectedCandidateIds, setSelectedCandidateIds] = createSignal<Set<number>>(new Set());
-  const [manualCandidates, setManualCandidates] = createSignal<AnimeSearchResult[]>([]);
-  const [isSearchOpen, setIsSearchOpen] = createSignal(false);
-  const [pendingAddCandidates, setPendingAddCandidates] = createSignal<AnimeSearchResult[]>([]);
-  const [currentAddIndex, setCurrentAddIndex] = createSignal(0);
+  const [selectedCandidateIds, setSelectedCandidateIds] = useState<Set<number>>(new Set());
+  const [manualCandidates, setManualCandidates] = useState<AnimeSearchResult[]>([]);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [pendingAddCandidates, setPendingAddCandidates] = useState<AnimeSearchResult[]>([]);
+  const [currentAddIndex, setCurrentAddIndex] = useState(0);
 
   const scanMutation = createScanImportPathMutation();
   const importMutation = createImportFilesMutation();
   const importSelectionMutation = createImportCandidateSelectionMutation();
   const animeListQuery = createAnimeListQuery();
 
-  const scannedFiles = createMemo(() => {
+  const scannedFiles = useMemo(() => {
     const files = scanMutation.data?.files ?? [];
     return [...files].toSorted((a, b) => {
       const seasonA = a.season ?? 0;
@@ -59,22 +58,29 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
       }
       return a.episode_number - b.episode_number;
     });
-  });
+  }, [scanMutation.data]);
 
-  const skippedFiles = createMemo(() => scanMutation.data?.skipped ?? []);
-  const candidates = createMemo(() => [
-    ...(scanMutation.data?.candidates ?? []),
-    ...manualCandidates().filter(
-      (manualCandidate) =>
-        !(scanMutation.data?.candidates ?? []).some(
-          (candidate) => candidate.id === manualCandidate.id,
-        ),
-    ),
-  ]);
-  const libraryIds = createMemo(
-    () => new Set((animeListQuery.data ?? []).map((anime) => anime.id)),
+  const skippedFiles = useMemo(() => scanMutation.data?.skipped ?? [], [scanMutation.data]);
+  const candidates = useMemo(
+    () => [
+      ...(scanMutation.data?.candidates ?? []),
+      ...manualCandidates.filter(
+        (manualCandidate) =>
+          !(scanMutation.data?.candidates ?? []).some(
+            (candidate) => candidate.id === manualCandidate.id,
+          ),
+      ),
+    ],
+    [scanMutation.data, manualCandidates],
   );
-  const activeAddCandidate = createMemo(() => pendingAddCandidates()[currentAddIndex()]);
+  const libraryIds = useMemo(
+    () => new Set((animeListQuery.data ?? []).map((anime) => anime.id)),
+    [animeListQuery.data],
+  );
+  const activeAddCandidate = useMemo(
+    () => pendingAddCandidates[currentAddIndex],
+    [pendingAddCandidates, currentAddIndex],
+  );
 
   const reset = () => {
     setStep("scan");
@@ -96,10 +102,10 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
   };
 
   const handleScan = () => {
-    const animeId = options.animeId?.();
+    const animeId = options.animeId;
     scanMutation.mutate(
       {
-        path: path(),
+        path: path,
         ...(animeId === undefined ? {} : { anime_id: animeId }),
       },
       {
@@ -147,8 +153,8 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
           candidate.title.english || candidate.title.romaji || candidate.title.native || "",
         force_select: forceSelect,
         files: scanMutation.data?.files ?? [],
-        selected_candidate_ids: [...selectedCandidateIds()],
-        selected_files: [...selectedFiles().values()],
+        selected_candidate_ids: [...selectedCandidateIds],
+        selected_files: [...selectedFiles.values()],
       },
       {
         onSuccess: (next) => {
@@ -165,11 +171,11 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
   };
 
   const handleImport = () => {
-    const files = Array.from(selectedFiles().values());
+    const files = Array.from(selectedFiles.values());
     const missingCandidates = findMissingImportCandidates({
       files,
       localAnimeIds: new Set(animeListQuery.data?.map((anime) => anime.id) ?? []),
-      candidates: candidates(),
+      candidates: candidates,
     });
 
     if (missingCandidates.length > 0) {
@@ -190,7 +196,7 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
   };
 
   const advanceAddCandidateDialog = () => {
-    if (currentAddIndex() + 1 >= pendingAddCandidates().length) {
+    if (currentAddIndex + 1 >= pendingAddCandidates.length) {
       closeAddCandidateDialog();
       if (options.autoImportAfterMissingCandidatesResolved ?? true) {
         queueMicrotask(() => {
@@ -204,17 +210,17 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
   };
 
   const toggleFile = (file: ScannedFile, targetAnimeId: number) => {
-    const next = toggleSelectedImportFile(selectedFiles(), file, targetAnimeId);
+    const next = toggleSelectedImportFile(selectedFiles, file, targetAnimeId);
     setSelectedFiles(next);
   };
 
   const updateFileAnime = (file: ScannedFile, newAnimeId: number) => {
-    const next = updateSelectedImportFileAnime(selectedFiles(), file, newAnimeId);
+    const next = updateSelectedImportFileAnime(selectedFiles, file, newAnimeId);
     setSelectedFiles(next);
   };
 
   const updateFileMapping = (file: ScannedFile, season: number, episode: number) => {
-    const next = updateSelectedImportFileMapping(selectedFiles(), file, season, episode);
+    const next = updateSelectedImportFileMapping(selectedFiles, file, season, episode);
     setSelectedFiles(next);
   };
   const dropzoneHandlers = createImportDropzoneHandlers({

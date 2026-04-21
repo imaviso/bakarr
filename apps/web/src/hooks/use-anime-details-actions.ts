@@ -10,11 +10,11 @@ import {
   createUpdateAnimeReleaseProfilesMutation,
   getAnimeEpisodeStreamUrl,
 } from "~/lib/api";
-import { createSignal } from "solid-js";
+import { useState } from "react";
 import { copyToClipboard } from "~/lib/utils";
 
 interface UseAnimeDetailsActionsOptions {
-  animeId: () => number;
+  animeId: number;
 }
 
 export function useAnimeDetailsActions(options: UseAnimeDetailsActionsOptions) {
@@ -27,11 +27,11 @@ export function useAnimeDetailsActions(options: UseAnimeDetailsActionsOptions) {
   const updatePath = createUpdateAnimePathMutation();
   const updateProfile = createUpdateAnimeProfileMutation();
   const updateReleaseProfiles = createUpdateAnimeReleaseProfilesMutation();
-  const [latestScanTaskId, setLatestScanTaskId] = createSignal<number | undefined>(undefined);
+  const [latestScanTaskId, setLatestScanTaskId] = useState<number | undefined>(undefined);
 
   const handlePlayInMpv = (episodeNumber: number) => {
     void (async () => {
-      const { url } = await getAnimeEpisodeStreamUrl(options.animeId(), episodeNumber);
+      const { url } = await getAnimeEpisodeStreamUrl(options.animeId, episodeNumber);
       const origin = globalThis.location.origin;
       globalThis.open(`mpv://${origin}${url}`, "_self");
     })();
@@ -39,7 +39,7 @@ export function useAnimeDetailsActions(options: UseAnimeDetailsActionsOptions) {
 
   const handleCopyStreamLink = (episodeNumber: number) => {
     void (async () => {
-      const { url } = await getAnimeEpisodeStreamUrl(options.animeId(), episodeNumber);
+      const { url } = await getAnimeEpisodeStreamUrl(options.animeId, episodeNumber);
       const origin = globalThis.location.origin;
       await copyToClipboard(`${origin}${url}`);
     })();
@@ -47,21 +47,21 @@ export function useAnimeDetailsActions(options: UseAnimeDetailsActionsOptions) {
 
   const handleToggleMonitor = (isMonitored: boolean) => {
     toggleMonitor.mutate({
-      id: options.animeId(),
+      id: options.animeId,
       monitored: !isMonitored,
     });
   };
 
   const handleRefreshEpisodes = () => {
-    refreshEpisodes.mutate(options.animeId());
+    refreshEpisodes.mutate(options.animeId);
   };
 
   const handleSearchMissing = () => {
-    searchMissing.mutate(options.animeId());
+    searchMissing.mutate(options.animeId);
   };
 
   const handleScanFolder = () => {
-    scanFolder.mutate(options.animeId(), {
+    scanFolder.mutate(options.animeId, {
       onSuccess: (accepted) => {
         setLatestScanTaskId(accepted.task_id);
       },
@@ -69,12 +69,12 @@ export function useAnimeDetailsActions(options: UseAnimeDetailsActionsOptions) {
   };
 
   const handleDeleteAnime = (onSuccess: () => void) => {
-    deleteAnime.mutate(options.animeId(), { onSuccess });
+    deleteAnime.mutate(options.animeId, { onSuccess });
   };
 
   const handleDeleteEpisodeFile = (episodeNumber: number) => {
     deleteEpisodeFile.mutate({
-      animeId: options.animeId(),
+      animeId: options.animeId,
       episodeNumber,
     });
   };

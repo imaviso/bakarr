@@ -1,13 +1,13 @@
 import {
-  IconAlertCircle,
-  IconAlertTriangle,
-  IconCheck,
-  IconEye,
-  IconInfoCircle,
-  IconLoader,
-} from "@tabler/icons-solidjs";
-import { createEffect, createMemo, For, Show, type JSX } from "solid-js";
-import { createVirtualizer } from "@tanstack/solid-virtual";
+  WarningCircleIcon,
+  WarningIcon,
+  CheckIcon,
+  EyeIcon,
+  InfoIcon,
+  SpinnerIcon,
+} from "@phosphor-icons/react";
+import { useEffect, useRef, type ReactNode } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
@@ -34,51 +34,50 @@ interface SystemLogsTableProps {
 }
 
 export function SystemLogsTable(props: SystemLogsTableProps) {
-  let logsScrollRef: HTMLDivElement | undefined;
-  let lastRequestedLength = -1;
+  const logsScrollRef = useRef<HTMLDivElement>(null);
+  const lastRequestedLength = useRef(-1);
 
-  const rowVirtualizer = createVirtualizer({
-    get count() {
-      return props.logs.length;
-    },
+  const rowVirtualizer = useVirtualizer({
+    count: props.logs.length,
     estimateSize: () => 52,
     overscan: 10,
-    getScrollElement: () => logsScrollRef ?? null,
+    getScrollElement: () => logsScrollRef.current ?? null,
   });
 
-  const logsPaddingTop = createMemo(() => {
-    const items = rowVirtualizer.getVirtualItems();
-    const [first] = items;
-    return first ? first.start : 0;
-  });
-  const logsPaddingBottom = createMemo(() => {
-    const items = rowVirtualizer.getVirtualItems();
-    const last = items[items.length - 1];
-    return last ? rowVirtualizer.getTotalSize() - last.end : 0;
-  });
+  const virtualRows = rowVirtualizer.getVirtualItems();
+  const [firstVirtualRow] = virtualRows;
+  const lastVirtualRow = virtualRows[virtualRows.length - 1];
 
-  createEffect(() => {
+  const logsPaddingTop = firstVirtualRow ? firstVirtualRow.start : 0;
+  const logsPaddingBottom = lastVirtualRow
+    ? rowVirtualizer.getTotalSize() - lastVirtualRow.end
+    : 0;
+
+  useEffect(() => {
     if (!props.hasNextPage) {
-      lastRequestedLength = -1;
+      lastRequestedLength.current = -1;
       return;
     }
 
-    const items = rowVirtualizer.getVirtualItems();
-    if (items.length === 0) return;
-    const lastItem = items[items.length - 1];
-    if (!lastItem) {
+    if (!lastVirtualRow) {
       return;
     }
 
     if (
-      lastItem.index >= props.logs.length - 20 &&
-      lastRequestedLength !== props.logs.length &&
+      lastVirtualRow.index >= props.logs.length - 20 &&
+      lastRequestedLength.current !== props.logs.length &&
       !props.isFetchingNextPage
     ) {
-      lastRequestedLength = props.logs.length;
+      lastRequestedLength.current = props.logs.length;
       props.onFetchNextPage();
     }
-  });
+  }, [
+    props.hasNextPage,
+    props.logs.length,
+    props.isFetchingNextPage,
+    props.onFetchNextPage,
+    lastVirtualRow,
+  ]);
 
   return (
     <CardShell
@@ -87,154 +86,135 @@ export function SystemLogsTable(props: SystemLogsTableProps) {
       onFetchNextPage={props.onFetchNextPage}
     >
       <div
-        ref={(el) => {
-          logsScrollRef = el;
-        }}
-        class="overflow-y-auto flex-1"
+        ref={logsScrollRef}
+        className="overflow-y-auto flex-1"
       >
         <Table>
-          <TableHeader class="sticky top-0 bg-card z-10 shadow-sm shadow-border/50">
-            <TableRow class="hover:bg-transparent border-none">
-              <TableHead class="w-[160px]">Timestamp</TableHead>
-              <TableHead class="w-[100px]">Level</TableHead>
-              <TableHead class="w-[120px]">Source</TableHead>
+          <TableHeader className="sticky top-0 bg-card z-10 shadow-sm shadow-border/50">
+            <TableRow className="hover:bg-transparent border-none">
+              <TableHead className="w-[160px]">Timestamp</TableHead>
+              <TableHead className="w-[100px]">Level</TableHead>
+              <TableHead className="w-[120px]">Source</TableHead>
               <TableHead>Message</TableHead>
-              <TableHead class="w-[80px]" />
+              <TableHead className="w-[80px]" />
             </TableRow>
           </TableHeader>
           <TableBody>
-            <Show
-              when={!props.isLoading}
-              fallback={
-                <For each={[1, 2, 3, 4, 5]}>
-                  {() => (
-                    <TableRow>
-                      <TableCell>
-                        <Skeleton class="h-4 w-32" />
-                      </TableCell>
-                      <TableCell>
-                        <Skeleton class="h-4 w-16" />
-                      </TableCell>
-                      <TableCell>
-                        <Skeleton class="h-4 w-24" />
-                      </TableCell>
-                      <TableCell>
-                        <Skeleton class="h-4 w-full" />
-                      </TableCell>
-                      <TableCell>
-                        <Skeleton class="h-8 w-8" />
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </For>
-              }
-            >
-              <Show
-                when={props.isError}
-                fallback={
-                  <Show
-                    when={props.logs.length === 0}
-                    fallback={
-                      <>
-                        <Show when={logsPaddingTop() > 0}>
-                          <tr aria-hidden="true">
-                            <td
-                              colSpan={5}
-                              style={{
-                                height: `${logsPaddingTop()}px`,
-                                padding: "0",
-                                border: "none",
-                              }}
-                            />
-                          </tr>
-                        </Show>
-                        <For each={rowVirtualizer.getVirtualItems()}>
-                          {(vRow) => {
-                            const log = () => props.logs[vRow.index];
-                            return (
-                              <Show when={log()}>
-                                {(entry) => (
-                                  <TableRow class="group">
-                                    <TableCell class="font-mono text-xs text-muted-foreground whitespace-nowrap">
-                                      {props.formatTimestamp(entry().created_at)}
-                                    </TableCell>
-                                    <TableCell>
-                                      <Badge
-                                        variant="outline"
-                                        class={cn(
-                                          "text-xs capitalize pl-1 pr-2 py-0.5",
-                                          getLevelColorClass(entry().level),
-                                        )}
-                                      >
-                                        {getLevelIcon(entry().level)}
-                                        {entry().level}
-                                      </Badge>
-                                    </TableCell>
-                                    <TableCell class="text-xs font-medium text-muted-foreground capitalize">
-                                      {entry().event_type}
-                                    </TableCell>
-                                    <TableCell class="text-sm max-w-[500px]">
-                                      <div class="truncate" title={entry().message}>
-                                        {entry().message}
-                                      </div>
-                                      <Show when={entry().details}>
-                                        <div
-                                          class="text-xs text-muted-foreground mt-0.5 font-mono truncate opacity-70"
-                                          title={entry().details}
-                                        >
-                                          {entry().details}
-                                        </div>
-                                      </Show>
-                                    </TableCell>
-                                    <TableCell>
-                                      <Show when={entry().details}>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          class="relative after:absolute after:-inset-2 h-8 w-8 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
-                                          onClick={() => props.onSelectLog(entry())}
-                                          aria-label="View details"
-                                        >
-                                          <IconEye class="h-4 w-4" />
-                                        </Button>
-                                      </Show>
-                                    </TableCell>
-                                  </TableRow>
-                                )}
-                              </Show>
-                            );
+            {!props.isLoading ? (
+              !props.isError ? (
+                props.logs.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                      No logs found.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  <>
+                    {logsPaddingTop > 0 && (
+                      <tr aria-hidden="true">
+                        <td
+                          colSpan={5}
+                          style={{
+                            height: `${logsPaddingTop}px`,
+                            padding: "0",
+                            border: "none",
                           }}
-                        </For>
-                        <Show when={logsPaddingBottom() > 0}>
-                          <tr aria-hidden="true">
-                            <td
-                              colSpan={5}
-                              style={{
-                                height: `${logsPaddingBottom()}px`,
-                                padding: "0",
-                                border: "none",
-                              }}
-                            />
-                          </tr>
-                        </Show>
-                      </>
-                    }
-                  >
-                    <TableRow>
-                      <TableCell colSpan={5} class="h-24 text-center text-muted-foreground">
-                        No logs found.
-                      </TableCell>
-                    </TableRow>
-                  </Show>
-                }
-              >
+                        />
+                      </tr>
+                    )}
+                    {virtualRows.map((vRow) => {
+                      const log = props.logs[vRow.index];
+                      return log ? (
+                        <TableRow key={log.id ?? vRow.index} className="group">
+                          <TableCell className="font-mono text-xs text-muted-foreground whitespace-nowrap">
+                            {props.formatTimestamp(log.created_at)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "text-xs capitalize pl-1 pr-2 py-0.5",
+                                getLevelColorClass(log.level),
+                              )}
+                            >
+                              {getLevelIcon(log.level)}
+                              {log.level}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs font-medium text-muted-foreground capitalize">
+                            {log.event_type}
+                          </TableCell>
+                          <TableCell className="text-sm max-w-[500px]">
+                            <div className="truncate" title={log.message}>
+                              {log.message}
+                            </div>
+                            {log.details && (
+                              <div
+                                className="text-xs text-muted-foreground mt-0.5 font-mono truncate opacity-70"
+                                title={log.details}
+                              >
+                                {log.details}
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {log.details && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="relative after:absolute after:-inset-2 h-8 w-8 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+                                onClick={() => props.onSelectLog(log)}
+                                aria-label="View details"
+                              >
+                                <EyeIcon className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ) : null;
+                    })}
+                    {logsPaddingBottom > 0 && (
+                      <tr aria-hidden="true">
+                        <td
+                          colSpan={5}
+                          style={{
+                            height: `${logsPaddingBottom}px`,
+                            padding: "0",
+                            border: "none",
+                          }}
+                        />
+                      </tr>
+                    )}
+                  </>
+                )
+              ) : (
                 <TableRow>
-                  <TableCell colSpan={5} class="h-24 text-center text-destructive">
+                  <TableCell colSpan={5} className="h-24 text-center text-destructive">
                     Error loading logs. Please try again.
                   </TableCell>
                 </TableRow>
-              </Show>
-            </Show>
+              )
+            ) : (
+              Array.from({ length: 5 }).map((_, index) => (
+                <TableRow key={`log-skeleton-${index}`}>
+                  <TableCell>
+                    <Skeleton className="h-4 w-32" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-16" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-24" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-full" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-8 w-8" />
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>
@@ -243,7 +223,7 @@ export function SystemLogsTable(props: SystemLogsTableProps) {
 }
 
 function CardShell(props: {
-  children: JSX.Element;
+  children: ReactNode;
   hasNextPage: boolean;
   isFetchingNextPage: boolean;
   onFetchNextPage: () => void;
@@ -251,21 +231,25 @@ function CardShell(props: {
   return (
     <>
       {props.children}
-      <Show when={props.hasNextPage}>
-        <div class="p-4 flex justify-center border-t shrink-0">
+      {props.hasNextPage && (
+        <div className="p-4 flex justify-center border-t shrink-0">
           <Button
             variant="ghost"
             size="sm"
             onClick={props.onFetchNextPage}
             disabled={props.isFetchingNextPage}
           >
-            <Show when={props.isFetchingNextPage} fallback="Load More Logs">
-              <IconLoader class="h-4 w-4 animate-spin" />
-              Loading...
-            </Show>
+            {props.isFetchingNextPage ? (
+              <>
+                <SpinnerIcon className="h-4 w-4 animate-spin" />
+                Loading...
+              </>
+            ) : (
+              "Load More Logs"
+            )}
           </Button>
         </div>
-      </Show>
+      )}
     </>
   );
 }
@@ -288,14 +272,14 @@ function getLevelColorClass(level: string) {
 function getLevelIcon(level: string) {
   switch (level.toLowerCase()) {
     case "error":
-      return <IconAlertCircle class="h-3.5 w-3.5 mr-1" />;
+      return <WarningCircleIcon className="h-3.5 w-3.5 mr-1" />;
     case "warn":
-      return <IconAlertTriangle class="h-3.5 w-3.5 mr-1" />;
+      return <WarningIcon className="h-3.5 w-3.5 mr-1" />;
     case "success":
-      return <IconCheck class="h-3.5 w-3.5 mr-1" />;
+      return <CheckIcon className="h-3.5 w-3.5 mr-1" />;
     case "info":
-      return <IconInfoCircle class="h-3.5 w-3.5 mr-1" />;
+      return <InfoIcon className="h-3.5 w-3.5 mr-1" />;
     default:
-      return <IconInfoCircle class="h-3.5 w-3.5 mr-1" />;
+      return <InfoIcon className="h-3.5 w-3.5 mr-1" />;
   }
 }

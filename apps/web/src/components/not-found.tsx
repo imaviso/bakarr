@@ -1,26 +1,26 @@
-import { IconArrowLeft, IconGhost } from "@tabler/icons-solidjs";
-import { Link } from "@tanstack/solid-router";
+import { ArrowLeftIcon, GhostIcon } from "@phosphor-icons/react";
+import { Link } from "@tanstack/react-router";
 import { Button } from "~/components/ui/button";
 
 export function NotFound() {
   return (
-    <div class="flex flex-1 flex-col items-center justify-center min-h-[400px] bg-background">
-      <div class="flex flex-col items-center text-center space-y-8 px-4">
-        <IconGhost class="h-24 w-24 text-primary/80" stroke-width={1} />
+    <div className="flex flex-1 flex-col items-center justify-center min-h-[400px] bg-background">
+      <div className="flex flex-col items-center text-center space-y-8 px-4">
+        <GhostIcon className="h-24 w-24 text-primary/80" />
 
-        <div class="space-y-2">
-          <h1 class="text-7xl font-thin tracking-tight text-foreground select-none">404</h1>
-          <h2 class="text-xl font-medium tracking-wide text-foreground/80">Page not found</h2>
-          <p class="text-sm text-muted-foreground max-w-[400px] mx-auto leading-relaxed">
+        <div className="space-y-2">
+          <h1 className="text-7xl font-thin tracking-tight text-foreground select-none">404</h1>
+          <h2 className="text-xl font-medium tracking-wide text-foreground/80">Page not found</h2>
+          <p className="text-sm text-muted-foreground max-w-[400px] mx-auto leading-relaxed">
             The page you are looking for does not exist or has been moved. Please check the URL or
             navigate back home.
           </p>
         </div>
 
-        <div class="flex items-center gap-4">
+        <div className="flex items-center gap-4">
           <Link to="/">
-            <Button variant="outline" class="group">
-              <IconArrowLeft class="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+            <Button variant="outline" className="group">
+              <ArrowLeftIcon className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" />
               Back to Home
             </Button>
           </Link>

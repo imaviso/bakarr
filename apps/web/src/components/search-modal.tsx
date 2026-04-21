@@ -12,9 +12,9 @@ interface SearchModalProps {
 
 export function SearchModal(props: SearchModalProps) {
   const state = useSearchModalState({
-    animeId: () => props.animeId,
-    episodeNumber: () => props.episodeNumber,
-    open: () => props.open,
+    animeId: props.animeId,
+    episodeNumber: props.episodeNumber,
+    open: props.open,
     onClose: () => props.onOpenChange(false),
   });
 

@@ -1,11 +1,11 @@
 import {
-  IconActivity,
-  IconCloud,
-  IconDatabase,
-  IconDownload,
-  IconRefresh,
-} from "@tabler/icons-solidjs";
-import { createSignal, Show } from "solid-js";
+  ActivityIcon,
+  CloudIcon,
+  DatabaseIcon,
+  DownloadIcon,
+  ArrowClockwiseIcon,
+} from "@phosphor-icons/react";
+import { useState } from "react";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import {
@@ -63,8 +63,8 @@ function formatProviderStatus(
 
 export function SystemStatus() {
   const status = createSystemStatusQuery();
-  const [latestScanTaskId, setLatestScanTaskId] = createSignal<number | undefined>(undefined);
-  const [latestRssTaskId, setLatestRssTaskId] = createSignal<number | undefined>(undefined);
+  const [latestScanTaskId, setLatestScanTaskId] = useState<number | undefined>(undefined);
+  const [latestRssTaskId, setLatestRssTaskId] = useState<number | undefined>(undefined);
   createSystemTaskQuery(latestScanTaskId);
   createSystemTaskQuery(latestRssTaskId);
   const scanMutation = createTriggerScanMutation();
@@ -87,105 +87,84 @@ export function SystemStatus() {
   };
 
   return (
-    <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
       <Card>
-        <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle class="text-sm font-medium">System Status</CardTitle>
-          <IconActivity class="h-4 w-4 text-muted-foreground" />
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">System Status</CardTitle>
+          <ActivityIcon className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div class="text-2xl font-bold">
-            <Show when={status.data} fallback="-">
-              {(data) => data().version}
-            </Show>
-          </div>
-          <p class="text-xs text-muted-foreground">
-            Uptime:{" "}
-            <Show when={status.data} fallback="-">
-              {(data) => formatUptime(data().uptime)}
-            </Show>
+          <div className="text-2xl font-bold">{status.data ? status.data.version : "-"}</div>
+          <p className="text-xs text-muted-foreground">
+            Uptime: {status.data ? formatUptime(status.data.uptime) : "-"}
           </p>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle class="text-sm font-medium">Disk Space</CardTitle>
-          <IconDatabase class="h-4 w-4 text-muted-foreground" />
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Disk Space</CardTitle>
+          <DatabaseIcon className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div class="text-2xl font-bold">
-            <Show when={status.data} fallback="-">
-              {(data) => formatBytes(data().disk_space.free)}
-            </Show>
+          <div className="text-2xl font-bold">
+            {status.data ? formatBytes(status.data.disk_space.free) : "-"}
           </div>
-          <p class="text-xs text-muted-foreground">
-            Free of{" "}
-            <Show when={status.data} fallback="-">
-              {(data) => formatBytes(data().disk_space.total)}
-            </Show>
+          <p className="text-xs text-muted-foreground">
+            Free of {status.data ? formatBytes(status.data.disk_space.total) : "-"}
           </p>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle class="text-sm font-medium">Pending Downloads</CardTitle>
-          <IconDownload class="h-4 w-4 text-muted-foreground" />
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Pending Downloads</CardTitle>
+          <DownloadIcon className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div class="text-2xl font-bold">
-            <Show when={status.data} fallback="0">
-              {(data) => data().pending_downloads}
-            </Show>
+          <div className="text-2xl font-bold">
+            {status.data ? status.data.pending_downloads : "0"}
           </div>
-          <p class="text-xs text-muted-foreground">
-            Active Torrents:{" "}
-            <Show when={status.data} fallback="0">
-              {(data) => data().active_torrents}
-            </Show>
+          <p className="text-xs text-muted-foreground">
+            Active Torrents: {status.data ? status.data.active_torrents : "0"}
           </p>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle class="text-sm font-medium">Metadata</CardTitle>
-          <IconCloud class="h-4 w-4 text-muted-foreground" />
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Metadata</CardTitle>
+          <CloudIcon className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div class="text-2xl font-bold">
-            <Show when={status.data} fallback="-">
-              {(data) => formatRelativeTime(data().last_metadata_refresh)}
-            </Show>
+          <div className="text-2xl font-bold">
+            {status.data ? formatRelativeTime(status.data.last_metadata_refresh) : "-"}
           </div>
-          <p class="text-xs text-muted-foreground">Last refresh</p>
-          <div class="flex flex-wrap gap-1 mt-1">
-            <Show when={status.data}>
-              {(data) => (
-                <>
-                  <span class="text-xs text-muted-foreground">
-                    {formatProviderStatus("AniDB", data().metadata_providers.anidb)}
-                  </span>
-                  <span class="text-xs text-muted-foreground">
-                    {formatProviderStatus("Jikan", data().metadata_providers.jikan)}
-                  </span>
-                  <span class="text-xs text-muted-foreground">
-                    {formatProviderStatus("Manami", data().metadata_providers.manami)}
-                  </span>
-                </>
-              )}
-            </Show>
+          <p className="text-xs text-muted-foreground">Last refresh</p>
+          <div className="flex flex-wrap gap-1 mt-1">
+            {status.data && (
+              <>
+                <span className="text-xs text-muted-foreground">
+                  {formatProviderStatus("AniDB", status.data.metadata_providers.anidb)}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {formatProviderStatus("Jikan", status.data.metadata_providers.jikan)}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {formatProviderStatus("Manami", status.data.metadata_providers.manami)}
+                </span>
+              </>
+            )}
           </div>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle class="text-sm font-medium">Quick Actions</CardTitle>
-          <IconRefresh class="h-4 w-4 text-muted-foreground" />
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
+          <ArrowClockwiseIcon className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
-        <CardContent class="flex gap-2">
+        <CardContent className="flex gap-2">
           <Button
             variant="outline"
             size="sm"

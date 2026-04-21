@@ -1,6 +1,5 @@
-import { Show } from "solid-js";
 import { FiniteNumberInput, SettingRow, SettingSection } from "~/components/settings/form-controls";
-import type { SettingsFormApi } from "~/components/settings/system-settings-form-factory";
+import type { SettingsFormApi } from "~/components/settings/system-settings-form-hook";
 import { Badge } from "~/components/ui/badge";
 import { Input } from "~/components/ui/input";
 import { Switch } from "~/components/ui/switch";
@@ -17,51 +16,57 @@ export function SystemSettingsAutomationMetadataSection(
   return (
     <SettingSection title="Metadata Providers">
       <SettingRow label="AniDB Runtime Status" description="Live status from /api/system/status">
-        <Show when={props.systemStatus} fallback={<Badge variant="outline">Unknown</Badge>}>
-          {(status) => (
-            <Badge variant={status().metadata_providers.anidb.enabled ? "secondary" : "outline"}>
-              {status().metadata_providers.anidb.enabled
-                ? status().metadata_providers.anidb.configured
-                  ? "Enabled"
-                  : "Missing credentials"
-                : "Disabled"}
-            </Badge>
-          )}
-        </Show>
+        {props.systemStatus ? (
+          <Badge
+            variant={props.systemStatus.metadata_providers.anidb.enabled ? "secondary" : "outline"}
+          >
+            {props.systemStatus.metadata_providers.anidb.enabled
+              ? props.systemStatus.metadata_providers.anidb.configured
+                ? "Enabled"
+                : "Missing credentials"
+              : "Disabled"}
+          </Badge>
+        ) : (
+          <Badge variant="outline">Unknown</Badge>
+        )}
       </SettingRow>
 
       <SettingRow
         label="Jikan Runtime Status"
         description="MyAnimeList metadata enrichment via Jikan API"
       >
-        <Show when={props.systemStatus} fallback={<Badge variant="outline">Unknown</Badge>}>
-          {(status) => (
-            <Badge variant={status().metadata_providers.jikan.enabled ? "secondary" : "outline"}>
-              {status().metadata_providers.jikan.enabled
-                ? status().metadata_providers.jikan.configured
-                  ? "Enabled"
-                  : "Misconfigured"
-                : "Disabled"}
-            </Badge>
-          )}
-        </Show>
+        {props.systemStatus ? (
+          <Badge
+            variant={props.systemStatus.metadata_providers.jikan.enabled ? "secondary" : "outline"}
+          >
+            {props.systemStatus.metadata_providers.jikan.enabled
+              ? props.systemStatus.metadata_providers.jikan.configured
+                ? "Enabled"
+                : "Misconfigured"
+              : "Disabled"}
+          </Badge>
+        ) : (
+          <Badge variant="outline">Unknown</Badge>
+        )}
       </SettingRow>
 
       <SettingRow
         label="Manami Runtime Status"
         description="Cross-service relation resolution via anime-offline-database"
       >
-        <Show when={props.systemStatus} fallback={<Badge variant="outline">Unknown</Badge>}>
-          {(status) => (
-            <Badge variant={status().metadata_providers.manami.enabled ? "secondary" : "outline"}>
-              {status().metadata_providers.manami.enabled
-                ? status().metadata_providers.manami.configured
-                  ? "Enabled"
-                  : "Misconfigured"
-                : "Disabled"}
-            </Badge>
-          )}
-        </Show>
+        {props.systemStatus ? (
+          <Badge
+            variant={props.systemStatus.metadata_providers.manami.enabled ? "secondary" : "outline"}
+          >
+            {props.systemStatus.metadata_providers.manami.enabled
+              ? props.systemStatus.metadata_providers.manami.configured
+                ? "Enabled"
+                : "Misconfigured"
+              : "Disabled"}
+          </Badge>
+        ) : (
+          <Badge variant="outline">Unknown</Badge>
+        )}
       </SettingRow>
 
       <props.form.Field name="metadata.anidb.enabled">
@@ -71,8 +76,8 @@ export function SystemSettingsAutomationMetadataSection(
             description="Use AniDB UDP API to enrich AniList metadata with episode titles and dates"
           >
             <Switch
-              checked={Boolean(field().state.value)}
-              onChange={(checked) => field().handleChange(checked)}
+              checked={Boolean(field.state.value)}
+              onCheckedChange={(checked) => field.handleChange(checked)}
             />
           </SettingRow>
         )}
@@ -82,10 +87,10 @@ export function SystemSettingsAutomationMetadataSection(
         {(field) => (
           <SettingRow label="AniDB Username">
             <Input
-              value={field().state.value ?? ""}
-              onInput={(event) => field().handleChange(event.currentTarget.value)}
-              autocomplete="off"
-              class="w-40"
+              value={field.state.value ?? ""}
+              onInput={(event) => field.handleChange(event.currentTarget.value)}
+              autoComplete="off"
+              className="w-40"
             />
           </SettingRow>
         )}
@@ -96,10 +101,10 @@ export function SystemSettingsAutomationMetadataSection(
           <SettingRow label="AniDB Password">
             <Input
               type="password"
-              value={field().state.value ?? ""}
-              onInput={(event) => field().handleChange(event.currentTarget.value)}
-              autocomplete="off"
-              class="w-40"
+              value={field.state.value ?? ""}
+              onInput={(event) => field.handleChange(event.currentTarget.value)}
+              autoComplete="off"
+              className="w-40"
             />
           </SettingRow>
         )}
@@ -109,9 +114,9 @@ export function SystemSettingsAutomationMetadataSection(
         {(field) => (
           <SettingRow label="AniDB Client Name" description="4-16 lowercase letters">
             <Input
-              value={field().state.value ?? ""}
-              onInput={(event) => field().handleChange(event.currentTarget.value)}
-              class="w-32"
+              value={field.state.value ?? ""}
+              onInput={(event) => field.handleChange(event.currentTarget.value)}
+              className="w-32"
             />
           </SettingRow>
         )}
@@ -122,10 +127,10 @@ export function SystemSettingsAutomationMetadataSection(
           <SettingRow label="AniDB Client Version">
             <FiniteNumberInput
               min="1"
-              value={field().state.value}
+              value={field.state.value}
               fallbackValue={1}
-              onChange={field().handleChange}
-              class="w-20"
+              onChange={field.handleChange}
+              className="w-20"
             />
           </SettingRow>
         )}
@@ -137,10 +142,10 @@ export function SystemSettingsAutomationMetadataSection(
             <FiniteNumberInput
               min="1025"
               max="65535"
-              value={field().state.value}
+              value={field.state.value}
               fallbackValue={45553}
-              onChange={field().handleChange}
-              class="w-24"
+              onChange={field.handleChange}
+              className="w-24"
             />
           </SettingRow>
         )}
@@ -154,10 +159,10 @@ export function SystemSettingsAutomationMetadataSection(
           >
             <FiniteNumberInput
               min="1"
-              value={field().state.value}
+              value={field.state.value}
               fallbackValue={200}
-              onChange={field().handleChange}
-              class="w-20"
+              onChange={field.handleChange}
+              className="w-20"
             />
           </SettingRow>
         )}

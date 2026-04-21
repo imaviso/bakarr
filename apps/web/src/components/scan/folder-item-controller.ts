@@ -1,4 +1,4 @@
-import { createEffect, createMemo, createSignal, type Accessor } from "solid-js";
+import { useEffect, useMemo, useState } from "react";
 import {
   type AddAnimeRequest,
   type AnimeSearchResult,
@@ -11,73 +11,77 @@ import {
 } from "~/lib/api";
 import { runFolderBackgroundMatchAction } from "~/components/scan/background-matching-actions";
 
-export function createFolderItemController(folder: Accessor<UnmappedFolder>) {
+export function useFolderItemController(folder: UnmappedFolder) {
   const addAnimeMutation = createAddAnimeMutation();
   const controlMutation = createControlUnmappedFolderMutation();
   const importMutation = createImportUnmappedFolderMutation();
   const scanMutation = createScanLibraryMutation();
   const profilesQuery = createProfilesQuery();
 
-  const [manualMatch, setManualMatch] = createSignal<AnimeSearchResult | null>(null);
-  const [resetConfirmOpen, setResetConfirmOpen] = createSignal(false);
-  const [selectedProfileName, setSelectedProfileName] = createSignal("");
+  const [manualMatch, setManualMatch] = useState<AnimeSearchResult | null>(null);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  const [selectedProfileName, setSelectedProfileName] = useState("");
 
-  const selectedAnime = createMemo(() => {
-    const manual = manualMatch();
+  const selectedAnime = useMemo(() => {
+    const manual = manualMatch;
     if (manual) {
       return manual;
     }
 
-    return folder().suggested_matches[0] ?? null;
-  });
+    return folder.suggested_matches[0] ?? null;
+  }, [manualMatch, folder.suggested_matches]);
 
-  const selectedProfile = createMemo(() => {
-    const selectedName = selectedProfileName();
+  const selectedProfile = useMemo(() => {
+    const selectedName = selectedProfileName;
     const profiles = profilesQuery.data ?? [];
     const fallbackName = profiles[0]?.name ?? "";
     const resolvedName = selectedName || fallbackName;
 
     return profiles.find((profile) => profile.name === resolvedName) ?? profiles[0];
-  });
+  }, [selectedProfileName, profilesQuery.data]);
 
-  createEffect(() => {
-    if (!selectedProfileName() && profilesQuery.data?.[0]?.name) {
+  useEffect(() => {
+    if (!selectedProfileName && profilesQuery.data?.[0]?.name) {
       setSelectedProfileName(profilesQuery.data[0].name);
     }
-  });
+  }, [selectedProfileName, profilesQuery.data]);
 
-  const existingAnime = createMemo(() =>
-    selectedAnime()?.already_in_library ? selectedAnime() : null,
+  const existingAnime = useMemo(
+    () => (selectedAnime?.already_in_library ? selectedAnime : null),
+    [selectedAnime],
   );
-  const selectedAnimeIds = createMemo(() => {
-    const animeId = selectedAnime()?.id;
+
+  const selectedAnimeIds = useMemo(() => {
+    const animeId = selectedAnime?.id;
     return animeId === undefined ? new Set<number>() : new Set([animeId]);
-  });
-  const importLabel = createMemo(() =>
-    existingAnime() ? "Use existing anime" : "Add and use folder",
+  }, [selectedAnime]);
+
+  const importLabel = useMemo(
+    () => (existingAnime ? "Use existing anime" : "Add and use folder"),
+    [existingAnime],
   );
 
-  const isImporting = () => addAnimeMutation.isPending || importMutation.isPending;
-  const isControlling = () => controlMutation.isPending;
+  const isImporting = addAnimeMutation.isPending || importMutation.isPending;
+  const isControlling = controlMutation.isPending;
 
   const handleControl = (action: "pause" | "resume" | "reset" | "refresh") => {
     void runFolderBackgroundMatchAction({
       action,
       control: (data) => controlMutation.mutateAsync(data),
-      path: folder().path,
+      path: folder.path,
       startScan: () => scanMutation.mutateAsync(),
     });
   };
 
   const handleImport = () => {
-    const anime = selectedAnime();
+    const anime = selectedAnime;
     if (!anime) return;
 
     if (anime.already_in_library) {
       importMutation.mutate(
         {
           anime_id: anime.id,
-          folder_name: folder().name,
+          folder_name: folder.name,
         },
         {
           onSuccess: () => {
@@ -88,7 +92,7 @@ export function createFolderItemController(folder: Accessor<UnmappedFolder>) {
       return;
     }
 
-    const profileName = selectedProfile()?.name;
+    const profileName = selectedProfile?.name;
     if (!profileName) {
       return;
     }
@@ -99,7 +103,7 @@ export function createFolderItemController(folder: Accessor<UnmappedFolder>) {
       monitored: true,
       profile_name: profileName,
       release_profile_ids: [],
-      root_folder: folder().path,
+      root_folder: folder.path,
       use_existing_root: true,
     };
 
@@ -108,7 +112,7 @@ export function createFolderItemController(folder: Accessor<UnmappedFolder>) {
         importMutation.mutate(
           {
             anime_id: createdAnime.id,
-            folder_name: folder().name,
+            folder_name: folder.name,
           },
           {
             onSuccess: () => {

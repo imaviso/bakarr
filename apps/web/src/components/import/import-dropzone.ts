@@ -14,19 +14,19 @@ function getDroppedFilePath(file: File): string | undefined {
 }
 
 export function createImportDropzoneHandlers(options: ImportDropzoneHandlersOptions) {
-  const handleDragOver = (event: DragEvent) => {
+  const handleDragOver = (event: DragEvent<HTMLElement>) => {
     event.preventDefault();
     event.stopPropagation();
     options.setIsDragOver(true);
   };
 
-  const handleDragLeave = (event: DragEvent) => {
+  const handleDragLeave = (event: DragEvent<HTMLElement>) => {
     event.preventDefault();
     event.stopPropagation();
     options.setIsDragOver(false);
   };
 
-  const handleDrop = (event: DragEvent) => {
+  const handleDrop = (event: DragEvent<HTMLElement>) => {
     event.preventDefault();
     event.stopPropagation();
     options.setIsDragOver(false);
@@ -59,3 +59,4 @@ export function createImportDropzoneHandlers(options: ImportDropzoneHandlersOpti
     handleDrop,
   };
 }
+import type { DragEvent } from "react";

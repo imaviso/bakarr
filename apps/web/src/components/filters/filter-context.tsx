@@ -1,7 +1,7 @@
-import { createContext, useContext } from "solid-js";
+import { createContext, useContext } from "react";
 import type { FilterContextValue } from "./types";
 
-const FilterContext = createContext<FilterContextValue>();
+const FilterContext = createContext<FilterContextValue | undefined>(undefined);
 
 export function useFilterContext() {
   const context = useContext(FilterContext);

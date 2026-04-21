@@ -1,5 +1,5 @@
 import { FiniteNumberInput, SettingRow, SettingSection } from "~/components/settings/form-controls";
-import type { SettingsFormApi } from "~/components/settings/system-settings-form-factory";
+import type { SettingsFormApi } from "~/components/settings/system-settings-form-hook";
 import { Input } from "~/components/ui/input";
 import {
   Select,
@@ -22,7 +22,7 @@ export function SystemSettingsGeneralApplicationSection(
       <props.form.Field name="general.database_path">
         {(field) => (
           <SettingRow label="Database Path" description="Current database file path">
-            <Input value={field().state.value} readOnly class="w-64" />
+            <Input value={field.state.value} readOnly className="w-64" />
           </SettingRow>
         )}
       </props.form.Field>
@@ -31,19 +31,23 @@ export function SystemSettingsGeneralApplicationSection(
         {(field) => (
           <SettingRow label="Log Level" description="Control verbosity of application logs">
             <Select
-              name={field().name}
-              value={field().state.value}
-              onChange={(value) => value && field().handleChange(value)}
-              options={["error", "warn", "info", "debug", "trace"]}
-              placeholder="Select..."
-              itemComponent={(itemProps) => (
-                <SelectItem item={itemProps.item}>{itemProps.item.rawValue}</SelectItem>
-              )}
+              value={field.state.value}
+              onValueChange={(value) => {
+                if (value !== null) {
+                  field.handleChange(value);
+                }
+              }}
             >
-              <SelectTrigger class="w-32">
-                <SelectValue<string>>{(state) => state.selectedOption()}</SelectValue>
+              <SelectTrigger className="w-32">
+                <SelectValue placeholder="Select..." />
               </SelectTrigger>
-              <SelectContent />
+              <SelectContent>
+                <SelectItem value="error">error</SelectItem>
+                <SelectItem value="warn">warn</SelectItem>
+                <SelectItem value="info">info</SelectItem>
+                <SelectItem value="debug">debug</SelectItem>
+                <SelectItem value="trace">trace</SelectItem>
+              </SelectContent>
             </Select>
           </SettingRow>
         )}
@@ -53,9 +57,9 @@ export function SystemSettingsGeneralApplicationSection(
         {(field) => (
           <SettingRow label="Images Path" description="Local cache for cover art and images">
             <Input
-              value={field().state.value}
-              onInput={(event) => field().handleChange(event.currentTarget.value)}
-              class="w-64"
+              value={field.state.value}
+              onInput={(event) => field.handleChange(event.currentTarget.value)}
+              className="w-64"
             />
           </SettingRow>
         )}
@@ -69,10 +73,10 @@ export function SystemSettingsGeneralApplicationSection(
           >
             <FiniteNumberInput
               min="0"
-              value={field().state.value}
+              value={field.state.value}
               fallbackValue={2}
-              onChange={field().handleChange}
-              class="w-24"
+              onChange={field.handleChange}
+              className="w-24"
             />
           </SettingRow>
         )}
@@ -83,9 +87,9 @@ export function SystemSettingsGeneralApplicationSection(
           <SettingRow label="Max DB Connections" description="Upper limit for database connections">
             <FiniteNumberInput
               min="1"
-              value={field().state.value}
-              onChange={field().handleChange}
-              class="w-24"
+              value={field.state.value}
+              onChange={field.handleChange}
+              className="w-24"
             />
           </SettingRow>
         )}
@@ -96,9 +100,9 @@ export function SystemSettingsGeneralApplicationSection(
           <SettingRow label="Min DB Connections" description="Lower limit for database connections">
             <FiniteNumberInput
               min="1"
-              value={field().state.value}
-              onChange={field().handleChange}
-              class="w-24"
+              value={field.state.value}
+              onChange={field.handleChange}
+              className="w-24"
             />
           </SettingRow>
         )}
@@ -111,8 +115,8 @@ export function SystemSettingsGeneralApplicationSection(
             description="Hide noisy retry logs from qBittorrent/Network"
           >
             <Switch
-              checked={field().state.value}
-              onChange={(checked) => field().handleChange(checked)}
+              checked={field.state.value}
+              onCheckedChange={(checked) => field.handleChange(checked)}
             />
           </SettingRow>
         )}

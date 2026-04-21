@@ -1,6 +1,5 @@
-import { IconExternalLink } from "@tabler/icons-solidjs";
+import { ArrowSquareOutIcon } from "@phosphor-icons/react";
 import type { DownloadSelectionKind } from "@bakarr/shared";
-import { For, Show } from "solid-js";
 import { Badge } from "~/components/ui/badge";
 import {
   releaseConfidenceBadgeClass,
@@ -13,46 +12,45 @@ interface ReleaseSeaDexMetaProps {
   notes?: string | undefined;
   tags?: string[] | undefined;
   comparisonUrl?: string | undefined;
-  class?: string | undefined;
+  className?: string | undefined;
   tagClass?: string | undefined;
 }
 
 export function ReleaseSeaDexMeta(props: ReleaseSeaDexMetaProps) {
   return (
-    <Show when={props.notes || props.tags?.length || props.comparisonUrl}>
-      <div class={cn("flex flex-col gap-1 text-xs text-muted-foreground", props.class)}>
-        <Show when={props.notes}>
-          <span class="line-clamp-2">{props.notes}</span>
-        </Show>
-        <Show when={props.tags?.length}>
-          <div class="flex flex-wrap gap-1">
-            <For each={(props.tags ?? []).slice(0, 4)}>
-              {(tag) => (
+    <>
+      {props.notes || props.tags?.length || props.comparisonUrl ? (
+        <div className={cn("flex flex-col gap-1 text-xs text-muted-foreground", props.className)}>
+          {props.notes && <span className="line-clamp-2">{props.notes}</span>}
+          {props.tags?.length ? (
+            <div className="flex flex-wrap gap-1">
+              {(props.tags ?? []).slice(0, 4).map((tag) => (
                 <Badge
+                  key={tag}
                   variant="secondary"
-                  class={cn(
+                  className={cn(
                     "h-4 px-1 text-xs bg-muted/40 text-muted-foreground border-transparent",
                     props.tagClass,
                   )}
                 >
                   {tag}
                 </Badge>
-              )}
-            </For>
-          </div>
-        </Show>
-        <Show when={props.comparisonUrl}>
-          <a
-            href={props.comparisonUrl}
-            target="_blank"
-            rel="noreferrer"
-            class="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 w-fit"
-          >
-            <IconExternalLink class="h-3 w-3" /> Compare notes
-          </a>
-        </Show>
-      </div>
-    </Show>
+              ))}
+            </div>
+          ) : null}
+          {props.comparisonUrl && (
+            <a
+              href={props.comparisonUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 w-fit"
+            >
+              <ArrowSquareOutIcon className="h-3 w-3" /> Compare notes
+            </a>
+          )}
+        </div>
+      ) : null}
+    </>
   );
 }
 
@@ -62,7 +60,7 @@ interface ReleaseSelectionMetaProps {
   selectionSummary?: string | undefined;
   selectionDetail?: string | undefined;
   confidence?: ReleaseConfidenceMetadata | undefined;
-  class?: string | undefined;
+  className?: string | undefined;
   selectionClass?: string | undefined;
   confidenceClass?: string | undefined;
   detailClass?: string | undefined;
@@ -71,54 +69,52 @@ interface ReleaseSelectionMetaProps {
 export function ReleaseSelectionMeta(props: ReleaseSelectionMetaProps) {
   return (
     <>
-      <Show when={props.selectionSummary}>
+      {props.selectionSummary ? (
         <div
-          class={cn(
+          className={cn(
             "flex flex-wrap items-center gap-1.5 text-xs leading-tight",
-            props.class,
+            props.className,
             props.selectionClass,
           )}
         >
-          <Show when={props.selectionLabel}>
+          {props.selectionLabel && (
             <Badge
               variant="secondary"
-              class={cn(
+              className={cn(
                 "h-4 px-1.5 border-transparent",
                 selectionKindBadgeClass(props.selectionKind),
               )}
             >
               {props.selectionLabel}
             </Badge>
-          </Show>
-          <Show when={props.selectionDetail}>
-            <div class={cn("text-muted-foreground", props.detailClass)}>
+          )}
+          {props.selectionDetail && (
+            <div className={cn("text-muted-foreground", props.detailClass)}>
               {props.selectionDetail}
             </div>
-          </Show>
+          )}
         </div>
-      </Show>
-      <Show when={props.confidence}>
-        {(confidence) => (
-          <div
-            class={cn(
-              "flex flex-wrap items-center gap-1.5 text-xs leading-tight",
-              props.class,
-              props.confidenceClass,
+      ) : null}
+      {props.confidence ? (
+        <div
+          className={cn(
+            "flex flex-wrap items-center gap-1.5 text-xs leading-tight",
+            props.className,
+            props.confidenceClass,
+          )}
+        >
+          <Badge
+            variant="secondary"
+            className={cn(
+              "h-4 px-1.5 border-transparent",
+              releaseConfidenceBadgeClass(props.confidence.tone),
             )}
           >
-            <Badge
-              variant="secondary"
-              class={cn(
-                "h-4 px-1.5 border-transparent",
-                releaseConfidenceBadgeClass(confidence().tone),
-              )}
-            >
-              {confidence().label}
-            </Badge>
-            <div class="text-muted-foreground">{confidence().reason}</div>
-          </div>
-        )}
-      </Show>
+            {props.confidence.label}
+          </Badge>
+          <div className="text-muted-foreground">{props.confidence.reason}</div>
+        </div>
+      ) : null}
     </>
   );
 }

@@ -1,6 +1,6 @@
-import { IconLoader } from "@tabler/icons-solidjs";
-import { createMemo, For, Show, type JSX } from "solid-js";
-import { createVirtualizer } from "@tanstack/solid-virtual";
+import { SpinnerIcon } from "@phosphor-icons/react";
+import { useRef, type ReactNode } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { DownloadEventCard } from "~/components/download-event-card";
 import { Button } from "~/components/ui/button";
 import type { DownloadEvent } from "~/lib/api";
@@ -13,111 +13,105 @@ interface DownloadEventsFeedProps {
   isLoading: boolean;
   total?: number | undefined;
   emptyText: string;
-  loadingContent?: JSX.Element;
-  loadingFallback?: JSX.Element;
+  loadingContent?: ReactNode;
+  loadingFallback?: ReactNode;
   onSelectEvent?: ((event: DownloadEvent) => void) | undefined;
   showCount?: boolean;
   virtualized?: boolean;
   maxHeightPx?: number | undefined;
-  class?: string | undefined;
+  className?: string | undefined;
 }
 
 export function DownloadEventsFeed(props: DownloadEventsFeedProps) {
-  let scrollRef: HTMLDivElement | undefined;
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  const showCount = () => props.showCount ?? true;
+  const showCount = props.showCount ?? true;
   const loadingFallback = props.loadingFallback ?? props.loadingContent ?? (
-    <div class="flex items-center gap-2 text-sm text-muted-foreground">
-      <IconLoader class="h-4 w-4 animate-spin" />
+    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+      <SpinnerIcon className="h-4 w-4 animate-spin" />
       Loading download events...
     </div>
   );
-  const isVirtualized = () => props.virtualized ?? false;
+  const isVirtualized = props.virtualized ?? false;
 
-  const virtualizer = createVirtualizer({
-    get count() {
-      return props.events.length;
-    },
+  const virtualizer = useVirtualizer({
+    count: props.events.length,
     estimateSize: () => VIRTUAL_ROW_HEIGHT,
-    getScrollElement: () => scrollRef ?? null,
+    getScrollElement: () => scrollRef.current ?? null,
     overscan: 4,
   });
 
-  const paddingTop = createMemo(() => {
-    const items = virtualizer.getVirtualItems();
-    const [first] = items;
-    return first ? first.start : 0;
-  });
-  const paddingBottom = createMemo(() => {
-    const items = virtualizer.getVirtualItems();
-    const last = items[items.length - 1];
-    return last ? virtualizer.getTotalSize() - last.end : 0;
-  });
+  const virtualItems = virtualizer.getVirtualItems();
+  const firstVirtualItem = virtualItems[0];
+  const lastVirtualItem = virtualItems[virtualItems.length - 1];
+
+  const paddingTop = firstVirtualItem ? firstVirtualItem.start : 0;
+  const paddingBottom = lastVirtualItem ? virtualizer.getTotalSize() - lastVirtualItem.end : 0;
 
   return (
-    <Show when={!props.isLoading} fallback={loadingFallback}>
-      <Show
-        when={props.events.length > 0}
-        fallback={<div class="text-sm text-muted-foreground">{props.emptyText}</div>}
-      >
-        <Show when={showCount()}>
-          <div class="text-xs text-muted-foreground">
-            Showing {props.events.length} of {props.total ?? props.events.length} events
-          </div>
-        </Show>
+    <>
+      {props.isLoading ? (
+        loadingFallback
+      ) : (
+        <>
+          {props.events.length === 0 ? (
+            <div className="text-sm text-muted-foreground">{props.emptyText}</div>
+          ) : (
+            <>
+              {showCount && (
+                <div className="text-xs text-muted-foreground">
+                  Showing {props.events.length} of {props.total ?? props.events.length} events
+                </div>
+              )}
 
-        <Show
-          when={isVirtualized()}
-          fallback={
-            <div class={props.class ?? "space-y-3"}>
-              <For each={props.events}>
-                {(event) => (
-                  <DownloadEventsFeedRow
-                    event={event}
-                    formatTimestamp={props.formatTimestamp}
-                    onSelectEvent={props.onSelectEvent}
-                  />
-                )}
-              </For>
-            </div>
-          }
-        >
-          <div
-            ref={(element) => {
-              scrollRef = element;
-            }}
-            class={props.class ?? "overflow-y-auto"}
-            style={{
-              ...(props.maxHeightPx === undefined
-                ? {}
-                : { "max-height": `${props.maxHeightPx}px` }),
-              "overflow-anchor": "none",
-            }}
-          >
-            <div style={{ height: `${paddingTop()}px` }} aria-hidden="true" />
-            <div class="space-y-3">
-              <For each={virtualizer.getVirtualItems()}>
-                {(virtualRow) => {
-                  const event = props.events[virtualRow.index];
-                  if (!event) {
-                    return null;
-                  }
+              {isVirtualized ? (
+                <div
+                  ref={scrollRef}
+                  className={props.className ?? "overflow-y-auto"}
+                  style={{
+                    ...(props.maxHeightPx === undefined
+                      ? {}
+                      : { maxHeight: `${props.maxHeightPx}px` }),
+                    overflowAnchor: "none",
+                  }}
+                >
+                  <div style={{ height: `${paddingTop}px` }} aria-hidden="true" />
+                  <div className="space-y-3">
+                    {virtualItems.map((virtualRow) => {
+                      const event = props.events[virtualRow.index];
+                      if (!event) {
+                        return null;
+                      }
 
-                  return (
+                      return (
+                        <DownloadEventsFeedRow
+                          key={virtualRow.index}
+                          event={event}
+                          formatTimestamp={props.formatTimestamp}
+                          onSelectEvent={props.onSelectEvent}
+                        />
+                      );
+                    })}
+                  </div>
+                  <div style={{ height: `${paddingBottom}px` }} aria-hidden="true" />
+                </div>
+              ) : (
+                <div className={props.className ?? "space-y-3"}>
+                  {props.events.map((event) => (
                     <DownloadEventsFeedRow
+                      key={event.id}
                       event={event}
                       formatTimestamp={props.formatTimestamp}
                       onSelectEvent={props.onSelectEvent}
                     />
-                  );
-                }}
-              </For>
-            </div>
-            <div style={{ height: `${paddingBottom()}px` }} aria-hidden="true" />
-          </div>
-        </Show>
-      </Show>
-    </Show>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </>
+      )}
+    </>
   );
 }
 
@@ -129,17 +123,15 @@ interface DownloadEventsFeedRowProps {
 
 function DownloadEventsFeedRow(props: DownloadEventsFeedRowProps) {
   return (
-    <div class="space-y-2">
+    <div className="space-y-2">
       <DownloadEventCard event={props.event} formatTimestamp={props.formatTimestamp} />
-      <Show when={props.onSelectEvent}>
-        {(onSelectEvent) => (
-          <div class="flex justify-end">
-            <Button variant="outline" size="sm" onClick={() => onSelectEvent()(props.event)}>
-              Details
-            </Button>
-          </div>
-        )}
-      </Show>
+      {props.onSelectEvent && (
+        <div className="flex justify-end">
+          <Button variant="outline" size="sm" onClick={() => props.onSelectEvent!(props.event)}>
+            Details
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { queryOptions, useQuery } from "@tanstack/solid-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import type { ActivityItem, LibraryStats } from "./contracts";
 import { API_BASE, fetchApi } from "./client";
 import { animeKeys } from "./keys";
@@ -12,7 +12,7 @@ export function libraryStatsQueryOptions() {
 }
 
 export function createLibraryStatsQuery() {
-  return useQuery(libraryStatsQueryOptions);
+  return useQuery(libraryStatsQueryOptions());
 }
 
 export function activityQueryOptions() {
@@ -25,5 +25,5 @@ export function activityQueryOptions() {
 }
 
 export function createActivityQuery() {
-  return useQuery(activityQueryOptions);
+  return useQuery(activityQueryOptions());
 }

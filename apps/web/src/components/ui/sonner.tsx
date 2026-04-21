@@ -1,20 +1,42 @@
-import type { Component, ComponentProps } from "solid-js";
+"use client";
 
-import { Toaster as Sonner } from "solid-sonner";
+import { Toaster as Sonner, type ToasterProps } from "sonner";
+import { useTheme } from "~/components/theme-provider";
+import {
+  CheckCircleIcon,
+  InfoIcon,
+  WarningIcon,
+  XCircleIcon,
+  SpinnerIcon,
+} from "@phosphor-icons/react";
 
-type ToasterProps = ComponentProps<typeof Sonner>;
+const Toaster = ({ ...props }: ToasterProps) => {
+  const { theme = "system" } = useTheme();
+  const toasterTheme: ToasterProps["theme"] =
+    theme === "dark" || theme === "light" ? theme : "system";
 
-const Toaster: Component<ToasterProps> = (props) => {
   return (
     <Sonner
-      class="toaster group"
+      theme={toasterTheme}
+      className="toaster group"
+      icons={{
+        success: <CheckCircleIcon className="size-4" />,
+        info: <InfoIcon className="size-4" />,
+        warning: <WarningIcon className="size-4" />,
+        error: <XCircleIcon className="size-4" />,
+        loading: <SpinnerIcon className="size-4 animate-spin" />,
+      }}
+      style={
+        {
+          "--normal-bg": "var(--popover)",
+          "--normal-text": "var(--popover-foreground)",
+          "--normal-border": "var(--border)",
+          "--border-radius": "var(--radius)",
+        } as React.CSSProperties
+      }
       toastOptions={{
-        classes: {
-          toast:
-            "group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-sm",
-          description: "group-[.toast]:text-muted-foreground",
-          actionButton: "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",
-          cancelButton: "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
+        classNames: {
+          toast: "cn-toast",
         },
       }}
       {...props}

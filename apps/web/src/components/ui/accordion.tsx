@@ -1,71 +1,70 @@
-import type { Component, ComponentProps } from "solid-js";
-import { splitProps } from "solid-js";
+import { Accordion as AccordionPrimitive } from "@base-ui/react/accordion";
 
-import * as AccordionPrimitive from "@kobalte/core/accordion";
+import { cn } from "@/lib/utils";
+import { CaretDownIcon, CaretUpIcon } from "@phosphor-icons/react";
 
-import { cn } from "~/lib/utils";
-
-const Accordion = AccordionPrimitive.Root;
-
-type AccordionItemProps = ComponentProps<typeof AccordionPrimitive.Item> & {
-  class?: string | undefined;
-};
-
-const AccordionItem: Component<AccordionItemProps> = (props) => {
-  const [local, others] = splitProps(props, ["class"]);
-  return <AccordionPrimitive.Item class={cn("border-b", local.class)} {...others} />;
-};
-
-type AccordionTriggerProps = ComponentProps<typeof AccordionPrimitive.Trigger> & {
-  class?: string | undefined;
-};
-
-const AccordionTrigger: Component<AccordionTriggerProps> = (props) => {
-  const [local, others] = splitProps(props, ["class", "children"]);
+function Accordion({ className, ...props }: AccordionPrimitive.Root.Props) {
   return (
-    <AccordionPrimitive.Header class="flex">
+    <AccordionPrimitive.Root
+      data-slot="accordion"
+      className={cn("flex w-full flex-col", className)}
+      {...props}
+    />
+  );
+}
+
+function AccordionItem({ className, ...props }: AccordionPrimitive.Item.Props) {
+  return (
+    <AccordionPrimitive.Item
+      data-slot="accordion-item"
+      className={cn("not-last:border-b", className)}
+      {...props}
+    />
+  );
+}
+
+function AccordionTrigger({ className, children, ...props }: AccordionPrimitive.Trigger.Props) {
+  return (
+    <AccordionPrimitive.Header className="flex">
       <AccordionPrimitive.Trigger
-        class={cn(
-          "flex flex-1 items-center justify-between py-4 font-medium transition-colors hover:underline [&[data-expanded]>svg]:rotate-180",
-          local.class,
+        data-slot="accordion-trigger"
+        className={cn(
+          "group/accordion-trigger relative flex flex-1 items-start justify-between rounded-none border border-transparent py-2.5 text-left text-xs font-medium transition-all outline-none hover:underline focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 focus-visible:after:border-ring aria-disabled:pointer-events-none aria-disabled:opacity-50 **:data-[slot=accordion-trigger-icon]:ml-auto **:data-[slot=accordion-trigger-icon]:size-4 **:data-[slot=accordion-trigger-icon]:text-muted-foreground",
+          className,
         )}
-        {...others}
+        {...props}
       >
-        {local.children}
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          class="size-4 shrink-0 transition-transform duration-200"
-        >
-          <path d="M6 9l6 6l6 -6" />
-        </svg>
+        {children}
+        <CaretDownIcon
+          data-slot="accordion-trigger-icon"
+          className="pointer-events-none shrink-0 group-aria-expanded/accordion-trigger:hidden"
+        />
+        <CaretUpIcon
+          data-slot="accordion-trigger-icon"
+          className="pointer-events-none hidden shrink-0 group-aria-expanded/accordion-trigger:inline"
+        />
       </AccordionPrimitive.Trigger>
     </AccordionPrimitive.Header>
   );
-};
+}
 
-type AccordionContentProps = ComponentProps<typeof AccordionPrimitive.Content> & {
-  class?: string | undefined;
-};
-
-const AccordionContent: Component<AccordionContentProps> = (props) => {
-  const [local, others] = splitProps(props, ["class", "children"]);
+function AccordionContent({ className, children, ...props }: AccordionPrimitive.Panel.Props) {
   return (
-    <AccordionPrimitive.Content
-      class={cn(
-        "animate-accordion-up overflow-hidden text-sm data-[expanded]:animate-accordion-down",
-        local.class,
-      )}
-      {...others}
+    <AccordionPrimitive.Panel
+      data-slot="accordion-content"
+      className="overflow-hidden text-xs data-open:animate-accordion-down data-closed:animate-accordion-up"
+      {...props}
     >
-      <div class="pb-4 pt-0">{local.children}</div>
-    </AccordionPrimitive.Content>
+      <div
+        className={cn(
+          "h-(--accordion-panel-height) pt-0 pb-2.5 data-ending-style:h-0 data-starting-style:h-0 [&_a]:underline [&_a]:underline-offset-3 [&_a]:hover:text-foreground [&_p:not(:last-child)]:mb-4",
+          className,
+        )}
+      >
+        {children}
+      </div>
+    </AccordionPrimitive.Panel>
   );
-};
+}
 
-export { Accordion, AccordionContent, AccordionItem, AccordionTrigger };
+export { Accordion, AccordionItem, AccordionTrigger, AccordionContent };

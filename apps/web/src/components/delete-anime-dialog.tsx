@@ -1,4 +1,4 @@
-import type { JSX } from "solid-js";
+import type { ReactNode } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,18 +14,18 @@ import {
 interface DeleteAnimeDialogProps {
   title: string;
   onConfirm: () => void;
-  trigger: JSX.Element;
+  trigger: ReactNode;
 }
 
 export function DeleteAnimeDialog(props: DeleteAnimeDialogProps) {
   return (
     <AlertDialog>
-      <AlertDialogTrigger as="div">{props.trigger}</AlertDialogTrigger>
+      <AlertDialogTrigger render={<div />}>{props.trigger}</AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Delete Anime</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to delete "{props.title}"? This action cannot be undone.
+            Are you sure you want to delete &quot;{props.title}&quot;? This action cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

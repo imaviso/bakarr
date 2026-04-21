@@ -1,5 +1,5 @@
-import { IconX } from "@tabler/icons-solidjs";
-import { createMemo, Show } from "solid-js";
+import { XIcon } from "@phosphor-icons/react";
+import { useMemo } from "react";
 import { Button } from "~/components/ui/button";
 import {
   Select,
@@ -8,22 +8,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
-import { TextField, TextFieldInput } from "~/components/ui/text-field";
+import { Input } from "~/components/ui/input";
 import { useFilterContext } from "./filter-context";
 import type { FilterOperator, FilterState } from "./types";
 
 interface FilterItemProps {
   filter: FilterState;
-  index: number;
 }
 
 export function FilterItem(props: FilterItemProps) {
   const ctx = useFilterContext();
 
-  const column = createMemo(() => ctx.columns().find((c) => c.id === props.filter.columnId));
+  const column = useMemo(
+    () => ctx.columns.find((c) => c.id === props.filter.columnId),
+    [ctx.columns, props.filter.columnId],
+  );
 
-  const operatorOptions = createMemo(() => {
-    const col = column();
+  const operatorOptions = useMemo(() => {
+    const col = column;
     if (!col) return [];
 
     let options: { value: FilterOperator; label: string }[] = [];
@@ -63,163 +65,103 @@ export function FilterItem(props: FilterItemProps) {
     }
 
     return options;
-  });
+  }, [column]);
 
   const handleOperatorChange = (operator: FilterOperator | null) => {
     if (operator) {
-      ctx.updateFilter(props.index, { operator });
+      ctx.updateFilter(props.filter.id, { operator });
     }
   };
 
   const handleValueChange = (value: string | string[] | null) => {
     if (value !== null) {
-      ctx.updateFilter(props.index, { value });
+      ctx.updateFilter(props.filter.id, { value });
     }
   };
 
   return (
-    <div class="flex items-center gap-1.5 bg-muted/50 rounded-none p-1 pr-2">
-      <div class="text-sm font-medium text-muted-foreground px-2">{column()?.label}</div>
+    <div className="flex items-center gap-1.5 bg-muted/50 rounded-none p-1 pr-2">
+      <div className="text-sm font-medium text-muted-foreground px-2">{column?.label}</div>
 
       <Select
         value={props.filter.operator}
-        onChange={handleOperatorChange}
-        options={operatorOptions().map((o) => o.value)}
-        placeholder="Select operator"
-        itemComponent={(itemProps) => (
-          <SelectItem item={itemProps.item}>
-            {operatorOptions().find((o) => o.value === itemProps.item.rawValue)?.label}
-          </SelectItem>
-        )}
+        onValueChange={(value) => {
+          const matchedOperator = operatorOptions.find((option) => option.value === value)?.value;
+          handleOperatorChange(matchedOperator ?? null);
+        }}
       >
-        <SelectTrigger class="w-[140px] h-8 px-2 bg-background focus:ring-0 focus:ring-offset-0 border-muted-foreground/20">
-          <SelectValue<string>>
-            {(state) =>
-              operatorOptions().find((o) => o.value === state.selectedOption())?.label ||
-              "Select operator"
-            }
-          </SelectValue>
+        <SelectTrigger className="w-[140px] h-8 px-2 bg-background focus:ring-0 focus:ring-offset-0 border-muted-foreground/20">
+          <SelectValue placeholder="Select operator" />
         </SelectTrigger>
-        <SelectContent />
+        <SelectContent>
+          {operatorOptions.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
       </Select>
 
-      <Show
-        when={column()?.type === "text" || column()?.type === "date"}
-        fallback={
-          <Show
-            when={(() => {
-              const currentValue = Array.isArray(props.filter.value)
-                ? props.filter.value[0]
-                : props.filter.value;
-              return currentValue === undefined ? undefined : currentValue;
-            })()}
-            fallback={
-              <Select
-                value={null}
-                onChange={(val) => handleValueChange(val || "")}
-                options={column()?.options?.map((o) => o.value) || []}
-                placeholder="Select value"
-                itemComponent={(itemProps) => {
-                  const option = () =>
-                    column()?.options?.find((o) => o.value === itemProps.item.rawValue);
-                  return (
-                    <SelectItem item={itemProps.item}>
-                      <Show when={option()?.icon}>
-                        <span class="mr-2">{option()?.icon}</span>
-                      </Show>
-                      {option()?.label}
-                    </SelectItem>
-                  );
-                }}
-              >
-                <SelectTrigger class="w-[160px] h-8 px-2 bg-background focus:ring-0 focus:ring-offset-0 border-muted-foreground/20">
-                  <SelectValue<string>>
-                    {(state) => {
-                      const option = column()?.options?.find(
-                        (o) => o.value === state.selectedOption(),
-                      );
-                      return (
-                        <Show when={option} fallback="Select value">
-                          <div class="flex items-center">
-                            <Show when={option?.icon}>
-                              <span class="mr-2">{option?.icon}</span>
-                            </Show>
-                            {option?.label}
-                          </div>
-                        </Show>
-                      );
-                    }}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent />
-              </Select>
-            }
-          >
-            {(selectedValue) => (
-              <Select
-                value={selectedValue()}
-                onChange={(val) => handleValueChange(val || "")}
-                options={column()?.options?.map((o) => o.value) || []}
-                placeholder="Select value"
-                itemComponent={(itemProps) => {
-                  const option = () =>
-                    column()?.options?.find((o) => o.value === itemProps.item.rawValue);
-                  return (
-                    <SelectItem item={itemProps.item}>
-                      <Show when={option()?.icon}>
-                        <span class="mr-2">{option()?.icon}</span>
-                      </Show>
-                      {option()?.label}
-                    </SelectItem>
-                  );
-                }}
-              >
-                <SelectTrigger class="w-[160px] h-8 px-2 bg-background focus:ring-0 focus:ring-offset-0 border-muted-foreground/20">
-                  <SelectValue<string>>
-                    {(state) => {
-                      const option = column()?.options?.find(
-                        (o) => o.value === state.selectedOption(),
-                      );
-                      return (
-                        <Show when={option} fallback="Select value">
-                          <div class="flex items-center">
-                            <Show when={option?.icon}>
-                              <span class="mr-2">{option?.icon}</span>
-                            </Show>
-                            {option?.label}
-                          </div>
-                        </Show>
-                      );
-                    }}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent />
-              </Select>
-            )}
-          </Show>
-        }
-      >
-        <TextField>
-          <TextFieldInput
-            type={column()?.type === "date" ? "date" : "text"}
-            value={
-              Array.isArray(props.filter.value) ? props.filter.value[0] || "" : props.filter.value
-            }
-            onInput={(e) => handleValueChange(e.currentTarget.value)}
-            placeholder={column()?.placeholder || "Enter value"}
-            class="h-8 w-[160px] px-2 bg-background focus-visible:ring-0 focus-visible:ring-offset-0 border-muted-foreground/20"
-          />
-        </TextField>
-      </Show>
+      {column?.type === "text" || column?.type === "date" ? (
+        <Input
+          type={column?.type === "date" ? "date" : "text"}
+          value={
+            Array.isArray(props.filter.value) ? props.filter.value[0] || "" : props.filter.value
+          }
+          onChange={(event) => handleValueChange(event.currentTarget.value)}
+          placeholder={column?.placeholder || "Enter value"}
+          className="h-8 w-[160px] px-2 bg-background focus-visible:ring-0 focus-visible:ring-offset-0 border-muted-foreground/20"
+        />
+      ) : (
+        (() => {
+          const currentValue = Array.isArray(props.filter.value)
+            ? props.filter.value[0]
+            : props.filter.value;
+          const selectedValue = currentValue === undefined ? undefined : currentValue;
+
+          return selectedValue !== undefined ? (
+            <Select
+              value={selectedValue}
+              onValueChange={(value) => handleValueChange(value ?? null)}
+            >
+              <SelectTrigger className="w-[160px] h-8 px-2 bg-background focus:ring-0 focus:ring-offset-0 border-muted-foreground/20">
+                <SelectValue placeholder="Select value" />
+              </SelectTrigger>
+              <SelectContent>
+                {(column?.options ?? []).map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.icon && <span className="mr-2">{option.icon}</span>}
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <Select value={null} onValueChange={(value) => handleValueChange(value ?? null)}>
+              <SelectTrigger className="w-[160px] h-8 px-2 bg-background focus:ring-0 focus:ring-offset-0 border-muted-foreground/20">
+                <SelectValue placeholder="Select value" />
+              </SelectTrigger>
+              <SelectContent>
+                {(column?.options ?? []).map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.icon && <span className="mr-2">{option.icon}</span>}
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          );
+        })()
+      )}
 
       <Button
         variant="ghost"
         size="icon"
-        class="h-6 w-6 ml-1 text-muted-foreground hover:text-foreground"
-        onClick={() => ctx.removeFilter(props.index)}
+        className="h-6 w-6 ml-1 text-muted-foreground hover:text-foreground"
+        onClick={() => ctx.removeFilter(props.filter.id)}
         aria-label="Remove filter"
       >
-        <IconX class="h-3 w-3" />
+        <XIcon className="h-3 w-3" />
       </Button>
     </div>
   );

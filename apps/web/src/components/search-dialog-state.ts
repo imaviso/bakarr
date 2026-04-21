@@ -1,4 +1,4 @@
-import { createEffect, createMemo, createSignal, on, onCleanup, type Accessor } from "solid-js";
+import { useEffect, useMemo, useState } from "react";
 import {
   createGrabReleaseMutation,
   createNyaaSearchQuery,
@@ -30,31 +30,28 @@ export function formatSearchResultAge(dateStr: string) {
   });
 }
 
-export function useSearchDialogState(defaultQuery: Accessor<string>) {
-  const [open, setOpen] = createSignal(false);
-  const [query, setQuery] = createSignal(defaultQuery());
-  const [debouncedQuery, setDebouncedQuery] = createSignal(defaultQuery());
-  const [category, setCategory] = createSignal<string>("all_anime");
-  const [filter, setFilter] = createSignal<string>("no_filter");
-  const debouncer = createDebouncer(setDebouncedQuery, 500);
+export function useSearchDialogState(defaultQuery: string) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState(defaultQuery);
+  const [debouncedQuery, setDebouncedQuery] = useState(defaultQuery);
+  const [category, setCategory] = useState<string>("all_anime");
+  const [filter, setFilter] = useState<string>("no_filter");
+  const debouncer = useMemo(() => createDebouncer(setDebouncedQuery, 500), []);
 
-  createEffect(() => {
-    debouncer.schedule(query());
-  });
+  useEffect(() => {
+    debouncer.schedule(query);
+    return () => debouncer.cancel();
+  }, [query, debouncer]);
 
-  onCleanup(() => debouncer.cancel());
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
 
-  createEffect(
-    on(open, (isOpen) => {
-      if (!isOpen) {
-        return;
-      }
-
-      const nextQuery = defaultQuery();
-      setQuery(nextQuery);
-      setDebouncedQuery(nextQuery);
-    }),
-  );
+    const nextQuery = defaultQuery;
+    setQuery(nextQuery);
+    setDebouncedQuery(nextQuery);
+  }, [open, defaultQuery]);
 
   return {
     category,
@@ -75,33 +72,33 @@ export function useSearchDialogResultsState(input: {
   filter: string;
   query: string;
 }) {
-  const [sortCol, setSortCol] = createSignal<keyof NyaaSearchResult>("pub_date");
-  const [sortAsc, setSortAsc] = createSignal(false);
+  const [sortCol, setSortCol] = useState<keyof NyaaSearchResult>("pub_date");
+  const [sortAsc, setSortAsc] = useState(false);
 
-  const searchQuery = createNyaaSearchQuery(() => input.query, {
-    animeId: () => input.animeId,
-    category: () => input.category,
-    filter: () => input.filter,
+  const searchQuery = createNyaaSearchQuery(input.query, {
+    animeId: input.animeId,
+    category: input.category,
+    filter: input.filter,
   });
 
-  const results = createMemo(() => searchQuery.data?.results ?? []);
+  const results = useMemo(() => searchQuery.data?.results ?? [], [searchQuery.data]);
 
-  const sortedResults = createMemo(() => {
-    const list = [...results()];
+  const sortedResults = useMemo(() => {
+    const list = [...results];
     return list.toSorted((left, right) => {
-      const column = sortCol();
+      const column = sortCol;
 
       if (column === "pub_date") {
         const leftDate = Date.parse(left.pub_date);
         const rightDate = Date.parse(right.pub_date);
 
         if (Number.isNaN(leftDate) || Number.isNaN(rightDate)) {
-          return sortAsc()
+          return sortAsc
             ? left.pub_date.localeCompare(right.pub_date)
             : right.pub_date.localeCompare(left.pub_date);
         }
 
-        return sortAsc() ? leftDate - rightDate : rightDate - leftDate;
+        return sortAsc ? leftDate - rightDate : rightDate - leftDate;
       }
 
       const leftValue = left[column];
@@ -111,15 +108,15 @@ export function useSearchDialogResultsState(input: {
       if (leftValue === undefined) return 1;
       if (rightValue === undefined) return -1;
 
-      if (leftValue < rightValue) return sortAsc() ? -1 : 1;
-      if (leftValue > rightValue) return sortAsc() ? 1 : -1;
+      if (leftValue < rightValue) return sortAsc ? -1 : 1;
+      if (leftValue > rightValue) return sortAsc ? 1 : -1;
       return 0;
     });
-  });
+  }, [results, sortCol, sortAsc]);
 
   const toggleSort = (column: keyof NyaaSearchResult) => {
-    if (sortCol() === column) {
-      setSortAsc(!sortAsc());
+    if (sortCol === column) {
+      setSortAsc(!sortAsc);
       return;
     }
 
@@ -144,51 +141,59 @@ export function useSearchDialogReleaseRowState(input: {
   const grabMutation = createGrabReleaseMutation();
   const detectedIsBatch =
     (input.result.parsed_episode_numbers?.length ?? 0) > 1 || !input.result.parsed_episode;
-  const [episodeNumberInput, setEpisodeNumberInput] = createSignal(
+  const [episodeNumberInput, setEpisodeNumberInput] = useState(
     input.result.parsed_episode?.toString() ||
       input.result.parsed_episode_numbers?.[0]?.toString() ||
       (detectedIsBatch ? "1" : ""),
   );
-  const [isBatch, setIsBatch] = createSignal(detectedIsBatch);
-  const [popoverOpen, setPopoverOpen] = createSignal(false);
+  const [isBatch, setIsBatch] = useState(detectedIsBatch);
+  const [popoverOpen, setPopoverOpen] = useState(false);
 
-  const selectionDisplay = createMemo(() => buildSelectionDisplayFromNyaaResult(input.result));
-  const releaseDisplay = createMemo(() =>
-    buildReleaseDisplay({
-      group: input.result.parsed_group,
-      indexer: input.result.indexer,
-      is_seadex: input.result.is_seadex,
-      is_seadex_best: input.result.is_seadex_best,
-      parsed_air_date: input.result.parsed_air_date,
-      parsed_episode_label: input.result.parsed_episode_label,
-      quality: input.result.parsed_quality,
-      remake: input.result.remake,
-      resolution: input.result.parsed_resolution,
-      seadex_dual_audio: input.result.seadex_dual_audio,
-      trusted: input.result.trusted,
-    }),
+  const selectionDisplay = useMemo(
+    () => buildSelectionDisplayFromNyaaResult(input.result),
+    [input.result],
   );
-  const grabPayload = createMemo(() => {
-    const parsedEpisodeNumber = parseFloat(episodeNumberInput());
+  const releaseDisplay = useMemo(
+    () =>
+      buildReleaseDisplay({
+        group: input.result.parsed_group,
+        indexer: input.result.indexer,
+        is_seadex: input.result.is_seadex,
+        is_seadex_best: input.result.is_seadex_best,
+        parsed_air_date: input.result.parsed_air_date,
+        parsed_episode_label: input.result.parsed_episode_label,
+        quality: input.result.parsed_quality,
+        remake: input.result.remake,
+        resolution: input.result.parsed_resolution,
+        seadex_dual_audio: input.result.seadex_dual_audio,
+        trusted: input.result.trusted,
+      }),
+    [input.result],
+  );
+  const grabPayload = useMemo(() => {
+    const parsedEpisodeNumber = parseFloat(episodeNumberInput);
     const episodeNumber = Number.isFinite(parsedEpisodeNumber) ? parsedEpisodeNumber : undefined;
 
     return buildGrabInputFromNyaaResult({
       animeId: input.animeId,
       episodeNumber,
-      isBatch: isBatch(),
+      isBatch: isBatch,
       result: input.result,
     });
-  });
-  const selectionMetadata = createMemo(() => selectionDisplay().metadata);
-  const selectionSummary = createMemo(() => selectionDisplay().summary);
-  const selectionLabel = createMemo(() => selectionDisplay().label);
-  const releaseConfidence = createMemo(() => getReleaseConfidence(releaseDisplay().confidence));
-  const releaseFlags = createMemo(() => releaseDisplay().flags);
-  const releaseSourceSummary = createMemo(() => releaseDisplay().sourceSummary);
-  const releaseParsedSummary = createMemo(() => releaseDisplay().parsedSummary);
+  }, [episodeNumberInput, isBatch, input.animeId, input.result]);
+  const selectionMetadata = useMemo(() => selectionDisplay.metadata, [selectionDisplay]);
+  const selectionSummary = useMemo(() => selectionDisplay.summary, [selectionDisplay]);
+  const selectionLabel = useMemo(() => selectionDisplay.label, [selectionDisplay]);
+  const releaseConfidence = useMemo(
+    () => getReleaseConfidence(releaseDisplay.confidence),
+    [releaseDisplay],
+  );
+  const releaseFlags = useMemo(() => releaseDisplay.flags, [releaseDisplay]);
+  const releaseSourceSummary = useMemo(() => releaseDisplay.sourceSummary, [releaseDisplay]);
+  const releaseParsedSummary = useMemo(() => releaseDisplay.parsedSummary, [releaseDisplay]);
 
   const handleGrab = () => {
-    grabMutation.mutate(grabPayload(), {
+    grabMutation.mutate(grabPayload, {
       onSuccess: () => {
         setPopoverOpen(false);
         input.onGrab();

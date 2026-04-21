@@ -97,7 +97,7 @@ export function AnimeDetailsDialogs(props: AnimeDetailsDialogsProps) {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={props.onConfirmDeleteEpisode}
             >
               Delete

@@ -6,9 +6,10 @@
     "bun.lock",
     "*.tsbuildinfo",
     "**/routeTree.gen.ts",
-    "apps/api/src/generated"
+    "apps/api/src/generated",
+    "apps/bakarr/src/components/ui"
   ],
-  "plugins": ["eslint", "oxc", "react", "unicorn", "typescript"],
+  "plugins": ["eslint", "oxc", "react", "unicorn", "typescript", "import"],
   "categories": {
     "correctness": "warn",
     "suspicious": "warn",

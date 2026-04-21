@@ -1,9 +1,10 @@
-import { IconPlus, IconTrash } from "@tabler/icons-solidjs";
-import { createForm } from "@tanstack/solid-form";
-import { Index, Show } from "solid-js";
+import { PlusIcon, TrashIcon } from "@phosphor-icons/react";
+import { useForm } from "@tanstack/react-form";
 import * as v from "valibot";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
+import { Input } from "~/components/ui/input";
+import { Label } from "~/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -12,12 +13,6 @@ import {
   SelectValue,
 } from "~/components/ui/select";
 import { Switch } from "~/components/ui/switch";
-import {
-  TextField,
-  TextFieldErrorMessage,
-  TextFieldInput,
-  TextFieldLabel,
-} from "~/components/ui/text-field";
 import {
   createCreateReleaseProfileMutation,
   createUpdateReleaseProfileMutation,
@@ -44,9 +39,9 @@ export function ReleaseProfileForm(props: {
 }) {
   const createProfile = createCreateReleaseProfileMutation();
   const updateProfile = createUpdateReleaseProfileMutation();
-  const isEditing = () => !!props.profile;
+  const isEditing = !!props.profile;
 
-  const form = createForm(() => ({
+  const form = useForm({
     defaultValues: {
       name: props.profile?.name || "",
       enabled: props.profile?.enabled ?? true,
@@ -57,7 +52,7 @@ export function ReleaseProfileForm(props: {
       onChange: ReleaseProfileSchema,
     },
     onSubmit: async ({ value }) => {
-      if (isEditing() && props.profile) {
+      if (isEditing && props.profile) {
         await updateProfile.mutateAsync({
           id: props.profile.id,
           data: value,
@@ -67,51 +62,51 @@ export function ReleaseProfileForm(props: {
       }
       props.onSuccess();
     },
-  }));
+  });
+
+  const submitReleaseProfileForm = async () => {
+    await form.handleSubmit();
+  };
 
   return (
-    <Card class="border-primary/20">
-      <CardHeader class="pb-4">
-        <CardTitle class="text-base">{isEditing() ? "Edit Profile" : "Create Profile"}</CardTitle>
+    <Card className="border-primary/20">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-base">{isEditing ? "Edit Profile" : "Create Profile"}</CardTitle>
       </CardHeader>
       <CardContent>
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            void form.handleSubmit();
-          }}
-          class="space-y-4"
-        >
-          <div class="flex items-start gap-4">
+        <form action={submitReleaseProfileForm} className="space-y-4">
+          <div className="flex items-start gap-4">
             <form.Field name="name">
               {(field) => (
-                <TextField
-                  class="flex-1"
-                  value={field().state.value}
-                  onChange={field().handleChange}
-                >
-                  <TextFieldLabel>Profile Name</TextFieldLabel>
-                  <TextFieldInput placeholder="e.g., Preferred Groups" />
-                  <TextFieldErrorMessage>
-                    {field().state.meta.errors[0]?.message}
-                  </TextFieldErrorMessage>
-                </TextField>
+                <div className="flex-1 space-y-1">
+                  <Label htmlFor="release-profile-name">Profile Name</Label>
+                  <Input
+                    id="release-profile-name"
+                    value={field.state.value}
+                    onChange={(event) => field.handleChange(event.currentTarget.value)}
+                    placeholder="e.g., Preferred Groups"
+                  />
+                  {field.state.meta.errors[0]?.message && (
+                    <div className="text-[0.8rem] text-destructive">
+                      {field.state.meta.errors[0]?.message}
+                    </div>
+                  )}
+                </div>
               )}
             </form.Field>
 
             <form.Field name="enabled">
               {(field) => (
-                <div class="flex flex-col gap-3 pt-8">
-                  <div class="flex items-center gap-2">
+                <div className="flex flex-col gap-3 pt-8">
+                  <div className="flex items-center gap-2">
                     <Switch
-                      id={field().name}
-                      checked={field().state.value}
-                      onChange={(checked) => field().handleChange(checked)}
+                      id={field.name}
+                      checked={field.state.value}
+                      onCheckedChange={(checked) => field.handleChange(checked)}
                     />
                     <label
-                      for={field().name}
-                      class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                      htmlFor={field.name}
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
                     >
                       Enabled
                     </label>
@@ -122,16 +117,16 @@ export function ReleaseProfileForm(props: {
 
             <form.Field name="is_global">
               {(field) => (
-                <div class="flex flex-col gap-3 pt-8">
-                  <div class="flex items-center gap-2">
+                <div className="flex flex-col gap-3 pt-8">
+                  <div className="flex items-center gap-2">
                     <Switch
-                      id={field().name}
-                      checked={field().state.value}
-                      onChange={(checked) => field().handleChange(checked)}
+                      id={field.name}
+                      checked={field.state.value}
+                      onCheckedChange={(checked) => field.handleChange(checked)}
                     />
                     <label
-                      for={field().name}
-                      class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                      htmlFor={field.name}
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
                     >
                       Global
                     </label>
@@ -141,11 +136,13 @@ export function ReleaseProfileForm(props: {
             </form.Field>
           </div>
 
-          <div class="space-y-3">
-            <div class="flex items-center justify-between">
-              <div class="space-y-1">
-                <h4 class="text-sm font-medium">Rules</h4>
-                <p class="text-xs text-muted-foreground">Define terms to prefer or require/block</p>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <h4 className="text-sm font-medium">Rules</h4>
+                <p className="text-xs text-muted-foreground">
+                  Define terms to prefer or require/block
+                </p>
               </div>
               <form.Field name="rules" mode="array">
                 {(field) => (
@@ -154,14 +151,14 @@ export function ReleaseProfileForm(props: {
                     variant="outline"
                     size="sm"
                     onClick={() =>
-                      field().pushValue({
+                      field.pushValue({
                         term: "",
                         rule_type: "preferred",
                         score: 10,
                       })
                     }
                   >
-                    <IconPlus class="mr-2 h-3.5 w-3.5" />
+                    <PlusIcon className="mr-2 h-3.5 w-3.5" />
                     Add Rule
                   </Button>
                 )}
@@ -170,108 +167,102 @@ export function ReleaseProfileForm(props: {
 
             <form.Field name="rules" mode="array">
               {(field) => (
-                <div class="space-y-2">
-                  <Index each={field().state.value}>
-                    {(_, index) => (
-                      <div class="flex gap-2 items-start">
-                        <form.Field name={`rules[${index}].term`}>
-                          {(termField) => (
-                            <div class="flex-1">
-                              <TextField
-                                value={termField().state.value}
-                                onChange={termField().handleChange}
-                              >
-                                <TextFieldInput placeholder="Term (e.g. SubsPlease)" />
-                              </TextField>
-                            </div>
-                          )}
-                        </form.Field>
+                <div className="space-y-2">
+                  {field.state.value.map((rule, index) => (
+                    <div
+                      key={`${rule.rule_type}-${rule.term}-${rule.score}`}
+                      className="flex gap-2 items-start"
+                    >
+                      <form.Field name={`rules[${index}].term`}>
+                        {(termField) => (
+                          <div className="flex-1">
+                            <Input
+                              value={termField.state.value}
+                              onChange={(event) =>
+                                termField.handleChange(event.currentTarget.value)
+                              }
+                              placeholder="Term (e.g. SubsPlease)"
+                            />
+                          </div>
+                        )}
+                      </form.Field>
 
-                        <form.Field name={`rules[${index}].rule_type`}>
-                          {(typeField) => (
-                            <div class="w-[140px]">
-                              <Select
-                                value={typeField().state.value}
-                                onChange={(value) => value && typeField().handleChange(value)}
-                                options={["preferred", "must", "must_not"]}
-                                itemComponent={(itemProps) => (
-                                  <SelectItem item={itemProps.item}>
-                                    {itemProps.item.rawValue === "preferred"
-                                      ? "Preferred"
-                                      : itemProps.item.rawValue === "must"
-                                        ? "Must Contain"
-                                        : "Must Not Contain"}
-                                  </SelectItem>
-                                )}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue<string>>
-                                    {(state) =>
-                                      state.selectedOption() === "preferred"
-                                        ? "Preferred"
-                                        : state.selectedOption() === "must"
-                                          ? "Must Contain"
-                                          : "Must Not Contain"
-                                    }
-                                  </SelectValue>
-                                </SelectTrigger>
-                                <SelectContent />
-                              </Select>
-                            </div>
-                          )}
-                        </form.Field>
-
-                        <form.Field name={`rules[${index}].score`}>
-                          {(scoreField) => (
-                            <div class="w-[100px]">
-                              <TextField
-                                value={scoreField().state.value.toString()}
-                                onChange={(value) => scoreField().handleChange(Number(value))}
-                                disabled={
-                                  form.getFieldValue(`rules[${index}].rule_type`) !== "preferred"
+                      <form.Field name={`rules[${index}].rule_type`}>
+                        {(typeField) => (
+                          <div className="w-[140px]">
+                            <Select
+                              value={typeField.state.value}
+                              onValueChange={(value) => {
+                                if (value !== null) {
+                                  typeField.handleChange(value);
                                 }
-                              >
-                                <TextFieldInput type="number" placeholder="Score" />
-                              </TextField>
-                            </div>
-                          )}
-                        </form.Field>
+                              }}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Rule type" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="preferred">Preferred</SelectItem>
+                                <SelectItem value="must">Must Contain</SelectItem>
+                                <SelectItem value="must_not">Must Not Contain</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+                      </form.Field>
 
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          class="mt-0.5 text-muted-foreground hover:text-destructive"
-                          onClick={() => field().removeValue(index)}
-                          aria-label="Remove rule"
-                        >
-                          <IconTrash class="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
-                  </Index>
+                      <form.Field name={`rules[${index}].score`}>
+                        {(scoreField) => (
+                          <div className="w-[100px]">
+                            <Input
+                              type="number"
+                              value={scoreField.state.value.toString()}
+                              onChange={(event) =>
+                                scoreField.handleChange(Number(event.currentTarget.value))
+                              }
+                              disabled={
+                                form.getFieldValue(`rules[${index}].rule_type`) !== "preferred"
+                              }
+                              placeholder="Score"
+                            />
+                          </div>
+                        )}
+                      </form.Field>
 
-                  <Show when={field().state.value.length === 0}>
-                    <div class="text-sm text-muted-foreground text-center py-8 border border-dashed rounded-lg bg-muted/20">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="mt-0.5 text-muted-foreground hover:text-destructive"
+                        onClick={() => field.removeValue(index)}
+                        aria-label="Remove rule"
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+
+                  {field.state.value.length === 0 && (
+                    <div className="text-sm text-muted-foreground text-center py-8 border border-dashed rounded-lg bg-muted/20">
                       No rules defined. Add a rule to start scoring releases.
                     </div>
-                  </Show>
+                  )}
                 </div>
               )}
             </form.Field>
           </div>
 
-          <div class="flex gap-2 justify-end pt-4">
+          <div className="flex gap-2 justify-end pt-4">
             <Button type="button" variant="ghost" onClick={props.onCancel}>
               Cancel
             </Button>
             <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
-              {(state) => (
+              {([canSubmit, isSubmitting]) => (
                 <Button
                   type="submit"
-                  disabled={!state()[0] || createProfile.isPending || updateProfile.isPending}
+                  disabled={!canSubmit || createProfile.isPending || updateProfile.isPending}
                 >
-                  {state()[1] ? "Saving..." : isEditing() ? "Update" : "Create"}
+                  {isSubmitting ? "Saving..." : isEditing ? "Update" : "Create"}
                 </Button>
               )}
             </form.Subscribe>

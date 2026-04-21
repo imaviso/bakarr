@@ -1,5 +1,5 @@
-import { IconEdit, IconListCheck, IconPlus, IconTrash } from "@tabler/icons-solidjs";
-import { createSignal, For, Show } from "solid-js";
+import { PencilSimpleIcon, ListChecksIcon, PlusIcon, TrashIcon } from "@phosphor-icons/react";
+import { useState } from "react";
 import { ReleaseProfileForm } from "~/components/settings/release-profile-form";
 import {
   AlertDialog,
@@ -30,54 +30,49 @@ interface ReleaseProfileCardProps {
 
 function ReleaseProfileCard(props: ReleaseProfileCardProps) {
   return (
-    <Card class="group transition-colors duration-200 hover:border-primary/50">
-      <CardHeader class="pb-3">
-        <div class="flex justify-between items-start">
-          <div class="space-y-1">
-            <CardTitle class="text-base flex items-center gap-2">
+    <Card className="group transition-colors duration-200 hover:border-primary/50">
+      <CardHeader className="pb-3">
+        <div className="flex justify-between items-start">
+          <div className="space-y-1">
+            <CardTitle className="text-base flex items-center gap-2">
               {props.profile.name}
-              <div class="flex items-center gap-1.5">
-                <Show
-                  when={props.profile.enabled}
-                  fallback={
-                    <Badge variant="outline" class="text-xs h-5 px-1.5 text-muted-foreground">
-                      Disabled
-                    </Badge>
-                  }
-                >
-                  <Badge class="text-xs h-5 px-1.5 bg-success/10 text-success border-success/20 font-medium">
+              <div className="flex items-center gap-1.5">
+                {props.profile.enabled ? (
+                  <Badge className="text-xs h-5 px-1.5 bg-success/10 text-success border-success/20 font-medium">
                     Enabled
                   </Badge>
-                </Show>
-                <Show when={props.profile.is_global}>
-                  <Badge variant="secondary" class="text-xs h-5 px-1.5 font-normal">
+                ) : (
+                  <Badge variant="outline" className="text-xs h-5 px-1.5 text-muted-foreground">
+                    Disabled
+                  </Badge>
+                )}
+                {props.profile.is_global && (
+                  <Badge variant="secondary" className="text-xs h-5 px-1.5 font-normal">
                     Global
                   </Badge>
-                </Show>
+                )}
               </div>
             </CardTitle>
-            <div class="text-xs text-muted-foreground">{props.profile.rules.length} Rules</div>
+            <div className="text-xs text-muted-foreground">{props.profile.rules.length} Rules</div>
           </div>
 
-          <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <Button
               size="icon"
               variant="ghost"
-              class="relative after:absolute after:-inset-2 h-8 w-8"
+              className="relative after:absolute after:-inset-2 h-8 w-8"
               onClick={() => props.onEdit(props.profile)}
               aria-label="Edit release profile"
             >
-              <IconEdit class="h-4 w-4" />
+              <PencilSimpleIcon className="h-4 w-4" />
             </Button>
             <AlertDialog>
               <AlertDialogTrigger
-                as={Button}
-                variant="ghost"
-                size="icon"
-                class="relative after:absolute after:-inset-2 h-8 w-8 text-muted-foreground hover:text-destructive"
+                render={<Button variant="ghost" size="icon" />}
+                className="relative after:absolute after:-inset-2 h-8 w-8 text-muted-foreground hover:text-destructive"
                 aria-label="Delete release profile"
               >
-                <IconTrash class="h-4 w-4" />
+                <TrashIcon className="h-4 w-4" />
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
@@ -90,7 +85,7 @@ function ReleaseProfileCard(props: ReleaseProfileCardProps) {
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                   <AlertDialogAction
-                    class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     onClick={() => props.onDelete(props.profile.id)}
                   >
                     Delete
@@ -102,30 +97,32 @@ function ReleaseProfileCard(props: ReleaseProfileCardProps) {
         </div>
       </CardHeader>
 
-      <CardContent class="pt-0">
-        <div class="flex flex-wrap gap-2">
-          <For each={props.profile.rules.slice(0, 5)}>
-            {(rule) => (
-              <Badge
-                variant={rule.rule_type === "must_not" ? "error" : "secondary"}
-                class="text-xs font-normal"
-              >
-                <Show
-                  when={rule.rule_type === "preferred"}
-                  fallback={rule.rule_type === "must" ? "Must: " : "Block: "}
-                >
+      <CardContent className="pt-0">
+        <div className="flex flex-wrap gap-2">
+          {props.profile.rules.slice(0, 5).map((rule) => (
+            <Badge
+              key={`${rule.rule_type}-${rule.term}-${rule.score}`}
+              variant={rule.rule_type === "must_not" ? "destructive" : "secondary"}
+              className="text-xs font-normal"
+            >
+              {rule.rule_type === "preferred" ? (
+                <>
                   {rule.score > 0 ? "+" : ""}
                   {rule.score}{" "}
-                </Show>
-                {rule.term}
-              </Badge>
-            )}
-          </For>
-          <Show when={props.profile.rules.length > 5}>
-            <Badge variant="outline" class="text-xs">
+                </>
+              ) : rule.rule_type === "must" ? (
+                "Must: "
+              ) : (
+                "Block: "
+              )}
+              {rule.term}
+            </Badge>
+          ))}
+          {props.profile.rules.length > 5 && (
+            <Badge variant="outline" className="text-xs">
               +{props.profile.rules.length - 5} more
             </Badge>
-          </Show>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -133,83 +130,84 @@ function ReleaseProfileCard(props: ReleaseProfileCardProps) {
 }
 
 export function ReleaseProfilesTab() {
-  const [editingProfile, setEditingProfile] = createSignal<ReleaseProfile | null>(null);
-  const [isCreating, setIsCreating] = createSignal(false);
+  const [editingProfile, setEditingProfile] = useState<ReleaseProfile | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
 
   const releaseProfilesQuery = createReleaseProfilesQuery();
   const deleteReleaseProfile = createDeleteReleaseProfileMutation();
 
   return (
-    <Show
-      when={!isCreating() && !editingProfile()}
-      fallback={
-        <div class="mb-6">
-          <Show when={isCreating()}>
+    <>
+      {isCreating || editingProfile ? (
+        <div className="mb-6">
+          {isCreating && (
             <ReleaseProfileForm
               onCancel={() => setIsCreating(false)}
               onSuccess={() => setIsCreating(false)}
             />
-          </Show>
-          <Show when={editingProfile()}>
+          )}
+          {editingProfile && (
             <ReleaseProfileForm
-              profile={editingProfile()!}
+              profile={editingProfile}
               onCancel={() => setEditingProfile(null)}
               onSuccess={() => setEditingProfile(null)}
             />
-          </Show>
+          )}
         </div>
-      }
-    >
-      <div class="flex justify-between items-center mb-6">
-        <div>
-          <h2 class="text-lg font-medium">Release Profiles</h2>
-          <p class="text-sm text-muted-foreground">
-            Global scoring and filtering rules for releases (Groups, Tags)
-          </p>
-        </div>
-        <Button onClick={() => setIsCreating(true)} disabled={isCreating()} size="sm">
-          <IconPlus class="mr-2 h-4 w-4" />
-          Add Profile
-        </Button>
-      </div>
-
-      <Show when={releaseProfilesQuery.isLoading}>
-        <div class="space-y-4">
-          <For each={[1, 2]}>{() => <Skeleton class="h-32 rounded-lg" />}</For>
-        </div>
-      </Show>
-
-      <Show when={!releaseProfilesQuery.isLoading && releaseProfilesQuery.data?.length === 0}>
-        <Card class="p-12 text-center border-dashed bg-transparent">
-          <div class="flex flex-col items-center gap-4">
-            <IconListCheck class="h-12 w-12 text-muted-foreground/50" />
+      ) : (
+        <>
+          <div className="flex justify-between items-center mb-6">
             <div>
-              <h3 class="font-medium">No release profiles</h3>
-              <p class="text-sm text-muted-foreground mt-1">
-                Create a profile to prefer certain groups or filter releases
+              <h2 className="text-lg font-medium">Release Profiles</h2>
+              <p className="text-sm text-muted-foreground">
+                Global scoring and filtering rules for releases (Groups, Tags)
               </p>
             </div>
-            <Button onClick={() => setIsCreating(true)}>
-              <IconPlus class="mr-2 h-4 w-4" />
-              Create Profile
+            <Button onClick={() => setIsCreating(true)} disabled={isCreating} size="sm">
+              <PlusIcon className="mr-2 h-4 w-4" />
+              Add Profile
             </Button>
           </div>
-        </Card>
-      </Show>
 
-      <Show when={releaseProfilesQuery.data && releaseProfilesQuery.data.length > 0}>
-        <div class="grid gap-4">
-          <For each={releaseProfilesQuery.data}>
-            {(profile) => (
-              <ReleaseProfileCard
-                profile={profile}
-                onDelete={(id) => deleteReleaseProfile.mutate(id)}
-                onEdit={setEditingProfile}
-              />
-            )}
-          </For>
-        </div>
-      </Show>
-    </Show>
+          {releaseProfilesQuery.isLoading && (
+            <div className="space-y-4">
+              <Skeleton key="release-profile-skeleton-1" className="h-32 rounded-lg" />
+              <Skeleton key="release-profile-skeleton-2" className="h-32 rounded-lg" />
+            </div>
+          )}
+
+          {!releaseProfilesQuery.isLoading && releaseProfilesQuery.data?.length === 0 && (
+            <Card className="p-12 text-center border-dashed bg-transparent">
+              <div className="flex flex-col items-center gap-4">
+                <ListChecksIcon className="h-12 w-12 text-muted-foreground/50" />
+                <div>
+                  <h3 className="font-medium">No release profiles</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Create a profile to prefer certain groups or filter releases
+                  </p>
+                </div>
+                <Button onClick={() => setIsCreating(true)}>
+                  <PlusIcon className="mr-2 h-4 w-4" />
+                  Create Profile
+                </Button>
+              </div>
+            </Card>
+          )}
+
+          {releaseProfilesQuery.data && releaseProfilesQuery.data.length > 0 && (
+            <div className="grid gap-4">
+              {releaseProfilesQuery.data.map((profile) => (
+                <ReleaseProfileCard
+                  key={profile.id}
+                  profile={profile}
+                  onDelete={(id) => deleteReleaseProfile.mutate(id)}
+                  onEdit={setEditingProfile}
+                />
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </>
   );
 }

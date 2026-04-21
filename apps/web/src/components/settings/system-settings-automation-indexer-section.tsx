@@ -1,5 +1,5 @@
 import { FiniteNumberInput, SettingRow, SettingSection } from "~/components/settings/form-controls";
-import type { SettingsFormApi } from "~/components/settings/system-settings-form-factory";
+import type { SettingsFormApi } from "~/components/settings/system-settings-form-hook";
 import { Input } from "~/components/ui/input";
 import { Switch } from "~/components/ui/switch";
 
@@ -16,10 +16,10 @@ export function SystemSettingsAutomationIndexerSection(
         {(field) => (
           <SettingRow label="Nyaa URL" description="Base URL for Nyaa.si">
             <Input
-              value={field().state.value}
-              onInput={(event) => field().handleChange(event.currentTarget.value)}
+              value={field.state.value}
+              onInput={(event) => field.handleChange(event.currentTarget.value)}
               placeholder="https://nyaa.si"
-              class="w-48"
+              className="w-48"
             />
           </SettingRow>
         )}
@@ -29,9 +29,9 @@ export function SystemSettingsAutomationIndexerSection(
         {(field) => (
           <SettingRow label="Minimum Seeders" description="Skip releases with fewer seeders">
             <FiniteNumberInput
-              value={field().state.value}
-              onChange={field().handleChange}
-              class="w-20"
+              value={field.state.value}
+              onChange={field.handleChange}
+              className="w-20"
             />
           </SettingRow>
         )}
@@ -44,10 +44,10 @@ export function SystemSettingsAutomationIndexerSection(
             description="Default Nyaa category code for searches"
           >
             <Input
-              value={field().state.value}
-              onInput={(event) => field().handleChange(event.currentTarget.value)}
+              value={field.state.value}
+              onInput={(event) => field.handleChange(event.currentTarget.value)}
               placeholder="1_2"
-              class="w-24"
+              className="w-24"
             />
           </SettingRow>
         )}
@@ -60,10 +60,10 @@ export function SystemSettingsAutomationIndexerSection(
             description="Optional hint for ranking search results"
           >
             <Input
-              value={field().state.value ?? ""}
-              onInput={(event) => field().handleChange(event.currentTarget.value)}
+              value={field.state.value ?? ""}
+              onInput={(event) => field.handleChange(event.currentTarget.value)}
               placeholder="1080p"
-              class="w-24"
+              className="w-24"
             />
           </SettingRow>
         )}
@@ -73,8 +73,8 @@ export function SystemSettingsAutomationIndexerSection(
         {(field) => (
           <SettingRow label="Filter Remakes" description="Exclude remakes from search results">
             <Switch
-              checked={field().state.value}
-              onChange={(checked) => field().handleChange(checked)}
+              checked={field.state.value}
+              onCheckedChange={(checked) => field.handleChange(checked)}
             />
           </SettingRow>
         )}

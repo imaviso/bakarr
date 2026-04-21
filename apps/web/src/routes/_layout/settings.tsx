@@ -1,18 +1,14 @@
 import {
-  IconAdjustments,
-  IconKey,
-  IconListCheck,
-  IconRefresh,
-  IconSettings,
-} from "@tabler/icons-solidjs";
-import { createFileRoute } from "@tanstack/solid-router";
+  SlidersHorizontalIcon,
+  KeyIcon,
+  ListChecksIcon,
+  ArrowClockwiseIcon,
+  GearIcon,
+} from "@phosphor-icons/react";
+import { createFileRoute } from "@tanstack/react-router";
+import { Suspense, lazy } from "react";
 import { GeneralError } from "~/components/general-error";
 import { PageHeader } from "~/components/page-header";
-import { AccountSettingsForm } from "~/components/settings/account-settings-form";
-import { QualityProfilesTab } from "~/components/settings/quality-profiles-tab";
-import { ReleaseProfilesTab } from "~/components/settings/release-profiles-tab";
-import { GeneralSettingsForm } from "~/components/settings/system-settings-form";
-import { SystemStatus } from "~/components/system-status";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import {
   profilesQueryOptions,
@@ -21,6 +17,32 @@ import {
   systemConfigQueryOptions,
 } from "~/lib/api";
 import { usePageTitle } from "~/lib/page-title";
+
+const AccountSettingsFormLazy = lazy(() =>
+  import("~/components/settings/account-settings-form").then((module) => ({
+    default: module.AccountSettingsForm,
+  })),
+);
+const QualityProfilesTabLazy = lazy(() =>
+  import("~/components/settings/quality-profiles-tab").then((module) => ({
+    default: module.QualityProfilesTab,
+  })),
+);
+const ReleaseProfilesTabLazy = lazy(() =>
+  import("~/components/settings/release-profiles-tab").then((module) => ({
+    default: module.ReleaseProfilesTab,
+  })),
+);
+const GeneralSettingsFormLazy = lazy(() =>
+  import("~/components/settings/system-settings-form").then((module) => ({
+    default: module.GeneralSettingsForm,
+  })),
+);
+const SystemStatusLazy = lazy(() =>
+  import("~/components/system-status").then((module) => ({
+    default: module.SystemStatus,
+  })),
+);
 
 export const Route = createFileRoute("/_layout/settings")({
   loader: async ({ context: { queryClient } }) => {
@@ -38,86 +60,108 @@ export const Route = createFileRoute("/_layout/settings")({
 function SettingsPage() {
   usePageTitle(() => "Settings");
   return (
-    <div class="space-y-6">
+    <div className="space-y-6">
       <PageHeader title="Settings">
-        <SystemStatus />
+        <Suspense fallback={null}>
+          <SystemStatusLazy />
+        </Suspense>
       </PageHeader>
 
-      <Tabs defaultValue="general" class="w-full space-y-6">
-        <TabsList class="w-full justify-start border-b rounded-none p-0 h-auto bg-transparent mb-6 overflow-x-auto [-webkit-mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)] [mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)] sm:[-webkit-mask-image:none] sm:[mask-image:none]">
+      <Tabs defaultValue="general" className="w-full space-y-6">
+        <TabsList className="mb-6 h-auto w-full justify-start overflow-x-auto overflow-y-hidden border-b bg-transparent p-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [-webkit-mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)] [mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)] sm:[-webkit-mask-image:none] sm:[mask-image:none] md:overflow-x-visible">
           <TabsTrigger
             value="general"
-            class="rounded-none border-b-2 border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent px-4 py-2"
+            className="rounded-none border-b-2 border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent px-4 py-2"
           >
-            <IconSettings class="mr-2 h-4 w-4" />
+            <GearIcon className="mr-2 h-4 w-4" />
             General
           </TabsTrigger>
           <TabsTrigger
             value="automation"
-            class="rounded-none border-b-2 border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent px-4 py-2"
+            className="rounded-none border-b-2 border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent px-4 py-2"
           >
-            <IconRefresh class="mr-2 h-4 w-4" />
+            <ArrowClockwiseIcon className="mr-2 h-4 w-4" />
             Automation
           </TabsTrigger>
           <TabsTrigger
             value="profiles"
-            class="rounded-none border-b-2 border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent px-4 py-2"
+            className="rounded-none border-b-2 border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent px-4 py-2"
           >
-            <IconAdjustments class="mr-2 h-4 w-4" />
+            <SlidersHorizontalIcon className="mr-2 h-4 w-4" />
             Quality Profiles
           </TabsTrigger>
           <TabsTrigger
             value="release-profiles"
-            class="rounded-none border-b-2 border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent px-4 py-2"
+            className="rounded-none border-b-2 border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent px-4 py-2"
           >
-            <IconListCheck class="mr-2 h-4 w-4" />
+            <ListChecksIcon className="mr-2 h-4 w-4" />
             Release Profiles
           </TabsTrigger>
           <TabsTrigger
             value="account"
-            class="rounded-none border-b-2 border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent px-4 py-2"
+            className="rounded-none border-b-2 border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent px-4 py-2"
           >
-            <IconKey class="mr-2 h-4 w-4" />
+            <KeyIcon className="mr-2 h-4 w-4" />
             Account
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="general" class="mt-0">
-          <div class="mb-6">
-            <h2 class="text-lg font-medium">General Settings</h2>
-            <p class="text-sm text-muted-foreground">
+        <TabsContent value="general" className="mt-0">
+          <div className="mb-6">
+            <h2 className="text-lg font-medium">General Settings</h2>
+            <p className="text-sm text-muted-foreground">
               Core application, library, and naming settings
             </p>
           </div>
-          <GeneralSettingsForm mode="general" />
+          <Suspense
+            fallback={<div className="text-sm text-muted-foreground">Loading settings...</div>}
+          >
+            <GeneralSettingsFormLazy mode="general" />
+          </Suspense>
         </TabsContent>
 
-        <TabsContent value="automation" class="mt-0">
-          <div class="mb-6">
-            <h2 class="text-lg font-medium">Automation</h2>
-            <p class="text-sm text-muted-foreground">
+        <TabsContent value="automation" className="mt-0">
+          <div className="mb-6">
+            <h2 className="text-lg font-medium">Automation</h2>
+            <p className="text-sm text-muted-foreground">
               Search, qBittorrent, scheduling, and app-wide release defaults
             </p>
           </div>
-          <GeneralSettingsForm mode="automation" />
+          <Suspense
+            fallback={<div className="text-sm text-muted-foreground">Loading settings...</div>}
+          >
+            <GeneralSettingsFormLazy mode="automation" />
+          </Suspense>
         </TabsContent>
 
-        <TabsContent value="profiles" class="mt-0">
-          <QualityProfilesTab />
+        <TabsContent value="profiles" className="mt-0">
+          <Suspense
+            fallback={<div className="text-sm text-muted-foreground">Loading profiles...</div>}
+          >
+            <QualityProfilesTabLazy />
+          </Suspense>
         </TabsContent>
 
-        <TabsContent value="release-profiles" class="mt-0">
-          <ReleaseProfilesTab />
+        <TabsContent value="release-profiles" className="mt-0">
+          <Suspense
+            fallback={<div className="text-sm text-muted-foreground">Loading profiles...</div>}
+          >
+            <ReleaseProfilesTabLazy />
+          </Suspense>
         </TabsContent>
 
-        <TabsContent value="account" class="mt-0">
-          <div class="mb-6">
-            <h2 class="text-lg font-medium">Account</h2>
-            <p class="text-sm text-muted-foreground">
+        <TabsContent value="account" className="mt-0">
+          <div className="mb-6">
+            <h2 className="text-lg font-medium">Account</h2>
+            <p className="text-sm text-muted-foreground">
               Manage your password, API access, and notification preferences
             </p>
           </div>
-          <AccountSettingsForm />
+          <Suspense
+            fallback={<div className="text-sm text-muted-foreground">Loading account...</div>}
+          >
+            <AccountSettingsFormLazy />
+          </Suspense>
         </TabsContent>
       </Tabs>
     </div>

@@ -4,7 +4,7 @@ import { SystemSettingsAutomationIndexerSection } from "~/components/settings/sy
 import { SystemSettingsAutomationMetadataSection } from "~/components/settings/system-settings-automation-metadata-section";
 import { SystemSettingsAutomationSchedulerSection } from "~/components/settings/system-settings-automation-scheduler-section";
 import { SystemSettingsAutomationTasksSection } from "~/components/settings/system-settings-automation-tasks-section";
-import type { SettingsFormApi } from "~/components/settings/system-settings-form-factory";
+import type { SettingsFormApi } from "~/components/settings/system-settings-form-hook";
 import type { SystemStatus } from "~/lib/api";
 
 interface SystemSettingsAutomationSectionsProps {

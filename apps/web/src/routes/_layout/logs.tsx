@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/solid-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { GeneralError } from "~/components/general-error";
 import { useLogsRouteState } from "~/features/logs/logs-route-state";
 import { parseLogsSearch } from "~/features/logs/logs-search";
@@ -32,7 +32,7 @@ function LogsPage() {
   const updateSearch = (patch: Partial<Record<string, string>>) => {
     void navigate({
       to: ".",
-      search: { ...search(), ...patch },
+      search: { ...search, ...patch },
       replace: true,
     });
   };

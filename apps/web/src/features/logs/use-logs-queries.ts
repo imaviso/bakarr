@@ -1,5 +1,4 @@
-import { createEffect, createMemo, createSignal, onCleanup } from "solid-js";
-import type { Accessor } from "solid-js";
+import { useEffect, useMemo, useState } from "react";
 import {
   createDownloadEventsQuery,
   createInfiniteLogsQuery,
@@ -11,19 +10,19 @@ import { useDownloadEventsSearchState } from "~/hooks/use-download-events-search
 import type { LogsFilterParams } from "~/features/logs/use-logs-filters";
 
 interface UseLogsQueriesOptions {
-  logsParams: Accessor<LogsFilterParams>;
-  search: Accessor<Record<string, string | undefined>>;
+  logsParams: LogsFilterParams;
+  search: Record<string, string | undefined>;
   updateSearch: (patch: Partial<Record<string, string>>) => void;
 }
 
 export function useLogsQueries(options: UseLogsQueriesOptions) {
-  const [autoRefresh, setAutoRefresh] = createSignal(false);
+  const [autoRefresh, setAutoRefresh] = useState(false);
 
   const logsQuery = createInfiniteLogsQuery(
-    () => options.logsParams().level,
-    () => options.logsParams().eventType,
-    () => options.logsParams().startDate,
-    () => options.logsParams().endDate,
+    options.logsParams.level,
+    options.logsParams.eventType,
+    options.logsParams.startDate,
+    options.logsParams.endDate,
   );
   const jobsQuery = createSystemJobsQuery();
   const dashboardQuery = createSystemDashboardQuery();
@@ -35,12 +34,14 @@ export function useLogsQueries(options: UseLogsQueriesOptions) {
   });
   const downloadEventsQuery = createDownloadEventsQuery(downloadEventsSearchState.queryInput);
 
-  const allLogs = createMemo(() => logsQuery.data?.pages.flatMap((page) => page.logs) ?? []);
-  const canGoToPreviousDownloadEventsPage = createMemo(() =>
+  const allLogs = useMemo(() => logsQuery.data?.pages.flatMap((page) => page.logs) ?? [], [logsQuery.data?.pages]);
+  const canGoToPreviousDownloadEventsPage = useMemo(() =>
     Boolean(downloadEventsQuery.data?.prev_cursor),
+    [downloadEventsQuery.data?.prev_cursor],
   );
-  const canGoToNextDownloadEventsPage = createMemo(() =>
+  const canGoToNextDownloadEventsPage = useMemo(() =>
     Boolean(downloadEventsQuery.data?.next_cursor),
+    [downloadEventsQuery.data?.next_cursor],
   );
 
   const refreshAll = () => {
@@ -50,14 +51,14 @@ export function useLogsQueries(options: UseLogsQueriesOptions) {
     void jobsQuery.refetch();
   };
 
-  createEffect(() => {
-    if (!autoRefresh()) {
+  useEffect(() => {
+    if (!autoRefresh) {
       return;
     }
 
     const interval = setInterval(refreshAll, 3000);
-    onCleanup(() => clearInterval(interval));
-  });
+    return () => clearInterval(interval);
+  }, [autoRefresh, refreshAll]);
 
   return {
     allLogs,
