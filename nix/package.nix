@@ -74,7 +74,7 @@ stdenvNoCC.mkDerivation (finalAttrs: {
 
     dontFixup = true;
 
-    outputHash = "sha256-g5HvUwp1K6p//ZTQfKBKCQRhIVyryGS7OzUWG2vvh8g=";
+    outputHash = "sha256-rEQ+6NvPvqq5IGhhtTawK+ytuhfL3ShjRucvsbSdLhk=";
     outputHashAlgo = "sha256";
     outputHashMode = "recursive";
   };
@@ -132,7 +132,7 @@ stdenvNoCC.mkDerivation (finalAttrs: {
 
     mkdir -p $out/bin
     makeWrapper $out/bin/.bakarr-api-wrapped $out/bin/bakarr-api \
-      --prefix PATH : ${lib.makeBinPath [ ffmpeg ]} \
+      --prefix PATH : ${lib.makeBinPath [ffmpeg]} \
       --run 'if [ -z "$DATABASE_FILE" ]; then if [ -n "$XDG_STATE_HOME" ]; then state_home="$XDG_STATE_HOME"; elif [ -n "$HOME" ]; then state_home="$HOME/.local/state"; else state_home="/tmp"; fi; export DATABASE_FILE="$state_home/bakarr/bakarr.sqlite"; fi; mkdir -p "$(dirname "$DATABASE_FILE")"'
 
     runHook postInstall
