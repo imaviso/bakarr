@@ -123,13 +123,12 @@ export function subscribeSharedSocket(options: {
 }
 
 function buildWebSocketUrl() {
-  const location = globalThis.location;
-  if (!location) {
+  if (typeof window === "undefined" || !window.location) {
     return "ws://localhost/api/events";
   }
 
-  const protocol = location.protocol === "https:" ? "wss:" : "ws:";
-  return `${protocol}//${location.host}/api/events`;
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return `${protocol}//${window.location.host}/api/events`;
 }
 
 function toMessageEvent(data: string): MessageEvent<string> {

@@ -11,7 +11,7 @@ import {
   GearIcon,
 } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState, Suspense } from "react";
+import { useEffect, useState, Suspense } from "react";
 import {
   Command,
   CommandDialog,
@@ -43,13 +43,12 @@ function SearchResults(props: {
   animeList: ReturnType<typeof createAnimeListQuery>;
   onSelect: (path: string) => void;
 }) {
-  const filteredLibrary = useMemo(() => {
-    const query = props.inputValue.toLowerCase().trim();
-    const data = props.animeList.data;
+  const query = props.inputValue.toLowerCase().trim();
+  const data = props.animeList.data;
 
+  const filteredLibrary = (() => {
     if (!data) return [];
     if (!query) return data.slice(0, 10);
-
     return data
       .filter((anime) => {
         const title = anime.title.romaji?.toLowerCase() || "";
@@ -58,13 +57,11 @@ function SearchResults(props: {
         return title.includes(query) || english.includes(query) || native.includes(query);
       })
       .slice(0, 10);
-  }, [props.inputValue, props.animeList.data]);
+  })();
 
-  const filteredRoutes = useMemo(() => {
-    const query = props.inputValue.toLowerCase().trim();
-    if (!query) return navigationRoutes;
-    return navigationRoutes.filter((route) => route.title.toLowerCase().includes(query));
-  }, [props.inputValue]);
+  const filteredRoutes = query
+    ? navigationRoutes.filter((route) => route.title.toLowerCase().includes(query))
+    : navigationRoutes;
 
   return (
     <CommandList>
@@ -159,7 +156,7 @@ export function CommandPalette() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  const animeList = createAnimeListQuery();
+  const animeList = createAnimeListQuery({ enabled: open });
 
   const handleSelect = (path: string) => {
     setOpen(false);

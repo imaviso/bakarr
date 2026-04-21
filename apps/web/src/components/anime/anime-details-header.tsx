@@ -36,6 +36,23 @@ import type { Anime } from "~/lib/api";
 import { createLogsRouteSearch } from "~/lib/download-events-search";
 import { cn } from "~/lib/utils";
 
+const STATUS_ICON_MAP: Record<string, React.ReactNode> = {
+  RELEASING: <BroadcastIcon className="w-4 h-4 text-success" />,
+  FINISHED: <CheckCircleIcon className="w-4 h-4 text-info" />,
+  NOT_YET_RELEASED: <CalendarIcon className="w-4 h-4 text-warning" />,
+  CANCELLED: <ProhibitIcon className="w-4 h-4 text-error" />,
+};
+
+function StatusIcon({ status }: { status: string }) {
+  const icon = STATUS_ICON_MAP[status] ?? <ActivityIcon className="w-4 h-4 text-muted-foreground" />;
+  return (
+    <Tooltip>
+      <TooltipTrigger aria-label={status}>{icon}</TooltipTrigger>
+      <TooltipContent>{status}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 interface AnimeDetailsHeaderProps {
   anime: Anime;
   animeId: number;
@@ -94,26 +111,7 @@ export function AnimeDetailsHeader(props: AnimeDetailsHeaderProps) {
               <Badge variant="secondary" className="text-xs">
                 {props.anime.format}
               </Badge>
-              <Tooltip>
-                <TooltipTrigger aria-label={props.anime.status}>
-                  {props.anime.status === "RELEASING" && (
-                    <BroadcastIcon className="w-4 h-4 text-success" />
-                  )}
-                  {props.anime.status === "FINISHED" && (
-                    <CheckCircleIcon className="w-4 h-4 text-info" />
-                  )}
-                  {props.anime.status === "NOT_YET_RELEASED" && (
-                    <CalendarIcon className="w-4 h-4 text-warning" />
-                  )}
-                  {props.anime.status === "CANCELLED" && (
-                    <ProhibitIcon className="w-4 h-4 text-error" />
-                  )}
-                  {!["RELEASING", "FINISHED", "NOT_YET_RELEASED", "CANCELLED"].includes(
-                    props.anime.status,
-                  ) && <ActivityIcon className="w-4 h-4 text-muted-foreground" />}
-                </TooltipTrigger>
-                <TooltipContent>{props.anime.status}</TooltipContent>
-              </Tooltip>
+              <StatusIcon status={props.anime.status} />
               {props.anime.title.native && (
                 <>
                   <span>•</span>

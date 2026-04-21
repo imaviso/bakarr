@@ -160,18 +160,12 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
                       {[
                         animeDisplayTitle(related),
                         ...animeDiscoverySubtitle({
-                          ...(related.format === undefined ? {} : { format: related.format }),
-                          ...(related.relation_type === undefined
-                            ? {}
-                            : { relation_type: related.relation_type }),
-                          ...(related.season === undefined ? {} : { season: related.season }),
-                          ...(related.season_year === undefined
-                            ? {}
-                            : { season_year: related.season_year }),
-                          ...(related.start_year === undefined
-                            ? {}
-                            : { start_year: related.start_year }),
-                          ...(related.status === undefined ? {} : { status: related.status }),
+                          format: related.format,
+                          relation_type: related.relation_type,
+                          season: related.season,
+                          season_year: related.season_year,
+                          start_year: related.start_year,
+                          status: related.status,
                         }),
                       ]
                         .filter(Boolean)
@@ -190,24 +184,12 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
                       {[
                         animeDisplayTitle(recommended),
                         ...animeDiscoverySubtitle({
-                          ...(recommended.format === undefined
-                            ? {}
-                            : { format: recommended.format }),
-                          ...(recommended.relation_type === undefined
-                            ? {}
-                            : { relation_type: recommended.relation_type }),
-                          ...(recommended.season === undefined
-                            ? {}
-                            : { season: recommended.season }),
-                          ...(recommended.season_year === undefined
-                            ? {}
-                            : { season_year: recommended.season_year }),
-                          ...(recommended.start_year === undefined
-                            ? {}
-                            : { start_year: recommended.start_year }),
-                          ...(recommended.status === undefined
-                            ? {}
-                            : { status: recommended.status }),
+                          format: recommended.format,
+                          relation_type: recommended.relation_type,
+                          season: recommended.season,
+                          season_year: recommended.season_year,
+                          start_year: recommended.start_year,
+                          status: recommended.status,
                         }),
                       ]
                         .filter(Boolean)

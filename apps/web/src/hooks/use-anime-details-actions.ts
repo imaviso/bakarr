@@ -29,20 +29,16 @@ export function useAnimeDetailsActions(options: UseAnimeDetailsActionsOptions) {
   const updateReleaseProfiles = createUpdateAnimeReleaseProfilesMutation();
   const [latestScanTaskId, setLatestScanTaskId] = useState<number | undefined>(undefined);
 
-  const handlePlayInMpv = (episodeNumber: number) => {
-    void (async () => {
-      const { url } = await getAnimeEpisodeStreamUrl(options.animeId, episodeNumber);
-      const origin = globalThis.location.origin;
-      globalThis.open(`mpv://${origin}${url}`, "_self");
-    })();
+  const handlePlayInMpv = async (episodeNumber: number) => {
+    const { url } = await getAnimeEpisodeStreamUrl(options.animeId, episodeNumber);
+    const origin = globalThis.location.origin;
+    globalThis.open(`mpv://${origin}${url}`, "_self");
   };
 
-  const handleCopyStreamLink = (episodeNumber: number) => {
-    void (async () => {
-      const { url } = await getAnimeEpisodeStreamUrl(options.animeId, episodeNumber);
-      const origin = globalThis.location.origin;
-      await copyToClipboard(`${origin}${url}`);
-    })();
+  const handleCopyStreamLink = async (episodeNumber: number) => {
+    const { url } = await getAnimeEpisodeStreamUrl(options.animeId, episodeNumber);
+    const origin = globalThis.location.origin;
+    await copyToClipboard(`${origin}${url}`);
   };
 
   const handleToggleMonitor = (isMonitored: boolean) => {
@@ -88,13 +84,13 @@ export function useAnimeDetailsActions(options: UseAnimeDetailsActionsOptions) {
     handleScanFolder,
     handleSearchMissing,
     handleToggleMonitor,
-    isRefreshPending: () => refreshEpisodes.isPending,
-    isSearchMissingPending: () => searchMissing.isPending,
-    isToggleMonitorPending: () => toggleMonitor.isPending,
+    isRefreshPending: refreshEpisodes.isPending,
+    isSearchMissingPending: searchMissing.isPending,
+    isToggleMonitorPending: toggleMonitor.isPending,
     latestScanTaskId,
-    isUpdatingPath: () => updatePath.isPending,
-    isUpdatingProfile: () => updateProfile.isPending,
-    isUpdatingReleaseProfiles: () => updateReleaseProfiles.isPending,
+    isUpdatingPath: updatePath.isPending,
+    isUpdatingProfile: updateProfile.isPending,
+    isUpdatingReleaseProfiles: updateReleaseProfiles.isPending,
     updatePath: updatePath.mutateAsync,
     updateProfile: updateProfile.mutateAsync,
     updateReleaseProfiles: updateReleaseProfiles.mutateAsync,

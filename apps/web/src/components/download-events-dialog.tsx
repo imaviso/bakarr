@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { WarningIcon, EyeIcon, TableIcon, BracketsCurlyIcon } from "@phosphor-icons/react";
 import { Button } from "~/components/ui/button";
 import {
@@ -54,15 +54,13 @@ export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
     ...(props.eventType === undefined ? {} : { eventType: props.eventType }),
   };
   const query = createDownloadEventsQuery(queryInput, { enabled: open });
-  const exportBaseInput = useMemo(() => {
-    return {
-      ...(props.animeId === undefined ? {} : { animeId: props.animeId }),
-      ...(props.downloadId === undefined ? {} : { downloadId: props.downloadId }),
-      ...(props.eventType === undefined ? {} : { eventType: props.eventType }),
-      limit: props.exportLimit ?? 10_000,
-      order: "desc" as const,
-    };
-  }, [props.animeId, props.downloadId, props.eventType, props.exportLimit]);
+  const exportBaseInput = {
+    ...(props.animeId === undefined ? {} : { animeId: props.animeId }),
+    ...(props.downloadId === undefined ? {} : { downloadId: props.downloadId }),
+    ...(props.eventType === undefined ? {} : { eventType: props.eventType }),
+    limit: props.exportLimit ?? 10_000,
+    order: "desc" as const,
+  };
   const openExport = (format: "json" | "csv") => {
     void runDownloadEventsExport({
       format,

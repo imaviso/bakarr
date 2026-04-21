@@ -51,8 +51,11 @@ export function animeListQueryOptions() {
   });
 }
 
-export function createAnimeListQuery() {
-  return useQuery(animeListQueryOptions());
+export function createAnimeListQuery(options?: { enabled?: boolean }) {
+  return useQuery({
+    ...animeListQueryOptions(),
+    ...(options?.enabled === undefined ? {} : { enabled: options.enabled }),
+  });
 }
 
 export function animeDetailsQueryOptions(id: number) {
@@ -137,10 +140,14 @@ export function episodeSearchQueryOptions(animeId: number, episodeNumber: number
   });
 }
 
-export function createEpisodeSearchQuery(animeId: number, episodeNumber: number) {
+export function createEpisodeSearchQuery(
+  animeId: number,
+  episodeNumber: number,
+  enabled = false,
+) {
   return useQuery({
     ...episodeSearchQueryOptions(animeId, episodeNumber),
-    enabled: false,
+    enabled,
   });
 }
 
@@ -209,18 +216,9 @@ export function animeByAnilistIdQueryOptions(id: number) {
 }
 
 export function createAnimeByAnilistIdQuery(id: number | null) {
-  if (!id) {
-    return useQuery({
-      queryKey: animeKeys.anilist(0),
-      queryFn: async () => {
-        throw new Error("Query disabled");
-      },
-      enabled: false,
-    });
-  }
   return useQuery({
-    ...animeByAnilistIdQueryOptions(id),
-    enabled: true,
+    ...animeByAnilistIdQueryOptions(id ?? 0),
+    enabled: id !== null && id > 0,
   });
 }
 

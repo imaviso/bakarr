@@ -7,6 +7,16 @@ import { animeAltTitles, animeDisplayTitle, animeSearchSubtitle } from "~/lib/an
 import { formatMatchConfidence } from "~/lib/scanned-file";
 import { cn } from "~/lib/utils";
 
+function AltTitlesSubtitle({ anime }: { anime: AnimeSearchResult }) {
+  const titles = animeAltTitles(anime).slice(1).join(" \u2022 ");
+  if (!titles) return null;
+  return (
+    <p className="text-xs text-muted-foreground line-clamp-1 mb-2" title={titles}>
+      {titles}
+    </p>
+  );
+}
+
 interface AnimeSearchResultCardProps {
   anime: AnimeSearchResult;
   added: boolean;
@@ -64,13 +74,8 @@ export function AnimeSearchResultCard(props: AnimeSearchResultCardProps) {
         >
           {animeDisplayTitle(props.anime)}
         </h3>
-        {!props.compact && animeAltTitles(props.anime).slice(1).join(" \u2022 ") && (
-          <p
-            className="text-xs text-muted-foreground line-clamp-1 mb-2"
-            title={animeAltTitles(props.anime).slice(1).join(" \u2022 ")}
-          >
-            {animeAltTitles(props.anime).slice(1).join(" \u2022 ")}
-          </p>
+        {!props.compact && (
+          <AltTitlesSubtitle anime={props.anime} />
         )}
         <div className="flex flex-wrap gap-1.5 mt-auto">
           {props.searchDegraded && (

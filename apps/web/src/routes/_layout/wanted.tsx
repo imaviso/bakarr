@@ -217,7 +217,7 @@ function WantedRow(props: {
   airingPreferences: ReturnType<typeof getAiringDisplayPreferences>;
   onSearch: () => void;
 }) {
-  const statusLabel = () =>
+  const statusLabel =
     props.item.airing_status === "future"
       ? "Upcoming"
       : props.item.airing_status === "aired"
@@ -258,7 +258,7 @@ function WantedRow(props: {
           <Badge variant="outline" className="font-mono font-normal">
             {props.item.episode_number.toString().padStart(2, "0")}
           </Badge>
-          {statusLabel() && (
+          {statusLabel && (
             <Badge
               variant="secondary"
               className={
@@ -267,7 +267,7 @@ function WantedRow(props: {
                   : "h-5 px-1.5 text-xs bg-info/10 text-info"
               }
             >
-              {statusLabel()}
+              {statusLabel}
             </Badge>
           )}
         </div>

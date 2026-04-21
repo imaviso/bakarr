@@ -226,10 +226,6 @@ function AddFeedForm(props: { onCancel: () => void; onSuccess: () => void }) {
     },
   });
 
-  const submitAddFeedForm = async () => {
-    await form.handleSubmit();
-  };
-
   return (
     <Card className="border-primary/20">
       <CardHeader className="pb-4">
@@ -237,7 +233,7 @@ function AddFeedForm(props: { onCancel: () => void; onSuccess: () => void }) {
         <CardDescription>Add a Nyaa or other RSS feed for episode detection</CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={submitAddFeedForm} className="space-y-4">
+        <form action={() => form.handleSubmit()} className="space-y-4">
           <form.Field name="anime_id">
             {(field) => (
               <div className="space-y-1">

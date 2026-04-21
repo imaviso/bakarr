@@ -74,17 +74,17 @@ const settingsItems = [
   },
 ];
 
+function isActivePath(pathname: string, url: string) {
+  if (url === "/") return pathname === "/";
+  return pathname.startsWith(url);
+}
+
 export function AppSidebar() {
   const { logout } = useAuth();
   const location = useLocation();
   const { state } = useSidebar();
 
   const isCollapsed = state === "collapsed";
-
-  const isActive = (url: string) => {
-    if (url === "/") return location.pathname === "/";
-    return location.pathname.startsWith(url);
-  };
 
   return (
     <Sidebar collapsible="icon" className="border-r-0">
@@ -120,14 +120,14 @@ export function AppSidebar() {
                   <Link
                     to={item.url}
                     className="w-full"
-                    aria-current={isActive(item.url) ? "page" : undefined}
+                    aria-current={isActivePath(location.pathname, item.url) ? "page" : undefined}
                     activeOptions={{
                       exact: item.url === "/",
                     }}
                   >
                     <SidebarMenuButton
                       tooltip={item.title}
-                      isActive={isActive(item.url)}
+                      isActive={isActivePath(location.pathname, item.url)}
                       className="h-9 transition-colors"
                     >
                       <item.icon className="h-4 w-4 shrink-0" />
@@ -155,11 +155,11 @@ export function AppSidebar() {
                   <Link
                     to={item.url}
                     className="w-full"
-                    aria-current={isActive(item.url) ? "page" : undefined}
+                    aria-current={isActivePath(location.pathname, item.url) ? "page" : undefined}
                   >
                     <SidebarMenuButton
                       tooltip={item.title}
-                      isActive={isActive(item.url)}
+                      isActive={isActivePath(location.pathname, item.url)}
                       className="h-9 transition-colors"
                     >
                       <item.icon className="h-4 w-4 shrink-0" />

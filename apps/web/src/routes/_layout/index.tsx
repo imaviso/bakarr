@@ -1,7 +1,6 @@
 import { ArrowRightIcon, CheckIcon, ClockIcon } from "@phosphor-icons/react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { formatDistanceToNow } from "date-fns";
-import { useMemo } from "react";
 import { GeneralError } from "~/components/general-error";
 import { PageHeader } from "~/components/page-header";
 import { Badge } from "~/components/ui/badge";
@@ -34,11 +33,11 @@ function DashboardPage() {
 
   const recentActivity = activityQuery.data?.slice(0, 5) ?? [];
 
-  const statsSummary = useMemo(() => {
+  const statsSummary = (() => {
     const s = statsQuery.data;
     if (!s) return null;
     return `${s.total_anime} anime · ${s.downloaded_episodes}/${s.total_episodes} episodes · ${s.downloaded_percent}% complete`;
-  }, [statsQuery.data]);
+  })();
 
   return (
     <div className="space-y-6">

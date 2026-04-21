@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useMemo } from "react";
 import * as v from "valibot";
 import { AnimeError } from "~/components/anime-error";
 import { useAnimeDetailsActions } from "~/hooks/use-anime-details-actions";
@@ -89,7 +89,10 @@ function AnimeDetailsPage() {
   const availableCount = episodesData.filter((e) => e.downloaded).length;
   const totalEpisodes = episodesData.length || animeQuery.data?.episode_count || 0;
   const isMonitored = animeQuery.data?.monitored ?? true;
-  const libraryIds = new Set(animeQuery.data ? [animeQuery.data.id] : []);
+  const libraryIds = useMemo(
+    () => new Set(animeQuery.data ? [animeQuery.data.id] : []),
+    [animeQuery.data],
+  );
 
   const handleDeleteEpisodeFile = () => {
     actions.handleDeleteEpisodeFile(dialogState.deleteEpisodeState.episodeNumber);
@@ -108,9 +111,9 @@ function AnimeDetailsPage() {
               animeId={animeId}
               isMonitored={isMonitored}
               missingCount={missingCount}
-              isRefreshPending={actions.isRefreshPending()}
-              isSearchMissingPending={actions.isSearchMissingPending()}
-              isToggleMonitorPending={actions.isToggleMonitorPending()}
+              isRefreshPending={actions.isRefreshPending}
+              isSearchMissingPending={actions.isSearchMissingPending}
+              isToggleMonitorPending={actions.isToggleMonitorPending}
               onToggleMonitor={() => actions.handleToggleMonitor(isMonitored)}
               onRefreshEpisodes={actions.handleRefreshEpisodes}
               onSearchMissing={actions.handleSearchMissing}
@@ -228,15 +231,15 @@ function AnimeDetailsPage() {
           onEditPathOpenChange={dialogState.setEditPathOpen}
           currentPath={animeQuery.data?.root_folder || ""}
           updatePath={actions.updatePath}
-          isUpdatingPath={actions.isUpdatingPath()}
+          isUpdatingPath={actions.isUpdatingPath}
           editProfileOpen={dialogState.editProfileOpen}
           onEditProfileOpenChange={dialogState.setEditProfileOpen}
           currentProfile={animeQuery.data?.profile_name || ""}
           currentReleaseProfileIds={animeQuery.data?.release_profile_ids || []}
           updateProfile={actions.updateProfile}
-          isUpdatingProfile={actions.isUpdatingProfile()}
+          isUpdatingProfile={actions.isUpdatingProfile}
           updateReleaseProfiles={actions.updateReleaseProfiles}
-          isUpdatingReleaseProfiles={actions.isUpdatingReleaseProfiles()}
+          isUpdatingReleaseProfiles={actions.isUpdatingReleaseProfiles}
           profiles={profilesQuery.data || []}
           releaseProfiles={releaseProfilesQuery.data || []}
         />

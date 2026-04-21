@@ -16,14 +16,12 @@ interface AnimeDiscoveryRowProps {
 
 export function AnimeDiscoveryRow(props: AnimeDiscoveryRowProps) {
   const subtitle = animeDiscoverySubtitle({
-    ...(props.entry.format === undefined ? {} : { format: props.entry.format }),
-    ...(props.entry.relation_type === undefined
-      ? {}
-      : { relation_type: props.entry.relation_type }),
-    ...(props.entry.season === undefined ? {} : { season: props.entry.season }),
-    ...(props.entry.season_year === undefined ? {} : { season_year: props.entry.season_year }),
-    ...(props.entry.start_year === undefined ? {} : { start_year: props.entry.start_year }),
-    ...(props.entry.status === undefined ? {} : { status: props.entry.status }),
+    format: props.entry.format,
+    relation_type: props.entry.relation_type,
+    season: props.entry.season,
+    season_year: props.entry.season_year,
+    start_year: props.entry.start_year,
+    status: props.entry.status,
   }).join(" - ");
   const isInLibrary = props.libraryIds.has(props.entry.id);
 

@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import {
   createEpisodeSearchQuery,
   createGrabReleaseMutation,
@@ -14,14 +13,12 @@ interface SearchModalStateOptions {
 }
 
 export function useSearchModalState(options: SearchModalStateOptions) {
-  const searchQuery = createEpisodeSearchQuery(options.animeId, options.episodeNumber);
+  const searchQuery = createEpisodeSearchQuery(
+    options.animeId,
+    options.episodeNumber,
+    options.open,
+  );
   const grabRelease = createGrabReleaseMutation();
-
-  useEffect(() => {
-    if (options.open) {
-      void searchQuery.refetch();
-    }
-  }, [options.open, searchQuery]);
 
   const handleDownload = (release: EpisodeSearchResult) => {
     const payload = buildGrabInputFromEpisodeResult({

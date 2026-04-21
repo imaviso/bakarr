@@ -10,7 +10,7 @@ import {
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Suspense, lazy, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useDeferredValue, useEffect, useLayoutEffect, useState, useTransition } from "react";
 import * as v from "valibot";
 import { AnimeListSkeleton } from "~/components/anime-list-skeleton";
 import { GeneralError } from "~/components/general-error";
@@ -33,7 +33,6 @@ import {
 } from "~/lib/api";
 import { filterAnimeLibrary } from "~/lib/anime-library-filter";
 import { getAiringDisplayPreferences } from "~/lib/anime-metadata";
-import { createDebouncer } from "~/lib/debounce";
 import { usePageTitle } from "~/lib/page-title";
 import { cn } from "~/lib/utils";
 
@@ -100,6 +99,8 @@ function AnimeIndexPage() {
   const airingPreferences = getAiringDisplayPreferences(configQuery.data?.library);
 
   const [localQuery, setLocalQuery] = useState(search.q);
+  const [, startTransition] = useTransition();
+  const deferredQuery = useDeferredValue(localQuery);
 
   useLayoutEffect(() => {
     const stored = readStoredAnimeSearch();
@@ -135,24 +136,6 @@ function AnimeIndexPage() {
     setLocalQuery((current) => (current === search.q ? current : search.q));
   }, [search.q]);
 
-  const searchRef = useRef(search);
-  searchRef.current = search;
-  const debouncer = useMemo(
-    () =>
-      createDebouncer((q: string) => {
-        void navigate({
-          to: ".",
-          search: {
-            q,
-            filter: searchRef.current.filter,
-            view: searchRef.current.view,
-          },
-          replace: true,
-        });
-      }, 250),
-    [navigate],
-  );
-
   useEffect(() => {
     try {
       localStorage.setItem("bakarr_anime_search", JSON.stringify(search));
@@ -163,14 +146,16 @@ function AnimeIndexPage() {
 
   const handleSearchInput = (q: string) => {
     setLocalQuery(q);
-    debouncer.schedule(q);
+    startTransition(() => {
+      void navigate({
+        to: ".",
+        search: { q, filter: search.filter, view: search.view },
+        replace: true,
+      });
+    });
   };
 
-  const filteredList = useMemo(() => {
-    const list = animeQuery.data;
-    if (!list) return [];
-    return filterAnimeLibrary(list, localQuery, search.filter);
-  }, [animeQuery.data, localQuery, search.filter]);
+  const filteredList = filterAnimeLibrary(animeQuery.data ?? [], deferredQuery, search.filter);
 
   const updateFilter = (filter: MonitorFilter) =>
     void navigate({
