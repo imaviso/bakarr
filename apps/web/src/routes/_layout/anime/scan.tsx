@@ -7,7 +7,7 @@ import {
   TrashIcon,
 } from "@phosphor-icons/react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { GeneralError } from "~/components/general-error";
 import { BackgroundMatchingCard } from "~/components/scan/background-matching-card";
 import { runBulkBackgroundMatchAction } from "~/components/scan/background-matching-actions";
@@ -71,20 +71,14 @@ function LibraryScanPage() {
     onSelect: (anime: AnimeSearchResult) => void;
   } | null>(null);
 
-  const folders = useMemo<UnmappedFolder[]>(() => scanState.data?.folders ?? [], [scanState.data]);
-  const foldersByPath = useMemo(() => {
-    const lookup = new Map<string, UnmappedFolder>();
-    for (const folder of folders) {
-      lookup.set(folder.path, folder);
-    }
-    return lookup;
-  }, [folders]);
-  const folderPaths = useMemo(() => folders.map((folder) => folder.path), [folders]);
+  const folders = scanState.data?.folders ?? [];
+  const foldersByPath = new Map(folders.map((folder) => [folder.path, folder]));
+  const folderPaths = folders.map((folder) => folder.path);
 
   const isScanning = Boolean(scanState.data?.is_scanning);
   const hasOutstandingMatches = Boolean(scanState.data?.has_outstanding_matches);
   const matchStatus = scanState.data?.match_status;
-  const counts = useMemo(() => {
+  const counts = (() => {
     const serverCounts = scanState.data?.match_counts;
     if (serverCounts) {
       return serverCounts;
@@ -117,11 +111,8 @@ function LibraryScanPage() {
       }
     }
     return { exact, queued, matching, matched, failed, paused };
-  }, [scanState.data, folders]);
-  const unmappedJob = useMemo(
-    () => systemJobs.data?.find((job) => job.name === "unmapped_scan"),
-    [systemJobs.data],
-  );
+  })();
+  const unmappedJob = systemJobs.data?.find((job) => job.name === "unmapped_scan");
   const isWorkerRunning = isBackgroundMatchingRunning({
     failedCount: counts.failed,
     hasOutstandingWork: hasOutstandingMatches,
@@ -140,7 +131,7 @@ function LibraryScanPage() {
       startScan: () => scanMutation.mutateAsync(),
     });
   };
-  const confirmBulkMeta = useMemo(() => {
+  const confirmBulkMeta = (() => {
     const action = confirmBulkAction;
 
     if (action === "pause_queued") {
@@ -164,7 +155,7 @@ function LibraryScanPage() {
     }
 
     return null;
-  }, [confirmBulkAction, counts]);
+  })();
 
   const confirmBulkActionNow = () => {
     const action = confirmBulkAction;

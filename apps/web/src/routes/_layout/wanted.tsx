@@ -1,6 +1,6 @@
 import { DotsThreeIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Suspense, lazy, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import * as v from "valibot";
 import { GeneralError } from "~/components/general-error";
@@ -64,10 +64,7 @@ function WantedPage() {
   createSystemTaskQuery(latestMissingSearchTaskId);
   const searchMissing = createSearchMissingMutation();
   const data = wantedQuery.data ?? [];
-  const airingPreferences = useMemo(
-    () => getAiringDisplayPreferences(configQuery.data?.library),
-    [configQuery.data],
-  );
+  const airingPreferences = getAiringDisplayPreferences(configQuery.data?.library);
 
   const rowVirtualizer = useVirtualizer({
     count: data.length,

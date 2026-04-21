@@ -13,6 +13,7 @@ import {
   useDeferredValue,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -89,7 +90,10 @@ function AddAnimePage() {
   const canSearch = debouncedQuery.trim().length >= 3;
   const searchDegraded = searchQuery.data?.degraded ?? false;
   const animeListQuery = createAnimeListQuery();
-  const libraryIds = new Set((animeListQuery.data ?? []).map((anime) => anime.id));
+  const libraryIds = useMemo(
+    () => new Set((animeListQuery.data ?? []).map((anime) => anime.id)),
+    [animeListQuery.data],
+  );
 
   const seasonalQuery = createSeasonalAnimeInfiniteQuery({
     season: seasonWindow.season,

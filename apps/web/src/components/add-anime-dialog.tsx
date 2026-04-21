@@ -7,7 +7,6 @@ import {
   PlusIcon,
 } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
-import { useMemo } from "react";
 import * as v from "valibot";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
@@ -66,34 +65,19 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
   const releaseProfilesQuery = createReleaseProfilesQuery(props.open);
   const configQuery = createSystemConfigQuery(props.open);
 
-  // 1. Derive readiness state
-  const isReady = useMemo(
-    () => profilesQuery.isSuccess && configQuery.isSuccess && releaseProfilesQuery.isSuccess,
-    [profilesQuery.isSuccess, configQuery.isSuccess, releaseProfilesQuery.isSuccess],
-  );
-  const metadataChips = useMemo(() => {
+  const isReady =
+    profilesQuery.isSuccess && configQuery.isSuccess && releaseProfilesQuery.isSuccess;
+
+  const metadataChips = (() => {
     const chips: string[] = [];
-
-    if (props.anime.format) {
-      chips.push(props.anime.format);
-    }
-
-    if (props.anime.episode_count) {
-      chips.push(`${props.anime.episode_count} eps`);
-    }
-
+    if (props.anime.format) chips.push(props.anime.format);
+    if (props.anime.episode_count) chips.push(`${props.anime.episode_count} eps`);
     const subtitle = animeSearchSubtitle(props.anime);
-    if (subtitle) {
-      chips.push(subtitle);
-    }
-
+    if (subtitle) chips.push(subtitle);
     const confidence = formatMatchConfidence(props.anime.match_confidence);
-    if (confidence) {
-      chips.push(confidence);
-    }
-
+    if (confidence) chips.push(confidence);
     return chips;
-  }, [props.anime]);
+  })();
 
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>

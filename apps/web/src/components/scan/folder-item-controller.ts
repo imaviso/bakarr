@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   type AddAnimeRequest,
   type AnimeSearchResult,
@@ -22,33 +22,18 @@ export function useFolderItemController(folder: UnmappedFolder) {
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [selectedProfileName, setSelectedProfileName] = useState("");
 
-  const selectedAnime = useMemo(() => {
-    const manual = manualMatch;
-    if (manual) {
-      return manual;
-    }
-
-    return folder.suggested_matches[0] ?? null;
-  }, [manualMatch, folder.suggested_matches]);
+  const selectedAnime = manualMatch ?? folder.suggested_matches[0] ?? null;
 
   const profiles = profilesQuery.data ?? [];
   const effectiveProfileName = selectedProfileName || profiles[0]?.name || "";
   const selectedProfile = profiles.find((p) => p.name === effectiveProfileName) ?? profiles[0];
 
-  const existingAnime = useMemo(
-    () => (selectedAnime?.already_in_library ? selectedAnime : null),
-    [selectedAnime],
-  );
+  const existingAnime = selectedAnime?.already_in_library ? selectedAnime : null;
 
-  const selectedAnimeIds = useMemo(() => {
-    const animeId = selectedAnime?.id;
-    return animeId === undefined ? new Set<number>() : new Set([animeId]);
-  }, [selectedAnime]);
+  const selectedAnimeIds =
+    selectedAnime?.id === undefined ? new Set<number>() : new Set([selectedAnime.id]);
 
-  const importLabel = useMemo(
-    () => (existingAnime ? "Use existing anime" : "Add and use folder"),
-    [existingAnime],
-  );
+  const importLabel = existingAnime ? "Use existing anime" : "Add and use folder";
 
   const isImporting = addAnimeMutation.isPending || importMutation.isPending;
   const isControlling = controlMutation.isPending;

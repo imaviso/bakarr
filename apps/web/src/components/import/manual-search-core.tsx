@@ -6,13 +6,12 @@ import {
   PlusIcon,
   MagnifyingGlassIcon,
 } from "@phosphor-icons/react";
-import { useMemo, useRef, useState } from "react";
+import { useDeferredValue, useRef, useState } from "react";
 import { AnimeDiscoveryRow } from "~/components/anime-discovery";
 import { Badge } from "~/components/ui/badge";
 import { Input } from "~/components/ui/input";
 import { type AnimeSearchResult, createAnimeSearchQuery } from "~/lib/api";
 import { animeDisplayTitle, animeSearchSubtitle } from "~/lib/anime-metadata";
-import { createDebouncer } from "~/lib/debounce";
 import { formatMatchConfidence } from "~/lib/scanned-file";
 import { cn } from "~/lib/utils";
 
@@ -29,38 +28,25 @@ interface ManualSearchCoreProps {
 export function ManualSearchCore(props: ManualSearchCoreProps) {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
-  const debouncer = useMemo(() => createDebouncer(setDebouncedQuery, 500), []);
-
-  const handleQueryChange = (value: string) => {
-    setQuery(value);
-    debouncer.schedule(value);
-  };
+  const debouncedQuery = useDeferredValue(query);
 
   const search = createAnimeSearchQuery(debouncedQuery);
   const searchResults = search.data?.results ?? [];
   const searchDegraded = search.data?.degraded ?? false;
-  const libraryIds = useMemo(() => {
-    const existing = props.existingIds ? [...props.existingIds] : [];
-    const discovered = (search.data?.results ?? [])
-      .filter((anime) => anime.already_in_library)
-      .map((anime) => anime.id);
-    return new Set([...existing, ...discovered]);
-  }, [props.existingIds, search.data?.results]);
+  const existing = props.existingIds ? [...props.existingIds] : [];
+  const discovered = (search.data?.results ?? [])
+    .filter((anime) => anime.already_in_library)
+    .map((anime) => anime.id);
+  const libraryIds = new Set([...existing, ...discovered]);
 
   return (
     <div className="space-y-4">
       <div className="relative">
         <MagnifyingGlassIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input
-          ref={(el) => {
-            searchInputRef.current = el;
-            if (el && (props.autoFocusInput ?? true)) {
-              el.focus({ preventScroll: true });
-            }
-          }}
+          ref={searchInputRef}
           value={query}
-          onChange={(event) => handleQueryChange(event.currentTarget.value)}
+          onChange={(event) => setQuery(event.currentTarget.value)}
           placeholder="Search for anime..."
           aria-label="Search anime title"
           className="pl-9"
