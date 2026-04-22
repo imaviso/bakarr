@@ -94,7 +94,7 @@ export function SystemLogsTable(props: SystemLogsTableProps) {
             <TableRow className="hover:bg-transparent border-none">
               <TableHead className="w-[160px]">Timestamp</TableHead>
               <TableHead className="w-[100px]">Level</TableHead>
-              <TableHead className="w-[120px]">Source</TableHead>
+              <TableHead className="w-[180px]">Source</TableHead>
               <TableHead className="w-full">Message</TableHead>
               <TableHead className="w-[80px]" />
             </TableRow>
@@ -141,8 +141,10 @@ export function SystemLogsTable(props: SystemLogsTableProps) {
                               {log.level}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-xs font-medium text-muted-foreground capitalize">
-                            {log.event_type}
+                          <TableCell className="text-xs font-medium text-muted-foreground">
+                            <div className="truncate" title={log.event_type}>
+                              {log.event_type}
+                            </div>
                           </TableCell>
                           <TableCell className="text-sm max-w-[500px]">
                             <div className="truncate" title={log.message}>

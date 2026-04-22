@@ -30,12 +30,14 @@ interface AnimeLibraryViewProps {
   deleteAnime: ReturnType<typeof createDeleteAnimeMutation>;
 }
 
+const GRID_GAP_PX = 16;
+const MIN_CARD_WIDTH_PX = 220;
+const MAX_GRID_COLUMNS = 6;
+
 function getColCount(w: number) {
-  if (w >= 1536) return 6;
-  if (w >= 1280) return 5;
-  if (w >= 1024) return 4;
-  if (w >= 640) return 3;
-  return 2;
+  const safeWidth = Math.max(0, w);
+  const cols = Math.floor((safeWidth + GRID_GAP_PX) / (MIN_CARD_WIDTH_PX + GRID_GAP_PX));
+  return Math.min(MAX_GRID_COLUMNS, Math.max(1, cols));
 }
 
 function progressPercent(anime: Anime) {
@@ -82,13 +84,14 @@ export function AnimeGridView(props: AnimeLibraryViewProps) {
   const [containerRef, width, nodeRef] = useContainerWidth();
   const colCount = getColCount(width);
   const containerW = Math.max(280, width);
-  const colW = (containerW - (colCount - 1) * 16) / colCount;
-  const estimateRowSize = Math.round(colW * 1.5 + 68 + 16);
+  const colW = Math.floor((containerW - (colCount - 1) * GRID_GAP_PX) / colCount);
+  const estimateRowSize = Math.round(colW * 1.5 + 68);
   const rowCount = Math.ceil(props.anime.length / colCount);
 
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
     estimateSize: () => estimateRowSize,
+    gap: GRID_GAP_PX,
     overscan: 2,
     getScrollElement: () => nodeRef.current,
   });
