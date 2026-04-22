@@ -243,7 +243,7 @@ export function LogsView(props: LogsViewProps) {
         )}
       </Card>
 
-      <Card className="border-primary/20 h-[520px] md:h-[560px] shrink-0 min-h-0 flex flex-col overflow-hidden">
+      <Card className="border-primary/20 min-h-[22rem] flex-1 flex flex-col overflow-hidden">
         <SystemLogsTable
           logs={props.state.allLogs}
           isLoading={props.state.logsQuery.isLoading}

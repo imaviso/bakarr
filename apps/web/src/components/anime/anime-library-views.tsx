@@ -115,7 +115,10 @@ export function AnimeGridView(props: AnimeLibraryViewProps) {
             className="absolute left-0 top-0 w-full"
             style={{ transform: `translateY(${vRow.start}px)` }}
           >
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
+            <div
+              className="grid gap-4"
+              style={{ gridTemplateColumns: `repeat(${colCount}, minmax(0, 1fr))` }}
+            >
               {rowItems(vRow.index).map((anime) => (
                 <Card
                   key={anime.id}

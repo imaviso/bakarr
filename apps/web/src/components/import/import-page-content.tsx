@@ -204,6 +204,7 @@ function ImportScanStep(props: { state: ImportPageState }) {
               >
                 {props.state.activeBrowseRoot && (
                   <FileBrowser
+                    key={props.state.activeBrowseRoot.key}
                     onSelect={(selectedPath) => {
                       props.state.setPathFromBrowserSelection(selectedPath);
                     }}
