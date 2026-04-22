@@ -343,9 +343,9 @@ function SearchResults(props: SearchResultsProps) {
           <div className="relative w-full" style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
             {virtualRows.map((vRow) => (
               <div
-                key={vRow.index}
+                key={vRow.key}
                 data-index={vRow.index}
-                ref={(el) => rowVirtualizer.measureElement(el)}
+                ref={rowVirtualizer.measureElement}
                 className="absolute left-0 top-0 w-full"
                 style={{ transform: `translateY(${vRow.start}px)` }}
               >

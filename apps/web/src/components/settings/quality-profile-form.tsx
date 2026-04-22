@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { useForm } from "@tanstack/react-form";
 import * as v from "valibot";
 import { SortableQualityList } from "~/components/settings/sortable-quality-list";
@@ -72,10 +71,7 @@ export function ProfileForm(props: {
     await form.handleSubmit();
   };
 
-  const qualityNames = useMemo(
-    () => qualitiesQuery.data?.map((quality) => quality.name) ?? [],
-    [qualitiesQuery.data],
-  );
+  const qualityNames = qualitiesQuery.data?.map((quality) => quality.name) ?? [];
 
   return (
     <Card className="border-primary/20">

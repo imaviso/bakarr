@@ -82,11 +82,9 @@ export function DownloadEventsFeed(props: DownloadEventsFeedProps) {
 
                       return (
                         <div
-                          key={event.id ?? virtualRow.index}
+                          key={virtualRow.key}
                           data-index={virtualRow.index}
-                          ref={(el) => {
-                            if (el) virtualizer.measureElement(el);
-                          }}
+                          ref={virtualizer.measureElement}
                           className="absolute left-0 top-0 w-full"
                           style={{ transform: `translateY(${virtualRow.start}px)` }}
                         >

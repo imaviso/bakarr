@@ -140,11 +140,7 @@ export function episodeSearchQueryOptions(animeId: number, episodeNumber: number
   });
 }
 
-export function createEpisodeSearchQuery(
-  animeId: number,
-  episodeNumber: number,
-  enabled = false,
-) {
+export function createEpisodeSearchQuery(animeId: number, episodeNumber: number, enabled = false) {
   return useQuery({
     ...episodeSearchQueryOptions(animeId, episodeNumber),
     enabled,

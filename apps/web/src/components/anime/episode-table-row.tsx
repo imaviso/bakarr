@@ -17,10 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
-import {
-  TableCell,
-  TableRow,
-} from "~/components/ui/table";
+import { TableCell, TableRow } from "~/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
 import type {
   AnimeEpisodeDialogState,
@@ -79,9 +76,7 @@ export function EpisodeTableRow(props: EpisodeTableRowProps) {
               <TooltipTrigger>
                 <CheckCircleIcon className="h-4 w-4 text-success" />
               </TooltipTrigger>
-              <TooltipContent>
-                Downloaded - {episode.file_path?.split("/").pop()}
-              </TooltipContent>
+              <TooltipContent>Downloaded - {episode.file_path?.split("/").pop()}</TooltipContent>
             </Tooltip>
           ) : (
             <Tooltip>
@@ -93,9 +88,7 @@ export function EpisodeTableRow(props: EpisodeTableRowProps) {
                   )}
                 />
               </TooltipTrigger>
-              <TooltipContent>
-                {isAired(episode.aired) ? "Missing" : "Upcoming"}
-              </TooltipContent>
+              <TooltipContent>{isAired(episode.aired) ? "Missing" : "Upcoming"}</TooltipContent>
             </Tooltip>
           )}
         </div>

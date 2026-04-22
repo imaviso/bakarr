@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import type { DownloadEvent } from "@bakarr/shared";
 import { getDownloadEventMetadataSummary } from "~/lib/download-event-metadata";
 
@@ -8,10 +7,7 @@ interface DownloadEventCardProps {
 }
 
 export function DownloadEventCard(props: DownloadEventCardProps) {
-  const metadataSummary = useMemo(
-    () => getDownloadEventMetadataSummary(props.event),
-    [props.event],
-  );
+  const metadataSummary = getDownloadEventMetadataSummary(props.event);
 
   return (
     <div className="rounded-none border border-border bg-card p-3 space-y-1">

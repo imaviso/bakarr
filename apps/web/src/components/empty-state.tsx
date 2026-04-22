@@ -15,14 +15,12 @@ interface EmptyStateProps {
  * Uses dashed border card with centered icon + heading + body + optional CTA.
  */
 export function EmptyState(props: EmptyStateProps) {
+  const Icon = props.icon;
+
   return (
     <div className={cn("p-12 text-center border-2 border-dashed border-border", props.className)}>
       <div className="flex flex-col items-center gap-4">
-        {props.icon &&
-          (() => {
-            const Icon = props.icon;
-            return <Icon className="h-12 w-12 text-muted-foreground" />;
-          })()}
+        {Icon ? <Icon className="h-12 w-12 text-muted-foreground" /> : null}
         <div>
           <h3 className="font-medium">{props.title}</h3>
           {props.description && (

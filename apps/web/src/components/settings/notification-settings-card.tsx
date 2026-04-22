@@ -1,5 +1,5 @@
 import { BellIcon } from "@phosphor-icons/react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Switch } from "~/components/ui/switch";
@@ -14,10 +14,7 @@ import {
 export function NotificationSettingsCard() {
   const [preferences, setPreferences] = useState(() => readNotificationPreferences());
 
-  const allEnabled = useMemo(
-    () => NOTIFICATION_PREFERENCE_KEYS.every((key) => preferences[key]),
-    [preferences],
-  );
+  const allEnabled = NOTIFICATION_PREFERENCE_KEYS.every((key) => preferences[key]);
 
   const updatePreference = (key: NotificationPreferenceKey, enabled: boolean) => {
     const next = {

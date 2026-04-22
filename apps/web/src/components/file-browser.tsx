@@ -8,7 +8,7 @@ import {
   HouseIcon,
   SpinnerIcon,
 } from "@phosphor-icons/react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Skeleton } from "~/components/ui/skeleton";
@@ -43,13 +43,15 @@ export function FileBrowser(props: FileBrowserProps) {
     offset: pageOffset,
   });
 
-  const pageInfo = useMemo(() => {
-    const data = browserQuery.data;
-    if (!data) return null;
-    const start = data.offset + 1;
-    const end = data.offset + data.entries.length;
-    return { start, end, total: data.total, hasMore: data.has_more };
-  }, [browserQuery.data]);
+  const data = browserQuery.data;
+  const pageInfo = data
+    ? {
+        start: data.offset + 1,
+        end: data.offset + data.entries.length,
+        total: data.total,
+        hasMore: data.has_more,
+      }
+    : null;
 
   const handleNavigate = (path: string) => {
     setCurrentPath(path);

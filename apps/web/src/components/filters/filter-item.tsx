@@ -79,6 +79,11 @@ export function FilterItem(props: FilterItemProps) {
     }
   };
 
+  const currentValue = Array.isArray(props.filter.value)
+    ? props.filter.value[0]
+    : props.filter.value;
+  const selectedValue = currentValue === undefined ? undefined : currentValue;
+
   return (
     <div className="flex items-center gap-1.5 bg-muted rounded-none p-1 pr-2">
       <div className="text-sm font-medium text-muted-foreground px-2">{column?.label}</div>
@@ -113,45 +118,19 @@ export function FilterItem(props: FilterItemProps) {
           className="h-8 w-[160px] px-2 bg-background focus-visible:ring-0 focus-visible:ring-offset-0 border-muted-foreground/20"
         />
       ) : (
-        (() => {
-          const currentValue = Array.isArray(props.filter.value)
-            ? props.filter.value[0]
-            : props.filter.value;
-          const selectedValue = currentValue === undefined ? undefined : currentValue;
-
-          return selectedValue !== undefined ? (
-            <Select
-              value={selectedValue}
-              onValueChange={(value) => handleValueChange(value ?? null)}
-            >
-              <SelectTrigger className="w-[160px] h-8 px-2 bg-background focus:ring-0 focus:ring-offset-0 border-muted-foreground/20">
-                <SelectValue placeholder="Select value" />
-              </SelectTrigger>
-              <SelectContent>
-                {(column?.options ?? []).map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.icon && <span className="mr-2">{option.icon}</span>}
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <Select value={null} onValueChange={(value) => handleValueChange(value ?? null)}>
-              <SelectTrigger className="w-[160px] h-8 px-2 bg-background focus:ring-0 focus:ring-offset-0 border-muted-foreground/20">
-                <SelectValue placeholder="Select value" />
-              </SelectTrigger>
-              <SelectContent>
-                {(column?.options ?? []).map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.icon && <span className="mr-2">{option.icon}</span>}
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          );
-        })()
+        <Select value={selectedValue} onValueChange={(value) => handleValueChange(value ?? null)}>
+          <SelectTrigger className="w-[160px] h-8 px-2 bg-background focus:ring-0 focus:ring-offset-0 border-muted-foreground/20">
+            <SelectValue placeholder="Select value" />
+          </SelectTrigger>
+          <SelectContent>
+            {(column?.options ?? []).map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.icon && <span className="mr-2">{option.icon}</span>}
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       )}
 
       <Button

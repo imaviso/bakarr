@@ -10,7 +10,7 @@ import {
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Suspense, lazy, useDeferredValue, useEffect, useLayoutEffect, useState, useTransition } from "react";
+import { Suspense, lazy, useDeferredValue, useEffect, useTransition } from "react";
 import * as v from "valibot";
 import { AnimeListSkeleton } from "~/components/anime-list-skeleton";
 import { GeneralError } from "~/components/general-error";
@@ -98,11 +98,10 @@ function AnimeIndexPage() {
   const navigate = useNavigate();
   const airingPreferences = getAiringDisplayPreferences(configQuery.data?.library);
 
-  const [localQuery, setLocalQuery] = useState(search.q);
   const [, startTransition] = useTransition();
-  const deferredQuery = useDeferredValue(localQuery);
+  const deferredQuery = useDeferredValue(search.q);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     const stored = readStoredAnimeSearch();
     if (!stored) return;
 
@@ -133,10 +132,6 @@ function AnimeIndexPage() {
   }, []);
 
   useEffect(() => {
-    setLocalQuery((current) => (current === search.q ? current : search.q));
-  }, [search.q]);
-
-  useEffect(() => {
     try {
       localStorage.setItem("bakarr_anime_search", JSON.stringify(search));
     } catch {
@@ -145,7 +140,6 @@ function AnimeIndexPage() {
   }, [search]);
 
   const handleSearchInput = (q: string) => {
-    setLocalQuery(q);
     startTransition(() => {
       void navigate({
         to: ".",
@@ -207,7 +201,7 @@ function AnimeIndexPage() {
             <Input
               placeholder="Filter anime..."
               aria-label="Filter anime"
-              value={localQuery}
+              value={search.q}
               onInput={(event) => handleSearchInput(event.currentTarget.value)}
               className="pl-9"
             />
@@ -324,7 +318,7 @@ function AnimeIndexPage() {
                 />
               )}
             </Suspense>
-          ) : !localQuery && search.filter === "all" ? (
+          ) : !search.q && search.filter === "all" ? (
             <Card className="p-12 text-center border-dashed">
               <div className="flex flex-col items-center gap-4">
                 <TelevisionIcon className="h-12 w-12 text-muted-foreground" />
@@ -342,8 +336,8 @@ function AnimeIndexPage() {
             </Card>
           ) : (
             <p className="text-center text-muted-foreground py-8">
-              {localQuery ? (
-                <>No anime matching &quot;{localQuery}&quot;</>
+              {search.q ? (
+                <>No anime matching &quot;{search.q}&quot;</>
               ) : (
                 `No ${search.filter} anime found`
               )}

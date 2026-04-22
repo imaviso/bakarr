@@ -46,18 +46,18 @@ function SearchResults(props: {
   const query = props.inputValue.toLowerCase().trim();
   const data = props.animeList.data;
 
-  const filteredLibrary = (() => {
-    if (!data) return [];
-    if (!query) return data.slice(0, 10);
-    return data
-      .filter((anime) => {
-        const title = anime.title.romaji?.toLowerCase() || "";
-        const english = anime.title.english?.toLowerCase() || "";
-        const native = anime.title.native?.toLowerCase() || "";
-        return title.includes(query) || english.includes(query) || native.includes(query);
-      })
-      .slice(0, 10);
-  })();
+  const filteredLibrary = !data
+    ? []
+    : !query
+      ? data.slice(0, 10)
+      : data
+          .filter((anime) => {
+            const title = anime.title.romaji?.toLowerCase() || "";
+            const english = anime.title.english?.toLowerCase() || "";
+            const native = anime.title.native?.toLowerCase() || "";
+            return title.includes(query) || english.includes(query) || native.includes(query);
+          })
+          .slice(0, 10);
 
   const filteredRoutes = query
     ? navigationRoutes.filter((route) => route.title.toLowerCase().includes(query))

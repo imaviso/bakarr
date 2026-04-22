@@ -165,6 +165,7 @@ export function ManualMappingDialog(props: ManualMappingDialogProps) {
   const filesQuery = createListFilesQuery(props.animeId);
   const mapMutation = createMapEpisodeMutation();
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const files = filesQuery.data;
 
   const handleSubmit = () => {
     const file = selectedFile;
@@ -198,67 +199,62 @@ export function ManualMappingDialog(props: ManualMappingDialogProps) {
         </DialogHeader>
 
         <div className="py-4">
-          {filesQuery.data ? (
-            (() => {
-              const files = filesQuery.data;
-              return (
-                <div className="border rounded-none max-h-[300px] overflow-y-auto">
-                  {files.length === 0 && (
-                    <div className="p-4 text-center text-sm text-muted-foreground">
-                      No video files found in the anime directory.
-                    </div>
-                  )}
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[30px]" />
-                        <TableHead>Filename</TableHead>
-                        <TableHead className="w-[100px] text-right">Size</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {files.map((file) => (
-                        <TableRow
-                          key={file.path}
-                          className={cn(
-                            "cursor-pointer hover:bg-muted focus:bg-muted focus:outline-none",
-                            selectedFile === file.path && "bg-muted",
-                          )}
-                          onClick={() => setSelectedFile(file.path)}
-                          tabIndex={0}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter" || event.key === " ") {
-                              event.preventDefault();
-                              setSelectedFile(file.path);
-                            }
-                          }}
-                        >
-                          <TableCell>
-                            <div
-                              className={cn(
-                                "h-4 w-4 rounded-full border border-primary",
-                                selectedFile === file.path && "bg-primary",
-                              )}
-                            />
-                          </TableCell>
-                          <TableCell className="font-mono text-xs break-all">
-                            {file.name}
-                            {file.episode_number && (
-                              <span className="ml-2 text-muted-foreground italic">
-                                (Mapped to Ep {file.episode_number})
-                              </span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right text-xs">
-                            {(file.size / 1024 / 1024).toFixed(1)} MB
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+          {files ? (
+            <div className="border rounded-none max-h-[300px] overflow-y-auto">
+              {files.length === 0 && (
+                <div className="p-4 text-center text-sm text-muted-foreground">
+                  No video files found in the anime directory.
                 </div>
-              );
-            })()
+              )}
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[30px]" />
+                    <TableHead>Filename</TableHead>
+                    <TableHead className="w-[100px] text-right">Size</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {files.map((file) => (
+                    <TableRow
+                      key={file.path}
+                      className={cn(
+                        "cursor-pointer hover:bg-muted focus:bg-muted focus:outline-none",
+                        selectedFile === file.path && "bg-muted",
+                      )}
+                      onClick={() => setSelectedFile(file.path)}
+                      tabIndex={0}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          setSelectedFile(file.path);
+                        }
+                      }}
+                    >
+                      <TableCell>
+                        <div
+                          className={cn(
+                            "h-4 w-4 rounded-full border border-primary",
+                            selectedFile === file.path && "bg-primary",
+                          )}
+                        />
+                      </TableCell>
+                      <TableCell className="font-mono text-xs break-all">
+                        {file.name}
+                        {file.episode_number && (
+                          <span className="ml-2 text-muted-foreground italic">
+                            (Mapped to Ep {file.episode_number})
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right text-xs">
+                        {(file.size / 1024 / 1024).toFixed(1)} MB
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           ) : (
             <div className="flex justify-center py-8">
               <ArrowClockwiseIcon className="h-6 w-6 animate-spin text-muted-foreground" />

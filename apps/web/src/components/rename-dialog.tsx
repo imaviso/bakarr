@@ -1,5 +1,5 @@
 import { WarningIcon, CheckIcon, InfoIcon, SpinnerIcon } from "@phosphor-icons/react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -71,20 +71,20 @@ interface RenameDialogProps {
 
 export function RenameDialog(props: RenameDialogProps) {
   const animeId = props.animeId;
-  const previewQuery = createRenamePreviewQuery(animeId);
+  const previewQuery = createRenamePreviewQuery(animeId, { enabled: props.open });
   const executeRename = createExecuteRenameMutation();
+  const resetExecuteRename = executeRename.reset;
 
   const [result, setResult] = useState<RenameResult | null>(null);
 
   useEffect(() => {
     if (props.open) {
       setResult(null);
-      executeRename.reset();
-      void previewQuery.refetch();
+      resetExecuteRename();
     }
-  }, [props.open, executeRename, previewQuery]);
+  }, [props.open, resetExecuteRename]);
 
-  const previewCount = useMemo(() => previewQuery.data?.length ?? 0, [previewQuery.data]);
+  const previewCount = previewQuery.data?.length ?? 0;
 
   const handleRename = () => {
     executeRename.mutate(props.animeId, {

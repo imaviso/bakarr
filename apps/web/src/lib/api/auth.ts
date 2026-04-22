@@ -92,10 +92,10 @@ export function renamePreviewQueryOptions(id: number) {
   });
 }
 
-export function createRenamePreviewQuery(id: number) {
+export function createRenamePreviewQuery(id: number, options?: { enabled?: boolean }) {
   return useQuery({
     ...renamePreviewQueryOptions(id),
-    enabled: false,
+    enabled: options?.enabled ?? true,
   });
 }
 

@@ -32,12 +32,11 @@ function DashboardPage() {
   const activityQuery = createActivityQuery();
 
   const recentActivity = activityQuery.data?.slice(0, 5) ?? [];
+  const stats = statsQuery.data;
 
-  const statsSummary = (() => {
-    const s = statsQuery.data;
-    if (!s) return null;
-    return `${s.total_anime} anime · ${s.downloaded_episodes}/${s.total_episodes} episodes · ${s.downloaded_percent}% complete`;
-  })();
+  const statsSummary = stats
+    ? `${stats.total_anime} anime · ${stats.downloaded_episodes}/${stats.total_episodes} episodes · ${stats.downloaded_percent}% complete`
+    : null;
 
   return (
     <div className="space-y-6">

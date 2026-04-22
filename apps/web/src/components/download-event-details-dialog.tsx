@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import type { DownloadEvent } from "~/lib/api";
 import {
   Dialog,
@@ -17,10 +16,7 @@ interface DownloadEventDetailsDialogProps {
 }
 
 export function DownloadEventDetailsDialog(props: DownloadEventDetailsDialogProps) {
-  const summary = useMemo(
-    () => (props.event ? getDownloadEventMetadataSummary(props.event) : undefined),
-    [props.event],
-  );
+  const summary = props.event ? getDownloadEventMetadataSummary(props.event) : undefined;
 
   return (
     <Dialog open={props.event !== null} onOpenChange={(open) => !open && props.onOpenChange(false)}>

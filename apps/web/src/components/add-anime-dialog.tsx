@@ -68,16 +68,13 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
   const isReady =
     profilesQuery.isSuccess && configQuery.isSuccess && releaseProfilesQuery.isSuccess;
 
-  const metadataChips = (() => {
-    const chips: string[] = [];
-    if (props.anime.format) chips.push(props.anime.format);
-    if (props.anime.episode_count) chips.push(`${props.anime.episode_count} eps`);
-    const subtitle = animeSearchSubtitle(props.anime);
-    if (subtitle) chips.push(subtitle);
-    const confidence = formatMatchConfidence(props.anime.match_confidence);
-    if (confidence) chips.push(confidence);
-    return chips;
-  })();
+  const metadataChips: string[] = [];
+  if (props.anime.format) metadataChips.push(props.anime.format);
+  if (props.anime.episode_count) metadataChips.push(`${props.anime.episode_count} eps`);
+  const subtitle = animeSearchSubtitle(props.anime);
+  if (subtitle) metadataChips.push(subtitle);
+  const confidence = formatMatchConfidence(props.anime.match_confidence);
+  if (confidence) metadataChips.push(confidence);
 
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>

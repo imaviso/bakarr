@@ -74,9 +74,7 @@ export function AnimeSearchResultCard(props: AnimeSearchResultCardProps) {
         >
           {animeDisplayTitle(props.anime)}
         </h3>
-        {!props.compact && (
-          <AltTitlesSubtitle anime={props.anime} />
-        )}
+        {!props.compact && <AltTitlesSubtitle anime={props.anime} />}
         <div className="flex flex-wrap gap-1.5 mt-auto">
           {props.searchDegraded && (
             <Badge

@@ -44,7 +44,9 @@ const STATUS_ICON_MAP: Record<string, React.ReactNode> = {
 };
 
 function StatusIcon({ status }: { status: string }) {
-  const icon = STATUS_ICON_MAP[status] ?? <ActivityIcon className="w-4 h-4 text-muted-foreground" />;
+  const icon = STATUS_ICON_MAP[status] ?? (
+    <ActivityIcon className="w-4 h-4 text-muted-foreground" />
+  );
   return (
     <Tooltip>
       <TooltipTrigger aria-label={status}>{icon}</TooltipTrigger>

@@ -12,7 +12,7 @@ import {
   startOfWeek,
   subMonths,
 } from "date-fns";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
 import { createCalendarQuery, createSystemConfigQuery } from "~/lib/api";
@@ -26,49 +26,35 @@ import { cn } from "~/lib/utils";
 export function AnimeCalendar() {
   const [currentDate, setCurrentDate] = useState(new Date());
 
-  const fetchStart = useMemo(
-    () => subMonths(startOfWeek(startOfMonth(currentDate)), 1),
-    [currentDate],
-  );
-  const fetchEnd = useMemo(() => addMonths(endOfWeek(endOfMonth(currentDate)), 1), [currentDate]);
+  const fetchStart = subMonths(startOfWeek(startOfMonth(currentDate)), 1);
+  const fetchEnd = addMonths(endOfWeek(endOfMonth(currentDate)), 1);
 
   const calendarQuery = createCalendarQuery(fetchStart, fetchEnd);
   const configQuery = createSystemConfigQuery();
-  const airingPreferences = useMemo(
-    () => getAiringDisplayPreferences(configQuery.data?.library),
-    [configQuery.data?.library],
-  );
+  const airingPreferences = getAiringDisplayPreferences(configQuery.data?.library);
 
-  const days = useMemo(() => {
-    const monthStart = startOfMonth(currentDate);
-    const monthEnd = endOfMonth(monthStart);
-    const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
-    const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
-    return eachDayOfInterval({ start: calendarStart, end: calendarEnd });
-  }, [currentDate]);
+  const monthStart = startOfMonth(currentDate);
+  const monthEnd = endOfMonth(monthStart);
+  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
+  const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
+  const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
   const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-  // Optimized: Create a memoized map of events by date for O(1) lookup
-  // Returns a lookup function to avoid re-tracking the entire map on each access
-  const getEventsForDay = useMemo(() => {
-    const events = calendarQuery.data || [];
-    const map: Record<string, typeof events> = {};
-
-    for (const event of events) {
-      const dateKey = getAiringDisplayDateKey(event.start, airingPreferences);
-      if (!map[dateKey]) {
-        map[dateKey] = [];
-      }
-      map[dateKey].push(event);
+  const events = calendarQuery.data ?? [];
+  const eventsByDay: Record<string, typeof events> = {};
+  for (const event of events) {
+    const dateKey = getAiringDisplayDateKey(event.start, airingPreferences);
+    if (!eventsByDay[dateKey]) {
+      eventsByDay[dateKey] = [];
     }
+    eventsByDay[dateKey].push(event);
+  }
 
-    // Return a stable lookup function that only accesses the specific date
-    return (day: Date) => {
-      const dateKey = format(day, "yyyy-MM-dd");
-      return map[dateKey] || [];
-    };
-  }, [calendarQuery.data, airingPreferences]);
+  const getEventsForDay = (day: Date) => {
+    const dateKey = format(day, "yyyy-MM-dd");
+    return eventsByDay[dateKey] || [];
+  };
 
   const handlePrevMonth = () => setCurrentDate((d) => subMonths(d, 1));
   const handleNextMonth = () => setCurrentDate((d) => addMonths(d, 1));
@@ -147,6 +133,10 @@ export function AnimeCalendar() {
                         !event.extended_props.downloaded &&
                         event.extended_props.airing_status === "aired";
                       const isUpcomingEvent = !event.extended_props.downloaded && !isMissingEvent;
+                      const airingTime = formatAiringTimeWithPreferences(
+                        event.start,
+                        airingPreferences,
+                      );
 
                       return (
                         <Link
@@ -183,19 +173,7 @@ export function AnimeCalendar() {
                               </div>
                               <span className="text-xs opacity-70 truncate block">
                                 <span>Ep {event.extended_props.episode_number}</span>
-                                {formatAiringTimeWithPreferences(
-                                  event.start,
-                                  airingPreferences,
-                                ) && (
-                                  <span>
-                                    {" "}
-                                    •{" "}
-                                    {formatAiringTimeWithPreferences(
-                                      event.start,
-                                      airingPreferences,
-                                    )}
-                                  </span>
-                                )}
+                                {airingTime && <span> • {airingTime}</span>}
                               </span>
                               {event.extended_props.episode_title && (
                                 <span className="text-xs opacity-70 truncate block">

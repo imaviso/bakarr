@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { Badge } from "~/components/ui/badge";
 import {
   MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS,
@@ -22,48 +21,25 @@ export function BackgroundMatchingCard(props: {
   queuedCount: number;
   totalCount: number;
 }) {
-  const progressCurrent = useMemo(() => {
-    const current = props.job?.progress_current;
-    if (typeof current === "number") {
-      return current;
-    }
+  const progressCurrentValue = props.job?.progress_current;
+  const progressTotalValue = props.job?.progress_total;
+  const progressCurrent =
+    typeof progressCurrentValue === "number" ? progressCurrentValue : props.matchedCount;
+  const progressTotal =
+    typeof progressTotalValue === "number" ? progressTotalValue : props.totalCount;
 
-    return props.matchedCount;
-  }, [props.job?.progress_current, props.matchedCount]);
+  const progressPercent = progressTotal
+    ? Math.min(100, Math.round((progressCurrent / progressTotal) * 100))
+    : 0;
 
-  const progressTotal = useMemo(() => {
-    const total = props.job?.progress_total;
-    if (typeof total === "number") {
-      return total;
-    }
-
-    return props.totalCount;
-  }, [props.job?.progress_total, props.totalCount]);
-
-  const progressPercent = useMemo(() => {
-    const total = progressTotal;
-    if (!total) {
-      return 0;
-    }
-
-    return Math.min(100, Math.round((progressCurrent / total) * 100));
-  }, [progressCurrent, progressTotal]);
-
-  const explanation = useMemo(() => {
-    if (props.matchingCount > 0) {
-      return "Bakarr is trying one folder at a time, then scoring AniList candidates from cleaned folder titles, known year hints, and library overlap signals.";
-    }
-
-    if (props.failedCount > 0) {
-      return "Failed folders usually need manual confirmation because title cleanup, sequel disambiguation, or existing-library conflicts kept the automatic score below the safe threshold.";
-    }
-
-    if (props.queuedCount > 0) {
-      return "Queued folders will be retried with the same explanation metadata you see per folder: normalized search queries, confidence, and match reason.";
-    }
-
-    return "Finished folders keep their explanation trail so you can see why a match was chosen before importing.";
-  }, [props.matchingCount, props.failedCount, props.queuedCount]);
+  const explanation =
+    props.matchingCount > 0
+      ? "Bakarr is trying one folder at a time, then scoring AniList candidates from cleaned folder titles, known year hints, and library overlap signals."
+      : props.failedCount > 0
+        ? "Failed folders usually need manual confirmation because title cleanup, sequel disambiguation, or existing-library conflicts kept the automatic score below the safe threshold."
+        : props.queuedCount > 0
+          ? "Queued folders will be retried with the same explanation metadata you see per folder: normalized search queries, confidence, and match reason."
+          : "Finished folders keep their explanation trail so you can see why a match was chosen before importing.";
 
   return (
     <div className="border border-border bg-background/80 p-4">
