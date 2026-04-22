@@ -8,7 +8,7 @@ framework bridges that keep old patterns alive.
 ## Repo Overview
 
 - `apps/api`: Bun API built with Effect, Drizzle, SQLite
-- `apps/web`: SolidJS app with TanStack Router/Query
+- `apps/web`: React app with TanStack Router/Query
 - `packages/shared`: shared API types
 
 ## Working Rules
@@ -16,7 +16,7 @@ framework bridges that keep old patterns alive.
 - App is created with single-user and local lan deployment in mind.
 - Strictly follow `apps/api/EFFECT_GUIDE.md`.
 - Use typescript-magician skill when encountering type-issues.
-- Use and strictly follow solidjs skill.
+- Use and strictly follow react skill.
 - Use shared contracts from `packages/shared` when touching API/UI boundaries
 
 ## Commands

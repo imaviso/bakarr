@@ -5,7 +5,7 @@ Anime library manager monorepo.
 ## Apps
 
 - `apps/api` - Bun + Effect
-- `apps/web` - SolidJS frontend
+- `apps/web` - React frontend
 - `packages/shared` - shared transport/types
 
 ## Workspace

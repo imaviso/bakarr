@@ -74,8 +74,8 @@ stdenvNoCC.mkDerivation (finalAttrs: {
 
     dontFixup = true;
 
-    outputHash = "sha256-MmkJYoyOcd1Pv4dYkd8Ri0fA3tts5gi29Jpqs8YZiYE=";
-    outputHashAlgo = "sha256";
+    outputHash = lib.fakeSha256;
+    outputHashAlgo = "sha256-sRPr2ra92dBh9YsKnZ1EqgVlf8+5DXTf+/3Q2HjIk5w=";
     outputHashMode = "recursive";
   };
 
