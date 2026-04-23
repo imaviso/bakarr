@@ -11,8 +11,8 @@ in {
 
     package = lib.mkOption {
       type = lib.types.package;
-      default = self.packages.${pkgs.system}.bakarr;
-      defaultText = lib.literalExpression "self.packages.${pkgs.system}.bakarr";
+      default = self.packages.${pkgs.stdenv.hostPlatform.system}.bakarr;
+      defaultText = lib.literalExpression "self.packages.${pkgs.stdenv.hostPlatform.system}.bakarr";
       description = "Bakarr package to run.";
     };
 

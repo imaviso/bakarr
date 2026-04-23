@@ -29,12 +29,12 @@
     apps = forEachSupportedSystem ({pkgs}: {
       default = {
         type = "app";
-        program = "${self.packages.${pkgs.system}.bakarr}/bin/bakarr-api";
+        program = "${self.packages.${pkgs.stdenv.hostPlatform.system}.bakarr}/bin/bakarr-api";
       };
 
       bakarr-api = {
         type = "app";
-        program = "${self.packages.${pkgs.system}.bakarr}/bin/bakarr-api";
+        program = "${self.packages.${pkgs.stdenv.hostPlatform.system}.bakarr}/bin/bakarr-api";
       };
     });
 
