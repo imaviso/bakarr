@@ -91,8 +91,7 @@ export function AnimeEpisodesPanel(props: AnimeEpisodesPanelProps) {
           </TabsContent>
 
           <TabsContent value="table">
-            <div
-              className="border rounded-none overflow-auto max-h-[600px]">
+            <div className="border rounded-none overflow-auto max-h-[600px]">
               <Table>
                 <TableHeader className="sticky top-0 bg-card z-10 border-b">
                   <TableRow>

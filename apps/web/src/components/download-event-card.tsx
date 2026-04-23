@@ -1,4 +1,5 @@
 import type { DownloadEvent } from "@bakarr/shared";
+import { Badge } from "~/components/ui/badge";
 import { getDownloadEventMetadataSummary } from "~/lib/download-event-metadata";
 
 interface DownloadEventCardProps {
@@ -42,9 +43,12 @@ export function DownloadEventCard(props: DownloadEventCardProps) {
         )}
         {props.event.download_id !== undefined && <span>Download #{props.event.download_id}</span>}
         {metadataSummary.coverage && (
-          <span className="inline-flex items-center rounded-none border h-5 px-1.5 text-xs">
+          <Badge
+            variant="outline"
+            className="inline-flex items-center rounded-none h-5 px-1.5 text-xs font-normal"
+          >
             {metadataSummary.coverage}
-          </span>
+          </Badge>
         )}
       </div>
       {(metadataSummary.source ||

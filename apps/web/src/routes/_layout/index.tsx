@@ -7,6 +7,7 @@ import { GeneralError } from "~/components/general-error";
 import { PageHeader } from "~/components/page-header";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
+import { Separator } from "~/components/ui/separator";
 import { type ActivityItem, activityQueryOptions, libraryStatsQueryOptions } from "~/lib/api";
 import { createDownloadsRouteSearch } from "~/lib/download-events-search";
 import { usePageTitle } from "~/lib/page-title";
@@ -54,7 +55,7 @@ function DashboardPage() {
           value={stats.missing_episodes}
           {...(stats.missing_episodes > 0 ? { tone: "warning" as const } : {})}
         />
-        <div className="h-6 w-px bg-border hidden sm:block" />
+        <Separator orientation="vertical" className="h-6 hidden sm:block" />
         <div className="flex items-center gap-3">
           <Link to="/rss">
             <Button variant="ghost" size="sm" className="text-xs">

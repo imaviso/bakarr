@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { WarningIcon, EyeIcon, TableIcon, BracketsCurlyIcon } from "@phosphor-icons/react";
+import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
 import {
   Dialog,
@@ -114,13 +115,13 @@ export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
               </Button>
             </div>
             {lastExportResult?.truncated && (
-              <div className="flex items-start gap-2 rounded-none border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-warning">
+              <Alert className="rounded-none bg-warning/10 border-warning/30 text-warning text-xs">
                 <WarningIcon className="h-4 w-4 shrink-0" />
-                <span>
+                <AlertDescription>
                   Last export was truncated: exported {lastExportResult?.exported} of{" "}
                   {lastExportResult?.total} events (limit {lastExportResult?.limit}).
-                </span>
-              </div>
+                </AlertDescription>
+              </Alert>
             )}
           </DialogHeader>
 

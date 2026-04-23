@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { TableCell, TableRow } from "~/components/ui/table";
 import { cn } from "~/lib/utils";
 
 interface EmptyStateProps {
@@ -42,11 +43,11 @@ export function EmptyState(props: EmptyStateProps) {
 
   if (props.asTableCell) {
     return (
-      <tr>
-        <td colSpan={props.colSpan} className="h-32 text-center p-0">
+      <TableRow>
+        <TableCell colSpan={props.colSpan} className="h-32 text-center p-0">
           {inner}
-        </td>
-      </tr>
+        </TableCell>
+      </TableRow>
     );
   }
 

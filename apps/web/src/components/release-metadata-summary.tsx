@@ -1,4 +1,5 @@
 import { ArrowSquareOutIcon } from "@phosphor-icons/react";
+import { Badge } from "~/components/ui/badge";
 import type { ReleaseFlag } from "~/lib/release-metadata";
 import { releaseFlagBadgeClass } from "~/lib/release-metadata";
 
@@ -16,12 +17,13 @@ export function ReleaseMetadataSummary(props: ReleaseMetadataSummaryProps) {
       {(props.flags?.length ?? 0) > 0 && (
         <div className="flex items-center gap-2 flex-wrap">
           {props.flags?.map((flag) => (
-            <span
+            <Badge
               key={`${flag.kind}-${flag.label}`}
-              className={`inline-flex items-center rounded-none border h-4 px-1 text-xs ${releaseFlagBadgeClass(flag.kind)}`}
+              variant="outline"
+              className={`inline-flex items-center rounded-none h-4 px-1 text-xs font-normal ${releaseFlagBadgeClass(flag.kind)}`}
             >
               {flag.label}
-            </span>
+            </Badge>
           ))}
         </div>
       )}

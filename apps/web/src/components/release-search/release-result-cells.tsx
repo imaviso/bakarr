@@ -40,7 +40,12 @@ export function ReleasePrimaryCell(props: ReleasePrimaryCellProps) {
       {props.useTooltip ? (
         <Tooltip>
           <TooltipTrigger>
-            <a href={props.sourceUrl} target="_blank" rel="noreferrer" className={titleClass}>
+            <a
+              href={props.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={titleClass}
+            >
               {props.title}
             </a>
           </TooltipTrigger>
@@ -49,7 +54,7 @@ export function ReleasePrimaryCell(props: ReleasePrimaryCellProps) {
           </TooltipContent>
         </Tooltip>
       ) : (
-        <a href={props.sourceUrl} target="_blank" rel="noreferrer" className={titleClass}>
+        <a href={props.sourceUrl} target="_blank" rel="noopener noreferrer" className={titleClass}>
           {props.title}
         </a>
       )}

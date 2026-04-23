@@ -1,8 +1,9 @@
 import { CaretLeftIcon, CaretRightIcon, InfoIcon } from "@phosphor-icons/react";
 import { useSuspenseInfiniteQuery } from "@tanstack/react-query";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { AnimeSearchResultCard } from "~/components/anime/anime-search-result-card";
+import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
 import { useContainerWidth } from "~/hooks/use-container-width";
 import type { AnimeSearchResult } from "~/lib/api";
@@ -46,11 +47,13 @@ export function SeasonalAnimeSection(props: SeasonalAnimeSectionProps) {
 
   const rowCount = Math.ceil(allResults.length / colCount);
 
+  const getScrollElement = useCallback(() => nodeRef.current, []);
+
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
     estimateSize: () => estimateRowSize,
     overscan: 4,
-    getScrollElement: () => nodeRef.current,
+    getScrollElement,
   });
 
   useEffect(() => {
@@ -135,13 +138,13 @@ export function SeasonalAnimeSection(props: SeasonalAnimeSectionProps) {
       </div>
 
       {isDegraded && (
-        <div className="flex items-start gap-2 rounded-none border border-border bg-muted px-3 py-2 text-xs text-muted-foreground">
+        <Alert className="rounded-none text-xs">
           <InfoIcon className="mt-0.5 h-4 w-4 shrink-0" />
-          <p>
+          <AlertDescription>
             AniList is temporarily unavailable or rate-limited. Showing Jikan fallback titles mapped
             to AniList IDs.
-          </p>
-        </div>
+          </AlertDescription>
+        </Alert>
       )}
 
       {allResults.length === 0 && (

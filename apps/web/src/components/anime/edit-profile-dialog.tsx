@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
+import { Label } from "~/components/ui/label";
 import type { QualityProfile, ReleaseProfile } from "~/lib/api";
 
 const EditProfileSchema = v.object({
@@ -98,9 +99,7 @@ function EditProfileDialogContent(props: EditProfileDialogProps) {
         <form.Field name="profile">
           {(field) => (
             <div className="space-y-2">
-              <label className="text-sm font-medium leading-none" htmlFor="profile-select">
-                Quality Profile
-              </label>
+              <Label htmlFor="profile-select">Quality Profile</Label>
               <Select
                 value={field.state.value}
                 onValueChange={(value) => {

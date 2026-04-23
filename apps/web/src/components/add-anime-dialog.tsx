@@ -9,6 +9,8 @@ import {
 import { useForm } from "@tanstack/react-form";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import * as v from "valibot";
+import { Alert, AlertDescription } from "~/components/ui/alert";
+import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import {
@@ -19,6 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "~/components/ui/dialog";
+import { Label } from "~/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -27,7 +30,6 @@ import {
   SelectValue,
 } from "~/components/ui/select";
 import { Input } from "~/components/ui/input";
-import { Label } from "~/components/ui/label";
 import {
   type AnimeSearchResult,
   createAddAnimeMutation,
@@ -98,27 +100,29 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
               {metadataChips.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {metadataChips.map((chip) => (
-                    <div
+                    <Badge
                       key={chip}
-                      className="inline-flex items-center gap-1 rounded-none border px-2 py-0.5 text-xs text-muted-foreground"
+                      variant="outline"
+                      className="inline-flex items-center gap-1 rounded-none font-normal text-muted-foreground"
                     >
                       {(chip.includes("/") || /^\d{4}$/.test(chip)) && (
                         <CalendarIcon className="h-3 w-3" />
                       )}
                       <span>{chip}</span>
-                    </div>
+                    </Badge>
                   ))}
                 </div>
               )}
               {props.anime.genres && props.anime.genres.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {props.anime.genres.slice(0, 3).map((genre) => (
-                    <div
+                    <Badge
                       key={genre}
-                      className="inline-flex items-center rounded-none border px-2 py-0.5 text-xs text-muted-foreground"
+                      variant="outline"
+                      className="rounded-none font-normal text-muted-foreground"
                     >
                       {genre}
-                    </div>
+                    </Badge>
                   ))}
                 </div>
               )}
@@ -130,9 +134,10 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
               {props.anime.related_anime && props.anime.related_anime.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {props.anime.related_anime.slice(0, 2).map((related) => (
-                    <div
+                    <Badge
                       key={discoveryPreviewKey(related, "related")}
-                      className="inline-flex items-center rounded-none border px-2 py-0.5 text-xs text-muted-foreground"
+                      variant="outline"
+                      className="rounded-none font-normal text-muted-foreground"
                     >
                       {[
                         animeDisplayTitle(related),
@@ -147,16 +152,17 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
                       ]
                         .filter(Boolean)
                         .join(" - ")}
-                    </div>
+                    </Badge>
                   ))}
                 </div>
               )}
               {props.anime.recommended_anime && props.anime.recommended_anime.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {props.anime.recommended_anime.slice(0, 2).map((recommended) => (
-                    <div
+                    <Badge
                       key={discoveryPreviewKey(recommended, "recommended")}
-                      className="inline-flex items-center rounded-none border px-2 py-0.5 text-xs text-muted-foreground"
+                      variant="outline"
+                      className="rounded-none font-normal text-muted-foreground"
                     >
                       {[
                         animeDisplayTitle(recommended),
@@ -171,7 +177,7 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
                       ]
                         .filter(Boolean)
                         .join(" - ")}
-                    </div>
+                    </Badge>
                   ))}
                 </div>
               )}
@@ -338,36 +344,36 @@ function AddAnimeForm(props: AddAnimeFormProps) {
       <div className="flex items-center gap-6">
         <form.Field name="monitor">
           {(field) => (
-            <label htmlFor="monitor-checkbox" className="flex items-center gap-2 cursor-pointer">
+            <Label htmlFor="monitor-checkbox" className="flex items-center gap-2 cursor-pointer">
               <Checkbox
                 id="monitor-checkbox"
                 checked={field.state.value}
                 onCheckedChange={field.handleChange}
               />
               <span className="text-sm">Monitor for new episodes</span>
-            </label>
+            </Label>
           )}
         </form.Field>
 
         <form.Field name="search_now">
           {(field) => (
-            <label htmlFor="search-now-checkbox" className="flex items-center gap-2 cursor-pointer">
+            <Label htmlFor="search-now-checkbox" className="flex items-center gap-2 cursor-pointer">
               <Checkbox
                 id="search-now-checkbox"
                 checked={field.state.value}
                 onCheckedChange={field.handleChange}
               />
               <span className="text-sm">Search for episodes now</span>
-            </label>
+            </Label>
           )}
         </form.Field>
       </div>
 
       {props.anime.already_in_library && (
-        <div className="flex items-center gap-2 p-3 bg-warning/10 border border-warning/30 rounded-none text-warning">
+        <Alert className="bg-warning/10 border-warning/30 text-warning">
           <CheckIcon className="h-4 w-4" />
-          <span className="text-sm">This anime is already in your library</span>
-        </div>
+          <AlertDescription>This anime is already in your library</AlertDescription>
+        </Alert>
       )}
 
       <DialogFooter>

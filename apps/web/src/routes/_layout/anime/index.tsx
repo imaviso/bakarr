@@ -24,6 +24,7 @@ import {
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
 import { Input } from "~/components/ui/input";
+import { Separator } from "~/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
 import {
   animeListQueryOptions,
@@ -185,7 +186,7 @@ function AnimeIndexPage() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <div className="h-6 w-px bg-border" />
+          <Separator orientation="vertical" className="h-6" />
 
           <Tooltip>
             <TooltipTrigger>
@@ -213,7 +214,7 @@ function AnimeIndexPage() {
             <TooltipContent>Scan library</TooltipContent>
           </Tooltip>
 
-          <div className="h-6 w-px bg-border" />
+          <Separator orientation="vertical" className="h-6" />
 
           <div className="flex items-center gap-1 bg-muted p-1">
             <Tooltip>

@@ -1,6 +1,7 @@
 import { PencilSimpleIcon } from "@phosphor-icons/react";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
+import { Separator } from "~/components/ui/separator";
 import { formatDate } from "~/lib/date-time";
 
 interface AnimeDetailsMetaProps {
@@ -40,7 +41,7 @@ export function AnimeDetailsMeta(props: AnimeDetailsMetaProps) {
         <StatItem label="Total" value={props.totalEpisodes} />
         <StatItem label="Downloaded" value={props.downloadedEpisodes} tone="success" />
         <StatItem label="Missing" value={props.missingEpisodes} tone="warning" />
-        <div className="h-6 w-px bg-border hidden sm:block" />
+        <Separator orientation="vertical" className="h-6 hidden sm:block" />
         <Button
           variant="ghost"
           onClick={props.onEditProfile}

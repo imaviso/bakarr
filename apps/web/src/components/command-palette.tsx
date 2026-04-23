@@ -23,6 +23,7 @@ import {
   CommandSeparator,
 } from "~/components/ui/command";
 
+import { Kbd } from "~/components/ui/kbd";
 import { createAnimeListQuery } from "~/lib/api";
 import { animeSearchSubtitle } from "~/lib/anime-metadata";
 import { cn } from "~/lib/utils";
@@ -166,9 +167,9 @@ export function CommandPalette() {
       >
         <MagnifyingGlassIcon className="h-4 w-4 shrink-0" />
         <span className="truncate group-data-[collapsible=icon]:hidden">Search...</span>
-        <kbd className="pointer-events-none ml-auto inline-flex h-5 select-none items-center gap-1 rounded-none border bg-muted px-1.5 font-mono text-xs font-medium text-muted-foreground group-data-[collapsible=icon]:hidden">
+        <Kbd className="ml-auto group-data-[collapsible=icon]:hidden">
           <CommandIcon className="h-2.5 w-2.5" />K
-        </kbd>
+        </Kbd>
       </button>
 
       <CommandDialog open={open} onOpenChange={setOpen}>

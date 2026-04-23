@@ -1,6 +1,6 @@
 import { useForm } from "@tanstack/react-form";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+
 import { toast } from "sonner";
 import * as v from "valibot";
 import { Button } from "~/components/ui/button";
@@ -43,7 +43,12 @@ const LoginSchema = v.object({
   password: v.pipe(v.string(), v.minLength(1, "Password is required")),
 });
 
+const ApiKeySchema = v.object({
+  apiKey: v.pipe(v.string(), v.minLength(1, "API key is required")),
+});
+
 type LoginFormData = v.InferOutput<typeof LoginSchema>;
+type ApiKeyFormData = v.InferOutput<typeof ApiKeySchema>;
 
 function formatFieldErrors(errors: readonly unknown[]) {
   return errors
@@ -63,7 +68,6 @@ function LoginPage() {
   const search = Route.useSearch();
   const loginMutation = createLoginMutation();
   const apiKeyLoginMutation = createApiKeyLoginMutation();
-  const [apiKey, setApiKey] = useState("");
 
   const goToPostLogin = () => {
     const redirect = sanitizeRedirect(search.redirect);
@@ -91,6 +95,29 @@ function LoginPage() {
         goToPostLogin();
       } catch (err) {
         const message = err instanceof Error ? err.message : "Login failed";
+        toast.error(message);
+      }
+    },
+  });
+
+  const apiKeyForm = useForm({
+    defaultValues: {
+      apiKey: "",
+    } as ApiKeyFormData,
+    onSubmit: async ({ value }) => {
+      try {
+        const data = await apiKeyLoginMutation.mutateAsync({
+          api_key: value.apiKey.trim(),
+        });
+        syncAuthenticatedUser(data.username);
+        if (data.must_change_password) {
+          toast.info("Please change your password before continuing.");
+          void navigate({ to: "/settings", search: { tab: "general" } });
+          return;
+        }
+        goToPostLogin();
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "API key login failed";
         toast.error(message);
       }
     },
@@ -180,43 +207,55 @@ function LoginPage() {
             </form.Subscribe>
           </CardFooter>
         </form>
-        <div className="px-6 pb-6 pt-1 space-y-2">
-          <Label htmlFor="api-key">Or sign in with API key</Label>
-          <Input
-            id="api-key"
-            type="password"
-            value={apiKey}
-            onInput={(e) => setApiKey(e.currentTarget.value)}
-            placeholder="Paste API key"
-            autoComplete="off"
-          />
-          <Button
-            type="button"
-            variant="secondary"
-            className="w-full"
-            disabled={!apiKey.trim() || apiKeyLoginMutation.isPending}
-            onClick={async () => {
-              try {
-                const enteredApiKey = apiKey.trim();
-                const data = await apiKeyLoginMutation.mutateAsync({
-                  api_key: enteredApiKey,
-                });
-                syncAuthenticatedUser(data.username);
-                if (data.must_change_password) {
-                  toast.info("Please change your password before continuing.");
-                  void navigate({ to: "/settings", search: { tab: "general" } });
-                  return;
-                }
-                goToPostLogin();
-              } catch (err) {
-                const message = err instanceof Error ? err.message : "API key login failed";
-                toast.error(message);
-              }
-            }}
-          >
-            {apiKeyLoginMutation.isPending ? "Signing in..." : "Sign in with API key"}
-          </Button>
-        </div>
+        <form action={() => apiKeyForm.handleSubmit()}>
+          <div className="px-6 pb-6 pt-1 space-y-2">
+            <apiKeyForm.Field
+              name="apiKey"
+              validators={{
+                onChange: ApiKeySchema.entries.apiKey,
+              }}
+            >
+              {(field) => (
+                <div className="space-y-2">
+                  <Label htmlFor="api-key">Or sign in with API key</Label>
+                  <Input
+                    id="api-key"
+                    type="password"
+                    value={field.state.value}
+                    onInput={(e) => field.handleChange(e.currentTarget.value)}
+                    onBlur={field.handleBlur}
+                    placeholder="Paste API key"
+                    autoComplete="off"
+                  />
+                  {field.state.meta.errors.length > 0 && (
+                    <p className="text-xs text-destructive">
+                      {formatFieldErrors(field.state.meta.errors)}
+                    </p>
+                  )}
+                </div>
+              )}
+            </apiKeyForm.Field>
+            <apiKeyForm.Subscribe
+              selector={(state) => ({
+                isSubmitting: state.isSubmitting,
+                canSubmit: state.canSubmit,
+              })}
+            >
+              {(state) => (
+                <Button
+                  type="submit"
+                  variant="secondary"
+                  className="w-full"
+                  disabled={!state.canSubmit || apiKeyLoginMutation.isPending}
+                >
+                  {state.isSubmitting || apiKeyLoginMutation.isPending
+                    ? "Signing in..."
+                    : "Sign in with API key"}
+                </Button>
+              )}
+            </apiKeyForm.Subscribe>
+          </div>
+        </form>
       </Card>
     </div>
   );

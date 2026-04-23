@@ -1,8 +1,15 @@
 import { WarningCircleIcon, ArrowLeftIcon } from "@phosphor-icons/react";
+import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Button } from "~/components/ui/button";
 
-export function GeneralError() {
+interface GeneralErrorProps {
+  error?: Error;
+}
+
+export function GeneralError(props: GeneralErrorProps) {
+  const [showDetails, setShowDetails] = useState(false);
+
   return (
     <div className="flex flex-1 flex-col items-center justify-center min-h-[400px] bg-background">
       <div className="flex flex-col items-center text-center space-y-8 px-4">
@@ -17,6 +24,27 @@ export function GeneralError() {
             later.
           </p>
         </div>
+
+        {props.error && (
+          <div className="w-full max-w-[500px]">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowDetails(!showDetails)}
+              className="text-xs text-muted-foreground"
+            >
+              {showDetails ? "Hide details" : "Show details"}
+            </Button>
+            {showDetails && (
+              <div className="mt-2 text-left">
+                <pre className="text-xs bg-muted p-3 rounded-none overflow-auto max-h-[200px] whitespace-pre-wrap break-all text-muted-foreground font-mono">
+                  {props.error.message}
+                  {props.error.stack && `\n\n${props.error.stack}`}
+                </pre>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="flex items-center gap-4">
           <Button variant="outline" className="group" onClick={() => globalThis.location.reload()}>

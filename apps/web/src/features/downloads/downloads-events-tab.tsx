@@ -1,5 +1,6 @@
 import { DownloadEventsFeed } from "~/components/download-events/download-events-feed";
 import { DownloadEventsFilters } from "~/components/download-events/download-events-filters";
+import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
 import { TabsContent } from "~/components/ui/tabs";
 import type {
@@ -35,11 +36,13 @@ export function DownloadsEventsTab(props: DownloadsEventsTabProps) {
         />
       </div>
       {props.lastDownloadEventsExport?.truncated && (
-        <div className="mx-4 mt-4 rounded-none border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-warning">
-          Last export was truncated: exported
-          {props.lastDownloadEventsExport?.exported} of
-          {props.lastDownloadEventsExport?.total} events ( {props.lastDownloadEventsExport?.limit}).
-        </div>
+        <Alert className="mx-4 mt-4 rounded-none bg-warning/10 border-warning/30 text-warning text-xs">
+          <AlertDescription>
+            Last export was truncated: exported {props.lastDownloadEventsExport?.exported} of{" "}
+            {props.lastDownloadEventsExport?.total} events ({props.lastDownloadEventsExport?.limit}
+            ).
+          </AlertDescription>
+        </Alert>
       )}
       <div className="flex-1 min-h-0 overflow-hidden p-4 space-y-3">
         <DownloadEventsFeed

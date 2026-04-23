@@ -2,12 +2,21 @@ import { WarningIcon, TelevisionIcon, InfoIcon, MagnifyingGlassIcon } from "@pho
 import { createFileRoute } from "@tanstack/react-router";
 import { useNavigate } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { Suspense, lazy, useDeferredValue, useEffect, useRef, useTransition } from "react";
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useRef,
+  useTransition,
+} from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useContainerWidth } from "~/hooks/use-container-width";
 import * as v from "valibot";
 import { GeneralError } from "~/components/general-error";
 import { PageHeader } from "~/components/page-header";
+import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { Input } from "~/components/ui/input";
@@ -270,11 +279,13 @@ function SearchResults(props: SearchResultsProps) {
   const estimateRowSize = Math.round(colW * 1.5 + 68 + 16);
   const rowCount = Math.ceil(props.searchResults.length / colCount);
 
+  const getScrollElement = useCallback(() => nodeRef.current, []);
+
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
     estimateSize: () => estimateRowSize,
     overscan: 4,
-    getScrollElement: () => nodeRef.current,
+    getScrollElement,
   });
 
   useEffect(() => {
@@ -306,12 +317,12 @@ function SearchResults(props: SearchResultsProps) {
   return (
     <div className="flex flex-1 min-h-0 overflow-hidden flex-col gap-4">
       {props.canSearch && props.searchDegraded && (
-        <div className="flex items-start gap-2 rounded-none border border-border bg-muted px-3 py-2 text-xs text-muted-foreground">
+        <Alert className="rounded-none text-xs">
           <InfoIcon className="mt-0.5 h-4 w-4 shrink-0" />
-          <p>
+          <AlertDescription>
             AniList is temporarily unavailable or rate-limited. Showing local library matches only.
-          </p>
-        </div>
+          </AlertDescription>
+        </Alert>
       )}
 
       {!props.canSearch && (
