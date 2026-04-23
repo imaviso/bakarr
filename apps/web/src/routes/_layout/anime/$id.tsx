@@ -2,6 +2,11 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Suspense, lazy } from "react";
 import * as v from "valibot";
+import { AnimeDetailsHeader } from "~/components/anime/anime-details-header";
+import { AnimeDetailsMeta } from "~/components/anime/anime-details-meta";
+import { AnimeDetailsSidebar } from "~/components/anime/anime-details-sidebar";
+import { AnimeEpisodesPanel } from "~/components/anime/anime-episodes-panel";
+import { AnimeDiscoverySection } from "~/components/anime-discovery";
 import { AnimeError } from "~/components/anime-error";
 import { useAnimeDetailsActions } from "~/hooks/use-anime-details-actions";
 import { useAnimeDetailsDialogState } from "~/hooks/use-anime-details-dialog-state";
@@ -21,31 +26,6 @@ import { isAired } from "~/lib/date-time";
 const AnimeDetailsDialogsLazy = lazy(() =>
   import("~/components/anime/anime-details-dialogs").then((module) => ({
     default: module.AnimeDetailsDialogs,
-  })),
-);
-const AnimeDetailsHeaderLazy = lazy(() =>
-  import("~/components/anime/anime-details-header").then((module) => ({
-    default: module.AnimeDetailsHeader,
-  })),
-);
-const AnimeDetailsMetaLazy = lazy(() =>
-  import("~/components/anime/anime-details-meta").then((module) => ({
-    default: module.AnimeDetailsMeta,
-  })),
-);
-const AnimeDetailsSidebarLazy = lazy(() =>
-  import("~/components/anime/anime-details-sidebar").then((module) => ({
-    default: module.AnimeDetailsSidebar,
-  })),
-);
-const AnimeEpisodesPanelLazy = lazy(() =>
-  import("~/components/anime/anime-episodes-panel").then((module) => ({
-    default: module.AnimeEpisodesPanel,
-  })),
-);
-const AnimeDiscoverySectionLazy = lazy(() =>
-  import("~/components/anime-discovery").then((module) => ({
-    default: module.AnimeDiscoverySection,
   })),
 );
 
@@ -104,47 +84,35 @@ function AnimeDetailsPage() {
 
   return (
     <div className="space-y-6">
-      <Suspense
-        fallback={<div className="text-sm text-muted-foreground">Loading anime details...</div>}
-      >
-        <AnimeDetailsHeaderLazy
-          anime={anime}
-          animeId={animeId}
-          isMonitored={isMonitored}
-          missingCount={missingCount}
-          isRefreshPending={actions.isRefreshPending}
-          isScanFolderPending={actions.isScanFolderPending || isScanTaskRunning}
-          isSearchMissingPending={actions.isSearchMissingPending}
-          isToggleMonitorPending={actions.isToggleMonitorPending}
-          onToggleMonitor={() => actions.handleToggleMonitor(isMonitored)}
-          onRefreshEpisodes={actions.handleRefreshEpisodes}
-          onSearchMissing={actions.handleSearchMissing}
-          onScanFolder={actions.handleScanFolder}
-          onRenameFiles={() => dialogState.setRenameDialogOpen(true)}
-          onOpenBulkMapping={() => dialogState.setBulkMappingOpen(true)}
-          onDeleteAnime={() => {
-            actions.handleDeleteAnime(
-              () =>
-                void navigate({
-                  to: "/anime",
-                  search: { q: "", filter: "all", view: "grid" },
-                }),
-            );
-          }}
-        />
-      </Suspense>
+      <AnimeDetailsHeader
+        anime={anime}
+        animeId={animeId}
+        isMonitored={isMonitored}
+        missingCount={missingCount}
+        isRefreshPending={actions.isRefreshPending}
+        isScanFolderPending={actions.isScanFolderPending || isScanTaskRunning}
+        isSearchMissingPending={actions.isSearchMissingPending}
+        isToggleMonitorPending={actions.isToggleMonitorPending}
+        onToggleMonitor={() => actions.handleToggleMonitor(isMonitored)}
+        onRefreshEpisodes={actions.handleRefreshEpisodes}
+        onSearchMissing={actions.handleSearchMissing}
+        onScanFolder={actions.handleScanFolder}
+        onRenameFiles={() => dialogState.setRenameDialogOpen(true)}
+        onOpenBulkMapping={() => dialogState.setBulkMappingOpen(true)}
+        onDeleteAnime={() => {
+          actions.handleDeleteAnime(
+            () =>
+              void navigate({
+                to: "/anime",
+                search: { q: "", filter: "all", view: "grid" },
+              }),
+          );
+        }}
+      />
 
       {/* Content */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <Suspense
-          fallback={
-            <div className="rounded-none border border-border p-4 text-sm text-muted-foreground">
-              Loading sidebar...
-            </div>
-          }
-        >
-          <AnimeDetailsSidebarLazy anime={anime} />
-        </Suspense>
+        <AnimeDetailsSidebar anime={anime} />
 
         {/* Details */}
         <div className="lg:col-span-3 space-y-6">
@@ -174,36 +142,28 @@ function AnimeDetailsPage() {
             </Card>
           )}
 
-          <Suspense
-            fallback={
-              <div className="rounded-none border border-border p-4 text-sm text-muted-foreground">
-                Loading episode panels...
-              </div>
-            }
-          >
-            <AnimeDetailsMetaLazy
-              totalEpisodes={totalEpisodes}
-              downloadedEpisodes={availableCount}
-              missingEpisodes={missingCount}
-              profileName={anime.profile_name}
-              rootFolder={anime.root_folder}
-              addedAt={anime.added_at}
-              onEditProfile={() => dialogState.setEditProfileOpen(true)}
-              onEditPath={() => dialogState.setEditPathOpen(true)}
-            />
+          <AnimeDetailsMeta
+            totalEpisodes={totalEpisodes}
+            downloadedEpisodes={availableCount}
+            missingEpisodes={missingCount}
+            profileName={anime.profile_name}
+            rootFolder={anime.root_folder}
+            addedAt={anime.added_at}
+            onEditProfile={() => dialogState.setEditProfileOpen(true)}
+            onEditPath={() => dialogState.setEditPathOpen(true)}
+          />
 
-            <AnimeEpisodesPanelLazy
-              episodes={episodesData}
-              onRefreshMetadata={actions.handleRefreshEpisodes}
-              onOpenSearchModal={dialogState.setSearchModalState}
-              onOpenMappingDialog={dialogState.setMappingDialogState}
-              onOpenDeleteDialog={dialogState.setDeleteEpisodeState}
-              onPlayInMpv={actions.handlePlayInMpv}
-              onCopyStreamLink={actions.handleCopyStreamLink}
-            />
+          <AnimeEpisodesPanel
+            episodes={episodesData}
+            onRefreshMetadata={actions.handleRefreshEpisodes}
+            onOpenSearchModal={dialogState.setSearchModalState}
+            onOpenMappingDialog={dialogState.setMappingDialogState}
+            onOpenDeleteDialog={dialogState.setDeleteEpisodeState}
+            onPlayInMpv={actions.handlePlayInMpv}
+            onCopyStreamLink={actions.handleCopyStreamLink}
+          />
 
-            <AnimeDiscoverySectionLazy anime={anime} libraryIds={libraryIds} />
-          </Suspense>
+          <AnimeDiscoverySection anime={anime} libraryIds={libraryIds} />
         </div>
       </div>
 

@@ -1,5 +1,4 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Suspense, lazy } from "react";
 import { GeneralError } from "~/components/general-error";
 import {
   normalizeDownloadsSearch,
@@ -7,14 +6,9 @@ import {
   type DownloadsSearchPatch,
 } from "~/features/downloads/downloads-search";
 import { useDownloadsRouteState } from "~/features/downloads/downloads-route-state";
+import { DownloadsView } from "~/features/downloads/downloads-view";
 import { downloadHistoryQueryOptions } from "~/lib/api";
 import { usePageTitle } from "~/lib/page-title";
-
-const DownloadsViewLazy = lazy(() =>
-  import("~/features/downloads/downloads-view").then((module) => ({
-    default: module.DownloadsView,
-  })),
-);
 
 export const Route = createFileRoute("/_layout/downloads")({
   validateSearch: parseDownloadsSearch,
@@ -46,9 +40,5 @@ function DownloadsPage() {
     updateSearch,
   });
 
-  return (
-    <Suspense fallback={<div className="text-sm text-muted-foreground">Loading downloads...</div>}>
-      <DownloadsViewLazy searchTab={search.tab ?? "queue"} state={state} />
-    </Suspense>
-  );
+  return <DownloadsView searchTab={search.tab ?? "queue"} state={state} />;
 }

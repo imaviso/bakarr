@@ -8,6 +8,10 @@ import {
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Suspense, lazy } from "react";
 import * as v from "valibot";
+import { AccountSettingsForm } from "~/components/settings/account-settings-form";
+import { QualityProfilesTab } from "~/components/settings/quality-profiles-tab";
+import { ReleaseProfilesTab } from "~/components/settings/release-profiles-tab";
+import { GeneralSettingsForm } from "~/components/settings/system-settings-form";
 import { GeneralError } from "~/components/general-error";
 import { PageHeader } from "~/components/page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
@@ -19,26 +23,6 @@ import {
 } from "~/lib/api";
 import { usePageTitle } from "~/lib/page-title";
 
-const AccountSettingsFormLazy = lazy(() =>
-  import("~/components/settings/account-settings-form").then((module) => ({
-    default: module.AccountSettingsForm,
-  })),
-);
-const QualityProfilesTabLazy = lazy(() =>
-  import("~/components/settings/quality-profiles-tab").then((module) => ({
-    default: module.QualityProfilesTab,
-  })),
-);
-const ReleaseProfilesTabLazy = lazy(() =>
-  import("~/components/settings/release-profiles-tab").then((module) => ({
-    default: module.ReleaseProfilesTab,
-  })),
-);
-const GeneralSettingsFormLazy = lazy(() =>
-  import("~/components/settings/system-settings-form").then((module) => ({
-    default: module.GeneralSettingsForm,
-  })),
-);
 const SystemStatusLazy = lazy(() =>
   import("~/components/system-status").then((module) => ({
     default: module.SystemStatus,
@@ -140,11 +124,7 @@ function SettingsPage() {
               Core application, library, and naming settings
             </p>
           </div>
-          <Suspense
-            fallback={<div className="text-sm text-muted-foreground">Loading settings...</div>}
-          >
-            <GeneralSettingsFormLazy mode="general" />
-          </Suspense>
+          <GeneralSettingsForm mode="general" />
         </TabsContent>
 
         <TabsContent value="automation" className="mt-0">
@@ -154,27 +134,15 @@ function SettingsPage() {
               Search, qBittorrent, scheduling, and app-wide release defaults
             </p>
           </div>
-          <Suspense
-            fallback={<div className="text-sm text-muted-foreground">Loading settings...</div>}
-          >
-            <GeneralSettingsFormLazy mode="automation" />
-          </Suspense>
+          <GeneralSettingsForm mode="automation" />
         </TabsContent>
 
         <TabsContent value="profiles" className="mt-0">
-          <Suspense
-            fallback={<div className="text-sm text-muted-foreground">Loading profiles...</div>}
-          >
-            <QualityProfilesTabLazy />
-          </Suspense>
+          <QualityProfilesTab />
         </TabsContent>
 
         <TabsContent value="release-profiles" className="mt-0">
-          <Suspense
-            fallback={<div className="text-sm text-muted-foreground">Loading profiles...</div>}
-          >
-            <ReleaseProfilesTabLazy />
-          </Suspense>
+          <ReleaseProfilesTab />
         </TabsContent>
 
         <TabsContent value="account" className="mt-0">
@@ -184,11 +152,7 @@ function SettingsPage() {
               Manage your password, API access, and notification preferences
             </p>
           </div>
-          <Suspense
-            fallback={<div className="text-sm text-muted-foreground">Loading account...</div>}
-          >
-            <AccountSettingsFormLazy />
-          </Suspense>
+          <AccountSettingsForm />
         </TabsContent>
       </Tabs>
     </div>

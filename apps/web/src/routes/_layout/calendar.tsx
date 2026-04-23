@@ -1,41 +1,14 @@
-import { SpinnerIcon } from "@phosphor-icons/react";
 import { createFileRoute } from "@tanstack/react-router";
-import { addMonths, endOfMonth, endOfWeek, startOfMonth, startOfWeek, subMonths } from "date-fns";
-import { Suspense } from "react";
 import { AnimeCalendar } from "~/components/anime-calendar";
 import { GeneralError } from "~/components/general-error";
-import { calendarQueryOptions, systemConfigQueryOptions } from "~/lib/api";
 import { usePageTitle } from "~/lib/page-title";
 
 export const Route = createFileRoute("/_layout/calendar")({
-  loader: async ({ context: { queryClient } }) => {
-    const now = new Date();
-    const fetchStart = subMonths(startOfWeek(startOfMonth(now)), 1);
-    const fetchEnd = addMonths(endOfWeek(endOfMonth(now)), 1);
-    await Promise.all([
-      queryClient.ensureQueryData(calendarQueryOptions(fetchStart, fetchEnd)),
-      queryClient.ensureQueryData(systemConfigQueryOptions()),
-    ]);
-  },
   component: CalendarPage,
   errorComponent: GeneralError,
 });
 
 function CalendarPage() {
   usePageTitle("Calendar");
-  return (
-    <Suspense
-      fallback={
-        <div
-          className="flex h-[400px] items-center justify-center"
-          role="status"
-          aria-label="Loading calendar"
-        >
-          <SpinnerIcon className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      }
-    >
-      <AnimeCalendar />
-    </Suspense>
-  );
+  return <AnimeCalendar />;
 }

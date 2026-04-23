@@ -1,5 +1,4 @@
 import { CaretLeftIcon, CaretRightIcon, CheckIcon, CircleIcon } from "@phosphor-icons/react";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {
   addMonths,
@@ -16,7 +15,8 @@ import {
 import { useState } from "react";
 import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
-import { calendarQueryOptions, systemConfigQueryOptions } from "~/lib/api";
+import { Skeleton } from "~/components/ui/skeleton";
+import { createCalendarQuery, createSystemConfigQuery } from "~/lib/api";
 import {
   formatAiringTimeWithPreferences,
   getAiringDisplayDateKey,
@@ -30,9 +30,14 @@ export function AnimeCalendar() {
   const fetchStart = subMonths(startOfWeek(startOfMonth(currentDate)), 1);
   const fetchEnd = addMonths(endOfWeek(endOfMonth(currentDate)), 1);
 
-  const { data: events } = useSuspenseQuery(calendarQueryOptions(fetchStart, fetchEnd));
-  const { data: config } = useSuspenseQuery(systemConfigQueryOptions());
-  const airingPreferences = getAiringDisplayPreferences(config.library);
+  const calendarQuery = createCalendarQuery(fetchStart, fetchEnd);
+  const configQuery = createSystemConfigQuery();
+  const isLoading =
+    calendarQuery.isPending || calendarQuery.isPlaceholderData || configQuery.isPending;
+
+  const events = calendarQuery.data ?? [];
+  const config = configQuery.data;
+  const airingPreferences = config ? getAiringDisplayPreferences(config.library) : undefined;
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(monthStart);
@@ -43,15 +48,18 @@ export function AnimeCalendar() {
   const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   const eventsByDay: Record<string, typeof events> = {};
-  for (const event of events) {
-    const dateKey = getAiringDisplayDateKey(event.start, airingPreferences);
-    if (!eventsByDay[dateKey]) {
-      eventsByDay[dateKey] = [];
+  if (airingPreferences) {
+    for (const event of events) {
+      const dateKey = getAiringDisplayDateKey(event.start, airingPreferences);
+      if (!eventsByDay[dateKey]) {
+        eventsByDay[dateKey] = [];
+      }
+      eventsByDay[dateKey].push(event);
     }
-    eventsByDay[dateKey].push(event);
   }
 
   const getEventsForDay = (day: Date) => {
+    if (!airingPreferences) return [];
     const dateKey = getAiringDisplayDateKey(
       format(day, "yyyy-MM-dd") + "T12:00:00",
       airingPreferences,
@@ -131,67 +139,77 @@ export function AnimeCalendar() {
 
                   {/* Events */}
                   <div className="space-y-1">
-                    {dayEvents.slice(0, 3).map((event) => {
-                      const isMissingEvent =
-                        !event.extended_props.downloaded &&
-                        event.extended_props.airing_status === "aired";
-                      const isUpcomingEvent = !event.extended_props.downloaded && !isMissingEvent;
-                      const airingTime = formatAiringTimeWithPreferences(
-                        event.start,
-                        airingPreferences,
-                      );
+                    {isLoading ? (
+                      <>
+                        <Skeleton className="h-5 w-full" />
+                        <Skeleton className="h-5 w-4/5" />
+                      </>
+                    ) : (
+                      <>
+                        {dayEvents.slice(0, 3).map((event) => {
+                          const isMissingEvent =
+                            !event.extended_props.downloaded &&
+                            event.extended_props.airing_status === "aired";
+                          const isUpcomingEvent =
+                            !event.extended_props.downloaded && !isMissingEvent;
+                          const airingTime = formatAiringTimeWithPreferences(
+                            event.start,
+                            airingPreferences,
+                          );
 
-                      return (
-                        <Link
-                          key={`${event.extended_props.anime_id}-${event.extended_props.episode_number}-${event.start}`}
-                          to="/anime/$id"
-                          params={{
-                            id: event.extended_props.anime_id.toString(),
-                          }}
-                          className="block group"
-                        >
-                          <div
-                            className={cn(
-                              "flex items-center gap-1.5 rounded-none px-1.5 py-1 text-xs transition-colors",
-                              "hover:bg-accent/80 cursor-pointer",
-                              event.extended_props.downloaded
-                                ? "bg-success/10 text-success"
-                                : isMissingEvent
-                                  ? "bg-warning/10 text-warning"
-                                  : isUpcomingEvent
-                                    ? "bg-info/10 text-info"
-                                    : "bg-muted text-muted-foreground",
-                            )}
-                          >
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1">
-                                {event.extended_props.downloaded ? (
-                                  <CheckIcon className="h-3 w-3 flex-shrink-0" />
-                                ) : (
-                                  <CircleIcon className="h-3 w-3 flex-shrink-0" />
+                          return (
+                            <Link
+                              key={`${event.extended_props.anime_id}-${event.extended_props.episode_number}-${event.start}`}
+                              to="/anime/$id"
+                              params={{
+                                id: event.extended_props.anime_id.toString(),
+                              }}
+                              className="block group"
+                            >
+                              <div
+                                className={cn(
+                                  "flex items-center gap-1.5 rounded-none px-1.5 py-1 text-xs transition-colors",
+                                  "hover:bg-accent/80 cursor-pointer",
+                                  event.extended_props.downloaded
+                                    ? "bg-success/10 text-success"
+                                    : isMissingEvent
+                                      ? "bg-warning/10 text-warning"
+                                      : isUpcomingEvent
+                                        ? "bg-info/10 text-info"
+                                        : "bg-muted text-muted-foreground",
                                 )}
-                                <span className="truncate font-medium">
-                                  {event.extended_props.anime_title}
-                                </span>
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1">
+                                    {event.extended_props.downloaded ? (
+                                      <CheckIcon className="h-3 w-3 flex-shrink-0" />
+                                    ) : (
+                                      <CircleIcon className="h-3 w-3 flex-shrink-0" />
+                                    )}
+                                    <span className="truncate font-medium">
+                                      {event.extended_props.anime_title}
+                                    </span>
+                                  </div>
+                                  <span className="text-xs opacity-70 truncate block">
+                                    <span>Ep {event.extended_props.episode_number}</span>
+                                    {airingTime && <span> • {airingTime}</span>}
+                                  </span>
+                                  {event.extended_props.episode_title && (
+                                    <span className="text-xs opacity-70 truncate block">
+                                      {event.extended_props.episode_title}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
-                              <span className="text-xs opacity-70 truncate block">
-                                <span>Ep {event.extended_props.episode_number}</span>
-                                {airingTime && <span> • {airingTime}</span>}
-                              </span>
-                              {event.extended_props.episode_title && (
-                                <span className="text-xs opacity-70 truncate block">
-                                  {event.extended_props.episode_title}
-                                </span>
-                              )}
-                            </div>
+                            </Link>
+                          );
+                        })}
+                        {dayEvents.length > 3 && (
+                          <div className="text-xs text-muted-foreground px-1.5">
+                            +{dayEvents.length - 3} more
                           </div>
-                        </Link>
-                      );
-                    })}
-                    {dayEvents.length > 3 && (
-                      <div className="text-xs text-muted-foreground px-1.5">
-                        +{dayEvents.length - 3} more
-                      </div>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
