@@ -11,7 +11,6 @@ import type {
 } from "~/components/anime/anime-details-types";
 import type { Episode } from "~/lib/api";
 import { isAired } from "~/lib/date-time";
-import { TABLE_MAX_HEIGHT } from "~/lib/ui-constants";
 import { cn } from "~/lib/utils";
 
 interface AnimeEpisodesPanelProps {
@@ -93,9 +92,7 @@ export function AnimeEpisodesPanel(props: AnimeEpisodesPanelProps) {
 
           <TabsContent value="table">
             <div
-              className="border rounded-none overflow-auto"
-              style={{ maxHeight: TABLE_MAX_HEIGHT }}
-            >
+              className="border rounded-none overflow-auto max-h-[600px]">
               <Table>
                 <TableHeader className="sticky top-0 bg-card z-10 border-b">
                   <TableRow>

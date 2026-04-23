@@ -15,6 +15,7 @@ import {
   createRetryDownloadMutation,
 } from "~/lib/api";
 import type { DownloadStatusPresentation } from "~/lib/download-status";
+import { formatDateTime } from "~/lib/date-time";
 
 interface ActiveDownloadActionsProps {
   allowedActions?: readonly string[] | undefined;
@@ -97,7 +98,7 @@ export function ActiveDownloadActions(props: ActiveDownloadActionsProps) {
       <DownloadEventsDialog
         description="Timeline of queue, status, and import events for this download."
         {...(props.downloadId === undefined ? {} : { downloadId: props.downloadId })}
-        formatTimestamp={(value) => new Date(value).toLocaleString()}
+        formatTimestamp={(value) => formatDateTime(value)}
         title={`Download Events${props.animeTitle ? ` - ${props.animeTitle}` : ""}`}
         triggerLabel="View download events"
       />
@@ -155,7 +156,7 @@ export function HistoryDownloadActions(props: HistoryDownloadActionsProps) {
       <DownloadEventsDialog
         description="Timeline of queue, status, retry, and import events for this historical download."
         downloadId={props.downloadId}
-        formatTimestamp={(value) => new Date(value).toLocaleString()}
+        formatTimestamp={(value) => formatDateTime(value)}
         title={`Download Events - ${props.animeTitle}`}
         triggerLabel="View download events"
       />

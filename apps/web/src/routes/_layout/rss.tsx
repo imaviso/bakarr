@@ -15,6 +15,7 @@ import * as v from "valibot";
 import { EmptyState } from "~/components/empty-state";
 import { GeneralError } from "~/components/general-error";
 import { PageHeader } from "~/components/page-header";
+import { formatDateTime } from "~/lib/date-time";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -144,7 +145,7 @@ function FeedCard(props: {
             {props.feed.last_checked && (
               <span className="flex items-center gap-1 shrink-0">
                 <ClockIcon className="h-3.5 w-3.5" />
-                {new Date(props.feed.last_checked).toLocaleString()}
+                {formatDateTime(props.feed.last_checked)}
               </span>
             )}
           </div>

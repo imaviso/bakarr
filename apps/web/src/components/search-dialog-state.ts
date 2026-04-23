@@ -1,3 +1,4 @@
+import { differenceInDays, format, isValid, parseISO } from "date-fns";
 import { useDeferredValue, useMemo, useState } from "react";
 import {
   createGrabReleaseMutation,
@@ -15,18 +16,14 @@ export const CATEGORY_LABELS: Record<string, string> = SEARCH_RELEASE_CATEGORY_L
 export const FILTER_LABELS: Record<string, string> = SEARCH_RELEASE_FILTER_LABELS;
 
 export function formatSearchResultAge(dateStr: string) {
-  const date = new Date(dateStr);
+  const date = parseISO(dateStr);
   const now = new Date();
-  const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+  const diffDays = differenceInDays(now, date);
 
   if (diffDays === 0) return "Today";
   if (diffDays === 1) return "Yesterday";
   if (diffDays < 30) return `${diffDays}d ago`;
-  return date.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "2-digit",
-  });
+  return isValid(date) ? format(date, "MMM d, yy") : dateStr;
 }
 
 export function useSearchDialogState(defaultQuery: string) {

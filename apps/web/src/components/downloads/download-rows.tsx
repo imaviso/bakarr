@@ -20,6 +20,7 @@ import {
 } from "~/lib/download-metadata";
 import { getDownloadStatusPresentation } from "~/lib/download-status";
 import { formatSelectionDetail } from "~/lib/release-selection";
+import { formatDateTime } from "~/lib/date-time";
 
 function formatSpeed(bytesPerSec: number): string {
   if (bytesPerSec === 0) {
@@ -196,7 +197,7 @@ export function DownloadRow(props: { item: Download; isHistory?: boolean }) {
       </TableCell>
       {props.isHistory ? (
         <TableCell className="text-muted-foreground text-sm whitespace-nowrap hidden md:table-cell">
-          {dateStr ? new Date(dateStr).toLocaleString() : "-"}
+          {dateStr ? formatDateTime(dateStr) : "-"}
         </TableCell>
       ) : (
         <TableCell className="py-2 min-w-[140px] md:min-w-[180px]">

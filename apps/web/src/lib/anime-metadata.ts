@@ -1,3 +1,4 @@
+import { format, isAfter, isValid, parseISO } from "date-fns";
 import type { Anime, AnimeSearchResult, Config } from "~/lib/api";
 
 type AnimeDateContext = {
@@ -27,7 +28,8 @@ export function getAiringDisplayPreferences(library?: Config["library"]): Airing
 
 export function formatAnimeDate(date?: string, year?: number) {
   if (date) {
-    return new Date(`${date}T00:00:00Z`).toLocaleDateString();
+    const parsed = parseISO(`${date}T00:00:00Z`);
+    return isValid(parsed) ? format(parsed, "MMM d, yyyy") : null;
   }
 
   return year ? String(year) : null;
@@ -111,8 +113,8 @@ export function hasEpisodeAired(airedDate?: string, now = new Date()) {
     return false;
   }
 
-  const aired = new Date(airedDate);
-  return !Number.isNaN(aired.getTime()) && aired <= now;
+  const aired = parseISO(airedDate);
+  return isValid(aired) && !isAfter(aired, now);
 }
 
 export function formatEpisodeStatusTooltip(input: {
@@ -157,7 +159,7 @@ export function formatAiringDateWithPreferences(
     return value;
   }
 
-  return new Date(parts.year, parts.month - 1, parts.day).toLocaleDateString();
+  return format(new Date(parts.year, parts.month - 1, parts.day), "MMM d, yyyy");
 }
 
 export function formatAiringDateTimeWithPreferences(
@@ -177,11 +179,7 @@ export function formatAiringDateTimeWithPreferences(
     return value;
   }
 
-  return `${new Date(
-    parts.year,
-    parts.month - 1,
-    parts.day,
-  ).toLocaleDateString()} ${formatTimeParts(parts)}`;
+  return `${format(new Date(parts.year, parts.month - 1, parts.day), "MMM d, yyyy")} ${formatTimeParts(parts)}`;
 }
 
 export function formatAiringTimeWithPreferences(
@@ -283,14 +281,11 @@ function formatDateOnly(value: string) {
     return value;
   }
 
-  return new Date(year, month - 1, day).toLocaleDateString();
+  return format(new Date(year, month - 1, day), "MMM d, yyyy");
 }
 
 function formatTimeParts(parts: { hour: number; minute: number }) {
-  return new Date(2000, 0, 1, parts.hour, parts.minute).toLocaleTimeString([], {
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  return format(new Date(2000, 0, 1, parts.hour, parts.minute), "h:mm a");
 }
 
 function normalizeTimeZone(value?: string | null) {

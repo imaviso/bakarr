@@ -36,19 +36,20 @@ function formatUptime(seconds: number) {
   return parts.join(" ");
 }
 
+import { differenceInDays, differenceInHours, differenceInMinutes, isValid, parseISO } from "date-fns";
+
 function formatRelativeTime(dateStr: string | null | undefined) {
   if (!dateStr) return "Never";
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / (1000 * 60));
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const date = parseISO(dateStr);
+  if (!isValid(date)) return "Never";
 
-  if (diffMins < 1) return "Just now";
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  return `${diffDays}d ago`;
+  const now = new Date();
+  const mins = differenceInMinutes(now, date);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = differenceInHours(now, date);
+  if (hours < 24) return `${hours}h ago`;
+  return `${differenceInDays(now, date)}d ago`;
 }
 
 function formatProviderStatus(

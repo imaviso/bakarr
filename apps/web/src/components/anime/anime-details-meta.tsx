@@ -1,6 +1,7 @@
 import { PencilSimpleIcon } from "@phosphor-icons/react";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
+import { formatDate } from "~/lib/date-time";
 
 interface AnimeDetailsMetaProps {
   totalEpisodes: number;
@@ -76,7 +77,7 @@ export function AnimeDetailsMeta(props: AnimeDetailsMetaProps) {
             </div>
             <div>
               <dt className="text-muted-foreground">Added</dt>
-              <dd className="mt-1">{new Date(props.addedAt).toLocaleDateString()}</dd>
+              <dd className="mt-1">{formatDate(props.addedAt)}</dd>
             </div>
           </dl>
         </CardContent>

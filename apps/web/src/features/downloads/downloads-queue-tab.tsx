@@ -4,7 +4,6 @@ import { EmptyState } from "~/components/empty-state";
 import { ActiveDownloadRow } from "~/components/downloads/download-rows";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "~/components/ui/table";
 import { TabsContent } from "~/components/ui/tabs";
-import { TABLE_MIN_WIDTH } from "~/lib/ui-constants";
 import type { DownloadStatus } from "~/lib/api";
 
 interface DownloadsQueueTabProps {
@@ -30,7 +29,7 @@ export function DownloadsQueueTab(props: DownloadsQueueTabProps) {
   return (
     <TabsContent value="queue" className="flex-1 mt-0 min-h-0 overflow-hidden flex flex-col">
       <div ref={queueScrollRef} className="h-full min-h-0 overflow-auto">
-        <Table className="table-fixed w-full md:min-w-0" style={{ minWidth: TABLE_MIN_WIDTH }}>
+        <Table className="table-fixed w-full min-w-[860px] md:min-w-0">
           <TableHeader className="sticky top-0 bg-card z-10 border-b">
             <TableRow className="hover:bg-transparent border-none">
               <TableHead scope="col" className="w-[50px]">

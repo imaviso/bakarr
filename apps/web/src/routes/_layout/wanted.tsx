@@ -32,7 +32,6 @@ import {
   type MissingEpisode,
 } from "~/lib/api";
 import { usePageTitle } from "~/lib/page-title";
-import { TABLE_MIN_WIDTH } from "~/lib/ui-constants";
 import {
   formatAiringDateWithPreferences,
   formatNextAiringEpisode,
@@ -123,7 +122,7 @@ function WantedPage() {
 
       <Card className="overflow-hidden flex-1 min-h-0 flex flex-col">
         <div ref={scrollRef} className="h-full min-h-0 overflow-auto">
-          <Table className="table-fixed w-full md:min-w-0" style={{ minWidth: TABLE_MIN_WIDTH }}>
+          <Table className="table-fixed w-full min-w-[860px] md:min-w-0">
             <TableHeader className="sticky top-0 bg-card z-10 border-b">
               <TableRow className="hover:bg-transparent border-none">
                 <TableHead scope="col" className="w-[60px]" />

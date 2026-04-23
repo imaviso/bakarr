@@ -24,7 +24,7 @@ import type {
   AnimeSearchModalState,
 } from "~/components/anime/anime-details-types";
 import type { Episode } from "~/lib/api";
-import { isAired } from "~/lib/date-time";
+import { formatDate, isAired } from "~/lib/date-time";
 import { formatDurationSeconds } from "~/lib/scanned-file";
 import { cn } from "~/lib/utils";
 
@@ -64,7 +64,7 @@ export function EpisodeTableRow(props: EpisodeTableRowProps) {
         </div>
       </TableCell>
       <TableCell className="hidden sm:table-cell text-muted-foreground text-sm">
-        {episode.aired ? new Date(episode.aired).toLocaleDateString() : "-"}
+        {episode.aired ? formatDate(episode.aired) : "-"}
       </TableCell>
       <TableCell className="hidden md:table-cell text-muted-foreground text-sm">
         {formatDurationSeconds(episode.duration_seconds) || "-"}
