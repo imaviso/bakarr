@@ -13,9 +13,9 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Suspense, lazy, useDeferredValue, useTransition } from "react";
 import * as v from "valibot";
 import { AnimeListSkeleton } from "~/components/anime-list-skeleton";
+import { EmptyState } from "~/components/empty-state";
 import { GeneralError } from "~/components/general-error";
 import { Button, buttonVariants } from "~/components/ui/button";
-import { Card } from "~/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -273,29 +273,20 @@ function AnimeIndexPage() {
             )}
           </Suspense>
         ) : !search.q && search.filter === "all" ? (
-          <Card className="p-12 text-center border-dashed">
-            <div className="flex flex-col items-center gap-4">
-              <TelevisionIcon className="h-12 w-12 text-muted-foreground" />
-              <div>
-                <h2 className="font-medium">No anime yet</h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Add your first anime to start monitoring
-                </p>
-              </div>
-              <Link to="/anime/add" className={buttonVariants()}>
-                <PlusIcon className="mr-2 h-4 w-4" />
-                Add Anime
-              </Link>
-            </div>
-          </Card>
+          <EmptyState
+            icon={<TelevisionIcon className="h-12 w-12" />}
+            title="No anime yet"
+            description="Add your first anime to start monitoring"
+          >
+            <Link to="/anime/add" className={buttonVariants()}>
+              <PlusIcon className="mr-2 h-4 w-4" />
+              Add Anime
+            </Link>
+          </EmptyState>
         ) : (
-          <p className="text-center text-muted-foreground py-8">
-            {search.q ? (
-              <>No anime matching &quot;{search.q}&quot;</>
-            ) : (
-              `No ${search.filter} anime found`
-            )}
-          </p>
+          <EmptyState
+            title={search.q ? `No anime matching "${search.q}"` : `No ${search.filter} anime found`}
+          />
         )}
       </div>
     </div>

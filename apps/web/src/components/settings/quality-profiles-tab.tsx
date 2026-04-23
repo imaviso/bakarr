@@ -6,6 +6,7 @@ import {
 } from "@phosphor-icons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { EmptyState } from "~/components/empty-state";
 import { ProfileForm } from "~/components/settings/quality-profile-form";
 import {
   AlertDialog,
@@ -176,21 +177,17 @@ export function QualityProfilesTab() {
           </div>
 
           {profiles.length === 0 && (
-            <Card className="p-12 text-center border-dashed bg-transparent">
-              <div className="flex flex-col items-center gap-4">
-                <SlidersHorizontalIcon className="h-12 w-12 text-muted-foreground" />
-                <div>
-                  <h3 className="font-medium">No quality profiles</h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Create a profile to define download quality settings
-                  </p>
-                </div>
-                <Button onClick={() => setIsCreating(true)}>
-                  <PlusIcon className="mr-2 h-4 w-4" />
-                  Create Profile
-                </Button>
-              </div>
-            </Card>
+            <EmptyState
+              icon={<SlidersHorizontalIcon className="h-12 w-12" />}
+              title="No quality profiles"
+              description="Create a profile to define download quality settings"
+              className="bg-transparent"
+            >
+              <Button onClick={() => setIsCreating(true)}>
+                <PlusIcon className="mr-2 h-4 w-4" />
+                Create Profile
+              </Button>
+            </EmptyState>
           )}
 
           {profiles.length > 0 && (

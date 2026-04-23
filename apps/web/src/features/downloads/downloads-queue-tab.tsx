@@ -1,15 +1,10 @@
 import { useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { EmptyState } from "~/components/empty-state";
 import { ActiveDownloadRow } from "~/components/downloads/download-rows";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "~/components/ui/table";
+import { Table, TableBody, TableHead, TableHeader, TableRow } from "~/components/ui/table";
 import { TabsContent } from "~/components/ui/tabs";
+import { TABLE_MIN_WIDTH } from "~/lib/ui-constants";
 import type { DownloadStatus } from "~/lib/api";
 
 interface DownloadsQueueTabProps {
@@ -35,18 +30,28 @@ export function DownloadsQueueTab(props: DownloadsQueueTabProps) {
   return (
     <TabsContent value="queue" className="flex-1 mt-0 min-h-0 overflow-hidden flex flex-col">
       <div ref={queueScrollRef} className="h-full min-h-0 overflow-auto">
-        <Table className="table-fixed w-full min-w-[820px] md:min-w-0">
+        <Table className="table-fixed w-full md:min-w-0" style={{ minWidth: TABLE_MIN_WIDTH }}>
           <TableHeader className="sticky top-0 bg-card z-10 border-b">
             <TableRow className="hover:bg-transparent border-none">
-              <TableHead className="w-[50px]">
+              <TableHead scope="col" className="w-[50px]">
                 <span className="sr-only">Status</span>
               </TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead className="w-[200px]">Progress</TableHead>
-              <TableHead className="w-[100px] hidden md:table-cell">Speed</TableHead>
-              <TableHead className="w-[100px] hidden md:table-cell">ETA</TableHead>
-              <TableHead className="w-[120px]">Status</TableHead>
-              <TableHead className="w-[120px] text-right">Actions</TableHead>
+              <TableHead scope="col">Name</TableHead>
+              <TableHead scope="col" className="w-[200px]">
+                Progress
+              </TableHead>
+              <TableHead scope="col" className="w-[100px] hidden md:table-cell">
+                Speed
+              </TableHead>
+              <TableHead scope="col" className="w-[100px] hidden md:table-cell">
+                ETA
+              </TableHead>
+              <TableHead scope="col" className="w-[120px]">
+                Status
+              </TableHead>
+              <TableHead scope="col" className="w-[120px] text-right">
+                Actions
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -82,11 +87,7 @@ export function DownloadsQueueTab(props: DownloadsQueueTabProps) {
                 )}
               </>
             ) : (
-              <TableRow>
-                <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
-                  No active downloads
-                </TableCell>
-              </TableRow>
+              <EmptyState asTableCell colSpan={7} compact title="No active downloads" />
             )}
           </TableBody>
         </Table>

@@ -13,84 +13,51 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "~/components/ui/alert-dialog";
-import type {
-  AnimeEpisodeDialogState,
-  AnimeSearchModalState,
-} from "~/components/anime/anime-details-types";
-import type { Episode, QualityProfile, ReleaseProfile } from "~/lib/api";
+import { useAnimeDetailsDialogs } from "~/components/anime/anime-details-dialogs-context";
 
-interface AnimeDetailsDialogsProps {
-  animeId: number;
-  episodes: Episode[];
-  searchModalState: AnimeSearchModalState;
-  onSearchModalOpenChange: (open: boolean) => void;
-  renameDialogOpen: boolean;
-  onRenameDialogOpenChange: (open: boolean) => void;
-  mappingDialogState: AnimeEpisodeDialogState;
-  onMappingDialogOpenChange: (open: boolean) => void;
-  bulkMappingOpen: boolean;
-  onBulkMappingOpenChange: (open: boolean) => void;
-  deleteEpisodeState: AnimeEpisodeDialogState;
-  onDeleteEpisodeDialogOpenChange: (open: boolean) => void;
-  onConfirmDeleteEpisode: () => void;
-  editPathOpen: boolean;
-  onEditPathOpenChange: (open: boolean) => void;
-  currentPath: string;
-  updatePath: (input: { id: number; path: string; rescan?: boolean }) => Promise<unknown>;
-  isUpdatingPath: boolean;
-  editProfileOpen: boolean;
-  onEditProfileOpenChange: (open: boolean) => void;
-  currentProfile: string;
-  currentReleaseProfileIds: number[];
-  updateProfile: (input: { id: number; profileName: string }) => Promise<unknown>;
-  isUpdatingProfile: boolean;
-  updateReleaseProfiles: (input: { id: number; releaseProfileIds: number[] }) => Promise<unknown>;
-  isUpdatingReleaseProfiles: boolean;
-  profiles: QualityProfile[];
-  releaseProfiles: ReleaseProfile[];
-}
+export function AnimeDetailsDialogs() {
+  const ctx = useAnimeDetailsDialogs();
 
-export function AnimeDetailsDialogs(props: AnimeDetailsDialogsProps) {
   return (
     <>
       <SearchModal
-        animeId={props.animeId}
-        episodeNumber={props.searchModalState.episodeNumber}
-        {...(props.searchModalState.episodeTitle === undefined
+        animeId={ctx.animeId}
+        episodeNumber={ctx.searchModalState.episodeNumber}
+        {...(ctx.searchModalState.episodeTitle === undefined
           ? {}
-          : { episodeTitle: props.searchModalState.episodeTitle })}
-        open={props.searchModalState.open}
-        onOpenChange={props.onSearchModalOpenChange}
+          : { episodeTitle: ctx.searchModalState.episodeTitle })}
+        open={ctx.searchModalState.open}
+        onOpenChange={ctx.onSearchModalOpenChange}
       />
 
       <RenameDialog
-        animeId={props.animeId}
-        open={props.renameDialogOpen}
-        onOpenChange={props.onRenameDialogOpenChange}
+        animeId={ctx.animeId}
+        open={ctx.renameDialogOpen}
+        onOpenChange={ctx.onRenameDialogOpenChange}
       />
 
       <ManualMappingDialog
-        animeId={props.animeId}
-        episodeNumber={props.mappingDialogState.episodeNumber}
-        open={props.mappingDialogState.open}
-        onOpenChange={props.onMappingDialogOpenChange}
+        animeId={ctx.animeId}
+        episodeNumber={ctx.mappingDialogState.episodeNumber}
+        open={ctx.mappingDialogState.open}
+        onOpenChange={ctx.onMappingDialogOpenChange}
       />
 
       <BulkMappingDialog
-        animeId={props.animeId}
-        episodes={props.episodes}
-        open={props.bulkMappingOpen}
-        onOpenChange={props.onBulkMappingOpenChange}
+        animeId={ctx.animeId}
+        episodes={ctx.episodes}
+        open={ctx.bulkMappingOpen}
+        onOpenChange={ctx.onBulkMappingOpenChange}
       />
 
       <AlertDialog
-        open={props.deleteEpisodeState.open}
-        onOpenChange={props.onDeleteEpisodeDialogOpenChange}
+        open={ctx.deleteEpisodeState.open}
+        onOpenChange={ctx.onDeleteEpisodeDialogOpenChange}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Delete Episode {props.deleteEpisodeState.episodeNumber}?
+              Delete Episode {ctx.deleteEpisodeState.episodeNumber}?
             </AlertDialogTitle>
             <AlertDialogDescription>
               This will delete the file from disk. This action cannot be undone.
@@ -100,7 +67,7 @@ export function AnimeDetailsDialogs(props: AnimeDetailsDialogsProps) {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={props.onConfirmDeleteEpisode}
+              onClick={ctx.onConfirmDeleteEpisode}
             >
               Delete
             </AlertDialogAction>
@@ -109,26 +76,26 @@ export function AnimeDetailsDialogs(props: AnimeDetailsDialogsProps) {
       </AlertDialog>
 
       <EditPathDialog
-        open={props.editPathOpen}
-        onOpenChange={props.onEditPathOpenChange}
-        currentPath={props.currentPath}
-        animeId={props.animeId}
-        updatePath={props.updatePath}
-        isPending={props.isUpdatingPath}
+        open={ctx.editPathOpen}
+        onOpenChange={ctx.onEditPathOpenChange}
+        currentPath={ctx.currentPath}
+        animeId={ctx.animeId}
+        updatePath={ctx.updatePath}
+        isPending={ctx.isUpdatingPath}
       />
 
       <EditProfileDialog
-        open={props.editProfileOpen}
-        onOpenChange={props.onEditProfileOpenChange}
-        currentProfile={props.currentProfile}
-        currentReleaseProfileIds={props.currentReleaseProfileIds}
-        animeId={props.animeId}
-        updateProfile={props.updateProfile}
-        isUpdatingProfile={props.isUpdatingProfile}
-        updateReleaseProfiles={props.updateReleaseProfiles}
-        isUpdatingReleaseProfiles={props.isUpdatingReleaseProfiles}
-        profiles={props.profiles}
-        releaseProfiles={props.releaseProfiles}
+        open={ctx.editProfileOpen}
+        onOpenChange={ctx.onEditProfileOpenChange}
+        currentProfile={ctx.currentProfile}
+        currentReleaseProfileIds={ctx.currentReleaseProfileIds}
+        animeId={ctx.animeId}
+        updateProfile={ctx.updateProfile}
+        isUpdatingProfile={ctx.isUpdatingProfile}
+        updateReleaseProfiles={ctx.updateReleaseProfiles}
+        isUpdatingReleaseProfiles={ctx.isUpdatingReleaseProfiles}
+        profiles={ctx.profiles}
+        releaseProfiles={ctx.releaseProfiles}
       />
     </>
   );

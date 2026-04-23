@@ -1,10 +1,4 @@
-import {
-  WarningIcon,
-  TelevisionIcon,
-  InfoIcon,
-  SpinnerIcon,
-  MagnifyingGlassIcon,
-} from "@phosphor-icons/react";
+import { WarningIcon, TelevisionIcon, InfoIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useNavigate } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
@@ -178,27 +172,19 @@ function AddAnimePage() {
         </TabsList>
 
         <TabsContent value="search" className="mt-6 flex flex-1 min-h-0 flex-col">
-          <Suspense
-            fallback={<div className="text-sm text-muted-foreground">Loading search...</div>}
-          >
-            <SearchResults
-              active={search.tab === "search"}
-              canSearch={canSearch}
-              searchQuery={searchQuery}
-              searchResults={searchResults}
-              searchDegraded={searchDegraded}
-              debouncedQuery={debouncedQuery}
-              libraryIds={libraryIds}
-              onSelectAnime={handleSelectAnime}
-            />
-          </Suspense>
+          <SearchResults
+            active={search.tab === "search"}
+            canSearch={canSearch}
+            searchQuery={searchQuery}
+            searchResults={searchResults}
+            searchDegraded={searchDegraded}
+            debouncedQuery={debouncedQuery}
+            libraryIds={libraryIds}
+            onSelectAnime={handleSelectAnime}
+          />
         </TabsContent>
         <TabsContent value="seasonal" className="mt-6 flex flex-1 min-h-0 flex-col">
-          <Suspense
-            fallback={
-              <div className="text-sm text-muted-foreground">Loading seasonal titles...</div>
-            }
-          >
+          <Suspense fallback={null}>
             <SeasonalAnimeSectionLazy
               active={search.tab === "seasonal"}
               seasonWindow={{ season: search.season, year: search.year }}
@@ -221,13 +207,7 @@ function AddAnimePage() {
       </Tabs>
 
       {anilistId !== null && (
-        <Suspense
-          fallback={
-            <div className="flex items-center justify-center p-8">
-              <SpinnerIcon className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-          }
-        >
+        <Suspense fallback={null}>
           <SelectedAnimeDialog
             anilistId={anilistId}
             onOpenChange={clearSelectedAnime}

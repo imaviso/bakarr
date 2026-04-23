@@ -25,6 +25,7 @@ import {
 
 import { createAnimeListQuery } from "~/lib/api";
 import { animeSearchSubtitle } from "~/lib/anime-metadata";
+import { cn } from "~/lib/utils";
 
 const navigationRoutes = [
   { title: "Dashboard", url: "/", icon: HouseIcon },
@@ -158,7 +159,10 @@ export function CommandPalette() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex w-full items-center gap-3 overflow-hidden rounded-none border border-border bg-muted px-3 py-2 text-left text-sm text-muted-foreground hover:bg-accent hover:text-foreground transition-colors group-data-[collapsible=icon]:!size-9 group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:bg-transparent"
+        className={cn(
+          "flex w-full items-center gap-3 overflow-hidden rounded-none border border-border bg-muted px-3 py-2 text-left text-sm text-muted-foreground hover:bg-accent hover:text-foreground transition-colors",
+          "group-data-[collapsible=icon]:!size-9 group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:bg-transparent",
+        )}
       >
         <MagnifyingGlassIcon className="h-4 w-4 shrink-0" />
         <span className="truncate group-data-[collapsible=icon]:hidden">Search...</span>

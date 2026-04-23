@@ -148,12 +148,9 @@ export function AnimeDetailsHeader(props: AnimeDetailsHeaderProps) {
               className="shrink-0"
             >
               <ArrowClockwiseIcon
-                className={cn(
-                  "min-[1670px]:mr-2 h-4 w-4",
-                  props.isRefreshPending && "animate-spin",
-                )}
+                className={cn("2xl:mr-2 h-4 w-4", props.isRefreshPending && "animate-spin")}
               />
-              <span className="hidden min-[1670px]:inline">Refresh</span>
+              <span className="hidden 2xl:inline">Refresh</span>
             </TooltipTrigger>
             <TooltipContent>Refresh Metadata</TooltipContent>
           </Tooltip>
@@ -164,8 +161,8 @@ export function AnimeDetailsHeader(props: AnimeDetailsHeaderProps) {
             tooltip="Search Releases"
             trigger={
               <Button variant="outline" size="sm" className="shrink-0">
-                <DownloadIcon className="min-[1670px]:mr-2 h-4 w-4" />
-                <span className="hidden min-[1670px]:inline">Search</span>
+                <DownloadIcon className="2xl:mr-2 h-4 w-4" />
+                <span className="hidden 2xl:inline">Search</span>
               </Button>
             }
           />
@@ -179,8 +176,8 @@ export function AnimeDetailsHeader(props: AnimeDetailsHeaderProps) {
               }
               className="shrink-0"
             >
-              <MagnifyingGlassIcon className="min-[1670px]:mr-2 h-4 w-4" />
-              <span className="hidden min-[1670px]:inline">Search Missing</span>
+              <MagnifyingGlassIcon className="2xl:mr-2 h-4 w-4" />
+              <span className="hidden 2xl:inline">Search Missing</span>
             </TooltipTrigger>
             <TooltipContent>Search Missing Episodes</TooltipContent>
           </Tooltip>
@@ -193,12 +190,9 @@ export function AnimeDetailsHeader(props: AnimeDetailsHeaderProps) {
               className="shrink-0"
             >
               <FileArrowDownIcon
-                className={cn(
-                  "min-[1670px]:mr-2 h-4 w-4",
-                  props.isScanFolderPending && "animate-spin",
-                )}
+                className={cn("2xl:mr-2 h-4 w-4", props.isScanFolderPending && "animate-spin")}
               />
-              <span className="hidden min-[1670px]:inline">Scan Folder</span>
+              <span className="hidden 2xl:inline">Scan Folder</span>
             </TooltipTrigger>
             <TooltipContent>Scan Folder</TooltipContent>
           </Tooltip>
@@ -209,16 +203,16 @@ export function AnimeDetailsHeader(props: AnimeDetailsHeaderProps) {
               onClick={props.onRenameFiles}
               className="shrink-0"
             >
-              <TextTIcon className="min-[1670px]:mr-2 h-4 w-4" />
-              <span className="hidden min-[1670px]:inline">Rename</span>
+              <TextTIcon className="2xl:mr-2 h-4 w-4" />
+              <span className="hidden 2xl:inline">Rename</span>
             </TooltipTrigger>
             <TooltipContent>Rename Files</TooltipContent>
           </Tooltip>
 
           <Link to="/anime/import" search={{ animeId: props.animeId }} className="shrink-0">
             <Button variant="outline" size="sm">
-              <FolderOpenIcon className="min-[1670px]:mr-2 h-4 w-4" />
-              <span className="hidden min-[1670px]:inline">Import</span>
+              <FolderOpenIcon className="2xl:mr-2 h-4 w-4" />
+              <span className="hidden 2xl:inline">Import</span>
             </Button>
           </Link>
 
@@ -228,8 +222,8 @@ export function AnimeDetailsHeader(props: AnimeDetailsHeaderProps) {
               onClick={props.onOpenBulkMapping}
               className="shrink-0"
             >
-              <LinkIcon className="min-[1670px]:mr-2 h-4 w-4" />
-              <span className="hidden min-[1670px]:inline">Map Episodes</span>
+              <LinkIcon className="2xl:mr-2 h-4 w-4" />
+              <span className="hidden 2xl:inline">Map Episodes</span>
             </TooltipTrigger>
             <TooltipContent>Manual Map Episodes</TooltipContent>
           </Tooltip>
@@ -240,8 +234,8 @@ export function AnimeDetailsHeader(props: AnimeDetailsHeaderProps) {
             className="shrink-0"
           >
             <Button variant="outline" size="sm">
-              <ListIcon className="min-[1670px]:mr-2 h-4 w-4" />
-              <span className="hidden min-[1670px]:inline">Events</span>
+              <ListIcon className="2xl:mr-2 h-4 w-4" />
+              <span className="hidden 2xl:inline">Events</span>
             </Button>
           </Link>
 

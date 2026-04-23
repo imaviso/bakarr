@@ -2,6 +2,7 @@ import { ArrowRightIcon, CheckIcon, ClockIcon } from "@phosphor-icons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { formatDistanceToNow } from "date-fns";
+import { EmptyState } from "~/components/empty-state";
 import { GeneralError } from "~/components/general-error";
 import { PageHeader } from "~/components/page-header";
 import { Badge } from "~/components/ui/badge";
@@ -32,9 +33,7 @@ function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Dashboard">
-        <p className="text-xs text-muted-foreground">{statsSummary}</p>
-      </PageHeader>
+      <PageHeader title="Dashboard" subtitle={statsSummary} />
 
       {/* Stat Bar */}
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-border pb-4">
@@ -95,7 +94,7 @@ function DashboardPage() {
             ))}
           </ul>
         ) : (
-          <p className="text-center text-muted-foreground py-6">No recent activity</p>
+          <EmptyState compact title="No recent activity" />
         )}
       </div>
     </div>

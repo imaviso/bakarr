@@ -12,6 +12,7 @@ import { useForm } from "@tanstack/react-form";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import * as v from "valibot";
+import { EmptyState } from "~/components/empty-state";
 import { GeneralError } from "~/components/general-error";
 import { PageHeader } from "~/components/page-header";
 import {
@@ -79,21 +80,16 @@ function RssPage() {
       )}
 
       {feeds.length === 0 ? (
-        <Card className="p-12 text-center border-dashed">
-          <div className="flex flex-col items-center gap-4">
-            <RssIcon className="h-12 w-12 text-muted-foreground" />
-            <div>
-              <h3 className="font-medium">No RSS feeds</h3>
-              <p className="text-sm text-muted-foreground mt-1">
-                Add RSS feeds to automatically detect new episodes
-              </p>
-            </div>
-            <Button onClick={() => setIsAdding(true)}>
-              <PlusIcon className="h-4 w-4" />
-              Add Feed
-            </Button>
-          </div>
-        </Card>
+        <EmptyState
+          icon={<RssIcon className="h-12 w-12" />}
+          title="No RSS feeds"
+          description="Add RSS feeds to automatically detect new episodes"
+        >
+          <Button onClick={() => setIsAdding(true)}>
+            <PlusIcon className="h-4 w-4" />
+            Add Feed
+          </Button>
+        </EmptyState>
       ) : (
         <div className="space-y-3">
           {feeds.map((feed) => (
@@ -225,17 +221,12 @@ function AddFeedForm(props: { onCancel: () => void; onSuccess: () => void }) {
           <form.Field name="anime_id">
             {(field) => (
               <div className="space-y-1">
-                <label
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                  htmlFor={field.name}
-                >
-                  Anime
-                </label>
+                <Label htmlFor={field.name}>Anime</Label>
                 <Select
                   value={field.state.value > 0 ? String(field.state.value) : undefined}
                   onValueChange={(value) => field.handleChange(Number(value))}
                 >
-                  <SelectTrigger aria-label="Anime" className="w-full">
+                  <SelectTrigger id={field.name} aria-label="Anime" className="w-full">
                     <SelectValue placeholder="Select anime..." />
                   </SelectTrigger>
                   <SelectContent>

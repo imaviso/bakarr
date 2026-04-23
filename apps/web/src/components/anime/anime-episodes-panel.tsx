@@ -1,14 +1,8 @@
 import { SquaresFourIcon, ListIcon } from "@phosphor-icons/react";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "~/components/ui/table";
+import { Table, TableBody, TableHead, TableHeader, TableRow } from "~/components/ui/table";
+import { EmptyState } from "~/components/empty-state";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { EpisodeTableRow } from "~/components/anime/episode-table-row";
 import type {
@@ -17,6 +11,7 @@ import type {
 } from "~/components/anime/anime-details-types";
 import type { Episode } from "~/lib/api";
 import { isAired } from "~/lib/date-time";
+import { TABLE_MAX_HEIGHT } from "~/lib/ui-constants";
 import { cn } from "~/lib/utils";
 
 interface AnimeEpisodesPanelProps {
@@ -51,12 +46,11 @@ export function AnimeEpisodesPanel(props: AnimeEpisodesPanelProps) {
         <CardContent>
           <TabsContent value="grid">
             {!hasEpisodes && (
-              <div className="text-center py-8">
-                <p className="text-sm text-muted-foreground">No episodes found.</p>
-                <Button variant="link" onClick={props.onRefreshMetadata} className="mt-2">
+              <EmptyState compact title="No episodes found">
+                <Button variant="link" onClick={props.onRefreshMetadata}>
                   Refresh metadata
                 </Button>
-              </div>
+              </EmptyState>
             )}
 
             {hasEpisodes && (
@@ -98,26 +92,35 @@ export function AnimeEpisodesPanel(props: AnimeEpisodesPanelProps) {
           </TabsContent>
 
           <TabsContent value="table">
-            <div className="border rounded-none overflow-auto max-h-[600px]">
+            <div
+              className="border rounded-none overflow-auto"
+              style={{ maxHeight: TABLE_MAX_HEIGHT }}
+            >
               <Table>
-                <TableHeader className="sticky top-0 bg-card z-10">
+                <TableHeader className="sticky top-0 bg-card z-10 border-b">
                   <TableRow>
-                    <TableHead className="w-[60px] text-center">#</TableHead>
-                    <TableHead>Title</TableHead>
-                    <TableHead className="hidden sm:table-cell w-[120px]">Aired</TableHead>
-                    <TableHead className="hidden md:table-cell w-[80px]">Duration</TableHead>
-                    <TableHead className="w-[80px] text-right">Status</TableHead>
-                    <TableHead className="hidden md:table-cell">Filename</TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
+                    <TableHead scope="col" className="w-[60px] text-center">
+                      #
+                    </TableHead>
+                    <TableHead scope="col">Title</TableHead>
+                    <TableHead scope="col" className="hidden sm:table-cell w-[120px]">
+                      Aired
+                    </TableHead>
+                    <TableHead scope="col" className="hidden md:table-cell w-[80px]">
+                      Duration
+                    </TableHead>
+                    <TableHead scope="col" className="w-[80px] text-right">
+                      Status
+                    </TableHead>
+                    <TableHead scope="col" className="hidden md:table-cell">
+                      Filename
+                    </TableHead>
+                    <TableHead scope="col" className="w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {!hasEpisodes && (
-                    <TableRow>
-                      <TableCell colSpan={7} className="h-24 text-center">
-                        No episodes found.
-                      </TableCell>
-                    </TableRow>
+                    <EmptyState asTableCell colSpan={7} compact title="No episodes found" />
                   )}
 
                   {props.episodes.map((episode) => (

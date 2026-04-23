@@ -1,13 +1,13 @@
 import { useState } from "react";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { SystemSettingsAutomationSections } from "~/components/settings/system-settings-automation-sections";
 import { useSystemSettingsForm } from "~/components/settings/system-settings-form-hook";
 import { SystemSettingsGeneralSections } from "~/components/settings/system-settings-general-sections";
 import { type ConfigSettingsMode } from "~/components/settings/system-settings-schema";
 import { Button } from "~/components/ui/button";
-import { Skeleton } from "~/components/ui/skeleton";
 import {
   createSystemTaskQuery,
-  createSystemConfigQuery,
+  systemConfigQueryOptions,
   createSystemStatusQuery,
   createTriggerMetadataRefreshMutation,
   createTriggerRssCheckMutation,
@@ -18,24 +18,18 @@ import {
 } from "~/lib/api";
 
 export function GeneralSettingsForm(props: { mode: ConfigSettingsMode }) {
-  const configQuery = createSystemConfigQuery();
+  const { data: config } = useSuspenseQuery(systemConfigQueryOptions());
   const updateConfig = createUpdateSystemConfigMutation();
 
   return (
-    <>
-      {configQuery.data ? (
-        <SystemForm
-          mode={props.mode}
-          defaultValues={configQuery.data}
-          onSubmit={(values) => {
-            updateConfig.mutate(values);
-          }}
-          isSaving={updateConfig.isPending}
-        />
-      ) : (
-        <Skeleton className="h-96 rounded-none" />
-      )}
-    </>
+    <SystemForm
+      mode={props.mode}
+      defaultValues={config}
+      onSubmit={(values) => {
+        updateConfig.mutate(values);
+      }}
+      isSaving={updateConfig.isPending}
+    />
   );
 }
 

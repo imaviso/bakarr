@@ -1,8 +1,9 @@
 import { DotsThreeIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Suspense, lazy, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { EmptyState } from "~/components/empty-state";
 import { GeneralError } from "~/components/general-error";
 import { PageHeader } from "~/components/page-header";
 import { Badge } from "~/components/ui/badge";
@@ -31,6 +32,7 @@ import {
   type MissingEpisode,
 } from "~/lib/api";
 import { usePageTitle } from "~/lib/page-title";
+import { TABLE_MIN_WIDTH } from "~/lib/ui-constants";
 import {
   formatAiringDateWithPreferences,
   formatNextAiringEpisode,
@@ -71,11 +73,13 @@ function WantedPage() {
   const data = wantedData;
   const airingPreferences = getAiringDisplayPreferences(systemConfig.library);
 
+  const getScrollElement = useCallback(() => scrollRef.current, []);
+
   const rowVirtualizer = useVirtualizer({
     count: data.length,
     estimateSize: () => 56,
     overscan: 10,
-    getScrollElement: () => scrollRef.current,
+    getScrollElement,
   });
 
   const virtualItems = rowVirtualizer.getVirtualItems();
@@ -119,15 +123,21 @@ function WantedPage() {
 
       <Card className="overflow-hidden flex-1 min-h-0 flex flex-col">
         <div ref={scrollRef} className="h-full min-h-0 overflow-auto">
-          <Table className="table-fixed w-full min-w-[760px] md:min-w-0">
+          <Table className="table-fixed w-full md:min-w-0" style={{ minWidth: TABLE_MIN_WIDTH }}>
             <TableHeader className="sticky top-0 bg-card z-10 border-b">
               <TableRow className="hover:bg-transparent border-none">
-                <TableHead className="w-[60px]" />
-                <TableHead>Anime</TableHead>
-                <TableHead className="w-[100px]">Episode</TableHead>
-                <TableHead className="hidden md:table-cell">Title</TableHead>
-                <TableHead className="w-[150px]">Air Date</TableHead>
-                <TableHead className="w-[50px]" />
+                <TableHead scope="col" className="w-[60px]" />
+                <TableHead scope="col">Anime</TableHead>
+                <TableHead scope="col" className="w-[100px]">
+                  Episode
+                </TableHead>
+                <TableHead scope="col" className="hidden md:table-cell">
+                  Title
+                </TableHead>
+                <TableHead scope="col" className="w-[150px]">
+                  Air Date
+                </TableHead>
+                <TableHead scope="col" className="w-[50px]" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -188,11 +198,7 @@ function WantedPage() {
                   )}
                 </>
               ) : (
-                <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center">
-                    No missing episodes found.
-                  </TableCell>
-                </TableRow>
+                <EmptyState asTableCell colSpan={6} compact title="No missing episodes found" />
               )}
             </TableBody>
           </Table>

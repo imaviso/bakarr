@@ -5,6 +5,7 @@ import {
   ArrowClockwiseIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
+import { EmptyState } from "~/components/empty-state";
 import { BackgroundJobCard } from "~/components/logs/background-job-card";
 import { DashboardMetricCard } from "~/components/logs/dashboard-metric-card";
 import { DownloadEventsList } from "~/components/logs/download-events-list";
@@ -37,6 +38,7 @@ import {
 } from "~/components/ui/dropdown-menu";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Switch } from "~/components/ui/switch";
+import { Label } from "~/components/ui/label";
 import { cn } from "~/lib/utils";
 
 type LogsRouteState = ReturnType<typeof useLogsRouteState>;
@@ -56,12 +58,7 @@ export function LogsView(props: LogsViewProps) {
               onCheckedChange={props.state.setAutoRefresh}
               id="auto-refresh"
             />
-            <label
-              htmlFor="auto-refresh"
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-            >
-              Auto-Refresh
-            </label>
+            <Label htmlFor="auto-refresh">Auto-Refresh</Label>
           </div>
           <Button
             variant="outline"
@@ -135,7 +132,7 @@ export function LogsView(props: LogsViewProps) {
         </Filter.Provider>
       </div>
 
-      <Card className="border-dashed shrink-0">
+      <Card className="shrink-0">
         <div className="p-4 border-b border-border">
           <h2 className="text-sm font-medium text-foreground">Ops Summary</h2>
           <p className="text-xs text-muted-foreground mt-1">High-level download and worker health</p>
@@ -169,7 +166,7 @@ export function LogsView(props: LogsViewProps) {
         </div>
       </Card>
 
-      <Card className="border-dashed shrink-0">
+      <Card className="shrink-0">
         <div className="p-4 border-b border-border">
           <h2 className="text-sm font-medium text-foreground">Background Jobs</h2>
           <p className="text-xs text-muted-foreground mt-1">Current scheduler and worker visibility</p>
@@ -181,7 +178,7 @@ export function LogsView(props: LogsViewProps) {
                 <BackgroundJobCard key={job.name} job={job} formatTimestamp={formatLogTimestamp} />
               ))
             ) : (
-              <div className="text-sm text-muted-foreground">No background job data yet</div>
+              <EmptyState compact title="No background job data yet" />
             )
           ) : (
             Array.from({ length: 4 }).map((_, index) => (
@@ -191,7 +188,7 @@ export function LogsView(props: LogsViewProps) {
         </div>
       </Card>
 
-      <Card className="border-dashed shrink-0">
+      <Card className="shrink-0">
         <div className="p-4 border-b border-border">
           <div className="flex flex-col gap-3">
             <div>
@@ -239,7 +236,7 @@ export function LogsView(props: LogsViewProps) {
             />
           </>
         ) : (
-          <div className="p-4 text-sm text-muted-foreground">No recent download events</div>
+          <EmptyState compact title="No recent download events" />
         )}
       </Card>
 

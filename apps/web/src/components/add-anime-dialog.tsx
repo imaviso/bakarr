@@ -272,7 +272,7 @@ function AddAnimeForm(props: AddAnimeFormProps) {
       <form.Field name="profile_name">
         {(field) => (
           <div className="space-y-2">
-            <div className="text-sm font-medium">Quality Profile</div>
+            <Label htmlFor="quality-profile-select">Quality Profile</Label>
             <Select
               value={field.state.value}
               onValueChange={(value) => {
@@ -281,7 +281,7 @@ function AddAnimeForm(props: AddAnimeFormProps) {
                 }
               }}
             >
-              <SelectTrigger>
+              <SelectTrigger id="quality-profile-select">
                 <SelectValue placeholder="Select profile" />
               </SelectTrigger>
               <SelectContent>
@@ -299,8 +299,8 @@ function AddAnimeForm(props: AddAnimeFormProps) {
       {props.releaseProfiles.length > 0 && (
         <form.Field name="release_profile_ids" mode="array">
           {(field) => (
-            <div className="space-y-2">
-              <div className="text-sm font-medium">Release Profiles</div>
+            <div className="space-y-2" id="release-profiles-field">
+              <Label htmlFor="release-profiles-field">Release Profiles</Label>
               <div className="flex flex-wrap gap-2">
                 {props.releaseProfiles.map((profile) => {
                   const isSelected = field.state.value.includes(profile.id);

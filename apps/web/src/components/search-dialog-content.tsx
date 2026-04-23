@@ -32,6 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
+import { EmptyState } from "~/components/empty-state";
 import { ReleaseSelectionMeta } from "~/components/release-search/release-meta";
 import {
   ReleasePeersCell,
@@ -162,10 +163,11 @@ function SearchResults(props: {
       <Table>
         <TableHeader className="sticky top-0 bg-background z-10 border-b border-border">
           <TableRow className="hover:bg-transparent border-border">
-            <TableHead className="w-[45%] pl-6 h-9 text-xs font-medium">
+            <TableHead scope="col" className="w-[45%] pl-6 h-9 text-xs font-medium">
               Release ({state.searchQuery.data?.results.length ?? 0})
             </TableHead>
             <TableHead
+              scope="col"
               className="h-9 text-xs font-medium cursor-pointer hover:text-foreground transition-colors select-none"
               onClick={() => state.toggleSort("parsed_episode")}
             >
@@ -179,8 +181,11 @@ function SearchResults(props: {
                   ))}
               </div>
             </TableHead>
-            <TableHead className="h-9 text-xs font-medium">Res</TableHead>
+            <TableHead scope="col" className="h-9 text-xs font-medium">
+              Res
+            </TableHead>
             <TableHead
+              scope="col"
               className="h-9 text-xs font-medium cursor-pointer hover:text-foreground transition-colors select-none"
               onClick={() => state.toggleSort("size")}
             >
@@ -195,6 +200,7 @@ function SearchResults(props: {
               </div>
             </TableHead>
             <TableHead
+              scope="col"
               className="h-9 text-xs font-medium text-right cursor-pointer hover:text-foreground transition-colors select-none"
               onClick={() => state.toggleSort("seeders")}
             >
@@ -209,6 +215,7 @@ function SearchResults(props: {
               </div>
             </TableHead>
             <TableHead
+              scope="col"
               className="h-9 text-xs font-medium text-right cursor-pointer hover:text-foreground transition-colors select-none"
               onClick={() => state.toggleSort("pub_date")}
             >
@@ -222,7 +229,7 @@ function SearchResults(props: {
                   ))}
               </div>
             </TableHead>
-            <TableHead className="w-[50px] h-9"></TableHead>
+            <TableHead scope="col" className="w-[50px] h-9"></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -237,13 +244,12 @@ function SearchResults(props: {
             ))
           ) : (
             <TableRow className="hover:bg-transparent">
-              <TableCell colSpan={7} className="h-48 text-center">
-                <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
-                  <MagnifyingGlassIcon className="h-8 w-8 opacity-20" />
-                  <p className="text-sm">
-                    {state.searchQuery.isError ? "Failed to load results" : "No results found"}
-                  </p>
-                </div>
+              <TableCell colSpan={7} className="h-48 p-0">
+                <EmptyState
+                  compact
+                  icon={<MagnifyingGlassIcon className="h-8 w-8" />}
+                  title={state.searchQuery.isError ? "Failed to load results" : "No results found"}
+                />
               </TableCell>
             </TableRow>
           )}
@@ -259,13 +265,25 @@ function SearchResultsSkeleton() {
       <Table>
         <TableHeader className="sticky top-0 bg-background z-10 border-b border-border">
           <TableRow className="hover:bg-transparent border-border">
-            <TableHead className="w-[45%] pl-6 h-9 text-xs font-medium">Release</TableHead>
-            <TableHead className="h-9 text-xs font-medium">Ep</TableHead>
-            <TableHead className="h-9 text-xs font-medium">Res</TableHead>
-            <TableHead className="h-9 text-xs font-medium">Size</TableHead>
-            <TableHead className="h-9 text-xs font-medium text-right">Seeds</TableHead>
-            <TableHead className="h-9 text-xs font-medium text-right">Age</TableHead>
-            <TableHead className="w-[50px] h-9"></TableHead>
+            <TableHead scope="col" className="w-[45%] pl-6 h-9 text-xs font-medium">
+              Release
+            </TableHead>
+            <TableHead scope="col" className="h-9 text-xs font-medium">
+              Ep
+            </TableHead>
+            <TableHead scope="col" className="h-9 text-xs font-medium">
+              Res
+            </TableHead>
+            <TableHead scope="col" className="h-9 text-xs font-medium">
+              Size
+            </TableHead>
+            <TableHead scope="col" className="h-9 text-xs font-medium text-right">
+              Seeds
+            </TableHead>
+            <TableHead scope="col" className="h-9 text-xs font-medium text-right">
+              Age
+            </TableHead>
+            <TableHead scope="col" className="w-[50px] h-9"></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

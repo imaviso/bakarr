@@ -13,6 +13,7 @@ import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Skeleton } from "~/components/ui/skeleton";
 import { type BrowseEntry, createBrowsePathQuery } from "~/lib/api";
+import { EmptyState } from "~/components/empty-state";
 import { cn } from "~/lib/utils";
 
 const BROWSE_PAGE_SIZE = 100;
@@ -211,9 +212,7 @@ export function FileBrowser(props: FileBrowserProps) {
               : "Failed to load directory"}
           </div>
         ) : browserQuery.data?.entries.length === 0 ? (
-          <div className="p-4 text-center text-sm text-muted-foreground">
-            This directory is empty
-          </div>
+          <EmptyState compact title="This directory is empty" />
         ) : (
           <div className="p-1">
             {browserQuery.data?.entries.map((entry) => (

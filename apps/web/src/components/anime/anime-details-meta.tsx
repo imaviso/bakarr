@@ -13,41 +13,42 @@ interface AnimeDetailsMetaProps {
   onEditPath: () => void;
 }
 
+function StatItem(props: { label: string; value: number | string; tone?: "success" | "warning" }) {
+  return (
+    <div className="flex items-baseline gap-2">
+      <span
+        className={`text-xl font-semibold tabular-nums ${
+          props.tone === "success"
+            ? "text-success"
+            : props.tone === "warning"
+              ? "text-warning"
+              : "text-foreground"
+        }`}
+      >
+        {props.value}
+      </span>
+      <span className="text-xs text-muted-foreground">{props.label}</span>
+    </div>
+  );
+}
+
 export function AnimeDetailsMeta(props: AnimeDetailsMetaProps) {
   return (
     <>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold">{props.totalEpisodes}</p>
-            <p className="text-xs text-muted-foreground">Total</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold text-success">{props.downloadedEpisodes}</p>
-            <p className="text-xs text-muted-foreground">Downloaded</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold text-warning">{props.missingEpisodes}</p>
-            <p className="text-xs text-muted-foreground">Missing</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center flex flex-col items-center justify-center h-full">
-            <Button
-              variant="ghost"
-              onClick={props.onEditProfile}
-              className="h-auto py-1.5 px-3 text-base font-bold gap-2 hover:bg-muted max-w-full"
-            >
-              <span className="truncate">{props.profileName}</span>
-              <PencilSimpleIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            </Button>
-            <p className="text-xs text-muted-foreground mt-1">Profile</p>
-          </CardContent>
-        </Card>
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-border pb-4">
+        <StatItem label="Total" value={props.totalEpisodes} />
+        <StatItem label="Downloaded" value={props.downloadedEpisodes} tone="success" />
+        <StatItem label="Missing" value={props.missingEpisodes} tone="warning" />
+        <div className="h-6 w-px bg-border hidden sm:block" />
+        <Button
+          variant="ghost"
+          onClick={props.onEditProfile}
+          className="h-auto py-1 px-2 text-base font-bold gap-2 hover:bg-muted"
+        >
+          <span className="truncate">{props.profileName}</span>
+          <PencilSimpleIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <span className="text-xs text-muted-foreground font-normal">Profile</span>
+        </Button>
       </div>
 
       <Card>

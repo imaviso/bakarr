@@ -159,10 +159,18 @@ export function RenameDialog(props: RenameDialogProps) {
                     <Table aria-label="Rename preview" className="min-w-[900px]">
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-[80px]">Episode</TableHead>
-                          <TableHead className="w-[30%]">Current Filename</TableHead>
-                          <TableHead className="w-[30%]">New Filename</TableHead>
-                          <TableHead className="min-w-[280px]">Notes</TableHead>
+                          <TableHead scope="col" className="w-[80px]">
+                            Episode
+                          </TableHead>
+                          <TableHead scope="col" className="w-[30%]">
+                            Current Filename
+                          </TableHead>
+                          <TableHead scope="col" className="w-[30%]">
+                            New Filename
+                          </TableHead>
+                          <TableHead scope="col" className="min-w-[280px]">
+                            Notes
+                          </TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>

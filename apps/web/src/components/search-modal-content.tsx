@@ -57,12 +57,22 @@ export function SearchModalContent(props: SearchModalContentProps) {
                     <Table>
                       <TableHeader className="bg-muted sticky top-0 z-10 border-b">
                         <TableRow>
-                          <TableHead>Release</TableHead>
-                          <TableHead className="w-[100px]">Indexer</TableHead>
-                          <TableHead className="w-[80px]">Size</TableHead>
-                          <TableHead className="w-[80px]">Peers</TableHead>
-                          <TableHead className="w-[120px]">Profile</TableHead>
-                          <TableHead className="w-[100px]">Action</TableHead>
+                          <TableHead scope="col">Release</TableHead>
+                          <TableHead scope="col" className="w-[100px]">
+                            Indexer
+                          </TableHead>
+                          <TableHead scope="col" className="w-[80px]">
+                            Size
+                          </TableHead>
+                          <TableHead scope="col" className="w-[80px]">
+                            Peers
+                          </TableHead>
+                          <TableHead scope="col" className="w-[120px]">
+                            Profile
+                          </TableHead>
+                          <TableHead scope="col" className="w-[100px]">
+                            Action
+                          </TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>

@@ -103,8 +103,10 @@ export function BulkMappingDialog(props: BulkMappingDialogProps) {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[80px]">Episode</TableHead>
-                  <TableHead>File to Map</TableHead>
+                  <TableHead scope="col" className="w-[80px]">
+                    Episode
+                  </TableHead>
+                  <TableHead scope="col">File to Map</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -208,9 +210,11 @@ export function ManualMappingDialog(props: ManualMappingDialogProps) {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[30px]" />
-                    <TableHead>Filename</TableHead>
-                    <TableHead className="w-[100px] text-right">Size</TableHead>
+                    <TableHead scope="col" className="w-[30px]" />
+                    <TableHead scope="col">Filename</TableHead>
+                    <TableHead scope="col" className="w-[100px] text-right">
+                      Size
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

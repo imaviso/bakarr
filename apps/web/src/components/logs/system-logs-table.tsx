@@ -92,11 +92,11 @@ export function SystemLogsTable(props: SystemLogsTableProps) {
         <Table className="table-fixed w-full">
           <TableHeader className="sticky top-0 bg-card z-10">
             <TableRow className="hover:bg-transparent border-none">
-              <TableHead className="w-[160px]">Timestamp</TableHead>
-              <TableHead className="w-[100px]">Level</TableHead>
-              <TableHead className="w-[180px]">Source</TableHead>
-              <TableHead className="w-full">Message</TableHead>
-              <TableHead className="w-[80px]" />
+              <TableHead scope="col" className="w-[160px]">Timestamp</TableHead>
+              <TableHead scope="col" className="w-[100px]">Level</TableHead>
+              <TableHead scope="col" className="w-[180px]">Source</TableHead>
+              <TableHead scope="col" className="w-full">Message</TableHead>
+              <TableHead scope="col" className="w-[80px]" />
             </TableRow>
           </TableHeader>
           <TableBody>

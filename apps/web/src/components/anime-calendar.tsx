@@ -15,7 +15,6 @@ import {
 import { useState } from "react";
 import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
-import { Skeleton } from "~/components/ui/skeleton";
 import { createCalendarQuery, createSystemConfigQuery } from "~/lib/api";
 import {
   formatAiringTimeWithPreferences,
@@ -139,12 +138,7 @@ export function AnimeCalendar() {
 
                   {/* Events */}
                   <div className="space-y-1">
-                    {isLoading ? (
-                      <>
-                        <Skeleton className="h-5 w-full" />
-                        <Skeleton className="h-5 w-4/5" />
-                      </>
-                    ) : (
+                    {!isLoading && (
                       <>
                         {dayEvents.slice(0, 3).map((event) => {
                           const isMissingEvent =

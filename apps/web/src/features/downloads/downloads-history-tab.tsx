@@ -1,15 +1,10 @@
 import { useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { EmptyState } from "~/components/empty-state";
 import { DownloadRow } from "~/components/downloads/download-rows";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "~/components/ui/table";
+import { Table, TableBody, TableHead, TableHeader, TableRow } from "~/components/ui/table";
 import { TabsContent } from "~/components/ui/tabs";
+import { TABLE_MIN_WIDTH } from "~/lib/ui-constants";
 import type { Download } from "~/lib/api";
 
 interface DownloadsHistoryTabProps {
@@ -35,17 +30,25 @@ export function DownloadsHistoryTab(props: DownloadsHistoryTabProps) {
   return (
     <TabsContent value="history" className="flex-1 mt-0 min-h-0 overflow-hidden flex flex-col">
       <div ref={historyScrollRef} className="h-full min-h-0 overflow-auto">
-        <Table className="table-fixed w-full min-w-[860px] md:min-w-0">
+        <Table className="table-fixed w-full md:min-w-0" style={{ minWidth: TABLE_MIN_WIDTH }}>
           <TableHeader className="sticky top-0 bg-card z-10 border-b">
             <TableRow className="hover:bg-transparent border-none">
-              <TableHead className="w-[50px]">
+              <TableHead scope="col" className="w-[50px]">
                 <span className="sr-only">Status</span>
               </TableHead>
-              <TableHead>Anime</TableHead>
-              <TableHead className="w-[100px]">Episode</TableHead>
-              <TableHead className="w-[180px] hidden md:table-cell">Added</TableHead>
-              <TableHead className="w-[120px]">Status</TableHead>
-              <TableHead className="w-[120px] text-right">Actions</TableHead>
+              <TableHead scope="col">Anime</TableHead>
+              <TableHead scope="col" className="w-[100px]">
+                Episode
+              </TableHead>
+              <TableHead scope="col" className="w-[180px] hidden md:table-cell">
+                Added
+              </TableHead>
+              <TableHead scope="col" className="w-[120px]">
+                Status
+              </TableHead>
+              <TableHead scope="col" className="w-[120px] text-right">
+                Actions
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -81,11 +84,7 @@ export function DownloadsHistoryTab(props: DownloadsHistoryTabProps) {
                 )}
               </>
             ) : (
-              <TableRow>
-                <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
-                  No download history
-                </TableCell>
-              </TableRow>
+              <EmptyState asTableCell colSpan={6} compact title="No download history" />
             )}
           </TableBody>
         </Table>

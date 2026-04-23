@@ -280,12 +280,20 @@ export function AnimeListView(props: AnimeLibraryViewProps) {
       <Table className="table-fixed w-full min-w-[760px] lg:min-w-0">
         <TableHeader className="sticky top-0 bg-card z-10 border-b">
           <TableRow className="hover:bg-transparent border-none">
-            <TableHead className="w-[80px]">Cover</TableHead>
-            <TableHead>Title</TableHead>
-            <TableHead className="hidden lg:table-cell">Schedule</TableHead>
-            <TableHead className="hidden md:table-cell">Progress</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
+            <TableHead scope="col" className="w-[80px]">
+              Cover
+            </TableHead>
+            <TableHead scope="col">Title</TableHead>
+            <TableHead scope="col" className="hidden lg:table-cell">
+              Schedule
+            </TableHead>
+            <TableHead scope="col" className="hidden md:table-cell">
+              Progress
+            </TableHead>
+            <TableHead scope="col">Status</TableHead>
+            <TableHead scope="col" className="text-right">
+              Actions
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
