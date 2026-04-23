@@ -40,7 +40,6 @@ import {
 import {
   animeListQueryOptions,
   createAddRssFeedMutation,
-  createAnimeListQuery,
   createDeleteRssFeedMutation,
   createToggleRssFeedMutation,
   type RssFeed,
@@ -193,7 +192,7 @@ const AddFeedSchema = v.object({
 });
 
 function AddFeedForm(props: { onCancel: () => void; onSuccess: () => void }) {
-  const animeListQuery = createAnimeListQuery();
+  const { data: animeList } = useSuspenseQuery(animeListQueryOptions());
   const addFeed = createAddRssFeedMutation();
 
   const form = useForm({
@@ -240,7 +239,7 @@ function AddFeedForm(props: { onCancel: () => void; onSuccess: () => void }) {
                     <SelectValue placeholder="Select anime..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {(animeListQuery.data ?? []).map((anime) => (
+                    {animeList.map((anime) => (
                       <SelectItem key={anime.id} value={String(anime.id)}>
                         {anime.title.english || anime.title.romaji}
                       </SelectItem>

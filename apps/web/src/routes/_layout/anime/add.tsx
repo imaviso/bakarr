@@ -74,7 +74,7 @@ type AddAnimeSearch = v.InferOutput<typeof searchSchema>;
 export const Route = createFileRoute("/_layout/anime/add")({
   validateSearch: searchSchema,
   loader: async ({ context: { queryClient }, location }) => {
-    const search = location.search as AddAnimeSearch;
+    const search = v.parse(searchSchema, location.search);
     await Promise.all([
       queryClient.ensureQueryData(animeListQueryOptions()),
       queryClient.ensureQueryData(profilesQueryOptions()),

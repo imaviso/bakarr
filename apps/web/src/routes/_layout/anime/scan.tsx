@@ -78,8 +78,8 @@ function LibraryScanPage() {
   const foldersByPath = new Map(folderList.map((folder) => [folder.path, folder]));
   const folderPaths = folderList.map((folder) => folder.path);
 
-  const isScanning = Boolean(scanState.is_scanning);
-  const hasOutstandingMatches = Boolean(scanState.has_outstanding_matches);
+  const isScanning = scanState.is_scanning;
+  const hasOutstandingMatches = scanState.has_outstanding_matches;
   const matchStatus = scanState.match_status;
 
   const serverCounts = scanState.match_counts;

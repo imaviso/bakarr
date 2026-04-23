@@ -3,10 +3,11 @@ import {
   CheckIcon,
   TelevisionIcon,
   FolderIcon,
-  SpinnerIcon,
   PlusIcon,
+  SpinnerIcon,
 } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import * as v from "valibot";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
@@ -30,9 +31,9 @@ import { Label } from "~/components/ui/label";
 import {
   type AnimeSearchResult,
   createAddAnimeMutation,
-  createProfilesQuery,
-  createReleaseProfilesQuery,
-  createSystemConfigQuery,
+  profilesQueryOptions,
+  releaseProfilesQueryOptions,
+  systemConfigQueryOptions,
   type QualityProfile,
   type ReleaseProfile,
 } from "~/lib/api";
@@ -60,21 +61,16 @@ export interface AddAnimeDialogProps {
 }
 
 export function AddAnimeDialog(props: AddAnimeDialogProps) {
-  // Only fetch when dialog is open to prevent eager fetching
-  const profilesQuery = createProfilesQuery(props.open);
-  const releaseProfilesQuery = createReleaseProfilesQuery(props.open);
-  const configQuery = createSystemConfigQuery(props.open);
+  const { data: profiles } = useSuspenseQuery(profilesQueryOptions());
+  const { data: releaseProfiles } = useSuspenseQuery(releaseProfilesQueryOptions());
+  const { data: config } = useSuspenseQuery(systemConfigQueryOptions());
 
-  const isReady =
-    profilesQuery.isSuccess && configQuery.isSuccess && releaseProfilesQuery.isSuccess;
-
-  const metadataChips: string[] = [];
-  if (props.anime.format) metadataChips.push(props.anime.format);
-  if (props.anime.episode_count) metadataChips.push(`${props.anime.episode_count} eps`);
-  const subtitle = animeSearchSubtitle(props.anime);
-  if (subtitle) metadataChips.push(subtitle);
-  const confidence = formatMatchConfidence(props.anime.match_confidence);
-  if (confidence) metadataChips.push(confidence);
+  const metadataChips = [
+    props.anime.format,
+    props.anime.episode_count ? `${props.anime.episode_count} eps` : undefined,
+    animeSearchSubtitle(props.anime),
+    formatMatchConfidence(props.anime.match_confidence),
+  ].filter((chip): chip is string => Boolean(chip));
 
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
@@ -193,26 +189,18 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
           </DialogDescription>
         </DialogHeader>
 
-        {/* 2. Only render form when dependencies are loaded */}
-        {/* This avoids "Effect syncing" and ensures defaultValues are correct immediately */}
-        {isReady ? (
-          <AddAnimeForm
-            anime={props.anime}
-            rootFolder={configQuery.data?.library.library_path ?? ""}
-            defaultProfile={profilesQuery.data?.[0]?.name || ""}
-            releaseProfiles={releaseProfilesQuery.data || []}
-            profiles={profilesQuery.data || []}
-            onSuccess={() => {
-              props.onSuccess?.();
-              props.onOpenChange(false);
-            }}
-            onCancel={() => props.onOpenChange(false)}
-          />
-        ) : (
-          <div className="h-64 flex items-center justify-center">
-            <SpinnerIcon className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        )}
+        <AddAnimeForm
+          anime={props.anime}
+          rootFolder={config.library.library_path}
+          defaultProfile={profiles[0]?.name || ""}
+          releaseProfiles={releaseProfiles}
+          profiles={profiles}
+          onSuccess={() => {
+            props.onSuccess?.();
+            props.onOpenChange(false);
+          }}
+          onCancel={() => props.onOpenChange(false)}
+        />
       </DialogContent>
     </Dialog>
   );

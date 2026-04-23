@@ -99,10 +99,8 @@ export function FileBrowser(props: FileBrowserProps) {
     }
   };
 
-  const breadcrumbs = () => {
-    const path = browserQuery.data?.current_path;
-    return path && path !== "/" ? path.split("/").filter(Boolean) : [];
-  };
+  const path = browserQuery.data?.current_path;
+  const breadcrumbs = path && path !== "/" ? path.split("/").filter(Boolean) : [];
 
   const isFullHeight = height === "100%";
 
@@ -154,7 +152,7 @@ export function FileBrowser(props: FileBrowserProps) {
       </div>
 
       {/* Breadcrumb trail */}
-      {breadcrumbs().length > 0 && (
+      {breadcrumbs.length > 0 && (
         <div className="flex items-center gap-1 px-3 py-1.5 border-b text-xs text-muted-foreground overflow-x-auto shrink-0">
           <button
             type="button"
@@ -163,11 +161,9 @@ export function FileBrowser(props: FileBrowserProps) {
           >
             /
           </button>
-          {breadcrumbs().map((part, index) => {
-            const partPath = `/${breadcrumbs()
-              .slice(0, index + 1)
-              .join("/")}`;
-            const isLast = index === breadcrumbs().length - 1;
+          {breadcrumbs.map((part, index) => {
+            const partPath = `/${breadcrumbs.slice(0, index + 1).join("/")}`;
+            const isLast = index === breadcrumbs.length - 1;
             return (
               <span key={partPath} className="flex items-center gap-1 shrink-0">
                 <CaretRightIcon className="h-3 w-3" />

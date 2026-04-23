@@ -1,5 +1,5 @@
 import { WarningIcon, CheckIcon, InfoIcon, SpinnerIcon } from "@phosphor-icons/react";
-import { useState } from "react";
+
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -23,7 +23,6 @@ import {
   createExecuteRenameMutation,
   createRenamePreviewQuery,
   type RenamePreviewItem,
-  type RenameResult,
 } from "~/lib/api";
 
 function formatTitleSourceLabel(
@@ -75,21 +74,14 @@ export function RenameDialog(props: RenameDialogProps) {
   const executeRename = createExecuteRenameMutation();
   const resetExecuteRename = executeRename.reset;
 
-  const [result, setResult] = useState<RenameResult | null>(null);
-
   const previewCount = previewQuery.data?.length ?? 0;
 
   const handleRename = () => {
-    executeRename.mutate(props.animeId, {
-      onSuccess: (data: RenameResult) => {
-        setResult(data);
-      },
-    });
+    executeRename.mutate(props.animeId);
   };
 
   const handleOpenChange = (open: boolean) => {
     if (open) {
-      setResult(null);
       resetExecuteRename();
     }
     props.onOpenChange(open);
@@ -136,15 +128,15 @@ export function RenameDialog(props: RenameDialogProps) {
                   </AlertDescription>
                 </Alert>
               )}
-              {result ? (
+              {executeRename.data ? (
                 <div className="space-y-4" aria-live="polite">
-                  {(result.failed ?? 0) > 0 && (
+                  {(executeRename.data.failed ?? 0) > 0 && (
                     <Alert variant="destructive">
                       <WarningIcon className="h-4 w-4" />
                       <AlertTitle>Errors Occurred</AlertTitle>
                       <AlertDescription>
                         <ul className="list-disc pl-4 mt-2">
-                          {(result.failures || []).map((failure) => (
+                          {(executeRename.data.failures || []).map((failure) => (
                             <li key={failure}>{failure}</li>
                           ))}
                         </ul>
@@ -155,9 +147,9 @@ export function RenameDialog(props: RenameDialogProps) {
                     <CheckIcon className="h-16 w-16 text-success mb-4" />
                     <h3 className="text-xl font-semibold">Rename Complete</h3>
                     <p className="text-muted-foreground">
-                      {result.renamed === 0
+                      {executeRename.data.renamed === 0
                         ? "No files needed renaming."
-                        : `Successfully renamed ${result.renamed} files.`}
+                        : `Successfully renamed ${executeRename.data.renamed} files.`}
                     </p>
                   </div>
                 </div>
@@ -281,7 +273,7 @@ export function RenameDialog(props: RenameDialogProps) {
         </div>
 
         <DialogFooter>
-          {result ? (
+          {executeRename.data ? (
             <Button onClick={() => props.onOpenChange(false)}>Close</Button>
           ) : (
             <>
