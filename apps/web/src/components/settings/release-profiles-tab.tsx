@@ -1,4 +1,5 @@
 import { PencilSimpleIcon, ListChecksIcon, PlusIcon, TrashIcon } from "@phosphor-icons/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { ReleaseProfileForm } from "~/components/settings/release-profile-form";
 import {
@@ -15,10 +16,9 @@ import {
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
-import { Skeleton } from "~/components/ui/skeleton";
 import {
   createDeleteReleaseProfileMutation,
-  createReleaseProfilesQuery,
+  releaseProfilesQueryOptions,
   type ReleaseProfile,
 } from "~/lib/api";
 
@@ -133,7 +133,7 @@ export function ReleaseProfilesTab() {
   const [editingProfile, setEditingProfile] = useState<ReleaseProfile | null>(null);
   const [isCreating, setIsCreating] = useState(false);
 
-  const releaseProfilesQuery = createReleaseProfilesQuery();
+  const { data: releaseProfiles } = useSuspenseQuery(releaseProfilesQueryOptions());
   const deleteReleaseProfile = createDeleteReleaseProfileMutation();
 
   return (
@@ -169,14 +169,7 @@ export function ReleaseProfilesTab() {
             </Button>
           </div>
 
-          {releaseProfilesQuery.isLoading && (
-            <div className="space-y-4">
-              <Skeleton key="release-profile-skeleton-1" className="h-32 rounded-none" />
-              <Skeleton key="release-profile-skeleton-2" className="h-32 rounded-none" />
-            </div>
-          )}
-
-          {!releaseProfilesQuery.isLoading && releaseProfilesQuery.data?.length === 0 && (
+          {releaseProfiles.length === 0 && (
             <Card className="p-12 text-center border-dashed bg-transparent">
               <div className="flex flex-col items-center gap-4">
                 <ListChecksIcon className="h-12 w-12 text-muted-foreground" />
@@ -194,9 +187,9 @@ export function ReleaseProfilesTab() {
             </Card>
           )}
 
-          {releaseProfilesQuery.data && releaseProfilesQuery.data.length > 0 && (
+          {releaseProfiles.length > 0 && (
             <div className="grid gap-4">
-              {releaseProfilesQuery.data.map((profile) => (
+              {releaseProfiles.map((profile) => (
                 <ReleaseProfileCard
                   key={profile.id}
                   profile={profile}

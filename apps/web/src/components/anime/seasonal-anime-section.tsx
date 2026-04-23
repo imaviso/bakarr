@@ -1,11 +1,12 @@
 import { CaretLeftIcon, CaretRightIcon, InfoIcon } from "@phosphor-icons/react";
-import type { UseInfiniteQueryResult, InfiniteData } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef } from "react";
+import { useSuspenseInfiniteQuery } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { AnimeSearchResultCard } from "~/components/anime/anime-search-result-card";
 import { Button } from "~/components/ui/button";
 import { useContainerWidth } from "~/hooks/use-container-width";
-import type { AnimeSearchResult, SeasonalAnimeResponse } from "~/lib/api";
+import type { AnimeSearchResult } from "~/lib/api";
+import { seasonalAnimeInfiniteQueryOptions } from "~/lib/api";
 import { formatSeasonWindowLabel } from "~/lib/seasonal-navigation";
 import type { SeasonWindow } from "~/lib/seasonal-navigation";
 
@@ -14,7 +15,6 @@ interface SeasonalAnimeSectionProps {
   seasonWindow: SeasonWindow;
   onPrevious: () => void;
   onNext: () => void;
-  query: UseInfiniteQueryResult<InfiniteData<SeasonalAnimeResponse>>;
   libraryIds: ReadonlySet<number>;
   onSelectAnime: (anime: AnimeSearchResult) => void;
 }
@@ -34,11 +34,15 @@ export function SeasonalAnimeSection(props: SeasonalAnimeSectionProps) {
   const colW = (containerW - (colCount - 1) * 16) / colCount;
   const estimateRowSize = Math.round(colW * 1.5 + 52 + 16);
 
-  const allResults = useMemo(
-    () => props.query.data?.pages.flatMap((page) => page.results) ?? [],
-    [props.query.data],
+  const { data, hasNextPage, fetchNextPage, isFetchingNextPage } = useSuspenseInfiniteQuery(
+    seasonalAnimeInfiniteQueryOptions({
+      season: props.seasonWindow.season,
+      year: props.seasonWindow.year,
+    }),
   );
-  const isDegraded = props.query.data?.pages.some((page) => page.degraded) ?? false;
+
+  const allResults = data.pages.flatMap((page) => page.results);
+  const isDegraded = data.pages.some((page) => page.degraded);
 
   const rowCount = Math.ceil(allResults.length / colCount);
 
@@ -66,9 +70,6 @@ export function SeasonalAnimeSection(props: SeasonalAnimeSectionProps) {
   }, [props.seasonWindow.season, props.seasonWindow.year, rowVirtualizer, nodeRef]);
 
   const virtualRows = rowVirtualizer.getVirtualItems();
-  const hasNextPage = props.query.hasNextPage;
-  const isFetchingNextPage = props.query.isFetchingNextPage;
-  const fetchNextPage = props.query.fetchNextPage;
 
   const rowItems = (rowIndex: number) => {
     const cols = colCount;
@@ -115,7 +116,6 @@ export function SeasonalAnimeSection(props: SeasonalAnimeSectionProps) {
             className="h-9 w-9"
             onClick={props.onPrevious}
             aria-label="Previous season"
-            disabled={props.query.isFetching}
           >
             <CaretLeftIcon className="h-4 w-4" />
           </Button>
@@ -128,7 +128,6 @@ export function SeasonalAnimeSection(props: SeasonalAnimeSectionProps) {
             className="h-9 w-9"
             onClick={props.onNext}
             aria-label="Next season"
-            disabled={props.query.isFetching}
           >
             <CaretRightIcon className="h-4 w-4" />
           </Button>
@@ -145,21 +144,7 @@ export function SeasonalAnimeSection(props: SeasonalAnimeSectionProps) {
         </div>
       )}
 
-      {props.query.isError && !props.query.data && (
-        <div className="rounded-none border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-          Failed to load seasonal anime.
-          <Button
-            type="button"
-            variant="link"
-            className="h-auto px-1 py-0 text-destructive underline hover:no-underline"
-            onClick={() => props.query.refetch()}
-          >
-            Try again
-          </Button>
-        </div>
-      )}
-
-      {!props.query.isError && allResults.length === 0 && !props.query.isLoading && (
+      {allResults.length === 0 && (
         <div className="flex flex-col items-center justify-center py-10 text-muted-foreground border-2 border-dashed rounded-none bg-muted">
           <p className="text-sm">No seasonal anime found for this period.</p>
         </div>

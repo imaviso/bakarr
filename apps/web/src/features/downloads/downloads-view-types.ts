@@ -48,10 +48,6 @@ export interface DownloadsEventsQuery {
   isLoading: boolean;
 }
 
-export interface DownloadsHistoryQuery {
-  isLoading: boolean;
-}
-
 export interface DownloadsMutationLike {
   isPending: boolean;
 }
@@ -66,7 +62,6 @@ export interface DownloadsViewState {
   handleDownloadEventsExport: (format: "json" | "csv") => void;
   handleTabChange: (value: string | undefined) => void;
   history: Download[];
-  historyQuery: DownloadsHistoryQuery;
   lastDownloadEventsExport: DownloadEventsExportResult | undefined;
   queue: DownloadStatus[];
   queueCount: number;

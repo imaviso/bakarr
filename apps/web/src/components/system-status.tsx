@@ -13,6 +13,7 @@ import {
   createSystemStatusQuery,
   createTriggerRssCheckMutation,
   createTriggerScanMutation,
+  isTaskActive,
 } from "~/lib/api";
 
 function formatBytes(bytes: number) {
@@ -65,8 +66,10 @@ export function SystemStatus() {
   const status = createSystemStatusQuery();
   const [latestScanTaskId, setLatestScanTaskId] = useState<number | undefined>(undefined);
   const [latestRssTaskId, setLatestRssTaskId] = useState<number | undefined>(undefined);
-  createSystemTaskQuery(latestScanTaskId);
-  createSystemTaskQuery(latestRssTaskId);
+  const latestScanTask = createSystemTaskQuery(latestScanTaskId);
+  const latestRssTask = createSystemTaskQuery(latestRssTaskId);
+  const isScanTaskRunning = latestScanTask.data !== undefined && isTaskActive(latestScanTask.data);
+  const isRssTaskRunning = latestRssTask.data !== undefined && isTaskActive(latestRssTask.data);
   const scanMutation = createTriggerScanMutation();
   const rssMutation = createTriggerRssCheckMutation();
 
@@ -169,11 +172,16 @@ export function SystemStatus() {
             variant="outline"
             size="sm"
             onClick={handleScan}
-            disabled={scanMutation.isPending}
+            disabled={scanMutation.isPending || isScanTaskRunning}
           >
             Scan Lib
           </Button>
-          <Button variant="outline" size="sm" onClick={handleRss} disabled={rssMutation.isPending}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRss}
+            disabled={rssMutation.isPending || isRssTaskRunning}
+          >
             Check RSS
           </Button>
         </CardContent>

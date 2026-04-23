@@ -5,8 +5,9 @@ import {
   ArrowClockwiseIcon,
   GearIcon,
 } from "@phosphor-icons/react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Suspense, lazy } from "react";
+import * as v from "valibot";
 import { GeneralError } from "~/components/general-error";
 import { PageHeader } from "~/components/page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
@@ -44,7 +45,18 @@ const SystemStatusLazy = lazy(() =>
   })),
 );
 
+const SettingsSearchSchema = v.object({
+  tab: v.optional(
+    v.fallback(
+      v.picklist(["general", "automation", "profiles", "release-profiles", "account"]),
+      "general",
+    ),
+    "general",
+  ),
+});
+
 export const Route = createFileRoute("/_layout/settings")({
+  validateSearch: (search) => v.parse(SettingsSearchSchema, search),
   loader: async ({ context: { queryClient } }) => {
     await Promise.all([
       queryClient.ensureQueryData(profilesQueryOptions()),
@@ -59,6 +71,9 @@ export const Route = createFileRoute("/_layout/settings")({
 
 function SettingsPage() {
   usePageTitle("Settings");
+  const search = Route.useSearch();
+  const navigate = useNavigate();
+
   return (
     <div className="space-y-6">
       <PageHeader title="Settings">
@@ -67,7 +82,19 @@ function SettingsPage() {
         </Suspense>
       </PageHeader>
 
-      <Tabs defaultValue="general" className="w-full space-y-6">
+      <Tabs
+        value={search.tab}
+        onValueChange={(tab) => {
+          void navigate({
+            to: ".",
+            search: {
+              tab,
+            },
+            replace: true,
+          });
+        }}
+        className="w-full space-y-6"
+      >
         <TabsList className="mb-6 h-auto w-full justify-start overflow-x-auto overflow-y-hidden border-b bg-transparent p-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [-webkit-mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)] [mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)] sm:[-webkit-mask-image:none] sm:[mask-image:none] md:overflow-x-visible">
           <TabsTrigger
             value="general"

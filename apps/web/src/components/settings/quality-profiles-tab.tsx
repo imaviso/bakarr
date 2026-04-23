@@ -4,6 +4,7 @@ import {
   PlusIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { ProfileForm } from "~/components/settings/quality-profile-form";
 import {
@@ -20,9 +21,8 @@ import {
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
-import { Skeleton } from "~/components/ui/skeleton";
 import { Switch } from "~/components/ui/switch";
-import { createDeleteProfileMutation, createProfilesQuery, type QualityProfile } from "~/lib/api";
+import { createDeleteProfileMutation, profilesQueryOptions, type QualityProfile } from "~/lib/api";
 
 interface QualityProfileCardProps {
   onDelete: (name: string) => void;
@@ -139,7 +139,7 @@ export function QualityProfilesTab() {
   const [editingProfile, setEditingProfile] = useState<QualityProfile | null>(null);
   const [isCreating, setIsCreating] = useState(false);
 
-  const profilesQuery = createProfilesQuery();
+  const { data: profiles } = useSuspenseQuery(profilesQueryOptions());
   const deleteProfile = createDeleteProfileMutation();
 
   return (
@@ -175,14 +175,7 @@ export function QualityProfilesTab() {
             </Button>
           </div>
 
-          {profilesQuery.isLoading && (
-            <div className="space-y-4">
-              <Skeleton key="quality-profile-skeleton-1" className="h-32 rounded-none" />
-              <Skeleton key="quality-profile-skeleton-2" className="h-32 rounded-none" />
-            </div>
-          )}
-
-          {!profilesQuery.isLoading && profilesQuery.data?.length === 0 && (
+          {profiles.length === 0 && (
             <Card className="p-12 text-center border-dashed bg-transparent">
               <div className="flex flex-col items-center gap-4">
                 <SlidersHorizontalIcon className="h-12 w-12 text-muted-foreground" />
@@ -200,9 +193,9 @@ export function QualityProfilesTab() {
             </Card>
           )}
 
-          {profilesQuery.data && profilesQuery.data.length > 0 && (
+          {profiles.length > 0 && (
             <div className="grid gap-4">
-              {profilesQuery.data.map((profile) => (
+              {profiles.map((profile) => (
                 <QualityProfileCard
                   key={profile.name}
                   profile={profile}

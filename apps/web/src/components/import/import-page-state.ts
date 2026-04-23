@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
-import { createSystemConfigQuery } from "~/lib/api";
+import { useEffect, useState } from "react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { systemConfigQueryOptions } from "~/lib/api";
 import { toImportInputMode, useImportFlow } from "~/components/import/use-import-flow";
 import type { FileRowAnimeOption, Step } from "~/components/import/types";
 
@@ -36,80 +37,60 @@ export function createImportPageState(options: CreateImportPageStateOptions) {
     onImportSuccess: options.onImportSuccess,
   });
 
-  const configQuery = createSystemConfigQuery();
+  const { data: config } = useSuspenseQuery(systemConfigQueryOptions());
   const [selectedBrowseRoot, setSelectedBrowseRoot] = useState<BrowseRootKey>("library");
   const [pathAutofillEnabled, setPathAutofillEnabled] = useState(true);
 
-  const currentStepIndex = useMemo(
-    () => importSteps.findIndex((stepConfig) => stepConfig.id === flow.step),
-    [flow.step],
-  );
+  const currentStepIndex = importSteps.findIndex((stepConfig) => stepConfig.id === flow.step);
 
-  const allowedRoots = useMemo<AllowedRoot[]>(() => {
-    const config = configQuery.data;
-    if (!config) {
-      return [];
-    }
+  const allowedRoots: AllowedRoot[] = [
+    {
+      key: "library" as const,
+      label: "Library",
+      path: config.library.library_path.trim(),
+    },
+    {
+      key: "recycle" as const,
+      label: "Recycle",
+      path: config.library.recycle_path.trim(),
+    },
+    {
+      key: "downloads" as const,
+      label: "Downloads",
+      path: config.downloads.root_path.trim(),
+    },
+  ].filter((root) => root.path.length > 0);
 
-    return [
-      {
-        key: "library" as const,
-        label: "Library",
-        path: config.library.library_path.trim(),
+  const animeList = flow.animeList;
+  const candidateList = flow.candidates;
+  const animeIds = new Set(animeList.map((anime) => anime.id));
+
+  const animeOptions: FileRowAnimeOption[] = [
+    ...animeList.map((anime) => ({
+      id: anime.id,
+      source: "library" as const,
+      title: {
+        romaji: titleLabel(anime.title),
+        ...(anime.title.english ? { english: anime.title.english } : {}),
       },
-      {
-        key: "recycle" as const,
-        label: "Recycle",
-        path: config.library.recycle_path.trim(),
-      },
-      {
-        key: "downloads" as const,
-        label: "Downloads",
-        path: config.downloads.root_path.trim(),
-      },
-    ].filter((root) => root.path.length > 0);
-  }, [configQuery.data]);
-
-  const animeOptions = useMemo<FileRowAnimeOption[]>(() => {
-    const animeList = flow.animeListQuery.data ?? [];
-    const candidateList = flow.candidates;
-    const animeIds = new Set(animeList.map((anime) => anime.id));
-
-    return [
-      ...animeList.map((anime) => ({
-        id: anime.id,
-        source: "library" as const,
+    })),
+    ...candidateList
+      .filter((candidate) => !animeIds.has(candidate.id))
+      .map((candidate) => ({
+        id: candidate.id,
+        source: "candidate" as const,
         title: {
-          romaji: titleLabel(anime.title),
-          ...(anime.title.english ? { english: anime.title.english } : {}),
+          romaji: titleLabel(candidate.title),
+          ...(candidate.title.english ? { english: candidate.title.english } : {}),
         },
       })),
-      ...candidateList
-        .filter((candidate) => !animeIds.has(candidate.id))
-        .map((candidate) => ({
-          id: candidate.id,
-          source: "candidate" as const,
-          title: {
-            romaji: titleLabel(candidate.title),
-            ...(candidate.title.english ? { english: candidate.title.english } : {}),
-          },
-        })),
-    ].toSorted((left, right) => titleLabel(left.title).localeCompare(titleLabel(right.title)));
-  }, [flow.animeListQuery.data, flow.candidates]);
+  ].toSorted((left, right) => titleLabel(left.title).localeCompare(titleLabel(right.title)));
 
-  const candidateIds = useMemo(
-    () => new Set(flow.candidates.map((candidate) => candidate.id)),
-    [flow.candidates],
-  );
-  const manualCandidateIds = useMemo(
-    () => new Set(flow.manualCandidates.map((candidate) => candidate.id)),
-    [flow.manualCandidates],
-  );
+  const candidateIds = new Set(flow.candidates.map((candidate) => candidate.id));
+  const manualCandidateIds = new Set(flow.manualCandidates.map((candidate) => candidate.id));
 
-  const activeBrowseRoot = useMemo(
-    () => allowedRoots.find((root) => root.key === selectedBrowseRoot) ?? allowedRoots[0] ?? null,
-    [allowedRoots, selectedBrowseRoot],
-  );
+  const activeBrowseRoot =
+    allowedRoots.find((root) => root.key === selectedBrowseRoot) ?? allowedRoots[0] ?? null;
   const flowPath = flow.path;
   const setFlowPath = flow.setPath;
 
@@ -172,7 +153,6 @@ export function createImportPageState(options: CreateImportPageStateOptions) {
     animeOptions,
     candidateIds,
     clearPath,
-    configQuery,
     currentStepIndex,
     flow,
     latestImportTaskId,

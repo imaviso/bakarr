@@ -4,7 +4,7 @@ import { addMonths, endOfMonth, endOfWeek, startOfMonth, startOfWeek, subMonths 
 import { Suspense } from "react";
 import { AnimeCalendar } from "~/components/anime-calendar";
 import { GeneralError } from "~/components/general-error";
-import { calendarQueryOptions } from "~/lib/api";
+import { calendarQueryOptions, systemConfigQueryOptions } from "~/lib/api";
 import { usePageTitle } from "~/lib/page-title";
 
 export const Route = createFileRoute("/_layout/calendar")({
@@ -12,7 +12,10 @@ export const Route = createFileRoute("/_layout/calendar")({
     const now = new Date();
     const fetchStart = subMonths(startOfWeek(startOfMonth(now)), 1);
     const fetchEnd = addMonths(endOfWeek(endOfMonth(now)), 1);
-    await queryClient.ensureQueryData(calendarQueryOptions(fetchStart, fetchEnd));
+    await Promise.all([
+      queryClient.ensureQueryData(calendarQueryOptions(fetchStart, fetchEnd)),
+      queryClient.ensureQueryData(systemConfigQueryOptions()),
+    ]);
   },
   component: CalendarPage,
   errorComponent: GeneralError,

@@ -105,10 +105,7 @@ export function DownloadsView(props: DownloadsViewProps) {
             lastDownloadEventsExport={props.state.lastDownloadEventsExport}
           />
 
-          <DownloadsHistoryTab
-            history={props.state.history}
-            historyQuery={props.state.historyQuery}
-          />
+          <DownloadsHistoryTab history={props.state.history} />
         </Tabs>
       </Card>
     </div>

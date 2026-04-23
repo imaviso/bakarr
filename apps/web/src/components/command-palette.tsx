@@ -11,7 +11,7 @@ import {
   GearIcon,
 } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState } from "react";
 import {
   Command,
   CommandDialog,
@@ -22,7 +22,7 @@ import {
   CommandList,
   CommandSeparator,
 } from "~/components/ui/command";
-import { Skeleton } from "~/components/ui/skeleton";
+
 import { createAnimeListQuery } from "~/lib/api";
 import { animeSearchSubtitle } from "~/lib/anime-metadata";
 
@@ -65,76 +65,66 @@ function SearchResults(props: {
 
   return (
     <CommandList>
-      <Suspense
-        fallback={
-          <CommandEmpty>
-            <div className="flex items-center justify-center py-4">
-              <Skeleton className="h-4 w-32" />
-            </div>
-          </CommandEmpty>
-        }
-      >
-        {props.animeList.isLoading && <CommandEmpty>Loading library...</CommandEmpty>}
+      {props.animeList.isLoading && <CommandEmpty>Loading library...</CommandEmpty>}
 
-        {!props.animeList.isLoading &&
-          filteredLibrary.length === 0 &&
-          filteredRoutes.length === 0 && <CommandEmpty>No results found.</CommandEmpty>}
+      {!props.animeList.isLoading &&
+        filteredLibrary.length === 0 &&
+        filteredRoutes.length === 0 && <CommandEmpty>No results found.</CommandEmpty>}
 
-        {/* Navigation Routes */}
-        {filteredRoutes.length > 0 && (
-          <CommandGroup heading="Navigation">
-            {filteredRoutes.map((route) => (
+      {/* Navigation Routes */}
+      {filteredRoutes.length > 0 && (
+        <CommandGroup heading="Navigation">
+          {filteredRoutes.map((route) => (
+            <CommandItem
+              key={route.url}
+              value={`nav-${route.url}`}
+              onSelect={() => props.onSelect(route.url)}
+            >
+              <route.icon className="mr-2 h-4 w-4 text-muted-foreground" />
+              <span>{route.title}</span>
+            </CommandItem>
+          ))}
+        </CommandGroup>
+      )}
+
+      {/* Library Section */}
+      {!props.animeList.isLoading && filteredLibrary.length > 0 && (
+        <>
+          <CommandSeparator />
+          <CommandGroup heading="Library">
+            {filteredLibrary.map((anime) => (
               <CommandItem
-                key={route.url}
-                value={`nav-${route.url}`}
-                onSelect={() => props.onSelect(route.url)}
+                key={anime.id}
+                value={`library-${anime.id}`}
+                onSelect={() => props.onSelect(`/anime/${anime.id}`)}
               >
-                <route.icon className="mr-2 h-4 w-4 text-muted-foreground" />
-                <span>{route.title}</span>
+                {anime.cover_image && (
+                  <img
+                    src={anime.cover_image}
+                    alt={anime.title.romaji}
+                    loading="lazy"
+                    className="mr-2 h-8 w-6 object-cover"
+                  />
+                )}
+                <div className="flex flex-col">
+                  <span className="font-medium">{anime.title.romaji}</span>
+                  {anime.title.english && anime.title.english !== anime.title.romaji && (
+                    <span className="text-xs text-muted-foreground">{anime.title.english}</span>
+                  )}
+                  {(animeSearchSubtitle(anime) || anime.genres?.length) && (
+                    <span className="text-xs text-muted-foreground">
+                      {[animeSearchSubtitle(anime), anime.genres?.[0]]
+                        .filter((value): value is string => Boolean(value))
+                        .join(" • ")}
+                    </span>
+                  )}
+                </div>
+                <CaretRightIcon className="ml-auto h-4 w-4 text-muted-foreground" />
               </CommandItem>
             ))}
           </CommandGroup>
-        )}
-
-        {/* Library Section */}
-        {!props.animeList.isLoading && filteredLibrary.length > 0 && (
-          <>
-            <CommandSeparator />
-            <CommandGroup heading="Library">
-              {filteredLibrary.map((anime) => (
-                <CommandItem
-                  key={anime.id}
-                  value={`library-${anime.id}`}
-                  onSelect={() => props.onSelect(`/anime/${anime.id}`)}
-                >
-                  {anime.cover_image && (
-                    <img
-                      src={anime.cover_image}
-                      alt={anime.title.romaji}
-                      loading="lazy"
-                      className="mr-2 h-8 w-6 object-cover"
-                    />
-                  )}
-                  <div className="flex flex-col">
-                    <span className="font-medium">{anime.title.romaji}</span>
-                    {anime.title.english && anime.title.english !== anime.title.romaji && (
-                      <span className="text-xs text-muted-foreground">{anime.title.english}</span>
-                    )}
-                    {(animeSearchSubtitle(anime) || anime.genres?.length) && (
-                      <span className="text-xs text-muted-foreground">
-                        {[animeSearchSubtitle(anime), anime.genres?.[0]]
-                          .filter((value): value is string => Boolean(value))
-                          .join(" • ")}
-                      </span>
-                    )}
-                  </div>
-                  <CaretRightIcon className="ml-auto h-4 w-4 text-muted-foreground" />
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </>
-        )}
-      </Suspense>
+        </>
+      )}
     </CommandList>
   );
 }

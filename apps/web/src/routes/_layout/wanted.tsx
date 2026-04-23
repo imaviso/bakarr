@@ -1,8 +1,8 @@
 import { DotsThreeIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Suspense, lazy, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import * as v from "valibot";
 import { GeneralError } from "~/components/general-error";
 import { PageHeader } from "~/components/page-header";
 import { Badge } from "~/components/ui/badge";
@@ -24,9 +24,10 @@ import {
 } from "~/components/ui/table";
 import {
   createSystemTaskQuery,
+  isTaskActive,
   createSearchMissingMutation,
-  createSystemConfigQuery,
-  createWantedQuery,
+  systemConfigQueryOptions,
+  wantedQueryOptions,
   type MissingEpisode,
 } from "~/lib/api";
 import { usePageTitle } from "~/lib/page-title";
@@ -36,18 +37,21 @@ import {
   getAiringDisplayPreferences,
 } from "~/lib/anime-metadata";
 
+const WANTED_LIMIT = 100;
+
 const SearchModalLazy = lazy(() =>
   import("~/components/search-modal").then((module) => ({
     default: module.SearchModal,
   })),
 );
 
-const WantedSearchSchema = v.object({
-  q: v.optional(v.string(), ""),
-});
-
 export const Route = createFileRoute("/_layout/wanted")({
-  validateSearch: (search) => v.parse(WantedSearchSchema, search),
+  loader: async ({ context: { queryClient } }) => {
+    await Promise.all([
+      queryClient.ensureQueryData(wantedQueryOptions(WANTED_LIMIT)),
+      queryClient.ensureQueryData(systemConfigQueryOptions()),
+    ]);
+  },
   component: WantedPage,
   errorComponent: GeneralError,
 });
@@ -55,16 +59,17 @@ export const Route = createFileRoute("/_layout/wanted")({
 function WantedPage() {
   usePageTitle("Wanted");
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const limit = 100;
-  const wantedQuery = createWantedQuery(limit);
-  const configQuery = createSystemConfigQuery();
+  const wantedData = useSuspenseQuery(wantedQueryOptions(WANTED_LIMIT)).data;
+  const systemConfig = useSuspenseQuery(systemConfigQueryOptions()).data;
   const [latestMissingSearchTaskId, setLatestMissingSearchTaskId] = useState<number | undefined>(
     undefined,
   );
-  createSystemTaskQuery(latestMissingSearchTaskId);
+  const latestMissingSearchTask = createSystemTaskQuery(latestMissingSearchTaskId);
   const searchMissing = createSearchMissingMutation();
-  const data = wantedQuery.data ?? [];
-  const airingPreferences = getAiringDisplayPreferences(configQuery.data?.library);
+  const isSearchMissingRunning =
+    latestMissingSearchTask.data !== undefined && isTaskActive(latestMissingSearchTask.data);
+  const data = wantedData;
+  const airingPreferences = getAiringDisplayPreferences(systemConfig.library);
 
   const rowVirtualizer = useVirtualizer({
     count: data.length,
@@ -105,10 +110,10 @@ function WantedPage() {
           variant="default"
           size="sm"
           onClick={handleSearchAll}
-          disabled={searchMissing.isPending || wantedQuery.data?.length === 0}
+          disabled={searchMissing.isPending || isSearchMissingRunning || data.length === 0}
         >
           <MagnifyingGlassIcon className="mr-2 h-4 w-4" />
-          Search All
+          {searchMissing.isPending || isSearchMissingRunning ? "Searching..." : "Search All"}
         </Button>
       </PageHeader>
 
@@ -126,7 +131,7 @@ function WantedPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {!wantedQuery.isLoading && data.length > 0 ? (
+              {data.length > 0 ? (
                 <>
                   {paddingTop > 0 && (
                     <tr aria-hidden="true">
@@ -185,7 +190,7 @@ function WantedPage() {
               ) : (
                 <TableRow>
                   <TableCell colSpan={6} className="h-24 text-center">
-                    {wantedQuery.isLoading ? "Loading..." : "No missing episodes found."}
+                    No missing episodes found.
                   </TableCell>
                 </TableRow>
               )}

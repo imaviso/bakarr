@@ -1,13 +1,13 @@
 import {
-  SpinnerIcon,
   PauseIcon,
   PlayIcon,
   ArrowClockwiseIcon,
   SparkleIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { GeneralError } from "~/components/general-error";
 import { BackgroundMatchingCard } from "~/components/scan/background-matching-card";
 import { runBulkBackgroundMatchAction } from "~/components/scan/background-matching-actions";
@@ -37,8 +37,7 @@ import {
 import {
   createBulkControlUnmappedFoldersMutation,
   createScanLibraryMutation,
-  createSystemJobsQuery,
-  createUnmappedFoldersQuery,
+  systemJobsQueryOptions,
   type AnimeSearchResult,
   type BackgroundJobStatus,
   type ScannerMatchStatus,
@@ -50,7 +49,10 @@ import { cn } from "~/lib/utils";
 
 export const Route = createFileRoute("/_layout/anime/scan")({
   loader: async ({ context: { queryClient } }) => {
-    await queryClient.ensureQueryData(unmappedFoldersQueryOptions());
+    await Promise.all([
+      queryClient.ensureQueryData(unmappedFoldersQueryOptions()),
+      queryClient.ensureQueryData(systemJobsQueryOptions()),
+    ]);
   },
   component: LibraryScanPage,
   errorComponent: GeneralError,
@@ -58,8 +60,8 @@ export const Route = createFileRoute("/_layout/anime/scan")({
 
 function LibraryScanPage() {
   usePageTitle("Library Scan");
-  const scanState = createUnmappedFoldersQuery();
-  const systemJobs = createSystemJobsQuery();
+  const scanState = useSuspenseQuery(unmappedFoldersQueryOptions()).data;
+  const systemJobs = useSuspenseQuery(systemJobsQueryOptions()).data;
   const bulkControlMutation = createBulkControlUnmappedFoldersMutation();
   const scanMutation = createScanLibraryMutation();
   const navigate = useNavigate();
@@ -71,50 +73,49 @@ function LibraryScanPage() {
     onSelect: (anime: AnimeSearchResult) => void;
   } | null>(null);
 
-  const folders = scanState.data?.folders;
-  const folderList = folders ?? [];
+  const folders = scanState.folders;
+  const folderList = folders;
   const foldersByPath = new Map(folderList.map((folder) => [folder.path, folder]));
   const folderPaths = folderList.map((folder) => folder.path);
 
-  const isScanning = Boolean(scanState.data?.is_scanning);
-  const hasOutstandingMatches = Boolean(scanState.data?.has_outstanding_matches);
-  const matchStatus = scanState.data?.match_status;
-  const counts = useMemo(() => {
-    const serverCounts = scanState.data?.match_counts;
-    if (serverCounts) {
-      return serverCounts;
-    }
+  const isScanning = Boolean(scanState.is_scanning);
+  const hasOutstandingMatches = Boolean(scanState.has_outstanding_matches);
+  const matchStatus = scanState.match_status;
 
-    let exact = 0;
-    let queued = 0;
-    let matching = 0;
-    let matched = 0;
-    let failed = 0;
-    let paused = 0;
-    for (const folder of folders ?? []) {
-      if (folder.suggested_matches[0]?.already_in_library) exact++;
-      switch (folder.match_status) {
-        case "pending":
-          queued++;
-          break;
-        case "matching":
-          matching++;
-          break;
-        case "done":
-          matched++;
-          break;
-        case "failed":
-          failed++;
-          break;
-        case "paused":
-          paused++;
-          break;
+  const serverCounts = scanState.match_counts;
+  const counts =
+    serverCounts ??
+    (() => {
+      let exact = 0;
+      let queued = 0;
+      let matching = 0;
+      let matched = 0;
+      let failed = 0;
+      let paused = 0;
+      for (const folder of folders) {
+        if (folder.suggested_matches[0]?.already_in_library) exact++;
+        switch (folder.match_status) {
+          case "pending":
+            queued++;
+            break;
+          case "matching":
+            matching++;
+            break;
+          case "done":
+            matched++;
+            break;
+          case "failed":
+            failed++;
+            break;
+          case "paused":
+            paused++;
+            break;
+        }
       }
-    }
+      return { exact, queued, matching, matched, failed, paused };
+    })();
 
-    return { exact, queued, matching, matched, failed, paused };
-  }, [scanState.data?.match_counts, folders]);
-  const unmappedJob = systemJobs.data?.find((job) => job.name === "unmapped_scan");
+  const unmappedJob = systemJobs.find((job) => job.name === "unmapped_scan");
   const isWorkerRunning = isBackgroundMatchingRunning({
     failedCount: counts.failed,
     hasOutstandingWork: hasOutstandingMatches,
@@ -133,9 +134,9 @@ function LibraryScanPage() {
       startScan: () => scanMutation.mutateAsync(),
     });
   };
-  const confirmBulkMeta = useMemo(() => {
-    const action = confirmBulkAction;
 
+  const confirmBulkMeta = (() => {
+    const action = confirmBulkAction;
     if (action === "pause_queued") {
       return {
         actionLabel: "Pause queued folders",
@@ -145,7 +146,6 @@ function LibraryScanPage() {
         title: `Pause ${counts.queued} queued ${pluralizeFolderCount(counts.queued)}?`,
       };
     }
-
     if (action === "reset_failed") {
       return {
         actionLabel: "Reset failed folders",
@@ -155,9 +155,8 @@ function LibraryScanPage() {
         title: `Reset ${counts.failed} failed ${pluralizeFolderCount(counts.failed)}?`,
       };
     }
-
     return null;
-  }, [confirmBulkAction, counts.failed, counts.queued]);
+  })();
 
   const confirmBulkActionNow = () => {
     const action = confirmBulkAction;
@@ -203,7 +202,6 @@ function LibraryScanPage() {
       />
 
       <ScanContent
-        isLoading={scanState.isLoading && folderList.length === 0}
         foldersLength={folderList.length}
         unmappedJob={unmappedJob}
         counts={counts}
@@ -402,7 +400,6 @@ function ScanDialogs(props: ScanDialogsProps) {
 }
 
 interface ScanContentProps {
-  isLoading: boolean;
   foldersLength: number;
   unmappedJob: BackgroundJobStatus | undefined;
   counts: {
@@ -428,11 +425,7 @@ interface ScanContentProps {
 function ScanContent(props: ScanContentProps) {
   return (
     <div className="flex-1 overflow-y-auto px-6 py-6">
-      {props.isLoading ? (
-        <div className="flex h-full items-center justify-center">
-          <SpinnerIcon className="h-8 w-8 animate-spin" />
-        </div>
-      ) : props.foldersLength > 0 ? (
+      {props.foldersLength > 0 ? (
         <div className="space-y-4">
           {(props.foldersLength > 0 || props.unmappedJob) && (
             <BackgroundMatchingCard

@@ -8,9 +8,9 @@ import {
   PlusIcon,
   MagnifyingGlassIcon,
 } from "@phosphor-icons/react";
-import { useQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Suspense, lazy, useDeferredValue, useEffect, useTransition } from "react";
+import { Suspense, lazy, useDeferredValue, useTransition } from "react";
 import * as v from "valibot";
 import { AnimeListSkeleton } from "~/components/anime-list-skeleton";
 import { GeneralError } from "~/components/general-error";
@@ -28,7 +28,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip
 import {
   animeListQueryOptions,
   createDeleteAnimeMutation,
-  createSystemConfigQuery,
   systemConfigQueryOptions,
 } from "~/lib/api";
 import { filterAnimeLibrary } from "~/lib/anime-library-filter";
@@ -71,12 +70,6 @@ const AnimeSearchSchema = v.object({
   view: v.optional(ViewModeSchema, DEFAULT_ANIME_SEARCH.view),
 });
 
-const StoredAnimeSearchSchema = v.object({
-  q: v.optional(v.string()),
-  filter: v.optional(v.picklist(["all", "monitored", "unmonitored"])),
-  view: v.optional(v.picklist(["grid", "list"])),
-});
-
 export const Route = createFileRoute("/_layout/anime/")({
   validateSearch: (search) => v.parse(AnimeSearchSchema, search),
   loader: async ({ context: { queryClient } }) => {
@@ -92,52 +85,14 @@ export const Route = createFileRoute("/_layout/anime/")({
 function AnimeIndexPage() {
   usePageTitle("Library");
   const deleteAnime = createDeleteAnimeMutation();
-  const animeQuery = useQuery(animeListQueryOptions());
-  const configQuery = createSystemConfigQuery();
+  const anime = useSuspenseQuery(animeListQueryOptions()).data;
+  const systemConfig = useSuspenseQuery(systemConfigQueryOptions()).data;
   const search = Route.useSearch();
   const navigate = useNavigate();
-  const airingPreferences = getAiringDisplayPreferences(configQuery.data?.library);
+  const airingPreferences = getAiringDisplayPreferences(systemConfig.library);
 
   const [, startTransition] = useTransition();
   const deferredQuery = useDeferredValue(search.q);
-
-  useEffect(() => {
-    const stored = readStoredAnimeSearch();
-    if (!stored) return;
-
-    const isExplicitSearch =
-      search.q !== DEFAULT_ANIME_SEARCH.q ||
-      search.filter !== DEFAULT_ANIME_SEARCH.filter ||
-      search.view !== DEFAULT_ANIME_SEARCH.view;
-
-    if (isExplicitSearch) return;
-
-    const next = {
-      filter: stored.filter ?? search.filter,
-      q: stored.q ?? search.q,
-      view: stored.view ?? search.view,
-    };
-
-    if (next.q === search.q && next.filter === search.filter && next.view === search.view) {
-      return;
-    }
-
-    void navigate({
-      to: ".",
-      search: next,
-      replace: true,
-    });
-    // Intentionally empty deps: restore localStorage into URL exactly once on mount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem("bakarr_anime_search", JSON.stringify(search));
-    } catch {
-      // Ignore persistence errors.
-    }
-  }, [search]);
 
   const handleSearchInput = (q: string) => {
     startTransition(() => {
@@ -149,7 +104,7 @@ function AnimeIndexPage() {
     });
   };
 
-  const filteredList = filterAnimeLibrary(animeQuery.data ?? [], deferredQuery, search.filter);
+  const filteredList = filterAnimeLibrary(anime, deferredQuery, search.filter);
 
   const updateFilter = (filter: MonitorFilter) =>
     void navigate({
@@ -180,9 +135,9 @@ function AnimeIndexPage() {
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-foreground">Library</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              {filteredList.length === (animeQuery.data?.length ?? 0)
-                ? `${animeQuery.data?.length ?? 0} titles`
-                : `${filteredList.length} of ${animeQuery.data?.length ?? 0} titles`}
+              {filteredList.length === anime.length
+                ? `${anime.length} titles`
+                : `${filteredList.length} of ${anime.length} titles`}
             </p>
           </div>
           <Link
@@ -301,70 +256,48 @@ function AnimeIndexPage() {
       </div>
 
       <div className="flex-1 min-h-0 overflow-hidden">
-        {!animeQuery.isLoading ? (
-          filteredList.length > 0 ? (
-            <Suspense fallback={<AnimeListSkeleton />}>
-              {search.view === "grid" ? (
-                <AnimeGridViewLazy
-                  anime={filteredList}
-                  airingPreferences={airingPreferences}
-                  deleteAnime={deleteAnime}
-                />
-              ) : (
-                <AnimeListViewLazy
-                  anime={filteredList}
-                  airingPreferences={airingPreferences}
-                  deleteAnime={deleteAnime}
-                />
-              )}
-            </Suspense>
-          ) : !search.q && search.filter === "all" ? (
-            <Card className="p-12 text-center border-dashed">
-              <div className="flex flex-col items-center gap-4">
-                <TelevisionIcon className="h-12 w-12 text-muted-foreground" />
-                <div>
-                  <h2 className="font-medium">No anime yet</h2>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Add your first anime to start monitoring
-                  </p>
-                </div>
-                <Link to="/anime/add" className={buttonVariants()}>
-                  <PlusIcon className="mr-2 h-4 w-4" />
-                  Add Anime
-                </Link>
+        {filteredList.length > 0 ? (
+          <Suspense fallback={<AnimeListSkeleton />}>
+            {search.view === "grid" ? (
+              <AnimeGridViewLazy
+                anime={filteredList}
+                airingPreferences={airingPreferences}
+                deleteAnime={deleteAnime}
+              />
+            ) : (
+              <AnimeListViewLazy
+                anime={filteredList}
+                airingPreferences={airingPreferences}
+                deleteAnime={deleteAnime}
+              />
+            )}
+          </Suspense>
+        ) : !search.q && search.filter === "all" ? (
+          <Card className="p-12 text-center border-dashed">
+            <div className="flex flex-col items-center gap-4">
+              <TelevisionIcon className="h-12 w-12 text-muted-foreground" />
+              <div>
+                <h2 className="font-medium">No anime yet</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Add your first anime to start monitoring
+                </p>
               </div>
-            </Card>
-          ) : (
-            <p className="text-center text-muted-foreground py-8">
-              {search.q ? (
-                <>No anime matching &quot;{search.q}&quot;</>
-              ) : (
-                `No ${search.filter} anime found`
-              )}
-            </p>
-          )
+              <Link to="/anime/add" className={buttonVariants()}>
+                <PlusIcon className="mr-2 h-4 w-4" />
+                Add Anime
+              </Link>
+            </div>
+          </Card>
         ) : (
-          <AnimeListSkeleton />
+          <p className="text-center text-muted-foreground py-8">
+            {search.q ? (
+              <>No anime matching &quot;{search.q}&quot;</>
+            ) : (
+              `No ${search.filter} anime found`
+            )}
+          </p>
         )}
       </div>
     </div>
   );
-}
-
-function readStoredAnimeSearch() {
-  if (typeof window === "undefined") {
-    return undefined;
-  }
-
-  try {
-    const raw = localStorage.getItem("bakarr_anime_search");
-
-    if (!raw) {
-      return undefined;
-    }
-
-    return v.parse(StoredAnimeSearchSchema, JSON.parse(raw));
-  } catch {
-    return undefined;
-  }
 }

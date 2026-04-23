@@ -1,17 +1,12 @@
 import { ArrowRightIcon, CheckIcon, ClockIcon } from "@phosphor-icons/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { formatDistanceToNow } from "date-fns";
 import { GeneralError } from "~/components/general-error";
 import { PageHeader } from "~/components/page-header";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import {
-  type ActivityItem,
-  activityQueryOptions,
-  createActivityQuery,
-  createLibraryStatsQuery,
-  libraryStatsQueryOptions,
-} from "~/lib/api";
+import { type ActivityItem, activityQueryOptions, libraryStatsQueryOptions } from "~/lib/api";
 import { createDownloadsRouteSearch } from "~/lib/download-events-search";
 import { usePageTitle } from "~/lib/page-title";
 
@@ -28,67 +23,54 @@ export const Route = createFileRoute("/_layout/")({
 
 function DashboardPage() {
   usePageTitle("Dashboard");
-  const statsQuery = createLibraryStatsQuery();
-  const activityQuery = createActivityQuery();
+  const stats = useSuspenseQuery(libraryStatsQueryOptions()).data;
+  const activity = useSuspenseQuery(activityQueryOptions()).data;
 
-  const recentActivity = activityQuery.data?.slice(0, 5) ?? [];
-  const stats = statsQuery.data;
+  const recentActivity = activity.slice(0, 5);
 
-  const statsSummary = stats
-    ? `${stats.total_anime} anime · ${stats.downloaded_episodes}/${stats.total_episodes} episodes · ${stats.downloaded_percent}% complete`
-    : null;
+  const statsSummary = `${stats.total_anime} anime · ${stats.downloaded_episodes}/${stats.total_episodes} episodes · ${stats.downloaded_percent}% complete`;
 
   return (
     <div className="space-y-6">
       <PageHeader title="Dashboard">
-        {statsSummary && <p className="text-xs text-muted-foreground">{statsSummary}</p>}
+        <p className="text-xs text-muted-foreground">{statsSummary}</p>
       </PageHeader>
 
       {/* Stat Bar */}
-      {!statsQuery.isError ? (
-        statsQuery.data ? (
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-border pb-4">
-            <StatItem label="Anime" value={statsQuery.data.total_anime} />
-            <StatItem
-              label="Monitored"
-              value={statsQuery.data.monitored_anime}
-              sub={`${statsQuery.data.up_to_date_anime} up to date`}
-            />
-            <StatItem label="Episodes" value={statsQuery.data.total_episodes} />
-            <StatItem
-              label="Downloaded"
-              value={statsQuery.data.downloaded_episodes}
-              sub={`${statsQuery.data.downloaded_percent}%`}
-            />
-            <StatItem
-              label="Missing"
-              value={statsQuery.data.missing_episodes}
-              {...(statsQuery.data.missing_episodes > 0 ? { tone: "warning" as const } : {})}
-            />
-            <div className="h-6 w-px bg-border hidden sm:block" />
-            <div className="flex items-center gap-3">
-              <Link to="/rss">
-                <Button variant="ghost" size="sm" className="text-xs">
-                  {statsQuery.data.rss_feeds} RSS feeds
-                  <ArrowRightIcon className="ml-1 h-3.5 w-3.5" />
-                </Button>
-              </Link>
-              <Link to="/downloads" search={createDownloadsRouteSearch({ tab: "queue" })}>
-                <Button variant="ghost" size="sm" className="text-xs">
-                  {statsQuery.data.recent_downloads} recent downloads
-                  <ArrowRightIcon className="ml-1 h-3.5 w-3.5" />
-                </Button>
-              </Link>
-            </div>
-          </div>
-        ) : (
-          <DashboardLoading />
-        )
-      ) : (
-        <div className="p-4 text-center text-destructive border border-destructive">
-          Failed to load stats. Please refresh.
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-border pb-4">
+        <StatItem label="Anime" value={stats.total_anime} />
+        <StatItem
+          label="Monitored"
+          value={stats.monitored_anime}
+          sub={`${stats.up_to_date_anime} up to date`}
+        />
+        <StatItem label="Episodes" value={stats.total_episodes} />
+        <StatItem
+          label="Downloaded"
+          value={stats.downloaded_episodes}
+          sub={`${stats.downloaded_percent}%`}
+        />
+        <StatItem
+          label="Missing"
+          value={stats.missing_episodes}
+          {...(stats.missing_episodes > 0 ? { tone: "warning" as const } : {})}
+        />
+        <div className="h-6 w-px bg-border hidden sm:block" />
+        <div className="flex items-center gap-3">
+          <Link to="/rss">
+            <Button variant="ghost" size="sm" className="text-xs">
+              {stats.rss_feeds} RSS feeds
+              <ArrowRightIcon className="ml-1 h-3.5 w-3.5" />
+            </Button>
+          </Link>
+          <Link to="/downloads" search={createDownloadsRouteSearch({ tab: "queue" })}>
+            <Button variant="ghost" size="sm" className="text-xs">
+              {stats.recent_downloads} recent downloads
+              <ArrowRightIcon className="ml-1 h-3.5 w-3.5" />
+            </Button>
+          </Link>
         </div>
-      )}
+      </div>
 
       {/* Activity Feed */}
       <div>
@@ -96,7 +78,7 @@ function DashboardPage() {
           <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
             Recent Activity
           </h2>
-          {activityQuery.data && activityQuery.data.length > 5 && (
+          {activity.length > 5 && (
             <Link to="/downloads" search={createDownloadsRouteSearch({ tab: "queue" })}>
               <Button variant="ghost" size="sm">
                 View All
@@ -104,26 +86,16 @@ function DashboardPage() {
             </Link>
           )}
         </div>
-        {!activityQuery.isLoading ? (
-          activityQuery.data && activityQuery.data.length > 0 ? (
-            <ul role="list" className="divide-y divide-border">
-              {recentActivity.map((item) => (
-                <li key={item.timestamp + item.anime_title + item.description}>
-                  <ActivityRow item={item} />
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-center text-muted-foreground py-6">No recent activity</p>
-          )
+        {recentActivity.length > 0 ? (
+          <ul role="list" className="divide-y divide-border">
+            {recentActivity.map((item) => (
+              <li key={item.timestamp + item.anime_title + item.description}>
+                <ActivityRow item={item} />
+              </li>
+            ))}
+          </ul>
         ) : (
-          <div
-            className="p-4 text-center text-muted-foreground"
-            role="status"
-            aria-label="Loading activity"
-          >
-            Loading activity...
-          </div>
+          <p className="text-center text-muted-foreground py-6">No recent activity</p>
         )}
       </div>
     </div>
@@ -172,23 +144,6 @@ function ActivityRow(props: { item: ActivityItem }) {
           addSuffix: true,
         })}
       </time>
-    </div>
-  );
-}
-
-function DashboardLoading() {
-  return (
-    <div
-      className="flex gap-6 pb-4 border-b border-border"
-      role="status"
-      aria-label="Loading stats"
-    >
-      {[1, 2, 3, 4, 5].map((row) => (
-        <div key={`skeleton-${row}`} className="flex items-baseline gap-2">
-          <div className="h-6 w-8 bg-muted animate-pulse" />
-          <div className="h-3 w-14 bg-muted animate-pulse" />
-        </div>
-      ))}
     </div>
   );
 }

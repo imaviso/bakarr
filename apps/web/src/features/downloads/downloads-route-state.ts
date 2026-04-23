@@ -35,7 +35,6 @@ export function useDownloadsRouteState(options: UseDownloadsRouteStateOptions) {
     handleDownloadEventsExport: actions.handleDownloadEventsExport,
     handleTabChange: actions.handleTabChange,
     history: queries.history,
-    historyQuery: queries.historyQuery,
     lastDownloadEventsExport: actions.lastDownloadEventsExport,
     queue: queries.queue,
     queueCount: queries.queueCount,

@@ -1,5 +1,5 @@
 import { WarningIcon, CheckIcon, InfoIcon, SpinnerIcon } from "@phosphor-icons/react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -77,13 +77,6 @@ export function RenameDialog(props: RenameDialogProps) {
 
   const [result, setResult] = useState<RenameResult | null>(null);
 
-  useEffect(() => {
-    if (props.open) {
-      setResult(null);
-      resetExecuteRename();
-    }
-  }, [props.open, resetExecuteRename]);
-
   const previewCount = previewQuery.data?.length ?? 0;
 
   const handleRename = () => {
@@ -94,8 +87,16 @@ export function RenameDialog(props: RenameDialogProps) {
     });
   };
 
+  const handleOpenChange = (open: boolean) => {
+    if (open) {
+      setResult(null);
+      resetExecuteRename();
+    }
+    props.onOpenChange(open);
+  };
+
   return (
-    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
+    <Dialog open={props.open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-7xl max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Rename Episodes</DialogTitle>

@@ -7,6 +7,7 @@ import {
   ToggleRightIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { useForm } from "@tanstack/react-form";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
@@ -36,13 +37,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
-import { Skeleton } from "~/components/ui/skeleton";
 import {
   animeListQueryOptions,
   createAddRssFeedMutation,
   createAnimeListQuery,
   createDeleteRssFeedMutation,
-  createRssFeedsQuery,
   createToggleRssFeedMutation,
   type RssFeed,
   rssFeedsQueryOptions,
@@ -63,7 +62,7 @@ export const Route = createFileRoute("/_layout/rss")({
 function RssPage() {
   usePageTitle("RSS Feeds");
   const [isAdding, setIsAdding] = useState(false);
-  const feedsQuery = createRssFeedsQuery();
+  const feeds = useSuspenseQuery(rssFeedsQueryOptions()).data;
   const deleteFeed = createDeleteRssFeedMutation();
   const toggleFeed = createToggleRssFeedMutation();
 
@@ -80,15 +79,7 @@ function RssPage() {
         <AddFeedForm onCancel={() => setIsAdding(false)} onSuccess={() => setIsAdding(false)} />
       )}
 
-      {feedsQuery.isLoading && (
-        <div className="space-y-4">
-          {[1, 2, 3].map((row) => (
-            <Skeleton key={`skeleton-${row}`} className="h-20" />
-          ))}
-        </div>
-      )}
-
-      {!feedsQuery.isLoading && feedsQuery.data?.length === 0 && (
+      {feeds.length === 0 ? (
         <Card className="p-12 text-center border-dashed">
           <div className="flex flex-col items-center gap-4">
             <RssIcon className="h-12 w-12 text-muted-foreground" />
@@ -104,11 +95,9 @@ function RssPage() {
             </Button>
           </div>
         </Card>
-      )}
-
-      {feedsQuery.data && feedsQuery.data.length > 0 && (
+      ) : (
         <div className="space-y-3">
-          {feedsQuery.data.map((feed) => (
+          {feeds.map((feed) => (
             <FeedCard
               key={feed.id}
               feed={feed}
@@ -128,7 +117,7 @@ function FeedCard(props: {
   onDelete: () => void;
 }) {
   return (
-    <Card className="transition-colors duration-150 hover:">
+    <Card className="transition-colors duration-150 hover:bg-muted/50">
       <CardContent className="flex items-center gap-4 p-4">
         <Button
           variant="ghost"

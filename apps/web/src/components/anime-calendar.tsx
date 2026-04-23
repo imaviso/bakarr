@@ -1,4 +1,5 @@
 import { CaretLeftIcon, CaretRightIcon, CheckIcon, CircleIcon } from "@phosphor-icons/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {
   addMonths,
@@ -15,7 +16,7 @@ import {
 import { useState } from "react";
 import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
-import { createCalendarQuery, createSystemConfigQuery } from "~/lib/api";
+import { calendarQueryOptions, systemConfigQueryOptions } from "~/lib/api";
 import {
   formatAiringTimeWithPreferences,
   getAiringDisplayDateKey,
@@ -29,9 +30,9 @@ export function AnimeCalendar() {
   const fetchStart = subMonths(startOfWeek(startOfMonth(currentDate)), 1);
   const fetchEnd = addMonths(endOfWeek(endOfMonth(currentDate)), 1);
 
-  const calendarQuery = createCalendarQuery(fetchStart, fetchEnd);
-  const configQuery = createSystemConfigQuery();
-  const airingPreferences = getAiringDisplayPreferences(configQuery.data?.library);
+  const { data: events } = useSuspenseQuery(calendarQueryOptions(fetchStart, fetchEnd));
+  const { data: config } = useSuspenseQuery(systemConfigQueryOptions());
+  const airingPreferences = getAiringDisplayPreferences(config.library);
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(monthStart);
@@ -41,7 +42,6 @@ export function AnimeCalendar() {
 
   const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-  const events = calendarQuery.data ?? [];
   const eventsByDay: Record<string, typeof events> = {};
   for (const event of events) {
     const dateKey = getAiringDisplayDateKey(event.start, airingPreferences);
@@ -52,7 +52,10 @@ export function AnimeCalendar() {
   }
 
   const getEventsForDay = (day: Date) => {
-    const dateKey = format(day, "yyyy-MM-dd");
+    const dateKey = getAiringDisplayDateKey(
+      format(day, "yyyy-MM-dd") + "T12:00:00",
+      airingPreferences,
+    );
     return eventsByDay[dateKey] || [];
   };
 

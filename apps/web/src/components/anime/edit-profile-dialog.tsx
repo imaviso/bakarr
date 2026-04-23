@@ -1,5 +1,4 @@
 import { useForm } from "@tanstack/react-form";
-import { useState } from "react";
 import * as v from "valibot";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -87,17 +86,6 @@ function EditProfileDialogContent(props: EditProfileDialogProps) {
     },
   });
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const submitEditProfileForm = async () => {
-    setIsSubmitting(true);
-    try {
-      await form.handleSubmit();
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   return (
     <DialogContent>
       <DialogHeader>
@@ -106,7 +94,7 @@ function EditProfileDialogContent(props: EditProfileDialogProps) {
           Change the quality and release profiles for this anime.
         </DialogDescription>
       </DialogHeader>
-      <form action={submitEditProfileForm} className="space-y-6">
+      <form action={() => void form.handleSubmit()} className="space-y-6">
         <form.Field name="profile">
           {(field) => (
             <div className="space-y-2">
@@ -203,9 +191,11 @@ function EditProfileDialogContent(props: EditProfileDialogProps) {
           </Button>
           <Button
             type="submit"
-            disabled={isSubmitting || props.isUpdatingProfile || props.isUpdatingReleaseProfiles}
+            disabled={
+              form.state.isSubmitting || props.isUpdatingProfile || props.isUpdatingReleaseProfiles
+            }
           >
-            {isSubmitting || props.isUpdatingProfile || props.isUpdatingReleaseProfiles
+            {form.state.isSubmitting || props.isUpdatingProfile || props.isUpdatingReleaseProfiles
               ? "Saving..."
               : "Save Changes"}
           </Button>

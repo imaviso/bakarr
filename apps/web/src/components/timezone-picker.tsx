@@ -1,5 +1,5 @@
 import { CheckIcon } from "@phosphor-icons/react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   Command,
   CommandEmpty,
@@ -21,7 +21,7 @@ interface TimezonePickerProps {
 
 export function TimezonePicker(props: TimezonePickerProps) {
   const [open, setOpen] = useState(false);
-  const options = useMemo(() => getTimeZoneOptions(props.value), [props.value]);
+  const options = getTimeZoneOptions(props.value);
   const selectedValue = props.value?.trim() || "system";
 
   return (

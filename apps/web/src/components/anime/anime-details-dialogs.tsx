@@ -17,10 +17,11 @@ import type {
   AnimeEpisodeDialogState,
   AnimeSearchModalState,
 } from "~/components/anime/anime-details-types";
-import type { QualityProfile, ReleaseProfile } from "~/lib/api";
+import type { Episode, QualityProfile, ReleaseProfile } from "~/lib/api";
 
 interface AnimeDetailsDialogsProps {
   animeId: number;
+  episodes: Episode[];
   searchModalState: AnimeSearchModalState;
   onSearchModalOpenChange: (open: boolean) => void;
   renameDialogOpen: boolean;
@@ -77,6 +78,7 @@ export function AnimeDetailsDialogs(props: AnimeDetailsDialogsProps) {
 
       <BulkMappingDialog
         animeId={props.animeId}
+        episodes={props.episodes}
         open={props.bulkMappingOpen}
         onOpenChange={props.onBulkMappingOpenChange}
       />

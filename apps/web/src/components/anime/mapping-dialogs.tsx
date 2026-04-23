@@ -1,4 +1,3 @@
-import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { ArrowClockwiseIcon } from "@phosphor-icons/react";
 import { Button } from "~/components/ui/button";
@@ -29,12 +28,13 @@ import {
   createBulkMapEpisodesMutation,
   createListFilesQuery,
   createMapEpisodeMutation,
-  episodesQueryOptions,
+  type Episode,
 } from "~/lib/api";
 import { cn } from "~/lib/utils";
 
 interface BulkMappingDialogProps {
   animeId: number;
+  episodes: Episode[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -47,14 +47,13 @@ interface ManualMappingDialogProps {
 }
 
 export function BulkMappingDialog(props: BulkMappingDialogProps) {
-  const episodesQuery = useQuery(episodesQueryOptions(props.animeId));
   const filesQuery = createListFilesQuery(props.animeId);
   const bulkMapMutation = createBulkMapEpisodesMutation();
 
   const [mappings, setMappings] = useState<Record<number, string>>({});
 
   const files = filesQuery.data || [];
-  const allEpisodes = episodesQuery.data || [];
+  const allEpisodes = props.episodes;
 
   const handleMap = (episodeNumber: number, filePath: string) => {
     setMappings((previous) => {
@@ -100,7 +99,7 @@ export function BulkMappingDialog(props: BulkMappingDialogProps) {
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto py-4">
-          {episodesQuery.data && filesQuery.data ? (
+          {filesQuery.data ? (
             <Table>
               <TableHeader>
                 <TableRow>

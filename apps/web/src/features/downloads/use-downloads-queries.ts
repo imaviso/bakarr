@@ -1,10 +1,11 @@
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { useDownloadEventsSearchState } from "~/hooks/use-download-events-search-state";
 import { useActiveDownloads } from "~/hooks/use-active-downloads";
 import type {
   DownloadsSearchPatch,
   DownloadsSearchState,
 } from "~/features/downloads/downloads-search";
-import { createDownloadEventsQuery, createDownloadHistoryQuery } from "~/lib/api";
+import { createDownloadEventsQuery, downloadHistoryQueryOptions } from "~/lib/api";
 import { DOWNLOADS_EVENTS_SEARCH_KEYS } from "~/lib/download-events-search";
 
 interface UseDownloadsQueriesOptions {
@@ -20,10 +21,9 @@ export function useDownloadsQueries(options: UseDownloadsQueriesOptions) {
   });
 
   const queue = useActiveDownloads();
-  const historyQuery = createDownloadHistoryQuery();
+  const { data: history } = useSuspenseQuery(downloadHistoryQueryOptions());
   const downloadEventsQuery = createDownloadEventsQuery(eventsSearchState.queryInput);
 
-  const history = historyQuery.data ?? [];
   const canGoToPreviousEventsPage = Boolean(downloadEventsQuery.data?.prev_cursor);
   const canGoToNextEventsPage = Boolean(downloadEventsQuery.data?.next_cursor);
 
@@ -33,7 +33,6 @@ export function useDownloadsQueries(options: UseDownloadsQueriesOptions) {
     downloadEventsQuery,
     eventsSearchState,
     history,
-    historyQuery,
     queue,
     queueCount: queue.length,
   };

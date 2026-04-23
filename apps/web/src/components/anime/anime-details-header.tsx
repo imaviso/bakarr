@@ -61,6 +61,7 @@ interface AnimeDetailsHeaderProps {
   isMonitored: boolean;
   missingCount: number;
   isRefreshPending: boolean;
+  isScanFolderPending: boolean;
   isSearchMissingPending: boolean;
   isToggleMonitorPending: boolean;
   onToggleMonitor: () => void;
@@ -188,9 +189,15 @@ export function AnimeDetailsHeader(props: AnimeDetailsHeaderProps) {
             <TooltipTrigger
               render={<Button variant="outline" size="sm" />}
               onClick={props.onScanFolder}
+              disabled={props.isScanFolderPending}
               className="shrink-0"
             >
-              <FileArrowDownIcon className="min-[1670px]:mr-2 h-4 w-4" />
+              <FileArrowDownIcon
+                className={cn(
+                  "min-[1670px]:mr-2 h-4 w-4",
+                  props.isScanFolderPending && "animate-spin",
+                )}
+              />
               <span className="hidden min-[1670px]:inline">Scan Folder</span>
             </TooltipTrigger>
             <TooltipContent>Scan Folder</TooltipContent>

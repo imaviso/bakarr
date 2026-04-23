@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   type AnimeSearchResult,
-  createAnimeListQuery,
+  animeListQueryOptions,
   createImportCandidateSelectionMutation,
   createImportFilesMutation,
   createScanImportPathMutation,
@@ -46,41 +47,29 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
   const scanMutation = createScanImportPathMutation();
   const importMutation = createImportFilesMutation();
   const importSelectionMutation = createImportCandidateSelectionMutation();
-  const animeListQuery = createAnimeListQuery();
+  const { data: animeList } = useSuspenseQuery(animeListQueryOptions());
 
-  const scannedFiles = useMemo(() => {
-    const files = scanMutation.data?.files ?? [];
-    return [...files].toSorted((a, b) => {
-      const seasonA = a.season ?? 0;
-      const seasonB = b.season ?? 0;
-      if (seasonA !== seasonB) {
-        return seasonA - seasonB;
-      }
-      return a.episode_number - b.episode_number;
-    });
-  }, [scanMutation.data]);
+  const scannedFiles = [...(scanMutation.data?.files ?? [])].toSorted((a, b) => {
+    const seasonA = a.season ?? 0;
+    const seasonB = b.season ?? 0;
+    if (seasonA !== seasonB) {
+      return seasonA - seasonB;
+    }
+    return a.episode_number - b.episode_number;
+  });
 
-  const skippedFiles = useMemo(() => scanMutation.data?.skipped ?? [], [scanMutation.data]);
-  const candidates = useMemo(
-    () => [
-      ...(scanMutation.data?.candidates ?? []),
-      ...manualCandidates.filter(
-        (manualCandidate) =>
-          !(scanMutation.data?.candidates ?? []).some(
-            (candidate) => candidate.id === manualCandidate.id,
-          ),
-      ),
-    ],
-    [scanMutation.data, manualCandidates],
-  );
-  const libraryIds = useMemo(
-    () => new Set((animeListQuery.data ?? []).map((anime) => anime.id)),
-    [animeListQuery.data],
-  );
-  const activeAddCandidate = useMemo(
-    () => pendingAddCandidates[currentAddIndex],
-    [pendingAddCandidates, currentAddIndex],
-  );
+  const skippedFiles = scanMutation.data?.skipped ?? [];
+  const candidates = [
+    ...(scanMutation.data?.candidates ?? []),
+    ...manualCandidates.filter(
+      (manualCandidate) =>
+        !(scanMutation.data?.candidates ?? []).some(
+          (candidate) => candidate.id === manualCandidate.id,
+        ),
+    ),
+  ];
+  const libraryIds = new Set(animeList.map((anime) => anime.id));
+  const activeAddCandidate = pendingAddCandidates[currentAddIndex];
 
   const reset = () => {
     setStep("scan");
@@ -174,7 +163,7 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
     const files = Array.from(selectedFiles.values());
     const missingCandidates = findMissingImportCandidates({
       files,
-      localAnimeIds: new Set(animeListQuery.data?.map((anime) => anime.id) ?? []),
+      localAnimeIds: new Set(animeList.map((anime) => anime.id)),
       candidates: candidates,
     });
 
@@ -232,7 +221,7 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
   return {
     activeAddCandidate,
     advanceAddCandidateDialog,
-    animeListQuery,
+    animeList,
     candidates,
     closeAddCandidateDialog,
     currentAddIndex,

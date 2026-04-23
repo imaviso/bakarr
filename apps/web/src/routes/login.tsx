@@ -17,7 +17,24 @@ import { Label } from "~/components/ui/label";
 import { createApiKeyLoginMutation, createLoginMutation } from "~/lib/api";
 import { useAuth } from "~/lib/auth";
 
+const LoginSearchSchema = v.object({
+  redirect: v.optional(v.string(), ""),
+});
+
+function sanitizeRedirect(input: string): string | undefined {
+  if (!input) return undefined;
+  // Only allow internal paths (same-origin relative or absolute paths)
+  try {
+    const url = new URL(input, window.location.origin);
+    if (url.origin !== window.location.origin) return undefined;
+    return url.pathname + url.search + url.hash;
+  } catch {
+    return undefined;
+  }
+}
+
 export const Route = createFileRoute("/login")({
+  validateSearch: (search) => v.parse(LoginSearchSchema, search),
   component: LoginPage,
 });
 
@@ -43,9 +60,19 @@ function formatFieldErrors(errors: readonly unknown[]) {
 function LoginPage() {
   const { syncAuthenticatedUser } = useAuth();
   const navigate = useNavigate();
+  const search = Route.useSearch();
   const loginMutation = createLoginMutation();
   const apiKeyLoginMutation = createApiKeyLoginMutation();
   const [apiKey, setApiKey] = useState("");
+
+  const goToPostLogin = () => {
+    const redirect = sanitizeRedirect(search.redirect);
+    if (redirect) {
+      void navigate({ to: redirect });
+      return;
+    }
+    void navigate({ to: "/" });
+  };
 
   const form = useForm({
     defaultValues: {
@@ -58,10 +85,10 @@ function LoginPage() {
         syncAuthenticatedUser(data.username);
         if (data.must_change_password) {
           toast.info("Please change your password before continuing.");
-          void navigate({ to: "/settings" });
+          void navigate({ to: "/settings", search: { tab: "general" } });
           return;
         }
-        void navigate({ to: "/" });
+        goToPostLogin();
       } catch (err) {
         const message = err instanceof Error ? err.message : "Login failed";
         toast.error(message);
@@ -177,10 +204,10 @@ function LoginPage() {
                 syncAuthenticatedUser(data.username);
                 if (data.must_change_password) {
                   toast.info("Please change your password before continuing.");
-                  void navigate({ to: "/settings" });
+                  void navigate({ to: "/settings", search: { tab: "general" } });
                   return;
                 }
-                void navigate({ to: "/" });
+                goToPostLogin();
               } catch (err) {
                 const message = err instanceof Error ? err.message : "API key login failed";
                 toast.error(message);

@@ -4,7 +4,12 @@ import * as v from "valibot";
 import { ImportPageContent } from "~/components/import/import-page-content";
 import { createImportPageState } from "~/components/import/import-page-state";
 import { GeneralError } from "~/components/general-error";
-import { animeListQueryOptions, profilesQueryOptions, systemConfigQueryOptions } from "~/lib/api";
+import {
+  animeListQueryOptions,
+  isTaskActive,
+  profilesQueryOptions,
+  systemConfigQueryOptions,
+} from "~/lib/api";
 import { usePageTitle } from "~/lib/page-title";
 
 const ImportSearchSchema = v.object({
@@ -45,7 +50,16 @@ function ImportPage() {
       });
     },
   });
-  createLibraryImportTaskQuery(state.latestImportTaskId);
+  const latestImportTask = createLibraryImportTaskQuery(state.latestImportTaskId);
+  const isImportTaskRunning =
+    latestImportTask.data !== undefined && isTaskActive(latestImportTask.data);
 
-  return <ImportPageContent state={state} />;
+  return (
+    <div className="flex h-full min-h-0 flex-col gap-2">
+      {isImportTaskRunning && (
+        <p className="text-xs text-muted-foreground">Import task running. Progress updates live.</p>
+      )}
+      <ImportPageContent state={state} />
+    </div>
+  );
 }

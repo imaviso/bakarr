@@ -1,5 +1,4 @@
 import { WarningIcon, ArrowDownIcon, CheckIcon, ClockIcon, PauseIcon } from "@phosphor-icons/react";
-import { useMemo } from "react";
 import { DownloadRowMeta } from "~/components/downloads/download-row-meta";
 import {
   ActiveDownloadActions,
@@ -46,7 +45,7 @@ function formatEta(seconds: number): string {
 }
 
 function DownloadStatusIcon(props: { status?: string | undefined }) {
-  const presentation = useMemo(() => getDownloadStatusPresentation(props.status), [props.status]);
+  const presentation = getDownloadStatusPresentation(props.status);
 
   const icon = () => {
     switch (presentation.icon) {

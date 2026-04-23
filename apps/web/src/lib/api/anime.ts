@@ -292,6 +292,10 @@ export function createSeasonalAnimeInfiniteQuery(input?: {
   season?: AnimeSeason;
   year?: number;
   limit?: number;
+  enabled?: boolean;
 }) {
-  return useInfiniteQuery(seasonalAnimeInfiniteQueryOptions(input));
+  return useInfiniteQuery({
+    ...seasonalAnimeInfiniteQueryOptions(input),
+    enabled: input?.enabled ?? true,
+  });
 }

@@ -7,16 +7,8 @@ import {
 } from "@phosphor-icons/react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useNavigate } from "@tanstack/react-router";
-import {
-  Suspense,
-  lazy,
-  useDeferredValue,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { Suspense, lazy, useDeferredValue, useEffect, useRef, useTransition } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useContainerWidth } from "~/hooks/use-container-width";
 import * as v from "valibot";
@@ -27,16 +19,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { Input } from "~/components/ui/input";
 import {
   type AnimeSearchResult,
-  createAnimeByAnilistIdQuery,
-  createAnimeListQuery,
+  animeByAnilistIdQueryOptions,
+  animeListQueryOptions,
   createAnimeSearchQuery,
-  createSeasonalAnimeInfiniteQuery,
+  seasonalAnimeInfiniteQueryOptions,
   profilesQueryOptions,
   releaseProfilesQueryOptions,
   systemConfigQueryOptions,
 } from "~/lib/api";
 import { usePageTitle } from "~/lib/page-title";
 import { getCurrentSeasonWindow, shiftSeasonWindow } from "~/lib/seasonal-navigation";
+
+const DEFAULT_SEASON_WINDOW = getCurrentSeasonWindow();
 
 const AnimeSearchResultCardLazy = lazy(() =>
   import("~/components/anime/anime-search-result-card").then((module) => ({
@@ -56,16 +50,43 @@ const AddAnimeDialogLazy = lazy(() =>
 
 const searchSchema = v.object({
   id: v.optional(v.pipe(v.string(), v.transform(Number), v.integer())),
+  q: v.optional(v.string(), ""),
+  tab: v.optional(v.fallback(v.picklist(["search", "seasonal"]), "search"), "search"),
+  season: v.optional(
+    v.fallback(v.picklist(["winter", "spring", "summer", "fall"]), DEFAULT_SEASON_WINDOW.season),
+    DEFAULT_SEASON_WINDOW.season,
+  ),
+  year: v.optional(
+    v.fallback(
+      v.pipe(
+        v.union([v.string(), v.number()]),
+        v.transform((value) => (typeof value === "number" ? value : Number(value))),
+        v.integer(),
+      ),
+      DEFAULT_SEASON_WINDOW.year,
+    ),
+    DEFAULT_SEASON_WINDOW.year,
+  ),
 });
+
+type AddAnimeSearch = v.InferOutput<typeof searchSchema>;
 
 export const Route = createFileRoute("/_layout/anime/add")({
   validateSearch: searchSchema,
-  loader: async ({ context: { queryClient } }) => {
+  loader: async ({ context: { queryClient }, location }) => {
+    const search = location.search as AddAnimeSearch;
     await Promise.all([
+      queryClient.ensureQueryData(animeListQueryOptions()),
       queryClient.ensureQueryData(profilesQueryOptions()),
       queryClient.ensureQueryData(releaseProfilesQueryOptions()),
       queryClient.ensureQueryData(systemConfigQueryOptions()),
     ]);
+    await queryClient.prefetchInfiniteQuery(
+      seasonalAnimeInfiniteQueryOptions({ season: search.season, year: search.year }),
+    );
+    if (search.id) {
+      await queryClient.ensureQueryData(animeByAnilistIdQueryOptions(search.id));
+    }
   },
   component: AddAnimePage,
   errorComponent: GeneralError,
@@ -76,59 +97,47 @@ function AddAnimePage() {
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   usePageTitle("Add Anime");
   const search = Route.useSearch();
-  const [query, setQuery] = useState("");
-  const debouncedQuery = useDeferredValue(query);
-  const [selectedAnime, setSelectedAnime] = useState<AnimeSearchResult | null>(null);
-  const [seasonWindow, setSeasonWindow] = useState(() => getCurrentSeasonWindow());
+  const [, startTransition] = useTransition();
+  const debouncedQuery = useDeferredValue(search.q);
 
   const anilistId = search.id ?? null;
-
-  const anilistIdQuery = createAnimeByAnilistIdQuery(anilistId);
 
   const searchQuery = createAnimeSearchQuery(debouncedQuery);
   const searchResults = searchQuery.data?.results ?? [];
   const canSearch = debouncedQuery.trim().length >= 3;
   const searchDegraded = searchQuery.data?.degraded ?? false;
-  const animeListQuery = createAnimeListQuery();
-  const libraryIds = useMemo(
-    () => new Set((animeListQuery.data ?? []).map((anime) => anime.id)),
-    [animeListQuery.data],
-  );
+  const { data: animeList } = useSuspenseQuery(animeListQueryOptions());
+  const libraryIds = new Set(animeList.map((anime) => anime.id));
 
-  const seasonalQuery = createSeasonalAnimeInfiniteQuery({
-    season: seasonWindow.season,
-    year: seasonWindow.year,
-  });
-
-  const [activeTab, setActiveTab] = useState<string>("search");
-
-  useLayoutEffect(() => {
-    if (activeTab === "search") {
-      searchInputRef.current?.focus();
-    }
-  }, [activeTab]);
-
-  const selectedAnimeFromSearch =
-    anilistId !== null && anilistIdQuery.data?.id === anilistId ? anilistIdQuery.data : null;
-  const activeSelectedAnime = selectedAnimeFromSearch ?? selectedAnime;
+  const updateSearch = (patch: Partial<AddAnimeSearch>) => {
+    const mergedSearch = { ...search, ...patch };
+    startTransition(() => {
+      void navigate({
+        to: ".",
+        search: {
+          q: mergedSearch.q,
+          tab: mergedSearch.tab,
+          season: mergedSearch.season,
+          year: String(mergedSearch.year),
+          ...(mergedSearch.id === undefined ? {} : { id: String(mergedSearch.id) }),
+        },
+        replace: true,
+      });
+    });
+  };
 
   const clearSelectedAnime = () => {
-    if (anilistId !== null) {
-      void navigate({ to: "/anime/add", search: {} });
-    }
-    setSelectedAnime(null);
+    updateSearch({ id: undefined });
   };
 
   const handleSelectAnime = (anime: AnimeSearchResult) => {
-    if (anilistId !== null) {
-      void navigate({ to: "/anime/add", search: {} });
-    }
-    setSelectedAnime(anime);
+    updateSearch({ id: anime.id });
   };
 
   const handleTabChange = (value: string) => {
-    setActiveTab(value);
-    if (value === "search") {
+    const nextTab = value === "seasonal" ? "seasonal" : "search";
+    updateSearch({ tab: nextTab });
+    if (nextTab === "search") {
       searchInputRef.current?.focus();
     }
   };
@@ -143,8 +152,8 @@ function AddAnimePage() {
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             ref={searchInputRef}
-            value={query}
-            onChange={(event) => setQuery(event.currentTarget.value)}
+            value={search.q}
+            onChange={(event) => updateSearch({ q: event.currentTarget.value })}
             placeholder="Search by title..."
             aria-label="Search for anime by title"
             className="pl-9 h-9"
@@ -153,7 +162,7 @@ function AddAnimePage() {
       </PageHeader>
 
       <Tabs
-        value={activeTab}
+        value={search.tab}
         onValueChange={handleTabChange}
         className="flex flex-1 min-h-0 flex-col"
       >
@@ -173,7 +182,7 @@ function AddAnimePage() {
             fallback={<div className="text-sm text-muted-foreground">Loading search...</div>}
           >
             <SearchResults
-              active={activeTab === "search"}
+              active={search.tab === "search"}
               canSearch={canSearch}
               searchQuery={searchQuery}
               searchResults={searchResults}
@@ -191,11 +200,19 @@ function AddAnimePage() {
             }
           >
             <SeasonalAnimeSectionLazy
-              active={activeTab === "seasonal"}
-              seasonWindow={seasonWindow}
-              onPrevious={() => setSeasonWindow((prev) => shiftSeasonWindow(prev, -1))}
-              onNext={() => setSeasonWindow((prev) => shiftSeasonWindow(prev, 1))}
-              query={seasonalQuery}
+              active={search.tab === "seasonal"}
+              seasonWindow={{ season: search.season, year: search.year }}
+              onPrevious={() => {
+                const previous = shiftSeasonWindow(
+                  { season: search.season, year: search.year },
+                  -1,
+                );
+                updateSearch({ season: previous.season, year: previous.year });
+              }}
+              onNext={() => {
+                const next = shiftSeasonWindow({ season: search.season, year: search.year }, 1);
+                updateSearch({ season: next.season, year: next.year });
+              }}
               libraryIds={libraryIds}
               onSelectAnime={handleSelectAnime}
             />
@@ -203,7 +220,7 @@ function AddAnimePage() {
         </TabsContent>
       </Tabs>
 
-      {activeSelectedAnime && (
+      {anilistId !== null && (
         <Suspense
           fallback={
             <div className="flex items-center justify-center p-8">
@@ -211,19 +228,38 @@ function AddAnimePage() {
             </div>
           }
         >
-          <AddAnimeDialogLazy
-            anime={activeSelectedAnime}
-            open={!!activeSelectedAnime}
-            onOpenChange={(open) => {
-              if (!open) {
-                clearSelectedAnime();
-              }
-            }}
+          <SelectedAnimeDialog
+            anilistId={anilistId}
+            onOpenChange={clearSelectedAnime}
             onSuccess={clearSelectedAnime}
           />
         </Suspense>
       )}
     </div>
+  );
+}
+
+function SelectedAnimeDialog({
+  anilistId,
+  onOpenChange,
+  onSuccess,
+}: {
+  anilistId: number;
+  onOpenChange: () => void;
+  onSuccess: () => void;
+}) {
+  const { data: anime } = useSuspenseQuery(animeByAnilistIdQueryOptions(anilistId));
+  return (
+    <AddAnimeDialogLazy
+      anime={anime}
+      open
+      onOpenChange={(open) => {
+        if (!open) {
+          onOpenChange();
+        }
+      }}
+      onSuccess={onSuccess}
+    />
   );
 }
 

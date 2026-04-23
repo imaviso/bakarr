@@ -85,6 +85,7 @@ export function useAnimeDetailsActions(options: UseAnimeDetailsActionsOptions) {
     handleSearchMissing,
     handleToggleMonitor,
     isRefreshPending: refreshEpisodes.isPending,
+    isScanFolderPending: scanFolder.isPending,
     isSearchMissingPending: searchMissing.isPending,
     isToggleMonitorPending: toggleMonitor.isPending,
     latestScanTaskId,

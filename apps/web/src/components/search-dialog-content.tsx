@@ -9,7 +9,7 @@ import {
   SortDescendingIcon,
   StarIcon,
 } from "@phosphor-icons/react";
-import { Suspense } from "react";
+
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import { DialogContent, DialogTitle } from "~/components/ui/dialog";
@@ -110,17 +110,15 @@ export function SearchDialogContent(props: SearchDialogContentProps) {
       </div>
 
       <div className="flex-1 overflow-hidden relative bg-muted">
-        <Suspense fallback={<SearchResultsSkeleton />}>
-          {props.open && (
-            <SearchResults
-              animeId={props.animeId}
-              query={props.debouncedQuery}
-              category={props.category}
-              filter={props.filter}
-              onGrab={() => props.setOpen(false)}
-            />
-          )}
-        </Suspense>
+        {props.open && (
+          <SearchResults
+            animeId={props.animeId}
+            query={props.debouncedQuery}
+            category={props.category}
+            filter={props.filter}
+            onGrab={() => props.setOpen(false)}
+          />
+        )}
       </div>
 
       <div className="px-6 py-2.5 border-t border-border bg-background text-xs text-muted-foreground flex gap-6 items-center overflow-x-auto">
@@ -154,6 +152,10 @@ function SearchResults(props: {
     filter: props.filter,
     query: props.query,
   });
+
+  if (state.searchQuery.isLoading) {
+    return <SearchResultsSkeleton />;
+  }
 
   return (
     <div className="h-full overflow-auto">

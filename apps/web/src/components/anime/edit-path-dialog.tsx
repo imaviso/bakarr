@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import {
@@ -25,12 +25,13 @@ export function EditPathDialog(props: EditPathDialogProps) {
   const [path, setPath] = useState(props.currentPath);
   const [rescan, setRescan] = useState(true);
 
-  useEffect(() => {
-    if (props.open) {
+  const handleOpenChange = (open: boolean) => {
+    if (open) {
       setPath(props.currentPath);
       setRescan(true);
     }
-  }, [props.open, props.currentPath]);
+    props.onOpenChange(open);
+  };
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -40,7 +41,7 @@ export function EditPathDialog(props: EditPathDialogProps) {
   };
 
   return (
-    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
+    <Dialog open={props.open} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Edit Root Path</DialogTitle>

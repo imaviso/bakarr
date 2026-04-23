@@ -1,5 +1,4 @@
 import { WarningIcon, CheckIcon, FileIcon, InfoIcon } from "@phosphor-icons/react";
-import { useMemo } from "react";
 import { EditMappingPopover } from "~/components/edit-mapping-popover";
 import { Badge } from "~/components/ui/badge";
 import { Checkbox } from "~/components/ui/checkbox";
@@ -32,33 +31,17 @@ export function FileRow(props: FileRowProps) {
       : Math.floor(props.file.episode_number);
   const displaySeason = props.currentSeason !== undefined ? props.currentSeason : props.file.season;
 
-  const metadataBadges = useMemo(() => scannedFileMetadataBadges(props.file), [props.file]);
-  const fileSize = useMemo(() => formatFileSize(props.file.size), [props.file.size]);
-  const matchConfidence = useMemo(
-    () => formatMatchConfidence(props.file.match_confidence),
-    [props.file.match_confidence],
-  );
-  const decisionSummary = useMemo(
-    () =>
-      buildFileDecisionSummary({
-        coverage_summary: props.file.coverage_summary,
-        episode_conflict: props.file.episode_conflict,
-        existing_mapping: props.file.existing_mapping,
-        match_reason: props.file.match_reason,
-        warnings: props.file.warnings,
-      }),
-    [
-      props.file.coverage_summary,
-      props.file.episode_conflict,
-      props.file.existing_mapping,
-      props.file.match_reason,
-      props.file.warnings,
-    ],
-  );
-  const namingBadges = useMemo(
-    () => namingMetadataBadges(props.file.naming_metadata_snapshot),
-    [props.file.naming_metadata_snapshot],
-  );
+  const metadataBadges = scannedFileMetadataBadges(props.file);
+  const fileSize = formatFileSize(props.file.size);
+  const matchConfidence = formatMatchConfidence(props.file.match_confidence);
+  const decisionSummary = buildFileDecisionSummary({
+    coverage_summary: props.file.coverage_summary,
+    episode_conflict: props.file.episode_conflict,
+    existing_mapping: props.file.existing_mapping,
+    match_reason: props.file.match_reason,
+    warnings: props.file.warnings,
+  });
+  const namingBadges = namingMetadataBadges(props.file.naming_metadata_snapshot);
 
   return (
     <li

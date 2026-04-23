@@ -1,5 +1,4 @@
 import { XIcon } from "@phosphor-icons/react";
-import { useMemo } from "react";
 import { Button } from "~/components/ui/button";
 import {
   Select,
@@ -19,53 +18,42 @@ interface FilterItemProps {
 export function FilterItem(props: FilterItemProps) {
   const ctx = useFilterContext();
 
-  const column = useMemo(
-    () => ctx.columns.find((c) => c.id === props.filter.columnId),
-    [ctx.columns, props.filter.columnId],
-  );
+  const column = ctx.columns.find((c) => c.id === props.filter.columnId);
 
-  const operatorOptions = useMemo(() => {
-    const col = column;
-    if (!col) return [];
+  let operatorOptions: { value: FilterOperator; label: string }[] = [];
+  switch (column?.type) {
+    case "text":
+      operatorOptions = [
+        { value: "contains", label: "contains" },
+        { value: "does_not_contain", label: "does not contain" },
+      ];
+      break;
+    case "select":
+      operatorOptions = [
+        { value: "is", label: "is" },
+        { value: "is_not", label: "is not" },
+      ];
+      break;
+    case "multiSelect":
+      operatorOptions = [
+        { value: "is_any_of", label: "is any of" },
+        { value: "is_none_of", label: "is none of" },
+      ];
+      break;
+    case "date":
+      operatorOptions = [
+        { value: "is", label: "is" },
+        { value: "is_before", label: "is before" },
+        { value: "is_after", label: "is after" },
+      ];
+      break;
+    default:
+      operatorOptions = [];
+  }
 
-    let options: { value: FilterOperator; label: string }[] = [];
-
-    switch (col.type) {
-      case "text":
-        options = [
-          { value: "contains", label: "contains" },
-          { value: "does_not_contain", label: "does not contain" },
-        ];
-        break;
-      case "select":
-        options = [
-          { value: "is", label: "is" },
-          { value: "is_not", label: "is not" },
-        ];
-        break;
-      case "multiSelect":
-        options = [
-          { value: "is_any_of", label: "is any of" },
-          { value: "is_none_of", label: "is none of" },
-        ];
-        break;
-      case "date":
-        options = [
-          { value: "is", label: "is" },
-          { value: "is_before", label: "is before" },
-          { value: "is_after", label: "is after" },
-        ];
-        break;
-      default:
-        options = [];
-    }
-
-    if (col.operators && col.operators.length > 0) {
-      return options.filter((o) => col.operators?.includes(o.value));
-    }
-
-    return options;
-  }, [column]);
+  if (column?.operators && column.operators.length > 0) {
+    operatorOptions = operatorOptions.filter((option) => column.operators?.includes(option.value));
+  }
 
   const handleOperatorChange = (operator: FilterOperator | null) => {
     if (operator) {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   createDownloadEventsQuery,
   createInfiniteLogsQuery,
@@ -44,12 +44,12 @@ export function useLogsQueries(options: UseLogsQueriesOptions) {
     [downloadEventsQuery.data?.next_cursor],
   );
 
-  const refreshAll = () => {
+  const refreshAll = useCallback(() => {
     void logsQuery.refetch();
     void downloadEventsQuery.refetch();
     void dashboardQuery.refetch();
     void jobsQuery.refetch();
-  };
+  }, [logsQuery, downloadEventsQuery, dashboardQuery, jobsQuery]);
 
   useEffect(() => {
     if (!autoRefresh) {

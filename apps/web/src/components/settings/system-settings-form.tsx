@@ -13,6 +13,7 @@ import {
   createTriggerRssCheckMutation,
   createTriggerScanMutation,
   createUpdateSystemConfigMutation,
+  isTaskActive,
   type Config,
 } from "~/lib/api";
 
@@ -51,7 +52,9 @@ function SystemForm(props: {
 
   const systemStatus = createSystemStatusQuery();
   const [latestSystemTaskId, setLatestSystemTaskId] = useState<number | undefined>(undefined);
-  createSystemTaskQuery(latestSystemTaskId);
+  const latestSystemTask = createSystemTaskQuery(latestSystemTaskId);
+  const isSystemTaskRunning =
+    latestSystemTask.data !== undefined && isTaskActive(latestSystemTask.data);
   const triggerScan = createTriggerScanMutation();
   const triggerRss = createTriggerRssCheckMutation();
   const triggerMetadataRefresh = createTriggerMetadataRefreshMutation();
@@ -103,9 +106,9 @@ function SystemForm(props: {
           onTriggerScan={handleTriggerScan}
           onTriggerRss={handleTriggerRss}
           onTriggerMetadataRefresh={handleTriggerMetadataRefresh}
-          triggerScanPending={triggerScan.isPending}
-          triggerRssPending={triggerRss.isPending}
-          triggerMetadataRefreshPending={triggerMetadataRefresh.isPending}
+          triggerScanPending={triggerScan.isPending || isSystemTaskRunning}
+          triggerRssPending={triggerRss.isPending || isSystemTaskRunning}
+          triggerMetadataRefreshPending={triggerMetadataRefresh.isPending || isSystemTaskRunning}
         />
       )}
 

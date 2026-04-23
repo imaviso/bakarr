@@ -1,7 +1,6 @@
 import { useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { DownloadRow } from "~/components/downloads/download-rows";
-import { Skeleton } from "~/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -11,12 +10,10 @@ import {
   TableRow,
 } from "~/components/ui/table";
 import { TabsContent } from "~/components/ui/tabs";
-import type { DownloadsHistoryQuery } from "~/features/downloads/downloads-view-types";
 import type { Download } from "~/lib/api";
 
 interface DownloadsHistoryTabProps {
   history: Download[];
-  historyQuery: DownloadsHistoryQuery;
 }
 
 export function DownloadsHistoryTab(props: DownloadsHistoryTabProps) {
@@ -52,65 +49,43 @@ export function DownloadsHistoryTab(props: DownloadsHistoryTabProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {!props.historyQuery.isLoading ? (
-              props.history.length > 0 ? (
-                <>
-                  {historyPaddingTop > 0 && (
-                    <tr aria-hidden="true">
-                      <td
-                        colSpan={6}
-                        style={{
-                          height: `${historyPaddingTop}px`,
-                          padding: "0",
-                          border: "none",
-                        }}
-                      />
-                    </tr>
-                  )}
-                  {historyVirtualizer.getVirtualItems().map((virtualRow) => {
-                    const item = props.history[virtualRow.index];
-                    return item ? <DownloadRow key={virtualRow.key} item={item} isHistory /> : null;
-                  })}
-                  {historyPaddingBottom > 0 && (
-                    <tr aria-hidden="true">
-                      <td
-                        colSpan={6}
-                        style={{
-                          height: `${historyPaddingBottom}px`,
-                          padding: "0",
-                          border: "none",
-                        }}
-                      />
-                    </tr>
-                  )}
-                </>
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
-                    No download history
-                  </TableCell>
-                </TableRow>
-              )
+            {props.history.length > 0 ? (
+              <>
+                {historyPaddingTop > 0 && (
+                  <tr aria-hidden="true">
+                    <td
+                      colSpan={6}
+                      style={{
+                        height: `${historyPaddingTop}px`,
+                        padding: "0",
+                        border: "none",
+                      }}
+                    />
+                  </tr>
+                )}
+                {historyVirtualizer.getVirtualItems().map((virtualRow) => {
+                  const item = props.history[virtualRow.index];
+                  return item ? <DownloadRow key={virtualRow.key} item={item} isHistory /> : null;
+                })}
+                {historyPaddingBottom > 0 && (
+                  <tr aria-hidden="true">
+                    <td
+                      colSpan={6}
+                      style={{
+                        height: `${historyPaddingBottom}px`,
+                        padding: "0",
+                        border: "none",
+                      }}
+                    />
+                  </tr>
+                )}
+              </>
             ) : (
-              [1, 2, 3, 4, 5].map((row) => (
-                <TableRow key={`skeleton-${row}`}>
-                  <TableCell>
-                    <Skeleton className="h-4 w-4" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-48" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-12" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-24" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-16" />
-                  </TableCell>
-                </TableRow>
-              ))
+              <TableRow>
+                <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                  No download history
+                </TableCell>
+              </TableRow>
             )}
           </TableBody>
         </Table>
