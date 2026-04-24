@@ -1,5 +1,4 @@
-import { Effect, Option, Schema } from "effect";
-import { LocalStorage } from "~/lib/effect/local-storage";
+import { Schema } from "effect";
 import type { NotificationEvent } from "@bakarr/shared";
 
 export const NOTIFICATION_PREFERENCE_KEYS = [
@@ -121,23 +120,14 @@ export function readNotificationPreferences(): NotificationPreferences {
     return cachedPreferences;
   }
 
-  const program = Effect.gen(function* () {
-    const storage = yield* LocalStorage;
-    const raw = yield* storage.getItem(NOTIFICATION_PREFERENCES_STORAGE_KEY);
-    if (Option.isNone(raw)) {
-      return { ...DEFAULT_NOTIFICATION_PREFERENCES };
-    }
-    const parsed = yield* Effect.sync(() => JSON.parse(raw.value)).pipe(
-      Effect.matchEffect({
-        onFailure: () => Effect.succeed({ ...DEFAULT_NOTIFICATION_PREFERENCES }),
-        onSuccess: (value) => Effect.succeed(normalizeNotificationPreferences(value)),
-      }),
-    );
-    return parsed;
-  }).pipe(Effect.provide(LocalStorage.Live));
-
   try {
-    cachedPreferences = Effect.runSync(program);
+    const raw = localStorage.getItem(NOTIFICATION_PREFERENCES_STORAGE_KEY);
+    if (raw === null) {
+      cachedPreferences = { ...DEFAULT_NOTIFICATION_PREFERENCES };
+      return cachedPreferences;
+    }
+    const parsed = JSON.parse(raw) as unknown;
+    cachedPreferences = normalizeNotificationPreferences(parsed);
     return cachedPreferences;
   } catch {
     cachedPreferences = { ...DEFAULT_NOTIFICATION_PREFERENCES };
@@ -153,13 +143,11 @@ export function writeNotificationPreferences(preferences: NotificationPreference
     return;
   }
 
-  const program = Effect.gen(function* () {
-    const storage = yield* LocalStorage;
-    yield* storage.setItem(NOTIFICATION_PREFERENCES_STORAGE_KEY, JSON.stringify(normalized));
-  }).pipe(Effect.provide(LocalStorage.Live));
-
   try {
-    Effect.runSync(program);
+    localStorage.setItem(
+      NOTIFICATION_PREFERENCES_STORAGE_KEY,
+      JSON.stringify(normalized),
+    );
   } catch {
     // Ignore persistence errors.
   }
