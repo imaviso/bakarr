@@ -4,11 +4,10 @@ import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
 import { GlobalSpinner } from "~/components/global-spinner";
 import { NotFound } from "~/components/not-found";
 import { Toaster } from "~/components/ui/sonner";
-import { AuthProvider, type AuthState } from "~/lib/auth";
+import { AuthProvider } from "~/lib/auth";
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient;
-  getAuthState: () => AuthState;
 }>()({
   component: RootComponent,
   notFoundComponent: NotFound,

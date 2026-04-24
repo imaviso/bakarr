@@ -3,6 +3,8 @@ import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { Suspense, lazy } from "react";
 import { AppSidebar } from "~/components/app-sidebar";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "~/components/ui/sidebar";
+import { syncAuthenticatedUser } from "~/lib/auth";
+import { authMeQueryOptions } from "~/lib/api";
 
 const SocketToastListenerLazy = lazy(() =>
   import("~/components/socket-toast-listener").then((module) => ({
@@ -11,9 +13,11 @@ const SocketToastListenerLazy = lazy(() =>
 );
 
 export const Route = createFileRoute("/_layout")({
-  beforeLoad: ({ context, location }) => {
-    const authState = context.getAuthState();
-    if (!authState.isAuthenticated) {
+  beforeLoad: async ({ context, location }) => {
+    try {
+      const user = await context.queryClient.fetchQuery(authMeQueryOptions());
+      syncAuthenticatedUser(user.username);
+    } catch {
       throw redirect({
         to: "/login",
         search: {

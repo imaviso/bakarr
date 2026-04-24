@@ -2,12 +2,8 @@ import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
-import { Effect, Schema } from "effect";
 // oxlint-disable-next-line import/no-unassigned-import
 import "./index.css";
-import { getAuthState, syncAuthenticatedUser } from "~/lib/auth";
-import { API_BASE } from "~/lib/api";
-import { fetchJson } from "~/lib/effect/api-client";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -34,7 +30,6 @@ const router = createRouter({
   defaultPreloadStaleTime: 1000 * 30,
   context: {
     queryClient,
-    getAuthState,
   },
 });
 declare module "@tanstack/react-router" {
@@ -47,12 +42,10 @@ const rootElement = document.getElementById("root");
 
 void bootstrap();
 
-async function bootstrap() {
+function bootstrap() {
   if (!rootElement || rootElement.innerHTML) {
     return;
   }
-
-  await hydrateSessionState();
 
   const root = createRoot(rootElement);
   root.render(
@@ -60,21 +53,4 @@ async function bootstrap() {
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
-}
-
-const AuthMeSchema = Schema.Struct({
-  username: Schema.String.pipe(Schema.minLength(1)),
-});
-
-async function hydrateSessionState() {
-  const program = fetchJson(AuthMeSchema, `${API_BASE}/auth/me`, {
-    skipAutoLogoutOnUnauthorized: true,
-  }).pipe(
-    Effect.tap((decoded) => Effect.sync(() => syncAuthenticatedUser(decoded.username))),
-    Effect.catchAll(() => Effect.void),
-  );
-
-  await Effect.runPromise(program).catch(() => {
-    // Ignore hydration errors
-  });
 }

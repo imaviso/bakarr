@@ -115,9 +115,7 @@ export function parseDownloadEventsSearch(
   keys: DownloadEventsSearchKeys,
 ): Record<string, string> {
   const defaults = createDownloadEventsSearchDefaults(keys);
-  const parsed = Schema.decodeUnknownSync(
-    createDownloadEventsSearchSchema(keys, defaults),
-  )(search);
+  const parsed = Schema.decodeUnknownSync(createDownloadEventsSearchSchema(keys, defaults))(search);
 
   return {
     ...defaults,

@@ -46,8 +46,7 @@ export const fetchResponse = Effect.fn("ApiClient.fetchResponse")(
             credentials: "include",
             ...(signal === undefined ? {} : { signal }),
           }),
-        catch: (cause) =>
-          new ApiClientError({ message: `Network error: ${String(cause)}` }),
+        catch: (cause) => new ApiClientError({ message: `Network error: ${String(cause)}` }),
       });
 
       if (response.status === 401 && !options?.skipAutoLogoutOnUnauthorized) {
