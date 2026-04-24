@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   createDownloadEventsQuery,
   createInfiniteLogsQuery,
@@ -41,16 +41,20 @@ export function useLogsQueries(options: UseLogsQueriesOptions) {
   const canGoToPreviousDownloadEventsPage = Boolean(downloadEventsQuery.data?.prev_cursor);
   const canGoToNextDownloadEventsPage = Boolean(downloadEventsQuery.data?.next_cursor);
 
+  const queriesRef = useRef({ logsQuery, downloadEventsQuery, dashboardQuery, jobsQuery });
+  queriesRef.current = { logsQuery, downloadEventsQuery, dashboardQuery, jobsQuery };
+
   const refreshAll = () => {
-    void logsQuery.refetch();
-    void downloadEventsQuery.refetch();
-    void dashboardQuery.refetch();
-    void jobsQuery.refetch();
+    const q = queriesRef.current;
+    void q.logsQuery.refetch();
+    void q.downloadEventsQuery.refetch();
+    void q.dashboardQuery.refetch();
+    void q.jobsQuery.refetch();
   };
 
   useEffect(() => {
     if (!autoRefresh) {
-      return undefined;
+      return () => {};
     }
 
     const interval = setInterval(refreshAll, 3000);

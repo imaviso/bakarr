@@ -72,7 +72,7 @@ export const fetchResponse = Effect.fn("ApiClient.fetchResponse")(
 );
 
 export const fetchJson = <A, I>(
-  schema: Schema.Schema<A, I, never>,
+  schema: Schema.Schema<A, I>,
   endpoint: string,
   options?: ApiRequestOptions,
   signal?: AbortSignal,

@@ -1,5 +1,15 @@
 /* eslint-disable react-refresh/only-export-components */
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, createContext, useContext } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  createContext,
+  useContext,
+} from "react";
 
 type Theme = "dark" | "light" | "system";
 type ResolvedTheme = "dark" | "light";
@@ -39,11 +49,7 @@ function subscribeSystemTheme(callback: () => void) {
 }
 
 function useSystemTheme(): ResolvedTheme {
-  return useSyncExternalStore(
-    subscribeSystemTheme,
-    getSystemThemeSnapshot,
-    () => "light",
-  );
+  return useSyncExternalStore(subscribeSystemTheme, getSystemThemeSnapshot, () => "light");
 }
 
 function disableTransitionsTemporarily() {

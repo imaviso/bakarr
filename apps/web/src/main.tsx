@@ -40,7 +40,7 @@ declare module "@tanstack/react-router" {
 }
 const rootElement = document.getElementById("root");
 
-void bootstrap();
+bootstrap();
 
 function bootstrap() {
   if (!rootElement || rootElement.innerHTML) {
