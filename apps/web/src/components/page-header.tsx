@@ -1,17 +1,19 @@
 import type { ReactNode } from "react";
+import { cn } from "~/lib/utils";
 
 interface PageHeaderProps {
   title: string;
   subtitle?: string;
   children?: ReactNode;
+  className?: string;
 }
 
 export function PageHeader(props: PageHeaderProps) {
   return (
-    <div className="border-b border-border pb-4 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">{props.title}</h1>
-        {props.subtitle && <p className="text-sm text-muted-foreground mt-1">{props.subtitle}</p>}
+    <div className={cn("flex flex-wrap items-center justify-between gap-3 py-2", props.className)}>
+      <div className="min-w-0">
+        <h1 className="text-lg font-semibold tracking-tight text-foreground">{props.title}</h1>
+        {props.subtitle && <p className="text-xs text-muted-foreground">{props.subtitle}</p>}
       </div>
       {props.children}
     </div>

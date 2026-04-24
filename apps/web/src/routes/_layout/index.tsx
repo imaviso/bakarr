@@ -33,7 +33,7 @@ function DashboardPage() {
   const statsSummary = `${stats.total_anime} anime · ${stats.downloaded_episodes}/${stats.total_episodes} episodes · ${stats.downloaded_percent}% complete`;
 
   return (
-    <div className="space-y-6">
+    <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden space-y-6">
       <PageHeader title="Dashboard" subtitle={statsSummary} />
 
       {/* Stat Bar */}

@@ -68,7 +68,7 @@ function RssPage() {
   const toggleFeed = createToggleRssFeedMutation();
 
   return (
-    <div className="space-y-6">
+    <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden space-y-6">
       <PageHeader title="RSS Feeds">
         <Button size="sm" onClick={() => setIsAdding(true)} disabled={isAdding}>
           <PlusIcon className="h-4 w-4" />
@@ -85,6 +85,7 @@ function RssPage() {
           icon={<RssIcon className="h-12 w-12" />}
           title="No RSS feeds"
           description="Add RSS feeds to automatically detect new episodes"
+          className="border-dashed"
         >
           <Button onClick={() => setIsAdding(true)}>
             <PlusIcon className="h-4 w-4" />

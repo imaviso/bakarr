@@ -106,7 +106,7 @@ export function AnimeGridView(props: AnimeLibraryViewProps) {
   return (
     <div
       ref={containerRef}
-      className="h-full min-h-0 overflow-y-auto overflow-x-hidden"
+      className="h-full min-h-0 w-full flex-1 overflow-y-auto overflow-x-hidden"
       style={{ overflowAnchor: "none" }}
     >
       <div className="relative w-full" style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
@@ -274,7 +274,7 @@ export function AnimeListView(props: AnimeLibraryViewProps) {
   return (
     <div
       ref={scrollRef}
-      className="h-full min-h-0 overflow-auto rounded-none border"
+      className="h-full min-h-0 w-full flex-1 overflow-auto rounded-none border"
       style={{ overflowAnchor: "none" }}
     >
       <Table className="table-fixed w-full min-w-[760px] lg:min-w-0">

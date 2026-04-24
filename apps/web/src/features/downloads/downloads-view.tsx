@@ -18,7 +18,7 @@ interface DownloadsViewProps {
 
 export function DownloadsView(props: DownloadsViewProps) {
   return (
-    <div className="flex flex-col flex-1 min-h-0 overflow-hidden gap-4">
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden gap-2">
       <PageHeader title="Downloads" subtitle="Manage active downloads and history">
         <div className="flex items-center gap-2">
           <DownloadEventsDialog
@@ -56,13 +56,13 @@ export function DownloadsView(props: DownloadsViewProps) {
         </div>
       </PageHeader>
 
-      <Card className="flex-1 overflow-hidden flex flex-col">
+      <Card className="flex-1 min-h-0 overflow-hidden flex flex-col">
         <Tabs
           value={props.searchTab}
           onChange={(value) =>
             props.state.handleTabChange(typeof value === "string" ? value : undefined)
           }
-          className="h-full flex flex-col"
+          className="h-full min-h-0 flex flex-col"
         >
           <div className="px-4 pt-3 border-b">
             <TabsList className="w-full justify-start h-auto p-0 pb-px bg-transparent border-b-0 space-x-6">

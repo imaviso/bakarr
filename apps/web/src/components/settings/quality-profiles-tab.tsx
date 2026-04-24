@@ -181,7 +181,7 @@ export function QualityProfilesTab() {
               icon={<SlidersHorizontalIcon className="h-12 w-12" />}
               title="No quality profiles"
               description="Create a profile to define download quality settings"
-              className="bg-transparent"
+              className="bg-transparent border-dashed"
             >
               <Button onClick={() => setIsCreating(true)}>
                 <PlusIcon className="mr-2 h-4 w-4" />

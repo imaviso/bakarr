@@ -124,139 +124,141 @@ function LoginPage() {
   });
 
   return (
-    <div className="flex items-center justify-center min-h-[100dvh] bg-background p-4">
-      <Card className="w-full max-w-[400px] p-2 bg-card">
-        <CardHeader className="text-center pb-6 mb-4">
-          <CardTitle className="text-2xl font-semibold tracking-tight text-foreground">
-            Bakarr
-          </CardTitle>
-          <CardDescription className="text-sm text-muted-foreground mt-1">
-            Sign in to your account
-          </CardDescription>
-        </CardHeader>
-        <form action={() => form.handleSubmit()}>
-          <CardContent className="space-y-4">
-            <form.Field
-              name="username"
-              validators={{
-                onChange: Schema.standardSchemaV1(LoginSchema.fields.username),
-              }}
-            >
-              {(field) => (
-                <div className="space-y-2">
-                  <Label htmlFor="username">Username</Label>
-                  <Input
-                    id="username"
-                    type="text"
-                    value={field.state.value}
-                    onInput={(e) => field.handleChange(e.currentTarget.value)}
-                    onBlur={field.handleBlur}
-                    placeholder="admin"
-                    autoComplete="username"
-                  />
-                  {field.state.meta.errors.length > 0 && (
-                    <p className="text-xs text-destructive">
-                      {formatFieldErrors(field.state.meta.errors)}
-                    </p>
-                  )}
-                </div>
-              )}
-            </form.Field>
-            <form.Field
-              name="password"
-              validators={{
-                onChange: Schema.standardSchemaV1(LoginSchema.fields.password),
-              }}
-            >
-              {(field) => (
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={field.state.value}
-                    onInput={(e) => field.handleChange(e.currentTarget.value)}
-                    onBlur={field.handleBlur}
-                    autoComplete="current-password"
-                  />
-                  {field.state.meta.errors.length > 0 && (
-                    <p className="text-xs text-destructive">
-                      {formatFieldErrors(field.state.meta.errors)}
-                    </p>
-                  )}
-                </div>
-              )}
-            </form.Field>
-          </CardContent>
-          <CardFooter className="pt-4">
-            <form.Subscribe
-              selector={(state) => ({
-                isSubmitting: state.isSubmitting,
-                canSubmit: state.canSubmit,
-              })}
-            >
-              {(state) => (
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={!state.canSubmit || loginMutation.isPending}
-                >
-                  {state.isSubmitting || loginMutation.isPending ? "Signing in..." : "Sign in"}
-                </Button>
-              )}
-            </form.Subscribe>
-          </CardFooter>
-        </form>
-        <form action={() => apiKeyForm.handleSubmit()}>
-          <div className="px-6 pb-6 pt-1 space-y-2">
-            <apiKeyForm.Field
-              name="apiKey"
-              validators={{
-                onChange: Schema.standardSchemaV1(ApiKeySchema.fields.apiKey),
-              }}
-            >
-              {(field) => (
-                <div className="space-y-2">
-                  <Label htmlFor="api-key">Or sign in with API key</Label>
-                  <Input
-                    id="api-key"
-                    type="password"
-                    value={field.state.value}
-                    onInput={(e) => field.handleChange(e.currentTarget.value)}
-                    onBlur={field.handleBlur}
-                    placeholder="Paste API key"
-                    autoComplete="off"
-                  />
-                  {field.state.meta.errors.length > 0 && (
-                    <p className="text-xs text-destructive">
-                      {formatFieldErrors(field.state.meta.errors)}
-                    </p>
-                  )}
-                </div>
-              )}
-            </apiKeyForm.Field>
-            <apiKeyForm.Subscribe
-              selector={(state) => ({
-                isSubmitting: state.isSubmitting,
-                canSubmit: state.canSubmit,
-              })}
-            >
-              {(state) => (
-                <Button
-                  type="submit"
-                  variant="secondary"
-                  className="w-full"
-                  disabled={!state.canSubmit || apiKeyLoginMutation.isPending}
-                >
-                  {state.isSubmitting || apiKeyLoginMutation.isPending
-                    ? "Signing in..."
-                    : "Sign in with API key"}
-                </Button>
-              )}
-            </apiKeyForm.Subscribe>
-          </div>
-        </form>
-      </Card>
+    <div className="h-dvh overflow-y-auto bg-background p-4">
+      <div className="flex min-h-full items-center justify-center">
+        <Card className="w-full max-w-[400px] p-2 bg-card">
+          <CardHeader className="text-center pb-6 mb-4">
+            <CardTitle className="text-2xl font-semibold tracking-tight text-foreground">
+              Bakarr
+            </CardTitle>
+            <CardDescription className="text-sm text-muted-foreground mt-1">
+              Sign in to your account
+            </CardDescription>
+          </CardHeader>
+          <form action={() => form.handleSubmit()}>
+            <CardContent className="space-y-4">
+              <form.Field
+                name="username"
+                validators={{
+                  onChange: Schema.standardSchemaV1(LoginSchema.fields.username),
+                }}
+              >
+                {(field) => (
+                  <div className="space-y-2">
+                    <Label htmlFor="username">Username</Label>
+                    <Input
+                      id="username"
+                      type="text"
+                      value={field.state.value}
+                      onInput={(e) => field.handleChange(e.currentTarget.value)}
+                      onBlur={field.handleBlur}
+                      placeholder="admin"
+                      autoComplete="username"
+                    />
+                    {field.state.meta.errors.length > 0 && (
+                      <p className="text-xs text-destructive">
+                        {formatFieldErrors(field.state.meta.errors)}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </form.Field>
+              <form.Field
+                name="password"
+                validators={{
+                  onChange: Schema.standardSchemaV1(LoginSchema.fields.password),
+                }}
+              >
+                {(field) => (
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={field.state.value}
+                      onInput={(e) => field.handleChange(e.currentTarget.value)}
+                      onBlur={field.handleBlur}
+                      autoComplete="current-password"
+                    />
+                    {field.state.meta.errors.length > 0 && (
+                      <p className="text-xs text-destructive">
+                        {formatFieldErrors(field.state.meta.errors)}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </form.Field>
+            </CardContent>
+            <CardFooter className="pt-4">
+              <form.Subscribe
+                selector={(state) => ({
+                  isSubmitting: state.isSubmitting,
+                  canSubmit: state.canSubmit,
+                })}
+              >
+                {(state) => (
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={!state.canSubmit || loginMutation.isPending}
+                  >
+                    {state.isSubmitting || loginMutation.isPending ? "Signing in..." : "Sign in"}
+                  </Button>
+                )}
+              </form.Subscribe>
+            </CardFooter>
+          </form>
+          <form action={() => apiKeyForm.handleSubmit()}>
+            <div className="px-6 pb-6 pt-1 space-y-2">
+              <apiKeyForm.Field
+                name="apiKey"
+                validators={{
+                  onChange: Schema.standardSchemaV1(ApiKeySchema.fields.apiKey),
+                }}
+              >
+                {(field) => (
+                  <div className="space-y-2">
+                    <Label htmlFor="api-key">Or sign in with API key</Label>
+                    <Input
+                      id="api-key"
+                      type="password"
+                      value={field.state.value}
+                      onInput={(e) => field.handleChange(e.currentTarget.value)}
+                      onBlur={field.handleBlur}
+                      placeholder="Paste API key"
+                      autoComplete="off"
+                    />
+                    {field.state.meta.errors.length > 0 && (
+                      <p className="text-xs text-destructive">
+                        {formatFieldErrors(field.state.meta.errors)}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </apiKeyForm.Field>
+              <apiKeyForm.Subscribe
+                selector={(state) => ({
+                  isSubmitting: state.isSubmitting,
+                  canSubmit: state.canSubmit,
+                })}
+              >
+                {(state) => (
+                  <Button
+                    type="submit"
+                    variant="secondary"
+                    className="w-full"
+                    disabled={!state.canSubmit || apiKeyLoginMutation.isPending}
+                  >
+                    {state.isSubmitting || apiKeyLoginMutation.isPending
+                      ? "Signing in..."
+                      : "Sign in with API key"}
+                  </Button>
+                )}
+              </apiKeyForm.Subscribe>
+            </div>
+          </form>
+        </Card>
+      </div>
     </div>
   );
 }

@@ -45,7 +45,7 @@ export function AnimeEpisodesPanel(props: AnimeEpisodesPanelProps) {
         <CardContent>
           <TabsContent value="grid">
             {!hasEpisodes && (
-              <EmptyState compact title="No episodes found">
+              <EmptyState compact title="No episodes found" className="border-dashed">
                 <Button variant="link" onClick={props.onRefreshMetadata}>
                   Refresh metadata
                 </Button>

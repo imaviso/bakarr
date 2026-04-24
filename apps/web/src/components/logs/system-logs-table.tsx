@@ -87,7 +87,7 @@ export function SystemLogsTable(props: SystemLogsTableProps) {
       isFetchingNextPage={isFetchingNextPage}
       onFetchNextPage={onFetchNextPage}
     >
-      <div ref={logsScrollRef} className="h-full overflow-y-auto overflow-x-hidden">
+      <div ref={logsScrollRef} className="h-full min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
         <Table className="table-fixed w-full">
           <TableHeader className="sticky top-0 bg-card z-10">
             <TableRow className="hover:bg-transparent border-none">
@@ -306,7 +306,7 @@ function CardShell(props: {
   onFetchNextPage: () => void;
 }) {
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
       {props.children}
       {props.hasNextPage && (
         <div className="p-4 flex justify-center border-t shrink-0">

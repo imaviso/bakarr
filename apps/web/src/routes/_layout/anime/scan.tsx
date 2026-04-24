@@ -169,7 +169,7 @@ function LibraryScanPage() {
   };
 
   return (
-    <div className="flex h-full min-w-0 flex-col bg-[radial-gradient(circle_at_top_left,hsl(var(--info)/0.12),transparent_34%),radial-gradient(circle_at_top_right,hsl(var(--primary)/0.08),transparent_28%)] overflow-x-hidden">
+    <div className="flex flex-1 min-h-0 min-w-0 flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,hsl(var(--info)/0.12),transparent_34%),radial-gradient(circle_at_top_right,hsl(var(--primary)/0.08),transparent_28%)]">
       <ScanPageHeader
         foldersCount={folderList.length}
         counts={counts}
@@ -424,7 +424,7 @@ interface ScanContentProps {
 
 function ScanContent(props: ScanContentProps) {
   return (
-    <div className="flex-1 overflow-y-auto px-6 py-6">
+    <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 py-6">
       {props.foldersLength > 0 ? (
         <div className="space-y-4">
           {(props.foldersLength > 0 || props.unmappedJob) && (

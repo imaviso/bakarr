@@ -115,7 +115,7 @@ function AnimeDetailsPage() {
 
   return (
     <AnimeDetailsDialogsProvider value={dialogsContextValue}>
-      <div className="space-y-6">
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden space-y-6">
         <AnimeDetailsHeader
           anime={anime}
           animeId={animeId}

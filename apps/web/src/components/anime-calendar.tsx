@@ -71,7 +71,7 @@ export function AnimeCalendar() {
   const handleToday = () => setCurrentDate(new Date());
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-1 min-h-0 flex-col gap-4 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -91,8 +91,8 @@ export function AnimeCalendar() {
       </div>
 
       {/* Calendar Grid */}
-      <Card className="overflow-x-auto border-border">
-        <div className="min-w-0 md:min-w-[800px]">
+      <Card className="min-h-0 flex-1 overflow-auto border-border">
+        <div className="min-w-[800px]">
           {/* Weekday Headers */}
           <div className="grid grid-cols-7 border-b border-border bg-muted">
             {weekdays.map((day) => (
@@ -214,7 +214,7 @@ export function AnimeCalendar() {
       </Card>
 
       {/* Legend */}
-      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+      <div className="shrink-0 flex items-center gap-4 text-xs text-muted-foreground">
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded-none bg-success/20 border border-success/40" />
           <span>Downloaded</span>

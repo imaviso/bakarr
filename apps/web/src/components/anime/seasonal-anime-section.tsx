@@ -148,7 +148,7 @@ export function SeasonalAnimeSection(props: SeasonalAnimeSectionProps) {
       )}
 
       {allResults.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-10 text-muted-foreground border-2 border-dashed rounded-none bg-muted">
+        <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto py-10 text-muted-foreground border-2 border-dashed rounded-none bg-muted">
           <p className="text-sm">No seasonal anime found for this period.</p>
         </div>
       )}
@@ -156,7 +156,7 @@ export function SeasonalAnimeSection(props: SeasonalAnimeSectionProps) {
       {allResults.length > 0 && (
         <div
           ref={containerRef}
-          className="h-full min-h-0 overflow-y-auto overflow-x-hidden"
+          className="h-full min-h-0 w-full flex-1 overflow-y-auto overflow-x-hidden"
           style={{ overflowAnchor: "none" }}
         >
           <div className="relative w-full" style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>

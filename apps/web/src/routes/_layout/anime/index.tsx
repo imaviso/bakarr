@@ -140,11 +140,11 @@ function AnimeIndexPage() {
 
   return (
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-      <div className="border-b border-border pb-3 mb-3 space-y-3 shrink-0">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Library</h1>
-            <p className="text-sm text-muted-foreground mt-1">
+      <div className="shrink-0 space-y-2">
+        <div className="flex flex-wrap items-center justify-between gap-3 py-2">
+          <div className="min-w-0">
+            <h1 className="text-lg font-semibold tracking-tight text-foreground">Library</h1>
+            <p className="text-xs text-muted-foreground">
               {filteredList.length === anime.length
                 ? `${anime.length} titles`
                 : `${filteredList.length} of ${anime.length} titles`}
@@ -152,7 +152,7 @@ function AnimeIndexPage() {
           </div>
           <Link
             to="/anime/add"
-            className={buttonVariants({ class: "gap-1.5 px-2.5 sm:px-4" })}
+            className={buttonVariants({ size: "sm", class: "gap-1.5 shrink-0" })}
             aria-label="Add anime"
           >
             <PlusIcon className="h-4 w-4" />
@@ -265,9 +265,15 @@ function AnimeIndexPage() {
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-hidden">
+      <div className="flex flex-1 min-h-0 overflow-hidden">
         {filteredList.length > 0 ? (
-          <Suspense fallback={<AnimeListSkeleton />}>
+          <Suspense
+            fallback={
+              <div className="flex-1 overflow-y-auto">
+                <AnimeListSkeleton />
+              </div>
+            }
+          >
             {view === "grid" ? (
               <AnimeGridViewLazy
                 anime={filteredList}
@@ -283,18 +289,25 @@ function AnimeIndexPage() {
             )}
           </Suspense>
         ) : !query && filter === "all" ? (
-          <EmptyState
-            icon={<TelevisionIcon className="h-12 w-12" />}
-            title="No anime yet"
-            description="Add your first anime to start monitoring"
-          >
-            <Link to="/anime/add" className={buttonVariants()}>
-              <PlusIcon className="mr-2 h-4 w-4" />
-              Add Anime
-            </Link>
-          </EmptyState>
+          <div className="flex-1 overflow-y-auto">
+            <EmptyState
+              icon={<TelevisionIcon className="h-12 w-12" />}
+              title="No anime yet"
+              description="Add your first anime to start monitoring"
+              className="border-dashed"
+            >
+              <Link to="/anime/add" className={buttonVariants()}>
+                <PlusIcon className="mr-2 h-4 w-4" />
+                Add Anime
+              </Link>
+            </EmptyState>
+          </div>
         ) : (
-          <EmptyState title={query ? `No anime matching "${query}"` : `No ${filter} anime found`} />
+          <div className="flex-1 overflow-y-auto">
+            <EmptyState
+              title={query ? `No anime matching "${query}"` : `No ${filter} anime found`}
+            />
+          </div>
         )}
       </div>
     </div>

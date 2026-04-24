@@ -46,7 +46,7 @@ interface ImportPageContentProps {
 export function ImportPageContent(props: ImportPageContentProps) {
   return (
     <>
-      <div className="h-[calc(100vh-8rem)] flex flex-col overflow-hidden">
+      <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
         <ImportTopBar state={props.state} />
 
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden">

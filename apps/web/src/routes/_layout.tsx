@@ -33,7 +33,7 @@ function LayoutComponent() {
   const isFetching = useIsFetching();
 
   return (
-    <SidebarProvider>
+    <SidebarProvider className="h-svh overflow-hidden">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[200] focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground"
@@ -41,7 +41,7 @@ function LayoutComponent() {
         Skip to content
       </a>
       <AppSidebar />
-      <SidebarInset>
+      <SidebarInset className="min-h-0 overflow-hidden">
         <div className="h-0.5 w-full bg-transparent overflow-hidden fixed top-0 left-0 z-[100] pointer-events-none">
           {isFetching > 0 && (
             <div className="h-full bg-primary animate-progress-indeterminate w-full origin-left" />
@@ -53,7 +53,7 @@ function LayoutComponent() {
         </div>
         <main
           id="main-content"
-          className="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6 min-w-0 overflow-x-hidden min-h-0 overflow-y-auto"
+          className="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6 min-w-0 min-h-0 overflow-hidden"
         >
           <Outlet />
         </main>

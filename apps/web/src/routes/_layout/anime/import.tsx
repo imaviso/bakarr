@@ -48,7 +48,7 @@ function ImportPage() {
     latestImportTask.data !== undefined && isTaskActive(latestImportTask.data);
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-2">
+    <div className="flex flex-1 min-h-0 flex-col gap-2 overflow-hidden">
       {isImportTaskRunning && (
         <p className="text-xs text-muted-foreground">Import task running. Progress updates live.</p>
       )}

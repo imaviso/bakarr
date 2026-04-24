@@ -23,7 +23,7 @@ export function EmptyState(props: EmptyStateProps) {
   const inner = (
     <div
       className={cn(
-        "text-center border-2 border-dashed border-border",
+        "text-center border-2 border-border",
         props.compact ? "p-8" : "p-12",
         props.className,
       )}

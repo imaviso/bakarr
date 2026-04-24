@@ -53,6 +53,8 @@ const SettingsSearchSchema = Schema.Struct({
   tab: Schema.optional(SettingsTabSchema),
 });
 
+const SETTINGS_TAB_CONTENT_CLASS = "mt-0 min-h-0 overflow-y-auto overflow-x-hidden";
+
 export const Route = createFileRoute("/_layout/settings")({
   validateSearch: Schema.standardSchemaV1(SettingsSearchSchema),
   loader: async ({ context: { queryClient } }) => {
@@ -74,7 +76,7 @@ function SettingsPage() {
   const activeTab = search.tab ?? "general";
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-1 min-h-0 flex-col overflow-hidden gap-2">
       <PageHeader title="Settings">
         <Suspense fallback={null}>
           <SystemStatusLazy />
@@ -92,9 +94,9 @@ function SettingsPage() {
             replace: true,
           });
         }}
-        className="w-full space-y-6"
+        className="min-h-0 flex-1 w-full"
       >
-        <TabsList className="mb-6 h-auto w-full justify-start overflow-x-auto overflow-y-hidden border-b bg-transparent p-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [-webkit-mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)] [mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)] sm:[-webkit-mask-image:none] sm:[mask-image:none] md:overflow-x-visible">
+        <TabsList className="shrink-0 mb-6 h-auto w-full justify-start overflow-x-auto overflow-y-hidden border-b bg-transparent p-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [-webkit-mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)] [mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)] sm:[-webkit-mask-image:none] sm:[mask-image:none] md:overflow-x-visible">
           <TabsTrigger
             value="general"
             className="rounded-none border-b-2 border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent px-4 py-2"
@@ -132,7 +134,7 @@ function SettingsPage() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="general" className="mt-0">
+        <TabsContent value="general" className={SETTINGS_TAB_CONTENT_CLASS}>
           <div className="mb-6">
             <h2 className="text-lg font-medium">General Settings</h2>
             <p className="text-sm text-muted-foreground">
@@ -142,7 +144,7 @@ function SettingsPage() {
           <GeneralSettingsForm mode="general" />
         </TabsContent>
 
-        <TabsContent value="automation" className="mt-0">
+        <TabsContent value="automation" className={SETTINGS_TAB_CONTENT_CLASS}>
           <div className="mb-6">
             <h2 className="text-lg font-medium">Automation</h2>
             <p className="text-sm text-muted-foreground">
@@ -152,15 +154,15 @@ function SettingsPage() {
           <GeneralSettingsForm mode="automation" />
         </TabsContent>
 
-        <TabsContent value="profiles" className="mt-0">
+        <TabsContent value="profiles" className={SETTINGS_TAB_CONTENT_CLASS}>
           <QualityProfilesTab />
         </TabsContent>
 
-        <TabsContent value="release-profiles" className="mt-0">
+        <TabsContent value="release-profiles" className={SETTINGS_TAB_CONTENT_CLASS}>
           <ReleaseProfilesTab />
         </TabsContent>
 
-        <TabsContent value="account" className="mt-0">
+        <TabsContent value="account" className={SETTINGS_TAB_CONTENT_CLASS}>
           <div className="mb-6">
             <h2 className="text-lg font-medium">Account</h2>
             <p className="text-sm text-muted-foreground">

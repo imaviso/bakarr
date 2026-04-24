@@ -157,7 +157,7 @@ function AddAnimePage() {
   };
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 overflow-hidden gap-6">
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden gap-2">
       <PageHeader
         title="Add Anime"
         subtitle="Search or browse seasonal anime to add to your library"
@@ -337,7 +337,7 @@ function SearchResults(props: SearchResultsProps) {
       )}
 
       {!props.canSearch && (
-        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground border-2 border-dashed rounded-none bg-muted">
+        <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto py-20 text-muted-foreground border-2 border-dashed rounded-none bg-muted">
           <MagnifyingGlassIcon className="h-12 w-12 mb-4 opacity-50" />
           <h2 className="font-medium text-lg">Search for your next anime</h2>
           <p className="text-sm mt-1">Type at least 3 characters in the search bar above</p>
@@ -345,7 +345,7 @@ function SearchResults(props: SearchResultsProps) {
       )}
 
       {props.canSearch && !!props.searchQuery.error && (
-        <div className="p-8 text-center text-destructive bg-destructive/10 rounded-none">
+        <div className="flex-1 overflow-y-auto p-8 text-center text-destructive bg-destructive/10 rounded-none">
           <p>Failed to search anime. Please try again.</p>
           <p className="text-sm mt-2 opacity-80">
             {props.searchQuery.error instanceof Error
@@ -359,7 +359,7 @@ function SearchResults(props: SearchResultsProps) {
         !props.searchQuery.error &&
         props.searchQuery.isFetching &&
         props.searchResults.length === 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+          <div className="grid flex-1 grid-cols-1 gap-4 overflow-y-auto sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
             {[1, 2, 3, 4, 5, 6, 7, 8].map((row) => (
               <div key={`skeleton-${row}`} className="space-y-3">
                 <Skeleton className="aspect-[2/3] w-full rounded-none" />
@@ -375,7 +375,7 @@ function SearchResults(props: SearchResultsProps) {
       {props.canSearch && !props.searchQuery.error && props.searchResults.length > 0 && (
         <div
           ref={containerRef}
-          className="h-full min-h-0 overflow-y-auto overflow-x-hidden"
+          className="h-full min-h-0 w-full flex-1 overflow-y-auto overflow-x-hidden"
           style={{ overflowAnchor: "none" }}
         >
           <div className="relative w-full" style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
@@ -409,7 +409,7 @@ function SearchResults(props: SearchResultsProps) {
         !props.searchQuery.error &&
         !props.searchQuery.isFetching &&
         props.searchResults.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+          <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto py-12 text-muted-foreground">
             <WarningIcon className="h-10 w-10 mb-3 opacity-50" />
             <p>No results found for &quot;{props.debouncedQuery}&quot;</p>
           </div>

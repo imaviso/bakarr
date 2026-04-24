@@ -147,12 +147,15 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply h-full overflow-hidden bg-background text-foreground;
   }
   html {
-    @apply font-mono;
+    @apply h-full font-mono;
     scrollbar-width: thin;
     scrollbar-color: var(--border) transparent;
+  }
+  #root {
+    @apply h-full;
   }
   ::-webkit-scrollbar {
     width: 10px;

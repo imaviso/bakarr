@@ -28,7 +28,7 @@ export function DownloadsHistoryTab(props: DownloadsHistoryTabProps) {
 
   return (
     <TabsContent value="history" className="flex-1 mt-0 min-h-0 overflow-hidden flex flex-col">
-      <div ref={historyScrollRef} className="h-full min-h-0 overflow-auto">
+      <div ref={historyScrollRef} className="h-full min-h-0 w-full flex-1 overflow-auto">
         <Table className="table-fixed w-full min-w-[860px] md:min-w-0">
           <TableHeader className="sticky top-0 bg-card z-10 border-b">
             <TableRow className="hover:bg-transparent border-none">
