@@ -16,10 +16,10 @@ type ThemeProviderState = {
   setTheme: (theme: Theme) => void;
 };
 
+const ThemeProviderContext = React.createContext<ThemeProviderState | undefined>(undefined);
+
 const COLOR_SCHEME_QUERY = "(prefers-color-scheme: dark)";
 const THEME_VALUES = new Set<string>(["dark", "light", "system"]);
-
-const ThemeProviderContext = React.createContext<ThemeProviderState | undefined>(undefined);
 
 function isTheme(value: string | null): value is Theme {
   if (value === null) {

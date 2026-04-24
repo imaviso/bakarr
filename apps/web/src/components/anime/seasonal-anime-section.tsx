@@ -47,7 +47,7 @@ export function SeasonalAnimeSection(props: SeasonalAnimeSectionProps) {
 
   const rowCount = Math.ceil(allResults.length / colCount);
 
-  const getScrollElement = useCallback(() => nodeRef.current, []);
+  const getScrollElement = useCallback(() => nodeRef.current, [nodeRef]);
 
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
