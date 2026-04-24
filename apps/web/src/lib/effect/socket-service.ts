@@ -8,11 +8,15 @@ export class SocketError extends Data.TaggedError("SocketError")<{
 export class SocketService extends Context.Tag("@bakarr/web/SocketService")<
   SocketService,
   {
-    readonly messages: Effect.Effect<Stream.Stream<MessageEvent<string>>, never, Scope.Scope>;
+    readonly messages: Effect.Effect<
+      Stream.Stream<MessageEvent<string>>,
+      never,
+      Scope.Scope
+    >;
     readonly isConnected: Effect.Effect<boolean>;
   }
 >() {
-  static readonly Live = Layer.scoped(
+  static readonly Live = Layer.effect(
     SocketService,
     Effect.gen(function* () {
       const auth = yield* AuthService;
@@ -23,7 +27,8 @@ export class SocketService extends Context.Tag("@bakarr/web/SocketService")<
         if (typeof window === "undefined" || !window.location) {
           return "ws://localhost/api/events";
         }
-        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const protocol =
+          window.location.protocol === "https:" ? "wss:" : "ws:";
         return `${protocol}//${window.location.host}/api/events`;
       });
 
@@ -83,7 +88,9 @@ export class SocketService extends Context.Tag("@bakarr/web/SocketService")<
                 Effect.async<void>((resume) => {
                   const onClose = () => resume(Effect.void);
                   ws.addEventListener("close", onClose);
-                  return Effect.sync(() => ws.removeEventListener("close", onClose));
+                  return Effect.sync(() =>
+                    ws.removeEventListener("close", onClose),
+                  );
                 }),
               ),
               Effect.catchAll(() => Effect.void),

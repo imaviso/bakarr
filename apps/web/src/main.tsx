@@ -5,11 +5,9 @@ import { routeTree } from "./routeTree.gen";
 import { Effect, Schema } from "effect";
 // oxlint-disable-next-line import/no-unassigned-import
 import "./index.css";
-import { getAuthState } from "~/lib/auth";
+import { getAuthState, syncAuthenticatedUser } from "~/lib/auth";
 import { API_BASE } from "~/lib/api";
 import { fetchJson } from "~/lib/effect/api-client";
-import { AuthService } from "~/lib/effect/auth-service";
-import { appRuntime } from "~/lib/runtime";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -69,19 +67,18 @@ const AuthMeSchema = Schema.Struct({
 });
 
 async function hydrateSessionState() {
-  const program = fetchJson(AuthMeSchema, `${API_BASE}/auth/me`, {
-    skipAutoLogoutOnUnauthorized: true,
-  }).pipe(
-    Effect.flatMap((decoded) =>
-      Effect.gen(function* () {
-        const auth = yield* AuthService;
-        yield* auth.syncAuthenticatedUser(decoded.username);
-      }),
+  const program = fetchJson(
+    AuthMeSchema,
+    `${API_BASE}/auth/me`,
+    { skipAutoLogoutOnUnauthorized: true },
+  ).pipe(
+    Effect.tap((decoded) =>
+      Effect.sync(() => syncAuthenticatedUser(decoded.username)),
     ),
     Effect.catchAll(() => Effect.void),
   );
 
-  await appRuntime.runPromise(program).catch(() => {
+  await Effect.runPromise(program).catch(() => {
     // Ignore hydration errors
   });
 }
