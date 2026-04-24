@@ -1,4 +1,5 @@
 import { MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS, type UnmappedFolder } from "~/lib/api";
+import { Schema } from "effect";
 
 export function folderStatusLabel(folder: UnmappedFolder) {
   switch (folder.match_status) {
@@ -65,26 +66,26 @@ export function hasAutomaticRetryRemaining(folder: UnmappedFolder) {
   );
 }
 
+const ApiErrorSchema = Schema.Struct({
+  error: Schema.optional(Schema.String),
+  message: Schema.optional(Schema.String),
+});
+
 export function normalizeApiErrorMessage(message: string) {
   const trimmed = message.trim();
 
   if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
-    try {
-      const parsed: unknown = JSON.parse(trimmed);
-      if (parsed && typeof parsed === "object") {
-        const maybeError = "error" in parsed ? parsed.error : undefined;
-        if (typeof maybeError === "string" && maybeError.trim()) {
-          return maybeError;
-        }
-        const maybeMessage = "message" in parsed ? parsed.message : undefined;
-        if (typeof maybeMessage === "string" && maybeMessage.trim()) {
-          return maybeMessage;
-        }
+    const result = Schema.decodeUnknownEither(ApiErrorSchema)(JSON.parse(trimmed));
+    if (result._tag === "Right") {
+      const decoded = result.right;
+      if (decoded.error?.trim()) {
+        return decoded.error;
       }
-      return trimmed;
-    } catch {
-      return trimmed;
+      if (decoded.message?.trim()) {
+        return decoded.message;
+      }
     }
+    return trimmed;
   }
 
   return trimmed;
