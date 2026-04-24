@@ -1,4 +1,4 @@
-import * as v from "valibot";
+import { Schema } from "effect";
 
 export type DownloadEventsDirection = "next" | "prev";
 
@@ -82,15 +82,31 @@ export function createDownloadEventsSearchSchema(
   keys: DownloadEventsSearchKeys,
   defaults = createDownloadEventsSearchDefaults(keys),
 ) {
-  return v.object({
-    [keys.animeId]: v.optional(v.string(), defaults[keys.animeId]),
-    [keys.cursor]: v.optional(v.string(), defaults[keys.cursor]),
-    [keys.direction]: v.optional(v.picklist(["next", "prev"]), "next"),
-    [keys.downloadId]: v.optional(v.string(), defaults[keys.downloadId]),
-    [keys.endDate]: v.optional(v.string(), defaults[keys.endDate]),
-    [keys.eventType]: v.optional(v.string(), defaults[keys.eventType]),
-    [keys.startDate]: v.optional(v.string(), defaults[keys.startDate]),
-    [keys.status]: v.optional(v.string(), defaults[keys.status]),
+  return Schema.Struct({
+    [keys.animeId]: Schema.optionalWith(Schema.String, {
+      default: () => defaults[keys.animeId] ?? "",
+    }),
+    [keys.cursor]: Schema.optionalWith(Schema.String, {
+      default: () => defaults[keys.cursor] ?? "",
+    }),
+    [keys.direction]: Schema.optionalWith(Schema.Literal("next", "prev"), {
+      default: () => "next",
+    }),
+    [keys.downloadId]: Schema.optionalWith(Schema.String, {
+      default: () => defaults[keys.downloadId] ?? "",
+    }),
+    [keys.endDate]: Schema.optionalWith(Schema.String, {
+      default: () => defaults[keys.endDate] ?? "",
+    }),
+    [keys.eventType]: Schema.optionalWith(Schema.String, {
+      default: () => defaults[keys.eventType] ?? "",
+    }),
+    [keys.startDate]: Schema.optionalWith(Schema.String, {
+      default: () => defaults[keys.startDate] ?? "",
+    }),
+    [keys.status]: Schema.optionalWith(Schema.String, {
+      default: () => defaults[keys.status] ?? "",
+    }),
   });
 }
 
@@ -99,7 +115,7 @@ export function parseDownloadEventsSearch(
   keys: DownloadEventsSearchKeys,
 ): Record<string, string> {
   const defaults = createDownloadEventsSearchDefaults(keys);
-  const parsed = v.parse(createDownloadEventsSearchSchema(keys, defaults), search);
+  const parsed = Schema.decodeUnknownSync(createDownloadEventsSearchSchema(keys, defaults))(search);
   const read = (key: string) => {
     const value = parsed[key];
     if (typeof value === "string") {

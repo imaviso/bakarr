@@ -1,6 +1,6 @@
 import { toast } from "sonner";
 import type { QueryClient } from "@tanstack/react-query";
-import type { NotificationEvent } from "@bakarr/shared";
+import { decodeNotificationEventWire, type NotificationEvent } from "@bakarr/shared";
 import {
   animeKeys,
   type BackgroundJobStatus,
@@ -51,35 +51,7 @@ function updateJobStatus(
   return nextJobs;
 }
 
-function isNotificationEvent(value: unknown): value is NotificationEvent {
-  if (value === null || typeof value !== "object") {
-    return false;
-  }
-
-  if (!("type" in value) || typeof value.type !== "string") {
-    return false;
-  }
-
-  return true;
-}
-
-export function decodeNotificationEventWire(
-  input: string,
-): { _tag: "Left" } | { _tag: "Right"; right: NotificationEvent } {
-  try {
-    const parsed: unknown = JSON.parse(input);
-    if (!isNotificationEvent(parsed)) {
-      return { _tag: "Left" };
-    }
-
-    return {
-      _tag: "Right",
-      right: parsed,
-    };
-  } catch {
-    return { _tag: "Left" };
-  }
-}
+export { decodeNotificationEventWire };
 
 export function handleSocketEvent(queryClient: QueryClient, event: NotificationEvent) {
   const toastId = EVENT_TOAST_ID[event.type];

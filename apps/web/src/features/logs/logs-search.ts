@@ -1,4 +1,4 @@
-import * as v from "valibot";
+import { Schema } from "effect";
 import {
   createDownloadEventsSearchDefaults,
   createDownloadEventsSearchSchema,
@@ -14,12 +14,14 @@ const LOGS_FILTER_DEFAULTS = {
 
 const logsEventsDefaults = createDownloadEventsSearchDefaults(LOGS_DOWNLOAD_EVENTS_SEARCH_KEYS);
 
-const LogsSearchSchema = v.object({
-  ...createDownloadEventsSearchSchema(LOGS_DOWNLOAD_EVENTS_SEARCH_KEYS, logsEventsDefaults).entries,
-  endDate: v.optional(v.string(), LOGS_FILTER_DEFAULTS.endDate),
-  eventType: v.optional(v.string(), LOGS_FILTER_DEFAULTS.eventType),
-  level: v.optional(v.string(), LOGS_FILTER_DEFAULTS.level),
-  startDate: v.optional(v.string(), LOGS_FILTER_DEFAULTS.startDate),
+const baseEventsSchema = createDownloadEventsSearchSchema(LOGS_DOWNLOAD_EVENTS_SEARCH_KEYS, logsEventsDefaults);
+
+const LogsSearchSchema = Schema.Struct({
+  ...baseEventsSchema.fields,
+  endDate: Schema.optionalWith(Schema.String, { default: () => LOGS_FILTER_DEFAULTS.endDate }),
+  eventType: Schema.optionalWith(Schema.String, { default: () => LOGS_FILTER_DEFAULTS.eventType }),
+  level: Schema.optionalWith(Schema.String, { default: () => LOGS_FILTER_DEFAULTS.level }),
+  startDate: Schema.optionalWith(Schema.String, { default: () => LOGS_FILTER_DEFAULTS.startDate }),
 });
 
 export const logsSearchDefaults = {
@@ -32,6 +34,6 @@ export type LogsSearchState = ReturnType<typeof parseLogsSearch>;
 export function parseLogsSearch(search: Record<string, unknown>) {
   return {
     ...logsSearchDefaults,
-    ...v.parse(LogsSearchSchema, search),
+    ...Schema.decodeUnknownSync(LogsSearchSchema)(search),
   };
 }

@@ -1,3 +1,4 @@
+import { Schema } from "effect";
 import type { NotificationEvent } from "@bakarr/shared";
 
 export const NOTIFICATION_PREFERENCE_KEYS = [
@@ -89,9 +90,8 @@ const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
 
 let cachedPreferences: NotificationPreferences | null = null;
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object";
-}
+const RecordSchema = Schema.Record({ key: Schema.String, value: Schema.Unknown });
+const isRecord = Schema.is(RecordSchema);
 
 function normalizeNotificationPreferences(input: unknown): NotificationPreferences {
   const record = isRecord(input) ? input : undefined;
