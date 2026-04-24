@@ -13,7 +13,12 @@
       "@bakarr/shared": ["../../packages/shared/src/index.ts"],
       "@/*": ["./src/*"],
       "~/*": ["./src/*"]
-    }
+    },
+    "plugins": [
+      {
+        "name": "@effect/language-service"
+      }
+    ]
   },
   "include": ["src", "../../packages/shared/src/index.ts"]
 }
