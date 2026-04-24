@@ -1,4 +1,5 @@
 import { format, isAfter, isValid, parseISO } from "date-fns";
+import { Effect } from "effect";
 import type { Anime, AnimeSearchResult, Config } from "~/lib/api";
 
 type AnimeDateContext = {
@@ -295,18 +296,22 @@ function normalizeTimeZone(value?: string | null) {
     return undefined;
   }
 
-  try {
-    return createDateTimeFormat({ timeZone: trimmed }).resolvedOptions().timeZone;
-  } catch {
-    return undefined;
-  }
+  const valid = Effect.try({
+    try: () => createDateTimeFormat({ timeZone: trimmed }).resolvedOptions().timeZone,
+    catch: () => undefined,
+  }).pipe(Effect.runSync);
+
+  return valid;
 }
 
 function createDateTimeFormat(options: Intl.DateTimeFormatOptions) {
-  try {
-    return new Intl.DateTimeFormat(undefined, options);
-  } catch {
-    const { timeZone: _ignored, ...fallback } = options;
-    return new Intl.DateTimeFormat(undefined, fallback);
-  }
+  const formatter = Effect.try({
+    try: () => new Intl.DateTimeFormat(undefined, options),
+    catch: () => {
+      const { timeZone: _ignored, ...fallback } = options;
+      return new Intl.DateTimeFormat(undefined, fallback);
+    },
+  }).pipe(Effect.runSync);
+
+  return formatter;
 }

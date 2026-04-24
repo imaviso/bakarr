@@ -10,7 +10,8 @@ import {
   selectionKindBadgeClass,
   selectionKindLabel,
 } from "~/lib/release-selection";
-import { safeExternalUrl } from "~/lib/urls";
+import { safeExternalUrl } from "~/lib/utils";
+import { Either } from "effect";
 
 function animeInitials(title: string) {
   return title
@@ -44,7 +45,7 @@ interface DownloadRowMetaProps {
 }
 
 export function DownloadRowMeta(props: DownloadRowMetaProps) {
-  const sourceUrl = safeExternalUrl(props.sourceUrl);
+  const sourceUrl = Either.getOrUndefined(safeExternalUrl(props.sourceUrl));
 
   return (
     <div className="flex items-start gap-3">
