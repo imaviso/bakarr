@@ -1,5 +1,5 @@
 import { useForm } from "@tanstack/react-form";
-import * as v from "valibot";
+import { Schema } from "effect";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
@@ -21,12 +21,12 @@ import {
 import { Label } from "~/components/ui/label";
 import type { QualityProfile, ReleaseProfile } from "~/lib/api";
 
-const EditProfileSchema = v.object({
-  profile: v.string(),
-  releaseProfileIds: v.array(v.number()),
+const EditProfileSchema = Schema.Struct({
+  profile: Schema.String,
+  releaseProfileIds: Schema.mutable(Schema.Array(Schema.Number)),
 });
 
-type EditProfileFormData = v.InferOutput<typeof EditProfileSchema>;
+type EditProfileFormData = Schema.Schema.Type<typeof EditProfileSchema>;
 
 interface EditProfileDialogProps {
   open: boolean;

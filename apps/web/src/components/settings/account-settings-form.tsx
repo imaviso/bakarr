@@ -9,7 +9,7 @@ import {
 import { useForm } from "@tanstack/react-form";
 import { useState } from "react";
 import { toast } from "sonner";
-import * as v from "valibot";
+import { Schema } from "effect";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,13 +30,19 @@ import { createChangePasswordMutation, createRegenerateApiKeyMutation } from "~/
 import { useAuth } from "~/lib/auth";
 import { copyToClipboard } from "~/lib/utils";
 
-const ChangePasswordSchema = v.object({
-  currentPassword: v.pipe(v.string(), v.minLength(1, "Current password is required")),
-  newPassword: v.pipe(v.string(), v.minLength(8, "Password must be at least 8 characters")),
-  confirmPassword: v.pipe(v.string(), v.minLength(1, "Please confirm your password")),
+const ChangePasswordSchema = Schema.Struct({
+  currentPassword: Schema.String.pipe(
+    Schema.minLength(1, { message: () => "Current password is required" }),
+  ),
+  newPassword: Schema.String.pipe(
+    Schema.minLength(8, { message: () => "Password must be at least 8 characters" }),
+  ),
+  confirmPassword: Schema.String.pipe(
+    Schema.minLength(1, { message: () => "Please confirm your password" }),
+  ),
 });
 
-type ChangePasswordFormData = v.InferOutput<typeof ChangePasswordSchema>;
+type ChangePasswordFormData = Schema.Schema.Type<typeof ChangePasswordSchema>;
 
 export function AccountSettingsForm() {
   const { auth } = useAuth();
@@ -55,7 +61,7 @@ export function AccountSettingsForm() {
       confirmPassword: "",
     } as ChangePasswordFormData,
     validators: {
-      onChange: ChangePasswordSchema,
+      onChange: Schema.standardSchemaV1(ChangePasswordSchema),
     },
     onSubmit: async ({ value, formApi }) => {
       if (value.newPassword !== value.confirmPassword) {

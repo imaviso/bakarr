@@ -1,6 +1,6 @@
 import { PlusIcon, TrashIcon } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
-import * as v from "valibot";
+import { Schema } from "effect";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
@@ -19,16 +19,18 @@ import {
   type ReleaseProfile,
 } from "~/lib/api";
 
-const ReleaseProfileSchema = v.object({
-  name: v.pipe(v.string(), v.minLength(1, "Name is required")),
-  enabled: v.boolean(),
-  is_global: v.boolean(),
-  rules: v.array(
-    v.object({
-      term: v.pipe(v.string(), v.minLength(1, "Term is required")),
-      rule_type: v.picklist(["preferred", "must", "must_not"]),
-      score: v.number(),
-    }),
+const ReleaseProfileSchema = Schema.Struct({
+  name: Schema.String.pipe(Schema.minLength(1, { message: () => "Name is required" })),
+  enabled: Schema.Boolean,
+  is_global: Schema.Boolean,
+  rules: Schema.mutable(
+    Schema.Array(
+      Schema.Struct({
+        term: Schema.String.pipe(Schema.minLength(1, { message: () => "Term is required" })),
+        rule_type: Schema.Literal("preferred", "must", "must_not"),
+        score: Schema.Number,
+      }),
+    ),
   ),
 });
 
@@ -49,7 +51,7 @@ export function ReleaseProfileForm(props: {
       rules: props.profile?.rules || [],
     },
     validators: {
-      onChange: ReleaseProfileSchema,
+      onChange: Schema.standardSchemaV1(ReleaseProfileSchema),
     },
     onSubmit: async ({ value }) => {
       if (isEditing && props.profile) {

@@ -8,7 +8,7 @@ import {
 } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import * as v from "valibot";
+import { Schema } from "effect";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -47,12 +47,14 @@ import {
 import { formatMatchConfidence } from "~/lib/scanned-file";
 import { cn } from "~/lib/utils";
 
-const AddAnimeSchema = v.object({
-  root_folder: v.pipe(v.string(), v.minLength(1, "Root folder is required")),
-  profile_name: v.pipe(v.string(), v.minLength(1, "Profile is required")),
-  monitor: v.boolean(),
-  search_now: v.boolean(),
-  release_profile_ids: v.array(v.number()),
+const AddAnimeSchema = Schema.Struct({
+  root_folder: Schema.String.pipe(
+    Schema.minLength(1, { message: () => "Root folder is required" }),
+  ),
+  profile_name: Schema.String.pipe(Schema.minLength(1, { message: () => "Profile is required" })),
+  monitor: Schema.Boolean,
+  search_now: Schema.Boolean,
+  release_profile_ids: Schema.mutable(Schema.Array(Schema.Number)),
 });
 
 export interface AddAnimeDialogProps {
@@ -237,7 +239,7 @@ function AddAnimeForm(props: AddAnimeFormProps) {
       release_profile_ids: [] as number[],
     },
     validators: {
-      onChange: AddAnimeSchema,
+      onChange: Schema.standardSchemaV1(AddAnimeSchema),
     },
     onSubmit: async ({ value }) => {
       await addAnimeMutation.mutateAsync({

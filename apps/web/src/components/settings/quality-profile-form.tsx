@@ -1,5 +1,5 @@
 import { useForm } from "@tanstack/react-form";
-import * as v from "valibot";
+import { Schema } from "effect";
 import { SortableQualityList } from "~/components/settings/sortable-quality-list";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
@@ -21,15 +21,39 @@ import {
   type QualityProfile,
 } from "~/lib/api";
 
-const ProfileSchema = v.object({
-  name: v.pipe(v.string(), v.minLength(1, "Name is required")),
-  cutoff: v.pipe(v.string(), v.minLength(1, "Cutoff is required")),
-  upgrade_allowed: v.boolean(),
-  seadex_preferred: v.boolean(),
-  allowed_qualities: v.array(v.string()),
-  min_size: v.union([v.string(), v.undefined()]),
-  max_size: v.union([v.string(), v.undefined()]),
-});
+const ProfileSchema = Schema.mutable(
+  Schema.Struct({
+    name: Schema.String.pipe(Schema.minLength(1, { message: () => "Name is required" })),
+    cutoff: Schema.String.pipe(Schema.minLength(1, { message: () => "Cutoff is required" })),
+    upgrade_allowed: Schema.Boolean,
+    seadex_preferred: Schema.Boolean,
+    allowed_qualities: Schema.mutable(Schema.Array(Schema.String)),
+    min_size: Schema.UndefinedOr(Schema.String),
+    max_size: Schema.UndefinedOr(Schema.String),
+  }),
+);
+
+const SizeFieldSchema = Schema.UndefinedOr(
+  Schema.String.pipe(
+    Schema.pattern(/^[0-9]+(\.[0-9]+)?\s*(MB|GB)$/i, {
+      message: () => "Must be format like '500 MB' or '2.5 GB'",
+    }),
+  ),
+);
+
+function validateSizeField(value: unknown): string | undefined {
+  const result = Schema.decodeUnknownEither(SizeFieldSchema)(value);
+  if (result._tag === "Right") return undefined;
+  return "Must be format like '500 MB' or '2.5 GB'";
+}
+
+function getFieldErrorMessage(error: unknown): string {
+  if (typeof error === "string") return error;
+  if (error && typeof error === "object" && "message" in error) {
+    return String(error.message);
+  }
+  return String(error);
+}
 
 export function ProfileForm(props: {
   onCancel: () => void;
@@ -52,7 +76,7 @@ export function ProfileForm(props: {
       max_size: props.profile?.max_size || undefined,
     },
     validators: {
-      onChange: ProfileSchema,
+      onChange: Schema.standardSchemaV1(ProfileSchema),
     },
     onSubmit: async ({ value }) => {
       if (isEditing && props.profile) {
@@ -151,15 +175,7 @@ export function ProfileForm(props: {
             <form.Field
               name="min_size"
               validators={{
-                onChange: v.optional(
-                  v.pipe(
-                    v.string(),
-                    v.regex(
-                      /^[0-9]+(\.[0-9]+)?\s*(MB|GB)$/i,
-                      "Must be format like '500 MB' or '2.5 GB'",
-                    ),
-                  ),
-                ),
+                onChange: validateSizeField,
               }}
             >
               {(field) => (
@@ -167,9 +183,9 @@ export function ProfileForm(props: {
                   label="Minimum Size"
                   value={field.state.value || ""}
                   onChange={(value) => field.handleChange(value)}
-                  {...(field.state.meta.errors[0]?.message === undefined
+                  {...(field.state.meta.errors[0] === undefined
                     ? {}
-                    : { error: field.state.meta.errors[0]?.message })}
+                    : { error: getFieldErrorMessage(field.state.meta.errors[0]) })}
                 />
               )}
             </form.Field>
@@ -177,15 +193,7 @@ export function ProfileForm(props: {
             <form.Field
               name="max_size"
               validators={{
-                onChange: v.optional(
-                  v.pipe(
-                    v.string(),
-                    v.regex(
-                      /^[0-9]+(\.[0-9]+)?\s*(MB|GB)$/i,
-                      "Must be format like '500 MB' or '2.5 GB'",
-                    ),
-                  ),
-                ),
+                onChange: validateSizeField,
               }}
             >
               {(field) => (
@@ -193,9 +201,9 @@ export function ProfileForm(props: {
                   label="Maximum Size"
                   value={field.state.value || ""}
                   onChange={(value) => field.handleChange(value)}
-                  {...(field.state.meta.errors[0]?.message === undefined
+                  {...(field.state.meta.errors[0] === undefined
                     ? {}
-                    : { error: field.state.meta.errors[0]?.message })}
+                    : { error: getFieldErrorMessage(field.state.meta.errors[0]) })}
                 />
               )}
             </form.Field>
