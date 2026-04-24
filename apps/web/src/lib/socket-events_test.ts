@@ -1,4 +1,4 @@
-import { it } from "~/test/vitest";
+import { it } from "vitest";
 import {
   createSocketConnection,
   setSharedSocketAuthenticated,

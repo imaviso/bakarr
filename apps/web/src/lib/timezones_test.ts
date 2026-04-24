@@ -1,4 +1,4 @@
-import { it } from "~/test/vitest";
+import { it } from "vitest";
 import { formatTimeZoneLabel, getTimeZoneOptions } from "./timezones";
 
 it("formatTimeZoneLabel handles system and IANA values", () => {

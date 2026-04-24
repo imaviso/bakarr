@@ -1,5 +1,5 @@
 import type { Anime } from "@bakarr/shared";
-import { it } from "~/test/vitest";
+import { it } from "vitest";
 import { filterAnimeLibrary } from "./anime-library-filter";
 
 function createAnime(input: {

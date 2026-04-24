@@ -1,4 +1,4 @@
-import { it } from "~/test/vitest";
+import { it } from "vitest";
 import { getDownloadStatusPresentation } from "./download-status";
 
 it("getDownloadStatusPresentation maps known statuses", () => {

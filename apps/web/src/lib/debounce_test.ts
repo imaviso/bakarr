@@ -1,55 +1,52 @@
-import { it } from "~/test/vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createDebouncer } from "./debounce";
 
-it("createDebouncer updates after the delay when scheduled", async () => {
-  let current = "";
-  const debouncer = createDebouncer((value: string) => {
-    current = value;
-  }, 10);
-
-  debouncer.schedule("Grand Blue");
-
-  await new Promise((resolve) => setTimeout(resolve, 30));
-
-  if (current !== "Grand Blue") {
-    throw new Error(`Expected debounced value to be Grand Blue, got ${current}`);
-  }
-
-  debouncer.cancel();
+beforeEach(() => {
+  vi.useFakeTimers();
 });
 
-it("createDebouncer keeps only the latest queued value", async () => {
-  let current = "";
-  const debouncer = createDebouncer((value: string) => {
-    current = value;
-  }, 15);
+describe("createDebouncer", () => {
+  it("updates after the delay when scheduled", () => {
+    let current = "";
+    const debouncer = createDebouncer((value: string) => {
+      current = value;
+    }, 10);
 
-  debouncer.schedule("Grand");
-  setTimeout(() => debouncer.schedule("Grand Blue"), 5);
+    debouncer.schedule("Grand Blue");
+    expect(current).toBe("");
 
-  await new Promise((resolve) => setTimeout(resolve, 40));
+    vi.advanceTimersByTime(10);
+    expect(current).toBe("Grand Blue");
 
-  if (current !== "Grand Blue") {
-    throw new Error(`Expected latest value to win, got ${current}`);
-  }
+    debouncer.cancel();
+  });
 
-  debouncer.cancel();
-});
+  it("keeps only the latest queued value", () => {
+    let current = "";
+    const debouncer = createDebouncer((value: string) => {
+      current = value;
+    }, 15);
 
-it("createDebouncer cancel prevents pending updates", async () => {
-  let called = false;
-  const debouncer = createDebouncer(() => {
-    called = true;
-  }, 10);
+    debouncer.schedule("Grand");
+    vi.advanceTimersByTime(5);
+    debouncer.schedule("Grand Blue");
 
-  debouncer.schedule("Grand Blue");
-  debouncer.cancel();
+    vi.advanceTimersByTime(15);
+    expect(current).toBe("Grand Blue");
 
-  await new Promise((resolve) => setTimeout(resolve, 20));
+    debouncer.cancel();
+  });
 
-  if (called) {
-    throw new Error("Expected cancel to prevent the pending update");
-  }
+  it("cancel prevents pending updates", () => {
+    let called = false;
+    const debouncer = createDebouncer(() => {
+      called = true;
+    }, 10);
 
-  debouncer.cancel();
+    debouncer.schedule("Grand Blue");
+    debouncer.cancel();
+
+    vi.advanceTimersByTime(20);
+    expect(called).toBe(false);
+  });
 });

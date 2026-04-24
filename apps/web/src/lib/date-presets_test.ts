@@ -1,4 +1,4 @@
-import { it } from "~/test/vitest";
+import { it } from "vitest";
 import { formatDateTimeLocalInput, getDateRangePresetHours } from "./date-presets";
 
 function isoPlusMinutes(baseIso: string, minutes: number): string {

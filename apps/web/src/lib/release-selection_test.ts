@@ -1,4 +1,4 @@
-import { it } from "~/test/vitest";
+import { it } from "vitest";
 import { getReleaseConfidence } from "./release-selection";
 
 it("getReleaseConfidence prefers SeaDex best over other hints", () => {

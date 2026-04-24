@@ -1,5 +1,4 @@
-import { beforeEach } from "vitest";
-import { it } from "~/test/vitest";
+import { beforeEach, it } from "vitest";
 
 function assertEquals<T>(actual: T, expected: T) {
   if (actual !== expected) {

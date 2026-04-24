@@ -1,5 +1,5 @@
 import type { AnimeSearchResult, ImportFileRequest } from "~/lib/api";
-import { it } from "~/test/vitest";
+import { it } from "vitest";
 import {
   buildImportFileRequest,
   buildImportSourceMetadata,

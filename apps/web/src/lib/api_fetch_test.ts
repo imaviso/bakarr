@@ -1,5 +1,4 @@
-import { beforeEach, vi } from "vitest";
-import { it } from "~/test/vitest";
+import { beforeEach, it, vi } from "vitest";
 
 const authState = vi.hoisted(() => ({
   headers: {} as HeadersInit,

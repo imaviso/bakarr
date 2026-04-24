@@ -1,4 +1,4 @@
-import { it } from "~/test/vitest";
+import { it } from "vitest";
 import { getDownloadEventMetadataSummary } from "./download-event-metadata";
 
 it("download event metadata summarizes coverage and provenance", () => {

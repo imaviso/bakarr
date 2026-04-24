@@ -1,4 +1,4 @@
-import { it } from "~/test/vitest";
+import { it } from "vitest";
 import { buildDownloadEventsExportInput } from "./download-events-export-input";
 
 function assertDeepEquals(actual: unknown, expected: unknown) {
