@@ -34,25 +34,35 @@ interface SystemLogsTableProps {
 }
 
 export function SystemLogsTable(props: SystemLogsTableProps) {
+  const {
+    logs,
+    hasNextPage,
+    isFetchingNextPage,
+    onFetchNextPage,
+    isLoading,
+    isError,
+    formatTimestamp,
+    onSelectLog,
+  } = props;
+
   const logsScrollRef = useRef<HTMLDivElement>(null);
   const lastRequestedLength = useRef(-1);
 
   const rowVirtualizer = useVirtualizer({
-    count: props.logs.length,
+    count: logs.length,
     estimateSize: () => 52,
     overscan: 10,
     getScrollElement: () => logsScrollRef.current ?? null,
   });
 
   const virtualRows = rowVirtualizer.getVirtualItems();
-  const [firstVirtualRow] = virtualRows;
+  const firstVirtualRow = virtualRows[0];
   const lastVirtualRow = virtualRows[virtualRows.length - 1];
-
   const logsPaddingTop = firstVirtualRow ? firstVirtualRow.start : 0;
   const logsPaddingBottom = lastVirtualRow ? rowVirtualizer.getTotalSize() - lastVirtualRow.end : 0;
 
   useEffect(() => {
-    if (!props.hasNextPage) {
+    if (!hasNextPage) {
       lastRequestedLength.current = -1;
       return;
     }
@@ -62,26 +72,20 @@ export function SystemLogsTable(props: SystemLogsTableProps) {
     }
 
     if (
-      lastVirtualRow.index >= props.logs.length - 20 &&
-      lastRequestedLength.current !== props.logs.length &&
-      !props.isFetchingNextPage
+      lastVirtualRow.index >= logs.length - 20 &&
+      lastRequestedLength.current !== logs.length &&
+      !isFetchingNextPage
     ) {
-      lastRequestedLength.current = props.logs.length;
-      props.onFetchNextPage();
+      lastRequestedLength.current = logs.length;
+      onFetchNextPage();
     }
-  }, [
-    props.hasNextPage,
-    props.logs.length,
-    props.isFetchingNextPage,
-    props.onFetchNextPage,
-    lastVirtualRow,
-  ]);
+  }, [hasNextPage, logs.length, isFetchingNextPage, onFetchNextPage, lastVirtualRow]);
 
   return (
     <CardShell
-      hasNextPage={props.hasNextPage}
-      isFetchingNextPage={props.isFetchingNextPage}
-      onFetchNextPage={props.onFetchNextPage}
+      hasNextPage={hasNextPage}
+      isFetchingNextPage={isFetchingNextPage}
+      onFetchNextPage={onFetchNextPage}
     >
       <div ref={logsScrollRef} className="h-full overflow-y-auto overflow-x-hidden">
         <Table className="table-fixed w-full">
@@ -103,9 +107,9 @@ export function SystemLogsTable(props: SystemLogsTableProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {!props.isLoading ? (
-              !props.isError ? (
-                props.logs.length === 0 ? (
+            {!isLoading ? (
+              !isError ? (
+                logs.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
                       No logs found.
@@ -126,11 +130,11 @@ export function SystemLogsTable(props: SystemLogsTableProps) {
                       </tr>
                     )}
                     {virtualRows.map((vRow) => {
-                      const log = props.logs[vRow.index];
+                      const log = logs[vRow.index];
                       return log ? (
                         <TableRow key={log.id ?? vRow.index} className="group">
                           <TableCell className="font-mono text-xs text-muted-foreground whitespace-nowrap">
-                            {props.formatTimestamp(log.created_at)}
+                            {formatTimestamp(log.created_at)}
                           </TableCell>
                           <TableCell>
                             <Badge
@@ -168,7 +172,7 @@ export function SystemLogsTable(props: SystemLogsTableProps) {
                                 variant="ghost"
                                 size="icon"
                                 className="relative after:absolute after:-inset-2 h-8 w-8 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
-                                onClick={() => props.onSelectLog(log)}
+                                onClick={() => onSelectLog(log)}
                                 aria-label="View details"
                               >
                                 <EyeIcon className="h-4 w-4" />
@@ -200,8 +204,8 @@ export function SystemLogsTable(props: SystemLogsTableProps) {
                 </TableRow>
               )
             ) : (
-              Array.from({ length: 5 }).map((_, index) => (
-                <TableRow key={`log-skeleton-${index}`}>
+              <>
+                <TableRow key="log-skeleton-0">
                   <TableCell>
                     <Skeleton className="h-4 w-32" />
                   </TableCell>
@@ -218,7 +222,75 @@ export function SystemLogsTable(props: SystemLogsTableProps) {
                     <Skeleton className="h-8 w-8" />
                   </TableCell>
                 </TableRow>
-              ))
+                <TableRow key="log-skeleton-1">
+                  <TableCell>
+                    <Skeleton className="h-4 w-32" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-16" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-24" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-full" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-8 w-8" />
+                  </TableCell>
+                </TableRow>
+                <TableRow key="log-skeleton-2">
+                  <TableCell>
+                    <Skeleton className="h-4 w-32" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-16" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-24" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-full" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-8 w-8" />
+                  </TableCell>
+                </TableRow>
+                <TableRow key="log-skeleton-3">
+                  <TableCell>
+                    <Skeleton className="h-4 w-32" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-16" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-24" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-full" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-8 w-8" />
+                  </TableCell>
+                </TableRow>
+                <TableRow key="log-skeleton-4">
+                  <TableCell>
+                    <Skeleton className="h-4 w-32" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-16" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-24" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-full" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-8 w-8" />
+                  </TableCell>
+                </TableRow>
+              </>
             )}
           </TableBody>
         </Table>

@@ -1,13 +1,22 @@
 import { queryOptions, useQuery } from "@tanstack/react-query";
-import type { MissingEpisode } from "./contracts";
-import { API_BASE, fetchApi } from "./client";
+import { Effect, Schema } from "effect";
+import { MissingEpisodeSchema } from "@bakarr/shared";
+import { API_BASE } from "~/lib/api";
+import { fetchJson } from "~/lib/effect/api-client";
 import { animeKeys } from "./keys";
 
 export function wantedQueryOptions(limit = 100) {
   return queryOptions({
     queryKey: animeKeys.wanted(limit),
     queryFn: ({ signal }) =>
-      fetchApi<MissingEpisode[]>(`${API_BASE}/wanted/missing?limit=${limit}`, undefined, signal),
+      Effect.runPromise(
+        fetchJson(
+          Schema.mutable(Schema.Array(MissingEpisodeSchema)),
+          `${API_BASE}/wanted/missing?limit=${limit}`,
+          undefined,
+          signal,
+        ),
+      ),
     staleTime: 1000 * 60 * 5,
   });
 }

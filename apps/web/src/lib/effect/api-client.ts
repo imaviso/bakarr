@@ -8,6 +8,7 @@ export class ApiClientError extends Data.TaggedError("ApiClientError")<{
 
 export class ApiDecodeError extends Data.TaggedError("ApiDecodeError")<{
   readonly message: string;
+  readonly cause?: unknown;
 }> {}
 
 export class ApiUnauthorizedError extends Data.TaggedError("ApiUnauthorizedError")<{
@@ -18,94 +19,100 @@ export interface ApiRequestOptions extends RequestInit {
   readonly skipAutoLogoutOnUnauthorized?: boolean;
 }
 
+const buildHeaders = (options?: ApiRequestOptions): Headers => {
+  const headers = new Headers(options?.headers);
+  const authHeaders = new Headers(getAuthHeaders());
+  for (const [key, value] of authHeaders.entries()) {
+    headers.set(key, value);
+  }
+
+  if (!headers.has("Content-Type") && options?.body !== undefined) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  return headers;
+};
+
 export const fetchResponse = Effect.fn("ApiClient.fetchResponse")(
   (
     endpoint: string,
     options?: ApiRequestOptions,
     signal?: AbortSignal,
   ): Effect.Effect<Response, ApiClientError | ApiUnauthorizedError> =>
-    Effect.tryPromise({
-      try: async () => {
-        const headers = new Headers(options?.headers);
-        const authHeaders = new Headers(getAuthHeaders());
-        for (const [key, value] of authHeaders.entries()) {
-          headers.set(key, value);
-        }
+    Effect.gen(function* () {
+      const headers = buildHeaders(options);
 
-        if (!headers.has("Content-Type") && options?.body !== undefined) {
-          headers.set("Content-Type", "application/json");
-        }
+      const requestInit: RequestInit = {
+        ...options,
+        headers,
+        credentials: "include",
+        ...(signal === undefined ? {} : { signal }),
+      };
 
-        const requestInit: RequestInit = {
-          ...options,
-          headers,
-          credentials: "include",
-          ...(signal === undefined ? {} : { signal }),
-        };
+      const response = yield* Effect.tryPromise({
+        try: () => fetch(endpoint, requestInit),
+        catch: (cause) =>
+          new ApiClientError({
+            message: `Network error: ${String(cause)}`,
+          }),
+      });
 
-        const res = await fetch(endpoint, requestInit);
+      if (response.status === 401 && !options?.skipAutoLogoutOnUnauthorized) {
+        // Fire-and-forget: the redirect destroys app state anyway
+        void logout();
+        return yield* Effect.fail(new ApiUnauthorizedError({ message: "Session expired" }));
+      }
 
-        if (res.status === 401 && !options?.skipAutoLogoutOnUnauthorized) {
-          void logout();
-          throw new ApiUnauthorizedError({ message: "Session expired" });
-        }
+      if (!response.ok) {
+        const errorText = yield* Effect.tryPromise({
+          try: () => response.text(),
+          catch: (cause) => new ApiClientError({ message: String(cause) }),
+        }).pipe(Effect.orElseSucceed(() => ""));
 
-        if (!res.ok) {
-          const errorText = await res.text().catch(() => "");
-          throw new ApiClientError({
-            message: errorText || `API error: ${res.status}`,
-            status: res.status,
-          });
-        }
+        return yield* Effect.fail(
+          new ApiClientError({
+            message: errorText || `API error: ${response.status}`,
+            status: response.status,
+          }),
+        );
+      }
 
-        return res;
-      },
-      catch: (cause) => {
-        if (cause instanceof ApiUnauthorizedError) return cause;
-        if (cause instanceof ApiClientError) return cause;
-        return new ApiClientError({ message: `Network error: ${String(cause)}` });
-      },
+      return response;
     }),
 );
 
-const ApiResultSchema = Schema.Struct({
-  success: Schema.Boolean,
-  data: Schema.Unknown,
-  error: Schema.optional(Schema.String),
-});
+export const fetchJson = <A, I, R>(
+  schema: Schema.Schema<A, I, R>,
+  endpoint: string,
+  options?: ApiRequestOptions,
+  signal?: AbortSignal,
+): Effect.Effect<A, ApiClientError | ApiDecodeError | ApiUnauthorizedError, R> =>
+  Effect.gen(function* () {
+    const response = yield* fetchResponse(endpoint, options, signal);
 
-export const fetchJson = Effect.fn("ApiClient.fetchJson")(
-  <A>(
-    endpoint: string,
-    options?: ApiRequestOptions,
-    signal?: AbortSignal,
-  ): Effect.Effect<A, ApiClientError | ApiDecodeError | ApiUnauthorizedError> =>
-    fetchResponse(endpoint, options, signal).pipe(
-      Effect.flatMap((res) =>
-        Effect.tryPromise({
-          try: () => res.json(),
-          catch: (cause) =>
-            new ApiDecodeError({
-              message: `Failed to parse JSON: ${String(cause)}`,
-            }),
+    const json = yield* Effect.tryPromise({
+      try: () => response.json(),
+      catch: (cause) =>
+        new ApiDecodeError({
+          message: `Failed to parse JSON: ${String(cause)}`,
+          cause,
         }),
+    });
+
+    return yield* Schema.decodeUnknown(schema)(json).pipe(
+      Effect.mapError(
+        (cause) =>
+          new ApiDecodeError({
+            message: "Schema validation failed",
+            cause,
+          }),
       ),
-      Effect.flatMap((json: unknown) => {
-        const result = Schema.decodeUnknownEither(ApiResultSchema)(json);
-        if (result._tag === "Right") {
-          if (!result.right.success) {
-            return Effect.fail(
-              new ApiClientError({
-                message: result.right.error || "Unknown API error",
-              }),
-            );
-          }
-          // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion
-          return Effect.succeed(result.right.data as A);
-        }
-        // Not a wrapped response; return raw JSON
-        // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion
-        return Effect.succeed(json as A);
-      }),
-    ),
-);
+    );
+  }).pipe(Effect.withSpan("ApiClient.fetchJson"));
+
+export const fetchUnit = (
+  endpoint: string,
+  options?: ApiRequestOptions,
+  signal?: AbortSignal,
+): Effect.Effect<void, ApiClientError | ApiUnauthorizedError> =>
+  fetchResponse(endpoint, options, signal).pipe(Effect.asVoid);

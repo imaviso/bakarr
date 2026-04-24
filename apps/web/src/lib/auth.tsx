@@ -1,85 +1,39 @@
 import { createContext, useContext, useMemo, useSyncExternalStore, type ReactNode } from "react";
+import {
+  clearAuthState,
+  getAuthHeaders,
+  getAuthState,
+  loginSuccess,
+  logout,
+  subscribeAuth,
+  syncAuthenticatedUser,
+} from "~/lib/auth-state";
 
-export interface AuthState {
-  readonly username?: string | undefined;
-  readonly apiKey?: string | undefined;
-  readonly isAuthenticated: boolean;
-}
+export type { AuthState } from "~/lib/auth-state";
 
-// Module-level external store (safe for concurrent React)
-let authState: AuthState = { isAuthenticated: false };
-const listeners = new Set<() => void>();
-
-function saveAuth(state: AuthState) {
-  authState = state;
-  for (const listener of listeners) {
-    listener();
-  }
-}
-
-function subscribe(callback: () => void) {
-  listeners.add(callback);
-  return () => {
-    listeners.delete(callback);
-  };
-}
-
-function getSnapshot() {
-  return authState;
-}
-
-export const loginSuccess = (username: string, apiKey?: string) => {
-  saveAuth({
-    username,
-    apiKey: normalizeApiKey(apiKey),
-    isAuthenticated: true,
-  });
+export {
+  getAuthState,
+  getAuthHeaders,
+  loginSuccess,
+  syncAuthenticatedUser,
+  clearAuthState,
+  logout,
 };
-
-export const syncAuthenticatedUser = (username: string) => {
-  saveAuth({
-    ...authState,
-    isAuthenticated: true,
-    username,
-  });
-};
-
-export const clearAuthState = () => {
-  saveAuth({ isAuthenticated: false });
-};
-
-function normalizeApiKey(apiKey?: string) {
-  const value = apiKey?.trim();
-  if (!value || /^\*+$/.test(value)) {
-    return undefined;
-  }
-  return value;
-}
-
-export const logout = async () => {
-  try {
-    await fetch("/api/auth/logout", { method: "POST" });
-  } catch {}
-  clearAuthState();
-  globalThis.location.href = "/login";
-};
-
-export const getAuthHeaders = (): HeadersInit => ({});
 
 // Create the auth context
 interface AuthContextValue {
-  auth: AuthState;
-  loginSuccess: (username: string, apiKey?: string) => void;
-  syncAuthenticatedUser: (username: string) => void;
-  clearAuthState: () => void;
-  logout: () => Promise<void>;
-  getAuthHeaders: () => HeadersInit;
+  auth: ReturnType<typeof getAuthState>;
+  loginSuccess: typeof loginSuccess;
+  syncAuthenticatedUser: typeof syncAuthenticatedUser;
+  clearAuthState: typeof clearAuthState;
+  logout: typeof logout;
+  getAuthHeaders: typeof getAuthHeaders;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const auth = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const auth = useSyncExternalStore(subscribeAuth, getAuthState, getAuthState);
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -103,9 +57,4 @@ export function useAuth() {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
-}
-
-// Getter function that works outside of React components (e.g., in router loaders)
-export function getAuthState(): AuthState {
-  return authState;
 }

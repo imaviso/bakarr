@@ -14,7 +14,7 @@ import { isAired } from "~/lib/date-time";
 import { cn } from "~/lib/utils";
 
 interface AnimeEpisodesPanelProps {
-  episodes: Episode[];
+  episodes: readonly Episode[];
   onRefreshMetadata: () => void;
   onOpenSearchModal: (state: AnimeSearchModalState) => void;
   onOpenMappingDialog: (state: AnimeEpisodeDialogState) => void;

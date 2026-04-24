@@ -5,19 +5,21 @@ import {
   useInfiniteQuery,
   useQuery,
 } from "@tanstack/react-query";
-import type {
-  Anime,
-  AnimeListResponse,
-  AnimeSearchResponse,
-  AnimeSearchResult,
-  AnimeSeason,
-  Episode,
-  EpisodeSearchResult,
-  SearchResults,
-  SeasonalAnimeResponse,
-  VideoFile,
-} from "./contracts";
-import { API_BASE, fetchApi } from "./client";
+import type { Anime, AnimeSearchResponse, AnimeSeason } from "./contracts";
+import {
+  AnimeListResponseSchema,
+  AnimeSchema,
+  AnimeSearchResponseSchema,
+  AnimeSearchResultSchema,
+  EpisodeSchema,
+  EpisodeSearchResultSchema,
+  SeasonalAnimeResponseSchema,
+  SearchResultsSchema,
+  VideoFileSchema,
+} from "@bakarr/shared";
+import { Effect, Schema } from "effect";
+import { API_BASE } from "~/lib/api";
+import { fetchJson } from "~/lib/effect/api-client";
 import { animeKeys } from "./keys";
 
 export function animeListQueryOptions() {
@@ -29,10 +31,13 @@ export function animeListQueryOptions() {
       let offset = 0;
 
       const fetchPage = async (pageOffset: number): Promise<void> => {
-        const res = await fetchApi<AnimeListResponse>(
-          `${API_BASE}/anime?limit=${pageLimit}&offset=${pageOffset}`,
-          undefined,
-          signal,
+        const res = await Effect.runPromise(
+          fetchJson(
+            AnimeListResponseSchema,
+            `${API_BASE}/anime?limit=${pageLimit}&offset=${pageOffset}`,
+            undefined,
+            signal,
+          ),
         );
 
         items.push(...res.items);
@@ -61,7 +66,8 @@ export function createAnimeListQuery(options?: { enabled?: boolean }) {
 export function animeDetailsQueryOptions(id: number) {
   return queryOptions({
     queryKey: animeKeys.detail(id),
-    queryFn: ({ signal }) => fetchApi<Anime>(`${API_BASE}/anime/${id}`, undefined, signal),
+    queryFn: ({ signal }) =>
+      Effect.runPromise(fetchJson(AnimeSchema, `${API_BASE}/anime/${id}`, undefined, signal)),
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 }
@@ -77,7 +83,14 @@ export function episodesQueryOptions(animeId: number) {
   return queryOptions({
     queryKey: animeKeys.episodes(animeId),
     queryFn: ({ signal }) =>
-      fetchApi<Episode[]>(`${API_BASE}/anime/${animeId}/episodes`, undefined, signal),
+      Effect.runPromise(
+        fetchJson(
+          Schema.Array(EpisodeSchema),
+          `${API_BASE}/anime/${animeId}/episodes`,
+          undefined,
+          signal,
+        ),
+      ),
     staleTime: 1000 * 60 * 5,
   });
 }
@@ -93,7 +106,14 @@ export function listFilesQueryOptions(animeId: number) {
   return queryOptions({
     queryKey: animeKeys.files(animeId),
     queryFn: ({ signal }) =>
-      fetchApi<VideoFile[]>(`${API_BASE}/anime/${animeId}/files`, undefined, signal),
+      Effect.runPromise(
+        fetchJson(
+          Schema.Array(VideoFileSchema),
+          `${API_BASE}/anime/${animeId}/files`,
+          undefined,
+          signal,
+        ),
+      ),
     staleTime: 1000 * 60,
   });
 }
@@ -109,10 +129,13 @@ export function animeSearchQueryOptions(query: string) {
   return queryOptions({
     queryKey: animeKeys.search.query(query),
     queryFn: ({ signal }) =>
-      fetchApi<AnimeSearchResponse>(
-        `${API_BASE}/anime/search?q=${encodeURIComponent(query)}`,
-        undefined,
-        signal,
+      Effect.runPromise(
+        fetchJson(
+          AnimeSearchResponseSchema,
+          `${API_BASE}/anime/search?q=${encodeURIComponent(query)}`,
+          undefined,
+          signal,
+        ),
       ),
     staleTime: 1000 * 60 * 60, // 1 hour
   });
@@ -132,10 +155,13 @@ export function episodeSearchQueryOptions(animeId: number, episodeNumber: number
   return queryOptions({
     queryKey: animeKeys.search.episode(animeId, episodeNumber),
     queryFn: ({ signal }) =>
-      fetchApi<EpisodeSearchResult[]>(
-        `${API_BASE}/search/episode/${animeId}/${episodeNumber}`,
-        undefined,
-        signal,
+      Effect.runPromise(
+        fetchJson(
+          Schema.Array(EpisodeSearchResultSchema),
+          `${API_BASE}/search/episode/${animeId}/${episodeNumber}`,
+          undefined,
+          signal,
+        ),
       ),
   });
 }
@@ -171,10 +197,13 @@ export function nyaaSearchQueryOptions(
       }
       if (options.category) params.append("category", options.category);
       if (options.filter) params.append("filter", options.filter);
-      return fetchApi<SearchResults>(
-        `${API_BASE}/search/releases?${params.toString()}`,
-        undefined,
-        signal,
+      return Effect.runPromise(
+        fetchJson(
+          SearchResultsSchema,
+          `${API_BASE}/search/releases?${params.toString()}`,
+          undefined,
+          signal,
+        ),
       );
     },
     staleTime: 60 * 1000,
@@ -206,7 +235,9 @@ export function animeByAnilistIdQueryOptions(id: number) {
   return queryOptions({
     queryKey: animeKeys.anilist(id),
     queryFn: ({ signal }) =>
-      fetchApi<AnimeSearchResult>(`${API_BASE}/anime/anilist/${id}`, undefined, signal),
+      Effect.runPromise(
+        fetchJson(AnimeSearchResultSchema, `${API_BASE}/anime/anilist/${id}`, undefined, signal),
+      ),
     staleTime: 1000 * 60 * 60,
   });
 }
@@ -238,10 +269,13 @@ export function seasonalAnimeQueryOptions(input?: {
   return queryOptions({
     queryKey: animeKeys.seasonal({ season, year, limit, page }),
     queryFn: ({ signal }) =>
-      fetchApi<SeasonalAnimeResponse>(
-        `${API_BASE}/anime/seasonal?${params.toString()}`,
-        undefined,
-        signal,
+      Effect.runPromise(
+        fetchJson(
+          SeasonalAnimeResponseSchema,
+          `${API_BASE}/anime/seasonal?${params.toString()}`,
+          undefined,
+          signal,
+        ),
       ),
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
@@ -275,10 +309,13 @@ export function seasonalAnimeInfiniteQueryOptions(input?: {
       if (year !== undefined) params.append("year", String(year));
       params.append("limit", String(limit));
       params.append("page", String(pageParam));
-      return fetchApi<SeasonalAnimeResponse>(
-        `${API_BASE}/anime/seasonal?${params.toString()}`,
-        undefined,
-        signal,
+      return Effect.runPromise(
+        fetchJson(
+          SeasonalAnimeResponseSchema,
+          `${API_BASE}/anime/seasonal?${params.toString()}`,
+          undefined,
+          signal,
+        ),
       );
     },
     getNextPageParam: (lastPage) => (lastPage.has_more ? lastPage.page + 1 : undefined),

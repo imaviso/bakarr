@@ -220,8 +220,8 @@ interface AddAnimeFormProps {
   anime: AnimeSearchResult;
   rootFolder: string;
   defaultProfile: string;
-  releaseProfiles: ReleaseProfile[];
-  profiles: QualityProfile[];
+  releaseProfiles: readonly ReleaseProfile[];
+  profiles: readonly QualityProfile[];
   onSuccess: () => void;
   onCancel: () => void;
 }

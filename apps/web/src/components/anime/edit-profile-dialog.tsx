@@ -34,8 +34,8 @@ interface EditProfileDialogProps {
   currentProfile: string;
   currentReleaseProfileIds: number[];
   animeId: number;
-  profiles: QualityProfile[];
-  releaseProfiles: ReleaseProfile[];
+  profiles: readonly QualityProfile[];
+  releaseProfiles: readonly ReleaseProfile[];
   updateProfile: (input: { id: number; profileName: string }) => Promise<unknown>;
   isUpdatingProfile: boolean;
   updateReleaseProfiles: (input: { id: number; releaseProfileIds: number[] }) => Promise<unknown>;

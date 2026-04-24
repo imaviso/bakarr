@@ -5,9 +5,11 @@ import { routeTree } from "./routeTree.gen";
 import { Effect, Schema } from "effect";
 // oxlint-disable-next-line import/no-unassigned-import
 import "./index.css";
-import { getAuthState, syncAuthenticatedUser } from "~/lib/auth";
-import { API_BASE } from "~/lib/api/client";
-import { fetchResponse } from "~/lib/effect/api-client";
+import { getAuthState } from "~/lib/auth";
+import { API_BASE } from "~/lib/api";
+import { fetchJson } from "~/lib/effect/api-client";
+import { AuthService } from "~/lib/effect/auth-service";
+import { appRuntime } from "~/lib/runtime";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -67,33 +69,19 @@ const AuthMeSchema = Schema.Struct({
 });
 
 async function hydrateSessionState() {
-  const program = Effect.gen(function* () {
-    const response = yield* fetchResponse(`${API_BASE}/auth/me`, {
-      skipAutoLogoutOnUnauthorized: true,
-    }).pipe(Effect.catchAll(() => Effect.succeed(undefined)));
-
-    if (!response || response.status === 401 || !response.ok) {
-      return;
-    }
-
-    const raw: unknown = yield* Effect.tryPromise({
-      try: () => response.json(),
-      catch: () => undefined,
-    }).pipe(Effect.catchAll(() => Effect.succeed(undefined)));
-
-    const decoded = yield* Schema.decodeUnknownEither(AuthMeSchema)(raw).pipe(
-      Effect.matchEffect({
-        onFailure: () => Effect.succeed(undefined),
-        onSuccess: (value) => Effect.succeed(value),
+  const program = fetchJson(AuthMeSchema, `${API_BASE}/auth/me`, {
+    skipAutoLogoutOnUnauthorized: true,
+  }).pipe(
+    Effect.flatMap((decoded) =>
+      Effect.gen(function* () {
+        const auth = yield* AuthService;
+        yield* auth.syncAuthenticatedUser(decoded.username);
       }),
-    );
+    ),
+    Effect.catchAll(() => Effect.void),
+  );
 
-    if (decoded) {
-      syncAuthenticatedUser(decoded.username);
-    }
-  });
-
-  await Effect.runPromise(program).catch(() => {
+  await appRuntime.runPromise(program).catch(() => {
     // Ignore hydration errors
   });
 }

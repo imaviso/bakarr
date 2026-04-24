@@ -56,7 +56,7 @@ export function useLogsQueries(options: UseLogsQueriesOptions) {
 
   useEffect(() => {
     if (!autoRefresh) {
-      return;
+      return undefined;
     }
 
     const interval = setInterval(refreshAll, 3000);

@@ -1,4 +1,6 @@
 import { beforeEach, it, vi } from "vitest";
+import { Effect, Schema } from "effect";
+import { fetchJson, fetchResponse } from "./effect/api-client";
 
 const authState = vi.hoisted(() => ({
   headers: {} as HeadersInit,
@@ -58,7 +60,7 @@ beforeEach(() => {
   authState.logoutCalls = 0;
 });
 
-it("fetchApi merges auth headers without forcing content type for bodyless requests", async () => {
+it("fetchResponse merges auth headers without forcing content type for bodyless requests", async () => {
   const fetchMock = vi.fn(() =>
     Promise.resolve(createResponse({ ok: true, status: 200, json: { id: 1 } })),
   );
@@ -66,8 +68,7 @@ it("fetchApi merges auth headers without forcing content type for bodyless reque
 
   authState.headers = { "X-Api-Key": "key-1" };
 
-  const { fetchApi } = await import("./api/client");
-  await fetchApi("/api/anime");
+  await Effect.runPromise(fetchResponse("/api/anime"));
 
   const init = getFetchInit(fetchMock.mock.calls[0]);
   const headers = new Headers(init.headers);
@@ -75,42 +76,44 @@ it("fetchApi merges auth headers without forcing content type for bodyless reque
   assertEquals(headers.get("Content-Type"), null);
 });
 
-it("fetchApi sets JSON content type when request body is present", async () => {
+it("fetchResponse sets JSON content type when request body is present", async () => {
   const fetchMock = vi.fn(() =>
     Promise.resolve(createResponse({ ok: true, status: 200, json: { id: 1 } })),
   );
   vi.stubGlobal("fetch", fetchMock);
 
-  const { fetchApi } = await import("./api/client");
-  await fetchApi("/api/anime", {
-    body: JSON.stringify({ id: 1 }),
-    method: "POST",
-  });
+  await Effect.runPromise(
+    fetchResponse("/api/anime", {
+      body: JSON.stringify({ id: 1 }),
+      method: "POST",
+    }),
+  );
 
   const init = getFetchInit(fetchMock.mock.calls[0]);
   const headers = new Headers(init.headers);
   assertEquals(headers.get("Content-Type"), "application/json");
 });
 
-it("fetchApi preserves explicit content type header", async () => {
+it("fetchResponse preserves explicit content type header", async () => {
   const fetchMock = vi.fn(() =>
     Promise.resolve(createResponse({ ok: true, status: 200, json: { ok: true } })),
   );
   vi.stubGlobal("fetch", fetchMock);
 
-  const { fetchApi } = await import("./api/client");
-  await fetchApi("/api/custom", {
-    headers: {
-      "Content-Type": "text/plain",
-    },
-  });
+  await Effect.runPromise(
+    fetchResponse("/api/custom", {
+      headers: {
+        "Content-Type": "text/plain",
+      },
+    }),
+  );
 
   const init = getFetchInit(fetchMock.mock.calls[0]);
   const headers = new Headers(init.headers);
   assertEquals(headers.get("Content-Type"), "text/plain");
 });
 
-it("fetchApi unwraps success envelope payload", async () => {
+it("fetchJson decodes response with schema", async () => {
   vi.stubGlobal(
     "fetch",
     vi.fn(() =>
@@ -118,21 +121,18 @@ it("fetchApi unwraps success envelope payload", async () => {
         createResponse({
           ok: true,
           status: 200,
-          json: {
-            data: { title: "Naruto" },
-            success: true,
-          },
+          json: { title: "Naruto" },
         }),
       ),
     ),
   );
 
-  const { fetchApi } = await import("./api/client");
-  const value = await fetchApi<{ title: string }>("/api/anime/1");
+  const schema = Schema.Struct({ title: Schema.String });
+  const value = await Effect.runPromise(fetchJson(schema, "/api/anime/1"));
   assertEquals(value.title, "Naruto");
 });
 
-it("fetchApi throws envelope error when success=false", async () => {
+it("fetchJson rejects on schema mismatch", async () => {
   vi.stubGlobal(
     "fetch",
     vi.fn(() =>
@@ -140,37 +140,32 @@ it("fetchApi throws envelope error when success=false", async () => {
         createResponse({
           ok: true,
           status: 200,
-          json: {
-            data: null,
-            error: "Boom",
-            success: false,
-          },
+          json: { title: 123 },
         }),
       ),
     ),
   );
 
-  const { fetchApi } = await import("./api/client");
-  await fetchApi("/api/failure")
+  const schema = Schema.Struct({ title: Schema.String });
+  await Effect.runPromise(fetchJson(schema, "/api/anime/1"))
     .then(() => {
-      throw new Error("Expected fetchApi to throw");
+      throw new Error("Expected fetchJson to reject");
     })
     .catch((error: unknown) => {
       const message = error instanceof Error ? error.message : String(error);
-      assertEquals(message, "Boom");
+      assertEquals(message.includes("Schema validation failed"), true);
     });
 });
 
-it("fetchApi triggers logout on 401 by default", async () => {
+it("fetchResponse triggers logout on 401 by default", async () => {
   vi.stubGlobal(
     "fetch",
     vi.fn(() => Promise.resolve(createResponse({ ok: false, status: 401, text: "Unauthorized" }))),
   );
 
-  const { fetchApi } = await import("./api/client");
-  await fetchApi("/api/protected")
+  await Effect.runPromise(fetchResponse("/api/protected"))
     .then(() => {
-      throw new Error("Expected fetchApi to throw");
+      throw new Error("Expected fetchResponse to reject");
     })
     .catch((error: unknown) => {
       const message = error instanceof Error ? error.message : String(error);
@@ -180,16 +175,15 @@ it("fetchApi triggers logout on 401 by default", async () => {
   assertEquals(authState.logoutCalls, 1);
 });
 
-it("fetchApi can skip auto-logout on unauthorized", async () => {
+it("fetchResponse can skip auto-logout on unauthorized", async () => {
   vi.stubGlobal(
     "fetch",
     vi.fn(() => Promise.resolve(createResponse({ ok: false, status: 401, text: "Unauthorized" }))),
   );
 
-  const { fetchApi } = await import("./api/client");
-  await fetchApi("/api/protected", { skipAutoLogoutOnUnauthorized: true })
+  await Effect.runPromise(fetchResponse("/api/protected", { skipAutoLogoutOnUnauthorized: true }))
     .then(() => {
-      throw new Error("Expected fetchApi to throw");
+      throw new Error("Expected fetchResponse to reject");
     })
     .catch((error: unknown) => {
       const message = error instanceof Error ? error.message : String(error);

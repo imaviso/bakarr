@@ -34,7 +34,7 @@ import { cn } from "~/lib/utils";
 
 interface BulkMappingDialogProps {
   animeId: number;
-  episodes: Episode[];
+  episodes: readonly Episode[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }

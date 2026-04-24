@@ -7,25 +7,31 @@ import {
 } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type {
-  AsyncOperationAccepted,
-  BrowseResult,
   BulkUnmappedFolderControlRequest,
   ImportCandidateSelectionRequest,
-  ImportCandidateSelectionResult,
   ImportFileRequest,
-  ScannerState,
-  ScanResult,
   UnmappedFolderControlRequest,
   UnmappedFolderImportRequest,
 } from "./contracts";
-import { API_BASE, fetchApi } from "./client";
+import { Effect } from "effect";
+import {
+  AsyncOperationAcceptedSchema,
+  BrowseResultSchema,
+  ImportCandidateSelectionResultSchema,
+  ScanResultSchema,
+  ScannerStateSchema,
+} from "@bakarr/shared";
+import { API_BASE } from "~/lib/api";
+import { fetchJson, fetchUnit } from "~/lib/effect/api-client";
 import { animeKeys } from "./keys";
 
 export function unmappedFoldersQueryOptions() {
   return queryOptions({
     queryKey: animeKeys.library.unmapped(),
     queryFn: ({ signal }) =>
-      fetchApi<ScannerState>(`${API_BASE}/library/unmapped`, undefined, signal),
+      Effect.runPromise(
+        fetchJson(ScannerStateSchema, `${API_BASE}/library/unmapped`, undefined, signal),
+      ),
     refetchInterval: (query) =>
       query.state.data?.is_scanning || query.state.data?.has_outstanding_matches ? 1000 : false,
   });
@@ -39,7 +45,11 @@ export function createScanLibraryMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () =>
-      fetchApi<AsyncOperationAccepted>(`${API_BASE}/library/unmapped/scan`, { method: "POST" }),
+      Effect.runPromise(
+        fetchJson(AsyncOperationAcceptedSchema, `${API_BASE}/library/unmapped/scan`, {
+          method: "POST",
+        }),
+      ),
     onSuccess: (accepted) => {
       toast.info(accepted.message);
       void queryClient.invalidateQueries({ queryKey: animeKeys.library.unmapped() });
@@ -58,10 +68,12 @@ export function createControlUnmappedFolderMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: UnmappedFolderControlRequest) =>
-      fetchApi(`${API_BASE}/library/unmapped/control`, {
-        method: "POST",
-        body: JSON.stringify(data),
-      }),
+      Effect.runPromise(
+        fetchUnit(`${API_BASE}/library/unmapped/control`, {
+          method: "POST",
+          body: JSON.stringify(data),
+        }),
+      ),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: animeKeys.library.unmapped() });
       void queryClient.invalidateQueries({ queryKey: animeKeys.system.jobs() });
@@ -73,10 +85,12 @@ export function createBulkControlUnmappedFoldersMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: BulkUnmappedFolderControlRequest) =>
-      fetchApi(`${API_BASE}/library/unmapped/control/bulk`, {
-        method: "POST",
-        body: JSON.stringify(data),
-      }),
+      Effect.runPromise(
+        fetchUnit(`${API_BASE}/library/unmapped/control/bulk`, {
+          method: "POST",
+          body: JSON.stringify(data),
+        }),
+      ),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: animeKeys.library.unmapped() });
       void queryClient.invalidateQueries({ queryKey: animeKeys.system.jobs() });
@@ -88,10 +102,12 @@ export function createImportUnmappedFolderMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: UnmappedFolderImportRequest) =>
-      fetchApi(`${API_BASE}/library/unmapped/import`, {
-        method: "POST",
-        body: JSON.stringify(data),
-      }),
+      Effect.runPromise(
+        fetchUnit(`${API_BASE}/library/unmapped/import`, {
+          method: "POST",
+          body: JSON.stringify(data),
+        }),
+      ),
     onSuccess: (_, variables) => {
       void queryClient.invalidateQueries({ queryKey: animeKeys.library.unmapped() });
       void queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
@@ -109,10 +125,12 @@ export function createImportUnmappedFolderMutation() {
 export function createScanImportPathMutation() {
   return useMutation({
     mutationFn: (data: { path: string; anime_id?: number }) =>
-      fetchApi<ScanResult>(`${API_BASE}/library/import/scan`, {
-        method: "POST",
-        body: JSON.stringify(data),
-      }),
+      Effect.runPromise(
+        fetchJson(ScanResultSchema, `${API_BASE}/library/import/scan`, {
+          method: "POST",
+          body: JSON.stringify(data),
+        }),
+      ),
   });
 }
 
@@ -120,10 +138,12 @@ export function createImportFilesMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (files: ImportFileRequest[]) =>
-      fetchApi<AsyncOperationAccepted>(`${API_BASE}/library/import`, {
-        method: "POST",
-        body: JSON.stringify({ files }),
-      }),
+      Effect.runPromise(
+        fetchJson(AsyncOperationAcceptedSchema, `${API_BASE}/library/import`, {
+          method: "POST",
+          body: JSON.stringify({ files }),
+        }),
+      ),
     onSuccess: (accepted) => {
       toast.info(accepted.message);
       void queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
@@ -142,10 +162,12 @@ export function createImportFilesMutation() {
 export function createImportCandidateSelectionMutation() {
   return useMutation({
     mutationFn: (data: ImportCandidateSelectionRequest) =>
-      fetchApi<ImportCandidateSelectionResult>(`${API_BASE}/library/import/selection`, {
-        method: "POST",
-        body: JSON.stringify(data),
-      }),
+      Effect.runPromise(
+        fetchJson(ImportCandidateSelectionResultSchema, `${API_BASE}/library/import/selection`, {
+          method: "POST",
+          body: JSON.stringify(data),
+        }),
+      ),
   });
 }
 
@@ -161,7 +183,14 @@ export function browsePathQueryOptions(
   return queryOptions({
     queryKey: animeKeys.browse(path, pagination?.offset, pagination?.limit),
     queryFn: ({ signal }) =>
-      fetchApi<BrowseResult>(`${API_BASE}/library/browse?${params.toString()}`, undefined, signal),
+      Effect.runPromise(
+        fetchJson(
+          BrowseResultSchema,
+          `${API_BASE}/library/browse?${params.toString()}`,
+          undefined,
+          signal,
+        ),
+      ),
     placeholderData: keepPreviousData,
     staleTime: 1000 * 60 * 60,
   });

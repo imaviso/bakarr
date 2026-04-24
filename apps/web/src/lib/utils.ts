@@ -11,10 +11,12 @@ export function copyToClipboard(text: string): Promise<boolean> {
     const modern = yield* Effect.tryPromise({
       try: () => navigator.clipboard.writeText(text),
       catch: () => undefined,
-    }).pipe(Effect.matchEffect({
-      onSuccess: () => Effect.succeed(true),
-      onFailure: () => Effect.succeed(false),
-    }));
+    }).pipe(
+      Effect.matchEffect({
+        onSuccess: () => Effect.succeed(true),
+        onFailure: () => Effect.succeed(false),
+      }),
+    );
 
     if (modern) return true;
 
@@ -44,9 +46,7 @@ export function copyToClipboard(text: string): Promise<boolean> {
   return Effect.runPromise(program);
 }
 
-export function safeExternalUrl(
-  input: string | undefined,
-): Either.Either<string, void> {
+export function safeExternalUrl(input: string | undefined): Either.Either<string, void> {
   if (!input) {
     return Either.left(undefined);
   }

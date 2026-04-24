@@ -167,9 +167,13 @@ export function LogsView(props: LogsViewProps) {
               />
             </>
           ) : (
-            Array.from({ length: 5 }).map((_, index) => (
-              <Skeleton key={`ops-metric-skeleton-${index}`} className="h-20 w-full" />
-            ))
+            <>
+              <Skeleton key="ops-metric-skeleton-0" className="h-20 w-full" />
+              <Skeleton key="ops-metric-skeleton-1" className="h-20 w-full" />
+              <Skeleton key="ops-metric-skeleton-2" className="h-20 w-full" />
+              <Skeleton key="ops-metric-skeleton-3" className="h-20 w-full" />
+              <Skeleton key="ops-metric-skeleton-4" className="h-20 w-full" />
+            </>
           )}
         </div>
       </Card>
@@ -191,9 +195,12 @@ export function LogsView(props: LogsViewProps) {
               <EmptyState compact title="No background job data yet" />
             )
           ) : (
-            Array.from({ length: 4 }).map((_, index) => (
-              <Skeleton key={`jobs-skeleton-${index}`} className="h-24 w-full" />
-            ))
+            <>
+              <Skeleton key="jobs-skeleton-0" className="h-24 w-full" />
+              <Skeleton key="jobs-skeleton-1" className="h-24 w-full" />
+              <Skeleton key="jobs-skeleton-2" className="h-24 w-full" />
+              <Skeleton key="jobs-skeleton-3" className="h-24 w-full" />
+            </>
           )}
         </div>
       </Card>

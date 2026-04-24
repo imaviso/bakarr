@@ -7,7 +7,7 @@ import type { Episode, QualityProfile, ReleaseProfile } from "~/lib/api";
 
 interface AnimeDetailsDialogsContextValue {
   animeId: number;
-  episodes: Episode[];
+  episodes: readonly Episode[];
   // Dialog state
   searchModalState: AnimeSearchModalState;
   renameDialogOpen: boolean;
@@ -19,8 +19,8 @@ interface AnimeDetailsDialogsContextValue {
   currentPath: string;
   currentProfile: string;
   currentReleaseProfileIds: number[];
-  profiles: QualityProfile[];
-  releaseProfiles: ReleaseProfile[];
+  profiles: readonly QualityProfile[];
+  releaseProfiles: readonly ReleaseProfile[];
   // Actions
   onSearchModalOpenChange: (open: boolean) => void;
   onRenameDialogOpenChange: (open: boolean) => void;

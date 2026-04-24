@@ -4,9 +4,11 @@ import type {
   DownloadEventsExportInput,
   DownloadEventsExportResult,
   DownloadEventsFilterInput,
-  DownloadEventsPage,
 } from "./contracts";
-import { API_BASE, fetchApi, fetchApiResponse } from "./client";
+import { Effect } from "effect";
+import { DownloadEventsPageSchema } from "@bakarr/shared";
+import { API_BASE } from "~/lib/api";
+import { fetchJson, fetchResponse } from "~/lib/effect/api-client";
 import { animeKeys } from "./keys";
 
 function buildDownloadEventsSearchParams(input: DownloadEventsFilterInput) {
@@ -71,10 +73,13 @@ export function downloadEventsQueryOptionsWithFilters(input: DownloadEventsFilte
   return queryOptions({
     queryKey: animeKeys.downloads.events(input),
     queryFn: ({ signal }) =>
-      fetchApi<DownloadEventsPage>(
-        `${API_BASE}/downloads/events${params.size > 0 ? `?${params.toString()}` : ""}`,
-        undefined,
-        signal,
+      Effect.runPromise(
+        fetchJson(
+          DownloadEventsPageSchema,
+          `${API_BASE}/downloads/events${params.size > 0 ? `?${params.toString()}` : ""}`,
+          undefined,
+          signal,
+        ),
       ),
     staleTime: 1000 * 10,
   });
@@ -157,7 +162,9 @@ async function requestDownloadEventsExport(
   input: DownloadEventsExportInput,
   format: "json" | "csv",
 ): Promise<Response> {
-  return fetchApiResponse(getDownloadEventsExportUrl(input, format), {
-    method: "GET",
-  });
+  return Effect.runPromise(
+    fetchResponse(getDownloadEventsExportUrl(input, format), {
+      method: "GET",
+    }),
+  );
 }

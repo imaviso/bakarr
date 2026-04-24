@@ -5,8 +5,10 @@ import {
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
-import type { SystemLogsResponse } from "./contracts";
-import { API_BASE, fetchApi } from "./client";
+import { Effect } from "effect";
+import { SystemLogsResponseSchema } from "@bakarr/shared";
+import { API_BASE } from "~/lib/api";
+import { fetchJson, fetchUnit } from "~/lib/effect/api-client";
 import { animeKeys } from "./keys";
 
 export function infiniteLogsQueryOptions(
@@ -27,10 +29,13 @@ export function infiniteLogsQueryOptions(
       if (eventType) params.append("event_type", eventType);
       if (startDate) params.append("start_date", startDate);
       if (endDate) params.append("end_date", endDate);
-      return fetchApi<SystemLogsResponse>(
-        `${API_BASE}/system/logs?${params.toString()}`,
-        undefined,
-        signal,
+      return Effect.runPromise(
+        fetchJson(
+          SystemLogsResponseSchema,
+          `${API_BASE}/system/logs?${params.toString()}`,
+          undefined,
+          signal,
+        ),
       );
     },
     placeholderData: keepPreviousData,
@@ -73,7 +78,7 @@ export function getExportLogsUrl(
 export function createClearLogsMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => fetchApi(`${API_BASE}/system/logs`, { method: "DELETE" }),
+    mutationFn: () => Effect.runPromise(fetchUnit(`${API_BASE}/system/logs`, { method: "DELETE" })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: animeKeys.system.all });
     },
