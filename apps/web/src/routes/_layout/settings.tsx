@@ -7,7 +7,7 @@ import {
 } from "@phosphor-icons/react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Suspense, lazy } from "react";
-import * as v from "valibot";
+import { Schema } from "effect";
 import { AccountSettingsForm } from "~/components/settings/account-settings-form";
 import { QualityProfilesTab } from "~/components/settings/quality-profiles-tab";
 import { ReleaseProfilesTab } from "~/components/settings/release-profiles-tab";
@@ -29,18 +29,32 @@ const SystemStatusLazy = lazy(() =>
   })),
 );
 
-const SettingsSearchSchema = v.object({
-  tab: v.optional(
-    v.fallback(
-      v.picklist(["general", "automation", "profiles", "release-profiles", "account"]),
-      "general",
-    ),
-    "general",
-  ),
+const SettingsTabSchema = Schema.transform(
+  Schema.String,
+  Schema.Literal("general", "automation", "profiles", "release-profiles", "account"),
+  {
+    decode: (s) => {
+      switch (s) {
+        case "general":
+        case "automation":
+        case "profiles":
+        case "release-profiles":
+        case "account":
+          return s;
+        default:
+          return "general";
+      }
+    },
+    encode: (s) => s,
+  },
+);
+
+const SettingsSearchSchema = Schema.Struct({
+  tab: Schema.optional(SettingsTabSchema),
 });
 
 export const Route = createFileRoute("/_layout/settings")({
-  validateSearch: (search) => v.parse(SettingsSearchSchema, search),
+  validateSearch: Schema.standardSchemaV1(SettingsSearchSchema),
   loader: async ({ context: { queryClient } }) => {
     await Promise.all([
       queryClient.ensureQueryData(profilesQueryOptions()),
@@ -57,6 +71,7 @@ function SettingsPage() {
   usePageTitle("Settings");
   const search = Route.useSearch();
   const navigate = useNavigate();
+  const activeTab = search.tab ?? "general";
 
   return (
     <div className="space-y-6">
@@ -67,7 +82,7 @@ function SettingsPage() {
       </PageHeader>
 
       <Tabs
-        value={search.tab}
+        value={activeTab}
         onValueChange={(tab) => {
           void navigate({
             to: ".",

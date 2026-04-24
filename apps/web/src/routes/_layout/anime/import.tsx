@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { createLibraryImportTaskQuery } from "~/lib/api";
-import * as v from "valibot";
+import { Schema } from "effect";
 import { ImportPageContent } from "~/components/import/import-page-content";
 import { createImportPageState } from "~/components/import/import-page-state";
 import { GeneralError } from "~/components/general-error";
@@ -12,19 +12,12 @@ import {
 } from "~/lib/api";
 import { usePageTitle } from "~/lib/page-title";
 
-const ImportSearchSchema = v.object({
-  animeId: v.optional(
-    v.pipe(
-      v.union([v.string(), v.number()]),
-      v.transform((value) => (typeof value === "number" ? value : Number(value))),
-      v.check((value) => Number.isInteger(value) && value > 0, "Invalid anime id"),
-      v.integer(),
-    ),
-  ),
+const ImportSearchSchema = Schema.Struct({
+  animeId: Schema.optional(Schema.Union(Schema.Number, Schema.NumberFromString).pipe(Schema.int())),
 });
 
 export const Route = createFileRoute("/_layout/anime/import")({
-  validateSearch: (search) => v.parse(ImportSearchSchema, search),
+  validateSearch: (search) => Schema.decodeUnknownSync(ImportSearchSchema)(search),
   loader: async ({ context: { queryClient } }) => {
     await Promise.all([
       queryClient.ensureQueryData(animeListQueryOptions()),

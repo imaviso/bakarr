@@ -2,18 +2,10 @@ import { WarningIcon, TelevisionIcon, InfoIcon, MagnifyingGlassIcon } from "@pho
 import { createFileRoute } from "@tanstack/react-router";
 import { useNavigate } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import {
-  Suspense,
-  lazy,
-  useCallback,
-  useDeferredValue,
-  useEffect,
-  useRef,
-  useTransition,
-} from "react";
+import { Suspense, lazy, useCallback, useEffect, useRef, useTransition } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useContainerWidth } from "~/hooks/use-container-width";
-import * as v from "valibot";
+import { Schema } from "effect";
 import { GeneralError } from "~/components/general-error";
 import { PageHeader } from "~/components/page-header";
 import { Alert, AlertDescription } from "~/components/ui/alert";
@@ -51,33 +43,45 @@ const AddAnimeDialogLazy = lazy(() =>
   })),
 );
 
-const searchSchema = v.object({
-  id: v.optional(v.pipe(v.string(), v.transform(Number), v.integer())),
-  q: v.optional(v.string(), ""),
-  tab: v.optional(v.fallback(v.picklist(["search", "seasonal"]), "search"), "search"),
-  season: v.optional(
-    v.fallback(v.picklist(["winter", "spring", "summer", "fall"]), DEFAULT_SEASON_WINDOW.season),
-    DEFAULT_SEASON_WINDOW.season,
-  ),
-  year: v.optional(
-    v.fallback(
-      v.pipe(
-        v.union([v.string(), v.number()]),
-        v.transform((value) => (typeof value === "number" ? value : Number(value))),
-        v.integer(),
-      ),
-      DEFAULT_SEASON_WINDOW.year,
-    ),
-    DEFAULT_SEASON_WINDOW.year,
-  ),
+const TabSchema = Schema.transform(Schema.String, Schema.Literal("search", "seasonal"), {
+  decode: (s) => (s === "seasonal" ? "seasonal" : "search"),
+  encode: (s) => s,
 });
 
-type AddAnimeSearch = v.InferOutput<typeof searchSchema>;
+const SeasonSchema = Schema.transform(
+  Schema.String,
+  Schema.Literal("winter", "spring", "summer", "fall"),
+  {
+    decode: (s) => {
+      if (s === "winter" || s === "spring" || s === "summer" || s === "fall") return s;
+      return DEFAULT_SEASON_WINDOW.season;
+    },
+    encode: (s) => s,
+  },
+);
+
+const YearSchema = Schema.transform(Schema.Union(Schema.String, Schema.Number), Schema.Number, {
+  decode: (value) => {
+    const n = typeof value === "number" ? value : Number(value);
+    return Number.isInteger(n) ? n : DEFAULT_SEASON_WINDOW.year;
+  },
+  encode: (n) => n,
+});
+
+const searchSchema = Schema.Struct({
+  id: Schema.optional(Schema.NumberFromString.pipe(Schema.int())),
+  q: Schema.optional(Schema.String),
+  tab: Schema.optional(TabSchema),
+  season: Schema.optional(SeasonSchema),
+  year: Schema.optional(YearSchema),
+});
+
+type AddAnimeSearch = Schema.Schema.Type<typeof searchSchema>;
 
 export const Route = createFileRoute("/_layout/anime/add")({
-  validateSearch: searchSchema,
+  validateSearch: Schema.standardSchemaV1(searchSchema),
   loader: async ({ context: { queryClient }, location }) => {
-    const search = v.parse(searchSchema, location.search);
+    const search = Schema.decodeUnknownSync(searchSchema)(location.search);
     await Promise.all([
       queryClient.ensureQueryData(animeListQueryOptions()),
       queryClient.ensureQueryData(profilesQueryOptions()),
@@ -85,7 +89,10 @@ export const Route = createFileRoute("/_layout/anime/add")({
       queryClient.ensureQueryData(systemConfigQueryOptions()),
     ]);
     await queryClient.prefetchInfiniteQuery(
-      seasonalAnimeInfiniteQueryOptions({ season: search.season, year: search.year }),
+      seasonalAnimeInfiniteQueryOptions({
+        season: search.season ?? DEFAULT_SEASON_WINDOW.season,
+        year: search.year ?? DEFAULT_SEASON_WINDOW.year,
+      }),
     );
     if (search.id) {
       await queryClient.ensureQueryData(animeByAnilistIdQueryOptions(search.id));
@@ -101,13 +108,17 @@ function AddAnimePage() {
   usePageTitle("Add Anime");
   const search = Route.useSearch();
   const [, startTransition] = useTransition();
-  const debouncedQuery = useDeferredValue(search.q);
 
   const anilistId = search.id ?? null;
 
-  const searchQuery = createAnimeSearchQuery(debouncedQuery);
+  const query = search.q ?? "";
+  const activeTab = search.tab ?? "search";
+  const selectedSeason = search.season ?? DEFAULT_SEASON_WINDOW.season;
+  const selectedYear = search.year ?? DEFAULT_SEASON_WINDOW.year;
+
+  const searchQuery = createAnimeSearchQuery(query);
   const searchResults = searchQuery.data?.results ?? [];
-  const canSearch = debouncedQuery.trim().length >= 3;
+  const canSearch = query.trim().length >= 3;
   const searchDegraded = searchQuery.data?.degraded ?? false;
   const { data: animeList } = useSuspenseQuery(animeListQueryOptions());
   const libraryIds = new Set(animeList.map((anime) => anime.id));
@@ -118,10 +129,10 @@ function AddAnimePage() {
       void navigate({
         to: ".",
         search: {
-          q: mergedSearch.q,
-          tab: mergedSearch.tab,
-          season: mergedSearch.season,
-          year: String(mergedSearch.year),
+          q: mergedSearch.q ?? "",
+          tab: mergedSearch.tab ?? "search",
+          season: mergedSearch.season ?? DEFAULT_SEASON_WINDOW.season,
+          year: String(mergedSearch.year ?? DEFAULT_SEASON_WINDOW.year),
           ...(mergedSearch.id === undefined ? {} : { id: String(mergedSearch.id) }),
         },
         replace: true,
@@ -155,7 +166,7 @@ function AddAnimePage() {
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             ref={searchInputRef}
-            value={search.q}
+            value={query}
             onChange={(event) => updateSearch({ q: event.currentTarget.value })}
             placeholder="Search by title..."
             aria-label="Search for anime by title"
@@ -165,7 +176,7 @@ function AddAnimePage() {
       </PageHeader>
 
       <Tabs
-        value={search.tab}
+        value={activeTab}
         onValueChange={handleTabChange}
         className="flex flex-1 min-h-0 flex-col"
       >
@@ -182,12 +193,12 @@ function AddAnimePage() {
 
         <TabsContent value="search" className="mt-6 flex flex-1 min-h-0 flex-col">
           <SearchResults
-            active={search.tab === "search"}
+            active={activeTab === "search"}
             canSearch={canSearch}
             searchQuery={searchQuery}
             searchResults={searchResults}
             searchDegraded={searchDegraded}
-            debouncedQuery={debouncedQuery}
+            debouncedQuery={query}
             libraryIds={libraryIds}
             onSelectAnime={handleSelectAnime}
           />
@@ -195,17 +206,17 @@ function AddAnimePage() {
         <TabsContent value="seasonal" className="mt-6 flex flex-1 min-h-0 flex-col">
           <Suspense fallback={null}>
             <SeasonalAnimeSectionLazy
-              active={search.tab === "seasonal"}
-              seasonWindow={{ season: search.season, year: search.year }}
+              active={activeTab === "seasonal"}
+              seasonWindow={{ season: selectedSeason, year: selectedYear }}
               onPrevious={() => {
                 const previous = shiftSeasonWindow(
-                  { season: search.season, year: search.year },
+                  { season: selectedSeason, year: selectedYear },
                   -1,
                 );
                 updateSearch({ season: previous.season, year: previous.year });
               }}
               onNext={() => {
-                const next = shiftSeasonWindow({ season: search.season, year: search.year }, 1);
+                const next = shiftSeasonWindow({ season: selectedSeason, year: selectedYear }, 1);
                 updateSearch({ season: next.season, year: next.year });
               }}
               libraryIds={libraryIds}
@@ -279,7 +290,7 @@ function SearchResults(props: SearchResultsProps) {
   const estimateRowSize = Math.round(colW * 1.5 + 68 + 16);
   const rowCount = Math.ceil(props.searchResults.length / colCount);
 
-  const getScrollElement = useCallback(() => nodeRef.current, []);
+  const getScrollElement = useCallback(() => nodeRef.current, [nodeRef]);
 
   const rowVirtualizer = useVirtualizer({
     count: rowCount,

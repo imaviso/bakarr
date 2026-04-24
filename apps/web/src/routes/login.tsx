@@ -2,7 +2,7 @@ import { useForm } from "@tanstack/react-form";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
 import { toast } from "sonner";
-import * as v from "valibot";
+import { Schema } from "effect";
 import { Button } from "~/components/ui/button";
 import {
   Card,
@@ -17,8 +17,8 @@ import { Label } from "~/components/ui/label";
 import { createApiKeyLoginMutation, createLoginMutation } from "~/lib/api";
 import { useAuth } from "~/lib/auth";
 
-const LoginSearchSchema = v.object({
-  redirect: v.optional(v.string(), ""),
+const LoginSearchSchema = Schema.Struct({
+  redirect: Schema.optionalWith(Schema.String, { default: () => "" }),
 });
 
 function sanitizeRedirect(input: string): string | undefined {
@@ -34,21 +34,21 @@ function sanitizeRedirect(input: string): string | undefined {
 }
 
 export const Route = createFileRoute("/login")({
-  validateSearch: (search) => v.parse(LoginSearchSchema, search),
+  validateSearch: (search) => Schema.decodeUnknownSync(LoginSearchSchema)(search),
   component: LoginPage,
 });
 
-const LoginSchema = v.object({
-  username: v.pipe(v.string(), v.minLength(1, "Username is required")),
-  password: v.pipe(v.string(), v.minLength(1, "Password is required")),
+const LoginSchema = Schema.Struct({
+  username: Schema.String.pipe(Schema.minLength(1, { message: () => "Username is required" })),
+  password: Schema.String.pipe(Schema.minLength(1, { message: () => "Password is required" })),
 });
 
-const ApiKeySchema = v.object({
-  apiKey: v.pipe(v.string(), v.minLength(1, "API key is required")),
+const ApiKeySchema = Schema.Struct({
+  apiKey: Schema.String.pipe(Schema.minLength(1, { message: () => "API key is required" })),
 });
 
-type LoginFormData = v.InferOutput<typeof LoginSchema>;
-type ApiKeyFormData = v.InferOutput<typeof ApiKeySchema>;
+type LoginFormData = Schema.Schema.Type<typeof LoginSchema>;
+type ApiKeyFormData = Schema.Schema.Type<typeof ApiKeySchema>;
 
 function formatFieldErrors(errors: readonly unknown[]) {
   return errors
@@ -139,7 +139,7 @@ function LoginPage() {
             <form.Field
               name="username"
               validators={{
-                onChange: LoginSchema.entries.username,
+                onChange: Schema.standardSchemaV1(LoginSchema.fields.username),
               }}
             >
               {(field) => (
@@ -165,7 +165,7 @@ function LoginPage() {
             <form.Field
               name="password"
               validators={{
-                onChange: LoginSchema.entries.password,
+                onChange: Schema.standardSchemaV1(LoginSchema.fields.password),
               }}
             >
               {(field) => (
@@ -212,7 +212,7 @@ function LoginPage() {
             <apiKeyForm.Field
               name="apiKey"
               validators={{
-                onChange: ApiKeySchema.entries.apiKey,
+                onChange: Schema.standardSchemaV1(ApiKeySchema.fields.apiKey),
               }}
             >
               {(field) => (

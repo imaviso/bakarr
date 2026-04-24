@@ -11,7 +11,7 @@ import {
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Suspense, lazy, useDeferredValue, useTransition } from "react";
-import * as v from "valibot";
+import { Schema } from "effect";
 import { AnimeListSkeleton } from "~/components/anime-list-skeleton";
 import { EmptyState } from "~/components/empty-state";
 import { GeneralError } from "~/components/general-error";
@@ -47,9 +47,19 @@ const AnimeListViewLazy = lazy(() =>
   })),
 );
 
-const MonitorFilterSchema = v.fallback(v.picklist(["all", "monitored", "unmonitored"]), "all");
+const MonitorFilterSchema = Schema.transform(
+  Schema.String,
+  Schema.Literal("all", "monitored", "unmonitored"),
+  {
+    decode: (s) => (s === "monitored" ? "monitored" : s === "unmonitored" ? "unmonitored" : "all"),
+    encode: (s) => s,
+  },
+);
 
-const ViewModeSchema = v.fallback(v.picklist(["grid", "list"]), "grid");
+const ViewModeSchema = Schema.transform(Schema.String, Schema.Literal("grid", "list"), {
+  decode: (s) => (s === "list" ? "list" : "grid"),
+  encode: (s) => s,
+});
 
 const DEFAULT_ANIME_SEARCH = {
   filter: "all",
@@ -57,22 +67,18 @@ const DEFAULT_ANIME_SEARCH = {
   view: "grid",
 } as const;
 
-type MonitorFilter = typeof DEFAULT_ANIME_SEARCH.filter | "monitored" | "unmonitored";
+type MonitorFilter = Schema.Schema.Type<typeof MonitorFilterSchema>;
 
-const MONITOR_FILTER_VALUES = new Set<string>(["all", "monitored", "unmonitored"]);
+const isMonitorFilter = Schema.is(MonitorFilterSchema);
 
-function isMonitorFilter(value: string): value is MonitorFilter {
-  return MONITOR_FILTER_VALUES.has(value);
-}
-
-const AnimeSearchSchema = v.object({
-  q: v.optional(v.string(), DEFAULT_ANIME_SEARCH.q),
-  filter: v.optional(MonitorFilterSchema, DEFAULT_ANIME_SEARCH.filter),
-  view: v.optional(ViewModeSchema, DEFAULT_ANIME_SEARCH.view),
+const AnimeSearchSchema = Schema.Struct({
+  q: Schema.optional(Schema.String),
+  filter: Schema.optional(MonitorFilterSchema),
+  view: Schema.optional(ViewModeSchema),
 });
 
 export const Route = createFileRoute("/_layout/anime/")({
-  validateSearch: (search) => v.parse(AnimeSearchSchema, search),
+  validateSearch: Schema.standardSchemaV1(AnimeSearchSchema),
   loader: async ({ context: { queryClient } }) => {
     await Promise.all([
       queryClient.ensureQueryData(animeListQueryOptions()),
@@ -93,38 +99,41 @@ function AnimeIndexPage() {
   const airingPreferences = getAiringDisplayPreferences(systemConfig.library);
 
   const [, startTransition] = useTransition();
-  const deferredQuery = useDeferredValue(search.q);
+  const query = search.q ?? DEFAULT_ANIME_SEARCH.q;
+  const filter = search.filter ?? DEFAULT_ANIME_SEARCH.filter;
+  const view = search.view ?? DEFAULT_ANIME_SEARCH.view;
+  const deferredQuery = useDeferredValue(query);
 
   const handleSearchInput = (q: string) => {
     startTransition(() => {
       void navigate({
         to: ".",
-        search: { q, filter: search.filter, view: search.view },
+        search: { q, filter, view },
         replace: true,
       });
     });
   };
 
-  const filteredList = filterAnimeLibrary(anime, deferredQuery, search.filter);
+  const filteredList = filterAnimeLibrary(anime, deferredQuery, filter);
 
-  const updateFilter = (filter: MonitorFilter) =>
+  const updateFilter = (nextFilter: MonitorFilter) =>
     void navigate({
       to: ".",
       search: {
-        q: search.q,
-        filter,
-        view: search.view,
+        q: query,
+        filter: nextFilter,
+        view,
       },
       replace: true,
     });
 
-  const updateView = (view: "grid" | "list") =>
+  const updateView = (nextView: "grid" | "list") =>
     void navigate({
       to: ".",
       search: {
-        q: search.q,
-        filter: search.filter,
-        view,
+        q: query,
+        filter,
+        view: nextView,
       },
       replace: true,
     });
@@ -157,7 +166,7 @@ function AnimeIndexPage() {
             <Input
               placeholder="Filter anime..."
               aria-label="Filter anime"
-              value={search.q}
+              value={query}
               onInput={(event) => handleSearchInput(event.currentTarget.value)}
               className="pl-9"
             />
@@ -172,7 +181,7 @@ function AnimeIndexPage() {
             </DropdownMenuTrigger>
             <DropdownMenuContent>
               <DropdownMenuRadioGroup
-                value={search.filter}
+                value={filter}
                 onValueChange={(value) => {
                   if (isMonitorFilter(value)) {
                     updateFilter(value);
@@ -224,7 +233,7 @@ function AnimeIndexPage() {
                   size="icon"
                   className={cn(
                     "relative after:absolute after:-inset-2 h-7 w-7",
-                    search.view === "grid" ? "bg-background " : "hover:bg-background",
+                    view === "grid" ? "bg-background " : "hover:bg-background",
                   )}
                   aria-label="Grid view"
                   onClick={() => updateView("grid")}
@@ -242,7 +251,7 @@ function AnimeIndexPage() {
                   size="icon"
                   className={cn(
                     "relative after:absolute after:-inset-2 h-7 w-7",
-                    search.view === "list" ? "bg-background " : "hover:bg-background",
+                    view === "list" ? "bg-background " : "hover:bg-background",
                   )}
                   aria-label="List view"
                   onClick={() => updateView("list")}
@@ -259,7 +268,7 @@ function AnimeIndexPage() {
       <div className="flex-1 min-h-0 overflow-hidden">
         {filteredList.length > 0 ? (
           <Suspense fallback={<AnimeListSkeleton />}>
-            {search.view === "grid" ? (
+            {view === "grid" ? (
               <AnimeGridViewLazy
                 anime={filteredList}
                 airingPreferences={airingPreferences}
@@ -273,7 +282,7 @@ function AnimeIndexPage() {
               />
             )}
           </Suspense>
-        ) : !search.q && search.filter === "all" ? (
+        ) : !query && filter === "all" ? (
           <EmptyState
             icon={<TelevisionIcon className="h-12 w-12" />}
             title="No anime yet"
@@ -285,9 +294,7 @@ function AnimeIndexPage() {
             </Link>
           </EmptyState>
         ) : (
-          <EmptyState
-            title={search.q ? `No anime matching "${search.q}"` : `No ${search.filter} anime found`}
-          />
+          <EmptyState title={query ? `No anime matching "${query}"` : `No ${filter} anime found`} />
         )}
       </div>
     </div>

@@ -11,7 +11,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { useForm } from "@tanstack/react-form";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import * as v from "valibot";
+import { Schema } from "effect";
 import { EmptyState } from "~/components/empty-state";
 import { GeneralError } from "~/components/general-error";
 import { PageHeader } from "~/components/page-header";
@@ -182,10 +182,10 @@ function FeedCard(props: {
   );
 }
 
-const AddFeedSchema = v.object({
-  anime_id: v.pipe(v.number(), v.minValue(1, "Select an anime")),
-  url: v.pipe(v.string(), v.url("Enter a valid URL")),
-  name: v.string(),
+const AddFeedSchema = Schema.Struct({
+  anime_id: Schema.Number.pipe(Schema.greaterThan(0, { message: () => "Select an anime" })),
+  url: Schema.String.pipe(Schema.pattern(/^https?:\/\/.+/, { message: () => "Enter a valid URL" })),
+  name: Schema.String,
 });
 
 function AddFeedForm(props: { onCancel: () => void; onSuccess: () => void }) {
@@ -199,7 +199,7 @@ function AddFeedForm(props: { onCancel: () => void; onSuccess: () => void }) {
       name: "",
     },
     validators: {
-      onChange: AddFeedSchema,
+      onChange: Schema.standardSchemaV1(AddFeedSchema),
     },
     onSubmit: async ({ value }) => {
       await addFeed.mutateAsync({

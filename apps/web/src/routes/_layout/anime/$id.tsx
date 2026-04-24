@@ -1,7 +1,7 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Suspense, lazy } from "react";
-import * as v from "valibot";
+import { Schema } from "effect";
 import { AnimeDetailsHeader } from "~/components/anime/anime-details-header";
 import { AnimeDetailsMeta } from "~/components/anime/anime-details-meta";
 import { AnimeDetailsSidebar } from "~/components/anime/anime-details-sidebar";
@@ -30,15 +30,11 @@ const AnimeDetailsDialogsLazy = lazy(() =>
   })),
 );
 
-const IdParamSchema = v.pipe(
-  v.string(),
-  v.check((s) => !Number.isNaN(Number(s)), "ID must be a number"),
-  v.transform(Number),
-);
+const IdParamSchema = Schema.NumberFromString.pipe(Schema.int());
 
 export const Route = createFileRoute("/_layout/anime/$id")({
   loader: async ({ context: { queryClient }, params }) => {
-    const animeId = v.parse(IdParamSchema, params.id);
+    const animeId = Schema.decodeUnknownSync(IdParamSchema)(params.id);
     await Promise.all([
       queryClient.ensureQueryData(animeDetailsQueryOptions(animeId)),
       queryClient.ensureQueryData(episodesQueryOptions(animeId)),
@@ -53,7 +49,7 @@ export const Route = createFileRoute("/_layout/anime/$id")({
 
 function AnimeDetailsPage() {
   const params = Route.useParams();
-  const animeId = v.parse(IdParamSchema, params.id);
+  const animeId = Schema.decodeUnknownSync(IdParamSchema)(params.id);
   const navigate = useNavigate();
 
   const animeQuery = useSuspenseQuery(animeDetailsQueryOptions(animeId));
