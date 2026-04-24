@@ -39,22 +39,26 @@ export class AuthService extends Context.Tag("@bakarr/web/AuthService")<
 
       const getState = Effect.sync(() => authState);
 
-      const loginSuccess = (username: string, apiKey?: string) =>
-        Effect.sync(() => {
-          const key = normalizeApiKey(apiKey);
-          authState = {
-            username,
-            apiKey: Option.getOrUndefined(key),
-            isAuthenticated: true,
-          };
-          emit();
-        });
+      const loginSuccess = Effect.fn("AuthService.loginSuccess")(
+        (username: string, apiKey?: string) =>
+          Effect.sync(() => {
+            const key = normalizeApiKey(apiKey);
+            authState = {
+              username,
+              apiKey: Option.getOrUndefined(key),
+              isAuthenticated: true,
+            };
+            emit();
+          }),
+      );
 
-      const syncAuthenticatedUser = (username: string) =>
-        Effect.sync(() => {
-          authState = { ...authState, isAuthenticated: true, username };
-          emit();
-        });
+      const syncAuthenticatedUser = Effect.fn("AuthService.syncAuthenticatedUser")(
+        (username: string) =>
+          Effect.sync(() => {
+            authState = { ...authState, isAuthenticated: true, username };
+            emit();
+          }),
+      );
 
       const clearAuthState = Effect.sync(() => {
         authState = { isAuthenticated: false };

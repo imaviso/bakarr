@@ -17,29 +17,32 @@ export class LocalStorage extends Context.Tag("@bakarr/web/LocalStorage")<
   static readonly Live = Layer.succeed(
     LocalStorage,
     LocalStorage.of({
-      getItem: (key: string) =>
+      getItem: Effect.fn("LocalStorage.getItem")((key: string) =>
         Effect.gen(function* () {
           const raw = yield* Effect.sync(() => localStorage.getItem(key)).pipe(
             Effect.catchAll(() => Effect.succeed(null)),
           );
           return raw === null ? Option.none() : Option.some(raw);
         }),
+      ),
 
-      setItem: (key: string, value: string) =>
+      setItem: Effect.fn("LocalStorage.setItem")((key: string, value: string) =>
         Effect.gen(function* () {
           yield* Effect.sync(() => localStorage.setItem(key, value)).pipe(
             Effect.catchAll(() => Effect.void),
           );
         }),
+      ),
 
-      removeItem: (key: string) =>
+      removeItem: Effect.fn("LocalStorage.removeItem")((key: string) =>
         Effect.gen(function* () {
           yield* Effect.sync(() => localStorage.removeItem(key)).pipe(
             Effect.catchAll(() => Effect.void),
           );
         }),
+      ),
 
-      parseJson: (key: string) =>
+      parseJson: Effect.fn("LocalStorage.parseJson")((key: string) =>
         Effect.gen(function* () {
           const raw = yield* Effect.sync(() => localStorage.getItem(key)).pipe(
             Effect.catchAll(() => Effect.succeed(null)),
@@ -54,6 +57,7 @@ export class LocalStorage extends Context.Tag("@bakarr/web/LocalStorage")<
             }),
           );
         }),
+      ),
     }),
   );
 }
