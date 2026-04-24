@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   createDownloadEventsQuery,
   createInfiniteLogsQuery,
@@ -38,21 +38,15 @@ export function useLogsQueries(options: UseLogsQueriesOptions) {
     () => logsQuery.data?.pages.flatMap((page) => page.logs) ?? [],
     [logsQuery.data?.pages],
   );
-  const canGoToPreviousDownloadEventsPage = useMemo(
-    () => Boolean(downloadEventsQuery.data?.prev_cursor),
-    [downloadEventsQuery.data?.prev_cursor],
-  );
-  const canGoToNextDownloadEventsPage = useMemo(
-    () => Boolean(downloadEventsQuery.data?.next_cursor),
-    [downloadEventsQuery.data?.next_cursor],
-  );
+  const canGoToPreviousDownloadEventsPage = Boolean(downloadEventsQuery.data?.prev_cursor);
+  const canGoToNextDownloadEventsPage = Boolean(downloadEventsQuery.data?.next_cursor);
 
-  const refreshAll = useCallback(() => {
+  const refreshAll = () => {
     void logsQuery.refetch();
     void downloadEventsQuery.refetch();
     void dashboardQuery.refetch();
     void jobsQuery.refetch();
-  }, [logsQuery, downloadEventsQuery, dashboardQuery, jobsQuery]);
+  };
 
   useEffect(() => {
     if (!autoRefresh) {
@@ -61,7 +55,7 @@ export function useLogsQueries(options: UseLogsQueriesOptions) {
 
     const interval = setInterval(refreshAll, 3000);
     return () => clearInterval(interval);
-  }, [autoRefresh, refreshAll]);
+  }, [autoRefresh]);
 
   return {
     allLogs,

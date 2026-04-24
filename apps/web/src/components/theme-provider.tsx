@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, createContext, useContext } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, createContext, useContext } from "react";
 
 type Theme = "dark" | "light" | "system";
 type ResolvedTheme = "dark" | "light";
@@ -124,7 +124,7 @@ export function ThemeProvider({
     [disableTransitionOnChange],
   );
 
-  useMemo(() => {
+  useLayoutEffect(() => {
     applyTheme(resolvedTheme);
   }, [resolvedTheme, applyTheme]);
 

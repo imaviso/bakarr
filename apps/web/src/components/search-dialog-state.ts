@@ -127,52 +127,38 @@ export function useSearchDialogReleaseRowState(input: {
   const [isBatch, setIsBatch] = useState(detectedIsBatch);
   const [popoverOpen, setPopoverOpen] = useState(false);
 
-  const {
-    grabPayload,
-    releaseConfidence,
-    releaseFlags,
-    releaseParsedSummary,
-    releaseSourceSummary,
-    selectionLabel,
-    selectionMetadata,
-    selectionSummary,
-  } = useMemo(() => {
-    const selectionDisplay = buildSelectionDisplayFromNyaaResult(input.result);
-    const releaseDisplay = buildReleaseDisplay({
-      group: input.result.parsed_group,
-      indexer: input.result.indexer,
-      is_seadex: input.result.is_seadex,
-      is_seadex_best: input.result.is_seadex_best,
-      parsed_air_date: input.result.parsed_air_date,
-      parsed_episode_label: input.result.parsed_episode_label,
-      quality: input.result.parsed_quality,
-      remake: input.result.remake,
-      resolution: input.result.parsed_resolution,
-      seadex_dual_audio: input.result.seadex_dual_audio,
-      trusted: input.result.trusted,
-    });
+  const selectionDisplay = buildSelectionDisplayFromNyaaResult(input.result);
+  const releaseDisplay = buildReleaseDisplay({
+    group: input.result.parsed_group,
+    indexer: input.result.indexer,
+    is_seadex: input.result.is_seadex,
+    is_seadex_best: input.result.is_seadex_best,
+    parsed_air_date: input.result.parsed_air_date,
+    parsed_episode_label: input.result.parsed_episode_label,
+    quality: input.result.parsed_quality,
+    remake: input.result.remake,
+    resolution: input.result.parsed_resolution,
+    seadex_dual_audio: input.result.seadex_dual_audio,
+    trusted: input.result.trusted,
+  });
 
-    const parsedEpisodeNumber = parseFloat(episodeNumberInput);
-    const episodeNumber = Number.isFinite(parsedEpisodeNumber) ? parsedEpisodeNumber : undefined;
+  const parsedEpisodeNumber = parseFloat(episodeNumberInput);
+  const episodeNumber = Number.isFinite(parsedEpisodeNumber) ? parsedEpisodeNumber : undefined;
 
-    const grabPayload = buildGrabInputFromNyaaResult({
-      animeId: input.animeId,
-      episodeNumber,
-      isBatch: isBatch,
-      result: input.result,
-    });
+  const grabPayload = buildGrabInputFromNyaaResult({
+    animeId: input.animeId,
+    episodeNumber,
+    isBatch,
+    result: input.result,
+  });
 
-    return {
-      grabPayload,
-      releaseConfidence: getReleaseConfidence(releaseDisplay.confidence),
-      releaseFlags: releaseDisplay.flags,
-      releaseParsedSummary: releaseDisplay.parsedSummary,
-      releaseSourceSummary: releaseDisplay.sourceSummary,
-      selectionLabel: selectionDisplay.label,
-      selectionMetadata: selectionDisplay.metadata,
-      selectionSummary: selectionDisplay.summary,
-    };
-  }, [episodeNumberInput, isBatch, input.animeId, input.result]);
+  const releaseConfidence = getReleaseConfidence(releaseDisplay.confidence);
+  const releaseFlags = releaseDisplay.flags;
+  const releaseParsedSummary = releaseDisplay.parsedSummary;
+  const releaseSourceSummary = releaseDisplay.sourceSummary;
+  const selectionLabel = selectionDisplay.label;
+  const selectionMetadata = selectionDisplay.metadata;
+  const selectionSummary = selectionDisplay.summary;
 
   const handleGrab = () => {
     grabMutation.mutate(grabPayload, {
