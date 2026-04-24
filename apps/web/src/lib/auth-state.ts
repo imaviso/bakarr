@@ -63,5 +63,6 @@ export async function logout() {
 }
 
 export function getAuthHeaders(): HeadersInit {
-  return {};
+  const key = authState.apiKey;
+  return key ? { "X-Api-Key": key } : {};
 }

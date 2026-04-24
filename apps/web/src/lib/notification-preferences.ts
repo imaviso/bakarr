@@ -144,10 +144,7 @@ export function writeNotificationPreferences(preferences: NotificationPreference
   }
 
   try {
-    localStorage.setItem(
-      NOTIFICATION_PREFERENCES_STORAGE_KEY,
-      JSON.stringify(normalized),
-    );
+    localStorage.setItem(NOTIFICATION_PREFERENCES_STORAGE_KEY, JSON.stringify(normalized));
   } catch {
     // Ignore persistence errors.
   }

@@ -67,14 +67,10 @@ const AuthMeSchema = Schema.Struct({
 });
 
 async function hydrateSessionState() {
-  const program = fetchJson(
-    AuthMeSchema,
-    `${API_BASE}/auth/me`,
-    { skipAutoLogoutOnUnauthorized: true },
-  ).pipe(
-    Effect.tap((decoded) =>
-      Effect.sync(() => syncAuthenticatedUser(decoded.username)),
-    ),
+  const program = fetchJson(AuthMeSchema, `${API_BASE}/auth/me`, {
+    skipAutoLogoutOnUnauthorized: true,
+  }).pipe(
+    Effect.tap((decoded) => Effect.sync(() => syncAuthenticatedUser(decoded.username))),
     Effect.catchAll(() => Effect.void),
   );
 

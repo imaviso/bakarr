@@ -115,27 +115,14 @@ export function parseDownloadEventsSearch(
   keys: DownloadEventsSearchKeys,
 ): Record<string, string> {
   const defaults = createDownloadEventsSearchDefaults(keys);
-  const parsed = Schema.decodeUnknownSync(createDownloadEventsSearchSchema(keys, defaults))(search);
-  const read = (key: string) => {
-    const value = parsed[key];
-    if (typeof value === "string") {
-      return value;
-    }
-
-    return defaults[key] ?? "";
-  };
+  const parsed = Schema.decodeUnknownSync(
+    createDownloadEventsSearchSchema(keys, defaults),
+  )(search);
 
   return {
     ...defaults,
-    [keys.animeId]: read(keys.animeId),
-    [keys.cursor]: read(keys.cursor),
-    [keys.direction]: read(keys.direction),
-    [keys.downloadId]: read(keys.downloadId),
-    [keys.endDate]: read(keys.endDate),
-    [keys.eventType]: read(keys.eventType),
-    [keys.startDate]: read(keys.startDate),
-    [keys.status]: read(keys.status),
-  };
+    ...parsed,
+  } as Record<string, string>;
 }
 
 export function createDownloadEventsCursorPatch(

@@ -19,19 +19,17 @@ export interface ApiRequestOptions extends RequestInit {
   readonly skipAutoLogoutOnUnauthorized?: boolean;
 }
 
-const buildHeaders = (options?: ApiRequestOptions): Headers => {
+function mergeHeaders(options?: ApiRequestOptions): Headers {
   const headers = new Headers(options?.headers);
   const authHeaders = new Headers(getAuthHeaders());
   for (const [key, value] of authHeaders.entries()) {
     headers.set(key, value);
   }
-
   if (!headers.has("Content-Type") && options?.body !== undefined) {
     headers.set("Content-Type", "application/json");
   }
-
   return headers;
-};
+}
 
 export const fetchResponse = Effect.fn("ApiClient.fetchResponse")(
   (
@@ -40,38 +38,31 @@ export const fetchResponse = Effect.fn("ApiClient.fetchResponse")(
     signal?: AbortSignal,
   ): Effect.Effect<Response, ApiClientError | ApiUnauthorizedError> =>
     Effect.gen(function* () {
-      const headers = buildHeaders(options);
-
-      const requestInit: RequestInit = {
-        ...options,
-        headers,
-        credentials: "include",
-        ...(signal === undefined ? {} : { signal }),
-      };
-
       const response = yield* Effect.tryPromise({
-        try: () => fetch(endpoint, requestInit),
-        catch: (cause) =>
-          new ApiClientError({
-            message: `Network error: ${String(cause)}`,
+        try: () =>
+          fetch(endpoint, {
+            ...options,
+            headers: mergeHeaders(options),
+            credentials: "include",
+            ...(signal === undefined ? {} : { signal }),
           }),
+        catch: (cause) =>
+          new ApiClientError({ message: `Network error: ${String(cause)}` }),
       });
 
       if (response.status === 401 && !options?.skipAutoLogoutOnUnauthorized) {
-        // Fire-and-forget: the redirect destroys app state anyway
         void logout();
         return yield* Effect.fail(new ApiUnauthorizedError({ message: "Session expired" }));
       }
 
       if (!response.ok) {
-        const errorText = yield* Effect.tryPromise({
+        const text = yield* Effect.tryPromise({
           try: () => response.text(),
           catch: (cause) => new ApiClientError({ message: String(cause) }),
         }).pipe(Effect.orElseSucceed(() => ""));
-
         return yield* Effect.fail(
           new ApiClientError({
-            message: errorText || `API error: ${response.status}`,
+            message: text || `API error: ${response.status}`,
             status: response.status,
           }),
         );
@@ -81,15 +72,14 @@ export const fetchResponse = Effect.fn("ApiClient.fetchResponse")(
     }),
 );
 
-export const fetchJson = <A, I, R>(
-  schema: Schema.Schema<A, I, R>,
+export const fetchJson = <A, I>(
+  schema: Schema.Schema<A, I, never>,
   endpoint: string,
   options?: ApiRequestOptions,
   signal?: AbortSignal,
-): Effect.Effect<A, ApiClientError | ApiDecodeError | ApiUnauthorizedError, R> =>
+): Effect.Effect<A, ApiClientError | ApiDecodeError | ApiUnauthorizedError> =>
   Effect.gen(function* () {
     const response = yield* fetchResponse(endpoint, options, signal);
-
     const json = yield* Effect.tryPromise({
       try: () => response.json(),
       catch: (cause) =>
@@ -101,11 +91,7 @@ export const fetchJson = <A, I, R>(
 
     return yield* Schema.decodeUnknown(schema)(json).pipe(
       Effect.mapError(
-        (cause) =>
-          new ApiDecodeError({
-            message: "Schema validation failed",
-            cause,
-          }),
+        (cause) => new ApiDecodeError({ message: "Schema validation failed", cause }),
       ),
     );
   }).pipe(Effect.withSpan("ApiClient.fetchJson"));
