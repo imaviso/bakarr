@@ -57,13 +57,25 @@ const SETTINGS_TAB_CONTENT_CLASS = "mt-0 min-h-0 overflow-y-auto overflow-x-hidd
 
 export const Route = createFileRoute("/_layout/settings")({
   validateSearch: Schema.standardSchemaV1(SettingsSearchSchema),
-  loader: async ({ context: { queryClient } }) => {
-    await Promise.all([
-      queryClient.ensureQueryData(profilesQueryOptions()),
-      queryClient.ensureQueryData(qualitiesQueryOptions()),
-      queryClient.ensureQueryData(systemConfigQueryOptions()),
-      queryClient.ensureQueryData(releaseProfilesQueryOptions()),
-    ]);
+  loaderDeps: ({ search }) => ({ tab: search.tab ?? "general" }),
+  loader: async ({ context: { queryClient }, deps }) => {
+    switch (deps.tab) {
+      case "general":
+      case "automation":
+        await queryClient.ensureQueryData(systemConfigQueryOptions());
+        return;
+      case "profiles":
+        await Promise.all([
+          queryClient.ensureQueryData(profilesQueryOptions()),
+          queryClient.ensureQueryData(qualitiesQueryOptions()),
+        ]);
+        return;
+      case "release-profiles":
+        await queryClient.ensureQueryData(releaseProfilesQueryOptions());
+        return;
+      case "account":
+        return;
+    }
   },
   component: SettingsPage,
   errorComponent: GeneralError,

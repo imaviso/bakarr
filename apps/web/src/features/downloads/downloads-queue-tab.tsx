@@ -17,6 +17,7 @@ export function DownloadsQueueTab(props: DownloadsQueueTabProps) {
     count: props.queue.length,
     estimateSize: () => 48,
     overscan: 10,
+    getItemKey: (index) => props.queue[index]?.hash ?? index,
     getScrollElement: () => queueScrollRef.current,
   });
 

@@ -78,8 +78,15 @@ export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
     if (nextOpen) {
       setPagination({ direction: "next" });
       setLastExportResult(undefined);
+    } else {
+      setSelectedEvent(null);
     }
     setOpen(nextOpen);
+  };
+
+  const handleSelectEvent = (event: DownloadEvent) => {
+    setSelectedEvent(event);
+    setOpen(false);
   };
 
   return (
@@ -132,7 +139,7 @@ export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
               isLoading={query.isLoading}
               total={query.data?.total}
               emptyText="No download events found for this selection."
-              onSelectEvent={setSelectedEvent}
+              onSelectEvent={handleSelectEvent}
               className="space-y-3"
             />
             {events.length > 0 && (
@@ -166,7 +173,11 @@ export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
       <DownloadEventDetailsDialog
         event={selectedEvent}
         formatTimestamp={props.formatTimestamp}
-        onOpenChange={(nextOpen) => !nextOpen && setSelectedEvent(null)}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            setSelectedEvent(null);
+          }
+        }}
       />
     </>
   );

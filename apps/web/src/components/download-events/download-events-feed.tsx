@@ -37,6 +37,7 @@ export function DownloadEventsFeed(props: DownloadEventsFeedProps) {
   const virtualizer = useVirtualizer({
     count: props.events.length,
     estimateSize: () => VIRTUAL_ROW_HEIGHT,
+    getItemKey: (index) => props.events[index]?.id ?? index,
     getScrollElement: () => scrollRef.current ?? null,
     overscan: 4,
   });

@@ -17,6 +17,7 @@ export function DownloadsHistoryTab(props: DownloadsHistoryTabProps) {
     count: props.history.length,
     estimateSize: () => 64,
     overscan: 10,
+    getItemKey: (index) => props.history[index]?.id ?? index,
     getScrollElement: () => historyScrollRef.current,
   });
 

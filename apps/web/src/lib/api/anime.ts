@@ -5,7 +5,7 @@ import {
   useInfiniteQuery,
   useQuery,
 } from "@tanstack/react-query";
-import type { Anime, AnimeSearchResponse, AnimeSeason } from "./contracts";
+import type { Anime, AnimeSeason } from "./contracts";
 import {
   AnimeListResponseSchema,
   AnimeSchema,
@@ -118,10 +118,10 @@ export function listFilesQueryOptions(animeId: number) {
   });
 }
 
-export function createListFilesQuery(animeId: number) {
+export function createListFilesQuery(animeId: number, options?: { enabled?: boolean }) {
   return useQuery({
     ...listFilesQueryOptions(animeId),
-    enabled: !!animeId,
+    enabled: !!animeId && (options?.enabled ?? true),
   });
 }
 
@@ -147,7 +147,6 @@ export function createAnimeSearchQuery(query: string) {
   return useQuery({
     ...animeSearchQueryOptions(normalizedQuery),
     enabled: normalizedQuery.length >= 3,
-    placeholderData: (prev: AnimeSearchResponse | undefined) => prev,
   });
 }
 
@@ -302,7 +301,12 @@ export function seasonalAnimeInfiniteQueryOptions(input?: {
   const limit = input?.limit ?? 25;
 
   return infiniteQueryOptions({
-    queryKey: [...animeKeys.seasonal({ season, year, limit }).slice(0, 4), "infinite"] as const,
+    queryKey: [
+      "anime",
+      "seasonal",
+      "infinite",
+      { season: season ?? null, year: year ?? null, limit },
+    ] as const,
     queryFn: ({ pageParam, signal }) => {
       const params = new URLSearchParams();
       if (season !== undefined) params.append("season", season);

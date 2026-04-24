@@ -108,7 +108,14 @@ function WantedPage() {
 
   return (
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden gap-2">
-      <PageHeader title="Wanted" subtitle={`${data.length} missing episodes`}>
+      <PageHeader
+        title="Wanted"
+        subtitle={
+          data.length >= WANTED_LIMIT
+            ? `Showing first ${WANTED_LIMIT} missing episodes`
+            : `${data.length} missing episodes`
+        }
+      >
         <Button
           variant="default"
           size="sm"

@@ -4,6 +4,17 @@ const listeners = new Set<(event: MessageEvent<string>) => void>();
 let ws: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
+function scheduleReconnect(delay: number): void {
+  if (listeners.size === 0 || reconnectTimer !== null) {
+    return;
+  }
+
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    connect();
+  }, delay);
+}
+
 function buildWsUrl(): string {
   if (typeof window === "undefined" || !window.location) {
     return "ws://localhost/api/events";
@@ -19,20 +30,14 @@ function connect(): void {
 
   const state = getAuthState();
   if (!state.isAuthenticated) {
-    reconnectTimer = setTimeout(() => {
-      reconnectTimer = null;
-      connect();
-    }, 1000);
+    scheduleReconnect(1000);
     return;
   }
 
   const socket = new WebSocket(buildWsUrl());
+  ws = socket;
   socket.binaryType = "arraybuffer";
   const textDecoder = new TextDecoder();
-
-  socket.addEventListener("open", () => {
-    ws = socket;
-  });
 
   socket.addEventListener("message", (event) => {
     const payload =
@@ -50,16 +55,24 @@ function connect(): void {
     }
   });
 
-  const onClose = () => {
-    ws = null;
-    reconnectTimer = setTimeout(() => {
-      reconnectTimer = null;
-      connect();
-    }, 5000);
+  let disconnected = false;
+  const onDisconnect = () => {
+    if (disconnected) {
+      return;
+    }
+
+    disconnected = true;
+    if (ws === socket) {
+      ws = null;
+    }
+    scheduleReconnect(5000);
   };
 
-  socket.addEventListener("close", onClose);
-  socket.addEventListener("error", onClose);
+  socket.addEventListener("close", onDisconnect);
+  socket.addEventListener("error", () => {
+    onDisconnect();
+    socket.close();
+  });
 }
 
 export function subscribeSocketMessages(
@@ -70,12 +83,15 @@ export function subscribeSocketMessages(
 
   return () => {
     listeners.delete(onMessage);
-    if (listeners.size === 0 && ws !== null) {
-      ws.close();
-      ws = null;
+    if (listeners.size === 0) {
       if (reconnectTimer !== null) {
         clearTimeout(reconnectTimer);
         reconnectTimer = null;
+      }
+      if (ws !== null) {
+        const socket = ws;
+        ws = null;
+        socket.close();
       }
     }
   };

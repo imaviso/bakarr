@@ -1,6 +1,7 @@
 import { PlusIcon, TrashIcon } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
 import { Schema } from "effect";
+import { useRef } from "react";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
@@ -34,6 +35,13 @@ const ReleaseProfileSchema = Schema.Struct({
   ),
 });
 
+let ruleRowId = 0;
+
+function createRuleRowId() {
+  ruleRowId += 1;
+  return `release-rule-${ruleRowId}`;
+}
+
 export function ReleaseProfileForm(props: {
   onCancel: () => void;
   onSuccess: () => void;
@@ -42,6 +50,7 @@ export function ReleaseProfileForm(props: {
   const createProfile = createCreateReleaseProfileMutation();
   const updateProfile = createUpdateReleaseProfileMutation();
   const isEditing = !!props.profile;
+  const ruleRowIdsRef = useRef((props.profile?.rules ?? []).map(createRuleRowId));
 
   const form = useForm({
     defaultValues: {
@@ -68,6 +77,17 @@ export function ReleaseProfileForm(props: {
 
   const submitReleaseProfileForm = async () => {
     await form.handleSubmit();
+  };
+
+  const getRuleRowId = (index: number) => {
+    const existing = ruleRowIdsRef.current[index];
+    if (existing) {
+      return existing;
+    }
+
+    const next = createRuleRowId();
+    ruleRowIdsRef.current[index] = next;
+    return next;
   };
 
   return (
@@ -152,13 +172,14 @@ export function ReleaseProfileForm(props: {
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() =>
+                    onClick={() => {
+                      ruleRowIdsRef.current.push(createRuleRowId());
                       field.pushValue({
                         term: "",
                         rule_type: "preferred",
                         score: 10,
-                      })
-                    }
+                      });
+                    }}
                   >
                     <PlusIcon className="mr-2 h-3.5 w-3.5" />
                     Add Rule
@@ -170,11 +191,8 @@ export function ReleaseProfileForm(props: {
             <form.Field name="rules" mode="array">
               {(field) => (
                 <div className="space-y-2">
-                  {field.state.value.map((rule, index) => (
-                    <div
-                      key={`${rule.rule_type}-${rule.term}-${rule.score}`}
-                      className="flex gap-2 items-start"
-                    >
+                  {field.state.value.map((_, index) => (
+                    <div key={getRuleRowId(index)} className="flex gap-2 items-start">
                       <form.Field name={`rules[${index}].term`}>
                         {(termField) => (
                           <div className="flex-1">
@@ -236,7 +254,10 @@ export function ReleaseProfileForm(props: {
                         variant="ghost"
                         size="icon"
                         className="mt-0.5 text-muted-foreground hover:text-destructive"
-                        onClick={() => field.removeValue(index)}
+                        onClick={() => {
+                          ruleRowIdsRef.current.splice(index, 1);
+                          field.removeValue(index);
+                        }}
                         aria-label="Remove rule"
                       >
                         <TrashIcon className="h-4 w-4" />

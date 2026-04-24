@@ -52,12 +52,10 @@ export function updateSelectedImportFileMapping(
   episode: number,
 ) {
   const next = new Map(selectedFiles);
-  const current =
-    next.get(file.source_path) ??
-    buildImportFileRequest({
-      animeId: file.matched_anime?.id ?? 0,
-      file,
-    });
+  const current = next.get(file.source_path);
+  if (!current) {
+    return next;
+  }
 
   next.set(
     file.source_path,

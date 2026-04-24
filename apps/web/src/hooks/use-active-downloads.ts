@@ -1,7 +1,6 @@
-import { createDownloadQueueQuery } from "~/lib/api";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { downloadQueueQueryOptions } from "~/lib/api";
 
 export function useActiveDownloads() {
-  const queueQuery = createDownloadQueueQuery();
-
-  return queueQuery.data ?? [];
+  return useSuspenseQuery(downloadQueueQueryOptions()).data;
 }

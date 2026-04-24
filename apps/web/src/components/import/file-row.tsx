@@ -211,6 +211,7 @@ export function FileRow(props: FileRowProps) {
           <EditMappingPopover
             episode={displayEpisode}
             season={displaySeason ?? null}
+            disabled={!props.isSelected}
             onSave={props.onMappingChange}
           />
           {props.file.needs_manual_mapping && (

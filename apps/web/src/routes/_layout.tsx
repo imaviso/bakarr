@@ -5,6 +5,7 @@ import { AppSidebar } from "~/components/app-sidebar";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "~/components/ui/sidebar";
 import { syncAuthenticatedUser } from "~/lib/auth";
 import { authMeQueryOptions } from "~/lib/api";
+import { ApiUnauthorizedError } from "~/lib/effect/api-client";
 
 const SocketToastListenerLazy = lazy(() =>
   import("~/components/socket-toast-listener").then((module) => ({
@@ -17,7 +18,11 @@ export const Route = createFileRoute("/_layout")({
     try {
       const user = await context.queryClient.fetchQuery(authMeQueryOptions());
       syncAuthenticatedUser(user.username);
-    } catch {
+    } catch (error) {
+      if (!(error instanceof ApiUnauthorizedError)) {
+        throw error;
+      }
+
       throw redirect({
         to: "/login",
         search: {

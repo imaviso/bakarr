@@ -84,7 +84,7 @@ export function createUpdateProfileMutation() {
   return useMutation({
     mutationFn: ({ name, profile }: { name: string; profile: QualityProfile }) =>
       Effect.runPromise(
-        fetchJson(QualityProfileSchema, `${API_BASE}/profiles/${name}`, {
+        fetchJson(QualityProfileSchema, `${API_BASE}/profiles/${encodeURIComponent(name)}`, {
           method: "PUT",
           body: JSON.stringify(profile),
         }),
@@ -99,7 +99,9 @@ export function createDeleteProfileMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (name: string) =>
-      Effect.runPromise(fetchUnit(`${API_BASE}/profiles/${name}`, { method: "DELETE" })),
+      Effect.runPromise(
+        fetchUnit(`${API_BASE}/profiles/${encodeURIComponent(name)}`, { method: "DELETE" }),
+      ),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: animeKeys.profiles.all });
     },

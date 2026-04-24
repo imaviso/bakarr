@@ -89,7 +89,7 @@ function LoginPage() {
         syncAuthenticatedUser(data.username);
         if (data.must_change_password) {
           toast.info("Please change your password before continuing.");
-          void navigate({ to: "/settings", search: { tab: "general" } });
+          void navigate({ to: "/settings", search: { tab: "account" } });
           return;
         }
         goToPostLogin();
@@ -112,7 +112,7 @@ function LoginPage() {
         syncAuthenticatedUser(data.username);
         if (data.must_change_password) {
           toast.info("Please change your password before continuing.");
-          void navigate({ to: "/settings", search: { tab: "general" } });
+          void navigate({ to: "/settings", search: { tab: "account" } });
           return;
         }
         goToPostLogin();
@@ -200,7 +200,9 @@ function LoginPage() {
                   <Button
                     type="submit"
                     className="w-full"
-                    disabled={!state.canSubmit || loginMutation.isPending}
+                    disabled={
+                      !state.canSubmit || loginMutation.isPending || apiKeyLoginMutation.isPending
+                    }
                   >
                     {state.isSubmitting || loginMutation.isPending ? "Signing in..." : "Sign in"}
                   </Button>
@@ -247,7 +249,9 @@ function LoginPage() {
                     type="submit"
                     variant="secondary"
                     className="w-full"
-                    disabled={!state.canSubmit || apiKeyLoginMutation.isPending}
+                    disabled={
+                      !state.canSubmit || loginMutation.isPending || apiKeyLoginMutation.isPending
+                    }
                   >
                     {state.isSubmitting || apiKeyLoginMutation.isPending
                       ? "Signing in..."

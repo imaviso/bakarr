@@ -47,7 +47,7 @@ interface ManualMappingDialogProps {
 }
 
 export function BulkMappingDialog(props: BulkMappingDialogProps) {
-  const filesQuery = createListFilesQuery(props.animeId);
+  const filesQuery = createListFilesQuery(props.animeId, { enabled: props.open });
   const bulkMapMutation = createBulkMapEpisodesMutation();
 
   const [mappings, setMappings] = useState<Record<number, string>>({});
@@ -163,7 +163,7 @@ export function BulkMappingDialog(props: BulkMappingDialogProps) {
 }
 
 export function ManualMappingDialog(props: ManualMappingDialogProps) {
-  const filesQuery = createListFilesQuery(props.animeId);
+  const filesQuery = createListFilesQuery(props.animeId, { enabled: props.open });
   const mapMutation = createMapEpisodeMutation();
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const files = filesQuery.data;

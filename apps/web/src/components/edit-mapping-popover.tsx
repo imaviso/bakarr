@@ -8,6 +8,7 @@ import { Label } from "~/components/ui/label";
 interface EditMappingPopoverProps {
   season?: number | null;
   episode: number;
+  disabled?: boolean;
   onSave: (season: number, episode: number) => void;
 }
 
@@ -39,6 +40,7 @@ export function EditMappingPopover(props: EditMappingPopoverProps) {
       <PopoverTrigger
         render={<Button variant="secondary" size="sm" />}
         className="h-6 px-2 text-xs font-mono gap-1.5 hover:bg-secondary/80"
+        disabled={props.disabled}
       >
         <span>
           S{props.season ?? 1} E{props.episode}
