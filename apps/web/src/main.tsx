@@ -2,10 +2,12 @@ import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
+import { Effect, Schema } from "effect";
 // oxlint-disable-next-line import/no-unassigned-import
 import "./index.css";
 import { getAuthState, syncAuthenticatedUser } from "~/lib/auth";
-import { API_BASE, fetchApiResponse } from "~/lib/api/client";
+import { API_BASE } from "~/lib/api/client";
+import { fetchResponse } from "~/lib/effect/api-client";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -37,7 +39,7 @@ const router = createRouter({
 });
 declare module "@tanstack/react-router" {
   interface Register {
-    // This infers the type of our router and registers it across your entire project
+    // This infers the type of our router and registers it across your entire router
     router: typeof router;
   }
 }
@@ -60,28 +62,38 @@ async function bootstrap() {
   );
 }
 
+const AuthMeSchema = Schema.Struct({
+  username: Schema.String.pipe(Schema.minLength(1)),
+});
+
 async function hydrateSessionState() {
-  try {
-    const response = await fetchApiResponse(`${API_BASE}/auth/me`, {
+  const program = Effect.gen(function* () {
+    const response = yield* fetchResponse(`${API_BASE}/auth/me`, {
       skipAutoLogoutOnUnauthorized: true,
-    }).catch(() => undefined);
+    }).pipe(Effect.catchAll(() => Effect.succeed(undefined)));
 
     if (!response || response.status === 401 || !response.ok) {
       return;
     }
 
-    const raw = await response.json();
+    const raw: unknown = yield* Effect.tryPromise({
+      try: () => response.json(),
+      catch: () => undefined,
+    }).pipe(Effect.catchAll(() => Effect.succeed(undefined)));
 
-    if (
-      typeof raw === "object" &&
-      raw !== null &&
-      "username" in raw &&
-      typeof raw.username === "string" &&
-      raw.username.length > 0
-    ) {
-      syncAuthenticatedUser(raw.username);
+    const decoded = yield* Schema.decodeUnknownEither(AuthMeSchema)(raw).pipe(
+      Effect.matchEffect({
+        onFailure: () => Effect.succeed(undefined),
+        onSuccess: (value) => Effect.succeed(value),
+      }),
+    );
+
+    if (decoded) {
+      syncAuthenticatedUser(decoded.username);
     }
-  } catch {
-    return;
-  }
+  });
+
+  await Effect.runPromise(program).catch(() => {
+    // Ignore hydration errors
+  });
 }
