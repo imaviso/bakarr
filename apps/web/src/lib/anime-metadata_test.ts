@@ -61,7 +61,7 @@ it("formatEpisodeStatusTooltip uses airing preferences for missing episodes", ()
     throw new Error(`Expected missing tooltip, got ${tooltip}`);
   }
 
-  if (!tooltip.includes("1/9/2024") || !tooltip.includes("2:30")) {
+  if (!tooltip.includes("Jan 9, 2024") || !tooltip.includes("2:30")) {
     throw new Error(`Expected day-start adjusted airing label, got ${tooltip}`);
   }
 });

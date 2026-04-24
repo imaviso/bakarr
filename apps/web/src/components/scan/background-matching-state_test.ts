@@ -46,7 +46,7 @@ it("background matching is running while a folder is actively matching", () => {
 
   assertEquals(isBackgroundMatchingRunning(input), true);
   assertEquals(backgroundMatchingStatusLabel(input), "Running");
-  assertEquals(backgroundMatchingStatusVariant(input), "warning");
+  assertEquals(backgroundMatchingStatusVariant(input), "secondary");
 });
 
 it("background matching is queued when work remains but nothing is active", () => {
