@@ -1,17 +1,9 @@
 import { createContext, useContext, useMemo, useSyncExternalStore, type ReactNode } from "react";
 
 export interface AuthState {
-  username?: string | undefined;
-  apiKey?: string | undefined;
-  isAuthenticated: boolean;
-}
-
-function normalizeApiKey(apiKey?: string) {
-  const value = apiKey?.trim();
-  if (!value || /^\*+$/.test(value)) {
-    return undefined;
-  }
-  return value;
+  readonly username?: string | undefined;
+  readonly apiKey?: string | undefined;
+  readonly isAuthenticated: boolean;
 }
 
 // Module-level external store (safe for concurrent React)
@@ -55,6 +47,14 @@ export const syncAuthenticatedUser = (username: string) => {
 export const clearAuthState = () => {
   saveAuth({ isAuthenticated: false });
 };
+
+function normalizeApiKey(apiKey?: string) {
+  const value = apiKey?.trim();
+  if (!value || /^\*+$/.test(value)) {
+    return undefined;
+  }
+  return value;
+}
 
 export const logout = async () => {
   try {

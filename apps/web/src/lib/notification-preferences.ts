@@ -1,4 +1,5 @@
-import { Schema } from "effect";
+import { Effect, Option, Schema } from "effect";
+import { LocalStorage } from "~/lib/effect/local-storage";
 import type { NotificationEvent } from "@bakarr/shared";
 
 export const NOTIFICATION_PREFERENCE_KEYS = [
@@ -120,14 +121,23 @@ export function readNotificationPreferences(): NotificationPreferences {
     return cachedPreferences;
   }
 
-  try {
-    const raw = localStorage.getItem(NOTIFICATION_PREFERENCES_STORAGE_KEY);
-    if (!raw) {
-      cachedPreferences = { ...DEFAULT_NOTIFICATION_PREFERENCES };
-      return cachedPreferences;
+  const program = Effect.gen(function* () {
+    const storage = yield* LocalStorage;
+    const raw = yield* storage.getItem(NOTIFICATION_PREFERENCES_STORAGE_KEY);
+    if (Option.isNone(raw)) {
+      return { ...DEFAULT_NOTIFICATION_PREFERENCES };
     }
+    const parsed = yield* Effect.sync(() => JSON.parse(raw.value)).pipe(
+      Effect.matchEffect({
+        onFailure: () => Effect.succeed({ ...DEFAULT_NOTIFICATION_PREFERENCES }),
+        onSuccess: (value) => Effect.succeed(normalizeNotificationPreferences(value)),
+      }),
+    );
+    return parsed;
+  }).pipe(Effect.provide(LocalStorage.Live));
 
-    cachedPreferences = normalizeNotificationPreferences(JSON.parse(raw));
+  try {
+    cachedPreferences = Effect.runSync(program);
     return cachedPreferences;
   } catch {
     cachedPreferences = { ...DEFAULT_NOTIFICATION_PREFERENCES };
@@ -143,8 +153,13 @@ export function writeNotificationPreferences(preferences: NotificationPreference
     return;
   }
 
+  const program = Effect.gen(function* () {
+    const storage = yield* LocalStorage;
+    yield* storage.setItem(NOTIFICATION_PREFERENCES_STORAGE_KEY, JSON.stringify(normalized));
+  }).pipe(Effect.provide(LocalStorage.Live));
+
   try {
-    localStorage.setItem(NOTIFICATION_PREFERENCES_STORAGE_KEY, JSON.stringify(normalized));
+    Effect.runSync(program);
   } catch {
     // Ignore persistence errors.
   }
