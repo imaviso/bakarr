@@ -19,7 +19,12 @@ export function authMeQueryOptions() {
     queryKey: animeKeys.auth.me(),
     queryFn: ({ signal }) =>
       Effect.runPromise(
-        fetchJson(AuthUserSchema, `${API_BASE}/auth/me`, { skipAutoLogoutOnUnauthorized: true }, signal),
+        fetchJson(
+          AuthUserSchema,
+          `${API_BASE}/auth/me`,
+          { skipAutoLogoutOnUnauthorized: true },
+          signal,
+        ),
       ),
     staleTime: Infinity,
   });

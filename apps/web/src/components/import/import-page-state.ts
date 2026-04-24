@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { systemConfigQueryOptions } from "~/lib/api";
 import { toImportInputMode, useImportFlow } from "~/components/import/use-import-flow";
@@ -39,7 +39,6 @@ export function createImportPageState(options: CreateImportPageStateOptions) {
 
   const { data: config } = useSuspenseQuery(systemConfigQueryOptions());
   const [selectedBrowseRoot, setSelectedBrowseRoot] = useState<BrowseRootKey>("library");
-  const [pathAutofillEnabled, setPathAutofillEnabled] = useState(true);
 
   const currentStepIndex = importSteps.findIndex((stepConfig) => stepConfig.id === flow.step);
 
@@ -91,31 +90,6 @@ export function createImportPageState(options: CreateImportPageStateOptions) {
 
   const activeBrowseRoot =
     allowedRoots.find((root) => root.key === selectedBrowseRoot) ?? allowedRoots[0] ?? null;
-  const flowPath = flow.path;
-  const setFlowPath = flow.setPath;
-
-  useEffect(() => {
-    const root = activeBrowseRoot;
-    if (!root) {
-      return;
-    }
-
-    if (!flowPath && pathAutofillEnabled) {
-      setFlowPath(root.path);
-    }
-  }, [activeBrowseRoot, flowPath, pathAutofillEnabled, setFlowPath]);
-
-  useEffect(() => {
-    const roots = allowedRoots;
-    const fallbackRoot = roots[0];
-    if (!fallbackRoot) {
-      return;
-    }
-
-    if (!roots.some((root) => root.key === selectedBrowseRoot)) {
-      setSelectedBrowseRoot(fallbackRoot.key);
-    }
-  }, [allowedRoots, selectedBrowseRoot]);
 
   const setInputMode = (value: string | null | undefined) => {
     flow.setInputMode(toImportInputMode(value));
@@ -128,22 +102,18 @@ export function createImportPageState(options: CreateImportPageStateOptions) {
     }
 
     setSelectedBrowseRoot(root.key);
-    setPathAutofillEnabled(true);
     flow.setPath(root.path);
   };
 
   const clearPath = () => {
-    setPathAutofillEnabled(false);
     flow.setPath("");
   };
 
   const setPathFromBrowserSelection = (value: string) => {
-    setPathAutofillEnabled(false);
     flow.setPath(value);
   };
 
   const setPathFromManualInput = (value: string) => {
-    setPathAutofillEnabled(false);
     flow.setPath(value);
   };
 

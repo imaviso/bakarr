@@ -13,20 +13,20 @@ React SPA with TanStack Router/Query/Form. Effect is a **boundary tool only**.
 ## Patterns
 
 ### API call
+
 ```ts
 // lib/api/feature.ts
 export function featureQueryOptions() {
   return queryOptions({
     queryKey: keys.feature(),
     queryFn: ({ signal }) =>
-      Effect.runPromise(
-        fetchJson(FeatureSchema, `${API_BASE}/feature`, undefined, signal)
-      ),
+      Effect.runPromise(fetchJson(FeatureSchema, `${API_BASE}/feature`, undefined, signal)),
   });
 }
 ```
 
 ### Form validator
+
 ```ts
 validators: {
   onChange: Schema.standardSchemaV1(MyFormSchema),
@@ -34,8 +34,9 @@ validators: {
 ```
 
 ### Route search params
+
 ```ts
-validateSearch: (search) => Schema.decodeUnknownSync(MySearchSchema)(search)
+validateSearch: (search) => Schema.decodeUnknownSync(MySearchSchema)(search);
 ```
 
 ## Commands
