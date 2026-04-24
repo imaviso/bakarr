@@ -34,13 +34,16 @@ export function useLogsQueries(options: UseLogsQueriesOptions) {
   });
   const downloadEventsQuery = createDownloadEventsQuery(downloadEventsSearchState.queryInput);
 
-  const allLogs = useMemo(() => logsQuery.data?.pages.flatMap((page) => page.logs) ?? [], [logsQuery.data?.pages]);
-  const canGoToPreviousDownloadEventsPage = useMemo(() =>
-    Boolean(downloadEventsQuery.data?.prev_cursor),
+  const allLogs = useMemo(
+    () => logsQuery.data?.pages.flatMap((page) => page.logs) ?? [],
+    [logsQuery.data?.pages],
+  );
+  const canGoToPreviousDownloadEventsPage = useMemo(
+    () => Boolean(downloadEventsQuery.data?.prev_cursor),
     [downloadEventsQuery.data?.prev_cursor],
   );
-  const canGoToNextDownloadEventsPage = useMemo(() =>
-    Boolean(downloadEventsQuery.data?.next_cursor),
+  const canGoToNextDownloadEventsPage = useMemo(
+    () => Boolean(downloadEventsQuery.data?.next_cursor),
     [downloadEventsQuery.data?.next_cursor],
   );
 

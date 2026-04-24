@@ -23,9 +23,7 @@ export function useLogsActions(options: UseLogsActionsOptions) {
   const [lastDownloadEventsExport, setLastDownloadEventsExport] = useState<
     DownloadEventsExportResult | undefined
   >(undefined);
-  const [selectedDownloadEvent, setSelectedDownloadEvent] = useState<DownloadEvent | null>(
-    null,
-  );
+  const [selectedDownloadEvent, setSelectedDownloadEvent] = useState<DownloadEvent | null>(null);
   const [selectedLog, setSelectedLog] = useState<SystemLog | null>(null);
 
   const clearLogsWithToast = () => clearLogs.mutate();

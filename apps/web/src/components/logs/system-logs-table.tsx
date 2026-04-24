@@ -49,9 +49,7 @@ export function SystemLogsTable(props: SystemLogsTableProps) {
   const lastVirtualRow = virtualRows[virtualRows.length - 1];
 
   const logsPaddingTop = firstVirtualRow ? firstVirtualRow.start : 0;
-  const logsPaddingBottom = lastVirtualRow
-    ? rowVirtualizer.getTotalSize() - lastVirtualRow.end
-    : 0;
+  const logsPaddingBottom = lastVirtualRow ? rowVirtualizer.getTotalSize() - lastVirtualRow.end : 0;
 
   useEffect(() => {
     if (!props.hasNextPage) {
@@ -85,17 +83,22 @@ export function SystemLogsTable(props: SystemLogsTableProps) {
       isFetchingNextPage={props.isFetchingNextPage}
       onFetchNextPage={props.onFetchNextPage}
     >
-      <div
-        ref={logsScrollRef}
-        className="h-full overflow-y-auto overflow-x-hidden"
-      >
+      <div ref={logsScrollRef} className="h-full overflow-y-auto overflow-x-hidden">
         <Table className="table-fixed w-full">
           <TableHeader className="sticky top-0 bg-card z-10">
             <TableRow className="hover:bg-transparent border-none">
-              <TableHead scope="col" className="w-[160px]">Timestamp</TableHead>
-              <TableHead scope="col" className="w-[100px]">Level</TableHead>
-              <TableHead scope="col" className="w-[180px]">Source</TableHead>
-              <TableHead scope="col" className="w-full">Message</TableHead>
+              <TableHead scope="col" className="w-[160px]">
+                Timestamp
+              </TableHead>
+              <TableHead scope="col" className="w-[100px]">
+                Level
+              </TableHead>
+              <TableHead scope="col" className="w-[180px]">
+                Source
+              </TableHead>
+              <TableHead scope="col" className="w-full">
+                Message
+              </TableHead>
               <TableHead scope="col" className="w-[80px]" />
             </TableRow>
           </TableHeader>

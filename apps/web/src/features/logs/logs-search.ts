@@ -14,7 +14,10 @@ const LOGS_FILTER_DEFAULTS = {
 
 const logsEventsDefaults = createDownloadEventsSearchDefaults(LOGS_DOWNLOAD_EVENTS_SEARCH_KEYS);
 
-const baseEventsSchema = createDownloadEventsSearchSchema(LOGS_DOWNLOAD_EVENTS_SEARCH_KEYS, logsEventsDefaults);
+const baseEventsSchema = createDownloadEventsSearchSchema(
+  LOGS_DOWNLOAD_EVENTS_SEARCH_KEYS,
+  logsEventsDefaults,
+);
 
 const LogsSearchSchema = Schema.Struct({
   ...baseEventsSchema.fields,

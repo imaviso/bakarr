@@ -67,18 +67,21 @@ function toFilterStates(searchState: LogsSearchState): FilterState[] {
 }
 
 export function useLogsFilters(options: UseLogsFiltersOptions) {
-  const parsedSearch = useMemo(() =>
-    parseLogsSearch(options.search as Record<string, unknown>),
+  const parsedSearch = useMemo(
+    () => parseLogsSearch(options.search as Record<string, unknown>),
     [options.search],
   );
   const filterStates = useMemo(() => toFilterStates(parsedSearch), [parsedSearch]);
 
-  const logsParams = useMemo<LogsFilterParams>(() => ({
-    endDate: parsedSearch.endDate || undefined,
-    eventType: parsedSearch.eventType || undefined,
-    level: parsedSearch.level || undefined,
-    startDate: parsedSearch.startDate || undefined,
-  }), [parsedSearch]);
+  const logsParams = useMemo<LogsFilterParams>(
+    () => ({
+      endDate: parsedSearch.endDate || undefined,
+      eventType: parsedSearch.eventType || undefined,
+      level: parsedSearch.level || undefined,
+      startDate: parsedSearch.startDate || undefined,
+    }),
+    [parsedSearch],
+  );
 
   const setFilterStates = (next: FilterState[]) => {
     const patch: Partial<Record<string, string>> = {

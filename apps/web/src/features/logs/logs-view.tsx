@@ -135,13 +135,21 @@ export function LogsView(props: LogsViewProps) {
       <Card className="shrink-0">
         <div className="p-4 border-b border-border">
           <h2 className="text-sm font-medium text-foreground">Ops Summary</h2>
-          <p className="text-xs text-muted-foreground mt-1">High-level download and worker health</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            High-level download and worker health
+          </p>
         </div>
         <div className="p-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
           {props.state.dashboardQuery.data ? (
             <>
-              <DashboardMetricCard label="Queued" value={props.state.dashboardQuery.data.queued_downloads} />
-              <DashboardMetricCard label="Active" value={props.state.dashboardQuery.data.active_downloads} />
+              <DashboardMetricCard
+                label="Queued"
+                value={props.state.dashboardQuery.data.queued_downloads}
+              />
+              <DashboardMetricCard
+                label="Active"
+                value={props.state.dashboardQuery.data.active_downloads}
+              />
               <DashboardMetricCard
                 label="Failed"
                 value={props.state.dashboardQuery.data.failed_downloads}
@@ -169,7 +177,9 @@ export function LogsView(props: LogsViewProps) {
       <Card className="shrink-0">
         <div className="p-4 border-b border-border">
           <h2 className="text-sm font-medium text-foreground">Background Jobs</h2>
-          <p className="text-xs text-muted-foreground mt-1">Current scheduler and worker visibility</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Current scheduler and worker visibility
+          </p>
         </div>
         <div className="p-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {!props.state.jobsQuery.isLoading ? (
