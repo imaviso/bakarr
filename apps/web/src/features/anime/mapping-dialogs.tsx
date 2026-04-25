@@ -24,12 +24,9 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
-import {
-  createBulkMapEpisodesMutation,
-  createListFilesQuery,
-  createMapEpisodeMutation,
-  type Episode,
-} from "~/api";
+import { createBulkMapEpisodesMutation, createMapEpisodeMutation } from "~/api/anime-mutations";
+import { createListFilesQuery } from "~/api/anime";
+import type { Episode } from "~/api/contracts";
 import { cn } from "~/infra/utils";
 
 interface BulkMappingDialogProps {

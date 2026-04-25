@@ -3,13 +3,13 @@ import {
   createDeleteEpisodeFileMutation,
   createRefreshEpisodesMutation,
   createScanFolderMutation,
-  createSearchMissingMutation,
   createToggleMonitorMutation,
   createUpdateAnimePathMutation,
   createUpdateAnimeProfileMutation,
   createUpdateAnimeReleaseProfilesMutation,
-  getAnimeEpisodeStreamUrl,
-} from "~/api";
+} from "~/api/anime-mutations";
+import { createSearchMissingMutation } from "~/api/system-downloads";
+import { getAnimeEpisodeStreamUrl } from "~/api/auth";
 import { useState } from "react";
 import { toast } from "sonner";
 import { copyToClipboard } from "~/infra/utils";

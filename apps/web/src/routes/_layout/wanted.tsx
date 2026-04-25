@@ -23,14 +23,11 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
-import {
-  createSystemTaskQuery,
-  isTaskActive,
-  createSearchMissingMutation,
-  systemConfigQueryOptions,
-  wantedQueryOptions,
-  type MissingEpisode,
-} from "~/api";
+import { createSystemTaskQuery, isTaskActive } from "~/api/operations-tasks";
+import { createSearchMissingMutation } from "~/api/system-downloads";
+import { systemConfigQueryOptions } from "~/api/system-config";
+import { wantedQueryOptions } from "~/api/system-wanted";
+import type { MissingEpisode } from "~/api/contracts";
 import { usePageTitle } from "~/domain/page-title";
 import {
   formatAiringDateWithPreferences,

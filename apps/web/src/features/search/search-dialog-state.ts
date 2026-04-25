@@ -1,12 +1,12 @@
 import { differenceInDays, format, isValid, parseISO } from "date-fns";
 import { useDeferredValue, useMemo, useState } from "react";
+import { createGrabReleaseMutation } from "~/api/anime-mutations";
+import { createNyaaSearchQuery } from "~/api/anime";
 import {
-  createGrabReleaseMutation,
-  createNyaaSearchQuery,
   SEARCH_RELEASE_CATEGORY_LABELS,
   SEARCH_RELEASE_FILTER_LABELS,
   type NyaaSearchResult,
-} from "~/api";
+} from "~/api/contracts";
 import { buildReleaseDisplay, buildSelectionDisplayFromNyaaResult } from "~/domain/release/display";
 import { getReleaseConfidence } from "~/domain/release/selection";
 import { buildGrabInputFromNyaaResult } from "~/domain/release/grab";

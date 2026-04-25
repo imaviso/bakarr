@@ -15,12 +15,12 @@ export function safeExternalUrl(input: string | undefined): string | undefined {
   const value = input.trim();
   if (!value) return undefined;
 
-  try {
-    const parsed = new URL(value);
-    return parsed.protocol === "http:" || parsed.protocol === "https:"
-      ? parsed.toString()
-      : undefined;
-  } catch {
+  if (!URL.canParse(value)) {
     return undefined;
   }
+
+  const parsed = new URL(value);
+  return parsed.protocol === "http:" || parsed.protocol === "https:"
+    ? parsed.toString()
+    : undefined;
 }

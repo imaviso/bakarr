@@ -7,7 +7,7 @@ import {
   ArrowClockwiseIcon,
 } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { Schema } from "effect";
 import {
@@ -26,7 +26,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { NotificationSettingsCard } from "~/features/settings/notification-settings-card";
-import { createChangePasswordMutation, createRegenerateApiKeyMutation } from "~/api";
+import { createChangePasswordMutation, createRegenerateApiKeyMutation } from "~/api/auth";
 import { useAuth } from "~/app/auth";
 import { copyToClipboard } from "~/infra/utils";
 
@@ -42,16 +42,28 @@ const ChangePasswordSchema = Schema.Struct({
   ),
 });
 
-type ChangePasswordFormData = Schema.Schema.Type<typeof ChangePasswordSchema>;
+function getFirstErrorMessage(errors: readonly unknown[]): string | undefined {
+  const first = errors[0];
+  if (!first) return undefined;
+  if (typeof first === "string") return first;
+  if (typeof first === "object" && "message" in first) {
+    const message = first.message;
+    return typeof message === "string" ? message : "Invalid field value";
+  }
+  if (typeof first === "number" || typeof first === "boolean") return String(first);
+  return undefined;
+}
 
 export function AccountSettingsForm() {
   const { auth } = useAuth();
   const changePassword = createChangePasswordMutation();
   const regenerateApiKey = createRegenerateApiKeyMutation();
 
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showApiKey, setShowApiKey] = useState(false);
+  const [visibility, setVisibility] = useState({
+    currentPassword: false,
+    newPassword: false,
+    apiKey: false,
+  });
   const currentApiKey = auth.apiKey?.trim() || "";
 
   const passwordForm = useForm({
@@ -59,19 +71,11 @@ export function AccountSettingsForm() {
       currentPassword: "",
       newPassword: "",
       confirmPassword: "",
-    } as ChangePasswordFormData,
+    },
     validators: {
       onChange: Schema.standardSchemaV1(ChangePasswordSchema),
     },
     onSubmit: async ({ value, formApi }) => {
-      if (value.newPassword !== value.confirmPassword) {
-        formApi.setFieldMeta("confirmPassword", (prev) => ({
-          ...prev,
-          errors: [{ message: "Passwords do not match" }],
-        }));
-        return;
-      }
-
       try {
         await changePassword.mutateAsync({
           current_password: value.currentPassword,
@@ -79,17 +83,15 @@ export function AccountSettingsForm() {
         });
         formApi.reset();
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Failed to change password";
-        formApi.setFieldMeta("currentPassword", (prev) => ({
-          ...prev,
-          errors: [{ message }],
-        }));
+        toast.error(error instanceof Error ? error.message : "Failed to change password");
       }
     },
   });
 
-  const submitPasswordForm = async () => {
-    await passwordForm.handleSubmit();
+  const submitPasswordForm = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void passwordForm.handleSubmit();
   };
 
   const handleRegenerateApiKey = async () => {
@@ -121,7 +123,7 @@ export function AccountSettingsForm() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <form action={submitPasswordForm} className="space-y-4 max-w-md">
+          <form onSubmit={submitPasswordForm} className="space-y-4 max-w-md">
             <passwordForm.Field name="currentPassword">
               {(field) => (
                 <div className="space-y-1">
@@ -131,7 +133,8 @@ export function AccountSettingsForm() {
                       id="current-password"
                       value={field.state.value}
                       onChange={(event) => field.handleChange(event.currentTarget.value)}
-                      type={showCurrentPassword ? "text" : "password"}
+                      onBlur={field.handleBlur}
+                      type={visibility.currentPassword ? "text" : "password"}
                       autoComplete="current-password"
                     />
                     <Button
@@ -139,19 +142,24 @@ export function AccountSettingsForm() {
                       variant="ghost"
                       size="icon"
                       className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                      onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                      aria-label={showCurrentPassword ? "Hide password" : "Show password"}
+                      onClick={() =>
+                        setVisibility((prev) => ({
+                          ...prev,
+                          currentPassword: !prev.currentPassword,
+                        }))
+                      }
+                      aria-label={visibility.currentPassword ? "Hide password" : "Show password"}
                     >
-                      {showCurrentPassword ? (
+                      {visibility.currentPassword ? (
                         <EyeIcon className="h-4 w-4 text-muted-foreground" />
                       ) : (
                         <EyeSlashIcon className="h-4 w-4 text-muted-foreground" />
                       )}
                     </Button>
                   </div>
-                  {field.state.meta.errors[0]?.message && (
+                  {getFirstErrorMessage(field.state.meta.errors) && (
                     <div className="text-[0.8rem] text-destructive">
-                      {field.state.meta.errors[0]?.message}
+                      {getFirstErrorMessage(field.state.meta.errors)}
                     </div>
                   )}
                 </div>
@@ -167,7 +175,8 @@ export function AccountSettingsForm() {
                       id="new-password"
                       value={field.state.value}
                       onChange={(event) => field.handleChange(event.currentTarget.value)}
-                      type={showNewPassword ? "text" : "password"}
+                      onBlur={field.handleBlur}
+                      type={visibility.newPassword ? "text" : "password"}
                       autoComplete="new-password"
                     />
                     <Button
@@ -175,26 +184,40 @@ export function AccountSettingsForm() {
                       variant="ghost"
                       size="icon"
                       className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                      onClick={() => setShowNewPassword(!showNewPassword)}
-                      aria-label={showNewPassword ? "Hide password" : "Show password"}
+                      onClick={() =>
+                        setVisibility((prev) => ({ ...prev, newPassword: !prev.newPassword }))
+                      }
+                      aria-label={visibility.newPassword ? "Hide password" : "Show password"}
                     >
-                      {showNewPassword ? (
+                      {visibility.newPassword ? (
                         <EyeIcon className="h-4 w-4 text-muted-foreground" />
                       ) : (
                         <EyeSlashIcon className="h-4 w-4 text-muted-foreground" />
                       )}
                     </Button>
                   </div>
-                  {field.state.meta.errors[0]?.message && (
+                  {getFirstErrorMessage(field.state.meta.errors) && (
                     <div className="text-[0.8rem] text-destructive">
-                      {field.state.meta.errors[0]?.message}
+                      {getFirstErrorMessage(field.state.meta.errors)}
                     </div>
                   )}
                 </div>
               )}
             </passwordForm.Field>
 
-            <passwordForm.Field name="confirmPassword">
+            <passwordForm.Field
+              name="confirmPassword"
+              validators={{
+                onChangeListenTo: ["newPassword"],
+                onChange: ({ value, fieldApi }) => {
+                  const newPassword = fieldApi.form.getFieldValue("newPassword");
+                  if (value !== newPassword) {
+                    return "Passwords do not match";
+                  }
+                  return undefined;
+                },
+              }}
+            >
               {(field) => (
                 <div className="space-y-1">
                   <Label htmlFor="confirm-password">Confirm New Password</Label>
@@ -202,12 +225,13 @@ export function AccountSettingsForm() {
                     id="confirm-password"
                     value={field.state.value}
                     onChange={(event) => field.handleChange(event.currentTarget.value)}
+                    onBlur={field.handleBlur}
                     type="password"
                     autoComplete="new-password"
                   />
-                  {field.state.meta.errors[0]?.message && (
+                  {getFirstErrorMessage(field.state.meta.errors) && (
                     <div className="text-[0.8rem] text-destructive">
-                      {field.state.meta.errors[0]?.message}
+                      {getFirstErrorMessage(field.state.meta.errors)}
                     </div>
                   )}
                 </div>
@@ -240,7 +264,7 @@ export function AccountSettingsForm() {
           <div className="flex items-center gap-2 max-w-xl">
             <div className="flex-1 relative">
               <Input
-                type={showApiKey ? "text" : "password"}
+                type={visibility.apiKey ? "text" : "password"}
                 value={currentApiKey}
                 placeholder="API key is not stored in this client"
                 readOnly
@@ -252,11 +276,11 @@ export function AccountSettingsForm() {
                   variant="ghost"
                   size="icon"
                   className="relative after:absolute after:-inset-2 h-7 w-7"
-                  onClick={() => setShowApiKey(!showApiKey)}
-                  title={showApiKey ? "Hide API key" : "Show API key"}
-                  aria-label={showApiKey ? "Hide API key" : "Show API key"}
+                  onClick={() => setVisibility((prev) => ({ ...prev, apiKey: !prev.apiKey }))}
+                  title={visibility.apiKey ? "Hide API key" : "Show API key"}
+                  aria-label={visibility.apiKey ? "Hide API key" : "Show API key"}
                 >
-                  {showApiKey ? (
+                  {visibility.apiKey ? (
                     <EyeIcon className="h-4 w-4 text-muted-foreground" />
                   ) : (
                     <EyeSlashIcon className="h-4 w-4 text-muted-foreground" />

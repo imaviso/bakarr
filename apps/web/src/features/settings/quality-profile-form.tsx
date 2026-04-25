@@ -18,8 +18,8 @@ import {
   createCreateProfileMutation,
   createQualitiesQuery,
   createUpdateProfileMutation,
-  type QualityProfile,
-} from "~/api";
+} from "~/api/profiles";
+import type { QualityProfile } from "~/api/contracts";
 
 const ProfileSchema = Schema.mutable(
   Schema.Struct({

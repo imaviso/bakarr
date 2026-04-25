@@ -1,21 +1,19 @@
-import { useState } from "react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { SystemSettingsAutomationSections } from "~/features/settings/system-settings-automation-sections";
 import { useSystemSettingsForm } from "~/features/settings/system-settings-form-hook";
 import { SystemSettingsGeneralSections } from "~/features/settings/system-settings-general-sections";
 import { type ConfigSettingsMode } from "~/features/settings/system-settings-schema";
 import { Button } from "~/components/ui/button";
+import { createSystemTaskQuery, isTaskActive } from "~/api/operations-tasks";
 import {
-  createSystemTaskQuery,
   systemConfigQueryOptions,
   createSystemStatusQuery,
   createTriggerMetadataRefreshMutation,
   createTriggerRssCheckMutation,
   createTriggerScanMutation,
   createUpdateSystemConfigMutation,
-  isTaskActive,
-  type Config,
-} from "~/api";
+} from "~/api/system-config";
+import type { Config } from "~/api/contracts";
 
 export function GeneralSettingsForm(props: { mode: ConfigSettingsMode }) {
   const { data: config } = useSuspenseQuery(systemConfigQueryOptions());
@@ -45,38 +43,27 @@ function SystemForm(props: {
   });
 
   const systemStatus = createSystemStatusQuery();
-  const [latestSystemTaskId, setLatestSystemTaskId] = useState<number | undefined>(undefined);
-  const latestSystemTask = createSystemTaskQuery(latestSystemTaskId);
-  const isSystemTaskRunning =
-    latestSystemTask.data !== undefined && isTaskActive(latestSystemTask.data);
   const triggerScan = createTriggerScanMutation();
   const triggerRss = createTriggerRssCheckMutation();
   const triggerMetadataRefresh = createTriggerMetadataRefreshMutation();
+  const latestSystemTaskId =
+    triggerMetadataRefresh.data?.task_id ?? triggerRss.data?.task_id ?? triggerScan.data?.task_id;
+  const latestSystemTask = createSystemTaskQuery(latestSystemTaskId);
+  const isSystemTaskRunning =
+    latestSystemTask.data !== undefined && isTaskActive(latestSystemTask.data);
   const showsGeneral = props.mode === "general";
   const showsAutomation = props.mode === "automation";
 
   const handleTriggerScan = () => {
-    triggerScan.mutate(undefined, {
-      onSuccess: (accepted) => {
-        setLatestSystemTaskId(accepted.task_id);
-      },
-    });
+    triggerScan.mutate(undefined);
   };
 
   const handleTriggerRss = () => {
-    triggerRss.mutate(undefined, {
-      onSuccess: (accepted) => {
-        setLatestSystemTaskId(accepted.task_id);
-      },
-    });
+    triggerRss.mutate(undefined);
   };
 
   const handleTriggerMetadataRefresh = () => {
-    triggerMetadataRefresh.mutate(undefined, {
-      onSuccess: (accepted) => {
-        setLatestSystemTaskId(accepted.task_id);
-      },
-    });
+    triggerMetadataRefresh.mutate(undefined);
   };
 
   const submitSystemSettingsForm = async () => {
@@ -86,11 +73,9 @@ function SystemForm(props: {
   return (
     <form
       autoComplete="off"
-      action={submitSystemSettingsForm}
+      onSubmit={submitSystemSettingsForm}
       className="space-y-8 pb-24 max-w-3xl"
     >
-      <input type="password" style={{ display: "none" }} />
-
       {showsGeneral && <SystemSettingsGeneralSections form={form} />}
 
       {showsAutomation && (

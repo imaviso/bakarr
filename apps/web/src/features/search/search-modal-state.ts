@@ -1,8 +1,6 @@
-import {
-  createEpisodeSearchQuery,
-  createGrabReleaseMutation,
-  type EpisodeSearchResult,
-} from "~/api";
+import { createEpisodeSearchQuery } from "~/api/anime";
+import { createGrabReleaseMutation } from "~/api/anime-mutations";
+import type { EpisodeSearchResult } from "~/api/contracts";
 import { buildGrabInputFromEpisodeResult } from "~/domain/release/grab";
 
 interface SearchModalStateOptions {

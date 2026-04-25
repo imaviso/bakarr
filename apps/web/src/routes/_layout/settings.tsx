@@ -19,8 +19,8 @@ import {
   profilesQueryOptions,
   qualitiesQueryOptions,
   releaseProfilesQueryOptions,
-  systemConfigQueryOptions,
-} from "~/api";
+} from "~/api/profiles";
+import { systemConfigQueryOptions } from "~/api/system-config";
 import { usePageTitle } from "~/domain/page-title";
 
 const SystemStatusLazy = lazy(() =>

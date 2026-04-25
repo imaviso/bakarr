@@ -13,7 +13,7 @@ import {
   createReconcileDownloadMutation,
   createResumeDownloadMutation,
   createRetryDownloadMutation,
-} from "~/api";
+} from "~/api/system-downloads";
 import type { DownloadStatusPresentation } from "~/domain/download/status";
 import { formatDateTime } from "~/domain/date-time";
 

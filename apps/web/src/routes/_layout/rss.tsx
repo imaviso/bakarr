@@ -39,14 +39,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
+import { animeListQueryOptions } from "~/api/anime";
 import {
-  animeListQueryOptions,
   createAddRssFeedMutation,
   createDeleteRssFeedMutation,
   createToggleRssFeedMutation,
-  type RssFeed,
   rssFeedsQueryOptions,
-} from "~/api";
+} from "~/api/system-rss-calendar";
+import type { RssFeed } from "~/api/contracts";
 import { usePageTitle } from "~/domain/page-title";
 
 export const Route = createFileRoute("/_layout/rss")({

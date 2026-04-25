@@ -17,8 +17,8 @@ import { Switch } from "~/components/ui/switch";
 import {
   createCreateReleaseProfileMutation,
   createUpdateReleaseProfileMutation,
-  type ReleaseProfile,
-} from "~/api";
+} from "~/api/profiles";
+import type { ReleaseProfile } from "~/api/contracts";
 
 const ReleaseProfileSchema = Schema.Struct({
   name: Schema.String.pipe(Schema.minLength(1, { message: () => "Name is required" })),

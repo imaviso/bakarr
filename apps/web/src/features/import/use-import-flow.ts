@@ -1,15 +1,13 @@
-import { useState } from "react";
+import { useCallback, useMemo, useReducer } from "react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import type { AnimeSearchResult, ImportFileRequest, ScannedFile } from "~/api/contracts";
+import { animeListQueryOptions } from "~/api/anime";
 import {
-  type AnimeSearchResult,
-  animeListQueryOptions,
   createImportCandidateSelectionMutation,
   createImportFilesMutation,
   createScanImportPathMutation,
-  type ImportFileRequest,
-  type ScannedFile,
-} from "~/api";
+} from "~/api/system-library";
 import { buildImportFileRequest, findMissingImportCandidates } from "./import-flow";
 import { createImportDropzoneHandlers } from "./import-dropzone";
 import {
@@ -31,18 +29,131 @@ export function toImportInputMode(value: string | null | undefined): "browser" |
   return value === "manual" ? "manual" : "browser";
 }
 
-export function useImportFlow(options: ImportFlowOptions = {}) {
-  const [path, setPath] = useState("");
-  const [step, setStep] = useState<Step>("scan");
-  const [selectedFiles, setSelectedFiles] = useState<Map<string, ImportFileRequest>>(new Map());
-  const [inputMode, setInputMode] = useState<"browser" | "manual">("browser");
-  const [isDragOver, setIsDragOver] = useState(false);
+interface State {
+  path: string;
+  step: Step;
+  selectedFiles: Map<string, ImportFileRequest>;
+  inputMode: "browser" | "manual";
+  isDragOver: boolean;
+  selectedCandidateIds: Set<number>;
+  manualCandidates: AnimeSearchResult[];
+  isSearchOpen: boolean;
+  pendingAddCandidates: AnimeSearchResult[];
+  currentAddIndex: number;
+}
 
-  const [selectedCandidateIds, setSelectedCandidateIds] = useState<Set<number>>(new Set());
-  const [manualCandidates, setManualCandidates] = useState<AnimeSearchResult[]>([]);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [pendingAddCandidates, setPendingAddCandidates] = useState<AnimeSearchResult[]>([]);
-  const [currentAddIndex, setCurrentAddIndex] = useState(0);
+type Action =
+  | { type: "reset" }
+  | { type: "setPath"; path: string }
+  | { type: "setStep"; step: Step }
+  | { type: "setInputMode"; mode: "browser" | "manual" }
+  | { type: "setIsDragOver"; value: boolean }
+  | { type: "setIsSearchOpen"; value: boolean }
+  | { type: "scanSuccess"; preselected: Map<string, ImportFileRequest>; candidateIds: Set<number> }
+  | {
+      type: "toggleCandidateSuccess";
+      candidateIds: Set<number>;
+      files: Map<string, ImportFileRequest>;
+    }
+  | { type: "manualAdd"; candidate: AnimeSearchResult }
+  | { type: "startAddCandidates"; candidates: AnimeSearchResult[] }
+  | { type: "advanceAddCandidate" }
+  | { type: "closeAddCandidateDialog" }
+  | { type: "toggleFile"; file: ScannedFile; targetAnimeId: number }
+  | { type: "updateFileAnime"; file: ScannedFile; newAnimeId: number }
+  | { type: "updateFileMapping"; file: ScannedFile; season: number; episode: number };
+
+const initialState: State = {
+  path: "",
+  step: "scan",
+  selectedFiles: new Map(),
+  inputMode: "browser",
+  isDragOver: false,
+  selectedCandidateIds: new Set(),
+  manualCandidates: [],
+  isSearchOpen: false,
+  pendingAddCandidates: [],
+  currentAddIndex: 0,
+};
+
+const EMPTY_CANDIDATES: readonly AnimeSearchResult[] = [];
+
+function reducer(state: State, action: Action): State {
+  switch (action.type) {
+    case "reset":
+      return initialState;
+    case "setPath":
+      return { ...state, path: action.path };
+    case "setStep":
+      return { ...state, step: action.step };
+    case "setInputMode":
+      return { ...state, inputMode: action.mode };
+    case "setIsDragOver":
+      return { ...state, isDragOver: action.value };
+    case "setIsSearchOpen":
+      return { ...state, isSearchOpen: action.value };
+    case "scanSuccess":
+      return {
+        ...state,
+        selectedFiles: action.preselected,
+        selectedCandidateIds: action.candidateIds,
+        step: "review",
+      };
+    case "toggleCandidateSuccess":
+      return {
+        ...state,
+        selectedCandidateIds: action.candidateIds,
+        selectedFiles: action.files,
+      };
+    case "manualAdd":
+      return {
+        ...state,
+        manualCandidates: [...state.manualCandidates, action.candidate],
+        isSearchOpen: false,
+      };
+    case "startAddCandidates":
+      return {
+        ...state,
+        pendingAddCandidates: action.candidates,
+        currentAddIndex: 0,
+      };
+    case "advanceAddCandidate": {
+      const nextIndex = state.currentAddIndex + 1;
+      if (nextIndex >= state.pendingAddCandidates.length) {
+        return { ...state, pendingAddCandidates: [], currentAddIndex: 0 };
+      }
+      return { ...state, currentAddIndex: nextIndex };
+    }
+    case "closeAddCandidateDialog":
+      return { ...state, pendingAddCandidates: [], currentAddIndex: 0 };
+    case "toggleFile": {
+      const next = toggleSelectedImportFile(state.selectedFiles, action.file, action.targetAnimeId);
+      return { ...state, selectedFiles: next };
+    }
+    case "updateFileAnime": {
+      const next = updateSelectedImportFileAnime(
+        state.selectedFiles,
+        action.file,
+        action.newAnimeId,
+      );
+      return { ...state, selectedFiles: next };
+    }
+    case "updateFileMapping": {
+      const next = updateSelectedImportFileMapping(
+        state.selectedFiles,
+        action.file,
+        action.season,
+        action.episode,
+      );
+      return { ...state, selectedFiles: next };
+    }
+    default:
+      return state;
+  }
+}
+
+export function useImportFlow(options: ImportFlowOptions = {}) {
+  const [state, dispatch] = useReducer(reducer, initialState);
 
   const scanMutation = createScanImportPathMutation();
   const importMutation = createImportFilesMutation();
@@ -59,42 +170,63 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
   });
 
   const skippedFiles = scanMutation.data?.skipped ?? [];
-  const candidates = [
-    ...(scanMutation.data?.candidates ?? []),
-    ...manualCandidates.filter(
-      (manualCandidate) =>
-        !(scanMutation.data?.candidates ?? []).some(
-          (candidate) => candidate.id === manualCandidate.id,
-        ),
-    ),
-  ];
-  const libraryIds = new Set(animeList.map((anime) => anime.id));
-  const activeAddCandidate = pendingAddCandidates[currentAddIndex];
+  const scanCandidates = scanMutation.data?.candidates ?? EMPTY_CANDIDATES;
+  const candidates = useMemo(
+    () => [
+      ...scanCandidates,
+      ...state.manualCandidates.filter(
+        (manualCandidate) =>
+          !scanCandidates.some((candidate) => candidate.id === manualCandidate.id),
+      ),
+    ],
+    [scanCandidates, state.manualCandidates],
+  );
+  const libraryIds = useMemo(() => new Set(animeList.map((anime) => anime.id)), [animeList]);
+  const activeAddCandidate = state.pendingAddCandidates[state.currentAddIndex];
 
-  const reset = () => {
-    setStep("scan");
-    setPath("");
-    setSelectedFiles(new Map());
-    setSelectedCandidateIds(new Set<number>());
-    setManualCandidates([]);
-    setIsSearchOpen(false);
-    setPendingAddCandidates([]);
-    setCurrentAddIndex(0);
-    setInputMode("browser");
-    setIsDragOver(false);
-  };
+  const reset = useCallback(() => {
+    dispatch({ type: "reset" });
+  }, []);
 
-  const handleManualAdd = (candidate: AnimeSearchResult) => {
-    setManualCandidates((prev) => [...prev, candidate]);
-    setIsSearchOpen(false);
-    toggleCandidate(candidate, true);
-  };
+  const toggleCandidate = useCallback(
+    (candidate: AnimeSearchResult, forceSelect = false) => {
+      importSelectionMutation.mutate(
+        {
+          candidate_id: candidate.id,
+          candidate_title:
+            candidate.title.english || candidate.title.romaji || candidate.title.native || "",
+          force_select: forceSelect,
+          files: scanMutation.data?.files ?? [],
+          selected_candidate_ids: [...state.selectedCandidateIds],
+          selected_files: [...state.selectedFiles.values()],
+        },
+        {
+          onSuccess: (next) => {
+            dispatch({
+              type: "toggleCandidateSuccess",
+              candidateIds: new Set(next.selected_candidate_ids),
+              files: new Map(next.selected_files.map((file) => [file.source_path, file])),
+            });
+          },
+        },
+      );
+    },
+    [importSelectionMutation, scanMutation.data, state.selectedCandidateIds, state.selectedFiles],
+  );
 
-  const handleScan = () => {
+  const handleManualAdd = useCallback(
+    (candidate: AnimeSearchResult) => {
+      dispatch({ type: "manualAdd", candidate });
+      toggleCandidate(candidate, true);
+    },
+    [toggleCandidate],
+  );
+
+  const handleScan = useCallback(() => {
     const animeId = options.animeId;
     scanMutation.mutate(
       {
-        path: path,
+        path: state.path,
         ...(animeId === undefined ? {} : { anime_id: animeId }),
       },
       {
@@ -126,96 +258,87 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
             }
           });
 
-          setSelectedFiles(preselected);
-          setSelectedCandidateIds(newSelectedCandidates);
-          setStep("review");
+          dispatch({ type: "scanSuccess", preselected, candidateIds: newSelectedCandidates });
         },
       },
     );
-  };
+  }, [options.animeId, scanMutation, state.path]);
 
-  const toggleCandidate = (candidate: AnimeSearchResult, forceSelect = false) => {
-    importSelectionMutation.mutate(
-      {
-        candidate_id: candidate.id,
-        candidate_title:
-          candidate.title.english || candidate.title.romaji || candidate.title.native || "",
-        force_select: forceSelect,
-        files: scanMutation.data?.files ?? [],
-        selected_candidate_ids: [...selectedCandidateIds],
-        selected_files: [...selectedFiles.values()],
-      },
-      {
-        onSuccess: (next) => {
-          setSelectedCandidateIds(new Set(next.selected_candidate_ids));
-          setSelectedFiles(new Map(next.selected_files.map((file) => [file.source_path, file])));
+  const closeAddCandidateDialog = useCallback(() => {
+    dispatch({ type: "closeAddCandidateDialog" });
+  }, []);
+
+  const handleImportWithLibraryIds = useCallback(
+    (localAnimeIds: ReadonlySet<number>) => {
+      const files = Array.from(state.selectedFiles.values());
+      const missingCandidates = findMissingImportCandidates({
+        files,
+        localAnimeIds,
+        candidates: candidates,
+      });
+
+      if (missingCandidates.length > 0) {
+        dispatch({ type: "startAddCandidates", candidates: missingCandidates });
+        return;
+      }
+
+      options.beforeImport?.();
+
+      importMutation.mutate(files, {
+        onSuccess: (accepted) => {
+          toast.info(accepted.message);
+          options.onImportQueued?.(accepted.task_id);
+          options.onImportSuccess?.();
         },
-      },
-    );
-  };
+      });
+    },
+    [state.selectedFiles, candidates, options, importMutation],
+  );
 
-  const closeAddCandidateDialog = () => {
-    setPendingAddCandidates([]);
-    setCurrentAddIndex(0);
-  };
+  const handleImport = useCallback(() => {
+    handleImportWithLibraryIds(libraryIds);
+  }, [handleImportWithLibraryIds, libraryIds]);
 
-  const handleImport = () => {
-    const files = Array.from(selectedFiles.values());
-    const missingCandidates = findMissingImportCandidates({
-      files,
-      localAnimeIds: new Set(animeList.map((anime) => anime.id)),
-      candidates: candidates,
-    });
+  const advanceAddCandidateDialog = useCallback(() => {
+    if (state.currentAddIndex + 1 >= state.pendingAddCandidates.length) {
+      const nextLibraryIds = new Set(libraryIds);
+      for (let index = 0; index <= state.currentAddIndex; index++) {
+        const candidate = state.pendingAddCandidates[index];
+        if (candidate) nextLibraryIds.add(candidate.id);
+      }
 
-    if (missingCandidates.length > 0) {
-      setPendingAddCandidates(missingCandidates);
-      setCurrentAddIndex(0);
-      return;
-    }
-
-    options.beforeImport?.();
-
-    importMutation.mutate(files, {
-      onSuccess: (accepted) => {
-        toast.info(accepted.message);
-        options.onImportQueued?.(accepted.task_id);
-        options.onImportSuccess?.();
-      },
-    });
-  };
-
-  const advanceAddCandidateDialog = () => {
-    if (currentAddIndex + 1 >= pendingAddCandidates.length) {
-      closeAddCandidateDialog();
+      dispatch({ type: "closeAddCandidateDialog" });
       if (options.autoImportAfterMissingCandidatesResolved ?? true) {
-        queueMicrotask(() => {
-          handleImport();
-        });
+        handleImportWithLibraryIds(nextLibraryIds);
       }
       return;
     }
 
-    setCurrentAddIndex((index) => index + 1);
-  };
+    dispatch({ type: "advanceAddCandidate" });
+  }, [
+    state.currentAddIndex,
+    state.pendingAddCandidates,
+    libraryIds,
+    options.autoImportAfterMissingCandidatesResolved,
+    handleImportWithLibraryIds,
+  ]);
 
-  const toggleFile = (file: ScannedFile, targetAnimeId: number) => {
-    const next = toggleSelectedImportFile(selectedFiles, file, targetAnimeId);
-    setSelectedFiles(next);
-  };
+  const toggleFile = useCallback((file: ScannedFile, targetAnimeId: number) => {
+    dispatch({ type: "toggleFile", file, targetAnimeId });
+  }, []);
 
-  const updateFileAnime = (file: ScannedFile, newAnimeId: number) => {
-    const next = updateSelectedImportFileAnime(selectedFiles, file, newAnimeId);
-    setSelectedFiles(next);
-  };
+  const updateFileAnime = useCallback((file: ScannedFile, newAnimeId: number) => {
+    dispatch({ type: "updateFileAnime", file, newAnimeId });
+  }, []);
 
-  const updateFileMapping = (file: ScannedFile, season: number, episode: number) => {
-    const next = updateSelectedImportFileMapping(selectedFiles, file, season, episode);
-    setSelectedFiles(next);
-  };
+  const updateFileMapping = useCallback((file: ScannedFile, season: number, episode: number) => {
+    dispatch({ type: "updateFileMapping", file, season, episode });
+  }, []);
+
   const dropzoneHandlers = createImportDropzoneHandlers({
-    setInputMode,
-    setIsDragOver,
-    setPath,
+    setInputMode: (mode) => dispatch({ type: "setInputMode", mode }),
+    setIsDragOver: (value) => dispatch({ type: "setIsDragOver", value }),
+    setPath: (path) => dispatch({ type: "setPath", path }),
   });
 
   return {
@@ -224,7 +347,7 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
     animeList,
     candidates,
     closeAddCandidateDialog,
-    currentAddIndex,
+    currentAddIndex: state.currentAddIndex,
     handleDragLeave: dropzoneHandlers.handleDragLeave,
     handleDragOver: dropzoneHandlers.handleDragOver,
     handleDrop: dropzoneHandlers.handleDrop,
@@ -233,24 +356,24 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
     handleScan,
     importMutation,
     importSelectionMutation,
-    inputMode,
-    isDragOver,
-    isSearchOpen,
+    inputMode: state.inputMode,
+    isDragOver: state.isDragOver,
+    isSearchOpen: state.isSearchOpen,
     libraryIds,
-    manualCandidates,
-    path,
-    pendingAddCandidates,
+    manualCandidates: state.manualCandidates,
+    path: state.path,
+    pendingAddCandidates: state.pendingAddCandidates,
     reset,
     scanMutation,
     scannedFiles,
-    selectedCandidateIds,
-    selectedFiles,
-    setInputMode,
-    setIsSearchOpen,
-    setPath,
-    setStep,
+    selectedCandidateIds: state.selectedCandidateIds,
+    selectedFiles: state.selectedFiles,
+    setInputMode: (mode: "browser" | "manual") => dispatch({ type: "setInputMode", mode }),
+    setIsSearchOpen: (value: boolean) => dispatch({ type: "setIsSearchOpen", value }),
+    setPath: (path: string) => dispatch({ type: "setPath", path }),
+    setStep: (step: Step) => dispatch({ type: "setStep", step }),
     skippedFiles,
-    step,
+    step: state.step,
     toggleCandidate,
     toggleFile,
     updateFileAnime,

@@ -12,16 +12,15 @@ import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { Input } from "~/components/ui/input";
+import type { AnimeSearchResult } from "~/api/contracts";
 import {
-  type AnimeSearchResult,
   animeByAnilistIdQueryOptions,
   animeListQueryOptions,
   createAnimeSearchQuery,
   seasonalAnimeInfiniteQueryOptions,
-  profilesQueryOptions,
-  releaseProfilesQueryOptions,
-  systemConfigQueryOptions,
-} from "~/api";
+} from "~/api/anime";
+import { profilesQueryOptions, releaseProfilesQueryOptions } from "~/api/profiles";
+import { systemConfigQueryOptions } from "~/api/system-config";
 import { usePageTitle } from "~/domain/page-title";
 import { getCurrentSeasonWindow, shiftSeasonWindow } from "~/domain/seasonal-navigation";
 
@@ -297,9 +296,11 @@ function SearchResults(props: SearchResultsProps) {
 
   const getScrollElement = useCallback(() => nodeRef.current, [nodeRef]);
 
+  const estimateSize = useCallback(() => estimateRowSize, [estimateRowSize]);
+
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
-    estimateSize: () => estimateRowSize,
+    estimateSize,
     overscan: 4,
     getScrollElement,
   });

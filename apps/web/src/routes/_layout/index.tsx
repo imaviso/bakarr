@@ -8,7 +8,8 @@ import { PageHeader } from "~/app/layout/page-header";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Separator } from "~/components/ui/separator";
-import { type ActivityItem, activityQueryOptions, libraryStatsQueryOptions } from "~/api";
+import type { ActivityItem } from "~/api/contracts";
+import { activityQueryOptions, libraryStatsQueryOptions } from "~/api/library";
 import { createDownloadsRouteSearch } from "~/domain/download/events-search";
 import { usePageTitle } from "~/domain/page-title";
 
@@ -53,7 +54,7 @@ function DashboardPage() {
         <StatItem
           label="Missing"
           value={stats.missing_episodes}
-          {...(stats.missing_episodes > 0 ? { tone: "warning" as const } : {})}
+          tone={stats.missing_episodes > 0 ? "warning" : undefined}
         />
         <Separator orientation="vertical" className="h-6 hidden sm:block" />
         <div className="flex items-center gap-3">

@@ -1,6 +1,6 @@
+import { useCallback, useMemo, Suspense, lazy } from "react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Suspense, lazy } from "react";
 import { Schema } from "effect";
 import { AnimeDetailsHeader } from "~/features/anime/anime-details-header";
 import { AnimeDetailsMeta } from "~/features/anime/anime-details-meta";
@@ -12,15 +12,9 @@ import { AnimeDetailsDialogsProvider } from "~/features/anime/anime-details-dial
 import { useAnimeDetailsActions } from "~/features/anime/hooks/use-anime-details-actions";
 import { useAnimeDetailsDialogState } from "~/features/anime/hooks/use-anime-details-dialog-state";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
-import {
-  createAnimeScanTaskQuery,
-  animeDetailsQueryOptions,
-  animeListQueryOptions,
-  episodesQueryOptions,
-  isTaskActive,
-  profilesQueryOptions,
-  releaseProfilesQueryOptions,
-} from "~/api";
+import { animeDetailsQueryOptions, animeListQueryOptions, episodesQueryOptions } from "~/api/anime";
+import { createAnimeScanTaskQuery, isTaskActive } from "~/api/operations-tasks";
+import { profilesQueryOptions, releaseProfilesQueryOptions } from "~/api/profiles";
 import { usePageTitle } from "~/domain/page-title";
 import { isAired } from "~/domain/date-time";
 
@@ -55,66 +49,138 @@ function AnimeDetailsPage() {
   const animeQuery = useSuspenseQuery(animeDetailsQueryOptions(animeId));
   const anime = animeQuery.data;
   usePageTitle(anime.title.english || anime.title.romaji);
+
   const episodesQuery = useSuspenseQuery(episodesQueryOptions(animeId));
   const animeList = useSuspenseQuery(animeListQueryOptions()).data;
   const profilesQuery = useSuspenseQuery(profilesQueryOptions());
   const releaseProfilesQuery = useSuspenseQuery(releaseProfilesQueryOptions());
+
   const actions = useAnimeDetailsActions({ animeId });
+  const dialogState = useAnimeDetailsDialogState();
+
   const scanTaskQuery = createAnimeScanTaskQuery({
     animeId,
     ...(actions.latestScanTaskId === undefined ? {} : { taskId: actions.latestScanTaskId }),
   });
-  const isScanTaskRunning = scanTaskQuery.data !== undefined && isTaskActive(scanTaskQuery.data);
-  const dialogState = useAnimeDetailsDialogState();
+  const isScanTaskRunning = useMemo(
+    () => scanTaskQuery.data !== undefined && isTaskActive(scanTaskQuery.data),
+    [scanTaskQuery.data],
+  );
 
   const episodesData = episodesQuery.data;
-  const missingCount = episodesData.filter((e) => !e.downloaded && isAired(e.aired)).length;
-  const availableCount = episodesData.filter((e) => e.downloaded).length;
+
+  const missingCount = useMemo(
+    () => episodesData.filter((e) => !e.downloaded && isAired(e.aired)).length,
+    [episodesData],
+  );
+  const availableCount = useMemo(
+    () => episodesData.filter((e) => e.downloaded).length,
+    [episodesData],
+  );
   const totalEpisodes = episodesData.length || anime.episode_count || 0;
   const isMonitored = anime.monitored ?? true;
-  const libraryIds = new Set(animeList.map((a) => a.id));
 
-  const handleDeleteEpisodeFile = () => {
+  const libraryIds = useMemo(() => new Set(animeList.map((a) => a.id)), [animeList]);
+
+  const handleDeleteEpisodeFile = useCallback(() => {
     actions.handleDeleteEpisodeFile(dialogState.deleteEpisodeState.episodeNumber);
     dialogState.setDeleteEpisodeState((prev) => ({ ...prev, open: false }));
-  };
+  }, [actions, dialogState]);
 
-  const dialogsContextValue = {
-    animeId,
-    episodes: episodesData,
-    searchModalState: dialogState.searchModalState,
-    onSearchModalOpenChange: (open: boolean) =>
-      dialogState.setSearchModalState((prev) => ({ ...prev, open })),
-    renameDialogOpen: dialogState.renameDialogOpen,
-    onRenameDialogOpenChange: dialogState.setRenameDialogOpen,
-    mappingDialogState: dialogState.mappingDialogState,
-    onMappingDialogOpenChange: (open: boolean) =>
-      dialogState.setMappingDialogState((prev) => ({ ...prev, open })),
-    bulkMappingOpen: dialogState.bulkMappingOpen,
-    onBulkMappingOpenChange: dialogState.setBulkMappingOpen,
-    deleteEpisodeState: dialogState.deleteEpisodeState,
-    onDeleteEpisodeDialogOpenChange: (open: boolean) =>
-      dialogState.setDeleteEpisodeState((prev) => ({ ...prev, open })),
-    onConfirmDeleteEpisode: handleDeleteEpisodeFile,
-    editPathOpen: dialogState.editPathOpen,
-    onEditPathOpenChange: dialogState.setEditPathOpen,
-    currentPath: anime.root_folder || "",
-    updatePath: actions.updatePath,
-    isUpdatingPath: actions.isUpdatingPath,
-    editProfileOpen: dialogState.editProfileOpen,
-    onEditProfileOpenChange: dialogState.setEditProfileOpen,
-    currentProfile: anime.profile_name || "",
-    currentReleaseProfileIds: anime.release_profile_ids || [],
-    updateProfile: actions.updateProfile,
-    isUpdatingProfile: actions.isUpdatingProfile,
-    updateReleaseProfiles: actions.updateReleaseProfiles,
-    isUpdatingReleaseProfiles: actions.isUpdatingReleaseProfiles,
-    profiles: profilesQuery.data,
-    releaseProfiles: releaseProfilesQuery.data,
-  };
+  const handleToggleMonitor = useCallback(
+    () => actions.handleToggleMonitor(isMonitored),
+    [actions, isMonitored],
+  );
+
+  const handleDeleteAnime = useCallback(() => {
+    actions.handleDeleteAnime(() => {
+      void navigate({
+        to: "/anime",
+        search: { q: "", filter: "all", view: "grid" },
+      });
+    });
+  }, [actions, navigate]);
+
+  const handleRenameFiles = useCallback(() => dialogState.setRenameDialogOpen(true), [dialogState]);
+
+  const handleOpenBulkMapping = useCallback(
+    () => dialogState.setBulkMappingOpen(true),
+    [dialogState],
+  );
+
+  const handleEditProfile = useCallback(() => dialogState.setEditProfileOpen(true), [dialogState]);
+
+  const handleEditPath = useCallback(() => dialogState.setEditPathOpen(true), [dialogState]);
+
+  const dialogsState = useMemo(
+    () => ({
+      animeId,
+      episodes: episodesData,
+      searchModalState: dialogState.searchModalState,
+      renameDialogOpen: dialogState.renameDialogOpen,
+      mappingDialogState: dialogState.mappingDialogState,
+      bulkMappingOpen: dialogState.bulkMappingOpen,
+      deleteEpisodeState: dialogState.deleteEpisodeState,
+      editPathOpen: dialogState.editPathOpen,
+      editProfileOpen: dialogState.editProfileOpen,
+      currentPath: anime.root_folder || "",
+      currentProfile: anime.profile_name || "",
+      currentReleaseProfileIds: anime.release_profile_ids || [],
+      profiles: profilesQuery.data,
+      releaseProfiles: releaseProfilesQuery.data,
+      isUpdatingPath: actions.isUpdatingPath,
+      isUpdatingProfile: actions.isUpdatingProfile,
+      isUpdatingReleaseProfiles: actions.isUpdatingReleaseProfiles,
+    }),
+    [
+      animeId,
+      episodesData,
+      dialogState.searchModalState,
+      dialogState.renameDialogOpen,
+      dialogState.mappingDialogState,
+      dialogState.bulkMappingOpen,
+      dialogState.deleteEpisodeState,
+      dialogState.editPathOpen,
+      dialogState.editProfileOpen,
+      anime.root_folder,
+      anime.profile_name,
+      anime.release_profile_ids,
+      profilesQuery.data,
+      releaseProfilesQuery.data,
+      actions.isUpdatingPath,
+      actions.isUpdatingProfile,
+      actions.isUpdatingReleaseProfiles,
+    ],
+  );
+
+  const dialogsDispatch = useMemo(
+    () => ({
+      onSearchModalOpenChange: (open: boolean) =>
+        dialogState.setSearchModalState((prev) => ({ ...prev, open })),
+      onRenameDialogOpenChange: dialogState.setRenameDialogOpen,
+      onMappingDialogOpenChange: (open: boolean) =>
+        dialogState.setMappingDialogState((prev) => ({ ...prev, open })),
+      onBulkMappingOpenChange: dialogState.setBulkMappingOpen,
+      onDeleteEpisodeDialogOpenChange: (open: boolean) =>
+        dialogState.setDeleteEpisodeState((prev) => ({ ...prev, open })),
+      onConfirmDeleteEpisode: handleDeleteEpisodeFile,
+      onEditPathOpenChange: dialogState.setEditPathOpen,
+      updatePath: actions.updatePath,
+      onEditProfileOpenChange: dialogState.setEditProfileOpen,
+      updateProfile: actions.updateProfile,
+      updateReleaseProfiles: actions.updateReleaseProfiles,
+    }),
+    [
+      dialogState,
+      handleDeleteEpisodeFile,
+      actions.updatePath,
+      actions.updateProfile,
+      actions.updateReleaseProfiles,
+    ],
+  );
 
   return (
-    <AnimeDetailsDialogsProvider value={dialogsContextValue}>
+    <AnimeDetailsDialogsProvider value={{ ...dialogsState, ...dialogsDispatch }}>
       <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden space-y-6">
         <AnimeDetailsHeader
           anime={anime}
@@ -125,28 +191,18 @@ function AnimeDetailsPage() {
           isScanFolderPending={actions.isScanFolderPending || isScanTaskRunning}
           isSearchMissingPending={actions.isSearchMissingPending}
           isToggleMonitorPending={actions.isToggleMonitorPending}
-          onToggleMonitor={() => actions.handleToggleMonitor(isMonitored)}
+          onToggleMonitor={handleToggleMonitor}
           onRefreshEpisodes={actions.handleRefreshEpisodes}
           onSearchMissing={actions.handleSearchMissing}
           onScanFolder={actions.handleScanFolder}
-          onRenameFiles={() => dialogState.setRenameDialogOpen(true)}
-          onOpenBulkMapping={() => dialogState.setBulkMappingOpen(true)}
-          onDeleteAnime={() => {
-            actions.handleDeleteAnime(
-              () =>
-                void navigate({
-                  to: "/anime",
-                  search: { q: "", filter: "all", view: "grid" },
-                }),
-            );
-          }}
+          onRenameFiles={handleRenameFiles}
+          onOpenBulkMapping={handleOpenBulkMapping}
+          onDeleteAnime={handleDeleteAnime}
         />
 
-        {/* Content */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           <AnimeDetailsSidebar anime={anime} />
 
-          {/* Details */}
           <div className="lg:col-span-3 space-y-6">
             {anime.description && (
               <Card>
@@ -181,8 +237,8 @@ function AnimeDetailsPage() {
               profileName={anime.profile_name}
               rootFolder={anime.root_folder}
               addedAt={anime.added_at}
-              onEditProfile={() => dialogState.setEditProfileOpen(true)}
-              onEditPath={() => dialogState.setEditPathOpen(true)}
+              onEditProfile={handleEditProfile}
+              onEditPath={handleEditPath}
             />
 
             <AnimeEpisodesPanel

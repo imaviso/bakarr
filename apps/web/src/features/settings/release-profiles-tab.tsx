@@ -17,11 +17,8 @@ import {
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
-import {
-  createDeleteReleaseProfileMutation,
-  releaseProfilesQueryOptions,
-  type ReleaseProfile,
-} from "~/api";
+import { createDeleteReleaseProfileMutation, releaseProfilesQueryOptions } from "~/api/profiles";
+import type { ReleaseProfile } from "~/api/contracts";
 
 interface ReleaseProfileCardProps {
   onDelete: (id: number) => void;

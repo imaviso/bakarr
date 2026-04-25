@@ -1,14 +1,12 @@
 import { useState } from "react";
+import type { AddAnimeRequest, AnimeSearchResult, UnmappedFolder } from "~/api/contracts";
+import { createAddAnimeMutation } from "~/api/anime-mutations";
 import {
-  type AddAnimeRequest,
-  type AnimeSearchResult,
-  createAddAnimeMutation,
   createControlUnmappedFolderMutation,
   createImportUnmappedFolderMutation,
-  createProfilesQuery,
   createScanLibraryMutation,
-  type UnmappedFolder,
-} from "~/api";
+} from "~/api/system-library";
+import { createProfilesQuery } from "~/api/profiles";
 import { runFolderBackgroundMatchAction } from "~/features/scan/background-matching-actions";
 
 export function useFolderItemController(folder: UnmappedFolder) {

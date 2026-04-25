@@ -1,4 +1,9 @@
-import type { Download, DownloadEvent, DownloadEventsExportResult, DownloadStatus } from "~/api";
+import type {
+  Download,
+  DownloadEvent,
+  DownloadEventsExportResult,
+  DownloadStatus,
+} from "~/api/contracts";
 import type { DownloadEventsFilterValue } from "~/features/downloads/download-events/download-events-filters";
 
 export interface DownloadsEventsSearchState {

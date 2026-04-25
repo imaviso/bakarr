@@ -1,9 +1,6 @@
 import { toast } from "sonner";
-import {
-  type DownloadEventsExportInput,
-  type DownloadEventsExportResult,
-  exportDownloadEvents,
-} from "~/api";
+import type { DownloadEventsExportInput, DownloadEventsExportResult } from "~/api/contracts";
+import { exportDownloadEvents } from "~/api/system-download-events";
 import {
   buildDownloadEventsExportInput,
   type DownloadEventsExportFields,

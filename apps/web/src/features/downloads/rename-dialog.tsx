@@ -19,11 +19,8 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
-import {
-  createExecuteRenameMutation,
-  createRenamePreviewQuery,
-  type RenamePreviewItem,
-} from "~/api";
+import { createExecuteRenameMutation, createRenamePreviewQuery } from "~/api/auth";
+import type { RenamePreviewItem } from "~/api/contracts";
 
 function formatTitleSourceLabel(
   source?: NonNullable<RenamePreviewItem["metadata_snapshot"]>["title_source"],

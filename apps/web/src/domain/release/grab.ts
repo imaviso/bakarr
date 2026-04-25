@@ -4,7 +4,7 @@ import type {
   NyaaSearchResult,
   SearchDownloadReleaseContext,
   SearchDownloadRequest,
-} from "~/api";
+} from "~/api/contracts";
 import { formatReleaseSearchDecisionReason, inferBatchKind } from "~/domain/batch-kind";
 
 export interface NyaaSelectionMetadata {

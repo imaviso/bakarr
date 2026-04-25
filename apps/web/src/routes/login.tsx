@@ -1,9 +1,9 @@
 import { useForm } from "@tanstack/react-form";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-
 import { toast } from "sonner";
 import { Schema } from "effect";
 import { Button } from "~/components/ui/button";
+import { ApiClientError, ApiUnauthorizedError } from "~/api/effect/api-client";
 import {
   Card,
   CardContent,
@@ -14,7 +14,7 @@ import {
 } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
-import { createApiKeyLoginMutation, createLoginMutation } from "~/api";
+import { createApiKeyLoginMutation, createLoginMutation } from "~/api/auth";
 import { useAuth } from "~/app/auth";
 
 const LoginSearchSchema = Schema.Struct({
@@ -23,7 +23,6 @@ const LoginSearchSchema = Schema.Struct({
 
 function sanitizeRedirect(input: string): string | undefined {
   if (!input) return undefined;
-  // Only allow internal paths (same-origin relative or absolute paths)
   try {
     const url = new URL(input, window.location.origin);
     if (url.origin !== window.location.origin) return undefined;
@@ -47,19 +46,25 @@ const ApiKeySchema = Schema.Struct({
   apiKey: Schema.String.pipe(Schema.minLength(1, { message: () => "API key is required" })),
 });
 
-type LoginFormData = Schema.Schema.Type<typeof LoginSchema>;
-type ApiKeyFormData = Schema.Schema.Type<typeof ApiKeySchema>;
+function getErrorMessage(err: unknown): string {
+  if (err instanceof ApiClientError || err instanceof ApiUnauthorizedError) {
+    return err.message;
+  }
+  return "Login failed";
+}
+
+function getFieldErrorMessage(error: unknown): string {
+  if (typeof error === "string") return error;
+  if (error && typeof error === "object" && "message" in error) {
+    const message = error.message;
+    return typeof message === "string" ? message : "Invalid field value";
+  }
+  if (typeof error === "number" || typeof error === "boolean") return String(error);
+  return "Invalid field value";
+}
 
 function formatFieldErrors(errors: readonly unknown[]) {
-  return errors
-    .map((error) => {
-      if (typeof error === "string") return error;
-      if (typeof error === "object" && error && "message" in error) {
-        return String(error.message);
-      }
-      return String(error);
-    })
-    .join(", ");
+  return errors.map(getFieldErrorMessage).join(", ");
 }
 
 function LoginPage() {
@@ -78,24 +83,27 @@ function LoginPage() {
     void navigate({ to: "/" });
   };
 
+  const handleLoginSuccess = (data: { username: string; must_change_password: boolean }) => {
+    syncAuthenticatedUser(data.username);
+    if (data.must_change_password) {
+      toast.info("Please change your password before continuing.");
+      void navigate({ to: "/settings", search: { tab: "account" } });
+      return;
+    }
+    goToPostLogin();
+  };
+
   const form = useForm({
     defaultValues: {
       username: "",
       password: "",
-    } as LoginFormData,
+    },
     onSubmit: async ({ value }) => {
       try {
         const data = await loginMutation.mutateAsync(value);
-        syncAuthenticatedUser(data.username);
-        if (data.must_change_password) {
-          toast.info("Please change your password before continuing.");
-          void navigate({ to: "/settings", search: { tab: "account" } });
-          return;
-        }
-        goToPostLogin();
+        handleLoginSuccess(data);
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Login failed";
-        toast.error(message);
+        toast.error(getErrorMessage(err));
       }
     },
   });
@@ -103,22 +111,15 @@ function LoginPage() {
   const apiKeyForm = useForm({
     defaultValues: {
       apiKey: "",
-    } as ApiKeyFormData,
+    },
     onSubmit: async ({ value }) => {
       try {
         const data = await apiKeyLoginMutation.mutateAsync({
           api_key: value.apiKey.trim(),
         });
-        syncAuthenticatedUser(data.username);
-        if (data.must_change_password) {
-          toast.info("Please change your password before continuing.");
-          void navigate({ to: "/settings", search: { tab: "account" } });
-          return;
-        }
-        goToPostLogin();
+        handleLoginSuccess(data);
       } catch (err) {
-        const message = err instanceof Error ? err.message : "API key login failed";
-        toast.error(message);
+        toast.error(getErrorMessage(err));
       }
     },
   });
@@ -135,7 +136,13 @@ function LoginPage() {
               Sign in to your account
             </CardDescription>
           </CardHeader>
-          <form action={() => form.handleSubmit()}>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              void form.handleSubmit();
+            }}
+          >
             <CardContent className="space-y-4">
               <form.Field
                 name="username"
@@ -210,7 +217,13 @@ function LoginPage() {
               </form.Subscribe>
             </CardFooter>
           </form>
-          <form action={() => apiKeyForm.handleSubmit()}>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              void apiKeyForm.handleSubmit();
+            }}
+          >
             <div className="px-6 pb-6 pt-1 space-y-2">
               <apiKeyForm.Field
                 name="apiKey"

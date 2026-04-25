@@ -3,7 +3,7 @@ import {
   MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS,
   type BackgroundJobStatus,
   type ScannerMatchStatus,
-} from "~/api";
+} from "~/api/contracts";
 import {
   backgroundMatchingStatusLabel,
   backgroundMatchingStatusVariant,

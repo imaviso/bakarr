@@ -6,8 +6,8 @@ import { AnimeSearchResultCard } from "~/features/anime/anime-search-result-card
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
 import { useContainerWidth } from "~/hooks/use-container-width";
-import type { AnimeSearchResult } from "~/api";
-import { seasonalAnimeInfiniteQueryOptions } from "~/api";
+import type { AnimeSearchResult } from "~/api/contracts";
+import { seasonalAnimeInfiniteQueryOptions } from "~/api/anime";
 import { formatSeasonWindowLabel } from "~/domain/seasonal-navigation";
 import type { SeasonWindow } from "~/domain/seasonal-navigation";
 
@@ -49,9 +49,11 @@ export function SeasonalAnimeSection(props: SeasonalAnimeSectionProps) {
 
   const getScrollElement = useCallback(() => nodeRef.current, [nodeRef]);
 
+  const estimateSize = useCallback(() => estimateRowSize, [estimateRowSize]);
+
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
-    estimateSize: () => estimateRowSize,
+    estimateSize,
     overscan: 4,
     getScrollElement,
   });

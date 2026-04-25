@@ -10,12 +10,12 @@ import {
   DialogTitle,
 } from "~/components/ui/dialog";
 import { DownloadEventDetailsDialog } from "~/features/downloads/download-event-details-dialog";
-import {
-  createDownloadEventsQuery,
-  type DownloadEvent,
-  type DownloadEventsFilterInput,
-  type DownloadEventsExportResult,
-} from "~/api";
+import { createDownloadEventsQuery } from "~/api/system-download-events";
+import type {
+  DownloadEvent,
+  DownloadEventsFilterInput,
+  DownloadEventsExportResult,
+} from "~/api/contracts";
 import { runDownloadEventsExport } from "~/domain/download/events-export";
 import { DownloadEventsFeed } from "~/features/downloads/download-events/download-events-feed";
 

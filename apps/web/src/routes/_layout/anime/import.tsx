@@ -1,15 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { createLibraryImportTaskQuery } from "~/api";
+import { createLibraryImportTaskQuery } from "~/api/operations-tasks";
 import { Schema } from "effect";
 import { ImportPageContent } from "~/features/import/import-page-content";
 import { createImportPageState } from "~/features/import/import-page-state";
 import { GeneralError } from "~/components/shared/general-error";
-import {
-  animeListQueryOptions,
-  isTaskActive,
-  profilesQueryOptions,
-  systemConfigQueryOptions,
-} from "~/api";
+import { animeListQueryOptions } from "~/api/anime";
+import { isTaskActive } from "~/api/operations-tasks";
+import { profilesQueryOptions } from "~/api/profiles";
+import { systemConfigQueryOptions } from "~/api/system-config";
 import { usePageTitle } from "~/domain/page-title";
 
 const ImportSearchSchema = Schema.Struct({

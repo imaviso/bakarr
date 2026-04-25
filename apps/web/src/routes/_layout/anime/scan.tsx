@@ -37,13 +37,15 @@ import {
 import {
   createBulkControlUnmappedFoldersMutation,
   createScanLibraryMutation,
-  systemJobsQueryOptions,
-  type AnimeSearchResult,
-  type BackgroundJobStatus,
-  type ScannerMatchStatus,
-  type UnmappedFolder,
   unmappedFoldersQueryOptions,
-} from "~/api";
+} from "~/api/system-library";
+import { systemJobsQueryOptions } from "~/api/system-config";
+import type {
+  AnimeSearchResult,
+  BackgroundJobStatus,
+  ScannerMatchStatus,
+  UnmappedFolder,
+} from "~/api/contracts";
 import { usePageTitle } from "~/domain/page-title";
 import { cn } from "~/infra/utils";
 
@@ -82,37 +84,7 @@ function LibraryScanPage() {
   const matchStatus = scanState.match_status;
 
   const serverCounts = scanState.match_counts;
-  const counts =
-    serverCounts ??
-    (() => {
-      let exact = 0;
-      let queued = 0;
-      let matching = 0;
-      let matched = 0;
-      let failed = 0;
-      let paused = 0;
-      for (const folder of folders) {
-        if (folder.suggested_matches[0]?.already_in_library) exact++;
-        switch (folder.match_status) {
-          case "pending":
-            queued++;
-            break;
-          case "matching":
-            matching++;
-            break;
-          case "done":
-            matched++;
-            break;
-          case "failed":
-            failed++;
-            break;
-          case "paused":
-            paused++;
-            break;
-        }
-      }
-      return { exact, queued, matching, matched, failed, paused };
-    })();
+  const counts = serverCounts ?? computeMatchCounts(folders);
 
   const unmappedJob = systemJobs.find((job) => job.name === "unmapped_scan");
   const isWorkerRunning = isBackgroundMatchingRunning({
@@ -462,6 +434,36 @@ function ScanContent(props: ScanContentProps) {
       )}
     </div>
   );
+}
+
+function computeMatchCounts(folders: readonly UnmappedFolder[]) {
+  let exact = 0;
+  let queued = 0;
+  let matching = 0;
+  let matched = 0;
+  let failed = 0;
+  let paused = 0;
+  for (const folder of folders) {
+    if (folder.suggested_matches[0]?.already_in_library) exact++;
+    switch (folder.match_status) {
+      case "pending":
+        queued++;
+        break;
+      case "matching":
+        matching++;
+        break;
+      case "done":
+        matched++;
+        break;
+      case "failed":
+        failed++;
+        break;
+      case "paused":
+        paused++;
+        break;
+    }
+  }
+  return { exact, queued, matching, matched, failed, paused };
 }
 
 function pluralizeFolderCount(count: number) {

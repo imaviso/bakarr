@@ -1,10 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  createDownloadEventsQuery,
-  createInfiniteLogsQuery,
-  createSystemDashboardQuery,
-  createSystemJobsQuery,
-} from "~/api";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createDownloadEventsQuery } from "~/api/system-download-events";
+import { createInfiniteLogsQuery } from "~/api/system-logs";
+import { createSystemDashboardQuery, createSystemJobsQuery } from "~/api/system-config";
 import { LOGS_DOWNLOAD_EVENTS_SEARCH_KEYS } from "~/domain/download/events-search";
 import { useDownloadEventsSearchState } from "~/features/downloads/use-download-events-search-state";
 import type { LogsFilterParams } from "~/features/logs/use-logs-filters";
@@ -44,22 +41,24 @@ export function useLogsQueries(options: UseLogsQueriesOptions) {
   const queriesRef = useRef({ logsQuery, downloadEventsQuery, dashboardQuery, jobsQuery });
   queriesRef.current = { logsQuery, downloadEventsQuery, dashboardQuery, jobsQuery };
 
-  const refreshAll = () => {
+  const refreshAll = useCallback(() => {
     const q = queriesRef.current;
     void q.logsQuery.refetch();
     void q.downloadEventsQuery.refetch();
     void q.dashboardQuery.refetch();
     void q.jobsQuery.refetch();
-  };
+  }, []);
 
   useEffect(() => {
     if (!autoRefresh) {
-      return () => {};
+      return undefined;
     }
 
     const interval = setInterval(refreshAll, 3000);
-    return () => clearInterval(interval);
-  }, [autoRefresh]);
+    return () => {
+      clearInterval(interval);
+    };
+  }, [autoRefresh, refreshAll]);
 
   return {
     allLogs,

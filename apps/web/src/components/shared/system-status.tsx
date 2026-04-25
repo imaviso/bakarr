@@ -5,16 +5,21 @@ import {
   DownloadIcon,
   ArrowClockwiseIcon,
 } from "@phosphor-icons/react";
-import { useState } from "react";
+import {
+  differenceInDays,
+  differenceInHours,
+  differenceInMinutes,
+  isValid,
+  parseISO,
+} from "date-fns";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
+import { createSystemTaskQuery, isTaskActive } from "~/api/operations-tasks";
 import {
-  createSystemTaskQuery,
   createSystemStatusQuery,
   createTriggerRssCheckMutation,
   createTriggerScanMutation,
-  isTaskActive,
-} from "~/api";
+} from "~/api/system-config";
 
 function formatBytes(bytes: number) {
   if (bytes === 0) return "0 B";
@@ -35,14 +40,6 @@ function formatUptime(seconds: number) {
   if (m > 0 || parts.length === 0) parts.push(`${m}m`);
   return parts.join(" ");
 }
-
-import {
-  differenceInDays,
-  differenceInHours,
-  differenceInMinutes,
-  isValid,
-  parseISO,
-} from "date-fns";
 
 function formatRelativeTime(dateStr: string | null | undefined) {
   if (!dateStr) return "Never";
@@ -71,29 +68,21 @@ function formatProviderStatus(
 
 export function SystemStatus() {
   const status = createSystemStatusQuery();
-  const [latestScanTaskId, setLatestScanTaskId] = useState<number | undefined>(undefined);
-  const [latestRssTaskId, setLatestRssTaskId] = useState<number | undefined>(undefined);
+  const scanMutation = createTriggerScanMutation();
+  const rssMutation = createTriggerRssCheckMutation();
+  const latestScanTaskId = scanMutation.data?.task_id;
+  const latestRssTaskId = rssMutation.data?.task_id;
   const latestScanTask = createSystemTaskQuery(latestScanTaskId);
   const latestRssTask = createSystemTaskQuery(latestRssTaskId);
   const isScanTaskRunning = latestScanTask.data !== undefined && isTaskActive(latestScanTask.data);
   const isRssTaskRunning = latestRssTask.data !== undefined && isTaskActive(latestRssTask.data);
-  const scanMutation = createTriggerScanMutation();
-  const rssMutation = createTriggerRssCheckMutation();
 
   const handleScan = () => {
-    scanMutation.mutate(undefined, {
-      onSuccess: (accepted) => {
-        setLatestScanTaskId(accepted.task_id);
-      },
-    });
+    scanMutation.mutate(undefined);
   };
 
   const handleRss = () => {
-    rssMutation.mutate(undefined, {
-      onSuccess: (accepted) => {
-        setLatestRssTaskId(accepted.task_id);
-      },
-    });
+    rssMutation.mutate(undefined);
   };
 
   return (

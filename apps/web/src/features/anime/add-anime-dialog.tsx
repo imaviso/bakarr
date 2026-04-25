@@ -30,15 +30,10 @@ import {
   SelectValue,
 } from "~/components/ui/select";
 import { Input } from "~/components/ui/input";
-import {
-  type AnimeSearchResult,
-  createAddAnimeMutation,
-  profilesQueryOptions,
-  releaseProfilesQueryOptions,
-  systemConfigQueryOptions,
-  type QualityProfile,
-  type ReleaseProfile,
-} from "~/api";
+import type { AnimeSearchResult, QualityProfile, ReleaseProfile } from "~/api/contracts";
+import { createAddAnimeMutation } from "~/api/anime-mutations";
+import { profilesQueryOptions, releaseProfilesQueryOptions } from "~/api/profiles";
+import { systemConfigQueryOptions } from "~/api/system-config";
 import {
   animeDiscoverySubtitle,
   animeDisplayTitle,
