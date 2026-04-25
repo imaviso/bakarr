@@ -1,5 +1,4 @@
-import { SystemSettingsAutomationDownloadClientSection } from "~/features/settings/system-settings-automation-download-client-section";
-import { SystemSettingsAutomationDownloadDefaultsSection } from "~/features/settings/system-settings-automation-download-defaults-section";
+import { SystemSettingsDownloadsSection } from "~/features/settings/system-settings-downloads-section";
 import { SystemSettingsAutomationIndexerSection } from "~/features/settings/system-settings-automation-indexer-section";
 import { SystemSettingsAutomationMetadataSection } from "~/features/settings/system-settings-automation-metadata-section";
 import { SystemSettingsAutomationSchedulerSection } from "~/features/settings/system-settings-automation-scheduler-section";
@@ -21,11 +20,6 @@ interface SystemSettingsAutomationSectionsProps {
 export function SystemSettingsAutomationSections(props: SystemSettingsAutomationSectionsProps) {
   return (
     <>
-      <SystemSettingsAutomationDownloadClientSection form={props.form} />
-      <SystemSettingsAutomationMetadataSection
-        form={props.form}
-        systemStatus={props.systemStatus}
-      />
       <SystemSettingsAutomationSchedulerSection form={props.form} />
       <SystemSettingsAutomationTasksSection
         onTriggerScan={props.onTriggerScan}
@@ -37,7 +31,11 @@ export function SystemSettingsAutomationSections(props: SystemSettingsAutomation
         triggerMetadataRefreshPending={props.triggerMetadataRefreshPending}
       />
       <SystemSettingsAutomationIndexerSection form={props.form} />
-      <SystemSettingsAutomationDownloadDefaultsSection form={props.form} />
+      <SystemSettingsDownloadsSection form={props.form} />
+      <SystemSettingsAutomationMetadataSection
+        form={props.form}
+        systemStatus={props.systemStatus}
+      />
     </>
   );
 }

@@ -1,20 +1,28 @@
 import {
-  SlidersHorizontalIcon,
-  KeyIcon,
-  ListChecksIcon,
   ArrowClockwiseIcon,
   GearIcon,
+  KeyIcon,
+  ListChecksIcon,
+  SlidersHorizontalIcon,
 } from "@phosphor-icons/react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Suspense, lazy } from "react";
 import { Schema } from "effect";
+import type { ComponentType } from "react";
 import { AccountSettingsForm } from "~/features/settings/account-settings-form";
 import { QualityProfilesTab } from "~/features/settings/quality-profiles-tab";
 import { ReleaseProfilesTab } from "~/features/settings/release-profiles-tab";
 import { GeneralSettingsForm } from "~/features/settings/system-settings-form";
 import { GeneralError } from "~/components/shared/general-error";
 import { PageHeader } from "~/app/layout/page-header";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
 import {
   profilesQueryOptions,
   qualitiesQueryOptions,
@@ -22,12 +30,7 @@ import {
 } from "~/api/profiles";
 import { systemConfigQueryOptions } from "~/api/system-config";
 import { usePageTitle } from "~/domain/page-title";
-
-const SystemStatusLazy = lazy(() =>
-  import("~/components/shared/system-status").then((module) => ({
-    default: module.SystemStatus,
-  })),
-);
+import { cn } from "~/infra/utils";
 
 const SettingsTabSchema = Schema.transform(
   Schema.String,
@@ -53,7 +56,39 @@ const SettingsSearchSchema = Schema.Struct({
   tab: Schema.optional(SettingsTabSchema),
 });
 
-const SETTINGS_TAB_CONTENT_CLASS = "mt-0 min-h-0 overflow-y-auto overflow-x-hidden";
+interface NavItem {
+  value: string;
+  label: string;
+  icon: ComponentType<{ className?: string }>;
+}
+
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+
+const SETTINGS_GROUPS: NavGroup[] = [
+  {
+    label: "System",
+    items: [
+      { value: "general", label: "General", icon: GearIcon },
+      { value: "automation", label: "Automation", icon: ArrowClockwiseIcon },
+    ],
+  },
+  {
+    label: "Profiles",
+    items: [
+      { value: "profiles", label: "Quality Profiles", icon: SlidersHorizontalIcon },
+      { value: "release-profiles", label: "Release Profiles", icon: ListChecksIcon },
+    ],
+  },
+  {
+    label: "Account",
+    items: [{ value: "account", label: "Account", icon: KeyIcon }],
+  },
+];
+
+const ALL_ITEMS = SETTINGS_GROUPS.flatMap((g) => g.items);
 
 export const Route = createFileRoute("/_layout/settings")({
   validateSearch: Schema.standardSchemaV1(SettingsSearchSchema),
@@ -81,109 +116,150 @@ export const Route = createFileRoute("/_layout/settings")({
   errorComponent: GeneralError,
 });
 
+function SettingsNav({
+  activeTab,
+  onTabChange,
+}: {
+  activeTab: string;
+  onTabChange: (tab: string | null) => void;
+}) {
+  return (
+    <nav className="hidden md:flex flex-col gap-6 w-44 shrink-0">
+      {SETTINGS_GROUPS.map((group) => (
+        <div key={group.label} className="flex flex-col gap-1">
+          <span className="px-3 text-[0.65rem] font-semibold uppercase tracking-widest text-muted-foreground">
+            {group.label}
+          </span>
+          {group.items.map((item) => (
+            <button
+              key={item.value}
+              onClick={() => onTabChange(item.value)}
+              className={cn(
+                "flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-none transition-colors text-left",
+                activeTab === item.value
+                  ? "bg-muted text-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+              )}
+            >
+              <item.icon className="h-3.5 w-3.5 shrink-0" />
+              {item.label}
+            </button>
+          ))}
+        </div>
+      ))}
+    </nav>
+  );
+}
+
+function SettingsMobileSelect({
+  activeTab,
+  onTabChange,
+}: {
+  activeTab: string;
+  onTabChange: (tab: string | null) => void;
+}) {
+  const activeItem = ALL_ITEMS.find((t) => t.value === activeTab);
+
+  return (
+    <div className="md:hidden">
+      <Select value={activeTab} onValueChange={onTabChange}>
+        <SelectTrigger className="w-full">
+          <SelectValue>
+            {activeItem && (
+              <span className="flex items-center gap-2">
+                <activeItem.icon className="h-4 w-4 shrink-0" />
+                {activeItem.label}
+              </span>
+            )}
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          {SETTINGS_GROUPS.map((group) => (
+            <SelectGroup key={group.label}>
+              <SelectLabel>{group.label}</SelectLabel>
+              {group.items.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  <span className="flex items-center gap-2">
+                    <item.icon className="h-4 w-4 shrink-0" />
+                    {item.label}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
 function SettingsPage() {
   usePageTitle("Settings");
   const search = Route.useSearch();
   const navigate = useNavigate();
   const activeTab = search.tab ?? "general";
 
+  const handleTabChange = (tab: string | null) => {
+    if (!tab) return;
+    void navigate({
+      to: ".",
+      search: { tab },
+      replace: true,
+    });
+  };
+
   return (
-    <div className="flex flex-1 min-h-0 flex-col overflow-hidden gap-2">
-      <PageHeader title="Settings">
-        <Suspense fallback={null}>
-          <SystemStatusLazy />
-        </Suspense>
-      </PageHeader>
+    <div className="flex flex-1 min-h-0 flex-col overflow-hidden gap-4">
+      <PageHeader title="Settings" />
 
-      <Tabs
-        value={activeTab}
-        onValueChange={(tab) => {
-          void navigate({
-            to: ".",
-            search: {
-              tab,
-            },
-            replace: true,
-          });
-        }}
-        className="min-h-0 flex-1 w-full"
-      >
-        <TabsList className="shrink-0 mb-6 h-auto w-full justify-start overflow-x-auto overflow-y-hidden border-b bg-transparent p-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [-webkit-mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)] [mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)] sm:[-webkit-mask-image:none] sm:[mask-image:none] md:overflow-x-visible">
-          <TabsTrigger
-            value="general"
-            className="rounded-none border-b-2 border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent px-4 py-2"
-          >
-            <GearIcon className="mr-2 h-4 w-4" />
-            General
-          </TabsTrigger>
-          <TabsTrigger
-            value="automation"
-            className="rounded-none border-b-2 border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent px-4 py-2"
-          >
-            <ArrowClockwiseIcon className="mr-2 h-4 w-4" />
-            Automation
-          </TabsTrigger>
-          <TabsTrigger
-            value="profiles"
-            className="rounded-none border-b-2 border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent px-4 py-2"
-          >
-            <SlidersHorizontalIcon className="mr-2 h-4 w-4" />
-            Quality Profiles
-          </TabsTrigger>
-          <TabsTrigger
-            value="release-profiles"
-            className="rounded-none border-b-2 border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent px-4 py-2"
-          >
-            <ListChecksIcon className="mr-2 h-4 w-4" />
-            Release Profiles
-          </TabsTrigger>
-          <TabsTrigger
-            value="account"
-            className="rounded-none border-b-2 border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent px-4 py-2"
-          >
-            <KeyIcon className="mr-2 h-4 w-4" />
-            Account
-          </TabsTrigger>
-        </TabsList>
+      <div className="flex flex-1 min-h-0 gap-6">
+        <SettingsNav activeTab={activeTab} onTabChange={handleTabChange} />
+        <SettingsMobileSelect activeTab={activeTab} onTabChange={handleTabChange} />
 
-        <TabsContent value="general" className={SETTINGS_TAB_CONTENT_CLASS}>
-          <div className="mb-6">
-            <h2 className="text-lg font-medium">General Settings</h2>
-            <p className="text-sm text-muted-foreground">
-              Core application, library, and naming settings
-            </p>
+        <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden">
+          <div className="max-w-3xl pb-12">
+            {activeTab === "general" && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-sm font-semibold">General Settings</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Core application, library, and naming settings
+                  </p>
+                </div>
+                <GeneralSettingsForm mode="general" />
+              </div>
+            )}
+
+            {activeTab === "automation" && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-sm font-semibold">Automation</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Search, qBittorrent, scheduling, and app-wide release defaults
+                  </p>
+                </div>
+                <GeneralSettingsForm mode="automation" />
+              </div>
+            )}
+
+            {activeTab === "profiles" && <QualityProfilesTab />}
+
+            {activeTab === "release-profiles" && <ReleaseProfilesTab />}
+
+            {activeTab === "account" && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-sm font-semibold">Account</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Manage your password, API access, and notification preferences
+                  </p>
+                </div>
+                <AccountSettingsForm />
+              </div>
+            )}
           </div>
-          <GeneralSettingsForm mode="general" />
-        </TabsContent>
-
-        <TabsContent value="automation" className={SETTINGS_TAB_CONTENT_CLASS}>
-          <div className="mb-6">
-            <h2 className="text-lg font-medium">Automation</h2>
-            <p className="text-sm text-muted-foreground">
-              Search, qBittorrent, scheduling, and app-wide release defaults
-            </p>
-          </div>
-          <GeneralSettingsForm mode="automation" />
-        </TabsContent>
-
-        <TabsContent value="profiles" className={SETTINGS_TAB_CONTENT_CLASS}>
-          <QualityProfilesTab />
-        </TabsContent>
-
-        <TabsContent value="release-profiles" className={SETTINGS_TAB_CONTENT_CLASS}>
-          <ReleaseProfilesTab />
-        </TabsContent>
-
-        <TabsContent value="account" className={SETTINGS_TAB_CONTENT_CLASS}>
-          <div className="mb-6">
-            <h2 className="text-lg font-medium">Account</h2>
-            <p className="text-sm text-muted-foreground">
-              Manage your password, API access, and notification preferences
-            </p>
-          </div>
-          <AccountSettingsForm />
-        </TabsContent>
-      </Tabs>
+        </div>
+      </div>
     </div>
   );
 }
