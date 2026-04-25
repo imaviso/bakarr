@@ -1,4 +1,4 @@
-import { Effect, Schema } from "effect";
+import { Effect, Either, Schema } from "effect";
 import { getAuthHeaders } from "~/app/auth-state";
 
 export class ApiClientError extends Schema.TaggedError<ApiClientError>()("ApiClientError", {
@@ -136,6 +136,14 @@ export const fetchJson = <A, I>(
       ),
     );
   });
+
+export async function runApiEffect<A, E>(effect: Effect.Effect<A, E>): Promise<A> {
+  const result = await Effect.runPromise(Effect.either(effect));
+  if (Either.isLeft(result)) {
+    throw result.left;
+  }
+  return result.right;
+}
 
 export const fetchUnit = (
   endpoint: string,

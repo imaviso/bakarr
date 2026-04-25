@@ -1,3 +1,5 @@
+import { API_BASE } from "~/api/constants";
+
 export interface AuthState {
   readonly username?: string | undefined;
   readonly apiKey?: string | undefined;
@@ -52,7 +54,20 @@ function normalizeApiKey(apiKey?: string): string | undefined {
   return value;
 }
 
-export function logoutAndRedirect() {
+export async function clearServerSession() {
+  await fetch(`${API_BASE}/auth/logout`, {
+    method: "POST",
+    credentials: "include",
+  });
+}
+
+export async function logoutAndRedirect() {
+  try {
+    await clearServerSession();
+  } catch {
+    // Local sign-out should still happen if the server is temporarily unreachable.
+  }
+
   clearAuthState();
   globalThis.location.href = "/login";
 }
