@@ -1040,15 +1040,10 @@ it("shared operational detail schemas accept canonical payloads", () => {
     downloads: {
       create_anime_folders: true,
       delete_download_files_after_import: true,
-      max_size_gb: 4,
-      prefer_dual_audio: false,
-      preferred_codec: null,
-      preferred_groups: ["SubsPlease"],
       reconcile_completed_downloads: true,
       remote_path_mappings: [["/remote", "/local"]],
       remove_torrent_on_import: false,
       root_path: "/downloads",
-      use_seadex: true,
     },
     general: {
       database_path: "./bakarr.sqlite",
@@ -1134,12 +1129,8 @@ it("shared config and notification schemas reject invalid payloads", () => {
   const config = Schema.decodeUnknownEither(ConfigSchema)({
     downloads: {
       create_anime_folders: true,
-      max_size_gb: 4,
-      prefer_dual_audio: false,
-      preferred_groups: ["SubsPlease"],
       remote_path_mappings: [["/remote"]],
       root_path: "/downloads",
-      use_seadex: true,
     },
     general: {
       database_path: "./bakarr.sqlite",

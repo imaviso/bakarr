@@ -63,15 +63,10 @@ export function makeDefaultConfig(databasePath: string): ConfigCore {
     downloads: {
       create_anime_folders: true,
       delete_download_files_after_import: false,
-      max_size_gb: 8,
-      prefer_dual_audio: false,
-      preferred_codec: null,
-      preferred_groups: [],
       reconcile_completed_downloads: true,
       remove_torrent_on_import: true,
       remote_path_mappings: [],
       root_path: "./downloads",
-      use_seadex: true,
     },
     library: {
       auto_scan_interval_hours: 12,

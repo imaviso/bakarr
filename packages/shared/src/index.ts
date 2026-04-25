@@ -828,11 +828,6 @@ export const MetadataProvidersConfigSchema: Schema.Schema<{
 export const DownloadsConfigSchema: Schema.Schema<{
   root_path: string;
   create_anime_folders: boolean;
-  preferred_groups: string[];
-  use_seadex: boolean;
-  prefer_dual_audio: boolean;
-  preferred_codec?: string | null | undefined;
-  max_size_gb: number;
   remote_path_mappings: string[][];
   reconcile_completed_downloads?: boolean | undefined;
   remove_torrent_on_import?: boolean | undefined;
@@ -841,11 +836,6 @@ export const DownloadsConfigSchema: Schema.Schema<{
   Schema.Struct({
     root_path: Schema.String,
     create_anime_folders: Schema.Boolean,
-    preferred_groups: StringListSchema,
-    use_seadex: Schema.Boolean,
-    prefer_dual_audio: Schema.Boolean,
-    preferred_codec: Schema.optional(Schema.NullOr(Schema.String)),
-    max_size_gb: Schema.Number,
     remote_path_mappings: Schema.mutable(Schema.Array(RemotePathMappingSchema)),
     reconcile_completed_downloads: Schema.optional(Schema.Boolean),
     remove_torrent_on_import: Schema.optional(Schema.Boolean),

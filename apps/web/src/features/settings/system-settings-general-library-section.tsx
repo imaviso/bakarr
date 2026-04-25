@@ -163,24 +163,6 @@ export function SystemSettingsGeneralLibrarySection(
           </SettingRow>
         )}
       </props.form.Field>
-
-      <props.form.Field name="library.auto_scan_interval_hours">
-        {(field) => (
-          <SettingRow
-            label="Auto Scan Interval"
-            description="Hours between automatic library scans"
-          >
-            <div className="flex items-center gap-2">
-              <FiniteNumberInput
-                value={field.state.value}
-                onChange={field.handleChange}
-                className="w-20"
-              />
-              <span className="text-xs text-muted-foreground">hours</span>
-            </div>
-          </SettingRow>
-        )}
-      </props.form.Field>
     </SettingSection>
   );
 }

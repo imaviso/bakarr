@@ -16,13 +16,8 @@ import {
 const baseConfig: Config = {
   downloads: {
     create_anime_folders: true,
-    max_size_gb: 8,
-    prefer_dual_audio: false,
-    preferred_codec: null,
-    preferred_groups: ["SubsPlease"],
     remote_path_mappings: [],
     root_path: "./downloads",
-    use_seadex: true,
   },
   general: {
     database_path: makeDefaultAppConfig().databaseFile,
@@ -176,9 +171,12 @@ it("seadex release can upgrade same-quality current file", () => {
   assert.deepStrictEqual(decision.Upgrade?.is_seadex_best, true);
 });
 
-it("seadex scoring is disabled when runtime config disables seadex", () => {
+it("profile SeaDex preference controls same-quality SeaDex upgrades", () => {
   const decision = decideDownloadAction(
-    baseProfile,
+    {
+      ...baseProfile,
+      seadex_preferred: false,
+    },
     [],
     Option.some({
       downloaded: true,
@@ -196,19 +194,13 @@ it("seadex scoring is disabled when runtime config disables seadex", () => {
       title: "[SubsPlease] Show - 01 [1080p WEB-DL]",
       trusted: true,
     },
-    {
-      ...baseConfig,
-      downloads: {
-        ...baseConfig.downloads,
-        use_seadex: false,
-      },
-    },
+    baseConfig,
   );
 
   assert.deepStrictEqual(decision.Reject?.reason, "already at quality cutoff");
 });
 
-it("seadex tags and config preferences boost release score", () => {
+it("seadex tags and notes boost release score", () => {
   const preferred = decideDownloadAction(
     baseProfile,
     [],
@@ -228,12 +220,6 @@ it("seadex tags and config preferences boost release score", () => {
     },
     {
       ...baseConfig,
-      downloads: {
-        ...baseConfig.downloads,
-        prefer_dual_audio: true,
-        preferred_codec: "hevc",
-        preferred_groups: [],
-      },
       nyaa: {
         ...baseConfig.nyaa,
         preferred_resolution: "720p",
@@ -259,12 +245,6 @@ it("seadex tags and config preferences boost release score", () => {
     },
     {
       ...baseConfig,
-      downloads: {
-        ...baseConfig.downloads,
-        prefer_dual_audio: true,
-        preferred_codec: "hevc",
-        preferred_groups: [],
-      },
       nyaa: {
         ...baseConfig.nyaa,
         preferred_resolution: "720p",
@@ -296,10 +276,6 @@ it("negative SeaDex notes can reduce release score", () => {
     },
     {
       ...baseConfig,
-      downloads: {
-        ...baseConfig.downloads,
-        preferred_groups: [],
-      },
       nyaa: {
         ...baseConfig.nyaa,
         preferred_resolution: "720p",
@@ -324,10 +300,6 @@ it("negative SeaDex notes can reduce release score", () => {
     },
     {
       ...baseConfig,
-      downloads: {
-        ...baseConfig.downloads,
-        preferred_groups: [],
-      },
       nyaa: {
         ...baseConfig.nyaa,
         preferred_resolution: "720p",
@@ -357,13 +329,7 @@ it("SeaDex best metadata outranks high-seeder non-SeaDex releases", () => {
       title: "[sam] Show - 01 [1080p BluRay]",
       trusted: false,
     },
-    {
-      ...baseConfig,
-      downloads: {
-        ...baseConfig.downloads,
-        preferred_groups: [],
-      },
-    },
+    baseConfig,
   );
   const popular = decideDownloadAction(
     baseProfile,
@@ -379,13 +345,7 @@ it("SeaDex best metadata outranks high-seeder non-SeaDex releases", () => {
       title: "[Judas] Show - 01 [1080p BluRay]",
       trusted: true,
     },
-    {
-      ...baseConfig,
-      downloads: {
-        ...baseConfig.downloads,
-        preferred_groups: [],
-      },
-    },
+    baseConfig,
   );
 
   assert.deepStrictEqual(Boolean(seadex.Accept), true);
@@ -410,13 +370,7 @@ it("SeaDex notes mentioning the release group boost the matching release", () =>
       title: "[ABdex] Show - 01 [1080p WEB-DL]",
       trusted: false,
     },
-    {
-      ...baseConfig,
-      downloads: {
-        ...baseConfig.downloads,
-        preferred_groups: [],
-      },
-    },
+    baseConfig,
   );
   const unmatched = decideDownloadAction(
     baseProfile,
@@ -434,13 +388,7 @@ it("SeaDex notes mentioning the release group boost the matching release", () =>
       title: "[LostYears] Show - 01 [1080p WEB-DL]",
       trusted: false,
     },
-    {
-      ...baseConfig,
-      downloads: {
-        ...baseConfig.downloads,
-        preferred_groups: [],
-      },
-    },
+    baseConfig,
   );
 
   assert.deepStrictEqual(Boolean(matched.Accept), true);

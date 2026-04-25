@@ -99,9 +99,8 @@ export function makeSearchReleaseSupport(input: {
   const enrichSeaDexReleases = Effect.fn("OperationsService.enrichSeaDexReleases")(function* (
     animeRow: typeof anime.$inferSelect,
     releases: readonly ParsedRelease[],
-    config: Config,
   ) {
-    if (!config.downloads.use_seadex || releases.length === 0) {
+    if (releases.length === 0) {
       return [...releases];
     }
 
@@ -143,7 +142,7 @@ export function makeSearchReleaseSupport(input: {
       searchNyaaReleases,
     );
 
-    const enriched = yield* enrichSeaDexReleases(animeRow, results.slice(0, 10), config);
+    const enriched = yield* enrichSeaDexReleases(animeRow, results.slice(0, 10));
     yield* Effect.annotateCurrentSpan("resultCount", enriched.length);
     return enriched;
   });
@@ -173,9 +172,7 @@ export function makeSearchReleaseSupport(input: {
     );
 
     const enrichedResults = animeRow
-      ? yield* enrichSeaDexReleases(animeRow, results, runtimeConfig).pipe(
-          Effect.mapError(mapSearchReleaseError),
-        )
+      ? yield* enrichSeaDexReleases(animeRow, results).pipe(Effect.mapError(mapSearchReleaseError))
       : results;
 
     yield* Effect.annotateCurrentSpan("resultCount", enrichedResults.length);

@@ -24,15 +24,10 @@ function makeValidConfig() {
     downloads: {
       create_anime_folders: true,
       delete_download_files_after_import: false,
-      max_size_gb: 8,
-      prefer_dual_audio: false,
-      preferred_codec: "hevc",
-      preferred_groups: ["SubsPlease"],
       reconcile_completed_downloads: true,
       remote_path_mappings: [["/remote/downloads", "/local/downloads"]],
       remove_torrent_on_import: true,
       root_path: "./downloads",
-      use_seadex: true,
     },
     general: {
       database_path: "./bakarr.sqlite",

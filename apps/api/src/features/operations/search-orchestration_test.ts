@@ -32,10 +32,7 @@ it.scoped(
               ),
           } satisfies typeof SeaDexClient.Service;
 
-          const config = makeTestConfig("/tmp/test.sqlite", (c) => ({
-            ...c,
-            downloads: { ...c.downloads, use_seadex: true },
-          }));
+          const config = makeTestConfig("/tmp/test.sqlite");
           const animeRow: typeof anime.$inferSelect = {
             addedAt: "2024-01-01T00:00:00.000Z",
             background: null,

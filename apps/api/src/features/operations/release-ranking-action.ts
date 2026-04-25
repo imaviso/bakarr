@@ -62,7 +62,7 @@ export function decideDownloadAction(
   const currentAssessment = assessCurrentEpisode(currentEpisode, rules, config);
   const cutoffRank = cutoffQuality(profile.cutoff).rank;
   const currentMeetsCutoff = currentAssessment.quality.rank <= cutoffRank;
-  const seadexPreferred = profile.seadex_preferred && config.downloads.use_seadex;
+  const seadexPreferred = profile.seadex_preferred;
 
   if (seadexPreferred && release.isSeaDex && !currentAssessment.isSeaDex) {
     return upgrade(release, releaseQuality, score, currentAssessment, "SeaDex release available");

@@ -14,13 +14,8 @@ import { makeSkippingSerializedEffectRunner } from "@/infra/effect/coalescing-sk
 const baseConfig: Config = {
   downloads: {
     create_anime_folders: true,
-    max_size_gb: 8,
-    prefer_dual_audio: false,
-    preferred_codec: null,
-    preferred_groups: [],
     remote_path_mappings: [],
     root_path: "./downloads",
-    use_seadex: true,
   },
   general: {
     database_path: "./bakarr.sqlite",

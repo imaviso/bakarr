@@ -81,6 +81,25 @@ export function SystemSettingsAutomationSchedulerSection(
         )}
       </props.form.Field>
 
+      <props.form.Field name="library.auto_scan_interval_hours">
+        {(field) => (
+          <SettingRow
+            label="Library Scan Interval"
+            description="Hours between automatic library scans. Set to 0 to disable."
+          >
+            <div className="flex items-center gap-2">
+              <FiniteNumberInput
+                min="0"
+                value={field.state.value}
+                onChange={field.handleChange}
+                className="w-20"
+              />
+              <span className="text-xs text-muted-foreground">hours</span>
+            </div>
+          </SettingRow>
+        )}
+      </props.form.Field>
+
       <props.form.Field name="scheduler.cron_expression">
         {(field) => (
           <SettingRow label="Cron Expression" description="Custom schedule (overrides interval)">
