@@ -18,6 +18,16 @@ export default defineConfig(({ mode }) => {
       }),
       react(),
       tailwindcss(),
+      {
+        name: "bakarr-disable-dev-stream-timeouts",
+        configureServer(server) {
+          if (server.httpServer) {
+            // Long anime streams can exceed Node's default 5 minute request timeout.
+            server.httpServer.requestTimeout = 0;
+            server.httpServer.timeout = 0;
+          }
+        },
+      },
     ],
     resolve: {
       alias: {
@@ -31,10 +41,14 @@ export default defineConfig(({ mode }) => {
           target: apiTarget,
           changeOrigin: true,
           ws: true,
+          timeout: 0,
+          proxyTimeout: 0,
         },
         "/images": {
           target: apiTarget,
           changeOrigin: true,
+          timeout: 0,
+          proxyTimeout: 0,
         },
       },
     },
