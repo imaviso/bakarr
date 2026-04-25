@@ -3,7 +3,7 @@ import type {
   AnimeEpisodeDialogState,
   AnimeSearchModalState,
 } from "~/features/anime/anime-details-types";
-import type { Episode, QualityProfile, ReleaseProfile } from "~/api";
+import type { Episode, QualityProfile, ReleaseProfile } from "~/api/contracts";
 
 interface AnimeDetailsDialogsContextValue {
   animeId: number;

@@ -18,7 +18,7 @@ import {
   VideoFileSchema,
 } from "@bakarr/shared";
 import { Effect, Schema } from "effect";
-import { API_BASE } from "~/api";
+import { API_BASE } from "~/api/constants";
 import { fetchJson } from "~/api/effect/api-client";
 import { animeKeys } from "./keys";
 

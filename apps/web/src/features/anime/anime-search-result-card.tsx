@@ -2,7 +2,7 @@ import { CalendarIcon, CheckIcon, TelevisionIcon, PlusIcon } from "@phosphor-ico
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent } from "~/components/ui/card";
-import type { AnimeSearchResult } from "~/api";
+import type { AnimeSearchResult } from "~/api/contracts";
 import { animeAltTitles, animeDisplayTitle, animeSearchSubtitle } from "~/domain/anime/metadata";
 import { formatMatchConfidence } from "~/domain/scanned-file";
 import { cn } from "~/infra/utils";

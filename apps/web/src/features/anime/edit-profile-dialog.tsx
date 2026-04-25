@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "~/components/ui/select";
 import { Label } from "~/components/ui/label";
-import type { QualityProfile, ReleaseProfile } from "~/api";
+import type { QualityProfile, ReleaseProfile } from "~/api/contracts";
 
 const EditProfileSchema = Schema.Struct({
   profile: Schema.String,

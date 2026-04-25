@@ -3,7 +3,7 @@ import { useRef, type ReactNode } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { DownloadEventCard } from "~/features/downloads/download-event-card";
 import { Button } from "~/components/ui/button";
-import type { DownloadEvent } from "~/api";
+import type { DownloadEvent } from "~/api/contracts";
 
 const VIRTUAL_ROW_HEIGHT = 140;
 

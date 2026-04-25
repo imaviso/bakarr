@@ -5,7 +5,8 @@ import type {
   DownloadsSearchPatch,
   DownloadsSearchState,
 } from "~/features/downloads/downloads-search";
-import { createDownloadEventsQuery, downloadHistoryQueryOptions } from "~/api";
+import { createDownloadEventsQuery } from "~/api/system-download-events";
+import { downloadHistoryQueryOptions } from "~/api/system-downloads";
 import { DOWNLOADS_EVENTS_SEARCH_KEYS } from "~/domain/download/events-search";
 
 interface UseDownloadsQueriesOptions {

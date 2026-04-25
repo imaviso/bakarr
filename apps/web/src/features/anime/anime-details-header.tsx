@@ -32,7 +32,7 @@ import {
 } from "~/components/ui/alert-dialog";
 import { Badge } from "~/components/ui/badge";
 import { SearchDialog } from "~/features/search/search-dialog";
-import type { Anime } from "~/api";
+import type { Anime } from "~/api/contracts";
 import { createLogsRouteSearch } from "~/domain/download/events-search";
 import { cn } from "~/infra/utils";
 

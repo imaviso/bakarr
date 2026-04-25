@@ -5,7 +5,7 @@ import { SystemSettingsAutomationMetadataSection } from "~/features/settings/sys
 import { SystemSettingsAutomationSchedulerSection } from "~/features/settings/system-settings-automation-scheduler-section";
 import { SystemSettingsAutomationTasksSection } from "~/features/settings/system-settings-automation-tasks-section";
 import type { SettingsFormApi } from "~/features/settings/system-settings-form-hook";
-import type { SystemStatus } from "~/api";
+import type { SystemStatus } from "~/api/contracts";
 
 interface SystemSettingsAutomationSectionsProps {
   form: SettingsFormApi;

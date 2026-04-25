@@ -1,4 +1,4 @@
-import type { ImportFileRequest, ScannedFile } from "~/api";
+import type { ImportFileRequest, ScannedFile } from "~/api/contracts";
 import { buildImportFileRequest } from "~/features/import/import-flow";
 
 export function toggleSelectedImportFile(

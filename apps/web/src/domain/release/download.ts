@@ -1,4 +1,4 @@
-import type { DownloadSourceMetadata, ParsedEpisodeIdentity } from "~/api";
+import type { DownloadSourceMetadata, ParsedEpisodeIdentity } from "~/api/contracts";
 
 interface ParsedIdentityInput {
   parsedAirDate?: string | undefined;

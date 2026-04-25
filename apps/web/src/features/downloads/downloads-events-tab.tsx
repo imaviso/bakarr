@@ -7,7 +7,7 @@ import type {
   DownloadsEventsQuery,
   DownloadsEventsSearchState,
 } from "~/features/downloads/downloads-view-types";
-import { type DownloadEventsExportResult } from "~/api";
+import type { DownloadEventsExportResult } from "~/api/contracts";
 import { formatUiTimestamp } from "~/domain/date-time";
 
 interface DownloadsEventsTabProps {

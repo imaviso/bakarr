@@ -52,15 +52,12 @@ function normalizeApiKey(apiKey?: string): string | undefined {
   return value;
 }
 
-export async function logout() {
-  try {
-    await fetch("/api/auth/logout", { method: "POST" });
-  } catch {
-    // ignore
-  }
+export function logoutAndRedirect() {
   clearAuthState();
   globalThis.location.href = "/login";
 }
+
+export const logout = logoutAndRedirect;
 
 export function getAuthHeaders(): HeadersInit {
   const key = authState.apiKey;

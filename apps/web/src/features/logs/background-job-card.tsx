@@ -1,4 +1,4 @@
-import type { BackgroundJobStatus } from "~/api";
+import type { BackgroundJobStatus } from "~/api/contracts";
 import { Badge } from "~/components/ui/badge";
 import { cn } from "~/infra/utils";
 

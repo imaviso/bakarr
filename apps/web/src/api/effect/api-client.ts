@@ -1,5 +1,5 @@
 import { Data, Effect, Schema } from "effect";
-import { getAuthHeaders } from "~/app/auth";
+import { getAuthHeaders } from "~/app/auth-state";
 
 export class ApiClientError extends Data.TaggedError("ApiClientError")<{
   readonly message: string;
@@ -15,18 +15,34 @@ export class ApiUnauthorizedError extends Data.TaggedError("ApiUnauthorizedError
   readonly message: string;
 }> {}
 
-export interface ApiRequestOptions extends RequestInit {
-  readonly skipAutoLogoutOnUnauthorized?: boolean;
+export interface ApiRequestOptions {
+  readonly method?: string;
+  readonly headers?: HeadersInit;
+  readonly body?: unknown;
 }
 
-function mergeHeaders(options?: ApiRequestOptions): Headers {
+function isBodyInit(value: unknown): value is BodyInit {
+  return (
+    typeof value === "string" ||
+    value instanceof FormData ||
+    value instanceof URLSearchParams ||
+    value instanceof Blob ||
+    value instanceof ArrayBuffer ||
+    ArrayBuffer.isView(value)
+  );
+}
+
+function serializeBody(body: unknown): BodyInit | undefined {
+  if (body === undefined) return undefined;
+  if (isBodyInit(body)) return body;
+  return JSON.stringify(body);
+}
+
+export function mergeHeaders(options?: ApiRequestOptions, authHeadersInit?: HeadersInit): Headers {
   const headers = new Headers(options?.headers);
-  const authHeaders = new Headers(getAuthHeaders());
+  const authHeaders = new Headers(authHeadersInit ?? getAuthHeaders());
   for (const [key, value] of authHeaders.entries()) {
     headers.set(key, value);
-  }
-  if (!headers.has("Content-Type") && options?.body !== undefined) {
-    headers.set("Content-Type", "application/json");
   }
   return headers;
 }
@@ -38,26 +54,52 @@ export const fetchResponse = Effect.fn("ApiClient.fetchResponse")(
     signal?: AbortSignal,
   ): Effect.Effect<Response, ApiClientError | ApiUnauthorizedError> =>
     Effect.gen(function* () {
+      const body = serializeBody(options?.body);
+      const headers = mergeHeaders(options, getAuthHeaders());
+
+      if (
+        body !== undefined &&
+        !headers.has("Content-Type") &&
+        !(body instanceof FormData) &&
+        !(body instanceof URLSearchParams) &&
+        typeof body === "string"
+      ) {
+        headers.set("Content-Type", "application/json");
+      }
+
       const response = yield* Effect.tryPromise({
-        try: () =>
-          fetch(endpoint, {
-            ...options,
-            headers: mergeHeaders(options),
+        try: () => {
+          const init: RequestInit = {
+            headers,
             credentials: "include",
-            ...(signal === undefined ? {} : { signal }),
-          }),
+          };
+          if (options?.method !== undefined) {
+            init.method = options.method;
+          }
+          if (body !== undefined) {
+            init.body = body;
+          }
+          if (signal !== undefined) {
+            init.signal = signal;
+          }
+          return fetch(endpoint, init);
+        },
         catch: (cause) => new ApiClientError({ message: `Network error: ${String(cause)}` }),
       });
 
-      if (response.status === 401 && !options?.skipAutoLogoutOnUnauthorized) {
-        return yield* Effect.fail(new ApiUnauthorizedError({ message: "Session expired" }));
+      if (response.status === 401) {
+        const text = yield* Effect.tryPromise({
+          try: () => response.text(),
+          catch: () => new ApiClientError({ message: "Unauthorized" }),
+        });
+        return yield* Effect.fail(new ApiUnauthorizedError({ message: text || "Unauthorized" }));
       }
 
       if (!response.ok) {
         const text = yield* Effect.tryPromise({
           try: () => response.text(),
           catch: (cause) => new ApiClientError({ message: String(cause) }),
-        }).pipe(Effect.orElseSucceed(() => ""));
+        });
         return yield* Effect.fail(
           new ApiClientError({
             message: text || `API error: ${response.status}`,
@@ -92,7 +134,7 @@ export const fetchJson = <A, I>(
         (cause) => new ApiDecodeError({ message: "Schema validation failed", cause }),
       ),
     );
-  }).pipe(Effect.withSpan("ApiClient.fetchJson"));
+  });
 
 export const fetchUnit = (
   endpoint: string,

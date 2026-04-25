@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import type { AddAnimeRequest, Anime, SearchDownloadRequest } from "./contracts";
 import { AnimeSchema, AsyncOperationAcceptedSchema } from "@bakarr/shared";
 import { Effect } from "effect";
-import { API_BASE } from "~/api";
+import { API_BASE } from "~/api/constants";
 import { fetchJson, fetchUnit } from "~/api/effect/api-client";
 import { animeKeys } from "./keys";
 
@@ -14,7 +14,7 @@ export function createAddAnimeMutation() {
       Effect.runPromise(
         fetchJson(AnimeSchema, `${API_BASE}/anime`, {
           method: "POST",
-          body: JSON.stringify(data),
+          body: data,
         }),
       ),
     onSuccess: (newAnime) => {
@@ -46,7 +46,7 @@ export function createToggleMonitorMutation() {
       Effect.runPromise(
         fetchUnit(`${API_BASE}/anime/${id}/monitor`, {
           method: "POST",
-          body: JSON.stringify({ monitored }),
+          body: { monitored },
         }),
       ),
     onMutate: async ({ id, monitored }) => {
@@ -94,7 +94,7 @@ export function createUpdateAnimePathMutation() {
       Effect.runPromise(
         fetchUnit(`${API_BASE}/anime/${id}/path`, {
           method: "PUT",
-          body: JSON.stringify({ path, rescan }),
+          body: { path, rescan },
         }),
       ),
     onMutate: async ({ id, path }) => {
@@ -126,7 +126,7 @@ export function createUpdateAnimeProfileMutation() {
       Effect.runPromise(
         fetchUnit(`${API_BASE}/anime/${id}/profile`, {
           method: "PUT",
-          body: JSON.stringify({ profile_name: profileName }),
+          body: { profile_name: profileName },
         }),
       ),
     onMutate: async ({ id, profileName }) => {
@@ -158,7 +158,7 @@ export function createUpdateAnimeReleaseProfilesMutation() {
       Effect.runPromise(
         fetchUnit(`${API_BASE}/anime/${id}/release-profiles`, {
           method: "PUT",
-          body: JSON.stringify({ release_profile_ids: releaseProfileIds }),
+          body: { release_profile_ids: releaseProfileIds },
         }),
       ),
     onSuccess: (_, { id }) => {
@@ -245,7 +245,7 @@ export function createMapEpisodeMutation() {
       Effect.runPromise(
         fetchUnit(`${API_BASE}/anime/${animeId}/episodes/${episodeNumber}/map`, {
           method: "POST",
-          body: JSON.stringify({ file_path: filePath }),
+          body: { file_path: filePath },
         }),
       ),
     onSuccess: (_, { animeId }) => {
@@ -268,7 +268,7 @@ export function createBulkMapEpisodesMutation() {
       Effect.runPromise(
         fetchUnit(`${API_BASE}/anime/${animeId}/episodes/map/bulk`, {
           method: "POST",
-          body: JSON.stringify({ mappings }),
+          body: { mappings },
         }),
       ),
     onSuccess: (_, { animeId }) => {
@@ -285,7 +285,7 @@ export function createGrabReleaseMutation() {
       Effect.runPromise(
         fetchUnit(`${API_BASE}/search/download`, {
           method: "POST",
-          body: JSON.stringify(data),
+          body: data,
         }),
       ),
     onSuccess: () => {

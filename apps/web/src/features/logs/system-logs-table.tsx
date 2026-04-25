@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
-import type { SystemLog } from "~/api";
+import type { SystemLog } from "~/api/contracts";
 import { cn } from "~/infra/utils";
 
 interface SystemLogsTableProps {

@@ -1,4 +1,4 @@
-import type { AnimeSearchResult, ScannedFile } from "~/api";
+import type { AnimeSearchResult, ScannedFile } from "~/api/contracts";
 
 export type Step = "scan" | "review";
 

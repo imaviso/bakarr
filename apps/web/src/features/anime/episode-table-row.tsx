@@ -23,7 +23,7 @@ import type {
   AnimeEpisodeDialogState,
   AnimeSearchModalState,
 } from "~/features/anime/anime-details-types";
-import type { Episode } from "~/api";
+import type { Episode } from "~/api/contracts";
 import { formatDate, isAired } from "~/domain/date-time";
 import { formatDurationSeconds } from "~/domain/scanned-file";
 import { cn } from "~/infra/utils";

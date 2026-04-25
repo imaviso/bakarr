@@ -4,7 +4,7 @@ import { EmptyState } from "~/components/shared/empty-state";
 import { ActiveDownloadRow } from "~/features/downloads/downloads/download-rows";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "~/components/ui/table";
 import { TabsContent } from "~/components/ui/tabs";
-import type { DownloadStatus } from "~/api";
+import type { DownloadStatus } from "~/api/contracts";
 
 interface DownloadsQueueTabProps {
   queue: DownloadStatus[];

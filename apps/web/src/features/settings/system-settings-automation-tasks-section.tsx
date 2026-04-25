@@ -1,7 +1,7 @@
 import { SettingRow, SettingSection } from "~/features/settings/form-controls";
 import { formatLastRun } from "~/features/settings/system-settings-schema";
 import { Button } from "~/components/ui/button";
-import type { SystemStatus } from "~/api";
+import type { SystemStatus } from "~/api/contracts";
 
 interface SystemSettingsAutomationTasksSectionProps {
   onTriggerMetadataRefresh: () => void;

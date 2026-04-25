@@ -8,7 +8,7 @@ import {
   RenameResultSchema,
 } from "@bakarr/shared";
 import { Effect, Schema } from "effect";
-import { API_BASE } from "~/api";
+import { API_BASE } from "~/api/constants";
 import { fetchJson, fetchUnit } from "~/api/effect/api-client";
 import { animeKeys } from "./keys";
 
@@ -18,14 +18,7 @@ export function authMeQueryOptions() {
   return queryOptions({
     queryKey: animeKeys.auth.me(),
     queryFn: ({ signal }) =>
-      Effect.runPromise(
-        fetchJson(
-          AuthUserSchema,
-          `${API_BASE}/auth/me`,
-          { skipAutoLogoutOnUnauthorized: true },
-          signal,
-        ),
-      ),
+      Effect.runPromise(fetchJson(AuthUserSchema, `${API_BASE}/auth/me`, undefined, signal)),
     staleTime: Infinity,
   });
 }
@@ -55,8 +48,7 @@ export function createLoginMutation() {
       Effect.runPromise(
         fetchJson(LoginResponseSchema, `${API_BASE}/auth/login`, {
           method: "POST",
-          body: JSON.stringify(data),
-          skipAutoLogoutOnUnauthorized: true,
+          body: data,
         }),
       ),
   });
@@ -68,8 +60,7 @@ export function createApiKeyLoginMutation() {
       Effect.runPromise(
         fetchJson(LoginResponseSchema, `${API_BASE}/auth/login/api-key`, {
           method: "POST",
-          body: JSON.stringify(data),
-          skipAutoLogoutOnUnauthorized: true,
+          body: data,
         }),
       ),
   });
@@ -81,8 +72,7 @@ export function createChangePasswordMutation() {
       Effect.runPromise(
         fetchUnit(`${API_BASE}/auth/password`, {
           method: "PUT",
-          body: JSON.stringify(data),
-          skipAutoLogoutOnUnauthorized: true,
+          body: data,
         }),
       ),
   });

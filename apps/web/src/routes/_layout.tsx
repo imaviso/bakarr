@@ -4,7 +4,7 @@ import { Suspense, lazy } from "react";
 import { AppSidebar } from "~/app/layout/app-sidebar";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "~/components/ui/sidebar";
 import { syncAuthenticatedUser } from "~/app/auth";
-import { authMeQueryOptions } from "~/api";
+import { authMeQueryOptions } from "~/api/auth";
 import { ApiUnauthorizedError } from "~/api/effect/api-client";
 
 const SocketToastListenerLazy = lazy(() =>

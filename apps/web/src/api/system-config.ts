@@ -15,7 +15,7 @@ import {
   OpsDashboardSchema,
   SystemStatusSchema,
 } from "@bakarr/shared";
-import { API_BASE } from "~/api";
+import { API_BASE } from "~/api/constants";
 import { fetchJson, fetchUnit } from "~/api/effect/api-client";
 import { animeKeys } from "./keys";
 
@@ -43,7 +43,7 @@ export function createUpdateSystemConfigMutation() {
       Effect.runPromise(
         fetchUnit(`${API_BASE}/system/config`, {
           method: "PUT",
-          body: JSON.stringify(data),
+          body: data,
         }),
       ),
     onSuccess: () => {

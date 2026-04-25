@@ -7,7 +7,7 @@ import {
 } from "@tanstack/react-query";
 import { Effect } from "effect";
 import { SystemLogsResponseSchema } from "@bakarr/shared";
-import { API_BASE } from "~/api";
+import { API_BASE } from "~/api/constants";
 import { fetchJson, fetchUnit } from "~/api/effect/api-client";
 import { animeKeys } from "./keys";
 

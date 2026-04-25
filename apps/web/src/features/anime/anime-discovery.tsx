@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { buttonVariants } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
-import type { Anime } from "~/api";
+import type { Anime } from "~/api/contracts";
 import { animeDiscoverySubtitle, animeDisplayTitle } from "~/domain/anime/metadata";
 import { cn } from "~/infra/utils";
 

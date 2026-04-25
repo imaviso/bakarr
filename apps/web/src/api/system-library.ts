@@ -21,7 +21,7 @@ import {
   ScanResultSchema,
   ScannerStateSchema,
 } from "@bakarr/shared";
-import { API_BASE } from "~/api";
+import { API_BASE } from "~/api/constants";
 import { fetchJson, fetchUnit } from "~/api/effect/api-client";
 import { animeKeys } from "./keys";
 
@@ -71,7 +71,7 @@ export function createControlUnmappedFolderMutation() {
       Effect.runPromise(
         fetchUnit(`${API_BASE}/library/unmapped/control`, {
           method: "POST",
-          body: JSON.stringify(data),
+          body: data,
         }),
       ),
     onSuccess: () => {
@@ -88,7 +88,7 @@ export function createBulkControlUnmappedFoldersMutation() {
       Effect.runPromise(
         fetchUnit(`${API_BASE}/library/unmapped/control/bulk`, {
           method: "POST",
-          body: JSON.stringify(data),
+          body: data,
         }),
       ),
     onSuccess: () => {
@@ -105,7 +105,7 @@ export function createImportUnmappedFolderMutation() {
       Effect.runPromise(
         fetchUnit(`${API_BASE}/library/unmapped/import`, {
           method: "POST",
-          body: JSON.stringify(data),
+          body: data,
         }),
       ),
     onSuccess: (_, variables) => {
@@ -128,7 +128,7 @@ export function createScanImportPathMutation() {
       Effect.runPromise(
         fetchJson(ScanResultSchema, `${API_BASE}/library/import/scan`, {
           method: "POST",
-          body: JSON.stringify(data),
+          body: data,
         }),
       ),
   });
@@ -141,7 +141,7 @@ export function createImportFilesMutation() {
       Effect.runPromise(
         fetchJson(AsyncOperationAcceptedSchema, `${API_BASE}/library/import`, {
           method: "POST",
-          body: JSON.stringify({ files }),
+          body: { files },
         }),
       ),
     onSuccess: (accepted) => {
@@ -165,7 +165,7 @@ export function createImportCandidateSelectionMutation() {
       Effect.runPromise(
         fetchJson(ImportCandidateSelectionResultSchema, `${API_BASE}/library/import/selection`, {
           method: "POST",
-          body: JSON.stringify(data),
+          body: data,
         }),
       ),
   });

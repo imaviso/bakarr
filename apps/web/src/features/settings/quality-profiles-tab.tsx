@@ -23,7 +23,8 @@ import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Switch } from "~/components/ui/switch";
-import { createDeleteProfileMutation, profilesQueryOptions, type QualityProfile } from "~/api";
+import { createDeleteProfileMutation, profilesQueryOptions } from "~/api/profiles";
+import type { QualityProfile } from "~/api/contracts";
 
 interface QualityProfileCardProps {
   onDelete: (name: string) => void;

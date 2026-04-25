@@ -2,7 +2,7 @@ import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/r
 import type { CalendarEvent, RssFeedCreateRequest } from "./contracts";
 import { Effect, Schema } from "effect";
 import { CalendarEventSchema, RssFeedSchema } from "@bakarr/shared";
-import { API_BASE } from "~/api";
+import { API_BASE } from "~/api/constants";
 import { fetchJson, fetchUnit } from "~/api/effect/api-client";
 import { animeKeys } from "./keys";
 
@@ -56,7 +56,7 @@ export function createAddRssFeedMutation() {
       Effect.runPromise(
         fetchJson(RssFeedSchema, `${API_BASE}/rss`, {
           method: "POST",
-          body: JSON.stringify(data),
+          body: data,
         }),
       ),
     onSuccess: () => {
@@ -83,7 +83,7 @@ export function createToggleRssFeedMutation() {
       Effect.runPromise(
         fetchUnit(`${API_BASE}/rss/${id}/toggle`, {
           method: "PUT",
-          body: JSON.stringify({ enabled }),
+          body: { enabled },
         }),
       ),
     onSuccess: () => {

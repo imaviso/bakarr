@@ -3,7 +3,7 @@ import type { SettingsFormApi } from "~/features/settings/system-settings-form-h
 import { Badge } from "~/components/ui/badge";
 import { Input } from "~/components/ui/input";
 import { Switch } from "~/components/ui/switch";
-import type { SystemStatus } from "~/api";
+import type { SystemStatus } from "~/api/contracts";
 
 interface SystemSettingsAutomationMetadataSectionProps {
   form: SettingsFormApi;

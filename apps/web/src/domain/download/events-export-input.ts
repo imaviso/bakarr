@@ -1,4 +1,4 @@
-import type { DownloadEventsExportInput } from "~/api";
+import type { DownloadEventsExportInput } from "~/api/contracts";
 import {
   buildDownloadEventsExportInput as buildDownloadEventsExportInputModel,
   type DownloadEventsQueryFields,

@@ -3,7 +3,7 @@ import {
   parseOptionalPositiveInt,
   type DownloadEventsFilterFields,
 } from "~/domain/download/events-query-model";
-import { DOWNLOAD_EVENT_TYPE_FILTER_OPTIONS } from "~/api";
+import { DOWNLOAD_EVENT_TYPE_FILTER_OPTIONS } from "~/api/contracts";
 
 interface DownloadEventsSearchInput extends DownloadEventsFilterFields {}
 

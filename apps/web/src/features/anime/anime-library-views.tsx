@@ -16,7 +16,8 @@ import {
   TableRow,
 } from "~/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
-import { type Anime, createDeleteAnimeMutation } from "~/api";
+import type { Anime } from "~/api/contracts";
+import { createDeleteAnimeMutation } from "~/api/anime-mutations";
 import {
   animeDateSubtitle,
   formatNextAiringEpisode,

@@ -1,4 +1,4 @@
-import type { AnimeSearchResult, ImportFileRequest } from "~/api";
+import type { AnimeSearchResult, ImportFileRequest } from "~/api/contracts";
 import { it } from "vitest";
 import {
   buildImportFileRequest,

@@ -1,5 +1,5 @@
 import { format, isAfter, isValid, parseISO } from "date-fns";
-import type { Anime, AnimeSearchResult, Config } from "~/api";
+import type { Anime, AnimeSearchResult, Config } from "~/api/contracts";
 
 type AnimeDateContext = {
   season?: Anime["season"];

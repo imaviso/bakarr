@@ -7,7 +7,7 @@ import {
 import { Badge } from "~/components/ui/badge";
 import { Progress } from "~/components/ui/progress";
 import { TableCell, TableRow } from "~/components/ui/table";
-import { type Download, type DownloadStatus } from "~/api";
+import type { Download, DownloadStatus } from "~/api/contracts";
 import {
   formatCoverageMeta,
   formatDownloadDecisionBadge,

@@ -26,7 +26,9 @@ import {
 import { Input } from "~/components/ui/input";
 import { Separator } from "~/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
-import { animeListQueryOptions, createDeleteAnimeMutation, systemConfigQueryOptions } from "~/api";
+import { animeListQueryOptions } from "~/api/anime";
+import { createDeleteAnimeMutation } from "~/api/anime-mutations";
+import { systemConfigQueryOptions } from "~/api/system-config";
 import { filterAnimeLibrary } from "~/domain/anime/library-filter";
 import { getAiringDisplayPreferences } from "~/domain/anime/metadata";
 import { usePageTitle } from "~/domain/page-title";

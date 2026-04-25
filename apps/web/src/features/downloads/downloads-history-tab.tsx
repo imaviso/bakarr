@@ -4,7 +4,7 @@ import { EmptyState } from "~/components/shared/empty-state";
 import { DownloadRow } from "~/features/downloads/downloads/download-rows";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "~/components/ui/table";
 import { TabsContent } from "~/components/ui/tabs";
-import type { Download } from "~/api";
+import type { Download } from "~/api/contracts";
 
 interface DownloadsHistoryTabProps {
   history: Download[];

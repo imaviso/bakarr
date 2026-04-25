@@ -24,7 +24,7 @@ import {
 } from "~/components/ui/command";
 
 import { Kbd } from "~/components/ui/kbd";
-import { createAnimeListQuery } from "~/api";
+import { createAnimeListQuery } from "~/api/anime";
 import { animeSearchSubtitle } from "~/domain/anime/metadata";
 import { cn } from "~/infra/utils";
 

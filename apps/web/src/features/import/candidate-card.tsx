@@ -2,7 +2,7 @@ import { CheckIcon, FileIcon } from "@phosphor-icons/react";
 import { AnimeDiscoveryRow } from "~/features/anime/anime-discovery";
 import { Badge } from "~/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
-import type { AnimeSearchResult } from "~/api";
+import type { AnimeSearchResult } from "~/api/contracts";
 import { animeDisplayTitle, animeSearchSubtitle } from "~/domain/anime/metadata";
 import { cn } from "~/infra/utils";
 

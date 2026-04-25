@@ -1,4 +1,4 @@
-import type { AnimeSearchResult } from "~/api";
+import type { AnimeSearchResult } from "~/api/contracts";
 import { ManualSearchCore } from "~/features/import/manual-search-core";
 
 export function ManualMatchSearch(props: { onSelect: (anime: AnimeSearchResult) => void }) {

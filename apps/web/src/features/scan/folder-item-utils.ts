@@ -1,4 +1,4 @@
-import { MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS, type UnmappedFolder } from "~/api";
+import { MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS, type UnmappedFolder } from "~/api/contracts";
 import { Schema } from "effect";
 
 export function folderStatusLabel(folder: UnmappedFolder) {

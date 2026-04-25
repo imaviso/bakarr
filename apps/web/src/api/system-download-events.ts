@@ -7,7 +7,7 @@ import type {
 } from "./contracts";
 import { Effect } from "effect";
 import { DownloadEventsPageSchema } from "@bakarr/shared";
-import { API_BASE } from "~/api";
+import { API_BASE } from "~/api/constants";
 import { fetchJson, fetchResponse } from "~/api/effect/api-client";
 import { animeKeys } from "./keys";
 

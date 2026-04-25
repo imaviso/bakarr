@@ -24,7 +24,7 @@ import {
   buildReleaseDisplay,
   buildSelectionDisplayFromDownloadAction,
 } from "~/domain/release/display";
-import { type EpisodeSearchResult } from "~/api";
+import type { EpisodeSearchResult } from "~/api/contracts";
 import { getReleaseConfidence } from "~/domain/release/selection";
 import { actionReasonFromDownloadAction } from "~/domain/release/grab";
 import { cn } from "~/infra/utils";

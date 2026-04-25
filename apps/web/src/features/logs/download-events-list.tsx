@@ -1,5 +1,5 @@
 import { DownloadEventsFeed } from "~/features/downloads/download-events/download-events-feed";
-import type { DownloadEvent } from "~/api";
+import type { DownloadEvent } from "~/api/contracts";
 
 interface DownloadEventsListProps {
   events: DownloadEvent[];

@@ -12,7 +12,8 @@ import { useState } from "react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Skeleton } from "~/components/ui/skeleton";
-import { type BrowseEntry, createBrowsePathQuery } from "~/api";
+import type { BrowseEntry } from "~/api/contracts";
+import { createBrowsePathQuery } from "~/api/system-library";
 import { EmptyState } from "~/components/shared/empty-state";
 import { cn } from "~/infra/utils";
 

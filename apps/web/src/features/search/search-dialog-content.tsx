@@ -45,7 +45,7 @@ import {
   useSearchDialogReleaseRowState,
   useSearchDialogResultsState,
 } from "~/features/search/search-dialog-state";
-import type { NyaaSearchResult } from "~/api";
+import type { NyaaSearchResult } from "~/api/contracts";
 
 const categoryOptions = Object.keys(CATEGORY_LABELS);
 const filterOptions = Object.keys(FILTER_LABELS);

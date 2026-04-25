@@ -1,7 +1,7 @@
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import type { OperationTask, OperationTaskKey } from "./contracts";
 import { OperationTaskSchema } from "@bakarr/shared";
-import { API_BASE } from "~/api";
+import { API_BASE } from "~/api/constants";
 import { fetchJson } from "~/api/effect/api-client";
 import { Effect, Schema } from "effect";
 import { animeKeys } from "./keys";

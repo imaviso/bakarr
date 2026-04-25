@@ -5,7 +5,7 @@ import type {
   ReleaseProfileUpdateRequest,
 } from "./contracts";
 import { QualityProfileSchema, QualitySchema, ReleaseProfileSchema } from "@bakarr/shared";
-import { API_BASE } from "~/api";
+import { API_BASE } from "~/api/constants";
 import { fetchJson, fetchUnit } from "~/api/effect/api-client";
 import { Effect, Schema } from "effect";
 import { animeKeys } from "./keys";
@@ -70,7 +70,7 @@ export function createCreateProfileMutation() {
       Effect.runPromise(
         fetchJson(QualityProfileSchema, `${API_BASE}/profiles`, {
           method: "POST",
-          body: JSON.stringify(data),
+          body: data,
         }),
       ),
     onSuccess: () => {
@@ -86,7 +86,7 @@ export function createUpdateProfileMutation() {
       Effect.runPromise(
         fetchJson(QualityProfileSchema, `${API_BASE}/profiles/${encodeURIComponent(name)}`, {
           method: "PUT",
-          body: JSON.stringify(profile),
+          body: profile,
         }),
       ),
     onSuccess: () => {
@@ -115,7 +115,7 @@ export function createCreateReleaseProfileMutation() {
       Effect.runPromise(
         fetchJson(ReleaseProfileSchema, `${API_BASE}/release-profiles`, {
           method: "POST",
-          body: JSON.stringify(data),
+          body: data,
         }),
       ),
     onSuccess: () => {
@@ -131,7 +131,7 @@ export function createUpdateReleaseProfileMutation() {
       Effect.runPromise(
         fetchUnit(`${API_BASE}/release-profiles/${id}`, {
           method: "PUT",
-          body: JSON.stringify(data),
+          body: data,
         }),
       ),
     onSuccess: () => {

@@ -1,4 +1,4 @@
-import type { DownloadEvent } from "~/api";
+import type { DownloadEvent } from "~/api/contracts";
 import {
   Dialog,
   DialogContent,

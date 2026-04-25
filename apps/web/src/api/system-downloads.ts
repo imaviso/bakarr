@@ -2,7 +2,7 @@ import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/r
 import { toast } from "sonner";
 import { Effect, Schema } from "effect";
 import { AsyncOperationAcceptedSchema, DownloadSchema, DownloadStatusSchema } from "@bakarr/shared";
-import { API_BASE } from "~/api";
+import { API_BASE } from "~/api/constants";
 import { fetchJson, fetchUnit } from "~/api/effect/api-client";
 import { animeKeys } from "./keys";
 
@@ -53,7 +53,7 @@ export function createSearchMissingMutation() {
       Effect.runPromise(
         fetchJson(AsyncOperationAcceptedSchema, `${API_BASE}/downloads/search-missing`, {
           method: "POST",
-          body: JSON.stringify({ anime_id: animeId }),
+          body: { anime_id: animeId },
         }),
       ),
     onSuccess: (accepted) => {

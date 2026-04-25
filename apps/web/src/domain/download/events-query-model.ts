@@ -1,4 +1,4 @@
-import type { DownloadEventsExportInput, DownloadEventsFilterInput } from "~/api";
+import type { DownloadEventsExportInput, DownloadEventsFilterInput } from "~/api/contracts";
 
 export interface DownloadEventsQueryFields {
   animeId: string;

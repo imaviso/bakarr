@@ -28,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
-import type { AnimeSearchResult, UnmappedFolder } from "~/api";
+import type { AnimeSearchResult, UnmappedFolder } from "~/api/contracts";
 import { animeDisplayTitle, animeSearchSubtitle } from "~/domain/anime/metadata";
 import { formatFileSize } from "~/domain/scanned-file";
 import { cn } from "~/infra/utils";

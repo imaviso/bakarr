@@ -15,7 +15,8 @@ import {
 import { useState } from "react";
 import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
-import { createCalendarQuery, createSystemConfigQuery } from "~/api";
+import { createCalendarQuery } from "~/api/system-rss-calendar";
+import { createSystemConfigQuery } from "~/api/system-config";
 import {
   formatAiringTimeWithPreferences,
   getAiringDisplayDateKey,

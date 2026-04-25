@@ -1,7 +1,7 @@
 import { PlayIcon } from "@phosphor-icons/react";
 import { Badge } from "~/components/ui/badge";
 import { Card, CardContent } from "~/components/ui/card";
-import type { Anime } from "~/api";
+import type { Anime } from "~/api/contracts";
 
 interface AnimeDetailsSidebarProps {
   anime: Anime;
