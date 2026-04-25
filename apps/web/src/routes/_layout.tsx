@@ -1,14 +1,14 @@
 import { useIsFetching } from "@tanstack/react-query";
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { Suspense, lazy } from "react";
-import { AppSidebar } from "~/components/app-sidebar";
+import { AppSidebar } from "~/app/layout/app-sidebar";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "~/components/ui/sidebar";
-import { syncAuthenticatedUser } from "~/lib/auth";
-import { authMeQueryOptions } from "~/lib/api";
-import { ApiUnauthorizedError } from "~/lib/effect/api-client";
+import { syncAuthenticatedUser } from "~/app/auth";
+import { authMeQueryOptions } from "~/api";
+import { ApiUnauthorizedError } from "~/api/effect/api-client";
 
 const SocketToastListenerLazy = lazy(() =>
-  import("~/components/socket-toast-listener").then((module) => ({
+  import("~/components/shared/socket-toast-listener").then((module) => ({
     default: module.SocketToastListener,
   })),
 );

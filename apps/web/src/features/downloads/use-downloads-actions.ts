@@ -4,12 +4,12 @@ import {
   createSyncDownloadsMutation,
   type DownloadEventsExportInput,
   type DownloadEventsExportResult,
-} from "~/lib/api";
+} from "~/api";
 import {
   createDownloadEventsCursorPatch,
   DOWNLOADS_EVENTS_SEARCH_KEYS,
-} from "~/lib/download-events-search";
-import { runDownloadEventsExport } from "~/lib/download-events-export";
+} from "~/domain/download/events-search";
+import { runDownloadEventsExport } from "~/domain/download/events-export";
 import { toDownloadsTab } from "~/features/downloads/downloads-search";
 import type { DownloadsSearchPatch } from "~/features/downloads/downloads-search";
 

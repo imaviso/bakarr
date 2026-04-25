@@ -1,6 +1,6 @@
 import { ArrowClockwiseIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
-import { DownloadEventsDialog } from "~/components/download-events-dialog";
-import { PageHeader } from "~/components/page-header";
+import { DownloadEventsDialog } from "~/features/downloads/download-events-dialog";
+import { PageHeader } from "~/app/layout/page-header";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
@@ -9,7 +9,7 @@ import { DownloadsEventsTab } from "~/features/downloads/downloads-events-tab";
 import { DownloadsHistoryTab } from "~/features/downloads/downloads-history-tab";
 import { DownloadsQueueTab } from "~/features/downloads/downloads-queue-tab";
 import type { DownloadsViewState } from "~/features/downloads/downloads-view-types";
-import { formatUiTimestamp } from "~/lib/date-time";
+import { formatUiTimestamp } from "~/domain/date-time";
 
 interface DownloadsViewProps {
   searchTab: string;

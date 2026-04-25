@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { GeneralError } from "~/components/general-error";
+import { GeneralError } from "~/components/shared/general-error";
 import {
   normalizeDownloadsSearch,
   parseDownloadsSearch,
@@ -7,8 +7,8 @@ import {
 } from "~/features/downloads/downloads-search";
 import { useDownloadsRouteState } from "~/features/downloads/downloads-route-state";
 import { DownloadsView } from "~/features/downloads/downloads-view";
-import { downloadHistoryQueryOptions } from "~/lib/api";
-import { usePageTitle } from "~/lib/page-title";
+import { downloadHistoryQueryOptions } from "~/api";
+import { usePageTitle } from "~/domain/page-title";
 
 export const Route = createFileRoute("/_layout/downloads")({
   validateSearch: parseDownloadsSearch,

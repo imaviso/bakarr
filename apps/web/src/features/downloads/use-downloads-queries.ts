@@ -1,12 +1,12 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { useDownloadEventsSearchState } from "~/hooks/use-download-events-search-state";
-import { useActiveDownloads } from "~/hooks/use-active-downloads";
+import { useDownloadEventsSearchState } from "~/features/downloads/use-download-events-search-state";
+import { useActiveDownloads } from "~/features/downloads/use-active-downloads";
 import type {
   DownloadsSearchPatch,
   DownloadsSearchState,
 } from "~/features/downloads/downloads-search";
-import { createDownloadEventsQuery, downloadHistoryQueryOptions } from "~/lib/api";
-import { DOWNLOADS_EVENTS_SEARCH_KEYS } from "~/lib/download-events-search";
+import { createDownloadEventsQuery, downloadHistoryQueryOptions } from "~/api";
+import { DOWNLOADS_EVENTS_SEARCH_KEYS } from "~/domain/download/events-search";
 
 interface UseDownloadsQueriesOptions {
   search: DownloadsSearchState;

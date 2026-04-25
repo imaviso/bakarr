@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { decodeNotificationEventWire, handleSocketEvent } from "~/lib/socket-event-handler";
-import { subscribeSocketMessages } from "~/lib/effect/socket-service";
+import { decodeNotificationEventWire, handleSocketEvent } from "~/infra/socket-event-handler";
+import { subscribeSocketMessages } from "~/api/effect/socket-service";
 
 export function useSocketEvents() {
   const queryClient = useQueryClient();

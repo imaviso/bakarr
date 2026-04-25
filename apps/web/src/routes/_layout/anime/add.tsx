@@ -6,8 +6,8 @@ import { Suspense, lazy, useCallback, useEffect, useRef, useTransition } from "r
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useContainerWidth } from "~/hooks/use-container-width";
 import { Schema } from "effect";
-import { GeneralError } from "~/components/general-error";
-import { PageHeader } from "~/components/page-header";
+import { GeneralError } from "~/components/shared/general-error";
+import { PageHeader } from "~/app/layout/page-header";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
@@ -21,24 +21,24 @@ import {
   profilesQueryOptions,
   releaseProfilesQueryOptions,
   systemConfigQueryOptions,
-} from "~/lib/api";
-import { usePageTitle } from "~/lib/page-title";
-import { getCurrentSeasonWindow, shiftSeasonWindow } from "~/lib/seasonal-navigation";
+} from "~/api";
+import { usePageTitle } from "~/domain/page-title";
+import { getCurrentSeasonWindow, shiftSeasonWindow } from "~/domain/seasonal-navigation";
 
 const DEFAULT_SEASON_WINDOW = getCurrentSeasonWindow();
 
 const AnimeSearchResultCardLazy = lazy(() =>
-  import("~/components/anime/anime-search-result-card").then((module) => ({
+  import("~/features/anime/anime-search-result-card").then((module) => ({
     default: module.AnimeSearchResultCard,
   })),
 );
 const SeasonalAnimeSectionLazy = lazy(() =>
-  import("~/components/anime/seasonal-anime-section").then((module) => ({
+  import("~/features/anime/seasonal-anime-section").then((module) => ({
     default: module.SeasonalAnimeSection,
   })),
 );
 const AddAnimeDialogLazy = lazy(() =>
-  import("~/components/add-anime-dialog").then((module) => ({
+  import("~/features/anime/add-anime-dialog").then((module) => ({
     default: module.AddAnimeDialog,
   })),
 );

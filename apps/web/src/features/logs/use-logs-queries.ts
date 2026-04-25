@@ -4,9 +4,9 @@ import {
   createInfiniteLogsQuery,
   createSystemDashboardQuery,
   createSystemJobsQuery,
-} from "~/lib/api";
-import { LOGS_DOWNLOAD_EVENTS_SEARCH_KEYS } from "~/lib/download-events-search";
-import { useDownloadEventsSearchState } from "~/hooks/use-download-events-search-state";
+} from "~/api";
+import { LOGS_DOWNLOAD_EVENTS_SEARCH_KEYS } from "~/domain/download/events-search";
+import { useDownloadEventsSearchState } from "~/features/downloads/use-download-events-search-state";
 import type { LogsFilterParams } from "~/features/logs/use-logs-filters";
 
 interface UseLogsQueriesOptions {

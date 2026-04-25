@@ -1,7 +1,7 @@
 import { useLogsActions } from "~/features/logs/use-logs-actions";
 import { useLogsFilters } from "~/features/logs/use-logs-filters";
 import { useLogsQueries } from "~/features/logs/use-logs-queries";
-import { formatUiTimestamp } from "~/lib/date-time";
+import { formatUiTimestamp } from "~/domain/date-time";
 
 export function formatLogTimestamp(createdAt: string): string {
   return formatUiTimestamp(createdAt);

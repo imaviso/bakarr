@@ -1,10 +1,5 @@
-import type {
-  Download,
-  DownloadEvent,
-  DownloadEventsExportResult,
-  DownloadStatus,
-} from "~/lib/api";
-import type { DownloadEventsFilterValue } from "~/components/download-events/download-events-filters";
+import type { Download, DownloadEvent, DownloadEventsExportResult, DownloadStatus } from "~/api";
+import type { DownloadEventsFilterValue } from "~/features/downloads/download-events/download-events-filters";
 
 export interface DownloadsEventsSearchState {
   activePreset: number | null | undefined;

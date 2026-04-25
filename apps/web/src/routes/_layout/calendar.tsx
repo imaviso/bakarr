@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { AnimeCalendar } from "~/components/anime-calendar";
-import { GeneralError } from "~/components/general-error";
-import { usePageTitle } from "~/lib/page-title";
+import { AnimeCalendar } from "~/features/anime/anime-calendar";
+import { GeneralError } from "~/components/shared/general-error";
+import { usePageTitle } from "~/domain/page-title";
 
 export const Route = createFileRoute("/_layout/calendar")({
   component: CalendarPage,

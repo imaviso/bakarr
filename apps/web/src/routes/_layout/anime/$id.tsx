@@ -2,15 +2,15 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Suspense, lazy } from "react";
 import { Schema } from "effect";
-import { AnimeDetailsHeader } from "~/components/anime/anime-details-header";
-import { AnimeDetailsMeta } from "~/components/anime/anime-details-meta";
-import { AnimeDetailsSidebar } from "~/components/anime/anime-details-sidebar";
-import { AnimeEpisodesPanel } from "~/components/anime/anime-episodes-panel";
-import { AnimeDiscoverySection } from "~/components/anime-discovery";
-import { AnimeError } from "~/components/anime-error";
-import { AnimeDetailsDialogsProvider } from "~/components/anime/anime-details-dialogs-context";
-import { useAnimeDetailsActions } from "~/hooks/use-anime-details-actions";
-import { useAnimeDetailsDialogState } from "~/hooks/use-anime-details-dialog-state";
+import { AnimeDetailsHeader } from "~/features/anime/anime-details-header";
+import { AnimeDetailsMeta } from "~/features/anime/anime-details-meta";
+import { AnimeDetailsSidebar } from "~/features/anime/anime-details-sidebar";
+import { AnimeEpisodesPanel } from "~/features/anime/anime-episodes-panel";
+import { AnimeDiscoverySection } from "~/features/anime/anime-discovery";
+import { AnimeError } from "~/features/anime/anime-error";
+import { AnimeDetailsDialogsProvider } from "~/features/anime/anime-details-dialogs-context";
+import { useAnimeDetailsActions } from "~/features/anime/hooks/use-anime-details-actions";
+import { useAnimeDetailsDialogState } from "~/features/anime/hooks/use-anime-details-dialog-state";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import {
   createAnimeScanTaskQuery,
@@ -20,12 +20,12 @@ import {
   isTaskActive,
   profilesQueryOptions,
   releaseProfilesQueryOptions,
-} from "~/lib/api";
-import { usePageTitle } from "~/lib/page-title";
-import { isAired } from "~/lib/date-time";
+} from "~/api";
+import { usePageTitle } from "~/domain/page-title";
+import { isAired } from "~/domain/date-time";
 
 const AnimeDetailsDialogsLazy = lazy(() =>
-  import("~/components/anime/anime-details-dialogs").then((module) => ({
+  import("~/features/anime/anime-details-dialogs").then((module) => ({
     default: module.AnimeDetailsDialogs,
   })),
 );

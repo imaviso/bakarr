@@ -3,9 +3,9 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Suspense, lazy, useCallback, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { EmptyState } from "~/components/empty-state";
-import { GeneralError } from "~/components/general-error";
-import { PageHeader } from "~/components/page-header";
+import { EmptyState } from "~/components/shared/empty-state";
+import { GeneralError } from "~/components/shared/general-error";
+import { PageHeader } from "~/app/layout/page-header";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
@@ -30,18 +30,18 @@ import {
   systemConfigQueryOptions,
   wantedQueryOptions,
   type MissingEpisode,
-} from "~/lib/api";
-import { usePageTitle } from "~/lib/page-title";
+} from "~/api";
+import { usePageTitle } from "~/domain/page-title";
 import {
   formatAiringDateWithPreferences,
   formatNextAiringEpisode,
   getAiringDisplayPreferences,
-} from "~/lib/anime-metadata";
+} from "~/domain/anime/metadata";
 
 const WANTED_LIMIT = 100;
 
 const SearchModalLazy = lazy(() =>
-  import("~/components/search-modal").then((module) => ({
+  import("~/features/search/search-modal").then((module) => ({
     default: module.SearchModal,
   })),
 );

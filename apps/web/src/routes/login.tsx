@@ -14,8 +14,8 @@ import {
 } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
-import { createApiKeyLoginMutation, createLoginMutation } from "~/lib/api";
-import { useAuth } from "~/lib/auth";
+import { createApiKeyLoginMutation, createLoginMutation } from "~/api";
+import { useAuth } from "~/app/auth";
 
 const LoginSearchSchema = Schema.Struct({
   redirect: Schema.optionalWith(Schema.String, { default: () => "" }),

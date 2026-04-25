@@ -5,16 +5,16 @@ import {
   ArrowClockwiseIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
-import { EmptyState } from "~/components/empty-state";
-import { BackgroundJobCard } from "~/components/logs/background-job-card";
-import { DashboardMetricCard } from "~/components/logs/dashboard-metric-card";
-import { DownloadEventsList } from "~/components/logs/download-events-list";
-import { LogDetailsDialog } from "~/components/logs/log-details-dialog";
-import { SystemLogsTable } from "~/components/logs/system-logs-table";
-import { DownloadEventsFilters } from "~/components/download-events/download-events-filters";
-import { Filter } from "~/components/filters";
-import { PageHeader } from "~/components/page-header";
-import { DownloadEventDetailsDialog } from "~/components/download-event-details-dialog";
+import { EmptyState } from "~/components/shared/empty-state";
+import { BackgroundJobCard } from "~/features/logs/background-job-card";
+import { DashboardMetricCard } from "~/features/logs/dashboard-metric-card";
+import { DownloadEventsList } from "~/features/logs/download-events-list";
+import { LogDetailsDialog } from "~/features/logs/log-details-dialog";
+import { SystemLogsTable } from "~/features/logs/system-logs-table";
+import { DownloadEventsFilters } from "~/features/downloads/download-events/download-events-filters";
+import { Filter } from "~/features/filters";
+import { PageHeader } from "~/app/layout/page-header";
+import { DownloadEventDetailsDialog } from "~/features/downloads/download-event-details-dialog";
 import { logsFilterColumns } from "~/features/logs/logs-filter-config";
 import { formatLogTimestamp, type useLogsRouteState } from "~/features/logs/logs-route-state";
 import {
@@ -39,7 +39,7 @@ import {
 import { Skeleton } from "~/components/ui/skeleton";
 import { Switch } from "~/components/ui/switch";
 import { Label } from "~/components/ui/label";
-import { cn } from "~/lib/utils";
+import { cn } from "~/infra/utils";
 
 type LogsRouteState = ReturnType<typeof useLogsRouteState>;
 

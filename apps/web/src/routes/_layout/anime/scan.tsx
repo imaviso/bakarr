@@ -8,14 +8,14 @@ import {
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { GeneralError } from "~/components/general-error";
-import { BackgroundMatchingCard } from "~/components/scan/background-matching-card";
-import { runBulkBackgroundMatchAction } from "~/components/scan/background-matching-actions";
-import { isBackgroundMatchingRunning } from "~/components/scan/background-matching-state";
-import { EmptyScanState } from "~/components/scan/empty-scan-state";
-import { FolderItem } from "~/components/scan/folder-item";
-import { ManualMatchSearch } from "~/components/scan/manual-match-search";
-import { StatChip } from "~/components/scan/stat-chip";
+import { GeneralError } from "~/components/shared/general-error";
+import { BackgroundMatchingCard } from "~/features/scan/background-matching-card";
+import { runBulkBackgroundMatchAction } from "~/features/scan/background-matching-actions";
+import { isBackgroundMatchingRunning } from "~/features/scan/background-matching-state";
+import { EmptyScanState } from "~/features/scan/empty-scan-state";
+import { FolderItem } from "~/features/scan/folder-item";
+import { ManualMatchSearch } from "~/features/scan/manual-match-search";
+import { StatChip } from "~/features/scan/stat-chip";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,9 +43,9 @@ import {
   type ScannerMatchStatus,
   type UnmappedFolder,
   unmappedFoldersQueryOptions,
-} from "~/lib/api";
-import { usePageTitle } from "~/lib/page-title";
-import { cn } from "~/lib/utils";
+} from "~/api";
+import { usePageTitle } from "~/domain/page-title";
+import { cn } from "~/infra/utils";
 
 export const Route = createFileRoute("/_layout/anime/scan")({
   loader: async ({ context: { queryClient } }) => {

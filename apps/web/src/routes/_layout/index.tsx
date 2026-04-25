@@ -2,15 +2,15 @@ import { ArrowRightIcon, CheckIcon, ClockIcon } from "@phosphor-icons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { formatDistanceToNow } from "date-fns";
-import { EmptyState } from "~/components/empty-state";
-import { GeneralError } from "~/components/general-error";
-import { PageHeader } from "~/components/page-header";
+import { EmptyState } from "~/components/shared/empty-state";
+import { GeneralError } from "~/components/shared/general-error";
+import { PageHeader } from "~/app/layout/page-header";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Separator } from "~/components/ui/separator";
-import { type ActivityItem, activityQueryOptions, libraryStatsQueryOptions } from "~/lib/api";
-import { createDownloadsRouteSearch } from "~/lib/download-events-search";
-import { usePageTitle } from "~/lib/page-title";
+import { type ActivityItem, activityQueryOptions, libraryStatsQueryOptions } from "~/api";
+import { createDownloadsRouteSearch } from "~/domain/download/events-search";
+import { usePageTitle } from "~/domain/page-title";
 
 export const Route = createFileRoute("/_layout/")({
   loader: async ({ context: { queryClient } }) => {

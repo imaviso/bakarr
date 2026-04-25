@@ -1,10 +1,10 @@
 import { useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { EmptyState } from "~/components/empty-state";
-import { DownloadRow } from "~/components/downloads/download-rows";
+import { EmptyState } from "~/components/shared/empty-state";
+import { DownloadRow } from "~/features/downloads/downloads/download-rows";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "~/components/ui/table";
 import { TabsContent } from "~/components/ui/tabs";
-import type { Download } from "~/lib/api";
+import type { Download } from "~/api";
 
 interface DownloadsHistoryTabProps {
   history: Download[];

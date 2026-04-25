@@ -6,7 +6,7 @@ import {
   InfoIcon,
   TagIcon,
 } from "@phosphor-icons/react";
-import type { FilterColumnConfig } from "~/components/filters";
+import type { FilterColumnConfig } from "~/features/filters";
 
 function IconFilter() {
   return <TagIcon className="h-4 w-4" />;

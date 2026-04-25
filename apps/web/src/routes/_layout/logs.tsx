@@ -1,10 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { GeneralError } from "~/components/general-error";
+import { GeneralError } from "~/components/shared/general-error";
 import { useLogsRouteState } from "~/features/logs/logs-route-state";
 import { parseLogsSearch } from "~/features/logs/logs-search";
 import { LogsView } from "~/features/logs/logs-view";
-import { infiniteLogsQueryOptions } from "~/lib/api";
-import { usePageTitle } from "~/lib/page-title";
+import { infiniteLogsQueryOptions } from "~/api";
+import { usePageTitle } from "~/domain/page-title";
 
 export const Route = createFileRoute("/_layout/logs")({
   validateSearch: parseLogsSearch,

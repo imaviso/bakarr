@@ -8,23 +8,23 @@ import {
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Suspense, lazy } from "react";
 import { Schema } from "effect";
-import { AccountSettingsForm } from "~/components/settings/account-settings-form";
-import { QualityProfilesTab } from "~/components/settings/quality-profiles-tab";
-import { ReleaseProfilesTab } from "~/components/settings/release-profiles-tab";
-import { GeneralSettingsForm } from "~/components/settings/system-settings-form";
-import { GeneralError } from "~/components/general-error";
-import { PageHeader } from "~/components/page-header";
+import { AccountSettingsForm } from "~/features/settings/account-settings-form";
+import { QualityProfilesTab } from "~/features/settings/quality-profiles-tab";
+import { ReleaseProfilesTab } from "~/features/settings/release-profiles-tab";
+import { GeneralSettingsForm } from "~/features/settings/system-settings-form";
+import { GeneralError } from "~/components/shared/general-error";
+import { PageHeader } from "~/app/layout/page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import {
   profilesQueryOptions,
   qualitiesQueryOptions,
   releaseProfilesQueryOptions,
   systemConfigQueryOptions,
-} from "~/lib/api";
-import { usePageTitle } from "~/lib/page-title";
+} from "~/api";
+import { usePageTitle } from "~/domain/page-title";
 
 const SystemStatusLazy = lazy(() =>
-  import("~/components/system-status").then((module) => ({
+  import("~/components/shared/system-status").then((module) => ({
     default: module.SystemStatus,
   })),
 );

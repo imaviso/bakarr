@@ -1,5 +1,5 @@
-import { DownloadEventsFeed } from "~/components/download-events/download-events-feed";
-import { DownloadEventsFilters } from "~/components/download-events/download-events-filters";
+import { DownloadEventsFeed } from "~/features/downloads/download-events/download-events-feed";
+import { DownloadEventsFilters } from "~/features/downloads/download-events/download-events-filters";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
 import { TabsContent } from "~/components/ui/tabs";
@@ -7,8 +7,8 @@ import type {
   DownloadsEventsQuery,
   DownloadsEventsSearchState,
 } from "~/features/downloads/downloads-view-types";
-import { type DownloadEventsExportResult } from "~/lib/api";
-import { formatUiTimestamp } from "~/lib/date-time";
+import { type DownloadEventsExportResult } from "~/api";
+import { formatUiTimestamp } from "~/domain/date-time";
 
 interface DownloadsEventsTabProps {
   downloadEventsQuery: DownloadsEventsQuery;

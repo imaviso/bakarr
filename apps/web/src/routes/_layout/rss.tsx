@@ -12,10 +12,10 @@ import { useForm } from "@tanstack/react-form";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Schema } from "effect";
-import { EmptyState } from "~/components/empty-state";
-import { GeneralError } from "~/components/general-error";
-import { PageHeader } from "~/components/page-header";
-import { formatDateTime } from "~/lib/date-time";
+import { EmptyState } from "~/components/shared/empty-state";
+import { GeneralError } from "~/components/shared/general-error";
+import { PageHeader } from "~/app/layout/page-header";
+import { formatDateTime } from "~/domain/date-time";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,8 +46,8 @@ import {
   createToggleRssFeedMutation,
   type RssFeed,
   rssFeedsQueryOptions,
-} from "~/lib/api";
-import { usePageTitle } from "~/lib/page-title";
+} from "~/api";
+import { usePageTitle } from "~/domain/page-title";
 
 export const Route = createFileRoute("/_layout/rss")({
   loader: async ({ context: { queryClient } }) => {

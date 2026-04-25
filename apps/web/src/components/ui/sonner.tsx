@@ -1,7 +1,7 @@
 "use client";
 
 import { Toaster as Sonner, type ToasterProps } from "sonner";
-import { useTheme } from "~/components/theme-provider";
+import { useTheme } from "~/components/shared/theme-provider";
 import {
   CheckCircleIcon,
   InfoIcon,

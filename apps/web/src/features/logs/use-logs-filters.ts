@@ -1,4 +1,4 @@
-import type { FilterState } from "~/components/filters";
+import type { FilterState } from "~/features/filters";
 import { parseLogsSearch, type LogsSearchState } from "~/features/logs/logs-search";
 
 interface UseLogsFiltersOptions {

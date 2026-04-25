@@ -3,7 +3,7 @@ import {
   createDownloadEventsSearchDefaults,
   createDownloadEventsSearchSchema,
   LOGS_DOWNLOAD_EVENTS_SEARCH_KEYS,
-} from "~/lib/download-events-search";
+} from "~/domain/download/events-search";
 
 const LOGS_FILTER_DEFAULTS = {
   endDate: "",

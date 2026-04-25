@@ -12,9 +12,9 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Suspense, lazy, useDeferredValue, useTransition } from "react";
 import { Schema } from "effect";
-import { AnimeListSkeleton } from "~/components/anime-list-skeleton";
-import { EmptyState } from "~/components/empty-state";
-import { GeneralError } from "~/components/general-error";
+import { AnimeListSkeleton } from "~/features/anime/anime-list-skeleton";
+import { EmptyState } from "~/components/shared/empty-state";
+import { GeneralError } from "~/components/shared/general-error";
 import { Button, buttonVariants } from "~/components/ui/button";
 import {
   DropdownMenu,
@@ -26,23 +26,19 @@ import {
 import { Input } from "~/components/ui/input";
 import { Separator } from "~/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
-import {
-  animeListQueryOptions,
-  createDeleteAnimeMutation,
-  systemConfigQueryOptions,
-} from "~/lib/api";
-import { filterAnimeLibrary } from "~/lib/anime-library-filter";
-import { getAiringDisplayPreferences } from "~/lib/anime-metadata";
-import { usePageTitle } from "~/lib/page-title";
-import { cn } from "~/lib/utils";
+import { animeListQueryOptions, createDeleteAnimeMutation, systemConfigQueryOptions } from "~/api";
+import { filterAnimeLibrary } from "~/domain/anime/library-filter";
+import { getAiringDisplayPreferences } from "~/domain/anime/metadata";
+import { usePageTitle } from "~/domain/page-title";
+import { cn } from "~/infra/utils";
 
 const AnimeGridViewLazy = lazy(() =>
-  import("~/components/anime/anime-library-views").then((module) => ({
+  import("~/features/anime/anime-library-views").then((module) => ({
     default: module.AnimeGridView,
   })),
 );
 const AnimeListViewLazy = lazy(() =>
-  import("~/components/anime/anime-library-views").then((module) => ({
+  import("~/features/anime/anime-library-views").then((module) => ({
     default: module.AnimeListView,
   })),
 );

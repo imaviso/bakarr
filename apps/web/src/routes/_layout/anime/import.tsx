@@ -1,16 +1,16 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { createLibraryImportTaskQuery } from "~/lib/api";
+import { createLibraryImportTaskQuery } from "~/api";
 import { Schema } from "effect";
-import { ImportPageContent } from "~/components/import/import-page-content";
-import { createImportPageState } from "~/components/import/import-page-state";
-import { GeneralError } from "~/components/general-error";
+import { ImportPageContent } from "~/features/import/import-page-content";
+import { createImportPageState } from "~/features/import/import-page-state";
+import { GeneralError } from "~/components/shared/general-error";
 import {
   animeListQueryOptions,
   isTaskActive,
   profilesQueryOptions,
   systemConfigQueryOptions,
-} from "~/lib/api";
-import { usePageTitle } from "~/lib/page-title";
+} from "~/api";
+import { usePageTitle } from "~/domain/page-title";
 
 const ImportSearchSchema = Schema.Struct({
   animeId: Schema.optional(Schema.Union(Schema.Number, Schema.NumberFromString).pipe(Schema.int())),
