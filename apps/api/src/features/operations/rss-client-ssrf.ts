@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Either, Option } from "effect";
 import ipaddr from "ipaddr.js";
 
 import { DnsResolver, isDnsNoRecordError } from "@/infra/dns-resolver.ts";
@@ -182,25 +182,20 @@ function normalizeHostname(hostname: string) {
 }
 
 function isIpLiteral(hostname: string) {
-  try {
-    ipaddr.parse(hostname);
-    return true;
-  } catch {
-    return false;
-  }
+  return Option.isSome(Option.liftThrowable(() => ipaddr.parse(hostname))());
 }
 
 function isPrivateIpAddress(addr: string): boolean {
-  try {
-    const parsed = ipaddr.parse(addr);
-    if (parsed instanceof ipaddr.IPv4) {
-      return isPrivateIpv4Address(parsed);
-    }
-
-    return isPrivateIpv6Address(parsed);
-  } catch {
-    return false;
-  }
+  return Option.getOrElse(
+    Option.liftThrowable(() => {
+      const parsed = ipaddr.parse(addr);
+      if (parsed instanceof ipaddr.IPv4) {
+        return isPrivateIpv4Address(parsed);
+      }
+      return isPrivateIpv6Address(parsed);
+    })(),
+    () => false,
+  );
 }
 
 function isIpv4Address(addr: string) {

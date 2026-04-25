@@ -47,18 +47,6 @@ const executeSql = Effect.fn("Database.executeSql")(function* <A extends Record<
   return yield* client.unsafe<A>(statement).pipe(Effect.mapError(sqliteSetupError));
 });
 
-const sqlitePragmaMismatchError = (input: {
-  readonly actual: string;
-  readonly expected: string;
-  readonly pragma: string;
-}) =>
-  new DatabaseError({
-    cause: new Error(
-      `SQLite pragma ${input.pragma} expected ${input.expected} but received ${input.actual || "<empty>"}`,
-    ),
-    message: `SQLite startup invariant failed: ${input.pragma}`,
-  });
-
 const setAndVerifyPragmas = Effect.fn("Database.setAndVerifyPragmas")(function* (
   client: BunSqliteClient.SqliteClient,
 ) {
@@ -72,19 +60,15 @@ const setAndVerifyPragmas = Effect.fn("Database.setAndVerifyPragmas")(function* 
   const foreignKeysValue = toSqlitePragmaValue(firstRowValue(foreignKeys[0]));
 
   if (journalModeValue.toLowerCase() !== "wal") {
-    yield* sqlitePragmaMismatchError({
-      actual: journalModeValue,
-      expected: "wal",
-      pragma: "journal_mode",
-    });
+    yield* Effect.dieMessage(
+      `SQLite startup invariant failed: journal_mode expected wal but received ${journalModeValue || "<empty>"}`,
+    );
   }
 
   if (foreignKeysValue !== "1") {
-    yield* sqlitePragmaMismatchError({
-      actual: foreignKeysValue,
-      expected: "1",
-      pragma: "foreign_keys",
-    });
+    yield* Effect.dieMessage(
+      `SQLite startup invariant failed: foreign_keys expected 1 but received ${foreignKeysValue || "<empty>"}`,
+    );
   }
 });
 

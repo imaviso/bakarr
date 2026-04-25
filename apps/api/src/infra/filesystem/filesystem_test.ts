@@ -5,7 +5,6 @@ import { assert, it } from "@effect/vitest";
 import { makeNoopTestFileSystemEffect } from "@/test/filesystem-test.ts";
 
 import {
-  FileSystemError,
   PathSegmentError,
   isWithinPathRoot,
   sanitizePathSegmentEffect,
@@ -102,12 +101,12 @@ it.effect("openFile.seek rejects unsupported seek modes with typed errors", () =
     assert.deepStrictEqual(exit._tag, "Failure");
 
     if (exit._tag === "Failure") {
-      const failure = Cause.failureOption(exit.cause);
-      assert.deepStrictEqual(failure._tag, "Some");
+      const defect = Cause.dieOption(exit.cause);
+      assert.deepStrictEqual(defect._tag, "Some");
 
-      if (failure._tag === "Some") {
-        assert.ok(failure.value instanceof FileSystemError);
-        assert.deepStrictEqual(failure.value.message, "Unsupported seek mode: 2");
+      if (defect._tag === "Some") {
+        assert.ok(defect.value instanceof Error);
+        assert.deepStrictEqual(defect.value.message, "Unsupported seek mode: 2");
       }
     }
   }),

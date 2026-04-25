@@ -1,3 +1,5 @@
+import { Option } from "effect";
+
 export function parseAniListIdFromSource(source: string): number | undefined {
   return parseResourceIdFromSource(source, ["anilist.co", "www.anilist.co"], "anime");
 }
@@ -61,9 +63,5 @@ function parsePositiveInteger(value: string | undefined): number | undefined {
 }
 
 function tryParseUrl(value: string): URL | undefined {
-  try {
-    return new URL(value);
-  } catch {
-    return undefined;
-  }
+  return Option.getOrElse(Option.liftThrowable(() => new URL(value))(), () => undefined);
 }

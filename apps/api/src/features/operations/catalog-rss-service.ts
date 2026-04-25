@@ -8,7 +8,6 @@ import type { OperationsError } from "@/features/operations/errors.ts";
 import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
 import { toRssFeed } from "@/features/operations/repository/rss-repository.ts";
 import { appendLog } from "@/features/operations/job-support.ts";
-import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
 import { rssFeeds } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
@@ -76,10 +75,7 @@ export const CatalogRssServiceLive = Layer.effect(
       );
 
       if (!row) {
-        return yield* new OperationsInfrastructureError({
-          message: "Failed to add RSS feed",
-          cause: new Error("Insert returned no rows"),
-        });
+        return yield* Effect.dieMessage("Insert returned no rows");
       }
 
       yield* appendLog(

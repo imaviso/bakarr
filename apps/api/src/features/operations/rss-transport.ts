@@ -57,7 +57,7 @@ export const RssTransportLive = Layer.effect(
     const execute = Effect.fn("RssTransport.execute")(function* (target: PinnedRequestTarget) {
       return yield* Effect.tryPromise({
         try: (signal) =>
-          executePinnedHttpRequest({
+          runPinnedHttpRequest({
             signal,
             target,
           }),
@@ -79,15 +79,15 @@ export const RssTransportLive = Layer.effect(
   }),
 );
 
-async function executePinnedHttpRequest(input: {
+const runPinnedHttpRequest = (input: {
   readonly signal?: AbortSignal;
   readonly target: PinnedRequestTarget;
-}): Promise<RssTransportResponse> {
+}): Promise<RssTransportResponse> => {
   const parsedUrl = input.target.parsedUrl;
   const requestImpl = parsedUrl.protocol === "https:" ? httpsRequest : httpRequest;
   const requestConfig = buildRssTransportRequestConfig(input.target);
 
-  return await new Promise<RssTransportResponse>((resolve, reject) => {
+  return new Promise<RssTransportResponse>((resolve, reject) => {
     const request = requestImpl(
       {
         headers: requestConfig.headers,
@@ -183,7 +183,7 @@ async function executePinnedHttpRequest(input: {
     }
     request.end();
   });
-}
+};
 
 function buildRssTransportRequestConfig(target: PinnedRequestTarget): RssTransportRequestConfig {
   const parsedUrl = target.parsedUrl;

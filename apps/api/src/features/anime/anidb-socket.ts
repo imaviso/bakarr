@@ -20,11 +20,7 @@ export const openAniDbSocketEffect = Effect.fn("AniDbClient.openSocket")(functio
     const socket = createSocket("udp4");
 
     const closeSocket = () => {
-      try {
-        socket.close();
-      } catch {
-        // ignored: socket is already closed
-      }
+      Effect.runSync(Effect.ignore(Effect.sync(() => socket.close())));
     };
 
     const cleanup = () => {
@@ -65,13 +61,7 @@ export const openAniDbSocketEffect = Effect.fn("AniDbClient.openSocket")(functio
 export const closeAniDbSocketEffect = Effect.fn("AniDbClient.closeSocket")(function* (
   socket: Socket,
 ) {
-  yield* Effect.sync(() => {
-    try {
-      socket.close();
-    } catch {
-      // ignored: socket is already closed
-    }
-  });
+  yield* Effect.sync(() => socket.close()).pipe(Effect.ignore);
 });
 
 export const sendAndReceiveAniDbPacketEffect = Effect.fn("AniDbClient.sendAndReceivePacket")(

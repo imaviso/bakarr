@@ -340,9 +340,9 @@ const resolvePath = (
 };
 
 function resolveSeekMode(
-  path: string | URL,
+  _path: string | URL,
   mode: number,
-): Effect.Effect<"current" | "start", FileSystemError> {
+): Effect.Effect<"current" | "start", never> {
   if (mode === 0) {
     return Effect.succeed("start");
   }
@@ -351,11 +351,5 @@ function resolveSeekMode(
     return Effect.succeed("current");
   }
 
-  return Effect.fail(
-    new FileSystemError({
-      cause: new Error(`Unsupported seek mode: ${mode}`),
-      message: `Unsupported seek mode: ${mode}`,
-      path: path.toString(),
-    }),
-  );
+  return Effect.die(new Error(`Unsupported seek mode: ${mode}`));
 }

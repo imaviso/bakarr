@@ -1,4 +1,4 @@
-import { Context, Effect, Either, Layer, Stream } from "effect";
+import { Context, Effect, Either, Layer, Option, Stream } from "effect";
 
 import { DnsResolver } from "@/infra/dns-resolver.ts";
 import { ExternalCall, ExternalCallError, type ExternalCallShape } from "@/infra/effect/retry.ts";
@@ -190,10 +190,11 @@ export const RssClientLive = Layer.effect(
 );
 
 function sanitizeRssUrlForLogs(url: string): string {
-  try {
-    const parsed = new URL(url);
-    return `${parsed.protocol}//${parsed.host}${parsed.pathname}`;
-  } catch {
-    return "[invalid-url]";
-  }
+  return Option.getOrElse(
+    Option.liftThrowable(() => {
+      const parsed = new URL(url);
+      return `${parsed.protocol}//${parsed.host}${parsed.pathname}`;
+    })(),
+    () => "[invalid-url]",
+  );
 }

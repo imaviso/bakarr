@@ -1,3 +1,4 @@
+import { Option } from "effect";
 import type { ParsedRelease } from "@/features/operations/rss-client-parse.ts";
 import { parseReleaseName } from "@/features/operations/release-ranking.ts";
 import type { SeaDexEntry, SeaDexRelease } from "@/features/operations/seadex-client.ts";
@@ -136,16 +137,15 @@ function normalizeGroup(value?: string) {
     .replace(/[^a-z0-9]+/g, "");
 }
 
-function inferTrackerName(value?: string) {
+function inferTrackerName(value?: string): string | undefined {
   if (!value) {
     return undefined;
   }
 
-  try {
-    return normalizeTrackerName(new URL(value).hostname);
-  } catch {
-    return normalizeTrackerName(value);
-  }
+  return Option.getOrElse(
+    Option.liftThrowable(() => normalizeTrackerName(new URL(value).hostname))(),
+    () => normalizeTrackerName(value),
+  );
 }
 
 function normalizeTrackerName(value?: string) {
@@ -170,27 +170,28 @@ function normalizeTrackerName(value?: string) {
   return lower.replace(/[^a-z0-9]+/g, "") || undefined;
 }
 
-function canonicalTrackerUrl(value?: string) {
+function canonicalTrackerUrl(value?: string): string | undefined {
   if (!value) {
     return undefined;
   }
 
-  try {
-    const url = new URL(value);
-    const tracker = normalizeTrackerName(url.hostname);
+  return Option.getOrElse(
+    Option.liftThrowable(() => {
+      const url = new URL(value);
+      const tracker = normalizeTrackerName(url.hostname);
 
-    if (!tracker) {
-      return undefined;
-    }
+      if (!tracker) {
+        return undefined;
+      }
 
-    const nyaaMatch = url.pathname.match(/^\/(?:view|download)\/(\d+)/i);
-    if (tracker === "nyaa" && nyaaMatch) {
-      return `${tracker}:${nyaaMatch[1]}`;
-    }
+      const nyaaMatch = url.pathname.match(/^\/(?:view|download)\/(\d+)/i);
+      if (tracker === "nyaa" && nyaaMatch) {
+        return `${tracker}:${nyaaMatch[1]}`;
+      }
 
-    const pathname = url.pathname.toLowerCase().replace(/\/+$/, "") || "/";
-    return `${tracker}:${pathname}`;
-  } catch {
-    return undefined;
-  }
+      const pathname = url.pathname.toLowerCase().replace(/\/+$/, "") || "/";
+      return `${tracker}:${pathname}`;
+    })(),
+    () => undefined,
+  );
 }

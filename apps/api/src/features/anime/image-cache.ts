@@ -1,5 +1,5 @@
 import { HttpClient } from "@effect/platform";
-import { Effect, Schema } from "effect";
+import { Effect, Option, Schema } from "effect";
 
 import { collectBoundedBytes } from "@/domain/bounded-stream.ts";
 
@@ -165,7 +165,7 @@ const downloadImage = Effect.fn("AnimeService.downloadImage")(function* (
   return { bytes, extension };
 });
 
-function inferImageExtension(url: string, contentType: string | null) {
+function inferImageExtension(url: string, contentType: string | null): string | undefined {
   const [mediaType] = contentType?.split(";") ?? [];
   const normalizedType = mediaType?.trim().toLowerCase();
 
@@ -182,17 +182,18 @@ function inferImageExtension(url: string, contentType: string | null) {
       return "svg";
   }
 
-  try {
-    const pathname = new URL(url).pathname.toLowerCase();
+  return Option.getOrElse(
+    Option.liftThrowable(() => {
+      const pathname = new URL(url).pathname.toLowerCase();
 
-    if (pathname.endsWith(".jpg") || pathname.endsWith(".jpeg")) return "jpg";
-    if (pathname.endsWith(".png")) return "png";
-    if (pathname.endsWith(".webp")) return "webp";
-    if (pathname.endsWith(".gif")) return "gif";
-    if (pathname.endsWith(".svg")) return "svg";
-  } catch {
-    return undefined;
-  }
+      if (pathname.endsWith(".jpg") || pathname.endsWith(".jpeg")) return "jpg";
+      if (pathname.endsWith(".png")) return "png";
+      if (pathname.endsWith(".webp")) return "webp";
+      if (pathname.endsWith(".gif")) return "gif";
+      if (pathname.endsWith(".svg")) return "svg";
 
-  return undefined;
+      return undefined;
+    })(),
+    () => undefined,
+  );
 }

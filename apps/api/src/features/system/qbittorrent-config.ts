@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, Option } from "effect";
 import ipaddr from "ipaddr.js";
 
 import type { Config } from "@packages/shared/index.ts";
@@ -71,17 +71,16 @@ function isPrivateQBitHost(hostname: string): boolean {
     return true;
   }
 
-  try {
-    const parsed = ipaddr.parse(normalized);
-
-    if (parsed instanceof ipaddr.IPv4) {
-      return isPrivateIpv4Address(parsed);
-    }
-
-    return isPrivateIpv6Address(parsed);
-  } catch {
-    return false;
-  }
+  return Option.getOrElse(
+    Option.liftThrowable(() => {
+      const parsed = ipaddr.parse(normalized);
+      if (parsed instanceof ipaddr.IPv4) {
+        return isPrivateIpv4Address(parsed);
+      }
+      return isPrivateIpv6Address(parsed);
+    })(),
+    () => false,
+  );
 }
 
 const configValidationError = (message: string) => new ConfigValidationError({ message });

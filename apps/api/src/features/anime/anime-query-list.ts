@@ -99,10 +99,7 @@ export const listAnimeEffect = Effect.fn("AnimeQueryList.listAnimeEffect")(funct
   const total = totalCountResult[0]?.count;
 
   if (total === undefined) {
-    return yield* new AnimeStoredDataError({
-      cause: new Error("Anime count query returned no rows"),
-      message: "Anime count query returned no rows",
-    });
+    return yield* Effect.dieMessage("Anime count query returned no rows");
   }
 
   return {
