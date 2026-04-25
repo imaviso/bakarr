@@ -1,6 +1,10 @@
 import { Context, Effect, Layer } from "effect";
 
-import { FileSystem, isWithinPathRoot, type FileSystemShape } from "@/lib/filesystem.ts";
+import {
+  FileSystem,
+  isWithinPathRoot,
+  type FileSystemShape,
+} from "@/infra/filesystem/filesystem.ts";
 import {
   RuntimeConfigSnapshotService,
   type RuntimeConfigSnapshotError,

@@ -1,7 +1,7 @@
 import { Effect, Either } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
-import type { FileSystemShape } from "@/lib/filesystem.ts";
+import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import {
   OperationsInfrastructureError,
   OperationsPathError,

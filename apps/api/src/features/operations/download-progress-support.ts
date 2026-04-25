@@ -8,7 +8,7 @@ import { EventBus } from "@/features/events/event-bus.ts";
 import { toDownloadStatus } from "@/features/operations/download-presentation.ts";
 import { loadDownloadPresentationContexts } from "@/features/operations/repository/download-presentation-repository.ts";
 import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
-import { tryDatabasePromise, type TryDatabasePromise } from "@/lib/effect-db.ts";
+import { tryDatabasePromise, type TryDatabasePromise } from "@/infra/effect/db.ts";
 
 export interface DownloadProgressSupportShape {
   readonly publishDownloadProgress: () => Effect.Effect<

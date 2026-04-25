@@ -4,13 +4,13 @@ import { Effect, Schema } from "effect";
 import type { AnimeSearchResult, Config, RenamePreviewItem } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { anime, episodes } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import {
   buildEpisodeFilenamePlan,
   selectNamingFormat,
 } from "@/features/operations/naming-support.ts";
 import { OperationsStoredDataError } from "@/features/operations/errors.ts";
-import { deriveAnimeSeason, extractYearFromDate } from "@/lib/anime-date-utils.ts";
+import { deriveAnimeSeason, extractYearFromDate } from "@/domain/anime/date-utils.ts";
 import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
 
 export {

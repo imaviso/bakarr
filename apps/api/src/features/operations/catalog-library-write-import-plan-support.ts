@@ -4,12 +4,12 @@ import type { Config, DownloadSourceMetadata, ImportMode } from "@packages/share
 
 import type { AppDatabase, DatabaseError } from "@/db/database.ts";
 import { anime, episodes } from "@/db/schema.ts";
-import type { FileSystemShape } from "@/lib/filesystem.ts";
+import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import {
   probeMediaMetadataOrUndefined,
   type MediaProbeShape,
   type ProbedMediaMetadata,
-} from "@/lib/media-probe.ts";
+} from "@/infra/media/probe.ts";
 import { OperationsAnimeNotFoundError, OperationsPathError } from "@/features/operations/errors.ts";
 import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
 import {
@@ -18,7 +18,7 @@ import {
   selectNamingFormat,
   type EpisodeFilenamePlan,
 } from "@/features/operations/naming-support.ts";
-import type { TryDatabasePromise } from "@/lib/effect-db.ts";
+import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 
 export interface BuildLibraryImportPlanInput {
   readonly db: AppDatabase;

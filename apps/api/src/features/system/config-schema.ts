@@ -1,5 +1,5 @@
 import { Schema } from "effect";
-import { PositiveIntSchema } from "@/lib/domain-schema.ts";
+import { PositiveIntSchema } from "@/domain/domain-schema.ts";
 import {
   ConfigSchema as SharedConfigSchema,
   DownloadsConfigSchema,

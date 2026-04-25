@@ -1,11 +1,11 @@
 import { Context, Effect, Layer, Option } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
-import { AppConfig } from "@/config.ts";
+import { AppConfig } from "@/config/schema.ts";
 import { Database, DatabaseError } from "@/db/database.ts";
-import { nowIsoFromClock, ClockService } from "@/lib/clock.ts";
-import { RuntimeLogLevelState } from "@/lib/logging.ts";
-import { BackgroundWorkerController } from "@/background-controller-core.ts";
+import { nowIsoFromClock, ClockService } from "@/infra/clock.ts";
+import { RuntimeLogLevelState } from "@/infra/logging.ts";
+import { BackgroundWorkerController } from "@/background/controller-core.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { persistAndActivateConfig } from "@/features/system/config-activation.ts";
 import { validateConfigUpdate } from "@/features/system/config-update-validation.ts";

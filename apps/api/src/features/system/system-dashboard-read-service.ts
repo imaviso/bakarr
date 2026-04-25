@@ -14,7 +14,7 @@ import {
 import {
   loadDownloadEventPresentationContexts,
   toDownloadEvent,
-} from "@/lib/download-event-presentations.ts";
+} from "@/domain/download/event-presentations.ts";
 import type { OperationsStoredDataError } from "@/features/operations/errors.ts";
 
 export type SystemDashboardReadError = BackgroundJobStatusError | OperationsStoredDataError;

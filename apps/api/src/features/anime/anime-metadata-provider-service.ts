@@ -13,7 +13,7 @@ import { JikanClient } from "@/features/anime/jikan.ts";
 import type { JikanNormalizedAnime } from "@/features/anime/jikan-model.ts";
 import { ManamiClient } from "@/features/anime/manami.ts";
 import { mergeAnimeMetadata } from "@/features/anime/metadata-merge.ts";
-import type { ExternalCallError } from "@/lib/effect-retry.ts";
+import type { ExternalCallError } from "@/infra/effect/retry.ts";
 
 export type AnimeMetadataLookupResult =
   | {

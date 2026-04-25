@@ -1,23 +1,23 @@
 import { Effect } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
-import type { FileSystemShape } from "@/lib/filesystem.ts";
-import type { MediaProbeShape } from "@/lib/media-probe.ts";
+import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
+import type { MediaProbeShape } from "@/infra/media/probe.ts";
 import {
   mergeProbedMediaMetadata,
   probeMediaMetadataOrUndefined,
   shouldProbeDetailedMediaMetadata,
-} from "@/lib/media-probe.ts";
+} from "@/infra/media/probe.ts";
 import {
   classifyMediaArtifact,
   parseFileSourceIdentity,
   toSharedParsedEpisodeIdentity,
-} from "@/lib/media-identity.ts";
+} from "@/infra/media/identity/identity.ts";
 import { collectVideoFiles } from "@/features/anime/files.ts";
-import { buildScannedFileMetadata } from "@/lib/scanned-file-metadata.ts";
+import { buildScannedFileMetadata } from "@/infra/scanned-file-metadata.ts";
 import { getAnimeRowEffect } from "@/features/anime/anime-read-repository.ts";
 import { buildAiringScheduleMap } from "@/features/anime/anime-schedule-repository.ts";
-import { inferAiredAt } from "@/lib/anime-derivations.ts";
+import { inferAiredAt } from "@/domain/anime/derivations.ts";
 import { upsertEpisodeEffect } from "@/features/anime/anime-episode-repository.ts";
 import { AnimePathError } from "@/features/anime/errors.ts";
 

@@ -7,9 +7,9 @@ import { rssFeeds } from "@/db/schema.ts";
 import { BackgroundSearchRssFeedService } from "@/features/operations/background-search-rss-feed-service.ts";
 import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
 import { OperationsProgress } from "@/features/operations/operations-progress-service.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
-import { ExternalCallError } from "@/lib/effect-retry.ts";
+import { ExternalCallError } from "@/infra/effect/retry.ts";
 
 export interface SearchBackgroundRssServiceShape {
   readonly runRssCheck: () => Effect.Effect<

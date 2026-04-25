@@ -4,7 +4,7 @@ import { Effect } from "effect";
 import type { ScannerState } from "@packages/shared/index.ts";
 import type { AppDatabase, DatabaseError } from "@/db/database.ts";
 import { anime, backgroundJobs } from "@/db/schema.ts";
-import { type FileSystemShape } from "@/lib/filesystem.ts";
+import { type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import type { AniListClient } from "@/features/anime/anilist.ts";
 import { OperationsPathError, OperationsStoredDataError } from "@/features/operations/errors.ts";
 import {
@@ -22,7 +22,7 @@ import {
   isUnmappedFolderOutstanding,
   markUnmappedFolderFailed,
 } from "@/features/operations/unmapped-folders.ts";
-import type { TryDatabasePromise } from "@/lib/effect-db.ts";
+import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 
 export interface UnmappedScanSnapshot {
   readonly animeRows: ReadonlyArray<typeof anime.$inferSelect>;

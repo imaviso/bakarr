@@ -1,6 +1,6 @@
 import { Chunk, Effect, Option, Stream } from "effect";
 
-import { FileSystem, FileSystemError } from "@/lib/filesystem.ts";
+import { FileSystem, FileSystemError } from "@/infra/filesystem/filesystem.ts";
 
 export interface FileByteRange {
   readonly end: number;

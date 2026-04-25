@@ -5,7 +5,7 @@ import { anime, episodes } from "@/db/schema.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
 import { currentNamingSettings } from "@/features/operations/repository/config-repository.ts";
-import type { TryDatabasePromise } from "@/lib/effect-db.ts";
+import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 
 export const loadImportScanAnimeRows = (input: {
   readonly animeId?: number;

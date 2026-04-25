@@ -4,8 +4,8 @@ import { Effect } from "effect";
 import type { AppDatabase } from "@/db/database.ts";
 import { episodes } from "@/db/schema.ts";
 import { clampInferredEpisodeUpperBound } from "@/features/anime/episode-backfill-policy.ts";
-import { inferAiredAt } from "@/lib/anime-derivations.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { inferAiredAt } from "@/domain/anime/derivations.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 export interface FutureAiringScheduleEntry {
   readonly airingAt: string;

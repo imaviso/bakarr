@@ -5,7 +5,7 @@ import { dirname } from "node:path";
 import { anime, appConfig, episodes } from "@/db/schema.ts";
 import { encodeConfigCore, toConfigCore } from "@/features/system/config-codec.ts";
 import { makeUnmappedImportWorkflow } from "@/features/operations/unmapped-orchestration-import.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { assert, it } from "@effect/vitest";
 import { makeTestFileSystemEffect, writeTextFile } from "@/test/filesystem-test.ts";
 import { withSqliteRawClientEffect, withSqliteTestDbEffect } from "@/test/database-test.ts";

@@ -19,8 +19,8 @@ import { queueParsedReleaseDownload } from "@/features/operations/release-queue-
 import type { ParsedRelease } from "@/features/operations/rss-client-parse.ts";
 import { TorrentClientService } from "@/features/operations/torrent-client-service.ts";
 import { DownloadTriggerCoordinator } from "@/features/operations/runtime-support.ts";
-import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
 
 export interface BackgroundSearchQueueServiceShape {

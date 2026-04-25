@@ -13,9 +13,9 @@ import type { AnimeServiceError } from "@/features/anime/errors.ts";
 import { makeMetadataRefreshRunner } from "@/features/anime/metadata-refresh.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { appendSystemLog } from "@/features/system/support.ts";
-import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
-import type { ExternalCallError } from "@/lib/effect-retry.ts";
+import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import type { ExternalCallError } from "@/infra/effect/retry.ts";
 
 export interface AnimeMaintenanceServiceShape {
   readonly deleteAnime: (id: number) => Effect.Effect<void, DatabaseError>;

@@ -8,8 +8,8 @@ import {
   ImportPathScanServiceLive,
 } from "@/features/operations/import-path-scan-service.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
-import { FileSystem, type FileSystemShape } from "@/lib/filesystem.ts";
-import { MediaProbe } from "@/lib/media-probe.ts";
+import { FileSystem, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
+import { MediaProbe } from "@/infra/media/probe.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
 import { makeRuntimeConfigSnapshotStub } from "@/test/stubs.ts";
 

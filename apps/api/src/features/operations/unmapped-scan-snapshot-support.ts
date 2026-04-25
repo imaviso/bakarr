@@ -2,7 +2,7 @@ import { Effect } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
 import { anime } from "@/db/schema.ts";
-import type { FileSystemShape } from "@/lib/filesystem.ts";
+import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { OperationsPathError, OperationsStoredDataError } from "@/features/operations/errors.ts";
 import {
   decodeUnmappedFolderMatchRow,
@@ -13,7 +13,7 @@ import {
   listUnmappedFolderEntries,
 } from "@/features/operations/unmapped-folder-list-support.ts";
 import { getConfigLibraryPath } from "@/features/operations/repository/config-repository.ts";
-import type { TryDatabasePromise } from "@/lib/effect-db.ts";
+import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 
 export const loadUnmappedFolderSnapshot = Effect.fn("OperationsService.loadUnmappedFolderSnapshot")(
   function* (input: {

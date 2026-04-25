@@ -1,8 +1,8 @@
 import { Cause, Effect } from "effect";
 
 import { ImportFileError } from "@/features/operations/download-file-import-errors.ts";
-import { isNotFoundError } from "@/lib/fs-errors.ts";
-import type { FileSystemShape } from "@/lib/filesystem.ts";
+import { isNotFoundError } from "@/infra/filesystem/fs-errors.ts";
+import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 
 export const replaceDestinationWithStagedFile = Effect.fn(
   "Operations.replaceDestinationWithStagedFile",

@@ -8,7 +8,7 @@ import {
   analyzeScannedFile,
   type AnalyzedFile,
 } from "@/features/operations/library-import-analysis-support.ts";
-import type { FileSystemShape } from "@/lib/filesystem.ts";
+import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 
 export interface DiscoverImportScanFilesResult {
   readonly canonicalPath: string;

@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 import { win32 as PathForUtilities } from "node:path";
 
-import { isWithinPathRoot, type FileSystemShape } from "@/lib/filesystem.ts";
+import { isWithinPathRoot, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { AnimePathError } from "@/features/anime/errors.ts";
 
 export const resolveConfiguredLibraryRoot = Effect.fn(

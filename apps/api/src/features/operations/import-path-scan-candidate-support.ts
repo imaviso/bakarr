@@ -1,5 +1,5 @@
 import type { AnimeSearchResult, ScannedFile } from "@packages/shared/index.ts";
-import { scoreAnimeSearchResultMatch } from "@/lib/anime-derivations.ts";
+import { scoreAnimeSearchResultMatch } from "@/domain/anime/derivations.ts";
 import { titlesMatch } from "@/features/operations/library-import-analysis-support.ts";
 
 export function enrichedEpisodeNumbers(

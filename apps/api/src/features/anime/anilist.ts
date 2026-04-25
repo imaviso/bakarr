@@ -2,7 +2,7 @@ import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platf
 import { Context, Effect, Layer, Option, Schema } from "effect";
 
 import type { AnimeSearchResult, AnimeSeason } from "@packages/shared/index.ts";
-import { ExternalCall, ExternalCallError, type ExternalCallShape } from "@/lib/effect-retry.ts";
+import { ExternalCall, ExternalCallError, type ExternalCallShape } from "@/infra/effect/retry.ts";
 import {
   AnimeMetadataFromAniListSchema,
   AnimeSearchResultFromAniListSchema,

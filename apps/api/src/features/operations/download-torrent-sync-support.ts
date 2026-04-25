@@ -13,7 +13,7 @@ import {
 import { decodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
 import { recordDownloadEvent } from "@/features/operations/job-support.ts";
 import type { OperationsError } from "@/features/operations/errors.ts";
-import type { ExternalCallError } from "@/lib/effect-retry.ts";
+import type { ExternalCallError } from "@/infra/effect/retry.ts";
 import { mapQBitState } from "@/features/operations/download-orchestration-shared.ts";
 import type { DownloadTorrentActionSupportInput } from "@/features/operations/download-torrent-action-support.ts";
 import { type RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";

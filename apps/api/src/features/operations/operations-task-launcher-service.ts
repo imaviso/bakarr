@@ -3,7 +3,7 @@ import { Cause, Context, Effect, Layer, Queue } from "effect";
 import type { AsyncOperationAccepted, OperationTaskPayload } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
-import { compactLogAnnotations, errorLogAnnotations } from "@/lib/logging.ts";
+import { compactLogAnnotations, errorLogAnnotations } from "@/infra/logging.ts";
 import {
   type OperationsTaskKey,
   OperationsTaskService,

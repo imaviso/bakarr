@@ -2,12 +2,12 @@ import { Effect } from "effect";
 
 import type { Config, ImportResult } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
-import type { FileSystemShape } from "@/lib/filesystem.ts";
-import type { MediaProbeShape } from "@/lib/media-probe.ts";
+import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
+import type { MediaProbeShape } from "@/infra/media/probe.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { buildLibraryImportPlan } from "@/features/operations/catalog-library-write-import-plan-support.ts";
 import { writeLibraryImportFile } from "@/features/operations/catalog-library-write-import-file-support.ts";
-import type { TryDatabasePromise } from "@/lib/effect-db.ts";
+import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 
 export interface LibraryImportFileInput {
   readonly source_path: string;

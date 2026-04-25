@@ -1,7 +1,7 @@
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
 import { Context, Effect, Layer, Option, Schema } from "effect";
 
-import { ExternalCall, ExternalCallError } from "@/lib/effect-retry.ts";
+import { ExternalCall, ExternalCallError } from "@/infra/effect/retry.ts";
 
 interface SeaDexClientShape {
   readonly getEntryByAniListId: (

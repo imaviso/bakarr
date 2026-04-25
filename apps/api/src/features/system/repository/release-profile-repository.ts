@@ -3,7 +3,7 @@ import { Effect } from "effect";
 
 import { DatabaseError, type AppDatabase } from "@/db/database.ts";
 import { releaseProfiles } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 export const listReleaseProfileRows = Effect.fn("ReleaseProfileRepository.listReleaseProfileRows")(
   function* (db: AppDatabase) {

@@ -5,7 +5,7 @@ import type { AppDatabase } from "@/db/database.ts";
 import { episodes } from "@/db/schema.ts";
 import { toAnimeDto } from "@/features/anime/dto.ts";
 import { getAnimeRowEffect } from "@/features/anime/anime-read-repository.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 export const getAnimeEffect = Effect.fn("AnimeQueryGet.getAnimeEffect")(function* (input: {
   db: AppDatabase;

@@ -3,7 +3,7 @@ import { Effect, Option } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
 import { anime, episodes } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { OperationsAnimeNotFoundError } from "@/features/operations/errors.ts";
 
 export const requireAnime = Effect.fn("AnimeRepository.requireAnime")(function* (

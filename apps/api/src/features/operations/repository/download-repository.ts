@@ -5,7 +5,7 @@ import {
   DownloadEventMetadataSchema,
   DownloadSourceMetadataSchema,
 } from "@packages/shared/index.ts";
-import { toSharedParsedEpisodeIdentity } from "@/lib/media-identity.ts";
+import { toSharedParsedEpisodeIdentity } from "@/infra/media/identity/identity.ts";
 import { OperationsStoredDataError } from "@/features/operations/errors.ts";
 
 const DownloadSourceMetadataJsonSchema = Schema.parseJson(DownloadSourceMetadataSchema);

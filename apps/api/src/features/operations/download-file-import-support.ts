@@ -9,8 +9,8 @@ import {
   cleanupStagedTempFile,
   stageSourceIntoTempFile,
 } from "@/features/operations/download-file-import-staging-support.ts";
-import type { FileSystemShape } from "@/lib/filesystem.ts";
-import type { ProbedMediaMetadata } from "@/lib/media-probe.ts";
+import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
+import type { ProbedMediaMetadata } from "@/infra/media/probe.ts";
 
 export { ImportFileError };
 

@@ -14,11 +14,11 @@ import {
   markJobSucceeded,
 } from "@/features/operations/job-support.ts";
 import { OperationsProgress } from "@/features/operations/operations-progress-service.ts";
-import { FileSystem, type FileSystemShape } from "@/lib/filesystem.ts";
-import { tryDatabasePromise, type TryDatabasePromise } from "@/lib/effect-db.ts";
+import { FileSystem, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
+import { tryDatabasePromise, type TryDatabasePromise } from "@/infra/effect/db.ts";
 import { scanAnimeLibraryRow } from "@/features/operations/catalog-library-scan-row-support.ts";
-import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
-import { markJobFailureOrFailWithError } from "@/lib/job-failure-support.ts";
+import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
+import { markJobFailureOrFailWithError } from "@/infra/job-failure-support.ts";
 
 export interface CatalogLibraryScanServiceShape {
   readonly runLibraryScan: () => Effect.Effect<

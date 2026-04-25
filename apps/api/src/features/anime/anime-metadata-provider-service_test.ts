@@ -12,7 +12,7 @@ import {
 import { JikanClient } from "@/features/anime/jikan.ts";
 import type { JikanNormalizedAnime } from "@/features/anime/jikan-model.ts";
 import { ManamiClient, type ManamiLookupEntry } from "@/features/anime/manami.ts";
-import { ExternalCallError } from "@/lib/effect-retry.ts";
+import { ExternalCallError } from "@/infra/effect/retry.ts";
 
 it.effect("returns refresh pending when AniDB cache is missing", () => {
   let refreshCount = 0;

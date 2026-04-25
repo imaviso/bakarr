@@ -6,9 +6,9 @@ import { Database, type DatabaseError } from "@/db/database.ts";
 import { anime, episodes } from "@/db/schema.ts";
 import type { OperationsError } from "@/features/operations/errors.ts";
 import { buildRenamePreview } from "@/features/operations/library-import.ts";
-import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
-import { deriveEpisodeTimelineMetadata } from "@/lib/anime-derivations.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
+import { deriveEpisodeTimelineMetadata } from "@/domain/anime/derivations.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import {
   RuntimeConfigSnapshotService,
   type RuntimeConfigSnapshotError,

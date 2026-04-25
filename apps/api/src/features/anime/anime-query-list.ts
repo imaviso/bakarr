@@ -5,8 +5,8 @@ import type { Anime, AnimeListQueryParams, AnimeListResponse } from "@packages/s
 import type { AppDatabase } from "@/db/database.ts";
 import { anime, episodes } from "@/db/schema.ts";
 import { AnimeStoredDataError } from "@/features/anime/errors.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
-import { deriveAnimeSeason, extractYearFromDate } from "@/lib/anime-date-utils.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { deriveAnimeSeason, extractYearFromDate } from "@/domain/anime/date-utils.ts";
 import {
   decodeStoredDiscoveryEntriesEffect,
   decodeStoredNumberListEffect,

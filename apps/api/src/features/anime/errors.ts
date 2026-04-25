@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-import { ExternalCallError } from "@/lib/effect-retry.ts";
+import { ExternalCallError } from "@/infra/effect/retry.ts";
 import { ImageCacheError } from "@/features/anime/anime-image-cache-service.ts";
 
 export class AnimeNotFoundError extends Schema.TaggedError<AnimeNotFoundError>()(

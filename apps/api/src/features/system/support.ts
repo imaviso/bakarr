@@ -4,10 +4,10 @@ import { Effect, Either } from "effect";
 import type { Config } from "@packages/shared/index.ts";
 import { eq, sql } from "drizzle-orm";
 
-import { BACKGROUND_JOB_NAMES } from "@/background-worker-model.ts";
+import { BACKGROUND_JOB_NAMES } from "@/background/worker-model.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { systemLogs } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 type NowIso<E = never> = () => Effect.Effect<string, E>;
 

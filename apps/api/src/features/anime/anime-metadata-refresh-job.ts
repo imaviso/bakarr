@@ -9,16 +9,16 @@ import type { AnimeMetadataProviderService } from "@/features/anime/anime-metada
 import { syncEpisodeMetadataEffect } from "@/features/anime/anime-episode-metadata-sync.ts";
 import { syncEpisodeScheduleEffect } from "@/features/anime/anime-episode-schedule-sync.ts";
 import { syncAnimeMetadataEffect } from "@/features/anime/anime-metadata-sync.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import {
   formatJobFailureMessage,
   markJobFailed,
   markJobStarted,
   markJobSucceeded,
-} from "@/lib/job-status.ts";
+} from "@/infra/job-status.ts";
 import { appendSystemLog } from "@/features/system/support.ts";
-import { ExternalCallError } from "@/lib/effect-retry.ts";
-import { markJobFailureOrFailWithError } from "@/lib/job-failure-support.ts";
+import { ExternalCallError } from "@/infra/effect/retry.ts";
+import { markJobFailureOrFailWithError } from "@/infra/job-failure-support.ts";
 
 type MetadataRefreshError = DatabaseError | ExternalCallError;
 

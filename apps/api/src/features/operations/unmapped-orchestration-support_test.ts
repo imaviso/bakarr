@@ -1,7 +1,7 @@
 import { assert, it } from "@effect/vitest";
 import { Effect } from "effect";
 
-import { FileSystemError } from "@/lib/filesystem.ts";
+import { FileSystemError } from "@/infra/filesystem/filesystem.ts";
 import { makeNoopTestFileSystemWithOverridesEffect } from "@/test/filesystem-test.ts";
 import { cleanupPreviousAnimeRootFolderAfterImport } from "@/features/operations/unmapped-orchestration-import.ts";
 

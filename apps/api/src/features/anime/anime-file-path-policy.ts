@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 
-import type { FileSystemShape } from "@/lib/filesystem.ts";
-import { isWithinPathRoot } from "@/lib/filesystem.ts";
+import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
+import { isWithinPathRoot } from "@/infra/filesystem/filesystem.ts";
 import { AnimePathError } from "@/features/anime/errors.ts";
 
 export const loadAnimeRoot = Effect.fn("AnimeFilePathPolicy.loadAnimeRoot")(function* (

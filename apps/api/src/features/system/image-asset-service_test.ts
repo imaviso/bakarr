@@ -2,8 +2,8 @@ import { symlink } from "node:fs/promises";
 
 import { Cause, Effect, Layer } from "effect";
 
-import { FileSystemError } from "@/lib/filesystem.ts";
-import { FileSystem } from "@/lib/filesystem.ts";
+import { FileSystemError } from "@/infra/filesystem/filesystem.ts";
+import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
 import {
   makeFailingRuntimeConfigSnapshotStub,

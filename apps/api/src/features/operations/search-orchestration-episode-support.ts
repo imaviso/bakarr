@@ -5,7 +5,7 @@ import type { AppDatabase } from "@/db/database.ts";
 import { Database } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { anime } from "@/db/schema.ts";
-import { ExternalCallError } from "@/lib/effect-retry.ts";
+import { ExternalCallError } from "@/infra/effect/retry.ts";
 import {
   isOperationsError,
   OperationsInputError,

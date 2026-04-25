@@ -1,8 +1,8 @@
 import { Context, Effect, Layer } from "effect";
 
 import type { SystemStatus } from "@packages/shared/index.ts";
-import { AppConfig } from "@/config.ts";
-import { AppRuntime } from "@/app-runtime.ts";
+import { AppConfig } from "@/config/schema.ts";
+import { AppRuntime } from "@/app/runtime.ts";
 import { Database, type DatabaseError } from "@/db/database.ts";
 import {
   type BackgroundJobStatusError,
@@ -17,7 +17,7 @@ import {
 import { loadSystemDownloadStatsAggregate } from "@/features/system/repository/stats-repository.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { StoredConfigCorruptError, StoredConfigMissingError } from "@/features/system/errors.ts";
-import { ClockService } from "@/lib/clock.ts";
+import { ClockService } from "@/infra/clock.ts";
 
 export type SystemStatusReadError =
   | BackgroundJobStatusError

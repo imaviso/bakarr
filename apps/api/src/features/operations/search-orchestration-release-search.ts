@@ -5,8 +5,8 @@ import type { AppDatabase } from "@/db/database.ts";
 import { Database } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { anime } from "@/db/schema.ts";
-import { compactLogAnnotations, errorLogAnnotations } from "@/lib/logging.ts";
-import { ExternalCallError } from "@/lib/effect-retry.ts";
+import { compactLogAnnotations, errorLogAnnotations } from "@/infra/logging.ts";
+import { ExternalCallError } from "@/infra/effect/retry.ts";
 import { RssClient } from "@/features/operations/rss-client.ts";
 import type { ParsedRelease } from "@/features/operations/rss-client-parse.ts";
 import {

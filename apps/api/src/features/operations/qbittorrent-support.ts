@@ -1,8 +1,8 @@
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
 import { Deferred, Effect, Either, Ref } from "effect";
 
-import type { ClockService } from "@/lib/clock.ts";
-import { ExternalCallError, type ExternalCallShape } from "@/lib/effect-retry.ts";
+import type { ClockService } from "@/infra/clock.ts";
+import { ExternalCallError, type ExternalCallShape } from "@/infra/effect/retry.ts";
 import {
   QBitTorrentClientError,
   type QBitConfig,

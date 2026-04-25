@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-import { ExternalCallError } from "@/lib/effect-retry.ts";
+import { ExternalCallError } from "@/infra/effect/retry.ts";
 
 export class DownloadNotFoundError extends Schema.TaggedError<DownloadNotFoundError>()(
   "DownloadNotFoundError",

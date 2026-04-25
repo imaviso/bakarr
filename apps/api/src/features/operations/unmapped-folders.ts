@@ -6,7 +6,7 @@ import {
   type ScannerState,
   type UnmappedFolder,
 } from "@packages/shared/index.ts";
-import { scoreAnimeSearchResultMatch } from "@/lib/anime-derivations.ts";
+import { scoreAnimeSearchResultMatch } from "@/domain/anime/derivations.ts";
 
 type UnmappedFolderInput = Pick<ScannerState["folders"][number], "name" | "path">;
 

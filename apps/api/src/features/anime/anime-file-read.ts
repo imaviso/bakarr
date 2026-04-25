@@ -1,8 +1,8 @@
 import { Effect } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
-import type { FileSystemShape } from "@/lib/filesystem.ts";
-import { isWithinPathRoot } from "@/lib/filesystem.ts";
+import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
+import { isWithinPathRoot } from "@/infra/filesystem/filesystem.ts";
 import { getAnimeRowEffect, getEpisodeRowEffect } from "@/features/anime/anime-read-repository.ts";
 import {
   EpisodeFileResolved,

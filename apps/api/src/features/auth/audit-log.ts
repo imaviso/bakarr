@@ -2,7 +2,7 @@ import { Effect } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
 import { systemLogs } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 export const writeAuthLog = Effect.fn("AuthAuditLog.writeLog")(function* (
   db: AppDatabase,

@@ -8,9 +8,9 @@ import {
   type FileSystemShape,
   isWithinPathRoot,
   sanitizePathSegmentEffect,
-} from "@/lib/filesystem.ts";
-import { classifyMediaArtifact, parseFileSourceIdentity } from "@/lib/media-identity.ts";
-import { inferAiredAt } from "@/lib/anime-derivations.ts";
+} from "@/infra/filesystem/filesystem.ts";
+import { classifyMediaArtifact, parseFileSourceIdentity } from "@/infra/media/identity/identity.ts";
+import { inferAiredAt } from "@/domain/anime/derivations.ts";
 import { resolveAnimeRootFolderEffect } from "@/features/anime/config-support.ts";
 import {
   OperationsAnimeNotFoundError,
@@ -23,11 +23,11 @@ import { appendLog } from "@/features/operations/job-support.ts";
 import { scanVideoFilesStream } from "@/features/operations/file-scanner.ts";
 import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
 import { getConfigLibraryPath } from "@/features/operations/repository/config-repository.ts";
-import type { TryDatabasePromise } from "@/lib/effect-db.ts";
+import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 import { Database } from "@/db/database.ts";
-import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
-import { FileSystem } from "@/lib/filesystem.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
+import { FileSystem } from "@/infra/filesystem/filesystem.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 export interface UnmappedImportWorkflowShape {
   readonly importUnmappedFolder: (input: {

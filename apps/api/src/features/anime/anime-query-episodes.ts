@@ -4,8 +4,8 @@ import { Effect } from "effect";
 import type { Episode } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { episodes } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
-import { deriveEpisodeTimelineMetadata } from "@/lib/anime-derivations.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { deriveEpisodeTimelineMetadata } from "@/domain/anime/derivations.ts";
 
 export const listEpisodesEffect = Effect.fn("AnimeQueryEpisodes.listEpisodesEffect")(
   function* (input: { animeId: number; db: AppDatabase; now: Date }) {

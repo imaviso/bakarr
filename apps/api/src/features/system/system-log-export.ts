@@ -4,7 +4,7 @@ import { Chunk, Effect, Option, Stream } from "effect";
 import type { SystemLog } from "@packages/shared/index.ts";
 import { Database, DatabaseError } from "@/db/database.ts";
 import { systemLogs } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { eventTypeCondition, normalizeLevel } from "@/features/system/support.ts";
 
 const EXPORT_LIMIT = 10_000;

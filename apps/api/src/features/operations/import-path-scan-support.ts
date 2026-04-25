@@ -2,8 +2,8 @@ import { Effect } from "effect";
 
 import type { AnimeSearchResult, ScanResult } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
-import type { FileSystemShape } from "@/lib/filesystem.ts";
-import { type MediaProbeShape } from "@/lib/media-probe.ts";
+import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
+import { type MediaProbeShape } from "@/infra/media/probe.ts";
 import type { AniListClient } from "@/features/anime/anilist.ts";
 import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
 import {
@@ -11,8 +11,8 @@ import {
   scoreAnimeRowMatch,
 } from "@/features/operations/library-import-analysis-support.ts";
 import { toAnimeSearchCandidate } from "@/features/operations/library-import.ts";
-import type { TryDatabasePromise } from "@/lib/effect-db.ts";
-import { summarizeEpisodeCoverage } from "@/lib/anime-derivations.ts";
+import type { TryDatabasePromise } from "@/infra/effect/db.ts";
+import { summarizeEpisodeCoverage } from "@/domain/anime/derivations.ts";
 import {
   findBestRemoteCandidate,
   enrichedEpisodeNumbers,

@@ -23,10 +23,10 @@ import {
   OperationsInfrastructureError,
   OperationsInputError,
 } from "@/features/operations/errors.ts";
-import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
+import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
 import { OperationsProgress } from "@/features/operations/operations-progress-service.ts";
 import { SearchReleaseService } from "@/features/operations/search-orchestration-release-search.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 
 export interface SearchBackgroundMissingServiceShape {

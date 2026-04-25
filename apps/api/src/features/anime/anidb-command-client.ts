@@ -2,10 +2,10 @@ import { type Socket } from "node:dgram";
 
 import { Effect, Ref } from "effect";
 
-import { type ClockServiceShape } from "@/lib/clock.ts";
+import { type ClockServiceShape } from "@/infra/clock.ts";
 import { parseAniDbResponse } from "@/features/anime/anidb-protocol.ts";
 import { sendAndReceiveAniDbPacketEffect } from "@/features/anime/anidb-socket.ts";
-import { ExternalCallError } from "@/lib/effect-retry.ts";
+import { ExternalCallError } from "@/infra/effect/retry.ts";
 
 const ANIDB_PROTO_VERSION = 3;
 const ANIDB_MIN_PACKET_INTERVAL_MS = 2_200;

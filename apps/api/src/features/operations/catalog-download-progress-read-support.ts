@@ -8,7 +8,7 @@ import { downloads } from "@/db/schema.ts";
 import { toDownloadStatus } from "@/features/operations/download-presentation.ts";
 import { loadDownloadPresentationContexts } from "@/features/operations/repository/download-presentation-repository.ts";
 import type { OperationsStoredDataError } from "@/features/operations/errors.ts";
-import type { TryDatabasePromise } from "@/lib/effect-db.ts";
+import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 
 export interface DownloadRuntimeSummary {
   readonly active_count: number;

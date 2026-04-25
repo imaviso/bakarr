@@ -18,8 +18,8 @@ import { MAX_INFERRED_EPISODE_NUMBER } from "@/features/anime/episode-backfill-p
 import { upsertEpisodeEffect } from "@/features/anime/anime-episode-repository.ts";
 import { syncEpisodeMetadataEffect } from "@/features/anime/anime-episode-metadata-sync.ts";
 import { findAnimeRootFolderOwnerEffect } from "@/features/anime/anime-read-repository.ts";
-import { inferAiredAt } from "@/lib/anime-derivations.ts";
-import { markSearchResultsAlreadyInLibraryEffect } from "@/lib/anime-search-results.ts";
+import { inferAiredAt } from "@/domain/anime/derivations.ts";
+import { markSearchResultsAlreadyInLibraryEffect } from "@/domain/anime/search-results.ts";
 import {
   getConfiguredImagesPathEffect,
   getConfiguredLibraryPathEffect,

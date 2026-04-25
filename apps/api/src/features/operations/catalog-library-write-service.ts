@@ -3,15 +3,15 @@ import { Context, Effect, Layer } from "effect";
 import type { ImportResult, RenameResult } from "@packages/shared/index.ts";
 import { Database, type DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
-import { MediaProbe } from "@/lib/media-probe.ts";
-import { FileSystem } from "@/lib/filesystem.ts";
+import { MediaProbe } from "@/infra/media/probe.ts";
+import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import type { OperationsAnimeNotFoundError } from "@/features/operations/errors.ts";
 import {
   importLibraryFiles,
   type LibraryImportFileInput,
 } from "@/features/operations/catalog-library-write-import-support.ts";
 import { renameLibraryFiles } from "@/features/operations/catalog-library-write-rename-support.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 

@@ -7,8 +7,8 @@ import { downloadEvents } from "@/db/schema.ts";
 import {
   loadDownloadEventPresentationContexts,
   toDownloadEvent,
-} from "@/lib/download-event-presentations.ts";
-import type { TryDatabasePromise } from "@/lib/effect-db.ts";
+} from "@/domain/download/event-presentations.ts";
+import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 import type { OperationsStoredDataError } from "@/features/operations/errors.ts";
 
 export interface DownloadEventExportHeader {

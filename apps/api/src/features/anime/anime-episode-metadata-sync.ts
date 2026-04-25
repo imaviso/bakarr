@@ -3,7 +3,7 @@ import { Effect } from "effect";
 import type { AppDatabase } from "@/db/database.ts";
 import { episodes } from "@/db/schema.ts";
 import type { AnimeMetadataEpisode } from "@/features/anime/anilist-model.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 export const syncEpisodeMetadataEffect = Effect.fn("AnimeService.syncEpisodeMetadataEffect")(
   function* (

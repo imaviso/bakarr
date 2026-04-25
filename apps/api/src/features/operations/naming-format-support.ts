@@ -1,4 +1,4 @@
-import type { NamingInput } from "@/lib/naming.ts";
+import type { NamingInput } from "@/infra/naming.ts";
 
 import type { ResolvedNamingPlan } from "@/features/operations/naming-types.ts";
 

@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
-import { classifyMediaArtifact, parseFileSourceIdentity } from "@/lib/media-identity.ts";
+import { classifyMediaArtifact, parseFileSourceIdentity } from "@/infra/media/identity/identity.ts";
 import { upsertEpisodeFilesAtomic } from "@/features/operations/download-support.ts";
 import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
 

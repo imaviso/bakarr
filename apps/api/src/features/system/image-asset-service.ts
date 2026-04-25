@@ -1,7 +1,7 @@
 import { Context, Effect, Layer } from "effect";
 
 import type { DatabaseError } from "@/db/database.ts";
-import { FileSystem, isWithinPathRoot } from "@/lib/filesystem.ts";
+import { FileSystem, isWithinPathRoot } from "@/infra/filesystem/filesystem.ts";
 import {
   ImageAssetAccessError,
   ImageAssetNotFoundError,

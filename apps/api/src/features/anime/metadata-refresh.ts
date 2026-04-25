@@ -1,9 +1,9 @@
 import { Config as EffectConfig, Effect, Schema } from "effect";
 
 import { Database } from "@/db/database.ts";
-import { PositiveIntFromStringSchema } from "@/lib/domain-schema.ts";
-import { makeSingleFlightEffectRunner } from "@/lib/effect-coalescing-single-flight-runner.ts";
-import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
+import { PositiveIntFromStringSchema } from "@/domain/domain-schema.ts";
+import { makeSingleFlightEffectRunner } from "@/infra/effect/coalescing-single-flight-runner.ts";
+import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
 import { AnimeImageCacheService } from "@/features/anime/anime-image-cache-service.ts";
 import { AnimeMetadataProviderService } from "@/features/anime/anime-metadata-provider-service.ts";
 import { refreshMetadataForMonitoredAnimeEffect } from "@/features/anime/anime-metadata-refresh-job.ts";

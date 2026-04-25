@@ -4,9 +4,9 @@ import { Effect, Option } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
 import { anime, downloadEvents, downloads, systemLogs } from "@/db/schema.ts";
-import type { FileSystemShape } from "@/lib/filesystem.ts";
-import type { MediaProbeShape } from "@/lib/media-probe.ts";
-import type { TryDatabasePromise } from "@/lib/effect-db.ts";
+import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
+import type { MediaProbeShape } from "@/infra/media/probe.ts";
+import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { OperationsPathError } from "@/features/operations/errors.ts";
 import { requireAnime } from "@/features/operations/repository/anime-repository.ts";

@@ -3,14 +3,14 @@ import { HttpClient, HttpClientRequest } from "@effect/platform";
 import { dirname, join, resolve } from "node:path";
 import { Context, Effect, Layer, Option, Schema } from "effect";
 
-import { AppConfig } from "@/config.ts";
+import { AppConfig } from "@/config/schema.ts";
 import { ManamiDatasetSchema, type ManamiDataset } from "@/features/anime/manami-model.ts";
 import { parseAniListIdFromSource, parseMalIdFromSource } from "@/features/anime/manami-url.ts";
-import { makeSingleFlightEffectRunner } from "@/lib/effect-coalescing-single-flight-runner.ts";
-import { ExternalCall, ExternalCallError, type ExternalCallShape } from "@/lib/effect-retry.ts";
-import { ClockService, type ClockServiceShape } from "@/lib/clock.ts";
-import { FileSystem, type FileSystemShape } from "@/lib/filesystem.ts";
-import { isNotFoundError } from "@/lib/fs-errors.ts";
+import { makeSingleFlightEffectRunner } from "@/infra/effect/coalescing-single-flight-runner.ts";
+import { ExternalCall, ExternalCallError, type ExternalCallShape } from "@/infra/effect/retry.ts";
+import { ClockService, type ClockServiceShape } from "@/infra/clock.ts";
+import { FileSystem, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
+import { isNotFoundError } from "@/infra/filesystem/fs-errors.ts";
 
 export const MANAMI_DATASET_URL =
   "https://github.com/manami-project/anime-offline-database/releases/latest/download/anime-offline-database-minified.json";

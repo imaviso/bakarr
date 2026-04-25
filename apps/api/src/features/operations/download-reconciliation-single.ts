@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { Effect, Option } from "effect";
 
 import { episodes } from "@/db/schema.ts";
-import { probeMediaMetadataOrUndefined } from "@/lib/media-probe.ts";
+import { probeMediaMetadataOrUndefined } from "@/infra/media/probe.ts";
 import {
   buildEpisodeFilenamePlan,
   hasMissingLocalMediaNamingFields,

@@ -2,7 +2,7 @@ import { createSocket, type Socket } from "node:dgram";
 
 import { Data, Effect } from "effect";
 
-import { ExternalCallError } from "@/lib/effect-retry.ts";
+import { ExternalCallError } from "@/infra/effect/retry.ts";
 
 const ANIDB_HOST = "api.anidb.net";
 const ANIDB_PORT = 9000;

@@ -4,13 +4,13 @@ import { Effect } from "effect";
 import type { DownloadSourceMetadata } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { downloadEvents, downloads, episodes, systemLogs } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import {
   markJobFailed as markJobFailedBase,
   markJobStarted as markJobStartedBase,
   markJobSucceeded as markJobSucceededBase,
   updateJobProgress as updateJobProgressBase,
-} from "@/lib/job-status.ts";
+} from "@/infra/job-status.ts";
 import { encodeDownloadEventMetadata } from "@/features/operations/repository/download-repository.ts";
 
 type NowIso = () => Effect.Effect<string>;

@@ -3,20 +3,23 @@ import { Effect } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
 import { episodes } from "@/db/schema.ts";
-import type { FileSystemShape } from "@/lib/filesystem.ts";
-import type { MediaProbeShape } from "@/lib/media-probe.ts";
+import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
+import type { MediaProbeShape } from "@/infra/media/probe.ts";
 import type { VideoFile } from "@packages/shared/index.ts";
 import {
   mergeProbedMediaMetadata,
   probeMediaMetadataOrUndefined,
   type ProbedMediaMetadata,
   shouldProbeDetailedMediaMetadata,
-} from "@/lib/media-probe.ts";
-import { parseFileSourceIdentity, toSharedParsedEpisodeIdentity } from "@/lib/media-identity.ts";
+} from "@/infra/media/probe.ts";
+import {
+  parseFileSourceIdentity,
+  toSharedParsedEpisodeIdentity,
+} from "@/infra/media/identity/identity.ts";
 import { collectVideoFiles } from "@/features/anime/files.ts";
-import { buildScannedFileMetadata } from "@/lib/scanned-file-metadata.ts";
+import { buildScannedFileMetadata } from "@/infra/scanned-file-metadata.ts";
 import { getAnimeRowEffect } from "@/features/anime/anime-read-repository.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { AnimePathError } from "@/features/anime/errors.ts";
 
 interface EpisodeMediaCacheRow {

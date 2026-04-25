@@ -11,7 +11,7 @@ import {
   QBitTorrentClientError,
   type QBitConfig,
 } from "@/features/operations/qbittorrent-models.ts";
-import type { ExternalCallError } from "@/lib/effect-retry.ts";
+import type { ExternalCallError } from "@/infra/effect/retry.ts";
 import {
   RuntimeConfigSnapshotService,
   type RuntimeConfigSnapshotError,

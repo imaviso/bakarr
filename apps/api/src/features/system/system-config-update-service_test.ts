@@ -1,16 +1,16 @@
 import { Effect, Layer, Ref, Stream } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
-import { AppConfig } from "@/config.ts";
+import { AppConfig } from "@/config/schema.ts";
 import {
   BackgroundWorkerController,
   type BackgroundWorkerControllerShape,
-} from "@/background-controller-core.ts";
+} from "@/background/controller-core.ts";
 import { Database, type AppDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
-import { ClockServiceLive } from "@/lib/clock.ts";
-import { RuntimeLogLevelStateLive } from "@/lib/logging.ts";
-import { RandomServiceLive } from "@/lib/random.ts";
+import { ClockServiceLive } from "@/infra/clock.ts";
+import { RuntimeLogLevelStateLive } from "@/infra/logging.ts";
+import { RandomServiceLive } from "@/infra/random.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { makeDatabaseServiceStub } from "@/test/stubs.ts";

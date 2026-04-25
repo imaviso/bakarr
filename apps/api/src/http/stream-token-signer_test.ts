@@ -1,6 +1,6 @@
 import { Effect, Layer } from "effect";
 
-import { RandomService } from "@/lib/random.ts";
+import { RandomService } from "@/infra/random.ts";
 import { assert, it } from "@effect/vitest";
 import { StreamTokenSigner, StreamTokenSignerLive } from "@/features/anime/stream-token-signer.ts";
 

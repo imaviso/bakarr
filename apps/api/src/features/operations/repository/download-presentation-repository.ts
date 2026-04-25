@@ -6,7 +6,7 @@ import { anime, downloads, episodes } from "@/db/schema.ts";
 import { decodeOptionalNumberList } from "@/features/system/config-codec.ts";
 import { OperationsStoredDataError } from "@/features/operations/errors.ts";
 import type { DownloadPresentationContext } from "@/features/operations/repository/types.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 const SQLITE_IN_LIST_CHUNK_SIZE = 900;
 const CHUNK_LOAD_CONCURRENCY = 4;

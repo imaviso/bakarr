@@ -1,8 +1,8 @@
 import { Effect } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
-import type { FileSystemShape } from "@/lib/filesystem.ts";
-import type { MediaProbeShape } from "@/lib/media-probe.ts";
+import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
+import type { MediaProbeShape } from "@/infra/media/probe.ts";
 import type { AnimeEventPublisher } from "@/features/anime/anime-orchestration-shared.ts";
 import { scanAnimeFolderEffect } from "@/features/anime/anime-file-scan.ts";
 import { getAnimeRowEffect } from "@/features/anime/anime-read-repository.ts";

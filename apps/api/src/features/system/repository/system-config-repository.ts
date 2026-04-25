@@ -3,7 +3,7 @@ import { Effect } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
 import { appConfig } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 export const loadSystemConfigRow = Effect.fn("SystemConfigRepository.loadSystemConfigRow")(
   function* (db: AppDatabase) {

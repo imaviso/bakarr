@@ -14,7 +14,7 @@ import {
   type JikanNormalizedAnime,
   type JikanNormalizedSeasonalEntry,
 } from "@/features/anime/jikan-model.ts";
-import { ExternalCall, ExternalCallError, type ExternalCallShape } from "@/lib/effect-retry.ts";
+import { ExternalCall, ExternalCallError, type ExternalCallShape } from "@/infra/effect/retry.ts";
 
 const JIKAN_URL = "https://api.jikan.moe/v4";
 

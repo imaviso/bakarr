@@ -1,7 +1,7 @@
 import { HttpClient } from "@effect/platform";
 import { Context, Effect, Layer, Schema } from "effect";
 
-import { FileSystem } from "@/lib/filesystem.ts";
+import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { cacheAnimeMetadataImages, type CachedAnimeImages } from "@/features/anime/image-cache.ts";
 

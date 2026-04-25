@@ -12,7 +12,7 @@ import {
   decodeStoredDiscoveryEntriesEffect,
   decodeStoredSynonymsEffect,
 } from "@/features/anime/decode-support.ts";
-import { FileSystemError, type FileSystemShape } from "@/lib/filesystem.ts";
+import { FileSystemError, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 
 it.scoped("addAnimeEffect persists MAL backfill and mapped relation metadata", () =>

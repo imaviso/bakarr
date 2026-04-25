@@ -7,7 +7,7 @@ import type {
 import { Option } from "effect";
 
 import type { ParsedRelease } from "@/features/operations/rss-client-parse.ts";
-import { parseReleaseSourceIdentity } from "@/lib/media-identity.ts";
+import { parseReleaseSourceIdentity } from "@/infra/media/identity/identity.ts";
 import { decideDownloadAction, parseReleaseName } from "@/features/operations/release-ranking.ts";
 
 export function toEpisodeSearchResult(input: {

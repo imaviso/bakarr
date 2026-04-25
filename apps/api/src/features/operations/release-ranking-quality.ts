@@ -1,5 +1,5 @@
 import type { Quality } from "@packages/shared/index.ts";
-import { parseResolutionLabel } from "@/lib/media-resolution.ts";
+import { parseResolutionLabel } from "@/infra/media/resolution.ts";
 
 type QualitySource =
   | "BluRayRemux"

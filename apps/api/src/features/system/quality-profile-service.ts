@@ -2,7 +2,7 @@ import { Context, Effect, Layer } from "effect";
 
 import type { Quality, QualityProfile } from "@packages/shared/index.ts";
 import { Database, DatabaseError } from "@/db/database.ts";
-import { nowIsoFromClock, ClockService } from "@/lib/clock.ts";
+import { nowIsoFromClock, ClockService } from "@/infra/clock.ts";
 import {
   StoredConfigCorruptError,
   ProfileNotFoundError,

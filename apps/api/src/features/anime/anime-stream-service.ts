@@ -2,8 +2,8 @@ import { Context, Effect, Layer, Match } from "effect";
 
 import type { DatabaseError } from "@/db/database.ts";
 import { Database } from "@/db/database.ts";
-import { ClockService } from "@/lib/clock.ts";
-import { FileSystem } from "@/lib/filesystem.ts";
+import { ClockService } from "@/infra/clock.ts";
+import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { AnimeNotFoundError } from "@/features/anime/errors.ts";
 import { EpisodeStreamAccessError } from "@/features/anime/anime-stream-errors.ts";
 import { resolveEpisodeFileEffect } from "@/features/anime/anime-file-read.ts";

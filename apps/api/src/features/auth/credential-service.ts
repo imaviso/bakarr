@@ -2,8 +2,8 @@ import { Context, Effect, Layer, Option } from "effect";
 
 import type { ApiKeyResponse, ChangePasswordRequest } from "@packages/shared/index.ts";
 import { Database, DatabaseError } from "@/db/database.ts";
-import { nowIsoFromClock, ClockService } from "@/lib/clock.ts";
-import { randomHexFrom, RandomService } from "@/lib/random.ts";
+import { nowIsoFromClock, ClockService } from "@/infra/clock.ts";
+import { randomHexFrom, RandomService } from "@/infra/random.ts";
 import { hashPasswordWith, verifyPassword } from "@/security/password.ts";
 import { TokenHasher, type TokenHasherError } from "@/security/token-hasher.ts";
 import { AuthError, type AuthCryptoError } from "@/features/auth/errors.ts";

@@ -1,5 +1,5 @@
 import type { ScannerState } from "@packages/shared/index.ts";
-import type { DirEntry } from "@/lib/filesystem.ts";
+import type { DirEntry } from "@/infra/filesystem/filesystem.ts";
 import {
   buildUnmappedFolderSearchQueries,
   hasUnmappedFolderRetryAttemptsRemaining,

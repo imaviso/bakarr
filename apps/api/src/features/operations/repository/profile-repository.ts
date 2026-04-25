@@ -5,7 +5,7 @@ import type { QualityProfile, ReleaseProfileRule } from "@packages/shared/index.
 import type { AppDatabase } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { qualityProfiles, releaseProfiles } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import {
   decodeNumberList,
   decodeQualityProfileRow,

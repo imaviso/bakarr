@@ -6,12 +6,12 @@ import {
   encodeOptionalNumberList,
   decodeOptionalNumberList,
 } from "@/features/system/config-codec.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import {
   buildPathParseContext,
   classifyMediaArtifact,
   parseFileSourceIdentity,
-} from "@/lib/media-identity.ts";
+} from "@/infra/media/identity/identity.ts";
 import type { QBitTorrentFile } from "@/features/operations/qbittorrent.ts";
 import { OperationsStoredDataError } from "@/features/operations/errors.ts";
 import { eq } from "drizzle-orm";

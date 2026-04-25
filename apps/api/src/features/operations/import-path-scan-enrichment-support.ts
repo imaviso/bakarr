@@ -6,7 +6,7 @@ import {
   probeMediaMetadataOrUndefined,
   shouldProbeMediaMetadata,
   type MediaProbeShape,
-} from "@/lib/media-probe.ts";
+} from "@/infra/media/probe.ts";
 
 const ENRICH_IMPORT_SCAN_CONCURRENCY = 4;
 

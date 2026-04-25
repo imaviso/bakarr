@@ -7,7 +7,7 @@ import * as schema from "@/db/schema.ts";
 import { anime, backgroundJobs, systemLogs } from "@/db/schema.ts";
 import type { AnimeMetadata } from "@/features/anime/anilist-model.ts";
 import { refreshMetadataForMonitoredAnimeEffect } from "@/features/anime/anime-metadata-refresh-job.ts";
-import { ExternalCallError } from "@/lib/effect-retry.ts";
+import { ExternalCallError } from "@/infra/effect/retry.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 
 it.scoped(

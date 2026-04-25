@@ -4,12 +4,12 @@ import { Effect, Either } from "effect";
 import type { Config } from "@packages/shared/index.ts";
 import type { AppDatabase, DatabaseError } from "@/db/database.ts";
 import { episodes } from "@/db/schema.ts";
-import type { FileSystemShape } from "@/lib/filesystem.ts";
+import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { buildRenamePreview } from "@/features/operations/library-import.ts";
 import { OperationsAnimeNotFoundError, OperationsPathError } from "@/features/operations/errors.ts";
 import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
-import type { TryDatabasePromise } from "@/lib/effect-db.ts";
+import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 
 export interface RenameLibraryFilesInput {
   readonly db: AppDatabase;

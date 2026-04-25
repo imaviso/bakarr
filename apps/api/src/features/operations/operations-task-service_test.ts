@@ -10,7 +10,7 @@ import {
   OperationsTaskServiceLive,
 } from "@/features/operations/operations-task-service.ts";
 import { EventBusNoopLive } from "@/features/events/event-bus.ts";
-import { ClockServiceLive } from "@/lib/clock.ts";
+import { ClockServiceLive } from "@/infra/clock.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import * as schema from "@/db/schema.ts";
 

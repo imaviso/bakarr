@@ -1,8 +1,8 @@
 import { Effect, Option, Stream } from "effect";
 
-import type { FileSystemShape } from "@/lib/filesystem.ts";
-import { isNotFoundError } from "@/lib/fs-errors.ts";
-import { classifyMediaArtifact, parseFileSourceIdentity } from "@/lib/media-identity.ts";
+import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
+import { isNotFoundError } from "@/infra/filesystem/fs-errors.ts";
+import { classifyMediaArtifact, parseFileSourceIdentity } from "@/infra/media/identity/identity.ts";
 import { scanVideoFiles, scanVideoFilesStream } from "@/features/operations/file-scanner.ts";
 
 export function parseMagnetInfoHash(magnet: string | null | undefined): Option.Option<string> {

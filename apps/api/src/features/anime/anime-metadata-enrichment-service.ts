@@ -12,8 +12,8 @@ import type { AniDbEpisodeLookupInput } from "@/features/anime/anidb-types.ts";
 import type { AnimeMetadataEpisode } from "@/features/anime/anilist-model.ts";
 import { syncEpisodeMetadataEffect } from "@/features/anime/anime-episode-metadata-sync.ts";
 import { AniDbRuntimeConfigError, type AnimeStoredDataError } from "@/features/anime/errors.ts";
-import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 const ANIDB_CACHE_STALE_AFTER_MS = 6 * 60 * 60 * 1000;
 const ANIDB_REFRESH_QUEUE_CAPACITY = 256;

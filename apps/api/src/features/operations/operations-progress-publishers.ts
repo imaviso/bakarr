@@ -1,8 +1,8 @@
 import { Effect } from "effect";
 
 import { type DatabaseError } from "@/db/database.ts";
-import { makeCoalescedEffectRunner } from "@/lib/effect-coalescing-coalesced-runner.ts";
-import { makeLatestValuePublisher } from "@/lib/effect-coalescing-latest-value-publisher.ts";
+import { makeCoalescedEffectRunner } from "@/infra/effect/coalescing-coalesced-runner.ts";
+import { makeLatestValuePublisher } from "@/infra/effect/coalescing-latest-value-publisher.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import type { OperationsInfrastructureError } from "@/features/operations/errors.ts";
 

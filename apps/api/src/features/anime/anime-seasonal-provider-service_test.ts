@@ -10,7 +10,7 @@ import {
 import { JikanClient } from "@/features/anime/jikan.ts";
 import type { JikanNormalizedSeasonalEntry } from "@/features/anime/jikan-model.ts";
 import { ManamiClient } from "@/features/anime/manami.ts";
-import { ExternalCallError } from "@/lib/effect-retry.ts";
+import { ExternalCallError } from "@/infra/effect/retry.ts";
 
 function makeAniListSearchResult(
   id: number,

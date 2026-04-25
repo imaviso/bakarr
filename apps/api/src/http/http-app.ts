@@ -2,14 +2,14 @@ import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platf
 import { Effect } from "effect";
 
 import { embeddedWebAssets } from "@/generated/embedded-web-assets.ts";
-import { animeRouter } from "@/http/anime-router.ts";
-import { authRouter } from "@/http/auth-router.ts";
-import { createEmbeddedWebResponse, type EmbeddedWebAsset } from "@/http/embedded-web.ts";
-import { downloadsRouter } from "@/http/operations-downloads-router.ts";
-import { libraryRouter } from "@/http/operations-library-router.ts";
-import { rssRouter } from "@/http/operations-rss-router.ts";
-import { searchRouter } from "@/http/operations-search-router.ts";
-import { systemRouter } from "@/http/system-router.ts";
+import { animeRouter } from "@/http/anime/router.ts";
+import { authRouter } from "@/http/auth/router.ts";
+import { createEmbeddedWebResponse, type EmbeddedWebAsset } from "@/http/shared/embedded-web.ts";
+import { downloadsRouter } from "@/http/operations/downloads-router.ts";
+import { libraryRouter } from "@/http/operations/library-router.ts";
+import { rssRouter } from "@/http/operations/rss-router.ts";
+import { searchRouter } from "@/http/operations/search-router.ts";
+import { systemRouter } from "@/http/system/router.ts";
 
 export function createHttpApp(
   options: {

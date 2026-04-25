@@ -3,8 +3,8 @@ import { assert, it } from "@effect/vitest";
 import { Effect, Either, Layer, Option } from "effect";
 
 import { JikanClient, JikanClientLive } from "@/features/anime/jikan.ts";
-import { ClockServiceLive } from "@/lib/clock.ts";
-import { ExternalCallError, ExternalCallLive } from "@/lib/effect-retry.ts";
+import { ClockServiceLive } from "@/infra/clock.ts";
+import { ExternalCallError, ExternalCallLive } from "@/infra/effect/retry.ts";
 
 const ExternalCallTestLayer = ExternalCallLive.pipe(Layer.provide(ClockServiceLive));
 

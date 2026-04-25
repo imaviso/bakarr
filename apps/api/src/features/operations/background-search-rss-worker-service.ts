@@ -12,9 +12,9 @@ import {
 } from "@/features/operations/job-support.ts";
 import type { OperationsError } from "@/features/operations/errors.ts";
 import { OperationsProgress } from "@/features/operations/operations-progress-service.ts";
-import type { ExternalCallError } from "@/lib/effect-retry.ts";
-import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
-import { markJobFailureOrFailWithCause } from "@/lib/job-failure-support.ts";
+import type { ExternalCallError } from "@/infra/effect/retry.ts";
+import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
+import { markJobFailureOrFailWithCause } from "@/infra/job-failure-support.ts";
 
 export type BackgroundSearchRssWorkerError = DatabaseError | ExternalCallError | OperationsError;
 

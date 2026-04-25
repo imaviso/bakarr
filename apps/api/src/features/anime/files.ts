@@ -1,8 +1,8 @@
 import type { VideoFile } from "@packages/shared/index.ts";
-import type { DirEntry, FileSystemShape } from "@/lib/filesystem.ts";
-import { isNotFoundError } from "@/lib/fs-errors.ts";
+import type { DirEntry, FileSystemShape } from "@/infra/filesystem/filesystem.ts";
+import { isNotFoundError } from "@/infra/filesystem/fs-errors.ts";
 import { Effect } from "effect";
-import { classifyMediaArtifact, parseFileSourceIdentity } from "@/lib/media-identity.ts";
+import { classifyMediaArtifact, parseFileSourceIdentity } from "@/infra/media/identity/identity.ts";
 
 function parseEpisodeNumber(path: string): number | undefined {
   const parsed = parseFileSourceIdentity(path);

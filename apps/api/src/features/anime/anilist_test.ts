@@ -3,8 +3,8 @@ import { HttpClient, HttpClientResponse } from "@effect/platform";
 import { Effect, Layer, Option } from "effect";
 
 import { AniListClient, AniListClientLive } from "@/features/anime/anilist.ts";
-import { ClockServiceLive } from "@/lib/clock.ts";
-import { ExternalCallLive } from "@/lib/effect-retry.ts";
+import { ClockServiceLive } from "@/infra/clock.ts";
+import { ExternalCallLive } from "@/infra/effect/retry.ts";
 
 const ExternalCallTestLayer = ExternalCallLive.pipe(Layer.provide(ClockServiceLive));
 

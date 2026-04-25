@@ -8,7 +8,7 @@ import {
   type AnimeMetadataEpisode,
 } from "@/features/anime/anilist-model.ts";
 import { AnimeStoredDataError } from "@/features/anime/errors.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 const AniDbEpisodeCachePayloadJsonSchema = Schema.parseJson(
   Schema.Array(AnimeMetadataEpisodeSchema),

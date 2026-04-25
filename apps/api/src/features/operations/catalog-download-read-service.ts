@@ -19,8 +19,8 @@ import {
   type DownloadRuntimeSummary,
 } from "@/features/operations/catalog-download-progress-read-support.ts";
 import { OperationsStoredDataError } from "@/features/operations/errors.ts";
-import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 type ReadError = DatabaseError | OperationsStoredDataError;
 

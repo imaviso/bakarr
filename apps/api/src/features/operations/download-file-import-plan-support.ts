@@ -3,7 +3,7 @@ import { Effect } from "effect";
 import type { DownloadSourceMetadata, PreferredTitle } from "@packages/shared/index.ts";
 import { anime } from "@/db/schema.ts";
 import { buildEpisodeFilenamePlan } from "@/features/operations/naming-support.ts";
-import type { ProbedMediaMetadata } from "@/lib/media-probe.ts";
+import type { ProbedMediaMetadata } from "@/infra/media/probe.ts";
 
 export interface DownloadFileImportPlan {
   readonly backupDestination: string;

@@ -7,7 +7,7 @@ import { anime, episodes } from "@/db/schema.ts";
 import { AnimeConflictError, AnimeNotFoundError } from "@/features/anime/errors.ts";
 import { findAnimeRootFolderOwnerEffect } from "@/features/anime/anime-read-repository.ts";
 import { qualityProfileExistsEffect } from "@/features/anime/profile-support.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 export const checkAnimeExistsEffect = Effect.fn("AnimeAddValidation.checkAnimeExists")(function* (
   db: AppDatabase,

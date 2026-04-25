@@ -3,7 +3,7 @@ import { type Socket } from "node:dgram";
 import { Context, Effect, Layer, Option, Ref } from "effect";
 
 import { type DatabaseError } from "@/db/database.ts";
-import { ClockService, type ClockServiceShape } from "@/lib/clock.ts";
+import { ClockService, type ClockServiceShape } from "@/infra/clock.ts";
 import {
   buildTitleCandidates,
   parseAnimeLookupMatch,
@@ -29,7 +29,7 @@ import {
 import { AniDbRuntimeConfigError } from "@/features/anime/errors.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { StoredConfigCorruptError } from "@/features/system/errors.ts";
-import { ExternalCallError } from "@/lib/effect-retry.ts";
+import { ExternalCallError } from "@/infra/effect/retry.ts";
 
 const ANIDB_MIN_ANIME_MATCH_SCORE = 70;
 const ANIDB_STRONG_ANIME_MATCH_SCORE = 90;

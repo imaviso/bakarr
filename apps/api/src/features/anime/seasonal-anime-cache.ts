@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { DatabaseError } from "@/db/database.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { seasonalAnimeCache } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import type { SeasonalAnimeResponse } from "@packages/shared/index.ts";
 import { SeasonalAnimeResponseSchema } from "@packages/shared/index.ts";
 

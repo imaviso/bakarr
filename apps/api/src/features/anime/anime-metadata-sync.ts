@@ -13,7 +13,7 @@ import {
   encodeAnimeDiscoveryEntries,
   encodeAnimeSynonyms,
 } from "@/features/anime/discovery-metadata-codec.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { appendSystemLog } from "@/features/system/support.ts";
 
 export const syncAnimeMetadataEffect = Effect.fn("AnimeMetadataSync.syncAnimeMetadata")(function* <

@@ -1,4 +1,4 @@
-import { type NamingInput, renderEpisodeFilename } from "@/lib/naming.ts";
+import { type NamingInput, renderEpisodeFilename } from "@/infra/naming.ts";
 import type {
   DownloadSourceMetadata,
   ParsedEpisodeIdentity as SharedParsedEpisodeIdentity,
@@ -9,8 +9,8 @@ import {
   getSourceIdentityAirDate,
   getSourceIdentitySeason,
   toSharedParsedEpisodeIdentity,
-} from "@/lib/media-identity.ts";
-import type { ProbedMediaMetadata } from "@/lib/media-probe.ts";
+} from "@/infra/media/identity/identity.ts";
+import type { ProbedMediaMetadata } from "@/infra/media/probe.ts";
 import {
   buildEpisodeNamingInputFromPath,
   selectAnimeYearForNaming,

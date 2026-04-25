@@ -15,7 +15,7 @@ import {
   type DownloadEventExportHeader,
   type DownloadEventExportQuery,
 } from "@/features/operations/catalog-download-event-stream-support.ts";
-import type { TryDatabasePromise } from "@/lib/effect-db.ts";
+import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 
 export type {
   DownloadEventCsvExportStreamShape,

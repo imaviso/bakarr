@@ -19,8 +19,8 @@ import {
 import type { TriggerDownloadInput } from "@/features/operations/download-orchestration-shared.ts";
 import type { DownloadTriggerCoordinatorShape } from "@/features/operations/runtime-support.ts";
 import { Database, type AppDatabase } from "@/db/database.ts";
-import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
-import { tryDatabasePromise, type TryDatabasePromise } from "@/lib/effect-db.ts";
+import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
+import { tryDatabasePromise, type TryDatabasePromise } from "@/infra/effect/db.ts";
 import { DownloadProgressSupport } from "@/features/operations/download-progress-support.ts";
 import { DownloadTriggerCoordinator } from "@/features/operations/runtime-support.ts";
 

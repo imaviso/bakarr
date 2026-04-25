@@ -18,9 +18,9 @@ import {
 import { reconcileBatchDownloadEffect } from "@/features/operations/download-reconciliation-batch.ts";
 import { reconcileSingleDownloadEffect } from "@/features/operations/download-reconciliation-single.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
-import type { TryDatabasePromise } from "@/lib/effect-db.ts";
-import type { FileSystemShape } from "@/lib/filesystem.ts";
-import type { MediaProbeShape } from "@/lib/media-probe.ts";
+import type { TryDatabasePromise } from "@/infra/effect/db.ts";
+import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
+import type { MediaProbeShape } from "@/infra/media/probe.ts";
 
 export function makeDownloadCompletedTorrentReconciliation(
   db: AppDatabase,

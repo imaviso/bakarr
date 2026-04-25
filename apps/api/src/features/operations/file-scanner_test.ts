@@ -2,7 +2,7 @@ import { assert, it } from "@effect/vitest";
 
 import { Cause, Effect, Exit, Stream } from "effect";
 
-import { type DirEntry, FileSystemError } from "@/lib/filesystem.ts";
+import { type DirEntry, FileSystemError } from "@/infra/filesystem/filesystem.ts";
 import { makeNoopTestFileSystemWithOverridesEffect } from "@/test/filesystem-test.ts";
 import { scanVideoFiles, scanVideoFilesStream } from "@/features/operations/file-scanner.ts";
 

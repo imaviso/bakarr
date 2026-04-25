@@ -6,10 +6,10 @@ import type { AppDatabase } from "@/db/database.ts";
 import { anime } from "@/db/schema.ts";
 import { AnimeNotFoundError } from "@/features/anime/errors.ts";
 import type { AniListClient } from "@/features/anime/anilist.ts";
-import { markSearchResultsAlreadyInLibraryEffect } from "@/lib/anime-search-results.ts";
+import { markSearchResultsAlreadyInLibraryEffect } from "@/domain/anime/search-results.ts";
 import { annotateAnimeSearchResultsForQuery } from "@/features/anime/anime-search-annotation.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
-import { deriveAnimeSeason } from "@/lib/anime-date-utils.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { deriveAnimeSeason } from "@/domain/anime/date-utils.ts";
 
 export const searchAnimeEffect = Effect.fn("AnimeQuerySearch.searchAnimeEffect")(function* (input: {
   aniList: typeof AniListClient.Service;

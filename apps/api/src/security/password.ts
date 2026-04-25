@@ -1,7 +1,7 @@
 import { Effect, Option, Schema } from "effect";
 import { timingSafeEqual as nodeTimingSafeEqual } from "node:crypto";
 
-import { bytesToHex, hexToBytes } from "@/lib/hex.ts";
+import { bytesToHex, hexToBytes } from "@/infra/hex.ts";
 
 const PASSWORD_SCHEME = "pbkdf2_sha256";
 const ITERATIONS = 310_000;

@@ -1,6 +1,6 @@
 import { Context, Effect, Layer, Metric } from "effect";
 
-import { renderBakarrPrometheusMetrics } from "@/lib/metrics.ts";
+import { renderBakarrPrometheusMetrics } from "@/infra/metrics.ts";
 import { SystemLibraryStatsReadService } from "@/features/system/system-library-stats-read-service.ts";
 import {
   type SystemStatusReadError,

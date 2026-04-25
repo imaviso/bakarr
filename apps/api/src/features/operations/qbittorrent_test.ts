@@ -2,8 +2,8 @@ import { assert, it } from "@effect/vitest";
 import { HttpClient, HttpClientError, HttpClientResponse } from "@effect/platform";
 import { Cause, Deferred, Effect, Exit, Fiber, Layer, TestClock } from "effect";
 
-import { ClockService, ClockServiceLive } from "@/lib/clock.ts";
-import { ExternalCallLive } from "@/lib/effect-retry.ts";
+import { ClockService, ClockServiceLive } from "@/infra/clock.ts";
+import { ExternalCallLive } from "@/infra/effect/retry.ts";
 import { QBitTorrentClient, QBitTorrentClientLive } from "@/features/operations/qbittorrent.ts";
 
 const ExternalCallWithLiveClock = ExternalCallLive.pipe(Layer.provide(ClockServiceLive));

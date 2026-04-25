@@ -10,8 +10,8 @@ import {
   type OperationsError,
   OperationsInfrastructureError,
 } from "@/features/operations/errors.ts";
-import { durationMsSince } from "@/lib/logging.ts";
-import { ClockService } from "@/lib/clock.ts";
+import { durationMsSince } from "@/infra/logging.ts";
+import { ClockService } from "@/infra/clock.ts";
 
 export interface CatalogDownloadCommandServiceShape {
   readonly pauseDownload: (id: number) => Effect.Effect<void, OperationsError | DatabaseError>;

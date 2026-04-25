@@ -4,7 +4,7 @@ import { Context, Effect, Layer, Option } from "effect";
 import type { Config } from "@packages/shared/index.ts";
 import { Database, DatabaseError } from "@/db/database.ts";
 import { downloads, rssFeeds } from "@/db/schema.ts";
-import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
+import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
 import { RssClient } from "@/features/operations/rss-client.ts";
 import { BackgroundSearchQueueService } from "@/features/operations/background-search-queue-service.ts";
 import {
@@ -23,7 +23,7 @@ import {
   loadReleaseRules,
 } from "@/features/operations/repository/profile-repository.ts";
 import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 export interface BackgroundSearchRssFeedServiceShape {
   readonly processFeed: (

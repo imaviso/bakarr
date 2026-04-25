@@ -4,15 +4,15 @@ import * as BunHttpServer from "@effect/platform-bun/BunHttpServer";
 import * as BunRuntime from "@effect/platform-bun/BunRuntime";
 import { Effect, Layer } from "effect";
 
-import { makeDotenvConfigProvider } from "./src/config-provider.ts";
+import { makeDotenvConfigProvider } from "./src/config/provider.ts";
 import { createHttpApp } from "./src/http/http-app.ts";
 import {
   bootstrapProgram,
   logServerStarting,
   logServerStopping,
   startBackgroundWorkers,
-} from "./src/api-startup.ts";
-import { makeApiLifecycleLayers } from "./src/api-lifecycle-layers.ts";
+} from "./src/app/startup.ts";
+import { makeApiLifecycleLayers } from "./src/app/lifecycle-layers.ts";
 
 const SERVER_IDLE_TIMEOUT_SECONDS = 0;
 

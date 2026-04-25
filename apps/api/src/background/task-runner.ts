@@ -1,0 +1,95 @@
+import { Context, Effect, Layer } from "effect";
+
+import { withLockEffectOrFail } from "@/background/workers.ts";
+import { BackgroundWorkerMonitor } from "@/background/monitor.ts";
+import type { DatabaseError } from "@/db/database.ts";
+import type { WorkerTimeoutError } from "@/background/workers.ts";
+import type { ExternalCallError } from "@/infra/effect/retry.ts";
+import type { AnimeServiceError } from "@/features/anime/errors.ts";
+import type { OperationsError } from "@/features/operations/errors.ts";
+import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
+import { CatalogDownloadCommandService } from "@/features/operations/catalog-download-command-service.ts";
+import { CatalogLibraryScanService } from "@/features/operations/catalog-library-scan-service.ts";
+import { AnimeMaintenanceService } from "@/features/anime/anime-maintenance-service.ts";
+import { BackgroundSearchRssWorkerService } from "@/features/operations/background-search-rss-worker-service.ts";
+
+export type BackgroundTaskRunnerError =
+  | AnimeServiceError
+  | DatabaseError
+  | ExternalCallError
+  | OperationsError
+  | RuntimeConfigSnapshotError
+  | WorkerTimeoutError;
+
+export interface BackgroundTaskRunnerShape {
+  readonly runDownloadSyncWorkerTask: () => Effect.Effect<void, BackgroundTaskRunnerError>;
+  readonly runLibraryScanWorkerTask: () => Effect.Effect<void, BackgroundTaskRunnerError>;
+  readonly runMetadataRefreshWorkerTask: () => Effect.Effect<void, BackgroundTaskRunnerError>;
+  readonly runRssWorkerTask: () => Effect.Effect<void, BackgroundTaskRunnerError>;
+}
+
+export class BackgroundTaskRunner extends Context.Tag("@bakarr/api/BackgroundTaskRunner")<
+  BackgroundTaskRunner,
+  BackgroundTaskRunnerShape
+>() {}
+
+export const BackgroundTaskRunnerLive = Layer.effect(
+  BackgroundTaskRunner,
+  Effect.gen(function* () {
+    const downloadCommandService = yield* CatalogDownloadCommandService;
+    const catalogLibraryScanService = yield* CatalogLibraryScanService;
+    const animeMaintenanceService = yield* AnimeMaintenanceService;
+    const backgroundSearchRssWorkerService = yield* BackgroundSearchRssWorkerService;
+    const monitor = yield* BackgroundWorkerMonitor;
+
+    const runDownloadSyncTask = Effect.fn("Background.runDownloadSyncTask")(function* () {
+      yield* downloadCommandService.syncDownloads();
+    });
+    const runLibraryScanTask = Effect.fn("Background.runLibraryScanTask")(function* () {
+      yield* catalogLibraryScanService.runLibraryScan();
+    });
+    const runMetadataRefreshTask = Effect.fn("Background.runMetadataRefreshTask")(function* () {
+      yield* animeMaintenanceService.refreshMetadataForMonitoredAnime().pipe(Effect.asVoid);
+    });
+    const runRssTask = Effect.fn("Background.runRssTask")(function* () {
+      yield* backgroundSearchRssWorkerService.runRssWorker();
+    });
+
+    const downloadSyncWorkerTask = yield* withLockEffectOrFail(
+      "download_sync",
+      runDownloadSyncTask(),
+      monitor,
+    );
+    const libraryScanWorkerTask = yield* withLockEffectOrFail(
+      "library_scan",
+      runLibraryScanTask(),
+      monitor,
+    );
+    const metadataRefreshWorkerTask = yield* withLockEffectOrFail(
+      "metadata_refresh",
+      runMetadataRefreshTask(),
+      monitor,
+    );
+    const rssWorkerTask = yield* withLockEffectOrFail("rss", runRssTask(), monitor);
+
+    const runDownloadSyncWorkerTask = Effect.fn("BackgroundTaskRunner.runDownloadSyncWorkerTask")(
+      () => downloadSyncWorkerTask,
+    );
+    const runLibraryScanWorkerTask = Effect.fn("BackgroundTaskRunner.runLibraryScanWorkerTask")(
+      () => libraryScanWorkerTask,
+    );
+    const runMetadataRefreshWorkerTask = Effect.fn(
+      "BackgroundTaskRunner.runMetadataRefreshWorkerTask",
+    )(() => metadataRefreshWorkerTask);
+    const runRssWorkerTask = Effect.fn("BackgroundTaskRunner.runRssWorkerTask")(
+      () => rssWorkerTask,
+    );
+
+    return BackgroundTaskRunner.of({
+      runDownloadSyncWorkerTask,
+      runLibraryScanWorkerTask,
+      runMetadataRefreshWorkerTask,
+      runRssWorkerTask,
+    });
+  }),
+);

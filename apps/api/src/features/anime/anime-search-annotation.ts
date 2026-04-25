@@ -1,5 +1,5 @@
 import type { AnimeSearchResult } from "@packages/shared/index.ts";
-import { scoreAnimeSearchResultMatch } from "@/lib/anime-derivations.ts";
+import { scoreAnimeSearchResultMatch } from "@/domain/anime/derivations.ts";
 
 export function annotateAnimeSearchResultsForQuery(
   query: string,

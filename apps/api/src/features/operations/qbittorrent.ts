@@ -1,8 +1,8 @@
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
 import { Context, Deferred, Effect, Layer, Ref, Schema } from "effect";
 
-import { ClockService } from "@/lib/clock.ts";
-import { ExternalCall, ExternalCallError } from "@/lib/effect-retry.ts";
+import { ClockService } from "@/infra/clock.ts";
+import { ExternalCall, ExternalCallError } from "@/infra/effect/retry.ts";
 import {
   authorizedRequest,
   ensureOk,

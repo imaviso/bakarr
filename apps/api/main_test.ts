@@ -12,8 +12,8 @@ import { AsyncOperationAcceptedSchema, OperationTaskSchema } from "@packages/sha
 import { mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { bootstrapProgram } from "./src/api-startup.ts";
-import { makeApiLifecycleLayers } from "./src/api-lifecycle-layers.ts";
+import { bootstrapProgram } from "./src/app/startup.ts";
+import { makeApiLifecycleLayers } from "./src/app/lifecycle-layers.ts";
 import { createHttpApp } from "./src/http/http-app.ts";
 import { commandArgs, commandName } from "./src/test/stubs.ts";
 import { AniListClient } from "./src/features/anime/anilist.ts";

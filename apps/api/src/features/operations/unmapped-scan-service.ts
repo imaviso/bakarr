@@ -1,8 +1,8 @@
 import { Context, Effect, Layer } from "effect";
 
 import { Database } from "@/db/database.ts";
-import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
-import { FileSystem } from "@/lib/filesystem.ts";
+import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
+import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { AniListClient } from "@/features/anime/anilist.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import {
@@ -11,7 +11,7 @@ import {
 } from "@/features/operations/unmapped-orchestration-scan.ts";
 import { type UnmappedScanQueryShape } from "@/features/operations/unmapped-orchestration-scan-query.ts";
 import { UnmappedScanCoordinator } from "@/features/operations/runtime-support.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 export interface UnmappedScanServiceShape {
   readonly getUnmappedFolders: UnmappedScanQueryShape["getUnmappedFolders"];

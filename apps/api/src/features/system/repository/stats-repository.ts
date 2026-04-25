@@ -11,7 +11,7 @@ import {
   rssFeeds,
   systemLogs,
 } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { buildSystemLogConditions } from "@/features/system/system-log-export.ts";
 
 const countDownloadsWhere = Effect.fn("SystemStatsRepository.countDownloadsWhere")(function* (

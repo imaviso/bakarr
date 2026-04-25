@@ -2,16 +2,16 @@ import { Context, Effect, Layer } from "effect";
 
 import { Database, type DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
-import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
-import { FileSystem } from "@/lib/filesystem.ts";
-import { MediaProbe } from "@/lib/media-probe.ts";
-import { RandomService } from "@/lib/random.ts";
+import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
+import { FileSystem } from "@/infra/filesystem/filesystem.ts";
+import { MediaProbe } from "@/infra/media/probe.ts";
+import { RandomService } from "@/infra/random.ts";
 import { TorrentClientService } from "@/features/operations/torrent-client-service.ts";
 import { makeDownloadCompletedTorrentReconciliation } from "@/features/operations/download-reconciliation-completed-torrent.ts";
 import { makeReconcileDownloadByIdEffect } from "@/features/operations/download-reconciliation-lookup.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
-import type { ExternalCallError } from "@/lib/effect-retry.ts";
+import type { ExternalCallError } from "@/infra/effect/retry.ts";
 import type {
   DownloadConflictError,
   DownloadNotFoundError,

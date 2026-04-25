@@ -2,7 +2,7 @@ import { Context, Effect, Layer, Option } from "effect";
 
 import type { AnimeSearchResult, AnimeSeason } from "@packages/shared/index.ts";
 import { AniListClient } from "@/features/anime/anilist.ts";
-import { ExternalCallError } from "@/lib/effect-retry.ts";
+import { ExternalCallError } from "@/infra/effect/retry.ts";
 import { JikanClient } from "@/features/anime/jikan.ts";
 import type { JikanNormalizedSeasonalEntry } from "@/features/anime/jikan-model.ts";
 import { ManamiClient } from "@/features/anime/manami.ts";

@@ -5,8 +5,11 @@ import type {
   SkippedFile,
 } from "@packages/shared/index.ts";
 
-import { scoreAnimeSearchResultMatch, summarizeEpisodeCoverage } from "@/lib/anime-derivations.ts";
-import { buildScannedFileMetadata } from "@/lib/scanned-file-metadata.ts";
+import {
+  scoreAnimeSearchResultMatch,
+  summarizeEpisodeCoverage,
+} from "@/domain/anime/derivations.ts";
+import { buildScannedFileMetadata } from "@/infra/scanned-file-metadata.ts";
 import {
   buildPathParseContext,
   classifyMediaArtifact,
@@ -14,7 +17,7 @@ import {
   getSourceIdentitySeason,
   parseFileSourceIdentity,
   toSharedParsedEpisodeIdentity,
-} from "@/lib/media-identity.ts";
+} from "@/infra/media/identity/identity.ts";
 import { parseResolution } from "@/features/operations/release-ranking.ts";
 import { anime } from "@/db/schema.ts";
 

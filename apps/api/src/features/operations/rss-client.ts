@@ -1,7 +1,7 @@
 import { Context, Effect, Either, Layer, Stream } from "effect";
 
-import { DnsResolver } from "@/lib/dns-resolver.ts";
-import { ExternalCall, ExternalCallError, type ExternalCallShape } from "@/lib/effect-retry.ts";
+import { DnsResolver } from "@/infra/dns-resolver.ts";
+import { ExternalCall, ExternalCallError, type ExternalCallShape } from "@/infra/effect/retry.ts";
 import {
   RssFeedParseError,
   RssFeedRejectedError,

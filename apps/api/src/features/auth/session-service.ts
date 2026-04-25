@@ -7,12 +7,12 @@ import type {
   LoginRequest,
   LoginResponse,
 } from "@packages/shared/index.ts";
-import { AppConfig } from "@/config.ts";
+import { AppConfig } from "@/config/schema.ts";
 import { Database, DatabaseError } from "@/db/database.ts";
 import { sessions, users } from "@/db/schema.ts";
-import { nowIsoFromClock, ClockService } from "@/lib/clock.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
-import { randomHexFrom, RandomService } from "@/lib/random.ts";
+import { nowIsoFromClock, ClockService } from "@/infra/clock.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { randomHexFrom, RandomService } from "@/infra/random.ts";
 import { verifyPassword } from "@/security/password.ts";
 import { TokenHasher, type TokenHasherError } from "@/security/token-hasher.ts";
 import { AuthError, type AuthCryptoError } from "@/features/auth/errors.ts";

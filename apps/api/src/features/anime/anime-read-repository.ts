@@ -3,7 +3,7 @@ import { Effect } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
 import { anime, episodes } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { AnimeNotFoundError } from "@/features/anime/errors.ts";
 
 export const getAnimeRowEffect = Effect.fn("AnimeRepository.getAnimeRow")(function* (

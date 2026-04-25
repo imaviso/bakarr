@@ -3,7 +3,7 @@ import { Context, Effect, Layer } from "effect";
 import type { BackgroundJobStatus } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import { Database } from "@/db/database.ts";
-import { BackgroundWorkerMonitor } from "@/background-monitor.ts";
+import { BackgroundWorkerMonitor } from "@/background/monitor.ts";
 import { composeBackgroundJobStatuses } from "@/features/system/background-status.ts";
 import { ConfigValidationError } from "@/features/system/errors.ts";
 import { listBackgroundJobRows } from "@/features/system/repository/stats-repository.ts";

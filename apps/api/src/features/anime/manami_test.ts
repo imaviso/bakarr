@@ -2,7 +2,7 @@ import { HttpClient, HttpClientResponse } from "@effect/platform";
 import { assert, it } from "@effect/vitest";
 import { Effect, Either, Layer, Option, Schema } from "effect";
 
-import { AppConfig } from "@/config.ts";
+import { AppConfig } from "@/config/schema.ts";
 import {
   MANAMI_CACHE_DIR_NAME,
   MANAMI_CACHE_DATASET_FILE,
@@ -14,9 +14,9 @@ import {
 } from "@/features/anime/manami.ts";
 import { ManamiDatasetSchema } from "@/features/anime/manami-model.ts";
 import { parseAniListIdFromSource, parseMalIdFromSource } from "@/features/anime/manami-url.ts";
-import { ClockService, ClockServiceLive } from "@/lib/clock.ts";
-import { ExternalCallError, ExternalCallLive } from "@/lib/effect-retry.ts";
-import { FileSystem, type FileSystemShape } from "@/lib/filesystem.ts";
+import { ClockService, ClockServiceLive } from "@/infra/clock.ts";
+import { ExternalCallError, ExternalCallLive } from "@/infra/effect/retry.ts";
+import { FileSystem, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { withFileSystemSandboxEffect } from "@/test/filesystem-test.ts";
 
 const textEncoder = new TextEncoder();

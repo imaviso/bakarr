@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 import type { Anime, AnimeDiscoveryEntry } from "@packages/shared/index.ts";
 import { anime, episodes } from "@/db/schema.ts";
-import { deriveAnimeSeason, extractYearFromDate } from "@/lib/anime-date-utils.ts";
+import { deriveAnimeSeason, extractYearFromDate } from "@/domain/anime/date-utils.ts";
 import {
   decodeStoredDiscoveryEntriesEffect,
   decodeStoredNumberListEffect,

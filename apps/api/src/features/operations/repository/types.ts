@@ -1,5 +1,5 @@
 import type { PreferredTitle } from "@packages/shared/index.ts";
-export type { DownloadEventPresentationContext } from "@/lib/download-event-presentations.ts";
+export type { DownloadEventPresentationContext } from "@/domain/download/event-presentations.ts";
 
 export interface CurrentEpisodeState {
   readonly downloaded: boolean;

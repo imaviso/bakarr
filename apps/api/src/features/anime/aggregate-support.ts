@@ -2,7 +2,7 @@ import { Effect } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
 import { anime, episodes, systemLogs } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 export const insertAnimeAggregateAtomicEffect = Effect.fn(
   "AnimeAggregateSupport.insertAnimeAggregateAtomic",

@@ -1,14 +1,14 @@
 import { Context, Effect, Layer } from "effect";
 
 import { Database, type DatabaseError } from "@/db/database.ts";
-import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
-import { FileSystem } from "@/lib/filesystem.ts";
+import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
+import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import type {
   OperationsAnimeNotFoundError,
   OperationsPathError,
 } from "@/features/operations/errors.ts";
 import { UnmappedScanService } from "@/features/operations/unmapped-scan-service.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import {
   decodeUnmappedFolderMatchRow,
   listUnmappedFolderMatchRows,

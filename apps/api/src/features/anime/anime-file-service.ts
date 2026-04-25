@@ -3,9 +3,9 @@ import { Context, Effect, Layer } from "effect";
 import type { VideoFile } from "@packages/shared/index.ts";
 import { Database, type DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
-import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
-import { FileSystem } from "@/lib/filesystem.ts";
-import { MediaProbe } from "@/lib/media-probe.ts";
+import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
+import { FileSystem } from "@/infra/filesystem/filesystem.ts";
+import { MediaProbe } from "@/infra/media/probe.ts";
 import { listAnimeFilesEffect } from "@/features/anime/anime-file-list.ts";
 import { scanAnimeFolderOrchestrationEffect } from "@/features/anime/anime-folder-scan-orchestration.ts";
 import {

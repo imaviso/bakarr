@@ -5,7 +5,7 @@ import { anime } from "@/db/schema.ts";
 import { assert, it } from "@effect/vitest";
 import { makeTestConfig } from "@/test/config-fixture.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { ExternalCallError } from "@/lib/effect-retry.ts";
+import { ExternalCallError } from "@/infra/effect/retry.ts";
 import { RssClient } from "@/features/operations/rss-client.ts";
 import type { ParsedRelease } from "@/features/operations/rss-client-parse.ts";
 import { SeaDexClient } from "@/features/operations/seadex-client.ts";

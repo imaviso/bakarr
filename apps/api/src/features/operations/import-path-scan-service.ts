@@ -3,9 +3,9 @@ import { Context, Effect, Layer } from "effect";
 import type { ScanResult } from "@packages/shared/index.ts";
 import { AniListClient } from "@/features/anime/anilist.ts";
 import { Database, DatabaseError } from "@/db/database.ts";
-import { FileSystem, isWithinPathRoot } from "@/lib/filesystem.ts";
-import { MediaProbe } from "@/lib/media-probe.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { FileSystem, isWithinPathRoot } from "@/infra/filesystem/filesystem.ts";
+import { MediaProbe } from "@/infra/media/probe.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import {
   OperationsInfrastructureError,
   OperationsInputError,

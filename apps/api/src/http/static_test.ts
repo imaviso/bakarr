@@ -1,7 +1,7 @@
 import { HttpServerResponse } from "@effect/platform";
 import { Effect } from "effect";
 
-import { createEmbeddedWebResponse, type EmbeddedWebAsset } from "@/http/embedded-web.ts";
+import { createEmbeddedWebResponse, type EmbeddedWebAsset } from "@/http/shared/embedded-web.ts";
 import { assert, it } from "@effect/vitest";
 
 it.effect("static app falls back to index.html for app routes", () =>

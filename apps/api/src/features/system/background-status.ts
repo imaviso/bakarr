@@ -5,7 +5,7 @@ import {
   BACKGROUND_WORKER_NAMES,
   type BackgroundWorkerName,
   type BackgroundWorkerSnapshot,
-} from "@/background-worker-model.ts";
+} from "@/background/worker-model.ts";
 import { toBackgroundJobStatus } from "@/features/system/support.ts";
 
 export const BackgroundJobHistoryRowSchema = Schema.Struct({

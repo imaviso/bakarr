@@ -2,7 +2,7 @@ import type { AnimeDiscoveryEntry } from "@packages/shared/index.ts";
 import type { AnimeMetadata } from "@/features/anime/anilist-model.ts";
 import type { JikanNormalizedAnime } from "@/features/anime/jikan-model.ts";
 import type { ManamiLookupEntry } from "@/features/anime/manami.ts";
-import { extractYearFromDate } from "@/lib/anime-date-utils.ts";
+import { extractYearFromDate } from "@/domain/anime/date-utils.ts";
 
 type JikanRelationTarget = JikanNormalizedAnime["relations"][number];
 type JikanRecommendationTarget = NonNullable<JikanNormalizedAnime["recommendations"]>[number];

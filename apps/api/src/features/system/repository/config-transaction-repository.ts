@@ -2,7 +2,7 @@ import { Effect } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
 import { appConfig, qualityProfiles } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 export const updateSystemConfigAtomic = Effect.fn(
   "SystemConfigTransactionRepository.updateSystemConfigAtomic",

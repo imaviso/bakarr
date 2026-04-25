@@ -10,9 +10,9 @@ import {
 import { Context, Effect, Layer } from "effect";
 
 import { Database } from "@/db/database.ts";
-import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
+import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
 import { TorrentClientService } from "@/features/operations/torrent-client-service.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { DownloadReconciliationService } from "@/features/operations/download-reconciliation-service.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 

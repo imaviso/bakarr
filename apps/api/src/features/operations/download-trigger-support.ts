@@ -26,7 +26,7 @@ import {
 } from "@/features/operations/errors.ts";
 import type { TriggerDownloadInput } from "@/features/operations/download-orchestration-shared.ts";
 import { resolveRequestedEpisodeNumber } from "@/features/operations/download-orchestration-shared.ts";
-import type { TryDatabasePromise } from "@/lib/effect-db.ts";
+import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 
 export interface PreparedTriggerDownload {
   readonly animeRow: typeof anime.$inferSelect;

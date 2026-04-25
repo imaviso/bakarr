@@ -2,8 +2,8 @@ import { Effect, Option } from "effect";
 
 import { encodeNumberList, encodeStringList } from "@/features/system/config-codec.ts";
 import type { AppDatabase } from "@/db/database.ts";
-import { ExternalCallError } from "@/lib/effect-retry.ts";
-import type { FileSystemShape } from "@/lib/filesystem.ts";
+import { ExternalCallError } from "@/infra/effect/retry.ts";
+import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import type { EventBusShape } from "@/features/events/event-bus.ts";
 import type { AddAnimeInput } from "@/features/anime/add-anime-input.ts";
 import { AnimeImageCacheService } from "@/features/anime/anime-image-cache-service.ts";

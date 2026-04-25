@@ -2,7 +2,7 @@ import { assert, describe, it } from "@effect/vitest";
 import { Effect, Layer, Option } from "effect";
 
 import type { AnimeSearchResult } from "@packages/shared/index.ts";
-import { ClockService } from "@/lib/clock.ts";
+import { ClockService } from "@/infra/clock.ts";
 import * as schema from "@/db/schema.ts";
 import { AnimeQueryService, AnimeQueryServiceLive } from "@/features/anime/query-service.ts";
 import { AniListClient } from "@/features/anime/anilist.ts";

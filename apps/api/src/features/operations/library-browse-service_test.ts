@@ -2,7 +2,11 @@ import { Cause, Effect, Exit, Layer } from "effect";
 
 import { assert, describe, it } from "@effect/vitest";
 import { makeTestConfig } from "@/test/config-fixture.ts";
-import { FileSystem, FileSystemError, type FileSystemShape } from "@/lib/filesystem.ts";
+import {
+  FileSystem,
+  FileSystemError,
+  type FileSystemShape,
+} from "@/infra/filesystem/filesystem.ts";
 import { makeRuntimeConfigSnapshotStub } from "@/test/stubs.ts";
 import {
   LibraryBrowseService,

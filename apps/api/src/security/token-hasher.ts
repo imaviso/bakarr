@@ -1,6 +1,6 @@
 import { Context, Effect, Layer, Schema } from "effect";
 
-import { bytesToHex } from "@/lib/hex.ts";
+import { bytesToHex } from "@/infra/hex.ts";
 
 export class TokenHasherError extends Schema.TaggedError<TokenHasherError>()("TokenHasherError", {
   cause: Schema.optional(Schema.Defect),

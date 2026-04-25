@@ -2,7 +2,7 @@ import { assert, it } from "@effect/vitest";
 import { Cause, Effect, Exit } from "effect";
 
 import { anime } from "@/db/schema.ts";
-import { FileSystemError, type FileSystemShape } from "@/lib/filesystem.ts";
+import { FileSystemError, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import {
   makeNoopTestFileSystemWithOverridesEffect,
   readTextFile,

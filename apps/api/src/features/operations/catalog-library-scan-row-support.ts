@@ -4,7 +4,7 @@ import type { AppDatabase } from "@/db/database.ts";
 import { anime } from "@/db/schema.ts";
 import { OperationsPathError } from "@/features/operations/errors.ts";
 import { scanVideoFilesStream } from "@/features/operations/file-scanner.ts";
-import type { FileSystemShape } from "@/lib/filesystem.ts";
+import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import {
   countLibraryScanFile,
   type LibraryScanCounts,

@@ -2,8 +2,8 @@ import { and, eq, inArray } from "drizzle-orm";
 import { Effect } from "effect";
 
 import { episodes } from "@/db/schema.ts";
-import { classifyMediaArtifact } from "@/lib/media-identity.ts";
-import { probeMediaMetadataOrUndefined } from "@/lib/media-probe.ts";
+import { classifyMediaArtifact } from "@/infra/media/identity/identity.ts";
+import { probeMediaMetadataOrUndefined } from "@/infra/media/probe.ts";
 import {
   buildEpisodeFilenamePlan,
   hasMissingLocalMediaNamingFields,

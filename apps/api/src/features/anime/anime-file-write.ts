@@ -3,8 +3,8 @@ import { Effect } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
 import { episodes } from "@/db/schema.ts";
-import type { FileSystemShape } from "@/lib/filesystem.ts";
-import { isWithinPathRoot } from "@/lib/filesystem.ts";
+import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
+import { isWithinPathRoot } from "@/infra/filesystem/filesystem.ts";
 import { AnimePathError } from "@/features/anime/errors.ts";
 import { getAnimeRowEffect } from "@/features/anime/anime-read-repository.ts";
 import {
@@ -13,7 +13,7 @@ import {
   upsertEpisodeEffect,
 } from "@/features/anime/anime-episode-repository.ts";
 import { loadAnimeRoot, validateEpisodeFilePath } from "@/features/anime/anime-file-path-policy.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 export const deleteEpisodeFileEffect = Effect.fn("AnimeFileWrite.deleteEpisodeFileEffect")(
   function* (input: {

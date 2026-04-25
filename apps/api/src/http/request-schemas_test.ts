@@ -1,7 +1,7 @@
 import { assert, it } from "@effect/vitest";
 import { Schema } from "effect";
 
-import { formatValidationErrorMessage } from "@/http/route-validation.ts";
+import { formatValidationErrorMessage } from "@/http/shared/route-validation.ts";
 import {
   AddRssFeedBodySchema,
   BrowseQuerySchema,
@@ -11,13 +11,13 @@ import {
   ImportUnmappedFolderBodySchema,
   SearchDownloadBodySchema,
   CalendarQuerySchema,
-} from "@/http/operations-request-schemas.ts";
-import { AddAnimeInputSchema } from "@/http/anime-request-schemas.ts";
+} from "@/http/operations/request-schemas.ts";
+import { AddAnimeInputSchema } from "@/http/anime/request-schemas.ts";
 import {
   ConfigSchema,
   SystemLogExportQuerySchema,
   SystemLogsQuerySchema,
-} from "@/http/system-request-schemas.ts";
+} from "@/http/system/request-schemas.ts";
 
 function makeValidConfig() {
   return {

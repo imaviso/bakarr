@@ -14,7 +14,7 @@ import {
 import { TorrentClientService } from "@/features/operations/torrent-client-service.ts";
 import { encodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
 import type { ParsedRelease } from "@/features/operations/rss-client-parse.ts";
-import type { TryDatabasePromise } from "@/lib/effect-db.ts";
+import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 
 export const queueParsedReleaseDownload = Effect.fn("OperationsService.queueParsedReleaseDownload")(
   function* (input: {

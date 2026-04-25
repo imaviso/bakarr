@@ -2,8 +2,8 @@ import { assert, it } from "@effect/vitest";
 import { HttpClient, HttpClientResponse } from "@effect/platform";
 import { Effect, Either, Layer, Option } from "effect";
 
-import { ClockServiceLive } from "@/lib/clock.ts";
-import { ExternalCallError, ExternalCallLive } from "@/lib/effect-retry.ts";
+import { ClockServiceLive } from "@/infra/clock.ts";
+import { ExternalCallError, ExternalCallLive } from "@/infra/effect/retry.ts";
 import { SeaDexClient, SeaDexClientLive } from "@/features/operations/seadex-client.ts";
 
 const ExternalCallTestLayer = ExternalCallLive.pipe(Layer.provide(ClockServiceLive));

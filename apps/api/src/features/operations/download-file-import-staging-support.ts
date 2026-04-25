@@ -2,8 +2,8 @@ import { Cause, Effect } from "effect";
 
 import type { ImportMode } from "@packages/shared/index.ts";
 import { ImportFileError } from "@/features/operations/download-file-import-errors.ts";
-import { isCrossFilesystemError, isNotFoundError } from "@/lib/fs-errors.ts";
-import type { FileSystemShape } from "@/lib/filesystem.ts";
+import { isCrossFilesystemError, isNotFoundError } from "@/infra/filesystem/fs-errors.ts";
+import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 
 export const stageSourceIntoTempFile = Effect.fn("Operations.stageSourceIntoTempFile")(
   function* (input: {

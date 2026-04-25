@@ -3,7 +3,7 @@ import { Cause, Effect } from "effect";
 import type { AppDatabase } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
 import type { EventBusShape } from "@/features/events/event-bus.ts";
-import { type FileSystemShape } from "@/lib/filesystem.ts";
+import { type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import type { AniListClient } from "@/features/anime/anilist.ts";
 import {
   deleteUnmappedFolderMatchRowsNotInPaths,
@@ -25,11 +25,11 @@ import {
   isUnmappedFolderQueuedForMatch,
 } from "@/features/operations/unmapped-folder-list-support.ts";
 import { markUnmappedFolderMatching } from "@/features/operations/unmapped-folders.ts";
-import type { TryDatabasePromise } from "@/lib/effect-db.ts";
+import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 import type { UnmappedScanCoordinatorShape } from "@/features/operations/runtime-support.ts";
 import type { UnmappedScanQueryShape } from "@/features/operations/unmapped-orchestration-scan-query.ts";
 import { makeUnmappedScanQuerySupport } from "@/features/operations/unmapped-orchestration-scan-query.ts";
-import { markJobFailureOrFailWithError } from "@/lib/job-failure-support.ts";
+import { markJobFailureOrFailWithError } from "@/infra/job-failure-support.ts";
 
 export interface UnmappedScanWorkflowShape {
   readonly getUnmappedFolders: UnmappedScanQueryShape["getUnmappedFolders"];

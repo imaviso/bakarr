@@ -2,7 +2,7 @@ import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { contentType } from "../src/http/route-fs.ts";
+import { contentType } from "../src/http/shared/route-fs.ts";
 
 const apiRoot = fileURLToPath(new URL("../", import.meta.url));
 const webDistRoot = path.resolve(apiRoot, "../web/dist");

@@ -7,8 +7,8 @@ import {
   clampInferredEpisodeUpperBound,
   MAX_INFERRED_EPISODE_NUMBER,
 } from "@/features/anime/episode-backfill-policy.ts";
-import { inferAiredAt } from "@/lib/anime-derivations.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { inferAiredAt } from "@/domain/anime/derivations.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 export const backfillEpisodesFromNextAiringEffect = Effect.fn(
   "AnimeEpisodeBackfill.backfillFromNextAiring",

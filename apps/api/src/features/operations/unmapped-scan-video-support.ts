@@ -1,6 +1,6 @@
 import { Effect, Stream } from "effect";
 
-import type { FileSystemShape } from "@/lib/filesystem.ts";
+import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { OperationsPathError } from "@/features/operations/errors.ts";
 import { scanVideoFilesStream } from "@/features/operations/file-scanner.ts";
 

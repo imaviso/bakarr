@@ -1,7 +1,7 @@
 import { Effect, Either } from "effect";
 import ipaddr from "ipaddr.js";
 
-import { DnsResolver, isDnsNoRecordError } from "@/lib/dns-resolver.ts";
+import { DnsResolver, isDnsNoRecordError } from "@/infra/dns-resolver.ts";
 import { RssFeedRejectedError } from "@/features/operations/errors.ts";
 
 const PRIVATE_IPV4_CIDRS: readonly [ipaddr.IPv4, number][] = [

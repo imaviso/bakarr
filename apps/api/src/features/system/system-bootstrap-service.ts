@@ -1,12 +1,12 @@
 import { Context, Effect, Layer } from "effect";
 import { eq } from "drizzle-orm";
 
-import { AppConfig } from "@/config.ts";
+import { AppConfig } from "@/config/schema.ts";
 import { Database, DatabaseError } from "@/db/database.ts";
 import { appConfig, qualityProfiles } from "@/db/schema.ts";
-import { nowIsoFromClock, ClockService } from "@/lib/clock.ts";
-import { RuntimeLogLevelState } from "@/lib/logging.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { nowIsoFromClock, ClockService } from "@/infra/clock.ts";
+import { RuntimeLogLevelState } from "@/infra/logging.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { DEFAULT_PROFILES, makeDefaultConfig } from "@/features/system/defaults.ts";
 import {
   decodeConfigCore,

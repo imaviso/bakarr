@@ -1,7 +1,7 @@
 import { Context, Effect, Layer } from "effect";
 
 import { Database, DatabaseError } from "@/db/database.ts";
-import { ClockService } from "@/lib/clock.ts";
+import { ClockService } from "@/infra/clock.ts";
 import { AniListClient } from "@/features/anime/anilist.ts";
 import type {
   AnimeListQueryParams,
@@ -20,7 +20,7 @@ import {
   AnimeStoredDataError,
   AnimeNotFoundError,
 } from "@/features/anime/errors.ts";
-import { ExternalCallError } from "@/lib/effect-retry.ts";
+import { ExternalCallError } from "@/infra/effect/retry.ts";
 import { listAnimeEffect } from "@/features/anime/anime-query-list.ts";
 import { getAnimeEffect } from "@/features/anime/anime-query-get.ts";
 import {
@@ -30,7 +30,7 @@ import {
 import { listEpisodesEffect } from "@/features/anime/anime-query-episodes.ts";
 import { AnimeSeasonalProviderService } from "@/features/anime/anime-seasonal-provider-service.ts";
 import { listSeasonalAnimeEffect } from "@/features/anime/anime-query-seasonal.ts";
-import { markSearchResultsAlreadyInLibraryEffect } from "@/lib/anime-search-results.ts";
+import { markSearchResultsAlreadyInLibraryEffect } from "@/domain/anime/search-results.ts";
 import {
   readSeasonalAnimeCache,
   writeSeasonalAnimeCache,
