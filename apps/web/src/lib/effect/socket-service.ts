@@ -16,9 +16,6 @@ function scheduleReconnect(delay: number): void {
 }
 
 function buildWsUrl(): string {
-  if (typeof window === "undefined" || !window.location) {
-    return "ws://localhost/api/events";
-  }
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   return `${protocol}//${window.location.host}/api/events`;
 }

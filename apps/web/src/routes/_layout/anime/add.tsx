@@ -263,11 +263,16 @@ function SelectedAnimeDialog({
   );
 }
 
+const SCREEN_SM = 640;
+const SCREEN_MD = 1024;
+const SCREEN_LG = 1280;
+const SCREEN_XL = 1536;
+
 function getSearchColCount(w: number) {
-  if (w >= 1536) return 5;
-  if (w >= 1280) return 4;
-  if (w >= 1024) return 3;
-  if (w >= 640) return 2;
+  if (w >= SCREEN_XL) return 5;
+  if (w >= SCREEN_LG) return 4;
+  if (w >= SCREEN_MD) return 3;
+  if (w >= SCREEN_SM) return 2;
   return 1;
 }
 

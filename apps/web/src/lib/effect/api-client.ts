@@ -1,5 +1,5 @@
 import { Data, Effect, Schema } from "effect";
-import { getAuthHeaders, logout } from "~/lib/auth";
+import { getAuthHeaders } from "~/lib/auth";
 
 export class ApiClientError extends Data.TaggedError("ApiClientError")<{
   readonly message: string;
@@ -50,7 +50,6 @@ export const fetchResponse = Effect.fn("ApiClient.fetchResponse")(
       });
 
       if (response.status === 401 && !options?.skipAutoLogoutOnUnauthorized) {
-        void logout();
         return yield* Effect.fail(new ApiUnauthorizedError({ message: "Session expired" }));
       }
 

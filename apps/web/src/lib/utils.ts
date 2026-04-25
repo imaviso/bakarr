@@ -1,39 +1,12 @@
 import { type ClassValue, clsx } from "clsx";
-import { Effect } from "effect";
 import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function copyToClipboard(text: string): Promise<boolean> {
-  const program = Effect.gen(function* () {
-    const modern = yield* Effect.tryPromise({
-      try: () => navigator.clipboard.writeText(text).then(() => true as const),
-      catch: () => false as const,
-    }).pipe(Effect.merge);
-    if (modern) return true;
-
-    return yield* Effect.try({
-      try: () => {
-        const el = document.createElement("textarea");
-        el.value = text;
-        el.style.cssText =
-          "position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);opacity:0;pointerEvents:none";
-        el.setAttribute("readonly", "");
-        document.body.appendChild(el);
-        el.focus();
-        el.select();
-        el.setSelectionRange(0, 99999);
-        const result = document.execCommand("copy");
-        document.body.removeChild(el);
-        return result;
-      },
-      catch: () => false,
-    }).pipe(Effect.merge);
-  });
-
-  return Effect.runPromise(program);
+export function copyToClipboard(text: string): Promise<void> {
+  return navigator.clipboard.writeText(text);
 }
 
 export function safeExternalUrl(input: string | undefined): string | undefined {

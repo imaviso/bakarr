@@ -11,6 +11,7 @@ import {
   getAnimeEpisodeStreamUrl,
 } from "~/lib/api";
 import { useState } from "react";
+import { toast } from "sonner";
 import { copyToClipboard } from "~/lib/utils";
 
 interface UseAnimeDetailsActionsOptions {
@@ -29,16 +30,29 @@ export function useAnimeDetailsActions(options: UseAnimeDetailsActionsOptions) {
   const updateReleaseProfiles = createUpdateAnimeReleaseProfilesMutation();
   const [latestScanTaskId, setLatestScanTaskId] = useState<number | undefined>(undefined);
 
-  const handlePlayInMpv = async (episodeNumber: number) => {
-    const { url } = await getAnimeEpisodeStreamUrl(options.animeId, episodeNumber);
-    const origin = globalThis.location.origin;
-    globalThis.open(`mpv://${origin}${url}`, "_self");
+  const handlePlayInMpv = (episodeNumber: number) => {
+    getAnimeEpisodeStreamUrl(options.animeId, episodeNumber)
+      .then(({ url }) => {
+        const origin = globalThis.location.origin;
+        globalThis.open(`mpv://${origin}${url}`, "_self");
+      })
+      .catch((err) => {
+        toast.error(err instanceof Error ? err.message : "Failed to get stream URL");
+      });
   };
 
-  const handleCopyStreamLink = async (episodeNumber: number) => {
-    const { url } = await getAnimeEpisodeStreamUrl(options.animeId, episodeNumber);
-    const origin = globalThis.location.origin;
-    await copyToClipboard(`${origin}${url}`);
+  const handleCopyStreamLink = (episodeNumber: number) => {
+    getAnimeEpisodeStreamUrl(options.animeId, episodeNumber)
+      .then(({ url }) => {
+        const origin = globalThis.location.origin;
+        return copyToClipboard(`${origin}${url}`);
+      })
+      .then(() => {
+        toast.success("Link copied to clipboard");
+      })
+      .catch((err) => {
+        toast.error(err instanceof Error ? err.message : "Failed to copy link");
+      });
   };
 
   const handleToggleMonitor = (isMonitored: boolean) => {

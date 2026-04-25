@@ -1,5 +1,4 @@
 import { format, isAfter, isValid, parseISO } from "date-fns";
-import { Effect } from "effect";
 import type { Anime, AnimeSearchResult, Config } from "~/lib/api";
 
 type AnimeDateContext = {
@@ -62,7 +61,7 @@ export function animeSearchSubtitle(anime: AnimeSearchResult) {
 }
 
 export function animeDisplayTitle(anime: Pick<Anime, "title"> | Pick<AnimeSearchResult, "title">) {
-  return anime.title.english || anime.title.romaji || anime.title.native || "Unknown title";
+  return anime.title.english || anime.title.romaji || anime.title.native || "";
 }
 
 export function animeDiscoverySubtitle(input: {
@@ -248,7 +247,7 @@ function getDateTimeParts(date: Date, timeZone?: string) {
     ...(timeZone ? { timeZone } : {}),
   };
 
-  const formatter = createDateTimeFormat(options);
+  const formatter = new Intl.DateTimeFormat(undefined, options);
   const parts = Object.fromEntries(
     formatter
       .formatToParts(date)
@@ -296,22 +295,9 @@ function normalizeTimeZone(value?: string | null) {
     return undefined;
   }
 
-  const valid = Effect.try({
-    try: () => createDateTimeFormat({ timeZone: trimmed }).resolvedOptions().timeZone,
-    catch: () => undefined,
-  }).pipe(Effect.runSync);
-
-  return valid;
-}
-
-function createDateTimeFormat(options: Intl.DateTimeFormatOptions) {
-  const formatter = Effect.try({
-    try: () => new Intl.DateTimeFormat(undefined, options),
-    catch: () => {
-      const { timeZone: _ignored, ...fallback } = options;
-      return new Intl.DateTimeFormat(undefined, fallback);
-    },
-  }).pipe(Effect.runSync);
-
-  return formatter;
+  try {
+    return new Intl.DateTimeFormat(undefined, { timeZone: trimmed }).resolvedOptions().timeZone;
+  } catch {
+    return undefined;
+  }
 }

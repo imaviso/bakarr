@@ -76,7 +76,6 @@ function LibraryScanPage() {
   const folders = scanState.folders;
   const folderList = folders;
   const foldersByPath = new Map(folderList.map((folder) => [folder.path, folder]));
-  const folderPaths = folderList.map((folder) => folder.path);
 
   const isScanning = scanState.is_scanning;
   const hasOutstandingMatches = scanState.has_outstanding_matches;
@@ -209,7 +208,7 @@ function LibraryScanPage() {
         isWorkerRunning={isWorkerRunning}
         isScanning={isScanning}
         matchStatus={matchStatus}
-        folderPaths={folderPaths}
+        folderPaths={[...foldersByPath.keys()]}
         foldersByPath={foldersByPath}
         onOpenManualMatch={(dialogState) => setManualMatchDialog(dialogState)}
       />
@@ -414,7 +413,7 @@ interface ScanContentProps {
   isWorkerRunning: boolean;
   isScanning: boolean;
   matchStatus: ScannerMatchStatus | undefined;
-  folderPaths: string[];
+  folderPaths: readonly string[];
   foldersByPath: Map<string, UnmappedFolder>;
   onOpenManualMatch: (dialogState: {
     folder: UnmappedFolder;

@@ -107,13 +107,8 @@ export function AccountSettingsForm() {
       return;
     }
 
-    const copied = await copyToClipboard(key);
-    if (copied) {
-      toast.success("API key copied to clipboard");
-      return;
-    }
-
-    toast.error("Failed to copy API key");
+    await copyToClipboard(key);
+    toast.success("API key copied to clipboard");
   };
 
   return (

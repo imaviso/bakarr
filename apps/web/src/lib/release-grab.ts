@@ -53,7 +53,12 @@ export function buildGrabInputFromNyaaResult(input: {
     anime_id: animeId,
     magnet: result.magnet,
     ...(episodeNumber === undefined ? {} : { episode_number: episodeNumber }),
-    release_context: toReleaseContextFromNyaaResult(result),
+    release_context: toReleaseContext({
+      ...result,
+      group: result.parsed_group,
+      seadex_comparison:
+        typeof result.seadex_comparison === "string" ? result.seadex_comparison : undefined,
+    }),
     title: result.title,
     ...(isBatch ? { is_batch: true } : {}),
   };
@@ -108,7 +113,7 @@ export function buildGrabInputFromEpisodeResult(input: {
     episode_number: input.episodeNumber,
     title: input.result.title,
     magnet: input.result.link,
-    release_context: toReleaseContextFromEpisodeResult(input.result),
+    release_context: toReleaseContext(input.result, { includeDownloadAction: true }),
   };
 }
 
@@ -118,59 +123,53 @@ export function actionReasonFromDownloadAction(action: DownloadAction) {
   return null;
 }
 
-function toReleaseContextFromNyaaResult(result: NyaaSearchResult): SearchDownloadReleaseContext {
-  return {
-    ...(result.parsed_group === undefined ? {} : { group: result.parsed_group }),
-    indexer: result.indexer,
-    ...(result.info_hash === undefined ? {} : { info_hash: result.info_hash }),
-    ...(result.parsed_resolution === undefined
-      ? {}
-      : { parsed_resolution: result.parsed_resolution }),
-    ...(result.trusted === undefined ? {} : { trusted: result.trusted }),
-    ...(result.remake === undefined ? {} : { remake: result.remake }),
-    ...(result.view_url === undefined ? {} : { source_url: result.view_url }),
-    ...(result.is_seadex === undefined ? {} : { is_seadex: result.is_seadex }),
-    ...(result.is_seadex_best === undefined ? {} : { is_seadex_best: result.is_seadex_best }),
-    ...(result.seadex_release_group === undefined
-      ? {}
-      : { seadex_release_group: result.seadex_release_group }),
-    ...(result.seadex_tags === undefined ? {} : { seadex_tags: result.seadex_tags }),
-    ...(result.seadex_notes === undefined ? {} : { seadex_notes: result.seadex_notes }),
-    ...(result.seadex_comparison === undefined
-      ? {}
-      : { seadex_comparison: result.seadex_comparison }),
-    ...(result.seadex_dual_audio === undefined
-      ? {}
-      : { seadex_dual_audio: result.seadex_dual_audio }),
-  };
+interface ReleaseContextSource {
+  indexer: string;
+  group?: string | undefined;
+  info_hash?: string | undefined;
+  parsed_resolution?: string | undefined;
+  trusted?: boolean | undefined;
+  remake?: boolean | undefined;
+  view_url?: string | undefined;
+  is_seadex?: boolean | undefined;
+  is_seadex_best?: boolean | undefined;
+  seadex_release_group?: string | undefined;
+  seadex_tags?: string[] | undefined;
+  seadex_notes?: string | undefined;
+  seadex_comparison?: string | undefined;
+  seadex_dual_audio?: boolean | undefined;
+  download_action?: DownloadAction | undefined;
 }
 
-function toReleaseContextFromEpisodeResult(
-  result: EpisodeSearchResult,
+function toReleaseContext(
+  source: ReleaseContextSource,
+  opts?: { includeDownloadAction?: boolean },
 ): SearchDownloadReleaseContext {
   return {
-    ...(result.group === undefined ? {} : { group: result.group }),
-    indexer: result.indexer,
-    ...(result.info_hash === undefined ? {} : { info_hash: result.info_hash }),
-    ...(result.parsed_resolution === undefined
+    ...(source.group === undefined ? {} : { group: source.group }),
+    indexer: source.indexer,
+    ...(source.info_hash === undefined ? {} : { info_hash: source.info_hash }),
+    ...(source.parsed_resolution === undefined
       ? {}
-      : { parsed_resolution: result.parsed_resolution }),
-    ...(result.trusted === undefined ? {} : { trusted: result.trusted }),
-    ...(result.remake === undefined ? {} : { remake: result.remake }),
-    ...(result.view_url === undefined ? {} : { source_url: result.view_url }),
-    ...(result.is_seadex === undefined ? {} : { is_seadex: result.is_seadex }),
-    ...(result.is_seadex_best === undefined ? {} : { is_seadex_best: result.is_seadex_best }),
-    ...(result.seadex_release_group === undefined
+      : { parsed_resolution: source.parsed_resolution }),
+    ...(source.trusted === undefined ? {} : { trusted: source.trusted }),
+    ...(source.remake === undefined ? {} : { remake: source.remake }),
+    ...(source.view_url === undefined ? {} : { source_url: source.view_url }),
+    ...(source.is_seadex === undefined ? {} : { is_seadex: source.is_seadex }),
+    ...(source.is_seadex_best === undefined ? {} : { is_seadex_best: source.is_seadex_best }),
+    ...(source.seadex_release_group === undefined
       ? {}
-      : { seadex_release_group: result.seadex_release_group }),
-    ...(result.seadex_tags === undefined ? {} : { seadex_tags: result.seadex_tags }),
-    ...(result.seadex_notes === undefined ? {} : { seadex_notes: result.seadex_notes }),
-    ...(result.seadex_comparison === undefined
+      : { seadex_release_group: source.seadex_release_group }),
+    ...(source.seadex_tags === undefined ? {} : { seadex_tags: source.seadex_tags }),
+    ...(source.seadex_notes === undefined ? {} : { seadex_notes: source.seadex_notes }),
+    ...(source.seadex_comparison === undefined
       ? {}
-      : { seadex_comparison: result.seadex_comparison }),
-    ...(result.seadex_dual_audio === undefined
+      : { seadex_comparison: source.seadex_comparison }),
+    ...(source.seadex_dual_audio === undefined
       ? {}
-      : { seadex_dual_audio: result.seadex_dual_audio }),
-    download_action: result.download_action,
+      : { seadex_dual_audio: source.seadex_dual_audio }),
+    ...(source.download_action === undefined || !opts?.includeDownloadAction
+      ? {}
+      : { download_action: source.download_action }),
   };
 }

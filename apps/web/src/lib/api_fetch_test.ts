@@ -157,7 +157,7 @@ it("fetchJson rejects on schema mismatch", async () => {
     });
 });
 
-it("fetchResponse triggers logout on 401 by default", async () => {
+it("fetchResponse returns ApiUnauthorizedError on 401", async () => {
   vi.stubGlobal(
     "fetch",
     vi.fn(() => Promise.resolve(createResponse({ ok: false, status: 401, text: "Unauthorized" }))),
@@ -171,8 +171,6 @@ it("fetchResponse triggers logout on 401 by default", async () => {
       const message = error instanceof Error ? error.message : String(error);
       assertEquals(message, "Session expired");
     });
-
-  assertEquals(authState.logoutCalls, 1);
 });
 
 it("fetchResponse can skip auto-logout on unauthorized", async () => {

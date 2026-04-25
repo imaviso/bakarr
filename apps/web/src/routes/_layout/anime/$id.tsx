@@ -42,14 +42,14 @@ export const Route = createFileRoute("/_layout/anime/$id")({
       queryClient.ensureQueryData(profilesQueryOptions()),
       queryClient.ensureQueryData(releaseProfilesQueryOptions()),
     ]);
+    return { animeId };
   },
   component: AnimeDetailsPage,
   errorComponent: AnimeError,
 });
 
 function AnimeDetailsPage() {
-  const params = Route.useParams();
-  const animeId = Schema.decodeUnknownSync(IdParamSchema)(params.id);
+  const { animeId } = Route.useLoaderData();
   const navigate = useNavigate();
 
   const animeQuery = useSuspenseQuery(animeDetailsQueryOptions(animeId));

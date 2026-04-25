@@ -3,6 +3,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { systemConfigQueryOptions } from "~/lib/api";
 import { toImportInputMode, useImportFlow } from "~/components/import/use-import-flow";
 import type { FileRowAnimeOption, Step } from "~/components/import/types";
+import { animeDisplayTitle } from "~/lib/anime-metadata";
 
 export type BrowseRootKey = "library" | "recycle" | "downloads";
 
@@ -16,10 +17,6 @@ export const importSteps: { id: Step; label: string; description: string }[] = [
   { id: "scan", label: "Select Path", description: "Choose a folder to scan" },
   { id: "review", label: "Review Files", description: "Confirm files to import" },
 ];
-
-function titleLabel(title: { romaji?: string | undefined; english?: string | undefined }) {
-  return title.english || title.romaji || "Unknown title";
-}
 
 interface CreateImportPageStateOptions {
   animeId: number | undefined;
@@ -69,7 +66,7 @@ export function createImportPageState(options: CreateImportPageStateOptions) {
       id: anime.id,
       source: "library" as const,
       title: {
-        romaji: titleLabel(anime.title),
+        romaji: animeDisplayTitle(anime),
         ...(anime.title.english ? { english: anime.title.english } : {}),
       },
     })),
@@ -79,11 +76,11 @@ export function createImportPageState(options: CreateImportPageStateOptions) {
         id: candidate.id,
         source: "candidate" as const,
         title: {
-          romaji: titleLabel(candidate.title),
+          romaji: animeDisplayTitle(candidate),
           ...(candidate.title.english ? { english: candidate.title.english } : {}),
         },
       })),
-  ].toSorted((left, right) => titleLabel(left.title).localeCompare(titleLabel(right.title)));
+  ].toSorted((left, right) => left.title.romaji.localeCompare(right.title.romaji));
 
   const candidateIds = new Set(flow.candidates.map((candidate) => candidate.id));
   const manualCandidateIds = new Set(flow.manualCandidates.map((candidate) => candidate.id));

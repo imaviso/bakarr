@@ -2,6 +2,7 @@ import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
+import { logout } from "~/lib/auth";
 // oxlint-disable-next-line import/no-unassigned-import
 import "./index.css";
 
@@ -16,6 +17,16 @@ const queryClient = new QueryClient({
     },
     mutations: {
       networkMode: "always",
+      onError: (error) => {
+        if (
+          typeof error === "object" &&
+          error !== null &&
+          "_tag" in error &&
+          error._tag === "ApiUnauthorizedError"
+        ) {
+          void logout();
+        }
+      },
     },
   },
 });

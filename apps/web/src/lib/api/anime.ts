@@ -27,29 +27,42 @@ export function animeListQueryOptions() {
     queryKey: animeKeys.lists(),
     queryFn: async ({ signal }) => {
       const pageLimit = 500;
-      const items: Anime[] = [];
-      let offset = 0;
 
-      const fetchPage = async (pageOffset: number): Promise<void> => {
-        const res = await Effect.runPromise(
-          fetchJson(
-            AnimeListResponseSchema,
-            `${API_BASE}/anime?limit=${pageLimit}&offset=${pageOffset}`,
-            undefined,
-            signal,
-          ),
-        );
+      const res = await Effect.runPromise(
+        fetchJson(
+          AnimeListResponseSchema,
+          `${API_BASE}/anime?limit=${pageLimit}&offset=0`,
+          undefined,
+          signal,
+        ),
+      );
 
-        items.push(...res.items);
+      const items: Anime[] = [...res.items];
 
-        if (!res.has_more || res.items.length === 0) {
-          return;
+      if (res.has_more && res.items.length > 0) {
+        const remainingPromises: Promise<void>[] = [];
+        let offset = res.items.length;
+        while (offset < pageLimit * 10) {
+          remainingPromises.push(
+            Effect.runPromise(
+              fetchJson(
+                AnimeListResponseSchema,
+                `${API_BASE}/anime?limit=${pageLimit}&offset=${offset}`,
+                undefined,
+                signal,
+              ),
+            ).then((page) => {
+              items.push(...page.items);
+              if (!page.has_more || page.items.length === 0) return;
+              offset += page.items.length;
+              return;
+            }),
+          );
+          offset += pageLimit;
         }
+        await Promise.all(remainingPromises);
+      }
 
-        await fetchPage(pageOffset + res.items.length);
-      };
-
-      await fetchPage(offset);
       return items;
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
