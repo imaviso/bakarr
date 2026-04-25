@@ -1,4 +1,6 @@
-import { useState } from "react";
+import type { FormEvent } from "react";
+import { useForm } from "@tanstack/react-form";
+import { Schema } from "effect";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import {
@@ -12,6 +14,11 @@ import {
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 
+const EditPathSchema = Schema.Struct({
+  path: Schema.String.pipe(Schema.minLength(1)),
+  rescan: Schema.Boolean,
+});
+
 interface EditPathDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -22,22 +29,33 @@ interface EditPathDialogProps {
 }
 
 export function EditPathDialog(props: EditPathDialogProps) {
-  const [path, setPath] = useState(props.currentPath);
-  const [rescan, setRescan] = useState(true);
+  const form = useForm({
+    defaultValues: {
+      path: props.currentPath,
+      rescan: true,
+    },
+    validators: {
+      onChange: Schema.standardSchemaV1(EditPathSchema),
+    },
+    onSubmit: async ({ value }) => {
+      await props.updatePath({ id: props.animeId, path: value.path, rescan: value.rescan });
+      props.onOpenChange(false);
+    },
+  });
 
   const handleOpenChange = (open: boolean) => {
     if (open) {
-      setPath(props.currentPath);
-      setRescan(true);
+      form.setFieldValue("path", props.currentPath);
+      form.setFieldValue("rescan", true);
     }
     props.onOpenChange(open);
   };
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    event.stopPropagation();
 
-    void props.updatePath({ id: props.animeId, path, rescan });
-    props.onOpenChange(false);
+    void form.handleSubmit();
   };
 
   return (
@@ -50,22 +68,35 @@ export function EditPathDialog(props: EditPathDialogProps) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="edit-path-input">Path</Label>
-            <Input
-              id="edit-path-input"
-              value={path}
-              onChange={(event) => setPath(event.currentTarget.value)}
-              placeholder="/path/to/anime"
-            />
+            <form.Field name="path">
+              {(field) => (
+                <Input
+                  id="edit-path-input"
+                  value={field.state.value}
+                  onBlur={field.handleBlur}
+                  onChange={(event) => field.handleChange(event.currentTarget.value)}
+                  placeholder="/path/to/anime"
+                />
+              )}
+            </form.Field>
           </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox id="rescan" checked={rescan} onCheckedChange={setRescan} />
-            <label
-              htmlFor="rescan"
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            >
-              Rescan folder after update
-            </label>
-          </div>
+          <form.Field name="rescan">
+            {(field) => (
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="rescan"
+                  checked={field.state.value}
+                  onCheckedChange={field.handleChange}
+                />
+                <label
+                  htmlFor="rescan"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Rescan folder after update
+                </label>
+              </div>
+            )}
+          </form.Field>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => props.onOpenChange(false)}>
               Cancel

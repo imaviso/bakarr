@@ -14,13 +14,11 @@ import {
   createResumeDownloadMutation,
   createRetryDownloadMutation,
 } from "~/api/system-downloads";
-import type { DownloadStatusPresentation } from "~/domain/download/status";
 import { formatDateTime } from "~/domain/date-time";
 
 interface ActiveDownloadActionsProps {
   allowedActions?: readonly string[] | undefined;
   downloadId?: number | undefined;
-  statusPresentation: DownloadStatusPresentation;
   animeTitle?: string | undefined;
 }
 
@@ -28,6 +26,7 @@ export function ActiveDownloadActions(props: ActiveDownloadActionsProps) {
   const pauseDownload = createPauseDownloadMutation();
   const resumeDownload = createResumeDownloadMutation();
   const retryDownload = createRetryDownloadMutation();
+  const allowedActions = props.allowedActions ?? [];
 
   const handlePause = () => {
     if (!props.downloadId) {
@@ -53,20 +52,9 @@ export function ActiveDownloadActions(props: ActiveDownloadActionsProps) {
     retryDownload.mutate(props.downloadId);
   };
 
-  const canPause = () =>
-    props.allowedActions?.includes("pause") ??
-    !(
-      props.statusPresentation.label.toLowerCase().includes("paused") ||
-      props.statusPresentation.label.toLowerCase().includes("queued") ||
-      props.statusPresentation.tone === "destructive"
-    );
-  const canResume = () =>
-    props.allowedActions?.includes("resume") ??
-    (props.statusPresentation.label.toLowerCase().includes("paused") ||
-      props.statusPresentation.label.toLowerCase().includes("queued") ||
-      props.statusPresentation.tone === "destructive");
-  const canRetry = () =>
-    props.allowedActions?.includes("retry") ?? props.statusPresentation.tone === "destructive";
+  const canPause = () => allowedActions.includes("pause");
+  const canResume = () => allowedActions.includes("resume");
+  const canRetry = () => allowedActions.includes("retry");
 
   return (
     <div className="flex items-center justify-end gap-1 opacity-100 md:opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
@@ -122,14 +110,13 @@ interface HistoryDownloadActionsProps {
   allowedActions?: readonly string[] | undefined;
   downloadId: number;
   animeTitle: string;
-  status?: string | undefined;
-  reconciledAt?: string | null | undefined;
 }
 
 export function HistoryDownloadActions(props: HistoryDownloadActionsProps) {
   const retryDownload = createRetryDownloadMutation();
   const reconcileDownload = createReconcileDownloadMutation();
   const deleteDownload = createDeleteDownloadMutation();
+  const allowedActions = props.allowedActions ?? [];
 
   const handleRetry = () => {
     retryDownload.mutate(props.downloadId);
@@ -143,13 +130,9 @@ export function HistoryDownloadActions(props: HistoryDownloadActionsProps) {
     reconcileDownload.mutate(props.downloadId);
   };
 
-  const canReconcile = () =>
-    props.allowedActions?.includes("reconcile") ??
-    (props.status?.toLowerCase() === "completed" && !props.reconciledAt);
-  const canRetry = () =>
-    props.allowedActions?.includes("retry") ??
-    (props.status?.toLowerCase() === "failed" || props.status?.toLowerCase() === "error");
-  const canDelete = () => props.allowedActions?.includes("delete") ?? true;
+  const canReconcile = () => allowedActions.includes("reconcile");
+  const canRetry = () => allowedActions.includes("retry");
+  const canDelete = () => allowedActions.includes("delete");
 
   return (
     <div className="flex items-center justify-end gap-1 opacity-100 md:opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">

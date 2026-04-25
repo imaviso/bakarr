@@ -9,7 +9,7 @@ import {
   createUpdateAnimeReleaseProfilesMutation,
 } from "~/api/anime-mutations";
 import { createSearchMissingMutation } from "~/api/system-downloads";
-import { getAnimeEpisodeStreamUrl } from "~/api/auth";
+import { createAnimeEpisodeStreamUrlMutation } from "~/api/auth";
 import { useState } from "react";
 import { toast } from "sonner";
 import { copyToClipboard } from "~/infra/utils";
@@ -28,31 +28,43 @@ export function useAnimeDetailsActions(options: UseAnimeDetailsActionsOptions) {
   const updatePath = createUpdateAnimePathMutation();
   const updateProfile = createUpdateAnimeProfileMutation();
   const updateReleaseProfiles = createUpdateAnimeReleaseProfilesMutation();
+  const streamUrl = createAnimeEpisodeStreamUrlMutation();
   const [latestScanTaskId, setLatestScanTaskId] = useState<number | undefined>(undefined);
 
   const handlePlayInMpv = (episodeNumber: number) => {
-    getAnimeEpisodeStreamUrl(options.animeId, episodeNumber)
-      .then(({ url }) => {
-        const origin = globalThis.location.origin;
-        globalThis.open(`mpv://${origin}${url}`, "_self");
-      })
-      .catch((err) => {
-        toast.error(err instanceof Error ? err.message : "Failed to get stream URL");
-      });
+    streamUrl.mutate(
+      { animeId: options.animeId, episodeNumber },
+      {
+        onError: (err) => {
+          toast.error(err instanceof Error ? err.message : "Failed to get stream URL");
+        },
+        onSuccess: ({ url }) => {
+          const origin = globalThis.location.origin;
+          globalThis.open(`mpv://${origin}${url}`, "_self");
+        },
+      },
+    );
   };
 
   const handleCopyStreamLink = (episodeNumber: number) => {
-    getAnimeEpisodeStreamUrl(options.animeId, episodeNumber)
-      .then(({ url }) => {
-        const origin = globalThis.location.origin;
-        return copyToClipboard(`${origin}${url}`);
-      })
-      .then(() => {
-        toast.success("Link copied to clipboard");
-      })
-      .catch((err) => {
-        toast.error(err instanceof Error ? err.message : "Failed to copy link");
-      });
+    streamUrl.mutate(
+      { animeId: options.animeId, episodeNumber },
+      {
+        onError: (err) => {
+          toast.error(err instanceof Error ? err.message : "Failed to copy link");
+        },
+        onSuccess: ({ url }) => {
+          const origin = globalThis.location.origin;
+          void copyToClipboard(`${origin}${url}`)
+            .then(() => {
+              toast.success("Link copied to clipboard");
+            })
+            .catch((err) => {
+              toast.error(err instanceof Error ? err.message : "Failed to copy link");
+            });
+        },
+      },
+    );
   };
 
   const handleToggleMonitor = (isMonitored: boolean) => {

@@ -70,12 +70,13 @@ const ApiErrorSchema = Schema.Struct({
   error: Schema.optional(Schema.String),
   message: Schema.optional(Schema.String),
 });
+const ApiErrorJsonSchema = Schema.parseJson(ApiErrorSchema);
 
 export function normalizeApiErrorMessage(message: string) {
   const trimmed = message.trim();
 
   if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
-    const result = Schema.decodeUnknownEither(ApiErrorSchema)(JSON.parse(trimmed));
+    const result = Schema.decodeUnknownEither(ApiErrorJsonSchema)(trimmed);
     if (result._tag === "Right") {
       const decoded = result.right;
       if (decoded.error?.trim()) {

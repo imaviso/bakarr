@@ -15,8 +15,8 @@ import {
   formatFileSize,
   formatMatchConfidence,
   formatNamingTitleSource,
+  mediaMetadataBadges,
   namingMetadataBadges,
-  scannedFileMetadataBadges,
 } from "~/domain/scanned-file";
 import { cn } from "~/infra/utils";
 import type { FileRowProps } from "./types";
@@ -31,7 +31,7 @@ export function FileRow(props: FileRowProps) {
       : Math.floor(props.file.episode_number);
   const displaySeason = props.currentSeason !== undefined ? props.currentSeason : props.file.season;
 
-  const metadataBadges = scannedFileMetadataBadges(props.file);
+  const metadataBadges = mediaMetadataBadges(props.file);
   const fileSize = formatFileSize(props.file.size);
   const matchConfidence = formatMatchConfidence(props.file.match_confidence);
   const decisionSummary = buildFileDecisionSummary({

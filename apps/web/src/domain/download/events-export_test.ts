@@ -1,5 +1,5 @@
 import { it } from "vitest";
-import { buildDownloadEventsExportInput } from "./events-export-input";
+import { buildDownloadEventsExportInput } from "./events-query-model";
 
 function assertDeepEquals(actual: unknown, expected: unknown) {
   const actualJson = JSON.stringify(actual);

@@ -1,9 +1,16 @@
 import { PencilSimpleIcon } from "@phosphor-icons/react";
 import { useState } from "react";
+import { useForm } from "@tanstack/react-form";
+import { Schema } from "effect";
 import { Button } from "~/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
+
+const EditMappingSchema = Schema.Struct({
+  episode: Schema.Number.pipe(Schema.int(), Schema.nonNegative()),
+  season: Schema.Number.pipe(Schema.int(), Schema.nonNegative()),
+});
 
 interface EditMappingPopoverProps {
   season?: number | null;
@@ -14,25 +21,32 @@ interface EditMappingPopoverProps {
 
 export function EditMappingPopover(props: EditMappingPopoverProps) {
   const [open, setOpen] = useState(false);
-  const [localSeason, setLocalSeason] = useState(() => props.season?.toString() ?? "1");
-  const [localEpisode, setLocalEpisode] = useState(() => props.episode.toString());
+  const form = useForm({
+    defaultValues: {
+      episode: props.episode,
+      season: props.season ?? 1,
+    },
+    validators: {
+      onChange: Schema.standardSchemaV1(EditMappingSchema),
+    },
+    onSubmit: ({ value }) => {
+      props.onSave(value.season, value.episode);
+      setOpen(false);
+    },
+  });
 
   const handleOpenChange = (isOpen: boolean) => {
     if (isOpen) {
-      setLocalSeason(props.season?.toString() ?? "1");
-      setLocalEpisode(props.episode.toString());
+      form.setFieldValue("season", props.season ?? 1);
+      form.setFieldValue("episode", props.episode);
     }
     setOpen(isOpen);
   };
 
-  const handleSave = () => {
-    const s = Number.parseInt(localSeason, 10);
-    const e = Number.parseInt(localEpisode, 10);
-
-    if (!Number.isNaN(s) && !Number.isNaN(e)) {
-      props.onSave(s, e);
-      setOpen(false);
-    }
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void form.handleSubmit();
   };
 
   return (
@@ -48,7 +62,7 @@ export function EditMappingPopover(props: EditMappingPopoverProps) {
         <PencilSimpleIcon className="h-3 w-3 opacity-50" />
       </PopoverTrigger>
       <PopoverContent className="w-64 p-4">
-        <div className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <h4 className="font-medium leading-none">Edit Mapping</h4>
             <p className="text-xs text-muted-foreground">
@@ -56,39 +70,49 @@ export function EditMappingPopover(props: EditMappingPopoverProps) {
             </p>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-mapping-season" className="text-xs">
-                Season
-              </Label>
-              <Input
-                id="edit-mapping-season"
-                type="number"
-                min={0}
-                className="h-8"
-                value={localSeason}
-                onChange={(event) => setLocalSeason(event.currentTarget.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-mapping-episode" className="text-xs">
-                Episode
-              </Label>
-              <Input
-                id="edit-mapping-episode"
-                type="number"
-                min={0}
-                className="h-8"
-                value={localEpisode}
-                onChange={(event) => setLocalEpisode(event.currentTarget.value)}
-              />
-            </div>
+            <form.Field name="season">
+              {(field) => (
+                <div className="space-y-2">
+                  <Label htmlFor="edit-mapping-season" className="text-xs">
+                    Season
+                  </Label>
+                  <Input
+                    id="edit-mapping-season"
+                    type="number"
+                    min={0}
+                    className="h-8"
+                    value={field.state.value}
+                    onBlur={field.handleBlur}
+                    onChange={(event) => field.handleChange(event.currentTarget.valueAsNumber)}
+                  />
+                </div>
+              )}
+            </form.Field>
+            <form.Field name="episode">
+              {(field) => (
+                <div className="space-y-2">
+                  <Label htmlFor="edit-mapping-episode" className="text-xs">
+                    Episode
+                  </Label>
+                  <Input
+                    id="edit-mapping-episode"
+                    type="number"
+                    min={0}
+                    className="h-8"
+                    value={field.state.value}
+                    onBlur={field.handleBlur}
+                    onChange={(event) => field.handleChange(event.currentTarget.valueAsNumber)}
+                  />
+                </div>
+              )}
+            </form.Field>
           </div>
           <div className="flex justify-end pt-2">
-            <Button size="sm" onClick={handleSave} className="h-8 text-xs">
+            <Button type="submit" size="sm" className="h-8 text-xs">
               Save Changes
             </Button>
           </div>
-        </div>
+        </form>
       </PopoverContent>
     </Popover>
   );

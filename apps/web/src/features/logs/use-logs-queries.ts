@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { createDownloadEventsQuery } from "~/api/system-download-events";
 import { createInfiniteLogsQuery } from "~/api/system-logs";
 import { createSystemDashboardQuery, createSystemJobsQuery } from "~/api/system-config";
@@ -14,22 +14,26 @@ interface UseLogsQueriesOptions {
 
 export function useLogsQueries(options: UseLogsQueriesOptions) {
   const [autoRefresh, setAutoRefresh] = useState(false);
+  const refetchInterval = autoRefresh ? 3000 : false;
 
   const logsQuery = createInfiniteLogsQuery(
     options.logsParams.level,
     options.logsParams.eventType,
     options.logsParams.startDate,
     options.logsParams.endDate,
+    { refetchInterval },
   );
-  const jobsQuery = createSystemJobsQuery();
-  const dashboardQuery = createSystemDashboardQuery();
+  const jobsQuery = createSystemJobsQuery({ refetchInterval });
+  const dashboardQuery = createSystemDashboardQuery({ refetchInterval });
 
   const downloadEventsSearchState = useDownloadEventsSearchState({
     keys: LOGS_DOWNLOAD_EVENTS_SEARCH_KEYS,
     search: options.search,
     updateSearch: options.updateSearch,
   });
-  const downloadEventsQuery = createDownloadEventsQuery(downloadEventsSearchState.queryInput);
+  const downloadEventsQuery = createDownloadEventsQuery(downloadEventsSearchState.queryInput, {
+    refetchInterval,
+  });
 
   const allLogs = useMemo(
     () => logsQuery.data?.pages.flatMap((page) => page.logs) ?? [],
@@ -38,27 +42,12 @@ export function useLogsQueries(options: UseLogsQueriesOptions) {
   const canGoToPreviousDownloadEventsPage = Boolean(downloadEventsQuery.data?.prev_cursor);
   const canGoToNextDownloadEventsPage = Boolean(downloadEventsQuery.data?.next_cursor);
 
-  const queriesRef = useRef({ logsQuery, downloadEventsQuery, dashboardQuery, jobsQuery });
-  queriesRef.current = { logsQuery, downloadEventsQuery, dashboardQuery, jobsQuery };
-
   const refreshAll = useCallback(() => {
-    const q = queriesRef.current;
-    void q.logsQuery.refetch();
-    void q.downloadEventsQuery.refetch();
-    void q.dashboardQuery.refetch();
-    void q.jobsQuery.refetch();
-  }, []);
-
-  useEffect(() => {
-    if (!autoRefresh) {
-      return undefined;
-    }
-
-    const interval = setInterval(refreshAll, 3000);
-    return () => {
-      clearInterval(interval);
-    };
-  }, [autoRefresh, refreshAll]);
+    void logsQuery.refetch();
+    void downloadEventsQuery.refetch();
+    void dashboardQuery.refetch();
+    void jobsQuery.refetch();
+  }, [dashboardQuery, downloadEventsQuery, jobsQuery, logsQuery]);
 
   return {
     allLogs,

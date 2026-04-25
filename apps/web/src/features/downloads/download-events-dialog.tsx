@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { WarningIcon, EyeIcon, TableIcon, BracketsCurlyIcon } from "@phosphor-icons/react";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
@@ -10,13 +11,15 @@ import {
   DialogTitle,
 } from "~/components/ui/dialog";
 import { DownloadEventDetailsDialog } from "~/features/downloads/download-event-details-dialog";
-import { createDownloadEventsQuery } from "~/api/system-download-events";
+import {
+  createDownloadEventsExportMutation,
+  createDownloadEventsQuery,
+} from "~/api/system-download-events";
 import type {
   DownloadEvent,
   DownloadEventsFilterInput,
   DownloadEventsExportResult,
 } from "~/api/contracts";
-import { runDownloadEventsExport } from "~/domain/download/events-export";
 import { DownloadEventsFeed } from "~/features/downloads/download-events/download-events-feed";
 
 interface DownloadEventsDialogProps {
@@ -55,6 +58,7 @@ export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
     ...(props.eventType === undefined ? {} : { eventType: props.eventType }),
   };
   const query = createDownloadEventsQuery(queryInput, { enabled: open });
+  const exportDownloadEvents = createDownloadEventsExportMutation();
   const exportBaseInput = {
     ...(props.animeId === undefined ? {} : { animeId: props.animeId }),
     ...(props.downloadId === undefined ? {} : { downloadId: props.downloadId }),
@@ -63,12 +67,20 @@ export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
     order: "desc" as const,
   };
   const openExport = (format: "json" | "csv") => {
-    void runDownloadEventsExport({
-      format,
-      input: exportBaseInput,
-      onComplete: (result) => {
+    const exportPromise = exportDownloadEvents
+      .mutateAsync({ filter: exportBaseInput, format })
+      .then((result) => {
         setLastExportResult(result);
-      },
+        return result;
+      });
+
+    toast.promise(exportPromise, {
+      error: (error) => `Failed to export download events: ${error.message}`,
+      loading: `Exporting ${format.toUpperCase()} download events...`,
+      success: (result) =>
+        result.truncated
+          ? `Exported ${result.exported} of ${result.total} events (truncated at ${result.limit})`
+          : `Exported ${result.exported} download events`,
     });
   };
 

@@ -115,13 +115,16 @@ export function createRenamePreviewQuery(id: number, options?: { enabled?: boole
   });
 }
 
-export function getAnimeEpisodeStreamUrl(animeId: number, episodeNumber: number) {
-  return Effect.runPromise(
-    fetchJson(
-      AnimeEpisodeStreamUrlSchema,
-      `${API_BASE}/anime/${animeId}/stream-url?episodeNumber=${episodeNumber}`,
-    ),
-  );
+export function createAnimeEpisodeStreamUrlMutation() {
+  return useMutation({
+    mutationFn: (input: { animeId: number; episodeNumber: number }) =>
+      Effect.runPromise(
+        fetchJson(
+          AnimeEpisodeStreamUrlSchema,
+          `${API_BASE}/anime/${input.animeId}/stream-url?episodeNumber=${input.episodeNumber}`,
+        ),
+      ),
+  });
 }
 
 export function createExecuteRenameMutation() {

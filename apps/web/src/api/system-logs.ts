@@ -16,6 +16,7 @@ export function infiniteLogsQueryOptions(
   eventType?: string,
   startDate?: string,
   endDate?: string,
+  refetchInterval: number | false = false,
 ) {
   return infiniteQueryOptions({
     queryKey: [
@@ -46,6 +47,7 @@ export function infiniteLogsQueryOptions(
       return allPages.length + 1;
     },
     initialPageParam: 1,
+    refetchInterval,
     staleTime: 1000 * 10,
   });
 }
@@ -55,8 +57,11 @@ export function createInfiniteLogsQuery(
   eventType: string | undefined,
   startDate: string | undefined,
   endDate: string | undefined,
+  options?: { refetchInterval?: number | false },
 ) {
-  return useInfiniteQuery(infiniteLogsQueryOptions(level, eventType, startDate, endDate));
+  return useInfiniteQuery(
+    infiniteLogsQueryOptions(level, eventType, startDate, endDate, options?.refetchInterval),
+  );
 }
 
 export function getExportLogsUrl(

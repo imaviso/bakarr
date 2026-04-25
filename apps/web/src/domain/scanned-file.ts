@@ -66,10 +66,6 @@ export function formatDurationSeconds(value?: number) {
   return `${seconds}s`;
 }
 
-export function scannedFileMetadataBadges(input: MediaMetadataInput) {
-  return mediaMetadataBadges(input);
-}
-
 export function formatFileSize(size?: number) {
   if (typeof size !== "number" || !Number.isFinite(size) || size <= 0) {
     return undefined;

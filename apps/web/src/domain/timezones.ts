@@ -1,5 +1,3 @@
-import { Effect } from "effect";
-
 export interface TimeZoneOption {
   label: string;
   note?: string | undefined;
@@ -64,11 +62,11 @@ function normalizeTimeZoneValue(value?: string) {
 
 function loadSupportedTimeZones() {
   if ("supportedValuesOf" in Intl && typeof Intl.supportedValuesOf === "function") {
-    const result = Effect.try({
-      try: () => Intl.supportedValuesOf("timeZone"),
-      catch: () => [...FALLBACK_TIME_ZONES],
-    }).pipe(Effect.runSync);
-    return result;
+    try {
+      return Intl.supportedValuesOf("timeZone");
+    } catch {
+      return [...FALLBACK_TIME_ZONES];
+    }
   }
 
   return [...FALLBACK_TIME_ZONES];

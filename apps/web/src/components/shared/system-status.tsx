@@ -122,10 +122,10 @@ export function SystemStatus() {
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
-            {status.data ? status.data.pending_downloads : "0"}
+            {status.data ? status.data.pending_downloads : "-"}
           </div>
           <p className="text-xs text-muted-foreground">
-            Active Torrents: {status.data ? status.data.active_torrents : "0"}
+            Active Torrents: {status.data ? status.data.active_torrents : "-"}
           </p>
         </CardContent>
       </Card>

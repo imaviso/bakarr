@@ -1,11 +1,12 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { createSearchMissingMutation, createSyncDownloadsMutation } from "~/api/system-downloads";
+import { createDownloadEventsExportMutation } from "~/api/system-download-events";
 import type { DownloadEventsExportInput, DownloadEventsExportResult } from "~/api/contracts";
 import {
   createDownloadEventsCursorPatch,
   DOWNLOADS_EVENTS_SEARCH_KEYS,
 } from "~/domain/download/events-search";
-import { runDownloadEventsExport } from "~/domain/download/events-export";
 import { toDownloadsTab } from "~/features/downloads/downloads-search";
 import type { DownloadsSearchPatch } from "~/features/downloads/downloads-search";
 
@@ -24,14 +25,23 @@ export function useDownloadsActions(options: UseDownloadsActionsOptions) {
   >(undefined);
   const searchMissing = createSearchMissingMutation();
   const syncDownloads = createSyncDownloadsMutation();
+  const exportDownloadEvents = createDownloadEventsExportMutation();
 
   const handleDownloadEventsExport = (format: "json" | "csv") => {
-    void runDownloadEventsExport({
-      format,
-      input: options.eventsExportInput,
-      onComplete: (result) => {
+    const exportPromise = exportDownloadEvents
+      .mutateAsync({ filter: options.eventsExportInput, format })
+      .then((result) => {
         setLastDownloadEventsExport(result);
-      },
+        return result;
+      });
+
+    toast.promise(exportPromise, {
+      error: (error) => `Failed to export download events: ${error.message}`,
+      loading: `Exporting ${format.toUpperCase()} download events...`,
+      success: (result) =>
+        result.truncated
+          ? `Exported ${result.exported} of ${result.total} events (truncated at ${result.limit})`
+          : `Exported ${result.exported} download events`,
     });
   };
 

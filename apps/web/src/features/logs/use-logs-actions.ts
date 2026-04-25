@@ -1,11 +1,12 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import type { DownloadEvent, DownloadEventsExportResult, SystemLog } from "~/api/contracts";
 import { createClearLogsMutation, getExportLogsUrl } from "~/api/system-logs";
+import { createDownloadEventsExportMutation } from "~/api/system-download-events";
 import {
   createDownloadEventsCursorPatch,
   LOGS_DOWNLOAD_EVENTS_SEARCH_KEYS,
 } from "~/domain/download/events-search";
-import { runDownloadEventsExport } from "~/domain/download/events-export";
 import type { DownloadEventsExportInput } from "~/api/contracts";
 import type { LogsFilterParams } from "~/features/logs/use-logs-filters";
 
@@ -25,6 +26,7 @@ export function useLogsActions(options: UseLogsActionsOptions) {
   >(undefined);
   const [selectedDownloadEvent, setSelectedDownloadEvent] = useState<DownloadEvent | null>(null);
   const [selectedLog, setSelectedLog] = useState<SystemLog | null>(null);
+  const exportDownloadEventsMutation = createDownloadEventsExportMutation();
 
   const clearLogsWithToast = () => clearLogs.mutate();
 
@@ -48,12 +50,20 @@ export function useLogsActions(options: UseLogsActionsOptions) {
     format: "json" | "csv";
     exportInput: DownloadEventsExportInput;
   }) => {
-    void runDownloadEventsExport({
-      format: input.format,
-      input: input.exportInput,
-      onComplete: (result) => {
+    const exportPromise = exportDownloadEventsMutation
+      .mutateAsync({ filter: input.exportInput, format: input.format })
+      .then((result) => {
         setLastDownloadEventsExport(result);
-      },
+        return result;
+      });
+
+    toast.promise(exportPromise, {
+      error: (error) => `Failed to export download events: ${error.message}`,
+      loading: `Exporting ${input.format.toUpperCase()} download events...`,
+      success: (result) =>
+        result.truncated
+          ? `Exported ${result.exported} of ${result.total} events (truncated at ${result.limit})`
+          : `Exported ${result.exported} download events`,
     });
   };
 

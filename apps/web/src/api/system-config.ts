@@ -149,8 +149,13 @@ export function systemJobsQueryOptions() {
   });
 }
 
-export function createSystemJobsQuery() {
-  return useQuery(systemJobsQueryOptions());
+export function createSystemJobsQuery(options?: { refetchInterval?: number | false }) {
+  const query = systemJobsQueryOptions();
+
+  return useQuery({
+    ...query,
+    ...(options?.refetchInterval === undefined ? {} : { refetchInterval: options.refetchInterval }),
+  });
 }
 
 export function systemDashboardQueryOptions() {
@@ -164,6 +169,11 @@ export function systemDashboardQueryOptions() {
   });
 }
 
-export function createSystemDashboardQuery() {
-  return useQuery(systemDashboardQueryOptions());
+export function createSystemDashboardQuery(options?: { refetchInterval?: number | false }) {
+  const query = systemDashboardQueryOptions();
+
+  return useQuery({
+    ...query,
+    ...(options?.refetchInterval === undefined ? {} : { refetchInterval: options.refetchInterval }),
+  });
 }

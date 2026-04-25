@@ -136,7 +136,6 @@ export function ActiveDownloadRow(props: { item: DownloadStatus }) {
         <ActiveDownloadActions
           allowedActions={props.item.allowed_actions}
           downloadId={props.item.id}
-          statusPresentation={statusPresentation()}
           animeTitle={props.item.anime_title}
         />
       </TableCell>
@@ -226,8 +225,6 @@ export function DownloadRow(props: { item: Download; isHistory?: boolean }) {
           allowedActions={props.item.allowed_actions}
           downloadId={props.item.id}
           animeTitle={props.item.anime_title}
-          status={props.item.status}
-          reconciledAt={props.item.reconciled_at}
         />
       </TableCell>
     </TableRow>

@@ -1,4 +1,4 @@
-import { queryOptions, useQuery } from "@tanstack/react-query";
+import { queryOptions, skipToken, useQuery } from "@tanstack/react-query";
 import type { OperationTask, OperationTaskKey } from "./contracts";
 import { OperationTaskSchema } from "@bakarr/shared";
 import { API_BASE } from "~/api/constants";
@@ -82,8 +82,24 @@ export function systemTaskQueryOptions(taskId: number) {
 
 export function createSystemTaskQuery(taskId: number | undefined) {
   return useQuery({
-    ...(taskId === undefined ? systemTaskQueryOptions(0) : systemTaskQueryOptions(taskId)),
+    queryKey:
+      taskId === undefined
+        ? [...animeKeys.system.tasks.all(), "pending"]
+        : animeKeys.system.tasks.byId(taskId),
+    queryFn:
+      taskId === undefined
+        ? skipToken
+        : ({ signal }) =>
+            Effect.runPromise(
+              fetchJson(
+                OperationTaskSchema,
+                `${API_BASE}/system/tasks/${taskId}`,
+                undefined,
+                signal,
+              ),
+            ),
     enabled: taskId !== undefined,
+    refetchInterval: (query) => operationTaskPollInterval(query.state.data),
   });
 }
 
@@ -130,10 +146,24 @@ export function libraryImportTaskQueryOptions(taskId: number) {
 
 export function createLibraryImportTaskQuery(taskId: number | undefined) {
   return useQuery({
-    ...(taskId === undefined
-      ? libraryImportTaskQueryOptions(0)
-      : libraryImportTaskQueryOptions(taskId)),
+    queryKey:
+      taskId === undefined
+        ? [...animeKeys.library.importTasks.all(), "pending"]
+        : animeKeys.library.importTasks.byId(taskId),
+    queryFn:
+      taskId === undefined
+        ? skipToken
+        : ({ signal }) =>
+            Effect.runPromise(
+              fetchJson(
+                OperationTaskSchema,
+                `${API_BASE}/library/import/tasks/${taskId}`,
+                undefined,
+                signal,
+              ),
+            ),
     enabled: taskId !== undefined,
+    refetchInterval: (query) => operationTaskPollInterval(query.state.data),
   });
 }
 
@@ -158,10 +188,27 @@ export function animeScanTasksQueryOptions(animeId: number) {
 
 export function createAnimeScanTasksQuery(animeId: number | undefined) {
   return useQuery({
-    ...(animeId === undefined
-      ? animeScanTasksQueryOptions(0)
-      : animeScanTasksQueryOptions(animeId)),
+    queryKey:
+      animeId === undefined
+        ? (["anime", "detail", "scan-tasks", "pending"] as const)
+        : animeKeys.episodeScanTasks.all(animeId),
+    queryFn:
+      animeId === undefined
+        ? skipToken
+        : ({ signal }) =>
+            Effect.runPromise(
+              fetchJson(
+                Schema.Array(OperationTaskSchema),
+                `${API_BASE}/anime/${animeId}/episodes/scan/tasks`,
+                undefined,
+                signal,
+              ),
+            ),
     enabled: animeId !== undefined,
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      return data?.some((task) => isTaskActive(task)) ? 1000 : false;
+    },
   });
 }
 
@@ -188,15 +235,24 @@ export function createAnimeScanTaskQuery(input: {
   readonly animeId?: number;
   readonly taskId?: number;
 }) {
-  if (input.animeId === undefined || input.taskId === undefined) {
-    return useQuery({
-      ...animeScanTaskQueryOptions({ animeId: 0, taskId: 0 }),
-      enabled: false,
-    });
-  }
-
   return useQuery({
-    ...animeScanTaskQueryOptions({ animeId: input.animeId, taskId: input.taskId }),
-    enabled: true,
+    queryKey:
+      input.animeId === undefined || input.taskId === undefined
+        ? (["anime", "detail", "scan-tasks", "pending"] as const)
+        : animeKeys.episodeScanTasks.byId(input.animeId, input.taskId),
+    queryFn:
+      input.animeId === undefined || input.taskId === undefined
+        ? skipToken
+        : ({ signal }) =>
+            Effect.runPromise(
+              fetchJson(
+                OperationTaskSchema,
+                `${API_BASE}/anime/${input.animeId}/episodes/scan/tasks/${input.taskId}`,
+                undefined,
+                signal,
+              ),
+            ),
+    enabled: input.animeId !== undefined && input.taskId !== undefined,
+    refetchInterval: (query) => operationTaskPollInterval(query.state.data),
   });
 }

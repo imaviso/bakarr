@@ -1,19 +1,20 @@
-import { Data, Effect, Schema } from "effect";
+import { Effect, Schema } from "effect";
 import { getAuthHeaders } from "~/app/auth-state";
 
-export class ApiClientError extends Data.TaggedError("ApiClientError")<{
-  readonly message: string;
-  readonly status?: number;
-}> {}
+export class ApiClientError extends Schema.TaggedError<ApiClientError>()("ApiClientError", {
+  message: Schema.String,
+  status: Schema.optional(Schema.Number),
+}) {}
 
-export class ApiDecodeError extends Data.TaggedError("ApiDecodeError")<{
-  readonly message: string;
-  readonly cause?: unknown;
-}> {}
+export class ApiDecodeError extends Schema.TaggedError<ApiDecodeError>()("ApiDecodeError", {
+  cause: Schema.optional(Schema.Defect),
+  message: Schema.String,
+}) {}
 
-export class ApiUnauthorizedError extends Data.TaggedError("ApiUnauthorizedError")<{
-  readonly message: string;
-}> {}
+export class ApiUnauthorizedError extends Schema.TaggedError<ApiUnauthorizedError>()(
+  "ApiUnauthorizedError",
+  { message: Schema.String },
+) {}
 
 export interface ApiRequestOptions {
   readonly method?: string;

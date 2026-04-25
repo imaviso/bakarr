@@ -1,4 +1,4 @@
-import { queryOptions, useQuery } from "@tanstack/react-query";
+import { queryOptions, useMutation, useQuery } from "@tanstack/react-query";
 import { triggerBlobDownload } from "~/infra/blob-download";
 import type {
   DownloadEventsExportInput,
@@ -8,7 +8,12 @@ import type {
 import { Effect } from "effect";
 import { DownloadEventsPageSchema } from "@bakarr/shared";
 import { API_BASE } from "~/api/constants";
-import { fetchJson, fetchResponse } from "~/api/effect/api-client";
+import {
+  fetchJson,
+  fetchResponse,
+  type ApiClientError,
+  type ApiUnauthorizedError,
+} from "~/api/effect/api-client";
 import { animeKeys } from "./keys";
 
 function buildDownloadEventsSearchParams(input: DownloadEventsFilterInput) {
@@ -89,11 +94,15 @@ export function createDownloadEventsQuery(
   input: DownloadEventsFilterInput,
   options?: {
     enabled?: boolean;
+    refetchInterval?: number | false;
   },
 ) {
+  const query = downloadEventsQueryOptionsWithFilters(input);
+
   return useQuery({
-    ...downloadEventsQueryOptionsWithFilters(input),
+    ...query,
     enabled: options?.enabled ?? true,
+    ...(options?.refetchInterval === undefined ? {} : { refetchInterval: options.refetchInterval }),
   });
 }
 
@@ -106,9 +115,12 @@ export function getDownloadEventsExportUrl(
   return `${API_BASE}/downloads/events/export?${params.toString()}`;
 }
 
-function parseExportCountHeader(value: string | null): number {
+function parseExportCountHeader(name: string, value: string | null): number {
   const parsed = Number(value);
-  return Number.isFinite(parsed) ? Math.max(0, Math.trunc(parsed)) : 0;
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error(`Invalid ${name} export header`);
+  }
+  return Math.trunc(parsed);
 }
 
 function parseExportTruncatedHeader(value: string | null): boolean {
@@ -133,38 +145,53 @@ function parseContentDispositionFilename(headerValue: string | null): string | u
   return undefined;
 }
 
-export async function exportDownloadEvents(
-  input: DownloadEventsExportInput,
-  format: "json" | "csv" = "json",
-): Promise<DownloadEventsExportResult> {
-  const response = await requestDownloadEventsExport(input, format);
+export function createDownloadEventsExportMutation() {
+  return useMutation({
+    mutationFn: (input: { filter: DownloadEventsExportInput; format: "json" | "csv" }) =>
+      exportDownloadEvents(input.filter, input.format),
+  });
+}
 
+async function exportDownloadEvents(
+  input: DownloadEventsExportInput,
+  format: "json" | "csv",
+): Promise<DownloadEventsExportResult> {
+  const response = await Effect.runPromise(requestDownloadEventsExport(input, format));
   const payload = await response.blob();
-  const fallbackName = `download-events.${format}`;
-  const fileName =
-    parseContentDispositionFilename(response.headers.get("content-disposition")) ?? fallbackName;
+  const fileName = parseContentDispositionFilename(response.headers.get("content-disposition"));
+
+  if (fileName === undefined) {
+    throw new Error("Missing export filename header");
+  }
 
   triggerBlobDownload(payload, fileName);
 
   const generatedAt = response.headers.get("x-bakarr-generated-at") ?? undefined;
 
   return {
-    exported: parseExportCountHeader(response.headers.get("x-bakarr-exported-events")),
+    exported: parseExportCountHeader(
+      "x-bakarr-exported-events",
+      response.headers.get("x-bakarr-exported-events"),
+    ),
     format,
     ...(generatedAt === undefined ? {} : { generatedAt }),
-    limit: parseExportCountHeader(response.headers.get("x-bakarr-export-limit")),
-    total: parseExportCountHeader(response.headers.get("x-bakarr-total-events")),
+    limit: parseExportCountHeader(
+      "x-bakarr-export-limit",
+      response.headers.get("x-bakarr-export-limit"),
+    ),
+    total: parseExportCountHeader(
+      "x-bakarr-total-events",
+      response.headers.get("x-bakarr-total-events"),
+    ),
     truncated: parseExportTruncatedHeader(response.headers.get("x-bakarr-export-truncated")),
   };
 }
 
-async function requestDownloadEventsExport(
+function requestDownloadEventsExport(
   input: DownloadEventsExportInput,
   format: "json" | "csv",
-): Promise<Response> {
-  return Effect.runPromise(
-    fetchResponse(getDownloadEventsExportUrl(input, format), {
-      method: "GET",
-    }),
-  );
+): Effect.Effect<Response, ApiClientError | ApiUnauthorizedError> {
+  return fetchResponse(getDownloadEventsExportUrl(input, format), {
+    method: "GET",
+  });
 }

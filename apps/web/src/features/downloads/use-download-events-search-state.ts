@@ -2,7 +2,7 @@ import type { DownloadEventsFilterValue } from "~/features/downloads/download-ev
 import { formatDateTimeLocalInput, getDateRangePresetHours } from "~/domain/date-presets";
 import type { DownloadEventsSearchKeys } from "~/domain/download/events-search";
 import { createDownloadEventsSearchDefaults } from "~/domain/download/events-search";
-import { buildDownloadEventsExportInput } from "~/domain/download/events-export";
+import { buildDownloadEventsExportInput } from "~/domain/download/events-query-model";
 import { buildDownloadEventsFilterInput } from "~/domain/download/events-filters";
 
 interface UseDownloadEventsSearchStateOptions {
