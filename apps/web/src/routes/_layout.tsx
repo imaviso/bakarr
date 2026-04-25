@@ -1,5 +1,6 @@
 import { useIsFetching } from "@tanstack/react-query";
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { Effect, Either } from "effect";
 import { Suspense, lazy } from "react";
 import { AppSidebar } from "~/app/layout/app-sidebar";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "~/components/ui/sidebar";
@@ -15,14 +16,22 @@ const SocketToastListenerLazy = lazy(() =>
 
 export const Route = createFileRoute("/_layout")({
   beforeLoad: async ({ context, location }) => {
-    try {
-      const user = await context.queryClient.fetchQuery(authMeQueryOptions());
-      syncAuthenticatedUser(user.username);
-    } catch (error) {
-      if (!(error instanceof ApiUnauthorizedError)) {
-        throw error;
-      }
+    const result = await Effect.runPromise(
+      Effect.either(
+        Effect.tryPromise({
+          try: () => context.queryClient.fetchQuery(authMeQueryOptions()),
+          catch: (error) => error,
+        }),
+      ),
+    );
 
+    if (Either.isRight(result)) {
+      const user = result.right;
+      syncAuthenticatedUser(user.username);
+      return;
+    }
+
+    if (result.left instanceof ApiUnauthorizedError) {
       throw redirect({
         to: "/login",
         search: {
@@ -30,6 +39,8 @@ export const Route = createFileRoute("/_layout")({
         },
       });
     }
+
+    throw result.left;
   },
   component: LayoutComponent,
 });

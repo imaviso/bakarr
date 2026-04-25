@@ -8,6 +8,7 @@ import type {
 import { Effect } from "effect";
 import { DownloadEventsPageSchema } from "@bakarr/shared";
 import { API_BASE } from "~/api/constants";
+import { DownloadEventsExportError } from "~/api/effect/errors";
 import {
   fetchJson,
   fetchResponse,
@@ -115,12 +116,15 @@ export function getDownloadEventsExportUrl(
   return `${API_BASE}/downloads/events/export?${params.toString()}`;
 }
 
-function parseExportCountHeader(name: string, value: string | null): number {
+function parseExportCountHeader(
+  name: string,
+  value: string | null,
+): Effect.Effect<number, DownloadEventsExportError> {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed < 0) {
-    throw new Error(`Invalid ${name} export header`);
+    return Effect.fail(new DownloadEventsExportError({ message: `Invalid ${name} export header` }));
   }
-  return Math.trunc(parsed);
+  return Effect.succeed(Math.trunc(parsed));
 }
 
 function parseExportTruncatedHeader(value: string | null): boolean {
@@ -148,43 +152,67 @@ function parseContentDispositionFilename(headerValue: string | null): string | u
 export function createDownloadEventsExportMutation() {
   return useMutation({
     mutationFn: (input: { filter: DownloadEventsExportInput; format: "json" | "csv" }) =>
-      exportDownloadEvents(input.filter, input.format),
+      Effect.runPromise(exportDownloadEvents(input.filter, input.format)),
   });
 }
 
-async function exportDownloadEvents(
+function exportDownloadEvents(
   input: DownloadEventsExportInput,
   format: "json" | "csv",
-): Promise<DownloadEventsExportResult> {
-  const response = await Effect.runPromise(requestDownloadEventsExport(input, format));
-  const payload = await response.blob();
-  const fileName = parseContentDispositionFilename(response.headers.get("content-disposition"));
+): Effect.Effect<
+  DownloadEventsExportResult,
+  ApiClientError | ApiUnauthorizedError | DownloadEventsExportError
+> {
+  return Effect.gen(function* () {
+    const response = yield* requestDownloadEventsExport(input, format);
+    const payload = yield* Effect.tryPromise({
+      try: () => response.blob(),
+      catch: (cause) =>
+        new DownloadEventsExportError({
+          cause,
+          message: "Failed to read export payload",
+        }),
+    });
+    const fileName = parseContentDispositionFilename(response.headers.get("content-disposition"));
 
-  if (fileName === undefined) {
-    throw new Error("Missing export filename header");
-  }
+    if (fileName === undefined) {
+      return yield* Effect.fail(
+        new DownloadEventsExportError({ message: "Missing export filename header" }),
+      );
+    }
 
-  triggerBlobDownload(payload, fileName);
+    yield* Effect.try({
+      try: () => triggerBlobDownload(payload, fileName),
+      catch: (cause) =>
+        new DownloadEventsExportError({
+          cause,
+          message: "Failed to start export download",
+        }),
+    });
 
-  const generatedAt = response.headers.get("x-bakarr-generated-at") ?? undefined;
-
-  return {
-    exported: parseExportCountHeader(
+    const generatedAt = response.headers.get("x-bakarr-generated-at") ?? undefined;
+    const exported = yield* parseExportCountHeader(
       "x-bakarr-exported-events",
       response.headers.get("x-bakarr-exported-events"),
-    ),
-    format,
-    ...(generatedAt === undefined ? {} : { generatedAt }),
-    limit: parseExportCountHeader(
+    );
+    const limit = yield* parseExportCountHeader(
       "x-bakarr-export-limit",
       response.headers.get("x-bakarr-export-limit"),
-    ),
-    total: parseExportCountHeader(
+    );
+    const total = yield* parseExportCountHeader(
       "x-bakarr-total-events",
       response.headers.get("x-bakarr-total-events"),
-    ),
-    truncated: parseExportTruncatedHeader(response.headers.get("x-bakarr-export-truncated")),
-  };
+    );
+
+    return {
+      exported,
+      format,
+      ...(generatedAt === undefined ? {} : { generatedAt }),
+      limit,
+      total,
+      truncated: parseExportTruncatedHeader(response.headers.get("x-bakarr-export-truncated")),
+    };
+  });
 }
 
 function requestDownloadEventsExport(

@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { createSearchMissingMutation, createSyncDownloadsMutation } from "~/api/system-downloads";
 import { createDownloadEventsExportMutation } from "~/api/system-download-events";
 import type { DownloadEventsExportInput, DownloadEventsExportResult } from "~/api/contracts";
+import { errorMessage } from "~/api/effect/errors";
 import {
   createDownloadEventsCursorPatch,
   DOWNLOADS_EVENTS_SEARCH_KEYS,
@@ -36,7 +37,7 @@ export function useDownloadsActions(options: UseDownloadsActionsOptions) {
       });
 
     toast.promise(exportPromise, {
-      error: (error) => `Failed to export download events: ${error.message}`,
+      error: (error) => errorMessage(error, "Failed to export download events"),
       loading: `Exporting ${format.toUpperCase()} download events...`,
       success: (result) =>
         result.truncated

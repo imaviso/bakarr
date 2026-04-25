@@ -6,6 +6,7 @@ import {
 } from "~/features/downloads/release-search/release-result-cells";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
+import { errorMessage } from "~/api/effect/errors";
 import {
   DialogContent,
   DialogDescription,
@@ -99,9 +100,7 @@ export function SearchModalContent(props: SearchModalContentProps) {
                 <WarningIcon className="h-8 w-8" />
                 <p>Error searching for releases</p>
                 <p className="text-sm text-muted-foreground">
-                  {props.state.searchQuery.error instanceof Error
-                    ? props.state.searchQuery.error.message
-                    : String(props.state.searchQuery.error)}
+                  {errorMessage(props.state.searchQuery.error, "Search failed")}
                 </p>
                 <Button
                   variant="outline"

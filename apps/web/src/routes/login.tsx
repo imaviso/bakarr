@@ -1,9 +1,10 @@
 import { useForm } from "@tanstack/react-form";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import type { FormEvent } from "react";
 import { toast } from "sonner";
 import { Schema } from "effect";
 import { Button } from "~/components/ui/button";
-import { ApiClientError, ApiUnauthorizedError } from "~/api/effect/api-client";
+import { errorMessage } from "~/api/effect/errors";
 import {
   Card,
   CardContent,
@@ -23,13 +24,14 @@ const LoginSearchSchema = Schema.Struct({
 
 function sanitizeRedirect(input: string): string | undefined {
   if (!input) return undefined;
-  try {
-    const url = new URL(input, window.location.origin);
-    if (url.origin !== window.location.origin) return undefined;
-    return url.pathname + url.search + url.hash;
-  } catch {
+
+  if (!URL.canParse(input, window.location.origin)) {
     return undefined;
   }
+
+  const url = new URL(input, window.location.origin);
+  if (url.origin !== window.location.origin) return undefined;
+  return url.pathname + url.search + url.hash;
 }
 
 export const Route = createFileRoute("/login")({
@@ -45,13 +47,6 @@ const LoginSchema = Schema.Struct({
 const ApiKeySchema = Schema.Struct({
   apiKey: Schema.String.pipe(Schema.minLength(1, { message: () => "API key is required" })),
 });
-
-function getErrorMessage(err: unknown): string {
-  if (err instanceof ApiClientError || err instanceof ApiUnauthorizedError) {
-    return err.message;
-  }
-  return "Login failed";
-}
 
 function getFieldErrorMessage(error: unknown): string {
   if (typeof error === "string") return error;
@@ -98,13 +93,16 @@ function LoginPage() {
       username: "",
       password: "",
     },
-    onSubmit: async ({ value }) => {
-      try {
-        const data = await loginMutation.mutateAsync(value);
-        handleLoginSuccess(data);
-      } catch (err) {
-        toast.error(getErrorMessage(err));
-      }
+    validators: {
+      onChange: Schema.standardSchemaV1(LoginSchema),
+    },
+    onSubmit: ({ value }) => {
+      loginMutation.mutate(value, {
+        onError: (err) => {
+          toast.error(errorMessage(err, "Login failed"));
+        },
+        onSuccess: handleLoginSuccess,
+      });
     },
   });
 
@@ -112,17 +110,35 @@ function LoginPage() {
     defaultValues: {
       apiKey: "",
     },
-    onSubmit: async ({ value }) => {
-      try {
-        const data = await apiKeyLoginMutation.mutateAsync({
+    validators: {
+      onChange: Schema.standardSchemaV1(ApiKeySchema),
+    },
+    onSubmit: ({ value }) => {
+      apiKeyLoginMutation.mutate(
+        {
           api_key: value.apiKey.trim(),
-        });
-        handleLoginSuccess(data);
-      } catch (err) {
-        toast.error(getErrorMessage(err));
-      }
+        },
+        {
+          onError: (err) => {
+            toast.error(errorMessage(err, "Login failed"));
+          },
+          onSuccess: handleLoginSuccess,
+        },
+      );
     },
   });
+
+  const submitLoginForm = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void form.handleSubmit();
+  };
+
+  const submitApiKeyForm = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void apiKeyForm.handleSubmit();
+  };
 
   return (
     <div className="h-dvh overflow-y-auto bg-background p-4">
@@ -136,20 +152,9 @@ function LoginPage() {
               Sign in to your account
             </CardDescription>
           </CardHeader>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              void form.handleSubmit();
-            }}
-          >
+          <form onSubmit={submitLoginForm}>
             <CardContent className="space-y-4">
-              <form.Field
-                name="username"
-                validators={{
-                  onChange: Schema.standardSchemaV1(LoginSchema.fields.username),
-                }}
-              >
+              <form.Field name="username">
                 {(field) => (
                   <div className="space-y-2">
                     <Label htmlFor="username">Username</Label>
@@ -157,7 +162,7 @@ function LoginPage() {
                       id="username"
                       type="text"
                       value={field.state.value}
-                      onInput={(e) => field.handleChange(e.currentTarget.value)}
+                      onChange={(e) => field.handleChange(e.currentTarget.value)}
                       onBlur={field.handleBlur}
                       placeholder="admin"
                       autoComplete="username"
@@ -170,12 +175,7 @@ function LoginPage() {
                   </div>
                 )}
               </form.Field>
-              <form.Field
-                name="password"
-                validators={{
-                  onChange: Schema.standardSchemaV1(LoginSchema.fields.password),
-                }}
-              >
+              <form.Field name="password">
                 {(field) => (
                   <div className="space-y-2">
                     <Label htmlFor="password">Password</Label>
@@ -183,7 +183,7 @@ function LoginPage() {
                       id="password"
                       type="password"
                       value={field.state.value}
-                      onInput={(e) => field.handleChange(e.currentTarget.value)}
+                      onChange={(e) => field.handleChange(e.currentTarget.value)}
                       onBlur={field.handleBlur}
                       autoComplete="current-password"
                     />
@@ -217,20 +217,9 @@ function LoginPage() {
               </form.Subscribe>
             </CardFooter>
           </form>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              void apiKeyForm.handleSubmit();
-            }}
-          >
+          <form onSubmit={submitApiKeyForm}>
             <div className="px-6 pb-6 pt-1 space-y-2">
-              <apiKeyForm.Field
-                name="apiKey"
-                validators={{
-                  onChange: Schema.standardSchemaV1(ApiKeySchema.fields.apiKey),
-                }}
-              >
+              <apiKeyForm.Field name="apiKey">
                 {(field) => (
                   <div className="space-y-2">
                     <Label htmlFor="api-key">Or sign in with API key</Label>
@@ -238,7 +227,7 @@ function LoginPage() {
                       id="api-key"
                       type="password"
                       value={field.state.value}
-                      onInput={(e) => field.handleChange(e.currentTarget.value)}
+                      onChange={(e) => field.handleChange(e.currentTarget.value)}
                       onBlur={field.handleBlur}
                       placeholder="Paste API key"
                       autoComplete="off"

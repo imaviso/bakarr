@@ -13,6 +13,7 @@ import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Skeleton } from "~/components/ui/skeleton";
 import type { BrowseEntry } from "~/api/contracts";
+import { errorMessage } from "~/api/effect/errors";
 import { createBrowsePathQuery } from "~/api/system-library";
 import { EmptyState } from "~/components/shared/empty-state";
 import { cn } from "~/infra/utils";
@@ -208,9 +209,7 @@ export function FileBrowser(props: FileBrowserProps) {
           </div>
         ) : browserQuery.error ? (
           <div className="p-4 text-center text-sm text-destructive">
-            {browserQuery.error instanceof Error
-              ? browserQuery.error.message
-              : "Failed to load directory"}
+            {errorMessage(browserQuery.error, "Failed to load directory")}
           </div>
         ) : browserQuery.data?.entries.length === 0 ? (
           <EmptyState compact title="This directory is empty" />

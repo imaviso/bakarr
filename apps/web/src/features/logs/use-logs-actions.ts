@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import type { DownloadEvent, DownloadEventsExportResult, SystemLog } from "~/api/contracts";
 import { createClearLogsMutation, getExportLogsUrl } from "~/api/system-logs";
 import { createDownloadEventsExportMutation } from "~/api/system-download-events";
+import { errorMessage } from "~/api/effect/errors";
 import {
   createDownloadEventsCursorPatch,
   LOGS_DOWNLOAD_EVENTS_SEARCH_KEYS,
@@ -58,7 +59,7 @@ export function useLogsActions(options: UseLogsActionsOptions) {
       });
 
     toast.promise(exportPromise, {
-      error: (error) => `Failed to export download events: ${error.message}`,
+      error: (error) => errorMessage(error, "Failed to export download events"),
       loading: `Exporting ${input.format.toUpperCase()} download events...`,
       success: (result) =>
         result.truncated

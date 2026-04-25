@@ -3,7 +3,7 @@ import {
   createDownloadEventsSearchSchema,
   DOWNLOADS_EVENTS_SEARCH_KEYS,
 } from "~/domain/download/events-search";
-import { Schema } from "effect";
+import { Option, Schema } from "effect";
 
 export type DownloadsTab = "events" | "history" | "queue";
 
@@ -83,11 +83,9 @@ const downloadsSearchDefaultsByField: Record<DownloadsSearchField, string> = {
 };
 
 export function toDownloadsTab(value: string | null | undefined): DownloadsTab {
-  if (value === "events" || value === "history" || value === "queue") {
-    return value;
-  }
-
-  throw new Error(`Invalid downloads tab: ${String(value)}`);
+  return Option.getOrThrow(
+    Schema.decodeUnknownOption(Schema.Literal("events", "history", "queue"))(value),
+  );
 }
 
 export function parseDownloadsSearch(search: Record<string, unknown>): DownloadsSearchState {

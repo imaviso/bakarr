@@ -10,8 +10,10 @@ import {
 } from "~/api/anime-mutations";
 import { createSearchMissingMutation } from "~/api/system-downloads";
 import { createAnimeEpisodeStreamUrlMutation } from "~/api/auth";
+import { Effect } from "effect";
 import { useState } from "react";
 import { toast } from "sonner";
+import { errorMessage } from "~/api/effect/errors";
 import { copyToClipboard } from "~/infra/utils";
 
 interface UseAnimeDetailsActionsOptions {
@@ -36,7 +38,7 @@ export function useAnimeDetailsActions(options: UseAnimeDetailsActionsOptions) {
       { animeId: options.animeId, episodeNumber },
       {
         onError: (err) => {
-          toast.error(err instanceof Error ? err.message : "Failed to get stream URL");
+          toast.error(errorMessage(err, "Failed to get stream URL"));
         },
         onSuccess: ({ url }) => {
           const origin = globalThis.location.origin;
@@ -51,17 +53,22 @@ export function useAnimeDetailsActions(options: UseAnimeDetailsActionsOptions) {
       { animeId: options.animeId, episodeNumber },
       {
         onError: (err) => {
-          toast.error(err instanceof Error ? err.message : "Failed to copy link");
+          toast.error(errorMessage(err, "Failed to copy link"));
         },
         onSuccess: ({ url }) => {
           const origin = globalThis.location.origin;
-          void copyToClipboard(`${origin}${url}`)
-            .then(() => {
-              toast.success("Link copied to clipboard");
-            })
-            .catch((err) => {
-              toast.error(err instanceof Error ? err.message : "Failed to copy link");
-            });
+          void Effect.runPromise(
+            copyToClipboard(`${origin}${url}`).pipe(
+              Effect.match({
+                onFailure: (err) => {
+                  toast.error(errorMessage(err, "Failed to copy link"));
+                },
+                onSuccess: () => {
+                  toast.success("Link copied to clipboard");
+                },
+              }),
+            ),
+          );
         },
       },
     );

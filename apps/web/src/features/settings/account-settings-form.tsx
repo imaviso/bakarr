@@ -9,7 +9,7 @@ import {
 import { useForm } from "@tanstack/react-form";
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
-import { Schema } from "effect";
+import { Effect, Schema } from "effect";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,6 +28,7 @@ import { Label } from "~/components/ui/label";
 import { NotificationSettingsCard } from "~/features/settings/notification-settings-card";
 import { createChangePasswordMutation, createRegenerateApiKeyMutation } from "~/api/auth";
 import { useAuth } from "~/app/auth";
+import { errorMessage } from "~/api/effect/errors";
 import { copyToClipboard } from "~/infra/utils";
 
 const ChangePasswordSchema = Schema.Struct({
@@ -75,16 +76,21 @@ export function AccountSettingsForm() {
     validators: {
       onChange: Schema.standardSchemaV1(ChangePasswordSchema),
     },
-    onSubmit: async ({ value, formApi }) => {
-      try {
-        await changePassword.mutateAsync({
+    onSubmit: ({ value, formApi }) => {
+      changePassword.mutate(
+        {
           current_password: value.currentPassword,
           new_password: value.newPassword,
-        });
-        formApi.reset();
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Failed to change password");
-      }
+        },
+        {
+          onError: (error) => {
+            toast.error(errorMessage(error, "Failed to change password"));
+          },
+          onSuccess: () => {
+            formApi.reset();
+          },
+        },
+      );
     },
   });
 
@@ -94,23 +100,33 @@ export function AccountSettingsForm() {
     void passwordForm.handleSubmit();
   };
 
-  const handleRegenerateApiKey = async () => {
-    try {
-      await regenerateApiKey.mutateAsync();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to regenerate API key");
-    }
+  const handleRegenerateApiKey = () => {
+    regenerateApiKey.mutate(undefined, {
+      onError: (error) => {
+        toast.error(errorMessage(error, "Failed to regenerate API key"));
+      },
+    });
   };
 
-  const copyApiKey = async () => {
+  const copyApiKey = () => {
     const key = currentApiKey;
     if (!key) {
       toast.error("API keys are never stored client-side. Use the backend response directly.");
       return;
     }
 
-    await copyToClipboard(key);
-    toast.success("API key copied to clipboard");
+    void Effect.runPromise(
+      copyToClipboard(key).pipe(
+        Effect.match({
+          onFailure: (error) => {
+            toast.error(errorMessage(error, "Failed to copy API key"));
+          },
+          onSuccess: () => {
+            toast.success("API key copied to clipboard");
+          },
+        }),
+      ),
+    );
   };
 
   return (

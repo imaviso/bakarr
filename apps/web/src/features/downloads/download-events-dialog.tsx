@@ -20,6 +20,7 @@ import type {
   DownloadEventsFilterInput,
   DownloadEventsExportResult,
 } from "~/api/contracts";
+import { errorMessage } from "~/api/effect/errors";
 import { DownloadEventsFeed } from "~/features/downloads/download-events/download-events-feed";
 
 interface DownloadEventsDialogProps {
@@ -75,7 +76,7 @@ export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
       });
 
     toast.promise(exportPromise, {
-      error: (error) => `Failed to export download events: ${error.message}`,
+      error: (error) => errorMessage(error, "Failed to export download events"),
       loading: `Exporting ${format.toUpperCase()} download events...`,
       success: (result) =>
         result.truncated

@@ -21,6 +21,7 @@ import {
 } from "~/api/anime";
 import { profilesQueryOptions, releaseProfilesQueryOptions } from "~/api/profiles";
 import { systemConfigQueryOptions } from "~/api/system-config";
+import { errorMessage } from "~/api/effect/errors";
 import { usePageTitle } from "~/domain/page-title";
 import { getCurrentSeasonWindow, shiftSeasonWindow } from "~/domain/seasonal-navigation";
 
@@ -354,9 +355,7 @@ function SearchResults(props: SearchResultsProps) {
         <div className="flex-1 overflow-y-auto p-8 text-center text-destructive bg-destructive/10 rounded-none">
           <p>Failed to search anime. Please try again.</p>
           <p className="text-sm mt-2 opacity-80">
-            {props.searchQuery.error instanceof Error
-              ? props.searchQuery.error.message
-              : String(props.searchQuery.error)}
+            {errorMessage(props.searchQuery.error, "Search failed")}
           </p>
         </div>
       )}

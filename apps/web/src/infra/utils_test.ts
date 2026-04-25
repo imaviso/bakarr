@@ -1,4 +1,5 @@
 import { beforeEach, it } from "vitest";
+import { Effect } from "effect";
 
 function assertEquals<T>(actual: T, expected: T) {
   if (actual !== expected) {
@@ -41,7 +42,7 @@ it("copyToClipboard uses clipboard API", async () => {
   });
 
   const { copyToClipboard } = await import("./utils");
-  await copyToClipboard("abc123");
+  await Effect.runPromise(copyToClipboard("abc123"));
 
   assertEquals(writes.length, 1);
   assertEquals(writes[0], "abc123");
