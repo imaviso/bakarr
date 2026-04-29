@@ -36,6 +36,8 @@ export function makeDefaultConfig(databasePath: string): ConfigCore {
       default_category: "anime",
       enabled: false,
       password: null,
+      ratio_limit: null,
+      save_path: null,
       trusted_local: true,
       url: "http://localhost:8080",
       username: "admin",

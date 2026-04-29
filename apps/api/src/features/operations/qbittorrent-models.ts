@@ -4,6 +4,8 @@ export class QBitConfigModel extends Schema.Class<QBitConfigModel>("QBitConfigMo
   baseUrl: Schema.String,
   category: Schema.optional(Schema.String),
   password: Schema.String,
+  ratioLimit: Schema.optional(Schema.Number),
+  savePath: Schema.optional(Schema.String),
   username: Schema.String,
 }) {}
 

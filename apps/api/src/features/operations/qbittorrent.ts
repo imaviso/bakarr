@@ -104,6 +104,13 @@ export const QBitTorrentClientLive = Layer.effect(
       config: QBitConfig,
       url: string,
     ) {
+      const body = {
+        ...(config.category ? { category: config.category } : {}),
+        ...(config.ratioLimit === undefined ? {} : { ratioLimit: String(config.ratioLimit) }),
+        ...(config.savePath ? { savepath: config.savePath } : {}),
+        urls: url,
+      };
+
       const response = yield* withSession(config, (cookie) =>
         execute(
           "qbit.addTorrentUrl",
@@ -111,10 +118,7 @@ export const QBitTorrentClientLive = Layer.effect(
             config,
             cookie,
             HttpClientRequest.post(resolveUrl(config.baseUrl, "/api/v2/torrents/add")).pipe(
-              HttpClientRequest.bodyUrlParams({
-                category: config.category,
-                urls: url,
-              }),
+              HttpClientRequest.bodyUrlParams(body),
             ),
           ),
           { idempotent: false },

@@ -84,6 +84,8 @@ const maybeQBitConfig = (config: Config) => {
       baseUrl: config.qbittorrent.url,
       category: config.qbittorrent.default_category,
       password: config.qbittorrent.password,
+      ratioLimit: config.qbittorrent.ratio_limit ?? undefined,
+      savePath: config.qbittorrent.save_path || undefined,
       username: config.qbittorrent.username,
     }),
   } as const;

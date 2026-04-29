@@ -1088,6 +1088,8 @@ it("shared operational detail schemas accept canonical payloads", () => {
       default_category: "anime",
       enabled: true,
       password: null,
+      ratio_limit: 1.5,
+      save_path: "/downloads/anime",
       url: "http://localhost:8080",
       username: "admin",
     },

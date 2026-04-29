@@ -1,5 +1,5 @@
 import { assert, it } from "@effect/vitest";
-import { Cause, Effect, Exit } from "effect";
+import { Cause, Effect, Exit, Schema } from "effect";
 
 import { qualityProfiles, releaseProfiles } from "@/db/schema.ts";
 import {
@@ -56,6 +56,8 @@ it.effect("config codec round-trips config core without mutating arrays", () =>
         default_category: "anime",
         enabled: true,
         password: "secret",
+        ratio_limit: 1.5,
+        save_path: "/downloads/anime",
         trusted_local: true,
         url: "http://localhost:8080",
         username: "admin",
@@ -72,6 +74,8 @@ it.effect("config codec round-trips config core without mutating arrays", () =>
 
     const decoded = yield* decodeConfigCore(encoded);
     assert.deepStrictEqual(decoded.downloads.remote_path_mappings, [["/remote", "/local"]]);
+    assert.deepStrictEqual(decoded.qbittorrent.ratio_limit, 1.5);
+    assert.deepStrictEqual(decoded.qbittorrent.save_path, "/downloads/anime");
     assert.deepStrictEqual(decoded.qbittorrent.trusted_local, true);
     assert.deepStrictEqual(decoded.scheduler.cron_expression, "0 * * * *");
   }),
@@ -80,7 +84,7 @@ it.effect("config codec round-trips config core without mutating arrays", () =>
 it.effect("config codec strips removed download preference fields from legacy config", () =>
   Effect.gen(function* () {
     const decoded = yield* decodeConfigCore(
-      JSON.stringify({
+      yield* Schema.encode(Schema.parseJson(Schema.Unknown))({
         downloads: {
           create_anime_folders: true,
           max_size_gb: 8,

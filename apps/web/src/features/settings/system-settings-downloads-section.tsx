@@ -1,3 +1,4 @@
+import { Schema } from "effect";
 import { PathMappingsEditor, SettingRow, SettingSection } from "~/features/settings/form-controls";
 import type { SettingsFormApi } from "~/features/settings/system-settings-form-hook";
 import { Input } from "~/components/ui/input";
@@ -13,6 +14,15 @@ function SubSectionTitle({ children }: { children: string }) {
       {children}
     </div>
   );
+}
+
+const RatioLimitInputSchema = Schema.Union(Schema.Literal(""), Schema.NumberFromString);
+
+function decodeRatioLimitInput(value: string, fallback: number | null | undefined): number | null {
+  const decoded = Schema.decodeUnknownEither(RatioLimitInputSchema)(value);
+  if (decoded._tag === "Left") return fallback ?? null;
+
+  return decoded.right === "" ? null : decoded.right;
 }
 
 export function SystemSettingsDownloadsSection(props: SystemSettingsDownloadsSectionProps) {
@@ -82,6 +92,45 @@ export function SystemSettingsDownloadsSection(props: SystemSettingsDownloadsSec
               onInput={(event) => field.handleChange(event.currentTarget.value)}
               placeholder="bakarr"
               className="w-32"
+            />
+          </SettingRow>
+        )}
+      </props.form.Field>
+
+      <props.form.Field name="qbittorrent.save_path">
+        {(field) => (
+          <SettingRow
+            label="Save Path"
+            description="qBittorrent download folder for newly added torrents"
+          >
+            <Input
+              value={field.state.value ?? ""}
+              onInput={(event) => field.handleChange(event.currentTarget.value || null)}
+              placeholder="/downloads/anime"
+              className="w-64"
+            />
+          </SettingRow>
+        )}
+      </props.form.Field>
+
+      <props.form.Field name="qbittorrent.ratio_limit">
+        {(field) => (
+          <SettingRow
+            label="Ratio Limit"
+            description="Per-torrent share ratio. Leave blank to use qBittorrent default"
+          >
+            <Input
+              type="number"
+              min="0"
+              step="0.1"
+              value={field.state.value ?? ""}
+              onInput={(event) =>
+                field.handleChange(
+                  decodeRatioLimitInput(event.currentTarget.value, field.state.value),
+                )
+              }
+              placeholder="1.0"
+              className="w-24"
             />
           </SettingRow>
         )}

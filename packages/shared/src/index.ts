@@ -756,19 +756,23 @@ export const GeneralConfigSchema: Schema.Schema<{
 });
 
 export const QbittorrentConfigSchema: Schema.Schema<{
+  default_category: string;
   enabled: boolean;
+  password?: string | null | undefined;
+  ratio_limit?: number | null | undefined;
+  save_path?: string | null | undefined;
+  trusted_local?: boolean | undefined;
   url: string;
   username: string;
-  password?: string | null | undefined;
-  default_category: string;
-  trusted_local?: boolean | undefined;
 }> = Schema.Struct({
+  default_category: Schema.String,
   enabled: Schema.Boolean,
+  password: Schema.optional(Schema.NullOr(Schema.String)),
+  ratio_limit: Schema.optional(Schema.NullOr(Schema.Number)),
+  save_path: Schema.optional(Schema.NullOr(Schema.String)),
+  trusted_local: Schema.optional(Schema.Boolean),
   url: Schema.String,
   username: Schema.String,
-  password: Schema.optional(Schema.NullOr(Schema.String)),
-  default_category: Schema.String,
-  trusted_local: Schema.optional(Schema.Boolean),
 });
 
 export const NyaaConfigSchema: Schema.Schema<{

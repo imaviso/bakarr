@@ -99,6 +99,73 @@ it.effect("QBitTorrentClient can load torrent contents", () =>
   }),
 );
 
+it.effect("QBitTorrentClient sends qBittorrent add options", () =>
+  Effect.gen(function* () {
+    let addBody = "";
+
+    yield* Effect.flatMap(QBitTorrentClient, (client) =>
+      client.addTorrentUrl(
+        {
+          baseUrl: "https://qbit.example",
+          category: "anime",
+          password: "secret",
+          ratioLimit: 1.5,
+          savePath: "/downloads/anime",
+          username: "demo",
+        },
+        "magnet:?xt=urn:btih:abc123",
+      ),
+    ).pipe(
+      Effect.provide(
+        QBitTorrentClientLive.pipe(
+          Layer.provide(
+            Layer.mergeAll(
+              ClockServiceLive,
+              ExternalCallWithLiveClock,
+              Layer.succeed(
+                HttpClient.HttpClient,
+                HttpClient.make((request, url) => {
+                  if (url.pathname === "/api/v2/auth/login") {
+                    return Effect.succeed(
+                      HttpClientResponse.fromWeb(
+                        request,
+                        new Response("Ok.", {
+                          headers: { "set-cookie": "SID=abc123; HttpOnly" },
+                          status: 200,
+                        }),
+                      ),
+                    );
+                  }
+
+                  if (url.pathname === "/api/v2/torrents/add") {
+                    if (request.body._tag === "Uint8Array") {
+                      addBody = new TextDecoder().decode(request.body.body);
+                    }
+
+                    return Effect.succeed(
+                      HttpClientResponse.fromWeb(request, new Response("Ok.", { status: 200 })),
+                    );
+                  }
+
+                  return Effect.succeed(
+                    HttpClientResponse.fromWeb(request, new Response("not found", { status: 404 })),
+                  );
+                }),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    const params = new URLSearchParams(addBody);
+    assert.deepStrictEqual(params.get("category"), "anime");
+    assert.deepStrictEqual(params.get("ratioLimit"), "1.5");
+    assert.deepStrictEqual(params.get("savepath"), "/downloads/anime");
+    assert.deepStrictEqual(params.get("urls"), "magnet:?xt=urn:btih:abc123");
+  }),
+);
+
 it.effect(
   "QBitTorrentClient does not re-authenticate cached sessions for unrelated transport failures",
   () =>
