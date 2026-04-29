@@ -32,21 +32,20 @@ export function makeReconcileDownloadByIdEffect(input: {
     const [row] = rows;
 
     if (!row) {
-      yield* new DownloadNotFoundError({
+      return yield* new DownloadNotFoundError({
         message: "Download not found",
       });
-      return;
     }
 
     const contentPath = row.contentPath ?? row.savePath;
 
     if (!contentPath || !row.infoHash) {
-      yield* new DownloadConflictError({
+      return yield* new DownloadConflictError({
         message: "Download has no reconciliable content path",
       });
-      return;
     }
 
     yield* reconcileCompletedTorrentEffect(row.infoHash, contentPath ?? undefined);
+    return undefined;
   });
 }

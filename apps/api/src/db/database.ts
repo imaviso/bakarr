@@ -60,16 +60,18 @@ const setAndVerifyPragmas = Effect.fn("Database.setAndVerifyPragmas")(function* 
   const foreignKeysValue = toSqlitePragmaValue(firstRowValue(foreignKeys[0]));
 
   if (journalModeValue.toLowerCase() !== "wal") {
-    yield* Effect.dieMessage(
+    return yield* Effect.dieMessage(
       `SQLite startup invariant failed: journal_mode expected wal but received ${journalModeValue || "<empty>"}`,
     );
   }
 
   if (foreignKeysValue !== "1") {
-    yield* Effect.dieMessage(
+    return yield* Effect.dieMessage(
       `SQLite startup invariant failed: foreign_keys expected 1 but received ${foreignKeysValue || "<empty>"}`,
     );
   }
+
+  return undefined;
 });
 
 function toSqlitePragmaValue(value: unknown) {

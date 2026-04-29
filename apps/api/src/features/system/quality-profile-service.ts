@@ -106,7 +106,7 @@ const makeQualityProfileService = Effect.gen(function* () {
     const referencingAnime = yield* countAnimeUsingProfile(db, name);
 
     if (referencingAnime > 0) {
-      yield* new ConfigValidationError({
+      return yield* new ConfigValidationError({
         message: `Cannot delete profile '${name}': still referenced by ${referencingAnime} anime`,
       });
     }
@@ -119,6 +119,7 @@ const makeQualityProfileService = Effect.gen(function* () {
       `Quality profile '${name}' deleted`,
       nowIso,
     );
+    return undefined;
   });
 
   return {

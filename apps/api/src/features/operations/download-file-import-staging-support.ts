@@ -1,3 +1,4 @@
+// oxlint-disable typescript-eslint/consistent-return
 import { Cause, Effect } from "effect";
 
 import type { ImportMode } from "@packages/shared/index.ts";
@@ -35,18 +36,16 @@ export const stageSourceIntoTempFile = Effect.fn("Operations.stageSourceIntoTemp
     );
 
     if (cleanupResult._tag === "Left") {
-      yield* new ImportFileError({
+      return yield* new ImportFileError({
         message: `Failed to ${input.importMode} file to temp destination and cleanup temp file`,
         cause: Cause.sequential(Cause.fail(stageResult.left), Cause.fail(cleanupResult.left)),
       });
-      return;
     }
 
-    yield* new ImportFileError({
+    return yield* new ImportFileError({
       message: `Failed to ${input.importMode} file to temp destination`,
       cause: stageResult.left,
     });
-    return;
   },
 );
 
@@ -79,14 +78,12 @@ const stageMoveAcrossFilesystems = Effect.fn("Operations.stageMoveAcrossFilesyst
   const cleanupResult = yield* Effect.either(removeStagedTempFileStrict(fs, tempDestination));
 
   if (cleanupResult._tag === "Left") {
-    yield* Effect.failCause(
+    return yield* Effect.failCause(
       Cause.sequential(Cause.fail(removeResult.left), Cause.fail(cleanupResult.left)),
     );
-    return;
   }
 
-  yield* removeResult.left;
-  return;
+  return yield* removeResult.left;
 });
 
 function removeStagedTempFileStrict(fs: FileSystemShape, tempDestination: string) {

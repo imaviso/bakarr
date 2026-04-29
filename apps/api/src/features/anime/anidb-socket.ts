@@ -20,7 +20,11 @@ export const openAniDbSocketEffect = Effect.fn("AniDbClient.openSocket")(functio
     const socket = createSocket("udp4");
 
     const closeSocket = () => {
-      Effect.runSync(Effect.ignore(Effect.sync(() => socket.close())));
+      try {
+        socket.close();
+      } catch {
+        // Socket may already be closed by the error path.
+      }
     };
 
     const cleanup = () => {

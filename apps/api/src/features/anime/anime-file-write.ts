@@ -48,7 +48,7 @@ export const deleteEpisodeFileEffect = Effect.fn("AnimeFileWrite.deleteEpisodeFi
       const animeRoot = yield* loadAnimeRoot(input.fs, animeRow.rootFolder);
 
       if (!isWithinPathRoot(resolvedPath, animeRoot)) {
-        yield* new AnimePathError({
+        return yield* new AnimePathError({
           message: "File path is not within the anime root folder",
         });
       }
@@ -65,6 +65,7 @@ export const deleteEpisodeFileEffect = Effect.fn("AnimeFileWrite.deleteEpisodeFi
     }
 
     yield* clearEpisodeMappingEffect(input.db, input.animeId, input.episodeNumber);
+    return undefined;
   },
 );
 

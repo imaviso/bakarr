@@ -48,8 +48,7 @@ const makeAuthCredentialService = Effect.gen(function* () {
     const rowOption = yield* findUserById(db, userId);
 
     if (Option.isNone(rowOption)) {
-      yield* AuthError.make({ message: "User not found", status: 404 });
-      return;
+      return yield* AuthError.make({ message: "User not found", status: 404 });
     }
 
     const row = rowOption.value;
@@ -57,19 +56,17 @@ const makeAuthCredentialService = Effect.gen(function* () {
     const verified = yield* verifyPassword(request.current_password, row.passwordHash);
 
     if (!verified) {
-      yield* AuthError.make({
+      return yield* AuthError.make({
         message: "Current password is incorrect",
         status: 401,
       });
-      return;
     }
 
     if (!request.new_password || request.new_password.length < 8) {
-      yield* AuthError.make({
+      return yield* AuthError.make({
         message: "New password must be at least 8 characters",
         status: 400,
       });
-      return;
     }
 
     const passwordHash = yield* hashPassword(request.new_password);
@@ -84,6 +81,7 @@ const makeAuthCredentialService = Effect.gen(function* () {
     });
 
     yield* eventBus.publish({ type: "PasswordChanged" });
+    return undefined;
   });
 
   const getApiKey = Effect.fn("AuthCredentialService.getApiKey")(function* (userId: number) {

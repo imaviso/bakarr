@@ -75,10 +75,9 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
     const [row] = rows;
 
     if (!row) {
-      yield* new DownloadNotFoundError({
+      return yield* new DownloadNotFoundError({
         message: "Download not found",
       });
-      return;
     }
 
     if (row.infoHash) {
@@ -149,6 +148,7 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
         nowIso,
       );
     }
+    return undefined;
   });
 
   const retryDownloadById = Effect.fn("OperationsService.retryDownloadById")(function* (
@@ -160,17 +160,15 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
     const [row] = rows;
 
     if (!row) {
-      yield* new DownloadNotFoundError({
+      return yield* new DownloadNotFoundError({
         message: "Download not found",
       });
-      return;
     }
 
     if (!row.magnet) {
-      yield* new DownloadConflictError({
+      return yield* new DownloadConflictError({
         message: "Download cannot be retried without a magnet link",
       });
-      return;
     }
 
     const coveredEpisodes = yield* parseCoveredEpisodesEffect(row.coveredEpisodes);
@@ -179,8 +177,7 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
       .pipe(Effect.either);
 
     if (qbitResult._tag === "Left") {
-      yield* mapQBitError("Failed to retry download")(qbitResult.left);
-      return;
+      return yield* mapQBitError("Failed to retry download")(qbitResult.left);
     }
 
     const startedInQBit = qbitResult.right._tag === "Added";
@@ -218,6 +215,7 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
       },
       nowIso,
     );
+    return undefined;
   });
 
   return {

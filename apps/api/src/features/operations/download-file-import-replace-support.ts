@@ -1,3 +1,4 @@
+// oxlint-disable typescript-eslint/consistent-return
 import { Cause, Effect } from "effect";
 
 import { ImportFileError } from "@/features/operations/download-file-import-errors.ts";
@@ -69,18 +70,16 @@ export const replaceDestinationWithStagedFile = Effect.fn(
       }),
     );
 
-    yield* new ImportFileError({
+    return yield* new ImportFileError({
       message: "Failed to rename temp file to destination and restore backup",
       cause: Cause.sequential(Cause.fail(commitResult.left), Cause.fail(restoreResult.left)),
     });
-    return;
   }
 
-  yield* new ImportFileError({
+  return yield* new ImportFileError({
     message: "Failed to rename temp file to destination",
     cause: commitResult.left,
   });
-  return;
 });
 
 const hasExistingFile = Effect.fn("Operations.hasExistingImportDestination")(function* (

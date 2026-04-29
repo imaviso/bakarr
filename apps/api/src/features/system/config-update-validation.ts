@@ -22,7 +22,7 @@ export const validateConfigUpdate = Effect.fn("ConfigUpdateValidation.validateCo
       const parsedCron = Cron.parse(cronExpression);
 
       if (Either.isLeft(parsedCron)) {
-        yield* new ConfigValidationError({
+        return yield* new ConfigValidationError({
           message: "Invalid scheduler cron expression",
         });
       }
@@ -39,10 +39,11 @@ export const validateConfigUpdate = Effect.fn("ConfigUpdateValidation.validateCo
       const referencingAnime = yield* input.countAnimeUsingProfile(removedProfileName);
 
       if (referencingAnime > 0) {
-        yield* new ConfigValidationError({
+        return yield* new ConfigValidationError({
           message: `Cannot remove profile '${removedProfileName}': still referenced by ${referencingAnime} anime`,
         });
       }
     }
+    return undefined;
   },
 );

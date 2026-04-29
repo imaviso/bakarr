@@ -39,17 +39,15 @@ export function makeBackgroundWorkerSpawner(input: {
     exit: Exit.Exit<void, E>,
   ) {
     if (exit._tag === "Success") {
-      return;
+      return undefined;
     }
 
     if (Cause.isInterruptedOnly(exit.cause)) {
-      yield* Effect.interrupt;
-      return;
+      return yield* Effect.interrupt;
     }
 
     if (Cause.isDie(exit.cause)) {
-      yield* Effect.failCause(exit.cause);
-      return;
+      return yield* Effect.failCause(exit.cause);
     }
 
     yield* Effect.logWarning("background worker run failed; keeping daemon alive").pipe(
@@ -62,6 +60,8 @@ export function makeBackgroundWorkerSpawner(input: {
         }),
       ),
     );
+
+    return undefined;
   });
 
   const resilientRun = <E, R>(workerName: BackgroundWorkerName, task: Effect.Effect<void, E, R>) =>
@@ -133,12 +133,12 @@ export const withLockEffectOrFail = Effect.fn("Background.withLockEffectOrFail")
 
     if (exit._tag === "Success") {
       yield* monitor.markRunSucceeded(workerName, durationMs);
-      return;
+      return undefined;
     }
 
     if (Cause.isInterruptedOnly(exit.cause)) {
       yield* monitor.markRunInterrupted(workerName);
-      return;
+      return undefined;
     }
 
     const timeoutErrorOption = getWorkerTimeoutError(exit.cause);
@@ -170,8 +170,7 @@ export const withLockEffectOrFail = Effect.fn("Background.withLockEffectOrFail")
       ),
     );
 
-    yield* Effect.failCause(exit.cause);
-    return;
+    return yield* Effect.failCause(exit.cause);
   });
 
   return yield* makeSkippingSerializedEffectRunner(monitoredTask).pipe(

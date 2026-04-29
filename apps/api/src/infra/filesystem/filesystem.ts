@@ -339,10 +339,7 @@ const resolvePath = (
   return Effect.succeed(path.toString());
 };
 
-function resolveSeekMode(
-  _path: string | URL,
-  mode: number,
-): Effect.Effect<"current" | "start", never> {
+function resolveSeekMode(_path: string | URL, mode: number): Effect.Effect<"current" | "start"> {
   if (mode === 0) {
     return Effect.succeed("start");
   }

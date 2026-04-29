@@ -18,10 +18,12 @@ export const checkAnimeExistsEffect = Effect.fn("AnimeAddValidation.checkAnimeEx
   );
 
   if (existing[0]) {
-    yield* new AnimeConflictError({
+    return yield* new AnimeConflictError({
       message: "Anime already exists",
     });
   }
+
+  return undefined;
 });
 
 export const requireAnimeMetadataEffect = <T>(
@@ -38,10 +40,12 @@ export const checkProfileExistsEffect = Effect.fn("AnimeAddValidation.checkProfi
     const profileExists = yield* qualityProfileExistsEffect(db, profileName);
 
     if (!profileExists) {
-      yield* new ProfileNotFoundError({
+      return yield* new ProfileNotFoundError({
         message: `Quality profile '${profileName}' not found`,
       });
     }
+
+    return undefined;
   },
 );
 
@@ -51,10 +55,12 @@ export const checkRootFolderNotOwnedEffect = Effect.fn(
   const existingRootOwner = yield* findAnimeRootFolderOwnerEffect(db, rootFolder);
 
   if (existingRootOwner) {
-    yield* new AnimeConflictError({
+    return yield* new AnimeConflictError({
       message: `Folder is already mapped to ${existingRootOwner.titleRomaji}`,
     });
   }
+
+  return undefined;
 });
 
 export const fetchPersistedEpisodeRowsEffect = Effect.fn(

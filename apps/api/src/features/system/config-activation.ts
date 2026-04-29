@@ -1,3 +1,4 @@
+// oxlint-disable typescript-eslint/consistent-return
 import { Effect, Schema } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
@@ -65,12 +66,10 @@ export const persistAndActivateConfig = Effect.fn(
 
   if (rollbackResult._tag === "Left") {
     yield* recordEvent("config.rollback_failed", rollbackResult.left);
-    yield* rollbackResult.left;
-    return;
+    return yield* rollbackResult.left;
   }
 
-  yield* Effect.fail(activationResult.left);
-  return;
+  return yield* Effect.fail(activationResult.left);
 });
 
 function defaultRecordConfigActivationEvent(event: ConfigActivationEvent, error?: unknown) {

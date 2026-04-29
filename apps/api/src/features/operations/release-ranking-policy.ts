@@ -16,15 +16,13 @@ export const validateQualityProfileSizeLabels = Effect.fn(
   const minSizeBytesResult = parseSizeLabelToBytes(profile.min_size);
 
   if (Either.isLeft(minSizeBytesResult)) {
-    yield* minSizeBytesResult.left;
-    return;
+    return yield* minSizeBytesResult.left;
   }
 
   const maxSizeBytesResult = parseSizeLabelToBytes(profile.max_size);
 
   if (Either.isLeft(maxSizeBytesResult)) {
-    yield* maxSizeBytesResult.left;
-    return;
+    return yield* maxSizeBytesResult.left;
   }
 
   const minSizeOption = minSizeBytesResult.right;
@@ -35,10 +33,12 @@ export const validateQualityProfileSizeLabels = Effect.fn(
     Option.isSome(maxSizeOption) &&
     minSizeOption.value > maxSizeOption.value
   ) {
-    yield* new OperationsInputError({
+    return yield* new OperationsInputError({
       message: "Quality profile min_size cannot exceed max_size",
     });
   }
+
+  return undefined;
 });
 
 export function compareEpisodeSearchResults(
