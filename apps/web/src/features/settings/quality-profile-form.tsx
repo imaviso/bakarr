@@ -41,7 +41,7 @@ const SizeFieldSchema = Schema.UndefinedOr(
   ),
 );
 
-function validateSizeField(value: unknown): string | undefined {
+function validateSizeField({ value }: { value: unknown }): string | undefined {
   const result = Schema.decodeUnknownEither(SizeFieldSchema)(value);
   if (result._tag === "Right") return undefined;
   return "Must be format like '500 MB' or '2.5 GB'";
