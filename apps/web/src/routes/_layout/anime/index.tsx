@@ -25,7 +25,7 @@ import {
 } from "~/components/ui/dropdown-menu";
 import { Input } from "~/components/ui/input";
 import { Separator } from "~/components/ui/separator";
-import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
+
 import { animeListQueryOptions } from "~/api/anime";
 import { useDeleteAnimeMutation } from "~/api/anime-mutations";
 import { systemConfigQueryOptions } from "~/api/system-config";
@@ -192,70 +192,50 @@ function AnimeIndexPage() {
 
           <Separator orientation="vertical" className="h-6" />
 
-          <Tooltip>
-            <TooltipTrigger>
-              <Link
-                to="/anime/import"
-                className={buttonVariants({ variant: "outline", size: "icon" })}
-                aria-label="Import from folder"
-              >
-                <FolderOpenIcon className="h-4 w-4" />
-              </Link>
-            </TooltipTrigger>
-            <TooltipContent>Import from folder</TooltipContent>
-          </Tooltip>
+          <Link
+            to="/anime/import"
+            className={buttonVariants({ variant: "outline", size: "icon" })}
+            aria-label="Import from folder"
+          >
+            <FolderOpenIcon className="h-4 w-4" />
+          </Link>
 
-          <Tooltip>
-            <TooltipTrigger>
-              <Link
-                to="/anime/scan"
-                className={buttonVariants({ variant: "outline", size: "icon" })}
-                aria-label="Scan library"
-              >
-                <FolderIcon className="h-4 w-4" />
-              </Link>
-            </TooltipTrigger>
-            <TooltipContent>Scan library</TooltipContent>
-          </Tooltip>
+          <Link
+            to="/anime/scan"
+            className={buttonVariants({ variant: "outline", size: "icon" })}
+            aria-label="Scan library"
+          >
+            <FolderIcon className="h-4 w-4" />
+          </Link>
 
           <Separator orientation="vertical" className="h-6" />
 
           <div className="flex items-center gap-1 bg-muted p-1">
-            <Tooltip>
-              <TooltipTrigger>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn(
-                    "relative after:absolute after:-inset-2 h-7 w-7",
-                    view === "grid" ? "bg-background " : "hover:bg-background",
-                  )}
-                  aria-label="Grid view"
-                  onClick={() => updateView("grid")}
-                >
-                  <SquaresFourIcon className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Grid view</TooltipContent>
-            </Tooltip>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "relative after:absolute after:-inset-2 h-7 w-7",
+                view === "grid" ? "bg-background " : "hover:bg-background",
+              )}
+              aria-label="Grid view"
+              onClick={() => updateView("grid")}
+            >
+              <SquaresFourIcon className="h-4 w-4" />
+            </Button>
 
-            <Tooltip>
-              <TooltipTrigger>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn(
-                    "relative after:absolute after:-inset-2 h-7 w-7",
-                    view === "list" ? "bg-background " : "hover:bg-background",
-                  )}
-                  aria-label="List view"
-                  onClick={() => updateView("list")}
-                >
-                  <ListIcon className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>List view</TooltipContent>
-            </Tooltip>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "relative after:absolute after:-inset-2 h-7 w-7",
+                view === "list" ? "bg-background " : "hover:bg-background",
+              )}
+              aria-label="List view"
+              onClick={() => updateView("list")}
+            >
+              <ListIcon className="h-4 w-4" />
+            </Button>
           </div>
         </div>
       </div>
