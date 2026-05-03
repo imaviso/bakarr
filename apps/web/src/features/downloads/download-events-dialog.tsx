@@ -12,8 +12,8 @@ import {
 } from "~/components/ui/dialog";
 import { DownloadEventDetailsDialog } from "~/features/downloads/download-event-details-dialog";
 import {
-  createDownloadEventsExportMutation,
-  createDownloadEventsQuery,
+  useDownloadEventsExportMutation,
+  useDownloadEventsQuery,
 } from "~/api/system-download-events";
 import type {
   DownloadEvent,
@@ -58,8 +58,8 @@ export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
     ...(props.downloadId === undefined ? {} : { downloadId: props.downloadId }),
     ...(props.eventType === undefined ? {} : { eventType: props.eventType }),
   };
-  const query = createDownloadEventsQuery(queryInput, { enabled: open });
-  const exportDownloadEvents = createDownloadEventsExportMutation();
+  const query = useDownloadEventsQuery(queryInput, { enabled: open });
+  const exportDownloadEvents = useDownloadEventsExportMutation();
   const exportBaseInput = {
     ...(props.animeId === undefined ? {} : { animeId: props.animeId }),
     ...(props.downloadId === undefined ? {} : { downloadId: props.downloadId }),

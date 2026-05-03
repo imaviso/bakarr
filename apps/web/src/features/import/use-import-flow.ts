@@ -4,9 +4,9 @@ import { toast } from "sonner";
 import type { AnimeSearchResult, ImportFileRequest, ScannedFile } from "~/api/contracts";
 import { animeListQueryOptions } from "~/api/anime";
 import {
-  createImportCandidateSelectionMutation,
-  createImportFilesMutation,
-  createScanImportPathMutation,
+  useImportCandidateSelectionMutation,
+  useImportFilesMutation,
+  useScanImportPathMutation,
 } from "~/api/system-library";
 import { buildImportFileRequest, findMissingImportCandidates } from "./import-flow";
 import { createImportDropzoneHandlers } from "./import-dropzone";
@@ -155,9 +155,9 @@ function reducer(state: State, action: Action): State {
 export function useImportFlow(options: ImportFlowOptions = {}) {
   const [state, dispatch] = useReducer(reducer, initialState);
 
-  const scanMutation = createScanImportPathMutation();
-  const importMutation = createImportFilesMutation();
-  const importSelectionMutation = createImportCandidateSelectionMutation();
+  const scanMutation = useScanImportPathMutation();
+  const importMutation = useImportFilesMutation();
+  const importSelectionMutation = useImportCandidateSelectionMutation();
   const { data: animeList } = useSuspenseQuery(animeListQueryOptions());
 
   const scannedFiles = [...(scanMutation.data?.files ?? [])].toSorted((a, b) => {

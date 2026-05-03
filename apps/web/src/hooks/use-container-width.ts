@@ -3,6 +3,7 @@ import { useCallback, useRef, useState } from "react";
 export function useContainerWidth() {
   const [width, setWidth] = useState(0);
   const roRef = useRef<ResizeObserver | null>(null);
+  const rafRef = useRef<number>(0);
   const nodeRef = useRef<HTMLElement | null>(null);
 
   const ref = useCallback((node: HTMLElement | null) => {
@@ -10,6 +11,10 @@ export function useContainerWidth() {
     if (roRef.current) {
       roRef.current.disconnect();
       roRef.current = null;
+    }
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = 0;
     }
     if (!node) return;
 
@@ -19,7 +24,11 @@ export function useContainerWidth() {
     });
     ro.observe(node);
     roRef.current = ro;
-    setWidth(Math.round(node.getBoundingClientRect().width));
+    rafRef.current = requestAnimationFrame(() => {
+      if (nodeRef.current === node) {
+        setWidth(Math.round(node.getBoundingClientRect().width));
+      }
+    });
   }, []);
 
   return [ref, width, nodeRef] as const;

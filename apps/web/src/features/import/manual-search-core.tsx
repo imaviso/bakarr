@@ -6,12 +6,12 @@ import {
   PlusIcon,
   MagnifyingGlassIcon,
 } from "@phosphor-icons/react";
-import { useDeferredValue, useRef, useState } from "react";
+import { useDeferredValue, useMemo, useRef, useState } from "react";
 import { AnimeDiscoveryRow } from "~/features/anime/anime-discovery";
 import { Badge } from "~/components/ui/badge";
 import { Input } from "~/components/ui/input";
 import type { AnimeSearchResult } from "~/api/contracts";
-import { createAnimeSearchQuery } from "~/api/anime";
+import { useAnimeSearchQuery } from "~/api/anime";
 import { animeDisplayTitle, animeSearchSubtitle } from "~/domain/anime/metadata";
 import { formatMatchConfidence } from "~/domain/scanned-file";
 import { cn } from "~/infra/utils";
@@ -31,14 +31,16 @@ export function ManualSearchCore(props: ManualSearchCoreProps) {
   const [query, setQuery] = useState("");
   const debouncedQuery = useDeferredValue(query);
 
-  const search = createAnimeSearchQuery(debouncedQuery);
+  const search = useAnimeSearchQuery(debouncedQuery);
   const searchResults = search.data?.results ?? [];
   const searchDegraded = search.data?.degraded ?? false;
-  const existing = props.existingIds ? [...props.existingIds] : [];
-  const discovered = (search.data?.results ?? [])
-    .filter((anime) => anime.already_in_library)
-    .map((anime) => anime.id);
-  const libraryIds = new Set([...existing, ...discovered]);
+  const libraryIds = useMemo(() => {
+    const ids = new Set(props.existingIds);
+    for (const anime of search.data?.results ?? []) {
+      if (anime.already_in_library) ids.add(anime.id);
+    }
+    return ids;
+  }, [props.existingIds, search.data?.results]);
 
   return (
     <div className="space-y-4">

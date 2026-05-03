@@ -4,20 +4,20 @@ import { useSystemSettingsForm } from "~/features/settings/system-settings-form-
 import { SystemSettingsGeneralSections } from "~/features/settings/system-settings-general-sections";
 import { type ConfigSettingsMode } from "~/features/settings/system-settings-schema";
 import { Button } from "~/components/ui/button";
-import { createSystemTaskQuery, isTaskActive } from "~/api/operations-tasks";
+import { useSystemTaskQuery, isTaskActive } from "~/api/operations-tasks";
 import {
   systemConfigQueryOptions,
-  createSystemStatusQuery,
-  createTriggerMetadataRefreshMutation,
-  createTriggerRssCheckMutation,
-  createTriggerScanMutation,
-  createUpdateSystemConfigMutation,
+  useSystemStatusQuery,
+  useTriggerMetadataRefreshMutation,
+  useTriggerRssCheckMutation,
+  useTriggerScanMutation,
+  useUpdateSystemConfigMutation,
 } from "~/api/system-config";
 import type { Config } from "~/api/contracts";
 
 export function GeneralSettingsForm(props: { mode: ConfigSettingsMode }) {
   const { data: config } = useSuspenseQuery(systemConfigQueryOptions());
-  const updateConfig = createUpdateSystemConfigMutation();
+  const updateConfig = useUpdateSystemConfigMutation();
 
   return (
     <SystemForm
@@ -42,13 +42,13 @@ function SystemForm(props: {
     onSubmit: props.onSubmit,
   });
 
-  const systemStatus = createSystemStatusQuery();
-  const triggerScan = createTriggerScanMutation();
-  const triggerRss = createTriggerRssCheckMutation();
-  const triggerMetadataRefresh = createTriggerMetadataRefreshMutation();
+  const systemStatus = useSystemStatusQuery();
+  const triggerScan = useTriggerScanMutation();
+  const triggerRss = useTriggerRssCheckMutation();
+  const triggerMetadataRefresh = useTriggerMetadataRefreshMutation();
   const latestSystemTaskId =
     triggerMetadataRefresh.data?.task_id ?? triggerRss.data?.task_id ?? triggerScan.data?.task_id;
-  const latestSystemTask = createSystemTaskQuery(latestSystemTaskId);
+  const latestSystemTask = useSystemTaskQuery(latestSystemTaskId);
   const isSystemTaskRunning =
     latestSystemTask.data !== undefined && isTaskActive(latestSystemTask.data);
   const showsGeneral = props.mode === "general";

@@ -35,8 +35,8 @@ import {
   DialogTitle,
 } from "~/components/ui/dialog";
 import {
-  createBulkControlUnmappedFoldersMutation,
-  createScanLibraryMutation,
+  useBulkControlUnmappedFoldersMutation,
+  useScanLibraryMutation,
   unmappedFoldersQueryOptions,
 } from "~/api/system-library";
 import { systemJobsQueryOptions } from "~/api/system-config";
@@ -64,8 +64,8 @@ function LibraryScanPage() {
   usePageTitle("Library Scan");
   const scanState = useSuspenseQuery(unmappedFoldersQueryOptions()).data;
   const systemJobs = useSuspenseQuery(systemJobsQueryOptions()).data;
-  const bulkControlMutation = createBulkControlUnmappedFoldersMutation();
-  const scanMutation = createScanLibraryMutation();
+  const bulkControlMutation = useBulkControlUnmappedFoldersMutation();
+  const scanMutation = useScanLibraryMutation();
   const navigate = useNavigate();
   const [confirmBulkAction, setConfirmBulkAction] = useState<
     null | "pause_queued" | "reset_failed"
@@ -140,7 +140,7 @@ function LibraryScanPage() {
   };
 
   return (
-    <div className="flex flex-1 min-h-0 min-w-0 flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,hsl(var(--info)/0.12),transparent_34%),radial-gradient(circle_at_top_right,hsl(var(--primary)/0.08),transparent_28%)]">
+    <div className="flex flex-1 min-h-0 min-w-0 flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,oklch(var(--info)_/_0.12),transparent_34%),radial-gradient(circle_at_top_right,hsl(var(--primary)/0.08),transparent_28%)]">
       <ScanPageHeader
         foldersCount={folderList.length}
         counts={counts}
@@ -210,7 +210,7 @@ interface ScanPageHeaderProps {
 
 function ScanPageHeader(props: ScanPageHeaderProps) {
   return (
-    <div className="sticky top-0 z-10 shrink-0 border-b bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/70">
+    <div className="sticky top-0 z-10 shrink-0 border-b bg-background">
       <div className="px-6 py-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="space-y-3">

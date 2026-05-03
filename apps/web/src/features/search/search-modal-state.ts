@@ -1,5 +1,5 @@
-import { createEpisodeSearchQuery } from "~/api/anime";
-import { createGrabReleaseMutation } from "~/api/anime-mutations";
+import { useEpisodeSearchQuery } from "~/api/anime";
+import { useGrabReleaseMutation } from "~/api/anime-mutations";
 import type { EpisodeSearchResult } from "~/api/contracts";
 import { buildGrabInputFromEpisodeResult } from "~/domain/release/grab";
 
@@ -11,12 +11,8 @@ interface SearchModalStateOptions {
 }
 
 export function useSearchModalState(options: SearchModalStateOptions) {
-  const searchQuery = createEpisodeSearchQuery(
-    options.animeId,
-    options.episodeNumber,
-    options.open,
-  );
-  const grabRelease = createGrabReleaseMutation();
+  const searchQuery = useEpisodeSearchQuery(options.animeId, options.episodeNumber, options.open);
+  const grabRelease = useGrabReleaseMutation();
 
   const handleDownload = (release: EpisodeSearchResult) => {
     const payload = buildGrabInputFromEpisodeResult({

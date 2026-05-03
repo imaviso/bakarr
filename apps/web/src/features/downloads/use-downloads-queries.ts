@@ -5,7 +5,7 @@ import type {
   DownloadsSearchPatch,
   DownloadsSearchState,
 } from "~/features/downloads/downloads-search";
-import { createDownloadEventsQuery } from "~/api/system-download-events";
+import { useDownloadEventsQuery } from "~/api/system-download-events";
 import { downloadHistoryQueryOptions } from "~/api/system-downloads";
 import { DOWNLOADS_EVENTS_SEARCH_KEYS } from "~/domain/download/events-search";
 
@@ -23,7 +23,7 @@ export function useDownloadsQueries(options: UseDownloadsQueriesOptions) {
 
   const queue = useActiveDownloads();
   const { data: history } = useSuspenseQuery(downloadHistoryQueryOptions());
-  const downloadEventsQuery = createDownloadEventsQuery(eventsSearchState.queryInput);
+  const downloadEventsQuery = useDownloadEventsQuery(eventsSearchState.queryInput);
 
   const canGoToPreviousEventsPage = Boolean(downloadEventsQuery.data?.prev_cursor);
   const canGoToNextEventsPage = Boolean(downloadEventsQuery.data?.next_cursor);

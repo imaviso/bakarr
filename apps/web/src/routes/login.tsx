@@ -1,21 +1,15 @@
 import { useForm } from "@tanstack/react-form";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useId } from "react";
 import type { FormEvent } from "react";
 import { toast } from "sonner";
 import { Schema } from "effect";
 import { Button } from "~/components/ui/button";
 import { errorMessage } from "~/api/effect/errors";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "~/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
-import { createApiKeyLoginMutation, createLoginMutation } from "~/api/auth";
+import { useApiKeyLoginMutation, useLoginMutation } from "~/api/auth";
 import { useAuth } from "~/app/auth";
 
 const LoginSearchSchema = Schema.Struct({
@@ -66,8 +60,12 @@ function LoginPage() {
   const { syncAuthenticatedUser } = useAuth();
   const navigate = useNavigate();
   const search = Route.useSearch();
-  const loginMutation = createLoginMutation();
-  const apiKeyLoginMutation = createApiKeyLoginMutation();
+  const loginMutation = useLoginMutation();
+  const apiKeyLoginMutation = useApiKeyLoginMutation();
+
+  const usernameErrorId = useId();
+  const passwordErrorId = useId();
+  const apiKeyErrorId = useId();
 
   const goToPostLogin = () => {
     const redirect = sanitizeRedirect(search.redirect);
@@ -141,13 +139,11 @@ function LoginPage() {
   };
 
   return (
-    <div className="h-dvh overflow-y-auto bg-background p-4">
+    <main className="h-dvh overflow-y-auto bg-background p-4">
       <div className="flex min-h-full items-center justify-center">
         <Card className="w-full max-w-[400px] p-2 bg-card">
           <CardHeader className="text-center pb-6 mb-4">
-            <CardTitle className="text-2xl font-semibold tracking-tight text-foreground">
-              Bakarr
-            </CardTitle>
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Bakarr</h1>
             <CardDescription className="text-sm text-muted-foreground mt-1">
               Sign in to your account
             </CardDescription>
@@ -166,9 +162,12 @@ function LoginPage() {
                       onBlur={field.handleBlur}
                       placeholder="admin"
                       autoComplete="username"
+                      aria-describedby={
+                        field.state.meta.errors.length > 0 ? usernameErrorId : undefined
+                      }
                     />
                     {field.state.meta.errors.length > 0 && (
-                      <p className="text-xs text-destructive">
+                      <p id={usernameErrorId} className="text-xs text-destructive">
                         {formatFieldErrors(field.state.meta.errors)}
                       </p>
                     )}
@@ -186,9 +185,12 @@ function LoginPage() {
                       onChange={(e) => field.handleChange(e.currentTarget.value)}
                       onBlur={field.handleBlur}
                       autoComplete="current-password"
+                      aria-describedby={
+                        field.state.meta.errors.length > 0 ? passwordErrorId : undefined
+                      }
                     />
                     {field.state.meta.errors.length > 0 && (
-                      <p className="text-xs text-destructive">
+                      <p id={passwordErrorId} className="text-xs text-destructive">
                         {formatFieldErrors(field.state.meta.errors)}
                       </p>
                     )}
@@ -231,9 +233,12 @@ function LoginPage() {
                       onBlur={field.handleBlur}
                       placeholder="Paste API key"
                       autoComplete="off"
+                      aria-describedby={
+                        field.state.meta.errors.length > 0 ? apiKeyErrorId : undefined
+                      }
                     />
                     {field.state.meta.errors.length > 0 && (
-                      <p className="text-xs text-destructive">
+                      <p id={apiKeyErrorId} className="text-xs text-destructive">
                         {formatFieldErrors(field.state.meta.errors)}
                       </p>
                     )}
@@ -265,6 +270,6 @@ function LoginPage() {
           </form>
         </Card>
       </div>
-    </div>
+    </main>
   );
 }

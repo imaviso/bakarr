@@ -73,14 +73,14 @@ export function EpisodeTableRow(props: EpisodeTableRowProps) {
         <div className="flex justify-end pr-2">
           {episode.downloaded ? (
             <Tooltip>
-              <TooltipTrigger>
+              <TooltipTrigger aria-label="Downloaded">
                 <CheckCircleIcon className="h-4 w-4 text-success" />
               </TooltipTrigger>
               <TooltipContent>Downloaded - {episode.file_path?.split("/").pop()}</TooltipContent>
             </Tooltip>
           ) : (
             <Tooltip>
-              <TooltipTrigger>
+              <TooltipTrigger aria-label={isAired(episode.aired) ? "Missing" : "Upcoming"}>
                 <XIcon
                   className={cn(
                     "h-4 w-4",

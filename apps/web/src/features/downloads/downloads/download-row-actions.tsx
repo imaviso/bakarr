@@ -8,11 +8,11 @@ import {
 import { DownloadEventsDialog } from "~/features/downloads/download-events-dialog";
 import { Button } from "~/components/ui/button";
 import {
-  createDeleteDownloadMutation,
-  createPauseDownloadMutation,
-  createReconcileDownloadMutation,
-  createResumeDownloadMutation,
-  createRetryDownloadMutation,
+  useDeleteDownloadMutation,
+  usePauseDownloadMutation,
+  useReconcileDownloadMutation,
+  useResumeDownloadMutation,
+  useRetryDownloadMutation,
 } from "~/api/system-downloads";
 import { formatDateTime } from "~/domain/date-time";
 
@@ -23,9 +23,9 @@ interface ActiveDownloadActionsProps {
 }
 
 export function ActiveDownloadActions(props: ActiveDownloadActionsProps) {
-  const pauseDownload = createPauseDownloadMutation();
-  const resumeDownload = createResumeDownloadMutation();
-  const retryDownload = createRetryDownloadMutation();
+  const pauseDownload = usePauseDownloadMutation();
+  const resumeDownload = useResumeDownloadMutation();
+  const retryDownload = useRetryDownloadMutation();
   const allowedActions = props.allowedActions ?? [];
 
   const handlePause = () => {
@@ -113,9 +113,9 @@ interface HistoryDownloadActionsProps {
 }
 
 export function HistoryDownloadActions(props: HistoryDownloadActionsProps) {
-  const retryDownload = createRetryDownloadMutation();
-  const reconcileDownload = createReconcileDownloadMutation();
-  const deleteDownload = createDeleteDownloadMutation();
+  const retryDownload = useRetryDownloadMutation();
+  const reconcileDownload = useReconcileDownloadMutation();
+  const deleteDownload = useDeleteDownloadMutation();
   const allowedActions = props.allowedActions ?? [];
 
   const handleRetry = () => {

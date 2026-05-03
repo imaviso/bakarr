@@ -23,7 +23,7 @@ import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Switch } from "~/components/ui/switch";
-import { createDeleteProfileMutation, profilesQueryOptions } from "~/api/profiles";
+import { useDeleteProfileMutation, profilesQueryOptions } from "~/api/profiles";
 import type { QualityProfile } from "~/api/contracts";
 
 interface QualityProfileCardProps {
@@ -142,7 +142,7 @@ export function QualityProfilesTab() {
   const [isCreating, setIsCreating] = useState(false);
 
   const { data: profiles } = useSuspenseQuery(profilesQueryOptions());
-  const deleteProfile = createDeleteProfileMutation();
+  const deleteProfile = useDeleteProfileMutation();
 
   return (
     <>

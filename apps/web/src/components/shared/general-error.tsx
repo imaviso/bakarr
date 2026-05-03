@@ -1,6 +1,6 @@
 import { WarningCircleIcon, ArrowLeftIcon } from "@phosphor-icons/react";
 import { useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { Button } from "~/components/ui/button";
 
 interface GeneralErrorProps {
@@ -8,6 +8,7 @@ interface GeneralErrorProps {
 }
 
 export function GeneralError(props: GeneralErrorProps) {
+  const navigate = useNavigate();
   const [showDetails, setShowDetails] = useState(false);
 
   return (
@@ -50,12 +51,10 @@ export function GeneralError(props: GeneralErrorProps) {
           <Button variant="outline" className="group" onClick={() => globalThis.location.reload()}>
             Refresh Page
           </Button>
-          <Link to="/">
-            <Button variant="ghost" className="group">
-              <ArrowLeftIcon className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" />
-              Back to Dashboard
-            </Button>
-          </Link>
+          <Button variant="ghost" className="group" onClick={() => navigate({ to: "/" })}>
+            <ArrowLeftIcon className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+            Back to Dashboard
+          </Button>
         </div>
       </div>
     </div>

@@ -9,7 +9,6 @@ import {
   SortDescendingIcon,
   StarIcon,
 } from "@phosphor-icons/react";
-
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import { DialogContent, DialogTitle } from "~/components/ui/dialog";
@@ -64,6 +63,10 @@ interface SearchDialogContentProps {
 }
 
 export function SearchDialogContent(props: SearchDialogContentProps) {
+  const handleGrab = () => {
+    props.setOpen(false);
+  };
+
   return (
     <DialogContent className="sm:max-w-7xl w-full h-[85vh] flex flex-col p-0 gap-0 border-none sm:rounded-none bg-background overflow-hidden">
       <DialogTitle className="sr-only">Search Releases</DialogTitle>
@@ -117,7 +120,7 @@ export function SearchDialogContent(props: SearchDialogContentProps) {
             query={props.debouncedQuery}
             category={props.category}
             filter={props.filter}
-            onGrab={() => props.setOpen(false)}
+            onGrab={handleGrab}
           />
         )}
       </div>

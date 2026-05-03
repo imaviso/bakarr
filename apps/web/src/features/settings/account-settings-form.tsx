@@ -26,7 +26,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { NotificationSettingsCard } from "~/features/settings/notification-settings-card";
-import { createChangePasswordMutation, createRegenerateApiKeyMutation } from "~/api/auth";
+import { useChangePasswordMutation, useRegenerateApiKeyMutation } from "~/api/auth";
 import { useAuth } from "~/app/auth";
 import { errorMessage } from "~/api/effect/errors";
 import { copyToClipboard } from "~/infra/utils";
@@ -57,8 +57,8 @@ function getFirstErrorMessage(errors: readonly unknown[]): string | undefined {
 
 export function AccountSettingsForm() {
   const { auth } = useAuth();
-  const changePassword = createChangePasswordMutation();
-  const regenerateApiKey = createRegenerateApiKeyMutation();
+  const changePassword = useChangePasswordMutation();
+  const regenerateApiKey = useRegenerateApiKeyMutation();
 
   const [visibility, setVisibility] = useState({
     currentPassword: false,

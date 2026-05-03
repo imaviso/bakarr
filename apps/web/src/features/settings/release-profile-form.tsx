@@ -14,10 +14,7 @@ import {
   SelectValue,
 } from "~/components/ui/select";
 import { Switch } from "~/components/ui/switch";
-import {
-  createCreateReleaseProfileMutation,
-  createUpdateReleaseProfileMutation,
-} from "~/api/profiles";
+import { useCreateReleaseProfileMutation, useUpdateReleaseProfileMutation } from "~/api/profiles";
 import type { ReleaseProfile } from "~/api/contracts";
 
 const ReleaseProfileSchema = Schema.Struct({
@@ -35,11 +32,9 @@ const ReleaseProfileSchema = Schema.Struct({
   ),
 });
 
-let ruleRowId = 0;
-
-function createRuleRowId() {
-  ruleRowId += 1;
-  return `release-rule-${ruleRowId}`;
+function createRuleRowId(ref: React.MutableRefObject<number>) {
+  ref.current += 1;
+  return `release-rule-${ref.current}`;
 }
 
 export function ReleaseProfileForm(props: {
@@ -47,10 +42,13 @@ export function ReleaseProfileForm(props: {
   onSuccess: () => void;
   profile?: ReleaseProfile;
 }) {
-  const createProfile = createCreateReleaseProfileMutation();
-  const updateProfile = createUpdateReleaseProfileMutation();
+  const createProfile = useCreateReleaseProfileMutation();
+  const updateProfile = useUpdateReleaseProfileMutation();
   const isEditing = !!props.profile;
-  const ruleRowIdsRef = useRef((props.profile?.rules ?? []).map(createRuleRowId));
+  const ruleRowIdCounterRef = useRef(0);
+  const ruleRowIdsRef = useRef(
+    (props.profile?.rules ?? []).map(() => createRuleRowId(ruleRowIdCounterRef)),
+  );
 
   const form = useForm({
     defaultValues: {
@@ -85,7 +83,7 @@ export function ReleaseProfileForm(props: {
       return existing;
     }
 
-    const next = createRuleRowId();
+    const next = createRuleRowId(ruleRowIdCounterRef);
     ruleRowIdsRef.current[index] = next;
     return next;
   };
@@ -173,7 +171,7 @@ export function ReleaseProfileForm(props: {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      ruleRowIdsRef.current.push(createRuleRowId());
+                      ruleRowIdsRef.current.push(createRuleRowId(ruleRowIdCounterRef));
                       field.pushValue({
                         term: "",
                         rule_type: "preferred",

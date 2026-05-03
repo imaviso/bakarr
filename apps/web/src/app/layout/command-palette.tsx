@@ -24,7 +24,7 @@ import {
 } from "~/components/ui/command";
 
 import { Kbd } from "~/components/ui/kbd";
-import { createAnimeListQuery } from "~/api/anime";
+import { useAnimeListQuery } from "~/api/anime";
 import { animeSearchSubtitle } from "~/domain/anime/metadata";
 import { cn } from "~/infra/utils";
 
@@ -42,7 +42,7 @@ const navigationRoutes = [
 
 function SearchResults(props: {
   inputValue: string;
-  animeList: ReturnType<typeof createAnimeListQuery>;
+  animeList: ReturnType<typeof useAnimeListQuery>;
   onSelect: (path: string) => void;
 }) {
   const query = props.inputValue.toLowerCase().trim();
@@ -148,7 +148,7 @@ export function CommandPalette() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  const animeList = createAnimeListQuery({ enabled: open });
+  const animeList = useAnimeListQuery({ enabled: open });
 
   const handleSelect = (path: string) => {
     setOpen(false);
@@ -160,6 +160,7 @@ export function CommandPalette() {
       <button
         type="button"
         onClick={() => setOpen(true)}
+        aria-label="Search library or navigate"
         className={cn(
           "flex w-full items-center gap-3 overflow-hidden rounded-none border border-border bg-muted px-3 py-2 text-left text-sm text-muted-foreground hover:bg-accent hover:text-foreground transition-colors",
           "group-data-[collapsible=icon]:!size-9 group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:bg-transparent",

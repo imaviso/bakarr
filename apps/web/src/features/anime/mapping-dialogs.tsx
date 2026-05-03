@@ -24,8 +24,8 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
-import { createBulkMapEpisodesMutation, createMapEpisodeMutation } from "~/api/anime-mutations";
-import { createListFilesQuery } from "~/api/anime";
+import { useBulkMapEpisodesMutation, useMapEpisodeMutation } from "~/api/anime-mutations";
+import { useListFilesQuery } from "~/api/anime";
 import type { Episode } from "~/api/contracts";
 import { cn } from "~/infra/utils";
 
@@ -44,8 +44,8 @@ interface ManualMappingDialogProps {
 }
 
 export function BulkMappingDialog(props: BulkMappingDialogProps) {
-  const filesQuery = createListFilesQuery(props.animeId, { enabled: props.open });
-  const bulkMapMutation = createBulkMapEpisodesMutation();
+  const filesQuery = useListFilesQuery(props.animeId, { enabled: props.open });
+  const bulkMapMutation = useBulkMapEpisodesMutation();
 
   const [mappings, setMappings] = useState<Record<number, string>>({});
 
@@ -160,8 +160,8 @@ export function BulkMappingDialog(props: BulkMappingDialogProps) {
 }
 
 export function ManualMappingDialog(props: ManualMappingDialogProps) {
-  const filesQuery = createListFilesQuery(props.animeId, { enabled: props.open });
-  const mapMutation = createMapEpisodeMutation();
+  const filesQuery = useListFilesQuery(props.animeId, { enabled: props.open });
+  const mapMutation = useMapEpisodeMutation();
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const files = filesQuery.data;
 

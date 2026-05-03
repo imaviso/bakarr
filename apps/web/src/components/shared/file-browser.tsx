@@ -14,7 +14,7 @@ import { Input } from "~/components/ui/input";
 import { Skeleton } from "~/components/ui/skeleton";
 import type { BrowseEntry } from "~/api/contracts";
 import { errorMessage } from "~/api/effect/errors";
-import { createBrowsePathQuery } from "~/api/system-library";
+import { useBrowsePathQuery } from "~/api/system-library";
 import { EmptyState } from "~/components/shared/empty-state";
 import { cn } from "~/infra/utils";
 
@@ -41,7 +41,7 @@ export function FileBrowser(props: FileBrowserProps) {
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [pageOffset, setPageOffset] = useState(0);
 
-  const browserQuery = createBrowsePathQuery(currentPath, {
+  const browserQuery = useBrowsePathQuery(currentPath, {
     limit: BROWSE_PAGE_SIZE,
     offset: pageOffset,
   });

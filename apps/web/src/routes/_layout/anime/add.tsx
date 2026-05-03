@@ -2,7 +2,7 @@ import { WarningIcon, TelevisionIcon, InfoIcon, MagnifyingGlassIcon } from "@pho
 import { createFileRoute } from "@tanstack/react-router";
 import { useNavigate } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { Suspense, lazy, useCallback, useEffect, useRef, useTransition } from "react";
+import { Suspense, lazy, useDeferredValue, useEffect, useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useContainerWidth } from "~/hooks/use-container-width";
 import { Schema } from "effect";
@@ -16,7 +16,7 @@ import type { AnimeSearchResult } from "~/api/contracts";
 import {
   animeByAnilistIdQueryOptions,
   animeListQueryOptions,
-  createAnimeSearchQuery,
+  useAnimeSearchQuery,
   seasonalAnimeInfiniteQueryOptions,
 } from "~/api/anime";
 import { profilesQueryOptions, releaseProfilesQueryOptions } from "~/api/profiles";
@@ -107,36 +107,34 @@ function AddAnimePage() {
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   usePageTitle("Add Anime");
   const search = Route.useSearch();
-  const [, startTransition] = useTransition();
 
   const anilistId = search.id ?? null;
 
   const query = search.q ?? "";
+  const deferredQuery = useDeferredValue(query);
   const activeTab = search.tab ?? "search";
   const selectedSeason = search.season ?? DEFAULT_SEASON_WINDOW.season;
   const selectedYear = search.year ?? DEFAULT_SEASON_WINDOW.year;
 
-  const searchQuery = createAnimeSearchQuery(query);
+  const searchQuery = useAnimeSearchQuery(deferredQuery);
   const searchResults = searchQuery.data?.results ?? [];
-  const canSearch = query.trim().length >= 3;
+  const canSearch = deferredQuery.trim().length >= 3;
   const searchDegraded = searchQuery.data?.degraded ?? false;
   const { data: animeList } = useSuspenseQuery(animeListQueryOptions());
   const libraryIds = new Set(animeList.map((anime) => anime.id));
 
   const updateSearch = (patch: Partial<AddAnimeSearch>) => {
     const mergedSearch = { ...search, ...patch };
-    startTransition(() => {
-      void navigate({
-        to: ".",
-        search: {
-          q: mergedSearch.q ?? "",
-          tab: mergedSearch.tab ?? "search",
-          season: mergedSearch.season ?? DEFAULT_SEASON_WINDOW.season,
-          year: String(mergedSearch.year ?? DEFAULT_SEASON_WINDOW.year),
-          ...(mergedSearch.id === undefined ? {} : { id: String(mergedSearch.id) }),
-        },
-        replace: true,
-      });
+    void navigate({
+      to: ".",
+      search: {
+        q: mergedSearch.q ?? "",
+        tab: mergedSearch.tab ?? "search",
+        season: mergedSearch.season ?? DEFAULT_SEASON_WINDOW.season,
+        year: String(mergedSearch.year ?? DEFAULT_SEASON_WINDOW.year),
+        ...(mergedSearch.id === undefined ? {} : { id: String(mergedSearch.id) }),
+      },
+      replace: true,
     });
   };
 
@@ -198,7 +196,7 @@ function AddAnimePage() {
             searchQuery={searchQuery}
             searchResults={searchResults}
             searchDegraded={searchDegraded}
-            debouncedQuery={query}
+            debouncedQuery={deferredQuery}
             libraryIds={libraryIds}
             onSelectAnime={handleSelectAnime}
           />
@@ -279,7 +277,7 @@ function getSearchColCount(w: number) {
 interface SearchResultsProps {
   active: boolean;
   canSearch: boolean;
-  searchQuery: ReturnType<typeof createAnimeSearchQuery>;
+  searchQuery: ReturnType<typeof useAnimeSearchQuery>;
   searchResults: AnimeSearchResult[];
   searchDegraded: boolean;
   debouncedQuery: string;
@@ -295,15 +293,11 @@ function SearchResults(props: SearchResultsProps) {
   const estimateRowSize = Math.round(colW * 1.5 + 68 + 16);
   const rowCount = Math.ceil(props.searchResults.length / colCount);
 
-  const getScrollElement = useCallback(() => nodeRef.current, [nodeRef]);
-
-  const estimateSize = useCallback(() => estimateRowSize, [estimateRowSize]);
-
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
-    estimateSize,
+    estimateSize: () => estimateRowSize,
     overscan: 4,
-    getScrollElement,
+    getScrollElement: () => nodeRef.current,
   });
 
   useEffect(() => {

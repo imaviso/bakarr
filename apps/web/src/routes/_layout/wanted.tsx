@@ -1,7 +1,7 @@
 import { DotsThreeIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Suspense, lazy, useCallback, useRef, useState } from "react";
+import { Suspense, lazy, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { EmptyState } from "~/components/shared/empty-state";
 import { GeneralError } from "~/components/shared/general-error";
@@ -23,8 +23,8 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
-import { createSystemTaskQuery, isTaskActive } from "~/api/operations-tasks";
-import { createSearchMissingMutation } from "~/api/system-downloads";
+import { useSystemTaskQuery, isTaskActive } from "~/api/operations-tasks";
+import { useSearchMissingMutation } from "~/api/system-downloads";
 import { systemConfigQueryOptions } from "~/api/system-config";
 import { wantedQueryOptions } from "~/api/system-wanted";
 import type { MissingEpisode } from "~/api/contracts";
@@ -62,20 +62,18 @@ function WantedPage() {
   const [latestMissingSearchTaskId, setLatestMissingSearchTaskId] = useState<number | undefined>(
     undefined,
   );
-  const latestMissingSearchTask = createSystemTaskQuery(latestMissingSearchTaskId);
-  const searchMissing = createSearchMissingMutation();
+  const latestMissingSearchTask = useSystemTaskQuery(latestMissingSearchTaskId);
+  const searchMissing = useSearchMissingMutation();
   const isSearchMissingRunning =
     latestMissingSearchTask.data !== undefined && isTaskActive(latestMissingSearchTask.data);
   const data = wantedData;
   const airingPreferences = getAiringDisplayPreferences(systemConfig.library);
 
-  const getScrollElement = useCallback(() => scrollRef.current, []);
-
   const rowVirtualizer = useVirtualizer({
     count: data.length,
     estimateSize: () => 56,
     overscan: 10,
-    getScrollElement,
+    getScrollElement: () => scrollRef.current,
   });
 
   const virtualItems = rowVirtualizer.getVirtualItems();
@@ -126,7 +124,7 @@ function WantedPage() {
 
       <Card className="overflow-hidden flex-1 min-h-0 flex flex-col">
         <div ref={scrollRef} className="h-full min-h-0 w-full flex-1 overflow-auto">
-          <Table className="table-fixed w-full min-w-[860px] md:min-w-0">
+          <Table className="table-fixed w-full min-w-0">
             <TableHeader className="sticky top-0 bg-card z-10 border-b">
               <TableRow className="hover:bg-transparent border-none">
                 <TableHead scope="col" className="w-[60px]" />

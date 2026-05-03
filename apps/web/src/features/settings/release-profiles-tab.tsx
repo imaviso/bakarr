@@ -17,7 +17,7 @@ import {
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
-import { createDeleteReleaseProfileMutation, releaseProfilesQueryOptions } from "~/api/profiles";
+import { useDeleteReleaseProfileMutation, releaseProfilesQueryOptions } from "~/api/profiles";
 import type { ReleaseProfile } from "~/api/contracts";
 
 interface ReleaseProfileCardProps {
@@ -132,7 +132,7 @@ export function ReleaseProfilesTab() {
   const [isCreating, setIsCreating] = useState(false);
 
   const { data: releaseProfiles } = useSuspenseQuery(releaseProfilesQueryOptions());
-  const deleteReleaseProfile = createDeleteReleaseProfileMutation();
+  const deleteReleaseProfile = useDeleteReleaseProfileMutation();
 
   return (
     <>

@@ -13,7 +13,7 @@ import { useAnimeDetailsActions } from "~/features/anime/hooks/use-anime-details
 import { useAnimeDetailsDialogState } from "~/features/anime/hooks/use-anime-details-dialog-state";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { animeDetailsQueryOptions, animeListQueryOptions, episodesQueryOptions } from "~/api/anime";
-import { createAnimeScanTaskQuery, isTaskActive } from "~/api/operations-tasks";
+import { useAnimeScanTaskQuery, isTaskActive } from "~/api/operations-tasks";
 import { profilesQueryOptions, releaseProfilesQueryOptions } from "~/api/profiles";
 import { usePageTitle } from "~/domain/page-title";
 import { isAired } from "~/domain/date-time";
@@ -57,8 +57,10 @@ function AnimeDetailsPage() {
 
   const actions = useAnimeDetailsActions({ animeId });
   const dialogState = useAnimeDetailsDialogState();
+  const { setBulkMappingOpen, setEditPathOpen, setEditProfileOpen, setRenameDialogOpen } =
+    dialogState;
 
-  const scanTaskQuery = createAnimeScanTaskQuery({
+  const scanTaskQuery = useAnimeScanTaskQuery({
     animeId,
     ...(actions.latestScanTaskId === undefined ? {} : { taskId: actions.latestScanTaskId }),
   });
@@ -101,21 +103,25 @@ function AnimeDetailsPage() {
     });
   }, [actions, navigate]);
 
-  const handleRenameFiles = useCallback(() => dialogState.setRenameDialogOpen(true), [dialogState]);
+  const handleRenameFiles = useCallback(() => setRenameDialogOpen(true), [setRenameDialogOpen]);
 
-  const handleOpenBulkMapping = useCallback(
-    () => dialogState.setBulkMappingOpen(true),
-    [dialogState],
+  const handleOpenBulkMapping = useCallback(() => setBulkMappingOpen(true), [setBulkMappingOpen]);
+
+  const handleEditProfile = useCallback(() => setEditProfileOpen(true), [setEditProfileOpen]);
+
+  const handleEditPath = useCallback(() => setEditPathOpen(true), [setEditPathOpen]);
+
+  const animeInfo = useMemo(
+    () => ({
+      currentPath: anime.root_folder || "",
+      currentProfile: anime.profile_name || "",
+      currentReleaseProfileIds: anime.release_profile_ids || [],
+    }),
+    [anime.root_folder, anime.profile_name, anime.release_profile_ids],
   );
 
-  const handleEditProfile = useCallback(() => dialogState.setEditProfileOpen(true), [dialogState]);
-
-  const handleEditPath = useCallback(() => dialogState.setEditPathOpen(true), [dialogState]);
-
-  const dialogsState = useMemo(
+  const dialogFlags = useMemo(
     () => ({
-      animeId,
-      episodes: episodesData,
       searchModalState: dialogState.searchModalState,
       renameDialogOpen: dialogState.renameDialogOpen,
       mappingDialogState: dialogState.mappingDialogState,
@@ -123,34 +129,37 @@ function AnimeDetailsPage() {
       deleteEpisodeState: dialogState.deleteEpisodeState,
       editPathOpen: dialogState.editPathOpen,
       editProfileOpen: dialogState.editProfileOpen,
-      currentPath: anime.root_folder || "",
-      currentProfile: anime.profile_name || "",
-      currentReleaseProfileIds: anime.release_profile_ids || [],
+    }),
+    [dialogState],
+  );
+
+  const profileData = useMemo(
+    () => ({
       profiles: profilesQuery.data,
       releaseProfiles: releaseProfilesQuery.data,
+    }),
+    [profilesQuery.data, releaseProfilesQuery.data],
+  );
+
+  const updateLoading = useMemo(
+    () => ({
       isUpdatingPath: actions.isUpdatingPath,
       isUpdatingProfile: actions.isUpdatingProfile,
       isUpdatingReleaseProfiles: actions.isUpdatingReleaseProfiles,
     }),
-    [
+    [actions.isUpdatingPath, actions.isUpdatingProfile, actions.isUpdatingReleaseProfiles],
+  );
+
+  const dialogsState = useMemo(
+    () => ({
       animeId,
-      episodesData,
-      dialogState.searchModalState,
-      dialogState.renameDialogOpen,
-      dialogState.mappingDialogState,
-      dialogState.bulkMappingOpen,
-      dialogState.deleteEpisodeState,
-      dialogState.editPathOpen,
-      dialogState.editProfileOpen,
-      anime.root_folder,
-      anime.profile_name,
-      anime.release_profile_ids,
-      profilesQuery.data,
-      releaseProfilesQuery.data,
-      actions.isUpdatingPath,
-      actions.isUpdatingProfile,
-      actions.isUpdatingReleaseProfiles,
-    ],
+      episodes: episodesData,
+      ...animeInfo,
+      ...dialogFlags,
+      ...profileData,
+      ...updateLoading,
+    }),
+    [animeId, episodesData, animeInfo, dialogFlags, profileData, updateLoading],
   );
 
   const dialogsDispatch = useMemo(

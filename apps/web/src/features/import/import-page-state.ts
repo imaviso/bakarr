@@ -23,7 +23,7 @@ interface CreateImportPageStateOptions {
   onImportSuccess: () => void;
 }
 
-export function createImportPageState(options: CreateImportPageStateOptions) {
+export function useImportPageState(options: CreateImportPageStateOptions) {
   const [latestImportTaskId, setLatestImportTaskId] = useState<number | undefined>(undefined);
 
   const flow = useImportFlow({
@@ -131,4 +131,4 @@ export function createImportPageState(options: CreateImportPageStateOptions) {
   };
 }
 
-export type ImportPageState = ReturnType<typeof createImportPageState>;
+export type ImportPageState = ReturnType<typeof useImportPageState>;

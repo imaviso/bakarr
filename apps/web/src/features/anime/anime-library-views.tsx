@@ -17,7 +17,7 @@ import {
 } from "~/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
 import type { Anime } from "~/api/contracts";
-import { createDeleteAnimeMutation } from "~/api/anime-mutations";
+import { useDeleteAnimeMutation } from "~/api/anime-mutations";
 import {
   animeDateSubtitle,
   formatNextAiringEpisode,
@@ -28,7 +28,7 @@ import { cn } from "~/infra/utils";
 interface AnimeLibraryViewProps {
   anime: Anime[];
   airingPreferences: ReturnType<typeof getAiringDisplayPreferences>;
-  deleteAnime: ReturnType<typeof createDeleteAnimeMutation>;
+  deleteAnime: ReturnType<typeof useDeleteAnimeMutation>;
 }
 
 const GRID_GAP_PX = 16;
@@ -156,6 +156,7 @@ export function AnimeGridView(props: AnimeLibraryViewProps) {
                           <Button
                             size="icon"
                             variant="secondary"
+                            aria-label={`Delete ${anime.title.english || anime.title.romaji}`}
                             className="relative after:absolute after:-inset-3 h-8 w-8 bg-background/90 hover:bg-destructive hover:text-destructive-foreground"
                           >
                             <TrashIcon className="h-3.5 w-3.5" />
@@ -197,14 +198,16 @@ export function AnimeGridView(props: AnimeLibraryViewProps) {
                         <div className="h-1.5 overflow-hidden bg-muted">
                           <div
                             className={cn(
-                              "h-full transition-[width] duration-300 ease-out will-change-[width]",
+                              "h-full origin-left transition-transform duration-300 ease-out",
                               anime.progress.next_missing_episode
                                 ? "bg-warning"
                                 : anime.monitored
                                   ? "bg-primary"
                                   : "bg-muted-foreground/40",
                             )}
-                            style={{ width: `${progressPercent(anime) ?? 0}%` }}
+                            style={{
+                              transform: `scaleX(${(progressPercent(anime) ?? 0) / 100})`,
+                            }}
                           />
                         </div>
                       </div>
@@ -234,7 +237,7 @@ export function AnimeGridView(props: AnimeLibraryViewProps) {
                               className={cn(
                                 "h-1.5 w-1.5 rounded-full",
                                 anime.monitored
-                                  ? "bg-success shadow-[0_0_4px_hsl(var(--success)/0.4)]"
+                                  ? "bg-success ring-1 ring-success/40"
                                   : "bg-muted-foreground/40",
                               )}
                             />
@@ -278,7 +281,7 @@ export function AnimeListView(props: AnimeLibraryViewProps) {
       className="h-full min-h-0 w-full flex-1 overflow-auto rounded-none border"
       style={{ overflowAnchor: "none" }}
     >
-      <Table className="table-fixed w-full min-w-[760px] lg:min-w-0">
+      <Table className="table-fixed w-full min-w-0">
         <TableHeader className="sticky top-0 bg-card z-10 border-b">
           <TableRow className="hover:bg-transparent border-none">
             <TableHead scope="col" className="w-[80px]">
@@ -388,6 +391,7 @@ export function AnimeListView(props: AnimeLibraryViewProps) {
                         <Button
                           variant="ghost"
                           size="icon"
+                          aria-label={`Delete ${anime.title.english || anime.title.romaji}`}
                           className="relative after:absolute after:-inset-3 h-8 w-8 text-muted-foreground hover:text-destructive"
                           onClick={(e: React.MouseEvent) => e.stopPropagation()}
                         >

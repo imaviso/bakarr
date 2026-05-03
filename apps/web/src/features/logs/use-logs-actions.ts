@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import type { DownloadEvent, DownloadEventsExportResult, SystemLog } from "~/api/contracts";
-import { createClearLogsMutation, getExportLogsUrl } from "~/api/system-logs";
-import { createDownloadEventsExportMutation } from "~/api/system-download-events";
+import { useClearLogsMutation, getExportLogsUrl } from "~/api/system-logs";
+import { useDownloadEventsExportMutation } from "~/api/system-download-events";
 import { errorMessage } from "~/api/effect/errors";
 import {
   createDownloadEventsCursorPatch,
@@ -21,13 +21,13 @@ interface UseLogsActionsOptions {
 }
 
 export function useLogsActions(options: UseLogsActionsOptions) {
-  const clearLogs = createClearLogsMutation();
+  const clearLogs = useClearLogsMutation();
   const [lastDownloadEventsExport, setLastDownloadEventsExport] = useState<
     DownloadEventsExportResult | undefined
   >(undefined);
   const [selectedDownloadEvent, setSelectedDownloadEvent] = useState<DownloadEvent | null>(null);
   const [selectedLog, setSelectedLog] = useState<SystemLog | null>(null);
-  const exportDownloadEventsMutation = createDownloadEventsExportMutation();
+  const exportDownloadEventsMutation = useDownloadEventsExportMutation();
 
   const clearLogsWithToast = () => clearLogs.mutate();
 

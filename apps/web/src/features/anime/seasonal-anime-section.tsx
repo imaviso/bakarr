@@ -83,26 +83,31 @@ export function SeasonalAnimeSection(props: SeasonalAnimeSectionProps) {
   };
 
   const lastRequestedLength = useRef(-1);
+  const lastVirtualIndex = virtualRows.at(-1)?.index ?? -1;
 
   useEffect(() => {
     if (!hasNextPage) {
       lastRequestedLength.current = -1;
       return;
     }
-    const virtualItems = virtualRows;
-    if (virtualItems.length === 0) return;
-    const lastItem = virtualItems[virtualItems.length - 1];
-    if (!lastItem) return;
+    if (lastVirtualIndex < 0) return;
 
     if (
-      lastItem.index >= rowCount - 2 &&
+      lastVirtualIndex >= rowCount - 2 &&
       lastRequestedLength.current !== allResults.length &&
       !isFetchingNextPage
     ) {
       lastRequestedLength.current = allResults.length;
       void fetchNextPage();
     }
-  }, [hasNextPage, virtualRows, rowCount, allResults.length, isFetchingNextPage, fetchNextPage]);
+  }, [
+    hasNextPage,
+    lastVirtualIndex,
+    rowCount,
+    allResults.length,
+    isFetchingNextPage,
+    fetchNextPage,
+  ]);
 
   return (
     <section className="flex flex-col flex-1 min-h-0 overflow-hidden gap-4">

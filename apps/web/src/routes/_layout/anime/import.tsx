@@ -1,8 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { createLibraryImportTaskQuery } from "~/api/operations-tasks";
+import { useLibraryImportTaskQuery } from "~/api/operations-tasks";
 import { Schema } from "effect";
 import { ImportPageContent } from "~/features/import/import-page-content";
-import { createImportPageState } from "~/features/import/import-page-state";
+import { useImportPageState } from "~/features/import/import-page-state";
 import { GeneralError } from "~/components/shared/general-error";
 import { animeListQueryOptions } from "~/api/anime";
 import { isTaskActive } from "~/api/operations-tasks";
@@ -32,7 +32,7 @@ function ImportPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
 
-  const state = createImportPageState({
+  const state = useImportPageState({
     animeId: search.animeId,
     onImportSuccess: () => {
       void navigate({
@@ -41,7 +41,7 @@ function ImportPage() {
       });
     },
   });
-  const latestImportTask = createLibraryImportTaskQuery(state.latestImportTaskId);
+  const latestImportTask = useLibraryImportTaskQuery(state.latestImportTaskId);
   const isImportTaskRunning =
     latestImportTask.data !== undefined && isTaskActive(latestImportTask.data);
 

@@ -61,25 +61,27 @@ export function SystemLogsTable(props: SystemLogsTableProps) {
   const logsPaddingTop = firstVirtualRow ? firstVirtualRow.start : 0;
   const logsPaddingBottom = lastVirtualRow ? rowVirtualizer.getTotalSize() - lastVirtualRow.end : 0;
 
+  const lastVirtualRowIndex = lastVirtualRow?.index ?? -1;
+
   useEffect(() => {
     if (!hasNextPage) {
       lastRequestedLength.current = -1;
       return;
     }
 
-    if (!lastVirtualRow) {
+    if (lastVirtualRowIndex < 0) {
       return;
     }
 
     if (
-      lastVirtualRow.index >= logs.length - 20 &&
+      lastVirtualRowIndex >= logs.length - 20 &&
       lastRequestedLength.current !== logs.length &&
       !isFetchingNextPage
     ) {
       lastRequestedLength.current = logs.length;
       onFetchNextPage();
     }
-  }, [hasNextPage, logs.length, isFetchingNextPage, onFetchNextPage, lastVirtualRow]);
+  }, [hasNextPage, logs.length, isFetchingNextPage, onFetchNextPage, lastVirtualRowIndex]);
 
   return (
     <CardShell

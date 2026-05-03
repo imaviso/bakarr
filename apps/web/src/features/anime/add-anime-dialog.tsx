@@ -31,7 +31,7 @@ import {
 } from "~/components/ui/select";
 import { Input } from "~/components/ui/input";
 import type { AnimeSearchResult, QualityProfile, ReleaseProfile } from "~/api/contracts";
-import { createAddAnimeMutation } from "~/api/anime-mutations";
+import { useAddAnimeMutation } from "~/api/anime-mutations";
 import { profilesQueryOptions, releaseProfilesQueryOptions } from "~/api/profiles";
 import { systemConfigQueryOptions } from "~/api/system-config";
 import {
@@ -222,7 +222,7 @@ interface AddAnimeFormProps {
 }
 
 function AddAnimeForm(props: AddAnimeFormProps) {
-  const addAnimeMutation = createAddAnimeMutation();
+  const addAnimeMutation = useAddAnimeMutation();
 
   const form = useForm({
     // No effects needed. Data is passed as stable props.

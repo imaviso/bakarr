@@ -1,7 +1,7 @@
 import { differenceInDays, format, isValid, parseISO } from "date-fns";
 import { useDeferredValue, useMemo, useState } from "react";
-import { createGrabReleaseMutation } from "~/api/anime-mutations";
-import { createNyaaSearchQuery } from "~/api/anime";
+import { useGrabReleaseMutation } from "~/api/anime-mutations";
+import { useNyaaSearchQuery } from "~/api/anime";
 import {
   SEARCH_RELEASE_CATEGORY_LABELS,
   SEARCH_RELEASE_FILTER_LABELS,
@@ -55,7 +55,7 @@ export function useSearchDialogResultsState(input: {
   const [sortCol, setSortCol] = useState<keyof NyaaSearchResult>("pub_date");
   const [sortAsc, setSortAsc] = useState(false);
 
-  const searchQuery = createNyaaSearchQuery(input.query, {
+  const searchQuery = useNyaaSearchQuery(input.query, {
     animeId: input.animeId,
     category: input.category,
     filter: input.filter,
@@ -116,7 +116,7 @@ export function useSearchDialogReleaseRowState(input: {
   onGrab: () => void;
   result: NyaaSearchResult;
 }) {
-  const grabMutation = createGrabReleaseMutation();
+  const grabMutation = useGrabReleaseMutation();
   const detectedIsBatch =
     (input.result.parsed_episode_numbers?.length ?? 0) > 1 || !input.result.parsed_episode;
   const [episodeNumberInput, setEpisodeNumberInput] = useState(

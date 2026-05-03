@@ -46,7 +46,7 @@ export function CandidateCard(props: CandidateCardProps) {
             </div>
           )}
           {props.isSelected && (
-            <div className="absolute inset-0 flex items-center justify-center bg-primary/20 backdrop-blur-[1px]">
+            <div className="absolute inset-0 flex items-center justify-center bg-primary/30">
               <CheckIcon className="h-5 w-5 text-white drop-" />
             </div>
           )}

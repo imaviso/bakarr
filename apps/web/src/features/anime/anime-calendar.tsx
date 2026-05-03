@@ -15,8 +15,8 @@ import {
 import { useState } from "react";
 import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
-import { createCalendarQuery } from "~/api/system-rss-calendar";
-import { createSystemConfigQuery } from "~/api/system-config";
+import { useCalendarQuery } from "~/api/system-rss-calendar";
+import { useSystemConfigQuery } from "~/api/system-config";
 import {
   formatAiringTimeWithPreferences,
   getAiringDisplayDateKey,
@@ -30,8 +30,8 @@ export function AnimeCalendar() {
   const fetchStart = subMonths(startOfWeek(startOfMonth(currentDate)), 1);
   const fetchEnd = addMonths(endOfWeek(endOfMonth(currentDate)), 1);
 
-  const calendarQuery = createCalendarQuery(fetchStart, fetchEnd);
-  const configQuery = createSystemConfigQuery();
+  const calendarQuery = useCalendarQuery(fetchStart, fetchEnd);
+  const configQuery = useSystemConfigQuery();
   const isLoading =
     calendarQuery.isPending || calendarQuery.isPlaceholderData || configQuery.isPending;
 
@@ -93,7 +93,7 @@ export function AnimeCalendar() {
 
       {/* Calendar Grid */}
       <Card className="min-h-0 flex-1 overflow-auto border-border">
-        <div className="min-w-[800px]">
+        <div className="min-w-0 md:min-w-[800px]">
           {/* Weekday Headers */}
           <div className="grid grid-cols-7 border-b border-border bg-muted">
             {weekdays.map((day) => (

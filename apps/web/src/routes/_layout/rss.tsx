@@ -41,9 +41,9 @@ import {
 } from "~/components/ui/select";
 import { animeListQueryOptions } from "~/api/anime";
 import {
-  createAddRssFeedMutation,
-  createDeleteRssFeedMutation,
-  createToggleRssFeedMutation,
+  useAddRssFeedMutation,
+  useDeleteRssFeedMutation,
+  useToggleRssFeedMutation,
   rssFeedsQueryOptions,
 } from "~/api/system-rss-calendar";
 import type { RssFeed } from "~/api/contracts";
@@ -64,8 +64,8 @@ function RssPage() {
   usePageTitle("RSS Feeds");
   const [isAdding, setIsAdding] = useState(false);
   const feeds = useSuspenseQuery(rssFeedsQueryOptions()).data;
-  const deleteFeed = createDeleteRssFeedMutation();
-  const toggleFeed = createToggleRssFeedMutation();
+  const deleteFeed = useDeleteRssFeedMutation();
+  const toggleFeed = useToggleRssFeedMutation();
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden space-y-6">
@@ -191,7 +191,7 @@ const AddFeedSchema = Schema.Struct({
 
 function AddFeedForm(props: { onCancel: () => void; onSuccess: () => void }) {
   const { data: animeList } = useSuspenseQuery(animeListQueryOptions());
-  const addFeed = createAddRssFeedMutation();
+  const addFeed = useAddRssFeedMutation();
 
   const form = useForm({
     defaultValues: {

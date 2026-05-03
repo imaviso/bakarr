@@ -11,6 +11,7 @@ interface EmptyStateProps {
   compact?: boolean;
   asTableCell?: boolean;
   colSpan?: number;
+  headingLevel?: 1 | 2 | 3 | 4;
 }
 
 /**
@@ -31,7 +32,10 @@ export function EmptyState(props: EmptyStateProps) {
       <div className="flex flex-col items-center gap-4">
         {props.icon ? <div className="text-muted-foreground">{props.icon}</div> : null}
         <div>
-          <h3 className="font-medium">{props.title}</h3>
+          {(() => {
+            const HeadingTag = `h${props.headingLevel ?? 3}` as "h1" | "h2" | "h3" | "h4";
+            return <HeadingTag className="font-medium">{props.title}</HeadingTag>;
+          })()}
           {props.description && (
             <p className="text-sm text-muted-foreground mt-1">{props.description}</p>
           )}

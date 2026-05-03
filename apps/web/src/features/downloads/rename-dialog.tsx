@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
-import { createExecuteRenameMutation, createRenamePreviewQuery } from "~/api/auth";
+import { useExecuteRenameMutation, useRenamePreviewQuery } from "~/api/auth";
 import type { RenamePreviewItem } from "~/api/contracts";
 
 function formatTitleSourceLabel(
@@ -67,8 +67,8 @@ interface RenameDialogProps {
 
 export function RenameDialog(props: RenameDialogProps) {
   const animeId = props.animeId;
-  const previewQuery = createRenamePreviewQuery(animeId, { enabled: props.open });
-  const executeRename = createExecuteRenameMutation();
+  const previewQuery = useRenamePreviewQuery(animeId, { enabled: props.open });
+  const executeRename = useExecuteRenameMutation();
   const resetExecuteRename = executeRename.reset;
 
   const previewCount = previewQuery.data?.length ?? 0;

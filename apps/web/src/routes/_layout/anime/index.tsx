@@ -10,7 +10,7 @@ import {
 } from "@phosphor-icons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Suspense, lazy, useDeferredValue, useTransition } from "react";
+import { Suspense, lazy, useDeferredValue } from "react";
 import { Schema } from "effect";
 import { AnimeListSkeleton } from "~/features/anime/anime-list-skeleton";
 import { EmptyState } from "~/components/shared/empty-state";
@@ -27,7 +27,7 @@ import { Input } from "~/components/ui/input";
 import { Separator } from "~/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
 import { animeListQueryOptions } from "~/api/anime";
-import { createDeleteAnimeMutation } from "~/api/anime-mutations";
+import { useDeleteAnimeMutation } from "~/api/anime-mutations";
 import { systemConfigQueryOptions } from "~/api/system-config";
 import { filterAnimeLibrary } from "~/domain/anime/library-filter";
 import { getAiringDisplayPreferences } from "~/domain/anime/metadata";
@@ -89,26 +89,23 @@ export const Route = createFileRoute("/_layout/anime/")({
 
 function AnimeIndexPage() {
   usePageTitle("Library");
-  const deleteAnime = createDeleteAnimeMutation();
+  const deleteAnime = useDeleteAnimeMutation();
   const anime = useSuspenseQuery(animeListQueryOptions()).data;
   const systemConfig = useSuspenseQuery(systemConfigQueryOptions()).data;
   const search = Route.useSearch();
   const navigate = useNavigate();
   const airingPreferences = getAiringDisplayPreferences(systemConfig.library);
 
-  const [, startTransition] = useTransition();
   const query = search.q ?? DEFAULT_ANIME_SEARCH.q;
   const filter = search.filter ?? DEFAULT_ANIME_SEARCH.filter;
   const view = search.view ?? DEFAULT_ANIME_SEARCH.view;
   const deferredQuery = useDeferredValue(query);
 
   const handleSearchInput = (q: string) => {
-    startTransition(() => {
-      void navigate({
-        to: ".",
-        search: { q, filter, view },
-        replace: true,
-      });
+    void navigate({
+      to: ".",
+      search: { q, filter, view },
+      replace: true,
     });
   };
 

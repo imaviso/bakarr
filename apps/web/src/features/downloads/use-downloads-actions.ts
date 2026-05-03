@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { createSearchMissingMutation, createSyncDownloadsMutation } from "~/api/system-downloads";
-import { createDownloadEventsExportMutation } from "~/api/system-download-events";
+import { useSearchMissingMutation, useSyncDownloadsMutation } from "~/api/system-downloads";
+import { useDownloadEventsExportMutation } from "~/api/system-download-events";
 import type { DownloadEventsExportInput, DownloadEventsExportResult } from "~/api/contracts";
 import { errorMessage } from "~/api/effect/errors";
 import {
@@ -24,9 +24,9 @@ export function useDownloadsActions(options: UseDownloadsActionsOptions) {
   const [lastDownloadEventsExport, setLastDownloadEventsExport] = useState<
     DownloadEventsExportResult | undefined
   >(undefined);
-  const searchMissing = createSearchMissingMutation();
-  const syncDownloads = createSyncDownloadsMutation();
-  const exportDownloadEvents = createDownloadEventsExportMutation();
+  const searchMissing = useSearchMissingMutation();
+  const syncDownloads = useSyncDownloadsMutation();
+  const exportDownloadEvents = useDownloadEventsExportMutation();
 
   const handleDownloadEventsExport = (format: "json" | "csv") => {
     const exportPromise = exportDownloadEvents

@@ -8,7 +8,7 @@ import {
   useState,
   useSyncExternalStore,
   createContext,
-  useContext,
+  use,
 } from "react";
 
 type Theme = "dark" | "light" | "system";
@@ -61,14 +61,24 @@ function disableTransitionsTemporarily() {
   );
   document.head.appendChild(style);
 
-  return () => {
-    window.getComputedStyle(document.body);
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        style.remove();
-      });
-    });
+  let removed = false;
+  let firstFrame: number | undefined;
+  let secondFrame: number | undefined;
+
+  const remove = () => {
+    if (removed) return;
+    removed = true;
+    style.remove();
+    if (firstFrame !== undefined) window.cancelAnimationFrame(firstFrame);
+    if (secondFrame !== undefined) window.cancelAnimationFrame(secondFrame);
   };
+
+  firstFrame = window.requestAnimationFrame(() => {
+    window.getComputedStyle(document.body);
+    secondFrame = window.requestAnimationFrame(remove);
+  });
+
+  return remove;
 }
 
 function isEditableTarget(target: EventTarget | null) {
@@ -117,21 +127,19 @@ export function ThemeProvider({
   const applyTheme = useCallback(
     (nextResolvedTheme: ResolvedTheme) => {
       const root = document.documentElement;
-      const restoreTransitions = disableTransitionOnChange ? disableTransitionsTemporarily() : null;
+      const cleanupTransitions = disableTransitionOnChange ? disableTransitionsTemporarily() : null;
 
       root.classList.remove("light", "dark");
       root.classList.add(nextResolvedTheme);
       root.style.colorScheme = nextResolvedTheme;
 
-      if (restoreTransitions) {
-        restoreTransitions();
-      }
+      return cleanupTransitions ?? (() => {});
     },
     [disableTransitionOnChange],
   );
 
   useLayoutEffect(() => {
-    applyTheme(resolvedTheme);
+    return applyTheme(resolvedTheme);
   }, [resolvedTheme, applyTheme]);
 
   const themeRef = useRef(theme);
@@ -187,7 +195,7 @@ export function ThemeProvider({
 }
 
 export const useTheme = () => {
-  const context = useContext(ThemeProviderContext);
+  const context = use(ThemeProviderContext);
   if (context === undefined) {
     throw new Error("useTheme must be used within a ThemeProvider");
   }

@@ -9,7 +9,7 @@ import {
   RssIcon,
   GearIcon,
 } from "@phosphor-icons/react";
-import { Link, useLocation } from "@tanstack/react-router";
+import { useLocation, useRouter } from "@tanstack/react-router";
 import { CommandPalette } from "~/app/layout/command-palette";
 import { ModeToggle } from "~/components/shared/mode-toggle";
 import {
@@ -82,6 +82,7 @@ function isActivePath(pathname: string, url: string) {
 export function AppSidebar() {
   const { logout } = useAuth();
   const location = useLocation();
+  const router = useRouter();
   const { state } = useSidebar();
 
   const isCollapsed = state === "collapsed";
@@ -110,30 +111,23 @@ export function AppSidebar() {
       <SidebarContent className="px-3 group-data-[collapsible=icon]:px-0">
         {/* Main Navigation */}
         <SidebarGroup className="py-2 group-data-[collapsible=icon]:px-0">
-          <div className="px-3 pb-2 text-xs font-medium text-muted-foreground uppercase tracking-widest hidden group-data-[collapsible=icon]:block group-data-[collapsible=icon]:opacity-0">
+          <div className="px-3 pb-2 text-xs font-medium text-muted-foreground uppercase tracking-widest group-data-[collapsible=icon]:hidden">
             MAIN
           </div>
           <SidebarGroupContent>
             <SidebarMenu className="gap-1 group-data-[collapsible=icon]:items-center">
               {mainItems.map((item) => (
                 <SidebarMenuItem key={item.url}>
-                  <Link
-                    to={item.url}
-                    className="w-full"
+                  <SidebarMenuButton
+                    tooltip={item.title}
+                    isActive={isActivePath(location.pathname, item.url)}
+                    className="h-9 transition-colors"
+                    onClick={() => router.navigate({ to: item.url })}
                     aria-current={isActivePath(location.pathname, item.url) ? "page" : undefined}
-                    activeOptions={{
-                      exact: item.url === "/",
-                    }}
                   >
-                    <SidebarMenuButton
-                      tooltip={item.title}
-                      isActive={isActivePath(location.pathname, item.url)}
-                      className="h-9 transition-colors"
-                    >
-                      <item.icon className="h-4 w-4 shrink-0" />
-                      <span>{item.title}</span>
-                    </SidebarMenuButton>
-                  </Link>
+                    <item.icon className="h-4 w-4 shrink-0" />
+                    <span>{item.title}</span>
+                  </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
@@ -145,27 +139,23 @@ export function AppSidebar() {
 
         {/* Settings Section */}
         <SidebarGroup className="py-2 mt-auto group-data-[collapsible=icon]:px-0">
-          <div className="px-3 pb-2 text-xs font-medium text-muted-foreground uppercase tracking-widest hidden group-data-[collapsible=icon]:block group-data-[collapsible=icon]:opacity-0">
+          <div className="px-3 pb-2 text-xs font-medium text-muted-foreground uppercase tracking-widest group-data-[collapsible=icon]:hidden">
             SYSTEM
           </div>
           <SidebarGroupContent>
             <SidebarMenu className="gap-1 group-data-[collapsible=icon]:items-center">
               {settingsItems.map((item) => (
                 <SidebarMenuItem key={item.url}>
-                  <Link
-                    to={item.url}
-                    className="w-full"
+                  <SidebarMenuButton
+                    tooltip={item.title}
+                    isActive={isActivePath(location.pathname, item.url)}
+                    className="h-9 transition-colors"
+                    onClick={() => router.navigate({ to: item.url })}
                     aria-current={isActivePath(location.pathname, item.url) ? "page" : undefined}
                   >
-                    <SidebarMenuButton
-                      tooltip={item.title}
-                      isActive={isActivePath(location.pathname, item.url)}
-                      className="h-9 transition-colors"
-                    >
-                      <item.icon className="h-4 w-4 shrink-0" />
-                      <span>{item.title}</span>
-                    </SidebarMenuButton>
-                  </Link>
+                    <item.icon className="h-4 w-4 shrink-0" />
+                    <span>{item.title}</span>
+                  </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>

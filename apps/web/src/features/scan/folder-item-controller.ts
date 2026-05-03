@@ -1,20 +1,20 @@
 import { useState } from "react";
 import type { AddAnimeRequest, AnimeSearchResult, UnmappedFolder } from "~/api/contracts";
-import { createAddAnimeMutation } from "~/api/anime-mutations";
+import { useAddAnimeMutation } from "~/api/anime-mutations";
 import {
-  createControlUnmappedFolderMutation,
-  createImportUnmappedFolderMutation,
-  createScanLibraryMutation,
+  useControlUnmappedFolderMutation,
+  useImportUnmappedFolderMutation,
+  useScanLibraryMutation,
 } from "~/api/system-library";
-import { createProfilesQuery } from "~/api/profiles";
+import { useProfilesQuery } from "~/api/profiles";
 import { runFolderBackgroundMatchAction } from "~/features/scan/background-matching-actions";
 
 export function useFolderItemController(folder: UnmappedFolder) {
-  const addAnimeMutation = createAddAnimeMutation();
-  const controlMutation = createControlUnmappedFolderMutation();
-  const importMutation = createImportUnmappedFolderMutation();
-  const scanMutation = createScanLibraryMutation();
-  const profilesQuery = createProfilesQuery();
+  const addAnimeMutation = useAddAnimeMutation();
+  const controlMutation = useControlUnmappedFolderMutation();
+  const importMutation = useImportUnmappedFolderMutation();
+  const scanMutation = useScanLibraryMutation();
+  const profilesQuery = useProfilesQuery();
 
   const [manualMatch, setManualMatch] = useState<AnimeSearchResult | null>(null);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);

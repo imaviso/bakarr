@@ -14,11 +14,11 @@ import {
 } from "date-fns";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
-import { createSystemTaskQuery, isTaskActive } from "~/api/operations-tasks";
+import { useSystemTaskQuery, isTaskActive } from "~/api/operations-tasks";
 import {
-  createSystemStatusQuery,
-  createTriggerRssCheckMutation,
-  createTriggerScanMutation,
+  useSystemStatusQuery,
+  useTriggerRssCheckMutation,
+  useTriggerScanMutation,
 } from "~/api/system-config";
 
 function formatBytes(bytes: number) {
@@ -67,13 +67,13 @@ function formatProviderStatus(
 }
 
 export function SystemStatus() {
-  const status = createSystemStatusQuery();
-  const scanMutation = createTriggerScanMutation();
-  const rssMutation = createTriggerRssCheckMutation();
+  const status = useSystemStatusQuery();
+  const scanMutation = useTriggerScanMutation();
+  const rssMutation = useTriggerRssCheckMutation();
   const latestScanTaskId = scanMutation.data?.task_id;
   const latestRssTaskId = rssMutation.data?.task_id;
-  const latestScanTask = createSystemTaskQuery(latestScanTaskId);
-  const latestRssTask = createSystemTaskQuery(latestRssTaskId);
+  const latestScanTask = useSystemTaskQuery(latestScanTaskId);
+  const latestRssTask = useSystemTaskQuery(latestRssTaskId);
   const isScanTaskRunning = latestScanTask.data !== undefined && isTaskActive(latestScanTask.data);
   const isRssTaskRunning = latestRssTask.data !== undefined && isTaskActive(latestRssTask.data);
 

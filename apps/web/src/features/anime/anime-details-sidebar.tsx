@@ -3,13 +3,13 @@ import { Badge } from "~/components/ui/badge";
 import { Card, CardContent } from "~/components/ui/card";
 import type { Anime } from "~/api/contracts";
 
+const COMPACT_NUMBER = new Intl.NumberFormat(undefined, { notation: "compact" });
+
 interface AnimeDetailsSidebarProps {
   anime: Anime;
 }
 
 export function AnimeDetailsSidebar(props: AnimeDetailsSidebarProps) {
-  const compactNumber = new Intl.NumberFormat(undefined, { notation: "compact" });
-
   return (
     <div className="space-y-4">
       <Card className="overflow-hidden">
@@ -79,14 +79,14 @@ export function AnimeDetailsSidebar(props: AnimeDetailsSidebarProps) {
               {props.anime.members && (
                 <div>
                   <dt className="text-muted-foreground">Members</dt>
-                  <dd className="font-medium">{compactNumber.format(props.anime.members ?? 0)}</dd>
+                  <dd className="font-medium">{COMPACT_NUMBER.format(props.anime.members ?? 0)}</dd>
                 </div>
               )}
               {props.anime.favorites && (
                 <div>
                   <dt className="text-muted-foreground">Favorites</dt>
                   <dd className="font-medium">
-                    {compactNumber.format(props.anime.favorites ?? 0)}
+                    {COMPACT_NUMBER.format(props.anime.favorites ?? 0)}
                   </dd>
                 </div>
               )}

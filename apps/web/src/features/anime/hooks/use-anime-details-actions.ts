@@ -1,15 +1,15 @@
 import {
-  createDeleteAnimeMutation,
-  createDeleteEpisodeFileMutation,
-  createRefreshEpisodesMutation,
-  createScanFolderMutation,
-  createToggleMonitorMutation,
-  createUpdateAnimePathMutation,
-  createUpdateAnimeProfileMutation,
-  createUpdateAnimeReleaseProfilesMutation,
+  useDeleteAnimeMutation,
+  useDeleteEpisodeFileMutation,
+  useRefreshEpisodesMutation,
+  useScanFolderMutation,
+  useToggleMonitorMutation,
+  useUpdateAnimePathMutation,
+  useUpdateAnimeProfileMutation,
+  useUpdateAnimeReleaseProfilesMutation,
 } from "~/api/anime-mutations";
-import { createSearchMissingMutation } from "~/api/system-downloads";
-import { createAnimeEpisodeStreamUrlMutation } from "~/api/auth";
+import { useSearchMissingMutation } from "~/api/system-downloads";
+import { useAnimeEpisodeStreamUrlMutation } from "~/api/auth";
 import { Effect } from "effect";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -21,16 +21,16 @@ interface UseAnimeDetailsActionsOptions {
 }
 
 export function useAnimeDetailsActions(options: UseAnimeDetailsActionsOptions) {
-  const deleteAnime = createDeleteAnimeMutation();
-  const refreshEpisodes = createRefreshEpisodesMutation();
-  const scanFolder = createScanFolderMutation();
-  const searchMissing = createSearchMissingMutation();
-  const toggleMonitor = createToggleMonitorMutation();
-  const deleteEpisodeFile = createDeleteEpisodeFileMutation();
-  const updatePath = createUpdateAnimePathMutation();
-  const updateProfile = createUpdateAnimeProfileMutation();
-  const updateReleaseProfiles = createUpdateAnimeReleaseProfilesMutation();
-  const streamUrl = createAnimeEpisodeStreamUrlMutation();
+  const deleteAnime = useDeleteAnimeMutation();
+  const refreshEpisodes = useRefreshEpisodesMutation();
+  const scanFolder = useScanFolderMutation();
+  const searchMissing = useSearchMissingMutation();
+  const toggleMonitor = useToggleMonitorMutation();
+  const deleteEpisodeFile = useDeleteEpisodeFileMutation();
+  const updatePath = useUpdateAnimePathMutation();
+  const updateProfile = useUpdateAnimeProfileMutation();
+  const updateReleaseProfiles = useUpdateAnimeReleaseProfilesMutation();
+  const streamUrl = useAnimeEpisodeStreamUrlMutation();
   const [latestScanTaskId, setLatestScanTaskId] = useState<number | undefined>(undefined);
 
   const handlePlayInMpv = (episodeNumber: number) => {

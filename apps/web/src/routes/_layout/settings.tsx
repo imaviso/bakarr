@@ -124,7 +124,7 @@ function SettingsNav({
   onTabChange: (tab: string | null) => void;
 }) {
   return (
-    <nav className="hidden md:flex flex-col gap-6 w-44 shrink-0">
+    <nav role="tablist" className="hidden md:flex flex-col gap-6 w-44 shrink-0">
       {SETTINGS_GROUPS.map((group) => (
         <div key={group.label} className="flex flex-col gap-1">
           <span className="px-3 text-[0.65rem] font-semibold uppercase tracking-widest text-muted-foreground">
@@ -133,7 +133,25 @@ function SettingsNav({
           {group.items.map((item) => (
             <button
               key={item.value}
+              id={`tab-${item.value}`}
+              role="tab"
+              aria-selected={activeTab === item.value}
+              aria-controls={`panel-${item.value}`}
               onClick={() => onTabChange(item.value)}
+              onKeyDown={(e) => {
+                if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+                e.preventDefault();
+                const currentIndex = ALL_ITEMS.findIndex((i) => i.value === item.value);
+                const nextIndex =
+                  e.key === "ArrowRight"
+                    ? (currentIndex + 1) % ALL_ITEMS.length
+                    : (currentIndex - 1 + ALL_ITEMS.length) % ALL_ITEMS.length;
+                const nextItem = ALL_ITEMS[nextIndex];
+                if (nextItem) {
+                  onTabChange(nextItem.value);
+                  document.getElementById(`tab-${nextItem.value}`)?.focus();
+                }
+              }}
               className={cn(
                 "flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-none transition-colors text-left",
                 activeTab === item.value
@@ -219,7 +237,12 @@ function SettingsPage() {
         <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden">
           <div className="max-w-3xl pb-12">
             {activeTab === "general" && (
-              <div className="space-y-6">
+              <div
+                role="tabpanel"
+                id="panel-general"
+                aria-labelledby="tab-general"
+                className="space-y-6"
+              >
                 <div>
                   <h2 className="text-sm font-semibold">General Settings</h2>
                   <p className="text-xs text-muted-foreground mt-0.5">
@@ -231,7 +254,12 @@ function SettingsPage() {
             )}
 
             {activeTab === "automation" && (
-              <div className="space-y-6">
+              <div
+                role="tabpanel"
+                id="panel-automation"
+                aria-labelledby="tab-automation"
+                className="space-y-6"
+              >
                 <div>
                   <h2 className="text-sm font-semibold">Automation</h2>
                   <p className="text-xs text-muted-foreground mt-0.5">
@@ -242,12 +270,29 @@ function SettingsPage() {
               </div>
             )}
 
-            {activeTab === "profiles" && <QualityProfilesTab />}
+            {activeTab === "profiles" && (
+              <div role="tabpanel" id="panel-profiles" aria-labelledby="tab-profiles">
+                <QualityProfilesTab />
+              </div>
+            )}
 
-            {activeTab === "release-profiles" && <ReleaseProfilesTab />}
+            {activeTab === "release-profiles" && (
+              <div
+                role="tabpanel"
+                id="panel-release-profiles"
+                aria-labelledby="tab-release-profiles"
+              >
+                <ReleaseProfilesTab />
+              </div>
+            )}
 
             {activeTab === "account" && (
-              <div className="space-y-6">
+              <div
+                role="tabpanel"
+                id="panel-account"
+                aria-labelledby="tab-account"
+                className="space-y-6"
+              >
                 <div>
                   <h2 className="text-sm font-semibold">Account</h2>
                   <p className="text-xs text-muted-foreground mt-0.5">

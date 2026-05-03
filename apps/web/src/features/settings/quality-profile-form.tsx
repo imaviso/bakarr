@@ -15,9 +15,9 @@ import {
 import { Switch } from "~/components/ui/switch";
 import { SizeInput } from "~/features/settings/form-controls";
 import {
-  createCreateProfileMutation,
-  createQualitiesQuery,
-  createUpdateProfileMutation,
+  useCreateProfileMutation,
+  useQualitiesQuery,
+  useUpdateProfileMutation,
 } from "~/api/profiles";
 import type { QualityProfile } from "~/api/contracts";
 
@@ -60,9 +60,9 @@ export function ProfileForm(props: {
   onSuccess: () => void;
   profile?: QualityProfile;
 }) {
-  const createProfile = createCreateProfileMutation();
-  const updateProfile = createUpdateProfileMutation();
-  const qualitiesQuery = createQualitiesQuery();
+  const createProfile = useCreateProfileMutation();
+  const updateProfile = useUpdateProfileMutation();
+  const qualitiesQuery = useQualitiesQuery();
   const isEditing = !!props.profile;
 
   const form = useForm({

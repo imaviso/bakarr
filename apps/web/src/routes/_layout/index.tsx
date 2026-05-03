@@ -1,6 +1,6 @@
 import { ArrowRightIcon, CheckIcon, ClockIcon } from "@phosphor-icons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { formatDistanceToNow } from "date-fns";
 import { EmptyState } from "~/components/shared/empty-state";
 import { GeneralError } from "~/components/shared/general-error";
@@ -26,6 +26,7 @@ export const Route = createFileRoute("/_layout/")({
 
 function DashboardPage() {
   usePageTitle("Dashboard");
+  const navigate = useNavigate();
   const stats = useSuspenseQuery(libraryStatsQueryOptions()).data;
   const activity = useSuspenseQuery(activityQueryOptions()).data;
 
@@ -58,18 +59,26 @@ function DashboardPage() {
         />
         <Separator orientation="vertical" className="h-6 hidden sm:block" />
         <div className="flex items-center gap-3">
-          <Link to="/rss">
-            <Button variant="ghost" size="sm" className="text-xs">
-              {stats.rss_feeds} RSS feeds
-              <ArrowRightIcon className="ml-1 h-3.5 w-3.5" />
-            </Button>
-          </Link>
-          <Link to="/downloads" search={createDownloadsRouteSearch({ tab: "queue" })}>
-            <Button variant="ghost" size="sm" className="text-xs">
-              {stats.recent_downloads} recent downloads
-              <ArrowRightIcon className="ml-1 h-3.5 w-3.5" />
-            </Button>
-          </Link>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-xs"
+            onClick={() => navigate({ to: "/rss" })}
+          >
+            {stats.rss_feeds} RSS feeds
+            <ArrowRightIcon className="ml-1 h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-xs"
+            onClick={() =>
+              navigate({ to: "/downloads", search: createDownloadsRouteSearch({ tab: "queue" }) })
+            }
+          >
+            {stats.recent_downloads} recent downloads
+            <ArrowRightIcon className="ml-1 h-3.5 w-3.5" />
+          </Button>
         </div>
       </div>
 
@@ -80,17 +89,21 @@ function DashboardPage() {
             Recent Activity
           </h2>
           {activity.length > 5 && (
-            <Link to="/downloads" search={createDownloadsRouteSearch({ tab: "queue" })}>
-              <Button variant="ghost" size="sm">
-                View All
-              </Button>
-            </Link>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() =>
+                navigate({ to: "/downloads", search: createDownloadsRouteSearch({ tab: "queue" }) })
+              }
+            >
+              View All
+            </Button>
           )}
         </div>
         {recentActivity.length > 0 ? (
           <ul role="list" className="divide-y divide-border">
             {recentActivity.map((item) => (
-              <li key={item.timestamp + item.anime_title + item.description}>
+              <li key={item.id}>
                 <ActivityRow item={item} />
               </li>
             ))}
@@ -141,7 +154,7 @@ function ActivityRow(props: { item: ActivityItem }) {
         dateTime={props.item.timestamp}
       >
         <ClockIcon className="h-3.5 w-3.5" />
-        {formatDistanceToNow(new Date(props.item.timestamp), {
+        {formatDistanceToNow(props.item.timestamp, {
           addSuffix: true,
         })}
       </time>
