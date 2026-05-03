@@ -23,7 +23,7 @@ export function authMeQueryOptions() {
   });
 }
 
-export function createAuthMeQuery() {
+export function useAuthMeQuery() {
   return useQuery(authMeQueryOptions());
 }
 
@@ -36,11 +36,11 @@ export function authApiKeyQueryOptions() {
   });
 }
 
-export function createAuthApiKeyQuery() {
+export function useAuthApiKeyQuery() {
   return useQuery(authApiKeyQueryOptions());
 }
 
-export function createLoginMutation() {
+export function useLoginMutation() {
   return useMutation({
     mutationFn: (data: LoginRequest) =>
       runApiEffect(
@@ -52,7 +52,7 @@ export function createLoginMutation() {
   });
 }
 
-export function createApiKeyLoginMutation() {
+export function useApiKeyLoginMutation() {
   return useMutation({
     mutationFn: (data: ApiKeyLoginRequest) =>
       runApiEffect(
@@ -64,7 +64,7 @@ export function createApiKeyLoginMutation() {
   });
 }
 
-export function createChangePasswordMutation() {
+export function useChangePasswordMutation() {
   return useMutation({
     mutationFn: (data: ChangePasswordRequest) =>
       runApiEffect(
@@ -76,7 +76,7 @@ export function createChangePasswordMutation() {
   });
 }
 
-export function createRegenerateApiKeyMutation() {
+export function useRegenerateApiKeyMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () =>
@@ -106,14 +106,14 @@ export function renamePreviewQueryOptions(id: number) {
   });
 }
 
-export function createRenamePreviewQuery(id: number, options?: { enabled?: boolean }) {
+export function useRenamePreviewQuery(id: number, options?: { enabled?: boolean }) {
   return useQuery({
     ...renamePreviewQueryOptions(id),
     enabled: options?.enabled ?? true,
   });
 }
 
-export function createAnimeEpisodeStreamUrlMutation() {
+export function useAnimeEpisodeStreamUrlMutation() {
   return useMutation({
     mutationFn: (input: { animeId: number; episodeNumber: number }) =>
       Effect.runPromise(
@@ -125,7 +125,7 @@ export function createAnimeEpisodeStreamUrlMutation() {
   });
 }
 
-export function createExecuteRenameMutation() {
+export function useExecuteRenameMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: number) =>

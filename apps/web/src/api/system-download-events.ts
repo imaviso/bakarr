@@ -91,7 +91,7 @@ export function downloadEventsQueryOptionsWithFilters(input: DownloadEventsFilte
   });
 }
 
-export function createDownloadEventsQuery(
+export function useDownloadEventsQuery(
   input: DownloadEventsFilterInput,
   options?: {
     enabled?: boolean;
@@ -149,7 +149,7 @@ function parseContentDispositionFilename(headerValue: string | null): string | u
   return undefined;
 }
 
-export function createDownloadEventsExportMutation() {
+export function useDownloadEventsExportMutation() {
   return useMutation({
     mutationFn: (input: { filter: DownloadEventsExportInput; format: "json" | "csv" }) =>
       Effect.runPromise(exportDownloadEvents(input.filter, input.format)),

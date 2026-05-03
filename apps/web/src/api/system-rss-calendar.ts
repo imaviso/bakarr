@@ -22,7 +22,7 @@ export function rssFeedsQueryOptions() {
   });
 }
 
-export function createRssFeedsQuery() {
+export function useRssFeedsQuery() {
   return useQuery(rssFeedsQueryOptions());
 }
 
@@ -42,14 +42,14 @@ export function animeRssFeedsQueryOptions(animeId: number) {
   });
 }
 
-export function createAnimeRssFeedsQuery(animeId: number) {
+export function useAnimeRssFeedsQuery(animeId: number) {
   return useQuery({
     ...animeRssFeedsQueryOptions(animeId),
     enabled: !!animeId,
   });
 }
 
-export function createAddRssFeedMutation() {
+export function useAddRssFeedMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: RssFeedCreateRequest) =>
@@ -65,7 +65,7 @@ export function createAddRssFeedMutation() {
   });
 }
 
-export function createDeleteRssFeedMutation() {
+export function useDeleteRssFeedMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: number) =>
@@ -76,7 +76,7 @@ export function createDeleteRssFeedMutation() {
   });
 }
 
-export function createToggleRssFeedMutation() {
+export function useToggleRssFeedMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, enabled }: { id: number; enabled: boolean }) =>
@@ -108,7 +108,7 @@ export function calendarQueryOptions(start: Date, end: Date) {
   });
 }
 
-export function createCalendarQuery(start: Date, end: Date) {
+export function useCalendarQuery(start: Date, end: Date) {
   return useQuery({
     ...calendarQueryOptions(start, end),
     placeholderData: (prev: CalendarEvent[] | undefined) => prev,

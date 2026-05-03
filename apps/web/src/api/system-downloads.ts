@@ -22,7 +22,7 @@ export function downloadQueueQueryOptions() {
   });
 }
 
-export function createDownloadQueueQuery() {
+export function useDownloadQueueQuery() {
   return useQuery(downloadQueueQueryOptions());
 }
 
@@ -42,11 +42,11 @@ export function downloadHistoryQueryOptions() {
   });
 }
 
-export function createDownloadHistoryQuery() {
+export function useDownloadHistoryQuery() {
   return useQuery(downloadHistoryQueryOptions());
 }
 
-export function createSearchMissingMutation() {
+export function useSearchMissingMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (animeId?: number) =>
@@ -72,7 +72,7 @@ function invalidateDownloadQueries(queryClient: ReturnType<typeof useQueryClient
   void queryClient.invalidateQueries({ queryKey: animeKeys.system.all });
 }
 
-export function createPauseDownloadMutation() {
+export function usePauseDownloadMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (downloadId: number) =>
@@ -83,7 +83,7 @@ export function createPauseDownloadMutation() {
   });
 }
 
-export function createResumeDownloadMutation() {
+export function useResumeDownloadMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (downloadId: number) =>
@@ -98,7 +98,7 @@ export function createResumeDownloadMutation() {
   });
 }
 
-export function createRetryDownloadMutation() {
+export function useRetryDownloadMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (downloadId: number) =>
@@ -109,7 +109,7 @@ export function createRetryDownloadMutation() {
   });
 }
 
-export function createDeleteDownloadMutation() {
+export function useDeleteDownloadMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: { downloadId: number; deleteFiles?: boolean }) =>
@@ -127,7 +127,7 @@ export function createDeleteDownloadMutation() {
   });
 }
 
-export function createSyncDownloadsMutation() {
+export function useSyncDownloadsMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () =>
@@ -145,7 +145,7 @@ export function createSyncDownloadsMutation() {
   });
 }
 
-export function createReconcileDownloadMutation() {
+export function useReconcileDownloadMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (downloadId: number) =>

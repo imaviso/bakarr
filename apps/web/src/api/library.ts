@@ -16,7 +16,7 @@ export function libraryStatsQueryOptions() {
   });
 }
 
-export function createLibraryStatsQuery() {
+export function useLibraryStatsQuery() {
   return useQuery(libraryStatsQueryOptions());
 }
 
@@ -36,6 +36,6 @@ export function activityQueryOptions() {
   });
 }
 
-export function createActivityQuery() {
+export function useActivityQuery() {
   return useQuery(activityQueryOptions());
 }

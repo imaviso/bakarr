@@ -21,6 +21,6 @@ export function wantedQueryOptions(limit = 100) {
   });
 }
 
-export function createWantedQuery(limit: number) {
+export function useWantedQuery(limit: number) {
   return useQuery(wantedQueryOptions(limit));
 }

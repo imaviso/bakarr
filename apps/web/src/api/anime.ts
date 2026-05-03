@@ -55,7 +55,7 @@ export function animeListQueryOptions() {
   });
 }
 
-export function createAnimeListQuery(options?: { enabled?: boolean }) {
+export function useAnimeListQuery(options?: { enabled?: boolean }) {
   return useQuery({
     ...animeListQueryOptions(),
     ...(options?.enabled === undefined ? {} : { enabled: options.enabled }),
@@ -71,7 +71,7 @@ export function animeDetailsQueryOptions(id: number) {
   });
 }
 
-export function createAnimeDetailsQuery(id: number) {
+export function useAnimeDetailsQuery(id: number) {
   return useQuery({
     ...animeDetailsQueryOptions(id),
     enabled: !!id,
@@ -94,7 +94,7 @@ export function episodesQueryOptions(animeId: number) {
   });
 }
 
-export function createEpisodesQuery(animeId: number) {
+export function useEpisodesQuery(animeId: number) {
   return useQuery({
     ...episodesQueryOptions(animeId),
     enabled: !!animeId,
@@ -117,7 +117,7 @@ export function listFilesQueryOptions(animeId: number) {
   });
 }
 
-export function createListFilesQuery(animeId: number, options?: { enabled?: boolean }) {
+export function useListFilesQuery(animeId: number, options?: { enabled?: boolean }) {
   return useQuery({
     ...listFilesQueryOptions(animeId),
     enabled: !!animeId && (options?.enabled ?? true),
@@ -140,7 +140,7 @@ export function animeSearchQueryOptions(query: string) {
   });
 }
 
-export function createAnimeSearchQuery(query: string) {
+export function useAnimeSearchQuery(query: string) {
   const normalizedQuery = query.trim();
 
   return useQuery({
@@ -164,7 +164,7 @@ export function episodeSearchQueryOptions(animeId: number, episodeNumber: number
   });
 }
 
-export function createEpisodeSearchQuery(animeId: number, episodeNumber: number, enabled = false) {
+export function useEpisodeSearchQuery(animeId: number, episodeNumber: number, enabled = false) {
   return useQuery({
     ...episodeSearchQueryOptions(animeId, episodeNumber),
     enabled,
@@ -208,7 +208,7 @@ export function nyaaSearchQueryOptions(
   });
 }
 
-export function createNyaaSearchQuery(
+export function useNyaaSearchQuery(
   query: string,
   options: {
     animeId?: number | undefined;
@@ -240,7 +240,7 @@ export function animeByAnilistIdQueryOptions(id: number) {
   });
 }
 
-export function createAnimeByAnilistIdQuery(id: number | null) {
+export function useAnimeByAnilistIdQuery(id: number | null) {
   return useQuery({
     ...animeByAnilistIdQueryOptions(id ?? 0),
     enabled: id !== null && id > 0,
@@ -279,7 +279,7 @@ export function seasonalAnimeQueryOptions(input?: {
   });
 }
 
-export function createSeasonalAnimeQuery(input?: {
+export function useSeasonalAnimeQuery(input?: {
   season?: AnimeSeason;
   year?: number;
   limit?: number;
@@ -328,7 +328,7 @@ export function seasonalAnimeInfiniteQueryOptions(input?: {
   });
 }
 
-export function createSeasonalAnimeInfiniteQuery(input?: {
+export function useSeasonalAnimeInfiniteQuery(input?: {
   season?: AnimeSeason;
   year?: number;
   limit?: number;

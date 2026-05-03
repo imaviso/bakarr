@@ -29,14 +29,14 @@ export function systemConfigQueryOptions() {
   });
 }
 
-export function createSystemConfigQuery(enabled: boolean = true) {
+export function useSystemConfigQuery(enabled: boolean = true) {
   return useQuery({
     ...systemConfigQueryOptions(),
     enabled,
   });
 }
 
-export function createUpdateSystemConfigMutation() {
+export function useUpdateSystemConfigMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: Config) =>
@@ -63,11 +63,11 @@ export function systemStatusQueryOptions() {
   });
 }
 
-export function createSystemStatusQuery() {
+export function useSystemStatusQuery() {
   return useQuery(systemStatusQueryOptions());
 }
 
-export function createTriggerScanMutation() {
+export function useTriggerScanMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () =>
@@ -88,7 +88,7 @@ export function createTriggerScanMutation() {
   });
 }
 
-export function createTriggerRssCheckMutation() {
+export function useTriggerRssCheckMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () =>
@@ -107,7 +107,7 @@ export function createTriggerRssCheckMutation() {
   });
 }
 
-export function createTriggerMetadataRefreshMutation() {
+export function useTriggerMetadataRefreshMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () =>
@@ -149,7 +149,7 @@ export function systemJobsQueryOptions() {
   });
 }
 
-export function createSystemJobsQuery(options?: { refetchInterval?: number | false }) {
+export function useSystemJobsQuery(options?: { refetchInterval?: number | false }) {
   const query = systemJobsQueryOptions();
 
   return useQuery({
@@ -169,7 +169,7 @@ export function systemDashboardQueryOptions() {
   });
 }
 
-export function createSystemDashboardQuery(options?: { refetchInterval?: number | false }) {
+export function useSystemDashboardQuery(options?: { refetchInterval?: number | false }) {
   const query = systemDashboardQueryOptions();
 
   return useQuery({

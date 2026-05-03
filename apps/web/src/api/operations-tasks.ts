@@ -63,7 +63,7 @@ export function systemTasksQueryOptions(input?: {
   });
 }
 
-export function createSystemTasksQuery(
+export function useSystemTasksQuery(
   input: { readonly animeId?: number; readonly taskKey?: OperationTaskKey } = {},
 ) {
   return useQuery(systemTasksQueryOptions(input));
@@ -80,7 +80,7 @@ export function systemTaskQueryOptions(taskId: number) {
   });
 }
 
-export function createSystemTaskQuery(taskId: number | undefined) {
+export function useSystemTaskQuery(taskId: number | undefined) {
   return useQuery({
     queryKey:
       taskId === undefined
@@ -124,7 +124,7 @@ export function libraryImportTasksQueryOptions(input?: { readonly animeId?: numb
   });
 }
 
-export function createLibraryImportTasksQuery(input: { readonly animeId?: number } = {}) {
+export function useLibraryImportTasksQuery(input: { readonly animeId?: number } = {}) {
   return useQuery(libraryImportTasksQueryOptions(input));
 }
 
@@ -144,7 +144,7 @@ export function libraryImportTaskQueryOptions(taskId: number) {
   });
 }
 
-export function createLibraryImportTaskQuery(taskId: number | undefined) {
+export function useLibraryImportTaskQuery(taskId: number | undefined) {
   return useQuery({
     queryKey:
       taskId === undefined
@@ -186,7 +186,7 @@ export function animeScanTasksQueryOptions(animeId: number) {
   });
 }
 
-export function createAnimeScanTasksQuery(animeId: number | undefined) {
+export function useAnimeScanTasksQuery(animeId: number | undefined) {
   return useQuery({
     queryKey:
       animeId === undefined
@@ -231,7 +231,7 @@ export function animeScanTaskQueryOptions(input: {
   });
 }
 
-export function createAnimeScanTaskQuery(input: {
+export function useAnimeScanTaskQuery(input: {
   readonly animeId?: number;
   readonly taskId?: number;
 }) {

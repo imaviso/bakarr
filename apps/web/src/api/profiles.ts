@@ -21,7 +21,7 @@ export function profilesQueryOptions() {
   });
 }
 
-export function createProfilesQuery(enabled: boolean = true) {
+export function useProfilesQuery(enabled: boolean = true) {
   return useQuery({ ...profilesQueryOptions(), enabled });
 }
 
@@ -36,7 +36,7 @@ export function qualitiesQueryOptions() {
   });
 }
 
-export function createQualitiesQuery() {
+export function useQualitiesQuery() {
   return useQuery(qualitiesQueryOptions());
 }
 
@@ -56,14 +56,14 @@ export function releaseProfilesQueryOptions() {
   });
 }
 
-export function createReleaseProfilesQuery(enabled: boolean = true) {
+export function useReleaseProfilesQuery(enabled: boolean = true) {
   return useQuery({
     ...releaseProfilesQueryOptions(),
     enabled,
   });
 }
 
-export function createCreateProfileMutation() {
+export function useCreateProfileMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: QualityProfile) =>
@@ -79,7 +79,7 @@ export function createCreateProfileMutation() {
   });
 }
 
-export function createUpdateProfileMutation() {
+export function useUpdateProfileMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ name, profile }: { name: string; profile: QualityProfile }) =>
@@ -95,7 +95,7 @@ export function createUpdateProfileMutation() {
   });
 }
 
-export function createDeleteProfileMutation() {
+export function useDeleteProfileMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (name: string) =>
@@ -108,7 +108,7 @@ export function createDeleteProfileMutation() {
   });
 }
 
-export function createCreateReleaseProfileMutation() {
+export function useCreateReleaseProfileMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: ReleaseProfileCreateRequest) =>
@@ -124,7 +124,7 @@ export function createCreateReleaseProfileMutation() {
   });
 }
 
-export function createUpdateReleaseProfileMutation() {
+export function useUpdateReleaseProfileMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, data }: { id: number; data: ReleaseProfileUpdateRequest }) =>
@@ -140,7 +140,7 @@ export function createUpdateReleaseProfileMutation() {
   });
 }
 
-export function createDeleteReleaseProfileMutation() {
+export function useDeleteReleaseProfileMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: number) =>

@@ -7,7 +7,7 @@ import { API_BASE } from "~/api/constants";
 import { fetchJson, fetchUnit } from "~/api/effect/api-client";
 import { animeKeys } from "./keys";
 
-export function createAddAnimeMutation() {
+export function useAddAnimeMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: AddAnimeRequest) =>
@@ -27,7 +27,7 @@ export function createAddAnimeMutation() {
   });
 }
 
-export function createDeleteAnimeMutation() {
+export function useDeleteAnimeMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: number) =>
@@ -39,7 +39,7 @@ export function createDeleteAnimeMutation() {
   });
 }
 
-export function createToggleMonitorMutation() {
+export function useToggleMonitorMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, monitored }: { id: number; monitored: boolean }) =>
@@ -87,7 +87,7 @@ export function createToggleMonitorMutation() {
   });
 }
 
-export function createUpdateAnimePathMutation() {
+export function useUpdateAnimePathMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, path, rescan }: { id: number; path: string; rescan?: boolean }) =>
@@ -119,7 +119,7 @@ export function createUpdateAnimePathMutation() {
   });
 }
 
-export function createUpdateAnimeProfileMutation() {
+export function useUpdateAnimeProfileMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, profileName }: { id: number; profileName: string }) =>
@@ -151,7 +151,7 @@ export function createUpdateAnimeProfileMutation() {
   });
 }
 
-export function createUpdateAnimeReleaseProfilesMutation() {
+export function useUpdateAnimeReleaseProfilesMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, releaseProfileIds }: { id: number; releaseProfileIds: number[] }) =>
@@ -167,7 +167,7 @@ export function createUpdateAnimeReleaseProfilesMutation() {
   });
 }
 
-export function createRefreshEpisodesMutation() {
+export function useRefreshEpisodesMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (animeId: number) =>
@@ -191,7 +191,7 @@ export function createRefreshEpisodesMutation() {
   });
 }
 
-export function createScanFolderMutation() {
+export function useScanFolderMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (animeId: number) =>
@@ -215,7 +215,7 @@ export function createScanFolderMutation() {
   });
 }
 
-export function createDeleteEpisodeFileMutation() {
+export function useDeleteEpisodeFileMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ animeId, episodeNumber }: { animeId: number; episodeNumber: number }) =>
@@ -230,7 +230,7 @@ export function createDeleteEpisodeFileMutation() {
   });
 }
 
-export function createMapEpisodeMutation() {
+export function useMapEpisodeMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({
@@ -255,7 +255,7 @@ export function createMapEpisodeMutation() {
   });
 }
 
-export function createBulkMapEpisodesMutation() {
+export function useBulkMapEpisodesMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({
@@ -278,7 +278,7 @@ export function createBulkMapEpisodesMutation() {
   });
 }
 
-export function createGrabReleaseMutation() {
+export function useGrabReleaseMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: SearchDownloadRequest) =>

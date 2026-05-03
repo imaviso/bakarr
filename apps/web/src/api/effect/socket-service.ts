@@ -61,8 +61,8 @@ function connect(): void {
     disconnected = true;
     if (ws === socket) {
       ws = null;
+      scheduleReconnect(5000);
     }
-    scheduleReconnect(5000);
   };
 
   socket.addEventListener("close", onDisconnect);

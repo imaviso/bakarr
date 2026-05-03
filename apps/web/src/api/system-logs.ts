@@ -52,7 +52,7 @@ export function infiniteLogsQueryOptions(
   });
 }
 
-export function createInfiniteLogsQuery(
+export function useInfiniteLogsQuery(
   level: string | undefined,
   eventType: string | undefined,
   startDate: string | undefined,
@@ -80,7 +80,7 @@ export function getExportLogsUrl(
   return `${API_BASE}/system/logs/export?${params.toString()}`;
 }
 
-export function createClearLogsMutation() {
+export function useClearLogsMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () => Effect.runPromise(fetchUnit(`${API_BASE}/system/logs`, { method: "DELETE" })),

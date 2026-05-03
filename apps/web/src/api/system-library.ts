@@ -37,11 +37,11 @@ export function unmappedFoldersQueryOptions() {
   });
 }
 
-export function createUnmappedFoldersQuery() {
+export function useUnmappedFoldersQuery() {
   return useQuery(unmappedFoldersQueryOptions());
 }
 
-export function createScanLibraryMutation() {
+export function useScanLibraryMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () =>
@@ -64,7 +64,7 @@ export function createScanLibraryMutation() {
   });
 }
 
-export function createControlUnmappedFolderMutation() {
+export function useControlUnmappedFolderMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: UnmappedFolderControlRequest) =>
@@ -81,7 +81,7 @@ export function createControlUnmappedFolderMutation() {
   });
 }
 
-export function createBulkControlUnmappedFoldersMutation() {
+export function useBulkControlUnmappedFoldersMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: BulkUnmappedFolderControlRequest) =>
@@ -98,7 +98,7 @@ export function createBulkControlUnmappedFoldersMutation() {
   });
 }
 
-export function createImportUnmappedFolderMutation() {
+export function useImportUnmappedFolderMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: UnmappedFolderImportRequest) =>
@@ -122,7 +122,7 @@ export function createImportUnmappedFolderMutation() {
   });
 }
 
-export function createScanImportPathMutation() {
+export function useScanImportPathMutation() {
   return useMutation({
     mutationFn: (data: { path: string; anime_id?: number }) =>
       Effect.runPromise(
@@ -134,7 +134,7 @@ export function createScanImportPathMutation() {
   });
 }
 
-export function createImportFilesMutation() {
+export function useImportFilesMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (files: ImportFileRequest[]) =>
@@ -159,7 +159,7 @@ export function createImportFilesMutation() {
   });
 }
 
-export function createImportCandidateSelectionMutation() {
+export function useImportCandidateSelectionMutation() {
   return useMutation({
     mutationFn: (data: ImportCandidateSelectionRequest) =>
       Effect.runPromise(
@@ -196,10 +196,7 @@ export function browsePathQueryOptions(
   });
 }
 
-export function createBrowsePathQuery(
-  path: string,
-  pagination?: { limit: number; offset: number },
-) {
+export function useBrowsePathQuery(path: string, pagination?: { limit: number; offset: number }) {
   return useQuery({
     ...browsePathQueryOptions(path, pagination),
   });
