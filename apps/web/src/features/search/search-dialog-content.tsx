@@ -394,7 +394,7 @@ function ReleaseRow(props: { result: NyaaSearchResult; animeId: number; onGrab: 
           <PopoverContent className="w-64 p-3">
             <div className="space-y-3">
               <div className="space-y-1">
-                <h4 className="text-xs font-semibold text-foreground">Confirm Download</h4>
+                <h4 className="text-xs font-medium text-foreground">Confirm Download</h4>
                 <p className="text-xs text-muted-foreground">
                   {state.isBatch
                     ? "Verify the starting episode used for the batch mapping."

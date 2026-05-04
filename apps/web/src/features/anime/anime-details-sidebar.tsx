@@ -97,7 +97,7 @@ export function AnimeDetailsSidebar(props: AnimeDetailsSidebarProps) {
 
       {props.anime.studios && props.anime.studios.length > 0 && (
         <div className="space-y-1.5">
-          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
             Studios
           </h2>
           <div className="flex flex-wrap gap-1">
@@ -112,7 +112,7 @@ export function AnimeDetailsSidebar(props: AnimeDetailsSidebarProps) {
 
       {props.anime.genres && props.anime.genres.length > 0 && (
         <div className="space-y-1.5">
-          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
             Genres
           </h2>
           <div className="flex flex-wrap gap-1">

@@ -82,7 +82,7 @@ function ImportTopBar(props: { state: ImportPageState }) {
             </Button>
           </Link>
           <div>
-            <h1 className="text-xl font-semibold tracking-tight text-foreground">Import Files</h1>
+            <h1 className="text-xl font-medium tracking-tight text-foreground">Import Files</h1>
             {props.state.flow.step === "review" && props.state.flow.path && (
               <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                 <FolderOpenIcon className="h-3 w-3" />
@@ -150,7 +150,7 @@ function ImportScanStep(props: { state: ImportPageState }) {
   return (
     <div className="h-full flex flex-col overflow-hidden">
       <div className="px-8 py-6 border-b">
-        <h2 className="text-lg font-semibold">Select a folder</h2>
+        <h2 className="text-lg font-medium">Select a folder</h2>
         <p className="text-sm text-muted-foreground mt-1">
           Choose a folder containing video files to import. Files will be renamed and organized
           according to your naming format.
@@ -302,7 +302,7 @@ function ImportReviewStep(props: { state: ImportPageState }) {
       <div className="px-8 py-6 border-b">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold">Review files</h2>
+            <h2 className="text-lg font-medium">Review files</h2>
             <p className="text-sm text-muted-foreground mt-1">
               Found {props.state.flow.scannedFiles.length} file(s)
               {props.state.flow.skippedFiles.length > 0 && (

@@ -92,11 +92,11 @@ export function AppSidebar() {
       {/* Workspace Header */}
       <SidebarHeader className="p-2 group-data-[collapsible=icon]:p-1">
         <div className="flex items-center gap-2 w-full rounded-none px-2 py-1.5">
-          <div className="flex h-6 w-6 items-center justify-center bg-primary text-primary-foreground font-semibold text-xs shrink-0 rounded-none">
+          <div className="flex h-6 w-6 items-center justify-center bg-primary text-primary-foreground font-medium text-xs shrink-0 rounded-none">
             B
           </div>
           {!isCollapsed && (
-            <span className="font-semibold text-sm text-sidebar-accent-foreground truncate flex-1 text-left">
+            <span className="font-medium text-sm text-sidebar-accent-foreground truncate flex-1 text-left">
               Bakarr
             </span>
           )}

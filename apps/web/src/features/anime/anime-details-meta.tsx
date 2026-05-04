@@ -19,7 +19,7 @@ function StatItem(props: { label: string; value: number | string; tone?: "succes
   return (
     <div className="flex items-baseline gap-2">
       <span
-        className={`text-xl font-semibold tabular-nums ${
+        className={`text-xl font-medium tabular-nums ${
           props.tone === "success"
             ? "text-success"
             : props.tone === "warning"

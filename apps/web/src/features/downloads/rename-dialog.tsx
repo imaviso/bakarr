@@ -142,7 +142,7 @@ export function RenameDialog(props: RenameDialogProps) {
                   )}
                   <div className="flex flex-col items-center justify-center py-8 text-center">
                     <CheckIcon className="h-16 w-16 text-success mb-4" />
-                    <h3 className="text-xl font-semibold">Rename Complete</h3>
+                    <h3 className="text-xl font-medium">Rename Complete</h3>
                     <p className="text-muted-foreground">
                       {executeRename.data.renamed === 0
                         ? "No files needed renaming."

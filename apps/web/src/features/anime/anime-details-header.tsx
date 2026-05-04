@@ -103,7 +103,7 @@ export function AnimeDetailsHeader(props: AnimeDetailsHeaderProps) {
             <ArrowLeftIcon className="h-4 w-4" />
           </Link>
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-semibold tracking-tight overflow-hidden flex items-center gap-3 min-w-0">
+            <h1 className="text-xl font-medium tracking-tight overflow-hidden flex items-center gap-3 min-w-0">
               <span
                 className="truncate min-w-0 flex-1"
                 title={props.anime.title.english || props.anime.title.romaji}

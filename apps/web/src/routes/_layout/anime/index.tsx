@@ -138,7 +138,7 @@ function AnimeIndexPage() {
       <div className="shrink-0 space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-3 py-2">
           <div className="min-w-0">
-            <h1 className="text-lg font-semibold tracking-tight text-foreground">Library</h1>
+            <h1 className="text-lg font-medium tracking-tight text-foreground">Library</h1>
             <p className="text-xs text-muted-foreground">
               {filteredList.length === anime.length
                 ? `${anime.length} titles`

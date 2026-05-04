@@ -8,7 +8,6 @@ import { GeneralError } from "~/components/shared/general-error";
 import { PageHeader } from "~/app/layout/page-header";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import { Card } from "~/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -122,10 +121,10 @@ function WantedPage() {
         </Button>
       </PageHeader>
 
-      <Card className="overflow-hidden flex-1 min-h-0 flex flex-col">
+      <div className="overflow-hidden flex-1 min-h-0 flex flex-col border border-border">
         <div ref={scrollRef} className="h-full min-h-0 w-full flex-1 overflow-auto">
           <Table className="table-fixed w-full min-w-0">
-            <TableHeader className="sticky top-0 bg-card z-10 border-b">
+            <TableHeader className="sticky top-0 bg-background z-10 border-b">
               <TableRow className="hover:bg-transparent border-none">
                 <TableHead scope="col" className="w-[60px]" />
                 <TableHead scope="col">Anime</TableHead>
@@ -204,7 +203,7 @@ function WantedPage() {
             </TableBody>
           </Table>
         </div>
-      </Card>
+      </div>
 
       <Suspense fallback={null}>
         <SearchModalLazy
@@ -264,7 +263,7 @@ function WantedRow(props: {
       </TableCell>
       <TableCell>
         <div className="flex flex-col items-start gap-1">
-          <Badge variant="outline" className="font-mono font-normal">
+          <Badge variant="outline" className="tabular-nums">
             {props.item.episode_number.toString().padStart(2, "0")}
           </Badge>
           {statusLabel && (

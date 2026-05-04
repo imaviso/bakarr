@@ -46,7 +46,7 @@ export function BackgroundMatchingCard(props: {
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-semibold text-foreground">Background folder matching</p>
+            <p className="text-sm font-medium text-foreground">Background folder matching</p>
             <Badge
               variant={backgroundMatchingStatusVariant({
                 failedCount: props.failedCount,
@@ -89,21 +89,21 @@ export function BackgroundMatchingCard(props: {
         <div className="grid grid-cols-2 gap-2 text-right text-xs text-muted-foreground sm:grid-cols-4 lg:min-w-[340px]">
           <div className="border border-border bg-muted px-3 py-2">
             <div className="uppercase tracking-[0.18em]">Matched</div>
-            <div className="mt-1 text-lg font-semibold text-foreground">{props.matchedCount}</div>
+            <div className="mt-1 text-lg font-medium text-foreground">{props.matchedCount}</div>
           </div>
           <div className="border border-border bg-muted px-3 py-2">
             <div className="uppercase tracking-[0.18em]">In queue</div>
-            <div className="mt-1 text-lg font-semibold text-foreground">
+            <div className="mt-1 text-lg font-medium text-foreground">
               {props.queuedCount + props.matchingCount}
             </div>
           </div>
           <div className="border border-border bg-muted px-3 py-2">
             <div className="uppercase tracking-[0.18em]">Paused</div>
-            <div className="mt-1 text-lg font-semibold text-foreground">{props.pausedCount}</div>
+            <div className="mt-1 text-lg font-medium text-foreground">{props.pausedCount}</div>
           </div>
           <div className="border border-border bg-muted px-3 py-2">
             <div className="uppercase tracking-[0.18em]">Total</div>
-            <div className="mt-1 text-lg font-semibold text-foreground">{props.totalCount}</div>
+            <div className="mt-1 text-lg font-medium text-foreground">{props.totalCount}</div>
           </div>
         </div>
       </div>

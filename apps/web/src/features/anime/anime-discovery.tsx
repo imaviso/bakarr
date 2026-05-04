@@ -100,7 +100,7 @@ export function AnimeDiscoverySection(props: AnimeDiscoverySectionProps) {
       <CardContent className="space-y-4">
         {related.length > 0 && (
           <section className="space-y-2">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
               Franchise
             </div>
             <div className="space-y-2">
@@ -113,7 +113,7 @@ export function AnimeDiscoverySection(props: AnimeDiscoverySectionProps) {
 
         {recommended.length > 0 && (
           <section className="space-y-2">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
               Recommended
             </div>
             <div className="space-y-2">

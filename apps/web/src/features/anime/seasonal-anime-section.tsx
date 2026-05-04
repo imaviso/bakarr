@@ -113,7 +113,7 @@ export function SeasonalAnimeSection(props: SeasonalAnimeSectionProps) {
     <section className="flex flex-col flex-1 min-h-0 overflow-hidden gap-4">
       <div className="flex flex-col gap-3 rounded-none border border-border bg-muted p-3 sm:flex-row sm:items-center sm:justify-between shrink-0">
         <div>
-          <h2 className="text-lg font-semibold tracking-tight text-foreground">Seasonal Anime</h2>
+          <h2 className="text-lg font-medium tracking-tight text-foreground">Seasonal Anime</h2>
           <p className="text-xs text-muted-foreground">
             Trending for this season, paged by popularity.
           </p>

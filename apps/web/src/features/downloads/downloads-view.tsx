@@ -3,7 +3,6 @@ import { DownloadEventsDialog } from "~/features/downloads/download-events-dialo
 import { PageHeader } from "~/app/layout/page-header";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import { Card } from "~/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { DownloadsEventsTab } from "~/features/downloads/downloads-events-tab";
 import { DownloadsHistoryTab } from "~/features/downloads/downloads-history-tab";
@@ -56,7 +55,7 @@ export function DownloadsView(props: DownloadsViewProps) {
         </div>
       </PageHeader>
 
-      <Card className="flex-1 min-h-0 overflow-hidden flex flex-col">
+      <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
         <Tabs
           value={props.searchTab}
           onChange={(value) =>
@@ -68,7 +67,7 @@ export function DownloadsView(props: DownloadsViewProps) {
             <TabsList className="w-full justify-start h-auto p-0 pb-px bg-transparent border-b-0 space-x-6">
               <TabsTrigger
                 value="queue"
-                className="h-9 px-0 pb-3 rounded-none border-b-2 border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent data-[selected]:bg-transparent"
+                className="h-9 px-0 pb-3 rounded-none border-b border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent data-[selected]:bg-transparent data-[selected]:text-foreground"
               >
                 Queue
                 {props.state.queueCount > 0 && (
@@ -79,13 +78,13 @@ export function DownloadsView(props: DownloadsViewProps) {
               </TabsTrigger>
               <TabsTrigger
                 value="history"
-                className="h-9 px-0 pb-3 rounded-none border-b-2 border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent data-[selected]:bg-transparent"
+                className="h-9 px-0 pb-3 rounded-none border-b border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent data-[selected]:bg-transparent data-[selected]:text-foreground"
               >
                 History
               </TabsTrigger>
               <TabsTrigger
                 value="events"
-                className="h-9 px-0 pb-3 rounded-none border-b-2 border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent data-[selected]:bg-transparent"
+                className="h-9 px-0 pb-3 rounded-none border-b border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent data-[selected]:bg-transparent data-[selected]:text-foreground"
               >
                 Events
               </TabsTrigger>
@@ -107,7 +106,7 @@ export function DownloadsView(props: DownloadsViewProps) {
 
           <DownloadsHistoryTab history={props.state.history} />
         </Tabs>
-      </Card>
+      </div>
     </div>
   );
 }

@@ -93,7 +93,7 @@ export function EpisodeTableRow(props: EpisodeTableRowProps) {
           )}
         </div>
       </TableCell>
-      <TableCell className="hidden md:table-cell text-sm text-muted-foreground font-mono truncate max-w-[200px]">
+      <TableCell className="hidden md:table-cell text-sm text-muted-foreground tabular-nums truncate max-w-[200px]">
         {episode.file_path ? (
           <div className="truncate" title={episode.file_path.split("/").pop()}>
             {episode.file_path.split("/").pop()}

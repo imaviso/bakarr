@@ -58,10 +58,7 @@ export function FolderItem(props: {
           </div>
           <div className="min-w-0 space-y-1">
             <div className="flex flex-wrap items-center gap-2">
-              <p
-                className="truncate text-sm font-semibold text-foreground"
-                title={props.folder.name}
-              >
+              <p className="truncate text-sm font-medium text-foreground" title={props.folder.name}>
                 {props.folder.name}
               </p>
               <Badge variant="outline">{folderStatusLabel(props.folder)}</Badge>
@@ -72,7 +69,7 @@ export function FolderItem(props: {
             <p className="text-xs text-muted-foreground">{folderMatchHint(props.folder)}</p>
             {props.folder.search_queries?.length ? (
               <div className="flex flex-wrap items-center gap-1 pt-1">
-                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                <span className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
                   Search
                 </span>
                 {(props.folder.search_queries ?? []).slice(0, 3).map((query) => (
@@ -104,7 +101,7 @@ export function FolderItem(props: {
             <div className="min-w-0 space-y-2">
               <div className="flex flex-wrap items-center gap-2">
                 <p
-                  className="truncate text-sm font-semibold text-foreground"
+                  className="truncate text-sm font-medium text-foreground"
                   title={state.selectedAnime.title.romaji}
                 >
                   {animeDisplayTitle(state.selectedAnime)}
@@ -173,7 +170,7 @@ export function FolderItem(props: {
               ) : null}
               {!state.selectedAnime.already_in_library && (
                 <div className="space-y-2 pt-1">
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
                     Quality profile for the new anime
                   </span>
                   <Select

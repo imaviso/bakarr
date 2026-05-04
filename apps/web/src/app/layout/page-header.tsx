@@ -12,7 +12,7 @@ export function PageHeader(props: PageHeaderProps) {
   return (
     <div className={cn("flex flex-wrap items-center justify-between gap-3 py-2", props.className)}>
       <div className="min-w-0">
-        <h1 className="text-lg font-semibold tracking-tight text-foreground">{props.title}</h1>
+        <h1 className="text-lg font-medium tracking-tight text-foreground">{props.title}</h1>
         {props.subtitle && <p className="text-xs text-muted-foreground">{props.subtitle}</p>}
       </div>
       {props.children}

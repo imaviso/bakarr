@@ -181,7 +181,7 @@ export function DownloadRow(props: { item: Download; isHistory?: boolean }) {
         />
       </TableCell>
       <TableCell className="py-2 min-w-[110px] md:min-w-[120px]">
-        <Badge variant="outline" className="font-normal font-mono text-xs">
+        <Badge variant="outline" className="tabular-nums text-xs">
           {formatEpisodeCoverage(
             props.item.episode_number,
             props.item.covered_episodes,

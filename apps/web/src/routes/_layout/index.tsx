@@ -125,7 +125,7 @@ function StatItem(props: {
   return (
     <div className="flex items-baseline gap-2">
       <span
-        className={`text-xl font-semibold tabular-nums ${props.tone === "warning" ? "text-warning" : "text-foreground"}`}
+        className={`text-xl font-medium tabular-nums ${props.tone === "warning" ? "text-warning" : "text-foreground"}`}
       >
         {props.value}
       </span>

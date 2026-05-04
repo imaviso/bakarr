@@ -127,7 +127,7 @@ function SettingsNav({
     <nav role="tablist" className="hidden md:flex flex-col gap-6 w-44 shrink-0">
       {SETTINGS_GROUPS.map((group) => (
         <div key={group.label} className="flex flex-col gap-1">
-          <span className="px-3 text-[0.65rem] font-semibold uppercase tracking-widest text-muted-foreground">
+          <span className="px-3 text-[0.65rem] font-medium uppercase tracking-widest text-muted-foreground">
             {group.label}
           </span>
           {group.items.map((item) => (
@@ -244,7 +244,7 @@ function SettingsPage() {
                 className="space-y-6"
               >
                 <div>
-                  <h2 className="text-sm font-semibold">General Settings</h2>
+                  <h2 className="text-sm font-medium">General Settings</h2>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     Core application, library, and naming settings
                   </p>
@@ -261,7 +261,7 @@ function SettingsPage() {
                 className="space-y-6"
               >
                 <div>
-                  <h2 className="text-sm font-semibold">Automation</h2>
+                  <h2 className="text-sm font-medium">Automation</h2>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     Search, qBittorrent, scheduling, and app-wide release defaults
                   </p>
@@ -294,7 +294,7 @@ function SettingsPage() {
                 className="space-y-6"
               >
                 <div>
-                  <h2 className="text-sm font-semibold">Account</h2>
+                  <h2 className="text-sm font-medium">Account</h2>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     Manage your password, API access, and notification preferences
                   </p>

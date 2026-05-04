@@ -79,7 +79,7 @@ export function AnimeCalendar() {
           <Button variant="ghost" size="icon" onClick={handlePrevMonth} aria-label="Previous month">
             <CaretLeftIcon className="h-4 w-4" />
           </Button>
-          <h2 className="text-xl font-semibold w-40 text-center">
+          <h2 className="text-xl font-medium w-40 text-center">
             {format(currentDate, "MMMM yyyy")}
           </h2>
           <Button variant="ghost" size="icon" onClick={handleNextMonth} aria-label="Next month">

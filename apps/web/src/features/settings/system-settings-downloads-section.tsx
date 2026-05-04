@@ -10,7 +10,7 @@ interface SystemSettingsDownloadsSectionProps {
 
 function SubSectionTitle({ children }: { children: string }) {
   return (
-    <div className="text-[0.65rem] font-semibold uppercase tracking-widest text-muted-foreground px-0.5 pt-4 pb-1">
+    <div className="text-[0.65rem] font-medium uppercase tracking-widest text-muted-foreground px-0.5 pt-4 pb-1">
       {children}
     </div>
   );

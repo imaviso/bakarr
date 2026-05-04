@@ -31,7 +31,7 @@ Three words: **precise**, **neutral**, **confident**.
 2. **Calm density** — information-rich without clutter. Every pixel serves a purpose.
 3. **Neutral confidence** — tints and tones feel precise, not cold. Warmth comes from artwork.
 4. **Consistency over novelty** — predictable patterns across catalog, wanted, downloads, and settings.
-5. **Respect the solo admin** — optimize for single-user speed and decision-making.
+5. **Respect the solo admin** — optimize for single-user speed and decision-making. Empty states must be instructional, not dead ends.
 
 ## Accessibility & Inclusion
 

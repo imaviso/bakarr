@@ -143,7 +143,7 @@ function LoginPage() {
       <div className="flex min-h-full items-center justify-center">
         <Card className="w-full max-w-[400px] p-2 bg-card">
           <CardHeader className="text-center pb-6 mb-4">
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Bakarr</h1>
+            <h1 className="text-2xl font-medium tracking-tight text-foreground">Bakarr</h1>
             <CardDescription className="text-sm text-muted-foreground mt-1">
               Sign in to your account
             </CardDescription>

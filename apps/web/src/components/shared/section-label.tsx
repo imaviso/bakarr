@@ -9,7 +9,7 @@ export function SectionLabel(props: SectionLabelProps) {
   return (
     <span
       className={cn(
-        "text-xs font-semibold uppercase tracking-widest text-muted-foreground",
+        "text-xs font-medium uppercase tracking-widest text-muted-foreground",
         props.className,
       )}
     >

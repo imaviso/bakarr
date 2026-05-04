@@ -2,9 +2,9 @@
 name: Bakarr
 description: A self-hosted anime library manager with a precise, neutral, and confident interface.
 colors:
-  background: "oklch(1 0 0)"
+  background: "oklch(0.99 0 0)"
   foreground: "oklch(0.145 0 0)"
-  card: "oklch(1 0 0)"
+  card: "oklch(0.995 0 0)"
   card-foreground: "oklch(0.145 0 0)"
   primary: "oklch(0.205 0 0)"
   primary-foreground: "oklch(0.985 0 0)"
@@ -98,8 +98,8 @@ The palette is purely neutral. Every surface is a shade of grey, with the sole e
 
 ### Neutral
 
-- **Background** (`oklch(1 0 0)`): The canvas. Pure white in light mode, near-black (`oklch(0.145 0 0)`) in dark mode.
-- **Card** (`oklch(1 0 0)`): Surface color for cards, popovers, and dialogs. One step above background in tonal layering.
+- **Background** (`oklch(0.99 0 0)`): The canvas. Matte off-white in light mode, near-black (`oklch(0.145 0 0)`) in dark mode. Pure white is banned to reduce eye fatigue.
+- **Card** (`oklch(0.995 0 0)`): Surface color for cards, popovers, and dialogs. One subtle step above background in tonal layering.
 - **Muted** (`oklch(0.97 0 0)`): Secondary surfaces — hover states, secondary buttons, subtle backgrounds.
 - **Muted Foreground** (`oklch(0.556 0 0)`): Placeholder text, disabled labels, metadata, timestamps.
 - **Border** (`oklch(0.922 0 0)`): The 1px ring that defines edges. In dark mode, this becomes a low-opacity white (`oklch(1 0 0 / 10%)`).
@@ -132,7 +132,7 @@ Status colors are used at low opacity backgrounds (`bg-* /10` or `/20`) with ful
 **Body Font:** Geist Variable (system-ui fallback)
 **Label/Mono Font:** Geist Mono Variable (monospace fallback)
 
-**Character:** Technical, compact, and unemotional. Geist's geometric clarity reinforces the vault aesthetic. Monospace is reserved for data-dense or technical contexts (logs, file paths, metadata).
+**Character:** Technical, compact, and unemotional. Geist's geometric clarity reinforces the vault aesthetic. Use `tabular-nums` in Geist Variable for standard metrics, dates, and metadata. Monospace is strictly reserved for actual code, hashes, or logs—do not use it as a lazy shorthand for a "technical" aesthetic.
 
 ### Hierarchy
 
@@ -160,7 +160,19 @@ This is an architectural system, not a material one. Surfaces do not float. They
 
 **The Flat-By-Default Rule.** Surfaces are flat at rest. The only permitted depth cue is a 1px ring border or a background tone shift. If you are reaching for `box-shadow`, use `ring-1` instead.
 
-## 5. Components
+## 5. Layout & Rhythm
+
+When shadows, borders, and rounded corners are removed, negative space becomes the primary structural tool.
+
+- **Visual Rhythm:** Avoid uniform, monotonous grids. Use tight groupings for related metadata (e.g., `gap-1` or `gap-2`) and generous separations (e.g., `gap-8` or `gap-12`) between discrete sections to create a readable rhythm.
+- **Asymmetry:** Do not default to centered layouts. Left-aligned, asymmetrical compositions feel more designed and intentional.
+- **The Card Constraint:** Not everything needs a card. Let elements breathe on the background surface unless grouping is strictly necessary.
+
+## 6. Components
+
+### Empty States
+
+When the vault is empty, the interface must remain structural and instructional. Do not show dead ends or generic "No items found" messages. Empty states must teach the UI, using architectural placeholders that guide the solo admin toward their next action (e.g., adding an RSS feed or importing a folder).
 
 ### Buttons
 
@@ -204,7 +216,7 @@ This is an architectural system, not a material one. Surfaces do not float. They
 - **Style:** `bg-muted` fill, `foreground` text, 12px weight 500.
 - **Border:** Transparent by default. Invalid state switches to `destructive`.
 
-## 6. Do's and Don'ts
+## 7. Do's and Don'ts
 
 ### Do:
 

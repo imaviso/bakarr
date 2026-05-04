@@ -9,10 +9,10 @@ export function StatChip(props: { label: string; value: string; tone?: "default"
         props.tone === "info" ? "border-info/20 bg-info/5" : "border-border bg-background/80",
       )}
     >
-      <div className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+      <div className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
         {props.label}
       </div>
-      <div className="text-lg font-semibold text-foreground">{props.value}</div>
+      <div className="text-lg font-medium text-foreground">{props.value}</div>
     </div>
   );
 }

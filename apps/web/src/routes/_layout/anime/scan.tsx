@@ -214,12 +214,12 @@ function ScanPageHeader(props: ScanPageHeaderProps) {
       <div className="px-6 py-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="space-y-3">
-            <div className="inline-flex items-center gap-2 border border-border bg-background/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+            <div className="inline-flex items-center gap-2 border border-border bg-background/80 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.24em] text-muted-foreground">
               <SparkleIcon className="h-3.5 w-3.5 text-info" />
               Library Scan
             </div>
             <div>
-              <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+              <h1 className="text-2xl font-medium tracking-tight text-foreground md:text-3xl">
                 Import folders
               </h1>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground md:text-[15px]">
