@@ -23,7 +23,7 @@ it.effect("verifyPassword fails when the stored hash structure is malformed", ()
 
 it.effect("verifyPassword fails when the stored hash hex is invalid", () =>
   Effect.gen(function* () {
-    const exit = yield* Effect.exit(verifyPassword("secret", "pbkdf2_sha256$310000$zz$zz"));
+    const exit = yield* Effect.exit(verifyPassword("secret", "pbkdf2_sha256$310000$abcd$zz"));
 
     assert.deepStrictEqual(exit._tag, "Failure");
 
@@ -33,7 +33,7 @@ it.effect("verifyPassword fails when the stored hash hex is invalid", () =>
 
       if (failure._tag === "Some") {
         assert.ok(failure.value instanceof PasswordError);
-        assert.deepStrictEqual(failure.value.message, "Invalid salt format");
+        assert.deepStrictEqual(failure.value.message, "Invalid hash format");
       }
     }
   }),

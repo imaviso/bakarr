@@ -73,6 +73,9 @@ it.effect("config codec round-trips config core without mutating arrays", () =>
     });
 
     const decoded = yield* decodeConfigCore(encoded);
+    assert.deepStrictEqual(decoded.downloads.delete_download_files_after_import, true);
+    assert.deepStrictEqual(decoded.downloads.reconcile_completed_downloads, true);
+    assert.deepStrictEqual(decoded.downloads.remove_torrent_on_import, false);
     assert.deepStrictEqual(decoded.downloads.remote_path_mappings, [["/remote", "/local"]]);
     assert.deepStrictEqual(decoded.qbittorrent.ratio_limit, 1.5);
     assert.deepStrictEqual(decoded.qbittorrent.save_path, "/downloads/anime");

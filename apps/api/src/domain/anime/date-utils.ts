@@ -6,9 +6,9 @@ export function deriveAnimeSeason(date?: string | null) {
     return undefined;
   }
 
-  if (month <= 2 || month === 12) return "winter" as const;
-  if (month <= 5) return "spring" as const;
-  if (month <= 8) return "summer" as const;
+  if (month <= 3) return "winter" as const;
+  if (month <= 6) return "spring" as const;
+  if (month <= 9) return "summer" as const;
   return "fall" as const;
 }
 

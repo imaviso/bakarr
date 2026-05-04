@@ -48,13 +48,40 @@ it("requires credentials when AniDB metadata is enabled", () =>
     }
   }));
 
-it("rejects invalid AniDB numeric settings instead of coercing", () =>
+it("rejects invalid AniDB client version instead of coercing", () =>
   Effect.gen(function* () {
     const exit = yield* Effect.exit(
       normalizeMetadataProvidersConfig({
         anidb: {
           client: "bakarr",
           client_version: 0,
+          enabled: false,
+          episode_limit: 200,
+          local_port: 45553,
+          password: null,
+          username: null,
+        },
+      }),
+    );
+
+    assert.deepStrictEqual(Exit.isFailure(exit), true);
+    if (Exit.isFailure(exit)) {
+      const failure = Cause.failureOption(exit.cause);
+      assert.deepStrictEqual(failure._tag, "Some");
+      if (failure._tag === "Some") {
+        assert.deepStrictEqual(failure.value._tag, "ConfigValidationError");
+        assert.match(failure.value.message, /client version/i);
+      }
+    }
+  }));
+
+it("rejects invalid AniDB episode limit instead of coercing", () =>
+  Effect.gen(function* () {
+    const exit = yield* Effect.exit(
+      normalizeMetadataProvidersConfig({
+        anidb: {
+          client: "bakarr",
+          client_version: 1,
           enabled: false,
           episode_limit: -1,
           local_port: 45553,
@@ -70,6 +97,7 @@ it("rejects invalid AniDB numeric settings instead of coercing", () =>
       assert.deepStrictEqual(failure._tag, "Some");
       if (failure._tag === "Some") {
         assert.deepStrictEqual(failure.value._tag, "ConfigValidationError");
+        assert.match(failure.value.message, /episode limit/i);
       }
     }
   }));

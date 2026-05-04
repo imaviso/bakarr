@@ -35,17 +35,13 @@ it.scoped("upsertEpisodeFilesAtomic inserts multiple episodes atomically", () =>
           appDb.select().from(schema.episodes).where(eq(schema.episodes.animeId, 1)),
         );
         assert.deepStrictEqual(rows.length, 3);
-        const [firstRow] = rows;
-        assert.deepStrictEqual(firstRow !== undefined, true);
-        if (!firstRow) {
-          return;
-        }
-
         const numbers = rows.map((r) => r.number).toSorted((a, b) => a - b);
         assert.deepStrictEqual(numbers, [1, 2, 3]);
 
-        assert.deepStrictEqual(firstRow.downloaded, true);
-        assert.deepStrictEqual(firstRow.filePath, "/test/episode.mkv");
+        for (const row of rows) {
+          assert.deepStrictEqual(row.downloaded, true);
+          assert.deepStrictEqual(row.filePath, "/test/episode.mkv");
+        }
       }),
     schema,
   }),

@@ -206,7 +206,7 @@ it.scoped("operations repository helpers load anime release rules and episode st
         assert.deepStrictEqual(notFoundExit._tag, "Failure");
         if (notFoundExit._tag === "Failure") {
           const failure = Cause.failureOption(notFoundExit.cause);
-          assert.deepStrictEqual(failure._tag === "None", false);
+          assert.deepStrictEqual(failure._tag, "Some");
           if (failure._tag === "Some") {
             assert.deepStrictEqual(failure.value instanceof OperationsAnimeNotFoundError, true);
           }

@@ -306,12 +306,17 @@ it("AddAnimeInputSchema accepts existing-root flag", () => {
 });
 
 it("AddRssFeedBodySchema accepts http(s) RSS URLs", () => {
-  const result = Schema.decodeUnknownEither(AddRssFeedBodySchema)({
+  const httpsResult = Schema.decodeUnknownEither(AddRssFeedBodySchema)({
     anime_id: 20,
     url: "https://example.com/feed.xml",
   });
+  const httpResult = Schema.decodeUnknownEither(AddRssFeedBodySchema)({
+    anime_id: 20,
+    url: "http://example.com/feed.xml",
+  });
 
-  assert.deepStrictEqual(result._tag, "Right");
+  assert.deepStrictEqual(httpsResult._tag, "Right");
+  assert.deepStrictEqual(httpResult._tag, "Right");
 });
 
 it("boundary request schemas reject malformed URL, path, and date inputs", () => {

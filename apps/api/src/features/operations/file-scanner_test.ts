@@ -79,6 +79,7 @@ it.effect("scanVideoFiles fails when the root path is inaccessible", () =>
 it.effect("scanVideoFilesStream uses streaming dir reader when available", () =>
   Effect.gen(function* () {
     const mockFs = yield* makeMockFs();
+    let readDirCalls = 0;
     let streamed = 0;
     const readDirError = new FileSystemError({
       cause: new Error("readDir should not be used"),
@@ -87,7 +88,10 @@ it.effect("scanVideoFilesStream uses streaming dir reader when available", () =>
     });
     const streamingFs = {
       ...mockFs,
-      readDir: () => Effect.fail(readDirError),
+      readDir: () =>
+        Effect.sync(() => {
+          readDirCalls += 1;
+        }).pipe(Effect.zipRight(Effect.fail(readDirError))),
       readDirStream: (path: string | URL) => {
         streamed += 1;
         return Stream.fromIterable(tree.get(toPathString(path)) ?? []);
@@ -102,6 +106,7 @@ it.effect("scanVideoFilesStream uses streaming dir reader when available", () =>
       "/library/show/episode-01.mkv",
       "/library/show/season-2/episode-02.mp4",
     ]);
+    assert.deepStrictEqual(readDirCalls, 0);
     assert.deepStrictEqual(streamed > 0, true);
   }),
 );
@@ -111,11 +116,7 @@ it.effect("scanVideoFilesStream handles symlink cycles without infinite recursio
     const symlinksTree = new Map<string, DirEntry[]>([
       [
         "/library",
-        [
-          entry("show", { isDirectory: true }),
-          entry("link-to-show", { isSymlink: true }),
-          entry("cycle", { isSymlink: true }),
-        ],
+        [entry("link-to-show", { isSymlink: true }), entry("cycle", { isSymlink: true })],
       ],
       ["/library/show", [entry("episode.mkv", { isFile: true, size: 100 })]],
     ]);
@@ -137,7 +138,7 @@ it.effect("scanVideoFilesStream handles symlink cycles without infinite recursio
         Effect.succeed({
           size: 100,
           isFile: toPathString(path).endsWith(".mkv"),
-          isDirectory: !toPathString(path).endsWith(".mkv"),
+          isDirectory: toPathString(path) === "/library/show" || toPathString(path) === "/library",
           isSymlink: false,
         }),
     });

@@ -54,7 +54,7 @@ it.scoped("QBitTorrentClient uses provided HttpClient", () =>
         },
       ],
     );
-    assert.deepStrictEqual(requestCount > 0, true);
+    assert.deepStrictEqual(requestCount, 2);
   }),
 );
 

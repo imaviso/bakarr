@@ -4,10 +4,13 @@ import { deriveAnimeSeason, extractYearFromDate } from "@/domain/anime/date-util
 
 it("deriveAnimeSeason maps ISO month boundaries to anime seasons", () => {
   assert.deepStrictEqual(deriveAnimeSeason("2025-01-10"), "winter");
-  assert.deepStrictEqual(deriveAnimeSeason("2025-03-10"), "spring");
-  assert.deepStrictEqual(deriveAnimeSeason("2025-06-10"), "summer");
-  assert.deepStrictEqual(deriveAnimeSeason("2025-09-10"), "fall");
-  assert.deepStrictEqual(deriveAnimeSeason("2025-12-10"), "winter");
+  assert.deepStrictEqual(deriveAnimeSeason("2025-03-10"), "winter");
+  assert.deepStrictEqual(deriveAnimeSeason("2025-04-10"), "spring");
+  assert.deepStrictEqual(deriveAnimeSeason("2025-06-10"), "spring");
+  assert.deepStrictEqual(deriveAnimeSeason("2025-07-10"), "summer");
+  assert.deepStrictEqual(deriveAnimeSeason("2025-09-10"), "summer");
+  assert.deepStrictEqual(deriveAnimeSeason("2025-10-10"), "fall");
+  assert.deepStrictEqual(deriveAnimeSeason("2025-12-10"), "fall");
 });
 
 it("deriveAnimeSeason ignores missing or invalid dates", () => {

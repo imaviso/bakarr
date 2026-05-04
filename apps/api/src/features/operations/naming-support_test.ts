@@ -121,10 +121,10 @@ it("selectAnimeYearForNaming prefers preserved year metadata", () => {
     selectAnimeYearForNaming({
       endDate: "2017-01-01",
       endYear: 2017,
-      startDate: null,
-      startYear: 2016,
+      startDate: "2016-01-01",
+      startYear: 2017,
     }),
-    2016,
+    2017,
   );
 });
 

@@ -304,7 +304,7 @@ it("inferAiredAt backfills earlier episodes from nearest schedule anchor", () =>
     undefined,
     new Map([
       [2, "2026-04-11T22:30:00.000Z"],
-      [3, "2026-04-18T22:30:00.000Z"],
+      [5, "2026-05-09T22:30:00.000Z"],
     ]),
   );
 

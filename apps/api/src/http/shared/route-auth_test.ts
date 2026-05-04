@@ -28,6 +28,7 @@ it.effect("requireViewerFromHttpRequest prefers x-api-key over bearer authorizat
   Effect.gen(function* () {
     let seenSessionToken: string | undefined;
     let seenApiKey: string | undefined;
+    let resolveViewerCalls = 0;
 
     const request = HttpServerRequest.fromWeb(
       new Request("http://localhost/api/auth/me", {
@@ -46,15 +47,17 @@ it.effect("requireViewerFromHttpRequest prefers x-api-key over bearer authorizat
         AuthSessionService,
         makeAuthSessionService((sessionToken, apiKey) =>
           Effect.sync(() => {
+            resolveViewerCalls += 1;
             seenSessionToken = sessionToken;
             seenApiKey = apiKey;
-            return Option.some(sampleViewer);
+            return apiKey === "header-token" ? Option.some(sampleViewer) : Option.none();
           }),
         ),
       ),
     );
 
     assert.deepStrictEqual(viewer, sampleViewer);
+    assert.deepStrictEqual(resolveViewerCalls, 1);
     assert.deepStrictEqual(seenSessionToken, "session-token");
     assert.deepStrictEqual(seenApiKey, "header-token");
   }),

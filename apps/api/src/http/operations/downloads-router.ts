@@ -167,7 +167,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
   ),
 );
 
-function buildDownloadExportHeaders(header: {
+export function buildDownloadExportHeaders(header: {
   readonly exported: number;
   readonly generated_at: string;
   readonly limit: number;

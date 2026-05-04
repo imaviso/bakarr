@@ -5,16 +5,16 @@ export function deriveEpisodeTimelineMetadata(
   now?: Date,
 ): Pick<Episode, "airing_status" | "is_future"> {
   if (!aired) {
-    return { airing_status: "unknown" };
+    return { airing_status: "unknown", is_future: undefined };
   }
 
   if (!now) {
-    return { airing_status: "unknown" };
+    return { airing_status: "unknown", is_future: undefined };
   }
 
   const airedAt = new Date(aired);
   if (Number.isNaN(airedAt.getTime())) {
-    return { airing_status: "unknown" };
+    return { airing_status: "unknown", is_future: undefined };
   }
 
   if (airedAt > now) {
@@ -175,9 +175,9 @@ function normalizeTitle(value: string) {
       .toLowerCase()
       .replace(/\((19|20)\d{2}\)/g, " ")
       .replace(/\b(?:the|season|part|cour|ova|ona|tv|movie|special)\b/g, " ")
-      .replace(/\biiii?\b/g, " 4 ")
       .replace(/\biii\b/g, " 3 ")
       .replace(/\bii\b/g, " 2 ")
+      .replace(/\biiii\b/g, " 4 ")
       .replace(/\biv\b/g, " 4 ")
       .replace(/\bvi\b/g, " 6 ")
       .replace(/\bv\b/g, " 5 ")

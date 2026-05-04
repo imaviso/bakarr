@@ -71,10 +71,10 @@ export function scanVideoFilesStream(
 
           state.visited.add(realPath);
 
-          const realInfo = yield* fs.stat(fullPath);
+          const realInfo = yield* fs.stat(realPath);
 
           if (realInfo.isDirectory) {
-            state.stack.push(fullPath);
+            state.stack.push(realPath);
             return Option.none<ScannedVideoFile>();
           }
 

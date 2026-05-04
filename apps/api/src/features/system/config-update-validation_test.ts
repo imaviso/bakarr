@@ -28,6 +28,7 @@ it("rejects invalid scheduler cron expressions", () =>
       assert.deepStrictEqual(failure._tag, "Some");
       if (failure._tag === "Some") {
         assert.deepStrictEqual(failure.value._tag, "ConfigValidationError");
+        assert.match(failure.value.message, /Invalid scheduler cron expression/);
       }
     }
   }));
@@ -49,6 +50,7 @@ it("rejects removing profiles that are still referenced", () =>
       assert.deepStrictEqual(failure._tag, "Some");
       if (failure._tag === "Some") {
         assert.deepStrictEqual(failure.value._tag, "ConfigValidationError");
+        assert.match(failure.value.message, /Cannot remove profile 'legacy'/);
       }
     }
   }));
@@ -76,6 +78,7 @@ it("rejects invalid qBittorrent URLs", () =>
       assert.deepStrictEqual(failure._tag, "Some");
       if (failure._tag === "Some") {
         assert.deepStrictEqual(failure.value._tag, "ConfigValidationError");
+        assert.match(failure.value.message, /must use http or https/);
       }
     }
   }));
@@ -104,6 +107,7 @@ it("rejects private qBittorrent URLs when trusted_local is disabled", () =>
       assert.deepStrictEqual(failure._tag, "Some");
       if (failure._tag === "Some") {
         assert.deepStrictEqual(failure.value._tag, "ConfigValidationError");
+        assert.match(failure.value.message, /trusted_local/);
       }
     }
   }));

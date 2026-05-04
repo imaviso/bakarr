@@ -165,6 +165,7 @@ it("parseFileSourceIdentity: standalone number Title - 01.mkv", () => {
 it("parseFileSourceIdentity: absolute range 03-04", () => {
   const result = parseFileSourceIdentity("[Group] Show - 03-04 [1080p].mkv");
   assert.deepStrictEqual(result.kind, "episode");
+  assert.deepStrictEqual(result.source_identity?.scheme, "absolute");
   if (result.source_identity?.scheme === "absolute") {
     assert.deepStrictEqual(result.source_identity.episode_numbers, [3, 4]);
   }
@@ -456,6 +457,7 @@ it("parseReleaseSourceIdentity: release and file parser agree on 1x02", () => {
   const releaseResult = parseReleaseSourceIdentity("Show Name - 1x02 - Title");
   const fileResult = parseFileSourceIdentity("Show Name - 1x02 - Title.mkv");
   assert.deepStrictEqual(releaseResult.source_identity?.scheme, fileResult.source_identity?.scheme);
+  assert.deepStrictEqual(releaseResult.source_identity?.scheme, "season");
   if (
     releaseResult.source_identity?.scheme === "season" &&
     fileResult.source_identity?.scheme === "season"
@@ -471,6 +473,7 @@ it("parseReleaseSourceIdentity: release and file parser agree on Season 1 Episod
   const releaseResult = parseReleaseSourceIdentity("Show Name - Season 1 Episode 3 - Title");
   const fileResult = parseFileSourceIdentity("Show Name - Season 1 Episode 3 - Title.mkv");
   assert.deepStrictEqual(releaseResult.source_identity?.scheme, fileResult.source_identity?.scheme);
+  assert.deepStrictEqual(releaseResult.source_identity?.scheme, "season");
   if (
     releaseResult.source_identity?.scheme === "season" &&
     fileResult.source_identity?.scheme === "season"
@@ -592,11 +595,9 @@ it("parseFileSourceIdentity: 01-02.mkv inside Season 1 folder", () => {
   const context = buildPathParseContext("/library/Show", "/library/Show/Season 1/01-02.mkv");
   const result = parseFileSourceIdentity("/library/Show/Season 1/01-02.mkv", context);
   assert.deepStrictEqual(result.kind, "episode");
+  assert.deepStrictEqual(result.source_identity?.scheme, "season");
   // Should have two episodes
-  if (
-    result.source_identity?.scheme === "season" ||
-    result.source_identity?.scheme === "absolute"
-  ) {
+  if (result.source_identity?.scheme === "season") {
     assert.deepStrictEqual(result.source_identity.episode_numbers.length, 2);
     assert.deepStrictEqual(result.source_identity.episode_numbers[0], 1);
     assert.deepStrictEqual(result.source_identity.episode_numbers[1], 2);

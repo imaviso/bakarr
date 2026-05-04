@@ -44,6 +44,10 @@ describe("SystemConfigUpdateService", () => {
               ...config.general,
               images_path: "/images/custom",
             },
+            qbittorrent: {
+              ...config.qbittorrent,
+              password: "secret-pass",
+            },
           }));
 
           yield* Effect.gen(function* () {
@@ -58,6 +62,8 @@ describe("SystemConfigUpdateService", () => {
             assert.deepStrictEqual(currentConfig.general.images_path, "/images/custom");
             assert.deepStrictEqual(storedCore.general.images_path, "/images/custom");
             assert.deepStrictEqual(updated.qbittorrent.password, nextConfig.qbittorrent.password);
+            assert.deepStrictEqual(currentConfig.qbittorrent.password, "secret-pass");
+            assert.deepStrictEqual(storedCore.qbittorrent.password, "secret-pass");
             assert.deepStrictEqual(reloads.length, 1);
             assert.deepStrictEqual(reloads[0]?.general.images_path, "/images/custom");
           }).pipe(Effect.provide(fullLayer));

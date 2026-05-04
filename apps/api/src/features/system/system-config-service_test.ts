@@ -16,25 +16,30 @@ import {
 describe("SystemConfigService", () => {
   it.effect("redactConfigSecrets strips qBittorrent and AniDB passwords for API responses", () =>
     Effect.sync(() => {
-      const redacted = redactConfigSecrets(
-        makeTestConfig("./test.sqlite", (config) => ({
-          ...config,
-          metadata: {
-            ...config.metadata,
-            anidb: {
-              ...config.metadata!.anidb,
-              password: "anidb-pass",
-            },
+      const input = makeTestConfig("./test.sqlite", (config) => ({
+        ...config,
+        metadata: {
+          ...config.metadata,
+          anidb: {
+            ...config.metadata!.anidb,
+            client: "bakarr",
+            username: "anidb-user",
+            password: "anidb-pass",
           },
-          qbittorrent: {
-            ...config.qbittorrent,
-            password: "secret-pass",
-          },
-        })),
-      );
+        },
+        qbittorrent: {
+          ...config.qbittorrent,
+          username: "qb-user",
+          password: "secret-pass",
+        },
+      }));
+      const redacted = redactConfigSecrets(input);
 
       assert.deepStrictEqual(redacted.metadata?.anidb.password, null);
+      assert.deepStrictEqual(redacted.metadata?.anidb.client, "bakarr");
+      assert.deepStrictEqual(redacted.metadata?.anidb.username, "anidb-user");
       assert.deepStrictEqual(redacted.qbittorrent.password, null);
+      assert.deepStrictEqual(redacted.qbittorrent.username, "qb-user");
     }),
   );
 

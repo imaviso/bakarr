@@ -20,9 +20,11 @@ it("deriveEpisodeTimelineMetadata classifies aired, future, and unknown episodes
   });
   assert.deepStrictEqual(deriveEpisodeTimelineMetadata("not-a-date", now), {
     airing_status: "unknown",
+    is_future: undefined,
   });
   assert.deepStrictEqual(deriveEpisodeTimelineMetadata("2025-05-01T00:00:00.000Z"), {
     airing_status: "unknown",
+    is_future: undefined,
   });
 });
 
@@ -48,7 +50,7 @@ it("summarizeEpisodeCoverage prefers air date and formats sorted unique episodes
 it("inferAiredAt uses explicit and nearest schedule before date interpolation", () => {
   const schedule = new Map<number, string>([
     [4, "2025-04-22T00:00:00.000Z"],
-    [6, "2025-05-06T00:00:00.000Z"],
+    [7, "2025-05-20T00:00:00.000Z"],
   ]);
 
   assert.deepStrictEqual(
@@ -92,6 +94,13 @@ it("scoreAnimeSearchResultMatch normalizes stop words, years, and roman numerals
     scoreAnimeSearchResultMatch("Show II", {
       synonyms: [],
       title: { english: undefined, native: undefined, romaji: "Show 2" },
+    }),
+    1,
+  );
+  assert.deepStrictEqual(
+    scoreAnimeSearchResultMatch("Show III", {
+      synonyms: [],
+      title: { english: undefined, native: undefined, romaji: "Show 3" },
     }),
     1,
   );

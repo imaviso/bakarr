@@ -1,4 +1,4 @@
-import { HttpServerRequest } from "@effect/platform";
+import { HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { Effect, Stream } from "effect";
 
 import { assert, it } from "@effect/vitest";
@@ -18,10 +18,14 @@ it.effect("events router returns NDJSON response without websocket upgrade heade
 
     assert.deepStrictEqual(response.status, 200);
     assert.deepStrictEqual(response.headers["content-type"], "application/x-ndjson");
+    assert.deepStrictEqual(
+      yield* Effect.promise(() => HttpServerResponse.toWeb(response).text()),
+      '{"type":"Info","payload":{"message":"hello"}}\n',
+    );
   }),
 );
 
-it.effect("events router websocket branch fails for non-upgradeable request", () =>
+it.effect("events router websocket branch fails when upgrade support is unavailable", () =>
   Effect.gen(function* () {
     const request = HttpServerRequest.fromWeb(
       new Request("http://bakarr.local/api/events", {

@@ -70,6 +70,7 @@ it("deriveEpisodeTimelineMetadata marks future and aired episodes", () => {
 
   assert.deepStrictEqual(deriveEpisodeTimelineMetadata(undefined), {
     airing_status: "unknown",
+    is_future: undefined,
   });
 });
 

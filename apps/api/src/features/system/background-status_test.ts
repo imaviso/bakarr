@@ -66,7 +66,7 @@ it("background status falls back to live failure details for workers without his
       lastStartedAt: null,
       lastSucceededAt: null,
       runRunning: false,
-      skipCount: 0,
+      skipCount: 1,
       successCount: 0,
     }),
     library_scan: baseSnapshot2.library_scan,
@@ -80,6 +80,6 @@ it("background status falls back to live failure details for workers without his
 
   assert.deepStrictEqual(downloadSyncJob?.last_status, "failed");
   assert.deepStrictEqual(downloadSyncJob?.last_message, "sync failed");
-  assert.deepStrictEqual(downloadSyncJob?.run_count, 1);
+  assert.deepStrictEqual(downloadSyncJob?.run_count, 2);
   assert.deepStrictEqual(metadataRefreshJob?.schedule_value, "24h");
 });
