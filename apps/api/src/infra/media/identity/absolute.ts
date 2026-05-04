@@ -55,6 +55,10 @@ export function parseAbsoluteIdentity(
   if (standaloneMatch) {
     const num = Number(standaloneMatch[1]);
     if (num > 0 && num < 2000 && !isYearLike(num)) {
+      if (options?.avoidSeasonOnlyFallback && looksLikeSeasonOnlyNumber(extensionless, num)) {
+        return undefined;
+      }
+
       return new AbsoluteEpisodeIdentity({
         scheme: "absolute",
         episode_numbers: [num],

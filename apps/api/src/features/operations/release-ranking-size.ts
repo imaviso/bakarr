@@ -9,7 +9,7 @@ export function parseSizeLabelToBytes(
     return Either.right(Option.none());
   }
 
-  const match = value.match(/([0-9.]+)\s*(KiB|MiB|GiB|TiB|KB|MB|GB|TB|B)/i);
+  const match = value.trim().match(/^(\d+(?:\.\d+)?)\s*(KiB|MiB|GiB|TiB|KB|MB|GB|TB|B)$/i);
   if (!match) {
     return Either.left(
       new OperationsInputError({

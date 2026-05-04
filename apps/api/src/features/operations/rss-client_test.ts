@@ -202,6 +202,52 @@ it.effect("RssClient rejects IP-literal feed URLs before network access", () =>
   }),
 );
 
+it.effect("RssClient rejects blocked hostnames with trailing dots before DNS", () =>
+  Effect.gen(function* () {
+    let dnsCalled = false;
+    let httpCalled = false;
+
+    const exit = yield* Effect.exit(
+      Effect.flatMap(RssClient, (client) => client.fetchItems("https://localhost./feed.xml")).pipe(
+        Effect.provide(
+          rssLayer(
+            makeTrackingHttpClient(() => {
+              httpCalled = true;
+            }),
+            (_name, _type) => {
+              dnsCalled = true;
+              return Promise.resolve(["93.184.216.34"]);
+            },
+          ),
+        ),
+      ),
+    );
+
+    assertRssFailure(exit, RssFeedRejectedError, /hostname localhost is blocked/i);
+    assert.deepStrictEqual(dnsCalled, false);
+    assert.deepStrictEqual(httpCalled, false);
+  }),
+);
+
+it.effect("RssClient rejects malformed RSS size and count fields", () =>
+  Effect.gen(function* () {
+    for (const fieldOverride of [
+      { size: "abc 1 GiB" },
+      { size: "1.2.3 GiB" },
+      { seeders: "34abc" },
+      { leechers: "-1" },
+    ]) {
+      const exit = yield* Effect.exit(
+        fetchFeedItemsEffect(makeRssHttpClient(fieldOverride), (_name, type) =>
+          type === "A" ? Promise.resolve(["93.184.216.34"]) : Promise.reject(makeNotFoundError()),
+        ),
+      );
+
+      assertRssFailure(exit, RssFeedParseError, /rss feed item payload was invalid/i);
+    }
+  }),
+);
+
 it.effect("RssClient fails with a typed rejection when a redirect targets a private address", () =>
   Effect.gen(function* () {
     let requestCount = 0;
@@ -324,7 +370,14 @@ it.effect("RssClient handles non-redirect valid feed", () =>
   }),
 );
 
-function makeRssHttpClient() {
+function makeRssHttpClient(overrides?: {
+  readonly size?: string;
+  readonly seeders?: string;
+  readonly leechers?: string;
+}) {
+  const size = overrides?.size ?? "1.2 GiB";
+  const seeders = overrides?.seeders ?? "34";
+  const leechers = overrides?.leechers ?? "12";
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:nyaa="https://nyaa.si/xmlns/nyaa">
   <channel>
@@ -332,10 +385,10 @@ function makeRssHttpClient() {
       <title>[SubsPlease] Example Show - 01 (1080p) [SeaDex]</title>
       <link>https://nyaa.si/download/123456.torrent</link>
       <nyaa:infoHash>abcdef0123456789abcdef0123456789abcdef01</nyaa:infoHash>
-      <nyaa:size>1.2 GiB</nyaa:size>
+      <nyaa:size>${size}</nyaa:size>
       <pubDate>Mon, 01 Jan 2024 12:00:00 GMT</pubDate>
-      <nyaa:seeders>34</nyaa:seeders>
-      <nyaa:leechers>12</nyaa:leechers>
+      <nyaa:seeders>${seeders}</nyaa:seeders>
+      <nyaa:leechers>${leechers}</nyaa:leechers>
       <nyaa:trusted>Yes</nyaa:trusted>
       <nyaa:remake>No</nyaa:remake>
     </item>

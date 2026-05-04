@@ -178,7 +178,7 @@ function isBlockedHostname(hostname: string): boolean {
 }
 
 function normalizeHostname(hostname: string) {
-  return hostname.toLowerCase().replace(/^\[/, "").replace(/\]$/, "");
+  return hostname.toLowerCase().replace(/^\[/, "").replace(/\]$/, "").replace(/\.$/, "");
 }
 
 function isIpLiteral(hostname: string) {

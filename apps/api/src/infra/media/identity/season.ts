@@ -2,6 +2,10 @@ import { SeasonEpisodeIdentity } from "@/infra/media/identity/model.ts";
 import { formatSeasonLabel, rangeArray } from "@/infra/media/identity/parser-shared.ts";
 
 export function parseSeasonEpisodeIdentity(value: string): SeasonEpisodeIdentity | undefined {
+  if (hasMalformedSeasonEpisodeRange(value)) {
+    return undefined;
+  }
+
   const rangeMatch = value.match(
     /(?:^|[\s._\-[(])s(\d{1,2})[\s._-]*e(\d{1,4})\s*[-~]\s*(?:s\d{1,2}[\s._-]*)?e?(\d{1,4})(?:[\s._\-\])]|$)/i,
   );
@@ -117,6 +121,20 @@ export function parseSeasonEpisodeIdentity(value: string): SeasonEpisodeIdentity
   }
 
   return undefined;
+}
+
+function hasMalformedSeasonEpisodeRange(value: string) {
+  const match = value.match(
+    /(?:^|[\s._\-[(])s\d{1,2}[\s._-]*e(\d{1,4})\s*[-~]\s*(?:s\d{1,2}[\s._-]*)?e?(\d{1,4})(?:[\s._\-\])]|$)/i,
+  );
+
+  if (!match) {
+    return false;
+  }
+
+  const start = Number(match[1]);
+  const end = Number(match[2]);
+  return !(start > 0 && end >= start && end - start <= 500 && end < 2000);
 }
 
 function collectSeasonEpisodes(value: string): number[] {

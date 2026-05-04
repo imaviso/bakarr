@@ -214,7 +214,7 @@ const parseRssXml = Effect.fn("RssClient.parseRssXml")(function* (xml: string) {
 });
 
 function parseSizeToBytes(size: string): Option.Option<number> {
-  const match = size.match(/([0-9.]+)\s*(KiB|MiB|GiB|TiB|KB|MB|GB|TB|B)/i);
+  const match = size.trim().match(/^(\d+(?:\.\d+)?)\s*(KiB|MiB|GiB|TiB|KB|MB|GB|TB|B)$/i);
 
   if (!match) {
     return Option.none();
@@ -249,8 +249,12 @@ function parseCount(value: string | undefined): Option.Option<number> {
     return Option.none();
   }
 
-  const parsed = Number.parseInt(value, 10);
-  return Number.isNaN(parsed) ? Option.none() : Option.some(parsed);
+  if (!/^\d+$/.test(value.trim())) {
+    return Option.none();
+  }
+
+  const parsed = Number.parseInt(value.trim(), 10);
+  return Number.isSafeInteger(parsed) ? Option.some(parsed) : Option.none();
 }
 
 function parseYesNo(value: string | undefined): Option.Option<boolean> {
