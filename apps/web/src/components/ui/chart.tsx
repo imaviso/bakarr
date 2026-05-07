@@ -1,14 +1,17 @@
 import * as React from "react";
 import * as RechartsPrimitive from "recharts";
-import type { TooltipValueType } from "recharts";
 
 import { cn } from "@/infra/utils";
 
 // Format: { THEME_NAME: CSS_SELECTOR }
 const THEMES = { light: "", dark: ".dark" } as const;
+const THEME_ENTRIES: ReadonlyArray<readonly [keyof typeof THEMES, string]> = [
+  ["light", ""],
+  ["dark", ".dark"],
+];
 
 const INITIAL_DIMENSION = { width: 320, height: 200 } as const;
-type TooltipNameType = number | string;
+type CSSVariables = React.CSSProperties & Record<`--${string}`, string | number | undefined>;
 
 export type ChartConfig = Record<
   string,
@@ -86,20 +89,18 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
   return (
     <style
       dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
-          .map(
-            ([theme, prefix]) => `
+        __html: THEME_ENTRIES.map(
+          ([theme, prefix]) => `
 ${prefix} [data-chart=${id}] {
 ${colorConfig
   .map(([key, itemConfig]) => {
-    const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ?? itemConfig.color;
+    const color = itemConfig.theme?.[theme] ?? itemConfig.color;
     return color ? `  --color-${key}: ${color};` : null;
   })
   .join("\n")}
 }
 `,
-          )
-          .join("\n"),
+        ).join("\n"),
       }}
     />
   );
@@ -117,16 +118,10 @@ function ChartTooltipLabel({
   labelKey,
 }: {
   config: ChartConfig;
-  payload: RechartsPrimitive.DefaultTooltipContentProps<
-    TooltipValueType,
-    TooltipNameType
-  >["payload"];
+  payload: RechartsPrimitive.DefaultTooltipContentProps["payload"];
   hideLabel: boolean;
   label: React.ReactNode | undefined;
-  labelFormatter: RechartsPrimitive.DefaultTooltipContentProps<
-    TooltipValueType,
-    TooltipNameType
-  >["labelFormatter"];
+  labelFormatter: RechartsPrimitive.DefaultTooltipContentProps["labelFormatter"];
   labelClassName: string | undefined;
   labelKey: string | undefined;
 }) {
@@ -135,7 +130,7 @@ function ChartTooltipLabel({
   }
 
   const [item] = payload;
-  const key = `${labelKey ?? item?.dataKey ?? item?.name ?? "value"}`;
+  const key = labelKey ?? keyFrom(item?.dataKey) ?? keyFrom(item?.name) ?? "value";
   const itemConfig = getPayloadConfigFromPayload(config, item, key);
   const value =
     !labelKey && typeof label === "string" ? (config[label]?.label ?? label) : itemConfig?.label;
@@ -174,10 +169,7 @@ function ChartTooltipContent({
     indicator?: "line" | "dot" | "dashed";
     nameKey?: string;
     labelKey?: string;
-  } & Omit<
-    RechartsPrimitive.DefaultTooltipContentProps<TooltipValueType, TooltipNameType>,
-    "accessibilityLayer"
-  >) {
+  } & Omit<RechartsPrimitive.DefaultTooltipContentProps, "accessibilityLayer">) {
   const { config } = useChart();
 
   if (!active || !payload?.length) {
@@ -208,7 +200,7 @@ function ChartTooltipContent({
         {payload.flatMap((item, index) => {
           if (item.type === "none") return [];
 
-          const key = `${nameKey ?? item.name ?? item.dataKey ?? "value"}`;
+          const key = nameKey ?? keyFrom(item.name) ?? keyFrom(item.dataKey) ?? "value";
           const itemConfig = getPayloadConfigFromPayload(config, item, key);
           const indicatorColor = color ?? item.payload?.fill ?? item.color;
           const itemKey = `${String(item.name ?? item.dataKey ?? "value")}-${index}`;
@@ -229,23 +221,10 @@ function ChartTooltipContent({
                     <itemConfig.icon />
                   ) : (
                     !hideIndicator && (
-                      <div
-                        className={cn(
-                          "shrink-0 rounded-[2px] border-(--color-border) bg-(--color-bg)",
-                          {
-                            "h-2.5 w-2.5": indicator === "dot",
-                            "w-1": indicator === "line",
-                            "w-0 border-[1.5px] border-dashed bg-transparent":
-                              indicator === "dashed",
-                            "my-0.5": nestLabel && indicator === "dashed",
-                          },
-                        )}
-                        style={
-                          {
-                            "--color-bg": indicatorColor,
-                            "--color-border": indicatorColor,
-                          } as React.CSSProperties
-                        }
+                      <ChartTooltipIndicator
+                        color={indicatorColor}
+                        indicator={indicator}
+                        nestLabel={nestLabel}
                       />
                     )
                   )}
@@ -289,6 +268,33 @@ function ChartTooltipContent({
   );
 }
 
+function ChartTooltipIndicator({
+  color,
+  indicator,
+  nestLabel,
+}: {
+  color: string | undefined;
+  indicator: "line" | "dot" | "dashed";
+  nestLabel: boolean;
+}) {
+  const style: CSSVariables = {
+    "--color-bg": color,
+    "--color-border": color,
+  };
+
+  return (
+    <div
+      className={cn("shrink-0 rounded-[2px] border-(--color-border) bg-(--color-bg)", {
+        "h-2.5 w-2.5": indicator === "dot",
+        "w-1": indicator === "line",
+        "w-0 border-[1.5px] border-dashed bg-transparent": indicator === "dashed",
+        "my-0.5": nestLabel && indicator === "dashed",
+      })}
+      style={style}
+    />
+  );
+}
+
 const ChartLegend = RechartsPrimitive.Legend;
 
 function ChartLegendContent({
@@ -318,7 +324,7 @@ function ChartLegendContent({
       {payload.flatMap((item, index) => {
         if (item.type === "none") return [];
 
-        const key = `${nameKey ?? item.dataKey ?? "value"}`;
+        const key = nameKey ?? keyFrom(item.dataKey) ?? "value";
         const itemConfig = getPayloadConfigFromPayload(config, item, key);
         const itemKey = `${String(item.dataKey ?? item.value ?? "value")}-${index}`;
 
@@ -359,17 +365,25 @@ function getPayloadConfigFromPayload(config: ChartConfig, payload: unknown, key:
 
   let configLabelKey: string = key;
 
-  if (key in payload && typeof payload[key as keyof typeof payload] === "string") {
-    configLabelKey = payload[key as keyof typeof payload] as string;
-  } else if (
-    payloadPayload &&
-    key in payloadPayload &&
-    typeof payloadPayload[key as keyof typeof payloadPayload] === "string"
-  ) {
-    configLabelKey = payloadPayload[key as keyof typeof payloadPayload] as string;
+  const payloadValue = getStringProperty(payload, key);
+  const nestedPayloadValue = payloadPayload ? getStringProperty(payloadPayload, key) : undefined;
+
+  if (payloadValue !== undefined) {
+    configLabelKey = payloadValue;
+  } else if (nestedPayloadValue !== undefined) {
+    configLabelKey = nestedPayloadValue;
   }
 
   return configLabelKey in config ? config[configLabelKey] : config[key];
+}
+
+function keyFrom(value: unknown) {
+  return typeof value === "string" || typeof value === "number" ? String(value) : undefined;
+}
+
+function getStringProperty(input: object, key: string) {
+  const value: unknown = Reflect.get(input, key);
+  return typeof value === "string" ? value : undefined;
 }
 
 export {

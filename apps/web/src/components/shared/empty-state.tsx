@@ -14,6 +14,13 @@ interface EmptyStateProps {
   headingLevel?: 1 | 2 | 3 | 4;
 }
 
+const headingTags = {
+  1: "h1",
+  2: "h2",
+  3: "h3",
+  4: "h4",
+} as const;
+
 /**
  * Shared empty state component for consistent "no data" patterns.
  *
@@ -47,7 +54,7 @@ export function EmptyState(props: EmptyStateProps) {
         ) : null}
         <div>
           {(() => {
-            const HeadingTag = `h${props.headingLevel ?? 3}` as "h1" | "h2" | "h3" | "h4";
+            const HeadingTag = headingTags[props.headingLevel ?? 3];
             return (
               <HeadingTag className="text-sm font-medium tracking-tight text-foreground uppercase">
                 {props.title}
