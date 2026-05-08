@@ -6,7 +6,6 @@ import { useDebouncedValue } from "@tanstack/react-pacer";
 import { Suspense, lazy, useEffect, useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useContainerWidth } from "~/hooks/use-container-width";
-import { Schema } from "effect";
 import { GeneralError } from "~/components/shared/general-error";
 import { PageHeader } from "~/app/layout/page-header";
 import { Alert, AlertDescription } from "~/components/ui/alert";
@@ -24,9 +23,9 @@ import { profilesQueryOptions, releaseProfilesQueryOptions } from "~/api/profile
 import { systemConfigQueryOptions } from "~/api/system-config";
 import { errorMessage } from "~/api/effect/errors";
 import { usePageTitle } from "~/domain/page-title";
-import { getCurrentSeasonWindow, shiftSeasonWindow } from "~/domain/seasonal-navigation";
+import { shiftSeasonWindow } from "~/domain/seasonal-navigation";
+import { DEFAULT_SEASON_WINDOW, parseAddAnimeSearch, type AddAnimeSearch } from "./-add-search";
 
-const DEFAULT_SEASON_WINDOW = getCurrentSeasonWindow();
 const SEARCH_DEBOUNCE_MS = 250;
 
 const AnimeSearchResultCardLazy = lazy(() =>
@@ -45,45 +44,10 @@ const AddAnimeDialogLazy = lazy(() =>
   })),
 );
 
-const TabSchema = Schema.transform(Schema.String, Schema.Literal("search", "seasonal"), {
-  decode: (s) => (s === "seasonal" ? "seasonal" : "search"),
-  encode: (s) => s,
-});
-
-const SeasonSchema = Schema.transform(
-  Schema.String,
-  Schema.Literal("winter", "spring", "summer", "fall"),
-  {
-    decode: (s) => {
-      if (s === "winter" || s === "spring" || s === "summer" || s === "fall") return s;
-      return DEFAULT_SEASON_WINDOW.season;
-    },
-    encode: (s) => s,
-  },
-);
-
-const YearSchema = Schema.transform(Schema.Union(Schema.String, Schema.Number), Schema.Number, {
-  decode: (value) => {
-    const n = typeof value === "number" ? value : Number(value);
-    return Number.isInteger(n) ? n : DEFAULT_SEASON_WINDOW.year;
-  },
-  encode: (n) => n,
-});
-
-const searchSchema = Schema.Struct({
-  id: Schema.optional(Schema.NumberFromString.pipe(Schema.int())),
-  q: Schema.optional(Schema.String),
-  tab: Schema.optional(TabSchema),
-  season: Schema.optional(SeasonSchema),
-  year: Schema.optional(YearSchema),
-});
-
-type AddAnimeSearch = Schema.Schema.Type<typeof searchSchema>;
-
 export const Route = createFileRoute("/_layout/anime/add")({
-  validateSearch: Schema.standardSchemaV1(searchSchema),
+  validateSearch: parseAddAnimeSearch,
   loader: async ({ context: { queryClient }, location }) => {
-    const search = Schema.decodeUnknownSync(searchSchema)(location.search);
+    const search = parseAddAnimeSearch(location.search as Record<string, unknown>);
     await Promise.all([
       queryClient.ensureQueryData(animeListQueryOptions()),
       queryClient.ensureQueryData(profilesQueryOptions()),

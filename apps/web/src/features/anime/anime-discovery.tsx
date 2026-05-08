@@ -63,7 +63,7 @@ export function AnimeDiscoveryRow(props: AnimeDiscoveryRowProps) {
       ) : (
         <Link
           to="/anime/add"
-          search={{ id: props.entry.id.toString() }}
+          search={{ id: props.entry.id }}
           onClick={props.onNavigate}
           aria-label={`Add ${animeDisplayTitle(props.entry)}`}
           className={buttonVariants({

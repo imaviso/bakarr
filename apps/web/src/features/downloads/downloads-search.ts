@@ -3,7 +3,7 @@ import {
   createDownloadEventsSearchSchema,
   DOWNLOADS_EVENTS_SEARCH_KEYS,
 } from "~/domain/download/events-search";
-import { Option, Schema } from "effect";
+import { Schema } from "effect";
 
 export type DownloadsTab = "events" | "history" | "queue";
 
@@ -26,6 +26,15 @@ export type DownloadsSearchPatch = Partial<{
 
 const downloadsEventsSearchDefaults = createDownloadEventsSearchDefaults(
   DOWNLOADS_EVENTS_SEARCH_KEYS,
+);
+
+const DownloadsTabSchema = Schema.transform(
+  Schema.String,
+  Schema.Literal("events", "history", "queue"),
+  {
+    decode: (tab) => (tab === "events" || tab === "history" || tab === "queue" ? tab : "queue"),
+    encode: (tab) => tab,
+  },
 );
 
 export const downloadsSearchDefaults = {
@@ -51,7 +60,7 @@ export const downloadsSearchDefaults = {
 const DownloadsSearchSchema = Schema.Struct({
   ...createDownloadEventsSearchSchema(DOWNLOADS_EVENTS_SEARCH_KEYS, downloadsEventsSearchDefaults)
     .fields,
-  tab: Schema.optionalWith(Schema.Literal("events", "history", "queue"), {
+  tab: Schema.optionalWith(DownloadsTabSchema, {
     default: () => downloadsSearchDefaults.tab,
   }),
 });
@@ -83,9 +92,8 @@ const downloadsSearchDefaultsByField: Record<DownloadsSearchField, string> = {
 };
 
 export function toDownloadsTab(value: string | null | undefined): DownloadsTab {
-  return Option.getOrThrow(
-    Schema.decodeUnknownOption(Schema.Literal("events", "history", "queue"))(value),
-  );
+  if (value === "events" || value === "history" || value === "queue") return value;
+  return "queue";
 }
 
 export function parseDownloadsSearch(search: Record<string, unknown>): DownloadsSearchState {

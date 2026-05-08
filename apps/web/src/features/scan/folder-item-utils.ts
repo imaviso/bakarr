@@ -79,11 +79,13 @@ export function normalizeApiErrorMessage(message: string) {
     const result = Schema.decodeUnknownEither(ApiErrorJsonSchema)(trimmed);
     if (result._tag === "Right") {
       const decoded = result.right;
-      if (decoded.error?.trim()) {
-        return decoded.error;
+      const error = decoded.error?.trim();
+      if (error) {
+        return error;
       }
-      if (decoded.message?.trim()) {
-        return decoded.message;
+      const decodedMessage = decoded.message?.trim();
+      if (decodedMessage) {
+        return decodedMessage;
       }
     }
     return trimmed;

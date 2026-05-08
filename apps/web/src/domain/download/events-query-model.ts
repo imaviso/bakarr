@@ -15,22 +15,33 @@ export interface DownloadEventsFilterFields extends DownloadEventsQueryFields {
 }
 
 export function parseOptionalPositiveInt(value: string) {
-  if (!value.trim()) {
+  const trimmed = value.trim();
+  if (!trimmed) {
     return undefined;
   }
 
-  const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+  if (!/^[1-9]\d*$/.test(trimmed)) {
+    return undefined;
+  }
+
+  const parsed = Number(trimmed);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function parseOptionalText(value: string) {
+  const trimmed = value.trim();
+  return trimmed.length === 0 ? undefined : trimmed;
 }
 
 function normalizeDownloadEventsQueryFields(input: DownloadEventsQueryFields) {
   return {
     animeId: parseOptionalPositiveInt(input.animeId),
     downloadId: parseOptionalPositiveInt(input.downloadId),
-    endDate: input.endDate || undefined,
-    eventType: input.eventType === "all" ? undefined : input.eventType,
-    startDate: input.startDate || undefined,
-    status: input.status || undefined,
+    endDate: parseOptionalText(input.endDate),
+    eventType:
+      parseOptionalText(input.eventType) === "all" ? undefined : parseOptionalText(input.eventType),
+    startDate: parseOptionalText(input.startDate),
+    status: parseOptionalText(input.status),
   };
 }
 
@@ -39,11 +50,12 @@ export function buildDownloadEventsFilterInput(
   options?: { limit?: number },
 ): DownloadEventsFilterInput {
   const base = normalizeDownloadEventsQueryFields(input);
+  const cursor = parseOptionalText(input.cursor);
 
   return {
     direction: input.direction,
     ...(base.animeId === undefined ? {} : { animeId: base.animeId }),
-    ...(input.cursor ? { cursor: input.cursor } : {}),
+    ...(cursor === undefined ? {} : { cursor }),
     ...(base.downloadId === undefined ? {} : { downloadId: base.downloadId }),
     ...(base.endDate === undefined ? {} : { endDate: base.endDate }),
     ...(base.eventType === undefined ? {} : { eventType: base.eventType }),

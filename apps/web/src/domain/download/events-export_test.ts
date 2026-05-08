@@ -49,3 +49,21 @@ it("buildDownloadEventsExportInput omits invalid values and uses defaults", () =
     order: "desc",
   });
 });
+
+it("buildDownloadEventsExportInput trims text filters and omits whitespace-only values", () => {
+  const output = buildDownloadEventsExportInput({
+    animeId: "",
+    downloadId: "",
+    endDate: "   ",
+    eventType: "  imported  ",
+    startDate: "  2026-03-01  ",
+    status: "   ",
+  });
+
+  assertDeepEquals(output, {
+    eventType: "imported",
+    limit: 10_000,
+    order: "desc",
+    startDate: "2026-03-01",
+  });
+});

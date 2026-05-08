@@ -1,6 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useLibraryImportTaskQuery } from "~/api/operations-tasks";
-import { Schema } from "effect";
 import { ImportPageContent } from "~/features/import/import-page-content";
 import { useImportPageState } from "~/features/import/import-page-state";
 import { GeneralError } from "~/components/shared/general-error";
@@ -9,13 +8,10 @@ import { isTaskActive } from "~/api/operations-tasks";
 import { profilesQueryOptions } from "~/api/profiles";
 import { systemConfigQueryOptions } from "~/api/system-config";
 import { usePageTitle } from "~/domain/page-title";
-
-const ImportSearchSchema = Schema.Struct({
-  animeId: Schema.optional(Schema.Union(Schema.Number, Schema.NumberFromString).pipe(Schema.int())),
-});
+import { parseImportSearch } from "./-import-search";
 
 export const Route = createFileRoute("/_layout/anime/import")({
-  validateSearch: (search) => Schema.decodeUnknownSync(ImportSearchSchema)(search),
+  validateSearch: (search) => parseImportSearch(search),
   loader: async ({ context: { queryClient } }) => {
     await Promise.all([
       queryClient.ensureQueryData(animeListQueryOptions()),

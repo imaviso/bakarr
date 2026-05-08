@@ -39,15 +39,18 @@ export function createDownloadsRouteSearch(input?: {
   animeId?: string | undefined;
   tab?: "events" | "history" | "queue" | undefined;
 }) {
+  const animeId = input?.animeId?.trim();
+
   return {
     ...createDownloadEventsSearchDefaults(DOWNLOADS_EVENTS_SEARCH_KEYS),
-    ...(input?.animeId ? { [DOWNLOADS_EVENTS_SEARCH_KEYS.animeId]: input.animeId } : {}),
+    ...(animeId ? { [DOWNLOADS_EVENTS_SEARCH_KEYS.animeId]: animeId } : {}),
     tab: input?.tab ?? "queue",
   };
 }
 
 export function createLogsRouteSearch(input?: { animeId?: string | undefined }) {
   const defaults = createDownloadEventsSearchDefaults(LOGS_DOWNLOAD_EVENTS_SEARCH_KEYS);
+  const animeId = input?.animeId?.trim();
 
   return {
     ...defaults,
@@ -55,7 +58,7 @@ export function createLogsRouteSearch(input?: { animeId?: string | undefined }) 
     eventType: "",
     level: "",
     startDate: "",
-    ...(input?.animeId ? { [LOGS_DOWNLOAD_EVENTS_SEARCH_KEYS.animeId]: input.animeId } : {}),
+    ...(animeId ? { [LOGS_DOWNLOAD_EVENTS_SEARCH_KEYS.animeId]: animeId } : {}),
   };
 }
 
@@ -82,6 +85,11 @@ export function createDownloadEventsSearchSchema(
   keys: DownloadEventsSearchKeys,
   defaults = createDownloadEventsSearchDefaults(keys),
 ) {
+  const DirectionSchema = Schema.transform(Schema.String, Schema.Literal("next", "prev"), {
+    decode: (direction) => toDownloadEventsDirection(direction),
+    encode: (direction) => direction,
+  });
+
   return Schema.Struct({
     [keys.animeId]: Schema.optionalWith(Schema.String, {
       default: () => defaults[keys.animeId] ?? "",
@@ -89,7 +97,7 @@ export function createDownloadEventsSearchSchema(
     [keys.cursor]: Schema.optionalWith(Schema.String, {
       default: () => defaults[keys.cursor] ?? "",
     }),
-    [keys.direction]: Schema.optionalWith(Schema.Literal("next", "prev"), {
+    [keys.direction]: Schema.optionalWith(DirectionSchema, {
       default: () => "next",
     }),
     [keys.downloadId]: Schema.optionalWith(Schema.String, {
