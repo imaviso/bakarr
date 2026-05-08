@@ -32,9 +32,14 @@ export const logsSearchDefaults = {
   ...LOGS_FILTER_DEFAULTS,
 } as const;
 
-export type LogsSearchState = ReturnType<typeof parseLogsSearch>;
+export interface LogsSearchState extends Record<string, string> {
+  endDate: string;
+  eventType: string;
+  level: string;
+  startDate: string;
+}
 
-export function parseLogsSearch(search: Record<string, unknown>) {
+export function parseLogsSearch(search: Record<string, unknown>): LogsSearchState {
   return {
     ...logsSearchDefaults,
     ...Schema.decodeUnknownSync(LogsSearchSchema)(search),

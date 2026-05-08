@@ -4,6 +4,18 @@ interface ImportDropzoneHandlersOptions {
   setPath: (value: string) => void;
 }
 
+export interface ImportDropEvent {
+  dataTransfer?: {
+    getData: (format: string) => string;
+    items?: ArrayLike<{
+      kind: string;
+      getAsFile: () => File | null;
+    }>;
+  } | null;
+  preventDefault: () => void;
+  stopPropagation: () => void;
+}
+
 function getDroppedFilePath(file: File): string | undefined {
   if (!Object.hasOwn(file, "path")) {
     return undefined;
@@ -14,19 +26,19 @@ function getDroppedFilePath(file: File): string | undefined {
 }
 
 export function createImportDropzoneHandlers(options: ImportDropzoneHandlersOptions) {
-  const handleDragOver = (event: DragEvent<HTMLElement>) => {
+  const handleDragOver = (event: ImportDropEvent) => {
     event.preventDefault();
     event.stopPropagation();
     options.setIsDragOver(true);
   };
 
-  const handleDragLeave = (event: DragEvent<HTMLElement>) => {
+  const handleDragLeave = (event: ImportDropEvent) => {
     event.preventDefault();
     event.stopPropagation();
     options.setIsDragOver(false);
   };
 
-  const handleDrop = (event: DragEvent<HTMLElement>) => {
+  const handleDrop = (event: ImportDropEvent) => {
     event.preventDefault();
     event.stopPropagation();
     options.setIsDragOver(false);
@@ -59,4 +71,3 @@ export function createImportDropzoneHandlers(options: ImportDropzoneHandlersOpti
     handleDrop,
   };
 }
-import type { DragEvent } from "react";

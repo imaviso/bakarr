@@ -26,6 +26,7 @@ export function formatLastRun(dateStr?: string | null) {
   if (!dateStr) return "Never";
   try {
     const date = new Date(`${dateStr.replace(" ", "T")}Z`);
+    if (Number.isNaN(date.getTime())) return dateStr;
     return date.toLocaleString();
   } catch {
     return dateStr;
