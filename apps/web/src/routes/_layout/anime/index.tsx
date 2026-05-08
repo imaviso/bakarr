@@ -10,7 +10,8 @@ import {
 } from "@phosphor-icons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Suspense, lazy, useDeferredValue } from "react";
+import { useDebouncedValue } from "@tanstack/react-pacer";
+import { Suspense, lazy } from "react";
 import { Schema } from "effect";
 import { AnimeListSkeleton } from "~/features/anime/anime-list-skeleton";
 import { EmptyState } from "~/components/shared/empty-state";
@@ -65,6 +66,8 @@ const DEFAULT_ANIME_SEARCH = {
   view: "grid",
 } as const;
 
+const SEARCH_DEBOUNCE_MS = 150;
+
 type MonitorFilter = Schema.Schema.Type<typeof MonitorFilterSchema>;
 
 const isMonitorFilter = Schema.is(MonitorFilterSchema);
@@ -99,7 +102,7 @@ function AnimeIndexPage() {
   const query = search.q ?? DEFAULT_ANIME_SEARCH.q;
   const filter = search.filter ?? DEFAULT_ANIME_SEARCH.filter;
   const view = search.view ?? DEFAULT_ANIME_SEARCH.view;
-  const deferredQuery = useDeferredValue(query);
+  const [debouncedQuery] = useDebouncedValue(query, { wait: SEARCH_DEBOUNCE_MS });
 
   const handleSearchInput = (q: string) => {
     void navigate({
@@ -109,7 +112,7 @@ function AnimeIndexPage() {
     });
   };
 
-  const filteredList = filterAnimeLibrary(anime, deferredQuery, filter);
+  const filteredList = filterAnimeLibrary(anime, debouncedQuery, filter);
 
   const updateFilter = (nextFilter: MonitorFilter) =>
     void navigate({

@@ -2,7 +2,8 @@ import { WarningIcon, TelevisionIcon, InfoIcon, MagnifyingGlassIcon } from "@pho
 import { createFileRoute } from "@tanstack/react-router";
 import { useNavigate } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { Suspense, lazy, useDeferredValue, useEffect, useRef } from "react";
+import { useDebouncedValue } from "@tanstack/react-pacer";
+import { Suspense, lazy, useEffect, useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useContainerWidth } from "~/hooks/use-container-width";
 import { Schema } from "effect";
@@ -26,6 +27,7 @@ import { usePageTitle } from "~/domain/page-title";
 import { getCurrentSeasonWindow, shiftSeasonWindow } from "~/domain/seasonal-navigation";
 
 const DEFAULT_SEASON_WINDOW = getCurrentSeasonWindow();
+const SEARCH_DEBOUNCE_MS = 250;
 
 const AnimeSearchResultCardLazy = lazy(() =>
   import("~/features/anime/anime-search-result-card").then((module) => ({
@@ -111,14 +113,14 @@ function AddAnimePage() {
   const anilistId = search.id ?? null;
 
   const query = search.q ?? "";
-  const deferredQuery = useDeferredValue(query);
+  const [debouncedQuery] = useDebouncedValue(query, { wait: SEARCH_DEBOUNCE_MS });
   const activeTab = search.tab ?? "search";
   const selectedSeason = search.season ?? DEFAULT_SEASON_WINDOW.season;
   const selectedYear = search.year ?? DEFAULT_SEASON_WINDOW.year;
 
-  const searchQuery = useAnimeSearchQuery(deferredQuery);
+  const searchQuery = useAnimeSearchQuery(debouncedQuery);
   const searchResults = searchQuery.data?.results ?? [];
-  const canSearch = deferredQuery.trim().length >= 3;
+  const canSearch = debouncedQuery.trim().length >= 3;
   const searchDegraded = searchQuery.data?.degraded ?? false;
   const { data: animeList } = useSuspenseQuery(animeListQueryOptions());
   const libraryIds = new Set(animeList.map((anime) => anime.id));
@@ -196,7 +198,7 @@ function AddAnimePage() {
             searchQuery={searchQuery}
             searchResults={searchResults}
             searchDegraded={searchDegraded}
-            debouncedQuery={deferredQuery}
+            debouncedQuery={debouncedQuery}
             libraryIds={libraryIds}
             onSelectAnime={handleSelectAnime}
           />

@@ -6,7 +6,8 @@ import {
   PlusIcon,
   MagnifyingGlassIcon,
 } from "@phosphor-icons/react";
-import { useDeferredValue, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { useDebouncedValue } from "@tanstack/react-pacer";
 import { AnimeDiscoveryRow } from "~/features/anime/anime-discovery";
 import { Badge } from "~/components/ui/badge";
 import { Input } from "~/components/ui/input";
@@ -15,6 +16,8 @@ import { useAnimeSearchQuery } from "~/api/anime";
 import { animeDisplayTitle, animeSearchSubtitle } from "~/domain/anime/metadata";
 import { formatMatchConfidence } from "~/domain/scanned-file";
 import { cn } from "~/infra/utils";
+
+const SEARCH_DEBOUNCE_MS = 250;
 
 interface ManualSearchCoreProps {
   addedIndicator: "badge" | "text";
@@ -29,7 +32,7 @@ interface ManualSearchCoreProps {
 export function ManualSearchCore(props: ManualSearchCoreProps) {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
-  const debouncedQuery = useDeferredValue(query);
+  const [debouncedQuery] = useDebouncedValue(query, { wait: SEARCH_DEBOUNCE_MS });
 
   const search = useAnimeSearchQuery(debouncedQuery);
   const searchResults = search.data?.results ?? [];

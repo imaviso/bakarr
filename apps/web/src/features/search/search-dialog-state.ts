@@ -1,5 +1,6 @@
 import { differenceInDays, format, isValid, parseISO } from "date-fns";
-import { useDeferredValue, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useDebouncedValue } from "@tanstack/react-pacer";
 import { useGrabReleaseMutation } from "~/api/anime-mutations";
 import { useNyaaSearchQuery } from "~/api/anime";
 import {
@@ -15,6 +16,8 @@ export const CATEGORY_LABELS: Record<string, string> = SEARCH_RELEASE_CATEGORY_L
 
 export const FILTER_LABELS: Record<string, string> = SEARCH_RELEASE_FILTER_LABELS;
 
+const SEARCH_DEBOUNCE_MS = 250;
+
 export function formatSearchResultAge(dateStr: string) {
   const date = parseISO(dateStr);
   const now = new Date();
@@ -29,7 +32,7 @@ export function formatSearchResultAge(dateStr: string) {
 export function useSearchDialogState(defaultQuery: string) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState(defaultQuery);
-  const debouncedQuery = useDeferredValue(query);
+  const [debouncedQuery] = useDebouncedValue(query, { wait: SEARCH_DEBOUNCE_MS });
   const [category, setCategory] = useState<string>("all_anime");
   const [filter, setFilter] = useState<string>("no_filter");
 
