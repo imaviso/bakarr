@@ -71,7 +71,7 @@ const maybeQBitConfig = (config: Config) => {
     return { _tag: "Disabled" } as const;
   }
 
-  if (!config.qbittorrent.password) {
+  if (!config.qbittorrent.password && config.qbittorrent.trusted_local !== true) {
     return {
       _tag: "InvalidConfig",
       reason: "qBittorrent is enabled but password is missing",
@@ -83,7 +83,7 @@ const maybeQBitConfig = (config: Config) => {
     config: new QBitConfigModel({
       baseUrl: config.qbittorrent.url,
       category: config.qbittorrent.default_category,
-      password: config.qbittorrent.password,
+      password: config.qbittorrent.password ?? "",
       ratioLimit: config.qbittorrent.ratio_limit ?? undefined,
       savePath: config.qbittorrent.save_path || undefined,
       username: config.qbittorrent.username,

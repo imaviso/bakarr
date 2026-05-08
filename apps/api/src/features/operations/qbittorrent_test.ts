@@ -99,6 +99,61 @@ it.effect("QBitTorrentClient can load torrent contents", () =>
   }),
 );
 
+it.effect("QBitTorrentClient falls back to no-auth request when login fails", () =>
+  Effect.gen(function* () {
+    const requestPaths: string[] = [];
+    const torrents = yield* Effect.flatMap(QBitTorrentClient, (client) =>
+      client.listTorrents({
+        baseUrl: "http://localhost:8080",
+        password: "secret",
+        username: "admin",
+      }),
+    ).pipe(
+      Effect.provide(
+        QBitTorrentClientLive.pipe(
+          Layer.provide(
+            Layer.mergeAll(
+              ClockServiceLive,
+              ExternalCallWithLiveClock,
+              Layer.succeed(
+                HttpClient.HttpClient,
+                HttpClient.make((request, url) => {
+                  requestPaths.push(url.pathname);
+
+                  if (url.pathname === "/api/v2/auth/login") {
+                    return Effect.succeed(
+                      HttpClientResponse.fromWeb(request, new Response("Fails.", { status: 403 })),
+                    );
+                  }
+
+                  if (url.pathname === "/api/v2/torrents/info") {
+                    return Effect.succeed(
+                      HttpClientResponse.fromWeb(
+                        request,
+                        new Response("[]", {
+                          headers: { "content-type": "application/json" },
+                          status: 200,
+                        }),
+                      ),
+                    );
+                  }
+
+                  return Effect.succeed(
+                    HttpClientResponse.fromWeb(request, new Response("not found", { status: 404 })),
+                  );
+                }),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    assert.deepStrictEqual(torrents, []);
+    assert.deepStrictEqual(requestPaths, ["/api/v2/auth/login", "/api/v2/torrents/info"]);
+  }),
+);
+
 it.effect("QBitTorrentClient sends qBittorrent add options", () =>
   Effect.gen(function* () {
     let addBody = "";

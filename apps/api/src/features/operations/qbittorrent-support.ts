@@ -153,10 +153,35 @@ export function withSessionCache(
       }
     }
 
-    const newCookie = yield* acquireFreshSessionCookie(config, sessionKey);
+    const newCookie = yield* Effect.either(acquireFreshSessionCookie(config, sessionKey));
 
-    return yield* operation(newCookie);
+    if (Either.isRight(newCookie)) {
+      return yield* operation(newCookie.right);
+    }
+
+    if (!isAuthenticationFailure(newCookie.left)) {
+      return yield* newCookie.left;
+    }
+
+    const response = yield* operation("");
+
+    if (!isUnauthorizedStatus(response.status)) {
+      const createdAt = yield* clock.currentTimeMillis;
+      yield* Ref.update(sessionsRef, (map) => {
+        const next = new Map(map);
+        next.set(sessionKey, { cookie: "", createdAt });
+        return next;
+      });
+    }
+
+    return response;
   });
+}
+
+function isAuthenticationFailure(error: ExternalCallError | QBitTorrentClientError) {
+  return (
+    error instanceof QBitTorrentClientError && error.message === "qBittorrent authentication failed"
+  );
 }
 
 export const makeLogin = (execute: ExecuteQBitRequest) =>
