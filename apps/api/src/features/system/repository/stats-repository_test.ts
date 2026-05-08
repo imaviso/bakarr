@@ -77,21 +77,19 @@ it.scoped("countEpisodeRows and countDownloadedEpisodeRows count correctly", () 
     run: (db) =>
       Effect.gen(function* () {
         yield* Effect.promise(() =>
-          db
-            .insert(anime)
-            .values({
-              addedAt: "2025-01-01T00:00:00.000Z",
-              episodeCount: 12,
-              format: "TV",
-              genres: "[]",
-              monitored: true,
-              profileName: "Default",
-              releaseProfileIds: "[]",
-              rootFolder: "/lib/A",
-              status: "FINISHED",
-              studios: "[]",
-              titleRomaji: "A",
-            }),
+          db.insert(anime).values({
+            addedAt: "2025-01-01T00:00:00.000Z",
+            episodeCount: 12,
+            format: "TV",
+            genres: "[]",
+            monitored: true,
+            profileName: "Default",
+            releaseProfileIds: "[]",
+            rootFolder: "/lib/A",
+            status: "FINISHED",
+            studios: "[]",
+            titleRomaji: "A",
+          }),
         );
         yield* Effect.promise(() =>
           db.insert(episodes).values([
@@ -126,21 +124,19 @@ it.scoped("countRssFeedRows counts feeds", () =>
     run: (db) =>
       Effect.gen(function* () {
         yield* Effect.promise(() =>
-          db
-            .insert(anime)
-            .values({
-              addedAt: "2025-01-01T00:00:00.000Z",
-              episodeCount: 12,
-              format: "TV",
-              genres: "[]",
-              monitored: true,
-              profileName: "Default",
-              releaseProfileIds: "[]",
-              rootFolder: "/lib/A",
-              status: "FINISHED",
-              studios: "[]",
-              titleRomaji: "A",
-            }),
+          db.insert(anime).values({
+            addedAt: "2025-01-01T00:00:00.000Z",
+            episodeCount: 12,
+            format: "TV",
+            genres: "[]",
+            monitored: true,
+            profileName: "Default",
+            releaseProfileIds: "[]",
+            rootFolder: "/lib/A",
+            status: "FINISHED",
+            studios: "[]",
+            titleRomaji: "A",
+          }),
         );
         yield* Effect.promise(() =>
           db.insert(rssFeeds).values({
@@ -282,21 +278,19 @@ it.scoped("loadSystemLibraryStatsAggregate aggregates all library stats", () =>
     run: (db) =>
       Effect.gen(function* () {
         yield* Effect.promise(() =>
-          db
-            .insert(anime)
-            .values({
-              addedAt: "2025-01-01T00:00:00.000Z",
-              episodeCount: 2,
-              format: "TV",
-              genres: "[]",
-              monitored: true,
-              profileName: "Default",
-              releaseProfileIds: "[]",
-              rootFolder: "/lib/A",
-              status: "FINISHED",
-              studios: "[]",
-              titleRomaji: "A",
-            }),
+          db.insert(anime).values({
+            addedAt: "2025-01-01T00:00:00.000Z",
+            episodeCount: 2,
+            format: "TV",
+            genres: "[]",
+            monitored: true,
+            profileName: "Default",
+            releaseProfileIds: "[]",
+            rootFolder: "/lib/A",
+            status: "FINISHED",
+            studios: "[]",
+            titleRomaji: "A",
+          }),
         );
         yield* Effect.promise(() =>
           db.insert(episodes).values([
@@ -319,33 +313,31 @@ it.scoped("loadSystemLibraryStatsAggregate aggregates all library stats", () =>
           ]),
         );
         yield* Effect.promise(() =>
-          db
-            .insert(downloads)
-            .values({
-              addedAt: "2025-01-01T00:00:00.000Z",
-              animeId: 1,
-              animeTitle: "A",
-              contentPath: null,
-              coveredEpisodes: null,
-              downloadDate: null,
-              downloadedBytes: 0,
-              episodeNumber: 1,
-              errorMessage: null,
-              etaSeconds: null,
-              externalState: "completed",
-              groupName: null,
-              infoHash: "hhh",
-              isBatch: false,
-              lastSyncedAt: "2025-01-01T00:00:00.000Z",
-              magnet: "magnet:?hhh",
-              progress: 100,
-              savePath: null,
-              sourceMetadata: null,
-              speedBytes: 0,
-              status: "completed",
-              torrentName: "A 01",
-              totalBytes: 0,
-            }),
+          db.insert(downloads).values({
+            addedAt: "2025-01-01T00:00:00.000Z",
+            animeId: 1,
+            animeTitle: "A",
+            contentPath: null,
+            coveredEpisodes: null,
+            downloadDate: null,
+            downloadedBytes: 0,
+            episodeNumber: 1,
+            errorMessage: null,
+            etaSeconds: null,
+            externalState: "completed",
+            groupName: null,
+            infoHash: "hhh",
+            isBatch: false,
+            lastSyncedAt: "2025-01-01T00:00:00.000Z",
+            magnet: "magnet:?hhh",
+            progress: 100,
+            savePath: null,
+            sourceMetadata: null,
+            speedBytes: 0,
+            status: "completed",
+            torrentName: "A 01",
+            totalBytes: 0,
+          }),
         );
 
         const stats = yield* loadSystemLibraryStatsAggregate(db);
