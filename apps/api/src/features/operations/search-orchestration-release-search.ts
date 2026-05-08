@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Option } from "effect";
+import { Context, Effect, Either, Layer, Option, Schema } from "effect";
 
 import type { Config, SearchResults } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
@@ -44,6 +44,8 @@ type SearchNyaaReleases = (
   category?: string,
   filter?: string,
 ) => Effect.Effect<readonly ParsedRelease[], SearchReleaseSourceError>;
+
+const AnimeSynonymsJsonSchema = Schema.parseJson(Schema.Array(Schema.String));
 
 export interface SearchReleaseServiceShape {
   readonly enrichSeaDexReleases: (
@@ -214,23 +216,97 @@ function buildNyaaSearchUrl(query: string, category: string, filter: string) {
 }
 
 function buildEpisodeSearchQueries(animeRow: typeof anime.$inferSelect, episodeNumber: number) {
-  return [
-    `${animeRow.titleRomaji} ${String(episodeNumber).padStart(2, "0")}`,
-    `${animeRow.titleRomaji} ${episodeNumber}`,
-    animeRow.titleEnglish
-      ? `${animeRow.titleEnglish} ${String(episodeNumber).padStart(2, "0")}`
-      : null,
-  ].filter((value): value is string => Boolean(value));
+  const paddedEpisode = String(episodeNumber).padStart(2, "0");
+  const seasonEpisode = `S01E${paddedEpisode}`;
+  const aliases = buildAnimeSearchAliases(animeRow);
+
+  return uniqueStrings(
+    aliases.flatMap((alias) => [
+      `${alias} ${paddedEpisode}`,
+      `${alias} ${episodeNumber}`,
+      `${alias} ${seasonEpisode}`,
+    ]),
+  );
 }
 
-function shouldKeepEpisodeRelease(item: ParsedRelease, episodeNumber: number) {
+function buildBroadSearchQueries(animeRow: typeof anime.$inferSelect) {
+  return buildAnimeSearchAliases(animeRow);
+}
+
+function buildAnimeSearchAliases(animeRow: typeof anime.$inferSelect) {
+  const aliases = [
+    animeRow.titleRomaji,
+    animeRow.titleEnglish,
+    ...decodeAnimeSynonyms(animeRow.synonyms),
+  ];
+
+  return uniqueStrings(
+    aliases.flatMap((alias) => {
+      if (!alias) {
+        return [];
+      }
+
+      const normalized = normalizeSearchAlias(alias);
+      return normalized === alias ? [alias] : [alias, normalized];
+    }),
+  );
+}
+
+function decodeAnimeSynonyms(value: string | null) {
+  if (!value) {
+    return [];
+  }
+
+  const result = Schema.decodeUnknownEither(AnimeSynonymsJsonSchema)(value);
+  return Either.isRight(result) ? result.right.filter((entry) => entry.trim().length > 0) : [];
+}
+
+function normalizeSearchAlias(value: string) {
+  return value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
+function uniqueStrings(values: readonly string[]) {
+  const seen = new Set<string>();
+  const unique: string[] = [];
+
+  for (const value of values) {
+    const trimmed = value.trim();
+    const key = trimmed.toLocaleLowerCase();
+
+    if (trimmed.length === 0 || seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    unique.push(trimmed);
+  }
+
+  return unique;
+}
+
+function getEpisodeReleaseRejectionReason(
+  item: ParsedRelease,
+  episodeNumber: number,
+  seenInfoHashes: ReadonlySet<string>,
+) {
   const parsedRelease = parseReleaseName(item.title);
 
-  return !(
+  if (
     parsedRelease.episodeNumbers.length > 0 &&
     !parsedRelease.episodeNumbers.includes(episodeNumber) &&
     !parsedRelease.isBatch
-  );
+  ) {
+    return "episode_mismatch" as const;
+  }
+
+  if (seenInfoHashes.has(item.infoHash)) {
+    return "duplicate_info_hash" as const;
+  }
+
+  return null;
 }
 
 function collectEpisodeSearchReleases(
@@ -240,30 +316,70 @@ function collectEpisodeSearchReleases(
   searchNyaaReleases: SearchNyaaReleases,
 ): Effect.Effect<ParsedRelease[], SearchReleaseSourceError> {
   const seenInfoHashes = new Set<string>();
+  const keepEpisodeRelease = (
+    item: ParsedRelease,
+    query: string,
+    phase: "episode" | "fallback",
+  ) => {
+    const rejectionReason = getEpisodeReleaseRejectionReason(item, episodeNumber, seenInfoHashes);
 
-  return Effect.forEach(
-    buildEpisodeSearchQueries(animeRow, episodeNumber),
-    (query) =>
-      seenInfoHashes.size >= 10
-        ? Effect.succeed([] as readonly ParsedRelease[])
-        : searchNyaaReleases(query, config).pipe(
-            Effect.map((items) =>
-              items.filter((item) => {
-                if (seenInfoHashes.size >= 10 || !shouldKeepEpisodeRelease(item, episodeNumber)) {
-                  return false;
-                }
+    if (rejectionReason !== null) {
+      return Effect.logDebug("Rejected episode search release").pipe(
+        Effect.annotateLogs({
+          animeId: animeRow.id,
+          episodeNumber,
+          event: "operations.search.episode.release.rejected",
+          infoHash: item.infoHash,
+          phase,
+          query,
+          reason: rejectionReason,
+          title: item.title,
+        }),
+        Effect.as(false),
+      );
+    }
 
-                if (seenInfoHashes.has(item.infoHash)) {
-                  return false;
-                }
-
-                seenInfoHashes.add(item.infoHash);
-                return true;
-              }),
+    seenInfoHashes.add(item.infoHash);
+    return Effect.succeed(true);
+  };
+  const collectQueries = (queries: readonly string[], phase: "episode" | "fallback") =>
+    Effect.forEach(
+      queries,
+      (query) =>
+        seenInfoHashes.size >= 10
+          ? Effect.succeed([] as readonly ParsedRelease[])
+          : searchNyaaReleases(query, config).pipe(
+              Effect.tap((items) =>
+                Effect.logDebug("Episode search query completed").pipe(
+                  Effect.annotateLogs({
+                    animeId: animeRow.id,
+                    episodeNumber,
+                    event: "operations.search.episode.query.completed",
+                    phase,
+                    query,
+                    resultCount: items.length,
+                  }),
+                ),
+              ),
+              Effect.flatMap((items) =>
+                Effect.filter(items, (item) => keepEpisodeRelease(item, query, phase)),
+              ),
             ),
-          ),
-    { concurrency: 1 },
-  ).pipe(Effect.map((groups) => groups.flat().slice(0, 10)));
+      { concurrency: 1 },
+    ).pipe(Effect.map((groups) => groups.flat().slice(0, 10)));
+
+  return Effect.gen(function* () {
+    const episodeResults = yield* collectQueries(
+      buildEpisodeSearchQueries(animeRow, episodeNumber),
+      "episode",
+    );
+
+    if (episodeResults.length > 0 || seenInfoHashes.size >= 10) {
+      return episodeResults;
+    }
+
+    return yield* collectQueries(buildBroadSearchQueries(animeRow), "fallback");
+  });
 }
 
 export class SearchReleaseService extends Context.Tag("@bakarr/api/SearchReleaseService")<
