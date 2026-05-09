@@ -14,6 +14,7 @@ import { SystemLogsTable } from "~/features/logs/system-logs-table";
 import { DownloadEventsFilters } from "~/features/downloads/download-events/download-events-filters";
 import { Filter } from "~/features/filters";
 import { PageHeader } from "~/app/layout/page-header";
+import { PageShell } from "~/app/layout/page-shell";
 import { DownloadEventDetailsDialog } from "~/features/downloads/download-event-details-dialog";
 import { logsFilterColumns } from "~/features/logs/logs-filter-config";
 import { formatLogTimestamp, type useLogsRouteState } from "~/features/logs/logs-route-state";
@@ -49,7 +50,7 @@ interface LogsViewProps {
 
 export function LogsView(props: LogsViewProps) {
   return (
-    <div className="flex flex-col flex-1 min-h-0 overflow-hidden gap-2">
+    <PageShell scroll="inner">
       <PageHeader title="System Logs" subtitle="View, filter, and export system events and errors">
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-2">
@@ -293,6 +294,6 @@ export function LogsView(props: LogsViewProps) {
         formatTimestamp={formatLogTimestamp}
         onOpenChange={(open) => !open && props.state.setSelectedDownloadEvent(null)}
       />
-    </div>
+    </PageShell>
   );
 }

@@ -367,7 +367,7 @@ function AddAnimeForm(props: AddAnimeFormProps) {
       </div>
 
       {props.anime.already_in_library && (
-        <Alert className="bg-warning/10 border-warning/30 text-warning">
+        <Alert variant="warning">
           <CheckIcon className="h-4 w-4" />
           <AlertDescription>This anime is already in your library</AlertDescription>
         </Alert>

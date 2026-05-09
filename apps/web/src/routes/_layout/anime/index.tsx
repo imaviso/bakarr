@@ -16,6 +16,8 @@ import { Schema } from "effect";
 import { AnimeListSkeleton } from "~/features/anime/anime-list-skeleton";
 import { EmptyState } from "~/components/shared/empty-state";
 import { GeneralError } from "~/components/shared/general-error";
+import { PageHeader } from "~/app/layout/page-header";
+import { PageShell } from "~/app/layout/page-shell";
 import { Button, buttonVariants } from "~/components/ui/button";
 import {
   DropdownMenu,
@@ -137,113 +139,110 @@ function AnimeIndexPage() {
     });
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-      <div className="shrink-0 space-y-2">
-        <div className="flex flex-wrap items-center justify-between gap-3 py-2">
-          <div className="min-w-0">
-            <h1 className="text-lg font-medium tracking-tight text-foreground">Library</h1>
-            <p className="text-xs text-muted-foreground">
-              {filteredList.length === anime.length
-                ? `${anime.length} titles`
-                : `${filteredList.length} of ${anime.length} titles`}
-            </p>
-          </div>
-          <Link
-            to="/anime/add"
-            className={buttonVariants({ size: "sm", class: "gap-1.5 shrink-0" })}
-            aria-label="Add anime"
-          >
-            <PlusIcon className="h-4 w-4" />
-            <span className="hidden sm:inline">Add Anime</span>
-          </Link>
+    <PageShell scroll="inner">
+      <PageHeader
+        title="Library"
+        subtitle={
+          filteredList.length === anime.length
+            ? `${anime.length} titles`
+            : `${filteredList.length} of ${anime.length} titles`
+        }
+      >
+        <Link
+          to="/anime/add"
+          className={buttonVariants({ size: "sm", class: "shrink-0 gap-1.5" })}
+          aria-label="Add anime"
+        >
+          <PlusIcon className="h-4 w-4" />
+          <span className="hidden sm:inline">Add Anime</span>
+        </Link>
+      </PageHeader>
+
+      <div className="flex shrink-0 items-center gap-2">
+        <div className="relative flex-1">
+          <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Filter anime..."
+            aria-label="Filter anime"
+            value={query}
+            onInput={(event) => handleSearchInput(event.currentTarget.value)}
+            className="pl-9"
+          />
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1">
-            <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Filter anime..."
-              aria-label="Filter anime"
-              value={query}
-              onInput={(event) => handleSearchInput(event.currentTarget.value)}
-              className="pl-9"
-            />
-          </div>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={<Button variant="outline" size="icon" />}
-              aria-label="Filter by status"
-            >
-              <FunnelIcon className="h-4 w-4" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuRadioGroup
-                value={filter}
-                onValueChange={(value) => {
-                  if (isMonitorFilter(value)) {
-                    updateFilter(value);
-                  }
-                }}
-              >
-                <DropdownMenuRadioItem value="all">All Anime</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="monitored">Monitored</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="unmonitored">Unmonitored</DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <Separator orientation="vertical" className="h-6" />
-
-          <Link
-            to="/anime/import"
-            className={buttonVariants({ variant: "outline", size: "icon" })}
-            aria-label="Import from folder"
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={<Button variant="outline" size="icon" />}
+            aria-label="Filter by status"
           >
-            <FolderOpenIcon className="h-4 w-4" />
-          </Link>
+            <FunnelIcon className="h-4 w-4" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuRadioGroup
+              value={filter}
+              onValueChange={(value) => {
+                if (isMonitorFilter(value)) {
+                  updateFilter(value);
+                }
+              }}
+            >
+              <DropdownMenuRadioItem value="all">All Anime</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="monitored">Monitored</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="unmonitored">Unmonitored</DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
-          <Link
-            to="/anime/scan"
-            className={buttonVariants({ variant: "outline", size: "icon" })}
-            aria-label="Scan library"
+        <Separator orientation="vertical" className="h-6" />
+
+        <Link
+          to="/anime/import"
+          className={buttonVariants({ variant: "outline", size: "icon" })}
+          aria-label="Import from folder"
+        >
+          <FolderOpenIcon className="h-4 w-4" />
+        </Link>
+
+        <Link
+          to="/anime/scan"
+          className={buttonVariants({ variant: "outline", size: "icon" })}
+          aria-label="Scan library"
+        >
+          <FolderIcon className="h-4 w-4" />
+        </Link>
+
+        <Separator orientation="vertical" className="h-6" />
+
+        <div className="flex items-center gap-1 bg-muted p-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "relative after:absolute after:-inset-2 h-7 w-7",
+              view === "grid" ? "bg-background " : "hover:bg-background",
+            )}
+            aria-label="Grid view"
+            onClick={() => updateView("grid")}
           >
-            <FolderIcon className="h-4 w-4" />
-          </Link>
+            <SquaresFourIcon className="h-4 w-4" />
+          </Button>
 
-          <Separator orientation="vertical" className="h-6" />
-
-          <div className="flex items-center gap-1 bg-muted p-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn(
-                "relative after:absolute after:-inset-2 h-7 w-7",
-                view === "grid" ? "bg-background " : "hover:bg-background",
-              )}
-              aria-label="Grid view"
-              onClick={() => updateView("grid")}
-            >
-              <SquaresFourIcon className="h-4 w-4" />
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn(
-                "relative after:absolute after:-inset-2 h-7 w-7",
-                view === "list" ? "bg-background " : "hover:bg-background",
-              )}
-              aria-label="List view"
-              onClick={() => updateView("list")}
-            >
-              <ListIcon className="h-4 w-4" />
-            </Button>
-          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "relative after:absolute after:-inset-2 h-7 w-7",
+              view === "list" ? "bg-background " : "hover:bg-background",
+            )}
+            aria-label="List view"
+            onClick={() => updateView("list")}
+          >
+            <ListIcon className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
-      <div className="flex flex-1 min-h-0 overflow-hidden">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
         {filteredList.length > 0 ? (
           <Suspense
             fallback={
@@ -288,6 +287,6 @@ function AnimeIndexPage() {
           </div>
         )}
       </div>
-    </div>
+    </PageShell>
   );
 }

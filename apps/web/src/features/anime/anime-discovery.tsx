@@ -94,7 +94,7 @@ export function AnimeDiscoverySection(props: AnimeDiscoverySectionProps) {
 
   return (
     <Card>
-      <CardHeader className="pb-3">
+      <CardHeader>
         <CardTitle className="text-base">Related & Recommended</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">

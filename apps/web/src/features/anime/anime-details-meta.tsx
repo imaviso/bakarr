@@ -54,7 +54,7 @@ export function AnimeDetailsMeta(props: AnimeDetailsMetaProps) {
       </div>
 
       <Card>
-        <CardHeader className="pb-3">
+        <CardHeader>
           <CardTitle className="text-base">Details</CardTitle>
         </CardHeader>
         <CardContent>

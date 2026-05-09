@@ -65,14 +65,7 @@ export function CandidateCard(props: CandidateCardProps) {
           </Tooltip>
 
           <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-            {!props.isLocal && (
-              <Badge
-                variant="secondary"
-                className="h-4 px-1 text-xs bg-info/10 text-info border-info/20"
-              >
-                New
-              </Badge>
-            )}
+            {!props.isLocal && <Badge variant="info">New</Badge>}
             {props.isManual && (
               <Badge
                 variant="secondary"

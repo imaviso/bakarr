@@ -8,6 +8,7 @@ import {
   SelectValue,
 } from "~/components/ui/select";
 import { Textarea } from "~/components/ui/textarea";
+import { SectionLabel } from "~/components/shared/section-label";
 import { cn } from "~/infra/utils";
 
 function parseSizeUnit(value: string | null | undefined): "MB" | "GB" | undefined {
@@ -187,10 +188,8 @@ export function SettingRow(props: {
 
 export function SettingSection(props: { children: ReactNode; title: string }) {
   return (
-    <div className="space-y-1">
-      <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-0.5 mb-3">
-        {props.title}
-      </div>
+    <div className="flex flex-col gap-3">
+      <SectionLabel className="px-0.5">{props.title}</SectionLabel>
       <div className="divide-y divide-border/50">{props.children}</div>
     </div>
   );

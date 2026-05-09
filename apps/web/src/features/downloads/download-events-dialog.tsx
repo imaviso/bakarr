@@ -135,7 +135,7 @@ export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
               </Button>
             </div>
             {lastExportResult?.truncated && (
-              <Alert className="rounded-none bg-warning/10 border-warning/30 text-warning text-xs">
+              <Alert variant="warning" className="text-xs">
                 <WarningIcon className="h-4 w-4 shrink-0" />
                 <AlertDescription>
                   Last export was truncated: exported {lastExportResult?.exported} of{" "}

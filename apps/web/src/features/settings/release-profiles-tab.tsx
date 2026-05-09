@@ -29,18 +29,16 @@ interface ReleaseProfileCardProps {
 function ReleaseProfileCard(props: ReleaseProfileCardProps) {
   return (
     <Card className="group transition-colors duration-200 hover:border-primary/50">
-      <CardHeader className="pb-3">
+      <CardHeader>
         <div className="flex justify-between items-start">
           <div className="space-y-1">
             <CardTitle className="text-base flex items-center gap-2">
               {props.profile.name}
               <div className="flex items-center gap-1.5">
                 {props.profile.enabled ? (
-                  <Badge className="text-xs h-5 px-1.5 bg-success/10 text-success border-success/20 font-medium">
-                    Enabled
-                  </Badge>
+                  <Badge variant="success">Enabled</Badge>
                 ) : (
-                  <Badge variant="outline" className="text-xs h-5 px-1.5 text-muted-foreground">
+                  <Badge variant="outline" className="text-muted-foreground">
                     Disabled
                   </Badge>
                 )}

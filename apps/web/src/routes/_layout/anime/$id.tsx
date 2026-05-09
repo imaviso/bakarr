@@ -12,6 +12,7 @@ import { AnimeDetailsDialogsProvider } from "~/features/anime/anime-details-dial
 import { useAnimeDetailsActions } from "~/features/anime/hooks/use-anime-details-actions";
 import { useAnimeDetailsDialogState } from "~/features/anime/hooks/use-anime-details-dialog-state";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
+import { PageShell } from "~/app/layout/page-shell";
 import { animeDetailsQueryOptions, animeListQueryOptions, episodesQueryOptions } from "~/api/anime";
 import { useAnimeScanTaskQuery, isTaskActive } from "~/api/operations-tasks";
 import { profilesQueryOptions, releaseProfilesQueryOptions } from "~/api/profiles";
@@ -190,7 +191,7 @@ function AnimeDetailsPage() {
 
   return (
     <AnimeDetailsDialogsProvider value={{ ...dialogsState, ...dialogsDispatch }}>
-      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden space-y-6">
+      <PageShell>
         <AnimeDetailsHeader
           anime={anime}
           animeId={animeId}
@@ -209,17 +210,17 @@ function AnimeDetailsPage() {
           onDeleteAnime={handleDeleteAnime}
         />
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
           <AnimeDetailsSidebar anime={anime} />
 
-          <div className="lg:col-span-3 space-y-6">
+          <div className="flex flex-col gap-6 lg:col-span-3">
             {anime.description && (
               <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Synopsis</CardTitle>
+                <CardHeader>
+                  <CardTitle>Synopsis</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
+                  <p className="text-sm leading-relaxed whitespace-pre-line text-muted-foreground">
                     {anime.description}
                   </p>
                 </CardContent>
@@ -228,11 +229,11 @@ function AnimeDetailsPage() {
 
             {anime.background && (
               <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Background</CardTitle>
+                <CardHeader>
+                  <CardTitle>Background</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
+                  <p className="text-sm leading-relaxed whitespace-pre-line text-muted-foreground">
                     {anime.background}
                   </p>
                 </CardContent>
@@ -267,7 +268,7 @@ function AnimeDetailsPage() {
         <Suspense fallback={null}>
           <AnimeDetailsDialogsLazy />
         </Suspense>
-      </div>
+      </PageShell>
     </AnimeDetailsDialogsProvider>
   );
 }

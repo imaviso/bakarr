@@ -14,6 +14,8 @@ import { ReleaseProfilesTab } from "~/features/settings/release-profiles-tab";
 import { GeneralSettingsForm } from "~/features/settings/system-settings-form";
 import { GeneralError } from "~/components/shared/general-error";
 import { PageHeader } from "~/app/layout/page-header";
+import { PageShell } from "~/app/layout/page-shell";
+import { SectionLabel } from "~/components/shared/section-label";
 import {
   Select,
   SelectContent,
@@ -127,9 +129,7 @@ function SettingsNav({
     <nav role="tablist" className="hidden md:flex flex-col gap-6 w-44 shrink-0">
       {SETTINGS_GROUPS.map((group) => (
         <div key={group.label} className="flex flex-col gap-1">
-          <span className="px-3 text-[0.65rem] font-medium uppercase tracking-widest text-muted-foreground">
-            {group.label}
-          </span>
+          <SectionLabel className="px-3">{group.label}</SectionLabel>
           {group.items.map((item) => (
             <button
               key={item.value}
@@ -227,14 +227,14 @@ function SettingsPage() {
   };
 
   return (
-    <div className="flex flex-1 min-h-0 flex-col overflow-hidden gap-4">
+    <PageShell scroll="inner">
       <PageHeader title="Settings" />
 
-      <div className="flex flex-1 min-h-0 gap-6">
+      <div className="flex min-h-0 flex-1 gap-6">
         <SettingsNav activeTab={activeTab} onTabChange={handleTabChange} />
         <SettingsMobileSelect activeTab={activeTab} onTabChange={handleTabChange} />
 
-        <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden">
+        <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
           <div className="max-w-3xl pb-12">
             {activeTab === "general" && (
               <div
@@ -243,9 +243,9 @@ function SettingsPage() {
                 aria-labelledby="tab-general"
                 className="space-y-6"
               >
-                <div>
-                  <h2 className="text-sm font-medium">General Settings</h2>
-                  <p className="text-xs text-muted-foreground mt-0.5">
+                <div className="flex flex-col gap-0.5">
+                  <h2 className="font-mono text-sm font-medium tracking-tight">General Settings</h2>
+                  <p className="text-xs text-muted-foreground">
                     Core application, library, and naming settings
                   </p>
                 </div>
@@ -260,9 +260,9 @@ function SettingsPage() {
                 aria-labelledby="tab-automation"
                 className="space-y-6"
               >
-                <div>
-                  <h2 className="text-sm font-medium">Automation</h2>
-                  <p className="text-xs text-muted-foreground mt-0.5">
+                <div className="flex flex-col gap-0.5">
+                  <h2 className="font-mono text-sm font-medium tracking-tight">Automation</h2>
+                  <p className="text-xs text-muted-foreground">
                     Search, qBittorrent, scheduling, and app-wide release defaults
                   </p>
                 </div>
@@ -293,9 +293,9 @@ function SettingsPage() {
                 aria-labelledby="tab-account"
                 className="space-y-6"
               >
-                <div>
-                  <h2 className="text-sm font-medium">Account</h2>
-                  <p className="text-xs text-muted-foreground mt-0.5">
+                <div className="flex flex-col gap-0.5">
+                  <h2 className="font-mono text-sm font-medium tracking-tight">Account</h2>
+                  <p className="text-xs text-muted-foreground">
                     Manage your password, API access, and notification preferences
                   </p>
                 </div>
@@ -305,6 +305,6 @@ function SettingsPage() {
           </div>
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }

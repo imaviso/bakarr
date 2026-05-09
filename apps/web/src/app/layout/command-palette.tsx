@@ -82,7 +82,7 @@ function SearchResults(props: {
               value={`nav-${route.url}`}
               onSelect={() => props.onSelect(route.url)}
             >
-              <route.icon className="mr-2 h-4 w-4 text-muted-foreground" />
+              <route.icon className="size-4 shrink-0 text-muted-foreground" />
               <span>{route.title}</span>
             </CommandItem>
           ))}
@@ -100,28 +100,34 @@ function SearchResults(props: {
                 value={`library-${anime.id}`}
                 onSelect={() => props.onSelect(`/anime/${anime.id}`)}
               >
-                {anime.cover_image && (
+                {anime.cover_image ? (
                   <img
                     src={anime.cover_image}
                     alt={anime.title.romaji}
                     loading="lazy"
-                    className="mr-2 h-8 w-6 object-cover"
+                    className="h-8 w-6 shrink-0 bg-muted object-cover"
                   />
+                ) : (
+                  <div className="flex h-8 w-6 shrink-0 items-center justify-center bg-muted">
+                    <TelevisionIcon className="size-4 text-muted-foreground" />
+                  </div>
                 )}
-                <div className="flex flex-col">
-                  <span className="font-medium">{anime.title.romaji}</span>
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate font-medium">{anime.title.romaji}</span>
                   {anime.title.english && anime.title.english !== anime.title.romaji && (
-                    <span className="text-xs text-muted-foreground">{anime.title.english}</span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      {anime.title.english}
+                    </span>
                   )}
                   {(animeSearchSubtitle(anime) || anime.genres?.length) && (
-                    <span className="text-xs text-muted-foreground">
+                    <span className="truncate text-xs text-muted-foreground">
                       {[animeSearchSubtitle(anime), anime.genres?.[0]]
                         .filter((value): value is string => Boolean(value))
                         .join(" • ")}
                     </span>
                   )}
                 </div>
-                <CaretRightIcon className="ml-auto h-4 w-4 text-muted-foreground" />
+                <CaretRightIcon className="size-4 shrink-0 text-muted-foreground" />
               </CommandItem>
             ))}
           </CommandGroup>
@@ -162,7 +168,7 @@ export function CommandPalette() {
         onClick={() => setOpen(true)}
         aria-label="Search library or navigate"
         className={cn(
-          "flex w-full items-center gap-3 overflow-hidden rounded-none border border-border bg-muted px-3 py-2 text-left text-sm text-muted-foreground hover:bg-accent hover:text-foreground transition-colors",
+          "flex w-full items-center gap-2 overflow-hidden rounded-none border border-border bg-muted px-2 py-1.5 text-left text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors",
           "group-data-[collapsible=icon]:!size-9 group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:bg-transparent",
         )}
       >
@@ -179,7 +185,6 @@ export function CommandPalette() {
             placeholder="Search library or navigate..."
             value={inputValue}
             onValueChange={setInputValue}
-            className="focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 border-0 focus-visible:border-b focus-visible:border-primary"
           />
           <SearchResults inputValue={inputValue} animeList={animeList} onSelect={handleSelect} />
         </Command>

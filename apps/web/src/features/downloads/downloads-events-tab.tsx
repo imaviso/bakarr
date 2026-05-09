@@ -36,7 +36,7 @@ export function DownloadsEventsTab(props: DownloadsEventsTabProps) {
         />
       </div>
       {props.lastDownloadEventsExport?.truncated && (
-        <Alert className="mx-4 mt-4 rounded-none bg-warning/10 border-warning/30 text-warning text-xs">
+        <Alert variant="warning" className="mx-4 mt-4 text-xs">
           <AlertDescription>
             Last export was truncated: exported {props.lastDownloadEventsExport?.exported} of{" "}
             {props.lastDownloadEventsExport?.total} events ({props.lastDownloadEventsExport?.limit}

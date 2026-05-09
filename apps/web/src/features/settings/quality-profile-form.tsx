@@ -99,7 +99,7 @@ export function ProfileForm(props: {
 
   return (
     <Card className="border-primary/20">
-      <CardHeader className="pb-4">
+      <CardHeader>
         <CardTitle className="text-base">{isEditing ? "Edit Profile" : "Create Profile"}</CardTitle>
       </CardHeader>
       <CardContent>

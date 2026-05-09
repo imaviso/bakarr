@@ -12,6 +12,7 @@ import {
 import { useLocation, useRouter } from "@tanstack/react-router";
 import { CommandPalette } from "~/app/layout/command-palette";
 import { ModeToggle } from "~/components/shared/mode-toggle";
+import { SectionLabel } from "~/components/shared/section-label";
 import {
   Sidebar,
   SidebarContent,
@@ -91,13 +92,14 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r-0">
       {/* Workspace Header */}
       <SidebarHeader className="p-2 group-data-[collapsible=icon]:p-1">
-        <div className="flex items-center gap-2 w-full rounded-none px-2 py-1.5">
-          <div className="flex h-6 w-6 items-center justify-center bg-primary text-primary-foreground font-medium text-xs shrink-0 rounded-none">
-            B
+        <div className="flex w-full items-center gap-2 rounded-none px-2 py-1.5">
+          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-none bg-primary font-mono text-xs font-bold text-primary-foreground">
+            ▎
           </div>
           {!isCollapsed && (
-            <span className="font-medium text-sm text-sidebar-accent-foreground truncate flex-1 text-left">
-              Bakarr
+            <span className="flex-1 truncate text-left font-mono text-sm font-medium text-sidebar-accent-foreground">
+              bakarr
+              <span className="ml-0.5 inline-block h-3 w-1.5 translate-y-px animate-pulse bg-success align-baseline" />
             </span>
           )}
         </div>
@@ -111,9 +113,9 @@ export function AppSidebar() {
       <SidebarContent className="px-3 group-data-[collapsible=icon]:px-0">
         {/* Main Navigation */}
         <SidebarGroup className="py-2 group-data-[collapsible=icon]:px-0">
-          <div className="px-3 pb-2 text-xs font-medium text-muted-foreground uppercase tracking-widest group-data-[collapsible=icon]:hidden">
-            MAIN
-          </div>
+          <SectionLabel className="block px-3 pb-2 group-data-[collapsible=icon]:hidden">
+            main
+          </SectionLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-1 group-data-[collapsible=icon]:items-center">
               {mainItems.map((item) => (
@@ -138,10 +140,10 @@ export function AppSidebar() {
         {/* <ActiveDownloads /> */}
 
         {/* Settings Section */}
-        <SidebarGroup className="py-2 mt-auto group-data-[collapsible=icon]:px-0">
-          <div className="px-3 pb-2 text-xs font-medium text-muted-foreground uppercase tracking-widest group-data-[collapsible=icon]:hidden">
-            SYSTEM
-          </div>
+        <SidebarGroup className="mt-auto py-2 group-data-[collapsible=icon]:px-0">
+          <SectionLabel className="block px-3 pb-2 group-data-[collapsible=icon]:hidden">
+            system
+          </SectionLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-1 group-data-[collapsible=icon]:items-center">
               {settingsItems.map((item) => (
@@ -165,7 +167,7 @@ export function AppSidebar() {
 
       {/* Footer */}
       <SidebarFooter className="p-3 group-data-[collapsible=icon]:p-1">
-        <SidebarSeparator className="mb-2 mx-0 group-data-[collapsible=icon]:mx-0 bg-border" />
+        <SidebarSeparator className="mx-0 mb-2 group-data-[collapsible=icon]:mx-0" />
         <SidebarMenu className="gap-1 group-data-[collapsible=icon]:items-center">
           <SidebarMenuItem>
             <ModeToggle />

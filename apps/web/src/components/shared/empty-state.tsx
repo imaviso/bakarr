@@ -56,13 +56,13 @@ export function EmptyState(props: EmptyStateProps) {
           {(() => {
             const HeadingTag = headingTags[props.headingLevel ?? 3];
             return (
-              <HeadingTag className="text-sm font-medium tracking-tight text-foreground uppercase">
+              <HeadingTag className="font-mono text-sm font-medium tracking-tight text-foreground">
                 {props.title}
               </HeadingTag>
             );
           })()}
           {props.description && (
-            <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+            <p className="mt-2 font-mono text-xs leading-relaxed text-muted-foreground">
               {props.description}
             </p>
           )}

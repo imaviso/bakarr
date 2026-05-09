@@ -35,7 +35,7 @@ interface QualityProfileCardProps {
 function QualityProfileCard(props: QualityProfileCardProps) {
   return (
     <Card className="group transition-colors duration-200 hover:border-primary/50">
-      <CardHeader className="pb-3">
+      <CardHeader>
         <div className="flex justify-between items-start">
           <div className="space-y-1">
             <CardTitle className="text-base flex items-center gap-2">

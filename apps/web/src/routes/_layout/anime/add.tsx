@@ -8,6 +8,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { useContainerWidth } from "~/hooks/use-container-width";
 import { GeneralError } from "~/components/shared/general-error";
 import { PageHeader } from "~/app/layout/page-header";
+import { PageShell } from "~/app/layout/page-shell";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
@@ -121,7 +122,7 @@ function AddAnimePage() {
   };
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 overflow-hidden gap-2">
+    <PageShell scroll="inner">
       <PageHeader
         title="Add Anime"
         subtitle="Search or browse seasonal anime to add to your library"
@@ -199,7 +200,7 @@ function AddAnimePage() {
           />
         </Suspense>
       )}
-    </div>
+    </PageShell>
   );
 }
 

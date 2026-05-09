@@ -3,6 +3,7 @@ import { useLibraryImportTaskQuery } from "~/api/operations-tasks";
 import { ImportPageContent } from "~/features/import/import-page-content";
 import { useImportPageState } from "~/features/import/import-page-state";
 import { GeneralError } from "~/components/shared/general-error";
+import { PageShell } from "~/app/layout/page-shell";
 import { animeListQueryOptions } from "~/api/anime";
 import { isTaskActive } from "~/api/operations-tasks";
 import { profilesQueryOptions } from "~/api/profiles";
@@ -42,11 +43,11 @@ function ImportPage() {
     latestImportTask.data !== undefined && isTaskActive(latestImportTask.data);
 
   return (
-    <div className="flex flex-1 min-h-0 flex-col gap-2 overflow-hidden">
+    <PageShell scroll="inner">
       {isImportTaskRunning && (
         <p className="text-xs text-muted-foreground">Import task running. Progress updates live.</p>
       )}
       <ImportPageContent state={state} />
-    </div>
+    </PageShell>
   );
 }

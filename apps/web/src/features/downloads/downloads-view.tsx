@@ -1,6 +1,7 @@
 import { ArrowClockwiseIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { DownloadEventsDialog } from "~/features/downloads/download-events-dialog";
 import { PageHeader } from "~/app/layout/page-header";
+import { PageShell } from "~/app/layout/page-shell";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "~/components/ui/tabs";
@@ -17,7 +18,7 @@ interface DownloadsViewProps {
 
 export function DownloadsView(props: DownloadsViewProps) {
   return (
-    <div className="flex flex-col flex-1 min-h-0 overflow-hidden gap-2">
+    <PageShell scroll="inner">
       <PageHeader title="Downloads" subtitle="Manage active downloads and history">
         <div className="flex items-center gap-2">
           <DownloadEventsDialog
@@ -55,58 +56,41 @@ export function DownloadsView(props: DownloadsViewProps) {
         </div>
       </PageHeader>
 
-      <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
-        <Tabs
-          value={props.searchTab}
-          onChange={(value) =>
-            props.state.handleTabChange(typeof value === "string" ? value : undefined)
-          }
-          className="h-full min-h-0 flex flex-col"
-        >
-          <div className="px-4 pt-3 border-b">
-            <TabsList className="w-full justify-start h-auto p-0 pb-px bg-transparent border-b-0 space-x-6">
-              <TabsTrigger
-                value="queue"
-                className="h-9 px-0 pb-3 rounded-none border-b border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent data-[selected]:bg-transparent data-[selected]:text-foreground"
-              >
-                Queue
-                {props.state.queueCount > 0 && (
-                  <Badge variant="secondary" className="ml-2 h-5 px-1.5 min-w-[1.25rem] text-xs">
-                    {props.state.queueCount}
-                  </Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger
-                value="history"
-                className="h-9 px-0 pb-3 rounded-none border-b border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent data-[selected]:bg-transparent data-[selected]:text-foreground"
-              >
-                History
-              </TabsTrigger>
-              <TabsTrigger
-                value="events"
-                className="h-9 px-0 pb-3 rounded-none border-b border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent data-[selected]:bg-transparent data-[selected]:text-foreground"
-              >
-                Events
-              </TabsTrigger>
-            </TabsList>
-          </div>
+      <Tabs
+        value={props.searchTab}
+        onChange={(value) =>
+          props.state.handleTabChange(typeof value === "string" ? value : undefined)
+        }
+        className="flex min-h-0 flex-1 flex-col"
+      >
+        <TabsList variant="line" className="w-full justify-start gap-6">
+          <TabsTrigger value="queue">
+            Queue
+            {props.state.queueCount > 0 && (
+              <Badge variant="secondary" className="ml-2 h-5 min-w-[1.25rem] px-1.5">
+                {props.state.queueCount}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="history">History</TabsTrigger>
+          <TabsTrigger value="events">Events</TabsTrigger>
+        </TabsList>
 
-          <DownloadsQueueTab queue={props.state.queue} />
+        <DownloadsQueueTab queue={props.state.queue} />
 
-          <DownloadsEventsTab
-            downloadEventsQuery={props.state.downloadEventsQuery}
-            eventsSearchState={props.state.eventsSearchState}
-            canGoToPreviousEventsPage={props.state.canGoToPreviousEventsPage}
-            canGoToNextEventsPage={props.state.canGoToNextEventsPage}
-            handleDownloadEventsExport={props.state.handleDownloadEventsExport}
-            goToPreviousEventsPage={props.state.goToPreviousEventsPage}
-            goToNextEventsPage={props.state.goToNextEventsPage}
-            lastDownloadEventsExport={props.state.lastDownloadEventsExport}
-          />
+        <DownloadsEventsTab
+          downloadEventsQuery={props.state.downloadEventsQuery}
+          eventsSearchState={props.state.eventsSearchState}
+          canGoToPreviousEventsPage={props.state.canGoToPreviousEventsPage}
+          canGoToNextEventsPage={props.state.canGoToNextEventsPage}
+          handleDownloadEventsExport={props.state.handleDownloadEventsExport}
+          goToPreviousEventsPage={props.state.goToPreviousEventsPage}
+          goToNextEventsPage={props.state.goToNextEventsPage}
+          lastDownloadEventsExport={props.state.lastDownloadEventsExport}
+        />
 
-          <DownloadsHistoryTab history={props.state.history} />
-        </Tabs>
-      </div>
-    </div>
+        <DownloadsHistoryTab history={props.state.history} />
+      </Tabs>
+    </PageShell>
   );
 }

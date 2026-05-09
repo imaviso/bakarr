@@ -1,6 +1,7 @@
 import { PlayIcon } from "@phosphor-icons/react";
 import { Badge } from "~/components/ui/badge";
 import { Card, CardContent } from "~/components/ui/card";
+import { SectionLabel } from "~/components/shared/section-label";
 import type { Anime } from "~/api/contracts";
 
 const COMPACT_NUMBER = new Intl.NumberFormat(undefined, { notation: "compact" });
@@ -96,13 +97,11 @@ export function AnimeDetailsSidebar(props: AnimeDetailsSidebarProps) {
       )}
 
       {props.anime.studios && props.anime.studios.length > 0 && (
-        <div className="space-y-1.5">
-          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            Studios
-          </h2>
+        <div className="flex flex-col gap-2">
+          <SectionLabel as="h2">Studios</SectionLabel>
           <div className="flex flex-wrap gap-1">
             {props.anime.studios.map((studio) => (
-              <Badge key={studio} variant="outline" className="text-xs">
+              <Badge key={studio} variant="outline">
                 {studio}
               </Badge>
             ))}
@@ -111,10 +110,8 @@ export function AnimeDetailsSidebar(props: AnimeDetailsSidebarProps) {
       )}
 
       {props.anime.genres && props.anime.genres.length > 0 && (
-        <div className="space-y-1.5">
-          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            Genres
-          </h2>
+        <div className="flex flex-col gap-2">
+          <SectionLabel as="h2">Genres</SectionLabel>
           <div className="flex flex-wrap gap-1">
             {props.anime.genres.map((genre) => (
               <Badge key={genre} variant="secondary" className="text-xs">

@@ -103,14 +103,7 @@ export function FileRow(props: FileRowProps) {
                   Already mapped
                 </Badge>
               )}
-              {props.file.episode_conflict && (
-                <Badge
-                  variant="secondary"
-                  className="h-5 px-1.5 text-xs bg-warning/10 text-warning border-warning/20"
-                >
-                  Duplicate episode
-                </Badge>
-              )}
+              {props.file.episode_conflict && <Badge variant="warning">Duplicate episode</Badge>}
             </div>
           )}
           {props.file.match_reason && (
@@ -214,14 +207,7 @@ export function FileRow(props: FileRowProps) {
             disabled={!props.isSelected}
             onSave={props.onMappingChange}
           />
-          {props.file.needs_manual_mapping && (
-            <Badge
-              variant="secondary"
-              className="text-xs bg-warning/10 text-warning border-warning/20"
-            >
-              Manual
-            </Badge>
-          )}
+          {props.file.needs_manual_mapping && <Badge variant="warning">Manual</Badge>}
         </div>
         <div className="flex items-center gap-2 shrink-0 w-64">
           {hasMatch ? (

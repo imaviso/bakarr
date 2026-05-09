@@ -3,17 +3,14 @@ import { PathMappingsEditor, SettingRow, SettingSection } from "~/features/setti
 import type { SettingsFormApi } from "~/features/settings/system-settings-form-hook";
 import { Input } from "~/components/ui/input";
 import { Switch } from "~/components/ui/switch";
+import { SectionLabel } from "~/components/shared/section-label";
 
 interface SystemSettingsDownloadsSectionProps {
   form: SettingsFormApi;
 }
 
 function SubSectionTitle({ children }: { children: string }) {
-  return (
-    <div className="text-[0.65rem] font-medium uppercase tracking-widest text-muted-foreground px-0.5 pt-4 pb-1">
-      {children}
-    </div>
-  );
+  return <SectionLabel className="block px-0.5 pt-4 pb-1">{children}</SectionLabel>;
 }
 
 const RatioLimitInputSchema = Schema.Union(Schema.Literal(""), Schema.NumberFromString);

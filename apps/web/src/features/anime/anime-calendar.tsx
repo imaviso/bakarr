@@ -15,6 +15,8 @@ import {
 import { useState } from "react";
 import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
+import { PageShell } from "~/app/layout/page-shell";
+import { SectionLabel } from "~/components/shared/section-label";
 import { useCalendarQuery } from "~/api/system-rss-calendar";
 import { useSystemConfigQuery } from "~/api/system-config";
 import {
@@ -72,14 +74,13 @@ export function AnimeCalendar() {
   const handleToday = () => setCurrentDate(new Date());
 
   return (
-    <div className="flex flex-1 min-h-0 flex-col gap-4 overflow-hidden">
-      {/* Header */}
+    <PageShell scroll="inner">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" onClick={handlePrevMonth} aria-label="Previous month">
             <CaretLeftIcon className="h-4 w-4" />
           </Button>
-          <h2 className="text-xl font-medium w-40 text-center">
+          <h2 className="w-40 text-center font-mono text-base font-medium tracking-tight">
             {format(currentDate, "MMMM yyyy")}
           </h2>
           <Button variant="ghost" size="icon" onClick={handleNextMonth} aria-label="Next month">
@@ -97,12 +98,9 @@ export function AnimeCalendar() {
           {/* Weekday Headers */}
           <div className="grid grid-cols-7 border-b border-border bg-muted">
             {weekdays.map((day) => (
-              <div
-                key={day}
-                className="py-2 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider"
-              >
+              <SectionLabel key={day} className="block py-2 text-center">
                 {day}
-              </div>
+              </SectionLabel>
             ))}
           </div>
 
@@ -229,6 +227,6 @@ export function AnimeCalendar() {
           <span>Missing</span>
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }

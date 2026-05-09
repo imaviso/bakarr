@@ -5,6 +5,8 @@ import { formatDistanceToNow } from "date-fns";
 import { EmptyState } from "~/components/shared/empty-state";
 import { GeneralError } from "~/components/shared/general-error";
 import { PageHeader } from "~/app/layout/page-header";
+import { PageShell } from "~/app/layout/page-shell";
+import { SectionLabel } from "~/components/shared/section-label";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Separator } from "~/components/ui/separator";
@@ -35,11 +37,10 @@ function DashboardPage() {
   const statsSummary = `${stats.total_anime} anime · ${stats.downloaded_episodes}/${stats.total_episodes} episodes · ${stats.downloaded_percent}% complete`;
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden space-y-6">
+    <PageShell>
       <PageHeader title="Dashboard" subtitle={statsSummary} />
 
-      {/* Stat Bar */}
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-border pb-4">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
         <StatItem label="Anime" value={stats.total_anime} />
         <StatItem
           label="Monitored"
@@ -57,7 +58,7 @@ function DashboardPage() {
           value={stats.missing_episodes}
           tone={stats.missing_episodes > 0 ? "warning" : undefined}
         />
-        <Separator orientation="vertical" className="h-6 hidden sm:block" />
+        <Separator orientation="vertical" className="hidden h-6 sm:block" />
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
@@ -82,12 +83,9 @@ function DashboardPage() {
         </div>
       </div>
 
-      {/* Activity Feed */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-            Recent Activity
-          </h2>
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <SectionLabel as="h2">Recent Activity</SectionLabel>
           {activity.length > 5 && (
             <Button
               variant="ghost"
@@ -101,9 +99,9 @@ function DashboardPage() {
           )}
         </div>
         {recentActivity.length > 0 ? (
-          <ul role="list" className="divide-y divide-border">
+          <ul role="list" className="flex flex-col">
             {recentActivity.map((item) => (
-              <li key={item.id}>
+              <li key={item.id} className="border-t border-dashed border-border first:border-t-0">
                 <ActivityRow item={item} />
               </li>
             ))}
@@ -112,7 +110,7 @@ function DashboardPage() {
           <EmptyState compact title="No recent activity" />
         )}
       </div>
-    </div>
+    </PageShell>
   );
 }
 
@@ -131,7 +129,7 @@ function StatItem(props: {
       </span>
       <span className="text-xs text-muted-foreground">{props.label}</span>
       {props.sub && (
-        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+        <Badge variant="secondary" className="h-4 px-1.5 py-0 text-[10px]">
           {props.sub}
         </Badge>
       )}
@@ -141,16 +139,16 @@ function StatItem(props: {
 
 function ActivityRow(props: { item: ActivityItem }) {
   return (
-    <div className="flex items-center gap-4 py-3 hover:bg-muted transition-colors">
-      <div className="p-2 bg-success/10">
+    <div className="flex items-center gap-4 py-3 transition-colors hover:bg-muted">
+      <div className="bg-success/10 p-2">
         <CheckIcon className="h-4 w-4 text-success" />
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate">{props.item.anime_title}</p>
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <p className="truncate text-sm font-medium">{props.item.anime_title}</p>
         <p className="text-xs text-muted-foreground">{props.item.description}</p>
       </div>
       <time
-        className="flex items-center gap-1 text-xs text-muted-foreground shrink-0"
+        className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground"
         dateTime={props.item.timestamp}
       >
         <ClockIcon className="h-3.5 w-3.5" />

@@ -15,6 +15,7 @@ import { Schema } from "effect";
 import { EmptyState } from "~/components/shared/empty-state";
 import { GeneralError } from "~/components/shared/general-error";
 import { PageHeader } from "~/app/layout/page-header";
+import { PageShell } from "~/app/layout/page-shell";
 import { formatDateTime } from "~/domain/date-time";
 import {
   AlertDialog,
@@ -68,7 +69,7 @@ function RssPage() {
   const toggleFeed = useToggleRssFeedMutation();
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden space-y-6">
+    <PageShell>
       <PageHeader title="RSS Feeds">
         <Button size="sm" onClick={() => setIsAdding(true)} disabled={isAdding}>
           <PlusIcon className="h-4 w-4" />
@@ -93,7 +94,7 @@ function RssPage() {
           </Button>
         </EmptyState>
       ) : (
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3">
           {feeds.map((feed) => (
             <FeedCard
               key={feed.id}
@@ -104,7 +105,7 @@ function RssPage() {
           ))}
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }
 
@@ -115,7 +116,7 @@ function FeedCard(props: {
 }) {
   return (
     <Card className="transition-colors duration-150 hover:bg-muted/50">
-      <CardContent className="flex items-center gap-4 p-4">
+      <CardContent className="flex items-center gap-4">
         <Button
           variant="ghost"
           size="icon"
@@ -131,10 +132,7 @@ function FeedCard(props: {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <p className="font-medium truncate">{props.feed.name || "Unnamed Feed"}</p>
-            <Badge
-              variant={props.feed.enabled ? "default" : "secondary"}
-              className="capitalize text-xs"
-            >
+            <Badge variant={props.feed.enabled ? "success" : "secondary"}>
               {props.feed.enabled ? "Active" : "Paused"}
             </Badge>
           </div>
@@ -213,9 +211,9 @@ function AddFeedForm(props: { onCancel: () => void; onSuccess: () => void }) {
   });
 
   return (
-    <Card className="border-primary/20">
-      <CardHeader className="pb-4">
-        <CardTitle className="text-base">Add RSS Feed</CardTitle>
+    <Card>
+      <CardHeader>
+        <CardTitle>Add RSS Feed</CardTitle>
         <CardDescription>Add a Nyaa or other RSS feed for episode detection</CardDescription>
       </CardHeader>
       <CardContent>

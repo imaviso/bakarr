@@ -1,27 +1,34 @@
-import { ArrowLeftIcon, GhostIcon } from "@phosphor-icons/react";
-import { Link } from "@tanstack/react-router";
+import { ArrowLeftIcon } from "@phosphor-icons/react";
+import { Link, useLocation } from "@tanstack/react-router";
 import { Button } from "~/components/ui/button";
 
 export function NotFound() {
-  return (
-    <div className="flex flex-1 flex-col items-center justify-center min-h-[400px] bg-background">
-      <div className="flex flex-col items-center text-center space-y-8 px-4">
-        <GhostIcon className="h-24 w-24 text-primary" />
+  const location = useLocation();
 
-        <div className="space-y-2">
-          <h1 className="text-7xl font-thin tracking-tight text-foreground select-none">404</h1>
-          <h2 className="text-xl font-medium tracking-wide text-foreground">Page not found</h2>
-          <p className="text-sm text-muted-foreground max-w-[400px] mx-auto leading-relaxed">
-            The page you are looking for does not exist or has been moved. Please check the URL or
-            navigate back home.
-          </p>
+  return (
+    <div className="flex min-h-[400px] flex-1 flex-col items-center justify-center bg-background">
+      <div className="flex w-full max-w-xl flex-col items-start gap-6 px-4 text-left">
+        <div className="font-mono text-xs text-muted-foreground">
+          <span className="text-foreground">cat</span> {location.pathname}
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="w-full border-l-2 border-l-warning bg-card pl-3 font-mono text-xs">
+          <div className="text-warning">404: no such file or directory</div>
+          <div className="mt-1 text-muted-foreground">check the url or navigate back home</div>
+        </div>
+
+        <pre className="select-none font-mono text-xs leading-tight text-muted-foreground/60">
+          {`╭─ status ──────────╮
+│ code  : 404       │
+│ route : not found │
+╰───────────────────╯`}
+        </pre>
+
+        <div className="flex items-center gap-2">
           <Link to="/">
             <Button variant="outline" className="group">
-              <ArrowLeftIcon className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" />
-              Back to Home
+              <ArrowLeftIcon className="mr-1.5 h-4 w-4 transition-transform group-hover:-translate-x-1" />
+              cd ~
             </Button>
           </Link>
         </div>

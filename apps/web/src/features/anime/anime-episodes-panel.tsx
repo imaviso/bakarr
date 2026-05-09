@@ -29,7 +29,7 @@ export function AnimeEpisodesPanel(props: AnimeEpisodesPanelProps) {
   return (
     <Tabs defaultValue="grid" className="w-full">
       <Card>
-        <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-base">Episodes</CardTitle>
           <TabsList>
             <TabsTrigger value="grid">

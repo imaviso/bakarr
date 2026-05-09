@@ -9,6 +9,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { GeneralError } from "~/components/shared/general-error";
+import { PageShell } from "~/app/layout/page-shell";
 import { BackgroundMatchingCard } from "~/features/scan/background-matching-card";
 import { runBulkBackgroundMatchAction } from "~/features/scan/background-matching-actions";
 import { isBackgroundMatchingRunning } from "~/features/scan/background-matching-state";
@@ -140,7 +141,7 @@ function LibraryScanPage() {
   };
 
   return (
-    <div className="flex flex-1 min-h-0 min-w-0 flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,oklch(var(--info)_/_0.12),transparent_34%),radial-gradient(circle_at_top_right,hsl(var(--primary)/0.08),transparent_28%)]">
+    <PageShell scroll="inner" className="gap-0">
       <ScanPageHeader
         foldersCount={folderList.length}
         counts={counts}
@@ -184,7 +185,7 @@ function LibraryScanPage() {
         foldersByPath={foldersByPath}
         onOpenManualMatch={(dialogState) => setManualMatchDialog(dialogState)}
       />
-    </div>
+    </PageShell>
   );
 }
 

@@ -26,6 +26,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { NotificationSettingsCard } from "~/features/settings/notification-settings-card";
+import { SectionLabel } from "~/components/shared/section-label";
 import { useChangePasswordMutation, useRegenerateApiKeyMutation } from "~/api/auth";
 import { useAuth } from "~/app/auth";
 import { errorMessage } from "~/api/effect/errors";
@@ -131,10 +132,8 @@ export function AccountSettingsForm() {
 
   return (
     <div className="space-y-8">
-      <div className="space-y-4">
-        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-          Security
-        </div>
+      <div className="flex flex-col gap-4">
+        <SectionLabel as="h2">Security</SectionLabel>
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
@@ -352,10 +351,8 @@ export function AccountSettingsForm() {
         </Card>
       </div>
 
-      <div className="space-y-4">
-        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-          Preferences
-        </div>
+      <div className="flex flex-col gap-4">
+        <SectionLabel as="h2">Preferences</SectionLabel>
         <NotificationSettingsCard />
       </div>
     </div>
