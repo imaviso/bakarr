@@ -9,6 +9,8 @@ import { AniListClient } from "@/features/anime/anilist.ts";
 import { AnimeSeasonalProviderService } from "@/features/anime/anime-seasonal-provider-service.ts";
 import { Database } from "@/db/database.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
+import { ExternalCallError } from "@/infra/effect/retry.ts";
+import { ManamiClient } from "@/features/anime/manami.ts";
 
 function makeSeasonalResult(input: {
   id: number;
@@ -54,6 +56,13 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
               getAnimeMetadataById: () => Effect.succeed(Option.none()),
               getSeasonalAnime: () => Effect.succeed([]),
               searchAnimeMetadata: () => Effect.succeed([]),
+            }),
+            Layer.succeed(ManamiClient, {
+              getByAniListId: () => Effect.succeed(Option.none()),
+              getByMalId: () => Effect.succeed(Option.none()),
+              resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
+              resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
+              searchAnime: () => Effect.succeed([]),
             }),
             Layer.succeed(ClockService, {
               currentMonotonicMillis: Effect.succeed(0),
@@ -132,6 +141,13 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
                   getSeasonalAnime: () => Effect.succeed([]),
                   searchAnimeMetadata: () => Effect.succeed([]),
                 }),
+                Layer.succeed(ManamiClient, {
+                  getByAniListId: () => Effect.succeed(Option.none()),
+                  getByMalId: () => Effect.succeed(Option.none()),
+                  resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
+                  resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
+                  searchAnime: () => Effect.succeed([]),
+                }),
                 Layer.succeed(ClockService, {
                   currentMonotonicMillis: Effect.succeed(0),
                   currentTimeMillis: Effect.sync(() => currentTime),
@@ -159,6 +175,160 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
 
           assert.deepStrictEqual(providerCalls, 2);
           assert.deepStrictEqual(refreshed.results[0]?.title.romaji, "Fetch 2");
+        }),
+      schema,
+    }),
+  );
+
+  it.scoped("returns stale cache as degraded when provider fails after ttl", () =>
+    withSqliteTestDbEffect({
+      run: (db, _databaseFile, client) =>
+        Effect.gen(function* () {
+          let providerCalls = 0;
+          let currentTime = new Date("2025-04-01T10:00:00.000Z").getTime();
+
+          const providerLayer = Layer.succeed(AnimeSeasonalProviderService, {
+            getSeasonalAnime: () => {
+              providerCalls += 1;
+
+              if (providerCalls === 1) {
+                return Effect.succeed({
+                  degraded: false,
+                  hasMore: false,
+                  provider: "anilist" as const,
+                  results: [makeSeasonalResult({ id: 9, title: "Stale Spring" })],
+                  season: "spring" as const,
+                  year: 2025,
+                });
+              }
+
+              return Effect.fail(
+                ExternalCallError.make({
+                  cause: new Error("seasonal outage"),
+                  message: "Seasonal provider failed",
+                  operation: "anilist.seasonal",
+                }),
+              );
+            },
+          });
+
+          const layer = AnimeQueryServiceLive.pipe(
+            Layer.provide(
+              Layer.mergeAll(
+                providerLayer,
+                Layer.succeed(AniListClient, {
+                  getAnimeMetadataById: () => Effect.succeed(Option.none()),
+                  getSeasonalAnime: () => Effect.succeed([]),
+                  searchAnimeMetadata: () => Effect.succeed([]),
+                }),
+                Layer.succeed(ManamiClient, {
+                  getByAniListId: () => Effect.succeed(Option.none()),
+                  getByMalId: () => Effect.succeed(Option.none()),
+                  resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
+                  resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
+                  searchAnime: () => Effect.succeed([]),
+                }),
+                Layer.succeed(ClockService, {
+                  currentMonotonicMillis: Effect.succeed(0),
+                  currentTimeMillis: Effect.sync(() => currentTime),
+                }),
+                Layer.succeed(Database, {
+                  client,
+                  db,
+                }),
+              ),
+            ),
+          );
+
+          const service = yield* AnimeQueryService.pipe(Effect.provide(layer));
+
+          yield* service.listSeasonalAnime({ season: "spring", year: 2025, page: 1, limit: 12 });
+          currentTime += 1000 * 60 * 6;
+
+          const stale = yield* service.listSeasonalAnime({
+            season: "spring",
+            year: 2025,
+            page: 1,
+            limit: 12,
+          });
+
+          assert.deepStrictEqual(providerCalls, 2);
+          assert.deepStrictEqual(stale.degraded, true);
+          assert.deepStrictEqual(stale.provider, "anilist");
+          assert.deepStrictEqual(stale.results[0]?.title.romaji, "Stale Spring");
+        }),
+      schema,
+    }),
+  );
+});
+
+describe("AnimeQueryService.searchAnime", () => {
+  it.scoped("falls back to Manami local search when AniList search fails", () =>
+    withSqliteTestDbEffect({
+      run: (db, _databaseFile, client) =>
+        Effect.gen(function* () {
+          const layer = AnimeQueryServiceLive.pipe(
+            Layer.provide(
+              Layer.mergeAll(
+                Layer.succeed(AnimeSeasonalProviderService, {
+                  getSeasonalAnime: () =>
+                    Effect.succeed({
+                      degraded: false,
+                      hasMore: false,
+                      provider: "anilist" as const,
+                      results: [],
+                      season: "spring" as const,
+                      year: 2025,
+                    }),
+                }),
+                Layer.succeed(AniListClient, {
+                  getAnimeMetadataById: () => Effect.succeed(Option.none()),
+                  getSeasonalAnime: () => Effect.succeed([]),
+                  searchAnimeMetadata: () =>
+                    Effect.fail(
+                      ExternalCallError.make({
+                        cause: new Error("rate limited"),
+                        message: "AniList search failed",
+                        operation: "anilist.search.response",
+                      }),
+                    ),
+                }),
+                Layer.succeed(ManamiClient, {
+                  getByAniListId: () => Effect.succeed(Option.none()),
+                  getByMalId: () => Effect.succeed(Option.none()),
+                  resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
+                  resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
+                  searchAnime: () =>
+                    Effect.succeed([
+                      {
+                        already_in_library: false,
+                        id: 1001,
+                        synonyms: ["Alpha Alias"],
+                        title: { english: "Alpha", romaji: "Alpha" },
+                      },
+                    ]),
+                }),
+                Layer.succeed(ClockService, {
+                  currentMonotonicMillis: Effect.succeed(0),
+                  currentTimeMillis: Effect.succeed(new Date("2025-04-01T10:00:00.000Z").getTime()),
+                }),
+                Layer.succeed(Database, {
+                  client,
+                  db,
+                }),
+              ),
+            ),
+          );
+
+          const service = yield* AnimeQueryService.pipe(Effect.provide(layer));
+          const result = yield* service.searchAnime("Alpha Alias");
+
+          assert.deepStrictEqual(result.degraded, true);
+          assert.deepStrictEqual(
+            result.results.map((item) => item.id),
+            [1001],
+          );
+          assert.deepStrictEqual(result.results[0]?.match_confidence, 1);
         }),
       schema,
     }),

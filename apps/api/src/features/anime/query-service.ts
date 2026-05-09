@@ -31,8 +31,10 @@ import { listEpisodesEffect } from "@/features/anime/anime-query-episodes.ts";
 import { AnimeSeasonalProviderService } from "@/features/anime/anime-seasonal-provider-service.ts";
 import { listSeasonalAnimeEffect } from "@/features/anime/anime-query-seasonal.ts";
 import { markSearchResultsAlreadyInLibraryEffect } from "@/domain/anime/search-results.ts";
+import { ManamiClient } from "@/features/anime/manami.ts";
 import {
   readSeasonalAnimeCache,
+  readStaleSeasonalAnimeCache,
   writeSeasonalAnimeCache,
 } from "@/features/anime/seasonal-anime-cache.ts";
 
@@ -77,6 +79,7 @@ export const AnimeQueryServiceLive = Layer.effect(
   Effect.gen(function* () {
     const { db } = yield* Database;
     const aniList = yield* AniListClient;
+    const manami = yield* ManamiClient;
     const clock = yield* ClockService;
     const providerService = yield* AnimeSeasonalProviderService;
 
@@ -99,7 +102,7 @@ export const AnimeQueryServiceLive = Layer.effect(
         return yield* listEpisodesEffect({ animeId, db, now });
       }),
       searchAnime: Effect.fn("AnimeQueryService.searchAnime")(function* (query: string) {
-        return yield* searchAnimeEffect({ aniList, db, query });
+        return yield* searchAnimeEffect({ aniList, db, manami, query });
       }),
       listSeasonalAnime: Effect.fn("AnimeQueryService.listSeasonalAnime")(function* (
         params?: SeasonalAnimeQueryParams,
@@ -132,7 +135,30 @@ export const AnimeQueryServiceLive = Layer.effect(
           providerService,
           season,
           year,
-        });
+        }).pipe(
+          Effect.catchTag("ExternalCallError", (error) =>
+            Effect.gen(function* () {
+              const stale = yield* readStaleSeasonalAnimeCache(db, cacheKey);
+              if (stale === null) {
+                return yield* error;
+              }
+
+              yield* Effect.logWarning("Seasonal provider failed; using stale cache").pipe(
+                Effect.annotateLogs({
+                  operation: error.operation,
+                  season,
+                  year,
+                }),
+              );
+
+              const markedResults = yield* markSearchResultsAlreadyInLibraryEffect(
+                db,
+                stale.results,
+              );
+              return { ...stale, degraded: true, results: markedResults };
+            }),
+          ),
+        );
 
         yield* writeSeasonalAnimeCache(db, cacheKey, rawResponse, nowMs);
 

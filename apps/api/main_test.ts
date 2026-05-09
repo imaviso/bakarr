@@ -4767,6 +4767,7 @@ const testManamiLayer = Layer.succeed(ManamiClient, {
   getByMalId: () => Effect.succeed(Option.none()),
   resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
   resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
+  searchAnime: () => Effect.succeed([]),
 });
 
 async function createTestContext(options?: {

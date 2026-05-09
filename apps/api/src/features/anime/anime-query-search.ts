@@ -6,6 +6,7 @@ import type { AppDatabase } from "@/db/database.ts";
 import { anime } from "@/db/schema.ts";
 import { AnimeNotFoundError } from "@/features/anime/errors.ts";
 import type { AniListClient } from "@/features/anime/anilist.ts";
+import type { ManamiClient } from "@/features/anime/manami.ts";
 import { markSearchResultsAlreadyInLibraryEffect } from "@/domain/anime/search-results.ts";
 import { annotateAnimeSearchResultsForQuery } from "@/features/anime/anime-search-annotation.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
@@ -14,16 +15,38 @@ import { deriveAnimeSeason } from "@/domain/anime/date-utils.ts";
 export const searchAnimeEffect = Effect.fn("AnimeQuerySearch.searchAnimeEffect")(function* (input: {
   aniList: typeof AniListClient.Service;
   db: AppDatabase;
+  manami?: Pick<typeof ManamiClient.Service, "searchAnime">;
   query: string;
 }) {
-  const results = yield* input.aniList.searchAnimeMetadata(input.query);
+  let degraded = false;
+  const results = yield* input.aniList.searchAnimeMetadata(input.query).pipe(
+    Effect.catchTag("ExternalCallError", (error) =>
+      Effect.gen(function* () {
+        if (input.manami === undefined) {
+          return yield* error;
+        }
+
+        degraded = true;
+
+        yield* Effect.logWarning("AniList search failed; using Manami fallback").pipe(
+          Effect.annotateLogs({
+            operation: error.operation,
+            provider: "Manami",
+            queryLength: input.query.length,
+          }),
+        );
+
+        return yield* input.manami.searchAnime(input.query, 20);
+      }),
+    ),
+  );
 
   const annotated = annotateAnimeSearchResultsForQuery(input.query, results);
 
   const marked = yield* markSearchResultsAlreadyInLibraryEffect(input.db, annotated);
 
   return {
-    degraded: false,
+    degraded,
     results: marked,
   } satisfies AnimeSearchResponse;
 });

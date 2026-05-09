@@ -163,6 +163,41 @@ it.scoped("ManamiClient downloads once and serves sqlite lookups", () =>
   ),
 );
 
+it.scoped("ManamiClient searches cached titles and synonyms", () =>
+  withFileSystemSandboxEffect(({ fs, root }) =>
+    Effect.gen(function* () {
+      let requestCount = 0;
+      const clientLayer = makeManamiClientLayer({
+        fs,
+        httpClient: HttpClient.make((request) =>
+          Effect.sync(() => {
+            requestCount += 1;
+            return HttpClientResponse.fromWeb(
+              request,
+              Response.json(SYNTHETIC_DATASET, { status: 200 }),
+            );
+          }),
+        ),
+        root,
+      });
+
+      const results = yield* Effect.flatMap(ManamiClient, (client) =>
+        client.searchAnime("Alpha Alias", 10),
+      ).pipe(Effect.provide(clientLayer));
+
+      assert.deepStrictEqual(
+        results.map((result) => result.id),
+        [1001],
+      );
+      assert.deepStrictEqual(results[0]?.title.romaji, "Alpha");
+      assert.deepStrictEqual(results[0]?.title.english, "Alpha");
+      assert.deepStrictEqual(results[0]?.synonyms, ["Alpha Alias"]);
+      assert.deepStrictEqual(results[0]?.already_in_library, false);
+      assert.deepStrictEqual(requestCount, 1);
+    }),
+  ),
+);
+
 it.scoped("ManamiClient reuses sqlite cache across layer restarts", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {

@@ -434,6 +434,7 @@ function makeProviderLayer(input: {
         input.resolveMalIdFromAniListIdError !== undefined
           ? Effect.fail(input.resolveMalIdFromAniListIdError)
           : Effect.succeed(Option.fromNullable(input.malIdFromAniListId)),
+      searchAnime: () => Effect.succeed([]),
     }),
     Layer.succeed(AnimeMetadataEnrichmentService, {
       getAniDbCacheState: () => Effect.succeed(input.cacheState),

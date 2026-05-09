@@ -3,6 +3,7 @@ import { HttpClient, HttpClientRequest } from "@effect/platform";
 import { dirname, join, resolve } from "node:path";
 import { Context, Effect, Layer, Option, Schema } from "effect";
 
+import type { AnimeSearchResult } from "@packages/shared/index.ts";
 import { AppConfig } from "@/config/schema.ts";
 import { ManamiDatasetSchema, type ManamiDataset } from "@/features/anime/manami-model.ts";
 import { parseAniListIdFromSource, parseMalIdFromSource } from "@/features/anime/manami-url.ts";
@@ -50,6 +51,10 @@ interface ManamiClientShape {
   readonly resolveMalIdFromAniListId: (
     anilistId: number,
   ) => Effect.Effect<Option.Option<number>, ExternalCallError>;
+  readonly searchAnime: (
+    query: string,
+    limit: number,
+  ) => Effect.Effect<ReadonlyArray<AnimeSearchResult>, ExternalCallError>;
 }
 
 interface ManamiCachePaths {
@@ -68,6 +73,14 @@ type CacheState =
 interface LookupRow {
   readonly english_title: string | null;
   readonly native_title: string | null;
+  readonly title: string;
+}
+
+interface SearchRow {
+  readonly anilist_id: number;
+  readonly english_title: string | null;
+  readonly native_title: string | null;
+  readonly synonyms: string;
   readonly title: string;
 }
 
@@ -234,11 +247,48 @@ export const ManamiClientLive = Layer.scoped(
       },
     );
 
+    const searchAnime = Effect.fn("ManamiClient.searchAnime")(function* (
+      query: string,
+      limit: number,
+    ) {
+      yield* ensureReady();
+
+      const matchQuery = toFtsQuery(query);
+      if (matchQuery.length === 0) {
+        return [];
+      }
+
+      const resolvedLimit = Math.max(1, Math.min(50, Math.floor(limit)));
+      return yield* sqliteClient
+        .unsafe<SearchRow>(
+          `
+          SELECT anilist_id, title, english_title, native_title, synonyms
+          FROM manami_search
+          WHERE manami_search MATCH ?
+            AND anilist_id IS NOT NULL
+          ORDER BY rank
+          LIMIT ?
+          `,
+          [matchQuery, resolvedLimit],
+        )
+        .withoutTransform.pipe(
+          Effect.map((rows) => rows.map(toSearchResult)),
+          Effect.mapError((cause) =>
+            ExternalCallError.make({
+              cause,
+              message: "Manami sqlite search failed",
+              operation: "manami.sqlite.search",
+            }),
+          ),
+        );
+    });
+
     return ManamiClient.of({
       getByAniListId,
       getByMalId,
       resolveAniListIdFromMalId,
       resolveMalIdFromAniListId,
+      searchAnime,
     });
   }),
 );
@@ -507,6 +557,15 @@ const buildLookupSqliteCache = Effect.fn("ManamiClient.buildLookupSqliteCache")(
                 }),
               ),
             );
+          yield* sqliteClient.unsafe("DROP TABLE IF EXISTS manami_search").withoutTransform.pipe(
+            Effect.mapError((cause) =>
+              ExternalCallError.make({
+                cause,
+                message: "Manami sqlite schema setup failed",
+                operation: "manami.sqlite.cache.schema",
+              }),
+            ),
+          );
           yield* sqliteClient
             .unsafe(
               "CREATE TABLE manami_anilist_lookup (anilist_id INTEGER PRIMARY KEY NOT NULL, mal_id INTEGER, title TEXT NOT NULL, english_title TEXT, native_title TEXT)",
@@ -533,6 +592,19 @@ const buildLookupSqliteCache = Effect.fn("ManamiClient.buildLookupSqliteCache")(
                 }),
               ),
             );
+          yield* sqliteClient
+            .unsafe(
+              "CREATE VIRTUAL TABLE manami_search USING fts5(anilist_id UNINDEXED, mal_id UNINDEXED, title, english_title, native_title, synonyms)",
+            )
+            .withoutTransform.pipe(
+              Effect.mapError((cause) =>
+                ExternalCallError.make({
+                  cause,
+                  message: "Manami sqlite schema setup failed",
+                  operation: "manami.sqlite.cache.schema",
+                }),
+              ),
+            );
 
           yield* Effect.forEach(
             dataset.data,
@@ -546,6 +618,7 @@ const buildLookupSqliteCache = Effect.fn("ManamiClient.buildLookupSqliteCache")(
                 }
 
                 const fallback = deriveTitleFallback(entry.title, entry.synonyms);
+                const synonyms = normalizeSynonyms(entry.synonyms).join("\n");
 
                 if (aniListId !== undefined) {
                   yield* sqliteClient
@@ -592,6 +665,30 @@ const buildLookupSqliteCache = Effect.fn("ManamiClient.buildLookupSqliteCache")(
                       ),
                     );
                 }
+
+                if (aniListId !== undefined) {
+                  yield* sqliteClient
+                    .unsafe(
+                      "INSERT INTO manami_search (anilist_id, mal_id, title, english_title, native_title, synonyms) VALUES (?, ?, ?, ?, ?, ?)",
+                      [
+                        aniListId,
+                        malId ?? null,
+                        entry.title,
+                        fallback.englishTitle ?? null,
+                        fallback.nativeTitle ?? null,
+                        synonyms,
+                      ],
+                    )
+                    .withoutTransform.pipe(
+                      Effect.mapError((cause) =>
+                        ExternalCallError.make({
+                          cause,
+                          message: "Manami sqlite search row insert failed",
+                          operation: "manami.sqlite.cache.insert_search",
+                        }),
+                      ),
+                    );
+                }
               }),
             { discard: true },
           );
@@ -614,10 +711,10 @@ const hasLookupSqliteSchema = Effect.fn("ManamiClient.hasLookupSqliteSchema")(
   (sqliteClient: BunSqliteClient.SqliteClient): Effect.Effect<boolean, ExternalCallError> =>
     sqliteClient
       .unsafe<{ name: string }>(
-        "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('manami_anilist_lookup', 'manami_mal_lookup')",
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('manami_anilist_lookup', 'manami_mal_lookup', 'manami_search')",
       )
       .withoutTransform.pipe(
-        Effect.map((rows) => rows.length === 2),
+        Effect.map((rows) => rows.length === 3),
         Effect.mapError((cause) =>
           ExternalCallError.make({
             cause,
@@ -638,6 +735,52 @@ function toLookupEntry(row: LookupRow | undefined): ManamiLookupEntry | undefine
     ...(row.native_title === null ? {} : { nativeTitle: row.native_title }),
     title: row.title,
   };
+}
+
+function toSearchResult(row: SearchRow): AnimeSearchResult {
+  const synonyms = row.synonyms
+    .split("\n")
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+
+  return {
+    already_in_library: false,
+    id: row.anilist_id,
+    ...(synonyms.length === 0 ? {} : { synonyms }),
+    title: {
+      ...(row.english_title === null ? {} : { english: row.english_title }),
+      ...(row.native_title === null ? {} : { native: row.native_title }),
+      romaji: row.title,
+    },
+  } satisfies AnimeSearchResult;
+}
+
+function toFtsQuery(query: string) {
+  return (
+    query
+      .normalize("NFKC")
+      .toLowerCase()
+      .match(/[\p{L}\p{N}]+/gu)
+      ?.map((token) => `${token}*`)
+      .join(" ") ?? ""
+  );
+}
+
+function normalizeSynonyms(values: ReadonlyArray<string> | undefined) {
+  const output: string[] = [];
+  const seen = new Set<string>();
+
+  for (const value of values ?? []) {
+    const normalized = value.trim();
+    if (normalized.length === 0 || seen.has(normalized)) {
+      continue;
+    }
+
+    seen.add(normalized);
+    output.push(normalized);
+  }
+
+  return output;
 }
 
 function deriveTitleFallback(title: string, synonyms: ReadonlyArray<string> | undefined) {

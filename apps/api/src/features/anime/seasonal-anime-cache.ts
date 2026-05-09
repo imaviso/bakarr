@@ -19,6 +19,32 @@ export const readSeasonalAnimeCache = Effect.fn("SeasonalAnimeCache.read")(funct
   cacheKey: string,
   nowMs: number,
 ) {
+  const cached = yield* readSeasonalAnimeCacheRow(db, cacheKey);
+
+  if (cached && nowMs - cached.fetchedAtMs < SEASONAL_ANIME_CACHE_TTL_MS) {
+    return yield* decodeSeasonalAnimeCachePayload(cached.payload);
+  }
+
+  return null;
+});
+
+export const readStaleSeasonalAnimeCache = Effect.fn("SeasonalAnimeCache.readStale")(function* (
+  db: AppDatabase,
+  cacheKey: string,
+) {
+  const cached = yield* readSeasonalAnimeCacheRow(db, cacheKey);
+
+  if (!cached) {
+    return null;
+  }
+
+  return yield* decodeSeasonalAnimeCachePayload(cached.payload);
+});
+
+const readSeasonalAnimeCacheRow = Effect.fn("SeasonalAnimeCache.readRow")(function* (
+  db: AppDatabase,
+  cacheKey: string,
+) {
   const cachedRows = yield* tryDatabasePromise("Failed to load seasonal anime cache", () =>
     db
       .select({
@@ -29,21 +55,22 @@ export const readSeasonalAnimeCache = Effect.fn("SeasonalAnimeCache.read")(funct
       .where(eq(seasonalAnimeCache.cacheKey, cacheKey))
       .limit(1),
   );
-  const cached = cachedRows[0];
 
-  if (cached && nowMs - cached.fetchedAtMs < SEASONAL_ANIME_CACHE_TTL_MS) {
-    return yield* decodeSeasonalAnimeResponse(cached.payload).pipe(
-      Effect.mapError(
-        (cause) =>
-          new DatabaseError({
-            cause,
-            message: "Failed to decode seasonal anime cache payload",
-          }),
-      ),
-    );
-  }
+  return cachedRows[0] ?? null;
+});
 
-  return null;
+const decodeSeasonalAnimeCachePayload = Effect.fn("SeasonalAnimeCache.decodePayload")(function* (
+  payload: string,
+) {
+  return yield* decodeSeasonalAnimeResponse(payload).pipe(
+    Effect.mapError(
+      (cause) =>
+        new DatabaseError({
+          cause,
+          message: "Failed to decode seasonal anime cache payload",
+        }),
+    ),
+  );
 });
 
 export const writeSeasonalAnimeCache = Effect.fn("SeasonalAnimeCache.write")(function* (
