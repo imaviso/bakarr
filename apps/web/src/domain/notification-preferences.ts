@@ -126,7 +126,7 @@ export function readNotificationPreferences(): NotificationPreferences {
       cachedPreferences = { ...DEFAULT_NOTIFICATION_PREFERENCES };
       return cachedPreferences;
     }
-    const parsed = JSON.parse(raw) as unknown;
+    const parsed = JSON.parse(raw);
     cachedPreferences = normalizeNotificationPreferences(parsed);
     return cachedPreferences;
   } catch {

@@ -52,6 +52,8 @@ const AddAnimeSchema = Schema.Struct({
   release_profile_ids: Schema.mutable(Schema.Array(Schema.Number)),
 });
 
+type AddAnimeFormValues = Schema.Schema.Type<typeof AddAnimeSchema>;
+
 export interface AddAnimeDialogProps {
   anime: AnimeSearchResult;
   open: boolean;
@@ -223,16 +225,17 @@ interface AddAnimeFormProps {
 
 function AddAnimeForm(props: AddAnimeFormProps) {
   const addAnimeMutation = useAddAnimeMutation();
+  const defaultValues: AddAnimeFormValues = {
+    root_folder: props.rootFolder,
+    profile_name: props.defaultProfile,
+    monitor: true,
+    search_now: true,
+    release_profile_ids: [],
+  };
 
   const form = useForm({
     // No effects needed. Data is passed as stable props.
-    defaultValues: {
-      root_folder: props.rootFolder,
-      profile_name: props.defaultProfile,
-      monitor: true,
-      search_now: true,
-      release_profile_ids: [] as number[],
-    },
+    defaultValues,
     validators: {
       onChange: Schema.standardSchemaV1(AddAnimeSchema),
     },

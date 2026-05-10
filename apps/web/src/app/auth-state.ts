@@ -61,7 +61,7 @@ export async function clearServerSession() {
   });
 }
 
-export async function logoutAndRedirect() {
+export async function logout() {
   try {
     await clearServerSession();
   } catch {
@@ -71,8 +71,6 @@ export async function logoutAndRedirect() {
   clearAuthState();
   globalThis.location.href = "/login";
 }
-
-export const logout = logoutAndRedirect;
 
 export function getAuthHeaders(): HeadersInit {
   const key = authState.apiKey;

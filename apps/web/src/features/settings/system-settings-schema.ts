@@ -1,7 +1,3 @@
-import { ConfigSchema } from "@bakarr/shared";
-import { Schema } from "effect";
-import type { StandardSchemaV1 } from "@standard-schema/spec";
-
 export { ConfigSchema } from "@bakarr/shared";
 
 export const IMPORT_MODE_OPTIONS = ["copy", "move"] as const;
@@ -34,8 +30,3 @@ export function formatLastRun(dateStr?: string | null) {
 }
 
 export type ConfigSettingsMode = "general" | "automation";
-
-export const StandardConfigSchema: StandardSchemaV1<
-  Schema.Schema.Type<typeof ConfigSchema>,
-  unknown
-> = Schema.standardSchemaV1(ConfigSchema);

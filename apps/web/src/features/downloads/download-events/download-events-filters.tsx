@@ -15,7 +15,7 @@ import {
 } from "~/components/ui/select";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
-import { DOWNLOAD_EVENT_TYPE_OPTIONS } from "~/domain/download/events-filters";
+import { DOWNLOAD_EVENT_TYPE_FILTER_OPTIONS } from "~/api/contracts";
 
 export interface DownloadEventsFilterValue {
   animeId: string;
@@ -78,7 +78,7 @@ export function DownloadEventsFilters(props: DownloadEventsFiltersProps) {
               <SelectValue placeholder="all" />
             </SelectTrigger>
             <SelectContent>
-              {DOWNLOAD_EVENT_TYPE_OPTIONS.map((option) => (
+              {DOWNLOAD_EVENT_TYPE_FILTER_OPTIONS.map((option) => (
                 <SelectItem key={option} value={option}>
                   {option}
                 </SelectItem>

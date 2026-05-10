@@ -126,12 +126,14 @@ interface DownloadEventsFeedRowProps {
 }
 
 function DownloadEventsFeedRow(props: DownloadEventsFeedRowProps) {
+  const onSelectEvent = props.onSelectEvent;
+
   return (
     <div className="space-y-2">
       <DownloadEventCard event={props.event} formatTimestamp={props.formatTimestamp} />
-      {props.onSelectEvent && (
+      {onSelectEvent && (
         <div className="flex justify-end">
-          <Button variant="outline" size="sm" onClick={() => props.onSelectEvent!(props.event)}>
+          <Button variant="outline" size="sm" onClick={() => onSelectEvent(props.event)}>
             Details
           </Button>
         </div>

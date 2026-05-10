@@ -4,7 +4,7 @@ Project status: pre-release alpha. Do not preserve backward compatibility unless
 explicitly requested. We will prefer clean, breaking internal refactors over
 compatibility layers, graceful degradation, mixed Promise/Effect styles, and
 framework bridges that keep old patterns alive. Keep it simple, no bloat, no
-extra abstractions, no future proofing, no defensive code.
+extra abstractions, no future proofing, no defensive code. Avoid one-line wrapper functions that only hide direct code behind a vague name. Prefer inlining obvious operations, especially when a wrapper introduces magic, indirection, or ambiguous semantics
 
 ## Repo Overview
 
