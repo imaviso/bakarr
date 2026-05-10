@@ -47,7 +47,7 @@ const executeSql = Effect.fn("Database.executeSql")(function* <A extends Record<
   return yield* client.unsafe<A>(statement).pipe(Effect.mapError(sqliteSetupError));
 });
 
-const setAndVerifyPragmas = Effect.fn("Database.setAndVerifyPragmas")(function* (
+export const setAndVerifyPragmas = Effect.fn("Database.setAndVerifyPragmas")(function* (
   client: BunSqliteClient.SqliteClient,
 ) {
   yield* executeSql(client, "PRAGMA journal_mode = WAL");
@@ -104,8 +104,6 @@ const makeDatabase = Effect.gen(function* () {
 });
 
 export const DatabaseLive = Layer.scoped(Database, makeDatabase);
-
-export const configureDatabasePragmas = setAndVerifyPragmas;
 
 export const DatabaseSqlClientLive = Layer.unwrapEffect(
   Effect.gen(function* () {

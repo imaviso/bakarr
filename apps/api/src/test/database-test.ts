@@ -6,7 +6,7 @@ import * as BunSqliteClient from "@effect/sql-sqlite-bun/SqliteClient";
 import type { SqliteRemoteDatabase } from "drizzle-orm/sqlite-proxy";
 import { Effect } from "effect";
 
-import { configureDatabasePragmas } from "@/db/database.ts";
+import { setAndVerifyPragmas } from "@/db/database.ts";
 import { runEmbeddedDrizzleMigrations } from "@/db/migrate.ts";
 import { withFileSystemSandboxEffect } from "@/test/filesystem-test.ts";
 
@@ -56,7 +56,7 @@ export const withSqliteTestDbEffect = Effect.fn("Test.withSqliteTestDbEffect")(f
                 Effect.provideService(SqlClient.SqlClient, client),
               );
 
-              yield* configureDatabasePragmas(client);
+              yield* setAndVerifyPragmas(client);
               yield* runEmbeddedDrizzleMigrations().pipe(
                 Effect.provideService(SqlClient.SqlClient, client),
               );

@@ -31,10 +31,10 @@ import {
 import { enrichImportScanFiles } from "@/features/operations/import-path-scan-enrichment-support.ts";
 import {
   loadImportScanAnimeRows,
-  loadImportScanNamingSettings,
   loadMappedEpisodeRows,
   loadScopedEpisodeRows,
 } from "@/features/operations/import-path-scan-library-support.ts";
+import { currentNamingSettings } from "@/features/operations/repository/config-repository.ts";
 
 export const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathEffect")(
   function* (input: {
@@ -80,7 +80,7 @@ export const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathE
       tryDatabasePromise: input.tryDatabasePromise,
     });
     const mappingIndex = buildEpisodeFileMappingIndex(mappedEpisodeRows);
-    const namingSettings = yield* loadImportScanNamingSettings(input.db);
+    const namingSettings = yield* currentNamingSettings(input.db);
     const animeRowsById = new Map(animeRows.map((row) => [row.id, row]));
     const scopedEpisodeRows = yield* loadScopedEpisodeRows({
       animeIds: animeRows.map((row) => row.id),
