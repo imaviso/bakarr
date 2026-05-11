@@ -439,6 +439,40 @@ it.scoped("searchAnimeEffect reports non-degraded when AniList search succeeds",
   }),
 );
 
+it.scoped("searchAnimeEffect falls back to Manami when AniList returns no results", () =>
+  withSqliteTestDbEffect({
+    run: (db) =>
+      Effect.gen(function* () {
+        const appDb: AppDatabase = db;
+        const result = yield* searchAnimeEffect({
+          aniList: {
+            getAnimeMetadataById: () => Effect.succeed(Option.none()),
+            searchAnimeMetadata: () => Effect.succeed([]),
+            getSeasonalAnime: () => Effect.succeed([]),
+          },
+          db: appDb,
+          manami: {
+            searchAnime: () =>
+              Effect.succeed([
+                {
+                  already_in_library: false,
+                  id: 20,
+                  title: { english: "Naruto", romaji: "NARUTO" },
+                } satisfies AnimeSearchResult,
+              ]),
+          },
+          query: "Naruto",
+        });
+
+        assert.deepStrictEqual(result.degraded, true);
+        assert.deepStrictEqual(result.results.length, 1);
+        assert.deepStrictEqual(result.results[0]?.id, 20);
+        assert.deepStrictEqual(result.results[0]?.match_confidence, 1);
+      }),
+    schema,
+  }),
+);
+
 function makeAniListStub(metadata: {
   bannerImage?: string;
   coverImage?: string;

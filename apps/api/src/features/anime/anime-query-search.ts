@@ -20,6 +20,25 @@ export const searchAnimeEffect = Effect.fn("AnimeQuerySearch.searchAnimeEffect")
 }) {
   let degraded = false;
   const results = yield* input.aniList.searchAnimeMetadata(input.query).pipe(
+    Effect.flatMap((results) => {
+      const manami = input.manami;
+      return results.length === 0 && manami !== undefined
+        ? Effect.gen(function* () {
+            degraded = true;
+
+            yield* Effect.logWarning(
+              "AniList search returned no results; using Manami fallback",
+            ).pipe(
+              Effect.annotateLogs({
+                provider: "Manami",
+                queryLength: input.query.length,
+              }),
+            );
+
+            return yield* manami.searchAnime(input.query, 20);
+          })
+        : Effect.succeed(results);
+    }),
     Effect.catchTag("ExternalCallError", (error) =>
       Effect.gen(function* () {
         if (input.manami === undefined) {
