@@ -333,6 +333,8 @@ function ReleaseRow(props: { result: NyaaSearchResult; animeId: number; onGrab: 
     onGrab: props.onGrab,
     result: props.result,
   });
+  const batchCheckboxId = `batch-${props.result.info_hash}`;
+  const episodeInputId = `episode-${props.result.info_hash}`;
 
   return (
     <TableRow className="group border-b border-border transition-colors hover:bg-muted data-[state=selected]:bg-muted">
@@ -391,14 +393,14 @@ function ReleaseRow(props: { result: NyaaSearchResult; animeId: number; onGrab: 
               <DownloadIcon className="h-4 w-4" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-64 p-3">
+          <PopoverContent className="w-72 p-3">
             <div className="space-y-3">
               <div className="space-y-1">
                 <h4 className="text-xs font-medium text-foreground">Confirm Download</h4>
                 <p className="text-xs text-muted-foreground">
                   {state.isBatch
-                    ? "Verify the starting episode used for the batch mapping."
-                    : "Verify episode number for mapping."}
+                    ? "Enter the episode number for the first file in this pack."
+                    : "Enter the episode number this release should map to."}
                 </p>
                 {state.selectionSummary && (
                   <ReleaseSelectionMeta
@@ -407,27 +409,35 @@ function ReleaseRow(props: { result: NyaaSearchResult; animeId: number; onGrab: 
                     selectionSummary={state.selectionSummary}
                   />
                 )}
-                <p className="text-xs text-muted-foreground line-clamp-2">
-                  Decision and source metadata are resolved server-side at queue time.
-                </p>
               </div>
               <div className="flex items-center space-x-2">
                 <Checkbox
-                  id={`batch-${props.result.info_hash}`}
+                  id={batchCheckboxId}
                   checked={state.isBatch}
                   onCheckedChange={state.setIsBatch}
                 />
-                <Label htmlFor={`batch-${props.result.info_hash}`} className="text-xs">
-                  Batch / Season Pack
+                <Label htmlFor={batchCheckboxId} className="text-xs">
+                  Batch or season pack (multiple episodes)
                 </Label>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor={episodeInputId} className="text-xs text-muted-foreground">
+                  {state.isBatch ? "First episode in pack" : "Episode number"}
+                </Label>
+                {state.isBatch && (
+                  <p className="text-[11px] leading-snug text-muted-foreground">
+                    Example: for episodes 13-24, enter 13. Files after it map in order.
+                  </p>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <div className="flex-1">
                   <Input
+                    id={episodeInputId}
                     value={state.episodeNumberInput}
                     onChange={(event) => state.setEpisodeNumberInput(event.currentTarget.value)}
                     className="h-7 text-xs font-mono"
-                    placeholder={state.isBatch ? "Start ep" : "Ep #"}
+                    placeholder={state.isBatch ? "First ep" : "Episode #"}
                   />
                 </div>
                 <Button
