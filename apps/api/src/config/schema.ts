@@ -7,9 +7,6 @@ const PortSchema = Schema.Number.pipe(Schema.int(), Schema.between(1, 65_535));
 
 export class AppConfigModel extends Schema.Class<AppConfigModel>("AppConfigModel")({
   appVersion: Schema.String,
-  bootstrapPassword: Schema.String,
-  bootstrapPasswordIsEnvOverride: Schema.Boolean,
-  bootstrapUsername: Schema.String,
   databaseFile: Schema.String,
   port: PortSchema,
   sessionCookieName: Schema.String,
@@ -19,15 +16,28 @@ export class AppConfigModel extends Schema.Class<AppConfigModel>("AppConfigModel
 
 export type AppConfigShape = Schema.Schema.Type<typeof AppConfigModel>;
 
+export class BootstrapConfigModel extends Schema.Class<BootstrapConfigModel>(
+  "BootstrapConfigModel",
+)({
+  bootstrapPassword: Schema.String,
+  bootstrapPasswordIsEnvOverride: Schema.Boolean,
+  bootstrapUsername: Schema.String,
+}) {}
+
+export type BootstrapConfigShape = Schema.Schema.Type<typeof BootstrapConfigModel>;
+
 export interface AppConfigOverrides {
   readonly databaseFile?: string;
   readonly port?: number;
-  readonly bootstrapUsername?: string;
-  readonly bootstrapPassword?: string;
   readonly sessionCookieName?: string;
   readonly sessionCookieSecure?: boolean;
   readonly sessionDurationDays?: number;
   readonly appVersion?: string;
+}
+
+export interface BootstrapConfigOverrides {
+  readonly bootstrapPassword?: string;
+  readonly bootstrapUsername?: string;
 }
 
 const PortConfigSchema = Schema.NumberFromString.pipe(Schema.compose(PortSchema));
@@ -39,14 +49,19 @@ const GENERATED_BOOTSTRAP_PASSWORD_BYTES = 18;
 export function makeDefaultAppConfig(): AppConfigShape {
   return new AppConfigModel({
     appVersion: "0.1.0",
-    bootstrapPassword: randomHexSync(GENERATED_BOOTSTRAP_PASSWORD_BYTES),
-    bootstrapPasswordIsEnvOverride: false,
-    bootstrapUsername: "admin",
     databaseFile: "./bakarr.sqlite",
     port: 8000,
     sessionCookieName: "bakarr_session",
     sessionCookieSecure: true,
     sessionDurationDays: 30,
+  });
+}
+
+export function makeDefaultBootstrapConfig(): BootstrapConfigShape {
+  return new BootstrapConfigModel({
+    bootstrapPassword: randomHexSync(GENERATED_BOOTSTRAP_PASSWORD_BYTES),
+    bootstrapPasswordIsEnvOverride: false,
+    bootstrapUsername: "admin",
   });
 }
 
@@ -60,24 +75,6 @@ export class AppConfig extends Context.Tag("@bakarr/api/AppConfig")<AppConfig, A
           overrides.appVersion,
           Schema.Config("BAKARR_APP_VERSION", Schema.String).pipe(
             EffectConfig.orElse(() => EffectConfig.succeed(defaults.appVersion)),
-          ),
-        );
-        const bootstrapPasswordFromEnv =
-          overrides.bootstrapPassword !== undefined
-            ? Option.some(overrides.bootstrapPassword)
-            : yield* Schema.Config("BAKARR_BOOTSTRAP_PASSWORD", Schema.String).pipe(
-                Effect.map(Option.some),
-                Effect.orElse(() => Effect.succeed(Option.none())),
-              );
-        const bootstrapPassword = Option.getOrElse(
-          bootstrapPasswordFromEnv,
-          () => defaults.bootstrapPassword,
-        );
-        const bootstrapPasswordIsEnvOverride = Option.isSome(bootstrapPasswordFromEnv);
-        const bootstrapUsername = yield* readConfigValue(
-          overrides.bootstrapUsername,
-          Schema.Config("BAKARR_BOOTSTRAP_USERNAME", Schema.String).pipe(
-            EffectConfig.orElse(() => EffectConfig.succeed(defaults.bootstrapUsername)),
           ),
         );
         const databaseFile = yield* readConfigValue(
@@ -113,14 +110,48 @@ export class AppConfig extends Context.Tag("@bakarr/api/AppConfig")<AppConfig, A
 
         return new AppConfigModel({
           appVersion,
-          bootstrapPassword,
-          bootstrapPasswordIsEnvOverride,
-          bootstrapUsername,
           databaseFile,
           port,
           sessionCookieName,
           sessionCookieSecure,
           sessionDurationDays,
+        });
+      }),
+    );
+  }
+}
+
+export class BootstrapConfig extends Context.Tag("@bakarr/api/BootstrapConfig")<
+  BootstrapConfig,
+  BootstrapConfigShape
+>() {
+  static layer(overrides: BootstrapConfigOverrides = {}) {
+    return Layer.effect(
+      BootstrapConfig,
+      Effect.gen(function* () {
+        const defaults = makeDefaultBootstrapConfig();
+        const bootstrapPasswordFromEnv =
+          overrides.bootstrapPassword !== undefined
+            ? Option.some(overrides.bootstrapPassword)
+            : yield* Schema.Config("BAKARR_BOOTSTRAP_PASSWORD", Schema.String).pipe(
+                Effect.map(Option.some),
+                Effect.orElse(() => Effect.succeed(Option.none())),
+              );
+        const bootstrapPassword = Option.getOrElse(
+          bootstrapPasswordFromEnv,
+          () => defaults.bootstrapPassword,
+        );
+        const bootstrapUsername = yield* readConfigValue(
+          overrides.bootstrapUsername,
+          Schema.Config("BAKARR_BOOTSTRAP_USERNAME", Schema.String).pipe(
+            EffectConfig.orElse(() => EffectConfig.succeed(defaults.bootstrapUsername)),
+          ),
+        );
+
+        return new BootstrapConfigModel({
+          bootstrapPassword,
+          bootstrapPasswordIsEnvOverride: Option.isSome(bootstrapPasswordFromEnv),
+          bootstrapUsername,
         });
       }),
     );

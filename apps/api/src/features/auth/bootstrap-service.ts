@@ -1,6 +1,6 @@
 import { Context, Effect, Layer } from "effect";
 
-import { AppConfig } from "@/config/schema.ts";
+import { BootstrapConfig } from "@/config/schema.ts";
 import { Database, DatabaseError } from "@/db/database.ts";
 import { users } from "@/db/schema.ts";
 import { nowIsoFromClock, ClockService } from "@/infra/clock.ts";
@@ -23,7 +23,7 @@ export class AuthBootstrapService extends Context.Tag("@bakarr/api/AuthBootstrap
 
 const makeAuthBootstrapService = Effect.gen(function* () {
   const { db } = yield* Database;
-  const config = yield* AppConfig;
+  const config = yield* BootstrapConfig;
   const clock = yield* ClockService;
   const random = yield* RandomService;
   const tokenHasher = yield* TokenHasher;

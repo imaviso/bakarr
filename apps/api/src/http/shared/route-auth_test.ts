@@ -172,10 +172,6 @@ function makeConfig(overrides: Partial<AppConfigShape> = {}): AppConfigShape {
   const defaults = makeDefaultAppConfig();
   return new AppConfigModel({
     appVersion: overrides.appVersion ?? defaults.appVersion,
-    bootstrapPassword: overrides.bootstrapPassword ?? defaults.bootstrapPassword,
-    bootstrapPasswordIsEnvOverride:
-      overrides.bootstrapPasswordIsEnvOverride ?? defaults.bootstrapPasswordIsEnvOverride,
-    bootstrapUsername: overrides.bootstrapUsername ?? defaults.bootstrapUsername,
     databaseFile: overrides.databaseFile ?? defaults.databaseFile,
     port: overrides.port ?? defaults.port,
     sessionCookieName: overrides.sessionCookieName ?? defaults.sessionCookieName,

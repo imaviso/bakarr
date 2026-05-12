@@ -3,7 +3,12 @@ import { BunContext } from "@effect/platform-bun";
 import { ConfigProvider, Layer } from "effect";
 
 import { AppRuntime } from "@/app/runtime.ts";
-import { AppConfig, type AppConfigShape } from "@/config/schema.ts";
+import {
+  AppConfig,
+  BootstrapConfig,
+  type AppConfigOverrides,
+  type BootstrapConfigOverrides,
+} from "@/config/schema.ts";
 import { DatabaseLayerLive } from "@/db/database.ts";
 import { BackgroundWorkerMonitorLive } from "@/background/monitor.ts";
 import { EventBusLive } from "@/features/events/event-bus.ts";
@@ -19,7 +24,7 @@ export interface AppPlatformRuntimeOptions {
 }
 
 export function makeAppPlatformCoreRuntimeLayer(
-  overrides: Partial<AppConfigShape> = {},
+  overrides: AppConfigOverrides & BootstrapConfigOverrides = {},
   options?: AppPlatformRuntimeOptions,
 ) {
   const clockAndHttpLayer = Layer.mergeAll(ClockServiceLive, FetchHttpClient.layer);
@@ -28,10 +33,10 @@ export function makeAppPlatformCoreRuntimeLayer(
     layer.pipe(Layer.provide(runtimeSupportLayer));
 
   const configBaseLayer = options?.configProvider
-    ? AppConfig.layer(overrides).pipe(
+    ? Layer.mergeAll(AppConfig.layer(overrides), BootstrapConfig.layer(overrides)).pipe(
         Layer.provide(Layer.setConfigProvider(options.configProvider)),
       )
-    : AppConfig.layer(overrides);
+    : Layer.mergeAll(AppConfig.layer(overrides), BootstrapConfig.layer(overrides));
   const configLayer = configBaseLayer;
   const runtimeLayer = AppRuntime.Live.pipe(Layer.provide(clockAndHttpLayer));
   const externalCallLayer = ExternalCallLive.pipe(Layer.provide(clockAndHttpLayer));

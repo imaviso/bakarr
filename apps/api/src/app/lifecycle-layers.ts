@@ -1,11 +1,6 @@
 import { CommandExecutor } from "@effect/platform";
 import { Layer } from "effect";
 
-import { makeAnimeAppLayer } from "@/app/compose/anime.ts";
-import { makeAuthAppLayer } from "@/app/compose/auth.ts";
-import { makeBackgroundAppLayers } from "@/app/compose/background.ts";
-import { makeOperationsAppLayers } from "@/app/compose/operations/index.ts";
-import { makeSystemAppLayer } from "@/app/compose/system.ts";
 import {
   makeAppExternalClientLayer,
   type AppExternalClientLayerOptions,
@@ -14,14 +9,71 @@ import {
   makeAppPlatformCoreRuntimeLayer,
   type AppPlatformRuntimeOptions,
 } from "@/app/platform/runtime-core.ts";
-import type { AppConfigShape } from "@/config/schema.ts";
+import type { AppConfigOverrides, BootstrapConfigOverrides } from "@/config/schema.ts";
+import { BackgroundWorkerControllerLive } from "@/background/controller-core.ts";
+import { BackgroundTaskRunnerLive } from "@/background/task-runner.ts";
+import { AnimeFileServiceLive } from "@/features/anime/anime-file-service.ts";
+import { AnimeImageCacheServiceLive } from "@/features/anime/anime-image-cache-service.ts";
 import { AnimeEnrollmentServiceLive } from "@/features/anime/anime-enrollment-service.ts";
+import { AnimeMaintenanceServiceLive } from "@/features/anime/anime-maintenance-service.ts";
+import { AnimeMetadataEnrichmentServiceLive } from "@/features/anime/anime-metadata-enrichment-service.ts";
+import { AnimeMetadataProviderServiceLive } from "@/features/anime/anime-metadata-provider-service.ts";
+import { AnimeSeasonalProviderServiceLive } from "@/features/anime/anime-seasonal-provider-service.ts";
+import { AnimeSettingsServiceLive } from "@/features/anime/anime-settings-service.ts";
+import { AnimeStreamServiceLive } from "@/features/anime/anime-stream-service.ts";
+import { AnimeQueryServiceLive } from "@/features/anime/query-service.ts";
+import { StreamTokenSignerLive } from "@/features/anime/stream-token-signer.ts";
+import { AuthBootstrapServiceLive } from "@/features/auth/bootstrap-service.ts";
+import { AuthCredentialServiceLive } from "@/features/auth/credential-service.ts";
+import { AuthSessionServiceLive } from "@/features/auth/session-service.ts";
+import { BackgroundSearchQueueServiceLive } from "@/features/operations/background-search-queue-service.ts";
+import { BackgroundSearchRssFeedServiceLive } from "@/features/operations/background-search-rss-feed-service.ts";
+import { BackgroundSearchRssWorkerServiceLive } from "@/features/operations/background-search-rss-worker-service.ts";
+import { SearchBackgroundMissingServiceLive } from "@/features/operations/background-search-missing-support.ts";
+import { SearchBackgroundRssServiceLive } from "@/features/operations/background-search-rss-support.ts";
+import { CatalogDownloadCommandServiceLive } from "@/features/operations/catalog-download-command-service.ts";
+import { CatalogDownloadReadServiceLive } from "@/features/operations/catalog-download-read-service.ts";
+import { CatalogLibraryReadServiceLive } from "@/features/operations/catalog-library-read-service.ts";
+import { CatalogLibraryScanServiceLive } from "@/features/operations/catalog-library-scan-service.ts";
+import { CatalogLibraryWriteServiceLive } from "@/features/operations/catalog-library-write-service.ts";
+import { CatalogRssServiceLive } from "@/features/operations/catalog-rss-service.ts";
+import { DownloadProgressSupportLive } from "@/features/operations/download-progress-support.ts";
+import { DownloadReconciliationServiceLive } from "@/features/operations/download-reconciliation-service.ts";
+import { DownloadTorrentLifecycleServiceLive } from "@/features/operations/download-torrent-lifecycle-service.ts";
+import { DownloadTriggerServiceLive } from "@/features/operations/download-trigger-service.ts";
+import { ImportPathScanServiceLive } from "@/features/operations/import-path-scan-service.ts";
 import { LibraryBrowseServiceLive } from "@/features/operations/library-browse-service.ts";
+import { LibraryRootsQueryServiceLive } from "@/features/operations/library-roots-query-service.ts";
+import { ProgressLive } from "@/features/operations/operations-progress-service.ts";
 import { OperationsTaskLauncherServiceLive } from "@/features/operations/operations-task-launcher-service.ts";
 import { OperationsTaskServiceLive } from "@/features/operations/operations-task-service.ts";
+import {
+  DownloadTriggerCoordinatorLive,
+  UnmappedScanCoordinatorLive,
+} from "@/features/operations/runtime-support.ts";
+import { SearchEpisodeServiceLive } from "@/features/operations/search-orchestration-episode-support.ts";
+import { SearchReleaseServiceLive } from "@/features/operations/search-orchestration-release-search.ts";
+import { TorrentClientServiceLive } from "@/features/operations/torrent-client-service.ts";
+import { UnmappedControlServiceLive } from "@/features/operations/unmapped-control-service.ts";
+import { UnmappedImportServiceLive } from "@/features/operations/unmapped-orchestration-import.ts";
+import { UnmappedScanServiceLive } from "@/features/operations/unmapped-scan-service.ts";
+import { BackgroundJobStatusServiceLive } from "@/features/system/background-job-status-service.ts";
 import { RuntimeConfigSnapshotServiceLive } from "@/features/system/runtime-config-snapshot-service.ts";
 import { SystemConfigServiceLive } from "@/features/system/system-config-service.ts";
+import { ImageAssetServiceLive } from "@/features/system/image-asset-service.ts";
+import { QualityProfileServiceLive } from "@/features/system/quality-profile-service.ts";
+import { ReleaseProfileServiceLive } from "@/features/system/release-profile-service.ts";
 import { DiskSpaceInspectorLive } from "@/features/system/disk-space.ts";
+import { SystemActivityReadServiceLive } from "@/features/system/system-activity-read-service.ts";
+import { SystemBootstrapServiceLive } from "@/features/system/system-bootstrap-service.ts";
+import { SystemConfigUpdateServiceLive } from "@/features/system/system-config-update-service.ts";
+import { SystemDashboardReadServiceLive } from "@/features/system/system-dashboard-read-service.ts";
+import { SystemEventsServiceLive } from "@/features/system/system-events-service.ts";
+import { SystemLibraryStatsReadServiceLive } from "@/features/system/system-library-stats-read-service.ts";
+import { SystemLogServiceLive } from "@/features/system/system-log-service.ts";
+import { SystemMetricsEndpointServiceLive } from "@/features/system/system-metrics-endpoint-service.ts";
+import { SystemRuntimeMetricsServiceLive } from "@/features/system/system-runtime-metrics-service.ts";
+import { SystemStatusReadServiceLive } from "@/features/system/system-status-read-service.ts";
 import { MediaProbeLive } from "@/infra/media/probe.ts";
 
 export type ApiLifecycleOptions = AppPlatformRuntimeOptions &
@@ -30,7 +82,7 @@ export type ApiLifecycleOptions = AppPlatformRuntimeOptions &
   };
 
 export function makeApiLifecycleLayers(
-  overrides: Partial<AppConfigShape> = {},
+  overrides: AppConfigOverrides & BootstrapConfigOverrides = {},
   options?: ApiLifecycleOptions,
 ) {
   // Platform core: config, database, runtime primitives, logging.
@@ -63,28 +115,225 @@ export function makeApiLifecycleLayers(
     runtimeConfigSnapshotLayer,
   );
 
-  // Domain feature subgraphs.
-  const animeLayer = makeAnimeAppLayer();
-  const animeLiveLayer = animeLayer.pipe(Layer.provide(runtimeSupportLayer));
+  // Anime features.
+  const animeImageCacheLayer = AnimeImageCacheServiceLive;
+  const animeMetadataEnrichmentLayer = AnimeMetadataEnrichmentServiceLive;
+  const animeMetadataProviderLayer = AnimeMetadataProviderServiceLive.pipe(
+    Layer.provide(animeMetadataEnrichmentLayer),
+  );
+  const animeMaintenanceLayer = AnimeMaintenanceServiceLive.pipe(
+    Layer.provide(Layer.mergeAll(animeMetadataProviderLayer, animeImageCacheLayer)),
+  );
+  const animeStreamTokenSignerLayer = StreamTokenSignerLive;
+  const animeStreamLayer = AnimeStreamServiceLive.pipe(Layer.provide(animeStreamTokenSignerLayer));
+  const animeSeasonalProviderLayer = AnimeSeasonalProviderServiceLive;
+  const animeLiveLayer = Layer.mergeAll(
+    animeImageCacheLayer,
+    AnimeQueryServiceLive,
+    AnimeFileServiceLive,
+    animeMaintenanceLayer,
+    animeMetadataEnrichmentLayer,
+    animeMetadataProviderLayer,
+    AnimeSettingsServiceLive,
+    animeStreamTokenSignerLayer,
+    animeStreamLayer,
+  ).pipe(Layer.provideMerge(animeSeasonalProviderLayer), Layer.provide(runtimeSupportLayer));
+
+  // Operations download/runtime features.
   const operationsTaskLayer = OperationsTaskServiceLive.pipe(Layer.provide(runtimeSupportLayer));
-  const { catalogDownloadReadLayer, operationsLayer, operationsProgressLayer, torrentClientLayer } =
-    makeOperationsAppLayers(runtimeSupportLayer, operationsTaskLayer);
+  const operationsRuntimeLayer = Layer.mergeAll(
+    runtimeSupportLayer,
+    DownloadTriggerCoordinatorLive,
+    UnmappedScanCoordinatorLive,
+  );
+  const torrentClientLayer = TorrentClientServiceLive.pipe(Layer.provide(operationsRuntimeLayer));
+  const downloadRuntimeLayer = Layer.mergeAll(operationsRuntimeLayer, torrentClientLayer);
+  const downloadReconciliationLayer = DownloadReconciliationServiceLive.pipe(
+    Layer.provide(downloadRuntimeLayer),
+  );
+  const downloadLifecycleRuntimeLayer = Layer.mergeAll(
+    downloadRuntimeLayer,
+    downloadReconciliationLayer,
+  );
+  const downloadTorrentLifecycleLayer = DownloadTorrentLifecycleServiceLive.pipe(
+    Layer.provide(downloadLifecycleRuntimeLayer),
+  );
+  const downloadProgressRuntimeLayer = Layer.mergeAll(
+    downloadLifecycleRuntimeLayer,
+    downloadTorrentLifecycleLayer,
+  );
+  const downloadProgressSupportLayer = DownloadProgressSupportLive.pipe(
+    Layer.provide(downloadProgressRuntimeLayer),
+  );
+  const triggerRuntimeLayer = Layer.mergeAll(
+    downloadProgressRuntimeLayer,
+    downloadProgressSupportLayer,
+  );
+  const downloadTriggerLayer = DownloadTriggerServiceLive.pipe(Layer.provide(triggerRuntimeLayer));
+  const catalogDownloadReadLayer = CatalogDownloadReadServiceLive.pipe(
+    Layer.provide(runtimeSupportLayer),
+  );
+  const catalogDownloadCommandLayer = CatalogDownloadCommandServiceLive.pipe(
+    Layer.provide(Layer.mergeAll(downloadProgressRuntimeLayer, downloadProgressSupportLayer)),
+  );
+  const operationsProgressLayer = ProgressLive.pipe(
+    Layer.provide(
+      Layer.mergeAll(
+        triggerRuntimeLayer,
+        downloadTriggerLayer,
+        catalogDownloadReadLayer,
+        catalogDownloadCommandLayer,
+      ),
+    ),
+  );
+
+  // Operations search, catalog, and unmapped features.
+  const runtimeWithProgressLayer = Layer.mergeAll(runtimeSupportLayer, operationsProgressLayer);
+  const backgroundSearchQueueLayer = BackgroundSearchQueueServiceLive.pipe(
+    Layer.provide(downloadRuntimeLayer),
+  );
+  const runtimeWithQueueLayer = Layer.mergeAll(runtimeSupportLayer, backgroundSearchQueueLayer);
+  const backgroundSearchRssFeedLayer = BackgroundSearchRssFeedServiceLive.pipe(
+    Layer.provide(runtimeWithQueueLayer),
+  );
+  const searchReleaseLayer = SearchReleaseServiceLive.pipe(Layer.provide(runtimeSupportLayer));
+  const runtimeWithReleaseLayer = Layer.mergeAll(runtimeSupportLayer, searchReleaseLayer);
+  const searchEpisodeLayer = SearchEpisodeServiceLive.pipe(Layer.provide(runtimeWithReleaseLayer));
+  const searchBackgroundMissingLayer = SearchBackgroundMissingServiceLive.pipe(
+    Layer.provide(
+      Layer.mergeAll(runtimeWithProgressLayer, backgroundSearchQueueLayer, searchReleaseLayer),
+    ),
+  );
+  const searchBackgroundRssLayer = SearchBackgroundRssServiceLive.pipe(
+    Layer.provide(
+      Layer.mergeAll(
+        runtimeWithProgressLayer,
+        backgroundSearchRssFeedLayer,
+        backgroundSearchQueueLayer,
+      ),
+    ),
+  );
+  const backgroundSearchRssWorkerLayer = BackgroundSearchRssWorkerServiceLive.pipe(
+    Layer.provide(
+      Layer.mergeAll(
+        runtimeWithProgressLayer,
+        searchBackgroundRssLayer,
+        searchBackgroundMissingLayer,
+      ),
+    ),
+  );
+  const runtimeWithOperationsTaskLayer = Layer.mergeAll(runtimeSupportLayer, operationsTaskLayer);
+  const catalogLibraryReadLayer = CatalogLibraryReadServiceLive.pipe(
+    Layer.provide(runtimeSupportLayer),
+  );
+  const catalogLibraryWriteLayer = CatalogLibraryWriteServiceLive.pipe(
+    Layer.provide(runtimeWithOperationsTaskLayer),
+  );
+  const catalogLibraryScanLayer = CatalogLibraryScanServiceLive.pipe(
+    Layer.provide(runtimeWithProgressLayer),
+  );
+  const importPathScanLayer = ImportPathScanServiceLive.pipe(Layer.provide(runtimeSupportLayer));
+  const catalogRssLayer = CatalogRssServiceLive.pipe(Layer.provide(runtimeSupportLayer));
+  const libraryRootsQueryLayer = LibraryRootsQueryServiceLive.pipe(
+    Layer.provide(runtimeSupportLayer),
+  );
+  const unmappedScanLayer = UnmappedScanServiceLive.pipe(Layer.provide(operationsRuntimeLayer));
+  const unmappedControlLayer = UnmappedControlServiceLive.pipe(
+    Layer.provide(Layer.mergeAll(runtimeSupportLayer, unmappedScanLayer)),
+  );
+  const unmappedImportLayer = UnmappedImportServiceLive.pipe(Layer.provide(runtimeSupportLayer));
+  const operationsLayer = Layer.mergeAll(
+    torrentClientLayer,
+    downloadReconciliationLayer,
+    downloadTorrentLifecycleLayer,
+    downloadProgressSupportLayer,
+    downloadTriggerLayer,
+    catalogDownloadReadLayer,
+    catalogDownloadCommandLayer,
+    operationsProgressLayer,
+    backgroundSearchQueueLayer,
+    backgroundSearchRssFeedLayer,
+    searchReleaseLayer,
+    searchEpisodeLayer,
+    searchBackgroundMissingLayer,
+    searchBackgroundRssLayer,
+    backgroundSearchRssWorkerLayer,
+    catalogLibraryReadLayer,
+    operationsTaskLayer,
+    catalogLibraryWriteLayer,
+    catalogLibraryScanLayer,
+    importPathScanLayer,
+    catalogRssLayer,
+    libraryRootsQueryLayer,
+    unmappedScanLayer,
+    unmappedControlLayer,
+    unmappedImportLayer,
+  );
   const appDomainSubgraphLayer = Layer.mergeAll(animeLiveLayer, operationsLayer);
 
   // Background worker runtime sits on top of domain + runtime support.
-  const { backgroundControllerLayer, runtimeWorkerSubgraphLayer } = makeBackgroundAppLayers({
-    appDomainSubgraphLayer,
-    runtimeSupportLayer,
-  });
+  const backgroundTaskRunnerLayer = BackgroundTaskRunnerLive.pipe(
+    Layer.provide(Layer.mergeAll(appDomainSubgraphLayer, runtimeSupportLayer)),
+  );
+  const backgroundControllerLayer = BackgroundWorkerControllerLive.pipe(
+    Layer.provide(Layer.mergeAll(backgroundTaskRunnerLayer, runtimeSupportLayer)),
+  );
+  const runtimeWorkerSubgraphLayer = Layer.mergeAll(
+    backgroundTaskRunnerLayer,
+    backgroundControllerLayer,
+  );
 
   // System + auth + orchestration features.
-  const systemLayer = makeSystemAppLayer({
-    backgroundControllerLayer,
-    catalogDownloadReadLayer,
+  const runtimeWithBackgroundControllerLayer = Layer.mergeAll(
     runtimeSupportLayer,
-  });
+    backgroundControllerLayer,
+  );
+  const backgroundJobStatusLayer = BackgroundJobStatusServiceLive.pipe(
+    Layer.provide(runtimeWithBackgroundControllerLayer),
+  );
+  const runtimeWithBackgroundJobStatusLayer = Layer.mergeAll(
+    runtimeSupportLayer,
+    backgroundJobStatusLayer,
+  );
+  const systemStatusReadLayer = SystemStatusReadServiceLive.pipe(
+    Layer.provide(runtimeWithBackgroundJobStatusLayer),
+  );
+  const systemLibraryStatsReadLayer = SystemLibraryStatsReadServiceLive.pipe(
+    Layer.provide(runtimeSupportLayer),
+  );
+  const systemActivityReadLayer = SystemActivityReadServiceLive.pipe(
+    Layer.provide(runtimeSupportLayer),
+  );
+  const systemDashboardReadLayer = SystemDashboardReadServiceLive.pipe(
+    Layer.provide(runtimeWithBackgroundJobStatusLayer),
+  );
+  const systemRuntimeMetricsLayer = SystemRuntimeMetricsServiceLive.pipe(
+    Layer.provide(Layer.mergeAll(systemStatusReadLayer, systemLibraryStatsReadLayer)),
+  );
+  const systemLayer = Layer.mergeAll(
+    SystemBootstrapServiceLive.pipe(Layer.provide(runtimeSupportLayer)),
+    ImageAssetServiceLive.pipe(Layer.provide(runtimeSupportLayer)),
+    QualityProfileServiceLive.pipe(Layer.provide(runtimeSupportLayer)),
+    ReleaseProfileServiceLive.pipe(Layer.provide(runtimeSupportLayer)),
+    SystemLogServiceLive.pipe(Layer.provide(runtimeSupportLayer)),
+    backgroundJobStatusLayer,
+    systemStatusReadLayer,
+    systemLibraryStatsReadLayer,
+    systemActivityReadLayer,
+    systemDashboardReadLayer,
+    systemRuntimeMetricsLayer,
+    SystemConfigUpdateServiceLive.pipe(Layer.provide(runtimeWithBackgroundControllerLayer)),
+    SystemEventsServiceLive.pipe(
+      Layer.provide(Layer.mergeAll(runtimeSupportLayer, catalogDownloadReadLayer)),
+    ),
+    SystemMetricsEndpointServiceLive.pipe(Layer.provide(systemRuntimeMetricsLayer)),
+  );
 
-  const authLayer = makeAuthAppLayer().pipe(Layer.provide(runtimeSupportLayer));
+  const authLayer = Layer.mergeAll(
+    AuthBootstrapServiceLive,
+    AuthCredentialServiceLive,
+    AuthSessionServiceLive,
+  ).pipe(Layer.provide(runtimeSupportLayer));
 
   const operationsTaskLauncherLayer = OperationsTaskLauncherServiceLive.pipe(
     Layer.provide(operationsTaskLayer),
