@@ -1,5 +1,6 @@
 import { Schema } from "effect";
 
+import { DomainNotFoundError } from "@/features/errors.ts";
 import { DiskSpaceError } from "@/features/system/disk-space.ts";
 
 export class ConfigValidationError extends Schema.TaggedError<ConfigValidationError>()(
@@ -17,10 +18,7 @@ export class StoredConfigMissingError extends Schema.TaggedError<StoredConfigMis
   { message: Schema.String },
 ) {}
 
-export class ProfileNotFoundError extends Schema.TaggedError<ProfileNotFoundError>()(
-  "ProfileNotFoundError",
-  { message: Schema.String },
-) {}
+export { DomainNotFoundError as ProfileNotFoundError } from "@/features/errors.ts";
 
 export class ImageAssetNotFoundError extends Schema.TaggedError<ImageAssetNotFoundError>()(
   "ImageAssetNotFoundError",
@@ -63,4 +61,4 @@ export type SystemConfigServiceError =
   | ConfigValidationError
   | DiskSpaceError
   | StoredConfigReadError
-  | ProfileNotFoundError;
+  | DomainNotFoundError;

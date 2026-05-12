@@ -1,15 +1,14 @@
 import { Match, Schema } from "effect";
 
 import {
-  DownloadConflictError,
-  DownloadNotFoundError,
-  OperationsAnimeNotFoundError,
-  OperationsConflictError,
-  OperationsInfrastructureError,
-  OperationsInputError,
-  OperationsPathError,
-  OperationsStoredDataError,
-  OperationsTaskNotFoundError,
+  DomainConflictError,
+  DomainInputError,
+  DomainNotFoundError,
+  DomainPathError,
+  InfrastructureError,
+  StoredDataError,
+} from "@/features/errors.ts";
+import {
   RssFeedParseError,
   RssFeedRejectedError,
   RssFeedTooLargeError,
@@ -18,15 +17,12 @@ import type { RouteErrorResponse } from "@/http/shared/route-types.ts";
 import { fixedStatus, messageStatus } from "@/http/shared/route-errors/helpers.ts";
 
 const OperationsRouteErrorSchema = Schema.Union(
-  DownloadConflictError,
-  DownloadNotFoundError,
-  OperationsAnimeNotFoundError,
-  OperationsConflictError,
-  OperationsInfrastructureError,
-  OperationsInputError,
-  OperationsPathError,
-  OperationsStoredDataError,
-  OperationsTaskNotFoundError,
+  DomainConflictError,
+  DomainInputError,
+  DomainNotFoundError,
+  DomainPathError,
+  InfrastructureError,
+  StoredDataError,
   RssFeedParseError,
   RssFeedRejectedError,
   RssFeedTooLargeError,
@@ -43,18 +39,15 @@ const operationsRouteErrorMappers: {
     error: Extract<OperationsRouteError, { _tag: K }>,
   ) => RouteErrorResponse;
 } = {
-  DownloadConflictError: messageStatus(409),
-  DownloadNotFoundError: messageStatus(404),
-  OperationsAnimeNotFoundError: messageStatus(404),
-  OperationsConflictError: messageStatus(409),
-  OperationsInfrastructureError: messageStatus(500),
-  OperationsInputError: messageStatus(400),
-  OperationsPathError: messageStatus(400),
-  OperationsStoredDataError: messageStatus(500),
-  OperationsTaskNotFoundError: messageStatus(404),
+  DomainConflictError: messageStatus(409),
+  DomainInputError: messageStatus(400),
+  DomainNotFoundError: messageStatus(404),
+  DomainPathError: messageStatus(400),
+  InfrastructureError: messageStatus(500),
   RssFeedParseError: invalidRssFeed,
   RssFeedRejectedError: messageStatus(400),
   RssFeedTooLargeError: rssTooLarge,
+  StoredDataError: messageStatus(500),
 };
 
 const isOperationsRouteError = Schema.is(OperationsRouteErrorSchema);

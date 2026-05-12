@@ -1,27 +1,18 @@
 import { Schema } from "effect";
 
+import {
+  DomainConflictError,
+  DomainNotFoundError,
+  DomainPathError,
+  StoredDataError,
+} from "@/features/errors.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
 import { ImageCacheError } from "@/features/anime/anime-image-cache-service.ts";
 
-export class AnimeNotFoundError extends Schema.TaggedError<AnimeNotFoundError>()(
-  "AnimeNotFoundError",
-  { message: Schema.String },
-) {}
-
-export class AnimeConflictError extends Schema.TaggedError<AnimeConflictError>()(
-  "AnimeConflictError",
-  { message: Schema.String },
-) {}
-
-export class AnimePathError extends Schema.TaggedError<AnimePathError>()("AnimePathError", {
-  cause: Schema.optional(Schema.Defect),
-  message: Schema.String,
-}) {}
-
-export class AnimeStoredDataError extends Schema.TaggedError<AnimeStoredDataError>()(
-  "AnimeStoredDataError",
-  { cause: Schema.Defect, message: Schema.String },
-) {}
+export { DomainConflictError as AnimeConflictError } from "@/features/errors.ts";
+export { DomainNotFoundError as AnimeNotFoundError } from "@/features/errors.ts";
+export { DomainPathError as AnimePathError } from "@/features/errors.ts";
+export { StoredDataError as AnimeStoredDataError } from "@/features/errors.ts";
 
 export class AniDbRuntimeConfigError extends Schema.TaggedError<AniDbRuntimeConfigError>()(
   "AniDbRuntimeConfigError",
@@ -29,10 +20,10 @@ export class AniDbRuntimeConfigError extends Schema.TaggedError<AniDbRuntimeConf
 ) {}
 
 export type AnimeServiceError =
-  | AnimeNotFoundError
-  | AnimeConflictError
-  | AnimePathError
-  | AnimeStoredDataError
+  | DomainNotFoundError
+  | DomainConflictError
+  | DomainPathError
+  | StoredDataError
   | AniDbRuntimeConfigError
   | ImageCacheError
   | ExternalCallError;

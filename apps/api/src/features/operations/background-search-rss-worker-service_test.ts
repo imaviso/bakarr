@@ -94,7 +94,7 @@ describe("BackgroundSearchRssWorkerService", () => {
             const failure = Cause.failureOption(result.exit.cause);
             assert.deepStrictEqual(failure._tag, "Some");
             if (failure._tag === "Some") {
-              assert.deepStrictEqual(failure.value._tag, "OperationsInfrastructureError");
+              assert.deepStrictEqual(failure.value._tag, "InfrastructureError");
             }
           }
 
@@ -150,7 +150,7 @@ describe("BackgroundSearchRssWorkerService", () => {
             const failure = Cause.failureOption(result.exit.cause);
             assert.deepStrictEqual(failure._tag, "Some");
             if (failure._tag === "Some") {
-              assert.deepStrictEqual(failure.value._tag, "OperationsInfrastructureError");
+              assert.deepStrictEqual(failure.value._tag, "InfrastructureError");
             }
           }
 

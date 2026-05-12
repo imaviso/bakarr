@@ -263,7 +263,7 @@ it.effect("operations repository metadata decoders fail for corrupt stored JSON"
       const failure = Cause.failureOption(exit.cause);
       assert.deepStrictEqual(failure._tag === "None", false);
       if (failure._tag === "Some") {
-        assert.deepStrictEqual(failure.value._tag, "OperationsStoredDataError");
+        assert.deepStrictEqual(failure.value._tag, "StoredDataError");
       }
     }
   }),

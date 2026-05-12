@@ -11,20 +11,20 @@ import {
 it("AnimeNotFoundError constructs with message", () => {
   const error = new AnimeNotFoundError({ message: "not found" });
   assert.deepStrictEqual(error.message, "not found");
-  assert.deepStrictEqual(error._tag, "AnimeNotFoundError");
+  assert.deepStrictEqual(error._tag, "DomainNotFoundError");
 });
 
 it("AnimeConflictError constructs with message", () => {
   const error = new AnimeConflictError({ message: "conflict" });
   assert.deepStrictEqual(error.message, "conflict");
-  assert.deepStrictEqual(error._tag, "AnimeConflictError");
+  assert.deepStrictEqual(error._tag, "DomainConflictError");
 });
 
 it("AnimePathError constructs with message and optional cause", () => {
   const cause = new Error("fs error");
   const error = new AnimePathError({ cause, message: "path error" });
   assert.deepStrictEqual(error.message, "path error");
-  assert.deepStrictEqual(error._tag, "AnimePathError");
+  assert.deepStrictEqual(error._tag, "DomainPathError");
 });
 
 it("AnimePathError constructs without cause", () => {
@@ -36,7 +36,7 @@ it("AnimeStoredDataError constructs with cause and message", () => {
   const cause = new Error("parse");
   const error = new AnimeStoredDataError({ cause, message: "corrupt" });
   assert.deepStrictEqual(error.message, "corrupt");
-  assert.deepStrictEqual(error._tag, "AnimeStoredDataError");
+  assert.deepStrictEqual(error._tag, "StoredDataError");
 });
 
 it("AniDbRuntimeConfigError constructs with cause and message", () => {

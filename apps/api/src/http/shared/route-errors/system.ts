@@ -1,12 +1,12 @@
 import { Match, Schema } from "effect";
 
+import { DomainNotFoundError } from "@/features/errors.ts";
 import { DiskSpaceError } from "@/features/system/disk-space.ts";
 import {
   ConfigValidationError,
   ImageAssetAccessError,
   ImageAssetNotFoundError,
   ImageAssetTooLargeError,
-  ProfileNotFoundError,
   StoredConfigCorruptError,
   StoredConfigMissingError,
   StoredUnmappedFolderCorruptError,
@@ -20,7 +20,7 @@ const SystemRouteErrorSchema = Schema.Union(
   ImageAssetAccessError,
   ImageAssetNotFoundError,
   ImageAssetTooLargeError,
-  ProfileNotFoundError,
+  DomainNotFoundError,
   StoredConfigCorruptError,
   StoredConfigMissingError,
   StoredUnmappedFolderCorruptError,
@@ -38,7 +38,7 @@ const systemRouteErrorMappers: {
   ImageAssetAccessError: errorStatus,
   ImageAssetNotFoundError: errorStatus,
   ImageAssetTooLargeError: errorStatus,
-  ProfileNotFoundError: messageStatus(404),
+  DomainNotFoundError: messageStatus(404),
   StoredConfigCorruptError: messageStatus(500),
   StoredConfigMissingError: messageStatus(500),
   StoredUnmappedFolderCorruptError: messageStatus(500),

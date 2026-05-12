@@ -99,8 +99,8 @@ function makeCatalogLibraryScanSupport(input: {
     },
     Effect.catchTags({
       DatabaseError: failAfterMarkingJobFailure,
-      OperationsInfrastructureError: failAfterMarkingJobFailure,
-      OperationsPathError: failAfterMarkingJobFailure,
+      DomainPathError: failAfterMarkingJobFailure,
+      InfrastructureError: failAfterMarkingJobFailure,
     }),
   );
 

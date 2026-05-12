@@ -33,7 +33,7 @@ describe("ImportPathScanService", () => {
         assert.deepStrictEqual(failure._tag, "Some");
 
         if (failure._tag === "Some") {
-          assert.deepStrictEqual(failure.value._tag, "OperationsInputError");
+          assert.deepStrictEqual(failure.value._tag, "DomainInputError");
           assert.deepStrictEqual(
             failure.value.message,
             "Import path must be inside library, recycle, or downloads root",

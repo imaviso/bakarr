@@ -1,41 +1,22 @@
 import { Schema } from "effect";
 
+import {
+  DomainConflictError,
+  DomainInputError,
+  DomainNotFoundError,
+  DomainPathError,
+  InfrastructureError,
+  StoredDataError,
+} from "@/features/errors.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
 
-export class DownloadNotFoundError extends Schema.TaggedError<DownloadNotFoundError>()(
-  "DownloadNotFoundError",
-  { message: Schema.String },
-) {}
-
-export class OperationsAnimeNotFoundError extends Schema.TaggedError<OperationsAnimeNotFoundError>()(
-  "OperationsAnimeNotFoundError",
-  { message: Schema.String },
-) {}
-
-export class OperationsTaskNotFoundError extends Schema.TaggedError<OperationsTaskNotFoundError>()(
-  "OperationsTaskNotFoundError",
-  { message: Schema.String },
-) {}
-
-export class DownloadConflictError extends Schema.TaggedError<DownloadConflictError>()(
-  "DownloadConflictError",
-  { message: Schema.String },
-) {}
-
-export class OperationsInputError extends Schema.TaggedError<OperationsInputError>()(
-  "OperationsInputError",
-  { cause: Schema.optional(Schema.Defect), message: Schema.String },
-) {}
-
-export class OperationsConflictError extends Schema.TaggedError<OperationsConflictError>()(
-  "OperationsConflictError",
-  { message: Schema.String },
-) {}
-
-export class OperationsPathError extends Schema.TaggedError<OperationsPathError>()(
-  "OperationsPathError",
-  { cause: Schema.optional(Schema.Defect), message: Schema.String },
-) {}
+export { DomainConflictError as DownloadConflictError } from "@/features/errors.ts";
+export { DomainConflictError as OperationsConflictError } from "@/features/errors.ts";
+export { DomainInputError as OperationsInputError } from "@/features/errors.ts";
+export { DomainNotFoundError as DownloadNotFoundError } from "@/features/errors.ts";
+export { DomainNotFoundError as OperationsAnimeNotFoundError } from "@/features/errors.ts";
+export { DomainNotFoundError as OperationsTaskNotFoundError } from "@/features/errors.ts";
+export { DomainPathError as OperationsPathError } from "@/features/errors.ts";
 
 export class RssFeedRejectedError extends Schema.TaggedError<RssFeedRejectedError>()(
   "RssFeedRejectedError",
@@ -52,26 +33,16 @@ export class RssFeedTooLargeError extends Schema.TaggedError<RssFeedTooLargeErro
   { cause: Schema.optional(Schema.Defect), message: Schema.String },
 ) {}
 
-export class OperationsStoredDataError extends Schema.TaggedError<OperationsStoredDataError>()(
-  "OperationsStoredDataError",
-  { cause: Schema.optional(Schema.Defect), message: Schema.String },
-) {}
-
-export class OperationsInfrastructureError extends Schema.TaggedError<OperationsInfrastructureError>()(
-  "OperationsInfrastructureError",
-  { cause: Schema.Defect, message: Schema.String },
-) {}
+export { InfrastructureError as OperationsInfrastructureError } from "@/features/errors.ts";
+export { StoredDataError as OperationsStoredDataError } from "@/features/errors.ts";
 
 export type OperationsError =
-  | DownloadNotFoundError
-  | DownloadConflictError
-  | OperationsConflictError
-  | OperationsAnimeNotFoundError
-  | OperationsTaskNotFoundError
-  | OperationsInputError
-  | OperationsPathError
-  | OperationsStoredDataError
-  | OperationsInfrastructureError
+  | DomainNotFoundError
+  | DomainConflictError
+  | DomainInputError
+  | DomainPathError
+  | StoredDataError
+  | InfrastructureError
   | RssFeedParseError
   | RssFeedRejectedError
   | RssFeedTooLargeError
@@ -79,15 +50,12 @@ export type OperationsError =
 
 export function isOperationsError(cause: unknown): cause is OperationsError {
   return (
-    cause instanceof DownloadNotFoundError ||
-    cause instanceof DownloadConflictError ||
-    cause instanceof OperationsConflictError ||
-    cause instanceof OperationsAnimeNotFoundError ||
-    cause instanceof OperationsTaskNotFoundError ||
-    cause instanceof OperationsInputError ||
-    cause instanceof OperationsPathError ||
-    cause instanceof OperationsStoredDataError ||
-    cause instanceof OperationsInfrastructureError ||
+    cause instanceof DomainNotFoundError ||
+    cause instanceof DomainConflictError ||
+    cause instanceof DomainInputError ||
+    cause instanceof DomainPathError ||
+    cause instanceof StoredDataError ||
+    cause instanceof InfrastructureError ||
     cause instanceof RssFeedParseError ||
     cause instanceof RssFeedRejectedError ||
     cause instanceof RssFeedTooLargeError ||

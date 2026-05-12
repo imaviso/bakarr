@@ -396,7 +396,7 @@ it.scoped("anime repository helpers fail explicitly on corrupt stored config", (
           const failure = Cause.failureOption(rootFolderExit.cause);
           assert.deepStrictEqual(failure._tag, "Some");
           if (failure._tag === "Some") {
-            assert.deepStrictEqual(failure.value._tag, "AnimeStoredDataError");
+            assert.deepStrictEqual(failure.value._tag, "StoredDataError");
           }
         }
 
@@ -406,7 +406,7 @@ it.scoped("anime repository helpers fail explicitly on corrupt stored config", (
           const failure = Cause.failureOption(imagesPathExit.cause);
           assert.deepStrictEqual(failure._tag, "Some");
           if (failure._tag === "Some") {
-            assert.deepStrictEqual(failure.value._tag, "AnimeStoredDataError");
+            assert.deepStrictEqual(failure.value._tag, "StoredDataError");
           }
         }
       }),

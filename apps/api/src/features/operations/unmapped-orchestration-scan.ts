@@ -172,8 +172,8 @@ export function makeUnmappedScanWorkflow(input: {
       return { folderCount: queuedFolders.length };
     },
     Effect.catchTag("DatabaseError", failAfterMarkingJobFailure),
-    Effect.catchTag("OperationsPathError", failAfterMarkingJobFailure),
-    Effect.catchTag("OperationsStoredDataError", failAfterMarkingJobFailure),
+    Effect.catchTag("DomainPathError", failAfterMarkingJobFailure),
+    Effect.catchTag("StoredDataError", failAfterMarkingJobFailure),
     Effect.catchAllCause(failInfrastructureAfterMarkingJobFailure),
   );
 

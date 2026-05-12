@@ -222,7 +222,7 @@ export const BackgroundSearchRssFeedServiceLive = Layer.effect(
 
             return queuedForFeed;
           }).pipe(
-            Effect.catchTag("OperationsAnimeNotFoundError", (error) =>
+            Effect.catchTag("DomainNotFoundError", (error) =>
               Effect.fail(
                 new OperationsInfrastructureError({
                   message: "Failed to run RSS check",
@@ -230,7 +230,7 @@ export const BackgroundSearchRssFeedServiceLive = Layer.effect(
                 }),
               ),
             ),
-            Effect.catchTag("OperationsInputError", (error) =>
+            Effect.catchTag("DomainInputError", (error) =>
               Effect.fail(
                 new OperationsInfrastructureError({
                   message: "Failed to run RSS check",

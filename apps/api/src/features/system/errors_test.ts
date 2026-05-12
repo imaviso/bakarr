@@ -30,7 +30,7 @@ it("StoredConfigMissingError constructs", () => {
 
 it("ProfileNotFoundError constructs", () => {
   const error = new ProfileNotFoundError({ message: "not found" });
-  assert.deepStrictEqual(error._tag, "ProfileNotFoundError");
+  assert.deepStrictEqual(error._tag, "DomainNotFoundError");
 });
 
 it("ImageAssetNotFoundError has status 404", () => {

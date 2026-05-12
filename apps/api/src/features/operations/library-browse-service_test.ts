@@ -66,7 +66,7 @@ describe("LibraryBrowseService", () => {
         const failure = Cause.failureOption(exit.cause);
         assert.deepStrictEqual(failure._tag, "Some");
         if (failure._tag === "Some") {
-          assert.deepStrictEqual(failure.value._tag, "OperationsPathError");
+          assert.deepStrictEqual(failure.value._tag, "DomainPathError");
         }
       }
     }),
