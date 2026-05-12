@@ -7,7 +7,7 @@ import { AnimeMaintenanceService } from "@/features/anime/anime-maintenance-serv
 import { AnimeSettingsService } from "@/features/anime/anime-settings-service.ts";
 import { OperationsTaskNotFoundError } from "@/features/operations/errors.ts";
 import { OperationsTaskLauncherService } from "@/features/operations/operations-task-launcher-service.ts";
-import { OperationsTaskService } from "@/features/operations/operations-task-service.ts";
+import { OperationsTaskReadService } from "@/features/operations/operations-task-service.ts";
 import { CatalogLibraryWriteService } from "@/features/operations/catalog-library-write-service.ts";
 import {
   AddAnimeInputSchema,
@@ -156,7 +156,7 @@ export const animeWriteRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        return yield* (yield* OperationsTaskService).listTasks({
+        return yield* (yield* OperationsTaskReadService).listTasks({
           animeId: params.id,
           taskKey: "anime_scan_folder",
         });
@@ -169,7 +169,7 @@ export const animeWriteRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(AnimeOperationsTaskIdParamsSchema);
-        const task = yield* (yield* OperationsTaskService).getTask(params.taskId);
+        const task = yield* (yield* OperationsTaskReadService).getTask(params.taskId);
 
         if (task.task_key !== "anime_scan_folder") {
           return yield* new OperationsTaskNotFoundError({

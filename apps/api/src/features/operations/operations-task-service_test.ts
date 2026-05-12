@@ -6,8 +6,10 @@ import {
   decodeOperationsTaskQuery,
   decodeTaskPayload,
   encodeTaskPayload,
-  OperationsTaskService,
-  OperationsTaskServiceLive,
+  OperationsTaskReadService,
+  OperationsTaskReadServiceLive,
+  OperationsTaskWriteService,
+  OperationsTaskWriteServiceLive,
 } from "@/features/operations/operations-task-service.ts";
 import { EventBusNoopLive } from "@/features/events/event-bus.ts";
 import { ClockServiceLive } from "@/infra/clock.ts";
@@ -23,11 +25,12 @@ describe("OperationsTaskService", () => {
             client,
             db,
           });
-          const serviceLayer = OperationsTaskServiceLive.pipe(
-            Layer.provide(Layer.mergeAll(databaseLayer, ClockServiceLive, EventBusNoopLive)),
-          );
+          const serviceLayer = Layer.mergeAll(
+            OperationsTaskReadServiceLive,
+            OperationsTaskWriteServiceLive,
+          ).pipe(Layer.provide(Layer.mergeAll(databaseLayer, ClockServiceLive, EventBusNoopLive)));
 
-          const accepted = yield* Effect.flatMap(OperationsTaskService, (service) =>
+          const accepted = yield* Effect.flatMap(OperationsTaskWriteService, (service) =>
             service.createTask({
               animeId: 11,
               message: "Queued test import",
@@ -44,7 +47,7 @@ describe("OperationsTaskService", () => {
             throw new Error("Expected task id");
           }
 
-          const task = yield* Effect.flatMap(OperationsTaskService, (service) =>
+          const task = yield* Effect.flatMap(OperationsTaskReadService, (service) =>
             service.getTask(taskId),
           ).pipe(Effect.provide(serviceLayer));
 

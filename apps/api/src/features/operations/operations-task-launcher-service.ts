@@ -6,7 +6,7 @@ import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
 import { compactLogAnnotations, errorLogAnnotations } from "@/infra/logging.ts";
 import {
   type OperationsTaskKey,
-  OperationsTaskService,
+  OperationsTaskWriteService,
 } from "@/features/operations/operations-task-service.ts";
 
 export interface OperationsTaskLaunchInput<A> {
@@ -38,7 +38,7 @@ export class OperationsTaskLauncherService extends Context.Tag(
 const OPERATIONS_TASK_WORKER_CONCURRENCY = 4;
 
 const makeOperationsTaskLauncherService = Effect.gen(function* () {
-  const tasks = yield* OperationsTaskService;
+  const tasks = yield* OperationsTaskWriteService;
   const taskQueue = yield* Effect.acquireRelease(
     Queue.unbounded<Effect.Effect<void, DatabaseError | OperationsInfrastructureError>>(),
     Queue.shutdown,

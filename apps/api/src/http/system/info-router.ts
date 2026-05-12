@@ -4,7 +4,7 @@ import { Effect } from "effect";
 import { BackgroundJobStatusService } from "@/features/system/background-job-status-service.ts";
 import {
   decodeOperationsTaskQuery,
-  OperationsTaskService,
+  OperationsTaskReadService,
 } from "@/features/operations/operations-task-service.ts";
 import { SystemActivityReadService } from "@/features/system/system-activity-read-service.ts";
 import { SystemDashboardReadService } from "@/features/system/system-dashboard-read-service.ts";
@@ -43,7 +43,7 @@ export const infoRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const query = yield* decodeQueryWithLabel(OperationsTaskQuerySchema, "system tasks");
         const decoded = yield* decodeOperationsTaskQuery(query);
-        return yield* (yield* OperationsTaskService).listTasks({
+        return yield* (yield* OperationsTaskReadService).listTasks({
           ...decoded,
           excludeTaskKeys: ["anime_scan_folder", "library_import"],
         });
@@ -56,7 +56,7 @@ export const infoRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(OperationsTaskIdParamsSchema);
-        return yield* (yield* OperationsTaskService).getTask(params.taskId);
+        return yield* (yield* OperationsTaskReadService).getTask(params.taskId);
       }),
       jsonResponse,
     ),

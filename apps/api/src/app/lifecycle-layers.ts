@@ -46,7 +46,10 @@ import { LibraryBrowseServiceLive } from "@/features/operations/library-browse-s
 import { LibraryRootsQueryServiceLive } from "@/features/operations/library-roots-query-service.ts";
 import { ProgressLive } from "@/features/operations/operations-progress-service.ts";
 import { OperationsTaskLauncherServiceLive } from "@/features/operations/operations-task-launcher-service.ts";
-import { OperationsTaskServiceLive } from "@/features/operations/operations-task-service.ts";
+import {
+  OperationsTaskReadServiceLive,
+  OperationsTaskWriteServiceLive,
+} from "@/features/operations/operations-task-service.ts";
 import {
   DownloadTriggerCoordinatorLive,
   UnmappedScanCoordinatorLive,
@@ -140,7 +143,12 @@ export function makeApiLifecycleLayers(
   ).pipe(Layer.provideMerge(animeSeasonalProviderLayer), Layer.provide(runtimeSupportLayer));
 
   // Operations download/runtime features.
-  const operationsTaskLayer = OperationsTaskServiceLive.pipe(Layer.provide(runtimeSupportLayer));
+  const operationsTaskReadLayer = OperationsTaskReadServiceLive.pipe(
+    Layer.provide(runtimeSupportLayer),
+  );
+  const operationsTaskWriteLayer = OperationsTaskWriteServiceLive.pipe(
+    Layer.provide(runtimeSupportLayer),
+  );
   const operationsRuntimeLayer = Layer.mergeAll(
     runtimeSupportLayer,
     DownloadTriggerCoordinatorLive,
@@ -222,12 +230,11 @@ export function makeApiLifecycleLayers(
       ),
     ),
   );
-  const runtimeWithOperationsTaskLayer = Layer.mergeAll(runtimeSupportLayer, operationsTaskLayer);
   const catalogLibraryReadLayer = CatalogLibraryReadServiceLive.pipe(
     Layer.provide(runtimeSupportLayer),
   );
   const catalogLibraryWriteLayer = CatalogLibraryWriteServiceLive.pipe(
-    Layer.provide(runtimeWithOperationsTaskLayer),
+    Layer.provide(runtimeSupportLayer),
   );
   const catalogLibraryScanLayer = CatalogLibraryScanServiceLive.pipe(
     Layer.provide(runtimeWithProgressLayer),
@@ -259,7 +266,8 @@ export function makeApiLifecycleLayers(
     searchBackgroundRssLayer,
     backgroundSearchRssWorkerLayer,
     catalogLibraryReadLayer,
-    operationsTaskLayer,
+    operationsTaskReadLayer,
+    operationsTaskWriteLayer,
     catalogLibraryWriteLayer,
     catalogLibraryScanLayer,
     importPathScanLayer,
@@ -336,7 +344,7 @@ export function makeApiLifecycleLayers(
   ).pipe(Layer.provide(runtimeSupportLayer));
 
   const operationsTaskLauncherLayer = OperationsTaskLauncherServiceLive.pipe(
-    Layer.provide(operationsTaskLayer),
+    Layer.provide(operationsTaskWriteLayer),
   );
   const libraryLayer = LibraryBrowseServiceLive.pipe(
     Layer.provide(Layer.mergeAll(systemLayer, operationsLayer)),
@@ -352,7 +360,8 @@ export function makeApiLifecycleLayers(
     systemLayer,
     libraryLayer,
     animeEnrollmentLayer,
-    operationsTaskLayer,
+    operationsTaskReadLayer,
+    operationsTaskWriteLayer,
   );
   const appFeatureSubgraphLayer = Layer.mergeAll(appFeatureBaseLayer, operationsTaskLauncherLayer);
   const appLayer = Layer.mergeAll(

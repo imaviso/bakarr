@@ -30,7 +30,8 @@ import {
 } from "@/http/shared/router-helpers.ts";
 import {
   decodeOperationsTaskQuery,
-  OperationsTaskService,
+  OperationsTaskReadService,
+  OperationsTaskWriteService,
 } from "@/features/operations/operations-task-service.ts";
 import {
   OperationsTaskIdParamsSchema,
@@ -178,7 +179,7 @@ export const libraryRouter = HttpRouter.empty.pipe(
 
         const taskLauncher = yield* OperationsTaskLauncherService;
         const catalogLibraryWrite = yield* CatalogLibraryWriteService;
-        const operationsTaskService = yield* OperationsTaskService;
+        const operationsTaskService = yield* OperationsTaskWriteService;
 
         return yield* taskLauncher.launch({
           ...(animeId === undefined ? {} : { animeId }),
@@ -229,7 +230,7 @@ export const libraryRouter = HttpRouter.empty.pipe(
         );
         const decoded = yield* decodeOperationsTaskQuery(query);
 
-        return yield* (yield* OperationsTaskService).listTasks({
+        return yield* (yield* OperationsTaskReadService).listTasks({
           ...(decoded.animeId === undefined ? {} : { animeId: decoded.animeId }),
           ...(decoded.limit === undefined ? {} : { limit: decoded.limit }),
           ...(decoded.offset === undefined ? {} : { offset: decoded.offset }),
@@ -244,7 +245,7 @@ export const libraryRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(OperationsTaskIdParamsSchema);
-        const task = yield* (yield* OperationsTaskService).getTask(params.taskId);
+        const task = yield* (yield* OperationsTaskReadService).getTask(params.taskId);
 
         if (task.task_key !== "library_import") {
           return yield* new OperationsTaskNotFoundError({

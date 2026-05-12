@@ -32,7 +32,7 @@ class OperationsTaskQuery extends Schema.Class<OperationsTaskQuery>("OperationsT
   taskKey: Schema.optional(OperationTaskKeySchema),
 }) {}
 
-export interface OperationsTaskServiceShape {
+export interface OperationsTaskWriteServiceShape {
   readonly completeFailedTask: (input: {
     readonly error: unknown;
     readonly message: string;
@@ -51,6 +51,19 @@ export interface OperationsTaskServiceShape {
     readonly message: string;
     readonly taskKey: OperationsTaskKey;
   }) => Effect.Effect<AsyncOperationAccepted, DatabaseError | OperationsInfrastructureError>;
+  readonly markRunningTask: (input: {
+    readonly message: string;
+    readonly taskId: number;
+  }) => Effect.Effect<void, DatabaseError | OperationsInfrastructureError>;
+  readonly updateTaskProgress: (input: {
+    readonly message?: string;
+    readonly progressCurrent: number;
+    readonly progressTotal: number;
+    readonly taskId: number;
+  }) => Effect.Effect<void, DatabaseError | OperationsInfrastructureError>;
+}
+
+export interface OperationsTaskReadServiceShape {
   readonly getTask: (
     taskId: number,
   ) => Effect.Effect<
@@ -64,21 +77,15 @@ export interface OperationsTaskServiceShape {
     readonly offset?: number;
     readonly taskKey?: OperationsTaskKey;
   }) => Effect.Effect<readonly OperationTask[], DatabaseError | OperationsInfrastructureError>;
-  readonly markRunningTask: (input: {
-    readonly message: string;
-    readonly taskId: number;
-  }) => Effect.Effect<void, DatabaseError | OperationsInfrastructureError>;
-  readonly updateTaskProgress: (input: {
-    readonly message?: string;
-    readonly progressCurrent: number;
-    readonly progressTotal: number;
-    readonly taskId: number;
-  }) => Effect.Effect<void, DatabaseError | OperationsInfrastructureError>;
 }
 
-export class OperationsTaskService extends Context.Tag("@bakarr/api/OperationsTaskService")<
-  OperationsTaskService,
-  OperationsTaskServiceShape
+export class OperationsTaskWriteService extends Context.Tag(
+  "@bakarr/api/OperationsTaskWriteService",
+)<OperationsTaskWriteService, OperationsTaskWriteServiceShape>() {}
+
+export class OperationsTaskReadService extends Context.Tag("@bakarr/api/OperationsTaskReadService")<
+  OperationsTaskReadService,
+  OperationsTaskReadServiceShape
 >() {}
 
 export const decodeTaskPayload = Effect.fn("OperationsTaskService.decodeTaskPayload")(
@@ -154,13 +161,13 @@ const toOperationsTask = Effect.fn("OperationsTaskService.toOperationsTask")(fun
   );
 });
 
-const makeOperationsTaskService = Effect.gen(function* () {
+const makeOperationsTaskWriteService = Effect.gen(function* () {
   const { db } = yield* Database;
   const clock = yield* ClockService;
   const eventBus = yield* EventBus;
   const nowIso = () => nowIsoFromClock(clock);
 
-  const createTask = Effect.fn("OperationsTaskService.createTask")(function* (input: {
+  const createTask = Effect.fn("OperationsTaskWriteService.createTask")(function* (input: {
     readonly animeId?: number;
     readonly message: string;
     readonly taskKey: OperationsTaskKey;
@@ -221,27 +228,26 @@ const makeOperationsTaskService = Effect.gen(function* () {
     return decodedAccepted;
   });
 
-  const markRunningTask = Effect.fn("OperationsTaskService.markRunningTask")(function* (input: {
-    readonly message: string;
-    readonly taskId: number;
-  }) {
-    const startedAt = yield* nowIso();
-    yield* tryDatabasePromise("Failed to mark operations task running", () =>
-      db
-        .update(operationsTasks)
-        .set({
-          message: input.message,
-          progressCurrent: 0,
-          progressTotal: 100,
-          startedAt,
-          status: "running",
-          updatedAt: startedAt,
-        })
-        .where(eq(operationsTasks.id, input.taskId)),
-    );
-  });
+  const markRunningTask = Effect.fn("OperationsTaskWriteService.markRunningTask")(
+    function* (input: { readonly message: string; readonly taskId: number }) {
+      const startedAt = yield* nowIso();
+      yield* tryDatabasePromise("Failed to mark operations task running", () =>
+        db
+          .update(operationsTasks)
+          .set({
+            message: input.message,
+            progressCurrent: 0,
+            progressTotal: 100,
+            startedAt,
+            status: "running",
+            updatedAt: startedAt,
+          })
+          .where(eq(operationsTasks.id, input.taskId)),
+      );
+    },
+  );
 
-  const updateTaskProgress = Effect.fn("OperationsTaskService.updateTaskProgress")(
+  const updateTaskProgress = Effect.fn("OperationsTaskWriteService.updateTaskProgress")(
     function* (input: {
       readonly message?: string;
       readonly progressCurrent: number;
@@ -264,7 +270,7 @@ const makeOperationsTaskService = Effect.gen(function* () {
     },
   );
 
-  const completeSucceededTask = Effect.fn("OperationsTaskService.completeSucceededTask")(
+  const completeSucceededTask = Effect.fn("OperationsTaskWriteService.completeSucceededTask")(
     function* (input: {
       readonly message: string;
       readonly payload?: OperationTaskPayload;
@@ -291,7 +297,7 @@ const makeOperationsTaskService = Effect.gen(function* () {
     },
   );
 
-  const completeFailedTask = Effect.fn("OperationsTaskService.completeFailedTask")(
+  const completeFailedTask = Effect.fn("OperationsTaskWriteService.completeFailedTask")(
     function* (input: {
       readonly error: unknown;
       readonly message: string;
@@ -320,7 +326,19 @@ const makeOperationsTaskService = Effect.gen(function* () {
     },
   );
 
-  const getTask = Effect.fn("OperationsTaskService.getTask")(function* (taskId: number) {
+  return OperationsTaskWriteService.of({
+    completeFailedTask,
+    completeSucceededTask,
+    createTask,
+    markRunningTask,
+    updateTaskProgress,
+  });
+});
+
+const makeOperationsTaskReadService = Effect.gen(function* () {
+  const { db } = yield* Database;
+
+  const getTask = Effect.fn("OperationsTaskReadService.getTask")(function* (taskId: number) {
     const rows = yield* tryDatabasePromise("Failed to load operations task", () =>
       db.select().from(operationsTasks).where(eq(operationsTasks.id, taskId)).limit(1),
     );
@@ -336,7 +354,7 @@ const makeOperationsTaskService = Effect.gen(function* () {
     return yield* toOperationsTask(row);
   });
 
-  const listTasks = Effect.fn("OperationsTaskService.listTasks")(function* (input?: {
+  const listTasks = Effect.fn("OperationsTaskReadService.listTasks")(function* (input?: {
     readonly animeId?: number;
     readonly excludeTaskKeys?: readonly OperationsTaskKey[];
     readonly limit?: number;
@@ -383,20 +401,20 @@ const makeOperationsTaskService = Effect.gen(function* () {
     return yield* Effect.forEach(rows, (row) => toOperationsTask(row));
   });
 
-  return OperationsTaskService.of({
-    completeFailedTask,
-    completeSucceededTask,
-    createTask,
+  return OperationsTaskReadService.of({
     getTask,
     listTasks,
-    markRunningTask,
-    updateTaskProgress,
   });
 });
 
-export const OperationsTaskServiceLive = Layer.effect(
-  OperationsTaskService,
-  makeOperationsTaskService,
+export const OperationsTaskWriteServiceLive = Layer.effect(
+  OperationsTaskWriteService,
+  makeOperationsTaskWriteService,
+);
+
+export const OperationsTaskReadServiceLive = Layer.effect(
+  OperationsTaskReadService,
+  makeOperationsTaskReadService,
 );
 
 export const decodeOperationsTaskQuery = Effect.fn(
