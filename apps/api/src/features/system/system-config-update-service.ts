@@ -1,8 +1,10 @@
-import { Context, Effect, Layer, Option } from "effect";
+import { count, eq } from "drizzle-orm";
+import { Context, Effect, Layer } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 import { AppConfig } from "@/config/schema.ts";
-import { Database, DatabaseError } from "@/db/database.ts";
+import { type AppDatabase, Database, DatabaseError } from "@/db/database.ts";
+import { anime } from "@/db/schema.ts";
 import { nowIsoFromClock, ClockService } from "@/infra/clock.ts";
 import { RuntimeLogLevelState } from "@/infra/logging.ts";
 import { BackgroundWorkerController } from "@/background/controller-core.ts";
@@ -16,14 +18,15 @@ import { appendSystemLog } from "@/features/system/support.ts";
 import { applyRuntimeLogLevelFromConfig } from "@/features/system/runtime-config.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import {
+  preserveStoredPasswords,
   resolveCurrentAniDbPasswordState,
   buildPersistedConfigStates,
   resolveCurrentQBitPasswordState,
 } from "@/features/system/system-config-update-support.ts";
-import { countAnimeUsingProfile } from "@/features/system/repository/profile-usage-repository.ts";
 import { listQualityProfileRows } from "@/features/system/repository/quality-profile-repository.ts";
 import { loadSystemConfigRow } from "@/features/system/repository/system-config-repository.ts";
 import { updateSystemConfigAtomic } from "@/features/system/repository/config-transaction-repository.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 export interface SystemConfigUpdateServiceShape {
   readonly updateConfig: (
@@ -35,6 +38,15 @@ export class SystemConfigUpdateService extends Context.Tag("@bakarr/api/SystemCo
   SystemConfigUpdateService,
   SystemConfigUpdateServiceShape
 >() {}
+
+const countAnimeUsingProfile = Effect.fn("SystemConfigUpdateService.countAnimeUsingProfile")(
+  function* (db: AppDatabase, profileName: string) {
+    const rows = yield* tryDatabasePromise("Failed to count anime", () =>
+      db.select({ value: count() }).from(anime).where(eq(anime.profileName, profileName)),
+    );
+    return rows[0]?.value ?? 0;
+  },
+);
 
 const makeSystemConfigUpdateService = Effect.gen(function* () {
   const { db } = yield* Database;
@@ -61,10 +73,11 @@ const makeSystemConfigUpdateService = Effect.gen(function* () {
       nextConfig,
       previousConfigRow,
     });
-    const effectiveConfig = preserveStoredAniDbPassword(
-      currentAniDbPassword,
-      preserveStoredQBitPassword(currentPassword, nextConfig),
-    );
+    const effectiveConfig = preserveStoredPasswords({
+      aniDbPassword: currentAniDbPassword,
+      nextConfig,
+      qBitPassword: currentPassword,
+    });
     const normalizedConfig = yield* normalizeConfig(effectiveConfig);
     yield* validateConfigUpdate({
       countAnimeUsingProfile: (profileName) => countAnimeUsingProfile(db, profileName),
@@ -115,76 +128,3 @@ export const SystemConfigUpdateServiceLive = Layer.effect(
   SystemConfigUpdateService,
   makeSystemConfigUpdateService,
 );
-
-function preserveStoredQBitPassword(
-  currentPassword: Option.Option<string>,
-  nextConfig: Config,
-): Config {
-  return preserveStoredPassword({
-    currentPassword,
-    enabled: nextConfig.qbittorrent.enabled,
-    nextConfig,
-    nextPassword: nextConfig.qbittorrent.password,
-    setPassword: (config, password) => ({
-      ...config,
-      qbittorrent: {
-        ...config.qbittorrent,
-        password,
-      },
-    }),
-  });
-}
-
-function preserveStoredAniDbPassword(
-  currentPassword: Option.Option<string>,
-  nextConfig: Config,
-): Config {
-  if (!nextConfig.metadata?.anidb) {
-    return nextConfig;
-  }
-
-  const nextAniDb = nextConfig.metadata.anidb;
-
-  return preserveStoredPassword({
-    currentPassword,
-    enabled: nextAniDb.enabled,
-    nextConfig,
-    nextPassword: nextAniDb.password,
-    setPassword: (config, password) => ({
-      ...config,
-      metadata: {
-        ...config.metadata,
-        anidb: {
-          ...nextAniDb,
-          password,
-        },
-      },
-    }),
-  });
-}
-
-function preserveStoredPassword(input: {
-  readonly currentPassword: Option.Option<string>;
-  readonly enabled: boolean;
-  readonly nextConfig: Config;
-  readonly nextPassword: string | null | undefined;
-  readonly setPassword: (config: Config, password: string) => Config;
-}): Config {
-  if (!input.enabled || Option.isSome(toNonEmptyPasswordOption(input.nextPassword))) {
-    return input.nextConfig;
-  }
-
-  if (Option.isNone(input.currentPassword)) {
-    return input.nextConfig;
-  }
-
-  return input.setPassword(input.nextConfig, input.currentPassword.value);
-}
-
-function toNonEmptyPasswordOption(value: string | null | undefined): Option.Option<string> {
-  if (value === null || value === undefined) {
-    return Option.none();
-  }
-
-  return value.trim().length > 0 ? Option.some(value) : Option.none();
-}

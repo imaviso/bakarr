@@ -13,6 +13,7 @@ import {
   EpisodeStreamRangeError,
 } from "@/features/anime/anime-stream-errors.ts";
 import type { RouteErrorResponse } from "@/http/shared/route-types.ts";
+import { errorStatus, messageStatus } from "@/http/shared/route-errors/helpers.ts";
 
 const AnimeRouteErrorSchema = Schema.Union(
   AnimeConflictError,
@@ -27,11 +28,6 @@ const AnimeRouteErrorSchema = Schema.Union(
 
 type AnimeRouteError = Schema.Schema.Type<typeof AnimeRouteErrorSchema>;
 
-const messageStatus = (status: number) => (error: { readonly message: string }) => ({
-  message: error.message,
-  status,
-});
-
 const animeRouteErrorMappers: {
   [K in AnimeRouteError["_tag"]]: (
     error: Extract<AnimeRouteError, { _tag: K }>,
@@ -43,7 +39,7 @@ const animeRouteErrorMappers: {
   AnimeNotFoundError: messageStatus(404),
   AnimePathError: messageStatus(400),
   AnimeStoredDataError: messageStatus(500),
-  EpisodeStreamAccessError: (error) => ({ message: error.message, status: error.status }),
+  EpisodeStreamAccessError: errorStatus,
   EpisodeStreamRangeError: (error) => ({
     headers: { "Content-Range": `bytes */${error.fileSize}` },
     message: error.message,

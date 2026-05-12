@@ -71,7 +71,6 @@ import { SystemBootstrapServiceLive } from "@/features/system/system-bootstrap-s
 import { SystemConfigUpdateServiceLive } from "@/features/system/system-config-update-service.ts";
 import { SystemEventsServiceLive } from "@/features/system/system-events-service.ts";
 import { SystemLogServiceLive } from "@/features/system/system-log-service.ts";
-import { SystemMetricsEndpointServiceLive } from "@/features/system/system-metrics-endpoint-service.ts";
 import { SystemReadServiceLive } from "@/features/system/system-read-service.ts";
 import { SystemRuntimeMetricsServiceLive } from "@/features/system/system-runtime-metrics-service.ts";
 import { MediaProbeLive } from "@/infra/media/probe.ts";
@@ -319,7 +318,6 @@ export function makeApiLifecycleLayers(
     SystemEventsServiceLive.pipe(
       Layer.provide(Layer.mergeAll(runtimeSupportLayer, catalogDownloadReadLayer)),
     ),
-    SystemMetricsEndpointServiceLive.pipe(Layer.provide(systemRuntimeMetricsLayer)),
   );
 
   const authLayer = Layer.mergeAll(

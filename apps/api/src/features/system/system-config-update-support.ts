@@ -74,6 +74,82 @@ export const resolveCurrentAniDbPasswordState = Effect.fn(
   });
 });
 
+export function preserveStoredPasswords(input: {
+  readonly aniDbPassword: Option.Option<string>;
+  readonly nextConfig: Config;
+  readonly qBitPassword: Option.Option<string>;
+}): Config {
+  return preserveStoredAniDbPassword(
+    input.aniDbPassword,
+    preserveStoredQBitPassword(input.qBitPassword, input.nextConfig),
+  );
+}
+
+function preserveStoredQBitPassword(
+  currentPassword: Option.Option<string>,
+  nextConfig: Config,
+): Config {
+  return preserveStoredPassword({
+    currentPassword,
+    enabled: nextConfig.qbittorrent.enabled,
+    nextConfig,
+    nextPassword: nextConfig.qbittorrent.password,
+    setPassword: (config, password) => ({
+      ...config,
+      qbittorrent: {
+        ...config.qbittorrent,
+        password,
+      },
+    }),
+  });
+}
+
+function preserveStoredAniDbPassword(
+  currentPassword: Option.Option<string>,
+  nextConfig: Config,
+): Config {
+  if (!nextConfig.metadata?.anidb) {
+    return nextConfig;
+  }
+
+  const nextAniDb = nextConfig.metadata.anidb;
+
+  return preserveStoredPassword({
+    currentPassword,
+    enabled: nextAniDb.enabled,
+    nextConfig,
+    nextPassword: nextAniDb.password,
+    setPassword: (config, password) => ({
+      ...config,
+      metadata: {
+        ...config.metadata,
+        anidb: {
+          ...nextAniDb,
+          password,
+        },
+      },
+    }),
+  });
+}
+
+function preserveStoredPassword(input: {
+  readonly currentPassword: Option.Option<string>;
+  readonly enabled: boolean;
+  readonly nextConfig: Config;
+  readonly nextPassword: string | null | undefined;
+  readonly setPassword: (config: Config, password: string) => Config;
+}): Config {
+  if (!input.enabled || Option.isSome(toNonEmptyPasswordOption(input.nextPassword))) {
+    return input.nextConfig;
+  }
+
+  if (Option.isNone(input.currentPassword)) {
+    return input.nextConfig;
+  }
+
+  return input.setPassword(input.nextConfig, input.currentPassword.value);
+}
+
 const resolveCurrentStoredPasswordState = Effect.fn(
   "SystemConfigUpdateService.resolveCurrentStoredPasswordState",
 )(function* (input: {

@@ -1,7 +1,7 @@
 import { HttpRouter, HttpServerResponse } from "@effect/platform";
 import { Effect } from "effect";
 
-import { SystemMetricsEndpointService } from "@/features/system/system-metrics-endpoint-service.ts";
+import { SystemRuntimeMetricsService } from "@/features/system/system-runtime-metrics-service.ts";
 import { ClockService } from "@/infra/clock.ts";
 import { recordHttpRequestMetrics } from "@/infra/metrics.ts";
 import { authedRouteResponse } from "@/http/shared/router-helpers.ts";
@@ -10,9 +10,9 @@ const METRICS_ROUTE = "/api/metrics";
 
 const renderMetricsWithHttpMetrics = Effect.gen(function* () {
   const clock = yield* ClockService;
-  const service = yield* SystemMetricsEndpointService;
+  const service = yield* SystemRuntimeMetricsService;
   const startedAt = yield* clock.currentMonotonicMillis;
-  const exit = yield* Effect.exit(service.renderMetricsEndpoint());
+  const exit = yield* Effect.exit(service.renderPrometheusMetrics());
   const finishedAt = yield* clock.currentMonotonicMillis;
   const durationMs = finishedAt - startedAt;
 

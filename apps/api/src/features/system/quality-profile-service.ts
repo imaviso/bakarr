@@ -1,7 +1,9 @@
+import { count, eq } from "drizzle-orm";
 import { Context, Effect, Layer } from "effect";
 
 import type { Quality, QualityProfile } from "@packages/shared/index.ts";
-import { Database, DatabaseError } from "@/db/database.ts";
+import { type AppDatabase, Database, DatabaseError } from "@/db/database.ts";
+import { anime } from "@/db/schema.ts";
 import { nowIsoFromClock, ClockService } from "@/infra/clock.ts";
 import {
   StoredConfigCorruptError,
@@ -14,7 +16,7 @@ import {
 } from "@/features/system/config-codec.ts";
 import { appendSystemLog } from "@/features/system/support.ts";
 import { DEFAULT_QUALITIES } from "@/features/system/defaults.ts";
-import { countAnimeUsingProfile } from "@/features/system/repository/profile-usage-repository.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import {
   deleteQualityProfileRow,
   insertQualityProfileRow,
@@ -48,6 +50,16 @@ export class QualityProfileService extends Context.Tag("@bakarr/api/QualityProfi
   QualityProfileService,
   QualityProfileServiceShape
 >() {}
+
+const countAnimeUsingProfile = Effect.fn("QualityProfileService.countAnimeUsingProfile")(function* (
+  db: AppDatabase,
+  profileName: string,
+) {
+  const rows = yield* tryDatabasePromise("Failed to count anime", () =>
+    db.select({ value: count() }).from(anime).where(eq(anime.profileName, profileName)),
+  );
+  return rows[0]?.value ?? 0;
+});
 
 const makeQualityProfileService = Effect.gen(function* () {
   const { db } = yield* Database;

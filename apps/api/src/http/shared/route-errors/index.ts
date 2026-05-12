@@ -10,6 +10,7 @@ import { RequestValidationError } from "@/http/shared/route-validation.ts";
 import { mapAnimeRouteError } from "@/http/shared/route-errors/anime.ts";
 import { mapOperationsRouteError } from "@/http/shared/route-errors/operations.ts";
 import { mapSystemRouteError } from "@/http/shared/route-errors/system.ts";
+import { fixedStatus, messageStatus } from "@/http/shared/route-errors/helpers.ts";
 
 type CommonRouteError =
   | DatabaseError
@@ -19,22 +20,9 @@ type CommonRouteError =
   | TokenHasherError
   | WorkerTimeoutError;
 
-const messageStatus =
-  (status: number) =>
-  (error: { readonly message: string }): RouteErrorResponse => ({
-    message: error.message,
-    status,
-  });
+const serviceUnavailable = fixedStatus("External service unavailable", 503);
 
-const serviceUnavailable = () => ({
-  message: "External service unavailable",
-  status: 503,
-});
-
-const authCryptoFailure = () => ({
-  message: "Authentication crypto failed",
-  status: 500,
-});
+const authCryptoFailure = fixedStatus("Authentication crypto failed", 500);
 
 const taggedCommonRouteErrorMappers = {
   DatabaseError: messageStatus(500),
