@@ -1,11 +1,10 @@
 import { Context, Effect, Layer, Metric } from "effect";
 
 import { renderBakarrPrometheusMetrics } from "@/infra/metrics.ts";
-import { SystemLibraryStatsReadService } from "@/features/system/system-library-stats-read-service.ts";
 import {
-  type SystemStatusReadError,
-  SystemStatusReadService,
-} from "@/features/system/system-status-read-service.ts";
+  type SystemReadStatusError,
+  SystemReadService,
+} from "@/features/system/system-read-service.ts";
 import type { DatabaseError } from "@/db/database.ts";
 
 export interface RuntimeMetricsSummary {
@@ -18,7 +17,7 @@ export interface RuntimeMetricsSummary {
   readonly total_episodes: number;
 }
 
-export type SystemRuntimeMetricsError = SystemStatusReadError | DatabaseError;
+export type SystemRuntimeMetricsError = SystemReadStatusError | DatabaseError;
 
 export interface SystemRuntimeMetricsServiceShape {
   readonly getRuntimeMetricsSummary: () => Effect.Effect<
@@ -35,15 +34,14 @@ export class SystemRuntimeMetricsService extends Context.Tag(
 export const SystemRuntimeMetricsServiceLive = Layer.effect(
   SystemRuntimeMetricsService,
   Effect.gen(function* () {
-    const systemStatusReadService = yield* SystemStatusReadService;
-    const systemLibraryStatsReadService = yield* SystemLibraryStatsReadService;
+    const systemReadService = yield* SystemReadService;
 
     const getRuntimeMetricsSummary = Effect.fn(
       "SystemRuntimeMetricsService.getRuntimeMetricsSummary",
     )(function* () {
       const [status, stats] = yield* Effect.all([
-        systemStatusReadService.getSystemStatus(),
-        systemLibraryStatsReadService.getLibraryStats(),
+        systemReadService.getSystemStatus(),
+        systemReadService.getLibraryStats(),
       ]);
 
       return {

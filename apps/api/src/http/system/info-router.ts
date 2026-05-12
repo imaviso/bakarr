@@ -6,9 +6,7 @@ import {
   decodeOperationsTaskQuery,
   OperationsTaskReadService,
 } from "@/features/operations/operations-task-service.ts";
-import { SystemActivityReadService } from "@/features/system/system-activity-read-service.ts";
-import { SystemDashboardReadService } from "@/features/system/system-dashboard-read-service.ts";
-import { SystemLibraryStatsReadService } from "@/features/system/system-library-stats-read-service.ts";
+import { SystemReadService } from "@/features/system/system-read-service.ts";
 import {
   OperationsTaskIdParamsSchema,
   OperationsTaskQuerySchema,
@@ -24,7 +22,7 @@ export const infoRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
     "/api/system/dashboard",
     authedRouteResponse(
-      Effect.flatMap(SystemDashboardReadService, (service) => service.getDashboard()),
+      Effect.flatMap(SystemReadService, (service) => service.getDashboard()),
       jsonResponse,
     ),
   ),
@@ -64,14 +62,14 @@ export const infoRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
     "/api/library/stats",
     authedRouteResponse(
-      Effect.flatMap(SystemLibraryStatsReadService, (service) => service.getLibraryStats()),
+      Effect.flatMap(SystemReadService, (service) => service.getLibraryStats()),
       jsonResponse,
     ),
   ),
   HttpRouter.get(
     "/api/library/activity",
     authedRouteResponse(
-      Effect.flatMap(SystemActivityReadService, (service) => service.getActivity()),
+      Effect.flatMap(SystemReadService, (service) => service.getActivity()),
       jsonResponse,
     ),
   ),

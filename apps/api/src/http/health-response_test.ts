@@ -5,7 +5,7 @@ import { assert, it } from "@effect/vitest";
 import { AppConfig, makeDefaultAppConfig } from "@/config/schema.ts";
 import { AuthSessionService } from "@/features/auth/session-service.ts";
 import { StoredConfigMissingError } from "@/features/system/errors.ts";
-import { SystemStatusReadService } from "@/features/system/system-status-read-service.ts";
+import { SystemReadService } from "@/features/system/system-read-service.ts";
 import { healthRouter } from "@/http/system/health-router.ts";
 
 it.effect("health router live endpoint returns the live status payload", () =>
@@ -26,7 +26,10 @@ it.effect("health router ready endpoint maps system status failure to not-ready"
     const handler = HttpApp.toWebHandler(
       healthRouter.pipe(
         provideSharedRouterTestServices(),
-        Effect.provideService(SystemStatusReadService, {
+        Effect.provideService(SystemReadService, {
+          getActivity: () => Effect.die("unused system read service"),
+          getDashboard: () => Effect.die("unused system read service"),
+          getLibraryStats: () => Effect.die("unused system read service"),
           getSystemStatus: () =>
             Effect.fail(new StoredConfigMissingError({ message: "config missing" })),
         }),
@@ -48,7 +51,10 @@ function provideHealthRouterTestServices() {
   return (effect: typeof healthRouter) =>
     effect.pipe(
       provideSharedRouterTestServices(),
-      Effect.provideService(SystemStatusReadService, {
+      Effect.provideService(SystemReadService, {
+        getActivity: () => Effect.die("unused system read service"),
+        getDashboard: () => Effect.die("unused system read service"),
+        getLibraryStats: () => Effect.die("unused system read service"),
         getSystemStatus: () => Effect.die("unused system status service"),
       }),
     );

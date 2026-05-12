@@ -2,7 +2,7 @@ import { HttpRouter, HttpServerResponse } from "@effect/platform";
 import { Effect } from "effect";
 
 import type { HealthStatus } from "@packages/shared/index.ts";
-import { SystemStatusReadService } from "@/features/system/system-status-read-service.ts";
+import { SystemReadService } from "@/features/system/system-read-service.ts";
 import { authedRouteResponse, jsonResponse, routeResponse } from "@/http/shared/router-helpers.ts";
 
 const notReadyResponse = { checks: { database: false }, ready: false } as const;
@@ -13,7 +13,7 @@ export const healthRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
     "/api/system/health/ready",
     routeResponse(
-      Effect.flatMap(SystemStatusReadService, (service) => service.getSystemStatus()).pipe(
+      Effect.flatMap(SystemReadService, (service) => service.getSystemStatus()).pipe(
         Effect.map(() => ({ checks: { database: true }, ready: true }) as const),
         Effect.catchTags({
           ConfigValidationError: () => Effect.succeed(notReadyResponse),
@@ -30,7 +30,7 @@ export const healthRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
     "/api/system/status",
     authedRouteResponse(
-      Effect.flatMap(SystemStatusReadService, (service) => service.getSystemStatus()),
+      Effect.flatMap(SystemReadService, (service) => service.getSystemStatus()),
       jsonResponse,
     ),
   ),
