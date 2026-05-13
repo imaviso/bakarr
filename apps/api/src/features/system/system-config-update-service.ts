@@ -1,5 +1,5 @@
 import { count, eq } from "drizzle-orm";
-import { Context, Effect, Layer } from "effect";
+import { Context, Effect, Layer, Option } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 import { AppConfig } from "@/config/schema.ts";
@@ -11,17 +11,18 @@ import { BackgroundWorkerController } from "@/background/controller-core.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { persistAndActivateConfig } from "@/features/system/config-activation.ts";
 import { validateConfigUpdate } from "@/features/system/config-update-validation.ts";
-import { normalizeConfig, toConfigCore } from "@/features/system/config-codec.ts";
+import {
+  decodeStoredConfigRow,
+  normalizeConfig,
+  toConfigCore,
+  type ConfigCore,
+} from "@/features/system/config-codec.ts";
 import { ConfigValidationError, StoredConfigCorruptError } from "@/features/system/errors.ts";
 import { appendSystemLog } from "@/features/system/support.ts";
 import { applyRuntimeLogLevelFromConfig } from "@/features/system/runtime-config.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
-import {
-  preserveStoredPasswords,
-  resolveCurrentAniDbPasswordState,
-  buildPersistedConfigStates,
-  resolveCurrentQBitPasswordState,
-} from "@/features/system/system-config-update-support.ts";
+import { buildPersistedConfigStates } from "@/features/system/system-config-update-support.ts";
+import { makeDefaultConfig } from "@/features/system/defaults.ts";
 import { listQualityProfileRows } from "@/features/system/repository/quality-profile-repository.ts";
 import { loadSystemConfigRow } from "@/features/system/repository/system-config-repository.ts";
 import { updateSystemConfigAtomic } from "@/features/system/repository/config-transaction-repository.ts";
@@ -62,20 +63,10 @@ const makeSystemConfigUpdateService = Effect.gen(function* () {
   ) {
     const existingProfileRows = yield* listQualityProfileRows(db);
     const previousConfigRow = yield* loadSystemConfigRow(db);
-    const currentPassword = yield* resolveCurrentQBitPasswordState({
+    const effectiveConfig = yield* preserveStoredPasswords({
       appDatabaseFile: appConfig.databaseFile,
       nextConfig,
       previousConfigRow,
-    });
-    const currentAniDbPassword = yield* resolveCurrentAniDbPasswordState({
-      appDatabaseFile: appConfig.databaseFile,
-      nextConfig,
-      previousConfigRow,
-    });
-    const effectiveConfig = preserveStoredPasswords({
-      aniDbPassword: currentAniDbPassword,
-      nextConfig,
-      qBitPassword: currentPassword,
     });
     const normalizedConfig = yield* normalizeConfig(effectiveConfig);
     yield* validateConfigUpdate({
@@ -127,3 +118,114 @@ export const SystemConfigUpdateServiceLive = Layer.effect(
   SystemConfigUpdateService,
   makeSystemConfigUpdateService,
 );
+
+const preserveStoredPasswords = Effect.fn("SystemConfigUpdateService.preserveStoredPasswords")(
+  function* (input: {
+    readonly appDatabaseFile: string;
+    readonly nextConfig: Config;
+    readonly previousConfigRow:
+      | {
+          readonly data: string;
+          readonly id: number;
+          readonly updatedAt: string;
+        }
+      | undefined;
+  }) {
+    const storedConfigResult = yield* decodeStoredConfigRow(input.previousConfigRow).pipe(
+      Effect.map((storedConfig) => ({ _tag: "Stored" as const, storedConfig })),
+      Effect.catchTag("StoredConfigMissingError", () =>
+        Effect.succeed({
+          _tag: "Stored" as const,
+          storedConfig: makeDefaultConfig(input.appDatabaseFile) satisfies ConfigCore,
+        }),
+      ),
+      Effect.catchTag("StoredConfigCorruptError", () =>
+        Effect.succeed({ _tag: "Corrupt" as const }),
+      ),
+    );
+
+    if (storedConfigResult._tag === "Corrupt") {
+      if (
+        input.nextConfig.qbittorrent.enabled &&
+        Option.isNone(toNonEmptyPasswordOption(input.nextConfig.qbittorrent.password))
+      ) {
+        return yield* new StoredConfigCorruptError({
+          cause: new Error(
+            "Stored configuration is corrupt. Re-enter the qBittorrent password before saving repaired config.",
+          ),
+          message:
+            "Stored configuration is corrupt. Re-enter the qBittorrent password before saving repaired config.",
+        });
+      }
+
+      if (
+        input.nextConfig.metadata?.anidb.enabled &&
+        Option.isNone(toNonEmptyPasswordOption(input.nextConfig.metadata.anidb.password))
+      ) {
+        return yield* new StoredConfigCorruptError({
+          cause: new Error(
+            "Stored configuration is corrupt. Re-enter the AniDB password before saving repaired config.",
+          ),
+          message:
+            "Stored configuration is corrupt. Re-enter the AniDB password before saving repaired config.",
+        });
+      }
+
+      return input.nextConfig;
+    }
+
+    let nextConfig = input.nextConfig;
+    const storedQBitPassword = toNonEmptyPasswordOption(
+      storedConfigResult.storedConfig.qbittorrent.password,
+    );
+
+    if (
+      nextConfig.qbittorrent.enabled &&
+      Option.isNone(toNonEmptyPasswordOption(nextConfig.qbittorrent.password)) &&
+      Option.isSome(storedQBitPassword)
+    ) {
+      nextConfig = {
+        ...nextConfig,
+        qbittorrent: {
+          ...nextConfig.qbittorrent,
+          password: storedQBitPassword.value,
+        },
+      };
+    }
+
+    if (!nextConfig.metadata?.anidb) {
+      return nextConfig;
+    }
+
+    const storedAniDbPassword = toNonEmptyPasswordOption(
+      storedConfigResult.storedConfig.metadata?.anidb?.password,
+    );
+
+    if (
+      nextConfig.metadata.anidb.enabled &&
+      Option.isNone(toNonEmptyPasswordOption(nextConfig.metadata.anidb.password)) &&
+      Option.isSome(storedAniDbPassword)
+    ) {
+      return {
+        ...nextConfig,
+        metadata: {
+          ...nextConfig.metadata,
+          anidb: {
+            ...nextConfig.metadata.anidb,
+            password: storedAniDbPassword.value,
+          },
+        },
+      };
+    }
+
+    return nextConfig;
+  },
+);
+
+function toNonEmptyPasswordOption(value: string | null | undefined): Option.Option<string> {
+  if (value === null || value === undefined) {
+    return Option.none();
+  }
+
+  return value.trim().length > 0 ? Option.some(value) : Option.none();
+}

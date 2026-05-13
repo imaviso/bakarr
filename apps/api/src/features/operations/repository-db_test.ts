@@ -4,12 +4,12 @@ import { Cause, Effect, Option, Schema } from "effect";
 import * as schema from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { anime, appConfig, episodes, qualityProfiles, releaseProfiles } from "@/db/schema.ts";
+import { encodeConfigCore } from "@/features/system/config-codec.ts";
 import {
-  encodeConfigCore,
   encodeNumberList,
   encodeQualityProfileRow,
   encodeReleaseProfileRules,
-} from "@/features/system/config-codec.ts";
+} from "@/features/profiles/profile-codec.ts";
 import { ConfigCoreSchema } from "@/features/system/config-schema.ts";
 import { makeDefaultConfig } from "@/features/system/defaults.ts";
 import {

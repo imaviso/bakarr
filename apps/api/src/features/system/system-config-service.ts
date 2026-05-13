@@ -5,9 +5,9 @@ import { Database, DatabaseError } from "@/db/database.ts";
 import {
   composeConfig,
   decodeStoredConfigRow,
-  decodeQualityProfileRow,
   normalizeConfig,
 } from "@/features/system/config-codec.ts";
+import { decodeQualityProfileRow } from "@/features/profiles/profile-codec.ts";
 import { StoredConfigCorruptError, StoredConfigMissingError } from "@/features/system/errors.ts";
 import { listQualityProfileRows } from "@/features/system/repository/quality-profile-repository.ts";
 import { loadSystemConfigRow } from "@/features/system/repository/system-config-repository.ts";

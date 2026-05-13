@@ -6,10 +6,10 @@ import { appConfig, qualityProfiles } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import {
   composeConfig,
-  decodeQualityProfileRow,
   decodeStoredConfigRow,
   decodeStoredLibraryConfig,
 } from "@/features/system/config-codec.ts";
+import { decodeQualityProfileRow } from "@/features/profiles/profile-codec.ts";
 import type { NamingSettings } from "@/features/operations/repository/types.ts";
 
 const mapConfigError = (message: string) =>

@@ -2,7 +2,7 @@ import { Effect } from "effect";
 
 import type { Download, DownloadAllowedAction, DownloadStatus } from "@packages/shared/index.ts";
 import type { downloads } from "@/db/schema.ts";
-import { decodeOptionalNumberList } from "@/features/system/config-codec.ts";
+import { decodeOptionalNumberList } from "@/features/profiles/profile-codec.ts";
 import type { DownloadPresentationContext } from "@/features/operations/repository/types.ts";
 import { OperationsStoredDataError } from "@/features/operations/errors.ts";
 import { decodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";

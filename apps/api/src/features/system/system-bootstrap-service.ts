@@ -8,11 +8,8 @@ import { nowIsoFromClock, ClockService } from "@/infra/clock.ts";
 import { RuntimeLogLevelState } from "@/infra/logging.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { DEFAULT_PROFILES, makeDefaultConfig } from "@/features/system/defaults.ts";
-import {
-  decodeConfigCore,
-  encodeConfigCore,
-  encodeQualityProfileRow,
-} from "@/features/system/config-codec.ts";
+import { decodeConfigCore, encodeConfigCore } from "@/features/system/config-codec.ts";
+import { encodeQualityProfileRow } from "@/features/profiles/profile-codec.ts";
 import { applyRuntimeLogLevelFromConfig } from "@/features/system/runtime-config.ts";
 import { loadSystemConfigRow } from "@/features/system/repository/system-config-repository.ts";
 export interface SystemBootstrapServiceShape {

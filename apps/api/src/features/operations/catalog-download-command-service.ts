@@ -2,7 +2,8 @@ import { Context, Effect, Layer } from "effect";
 
 import { DatabaseError } from "@/db/database.ts";
 import { DownloadReconciliationService } from "@/features/operations/download-reconciliation-service.ts";
-import { DownloadTorrentLifecycleService } from "@/features/operations/download-torrent-lifecycle-service.ts";
+import { DownloadTorrentActionService } from "@/features/operations/download-torrent-action-support.ts";
+import { DownloadTorrentSyncService } from "@/features/operations/download-torrent-sync-support.ts";
 import { DownloadProgressSupport } from "@/features/operations/download-progress-support.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import {
@@ -33,7 +34,8 @@ export const CatalogDownloadCommandServiceLive = Layer.effect(
   CatalogDownloadCommandService,
   Effect.gen(function* () {
     const clock = yield* ClockService;
-    const torrentLifecycle = yield* DownloadTorrentLifecycleService;
+    const torrentActions = yield* DownloadTorrentActionService;
+    const torrentSync = yield* DownloadTorrentSyncService;
     const reconciliation = yield* DownloadReconciliationService;
     const progressSupport = yield* DownloadProgressSupport;
     const eventBus = yield* EventBus;
@@ -56,7 +58,7 @@ export const CatalogDownloadCommandServiceLive = Layer.effect(
     ) {
       const startedAt = yield* clock.currentMonotonicMillis;
 
-      yield* torrentLifecycle.syncDownloadsWithQBitEffect();
+      yield* torrentSync.syncDownloadsWithQBitEffect();
 
       const finishedAt = yield* clock.currentMonotonicMillis;
 
@@ -70,14 +72,14 @@ export const CatalogDownloadCommandServiceLive = Layer.effect(
     });
 
     const pauseDownload = Effect.fn("OperationsService.pauseDownload")(function* (id: number) {
-      yield* torrentLifecycle
+      yield* torrentActions
         .applyDownloadActionEffect(id, "pause")
         .pipe(Effect.mapError(mapCommandError("Failed to pause download")));
       yield* eventBus.publishInfo(`Paused download ${id}`);
     });
 
     const resumeDownload = Effect.fn("OperationsService.resumeDownload")(function* (id: number) {
-      yield* torrentLifecycle
+      yield* torrentActions
         .applyDownloadActionEffect(id, "resume")
         .pipe(Effect.mapError(mapCommandError("Failed to resume download")));
       yield* eventBus.publishInfo(`Resumed download ${id}`);
@@ -87,14 +89,14 @@ export const CatalogDownloadCommandServiceLive = Layer.effect(
       id: number,
       deleteFiles: boolean,
     ) {
-      yield* torrentLifecycle
+      yield* torrentActions
         .applyDownloadActionEffect(id, "delete", deleteFiles)
         .pipe(Effect.mapError(mapCommandError("Failed to remove download")));
       yield* eventBus.publishInfo(`Removed download ${id}`);
     });
 
     const retryDownload = Effect.fn("OperationsService.retryDownload")(function* (id: number) {
-      yield* torrentLifecycle
+      yield* torrentActions
         .retryDownloadById(id)
         .pipe(Effect.mapError(mapCommandError("Failed to retry download")));
       yield* progressSupport.publishDownloadProgress();

@@ -110,75 +110,80 @@ export const TorrentClientServiceLive = Layer.effect(
       return state satisfies TorrentClientConfigState;
     });
 
+    const withQBitConfig = Effect.fn("TorrentClientService.withQBitConfig")(function* <A>(
+      run: (config: QBitConfig) => Effect.Effect<A, ExternalCallError | QBitTorrentClientError>,
+    ) {
+      const qbitConfig = yield* resolveConfig();
+      if (qbitConfig._tag === "Disabled") {
+        return { _tag: "Disabled" } as const;
+      }
+
+      return yield* run(qbitConfig.config);
+    });
+
     const addTorrentUrlIfEnabled = Effect.fn("TorrentClientService.addTorrentUrlIfEnabled")(
       function* (url: string) {
-        const qbitConfig = yield* resolveConfig();
-        if (qbitConfig._tag === "Disabled") {
-          return { _tag: "Disabled" } as const;
-        }
-
-        yield* qbitClient.addTorrentUrl(qbitConfig.config, url);
-        return { _tag: "Added" } as const;
+        return yield* withQBitConfig((config) =>
+          qbitClient.addTorrentUrl(config, url).pipe(Effect.as({ _tag: "Added" } as const)),
+        );
       },
     );
 
     const listTorrentsIfEnabled = Effect.fn("TorrentClientService.listTorrentsIfEnabled")(
       function* () {
-        const qbitConfig = yield* resolveConfig();
-        if (qbitConfig._tag === "Disabled") {
-          return { _tag: "Disabled" } as const;
-        }
-
-        const torrents = yield* qbitClient.listTorrents(qbitConfig.config);
-        return { _tag: "Found", torrents } as const;
+        return yield* withQBitConfig((config) =>
+          qbitClient.listTorrents(config).pipe(
+            Effect.map(
+              (torrents) =>
+                ({
+                  _tag: "Found",
+                  torrents,
+                }) as const,
+            ),
+          ),
+        );
       },
     );
 
     const listTorrentContentsIfEnabled = Effect.fn(
       "TorrentClientService.listTorrentContentsIfEnabled",
     )(function* (hash: string) {
-      const qbitConfig = yield* resolveConfig();
-      if (qbitConfig._tag === "Disabled") {
-        return { _tag: "Disabled" } as const;
-      }
-
-      const files = yield* qbitClient.listTorrentContents(qbitConfig.config, hash);
-      return { _tag: "Found", files } as const;
+      return yield* withQBitConfig((config) =>
+        qbitClient.listTorrentContents(config, hash).pipe(
+          Effect.map(
+            (files) =>
+              ({
+                _tag: "Found",
+                files,
+              }) as const,
+          ),
+        ),
+      );
     });
 
     const pauseTorrentIfEnabled = Effect.fn("TorrentClientService.pauseTorrentIfEnabled")(
       function* (hash: string) {
-        const qbitConfig = yield* resolveConfig();
-        if (qbitConfig._tag === "Disabled") {
-          return { _tag: "Disabled" } as const;
-        }
-
-        yield* qbitClient.pauseTorrent(qbitConfig.config, hash);
-        return { _tag: "Paused" } as const;
+        return yield* withQBitConfig((config) =>
+          qbitClient.pauseTorrent(config, hash).pipe(Effect.as({ _tag: "Paused" } as const)),
+        );
       },
     );
 
     const resumeTorrentIfEnabled = Effect.fn("TorrentClientService.resumeTorrentIfEnabled")(
       function* (hash: string) {
-        const qbitConfig = yield* resolveConfig();
-        if (qbitConfig._tag === "Disabled") {
-          return { _tag: "Disabled" } as const;
-        }
-
-        yield* qbitClient.resumeTorrent(qbitConfig.config, hash);
-        return { _tag: "Resumed" } as const;
+        return yield* withQBitConfig((config) =>
+          qbitClient.resumeTorrent(config, hash).pipe(Effect.as({ _tag: "Resumed" } as const)),
+        );
       },
     );
 
     const deleteTorrentIfEnabled = Effect.fn("TorrentClientService.deleteTorrentIfEnabled")(
       function* (hash: string, deleteFiles: boolean) {
-        const qbitConfig = yield* resolveConfig();
-        if (qbitConfig._tag === "Disabled") {
-          return { _tag: "Disabled" } as const;
-        }
-
-        yield* qbitClient.deleteTorrent(qbitConfig.config, hash, deleteFiles);
-        return { _tag: "Deleted" } as const;
+        return yield* withQBitConfig((config) =>
+          qbitClient
+            .deleteTorrent(config, hash, deleteFiles)
+            .pipe(Effect.as({ _tag: "Deleted" } as const)),
+        );
       },
     );
 

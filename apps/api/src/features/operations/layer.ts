@@ -13,7 +13,8 @@ import { CatalogLibraryWriteServiceLive } from "@/features/operations/catalog-li
 import { CatalogRssServiceLive } from "@/features/operations/catalog-rss-service.ts";
 import { DownloadProgressSupportLive } from "@/features/operations/download-progress-support.ts";
 import { DownloadReconciliationServiceLive } from "@/features/operations/download-reconciliation-service.ts";
-import { DownloadTorrentLifecycleServiceLive } from "@/features/operations/download-torrent-lifecycle-service.ts";
+import { DownloadTorrentActionServiceLive } from "@/features/operations/download-torrent-action-support.ts";
+import { DownloadTorrentSyncServiceLive } from "@/features/operations/download-torrent-sync-support.ts";
 import { DownloadTriggerServiceLive } from "@/features/operations/download-trigger-service.ts";
 import { ImportPathScanServiceLive } from "@/features/operations/import-path-scan-service.ts";
 import { LibraryRootsQueryServiceLive } from "@/features/operations/library-roots-query-service.ts";
@@ -52,16 +53,20 @@ export function makeOperationsFeatureLayer<ROut, E, RIn>(
   const downloadReconciliationLayer = DownloadReconciliationServiceLive.pipe(
     Layer.provide(downloadRuntimeLayer),
   );
-  const downloadLifecycleRuntimeLayer = Layer.mergeAll(
+  const downloadActionLayer = DownloadTorrentActionServiceLive.pipe(
+    Layer.provide(downloadRuntimeLayer),
+  );
+  const downloadSyncRuntimeLayer = Layer.mergeAll(
     downloadRuntimeLayer,
     downloadReconciliationLayer,
   );
-  const downloadTorrentLifecycleLayer = DownloadTorrentLifecycleServiceLive.pipe(
-    Layer.provide(downloadLifecycleRuntimeLayer),
+  const downloadSyncLayer = DownloadTorrentSyncServiceLive.pipe(
+    Layer.provide(downloadSyncRuntimeLayer),
   );
   const downloadProgressRuntimeLayer = Layer.mergeAll(
-    downloadLifecycleRuntimeLayer,
-    downloadTorrentLifecycleLayer,
+    downloadSyncRuntimeLayer,
+    downloadActionLayer,
+    downloadSyncLayer,
   );
   const downloadProgressSupportLayer = DownloadProgressSupportLive.pipe(
     Layer.provide(downloadProgressRuntimeLayer),
@@ -143,7 +148,8 @@ export function makeOperationsFeatureLayer<ROut, E, RIn>(
   const operationsLayer = Layer.mergeAll(
     torrentClientLayer,
     downloadReconciliationLayer,
-    downloadTorrentLifecycleLayer,
+    downloadActionLayer,
+    downloadSyncLayer,
     downloadProgressSupportLayer,
     downloadTriggerLayer,
     catalogDownloadReadLayer,
@@ -169,12 +175,5 @@ export function makeOperationsFeatureLayer<ROut, E, RIn>(
     unmappedImportLayer,
   );
 
-  return {
-    catalogDownloadReadLayer,
-    operationsLayer,
-    operationsProgressLayer,
-    operationsTaskReadLayer,
-    operationsTaskWriteLayer,
-    torrentClientLayer,
-  } as const;
+  return operationsLayer;
 }

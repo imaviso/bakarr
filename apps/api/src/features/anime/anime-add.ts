@@ -1,6 +1,6 @@
 import { Effect, Option } from "effect";
 
-import { encodeNumberList, encodeStringList } from "@/features/system/config-codec.ts";
+import { encodeNumberList, encodeStringList } from "@/features/profiles/profile-codec.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";

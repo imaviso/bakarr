@@ -8,7 +8,7 @@ import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { appendSystemLog } from "@/features/system/support.ts";
-import { encodeNumberList } from "@/features/system/config-codec.ts";
+import { encodeNumberList } from "@/features/profiles/profile-codec.ts";
 import { qualityProfileExistsEffect } from "@/features/anime/profile-support.ts";
 import { getConfiguredLibraryPathEffect } from "@/features/anime/config-support.ts";
 import {

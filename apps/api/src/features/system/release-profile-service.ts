@@ -7,7 +7,7 @@ import { StoredConfigCorruptError } from "@/features/system/errors.ts";
 import {
   decodeReleaseProfileRow,
   encodeReleaseProfileRow,
-} from "@/features/system/config-codec.ts";
+} from "@/features/profiles/profile-codec.ts";
 import type {
   CreateReleaseProfileInput,
   UpdateReleaseProfileInput,

@@ -13,7 +13,7 @@ import {
 import {
   decodeQualityProfileRow,
   encodeQualityProfileRow,
-} from "@/features/system/config-codec.ts";
+} from "@/features/profiles/profile-codec.ts";
 import { appendSystemLog } from "@/features/system/support.ts";
 import { DEFAULT_QUALITIES } from "@/features/system/defaults.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";

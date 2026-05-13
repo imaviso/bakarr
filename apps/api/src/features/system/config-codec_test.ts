@@ -4,16 +4,18 @@ import { Cause, Effect, Exit, Schema } from "effect";
 import { qualityProfiles, releaseProfiles } from "@/db/schema.ts";
 import {
   decodeConfigCore,
+  decodeStoredConfigRow,
+  encodeConfigCore,
+} from "@/features/system/config-codec.ts";
+import {
   decodeOptionalNumberList,
   decodeQualityProfileRow,
   decodeReleaseProfileRow,
   decodeReleaseProfileRules,
-  decodeStoredConfigRow,
-  encodeConfigCore,
   encodeOptionalNumberList,
   encodeQualityProfileRow,
   encodeReleaseProfileRules,
-} from "@/features/system/config-codec.ts";
+} from "@/features/profiles/profile-codec.ts";
 
 it.effect("config codec round-trips config core without mutating arrays", () =>
   Effect.gen(function* () {

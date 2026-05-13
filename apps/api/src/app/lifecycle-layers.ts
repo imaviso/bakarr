@@ -75,14 +75,7 @@ export function makeApiLifecycleLayers(
   // Anime feature graph owns its internal service wiring.
   const animeLiveLayer = makeAnimeFeatureLayer(runtimeSupportLayer);
 
-  const {
-    catalogDownloadReadLayer,
-    operationsLayer,
-    operationsProgressLayer,
-    operationsTaskReadLayer,
-    operationsTaskWriteLayer,
-    torrentClientLayer,
-  } = makeOperationsFeatureLayer(runtimeSupportLayer);
+  const operationsLayer = makeOperationsFeatureLayer(runtimeSupportLayer);
   const appDomainSubgraphLayer = Layer.mergeAll(animeLiveLayer, operationsLayer);
 
   // Background worker runtime sits on top of domain + runtime support.
@@ -126,14 +119,14 @@ export function makeApiLifecycleLayers(
     systemRuntimeMetricsLayer,
     SystemConfigUpdateServiceLive.pipe(Layer.provide(runtimeWithBackgroundControllerLayer)),
     SystemEventsServiceLive.pipe(
-      Layer.provide(Layer.mergeAll(runtimeSupportLayer, catalogDownloadReadLayer)),
+      Layer.provide(Layer.mergeAll(runtimeSupportLayer, operationsLayer)),
     ),
   );
 
   const authLayer = makeAuthFeatureLayer(runtimeSupportLayer);
 
   const operationsTaskLauncherLayer = OperationsTaskLauncherServiceLive.pipe(
-    Layer.provide(operationsTaskWriteLayer),
+    Layer.provide(operationsLayer),
   );
   const libraryLayer = LibraryBrowseServiceLive.pipe(
     Layer.provide(Layer.mergeAll(systemLayer, operationsLayer)),
@@ -149,8 +142,6 @@ export function makeApiLifecycleLayers(
     systemLayer,
     libraryLayer,
     animeEnrollmentLayer,
-    operationsTaskReadLayer,
-    operationsTaskWriteLayer,
   );
   const appFeatureSubgraphLayer = Layer.mergeAll(appFeatureBaseLayer, operationsTaskLauncherLayer);
   const appLayer = Layer.mergeAll(
@@ -160,8 +151,6 @@ export function makeApiLifecycleLayers(
 
   return {
     appLayer,
-    operationsProgressLayer,
     platformLayer,
-    torrentClientLayer,
   } as const;
 }

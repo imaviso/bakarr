@@ -5,7 +5,7 @@ import { downloads } from "@/db/schema.ts";
 import {
   encodeOptionalNumberList,
   decodeOptionalNumberList,
-} from "@/features/system/config-codec.ts";
+} from "@/features/profiles/profile-codec.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import {
   buildPathParseContext,

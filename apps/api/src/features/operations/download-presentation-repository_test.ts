@@ -4,7 +4,7 @@ import * as schema from "@/db/schema.ts";
 import { anime, episodes } from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { assert, it } from "@effect/vitest";
-import { encodeNumberList } from "@/features/system/config-codec.ts";
+import { encodeNumberList } from "@/features/profiles/profile-codec.ts";
 import { OperationsStoredDataError } from "@/features/operations/errors.ts";
 import { loadDownloadPresentationContexts } from "@/features/operations/repository/download-presentation-repository.ts";
 

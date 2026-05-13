@@ -1,8 +1,8 @@
 import { eq, sql } from "drizzle-orm";
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
-import { DatabaseError } from "@/db/database.ts";
+import { Database, DatabaseError } from "@/db/database.ts";
 import { downloads } from "@/db/schema.ts";
 import {
   DownloadConflictError,
@@ -13,9 +13,11 @@ import {
 import { decodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
 import { parseCoveredEpisodesEffect } from "@/features/operations/download-coverage.ts";
 import { recordDownloadEvent } from "@/features/operations/job-support.ts";
-import type { TryDatabasePromise } from "@/infra/effect/db.ts";
+import { tryDatabasePromise, type TryDatabasePromise } from "@/infra/effect/db.ts";
 import { TorrentClientService } from "@/features/operations/torrent-client-service.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
+import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
+import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 
 export interface DownloadTorrentActionSupportInput {
   readonly db: AppDatabase;
@@ -51,6 +53,30 @@ export interface DownloadTorrentActionSupportShape {
     | OperationsInfrastructureError
   >;
 }
+
+export class DownloadTorrentActionService extends Context.Tag(
+  "@bakarr/api/DownloadTorrentActionService",
+)<DownloadTorrentActionService, DownloadTorrentActionSupportShape>() {}
+
+export const DownloadTorrentActionServiceLive = Layer.effect(
+  DownloadTorrentActionService,
+  Effect.gen(function* () {
+    const { db } = yield* Database;
+    const torrentClientService = yield* TorrentClientService;
+    const clock = yield* ClockService;
+    const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
+
+    return DownloadTorrentActionService.of(
+      makeDownloadTorrentActionSupport({
+        db,
+        getRuntimeConfig: runtimeConfigSnapshot.getRuntimeConfig,
+        nowIso: () => nowIsoFromClock(clock),
+        torrentClientService,
+        tryDatabasePromise,
+      }),
+    );
+  }),
+);
 
 export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSupportInput) {
   const { db, torrentClientService, tryDatabasePromise } = input;

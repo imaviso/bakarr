@@ -3,7 +3,7 @@ import { Effect } from "effect";
 
 import type { AppDatabase, DatabaseError } from "@/db/database.ts";
 import { anime, downloads, episodes } from "@/db/schema.ts";
-import { decodeOptionalNumberList } from "@/features/system/config-codec.ts";
+import { decodeOptionalNumberList } from "@/features/profiles/profile-codec.ts";
 import { OperationsStoredDataError } from "@/features/operations/errors.ts";
 import type { DownloadPresentationContext } from "@/features/operations/repository/types.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";

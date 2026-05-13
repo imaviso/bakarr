@@ -1,8 +1,8 @@
 import { eq, inArray } from "drizzle-orm";
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import type { Config, DownloadSourceMetadata } from "@packages/shared/index.ts";
-import type { DatabaseError } from "@/db/database.ts";
+import { Database, type DatabaseError } from "@/db/database.ts";
 import { downloads } from "@/db/schema.ts";
 import {
   inferCoveredEpisodesFromTorrentContents,
@@ -15,7 +15,14 @@ import type { OperationsError } from "@/features/operations/errors.ts";
 import type { ExternalCallError } from "@/infra/effect/retry.ts";
 import { mapQBitState } from "@/features/operations/qbittorrent.ts";
 import type { DownloadTorrentActionSupportInput } from "@/features/operations/download-torrent-action-support.ts";
-import { type RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
+import {
+  RuntimeConfigSnapshotService,
+  type RuntimeConfigSnapshotError,
+} from "@/features/system/runtime-config-snapshot-service.ts";
+import { TorrentClientService } from "@/features/operations/torrent-client-service.ts";
+import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { DownloadReconciliationService } from "@/features/operations/download-reconciliation-service.ts";
 
 function shouldReconcileCompletedDownloads(config: Config | null) {
   return config?.downloads.reconcile_completed_downloads ?? true;
@@ -38,6 +45,32 @@ export interface DownloadTorrentSyncSupportShape {
     OperationsError | RuntimeConfigSnapshotError
   >;
 }
+
+export class DownloadTorrentSyncService extends Context.Tag(
+  "@bakarr/api/DownloadTorrentSyncService",
+)<DownloadTorrentSyncService, DownloadTorrentSyncSupportShape>() {}
+
+export const DownloadTorrentSyncServiceLive = Layer.effect(
+  DownloadTorrentSyncService,
+  Effect.gen(function* () {
+    const { db } = yield* Database;
+    const torrentClientService = yield* TorrentClientService;
+    const clock = yield* ClockService;
+    const reconciliationService = yield* DownloadReconciliationService;
+    const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
+
+    return DownloadTorrentSyncService.of(
+      makeDownloadTorrentSyncSupport({
+        db,
+        getRuntimeConfig: runtimeConfigSnapshot.getRuntimeConfig,
+        nowIso: () => nowIsoFromClock(clock),
+        torrentClientService,
+        reconcileCompletedTorrentEffect: reconciliationService.reconcileCompletedTorrentEffect,
+        tryDatabasePromise,
+      }),
+    );
+  }),
+);
 
 export function makeDownloadTorrentSyncSupport(input: DownloadTorrentSyncSupportInput) {
   const { db, tryDatabasePromise, reconcileCompletedTorrentEffect, torrentClientService } = input;

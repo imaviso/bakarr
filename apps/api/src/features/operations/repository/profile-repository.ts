@@ -10,7 +10,7 @@ import {
   decodeNumberList,
   decodeQualityProfileRow,
   decodeReleaseProfileRules,
-} from "@/features/system/config-codec.ts";
+} from "@/features/profiles/profile-codec.ts";
 
 const mapDecodeError = (message: string) =>
   Effect.mapError((cause: unknown) =>
