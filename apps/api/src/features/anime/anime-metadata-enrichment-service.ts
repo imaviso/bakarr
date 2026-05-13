@@ -8,7 +8,7 @@ import {
   loadAniDbEpisodeCacheEffect,
   upsertAniDbEpisodeCacheEffect,
 } from "@/features/anime/anidb-episode-cache-repository.ts";
-import type { AniDbEpisodeLookupInput } from "@/features/anime/anidb-types.ts";
+import type { AniDbEpisodeLookupInput } from "@/features/anime/anidb-protocol.ts";
 import type { AnimeMetadataEpisode } from "@/features/anime/anilist-model.ts";
 import { syncEpisodeMetadataEffect } from "@/features/anime/anime-episode-metadata-sync.ts";
 import { AniDbRuntimeConfigError, type AnimeStoredDataError } from "@/features/anime/errors.ts";

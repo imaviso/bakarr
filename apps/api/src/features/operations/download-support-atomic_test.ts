@@ -2,7 +2,7 @@ import { assert, it } from "@effect/vitest";
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
-import { upsertEpisodeFilesAtomic } from "@/features/operations/download-support.ts";
+import { upsertEpisodeFilesAtomic } from "@/features/operations/download-episode-upsert-support.ts";
 import * as schema from "@/db/schema.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";

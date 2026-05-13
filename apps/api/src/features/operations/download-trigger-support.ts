@@ -5,13 +5,13 @@ import type { DownloadAction, DownloadSourceMetadata } from "@packages/shared/in
 import { DatabaseError, type AppDatabase } from "@/db/database.ts";
 import { anime, downloads } from "@/db/schema.ts";
 import { TorrentClientService } from "@/features/operations/torrent-client-service.ts";
-import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
+import { getAnimeRowEffect as requireAnime } from "@/features/anime/anime-read-repository.ts";
 import { encodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
 import { loadMissingEpisodeNumbers } from "@/features/operations/job-support.ts";
 import {
   buildDownloadSelectionMetadata,
   buildDownloadSourceMetadataFromRelease,
-} from "@/features/operations/naming-support.ts";
+} from "@/features/operations/naming-metadata-support.ts";
 import {
   hasOverlappingDownload,
   inferCoveredEpisodeNumbers,

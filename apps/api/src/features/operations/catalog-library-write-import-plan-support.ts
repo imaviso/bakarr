@@ -11,13 +11,13 @@ import {
   type ProbedMediaMetadata,
 } from "@/infra/media/probe.ts";
 import { OperationsAnimeNotFoundError, OperationsPathError } from "@/features/operations/errors.ts";
-import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
+import { getAnimeRowEffect as requireAnime } from "@/features/anime/anime-read-repository.ts";
+import { buildEpisodeFilenamePlan } from "@/features/operations/naming-canonical-support.ts";
+import type { EpisodeFilenamePlan } from "@/features/operations/naming-types.ts";
 import {
-  buildEpisodeFilenamePlan,
   hasMissingLocalMediaNamingFields,
   selectNamingFormat,
-  type EpisodeFilenamePlan,
-} from "@/features/operations/naming-support.ts";
+} from "@/features/operations/naming-format-support.ts";
 import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 
 export interface BuildLibraryImportPlanInput {

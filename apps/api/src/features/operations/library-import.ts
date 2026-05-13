@@ -5,13 +5,11 @@ import type { AnimeSearchResult, Config, RenamePreviewItem } from "@packages/sha
 import type { AppDatabase } from "@/db/database.ts";
 import { anime, episodes } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
-import {
-  buildEpisodeFilenamePlan,
-  selectNamingFormat,
-} from "@/features/operations/naming-support.ts";
+import { buildEpisodeFilenamePlan } from "@/features/operations/naming-canonical-support.ts";
+import { selectNamingFormat } from "@/features/operations/naming-format-support.ts";
 import { OperationsStoredDataError } from "@/features/operations/errors.ts";
 import { deriveAnimeSeason, extractYearFromDate } from "@/domain/anime/date-utils.ts";
-import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
+import { getAnimeRowEffect as requireAnime } from "@/features/anime/anime-read-repository.ts";
 
 export {
   analyzeScannedFile,

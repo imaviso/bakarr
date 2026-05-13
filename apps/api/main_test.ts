@@ -19,8 +19,11 @@ import { commandArgs, commandName } from "./src/test/stubs.ts";
 import { AniListClient } from "./src/features/anime/anilist.ts";
 import { JikanClient } from "./src/features/anime/jikan.ts";
 import { ManamiClient } from "./src/features/anime/manami.ts";
-import { type QBitTorrent, QBitTorrentClient } from "./src/features/operations/qbittorrent.ts";
-import { mapQBitState } from "./src/features/operations/download-orchestration-shared.ts";
+import {
+  mapQBitState,
+  type QBitTorrent,
+  QBitTorrentClient,
+} from "./src/features/operations/qbittorrent.ts";
 import { RssClient } from "./src/features/operations/rss-client.ts";
 import type { ParsedRelease } from "./src/features/operations/rss-client-parse.ts";
 import { SeaDexClient, type SeaDexEntry } from "./src/features/operations/seadex-client.ts";

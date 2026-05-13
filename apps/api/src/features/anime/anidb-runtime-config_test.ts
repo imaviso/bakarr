@@ -1,6 +1,6 @@
 import { assert, it } from "@effect/vitest";
 
-import { normalizeEpisodeCount } from "@/features/anime/anidb-runtime-config.ts";
+import { normalizeEpisodeCount } from "@/features/anime/anidb.ts";
 
 it("normalizeEpisodeCount falls back to episode limit when count is missing", () => {
   assert.deepStrictEqual(normalizeEpisodeCount(undefined, 200), 200);

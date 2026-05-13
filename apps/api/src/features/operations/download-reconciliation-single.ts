@@ -3,12 +3,13 @@ import { Effect, Option } from "effect";
 
 import { episodes } from "@/db/schema.ts";
 import { probeMediaMetadataOrUndefined } from "@/infra/media/probe.ts";
+import { buildEpisodeFilenamePlan } from "@/features/operations/naming-canonical-support.ts";
 import {
-  buildEpisodeFilenamePlan,
   hasMissingLocalMediaNamingFields,
   selectNamingFormat,
-} from "@/features/operations/naming-support.ts";
-import { importDownloadedFile, upsertEpisodeFile } from "@/features/operations/download-support.ts";
+} from "@/features/operations/naming-format-support.ts";
+import { importDownloadedFile } from "@/features/operations/download-file-import-support.ts";
+import { upsertEpisodeFile } from "@/features/operations/download-episode-upsert-support.ts";
 import { parseCoveredEpisodesEffect } from "@/features/operations/download-coverage.ts";
 import { resolveCompletedContentPath } from "@/features/operations/download-paths.ts";
 import {

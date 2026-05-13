@@ -2,6 +2,7 @@ import { type Socket } from "node:dgram";
 
 import { Context, Effect, Layer, Option, Ref } from "effect";
 
+import type { Config } from "@packages/shared/index.ts";
 import { type DatabaseError } from "@/db/database.ts";
 import { ClockService, type ClockServiceShape } from "@/infra/clock.ts";
 import {
@@ -9,6 +10,9 @@ import {
   parseAnimeLookupMatch,
   parseEpisodeResponse,
   scoreAnimeLookupCandidate,
+  type AniDbEpisodeLookupInput,
+  type AniDbEpisodeLookupResult,
+  type AniDbEpisodeMetadata,
   type AniDbTitleCandidate,
 } from "@/features/anime/anidb-protocol.ts";
 import {
@@ -17,18 +21,10 @@ import {
   sendAniDbCommandEffect,
 } from "@/features/anime/anidb-command-client.ts";
 import { closeAniDbSocketEffect, openAniDbSocketEffect } from "@/features/anime/anidb-socket.ts";
-import type {
-  AniDbEpisodeLookupResult,
-  AniDbEpisodeLookupInput,
-  AniDbEpisodeMetadata,
-} from "@/features/anime/anidb-types.ts";
-import {
-  normalizeEpisodeCount,
-  resolveAniDbRuntimeConfig,
-} from "@/features/anime/anidb-runtime-config.ts";
 import { AniDbRuntimeConfigError } from "@/features/anime/errors.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { StoredConfigCorruptError } from "@/features/system/errors.ts";
+import { DEFAULT_ANIDB_METADATA_CONFIG } from "@/features/system/metadata-providers-config.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
 
 const ANIDB_MIN_ANIME_MATCH_SCORE = 70;
@@ -49,6 +45,44 @@ interface AniDbSessionState {
   readonly configKey: string;
   readonly sessionToken: string;
   readonly socket: Socket;
+}
+
+interface AniDbRuntimeConfig {
+  readonly enabled: boolean;
+  readonly username: string | null;
+  readonly password: string | null;
+  readonly client: string;
+  readonly clientVersion: number;
+  readonly episodeLimit: number;
+  readonly localPort: number;
+}
+
+function resolveAniDbRuntimeConfig(config: Config): AniDbRuntimeConfig {
+  const anidb = config.metadata?.anidb ?? DEFAULT_ANIDB_METADATA_CONFIG;
+
+  return {
+    enabled: anidb.enabled,
+    username: anidb.username ?? null,
+    password: anidb.password ?? null,
+    client: anidb.client,
+    clientVersion: anidb.client_version,
+    episodeLimit: anidb.episode_limit,
+    localPort: anidb.local_port,
+  };
+}
+
+export function normalizeEpisodeCount(episodeCount: number | undefined, episodeLimit: number) {
+  if (!Number.isFinite(episodeCount) || episodeCount === undefined) {
+    return episodeLimit;
+  }
+
+  const normalized = Math.floor(episodeCount);
+
+  if (normalized <= 0) {
+    return episodeLimit;
+  }
+
+  return Math.min(normalized, episodeLimit);
 }
 
 export const AniDbClientLive = Layer.scoped(

@@ -7,7 +7,7 @@ import {
   buildDownloadSelectionMetadata,
   buildDownloadSourceMetadataFromRelease,
   mergeDownloadSourceMetadata,
-} from "@/features/operations/naming-support.ts";
+} from "@/features/operations/naming-metadata-support.ts";
 import {
   hasOverlappingDownload,
   inferCoveredEpisodeNumbers,

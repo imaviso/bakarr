@@ -6,9 +6,9 @@ import {
   composeConfig,
   decodeStoredConfigRow,
   decodeQualityProfileRow,
+  normalizeConfig,
 } from "@/features/system/config-codec.ts";
 import { StoredConfigCorruptError, StoredConfigMissingError } from "@/features/system/errors.ts";
-import { normalizeConfig } from "@/features/system/system-config-normalization.ts";
 import { listQualityProfileRows } from "@/features/system/repository/quality-profile-repository.ts";
 import { loadSystemConfigRow } from "@/features/system/repository/system-config-repository.ts";
 

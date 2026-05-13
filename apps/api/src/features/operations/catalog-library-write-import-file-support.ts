@@ -6,7 +6,7 @@ import {
   OperationsInfrastructureError,
   OperationsPathError,
 } from "@/features/operations/errors.ts";
-import { upsertEpisodeFilesAtomic } from "@/features/operations/download-support.ts";
+import { upsertEpisodeFilesAtomic } from "@/features/operations/download-episode-upsert-support.ts";
 import type { LibraryImportPlan } from "@/features/operations/catalog-library-write-import-plan-support.ts";
 import type { ImportResult } from "@packages/shared/index.ts";
 

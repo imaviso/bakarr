@@ -16,7 +16,7 @@ import {
 } from "@/features/operations/errors.ts";
 import { SeaDexClient } from "@/features/operations/seadex-client.ts";
 import { applySeaDexMatch } from "@/features/operations/seadex-matching.ts";
-import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
+import { getAnimeRowEffect as requireAnime } from "@/features/anime/anime-read-repository.ts";
 import {
   mapSearchCategory,
   mapSearchFilter,

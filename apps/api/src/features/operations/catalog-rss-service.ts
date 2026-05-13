@@ -5,7 +5,7 @@ import type { RssFeed } from "@packages/shared/index.ts";
 import { Database, type DatabaseError } from "@/db/database.ts";
 import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
 import type { OperationsError } from "@/features/operations/errors.ts";
-import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
+import { getAnimeRowEffect as requireAnime } from "@/features/anime/anime-read-repository.ts";
 import { toRssFeed } from "@/features/operations/repository/rss-repository.ts";
 import { appendLog } from "@/features/operations/job-support.ts";
 import { rssFeeds } from "@/db/schema.ts";

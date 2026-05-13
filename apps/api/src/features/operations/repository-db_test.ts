@@ -23,9 +23,9 @@ import {
   encodeDownloadSourceMetadata,
 } from "@/features/operations/repository/download-repository.ts";
 import {
+  getAnimeRowEffect as requireAnime,
   loadCurrentEpisodeState,
-  requireAnime,
-} from "@/features/operations/repository/anime-repository.ts";
+} from "@/features/anime/anime-read-repository.ts";
 import {
   loadQualityProfile,
   loadReleaseRules,

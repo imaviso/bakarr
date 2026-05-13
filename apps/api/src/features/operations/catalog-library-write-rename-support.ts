@@ -8,7 +8,7 @@ import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { buildRenamePreview } from "@/features/operations/library-import.ts";
 import { OperationsAnimeNotFoundError, OperationsPathError } from "@/features/operations/errors.ts";
-import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
+import { getAnimeRowEffect as requireAnime } from "@/features/anime/anime-read-repository.ts";
 import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 
 export interface RenameLibraryFilesInput {

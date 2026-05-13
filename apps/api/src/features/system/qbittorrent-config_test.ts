@@ -2,7 +2,7 @@ import { Cause, Effect, Exit } from "effect";
 
 import { assert, it } from "@effect/vitest";
 import { makeTestConfig } from "@/test/config-fixture.ts";
-import { normalizeConfig } from "@/features/system/system-config-normalization.ts";
+import { normalizeConfig } from "@/features/system/config-codec.ts";
 
 it("normalizes qBittorrent config URLs", () =>
   Effect.gen(function* () {

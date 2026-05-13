@@ -21,7 +21,7 @@ import {
 } from "@/features/operations/errors.ts";
 import { appendLog } from "@/features/operations/job-support.ts";
 import { scanVideoFilesStream } from "@/features/operations/file-scanner.ts";
-import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
+import { getAnimeRowEffect as requireAnime } from "@/features/anime/anime-read-repository.ts";
 import { getConfigLibraryPath } from "@/features/operations/repository/config-repository.ts";
 import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 import { Database } from "@/db/database.ts";

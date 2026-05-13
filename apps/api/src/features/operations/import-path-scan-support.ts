@@ -21,9 +21,9 @@ import {
 import {
   buildEpisodeFileMappingIndex,
   buildScannedFileLibrarySignals,
-  buildScannedFileNamingPlan,
-  selectEpisodeRowsForFile,
-} from "@/features/operations/import-path-scan-result-support.ts";
+} from "@/features/operations/import-path-scan-mapping-support.ts";
+import { buildScannedFileNamingPlan } from "@/features/operations/import-path-scan-naming-support.ts";
+import { selectEpisodeRowsForFile } from "@/features/operations/import-path-scan-episode-support.ts";
 import {
   discoverImportScanFiles,
   extractScanCandidatePaths,

@@ -3,7 +3,7 @@ import { and, eq, inArray, or } from "drizzle-orm";
 
 import { anime, episodes } from "@/db/schema.ts";
 import type { AppDatabase } from "@/db/database.ts";
-import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
+import { getAnimeRowEffect as requireAnime } from "@/features/anime/anime-read-repository.ts";
 import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 
 export const loadImportScanAnimeRows = (input: {

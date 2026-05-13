@@ -7,10 +7,6 @@ import { downloads } from "@/db/schema.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { TorrentClientService } from "@/features/operations/torrent-client-service.ts";
 import {
-  shouldDeleteImportedData,
-  shouldRemoveTorrentOnImport,
-} from "@/features/operations/download-support.ts";
-import {
   loadDownloadReconciliationContext,
   type DownloadReconciliationContext,
   type MaybeCleanupImportedTorrent,
@@ -21,6 +17,14 @@ import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-confi
 import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import type { MediaProbeShape } from "@/infra/media/probe.ts";
+
+function shouldRemoveTorrentOnImport(config: Config | null | undefined) {
+  return config?.downloads.remove_torrent_on_import ?? true;
+}
+
+function shouldDeleteImportedData(config: Config | null | undefined) {
+  return config?.downloads.delete_download_files_after_import ?? false;
+}
 
 export function makeDownloadCompletedTorrentReconciliation(
   db: AppDatabase,

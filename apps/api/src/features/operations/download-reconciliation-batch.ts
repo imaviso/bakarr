@@ -4,15 +4,13 @@ import { Effect } from "effect";
 import { episodes } from "@/db/schema.ts";
 import { classifyMediaArtifact } from "@/infra/media/identity/identity.ts";
 import { probeMediaMetadataOrUndefined } from "@/infra/media/probe.ts";
+import { buildEpisodeFilenamePlan } from "@/features/operations/naming-canonical-support.ts";
 import {
-  buildEpisodeFilenamePlan,
   hasMissingLocalMediaNamingFields,
   selectNamingFormat,
-} from "@/features/operations/naming-support.ts";
-import {
-  importDownloadedFile,
-  upsertEpisodeFilesAtomic,
-} from "@/features/operations/download-support.ts";
+} from "@/features/operations/naming-format-support.ts";
+import { importDownloadedFile } from "@/features/operations/download-file-import-support.ts";
+import { upsertEpisodeFilesAtomic } from "@/features/operations/download-episode-upsert-support.ts";
 import {
   parseCoveredEpisodesEffect,
   resolveReconciledBatchEpisodeNumbers,

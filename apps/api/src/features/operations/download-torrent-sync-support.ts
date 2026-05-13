@@ -4,7 +4,6 @@ import { Effect } from "effect";
 import type { Config, DownloadSourceMetadata } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import { downloads } from "@/db/schema.ts";
-import { shouldReconcileCompletedDownloads } from "@/features/operations/download-support.ts";
 import {
   inferCoveredEpisodesFromTorrentContents,
   parseCoveredEpisodesEffect,
@@ -14,9 +13,13 @@ import { decodeDownloadSourceMetadata } from "@/features/operations/repository/d
 import { recordDownloadEvent } from "@/features/operations/job-support.ts";
 import type { OperationsError } from "@/features/operations/errors.ts";
 import type { ExternalCallError } from "@/infra/effect/retry.ts";
-import { mapQBitState } from "@/features/operations/download-orchestration-shared.ts";
+import { mapQBitState } from "@/features/operations/qbittorrent.ts";
 import type { DownloadTorrentActionSupportInput } from "@/features/operations/download-torrent-action-support.ts";
 import { type RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
+
+function shouldReconcileCompletedDownloads(config: Config | null) {
+  return config?.downloads.reconcile_completed_downloads ?? true;
+}
 
 export interface DownloadTorrentSyncSupportInput extends DownloadTorrentActionSupportInput {
   readonly getRuntimeConfig: () => Effect.Effect<Config, RuntimeConfigSnapshotError>;

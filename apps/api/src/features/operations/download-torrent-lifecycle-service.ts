@@ -4,7 +4,6 @@ import {
 } from "@/features/operations/download-torrent-action-support.ts";
 import {
   makeDownloadTorrentSyncSupport,
-  type DownloadTorrentSyncSupportInput,
   type DownloadTorrentSyncSupportShape,
 } from "@/features/operations/download-torrent-sync-support.ts";
 import { Context, Effect, Layer } from "effect";
@@ -23,18 +22,6 @@ export class DownloadTorrentLifecycleService extends Context.Tag(
   "@bakarr/api/DownloadTorrentLifecycleService",
 )<DownloadTorrentLifecycleService, DownloadTorrentLifecycleServiceShape>() {}
 
-export type DownloadTorrentLifecycleServiceInput = DownloadTorrentSyncSupportInput;
-
-export function makeDownloadTorrentLifecycleService(input: DownloadTorrentLifecycleServiceInput) {
-  const actionSupport = makeDownloadTorrentActionSupport(input);
-  const syncSupport = makeDownloadTorrentSyncSupport(input);
-
-  return {
-    ...actionSupport,
-    ...syncSupport,
-  } satisfies DownloadTorrentLifecycleServiceShape;
-}
-
 export const DownloadTorrentLifecycleServiceLive = Layer.effect(
   DownloadTorrentLifecycleService,
   Effect.gen(function* () {
@@ -44,13 +31,18 @@ export const DownloadTorrentLifecycleServiceLive = Layer.effect(
     const reconciliationService = yield* DownloadReconciliationService;
     const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
 
-    return makeDownloadTorrentLifecycleService({
+    const input = {
       db,
       getRuntimeConfig: runtimeConfigSnapshot.getRuntimeConfig,
       nowIso: () => nowIsoFromClock(clock),
       torrentClientService,
       reconcileCompletedTorrentEffect: reconciliationService.reconcileCompletedTorrentEffect,
       tryDatabasePromise,
-    });
+    };
+
+    return {
+      ...makeDownloadTorrentActionSupport(input),
+      ...makeDownloadTorrentSyncSupport(input),
+    } satisfies DownloadTorrentLifecycleServiceShape;
   }),
 );

@@ -13,10 +13,19 @@ import { makeTestConfig } from "@/test/config-fixture.ts";
 import {
   importDownloadedFile,
   ImportFileError,
-  shouldDeleteImportedData,
-  shouldReconcileCompletedDownloads,
-  shouldRemoveTorrentOnImport,
-} from "@/features/operations/download-support.ts";
+} from "@/features/operations/download-file-import-support.ts";
+
+function shouldReconcileCompletedDownloads(config: ReturnType<typeof makeTestConfig> | null) {
+  return config?.downloads.reconcile_completed_downloads ?? true;
+}
+
+function shouldRemoveTorrentOnImport(config: ReturnType<typeof makeTestConfig> | null | undefined) {
+  return config?.downloads.remove_torrent_on_import ?? true;
+}
+
+function shouldDeleteImportedData(config: ReturnType<typeof makeTestConfig> | null | undefined) {
+  return config?.downloads.delete_download_files_after_import ?? false;
+}
 
 function makeAnimeRow(overrides: Partial<typeof anime.$inferSelect>): typeof anime.$inferSelect {
   return {

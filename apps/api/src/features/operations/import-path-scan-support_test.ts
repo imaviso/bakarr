@@ -3,8 +3,8 @@ import { assert, it } from "@effect/vitest";
 import {
   buildEpisodeFileMappingIndex,
   buildScannedFileLibrarySignals,
-  buildScannedFileNamingPlan,
-} from "@/features/operations/import-path-scan-result-support.ts";
+} from "@/features/operations/import-path-scan-mapping-support.ts";
+import { buildScannedFileNamingPlan } from "@/features/operations/import-path-scan-naming-support.ts";
 
 it("buildScannedFileLibrarySignals reports existing exact-path mappings", () => {
   const mappingIndex = buildEpisodeFileMappingIndex([

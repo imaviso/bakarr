@@ -9,7 +9,7 @@ import type { MediaProbeShape } from "@/infra/media/probe.ts";
 import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { OperationsPathError } from "@/features/operations/errors.ts";
-import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
+import { getAnimeRowEffect as requireAnime } from "@/features/anime/anime-read-repository.ts";
 import { decodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
 import { resolveAccessibleDownloadPath } from "@/features/operations/download-paths.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";

@@ -2,19 +2,25 @@ import { assert, it } from "@effect/vitest";
 
 import {
   buildCanonicalEpisodeNamingInput,
+  buildEpisodeFilenamePlan,
+} from "@/features/operations/naming-canonical-support.ts";
+import {
   buildDownloadSelectionMetadata,
   buildDownloadSourceMetadataFromRelease,
-  buildEpisodeFilenamePlan,
   buildEpisodeNamingInputFromPath,
-  inspectNamingFormat,
   mergeDownloadSourceMetadata,
-  resolveFilenameRenderPlan,
-  selectAnimeTitleForNaming,
-  selectAnimeTitleForNamingDetails,
   selectAnimeYearForNaming,
+} from "@/features/operations/naming-metadata-support.ts";
+import {
+  inspectNamingFormat,
+  resolveFilenameRenderPlan,
   selectNamingFormat,
   validateNamingMetadata,
-} from "@/features/operations/naming-support.ts";
+} from "@/features/operations/naming-format-support.ts";
+import {
+  selectAnimeTitleForNaming,
+  selectAnimeTitleForNamingDetails,
+} from "@/features/operations/naming-title-support.ts";
 
 it("buildEpisodeNamingInputFromPath extracts local filename metadata for rename tokens", () => {
   const input = buildEpisodeNamingInputFromPath({

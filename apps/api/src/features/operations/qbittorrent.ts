@@ -84,6 +84,57 @@ export type QBitTorrentFile = Schema.Schema.Type<typeof QBitTorrentFileSchema>;
 
 const QBitTorrentFileArraySchema = Schema.Array(QBitTorrentFileSchema);
 
+export function mapQBitState(state: string): string {
+  const value = state.toLowerCase();
+
+  if (value.includes("error") || value.includes("missing")) {
+    return "error";
+  }
+
+  if (
+    value.includes("uploading") ||
+    value.includes("pausedup") ||
+    value.includes("queuedup") ||
+    value.includes("stalledup") ||
+    value.includes("checkingup") ||
+    value.includes("forcedup") ||
+    value.includes("completed")
+  ) {
+    return "completed";
+  }
+
+  if (value.includes("pauseddl")) {
+    return "paused";
+  }
+
+  if (value.includes("queueddl")) {
+    return "queued";
+  }
+
+  if (
+    value.includes("downloading") ||
+    value.includes("forceddl") ||
+    value.includes("metadl") ||
+    value.includes("stalleddl") ||
+    value.includes("checkingdl") ||
+    value.includes("allocating") ||
+    value.includes("checkingresumedata") ||
+    value.includes("moving")
+  ) {
+    return "downloading";
+  }
+
+  if (value.includes("queued")) {
+    return "queued";
+  }
+
+  if (value.includes("paused")) {
+    return "paused";
+  }
+
+  return "queued";
+}
+
 export const QBitTorrentClientLive = Layer.effect(
   QBitTorrentClient,
   Effect.gen(function* () {

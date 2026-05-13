@@ -1,7 +1,7 @@
 import type { PreferredTitle, ScannedFile } from "@packages/shared/index.ts";
 
 import { toEpisodeNumbers } from "@/features/operations/import-path-scan-episode-support.ts";
-import { buildEpisodeFilenamePlan } from "@/features/operations/naming-support.ts";
+import { buildEpisodeFilenamePlan } from "@/features/operations/naming-canonical-support.ts";
 
 export function buildScannedFileNamingPlan(input: {
   animeRow?:

@@ -2,7 +2,7 @@ import { Effect } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
 import { classifyMediaArtifact, parseFileSourceIdentity } from "@/infra/media/identity/identity.ts";
-import { upsertEpisodeFilesAtomic } from "@/features/operations/download-support.ts";
+import { upsertEpisodeFilesAtomic } from "@/features/operations/download-episode-upsert-support.ts";
 import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
 
 export interface LibraryScanCounts {

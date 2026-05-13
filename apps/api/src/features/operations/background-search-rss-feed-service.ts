@@ -17,12 +17,12 @@ import {
   decideDownloadAction,
   validateQualityProfileSizeLabels,
 } from "@/features/operations/release-ranking.ts";
-import { loadCurrentEpisodeState } from "@/features/operations/repository/anime-repository.ts";
+import { loadCurrentEpisodeState } from "@/features/anime/anime-read-repository.ts";
 import {
   loadQualityProfile,
   loadReleaseRules,
 } from "@/features/operations/repository/profile-repository.ts";
-import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
+import { getAnimeRowEffect as requireAnime } from "@/features/anime/anime-read-repository.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 export interface BackgroundSearchRssFeedServiceShape {

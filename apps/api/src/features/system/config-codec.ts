@@ -17,6 +17,8 @@ import {
   StringListSchema,
   type UpdateReleaseProfileInput,
 } from "@/features/system/config-schema.ts";
+import { normalizeMetadataProvidersConfig } from "@/features/system/metadata-providers-config.ts";
+import { normalizeQBitTorrentConfig } from "@/features/system/qbittorrent-config.ts";
 
 export type ConfigCore = Schema.Schema.Type<typeof ConfigCoreSchema>;
 export type ConfigCoreEncoded = Schema.Schema.Encoded<typeof ConfigCoreSchema>;
@@ -24,6 +26,19 @@ const StringListJsonSchema = Schema.parseJson(StringListSchema);
 const NumberListJsonSchema = Schema.parseJson(NumberListSchema);
 const ReleaseProfileRulesJsonSchema = Schema.parseJson(ReleaseProfileRulesSchema);
 const ConfigCoreJsonSchema = Schema.parseJson(ConfigCoreSchema);
+
+export const normalizeConfig = Effect.fn("SystemConfig.normalizeConfig")(function* (
+  config: Config,
+) {
+  const qbittorrent = yield* normalizeQBitTorrentConfig(config.qbittorrent);
+  const metadata = yield* normalizeMetadataProvidersConfig(config.metadata);
+
+  return {
+    ...config,
+    metadata,
+    qbittorrent,
+  } satisfies Config;
+});
 
 const QualityProfileRowSchema = Schema.Struct({
   allowedQualities: Schema.String,
