@@ -19,7 +19,9 @@ export function parseReleaseName(title: string): ParsedReleaseName {
     episodeNumbers,
     group: groupMatch?.[1],
     isBatch:
-      episodeNumbers.length > 1 || batchTerms.some((term) => lower.includes(term)) || seasonPack,
+      episodeNumbers.length > 1 ||
+      batchTerms.some((term) => lower.includes(term)) ||
+      (episodeNumbers.length === 0 && seasonPack),
     isSeaDex: false,
     isSeaDexBest: false,
     quality,

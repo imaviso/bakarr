@@ -445,6 +445,19 @@ it("parseReleaseSourceIdentity: S3 - 09 is treated as season+episode, not absolu
   }
 });
 
+it("parseReleaseSourceIdentity: ordinal season title with dash episode is a single episode", () => {
+  const result = parseReleaseSourceIdentity(
+    "[Erai-raws] Re:Zero kara Hajimeru Isekai Seikatsu 4th Season - 01 [1080p CR WEB-DL AVC AAC][MultiSub]",
+  );
+
+  assert.deepStrictEqual(result.kind, "episode");
+  assert.deepStrictEqual(result.source_identity?.scheme, "season");
+  if (result.source_identity?.scheme === "season") {
+    assert.deepStrictEqual(result.source_identity.season, 4);
+    assert.deepStrictEqual(result.source_identity.episode_numbers, [1]);
+  }
+});
+
 it("parseFileSourceIdentity: trailing bracket group is detected", () => {
   const result = parseFileSourceIdentity(
     "Nisemonogatari - S01E01 - Karen Bee, Part 1 -[1920x1080]-[hevc]-[aac][MTBB].mkv",

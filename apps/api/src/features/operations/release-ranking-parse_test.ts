@@ -22,6 +22,15 @@ it("parseReleaseName marks season packs and batch terms as batch releases", () =
   assert.deepStrictEqual(parseReleaseName("[Group] Show - 03 [1080p]").isBatch, false);
 });
 
+it("parseReleaseName treats ordinal season dash episode releases as single episodes", () => {
+  const parsed = parseReleaseName(
+    "[Erai-raws] Re:Zero kara Hajimeru Isekai Seikatsu 4th Season - 01 [1080p CR WEB-DL AVC AAC][MultiSub]",
+  );
+
+  assert.deepStrictEqual(parsed.episodeNumbers, [1]);
+  assert.deepStrictEqual(parsed.isBatch, false);
+});
+
 it("parseEpisodeFromTitle ignores daily source identities", () => {
   assert.deepStrictEqual(parseEpisodeFromTitle("[Group] Show - 2025.03.14 [1080p]"), undefined);
   assert.deepStrictEqual(parseEpisodeNumbersFromTitle("[Group] Show - 02-04 [1080p]"), [2, 3, 4]);

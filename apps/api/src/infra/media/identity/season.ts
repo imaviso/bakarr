@@ -120,6 +120,22 @@ export function parseSeasonEpisodeIdentity(value: string): SeasonEpisodeIdentity
     }
   }
 
+  const ordinalSeasonDashMatch = value.match(
+    /(?:^|[\s._-])(\d{1,2})(?:st|nd|rd|th)[\s._-]+season[\s._-]+(?:-[\s._-]*)?(\d{1,3})(?:[\s._\-[(]|$)/i,
+  );
+  if (ordinalSeasonDashMatch) {
+    const season = Number(ordinalSeasonDashMatch[1]);
+    const ep = Number(ordinalSeasonDashMatch[2]);
+    if (ep > 0 && ep < 2000) {
+      return new SeasonEpisodeIdentity({
+        scheme: "season",
+        season,
+        episode_numbers: [ep],
+        label: `S${String(season).padStart(2, "0")}E${String(ep).padStart(2, "0")}`,
+      });
+    }
+  }
+
   return undefined;
 }
 
