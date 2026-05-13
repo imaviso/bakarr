@@ -12,20 +12,9 @@ import {
 import type { AppConfigOverrides, BootstrapConfigOverrides } from "@/config/schema.ts";
 import { BackgroundWorkerControllerLive } from "@/background/controller-core.ts";
 import { BackgroundTaskRunnerLive } from "@/background/task-runner.ts";
-import { AnimeFileServiceLive } from "@/features/anime/anime-file-service.ts";
-import { AnimeImageCacheServiceLive } from "@/features/anime/anime-image-cache-service.ts";
 import { AnimeEnrollmentServiceLive } from "@/features/anime/anime-enrollment-service.ts";
-import { AnimeMaintenanceServiceLive } from "@/features/anime/anime-maintenance-service.ts";
-import { AnimeMetadataEnrichmentServiceLive } from "@/features/anime/anime-metadata-enrichment-service.ts";
-import { AnimeMetadataProviderServiceLive } from "@/features/anime/anime-metadata-provider-service.ts";
-import { AnimeSeasonalProviderServiceLive } from "@/features/anime/anime-seasonal-provider-service.ts";
-import { AnimeSettingsServiceLive } from "@/features/anime/anime-settings-service.ts";
-import { AnimeStreamServiceLive } from "@/features/anime/anime-stream-service.ts";
-import { AnimeQueryServiceLive } from "@/features/anime/query-service.ts";
-import { StreamTokenSignerLive } from "@/features/anime/stream-token-signer.ts";
-import { AuthBootstrapServiceLive } from "@/features/auth/bootstrap-service.ts";
-import { AuthCredentialServiceLive } from "@/features/auth/credential-service.ts";
-import { AuthSessionServiceLive } from "@/features/auth/session-service.ts";
+import { makeAnimeFeatureLayer } from "@/features/anime/layer.ts";
+import { makeAuthFeatureLayer } from "@/features/auth/layer.ts";
 import { BackgroundSearchQueueServiceLive } from "@/features/operations/background-search-queue-service.ts";
 import { BackgroundSearchRssFeedServiceLive } from "@/features/operations/background-search-rss-feed-service.ts";
 import { BackgroundSearchRssWorkerServiceLive } from "@/features/operations/background-search-rss-worker-service.ts";
@@ -114,29 +103,8 @@ export function makeApiLifecycleLayers(
     runtimeConfigSnapshotLayer,
   );
 
-  // Anime features.
-  const animeImageCacheLayer = AnimeImageCacheServiceLive;
-  const animeMetadataEnrichmentLayer = AnimeMetadataEnrichmentServiceLive;
-  const animeMetadataProviderLayer = AnimeMetadataProviderServiceLive.pipe(
-    Layer.provide(animeMetadataEnrichmentLayer),
-  );
-  const animeMaintenanceLayer = AnimeMaintenanceServiceLive.pipe(
-    Layer.provide(Layer.mergeAll(animeMetadataProviderLayer, animeImageCacheLayer)),
-  );
-  const animeStreamTokenSignerLayer = StreamTokenSignerLive;
-  const animeStreamLayer = AnimeStreamServiceLive.pipe(Layer.provide(animeStreamTokenSignerLayer));
-  const animeSeasonalProviderLayer = AnimeSeasonalProviderServiceLive;
-  const animeLiveLayer = Layer.mergeAll(
-    animeImageCacheLayer,
-    AnimeQueryServiceLive,
-    AnimeFileServiceLive,
-    animeMaintenanceLayer,
-    animeMetadataEnrichmentLayer,
-    animeMetadataProviderLayer,
-    AnimeSettingsServiceLive,
-    animeStreamTokenSignerLayer,
-    animeStreamLayer,
-  ).pipe(Layer.provideMerge(animeSeasonalProviderLayer), Layer.provide(runtimeSupportLayer));
+  // Anime feature graph owns its internal service wiring.
+  const animeLiveLayer = makeAnimeFeatureLayer(runtimeSupportLayer);
 
   // Operations download/runtime features.
   const operationsTaskReadLayer = OperationsTaskReadServiceLive.pipe(
@@ -320,11 +288,7 @@ export function makeApiLifecycleLayers(
     ),
   );
 
-  const authLayer = Layer.mergeAll(
-    AuthBootstrapServiceLive,
-    AuthCredentialServiceLive,
-    AuthSessionServiceLive,
-  ).pipe(Layer.provide(runtimeSupportLayer));
+  const authLayer = makeAuthFeatureLayer(runtimeSupportLayer);
 
   const operationsTaskLauncherLayer = OperationsTaskLauncherServiceLive.pipe(
     Layer.provide(operationsTaskWriteLayer),
