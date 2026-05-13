@@ -223,6 +223,72 @@ it.scoped("JikanClient falls back to basic detail when full endpoint missing", (
   }),
 );
 
+it.scoped("JikanClient falls back to basic detail when full detail decode fails", () =>
+  Effect.gen(function* () {
+    const requests: string[] = [];
+
+    const clientLayer = JikanClientLive.pipe(
+      Layer.provide(
+        Layer.mergeAll(
+          ClockServiceLive,
+          ExternalCallTestLayer,
+          Layer.succeed(
+            HttpClient.HttpClient,
+            HttpClient.make((request) =>
+              Effect.sync(() => {
+                requests.push(request.url);
+
+                if (request.url.endsWith("/anime/21/full")) {
+                  return HttpClientResponse.fromWeb(
+                    request,
+                    new Response(JSON.stringify({ message: "temporary upstream payload" }), {
+                      headers: { "content-type": "application/json" },
+                      status: 200,
+                    }),
+                  );
+                }
+
+                if (request.url.endsWith("/anime/21")) {
+                  return HttpClientResponse.fromWeb(
+                    request,
+                    new Response(JSON.stringify(buildDetailPayload(21)), {
+                      headers: { "content-type": "application/json" },
+                      status: 200,
+                    }),
+                  );
+                }
+
+                return HttpClientResponse.fromWeb(
+                  request,
+                  new Response(JSON.stringify({ data: [] }), {
+                    headers: { "content-type": "application/json" },
+                    status: 200,
+                  }),
+                );
+              }),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    const result = yield* Effect.flatMap(JikanClient, (client) => client.getAnimeByMalId(21)).pipe(
+      Effect.provide(clientLayer),
+    );
+
+    assert.deepStrictEqual(requests, [
+      "https://api.jikan.moe/v4/anime/21/full",
+      "https://api.jikan.moe/v4/anime/21",
+      "https://api.jikan.moe/v4/anime/21/recommendations",
+    ]);
+    assert.deepStrictEqual(Option.isSome(result), true);
+    if (Option.isSome(result)) {
+      assert.deepStrictEqual(result.value.malId, 21);
+      assert.deepStrictEqual(result.value.recommendations, []);
+    }
+  }),
+);
+
 it.scoped("JikanClient returns none when both detail endpoints missing", () =>
   Effect.gen(function* () {
     const clientLayer = JikanClientLive.pipe(

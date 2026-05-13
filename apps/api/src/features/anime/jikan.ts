@@ -117,7 +117,21 @@ const fetchDetail = Effect.fn("JikanClient.fetchDetail")(function* (
   );
 
   if (Option.isSome(fullResponse)) {
-    return yield* decodeFullDetail(fullResponse.value);
+    const fullDetail = yield* decodeFullDetail(fullResponse.value).pipe(
+      Effect.catchTag("ExternalCallError", (error) =>
+        Effect.logWarning("Jikan full detail unavailable; falling back to basic detail").pipe(
+          Effect.annotateLogs({
+            externalOperation: "jikan.detail.full",
+            operation: error.operation,
+          }),
+          Effect.as(Option.none<JikanNormalizedAnime>()),
+        ),
+      ),
+    );
+
+    if (Option.isSome(fullDetail)) {
+      return fullDetail;
+    }
   }
 
   const basicResponse = yield* callJikan(
