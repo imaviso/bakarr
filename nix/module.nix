@@ -120,21 +120,21 @@ in {
       };
 
       metricsExportIntervalMs = lib.mkOption {
-        type = lib.types.nullOr lib.types.positiveInt;
+        type = lib.types.nullOr lib.types.ints.positive;
         default = null;
         example = 60000;
         description = "OTLP metrics export interval in milliseconds.";
       };
 
       tracesExportIntervalMs = lib.mkOption {
-        type = lib.types.nullOr lib.types.positiveInt;
+        type = lib.types.nullOr lib.types.ints.positive;
         default = null;
         example = 1000;
         description = "OTLP traces export interval in milliseconds.";
       };
 
       shutdownTimeoutMs = lib.mkOption {
-        type = lib.types.nullOr lib.types.positiveInt;
+        type = lib.types.nullOr lib.types.ints.positive;
         default = null;
         example = 3000;
         description = "OTLP exporter shutdown timeout in milliseconds.";
