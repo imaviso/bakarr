@@ -38,6 +38,7 @@ declare global {
 type TestContextOptions = {
   readonly jikanLayer?: Layer.Layer<JikanClient>;
   readonly manamiLayer?: Layer.Layer<ManamiClient>;
+  readonly metricsRequireAuth?: boolean;
   readonly qbitLayer?: Layer.Layer<QBitTorrentClient>;
   readonly rssLayer?: Layer.Layer<RssClient>;
   readonly seadexLayer?: Layer.Layer<SeaDexClient>;
@@ -54,7 +55,7 @@ const withTestContextEffect = Effect.fn("Test.withTestContextEffect")(function* 
   readonly run: (ctx: TestContext) => Effect.Effect<A, E, R>;
 }) {
   return yield* Effect.acquireUseRelease(
-    Effect.tryPromise(() => createTestContext(input.options)),
+    Effect.promise(() => createTestContext(input.options)),
     input.run,
     (ctx) => Effect.promise(() => ctx.dispose()),
   );
@@ -64,7 +65,7 @@ const withTempDirEffect = Effect.fn("Test.withTempDirEffect")(function* <A, E, R
   run: (path: string) => Effect.Effect<A, E, R>,
 ) {
   return yield* Effect.acquireUseRelease(
-    Effect.tryPromise(() => makeTempDir()),
+    Effect.promise(() => makeTempDir()),
     run,
     (path) => Effect.promise(() => removePath(path, { recursive: true })),
   );
@@ -78,7 +79,7 @@ function itWithTestContext(
   return it.scoped(name, () => {
     const input = {
       ...(options === undefined ? {} : { options }),
-      run: (ctx: TestContext) => Effect.tryPromise(() => Promise.resolve(run(ctx))),
+      run: (ctx: TestContext) => Effect.promise(() => Promise.resolve(run(ctx))),
     };
 
     return withTestContextEffect(input);
@@ -87,7 +88,7 @@ function itWithTestContext(
 
 async function withTempDir<A>(run: (path: string) => PromiseLike<A> | A): Promise<A> {
   return await Effect.runPromise(
-    Effect.scoped(withTempDirEffect((path) => Effect.tryPromise(() => Promise.resolve(run(path))))),
+    Effect.scoped(withTempDirEffect((path) => Effect.promise(() => Promise.resolve(run(path))))),
   );
 }
 
@@ -138,6 +139,54 @@ itWithTestContext("GET /health returns ok", async (ctx) => {
   assert.deepStrictEqual(response["status"], 200);
   assert.deepStrictEqual(await response.json(), { status: "ok" });
 });
+
+itWithTestContext("GET /api/system/observability returns safe telemetry status", async (ctx) => {
+  const { sessionCookie } = await loginAsBootstrapAdmin(ctx);
+  const response = await ctx.app.request("/api/system/observability", {
+    headers: { Cookie: sessionCookie },
+  });
+
+  assert.deepStrictEqual(response["status"], 200);
+  assert.deepStrictEqual(await response.json(), {
+    environment: null,
+    links: {
+      grafana: null,
+      loki: null,
+      tempo: null,
+      victoriametrics: null,
+    },
+    metrics_endpoint: "/api/metrics",
+    metrics_require_auth: false,
+    otlp_endpoint: null,
+    otlp_enabled: false,
+    service_name: "bakarr-api",
+    service_version: "0.1.0",
+  });
+});
+
+itWithTestContext(
+  "GET /api/metrics records denied auth when auth is required",
+  async (ctx) => {
+    const deniedResponse = await ctx.app.request("/api/metrics");
+
+    assert.deepStrictEqual(deniedResponse["status"], 401);
+
+    const { sessionCookie } = await loginAsBootstrapAdmin(ctx);
+    const metricsResponse = await ctx.app.request("/api/metrics", {
+      headers: { Cookie: sessionCookie },
+    });
+
+    assert.deepStrictEqual(metricsResponse["status"], 200);
+    const metricsText = await metricsResponse.text();
+    assert.deepStrictEqual(
+      metricsText.includes(
+        'bakarr_http_requests_total{method="GET",route="/api/metrics",status="401"} 1',
+      ),
+      true,
+    );
+  },
+  { metricsRequireAuth: true },
+);
 
 itWithTestContext("search releases enriches SeaDex metadata using AniList ID", async (ctx) => {
   const loginResponse = await ctx.app.request("/api/auth/login", {
@@ -3470,9 +3519,7 @@ itWithTestContext("rss task and missing-search task queue downloads", async (ctx
     const queueRssBody = await queueAfterRss.json();
     assert.deepStrictEqual(queueRssBody.length, 1);
 
-    const metricsResponse = await ctx.app.request("/api/metrics", {
-      headers: { Cookie: sessionCookie },
-    });
+    const metricsResponse = await ctx.app.request("/api/metrics");
 
     assert.deepStrictEqual(metricsResponse["status"], 200);
     const metricsText = await metricsResponse.text();
@@ -3488,19 +3535,6 @@ itWithTestContext("rss task and missing-search task queue downloads", async (ctx
       ),
       true,
     );
-    assert.deepStrictEqual(
-      metricsText.includes(
-        'bakarr_http_requests_total{method="GET",route="/api/metrics",status="200"} 1',
-      ),
-      false,
-    );
-    assert.deepStrictEqual(
-      metricsText.includes(
-        'bakarr_http_request_duration_ms_bucket{method="GET",route="/api/metrics",status="200",le="10"}',
-      ),
-      false,
-    );
-
     const searchMissing = await ctx.app.request("/api/downloads/search-missing", {
       body: JSON.stringify({ anime_id: 20 }),
       headers: {
@@ -4776,6 +4810,7 @@ const testManamiLayer = Layer.succeed(ManamiClient, {
 async function createTestContext(options?: {
   jikanLayer?: Layer.Layer<JikanClient>;
   manamiLayer?: Layer.Layer<ManamiClient>;
+  metricsRequireAuth?: boolean;
   qbitLayer?: Layer.Layer<QBitTorrentClient>;
   rssLayer?: Layer.Layer<RssClient>;
   seadexLayer?: Layer.Layer<SeaDexClient>;
@@ -4787,6 +4822,9 @@ async function createTestContext(options?: {
         bootstrapPassword: "admin",
         bootstrapUsername: "admin",
         databaseFile,
+        ...(options?.metricsRequireAuth === undefined
+          ? {}
+          : { metricsRequireAuth: options.metricsRequireAuth }),
         port: 9999,
       },
       {

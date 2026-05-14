@@ -10,6 +10,7 @@ import {
   type AppPlatformRuntimeOptions,
 } from "@/app/platform/runtime-core.ts";
 import type { AppConfigOverrides, BootstrapConfigOverrides } from "@/config/schema.ts";
+import type { ObservabilityConfigOverrides } from "@/config/observability.ts";
 import { BackgroundWorkerControllerLive } from "@/background/controller-core.ts";
 import { BackgroundTaskRunnerLive } from "@/background/task-runner.ts";
 import { AnimeEnrollmentServiceLive } from "@/features/anime/anime-enrollment-service.ts";
@@ -39,7 +40,7 @@ export type ApiLifecycleOptions = AppPlatformRuntimeOptions &
   };
 
 export function makeApiLifecycleLayers(
-  overrides: AppConfigOverrides & BootstrapConfigOverrides = {},
+  overrides: AppConfigOverrides & BootstrapConfigOverrides & ObservabilityConfigOverrides = {},
   options?: ApiLifecycleOptions,
 ) {
   // Platform core: config, database, runtime primitives, logging.

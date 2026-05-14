@@ -12,6 +12,7 @@ import {
   AsyncOperationAcceptedSchema,
   BackgroundJobStatusSchema,
   ConfigSchema,
+  ObservabilityStatusSchema,
   OpsDashboardSchema,
   SystemStatusSchema,
 } from "@bakarr/shared";
@@ -176,4 +177,19 @@ export function useSystemDashboardQuery(options?: { refetchInterval?: number | f
     ...query,
     ...(options?.refetchInterval === undefined ? {} : { refetchInterval: options.refetchInterval }),
   });
+}
+
+export function observabilityStatusQueryOptions() {
+  return queryOptions({
+    queryKey: animeKeys.system.observability(),
+    queryFn: ({ signal }) =>
+      Effect.runPromise(
+        fetchJson(ObservabilityStatusSchema, `${API_BASE}/system/observability`, undefined, signal),
+      ),
+    staleTime: 1000 * 30,
+  });
+}
+
+export function useObservabilityStatusQuery() {
+  return useQuery(observabilityStatusQueryOptions());
 }

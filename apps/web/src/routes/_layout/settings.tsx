@@ -1,5 +1,6 @@
 import {
   ArrowClockwiseIcon,
+  ChartLineUpIcon,
   GearIcon,
   KeyIcon,
   ListChecksIcon,
@@ -9,6 +10,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Schema } from "effect";
 import type { ComponentType } from "react";
 import { AccountSettingsForm } from "~/features/settings/account-settings-form";
+import { ObservabilitySettingsPanel } from "~/features/settings/observability-settings-panel";
 import { QualityProfilesTab } from "~/features/settings/quality-profiles-tab";
 import { ReleaseProfilesTab } from "~/features/settings/release-profiles-tab";
 import { GeneralSettingsForm } from "~/features/settings/system-settings-form";
@@ -30,18 +32,26 @@ import {
   qualitiesQueryOptions,
   releaseProfilesQueryOptions,
 } from "~/api/profiles";
-import { systemConfigQueryOptions } from "~/api/system-config";
+import { observabilityStatusQueryOptions, systemConfigQueryOptions } from "~/api/system-config";
 import { usePageTitle } from "~/domain/page-title";
 import { cn } from "~/infra/utils";
 
 const SettingsTabSchema = Schema.transform(
   Schema.String,
-  Schema.Literal("general", "automation", "profiles", "release-profiles", "account"),
+  Schema.Literal(
+    "general",
+    "automation",
+    "observability",
+    "profiles",
+    "release-profiles",
+    "account",
+  ),
   {
     decode: (s) => {
       switch (s) {
         case "general":
         case "automation":
+        case "observability":
         case "profiles":
         case "release-profiles":
         case "account":
@@ -75,6 +85,7 @@ const SETTINGS_GROUPS: NavGroup[] = [
     items: [
       { value: "general", label: "General", icon: GearIcon },
       { value: "automation", label: "Automation", icon: ArrowClockwiseIcon },
+      { value: "observability", label: "Observability", icon: ChartLineUpIcon },
     ],
   },
   {
@@ -100,6 +111,9 @@ export const Route = createFileRoute("/_layout/settings")({
       case "general":
       case "automation":
         await queryClient.ensureQueryData(systemConfigQueryOptions());
+        return;
+      case "observability":
+        await queryClient.ensureQueryData(observabilityStatusQueryOptions());
         return;
       case "profiles":
         await Promise.all([
@@ -273,6 +287,23 @@ function SettingsPage() {
             {activeTab === "profiles" && (
               <div role="tabpanel" id="panel-profiles" aria-labelledby="tab-profiles">
                 <QualityProfilesTab />
+              </div>
+            )}
+
+            {activeTab === "observability" && (
+              <div
+                role="tabpanel"
+                id="panel-observability"
+                aria-labelledby="tab-observability"
+                className="space-y-6"
+              >
+                <div className="flex flex-col gap-0.5">
+                  <h2 className="font-mono text-sm font-medium tracking-tight">Observability</h2>
+                  <p className="text-xs text-muted-foreground">
+                    Export status, scrape settings, and external observability links
+                  </p>
+                </div>
+                <ObservabilitySettingsPanel />
               </div>
             )}
 

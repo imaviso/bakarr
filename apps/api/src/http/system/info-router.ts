@@ -2,10 +2,12 @@ import { HttpRouter } from "@effect/platform";
 import { Effect } from "effect";
 
 import { BackgroundJobStatusService } from "@/features/system/background-job-status-service.ts";
+import { ObservabilityConfig } from "@/config/observability.ts";
 import {
   decodeOperationsTaskQuery,
   OperationsTaskReadService,
 } from "@/features/operations/operations-task-service.ts";
+import { makeObservabilityStatus } from "@/features/system/observability-status.ts";
 import { SystemReadService } from "@/features/system/system-read-service.ts";
 import {
   OperationsTaskIdParamsSchema,
@@ -19,6 +21,15 @@ import {
 } from "@/http/shared/router-helpers.ts";
 
 export const infoRouter = HttpRouter.empty.pipe(
+  HttpRouter.get(
+    "/api/system/observability",
+    authedRouteResponse(
+      Effect.gen(function* () {
+        return makeObservabilityStatus(yield* ObservabilityConfig);
+      }),
+      jsonResponse,
+    ),
+  ),
   HttpRouter.get(
     "/api/system/dashboard",
     authedRouteResponse(

@@ -85,6 +85,7 @@ export const animeKeys = {
     all: ["system"] as const,
     config: () => ["system", "config"] as const,
     dashboard: () => ["system", "dashboard"] as const,
+    observability: () => ["system", "observability"] as const,
     tasks: {
       all: () => ["system", "tasks"] as const,
       byId: (taskId: number) => ["system", "tasks", taskId] as const,
