@@ -76,21 +76,26 @@ export const routeResponse = <A, E, R, E2, R2>(
 
     return yield* effect.pipe(
       Effect.flatMap(onSuccess),
-      Effect.tapErrorCause((cause) =>
-        Effect.logError("HTTP route failed").pipe(
-          Effect.annotateLogs({
-            cause: Cause.pretty(cause),
-            http_method: request.method,
-            http_path: url.pathname,
-          }),
-        ),
-      ),
       Effect.catchAllCause((cause) =>
-        Effect.sync(() => {
+        Effect.gen(function* () {
           const mapped = Option.match(Cause.failureOption(cause), {
             onNone: () => mapError(cause),
             onSome: (error) => mapError(error),
           });
+
+          yield* (
+            mapped.status >= 500
+              ? Effect.logError("HTTP route failed")
+              : Effect.logDebug("HTTP route failed")
+          ).pipe(
+            Effect.annotateLogs({
+              cause: Cause.pretty(cause),
+              http_method: request.method,
+              http_path: url.pathname,
+              http_status: mapped.status,
+            }),
+          );
+
           const response = HttpServerResponse.text(mapped.message, {
             status: mapped.status,
           });

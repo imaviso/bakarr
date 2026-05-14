@@ -7,9 +7,9 @@ import {
   RenamePreviewItemSchema,
   RenameResultSchema,
 } from "@bakarr/shared";
-import { Effect, Schema } from "effect";
+import { Schema } from "effect";
 import { API_BASE } from "~/api/constants";
-import { fetchJson, fetchUnit } from "~/api/effect/api-client";
+import { fetchJson, fetchUnit, runApiEffect } from "~/api/effect/api-client";
 import { animeKeys } from "./keys";
 
 const AnimeEpisodeStreamUrlSchema = Schema.Struct({ url: Schema.String });
@@ -18,7 +18,7 @@ export function authMeQueryOptions() {
   return queryOptions({
     queryKey: animeKeys.auth.me(),
     queryFn: ({ signal }) =>
-      Effect.runPromise(fetchJson(AuthUserSchema, `${API_BASE}/auth/me`, undefined, signal)),
+      runApiEffect(fetchJson(AuthUserSchema, `${API_BASE}/auth/me`, undefined, signal)),
     staleTime: Infinity,
   });
 }
@@ -31,9 +31,7 @@ export function authApiKeyQueryOptions() {
   return queryOptions({
     queryKey: animeKeys.auth.apiKey(),
     queryFn: ({ signal }) =>
-      Effect.runPromise(
-        fetchJson(ApiKeyResponseSchema, `${API_BASE}/auth/api-key`, undefined, signal),
-      ),
+      runApiEffect(fetchJson(ApiKeyResponseSchema, `${API_BASE}/auth/api-key`, undefined, signal)),
     staleTime: Infinity,
   });
 }
@@ -45,7 +43,7 @@ export function useAuthApiKeyQuery() {
 export function useLoginMutation() {
   return useMutation({
     mutationFn: (data: LoginRequest) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(LoginResponseSchema, `${API_BASE}/auth/login`, {
           method: "POST",
           body: data,
@@ -57,7 +55,7 @@ export function useLoginMutation() {
 export function useApiKeyLoginMutation() {
   return useMutation({
     mutationFn: (data: ApiKeyLoginRequest) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(LoginResponseSchema, `${API_BASE}/auth/login/api-key`, {
           method: "POST",
           body: data,
@@ -69,7 +67,7 @@ export function useApiKeyLoginMutation() {
 export function useChangePasswordMutation() {
   return useMutation({
     mutationFn: (data: ChangePasswordRequest) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchUnit(`${API_BASE}/auth/password`, {
           method: "PUT",
           body: data,
@@ -82,7 +80,7 @@ export function useRegenerateApiKeyMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(ApiKeyResponseSchema, `${API_BASE}/auth/api-key/regenerate`, {
           method: "POST",
         }),
@@ -97,7 +95,7 @@ export function renamePreviewQueryOptions(id: number) {
   return queryOptions({
     queryKey: animeKeys.renamePreview(id),
     queryFn: ({ signal }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(
           Schema.Array(RenamePreviewItemSchema),
           `${API_BASE}/anime/${id}/rename-preview`,
@@ -118,7 +116,7 @@ export function useRenamePreviewQuery(id: number, options?: { enabled?: boolean 
 export function useAnimeEpisodeStreamUrlMutation() {
   return useMutation({
     mutationFn: (input: { animeId: number; episodeNumber: number }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(
           AnimeEpisodeStreamUrlSchema,
           `${API_BASE}/anime/${input.animeId}/stream-url?episodeNumber=${input.episodeNumber}`,
@@ -131,7 +129,7 @@ export function useExecuteRenameMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: number) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(RenameResultSchema, `${API_BASE}/anime/${id}/rename`, {
           method: "POST",
         }),

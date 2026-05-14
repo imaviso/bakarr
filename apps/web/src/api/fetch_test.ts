@@ -1,6 +1,13 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import { Effect, Schema } from "effect";
-import { fetchJson, fetchResponse, mergeHeaders } from "./effect/api-client";
+import {
+  ApiUnauthorizedError,
+  fetchJson,
+  fetchResponse,
+  isApiUnauthorizedError,
+  mergeHeaders,
+  runApiEffect,
+} from "./effect/api-client";
 
 interface FetchResponseStub {
   json: () => Promise<unknown>;
@@ -135,4 +142,11 @@ it("fetchResponse returns ApiUnauthorizedError on 401", async () => {
   );
 
   await expect(Effect.runPromise(fetchResponse("/api/protected"))).rejects.toThrow("Unauthorized");
+});
+
+it("runApiEffect rejects with typed API failures", async () => {
+  const error = new ApiUnauthorizedError({ message: "Unauthorized" });
+
+  await expect(runApiEffect(Effect.fail(error))).rejects.toBe(error);
+  expect(isApiUnauthorizedError(error)).toBe(true);
 });

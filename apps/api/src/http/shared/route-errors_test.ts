@@ -1,6 +1,9 @@
 import { assert, it } from "@effect/vitest";
+import { HttpServerRequest, HttpServerResponse } from "@effect/platform";
+import { Effect, Logger } from "effect";
 
 import { DatabaseError } from "@/db/database.ts";
+import { AuthError } from "@/features/auth/errors.ts";
 import { AnimeConflictError, AnimeNotFoundError, AnimePathError } from "@/features/anime/errors.ts";
 import {
   DownloadConflictError,
@@ -32,6 +35,7 @@ import {
   EpisodeStreamRangeError,
 } from "@/features/anime/anime-stream-errors.ts";
 import { RequestValidationError } from "@/http/shared/route-validation.ts";
+import { routeResponse } from "@/http/shared/router-helpers.ts";
 
 it("route errors maps known tagged errors to expected responses", () => {
   const cases = [
@@ -203,3 +207,28 @@ it("auth route errors map auth failures locally", () => {
     },
   );
 });
+
+it.effect("route responses log mapped client errors below error level", () =>
+  Effect.gen(function* () {
+    const logs: Array<{ level: string; message: string }> = [];
+    const logger = Logger.make<unknown, void>(({ logLevel, message }) => {
+      logs.push({ level: logLevel.label, message: String(message) });
+    });
+    const request = HttpServerRequest.fromWeb(new Request("http://localhost/api/auth/me"));
+
+    const response = yield* routeResponse(
+      Effect.fail(new AuthError({ message: "Unauthorized", status: 401 })),
+      (value) => HttpServerResponse.json(value),
+      mapAuthRouteError,
+    ).pipe(
+      Effect.provideService(HttpServerRequest.HttpServerRequest, request),
+      Effect.provide(Logger.replace(Logger.defaultLogger, logger)),
+    );
+
+    assert.deepStrictEqual(HttpServerResponse.toWeb(response).status, 401);
+    assert.deepStrictEqual(
+      logs.some((log) => log.message.includes("HTTP route failed") && log.level === "ERROR"),
+      false,
+    );
+  }),
+);

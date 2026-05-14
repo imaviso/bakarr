@@ -1,4 +1,4 @@
-import { Effect, Schema } from "effect";
+import { Cause, Effect, Exit, Option, Schema } from "effect";
 import { getAuthHeaders } from "~/app/auth-state";
 
 export class ApiClientError extends Schema.TaggedError<ApiClientError>()("ApiClientError", {
@@ -15,6 +15,21 @@ export class ApiUnauthorizedError extends Schema.TaggedError<ApiUnauthorizedErro
   "ApiUnauthorizedError",
   { message: Schema.String },
 ) {}
+
+export function isApiUnauthorizedError(error: unknown): error is ApiUnauthorizedError {
+  return error instanceof ApiUnauthorizedError;
+}
+
+export async function runApiEffect<A, E>(effect: Effect.Effect<A, E>): Promise<A> {
+  const exit = await Effect.runPromiseExit(effect);
+
+  if (Exit.isSuccess(exit)) return exit.value;
+
+  const failure = Cause.failureOption(exit.cause);
+  if (Option.isSome(failure)) throw failure.value;
+
+  throw Cause.pretty(exit.cause);
+}
 
 export interface ApiRequestOptions {
   readonly method?: string;
