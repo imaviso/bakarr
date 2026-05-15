@@ -4,38 +4,40 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun run --watch main.ts",
-    "start": "bun run main.ts",
-    "build": "bun run generate:embedded-artifacts && bun build --production --compile --bytecode --minify --sourcemap --format=esm --outfile=./build/bakarr ./main.ts",
+    "dev": "tsx watch main.ts",
+    "start": "node build/main.js",
+    "build": "tsx ./tools/generate-embedded-artifacts.ts && rolldown -c",
     "check": "tsc --noEmit",
-    "generate:embedded-artifacts": "bun run ./tools/generate-embedded-artifacts.ts",
+    "generate:embedded-artifacts": "tsx ./tools/generate-embedded-artifacts.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "db:generate": "bunx drizzle-kit generate",
-    "db:migrate": "bunx drizzle-kit migrate",
-    "db:push": "bunx drizzle-kit push",
-    "db:studio": "bunx drizzle-kit studio"
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "@bakarr/shared": "workspace:*",
     "@effect/experimental": "^0.60.0",
     "@effect/opentelemetry": "^0.63.0",
     "@effect/platform": "^0.96.1",
-    "@effect/platform-bun": "^0.89.0",
+    "@effect/platform-node": "^0.106.0",
     "@effect/sql": "^0.51.1",
     "@effect/sql-drizzle": "^0.50.0",
-    "@effect/sql-sqlite-bun": "^0.52.0",
+    "@effect/sql-sqlite-node": "^0.52.0",
     "@opentelemetry/api": "^1.9.1",
+    "better-sqlite3": "^12.5.0",
     "drizzle-orm": "^0.45.2",
     "effect": "^3.21.2",
     "fast-xml-parser": "^5.8.0",
     "ipaddr.js": "^2.4.0"
   },
   "devDependencies": {
-    "@effect/sql-sqlite-node": "^0.52.0",
     "@effect/vitest": "^0.29.0",
     "@types/node": "25.5.0",
     "drizzle-kit": "^0.31.10",
-    "typescript": "^5.9.3"
+    "rolldown": "^1.0.0",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3"
   }
 }

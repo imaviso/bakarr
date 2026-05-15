@@ -46,7 +46,7 @@ type TestContextOptions = {
 
 type TestContext = Awaited<ReturnType<typeof createTestContext>>;
 type EventsReader = {
-  readonly read: () => Promise<{ readonly done: boolean; readonly value?: Uint8Array }>;
+  readonly read: () => Promise<ReadableStreamReadResult<Uint8Array>>;
   readonly cancel: () => Promise<void>;
 };
 

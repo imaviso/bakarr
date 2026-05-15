@@ -28,7 +28,7 @@ compatibility layers.
 ## Runtime Entry Points
 
 - Use platform `runMain` only at executable boundaries.
-- In `apps/api`, prefer `BunRuntime.runMain(...)`.
+- In `apps/api`, prefer `NodeRuntime.runMain(...)`.
 - Build one main effect or launched layer, then provide the full app layer once
   near the entrypoint.
 - Put teardown in scoped effects or layers with `Effect.acquireRelease(...)`,
@@ -349,7 +349,7 @@ describe("job", () => {
 ## Representative Effect Repo References
 
 - Runtime boundary: `packages/sql-clickhouse/examples/basic.ts`
-- Bun HTTP client service: `packages/platform-bun/examples/http-client.ts`
+- Node.js HTTP client service: `packages/platform-node/examples/http-client.ts`
 - Service ergonomics: `packages/effect/test/Effect/service.test.ts`
 - `Effect.fn` behavior: `packages/effect/test/Effect/fn.test.ts`
 - Config providers: `packages/platform-node/test/PlatformConfigProvider.test.ts`

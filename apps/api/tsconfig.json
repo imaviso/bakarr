@@ -1,6 +1,7 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "paths": {
       "@/*": ["./src/*"],
       "@packages/shared/*": ["../../packages/shared/src/*"]
@@ -10,5 +11,6 @@
         "name": "@effect/language-service"
       }
     ]
-  }
+  },
+  "exclude": ["build", "node_modules"]
 }

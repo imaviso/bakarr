@@ -68,7 +68,7 @@ function createAssetResponse(input: {
 
 export function bundleUnavailableResponse() {
   return HttpServerResponse.text(
-    "Frontend bundle unavailable. Build apps/web and run `bun run --cwd apps/api generate:embedded-artifacts`.",
+    "Frontend bundle unavailable. Build apps/web and run `pnpm --filter @bakarr/api generate:embedded-artifacts`.",
     {
       headers: { "Content-Type": "text/plain; charset=utf-8" },
       status: 503,

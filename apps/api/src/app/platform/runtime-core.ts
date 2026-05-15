@@ -1,5 +1,5 @@
 import { FetchHttpClient } from "@effect/platform";
-import { BunContext } from "@effect/platform-bun";
+import * as NodeContext from "@effect/platform-node/NodeContext";
 import { ConfigProvider, Layer } from "effect";
 
 import { AppRuntime } from "@/app/runtime.ts";
@@ -56,7 +56,7 @@ export function makeAppPlatformCoreRuntimeLayer(
   );
 
   const platformCoreLayer = Layer.mergeAll(
-    BunContext.layer,
+    NodeContext.layer,
     runtimeSupportLayer,
     configLayer,
     runtimeLayer,

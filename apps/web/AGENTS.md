@@ -41,7 +41,7 @@ validateSearch: (search) => Schema.decodeUnknownSync(MySearchSchema)(search);
 
 ## Commands
 
-- `bun run check` — tsc --noEmit
-- `bun run test` — vitest run
-- `bun run build` — vite build
-- `bun run lint` — `bun run oxlint --type-aware` (root)
+- `pnpm check` — tsc --noEmit
+- `pnpm test` — vitest run
+- `pnpm build` — vite build
+- `pnpm lint` — `oxlint --type-aware` (root)

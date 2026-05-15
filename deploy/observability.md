@@ -12,7 +12,7 @@ Run API with OTLP enabled:
 OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 \
 OTEL_SERVICE_NAME=bakarr-api \
 OTEL_DEPLOYMENT_ENVIRONMENT=local \
-bun run dev:api
+pnpm dev:api
 ```
 
 Grafana opens at `http://localhost:3000`. Anonymous admin is enabled for local

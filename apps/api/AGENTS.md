@@ -1,6 +1,6 @@
 # apps/api
 
-- Bun-based API for Bakarr, powered by Effect, Drizzle, and SQLite.
+- Node.js API for Bakarr, powered by Effect, Drizzle, and SQLite.
 - `src/features/` contains domain services, orchestration, and live layers; `src/http/` keeps route adapters thin; `src/infra/` holds shared Effect utilities; `src/db/` owns schema and persistence.
 - Follow `EFFECT_GUIDE.md`: prefer `Effect.gen`, `Effect.fn`, `Context.Tag`, `Layer.*`, and `Schema`-first modeling over compatibility layers or manual dependency bags.
 - Read `CONTEXT.md` for API codebase context.

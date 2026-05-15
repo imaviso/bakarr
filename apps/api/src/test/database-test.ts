@@ -2,7 +2,7 @@ import * as Context from "effect/Context";
 import * as Layer from "effect/Layer";
 import * as SqlClient from "@effect/sql/SqlClient";
 import * as SqliteDrizzle from "@effect/sql-drizzle/Sqlite";
-import * as BunSqliteClient from "@effect/sql-sqlite-bun/SqliteClient";
+import * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
 import type { SqliteRemoteDatabase } from "drizzle-orm/sqlite-proxy";
 import { Effect } from "effect";
 
@@ -17,16 +17,15 @@ export const withSqliteRawClientEffect = Effect.fn("Test.withSqliteRawClientEffe
 >(input: {
   readonly databaseFile: string;
   readonly readwrite?: boolean;
-  readonly run: (client: BunSqliteClient.SqliteClient) => Effect.Effect<A, E, R>;
+  readonly run: (client: NodeSqliteClient.SqliteClient) => Effect.Effect<A, E, R>;
 }) {
   const clientContext = yield* Layer.build(
-    BunSqliteClient.layer({
-      create: true,
+    NodeSqliteClient.layer({
       filename: input.databaseFile,
-      readwrite: input.readwrite ?? true,
+      readonly: input.readwrite === false,
     }),
   );
-  const client = Context.get(clientContext, BunSqliteClient.SqliteClient);
+  const client = Context.get(clientContext, NodeSqliteClient.SqliteClient);
 
   return yield* input.run(client);
 });
@@ -40,7 +39,7 @@ export const withSqliteTestDbEffect = Effect.fn("Test.withSqliteTestDbEffect")(f
   readonly run: (
     db: SqliteRemoteDatabase<TSchema>,
     databaseFile: string,
-    client: BunSqliteClient.SqliteClient,
+    client: NodeSqliteClient.SqliteClient,
   ) => Effect.Effect<A, E, R>;
   readonly schema: TSchema;
 }) {

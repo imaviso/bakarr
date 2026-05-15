@@ -1,8 +1,9 @@
 import { HttpServer } from "@effect/platform";
-import { BunFileSystem } from "@effect/platform-bun";
-import * as BunHttpServer from "@effect/platform-bun/BunHttpServer";
-import * as BunRuntime from "@effect/platform-bun/BunRuntime";
+import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem";
+import * as NodeHttpServer from "@effect/platform-node/NodeHttpServer";
+import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
 import { Effect, Layer } from "effect";
+import { createServer } from "node:http";
 
 import { makeDotenvConfigProvider } from "./src/config/provider.ts";
 import { createHttpApp } from "./src/http/http-app.ts";
@@ -13,8 +14,6 @@ import {
   startBackgroundWorkers,
 } from "./src/app/startup.ts";
 import { makeApiLifecycleLayers } from "./src/app/lifecycle-layers.ts";
-
-const SERVER_IDLE_TIMEOUT_SECONDS = 0;
 
 /**
  * Startup sequence (blocking, ordered, fail-fast):
@@ -43,18 +42,13 @@ const mainProgram = Effect.fn("api.main")(function* () {
 
   return yield* Layer.launch(
     HttpServer.serve(httpApp).pipe(
-      Layer.provide(
-        BunHttpServer.layer({
-          idleTimeout: SERVER_IDLE_TIMEOUT_SECONDS,
-          port: config.port,
-        }),
-      ),
+      Layer.provide(NodeHttpServer.layer(() => createServer(), { port: config.port })),
     ),
   );
 });
 
 const loadDotenvConfigProvider = Effect.fn("api.loadDotenvConfigProvider")(function* () {
-  return yield* makeDotenvConfigProvider().pipe(Effect.provide(BunFileSystem.layer));
+  return yield* makeDotenvConfigProvider().pipe(Effect.provide(NodeFileSystem.layer));
 });
 
 const runApiProgram = Effect.fn("api.run")(function* () {
@@ -65,5 +59,5 @@ const runApiProgram = Effect.fn("api.run")(function* () {
 });
 
 if (import.meta.main) {
-  BunRuntime.runMain(runApiProgram());
+  NodeRuntime.runMain(runApiProgram());
 }

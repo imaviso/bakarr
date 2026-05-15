@@ -8,7 +8,7 @@ extra abstractions, no future proofing, no defensive code. Avoid one-line wrappe
 
 ## Repo Overview
 
-- `apps/api`: Bun API built with Effect, Drizzle, SQLite
+- `apps/api`: Node.js API built with Effect, Drizzle, SQLite
 - `apps/web`: React app with TanStack Router/Query
 - `packages/shared`: shared API types
 
@@ -22,7 +22,6 @@ extra abstractions, no future proofing, no defensive code. Avoid one-line wrappe
 
 ## Commands
 
-- root: `bun run dev`, `bun run check`, `bun run test`, `bun run build`,
-  `bun run lint`
-- api: `bun run check`, `bun run test`
-- web: `bun run check`, `bun run build`
+- root: `pnpm dev`, `pnpm check`, `pnpm test`, `pnpm build`, `pnpm lint`
+- api: `pnpm --filter @bakarr/api check`, `pnpm --filter @bakarr/api test`
+- web: `pnpm --filter @bakarr/web check`, `pnpm --filter @bakarr/web build`

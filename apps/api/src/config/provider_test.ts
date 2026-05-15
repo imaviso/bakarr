@@ -1,4 +1,4 @@
-import { BunFileSystem } from "@effect/platform-bun";
+import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem";
 import { randomUUID } from "node:crypto";
 import { rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -8,7 +8,7 @@ import { Cause, Config, ConfigProvider, Effect, Exit, Redacted } from "effect";
 
 import { makeDotenvConfigProvider } from "@/config/provider.ts";
 
-const withBunFs = Effect.provide(BunFileSystem.layer);
+const withNodeFs = Effect.provide(NodeFileSystem.layer);
 
 it.scoped("dotenv provider uses .env values when env vars are missing", () =>
   withTempEnvFile(
@@ -22,7 +22,7 @@ it.scoped("dotenv provider uses .env values when env vars are missing", () =>
         const provider = yield* makeDotenvConfigProvider({
           envProvider: ConfigProvider.fromMap(new Map()),
           path: dotenvFile,
-        }).pipe(withBunFs);
+        }).pipe(withNodeFs);
 
         const result = yield* Effect.gen(function* () {
           const port = yield* Config.number("PORT");
@@ -49,7 +49,7 @@ it.scoped("dotenv provider prioritizes environment variables over .env", () =>
       const provider = yield* makeDotenvConfigProvider({
         envProvider: ConfigProvider.fromMap(new Map([["PORT", "9300"]])),
         path: dotenvFile,
-      }).pipe(withBunFs);
+      }).pipe(withNodeFs);
 
       const result = yield* Config.number("PORT").pipe(Effect.withConfigProvider(provider));
 
@@ -63,7 +63,7 @@ it.scoped("dotenv provider handles missing dotenv file", () =>
     const provider = yield* makeDotenvConfigProvider({
       envProvider: ConfigProvider.fromMap(new Map([["SESSION_COOKIE_NAME", "from-env"]])),
       path: "./missing-dotenv-file.env",
-    }).pipe(withBunFs);
+    }).pipe(withNodeFs);
 
     const value = yield* Config.string("SESSION_COOKIE_NAME").pipe(
       Effect.withConfigProvider(provider),
@@ -87,7 +87,7 @@ it.scoped("dotenv provider parses export comments and quoted values", () =>
         const provider = yield* makeDotenvConfigProvider({
           envProvider: ConfigProvider.fromMap(new Map()),
           path: dotenvFile,
-        }).pipe(withBunFs);
+        }).pipe(withNodeFs);
 
         const result = yield* Effect.gen(function* () {
           const username = yield* Config.string("BAKARR_BOOTSTRAP_USERNAME");
@@ -118,7 +118,7 @@ it.scoped("dotenv provider fails with line information on parse errors", () =>
   withTempEnvFile(["PORT=9402", "INVALID_LINE"].join("\n"), (dotenvFile) =>
     Effect.gen(function* () {
       const exit = yield* Effect.exit(
-        makeDotenvConfigProvider({ path: dotenvFile }).pipe(withBunFs),
+        makeDotenvConfigProvider({ path: dotenvFile }).pipe(withNodeFs),
       );
 
       assert.deepStrictEqual(Exit.isFailure(exit), true);

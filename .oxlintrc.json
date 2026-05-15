@@ -3,7 +3,7 @@
   "ignorePatterns": [
     "dist",
     "node_modules",
-    "bun.lock",
+    "pnpm-lock.yaml",
     "*.tsbuildinfo",
     "**/routeTree.gen.ts",
     "apps/api/src/generated"

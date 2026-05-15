@@ -1,5 +1,5 @@
 import * as SqliteDrizzle from "@effect/sql-drizzle/Sqlite";
-import * as BunSqliteClient from "@effect/sql-sqlite-bun/SqliteClient";
+import * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
 import { Context, Effect, Layer, Schema } from "effect";
 import type { SqliteRemoteDatabase } from "drizzle-orm/sqlite-proxy";
 
@@ -28,7 +28,7 @@ export function isBusySqliteCause(cause: unknown): boolean {
 }
 
 export interface DatabaseService {
-  readonly client: BunSqliteClient.SqliteClient;
+  readonly client: NodeSqliteClient.SqliteClient;
   readonly db: AppDatabase;
 }
 
@@ -41,14 +41,14 @@ const sqliteSetupError = (cause: unknown) =>
   });
 
 const executeSql = Effect.fn("Database.executeSql")(function* <A extends Record<string, unknown>>(
-  client: BunSqliteClient.SqliteClient,
+  client: NodeSqliteClient.SqliteClient,
   statement: string,
 ) {
   return yield* client.unsafe<A>(statement).pipe(Effect.mapError(sqliteSetupError));
 });
 
 export const setAndVerifyPragmas = Effect.fn("Database.setAndVerifyPragmas")(function* (
-  client: BunSqliteClient.SqliteClient,
+  client: NodeSqliteClient.SqliteClient,
 ) {
   yield* executeSql(client, "PRAGMA journal_mode = WAL");
   yield* executeSql(client, "PRAGMA foreign_keys = ON");
@@ -91,7 +91,7 @@ function firstRowValue(row: Record<string, unknown> | undefined) {
 }
 
 const makeDatabase = Effect.gen(function* () {
-  const client = yield* BunSqliteClient.SqliteClient;
+  const client = yield* NodeSqliteClient.SqliteClient;
 
   yield* setAndVerifyPragmas(client);
 
@@ -109,10 +109,8 @@ export const DatabaseSqlClientLive = Layer.unwrapEffect(
   Effect.gen(function* () {
     const config = yield* AppConfig;
 
-    return BunSqliteClient.layer({
-      create: true,
+    return NodeSqliteClient.layer({
       filename: config.databaseFile,
-      readwrite: true,
     }).pipe(Layer.mapError(sqliteSetupError));
   }),
 );

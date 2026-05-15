@@ -4,50 +4,49 @@ Anime library manager monorepo.
 
 ## Apps
 
-- `apps/api` - Bun + Effect
+- `apps/api` - Node.js + Effect
 - `apps/web` - React frontend
 - `packages/shared` - shared transport/types
 
 ## Workspace
 
-- runtime and task runner: `bun`
+- runtime and task runner: Node.js + `pnpm`
 - workspace config: `package.json` workspaces
-- dependencies are installed with Bun
+- dependencies are installed with pnpm
 
 ## Common Commands
 
 From the repo root:
 
 ```sh
-bun run dev
-bun run dev:api
-bun run dev:web
-bun run check
-bun run test
-bun run build
-bun run lint
+pnpm dev
+pnpm dev:api
+pnpm dev:web
+pnpm check
+pnpm test
+pnpm build
+pnpm lint
 ```
 
 API checks:
 
 ```sh
-bun run check:api
-bun run --cwd apps/api check
-bun run --cwd apps/api test
+pnpm check:api
+pnpm --filter @bakarr/api check
+pnpm --filter @bakarr/api test
 ```
 
 Web checks:
 
 ```sh
-bun run check:web
-bun run lint:web
-bun run --cwd apps/web build
-bun run --cwd apps/web check
+pnpm check:web
+pnpm --filter @bakarr/web build
+pnpm --filter @bakarr/web check
 ```
 
 ## Nix
 
-This repo now exposes a Bun-based package and a NixOS module from `flake.nix`.
+This repo exposes a Node.js-based package and a NixOS module from `flake.nix`.
 
 Build and run locally:
 

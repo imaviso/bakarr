@@ -1,5 +1,6 @@
 import { FileSystem as PlatformFileSystem, Path as PlatformPath } from "@effect/platform";
-import { BunFileSystem, BunPath } from "@effect/platform-bun";
+import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem";
+import * as NodePath from "@effect/platform-node/NodePath";
 import { Context, Effect, Layer, Option, Schema, Scope, Stream } from "effect";
 
 export {
@@ -302,16 +303,16 @@ const FileSystemFromPlatform = Layer.effect(
 );
 
 export const FileSystemLive = FileSystemFromPlatform.pipe(
-  Layer.provide(Layer.mergeAll(BunFileSystem.layer, BunPath.layer)),
+  Layer.provide(Layer.mergeAll(NodeFileSystem.layer, NodePath.layer)),
 );
 
 export const FileSystemNoop = FileSystemFromPlatform.pipe(
-  Layer.provide(Layer.mergeAll(PlatformFileSystem.layerNoop({}), BunPath.layer)),
+  Layer.provide(Layer.mergeAll(PlatformFileSystem.layerNoop({}), NodePath.layer)),
 );
 
 export function makeFileSystemNoopLayer(overrides: Partial<PlatformFileSystem.FileSystem>) {
   return FileSystemFromPlatform.pipe(
-    Layer.provide(Layer.mergeAll(PlatformFileSystem.layerNoop(overrides), BunPath.layer)),
+    Layer.provide(Layer.mergeAll(PlatformFileSystem.layerNoop(overrides), NodePath.layer)),
   );
 }
 

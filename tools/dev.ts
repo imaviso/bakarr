@@ -1,9 +1,13 @@
+import { spawn, type ChildProcess } from "node:child_process";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
 type WorkspaceTask = {
   name: string;
   cwd: string;
 };
 
-const workspaceRoot = `${import.meta.dirname}/..`;
+const workspaceRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 const tasks: WorkspaceTask[] = [
   { name: "api", cwd: `${workspaceRoot}/apps/api` },
@@ -12,11 +16,9 @@ const tasks: WorkspaceTask[] = [
 
 const children = tasks.map((task) => ({
   task,
-  child: Bun.spawn(["bun", "run", "dev"], {
+  child: spawn("pnpm", ["dev"], {
     cwd: task.cwd,
-    stdin: "inherit",
-    stdout: "inherit",
-    stderr: "inherit",
+    stdio: "inherit",
   }),
 }));
 
@@ -50,7 +52,7 @@ process.on("SIGTERM", () => shutdown("SIGTERM"));
 
 await Promise.allSettled(
   children.map(async ({ task, child }) => {
-    const code = await child.exited;
+    const code = await waitForExit(child);
 
     if (code !== 0 && exitCode === 0) {
       exitCode = code;
@@ -64,3 +66,16 @@ await Promise.allSettled(
 );
 
 process.exit(exitCode);
+
+function waitForExit(child: ChildProcess) {
+  return new Promise<number>((resolveExit) => {
+    child.once("exit", (code, signal) => {
+      if (typeof code === "number") {
+        resolveExit(code);
+        return;
+      }
+
+      resolveExit(signal === "SIGINT" ? 130 : signal === "SIGTERM" ? 143 : 1);
+    });
+  });
+}

@@ -1,4 +1,4 @@
-import * as BunSqliteClient from "@effect/sql-sqlite-bun/SqliteClient";
+import * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
 import { HttpClient, HttpClientRequest } from "@effect/platform";
 import { dirname, join, resolve } from "node:path";
 import { Context, Effect, Layer, Option, Schema } from "effect";
@@ -112,10 +112,8 @@ export const ManamiClientLive = Layer.scoped(
       ),
     );
     const sqliteContext = yield* Layer.build(
-      BunSqliteClient.layer({
-        create: true,
+      NodeSqliteClient.layer({
         filename: cachePaths.sqliteFile,
-        readwrite: true,
       }),
     ).pipe(
       Effect.mapError((cause) =>
@@ -126,7 +124,7 @@ export const ManamiClientLive = Layer.scoped(
         }),
       ),
     );
-    const sqliteClient = Context.get(sqliteContext, BunSqliteClient.SqliteClient);
+    const sqliteClient = Context.get(sqliteContext, NodeSqliteClient.SqliteClient);
 
     const refreshRunner = yield* makeSingleFlightEffectRunner(
       refreshSqliteCacheIfNeeded(client, clock, externalCall, fs, sqliteClient, cachePaths),
@@ -298,7 +296,7 @@ const refreshSqliteCacheIfNeeded = Effect.fn("ManamiClient.refreshSqliteCacheIfN
   clock: ClockServiceShape,
   externalCall: ExternalCallShape,
   fs: FileSystemShape,
-  sqliteClient: BunSqliteClient.SqliteClient,
+  sqliteClient: NodeSqliteClient.SqliteClient,
   paths: ManamiCachePaths,
 ) {
   const now = yield* clock.currentTimeMillis;
@@ -328,14 +326,14 @@ const refreshSqliteCacheIfNeeded = Effect.fn("ManamiClient.refreshSqliteCacheIfN
 
 const inspectSqliteCacheState: (
   fs: FileSystemShape,
-  sqliteClient: BunSqliteClient.SqliteClient,
+  sqliteClient: NodeSqliteClient.SqliteClient,
   paths: ManamiCachePaths,
   now: number,
 ) => Effect.Effect<CacheState, ExternalCallError> = Effect.fn(
   "ManamiClient.inspectSqliteCacheState",
 )(function* (
   fs: FileSystemShape,
-  sqliteClient: BunSqliteClient.SqliteClient,
+  sqliteClient: NodeSqliteClient.SqliteClient,
   paths: ManamiCachePaths,
   now: number,
 ) {
@@ -529,7 +527,7 @@ const downloadManamiDataset = Effect.fn("ManamiClient.downloadDataset")(function
 
 const buildLookupSqliteCache = Effect.fn("ManamiClient.buildLookupSqliteCache")(
   (
-    sqliteClient: BunSqliteClient.SqliteClient,
+    sqliteClient: NodeSqliteClient.SqliteClient,
     dataset: ManamiDataset,
   ): Effect.Effect<void, ExternalCallError> =>
     sqliteClient
@@ -708,7 +706,7 @@ const buildLookupSqliteCache = Effect.fn("ManamiClient.buildLookupSqliteCache")(
 );
 
 const hasLookupSqliteSchema = Effect.fn("ManamiClient.hasLookupSqliteSchema")(
-  (sqliteClient: BunSqliteClient.SqliteClient): Effect.Effect<boolean, ExternalCallError> =>
+  (sqliteClient: NodeSqliteClient.SqliteClient): Effect.Effect<boolean, ExternalCallError> =>
     sqliteClient
       .unsafe<{ name: string }>(
         "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('manami_anilist_lookup', 'manami_mal_lookup', 'manami_search')",

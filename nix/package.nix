@@ -1,14 +1,17 @@
 {
   lib,
-  stdenvNoCC,
-  bun,
+  stdenv,
   nodejs,
+  pnpm,
+  cacert,
   ffmpeg,
+  python3,
+  pkg-config,
   makeWrapper,
   writableTmpDirAsHomeHook,
   src ? ../.,
 }:
-stdenvNoCC.mkDerivation (finalAttrs: {
+stdenv.mkDerivation (finalAttrs: {
   pname = "bakarr";
   version = "0.1.0";
 
@@ -20,8 +23,10 @@ stdenvNoCC.mkDerivation (finalAttrs: {
       !(
         lib.hasPrefix ".git" relPath
         || lib.hasPrefix ".direnv" relPath
+        || relPath == ".bun"
         || relPath == "node_modules"
         || relPath == "dist"
+        || lib.hasPrefix ".bun/" relPath
         || lib.hasPrefix "node_modules/" relPath
         || lib.hasPrefix "dist/" relPath
         || lib.hasInfix "/node_modules/" relPath
@@ -31,7 +36,7 @@ stdenvNoCC.mkDerivation (finalAttrs: {
       );
   };
 
-  node_modules = stdenvNoCC.mkDerivation {
+  node_modules = stdenv.mkDerivation {
     pname = "${finalAttrs.pname}-node_modules";
     inherit (finalAttrs) version src;
 
@@ -43,21 +48,28 @@ stdenvNoCC.mkDerivation (finalAttrs: {
       ];
 
     nativeBuildInputs = [
-      bun
+      nodejs
+      pnpm
+      python3
+      pkg-config
       writableTmpDirAsHomeHook
     ];
 
     dontConfigure = true;
 
+    PNPM_CONFIG_MANAGE_PACKAGE_MANAGER_VERSIONS = "false";
+    SSL_CERT_FILE = "${cacert}/etc/ssl/certs/ca-bundle.crt";
+    NODE_EXTRA_CA_CERTS = "${cacert}/etc/ssl/certs/ca-bundle.crt";
+    npm_config_cafile = "${cacert}/etc/ssl/certs/ca-bundle.crt";
+    PNPM_CONFIG_CAFILE = "${cacert}/etc/ssl/certs/ca-bundle.crt";
+
     buildPhase = ''
       runHook preBuild
 
-      bun install \
-        --cpu="*" \
+      pnpm install \
+        --child-concurrency=1 \
         --frozen-lockfile \
-        --ignore-scripts \
-        --no-progress \
-        --os="*"
+        --reporter=append-only
 
       runHook postBuild
     '';
@@ -74,17 +86,23 @@ stdenvNoCC.mkDerivation (finalAttrs: {
 
     dontFixup = true;
 
-    outputHash = "sha256-d/tBl0W6+BtDn6/mQM2jN+VRfWQXDo/J5EjNaYVMEdA=";
+    outputHash = "sha256-mjgxD9Vt+lFq0nz0oNmVLOiUYh5ExGem2Qr/uZQ7xeM=";
     outputHashAlgo = "sha256";
     outputHashMode = "recursive";
   };
 
   nativeBuildInputs = [
-    bun
     nodejs
+    pnpm
     makeWrapper
     writableTmpDirAsHomeHook
   ];
+
+  PNPM_CONFIG_MANAGE_PACKAGE_MANAGER_VERSIONS = "false";
+  SSL_CERT_FILE = "${cacert}/etc/ssl/certs/ca-bundle.crt";
+  NODE_EXTRA_CA_CERTS = "${cacert}/etc/ssl/certs/ca-bundle.crt";
+  npm_config_cafile = "${cacert}/etc/ssl/certs/ca-bundle.crt";
+  PNPM_CONFIG_CAFILE = "${cacert}/etc/ssl/certs/ca-bundle.crt";
 
   configurePhase = ''
     runHook preConfigure
@@ -109,18 +127,8 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   buildPhase = ''
     runHook preBuild
 
-    bun run --cwd apps/web build
-    bun run --cwd apps/api generate:embedded-artifacts
-
-    bun --cwd apps/api build \
-      --production \
-      --compile \
-      --bytecode \
-      --minify \
-      --sourcemap \
-      --format=esm \
-      --outfile=./build/bakarr \
-      ./main.ts
+    pnpm --filter @bakarr/web build
+    pnpm --filter @bakarr/api build
 
     runHook postBuild
   '';
@@ -128,10 +136,13 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   installPhase = ''
     runHook preInstall
 
-    install -D apps/api/build/bakarr $out/bin/.bakarr-api-wrapped
+    mkdir -p $out/share/bakarr
+    cp -R apps/api/build $out/share/bakarr/api
+    cp -R node_modules $out/share/bakarr/node_modules
 
     mkdir -p $out/bin
-    makeWrapper $out/bin/.bakarr-api-wrapped $out/bin/bakarr-api \
+    makeWrapper ${nodejs}/bin/node $out/bin/bakarr-api \
+      --add-flags $out/share/bakarr/api/main.js \
       --prefix PATH : ${lib.makeBinPath [ffmpeg]} \
       --run 'if [ -z "$DATABASE_FILE" ]; then if [ -n "$XDG_STATE_HOME" ]; then state_home="$XDG_STATE_HOME"; elif [ -n "$HOME" ]; then state_home="$HOME/.local/state"; else state_home="/tmp"; fi; export DATABASE_FILE="$state_home/bakarr/bakarr.sqlite"; fi; mkdir -p "$(dirname "$DATABASE_FILE")"'
 

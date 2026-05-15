@@ -6,7 +6,6 @@ export default defineConfig({
     alias: {
       "@": path.resolve(import.meta.dirname, "./src"),
       "@packages/shared": path.resolve(import.meta.dirname, "../../packages/shared/src"),
-      "@effect/sql-sqlite-bun/SqliteClient": "@effect/sql-sqlite-node/SqliteClient",
     },
   },
   test: {
@@ -15,7 +14,7 @@ export default defineConfig({
         inline: [
           /^@effect\/sql(?:$|\/)/,
           /^@effect\/sql-drizzle(?:$|\/)/,
-          /^@effect\/sql-sqlite-bun(?:$|\/)/,
+          /^@effect\/sql-sqlite-node(?:$|\/)/,
         ],
       },
     },
