@@ -567,6 +567,48 @@ itWithTestContext(
   },
 );
 
+itWithTestContext(
+  "bootstrap admin must change password before protected routes",
+  async (ctx) => {
+    const loginResponse = await ctx.app.request("/api/auth/login", {
+      body: JSON.stringify({ password: "admin", username: "admin" }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+    });
+
+    assert.deepStrictEqual(loginResponse.status, 200);
+    const sessionCookie = loginResponse.headers.get("set-cookie");
+    assert(sessionCookie);
+
+    const meResponse = await ctx.app.request("/api/auth/me", {
+      headers: { Cookie: sessionCookie },
+    });
+    assert.deepStrictEqual(meResponse.status, 200);
+    const me = await meResponse.json();
+    assert.deepStrictEqual(me.must_change_password, true);
+
+    const protectedResponse = await ctx.app.request("/api/anime", {
+      headers: { Cookie: sessionCookie },
+    });
+    assert.deepStrictEqual(protectedResponse.status, 403);
+    assert.deepStrictEqual(await protectedResponse.text(), "Password change required");
+
+    const changePasswordResponse = await ctx.app.request("/api/auth/password", {
+      body: JSON.stringify({
+        current_password: "admin",
+        new_password: TEST_PASSWORD,
+      }),
+      headers: {
+        Cookie: sessionCookie,
+        "Content-Type": "application/json",
+      },
+      method: "PUT",
+    });
+    assert.deepStrictEqual(changePasswordResponse.status, 200);
+  },
+  { skipInitialPasswordChange: true },
+);
+
 itWithTestContext("auth password change and logout flow works", async (ctx) => {
   const loginResponse = await ctx.app.request("/api/auth/login", {
     body: JSON.stringify({ password: TEST_PASSWORD, username: "admin" }),
@@ -597,6 +639,10 @@ itWithTestContext("auth password change and logout flow works", async (ctx) => {
   });
 
   assert.deepStrictEqual(logoutResponse["status"], 200);
+  const expiredCookie = logoutResponse.headers.get("set-cookie");
+  assert(expiredCookie);
+  assert.match(expiredCookie, /HttpOnly/i);
+  assert.match(expiredCookie, /SameSite=Lax/i);
 
   const meAfterLogout = await ctx.app.request("/api/auth/me", {
     headers: { Cookie: sessionCookie },
@@ -4917,25 +4963,27 @@ async function createTestContext(options?: {
     setupSessionCookie = nextSetupSessionCookie;
   }
 
-  const currentConfigResponse = await app.request("/api/system/config", {
-    headers: { Cookie: setupSessionCookie },
-  });
-  const currentConfig = await currentConfigResponse.json();
+  if (options?.skipInitialPasswordChange !== true) {
+    const currentConfigResponse = await app.request("/api/system/config", {
+      headers: { Cookie: setupSessionCookie },
+    });
+    const currentConfig = await currentConfigResponse.json();
 
-  await app.request("/api/system/config", {
-    body: JSON.stringify({
-      ...currentConfig,
-      library: {
-        ...currentConfig.library,
-        library_path: tmpdir(),
+    await app.request("/api/system/config", {
+      body: JSON.stringify({
+        ...currentConfig,
+        library: {
+          ...currentConfig.library,
+          library_path: tmpdir(),
+        },
+      }),
+      headers: {
+        Cookie: setupSessionCookie,
+        "Content-Type": "application/json",
       },
-    }),
-    headers: {
-      Cookie: setupSessionCookie,
-      "Content-Type": "application/json",
-    },
-    method: "PUT",
-  });
+      method: "PUT",
+    });
+  }
 
   return {
     app,

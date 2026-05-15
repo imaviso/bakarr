@@ -60,7 +60,10 @@ export const authRouter = HttpRouter.empty.pipe(
           });
 
           return HttpServerResponse.expireCookie(response, config.sessionCookieName, {
+            httpOnly: true,
             path: "/",
+            sameSite: "lax",
+            secure: config.sessionCookieSecure,
           });
         }),
       mapAuthRouteError,
