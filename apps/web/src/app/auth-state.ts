@@ -3,6 +3,7 @@ import { API_BASE } from "~/api/constants";
 export interface AuthState {
   readonly username?: string | undefined;
   readonly apiKey?: string | undefined;
+  readonly mustChangePassword?: boolean | undefined;
   readonly isAuthenticated: boolean;
 }
 
@@ -26,18 +27,19 @@ function emit() {
   }
 }
 
-export function loginSuccess(username: string, apiKey?: string) {
+export function loginSuccess(username: string, apiKey?: string, mustChangePassword = false) {
   const key = normalizeApiKey(apiKey);
   authState = {
     username,
     apiKey: key,
+    mustChangePassword,
     isAuthenticated: true,
   };
   emit();
 }
 
-export function syncAuthenticatedUser(username: string) {
-  authState = { ...authState, isAuthenticated: true, username };
+export function syncAuthenticatedUser(username: string, mustChangePassword = false) {
+  authState = { ...authState, isAuthenticated: true, mustChangePassword, username };
   emit();
 }
 

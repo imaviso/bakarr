@@ -12,7 +12,9 @@ import {
   StoredUnmappedFolderCorruptError,
 } from "@/features/system/errors.ts";
 import type { RouteErrorResponse } from "@/http/shared/route-types.ts";
-import { errorStatus, messageStatus } from "@/http/shared/route-errors/helpers.ts";
+import { errorStatus, fixedStatus, messageStatus } from "@/http/shared/route-errors/helpers.ts";
+
+const internalServerError = fixedStatus("Internal server error", 500);
 
 const SystemRouteErrorSchema = Schema.Union(
   ConfigValidationError,
@@ -34,14 +36,14 @@ const systemRouteErrorMappers: {
   ) => RouteErrorResponse;
 } = {
   ConfigValidationError: messageStatus(400),
-  DiskSpaceError: messageStatus(500),
+  DiskSpaceError: internalServerError,
   ImageAssetAccessError: errorStatus,
   ImageAssetNotFoundError: errorStatus,
   ImageAssetTooLargeError: errorStatus,
   DomainNotFoundError: messageStatus(404),
-  StoredConfigCorruptError: messageStatus(500),
-  StoredConfigMissingError: messageStatus(500),
-  StoredUnmappedFolderCorruptError: messageStatus(500),
+  StoredConfigCorruptError: internalServerError,
+  StoredConfigMissingError: internalServerError,
+  StoredUnmappedFolderCorruptError: internalServerError,
 };
 
 const isSystemRouteError = Schema.is(SystemRouteErrorSchema);

@@ -46,6 +46,13 @@ export function isSqliteBusyLock(cause: unknown): boolean {
     const code =
       typeof error.code === "string" ? error.code : String(error.code ?? error.errno ?? "");
     const message = error.message ?? "";
-    return code === "SQLITE_BUSY" || code === "5" || message.includes("database is locked");
+    return (
+      code === "SQLITE_BUSY" ||
+      code === "SQLITE_LOCKED" ||
+      code === "5" ||
+      code === "6" ||
+      message.includes("database is locked") ||
+      message.includes("database table is locked")
+    );
   });
 }

@@ -139,6 +139,7 @@ it.scoped("changePasswordState updates password and sets mustChangePassword to f
         yield* seedAppConfig(db);
 
         yield* changePasswordState({
+          apiKeyHash: "new-api-key-hash",
           changedAt: "2025-06-01T00:00:00.000Z",
           db,
           passwordHash: "new-hash",
@@ -150,6 +151,7 @@ it.scoped("changePasswordState updates password and sets mustChangePassword to f
           db.select().from(users).where(eq(users.id, user.id)).limit(1),
         );
         assert.deepStrictEqual(updated[0]?.passwordHash, "new-hash");
+        assert.deepStrictEqual(updated[0]?.apiKey, "new-api-key-hash");
         assert.deepStrictEqual(updated[0]?.mustChangePassword, false);
 
         const configRow = yield* Effect.promise(() =>
@@ -188,6 +190,7 @@ it.scoped("changePasswordState deletes all existing sessions", () =>
         );
 
         yield* changePasswordState({
+          apiKeyHash: "new-api-key-hash",
           changedAt: "2025-06-01T00:00:00.000Z",
           db,
           passwordHash: "new-hash",
@@ -212,6 +215,7 @@ it.scoped("changePasswordState writes system log entry", () =>
         yield* seedAppConfig(db);
 
         yield* changePasswordState({
+          apiKeyHash: "new-api-key-hash",
           changedAt: "2025-06-01T00:00:00.000Z",
           db,
           passwordHash: "new-hash",

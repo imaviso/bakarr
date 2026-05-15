@@ -68,9 +68,17 @@ export interface LoginRequest {
   password: string;
 }
 
+const AuthUsernameSchema = Schema.String.pipe(Schema.minLength(1), Schema.maxLength(128));
+const AuthPasswordSchema = Schema.String.pipe(Schema.minLength(1), Schema.maxLength(256));
+const ApiKeyStringSchema = Schema.String.pipe(
+  Schema.minLength(1),
+  Schema.maxLength(128),
+  Schema.pattern(/^[a-fA-F0-9]+$/),
+);
+
 export const LoginRequestSchema: Schema.Schema<LoginRequest> = Schema.Struct({
-  username: Schema.String,
-  password: Schema.String,
+  username: AuthUsernameSchema,
+  password: AuthPasswordSchema,
 });
 
 export interface ApiKeyLoginRequest {
@@ -78,7 +86,7 @@ export interface ApiKeyLoginRequest {
 }
 
 export const ApiKeyLoginRequestSchema: Schema.Schema<ApiKeyLoginRequest> = Schema.Struct({
-  api_key: Schema.String,
+  api_key: ApiKeyStringSchema,
 });
 
 export interface LoginResponse {
@@ -99,8 +107,8 @@ export interface ChangePasswordRequest {
 }
 
 export const ChangePasswordRequestSchema: Schema.Schema<ChangePasswordRequest> = Schema.Struct({
-  current_password: Schema.String,
-  new_password: Schema.String,
+  current_password: AuthPasswordSchema,
+  new_password: AuthPasswordSchema,
 });
 
 export interface ApiKeyResponse {

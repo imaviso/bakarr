@@ -38,6 +38,7 @@ export const findUserById = Effect.fn("AuthUserRepository.findUserById")(functio
 export const changePasswordState = Effect.fn("AuthUserRepository.changePasswordState")(
   function* (input: {
     readonly changedAt: string;
+    readonly apiKeyHash: string;
     readonly db: AppDatabase;
     readonly passwordHash: string;
     readonly userId: number;
@@ -48,6 +49,7 @@ export const changePasswordState = Effect.fn("AuthUserRepository.changePasswordS
         await tx
           .update(users)
           .set({
+            apiKey: input.apiKeyHash,
             mustChangePassword: false,
             passwordHash: input.passwordHash,
             updatedAt: input.changedAt,

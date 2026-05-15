@@ -34,12 +34,22 @@ export const Route = createFileRoute("/login")({
 });
 
 const LoginSchema = Schema.Struct({
-  username: Schema.String.pipe(Schema.minLength(1, { message: () => "Username is required" })),
-  password: Schema.String.pipe(Schema.minLength(1, { message: () => "Password is required" })),
+  username: Schema.String.pipe(
+    Schema.minLength(1, { message: () => "Username is required" }),
+    Schema.maxLength(128, { message: () => "Username must be 128 characters or less" }),
+  ),
+  password: Schema.String.pipe(
+    Schema.minLength(1, { message: () => "Password is required" }),
+    Schema.maxLength(256, { message: () => "Password must be 256 characters or less" }),
+  ),
 });
 
 const ApiKeySchema = Schema.Struct({
-  apiKey: Schema.String.pipe(Schema.minLength(1, { message: () => "API key is required" })),
+  apiKey: Schema.String.pipe(
+    Schema.minLength(1, { message: () => "API key is required" }),
+    Schema.maxLength(128, { message: () => "API key must be 128 characters or less" }),
+    Schema.pattern(/^[a-fA-F0-9]+$/, { message: () => "API key must be hexadecimal" }),
+  ),
 });
 
 function getFieldErrorMessage(error: unknown): string {
@@ -77,7 +87,7 @@ function LoginPage() {
   };
 
   const handleLoginSuccess = (data: { username: string; must_change_password: boolean }) => {
-    syncAuthenticatedUser(data.username);
+    syncAuthenticatedUser(data.username, data.must_change_password);
     if (data.must_change_password) {
       toast.info("Please change your password before continuing.");
       void navigate({ to: "/settings", search: { tab: "account" } });

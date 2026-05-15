@@ -7,6 +7,7 @@ import {
   ArrowClockwiseIcon,
 } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
+import { useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { Effect, Schema } from "effect";
@@ -35,9 +36,11 @@ import { copyToClipboard } from "~/infra/utils";
 const ChangePasswordSchema = Schema.Struct({
   currentPassword: Schema.String.pipe(
     Schema.minLength(1, { message: () => "Current password is required" }),
+    Schema.maxLength(256, { message: () => "Current password must be 256 characters or less" }),
   ),
   newPassword: Schema.String.pipe(
     Schema.minLength(8, { message: () => "Password must be at least 8 characters" }),
+    Schema.maxLength(256, { message: () => "Password must be 256 characters or less" }),
   ),
   confirmPassword: Schema.String.pipe(
     Schema.minLength(1, { message: () => "Please confirm your password" }),
@@ -57,7 +60,8 @@ function getFirstErrorMessage(errors: readonly unknown[]): string | undefined {
 }
 
 export function AccountSettingsForm() {
-  const { auth } = useAuth();
+  const { auth, clearAuthState } = useAuth();
+  const navigate = useNavigate();
   const changePassword = useChangePasswordMutation();
   const regenerateApiKey = useRegenerateApiKeyMutation();
 
@@ -89,6 +93,9 @@ export function AccountSettingsForm() {
           },
           onSuccess: () => {
             formApi.reset();
+            clearAuthState();
+            toast.success("Password changed. Sign in again to continue.");
+            void navigate({ to: "/login", search: { redirect: "" }, replace: true });
           },
         },
       );

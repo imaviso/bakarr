@@ -34,18 +34,21 @@ function extractApiKeyFromHeaders(headers: Readonly<Record<string, string | unde
 }
 
 export const requireViewerFromHttpRequest = Effect.fn("Http.requireViewerFromHttpRequest")(
-  function* () {
+  function* (options: { readonly allowPasswordChangeRequired?: boolean } = {}) {
     const request = yield* HttpServerRequest.HttpServerRequest;
     const config = yield* AppConfig;
     const sessionToken = request.cookies[config.sessionCookieName];
     const apiKey = extractApiKeyFromHeaders(request.headers);
 
-    const viewer = yield* Effect.flatMap(AuthSessionService, (auth) =>
-      auth.resolveViewer(sessionToken, apiKey),
-    );
+    const auth = yield* AuthSessionService;
+    const viewer = yield* auth.resolveViewer(sessionToken, apiKey);
 
     if (Option.isNone(viewer)) {
       return yield* new AuthError({ message: "Unauthorized", status: 401 });
+    }
+
+    if (viewer.value.must_change_password && options.allowPasswordChangeRequired !== true) {
+      return yield* new AuthError({ message: "Password change required", status: 403 });
     }
 
     return viewer.value;

@@ -42,6 +42,7 @@ type TestContextOptions = {
   readonly qbitLayer?: Layer.Layer<QBitTorrentClient>;
   readonly rssLayer?: Layer.Layer<RssClient>;
   readonly seadexLayer?: Layer.Layer<SeaDexClient>;
+  readonly skipInitialPasswordChange?: boolean;
 };
 
 type TestContext = Awaited<ReturnType<typeof createTestContext>>;
@@ -49,6 +50,8 @@ type EventsReader = {
   readonly read: () => Promise<ReadableStreamReadResult<Uint8Array>>;
   readonly cancel: () => Promise<void>;
 };
+
+const TEST_PASSWORD = "bakarr123";
 
 const withTestContextEffect = Effect.fn("Test.withTestContextEffect")(function* <A, E, R>(input: {
   readonly options?: TestContextOptions;
@@ -94,7 +97,7 @@ async function withTempDir<A>(run: (path: string) => PromiseLike<A> | A): Promis
 
 async function loginAsBootstrapAdmin(ctx: TestContext) {
   const loginResponse = await ctx.app.request("/api/auth/login", {
-    body: JSON.stringify({ password: "admin", username: "admin" }),
+    body: JSON.stringify({ password: TEST_PASSWORD, username: "admin" }),
     headers: { "Content-Type": "application/json" },
     method: "POST",
   });
@@ -190,7 +193,7 @@ itWithTestContext(
 
 itWithTestContext("search releases enriches SeaDex metadata using AniList ID", async (ctx) => {
   const loginResponse = await ctx.app.request("/api/auth/login", {
-    body: JSON.stringify({ password: "admin", username: "admin" }),
+    body: JSON.stringify({ password: TEST_PASSWORD, username: "admin" }),
     headers: { "Content-Type": "application/json" },
     method: "POST",
   });
@@ -278,7 +281,7 @@ it.scoped("search releases can match SeaDex by Nyaa URL when info hash is unavai
     run: (ctx) =>
       Effect.tryPromise(async () => {
         const loginResponse = await ctx.app.request("/api/auth/login", {
-          body: JSON.stringify({ password: "admin", username: "admin" }),
+          body: JSON.stringify({ password: TEST_PASSWORD, username: "admin" }),
           headers: { "Content-Type": "application/json" },
           method: "POST",
         });
@@ -365,7 +368,7 @@ it.scoped("search releases only marks matching groups as SeaDex in fallback matc
     run: (ctx) =>
       Effect.tryPromise(async () => {
         const loginResponse = await ctx.app.request("/api/auth/login", {
-          body: JSON.stringify({ password: "admin", username: "admin" }),
+          body: JSON.stringify({ password: TEST_PASSWORD, username: "admin" }),
           headers: { "Content-Type": "application/json" },
           method: "POST",
         });
@@ -417,7 +420,7 @@ it.scoped("search releases only marks matching groups as SeaDex in fallback matc
 
 itWithTestContext("episode search includes SeaDex metadata in ranked results", async (ctx) => {
   const loginResponse = await ctx.app.request("/api/auth/login", {
-    body: JSON.stringify({ password: "admin", username: "admin" }),
+    body: JSON.stringify({ password: TEST_PASSWORD, username: "admin" }),
     headers: { "Content-Type": "application/json" },
     method: "POST",
   });
@@ -461,7 +464,7 @@ itWithTestContext("episode search includes SeaDex metadata in ranked results", a
 
 itWithTestContext("cached anime images are served from the image store", async (ctx) => {
   const loginResponse = await ctx.app.request("/api/auth/login", {
-    body: JSON.stringify({ password: "admin", username: "admin" }),
+    body: JSON.stringify({ password: TEST_PASSWORD, username: "admin" }),
     headers: { "Content-Type": "application/json" },
     method: "POST",
   });
@@ -508,7 +511,7 @@ itWithTestContext(
   "bootstrap admin can log in and read auth/session protected endpoints",
   async (ctx) => {
     const loginResponse = await ctx.app.request("/api/auth/login", {
-      body: JSON.stringify({ password: "admin", username: "admin" }),
+      body: JSON.stringify({ password: TEST_PASSWORD, username: "admin" }),
       headers: { "Content-Type": "application/json" },
       method: "POST",
     });
@@ -520,7 +523,7 @@ itWithTestContext(
 
     assert(sessionCookie);
     assert.deepStrictEqual(loginBody.username, "admin");
-    assert.deepStrictEqual(loginBody.must_change_password, true);
+    assert.deepStrictEqual(loginBody.must_change_password, false);
     assert.match(loginBody.api_key, /^\*+$/);
 
     const meResponse = await ctx.app.request("/api/auth/me", {
@@ -566,7 +569,7 @@ itWithTestContext(
 
 itWithTestContext("auth password change and logout flow works", async (ctx) => {
   const loginResponse = await ctx.app.request("/api/auth/login", {
-    body: JSON.stringify({ password: "admin", username: "admin" }),
+    body: JSON.stringify({ password: TEST_PASSWORD, username: "admin" }),
     headers: { "Content-Type": "application/json" },
     method: "POST",
   });
@@ -576,8 +579,8 @@ itWithTestContext("auth password change and logout flow works", async (ctx) => {
 
   const changePasswordResponse = await ctx.app.request("/api/auth/password", {
     body: JSON.stringify({
-      current_password: "admin",
-      new_password: "bakarr123",
+      current_password: TEST_PASSWORD,
+      new_password: "new-password-123",
     }),
     headers: {
       Cookie: sessionCookie,
@@ -602,7 +605,7 @@ itWithTestContext("auth password change and logout flow works", async (ctx) => {
   assert.deepStrictEqual(meAfterLogout["status"], 401);
 
   const reloginResponse = await ctx.app.request("/api/auth/login", {
-    body: JSON.stringify({ password: "bakarr123", username: "admin" }),
+    body: JSON.stringify({ password: "new-password-123", username: "admin" }),
     headers: { "Content-Type": "application/json" },
     method: "POST",
   });
@@ -615,7 +618,7 @@ itWithTestContext("auth password change and logout flow works", async (ctx) => {
 
 itWithTestContext("system config update can repair corrupt stored config rows", async (ctx) => {
   const loginResponse = await ctx.app.request("/api/auth/login", {
-    body: JSON.stringify({ password: "admin", username: "admin" }),
+    body: JSON.stringify({ password: TEST_PASSWORD, username: "admin" }),
     headers: { "Content-Type": "application/json" },
     method: "POST",
   });
@@ -669,7 +672,7 @@ itWithTestContext("system config update can repair corrupt stored config rows", 
 
 itWithTestContext("auth API key regeneration and API key login work", async (ctx) => {
   const loginResponse = await ctx.app.request("/api/auth/login", {
-    body: JSON.stringify({ password: "admin", username: "admin" }),
+    body: JSON.stringify({ password: TEST_PASSWORD, username: "admin" }),
     headers: { "Content-Type": "application/json" },
     method: "POST",
   });
@@ -782,7 +785,7 @@ itWithTestContext("auth rejects invalid credentials and wrong password changes",
   const { sessionCookie } = await loginAsBootstrapAdmin(ctx);
 
   const badApiKeyLogin = await ctx.app.request("/api/auth/login/api-key", {
-    body: JSON.stringify({ api_key: "not-a-real-key" }),
+    body: JSON.stringify({ api_key: "deadbeef" }),
     headers: { "Content-Type": "application/json" },
     method: "POST",
   });
@@ -4814,6 +4817,7 @@ async function createTestContext(options?: {
   qbitLayer?: Layer.Layer<QBitTorrentClient>;
   rssLayer?: Layer.Layer<RssClient>;
   seadexLayer?: Layer.Layer<SeaDexClient>;
+  skipInitialPasswordChange?: boolean;
 }) {
   const databaseFile = await makeTempFile({ suffix: ".sqlite" });
   const runtime = ManagedRuntime.make(
@@ -4890,8 +4894,31 @@ async function createTestContext(options?: {
 
   assert(bootstrapSessionCookie);
 
+  let setupSessionCookie = bootstrapSessionCookie;
+
+  if (options?.skipInitialPasswordChange !== true) {
+    const changePasswordResponse = await app.request("/api/auth/password", {
+      body: JSON.stringify({ current_password: "admin", new_password: TEST_PASSWORD }),
+      headers: {
+        Cookie: bootstrapSessionCookie,
+        "Content-Type": "application/json",
+      },
+      method: "PUT",
+    });
+    assert.deepStrictEqual(changePasswordResponse.status, 200);
+
+    const setupLoginResponse = await app.request("/api/auth/login", {
+      body: JSON.stringify({ password: TEST_PASSWORD, username: "admin" }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+    });
+    const nextSetupSessionCookie = setupLoginResponse.headers.get("set-cookie");
+    assert(nextSetupSessionCookie);
+    setupSessionCookie = nextSetupSessionCookie;
+  }
+
   const currentConfigResponse = await app.request("/api/system/config", {
-    headers: { Cookie: bootstrapSessionCookie },
+    headers: { Cookie: setupSessionCookie },
   });
   const currentConfig = await currentConfigResponse.json();
 
@@ -4904,7 +4931,7 @@ async function createTestContext(options?: {
       },
     }),
     headers: {
-      Cookie: bootstrapSessionCookie,
+      Cookie: setupSessionCookie,
       "Content-Type": "application/json",
     },
     method: "PUT",

@@ -123,6 +123,56 @@ it.effect("requireViewerFromHttpRequest fails with AuthError when viewer is miss
   }),
 );
 
+it.effect("requireViewerFromHttpRequest blocks users who must change password", () =>
+  Effect.gen(function* () {
+    const request = HttpServerRequest.fromWeb(new Request("http://localhost/api/anime"));
+
+    const exit = yield* Effect.exit(
+      requireViewerFromHttpRequest().pipe(
+        Effect.provideService(HttpServerRequest.HttpServerRequest, request),
+        Effect.provideService(AppConfig, makeConfig()),
+        Effect.provideService(
+          AuthSessionService,
+          makeAuthSessionService(() =>
+            Effect.succeed(Option.some({ ...sampleViewer, must_change_password: true })),
+          ),
+        ),
+      ),
+    );
+
+    assert.deepStrictEqual(exit._tag, "Failure");
+    if (exit._tag === "Failure") {
+      const failure = Cause.failureOption(exit.cause);
+      assert.deepStrictEqual(failure._tag, "Some");
+      if (failure._tag === "Some" && failure.value instanceof AuthError) {
+        assert.deepStrictEqual(failure.value.status, 403);
+        assert.deepStrictEqual(failure.value.message, "Password change required");
+      }
+    }
+  }),
+);
+
+it.effect("requireViewerFromHttpRequest allows password change when explicitly requested", () =>
+  Effect.gen(function* () {
+    const request = HttpServerRequest.fromWeb(new Request("http://localhost/api/auth/password"));
+
+    const viewer = yield* requireViewerFromHttpRequest({
+      allowPasswordChangeRequired: true,
+    }).pipe(
+      Effect.provideService(HttpServerRequest.HttpServerRequest, request),
+      Effect.provideService(AppConfig, makeConfig()),
+      Effect.provideService(
+        AuthSessionService,
+        makeAuthSessionService(() =>
+          Effect.succeed(Option.some({ ...sampleViewer, must_change_password: true })),
+        ),
+      ),
+    );
+
+    assert.deepStrictEqual(viewer.must_change_password, true);
+  }),
+);
+
 it.effect("persistSessionResponse sets secure cookie flags when configured", () =>
   Effect.gen(function* () {
     const config = makeConfig({

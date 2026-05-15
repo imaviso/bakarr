@@ -52,11 +52,11 @@ it("route errors maps known tagged errors to expected responses", () => {
     },
     {
       error: new StoredConfigCorruptError({ cause: new Error("corrupt"), message: "corrupt" }),
-      expected: { message: "corrupt", status: 500 },
+      expected: { message: "Internal server error", status: 500 },
     },
     {
       error: new StoredConfigMissingError({ message: "missing" }),
-      expected: { message: "missing", status: 500 },
+      expected: { message: "Internal server error", status: 500 },
     },
     {
       error: new EpisodeStreamAccessError({ message: "stream forbidden", status: 403 }),
@@ -103,7 +103,7 @@ it("route errors maps known tagged errors to expected responses", () => {
       error: new StoredUnmappedFolderCorruptError({
         message: "unmapped folder data is corrupt",
       }),
-      expected: { message: "unmapped folder data is corrupt", status: 500 },
+      expected: { message: "Internal server error", status: 500 },
     },
     {
       error: new OperationsInputError({ message: "bad input" }),
@@ -161,7 +161,7 @@ it("route errors maps known tagged errors to expected responses", () => {
         cause: new Error("db"),
         message: "db failed",
       }),
-      expected: { message: "db failed", status: 500 },
+      expected: { message: "Internal server error", status: 500 },
     },
   ] as const;
 

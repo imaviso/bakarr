@@ -70,9 +70,12 @@ const makeAuthCredentialService = Effect.gen(function* () {
     }
 
     const passwordHash = yield* hashPassword(request.new_password);
+    const apiKey = yield* randomHex(24);
+    const apiKeyHash = yield* hashToken(apiKey);
 
     const changeNow = yield* nowIso();
     yield* changePasswordState({
+      apiKeyHash,
       changedAt: changeNow,
       db,
       passwordHash,

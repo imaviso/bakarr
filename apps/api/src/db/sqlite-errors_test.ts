@@ -25,7 +25,10 @@ it("isSqliteUniqueConstraint walks nested cause chains and avoids cycles", () =>
 
 it("isSqliteBusyLock detects busy lock codes and messages", () => {
   assert.deepStrictEqual(isSqliteBusyLock({ code: "SQLITE_BUSY" }), true);
+  assert.deepStrictEqual(isSqliteBusyLock({ code: "SQLITE_LOCKED" }), true);
   assert.deepStrictEqual(isSqliteBusyLock({ errno: 5 }), true);
+  assert.deepStrictEqual(isSqliteBusyLock({ errno: 6 }), true);
   assert.deepStrictEqual(isSqliteBusyLock({ message: "database is locked" }), true);
+  assert.deepStrictEqual(isSqliteBusyLock({ message: "database table is locked" }), true);
   assert.deepStrictEqual(isSqliteBusyLock({ code: "SQLITE_CONSTRAINT" }), false);
 });

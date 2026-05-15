@@ -22,7 +22,8 @@ export const authRouter = HttpRouter.empty.pipe(
     routeResponse(
       Effect.gen(function* () {
         const body = yield* decodeJsonBodyWithLabel(LoginRequestSchema, "login");
-        return yield* Effect.flatMap(AuthSessionService, (auth) => auth.login(body));
+        const auth = yield* AuthSessionService;
+        return yield* auth.login(body);
       }),
       (value) => persistSessionResponse(value.token, value.response),
       mapAuthRouteError,
@@ -33,7 +34,8 @@ export const authRouter = HttpRouter.empty.pipe(
     routeResponse(
       Effect.gen(function* () {
         const body = yield* decodeJsonBodyWithLabel(ApiKeyLoginRequestSchema, "API key login");
-        return yield* Effect.flatMap(AuthSessionService, (auth) => auth.loginWithApiKey(body));
+        const auth = yield* AuthSessionService;
+        return yield* auth.loginWithApiKey(body);
       }),
       (value) => persistSessionResponse(value.token, value.response),
       mapAuthRouteError,
@@ -46,7 +48,8 @@ export const authRouter = HttpRouter.empty.pipe(
         const config = yield* AppConfig;
         const request = yield* HttpServerRequest.HttpServerRequest;
         const token = request.cookies[config.sessionCookieName];
-        yield* Effect.flatMap(AuthSessionService, (auth) => auth.logout(token));
+        const auth = yield* AuthSessionService;
+        yield* auth.logout(token);
       }),
       () =>
         Effect.gen(function* () {
@@ -66,7 +69,7 @@ export const authRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
     "/me",
     routeResponse(
-      withAuthViewer((viewer) => Effect.succeed(viewer)),
+      withAuthViewer((viewer) => Effect.succeed(viewer), { allowPasswordChangeRequired: true }),
       (viewer) => HttpServerResponse.json(viewer),
       mapAuthRouteError,
     ),
@@ -75,7 +78,10 @@ export const authRouter = HttpRouter.empty.pipe(
     "/api-key",
     routeResponse(
       withAuthViewer((viewer) =>
-        Effect.flatMap(AuthCredentialService, (auth) => auth.getApiKey(viewer.id)),
+        Effect.gen(function* () {
+          const auth = yield* AuthCredentialService;
+          return yield* auth.getApiKey(viewer.id);
+        }),
       ),
       (value) => HttpServerResponse.json(value),
       mapAuthRouteError,
@@ -85,7 +91,10 @@ export const authRouter = HttpRouter.empty.pipe(
     "/api-key/regenerate",
     routeResponse(
       withAuthViewer((viewer) =>
-        Effect.flatMap(AuthCredentialService, (auth) => auth.regenerateApiKey(viewer.id)),
+        Effect.gen(function* () {
+          const auth = yield* AuthCredentialService;
+          return yield* auth.regenerateApiKey(viewer.id);
+        }),
       ),
       (value) => HttpServerResponse.json(value),
       mapAuthRouteError,
@@ -94,16 +103,17 @@ export const authRouter = HttpRouter.empty.pipe(
   HttpRouter.put(
     "/password",
     routeResponse(
-      withAuthViewer((viewer) =>
-        Effect.gen(function* () {
-          const body = yield* decodeJsonBodyWithLabel(
-            ChangePasswordRequestSchema,
-            "change password",
-          );
-          yield* Effect.flatMap(AuthCredentialService, (auth) =>
-            auth.changePassword(viewer.id, body),
-          );
-        }),
+      withAuthViewer(
+        (viewer) =>
+          Effect.gen(function* () {
+            const body = yield* decodeJsonBodyWithLabel(
+              ChangePasswordRequestSchema,
+              "change password",
+            );
+            const auth = yield* AuthCredentialService;
+            yield* auth.changePassword(viewer.id, body);
+          }),
+        { allowPasswordChangeRequired: true },
       ),
       () => HttpServerResponse.json({ data: null, success: true }),
       mapAuthRouteError,

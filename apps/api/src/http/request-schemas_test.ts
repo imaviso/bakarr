@@ -1,5 +1,10 @@
 import { assert, it } from "@effect/vitest";
 import { Schema } from "effect";
+import {
+  ApiKeyLoginRequestSchema,
+  ChangePasswordRequestSchema,
+  LoginRequestSchema,
+} from "@packages/shared/index.ts";
 
 import { formatValidationErrorMessage } from "@/http/shared/route-validation.ts";
 import {
@@ -153,6 +158,26 @@ it("SearchDownloadBodySchema rejects non-positive and fractional identifiers", (
     assert.match(result.left.message, /anime_id/);
     assert.match(result.left.message, /episode_number/);
   }
+});
+
+it("auth request schemas reject oversized credentials and malformed API keys", () => {
+  const oversized = "x".repeat(257);
+
+  assert.deepStrictEqual(
+    Schema.decodeUnknownEither(LoginRequestSchema)({ password: oversized, username: "admin" })._tag,
+    "Left",
+  );
+  assert.deepStrictEqual(
+    Schema.decodeUnknownEither(ChangePasswordRequestSchema)({
+      current_password: "adminadmin",
+      new_password: oversized,
+    })._tag,
+    "Left",
+  );
+  assert.deepStrictEqual(
+    Schema.decodeUnknownEither(ApiKeyLoginRequestSchema)({ api_key: "not hex" })._tag,
+    "Left",
+  );
 });
 
 it("SearchDownloadBodySchema accepts structured release context", () => {

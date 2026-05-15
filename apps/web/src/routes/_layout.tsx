@@ -27,7 +27,13 @@ export const Route = createFileRoute("/_layout")({
 
     if (Either.isRight(result)) {
       const user = result.right;
-      syncAuthenticatedUser(user.username);
+      syncAuthenticatedUser(user.username, user.must_change_password);
+      if (user.must_change_password) {
+        const url = new URL(location.href, globalThis.location.origin);
+        if (url.pathname !== "/settings" || url.searchParams.get("tab") !== "account") {
+          throw redirect({ to: "/settings", search: { tab: "account" } });
+        }
+      }
       return;
     }
 

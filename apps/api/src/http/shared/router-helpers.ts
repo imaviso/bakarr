@@ -115,8 +115,10 @@ export const successResponse = () => HttpServerResponse.json({ data: null, succe
 export const acceptedResponse = (value: unknown) =>
   HttpServerResponse.json({ data: value, success: true }, { status: 202 });
 
-export const withAuthViewer = <A, E, R>(effect: (viewer: AuthUser) => Effect.Effect<A, E, R>) =>
-  Effect.flatMap(requireViewerFromHttpRequest(), effect);
+export const withAuthViewer = <A, E, R>(
+  effect: (viewer: AuthUser) => Effect.Effect<A, E, R>,
+  options: { readonly allowPasswordChangeRequired?: boolean } = {},
+) => Effect.flatMap(requireViewerFromHttpRequest(options), effect);
 
 export const authedRouteResponse = <A, E, R, E2, R2>(
   effect: Effect.Effect<A, E, R>,
