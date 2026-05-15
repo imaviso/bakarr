@@ -86,7 +86,7 @@ stdenv.mkDerivation (finalAttrs: {
 
     dontFixup = true;
 
-    outputHash = "sha256-mjgxD9Vt+lFq0nz0oNmVLOiUYh5ExGem2Qr/uZQ7xeM=";
+    outputHash = "sha256-7Ge3KWNVqY50AG+j9bs7l9GKAHOQRUkOAGiGLeDDNo4=";
     outputHashAlgo = "sha256";
     outputHashMode = "recursive";
   };
@@ -138,7 +138,10 @@ stdenv.mkDerivation (finalAttrs: {
 
     mkdir -p $out/share/bakarr
     cp -R apps/api/build $out/share/bakarr/api
-    cp -R node_modules $out/share/bakarr/node_modules
+    mkdir -p $out/share/bakarr/node_modules
+    cp -RL apps/api/node_modules/better-sqlite3 $out/share/bakarr/node_modules/better-sqlite3
+    cp -RL node_modules/.pnpm/bindings@*/node_modules/bindings $out/share/bakarr/node_modules/bindings
+    cp -RL node_modules/.pnpm/file-uri-to-path@*/node_modules/file-uri-to-path $out/share/bakarr/node_modules/file-uri-to-path
 
     mkdir -p $out/bin
     makeWrapper ${nodejs}/bin/node $out/bin/bakarr-api \

@@ -9,5 +9,10 @@ export default defineConfig({
     sourcemap: true,
   },
   platform: "node",
-  external: ["better-sqlite3"],
+  external: [
+    /\.node$/u,
+    "better-sqlite3",
+    "bindings",
+    "file-uri-to-path",
+  ],
 });
