@@ -1,14 +1,6 @@
 import { Match, Schema } from "effect";
 
 import {
-  DomainConflictError,
-  DomainInputError,
-  DomainNotFoundError,
-  DomainPathError,
-  InfrastructureError,
-  StoredDataError,
-} from "@/features/errors.ts";
-import {
   RssFeedParseError,
   RssFeedRejectedError,
   RssFeedTooLargeError,
@@ -17,12 +9,6 @@ import type { RouteErrorResponse } from "@/http/shared/route-types.ts";
 import { fixedStatus, messageStatus } from "@/http/shared/route-errors/helpers.ts";
 
 const OperationsRouteErrorSchema = Schema.Union(
-  DomainConflictError,
-  DomainInputError,
-  DomainNotFoundError,
-  DomainPathError,
-  InfrastructureError,
-  StoredDataError,
   RssFeedParseError,
   RssFeedRejectedError,
   RssFeedTooLargeError,
@@ -39,15 +25,9 @@ const operationsRouteErrorMappers: {
     error: Extract<OperationsRouteError, { _tag: K }>,
   ) => RouteErrorResponse;
 } = {
-  DomainConflictError: messageStatus(409),
-  DomainInputError: messageStatus(400),
-  DomainNotFoundError: messageStatus(404),
-  DomainPathError: messageStatus(400),
-  InfrastructureError: messageStatus(500),
   RssFeedParseError: invalidRssFeed,
   RssFeedRejectedError: messageStatus(400),
   RssFeedTooLargeError: rssTooLarge,
-  StoredDataError: messageStatus(500),
 };
 
 const isOperationsRouteError = Schema.is(OperationsRouteErrorSchema);

@@ -3,12 +3,6 @@ import { Match, Schema } from "effect";
 import { AniDbRuntimeConfigError } from "@/features/anime/errors.ts";
 import { ImageCacheError } from "@/features/anime/anime-image-cache-service.ts";
 import {
-  DomainConflictError,
-  DomainNotFoundError,
-  DomainPathError,
-  StoredDataError,
-} from "@/features/errors.ts";
-import {
   EpisodeStreamAccessError,
   EpisodeStreamRangeError,
 } from "@/features/anime/anime-stream-errors.ts";
@@ -16,12 +10,8 @@ import type { RouteErrorResponse } from "@/http/shared/route-types.ts";
 import { errorStatus, messageStatus } from "@/http/shared/route-errors/helpers.ts";
 
 const AnimeRouteErrorSchema = Schema.Union(
-  DomainConflictError,
   AniDbRuntimeConfigError,
   ImageCacheError,
-  DomainNotFoundError,
-  DomainPathError,
-  StoredDataError,
   EpisodeStreamAccessError,
   EpisodeStreamRangeError,
 );
@@ -34,9 +24,6 @@ const animeRouteErrorMappers: {
   ) => RouteErrorResponse;
 } = {
   AniDbRuntimeConfigError: messageStatus(500),
-  DomainConflictError: messageStatus(409),
-  DomainNotFoundError: messageStatus(404),
-  DomainPathError: messageStatus(400),
   ImageCacheError: messageStatus(500),
   EpisodeStreamAccessError: errorStatus,
   EpisodeStreamRangeError: (error) => ({
@@ -44,7 +31,6 @@ const animeRouteErrorMappers: {
     message: error.message,
     status: error.status,
   }),
-  StoredDataError: messageStatus(500),
 };
 
 const isAnimeRouteError = Schema.is(AnimeRouteErrorSchema);

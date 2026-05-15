@@ -1,16 +1,14 @@
-import { Context, Effect, Layer } from "effect";
+import { Context, Effect, Layer, Option } from "effect";
 
 import { BootstrapConfig } from "@/config/schema.ts";
-import { Database, DatabaseError } from "@/db/database.ts";
-import { users } from "@/db/schema.ts";
+import { DatabaseError } from "@/db/database.ts";
 import { nowIsoFromClock, ClockService } from "@/infra/clock.ts";
 import { randomHexFrom, RandomService } from "@/infra/random.ts";
 import { hashPasswordWith } from "@/security/password.ts";
 import { TokenHasher } from "@/security/token-hasher.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { announceBootstrapCredentials } from "@/features/auth/bootstrap-output.ts";
-import { writeAuthLog } from "@/features/auth/audit-log.ts";
 import type { AuthCryptoError } from "@/features/auth/errors.ts";
+import { AuthUserRepository } from "@/features/auth/user-repository.ts";
 
 export interface AuthBootstrapServiceShape {
   readonly ensureBootstrapUser: () => Effect.Effect<void, DatabaseError | AuthCryptoError>;
@@ -22,7 +20,7 @@ export class AuthBootstrapService extends Context.Tag("@bakarr/api/AuthBootstrap
 >() {}
 
 const makeAuthBootstrapService = Effect.gen(function* () {
-  const { db } = yield* Database;
+  const users = yield* AuthUserRepository;
   const config = yield* BootstrapConfig;
   const clock = yield* ClockService;
   const random = yield* RandomService;
@@ -54,11 +52,9 @@ const makeAuthBootstrapService = Effect.gen(function* () {
    *    concurrent startup races.
    */
   const ensureBootstrapUser = Effect.fn("AuthBootstrapService.ensureBootstrapUser")(function* () {
-    const existing = yield* tryDatabasePromise("Failed to ensure bootstrap user", () =>
-      db.select({ id: users.id }).from(users).limit(1),
-    );
+    const existingUserId = yield* users.findAnyUserId();
 
-    if (existing.length > 0) {
+    if (Option.isSome(existingUserId)) {
       return;
     }
 
@@ -70,29 +66,19 @@ const makeAuthBootstrapService = Effect.gen(function* () {
     const rawApiKey = yield* randomHex(24);
     const hashedApiKey = yield* hashToken(rawApiKey);
 
-    yield* tryDatabasePromise("Failed to ensure bootstrap user", () =>
-      db
-        .insert(users)
-        .values({
-          apiKey: hashedApiKey,
-          createdAt: now,
-          mustChangePassword: true,
-          passwordHash,
-          updatedAt: now,
-          username: config.bootstrapUsername,
-        })
-        .onConflictDoNothing(),
-    );
+    yield* users.createBootstrapUser({
+      apiKeyHash: hashedApiKey,
+      createdAt: now,
+      passwordHash,
+      username: config.bootstrapUsername,
+    });
 
-    yield* writeAuthLog(
-      db,
-      {
-        eventType: "bootstrap.user.created",
-        level: "success",
-        message: `Bootstrap user '${config.bootstrapUsername}' created`,
-      },
-      nowIso,
-    );
+    yield* users.writeLog({
+      createdAt: yield* nowIso(),
+      eventType: "bootstrap.user.created",
+      level: "success",
+      message: `Bootstrap user '${config.bootstrapUsername}' created`,
+    });
 
     yield* announceBootstrapCredentials({
       username: config.bootstrapUsername,

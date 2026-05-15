@@ -7,13 +7,7 @@ import * as schema from "@/db/schema.ts";
 import { appConfig, sessions, systemLogs, users } from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 
-import {
-  changePasswordState,
-  findUserByApiKey,
-  findUserById,
-  findUserByUsername,
-  regenerateApiKeyState,
-} from "@/features/auth/user-repository.ts";
+import { makeAuthUserRepository } from "@/features/auth/user-repository.ts";
 
 type TestDatabase = SqliteRemoteDatabase<typeof schema>;
 
@@ -51,7 +45,8 @@ it.scoped("findUserByUsername returns none for missing user", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        const result = yield* findUserByUsername(db, "nobody");
+        const repo = makeAuthUserRepository(db);
+        const result = yield* repo.findUserByUsername("nobody");
         assert.ok(Option.isNone(result));
       }),
     schema,
@@ -62,8 +57,9 @@ it.scoped("findUserByUsername finds existing user", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
+        const repo = makeAuthUserRepository(db);
         yield* seedUser(db);
-        const result = yield* findUserByUsername(db, "admin");
+        const result = yield* repo.findUserByUsername("admin");
         assert.ok(Option.isSome(result));
         assert.deepStrictEqual(result.value.username, "admin");
       }),
@@ -75,8 +71,9 @@ it.scoped("findUserByUsername is case sensitive", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
+        const repo = makeAuthUserRepository(db);
         yield* seedUser(db);
-        const result = yield* findUserByUsername(db, "Admin");
+        const result = yield* repo.findUserByUsername("Admin");
         assert.ok(Option.isNone(result));
       }),
     schema,
@@ -87,7 +84,8 @@ it.scoped("findUserByApiKey returns none for non-matching key", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        const result = yield* findUserByApiKey(db, "wrong-key");
+        const repo = makeAuthUserRepository(db);
+        const result = yield* repo.findUserByApiKey("wrong-key");
         assert.ok(Option.isNone(result));
       }),
     schema,
@@ -98,8 +96,9 @@ it.scoped("findUserByApiKey finds user by hashed key", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
+        const repo = makeAuthUserRepository(db);
         yield* seedUser(db);
-        const result = yield* findUserByApiKey(db, "hashed-key-abc123");
+        const result = yield* repo.findUserByApiKey("hashed-key-abc123");
         assert.ok(Option.isSome(result));
         assert.deepStrictEqual(result.value.username, "admin");
       }),
@@ -111,7 +110,8 @@ it.scoped("findUserById returns none for non-existent id", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        const result = yield* findUserById(db, 999);
+        const repo = makeAuthUserRepository(db);
+        const result = yield* repo.findUserById(999);
         assert.ok(Option.isNone(result));
       }),
     schema,
@@ -122,8 +122,9 @@ it.scoped("findUserById finds existing user by id", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
+        const repo = makeAuthUserRepository(db);
         const user = yield* seedUser(db);
-        const result = yield* findUserById(db, user.id);
+        const result = yield* repo.findUserById(user.id);
         assert.ok(Option.isSome(result));
         assert.deepStrictEqual(result.value.id, user.id);
       }),
@@ -135,13 +136,13 @@ it.scoped("changePasswordState updates password and sets mustChangePassword to f
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
+        const repo = makeAuthUserRepository(db);
         const user = yield* seedUser(db);
         yield* seedAppConfig(db);
 
-        yield* changePasswordState({
+        yield* repo.changePasswordState({
           apiKeyHash: "new-api-key-hash",
           changedAt: "2025-06-01T00:00:00.000Z",
-          db,
           passwordHash: "new-hash",
           userId: user.id,
           username: user.username,
@@ -167,6 +168,7 @@ it.scoped("changePasswordState deletes all existing sessions", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
+        const repo = makeAuthUserRepository(db);
         const user = yield* seedUser(db);
         yield* seedAppConfig(db);
 
@@ -189,10 +191,9 @@ it.scoped("changePasswordState deletes all existing sessions", () =>
           }),
         );
 
-        yield* changePasswordState({
+        yield* repo.changePasswordState({
           apiKeyHash: "new-api-key-hash",
           changedAt: "2025-06-01T00:00:00.000Z",
-          db,
           passwordHash: "new-hash",
           userId: user.id,
           username: user.username,
@@ -211,13 +212,13 @@ it.scoped("changePasswordState writes system log entry", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
+        const repo = makeAuthUserRepository(db);
         const user = yield* seedUser(db);
         yield* seedAppConfig(db);
 
-        yield* changePasswordState({
+        yield* repo.changePasswordState({
           apiKeyHash: "new-api-key-hash",
           changedAt: "2025-06-01T00:00:00.000Z",
-          db,
           passwordHash: "new-hash",
           userId: user.id,
           username: user.username,
@@ -237,6 +238,7 @@ it.scoped("regenerateApiKeyState updates apiKey and deletes sessions", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
+        const repo = makeAuthUserRepository(db);
         const user = yield* seedUser(db);
 
         yield* Effect.promise(() =>
@@ -249,9 +251,8 @@ it.scoped("regenerateApiKeyState updates apiKey and deletes sessions", () =>
           }),
         );
 
-        yield* regenerateApiKeyState({
+        yield* repo.regenerateApiKeyState({
           apiKeyHash: "new-api-key-hash",
-          db,
           regeneratedAt: "2025-06-01T00:00:00.000Z",
           userId: user.id,
           username: user.username,

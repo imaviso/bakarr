@@ -1,14 +1,23 @@
 import { assert, it } from "@effect/vitest";
-import { Effect, Either, Fiber, TestClock } from "effect";
+import { Effect, Either, Fiber, Layer, TestClock } from "effect";
 
 import { ClockServiceLive } from "@/infra/clock.ts";
-import { ExternalCallError, makeExternalCall } from "@/infra/effect/retry.ts";
+import {
+  ExternalCallError,
+  ExternalCallPolicyLive,
+  makeExternalCall,
+  makeExternalCallSemaphoresLive,
+} from "@/infra/effect/retry.ts";
 
 class TestFailureError extends Error {
   readonly _tag = "TestFailureError";
 }
 
-const TestClockLayer = ClockServiceLive;
+const TestExternalCallLayer = Layer.mergeAll(
+  ClockServiceLive,
+  ExternalCallPolicyLive,
+  makeExternalCallSemaphoresLive(),
+);
 
 it.effect("tryExternal retries transient failures", () =>
   Effect.gen(function* () {
@@ -33,7 +42,7 @@ it.effect("tryExternal retries transient failures", () =>
 
     assert.deepStrictEqual(result, "ok");
     assert.deepStrictEqual(attempts, 3);
-  }).pipe(Effect.provide(TestClockLayer)),
+  }).pipe(Effect.provide(TestExternalCallLayer)),
 );
 
 it.effect("tryExternal wraps timeout failures as ExternalCallError", () =>
@@ -56,7 +65,7 @@ it.effect("tryExternal wraps timeout failures as ExternalCallError", () =>
 
     assert.ok(Either.isLeft(result));
     assert.ok(result.left instanceof ExternalCallError);
-  }).pipe(Effect.provide(TestClockLayer)),
+  }).pipe(Effect.provide(TestExternalCallLayer)),
 );
 
 it.effect("tryExternalEffect does not retry non-idempotent failures", () =>
@@ -78,7 +87,7 @@ it.effect("tryExternalEffect does not retry non-idempotent failures", () =>
     assert.ok(result.left instanceof ExternalCallError);
     assert.deepStrictEqual(result.left.operation, "test.non-idempotent");
     assert.deepStrictEqual(attempts, 1);
-  }).pipe(Effect.provide(TestClockLayer)),
+  }).pipe(Effect.provide(TestExternalCallLayer)),
 );
 
 it.effect("tryExternalEffect retries only when isRetryableError returns true", () =>
@@ -108,5 +117,5 @@ it.effect("tryExternalEffect retries only when isRetryableError returns true", (
 
     assert.ok(Either.isLeft(result));
     assert.deepStrictEqual(attempts, 1);
-  }).pipe(Effect.provide(TestClockLayer)),
+  }).pipe(Effect.provide(TestExternalCallLayer)),
 );

@@ -28,12 +28,14 @@ export class WorkerTimeoutError extends Schema.TaggedError<WorkerTimeoutError>()
   },
 ) {}
 
-export function makeBackgroundWorkerSpawner(input: {
-  readonly taskRunner: BackgroundTaskRunnerShape;
-  readonly monitor: BackgroundWorkerMonitorShape;
-}): BackgroundWorkerSpawner {
-  const { taskRunner, monitor } = input;
+export interface BackgroundWorkerPolicy {
+  readonly resilientRun: <E, R>(
+    workerName: BackgroundWorkerName,
+    task: Effect.Effect<void, E, R>,
+  ) => Effect.Effect<void, E, R>;
+}
 
+export function makeBackgroundWorkerPolicy(): BackgroundWorkerPolicy {
   const keepWorkerAlive = Effect.fn("Background.keepWorkerAlive")(function* <E>(
     workerName: BackgroundWorkerName,
     exit: Exit.Exit<void, E>,
@@ -70,6 +72,17 @@ export function makeBackgroundWorkerSpawner(input: {
       Effect.flatMap((exit) => keepWorkerAlive(workerName, exit)),
     );
 
+  return { resilientRun };
+}
+
+export function makeBackgroundWorkerSpawner(input: {
+  readonly taskRunner: BackgroundTaskRunnerShape;
+  readonly monitor: BackgroundWorkerMonitorShape;
+  readonly policy?: BackgroundWorkerPolicy;
+}): BackgroundWorkerSpawner {
+  const { taskRunner, monitor } = input;
+  const policy = input.policy ?? makeBackgroundWorkerPolicy();
+
   return Effect.fn("Background.spawnWorkersFromConfig")(function* (
     workerScope: Scope.Scope,
     config: Config,
@@ -92,7 +105,7 @@ export function makeBackgroundWorkerSpawner(input: {
         continue;
       }
 
-      const loop = resilientRun(workerName, workerTaskByName[workerName]());
+      const loop = policy.resilientRun(workerName, workerTaskByName[workerName]());
 
       yield* forkSupervisedWorker(workerScope, workerName, repeatWorker(loop, loopPlan), monitor);
     }

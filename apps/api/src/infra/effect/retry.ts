@@ -1,4 +1,4 @@
-import { Context, Either, Effect, Layer, Schema } from "effect";
+import { Context, Duration, Either, Effect, Layer, Schema } from "effect";
 
 import { ClockService } from "@/infra/clock.ts";
 import { PositiveIntFromStringSchema } from "@/domain/domain-schema.ts";
@@ -22,6 +22,7 @@ const EXTERNAL_RETRY_DELAYS_MS = [200, 400] as const;
 const DEFAULT_EXTERNAL_CALL_CONCURRENCY = 8;
 const DEFAULT_MEDIA_EXTERNAL_CALL_CONCURRENCY = 4;
 const DEFAULT_QBIT_EXTERNAL_CALL_CONCURRENCY = 2;
+const DEFAULT_EXTERNAL_CALL_TIMEOUT = "10 seconds";
 
 export interface ExternalCallTuningOverrides {
   readonly defaultConcurrency?: number;
@@ -49,36 +50,97 @@ export class ExternalCall extends Context.Tag("@bakarr/api/ExternalCall")<
 
 type ExternalCallPool = "default" | "media" | "qbit";
 
+export interface ExternalCallPolicyShape {
+  readonly retryDelaysMs: readonly number[];
+  readonly timeout: Duration.DurationInput;
+  readonly resolvePool: (operation: string) => ExternalCallPool;
+}
+
+export class ExternalCallPolicy extends Context.Tag("@bakarr/api/ExternalCallPolicy")<
+  ExternalCallPolicy,
+  ExternalCallPolicyShape
+>() {}
+
+export interface ExternalCallSemaphoresShape {
+  readonly withPermits: <A, E, R>(
+    pool: ExternalCallPool,
+    effect: Effect.Effect<A, E, R>,
+  ) => Effect.Effect<A, E, R>;
+}
+
+export class ExternalCallSemaphores extends Context.Tag("@bakarr/api/ExternalCallSemaphores")<
+  ExternalCallSemaphores,
+  ExternalCallSemaphoresShape
+>() {}
+
+export const ExternalCallPolicyLive = Layer.succeed(
+  ExternalCallPolicy,
+  ExternalCallPolicy.of({
+    resolvePool: resolveExternalCallPool,
+    retryDelaysMs: EXTERNAL_RETRY_DELAYS_MS,
+    timeout: DEFAULT_EXTERNAL_CALL_TIMEOUT,
+  }),
+);
+
+function resolveExternalCallPool(operation: string): ExternalCallPool {
+  if (operation.startsWith("qbit.")) {
+    return "qbit";
+  }
+
+  if (
+    operation.startsWith("jikan.") ||
+    operation.startsWith("anilist.") ||
+    operation.startsWith("manami.") ||
+    operation.startsWith("anidb.")
+  ) {
+    return "media";
+  }
+
+  return "default";
+}
+
+export const makeExternalCallSemaphores = Effect.fn("ExternalCall.makeExternalCallSemaphores")(
+  function* (overrides: ExternalCallTuningOverrides = {}) {
+    const defaultConcurrency =
+      overrides.defaultConcurrency ??
+      (yield* readExternalConcurrency(
+        "BAKARR_EXTERNAL_CALL_CONCURRENCY",
+        DEFAULT_EXTERNAL_CALL_CONCURRENCY,
+      ));
+    const mediaConcurrency =
+      overrides.mediaConcurrency ??
+      (yield* readExternalConcurrency(
+        "BAKARR_EXTERNAL_CALL_MEDIA_CONCURRENCY",
+        DEFAULT_MEDIA_EXTERNAL_CALL_CONCURRENCY,
+      ));
+    const qbitConcurrency =
+      overrides.qbitConcurrency ??
+      (yield* readExternalConcurrency(
+        "BAKARR_EXTERNAL_CALL_QBIT_CONCURRENCY",
+        DEFAULT_QBIT_EXTERNAL_CALL_CONCURRENCY,
+      ));
+
+    const semaphores = {
+      default: yield* Effect.makeSemaphore(defaultConcurrency),
+      media: yield* Effect.makeSemaphore(mediaConcurrency),
+      qbit: yield* Effect.makeSemaphore(qbitConcurrency),
+    } as const;
+
+    return ExternalCallSemaphores.of({
+      withPermits: (pool, effect) => semaphores[pool].withPermits(1)(effect),
+    });
+  },
+);
+
+export const makeExternalCallSemaphoresLive = (overrides: ExternalCallTuningOverrides = {}) =>
+  Layer.effect(ExternalCallSemaphores, makeExternalCallSemaphores(overrides));
+
 export const makeExternalCall = Effect.fn("ExternalCall.makeExternalCall")(function* (
-  overrides: ExternalCallTuningOverrides = {},
+  _overrides: ExternalCallTuningOverrides = {},
 ) {
   const clock = yield* ClockService;
-  const defaultConcurrency =
-    overrides.defaultConcurrency ??
-    (yield* readExternalConcurrency(
-      "BAKARR_EXTERNAL_CALL_CONCURRENCY",
-      DEFAULT_EXTERNAL_CALL_CONCURRENCY,
-    ));
-  const mediaConcurrency =
-    overrides.mediaConcurrency ??
-    (yield* readExternalConcurrency(
-      "BAKARR_EXTERNAL_CALL_MEDIA_CONCURRENCY",
-      DEFAULT_MEDIA_EXTERNAL_CALL_CONCURRENCY,
-    ));
-  const qbitConcurrency =
-    overrides.qbitConcurrency ??
-    (yield* readExternalConcurrency(
-      "BAKARR_EXTERNAL_CALL_QBIT_CONCURRENCY",
-      DEFAULT_QBIT_EXTERNAL_CALL_CONCURRENCY,
-    ));
-
-  const semaphores = {
-    default: yield* Effect.makeSemaphore(defaultConcurrency),
-    media: yield* Effect.makeSemaphore(mediaConcurrency),
-    qbit: yield* Effect.makeSemaphore(qbitConcurrency),
-  } as const;
-
-  const resolveSemaphore = (operation: string) => semaphores[resolveExternalCallPool(operation)];
+  const policy = yield* ExternalCallPolicy;
+  const semaphores = yield* ExternalCallSemaphores;
 
   const tryExternalEffect = Effect.fn("ExternalCall.tryExternalEffect")(function* <A, E, R>(
     operation: string,
@@ -87,18 +149,19 @@ export const makeExternalCall = Effect.fn("ExternalCall.makeExternalCall")(funct
   ) {
     const allowRetry = options?.idempotent !== false;
     const isRetryable = options?.isRetryableError ?? (() => true);
-    const maxAttempts = allowRetry ? EXTERNAL_RETRY_DELAYS_MS.length + 1 : 1;
+    const maxAttempts = allowRetry ? policy.retryDelaysMs.length + 1 : 1;
 
     return yield* Effect.gen(function* () {
       const startedAt = yield* clock.currentMonotonicMillis;
-      const semaphore = resolveSemaphore(operation);
+      const pool = policy.resolvePool(operation);
       let attemptNumber = 1;
 
       while (true) {
         const attemptResult = yield* Effect.either(
-          semaphore.withPermits(1)(
+          semaphores.withPermits(
+            pool,
             effect.pipe(
-              Effect.timeout("10 seconds"),
+              Effect.timeout(policy.timeout),
               Effect.scoped,
               Effect.mapError((cause) => toExternalCallError(operation, cause)),
             ),
@@ -136,7 +199,7 @@ export const makeExternalCall = Effect.fn("ExternalCall.makeExternalCall")(funct
           return yield* error;
         }
 
-        const retryDelayMs = EXTERNAL_RETRY_DELAYS_MS[attemptNumber - 1]!;
+        const retryDelayMs = policy.retryDelaysMs[attemptNumber - 1]!;
         yield* Effect.logWarning("external call attempt failed; retrying").pipe(
           Effect.annotateLogs(
             compactLogAnnotations({
@@ -181,29 +244,14 @@ export const makeExternalCall = Effect.fn("ExternalCall.makeExternalCall")(funct
   } satisfies ExternalCallShape;
 });
 
-export const ExternalCallLive = Layer.effect(ExternalCall, makeExternalCall());
+export const ExternalCallLive = Layer.effect(ExternalCall, makeExternalCall()).pipe(
+  Layer.provide(Layer.mergeAll(ExternalCallPolicyLive, makeExternalCallSemaphoresLive())),
+);
 
 const readExternalConcurrency = (key: string, fallback: number) =>
   Schema.Config(key, PositiveIntFromStringSchema).pipe(
     Effect.catchAll(() => Effect.succeed(fallback)),
   );
-
-const resolveExternalCallPool = (operation: string): ExternalCallPool => {
-  if (operation.startsWith("qbit.")) {
-    return "qbit";
-  }
-
-  if (
-    operation.startsWith("jikan.") ||
-    operation.startsWith("anilist.") ||
-    operation.startsWith("manami.") ||
-    operation.startsWith("anidb.")
-  ) {
-    return "media";
-  }
-
-  return "default";
-};
 
 function toExternalCallError(operation: string, cause: unknown) {
   return cause instanceof ExternalCallError

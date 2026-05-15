@@ -11,12 +11,26 @@ import { mapAnimeRouteError } from "@/http/shared/route-errors/anime.ts";
 import { mapOperationsRouteError } from "@/http/shared/route-errors/operations.ts";
 import { mapSystemRouteError } from "@/http/shared/route-errors/system.ts";
 import { fixedStatus } from "@/http/shared/route-errors/helpers.ts";
+import {
+  DomainConflictError,
+  DomainInputError,
+  DomainNotFoundError,
+  DomainPathError,
+  InfrastructureError,
+  StoredDataError,
+} from "@/features/errors.ts";
 
 type CommonRouteError =
   | DatabaseError
+  | DomainConflictError
+  | DomainInputError
+  | DomainNotFoundError
+  | DomainPathError
   | ExternalCallError
+  | InfrastructureError
   | PasswordError
   | RequestValidationError
+  | StoredDataError
   | TokenHasherError
   | WorkerTimeoutError;
 
@@ -27,11 +41,32 @@ const internalServerError = fixedStatus("Internal server error", 500);
 
 const taggedCommonRouteErrorMappers = {
   DatabaseError: internalServerError,
+  DomainConflictError: (error: DomainConflictError): RouteErrorResponse => ({
+    message: error.message,
+    status: 409,
+  }),
+  DomainInputError: (error: DomainInputError): RouteErrorResponse => ({
+    message: error.message,
+    status: 400,
+  }),
+  DomainNotFoundError: (error: DomainNotFoundError): RouteErrorResponse => ({
+    message: error.message,
+    status: 404,
+  }),
+  DomainPathError: (error: DomainPathError): RouteErrorResponse => ({
+    message: error.message,
+    status: 400,
+  }),
   ExternalCallError: serviceUnavailable,
+  InfrastructureError: internalServerError,
   PasswordError: authCryptoFailure,
   RequestValidationError: (error: RequestValidationError): RouteErrorResponse => ({
     message: error.message,
     status: error.status,
+  }),
+  StoredDataError: (error: StoredDataError): RouteErrorResponse => ({
+    message: error.message,
+    status: 500,
   }),
   TokenHasherError: authCryptoFailure,
   WorkerTimeoutError: internalServerError,
@@ -40,9 +75,15 @@ const taggedCommonRouteErrorMappers = {
 function asCommonRouteError(error: unknown): CommonRouteError | undefined {
   if (
     error instanceof DatabaseError ||
+    error instanceof DomainConflictError ||
+    error instanceof DomainInputError ||
+    error instanceof DomainNotFoundError ||
+    error instanceof DomainPathError ||
     error instanceof ExternalCallError ||
+    error instanceof InfrastructureError ||
     error instanceof PasswordError ||
     error instanceof RequestValidationError ||
+    error instanceof StoredDataError ||
     error instanceof TokenHasherError ||
     error instanceof WorkerTimeoutError
   ) {
@@ -53,6 +94,12 @@ function asCommonRouteError(error: unknown): CommonRouteError | undefined {
 }
 
 export function mapRouteError(error: unknown): RouteErrorResponse {
+  const commonRouteError = asCommonRouteError(error);
+
+  if (commonRouteError !== undefined) {
+    return mapTaggedCommonRouteError(commonRouteError);
+  }
+
   const animeRouteError = mapAnimeRouteError(error);
   if (animeRouteError !== undefined) {
     return animeRouteError;
@@ -66,12 +113,6 @@ export function mapRouteError(error: unknown): RouteErrorResponse {
   const systemRouteError = mapSystemRouteError(error);
   if (systemRouteError !== undefined) {
     return systemRouteError;
-  }
-
-  const commonRouteError = asCommonRouteError(error);
-
-  if (commonRouteError !== undefined) {
-    return mapTaggedCommonRouteError(commonRouteError);
   }
 
   return { message: "Unexpected server error", status: 500 };

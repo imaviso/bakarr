@@ -7,6 +7,33 @@ const PASSWORD_SCHEME = "pbkdf2_sha256";
 const ITERATIONS = 310_000;
 const KEY_LENGTH = 32;
 
+export interface PasswordCryptoPrimitives {
+  readonly deriveBits: (
+    algorithm: Pbkdf2Params,
+    keyMaterial: CryptoKey,
+    length: number,
+  ) => Promise<ArrayBuffer>;
+  readonly getRandomValues: (data: Uint8Array<ArrayBuffer>) => Uint8Array<ArrayBuffer>;
+  readonly importKey: (
+    format: "raw",
+    keyData: BufferSource,
+    algorithm: "PBKDF2",
+    extractable: boolean,
+    keyUsages: readonly KeyUsage[],
+  ) => Promise<CryptoKey>;
+}
+
+export const WebPasswordCrypto: PasswordCryptoPrimitives = {
+  deriveBits: (algorithm, keyMaterial, length) =>
+    crypto.subtle.deriveBits(algorithm, keyMaterial, length),
+  getRandomValues: (data) => {
+    crypto.getRandomValues(data);
+    return data;
+  },
+  importKey: (format, keyData, algorithm, extractable, keyUsages) =>
+    crypto.subtle.importKey(format, keyData, algorithm, extractable, [...keyUsages]),
+};
+
 export class PasswordError extends Schema.TaggedError<PasswordError>()("PasswordError", {
   cause: Schema.optional(Schema.Defect),
   message: Schema.String,
@@ -26,10 +53,13 @@ function timingSafeEqual(left: Uint8Array, right: Uint8Array): boolean {
   return nodeTimingSafeEqual(Buffer.from(left), Buffer.from(right));
 }
 
-const deriveKeyMaterial = Effect.fn("Password.deriveKeyMaterial")(function* (password: string) {
+const deriveKeyMaterial = Effect.fn("Password.deriveKeyMaterial")(function* (
+  primitives: PasswordCryptoPrimitives,
+  password: string,
+) {
   const keyMaterial = yield* Effect.tryPromise({
     try: () =>
-      crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, [
+      primitives.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, [
         "deriveBits",
       ]),
     catch: (cause) =>
@@ -42,13 +72,14 @@ const deriveKeyMaterial = Effect.fn("Password.deriveKeyMaterial")(function* (pas
 });
 
 const deriveBits = Effect.fn("Password.deriveBits")(function* (
+  primitives: PasswordCryptoPrimitives,
   keyMaterial: CryptoKey,
   salt: ArrayBuffer,
   iterations: number,
 ) {
   const bits = yield* Effect.tryPromise({
     try: () =>
-      crypto.subtle.deriveBits(
+      primitives.deriveBits(
         {
           hash: "SHA-256",
           iterations,
@@ -107,9 +138,9 @@ const parseStoredHash = Effect.fn("Password.parseStoredHash")(function* (storedH
 });
 
 export const hashPassword = Effect.fn("Password.hash")(function* (password: string) {
-  const salt = yield* randomBytesEffect(16);
-  const keyMaterial = yield* deriveKeyMaterial(password);
-  const hash = yield* deriveBits(keyMaterial, toArrayBuffer(salt), ITERATIONS);
+  const salt = yield* randomBytesEffect(WebPasswordCrypto, 16);
+  const keyMaterial = yield* deriveKeyMaterial(WebPasswordCrypto, password);
+  const hash = yield* deriveBits(WebPasswordCrypto, keyMaterial, toArrayBuffer(salt), ITERATIONS);
 
   return [PASSWORD_SCHEME, String(ITERATIONS), bytesToHex(salt), bytesToHex(hash)].join("$");
 });
@@ -120,8 +151,8 @@ export const verifyPassword = Effect.fn("Password.verify")(function* (
 ) {
   const { hash: expected, iterations, salt } = yield* parseStoredHash(storedHash);
 
-  const keyMaterial = yield* deriveKeyMaterial(password);
-  const actual = yield* deriveBits(keyMaterial, toArrayBuffer(salt), iterations);
+  const keyMaterial = yield* deriveKeyMaterial(WebPasswordCrypto, password);
+  const actual = yield* deriveBits(WebPasswordCrypto, keyMaterial, toArrayBuffer(salt), iterations);
 
   return timingSafeEqual(expected, actual);
 });
@@ -129,8 +160,8 @@ export const verifyPassword = Effect.fn("Password.verify")(function* (
 function makeHashPasswordWith(randomBytes: (bytes: number) => Effect.Effect<Uint8Array>) {
   return Effect.fn("Password.hashWith")(function* (password: string) {
     const salt = yield* randomBytes(16);
-    const keyMaterial = yield* deriveKeyMaterial(password);
-    const hash = yield* deriveBits(keyMaterial, toArrayBuffer(salt), ITERATIONS);
+    const keyMaterial = yield* deriveKeyMaterial(WebPasswordCrypto, password);
+    const hash = yield* deriveBits(WebPasswordCrypto, keyMaterial, toArrayBuffer(salt), ITERATIONS);
 
     return [PASSWORD_SCHEME, String(ITERATIONS), bytesToHex(salt), bytesToHex(hash)].join("$");
   });
@@ -139,11 +170,11 @@ function makeHashPasswordWith(randomBytes: (bytes: number) => Effect.Effect<Uint
 export const hashPasswordWith = (randomBytes: (bytes: number) => Effect.Effect<Uint8Array>) =>
   makeHashPasswordWith(randomBytes);
 
-const randomBytesEffect = (bytes: number) =>
+const randomBytesEffect = (primitives: PasswordCryptoPrimitives, bytes: number) =>
   Effect.try({
     try: () => {
       const data = new Uint8Array(bytes);
-      crypto.getRandomValues(data);
+      primitives.getRandomValues(data);
       return data;
     },
     catch: (cause) =>

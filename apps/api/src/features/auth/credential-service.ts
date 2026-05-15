@@ -1,18 +1,14 @@
 import { Context, Effect, Layer, Option } from "effect";
 
 import type { ApiKeyResponse, ChangePasswordRequest } from "@packages/shared/index.ts";
-import { Database, DatabaseError } from "@/db/database.ts";
+import { DatabaseError } from "@/db/database.ts";
 import { nowIsoFromClock, ClockService } from "@/infra/clock.ts";
 import { randomHexFrom, RandomService } from "@/infra/random.ts";
 import { hashPasswordWith, verifyPassword } from "@/security/password.ts";
 import { TokenHasher, type TokenHasherError } from "@/security/token-hasher.ts";
 import { AuthError, type AuthCryptoError } from "@/features/auth/errors.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
-import {
-  changePasswordState,
-  findUserById,
-  regenerateApiKeyState,
-} from "@/features/auth/user-repository.ts";
+import { AuthUserRepository } from "@/features/auth/user-repository.ts";
 
 export interface AuthCredentialServiceShape {
   readonly changePassword: (
@@ -31,7 +27,7 @@ export class AuthCredentialService extends Context.Tag("@bakarr/api/AuthCredenti
 >() {}
 
 const makeAuthCredentialService = Effect.gen(function* () {
-  const { db } = yield* Database;
+  const users = yield* AuthUserRepository;
   const clock = yield* ClockService;
   const random = yield* RandomService;
   const tokenHasher = yield* TokenHasher;
@@ -45,7 +41,7 @@ const makeAuthCredentialService = Effect.gen(function* () {
     userId: number,
     request: ChangePasswordRequest,
   ) {
-    const rowOption = yield* findUserById(db, userId);
+    const rowOption = yield* users.findUserById(userId);
 
     if (Option.isNone(rowOption)) {
       return yield* AuthError.make({ message: "User not found", status: 404 });
@@ -74,10 +70,9 @@ const makeAuthCredentialService = Effect.gen(function* () {
     const apiKeyHash = yield* hashToken(apiKey);
 
     const changeNow = yield* nowIso();
-    yield* changePasswordState({
+    yield* users.changePasswordState({
       apiKeyHash,
       changedAt: changeNow,
-      db,
       passwordHash,
       userId,
       username: row.username,
@@ -88,7 +83,7 @@ const makeAuthCredentialService = Effect.gen(function* () {
   });
 
   const getApiKey = Effect.fn("AuthCredentialService.getApiKey")(function* (userId: number) {
-    const rowOption = yield* findUserById(db, userId);
+    const rowOption = yield* users.findUserById(userId);
 
     if (Option.isNone(rowOption)) {
       return yield* AuthError.make({ message: "User not found", status: 404 });
@@ -100,7 +95,7 @@ const makeAuthCredentialService = Effect.gen(function* () {
   const regenerateApiKey = Effect.fn("AuthCredentialService.regenerateApiKey")(function* (
     userId: number,
   ) {
-    const rowOption = yield* findUserById(db, userId);
+    const rowOption = yield* users.findUserById(userId);
 
     if (Option.isNone(rowOption)) {
       return yield* AuthError.make({ message: "User not found", status: 404 });
@@ -112,9 +107,8 @@ const makeAuthCredentialService = Effect.gen(function* () {
     const hashedApiKey = yield* hashToken(apiKey);
     const regenNow = yield* nowIso();
 
-    yield* regenerateApiKeyState({
+    yield* users.regenerateApiKeyState({
       apiKeyHash: hashedApiKey,
-      db,
       regeneratedAt: regenNow,
       userId,
       username: row.username,

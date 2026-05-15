@@ -1,9 +1,43 @@
 import { eq } from "drizzle-orm";
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 
-import type { AppDatabase } from "@/db/database.ts";
+import { Database, type AppDatabase, type DatabaseError } from "@/db/database.ts";
 import { anime, qualityProfiles } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
+
+export interface QualityProfileRepositoryShape {
+  readonly deleteQualityProfileRow: (name: string) => Effect.Effect<void, DatabaseError>;
+  readonly insertQualityProfileRow: (
+    row: typeof qualityProfiles.$inferInsert,
+  ) => Effect.Effect<void, DatabaseError>;
+  readonly insertQualityProfileRows: (
+    rows: readonly (typeof qualityProfiles.$inferInsert)[],
+  ) => Effect.Effect<void, DatabaseError>;
+  readonly listQualityProfileRows: () => Effect.Effect<
+    readonly (typeof qualityProfiles.$inferSelect)[],
+    DatabaseError
+  >;
+  readonly loadAnyQualityProfileRow: () => Effect.Effect<
+    typeof qualityProfiles.$inferSelect | undefined,
+    DatabaseError
+  >;
+  readonly loadQualityProfileRow: (
+    name: string,
+  ) => Effect.Effect<typeof qualityProfiles.$inferSelect | undefined, DatabaseError>;
+  readonly renameQualityProfileWithCascade: (
+    oldName: string,
+    row: typeof qualityProfiles.$inferInsert,
+  ) => Effect.Effect<void, DatabaseError>;
+  readonly updateQualityProfileRow: (
+    name: string,
+    row: typeof qualityProfiles.$inferInsert,
+  ) => Effect.Effect<void, DatabaseError>;
+}
+
+export class QualityProfileRepository extends Context.Tag("@bakarr/api/QualityProfileRepository")<
+  QualityProfileRepository,
+  QualityProfileRepositoryShape
+>() {}
 
 export const loadAnyQualityProfileRow = Effect.fn(
   "QualityProfileRepository.loadAnyQualityProfileRow",
@@ -82,3 +116,25 @@ export const deleteQualityProfileRow = Effect.fn(
     db.delete(qualityProfiles).where(eq(qualityProfiles.name, name)),
   );
 });
+
+export function makeQualityProfileRepository(db: AppDatabase): QualityProfileRepositoryShape {
+  return QualityProfileRepository.of({
+    deleteQualityProfileRow: (name) => deleteQualityProfileRow(db, name),
+    insertQualityProfileRow: (row) => insertQualityProfileRow(db, row),
+    insertQualityProfileRows: (rows) => insertQualityProfileRows(db, rows),
+    listQualityProfileRows: () => listQualityProfileRows(db),
+    loadAnyQualityProfileRow: () => loadAnyQualityProfileRow(db),
+    loadQualityProfileRow: (name) => loadQualityProfileRow(db, name),
+    renameQualityProfileWithCascade: (oldName, row) =>
+      renameQualityProfileWithCascade(db, oldName, row),
+    updateQualityProfileRow: (name, row) => updateQualityProfileRow(db, name, row),
+  });
+}
+
+export const QualityProfileRepositoryLive = Layer.effect(
+  QualityProfileRepository,
+  Effect.gen(function* () {
+    const { db } = yield* Database;
+    return makeQualityProfileRepository(db);
+  }),
+);
