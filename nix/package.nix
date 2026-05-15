@@ -65,7 +65,7 @@ stdenv.mkDerivation (finalAttrs: {
   buildPhase = ''
     runHook preBuild
 
-    pnpm rebuild esbuild better-sqlite3
+      pnpm --filter @bakarr/api rebuild
 
     pnpm --filter @bakarr/web build
     pnpm --filter @bakarr/api build
