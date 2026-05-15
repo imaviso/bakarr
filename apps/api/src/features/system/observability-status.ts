@@ -31,6 +31,6 @@ export function formatSafeEndpoint(value: string | null): string | null {
     const url = new URL(value);
     return url.origin;
   } catch {
-    return value;
+    return null;
   }
 }

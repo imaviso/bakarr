@@ -10,7 +10,7 @@ export const announceBootstrapCredentials = Effect.fn(
     : `* Username: ${input.username}\n* Password: use the configured bootstrap credential\n`;
 
   if (terminal._tag === "Some") {
-    const isTTY = yield* resolveTerminalIsTTY(terminal.value.isTTY);
+    const isTTY = yield* terminal.value.isTTY;
 
     if (isTTY) {
       const text = `\n*************************************************************\n* INITIAL SETUP\n* Bootstrap user created.\n${details}* Please log in and change your password.\n*************************************************************\n`;
@@ -34,16 +34,3 @@ export const announceBootstrapCredentials = Effect.fn(
     `\n* INITIAL SETUP: Bootstrap user created.\n${details}* Please log in and change your password.\n`,
   );
 });
-
-function resolveTerminalIsTTY(value: unknown): Effect.Effect<boolean> {
-  if (typeof value === "boolean") {
-    return Effect.succeed(value);
-  }
-
-  if (Effect.isEffect(value)) {
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Effect.isEffect cannot preserve A/E/R, but Terminal.isTTY is declared as Effect<boolean>.
-    return value as Effect.Effect<boolean>;
-  }
-
-  return Effect.succeed(false);
-}

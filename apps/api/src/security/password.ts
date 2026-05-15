@@ -140,8 +140,15 @@ export const hashPasswordWith = (randomBytes: (bytes: number) => Effect.Effect<U
   makeHashPasswordWith(randomBytes);
 
 const randomBytesEffect = (bytes: number) =>
-  Effect.sync(() => {
-    const data = new Uint8Array(bytes);
-    crypto.getRandomValues(data);
-    return data;
+  Effect.try({
+    try: () => {
+      const data = new Uint8Array(bytes);
+      crypto.getRandomValues(data);
+      return data;
+    },
+    catch: (cause) =>
+      new PasswordError({
+        cause,
+        message: "Failed to generate password salt",
+      }),
   });

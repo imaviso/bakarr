@@ -1,4 +1,4 @@
-import { win32 as PathForUtilities } from "node:path";
+import { win32 as Win32Path } from "node:path";
 import { Effect, Either, Schema } from "effect";
 
 export class PathSegmentError extends Schema.TaggedError<PathSegmentError>()("PathSegmentError", {
@@ -7,14 +7,14 @@ export class PathSegmentError extends Schema.TaggedError<PathSegmentError>()("Pa
 }) {}
 
 export function isWithinPathRoot(path: string, root: string) {
-  const resolvedPath = PathForUtilities.resolve(path.replace(/[\\/]+/g, "/"));
-  const resolvedRoot = PathForUtilities.resolve(root.replace(/[\\/]+/g, "/"));
+  const resolvedPath = Win32Path.resolve(path.replace(/[\\/]+/g, "/"));
+  const resolvedRoot = Win32Path.resolve(root.replace(/[\\/]+/g, "/"));
 
   if (resolvedPath === resolvedRoot) {
     return true;
   }
 
-  const relativePath = PathForUtilities.relative(resolvedRoot, resolvedPath);
+  const relativePath = Win32Path.relative(resolvedRoot, resolvedPath);
 
   if (relativePath === "") {
     return true;

@@ -1,7 +1,7 @@
 import { Effect, Exit, Layer } from "effect";
 import * as SqlClient from "@effect/sql/SqlClient";
 
-import { Database } from "@/db/database.ts";
+import { Database, setAndVerifyPragmas } from "@/db/database.ts";
 import { migrateDatabase } from "@/db/migrate.ts";
 import { withFileSystemSandboxEffect } from "@/test/filesystem-test.ts";
 import { withSqliteRawClientEffect } from "@/test/database-test.ts";
@@ -51,3 +51,49 @@ it.scoped("migrateDatabase applies embedded migrations idempotently", () =>
     ),
   ),
 );
+
+it.effect("setAndVerifyPragmas succeeds when SQLite invariants hold", () =>
+  Effect.gen(function* () {
+    const client = makePragmaClient({ foreignKeys: 1, journalMode: "wal" });
+
+    const exit = yield* Effect.exit(setAndVerifyPragmas(client));
+
+    assert.deepStrictEqual(Exit.isSuccess(exit), true);
+  }),
+);
+
+it.effect("setAndVerifyPragmas dies when journal mode is not WAL", () =>
+  Effect.gen(function* () {
+    const client = makePragmaClient({ foreignKeys: 1, journalMode: "delete" });
+
+    const exit = yield* Effect.exit(setAndVerifyPragmas(client));
+
+    assert.deepStrictEqual(Exit.isFailure(exit), true);
+  }),
+);
+
+it.effect("setAndVerifyPragmas dies when foreign keys are disabled", () =>
+  Effect.gen(function* () {
+    const client = makePragmaClient({ foreignKeys: 0, journalMode: "wal" });
+
+    const exit = yield* Effect.exit(setAndVerifyPragmas(client));
+
+    assert.deepStrictEqual(Exit.isFailure(exit), true);
+  }),
+);
+
+function makePragmaClient(input: { readonly foreignKeys: number; readonly journalMode: string }) {
+  return {
+    unsafe: (statement: string) => {
+      if (statement === "PRAGMA journal_mode") {
+        return Effect.succeed([{ journal_mode: input.journalMode }]);
+      }
+
+      if (statement === "PRAGMA foreign_keys") {
+        return Effect.succeed([{ foreign_keys: input.foreignKeys }]);
+      }
+
+      return Effect.succeed([]);
+    },
+  };
+}

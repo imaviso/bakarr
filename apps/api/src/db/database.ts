@@ -34,27 +34,33 @@ export interface DatabaseService {
 
 export class Database extends Context.Tag("@bakarr/api/Database")<Database, DatabaseService>() {}
 
+interface SqlitePragmaClient {
+  readonly unsafe: (
+    statement: string,
+  ) => Effect.Effect<ReadonlyArray<Record<string, unknown>>, unknown>;
+}
+
 const sqliteSetupError = (cause: unknown) =>
   new DatabaseError({
     cause,
     message: "Failed to open the SQLite database",
   });
 
-const executeSql = Effect.fn("Database.executeSql")(function* <A extends Record<string, unknown>>(
-  client: NodeSqliteClient.SqliteClient,
+const executeSql = Effect.fn("Database.executeSql")(function* (
+  client: SqlitePragmaClient,
   statement: string,
 ) {
-  return yield* client.unsafe<A>(statement).pipe(Effect.mapError(sqliteSetupError));
+  return yield* client.unsafe(statement).pipe(Effect.mapError(sqliteSetupError));
 });
 
 export const setAndVerifyPragmas = Effect.fn("Database.setAndVerifyPragmas")(function* (
-  client: NodeSqliteClient.SqliteClient,
+  client: SqlitePragmaClient,
 ) {
   yield* executeSql(client, "PRAGMA journal_mode = WAL");
   yield* executeSql(client, "PRAGMA foreign_keys = ON");
 
-  const journalMode = yield* executeSql<Record<string, unknown>>(client, "PRAGMA journal_mode");
-  const foreignKeys = yield* executeSql<Record<string, unknown>>(client, "PRAGMA foreign_keys");
+  const journalMode = yield* executeSql(client, "PRAGMA journal_mode");
+  const foreignKeys = yield* executeSql(client, "PRAGMA foreign_keys");
 
   const journalModeValue = toSqlitePragmaValue(firstRowValue(journalMode[0]));
   const foreignKeysValue = toSqlitePragmaValue(firstRowValue(foreignKeys[0]));

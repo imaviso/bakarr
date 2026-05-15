@@ -2,7 +2,10 @@ import { assert, it } from "@effect/vitest";
 import { Redacted } from "effect";
 
 import { ObservabilityConfigModel } from "@/config/observability.ts";
-import { makeObservabilityStatus } from "@/features/system/observability-status.ts";
+import {
+  formatSafeEndpoint,
+  makeObservabilityStatus,
+} from "@/features/system/observability-status.ts";
 
 it("makeObservabilityStatus exposes safe endpoint origin and public links", () => {
   const status = makeObservabilityStatus(
@@ -39,4 +42,8 @@ it("makeObservabilityStatus exposes safe endpoint origin and public links", () =
     service_name: "bakarr-api",
     service_version: "0.1.0",
   });
+});
+
+it("formatSafeEndpoint hides malformed endpoint values", () => {
+  assert.deepStrictEqual(formatSafeEndpoint("http://user:secret@["), null);
 });
