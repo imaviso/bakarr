@@ -1,4 +1,5 @@
-import type { AnimeSearchResult, ImportFileRequest } from "~/api/contracts";
+import { brandAnimeId, type AnimeSearchResult } from "@bakarr/shared";
+import type { ImportFileRequest } from "~/api/contracts";
 import { it } from "vitest";
 import {
   buildImportFileRequest,
@@ -22,7 +23,7 @@ function assertDeepEquals(actual: unknown, expected: unknown) {
 
 function createCandidate(id: number, englishTitle: string): AnimeSearchResult {
   return {
-    id,
+    id: brandAnimeId(id),
     title: {
       english: englishTitle,
     },
@@ -60,7 +61,7 @@ it("buildImportSourceMetadata includes only defined fields", () => {
 
 it("buildImportFileRequest floors episode number and derives metadata by default", () => {
   const request = buildImportFileRequest({
-    animeId: 100,
+    animeId: brandAnimeId(100),
     file: {
       source_path: "/imports/ep01.mkv",
       episode_number: 1.9,
@@ -69,7 +70,7 @@ it("buildImportFileRequest floors episode number and derives metadata by default
   });
 
   assertDeepEquals(request, {
-    anime_id: 100,
+    anime_id: brandAnimeId(100),
     episode_number: 1,
     source_metadata: {
       group: "SubsPlease",
@@ -80,14 +81,14 @@ it("buildImportFileRequest floors episode number and derives metadata by default
 
 it("findMissingImportCandidates returns only candidate ids absent from local library", () => {
   const files: ImportFileRequest[] = [
-    { anime_id: 1, episode_number: 1, source_path: "/imports/a.mkv" },
-    { anime_id: 2, episode_number: 2, source_path: "/imports/b.mkv" },
-    { anime_id: 2, episode_number: 3, source_path: "/imports/c.mkv" },
+    { anime_id: brandAnimeId(1), episode_number: 1, source_path: "/imports/a.mkv" },
+    { anime_id: brandAnimeId(2), episode_number: 2, source_path: "/imports/b.mkv" },
+    { anime_id: brandAnimeId(2), episode_number: 3, source_path: "/imports/c.mkv" },
   ];
 
   const result = findMissingImportCandidates({
     files,
-    localAnimeIds: new Set([1]),
+    localAnimeIds: new Set([brandAnimeId(1)]),
     candidates: [createCandidate(2, "Naruto"), createCandidate(3, "Bleach")],
   });
 

@@ -1,7 +1,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { Effect, Either } from "effect";
 
-import type { Config } from "@packages/shared/index.ts";
+import { brandAnimeId, type Config } from "@packages/shared/index.ts";
 import type { AppDatabase, DatabaseError } from "@/db/database.ts";
 import { episodes } from "@/db/schema.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
@@ -34,7 +34,7 @@ export const renameLibraryFiles = Effect.fn("Operations.renameLibraryFiles")((
     yield* eventBus.publish({
       type: "RenameStarted",
       payload: {
-        anime_id: animeId,
+        anime_id: brandAnimeId(animeId),
         title: animeRow.titleRomaji,
       },
     });
@@ -95,7 +95,7 @@ export const renameLibraryFiles = Effect.fn("Operations.renameLibraryFiles")((
     yield* eventBus.publish({
       type: "RenameFinished",
       payload: {
-        anime_id: animeId,
+        anime_id: brandAnimeId(animeId),
         count: renamed,
         title: animeRow.titleRomaji,
       },

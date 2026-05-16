@@ -216,8 +216,10 @@ export function FileRow(props: FileRowProps) {
               <Select
                 value={String(props.selectedAnimeId || matchedAnimeId)}
                 onValueChange={(value) => {
-                  const newId = Number(value);
-                  if (!Number.isNaN(newId)) {
+                  const newId = props.animeOptions.find(
+                    (option) => String(option.id) === value,
+                  )?.id;
+                  if (newId !== undefined) {
                     props.onAnimeChange(newId);
                     if (!props.isSelected) {
                       props.onToggle(newId);
@@ -248,10 +250,12 @@ export function FileRow(props: FileRowProps) {
             <>
               <WarningIcon className="h-4 w-4 text-warning shrink-0" />
               <Select
-                value={undefined}
+                value=""
                 onValueChange={(value) => {
-                  const newId = Number(value);
-                  if (!Number.isNaN(newId)) {
+                  const newId = props.animeOptions.find(
+                    (option) => String(option.id) === value,
+                  )?.id;
+                  if (newId !== undefined) {
                     props.onToggle(newId);
                   }
                 }}

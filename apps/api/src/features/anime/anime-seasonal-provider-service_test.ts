@@ -2,7 +2,7 @@ import { Effect, Layer, Option } from "effect";
 
 import { assert, describe, it } from "@effect/vitest";
 import { AniListClient } from "@/features/anime/anilist.ts";
-import type { AnimeSearchResult, AnimeSeason } from "@packages/shared/index.ts";
+import { brandAnimeId, type AnimeSearchResult, type AnimeSeason } from "@packages/shared/index.ts";
 import {
   AnimeSeasonalProviderService,
   AnimeSeasonalProviderServiceLive,
@@ -18,7 +18,7 @@ function makeAniListSearchResult(
 ): AnimeSearchResult {
   return {
     format: "TV",
-    id,
+    id: brandAnimeId(id),
     season: overrides?.season,
     season_year: overrides?.season_year,
     start_year: overrides?.start_year,

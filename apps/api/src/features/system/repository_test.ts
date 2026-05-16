@@ -1,5 +1,6 @@
 import { assert, it } from "@effect/vitest";
 import { Cause, Effect, Exit, Schema } from "effect";
+import { brandAnimeId } from "@packages/shared/index.ts";
 import { ConfigCoreSchema } from "@/features/system/config-schema.ts";
 
 import * as schema from "@/db/schema.ts";
@@ -605,7 +606,7 @@ it.scoped("unmapped folder match rows persist cached suggestions", () =>
               suggested_matches: [
                 {
                   already_in_library: true,
-                  id: 20,
+                  id: brandAnimeId(20),
                   match_confidence: 0.97,
                   match_reason:
                     'Matched a library title from the normalized folder name "Naruto Archive"',

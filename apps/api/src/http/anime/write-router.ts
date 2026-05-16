@@ -9,6 +9,7 @@ import { OperationsTaskNotFoundError } from "@/features/operations/errors.ts";
 import { OperationsTaskLauncherService } from "@/features/operations/operations-task-launcher-service.ts";
 import { OperationsTaskReadService } from "@/features/operations/operations-task-service.ts";
 import { CatalogLibraryWriteService } from "@/features/operations/catalog-library-write-service.ts";
+import { brandAnimeId } from "@packages/shared/index.ts";
 import {
   AddAnimeInputSchema,
   AnimeEpisodeParamsSchema,
@@ -138,12 +139,12 @@ export const animeWriteRouter = HttpRouter.empty.pipe(
             progressTotal: result.total,
           }),
           successPayload: (result: { readonly found: number; readonly total: number }) => ({
-            anime_id: params.id,
+            anime_id: brandAnimeId(params.id),
             found: result.found,
             total: result.total,
           }),
           failurePayload: () => ({
-            anime_id: params.id,
+            anime_id: brandAnimeId(params.id),
           }),
           taskKey: "anime_scan_folder",
         });

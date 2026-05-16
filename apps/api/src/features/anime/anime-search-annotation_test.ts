@@ -1,11 +1,11 @@
 import { assert, it } from "@effect/vitest";
+import { brandAnimeId, type AnimeSearchResult } from "@packages/shared/index.ts";
 
 import { annotateAnimeSearchResultsForQuery } from "@/features/anime/anime-search-annotation.ts";
-import type { AnimeSearchResult } from "@packages/shared/index.ts";
 
 function makeResult(overrides: Partial<AnimeSearchResult> = {}): AnimeSearchResult {
   return {
-    id: 1,
+    id: brandAnimeId(1),
     already_in_library: false,
     synonyms: [],
     title: {
@@ -18,7 +18,7 @@ function makeResult(overrides: Partial<AnimeSearchResult> = {}): AnimeSearchResu
 }
 
 it("annotateAnimeSearchResultsForQuery returns unmodified results for empty query", () => {
-  const results = [makeResult({ id: 1 }), makeResult({ id: 2 })];
+  const results = [makeResult({ id: brandAnimeId(1) }), makeResult({ id: brandAnimeId(2) })];
   const annotated = annotateAnimeSearchResultsForQuery("", results);
   assert.deepStrictEqual(annotated, results);
 });
@@ -26,7 +26,7 @@ it("annotateAnimeSearchResultsForQuery returns unmodified results for empty quer
 it("annotateAnimeSearchResultsForQuery adds match confidence for results", () => {
   const results = [
     makeResult({
-      id: 1,
+      id: brandAnimeId(1),
       title: { english: "One Piece", native: undefined, romaji: "One Piece" },
     }),
   ];
@@ -38,11 +38,11 @@ it("annotateAnimeSearchResultsForQuery adds match confidence for results", () =>
 it("annotateAnimeSearchResultsForQuery distinguishes strong and partial matches", () => {
   const annotated = annotateAnimeSearchResultsForQuery("one piece", [
     makeResult({
-      id: 1,
+      id: brandAnimeId(1),
       title: { english: undefined, native: undefined, romaji: "One Piece Film Red" },
     }),
     makeResult({
-      id: 2,
+      id: brandAnimeId(2),
       title: { english: undefined, native: undefined, romaji: "One Punch Man" },
     }),
   ]);

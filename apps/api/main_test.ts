@@ -8,7 +8,11 @@ import { Effect, Layer, ManagedRuntime, Option, Schema, Stream } from "effect";
 import * as Exit from "effect/Exit";
 import * as EffectLayer from "effect/Layer";
 import * as Scope from "effect/Scope";
-import { AsyncOperationAcceptedSchema, OperationTaskSchema } from "@packages/shared/index.ts";
+import {
+  AsyncOperationAcceptedSchema,
+  brandAnimeId,
+  OperationTaskSchema,
+} from "@packages/shared/index.ts";
 import { mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -4759,7 +4763,7 @@ const testAniListLayer = Layer.succeed(AniListClient, {
           cover_image: undefined,
           episode_count: meta.episodeCount,
           format: meta.format,
-          id,
+          id: brandAnimeId(id),
           status: meta["status"],
           title: meta.title,
         });

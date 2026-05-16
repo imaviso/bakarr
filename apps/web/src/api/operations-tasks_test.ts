@@ -1,11 +1,12 @@
 import type { OperationTask } from "./contracts";
 import { describe, expect, it } from "vitest";
+import { brandOperationTaskId } from "@bakarr/shared";
 import { isTaskActive, operationTaskPollInterval } from "./operations-tasks";
 
 function task(status: OperationTask["status"]): OperationTask {
   return {
     created_at: "2026-01-01T00:00:00Z",
-    id: 1,
+    id: brandOperationTaskId(1),
     status,
     task_key: "unmapped_scan_manual",
     updated_at: "2026-01-01T00:00:00Z",

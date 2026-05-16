@@ -1,4 +1,4 @@
-import type { AnimeDiscoveryEntry } from "@packages/shared/index.ts";
+import { brandAnimeId, type AnimeDiscoveryEntry } from "@packages/shared/index.ts";
 import type { AnimeMetadata } from "@/features/anime/anilist-model.ts";
 import type { JikanNormalizedAnime } from "@/features/anime/jikan-model.ts";
 import type { ManamiLookupEntry } from "@/features/anime/manami.ts";
@@ -141,7 +141,7 @@ export function convertJikanRelationsToDiscoveryEntries(
 
     seen.add(animeId);
     output.push({
-      id: animeId,
+      id: brandAnimeId(animeId),
       relation_type: relation.relation,
       title: {
         romaji: normalizeString(relation.title),
@@ -171,7 +171,7 @@ export function convertJikanRecommendationsToDiscoveryEntries(
 
     seen.add(animeId);
     output.push({
-      id: animeId,
+      id: brandAnimeId(animeId),
       title: {
         romaji: normalizeString(recommendation.title),
       },

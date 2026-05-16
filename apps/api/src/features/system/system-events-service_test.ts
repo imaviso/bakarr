@@ -1,7 +1,7 @@
 import { assert, it } from "@effect/vitest";
 import { Effect, Layer, Stream } from "effect";
 
-import type { DownloadStatus } from "@packages/shared/index.ts";
+import { brandAnimeId, brandDownloadId, type DownloadStatus } from "@packages/shared/index.ts";
 import { makeEventBus, EventBus } from "@/features/events/event-bus.ts";
 import { CatalogDownloadReadService } from "@/features/operations/catalog-download-read-service.ts";
 import {
@@ -56,8 +56,8 @@ it.scoped("SystemEventsService does not lose buffered events during stream boots
 
 function sampleDownload(state: DownloadStatus["state"]): DownloadStatus {
   return {
-    id: 1,
-    anime_id: 10,
+    id: brandDownloadId(1),
+    anime_id: brandAnimeId(10),
     anime_title: "Sample Show",
     episode_number: 1,
     hash: "abcdef1234567890abcdef1234567890abcdef12",

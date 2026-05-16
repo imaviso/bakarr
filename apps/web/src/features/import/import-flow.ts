@@ -1,4 +1,5 @@
 import type {
+  AnimeId,
   AnimeSearchResult,
   DownloadSourceMetadata,
   ImportFileRequest,
@@ -35,7 +36,7 @@ export function buildImportSourceMetadata(
 }
 
 export function buildImportFileRequest(input: {
-  animeId: number;
+  animeId: AnimeId;
   file: Pick<
     ScannedFile,
     | "air_date"
@@ -78,7 +79,7 @@ export function buildImportFileRequest(input: {
 
 export function findMissingImportCandidates(input: {
   files: readonly ImportFileRequest[];
-  localAnimeIds: ReadonlySet<number>;
+  localAnimeIds: ReadonlySet<AnimeId>;
   candidates: readonly AnimeSearchResult[];
 }) {
   const missingIds = [...new Set(input.files.map((file) => file.anime_id))].filter(

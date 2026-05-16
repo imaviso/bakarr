@@ -1,4 +1,5 @@
 import { assert, it } from "@effect/vitest";
+import { brandAnimeId } from "@packages/shared/index.ts";
 
 import { anime } from "@/db/schema.ts";
 import {
@@ -77,7 +78,7 @@ it("scoreAnimeRowMatch and titlesMatch share normalized title scoring", () => {
   );
   assert.deepStrictEqual(
     titlesMatch("Dungeon Meshi", {
-      id: 1,
+      id: brandAnimeId(1),
       already_in_library: false,
       cover_image: undefined,
       description: undefined,

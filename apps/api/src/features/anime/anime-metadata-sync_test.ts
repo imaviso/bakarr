@@ -1,6 +1,7 @@
 import { assert, it } from "@effect/vitest";
 import { eq } from "drizzle-orm";
 import { Effect, Option } from "effect";
+import { brandAnimeId } from "@packages/shared/index.ts";
 
 import type { AppDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
@@ -162,10 +163,12 @@ it.scoped("syncAnimeMetadataEffect persists enrichment metadata fields from prov
           popularity: 12,
           rank: 9,
           rating: "PG-13 - Teens 13 or older",
-          recommendedAnime: [{ id: 8101, title: { romaji: "Recommendation from enrichment" } }],
+          recommendedAnime: [
+            { id: brandAnimeId(8101), title: { romaji: "Recommendation from enrichment" } },
+          ],
           relatedAnime: [
-            { id: 7101, title: { romaji: "Mapped relation one" } },
-            { id: 7102, title: { romaji: "Mapped relation two" } },
+            { id: brandAnimeId(7101), title: { romaji: "Mapped relation one" } },
+            { id: brandAnimeId(7102), title: { romaji: "Mapped relation two" } },
           ],
           source: "MANGA",
           synonyms: ["Mapped Alias", "Provider Alias"],

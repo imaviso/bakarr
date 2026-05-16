@@ -1,5 +1,11 @@
 import { assert, it } from "@effect/vitest";
 import { Cause, Effect, Exit } from "effect";
+import {
+  brandAnimeId,
+  brandDownloadEventId,
+  brandDownloadId,
+  brandRssFeedId,
+} from "@packages/shared/index.ts";
 
 import { downloadEvents, downloads, rssFeeds } from "@/db/schema.ts";
 import { toDownload, toDownloadStatus } from "@/features/operations/download-presentation.ts";
@@ -24,10 +30,10 @@ it.effect("repository mappers convert RSS feed and download event rows", () =>
     } satisfies typeof rssFeeds.$inferSelect);
 
     assert.deepStrictEqual(feed, {
-      anime_id: 20,
+      anime_id: brandAnimeId(20),
       created_at: "2024-01-01T00:00:00.000Z",
       enabled: true,
-      id: 3,
+      id: brandRssFeedId(3),
       last_checked: undefined,
       name: undefined,
       url: "https://example.com/feed.xml",
@@ -65,10 +71,10 @@ it.effect("repository mappers convert RSS feed and download event rows", () =>
       anime_image: "https://example.com/naruto.jpg",
       anime_title: "Naruto",
       created_at: "2024-01-01T00:00:00.000Z",
-      download_id: 4,
+      download_id: brandDownloadId(4),
       event_type: "download.started",
       from_status: undefined,
-      id: 8,
+      id: brandDownloadEventId(8),
       message: "Started Naruto - 01",
       metadata: yield* encodeDownloadEventMetadata({
         covered_episodes: [1],

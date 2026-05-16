@@ -1,4 +1,5 @@
 import { assert, it } from "@effect/vitest";
+import { brandAnimeId } from "@packages/shared/index.ts";
 
 import {
   buildEpisodeFileMappingIndex,
@@ -30,11 +31,11 @@ it("buildScannedFileLibrarySignals reports existing exact-path mappings", () => 
         source_path: "/imports/Naruto - 01.mkv",
       },
       mappingIndex,
-      targetAnime: { id: 20, title: "Naruto" },
+      targetAnime: { id: brandAnimeId(20), title: "Naruto" },
     }),
     {
       existing_mapping: {
-        anime_id: 20,
+        anime_id: brandAnimeId(20),
         anime_title: "Naruto",
         episode_numbers: [1, 2],
         file_path: "/imports/Naruto - 01.mkv",
@@ -67,11 +68,11 @@ it("buildScannedFileLibrarySignals reports duplicate episode conflicts", () => {
         source_path: "/imports/Naruto batch.mkv",
       },
       mappingIndex,
-      targetAnime: { id: 20, title: "Naruto" },
+      targetAnime: { id: brandAnimeId(20), title: "Naruto" },
     }),
     {
       episode_conflict: {
-        anime_id: 20,
+        anime_id: brandAnimeId(20),
         anime_title: "Naruto",
         episode_numbers: [1, 2],
         file_path: "/library/Naruto/Naruto - 01.mkv",

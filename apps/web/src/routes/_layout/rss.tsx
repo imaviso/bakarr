@@ -12,6 +12,7 @@ import { useForm } from "@tanstack/react-form";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Schema } from "effect";
+import { brandAnimeId } from "@bakarr/shared";
 import { EmptyState } from "~/components/shared/empty-state";
 import { GeneralError } from "~/components/shared/general-error";
 import { PageHeader } from "~/app/layout/page-header";
@@ -202,7 +203,7 @@ function AddFeedForm(props: { onCancel: () => void; onSuccess: () => void }) {
     },
     onSubmit: async ({ value }) => {
       await addFeed.mutateAsync({
-        anime_id: value.anime_id,
+        anime_id: brandAnimeId(value.anime_id),
         url: value.url,
         name: value.name || undefined,
       });

@@ -1,7 +1,7 @@
 import { and, desc, lt, sql, type SQL } from "drizzle-orm";
 import { Chunk, Effect, Option, Stream } from "effect";
 
-import type { SystemLog } from "@packages/shared/index.ts";
+import { brandSystemLogId, type SystemLog } from "@packages/shared/index.ts";
 import { Database, DatabaseError } from "@/db/database.ts";
 import { systemLogs } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
@@ -60,7 +60,7 @@ export function toSystemLog(row: typeof systemLogs.$inferSelect): SystemLog {
     created_at: row.createdAt,
     details: row.details ?? undefined,
     event_type: row.eventType,
-    id: row.id,
+    id: brandSystemLogId(row.id),
     level: normalizeLevel(row.level),
     message: row.message,
   } satisfies SystemLog;

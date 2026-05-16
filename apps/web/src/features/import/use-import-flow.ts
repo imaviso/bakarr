@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useReducer } from "react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import type { AnimeSearchResult, ImportFileRequest, ScannedFile } from "~/api/contracts";
+import type { AnimeId, AnimeSearchResult, ImportFileRequest, ScannedFile } from "~/api/contracts";
 import { animeListQueryOptions } from "~/api/anime";
 import {
   useImportCandidateSelectionMutation,
@@ -35,7 +35,7 @@ interface State {
   selectedFiles: Map<string, ImportFileRequest>;
   inputMode: "browser" | "manual";
   isDragOver: boolean;
-  selectedCandidateIds: Set<number>;
+  selectedCandidateIds: Set<AnimeId>;
   manualCandidates: AnimeSearchResult[];
   isSearchOpen: boolean;
   pendingAddCandidates: AnimeSearchResult[];
@@ -49,18 +49,18 @@ type Action =
   | { type: "setInputMode"; mode: "browser" | "manual" }
   | { type: "setIsDragOver"; value: boolean }
   | { type: "setIsSearchOpen"; value: boolean }
-  | { type: "scanSuccess"; preselected: Map<string, ImportFileRequest>; candidateIds: Set<number> }
+  | { type: "scanSuccess"; preselected: Map<string, ImportFileRequest>; candidateIds: Set<AnimeId> }
   | {
       type: "toggleCandidateSuccess";
-      candidateIds: Set<number>;
+      candidateIds: Set<AnimeId>;
       files: Map<string, ImportFileRequest>;
     }
   | { type: "manualAdd"; candidate: AnimeSearchResult }
   | { type: "startAddCandidates"; candidates: AnimeSearchResult[] }
   | { type: "advanceAddCandidate" }
   | { type: "closeAddCandidateDialog" }
-  | { type: "toggleFile"; file: ScannedFile; targetAnimeId: number }
-  | { type: "updateFileAnime"; file: ScannedFile; newAnimeId: number }
+  | { type: "toggleFile"; file: ScannedFile; targetAnimeId: AnimeId }
+  | { type: "updateFileAnime"; file: ScannedFile; newAnimeId: AnimeId }
   | { type: "updateFileMapping"; file: ScannedFile; season: number; episode: number };
 
 const initialState: State = {
@@ -232,7 +232,7 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
       {
         onSuccess: (data) => {
           const preselected = new Map<string, ImportFileRequest>();
-          const newSelectedCandidates = new Set<number>();
+          const newSelectedCandidates = new Set<AnimeId>();
 
           data.files.forEach((file) => {
             if (file.matched_anime) {
@@ -269,7 +269,7 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
   }, []);
 
   const handleImportWithLibraryIds = useCallback(
-    (localAnimeIds: ReadonlySet<number>) => {
+    (localAnimeIds: ReadonlySet<AnimeId>) => {
       const files = Array.from(state.selectedFiles.values());
       const missingCandidates = findMissingImportCandidates({
         files,
@@ -323,11 +323,11 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
     handleImportWithLibraryIds,
   ]);
 
-  const toggleFile = useCallback((file: ScannedFile, targetAnimeId: number) => {
+  const toggleFile = useCallback((file: ScannedFile, targetAnimeId: AnimeId) => {
     dispatch({ type: "toggleFile", file, targetAnimeId });
   }, []);
 
-  const updateFileAnime = useCallback((file: ScannedFile, newAnimeId: number) => {
+  const updateFileAnime = useCallback((file: ScannedFile, newAnimeId: AnimeId) => {
     dispatch({ type: "updateFileAnime", file, newAnimeId });
   }, []);
 

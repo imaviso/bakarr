@@ -1,10 +1,10 @@
-import type { ImportFileRequest, ScannedFile } from "~/api/contracts";
+import type { AnimeId, ImportFileRequest, ScannedFile } from "~/api/contracts";
 import { buildImportFileRequest } from "~/features/import/import-flow";
 
 export function toggleSelectedImportFile(
   selectedFiles: Map<string, ImportFileRequest>,
   file: ScannedFile,
-  targetAnimeId: number,
+  targetAnimeId: AnimeId,
 ) {
   const next = new Map(selectedFiles);
   if (next.has(file.source_path)) {
@@ -18,7 +18,7 @@ export function toggleSelectedImportFile(
 export function updateSelectedImportFileAnime(
   selectedFiles: Map<string, ImportFileRequest>,
   file: ScannedFile,
-  newAnimeId: number,
+  newAnimeId: AnimeId,
 ) {
   const next = new Map(selectedFiles);
   const existing = next.get(file.source_path);

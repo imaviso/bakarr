@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { Context, Effect, Layer, Option } from "effect";
+import { brandAnimeId } from "@packages/shared/index.ts";
 
 import { Database, type DatabaseError } from "@/db/database.ts";
 import { anime } from "@/db/schema.ts";
@@ -56,7 +57,7 @@ const makeAnimeMaintenanceService = Effect.gen(function* () {
 
     yield* eventBus.publish({
       type: "RefreshStarted",
-      payload: { anime_id: animeId, title: startAnimeRow.titleRomaji },
+      payload: { anime_id: brandAnimeId(animeId), title: startAnimeRow.titleRomaji },
     });
 
     const { animeRow, metadata, nextAnimeRow } = yield* syncAnimeMetadataEffect({
@@ -85,7 +86,7 @@ const makeAnimeMaintenanceService = Effect.gen(function* () {
     );
     yield* eventBus.publish({
       type: "RefreshFinished",
-      payload: { anime_id: animeId, title: animeRow.titleRomaji },
+      payload: { anime_id: brandAnimeId(animeId), title: animeRow.titleRomaji },
     });
   });
 

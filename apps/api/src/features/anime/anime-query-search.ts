@@ -1,13 +1,17 @@
 import { eq } from "drizzle-orm";
 import { Effect, Option } from "effect";
 
-import type { AnimeSearchResponse, AnimeSearchResult } from "@packages/shared/index.ts";
+import {
+  brandAnimeId,
+  type AnimeSearchResponse,
+  type AnimeSearchResult,
+} from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { anime } from "@/db/schema.ts";
 import { AnimeNotFoundError } from "@/features/anime/errors.ts";
 import type { AniListClient } from "@/features/anime/anilist.ts";
 import type { ManamiClient } from "@/features/anime/manami.ts";
-import { markSearchResultsAlreadyInLibraryEffect } from "@/domain/anime/search-results.ts";
+import { markSearchResultsAlreadyInLibraryEffect } from "@/features/anime/search-results.ts";
 import { annotateAnimeSearchResultsForQuery } from "@/features/anime/anime-search-annotation.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { deriveAnimeSeason } from "@/domain/anime/date-utils.ts";
@@ -97,7 +101,7 @@ export const getAnimeByAnilistIdEffect = Effect.fn("AnimeQuerySearch.getAnimeByA
       favorites: metadataValue.favorites,
       format: metadataValue.format,
       genres: metadataValue.genres ? [...metadataValue.genres] : undefined,
-      id: metadataValue.id,
+      id: brandAnimeId(metadataValue.id),
       members: metadataValue.members,
       popularity: metadataValue.popularity,
       rank: metadataValue.rank,

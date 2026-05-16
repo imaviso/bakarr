@@ -1,12 +1,12 @@
-import type { Quality, QualityProfile } from "@packages/shared/index.ts";
+import { brandQualityId, type Quality, type QualityProfile } from "@packages/shared/index.ts";
 import type { ConfigCore } from "@/features/system/config-codec.ts";
 import { DEFAULT_ANIDB_METADATA_CONFIG } from "@/features/system/metadata-providers-config.ts";
 
 export const DEFAULT_QUALITIES: readonly Quality[] = [
-  { id: 1, name: "480p", source: "bluray", resolution: 480, rank: 10 },
-  { id: 2, name: "720p", source: "bluray", resolution: 720, rank: 20 },
-  { id: 3, name: "1080p", source: "bluray", resolution: 1080, rank: 30 },
-  { id: 4, name: "2160p", source: "bluray", resolution: 2160, rank: 40 },
+  { id: brandQualityId(1), name: "480p", source: "bluray", resolution: 480, rank: 10 },
+  { id: brandQualityId(2), name: "720p", source: "bluray", resolution: 720, rank: 20 },
+  { id: brandQualityId(3), name: "1080p", source: "bluray", resolution: 1080, rank: 30 },
+  { id: brandQualityId(4), name: "2160p", source: "bluray", resolution: 2160, rank: 40 },
 ];
 
 export const DEFAULT_PROFILES: readonly QualityProfile[] = [

@@ -1,7 +1,12 @@
 import { and, eq, sql } from "drizzle-orm";
 import { Effect, Schema } from "effect";
 
-import type { AnimeSearchResult, Config, RenamePreviewItem } from "@packages/shared/index.ts";
+import {
+  brandAnimeId,
+  type AnimeSearchResult,
+  type Config,
+  type RenamePreviewItem,
+} from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { anime, episodes } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
@@ -119,7 +124,7 @@ export const toAnimeSearchCandidate = Effect.fn("Operations.toAnimeSearchCandida
     favorites: row.favorites ?? undefined,
     format: row.format,
     genres: yield* decodeAnimeGenres(row.genres),
-    id: row.id,
+    id: brandAnimeId(row.id),
     members: row.members ?? undefined,
     popularity: row.popularity ?? undefined,
     rank: row.rank ?? undefined,

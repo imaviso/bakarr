@@ -1,4 +1,5 @@
 import { assert, it } from "@effect/vitest";
+import { brandQualityId } from "@packages/shared/index.ts";
 
 import {
   buildCanonicalEpisodeNamingInput,
@@ -355,7 +356,7 @@ it("buildDownloadSelectionMetadata extracts compact ranking context", () => {
     Upgrade: {
       is_seadex: true,
       old_quality: {
-        id: 6,
+        id: brandQualityId(6),
         name: "WEB-DL 720p",
         rank: 10,
         resolution: 720,
@@ -363,7 +364,7 @@ it("buildDownloadSelectionMetadata extracts compact ranking context", () => {
       },
       old_score: 7,
       quality: {
-        id: 4,
+        id: brandQualityId(4),
         name: "WEB-DL 1080p",
         rank: 7,
         resolution: 1080,
@@ -377,7 +378,7 @@ it("buildDownloadSelectionMetadata extracts compact ranking context", () => {
     Accept: {
       is_seadex: false,
       quality: {
-        id: 4,
+        id: brandQualityId(4),
         name: "WEB-DL 1080p",
         rank: 7,
         resolution: 1080,

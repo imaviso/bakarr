@@ -1,7 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
 import { Effect, Layer, Option } from "effect";
 
-import type { AnimeSearchResult } from "@packages/shared/index.ts";
+import { brandAnimeId, type AnimeSearchResult } from "@packages/shared/index.ts";
 import { ClockService } from "@/infra/clock.ts";
 import * as schema from "@/db/schema.ts";
 import { AnimeQueryService, AnimeQueryServiceLive } from "@/features/anime/query-service.ts";
@@ -20,7 +20,7 @@ function makeSeasonalResult(input: {
   return {
     already_in_library: input.alreadyInLibrary ?? false,
     format: "TV",
-    id: input.id,
+    id: brandAnimeId(input.id),
     season: "spring",
     season_year: 2025,
     start_year: 2025,
@@ -302,7 +302,7 @@ describe("AnimeQueryService.searchAnime", () => {
                     Effect.succeed([
                       {
                         already_in_library: false,
-                        id: 1001,
+                        id: brandAnimeId(1001),
                         synonyms: ["Alpha Alias"],
                         title: { english: "Alpha", romaji: "Alpha" },
                       },

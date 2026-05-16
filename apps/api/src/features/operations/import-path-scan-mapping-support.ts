@@ -1,4 +1,4 @@
-import type { FileEpisodeMapping, ScannedFile } from "@packages/shared/index.ts";
+import { brandAnimeId, type FileEpisodeMapping, type ScannedFile } from "@packages/shared/index.ts";
 
 import { toEpisodeNumbers } from "@/features/operations/import-path-scan-episode-support.ts";
 
@@ -38,7 +38,7 @@ export function buildEpisodeFileMappingIndex(
     }
 
     byPath.set(row.file_path, {
-      anime_id: row.anime_id,
+      anime_id: brandAnimeId(row.anime_id),
       anime_title: row.anime_title,
       episode_numbers: [row.episode_number],
       file_path: row.file_path,
@@ -76,7 +76,7 @@ export function buildScannedFileLibrarySignals(input: {
   }
 
   const episode_conflict: FileEpisodeMapping = {
-    anime_id: targetAnime.id,
+    anime_id: brandAnimeId(targetAnime.id),
     anime_title: targetAnime.title,
     episode_numbers: [...new Set(conflicts.map((row) => row.episode_number))].toSorted(
       (left, right) => left - right,

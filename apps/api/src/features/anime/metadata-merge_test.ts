@@ -1,4 +1,5 @@
 import { assert, it } from "@effect/vitest";
+import { brandAnimeId } from "@packages/shared/index.ts";
 
 import type { AnimeMetadata } from "@/features/anime/anilist-model.ts";
 import type { JikanNormalizedAnime } from "@/features/anime/jikan-model.ts";
@@ -214,8 +215,8 @@ it("converts only mapped Jikan relations to discovery entries", () => {
   );
 
   assert.deepStrictEqual(entries, [
-    { id: 2, relation_type: "Sequel", title: { romaji: "Mapped A" } },
-    { id: 3, relation_type: "Prequel", title: { romaji: "Mapped B" } },
+    { id: brandAnimeId(2), relation_type: "Sequel", title: { romaji: "Mapped A" } },
+    { id: brandAnimeId(3), relation_type: "Prequel", title: { romaji: "Mapped B" } },
   ]);
 });
 
@@ -235,18 +236,18 @@ it("converts only mapped Jikan recommendations to discovery entries", () => {
   );
 
   assert.deepStrictEqual(entries, [
-    { id: 11, title: { romaji: "Rec A" } },
-    { id: 12, title: { romaji: "Rec B" } },
+    { id: brandAnimeId(11), title: { romaji: "Rec A" } },
+    { id: brandAnimeId(12), title: { romaji: "Rec B" } },
   ]);
 });
 
 it("appends mapped relations to related/recommended without duplicates", () => {
   const merged = mergeAnimeMetadata({
     anilist: makeAniListMetadata({
-      recommendedAnime: [{ id: 5, title: { romaji: "Existing Rec" } }],
+      recommendedAnime: [{ id: brandAnimeId(5), title: { romaji: "Existing Rec" } }],
       relatedAnime: [
-        { id: 4, title: { romaji: "Existing Rel" } },
-        { id: 6, title: { romaji: "Self" } },
+        { id: brandAnimeId(4), title: { romaji: "Existing Rel" } },
+        { id: brandAnimeId(6), title: { romaji: "Self" } },
       ],
     }),
     jikan: makeJikanMetadata({
@@ -270,15 +271,15 @@ it("appends mapped relations to related/recommended without duplicates", () => {
   });
 
   assert.deepStrictEqual(merged.relatedAnime, [
-    { id: 4, title: { romaji: "Existing Rel" } },
-    { id: 6, title: { romaji: "Self" } },
-    { id: 5, relation_type: "Spin-off", title: { romaji: "Fresh" } },
+    { id: brandAnimeId(4), title: { romaji: "Existing Rel" } },
+    { id: brandAnimeId(6), title: { romaji: "Self" } },
+    { id: brandAnimeId(5), relation_type: "Spin-off", title: { romaji: "Fresh" } },
   ]);
   assert.deepStrictEqual(merged.recommendedAnime, [
-    { id: 5, title: { romaji: "Existing Rec" } },
-    { id: 7, title: { romaji: "Fresh Rec" } },
-    { id: 6, title: { romaji: "Self" } },
-    { id: 4, relation_type: "Sequel", title: { romaji: "Existing Rel" } },
+    { id: brandAnimeId(5), title: { romaji: "Existing Rec" } },
+    { id: brandAnimeId(7), title: { romaji: "Fresh Rec" } },
+    { id: brandAnimeId(6), title: { romaji: "Self" } },
+    { id: brandAnimeId(4), relation_type: "Sequel", title: { romaji: "Existing Rel" } },
   ]);
 });
 

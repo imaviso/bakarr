@@ -1,4 +1,5 @@
 import { Context, Effect, Layer } from "effect";
+import { brandAnimeId } from "@packages/shared/index.ts";
 
 import { DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
@@ -120,7 +121,7 @@ export function makeDownloadTriggerService(input: {
     yield* eventBus.publish({
       type: "DownloadStarted",
       payload: {
-        anime_id: plan.animeRow.id,
+        anime_id: brandAnimeId(plan.animeRow.id),
         source_metadata: plan.sourceMetadata,
         title: triggerInput.title,
       },

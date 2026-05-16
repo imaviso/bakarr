@@ -1,4 +1,5 @@
 import { Effect, Layer, Option } from "effect";
+import { brandAnimeId } from "@packages/shared/index.ts";
 
 import { assert, it } from "@effect/vitest";
 import { AniListClient } from "@/features/anime/anilist.ts";
@@ -236,7 +237,7 @@ it.effect("merges Jikan/Manami metadata before applying AniDB episode enrichment
       assert.deepStrictEqual(result.metadata.genres, ["Action", "Drama"]);
       assert.deepStrictEqual(result.metadata.relatedAnime, [
         {
-          id: 4004,
+          id: brandAnimeId(4004),
           relation_type: "Sequel",
           title: {
             romaji: "Related from Jikan",
@@ -245,13 +246,13 @@ it.effect("merges Jikan/Manami metadata before applying AniDB episode enrichment
       ]);
       assert.deepStrictEqual(result.metadata.recommendedAnime, [
         {
-          id: 5005,
+          id: brandAnimeId(5005),
           title: {
             romaji: "Recommended from Jikan",
           },
         },
         {
-          id: 4004,
+          id: brandAnimeId(4004),
           relation_type: "Sequel",
           title: {
             romaji: "Related from Jikan",

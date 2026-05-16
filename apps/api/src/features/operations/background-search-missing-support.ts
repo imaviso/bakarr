@@ -1,7 +1,11 @@
 import { and, eq, sql } from "drizzle-orm";
 import { Context, Effect, Layer, Option } from "effect";
 
-import type { QualityProfile, ReleaseProfileRule } from "@packages/shared/index.ts";
+import {
+  brandAnimeId,
+  type QualityProfile,
+  type ReleaseProfileRule,
+} from "@packages/shared/index.ts";
 
 import { Database } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
@@ -90,7 +94,10 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
 
       yield* eventBus.publish({
         type: "SearchMissingStarted",
-        payload: { anime_id: animeId ?? 0, title },
+        payload: {
+          ...(animeId === undefined ? {} : { anime_id: brandAnimeId(animeId) }),
+          title,
+        },
       });
 
       const now = yield* nowIso();
@@ -200,7 +207,11 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
 
       yield* eventBus.publish({
         type: "SearchMissingFinished",
-        payload: { anime_id: animeId ?? 0, title, count: queued },
+        payload: {
+          ...(animeId === undefined ? {} : { anime_id: brandAnimeId(animeId) }),
+          title,
+          count: queued,
+        },
       });
       yield* progress.publishDownloadProgress();
     });

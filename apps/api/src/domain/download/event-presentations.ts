@@ -1,8 +1,13 @@
 import { inArray } from "drizzle-orm";
 import { Effect, Schema } from "effect";
 
-import type { DownloadEvent } from "@packages/shared/index.ts";
-import { DownloadEventMetadataSchema } from "@packages/shared/index.ts";
+import {
+  brandAnimeId,
+  brandDownloadEventId,
+  brandDownloadId,
+  DownloadEventMetadataSchema,
+  type DownloadEvent,
+} from "@packages/shared/index.ts";
 import { anime, downloads } from "@/db/schema.ts";
 import type { AppDatabase, DatabaseError } from "@/db/database.ts";
 import { OperationsStoredDataError } from "@/features/operations/errors.ts";
@@ -51,14 +56,14 @@ export const toDownloadEvent = Effect.fn("DownloadEventPresentations.toDownloadE
   context?: DownloadEventPresentationContext,
 ) {
   return {
-    anime_id: row.animeId ?? undefined,
+    anime_id: row.animeId === null ? undefined : brandAnimeId(row.animeId),
     anime_image: context?.animeImage,
     anime_title: context?.animeTitle,
     created_at: row.createdAt,
-    download_id: row.downloadId ?? undefined,
+    download_id: row.downloadId === null ? undefined : brandDownloadId(row.downloadId),
     event_type: row.eventType,
     from_status: row.fromStatus ?? undefined,
-    id: row.id,
+    id: brandDownloadEventId(row.id),
     message: row.message,
     metadata: row.metadata ?? undefined,
     metadata_json: yield* decodeDownloadEventMetadata(row.metadata),

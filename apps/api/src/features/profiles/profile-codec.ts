@@ -1,6 +1,11 @@
 import { Effect, ParseResult, Schema } from "effect";
 
-import type { QualityProfile, ReleaseProfile, ReleaseProfileRule } from "@packages/shared/index.ts";
+import {
+  brandReleaseProfileId,
+  type QualityProfile,
+  type ReleaseProfile,
+  type ReleaseProfileRule,
+} from "@packages/shared/index.ts";
 import { qualityProfiles, releaseProfiles } from "@/db/schema.ts";
 import { StoredConfigCorruptError } from "@/features/system/errors.ts";
 import {
@@ -209,7 +214,7 @@ export const decodeReleaseProfileRow = Effect.fn("ProfileCodec.decodeReleaseProf
         Schema.decodeUnknown(ReleaseProfileRulesJsonSchema)(decodedRow.rules).pipe(
           Effect.map((rules) => ({
             enabled: decodedRow.enabled,
-            id: decodedRow.id,
+            id: brandReleaseProfileId(decodedRow.id),
             is_global: decodedRow.isGlobal,
             name: decodedRow.name,
             rules: [...rules],

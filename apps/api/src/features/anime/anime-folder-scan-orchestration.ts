@@ -1,4 +1,5 @@
 import { Effect } from "effect";
+import { brandAnimeId } from "@packages/shared/index.ts";
 
 import type { AppDatabase } from "@/db/database.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
@@ -24,7 +25,7 @@ export const scanAnimeFolderOrchestrationEffect = Effect.fn(
   yield* input.eventPublisher.publish({
     type: "ScanFolderStarted",
     payload: {
-      anime_id: input.animeId,
+      anime_id: brandAnimeId(input.animeId),
       title: startAnimeRow.titleRomaji,
     },
   });
@@ -46,7 +47,7 @@ export const scanAnimeFolderOrchestrationEffect = Effect.fn(
   );
   yield* input.eventPublisher.publish({
     type: "ScanFolderFinished",
-    payload: { anime_id: input.animeId, found, title: animeRow.titleRomaji },
+    payload: { anime_id: brandAnimeId(input.animeId), found, title: animeRow.titleRomaji },
   });
 
   return { found, total };

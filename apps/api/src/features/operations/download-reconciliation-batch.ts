@@ -1,5 +1,6 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { Effect } from "effect";
+import { brandAnimeId } from "@packages/shared/index.ts";
 
 import { episodes } from "@/db/schema.ts";
 import { classifyMediaArtifact } from "@/infra/media/identity/identity.ts";
@@ -259,7 +260,7 @@ export const reconcileBatchDownloadEffect = Effect.fn("OperationsService.reconci
     yield* input.eventBus.publish({
       type: "DownloadFinished",
       payload: {
-        anime_id: input.row.animeId,
+        anime_id: brandAnimeId(input.row.animeId),
         imported_path: input.animeRow.rootFolder,
         source_metadata: input.storedSourceMetadata,
         title: input.row.torrentName,

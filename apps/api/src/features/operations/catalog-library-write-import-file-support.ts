@@ -1,4 +1,5 @@
 import { Effect, Either } from "effect";
+import { brandAnimeId, type ImportResult } from "@packages/shared/index.ts";
 
 import type { AppDatabase } from "@/db/database.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
@@ -8,7 +9,6 @@ import {
 } from "@/features/operations/errors.ts";
 import { upsertEpisodeFilesAtomic } from "@/features/operations/download-episode-upsert-support.ts";
 import type { LibraryImportPlan } from "@/features/operations/catalog-library-write-import-plan-support.ts";
-import type { ImportResult } from "@packages/shared/index.ts";
 
 export interface WriteLibraryImportFileInput {
   readonly db: AppDatabase;
@@ -84,7 +84,7 @@ export const writeLibraryImportFile = Effect.fn("Operations.writeLibraryImportFi
     }
 
     return {
-      anime_id: plan.animeRow.id,
+      anime_id: brandAnimeId(plan.animeRow.id),
       destination_path: plan.destination,
       episode_number: plan.episodeNumber,
       episode_numbers: plan.allEpisodeNumbers.length > 1 ? [...plan.allEpisodeNumbers] : undefined,

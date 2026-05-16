@@ -1,7 +1,7 @@
 import { assert, it } from "@effect/vitest";
 import { Effect } from "effect";
 
-import type { AnimeSearchResult } from "@packages/shared/index.ts";
+import { brandAnimeId, type AnimeSearchResult } from "@packages/shared/index.ts";
 
 import {
   buildUnmappedFolderSearchQueries,
@@ -51,7 +51,7 @@ it.effect(
               return Effect.succeed([
                 {
                   already_in_library: false,
-                  id: 1,
+                  id: brandAnimeId(1),
                   title: { romaji: "Scissor Seven" },
                 },
               ] satisfies AnimeSearchResult[]);
@@ -59,7 +59,7 @@ it.effect(
               return Effect.succeed([
                 {
                   already_in_library: false,
-                  id: 2,
+                  id: brandAnimeId(2),
                   title: { romaji: "Mono" },
                 },
               ] satisfies AnimeSearchResult[]);
@@ -107,7 +107,7 @@ it("unmapped folder helpers track matching status transitions", () => {
     [
       {
         already_in_library: true,
-        id: 20,
+        id: brandAnimeId(20),
         match_confidence: 0.98,
         match_reason: 'Matched a library title from the normalized folder name "Naruto Archive"',
         title: { romaji: "Naruto" },
@@ -145,7 +145,7 @@ it("unmapped folder helpers support pause and reset controls", () => {
     suggested_matches: [
       {
         already_in_library: true,
-        id: 20,
+        id: brandAnimeId(20),
         title: { romaji: "Naruto" },
       },
     ] satisfies AnimeSearchResult[],

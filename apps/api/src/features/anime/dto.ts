@@ -1,5 +1,10 @@
 import { Effect } from "effect";
-import type { Anime, AnimeDiscoveryEntry } from "@packages/shared/index.ts";
+import {
+  brandAnimeId,
+  brandReleaseProfileId,
+  type Anime,
+  type AnimeDiscoveryEntry,
+} from "@packages/shared/index.ts";
 import { anime, episodes } from "@/db/schema.ts";
 import { deriveAnimeSeason, extractYearFromDate } from "@/domain/anime/date-utils.ts";
 import {
@@ -72,7 +77,7 @@ export const toAnimeDto = Effect.fn("AnimeDto.toAnimeDto")(function* (
     favorites: row.favorites ?? undefined,
     format: row.format,
     genres,
-    id: row.id,
+    id: brandAnimeId(row.id),
     mal_id: row.malId ?? undefined,
     members: row.members ?? undefined,
     monitored: row.monitored,
@@ -95,7 +100,7 @@ export const toAnimeDto = Effect.fn("AnimeDto.toAnimeDto")(function* (
       next_missing_episode: missing[0],
       total,
     },
-    release_profile_ids: releaseProfileIds,
+    release_profile_ids: releaseProfileIds.map(brandReleaseProfileId),
     root_folder: row.rootFolder,
     rank: row.rank ?? undefined,
     rating: row.rating ?? undefined,

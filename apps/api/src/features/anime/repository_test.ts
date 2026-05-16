@@ -1,6 +1,7 @@
 import { assert, it } from "@effect/vitest";
 import { eq } from "drizzle-orm";
 import { Cause, Effect, Exit } from "effect";
+import { brandAnimeId } from "@packages/shared/index.ts";
 
 import * as schema from "@/db/schema.ts";
 import type { AppDatabase } from "@/db/database.ts";
@@ -497,7 +498,7 @@ it.scoped("markSearchResultsAlreadyInLibrary annotates local matches", () =>
             episode_count: 12,
             format: "TV",
             genres: undefined,
-            id: 20,
+            id: brandAnimeId(20),
             season: undefined,
             season_year: undefined,
             start_date: undefined,
@@ -515,7 +516,7 @@ it.scoped("markSearchResultsAlreadyInLibrary annotates local matches", () =>
             episode_count: 24,
             format: "TV",
             genres: undefined,
-            id: 21,
+            id: brandAnimeId(21),
             season: undefined,
             season_year: undefined,
             start_date: undefined,

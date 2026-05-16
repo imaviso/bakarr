@@ -1,4 +1,5 @@
 import { it } from "vitest";
+import { brandAnimeId } from "@bakarr/shared";
 import {
   formatDownloadNotificationDescription,
   getNotificationToastCopy,
@@ -42,7 +43,7 @@ it("notification metadata formats rich download descriptions", () => {
 it("notification metadata exposes toast copy for download events", () => {
   const copy = getNotificationToastCopy({
     payload: {
-      anime_id: 20,
+      anime_id: brandAnimeId(20),
       source_metadata: {
         group: "SubsPlease",
         indexer: "Nyaa",

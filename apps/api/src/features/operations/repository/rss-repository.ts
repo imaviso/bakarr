@@ -1,4 +1,4 @@
-import type { RssFeed } from "@packages/shared/index.ts";
+import { brandAnimeId, brandRssFeedId, type RssFeed } from "@packages/shared/index.ts";
 
 export function toRssFeed(row: {
   animeId: number;
@@ -10,10 +10,10 @@ export function toRssFeed(row: {
   url: string;
 }): RssFeed {
   return {
-    anime_id: row.animeId,
+    anime_id: brandAnimeId(row.animeId),
     created_at: row.createdAt,
     enabled: row.enabled,
-    id: row.id,
+    id: brandRssFeedId(row.id),
     last_checked: row.lastChecked ?? undefined,
     name: row.name ?? undefined,
     url: row.url,

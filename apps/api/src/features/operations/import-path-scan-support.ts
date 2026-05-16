@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 
-import type { AnimeSearchResult, ScanResult } from "@packages/shared/index.ts";
+import { brandAnimeId, type AnimeSearchResult, type ScanResult } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { type MediaProbeShape } from "@/infra/media/probe.ts";
@@ -146,14 +146,14 @@ export const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathE
         } else {
           matchConfidence = remoteMatch?.confidence;
         }
-        let targetAnime: { id: number; title: string } | undefined;
+        let targetAnime: ScanResult["files"][number]["matched_anime"];
 
         if (input.animeId) {
           targetAnime = selectedAnimeRow
-            ? { id: selectedAnimeRow.id, title: selectedAnimeRow.titleRomaji }
+            ? { id: brandAnimeId(selectedAnimeRow.id), title: selectedAnimeRow.titleRomaji }
             : undefined;
         } else if (localMatch) {
-          targetAnime = { id: localMatch.id, title: localMatch.titleRomaji };
+          targetAnime = { id: brandAnimeId(localMatch.id), title: localMatch.titleRomaji };
         }
 
         let matchReason = file.match_reason;
@@ -207,7 +207,7 @@ export const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathE
           match_confidence: matchConfidence,
           match_reason: matchReason,
           matched_anime: localMatch
-            ? { id: localMatch.id, title: localMatch.titleRomaji }
+            ? { id: brandAnimeId(localMatch.id), title: localMatch.titleRomaji }
             : undefined,
           needs_manual_mapping: file.needs_manual_mapping,
           parsed_title: file.parsed_title,
@@ -217,7 +217,7 @@ export const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathE
           size: file.size,
           source_identity: file.source_identity,
           source_path: file.source_path,
-          suggested_candidate_id: localMatch?.id ?? remoteCandidate?.id,
+          suggested_candidate_id: localMatch ? brandAnimeId(localMatch.id) : remoteCandidate?.id,
           naming_fallback_used: namingPlan.naming_fallback_used,
           naming_filename: namingPlan.naming_filename,
           naming_format_used: namingPlan.naming_format_used,

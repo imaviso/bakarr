@@ -1,6 +1,7 @@
 import { assert, it } from "@effect/vitest";
 import { eq } from "drizzle-orm";
 import { Effect, Schema } from "effect";
+import { brandAnimeId } from "@packages/shared/index.ts";
 
 import type { AppDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
@@ -28,11 +29,11 @@ it.scoped("addAnimeEffect persists MAL backfill and mapped relation metadata", (
           ...makeMetadata(animeId),
           malId: 123456,
           recommendedAnime: [
-            { id: 9201, title: { romaji: "Recommendation from mapped relation" } },
+            { id: brandAnimeId(9201), title: { romaji: "Recommendation from mapped relation" } },
           ],
           relatedAnime: [
-            { id: 9101, title: { romaji: "Mapped relation sequel" } },
-            { id: 9102, title: { romaji: "Mapped relation side story" } },
+            { id: brandAnimeId(9101), title: { romaji: "Mapped relation sequel" } },
+            { id: brandAnimeId(9102), title: { romaji: "Mapped relation side story" } },
           ],
           synonyms: ["Mapped Alias", "Another Alias"],
         };

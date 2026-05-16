@@ -77,7 +77,10 @@ function inferCandidateSeason(title: string) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
 }
 
-function buildImportFileSelection(animeId: number, file: ScannedFile): ImportFileSelection {
+function buildImportFileSelection(
+  animeId: ImportCandidateSelectionRequest["candidate_id"],
+  file: ScannedFile,
+): ImportFileSelection {
   const sourceMetadata = toImportSourceMetadata(file);
 
   return {

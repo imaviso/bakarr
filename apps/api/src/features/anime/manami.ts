@@ -3,7 +3,7 @@ import { HttpClient, HttpClientRequest } from "@effect/platform";
 import { dirname, join, resolve } from "node:path";
 import { Context, Effect, Layer, Option, Schema } from "effect";
 
-import type { AnimeSearchResult } from "@packages/shared/index.ts";
+import { brandAnimeId, type AnimeSearchResult } from "@packages/shared/index.ts";
 import { AppConfig } from "@/config/schema.ts";
 import { ManamiDatasetSchema, type ManamiDataset } from "@/features/anime/manami-model.ts";
 import { parseAniListIdFromSource, parseMalIdFromSource } from "@/features/anime/manami-url.ts";
@@ -743,7 +743,7 @@ function toSearchResult(row: SearchRow): AnimeSearchResult {
 
   return {
     already_in_library: false,
-    id: row.anilist_id,
+    id: brandAnimeId(row.anilist_id),
     ...(synonyms.length === 0 ? {} : { synonyms }),
     title: {
       ...(row.english_title === null ? {} : { english: row.english_title }),

@@ -1,6 +1,6 @@
 import { Context, Effect, Layer, Option } from "effect";
 
-import type { AnimeSearchResult, AnimeSeason } from "@packages/shared/index.ts";
+import { brandAnimeId, type AnimeSearchResult, type AnimeSeason } from "@packages/shared/index.ts";
 import { AniListClient } from "@/features/anime/anilist.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
 import { JikanClient } from "@/features/anime/jikan.ts";
@@ -53,7 +53,7 @@ function mapJikanEntryToSearchResult(
     episode_count: entry.episodeCount,
     format: entry.format,
     genres: entry.genres ? [...entry.genres] : undefined,
-    id: anilistId,
+    id: brandAnimeId(anilistId),
     season,
     season_year: seasonYear,
     start_year: startYear,

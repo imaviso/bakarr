@@ -14,6 +14,60 @@ export const PreferredTitleSchema: Schema.Schema<PreferredTitle> = Schema.Litera
   ...PREFERRED_TITLE_VALUES,
 );
 
+const PositiveEntityIdSchema = Schema.Number.pipe(Schema.int(), Schema.greaterThan(0));
+
+export const AnimeIdSchema = PositiveEntityIdSchema.pipe(Schema.brand("AnimeId"));
+export type AnimeId = Schema.Schema.Type<typeof AnimeIdSchema>;
+
+export const UserIdSchema = PositiveEntityIdSchema.pipe(Schema.brand("UserId"));
+export type UserId = Schema.Schema.Type<typeof UserIdSchema>;
+
+export const DownloadIdSchema = PositiveEntityIdSchema.pipe(Schema.brand("DownloadId"));
+export type DownloadId = Schema.Schema.Type<typeof DownloadIdSchema>;
+
+export const DownloadEventIdSchema = PositiveEntityIdSchema.pipe(Schema.brand("DownloadEventId"));
+export type DownloadEventId = Schema.Schema.Type<typeof DownloadEventIdSchema>;
+
+export const RssFeedIdSchema = PositiveEntityIdSchema.pipe(Schema.brand("RssFeedId"));
+export type RssFeedId = Schema.Schema.Type<typeof RssFeedIdSchema>;
+
+export const LibraryRootIdSchema = PositiveEntityIdSchema.pipe(Schema.brand("LibraryRootId"));
+export type LibraryRootId = Schema.Schema.Type<typeof LibraryRootIdSchema>;
+
+export const ActivityIdSchema = PositiveEntityIdSchema.pipe(Schema.brand("ActivityId"));
+export type ActivityId = Schema.Schema.Type<typeof ActivityIdSchema>;
+
+export const QualityIdSchema = PositiveEntityIdSchema.pipe(Schema.brand("QualityId"));
+export type QualityId = Schema.Schema.Type<typeof QualityIdSchema>;
+
+export const ReleaseProfileIdSchema = PositiveEntityIdSchema.pipe(Schema.brand("ReleaseProfileId"));
+export type ReleaseProfileId = Schema.Schema.Type<typeof ReleaseProfileIdSchema>;
+
+export const SystemLogIdSchema = PositiveEntityIdSchema.pipe(Schema.brand("SystemLogId"));
+export type SystemLogId = Schema.Schema.Type<typeof SystemLogIdSchema>;
+
+export const OperationTaskIdSchema = PositiveEntityIdSchema.pipe(Schema.brand("OperationTaskId"));
+export type OperationTaskId = Schema.Schema.Type<typeof OperationTaskIdSchema>;
+
+export const brandAnimeId: (id: number) => AnimeId = Schema.decodeUnknownSync(AnimeIdSchema);
+export const brandUserId: (id: number) => UserId = Schema.decodeUnknownSync(UserIdSchema);
+export const brandDownloadId: (id: number) => DownloadId =
+  Schema.decodeUnknownSync(DownloadIdSchema);
+export const brandDownloadEventId: (id: number) => DownloadEventId =
+  Schema.decodeUnknownSync(DownloadEventIdSchema);
+export const brandRssFeedId: (id: number) => RssFeedId = Schema.decodeUnknownSync(RssFeedIdSchema);
+export const brandLibraryRootId: (id: number) => LibraryRootId =
+  Schema.decodeUnknownSync(LibraryRootIdSchema);
+export const brandActivityId: (id: number) => ActivityId =
+  Schema.decodeUnknownSync(ActivityIdSchema);
+export const brandQualityId: (id: number) => QualityId = Schema.decodeUnknownSync(QualityIdSchema);
+export const brandReleaseProfileId: (id: number) => ReleaseProfileId =
+  Schema.decodeUnknownSync(ReleaseProfileIdSchema);
+export const brandSystemLogId: (id: number) => SystemLogId =
+  Schema.decodeUnknownSync(SystemLogIdSchema);
+export const brandOperationTaskId: (id: number) => OperationTaskId =
+  Schema.decodeUnknownSync(OperationTaskIdSchema);
+
 export type ApiResult<T> =
   | {
       ok: true;
@@ -48,15 +102,15 @@ export const HealthStatusSchema: Schema.Schema<HealthStatus> = Schema.Struct({
 });
 
 export interface AuthUser {
-  id: number;
+  id: UserId;
   username: string;
   created_at: string;
   updated_at: string;
   must_change_password: boolean;
 }
 
-export const AuthUserSchema: Schema.Schema<AuthUser> = Schema.Struct({
-  id: Schema.Number,
+export const AuthUserSchema = Schema.Struct({
+  id: UserIdSchema,
   username: Schema.String,
   created_at: Schema.String,
   updated_at: Schema.String,
@@ -171,7 +225,7 @@ export const NextAiringEpisodeSchema: Schema.Schema<NextAiringEpisode> = Schema.
 });
 
 export interface AnimeDiscoveryEntry {
-  id: number;
+  id: AnimeId;
   title: {
     romaji?: string | undefined;
     english?: string | undefined;
@@ -187,8 +241,8 @@ export interface AnimeDiscoveryEntry {
   rating?: number | undefined;
 }
 
-export const AnimeDiscoveryEntrySchema: Schema.Schema<AnimeDiscoveryEntry> = Schema.Struct({
-  id: Schema.Number,
+export const AnimeDiscoveryEntrySchema = Schema.Struct({
+  id: AnimeIdSchema,
   title: Schema.Struct({
     romaji: Schema.optional(Schema.String),
     english: Schema.optional(Schema.String),
@@ -213,7 +267,7 @@ export const EpisodeAiringStatusSchema: Schema.Schema<EpisodeAiringStatus> = Sch
 );
 
 export interface Anime {
-  id: number;
+  id: AnimeId;
   mal_id?: number | undefined;
   title: {
     romaji: string;
@@ -251,13 +305,13 @@ export interface Anime {
   root_folder: string;
   added_at: string;
   monitored: boolean;
-  release_profile_ids: number[];
+  release_profile_ids: ReleaseProfileId[];
   progress: EpisodeProgress;
 }
 
-export const AnimeSchema: Schema.Schema<Anime> = Schema.mutable(
+export const AnimeSchema = Schema.mutable(
   Schema.Struct({
-    id: Schema.Number,
+    id: AnimeIdSchema,
     mal_id: Schema.optional(Schema.Number),
     title: AnimeTitleSchema,
     format: Schema.String,
@@ -291,7 +345,7 @@ export const AnimeSchema: Schema.Schema<Anime> = Schema.mutable(
     root_folder: Schema.String,
     added_at: Schema.String,
     monitored: Schema.Boolean,
-    release_profile_ids: Schema.mutable(Schema.Array(Schema.Number)),
+    release_profile_ids: Schema.mutable(Schema.Array(ReleaseProfileIdSchema)),
     progress: EpisodeProgressSchema,
   }),
 );
@@ -316,7 +370,7 @@ export interface AnimeListResponse {
   has_more: boolean;
 }
 
-export const AnimeListResponseSchema: Schema.Schema<AnimeListResponse> = Schema.Struct({
+export const AnimeListResponseSchema = Schema.Struct({
   items: Schema.mutable(Schema.Array(AnimeSchema)),
   total: Schema.Number,
   limit: Schema.Number,
@@ -399,8 +453,8 @@ export const VideoFileSchema: Schema.Schema<VideoFile> = Schema.Struct({
 });
 
 export interface RssFeed {
-  id: number;
-  anime_id: number;
+  id: RssFeedId;
+  anime_id: AnimeId;
   url: string;
   name?: string | undefined;
   last_checked?: string | undefined;
@@ -408,9 +462,9 @@ export interface RssFeed {
   created_at: string;
 }
 
-export const RssFeedSchema: Schema.Schema<RssFeed> = Schema.Struct({
-  id: Schema.Number,
-  anime_id: Schema.Number,
+export const RssFeedSchema = Schema.Struct({
+  id: RssFeedIdSchema,
+  anime_id: AnimeIdSchema,
   url: Schema.String,
   name: Schema.optional(Schema.String),
   last_checked: Schema.optional(Schema.String),
@@ -425,7 +479,7 @@ export interface CalendarEvent {
   end: string;
   all_day: boolean;
   extended_props: {
-    anime_id: number;
+    anime_id: AnimeId;
     anime_title: string;
     episode_number: number;
     episode_title?: string | undefined;
@@ -436,19 +490,18 @@ export interface CalendarEvent {
   };
 }
 
-export const CalendarEventExtendedPropsSchema: Schema.Schema<CalendarEvent["extended_props"]> =
-  Schema.Struct({
-    anime_id: Schema.Number,
-    anime_title: Schema.String,
-    episode_number: Schema.Number,
-    episode_title: Schema.optional(Schema.String),
-    airing_status: Schema.optional(EpisodeAiringStatusSchema),
-    downloaded: Schema.Boolean,
-    is_future: Schema.optional(Schema.Boolean),
-    anime_image: Schema.optional(Schema.String),
-  });
+export const CalendarEventExtendedPropsSchema = Schema.Struct({
+  anime_id: AnimeIdSchema,
+  anime_title: Schema.String,
+  episode_number: Schema.Number,
+  episode_title: Schema.optional(Schema.String),
+  airing_status: Schema.optional(EpisodeAiringStatusSchema),
+  downloaded: Schema.Boolean,
+  is_future: Schema.optional(Schema.Boolean),
+  anime_image: Schema.optional(Schema.String),
+});
 
-export const CalendarEventSchema: Schema.Schema<CalendarEvent> = Schema.Struct({
+export const CalendarEventSchema = Schema.Struct({
   id: Schema.String,
   title: Schema.String,
   start: Schema.String,
@@ -458,8 +511,8 @@ export const CalendarEventSchema: Schema.Schema<CalendarEvent> = Schema.Struct({
 });
 
 export interface Download {
-  id: number;
-  anime_id: number;
+  id: DownloadId;
+  anime_id: AnimeId;
   anime_title: string;
   anime_image?: string | undefined;
   episode_number: number;
@@ -504,10 +557,10 @@ export const DownloadAllowedActionSchema: Schema.Schema<DownloadAllowedAction> =
   ...DOWNLOAD_ALLOWED_ACTION_VALUES,
 );
 
-export const DownloadSchema: Schema.Schema<Download> = Schema.mutable(
+export const DownloadSchema = Schema.mutable(
   Schema.Struct({
-    id: Schema.Number,
-    anime_id: Schema.Number,
+    id: DownloadIdSchema,
+    anime_id: AnimeIdSchema,
     anime_title: Schema.String,
     anime_image: Schema.optional(Schema.String),
     episode_number: Schema.Number,
@@ -547,7 +600,7 @@ export interface DownloadHistoryPage {
   next_cursor?: string | undefined;
 }
 
-export const DownloadHistoryPageSchema: Schema.Schema<DownloadHistoryPage> = Schema.Struct({
+export const DownloadHistoryPageSchema = Schema.Struct({
   downloads: Schema.mutable(Schema.Array(DownloadSchema)),
   limit: Schema.Number,
   total: Schema.Number,
@@ -556,13 +609,13 @@ export const DownloadHistoryPageSchema: Schema.Schema<DownloadHistoryPage> = Sch
 });
 
 export interface LibraryRoot {
-  id: number;
+  id: LibraryRootId;
   label: string;
   path: string;
 }
 
-export const LibraryRootSchema: Schema.Schema<LibraryRoot> = Schema.Struct({
-  id: Schema.Number,
+export const LibraryRootSchema = Schema.Struct({
+  id: LibraryRootIdSchema,
   label: Schema.String,
   path: Schema.String,
 });
@@ -592,19 +645,19 @@ export const LibraryStatsSchema: Schema.Schema<LibraryStats> = Schema.Struct({
 });
 
 export interface ActivityItem {
-  id: number;
+  id: ActivityId;
   activity_type: string;
-  anime_id: number;
+  anime_id: AnimeId;
   anime_title: string;
   episode_number?: number | undefined;
   description: string;
   timestamp: string;
 }
 
-export const ActivityItemSchema: Schema.Schema<ActivityItem> = Schema.Struct({
-  id: Schema.Number,
+export const ActivityItemSchema = Schema.Struct({
+  id: ActivityIdSchema,
   activity_type: Schema.String,
-  anime_id: Schema.Number,
+  anime_id: AnimeIdSchema,
   anime_title: Schema.String,
   episode_number: Schema.optional(Schema.Number),
   description: Schema.String,
@@ -708,15 +761,15 @@ export const ObservabilityStatusSchema: Schema.Schema<ObservabilityStatus> = Sch
 });
 
 export interface Quality {
-  id: number;
+  id: QualityId;
   name: string;
   source: string;
   resolution: number;
   rank: number;
 }
 
-export const QualitySchema: Schema.Schema<Quality> = Schema.Struct({
-  id: Schema.Number,
+export const QualitySchema = Schema.Struct({
+  id: QualityIdSchema,
   name: Schema.String,
   source: Schema.String,
   resolution: Schema.Number,
@@ -757,15 +810,9 @@ export const ReleaseProfileRuleSchema: Schema.Schema<{
 
 export type ReleaseProfileRule = Schema.Schema.Type<typeof ReleaseProfileRuleSchema>;
 
-export const ReleaseProfileSchema: Schema.Schema<{
-  id: number;
-  name: string;
-  enabled: boolean;
-  is_global: boolean;
-  rules: Array<Schema.Schema.Type<typeof ReleaseProfileRuleSchema>>;
-}> = Schema.mutable(
+export const ReleaseProfileSchema = Schema.mutable(
   Schema.Struct({
-    id: Schema.Number,
+    id: ReleaseProfileIdSchema,
     name: Schema.String,
     enabled: Schema.Boolean,
     is_global: Schema.Boolean,
@@ -942,7 +989,7 @@ export const ConfigSchema: Schema.Schema<{
 export type Config = Schema.Schema.Type<typeof ConfigSchema>;
 
 export interface SystemLog {
-  id: number;
+  id: SystemLogId;
   event_type: string;
   level: "info" | "warn" | "error" | "success";
   message: string;
@@ -956,8 +1003,8 @@ export const SystemLogLevelSchema: Schema.Schema<SystemLogLevel> = Schema.Litera
   ...SYSTEM_LOG_LEVEL_VALUES,
 );
 
-export const SystemLogSchema: Schema.Schema<SystemLog> = Schema.Struct({
-  id: Schema.Number,
+export const SystemLogSchema = Schema.Struct({
+  id: SystemLogIdSchema,
   event_type: Schema.String,
   level: SystemLogLevelSchema,
   message: Schema.String,
@@ -970,7 +1017,7 @@ export interface SystemLogsResponse {
   total_pages: number;
 }
 
-export const SystemLogsResponseSchema: Schema.Schema<SystemLogsResponse> = Schema.mutable(
+export const SystemLogsResponseSchema = Schema.mutable(
   Schema.Struct({
     logs: Schema.mutable(Schema.Array(SystemLogSchema)),
     total_pages: Schema.Number,
@@ -1038,7 +1085,7 @@ export const OperationTaskStatusSchema: Schema.Schema<OperationTaskStatus> = Sch
 );
 
 export interface OperationTaskPayload {
-  anime_id?: number | undefined;
+  anime_id?: AnimeId | undefined;
   error?: string | undefined;
   imported?: number | undefined;
   failed?: number | undefined;
@@ -1046,8 +1093,8 @@ export interface OperationTaskPayload {
   total?: number | undefined;
 }
 
-export const OperationTaskPayloadSchema: Schema.Schema<OperationTaskPayload> = Schema.Struct({
-  anime_id: Schema.optional(Schema.Number),
+export const OperationTaskPayloadSchema = Schema.Struct({
+  anime_id: Schema.optional(AnimeIdSchema),
   error: Schema.optional(Schema.String),
   imported: Schema.optional(Schema.Number),
   failed: Schema.optional(Schema.Number),
@@ -1056,7 +1103,7 @@ export const OperationTaskPayloadSchema: Schema.Schema<OperationTaskPayload> = S
 });
 
 export interface OperationTask {
-  id: number;
+  id: OperationTaskId;
   task_key: OperationTaskKey;
   status: OperationTaskStatus;
   progress_current?: number | undefined;
@@ -1066,12 +1113,12 @@ export interface OperationTask {
   started_at?: string | undefined;
   finished_at?: string | undefined;
   updated_at: string;
-  anime_id?: number | undefined;
+  anime_id?: AnimeId | undefined;
   payload?: OperationTaskPayload | undefined;
 }
 
-export const OperationTaskSchema: Schema.Schema<OperationTask> = Schema.Struct({
-  id: Schema.Number,
+export const OperationTaskSchema = Schema.Struct({
+  id: OperationTaskIdSchema,
   task_key: OperationTaskKeySchema,
   status: OperationTaskStatusSchema,
   progress_current: Schema.optional(Schema.Number),
@@ -1081,7 +1128,7 @@ export const OperationTaskSchema: Schema.Schema<OperationTask> = Schema.Struct({
   started_at: Schema.optional(Schema.String),
   finished_at: Schema.optional(Schema.String),
   updated_at: Schema.String,
-  anime_id: Schema.optional(Schema.Number),
+  anime_id: Schema.optional(AnimeIdSchema),
   payload: Schema.optional(OperationTaskPayloadSchema),
 });
 
@@ -1090,15 +1137,15 @@ export interface AsyncOperationAccepted {
   message: string;
   status: "queued";
   task_key: OperationTaskKey;
-  task_id: number;
+  task_id: OperationTaskId;
 }
 
-export const AsyncOperationAcceptedSchema: Schema.Schema<AsyncOperationAccepted> = Schema.Struct({
+export const AsyncOperationAcceptedSchema = Schema.Struct({
   accepted_at: Schema.String,
   message: Schema.String,
   status: Schema.Literal("queued"),
   task_key: OperationTaskKeySchema,
-  task_id: Schema.Number,
+  task_id: OperationTaskIdSchema,
 });
 
 export interface DownloadEventMetadata {
@@ -1108,9 +1155,9 @@ export interface DownloadEventMetadata {
 }
 
 export interface DownloadEvent {
-  id: number;
-  download_id?: number | undefined;
-  anime_id?: number | undefined;
+  id: DownloadEventId;
+  download_id?: DownloadId | undefined;
+  anime_id?: AnimeId | undefined;
   anime_image?: string | undefined;
   anime_title?: string | undefined;
   event_type: string;
@@ -1129,10 +1176,10 @@ export const DownloadEventMetadataSchema: Schema.Schema<DownloadEventMetadata> =
   source_metadata: Schema.optional(Schema.suspend(() => DownloadSourceMetadataSchema)),
 });
 
-export const DownloadEventSchema: Schema.Schema<DownloadEvent> = Schema.Struct({
-  id: Schema.Number,
-  download_id: Schema.optional(Schema.Number),
-  anime_id: Schema.optional(Schema.Number),
+export const DownloadEventSchema = Schema.Struct({
+  id: DownloadEventIdSchema,
+  download_id: Schema.optional(DownloadIdSchema),
+  anime_id: Schema.optional(AnimeIdSchema),
   anime_image: Schema.optional(Schema.String),
   anime_title: Schema.optional(Schema.String),
   event_type: Schema.String,
@@ -1154,7 +1201,7 @@ export interface DownloadEventsPage {
   prev_cursor?: string | undefined;
 }
 
-export const DownloadEventsPageSchema: Schema.Schema<DownloadEventsPage> = Schema.Struct({
+export const DownloadEventsPageSchema = Schema.Struct({
   events: Schema.mutable(Schema.Array(DownloadEventSchema)),
   limit: Schema.Number,
   total: Schema.Number,
@@ -1178,7 +1225,7 @@ export interface DownloadEventsExport {
   generated_at: string;
 }
 
-export const DownloadEventsExportSchema: Schema.Schema<DownloadEventsExport> = Schema.Struct({
+export const DownloadEventsExportSchema = Schema.Struct({
   events: Schema.mutable(Schema.Array(DownloadEventSchema)),
   total: Schema.Number,
   exported: Schema.Number,
@@ -1198,7 +1245,7 @@ export interface OpsDashboard {
   jobs: BackgroundJobStatus[];
 }
 
-export const OpsDashboardSchema: Schema.Schema<OpsDashboard> = Schema.Struct({
+export const OpsDashboardSchema = Schema.Struct({
   queued_downloads: Schema.Number,
   active_downloads: Schema.Number,
   failed_downloads: Schema.Number,
@@ -1245,7 +1292,7 @@ export const BrowseResultSchema: Schema.Schema<BrowseResult> = Schema.mutable(
 );
 
 export interface MissingEpisode {
-  anime_id: number;
+  anime_id: AnimeId;
   anime_title: string;
   episode_number: number;
   episode_title?: string | undefined;
@@ -1256,8 +1303,8 @@ export interface MissingEpisode {
   next_airing_episode?: NextAiringEpisode | undefined;
 }
 
-export const MissingEpisodeSchema: Schema.Schema<MissingEpisode> = Schema.Struct({
-  anime_id: Schema.Number,
+export const MissingEpisodeSchema = Schema.Struct({
+  anime_id: AnimeIdSchema,
   anime_title: Schema.String,
   episode_number: Schema.Number,
   episode_title: Schema.optional(Schema.String),
@@ -1443,14 +1490,14 @@ export const DownloadSourceMetadataSchema: Schema.Schema<DownloadSourceMetadata>
 });
 
 export interface FileEpisodeMapping {
-  anime_id: number;
+  anime_id: AnimeId;
   anime_title: string;
   episode_numbers?: number[] | undefined;
   file_path?: string | undefined;
 }
 
-export const FileEpisodeMappingSchema: Schema.Schema<FileEpisodeMapping> = Schema.Struct({
-  anime_id: Schema.Number,
+export const FileEpisodeMappingSchema = Schema.Struct({
+  anime_id: AnimeIdSchema,
   anime_title: Schema.String,
   episode_numbers: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
   file_path: Schema.optional(Schema.String),
@@ -1476,11 +1523,11 @@ export interface ScannedFile {
   duration_seconds?: number | undefined;
   matched_anime?:
     | {
-        id: number;
+        id: AnimeId;
         title: string;
       }
     | undefined;
-  suggested_candidate_id?: number | undefined;
+  suggested_candidate_id?: AnimeId | undefined;
   match_confidence?: number | undefined;
   match_reason?: string | undefined;
   existing_mapping?: FileEpisodeMapping | undefined;
@@ -1497,14 +1544,12 @@ export interface ScannedFile {
   naming_metadata_snapshot?: RenamePreviewMetadataSnapshot | undefined;
 }
 
-export const ScannedFileMatchedAnimeSchema: Schema.Schema<
-  NonNullable<ScannedFile["matched_anime"]>
-> = Schema.Struct({
-  id: Schema.Number,
+export const ScannedFileMatchedAnimeSchema = Schema.Struct({
+  id: AnimeIdSchema,
   title: Schema.String,
 });
 
-export const ScannedFileSchema: Schema.Schema<ScannedFile> = Schema.Struct({
+export const ScannedFileSchema = Schema.Struct({
   source_path: Schema.String,
   filename: Schema.String,
   size: Schema.optional(Schema.Number),
@@ -1523,7 +1568,7 @@ export const ScannedFileSchema: Schema.Schema<ScannedFile> = Schema.Struct({
   audio_channels: Schema.optional(Schema.String),
   duration_seconds: Schema.optional(Schema.Number),
   matched_anime: Schema.optional(ScannedFileMatchedAnimeSchema),
-  suggested_candidate_id: Schema.optional(Schema.Number),
+  suggested_candidate_id: Schema.optional(AnimeIdSchema),
   match_confidence: Schema.optional(Schema.Number),
   match_reason: Schema.optional(Schema.String),
   existing_mapping: Schema.optional(FileEpisodeMappingSchema),
@@ -1558,7 +1603,7 @@ export interface ScanResult {
   total_scanned?: number | undefined;
 }
 
-export const ScanResultSchema: Schema.Schema<ScanResult> = Schema.mutable(
+export const ScanResultSchema = Schema.mutable(
   Schema.Struct({
     files: Schema.mutable(Schema.Array(ScannedFileSchema)),
     skipped: Schema.mutable(Schema.Array(SkippedFileSchema)),
@@ -1571,7 +1616,7 @@ export const ScanResultSchema: Schema.Schema<ScanResult> = Schema.mutable(
 export interface ImportedFile {
   source_path: string;
   destination_path: string;
-  anime_id: number;
+  anime_id: AnimeId;
   episode_number: number;
   episode_numbers?: number[] | undefined;
   naming_format_used?: string | undefined;
@@ -1581,10 +1626,10 @@ export interface ImportedFile {
   naming_metadata_snapshot?: RenamePreviewMetadataSnapshot | undefined;
 }
 
-export const ImportedFileSchema: Schema.Schema<ImportedFile> = Schema.Struct({
+export const ImportedFileSchema = Schema.Struct({
   source_path: Schema.String,
   destination_path: Schema.String,
-  anime_id: Schema.Number,
+  anime_id: AnimeIdSchema,
   episode_number: Schema.Number,
   episode_numbers: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
   naming_format_used: Schema.optional(Schema.String),
@@ -1611,7 +1656,7 @@ export interface ImportResult {
   failed_files: FailedImport[];
 }
 
-export const ImportResultSchema: Schema.Schema<ImportResult> = Schema.mutable(
+export const ImportResultSchema = Schema.mutable(
   Schema.Struct({
     imported: Schema.Number,
     failed: Schema.Number,
@@ -1621,7 +1666,7 @@ export const ImportResultSchema: Schema.Schema<ImportResult> = Schema.mutable(
 );
 
 export interface ImportFileSelection {
-  anime_id: number;
+  anime_id: AnimeId;
   episode_number: number;
   episode_numbers?: number[] | undefined;
   season?: number | undefined;
@@ -1629,8 +1674,8 @@ export interface ImportFileSelection {
   source_path: string;
 }
 
-export const ImportFileSelectionSchema: Schema.Schema<ImportFileSelection> = Schema.Struct({
-  anime_id: Schema.Number,
+export const ImportFileSelectionSchema = Schema.Struct({
+  anime_id: AnimeIdSchema,
   episode_number: Schema.Number,
   episode_numbers: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
   season: Schema.optional(Schema.Number),
@@ -1639,34 +1684,32 @@ export const ImportFileSelectionSchema: Schema.Schema<ImportFileSelection> = Sch
 });
 
 export interface ImportCandidateSelectionRequest {
-  candidate_id: number;
+  candidate_id: AnimeId;
   candidate_title: string;
   force_select?: boolean | undefined;
   files: ScannedFile[];
-  selected_candidate_ids: number[];
+  selected_candidate_ids: AnimeId[];
   selected_files: ImportFileSelection[];
 }
 
-export const ImportCandidateSelectionRequestSchema: Schema.Schema<ImportCandidateSelectionRequest> =
-  Schema.Struct({
-    candidate_id: Schema.Number,
-    candidate_title: Schema.String,
-    force_select: Schema.optional(Schema.Boolean),
-    files: Schema.mutable(Schema.Array(ScannedFileSchema)),
-    selected_candidate_ids: Schema.mutable(Schema.Array(Schema.Number)),
-    selected_files: Schema.mutable(Schema.Array(ImportFileSelectionSchema)),
-  });
+export const ImportCandidateSelectionRequestSchema = Schema.Struct({
+  candidate_id: AnimeIdSchema,
+  candidate_title: Schema.String,
+  force_select: Schema.optional(Schema.Boolean),
+  files: Schema.mutable(Schema.Array(ScannedFileSchema)),
+  selected_candidate_ids: Schema.mutable(Schema.Array(AnimeIdSchema)),
+  selected_files: Schema.mutable(Schema.Array(ImportFileSelectionSchema)),
+});
 
 export interface ImportCandidateSelectionResult {
-  selected_candidate_ids: number[];
+  selected_candidate_ids: AnimeId[];
   selected_files: ImportFileSelection[];
 }
 
-export const ImportCandidateSelectionResultSchema: Schema.Schema<ImportCandidateSelectionResult> =
-  Schema.Struct({
-    selected_candidate_ids: Schema.mutable(Schema.Array(Schema.Number)),
-    selected_files: Schema.mutable(Schema.Array(ImportFileSelectionSchema)),
-  });
+export const ImportCandidateSelectionResultSchema = Schema.Struct({
+  selected_candidate_ids: Schema.mutable(Schema.Array(AnimeIdSchema)),
+  selected_files: Schema.mutable(Schema.Array(ImportFileSelectionSchema)),
+});
 
 export interface DownloadAction {
   Accept?:
@@ -1692,32 +1735,30 @@ export interface DownloadAction {
   Reject?: { reason: string } | undefined;
 }
 
-export const DownloadActionAcceptSchema: Schema.Schema<NonNullable<DownloadAction["Accept"]>> =
-  Schema.Struct({
-    quality: QualitySchema,
-    is_seadex: Schema.Boolean,
-    is_seadex_best: Schema.optional(Schema.Boolean),
-    score: Schema.Number,
-  });
+export const DownloadActionAcceptSchema = Schema.Struct({
+  quality: QualitySchema,
+  is_seadex: Schema.Boolean,
+  is_seadex_best: Schema.optional(Schema.Boolean),
+  score: Schema.Number,
+});
 
-export const DownloadActionUpgradeSchema: Schema.Schema<NonNullable<DownloadAction["Upgrade"]>> =
-  Schema.Struct({
-    quality: QualitySchema,
-    is_seadex: Schema.Boolean,
-    is_seadex_best: Schema.optional(Schema.Boolean),
-    score: Schema.Number,
-    reason: Schema.String,
-    old_file_path: Schema.optional(Schema.String),
-    old_quality: QualitySchema,
-    old_score: Schema.optional(Schema.Number),
-  });
+export const DownloadActionUpgradeSchema = Schema.Struct({
+  quality: QualitySchema,
+  is_seadex: Schema.Boolean,
+  is_seadex_best: Schema.optional(Schema.Boolean),
+  score: Schema.Number,
+  reason: Schema.String,
+  old_file_path: Schema.optional(Schema.String),
+  old_quality: QualitySchema,
+  old_score: Schema.optional(Schema.Number),
+});
 
 export const DownloadActionRejectSchema: Schema.Schema<NonNullable<DownloadAction["Reject"]>> =
   Schema.Struct({
     reason: Schema.String,
   });
 
-export const DownloadActionSchema: Schema.Schema<DownloadAction> = Schema.Struct({
+export const DownloadActionSchema = Schema.Struct({
   Accept: Schema.optional(DownloadActionAcceptSchema),
   Upgrade: Schema.optional(DownloadActionUpgradeSchema),
   Reject: Schema.optional(DownloadActionRejectSchema),
@@ -1741,27 +1782,26 @@ export interface SearchDownloadReleaseContext {
   download_action?: DownloadAction | undefined;
 }
 
-export const SearchDownloadReleaseContextSchema: Schema.Schema<SearchDownloadReleaseContext> =
-  Schema.Struct({
-    group: Schema.optional(Schema.String),
-    indexer: Schema.optional(Schema.String),
-    info_hash: Schema.optional(Schema.String),
-    parsed_resolution: Schema.optional(Schema.String),
-    trusted: Schema.optional(Schema.Boolean),
-    remake: Schema.optional(Schema.Boolean),
-    source_url: Schema.optional(Schema.String),
-    is_seadex: Schema.optional(Schema.Boolean),
-    is_seadex_best: Schema.optional(Schema.Boolean),
-    seadex_release_group: Schema.optional(Schema.String),
-    seadex_tags: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),
-    seadex_notes: Schema.optional(Schema.String),
-    seadex_comparison: Schema.optional(Schema.String),
-    seadex_dual_audio: Schema.optional(Schema.Boolean),
-    download_action: Schema.optional(DownloadActionSchema),
-  });
+export const SearchDownloadReleaseContextSchema = Schema.Struct({
+  group: Schema.optional(Schema.String),
+  indexer: Schema.optional(Schema.String),
+  info_hash: Schema.optional(Schema.String),
+  parsed_resolution: Schema.optional(Schema.String),
+  trusted: Schema.optional(Schema.Boolean),
+  remake: Schema.optional(Schema.Boolean),
+  source_url: Schema.optional(Schema.String),
+  is_seadex: Schema.optional(Schema.Boolean),
+  is_seadex_best: Schema.optional(Schema.Boolean),
+  seadex_release_group: Schema.optional(Schema.String),
+  seadex_tags: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),
+  seadex_notes: Schema.optional(Schema.String),
+  seadex_comparison: Schema.optional(Schema.String),
+  seadex_dual_audio: Schema.optional(Schema.Boolean),
+  download_action: Schema.optional(DownloadActionSchema),
+});
 
 export interface SearchDownloadRequest {
-  anime_id: number;
+  anime_id: AnimeId;
   magnet: string;
   title: string;
   episode_number?: number | undefined;
@@ -1769,8 +1809,8 @@ export interface SearchDownloadRequest {
   release_context?: SearchDownloadReleaseContext | undefined;
 }
 
-export const SearchDownloadRequestSchema: Schema.Schema<SearchDownloadRequest> = Schema.Struct({
-  anime_id: Schema.Number,
+export const SearchDownloadRequestSchema = Schema.Struct({
+  anime_id: AnimeIdSchema,
   magnet: Schema.String,
   title: Schema.String,
   episode_number: Schema.optional(Schema.Number),
@@ -1862,7 +1902,7 @@ export interface EpisodeSearchResult {
   seadex_notes?: string | undefined;
 }
 
-export const EpisodeSearchResultSchema: Schema.Schema<EpisodeSearchResult> = Schema.Struct({
+export const EpisodeSearchResultSchema = Schema.Struct({
   title: Schema.String,
   indexer: Schema.String,
   link: Schema.String,
@@ -1944,7 +1984,7 @@ export const SearchResultsSchema: Schema.Schema<SearchResults> = Schema.mutable(
 );
 
 export interface AnimeSearchResult {
-  id: number;
+  id: AnimeId;
   title: {
     romaji?: string | undefined;
     english?: string | undefined;
@@ -1985,8 +2025,8 @@ export const AnimeSearchResultTitleSchema: Schema.Schema<AnimeSearchResult["titl
     native: Schema.optional(Schema.String),
   });
 
-export const AnimeSearchResultSchema: Schema.Schema<AnimeSearchResult> = Schema.Struct({
-  id: Schema.Number,
+export const AnimeSearchResultSchema = Schema.Struct({
+  id: AnimeIdSchema,
   title: AnimeSearchResultTitleSchema,
   format: Schema.optional(Schema.String),
   source: Schema.optional(Schema.String),
@@ -2021,7 +2061,7 @@ export interface AnimeSearchResponse {
   degraded: boolean;
 }
 
-export const AnimeSearchResponseSchema: Schema.Schema<AnimeSearchResponse> = Schema.mutable(
+export const AnimeSearchResponseSchema = Schema.mutable(
   Schema.Struct({
     degraded: Schema.Boolean,
     results: Schema.mutable(Schema.Array(AnimeSearchResultSchema)),
@@ -2096,7 +2136,7 @@ export function resolveSeasonWindowFromDate(now: Date = new Date()): AnimeSeason
   };
 }
 
-export const SeasonalAnimeResponseSchema: Schema.Schema<SeasonalAnimeResponse> = Schema.mutable(
+export const SeasonalAnimeResponseSchema = Schema.mutable(
   Schema.Struct({
     season: AnimeSeasonSchema,
     year: Schema.Number,
@@ -2136,7 +2176,7 @@ export interface UnmappedFolder {
   suggested_matches: AnimeSearchResult[];
 }
 
-export const UnmappedFolderSchema: Schema.Schema<UnmappedFolder> = Schema.mutable(
+export const UnmappedFolderSchema = Schema.mutable(
   Schema.Struct({
     match_attempts: Schema.optional(Schema.Number),
     last_match_error: Schema.optional(Schema.String),
@@ -2188,7 +2228,7 @@ export const ScannerMatchCountsSchema: Schema.Schema<ScannerMatchCounts> = Schem
   paused: Schema.Number,
 });
 
-export const ScannerStateSchema: Schema.Schema<ScannerState> = Schema.mutable(
+export const ScannerStateSchema = Schema.mutable(
   Schema.Struct({
     has_outstanding_matches: Schema.Boolean,
     is_scanning: Schema.Boolean,
@@ -2200,9 +2240,9 @@ export const ScannerStateSchema: Schema.Schema<ScannerState> = Schema.mutable(
 );
 
 export interface DownloadStatus {
-  anime_id?: number | undefined;
+  anime_id?: AnimeId | undefined;
   anime_title?: string | undefined;
-  id?: number | undefined;
+  id?: DownloadId | undefined;
   episode_number?: number | undefined;
   anime_image?: string | undefined;
   decision_reason?: string | undefined;
@@ -2222,10 +2262,10 @@ export interface DownloadStatus {
   allowed_actions?: DownloadAllowedAction[] | undefined;
 }
 
-export const DownloadStatusSchema: Schema.Schema<DownloadStatus> = Schema.Struct({
-  anime_id: Schema.optional(Schema.Number),
+export const DownloadStatusSchema = Schema.Struct({
+  anime_id: Schema.optional(AnimeIdSchema),
   anime_title: Schema.optional(Schema.String),
-  id: Schema.optional(Schema.Number),
+  id: Schema.optional(DownloadIdSchema),
   episode_number: Schema.optional(Schema.Number),
   anime_image: Schema.optional(Schema.String),
   decision_reason: Schema.optional(Schema.String),
@@ -2253,7 +2293,7 @@ export type NotificationEvent =
       type: "DownloadStarted";
       payload: {
         title: string;
-        anime_id?: number | undefined;
+        anime_id?: AnimeId | undefined;
         source_metadata?: DownloadSourceMetadata | undefined;
       };
     }
@@ -2261,30 +2301,30 @@ export type NotificationEvent =
       type: "DownloadFinished";
       payload: {
         title: string;
-        anime_id?: number | undefined;
+        anime_id?: AnimeId | undefined;
         imported_path?: string | undefined;
         source_metadata?: DownloadSourceMetadata | undefined;
       };
     }
-  | { type: "RefreshStarted"; payload: { anime_id: number; title: string } }
-  | { type: "RefreshFinished"; payload: { anime_id: number; title: string } }
+  | { type: "RefreshStarted"; payload: { anime_id: AnimeId; title: string } }
+  | { type: "RefreshFinished"; payload: { anime_id: AnimeId; title: string } }
   | {
       type: "SearchMissingStarted";
-      payload: { anime_id: number; title: string };
+      payload: { anime_id?: AnimeId | undefined; title: string };
     }
   | {
       type: "SearchMissingFinished";
-      payload: { anime_id: number; title: string; count: number };
+      payload: { anime_id?: AnimeId | undefined; title: string; count: number };
     }
-  | { type: "ScanFolderStarted"; payload: { anime_id: number; title: string } }
+  | { type: "ScanFolderStarted"; payload: { anime_id: AnimeId; title: string } }
   | {
       type: "ScanFolderFinished";
-      payload: { anime_id: number; title: string; found: number };
+      payload: { anime_id: AnimeId; title: string; found: number };
     }
-  | { type: "RenameStarted"; payload: { anime_id: number; title: string } }
+  | { type: "RenameStarted"; payload: { anime_id: AnimeId; title: string } }
   | {
       type: "RenameFinished";
-      payload: { anime_id: number; title: string; count: number };
+      payload: { anime_id: AnimeId; title: string; count: number };
     }
   | { type: "ImportStarted"; payload: { count: number } }
   | {
@@ -2313,7 +2353,7 @@ export type NotificationEvent =
   | { type: "DownloadProgress"; payload: { downloads: DownloadStatus[] } }
   | { type: "SystemStatus"; payload: SystemStatus };
 
-export const NotificationEventSchema: Schema.Schema<NotificationEvent> = Schema.mutable(
+export const NotificationEventSchema = Schema.mutable(
   Schema.Union(
     Schema.Struct({ type: Schema.Literal("ScanStarted") }),
     Schema.Struct({ type: Schema.Literal("ScanFinished") }),
@@ -2328,7 +2368,7 @@ export const NotificationEventSchema: Schema.Schema<NotificationEvent> = Schema.
       type: Schema.Literal("DownloadStarted"),
       payload: Schema.Struct({
         title: Schema.String,
-        anime_id: Schema.optional(Schema.Number),
+        anime_id: Schema.optional(AnimeIdSchema),
         source_metadata: Schema.optional(Schema.suspend(() => DownloadSourceMetadataSchema)),
       }),
     }),
@@ -2336,7 +2376,7 @@ export const NotificationEventSchema: Schema.Schema<NotificationEvent> = Schema.
       type: Schema.Literal("DownloadFinished"),
       payload: Schema.Struct({
         title: Schema.String,
-        anime_id: Schema.optional(Schema.Number),
+        anime_id: Schema.optional(AnimeIdSchema),
         imported_path: Schema.optional(Schema.String),
         source_metadata: Schema.optional(Schema.suspend(() => DownloadSourceMetadataSchema)),
       }),
@@ -2344,28 +2384,28 @@ export const NotificationEventSchema: Schema.Schema<NotificationEvent> = Schema.
     Schema.Struct({
       type: Schema.Literal("RefreshStarted"),
       payload: Schema.Struct({
-        anime_id: Schema.Number,
+        anime_id: AnimeIdSchema,
         title: Schema.String,
       }),
     }),
     Schema.Struct({
       type: Schema.Literal("RefreshFinished"),
       payload: Schema.Struct({
-        anime_id: Schema.Number,
+        anime_id: AnimeIdSchema,
         title: Schema.String,
       }),
     }),
     Schema.Struct({
       type: Schema.Literal("SearchMissingStarted"),
       payload: Schema.Struct({
-        anime_id: Schema.Number,
+        anime_id: Schema.optional(AnimeIdSchema),
         title: Schema.String,
       }),
     }),
     Schema.Struct({
       type: Schema.Literal("SearchMissingFinished"),
       payload: Schema.Struct({
-        anime_id: Schema.Number,
+        anime_id: Schema.optional(AnimeIdSchema),
         title: Schema.String,
         count: Schema.Number,
       }),
@@ -2373,14 +2413,14 @@ export const NotificationEventSchema: Schema.Schema<NotificationEvent> = Schema.
     Schema.Struct({
       type: Schema.Literal("ScanFolderStarted"),
       payload: Schema.Struct({
-        anime_id: Schema.Number,
+        anime_id: AnimeIdSchema,
         title: Schema.String,
       }),
     }),
     Schema.Struct({
       type: Schema.Literal("ScanFolderFinished"),
       payload: Schema.Struct({
-        anime_id: Schema.Number,
+        anime_id: AnimeIdSchema,
         title: Schema.String,
         found: Schema.Number,
       }),
@@ -2388,14 +2428,14 @@ export const NotificationEventSchema: Schema.Schema<NotificationEvent> = Schema.
     Schema.Struct({
       type: Schema.Literal("RenameStarted"),
       payload: Schema.Struct({
-        anime_id: Schema.Number,
+        anime_id: AnimeIdSchema,
         title: Schema.String,
       }),
     }),
     Schema.Struct({
       type: Schema.Literal("RenameFinished"),
       payload: Schema.Struct({
-        anime_id: Schema.Number,
+        anime_id: AnimeIdSchema,
         title: Schema.String,
         count: Schema.Number,
       }),

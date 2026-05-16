@@ -1,4 +1,4 @@
-import type { Quality } from "@packages/shared/index.ts";
+import { brandQualityId, type Quality } from "@packages/shared/index.ts";
 import { parseResolutionLabel } from "@/infra/media/resolution.ts";
 
 type QualitySource =
@@ -148,13 +148,13 @@ function makeQuality(
   sourceKind: QualitySource,
 ) {
   return {
-    id,
+    id: brandQualityId(id),
     name,
     rank,
     resolution,
     source,
     sourceKind,
-  } as const;
+  } as const satisfies Quality & { readonly sourceKind: QualitySource };
 }
 
 const SOURCE_MARKERS = [

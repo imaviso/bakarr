@@ -1,10 +1,11 @@
 import { Context, Effect, Layer, Option } from "effect";
 
-import type {
-  ApiKeyLoginRequest,
-  AuthUser,
-  LoginRequest,
-  LoginResponse,
+import {
+  brandUserId,
+  type ApiKeyLoginRequest,
+  type AuthUser,
+  type LoginRequest,
+  type LoginResponse,
 } from "@packages/shared/index.ts";
 import { AppConfig } from "@/config/schema.ts";
 import { DatabaseError } from "@/db/database.ts";
@@ -96,9 +97,7 @@ const makeAuthSessionService = Effect.gen(function* () {
 
     const row = rowOption.value;
 
-    const verified = yield* verifyPassword(request.password, row.passwordHash).pipe(
-      Effect.provideService(PasswordCrypto, passwordCrypto),
-    );
+    const verified = yield* verifyPassword(passwordCrypto, request.password, row.passwordHash);
 
     if (!verified) {
       return yield* AuthError.make({
@@ -175,13 +174,7 @@ const makeAuthSessionService = Effect.gen(function* () {
           });
         }
 
-        return Option.some({
-          created_at: row.createdAt,
-          id: row.id,
-          must_change_password: row.mustChangePassword,
-          updated_at: row.updatedAt,
-          username: row.username,
-        });
+        return Option.some(toAuthUser(row));
       }
     }
 
@@ -238,10 +231,15 @@ function isoToMillis(value: string): number {
   return Date.parse(value);
 }
 
-function toAuthUser(row: typeof users.$inferSelect): AuthUser {
+function toAuthUser(
+  row: Pick<
+    typeof users.$inferSelect,
+    "createdAt" | "id" | "mustChangePassword" | "updatedAt" | "username"
+  >,
+): AuthUser {
   return {
     created_at: row.createdAt,
-    id: row.id,
+    id: brandUserId(row.id),
     must_change_password: row.mustChangePassword,
     updated_at: row.updatedAt,
     username: row.username,

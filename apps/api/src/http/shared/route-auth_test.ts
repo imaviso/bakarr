@@ -14,11 +14,11 @@ import {
 } from "@/features/auth/session-service.ts";
 import { persistSessionResponse, requireViewerFromHttpRequest } from "@/http/shared/route-auth.ts";
 import { assert, it } from "@effect/vitest";
-import type { AuthUser } from "@packages/shared/index.ts";
+import { brandUserId, type AuthUser } from "@packages/shared/index.ts";
 
 const sampleViewer: AuthUser = {
   created_at: "2026-01-01T00:00:00.000Z",
-  id: 1,
+  id: brandUserId(1),
   must_change_password: false,
   updated_at: "2026-01-01T00:00:00.000Z",
   username: "demo",

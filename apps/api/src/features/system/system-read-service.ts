@@ -29,11 +29,13 @@ import {
 } from "@/features/system/repository/stats-repository.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { ClockService } from "@/infra/clock.ts";
-import type {
-  ActivityItem,
-  LibraryStats,
-  OpsDashboard,
-  SystemStatus,
+import {
+  brandActivityId,
+  brandAnimeId,
+  type ActivityItem,
+  type LibraryStats,
+  type OpsDashboard,
+  type SystemStatus,
 } from "@packages/shared/index.ts";
 import type { OperationsStoredDataError } from "@/features/operations/errors.ts";
 
@@ -76,10 +78,10 @@ export const SystemReadServiceLive = Layer.effect(
         (row) =>
           ({
             activity_type: row.eventType,
-            anime_id: 0,
+            anime_id: brandAnimeId(1),
             anime_title: "Bakarr",
             description: row.message,
-            id: row.id,
+            id: brandActivityId(row.id),
             timestamp: row.createdAt,
           }) satisfies ActivityItem,
       );

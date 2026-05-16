@@ -1,4 +1,4 @@
-import type { Anime } from "@bakarr/shared";
+import { brandAnimeId, type Anime } from "@bakarr/shared";
 import { it } from "vitest";
 import { filterAnimeLibrary } from "./library-filter";
 
@@ -10,7 +10,7 @@ function createAnime(input: {
   monitored: boolean;
 }): Anime {
   return {
-    id: input.id,
+    id: brandAnimeId(input.id),
     title: {
       romaji: input.romaji,
       english: input.english,

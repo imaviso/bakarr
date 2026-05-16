@@ -1,5 +1,6 @@
 import { Effect } from "effect";
 import { assert, it } from "@effect/vitest";
+import { brandAnimeId } from "@packages/shared/index.ts";
 
 import {
   encodeAnimeDiscoveryEntries,
@@ -21,7 +22,7 @@ it("encodeAnimeDiscoveryEntries returns null for empty array", () =>
 it("encodeAnimeDiscoveryEntries encodes valid entries to JSON string", () =>
   Effect.gen(function* () {
     const result = yield* encodeAnimeDiscoveryEntries([
-      { id: 1, title: { romaji: "Test", english: undefined, native: undefined } },
+      { id: brandAnimeId(1), title: { romaji: "Test", english: undefined, native: undefined } },
     ]);
     assert.ok(typeof result === "string");
     assert.ok(result.includes('"romaji":"Test"'));

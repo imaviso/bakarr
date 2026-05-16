@@ -2,7 +2,7 @@ import { assert, it } from "@effect/vitest";
 import { eq } from "drizzle-orm";
 import { Cause, Effect, Exit, Option } from "effect";
 
-import type { AnimeSearchResult } from "@packages/shared/index.ts";
+import { brandAnimeId, type AnimeSearchResult } from "@packages/shared/index.ts";
 import * as schema from "@/db/schema.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
@@ -20,17 +20,18 @@ import {
 import { listEpisodesEffect } from "@/features/anime/anime-query-episodes.ts";
 import { annotateAnimeSearchResultsForQuery } from "@/features/anime/anime-search-annotation.ts";
 import { listAnimeFilesEffect } from "@/features/anime/anime-file-list.ts";
+import type { AnimeMetadata } from "@/features/anime/anilist-model.ts";
 
 it("annotateAnimeSearchResultsForQuery adds confidence and reasons", () => {
   const results = annotateAnimeSearchResultsForQuery("Naruto", [
     {
-      id: 1,
+      id: brandAnimeId(1),
       title: { romaji: "Naruto" },
       format: "TV",
       status: "RELEASING",
     },
     {
-      id: 2,
+      id: brandAnimeId(2),
       synonyms: ["Naruto: Shippuuden"],
       title: { romaji: "Naruto Shippuden" },
       format: "TV",
@@ -47,7 +48,7 @@ it("annotateAnimeSearchResultsForQuery adds confidence and reasons", () => {
 it("annotateAnimeSearchResultsForQuery considers synonyms", () => {
   const results = annotateAnimeSearchResultsForQuery("Boku no Hero Academia", [
     {
-      id: 7,
+      id: brandAnimeId(7),
       synonyms: ["My Hero Academia", "Boku no Hero Academia"],
       title: { english: "My Hero Academia", romaji: "Boku no Hero Academia" },
     },
@@ -242,16 +243,16 @@ it.scoped("getAnimeByAnilistIdEffect returns related and recommended metadata", 
             bannerImage: "https://example.com/banner.png",
             coverImage: "https://example.com/cover.png",
             format: "TV",
-            id: 55,
+            id: brandAnimeId(55),
             recommendedAnime: [
               {
-                id: 77,
+                id: brandAnimeId(77),
                 title: { english: "Recommendation", romaji: "Recommendation" },
               },
             ],
             relatedAnime: [
               {
-                id: 56,
+                id: brandAnimeId(56),
                 relation_type: "SEQUEL",
                 title: { english: "Sequel", romaji: "Sequel" },
               },
@@ -421,7 +422,7 @@ it.scoped("searchAnimeEffect reports non-degraded when AniList search succeeds",
               Effect.succeed([
                 {
                   already_in_library: false,
-                  id: 202,
+                  id: brandAnimeId(202),
                   title: { romaji: "Bakemonogatari" },
                 } satisfies AnimeSearchResult,
               ]),
@@ -456,7 +457,7 @@ it.scoped("searchAnimeEffect falls back to Manami when AniList returns no result
               Effect.succeed([
                 {
                   already_in_library: false,
-                  id: 20,
+                  id: brandAnimeId(20),
                   title: { english: "Naruto", romaji: "NARUTO" },
                 } satisfies AnimeSearchResult,
               ]),
@@ -473,36 +474,7 @@ it.scoped("searchAnimeEffect falls back to Manami when AniList returns no result
   }),
 );
 
-function makeAniListStub(metadata: {
-  bannerImage?: string;
-  coverImage?: string;
-  description?: string;
-  endDate?: string;
-  endYear?: number;
-  episodeCount?: number;
-  format: string;
-  genres?: string[];
-  id: number;
-  recommendedAnime?:
-    | Array<{
-        id: number;
-        relation_type?: string;
-        title: { english?: string; romaji?: string; native?: string };
-      }>
-    | undefined;
-  relatedAnime?:
-    | Array<{
-        id: number;
-        relation_type?: string;
-        title: { english?: string; romaji?: string; native?: string };
-      }>
-    | undefined;
-  startDate?: string;
-  startYear?: number;
-  status: string;
-  synonyms?: string[];
-  title: { english?: string; romaji: string; native?: string };
-}) {
+function makeAniListStub(metadata: AnimeMetadata) {
   return {
     getAnimeMetadataById: () => Effect.succeed(Option.some(metadata)),
     searchAnimeMetadata: () => Effect.succeed([]),

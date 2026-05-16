@@ -1,7 +1,13 @@
 import { and, count, eq, inArray, sql } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type { Anime, AnimeListQueryParams, AnimeListResponse } from "@packages/shared/index.ts";
+import {
+  brandAnimeId,
+  brandReleaseProfileId,
+  type Anime,
+  type AnimeListQueryParams,
+  type AnimeListResponse,
+} from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { anime, episodes } from "@/db/schema.ts";
 import { AnimeStoredDataError } from "@/features/anime/errors.ts";
@@ -161,7 +167,7 @@ function toAnimeDtoProgress(
       favorites: row.favorites ?? undefined,
       format: row.format,
       genres,
-      id: row.id,
+      id: brandAnimeId(row.id),
       mal_id: row.malId ?? undefined,
       members: row.members ?? undefined,
       monitored: row.monitored,
@@ -186,7 +192,7 @@ function toAnimeDtoProgress(
       },
       recommended_anime: recommendedAnime,
       related_anime: relatedAnime,
-      release_profile_ids: releaseProfileIds,
+      release_profile_ids: releaseProfileIds.map(brandReleaseProfileId),
       root_folder: row.rootFolder,
       rank: row.rank ?? undefined,
       rating: row.rating ?? undefined,

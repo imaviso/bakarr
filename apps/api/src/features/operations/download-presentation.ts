@@ -1,6 +1,12 @@
 import { Effect } from "effect";
 
-import type { Download, DownloadAllowedAction, DownloadStatus } from "@packages/shared/index.ts";
+import {
+  brandAnimeId,
+  brandDownloadId,
+  type Download,
+  type DownloadAllowedAction,
+  type DownloadStatus,
+} from "@packages/shared/index.ts";
 import type { downloads } from "@/db/schema.ts";
 import { decodeOptionalNumberList } from "@/features/profiles/profile-codec.ts";
 import type { DownloadPresentationContext } from "@/features/operations/repository/types.ts";
@@ -29,7 +35,7 @@ export const toDownload = Effect.fn("OperationsPresentation.toDownload")(functio
 
   return {
     added_at: row.addedAt,
-    anime_id: row.animeId,
+    anime_id: brandAnimeId(row.animeId),
     anime_image: context?.animeImage,
     anime_title: row.animeTitle,
     content_path: row.contentPath ?? undefined,
@@ -43,7 +49,7 @@ export const toDownload = Effect.fn("OperationsPresentation.toDownload")(functio
     eta_seconds: row.etaSeconds ?? undefined,
     external_state: row.externalState ?? undefined,
     group_name: row.groupName ?? undefined,
-    id: row.id,
+    id: brandDownloadId(row.id),
     imported_path: context?.importedPath,
     is_batch: row.isBatch,
     last_error_at: row.lastErrorAt ?? undefined,
@@ -79,7 +85,7 @@ export const toDownloadStatus = Effect.fn("OperationsPresentation.toDownloadStat
   const policy = resolveDownloadActionPolicy(row.status, row.reconciledAt);
 
   return {
-    anime_id: row.animeId,
+    anime_id: brandAnimeId(row.animeId),
     anime_image: context?.animeImage,
     anime_title: row.animeTitle,
     coverage_pending: coveragePending || undefined,
@@ -88,7 +94,7 @@ export const toDownloadStatus = Effect.fn("OperationsPresentation.toDownloadStat
     downloaded_bytes: downloadedBytes,
     eta: row.etaSeconds ?? 0,
     hash: infoHash,
-    id: row.id,
+    id: brandDownloadId(row.id),
     episode_number: row.episodeNumber,
     imported_path: context?.importedPath,
     is_batch: row.isBatch,

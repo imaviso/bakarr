@@ -5,6 +5,7 @@ import type {
   SearchDownloadReleaseContext,
   SearchDownloadRequest,
 } from "~/api/contracts";
+import { brandAnimeId } from "@bakarr/shared";
 import { formatReleaseSearchDecisionReason, inferBatchKind } from "~/domain/batch-kind";
 
 export interface NyaaSelectionMetadata {
@@ -50,7 +51,7 @@ export function buildGrabInputFromNyaaResult(input: {
   const { animeId, episodeNumber, isBatch, result } = input;
 
   return {
-    anime_id: animeId,
+    anime_id: brandAnimeId(animeId),
     magnet: result.magnet,
     ...(episodeNumber === undefined ? {} : { episode_number: episodeNumber }),
     release_context: toReleaseContext({
@@ -109,7 +110,7 @@ export function buildGrabInputFromEpisodeResult(input: {
   result: EpisodeSearchResult;
 }): SearchDownloadRequest {
   return {
-    anime_id: input.animeId,
+    anime_id: brandAnimeId(input.animeId),
     episode_number: input.episodeNumber,
     title: input.result.title,
     magnet: input.result.link,

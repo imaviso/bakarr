@@ -1,4 +1,5 @@
 import { assert, it } from "@effect/vitest";
+import { brandSystemLogId } from "@packages/shared/index.ts";
 
 import {
   buildSystemLogConditions,
@@ -36,7 +37,7 @@ it("toSystemLog normalizes level and maps db row to frontend shape", () => {
     createdAt: "2025-06-01T00:00:00.000Z",
     details: "extra info",
     eventType: "auth.login",
-    id: 42,
+    id: brandSystemLogId(42),
     level: "debug",
     message: "user logged in",
   });
@@ -44,7 +45,7 @@ it("toSystemLog normalizes level and maps db row to frontend shape", () => {
     created_at: "2025-06-01T00:00:00.000Z",
     details: "extra info",
     event_type: "auth.login",
-    id: 42,
+    id: brandSystemLogId(42),
     level: "info",
     message: "user logged in",
   });

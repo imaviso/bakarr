@@ -1,4 +1,5 @@
 import { it } from "vitest";
+import { brandQualityId } from "@bakarr/shared";
 import {
   actionReasonFromDownloadAction,
   buildGrabInputFromEpisodeResult,
@@ -86,9 +87,21 @@ it("decisionReasonFromEpisodeResult prefers upgrade reason", () => {
     download_action: {
       Upgrade: {
         is_seadex: false,
-        old_quality: { id: 1, name: "720p", rank: 10, resolution: 720, source: "web" },
+        old_quality: {
+          id: brandQualityId(1),
+          name: "720p",
+          rank: 10,
+          resolution: 720,
+          source: "web",
+        },
         old_score: 5,
-        quality: { id: 2, name: "1080p", rank: 20, resolution: 1080, source: "web" },
+        quality: {
+          id: brandQualityId(2),
+          name: "1080p",
+          rank: 20,
+          resolution: 1080,
+          source: "web",
+        },
         reason: "higher score",
         score: 9,
       },
@@ -117,7 +130,13 @@ it("buildGrabInputFromEpisodeResult includes selected metadata", () => {
       download_action: {
         Accept: {
           is_seadex: true,
-          quality: { id: 2, name: "1080p", rank: 20, resolution: 1080, source: "web" },
+          quality: {
+            id: brandQualityId(2),
+            name: "1080p",
+            rank: 20,
+            resolution: 1080,
+            source: "web",
+          },
           score: 12,
         },
       },
@@ -155,9 +174,15 @@ it("actionReasonFromDownloadAction returns upgrade and reject reasons", () => {
   const upgradeReason = actionReasonFromDownloadAction({
     Upgrade: {
       is_seadex: false,
-      old_quality: { id: 1, name: "720p", rank: 10, resolution: 720, source: "web" },
+      old_quality: {
+        id: brandQualityId(1),
+        name: "720p",
+        rank: 10,
+        resolution: 720,
+        source: "web",
+      },
       old_score: 2,
-      quality: { id: 2, name: "1080p", rank: 20, resolution: 1080, source: "web" },
+      quality: { id: brandQualityId(2), name: "1080p", rank: 20, resolution: 1080, source: "web" },
       reason: "better release",
       score: 7,
     },

@@ -1,20 +1,25 @@
 import { assert, it } from "@effect/vitest";
 import { Effect, Stream } from "effect";
 
-import type { DownloadEvent } from "@packages/shared/index.ts";
+import {
+  brandAnimeId,
+  brandDownloadEventId,
+  brandDownloadId,
+  type DownloadEvent,
+} from "@packages/shared/index.ts";
 import {
   renderDownloadEventsExportCsv,
   renderDownloadEventsExportJson,
 } from "@/features/operations/catalog-download-event-render-support.ts";
 
 const event: DownloadEvent = {
-  anime_id: 7,
+  anime_id: brandAnimeId(7),
   anime_title: "Show, Name",
   created_at: "2025-01-01T00:00:00.000Z",
-  download_id: 11,
+  download_id: brandDownloadId(11),
   event_type: "downloads.imported",
   from_status: "completed",
-  id: 1,
+  id: brandDownloadEventId(1),
   message: 'Imported "episode"\nwith newline',
   metadata: "raw,metadata",
   metadata_json: { imported_path: "/library/Show - 01.mkv" },

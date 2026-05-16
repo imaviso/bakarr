@@ -1,7 +1,12 @@
 import { and, eq, sql } from "drizzle-orm";
 import { Context, Effect, Layer } from "effect";
 
-import type { CalendarEvent, MissingEpisode, RenamePreviewItem } from "@packages/shared/index.ts";
+import {
+  brandAnimeId,
+  type CalendarEvent,
+  type MissingEpisode,
+  type RenamePreviewItem,
+} from "@packages/shared/index.ts";
 import { Database, type DatabaseError } from "@/db/database.ts";
 import { anime, episodes } from "@/db/schema.ts";
 import type { OperationsError } from "@/features/operations/errors.ts";
@@ -81,7 +86,7 @@ export const CatalogLibraryReadServiceLive = Layer.effect(
         return {
           aired: row.aired ?? undefined,
           airing_status: timeline.airing_status,
-          anime_id: row.animeId,
+          anime_id: brandAnimeId(row.animeId),
           anime_image: row.coverImage ?? undefined,
           anime_title: row.animeTitle,
           episode_number: row.episodeNumber,
@@ -121,7 +126,7 @@ export const CatalogLibraryReadServiceLive = Layer.effect(
           end: episodeRow.aired ?? nowIsoValue,
           extended_props: {
             airing_status: timeline.airing_status,
-            anime_id: animeRow.id,
+            anime_id: brandAnimeId(animeRow.id),
             anime_image: animeRow.coverImage ?? undefined,
             anime_title: animeRow.titleRomaji,
             downloaded: episodeRow.downloaded,

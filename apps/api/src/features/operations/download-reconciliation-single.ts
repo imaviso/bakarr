@@ -1,5 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { Effect, Option } from "effect";
+import { brandAnimeId } from "@packages/shared/index.ts";
 
 import { episodes } from "@/db/schema.ts";
 import { probeMediaMetadataOrUndefined } from "@/infra/media/probe.ts";
@@ -166,7 +167,7 @@ export const reconcileSingleDownloadEffect = Effect.fn(
   yield* input.eventBus.publish({
     type: "DownloadFinished",
     payload: {
-      anime_id: input.row.animeId,
+      anime_id: brandAnimeId(input.row.animeId),
       imported_path: managedPath,
       source_metadata: input.storedSourceMetadata,
       title: input.row.torrentName,

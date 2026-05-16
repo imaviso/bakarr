@@ -1,5 +1,6 @@
 import { assert, it } from "@effect/vitest";
 import { Effect } from "effect";
+import { brandAnimeId } from "@packages/shared/index.ts";
 import { withFileSystemSandboxEffect, writeTextFile } from "@/test/filesystem-test.ts";
 import { ensureFolderMatchStatus } from "@/features/operations/unmapped-folder-list-support.ts";
 import { loadUnmappedFolderVideoSize } from "@/features/operations/unmapped-scan-video-support.ts";
@@ -48,7 +49,7 @@ it("ensureFolderMatchStatus preserves cached size", () => {
     suggested_matches: [
       {
         format: "TV",
-        id: 42,
+        id: brandAnimeId(42),
         status: "RELEASING",
         title: { romaji: "Series" },
       },

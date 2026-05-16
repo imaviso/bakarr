@@ -1,14 +1,31 @@
 import { assert, it } from "@effect/vitest";
 import { Effect, Exit } from "effect";
 
-import type { DownloadAction, EpisodeSearchResult, Quality } from "@packages/shared/index.ts";
+import {
+  brandQualityId,
+  type DownloadAction,
+  type EpisodeSearchResult,
+  type Quality,
+} from "@packages/shared/index.ts";
 import {
   compareEpisodeSearchResults,
   validateQualityProfileSizeLabels,
 } from "@/features/operations/release-ranking-policy.ts";
 
-const web1080: Quality = { id: 1, name: "WEB-DL 1080p", rank: 7, resolution: 1080, source: "web" };
-const web720: Quality = { id: 2, name: "WEB-DL 720p", rank: 10, resolution: 720, source: "web" };
+const web1080: Quality = {
+  id: brandQualityId(1),
+  name: "WEB-DL 1080p",
+  rank: 7,
+  resolution: 1080,
+  source: "web",
+};
+const web720: Quality = {
+  id: brandQualityId(2),
+  name: "WEB-DL 720p",
+  rank: 10,
+  resolution: 720,
+  source: "web",
+};
 
 function result(
   title: string,

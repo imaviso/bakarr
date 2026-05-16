@@ -1,8 +1,12 @@
 import { assert, describe, it } from "@effect/vitest";
 import { Effect } from "effect";
 
-import type { AnimeSeason } from "@packages/shared/index.ts";
-import { resolveSeasonFromDate, resolveSeasonYearFromDate } from "@packages/shared/index.ts";
+import {
+  brandAnimeId,
+  resolveSeasonFromDate,
+  resolveSeasonYearFromDate,
+  type AnimeSeason,
+} from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
 import { listSeasonalAnimeEffect } from "@/features/anime/anime-query-seasonal.ts";
@@ -52,7 +56,7 @@ describe("listSeasonalAnimeEffect", () => {
                     {
                       already_in_library: false,
                       format: "TV",
-                      id: 1,
+                      id: brandAnimeId(1),
                       season: input.season,
                       season_year: input.year,
                       start_year: input.year,
@@ -62,7 +66,7 @@ describe("listSeasonalAnimeEffect", () => {
                     {
                       already_in_library: false,
                       format: "TV",
-                      id: 2,
+                      id: brandAnimeId(2),
                       season: input.season,
                       season_year: input.year,
                       start_year: input.year,
@@ -107,7 +111,7 @@ describe("listSeasonalAnimeEffect", () => {
                     {
                       already_in_library: false,
                       format: "TV",
-                      id: 10,
+                      id: brandAnimeId(10),
                       season: input.season,
                       season_year: input.year,
                       start_year: input.year,
