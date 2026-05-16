@@ -8,10 +8,10 @@ import type { ExternalCallError } from "@/infra/effect/retry.ts";
 import type { AnimeServiceError } from "@/features/anime/errors.ts";
 import type { OperationsError } from "@/features/operations/errors.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
-import { CatalogDownloadCommandService } from "@/features/operations/catalog-download-command-service.ts";
-import { CatalogLibraryScanService } from "@/features/operations/catalog-library-scan-service.ts";
-import { AnimeMaintenanceService } from "@/features/anime/anime-maintenance-service.ts";
-import { BackgroundSearchRssWorkerService } from "@/features/operations/background-search-rss-worker-service.ts";
+import { CatalogDownloadCommandService } from "@/features/operations/catalog/catalog-download-command-service.ts";
+import { CatalogLibraryScanService } from "@/features/operations/catalog/catalog-library-scan-service.ts";
+import { AnimeMaintenanceService } from "@/features/anime/metadata/anime-maintenance-service.ts";
+import { BackgroundSearchRssWorkerService } from "@/features/operations/background-search/background-search-rss-worker-service.ts";
 
 export type BackgroundTaskRunnerError =
   | AnimeServiceError

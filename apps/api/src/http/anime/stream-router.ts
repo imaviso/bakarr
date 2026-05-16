@@ -1,13 +1,13 @@
 import { HttpServerRequest, HttpServerResponse, HttpRouter } from "@effect/platform";
 import { Effect } from "effect";
 
-import { AnimeStreamService } from "@/features/anime/anime-stream-service.ts";
+import { AnimeStreamService } from "@/features/anime/stream/anime-stream-service.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { AnimeEpisodeParamsSchema, StreamQuerySchema } from "@/http/anime/request-schemas.ts";
 import { parseEpisodeStreamRange } from "@/http/anime/streaming-range.ts";
 import { createFileChunkStream } from "@/http/file-stream.ts";
 import { contentType } from "@/http/shared/route-fs.ts";
-import { EpisodeStreamAccessError } from "@/features/anime/anime-stream-errors.ts";
+import { EpisodeStreamAccessError } from "@/features/anime/stream/anime-stream-errors.ts";
 import {
   decodePathParams,
   decodeQueryWithLabel,

@@ -2,9 +2,9 @@ import { HttpRouter } from "@effect/platform";
 import { Effect } from "effect";
 
 import { HttpServerResponse } from "@effect/platform";
-import { CatalogDownloadCommandService } from "@/features/operations/catalog-download-command-service.ts";
-import { CatalogDownloadReadService } from "@/features/operations/catalog-download-read-service.ts";
-import { OperationsTaskLauncherService } from "@/features/operations/operations-task-launcher-service.ts";
+import { CatalogDownloadCommandService } from "@/features/operations/catalog/catalog-download-command-service.ts";
+import { CatalogDownloadReadService } from "@/features/operations/catalog/catalog-download-read-service.ts";
+import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
 import { IdParamsSchema } from "@/http/shared/common-request-schemas.ts";
 import {
   DeleteDownloadQuerySchema,

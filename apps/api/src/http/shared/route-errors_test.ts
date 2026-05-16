@@ -32,7 +32,7 @@ import { mapRouteError } from "@/http/shared/route-errors/index.ts";
 import {
   EpisodeStreamAccessError,
   EpisodeStreamRangeError,
-} from "@/features/anime/anime-stream-errors.ts";
+} from "@/features/anime/stream/anime-stream-errors.ts";
 import { RequestValidationError } from "@/http/shared/route-validation.ts";
 import { routeResponse } from "@/http/shared/router-helpers.ts";
 

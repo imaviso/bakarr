@@ -7,7 +7,7 @@ import {
   StoredDataError,
 } from "@/features/errors.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
-import { ImageCacheError } from "@/features/anime/anime-image-cache-service.ts";
+import { ImageCacheError } from "@/features/anime/metadata/anime-image-cache-service.ts";
 
 export { DomainConflictError as AnimeConflictError } from "@/features/errors.ts";
 export { DomainNotFoundError as AnimeNotFoundError } from "@/features/errors.ts";

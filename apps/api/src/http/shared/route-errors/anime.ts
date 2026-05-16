@@ -1,11 +1,11 @@
 import { Match, Schema } from "effect";
 
 import { AniDbRuntimeConfigError } from "@/features/anime/errors.ts";
-import { ImageCacheError } from "@/features/anime/anime-image-cache-service.ts";
+import { ImageCacheError } from "@/features/anime/metadata/anime-image-cache-service.ts";
 import {
   EpisodeStreamAccessError,
   EpisodeStreamRangeError,
-} from "@/features/anime/anime-stream-errors.ts";
+} from "@/features/anime/stream/anime-stream-errors.ts";
 import type { RouteErrorResponse } from "@/http/shared/route-types.ts";
 import { errorStatus, messageStatus } from "@/http/shared/route-errors/helpers.ts";
 

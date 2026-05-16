@@ -20,17 +20,17 @@ import { bootstrapProgram } from "./src/app/startup.ts";
 import { makeApiLifecycleLayers } from "./src/app/lifecycle-layers.ts";
 import { createHttpApp } from "./src/http/http-app.ts";
 import { commandArgs, commandName } from "./src/test/stubs.ts";
-import { AniListClient } from "./src/features/anime/anilist.ts";
-import { JikanClient } from "./src/features/anime/jikan.ts";
-import { ManamiClient } from "./src/features/anime/manami.ts";
+import { AniListClient } from "./src/features/anime/metadata/anilist.ts";
+import { JikanClient } from "./src/features/anime/metadata/jikan.ts";
+import { ManamiClient } from "./src/features/anime/metadata/manami.ts";
 import {
   mapQBitState,
   type QBitTorrent,
   QBitTorrentClient,
-} from "./src/features/operations/qbittorrent.ts";
-import { RssClient } from "./src/features/operations/rss-client.ts";
-import type { ParsedRelease } from "./src/features/operations/rss-client-parse.ts";
-import { SeaDexClient, type SeaDexEntry } from "./src/features/operations/seadex-client.ts";
+} from "./src/features/operations/qbittorrent/qbittorrent.ts";
+import { RssClient } from "./src/features/operations/rss/rss-client.ts";
+import type { ParsedRelease } from "./src/features/operations/rss/rss-client-parse.ts";
+import { SeaDexClient, type SeaDexEntry } from "./src/features/operations/search/seadex-client.ts";
 import type { AnimeSearchResult } from "../../packages/shared/src/index.ts";
 
 declare global {

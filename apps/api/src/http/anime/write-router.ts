@@ -1,14 +1,14 @@
 import { HttpRouter } from "@effect/platform";
 import { Effect } from "effect";
 
-import { AnimeFileService } from "@/features/anime/anime-file-service.ts";
-import { AnimeEnrollmentService } from "@/features/anime/anime-enrollment-service.ts";
-import { AnimeMaintenanceService } from "@/features/anime/anime-maintenance-service.ts";
-import { AnimeSettingsService } from "@/features/anime/anime-settings-service.ts";
+import { AnimeFileService } from "@/features/anime/files/anime-file-service.ts";
+import { AnimeEnrollmentService } from "@/features/anime/add/anime-enrollment-service.ts";
+import { AnimeMaintenanceService } from "@/features/anime/metadata/anime-maintenance-service.ts";
+import { AnimeSettingsService } from "@/features/anime/shared/anime-settings-service.ts";
 import { OperationsTaskNotFoundError } from "@/features/operations/errors.ts";
-import { OperationsTaskLauncherService } from "@/features/operations/operations-task-launcher-service.ts";
-import { OperationsTaskReadService } from "@/features/operations/operations-task-service.ts";
-import { CatalogLibraryWriteService } from "@/features/operations/catalog-library-write-service.ts";
+import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
+import { OperationsTaskReadService } from "@/features/operations/tasks/operations-task-service.ts";
+import { CatalogLibraryWriteService } from "@/features/operations/catalog/catalog-library-write-service.ts";
 import { brandAnimeId } from "@packages/shared/index.ts";
 import {
   AddAnimeInputSchema,

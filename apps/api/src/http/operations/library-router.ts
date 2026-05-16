@@ -1,15 +1,15 @@
 import { HttpRouter } from "@effect/platform";
 import { Effect } from "effect";
 
-import { LibraryBrowseService } from "@/features/operations/library-browse-service.ts";
-import { CatalogLibraryWriteService } from "@/features/operations/catalog-library-write-service.ts";
+import { LibraryBrowseService } from "@/features/operations/library/library-browse-service.ts";
+import { CatalogLibraryWriteService } from "@/features/operations/catalog/catalog-library-write-service.ts";
 import { OperationsTaskNotFoundError } from "@/features/operations/errors.ts";
-import { ImportPathScanService } from "@/features/operations/import-path-scan-service.ts";
-import { OperationsTaskLauncherService } from "@/features/operations/operations-task-launcher-service.ts";
-import { UnmappedControlService } from "@/features/operations/unmapped-control-service.ts";
-import { UnmappedImportService } from "@/features/operations/unmapped-orchestration-import.ts";
-import { UnmappedScanService } from "@/features/operations/unmapped-scan-service.ts";
-import { applyImportCandidateSelection } from "@/features/operations/import-selection-support.ts";
+import { ImportPathScanService } from "@/features/operations/import-scan/import-path-scan-service.ts";
+import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
+import { UnmappedControlService } from "@/features/operations/unmapped/unmapped-control-service.ts";
+import { UnmappedImportService } from "@/features/operations/unmapped/unmapped-orchestration-import.ts";
+import { UnmappedScanService } from "@/features/operations/unmapped/unmapped-scan-service.ts";
+import { applyImportCandidateSelection } from "@/features/operations/import-scan/import-selection-support.ts";
 import {
   BulkControlUnmappedFoldersBodySchema,
   BrowseQuerySchema,
@@ -32,7 +32,7 @@ import {
   decodeOperationsTaskQuery,
   OperationsTaskReadService,
   OperationsTaskWriteService,
-} from "@/features/operations/operations-task-service.ts";
+} from "@/features/operations/tasks/operations-task-service.ts";
 import {
   OperationsTaskIdParamsSchema,
   OperationsTaskQuerySchema,

@@ -2,7 +2,7 @@ import { HttpRouter } from "@effect/platform";
 import { Effect } from "effect";
 
 import { BackgroundTaskRunner } from "@/background/task-runner.ts";
-import { OperationsTaskLauncherService } from "@/features/operations/operations-task-launcher-service.ts";
+import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
 import { acceptedResponse, authedRouteResponse } from "@/http/shared/router-helpers.ts";
 
 export const systemTasksRouter = HttpRouter.empty.pipe(

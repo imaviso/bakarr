@@ -3,7 +3,7 @@ import { Effect, Layer, Stream } from "effect";
 
 import { brandAnimeId, brandDownloadId, type DownloadStatus } from "@packages/shared/index.ts";
 import { makeEventBus, EventBus } from "@/features/events/event-bus.ts";
-import { CatalogDownloadReadService } from "@/features/operations/catalog-download-read-service.ts";
+import { CatalogDownloadReadService } from "@/features/operations/catalog/catalog-download-read-service.ts";
 import {
   SystemEventsService,
   SystemEventsServiceLive,

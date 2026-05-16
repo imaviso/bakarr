@@ -2,7 +2,10 @@ import { Effect, Layer } from "effect";
 
 import { RandomService } from "@/infra/random.ts";
 import { assert, it } from "@effect/vitest";
-import { StreamTokenSigner, StreamTokenSignerLive } from "@/features/anime/stream-token-signer.ts";
+import {
+  StreamTokenSigner,
+  StreamTokenSignerLive,
+} from "@/features/anime/stream/stream-token-signer.ts";
 
 const randomLayer = Layer.succeed(RandomService, {
   randomBytes: () => Effect.succeed(new Uint8Array(32).fill(7)),

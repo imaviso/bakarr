@@ -13,12 +13,12 @@ import type { AppConfigOverrides, BootstrapConfigOverrides } from "@/config/sche
 import type { ObservabilityConfigOverrides } from "@/config/observability.ts";
 import { BackgroundWorkerControllerLive } from "@/background/controller-core.ts";
 import { BackgroundTaskRunnerLive } from "@/background/task-runner.ts";
-import { AnimeEnrollmentServiceLive } from "@/features/anime/anime-enrollment-service.ts";
+import { AnimeEnrollmentServiceLive } from "@/features/anime/add/anime-enrollment-service.ts";
 import { makeAnimeFeatureLayer } from "@/features/anime/layer.ts";
 import { makeAuthFeatureLayer } from "@/features/auth/layer.ts";
 import { makeOperationsFeatureLayer } from "@/features/operations/layer.ts";
-import { LibraryBrowseServiceLive } from "@/features/operations/library-browse-service.ts";
-import { OperationsTaskLauncherServiceLive } from "@/features/operations/operations-task-launcher-service.ts";
+import { LibraryBrowseServiceLive } from "@/features/operations/library/library-browse-service.ts";
+import { OperationsTaskLauncherServiceLive } from "@/features/operations/tasks/operations-task-launcher-service.ts";
 import { BackgroundJobStatusServiceLive } from "@/features/system/background-job-status-service.ts";
 import { RuntimeConfigSnapshotServiceLive } from "@/features/system/runtime-config-snapshot-service.ts";
 import { SystemConfigServiceLive } from "@/features/system/system-config-service.ts";

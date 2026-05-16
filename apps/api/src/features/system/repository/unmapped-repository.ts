@@ -10,7 +10,7 @@ import {
 import { DatabaseError, type AppDatabase } from "@/db/database.ts";
 import { unmappedFolderMatches } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
-import { buildUnmappedFolderSearchQueries } from "@/features/operations/unmapped-folders.ts";
+import { buildUnmappedFolderSearchQueries } from "@/features/operations/unmapped/unmapped-folders.ts";
 import { StoredUnmappedFolderCorruptError } from "@/features/system/errors.ts";
 
 const AnimeSearchResultListJsonSchema = Schema.parseJson(Schema.Array(AnimeSearchResultSchema));

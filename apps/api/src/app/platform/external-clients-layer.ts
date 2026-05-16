@@ -1,16 +1,16 @@
 import { Layer } from "effect";
 
-import { AniListClientLive, type AniListClient } from "@/features/anime/anilist.ts";
-import { AniDbClientLive, type AniDbClient } from "@/features/anime/anidb.ts";
-import { JikanClientLive, type JikanClient } from "@/features/anime/jikan.ts";
-import { ManamiClientLive, type ManamiClient } from "@/features/anime/manami.ts";
+import { AniListClientLive, type AniListClient } from "@/features/anime/metadata/anilist.ts";
+import { AniDbClientLive, type AniDbClient } from "@/features/anime/metadata/anidb.ts";
+import { JikanClientLive, type JikanClient } from "@/features/anime/metadata/jikan.ts";
+import { ManamiClientLive, type ManamiClient } from "@/features/anime/metadata/manami.ts";
 import {
   QBitTorrentClientLive,
   type QBitTorrentClient,
-} from "@/features/operations/qbittorrent.ts";
-import { RssClientLive, type RssClient } from "@/features/operations/rss-client.ts";
-import { RssTransportLive } from "@/features/operations/rss-transport.ts";
-import { SeaDexClientLive, type SeaDexClient } from "@/features/operations/seadex-client.ts";
+} from "@/features/operations/qbittorrent/qbittorrent.ts";
+import { RssClientLive, type RssClient } from "@/features/operations/rss/rss-client.ts";
+import { RssTransportLive } from "@/features/operations/rss/rss-transport.ts";
+import { SeaDexClientLive, type SeaDexClient } from "@/features/operations/search/seadex-client.ts";
 import { DnsResolverLive } from "@/infra/dns-resolver.ts";
 
 export interface AppExternalClientLayerOptions {

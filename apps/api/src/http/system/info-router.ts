@@ -6,7 +6,7 @@ import { ObservabilityConfig } from "@/config/observability.ts";
 import {
   decodeOperationsTaskQuery,
   OperationsTaskReadService,
-} from "@/features/operations/operations-task-service.ts";
+} from "@/features/operations/tasks/operations-task-service.ts";
 import { makeObservabilityStatus } from "@/features/system/observability-status.ts";
 import { SystemReadService } from "@/features/system/system-read-service.ts";
 import {

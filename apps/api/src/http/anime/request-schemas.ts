@@ -10,7 +10,7 @@ import {
 } from "@/domain/domain-schema.ts";
 import { AbsoluteFilesystemPathStringSchema } from "@/http/shared/common-request-schemas.ts";
 import { AnimeSeasonSchema, OperationTaskKeySchema } from "@packages/shared/index.ts";
-export { AddAnimeInput as AddAnimeInputSchema } from "@/features/anime/add-anime-input.ts";
+export { AddAnimeInput as AddAnimeInputSchema } from "@/features/anime/add/add-anime-input.ts";
 
 const ReleaseProfileIdArraySchema = Schema.Array(ReleaseProfileIdSchema);
 

@@ -1,11 +1,11 @@
 import { HttpRouter } from "@effect/platform";
 import { Effect } from "effect";
 
-import { AnimeFileService } from "@/features/anime/anime-file-service.ts";
-import { AnimeQueryService } from "@/features/anime/query-service.ts";
-import { AnimeStreamService } from "@/features/anime/anime-stream-service.ts";
-import { CatalogRssService } from "@/features/operations/catalog-rss-service.ts";
-import { CatalogLibraryReadService } from "@/features/operations/catalog-library-read-service.ts";
+import { AnimeFileService } from "@/features/anime/files/anime-file-service.ts";
+import { AnimeQueryService } from "@/features/anime/query/query-service.ts";
+import { AnimeStreamService } from "@/features/anime/stream/anime-stream-service.ts";
+import { CatalogRssService } from "@/features/operations/catalog/catalog-rss-service.ts";
+import { CatalogLibraryReadService } from "@/features/operations/catalog/catalog-library-read-service.ts";
 import {
   ListAnimeQuerySchema,
   SearchAnimeQuerySchema,

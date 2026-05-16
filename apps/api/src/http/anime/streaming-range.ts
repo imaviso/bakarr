@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 
 import type { FileByteRange } from "@/http/file-stream.ts";
-import { EpisodeStreamRangeError } from "@/features/anime/anime-stream-errors.ts";
+import { EpisodeStreamRangeError } from "@/features/anime/stream/anime-stream-errors.ts";
 
 export function parseEpisodeStreamRange(
   rangeHeader: string | undefined,

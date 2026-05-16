@@ -1,7 +1,7 @@
 import { Cause, Effect, Exit } from "effect";
 
 import { assert, it } from "@effect/vitest";
-import { EpisodeStreamRangeError } from "@/features/anime/anime-stream-errors.ts";
+import { EpisodeStreamRangeError } from "@/features/anime/stream/anime-stream-errors.ts";
 import { parseEpisodeStreamRange } from "@/http/anime/streaming-range.ts";
 
 it.effect("parses absolute and open-ended episode stream ranges", () =>

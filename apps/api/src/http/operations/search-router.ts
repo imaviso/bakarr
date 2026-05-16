@@ -1,12 +1,12 @@
 import { HttpRouter } from "@effect/platform";
 import { Effect } from "effect";
 
-import { DownloadTriggerService } from "@/features/operations/download-trigger-service.ts";
-import { CatalogLibraryReadService } from "@/features/operations/catalog-library-read-service.ts";
-import { SearchBackgroundMissingService } from "@/features/operations/background-search-missing-support.ts";
-import { OperationsTaskLauncherService } from "@/features/operations/operations-task-launcher-service.ts";
-import { SearchEpisodeService } from "@/features/operations/search-orchestration-episode-support.ts";
-import { SearchReleaseService } from "@/features/operations/search-orchestration-release-search.ts";
+import { DownloadTriggerService } from "@/features/operations/download/download-trigger-service.ts";
+import { CatalogLibraryReadService } from "@/features/operations/catalog/catalog-library-read-service.ts";
+import { SearchBackgroundMissingService } from "@/features/operations/background-search/background-search-missing-support.ts";
+import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
+import { SearchEpisodeService } from "@/features/operations/search/search-orchestration-episode-support.ts";
+import { SearchReleaseService } from "@/features/operations/search/search-orchestration-release-search.ts";
 import {
   CalendarQuerySchema,
   SearchDownloadBodySchema,
