@@ -116,7 +116,7 @@ it.effect("requireViewerFromHttpRequest fails with AuthError when viewer is miss
       if (failure._tag === "Some") {
         assert.deepStrictEqual(failure.value instanceof AuthError, true);
         if (failure.value instanceof AuthError) {
-          assert.deepStrictEqual(failure.value.status, 401);
+          assert.deepStrictEqual(failure.value.kind, "Unauthorized");
         }
       }
     }
@@ -145,7 +145,7 @@ it.effect("requireViewerFromHttpRequest blocks users who must change password", 
       const failure = Cause.failureOption(exit.cause);
       assert.deepStrictEqual(failure._tag, "Some");
       if (failure._tag === "Some" && failure.value instanceof AuthError) {
-        assert.deepStrictEqual(failure.value.status, 403);
+        assert.deepStrictEqual(failure.value.kind, "Forbidden");
         assert.deepStrictEqual(failure.value.message, "Password change required");
       }
     }

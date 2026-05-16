@@ -19,6 +19,7 @@ import { FileSystemLive } from "@/infra/filesystem/filesystem.ts";
 import { RandomServiceLive } from "@/infra/random.ts";
 import { RuntimeLoggerLayer } from "@/infra/logging.ts";
 import { TelemetryLayer } from "@/infra/telemetry.ts";
+import { PasswordCryptoLive } from "@/security/password.ts";
 import { TokenHasherLive } from "@/security/token-hasher.ts";
 
 export interface AppPlatformRuntimeOptions {
@@ -70,6 +71,7 @@ export function makeAppPlatformCoreRuntimeLayer(
     eventBusLayer,
     backgroundMonitorLayer,
     FileSystemLive,
+    PasswordCryptoLive,
     TokenHasherLive,
   );
 

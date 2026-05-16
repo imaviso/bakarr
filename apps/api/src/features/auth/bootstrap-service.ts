@@ -4,7 +4,7 @@ import { BootstrapConfig } from "@/config/schema.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { nowIsoFromClock, ClockService } from "@/infra/clock.ts";
 import { randomHexFrom, RandomService } from "@/infra/random.ts";
-import { hashPasswordWith } from "@/security/password.ts";
+import { hashPassword, PasswordCrypto } from "@/security/password.ts";
 import { TokenHasher } from "@/security/token-hasher.ts";
 import { announceBootstrapCredentials } from "@/features/auth/bootstrap-output.ts";
 import type { AuthCryptoError } from "@/features/auth/errors.ts";
@@ -23,11 +23,11 @@ const makeAuthBootstrapService = Effect.gen(function* () {
   const users = yield* AuthUserRepository;
   const config = yield* BootstrapConfig;
   const clock = yield* ClockService;
+  const passwordCrypto = yield* PasswordCrypto;
   const random = yield* RandomService;
   const tokenHasher = yield* TokenHasher;
   const nowIso = () => nowIsoFromClock(clock);
   const randomHex = (bytes: number) => randomHexFrom(random, bytes);
-  const hashPassword = hashPasswordWith(random.randomBytes);
   const hashToken = tokenHasher.hashToken;
 
   /**
@@ -61,7 +61,9 @@ const makeAuthBootstrapService = Effect.gen(function* () {
     const bootstrapPassword = config.bootstrapPassword;
 
     const now = yield* nowIso();
-    const passwordHash = yield* hashPassword(bootstrapPassword);
+    const passwordHash = yield* hashPassword(bootstrapPassword).pipe(
+      Effect.provideService(PasswordCrypto, passwordCrypto),
+    );
 
     const rawApiKey = yield* randomHex(24);
     const hashedApiKey = yield* hashToken(rawApiKey);

@@ -92,12 +92,14 @@ export const ApiKeyLoginRequestSchema: Schema.Schema<ApiKeyLoginRequest> = Schem
 export interface LoginResponse {
   username: string;
   api_key: string;
+  api_key_masked: boolean;
   must_change_password: boolean;
 }
 
 export const LoginResponseSchema: Schema.Schema<LoginResponse> = Schema.Struct({
   username: Schema.String,
   api_key: Schema.String,
+  api_key_masked: Schema.Boolean,
   must_change_password: Schema.Boolean,
 });
 
@@ -113,10 +115,12 @@ export const ChangePasswordRequestSchema: Schema.Schema<ChangePasswordRequest> =
 
 export interface ApiKeyResponse {
   api_key: string;
+  api_key_masked: boolean;
 }
 
 export const ApiKeyResponseSchema: Schema.Schema<ApiKeyResponse> = Schema.Struct({
   api_key: Schema.String,
+  api_key_masked: Schema.Boolean,
 });
 
 export interface EpisodeProgress {

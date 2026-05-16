@@ -525,6 +525,7 @@ itWithTestContext(
     assert.deepStrictEqual(loginBody.username, "admin");
     assert.deepStrictEqual(loginBody.must_change_password, false);
     assert.match(loginBody.api_key, /^\*+$/);
+    assert.deepStrictEqual(loginBody.api_key_masked, true);
 
     const meResponse = await ctx.app.request("/api/auth/me", {
       headers: { Cookie: sessionCookie },
@@ -732,6 +733,7 @@ itWithTestContext("auth API key regeneration and API key login work", async (ctx
   assert.deepStrictEqual(maskedKeyResponse["status"], 200);
   const maskedKey = await maskedKeyResponse.json();
   assert.match(maskedKey.api_key, /^\*+$/);
+  assert.deepStrictEqual(maskedKey.api_key_masked, true);
 
   const regenerateResponse = await ctx.app.request("/api/auth/api-key/regenerate", {
     headers: { Cookie: sessionCookie },
@@ -740,6 +742,7 @@ itWithTestContext("auth API key regeneration and API key login work", async (ctx
   assert.deepStrictEqual(regenerateResponse["status"], 200);
   const regenerated = await regenerateResponse.json();
   assert.match(regenerated.api_key, /^[a-f0-9]{48}$/);
+  assert.deepStrictEqual(regenerated.api_key_masked, false);
 
   const apiKeyLoginResponse = await ctx.app.request("/api/auth/login/api-key", {
     body: JSON.stringify({ api_key: regenerated.api_key }),
@@ -751,6 +754,7 @@ itWithTestContext("auth API key regeneration and API key login work", async (ctx
   const apiKeyLoginBody = await apiKeyLoginResponse.json();
   assert.deepStrictEqual(apiKeyLoginBody.username, "admin");
   assert.match(apiKeyLoginBody.api_key, /^\*+$/);
+  assert.deepStrictEqual(apiKeyLoginBody.api_key_masked, true);
 
   const apiKeySessionCookie = apiKeyLoginResponse.headers.get("set-cookie");
   assert(apiKeySessionCookie);

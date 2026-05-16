@@ -11,7 +11,7 @@ import { DatabaseError } from "@/db/database.ts";
 import type { users } from "@/db/schema.ts";
 import { nowIsoFromClock, ClockService } from "@/infra/clock.ts";
 import { randomHexFrom, RandomService } from "@/infra/random.ts";
-import { verifyPassword } from "@/security/password.ts";
+import { PasswordCrypto, verifyPassword } from "@/security/password.ts";
 import { TokenHasher, type TokenHasherError } from "@/security/token-hasher.ts";
 import { AuthError, type AuthCryptoError } from "@/features/auth/errors.ts";
 import { AuthUserRepository } from "@/features/auth/user-repository.ts";
@@ -55,6 +55,7 @@ const makeAuthSessionService = Effect.gen(function* () {
   const usersRepository = yield* AuthUserRepository;
   const config = yield* AppConfig;
   const clock = yield* ClockService;
+  const passwordCrypto = yield* PasswordCrypto;
   const random = yield* RandomService;
   const tokenHasher = yield* TokenHasher;
   const nowIso = () => nowIsoFromClock(clock);
@@ -64,7 +65,7 @@ const makeAuthSessionService = Effect.gen(function* () {
 
   const expiresAtIso = Effect.fn("AuthSessionService.expiresAtIso")(function* () {
     const now = yield* currentTimeMillis();
-    return new Date(now + config.sessionDurationDays * DAY_MS).toISOString();
+    return nowPlusDurationIso(now, config.sessionDurationDays * DAY_MS);
   });
 
   const createSession = Effect.fn("AuthSessionService.createSession")(function* (userId: number) {
@@ -88,19 +89,21 @@ const makeAuthSessionService = Effect.gen(function* () {
 
     if (Option.isNone(rowOption)) {
       return yield* AuthError.make({
+        kind: "Unauthorized",
         message: "Invalid username or password",
-        status: 401,
       });
     }
 
     const row = rowOption.value;
 
-    const verified = yield* verifyPassword(request.password, row.passwordHash);
+    const verified = yield* verifyPassword(request.password, row.passwordHash).pipe(
+      Effect.provideService(PasswordCrypto, passwordCrypto),
+    );
 
     if (!verified) {
       return yield* AuthError.make({
+        kind: "Unauthorized",
         message: "Invalid username or password",
-        status: 401,
       });
     }
 
@@ -124,7 +127,7 @@ const makeAuthSessionService = Effect.gen(function* () {
     const rowOption = yield* usersRepository.findUserByApiKey(hashedApiKey);
 
     if (Option.isNone(rowOption)) {
-      return yield* AuthError.make({ message: "Invalid API key", status: 401 });
+      return yield* AuthError.make({ kind: "Unauthorized", message: "Invalid API key" });
     }
 
     const row = rowOption.value;
@@ -156,8 +159,8 @@ const makeAuthSessionService = Effect.gen(function* () {
 
       if (Option.isSome(result)) {
         const row = result.value;
-        const nowMillis = Date.parse(sessionNow);
-        const lastSeenAtMillis = Date.parse(row.lastSeenAt);
+        const nowMillis = yield* currentTimeMillis();
+        const lastSeenAtMillis = isoToMillis(row.lastSeenAt);
         const needsRefresh =
           Number.isFinite(nowMillis) &&
           Number.isFinite(lastSeenAtMillis) &&
@@ -218,12 +221,21 @@ function toLoginResult(userRow: typeof users.$inferSelect, token: string) {
   return {
     response: {
       api_key: "************************",
+      api_key_masked: true,
       must_change_password: userRow.mustChangePassword,
       username: userRow.username,
     },
     token,
     user: toAuthUser(userRow),
   };
+}
+
+function nowPlusDurationIso(nowMillis: number, durationMillis: number): string {
+  return new Date(nowMillis + durationMillis).toISOString();
+}
+
+function isoToMillis(value: string): number {
+  return Date.parse(value);
 }
 
 function toAuthUser(row: typeof users.$inferSelect): AuthUser {

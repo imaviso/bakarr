@@ -29,7 +29,6 @@ import {
   StoredConfigMissingError,
 } from "@/features/system/errors.ts";
 import { mapRouteError } from "@/http/shared/route-errors/index.ts";
-import { mapAuthRouteError } from "@/http/shared/route-auth.ts";
 import {
   EpisodeStreamAccessError,
   EpisodeStreamRangeError,
@@ -200,7 +199,7 @@ it("route errors falls back for unknown failures", () => {
 
 it("auth route errors map auth failures locally", () => {
   assert.deepStrictEqual(
-    mapAuthRouteError({ _tag: "AuthError", message: "forbidden", status: 403 }),
+    mapRouteError(new AuthError({ kind: "Forbidden", message: "forbidden" })),
     {
       message: "forbidden",
       status: 403,
@@ -217,9 +216,9 @@ it.effect("route responses log mapped client errors below error level", () =>
     const request = HttpServerRequest.fromWeb(new Request("http://localhost/api/auth/me"));
 
     const response = yield* routeResponse(
-      Effect.fail(new AuthError({ message: "Unauthorized", status: 401 })),
+      Effect.fail(new AuthError({ kind: "Unauthorized", message: "Unauthorized" })),
       (value) => HttpServerResponse.json(value),
-      mapAuthRouteError,
+      mapRouteError,
     ).pipe(
       Effect.provideService(HttpServerRequest.HttpServerRequest, request),
       Effect.provide(Logger.replace(Logger.defaultLogger, logger)),

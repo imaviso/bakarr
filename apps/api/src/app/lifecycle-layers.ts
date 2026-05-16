@@ -32,6 +32,8 @@ import { SystemEventsServiceLive } from "@/features/system/system-events-service
 import { SystemLogServiceLive } from "@/features/system/system-log-service.ts";
 import { SystemReadServiceLive } from "@/features/system/system-read-service.ts";
 import { SystemRuntimeMetricsServiceLive } from "@/features/system/system-runtime-metrics-service.ts";
+import { QualityProfileRepositoryLive } from "@/features/system/repository/quality-profile-repository.ts";
+import { SystemConfigRepositoryLive } from "@/features/system/repository/system-config-repository.ts";
 import { MediaProbeLive } from "@/infra/media/probe.ts";
 
 export type ApiLifecycleOptions = AppPlatformRuntimeOptions &
@@ -50,7 +52,13 @@ export function makeApiLifecycleLayers(
     : platformCoreLayer;
 
   // Runtime config graph: system config -> validated runtime snapshot.
-  const systemConfigLayer = SystemConfigServiceLive.pipe(Layer.provide(platformRuntimeLayer));
+  const systemConfigRepositoryLayer = Layer.mergeAll(
+    SystemConfigRepositoryLive,
+    QualityProfileRepositoryLive,
+  ).pipe(Layer.provide(platformRuntimeLayer));
+  const systemConfigLayer = SystemConfigServiceLive.pipe(
+    Layer.provide(systemConfigRepositoryLayer),
+  );
   const runtimeConfigSnapshotLayer = RuntimeConfigSnapshotServiceLive.pipe(
     Layer.provide(systemConfigLayer),
   );

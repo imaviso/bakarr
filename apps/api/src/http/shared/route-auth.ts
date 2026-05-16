@@ -1,26 +1,9 @@
 import { HttpServerRequest, HttpServerResponse } from "@effect/platform";
-import { Duration, Effect, Either, Option, Schema } from "effect";
+import { Duration, Effect, Option } from "effect";
 
 import { AppConfig } from "@/config/schema.ts";
 import { AuthError } from "@/features/auth/errors.ts";
 import { AuthSessionService } from "@/features/auth/session-service.ts";
-import { mapRouteError } from "@/http/shared/route-errors/index.ts";
-import type { RouteErrorResponse } from "@/http/shared/route-types.ts";
-
-const decodeAuthRouteError = Schema.decodeUnknownEither(AuthError);
-
-export function mapAuthRouteError(error: unknown): RouteErrorResponse {
-  const authError = decodeAuthRouteError(error);
-
-  if (Either.isRight(authError)) {
-    return {
-      message: authError.right.message,
-      status: authError.right.status,
-    };
-  }
-
-  return mapRouteError(error);
-}
 
 function extractApiKeyFromHeaders(headers: Readonly<Record<string, string | undefined>>) {
   const headerApiKey = headers["x-api-key"];
@@ -44,11 +27,11 @@ export const requireViewerFromHttpRequest = Effect.fn("Http.requireViewerFromHtt
     const viewer = yield* auth.resolveViewer(sessionToken, apiKey);
 
     if (Option.isNone(viewer)) {
-      return yield* new AuthError({ message: "Unauthorized", status: 401 });
+      return yield* new AuthError({ kind: "Unauthorized", message: "Unauthorized" });
     }
 
     if (viewer.value.must_change_password && options.allowPasswordChangeRequired !== true) {
-      return yield* new AuthError({ message: "Password change required", status: 403 });
+      return yield* new AuthError({ kind: "Forbidden", message: "Password change required" });
     }
 
     return viewer.value;

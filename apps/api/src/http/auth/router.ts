@@ -14,7 +14,8 @@ import {
   routeResponse,
   withAuthViewer,
 } from "@/http/shared/router-helpers.ts";
-import { mapAuthRouteError, persistSessionResponse } from "@/http/shared/route-auth.ts";
+import { persistSessionResponse } from "@/http/shared/route-auth.ts";
+import { mapRouteError } from "@/http/shared/route-errors/index.ts";
 
 export const authRouter = HttpRouter.empty.pipe(
   HttpRouter.post(
@@ -26,7 +27,7 @@ export const authRouter = HttpRouter.empty.pipe(
         return yield* auth.login(body);
       }),
       (value) => persistSessionResponse(value.token, value.response),
-      mapAuthRouteError,
+      mapRouteError,
     ),
   ),
   HttpRouter.post(
@@ -38,7 +39,7 @@ export const authRouter = HttpRouter.empty.pipe(
         return yield* auth.loginWithApiKey(body);
       }),
       (value) => persistSessionResponse(value.token, value.response),
-      mapAuthRouteError,
+      mapRouteError,
     ),
   ),
   HttpRouter.post(
@@ -66,7 +67,7 @@ export const authRouter = HttpRouter.empty.pipe(
             secure: config.sessionCookieSecure,
           });
         }),
-      mapAuthRouteError,
+      mapRouteError,
     ),
   ),
   HttpRouter.get(
@@ -74,7 +75,7 @@ export const authRouter = HttpRouter.empty.pipe(
     routeResponse(
       withAuthViewer((viewer) => Effect.succeed(viewer), { allowPasswordChangeRequired: true }),
       (viewer) => HttpServerResponse.json(viewer),
-      mapAuthRouteError,
+      mapRouteError,
     ),
   ),
   HttpRouter.get(
@@ -87,7 +88,7 @@ export const authRouter = HttpRouter.empty.pipe(
         }),
       ),
       (value) => HttpServerResponse.json(value),
-      mapAuthRouteError,
+      mapRouteError,
     ),
   ),
   HttpRouter.post(
@@ -100,7 +101,7 @@ export const authRouter = HttpRouter.empty.pipe(
         }),
       ),
       (value) => HttpServerResponse.json(value),
-      mapAuthRouteError,
+      mapRouteError,
     ),
   ),
   HttpRouter.put(
@@ -119,7 +120,7 @@ export const authRouter = HttpRouter.empty.pipe(
         { allowPasswordChangeRequired: true },
       ),
       () => HttpServerResponse.json({ data: null, success: true }),
-      mapAuthRouteError,
+      mapRouteError,
     ),
   ),
 );

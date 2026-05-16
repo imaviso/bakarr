@@ -4,7 +4,7 @@ import type { ApiKeyResponse, ChangePasswordRequest } from "@packages/shared/ind
 import { DatabaseError } from "@/db/database.ts";
 import { nowIsoFromClock, ClockService } from "@/infra/clock.ts";
 import { randomHexFrom, RandomService } from "@/infra/random.ts";
-import { hashPasswordWith, verifyPassword } from "@/security/password.ts";
+import { hashPassword, PasswordCrypto, verifyPassword } from "@/security/password.ts";
 import { TokenHasher, type TokenHasherError } from "@/security/token-hasher.ts";
 import { AuthError, type AuthCryptoError } from "@/features/auth/errors.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
@@ -29,12 +29,12 @@ export class AuthCredentialService extends Context.Tag("@bakarr/api/AuthCredenti
 const makeAuthCredentialService = Effect.gen(function* () {
   const users = yield* AuthUserRepository;
   const clock = yield* ClockService;
+  const passwordCrypto = yield* PasswordCrypto;
   const random = yield* RandomService;
   const tokenHasher = yield* TokenHasher;
   const eventBus = yield* EventBus;
   const nowIso = () => nowIsoFromClock(clock);
   const randomHex = (bytes: number) => randomHexFrom(random, bytes);
-  const hashPassword = hashPasswordWith(random.randomBytes);
   const hashToken = tokenHasher.hashToken;
 
   const changePassword = Effect.fn("AuthCredentialService.changePassword")(function* (
@@ -44,28 +44,32 @@ const makeAuthCredentialService = Effect.gen(function* () {
     const rowOption = yield* users.findUserById(userId);
 
     if (Option.isNone(rowOption)) {
-      return yield* AuthError.make({ message: "User not found", status: 404 });
+      return yield* AuthError.make({ kind: "NotFound", message: "User not found" });
     }
 
     const row = rowOption.value;
 
-    const verified = yield* verifyPassword(request.current_password, row.passwordHash);
+    const verified = yield* verifyPassword(request.current_password, row.passwordHash).pipe(
+      Effect.provideService(PasswordCrypto, passwordCrypto),
+    );
 
     if (!verified) {
       return yield* AuthError.make({
+        kind: "Unauthorized",
         message: "Current password is incorrect",
-        status: 401,
       });
     }
 
     if (!request.new_password || request.new_password.length < 8) {
       return yield* AuthError.make({
+        kind: "BadRequest",
         message: "New password must be at least 8 characters",
-        status: 400,
       });
     }
 
-    const passwordHash = yield* hashPassword(request.new_password);
+    const passwordHash = yield* hashPassword(request.new_password).pipe(
+      Effect.provideService(PasswordCrypto, passwordCrypto),
+    );
     const apiKey = yield* randomHex(24);
     const apiKeyHash = yield* hashToken(apiKey);
 
@@ -86,10 +90,10 @@ const makeAuthCredentialService = Effect.gen(function* () {
     const rowOption = yield* users.findUserById(userId);
 
     if (Option.isNone(rowOption)) {
-      return yield* AuthError.make({ message: "User not found", status: 404 });
+      return yield* AuthError.make({ kind: "NotFound", message: "User not found" });
     }
 
-    return { api_key: "************************" };
+    return { api_key: "************************", api_key_masked: true };
   });
 
   const regenerateApiKey = Effect.fn("AuthCredentialService.regenerateApiKey")(function* (
@@ -98,7 +102,7 @@ const makeAuthCredentialService = Effect.gen(function* () {
     const rowOption = yield* users.findUserById(userId);
 
     if (Option.isNone(rowOption)) {
-      return yield* AuthError.make({ message: "User not found", status: 404 });
+      return yield* AuthError.make({ kind: "NotFound", message: "User not found" });
     }
 
     const row = rowOption.value;
@@ -116,7 +120,7 @@ const makeAuthCredentialService = Effect.gen(function* () {
 
     yield* eventBus.publish({ type: "ApiKeyRegenerated" });
 
-    return { api_key: apiKey };
+    return { api_key: apiKey, api_key_masked: false };
   });
 
   return {

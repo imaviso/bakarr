@@ -1,7 +1,7 @@
 import { Config as EffectConfig, Context, Effect, Layer, Option, Schema } from "effect";
 
 import { PositiveIntSchema } from "@/domain/domain-schema.ts";
-import { randomHexSync } from "@/infra/random.ts";
+import { randomHex } from "@/infra/random.ts";
 
 const PortSchema = Schema.Number.pipe(Schema.int(), Schema.between(1, 65_535));
 
@@ -59,7 +59,7 @@ export function makeDefaultAppConfig(): AppConfigShape {
 
 export function makeDefaultBootstrapConfig(): BootstrapConfigShape {
   return new BootstrapConfigModel({
-    bootstrapPassword: randomHexSync(GENERATED_BOOTSTRAP_PASSWORD_BYTES),
+    bootstrapPassword: "",
     bootstrapPasswordIsEnvOverride: false,
     bootstrapUsername: "admin",
   });
@@ -137,9 +137,12 @@ export class BootstrapConfig extends Context.Tag("@bakarr/api/BootstrapConfig")<
                 Effect.map(Option.some),
                 Effect.orElse(() => Effect.succeed(Option.none())),
               );
+        const generatedBootstrapPassword = Option.isNone(bootstrapPasswordFromEnv)
+          ? yield* randomHex(GENERATED_BOOTSTRAP_PASSWORD_BYTES)
+          : defaults.bootstrapPassword;
         const bootstrapPassword = Option.getOrElse(
           bootstrapPasswordFromEnv,
-          () => defaults.bootstrapPassword,
+          () => generatedBootstrapPassword,
         );
         const bootstrapUsername = yield* readConfigValue(
           overrides.bootstrapUsername,

@@ -2,7 +2,7 @@ import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platf
 import { Cause, Effect, Option, ParseResult, Schema } from "effect";
 
 import { mapRouteError } from "@/http/shared/route-errors/index.ts";
-import { mapAuthRouteError, requireViewerFromHttpRequest } from "@/http/shared/route-auth.ts";
+import { requireViewerFromHttpRequest } from "@/http/shared/route-auth.ts";
 import {
   formatValidationErrorMessage,
   RequestValidationError,
@@ -78,18 +78,22 @@ export const routeResponse = <A, E, R, E2, R2>(
       Effect.flatMap(onSuccess),
       Effect.catchAllCause((cause) =>
         Effect.gen(function* () {
-          const mapped = Option.match(Cause.failureOption(cause), {
-            onNone: () => mapError(cause),
+          const failure = Cause.failureOption(cause);
+          const mapped = Option.match(failure, {
+            onNone: (): RouteErrorResponse => ({ message: "Unexpected server error", status: 500 }),
             onSome: (error) => mapError(error),
           });
+          const logAsError = mapped.status >= 500 || Option.isNone(failure);
 
           yield* (
-            mapped.status >= 500
-              ? Effect.logError("HTTP route failed")
-              : Effect.logDebug("HTTP route failed")
+            logAsError ? Effect.logError("HTTP route failed") : Effect.logDebug("HTTP route failed")
           ).pipe(
             Effect.annotateLogs({
               cause: Cause.pretty(cause),
+              ...Option.match(failure, {
+                onNone: () => ({ error_kind: "defect" }),
+                onSome: (error) => ({ error_kind: describeRouteFailure(error) }),
+              }),
               http_method: request.method,
               http_path: url.pathname,
               http_status: mapped.status,
@@ -123,7 +127,7 @@ export const withAuthViewer = <A, E, R>(
 export const authedRouteResponse = <A, E, R, E2, R2>(
   effect: Effect.Effect<A, E, R>,
   onSuccess: (value: A) => Effect.Effect<HttpServerResponse.HttpServerResponse, E2, R2>,
-  mapError: (error: unknown) => RouteErrorResponse = mapAuthRouteError,
+  mapError: (error: unknown) => RouteErrorResponse = mapRouteError,
 ) => routeResponse(Effect.zipRight(requireViewerFromHttpRequest(), effect), onSuccess, mapError);
 
 function mapParseValidationError(error: unknown, message: string) {
@@ -161,4 +165,16 @@ function mapLabeledBodyDecodeError(label: string, error: unknown) {
   }
 
   return error;
+}
+
+function describeRouteFailure(error: unknown): string {
+  if (typeof error === "object" && error !== null && "_tag" in error) {
+    return String(error._tag);
+  }
+
+  if (error instanceof Error) {
+    return error.constructor.name;
+  }
+
+  return typeof error;
 }

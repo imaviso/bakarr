@@ -3,7 +3,8 @@ import { Cause, Effect, Option } from "effect";
 
 import { ObservabilityConfig } from "@/config/observability.ts";
 import { SystemRuntimeMetricsService } from "@/features/system/system-runtime-metrics-service.ts";
-import { mapAuthRouteError, requireViewerFromHttpRequest } from "@/http/shared/route-auth.ts";
+import { requireViewerFromHttpRequest } from "@/http/shared/route-auth.ts";
+import { mapRouteError } from "@/http/shared/route-errors/index.ts";
 import { ClockService } from "@/infra/clock.ts";
 import { recordHttpRequestMetrics } from "@/infra/metrics.ts";
 import { routeResponse } from "@/http/shared/router-helpers.ts";
@@ -46,7 +47,7 @@ const renderMetricsWithHttpMetrics = Effect.gen(function* () {
 function statusFromFailureCause(cause: Cause.Cause<unknown>) {
   return Option.match(Cause.failureOption(cause), {
     onNone: () => 500,
-    onSome: (error) => mapAuthRouteError(error).status,
+    onSome: (error) => mapRouteError(error).status,
   });
 }
 
@@ -61,7 +62,7 @@ export const systemMetricsRouter = HttpRouter.empty.pipe(
             contentType: "text/plain; version=0.0.4; charset=utf-8",
           }),
         ),
-      mapAuthRouteError,
+      mapRouteError,
     ),
   ),
 );

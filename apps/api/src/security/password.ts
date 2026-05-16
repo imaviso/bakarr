@@ -1,4 +1,4 @@
-import { Effect, Option, Schema } from "effect";
+import { Context, Effect, Layer, Option, Schema } from "effect";
 import { timingSafeEqual as nodeTimingSafeEqual } from "node:crypto";
 
 import { bytesToHex, hexToBytes } from "@/infra/hex.ts";
@@ -33,6 +33,13 @@ export const WebPasswordCrypto: PasswordCryptoPrimitives = {
   importKey: (format, keyData, algorithm, extractable, keyUsages) =>
     crypto.subtle.importKey(format, keyData, algorithm, extractable, [...keyUsages]),
 };
+
+export class PasswordCrypto extends Context.Tag("@bakarr/security/PasswordCrypto")<
+  PasswordCrypto,
+  PasswordCryptoPrimitives
+>() {}
+
+export const PasswordCryptoLive = Layer.succeed(PasswordCrypto, WebPasswordCrypto);
 
 export class PasswordError extends Schema.TaggedError<PasswordError>()("PasswordError", {
   cause: Schema.optional(Schema.Defect),
@@ -138,9 +145,10 @@ const parseStoredHash = Effect.fn("Password.parseStoredHash")(function* (storedH
 });
 
 export const hashPassword = Effect.fn("Password.hash")(function* (password: string) {
-  const salt = yield* randomBytesEffect(WebPasswordCrypto, 16);
-  const keyMaterial = yield* deriveKeyMaterial(WebPasswordCrypto, password);
-  const hash = yield* deriveBits(WebPasswordCrypto, keyMaterial, toArrayBuffer(salt), ITERATIONS);
+  const primitives = yield* PasswordCrypto;
+  const salt = yield* randomBytesEffect(primitives, 16);
+  const keyMaterial = yield* deriveKeyMaterial(primitives, password);
+  const hash = yield* deriveBits(primitives, keyMaterial, toArrayBuffer(salt), ITERATIONS);
 
   return [PASSWORD_SCHEME, String(ITERATIONS), bytesToHex(salt), bytesToHex(hash)].join("$");
 });
@@ -150,25 +158,12 @@ export const verifyPassword = Effect.fn("Password.verify")(function* (
   storedHash: string,
 ) {
   const { hash: expected, iterations, salt } = yield* parseStoredHash(storedHash);
-
-  const keyMaterial = yield* deriveKeyMaterial(WebPasswordCrypto, password);
-  const actual = yield* deriveBits(WebPasswordCrypto, keyMaterial, toArrayBuffer(salt), iterations);
+  const primitives = yield* PasswordCrypto;
+  const keyMaterial = yield* deriveKeyMaterial(primitives, password);
+  const actual = yield* deriveBits(primitives, keyMaterial, toArrayBuffer(salt), iterations);
 
   return timingSafeEqual(expected, actual);
 });
-
-function makeHashPasswordWith(randomBytes: (bytes: number) => Effect.Effect<Uint8Array>) {
-  return Effect.fn("Password.hashWith")(function* (password: string) {
-    const salt = yield* randomBytes(16);
-    const keyMaterial = yield* deriveKeyMaterial(WebPasswordCrypto, password);
-    const hash = yield* deriveBits(WebPasswordCrypto, keyMaterial, toArrayBuffer(salt), ITERATIONS);
-
-    return [PASSWORD_SCHEME, String(ITERATIONS), bytesToHex(salt), bytesToHex(hash)].join("$");
-  });
-}
-
-export const hashPasswordWith = (randomBytes: (bytes: number) => Effect.Effect<Uint8Array>) =>
-  makeHashPasswordWith(randomBytes);
 
 const randomBytesEffect = (primitives: PasswordCryptoPrimitives, bytes: number) =>
   Effect.try({

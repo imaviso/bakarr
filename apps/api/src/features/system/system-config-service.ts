@@ -9,14 +9,8 @@ import {
 } from "@/features/system/config-codec.ts";
 import { decodeQualityProfileRow } from "@/features/profiles/profile-codec.ts";
 import { StoredConfigCorruptError, StoredConfigMissingError } from "@/features/system/errors.ts";
-import {
-  QualityProfileRepository,
-  QualityProfileRepositoryLive,
-} from "@/features/system/repository/quality-profile-repository.ts";
-import {
-  SystemConfigRepository,
-  SystemConfigRepositoryLive,
-} from "@/features/system/repository/system-config-repository.ts";
+import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
+import { SystemConfigRepository } from "@/features/system/repository/system-config-repository.ts";
 
 export interface SystemConfigServiceShape {
   readonly getConfig: () => Effect.Effect<
@@ -67,10 +61,7 @@ const makeSystemConfigService = Effect.gen(function* () {
   return { getConfig } satisfies SystemConfigServiceShape;
 });
 
-export const SystemConfigServiceLive = Layer.effect(
-  SystemConfigService,
-  makeSystemConfigService,
-).pipe(Layer.provide(Layer.mergeAll(SystemConfigRepositoryLive, QualityProfileRepositoryLive)));
+export const SystemConfigServiceLive = Layer.effect(SystemConfigService, makeSystemConfigService);
 
 export function redactConfigSecrets(config: Config): Config {
   return {

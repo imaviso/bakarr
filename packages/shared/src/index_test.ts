@@ -739,6 +739,7 @@ it("shared auth and utility schemas accept canonical payloads", () => {
   });
   const loginResponse = Schema.decodeUnknownEither(LoginResponseSchema)({
     api_key: "abc123",
+    api_key_masked: false,
     must_change_password: false,
     username: "admin",
   });
@@ -748,6 +749,7 @@ it("shared auth and utility schemas accept canonical payloads", () => {
   });
   const apiKeyResponse = Schema.decodeUnknownEither(ApiKeyResponseSchema)({
     api_key: "abc123",
+    api_key_masked: false,
   });
   const videoFile = Schema.decodeUnknownEither(VideoFileSchema)({
     air_date: "2024-01-08",
