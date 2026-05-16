@@ -9,7 +9,7 @@ import {
 } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import type { AnimeSeasonalProviderServiceShape } from "@/features/anime/anime-seasonal-provider-service.ts";
-import { markSearchResultsAlreadyInLibraryEffect } from "@/domain/anime/search-results.ts";
+import { markSearchResultsAlreadyInLibraryEffect } from "@/features/anime/search-results.ts";
 
 /** Clamp a number to [min, max]. */
 function clamp(value: number, min: number, max: number): number {

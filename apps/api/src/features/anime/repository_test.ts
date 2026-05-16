@@ -19,7 +19,7 @@ import { upsertEpisodeEffect } from "@/features/anime/anime-episode-repository.t
 import { syncEpisodeMetadataEffect } from "@/features/anime/anime-episode-metadata-sync.ts";
 import { findAnimeRootFolderOwnerEffect } from "@/features/anime/anime-read-repository.ts";
 import { inferAiredAt } from "@/domain/anime/derivations.ts";
-import { markSearchResultsAlreadyInLibraryEffect } from "@/domain/anime/search-results.ts";
+import { markSearchResultsAlreadyInLibraryEffect } from "@/features/anime/search-results.ts";
 import {
   getConfiguredImagesPathEffect,
   getConfiguredLibraryPathEffect,

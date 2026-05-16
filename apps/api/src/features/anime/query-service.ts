@@ -30,7 +30,7 @@ import {
 import { listEpisodesEffect } from "@/features/anime/anime-query-episodes.ts";
 import { AnimeSeasonalProviderService } from "@/features/anime/anime-seasonal-provider-service.ts";
 import { listSeasonalAnimeEffect } from "@/features/anime/anime-query-seasonal.ts";
-import { markSearchResultsAlreadyInLibraryEffect } from "@/domain/anime/search-results.ts";
+import { markSearchResultsAlreadyInLibraryEffect } from "@/features/anime/search-results.ts";
 import { ManamiClient } from "@/features/anime/manami.ts";
 import {
   readSeasonalAnimeCache,

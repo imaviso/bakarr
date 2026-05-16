@@ -3,7 +3,7 @@ import { Effect } from "effect";
 import type { ScannerState } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import type { AniListClient } from "@/features/anime/anilist.ts";
-import { markSearchResultsAlreadyInLibraryEffect } from "@/domain/anime/search-results.ts";
+import { markSearchResultsAlreadyInLibraryEffect } from "@/features/anime/search-results.ts";
 import { mergeLocalFolderMatch } from "@/features/operations/unmapped-folder-match-support.ts";
 import {
   buildUnmappedFolderSearchQueries,
