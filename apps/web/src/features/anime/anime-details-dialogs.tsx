@@ -14,6 +14,7 @@ import {
   AlertDialogTitle,
 } from "~/components/ui/alert-dialog";
 import { useAnimeDetailsDialogs } from "~/features/anime/anime-details-dialogs-context";
+import { mediaUnitLabel } from "~/domain/media-unit";
 
 export function AnimeDetailsDialogs() {
   const ctx = useAnimeDetailsDialogs();
@@ -23,6 +24,7 @@ export function AnimeDetailsDialogs() {
       <SearchModal
         animeId={ctx.animeId}
         episodeNumber={ctx.searchModalState.episodeNumber}
+        unitKind={ctx.searchModalState.unitKind}
         {...(ctx.searchModalState.episodeTitle === undefined
           ? {}
           : { episodeTitle: ctx.searchModalState.episodeTitle })}
@@ -57,7 +59,8 @@ export function AnimeDetailsDialogs() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Delete Episode {ctx.deleteEpisodeState.episodeNumber}?
+              Delete {mediaUnitLabel(ctx.deleteEpisodeState.unitKind)}{" "}
+              {ctx.deleteEpisodeState.episodeNumber}?
             </AlertDialogTitle>
             <AlertDialogDescription>
               This will delete the file from disk. This action cannot be undone.

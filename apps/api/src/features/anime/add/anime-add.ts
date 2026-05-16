@@ -37,7 +37,11 @@ export const addAnimeEffect = Effect.fn("AnimeAdd.addAnimeEffect")(function* (in
 }) {
   yield* checkAnimeExistsEffect(input.db, input.animeInput.id);
 
-  const metadataLookup = yield* input.metadataProvider.getAnimeMetadataById(input.animeInput.id);
+  const mediaKind = input.animeInput.media_kind ?? "anime";
+  const metadataLookup = yield* input.metadataProvider.getAnimeMetadataById(
+    input.animeInput.id,
+    mediaKind,
+  );
   const validMetadata = yield* requireAnimeMetadataEffect(
     metadataLookup._tag === "NotFound" ? Option.none() : Option.some(metadataLookup.metadata),
   );
@@ -108,6 +112,7 @@ export const addAnimeEffect = Effect.fn("AnimeAdd.addAnimeEffect")(function* (in
     ),
     id: validMetadata.id,
     malId: validMetadata.malId ?? null,
+    mediaKind,
     members: validMetadata.members ?? null,
     monitored: input.animeInput.monitored,
     nextAiringAt: validMetadata.nextAiringEpisode?.airingAt ?? null,

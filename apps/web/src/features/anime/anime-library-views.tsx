@@ -23,6 +23,7 @@ import {
   formatNextAiringEpisode,
   type getAiringDisplayPreferences,
 } from "~/domain/anime/metadata";
+import { mediaKindLabel } from "~/domain/media-unit";
 import { cn } from "~/infra/utils";
 
 interface AnimeLibraryViewProps {
@@ -150,6 +151,7 @@ export function AnimeGridView(props: AnimeLibraryViewProps) {
                     </Link>
                     <div className="absolute right-2 top-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 has-[:focus-visible]:opacity-100">
                       <DeleteAnimeDialog
+                        mediaLabel={mediaKindLabel(anime.media_kind)}
                         title={anime.title.english || anime.title.romaji}
                         onConfirm={() => props.deleteAnime.mutate(anime.id)}
                         trigger={
@@ -385,6 +387,7 @@ export function AnimeListView(props: AnimeLibraryViewProps) {
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-1">
                     <DeleteAnimeDialog
+                      mediaLabel={mediaKindLabel(anime.media_kind)}
                       title={anime.title.english || anime.title.romaji}
                       onConfirm={() => props.deleteAnime.mutate(anime.id)}
                       trigger={

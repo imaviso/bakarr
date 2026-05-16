@@ -26,7 +26,8 @@ import {
   buildReleaseDisplay,
   buildSelectionDisplayFromDownloadAction,
 } from "~/domain/release/display";
-import type { EpisodeSearchResult } from "~/api/contracts";
+import type { EpisodeSearchResult, MediaUnitKind } from "~/api/contracts";
+import { mediaUnitLabel } from "~/domain/media-unit";
 import { getReleaseConfidence } from "~/domain/release/selection";
 import { actionReasonFromDownloadAction } from "~/domain/release/grab";
 import { cn } from "~/infra/utils";
@@ -35,16 +36,18 @@ import type { SearchModalState } from "~/features/search/search-modal-state";
 interface SearchModalContentProps {
   episodeNumber: number;
   episodeTitle?: string | undefined;
+  unitKind?: MediaUnitKind | undefined;
   state: SearchModalState;
 }
 
 export function SearchModalContent(props: SearchModalContentProps) {
+  const unitLabel = mediaUnitLabel(props.unitKind);
   return (
     <DialogContent className="sm:max-w-7xl w-full max-h-[85vh] flex flex-col">
       <DialogHeader>
         <DialogTitle>Manual Search</DialogTitle>
         <DialogDescription>
-          Searching for Episode {props.episodeNumber}
+          Searching for {unitLabel} {props.episodeNumber}
           {props.episodeTitle && `- ${props.episodeTitle}`}
         </DialogDescription>
       </DialogHeader>

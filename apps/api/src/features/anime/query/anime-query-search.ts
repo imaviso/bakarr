@@ -5,6 +5,7 @@ import {
   brandAnimeId,
   type AnimeSearchResponse,
   type AnimeSearchResult,
+  type MediaKind,
 } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { anime } from "@/db/schema.ts";
@@ -20,12 +21,14 @@ export const searchAnimeEffect = Effect.fn("AnimeQuerySearch.searchAnimeEffect")
   aniList: typeof AniListClient.Service;
   db: AppDatabase;
   manami?: Pick<typeof ManamiClient.Service, "searchAnime">;
+  mediaKind?: MediaKind;
   query: string;
 }) {
+  const mediaKind = input.mediaKind ?? "anime";
   let degraded = false;
-  const results = yield* input.aniList.searchAnimeMetadata(input.query).pipe(
+  const results = yield* input.aniList.searchAnimeMetadata(input.query, mediaKind).pipe(
     Effect.flatMap((results) => {
-      const manami = input.manami;
+      const manami = mediaKind === "anime" ? input.manami : undefined;
       return results.length === 0 && manami !== undefined
         ? Effect.gen(function* () {
             degraded = true;
@@ -45,7 +48,7 @@ export const searchAnimeEffect = Effect.fn("AnimeQuerySearch.searchAnimeEffect")
     }),
     Effect.catchTag("ExternalCallError", (error) =>
       Effect.gen(function* () {
-        if (input.manami === undefined) {
+        if (input.manami === undefined || mediaKind !== "anime") {
           return yield* error;
         }
 
@@ -75,8 +78,14 @@ export const searchAnimeEffect = Effect.fn("AnimeQuerySearch.searchAnimeEffect")
 });
 
 export const getAnimeByAnilistIdEffect = Effect.fn("AnimeQuerySearch.getAnimeByAnilistIdEffect")(
-  function* (input: { aniList: typeof AniListClient.Service; db: AppDatabase; id: number }) {
-    const metadata = yield* input.aniList.getAnimeMetadataById(input.id);
+  function* (input: {
+    aniList: typeof AniListClient.Service;
+    db: AppDatabase;
+    id: number;
+    mediaKind?: MediaKind;
+  }) {
+    const mediaKind = input.mediaKind ?? "anime";
+    const metadata = yield* input.aniList.getAnimeMetadataById(input.id, mediaKind);
 
     if (Option.isNone(metadata)) {
       return yield* new AnimeNotFoundError({
@@ -102,6 +111,7 @@ export const getAnimeByAnilistIdEffect = Effect.fn("AnimeQuerySearch.getAnimeByA
       format: metadataValue.format,
       genres: metadataValue.genres ? [...metadataValue.genres] : undefined,
       id: brandAnimeId(metadataValue.id),
+      media_kind: mediaKind,
       members: metadataValue.members,
       popularity: metadataValue.popularity,
       rank: metadataValue.rank,

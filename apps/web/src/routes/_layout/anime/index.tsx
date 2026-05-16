@@ -151,10 +151,10 @@ function AnimeIndexPage() {
         <Link
           to="/anime/add"
           className={buttonVariants({ size: "sm", class: "shrink-0 gap-1.5" })}
-          aria-label="Add anime"
+          aria-label="Add media"
         >
           <PlusIcon className="h-4 w-4" />
-          <span className="hidden sm:inline">Add Anime</span>
+          <span className="hidden sm:inline">Add Media</span>
         </Link>
       </PageHeader>
 
@@ -162,8 +162,8 @@ function AnimeIndexPage() {
         <div className="relative flex-1">
           <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Filter anime..."
-            aria-label="Filter anime"
+            placeholder="Filter media..."
+            aria-label="Filter media"
             value={query}
             onInput={(event) => handleSearchInput(event.currentTarget.value)}
             className="pl-9"
@@ -186,7 +186,7 @@ function AnimeIndexPage() {
                 }
               }}
             >
-              <DropdownMenuRadioItem value="all">All Anime</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="all">All Media</DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="monitored">Monitored</DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="unmonitored">Unmonitored</DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
@@ -269,20 +269,20 @@ function AnimeIndexPage() {
           <div className="flex-1 overflow-y-auto">
             <EmptyState
               icon={<TelevisionIcon className="h-12 w-12" />}
-              title="No anime yet"
-              description="Add your first anime to start monitoring"
+              title="No media yet"
+              description="Add your first title to start monitoring"
               className="border-dashed"
             >
               <Link to="/anime/add" className={buttonVariants()}>
                 <PlusIcon className="mr-2 h-4 w-4" />
-                Add Anime
+                Add Media
               </Link>
             </EmptyState>
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto">
             <EmptyState
-              title={query ? `No anime matching "${query}"` : `No ${filter} anime found`}
+              title={query ? `No media matching "${query}"` : `No ${filter} media found`}
             />
           </div>
         )}

@@ -25,6 +25,7 @@ import type {
 } from "~/features/anime/anime-details-types";
 import type { Episode } from "~/api/contracts";
 import { formatDate, isAired } from "~/domain/date-time";
+import { mediaUnitLabel } from "~/domain/media-unit";
 import { formatDurationSeconds } from "~/domain/scanned-file";
 import { cn } from "~/infra/utils";
 
@@ -39,18 +40,22 @@ interface EpisodeTableRowProps {
 
 export function EpisodeTableRow(props: EpisodeTableRowProps) {
   const episode = props.episode;
+  const unitLabel = mediaUnitLabel(episode.unit_kind);
   const searchModalState: AnimeSearchModalState = {
     open: true,
     episodeNumber: episode.number,
+    ...(episode.unit_kind === undefined ? {} : { unitKind: episode.unit_kind }),
     ...(episode.title === undefined ? {} : { episodeTitle: episode.title }),
   };
   const mappingDialogState: AnimeEpisodeDialogState = {
     open: true,
     episodeNumber: episode.number,
+    ...(episode.unit_kind === undefined ? {} : { unitKind: episode.unit_kind }),
   };
   const deleteDialogState: AnimeEpisodeDialogState = {
     open: true,
     episodeNumber: episode.number,
+    ...(episode.unit_kind === undefined ? {} : { unitKind: episode.unit_kind }),
   };
 
   return (
@@ -59,8 +64,8 @@ export function EpisodeTableRow(props: EpisodeTableRowProps) {
         {episode.number}
       </TableCell>
       <TableCell className="font-medium max-w-[150px] sm:max-w-[250px] md:max-w-[350px]">
-        <div className="truncate" title={episode.title || `Episode ${episode.number}`}>
-          {episode.title || `Episode ${episode.number}`}
+        <div className="truncate" title={episode.title || `${unitLabel} ${episode.number}`}>
+          {episode.title || `${unitLabel} ${episode.number}`}
         </div>
       </TableCell>
       <TableCell className="hidden sm:table-cell text-muted-foreground text-sm">
@@ -106,7 +111,7 @@ export function EpisodeTableRow(props: EpisodeTableRowProps) {
         <DropdownMenu>
           <DropdownMenuTrigger
             render={<Button variant="ghost" size="icon" />}
-            aria-label={`Actions for episode ${episode.number}`}
+            aria-label={`Actions for ${unitLabel.toLowerCase()} ${episode.number}`}
             className="relative after:absolute after:-inset-2 h-8 w-8 text-muted-foreground hover:text-foreground"
           >
             <DotsThreeIcon className="h-4 w-4" />

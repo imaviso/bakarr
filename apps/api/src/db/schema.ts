@@ -2,6 +2,7 @@ import { index, integer, sqliteTable, text, unique } from "drizzle-orm/sqlite-co
 
 export const anime = sqliteTable("anime", {
   id: integer("id").primaryKey(),
+  mediaKind: text("media_kind").notNull().default("anime"),
   malId: integer("mal_id"),
   titleRomaji: text("title_romaji").notNull(),
   titleEnglish: text("title_english"),

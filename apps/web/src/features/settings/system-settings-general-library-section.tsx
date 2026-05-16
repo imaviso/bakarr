@@ -27,7 +27,7 @@ export function SystemSettingsGeneralLibrarySection(
     <SettingSection title="Library">
       <props.form.Field name="library.library_path">
         {(field) => (
-          <SettingRow label="Library Path" description="Root folder for your anime library">
+          <SettingRow label="Library Path" description="Root folder for your media library">
             <Input
               value={field.state.value}
               onInput={(event) => field.handleChange(event.currentTarget.value)}

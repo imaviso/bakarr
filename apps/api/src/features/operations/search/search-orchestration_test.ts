@@ -226,6 +226,7 @@ function makeAnimeRow(input: Partial<typeof anime.$inferSelect> = {}): typeof an
     format: "TV",
     genres: "[]",
     id: 20,
+    mediaKind: "anime",
     malId: null,
     members: null,
     monitored: true,

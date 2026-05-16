@@ -254,6 +254,12 @@ it("classifyMediaArtifact: file inside sample folder", () => {
   assert.deepStrictEqual(result.kind, "sample");
 });
 
+it("classifyMediaArtifact: archive volume file is supported import content", () => {
+  const result = classifyMediaArtifact("/library/Manga Vol. 01.cbz", "Manga Vol. 01.cbz");
+  assert.deepStrictEqual(result.kind, "episode");
+  assert.deepStrictEqual(result.skip_reason, undefined);
+});
+
 it("parseFileSourceIdentity: Featurette.mkv is skipped as extra", () => {
   const result = parseFileSourceIdentity("/library/Show/Featurette.mkv");
   assert.deepStrictEqual(result.kind, "extra");

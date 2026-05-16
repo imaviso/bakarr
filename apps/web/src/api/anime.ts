@@ -5,7 +5,7 @@ import {
   useInfiniteQuery,
   useQuery,
 } from "@tanstack/react-query";
-import type { Anime, AnimeSeason } from "./contracts";
+import type { Anime, AnimeSeason, MediaKind } from "./contracts";
 import {
   AnimeListResponseSchema,
   AnimeSchema,
@@ -124,14 +124,14 @@ export function useListFilesQuery(animeId: number, options?: { enabled?: boolean
   });
 }
 
-export function animeSearchQueryOptions(query: string) {
+export function animeSearchQueryOptions(query: string, mediaKind: MediaKind = "anime") {
   return queryOptions({
-    queryKey: animeKeys.search.query(query),
+    queryKey: animeKeys.search.query(`${mediaKind}:${query}`),
     queryFn: ({ signal }) =>
       Effect.runPromise(
         fetchJson(
           AnimeSearchResponseSchema,
-          `${API_BASE}/anime/search?q=${encodeURIComponent(query)}`,
+          `${API_BASE}/anime/search?q=${encodeURIComponent(query)}&media_kind=${mediaKind}`,
           undefined,
           signal,
         ),
@@ -140,11 +140,11 @@ export function animeSearchQueryOptions(query: string) {
   });
 }
 
-export function useAnimeSearchQuery(query: string) {
+export function useAnimeSearchQuery(query: string, mediaKind: MediaKind = "anime") {
   const normalizedQuery = query.trim();
 
   return useQuery({
-    ...animeSearchQueryOptions(normalizedQuery),
+    ...animeSearchQueryOptions(normalizedQuery, mediaKind),
     enabled: normalizedQuery.length >= 3,
   });
 }
@@ -229,20 +229,25 @@ export function useNyaaSearchQuery(
   });
 }
 
-export function animeByAnilistIdQueryOptions(id: number) {
+export function animeByAnilistIdQueryOptions(id: number, mediaKind: MediaKind = "anime") {
   return queryOptions({
-    queryKey: animeKeys.anilist(id),
+    queryKey: animeKeys.anilist(id, mediaKind),
     queryFn: ({ signal }) =>
       Effect.runPromise(
-        fetchJson(AnimeSearchResultSchema, `${API_BASE}/anime/anilist/${id}`, undefined, signal),
+        fetchJson(
+          AnimeSearchResultSchema,
+          `${API_BASE}/anime/anilist/${id}?media_kind=${mediaKind}`,
+          undefined,
+          signal,
+        ),
       ),
     staleTime: 1000 * 60 * 60,
   });
 }
 
-export function useAnimeByAnilistIdQuery(id: number | null) {
+export function useAnimeByAnilistIdQuery(id: number | null, mediaKind: MediaKind = "anime") {
   return useQuery({
-    ...animeByAnilistIdQueryOptions(id ?? 0),
+    ...animeByAnilistIdQueryOptions(id ?? 0, mediaKind),
     enabled: id !== null && id > 0,
   });
 }

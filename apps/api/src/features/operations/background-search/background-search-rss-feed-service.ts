@@ -13,10 +13,10 @@ import {
 } from "@/features/operations/errors.ts";
 import { loadMissingEpisodeNumbers } from "@/features/operations/shared/job-support.ts";
 import {
-  parseEpisodeFromTitle,
   decideDownloadAction,
   validateQualityProfileSizeLabels,
 } from "@/features/operations/search/release-ranking.ts";
+import { parseRssReleaseUnitNumbers } from "@/features/operations/background-search/background-search-rss-release.ts";
 import { loadCurrentEpisodeState } from "@/features/anime/shared/anime-read-repository.ts";
 import {
   loadQualityProfile,
@@ -150,14 +150,17 @@ export const BackgroundSearchRssFeedServiceLive = Layer.effect(
                 continue;
               }
 
-              const episodeNumber = parseEpisodeFromTitle(item.title);
+              const episodeNumber = parseRssReleaseUnitNumbers({
+                mediaKind: animeRow.mediaKind,
+                title: item.title,
+              })[0];
 
               if (episodeNumber == null) {
                 yield* logRssSkip({
                   animeId: animeRow.id,
                   feedId: feed.id,
                   feedName: feed.name ?? feed.url,
-                  reason: `could not parse episode number: ${item.title}`,
+                  reason: `could not parse unit number: ${item.title}`,
                 });
                 continue;
               }
@@ -169,6 +172,7 @@ export const BackgroundSearchRssFeedServiceLive = Layer.effect(
                 currentEpisode,
                 item,
                 runtimeConfig,
+                { allowUnknownQuality: animeRow.mediaKind !== "anime" },
               );
 
               if (!(action.Accept || action.Upgrade)) {

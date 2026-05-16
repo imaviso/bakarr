@@ -30,8 +30,8 @@ import { cn } from "~/infra/utils";
 
 const navigationRoutes = [
   { title: "Dashboard", url: "/", icon: HouseIcon },
-  { title: "Anime Library", url: "/anime", icon: TelevisionIcon },
-  { title: "Add Anime", url: "/anime/add", icon: TelevisionIcon },
+  { title: "Library", url: "/anime", icon: TelevisionIcon },
+  { title: "Add Media", url: "/anime/add", icon: TelevisionIcon },
   { title: "RSS Feeds", url: "/rss", icon: RssIcon },
   { title: "Wanted", url: "/wanted", icon: MagnifyingGlassIcon },
   { title: "Calendar", url: "/calendar", icon: CalendarIcon },

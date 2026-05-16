@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, asc, eq, ne, or, sql } from "drizzle-orm";
 import { Context, Effect, Layer } from "effect";
 
 import {
@@ -59,6 +59,7 @@ export const CatalogLibraryReadServiceLive = Layer.effect(
           .select({
             animeId: anime.id,
             animeTitle: anime.titleRomaji,
+            mediaKind: anime.mediaKind,
             coverImage: anime.coverImage,
             nextAiringAt: anime.nextAiringAt,
             nextAiringEpisode: anime.nextAiringEpisode,
@@ -72,11 +73,17 @@ export const CatalogLibraryReadServiceLive = Layer.effect(
             and(
               eq(anime.monitored, true),
               eq(episodes.downloaded, false),
-              sql`${episodes.aired} is not null`,
-              sql`${episodes.aired} <= ${now}`,
+              or(
+                and(
+                  eq(anime.mediaKind, "anime"),
+                  sql`${episodes.aired} is not null`,
+                  sql`${episodes.aired} <= ${now}`,
+                ),
+                ne(anime.mediaKind, "anime"),
+              ),
             ),
           )
-          .orderBy(episodes.aired, anime.titleRomaji)
+          .orderBy(sql`${episodes.aired} is null`, asc(episodes.aired), anime.titleRomaji)
           .limit(Math.max(1, limit)),
       );
 
@@ -89,6 +96,7 @@ export const CatalogLibraryReadServiceLive = Layer.effect(
           anime_id: brandAnimeId(row.animeId),
           anime_image: row.coverImage ?? undefined,
           anime_title: row.animeTitle,
+          unit_kind: row.mediaKind === "anime" ? "episode" : "volume",
           episode_number: row.episodeNumber,
           episode_title: row.title ?? undefined,
           is_future: timeline.is_future,
@@ -130,13 +138,14 @@ export const CatalogLibraryReadServiceLive = Layer.effect(
             anime_image: animeRow.coverImage ?? undefined,
             anime_title: animeRow.titleRomaji,
             downloaded: episodeRow.downloaded,
+            unit_kind: animeRow.mediaKind === "anime" ? "episode" : "volume",
             episode_number: episodeRow.number,
             episode_title: episodeRow.title ?? undefined,
             is_future: timeline.is_future,
           },
           id: `${animeRow.id}-${episodeRow.number}`,
           start: episodeRow.aired ?? nowIsoValue,
-          title: buildCalendarEventTitle(animeRow.titleRomaji, episodeRow),
+          title: buildCalendarEventTitle(animeRow.titleRomaji, episodeRow, animeRow.mediaKind),
         } satisfies CalendarEvent;
       });
     });
@@ -171,8 +180,11 @@ function isAllDayAiring(aired?: string | null) {
 function buildCalendarEventTitle(
   animeTitle: string,
   episodeRow: { number: number; title: string | null },
+  mediaKind: string,
 ) {
+  const unitLabel = mediaKind === "anime" ? "Episode" : "Volume";
+
   return episodeRow.title
-    ? `${animeTitle} - Episode ${episodeRow.number}: ${episodeRow.title}`
-    : `${animeTitle} - Episode ${episodeRow.number}`;
+    ? `${animeTitle} - ${unitLabel} ${episodeRow.number}: ${episodeRow.title}`
+    : `${animeTitle} - ${unitLabel} ${episodeRow.number}`;
 }

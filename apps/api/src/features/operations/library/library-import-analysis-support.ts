@@ -19,6 +19,7 @@ import {
   toSharedParsedEpisodeIdentity,
 } from "@/infra/media/identity/identity.ts";
 import { parseResolution } from "@/features/operations/search/release-ranking.ts";
+import { parseVolumeNumbersFromTitle } from "@/features/operations/search/release-volume.ts";
 import { anime } from "@/db/schema.ts";
 
 export interface AnalyzedFile {
@@ -59,16 +60,20 @@ export function analyzeScannedFile(
   const parsed = parseFileSourceIdentity(file.path, context);
   const sourceIdentity = parsed.source_identity;
 
-  const episodeNumbers = getEpisodeNumbersFromSourceIdentity(sourceIdentity);
+  const volumeNumbers = hasVolumeFileExtension(file.name)
+    ? parseVolumeNumbersFromTitle(file.name)
+    : [];
+  const episodeNumbers =
+    volumeNumbers.length > 0 ? volumeNumbers : getEpisodeNumbersFromSourceIdentity(sourceIdentity);
   const season = getSourceIdentitySeason(sourceIdentity);
   const sourceIdentityDto: ParsedEpisodeIdentity | undefined =
     toSharedParsedEpisodeIdentity(sourceIdentity);
 
   const [primaryEpisode] = episodeNumbers;
   const needsManualMapping =
-    !sourceIdentity ||
-    parsed.kind === "unknown" ||
-    (sourceIdentity.scheme === "daily" && episodeNumbers.length === 0);
+    (volumeNumbers.length === 0 && !sourceIdentity) ||
+    (volumeNumbers.length === 0 && parsed.kind === "unknown") ||
+    (sourceIdentity?.scheme === "daily" && episodeNumbers.length === 0);
 
   const group = parsed.group ?? file.name.match(/^\[(.*?)\]/)?.[1];
   const metadata = buildScannedFileMetadata({
@@ -95,7 +100,8 @@ export function analyzeScannedFile(
         needsManualMapping,
         ...(sourceIdentityDto === undefined ? {} : { sourceIdentity: sourceIdentityDto }),
       }),
-      parsed_title: parsed.parsed_title,
+      parsed_title:
+        volumeNumbers.length > 0 ? stripVolumeLabel(parsed.parsed_title) : parsed.parsed_title,
       quality: metadata.quality,
       resolution: parsed.resolution ?? parseResolution(file.name),
       season,
@@ -108,6 +114,19 @@ export function analyzeScannedFile(
       needs_manual_mapping: needsManualMapping || undefined,
     },
   };
+}
+
+function stripVolumeLabel(value: string) {
+  return value
+    .replace(/(?:^|[\s._[(-])(?:vol(?:ume)?\.?|v)[\s._-]*\d{1,3}(?:\b|[\s._)\]-]).*/i, "")
+    .replace(/(?:^|[\s._[(-])vol(?:ume)?\.?$/i, "")
+    .replace(/[._]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function hasVolumeFileExtension(name: string) {
+  return /\.(?:cbz|cbr|pdf|epub)$/i.test(name);
 }
 
 export function findBestLocalAnimeMatch(

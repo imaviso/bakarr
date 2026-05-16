@@ -34,6 +34,7 @@ import { Badge } from "~/components/ui/badge";
 import { SearchDialog } from "~/features/search/search-dialog";
 import type { Anime } from "~/api/contracts";
 import { createLogsRouteSearch } from "~/domain/download/events-search";
+import { mediaKindLabel, mediaUnitLabel } from "~/domain/media-unit";
 import { cn } from "~/infra/utils";
 
 const STATUS_ICON_MAP: Record<string, React.ReactNode> = {
@@ -74,6 +75,12 @@ interface AnimeDetailsHeaderProps {
 }
 
 export function AnimeDetailsHeader(props: AnimeDetailsHeaderProps) {
+  const mediaLabel = mediaKindLabel(props.anime.media_kind);
+  const unitLabelPlural = mediaUnitLabel(
+    props.anime.media_kind === "anime" ? "episode" : "volume",
+    2,
+  );
+
   return (
     <>
       {props.anime.banner_image && (
@@ -93,7 +100,7 @@ export function AnimeDetailsHeader(props: AnimeDetailsHeaderProps) {
           <Link
             to="/anime"
             search={{ q: "", filter: "all", view: "grid" }}
-            aria-label="Back to anime library"
+            aria-label="Back to library"
             className={buttonVariants({
               variant: "ghost",
               size: "icon",
@@ -137,7 +144,7 @@ export function AnimeDetailsHeader(props: AnimeDetailsHeaderProps) {
               <BookmarkIcon className={cn("h-4 w-4", props.isMonitored && "fill-current")} />
             </TooltipTrigger>
             <TooltipContent>
-              {props.isMonitored ? "Unmonitor Anime" : "Monitor Anime"}
+              {props.isMonitored ? `Unmonitor ${mediaLabel}` : `Monitor ${mediaLabel}`}
             </TooltipContent>
           </Tooltip>
 
@@ -180,7 +187,7 @@ export function AnimeDetailsHeader(props: AnimeDetailsHeaderProps) {
               <MagnifyingGlassIcon className="lg:mr-2 h-4 w-4" />
               <span className="hidden lg:inline">Search Missing</span>
             </TooltipTrigger>
-            <TooltipContent>Search Missing Episodes</TooltipContent>
+            <TooltipContent>Search Missing {unitLabelPlural}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -224,9 +231,9 @@ export function AnimeDetailsHeader(props: AnimeDetailsHeaderProps) {
               className="shrink-0"
             >
               <LinkIcon className="lg:mr-2 h-4 w-4" />
-              <span className="hidden lg:inline">Map Episodes</span>
+              <span className="hidden lg:inline">Map {unitLabelPlural}</span>
             </TooltipTrigger>
-            <TooltipContent>Manual Map Episodes</TooltipContent>
+            <TooltipContent>Manual Map {unitLabelPlural}</TooltipContent>
           </Tooltip>
 
           <Link
@@ -245,18 +252,20 @@ export function AnimeDetailsHeader(props: AnimeDetailsHeaderProps) {
               <TooltipTrigger
                 render={
                   <AlertDialogTrigger
-                    render={<Button variant="ghost" size="icon" aria-label="Delete anime" />}
+                    render={
+                      <Button variant="ghost" size="icon" aria-label={`Delete ${mediaLabel}`} />
+                    }
                   />
                 }
                 className="text-muted-foreground hover:text-destructive shrink-0"
               >
                 <TrashIcon className="h-4 w-4" />
               </TooltipTrigger>
-              <TooltipContent>Delete Anime</TooltipContent>
+              <TooltipContent>Delete {mediaLabel}</TooltipContent>
             </Tooltip>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Delete Anime?</AlertDialogTitle>
+                <AlertDialogTitle>Delete {mediaLabel}?</AlertDialogTitle>
                 <AlertDialogDescription>
                   This will remove &quot;{props.anime.title.english || props.anime.title.romaji}
                   &quot; from your library. This action cannot be undone.

@@ -27,6 +27,7 @@ export function decideDownloadAction(
   current: Option.Option<RankedCurrentEpisode>,
   release: RankedRelease,
   config: Config,
+  options: { readonly allowUnknownQuality?: boolean } = {},
 ): DownloadAction {
   const sizeGuard = evaluateSizeGuard(profile, release.sizeBytes);
 
@@ -43,7 +44,7 @@ export function decideDownloadAction(
   const parsed = parseReleaseName(release.title);
   const releaseQuality = parsed.quality;
 
-  if (!isQualityAllowed(profile, releaseQuality)) {
+  if (!isQualityAllowed(profile, releaseQuality, options)) {
     return reject("quality not allowed in profile");
   }
 
@@ -210,7 +211,15 @@ function reject(reason: string): DownloadAction {
   return { Reject: { reason } };
 }
 
-function isQualityAllowed(profile: QualityProfile, quality: Quality): boolean {
+function isQualityAllowed(
+  profile: QualityProfile,
+  quality: Quality,
+  options: { readonly allowUnknownQuality?: boolean },
+): boolean {
+  if (options.allowUnknownQuality === true && quality.name === "Unknown") {
+    return true;
+  }
+
   return (
     profile.allowed_qualities.length === 0 ||
     profile.allowed_qualities.includes(quality.name) ||

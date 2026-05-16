@@ -23,6 +23,7 @@ import {
   toNyaaSearchResult,
 } from "@/features/operations/search/search-support.ts";
 import { parseReleaseName } from "@/features/operations/search/release-ranking.ts";
+import { parseVolumeNumbersFromTitle } from "@/features/operations/search/release-volume.ts";
 import {
   isOperationsError,
   OperationsInputError,
@@ -106,6 +107,10 @@ export function makeSearchReleaseSupport(input: {
       return [...releases];
     }
 
+    if (animeRow.mediaKind !== "anime") {
+      return [...releases];
+    }
+
     const entry = yield* seadexClient.getEntryByAniListId(animeRow.id).pipe(
       Effect.tapError((error) =>
         Effect.logWarning("SeaDex enrichment failed").pipe(
@@ -137,7 +142,7 @@ export function makeSearchReleaseSupport(input: {
     yield* Effect.annotateCurrentSpan("animeId", animeRow.id);
     yield* Effect.annotateCurrentSpan("episodeNumber", episodeNumber);
 
-    const results = yield* collectEpisodeSearchReleases(
+    const results = yield* collectUnitSearchReleases(
       animeRow,
       episodeNumber,
       config,
@@ -229,6 +234,20 @@ function buildEpisodeSearchQueries(animeRow: typeof anime.$inferSelect, episodeN
   );
 }
 
+function buildVolumeSearchQueries(animeRow: typeof anime.$inferSelect, volumeNumber: number) {
+  const paddedVolume = String(volumeNumber).padStart(2, "0");
+  const aliases = buildAnimeSearchAliases(animeRow);
+
+  return uniqueStrings(
+    aliases.flatMap((alias) => [
+      `${alias} Vol ${volumeNumber}`,
+      `${alias} Vol ${paddedVolume}`,
+      `${alias} Volume ${volumeNumber}`,
+      `${alias} v${volumeNumber}`,
+    ]),
+  );
+}
+
 function buildBroadSearchQueries(animeRow: typeof anime.$inferSelect) {
   return buildAnimeSearchAliases(animeRow);
 }
@@ -309,26 +328,44 @@ function getEpisodeReleaseRejectionReason(
   return null;
 }
 
-function collectEpisodeSearchReleases(
+function getVolumeReleaseRejectionReason(
+  item: ParsedRelease,
+  volumeNumber: number,
+  seenInfoHashes: ReadonlySet<string>,
+) {
+  const volumes = parseVolumeNumbersFromTitle(item.title);
+
+  if (volumes.length > 0 && !volumes.includes(volumeNumber)) {
+    return "volume_mismatch" as const;
+  }
+
+  if (seenInfoHashes.has(item.infoHash)) {
+    return "duplicate_info_hash" as const;
+  }
+
+  return null;
+}
+
+function collectUnitSearchReleases(
   animeRow: typeof anime.$inferSelect,
   episodeNumber: number,
   config: Config,
   searchNyaaReleases: SearchNyaaReleases,
 ): Effect.Effect<ParsedRelease[], SearchReleaseSourceError> {
   const seenInfoHashes = new Set<string>();
-  const keepEpisodeRelease = (
-    item: ParsedRelease,
-    query: string,
-    phase: "episode" | "fallback",
-  ) => {
-    const rejectionReason = getEpisodeReleaseRejectionReason(item, episodeNumber, seenInfoHashes);
+  const mediaKind = animeRow.mediaKind;
+  const keepUnitRelease = (item: ParsedRelease, query: string, phase: "episode" | "fallback") => {
+    const rejectionReason =
+      mediaKind === "anime"
+        ? getEpisodeReleaseRejectionReason(item, episodeNumber, seenInfoHashes)
+        : getVolumeReleaseRejectionReason(item, episodeNumber, seenInfoHashes);
 
     if (rejectionReason !== null) {
       return Effect.logDebug("Rejected episode search release").pipe(
         Effect.annotateLogs({
           animeId: animeRow.id,
           episodeNumber,
-          event: "operations.search.episode.release.rejected",
+          event: "operations.search.unit.release.rejected",
           infoHash: item.infoHash,
           phase,
           query,
@@ -362,7 +399,7 @@ function collectEpisodeSearchReleases(
                 ),
               ),
               Effect.flatMap((items) =>
-                Effect.filter(items, (item) => keepEpisodeRelease(item, query, phase)),
+                Effect.filter(items, (item) => keepUnitRelease(item, query, phase)),
               ),
             ),
       { concurrency: 1 },
@@ -370,7 +407,9 @@ function collectEpisodeSearchReleases(
 
   return Effect.gen(function* () {
     const episodeResults = yield* collectQueries(
-      buildEpisodeSearchQueries(animeRow, episodeNumber),
+      mediaKind === "anime"
+        ? buildEpisodeSearchQueries(animeRow, episodeNumber)
+        : buildVolumeSearchQueries(animeRow, episodeNumber),
       "episode",
     );
 

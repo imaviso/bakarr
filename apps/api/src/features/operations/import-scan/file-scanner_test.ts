@@ -18,6 +18,7 @@ const tree = new Map<string, DirEntry[]>([
     "/library/show",
     [
       entry("episode-01.mkv", { isFile: true, size: 100 }),
+      entry("Manga Vol 02.cbz", { isFile: true, size: 80 }),
       entry("season-2", { isDirectory: true }),
     ],
   ],
@@ -37,6 +38,7 @@ it.effect("scanVideoFilesStream streams matching files from accessible tree", ()
 
     assert.deepStrictEqual(files, [
       "/library/show/episode-01.mkv",
+      "/library/show/Manga Vol 02.cbz",
       "/library/show/season-2/episode-02.mp4",
     ]);
   }),
@@ -57,6 +59,11 @@ it.effect("scanVideoFiles collects iterator output", () =>
         name: "episode-02.mp4",
         path: "/library/show/season-2/episode-02.mp4",
         size: 200,
+      },
+      {
+        name: "Manga Vol 02.cbz",
+        path: "/library/show/Manga Vol 02.cbz",
+        size: 80,
       },
     ]);
   }),
@@ -107,6 +114,7 @@ it.effect("scanVideoFilesStream uses streaming dir reader when available", () =>
 
     assert.deepStrictEqual(files, [
       "/library/show/episode-01.mkv",
+      "/library/show/Manga Vol 02.cbz",
       "/library/show/season-2/episode-02.mp4",
     ]);
     assert.deepStrictEqual(readDirCalls, 0);

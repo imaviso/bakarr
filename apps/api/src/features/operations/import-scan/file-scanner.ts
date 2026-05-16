@@ -51,7 +51,7 @@ export function scanVideoFilesStream(
           symlinkEntries.push(entry);
         } else if (entry.isDirectory) {
           dirEntries.push(entry);
-        } else if (entry.isFile && isVideoFile(entry.name)) {
+        } else if (entry.isFile && isSupportedImportFile(entry.name)) {
           fileEntries.push(entry);
         }
       }
@@ -78,7 +78,7 @@ export function scanVideoFilesStream(
             return Option.none<ScannedVideoFile>();
           }
 
-          if (realInfo.isFile && isVideoFile(entry.name)) {
+          if (realInfo.isFile && isSupportedImportFile(entry.name)) {
             return Option.some({
               name: entry.name,
               path: fullPath,
@@ -114,6 +114,8 @@ export function scanVideoFilesStream(
   ).pipe(Stream.withSpan("Operations.scanVideoFilesStream"));
 }
 
-function isVideoFile(name: string) {
-  return [".mkv", ".mp4", ".avi", ".mov", ".webm"].some((ext) => name.toLowerCase().endsWith(ext));
+export function isSupportedImportFile(name: string) {
+  return [".mkv", ".mp4", ".avi", ".mov", ".webm", ".cbz", ".cbr", ".pdf", ".epub"].some((ext) =>
+    name.toLowerCase().endsWith(ext),
+  );
 }

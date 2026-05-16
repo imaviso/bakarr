@@ -126,7 +126,7 @@ on("RefreshFinished", (_qc, evt, ctx) => {
 
 on("SearchMissingStarted", (_qc, evt, ctx) => {
   if (ctx.notificationsEnabled) {
-    toast.loading(`Searching missing episodes for ${evt.payload.title}`, ctx.toastOptions);
+    toast.loading(`Searching missing units for ${evt.payload.title}`, ctx.toastOptions);
   }
 });
 

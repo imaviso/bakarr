@@ -26,6 +26,7 @@ function animeRow(input: Pick<AnimeRow, "id" | "titleRomaji"> & Partial<AnimeRow
     format: "TV",
     genres: "[]",
     id: input.id,
+    mediaKind: "anime",
     malId: null,
     members: null,
     monitored: true,
@@ -66,6 +67,18 @@ it("analyzeScannedFile marks daily identities as requiring manual mapping", () =
     result.scanned.match_reason,
     "Parsed a daily air date from the filename; choose the episode mapping before import",
   );
+});
+
+it("analyzeScannedFile maps archive volume labels to import unit numbers", () => {
+  const result = analyzeScannedFile({
+    name: "Witch Hat Atelier Vol. 07.cbz",
+    path: "/library/Witch Hat Atelier Vol. 07.cbz",
+  });
+
+  assert.deepStrictEqual(result.scanned.episode_number, 7);
+  assert.deepStrictEqual(result.scanned.episode_numbers, [7]);
+  assert.deepStrictEqual(result.scanned.parsed_title, "Witch Hat Atelier");
+  assert.deepStrictEqual(result.scanned.needs_manual_mapping, undefined);
 });
 
 it("scoreAnimeRowMatch and titlesMatch share normalized title scoring", () => {

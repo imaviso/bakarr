@@ -14,6 +14,16 @@ export const PreferredTitleSchema: Schema.Schema<PreferredTitle> = Schema.Litera
   ...PREFERRED_TITLE_VALUES,
 );
 
+export const MEDIA_KIND_VALUES = ["anime", "manga", "light_novel"] as const;
+export type MediaKind = (typeof MEDIA_KIND_VALUES)[number];
+export const MediaKindSchema: Schema.Schema<MediaKind> = Schema.Literal(...MEDIA_KIND_VALUES);
+
+export const MEDIA_UNIT_KIND_VALUES = ["episode", "volume"] as const;
+export type MediaUnitKind = (typeof MEDIA_UNIT_KIND_VALUES)[number];
+export const MediaUnitKindSchema: Schema.Schema<MediaUnitKind> = Schema.Literal(
+  ...MEDIA_UNIT_KIND_VALUES,
+);
+
 const PositiveEntityIdSchema = Schema.Number.pipe(Schema.int(), Schema.greaterThan(0));
 
 export const AnimeIdSchema = PositiveEntityIdSchema.pipe(Schema.brand("AnimeId"));
@@ -268,6 +278,7 @@ export const EpisodeAiringStatusSchema: Schema.Schema<EpisodeAiringStatus> = Sch
 
 export interface Anime {
   id: AnimeId;
+  media_kind: MediaKind;
   mal_id?: number | undefined;
   title: {
     romaji: string;
@@ -312,6 +323,7 @@ export interface Anime {
 export const AnimeSchema = Schema.mutable(
   Schema.Struct({
     id: AnimeIdSchema,
+    media_kind: MediaKindSchema,
     mal_id: Schema.optional(Schema.Number),
     title: AnimeTitleSchema,
     format: Schema.String,
@@ -379,6 +391,7 @@ export const AnimeListResponseSchema = Schema.Struct({
 });
 
 export interface Episode {
+  unit_kind?: MediaUnitKind | undefined;
   number: number;
   title?: string | undefined;
   aired?: string | undefined;
@@ -397,6 +410,7 @@ export interface Episode {
 }
 
 export const EpisodeSchema: Schema.Schema<Episode> = Schema.Struct({
+  unit_kind: Schema.optional(MediaUnitKindSchema),
   number: Schema.Number,
   title: Schema.optional(Schema.String),
   aired: Schema.optional(Schema.String),
@@ -481,6 +495,7 @@ export interface CalendarEvent {
   extended_props: {
     anime_id: AnimeId;
     anime_title: string;
+    unit_kind?: MediaUnitKind | undefined;
     episode_number: number;
     episode_title?: string | undefined;
     airing_status?: EpisodeAiringStatus | undefined;
@@ -493,6 +508,7 @@ export interface CalendarEvent {
 export const CalendarEventExtendedPropsSchema = Schema.Struct({
   anime_id: AnimeIdSchema,
   anime_title: Schema.String,
+  unit_kind: Schema.optional(MediaUnitKindSchema),
   episode_number: Schema.Number,
   episode_title: Schema.optional(Schema.String),
   airing_status: Schema.optional(EpisodeAiringStatusSchema),
@@ -1294,6 +1310,7 @@ export const BrowseResultSchema: Schema.Schema<BrowseResult> = Schema.mutable(
 export interface MissingEpisode {
   anime_id: AnimeId;
   anime_title: string;
+  unit_kind?: MediaUnitKind | undefined;
   episode_number: number;
   episode_title?: string | undefined;
   aired?: string | undefined;
@@ -1306,6 +1323,7 @@ export interface MissingEpisode {
 export const MissingEpisodeSchema = Schema.Struct({
   anime_id: AnimeIdSchema,
   anime_title: Schema.String,
+  unit_kind: Schema.optional(MediaUnitKindSchema),
   episode_number: Schema.Number,
   episode_title: Schema.optional(Schema.String),
   aired: Schema.optional(Schema.String),
@@ -1875,6 +1893,7 @@ export const NyaaSearchResultSchema: Schema.Schema<NyaaSearchResult> = Schema.St
 });
 
 export interface EpisodeSearchResult {
+  unit_kind?: MediaUnitKind | undefined;
   title: string;
   indexer: string;
   link: string;
@@ -1903,6 +1922,7 @@ export interface EpisodeSearchResult {
 }
 
 export const EpisodeSearchResultSchema = Schema.Struct({
+  unit_kind: Schema.optional(MediaUnitKindSchema),
   title: Schema.String,
   indexer: Schema.String,
   link: Schema.String,
@@ -1985,6 +2005,7 @@ export const SearchResultsSchema: Schema.Schema<SearchResults> = Schema.mutable(
 
 export interface AnimeSearchResult {
   id: AnimeId;
+  media_kind?: MediaKind | undefined;
   title: {
     romaji?: string | undefined;
     english?: string | undefined;
@@ -1999,6 +2020,8 @@ export interface AnimeSearchResult {
   members?: number | undefined;
   favorites?: number | undefined;
   episode_count?: number | undefined;
+  volume_count?: number | undefined;
+  chapter_count?: number | undefined;
   status?: string | undefined;
   start_date?: string | undefined;
   end_date?: string | undefined;
@@ -2027,6 +2050,7 @@ export const AnimeSearchResultTitleSchema: Schema.Schema<AnimeSearchResult["titl
 
 export const AnimeSearchResultSchema = Schema.Struct({
   id: AnimeIdSchema,
+  media_kind: Schema.optional(MediaKindSchema),
   title: AnimeSearchResultTitleSchema,
   format: Schema.optional(Schema.String),
   source: Schema.optional(Schema.String),
@@ -2037,6 +2061,8 @@ export const AnimeSearchResultSchema = Schema.Struct({
   members: Schema.optional(Schema.Number),
   favorites: Schema.optional(Schema.Number),
   episode_count: Schema.optional(Schema.Number),
+  volume_count: Schema.optional(Schema.Number),
+  chapter_count: Schema.optional(Schema.Number),
   status: Schema.optional(Schema.String),
   start_date: Schema.optional(Schema.String),
   end_date: Schema.optional(Schema.String),

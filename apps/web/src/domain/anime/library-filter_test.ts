@@ -11,6 +11,7 @@ function createAnime(input: {
 }): Anime {
   return {
     id: brandAnimeId(input.id),
+    media_kind: "anime",
     title: {
       romaji: input.romaji,
       english: input.english,

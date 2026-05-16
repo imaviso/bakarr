@@ -64,6 +64,19 @@ it("decideDownloadAction rejects when quality not in profile allowed_qualities",
   assert.deepStrictEqual(action.Reject.reason, "quality not allowed in profile");
 });
 
+it("decideDownloadAction can allow unknown quality for non-video releases", () => {
+  const action = decideDownloadAction(
+    makeProfile({ allowed_qualities: ["1080p"] }),
+    [],
+    Option.none(),
+    makeRelease({ title: "Witch Hat Atelier Vol. 07 [Digital].cbz" }),
+    makeConfig(),
+    { allowUnknownQuality: true },
+  );
+  assert.ok(action.Accept !== undefined);
+  assert.deepStrictEqual(action.Accept.quality.name, "Unknown");
+});
+
 it("decideDownloadAction rejects when size too small", () => {
   const action = decideDownloadAction(
     makeProfile({ min_size: "10 GiB" }),

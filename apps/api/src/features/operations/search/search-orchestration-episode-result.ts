@@ -24,12 +24,16 @@ export function toEpisodeSearchResult(input: {
   profile: QualityProfile;
   rules: readonly ReleaseProfileRule[];
   runtimeConfig: Config;
+  unitKind?: "episode" | "volume";
 }) {
   const { currentEpisode, item, profile, rules, runtimeConfig } = input;
   const parsedIdentity = parseReleaseSourceIdentity(item.title).source_identity;
 
   return {
-    download_action: decideDownloadAction(profile, rules, currentEpisode, item, runtimeConfig),
+    unit_kind: input.unitKind,
+    download_action: decideDownloadAction(profile, rules, currentEpisode, item, runtimeConfig, {
+      allowUnknownQuality: input.unitKind === "volume",
+    }),
     group: item.group,
     indexer: "Nyaa",
     info_hash: item.infoHash,

@@ -32,6 +32,7 @@ const SAMPLE_KEYWORDS = ["sample", "samples"];
 const SPECIALS_FOLDER_NAMES = new Set(["specials", "special", "season 0", "season 00", "s00"]);
 
 const VIDEO_EXTENSIONS = new Set([".mkv", ".mp4", ".avi", ".mov", ".webm"]);
+const VOLUME_EXTENSIONS = new Set([".cbz", ".cbr", ".pdf", ".epub"]);
 
 const METADATA_TAG_PATTERNS: readonly RegExp[] = [
   /\b\d{3,4}p\b/i,
@@ -54,11 +55,11 @@ export function classifyMediaArtifact(
   const extensionless = stripExtension(lowerName);
 
   const ext = getExtension(name);
-  if (ext && !VIDEO_EXTENSIONS.has(ext)) {
+  if (ext && !VIDEO_EXTENSIONS.has(ext) && !VOLUME_EXTENSIONS.has(ext)) {
     return {
       kind: "unknown",
       parsed_title: name,
-      skip_reason: `Not a video file: ${ext}`,
+      skip_reason: `Unsupported import file: ${ext}`,
     };
   }
 

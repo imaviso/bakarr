@@ -5,6 +5,7 @@ import {
   AnimeSearchResultSchema,
   brandAnimeId,
   type AnimeDiscoveryEntry,
+  type MediaKind,
 } from "@packages/shared/index.ts";
 import { deriveAnimeSeason } from "@/domain/anime/date-utils.ts";
 
@@ -134,6 +135,7 @@ const AniListSearchMediaSchema = Schema.Struct({
   duration: Schema.optional(Schema.NullOr(Schema.Number)),
   endDate: Schema.optional(AniListDateSchema),
   episodes: Schema.optional(Schema.NullOr(Schema.Number)),
+  chapters: Schema.optional(Schema.NullOr(Schema.Number)),
   favourites: Schema.optional(Schema.NullOr(Schema.Number)),
   format: Schema.optional(Schema.NullOr(Schema.String)),
   genres: Schema.optional(Schema.Array(Schema.String)),
@@ -147,6 +149,7 @@ const AniListSearchMediaSchema = Schema.Struct({
   status: Schema.optional(Schema.NullOr(Schema.String)),
   synonyms: Schema.optional(Schema.Array(Schema.String)),
   title: Schema.optional(AniListTitleSchema),
+  volumes: Schema.optional(Schema.NullOr(Schema.Number)),
 });
 
 const AniListAiringScheduleSchema = Schema.Struct({
@@ -215,6 +218,7 @@ const AniListDetailMediaSchema = Schema.Struct({
   duration: Schema.optional(Schema.NullOr(Schema.Number)),
   endDate: Schema.optional(AniListDateSchema),
   episodes: Schema.optional(Schema.NullOr(Schema.Number)),
+  chapters: Schema.optional(Schema.NullOr(Schema.Number)),
   favourites: Schema.optional(Schema.NullOr(Schema.Number)),
   format: Schema.optional(Schema.NullOr(Schema.String)),
   genres: Schema.optional(Schema.Array(Schema.String)),
@@ -231,6 +235,7 @@ const AniListDetailMediaSchema = Schema.Struct({
   studios: Schema.optional(AniListStudioConnectionSchema),
   synonyms: Schema.optional(Schema.Array(Schema.String)),
   title: Schema.optional(AniListTitleSchema),
+  volumes: Schema.optional(Schema.NullOr(Schema.Number)),
 });
 
 const AniListDetailDataSchema = Schema.Struct({
@@ -258,6 +263,7 @@ export const AnimeSearchResultFromAniListSchema = Schema.transform(
       format: entry.format ?? undefined,
       genres: entry.genres ? [...entry.genres] : undefined,
       id: entry.id,
+      media_kind: toMediaKind(entry.format),
       members: entry.popularity ?? undefined,
       popularity: pickAniListRanking(entry.rankings, "POPULAR"),
       rank: pickAniListRanking(entry.rankings, "RATED"),
@@ -271,6 +277,8 @@ export const AnimeSearchResultFromAniListSchema = Schema.transform(
       start_year: entry.startDate?.year ?? undefined,
       status: entry.status ?? undefined,
       synonyms: normalizeSynonyms(entry.synonyms),
+      volume_count: entry.volumes ?? undefined,
+      chapter_count: entry.chapters ?? undefined,
       title: {
         english: entry.title?.english ?? undefined,
         native: entry.title?.native ?? undefined,
@@ -319,7 +327,7 @@ export const AnimeMetadataFromAniListSchema = Schema.transform(
       duration: normalizeDuration(media.duration),
       endDate: toIsoDate(media.endDate),
       endYear: media.endDate?.year ?? undefined,
-      episodeCount: media.episodes ?? undefined,
+      episodeCount: media.episodes ?? media.volumes ?? undefined,
       favorites: media.favourites ?? undefined,
       format: media.format ?? "TV",
       futureAiringSchedule: normalizeFutureAiringSchedule(
@@ -387,6 +395,18 @@ export const AnimeMetadataFromAniListSchema = Schema.transform(
     }),
   },
 );
+
+function toMediaKind(format: string | null | undefined): MediaKind {
+  if (format === "NOVEL") {
+    return "light_novel";
+  }
+
+  if (format === "MANGA" || format === "ONE_SHOT") {
+    return "manga";
+  }
+
+  return "anime";
+}
 
 function pickAniListRanking(
   rankings:

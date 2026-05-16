@@ -28,6 +28,7 @@ import { useSearchMissingMutation } from "~/api/system-downloads";
 import { systemConfigQueryOptions } from "~/api/system-config";
 import { wantedQueryOptions } from "~/api/system-wanted";
 import type { MissingEpisode } from "~/api/contracts";
+import { mediaUnitLabel } from "~/domain/media-unit";
 import { usePageTitle } from "~/domain/page-title";
 import {
   formatAiringDateWithPreferences,
@@ -87,6 +88,7 @@ function WantedPage() {
     animeId: number;
     episodeNumber: number;
     episodeTitle?: string;
+    unitKind?: MissingEpisode["unit_kind"];
   }>({
     open: false,
     animeId: 0,
@@ -107,8 +109,8 @@ function WantedPage() {
         title="Wanted"
         subtitle={
           data.length >= WANTED_LIMIT
-            ? `Showing first ${WANTED_LIMIT} missing episodes`
-            : `${data.length} missing episodes`
+            ? `Showing first ${WANTED_LIMIT} missing units`
+            : `${data.length} missing units`
         }
       >
         <Button
@@ -128,12 +130,12 @@ function WantedPage() {
             <TableHeader className="sticky top-0 z-10 bg-background">
               <TableRow className="hover:bg-transparent">
                 <TableHead scope="col" className="w-[60px]" />
-                <TableHead scope="col">Anime</TableHead>
+                <TableHead scope="col">Title</TableHead>
                 <TableHead scope="col" className="w-[100px]">
-                  Episode
+                  Unit
                 </TableHead>
                 <TableHead scope="col" className="hidden md:table-cell">
-                  Title
+                  Unit Title
                 </TableHead>
                 <TableHead scope="col" className="w-[150px]">
                   Air Date
@@ -172,12 +174,14 @@ function WantedPage() {
                                     open: true,
                                     animeId: item.anime_id,
                                     episodeNumber: item.episode_number,
+                                    unitKind: item.unit_kind,
                                   }
                                 : {
                                     open: true,
                                     animeId: item.anime_id,
                                     episodeNumber: item.episode_number,
                                     episodeTitle,
+                                    unitKind: item.unit_kind,
                                   },
                             );
                           }}
@@ -199,7 +203,7 @@ function WantedPage() {
                   )}
                 </>
               ) : (
-                <EmptyState asTableCell colSpan={6} compact title="No missing episodes found" />
+                <EmptyState asTableCell colSpan={6} compact title="No missing units found" />
               )}
             </TableBody>
           </Table>
@@ -210,6 +214,7 @@ function WantedPage() {
         <SearchModalLazy
           animeId={searchModalState.animeId}
           episodeNumber={searchModalState.episodeNumber}
+          unitKind={searchModalState.unitKind}
           {...(searchModalState.episodeTitle === undefined
             ? {}
             : { episodeTitle: searchModalState.episodeTitle })}
@@ -232,6 +237,7 @@ function WantedRow(props: {
       : props.item.airing_status === "aired"
         ? "Missing"
         : undefined;
+  const unitLabel = mediaUnitLabel(props.item.unit_kind);
 
   return (
     <TableRow>
@@ -265,7 +271,7 @@ function WantedRow(props: {
       <TableCell>
         <div className="flex flex-col items-start gap-1">
           <Badge variant="outline" className="tabular-nums">
-            {props.item.episode_number.toString().padStart(2, "0")}
+            {unitLabel} {props.item.episode_number.toString().padStart(2, "0")}
           </Badge>
           {statusLabel && (
             <Badge variant={props.item.airing_status === "aired" ? "warning" : "info"}>
@@ -285,7 +291,7 @@ function WantedRow(props: {
           <DropdownMenuTrigger
             render={<Button variant="ghost" size="icon" />}
             className="relative after:absolute after:-inset-2 h-8 w-8"
-            aria-label="Episode options"
+            aria-label={`${unitLabel} options`}
           >
             <DotsThreeIcon className="h-4 w-4" />
           </DropdownMenuTrigger>

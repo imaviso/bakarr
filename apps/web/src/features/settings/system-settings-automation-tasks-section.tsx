@@ -48,7 +48,7 @@ export function SystemSettingsAutomationTasksSection(
         </Button>
       </SettingRow>
 
-      <SettingRow label="Metadata Refresh" description="Refresh anime metadata from AniList">
+      <SettingRow label="Metadata Refresh" description="Refresh media metadata from AniList">
         <Button
           type="button"
           variant="outline"

@@ -18,7 +18,7 @@ export const animeKeys = {
     releases: (query: string, options?: { animeId?: number; category?: string; filter?: string }) =>
       ["search", "releases", { query, ...options }] as const,
   },
-  anilist: (id: number) => ["anime", "anilist", id] as const,
+  anilist: (id: number, mediaKind = "anime") => ["anime", "anilist", mediaKind, id] as const,
   seasonal: (input?: {
     season?: AnimeSeason | undefined;
     year?: number | undefined;

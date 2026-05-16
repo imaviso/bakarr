@@ -18,6 +18,7 @@ import {
   decodeStoredNumberListEffect,
   decodeStoredStringListEffect,
 } from "@/features/anime/shared/decode-support.ts";
+import { decodeMediaKind } from "@/features/anime/shared/media-kind.ts";
 
 interface EpisodeStats {
   readonly downloaded: number;
@@ -168,6 +169,7 @@ function toAnimeDtoProgress(
       format: row.format,
       genres,
       id: brandAnimeId(row.id),
+      media_kind: decodeMediaKind(row.mediaKind),
       mal_id: row.malId ?? undefined,
       members: row.members ?? undefined,
       monitored: row.monitored,

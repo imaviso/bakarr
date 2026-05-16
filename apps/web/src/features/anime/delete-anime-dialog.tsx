@@ -12,18 +12,21 @@ import {
 } from "~/components/ui/alert-dialog";
 
 interface DeleteAnimeDialogProps {
+  mediaLabel?: string;
   title: string;
   onConfirm: () => void;
   trigger: ReactNode;
 }
 
 export function DeleteAnimeDialog(props: DeleteAnimeDialogProps) {
+  const mediaLabel = props.mediaLabel ?? "media";
+
   return (
     <AlertDialog>
       <AlertDialogTrigger render={<div />}>{props.trigger}</AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete Anime</AlertDialogTitle>
+          <AlertDialogTitle>Delete {mediaLabel}</AlertDialogTitle>
           <AlertDialogDescription>
             Are you sure you want to delete &quot;{props.title}&quot;? This action cannot be undone.
           </AlertDialogDescription>

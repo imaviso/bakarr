@@ -15,6 +15,7 @@ import {
   toCoveredEpisodesJson,
 } from "@/features/operations/download/download-coverage.ts";
 import { parseReleaseName } from "@/features/operations/search/release-ranking.ts";
+import { parseVolumeNumbersFromTitle } from "@/features/operations/search/release-volume.ts";
 import { queueParsedReleaseDownload } from "@/features/operations/search/release-queue-support.ts";
 import type { ParsedRelease } from "@/features/operations/rss/rss-client-parse.ts";
 import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
@@ -67,10 +68,15 @@ export const BackgroundSearchQueueServiceLive = Layer.effect(
         missingEpisodes: readonly number[];
       }) {
         const parsedRelease = parseReleaseName(input.item.title);
+        const explicitUnitNumbers =
+          input.animeRow.mediaKind === "anime"
+            ? parsedRelease.episodeNumbers
+            : parseVolumeNumbersFromTitle(input.item.title);
+
         const coveredEpisodes = yield* toCoveredEpisodesJson(
           inferCoveredEpisodeNumbers({
-            explicitEpisodes: parsedRelease.episodeNumbers,
-            isBatch: parsedRelease.isBatch,
+            explicitEpisodes: explicitUnitNumbers,
+            isBatch: parsedRelease.isBatch || explicitUnitNumbers.length > 1,
             totalEpisodes: input.animeRow.episodeCount,
             missingEpisodes: input.missingEpisodes,
             requestedEpisode: input.episodeNumber,

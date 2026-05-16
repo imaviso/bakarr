@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, ne, or, sql } from "drizzle-orm";
 import { Context, Effect, Layer, Option } from "effect";
 
 import {
@@ -71,7 +71,7 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
 
     const logSearchMissingSkip = Effect.fn("BackgroundSearchMissing.logSearchMissingSkip")(
       function* (input: { animeId: number; episodeNumber: number; reason: string }) {
-        yield* Effect.logDebug("Skipping missing-episode background action").pipe(
+        yield* Effect.logDebug("Skipping missing-unit background action").pipe(
           Effect.annotateLogs({
             animeId: input.animeId,
             episodeNumber: input.episodeNumber,
@@ -90,7 +90,7 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
         monitoredOnly: animeId === undefined,
       });
 
-      const title = animeId ? (yield* requireAnime(db, animeId)).titleRomaji : "all anime";
+      const title = animeId ? (yield* requireAnime(db, animeId)).titleRomaji : "all media";
 
       yield* eventBus.publish({
         type: "SearchMissingStarted",
@@ -103,11 +103,17 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
       const now = yield* nowIso();
       const missingConditions = [
         eq(episodes.downloaded, false),
-        sql`${episodes.aired} is not null`,
-        sql`${episodes.aired} <= ${now}`,
+        or(
+          and(
+            eq(anime.mediaKind, "anime"),
+            sql`${episodes.aired} is not null`,
+            sql`${episodes.aired} <= ${now}`,
+          ),
+          ne(anime.mediaKind, "anime"),
+        ),
         animeId ? eq(episodes.animeId, animeId) : eq(anime.monitored, true),
       ];
-      const missingRows = yield* tryDatabasePromise("Failed to queue missing-episode search", () =>
+      const missingRows = yield* tryDatabasePromise("Failed to queue missing-unit search", () =>
         db
           .select()
           .from(episodes)
@@ -161,7 +167,9 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
         );
         const best = candidates
           .map((item) => ({
-            action: decideDownloadAction(profile, rules, currentEpisode, item, runtimeConfig),
+            action: decideDownloadAction(profile, rules, currentEpisode, item, runtimeConfig, {
+              allowUnknownQuality: row.anime.mediaKind !== "anime",
+            }),
             item,
           }))
           .find((entry) => entry.action.Accept || entry.action.Upgrade);
@@ -184,7 +192,7 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
         const queueResult = yield* queueService.queueReleaseIfEligible({
           action: best.action,
           animeRow: row.anime,
-          contextMessage: "Failed to queue missing-episode search",
+          contextMessage: "Failed to queue missing-unit search",
           ...(decisionReason === undefined ? {} : { decisionReason }),
           episodeNumber: row.episodes.number,
           eventMessage: `Queued ${best.item.title}`,
@@ -224,7 +232,7 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
           error instanceof DatabaseError
             ? error
             : new OperationsInfrastructureError({
-                message: "Failed to queue missing-episode search",
+                message: "Failed to queue missing-unit search",
                 cause: error,
               }),
         ),

@@ -13,6 +13,13 @@ import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { Input } from "~/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
 import type { AnimeSearchResult } from "~/api/contracts";
 import {
   animeByAnilistIdQueryOptions,
@@ -24,6 +31,7 @@ import { profilesQueryOptions, releaseProfilesQueryOptions } from "~/api/profile
 import { systemConfigQueryOptions } from "~/api/system-config";
 import { errorMessage } from "~/api/effect/errors";
 import { usePageTitle } from "~/domain/page-title";
+import { mediaKindLabel } from "~/domain/media-unit";
 import { shiftSeasonWindow } from "~/domain/seasonal-navigation";
 import { DEFAULT_SEASON_WINDOW, parseAddAnimeSearch, type AddAnimeSearch } from "./-add-search";
 
@@ -62,7 +70,9 @@ export const Route = createFileRoute("/_layout/anime/add")({
       }),
     );
     if (search.id) {
-      await queryClient.ensureQueryData(animeByAnilistIdQueryOptions(search.id));
+      await queryClient.ensureQueryData(
+        animeByAnilistIdQueryOptions(search.id, search.media_kind ?? "anime"),
+      );
     }
   },
   component: AddAnimePage,
@@ -72,18 +82,20 @@ export const Route = createFileRoute("/_layout/anime/add")({
 function AddAnimePage() {
   const navigate = useNavigate();
   const searchInputRef = useRef<HTMLInputElement | null>(null);
-  usePageTitle("Add Anime");
+  usePageTitle("Add Media");
   const search = Route.useSearch();
 
   const anilistId = search.id ?? null;
 
   const query = search.q ?? "";
   const [debouncedQuery] = useDebouncedValue(query, { wait: SEARCH_DEBOUNCE_MS });
-  const activeTab = search.tab ?? "search";
+  const mediaKind = search.media_kind ?? "anime";
+  const mediaLabel = mediaKindLabel(mediaKind);
+  const activeTab = mediaKind === "anime" ? (search.tab ?? "search") : "search";
   const selectedSeason = search.season ?? DEFAULT_SEASON_WINDOW.season;
   const selectedYear = search.year ?? DEFAULT_SEASON_WINDOW.year;
 
-  const searchQuery = useAnimeSearchQuery(debouncedQuery);
+  const searchQuery = useAnimeSearchQuery(debouncedQuery, mediaKind);
   const searchResults = searchQuery.data?.results ?? [];
   const canSearch = debouncedQuery.trim().length >= 3;
   const searchDegraded = searchQuery.data?.degraded ?? false;
@@ -95,6 +107,7 @@ function AddAnimePage() {
     void navigate({
       to: ".",
       search: {
+        media_kind: mergedSearch.media_kind ?? "anime",
         q: mergedSearch.q ?? "",
         tab: mergedSearch.tab ?? "search",
         season: mergedSearch.season ?? DEFAULT_SEASON_WINDOW.season,
@@ -124,8 +137,8 @@ function AddAnimePage() {
   return (
     <PageShell scroll="inner">
       <PageHeader
-        title="Add Anime"
-        subtitle="Search or browse seasonal anime to add to your library"
+        title="Add Media"
+        subtitle="Search anime, manga, or light novels to add to your library"
       >
         <div className="relative w-full sm:max-w-sm">
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -134,10 +147,29 @@ function AddAnimePage() {
             value={query}
             onChange={(event) => updateSearch({ q: event.currentTarget.value })}
             placeholder="Search by title..."
-            aria-label="Search for anime by title"
+            aria-label={`Search for ${mediaLabel} by title`}
             className="pl-9 h-9"
           />
         </div>
+        <Select
+          value={mediaKind}
+          onValueChange={(value) =>
+            updateSearch({
+              id: undefined,
+              media_kind:
+                value === "manga" || value === "light_novel" || value === "anime" ? value : "anime",
+            })
+          }
+        >
+          <SelectTrigger className="h-9 w-full sm:w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="anime">Anime</SelectItem>
+            <SelectItem value="manga">Manga</SelectItem>
+            <SelectItem value="light_novel">Light novel</SelectItem>
+          </SelectContent>
+        </Select>
       </PageHeader>
 
       <Tabs
@@ -150,7 +182,7 @@ function AddAnimePage() {
             <MagnifyingGlassIcon className="h-4 w-4" />
             Search
           </TabsTrigger>
-          <TabsTrigger value="seasonal">
+          <TabsTrigger value="seasonal" disabled={mediaKind !== "anime"}>
             <TelevisionIcon className="h-4 w-4" />
             Seasonal
           </TabsTrigger>
@@ -165,6 +197,7 @@ function AddAnimePage() {
             searchDegraded={searchDegraded}
             debouncedQuery={debouncedQuery}
             libraryIds={libraryIds}
+            mediaLabel={mediaLabel}
             onSelectAnime={handleSelectAnime}
           />
         </TabsContent>
@@ -195,6 +228,7 @@ function AddAnimePage() {
         <Suspense fallback={null}>
           <SelectedAnimeDialog
             anilistId={anilistId}
+            mediaKind={mediaKind}
             onOpenChange={clearSelectedAnime}
             onSuccess={clearSelectedAnime}
           />
@@ -206,14 +240,16 @@ function AddAnimePage() {
 
 function SelectedAnimeDialog({
   anilistId,
+  mediaKind,
   onOpenChange,
   onSuccess,
 }: {
   anilistId: number;
+  mediaKind: NonNullable<AddAnimeSearch["media_kind"]>;
   onOpenChange: () => void;
   onSuccess: () => void;
 }) {
-  const { data: anime } = useSuspenseQuery(animeByAnilistIdQueryOptions(anilistId));
+  const { data: anime } = useSuspenseQuery(animeByAnilistIdQueryOptions(anilistId, mediaKind));
   return (
     <AddAnimeDialogLazy
       anime={anime}
@@ -249,6 +285,7 @@ interface SearchResultsProps {
   searchDegraded: boolean;
   debouncedQuery: string;
   libraryIds: ReadonlySet<number>;
+  mediaLabel: string;
   onSelectAnime: (anime: AnimeSearchResult) => void;
 }
 
@@ -307,14 +344,14 @@ function SearchResults(props: SearchResultsProps) {
       {!props.canSearch && (
         <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto py-20 text-muted-foreground border-2 border-dashed rounded-none bg-muted">
           <MagnifyingGlassIcon className="h-12 w-12 mb-4 opacity-50" />
-          <h2 className="font-medium text-lg">Search for your next anime</h2>
+          <h2 className="font-medium text-lg">Search for your next {props.mediaLabel}</h2>
           <p className="text-sm mt-1">Type at least 3 characters in the search bar above</p>
         </div>
       )}
 
       {props.canSearch && !!props.searchQuery.error && (
         <div className="flex-1 overflow-y-auto p-8 text-center text-destructive bg-destructive/10 rounded-none">
-          <p>Failed to search anime. Please try again.</p>
+          <p>Failed to search {props.mediaLabel}. Please try again.</p>
           <p className="text-sm mt-2 opacity-80">
             {errorMessage(props.searchQuery.error, "Search failed")}
           </p>

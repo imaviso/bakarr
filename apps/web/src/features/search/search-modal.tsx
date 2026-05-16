@@ -1,11 +1,13 @@
 import { Dialog } from "~/components/ui/dialog";
 import { SearchModalContent } from "~/features/search/search-modal-content";
 import { useSearchModalState } from "~/features/search/search-modal-state";
+import type { MediaUnitKind } from "~/api/contracts";
 
 interface SearchModalProps {
   animeId: number;
   episodeNumber: number;
   episodeTitle?: string;
+  unitKind?: MediaUnitKind | undefined;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -23,6 +25,7 @@ export function SearchModal(props: SearchModalProps) {
       <SearchModalContent
         episodeNumber={props.episodeNumber}
         episodeTitle={props.episodeTitle}
+        unitKind={props.unitKind}
         state={state}
       />
     </Dialog>

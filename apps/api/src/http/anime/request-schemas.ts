@@ -9,7 +9,11 @@ import {
   ReleaseProfileIdSchema,
 } from "@/domain/domain-schema.ts";
 import { AbsoluteFilesystemPathStringSchema } from "@/http/shared/common-request-schemas.ts";
-import { AnimeSeasonSchema, OperationTaskKeySchema } from "@packages/shared/index.ts";
+import {
+  AnimeSeasonSchema,
+  MediaKindSchema,
+  OperationTaskKeySchema,
+} from "@packages/shared/index.ts";
 export { AddAnimeInput as AddAnimeInputSchema } from "@/features/anime/add/add-anime-input.ts";
 
 const ReleaseProfileIdArraySchema = Schema.Array(ReleaseProfileIdSchema);
@@ -56,6 +60,7 @@ export class BulkEpisodeMappingsBodySchema extends Schema.Class<BulkEpisodeMappi
 export class SearchAnimeQuerySchema extends Schema.Class<SearchAnimeQuerySchema>(
   "SearchAnimeQuerySchema",
 )({
+  media_kind: Schema.optional(MediaKindSchema),
   q: Schema.optional(AnimeSearchQueryStringSchema),
 }) {}
 

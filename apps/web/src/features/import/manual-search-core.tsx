@@ -11,9 +11,17 @@ import { useDebouncedValue } from "@tanstack/react-pacer";
 import { AnimeDiscoveryRow } from "~/features/anime/anime-discovery";
 import { Badge } from "~/components/ui/badge";
 import { Input } from "~/components/ui/input";
-import type { AnimeSearchResult } from "~/api/contracts";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
+import type { AnimeSearchResult, MediaKind } from "~/api/contracts";
 import { useAnimeSearchQuery } from "~/api/anime";
 import { animeDisplayTitle, animeSearchSubtitle } from "~/domain/anime/metadata";
+import { mediaKindLabel, mediaUnitShortLabel } from "~/domain/media-unit";
 import { formatMatchConfidence } from "~/domain/scanned-file";
 import { cn } from "~/infra/utils";
 
@@ -32,9 +40,10 @@ interface ManualSearchCoreProps {
 export function ManualSearchCore(props: ManualSearchCoreProps) {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
+  const [mediaKind, setMediaKind] = useState<MediaKind>("anime");
   const [debouncedQuery] = useDebouncedValue(query, { wait: SEARCH_DEBOUNCE_MS });
 
-  const search = useAnimeSearchQuery(debouncedQuery);
+  const search = useAnimeSearchQuery(debouncedQuery, mediaKind);
   const searchResults = search.data?.results ?? [];
   const searchDegraded = search.data?.degraded ?? false;
   const libraryIds = useMemo(() => {
@@ -47,19 +56,38 @@ export function ManualSearchCore(props: ManualSearchCoreProps) {
 
   return (
     <div className="space-y-4">
-      <div className="relative">
-        <MagnifyingGlassIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input
-          ref={searchInputRef}
-          value={query}
-          onChange={(event) => setQuery(event.currentTarget.value)}
-          placeholder="Search for anime..."
-          aria-label="Search anime title"
-          className="pl-9"
-        />
-        {search.isFetching && (
-          <SpinnerIcon className="absolute right-3 top-3 h-3 w-3 animate-spin text-muted-foreground" />
-        )}
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <MagnifyingGlassIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            ref={searchInputRef}
+            value={query}
+            onChange={(event) => setQuery(event.currentTarget.value)}
+            placeholder={`Search for ${mediaKindLabel(mediaKind)}...`}
+            aria-label={`Search ${mediaKindLabel(mediaKind)} title`}
+            className="pl-9"
+          />
+          {search.isFetching && (
+            <SpinnerIcon className="absolute right-3 top-3 h-3 w-3 animate-spin text-muted-foreground" />
+          )}
+        </div>
+        <Select
+          value={mediaKind}
+          onValueChange={(value) => {
+            if (value !== null) {
+              setMediaKind(toMediaKind(value));
+            }
+          }}
+        >
+          <SelectTrigger className="w-36">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="anime">Anime</SelectItem>
+            <SelectItem value="manga">Manga</SelectItem>
+            <SelectItem value="light_novel">Light novel</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {searchDegraded && (
@@ -123,7 +151,16 @@ export function ManualSearchCore(props: ManualSearchCoreProps) {
                           </Badge>
                         )}
                         {anime.format && <span>{anime.format}</span>}
-                        {anime.episode_count && <span>{anime.episode_count} eps</span>}
+                        {(anime.episode_count || anime.volume_count) && (
+                          <span>
+                            {mediaUnitShortLabel(
+                              anime.media_kind === "anime" ? "episode" : "volume",
+                              anime.media_kind === "anime"
+                                ? (anime.episode_count ?? 0)
+                                : (anime.volume_count ?? anime.episode_count ?? 0),
+                            )}
+                          </span>
+                        )}
                         {animeSearchSubtitle(anime) && (
                           <span className="inline-flex items-center gap-1">
                             <CalendarIcon className="h-3 w-3" />
@@ -202,4 +239,8 @@ export function ManualSearchCore(props: ManualSearchCoreProps) {
       </div>
     </div>
   );
+}
+
+function toMediaKind(value: string): MediaKind {
+  return value === "manga" || value === "light_novel" ? value : "anime";
 }

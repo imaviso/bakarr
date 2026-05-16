@@ -14,7 +14,7 @@ export const BackgroundWorkerNameSchema = Schema.Literal(...BACKGROUND_WORKER_NA
 export type BackgroundWorkerName = Schema.Schema.Type<typeof BackgroundWorkerNameSchema>;
 
 export const BACKGROUND_WORKER_TIMEOUT_MS = {
-  download_sync: 30_000,
+  download_sync: 300_000,
   library_scan: 300_000,
   metadata_refresh: 60_000,
   rss: 120_000,

@@ -50,7 +50,7 @@ export const animeReadRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const query = yield* decodeQuery(SearchAnimeQuerySchema);
-        return yield* (yield* AnimeQueryService).searchAnime(query.q ?? "");
+        return yield* (yield* AnimeQueryService).searchAnime(query.q ?? "", query.media_kind);
       }),
       jsonResponse,
     ),
@@ -60,7 +60,8 @@ export const animeReadRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        return yield* (yield* AnimeQueryService).getAnimeByAnilistId(params.id);
+        const query = yield* decodeQuery(SearchAnimeQuerySchema);
+        return yield* (yield* AnimeQueryService).getAnimeByAnilistId(params.id, query.media_kind);
       }),
       jsonResponse,
     ),

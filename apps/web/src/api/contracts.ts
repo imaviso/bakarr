@@ -1,4 +1,10 @@
-import type { DownloadSourceMetadata, ImportedFile, ReleaseProfile, RssFeed } from "@bakarr/shared";
+import type {
+  DownloadSourceMetadata,
+  ImportedFile,
+  MediaKind,
+  ReleaseProfile,
+  RssFeed,
+} from "@bakarr/shared";
 
 export type * from "@bakarr/shared";
 
@@ -88,6 +94,7 @@ export interface BulkUnmappedFolderControlRequest {
 
 export interface AddAnimeRequest {
   id: number;
+  media_kind?: MediaKind;
   profile_name: string;
   root_folder: string;
   monitor_and_search: boolean;

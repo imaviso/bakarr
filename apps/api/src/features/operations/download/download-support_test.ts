@@ -42,6 +42,7 @@ function makeAnimeRow(overrides: Partial<typeof anime.$inferSelect>): typeof ani
     format: "TV",
     genres: "[]",
     id: 1,
+    mediaKind: "anime",
     malId: null,
     members: null,
     monitored: true,

@@ -7,6 +7,7 @@ import { buildBackgroundSchedule } from "@/background/schedule.ts";
 import { makeBackgroundWorkerController } from "@/background/controller-core.ts";
 import { makeBackgroundWorkerMonitor } from "@/background/monitor.ts";
 import { repeatWorker, withLockEffectOrFail } from "@/background/workers.ts";
+import { BACKGROUND_WORKER_TIMEOUT_MS } from "@/background/worker-model.ts";
 import { makeCoalescedEffectRunner } from "@/infra/effect/coalescing-coalesced-runner.ts";
 import { makeLatestValuePublisher } from "@/infra/effect/coalescing-latest-value-publisher.ts";
 import { makeSkippingSerializedEffectRunner } from "@/infra/effect/coalescing-skipping-serialized-runner.ts";
@@ -131,6 +132,10 @@ it("build background schedule prefers valid cron over interval", () => {
 
   assert.deepStrictEqual(schedule.rssCronExpression, "0 * * * *");
   assert.deepStrictEqual(schedule.rssCheckMs, null);
+});
+
+it("download sync timeout allows completed torrent reconciliation", () => {
+  assert.deepStrictEqual(BACKGROUND_WORKER_TIMEOUT_MS.download_sync, 300_000);
 });
 
 it("build background schedule ignores invalid cron and keeps interval", () => {

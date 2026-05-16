@@ -98,7 +98,7 @@ export function SystemSettingsAutomationDownloadClientSection(
             <Input
               value={field.state.value ?? ""}
               onInput={(event) => field.handleChange(event.currentTarget.value || null)}
-              placeholder="/downloads/anime"
+              placeholder="/downloads/media"
               className="w-64"
             />
           </SettingRow>

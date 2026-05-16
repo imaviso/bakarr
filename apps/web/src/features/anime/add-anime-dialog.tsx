@@ -39,6 +39,7 @@ import {
   animeDisplayTitle,
   animeSearchSubtitle,
 } from "~/domain/anime/metadata";
+import { mediaKindLabel, mediaUnitLabel, mediaUnitShortLabel } from "~/domain/media-unit";
 import { formatMatchConfidence } from "~/domain/scanned-file";
 import { cn } from "~/infra/utils";
 
@@ -68,7 +69,14 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
 
   const metadataChips = [
     props.anime.format,
-    props.anime.episode_count ? `${props.anime.episode_count} eps` : undefined,
+    props.anime.episode_count || props.anime.volume_count
+      ? mediaUnitShortLabel(
+          props.anime.media_kind === "anime" ? "episode" : "volume",
+          props.anime.media_kind === "anime"
+            ? (props.anime.episode_count ?? 0)
+            : (props.anime.volume_count ?? props.anime.episode_count ?? 0),
+        )
+      : undefined,
     animeSearchSubtitle(props.anime),
     formatMatchConfidence(props.anime.match_confidence),
   ].filter((chip): chip is string => Boolean(chip));
@@ -190,7 +198,7 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
           <DialogDescription>
             {props.anime.description?.trim()
               ? props.anime.description
-              : "Configure how this anime should be added to your library."}
+              : `Configure how this ${mediaKindLabel(props.anime.media_kind)} should be added to your library.`}
           </DialogDescription>
         </DialogHeader>
 
@@ -225,6 +233,9 @@ interface AddAnimeFormProps {
 
 function AddAnimeForm(props: AddAnimeFormProps) {
   const addAnimeMutation = useAddAnimeMutation();
+  const unitKind = props.anime.media_kind === "anime" ? "episode" : "volume";
+  const unitLabelPlural = mediaUnitLabel(unitKind, 2).toLowerCase();
+  const mediaLabel = mediaKindLabel(props.anime.media_kind);
   const defaultValues: AddAnimeFormValues = {
     root_folder: props.rootFolder,
     profile_name: props.defaultProfile,
@@ -242,6 +253,7 @@ function AddAnimeForm(props: AddAnimeFormProps) {
     onSubmit: async ({ value }) => {
       await addAnimeMutation.mutateAsync({
         id: props.anime.id,
+        ...(props.anime.media_kind === undefined ? {} : { media_kind: props.anime.media_kind }),
         profile_name: value.profile_name,
         root_folder: value.root_folder,
         monitor_and_search: value.search_now,
@@ -350,7 +362,7 @@ function AddAnimeForm(props: AddAnimeFormProps) {
                 checked={field.state.value}
                 onCheckedChange={field.handleChange}
               />
-              <span className="text-sm">Monitor for new episodes</span>
+              <span className="text-sm">Monitor for new {unitLabelPlural}</span>
             </Label>
           )}
         </form.Field>
@@ -363,7 +375,7 @@ function AddAnimeForm(props: AddAnimeFormProps) {
                 checked={field.state.value}
                 onCheckedChange={field.handleChange}
               />
-              <span className="text-sm">Search for episodes now</span>
+              <span className="text-sm">Search for {unitLabelPlural} now</span>
             </Label>
           )}
         </form.Field>
@@ -372,7 +384,7 @@ function AddAnimeForm(props: AddAnimeFormProps) {
       {props.anime.already_in_library && (
         <Alert variant="warning">
           <CheckIcon className="h-4 w-4" />
-          <AlertDescription>This anime is already in your library</AlertDescription>
+          <AlertDescription>This {mediaLabel} is already in your library</AlertDescription>
         </Alert>
       )}
 

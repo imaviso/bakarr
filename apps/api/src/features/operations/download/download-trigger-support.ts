@@ -19,6 +19,7 @@ import {
 } from "@/features/operations/download/download-coverage.ts";
 import { parseMagnetInfoHash } from "@/features/operations/download/download-paths.ts";
 import { parseReleaseName } from "@/features/operations/search/release-ranking.ts";
+import { parseVolumeNumbersFromTitle } from "@/features/operations/search/release-volume.ts";
 import {
   DownloadConflictError,
   OperationsInfrastructureError,
@@ -48,12 +49,17 @@ export const prepareTriggerDownload = Effect.fn("Operations.prepareTriggerDownlo
     const animeRow = yield* requireAnime(input.db, input.triggerInput.anime_id);
     const now = yield* input.nowIso();
     const parsedRelease = parseReleaseName(input.triggerInput.title);
-    const effectiveIsBatch = input.triggerInput.is_batch ?? parsedRelease.isBatch;
+    const parsedVolumes = parseVolumeNumbersFromTitle(input.triggerInput.title);
+    const inferredUnits =
+      animeRow.mediaKind === "anime" ? parsedRelease.episodeNumbers : parsedVolumes;
+    const effectiveIsBatch =
+      input.triggerInput.is_batch ??
+      (animeRow.mediaKind === "anime" ? parsedRelease.isBatch : parsedVolumes.length > 1);
     const requestedEpisode = resolveRequestedEpisodeNumber({
       ...(input.triggerInput.episode_number === undefined
         ? {}
         : { explicitEpisode: input.triggerInput.episode_number }),
-      inferredEpisodes: parsedRelease.episodeNumbers,
+      inferredEpisodes: inferredUnits,
       isBatch: effectiveIsBatch,
     });
 
@@ -65,11 +71,11 @@ export const prepareTriggerDownload = Effect.fn("Operations.prepareTriggerDownlo
     }
 
     const missingEpisodes = yield* loadMissingEpisodeNumbers(input.db, animeRow.id);
-    const shouldDeferBatchCoverage = effectiveIsBatch && parsedRelease.episodeNumbers.length === 0;
+    const shouldDeferBatchCoverage = effectiveIsBatch && inferredUnits.length === 0;
     const inferredCoveredEpisodes = shouldDeferBatchCoverage
       ? []
       : inferCoveredEpisodeNumbers({
-          explicitEpisodes: parsedRelease.episodeNumbers,
+          explicitEpisodes: inferredUnits,
           isBatch: effectiveIsBatch,
           totalEpisodes: animeRow.episodeCount,
           missingEpisodes,

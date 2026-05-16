@@ -4,6 +4,7 @@ import { Button } from "~/components/ui/button";
 import { Card, CardContent } from "~/components/ui/card";
 import type { AnimeSearchResult } from "~/api/contracts";
 import { animeAltTitles, animeDisplayTitle, animeSearchSubtitle } from "~/domain/anime/metadata";
+import { mediaUnitShortLabel } from "~/domain/media-unit";
 import { formatMatchConfidence } from "~/domain/scanned-file";
 import { cn } from "~/infra/utils";
 
@@ -97,9 +98,14 @@ export function AnimeSearchResultCard(props: AnimeSearchResultCardProps) {
               {props.anime.format}
             </Badge>
           )}
-          {props.anime.episode_count && (
+          {(props.anime.episode_count || props.anime.volume_count) && (
             <Badge variant="outline" className="text-xs h-5 px-1.5 font-normal">
-              {props.anime.episode_count} eps
+              {mediaUnitShortLabel(
+                props.anime.media_kind === "anime" ? "episode" : "volume",
+                props.anime.media_kind === "anime"
+                  ? (props.anime.episode_count ?? 0)
+                  : (props.anime.volume_count ?? props.anime.episode_count ?? 0),
+              )}
             </Badge>
           )}
           {props.anime.status && (

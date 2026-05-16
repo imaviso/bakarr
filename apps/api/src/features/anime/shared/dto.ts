@@ -13,6 +13,7 @@ import {
   decodeStoredStringListEffect,
   decodeStoredSynonymsEffect,
 } from "@/features/anime/shared/decode-support.ts";
+import { decodeMediaKind } from "@/features/anime/shared/media-kind.ts";
 
 interface AnimeDiscoveryMetadata {
   recommended_anime?: AnimeDiscoveryEntry[];
@@ -78,6 +79,7 @@ export const toAnimeDto = Effect.fn("AnimeDto.toAnimeDto")(function* (
     format: row.format,
     genres,
     id: brandAnimeId(row.id),
+    media_kind: decodeMediaKind(row.mediaKind),
     mal_id: row.malId ?? undefined,
     members: row.members ?? undefined,
     monitored: row.monitored,

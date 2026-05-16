@@ -128,7 +128,7 @@ export const updateJobProgress = Effect.fn("JobSupport.updateJobProgress")(funct
 
 export const loadMissingEpisodeNumbers = Effect.fn("JobSupport.loadMissingEpisodeNumbers")(
   function* (db: AppDatabase, animeId: number) {
-    const rows = yield* tryDatabasePromise("Failed to load missing episode numbers", () =>
+    const rows = yield* tryDatabasePromise("Failed to load missing unit numbers", () =>
       db
         .select()
         .from(episodes)

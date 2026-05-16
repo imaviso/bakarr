@@ -6,7 +6,7 @@ export function ManualSearch(props: ManualSearchProps) {
     <ManualSearchCore
       addedIndicator="text"
       disableSelectionForAdded
-      emptyPrompt="Type to search for anime"
+      emptyPrompt="Type to search for media"
       existingIds={props.existingIds}
       onSelect={props.onSelect}
     />

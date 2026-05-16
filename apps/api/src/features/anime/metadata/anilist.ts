@@ -1,7 +1,7 @@
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
 import { Context, Effect, Layer, Option, Schema } from "effect";
 
-import type { AnimeSearchResult, AnimeSeason } from "@packages/shared/index.ts";
+import type { AnimeSearchResult, AnimeSeason, MediaKind } from "@packages/shared/index.ts";
 import { ExternalCall, ExternalCallError, type ExternalCallShape } from "@/infra/effect/retry.ts";
 import {
   AnimeMetadataFromAniListSchema,
@@ -21,13 +21,15 @@ const ANILIST_SEASON_MAP: Record<AnimeSeason, "WINTER" | "SPRING" | "SUMMER" | "
   fall: "FALL",
 };
 
-const SEARCH_ANIME_QUERY = `query ($search: String) {
+const SEARCH_ANIME_QUERY = `query ($search: String, $type: MediaType) {
   Page(page: 1, perPage: 10) {
-    media(search: $search, type: ANIME, sort: SEARCH_MATCH) {
+    media(search: $search, type: $type, sort: SEARCH_MATCH) {
       id
       format
       status
       episodes
+      chapters
+      volumes
       duration
       favourites
       popularity
@@ -113,13 +115,15 @@ const SEARCH_ANIME_QUERY = `query ($search: String) {
   }
 }`;
 
-const DETAIL_ANIME_QUERY = `query ($id: Int) {
-  Media(id: $id, type: ANIME) {
+const DETAIL_ANIME_QUERY = `query ($id: Int, $type: MediaType) {
+  Media(id: $id, type: $type) {
     id
     idMal
     format
     status
     episodes
+    chapters
+    volumes
     startDate {
       year
       month
@@ -318,9 +322,11 @@ const SEASONAL_ANIME_QUERY = `query ($season: MediaSeason, $seasonYear: Int, $pe
 interface AniListClientShape {
   readonly searchAnimeMetadata: (
     query: string,
+    mediaKind?: MediaKind,
   ) => Effect.Effect<AnimeSearchResult[], ExternalCallError>;
   readonly getAnimeMetadataById: (
     id: number,
+    mediaKind?: MediaKind,
   ) => Effect.Effect<Option.Option<AnimeMetadata>, ExternalCallError>;
   readonly getSeasonalAnime: (input: {
     season: AnimeSeason;
@@ -343,6 +349,7 @@ export const AniListClientLive = Layer.effect(
 
     const searchAnimeMetadata = Effect.fn("AniListClient.searchAnimeMetadata")(function* (
       query: string,
+      mediaKind: MediaKind = "anime",
     ) {
       const trimmed = query.trim();
 
@@ -350,13 +357,14 @@ export const AniListClientLive = Layer.effect(
         return [];
       }
 
-      return yield* trySearchRemote(client, externalCall, trimmed);
+      return yield* trySearchRemote(client, externalCall, trimmed, mediaKind);
     });
 
     const getAnimeMetadataById = Effect.fn("AniListClient.getAnimeMetadataById")(function* (
       id: number,
+      mediaKind: MediaKind = "anime",
     ) {
-      return yield* tryFetchDetail(client, externalCall, id);
+      return yield* tryFetchDetail(client, externalCall, id, mediaKind);
     });
 
     const getSeasonalAnime = Effect.fn("AniListClient.getSeasonalAnime")(function* (input: {
@@ -423,13 +431,14 @@ const trySearchRemote = Effect.fn("AniListClient.trySearchRemote")(function* (
   client: HttpClient.HttpClient,
   externalCall: ExternalCallShape,
   trimmed: string,
+  mediaKind: MediaKind,
 ) {
   const payload = yield* callAniList(
     client,
     externalCall,
     "search",
     SEARCH_ANIME_QUERY,
-    { search: trimmed },
+    { search: trimmed, type: toAniListMediaType(mediaKind) },
     AniListSearchPayloadSchema,
   );
 
@@ -450,13 +459,14 @@ const tryFetchDetail = Effect.fn("AniListClient.tryFetchDetail")(function* (
   client: HttpClient.HttpClient,
   externalCall: ExternalCallShape,
   id: number,
+  mediaKind: MediaKind,
 ) {
   const payload = yield* callAniList(
     client,
     externalCall,
     "detail",
     DETAIL_ANIME_QUERY,
-    { id },
+    { id, type: toAniListMediaType(mediaKind) },
     AniListDetailPayloadSchema,
   );
   const media = payload.data.Media;
@@ -477,6 +487,10 @@ const tryFetchDetail = Effect.fn("AniListClient.tryFetchDetail")(function* (
 
   return Option.some(decoded);
 });
+
+function toAniListMediaType(mediaKind: MediaKind) {
+  return mediaKind === "anime" ? "ANIME" : "MANGA";
+}
 
 const tryFetchSeasonal = Effect.fn("AniListClient.tryFetchSeasonal")(function* (
   client: HttpClient.HttpClient,

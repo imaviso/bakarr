@@ -1,5 +1,6 @@
 import { Context, Effect, Layer, Option } from "effect";
 
+import type { MediaKind } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import { AniListClient } from "@/features/anime/metadata/anilist.ts";
 import type { AnimeMetadata } from "@/features/anime/metadata/anilist-model.ts";
@@ -54,6 +55,7 @@ export type AnimeMetadataLookupError =
 export interface AnimeMetadataProviderServiceShape {
   readonly getAnimeMetadataById: (
     id: number,
+    mediaKind?: MediaKind,
   ) => Effect.Effect<AnimeMetadataLookupResult, AnimeMetadataLookupError>;
 }
 
@@ -70,14 +72,25 @@ export const AnimeMetadataProviderServiceLive = Layer.effect(
     const enrichmentService = yield* AnimeMetadataEnrichmentService;
 
     const getAnimeMetadataById = Effect.fn("AnimeMetadataProviderService.getAnimeMetadataById")(
-      function* (id: number) {
-        const metadata = yield* aniList.getAnimeMetadataById(id);
+      function* (id: number, mediaKind: MediaKind = "anime") {
+        const metadata = yield* aniList.getAnimeMetadataById(id, mediaKind);
 
         if (Option.isNone(metadata)) {
           return { _tag: "NotFound" } as const satisfies AnimeMetadataLookupResult;
         }
 
         const baseMetadata = metadata.value;
+        if (mediaKind !== "anime") {
+          return {
+            _tag: "Found",
+            enrichment: {
+              _tag: "Degraded",
+              reason: { _tag: "AniDbNoEpisodeMetadata" },
+            },
+            metadata: baseMetadata,
+          } as const satisfies AnimeMetadataLookupResult;
+        }
+
         const manamiMetadata = yield* manami.getByAniListId(baseMetadata.id);
         const effectiveMalId =
           baseMetadata.malId === undefined

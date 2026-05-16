@@ -30,8 +30,19 @@ const YearSchema = Schema.transform(Schema.Union(Schema.String, Schema.Number), 
 
 const IdSchema = Schema.Union(Schema.Number, Schema.NumberFromString).pipe(Schema.int());
 
+const MediaKindSchema = Schema.transform(
+  Schema.String,
+  Schema.Literal("anime", "manga", "light_novel"),
+  {
+    decode: (value) =>
+      value === "manga" || value === "light_novel" || value === "anime" ? value : "anime",
+    encode: (value) => value,
+  },
+);
+
 export const addAnimeSearchSchema = Schema.Struct({
   id: Schema.optional(IdSchema),
+  media_kind: Schema.optional(MediaKindSchema),
   q: Schema.optional(Schema.String),
   tab: Schema.optional(TabSchema),
   season: Schema.optional(SeasonSchema),

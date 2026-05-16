@@ -11,6 +11,7 @@ import type {
   Anime,
   Episode,
   AnimeSeason,
+  MediaKind,
   SeasonalAnimeQueryParams,
   SeasonalAnimeResponse,
 } from "@packages/shared/index.ts";
@@ -59,9 +60,11 @@ export interface AnimeQueryServiceShape {
   readonly getAnime: (id: number) => Effect.Effect<Anime, AnimeServiceError | DatabaseError>;
   readonly searchAnime: (
     query: string,
+    mediaKind?: MediaKind,
   ) => Effect.Effect<AnimeSearchResponse, DatabaseError | ExternalCallError | AnimeStoredDataError>;
   readonly getAnimeByAnilistId: (
     id: number,
+    mediaKind?: MediaKind,
   ) => Effect.Effect<AnimeSearchResult, AnimeNotFoundError | DatabaseError | ExternalCallError>;
   readonly listEpisodes: (animeId: number) => Effect.Effect<Episode[], DatabaseError>;
   readonly listSeasonalAnime: (
@@ -89,8 +92,14 @@ export const AnimeQueryServiceLive = Layer.effect(
       }),
       getAnimeByAnilistId: Effect.fn("AnimeQueryService.getAnimeByAnilistId")(function* (
         id: number,
+        mediaKind?: MediaKind,
       ) {
-        return yield* getAnimeByAnilistIdEffect({ aniList, db, id });
+        return yield* getAnimeByAnilistIdEffect({
+          aniList,
+          db,
+          id,
+          ...(mediaKind === undefined ? {} : { mediaKind }),
+        });
       }),
       listAnime: Effect.fn("AnimeQueryService.listAnime")(function* (
         params?: AnimeListQueryParams,
@@ -101,8 +110,17 @@ export const AnimeQueryServiceLive = Layer.effect(
         const now = new Date(yield* clock.currentTimeMillis);
         return yield* listEpisodesEffect({ animeId, db, now });
       }),
-      searchAnime: Effect.fn("AnimeQueryService.searchAnime")(function* (query: string) {
-        return yield* searchAnimeEffect({ aniList, db, manami, query });
+      searchAnime: Effect.fn("AnimeQueryService.searchAnime")(function* (
+        query: string,
+        mediaKind?: MediaKind,
+      ) {
+        return yield* searchAnimeEffect({
+          aniList,
+          db,
+          manami,
+          ...(mediaKind === undefined ? {} : { mediaKind }),
+          query,
+        });
       }),
       listSeasonalAnime: Effect.fn("AnimeQueryService.listSeasonalAnime")(function* (
         params?: SeasonalAnimeQueryParams,

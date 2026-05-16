@@ -11,6 +11,7 @@ import type {
 } from "~/features/anime/anime-details-types";
 import type { Episode } from "~/api/contracts";
 import { isAired } from "~/domain/date-time";
+import { mediaUnitLabel } from "~/domain/media-unit";
 import { cn } from "~/infra/utils";
 
 interface AnimeEpisodesPanelProps {
@@ -25,12 +26,15 @@ interface AnimeEpisodesPanelProps {
 
 export function AnimeEpisodesPanel(props: AnimeEpisodesPanelProps) {
   const hasEpisodes = props.episodes.length > 0;
+  const unitKind = props.episodes[0]?.unit_kind;
+  const unitLabel = mediaUnitLabel(unitKind);
+  const unitLabelPlural = mediaUnitLabel(unitKind, 2);
 
   return (
     <Tabs defaultValue="grid" className="w-full">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-base">Episodes</CardTitle>
+          <CardTitle className="text-base">{unitLabelPlural}</CardTitle>
           <TabsList>
             <TabsTrigger value="grid">
               <SquaresFourIcon className="h-4 w-4 mr-2" />
@@ -45,7 +49,11 @@ export function AnimeEpisodesPanel(props: AnimeEpisodesPanelProps) {
         <CardContent>
           <TabsContent value="grid">
             {!hasEpisodes && (
-              <EmptyState compact title="No episodes found" className="border-dashed">
+              <EmptyState
+                compact
+                title={`No ${unitLabelPlural.toLowerCase()} found`}
+                className="border-dashed"
+              >
                 <Button variant="link" onClick={props.onRefreshMetadata}>
                   Refresh metadata
                 </Button>
@@ -55,7 +63,7 @@ export function AnimeEpisodesPanel(props: AnimeEpisodesPanelProps) {
             {hasEpisodes && (
               <div
                 role="list"
-                aria-label="Episode status overview"
+                aria-label={`${unitLabel} status overview`}
                 className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-1.5"
               >
                 {props.episodes.map((episode) => {
@@ -69,7 +77,7 @@ export function AnimeEpisodesPanel(props: AnimeEpisodesPanelProps) {
                     <div
                       key={episode.number}
                       role="listitem"
-                      aria-label={`Episode ${episode.number}: ${status}`}
+                      aria-label={`${unitLabel} ${episode.number}: ${status}`}
                       className={cn(
                         "aspect-square flex items-center justify-center rounded-none text-xs font-mono transition-colors",
                         episode.downloaded
@@ -78,7 +86,7 @@ export function AnimeEpisodesPanel(props: AnimeEpisodesPanelProps) {
                             ? "bg-warning/10 text-warning border border-warning/20"
                             : "bg-muted text-muted-foreground border border-transparent",
                       )}
-                      title={`Episode ${episode.number}: ${status}${
+                      title={`${unitLabel} ${episode.number}: ${status}${
                         episode.aired ? ` (Aired: ${episode.aired})` : ""
                       }`}
                     >
@@ -116,7 +124,12 @@ export function AnimeEpisodesPanel(props: AnimeEpisodesPanelProps) {
                 </TableHeader>
                 <TableBody>
                   {!hasEpisodes && (
-                    <EmptyState asTableCell colSpan={7} compact title="No episodes found" />
+                    <EmptyState
+                      asTableCell
+                      colSpan={7}
+                      compact
+                      title={`No ${unitLabelPlural.toLowerCase()} found`}
+                    />
                   )}
 
                   {props.episodes.map((episode) => (

@@ -90,6 +90,7 @@ export function makeSearchEpisodeSupport(input: SearchEpisodeSupportInput) {
           profile,
           rules,
           runtimeConfig,
+          unitKind: animeRow.mediaKind === "anime" ? "episode" : "volume",
         }),
       )
       .toSorted(compareEpisodeSearchResults) as EpisodeSearchResult[];

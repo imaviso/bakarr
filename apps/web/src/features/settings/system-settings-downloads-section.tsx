@@ -103,7 +103,7 @@ export function SystemSettingsDownloadsSection(props: SystemSettingsDownloadsSec
             <Input
               value={field.state.value ?? ""}
               onInput={(event) => field.handleChange(event.currentTarget.value || null)}
-              placeholder="/downloads/anime"
+              placeholder="/downloads/media"
               className="w-64"
             />
           </SettingRow>
@@ -175,8 +175,8 @@ export function SystemSettingsDownloadsSection(props: SystemSettingsDownloadsSec
       <props.form.Field name="downloads.create_anime_folders">
         {(field) => (
           <SettingRow
-            label="Create Anime Folders"
-            description="Group downloaded files by anime title before import"
+            label="Create Media Folders"
+            description="Group downloaded files by title before import"
           >
             <Switch
               checked={field.state.value}

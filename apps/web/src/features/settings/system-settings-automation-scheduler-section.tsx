@@ -40,7 +40,7 @@ export function SystemSettingsAutomationSchedulerSection(
 
       <props.form.Field name="scheduler.max_concurrent_checks">
         {(field) => (
-          <SettingRow label="Max Concurrent Checks" description="Parallel anime checks">
+          <SettingRow label="Max Concurrent Checks" description="Parallel media checks">
             <FiniteNumberInput
               value={field.state.value}
               onChange={field.handleChange}
