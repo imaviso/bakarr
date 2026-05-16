@@ -61,9 +61,7 @@ const makeAuthBootstrapService = Effect.gen(function* () {
     const bootstrapPassword = config.bootstrapPassword;
 
     const now = yield* nowIso();
-    const passwordHash = yield* hashPassword(bootstrapPassword).pipe(
-      Effect.provideService(PasswordCrypto, passwordCrypto),
-    );
+    const passwordHash = yield* hashPassword(passwordCrypto, bootstrapPassword);
 
     const rawApiKey = yield* randomHex(24);
     const hashedApiKey = yield* hashToken(rawApiKey);

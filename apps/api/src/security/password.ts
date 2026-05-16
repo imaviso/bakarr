@@ -144,8 +144,10 @@ const parseStoredHash = Effect.fn("Password.parseStoredHash")(function* (storedH
   };
 });
 
-export const hashPassword = Effect.fn("Password.hash")(function* (password: string) {
-  const primitives = yield* PasswordCrypto;
+export const hashPassword = Effect.fn("Password.hash")(function* (
+  primitives: PasswordCryptoPrimitives,
+  password: string,
+) {
   const salt = yield* randomBytesEffect(primitives, 16);
   const keyMaterial = yield* deriveKeyMaterial(primitives, password);
   const hash = yield* deriveBits(primitives, keyMaterial, toArrayBuffer(salt), ITERATIONS);
@@ -154,11 +156,11 @@ export const hashPassword = Effect.fn("Password.hash")(function* (password: stri
 });
 
 export const verifyPassword = Effect.fn("Password.verify")(function* (
+  primitives: PasswordCryptoPrimitives,
   password: string,
   storedHash: string,
 ) {
   const { hash: expected, iterations, salt } = yield* parseStoredHash(storedHash);
-  const primitives = yield* PasswordCrypto;
   const keyMaterial = yield* deriveKeyMaterial(primitives, password);
   const actual = yield* deriveBits(primitives, keyMaterial, toArrayBuffer(salt), iterations);
 

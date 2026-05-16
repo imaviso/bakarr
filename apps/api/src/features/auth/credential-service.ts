@@ -49,8 +49,10 @@ const makeAuthCredentialService = Effect.gen(function* () {
 
     const row = rowOption.value;
 
-    const verified = yield* verifyPassword(request.current_password, row.passwordHash).pipe(
-      Effect.provideService(PasswordCrypto, passwordCrypto),
+    const verified = yield* verifyPassword(
+      passwordCrypto,
+      request.current_password,
+      row.passwordHash,
     );
 
     if (!verified) {
@@ -67,9 +69,7 @@ const makeAuthCredentialService = Effect.gen(function* () {
       });
     }
 
-    const passwordHash = yield* hashPassword(request.new_password).pipe(
-      Effect.provideService(PasswordCrypto, passwordCrypto),
-    );
+    const passwordHash = yield* hashPassword(passwordCrypto, request.new_password);
     const apiKey = yield* randomHex(24);
     const apiKeyHash = yield* hashToken(apiKey);
 

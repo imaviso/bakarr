@@ -1,20 +1,11 @@
 import { Cause, Effect } from "effect";
 
 import { assert, it } from "@effect/vitest";
-import {
-  PasswordCrypto,
-  PasswordError,
-  verifyPassword,
-  WebPasswordCrypto,
-} from "@/security/password.ts";
+import { PasswordError, verifyPassword, WebPasswordCrypto } from "@/security/password.ts";
 
 it.effect("verifyPassword fails when the stored hash structure is malformed", () =>
   Effect.gen(function* () {
-    const exit = yield* Effect.exit(
-      verifyPassword("secret", "broken-hash").pipe(
-        Effect.provideService(PasswordCrypto, WebPasswordCrypto),
-      ),
-    );
+    const exit = yield* Effect.exit(verifyPassword(WebPasswordCrypto, "secret", "broken-hash"));
 
     assert.deepStrictEqual(exit._tag, "Failure");
 
@@ -33,9 +24,7 @@ it.effect("verifyPassword fails when the stored hash structure is malformed", ()
 it.effect("verifyPassword fails when the stored hash hex is invalid", () =>
   Effect.gen(function* () {
     const exit = yield* Effect.exit(
-      verifyPassword("secret", "pbkdf2_sha256$310000$abcd$zz").pipe(
-        Effect.provideService(PasswordCrypto, WebPasswordCrypto),
-      ),
+      verifyPassword(WebPasswordCrypto, "secret", "pbkdf2_sha256$310000$abcd$zz"),
     );
 
     assert.deepStrictEqual(exit._tag, "Failure");
