@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { MediaKind } from "~/api/contracts";
 import { SearchDialogContent } from "~/features/search/search-dialog-content";
 import { useSearchDialogState } from "~/features/search/search-dialog-state";
 import { Dialog, DialogTrigger } from "~/components/ui/dialog";
@@ -7,12 +8,13 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip
 interface SearchDialogProps {
   trigger?: ReactNode;
   mediaId: number;
+  mediaKind: MediaKind;
   defaultQuery: string;
   tooltip?: string;
 }
 
 export function SearchDialog(props: SearchDialogProps) {
-  const state = useSearchDialogState(props.defaultQuery);
+  const state = useSearchDialogState(props.defaultQuery, props.mediaKind);
 
   const handleOpenChange = (open: boolean) => {
     state.setOpen(open);

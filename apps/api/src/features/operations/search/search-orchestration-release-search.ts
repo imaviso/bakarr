@@ -19,6 +19,7 @@ import { applySeaDexMatch } from "@/features/operations/search/seadex-matching.t
 import { getAnimeRowEffect as requireAnime } from "@/features/media/shared/media-read-repository.ts";
 import {
   mapSearchCategory,
+  mapSearchCategoryForMediaKind,
   mapSearchFilter,
   toNyaaSearchResult,
 } from "@/features/operations/search/search-support.ts";
@@ -45,6 +46,7 @@ type SearchNyaaReleases = (
   category?: string,
   filter?: string,
 ) => Effect.Effect<readonly ParsedRelease[], SearchReleaseSourceError>;
+type UnitSearchCategory = string | undefined;
 
 const AnimeSynonymsJsonSchema = Schema.parseJson(Schema.Array(Schema.String));
 
@@ -174,9 +176,12 @@ export function makeSearchReleaseSupport(input: {
     }
 
     const runtimeConfig = yield* getRuntimeConfig();
-    const results = yield* searchNyaaReleases(searchQuery, runtimeConfig, category, filter).pipe(
-      Effect.mapError(mapSearchReleaseError),
-    );
+    const results = yield* searchNyaaReleases(
+      searchQuery,
+      runtimeConfig,
+      resolveSearchCategoryForMediaKind(category, runtimeConfig, animeRow?.mediaKind),
+      filter,
+    ).pipe(Effect.mapError(mapSearchReleaseError));
 
     const enrichedResults = animeRow
       ? yield* enrichSeaDexReleases(animeRow, results).pipe(Effect.mapError(mapSearchReleaseError))
@@ -354,6 +359,7 @@ function collectUnitSearchReleases(
 ): Effect.Effect<ParsedRelease[], SearchReleaseSourceError> {
   const seenInfoHashes = new Set<string>();
   const mediaKind = animeRow.mediaKind;
+  const category = resolveSearchCategoryForMediaKind(undefined, config, mediaKind);
   const keepUnitRelease = (item: ParsedRelease, query: string, phase: "unit" | "fallback") => {
     const rejectionReason =
       mediaKind === "anime"
@@ -385,7 +391,7 @@ function collectUnitSearchReleases(
       (query) =>
         seenInfoHashes.size >= 10
           ? Effect.succeed([] as readonly ParsedRelease[])
-          : searchNyaaReleases(query, config).pipe(
+          : searchNyaaReleases(query, config, category).pipe(
               Effect.tap((items) =>
                 Effect.logDebug("MediaUnit search query completed").pipe(
                   Effect.annotateLogs({
@@ -419,6 +425,18 @@ function collectUnitSearchReleases(
 
     return yield* collectQueries(buildBroadSearchQueries(animeRow), "fallback");
   });
+}
+
+function resolveSearchCategoryForMediaKind(
+  category: string | undefined,
+  config: Config,
+  mediaKind: string | undefined,
+): UnitSearchCategory {
+  if (mediaKind === undefined) {
+    return category;
+  }
+
+  return mapSearchCategoryForMediaKind(category, config.nyaa.default_category || "1_2", mediaKind);
 }
 
 export class SearchReleaseService extends Context.Tag("@bakarr/api/SearchReleaseService")<

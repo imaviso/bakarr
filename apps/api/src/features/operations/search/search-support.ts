@@ -6,16 +6,49 @@ import { parseReleaseName } from "@/features/operations/search/release-ranking.t
 
 export function mapSearchCategory(category: string | undefined, fallback: string) {
   switch (category) {
+    case "all_anime":
+      return "1_0";
     case "anime_english":
       return "1_2";
     case "anime_non_english":
       return "1_3";
     case "anime_raw":
       return "1_4";
-    case "all_anime":
-      return "1_0";
+    case "all_literature":
+      return "3_0";
+    case "literature_english":
+      return "3_1";
+    case "literature_non_english":
+      return "3_2";
+    case "literature_raw":
+      return "3_3";
     default:
-      return fallback;
+      return category !== undefined && /^\d+_\d+$/u.test(category) ? category : fallback;
+  }
+}
+
+export function mapSearchCategoryForMediaKind(
+  category: string | undefined,
+  fallback: string,
+  mediaKind: string | undefined,
+) {
+  const resolvedFallback =
+    mediaKind === "anime" ? fallback : mapAnimeCategoryToLiterature(fallback);
+  return mapSearchCategory(category, resolvedFallback);
+}
+
+function mapAnimeCategoryToLiterature(category: string) {
+  switch (category) {
+    case "1_0":
+      return "3_0";
+    case "1_2":
+      return "3_1";
+    case "1_3":
+      return "3_2";
+    case "1_4":
+      return "3_3";
+    default:
+      return category;
   }
 }
 

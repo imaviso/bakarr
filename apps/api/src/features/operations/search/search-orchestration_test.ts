@@ -209,6 +209,58 @@ it.scoped("searchUnitReleases falls back to broad title search and keeps request
   }),
 );
 
+it.scoped("searchUnitReleases uses Nyaa literature category for manga", () =>
+  withSqliteTestDbEffect({
+    run: (db) =>
+      Effect.gen(function* () {
+        const requestedCategories: string[] = [];
+        const rssClient = {
+          fetchItems: (url: string) => {
+            const parsedUrl = new URL(url);
+            requestedCategories.push(parsedUrl.searchParams.get("c") ?? "");
+
+            return Effect.succeed(
+              parsedUrl.searchParams.get("q") === "Witch Hat Atelier Vol 02"
+                ? [
+                    makeRelease({
+                      title: "[Group] Witch Hat Atelier Vol 02 [English]",
+                    }),
+                  ]
+                : [],
+            );
+          },
+        } satisfies typeof RssClient.Service;
+
+        const config = makeTestConfig("/tmp/test.sqlite");
+        const searchReleaseService = makeSearchReleaseSupport({
+          db,
+          getRuntimeConfig: () => Effect.succeed(config),
+          rssClient,
+          seadexClient: makeSeaDexNoneClient(),
+        });
+
+        const releases = yield* searchReleaseService.searchUnitReleases(
+          makeAnimeRow({
+            mediaKind: "manga",
+            titleRomaji: "Witch Hat Atelier",
+          }),
+          2,
+          config,
+        );
+
+        assert.deepStrictEqual(
+          requestedCategories.every((category) => category === "3_1"),
+          true,
+        );
+        assert.deepStrictEqual(
+          releases.map((release) => release.title),
+          ["[Group] Witch Hat Atelier Vol 02 [English]"],
+        );
+      }),
+    schema: dbSchema,
+  }),
+);
+
 function makeAnimeRow(input: Partial<typeof media.$inferSelect> = {}): typeof media.$inferSelect {
   return {
     addedAt: "2024-01-01T00:00:00.000Z",

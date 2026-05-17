@@ -1956,19 +1956,27 @@ export interface SearchResults {
 }
 
 export const SEARCH_RELEASE_CATEGORY_OPTIONS = [
+  "all_anime",
   "anime_english",
   "anime_non_english",
   "anime_raw",
-  "all_anime",
+  "all_literature",
+  "literature_english",
+  "literature_non_english",
+  "literature_raw",
 ] as const;
 
 export type SearchReleaseCategory = (typeof SEARCH_RELEASE_CATEGORY_OPTIONS)[number];
 
 export const SEARCH_RELEASE_CATEGORY_LABELS: Record<SearchReleaseCategory, string> = {
-  anime_english: "Media (English)",
-  anime_non_english: "Media (Non-Eng)",
-  anime_raw: "Media (Raw)",
-  all_anime: "All Media",
+  all_anime: "All Anime",
+  anime_english: "Anime (English)",
+  anime_non_english: "Anime (Non-Eng)",
+  anime_raw: "Anime (Raw)",
+  all_literature: "All Literature",
+  literature_english: "Literature (English)",
+  literature_non_english: "Literature (Non-Eng)",
+  literature_raw: "Literature (Raw)",
 };
 
 export const SEARCH_RELEASE_FILTER_OPTIONS = ["no_filter", "no_remakes", "trusted_only"] as const;

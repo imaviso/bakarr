@@ -165,6 +165,7 @@ export function AnimeDetailsHeader(props: AnimeDetailsHeaderProps) {
 
           <SearchDialog
             mediaId={props.mediaId}
+            mediaKind={props.media.media_kind}
             defaultQuery={props.media.title.romaji}
             tooltip="Search Releases"
             trigger={

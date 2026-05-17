@@ -6,6 +6,7 @@ import { useNyaaSearchQuery } from "~/api/media";
 import {
   SEARCH_RELEASE_CATEGORY_LABELS,
   SEARCH_RELEASE_FILTER_LABELS,
+  type MediaKind,
   type NyaaSearchResult,
 } from "~/api/contracts";
 import { buildReleaseDisplay, buildSelectionDisplayFromNyaaResult } from "~/domain/release/display";
@@ -29,11 +30,13 @@ export function formatSearchResultAge(dateStr: string) {
   return isValid(date) ? format(date, "MMM d, yy") : dateStr;
 }
 
-export function useSearchDialogState(defaultQuery: string) {
+export function useSearchDialogState(defaultQuery: string, mediaKind: MediaKind) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState(defaultQuery);
   const [debouncedQuery] = useDebouncedValue(query, { wait: SEARCH_DEBOUNCE_MS });
-  const [category, setCategory] = useState<string>("all_anime");
+  const [category, setCategory] = useState<string>(
+    mediaKind === "anime" ? "all_anime" : "all_literature",
+  );
   const [filter, setFilter] = useState<string>("no_filter");
 
   return {

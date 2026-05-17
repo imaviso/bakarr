@@ -3,6 +3,7 @@ import { assert, it } from "@effect/vitest";
 import {
   fallbackReleases,
   mapSearchCategory,
+  mapSearchCategoryForMediaKind,
   mapSearchFilter,
   toNyaaSearchResult,
 } from "@/features/operations/search/search-support.ts";
@@ -10,10 +11,22 @@ import type { ParsedRelease } from "@/features/operations/rss/rss-client-parse.t
 
 it("mapSearchCategory and mapSearchFilter use expected mappings and fallbacks", () => {
   assert.deepStrictEqual(mapSearchCategory("anime_english", "1_0"), "1_2");
+  assert.deepStrictEqual(mapSearchCategory("all_literature", "1_0"), "3_0");
+  assert.deepStrictEqual(mapSearchCategory("literature_english", "1_0"), "3_1");
+  assert.deepStrictEqual(mapSearchCategory("3_2", "1_0"), "3_2");
   assert.deepStrictEqual(mapSearchCategory("unknown", "1_0"), "1_0");
 
   assert.deepStrictEqual(mapSearchFilter("trusted_only", "0"), "2");
   assert.deepStrictEqual(mapSearchFilter("unknown", "0"), "0");
+});
+
+it("mapSearchCategoryForMediaKind maps anime defaults to literature defaults", () => {
+  assert.deepStrictEqual(mapSearchCategoryForMediaKind(undefined, "1_0", "manga"), "3_0");
+  assert.deepStrictEqual(mapSearchCategoryForMediaKind(undefined, "1_2", "light_novel"), "3_1");
+  assert.deepStrictEqual(mapSearchCategoryForMediaKind(undefined, "1_3", "manga"), "3_2");
+  assert.deepStrictEqual(mapSearchCategoryForMediaKind(undefined, "1_4", "light_novel"), "3_3");
+  assert.deepStrictEqual(mapSearchCategoryForMediaKind(undefined, "1_2", "anime"), "1_2");
+  assert.deepStrictEqual(mapSearchCategoryForMediaKind("all_literature", "1_2", "anime"), "3_0");
 });
 
 it("toNyaaSearchResult preserves release fields and parses episode number", () => {
