@@ -8,7 +8,7 @@ import {
   type MediaListQueryParams,
   type MediaListResponse,
 } from "@packages/shared/index.ts";
-import type { AppDatabase } from "@/db/database.ts";
+import { DatabaseError, type AppDatabase } from "@/db/database.ts";
 import { media, mediaUnits } from "@/db/schema.ts";
 import { MediaStoredDataError } from "@/features/media/errors.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
@@ -106,7 +106,10 @@ export const listAnimeEffect = Effect.fn("AnimeQueryList.listAnimeEffect")(funct
   const total = totalCountResult[0]?.count;
 
   if (total === undefined) {
-    return yield* Effect.dieMessage("Media count query returned no rows");
+    return yield* new DatabaseError({
+      cause: new Error("Media count query returned no rows"),
+      message: "Failed to list media",
+    });
   }
 
   return {

@@ -128,9 +128,9 @@ function makeBrowseFileSystem(overrides: Partial<FileSystemShape>) {
   return {
     copyFile: () => Effect.void,
     mkdir: () => Effect.void,
-    openFile: () => Effect.die("not used in test"),
+    openFile: () => Effect.dieMessage("not used in test"),
     readDir: () => Effect.succeed([]),
-    readFile: () => Effect.die("not used in test"),
+    readFile: () => Effect.dieMessage("not used in test"),
     realPath: () => Effect.succeed("/allowed/library"),
     remove: () => Effect.void,
     rename: () => Effect.void,

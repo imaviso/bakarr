@@ -1,14 +1,14 @@
 import { Option } from "effect";
 
 export function parseAniListIdFromSource(source: string): number | undefined {
-  return parseResourceIdFromSource(source, ["anilist.co", "www.anilist.co"], "media");
+  return parseResourceIdFromSource(source, ["anilist.co", "www.anilist.co"], "anime");
 }
 
 export function parseMalIdFromSource(source: string): number | undefined {
   const pathId = parseResourceIdFromSource(
     source,
     ["myanimelist.net", "www.myanimelist.net"],
-    "media",
+    "anime",
   );
 
   if (pathId !== undefined) {

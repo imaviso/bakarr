@@ -186,7 +186,10 @@ export const insertQueuedDownload = Effect.fn("Operations.insertQueuedDownload")
   const insertedRow = insertResult.right[0];
 
   if (!insertedRow) {
-    return yield* Effect.dieMessage("Insert returned no rows");
+    return yield* new DatabaseError({
+      cause: new Error("Download insert returned no rows"),
+      message: "Failed to create download",
+    });
   }
 
   return insertedRow.id;

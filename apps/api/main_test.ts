@@ -50,6 +50,7 @@ type TestContextOptions = {
 };
 
 type TestContext = Awaited<ReturnType<typeof createTestContext>>;
+type SqliteTestClient = ReturnType<typeof createClient>;
 type EventsReader = {
   readonly read: () => Promise<ReadableStreamReadResult<Uint8Array>>;
   readonly cancel: () => Promise<void>;
@@ -96,6 +97,21 @@ function itWithTestContext(
 async function withTempDir<A>(run: (path: string) => PromiseLike<A> | A): Promise<A> {
   return await Effect.runPromise(
     Effect.scoped(withTempDirEffect((path) => Effect.promise(() => Promise.resolve(run(path))))),
+  );
+}
+
+async function withSqliteTestClient<A>(
+  ctx: TestContext,
+  run: (client: SqliteTestClient) => PromiseLike<A> | A,
+): Promise<A> {
+  return await Effect.runPromise(
+    Effect.scoped(
+      Effect.acquireUseRelease(
+        Effect.sync(() => createClient({ url: `file:${ctx.databaseFile}` })),
+        (client) => Effect.promise(() => Promise.resolve(run(client))),
+        (client) => Effect.sync(() => client.close()),
+      ),
+    ),
   );
 }
 
@@ -682,9 +698,7 @@ itWithTestContext("system config update can repair corrupt stored config rows", 
   assert.deepStrictEqual(configResponse["status"], 200);
   const validConfig = await configResponse.json();
 
-  const client = createClient({ url: `file:${ctx.databaseFile}` });
-
-  try {
+  await withSqliteTestClient(ctx, async (client) => {
     await client.execute({
       sql: "update app_config set data = ? where id = 1",
       args: ["{"],
@@ -693,9 +707,7 @@ itWithTestContext("system config update can repair corrupt stored config rows", 
       sql: "update quality_profiles set allowed_qualities = ? where name = ?",
       args: ["{", "Default"],
     });
-  } finally {
-    client.close();
-  }
+  });
 
   const brokenConfigResponse = await ctx.app.request("/api/system/config", {
     headers: { Cookie: sessionCookie },
@@ -1161,9 +1173,7 @@ itWithTestContext("unmapped scan task updates job state for discovered folders",
       taskId: acceptedFirstScan.task_id,
     });
 
-    const client = createClient({ url: `file:${ctx.databaseFile}` });
-
-    try {
+    await withSqliteTestClient(ctx, async (client) => {
       await waitForSql(
         client,
         "select count(*) as value from unmapped_folder_matches where match_status = 'done'",
@@ -1237,9 +1247,7 @@ itWithTestContext("unmapped scan task updates job state for discovered folders",
       );
       assert.deepStrictEqual(secondState.has_outstanding_matches, false);
       assert.deepStrictEqual(secondState.is_scanning, false);
-    } finally {
-      client.close();
-    }
+    });
   });
 });
 
@@ -1298,18 +1306,14 @@ itWithTestContext("unmapped folders mark already-imported anime suggestions", as
       taskId: acceptedScan.task_id,
     });
 
-    const client = createClient({ url: `file:${ctx.databaseFile}` });
-
-    try {
+    await withSqliteTestClient(ctx, async (client) => {
       await waitForSql(
         client,
         "select match_status from unmapped_folder_matches where path = ? limit 1",
         [`${libraryPath}/Naruto Archive`],
         (rows) => rows[0]?.["match_status"] === "done",
       );
-    } finally {
-      client.close();
-    }
+    });
 
     const unmappedResponse = await ctx.app.request("/api/library/unmapped", {
       headers: { Cookie: sessionCookie },
@@ -1379,9 +1383,7 @@ itWithTestContext("concurrent unmapped scan requests coalesce into one run", asy
       taskId: secondAccepted.task_id,
     });
 
-    const client = createClient({ url: `file:${ctx.databaseFile}` });
-
-    try {
+    await withSqliteTestClient(ctx, async (client) => {
       const runCountRows = await waitForSql(
         client,
         "select run_count as value from background_jobs where name = 'unmapped_scan' limit 1",
@@ -1397,9 +1399,7 @@ itWithTestContext("concurrent unmapped scan requests coalesce into one run", asy
         [],
         (rows) => Number(rows[0]?.["value"] ?? 0) === 1,
       );
-    } finally {
-      client.close();
-    }
+    });
   });
 });
 
@@ -1432,9 +1432,7 @@ itWithTestContext(
         method: "PUT",
       });
 
-      const client = createClient({ url: `file:${ctx.databaseFile}` });
-
-      try {
+      await withSqliteTestClient(ctx, async (client) => {
         await client.execute(
           "insert into unmapped_folder_matches (path, name, size, match_status, suggested_matches, last_matched_at, last_match_error, updated_at) values (?, ?, 0, 'matching', '[]', null, null, ?)",
           [folderPath, "Naruto Archive", new Date().toISOString()],
@@ -1457,9 +1455,7 @@ itWithTestContext(
           [folderPath],
           (rows) => rows[0]?.["value"] === "done",
         );
-      } finally {
-        client.close();
-      }
+      });
 
       const unmappedResponse = await ctx.app.request("/api/library/unmapped", {
         headers: { Cookie: sessionCookie },
@@ -1507,9 +1503,7 @@ itWithTestContext(
         method: "PUT",
       });
 
-      const client = createClient({ url: `file:${ctx.databaseFile}` });
-
-      try {
+      await withSqliteTestClient(ctx, async (client) => {
         await client.execute(
           "insert into unmapped_folder_matches (path, name, size, match_status, match_attempts, suggested_matches, last_matched_at, last_match_error, updated_at) values (?, ?, 0, 'failed', 1, '[]', ?, ?, ?)",
           [
@@ -1538,9 +1532,7 @@ itWithTestContext(
           [folderPath],
           (rows) => rows[0]?.["status"] === "done" && Number(rows[0]?.["attempts"] ?? 0) === 0,
         );
-      } finally {
-        client.close();
-      }
+      });
 
       const unmappedResponse = await ctx.app.request("/api/library/unmapped", {
         headers: { Cookie: sessionCookie },
@@ -1587,9 +1579,7 @@ itWithTestContext("failed unmapped folders stop retrying after three attempts", 
       method: "PUT",
     });
 
-    const client = createClient({ url: `file:${ctx.databaseFile}` });
-
-    try {
+    await withSqliteTestClient(ctx, async (client) => {
       await client.execute(
         "insert into unmapped_folder_matches (path, name, size, match_status, match_attempts, suggested_matches, last_matched_at, last_match_error, updated_at) values (?, ?, 0, 'failed', 3, '[]', ?, ?, ?)",
         [
@@ -1621,9 +1611,7 @@ itWithTestContext("failed unmapped folders stop retrying after three attempts", 
 
       assert.deepStrictEqual(rows[0]?.["status"], "failed");
       assert.deepStrictEqual(Number(rows[0]?.["attempts"] ?? 0), 3);
-    } finally {
-      client.close();
-    }
+    });
 
     const unmappedResponse = await ctx.app.request("/api/library/unmapped", {
       headers: { Cookie: sessionCookie },
@@ -1669,9 +1657,7 @@ itWithTestContext(
         method: "PUT",
       });
 
-      const client = createClient({ url: `file:${ctx.databaseFile}` });
-
-      try {
+      await withSqliteTestClient(ctx, async (client) => {
         await client.execute(
           'insert into unmapped_folder_matches (path, name, size, match_status, match_attempts, suggested_matches, last_matched_at, last_match_error, updated_at) values (?, ?, 0, \'failed\', 2, \'[{"id":20,"title":{"romaji":"Naruto"},"already_in_library":true}]\', ?, ?, ?)',
           [
@@ -1756,9 +1742,7 @@ itWithTestContext(
           (values) => values[0]?.["status"] === "done",
         );
         assert.deepStrictEqual(Number(rows[0]?.["attempts"] ?? 0), 0);
-      } finally {
-        client.close();
-      }
+      });
     });
   },
 );
@@ -1794,9 +1778,7 @@ itWithTestContext(
         method: "PUT",
       });
 
-      const client = createClient({ url: `file:${ctx.databaseFile}` });
-
-      try {
+      await withSqliteTestClient(ctx, async (client) => {
         await client.execute(
           "insert into unmapped_folder_matches (path, name, size, match_status, match_attempts, suggested_matches, last_matched_at, last_match_error, updated_at) values (?, ?, 0, 'paused', 1, '[]', ?, null, ?)",
           [pausedFolderPath, "Paused Archive", new Date().toISOString(), new Date().toISOString()],
@@ -1868,9 +1850,7 @@ itWithTestContext(
           (values) => values[0]?.["status"] === "pending",
         );
         assert.deepStrictEqual(rows[0]?.["status"], "pending");
-      } finally {
-        client.close();
-      }
+      });
     });
   },
 );
@@ -1906,9 +1886,7 @@ itWithTestContext(
         method: "PUT",
       });
 
-      const client = createClient({ url: `file:${ctx.databaseFile}` });
-
-      try {
+      await withSqliteTestClient(ctx, async (client) => {
         await client.execute(
           "insert into unmapped_folder_matches (path, name, size, match_status, match_attempts, suggested_matches, last_matched_at, last_match_error, updated_at) values (?, ?, 0, 'pending', 1, '[]', ?, null, ?)",
           [queuedFolderPath, "Queued Archive", new Date().toISOString(), new Date().toISOString()],
@@ -1962,9 +1940,7 @@ itWithTestContext(
         );
         assert.deepStrictEqual(rows[0]?.["suggestions"], "[]");
         assert.deepStrictEqual(rows[0]?.["error"], null);
-      } finally {
-        client.close();
-      }
+      });
     });
   },
 );
@@ -2012,15 +1988,12 @@ itWithTestContext(
         const completedFile = `${completedRoot}/Naruto - 01.mkv`;
         await writeTextFile(completedFile, "completed-download");
 
-        const client = createClient({ url: `file:${ctx.databaseFile}` });
-        try {
+        await withSqliteTestClient(ctx, async (client) => {
           await client.execute({
             sql: "update downloads set content_path = ?, save_path = ?, status = ?, external_state = ? where info_hash = ?",
             args: [completedFile, completedFile, "completed", "completed", magnetHash],
           });
-        } finally {
-          client.close();
-        }
+        });
 
         const reconcileResponse = await ctx.app.request("/api/downloads/1/reconcile", {
           headers: { Cookie: sessionCookie },
@@ -2050,10 +2023,10 @@ itWithTestContext(
 it.scoped("download sync auto-imports paused seeding torrents", () =>
   withTempDirEffect((animeRoot) =>
     withTempDirEffect((completedRoot) =>
-      Effect.tryPromise(async () => {
+      Effect.gen(function* () {
         const magnetHash = "1234567890abcdef1234567890abcdef12345678";
         const completedFile = `${completedRoot}/Naruto - 01.mkv`;
-        await writeTextFile(completedFile, "completed-download");
+        yield* Effect.promise(() => writeTextFile(completedFile, "completed-download"));
 
         const qbitLayer = Layer.succeed(QBitTorrentClient, {
           addTorrentUrl: () => Effect.void,
@@ -2088,105 +2061,100 @@ it.scoped("download sync auto-imports paused seeding torrents", () =>
           resumeTorrent: () => Effect.void,
         });
 
-        await Effect.runPromise(
-          withTestContextEffect({
-            options: { qbitLayer },
-            run: (ctx) =>
-              Effect.tryPromise(async () => {
-                const { sessionCookie } = await loginAsBootstrapAdmin(ctx);
+        yield* withTestContextEffect({
+          options: { qbitLayer },
+          run: (ctx) =>
+            Effect.tryPromise(async () => {
+              const { sessionCookie } = await loginAsBootstrapAdmin(ctx);
 
-                const currentConfigResponse = await ctx.app.request("/api/system/config", {
-                  headers: { Cookie: sessionCookie },
-                });
-                const currentConfig = await currentConfigResponse.json();
+              const currentConfigResponse = await ctx.app.request("/api/system/config", {
+                headers: { Cookie: sessionCookie },
+              });
+              const currentConfig = await currentConfigResponse.json();
 
-                const updatedConfigResponse = await ctx.app.request("/api/system/config", {
-                  body: JSON.stringify({
-                    ...currentConfig,
-                    qbittorrent: {
-                      ...currentConfig.qbittorrent,
-                      enabled: true,
-                      password: "secret",
-                    },
-                  }),
-                  headers: {
-                    Cookie: sessionCookie,
-                    "Content-Type": "application/json",
+              const updatedConfigResponse = await ctx.app.request("/api/system/config", {
+                body: JSON.stringify({
+                  ...currentConfig,
+                  qbittorrent: {
+                    ...currentConfig.qbittorrent,
+                    enabled: true,
+                    password: "secret",
                   },
-                  method: "PUT",
-                });
-                assert.deepStrictEqual(updatedConfigResponse["status"], 200);
+                }),
+                headers: {
+                  Cookie: sessionCookie,
+                  "Content-Type": "application/json",
+                },
+                method: "PUT",
+              });
+              assert.deepStrictEqual(updatedConfigResponse["status"], 200);
 
-                const addAnimeResponse = await ctx.app.request("/api/media", {
-                  body: JSON.stringify({
-                    id: 20,
-                    monitor_and_search: false,
-                    monitored: true,
-                    profile_name: "Default",
-                    release_profile_ids: [],
-                    root_folder: animeRoot,
-                  }),
-                  headers: {
-                    Cookie: sessionCookie,
-                    "Content-Type": "application/json",
-                  },
-                  method: "POST",
-                });
-                assert.deepStrictEqual(addAnimeResponse["status"], 200);
+              const addAnimeResponse = await ctx.app.request("/api/media", {
+                body: JSON.stringify({
+                  id: 20,
+                  monitor_and_search: false,
+                  monitored: true,
+                  profile_name: "Default",
+                  release_profile_ids: [],
+                  root_folder: animeRoot,
+                }),
+                headers: {
+                  Cookie: sessionCookie,
+                  "Content-Type": "application/json",
+                },
+                method: "POST",
+              });
+              assert.deepStrictEqual(addAnimeResponse["status"], 200);
 
-                const triggerDownloadResponse = await ctx.app.request("/api/search/download", {
-                  body: JSON.stringify({
-                    media_id: 20,
-                    unit_number: 1,
-                    magnet: `magnet:?xt=urn:btih:${magnetHash}`,
-                    title: "Naruto - 01",
-                  }),
-                  headers: {
-                    Cookie: sessionCookie,
-                    "Content-Type": "application/json",
-                  },
-                  method: "POST",
-                });
-                assert.deepStrictEqual(triggerDownloadResponse["status"], 200);
+              const triggerDownloadResponse = await ctx.app.request("/api/search/download", {
+                body: JSON.stringify({
+                  media_id: 20,
+                  unit_number: 1,
+                  magnet: `magnet:?xt=urn:btih:${magnetHash}`,
+                  title: "Naruto - 01",
+                }),
+                headers: {
+                  Cookie: sessionCookie,
+                  "Content-Type": "application/json",
+                },
+                method: "POST",
+              });
+              assert.deepStrictEqual(triggerDownloadResponse["status"], 200);
 
-                const syncResponse = await ctx.app.request("/api/downloads/sync", {
-                  headers: { Cookie: sessionCookie },
-                  method: "POST",
-                });
-                const acceptedSync = await expectAcceptedTaskResponse(syncResponse);
-                await waitForSystemTask({
-                  ctx,
-                  sessionCookie,
-                  taskId: acceptedSync.task_id,
-                });
+              const syncResponse = await ctx.app.request("/api/downloads/sync", {
+                headers: { Cookie: sessionCookie },
+                method: "POST",
+              });
+              const acceptedSync = await expectAcceptedTaskResponse(syncResponse);
+              await waitForSystemTask({
+                ctx,
+                sessionCookie,
+                taskId: acceptedSync.task_id,
+              });
 
-                const verifyClient = createClient({ url: `file:${ctx.databaseFile}` });
-                try {
-                  await waitForSql(
-                    verifyClient,
-                    "select status, reconciled_at as reconciledAt from downloads where info_hash = ?",
-                    [magnetHash],
-                    (rows) =>
-                      rows[0]?.["status"] === "imported" &&
-                      typeof rows[0]?.["reconciledAt"] === "string",
-                  );
-                } finally {
-                  verifyClient.close();
-                }
-
-                const episodesResponse = await ctx.app.request("/api/media/20/units", {
-                  headers: { Cookie: sessionCookie },
-                });
-                assert.deepStrictEqual(episodesResponse["status"], 200);
-                const episodes = await episodesResponse.json();
-                assert.deepStrictEqual(episodes[0].downloaded, true);
-                assert.deepStrictEqual(
-                  episodes[0].file_path?.startsWith(`${animeRoot}/Naruto/`),
-                  true,
+              await withSqliteTestClient(ctx, async (verifyClient) => {
+                await waitForSql(
+                  verifyClient,
+                  "select status, reconciled_at as reconciledAt from downloads where info_hash = ?",
+                  [magnetHash],
+                  (rows) =>
+                    rows[0]?.["status"] === "imported" &&
+                    typeof rows[0]?.["reconciledAt"] === "string",
                 );
-              }),
-          }),
-        );
+              });
+
+              const episodesResponse = await ctx.app.request("/api/media/20/units", {
+                headers: { Cookie: sessionCookie },
+              });
+              assert.deepStrictEqual(episodesResponse["status"], 200);
+              const episodes = await episodesResponse.json();
+              assert.deepStrictEqual(episodes[0].downloaded, true);
+              assert.deepStrictEqual(
+                episodes[0].file_path?.startsWith(`${animeRoot}/Naruto/`),
+                true,
+              );
+            }),
+        });
       }),
     ),
   ),
@@ -2434,15 +2402,12 @@ itWithTestContext("download operation error branches return expected statuses", 
     });
     assert.deepStrictEqual(triggerDownloadResponse["status"], 200);
 
-    const client = createClient({ url: `file:${ctx.databaseFile}` });
-    try {
+    await withSqliteTestClient(ctx, async (client) => {
       await client.execute({
         sql: "update downloads set magnet = null where id = 1",
         args: [],
       });
-    } finally {
-      client.close();
-    }
+    });
 
     const retryConflict = await ctx.app.request("/api/downloads/1/retry", {
       headers: { Cookie: sessionCookie },
@@ -3151,8 +3116,7 @@ itWithTestContext("rss, wanted, rename, and download helper endpoints work", asy
       assert.deepStrictEqual(feeds.length, 1);
       assert.deepStrictEqual(feeds[0].media_id, 11061);
 
-      const client = createClient({ url: `file:${ctx.databaseFile}` });
-      try {
+      await withSqliteTestClient(ctx, async (client) => {
         await client.execute({
           sql: "update media_units set aired = ? where media_id = ? and number = ?",
           args: ["2999-01-01T00:00:00.000Z", 11061, 2],
@@ -3161,9 +3125,7 @@ itWithTestContext("rss, wanted, rename, and download helper endpoints work", asy
           sql: "update media_units set aired = null where media_id = ? and number = ?",
           args: [11061, 3],
         });
-      } finally {
-        client.close();
-      }
+      });
 
       const wanted = await ctx.app.request("/api/wanted/missing?limit=20", {
         headers: { Cookie: sessionCookie },
@@ -3709,15 +3671,12 @@ itWithTestContext("missing-search ignores episodes that have not aired yet", asy
       method: "POST",
     });
 
-    const client = createClient({ url: `file:${ctx.databaseFile}` });
-    try {
+    await withSqliteTestClient(ctx, async (client) => {
       await client.execute({
         sql: "update media_units set aired = ? where media_id = ? and number = ?",
         args: ["2999-01-01T00:00:00.000Z", 20, 2],
       });
-    } finally {
-      client.close();
-    }
+    });
 
     const rssUrl = "https://feeds.example/naruto.xml";
 
@@ -4140,15 +4099,12 @@ itWithTestContext(
         await writeTextFile(`${batchFolder}/Naruto - 001.mkv`, "episode-1");
         await writeTextFile(`${batchFolder}/Naruto - 002.mkv`, "episode-2");
 
-        const client = createClient({ url: `file:${ctx.databaseFile}` });
-        try {
+        await withSqliteTestClient(ctx, async (client) => {
           await client.execute({
             sql: "update downloads set content_path = ?, save_path = ?, status = ?, external_state = ?, is_batch = 1 where info_hash = ?",
             args: [batchFolder, batchFolder, "completed", "completed", magnetHash],
           });
-        } finally {
-          client.close();
-        }
+        });
 
         const reconcileResponse = await ctx.app.request("/api/downloads/1/reconcile", {
           headers: { Cookie: sessionCookie },
@@ -4248,15 +4204,12 @@ itWithTestContext("batch reconcile marks already-imported episodes as reconciled
       await writeTextFile(`${batchFolder}/Naruto - 001.mkv`, "episode-1");
       await writeTextFile(`${batchFolder}/Naruto - 002.mkv`, "episode-2");
 
-      const client = createClient({ url: `file:${ctx.databaseFile}` });
-      try {
+      await withSqliteTestClient(ctx, async (client) => {
         await client.execute({
           sql: "update downloads set content_path = ?, save_path = ?, status = ?, external_state = ?, is_batch = 1 where info_hash = ?",
           args: [batchFolder, batchFolder, "completed", "completed", magnetHash],
         });
-      } finally {
-        client.close();
-      }
+      });
 
       const reconcileResponse = await ctx.app.request("/api/downloads/1/reconcile", {
         headers: { Cookie: sessionCookie },
@@ -4264,8 +4217,7 @@ itWithTestContext("batch reconcile marks already-imported episodes as reconciled
       });
       assert.deepStrictEqual(reconcileResponse["status"], 200);
 
-      const verifyClient = createClient({ url: `file:${ctx.databaseFile}` });
-      try {
+      await withSqliteTestClient(ctx, async (verifyClient) => {
         const result = await verifyClient.execute(
           "select status, reconciled_at as reconciledAt from downloads where id = 1",
         );
@@ -4276,9 +4228,7 @@ itWithTestContext("batch reconcile marks already-imported episodes as reconciled
         }
         assert.deepStrictEqual(row["status"], "imported");
         assert.deepStrictEqual(typeof row["reconciledAt"], "string");
-      } finally {
-        verifyClient.close();
-      }
+      });
     });
   });
 });

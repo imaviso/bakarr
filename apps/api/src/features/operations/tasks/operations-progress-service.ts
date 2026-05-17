@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from "effect";
+import { Context, Effect, Layer, Scope } from "effect";
 
 import { EventBus } from "@/features/events/event-bus.ts";
 import { makeOperationsProgressPublishers } from "@/features/operations/tasks/operations-progress-publishers.ts";
@@ -27,6 +27,7 @@ export class OperationsProgress extends Context.Tag("@bakarr/api/OperationsProgr
 export const ProgressLive = Layer.scoped(
   OperationsProgress,
   Effect.gen(function* () {
+    yield* Scope.Scope;
     const eventBus = yield* EventBus;
     const downloadProgressSupport = yield* DownloadProgressSupport;
 

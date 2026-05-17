@@ -27,9 +27,9 @@ it.effect("health router ready endpoint maps system status failure to not-ready"
       healthRouter.pipe(
         provideSharedRouterTestServices(),
         Effect.provideService(SystemReadService, {
-          getActivity: () => Effect.die("unused system read service"),
-          getDashboard: () => Effect.die("unused system read service"),
-          getLibraryStats: () => Effect.die("unused system read service"),
+          getActivity: () => Effect.dieMessage("unused system read service"),
+          getDashboard: () => Effect.dieMessage("unused system read service"),
+          getLibraryStats: () => Effect.dieMessage("unused system read service"),
           getSystemStatus: () =>
             Effect.fail(new StoredConfigMissingError({ message: "config missing" })),
         }),
@@ -52,10 +52,10 @@ function provideHealthRouterTestServices() {
     effect.pipe(
       provideSharedRouterTestServices(),
       Effect.provideService(SystemReadService, {
-        getActivity: () => Effect.die("unused system read service"),
-        getDashboard: () => Effect.die("unused system read service"),
-        getLibraryStats: () => Effect.die("unused system read service"),
-        getSystemStatus: () => Effect.die("unused system status service"),
+        getActivity: () => Effect.dieMessage("unused system read service"),
+        getDashboard: () => Effect.dieMessage("unused system read service"),
+        getLibraryStats: () => Effect.dieMessage("unused system read service"),
+        getSystemStatus: () => Effect.dieMessage("unused system status service"),
       }),
     );
 }
@@ -65,10 +65,10 @@ function provideSharedRouterTestServices() {
     effect.pipe(
       Effect.provideService(AppConfig, makeDefaultAppConfig()),
       Effect.provideService(AuthSessionService, {
-        login: () => Effect.die("unused auth service"),
-        loginWithApiKey: () => Effect.die("unused auth service"),
-        logout: () => Effect.die("unused auth service"),
-        resolveViewer: () => Effect.die("unused auth service"),
+        login: () => Effect.dieMessage("unused auth service"),
+        loginWithApiKey: () => Effect.dieMessage("unused auth service"),
+        logout: () => Effect.dieMessage("unused auth service"),
+        resolveViewer: () => Effect.dieMessage("unused auth service"),
       }),
     );
 }

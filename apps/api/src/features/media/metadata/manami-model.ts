@@ -11,7 +11,7 @@ const DatasetDateStringSchema = Schema.String.pipe(
 );
 
 export const ManamiAnimeEntrySchema = Schema.Struct({
-  relatedMedia: Schema.optional(Schema.Array(HttpUrlStringSchema)),
+  relatedAnime: Schema.optional(Schema.Array(HttpUrlStringSchema)),
   sources: Schema.Array(HttpUrlStringSchema),
   studios: Schema.optional(Schema.Array(Schema.String)),
   synonyms: Schema.optional(Schema.Array(Schema.String)),

@@ -1,4 +1,4 @@
-import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
+import { HttpRouter, HttpServerRequest, HttpServerResponse, Socket } from "@effect/platform";
 import { Effect, Stream } from "effect";
 
 import type { NotificationEvent } from "@packages/shared/index.ts";
@@ -20,6 +20,7 @@ export const buildSystemEventsResponse = Effect.fn("Http.buildSystemEventsRespon
   return yield* encodeNotificationEventStream(events).pipe(
     Stream.pipeThroughChannel(HttpServerRequest.upgradeChannel()),
     Stream.runDrain,
+    Effect.catchAll((error) => (isExpectedSocketClose(error) ? Effect.void : Effect.fail(error))),
     Effect.as(HttpServerResponse.empty()),
   );
 });
@@ -58,4 +59,8 @@ function isWebSocketUpgradeRequest(request: HttpServerRequest.HttpServerRequest)
     .toLowerCase()
     .split(",")
     .some((value) => value.trim() === "upgrade");
+}
+
+function isExpectedSocketClose(error: unknown) {
+  return Socket.SocketCloseError.is(error) && (error.code === 1000 || error.code === 1001);
 }

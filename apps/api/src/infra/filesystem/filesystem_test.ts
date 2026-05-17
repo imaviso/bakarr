@@ -118,13 +118,13 @@ function makeFakePlatformFile(): PlatformFileSystem.File {
   return {
     [PlatformFileSystem.FileTypeId]: PlatformFileSystem.FileTypeId,
     fd: descriptor,
-    read: () => Effect.die("unexpected read call"),
-    readAlloc: () => Effect.die("unexpected readAlloc call"),
-    seek: () => Effect.die("unexpected seek call"),
-    stat: Effect.die("unexpected stat call"),
+    read: () => Effect.dieMessage("unexpected read call"),
+    readAlloc: () => Effect.dieMessage("unexpected readAlloc call"),
+    seek: () => Effect.dieMessage("unexpected seek call"),
+    stat: Effect.dieMessage("unexpected stat call"),
     sync: Effect.void,
-    truncate: () => Effect.die("unexpected truncate call"),
-    write: () => Effect.die("unexpected write call"),
-    writeAll: () => Effect.die("unexpected writeAll call"),
+    truncate: () => Effect.dieMessage("unexpected truncate call"),
+    write: () => Effect.dieMessage("unexpected write call"),
+    writeAll: () => Effect.dieMessage("unexpected writeAll call"),
   };
 }

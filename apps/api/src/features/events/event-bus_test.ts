@@ -111,6 +111,6 @@ const takeNextEvent = <A>(stream: Stream.Stream<A>) =>
   Stream.runCollect(stream.pipe(Stream.take(1))).pipe(
     Effect.map((events) => Array.from(events)[0]),
     Effect.flatMap((event) =>
-      event === undefined ? Effect.die("expected one event") : Effect.succeed(event),
+      event === undefined ? Effect.dieMessage("expected one event") : Effect.succeed(event),
     ),
   );

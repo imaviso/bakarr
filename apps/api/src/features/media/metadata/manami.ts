@@ -17,12 +17,12 @@ import { FileSystem, type FileSystemShape } from "@/infra/filesystem/filesystem.
 import { isNotFoundError } from "@/infra/filesystem/fs-errors.ts";
 
 export const MANAMI_DATASET_URL =
-  "https://github.com/manami-project/media-offline-database/releases/latest/download/media-offline-database-minified.json";
+  "https://github.com/manami-project/anime-offline-database/releases/latest/download/anime-offline-database-minified.json";
 
 export const MANAMI_CACHE_DIR_NAME = "cache";
-export const MANAMI_CACHE_DATASET_FILE = "manami-media-offline-database-minified.json";
-export const MANAMI_CACHE_SQLITE_FILE = "manami-media-offline-database.sqlite";
-export const MANAMI_CACHE_META_FILE = "manami-media-offline-database-meta.json";
+export const MANAMI_CACHE_DATASET_FILE = "manami-anime-offline-database-minified.json";
+export const MANAMI_CACHE_SQLITE_FILE = "manami-anime-offline-database.sqlite";
+export const MANAMI_CACHE_META_FILE = "manami-anime-offline-database-meta.json";
 export const MANAMI_CACHE_REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 const textEncoder = new TextEncoder();

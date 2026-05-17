@@ -2,7 +2,7 @@ import { Context, Effect, Layer } from "effect";
 import { desc, eq } from "drizzle-orm";
 import type { RssFeed } from "@packages/shared/index.ts";
 
-import { Database, type DatabaseError } from "@/db/database.ts";
+import { Database, DatabaseError } from "@/db/database.ts";
 import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
 import type { OperationsError } from "@/features/operations/errors.ts";
 import { getAnimeRowEffect as requireAnime } from "@/features/media/shared/media-read-repository.ts";
@@ -75,7 +75,10 @@ export const CatalogRssServiceLive = Layer.effect(
       );
 
       if (!row) {
-        return yield* Effect.dieMessage("Insert returned no rows");
+        return yield* new DatabaseError({
+          cause: new Error("RSS feed insert returned no rows"),
+          message: "Failed to add RSS feed",
+        });
       }
 
       yield* appendLog(

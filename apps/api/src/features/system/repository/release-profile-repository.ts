@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
-import { type AppDatabase } from "@/db/database.ts";
+import { DatabaseError, type AppDatabase } from "@/db/database.ts";
 import { releaseProfiles } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
@@ -23,7 +23,10 @@ export const insertReleaseProfileRow = Effect.fn(
   const inserted = rows[0];
 
   if (!inserted) {
-    return yield* Effect.dieMessage("Insert returned no rows");
+    return yield* new DatabaseError({
+      cause: new Error("Release profile insert returned no rows"),
+      message: "Failed to insert release profile",
+    });
   }
 
   return inserted;

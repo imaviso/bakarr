@@ -1,6 +1,6 @@
 import { type Socket } from "node:dgram";
 
-import { Context, Effect, Layer, Option, Ref } from "effect";
+import { Context, Effect, Layer, Option, Ref, Scope } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 import { type DatabaseError } from "@/db/database.ts";
@@ -32,6 +32,7 @@ import { ExternalCallError } from "@/infra/effect/retry.ts";
 
 const ANIDB_MIN_ANIME_MATCH_SCORE = 70;
 const ANIDB_STRONG_ANIME_MATCH_SCORE = 90;
+const ANIDB_CLOSE_SESSION_TIMEOUT = "15 seconds";
 
 interface AniDbClientShape {
   readonly getEpisodeMetadata: (
@@ -91,6 +92,7 @@ export function normalizeEpisodeCount(unitCount: number | undefined, episodeLimi
 export const AniDbClientLive = Layer.scoped(
   AniDbClient,
   Effect.gen(function* () {
+    yield* Scope.Scope;
     const clock = yield* ClockService;
     const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
     const requestSemaphore = yield* Effect.makeSemaphore(1);
@@ -107,7 +109,9 @@ export const AniDbClientLive = Layer.scoped(
       const session = current.value;
 
       yield* logoutAniDbEffect(session.socket, session.sessionToken, clock, lastPacketAtRef).pipe(
+        Effect.timeout(ANIDB_CLOSE_SESSION_TIMEOUT),
         Effect.catchTag("ExternalCallError", () => Effect.void),
+        Effect.catchTag("TimeoutException", () => Effect.void),
       );
       yield* closeAniDbSocketEffect(session.socket);
     });

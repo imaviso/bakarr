@@ -1,5 +1,5 @@
 import { FileSystem as PlatformFileSystem } from "@effect/platform";
-import { Effect } from "effect";
+import { Effect, Scope } from "effect";
 
 import {
   FileSystem,
@@ -33,6 +33,7 @@ export const withFileSystemSandboxEffect = Effect.fn("Test.withFileSystemSandbox
   E,
   R,
 >(run: (input: { fs: FileSystemShape; root: string }) => Effect.Effect<A, E, R>) {
+  yield* Scope.Scope;
   const fs = yield* makeTestFileSystemEffect();
   const root = `/tmp/bakarr-api-test-${crypto.randomUUID()}`;
 

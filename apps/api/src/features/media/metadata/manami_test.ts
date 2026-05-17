@@ -26,24 +26,24 @@ const textEncoder = new TextEncoder();
 
 it("manami source URL parsing extracts AniList and MAL ids", () => {
   assert.deepStrictEqual(
-    parseAniListIdFromSource("https://anilist.co/media/16498/Shingeki-no-Kyojin"),
+    parseAniListIdFromSource("https://anilist.co/anime/16498/Shingeki-no-Kyojin"),
     16498,
   );
   assert.deepStrictEqual(
-    parseAniListIdFromSource("https://www.anilist.co/media/5114?source=sync"),
+    parseAniListIdFromSource("https://www.anilist.co/anime/5114?source=sync"),
     5114,
   );
   assert.deepStrictEqual(
-    parseAniListIdFromSource("https://myanimelist.net/media/5114/Fullmetal_Alchemist"),
+    parseAniListIdFromSource("https://myanimelist.net/anime/5114/Fullmetal_Alchemist"),
     undefined,
   );
 
   assert.deepStrictEqual(
-    parseMalIdFromSource("https://myanimelist.net/media/5114/Fullmetal_Alchemist"),
+    parseMalIdFromSource("https://myanimelist.net/anime/5114/Fullmetal_Alchemist"),
     5114,
   );
-  assert.deepStrictEqual(parseMalIdFromSource("https://myanimelist.net/media.php?id=9253"), 9253);
-  assert.deepStrictEqual(parseMalIdFromSource("https://anilist.co/media/5114"), undefined);
+  assert.deepStrictEqual(parseMalIdFromSource("https://myanimelist.net/anime.php?id=9253"), 9253);
+  assert.deepStrictEqual(parseMalIdFromSource("https://anilist.co/anime/5114"), undefined);
 });
 
 it.scoped("ManamiClient maps non-2xx response as ExternalCallError with response operation", () =>
@@ -88,9 +88,9 @@ it.scoped("ManamiClient maps decode failures as ExternalCallError with json oper
                   lastUpdate: "2026-01-02",
                   license: {
                     name: "Open Data Commons Open Database License (ODbL) v1.0 + Database Contents License (DbCL) v1.0",
-                    url: "https://github.com/manami-project/media-offline-database/blob/2026-14/LICENSE",
+                    url: "https://github.com/manami-project/anime-offline-database/blob/2026-14/LICENSE",
                   },
-                  repository: "https://github.com/manami-project/media-offline-database",
+                  repository: "https://github.com/manami-project/anime-offline-database",
                 },
                 { status: 200 },
               ),
@@ -348,7 +348,7 @@ it.scoped("ManamiClient refreshes stale sqlite cache", () =>
         ...SYNTHETIC_DATASET,
         data: [
           {
-            sources: ["https://anilist.co/media/1001/Old-Title"],
+            sources: ["https://anilist.co/anime/1001/Old-Title"],
             title: "Old Title",
           },
         ],
@@ -431,26 +431,26 @@ const writeCachedDataset = Effect.fn("Test.writeCachedDataset")(function* (
 const SYNTHETIC_DATASET = {
   data: [
     {
-      relatedMedia: ["https://anilist.co/media/1003"],
-      sources: ["https://anilist.co/media/1001/Alpha", "https://myanimelist.net/media/3001/Alpha"],
+      relatedAnime: ["https://anilist.co/anime/1003"],
+      sources: ["https://anilist.co/anime/1001/Alpha", "https://myanimelist.net/anime/3001/Alpha"],
       studios: ["Studio A"],
       synonyms: ["Alpha Alias"],
       tags: ["Action"],
       title: "Alpha",
     },
     {
-      relatedMedia: [],
-      sources: ["https://anilist.co/media/1002/Beta"],
+      relatedAnime: [],
+      sources: ["https://anilist.co/anime/1002/Beta"],
       studios: ["Studio B"],
       synonyms: ["Beta Alias"],
       tags: ["Drama"],
       title: "Beta",
     },
     {
-      relatedMedia: ["https://myanimelist.net/media/3001/Alpha"],
+      relatedAnime: ["https://myanimelist.net/anime/3001/Alpha"],
       sources: [
-        "https://myanimelist.net/media.php?id=3003",
-        "https://www.anilist.co/media/1003/Gamma?src=import",
+        "https://myanimelist.net/anime.php?id=3003",
+        "https://www.anilist.co/anime/1003/Gamma?src=import",
       ],
       studios: ["Studio C"],
       synonyms: ["Gamma Alias"],
@@ -461,32 +461,32 @@ const SYNTHETIC_DATASET = {
   lastUpdate: "2026-01-02",
   license: {
     name: "Open Data Commons Open Database License (ODbL) v1.0 + Database Contents License (DbCL) v1.0",
-    url: "https://github.com/manami-project/media-offline-database/blob/2026-14/LICENSE",
+    url: "https://github.com/manami-project/anime-offline-database/blob/2026-14/LICENSE",
   },
-  repository: "https://github.com/manami-project/media-offline-database",
+  repository: "https://github.com/manami-project/anime-offline-database",
 };
 
 const DUPLICATE_LINK_DATASET = {
   data: [
     {
-      sources: ["https://anilist.co/media/5001/First-AniList"],
+      sources: ["https://anilist.co/anime/5001/First-AniList"],
       title: "First AniList",
     },
     {
       sources: [
-        "https://anilist.co/media/5001/Second-AniList",
-        "https://myanimelist.net/media/9001/Second-AniList",
+        "https://anilist.co/anime/5001/Second-AniList",
+        "https://myanimelist.net/anime/9001/Second-AniList",
       ],
       title: "Second AniList",
     },
     {
-      sources: ["https://myanimelist.net/media/9002/Mal-Only-First"],
+      sources: ["https://myanimelist.net/anime/9002/Mal-Only-First"],
       title: "MAL Only First",
     },
     {
       sources: [
-        "https://anilist.co/media/5002/Second-AniList",
-        "https://myanimelist.net/media/9002/Second-AniList",
+        "https://anilist.co/anime/5002/Second-AniList",
+        "https://myanimelist.net/anime/9002/Second-AniList",
       ],
       title: "Second AniList",
     },
@@ -494,7 +494,7 @@ const DUPLICATE_LINK_DATASET = {
   lastUpdate: "2026-01-02",
   license: {
     name: "Open Data Commons Open Database License (ODbL) v1.0 + Database Contents License (DbCL) v1.0",
-    url: "https://github.com/manami-project/media-offline-database/blob/2026-14/LICENSE",
+    url: "https://github.com/manami-project/anime-offline-database/blob/2026-14/LICENSE",
   },
-  repository: "https://github.com/manami-project/media-offline-database",
+  repository: "https://github.com/manami-project/anime-offline-database",
 };

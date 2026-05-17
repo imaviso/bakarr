@@ -195,7 +195,10 @@ const makeOperationsTaskWriteService = Effect.gen(function* () {
     const created = rows[0];
 
     if (!created) {
-      return yield* Effect.dieMessage("Insert returned no rows");
+      return yield* new DatabaseError({
+        cause: new Error("Operations task insert returned no rows"),
+        message: "Failed to create operations task",
+      });
     }
 
     const accepted = {

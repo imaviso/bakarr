@@ -17,11 +17,13 @@ export const withSqliteRawClientEffect = Effect.fn("Test.withSqliteRawClientEffe
   readonly readwrite?: boolean;
   readonly run: (client: NodeSqliteClient.SqliteClient) => Effect.Effect<A, E, R>;
 }) {
-  return yield* Effect.gen(function* () {
-    const client = yield* NodeSqliteClient.SqliteClient;
+  return yield* Effect.scoped(
+    Effect.gen(function* () {
+      const client = yield* NodeSqliteClient.SqliteClient;
 
-    return yield* input.run(client);
-  }).pipe(
+      return yield* input.run(client);
+    }),
+  ).pipe(
     Effect.provide(
       NodeSqliteClient.layer({
         filename: input.databaseFile,

@@ -230,9 +230,9 @@ function makeAuthSessionService(
   resolveViewer: AuthSessionServiceShape["resolveViewer"],
 ): AuthSessionServiceShape {
   return {
-    login: () => Effect.die("unused"),
-    loginWithApiKey: () => Effect.die("unused"),
-    logout: () => Effect.die("unused"),
+    login: () => Effect.dieMessage("unused"),
+    loginWithApiKey: () => Effect.dieMessage("unused"),
+    logout: () => Effect.dieMessage("unused"),
     resolveViewer,
   };
 }

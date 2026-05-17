@@ -101,7 +101,10 @@ export const queueParsedReleaseDownload = Effect.fn("OperationsService.queuePars
 
     const insertedRow = insertResult.right[0];
     if (!insertedRow) {
-      return yield* Effect.dieMessage("Insert returned no rows");
+      return yield* new DatabaseError({
+        cause: new Error("Queued download insert returned no rows"),
+        message: "Failed to queue download",
+      });
     }
     const insertedId = insertedRow.id;
     let status = "queued";
