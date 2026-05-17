@@ -792,7 +792,7 @@ itWithTestContext("library browse returns sorted entries and sizes", async (ctx)
       headers: { Cookie: sessionCookie },
     });
     const config = await configRes.json();
-    config.library.library_path = root;
+    config.library.anime_path = root;
     await ctx.app.request("/api/system/config", {
       method: "PUT",
       headers: { "Content-Type": "application/json", Cookie: sessionCookie },
@@ -1152,7 +1152,7 @@ itWithTestContext("unmapped scan task updates job state for discovered folders",
         ...currentConfig,
         library: {
           ...currentConfig.library,
-          library_path: libraryPath,
+          anime_path: libraryPath,
         },
       }),
       headers: {
@@ -1265,7 +1265,7 @@ itWithTestContext("unmapped folders mark already-imported anime suggestions", as
         ...currentConfig,
         library: {
           ...currentConfig.library,
-          library_path: libraryPath,
+          anime_path: libraryPath,
         },
       }),
       headers: {
@@ -1349,7 +1349,7 @@ itWithTestContext("concurrent unmapped scan requests coalesce into one run", asy
         ...currentConfig,
         library: {
           ...currentConfig.library,
-          library_path: libraryPath,
+          anime_path: libraryPath,
         },
       }),
       headers: {
@@ -1422,7 +1422,7 @@ itWithTestContext(
           ...currentConfig,
           library: {
             ...currentConfig.library,
-            library_path: libraryPath,
+            anime_path: libraryPath,
           },
         }),
         headers: {
@@ -1493,7 +1493,7 @@ itWithTestContext(
           ...currentConfig,
           library: {
             ...currentConfig.library,
-            library_path: libraryPath,
+            anime_path: libraryPath,
           },
         }),
         headers: {
@@ -1569,7 +1569,7 @@ itWithTestContext("failed unmapped folders stop retrying after three attempts", 
         ...currentConfig,
         library: {
           ...currentConfig.library,
-          library_path: libraryPath,
+          anime_path: libraryPath,
         },
       }),
       headers: {
@@ -1647,7 +1647,7 @@ itWithTestContext(
           ...currentConfig,
           library: {
             ...currentConfig.library,
-            library_path: libraryPath,
+            anime_path: libraryPath,
           },
         }),
         headers: {
@@ -1768,7 +1768,7 @@ itWithTestContext(
           ...currentConfig,
           library: {
             ...currentConfig.library,
-            library_path: libraryPath,
+            anime_path: libraryPath,
           },
         }),
         headers: {
@@ -1876,7 +1876,7 @@ itWithTestContext(
           ...currentConfig,
           library: {
             ...currentConfig.library,
-            library_path: libraryPath,
+            anime_path: libraryPath,
           },
         }),
         headers: {
@@ -4249,7 +4249,7 @@ itWithTestContext(
           ...currentConfig,
           library: {
             ...currentConfig.library,
-            library_path: libraryPath,
+            anime_path: libraryPath,
           },
         }),
         headers: {
@@ -4299,7 +4299,7 @@ itWithTestContext(
           ...currentConfig,
           library: {
             ...currentConfig.library,
-            library_path: libraryPath,
+            anime_path: libraryPath,
           },
         }),
         headers: {
@@ -4931,7 +4931,7 @@ async function createTestContext(options?: {
         ...currentConfig,
         library: {
           ...currentConfig.library,
-          library_path: tmpdir(),
+          anime_path: tmpdir(),
         },
       }),
       headers: {

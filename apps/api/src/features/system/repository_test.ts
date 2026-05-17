@@ -60,7 +60,7 @@ it.scoped("system repository config helpers insert and upsert config rows", () =
         );
         const updatedData = yield* encodeConfigCore({
           ...updatedEncoded,
-          library: { ...updatedEncoded.library, library_path: "/new-library" },
+          library: { ...updatedEncoded.library, anime_path: "/new-library/anime" },
         });
         yield* upsertSystemConfigRow(db, {
           id: 1,
@@ -70,7 +70,7 @@ it.scoped("system repository config helpers insert and upsert config rows", () =
 
         const updated = yield* loadSystemConfigRow(db);
         assert.deepStrictEqual(updated?.updatedAt, "2024-01-02T00:00:00.000Z");
-        assert.deepStrictEqual(updated?.data.includes("/new-library"), true);
+        assert.deepStrictEqual(updated?.data.includes("/new-library/anime"), true);
       }),
     schema,
   }),

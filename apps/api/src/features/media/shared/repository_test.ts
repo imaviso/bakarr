@@ -431,7 +431,9 @@ it.scoped("media repository helpers use stored config when available", () =>
           },
           library: {
             ...config.library,
-            library_path: "/media-library",
+            anime_path: "/media-library",
+            manga_path: "/media-library/manga",
+            light_novel_path: "/media-library/light-novels",
           },
         }));
         const encodedConfig = yield* toConfigCore(testConfig).pipe(

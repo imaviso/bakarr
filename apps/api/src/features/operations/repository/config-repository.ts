@@ -11,6 +11,8 @@ import {
 } from "@/features/system/config-codec.ts";
 import { decodeQualityProfileRow } from "@/features/profiles/profile-codec.ts";
 import type { NamingSettings } from "@/features/operations/repository/types.ts";
+import type { MediaKind } from "@packages/shared/index.ts";
+import { getLibraryPathForMediaKind } from "@/features/media/shared/config-support.ts";
 
 const mapConfigError = (message: string) =>
   Effect.mapError((cause: unknown) =>
@@ -38,6 +40,7 @@ export const loadRuntimeConfig = Effect.fn("ConfigRepository.loadRuntimeConfig")
 
 export const getConfigLibraryPath = Effect.fn("ConfigRepository.getConfigLibraryPath")(function* (
   db: AppDatabase,
+  mediaKind: MediaKind = "anime",
 ) {
   const rows = yield* tryDatabasePromise("Failed to load config library path", () =>
     db.select().from(appConfig).limit(1),
@@ -46,7 +49,7 @@ export const getConfigLibraryPath = Effect.fn("ConfigRepository.getConfigLibrary
     mapConfigError("Failed to load config library path"),
   );
 
-  return library.library_path;
+  return getLibraryPathForMediaKind(library, mediaKind);
 });
 
 export const currentImportMode = Effect.fn("ConfigRepository.currentImportMode")(function* (

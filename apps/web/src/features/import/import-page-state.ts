@@ -5,7 +5,7 @@ import { toImportInputMode, useImportFlow } from "~/features/import/use-import-f
 import type { FileRowAnimeOption, Step } from "~/features/import/types";
 import { animeDisplayTitle } from "~/domain/media/metadata";
 
-export type BrowseRootKey = "library" | "recycle" | "downloads";
+export type BrowseRootKey = "library" | "manga" | "light-novels" | "recycle" | "downloads";
 
 export interface AllowedRoot {
   key: BrowseRootKey;
@@ -42,8 +42,18 @@ export function useImportPageState(options: CreateImportPageStateOptions) {
   const allowedRoots: AllowedRoot[] = [
     {
       key: "library" as const,
-      label: "Library",
-      path: config.library.library_path.trim(),
+      label: "Anime Library",
+      path: config.library.anime_path.trim(),
+    },
+    {
+      key: "manga" as const,
+      label: "Manga Library",
+      path: config.library.manga_path.trim(),
+    },
+    {
+      key: "light-novels" as const,
+      label: "Light Novel Library",
+      path: config.library.light_novel_path.trim(),
     },
     {
       key: "recycle" as const,

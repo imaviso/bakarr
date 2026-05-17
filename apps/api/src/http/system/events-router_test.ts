@@ -70,6 +70,7 @@ it.effect("events router treats websocket 1001 close as normal disconnect", () =
     };
     const request: HttpServerRequest.HttpServerRequest = {
       ...baseRequest,
+      headers: baseRequest.headers,
       upgrade: Effect.succeed(closingSocket),
     };
 

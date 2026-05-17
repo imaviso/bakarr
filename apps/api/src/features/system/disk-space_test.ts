@@ -47,20 +47,20 @@ it.effect("mapBlockStatsToDiskSpace fails with a typed error for invalid stats",
   }),
 );
 
-it("selectStoragePath prefers library_path", () => {
+it("selectStoragePath prefers anime_path", () => {
   const config = {
     ...baseConfig,
-    library: { ...baseConfig.library, library_path: "/library" },
+    library: { ...baseConfig.library, anime_path: "/library/anime" },
     downloads: { ...baseConfig.downloads, root_path: "/downloads" },
     general: { ...baseConfig.general, database_path: "/db/test.sqlite" },
   };
-  assert.deepStrictEqual(selectStoragePath(config, "/runtime/test.sqlite"), "/library");
+  assert.deepStrictEqual(selectStoragePath(config, "/runtime/test.sqlite"), "/library/anime");
 });
 
 it("selectStoragePath falls back to downloads root_path", () => {
   const config = {
     ...baseConfig,
-    library: { ...baseConfig.library, library_path: "" },
+    library: { ...baseConfig.library, anime_path: "", manga_path: "", light_novel_path: "" },
     downloads: { ...baseConfig.downloads, root_path: "/downloads" },
     general: { ...baseConfig.general, database_path: "/db/test.sqlite" },
   };
@@ -70,7 +70,7 @@ it("selectStoragePath falls back to downloads root_path", () => {
 it("selectStoragePath falls back to runtime database path", () => {
   const config = {
     ...baseConfig,
-    library: { ...baseConfig.library, library_path: "" },
+    library: { ...baseConfig.library, anime_path: "", manga_path: "", light_novel_path: "" },
     downloads: { ...baseConfig.downloads, root_path: "" },
     general: { ...baseConfig.general, database_path: "/db/config.sqlite" },
   };

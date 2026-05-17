@@ -25,9 +25,33 @@ export function SystemSettingsGeneralLibrarySection(
 ) {
   return (
     <SettingSection title="Library">
-      <props.form.Field name="library.library_path">
+      <props.form.Field name="library.anime_path">
         {(field) => (
-          <SettingRow label="Library Path" description="Root folder for your media library">
+          <SettingRow label="Anime Library Path" description="Root folder for anime media">
+            <Input
+              value={field.state.value}
+              onInput={(event) => field.handleChange(event.currentTarget.value)}
+              className="w-64"
+            />
+          </SettingRow>
+        )}
+      </props.form.Field>
+
+      <props.form.Field name="library.manga_path">
+        {(field) => (
+          <SettingRow label="Manga Library Path" description="Root folder for manga media">
+            <Input
+              value={field.state.value}
+              onInput={(event) => field.handleChange(event.currentTarget.value)}
+              className="w-64"
+            />
+          </SettingRow>
+        )}
+      </props.form.Field>
+
+      <props.form.Field name="library.light_novel_path">
+        {(field) => (
+          <SettingRow label="Light Novel Library Path" description="Root folder for light novels">
             <Input
               value={field.state.value}
               onInput={(event) => field.handleChange(event.currentTarget.value)}

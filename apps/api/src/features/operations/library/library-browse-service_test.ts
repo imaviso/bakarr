@@ -111,7 +111,9 @@ function browseEffect(fs: FileSystemShape, input: { readonly path?: string }) {
                   downloads: { ...config.downloads, root_path: "/allowed/downloads" },
                   library: {
                     ...config.library,
-                    library_path: "/allowed/library",
+                    anime_path: "/allowed/library",
+                    manga_path: "/allowed/library/manga",
+                    light_novel_path: "/allowed/library/light-novels",
                     recycle_path: "/allowed/recycle",
                   },
                 })),

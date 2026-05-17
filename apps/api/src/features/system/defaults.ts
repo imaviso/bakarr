@@ -75,7 +75,9 @@ export function makeDefaultConfig(databasePath: string): ConfigCore {
       airing_day_start_hour: 0,
       airing_timezone: "system",
       import_mode: "copy",
-      library_path: "./library",
+      anime_path: "./library/anime",
+      manga_path: "./library/manga",
+      light_novel_path: "./library/light-novels",
       movie_naming_format: "{title} ({year})",
       naming_format:
         "{title} - {source_unit_segment} - {unit_title} [{quality} {resolution}][{video_codec}][{audio_codec} {audio_channels}]",

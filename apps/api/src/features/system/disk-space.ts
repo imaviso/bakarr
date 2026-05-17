@@ -4,6 +4,7 @@ import { dirname, resolve } from "node:path";
 import { Context, Effect, Either, Layer, Schema } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
+import { getConfiguredLibraryPaths } from "@/features/media/shared/config-support.ts";
 
 export const DiskSpaceSchema = Schema.Struct({
   free: Schema.Number,
@@ -109,7 +110,9 @@ export const DiskSpaceInspectorLive = Layer.effect(
 );
 
 export function selectStoragePath(config: Config, databaseFile: string): string {
-  const libraryPath = config.library.library_path.trim();
+  const libraryPath = getConfiguredLibraryPaths(config.library).find(
+    (path) => path.trim().length > 0,
+  );
   if (libraryPath) {
     return libraryPath;
   }

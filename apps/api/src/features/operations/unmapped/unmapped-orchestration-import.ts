@@ -12,6 +12,7 @@ import {
 import { classifyMediaArtifact, parseFileSourceIdentity } from "@/infra/media/identity/identity.ts";
 import { inferAiredAt } from "@/domain/media/derivations.ts";
 import { resolveAnimeRootFolderEffect } from "@/features/media/shared/config-support.ts";
+import { decodeMediaKind } from "@/features/media/shared/media-kind.ts";
 import {
   OperationsAnimeNotFoundError,
   OperationsConflictError,
@@ -101,7 +102,8 @@ export function makeUnmappedImportWorkflow(input: {
   const importUnmappedFolder = Effect.fn("OperationsService.importUnmappedFolder")(
     function* (input: { folder_name: string; media_id: number; profile_name?: string }) {
       const animeRow = yield* requireAnime(db, input.media_id);
-      const libraryPath = yield* getConfigLibraryPath(db);
+      const mediaKind = decodeMediaKind(animeRow.mediaKind);
+      const libraryPath = yield* getConfigLibraryPath(db, mediaKind);
       const folderName = yield* sanitizePathSegmentEffect(input.folder_name).pipe(
         Effect.mapError(
           (cause) =>
@@ -134,6 +136,7 @@ export function makeUnmappedImportWorkflow(input: {
       }
 
       const rootFolder = yield* resolveAnimeRootFolderEffect(db, folderPath, animeRow.titleRomaji, {
+        mediaKind,
         useExistingRoot: true,
       }).pipe(
         Effect.catchTag("StoredDataError", (e) =>

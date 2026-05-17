@@ -46,7 +46,9 @@ function makeValidConfig() {
     library: {
       auto_scan_interval_hours: 12,
       import_mode: "copy",
-      library_path: "./library",
+      anime_path: "./library/anime",
+      manga_path: "./library/manga",
+      light_novel_path: "./library/light-novels",
       movie_naming_format: "{title}",
       naming_format: "{title} - {episode}",
       preferred_title: "romaji",

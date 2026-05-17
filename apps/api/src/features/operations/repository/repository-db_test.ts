@@ -45,7 +45,9 @@ it.scoped(
             library: {
               ...encodedDefaults.library,
               import_mode: "move",
-              library_path: "/media-library",
+              anime_path: "/media-library",
+              manga_path: "/media-library/manga",
+              light_novel_path: "/media-library/light-novels",
             },
           });
           const configData = yield* encodeConfigCore(decodedConfig);
@@ -69,7 +71,7 @@ it.scoped(
           yield* Effect.promise(() => db.insert(qualityProfiles).values(qualityProfileRow));
 
           const runtimeConfig = yield* loadRuntimeConfig(db);
-          assert.deepStrictEqual(runtimeConfig.library.library_path, "/media-library");
+          assert.deepStrictEqual(runtimeConfig.library.anime_path, "/media-library");
           assert.deepStrictEqual(runtimeConfig.library.import_mode, "move");
           assert.deepStrictEqual(runtimeConfig.profiles.length, 1);
           const [firstProfile] = runtimeConfig.profiles;

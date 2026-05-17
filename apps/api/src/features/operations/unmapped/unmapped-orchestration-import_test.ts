@@ -23,7 +23,9 @@ it.scoped("unmapped import rolls back when a later insert fails", () =>
           ...config,
           library: {
             ...config.library,
-            library_path: libraryRoot,
+            anime_path: libraryRoot,
+            manga_path: `${libraryRoot}/manga`,
+            light_novel_path: `${libraryRoot}/light-novels`,
           },
         }));
         const encodedConfig = yield* encodeConfigCore(yield* toConfigCore(testConfig));

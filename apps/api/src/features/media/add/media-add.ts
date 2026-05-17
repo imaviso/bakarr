@@ -55,8 +55,8 @@ export const addAnimeEffect = Effect.fn("AnimeAdd.addAnimeEffect")(function* (in
     input.animeInput.root_folder,
     validMetadata.title.romaji,
     input.animeInput.use_existing_root === undefined
-      ? {}
-      : { useExistingRoot: input.animeInput.use_existing_root },
+      ? { mediaKind }
+      : { mediaKind, useExistingRoot: input.animeInput.use_existing_root },
   );
 
   yield* checkRootFolderNotOwnedEffect(input.db, rootFolder);

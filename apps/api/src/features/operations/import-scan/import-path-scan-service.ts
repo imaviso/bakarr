@@ -16,6 +16,7 @@ import {
   RuntimeConfigSnapshotService,
   type RuntimeConfigSnapshotError,
 } from "@/features/system/runtime-config-snapshot-service.ts";
+import { getConfiguredLibraryPaths } from "@/features/media/shared/config-support.ts";
 
 export interface ImportPathScanServiceShape {
   readonly scanImportPath: (input: {
@@ -69,7 +70,11 @@ export const ImportPathScanServiceLive = Layer.effect(
 
       const allowedPrefixes = [
         ...new Set(
-          [config.library.library_path, config.library.recycle_path, config.downloads.root_path]
+          [
+            ...getConfiguredLibraryPaths(config.library),
+            config.library.recycle_path,
+            config.downloads.root_path,
+          ]
             .map((path) => path.trim())
             .filter((path) => path.length > 0),
         ),

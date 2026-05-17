@@ -957,7 +957,9 @@ export const DownloadsConfigSchema: Schema.Schema<{
 );
 
 export const LibraryConfigSchema: Schema.Schema<{
-  library_path: string;
+  anime_path: string;
+  manga_path: string;
+  light_novel_path: string;
   recycle_path: string;
   recycle_cleanup_days: number;
   naming_format: string;
@@ -968,7 +970,9 @@ export const LibraryConfigSchema: Schema.Schema<{
   airing_timezone?: string | undefined;
   airing_day_start_hour?: number | undefined;
 }> = Schema.Struct({
-  library_path: Schema.String,
+  anime_path: Schema.String,
+  manga_path: Schema.String,
+  light_novel_path: Schema.String,
   recycle_path: Schema.String,
   recycle_cleanup_days: Schema.Number,
   naming_format: Schema.String,

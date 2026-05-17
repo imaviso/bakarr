@@ -10,6 +10,7 @@ import {
   type RuntimeConfigSnapshotError,
 } from "@/features/system/runtime-config-snapshot-service.ts";
 import { OperationsInputError, OperationsPathError } from "@/features/operations/errors.ts";
+import { getConfiguredLibraryPaths } from "@/features/media/shared/config-support.ts";
 
 const MAX_BROWSE_LIMIT = 500;
 const DEFAULT_BROWSE_LIMIT = 100;
@@ -62,7 +63,11 @@ const makeLibraryBrowseService = Effect.gen(function* () {
 
     const allowedPrefixes = [
       ...new Set(
-        [config.library.library_path, config.library.recycle_path, config.downloads.root_path]
+        [
+          ...getConfiguredLibraryPaths(config.library),
+          config.library.recycle_path,
+          config.downloads.root_path,
+        ]
           .map((path) => path.trim())
           .filter((path) => path.length > 0),
       ),

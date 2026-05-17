@@ -30,7 +30,7 @@ import {
   SelectValue,
 } from "~/components/ui/select";
 import { Input } from "~/components/ui/input";
-import type { MediaSearchResult, QualityProfile, ReleaseProfile } from "~/api/contracts";
+import type { MediaKind, MediaSearchResult, QualityProfile, ReleaseProfile } from "~/api/contracts";
 import { useAddMediaMutation } from "~/api/media-mutations";
 import { profilesQueryOptions, releaseProfilesQueryOptions } from "~/api/profiles";
 import { systemConfigQueryOptions } from "~/api/system-config";
@@ -204,7 +204,7 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
 
         <AddAnimeForm
           media={props.media}
-          rootFolder={config.library.library_path}
+          rootFolder={libraryPathForMediaKind(config.library, props.media.media_kind)}
           defaultProfile={profiles[0]?.name || ""}
           releaseProfiles={releaseProfiles}
           profiles={profiles}
@@ -217,6 +217,21 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
       </DialogContent>
     </Dialog>
   );
+}
+
+function libraryPathForMediaKind(
+  library: { anime_path: string; manga_path: string; light_novel_path: string },
+  mediaKind: MediaKind | undefined,
+) {
+  if (mediaKind === "manga") {
+    return library.manga_path;
+  }
+
+  if (mediaKind === "light_novel") {
+    return library.light_novel_path;
+  }
+
+  return library.anime_path;
 }
 
 // 3. Extracted Form Component to isolate state

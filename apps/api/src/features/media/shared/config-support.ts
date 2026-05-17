@@ -7,13 +7,14 @@ import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { decodeConfigCore, decodeImagePath } from "@/features/system/config-codec.ts";
 import { makeDefaultConfig } from "@/features/system/defaults.ts";
 import { MediaStoredDataError } from "@/features/media/errors.ts";
+import type { MediaKind } from "@packages/shared/index.ts";
 
 export const resolveAnimeRootFolderEffect = Effect.fn("AnimeConfigSupport.resolveAnimeRootFolder")(
   function* (
     db: AppDatabase,
     requestedRootFolder: string,
     title: string,
-    options: { readonly useExistingRoot?: boolean } = {},
+    options: { readonly mediaKind?: MediaKind; readonly useExistingRoot?: boolean } = {},
   ) {
     const trimmed = requestedRootFolder.trim();
     const rows = yield* tryDatabasePromise("Failed to resolve media root folder", () =>
@@ -30,8 +31,8 @@ export const resolveAnimeRootFolderEffect = Effect.fn("AnimeConfigSupport.resolv
           ),
         )
       : makeDefaultConfig(":memory:");
-    const settings = toLibrarySettings(configCore);
-    const baseRootFolder = trimmed.length > 0 ? trimmed : settings.libraryPath;
+    const settings = toLibrarySettings(configCore, options.mediaKind ?? "anime");
+    const baseRootFolder = trimmed.length > 0 ? trimmed : settings.mediaPath;
 
     if (options.useExistingRoot && trimmed.length > 0) {
       return trimmed;
@@ -76,7 +77,7 @@ export const getConfiguredImagesPathEffect = Effect.fn(
 
 export const getConfiguredLibraryPathEffect = Effect.fn(
   "AnimeConfigSupport.getConfiguredLibraryPath",
-)(function* (db: AppDatabase) {
+)(function* (db: AppDatabase, mediaKind: MediaKind = "anime") {
   const rows = yield* tryDatabasePromise("Failed to load configured library path", () =>
     db.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1),
   );
@@ -93,16 +94,47 @@ export const getConfiguredLibraryPathEffect = Effect.fn(
       )
     : makeDefaultConfig(":memory:");
 
-  return toLibrarySettings(configCore).libraryPath;
+  return toLibrarySettings(configCore, mediaKind).mediaPath;
 });
 
-function toLibrarySettings(config: {
-  downloads: { create_media_folders: boolean };
-  library: { library_path: string };
+export function getLibraryPathForMediaKind(
+  library: {
+    anime_path: string;
+    manga_path: string;
+    light_novel_path: string;
+  },
+  mediaKind: MediaKind,
+) {
+  switch (mediaKind) {
+    case "anime":
+      return library.anime_path.trim() || "./library/anime";
+    case "manga":
+      return library.manga_path.trim() || "./library/manga";
+    case "light_novel":
+      return library.light_novel_path.trim() || "./library/light-novels";
+  }
+
+  return library.anime_path.trim() || "./library/anime";
+}
+
+export function getConfiguredLibraryPaths(library: {
+  anime_path: string;
+  manga_path: string;
+  light_novel_path: string;
 }) {
+  return [library.anime_path.trim(), library.manga_path.trim(), library.light_novel_path.trim()];
+}
+
+function toLibrarySettings(
+  config: {
+    downloads: { create_media_folders: boolean };
+    library: { anime_path: string; manga_path: string; light_novel_path: string };
+  },
+  mediaKind: MediaKind,
+) {
   return {
     createMediaFolders: config.downloads.create_media_folders,
-    libraryPath: config.library.library_path.trim() || "./library",
+    mediaPath: getLibraryPathForMediaKind(config.library, mediaKind),
   };
 }
 
