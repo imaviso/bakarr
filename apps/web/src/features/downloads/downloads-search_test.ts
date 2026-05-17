@@ -18,13 +18,13 @@ describe("downloads search", () => {
     expect(
       normalizeDownloadsSearch(
         parseDownloadsSearch({
-          [DOWNLOADS_EVENTS_SEARCH_KEYS.animeId]: "42",
+          [DOWNLOADS_EVENTS_SEARCH_KEYS.mediaId]: "42",
           [DOWNLOADS_EVENTS_SEARCH_KEYS.eventType]: "status_changed",
           tab: "events",
         }),
       ),
     ).toEqual({
-      [DOWNLOADS_EVENTS_SEARCH_KEYS.animeId]: "42",
+      [DOWNLOADS_EVENTS_SEARCH_KEYS.mediaId]: "42",
       [DOWNLOADS_EVENTS_SEARCH_KEYS.eventType]: "status_changed",
       tab: "events",
     });

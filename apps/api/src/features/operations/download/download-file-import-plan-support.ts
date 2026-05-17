@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 
 import type { DownloadSourceMetadata, PreferredTitle } from "@packages/shared/index.ts";
-import { anime } from "@/db/schema.ts";
+import { media } from "@/db/schema.ts";
 import { buildEpisodeFilenamePlan } from "@/features/operations/library/naming-canonical-support.ts";
 import type { ProbedMediaMetadata } from "@/infra/media/probe.ts";
 
@@ -13,8 +13,8 @@ export interface DownloadFileImportPlan {
 
 export const buildDownloadFileImportPlan = Effect.fn("Operations.buildDownloadFileImportPlan")(
   function* (input: {
-    readonly animeRow: typeof anime.$inferSelect;
-    readonly episodeNumbers: readonly number[];
+    readonly animeRow: typeof media.$inferSelect;
+    readonly unitNumbers: readonly number[];
     readonly sourcePath: string;
     readonly randomUuid: () => Effect.Effect<string>;
     readonly options: {
@@ -32,7 +32,7 @@ export const buildDownloadFileImportPlan = Effect.fn("Operations.buildDownloadFi
     const namingFormat = input.options.namingFormat ?? "{title} - {episode_segment}";
     const namingPlan = buildEpisodeFilenamePlan({
       animeRow: input.animeRow,
-      episodeNumbers: input.episodeNumbers,
+      unitNumbers: input.unitNumbers,
       filePath: input.sourcePath,
       namingFormat,
       preferredTitle: input.options.preferredTitle ?? "romaji",

@@ -3,9 +3,9 @@ import { Effect } from "effect";
 
 import type { ScannerState } from "@packages/shared/index.ts";
 import type { AppDatabase, DatabaseError } from "@/db/database.ts";
-import { anime, backgroundJobs } from "@/db/schema.ts";
+import { media, backgroundJobs } from "@/db/schema.ts";
 import { type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
-import type { AniListClient } from "@/features/anime/metadata/anilist.ts";
+import type { AniListClient } from "@/features/media/metadata/anilist.ts";
 import { OperationsPathError, OperationsStoredDataError } from "@/features/operations/errors.ts";
 import {
   deleteUnmappedFolderMatchRowsNotInPaths,
@@ -25,7 +25,7 @@ import {
 import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 
 export interface UnmappedScanSnapshot {
-  readonly animeRows: ReadonlyArray<typeof anime.$inferSelect>;
+  readonly animeRows: ReadonlyArray<typeof media.$inferSelect>;
   readonly cachedByPath: ReadonlyMap<string, ScannerState["folders"][number]>;
   readonly folders: ScannerState["folders"];
 }
@@ -59,7 +59,7 @@ export interface UnmappedScanQueryShape {
   >;
   readonly matchAndPersistUnmappedFolder: (
     matchingFolder: ScannerState["folders"][number],
-    animeRows: ReadonlyArray<typeof anime.$inferSelect>,
+    animeRows: ReadonlyArray<typeof media.$inferSelect>,
   ) => Effect.Effect<UnmappedMatchResult, DatabaseError | OperationsStoredDataError>;
 }
 
@@ -135,7 +135,7 @@ export function makeUnmappedScanQuerySupport(input: {
     "OperationsService.matchAndPersistUnmappedFolder",
   )(function* (
     matchingFolder: ScannerState["folders"][number],
-    animeRows: ReadonlyArray<typeof anime.$inferSelect>,
+    animeRows: ReadonlyArray<typeof media.$inferSelect>,
   ) {
     const matchResult = yield* Effect.either(
       matchSingleUnmappedFolder({

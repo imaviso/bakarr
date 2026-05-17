@@ -32,7 +32,7 @@ describe("OperationsTaskService", () => {
 
           const accepted = yield* Effect.flatMap(OperationsTaskWriteService, (service) =>
             service.createTask({
-              animeId: 11,
+              mediaId: 11,
               message: "Queued test import",
               taskKey: "library_import",
             }),
@@ -53,7 +53,7 @@ describe("OperationsTaskService", () => {
 
           assert.deepStrictEqual(task.task_key, "library_import");
           assert.deepStrictEqual(task.status, "queued");
-          assert.deepStrictEqual(task.anime_id, 11);
+          assert.deepStrictEqual(task.media_id, 11);
         }),
       schema,
     }),
@@ -62,13 +62,13 @@ describe("OperationsTaskService", () => {
   it.effect("decodes valid task query", () =>
     Effect.gen(function* () {
       const decoded = yield* decodeOperationsTaskQuery({
-        anime_id: 3,
-        task_key: "anime_scan_folder",
+        media_id: 3,
+        task_key: "media_scan_folder",
       });
 
       assert.deepStrictEqual(decoded, {
-        animeId: 3,
-        taskKey: "anime_scan_folder",
+        mediaId: 3,
+        taskKey: "media_scan_folder",
       });
     }),
   );

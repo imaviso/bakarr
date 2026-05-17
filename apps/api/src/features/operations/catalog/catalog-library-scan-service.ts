@@ -1,7 +1,7 @@
 import { Context, Effect, Layer, Ref } from "effect";
 
 import type { AppDatabase, DatabaseError } from "@/db/database.ts";
-import { anime } from "@/db/schema.ts";
+import { media } from "@/db/schema.ts";
 import { Database } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import {
@@ -56,9 +56,9 @@ function makeCatalogLibraryScanSupport(input: {
       yield* markJobStarted(input.db, "library_scan", nowIso);
 
       const animeRows = yield* input.tryDatabasePromise("Failed to run library scan", () =>
-        input.db.select().from(anime),
+        input.db.select().from(media),
       );
-      yield* Effect.annotateCurrentSpan("animeCount", animeRows.length);
+      yield* Effect.annotateCurrentSpan("mediaCount", animeRows.length);
       const scannedRef = yield* Ref.make(0);
       const matchedRef = yield* Ref.make(0);
 

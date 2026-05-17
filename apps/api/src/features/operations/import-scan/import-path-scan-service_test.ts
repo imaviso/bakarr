@@ -2,7 +2,7 @@ import { Cause, Effect, Exit, Layer } from "effect";
 
 import { assert, describe, it } from "@effect/vitest";
 import { Database } from "@/db/database.ts";
-import { AniListClient } from "@/features/anime/metadata/anilist.ts";
+import { AniListClient } from "@/features/media/metadata/anilist.ts";
 import {
   ImportPathScanService,
   ImportPathScanServiceLive,
@@ -47,7 +47,7 @@ describe("ImportPathScanService", () => {
 function scanImportPathEffect(
   fs: FileSystemShape,
   input: {
-    readonly animeId?: number;
+    readonly mediaId?: number;
     readonly limit?: number;
     readonly path: string;
   },

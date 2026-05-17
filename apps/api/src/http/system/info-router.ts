@@ -12,7 +12,7 @@ import { SystemReadService } from "@/features/system/system-read-service.ts";
 import {
   OperationsTaskIdParamsSchema,
   OperationsTaskQuerySchema,
-} from "@/http/anime/request-schemas.ts";
+} from "@/http/media/request-schemas.ts";
 import {
   authedRouteResponse,
   decodePathParams,
@@ -54,7 +54,7 @@ export const infoRouter = HttpRouter.empty.pipe(
         const decoded = yield* decodeOperationsTaskQuery(query);
         return yield* (yield* OperationsTaskReadService).listTasks({
           ...decoded,
-          excludeTaskKeys: ["anime_scan_folder", "library_import"],
+          excludeTaskKeys: ["media_scan_folder", "library_import"],
         });
       }),
       jsonResponse,

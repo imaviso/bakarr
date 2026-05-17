@@ -125,7 +125,7 @@ it.effect("requireViewerFromHttpRequest fails with AuthError when viewer is miss
 
 it.effect("requireViewerFromHttpRequest blocks users who must change password", () =>
   Effect.gen(function* () {
-    const request = HttpServerRequest.fromWeb(new Request("http://localhost/api/anime"));
+    const request = HttpServerRequest.fromWeb(new Request("http://localhost/api/media"));
 
     const exit = yield* Effect.exit(
       requireViewerFromHttpRequest().pipe(

@@ -23,7 +23,7 @@ export function DownloadEventDetailsDialog(props: DownloadEventDetailsDialogProp
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>
-            {props.event?.anime_title ??
+            {props.event?.media_title ??
               props.event?.torrent_name ??
               props.event?.event_type ??
               "Download Event"}

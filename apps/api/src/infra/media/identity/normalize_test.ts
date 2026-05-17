@@ -9,7 +9,7 @@ it("normalizeSourceText normalizes full-width brackets and season markers", () =
   );
 });
 
-it("normalizeSourceText rewrites common bracketed Chinese anime release layouts", () => {
+it("normalizeSourceText rewrites common bracketed Chinese media release layouts", () => {
   assert.deepStrictEqual(
     normalizeSourceText("[Group][中文名/English Title][2025][03][1080p]"),
     "[Group] English Title - 03[1080p]",

@@ -1,14 +1,14 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { Effect, Either } from "effect";
 
-import { brandAnimeId, type Config } from "@packages/shared/index.ts";
+import { brandMediaId, type Config } from "@packages/shared/index.ts";
 import type { AppDatabase, DatabaseError } from "@/db/database.ts";
-import { episodes } from "@/db/schema.ts";
+import { mediaUnits } from "@/db/schema.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { buildRenamePreview } from "@/features/operations/library/library-import.ts";
 import { OperationsAnimeNotFoundError, OperationsPathError } from "@/features/operations/errors.ts";
-import { getAnimeRowEffect as requireAnime } from "@/features/anime/shared/anime-read-repository.ts";
+import { getAnimeRowEffect as requireAnime } from "@/features/media/shared/media-read-repository.ts";
 import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 
 export interface RenameLibraryFilesInput {
@@ -17,7 +17,7 @@ export interface RenameLibraryFilesInput {
   readonly fs: FileSystemShape;
   readonly runtimeConfig: Config;
   readonly tryDatabasePromise: TryDatabasePromise;
-  readonly animeId: number;
+  readonly mediaId: number;
 }
 
 export const renameLibraryFiles = Effect.fn("Operations.renameLibraryFiles")((
@@ -26,15 +26,15 @@ export const renameLibraryFiles = Effect.fn("Operations.renameLibraryFiles")((
   { failed: number; failures: string[]; renamed: number },
   DatabaseError | OperationsAnimeNotFoundError
 > => {
-  const { db, eventBus, fs, runtimeConfig, tryDatabasePromise, animeId } = input;
+  const { db, eventBus, fs, runtimeConfig, tryDatabasePromise, mediaId } = input;
   return Effect.gen(function* () {
-    const animeRow = yield* requireAnime(db, animeId);
-    const preview = yield* buildRenamePreview(db, animeId, runtimeConfig);
+    const animeRow = yield* requireAnime(db, mediaId);
+    const preview = yield* buildRenamePreview(db, mediaId, runtimeConfig);
 
     yield* eventBus.publish({
       type: "RenameStarted",
       payload: {
-        anime_id: brandAnimeId(animeId),
+        media_id: brandMediaId(mediaId),
         title: animeRow.titleRomaji,
       },
     });
@@ -54,14 +54,14 @@ export const renameLibraryFiles = Effect.fn("Operations.renameLibraryFiles")((
         Effect.zipRight(
           tryDatabasePromise("Failed to rename files", () =>
             db
-              .update(episodes)
+              .update(mediaUnits)
               .set({ filePath: item.new_path })
               .where(
                 and(
-                  eq(episodes.animeId, animeId),
-                  item.episode_numbers?.length
-                    ? inArray(episodes.number, item.episode_numbers)
-                    : eq(episodes.number, item.episode_number),
+                  eq(mediaUnits.mediaId, mediaId),
+                  item.unit_numbers?.length
+                    ? inArray(mediaUnits.number, item.unit_numbers)
+                    : eq(mediaUnits.number, item.unit_number),
                 ),
               ),
           ).pipe(
@@ -95,7 +95,7 @@ export const renameLibraryFiles = Effect.fn("Operations.renameLibraryFiles")((
     yield* eventBus.publish({
       type: "RenameFinished",
       payload: {
-        anime_id: brandAnimeId(animeId),
+        media_id: brandMediaId(mediaId),
         count: renamed,
         title: animeRow.titleRomaji,
       },

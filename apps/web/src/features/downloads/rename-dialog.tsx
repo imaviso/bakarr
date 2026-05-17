@@ -60,21 +60,21 @@ function renamePreviewSnapshotBadges(snapshot?: RenamePreviewItem["metadata_snap
 }
 
 interface RenameDialogProps {
-  animeId: number;
+  mediaId: number;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
 export function RenameDialog(props: RenameDialogProps) {
-  const animeId = props.animeId;
-  const previewQuery = useRenamePreviewQuery(animeId, { enabled: props.open });
+  const mediaId = props.mediaId;
+  const previewQuery = useRenamePreviewQuery(mediaId, { enabled: props.open });
   const executeRename = useExecuteRenameMutation();
   const resetExecuteRename = executeRename.reset;
 
   const previewCount = previewQuery.data?.length ?? 0;
 
   const handleRename = () => {
-    executeRename.mutate(props.animeId);
+    executeRename.mutate(props.mediaId);
   };
 
   const handleOpenChange = (open: boolean) => {
@@ -158,7 +158,7 @@ export function RenameDialog(props: RenameDialogProps) {
                         <TableHeader>
                           <TableRow>
                             <TableHead scope="col" className="w-[80px]">
-                              Episode
+                              MediaUnit
                             </TableHead>
                             <TableHead scope="col" className="w-[30%]">
                               Current Filename
@@ -174,7 +174,7 @@ export function RenameDialog(props: RenameDialogProps) {
                         <TableBody>
                           {previewQuery.data.map((item) => (
                             <TableRow key={`${item.current_path}-${item.new_filename}`}>
-                              <TableCell>{item.episode_number}</TableCell>
+                              <TableCell>{item.unit_number}</TableCell>
                               <TableCell className="font-mono text-sm break-all text-muted-foreground">
                                 {item.current_path.split("/").pop()}
                               </TableCell>
@@ -229,12 +229,11 @@ export function RenameDialog(props: RenameDialogProps) {
                                               </Badge>
                                             ))}
                                           </div>
-                                          {item.metadata_snapshot.episode_title && (
+                                          {item.metadata_snapshot.unit_title && (
                                             <div className="flex items-start gap-1">
                                               <InfoIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                                               <span>
-                                                Episode title:{" "}
-                                                {item.metadata_snapshot.episode_title}
+                                                MediaUnit title: {item.metadata_snapshot.unit_title}
                                               </span>
                                             </div>
                                           )}

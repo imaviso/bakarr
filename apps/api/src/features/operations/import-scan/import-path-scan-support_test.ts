@@ -1,5 +1,5 @@
 import { assert, it } from "@effect/vitest";
-import { brandAnimeId } from "@packages/shared/index.ts";
+import { brandMediaId } from "@packages/shared/index.ts";
 
 import {
   buildEpisodeFileMappingIndex,
@@ -10,15 +10,15 @@ import { buildScannedFileNamingPlan } from "@/features/operations/import-scan/im
 it("buildScannedFileLibrarySignals reports existing exact-path mappings", () => {
   const mappingIndex = buildEpisodeFileMappingIndex([
     {
-      anime_id: 20,
-      anime_title: "Naruto",
-      episode_number: 1,
+      media_id: 20,
+      media_title: "Naruto",
+      unit_number: 1,
       file_path: "/imports/Naruto - 01.mkv",
     },
     {
-      anime_id: 20,
-      anime_title: "Naruto",
-      episode_number: 2,
+      media_id: 20,
+      media_title: "Naruto",
+      unit_number: 2,
       file_path: "/imports/Naruto - 01.mkv",
     },
   ]);
@@ -26,18 +26,18 @@ it("buildScannedFileLibrarySignals reports existing exact-path mappings", () => 
   assert.deepStrictEqual(
     buildScannedFileLibrarySignals({
       file: {
-        episode_number: 1,
-        episode_numbers: [1, 2],
+        unit_number: 1,
+        unit_numbers: [1, 2],
         source_path: "/imports/Naruto - 01.mkv",
       },
       mappingIndex,
-      targetAnime: { id: brandAnimeId(20), title: "Naruto" },
+      targetAnime: { id: brandMediaId(20), title: "Naruto" },
     }),
     {
       existing_mapping: {
-        anime_id: brandAnimeId(20),
-        anime_title: "Naruto",
-        episode_numbers: [1, 2],
+        media_id: brandMediaId(20),
+        media_title: "Naruto",
+        unit_numbers: [1, 2],
         file_path: "/imports/Naruto - 01.mkv",
       },
     },
@@ -47,15 +47,15 @@ it("buildScannedFileLibrarySignals reports existing exact-path mappings", () => 
 it("buildScannedFileLibrarySignals reports duplicate episode conflicts", () => {
   const mappingIndex = buildEpisodeFileMappingIndex([
     {
-      anime_id: 20,
-      anime_title: "Naruto",
-      episode_number: 1,
+      media_id: 20,
+      media_title: "Naruto",
+      unit_number: 1,
       file_path: "/library/Naruto/Naruto - 01.mkv",
     },
     {
-      anime_id: 20,
-      anime_title: "Naruto",
-      episode_number: 2,
+      media_id: 20,
+      media_title: "Naruto",
+      unit_number: 2,
       file_path: "/library/Naruto/Naruto - 02.mkv",
     },
   ]);
@@ -63,18 +63,18 @@ it("buildScannedFileLibrarySignals reports duplicate episode conflicts", () => {
   assert.deepStrictEqual(
     buildScannedFileLibrarySignals({
       file: {
-        episode_number: 1,
-        episode_numbers: [1, 2],
+        unit_number: 1,
+        unit_numbers: [1, 2],
         source_path: "/imports/Naruto batch.mkv",
       },
       mappingIndex,
-      targetAnime: { id: brandAnimeId(20), title: "Naruto" },
+      targetAnime: { id: brandMediaId(20), title: "Naruto" },
     }),
     {
-      episode_conflict: {
-        anime_id: brandAnimeId(20),
-        anime_title: "Naruto",
-        episode_numbers: [1, 2],
+      unit_conflict: {
+        media_id: brandMediaId(20),
+        media_title: "Naruto",
+        unit_numbers: [1, 2],
         file_path: "/library/Naruto/Naruto - 01.mkv",
       },
       existing_mapping: undefined,
@@ -82,7 +82,7 @@ it("buildScannedFileLibrarySignals reports duplicate episode conflicts", () => {
   );
 });
 
-it("buildScannedFileNamingPlan exposes naming details for matched anime files", () => {
+it("buildScannedFileNamingPlan exposes naming details for matched media files", () => {
   const result = buildScannedFileNamingPlan({
     animeRow: {
       format: "TV",
@@ -95,14 +95,14 @@ it("buildScannedFileNamingPlan exposes naming details for matched anime files", 
     file: {
       audio_channels: "2.0",
       audio_codec: "AAC",
-      episode_number: 1,
+      unit_number: 1,
       group: "SubsPlease",
       quality: "WEB-DL",
       resolution: "1080p",
       season: 1,
       source_path: "/imports/Naruto - S01E01.mkv",
       source_identity: {
-        episode_numbers: [1],
+        unit_numbers: [1],
         label: "S01E01",
         scheme: "season",
         season: 1,
@@ -122,7 +122,7 @@ it("buildScannedFileNamingPlan exposes naming details for matched anime files", 
     result.naming_format_used,
     "{title} - S{season:02}E{episode:02} [{quality} {resolution}]",
   );
-  assert.deepStrictEqual(result.naming_metadata_snapshot?.episode_title, "Enter Naruto Uzumaki!");
+  assert.deepStrictEqual(result.naming_metadata_snapshot?.unit_title, "Enter Naruto Uzumaki!");
   assert.deepStrictEqual(result.naming_metadata_snapshot?.title_source, "preferred_romaji");
 });
 
@@ -139,14 +139,14 @@ it("buildScannedFileNamingPlan avoids duplicate resolution when quality already 
     file: {
       audio_channels: "2.0",
       audio_codec: "Opus",
-      episode_number: 1,
+      unit_number: 1,
       group: "Vodes",
       quality: "WEB-DL 1080p",
       resolution: "1080p",
       season: 1,
       source_path: "/imports/Jigokuraku - S01E01 v2 (BD 1080p HEVC) [Vodes].mkv",
       source_identity: {
-        episode_numbers: [1],
+        unit_numbers: [1],
         label: "S01E01",
         scheme: "season",
         season: 1,
@@ -172,18 +172,18 @@ it("buildScannedFileNamingPlan keeps extension logic within file basename", () =
       startYear: 2024,
       titleRomaji: "Test",
     },
-    episodeRows: [{ aired: "2024-01-01", title: "Episode" }],
+    episodeRows: [{ aired: "2024-01-01", title: "MediaUnit" }],
     file: {
       audio_channels: "2.0",
       audio_codec: "AAC",
-      episode_number: 1,
+      unit_number: 1,
       group: "Group",
       quality: "WEB-DL",
       resolution: "1080p",
       season: 1,
       source_path: "/imports.v2/Test - S01E01",
       source_identity: {
-        episode_numbers: [1],
+        unit_numbers: [1],
         label: "S01E01",
         scheme: "season",
         season: 1,

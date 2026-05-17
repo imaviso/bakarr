@@ -14,16 +14,16 @@ export function DownloadEventCard(props: DownloadEventCardProps) {
     <div className="rounded-none border border-border bg-card p-3 space-y-1">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
-          {props.event.anime_image && (
+          {props.event.media_image && (
             <img
-              src={props.event.anime_image}
-              alt={props.event.anime_title ?? props.event.torrent_name ?? props.event.message}
+              src={props.event.media_image}
+              alt={props.event.media_title ?? props.event.torrent_name ?? props.event.message}
               className="h-8 w-6 object-cover border border-border shrink-0"
             />
           )}
           <div className="min-w-0">
             <div className="text-sm font-medium truncate">
-              {props.event.anime_title ?? props.event.torrent_name ?? props.event.event_type}
+              {props.event.media_title ?? props.event.torrent_name ?? props.event.event_type}
             </div>
             <div className="text-[11px] text-muted-foreground truncate">
               {props.event.event_type}

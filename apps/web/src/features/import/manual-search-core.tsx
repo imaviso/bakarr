@@ -8,7 +8,7 @@ import {
 } from "@phosphor-icons/react";
 import { useMemo, useRef, useState } from "react";
 import { useDebouncedValue } from "@tanstack/react-pacer";
-import { AnimeDiscoveryRow } from "~/features/anime/anime-discovery";
+import { AnimeDiscoveryRow } from "~/features/media/media-discovery";
 import { Badge } from "~/components/ui/badge";
 import { Input } from "~/components/ui/input";
 import {
@@ -18,9 +18,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
-import type { AnimeSearchResult, MediaKind } from "~/api/contracts";
-import { useAnimeSearchQuery } from "~/api/anime";
-import { animeDisplayTitle, animeSearchSubtitle } from "~/domain/anime/metadata";
+import type { MediaSearchResult, MediaKind } from "~/api/contracts";
+import { useMediaSearchQuery } from "~/api/media";
+import { animeDisplayTitle, animeSearchSubtitle } from "~/domain/media/metadata";
 import { mediaKindLabel, mediaUnitShortLabel } from "~/domain/media-unit";
 import { formatMatchConfidence } from "~/domain/scanned-file";
 import { cn } from "~/infra/utils";
@@ -34,7 +34,7 @@ interface ManualSearchCoreProps {
   disableSelectionForAdded: boolean;
   emptyPrompt: string;
   existingIds?: ReadonlySet<number>;
-  onSelect: (anime: AnimeSearchResult) => void;
+  onSelect: (anime: MediaSearchResult) => void;
 }
 
 export function ManualSearchCore(props: ManualSearchCoreProps) {
@@ -43,13 +43,13 @@ export function ManualSearchCore(props: ManualSearchCoreProps) {
   const [mediaKind, setMediaKind] = useState<MediaKind>("anime");
   const [debouncedQuery] = useDebouncedValue(query, { wait: SEARCH_DEBOUNCE_MS });
 
-  const search = useAnimeSearchQuery(debouncedQuery, mediaKind);
+  const search = useMediaSearchQuery(debouncedQuery, mediaKind);
   const searchResults = search.data?.results ?? [];
   const searchDegraded = search.data?.degraded ?? false;
   const libraryIds = useMemo(() => {
     const ids = new Set(props.existingIds);
-    for (const anime of search.data?.results ?? []) {
-      if (anime.already_in_library) ids.add(anime.id);
+    for (const media of search.data?.results ?? []) {
+      if (media.already_in_library) ids.add(media.id);
     }
     return ids;
   }, [props.existingIds, search.data?.results]);
@@ -106,14 +106,14 @@ export function ManualSearchCore(props: ManualSearchCoreProps) {
         {debouncedQuery ? (
           searchResults.length !== 0 ? (
             <div className="divide-y">
-              {searchResults.map((anime) => {
-                const isAdded = props.existingIds?.has(anime.id) ?? false;
+              {searchResults.map((media) => {
+                const isAdded = props.existingIds?.has(media.id) ?? false;
                 return (
                   <button
-                    key={anime.id}
+                    key={media.id}
                     type="button"
                     disabled={props.disableSelectionForAdded && isAdded}
-                    onClick={() => props.onSelect(anime)}
+                    onClick={() => props.onSelect(media)}
                     className={cn(
                       "w-full flex items-center gap-3 p-3 text-left transition-colors",
                       props.disableSelectionForAdded && isAdded
@@ -122,19 +122,19 @@ export function ManualSearchCore(props: ManualSearchCoreProps) {
                     )}
                   >
                     <div className="h-10 w-10 shrink-0 rounded-none bg-muted overflow-hidden">
-                      {anime.cover_image && (
+                      {media.cover_image && (
                         <img
-                          src={anime.cover_image}
-                          alt={animeDisplayTitle(anime)}
+                          src={media.cover_image}
+                          alt={animeDisplayTitle(media)}
                           loading="lazy"
                           className="h-full w-full object-cover"
                         />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{animeDisplayTitle(anime)}</p>
+                      <p className="text-sm font-medium truncate">{animeDisplayTitle(media)}</p>
                       <p className="text-xs text-muted-foreground truncate">
-                        {anime.title.english}
+                        {media.title.english}
                       </p>
                       <div className="mt-1 flex flex-wrap gap-1 text-xs text-muted-foreground">
                         {searchDegraded && (
@@ -145,45 +145,45 @@ export function ManualSearchCore(props: ManualSearchCoreProps) {
                             Local only
                           </Badge>
                         )}
-                        {formatMatchConfidence(anime.match_confidence) && (
+                        {formatMatchConfidence(media.match_confidence) && (
                           <Badge variant="outline" className="h-5 px-1.5 text-xs">
-                            {formatMatchConfidence(anime.match_confidence)}
+                            {formatMatchConfidence(media.match_confidence)}
                           </Badge>
                         )}
-                        {anime.format && <span>{anime.format}</span>}
-                        {(anime.episode_count || anime.volume_count) && (
+                        {media.format && <span>{media.format}</span>}
+                        {(media.unit_count || media.volume_count) && (
                           <span>
                             {mediaUnitShortLabel(
-                              anime.media_kind === "anime" ? "episode" : "volume",
-                              anime.media_kind === "anime"
-                                ? (anime.episode_count ?? 0)
-                                : (anime.volume_count ?? anime.episode_count ?? 0),
+                              media.media_kind === "anime" ? "episode" : "volume",
+                              media.media_kind === "anime"
+                                ? (media.unit_count ?? 0)
+                                : (media.volume_count ?? media.unit_count ?? 0),
                             )}
                           </span>
                         )}
-                        {animeSearchSubtitle(anime) && (
+                        {animeSearchSubtitle(media) && (
                           <span className="inline-flex items-center gap-1">
                             <CalendarIcon className="h-3 w-3" />
-                            {animeSearchSubtitle(anime)}
+                            {animeSearchSubtitle(media)}
                           </span>
                         )}
-                        {anime.genres?.length && (
-                          <span>{anime.genres?.slice(0, 2).join(" / ")}</span>
+                        {media.genres?.length && (
+                          <span>{media.genres?.slice(0, 2).join(" / ")}</span>
                         )}
                       </div>
-                      {anime.description && (
+                      {media.description && (
                         <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
-                          {anime.description}
+                          {media.description}
                         </p>
                       )}
-                      {anime.synonyms?.length && (
+                      {media.synonyms?.length && (
                         <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
-                          Also known as {anime.synonyms?.slice(0, 3).join(" • ")}
+                          Also known as {media.synonyms?.slice(0, 3).join(" • ")}
                         </p>
                       )}
-                      {anime.related_anime?.length && (
+                      {media.related_media?.length && (
                         <div className="mt-1 space-y-1">
-                          {anime.related_anime?.slice(0, 2).map((related) => (
+                          {media.related_media?.slice(0, 2).map((related) => (
                             <AnimeDiscoveryRow
                               key={`${related.id ?? "related"}-${animeDisplayTitle(related)}`}
                               entry={related}
@@ -193,9 +193,9 @@ export function ManualSearchCore(props: ManualSearchCoreProps) {
                           ))}
                         </div>
                       )}
-                      {anime.recommended_anime?.length && (
+                      {media.recommended_media?.length && (
                         <div className="mt-1 space-y-1">
-                          {anime.recommended_anime?.slice(0, 2).map((recommended) => (
+                          {media.recommended_media?.slice(0, 2).map((recommended) => (
                             <AnimeDiscoveryRow
                               key={`${recommended.id ?? "recommended"}-${animeDisplayTitle(recommended)}`}
                               entry={recommended}
@@ -205,9 +205,9 @@ export function ManualSearchCore(props: ManualSearchCoreProps) {
                           ))}
                         </div>
                       )}
-                      {anime.match_reason && (
+                      {media.match_reason && (
                         <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
-                          {anime.match_reason}
+                          {media.match_reason}
                         </p>
                       )}
                     </div>
@@ -217,7 +217,7 @@ export function ManualSearchCore(props: ManualSearchCoreProps) {
                       ) : (
                         <PlusIcon className="h-4 w-4 text-muted-foreground" />
                       ))}
-                    {props.addedIndicator === "badge" && anime.already_in_library && (
+                    {props.addedIndicator === "badge" && media.already_in_library && (
                       <Badge variant="secondary">In library</Badge>
                     )}
                   </button>

@@ -17,12 +17,12 @@ import {
   validateQualityProfileSizeLabels,
 } from "@/features/operations/search/release-ranking.ts";
 import { parseRssReleaseUnitNumbers } from "@/features/operations/background-search/background-search-rss-release.ts";
-import { loadCurrentEpisodeState } from "@/features/anime/shared/anime-read-repository.ts";
+import { loadCurrentEpisodeState } from "@/features/media/shared/media-read-repository.ts";
 import {
   loadQualityProfile,
   loadReleaseRules,
 } from "@/features/operations/repository/profile-repository.ts";
-import { getAnimeRowEffect as requireAnime } from "@/features/anime/shared/anime-read-repository.ts";
+import { getAnimeRowEffect as requireAnime } from "@/features/media/shared/media-read-repository.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 export interface BackgroundSearchRssFeedServiceShape {
@@ -60,14 +60,14 @@ export const BackgroundSearchRssFeedServiceLive = Layer.effect(
     );
 
     const logRssSkip = Effect.fn("BackgroundSearchRssFeed.logRssSkip")(function* (input: {
-      animeId?: number;
+      mediaId?: number;
       feedId: number;
       feedName: string;
       reason: string;
     }) {
       yield* Effect.logDebug("Skipping RSS background action").pipe(
         Effect.annotateLogs({
-          animeId: input.animeId,
+          mediaId: input.mediaId,
           feedId: input.feedId,
           feedName: input.feedName,
           reason: input.reason,
@@ -90,14 +90,14 @@ export const BackgroundSearchRssFeedServiceLive = Layer.effect(
         ),
         Effect.flatMap((items) =>
           Effect.gen(function* () {
-            const animeRow = yield* requireAnime(db, feed.animeId);
+            const animeRow = yield* requireAnime(db, feed.mediaId);
 
             if (!animeRow.monitored) {
               yield* logRssSkip({
-                animeId: animeRow.id,
+                mediaId: animeRow.id,
                 feedId: feed.id,
                 feedName: feed.name ?? feed.url,
-                reason: "anime is not monitored",
+                reason: "media is not monitored",
               });
               return 0;
             }
@@ -110,7 +110,7 @@ export const BackgroundSearchRssFeedServiceLive = Layer.effect(
             const slice = items.slice(0, 10);
             if (slice.length === 0) {
               yield* logRssSkip({
-                animeId: animeRow.id,
+                mediaId: animeRow.id,
                 feedId: feed.id,
                 feedName: feed.name ?? feed.url,
                 reason: "feed returned no items",
@@ -137,12 +137,12 @@ export const BackgroundSearchRssFeedServiceLive = Layer.effect(
                 ),
             );
             const existingHashes = new Set(existingDownloads.map((d) => d.infoHash?.toLowerCase()));
-            const missingEpisodes = yield* loadMissingEpisodeNumbers(db, animeRow.id);
+            const missingUnits = yield* loadMissingEpisodeNumbers(db, animeRow.id);
 
             for (const item of slice) {
               if (existingHashes.has(item.infoHash.toLowerCase())) {
                 yield* logRssSkip({
-                  animeId: animeRow.id,
+                  mediaId: animeRow.id,
                   feedId: feed.id,
                   feedName: feed.name ?? feed.url,
                   reason: `item already queued: ${item.infoHash}`,
@@ -150,14 +150,14 @@ export const BackgroundSearchRssFeedServiceLive = Layer.effect(
                 continue;
               }
 
-              const episodeNumber = parseRssReleaseUnitNumbers({
+              const unitNumber = parseRssReleaseUnitNumbers({
                 mediaKind: animeRow.mediaKind,
                 title: item.title,
               })[0];
 
-              if (episodeNumber == null) {
+              if (unitNumber == null) {
                 yield* logRssSkip({
-                  animeId: animeRow.id,
+                  mediaId: animeRow.id,
                   feedId: feed.id,
                   feedName: feed.name ?? feed.url,
                   reason: `could not parse unit number: ${item.title}`,
@@ -165,7 +165,7 @@ export const BackgroundSearchRssFeedServiceLive = Layer.effect(
                 continue;
               }
 
-              const currentEpisode = yield* loadCurrentEpisodeState(db, animeRow.id, episodeNumber);
+              const currentEpisode = yield* loadCurrentEpisodeState(db, animeRow.id, unitNumber);
               const action = decideDownloadAction(
                 profile,
                 rules,
@@ -177,7 +177,7 @@ export const BackgroundSearchRssFeedServiceLive = Layer.effect(
 
               if (!(action.Accept || action.Upgrade)) {
                 yield* logRssSkip({
-                  animeId: animeRow.id,
+                  mediaId: animeRow.id,
                   feedId: feed.id,
                   feedName: feed.name ?? feed.url,
                   reason: `release not accepted: ${item.title}`,
@@ -196,16 +196,16 @@ export const BackgroundSearchRssFeedServiceLive = Layer.effect(
                 animeRow,
                 contextMessage: "Failed to run RSS check",
                 ...(decisionReason === undefined ? {} : { decisionReason }),
-                episodeNumber,
+                unitNumber,
                 eventMessage: `Queued ${item.title} from RSS`,
                 eventType: "download.rss.queued",
                 item,
-                missingEpisodes,
+                missingUnits,
               });
 
               if (queueResult._tag === "skipped") {
                 yield* logRssSkip({
-                  animeId: animeRow.id,
+                  mediaId: animeRow.id,
                   feedId: feed.id,
                   feedName: feed.name ?? feed.url,
                   reason: `overlapping download already queued: ${item.infoHash}`,

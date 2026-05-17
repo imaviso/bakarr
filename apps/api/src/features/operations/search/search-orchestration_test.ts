@@ -1,7 +1,7 @@
 import { Cause, Effect, Exit, Option } from "effect";
 
 import * as dbSchema from "@/db/schema.ts";
-import { anime } from "@/db/schema.ts";
+import { media } from "@/db/schema.ts";
 import { assert, it } from "@effect/vitest";
 import { makeTestConfig } from "@/test/config-fixture.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
@@ -12,7 +12,7 @@ import { SeaDexClient } from "@/features/operations/search/seadex-client.ts";
 import { makeSearchReleaseSupport } from "@/features/operations/search/search-orchestration-release-search.ts";
 
 it.scoped(
-  "searchEpisodeReleases fails instead of silently degrading when SeaDex enrichment fails",
+  "searchUnitReleases fails instead of silently degrading when SeaDex enrichment fails",
   () =>
     withSqliteTestDbEffect({
       run: (db) =>
@@ -41,7 +41,7 @@ it.scoped(
           });
 
           const exit = yield* Effect.exit(
-            searchReleaseService.searchEpisodeReleases(makeAnimeRow(), 1, config),
+            searchReleaseService.searchUnitReleases(makeAnimeRow(), 1, config),
           );
 
           assert.deepStrictEqual(Exit.isFailure(exit), true);
@@ -57,7 +57,7 @@ it.scoped(
     }),
 );
 
-it.scoped("searchEpisodeReleases tries season episode query variants", () =>
+it.scoped("searchUnitReleases tries season episode query variants", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -92,7 +92,7 @@ it.scoped("searchEpisodeReleases tries season episode query variants", () =>
           seadexClient,
         });
 
-        const releases = yield* searchReleaseService.searchEpisodeReleases(
+        const releases = yield* searchReleaseService.searchUnitReleases(
           makeAnimeRow({ titleEnglish: "Release that Witch", titleRomaji: "Fangkai Nage Nüwu" }),
           8,
           config,
@@ -110,7 +110,7 @@ it.scoped("searchEpisodeReleases tries season episode query variants", () =>
   }),
 );
 
-it.scoped("searchEpisodeReleases searches stored synonyms and normalized aliases", () =>
+it.scoped("searchUnitReleases searches stored synonyms and normalized aliases", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -139,7 +139,7 @@ it.scoped("searchEpisodeReleases searches stored synonyms and normalized aliases
           seadexClient: makeSeaDexNoneClient(),
         });
 
-        const releases = yield* searchReleaseService.searchEpisodeReleases(
+        const releases = yield* searchReleaseService.searchUnitReleases(
           makeAnimeRow({
             synonyms: '["Fangkai Nage Nuwu"]',
             titleRomaji: "Fangkai Nage Nüwu",
@@ -158,60 +158,58 @@ it.scoped("searchEpisodeReleases searches stored synonyms and normalized aliases
   }),
 );
 
-it.scoped(
-  "searchEpisodeReleases falls back to broad title search and keeps requested episode",
-  () =>
-    withSqliteTestDbEffect({
-      run: (db) =>
-        Effect.gen(function* () {
-          const requestedQueries: string[] = [];
-          const rssClient = {
-            fetchItems: (url: string) => {
-              const query = new URL(url).searchParams.get("q") ?? "";
-              requestedQueries.push(query);
+it.scoped("searchUnitReleases falls back to broad title search and keeps requested episode", () =>
+  withSqliteTestDbEffect({
+    run: (db) =>
+      Effect.gen(function* () {
+        const requestedQueries: string[] = [];
+        const rssClient = {
+          fetchItems: (url: string) => {
+            const query = new URL(url).searchParams.get("q") ?? "";
+            requestedQueries.push(query);
 
-              return Effect.succeed(
-                query === "Release that Witch"
-                  ? [
-                      makeRelease({
-                        infoHash: "1000000000000000000000000000000000000000",
-                        title: "[SubsPlease] Release that Witch - 07 (1080p)",
-                      }),
-                      makeRelease({
-                        infoHash: "2000000000000000000000000000000000000000",
-                        title: "[SubsPlease] Release that Witch - 08 (1080p)",
-                      }),
-                    ]
-                  : [],
-              );
-            },
-          } satisfies typeof RssClient.Service;
+            return Effect.succeed(
+              query === "Release that Witch"
+                ? [
+                    makeRelease({
+                      infoHash: "1000000000000000000000000000000000000000",
+                      title: "[SubsPlease] Release that Witch - 07 (1080p)",
+                    }),
+                    makeRelease({
+                      infoHash: "2000000000000000000000000000000000000000",
+                      title: "[SubsPlease] Release that Witch - 08 (1080p)",
+                    }),
+                  ]
+                : [],
+            );
+          },
+        } satisfies typeof RssClient.Service;
 
-          const config = makeTestConfig("/tmp/test.sqlite");
-          const searchReleaseService = makeSearchReleaseSupport({
-            db,
-            getRuntimeConfig: () => Effect.succeed(config),
-            rssClient,
-            seadexClient: makeSeaDexNoneClient(),
-          });
+        const config = makeTestConfig("/tmp/test.sqlite");
+        const searchReleaseService = makeSearchReleaseSupport({
+          db,
+          getRuntimeConfig: () => Effect.succeed(config),
+          rssClient,
+          seadexClient: makeSeaDexNoneClient(),
+        });
 
-          const releases = yield* searchReleaseService.searchEpisodeReleases(
-            makeAnimeRow({ titleEnglish: "Release that Witch", titleRomaji: "Fangkai Nage Nüwu" }),
-            8,
-            config,
-          );
+        const releases = yield* searchReleaseService.searchUnitReleases(
+          makeAnimeRow({ titleEnglish: "Release that Witch", titleRomaji: "Fangkai Nage Nüwu" }),
+          8,
+          config,
+        );
 
-          assert.deepStrictEqual(requestedQueries.includes("Release that Witch"), true);
-          assert.deepStrictEqual(
-            releases.map((release) => release.title),
-            ["[SubsPlease] Release that Witch - 08 (1080p)"],
-          );
-        }),
-      schema: dbSchema,
-    }),
+        assert.deepStrictEqual(requestedQueries.includes("Release that Witch"), true);
+        assert.deepStrictEqual(
+          releases.map((release) => release.title),
+          ["[SubsPlease] Release that Witch - 08 (1080p)"],
+        );
+      }),
+    schema: dbSchema,
+  }),
 );
 
-function makeAnimeRow(input: Partial<typeof anime.$inferSelect> = {}): typeof anime.$inferSelect {
+function makeAnimeRow(input: Partial<typeof media.$inferSelect> = {}): typeof media.$inferSelect {
   return {
     addedAt: "2024-01-01T00:00:00.000Z",
     background: null,
@@ -221,7 +219,7 @@ function makeAnimeRow(input: Partial<typeof anime.$inferSelect> = {}): typeof an
     duration: null,
     endDate: null,
     endYear: null,
-    episodeCount: 12,
+    unitCount: 12,
     favorites: null,
     format: "TV",
     genres: "[]",
@@ -231,11 +229,11 @@ function makeAnimeRow(input: Partial<typeof anime.$inferSelect> = {}): typeof an
     members: null,
     monitored: true,
     nextAiringAt: null,
-    nextAiringEpisode: null,
+    nextAiringUnit: null,
     popularity: null,
     profileName: "Default",
-    recommendedAnime: null,
-    relatedAnime: null,
+    recommendedMedia: null,
+    relatedMedia: null,
     releaseProfileIds: "[]",
     rootFolder: "/library/Show",
     rank: null,

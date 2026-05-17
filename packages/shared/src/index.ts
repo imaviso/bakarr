@@ -26,8 +26,8 @@ export const MediaUnitKindSchema: Schema.Schema<MediaUnitKind> = Schema.Literal(
 
 const PositiveEntityIdSchema = Schema.Number.pipe(Schema.int(), Schema.greaterThan(0));
 
-export const AnimeIdSchema = PositiveEntityIdSchema.pipe(Schema.brand("AnimeId"));
-export type AnimeId = Schema.Schema.Type<typeof AnimeIdSchema>;
+export const MediaIdSchema = PositiveEntityIdSchema.pipe(Schema.brand("MediaId"));
+export type MediaId = Schema.Schema.Type<typeof MediaIdSchema>;
 
 export const UserIdSchema = PositiveEntityIdSchema.pipe(Schema.brand("UserId"));
 export type UserId = Schema.Schema.Type<typeof UserIdSchema>;
@@ -59,7 +59,7 @@ export type SystemLogId = Schema.Schema.Type<typeof SystemLogIdSchema>;
 export const OperationTaskIdSchema = PositiveEntityIdSchema.pipe(Schema.brand("OperationTaskId"));
 export type OperationTaskId = Schema.Schema.Type<typeof OperationTaskIdSchema>;
 
-export const brandAnimeId: (id: number) => AnimeId = Schema.decodeUnknownSync(AnimeIdSchema);
+export const brandMediaId: (id: number) => MediaId = Schema.decodeUnknownSync(MediaIdSchema);
 export const brandUserId: (id: number) => UserId = Schema.decodeUnknownSync(UserIdSchema);
 export const brandDownloadId: (id: number) => DownloadId =
   Schema.decodeUnknownSync(DownloadIdSchema);
@@ -187,55 +187,55 @@ export const ApiKeyResponseSchema: Schema.Schema<ApiKeyResponse> = Schema.Struct
   api_key_masked: Schema.Boolean,
 });
 
-export interface EpisodeProgress {
+export interface MediaUnitProgress {
   downloaded: number;
   downloaded_percent?: number | undefined;
   is_up_to_date?: boolean | undefined;
-  latest_downloaded_episode?: number | undefined;
+  latest_downloaded_unit?: number | undefined;
   total?: number | undefined;
   missing: number[];
-  next_missing_episode?: number | undefined;
+  next_missing_unit?: number | undefined;
 }
 
-export const EpisodeProgressSchema: Schema.Schema<EpisodeProgress> = Schema.mutable(
+export const MediaUnitProgressSchema: Schema.Schema<MediaUnitProgress> = Schema.mutable(
   Schema.Struct({
     downloaded: Schema.Number,
     downloaded_percent: Schema.optional(Schema.Number),
     is_up_to_date: Schema.optional(Schema.Boolean),
-    latest_downloaded_episode: Schema.optional(Schema.Number),
+    latest_downloaded_unit: Schema.optional(Schema.Number),
     total: Schema.optional(Schema.Number),
     missing: Schema.mutable(Schema.Array(Schema.Number)),
-    next_missing_episode: Schema.optional(Schema.Number),
+    next_missing_unit: Schema.optional(Schema.Number),
   }),
 );
 
-export type AnimeSeason = "winter" | "spring" | "summer" | "fall";
+export type MediaSeason = "winter" | "spring" | "summer" | "fall";
 
-export const AnimeSeasonSchema: Schema.Schema<AnimeSeason> = Schema.Literal(
+export const MediaSeasonSchema: Schema.Schema<MediaSeason> = Schema.Literal(
   "winter",
   "spring",
   "summer",
   "fall",
 );
 
-export const AnimeTitleSchema: Schema.Schema<Anime["title"]> = Schema.Struct({
+export const MediaTitleSchema: Schema.Schema<Media["title"]> = Schema.Struct({
   romaji: Schema.String,
   english: Schema.optional(Schema.String),
   native: Schema.optional(Schema.String),
 });
 
-export interface NextAiringEpisode {
+export interface NextAiringUnit {
   episode: number;
   airing_at: string;
 }
 
-export const NextAiringEpisodeSchema: Schema.Schema<NextAiringEpisode> = Schema.Struct({
+export const NextAiringUnitSchema: Schema.Schema<NextAiringUnit> = Schema.Struct({
   episode: Schema.Number,
   airing_at: Schema.String,
 });
 
-export interface AnimeDiscoveryEntry {
-  id: AnimeId;
+export interface MediaDiscoveryEntry {
+  id: MediaId;
   title: {
     romaji?: string | undefined;
     english?: string | undefined;
@@ -244,15 +244,15 @@ export interface AnimeDiscoveryEntry {
   relation_type?: string | undefined;
   format?: string | undefined;
   status?: string | undefined;
-  season?: AnimeSeason | undefined;
+  season?: MediaSeason | undefined;
   season_year?: number | undefined;
   start_year?: number | undefined;
   cover_image?: string | undefined;
   rating?: number | undefined;
 }
 
-export const AnimeDiscoveryEntrySchema = Schema.Struct({
-  id: AnimeIdSchema,
+export const MediaDiscoveryEntrySchema = Schema.Struct({
+  id: MediaIdSchema,
   title: Schema.Struct({
     romaji: Schema.optional(Schema.String),
     english: Schema.optional(Schema.String),
@@ -261,23 +261,23 @@ export const AnimeDiscoveryEntrySchema = Schema.Struct({
   relation_type: Schema.optional(Schema.String),
   format: Schema.optional(Schema.String),
   status: Schema.optional(Schema.String),
-  season: Schema.optional(AnimeSeasonSchema),
+  season: Schema.optional(MediaSeasonSchema),
   season_year: Schema.optional(Schema.Number),
   start_year: Schema.optional(Schema.Number),
   cover_image: Schema.optional(Schema.String),
   rating: Schema.optional(Schema.Number),
 });
 
-export type EpisodeAiringStatus = "aired" | "future" | "unknown";
+export type UnitAiringStatus = "aired" | "future" | "unknown";
 
-export const EpisodeAiringStatusSchema: Schema.Schema<EpisodeAiringStatus> = Schema.Literal(
+export const UnitAiringStatusSchema: Schema.Schema<UnitAiringStatus> = Schema.Literal(
   "aired",
   "future",
   "unknown",
 );
 
-export interface Anime {
-  id: AnimeId;
+export interface Media {
+  id: MediaId;
   media_kind: MediaKind;
   mal_id?: number | undefined;
   title: {
@@ -301,31 +301,31 @@ export interface Anime {
   cover_image?: string | undefined;
   banner_image?: string | undefined;
   status: string;
-  episode_count?: number | undefined;
+  unit_count?: number | undefined;
   start_date?: string | undefined;
   end_date?: string | undefined;
   start_year?: number | undefined;
   end_year?: number | undefined;
   synonyms?: string[] | undefined;
-  related_anime?: AnimeDiscoveryEntry[] | undefined;
-  recommended_anime?: AnimeDiscoveryEntry[] | undefined;
-  next_airing_episode?: NextAiringEpisode | undefined;
-  season?: AnimeSeason | undefined;
+  related_media?: MediaDiscoveryEntry[] | undefined;
+  recommended_media?: MediaDiscoveryEntry[] | undefined;
+  next_airing_unit?: NextAiringUnit | undefined;
+  season?: MediaSeason | undefined;
   season_year?: number | undefined;
   profile_name: string;
   root_folder: string;
   added_at: string;
   monitored: boolean;
   release_profile_ids: ReleaseProfileId[];
-  progress: EpisodeProgress;
+  progress: MediaUnitProgress;
 }
 
-export const AnimeSchema = Schema.mutable(
+export const MediaSchema = Schema.mutable(
   Schema.Struct({
-    id: AnimeIdSchema,
+    id: MediaIdSchema,
     media_kind: MediaKindSchema,
     mal_id: Schema.optional(Schema.Number),
-    title: AnimeTitleSchema,
+    title: MediaTitleSchema,
     format: Schema.String,
     source: Schema.optional(Schema.String),
     description: Schema.optional(Schema.String),
@@ -342,61 +342,61 @@ export const AnimeSchema = Schema.mutable(
     cover_image: Schema.optional(Schema.String),
     banner_image: Schema.optional(Schema.String),
     status: Schema.String,
-    episode_count: Schema.optional(Schema.Number),
+    unit_count: Schema.optional(Schema.Number),
     start_date: Schema.optional(Schema.String),
     end_date: Schema.optional(Schema.String),
     start_year: Schema.optional(Schema.Number),
     end_year: Schema.optional(Schema.Number),
     synonyms: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),
-    related_anime: Schema.optional(Schema.mutable(Schema.Array(AnimeDiscoveryEntrySchema))),
-    recommended_anime: Schema.optional(Schema.mutable(Schema.Array(AnimeDiscoveryEntrySchema))),
-    next_airing_episode: Schema.optional(NextAiringEpisodeSchema),
-    season: Schema.optional(AnimeSeasonSchema),
+    related_media: Schema.optional(Schema.mutable(Schema.Array(MediaDiscoveryEntrySchema))),
+    recommended_media: Schema.optional(Schema.mutable(Schema.Array(MediaDiscoveryEntrySchema))),
+    next_airing_unit: Schema.optional(NextAiringUnitSchema),
+    season: Schema.optional(MediaSeasonSchema),
     season_year: Schema.optional(Schema.Number),
     profile_name: Schema.String,
     root_folder: Schema.String,
     added_at: Schema.String,
     monitored: Schema.Boolean,
     release_profile_ids: Schema.mutable(Schema.Array(ReleaseProfileIdSchema)),
-    progress: EpisodeProgressSchema,
+    progress: MediaUnitProgressSchema,
   }),
 );
 
-export interface AnimeListQueryParams {
+export interface MediaListQueryParams {
   limit?: number | undefined;
   offset?: number | undefined;
   monitored?: boolean | undefined;
 }
 
-export const AnimeListQueryParamsSchema: Schema.Schema<AnimeListQueryParams> = Schema.Struct({
+export const MediaListQueryParamsSchema: Schema.Schema<MediaListQueryParams> = Schema.Struct({
   limit: Schema.optional(Schema.Number.pipe(Schema.between(1, 500))),
   offset: Schema.optional(Schema.Number.pipe(Schema.nonNegative())),
   monitored: Schema.optional(Schema.Boolean),
 });
 
-export interface AnimeListResponse {
-  items: Anime[];
+export interface MediaListResponse {
+  items: Media[];
   total: number;
   limit: number;
   offset: number;
   has_more: boolean;
 }
 
-export const AnimeListResponseSchema = Schema.Struct({
-  items: Schema.mutable(Schema.Array(AnimeSchema)),
+export const MediaListResponseSchema = Schema.Struct({
+  items: Schema.mutable(Schema.Array(MediaSchema)),
   total: Schema.Number,
   limit: Schema.Number,
   offset: Schema.Number,
   has_more: Schema.Boolean,
 });
 
-export interface Episode {
+export interface MediaUnit {
   unit_kind?: MediaUnitKind | undefined;
   number: number;
   title?: string | undefined;
   aired?: string | undefined;
   is_future?: boolean | undefined;
-  airing_status?: EpisodeAiringStatus | undefined;
+  airing_status?: UnitAiringStatus | undefined;
   downloaded: boolean;
   file_path?: string | undefined;
   file_size?: number | undefined;
@@ -409,13 +409,13 @@ export interface Episode {
   audio_channels?: string | undefined;
 }
 
-export const EpisodeSchema: Schema.Schema<Episode> = Schema.Struct({
+export const MediaUnitSchema: Schema.Schema<MediaUnit> = Schema.Struct({
   unit_kind: Schema.optional(MediaUnitKindSchema),
   number: Schema.Number,
   title: Schema.optional(Schema.String),
   aired: Schema.optional(Schema.String),
   is_future: Schema.optional(Schema.Boolean),
-  airing_status: Schema.optional(EpisodeAiringStatusSchema),
+  airing_status: Schema.optional(UnitAiringStatusSchema),
   downloaded: Schema.Boolean,
   file_path: Schema.optional(Schema.String),
   file_size: Schema.optional(Schema.Number),
@@ -433,11 +433,11 @@ export interface VideoFile {
   path: string;
   size: number;
   duration_seconds?: number | undefined;
-  episode_number?: number | undefined;
-  episode_numbers?: number[] | undefined;
+  unit_number?: number | undefined;
+  unit_numbers?: number[] | undefined;
   coverage_summary?: string | undefined;
-  source_identity?: ParsedEpisodeIdentity | undefined;
-  episode_title?: string | undefined;
+  source_identity?: ParsedUnitIdentity | undefined;
+  unit_title?: string | undefined;
   air_date?: string | undefined;
   group?: string | undefined;
   resolution?: string | undefined;
@@ -452,11 +452,11 @@ export const VideoFileSchema: Schema.Schema<VideoFile> = Schema.Struct({
   path: Schema.String,
   size: Schema.Number,
   duration_seconds: Schema.optional(Schema.Number),
-  episode_number: Schema.optional(Schema.Number),
-  episode_numbers: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
+  unit_number: Schema.optional(Schema.Number),
+  unit_numbers: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
   coverage_summary: Schema.optional(Schema.String),
-  source_identity: Schema.optional(Schema.suspend(() => ParsedEpisodeIdentitySchema)),
-  episode_title: Schema.optional(Schema.String),
+  source_identity: Schema.optional(Schema.suspend(() => ParsedUnitIdentitySchema)),
+  unit_title: Schema.optional(Schema.String),
   air_date: Schema.optional(Schema.String),
   group: Schema.optional(Schema.String),
   resolution: Schema.optional(Schema.String),
@@ -468,7 +468,7 @@ export const VideoFileSchema: Schema.Schema<VideoFile> = Schema.Struct({
 
 export interface RssFeed {
   id: RssFeedId;
-  anime_id: AnimeId;
+  media_id: MediaId;
   url: string;
   name?: string | undefined;
   last_checked?: string | undefined;
@@ -478,7 +478,7 @@ export interface RssFeed {
 
 export const RssFeedSchema = Schema.Struct({
   id: RssFeedIdSchema,
-  anime_id: AnimeIdSchema,
+  media_id: MediaIdSchema,
   url: Schema.String,
   name: Schema.optional(Schema.String),
   last_checked: Schema.optional(Schema.String),
@@ -493,28 +493,28 @@ export interface CalendarEvent {
   end: string;
   all_day: boolean;
   extended_props: {
-    anime_id: AnimeId;
-    anime_title: string;
+    media_id: MediaId;
+    media_title: string;
     unit_kind?: MediaUnitKind | undefined;
-    episode_number: number;
-    episode_title?: string | undefined;
-    airing_status?: EpisodeAiringStatus | undefined;
+    unit_number: number;
+    unit_title?: string | undefined;
+    airing_status?: UnitAiringStatus | undefined;
     downloaded: boolean;
     is_future?: boolean | undefined;
-    anime_image?: string | undefined;
+    media_image?: string | undefined;
   };
 }
 
 export const CalendarEventExtendedPropsSchema = Schema.Struct({
-  anime_id: AnimeIdSchema,
-  anime_title: Schema.String,
+  media_id: MediaIdSchema,
+  media_title: Schema.String,
   unit_kind: Schema.optional(MediaUnitKindSchema),
-  episode_number: Schema.Number,
-  episode_title: Schema.optional(Schema.String),
-  airing_status: Schema.optional(EpisodeAiringStatusSchema),
+  unit_number: Schema.Number,
+  unit_title: Schema.optional(Schema.String),
+  airing_status: Schema.optional(UnitAiringStatusSchema),
   downloaded: Schema.Boolean,
   is_future: Schema.optional(Schema.Boolean),
-  anime_image: Schema.optional(Schema.String),
+  media_image: Schema.optional(Schema.String),
 });
 
 export const CalendarEventSchema = Schema.Struct({
@@ -528,13 +528,13 @@ export const CalendarEventSchema = Schema.Struct({
 
 export interface Download {
   id: DownloadId;
-  anime_id: AnimeId;
-  anime_title: string;
-  anime_image?: string | undefined;
-  episode_number: number;
+  media_id: MediaId;
+  media_title: string;
+  media_image?: string | undefined;
+  unit_number: number;
   torrent_name: string;
   is_batch?: boolean | undefined;
-  covered_episodes?: number[] | undefined;
+  covered_units?: number[] | undefined;
   coverage_pending?: boolean | undefined;
   decision_reason?: string | undefined;
   imported_path?: string | undefined;
@@ -576,13 +576,13 @@ export const DownloadAllowedActionSchema: Schema.Schema<DownloadAllowedAction> =
 export const DownloadSchema = Schema.mutable(
   Schema.Struct({
     id: DownloadIdSchema,
-    anime_id: AnimeIdSchema,
-    anime_title: Schema.String,
-    anime_image: Schema.optional(Schema.String),
-    episode_number: Schema.Number,
+    media_id: MediaIdSchema,
+    media_title: Schema.String,
+    media_image: Schema.optional(Schema.String),
+    unit_number: Schema.Number,
     torrent_name: Schema.String,
     is_batch: Schema.optional(Schema.Boolean),
-    covered_episodes: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
+    covered_units: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
     coverage_pending: Schema.optional(Schema.Boolean),
     decision_reason: Schema.optional(Schema.String),
     imported_path: Schema.optional(Schema.String),
@@ -637,25 +637,25 @@ export const LibraryRootSchema = Schema.Struct({
 });
 
 export interface LibraryStats {
-  total_anime: number;
-  monitored_anime: number;
-  up_to_date_anime: number;
-  total_episodes: number;
-  downloaded_episodes: number;
+  total_media: number;
+  monitored_media: number;
+  up_to_date_media: number;
+  total_units: number;
+  downloaded_units: number;
   downloaded_percent: number;
-  missing_episodes: number;
+  missing_units: number;
   rss_feeds: number;
   recent_downloads: number;
 }
 
 export const LibraryStatsSchema: Schema.Schema<LibraryStats> = Schema.Struct({
-  total_anime: Schema.Number,
-  monitored_anime: Schema.Number,
-  up_to_date_anime: Schema.Number,
-  total_episodes: Schema.Number,
-  downloaded_episodes: Schema.Number,
+  total_media: Schema.Number,
+  monitored_media: Schema.Number,
+  up_to_date_media: Schema.Number,
+  total_units: Schema.Number,
+  downloaded_units: Schema.Number,
   downloaded_percent: Schema.Number,
-  missing_episodes: Schema.Number,
+  missing_units: Schema.Number,
   rss_feeds: Schema.Number,
   recent_downloads: Schema.Number,
 });
@@ -663,9 +663,9 @@ export const LibraryStatsSchema: Schema.Schema<LibraryStats> = Schema.Struct({
 export interface ActivityItem {
   id: ActivityId;
   activity_type: string;
-  anime_id: AnimeId;
-  anime_title: string;
-  episode_number?: number | undefined;
+  media_id: MediaId;
+  media_title: string;
+  unit_number?: number | undefined;
   description: string;
   timestamp: string;
 }
@@ -673,9 +673,9 @@ export interface ActivityItem {
 export const ActivityItemSchema = Schema.Struct({
   id: ActivityIdSchema,
   activity_type: Schema.String,
-  anime_id: AnimeIdSchema,
-  anime_title: Schema.String,
-  episode_number: Schema.optional(Schema.Number),
+  media_id: MediaIdSchema,
+  media_title: Schema.String,
+  unit_number: Schema.optional(Schema.Number),
   description: Schema.String,
   timestamp: Schema.String,
 });
@@ -940,7 +940,7 @@ export const MetadataProvidersConfigSchema: Schema.Schema<{
 
 export const DownloadsConfigSchema: Schema.Schema<{
   root_path: string;
-  create_anime_folders: boolean;
+  create_media_folders: boolean;
   remote_path_mappings: string[][];
   reconcile_completed_downloads?: boolean | undefined;
   remove_torrent_on_import?: boolean | undefined;
@@ -948,7 +948,7 @@ export const DownloadsConfigSchema: Schema.Schema<{
 }> = Schema.mutable(
   Schema.Struct({
     root_path: Schema.String,
-    create_anime_folders: Schema.Boolean,
+    create_media_folders: Schema.Boolean,
     remote_path_mappings: Schema.mutable(Schema.Array(RemotePathMappingSchema)),
     reconcile_completed_downloads: Schema.optional(Schema.Boolean),
     remove_torrent_on_import: Schema.optional(Schema.Boolean),
@@ -1079,10 +1079,10 @@ export const BackgroundJobStatusSchema: Schema.Schema<BackgroundJobStatus> = Sch
 });
 
 export const OPERATION_TASK_KEY_VALUES = [
-  "anime_scan_folder",
+  "media_scan_folder",
   "library_import",
   "downloads_search_missing_manual",
-  "anime_refresh_episodes_manual",
+  "media_refresh_units_manual",
   "downloads_sync_manual",
   "system_task_scan_manual",
   "system_task_rss_manual",
@@ -1101,7 +1101,7 @@ export const OperationTaskStatusSchema: Schema.Schema<OperationTaskStatus> = Sch
 );
 
 export interface OperationTaskPayload {
-  anime_id?: AnimeId | undefined;
+  media_id?: MediaId | undefined;
   error?: string | undefined;
   imported?: number | undefined;
   failed?: number | undefined;
@@ -1110,7 +1110,7 @@ export interface OperationTaskPayload {
 }
 
 export const OperationTaskPayloadSchema = Schema.Struct({
-  anime_id: Schema.optional(AnimeIdSchema),
+  media_id: Schema.optional(MediaIdSchema),
   error: Schema.optional(Schema.String),
   imported: Schema.optional(Schema.Number),
   failed: Schema.optional(Schema.Number),
@@ -1129,7 +1129,7 @@ export interface OperationTask {
   started_at?: string | undefined;
   finished_at?: string | undefined;
   updated_at: string;
-  anime_id?: AnimeId | undefined;
+  media_id?: MediaId | undefined;
   payload?: OperationTaskPayload | undefined;
 }
 
@@ -1144,7 +1144,7 @@ export const OperationTaskSchema = Schema.Struct({
   started_at: Schema.optional(Schema.String),
   finished_at: Schema.optional(Schema.String),
   updated_at: Schema.String,
-  anime_id: Schema.optional(AnimeIdSchema),
+  media_id: Schema.optional(MediaIdSchema),
   payload: Schema.optional(OperationTaskPayloadSchema),
 });
 
@@ -1165,7 +1165,7 @@ export const AsyncOperationAcceptedSchema = Schema.Struct({
 });
 
 export interface DownloadEventMetadata {
-  covered_episodes?: number[] | undefined;
+  covered_units?: number[] | undefined;
   imported_path?: string | undefined;
   source_metadata?: DownloadSourceMetadata | undefined;
 }
@@ -1173,9 +1173,9 @@ export interface DownloadEventMetadata {
 export interface DownloadEvent {
   id: DownloadEventId;
   download_id?: DownloadId | undefined;
-  anime_id?: AnimeId | undefined;
-  anime_image?: string | undefined;
-  anime_title?: string | undefined;
+  media_id?: MediaId | undefined;
+  media_image?: string | undefined;
+  media_title?: string | undefined;
   event_type: string;
   from_status?: string | undefined;
   to_status?: string | undefined;
@@ -1187,7 +1187,7 @@ export interface DownloadEvent {
 }
 
 export const DownloadEventMetadataSchema: Schema.Schema<DownloadEventMetadata> = Schema.Struct({
-  covered_episodes: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
+  covered_units: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
   imported_path: Schema.optional(Schema.String),
   source_metadata: Schema.optional(Schema.suspend(() => DownloadSourceMetadataSchema)),
 });
@@ -1195,9 +1195,9 @@ export const DownloadEventMetadataSchema: Schema.Schema<DownloadEventMetadata> =
 export const DownloadEventSchema = Schema.Struct({
   id: DownloadEventIdSchema,
   download_id: Schema.optional(DownloadIdSchema),
-  anime_id: Schema.optional(AnimeIdSchema),
-  anime_image: Schema.optional(Schema.String),
-  anime_title: Schema.optional(Schema.String),
+  media_id: Schema.optional(MediaIdSchema),
+  media_image: Schema.optional(Schema.String),
+  media_title: Schema.optional(Schema.String),
   event_type: Schema.String,
   from_status: Schema.optional(Schema.String),
   to_status: Schema.optional(Schema.String),
@@ -1307,30 +1307,30 @@ export const BrowseResultSchema: Schema.Schema<BrowseResult> = Schema.mutable(
   }),
 );
 
-export interface MissingEpisode {
-  anime_id: AnimeId;
-  anime_title: string;
+export interface MissingUnit {
+  media_id: MediaId;
+  media_title: string;
   unit_kind?: MediaUnitKind | undefined;
-  episode_number: number;
-  episode_title?: string | undefined;
+  unit_number: number;
+  unit_title?: string | undefined;
   aired?: string | undefined;
-  airing_status?: EpisodeAiringStatus | undefined;
-  anime_image?: string | undefined;
+  airing_status?: UnitAiringStatus | undefined;
+  media_image?: string | undefined;
   is_future?: boolean | undefined;
-  next_airing_episode?: NextAiringEpisode | undefined;
+  next_airing_unit?: NextAiringUnit | undefined;
 }
 
-export const MissingEpisodeSchema = Schema.Struct({
-  anime_id: AnimeIdSchema,
-  anime_title: Schema.String,
+export const MissingUnitSchema = Schema.Struct({
+  media_id: MediaIdSchema,
+  media_title: Schema.String,
   unit_kind: Schema.optional(MediaUnitKindSchema),
-  episode_number: Schema.Number,
-  episode_title: Schema.optional(Schema.String),
+  unit_number: Schema.Number,
+  unit_title: Schema.optional(Schema.String),
   aired: Schema.optional(Schema.String),
-  airing_status: Schema.optional(EpisodeAiringStatusSchema),
-  anime_image: Schema.optional(Schema.String),
+  airing_status: Schema.optional(UnitAiringStatusSchema),
+  media_image: Schema.optional(Schema.String),
   is_future: Schema.optional(Schema.Boolean),
-  next_airing_episode: Schema.optional(NextAiringEpisodeSchema),
+  next_airing_unit: Schema.optional(NextAiringUnitSchema),
 });
 
 export type NamingTitleSource =
@@ -1355,7 +1355,7 @@ export interface RenamePreviewMetadataSnapshot {
   title_source?: NamingTitleSource | undefined;
   season?: number | undefined;
   year?: number | undefined;
-  episode_title?: string | undefined;
+  unit_title?: string | undefined;
   air_date?: string | undefined;
   group?: string | undefined;
   resolution?: string | undefined;
@@ -1363,7 +1363,7 @@ export interface RenamePreviewMetadataSnapshot {
   video_codec?: string | undefined;
   audio_codec?: string | undefined;
   audio_channels?: string | undefined;
-  source_identity?: ParsedEpisodeIdentity | undefined;
+  source_identity?: ParsedUnitIdentity | undefined;
 }
 
 export const RenamePreviewMetadataSnapshotSchema: Schema.Schema<RenamePreviewMetadataSnapshot> =
@@ -1372,7 +1372,7 @@ export const RenamePreviewMetadataSnapshotSchema: Schema.Schema<RenamePreviewMet
     title_source: Schema.optional(NamingTitleSourceSchema),
     season: Schema.optional(Schema.Number),
     year: Schema.optional(Schema.Number),
-    episode_title: Schema.optional(Schema.String),
+    unit_title: Schema.optional(Schema.String),
     air_date: Schema.optional(Schema.String),
     group: Schema.optional(Schema.String),
     resolution: Schema.optional(Schema.String),
@@ -1380,12 +1380,12 @@ export const RenamePreviewMetadataSnapshotSchema: Schema.Schema<RenamePreviewMet
     video_codec: Schema.optional(Schema.String),
     audio_codec: Schema.optional(Schema.String),
     audio_channels: Schema.optional(Schema.String),
-    source_identity: Schema.optional(Schema.suspend(() => ParsedEpisodeIdentitySchema)),
+    source_identity: Schema.optional(Schema.suspend(() => ParsedUnitIdentitySchema)),
   });
 
 export interface RenamePreviewItem {
-  episode_number: number;
-  episode_numbers?: number[] | undefined;
+  unit_number: number;
+  unit_numbers?: number[] | undefined;
   current_path: string;
   new_path: string;
   new_filename: string;
@@ -1397,8 +1397,8 @@ export interface RenamePreviewItem {
 }
 
 export const RenamePreviewItemSchema: Schema.Schema<RenamePreviewItem> = Schema.Struct({
-  episode_number: Schema.Number,
-  episode_numbers: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
+  unit_number: Schema.Number,
+  unit_numbers: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
   current_path: Schema.String,
   new_path: Schema.String,
   new_filename: Schema.String,
@@ -1423,18 +1423,18 @@ export const RenameResultSchema: Schema.Schema<RenameResult> = Schema.mutable(
   }),
 );
 
-export interface ParsedEpisodeIdentity {
+export interface ParsedUnitIdentity {
   scheme: "season" | "absolute" | "daily";
   season?: number | undefined;
-  episode_numbers?: number[] | undefined;
+  unit_numbers?: number[] | undefined;
   air_dates?: string[] | undefined;
   label: string;
 }
 
-export const ParsedEpisodeIdentitySchema: Schema.Schema<ParsedEpisodeIdentity> = Schema.Struct({
+export const ParsedUnitIdentitySchema: Schema.Schema<ParsedUnitIdentity> = Schema.Struct({
   scheme: Schema.Literal("season", "absolute", "daily"),
   season: Schema.optional(Schema.Number),
-  episode_numbers: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
+  unit_numbers: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
   air_dates: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),
   label: Schema.String,
 });
@@ -1449,14 +1449,14 @@ export const DownloadSelectionKindSchema: Schema.Schema<DownloadSelectionKind> =
 
 export interface DownloadSourceMetadata {
   parsed_title?: string | undefined;
-  source_identity?: ParsedEpisodeIdentity | undefined;
+  source_identity?: ParsedUnitIdentity | undefined;
   decision_reason?: string | undefined;
   selection_kind?: DownloadSelectionKind | undefined;
   selection_score?: number | undefined;
   previous_quality?: string | undefined;
   previous_score?: number | undefined;
   chosen_from_seadex?: boolean | undefined;
-  episode_title?: string | undefined;
+  unit_title?: string | undefined;
   air_date?: string | undefined;
   group?: string | undefined;
   resolution?: string | undefined;
@@ -1479,14 +1479,14 @@ export interface DownloadSourceMetadata {
 
 export const DownloadSourceMetadataSchema: Schema.Schema<DownloadSourceMetadata> = Schema.Struct({
   parsed_title: Schema.optional(Schema.String),
-  source_identity: Schema.optional(ParsedEpisodeIdentitySchema),
+  source_identity: Schema.optional(ParsedUnitIdentitySchema),
   decision_reason: Schema.optional(Schema.String),
   selection_kind: Schema.optional(DownloadSelectionKindSchema),
   selection_score: Schema.optional(Schema.Number),
   previous_quality: Schema.optional(Schema.String),
   previous_score: Schema.optional(Schema.Number),
   chosen_from_seadex: Schema.optional(Schema.Boolean),
-  episode_title: Schema.optional(Schema.String),
+  unit_title: Schema.optional(Schema.String),
   air_date: Schema.optional(Schema.String),
   group: Schema.optional(Schema.String),
   resolution: Schema.optional(Schema.String),
@@ -1507,17 +1507,17 @@ export const DownloadSourceMetadataSchema: Schema.Schema<DownloadSourceMetadata>
   seadex_dual_audio: Schema.optional(Schema.Boolean),
 });
 
-export interface FileEpisodeMapping {
-  anime_id: AnimeId;
-  anime_title: string;
-  episode_numbers?: number[] | undefined;
+export interface FileUnitMapping {
+  media_id: MediaId;
+  media_title: string;
+  unit_numbers?: number[] | undefined;
   file_path?: string | undefined;
 }
 
-export const FileEpisodeMappingSchema = Schema.Struct({
-  anime_id: AnimeIdSchema,
-  anime_title: Schema.String,
-  episode_numbers: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
+export const FileUnitMappingSchema = Schema.Struct({
+  media_id: MediaIdSchema,
+  media_title: Schema.String,
+  unit_numbers: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
   file_path: Schema.optional(Schema.String),
 });
 
@@ -1526,10 +1526,10 @@ export interface ScannedFile {
   filename: string;
   size?: number | undefined;
   parsed_title: string;
-  episode_number: number;
-  episode_numbers?: number[] | undefined;
+  unit_number: number;
+  unit_numbers?: number[] | undefined;
   coverage_summary?: string | undefined;
-  episode_title?: string | undefined;
+  unit_title?: string | undefined;
   air_date?: string | undefined;
   season?: number | undefined;
   group?: string | undefined;
@@ -1539,18 +1539,18 @@ export interface ScannedFile {
   audio_codec?: string | undefined;
   audio_channels?: string | undefined;
   duration_seconds?: number | undefined;
-  matched_anime?:
+  matched_media?:
     | {
-        id: AnimeId;
+        id: MediaId;
         title: string;
       }
     | undefined;
-  suggested_candidate_id?: AnimeId | undefined;
+  suggested_candidate_id?: MediaId | undefined;
   match_confidence?: number | undefined;
   match_reason?: string | undefined;
-  existing_mapping?: FileEpisodeMapping | undefined;
-  episode_conflict?: FileEpisodeMapping | undefined;
-  source_identity?: ParsedEpisodeIdentity | undefined;
+  existing_mapping?: FileUnitMapping | undefined;
+  unit_conflict?: FileUnitMapping | undefined;
+  source_identity?: ParsedUnitIdentity | undefined;
   skip_reason?: string | undefined;
   needs_manual_mapping?: boolean | undefined;
   warnings?: string[] | undefined;
@@ -1562,8 +1562,8 @@ export interface ScannedFile {
   naming_metadata_snapshot?: RenamePreviewMetadataSnapshot | undefined;
 }
 
-export const ScannedFileMatchedAnimeSchema = Schema.Struct({
-  id: AnimeIdSchema,
+export const ScannedFileMatchedMediaSchema = Schema.Struct({
+  id: MediaIdSchema,
   title: Schema.String,
 });
 
@@ -1572,10 +1572,10 @@ export const ScannedFileSchema = Schema.Struct({
   filename: Schema.String,
   size: Schema.optional(Schema.Number),
   parsed_title: Schema.String,
-  episode_number: Schema.Number,
-  episode_numbers: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
+  unit_number: Schema.Number,
+  unit_numbers: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
   coverage_summary: Schema.optional(Schema.String),
-  episode_title: Schema.optional(Schema.String),
+  unit_title: Schema.optional(Schema.String),
   air_date: Schema.optional(Schema.String),
   season: Schema.optional(Schema.Number),
   group: Schema.optional(Schema.String),
@@ -1585,13 +1585,13 @@ export const ScannedFileSchema = Schema.Struct({
   audio_codec: Schema.optional(Schema.String),
   audio_channels: Schema.optional(Schema.String),
   duration_seconds: Schema.optional(Schema.Number),
-  matched_anime: Schema.optional(ScannedFileMatchedAnimeSchema),
-  suggested_candidate_id: Schema.optional(AnimeIdSchema),
+  matched_media: Schema.optional(ScannedFileMatchedMediaSchema),
+  suggested_candidate_id: Schema.optional(MediaIdSchema),
   match_confidence: Schema.optional(Schema.Number),
   match_reason: Schema.optional(Schema.String),
-  existing_mapping: Schema.optional(FileEpisodeMappingSchema),
-  episode_conflict: Schema.optional(FileEpisodeMappingSchema),
-  source_identity: Schema.optional(ParsedEpisodeIdentitySchema),
+  existing_mapping: Schema.optional(FileUnitMappingSchema),
+  unit_conflict: Schema.optional(FileUnitMappingSchema),
+  source_identity: Schema.optional(ParsedUnitIdentitySchema),
   skip_reason: Schema.optional(Schema.String),
   needs_manual_mapping: Schema.optional(Schema.Boolean),
   warnings: Schema.optional(StringListSchema),
@@ -1616,7 +1616,7 @@ export const SkippedFileSchema: Schema.Schema<SkippedFile> = Schema.Struct({
 export interface ScanResult {
   files: ScannedFile[];
   skipped: SkippedFile[];
-  candidates: AnimeSearchResult[];
+  candidates: MediaSearchResult[];
   truncated?: boolean | undefined;
   total_scanned?: number | undefined;
 }
@@ -1625,7 +1625,7 @@ export const ScanResultSchema = Schema.mutable(
   Schema.Struct({
     files: Schema.mutable(Schema.Array(ScannedFileSchema)),
     skipped: Schema.mutable(Schema.Array(SkippedFileSchema)),
-    candidates: Schema.mutable(Schema.Array(Schema.suspend(() => AnimeSearchResultSchema))),
+    candidates: Schema.mutable(Schema.Array(Schema.suspend(() => MediaSearchResultSchema))),
     truncated: Schema.optional(Schema.Boolean),
     total_scanned: Schema.optional(Schema.Number),
   }),
@@ -1634,9 +1634,9 @@ export const ScanResultSchema = Schema.mutable(
 export interface ImportedFile {
   source_path: string;
   destination_path: string;
-  anime_id: AnimeId;
-  episode_number: number;
-  episode_numbers?: number[] | undefined;
+  media_id: MediaId;
+  unit_number: number;
+  unit_numbers?: number[] | undefined;
   naming_format_used?: string | undefined;
   naming_fallback_used?: boolean | undefined;
   naming_warnings?: string[] | undefined;
@@ -1647,9 +1647,9 @@ export interface ImportedFile {
 export const ImportedFileSchema = Schema.Struct({
   source_path: Schema.String,
   destination_path: Schema.String,
-  anime_id: AnimeIdSchema,
-  episode_number: Schema.Number,
-  episode_numbers: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
+  media_id: MediaIdSchema,
+  unit_number: Schema.Number,
+  unit_numbers: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
   naming_format_used: Schema.optional(Schema.String),
   naming_fallback_used: Schema.optional(Schema.Boolean),
   naming_warnings: Schema.optional(StringListSchema),
@@ -1684,48 +1684,48 @@ export const ImportResultSchema = Schema.mutable(
 );
 
 export interface ImportFileSelection {
-  anime_id: AnimeId;
-  episode_number: number;
-  episode_numbers?: number[] | undefined;
+  media_id: MediaId;
+  unit_number: number;
+  unit_numbers?: number[] | undefined;
   season?: number | undefined;
   source_metadata?: DownloadSourceMetadata | undefined;
   source_path: string;
 }
 
 export const ImportFileSelectionSchema = Schema.Struct({
-  anime_id: AnimeIdSchema,
-  episode_number: Schema.Number,
-  episode_numbers: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
+  media_id: MediaIdSchema,
+  unit_number: Schema.Number,
+  unit_numbers: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
   season: Schema.optional(Schema.Number),
   source_metadata: Schema.optional(Schema.suspend(() => DownloadSourceMetadataSchema)),
   source_path: Schema.String,
 });
 
 export interface ImportCandidateSelectionRequest {
-  candidate_id: AnimeId;
+  candidate_id: MediaId;
   candidate_title: string;
   force_select?: boolean | undefined;
   files: ScannedFile[];
-  selected_candidate_ids: AnimeId[];
+  selected_candidate_ids: MediaId[];
   selected_files: ImportFileSelection[];
 }
 
 export const ImportCandidateSelectionRequestSchema = Schema.Struct({
-  candidate_id: AnimeIdSchema,
+  candidate_id: MediaIdSchema,
   candidate_title: Schema.String,
   force_select: Schema.optional(Schema.Boolean),
   files: Schema.mutable(Schema.Array(ScannedFileSchema)),
-  selected_candidate_ids: Schema.mutable(Schema.Array(AnimeIdSchema)),
+  selected_candidate_ids: Schema.mutable(Schema.Array(MediaIdSchema)),
   selected_files: Schema.mutable(Schema.Array(ImportFileSelectionSchema)),
 });
 
 export interface ImportCandidateSelectionResult {
-  selected_candidate_ids: AnimeId[];
+  selected_candidate_ids: MediaId[];
   selected_files: ImportFileSelection[];
 }
 
 export const ImportCandidateSelectionResultSchema = Schema.Struct({
-  selected_candidate_ids: Schema.mutable(Schema.Array(AnimeIdSchema)),
+  selected_candidate_ids: Schema.mutable(Schema.Array(MediaIdSchema)),
   selected_files: Schema.mutable(Schema.Array(ImportFileSelectionSchema)),
 });
 
@@ -1819,19 +1819,19 @@ export const SearchDownloadReleaseContextSchema = Schema.Struct({
 });
 
 export interface SearchDownloadRequest {
-  anime_id: AnimeId;
+  media_id: MediaId;
   magnet: string;
   title: string;
-  episode_number?: number | undefined;
+  unit_number?: number | undefined;
   is_batch?: boolean | undefined;
   release_context?: SearchDownloadReleaseContext | undefined;
 }
 
 export const SearchDownloadRequestSchema = Schema.Struct({
-  anime_id: AnimeIdSchema,
+  media_id: MediaIdSchema,
   magnet: Schema.String,
   title: Schema.String,
-  episode_number: Schema.optional(Schema.Number),
+  unit_number: Schema.optional(Schema.Number),
   is_batch: Schema.optional(Schema.Boolean),
   release_context: Schema.optional(SearchDownloadReleaseContextSchema),
 });
@@ -1846,12 +1846,12 @@ export interface NyaaSearchResult {
   leechers: number;
   pub_date: string;
   view_url: string;
-  parsed_episode?: string | undefined;
+  parsed_unit?: string | undefined;
   parsed_group?: string | undefined;
   parsed_quality?: string | undefined;
   parsed_resolution?: string | undefined;
-  parsed_episode_label?: string | undefined;
-  parsed_episode_numbers?: number[] | undefined;
+  parsed_unit_label?: string | undefined;
+  parsed_unit_numbers?: number[] | undefined;
   parsed_air_date?: string | undefined;
   trusted: boolean;
   is_seadex: boolean;
@@ -1874,12 +1874,12 @@ export const NyaaSearchResultSchema: Schema.Schema<NyaaSearchResult> = Schema.St
   leechers: Schema.Number,
   pub_date: Schema.String,
   view_url: Schema.String,
-  parsed_episode: Schema.optional(Schema.String),
+  parsed_unit: Schema.optional(Schema.String),
   parsed_group: Schema.optional(Schema.String),
   parsed_quality: Schema.optional(Schema.String),
   parsed_resolution: Schema.optional(Schema.String),
-  parsed_episode_label: Schema.optional(Schema.String),
-  parsed_episode_numbers: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
+  parsed_unit_label: Schema.optional(Schema.String),
+  parsed_unit_numbers: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
   parsed_air_date: Schema.optional(Schema.String),
   trusted: Schema.Boolean,
   is_seadex: Schema.Boolean,
@@ -1892,7 +1892,7 @@ export const NyaaSearchResultSchema: Schema.Schema<NyaaSearchResult> = Schema.St
   remake: Schema.Boolean,
 });
 
-export interface EpisodeSearchResult {
+export interface UnitSearchResult {
   unit_kind?: MediaUnitKind | undefined;
   title: string;
   indexer: string;
@@ -1906,8 +1906,8 @@ export interface EpisodeSearchResult {
   quality: string;
   group?: string | undefined;
   parsed_resolution?: string | undefined;
-  parsed_episode_label?: string | undefined;
-  parsed_episode_numbers?: number[] | undefined;
+  parsed_unit_label?: string | undefined;
+  parsed_unit_numbers?: number[] | undefined;
   parsed_air_date?: string | undefined;
   trusted?: boolean | undefined;
   remake?: boolean | undefined;
@@ -1921,7 +1921,7 @@ export interface EpisodeSearchResult {
   seadex_notes?: string | undefined;
 }
 
-export const EpisodeSearchResultSchema = Schema.Struct({
+export const UnitSearchResultSchema = Schema.Struct({
   unit_kind: Schema.optional(MediaUnitKindSchema),
   title: Schema.String,
   indexer: Schema.String,
@@ -1935,8 +1935,8 @@ export const EpisodeSearchResultSchema = Schema.Struct({
   quality: Schema.String,
   group: Schema.optional(Schema.String),
   parsed_resolution: Schema.optional(Schema.String),
-  parsed_episode_label: Schema.optional(Schema.String),
-  parsed_episode_numbers: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
+  parsed_unit_label: Schema.optional(Schema.String),
+  parsed_unit_numbers: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
   parsed_air_date: Schema.optional(Schema.String),
   trusted: Schema.optional(Schema.Boolean),
   remake: Schema.optional(Schema.Boolean),
@@ -1965,10 +1965,10 @@ export const SEARCH_RELEASE_CATEGORY_OPTIONS = [
 export type SearchReleaseCategory = (typeof SEARCH_RELEASE_CATEGORY_OPTIONS)[number];
 
 export const SEARCH_RELEASE_CATEGORY_LABELS: Record<SearchReleaseCategory, string> = {
-  anime_english: "Anime (English)",
-  anime_non_english: "Anime (Non-Eng)",
-  anime_raw: "Anime (Raw)",
-  all_anime: "All Anime",
+  anime_english: "Media (English)",
+  anime_non_english: "Media (Non-Eng)",
+  anime_raw: "Media (Raw)",
+  all_anime: "All Media",
 };
 
 export const SEARCH_RELEASE_FILTER_OPTIONS = ["no_filter", "no_remakes", "trusted_only"] as const;
@@ -2003,8 +2003,8 @@ export const SearchResultsSchema: Schema.Schema<SearchResults> = Schema.mutable(
   }),
 );
 
-export interface AnimeSearchResult {
-  id: AnimeId;
+export interface MediaSearchResult {
+  id: MediaId;
   media_kind?: MediaKind | undefined;
   title: {
     romaji?: string | undefined;
@@ -2019,7 +2019,7 @@ export interface AnimeSearchResult {
   popularity?: number | undefined;
   members?: number | undefined;
   favorites?: number | undefined;
-  episode_count?: number | undefined;
+  unit_count?: number | undefined;
   volume_count?: number | undefined;
   chapter_count?: number | undefined;
   status?: string | undefined;
@@ -2027,31 +2027,31 @@ export interface AnimeSearchResult {
   end_date?: string | undefined;
   start_year?: number | undefined;
   end_year?: number | undefined;
-  season?: AnimeSeason | undefined;
+  season?: MediaSeason | undefined;
   season_year?: number | undefined;
   cover_image?: string | undefined;
   banner_image?: string | undefined;
   description?: string | undefined;
   genres?: string[] | undefined;
   synonyms?: string[] | undefined;
-  related_anime?: AnimeDiscoveryEntry[] | undefined;
-  recommended_anime?: AnimeDiscoveryEntry[] | undefined;
+  related_media?: MediaDiscoveryEntry[] | undefined;
+  recommended_media?: MediaDiscoveryEntry[] | undefined;
   match_confidence?: number | undefined;
   match_reason?: string | undefined;
   already_in_library?: boolean | undefined;
 }
 
-export const AnimeSearchResultTitleSchema: Schema.Schema<AnimeSearchResult["title"]> =
+export const MediaSearchResultTitleSchema: Schema.Schema<MediaSearchResult["title"]> =
   Schema.Struct({
     romaji: Schema.optional(Schema.String),
     english: Schema.optional(Schema.String),
     native: Schema.optional(Schema.String),
   });
 
-export const AnimeSearchResultSchema = Schema.Struct({
-  id: AnimeIdSchema,
+export const MediaSearchResultSchema = Schema.Struct({
+  id: MediaIdSchema,
   media_kind: Schema.optional(MediaKindSchema),
-  title: AnimeSearchResultTitleSchema,
+  title: MediaSearchResultTitleSchema,
   format: Schema.optional(Schema.String),
   source: Schema.optional(Schema.String),
   duration: Schema.optional(Schema.String),
@@ -2060,7 +2060,7 @@ export const AnimeSearchResultSchema = Schema.Struct({
   popularity: Schema.optional(Schema.Number),
   members: Schema.optional(Schema.Number),
   favorites: Schema.optional(Schema.Number),
-  episode_count: Schema.optional(Schema.Number),
+  unit_count: Schema.optional(Schema.Number),
   volume_count: Schema.optional(Schema.Number),
   chapter_count: Schema.optional(Schema.Number),
   status: Schema.optional(Schema.String),
@@ -2068,42 +2068,42 @@ export const AnimeSearchResultSchema = Schema.Struct({
   end_date: Schema.optional(Schema.String),
   start_year: Schema.optional(Schema.Number),
   end_year: Schema.optional(Schema.Number),
-  season: Schema.optional(AnimeSeasonSchema),
+  season: Schema.optional(MediaSeasonSchema),
   season_year: Schema.optional(Schema.Number),
   cover_image: Schema.optional(Schema.String),
   banner_image: Schema.optional(Schema.String),
   description: Schema.optional(Schema.String),
   genres: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),
   synonyms: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),
-  related_anime: Schema.optional(Schema.mutable(Schema.Array(AnimeDiscoveryEntrySchema))),
-  recommended_anime: Schema.optional(Schema.mutable(Schema.Array(AnimeDiscoveryEntrySchema))),
+  related_media: Schema.optional(Schema.mutable(Schema.Array(MediaDiscoveryEntrySchema))),
+  recommended_media: Schema.optional(Schema.mutable(Schema.Array(MediaDiscoveryEntrySchema))),
   match_confidence: Schema.optional(Schema.Number),
   match_reason: Schema.optional(Schema.String),
   already_in_library: Schema.optional(Schema.Boolean),
 });
 
-export interface AnimeSearchResponse {
-  results: AnimeSearchResult[];
+export interface MediaSearchResponse {
+  results: MediaSearchResult[];
   degraded: boolean;
 }
 
-export const AnimeSearchResponseSchema = Schema.mutable(
+export const MediaSearchResponseSchema = Schema.mutable(
   Schema.Struct({
     degraded: Schema.Boolean,
-    results: Schema.mutable(Schema.Array(AnimeSearchResultSchema)),
+    results: Schema.mutable(Schema.Array(MediaSearchResultSchema)),
   }),
 );
 
-export interface SeasonalAnimeQueryParams {
-  season?: AnimeSeason | undefined;
+export interface SeasonalMediaQueryParams {
+  season?: MediaSeason | undefined;
   year?: number | undefined;
   limit?: number | undefined;
   page?: number | undefined;
 }
 
-export const SeasonalAnimeQueryParamsSchema: Schema.Schema<SeasonalAnimeQueryParams> =
+export const SeasonalMediaQueryParamsSchema: Schema.Schema<SeasonalMediaQueryParams> =
   Schema.Struct({
-    season: Schema.optional(AnimeSeasonSchema),
+    season: Schema.optional(MediaSeasonSchema),
     year: Schema.optional(Schema.Number.pipe(Schema.int(), Schema.between(1970, 2100))),
     limit: Schema.optional(Schema.Number.pipe(Schema.int(), Schema.between(1, 50))),
     page: Schema.optional(Schema.Number.pipe(Schema.int(), Schema.positive())),
@@ -2111,29 +2111,29 @@ export const SeasonalAnimeQueryParamsSchema: Schema.Schema<SeasonalAnimeQueryPar
 
 export const SEASONAL_ANIME_PROVIDER_VALUES = ["anilist", "jikan_fallback"] as const;
 
-export type SeasonalAnimeProvider = (typeof SEASONAL_ANIME_PROVIDER_VALUES)[number];
+export type SeasonalMediaProvider = (typeof SEASONAL_ANIME_PROVIDER_VALUES)[number];
 
-export const SeasonalAnimeProviderSchema: Schema.Schema<SeasonalAnimeProvider> = Schema.Literal(
+export const SeasonalMediaProviderSchema: Schema.Schema<SeasonalMediaProvider> = Schema.Literal(
   ...SEASONAL_ANIME_PROVIDER_VALUES,
 );
 
-export interface SeasonalAnimeResponse {
-  season: AnimeSeason;
+export interface SeasonalMediaResponse {
+  season: MediaSeason;
   year: number;
   page: number;
   limit: number;
   has_more: boolean;
-  provider: SeasonalAnimeProvider;
+  provider: SeasonalMediaProvider;
   degraded: boolean;
-  results: AnimeSearchResult[];
+  results: MediaSearchResult[];
 }
 
-export interface AnimeSeasonWindow {
-  season: AnimeSeason;
+export interface MediaSeasonWindow {
+  season: MediaSeason;
   year: number;
 }
 
-export function resolveSeasonFromDate(now: Date): AnimeSeason {
+export function resolveSeasonFromDate(now: Date): MediaSeason {
   const month = now.getMonth() + 1;
 
   if (month <= 2 || month === 12) {
@@ -2155,23 +2155,23 @@ export function resolveSeasonYearFromDate(now: Date): number {
   return now.getMonth() + 1 === 12 ? now.getFullYear() + 1 : now.getFullYear();
 }
 
-export function resolveSeasonWindowFromDate(now: Date = new Date()): AnimeSeasonWindow {
+export function resolveSeasonWindowFromDate(now: Date = new Date()): MediaSeasonWindow {
   return {
     season: resolveSeasonFromDate(now),
     year: resolveSeasonYearFromDate(now),
   };
 }
 
-export const SeasonalAnimeResponseSchema = Schema.mutable(
+export const SeasonalMediaResponseSchema = Schema.mutable(
   Schema.Struct({
-    season: AnimeSeasonSchema,
+    season: MediaSeasonSchema,
     year: Schema.Number,
     page: Schema.Number.pipe(Schema.int(), Schema.positive()),
     limit: Schema.Number.pipe(Schema.int(), Schema.between(1, 50)),
     has_more: Schema.Boolean,
-    provider: SeasonalAnimeProviderSchema,
+    provider: SeasonalMediaProviderSchema,
     degraded: Schema.Boolean,
-    results: Schema.mutable(Schema.Array(AnimeSearchResultSchema)),
+    results: Schema.mutable(Schema.Array(MediaSearchResultSchema)),
   }),
 );
 
@@ -2199,7 +2199,7 @@ export interface UnmappedFolder {
   path: string;
   search_queries?: string[] | undefined;
   size: number;
-  suggested_matches: AnimeSearchResult[];
+  suggested_matches: MediaSearchResult[];
 }
 
 export const UnmappedFolderSchema = Schema.mutable(
@@ -2212,7 +2212,7 @@ export const UnmappedFolderSchema = Schema.mutable(
     path: Schema.String,
     search_queries: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),
     size: Schema.Number,
-    suggested_matches: Schema.mutable(Schema.Array(AnimeSearchResultSchema)),
+    suggested_matches: Schema.mutable(Schema.Array(MediaSearchResultSchema)),
   }),
 );
 
@@ -2266,11 +2266,11 @@ export const ScannerStateSchema = Schema.mutable(
 );
 
 export interface DownloadStatus {
-  anime_id?: AnimeId | undefined;
-  anime_title?: string | undefined;
+  media_id?: MediaId | undefined;
+  media_title?: string | undefined;
   id?: DownloadId | undefined;
-  episode_number?: number | undefined;
-  anime_image?: string | undefined;
+  unit_number?: number | undefined;
+  media_image?: string | undefined;
   decision_reason?: string | undefined;
   hash: string;
   imported_path?: string | undefined;
@@ -2282,18 +2282,18 @@ export interface DownloadStatus {
   total_bytes: number;
   downloaded_bytes: number;
   is_batch?: boolean | undefined;
-  covered_episodes?: number[] | undefined;
+  covered_units?: number[] | undefined;
   coverage_pending?: boolean | undefined;
   source_metadata?: DownloadSourceMetadata | undefined;
   allowed_actions?: DownloadAllowedAction[] | undefined;
 }
 
 export const DownloadStatusSchema = Schema.Struct({
-  anime_id: Schema.optional(AnimeIdSchema),
-  anime_title: Schema.optional(Schema.String),
+  media_id: Schema.optional(MediaIdSchema),
+  media_title: Schema.optional(Schema.String),
   id: Schema.optional(DownloadIdSchema),
-  episode_number: Schema.optional(Schema.Number),
-  anime_image: Schema.optional(Schema.String),
+  unit_number: Schema.optional(Schema.Number),
+  media_image: Schema.optional(Schema.String),
   decision_reason: Schema.optional(Schema.String),
   hash: Schema.String,
   imported_path: Schema.optional(Schema.String),
@@ -2305,7 +2305,7 @@ export const DownloadStatusSchema = Schema.Struct({
   total_bytes: Schema.Number,
   downloaded_bytes: Schema.Number,
   is_batch: Schema.optional(Schema.Boolean),
-  covered_episodes: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
+  covered_units: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
   coverage_pending: Schema.optional(Schema.Boolean),
   source_metadata: Schema.optional(Schema.suspend(() => DownloadSourceMetadataSchema)),
   allowed_actions: Schema.optional(Schema.mutable(Schema.Array(DownloadAllowedActionSchema))),
@@ -2319,7 +2319,7 @@ export type NotificationEvent =
       type: "DownloadStarted";
       payload: {
         title: string;
-        anime_id?: AnimeId | undefined;
+        media_id?: MediaId | undefined;
         source_metadata?: DownloadSourceMetadata | undefined;
       };
     }
@@ -2327,30 +2327,30 @@ export type NotificationEvent =
       type: "DownloadFinished";
       payload: {
         title: string;
-        anime_id?: AnimeId | undefined;
+        media_id?: MediaId | undefined;
         imported_path?: string | undefined;
         source_metadata?: DownloadSourceMetadata | undefined;
       };
     }
-  | { type: "RefreshStarted"; payload: { anime_id: AnimeId; title: string } }
-  | { type: "RefreshFinished"; payload: { anime_id: AnimeId; title: string } }
+  | { type: "RefreshStarted"; payload: { media_id: MediaId; title: string } }
+  | { type: "RefreshFinished"; payload: { media_id: MediaId; title: string } }
   | {
       type: "SearchMissingStarted";
-      payload: { anime_id?: AnimeId | undefined; title: string };
+      payload: { media_id?: MediaId | undefined; title: string };
     }
   | {
       type: "SearchMissingFinished";
-      payload: { anime_id?: AnimeId | undefined; title: string; count: number };
+      payload: { media_id?: MediaId | undefined; title: string; count: number };
     }
-  | { type: "ScanFolderStarted"; payload: { anime_id: AnimeId; title: string } }
+  | { type: "ScanFolderStarted"; payload: { media_id: MediaId; title: string } }
   | {
       type: "ScanFolderFinished";
-      payload: { anime_id: AnimeId; title: string; found: number };
+      payload: { media_id: MediaId; title: string; found: number };
     }
-  | { type: "RenameStarted"; payload: { anime_id: AnimeId; title: string } }
+  | { type: "RenameStarted"; payload: { media_id: MediaId; title: string } }
   | {
       type: "RenameFinished";
-      payload: { anime_id: AnimeId; title: string; count: number };
+      payload: { media_id: MediaId; title: string; count: number };
     }
   | { type: "ImportStarted"; payload: { count: number } }
   | {
@@ -2394,7 +2394,7 @@ export const NotificationEventSchema = Schema.mutable(
       type: Schema.Literal("DownloadStarted"),
       payload: Schema.Struct({
         title: Schema.String,
-        anime_id: Schema.optional(AnimeIdSchema),
+        media_id: Schema.optional(MediaIdSchema),
         source_metadata: Schema.optional(Schema.suspend(() => DownloadSourceMetadataSchema)),
       }),
     }),
@@ -2402,7 +2402,7 @@ export const NotificationEventSchema = Schema.mutable(
       type: Schema.Literal("DownloadFinished"),
       payload: Schema.Struct({
         title: Schema.String,
-        anime_id: Schema.optional(AnimeIdSchema),
+        media_id: Schema.optional(MediaIdSchema),
         imported_path: Schema.optional(Schema.String),
         source_metadata: Schema.optional(Schema.suspend(() => DownloadSourceMetadataSchema)),
       }),
@@ -2410,28 +2410,28 @@ export const NotificationEventSchema = Schema.mutable(
     Schema.Struct({
       type: Schema.Literal("RefreshStarted"),
       payload: Schema.Struct({
-        anime_id: AnimeIdSchema,
+        media_id: MediaIdSchema,
         title: Schema.String,
       }),
     }),
     Schema.Struct({
       type: Schema.Literal("RefreshFinished"),
       payload: Schema.Struct({
-        anime_id: AnimeIdSchema,
+        media_id: MediaIdSchema,
         title: Schema.String,
       }),
     }),
     Schema.Struct({
       type: Schema.Literal("SearchMissingStarted"),
       payload: Schema.Struct({
-        anime_id: Schema.optional(AnimeIdSchema),
+        media_id: Schema.optional(MediaIdSchema),
         title: Schema.String,
       }),
     }),
     Schema.Struct({
       type: Schema.Literal("SearchMissingFinished"),
       payload: Schema.Struct({
-        anime_id: Schema.optional(AnimeIdSchema),
+        media_id: Schema.optional(MediaIdSchema),
         title: Schema.String,
         count: Schema.Number,
       }),
@@ -2439,14 +2439,14 @@ export const NotificationEventSchema = Schema.mutable(
     Schema.Struct({
       type: Schema.Literal("ScanFolderStarted"),
       payload: Schema.Struct({
-        anime_id: AnimeIdSchema,
+        media_id: MediaIdSchema,
         title: Schema.String,
       }),
     }),
     Schema.Struct({
       type: Schema.Literal("ScanFolderFinished"),
       payload: Schema.Struct({
-        anime_id: AnimeIdSchema,
+        media_id: MediaIdSchema,
         title: Schema.String,
         found: Schema.Number,
       }),
@@ -2454,14 +2454,14 @@ export const NotificationEventSchema = Schema.mutable(
     Schema.Struct({
       type: Schema.Literal("RenameStarted"),
       payload: Schema.Struct({
-        anime_id: AnimeIdSchema,
+        media_id: MediaIdSchema,
         title: Schema.String,
       }),
     }),
     Schema.Struct({
       type: Schema.Literal("RenameFinished"),
       payload: Schema.Struct({
-        anime_id: AnimeIdSchema,
+        media_id: MediaIdSchema,
         title: Schema.String,
         count: Schema.Number,
       }),

@@ -5,16 +5,16 @@ import { BackgroundWorkerMonitor } from "@/background/monitor.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import type { WorkerTimeoutError } from "@/background/workers.ts";
 import type { ExternalCallError } from "@/infra/effect/retry.ts";
-import type { AnimeServiceError } from "@/features/anime/errors.ts";
+import type { MediaServiceError } from "@/features/media/errors.ts";
 import type { OperationsError } from "@/features/operations/errors.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 import { CatalogDownloadCommandService } from "@/features/operations/catalog/catalog-download-command-service.ts";
 import { CatalogLibraryScanService } from "@/features/operations/catalog/catalog-library-scan-service.ts";
-import { AnimeMaintenanceService } from "@/features/anime/metadata/anime-maintenance-service.ts";
+import { AnimeMaintenanceService } from "@/features/media/metadata/media-maintenance-service.ts";
 import { BackgroundSearchRssWorkerService } from "@/features/operations/background-search/background-search-rss-worker-service.ts";
 
 export type BackgroundTaskRunnerError =
-  | AnimeServiceError
+  | MediaServiceError
   | DatabaseError
   | ExternalCallError
   | OperationsError

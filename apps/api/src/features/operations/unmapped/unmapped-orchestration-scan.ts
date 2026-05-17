@@ -4,7 +4,7 @@ import type { AppDatabase } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
 import type { EventBusShape } from "@/features/events/event-bus.ts";
 import { type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
-import type { AniListClient } from "@/features/anime/metadata/anilist.ts";
+import type { AniListClient } from "@/features/media/metadata/anilist.ts";
 import {
   deleteUnmappedFolderMatchRowsNotInPaths,
   upsertUnmappedFolderMatchRows,

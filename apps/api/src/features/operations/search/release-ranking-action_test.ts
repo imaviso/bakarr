@@ -4,7 +4,7 @@ import { assert, it } from "@effect/vitest";
 
 import { decideDownloadAction } from "@/features/operations/search/release-ranking-action.ts";
 import type {
-  RankedCurrentEpisode,
+  RankedCurrentUnit,
   RankedRelease,
 } from "@/features/operations/search/release-ranking-types.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
@@ -30,7 +30,7 @@ function makeRelease(overrides: Partial<RankedRelease> = {}): RankedRelease {
     remake: false,
     seeders: 5,
     sizeBytes: 1024 * 1024 * 1024,
-    title: "[TestGroup] Anime - 01 [1080p WEB-DL]",
+    title: "[TestGroup] Media - 01 [1080p WEB-DL]",
     trusted: false,
     ...overrides,
   };
@@ -107,7 +107,7 @@ it("decideDownloadAction rejects when must rule is not satisfied", () => {
     makeProfile(),
     rules,
     Option.none(),
-    makeRelease({ title: "[TestGroup] Anime - 01 [1080p WEB-DL]" }),
+    makeRelease({ title: "[TestGroup] Media - 01 [1080p WEB-DL]" }),
     makeConfig(),
   );
   assert.ok(action.Reject !== undefined);
@@ -128,15 +128,15 @@ it("decideDownloadAction rejects when must_not rule is violated", () => {
 });
 
 it("decideDownloadAction rejects upgrade when upgrades disabled", () => {
-  const current: RankedCurrentEpisode = {
+  const current: RankedCurrentUnit = {
     downloaded: true,
-    filePath: "[OldGroup] Anime - 01 [720p HDTV].mkv",
+    filePath: "[OldGroup] Media - 01 [720p HDTV].mkv",
   };
   const action = decideDownloadAction(
     makeProfile({ upgrade_allowed: false }),
     [],
     Option.some(current),
-    makeRelease({ title: "[TestGroup] Anime - 01 [1080p BluRay]" }),
+    makeRelease({ title: "[TestGroup] Media - 01 [1080p BluRay]" }),
     makeConfig(),
   );
   assert.ok(action.Reject !== undefined);
@@ -144,15 +144,15 @@ it("decideDownloadAction rejects upgrade when upgrades disabled", () => {
 });
 
 it("decideDownloadAction rejects when already at quality cutoff", () => {
-  const current: RankedCurrentEpisode = {
+  const current: RankedCurrentUnit = {
     downloaded: true,
-    filePath: "[TestGroup] Anime - 01 [1080p BluRay].mkv",
+    filePath: "[TestGroup] Media - 01 [1080p BluRay].mkv",
   };
   const action = decideDownloadAction(
     makeProfile({ cutoff: "720p" }),
     [],
     Option.some(current),
-    makeRelease({ title: "[TestGroup] Anime - 01 [1080p WEB-DL]" }),
+    makeRelease({ title: "[TestGroup] Media - 01 [1080p WEB-DL]" }),
     makeConfig(),
   );
   assert.ok(action.Reject !== undefined);
@@ -160,15 +160,15 @@ it("decideDownloadAction rejects when already at quality cutoff", () => {
 });
 
 it("decideDownloadAction upgrades when better quality available", () => {
-  const current: RankedCurrentEpisode = {
+  const current: RankedCurrentUnit = {
     downloaded: true,
-    filePath: "[OldGroup] Anime - 01 [720p HDTV].mkv",
+    filePath: "[OldGroup] Media - 01 [720p HDTV].mkv",
   };
   const action = decideDownloadAction(
     makeProfile({ cutoff: "BluRay 2160p Remux" }),
     [],
     Option.some(current),
-    makeRelease({ title: "[TestGroup] Anime - 01 [1080p BluRay]" }),
+    makeRelease({ title: "[TestGroup] Media - 01 [1080p BluRay]" }),
     makeConfig(),
   );
   assert.ok(action.Upgrade !== undefined);
@@ -176,15 +176,15 @@ it("decideDownloadAction upgrades when better quality available", () => {
 });
 
 it("decideDownloadAction upgrades when SeaDex preferred and current is not", () => {
-  const current: RankedCurrentEpisode = {
+  const current: RankedCurrentUnit = {
     downloaded: true,
-    filePath: "[OldGroup] Anime - 01 [1080p WEB-DL].mkv",
+    filePath: "[OldGroup] Media - 01 [1080p WEB-DL].mkv",
   };
   const action = decideDownloadAction(
     makeProfile({ seadex_preferred: true, cutoff: "BluRay 2160p Remux" }),
     [],
     Option.some(current),
-    makeRelease({ title: "[TestGroup] Anime - 01 [1080p WEB-DL]", isSeaDex: true }),
+    makeRelease({ title: "[TestGroup] Media - 01 [1080p WEB-DL]", isSeaDex: true }),
     makeConfig(),
   );
   assert.ok(action.Upgrade !== undefined);
@@ -192,15 +192,15 @@ it("decideDownloadAction upgrades when SeaDex preferred and current is not", () 
 });
 
 it("decideDownloadAction rejects when no quality improvement", () => {
-  const current: RankedCurrentEpisode = {
+  const current: RankedCurrentUnit = {
     downloaded: true,
-    filePath: "[TestGroup] Anime - 01 [1080p WEB-DL].mkv",
+    filePath: "[TestGroup] Media - 01 [1080p WEB-DL].mkv",
   };
   const action = decideDownloadAction(
     makeProfile({ cutoff: "BluRay 2160p Remux" }),
     [],
     Option.some(current),
-    makeRelease({ title: "[OtherGroup] Anime - 01 [1080p WEBRip]" }),
+    makeRelease({ title: "[OtherGroup] Media - 01 [1080p WEBRip]" }),
     makeConfig(),
   );
   assert.ok(action.Reject !== undefined);

@@ -4,7 +4,7 @@ import { getDownloadEventMetadataSummary } from "./event-metadata";
 it("download event metadata summarizes coverage and provenance", () => {
   const summary = getDownloadEventMetadataSummary({
     metadata_json: {
-      covered_episodes: [1, 2],
+      covered_units: [1, 2],
       imported_path: "/library/Naruto/Naruto - 01.mkv",
       source_metadata: {
         decision_reason: "Upgrade to better encode",
@@ -13,7 +13,7 @@ it("download event metadata summarizes coverage and provenance", () => {
         quality: "WEB-DL",
         resolution: "1080p",
         source_identity: {
-          episode_numbers: [1],
+          unit_numbers: [1],
           label: "01",
           scheme: "absolute",
         },

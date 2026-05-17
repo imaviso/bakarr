@@ -3,10 +3,7 @@ import { assert, it } from "@effect/vitest";
 import { parseAbsoluteIdentity } from "@/infra/media/identity/absolute.ts";
 
 it("parseAbsoluteIdentity parses explicit episode markers and brackets", () => {
-  assert.deepStrictEqual(
-    parseAbsoluteIdentity("Show - E12", "Show - E12.mkv")?.episode_numbers,
-    [12],
-  );
+  assert.deepStrictEqual(parseAbsoluteIdentity("Show - E12", "Show - E12.mkv")?.unit_numbers, [12]);
   assert.deepStrictEqual(
     parseAbsoluteIdentity("[Group] Show [07]", "[Group] Show [07].mkv")?.label,
     "07",
@@ -20,7 +17,7 @@ it("parseAbsoluteIdentity parses safe absolute ranges", () => {
   );
 
   assert.deepStrictEqual(parsed?.scheme, "absolute");
-  assert.deepStrictEqual(parsed?.episode_numbers, [3, 4, 5]);
+  assert.deepStrictEqual(parsed?.unit_numbers, [3, 4, 5]);
   assert.deepStrictEqual(parsed?.label, "03-05");
 });
 

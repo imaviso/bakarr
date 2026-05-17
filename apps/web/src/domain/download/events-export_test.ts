@@ -12,7 +12,7 @@ function assertDeepEquals(actual: unknown, expected: unknown) {
 it("buildDownloadEventsExportInput parses positive integer ids and strips all event type", () => {
   const output = buildDownloadEventsExportInput(
     {
-      animeId: "42",
+      mediaId: "42",
       downloadId: "7",
       endDate: "2026-04-01",
       eventType: "all",
@@ -23,7 +23,7 @@ it("buildDownloadEventsExportInput parses positive integer ids and strips all ev
   );
 
   assertDeepEquals(output, {
-    animeId: 42,
+    mediaId: 42,
     downloadId: 7,
     endDate: "2026-04-01",
     limit: 500,
@@ -35,7 +35,7 @@ it("buildDownloadEventsExportInput parses positive integer ids and strips all ev
 
 it("buildDownloadEventsExportInput omits invalid values and uses defaults", () => {
   const output = buildDownloadEventsExportInput({
-    animeId: "0",
+    mediaId: "0",
     downloadId: "not-a-number",
     endDate: "",
     eventType: "grabbed",
@@ -52,7 +52,7 @@ it("buildDownloadEventsExportInput omits invalid values and uses defaults", () =
 
 it("buildDownloadEventsExportInput trims text filters and omits whitespace-only values", () => {
   const output = buildDownloadEventsExportInput({
-    animeId: "",
+    mediaId: "",
     downloadId: "",
     endDate: "   ",
     eventType: "  imported  ",

@@ -47,11 +47,11 @@ function appendDownloadEventsCommonParams(
   params: URLSearchParams,
   input: Pick<
     DownloadEventsExportInput,
-    "animeId" | "downloadId" | "endDate" | "eventType" | "limit" | "startDate" | "status"
+    "mediaId" | "downloadId" | "endDate" | "eventType" | "limit" | "startDate" | "status"
   >,
 ) {
-  if (input.animeId !== undefined) {
-    params.set("anime_id", String(input.animeId));
+  if (input.mediaId !== undefined) {
+    params.set("media_id", String(input.mediaId));
   }
   if (input.downloadId !== undefined) {
     params.set("download_id", String(input.downloadId));

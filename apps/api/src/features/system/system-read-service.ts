@@ -31,7 +31,7 @@ import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-s
 import { ClockService } from "@/infra/clock.ts";
 import {
   brandActivityId,
-  brandAnimeId,
+  brandMediaId,
   type ActivityItem,
   type LibraryStats,
   type OpsDashboard,
@@ -78,8 +78,8 @@ export const SystemReadServiceLive = Layer.effect(
         (row) =>
           ({
             activity_type: row.eventType,
-            anime_id: brandAnimeId(1),
-            anime_title: "Bakarr",
+            media_id: brandMediaId(1),
+            media_title: "Bakarr",
             description: row.message,
             id: brandActivityId(row.id),
             timestamp: row.createdAt,
@@ -111,21 +111,18 @@ export const SystemReadServiceLive = Layer.effect(
       const aggregate = yield* loadSystemLibraryStatsAggregate(db);
 
       return {
-        downloaded_episodes: aggregate.downloadedEpisodes,
+        downloaded_units: aggregate.downloadedUnits,
         downloaded_percent:
-          aggregate.totalEpisodes > 0
-            ? Math.min(
-                100,
-                Math.round((aggregate.downloadedEpisodes / aggregate.totalEpisodes) * 100),
-              )
+          aggregate.totalUnits > 0
+            ? Math.min(100, Math.round((aggregate.downloadedUnits / aggregate.totalUnits) * 100))
             : 0,
-        missing_episodes: Math.max(aggregate.totalEpisodes - aggregate.downloadedEpisodes, 0),
-        monitored_anime: aggregate.monitoredAnime,
+        missing_units: Math.max(aggregate.totalUnits - aggregate.downloadedUnits, 0),
+        monitored_media: aggregate.monitoredAnime,
         recent_downloads: aggregate.completedDownloads,
         rss_feeds: aggregate.totalRssFeeds,
-        total_anime: aggregate.totalAnime,
-        total_episodes: aggregate.totalEpisodes,
-        up_to_date_anime: aggregate.upToDateAnime,
+        total_media: aggregate.totalAnime,
+        total_units: aggregate.totalUnits,
+        up_to_date_media: aggregate.upToDateAnime,
       } satisfies LibraryStats;
     });
 

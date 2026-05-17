@@ -10,7 +10,7 @@ import * as EffectLayer from "effect/Layer";
 import * as Scope from "effect/Scope";
 import {
   AsyncOperationAcceptedSchema,
-  brandAnimeId,
+  brandMediaId,
   OperationTaskSchema,
 } from "@packages/shared/index.ts";
 import { mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
@@ -20,9 +20,9 @@ import { bootstrapProgram } from "./src/app/startup.ts";
 import { makeApiLifecycleLayers } from "./src/app/lifecycle-layers.ts";
 import { createHttpApp } from "./src/http/http-app.ts";
 import { commandArgs, commandName } from "./src/test/stubs.ts";
-import { AniListClient } from "./src/features/anime/metadata/anilist.ts";
-import { JikanClient } from "./src/features/anime/metadata/jikan.ts";
-import { ManamiClient } from "./src/features/anime/metadata/manami.ts";
+import { AniListClient } from "./src/features/media/metadata/anilist.ts";
+import { JikanClient } from "./src/features/media/metadata/jikan.ts";
+import { ManamiClient } from "./src/features/media/metadata/manami.ts";
 import {
   mapQBitState,
   type QBitTorrent,
@@ -31,7 +31,7 @@ import {
 import { RssClient } from "./src/features/operations/rss/rss-client.ts";
 import type { ParsedRelease } from "./src/features/operations/rss/rss-client-parse.ts";
 import { SeaDexClient, type SeaDexEntry } from "./src/features/operations/search/seadex-client.ts";
-import type { AnimeSearchResult } from "../../packages/shared/src/index.ts";
+import type { MediaSearchResult } from "../../packages/shared/src/index.ts";
 
 declare global {
   interface Response {
@@ -205,7 +205,7 @@ itWithTestContext("search releases enriches SeaDex metadata using AniList ID", a
   assert(sessionCookie);
 
   await withTempDir(async (baseRoot) => {
-    const addResponse = await ctx.app.request("/api/anime", {
+    const addResponse = await ctx.app.request("/api/media", {
       body: JSON.stringify({
         id: 20,
         monitor_and_search: false,
@@ -222,7 +222,7 @@ itWithTestContext("search releases enriches SeaDex metadata using AniList ID", a
     });
     assert.deepStrictEqual(addResponse["status"], 200);
 
-    const response = await ctx.app.request("/api/search/releases?query=Naruto&anime_id=20", {
+    const response = await ctx.app.request("/api/search/releases?query=Naruto&media_id=20", {
       headers: { Cookie: sessionCookie },
     });
     assert.deepStrictEqual(response["status"], 200);
@@ -293,7 +293,7 @@ it.scoped("search releases can match SeaDex by Nyaa URL when info hash is unavai
         assert(sessionCookie);
 
         await withTempDir(async (baseRoot) => {
-          const addResponse = await ctx.app.request("/api/anime", {
+          const addResponse = await ctx.app.request("/api/media", {
             body: JSON.stringify({
               id: 20,
               monitor_and_search: false,
@@ -310,7 +310,7 @@ it.scoped("search releases can match SeaDex by Nyaa URL when info hash is unavai
           });
           assert.deepStrictEqual(addResponse["status"], 200);
 
-          const response = await ctx.app.request("/api/search/releases?query=Naruto&anime_id=20", {
+          const response = await ctx.app.request("/api/search/releases?query=Naruto&media_id=20", {
             headers: { Cookie: sessionCookie },
           });
           assert.deepStrictEqual(response["status"], 200);
@@ -380,7 +380,7 @@ it.scoped("search releases only marks matching groups as SeaDex in fallback matc
         assert(sessionCookie);
 
         await withTempDir(async (baseRoot) => {
-          const addResponse = await ctx.app.request("/api/anime", {
+          const addResponse = await ctx.app.request("/api/media", {
             body: JSON.stringify({
               id: 20,
               monitor_and_search: false,
@@ -398,7 +398,7 @@ it.scoped("search releases only marks matching groups as SeaDex in fallback matc
           assert.deepStrictEqual(addResponse["status"], 200);
 
           const response = await ctx.app.request(
-            "/api/search/releases?query=Yofukashi%20no%20Uta&anime_id=20",
+            "/api/search/releases?query=Yofukashi%20no%20Uta&media_id=20",
             { headers: { Cookie: sessionCookie } },
           );
           assert.deepStrictEqual(response["status"], 200);
@@ -432,7 +432,7 @@ itWithTestContext("episode search includes SeaDex metadata in ranked results", a
   assert(sessionCookie);
 
   await withTempDir(async (baseRoot) => {
-    const addResponse = await ctx.app.request("/api/anime", {
+    const addResponse = await ctx.app.request("/api/media", {
       body: JSON.stringify({
         id: 20,
         monitor_and_search: false,
@@ -449,7 +449,7 @@ itWithTestContext("episode search includes SeaDex metadata in ranked results", a
     });
     assert.deepStrictEqual(addResponse["status"], 200);
 
-    const response = await ctx.app.request("/api/search/episode/20/1", {
+    const response = await ctx.app.request("/api/search/units/20/1", {
       headers: { Cookie: sessionCookie },
     });
     assert.deepStrictEqual(response["status"], 200);
@@ -559,15 +559,15 @@ itWithTestContext(
 
     assert.deepStrictEqual(statsResponse["status"], 200);
     assert.deepStrictEqual(await statsResponse.json(), {
-      downloaded_episodes: 0,
+      downloaded_units: 0,
       downloaded_percent: 0,
-      missing_episodes: 0,
-      monitored_anime: 0,
+      missing_units: 0,
+      monitored_media: 0,
       recent_downloads: 0,
       rss_feeds: 0,
-      total_anime: 0,
-      total_episodes: 0,
-      up_to_date_anime: 0,
+      total_media: 0,
+      total_units: 0,
+      up_to_date_media: 0,
     });
   },
 );
@@ -592,7 +592,7 @@ itWithTestContext(
     const me = await meResponse.json();
     assert.deepStrictEqual(me.must_change_password, true);
 
-    const protectedResponse = await ctx.app.request("/api/anime", {
+    const protectedResponse = await ctx.app.request("/api/media", {
       headers: { Cookie: sessionCookie },
     });
     assert.deepStrictEqual(protectedResponse.status, 403);
@@ -1017,7 +1017,7 @@ itWithTestContext("system library scan task maps files across anime roots", asyn
   const { sessionCookie } = await loginAsBootstrapAdmin(ctx);
 
   await withTempDir(async (baseRoot) => {
-    const addResponse = await ctx.app.request("/api/anime", {
+    const addResponse = await ctx.app.request("/api/media", {
       body: JSON.stringify({
         id: 20,
         monitor_and_search: false,
@@ -1049,7 +1049,7 @@ itWithTestContext("system library scan task maps files across anime roots", asyn
       taskId: acceptedScanTask.task_id,
     });
 
-    const episodesResponse = await ctx.app.request("/api/anime/20/episodes", {
+    const episodesResponse = await ctx.app.request("/api/media/20/units", {
       headers: { Cookie: sessionCookie },
     });
     assert.deepStrictEqual(episodesResponse["status"], 200);
@@ -1267,7 +1267,7 @@ itWithTestContext("unmapped folders mark already-imported anime suggestions", as
       method: "PUT",
     });
 
-    const addResponse = await ctx.app.request("/api/anime", {
+    const addResponse = await ctx.app.request("/api/media", {
       body: JSON.stringify({
         id: 20,
         monitor_and_search: false,
@@ -1976,7 +1976,7 @@ itWithTestContext(
 
     await withTempDir(async (animeRoot) => {
       await withTempDir(async (completedRoot) => {
-        const addAnimeResponse = await ctx.app.request("/api/anime", {
+        const addAnimeResponse = await ctx.app.request("/api/media", {
           body: JSON.stringify({
             id: 20,
             monitor_and_search: false,
@@ -1996,8 +1996,8 @@ itWithTestContext(
         const magnetHash = "1234567890abcdef1234567890abcdef12345678";
         const triggerDownloadResponse = await ctx.app.request("/api/search/download", {
           body: JSON.stringify({
-            anime_id: 20,
-            episode_number: 1,
+            media_id: 20,
+            unit_number: 1,
             magnet: `magnet:?xt=urn:btih:${magnetHash}`,
             title: "Naruto - 01",
           }),
@@ -2028,7 +2028,7 @@ itWithTestContext(
         });
         assert.deepStrictEqual(reconcileResponse["status"], 200);
 
-        const episodesResponse = await ctx.app.request("/api/anime/20/episodes", {
+        const episodesResponse = await ctx.app.request("/api/media/20/units", {
           headers: { Cookie: sessionCookie },
         });
         assert.deepStrictEqual(episodesResponse["status"], 200);
@@ -2117,7 +2117,7 @@ it.scoped("download sync auto-imports paused seeding torrents", () =>
                 });
                 assert.deepStrictEqual(updatedConfigResponse["status"], 200);
 
-                const addAnimeResponse = await ctx.app.request("/api/anime", {
+                const addAnimeResponse = await ctx.app.request("/api/media", {
                   body: JSON.stringify({
                     id: 20,
                     monitor_and_search: false,
@@ -2136,8 +2136,8 @@ it.scoped("download sync auto-imports paused seeding torrents", () =>
 
                 const triggerDownloadResponse = await ctx.app.request("/api/search/download", {
                   body: JSON.stringify({
-                    anime_id: 20,
-                    episode_number: 1,
+                    media_id: 20,
+                    unit_number: 1,
                     magnet: `magnet:?xt=urn:btih:${magnetHash}`,
                     title: "Naruto - 01",
                   }),
@@ -2174,7 +2174,7 @@ it.scoped("download sync auto-imports paused seeding torrents", () =>
                   verifyClient.close();
                 }
 
-                const episodesResponse = await ctx.app.request("/api/anime/20/episodes", {
+                const episodesResponse = await ctx.app.request("/api/media/20/units", {
                   headers: { Cookie: sessionCookie },
                 });
                 assert.deepStrictEqual(episodesResponse["status"], 200);
@@ -2198,7 +2198,7 @@ itWithTestContext(
     const { sessionCookie } = await loginAsBootstrapAdmin(ctx);
 
     await withTempDir(async (rootFolder) => {
-      const addAnimeResponse = await ctx.app.request("/api/anime", {
+      const addAnimeResponse = await ctx.app.request("/api/media", {
         body: JSON.stringify({
           id: 140960,
           monitor_and_search: false,
@@ -2217,7 +2217,7 @@ itWithTestContext(
 
       const triggerDownloadResponse = await ctx.app.request("/api/search/download", {
         body: JSON.stringify({
-          anime_id: 140960,
+          media_id: 140960,
           magnet: "magnet:?xt=urn:btih:test-batch-season-pack",
           title: "[Flugel] Chainsaw Man S01 (BD 1080p HEVC Opus) [Multi Audio]",
         }),
@@ -2238,8 +2238,8 @@ itWithTestContext(
       assert.deepStrictEqual(history.length, 1);
       assert.deepStrictEqual(history[0].is_batch, true);
       assert.deepStrictEqual(history[0].coverage_pending, true);
-      assert.deepStrictEqual(history[0].covered_episodes, undefined);
-      assert.deepStrictEqual(history[0].episode_number, 1);
+      assert.deepStrictEqual(history[0].covered_units, undefined);
+      assert.deepStrictEqual(history[0].unit_number, 1);
     });
   },
 );
@@ -2324,7 +2324,7 @@ it.scoped("download sync refines season-pack coverage from qBittorrent file list
         assert.deepStrictEqual(updatedConfigResponse["status"], 200);
 
         await withTempDir(async (rootFolder) => {
-          const addAnimeResponse = await ctx.app.request("/api/anime", {
+          const addAnimeResponse = await ctx.app.request("/api/media", {
             body: JSON.stringify({
               id: 140960,
               monitor_and_search: false,
@@ -2343,7 +2343,7 @@ it.scoped("download sync refines season-pack coverage from qBittorrent file list
 
           const triggerDownloadResponse = await ctx.app.request("/api/search/download", {
             body: JSON.stringify({
-              anime_id: 140960,
+              media_id: 140960,
               magnet: `magnet:?xt=urn:btih:${magnetHash}`,
               title: "[Flugel] Chainsaw Man S01 (BD 1080p HEVC Opus) [Multi Audio]",
             }),
@@ -2373,8 +2373,8 @@ it.scoped("download sync refines season-pack coverage from qBittorrent file list
           const history = await historyResponse.json();
 
           assert.deepStrictEqual(history.length, 1);
-          assert.deepStrictEqual(history[0].covered_episodes, [1, 2]);
-          assert.deepStrictEqual(history[0].episode_number, 1);
+          assert.deepStrictEqual(history[0].covered_units, [1, 2]);
+          assert.deepStrictEqual(history[0].unit_number, 1);
           assert.deepStrictEqual(history[0].is_batch, true);
           assert.deepStrictEqual(history[0].coverage_pending, undefined);
         });
@@ -2402,7 +2402,7 @@ itWithTestContext("download operation error branches return expected statuses", 
   assert.deepStrictEqual(await missingPause.text(), "Download not found");
 
   await withTempDir(async (rootFolder) => {
-    const addAnimeResponse = await ctx.app.request("/api/anime", {
+    const addAnimeResponse = await ctx.app.request("/api/media", {
       body: JSON.stringify({
         id: 20,
         monitor_and_search: false,
@@ -2421,8 +2421,8 @@ itWithTestContext("download operation error branches return expected statuses", 
 
     const triggerDownloadResponse = await ctx.app.request("/api/search/download", {
       body: JSON.stringify({
-        anime_id: 20,
-        episode_number: 1,
+        media_id: 20,
+        unit_number: 1,
         magnet: "magnet:?xt=urn:btih:test-download-ops",
         title: "Naruto - 01",
       }),
@@ -2470,7 +2470,7 @@ itWithTestContext("download pause resume and delete endpoints update queue state
   const { sessionCookie } = await loginAsBootstrapAdmin(ctx);
 
   await withTempDir(async (rootFolder) => {
-    const addAnimeResponse = await ctx.app.request("/api/anime", {
+    const addAnimeResponse = await ctx.app.request("/api/media", {
       body: JSON.stringify({
         id: 20,
         monitor_and_search: false,
@@ -2489,8 +2489,8 @@ itWithTestContext("download pause resume and delete endpoints update queue state
 
     const triggerDownloadResponse = await ctx.app.request("/api/search/download", {
       body: JSON.stringify({
-        anime_id: 20,
-        episode_number: 1,
+        media_id: 20,
+        unit_number: 1,
         magnet: "magnet:?xt=urn:btih:test-download-state",
         title: "Naruto - 01",
       }),
@@ -2581,7 +2581,7 @@ itWithTestContext("anime update, map, stream, and delete endpoints work", async 
       assert.deepStrictEqual(releaseProfileResponse["status"], 200);
       const releaseProfile = await releaseProfileResponse.json();
 
-      const addResponse = await ctx.app.request("/api/anime", {
+      const addResponse = await ctx.app.request("/api/media", {
         body: JSON.stringify({
           id: 20,
           monitor_and_search: false,
@@ -2598,7 +2598,7 @@ itWithTestContext("anime update, map, stream, and delete endpoints work", async 
       });
       assert.deepStrictEqual(addResponse["status"], 200);
 
-      const monitorResponse = await ctx.app.request("/api/anime/20/monitor", {
+      const monitorResponse = await ctx.app.request("/api/media/20/monitor", {
         body: JSON.stringify({ monitored: false }),
         headers: {
           Cookie: apiKeySessionCookie,
@@ -2608,7 +2608,7 @@ itWithTestContext("anime update, map, stream, and delete endpoints work", async 
       });
       assert.deepStrictEqual(monitorResponse["status"], 200);
 
-      const pathResponse = await ctx.app.request("/api/anime/20/path", {
+      const pathResponse = await ctx.app.request("/api/media/20/path", {
         body: JSON.stringify({ path: updatedFolder }),
         headers: {
           Cookie: apiKeySessionCookie,
@@ -2618,7 +2618,7 @@ itWithTestContext("anime update, map, stream, and delete endpoints work", async 
       });
       assert.deepStrictEqual(pathResponse["status"], 200);
 
-      const profileResponse = await ctx.app.request("/api/anime/20/profile", {
+      const profileResponse = await ctx.app.request("/api/media/20/profile", {
         body: JSON.stringify({ profile_name: "Default" }),
         headers: {
           Cookie: apiKeySessionCookie,
@@ -2628,7 +2628,7 @@ itWithTestContext("anime update, map, stream, and delete endpoints work", async 
       });
       assert.deepStrictEqual(profileResponse["status"], 200);
 
-      const releaseProfilesResponse = await ctx.app.request("/api/anime/20/release-profiles", {
+      const releaseProfilesResponse = await ctx.app.request("/api/media/20/release-profiles", {
         body: JSON.stringify({ release_profile_ids: [releaseProfile.id] }),
         headers: {
           Cookie: apiKeySessionCookie,
@@ -2641,7 +2641,7 @@ itWithTestContext("anime update, map, stream, and delete endpoints work", async 
       const filePath = `${updatedFolder}/Naruto - 001.mkv`;
       await writeTextFile(filePath, "streamable");
 
-      const mapResponse = await ctx.app.request("/api/anime/20/episodes/1/map", {
+      const mapResponse = await ctx.app.request("/api/media/20/units/1/map", {
         body: JSON.stringify({ file_path: filePath }),
         headers: {
           Cookie: apiKeySessionCookie,
@@ -2651,7 +2651,7 @@ itWithTestContext("anime update, map, stream, and delete endpoints work", async 
       });
       assert.deepStrictEqual(mapResponse["status"], 200);
 
-      const detailResponse = await ctx.app.request("/api/anime/20", {
+      const detailResponse = await ctx.app.request("/api/media/20", {
         headers: { Cookie: apiKeySessionCookie },
       });
       const detail = await detailResponse.json();
@@ -2662,7 +2662,7 @@ itWithTestContext("anime update, map, stream, and delete endpoints work", async 
       const streamUnauthorized = await ctx.app.request("/api/stream/20/1");
       assert.deepStrictEqual(streamUnauthorized["status"], 403);
 
-      const streamUrlResponse = await ctx.app.request("/api/anime/20/stream-url?episodeNumber=1", {
+      const streamUrlResponse = await ctx.app.request("/api/media/20/stream-url?unitNumber=1", {
         headers: { Cookie: apiKeySessionCookie },
       });
       assert.deepStrictEqual(streamUrlResponse["status"], 200);
@@ -2675,26 +2675,26 @@ itWithTestContext("anime update, map, stream, and delete endpoints work", async 
       assert.deepStrictEqual(streamAuthorized.headers.get("content-type"), "video/x-matroska");
       assert.deepStrictEqual(await streamAuthorized.text(), "streamable");
 
-      const deleteEpisodeFileResponse = await ctx.app.request("/api/anime/20/episodes/1/file", {
+      const deleteEpisodeFileResponse = await ctx.app.request("/api/media/20/units/1/file", {
         headers: { Cookie: apiKeySessionCookie },
         method: "DELETE",
       });
       assert.deepStrictEqual(deleteEpisodeFileResponse["status"], 200);
 
-      const episodesAfterDelete = await ctx.app.request("/api/anime/20/episodes", {
+      const episodesAfterDelete = await ctx.app.request("/api/media/20/units", {
         headers: { Cookie: apiKeySessionCookie },
       });
       const episodeRows = await episodesAfterDelete.json();
       assert.deepStrictEqual(episodeRows[0].downloaded, false);
       assert.deepStrictEqual(episodeRows[0].file_path, undefined);
 
-      const deleteAnimeResponse = await ctx.app.request("/api/anime/20", {
+      const deleteAnimeResponse = await ctx.app.request("/api/media/20", {
         headers: { Cookie: apiKeySessionCookie },
         method: "DELETE",
       });
       assert.deepStrictEqual(deleteAnimeResponse["status"], 200);
 
-      const animeListAfterDelete = await ctx.app.request("/api/anime", {
+      const animeListAfterDelete = await ctx.app.request("/api/media", {
         headers: { Cookie: apiKeySessionCookie },
       });
       assert.deepStrictEqual((await animeListAfterDelete.json()).total, 0);
@@ -2709,7 +2709,7 @@ itWithTestContext(
 
     await withTempDir(async (initialRoot) => {
       await withTempDir(async (updatedRoot) => {
-        const addResponse = await ctx.app.request("/api/anime", {
+        const addResponse = await ctx.app.request("/api/media", {
           body: JSON.stringify({
             id: 20,
             monitor_and_search: false,
@@ -2730,7 +2730,7 @@ itWithTestContext(
         const filePath = `${anime.root_folder}/Naruto - 001.mkv`;
         await writeTextFile(filePath, "stale-stream");
 
-        const mapResponse = await ctx.app.request("/api/anime/20/episodes/1/map", {
+        const mapResponse = await ctx.app.request("/api/media/20/units/1/map", {
           body: JSON.stringify({ file_path: filePath }),
           headers: {
             Cookie: sessionCookie,
@@ -2740,10 +2740,9 @@ itWithTestContext(
         });
         assert.deepStrictEqual(mapResponse["status"], 200);
 
-        const streamUrlResponse = await ctx.app.request(
-          "/api/anime/20/stream-url?episodeNumber=1",
-          { headers: { Cookie: sessionCookie } },
-        );
+        const streamUrlResponse = await ctx.app.request("/api/media/20/stream-url?unitNumber=1", {
+          headers: { Cookie: sessionCookie },
+        });
         assert.deepStrictEqual(streamUrlResponse["status"], 200);
         const { url: signedStreamUrl } = await streamUrlResponse.json();
 
@@ -2751,7 +2750,7 @@ itWithTestContext(
         assert.deepStrictEqual(initialStreamResponse["status"], 200);
         assert.deepStrictEqual(await initialStreamResponse.text(), "stale-stream");
 
-        const pathResponse = await ctx.app.request("/api/anime/20/path", {
+        const pathResponse = await ctx.app.request("/api/media/20/path", {
           body: JSON.stringify({ path: updatedRoot }),
           headers: {
             Cookie: sessionCookie,
@@ -2772,7 +2771,7 @@ itWithTestContext("deleting an episode file removes the mapped file from disk", 
   const { sessionCookie } = await loginAsBootstrapAdmin(ctx);
 
   await withTempDir(async (rootFolder) => {
-    const addResponse = await ctx.app.request("/api/anime", {
+    const addResponse = await ctx.app.request("/api/media", {
       body: JSON.stringify({
         id: 20,
         monitor_and_search: false,
@@ -2793,7 +2792,7 @@ itWithTestContext("deleting an episode file removes the mapped file from disk", 
     const filePath = `${anime.root_folder}/Naruto - 001.mkv`;
     await writeTextFile(filePath, "episode-bytes");
 
-    const mapResponse = await ctx.app.request("/api/anime/20/episodes/1/map", {
+    const mapResponse = await ctx.app.request("/api/media/20/units/1/map", {
       body: JSON.stringify({ file_path: filePath }),
       headers: {
         Cookie: sessionCookie,
@@ -2803,7 +2802,7 @@ itWithTestContext("deleting an episode file removes the mapped file from disk", 
     });
     assert.deepStrictEqual(mapResponse["status"], 200);
 
-    const deleteResponse = await ctx.app.request("/api/anime/20/episodes/1/file", {
+    const deleteResponse = await ctx.app.request("/api/media/20/units/1/file", {
       headers: { Cookie: sessionCookie },
       method: "DELETE",
     });
@@ -2824,7 +2823,7 @@ itWithTestContext(
   async (ctx) => {
     const { sessionCookie } = await loginAsBootstrapAdmin(ctx);
 
-    const searchResponse = await ctx.app.request("/api/anime/search?q=naruto", {
+    const searchResponse = await ctx.app.request("/api/media/search?q=naruto", {
       headers: { Cookie: sessionCookie },
     });
     assert.deepStrictEqual(searchResponse["status"], 200);
@@ -2836,7 +2835,7 @@ itWithTestContext(
       true,
     );
 
-    const detailResponse = await ctx.app.request("/api/anime/anilist/20", {
+    const detailResponse = await ctx.app.request("/api/media/anilist/20", {
       headers: { Cookie: sessionCookie },
     });
     assert.deepStrictEqual(detailResponse["status"], 200);
@@ -2850,7 +2849,7 @@ itWithTestContext("RSS feed toggle and delete endpoints update feed state", asyn
   const { sessionCookie } = await loginAsBootstrapAdmin(ctx);
 
   await withTempDir(async (rootFolder) => {
-    const addAnimeResponse = await ctx.app.request("/api/anime", {
+    const addAnimeResponse = await ctx.app.request("/api/media", {
       body: JSON.stringify({
         id: 20,
         monitor_and_search: false,
@@ -2869,7 +2868,7 @@ itWithTestContext("RSS feed toggle and delete endpoints update feed state", asyn
 
     const addFeedResponse = await ctx.app.request("/api/rss", {
       body: JSON.stringify({
-        anime_id: 20,
+        media_id: 20,
         name: "Toggle Me",
         url: "https://example.com/toggle.xml",
       }),
@@ -2893,7 +2892,7 @@ itWithTestContext("RSS feed toggle and delete endpoints update feed state", asyn
     });
     assert.deepStrictEqual(toggleResponse["status"], 200);
 
-    const animeFeedsAfterToggle = await ctx.app.request("/api/anime/20/rss", {
+    const animeFeedsAfterToggle = await ctx.app.request("/api/media/20/rss", {
       headers: { Cookie: sessionCookie },
     });
     assert.deepStrictEqual(animeFeedsAfterToggle["status"], 200);
@@ -2908,7 +2907,7 @@ itWithTestContext("RSS feed toggle and delete endpoints update feed state", asyn
     });
     assert.deepStrictEqual(deleteResponse["status"], 200);
 
-    const animeFeedsAfterDelete = await ctx.app.request("/api/anime/20/rss", {
+    const animeFeedsAfterDelete = await ctx.app.request("/api/media/20/rss", {
       headers: { Cookie: sessionCookie },
     });
     assert.deepStrictEqual(
@@ -2953,11 +2952,11 @@ itWithTestContext("validation errors return 400 for malformed or invalid request
   );
 });
 
-itWithTestContext("anime CRUD and episode scan flow works", async (ctx) => {
+itWithTestContext("anime CRUD and unit scan flow works", async (ctx) => {
   const { sessionCookie } = await loginAsBootstrapAdmin(ctx);
 
   await withTempDir(async (rootFolder) => {
-    const addResponse = await ctx.app.request("/api/anime", {
+    const addResponse = await ctx.app.request("/api/media", {
       body: JSON.stringify({
         id: 20,
         monitor_and_search: false,
@@ -2981,7 +2980,7 @@ itWithTestContext("anime CRUD and episode scan flow works", async (ctx) => {
     assert.deepStrictEqual(anime.profile_name, "Default");
     assert.deepStrictEqual(anime.root_folder, `${rootFolder}/Naruto`);
 
-    const listResponse = await ctx.app.request("/api/anime", {
+    const listResponse = await ctx.app.request("/api/media", {
       headers: { Cookie: sessionCookie },
     });
 
@@ -2990,7 +2989,7 @@ itWithTestContext("anime CRUD and episode scan flow works", async (ctx) => {
     assert.deepStrictEqual(list.total, 1);
 
     const paginatedListResponse = await ctx.app.request(
-      "/api/anime?limit=1&offset=0&monitored=true",
+      "/api/media?limit=1&offset=0&monitored=true",
       {
         headers: { Cookie: sessionCookie },
       },
@@ -3002,15 +3001,15 @@ itWithTestContext("anime CRUD and episode scan flow works", async (ctx) => {
     assert.deepStrictEqual(paginatedList.total, 1);
     assert.deepStrictEqual(paginatedList.items.length, 1);
 
-    const detailResponse = await ctx.app.request("/api/anime/20", {
+    const detailResponse = await ctx.app.request("/api/media/20", {
       headers: { Cookie: sessionCookie },
     });
 
     assert.deepStrictEqual(detailResponse["status"], 200);
     const detail = await detailResponse.json();
-    assert.deepStrictEqual(detail.episode_count, 220);
+    assert.deepStrictEqual(detail.unit_count, 220);
 
-    const episodesResponse = await ctx.app.request("/api/anime/20/episodes", {
+    const episodesResponse = await ctx.app.request("/api/media/20/units", {
       headers: { Cookie: sessionCookie },
     });
 
@@ -3022,7 +3021,7 @@ itWithTestContext("anime CRUD and episode scan flow works", async (ctx) => {
 
     await writeTextFile(`${anime.root_folder}/Naruto - 001.mkv`, "fake video data");
 
-    const scanResponse = await ctx.app.request("/api/anime/20/episodes/scan", {
+    const scanResponse = await ctx.app.request("/api/media/20/units/scan", {
       headers: { Cookie: sessionCookie },
       method: "POST",
     });
@@ -3037,16 +3036,16 @@ itWithTestContext("anime CRUD and episode scan flow works", async (ctx) => {
     assert.deepStrictEqual(completedScanTask.payload?.found, 1);
     assert.deepStrictEqual(completedScanTask.payload?.total, 1);
 
-    const filesResponse = await ctx.app.request("/api/anime/20/files", {
+    const filesResponse = await ctx.app.request("/api/media/20/files", {
       headers: { Cookie: sessionCookie },
     });
 
     assert.deepStrictEqual(filesResponse["status"], 200);
     const files = await filesResponse.json();
     assert.deepStrictEqual(files.length, 1);
-    assert.deepStrictEqual(files[0].episode_number, 1);
+    assert.deepStrictEqual(files[0].unit_number, 1);
 
-    const episodesAfterScanResponse = await ctx.app.request("/api/anime/20/episodes", {
+    const episodesAfterScanResponse = await ctx.app.request("/api/media/20/units", {
       headers: { Cookie: sessionCookie },
     });
 
@@ -3058,15 +3057,15 @@ itWithTestContext("anime CRUD and episode scan flow works", async (ctx) => {
     });
 
     assert.deepStrictEqual(await statsResponse.json(), {
-      downloaded_episodes: 1,
+      downloaded_units: 1,
       downloaded_percent: 0,
-      missing_episodes: 219,
-      monitored_anime: 1,
+      missing_units: 219,
+      monitored_media: 1,
       recent_downloads: 0,
       rss_feeds: 0,
-      total_anime: 1,
-      total_episodes: 220,
-      up_to_date_anime: 0,
+      total_media: 1,
+      total_units: 220,
+      up_to_date_media: 0,
     });
   });
 });
@@ -3096,7 +3095,7 @@ itWithTestContext("rss, wanted, rename, and download helper endpoints work", asy
         method: "PUT",
       });
 
-      const addAnimeResponse = await ctx.app.request("/api/anime", {
+      const addAnimeResponse = await ctx.app.request("/api/media", {
         body: JSON.stringify({
           id: 11061,
           monitor_and_search: false,
@@ -3117,7 +3116,7 @@ itWithTestContext("rss, wanted, rename, and download helper endpoints work", asy
         `${addedAnime.root_folder}/Hunter x Hunter (2011) - 001.mkv`,
         "episode file",
       );
-      const initialAnimeScan = await ctx.app.request("/api/anime/11061/episodes/scan", {
+      const initialAnimeScan = await ctx.app.request("/api/media/11061/units/scan", {
         headers: { Cookie: sessionCookie },
         method: "POST",
       });
@@ -3131,7 +3130,7 @@ itWithTestContext("rss, wanted, rename, and download helper endpoints work", asy
 
       const rssAdd = await ctx.app.request("/api/rss", {
         body: JSON.stringify({
-          anime_id: 11061,
+          media_id: 11061,
           name: "Primary",
           url: "https://example.com/feed.xml",
         }),
@@ -3150,16 +3149,16 @@ itWithTestContext("rss, wanted, rename, and download helper endpoints work", asy
 
       const feeds = await rssList.json();
       assert.deepStrictEqual(feeds.length, 1);
-      assert.deepStrictEqual(feeds[0].anime_id, 11061);
+      assert.deepStrictEqual(feeds[0].media_id, 11061);
 
       const client = createClient({ url: `file:${ctx.databaseFile}` });
       try {
         await client.execute({
-          sql: "update episodes set aired = ? where anime_id = ? and number = ?",
+          sql: "update media_units set aired = ? where media_id = ? and number = ?",
           args: ["2999-01-01T00:00:00.000Z", 11061, 2],
         });
         await client.execute({
-          sql: "update episodes set aired = null where anime_id = ? and number = ?",
+          sql: "update media_units set aired = null where media_id = ? and number = ?",
           args: [11061, 3],
         });
       } finally {
@@ -3172,17 +3171,17 @@ itWithTestContext("rss, wanted, rename, and download helper endpoints work", asy
 
       const missing = await wanted.json();
       assert(missing.length > 0);
-      assert.deepStrictEqual(missing[0].anime_id, 11061);
+      assert.deepStrictEqual(missing[0].media_id, 11061);
       assert.deepStrictEqual(
-        missing.some((item: { episode_number: number }) => item.episode_number === 2),
+        missing.some((item: { unit_number: number }) => item.unit_number === 2),
         false,
       );
       assert.deepStrictEqual(
-        missing.some((item: { episode_number: number }) => item.episode_number === 3),
+        missing.some((item: { unit_number: number }) => item.unit_number === 3),
         false,
       );
 
-      const renamePreview = await ctx.app.request("/api/anime/11061/rename-preview", {
+      const renamePreview = await ctx.app.request("/api/media/11061/rename-preview", {
         headers: { Cookie: sessionCookie },
       });
 
@@ -3190,7 +3189,7 @@ itWithTestContext("rss, wanted, rename, and download helper endpoints work", asy
       assert.deepStrictEqual(preview.length, 1);
       assert.match(preview[0].new_filename, /Hunter x Hunter/);
 
-      const renameExec = await ctx.app.request("/api/anime/11061/rename", {
+      const renameExec = await ctx.app.request("/api/media/11061/rename", {
         headers: { Cookie: sessionCookie },
         method: "POST",
       });
@@ -3201,7 +3200,7 @@ itWithTestContext("rss, wanted, rename, and download helper endpoints work", asy
       await writeTextFile(`${importFolder}/import-me-002.mkv`, "video import");
 
       const importScan = await ctx.app.request("/api/library/import/scan", {
-        body: JSON.stringify({ anime_id: 11061, path: importFolder }),
+        body: JSON.stringify({ media_id: 11061, path: importFolder }),
         headers: {
           Cookie: sessionCookie,
           "Content-Type": "application/json",
@@ -3211,14 +3210,14 @@ itWithTestContext("rss, wanted, rename, and download helper endpoints work", asy
 
       const scanBody = await importScan.json();
       assert.deepStrictEqual(scanBody.files.length, 1);
-      assert.deepStrictEqual(scanBody.files[0].episode_number, 2);
+      assert.deepStrictEqual(scanBody.files[0].unit_number, 2);
 
       const importExecute = await ctx.app.request("/api/library/import", {
         body: JSON.stringify({
           files: [
             {
-              anime_id: 11061,
-              episode_number: 2,
+              media_id: 11061,
+              unit_number: 2,
               source_path: `${importFolder}/import-me-002.mkv`,
             },
           ],
@@ -3245,7 +3244,7 @@ itWithTestContext("rss, wanted, rename, and download helper endpoints work", asy
       const releaseBody = await releaseSearch.json();
       assert(releaseBody.results.length >= 1);
 
-      const episodeSearch = await ctx.app.request("/api/search/episode/11061/2", {
+      const episodeSearch = await ctx.app.request("/api/search/units/11061/2", {
         headers: { Cookie: sessionCookie },
       });
 
@@ -3254,8 +3253,8 @@ itWithTestContext("rss, wanted, rename, and download helper endpoints work", asy
 
       const triggerDownload = await ctx.app.request("/api/search/download", {
         body: JSON.stringify({
-          anime_id: 11061,
-          episode_number: 2,
+          media_id: 11061,
+          unit_number: 2,
           magnet: "magnet:?xt=urn:btih:test",
           title: "Hunter x Hunter - 02",
         }),
@@ -3368,9 +3367,9 @@ itWithTestContext("rss, wanted, rename, and download helper endpoints work", asy
       assert.deepStrictEqual(events.events.length >= 1, true);
       assert.deepStrictEqual(
         events.events.some(
-          (event: { anime_title?: string; download_id?: number; torrent_name?: string }) =>
+          (event: { media_title?: string; download_id?: number; torrent_name?: string }) =>
             event.download_id === downloadId &&
-            typeof event.anime_title === "string" &&
+            typeof event.media_title === "string" &&
             typeof event.torrent_name === "string",
         ),
         true,
@@ -3485,8 +3484,8 @@ itWithTestContext("rss, wanted, rename, and download helper endpoints work", asy
       assert.deepStrictEqual(Array.isArray(dashboard.recent_download_events), true);
       assert.deepStrictEqual(
         dashboard.recent_download_events.some(
-          (event: { anime_title?: string; torrent_name?: string }) =>
-            typeof event.anime_title === "string" && typeof event.torrent_name === "string",
+          (event: { media_title?: string; torrent_name?: string }) =>
+            typeof event.media_title === "string" && typeof event.torrent_name === "string",
         ),
         true,
       );
@@ -3523,7 +3522,7 @@ itWithTestContext("rss task and missing-search task queue downloads", async (ctx
   const { sessionCookie } = await loginAsBootstrapAdmin(ctx);
 
   await withTempDir(async (rootFolder) => {
-    await ctx.app.request("/api/anime", {
+    await ctx.app.request("/api/media", {
       body: JSON.stringify({
         id: 20,
         monitor_and_search: false,
@@ -3542,7 +3541,7 @@ itWithTestContext("rss task and missing-search task queue downloads", async (ctx
     const rssUrl = "https://feeds.example/naruto.xml";
 
     await ctx.app.request("/api/rss", {
-      body: JSON.stringify({ anime_id: 20, url: rssUrl }),
+      body: JSON.stringify({ media_id: 20, url: rssUrl }),
       headers: {
         Cookie: sessionCookie,
         "Content-Type": "application/json",
@@ -3580,7 +3579,7 @@ itWithTestContext("rss task and missing-search task queue downloads", async (ctx
 
     assert.deepStrictEqual(metricsResponse["status"], 200);
     const metricsText = await metricsResponse.text();
-    assert.deepStrictEqual(metricsText.includes("bakarr_total_anime"), true);
+    assert.deepStrictEqual(metricsText.includes("bakarr_total_media"), true);
     assert.deepStrictEqual(metricsText.includes("bakarr_active_download_items"), true);
     assert.deepStrictEqual(
       metricsText.includes('bakarr_background_worker_daemon_running{worker="download_sync"}'),
@@ -3593,7 +3592,7 @@ itWithTestContext("rss task and missing-search task queue downloads", async (ctx
       true,
     );
     const searchMissing = await ctx.app.request("/api/downloads/search-missing", {
-      body: JSON.stringify({ anime_id: 20 }),
+      body: JSON.stringify({ media_id: 20 }),
       headers: {
         Cookie: sessionCookie,
         "Content-Type": "application/json",
@@ -3675,7 +3674,7 @@ itWithTestContext("rss task and missing-search task queue downloads", async (ctx
     const scanStatusBody = await statusAfterScan.json();
     assert.deepStrictEqual(typeof scanStatusBody.last_scan, "string");
 
-    const episodeSearch = await ctx.app.request("/api/search/episode/20/1", {
+    const episodeSearch = await ctx.app.request("/api/search/units/20/1", {
       headers: { Cookie: sessionCookie },
     });
 
@@ -3694,7 +3693,7 @@ itWithTestContext("missing-search ignores episodes that have not aired yet", asy
   const { sessionCookie } = await loginAsBootstrapAdmin(ctx);
 
   await withTempDir(async (rootFolder) => {
-    await ctx.app.request("/api/anime", {
+    await ctx.app.request("/api/media", {
       body: JSON.stringify({
         id: 20,
         monitor_and_search: false,
@@ -3713,7 +3712,7 @@ itWithTestContext("missing-search ignores episodes that have not aired yet", asy
     const client = createClient({ url: `file:${ctx.databaseFile}` });
     try {
       await client.execute({
-        sql: "update episodes set aired = ? where anime_id = ? and number = ?",
+        sql: "update media_units set aired = ? where media_id = ? and number = ?",
         args: ["2999-01-01T00:00:00.000Z", 20, 2],
       });
     } finally {
@@ -3723,7 +3722,7 @@ itWithTestContext("missing-search ignores episodes that have not aired yet", asy
     const rssUrl = "https://feeds.example/naruto.xml";
 
     await ctx.app.request("/api/rss", {
-      body: JSON.stringify({ anime_id: 20, url: rssUrl }),
+      body: JSON.stringify({ media_id: 20, url: rssUrl }),
       headers: {
         Cookie: sessionCookie,
         "Content-Type": "application/json",
@@ -3732,7 +3731,7 @@ itWithTestContext("missing-search ignores episodes that have not aired yet", asy
     });
 
     const searchMissing = await ctx.app.request("/api/downloads/search-missing", {
-      body: JSON.stringify({ anime_id: 20 }),
+      body: JSON.stringify({ media_id: 20 }),
       headers: {
         Cookie: sessionCookie,
         "Content-Type": "application/json",
@@ -3755,7 +3754,7 @@ itWithTestContext("missing-search ignores episodes that have not aired yet", asy
     const downloads = await history.json();
 
     assert.deepStrictEqual(
-      downloads.some((download: { episode_number: number }) => download.episode_number === 2),
+      downloads.some((download: { unit_number: number }) => download.unit_number === 2),
       false,
     );
   });
@@ -3765,7 +3764,7 @@ itWithTestContext("wanted and global missing search ignore unmonitored anime", a
   const { sessionCookie } = await loginAsBootstrapAdmin(ctx);
 
   await withTempDir(async (rootFolder) => {
-    const addAnimeResponse = await ctx.app.request("/api/anime", {
+    const addAnimeResponse = await ctx.app.request("/api/media", {
       body: JSON.stringify({
         id: 20,
         monitor_and_search: false,
@@ -3814,7 +3813,7 @@ itWithTestContext("wanted and global missing search ignore unmonitored anime", a
     assert.deepStrictEqual(await historyResponse.json(), []);
 
     const directSearchResponse = await ctx.app.request("/api/downloads/search-missing", {
-      body: JSON.stringify({ anime_id: 20 }),
+      body: JSON.stringify({ media_id: 20 }),
       headers: {
         Cookie: sessionCookie,
         "Content-Type": "application/json",
@@ -3836,7 +3835,7 @@ itWithTestContext("wanted and global missing search ignore unmonitored anime", a
     assert.deepStrictEqual(directHistoryResponse["status"], 200);
     const downloads = await directHistoryResponse.json();
     assert.deepStrictEqual(downloads.length > 0, true);
-    assert.deepStrictEqual(downloads[0].anime_id, 20);
+    assert.deepStrictEqual(downloads[0].media_id, 20);
   });
 });
 
@@ -3845,7 +3844,7 @@ itWithTestContext("manual import succeeds for files outside configured roots", a
 
   await withTempDir(async (rootFolder) => {
     await withTempDir(async (importFolder) => {
-      const addAnimeResponse = await ctx.app.request("/api/anime", {
+      const addAnimeResponse = await ctx.app.request("/api/media", {
         body: JSON.stringify({
           id: 20,
           monitor_and_search: false,
@@ -3867,7 +3866,7 @@ itWithTestContext("manual import succeeds for files outside configured roots", a
       await writeTextFile(sourcePath, "video import");
 
       const importScan = await ctx.app.request("/api/library/import/scan", {
-        body: JSON.stringify({ anime_id: 20, path: importFolder }),
+        body: JSON.stringify({ media_id: 20, path: importFolder }),
         headers: {
           Cookie: sessionCookie,
           "Content-Type": "application/json",
@@ -3883,8 +3882,8 @@ itWithTestContext("manual import succeeds for files outside configured roots", a
         body: JSON.stringify({
           files: [
             {
-              anime_id: 20,
-              episode_number: 1,
+              media_id: 20,
+              unit_number: 1,
               source_path: sourcePath,
             },
           ],
@@ -3912,7 +3911,7 @@ itWithTestContext("events endpoint streams initial state and live notifications"
   const { sessionCookie } = await loginAsBootstrapAdmin(ctx);
 
   await withTempDir(async (rootFolder) => {
-    const addAnimeResponse = await ctx.app.request("/api/anime", {
+    const addAnimeResponse = await ctx.app.request("/api/media", {
       body: JSON.stringify({
         id: 20,
         monitor_and_search: false,
@@ -3937,8 +3936,8 @@ itWithTestContext("events endpoint streams initial state and live notifications"
 
       const triggerDownload = await ctx.app.request("/api/search/download", {
         body: JSON.stringify({
-          anime_id: 20,
-          episode_number: 1,
+          media_id: 20,
+          unit_number: 1,
           magnet: "magnet:?xt=urn:btih:test-events",
           title: "Naruto - 01",
         }),
@@ -3967,7 +3966,7 @@ itWithTestContext(
     const { sessionCookie } = await loginAsBootstrapAdmin(ctx);
 
     await withTempDir(async (rootFolder) => {
-      const addAnimeResponse = await ctx.app.request("/api/anime", {
+      const addAnimeResponse = await ctx.app.request("/api/media", {
         body: JSON.stringify({
           id: 20,
           monitor_and_search: false,
@@ -3997,8 +3996,8 @@ itWithTestContext(
 
         const triggerDownload = await ctx.app.request("/api/search/download", {
           body: JSON.stringify({
-            anime_id: 20,
-            episode_number: 1,
+            media_id: 20,
+            unit_number: 1,
             magnet: "magnet:?xt=urn:btih:test-events-reconnect",
             title: "Naruto - 01",
           }),
@@ -4026,7 +4025,7 @@ itWithTestContext("events stream emits RSS and library scan progress updates", a
   const { sessionCookie } = await loginAsBootstrapAdmin(ctx);
 
   await withTempDir(async (rootFolder) => {
-    const addAnimeResponse = await ctx.app.request("/api/anime", {
+    const addAnimeResponse = await ctx.app.request("/api/media", {
       body: JSON.stringify({
         id: 20,
         monitor_and_search: false,
@@ -4049,7 +4048,7 @@ itWithTestContext("events stream emits RSS and library scan progress updates", a
     const rssUrl = "https://feeds.example/naruto.xml";
 
     const addFeedResponse = await ctx.app.request("/api/rss", {
-      body: JSON.stringify({ anime_id: 20, url: rssUrl }),
+      body: JSON.stringify({ media_id: 20, url: rssUrl }),
       headers: {
         Cookie: sessionCookie,
         "Content-Type": "application/json",
@@ -4102,7 +4101,7 @@ itWithTestContext(
 
     await withTempDir(async (animeRoot) => {
       await withTempDir(async (completedRoot) => {
-        const addAnimeResponse = await ctx.app.request("/api/anime", {
+        const addAnimeResponse = await ctx.app.request("/api/media", {
           body: JSON.stringify({
             id: 20,
             monitor_and_search: false,
@@ -4122,8 +4121,8 @@ itWithTestContext(
         const magnetHash = "abcdef1234567890abcdef1234567890abcdef12";
         const triggerDownloadResponse = await ctx.app.request("/api/search/download", {
           body: JSON.stringify({
-            anime_id: 20,
-            episode_number: 1,
+            media_id: 20,
+            unit_number: 1,
             is_batch: true,
             magnet: `magnet:?xt=urn:btih:${magnetHash}`,
             title: "Naruto Batch 01-02",
@@ -4157,7 +4156,7 @@ itWithTestContext(
         });
         assert.deepStrictEqual(reconcileResponse["status"], 200);
 
-        const episodesResponse = await ctx.app.request("/api/anime/20/episodes", {
+        const episodesResponse = await ctx.app.request("/api/media/20/units", {
           headers: { Cookie: sessionCookie },
         });
         assert.deepStrictEqual(episodesResponse["status"], 200);
@@ -4184,7 +4183,7 @@ itWithTestContext("batch reconcile marks already-imported episodes as reconciled
 
   await withTempDir(async (animeRoot) => {
     await withTempDir(async (completedRoot) => {
-      const addAnimeResponse = await ctx.app.request("/api/anime", {
+      const addAnimeResponse = await ctx.app.request("/api/media", {
         body: JSON.stringify({
           id: 20,
           monitor_and_search: false,
@@ -4207,7 +4206,7 @@ itWithTestContext("batch reconcile marks already-imported episodes as reconciled
       await writeTextFile(existingEpisodeOne, "episode-1");
       await writeTextFile(existingEpisodeTwo, "episode-2");
 
-      const mapEpisodeOne = await ctx.app.request("/api/anime/20/episodes/1/map", {
+      const mapEpisodeOne = await ctx.app.request("/api/media/20/units/1/map", {
         body: JSON.stringify({ file_path: existingEpisodeOne }),
         headers: {
           Cookie: sessionCookie,
@@ -4217,7 +4216,7 @@ itWithTestContext("batch reconcile marks already-imported episodes as reconciled
       });
       assert.deepStrictEqual(mapEpisodeOne["status"], 200);
 
-      const mapEpisodeTwo = await ctx.app.request("/api/anime/20/episodes/2/map", {
+      const mapEpisodeTwo = await ctx.app.request("/api/media/20/units/2/map", {
         body: JSON.stringify({ file_path: existingEpisodeTwo }),
         headers: {
           Cookie: sessionCookie,
@@ -4230,8 +4229,8 @@ itWithTestContext("batch reconcile marks already-imported episodes as reconciled
       const magnetHash = "abcdef1234567890abcdef1234567890abcdef12";
       const triggerDownloadResponse = await ctx.app.request("/api/search/download", {
         body: JSON.stringify({
-          anime_id: 20,
-          episode_number: 1,
+          media_id: 20,
+          unit_number: 1,
           is_batch: true,
           magnet: `magnet:?xt=urn:btih:${magnetHash}`,
           title: "Naruto Batch 01-02",
@@ -4310,7 +4309,7 @@ itWithTestContext(
         method: "PUT",
       });
 
-      const addResponse = await ctx.app.request("/api/anime", {
+      const addResponse = await ctx.app.request("/api/media", {
         body: JSON.stringify({
           id: 20,
           monitor_and_search: false,
@@ -4365,7 +4364,7 @@ itWithTestContext(
       await mkdirPath(folderPath, { recursive: true });
       await writeTextFile(`${folderPath}/[SubsPlease] Naruto - 001.mkv`, "test");
 
-      const addResponse = await ctx.app.request("/api/anime", {
+      const addResponse = await ctx.app.request("/api/media", {
         body: JSON.stringify({
           id: 20,
           monitor_and_search: false,
@@ -4392,7 +4391,7 @@ itWithTestContext(
       assert.deepStrictEqual(beforeState.folders[0].name, folderName);
 
       const importResponse = await ctx.app.request("/api/library/unmapped/import", {
-        body: JSON.stringify({ anime_id: 20, folder_name: folderName }),
+        body: JSON.stringify({ media_id: 20, folder_name: folderName }),
         headers: {
           Cookie: sessionCookie,
           "Content-Type": "application/json",
@@ -4402,13 +4401,13 @@ itWithTestContext(
 
       assert.deepStrictEqual(importResponse["status"], 200);
 
-      const animeResponse = await ctx.app.request("/api/anime/20", {
+      const animeResponse = await ctx.app.request("/api/media/20", {
         headers: { Cookie: sessionCookie },
       });
       const anime = await animeResponse.json();
       assert.deepStrictEqual(anime.root_folder, folderPath);
 
-      const episodesResponse = await ctx.app.request("/api/anime/20/episodes", {
+      const episodesResponse = await ctx.app.request("/api/media/20/units", {
         headers: { Cookie: sessionCookie },
       });
       const episodeRows = await episodesResponse.json();
@@ -4437,7 +4436,7 @@ itWithTestContext("adding an anime can keep an existing folder as its root", asy
     const existingFolder = `${libraryPath}/Naruto Fansub`;
     await mkdirPath(existingFolder, { recursive: true });
 
-    const addResponse = await ctx.app.request("/api/anime", {
+    const addResponse = await ctx.app.request("/api/media", {
       body: JSON.stringify({
         id: 20,
         monitor_and_search: false,
@@ -4469,7 +4468,7 @@ itWithTestContext(
       const existingFolder = `${libraryPath}/Naruto Fansub`;
       await mkdirPath(existingFolder, { recursive: true });
 
-      const firstAddResponse = await ctx.app.request("/api/anime", {
+      const firstAddResponse = await ctx.app.request("/api/media", {
         body: JSON.stringify({
           id: 20,
           monitor_and_search: false,
@@ -4488,7 +4487,7 @@ itWithTestContext(
 
       assert.deepStrictEqual(firstAddResponse["status"], 200);
 
-      const secondAddResponse = await ctx.app.request("/api/anime", {
+      const secondAddResponse = await ctx.app.request("/api/media", {
         body: JSON.stringify({
           id: 11061,
           monitor_and_search: false,
@@ -4516,7 +4515,7 @@ itWithTestContext(
     const { sessionCookie } = await loginAsBootstrapAdmin(ctx);
 
     await withTempDir(async (rootFolder) => {
-      const addResponse = await ctx.app.request("/api/anime", {
+      const addResponse = await ctx.app.request("/api/media", {
         body: JSON.stringify({
           id: 11061,
           monitor_and_search: false,
@@ -4550,7 +4549,7 @@ itWithTestContext("import scan matches local anime by parsed filename", async (c
       await withTempDir(async (importFolder) => {
         const spyFolder = `${hxhFolder}-spy`;
         try {
-          await ctx.app.request("/api/anime", {
+          await ctx.app.request("/api/media", {
             body: JSON.stringify({
               id: 20,
               monitor_and_search: false,
@@ -4565,7 +4564,7 @@ itWithTestContext("import scan matches local anime by parsed filename", async (c
             },
             method: "POST",
           });
-          await ctx.app.request("/api/anime", {
+          await ctx.app.request("/api/media", {
             body: JSON.stringify({
               id: 11061,
               monitor_and_search: false,
@@ -4580,7 +4579,7 @@ itWithTestContext("import scan matches local anime by parsed filename", async (c
             },
             method: "POST",
           });
-          await ctx.app.request("/api/anime", {
+          await ctx.app.request("/api/media", {
             body: JSON.stringify({
               id: 140960,
               monitor_and_search: false,
@@ -4617,7 +4616,7 @@ itWithTestContext("import scan matches local anime by parsed filename", async (c
           assert.deepStrictEqual(scanResponse["status"], 200);
           const scanBody = await scanResponse.json();
           assert.deepStrictEqual(scanBody.files.length, 2);
-          assert.deepStrictEqual(scanBody.files[0].matched_anime?.id, 11061);
+          assert.deepStrictEqual(scanBody.files[0].matched_media?.id, 11061);
           assert.deepStrictEqual(scanBody.files[0].suggested_candidate_id, 11061);
           assert.deepStrictEqual(scanBody.files[1].suggested_candidate_id, 140960);
         } finally {
@@ -4632,7 +4631,7 @@ itWithTestContext("bulk map accepts empty file path as unmap", async (ctx) => {
   const { sessionCookie } = await loginAsBootstrapAdmin(ctx);
 
   await withTempDir(async (rootFolder) => {
-    await ctx.app.request("/api/anime", {
+    await ctx.app.request("/api/media", {
       body: JSON.stringify({
         id: 20,
         monitor_and_search: false,
@@ -4648,23 +4647,23 @@ itWithTestContext("bulk map accepts empty file path as unmap", async (ctx) => {
     const filePath = `${rootFolder}/Naruto - 001.mkv`;
     await writeTextFile(filePath, "video");
 
-    await ctx.app.request("/api/anime/20/episodes/map/bulk", {
+    await ctx.app.request("/api/media/20/units/map/bulk", {
       body: JSON.stringify({
-        mappings: [{ episode_number: 1, file_path: filePath }],
+        mappings: [{ unit_number: 1, file_path: filePath }],
       }),
       headers: { Cookie: sessionCookie, "Content-Type": "application/json" },
       method: "POST",
     });
 
-    await ctx.app.request("/api/anime/20/episodes/map/bulk", {
+    await ctx.app.request("/api/media/20/units/map/bulk", {
       body: JSON.stringify({
-        mappings: [{ episode_number: 1, file_path: "" }],
+        mappings: [{ unit_number: 1, file_path: "" }],
       }),
       headers: { Cookie: sessionCookie, "Content-Type": "application/json" },
       method: "POST",
     });
 
-    const episodesResponse = await ctx.app.request("/api/anime/20/episodes", {
+    const episodesResponse = await ctx.app.request("/api/media/20/units", {
       headers: { Cookie: sessionCookie },
     });
     const episodes = await episodesResponse.json();
@@ -4682,7 +4681,7 @@ const TEST_ANIME_METADATA = new Map([
       title: { romaji: "Naruto", english: "Naruto", native: "NARUTO -ナルト-" },
       format: "TV",
       status: "FINISHED",
-      episodeCount: 220,
+      unitCount: 220,
       score: 79,
       genres: ["Action", "Adventure"],
       studios: ["Pierrot"],
@@ -4705,7 +4704,7 @@ const TEST_ANIME_METADATA = new Map([
       },
       format: "TV",
       status: "FINISHED",
-      episodeCount: 148,
+      unitCount: 148,
       score: 89,
       genres: ["Action", "Adventure"],
       studios: ["Madhouse"],
@@ -4723,7 +4722,7 @@ const TEST_ANIME_METADATA = new Map([
       title: { romaji: "Spy x Family Season 2" },
       format: "TV",
       status: "FINISHED",
-      episodeCount: 12,
+      unitCount: 12,
       score: 80,
       genres: ["Action", "Comedy"],
       studios: ["Wit Studio"],
@@ -4746,7 +4745,7 @@ function normalizeForSearch(s: string): string {
 
 const testAniListLayer = Layer.succeed(AniListClient, {
   searchAnimeMetadata: (query: string) => {
-    const results: AnimeSearchResult[] = [];
+    const results: MediaSearchResult[] = [];
     const normalizedQuery = normalizeForSearch(query);
     for (const [id, meta] of TEST_ANIME_METADATA) {
       const normalizedRomaji = normalizeForSearch(meta.title.romaji);
@@ -4761,9 +4760,9 @@ const testAniListLayer = Layer.succeed(AniListClient, {
         results.push({
           already_in_library: false,
           cover_image: undefined,
-          episode_count: meta.episodeCount,
+          unit_count: meta.unitCount,
           format: meta.format,
-          id: brandAnimeId(id),
+          id: brandMediaId(id),
           status: meta["status"],
           title: meta.title,
         });
@@ -5187,7 +5186,7 @@ async function waitForAnimeScanTask(input: {
 }) {
   return await waitForTaskByPath({
     ctx: input.ctx,
-    path: `/api/anime/${input.animeId}/episodes/scan/tasks/${input.taskId}`,
+    path: `/api/media/${input.animeId}/units/scan/tasks/${input.taskId}`,
     sessionCookie: input.sessionCookie,
   });
 }

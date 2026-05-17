@@ -1,6 +1,6 @@
 import type { PreferredTitle, ScannedFile } from "@packages/shared/index.ts";
 
-import { toEpisodeNumbers } from "@/features/operations/import-scan/import-path-scan-episode-support.ts";
+import { toEpisodeNumbers } from "@/features/operations/import-scan/import-path-scan-unit-support.ts";
 import { buildEpisodeFilenamePlan } from "@/features/operations/library/naming-canonical-support.ts";
 
 export function buildScannedFileNamingPlan(input: {
@@ -23,9 +23,9 @@ export function buildScannedFileNamingPlan(input: {
     | "air_date"
     | "audio_channels"
     | "audio_codec"
-    | "episode_number"
-    | "episode_numbers"
-    | "episode_title"
+    | "unit_number"
+    | "unit_numbers"
+    | "unit_title"
     | "group"
     | "quality"
     | "resolution"
@@ -44,9 +44,9 @@ export function buildScannedFileNamingPlan(input: {
     return {};
   }
 
-  const episodeNumbers = toEpisodeNumbers(input.file);
+  const unitNumbers = toEpisodeNumbers(input.file);
 
-  if (episodeNumbers.length === 0) {
+  if (unitNumbers.length === 0) {
     return {};
   }
 
@@ -58,9 +58,7 @@ export function buildScannedFileNamingPlan(input: {
         ? {}
         : { audio_channels: input.file.audio_channels }),
       ...(input.file.audio_codec === undefined ? {} : { audio_codec: input.file.audio_codec }),
-      ...(input.file.episode_title === undefined
-        ? {}
-        : { episode_title: input.file.episode_title }),
+      ...(input.file.unit_title === undefined ? {} : { unit_title: input.file.unit_title }),
       ...(input.file.group === undefined ? {} : { group: input.file.group }),
       ...(input.file.quality === undefined ? {} : { quality: input.file.quality }),
       ...(input.file.resolution === undefined ? {} : { resolution: input.file.resolution }),
@@ -69,7 +67,7 @@ export function buildScannedFileNamingPlan(input: {
         : { source_identity: input.file.source_identity }),
       ...(input.file.video_codec === undefined ? {} : { video_codec: input.file.video_codec }),
     },
-    episodeNumbers,
+    unitNumbers,
     ...(input.episodeRows === undefined ? {} : { episodeRows: input.episodeRows }),
     filePath: input.file.source_path,
     localMediaMetadata: {

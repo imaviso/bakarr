@@ -238,30 +238,30 @@ on("DownloadFinished", (qc, evt) => {
   void qc.invalidateQueries({ queryKey: animeKeys.downloads.all });
   void qc.invalidateQueries({ queryKey: animeKeys.library.activity() });
   void qc.invalidateQueries({ queryKey: animeKeys.system.status() });
-  if (evt.payload.anime_id) {
-    void qc.invalidateQueries({ queryKey: animeKeys.detail(evt.payload.anime_id) });
+  if (evt.payload.media_id) {
+    void qc.invalidateQueries({ queryKey: animeKeys.detail(evt.payload.media_id) });
   }
 });
 
 on("RefreshFinished", (qc, evt) => {
   void qc.invalidateQueries({ queryKey: animeKeys.all });
-  if (evt.payload.anime_id) {
-    void qc.invalidateQueries({ queryKey: animeKeys.detail(evt.payload.anime_id) });
-    void qc.invalidateQueries({ queryKey: animeKeys.episodes(evt.payload.anime_id) });
+  if (evt.payload.media_id) {
+    void qc.invalidateQueries({ queryKey: animeKeys.detail(evt.payload.media_id) });
+    void qc.invalidateQueries({ queryKey: animeKeys.units(evt.payload.media_id) });
   }
 });
 
 on("ScanFolderFinished", (qc, evt) => {
-  if (evt.payload.anime_id) {
-    void qc.invalidateQueries({ queryKey: animeKeys.episodes(evt.payload.anime_id) });
-    void qc.invalidateQueries({ queryKey: animeKeys.detail(evt.payload.anime_id) });
+  if (evt.payload.media_id) {
+    void qc.invalidateQueries({ queryKey: animeKeys.units(evt.payload.media_id) });
+    void qc.invalidateQueries({ queryKey: animeKeys.detail(evt.payload.media_id) });
   }
   void qc.invalidateQueries({ queryKey: animeKeys.all });
 });
 
 on("RenameFinished", (qc, evt) => {
-  if (evt.payload.anime_id) {
-    void qc.invalidateQueries({ queryKey: animeKeys.episodes(evt.payload.anime_id) });
+  if (evt.payload.media_id) {
+    void qc.invalidateQueries({ queryKey: animeKeys.units(evt.payload.media_id) });
   }
 });
 

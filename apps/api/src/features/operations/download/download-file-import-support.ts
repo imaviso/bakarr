@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 
 import type { DownloadSourceMetadata, ImportMode, PreferredTitle } from "@packages/shared/index.ts";
-import { anime } from "@/db/schema.ts";
+import { media } from "@/db/schema.ts";
 import { ImportFileError } from "@/features/operations/download/download-file-import-errors.ts";
 import { buildDownloadFileImportPlan } from "@/features/operations/download/download-file-import-plan-support.ts";
 import { replaceDestinationWithStagedFile } from "@/features/operations/download/download-file-import-replace-support.ts";
@@ -16,13 +16,13 @@ export { ImportFileError };
 
 export const importDownloadedFile = Effect.fn("Operations.importDownloadedFile")(function* (
   fs: FileSystemShape,
-  animeRow: typeof anime.$inferSelect,
-  episodeNumber: number,
+  animeRow: typeof media.$inferSelect,
+  unitNumber: number,
   sourcePath: string,
   importMode: ImportMode,
   options: {
     randomUuid: () => Effect.Effect<string>;
-    episodeNumbers?: readonly number[];
+    unitNumbers?: readonly number[];
     namingFormat?: string;
     preferredTitle?: PreferredTitle;
     episodeRows?: readonly { title?: string | null; aired?: string | null }[];
@@ -38,10 +38,10 @@ export const importDownloadedFile = Effect.fn("Operations.importDownloadedFile")
     return sourcePath;
   }
 
-  const allEpisodes = options?.episodeNumbers?.length ? options.episodeNumbers : [episodeNumber];
+  const allEpisodes = options?.unitNumbers?.length ? options.unitNumbers : [unitNumber];
   const importPlan = yield* buildDownloadFileImportPlan({
     animeRow,
-    episodeNumbers: allEpisodes,
+    unitNumbers: allEpisodes,
     options,
     randomUuid: options.randomUuid,
     sourcePath,

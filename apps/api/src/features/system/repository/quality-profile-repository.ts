@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { Context, Effect, Layer } from "effect";
 
 import { Database, type AppDatabase, type DatabaseError } from "@/db/database.ts";
-import { anime, qualityProfiles } from "@/db/schema.ts";
+import { media, qualityProfiles } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 export interface QualityProfileRepositoryShape {
@@ -103,7 +103,7 @@ export const renameQualityProfileWithCascade = Effect.fn(
       await tx.update(qualityProfiles).set(row).where(eq(qualityProfiles.name, oldName));
 
       if (oldName !== row.name) {
-        await tx.update(anime).set({ profileName: row.name }).where(eq(anime.profileName, oldName));
+        await tx.update(media).set({ profileName: row.name }).where(eq(media.profileName, oldName));
       }
     }),
   );

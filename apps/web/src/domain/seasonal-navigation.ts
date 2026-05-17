@@ -1,13 +1,13 @@
-import type { AnimeSeason } from "~/api/contracts";
+import type { MediaSeason } from "~/api/contracts";
 
 export interface SeasonWindow {
-  season: AnimeSeason;
+  season: MediaSeason;
   year: number;
 }
 
-const SEASONS: readonly AnimeSeason[] = ["winter", "spring", "summer", "fall"] as const;
+const SEASONS: readonly MediaSeason[] = ["winter", "spring", "summer", "fall"] as const;
 
-const SEASON_LABELS: Record<AnimeSeason, string> = {
+const SEASON_LABELS: Record<MediaSeason, string> = {
   winter: "Winter",
   spring: "Spring",
   summer: "Summer",
@@ -18,7 +18,7 @@ const SEASON_LABELS: Record<AnimeSeason, string> = {
 export function getCurrentSeasonWindow(now?: Date): SeasonWindow {
   const current = now ?? new Date();
   const month = current.getMonth() + 1;
-  const season: AnimeSeason =
+  const season: MediaSeason =
     month <= 2 || month === 12 ? "winter" : month <= 5 ? "spring" : month <= 8 ? "summer" : "fall";
 
   return {

@@ -1,5 +1,5 @@
 import { it } from "vitest";
-import { brandAnimeId } from "@bakarr/shared";
+import { brandMediaId } from "@bakarr/shared";
 import {
   formatDownloadNotificationDescription,
   getNotificationToastCopy,
@@ -16,7 +16,7 @@ it("notification metadata formats rich download descriptions", () => {
       quality: "WEB-DL",
       resolution: "1080p",
       source_identity: {
-        episode_numbers: [1],
+        unit_numbers: [1],
         label: "01",
         scheme: "absolute",
       },
@@ -43,7 +43,7 @@ it("notification metadata formats rich download descriptions", () => {
 it("notification metadata exposes toast copy for download events", () => {
   const copy = getNotificationToastCopy({
     payload: {
-      anime_id: brandAnimeId(20),
+      media_id: brandMediaId(20),
       source_metadata: {
         group: "SubsPlease",
         indexer: "Nyaa",

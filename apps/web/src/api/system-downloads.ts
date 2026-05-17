@@ -49,11 +49,11 @@ export function useDownloadHistoryQuery() {
 export function useSearchMissingMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (animeId?: number) =>
+    mutationFn: (mediaId?: number) =>
       Effect.runPromise(
         fetchJson(AsyncOperationAcceptedSchema, `${API_BASE}/downloads/search-missing`, {
           method: "POST",
-          body: { anime_id: animeId },
+          body: { media_id: mediaId },
         }),
       ),
     onSuccess: (accepted) => {

@@ -8,7 +8,7 @@ import {
 it("buildCanonicalEpisodeNamingInput prefers download metadata over path and probe metadata", () => {
   const result = buildCanonicalEpisodeNamingInput({
     animeStartDate: "2025-01-01",
-    animeTitle: "Show Name",
+    mediaTitle: "Show Name",
     downloadSourceMetadata: {
       audio_channels: "2.0",
       audio_codec: "AAC",
@@ -17,7 +17,7 @@ it("buildCanonicalEpisodeNamingInput prefers download metadata over path and pro
       resolution: "720p",
       video_codec: "AV1",
     },
-    episodeNumbers: [1],
+    unitNumbers: [1],
     filePath: "/downloads/Show Name - S01E01 [1080p][HEVC][FLAC][MTBB].mkv",
     localMediaMetadata: {
       audio_channels: "5.1",
@@ -39,8 +39,8 @@ it("buildCanonicalEpisodeNamingInput prefers download metadata over path and pro
 it("buildCanonicalEpisodeNamingInput uses single distinct episode row metadata", () => {
   const result = buildCanonicalEpisodeNamingInput({
     animeStartDate: "2025-01-01",
-    animeTitle: "Show Name",
-    episodeNumbers: [1, 2],
+    mediaTitle: "Show Name",
+    unitNumbers: [1, 2],
     episodeRows: [
       { aired: "2025-02-01T12:00:00.000Z", title: "Same Title" },
       { aired: "2025-02-01T00:00:00.000Z", title: "Same Title" },
@@ -49,14 +49,14 @@ it("buildCanonicalEpisodeNamingInput uses single distinct episode row metadata",
   });
 
   assert.deepStrictEqual(result.namingInput.airDate, "2025-02-01");
-  assert.deepStrictEqual(result.namingInput.episodeTitle, "Same Title");
+  assert.deepStrictEqual(result.namingInput.unitTitle, "Same Title");
   assert.deepStrictEqual(result.warnings, []);
 });
 
 it("buildCanonicalEpisodeNamingInput warns and skips ambiguous multi-episode metadata", () => {
   const result = buildCanonicalEpisodeNamingInput({
-    animeTitle: "Show Name",
-    episodeNumbers: [1, 2],
+    mediaTitle: "Show Name",
+    unitNumbers: [1, 2],
     episodeRows: [
       { aired: "2025-02-01", title: "Part A" },
       { aired: "2025-02-08", title: "Part B" },
@@ -65,10 +65,10 @@ it("buildCanonicalEpisodeNamingInput warns and skips ambiguous multi-episode met
   });
 
   assert.deepStrictEqual(result.namingInput.airDate, undefined);
-  assert.deepStrictEqual(result.namingInput.episodeTitle, undefined);
+  assert.deepStrictEqual(result.namingInput.unitTitle, undefined);
   assert.deepStrictEqual(result.warnings, [
-    "Skipped {episode_title} because the file covers multiple episodes",
-    "Skipped {air_date} because the file covers multiple episodes",
+    "Skipped {unit_title} because the file covers multiple mediaUnits",
+    "Skipped {air_date} because the file covers multiple mediaUnits",
   ]);
 });
 
@@ -84,13 +84,13 @@ it("buildEpisodeFilenamePlan reports fallback details and metadata snapshot", ()
     },
     downloadSourceMetadata: {
       source_identity: {
-        episode_numbers: [3],
+        unit_numbers: [3],
         label: "S01E03",
         scheme: "season",
         season: 1,
       },
     },
-    episodeNumbers: [3],
+    unitNumbers: [3],
     filePath: "/downloads/Romaji Show - S01E03.mkv",
     namingFormat: "{title} - S{season:02}E{episode:02}",
     preferredTitle: "english",

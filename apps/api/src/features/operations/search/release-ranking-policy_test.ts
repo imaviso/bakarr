@@ -4,11 +4,11 @@ import { Effect, Exit } from "effect";
 import {
   brandQualityId,
   type DownloadAction,
-  type EpisodeSearchResult,
+  type UnitSearchResult,
   type Quality,
 } from "@packages/shared/index.ts";
 import {
-  compareEpisodeSearchResults,
+  compareUnitSearchResults,
   validateQualityProfileSizeLabels,
 } from "@/features/operations/search/release-ranking-policy.ts";
 
@@ -30,7 +30,7 @@ const web720: Quality = {
 function result(
   title: string,
   downloadAction: DownloadAction,
-  overrides?: Partial<EpisodeSearchResult>,
+  overrides?: Partial<UnitSearchResult>,
 ) {
   return {
     download_action: downloadAction,
@@ -45,10 +45,10 @@ function result(
     size: 100,
     title,
     ...overrides,
-  } satisfies EpisodeSearchResult;
+  } satisfies UnitSearchResult;
 }
 
-it("compareEpisodeSearchResults prioritizes accept, upgrade, then reject actions", () => {
+it("compareUnitSearchResults prioritizes accept, upgrade, then reject actions", () => {
   const items = [
     result("reject", { Reject: { reason: "no" } }),
     result("upgrade", {
@@ -64,12 +64,12 @@ it("compareEpisodeSearchResults prioritizes accept, upgrade, then reject actions
   ];
 
   assert.deepStrictEqual(
-    items.toSorted(compareEpisodeSearchResults).map((item) => item.title),
+    items.toSorted(compareUnitSearchResults).map((item) => item.title),
     ["accept", "upgrade", "reject"],
   );
 });
 
-it("compareEpisodeSearchResults breaks ties by score, quality rank, seeders, then size", () => {
+it("compareUnitSearchResults breaks ties by score, quality rank, seeders, then size", () => {
   const items = [
     result(
       "small",
@@ -99,7 +99,7 @@ it("compareEpisodeSearchResults breaks ties by score, quality rank, seeders, the
   ];
 
   assert.deepStrictEqual(
-    items.toSorted(compareEpisodeSearchResults).map((item) => item.title),
+    items.toSorted(compareUnitSearchResults).map((item) => item.title),
     ["higher-score", "better-quality", "more-seeders", "large", "small"],
   );
 });

@@ -36,8 +36,8 @@ const mainItems = [
     icon: HouseIcon,
   },
   {
-    title: "Anime",
-    url: "/anime",
+    title: "Media",
+    url: "/media",
     icon: TelevisionIcon,
   },
   {

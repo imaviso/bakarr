@@ -6,12 +6,12 @@ import {
   parseReleaseName,
 } from "@/features/operations/search/release-ranking-parse.ts";
 
-it("parseReleaseName extracts group, episodes, batch flag, and quality", () => {
+it("parseReleaseName extracts group, mediaUnits, batch flag, and quality", () => {
   const parsed = parseReleaseName("[SubsPlease] Show - S01E03-E05 [1080p WEB-DL]");
 
   assert.deepStrictEqual(parsed.group, "SubsPlease");
-  assert.deepStrictEqual(parsed.episodeNumber, 3);
-  assert.deepStrictEqual(parsed.episodeNumbers, [3, 4, 5]);
+  assert.deepStrictEqual(parsed.unitNumber, 3);
+  assert.deepStrictEqual(parsed.unitNumbers, [3, 4, 5]);
   assert.deepStrictEqual(parsed.isBatch, true);
   assert.deepStrictEqual(parsed.quality.name, "WEB-DL 1080p");
 });
@@ -22,12 +22,12 @@ it("parseReleaseName marks season packs and batch terms as batch releases", () =
   assert.deepStrictEqual(parseReleaseName("[Group] Show - 03 [1080p]").isBatch, false);
 });
 
-it("parseReleaseName treats ordinal season dash episode releases as single episodes", () => {
+it("parseReleaseName treats ordinal season dash episode releases as single mediaUnits", () => {
   const parsed = parseReleaseName(
     "[Erai-raws] Re:Zero kara Hajimeru Isekai Seikatsu 4th Season - 01 [1080p CR WEB-DL AVC AAC][MultiSub]",
   );
 
-  assert.deepStrictEqual(parsed.episodeNumbers, [1]);
+  assert.deepStrictEqual(parsed.unitNumbers, [1]);
   assert.deepStrictEqual(parsed.isBatch, false);
 });
 

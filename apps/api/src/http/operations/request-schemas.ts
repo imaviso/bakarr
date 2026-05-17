@@ -9,10 +9,10 @@ import {
   SearchDownloadReleaseContextSchema,
 } from "@packages/shared/index.ts";
 import {
-  AnimeIdFromStringSchema,
-  AnimeIdSchema,
+  MediaIdFromStringSchema,
+  MediaIdSchema,
   DownloadIdFromStringSchema,
-  EpisodeNumberSchema,
+  UnitNumberSchema,
   NonNegativeIntFromStringSchema,
   PositiveIntSchema,
   PositiveIntFromStringSchema,
@@ -54,7 +54,7 @@ const FolderNameStringSchema = Schema.String.pipe(
 export class AddRssFeedBodySchema extends Schema.Class<AddRssFeedBodySchema>(
   "AddRssFeedBodySchema",
 )({
-  anime_id: AnimeIdSchema,
+  media_id: MediaIdSchema,
   name: Schema.optional(RssFeedNameStringSchema),
   url: HttpUrlStringSchema,
 }) {}
@@ -92,7 +92,7 @@ export class DeleteDownloadQuerySchema extends Schema.Class<DeleteDownloadQueryS
 export class DownloadEventsQuerySchema extends Schema.Class<DownloadEventsQuerySchema>(
   "DownloadEventsQuerySchema",
 )({
-  anime_id: Schema.optional(AnimeIdFromStringSchema),
+  media_id: Schema.optional(MediaIdFromStringSchema),
   cursor: Schema.optional(DownloadCursorStringSchema),
   download_id: Schema.optional(DownloadIdFromStringSchema),
   direction: Schema.optional(Schema.Literal("next", "prev")),
@@ -106,7 +106,7 @@ export class DownloadEventsQuerySchema extends Schema.Class<DownloadEventsQueryS
 export class DownloadEventsExportQuerySchema extends Schema.Class<DownloadEventsExportQuerySchema>(
   "DownloadEventsExportQuerySchema",
 )({
-  anime_id: Schema.optional(AnimeIdFromStringSchema),
+  media_id: Schema.optional(MediaIdFromStringSchema),
   download_id: Schema.optional(DownloadIdFromStringSchema),
   end_date: Schema.optional(IsoDateTimeStringSchema),
   event_type: Schema.optional(DownloadEventTypeStringSchema),
@@ -123,7 +123,7 @@ export type DownloadEventsExportQueryInput = Schema.Schema.Type<
 >;
 
 export interface DownloadEventsQueryParams {
-  readonly animeId?: number;
+  readonly mediaId?: number;
   readonly cursor?: string;
   readonly direction?: "next" | "prev";
   readonly downloadId?: number;
@@ -135,7 +135,7 @@ export interface DownloadEventsQueryParams {
 }
 
 export interface DownloadEventsExportQueryParams {
-  readonly animeId?: number;
+  readonly mediaId?: number;
   readonly downloadId?: number;
   readonly endDate?: string;
   readonly eventType?: string;
@@ -147,7 +147,7 @@ export interface DownloadEventsExportQueryParams {
 
 export function toDownloadEventsQueryParams(query: DownloadEventsQueryInput) {
   return {
-    ...(query.anime_id === undefined ? {} : { animeId: query.anime_id }),
+    ...(query.media_id === undefined ? {} : { mediaId: query.media_id }),
     ...(query.cursor === undefined ? {} : { cursor: query.cursor }),
     ...(query.direction === undefined ? {} : { direction: query.direction }),
     ...(query.download_id === undefined ? {} : { downloadId: query.download_id }),
@@ -161,7 +161,7 @@ export function toDownloadEventsQueryParams(query: DownloadEventsQueryInput) {
 
 export function toDownloadEventsExportQueryParams(query: DownloadEventsExportQueryInput) {
   return {
-    ...(query.anime_id === undefined ? {} : { animeId: query.anime_id }),
+    ...(query.media_id === undefined ? {} : { mediaId: query.media_id }),
     ...(query.download_id === undefined ? {} : { downloadId: query.download_id }),
     ...(query.end_date === undefined ? {} : { endDate: query.end_date }),
     ...(query.event_type === undefined ? {} : { eventType: query.event_type }),
@@ -175,7 +175,7 @@ export function toDownloadEventsExportQueryParams(query: DownloadEventsExportQue
 export class SearchMissingBodySchema extends Schema.Class<SearchMissingBodySchema>(
   "SearchMissingBodySchema",
 )({
-  anime_id: Schema.optional(AnimeIdSchema),
+  media_id: Schema.optional(MediaIdSchema),
 }) {}
 
 export class EnabledBodySchema extends Schema.Class<EnabledBodySchema>("EnabledBodySchema")({
@@ -183,9 +183,9 @@ export class EnabledBodySchema extends Schema.Class<EnabledBodySchema>("EnabledB
 }) {}
 
 class ImportFilesItem extends Schema.Class<ImportFilesItem>("ImportFilesItem")({
-  anime_id: AnimeIdSchema,
-  episode_number: EpisodeNumberSchema,
-  episode_numbers: Schema.optional(Schema.Array(EpisodeNumberSchema)),
+  media_id: MediaIdSchema,
+  unit_number: UnitNumberSchema,
+  unit_numbers: Schema.optional(Schema.Array(UnitNumberSchema)),
   season: Schema.optional(Schema.Number),
   source_metadata: Schema.optional(DownloadSourceMetadataSchema),
   source_path: AbsoluteFilesystemPathStringSchema,
@@ -200,7 +200,7 @@ export class ImportFilesBodySchema extends Schema.Class<ImportFilesBodySchema>(
 export class ImportUnmappedFolderBodySchema extends Schema.Class<ImportUnmappedFolderBodySchema>(
   "ImportUnmappedFolderBodySchema",
 )({
-  anime_id: AnimeIdSchema,
+  media_id: MediaIdSchema,
   folder_name: FolderNameStringSchema,
   profile_name: Schema.optional(ProfileNameStringSchema),
 }) {}
@@ -208,7 +208,7 @@ export class ImportUnmappedFolderBodySchema extends Schema.Class<ImportUnmappedF
 export class ScanImportPathBodySchema extends Schema.Class<ScanImportPathBodySchema>(
   "ScanImportPathBodySchema",
 )({
-  anime_id: Schema.optional(AnimeIdSchema),
+  media_id: Schema.optional(MediaIdSchema),
   limit: Schema.optional(PositiveIntSchema),
   path: AbsoluteFilesystemPathStringSchema,
 }) {}
@@ -216,19 +216,19 @@ export class ScanImportPathBodySchema extends Schema.Class<ScanImportPathBodySch
 export class ImportCandidateSelectionBodySchema extends Schema.Class<ImportCandidateSelectionBodySchema>(
   "ImportCandidateSelectionBodySchema",
 )({
-  candidate_id: AnimeIdSchema,
+  candidate_id: MediaIdSchema,
   candidate_title: Schema.String,
   force_select: Schema.optional(Schema.Boolean),
   files: Schema.mutable(Schema.Array(ScannedFileSchema)),
-  selected_candidate_ids: Schema.mutable(Schema.Array(AnimeIdSchema)),
+  selected_candidate_ids: Schema.mutable(Schema.Array(MediaIdSchema)),
   selected_files: Schema.mutable(Schema.Array(ImportFileSelectionSchema)),
 }) {}
 
 export class SearchDownloadBodySchema extends Schema.Class<SearchDownloadBodySchema>(
   "SearchDownloadBodySchema",
 )({
-  anime_id: AnimeIdSchema,
-  episode_number: Schema.optional(EpisodeNumberSchema),
+  media_id: MediaIdSchema,
+  unit_number: Schema.optional(UnitNumberSchema),
   is_batch: Schema.optional(Schema.Boolean),
   magnet: MagnetLinkStringSchema,
   release_context: Schema.optional(SearchDownloadReleaseContextSchema),
@@ -238,7 +238,7 @@ export class SearchDownloadBodySchema extends Schema.Class<SearchDownloadBodySch
 export class SearchReleasesQuerySchema extends Schema.Class<SearchReleasesQuerySchema>(
   "SearchReleasesQuerySchema",
 )({
-  anime_id: Schema.optional(AnimeIdFromStringSchema),
+  media_id: Schema.optional(MediaIdFromStringSchema),
   category: Schema.optional(SearchCategoryStringSchema),
   filter: Schema.optional(SearchFilterStringSchema),
   query: Schema.optional(SearchQueryStringSchema),

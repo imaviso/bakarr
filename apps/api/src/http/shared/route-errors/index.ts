@@ -8,7 +8,7 @@ import { PasswordError } from "@/security/password.ts";
 import { TokenHasherError } from "@/security/token-hasher.ts";
 import { RequestValidationError } from "@/http/shared/route-validation.ts";
 import { AuthError } from "@/features/auth/errors.ts";
-import { mapAnimeRouteError } from "@/http/shared/route-errors/anime.ts";
+import { mapMediaRouteError } from "@/http/shared/route-errors/media.ts";
 import { mapOperationsRouteError } from "@/http/shared/route-errors/operations.ts";
 import { mapSystemRouteError } from "@/http/shared/route-errors/system.ts";
 import { fixedStatus } from "@/http/shared/route-errors/helpers.ts";
@@ -108,9 +108,9 @@ export function mapRouteError(error: unknown): RouteErrorResponse {
     return mapTaggedCommonRouteError(error);
   }
 
-  const animeRouteError = mapAnimeRouteError(error);
-  if (animeRouteError !== undefined) {
-    return animeRouteError;
+  const mediaRouteError = mapMediaRouteError(error);
+  if (mediaRouteError !== undefined) {
+    return mediaRouteError;
   }
 
   const operationsRouteError = mapOperationsRouteError(error);

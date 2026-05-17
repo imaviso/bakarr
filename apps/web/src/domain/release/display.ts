@@ -19,7 +19,7 @@ interface ReleaseDisplayInput {
   is_seadex?: boolean | undefined;
   is_seadex_best?: boolean | undefined;
   parsed_air_date?: string | undefined;
-  parsed_episode_label?: string | undefined;
+  parsed_unit_label?: string | undefined;
   quality?: string | undefined;
   remake?: boolean | undefined;
   resolution?: string | undefined;
@@ -44,7 +44,7 @@ export function buildReleaseDisplay(input: ReleaseDisplayInput) {
     }),
     parsedSummary: formatReleaseParsedSummary({
       parsed_air_date: input.parsed_air_date,
-      parsed_episode_label: input.parsed_episode_label,
+      parsed_unit_label: input.parsed_unit_label,
     }),
     sourceSummary: formatReleaseSourceSummary({
       group: input.group,

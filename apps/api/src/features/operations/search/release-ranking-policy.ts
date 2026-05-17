@@ -1,10 +1,6 @@
 import { Effect, Either, Option } from "effect";
 
-import type {
-  DownloadAction,
-  EpisodeSearchResult,
-  QualityProfile,
-} from "@packages/shared/index.ts";
+import type { DownloadAction, UnitSearchResult, QualityProfile } from "@packages/shared/index.ts";
 
 export { decideDownloadAction } from "@/features/operations/search/release-ranking-action.ts";
 import { OperationsInputError } from "@/features/operations/errors.ts";
@@ -41,10 +37,7 @@ export const validateQualityProfileSizeLabels = Effect.fn(
   return undefined;
 });
 
-export function compareEpisodeSearchResults(
-  left: EpisodeSearchResult,
-  right: EpisodeSearchResult,
-): number {
+export function compareUnitSearchResults(left: UnitSearchResult, right: UnitSearchResult): number {
   return (
     actionWeight(right.download_action) - actionWeight(left.download_action) ||
     actionScore(right.download_action) - actionScore(left.download_action) ||

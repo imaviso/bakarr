@@ -13,7 +13,7 @@ type NamingMetadataSnapshot = {
   audio_channels?: string | undefined;
   audio_codec?: string | undefined;
   duration_seconds?: number | undefined;
-  episode_title?: string | undefined;
+  unit_title?: string | undefined;
   group?: string | undefined;
   quality?: string | undefined;
   resolution?: string | undefined;
@@ -92,34 +92,34 @@ export function formatEpisodeNumberList(numbers?: readonly number[]) {
     return undefined;
   }
 
-  return numbers.length === 1 ? `Episode ${numbers[0]}` : `Episodes ${numbers.join(", ")}`;
+  return numbers.length === 1 ? `MediaUnit ${numbers[0]}` : `Episodes ${numbers.join(", ")}`;
 }
 
 export function formatFileEpisodeMapping(input?: {
-  anime_title: string;
-  episode_numbers?: readonly number[] | undefined;
+  media_title: string;
+  unit_numbers?: readonly number[] | undefined;
 }) {
   if (!input) {
     return undefined;
   }
 
-  const episodeLabel = formatEpisodeNumberList(input.episode_numbers);
+  const unitLabel = formatEpisodeNumberList(input.unit_numbers);
 
-  return episodeLabel ? `${input.anime_title} (${episodeLabel})` : input.anime_title;
+  return unitLabel ? `${input.media_title} (${unitLabel})` : input.media_title;
 }
 
 export function buildFileDecisionSummary(input: {
   coverage_summary?: string | undefined;
   existing_mapping?:
     | {
-        anime_title: string;
-        episode_numbers?: readonly number[] | undefined;
+        media_title: string;
+        unit_numbers?: readonly number[] | undefined;
       }
     | undefined;
-  episode_conflict?:
+  unit_conflict?:
     | {
-        anime_title: string;
-        episode_numbers?: readonly number[] | undefined;
+        media_title: string;
+        unit_numbers?: readonly number[] | undefined;
       }
     | undefined;
   match_reason?: string | undefined;
@@ -136,9 +136,9 @@ export function buildFileDecisionSummary(input: {
     details.push(`Already mapped to ${existingMapping}`);
   }
 
-  const episodeConflict = formatFileEpisodeMapping(input.episode_conflict);
-  if (episodeConflict) {
-    details.push(`Existing file for ${episodeConflict}`);
+  const unitConflict = formatFileEpisodeMapping(input.unit_conflict);
+  if (unitConflict) {
+    details.push(`Existing file for ${unitConflict}`);
   }
 
   if (input.match_reason) {

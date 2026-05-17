@@ -4,7 +4,7 @@ import { Effect } from "effect";
 import type { DownloadSourceMetadata } from "@packages/shared/index.ts";
 import { DatabaseError } from "@/db/database.ts";
 import type { AppDatabase } from "@/db/database.ts";
-import { anime, downloads } from "@/db/schema.ts";
+import { media, downloads } from "@/db/schema.ts";
 import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
 import { recordDownloadEvent } from "@/features/operations/shared/job-support.ts";
 import {
@@ -18,11 +18,11 @@ import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 
 export const queueParsedReleaseDownload = Effect.fn("OperationsService.queueParsedReleaseDownload")(
   function* (input: {
-    animeRow: typeof anime.$inferSelect;
+    animeRow: typeof media.$inferSelect;
     contextMessage: string;
-    coveredEpisodes: string | null;
+    coveredUnits: string | null;
     db: AppDatabase;
-    episodeNumber: number;
+    unitNumber: number;
     eventMessage: string;
     eventType: string;
     isBatch: boolean;
@@ -40,7 +40,7 @@ export const queueParsedReleaseDownload = Effect.fn("OperationsService.queuePars
             cause,
           });
 
-    const coveredEpisodeNumbers = yield* parseCoveredEpisodesEffect(input.coveredEpisodes);
+    const coveredEpisodeNumbers = yield* parseCoveredEpisodesEffect(input.coveredUnits);
     const now = yield* input.nowIso();
 
     const overlapping = yield* hasOverlappingDownload(
@@ -62,13 +62,13 @@ export const queueParsedReleaseDownload = Effect.fn("OperationsService.queuePars
           .insert(downloads)
           .values({
             addedAt: now,
-            animeId: input.animeRow.id,
-            animeTitle: input.animeRow.titleRomaji,
+            mediaId: input.animeRow.id,
+            mediaTitle: input.animeRow.titleRomaji,
             contentPath: null,
-            coveredEpisodes: input.coveredEpisodes,
+            coveredUnits: input.coveredUnits,
             downloadDate: null,
             downloadedBytes: 0,
-            episodeNumber: input.episodeNumber,
+            unitNumber: input.unitNumber,
             errorMessage: null,
             etaSeconds: null,
             externalState: "queued",
@@ -130,13 +130,13 @@ export const queueParsedReleaseDownload = Effect.fn("OperationsService.queuePars
     yield* recordDownloadEvent(
       input.db,
       {
-        animeId: input.animeRow.id,
+        mediaId: input.animeRow.id,
         downloadId: insertedId,
         eventType: input.eventType,
         message: input.eventMessage,
-        metadata: input.coveredEpisodes,
+        metadata: input.coveredUnits,
         metadataJson: {
-          covered_episodes: coveredEpisodeNumbers,
+          covered_units: coveredEpisodeNumbers,
           source_metadata: input.sourceMetadata,
         },
         toStatus: status,

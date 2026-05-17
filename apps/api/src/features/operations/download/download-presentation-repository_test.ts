@@ -1,7 +1,7 @@
 import { Cause, Effect, Exit } from "effect";
 
 import * as schema from "@/db/schema.ts";
-import { anime, episodes } from "@/db/schema.ts";
+import { media, mediaUnits } from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { assert, it } from "@effect/vitest";
 import { encodeNumberList } from "@/features/profiles/profile-codec.ts";
@@ -15,21 +15,21 @@ it.scoped("download presentation contexts load imported paths", () =>
         const releaseProfileIds = yield* encodeNumberList([]);
 
         yield* Effect.promise(() =>
-          db.insert(anime).values({
+          db.insert(media).values({
             addedAt: "2024-01-01T00:00:00.000Z",
             bannerImage: null,
             coverImage: "https://example.com/naruto.jpg",
             description: null,
             endDate: null,
             endYear: null,
-            episodeCount: 12,
+            unitCount: 12,
             format: "TV",
             genres: "[]",
             id: 20,
             malId: null,
             monitored: true,
             nextAiringAt: null,
-            nextAiringEpisode: null,
+            nextAiringUnit: null,
             profileName: "Default",
             releaseProfileIds,
             rootFolder: "/library/Naruto",
@@ -44,9 +44,9 @@ it.scoped("download presentation contexts load imported paths", () =>
           }),
         );
         yield* Effect.promise(() =>
-          db.insert(episodes).values({
+          db.insert(mediaUnits).values({
             aired: null,
-            animeId: 20,
+            mediaId: 20,
             downloaded: true,
             filePath: "/library/Naruto/Naruto - 01.mkv",
             number: 1,
@@ -58,13 +58,13 @@ it.scoped("download presentation contexts load imported paths", () =>
             .insert(schema.downloads)
             .values({
               addedAt: "2024-01-01T00:00:00.000Z",
-              animeId: 20,
-              animeTitle: "Naruto",
+              mediaId: 20,
+              mediaTitle: "Naruto",
               contentPath: "/downloads/Naruto - 01.mkv",
-              coveredEpisodes: "[1]",
+              coveredUnits: "[1]",
               downloadDate: null,
               downloadedBytes: 0,
-              episodeNumber: 1,
+              unitNumber: 1,
               errorMessage: null,
               etaSeconds: null,
               externalState: "imported",
@@ -94,7 +94,7 @@ it.scoped("download presentation contexts load imported paths", () =>
         const contexts = yield* loadDownloadPresentationContexts(db, [row]);
 
         assert.deepStrictEqual(contexts.get(row.id), {
-          animeImage: "https://example.com/naruto.jpg",
+          mediaImage: "https://example.com/naruto.jpg",
           importedPath: "/library/Naruto/Naruto - 01.mkv",
         });
       }),
@@ -107,21 +107,21 @@ it.scoped("download presentation contexts fail for corrupt covered episode metad
     run: (db, _databaseFile) =>
       Effect.gen(function* () {
         yield* Effect.promise(() =>
-          db.insert(anime).values({
+          db.insert(media).values({
             addedAt: "2024-01-01T00:00:00.000Z",
             bannerImage: null,
             coverImage: "https://example.com/naruto.jpg",
             description: null,
             endDate: null,
             endYear: null,
-            episodeCount: 12,
+            unitCount: 12,
             format: "TV",
             genres: "[]",
             id: 99,
             malId: null,
             monitored: true,
             nextAiringAt: null,
-            nextAiringEpisode: null,
+            nextAiringUnit: null,
             profileName: "Default",
             releaseProfileIds: "[]",
             rootFolder: "/library/Naruto",
@@ -134,8 +134,8 @@ it.scoped("download presentation contexts fail for corrupt covered episode metad
             titleEnglish: null,
             titleNative: null,
             titleRomaji: "Naruto",
-            relatedAnime: null,
-            recommendedAnime: null,
+            relatedMedia: null,
+            recommendedMedia: null,
           }),
         );
 
@@ -144,13 +144,13 @@ it.scoped("download presentation contexts fail for corrupt covered episode metad
             .insert(schema.downloads)
             .values({
               addedAt: "2024-01-01T00:00:00.000Z",
-              animeId: 99,
-              animeTitle: "Naruto",
+              mediaId: 99,
+              mediaTitle: "Naruto",
               contentPath: null,
-              coveredEpisodes: "not-json",
+              coveredUnits: "not-json",
               downloadDate: null,
               downloadedBytes: null,
-              episodeNumber: 1,
+              unitNumber: 1,
               errorMessage: null,
               etaSeconds: null,
               externalState: null,

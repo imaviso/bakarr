@@ -8,26 +8,26 @@ import {
 
 describe("download events route search builders", () => {
   it("trims anime id when creating downloads route search", () => {
-    expect(createDownloadsRouteSearch({ animeId: "  42  " })).toMatchObject({
-      [DOWNLOADS_EVENTS_SEARCH_KEYS.animeId]: "42",
+    expect(createDownloadsRouteSearch({ mediaId: "  42  " })).toMatchObject({
+      [DOWNLOADS_EVENTS_SEARCH_KEYS.mediaId]: "42",
     });
   });
 
   it("does not preserve whitespace-only anime ids for downloads", () => {
-    expect(createDownloadsRouteSearch({ animeId: "   " })).toMatchObject({
-      [DOWNLOADS_EVENTS_SEARCH_KEYS.animeId]: "",
+    expect(createDownloadsRouteSearch({ mediaId: "   " })).toMatchObject({
+      [DOWNLOADS_EVENTS_SEARCH_KEYS.mediaId]: "",
     });
   });
 
   it("trims anime id when creating logs route search", () => {
-    expect(createLogsRouteSearch({ animeId: "  42  " })).toMatchObject({
-      [LOGS_DOWNLOAD_EVENTS_SEARCH_KEYS.animeId]: "42",
+    expect(createLogsRouteSearch({ mediaId: "  42  " })).toMatchObject({
+      [LOGS_DOWNLOAD_EVENTS_SEARCH_KEYS.mediaId]: "42",
     });
   });
 
   it("does not preserve whitespace-only anime ids for logs", () => {
-    expect(createLogsRouteSearch({ animeId: "   " })).toMatchObject({
-      [LOGS_DOWNLOAD_EVENTS_SEARCH_KEYS.animeId]: "",
+    expect(createLogsRouteSearch({ mediaId: "   " })).toMatchObject({
+      [LOGS_DOWNLOAD_EVENTS_SEARCH_KEYS.mediaId]: "",
     });
   });
 });

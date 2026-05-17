@@ -12,13 +12,13 @@ type DownloadRow = typeof downloads.$inferSelect;
 function makeDownloadRow(overrides: Partial<DownloadRow>): DownloadRow {
   return {
     addedAt: "2025-01-01T00:00:00.000Z",
-    animeId: 1,
-    animeTitle: "Show",
+    mediaId: 1,
+    mediaTitle: "Show",
     contentPath: "/downloads/Show - 01.mkv",
-    coveredEpisodes: null,
+    coveredUnits: null,
     downloadDate: null,
     downloadedBytes: 0,
-    episodeNumber: 1,
+    unitNumber: 1,
     errorMessage: null,
     etaSeconds: null,
     externalState: null,
@@ -87,13 +87,13 @@ it.effect("toDownloadStatus clamps progress and exposes runtime actions", () =>
   }),
 );
 
-it.effect("toDownload marks batch coverage pending only when covered episodes are empty", () =>
+it.effect("toDownload marks batch coverage pending only when covered mediaUnits are empty", () =>
   Effect.gen(function* () {
-    const pending = yield* toDownload(makeDownloadRow({ coveredEpisodes: null, isBatch: true }));
-    const covered = yield* toDownload(makeDownloadRow({ coveredEpisodes: "[1,2]", isBatch: true }));
+    const pending = yield* toDownload(makeDownloadRow({ coveredUnits: null, isBatch: true }));
+    const covered = yield* toDownload(makeDownloadRow({ coveredUnits: "[1,2]", isBatch: true }));
 
     assert.deepStrictEqual(pending.coverage_pending, true);
     assert.deepStrictEqual(covered.coverage_pending, undefined);
-    assert.deepStrictEqual(covered.covered_episodes, [1, 2]);
+    assert.deepStrictEqual(covered.covered_units, [1, 2]);
   }),
 );

@@ -1,5 +1,5 @@
 import { WarningIcon, CheckIcon, FileIcon, InfoIcon } from "@phosphor-icons/react";
-import { EditMappingPopover } from "~/features/anime/edit-mapping-popover";
+import { EditMappingPopover } from "~/features/media/edit-mapping-popover";
 import { Badge } from "~/components/ui/badge";
 import { Checkbox } from "~/components/ui/checkbox";
 import {
@@ -22,13 +22,11 @@ import { cn } from "~/infra/utils";
 import type { FileRowProps } from "./types";
 
 export function FileRow(props: FileRowProps) {
-  const matchedAnimeId = props.file.matched_anime?.id || props.selectedAnimeId;
+  const matchedAnimeId = props.file.matched_media?.id || props.selectedAnimeId;
   const hasMatch = !!matchedAnimeId;
 
   const displayEpisode =
-    props.currentEpisode !== undefined
-      ? props.currentEpisode
-      : Math.floor(props.file.episode_number);
+    props.currentEpisode !== undefined ? props.currentEpisode : Math.floor(props.file.unit_number);
   const displaySeason = props.currentSeason !== undefined ? props.currentSeason : props.file.season;
 
   const metadataBadges = mediaMetadataBadges(props.file);
@@ -36,7 +34,7 @@ export function FileRow(props: FileRowProps) {
   const matchConfidence = formatMatchConfidence(props.file.match_confidence);
   const decisionSummary = buildFileDecisionSummary({
     coverage_summary: props.file.coverage_summary,
-    episode_conflict: props.file.episode_conflict,
+    unit_conflict: props.file.unit_conflict,
     existing_mapping: props.file.existing_mapping,
     match_reason: props.file.match_reason,
     warnings: props.file.warnings,
@@ -68,16 +66,16 @@ export function FileRow(props: FileRowProps) {
         <FileIcon className="h-4 w-4 text-muted-foreground shrink-0" />
         <div className="flex-1 min-w-0 overflow-hidden">
           <span className="text-sm font-medium truncate block">{props.file.filename}</span>
-          {(props.file.episode_title || props.file.air_date) && (
+          {(props.file.unit_title || props.file.air_date) && (
             <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
-              {props.file.episode_title && (
-                <span className="truncate max-w-[28rem]">{props.file.episode_title}</span>
+              {props.file.unit_title && (
+                <span className="truncate max-w-[28rem]">{props.file.unit_title}</span>
               )}
               {props.file.air_date && <span>{props.file.air_date}</span>}
               {fileSize && <span>{fileSize}</span>}
             </div>
           )}
-          {!props.file.episode_title && !props.file.air_date && fileSize && (
+          {!props.file.unit_title && !props.file.air_date && fileSize && (
             <div className="mt-1 text-[11px] text-muted-foreground">{fileSize}</div>
           )}
           {metadataBadges.length > 0 && (
@@ -91,7 +89,7 @@ export function FileRow(props: FileRowProps) {
           )}
           {(props.file.coverage_summary ||
             props.file.existing_mapping ||
-            props.file.episode_conflict) && (
+            props.file.unit_conflict) && (
             <div className="mt-1 flex flex-wrap gap-1">
               {props.file.coverage_summary && (
                 <Badge variant="secondary" className="h-5 px-1.5 text-xs">
@@ -103,7 +101,7 @@ export function FileRow(props: FileRowProps) {
                   Already mapped
                 </Badge>
               )}
-              {props.file.episode_conflict && <Badge variant="warning">Duplicate episode</Badge>}
+              {props.file.unit_conflict && <Badge variant="warning">Duplicate episode</Badge>}
             </div>
           )}
           {props.file.match_reason && (
@@ -196,9 +194,9 @@ export function FileRow(props: FileRowProps) {
             </Badge>
           )}
           {!props.file.source_identity?.label &&
-            formatEpisodeNumberList(props.file.episode_numbers) && (
+            formatEpisodeNumberList(props.file.unit_numbers) && (
               <Badge variant="outline" className="text-xs font-mono">
-                {formatEpisodeNumberList(props.file.episode_numbers)}
+                {formatEpisodeNumberList(props.file.unit_numbers)}
               </Badge>
             )}
           <EditMappingPopover
@@ -261,7 +259,7 @@ export function FileRow(props: FileRowProps) {
                 }}
               >
                 <SelectTrigger className="h-8 text-xs flex-1">
-                  <SelectValue placeholder="Select anime..." />
+                  <SelectValue placeholder="Select media..." />
                 </SelectTrigger>
                 <SelectContent>
                   {props.animeOptions.map((option) => (

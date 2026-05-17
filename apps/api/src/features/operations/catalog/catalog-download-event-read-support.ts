@@ -19,7 +19,7 @@ export type {
 } from "@/features/operations/catalog/catalog-download-event-export-support.ts";
 
 type DownloadEventQueryInput = {
-  animeId?: number;
+  mediaId?: number;
   downloadId?: number;
   endDate?: string;
   eventType?: string;
@@ -36,7 +36,7 @@ export function makeCatalogDownloadEventReads(input: {
 
   const listDownloadEvents = Effect.fn("OperationsService.listDownloadEvents")(function* (
     queryInput: {
-      animeId?: number;
+      mediaId?: number;
       cursor?: string;
       downloadId?: number;
       direction?: "next" | "prev";
@@ -124,7 +124,7 @@ export function makeCatalogDownloadEventReads(input: {
 
 function buildDownloadEventConditions(queryInput: DownloadEventQueryInput) {
   return [
-    queryInput.animeId ? eq(downloadEvents.animeId, queryInput.animeId) : undefined,
+    queryInput.mediaId ? eq(downloadEvents.mediaId, queryInput.mediaId) : undefined,
     queryInput.downloadId ? eq(downloadEvents.downloadId, queryInput.downloadId) : undefined,
     queryInput.endDate ? lte(downloadEvents.createdAt, queryInput.endDate) : undefined,
     queryInput.eventType ? eq(downloadEvents.eventType, queryInput.eventType) : undefined,

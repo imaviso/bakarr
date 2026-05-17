@@ -1,7 +1,7 @@
 import { Context, Effect, Layer } from "effect";
 
 import type { ScanResult } from "@packages/shared/index.ts";
-import { AniListClient } from "@/features/anime/metadata/anilist.ts";
+import { AniListClient } from "@/features/media/metadata/anilist.ts";
 import { Database, DatabaseError } from "@/db/database.ts";
 import { FileSystem, isWithinPathRoot } from "@/infra/filesystem/filesystem.ts";
 import { MediaProbe } from "@/infra/media/probe.ts";
@@ -19,7 +19,7 @@ import {
 
 export interface ImportPathScanServiceShape {
   readonly scanImportPath: (input: {
-    readonly animeId?: number;
+    readonly mediaId?: number;
     readonly limit?: number;
     readonly path: string;
   }) => Effect.Effect<
@@ -43,7 +43,7 @@ export const ImportPathScanServiceLive = Layer.effect(
     const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
 
     const scanImportPath = Effect.fn("ImportPathScanService.scanImportPath")(function* (input: {
-      readonly animeId?: number;
+      readonly mediaId?: number;
       readonly limit?: number;
       readonly path: string;
     }) {
@@ -85,7 +85,7 @@ export const ImportPathScanServiceLive = Layer.effect(
 
       return yield* scanImportPathEffect({
         aniList,
-        ...(input.animeId === undefined ? {} : { animeId: input.animeId }),
+        ...(input.mediaId === undefined ? {} : { mediaId: input.mediaId }),
         db,
         fs,
         ...(input.limit === undefined ? {} : { limit: input.limit }),

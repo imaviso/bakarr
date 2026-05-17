@@ -13,7 +13,7 @@ export function mediaKindLabel(mediaKind: MediaKind | undefined) {
     return "light novel";
   }
 
-  return "anime";
+  return "media";
 }
 
 export function mediaUnitLabel(unitKind: MediaUnitKind | undefined, count = 1) {
@@ -22,7 +22,7 @@ export function mediaUnitLabel(unitKind: MediaUnitKind | undefined, count = 1) {
     return count === 1 ? "Volume" : "Volumes";
   }
 
-  return count === 1 ? "Episode" : "Episodes";
+  return count === 1 ? "MediaUnit" : "Episodes";
 }
 
 export function mediaUnitShortLabel(unitKind: MediaUnitKind | undefined, count: number) {

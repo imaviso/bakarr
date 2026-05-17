@@ -1,4 +1,4 @@
-import { brandAnimeId, type AnimeSearchResult } from "@bakarr/shared";
+import { brandMediaId, type MediaSearchResult } from "@bakarr/shared";
 import type { ImportFileRequest } from "~/api/contracts";
 import { it } from "vitest";
 import {
@@ -21,9 +21,9 @@ function assertDeepEquals(actual: unknown, expected: unknown) {
   }
 }
 
-function createCandidate(id: number, englishTitle: string): AnimeSearchResult {
+function createCandidate(id: number, englishTitle: string): MediaSearchResult {
   return {
-    id: brandAnimeId(id),
+    id: brandMediaId(id),
     title: {
       english: englishTitle,
     },
@@ -42,7 +42,7 @@ it("buildImportSourceMetadata includes only defined fields", () => {
     source_identity: {
       scheme: "season",
       season: 1,
-      episode_numbers: [1],
+      unit_numbers: [1],
       label: "S01E01",
     },
   });
@@ -53,7 +53,7 @@ it("buildImportSourceMetadata includes only defined fields", () => {
     source_identity: {
       scheme: "season",
       season: 1,
-      episode_numbers: [1],
+      unit_numbers: [1],
       label: "S01E01",
     },
   });
@@ -61,17 +61,17 @@ it("buildImportSourceMetadata includes only defined fields", () => {
 
 it("buildImportFileRequest floors episode number and derives metadata by default", () => {
   const request = buildImportFileRequest({
-    animeId: brandAnimeId(100),
+    mediaId: brandMediaId(100),
     file: {
       source_path: "/imports/ep01.mkv",
-      episode_number: 1.9,
+      unit_number: 1.9,
       group: "SubsPlease",
     },
   });
 
   assertDeepEquals(request, {
-    anime_id: brandAnimeId(100),
-    episode_number: 1,
+    media_id: brandMediaId(100),
+    unit_number: 1,
     source_metadata: {
       group: "SubsPlease",
     },
@@ -81,14 +81,14 @@ it("buildImportFileRequest floors episode number and derives metadata by default
 
 it("findMissingImportCandidates returns only candidate ids absent from local library", () => {
   const files: ImportFileRequest[] = [
-    { anime_id: brandAnimeId(1), episode_number: 1, source_path: "/imports/a.mkv" },
-    { anime_id: brandAnimeId(2), episode_number: 2, source_path: "/imports/b.mkv" },
-    { anime_id: brandAnimeId(2), episode_number: 3, source_path: "/imports/c.mkv" },
+    { media_id: brandMediaId(1), unit_number: 1, source_path: "/imports/a.mkv" },
+    { media_id: brandMediaId(2), unit_number: 2, source_path: "/imports/b.mkv" },
+    { media_id: brandMediaId(2), unit_number: 3, source_path: "/imports/c.mkv" },
   ];
 
   const result = findMissingImportCandidates({
     files,
-    localAnimeIds: new Set([brandAnimeId(1)]),
+    localAnimeIds: new Set([brandMediaId(1)]),
     candidates: [createCandidate(2, "Naruto"), createCandidate(3, "Bleach")],
   });
 

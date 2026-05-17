@@ -7,7 +7,7 @@ import {
   rangeArray,
 } from "@/infra/media/identity/parser-shared.ts";
 
-it("isYearLike accepts only anime metadata year range", () => {
+it("isYearLike accepts only media metadata year range", () => {
   assert.deepStrictEqual(isYearLike(1899), false);
   assert.deepStrictEqual(isYearLike(1900), true);
   assert.deepStrictEqual(isYearLike(2100), true);
@@ -25,7 +25,7 @@ it("rangeArray includes both endpoints", () => {
   assert.deepStrictEqual(rangeArray(3, 6), [3, 4, 5, 6]);
 });
 
-it("formatSeasonLabel handles empty, single, contiguous, and sparse episodes", () => {
+it("formatSeasonLabel handles empty, single, contiguous, and sparse mediaUnits", () => {
   assert.deepStrictEqual(formatSeasonLabel(2, []), "S02");
   assert.deepStrictEqual(formatSeasonLabel(2, [3]), "S02E03");
   assert.deepStrictEqual(formatSeasonLabel(2, [4, 2, 3]), "S02E02-E04");

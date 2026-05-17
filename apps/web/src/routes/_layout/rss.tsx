@@ -12,7 +12,7 @@ import { useForm } from "@tanstack/react-form";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Schema } from "effect";
-import { brandAnimeId } from "@bakarr/shared";
+import { brandMediaId } from "@bakarr/shared";
 import { EmptyState } from "~/components/shared/empty-state";
 import { GeneralError } from "~/components/shared/general-error";
 import { PageHeader } from "~/app/layout/page-header";
@@ -41,7 +41,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
-import { animeListQueryOptions } from "~/api/anime";
+import { mediaListQueryOptions } from "~/api/media";
 import {
   useAddRssFeedMutation,
   useDeleteRssFeedMutation,
@@ -55,7 +55,7 @@ export const Route = createFileRoute("/_layout/rss")({
   loader: async ({ context: { queryClient } }) => {
     await Promise.all([
       queryClient.ensureQueryData(rssFeedsQueryOptions()),
-      queryClient.ensureQueryData(animeListQueryOptions()),
+      queryClient.ensureQueryData(mediaListQueryOptions()),
     ]);
   },
   component: RssPage,
@@ -183,18 +183,18 @@ function FeedCard(props: {
 }
 
 const AddFeedSchema = Schema.Struct({
-  anime_id: Schema.Number.pipe(Schema.greaterThan(0, { message: () => "Select an anime" })),
+  media_id: Schema.Number.pipe(Schema.greaterThan(0, { message: () => "Select an anime" })),
   url: Schema.String.pipe(Schema.pattern(/^https?:\/\/.+/, { message: () => "Enter a valid URL" })),
   name: Schema.String,
 });
 
 function AddFeedForm(props: { onCancel: () => void; onSuccess: () => void }) {
-  const { data: animeList } = useSuspenseQuery(animeListQueryOptions());
+  const { data: animeList } = useSuspenseQuery(mediaListQueryOptions());
   const addFeed = useAddRssFeedMutation();
 
   const form = useForm({
     defaultValues: {
-      anime_id: 0,
+      media_id: 0,
       url: "",
       name: "",
     },
@@ -203,7 +203,7 @@ function AddFeedForm(props: { onCancel: () => void; onSuccess: () => void }) {
     },
     onSubmit: async ({ value }) => {
       await addFeed.mutateAsync({
-        anime_id: brandAnimeId(value.anime_id),
+        media_id: brandMediaId(value.media_id),
         url: value.url,
         name: value.name || undefined,
       });
@@ -219,21 +219,21 @@ function AddFeedForm(props: { onCancel: () => void; onSuccess: () => void }) {
       </CardHeader>
       <CardContent>
         <form action={() => form.handleSubmit()} className="space-y-4">
-          <form.Field name="anime_id">
+          <form.Field name="media_id">
             {(field) => (
               <div className="space-y-1">
-                <Label htmlFor={field.name}>Anime</Label>
+                <Label htmlFor={field.name}>Media</Label>
                 <Select
                   value={field.state.value > 0 ? String(field.state.value) : undefined}
                   onValueChange={(value) => field.handleChange(Number(value))}
                 >
-                  <SelectTrigger id={field.name} aria-label="Anime" className="w-full">
-                    <SelectValue placeholder="Select anime..." />
+                  <SelectTrigger id={field.name} aria-label="Media" className="w-full">
+                    <SelectValue placeholder="Select media..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {animeList.map((anime) => (
-                      <SelectItem key={anime.id} value={String(anime.id)}>
-                        {anime.title.english || anime.title.romaji}
+                    {animeList.map((media) => (
+                      <SelectItem key={media.id} value={String(media.id)}>
+                        {media.title.english || media.title.romaji}
                       </SelectItem>
                     ))}
                   </SelectContent>

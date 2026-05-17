@@ -22,7 +22,7 @@ it("DownloadNotFoundError constructs", () => {
 });
 
 it("OperationsAnimeNotFoundError constructs", () => {
-  const error = new OperationsAnimeNotFoundError({ message: "anime missing" });
+  const error = new OperationsAnimeNotFoundError({ message: "media missing" });
   assert.deepStrictEqual(error._tag, "DomainNotFoundError");
 });
 

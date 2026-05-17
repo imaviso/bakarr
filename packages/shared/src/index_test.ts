@@ -3,8 +3,8 @@ import { Effect, Schema } from "effect";
 
 import {
   ActivityItemSchema,
-  AnimeSchema,
-  AnimeSearchResultSchema,
+  MediaSchema,
+  MediaSearchResultSchema,
   ApiKeyLoginRequestSchema,
   ApiKeyResponseSchema,
   AuthUserSchema,
@@ -19,8 +19,8 @@ import {
   DownloadEventsPageSchema,
   DownloadSchema,
   DownloadStatusSchema,
-  EpisodeSchema,
-  EpisodeSearchResultSchema,
+  MediaUnitSchema,
+  UnitSearchResultSchema,
   HealthStatusSchema,
   ImportModeSchema,
   ImportResultSchema,
@@ -28,13 +28,13 @@ import {
   LibraryStatsSchema,
   LoginRequestSchema,
   LoginResponseSchema,
-  MissingEpisodeSchema,
+  MissingUnitSchema,
   NotificationEventSchema,
   resolveSeasonFromDate,
   resolveSeasonWindowFromDate,
   resolveSeasonYearFromDate,
-  SeasonalAnimeQueryParamsSchema,
-  SeasonalAnimeResponseSchema,
+  SeasonalMediaQueryParamsSchema,
+  SeasonalMediaResponseSchema,
   decodeNotificationEventWire,
   encodeNotificationEventWire,
   OpsDashboardSchema,
@@ -86,9 +86,9 @@ it("shared config schemas reject unsupported literals", () => {
 
 it("shared api schemas accept canonical system and download payloads", () => {
   const downloadEvent = Schema.decodeUnknownEither(DownloadEventSchema)({
-    anime_id: 20,
-    anime_image: "https://example.com/naruto.jpg",
-    anime_title: "Naruto",
+    media_id: 20,
+    media_image: "https://example.com/naruto.jpg",
+    media_title: "Naruto",
     created_at: "2024-01-01T00:00:00.000Z",
     download_id: 4,
     event_type: "download.started",
@@ -97,7 +97,7 @@ it("shared api schemas accept canonical system and download payloads", () => {
     message: "Started Naruto - 01",
     metadata: '{"source":"rss"}',
     metadata_json: {
-      covered_episodes: [1],
+      covered_units: [1],
       imported_path: "/library/Naruto/Naruto - 01.mkv",
       source_metadata: {
         group: "SubsPlease",
@@ -111,7 +111,7 @@ it("shared api schemas accept canonical system and download payloads", () => {
   const downloadEventsPage = Schema.decodeUnknownEither(DownloadEventsPageSchema)({
     events: [
       {
-        anime_id: 20,
+        media_id: 20,
         created_at: "2024-01-01T00:00:00.000Z",
         event_type: "download.queued",
         id: 8,
@@ -127,7 +127,7 @@ it("shared api schemas accept canonical system and download payloads", () => {
   const downloadEventsExport = Schema.decodeUnknownEither(DownloadEventsExportSchema)({
     events: [
       {
-        anime_id: 20,
+        media_id: 20,
         created_at: "2024-01-01T00:00:00.000Z",
         event_type: "download.queued",
         id: 8,
@@ -142,9 +142,9 @@ it("shared api schemas accept canonical system and download payloads", () => {
     truncated: false,
   });
   const downloadStatus = Schema.decodeUnknownEither(DownloadStatusSchema)({
-    anime_id: 20,
-    anime_image: "https://example.com/naruto.jpg",
-    anime_title: "Naruto",
+    media_id: 20,
+    media_image: "https://example.com/naruto.jpg",
+    media_title: "Naruto",
     decision_reason: "Accepted (WEB-DL 1080p, score 12)",
     downloaded_bytes: 512,
     eta: 60,
@@ -213,7 +213,7 @@ it("shared api schemas reject invalid download payloads", () => {
 
 it("shared dashboard and browse schemas accept canonical payloads", () => {
   const rssFeed = Schema.decodeUnknownEither(RssFeedSchema)({
-    anime_id: 20,
+    media_id: 20,
     created_at: "2024-01-01T00:00:00.000Z",
     enabled: true,
     id: 1,
@@ -222,15 +222,15 @@ it("shared dashboard and browse schemas accept canonical payloads", () => {
     url: "https://example.com/feed.xml",
   });
   const libraryStats = Schema.decodeUnknownEither(LibraryStatsSchema)({
-    downloaded_episodes: 8,
+    downloaded_units: 8,
     downloaded_percent: 67,
-    missing_episodes: 4,
-    monitored_anime: 3,
+    missing_units: 4,
+    monitored_media: 3,
     recent_downloads: 2,
     rss_feeds: 3,
-    total_anime: 5,
-    total_episodes: 12,
-    up_to_date_anime: 2,
+    total_media: 5,
+    total_units: 12,
+    up_to_date_media: 2,
   });
   const backgroundJob = {
     is_running: false,
@@ -251,7 +251,7 @@ it("shared dashboard and browse schemas accept canonical payloads", () => {
     queued_downloads: 2,
     recent_download_events: [
       {
-        anime_id: 20,
+        media_id: 20,
         created_at: "2024-01-01T00:00:00.000Z",
         download_id: 4,
         event_type: "download.started",
@@ -302,7 +302,7 @@ it("shared search and scanner schemas accept canonical payloads", () => {
     description: "A ninja story",
     duration: "24 min",
     end_year: 2024,
-    episode_count: 12,
+    unit_count: 12,
     favorites: 1000,
     format: "TV",
     genres: ["Action", "Adventure"],
@@ -310,7 +310,7 @@ it("shared search and scanner schemas accept canonical payloads", () => {
     members: 250000,
     match_confidence: 0.94,
     match_reason: "Matched AniList search for the normalized folder title",
-    recommended_anime: [
+    recommended_media: [
       {
         id: 22,
         rating: 82,
@@ -320,7 +320,7 @@ it("shared search and scanner schemas accept canonical payloads", () => {
         },
       },
     ],
-    related_anime: [
+    related_media: [
       {
         id: 21,
         relation_type: "SEQUEL",
@@ -346,7 +346,7 @@ it("shared search and scanner schemas accept canonical payloads", () => {
       romaji: "Naruto",
     },
   };
-  const anime = Schema.decodeUnknownEither(AnimeSearchResultSchema)(animeSearchResult);
+  const media = Schema.decodeUnknownEither(MediaSearchResultSchema)(animeSearchResult);
   const searchResults = Schema.decodeUnknownEither(SearchResultsSchema)({
     results: [
       {
@@ -356,8 +356,8 @@ it("shared search and scanner schemas accept canonical payloads", () => {
         is_seadex_best: false,
         leechers: 1,
         magnet: "magnet:?xt=urn:btih:abcdef",
-        parsed_episode: "1",
-        parsed_episode_numbers: [1, 2, 3],
+        parsed_unit: "1",
+        parsed_unit_numbers: [1, 2, 3],
         parsed_group: "SubsPlease",
         parsed_quality: "WEB-DL 1080p",
         parsed_resolution: "1080p",
@@ -402,7 +402,7 @@ it("shared search and scanner schemas accept canonical payloads", () => {
     match_status: "running",
   });
 
-  assertEquals(anime._tag, "Right");
+  assertEquals(media._tag, "Right");
   assertEquals(searchResults._tag, "Right");
   assertEquals(scannerState._tag, "Right");
 });
@@ -450,7 +450,7 @@ it("shared nested dto schemas reject invalid payloads", () => {
 });
 
 it("shared media schemas accept canonical anime, episode, download, and calendar payloads", () => {
-  const anime = Schema.decodeUnknownEither(AnimeSchema)({
+  const media = Schema.decodeUnknownEither(MediaSchema)({
     added_at: "2024-01-01T00:00:00.000Z",
     background: "World reset event",
     banner_image: "https://example.com/naruto-banner.jpg",
@@ -458,7 +458,7 @@ it("shared media schemas accept canonical anime, episode, download, and calendar
     description: "A ninja story",
     duration: "24 min",
     end_year: 2024,
-    episode_count: 12,
+    unit_count: 12,
     favorites: 22000,
     format: "TV",
     genres: ["Action", "Adventure"],
@@ -466,7 +466,7 @@ it("shared media schemas accept canonical anime, episode, download, and calendar
     mal_id: 1735,
     members: 500000,
     monitored: true,
-    next_airing_episode: {
+    next_airing_unit: {
       airing_at: "2024-01-15T00:00:00.000Z",
       episode: 9,
     },
@@ -475,9 +475,9 @@ it("shared media schemas accept canonical anime, episode, download, and calendar
       downloaded: 8,
       downloaded_percent: 67,
       is_up_to_date: false,
-      latest_downloaded_episode: 8,
+      latest_downloaded_unit: 8,
       missing: [9, 10, 11, 12],
-      next_missing_episode: 9,
+      next_missing_unit: 9,
       total: 12,
     },
     release_profile_ids: [1, 2],
@@ -485,7 +485,7 @@ it("shared media schemas accept canonical anime, episode, download, and calendar
     popularity: 14,
     rank: 8,
     rating: "PG-13 - Teens 13 or older",
-    related_anime: [
+    related_media: [
       {
         id: 21,
         relation_type: "SEQUEL",
@@ -499,7 +499,7 @@ it("shared media schemas accept canonical anime, episode, download, and calendar
         },
       },
     ],
-    recommended_anime: [
+    recommended_media: [
       {
         id: 22,
         rating: 82,
@@ -523,7 +523,7 @@ it("shared media schemas accept canonical anime, episode, download, and calendar
       romaji: "Naruto",
     },
   });
-  const episode = Schema.decodeUnknownEither(EpisodeSchema)({
+  const episode = Schema.decodeUnknownEither(MediaUnitSchema)({
     aired: "2024-01-08T00:00:00.000Z",
     airing_status: "aired",
     audio_channels: "2.0",
@@ -542,15 +542,15 @@ it("shared media schemas accept canonical anime, episode, download, and calendar
   });
   const download = Schema.decodeUnknownEither(DownloadSchema)({
     added_at: "2024-01-01T00:00:00.000Z",
-    anime_id: 20,
-    anime_image: "https://example.com/naruto.jpg",
-    anime_title: "Naruto",
+    media_id: 20,
+    media_image: "https://example.com/naruto.jpg",
+    media_title: "Naruto",
     content_path: "/downloads/Naruto - 01.mkv",
-    covered_episodes: [1],
+    covered_units: [1],
     decision_reason: "Accepted (WEB-DL 1080p, score 12)",
     download_date: "2024-01-01T00:05:00.000Z",
     downloaded_bytes: 500,
-    episode_number: 1,
+    unit_number: 1,
     eta_seconds: 60,
     group_name: "SubsPlease",
     id: 1,
@@ -579,20 +579,20 @@ it("shared media schemas accept canonical anime, episode, download, and calendar
     end: "2024-01-08T00:30:00.000Z",
     extended_props: {
       airing_status: "aired",
-      anime_id: 20,
-      anime_image: "https://example.com/naruto-cover.jpg",
-      anime_title: "Naruto",
+      media_id: 20,
+      media_image: "https://example.com/naruto-cover.jpg",
+      media_title: "Naruto",
       downloaded: true,
-      episode_number: 1,
-      episode_title: "Enter Naruto Uzumaki",
+      unit_number: 1,
+      unit_title: "Enter Naruto Uzumaki",
       is_future: false,
     },
     id: "naruto-1",
     start: "2024-01-08T00:00:00.000Z",
-    title: "Naruto - Episode 1",
+    title: "Naruto - MediaUnit 1",
   });
 
-  assertEquals(anime._tag, "Right");
+  assertEquals(media._tag, "Right");
   assertEquals(episode._tag, "Right");
   assertEquals(download._tag, "Right");
   assertEquals(calendarEvent._tag, "Right");
@@ -632,9 +632,9 @@ it("shared profile and import schemas accept canonical payloads", () => {
     imported: 2,
     imported_files: [
       {
-        anime_id: 20,
+        media_id: 20,
         destination_path: "/library/Naruto/Naruto - 01.mkv",
-        episode_number: 1,
+        unit_number: 1,
         naming_fallback_used: false,
         naming_filename: "Naruto - 01.mkv",
         naming_format_used: "{title} - {episode_segment}",
@@ -653,7 +653,7 @@ it("shared profile and import schemas accept canonical payloads", () => {
 });
 
 it("shared media and profile schemas reject invalid nested payloads", () => {
-  const anime = Schema.decodeUnknownEither(AnimeSchema)({
+  const media = Schema.decodeUnknownEither(MediaSchema)({
     added_at: "2024-01-01T00:00:00.000Z",
     format: "TV",
     id: 20,
@@ -694,20 +694,20 @@ it("shared media and profile schemas reject invalid nested payloads", () => {
     imported: 2,
     imported_files: [
       {
-        anime_id: 20,
+        media_id: 20,
         destination_path: "/library/Naruto/Naruto - 01.mkv",
-        episode_number: "one",
+        unit_number: "one",
         source_path: "/imports/Naruto - 01.mkv",
       },
     ],
   });
 
-  assertEquals(anime._tag, "Left");
+  assertEquals(media._tag, "Left");
   assertEquals(releaseProfile._tag, "Left");
   assertEquals(importResult._tag, "Left");
 
-  if (anime._tag === "Left") {
-    assertMatch(anime.left.message, /missing/i);
+  if (media._tag === "Left") {
+    assertMatch(media.left.message, /missing/i);
   }
 
   if (releaseProfile._tag === "Left") {
@@ -715,7 +715,7 @@ it("shared media and profile schemas reject invalid nested payloads", () => {
   }
 
   if (importResult._tag === "Left") {
-    assertMatch(importResult.left.message, /episode_number/i);
+    assertMatch(importResult.left.message, /unit_number/i);
   }
 });
 
@@ -755,11 +755,11 @@ it("shared auth and utility schemas accept canonical payloads", () => {
     air_date: "2024-01-08",
     audio_channels: "2.0",
     audio_codec: "AAC",
-    coverage_summary: "Episode 1",
+    coverage_summary: "MediaUnit 1",
     duration_seconds: 1440,
-    episode_number: 1,
-    episode_numbers: [1],
-    episode_title: "Enter Naruto Uzumaki",
+    unit_number: 1,
+    unit_numbers: [1],
+    unit_title: "Enter Naruto Uzumaki",
     group: "SubsPlease",
     name: "Naruto - 01.mkv",
     path: "/library/Naruto/Naruto - 01.mkv",
@@ -767,7 +767,7 @@ it("shared auth and utility schemas accept canonical payloads", () => {
     resolution: "1080p",
     size: 1024,
     source_identity: {
-      episode_numbers: [1],
+      unit_numbers: [1],
       label: "01",
       scheme: "absolute",
     },
@@ -775,15 +775,15 @@ it("shared auth and utility schemas accept canonical payloads", () => {
   });
   const libraryRoot = Schema.decodeUnknownEither(LibraryRootSchema)({
     id: 1,
-    label: "Anime",
+    label: "Media",
     path: "/library",
   });
   const activityItem = Schema.decodeUnknownEither(ActivityItemSchema)({
     activity_type: "download.completed",
-    anime_id: 20,
-    anime_title: "Naruto",
+    media_id: 20,
+    media_title: "Naruto",
     description: "Imported episode 1",
-    episode_number: 1,
+    unit_number: 1,
     id: 2,
     timestamp: "2024-01-01T00:00:00.000Z",
   });
@@ -828,33 +828,33 @@ it("shared operational detail schemas accept canonical payloads", () => {
     ],
     total_pages: 3,
   });
-  const missingEpisode = Schema.decodeUnknownEither(MissingEpisodeSchema)({
+  const missingEpisode = Schema.decodeUnknownEither(MissingUnitSchema)({
     aired: "2024-01-08T00:00:00.000Z",
     airing_status: "aired",
-    anime_id: 20,
-    anime_image: "https://example.com/naruto.jpg",
-    anime_title: "Naruto",
-    episode_number: 2,
-    episode_title: "My Name is Konohamaru",
+    media_id: 20,
+    media_image: "https://example.com/naruto.jpg",
+    media_title: "Naruto",
+    unit_number: 2,
+    unit_title: "My Name is Konohamaru",
     is_future: false,
-    next_airing_episode: {
+    next_airing_unit: {
       airing_at: "2024-01-15T12:00:00.000Z",
       episode: 3,
     },
   });
   const renamePreview = Schema.decodeUnknownEither(RenamePreviewItemSchema)({
     current_path: "/library/Naruto/ep1.mkv",
-    episode_number: 1,
+    unit_number: 1,
     fallback_used: true,
     format_used: "{title} - {episode_segment}",
     metadata_snapshot: {
       audio_channels: "2.0",
       audio_codec: "AAC",
-      episode_title: "Enter Naruto Uzumaki!",
+      unit_title: "Enter Naruto Uzumaki!",
       quality: "WEB-DL",
       resolution: "1080p",
       source_identity: {
-        episode_numbers: [1],
+        unit_numbers: [1],
         label: "S01E01",
         scheme: "season",
         season: 1,
@@ -880,25 +880,25 @@ it("shared operational detail schemas accept canonical payloads", () => {
     audio_codec: "AAC",
     coverage_summary: "Episodes 1-2",
     duration_seconds: 1440,
-    episode_conflict: {
-      anime_id: 20,
-      anime_title: "Naruto",
-      episode_numbers: [1, 2],
+    unit_conflict: {
+      media_id: 20,
+      media_title: "Naruto",
+      unit_numbers: [1, 2],
       file_path: "/library/Naruto/Naruto - 01.mkv",
     },
-    episode_number: 1,
-    episode_numbers: [1, 2],
-    episode_title: "Premiere",
+    unit_number: 1,
+    unit_numbers: [1, 2],
+    unit_title: "Premiere",
     existing_mapping: {
-      anime_id: 20,
-      anime_title: "Naruto",
-      episode_numbers: [1, 2],
+      media_id: 20,
+      media_title: "Naruto",
+      unit_numbers: [1, 2],
       file_path: "/imports/Naruto - 01.mkv",
     },
     filename: "Naruto - 01.mkv",
     group: "SubsPlease",
     match_confidence: 0.92,
-    matched_anime: {
+    matched_media: {
       id: 20,
       title: "Naruto",
     },
@@ -918,7 +918,7 @@ it("shared operational detail schemas accept canonical payloads", () => {
     source_path: "/imports/Naruto - 01.mkv",
     suggested_candidate_id: 20,
     video_codec: "HEVC",
-    warnings: ["Skipped {episode_title} because the file covers multiple episodes"],
+    warnings: ["Skipped {unit_title} because the file covers multiple episodes"],
   });
   const skippedFile = Schema.decodeUnknownEither(SkippedFileSchema)({
     path: "/imports/readme.txt",
@@ -948,8 +948,8 @@ it("shared operational detail schemas accept canonical payloads", () => {
     ],
     files: [
       {
-        episode_number: 1,
-        episode_numbers: [1, 2],
+        unit_number: 1,
+        unit_numbers: [1, 2],
         filename: "Naruto - 01.mkv",
         parsed_title: "Naruto",
         source_path: "/imports/Naruto - 01.mkv",
@@ -975,7 +975,7 @@ it("shared operational detail schemas accept canonical payloads", () => {
       score: 100,
     },
   });
-  const episodeSearchResult = Schema.decodeUnknownEither(EpisodeSearchResultSchema)({
+  const episodeSearchResult = Schema.decodeUnknownEither(UnitSearchResultSchema)({
     download_action: {
       Reject: {
         reason: "Too many duplicates",
@@ -985,8 +985,8 @@ it("shared operational detail schemas accept canonical payloads", () => {
     indexer: "nyaa",
     info_hash: "abcdefabcdefabcdefabcdefabcdefabcdefabcd",
     parsed_air_date: "2024-01-01",
-    parsed_episode_label: "01",
-    parsed_episode_numbers: [1],
+    parsed_unit_label: "01",
+    parsed_unit_numbers: [1],
     parsed_resolution: "1080p",
     leechers: 1,
     link: "magnet:?xt=urn:btih:abcdef",
@@ -1008,10 +1008,10 @@ it("shared operational detail schemas accept canonical payloads", () => {
     payload: {
       downloads: [
         {
-          anime_id: 20,
-          anime_title: "Naruto",
+          media_id: 20,
+          media_title: "Naruto",
           downloaded_bytes: 512,
-          episode_number: 1,
+          unit_number: 1,
           eta: 60,
           hash: "abcdef",
           id: 1,
@@ -1027,7 +1027,7 @@ it("shared operational detail schemas accept canonical payloads", () => {
   });
   const downloadFinishedEvent = Schema.decodeUnknownEither(NotificationEventSchema)({
     payload: {
-      anime_id: 20,
+      media_id: 20,
       imported_path: "/library/Naruto/Naruto - 01.mkv",
       source_metadata: {
         group: "SubsPlease",
@@ -1040,7 +1040,7 @@ it("shared operational detail schemas accept canonical payloads", () => {
   });
   const config = Schema.decodeUnknownEither(ConfigSchema)({
     downloads: {
-      create_anime_folders: true,
+      create_media_folders: true,
       delete_download_files_after_import: true,
       reconcile_completed_downloads: true,
       remote_path_mappings: [["/remote", "/local"]],
@@ -1132,7 +1132,7 @@ it("shared config and notification schemas reject invalid payloads", () => {
   });
   const config = Schema.decodeUnknownEither(ConfigSchema)({
     downloads: {
-      create_anime_folders: true,
+      create_media_folders: true,
       remote_path_mappings: [["/remote"]],
       root_path: "/downloads",
     },
@@ -1222,7 +1222,7 @@ it("notification schema accepts auth notification events", () => {
 });
 
 it("shared seasonal anime schemas accept canonical payloads", () => {
-  const seasonalResponse = Schema.decodeUnknownEither(SeasonalAnimeResponseSchema)({
+  const seasonalResponse = Schema.decodeUnknownEither(SeasonalMediaResponseSchema)({
     degraded: false,
     has_more: true,
     limit: 25,
@@ -1244,7 +1244,7 @@ it("shared seasonal anime schemas accept canonical payloads", () => {
       },
     ],
   });
-  const seasonalQueryParams = Schema.decodeUnknownEither(SeasonalAnimeQueryParamsSchema)({
+  const seasonalQueryParams = Schema.decodeUnknownEither(SeasonalMediaQueryParamsSchema)({
     page: 2,
     season: "winter",
     year: 2025,
@@ -1256,13 +1256,13 @@ it("shared seasonal anime schemas accept canonical payloads", () => {
 });
 
 it("shared seasonal anime query params reject out-of-range values", () => {
-  const badYearAndLimit = Schema.decodeUnknownEither(SeasonalAnimeQueryParamsSchema)({
+  const badYearAndLimit = Schema.decodeUnknownEither(SeasonalMediaQueryParamsSchema)({
     season: "winter",
     year: 1800,
     limit: 0,
     page: 0,
   });
-  const badSeason = Schema.decodeUnknownEither(SeasonalAnimeQueryParamsSchema)({
+  const badSeason = Schema.decodeUnknownEither(SeasonalMediaQueryParamsSchema)({
     season: "autumn",
     year: 2025,
     limit: 25,

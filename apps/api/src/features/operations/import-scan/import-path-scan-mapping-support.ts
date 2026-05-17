@@ -1,46 +1,46 @@
-import { brandAnimeId, type FileEpisodeMapping, type ScannedFile } from "@packages/shared/index.ts";
+import { brandMediaId, type FileUnitMapping, type ScannedFile } from "@packages/shared/index.ts";
 
-import { toEpisodeNumbers } from "@/features/operations/import-scan/import-path-scan-episode-support.ts";
+import { toEpisodeNumbers } from "@/features/operations/import-scan/import-path-scan-unit-support.ts";
 
 type EpisodeFileMappingRow = {
-  anime_id: number;
-  anime_title: string;
-  episode_number: number;
+  media_id: number;
+  media_title: string;
+  unit_number: number;
   file_path: string | null;
 };
 
 export type EpisodeFileMappingIndex = {
   byAnimeEpisode: Map<string, EpisodeFileMappingRow>;
-  byPath: Map<string, FileEpisodeMapping>;
+  byPath: Map<string, FileUnitMapping>;
 };
 
 export function buildEpisodeFileMappingIndex(
   rows: readonly EpisodeFileMappingRow[],
 ): EpisodeFileMappingIndex {
   const byAnimeEpisode = new Map<string, EpisodeFileMappingRow>();
-  const byPath = new Map<string, FileEpisodeMapping>();
+  const byPath = new Map<string, FileUnitMapping>();
 
   for (const row of rows) {
     if (!row.file_path) {
       continue;
     }
 
-    byAnimeEpisode.set(`${row.anime_id}:${row.episode_number}`, row);
+    byAnimeEpisode.set(`${row.media_id}:${row.unit_number}`, row);
 
     const existing = byPath.get(row.file_path);
     if (existing) {
-      const episodeNumbers = new Set([...(existing.episode_numbers ?? []), row.episode_number]);
+      const unitNumbers = new Set([...(existing.unit_numbers ?? []), row.unit_number]);
       byPath.set(row.file_path, {
         ...existing,
-        episode_numbers: [...episodeNumbers].toSorted((left, right) => left - right),
+        unit_numbers: [...unitNumbers].toSorted((left, right) => left - right),
       });
       continue;
     }
 
     byPath.set(row.file_path, {
-      anime_id: brandAnimeId(row.anime_id),
-      anime_title: row.anime_title,
-      episode_numbers: [row.episode_number],
+      media_id: brandMediaId(row.media_id),
+      media_title: row.media_title,
+      unit_numbers: [row.unit_number],
       file_path: row.file_path,
     });
   }
@@ -49,20 +49,20 @@ export function buildEpisodeFileMappingIndex(
 }
 
 export function buildScannedFileLibrarySignals(input: {
-  file: Pick<ScannedFile, "episode_number" | "episode_numbers" | "source_path">;
+  file: Pick<ScannedFile, "unit_number" | "unit_numbers" | "source_path">;
   mappingIndex: EpisodeFileMappingIndex;
   targetAnime?: { id: number; title: string } | undefined;
 }) {
   const existing_mapping = input.mappingIndex.byPath.get(input.file.source_path);
-  const episodeNumbers = toEpisodeNumbers(input.file);
+  const unitNumbers = toEpisodeNumbers(input.file);
   const { targetAnime } = input;
 
-  if (!targetAnime || episodeNumbers.length === 0) {
+  if (!targetAnime || unitNumbers.length === 0) {
     return { existing_mapping };
   }
 
-  const conflicts = episodeNumbers.flatMap((episodeNumber) => {
-    const existing = input.mappingIndex.byAnimeEpisode.get(`${targetAnime.id}:${episodeNumber}`);
+  const conflicts = unitNumbers.flatMap((unitNumber) => {
+    const existing = input.mappingIndex.byAnimeEpisode.get(`${targetAnime.id}:${unitNumber}`);
 
     if (!existing || existing.file_path === input.file.source_path) {
       return [];
@@ -75,17 +75,17 @@ export function buildScannedFileLibrarySignals(input: {
     return { existing_mapping };
   }
 
-  const episode_conflict: FileEpisodeMapping = {
-    anime_id: brandAnimeId(targetAnime.id),
-    anime_title: targetAnime.title,
-    episode_numbers: [...new Set(conflicts.map((row) => row.episode_number))].toSorted(
+  const unit_conflict: FileUnitMapping = {
+    media_id: brandMediaId(targetAnime.id),
+    media_title: targetAnime.title,
+    unit_numbers: [...new Set(conflicts.map((row) => row.unit_number))].toSorted(
       (left, right) => left - right,
     ),
     file_path: conflicts[0]?.file_path ?? undefined,
   };
 
   return {
-    episode_conflict,
+    unit_conflict,
     existing_mapping,
   };
 }

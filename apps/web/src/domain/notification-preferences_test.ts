@@ -1,4 +1,4 @@
-import { brandAnimeId, type NotificationEvent } from "@bakarr/shared";
+import { brandMediaId, type NotificationEvent } from "@bakarr/shared";
 import { describe, expect, it } from "vitest";
 import { getNotificationPreferenceKeyForEvent } from "./notification-preferences";
 
@@ -6,20 +6,20 @@ describe("notification preferences", () => {
   it.each([
     [{ type: "ScanStarted" }, "scan"],
     [{ type: "DownloadFinished", payload: { title: "Show" } }, "download"],
-    [{ type: "RefreshStarted", payload: { anime_id: brandAnimeId(1), title: "Show" } }, "refresh"],
+    [{ type: "RefreshStarted", payload: { media_id: brandMediaId(1), title: "Show" } }, "refresh"],
     [
       {
         type: "SearchMissingFinished",
-        payload: { anime_id: brandAnimeId(1), count: 2, title: "Show" },
+        payload: { media_id: brandMediaId(1), count: 2, title: "Show" },
       },
       "search_missing",
     ],
     [
-      { type: "ScanFolderStarted", payload: { anime_id: brandAnimeId(1), title: "Show" } },
+      { type: "ScanFolderStarted", payload: { media_id: brandMediaId(1), title: "Show" } },
       "scan_folder",
     ],
     [
-      { type: "RenameFinished", payload: { anime_id: brandAnimeId(1), count: 2, title: "Show" } },
+      { type: "RenameFinished", payload: { media_id: brandMediaId(1), count: 2, title: "Show" } },
       "rename",
     ],
     [{ type: "ImportStarted", payload: { count: 2 } }, "import"],

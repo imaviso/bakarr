@@ -2,7 +2,7 @@ import { assert, it } from "@effect/vitest";
 import { Effect, Stream } from "effect";
 
 import {
-  brandAnimeId,
+  brandMediaId,
   brandDownloadEventId,
   brandDownloadId,
   type DownloadEvent,
@@ -13,8 +13,8 @@ import {
 } from "@/features/operations/catalog/catalog-download-event-render-support.ts";
 
 const event: DownloadEvent = {
-  anime_id: brandAnimeId(7),
-  anime_title: "Show, Name",
+  media_id: brandMediaId(7),
+  media_title: "Show, Name",
   created_at: "2025-01-01T00:00:00.000Z",
   download_id: brandDownloadId(11),
   event_type: "downloads.imported",

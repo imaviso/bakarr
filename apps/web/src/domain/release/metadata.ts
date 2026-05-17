@@ -38,17 +38,17 @@ export function formatReleaseSourceSummary(input: ReleaseSourceLike) {
 
 export function formatReleaseParsedSummary(input: {
   parsed_air_date?: string | undefined;
-  parsed_episode_label?: string | undefined;
+  parsed_unit_label?: string | undefined;
 }) {
   if (
-    input.parsed_episode_label &&
+    input.parsed_unit_label &&
     input.parsed_air_date &&
-    input.parsed_episode_label !== input.parsed_air_date
+    input.parsed_unit_label !== input.parsed_air_date
   ) {
-    return `${input.parsed_episode_label} • ${input.parsed_air_date}`;
+    return `${input.parsed_unit_label} • ${input.parsed_air_date}`;
   }
 
-  return input.parsed_episode_label ?? input.parsed_air_date;
+  return input.parsed_unit_label ?? input.parsed_air_date;
 }
 
 export function getReleaseFlags(input: {

@@ -61,7 +61,7 @@ it("parseFileSourceIdentity: S02E03 produces season hint 2", () => {
   assert.deepStrictEqual(result.source_identity?.scheme, "season");
   if (result.source_identity?.scheme === "season") {
     assert.deepStrictEqual(result.source_identity.season, 2);
-    assert.deepStrictEqual(result.source_identity.episode_numbers, [3]);
+    assert.deepStrictEqual(result.source_identity.unit_numbers, [3]);
     assert.deepStrictEqual(result.source_identity.label, "S02E03");
   }
 });
@@ -72,7 +72,7 @@ it("parseFileSourceIdentity: S00E03 produces season hint 0 (specials)", () => {
   assert.deepStrictEqual(result.source_identity?.scheme, "season");
   if (result.source_identity?.scheme === "season") {
     assert.deepStrictEqual(result.source_identity.season, 0);
-    assert.deepStrictEqual(result.source_identity.episode_numbers, [3]);
+    assert.deepStrictEqual(result.source_identity.unit_numbers, [3]);
     assert.deepStrictEqual(result.source_identity.label, "S00E03");
   }
 });
@@ -83,7 +83,7 @@ it("parseFileSourceIdentity: S01E01-E02 multi-episode", () => {
   assert.deepStrictEqual(result.source_identity?.scheme, "season");
   if (result.source_identity?.scheme === "season") {
     assert.deepStrictEqual(result.source_identity.season, 1);
-    assert.deepStrictEqual(result.source_identity.episode_numbers, [1, 2]);
+    assert.deepStrictEqual(result.source_identity.unit_numbers, [1, 2]);
     assert.deepStrictEqual(result.source_identity.label, "S01E01-E02");
   }
 });
@@ -94,7 +94,7 @@ it("parseFileSourceIdentity: S01E01E02 multi-episode without hyphen", () => {
   assert.deepStrictEqual(result.source_identity?.scheme, "season");
   if (result.source_identity?.scheme === "season") {
     assert.deepStrictEqual(result.source_identity.season, 1);
-    assert.deepStrictEqual(result.source_identity.episode_numbers, [1, 2]);
+    assert.deepStrictEqual(result.source_identity.unit_numbers, [1, 2]);
   }
 });
 
@@ -104,7 +104,7 @@ it("parseFileSourceIdentity: 1x02 format", () => {
   assert.deepStrictEqual(result.source_identity?.scheme, "season");
   if (result.source_identity?.scheme === "season") {
     assert.deepStrictEqual(result.source_identity.season, 1);
-    assert.deepStrictEqual(result.source_identity.episode_numbers, [2]);
+    assert.deepStrictEqual(result.source_identity.unit_numbers, [2]);
   }
 });
 
@@ -114,7 +114,7 @@ it("parseFileSourceIdentity: 1x01-1x02 multi-episode", () => {
   assert.deepStrictEqual(result.source_identity?.scheme, "season");
   if (result.source_identity?.scheme === "season") {
     assert.deepStrictEqual(result.source_identity.season, 1);
-    assert.deepStrictEqual(result.source_identity.episode_numbers, [1, 2]);
+    assert.deepStrictEqual(result.source_identity.unit_numbers, [1, 2]);
   }
 });
 
@@ -124,7 +124,7 @@ it("parseFileSourceIdentity: Season 1 Episode 3 format", () => {
   assert.deepStrictEqual(result.source_identity?.scheme, "season");
   if (result.source_identity?.scheme === "season") {
     assert.deepStrictEqual(result.source_identity.season, 1);
-    assert.deepStrictEqual(result.source_identity.episode_numbers, [3]);
+    assert.deepStrictEqual(result.source_identity.unit_numbers, [3]);
   }
 });
 
@@ -136,7 +136,7 @@ it("parseFileSourceIdentity: complex Sonarr filename", () => {
   assert.deepStrictEqual(result.source_identity?.scheme, "season");
   if (result.source_identity?.scheme === "season") {
     assert.deepStrictEqual(result.source_identity.season, 1);
-    assert.deepStrictEqual(result.source_identity.episode_numbers, [1]);
+    assert.deepStrictEqual(result.source_identity.unit_numbers, [1]);
   }
 });
 
@@ -149,7 +149,7 @@ it("parseFileSourceIdentity: fansub style [Group] Show - 12 [1080p].mkv", () => 
   assert.deepStrictEqual(result.kind, "episode");
   assert.deepStrictEqual(result.source_identity?.scheme, "absolute");
   if (result.source_identity?.scheme === "absolute") {
-    assert.deepStrictEqual(result.source_identity.episode_numbers, [12]);
+    assert.deepStrictEqual(result.source_identity.unit_numbers, [12]);
   }
 });
 
@@ -158,7 +158,7 @@ it("parseFileSourceIdentity: standalone number Title - 01.mkv", () => {
   assert.deepStrictEqual(result.kind, "episode");
   assert.deepStrictEqual(result.source_identity?.scheme, "absolute");
   if (result.source_identity?.scheme === "absolute") {
-    assert.deepStrictEqual(result.source_identity.episode_numbers, [1]);
+    assert.deepStrictEqual(result.source_identity.unit_numbers, [1]);
   }
 });
 
@@ -167,7 +167,7 @@ it("parseFileSourceIdentity: absolute range 03-04", () => {
   assert.deepStrictEqual(result.kind, "episode");
   assert.deepStrictEqual(result.source_identity?.scheme, "absolute");
   if (result.source_identity?.scheme === "absolute") {
-    assert.deepStrictEqual(result.source_identity.episode_numbers, [3, 4]);
+    assert.deepStrictEqual(result.source_identity.unit_numbers, [3, 4]);
   }
 });
 
@@ -186,7 +186,7 @@ it("parseFileSourceIdentity: folder-only 03.mkv with Specials context", () => {
   assert.deepStrictEqual(result.source_identity?.scheme, "season");
   if (result.source_identity?.scheme === "season") {
     assert.deepStrictEqual(result.source_identity.season, 0);
-    assert.deepStrictEqual(result.source_identity.episode_numbers, [3]);
+    assert.deepStrictEqual(result.source_identity.unit_numbers, [3]);
   }
 });
 
@@ -201,7 +201,7 @@ it("parseFileSourceIdentity: folder-only 01.mkv with Season 1 context", () => {
   assert.deepStrictEqual(result.source_identity?.scheme, "season");
   if (result.source_identity?.scheme === "season") {
     assert.deepStrictEqual(result.source_identity.season, 1);
-    assert.deepStrictEqual(result.source_identity.episode_numbers, [1]);
+    assert.deepStrictEqual(result.source_identity.unit_numbers, [1]);
   }
 });
 
@@ -292,7 +292,7 @@ it("parseReleaseSourceIdentity: standard release with S01E07", () => {
   assert.deepStrictEqual(result.source_identity?.scheme, "season");
   if (result.source_identity?.scheme === "season") {
     assert.deepStrictEqual(result.source_identity.season, 1);
-    assert.deepStrictEqual(result.source_identity.episode_numbers, [7]);
+    assert.deepStrictEqual(result.source_identity.unit_numbers, [7]);
   }
   assert.deepStrictEqual(result.resolution, "1080p");
 });
@@ -301,7 +301,7 @@ it("parseReleaseSourceIdentity: 1x02 format", () => {
   const result = parseReleaseSourceIdentity("Show Name - 1x02 - Title");
   assert.deepStrictEqual(result.source_identity?.scheme, "season");
   if (result.source_identity?.scheme === "season") {
-    assert.deepStrictEqual(result.source_identity.episode_numbers, [2]);
+    assert.deepStrictEqual(result.source_identity.unit_numbers, [2]);
   }
 });
 
@@ -309,7 +309,7 @@ it("parseReleaseSourceIdentity: Season 1 Episode 3 format", () => {
   const result = parseReleaseSourceIdentity("Show Name - Season 1 Episode 3 - Title");
   assert.deepStrictEqual(result.source_identity?.scheme, "season");
   if (result.source_identity?.scheme === "season") {
-    assert.deepStrictEqual(result.source_identity.episode_numbers, [3]);
+    assert.deepStrictEqual(result.source_identity.unit_numbers, [3]);
   }
 });
 
@@ -318,7 +318,7 @@ it("parseReleaseSourceIdentity: fansub absolute number", () => {
   assert.deepStrictEqual(result.kind, "episode");
   assert.deepStrictEqual(result.source_identity?.scheme, "absolute");
   if (result.source_identity?.scheme === "absolute") {
-    assert.deepStrictEqual(result.source_identity.episode_numbers, [14]);
+    assert.deepStrictEqual(result.source_identity.unit_numbers, [14]);
   }
   assert.deepStrictEqual(result.group, "SubsPlease");
 });
@@ -351,7 +351,7 @@ it("parseReleaseSourceIdentity: Chinese 第xx话 pattern maps to absolute episod
   assert.deepStrictEqual(result.parsed_title.includes("Anime Series Title"), true);
   assert.deepStrictEqual(result.source_identity?.scheme, "absolute");
   if (result.source_identity?.scheme === "absolute") {
-    assert.deepStrictEqual(result.source_identity.episode_numbers, [5]);
+    assert.deepStrictEqual(result.source_identity.unit_numbers, [5]);
   }
 });
 
@@ -365,50 +365,50 @@ it("parseReleaseSourceIdentity: Chinese 第x季 pattern maps to season identity"
   assert.deepStrictEqual(result.source_identity?.scheme, "season");
   if (result.source_identity?.scheme === "season") {
     assert.deepStrictEqual(result.source_identity.season, 3);
-    assert.deepStrictEqual(result.source_identity.episode_numbers, [9]);
+    assert.deepStrictEqual(result.source_identity.unit_numbers, [9]);
   }
 });
 
 it("parseReleaseSourceIdentity: bracketed Chinese style title maps to absolute episode", () => {
   const result = parseReleaseSourceIdentity(
-    "[桜都字幕组][盾之勇者成名录/Anime Series Title][01][BIG5][720P]",
+    "[桜都字幕组][盾之勇者成名录/Media Series Title][01][BIG5][720P]",
   );
 
   assert.deepStrictEqual(result.kind, "episode");
   assert.deepStrictEqual(result.group, "桜都字幕组");
-  assert.deepStrictEqual(result.parsed_title.includes("Anime Series Title"), true);
+  assert.deepStrictEqual(result.parsed_title.includes("Media Series Title"), true);
   assert.deepStrictEqual(result.source_identity?.scheme, "absolute");
   if (result.source_identity?.scheme === "absolute") {
-    assert.deepStrictEqual(result.source_identity.episode_numbers, [1]);
+    assert.deepStrictEqual(result.source_identity.unit_numbers, [1]);
   }
 });
 
 it("parseReleaseSourceIdentity: bracketed title + year + episode normalization", () => {
   const result = parseReleaseSourceIdentity(
-    "[YMDR][輝夜姬想讓人告白～天才們的戀愛頭腦戰～][Anime Series Title][2019][02][1080p][HEVC]",
+    "[YMDR][輝夜姬想讓人告白～天才們的戀愛頭腦戰～][Media Series Title][2019][02][1080p][HEVC]",
   );
 
   assert.deepStrictEqual(result.kind, "episode");
   assert.deepStrictEqual(result.group, "YMDR");
-  assert.deepStrictEqual(result.parsed_title, "Anime Series Title");
+  assert.deepStrictEqual(result.parsed_title, "Media Series Title");
   assert.deepStrictEqual(result.source_identity?.scheme, "absolute");
   if (result.source_identity?.scheme === "absolute") {
-    assert.deepStrictEqual(result.source_identity.episode_numbers, [2]);
+    assert.deepStrictEqual(result.source_identity.unit_numbers, [2]);
   }
 });
 
 it("parseReleaseSourceIdentity: slash aliases prefer latin title", () => {
   const result = parseReleaseSourceIdentity(
-    "[Lilith-Raws] 在地下城尋求邂逅是否搞錯了什麼 / Anime-Series Title S04 - 12 [Baha][WEB-DL][1080p]",
+    "[Lilith-Raws] 在地下城尋求邂逅是否搞錯了什麼 / Media-Series Title S04 - 12 [Baha][WEB-DL][1080p]",
   );
 
   assert.deepStrictEqual(result.kind, "episode");
   assert.deepStrictEqual(result.group, "Lilith-Raws");
-  assert.deepStrictEqual(result.parsed_title, "Anime-Series Title");
+  assert.deepStrictEqual(result.parsed_title, "Media-Series Title");
   assert.deepStrictEqual(result.source_identity?.scheme, "season");
   if (result.source_identity?.scheme === "season") {
     assert.deepStrictEqual(result.source_identity.season, 4);
-    assert.deepStrictEqual(result.source_identity.episode_numbers, [12]);
+    assert.deepStrictEqual(result.source_identity.unit_numbers, [12]);
   }
 });
 
@@ -422,7 +422,7 @@ it("parseReleaseSourceIdentity: mixed CJK+latin title chooses latin alias", () =
   assert.deepStrictEqual(result.parsed_title, "ANIME SERIES");
   assert.deepStrictEqual(result.source_identity?.scheme, "absolute");
   if (result.source_identity?.scheme === "absolute") {
-    assert.deepStrictEqual(result.source_identity.episode_numbers, [1008]);
+    assert.deepStrictEqual(result.source_identity.unit_numbers, [1008]);
   }
 });
 
@@ -436,7 +436,7 @@ it("parseReleaseSourceIdentity: star-season marker normalizes Chinese releases",
   assert.deepStrictEqual(result.parsed_title, "Series Title");
   assert.deepStrictEqual(result.source_identity?.scheme, "absolute");
   if (result.source_identity?.scheme === "absolute") {
-    assert.deepStrictEqual(result.source_identity.episode_numbers, [7]);
+    assert.deepStrictEqual(result.source_identity.unit_numbers, [7]);
   }
 });
 
@@ -447,7 +447,7 @@ it("parseReleaseSourceIdentity: S3 - 09 is treated as season+episode, not absolu
   assert.deepStrictEqual(result.source_identity?.scheme, "season");
   if (result.source_identity?.scheme === "season") {
     assert.deepStrictEqual(result.source_identity.season, 3);
-    assert.deepStrictEqual(result.source_identity.episode_numbers, [9]);
+    assert.deepStrictEqual(result.source_identity.unit_numbers, [9]);
   }
 });
 
@@ -460,7 +460,7 @@ it("parseReleaseSourceIdentity: ordinal season title with dash episode is a sing
   assert.deepStrictEqual(result.source_identity?.scheme, "season");
   if (result.source_identity?.scheme === "season") {
     assert.deepStrictEqual(result.source_identity.season, 4);
-    assert.deepStrictEqual(result.source_identity.episode_numbers, [1]);
+    assert.deepStrictEqual(result.source_identity.unit_numbers, [1]);
   }
 });
 
@@ -482,8 +482,8 @@ it("parseReleaseSourceIdentity: release and file parser agree on 1x02", () => {
     fileResult.source_identity?.scheme === "season"
   ) {
     assert.deepStrictEqual(
-      releaseResult.source_identity.episode_numbers,
-      fileResult.source_identity.episode_numbers,
+      releaseResult.source_identity.unit_numbers,
+      fileResult.source_identity.unit_numbers,
     );
   }
 });
@@ -498,8 +498,8 @@ it("parseReleaseSourceIdentity: release and file parser agree on Season 1 Episod
     fileResult.source_identity?.scheme === "season"
   ) {
     assert.deepStrictEqual(
-      releaseResult.source_identity.episode_numbers,
-      fileResult.source_identity.episode_numbers,
+      releaseResult.source_identity.unit_numbers,
+      fileResult.source_identity.unit_numbers,
     );
   }
 });
@@ -524,25 +524,25 @@ it("parseFileSourceIdentity: extracts title from folder context for bare number"
 // ---------------------------------------------------------------------------
 
 it("formatEpisodeSegment: single episode", () => {
-  assert.deepStrictEqual(formatEpisodeSegment({ episode_numbers: [3] }), "03");
+  assert.deepStrictEqual(formatEpisodeSegment({ unit_numbers: [3] }), "03");
 });
 
 it("formatEpisodeSegment: multi-episode contiguous", () => {
-  assert.deepStrictEqual(formatEpisodeSegment({ episode_numbers: [3, 4] }), "03-04");
+  assert.deepStrictEqual(formatEpisodeSegment({ unit_numbers: [3, 4] }), "03-04");
 });
 
 it("formatEpisodeSegment: three-digit episode", () => {
-  assert.deepStrictEqual(formatEpisodeSegment({ episode_numbers: [178] }), "178");
+  assert.deepStrictEqual(formatEpisodeSegment({ unit_numbers: [178] }), "178");
 });
 
 it("formatEpisodeSegment: use source label", () => {
   assert.deepStrictEqual(
     formatEpisodeSegment({
-      episode_numbers: [3],
+      unit_numbers: [3],
       source_identity: {
         scheme: "season",
         season: 2,
-        episode_numbers: [3],
+        unit_numbers: [3],
         label: "S02E03",
       },
       use_source_label: true,
@@ -554,7 +554,7 @@ it("formatEpisodeSegment: use source label", () => {
 it("formatEpisodeSegment: daily source label", () => {
   assert.deepStrictEqual(
     formatEpisodeSegment({
-      episode_numbers: [178],
+      unit_numbers: [178],
       source_identity: {
         scheme: "daily",
         air_dates: ["2025-03-14"],
@@ -573,7 +573,7 @@ it("formatEpisodeSegment: daily source label", () => {
 it("parseFileSourceIdentity: does not interpret 2025-03-14 as episode range 3..14", () => {
   const result = parseFileSourceIdentity("Show.2025-03-14.mkv");
   assert.deepStrictEqual(result.source_identity?.scheme, "daily");
-  // Must NOT produce absolute or season episodes [3..14]
+  // Must NOT produce absolute or season mediaUnits [3..14]
   if (result.source_identity?.scheme === "daily") {
     assert.deepStrictEqual(result.source_identity.air_dates, ["2025-03-14"]);
   }
@@ -597,7 +597,7 @@ it("parseFileSourceIdentity: v2 version suffix handled", () => {
   assert.deepStrictEqual(result.kind, "episode");
   assert.deepStrictEqual(result.source_identity?.scheme, "season");
   if (result.source_identity?.scheme === "season") {
-    assert.deepStrictEqual(result.source_identity.episode_numbers, [1]);
+    assert.deepStrictEqual(result.source_identity.unit_numbers, [1]);
   }
 });
 
@@ -606,7 +606,7 @@ it("parseFileSourceIdentity: S01E01-E02 range via hyphen", () => {
   assert.deepStrictEqual(result.kind, "episode");
   assert.deepStrictEqual(result.source_identity?.scheme, "season");
   if (result.source_identity?.scheme === "season") {
-    assert.deepStrictEqual(result.source_identity.episode_numbers, [1, 2]);
+    assert.deepStrictEqual(result.source_identity.unit_numbers, [1, 2]);
   }
 });
 
@@ -615,11 +615,11 @@ it("parseFileSourceIdentity: 01-02.mkv inside Season 1 folder", () => {
   const result = parseFileSourceIdentity("/library/Show/Season 1/01-02.mkv", context);
   assert.deepStrictEqual(result.kind, "episode");
   assert.deepStrictEqual(result.source_identity?.scheme, "season");
-  // Should have two episodes
+  // Should have two mediaUnits
   if (result.source_identity?.scheme === "season") {
-    assert.deepStrictEqual(result.source_identity.episode_numbers.length, 2);
-    assert.deepStrictEqual(result.source_identity.episode_numbers[0], 1);
-    assert.deepStrictEqual(result.source_identity.episode_numbers[1], 2);
+    assert.deepStrictEqual(result.source_identity.unit_numbers.length, 2);
+    assert.deepStrictEqual(result.source_identity.unit_numbers[0], 1);
+    assert.deepStrictEqual(result.source_identity.unit_numbers[1], 2);
   }
 });
 
@@ -629,27 +629,27 @@ it("parseFileSourceIdentity: 01-02.mkv inside Season 1 folder", () => {
 
 it("resolveSourceIdentityToEpisodeNumbers: season identity resolves to episode component", () => {
   const result = resolveSourceIdentityToEpisodeNumbers({
-    anime: { id: 1, title_romaji: "Overlord II", format: "TV" },
-    episodes: [{ number: 1 }, { number: 2 }, { number: 3 }],
+    media: { id: 1, title_romaji: "Overlord II", format: "TV" },
+    mediaUnits: [{ number: 1 }, { number: 2 }, { number: 3 }],
     source_identity: {
       scheme: "season",
       season: 2,
-      episode_numbers: [3],
+      unit_numbers: [3],
       label: "S02E03",
     },
   });
-  assert.deepStrictEqual(result?.episode_numbers, [3]);
-  assert.deepStrictEqual(result?.anime_id, 1);
+  assert.deepStrictEqual(result?.unit_numbers, [3]);
+  assert.deepStrictEqual(result?.media_id, 1);
 });
 
 it("resolveSourceIdentityToEpisodeNumbers: S00 refuses to resolve into regular TV entry", () => {
   const result = resolveSourceIdentityToEpisodeNumbers({
-    anime: { id: 1, title_romaji: "Show", format: "TV" },
-    episodes: [{ number: 1 }, { number: 2 }, { number: 3 }],
+    media: { id: 1, title_romaji: "Show", format: "TV" },
+    mediaUnits: [{ number: 1 }, { number: 2 }, { number: 3 }],
     source_identity: {
       scheme: "season",
       season: 0,
-      episode_numbers: [3],
+      unit_numbers: [3],
       label: "S00E03",
     },
   });
@@ -658,22 +658,22 @@ it("resolveSourceIdentityToEpisodeNumbers: S00 refuses to resolve into regular T
 
 it("resolveSourceIdentityToEpisodeNumbers: S00 resolves into OVA entry", () => {
   const result = resolveSourceIdentityToEpisodeNumbers({
-    anime: { id: 2, title_romaji: "Show OVA", format: "OVA" },
-    episodes: [{ number: 1 }, { number: 2 }, { number: 3 }],
+    media: { id: 2, title_romaji: "Show OVA", format: "OVA" },
+    mediaUnits: [{ number: 1 }, { number: 2 }, { number: 3 }],
     source_identity: {
       scheme: "season",
       season: 0,
-      episode_numbers: [3],
+      unit_numbers: [3],
       label: "S00E03",
     },
   });
-  assert.deepStrictEqual(result?.episode_numbers, [3]);
+  assert.deepStrictEqual(result?.unit_numbers, [3]);
 });
 
 it("resolveSourceIdentityToEpisodeNumbers: daily identity resolves by aired date", () => {
   const result = resolveSourceIdentityToEpisodeNumbers({
-    anime: { id: 1, title_romaji: "Show" },
-    episodes: [
+    media: { id: 1, title_romaji: "Show" },
+    mediaUnits: [
       { number: 177, aired: "2025-03-13" },
       { number: 178, aired: "2025-03-14" },
       { number: 179, aired: "2025-03-15" },
@@ -684,14 +684,14 @@ it("resolveSourceIdentityToEpisodeNumbers: daily identity resolves by aired date
       label: "2025-03-14",
     },
   });
-  assert.deepStrictEqual(result?.episode_numbers, [178]);
+  assert.deepStrictEqual(result?.unit_numbers, [178]);
   assert.deepStrictEqual(result?.primary_episode_number, 178);
 });
 
 it("resolveSourceIdentityToEpisodeNumbers: daily identity returns undefined when no match", () => {
   const result = resolveSourceIdentityToEpisodeNumbers({
-    anime: { id: 1, title_romaji: "Show" },
-    episodes: [{ number: 1, aired: "2025-01-01" }],
+    media: { id: 1, title_romaji: "Show" },
+    mediaUnits: [{ number: 1, aired: "2025-01-01" }],
     source_identity: {
       scheme: "daily",
       air_dates: ["2025-12-25"],

@@ -3,7 +3,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import type { Config, DownloadSourceMetadata, ImportMode } from "@packages/shared/index.ts";
 
 import type { AppDatabase, DatabaseError } from "@/db/database.ts";
-import { anime, episodes } from "@/db/schema.ts";
+import { media, mediaUnits } from "@/db/schema.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import {
   probeMediaMetadataOrUndefined,
@@ -11,7 +11,7 @@ import {
   type ProbedMediaMetadata,
 } from "@/infra/media/probe.ts";
 import { OperationsAnimeNotFoundError, OperationsPathError } from "@/features/operations/errors.ts";
-import { getAnimeRowEffect as requireAnime } from "@/features/anime/shared/anime-read-repository.ts";
+import { getAnimeRowEffect as requireAnime } from "@/features/media/shared/media-read-repository.ts";
 import { buildEpisodeFilenamePlan } from "@/features/operations/library/naming-canonical-support.ts";
 import type { EpisodeFilenamePlan } from "@/features/operations/library/naming-types.ts";
 import {
@@ -28,9 +28,9 @@ export interface BuildLibraryImportPlanInput {
   readonly tryDatabasePromise: TryDatabasePromise;
   readonly file: {
     source_path: string;
-    anime_id: number;
-    episode_number: number;
-    episode_numbers?: readonly number[];
+    media_id: number;
+    unit_number: number;
+    unit_numbers?: readonly number[];
     season?: number;
     source_metadata?: DownloadSourceMetadata;
   };
@@ -38,10 +38,10 @@ export interface BuildLibraryImportPlanInput {
 
 export interface LibraryImportPlan {
   readonly allEpisodeNumbers: readonly number[];
-  readonly animeRow: typeof anime.$inferSelect;
+  readonly animeRow: typeof media.$inferSelect;
   readonly destination: string;
   readonly importMode: ImportMode;
-  readonly episodeNumber: number;
+  readonly unitNumber: number;
   readonly localMediaMetadata?: ProbedMediaMetadata;
   readonly resolvedSource: string;
   readonly namingPlan: EpisodeFilenamePlan;
@@ -67,7 +67,7 @@ export const buildLibraryImportPlan = Effect.fn("Operations.buildLibraryImportPl
       ),
     );
 
-    const animeRow = yield* requireAnime(db, file.anime_id);
+    const animeRow = yield* requireAnime(db, file.media_id);
     const importMode = runtimeConfig.library.import_mode;
     const namingSettings = {
       movieNamingFormat: runtimeConfig.library.movie_naming_format,
@@ -75,18 +75,16 @@ export const buildLibraryImportPlan = Effect.fn("Operations.buildLibraryImportPl
       preferredTitle: runtimeConfig.library.preferred_title,
     };
     const namingFormat = selectNamingFormat(animeRow, namingSettings);
-    const allEpisodeNumbers = file.episode_numbers?.length
-      ? file.episode_numbers
-      : [file.episode_number];
+    const allEpisodeNumbers = file.unit_numbers?.length ? file.unit_numbers : [file.unit_number];
     const episodeNumbersForQuery = [...allEpisodeNumbers];
     const episodeRows = yield* tryDatabasePromise("Failed to import files", () =>
       db
-        .select({ aired: episodes.aired, title: episodes.title })
-        .from(episodes)
+        .select({ aired: mediaUnits.aired, title: mediaUnits.title })
+        .from(mediaUnits)
         .where(
           and(
-            eq(episodes.animeId, file.anime_id),
-            inArray(episodes.number, episodeNumbersForQuery),
+            eq(mediaUnits.mediaId, file.media_id),
+            inArray(mediaUnits.number, episodeNumbersForQuery),
           ),
         ),
     );
@@ -98,7 +96,7 @@ export const buildLibraryImportPlan = Effect.fn("Operations.buildLibraryImportPl
       ...(file.source_metadata === undefined
         ? {}
         : { downloadSourceMetadata: file.source_metadata }),
-      episodeNumbers: allEpisodeNumbers,
+      unitNumbers: allEpisodeNumbers,
       episodeRows,
       filePath: file.source_path,
       namingFormat,
@@ -114,7 +112,7 @@ export const buildLibraryImportPlan = Effect.fn("Operations.buildLibraryImportPl
           ...(file.source_metadata === undefined
             ? {}
             : { downloadSourceMetadata: file.source_metadata }),
-          episodeNumbers: allEpisodeNumbers,
+          unitNumbers: allEpisodeNumbers,
           episodeRows,
           filePath: file.source_path,
           localMediaMetadata,
@@ -130,7 +128,7 @@ export const buildLibraryImportPlan = Effect.fn("Operations.buildLibraryImportPl
       animeRow,
       destination,
       importMode,
-      episodeNumber: file.episode_number,
+      unitNumber: file.unit_number,
       ...(localMediaMetadata === undefined ? {} : { localMediaMetadata }),
       namingPlan,
       resolvedSource,

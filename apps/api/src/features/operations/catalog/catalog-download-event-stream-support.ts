@@ -21,7 +21,7 @@ export interface DownloadEventExportHeader {
 }
 
 export interface DownloadEventExportQuery {
-  readonly animeId?: number;
+  readonly mediaId?: number;
   readonly downloadId?: number;
   readonly endDate?: string;
   readonly eventType?: string;

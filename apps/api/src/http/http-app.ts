@@ -2,7 +2,7 @@ import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platf
 import { Effect } from "effect";
 
 import { embeddedWebAssets } from "@/generated/embedded-web-assets.ts";
-import { animeRouter } from "@/http/anime/router.ts";
+import { animeRouter } from "@/http/media/router.ts";
 import { authRouter } from "@/http/auth/router.ts";
 import { createEmbeddedWebResponse, type EmbeddedWebAsset } from "@/http/shared/embedded-web.ts";
 import { downloadsRouter } from "@/http/operations/downloads-router.ts";

@@ -9,7 +9,7 @@ export type DownloadsTab = "events" | "history" | "queue";
 
 export interface DownloadsSearchState {
   [key: string]: string | undefined;
-  [DOWNLOADS_EVENTS_SEARCH_KEYS.animeId]?: string;
+  [DOWNLOADS_EVENTS_SEARCH_KEYS.mediaId]?: string;
   [DOWNLOADS_EVENTS_SEARCH_KEYS.cursor]?: string;
   [DOWNLOADS_EVENTS_SEARCH_KEYS.direction]?: string;
   [DOWNLOADS_EVENTS_SEARCH_KEYS.downloadId]?: string;
@@ -38,8 +38,8 @@ const DownloadsTabSchema = Schema.transform(
 );
 
 export const downloadsSearchDefaults = {
-  [DOWNLOADS_EVENTS_SEARCH_KEYS.animeId]:
-    downloadsEventsSearchDefaults[DOWNLOADS_EVENTS_SEARCH_KEYS.animeId] ?? "",
+  [DOWNLOADS_EVENTS_SEARCH_KEYS.mediaId]:
+    downloadsEventsSearchDefaults[DOWNLOADS_EVENTS_SEARCH_KEYS.mediaId] ?? "",
   [DOWNLOADS_EVENTS_SEARCH_KEYS.cursor]:
     downloadsEventsSearchDefaults[DOWNLOADS_EVENTS_SEARCH_KEYS.cursor] ?? "",
   [DOWNLOADS_EVENTS_SEARCH_KEYS.direction]:
@@ -66,7 +66,7 @@ const DownloadsSearchSchema = Schema.Struct({
 });
 
 const DOWNLOADS_SEARCH_FIELDS = [
-  DOWNLOADS_EVENTS_SEARCH_KEYS.animeId,
+  DOWNLOADS_EVENTS_SEARCH_KEYS.mediaId,
   DOWNLOADS_EVENTS_SEARCH_KEYS.cursor,
   DOWNLOADS_EVENTS_SEARCH_KEYS.direction,
   DOWNLOADS_EVENTS_SEARCH_KEYS.downloadId,
@@ -80,7 +80,7 @@ const DOWNLOADS_SEARCH_FIELDS = [
 type DownloadsSearchField = (typeof DOWNLOADS_SEARCH_FIELDS)[number];
 
 const downloadsSearchDefaultsByField: Record<DownloadsSearchField, string> = {
-  [DOWNLOADS_EVENTS_SEARCH_KEYS.animeId]: downloadsSearchDefaults.events_anime_id,
+  [DOWNLOADS_EVENTS_SEARCH_KEYS.mediaId]: downloadsSearchDefaults.events_media_id,
   [DOWNLOADS_EVENTS_SEARCH_KEYS.cursor]: downloadsSearchDefaults.events_cursor,
   [DOWNLOADS_EVENTS_SEARCH_KEYS.direction]: downloadsSearchDefaults.events_direction,
   [DOWNLOADS_EVENTS_SEARCH_KEYS.downloadId]: downloadsSearchDefaults.events_download_id,

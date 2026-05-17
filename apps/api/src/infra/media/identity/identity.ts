@@ -9,8 +9,8 @@
 import {
   AbsoluteEpisodeIdentity,
   DailyEpisodeIdentity,
-  type ParsedEpisodeIdentity,
-  ParsedEpisodeIdentitySchema,
+  type ParsedUnitIdentity,
+  ParsedUnitIdentitySchema,
   SeasonEpisodeIdentity,
   getEpisodeNumbersFromSourceIdentity,
   getSourceIdentityAirDate,
@@ -33,13 +33,13 @@ import { parseAbsoluteIdentity } from "@/infra/media/identity/absolute.ts";
 import { parseDailyIdentity } from "@/infra/media/identity/daily.ts";
 import { parseSeasonEpisodeIdentity } from "@/infra/media/identity/season.ts";
 
-export type { ParsedEpisodeIdentity } from "@/infra/media/identity/model.ts";
+export type { ParsedUnitIdentity } from "@/infra/media/identity/model.ts";
 export type { ParsedMediaFile, PathParseContext } from "@/infra/media/identity/types.ts";
 
 export {
   AbsoluteEpisodeIdentity,
   DailyEpisodeIdentity,
-  ParsedEpisodeIdentitySchema,
+  ParsedUnitIdentitySchema,
   SeasonEpisodeIdentity,
   getEpisodeNumbersFromSourceIdentity,
   getSourceIdentityAirDate,
@@ -85,7 +85,7 @@ export function parseFileSourceIdentity(path: string, context?: PathParseContext
     };
   }
 
-  // Step 4: Try season/episode patterns (S01E01, 1x01, Season 1 Episode 1)
+  // Step 4: Try season/episode patterns (S01E01, 1x01, Season 1 MediaUnit 1)
   const seasonEp = parseSeasonEpisodeIdentity(extensionless);
   if (seasonEp) {
     return {
@@ -123,7 +123,7 @@ export function parseFileSourceIdentity(path: string, context?: PathParseContext
       const promoted = new SeasonEpisodeIdentity({
         scheme: "season",
         season,
-        episode_numbers: absolute.episode_numbers,
+        unit_numbers: absolute.unit_numbers,
         label:
           season === 0
             ? `S00E${absolute.label}`
@@ -225,17 +225,17 @@ export { buildPathParseContext, classifyMediaArtifact };
  * Format episode numbers into a display segment for rename/import filenames.
  */
 export function formatEpisodeSegment(input: {
-  episode_numbers: readonly number[];
-  source_identity?: ParsedEpisodeIdentity;
+  unit_numbers: readonly number[];
+  source_identity?: ParsedUnitIdentity;
   use_source_label?: boolean;
 }): string {
   if (input.use_source_label && input.source_identity) {
     return input.source_identity.label;
   }
 
-  if (input.episode_numbers.length === 0) return "00";
+  if (input.unit_numbers.length === 0) return "00";
 
-  const sorted = [...input.episode_numbers].toSorted((a, b) => a - b);
+  const sorted = [...input.unit_numbers].toSorted((a, b) => a - b);
   const lastEpisode = sorted[sorted.length - 1];
   if (lastEpisode === undefined) {
     return "00";

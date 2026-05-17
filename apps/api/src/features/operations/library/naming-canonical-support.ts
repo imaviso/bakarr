@@ -1,7 +1,7 @@
 import { type NamingInput, renderEpisodeFilename } from "@/infra/naming.ts";
 import type {
   DownloadSourceMetadata,
-  ParsedEpisodeIdentity as SharedParsedEpisodeIdentity,
+  ParsedUnitIdentity as SharedParsedEpisodeIdentity,
   PreferredTitle,
   RenamePreviewMetadataSnapshot,
 } from "@packages/shared/index.ts";
@@ -27,8 +27,8 @@ export function buildCanonicalEpisodeNamingInput(input: {
   animeEndDate?: string | null;
   animeStartYear?: number | null;
   animeEndYear?: number | null;
-  animeTitle: string;
-  episodeNumbers: readonly number[];
+  mediaTitle: string;
+  unitNumbers: readonly number[];
   filePath: string;
   rootFolder?: string;
   season?: number;
@@ -36,11 +36,11 @@ export function buildCanonicalEpisodeNamingInput(input: {
   downloadSourceMetadata?: DownloadSourceMetadata;
   localMediaMetadata?: ProbedMediaMetadata;
 }): CanonicalEpisodeNamingInput {
-  const warnings = deriveCanonicalInputWarnings(input.episodeNumbers, input.episodeRows);
+  const warnings = deriveCanonicalInputWarnings(input.unitNumbers, input.episodeRows);
   const pathInput = buildEpisodeNamingInputFromPath({
     ...(input.animeStartDate === undefined ? {} : { animeStartDate: input.animeStartDate }),
-    animeTitle: input.animeTitle,
-    episodeNumbers: input.episodeNumbers,
+    mediaTitle: input.mediaTitle,
+    unitNumbers: input.unitNumbers,
     filePath: input.filePath,
     ...(input.rootFolder === undefined ? {} : { rootFolder: input.rootFolder }),
     ...(input.season === undefined ? {} : { season: input.season }),
@@ -68,7 +68,7 @@ export function buildCanonicalEpisodeNamingInput(input: {
         normalizeText(input.downloadSourceMetadata?.audio_codec) ??
         pathInput.audioCodec ??
         input.localMediaMetadata?.audio_codec,
-      episodeTitle: explicitEpisodeTitle ?? pathInput.episodeTitle,
+      unitTitle: explicitEpisodeTitle ?? pathInput.unitTitle,
       group: normalizeText(input.downloadSourceMetadata?.group) ?? pathInput.group,
       quality: normalizeText(input.downloadSourceMetadata?.quality) ?? pathInput.quality,
       resolution:
@@ -105,7 +105,7 @@ export function buildEpisodeFilenamePlan(input: {
     titleNative?: string | null;
     titleRomaji: string;
   };
-  episodeNumbers: readonly number[];
+  unitNumbers: readonly number[];
   filePath: string;
   namingFormat: string;
   preferredTitle: PreferredTitle;
@@ -120,11 +120,11 @@ export function buildEpisodeFilenamePlan(input: {
     ...(input.animeRow.endYear === undefined ? {} : { animeEndYear: input.animeRow.endYear }),
     ...(input.animeRow.startDate === undefined ? {} : { animeStartDate: input.animeRow.startDate }),
     ...(input.animeRow.startYear === undefined ? {} : { animeStartYear: input.animeRow.startYear }),
-    animeTitle: titleSelection.title,
+    mediaTitle: titleSelection.title,
     ...(input.downloadSourceMetadata === undefined
       ? {}
       : { downloadSourceMetadata: input.downloadSourceMetadata }),
-    episodeNumbers: input.episodeNumbers,
+    unitNumbers: input.unitNumbers,
     ...(input.episodeRows === undefined ? {} : { episodeRows: input.episodeRows }),
     filePath: input.filePath,
     ...(input.localMediaMetadata === undefined
@@ -150,20 +150,20 @@ export function buildEpisodeFilenamePlan(input: {
 }
 
 function deriveCanonicalInputWarnings(
-  episodeNumbers: readonly number[],
+  unitNumbers: readonly number[],
   episodeRows?: readonly { title?: string | null; aired?: string | null }[],
 ) {
-  if (episodeNumbers.length <= 1) {
+  if (unitNumbers.length <= 1) {
     return [] as string[];
   }
 
   const warnings: string[] = [];
 
   if (hasMultipleDistinctTitles(episodeRows)) {
-    warnings.push("Skipped {episode_title} because the file covers multiple episodes");
+    warnings.push("Skipped {unit_title} because the file covers multiple mediaUnits");
   }
   if (hasMultipleDistinctAirDates(episodeRows)) {
-    warnings.push("Skipped {air_date} because the file covers multiple episodes");
+    warnings.push("Skipped {air_date} because the file covers multiple mediaUnits");
   }
 
   return warnings;
@@ -177,7 +177,7 @@ function toRenamePreviewMetadataSnapshot(
     air_date: namingInput.airDate,
     audio_channels: namingInput.audioChannels,
     audio_codec: namingInput.audioCodec,
-    episode_title: namingInput.episodeTitle,
+    unit_title: namingInput.unitTitle,
     group: namingInput.group,
     quality: namingInput.quality,
     resolution: namingInput.resolution,
@@ -202,7 +202,7 @@ function pickCanonicalEpisodeTitle(
     return distinctTitles[0];
   }
 
-  return normalizeText(downloadSourceMetadata?.episode_title);
+  return normalizeText(downloadSourceMetadata?.unit_title);
 }
 
 function pickCanonicalAirDate(

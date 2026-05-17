@@ -1,8 +1,8 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { Effect } from "effect";
-import { brandAnimeId } from "@packages/shared/index.ts";
+import { brandMediaId } from "@packages/shared/index.ts";
 
-import { episodes } from "@/db/schema.ts";
+import { mediaUnits } from "@/db/schema.ts";
 import { classifyMediaArtifact } from "@/infra/media/identity/identity.ts";
 import { probeMediaMetadataOrUndefined } from "@/infra/media/probe.ts";
 import { buildEpisodeFilenamePlan } from "@/features/operations/library/naming-canonical-support.ts";
@@ -11,7 +11,7 @@ import {
   selectNamingFormat,
 } from "@/features/operations/library/naming-format-support.ts";
 import { importDownloadedFile } from "@/features/operations/download/download-file-import-support.ts";
-import { upsertEpisodeFilesAtomic } from "@/features/operations/download/download-episode-upsert-support.ts";
+import { upsertEpisodeFilesAtomic } from "@/features/operations/download/download-unit-upsert-support.ts";
 import {
   parseCoveredEpisodesEffect,
   resolveReconciledBatchEpisodeNumbers,
@@ -47,7 +47,7 @@ export const reconcileBatchDownloadEffect = Effect.fn("OperationsService.reconci
       return false;
     }
 
-    const coveredEpisodes = yield* parseCoveredEpisodesEffect(input.row.coveredEpisodes);
+    const coveredUnits = yield* parseCoveredEpisodesEffect(input.row.coveredUnits);
     const batchPaths = yield* resolveBatchContentPaths(input.fs, input.resolvedContentRoot).pipe(
       Effect.mapError(
         (cause) =>
@@ -63,8 +63,7 @@ export const reconcileBatchDownloadEffect = Effect.fn("OperationsService.reconci
     }
 
     const accountedEpisodes = new Set<number>();
-    const expectedEpisodeCount =
-      coveredEpisodes.length > 0 ? new Set(coveredEpisodes).size : undefined;
+    const expectedEpisodeCount = coveredUnits.length > 0 ? new Set(coveredUnits).size : undefined;
     let alreadyImportedEpisodeCount = 0;
     let importedCount = 0;
 
@@ -83,19 +82,19 @@ export const reconcileBatchDownloadEffect = Effect.fn("OperationsService.reconci
         continue;
       }
 
-      const episodeNumbers = resolveReconciledBatchEpisodeNumbers({
-        coveredEpisodes,
+      const unitNumbers = resolveReconciledBatchEpisodeNumbers({
+        coveredUnits,
         path,
         totalCandidateCount: batchPaths.length,
       });
-      if (episodeNumbers.length === 0) {
+      if (unitNumbers.length === 0) {
         continue;
       }
 
       const relevantEpisodes =
-        coveredEpisodes.length > 0
-          ? episodeNumbers.filter((ep) => coveredEpisodes.includes(ep))
-          : episodeNumbers;
+        coveredUnits.length > 0
+          ? unitNumbers.filter((ep) => coveredUnits.includes(ep))
+          : unitNumbers;
 
       if (relevantEpisodes.length === 0) {
         continue;
@@ -123,17 +122,17 @@ export const reconcileBatchDownloadEffect = Effect.fn("OperationsService.reconci
         ? yield* input.tryDatabasePromise("Failed to reconcile completed download", () =>
             input.db
               .select({
-                aired: episodes.aired,
-                downloaded: episodes.downloaded,
-                filePath: episodes.filePath,
-                number: episodes.number,
-                title: episodes.title,
+                aired: mediaUnits.aired,
+                downloaded: mediaUnits.downloaded,
+                filePath: mediaUnits.filePath,
+                number: mediaUnits.number,
+                title: mediaUnits.title,
               })
-              .from(episodes)
+              .from(mediaUnits)
               .where(
                 and(
-                  eq(episodes.animeId, input.row.animeId),
-                  inArray(episodes.number, [...allRelevantEpisodes]),
+                  eq(mediaUnits.mediaId, input.row.mediaId),
+                  inArray(mediaUnits.number, [...allRelevantEpisodes]),
                 ),
               ),
           )
@@ -161,7 +160,7 @@ export const reconcileBatchDownloadEffect = Effect.fn("OperationsService.reconci
 
       const initialNamingPlan = buildEpisodeFilenamePlan({
         animeRow: input.animeRow,
-        episodeNumbers: relevantEpisodes,
+        unitNumbers: relevantEpisodes,
         episodeRows: episodeRowsForNaming,
         filePath: path,
         namingFormat,
@@ -181,7 +180,7 @@ export const reconcileBatchDownloadEffect = Effect.fn("OperationsService.reconci
         path,
         input.runtimeConfig.library.import_mode,
         {
-          episodeNumbers: relevantEpisodes,
+          unitNumbers: relevantEpisodes,
           episodeRows: episodeRowsForNaming,
           namingFormat,
           preferredTitle: input.runtimeConfig.library.preferred_title,
@@ -194,18 +193,18 @@ export const reconcileBatchDownloadEffect = Effect.fn("OperationsService.reconci
       ).pipe(Effect.mapError(mapReconciliationInfrastructureError));
       yield* upsertEpisodeFilesAtomic(
         input.db,
-        input.row.animeId,
+        input.row.mediaId,
         relevantEpisodes,
         managedPath,
       ).pipe(Effect.mapError(mapReconciliationInfrastructureError));
 
-      for (const episodeNumber of relevantEpisodes) {
-        const existing = episodeMap.get(episodeNumber);
-        episodeMap.set(episodeNumber, {
+      for (const unitNumber of relevantEpisodes) {
+        const existing = episodeMap.get(unitNumber);
+        episodeMap.set(unitNumber, {
           aired: existing?.aired ?? null,
           downloaded: true,
           filePath: managedPath,
-          number: episodeNumber,
+          number: unitNumber,
           title: existing?.title ?? null,
         });
       }
@@ -224,7 +223,7 @@ export const reconcileBatchDownloadEffect = Effect.fn("OperationsService.reconci
         "Batch reconciliation skipped all files; leaving unreconciled for retry",
       ).pipe(
         Effect.annotateLogs({
-          animeTitle: input.row.animeTitle,
+          mediaTitle: input.row.mediaTitle,
           downloadId: input.row.id,
         }),
       );
@@ -232,9 +231,9 @@ export const reconcileBatchDownloadEffect = Effect.fn("OperationsService.reconci
     }
 
     const batchNow = yield* input.nowIso();
-    const storedCoveredEpisodes = yield* parseCoveredEpisodesEffect(input.row.coveredEpisodes);
+    const storedCoveredEpisodes = yield* parseCoveredEpisodesEffect(input.row.coveredUnits);
     const eventMetadata = yield* encodeDownloadEventMetadata({
-      covered_episodes: storedCoveredEpisodes,
+      covered_units: storedCoveredEpisodes,
       imported_path: input.animeRow.rootFolder,
       ...(input.storedSourceMetadata ? { source_metadata: input.storedSourceMetadata } : {}),
     });
@@ -243,16 +242,16 @@ export const reconcileBatchDownloadEffect = Effect.fn("OperationsService.reconci
       downloadId: input.row.id,
       fromStatus: input.row.status,
       now: batchNow,
-      animeId: input.row.animeId,
+      mediaId: input.row.mediaId,
       eventType: "download.imported.batch",
       eventMessage: batchAlreadyImported
-        ? `Reconciled already-imported batch torrent for ${input.row.animeTitle}`
-        : `Imported batch torrent for ${input.row.animeTitle}`,
+        ? `Reconciled already-imported batch torrent for ${input.row.mediaTitle}`
+        : `Imported batch torrent for ${input.row.mediaTitle}`,
       eventMetadata,
       logEventType: "downloads.reconciled.batch",
       logMessage: batchAlreadyImported
-        ? `Marked already-imported batch torrent as reconciled for ${input.row.animeTitle}`
-        : `Mapped completed batch torrent for ${input.row.animeTitle}`,
+        ? `Marked already-imported batch torrent as reconciled for ${input.row.mediaTitle}`
+        : `Mapped completed batch torrent for ${input.row.mediaTitle}`,
       db: input.db,
       tryDatabasePromise: input.tryDatabasePromise,
     });
@@ -260,7 +259,7 @@ export const reconcileBatchDownloadEffect = Effect.fn("OperationsService.reconci
     yield* input.eventBus.publish({
       type: "DownloadFinished",
       payload: {
-        anime_id: brandAnimeId(input.row.animeId),
+        media_id: brandMediaId(input.row.mediaId),
         imported_path: input.animeRow.rootFolder,
         source_metadata: input.storedSourceMetadata,
         title: input.row.torrentName,

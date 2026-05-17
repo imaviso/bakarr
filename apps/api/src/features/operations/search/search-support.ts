@@ -46,8 +46,8 @@ export function toNyaaSearchResult(item: ParsedRelease): NyaaSearchResult {
     if (identity.scheme === "daily") {
       [parsedAirDate] = identity.air_dates;
     } else {
-      parsedEpisodeNumbers = [...identity.episode_numbers];
-      parsedEpisode = identity.episode_numbers[0]?.toString();
+      parsedEpisodeNumbers = [...identity.unit_numbers];
+      parsedEpisode = identity.unit_numbers[0]?.toString();
     }
   }
 
@@ -58,12 +58,12 @@ export function toNyaaSearchResult(item: ParsedRelease): NyaaSearchResult {
     is_seadex_best: item.isSeaDexBest,
     leechers: item.leechers,
     magnet: item.magnet,
-    parsed_episode: parsedEpisode,
+    parsed_unit: parsedEpisode,
     parsed_group: item.group,
     parsed_quality: parsedRelease.quality.name,
     parsed_resolution: item.resolution,
-    parsed_episode_label: parsedEpisodeLabel,
-    parsed_episode_numbers: parsedEpisodeNumbers,
+    parsed_unit_label: parsedEpisodeLabel,
+    parsed_unit_numbers: parsedEpisodeNumbers,
     parsed_air_date: parsedAirDate,
     pub_date: item.pubDate,
     remake: item.remake,
@@ -81,7 +81,7 @@ export function toNyaaSearchResult(item: ParsedRelease): NyaaSearchResult {
 }
 
 export function fallbackReleases(query: string, title?: string): ParsedRelease[] {
-  const base = title || query || "Anime";
+  const base = title || query || "Media";
   const infoHash = fallbackSearchInfoHash(base);
   return [
     {

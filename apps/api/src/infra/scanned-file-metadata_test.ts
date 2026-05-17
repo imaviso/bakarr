@@ -100,39 +100,39 @@ it("extractAudioChannels returns undefined when no channel info", () => {
 
 it("extractEpisodeTitleFromPath strips extension and label prefix", () => {
   const result = extractEpisodeTitleFromPath({
-    filePath: "/downloads/[Group] Show - 01 - Episode Title [1080p].mkv",
+    filePath: "/downloads/[Group] Show - 01 - MediaUnit Title [1080p].mkv",
     sourceIdentity: {
-      episode_numbers: [1],
+      unit_numbers: [1],
       label: "01",
       scheme: "absolute",
     },
   });
-  assert.deepStrictEqual(result, "Episode Title");
+  assert.deepStrictEqual(result, "MediaUnit Title");
 });
 
 it("extractEpisodeTitleFromPath strips metadata tags from end of title", () => {
   const result = extractEpisodeTitleFromPath({
-    filePath: "/downloads/[Group] Show - 01 - Episode Title [1080p] [HEVC] [AAC].mkv",
+    filePath: "/downloads/[Group] Show - 01 - MediaUnit Title [1080p] [HEVC] [AAC].mkv",
     sourceIdentity: {
-      episode_numbers: [1],
+      unit_numbers: [1],
       label: "01",
       scheme: "absolute",
     },
   });
-  assert.deepStrictEqual(result, "Episode Title");
+  assert.deepStrictEqual(result, "MediaUnit Title");
 });
 
 it("extractEpisodeTitleFromPath strips group name suffix", () => {
   const result = extractEpisodeTitleFromPath({
-    filePath: "/downloads/[SubsPlease] Show - 01 - Episode Title [1080p] [SubsPlease].mkv",
+    filePath: "/downloads/[SubsPlease] Show - 01 - MediaUnit Title [1080p] [SubsPlease].mkv",
     group: "SubsPlease",
     sourceIdentity: {
-      episode_numbers: [1],
+      unit_numbers: [1],
       label: "01",
       scheme: "absolute",
     },
   });
-  assert.deepStrictEqual(result, "Episode Title");
+  assert.deepStrictEqual(result, "MediaUnit Title");
 });
 
 it("extractEpisodeTitleFromPath returns undefined when no source identity", () => {
@@ -144,9 +144,9 @@ it("extractEpisodeTitleFromPath returns undefined when no source identity", () =
 
 it("extractEpisodeTitleFromPath returns undefined when label not found", () => {
   const result = extractEpisodeTitleFromPath({
-    filePath: "/downloads/Show - Episode Title [1080p].mkv",
+    filePath: "/downloads/Show - MediaUnit Title [1080p].mkv",
     sourceIdentity: {
-      episode_numbers: [1],
+      unit_numbers: [1],
       label: "01",
       scheme: "absolute",
     },

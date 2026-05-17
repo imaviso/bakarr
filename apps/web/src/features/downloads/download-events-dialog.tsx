@@ -24,7 +24,7 @@ import { errorMessage } from "~/api/effect/errors";
 import { DownloadEventsFeed } from "~/features/downloads/download-events/download-events-feed";
 
 interface DownloadEventsDialogProps {
-  animeId?: number | undefined;
+  mediaId?: number | undefined;
   downloadId?: number | undefined;
   eventType?: string | undefined;
   formatTimestamp: (value: string) => string;
@@ -53,7 +53,7 @@ export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
   const queryInput: DownloadEventsFilterInput = {
     direction: pagination.direction,
     limit: props.limit ?? 25,
-    ...(props.animeId === undefined ? {} : { animeId: props.animeId }),
+    ...(props.mediaId === undefined ? {} : { mediaId: props.mediaId }),
     ...(pagination.cursor === undefined ? {} : { cursor: pagination.cursor }),
     ...(props.downloadId === undefined ? {} : { downloadId: props.downloadId }),
     ...(props.eventType === undefined ? {} : { eventType: props.eventType }),
@@ -61,7 +61,7 @@ export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
   const query = useDownloadEventsQuery(queryInput, { enabled: open });
   const exportDownloadEvents = useDownloadEventsExportMutation();
   const exportBaseInput = {
-    ...(props.animeId === undefined ? {} : { animeId: props.animeId }),
+    ...(props.mediaId === undefined ? {} : { mediaId: props.mediaId }),
     ...(props.downloadId === undefined ? {} : { downloadId: props.downloadId }),
     ...(props.eventType === undefined ? {} : { eventType: props.eventType }),
     limit: props.exportLimit ?? 10_000,

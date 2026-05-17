@@ -3,7 +3,7 @@ import { Cause, Effect, Exit } from "effect";
 
 import * as schema from "@/db/schema.ts";
 import type { AppDatabase } from "@/db/database.ts";
-import { appConfig, episodes } from "@/db/schema.ts";
+import { appConfig, mediaUnits } from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import {
   analyzeScannedFile,
@@ -12,7 +12,7 @@ import {
   titlesMatch,
   toAnimeSearchCandidate,
 } from "@/features/operations/library/library-import.ts";
-import { anime } from "@/db/schema.ts";
+import { media } from "@/db/schema.ts";
 import { OperationsStoredDataError } from "@/features/operations/errors.ts";
 import { encodeConfigCore, toConfigCore } from "@/features/system/config-codec.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
@@ -24,7 +24,7 @@ it("analyzeScannedFile strips release noise and extracts metadata", () => {
   });
   const parsed = result.scanned;
 
-  assert.deepStrictEqual(parsed.episode_number, 3);
+  assert.deepStrictEqual(parsed.unit_number, 3);
   assert.deepStrictEqual(parsed.coverage_summary, undefined);
   assert.deepStrictEqual(parsed.group, "SubsPlease");
   assert.deepStrictEqual(parsed.resolution, "1080p");
@@ -38,9 +38,9 @@ it("analyzeScannedFile handles Sonarr and Plex style episode names", () => {
   });
   const parsed = result.scanned;
 
-  assert.deepStrictEqual(parsed.episode_number, 1);
+  assert.deepStrictEqual(parsed.unit_number, 1);
   assert.deepStrictEqual(parsed.coverage_summary, undefined);
-  assert.deepStrictEqual(parsed.episode_title, "Good Day to You♡ Quit Playing the Guitar!!!");
+  assert.deepStrictEqual(parsed.unit_title, "Good Day to You♡ Quit Playing the Guitar!!!");
   assert.deepStrictEqual(parsed.audio_channels, "2.0");
   assert.deepStrictEqual(parsed.audio_codec, "AAC");
   assert.deepStrictEqual(parsed.match_reason, "Parsed S01E01 from the filename");
@@ -57,10 +57,10 @@ it("analyzeScannedFile preserves multi-episode local ranges", () => {
   });
   const parsed = result.scanned;
 
-  assert.deepStrictEqual(parsed.episode_number, 1);
+  assert.deepStrictEqual(parsed.unit_number, 1);
   assert.deepStrictEqual(parsed.coverage_summary, "Episodes 1-2");
-  assert.deepStrictEqual(parsed.episode_numbers, [1, 2]);
-  assert.deepStrictEqual(parsed.episode_title, undefined);
+  assert.deepStrictEqual(parsed.unit_numbers, [1, 2]);
+  assert.deepStrictEqual(parsed.unit_title, undefined);
   assert.deepStrictEqual(parsed.match_reason, "Parsed S01E01-E02 from the filename");
   assert.deepStrictEqual(parsed.season, 1);
   assert.deepStrictEqual(parsed.warnings, undefined);
@@ -81,7 +81,7 @@ it("analyzeScannedFile skips extras and samples", () => {
   assert.deepStrictEqual(sample.skipped !== undefined, true);
 });
 
-it("analyzeScannedFile populates source_identity for season episodes", () => {
+it("analyzeScannedFile populates source_identity for season mediaUnits", () => {
   const result = analyzeScannedFile({
     name: "Show.S02E03.mkv",
     path: "/library/Show.S02E03.mkv",
@@ -90,13 +90,13 @@ it("analyzeScannedFile populates source_identity for season episodes", () => {
 
   assert.deepStrictEqual(parsed.source_identity?.scheme, "season");
   assert.deepStrictEqual(parsed.source_identity?.season, 2);
-  assert.deepStrictEqual(parsed.source_identity?.episode_numbers, [3]);
+  assert.deepStrictEqual(parsed.source_identity?.unit_numbers, [3]);
   assert.deepStrictEqual(parsed.source_identity?.label, "S02E03");
-  assert.deepStrictEqual(parsed.episode_number, 3);
+  assert.deepStrictEqual(parsed.unit_number, 3);
   assert.deepStrictEqual(parsed.season, 2);
 });
 
-it("analyzeScannedFile populates source_identity for daily episodes", () => {
+it("analyzeScannedFile populates source_identity for daily mediaUnits", () => {
   const result = analyzeScannedFile({
     name: "Show.2025-03-14.mkv",
     path: "/library/Show.2025-03-14.mkv",
@@ -125,7 +125,7 @@ it("analyzeScannedFile marks unknown files as needing manual mapping", () => {
   const parsed = result.scanned;
 
   assert.deepStrictEqual(parsed.needs_manual_mapping, true);
-  assert.deepStrictEqual(parsed.episode_number, 0);
+  assert.deepStrictEqual(parsed.unit_number, 0);
   assert.deepStrictEqual(
     parsed.match_reason,
     "No reliable episode identity found in the filename; review this file before import",
@@ -140,7 +140,7 @@ it.scoped("buildRenamePreview fills naming tokens from existing file metadata", 
         const appDb: AppDatabase = db;
         const rootFolder = "/mnt/media2/Shows/Nisemonogatari (2012)";
         const namingFormat =
-          "{title} - S{season:02}E{episode:02} - {episode_title} [{quality} {resolution}][{video_codec}][{audio_codec} {audio_channels}][{group}]";
+          "{title} - S{season:02}E{episode:02} - {unit_title} [{quality} {resolution}][{video_codec}][{audio_codec} {audio_channels}][{group}]";
         const testConfig = makeTestConfig(databaseFile, (config) => ({
           ...config,
           library: { ...config.library, naming_format: namingFormat },
@@ -156,9 +156,9 @@ it.scoped("buildRenamePreview fills naming tokens from existing file metadata", 
         );
 
         yield* Effect.tryPromise(() =>
-          appDb.insert(anime).values(
+          appDb.insert(media).values(
             makeAnimeRow({
-              episodeCount: 11,
+              unitCount: 11,
               rootFolder,
               startDate: "2012-01-08",
               titleRomaji: "Nisemonogatari",
@@ -167,9 +167,9 @@ it.scoped("buildRenamePreview fills naming tokens from existing file metadata", 
         );
 
         yield* Effect.tryPromise(() =>
-          appDb.insert(episodes).values({
+          appDb.insert(mediaUnits).values({
             aired: null,
-            animeId: 1,
+            mediaId: 1,
             downloaded: true,
             filePath: `${rootFolder}/Season 1/Nisemonogatari - S01E01 - Karen Bee, Part 1 -[1920x1080]-[hevc]-[aac][MTBB].mkv`,
             number: 1,
@@ -188,7 +188,7 @@ it.scoped("buildRenamePreview fills naming tokens from existing file metadata", 
         );
         assert.deepStrictEqual(firstPreview.fallback_used, undefined);
         assert.deepStrictEqual(firstPreview.format_used, namingFormat);
-        assert.deepStrictEqual(firstPreview.metadata_snapshot?.episode_title, "Karen Bee, Part 1");
+        assert.deepStrictEqual(firstPreview.metadata_snapshot?.unit_title, "Karen Bee, Part 1");
         assert.deepStrictEqual(firstPreview.metadata_snapshot?.title_source, "preferred_romaji");
         assert.deepStrictEqual(firstPreview.metadata_snapshot?.video_codec, "HEVC");
       }),
@@ -220,7 +220,7 @@ it.scoped("buildRenamePreview respects preferred English title and movie naming 
         );
 
         yield* Effect.tryPromise(() =>
-          appDb.insert(anime).values(
+          appDb.insert(media).values(
             makeAnimeRow({
               format: "MOVIE",
               rootFolder: "/mnt/media2/Movies/Kimi no Na wa.",
@@ -233,9 +233,9 @@ it.scoped("buildRenamePreview respects preferred English title and movie naming 
         );
 
         yield* Effect.tryPromise(() =>
-          appDb.insert(episodes).values({
+          appDb.insert(mediaUnits).values({
             aired: null,
-            animeId: 1,
+            mediaId: 1,
             downloaded: true,
             filePath: "/mnt/media2/Movies/Kimi no Na wa./movie-source-file.mkv",
             number: 1,
@@ -278,7 +278,7 @@ it.scoped("buildRenamePreview reports fallback when season metadata is missing",
         );
 
         yield* Effect.tryPromise(() =>
-          appDb.insert(anime).values(
+          appDb.insert(media).values(
             makeAnimeRow({
               rootFolder: "/library/Show",
               titleRomaji: "Show",
@@ -287,9 +287,9 @@ it.scoped("buildRenamePreview reports fallback when season metadata is missing",
         );
 
         yield* Effect.tryPromise(() =>
-          appDb.insert(episodes).values({
+          appDb.insert(mediaUnits).values({
             aired: null,
-            animeId: 1,
+            mediaId: 1,
             downloaded: true,
             filePath: "/downloads/Show - 01.mkv",
             number: 1,
@@ -318,7 +318,7 @@ it("findBestLocalAnimeMatch handles title normalization and rejects weak matches
     coverImage: null,
     description: null,
     endDate: null,
-    episodeCount: 24,
+    unitCount: 24,
     format: "TV",
     genres: "Action",
     id: 20,
@@ -360,14 +360,14 @@ it.effect("titlesMatch checks normalized candidate titles", () =>
         description: "Hero school",
         endDate: "2020-06-01",
         endYear: 2020,
-        episodeCount: 12,
+        unitCount: 12,
         format: "TV",
         genres: '["Action","School"]',
         id: 30,
         malId: null,
         monitored: true,
         nextAiringAt: null,
-        nextAiringEpisode: null,
+        nextAiringUnit: null,
         profileName: "Default",
         releaseProfileIds: "[]",
         rootFolder: "/library/My Hero Academia",
@@ -419,7 +419,7 @@ it.effect("toAnimeSearchCandidate fails for corrupt stored genres", () =>
   }),
 );
 
-function makeAnimeRow(overrides: Partial<typeof anime.$inferSelect>): typeof anime.$inferSelect {
+function makeAnimeRow(overrides: Partial<typeof media.$inferSelect>): typeof media.$inferSelect {
   return {
     addedAt: "2024-01-01T00:00:00.000Z",
     background: null,
@@ -429,7 +429,7 @@ function makeAnimeRow(overrides: Partial<typeof anime.$inferSelect>): typeof ani
     duration: null,
     endDate: null,
     favorites: null,
-    episodeCount: 12,
+    unitCount: 12,
     format: "TV",
     genres: "Action",
     id: 1,
@@ -439,7 +439,7 @@ function makeAnimeRow(overrides: Partial<typeof anime.$inferSelect>): typeof ani
     monitored: true,
     profileName: "Default",
     releaseProfileIds: "[]",
-    rootFolder: "/library/Anime",
+    rootFolder: "/library/Media",
     popularity: null,
     rank: null,
     rating: null,
@@ -449,15 +449,15 @@ function makeAnimeRow(overrides: Partial<typeof anime.$inferSelect>): typeof ani
     startYear: null,
     endYear: null,
     nextAiringAt: null,
-    nextAiringEpisode: null,
+    nextAiringUnit: null,
     status: "FINISHED",
     studios: "Studio",
     titleEnglish: null,
     titleNative: null,
-    titleRomaji: "Anime",
+    titleRomaji: "Media",
     synonyms: null,
-    relatedAnime: null,
-    recommendedAnime: null,
+    relatedMedia: null,
+    recommendedMedia: null,
     ...overrides,
   };
 }

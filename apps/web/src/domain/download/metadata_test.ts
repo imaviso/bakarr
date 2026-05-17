@@ -101,12 +101,12 @@ it("download metadata normalizes legacy manual batch decision reasons", () => {
   }
 
   const batchDecision = formatDownloadDecisionSummary({
-    covered_episodes: [1, 2],
+    covered_units: [1, 2],
     decision_reason: "Manual grab from trusted release search",
     is_batch: true,
     source_metadata: {
       source_identity: {
-        episode_numbers: [1, 2],
+        unit_numbers: [1, 2],
         label: "01-02",
         scheme: "absolute",
       },

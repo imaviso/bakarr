@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { brandAnimeId } from "@bakarr/shared";
+import { brandMediaId } from "@bakarr/shared";
 import type { ImportFileRequest, ScannedFile } from "~/api/contracts";
 import {
   toggleSelectedImportFile,
@@ -9,7 +9,7 @@ import {
 
 function scannedFile(overrides: Partial<ScannedFile> = {}): ScannedFile {
   return {
-    episode_number: 1,
+    unit_number: 1,
     filename: "episode-01.mkv",
     parsed_title: "Show",
     source_path: "/imports/show/episode-01.mkv",
@@ -22,12 +22,12 @@ describe("import file selection", () => {
     const selected = new Map<string, ImportFileRequest>();
     const file = scannedFile({ group: "SubsPlease", quality: "WEB-DL", season: 2 });
 
-    const next = toggleSelectedImportFile(selected, file, brandAnimeId(100));
+    const next = toggleSelectedImportFile(selected, file, brandMediaId(100));
 
     expect(selected.size).toBe(0);
     expect(next.get(file.source_path)).toEqual({
-      anime_id: brandAnimeId(100),
-      episode_number: 1,
+      media_id: brandMediaId(100),
+      unit_number: 1,
       season: 2,
       source_metadata: {
         group: "SubsPlease",
@@ -42,25 +42,25 @@ describe("import file selection", () => {
     const selected = new Map<string, ImportFileRequest>([
       [
         file.source_path,
-        { anime_id: brandAnimeId(100), episode_number: 1, source_path: file.source_path },
+        { media_id: brandMediaId(100), unit_number: 1, source_path: file.source_path },
       ],
     ]);
 
-    const next = toggleSelectedImportFile(selected, file, brandAnimeId(100));
+    const next = toggleSelectedImportFile(selected, file, brandMediaId(100));
 
     expect(selected.size).toBe(1);
     expect(next.has(file.source_path)).toBe(false);
   });
 
   it("updates anime while preserving explicit mapping and metadata", () => {
-    const file = scannedFile({ episode_number: 9, season: 9 });
+    const file = scannedFile({ unit_number: 9, season: 9 });
     const selected = new Map<string, ImportFileRequest>([
       [
         file.source_path,
         {
-          anime_id: brandAnimeId(100),
-          episode_number: 3,
-          episode_numbers: [3, 4],
+          media_id: brandMediaId(100),
+          unit_number: 3,
+          unit_numbers: [3, 4],
           season: 1,
           source_metadata: { group: "Manual" },
           source_path: file.source_path,
@@ -68,13 +68,13 @@ describe("import file selection", () => {
       ],
     ]);
 
-    const next = updateSelectedImportFileAnime(selected, file, brandAnimeId(200));
+    const next = updateSelectedImportFileAnime(selected, file, brandMediaId(200));
 
-    expect(selected.get(file.source_path)?.anime_id).toBe(100);
+    expect(selected.get(file.source_path)?.media_id).toBe(100);
     expect(next.get(file.source_path)).toEqual({
-      anime_id: brandAnimeId(200),
-      episode_number: 3,
-      episode_numbers: [3, 4],
+      media_id: brandMediaId(200),
+      unit_number: 3,
+      unit_numbers: [3, 4],
       season: 1,
       source_metadata: { group: "Manual" },
       source_path: file.source_path,
@@ -82,14 +82,14 @@ describe("import file selection", () => {
   });
 
   it("updates episode mapping while preserving anime and batch episodes", () => {
-    const file = scannedFile({ episode_number: 9, season: 9 });
+    const file = scannedFile({ unit_number: 9, season: 9 });
     const selected = new Map<string, ImportFileRequest>([
       [
         file.source_path,
         {
-          anime_id: brandAnimeId(100),
-          episode_number: 3,
-          episode_numbers: [3, 4],
+          media_id: brandMediaId(100),
+          unit_number: 3,
+          unit_numbers: [3, 4],
           season: 1,
           source_path: file.source_path,
         },
@@ -98,11 +98,11 @@ describe("import file selection", () => {
 
     const next = updateSelectedImportFileMapping(selected, file, 2, 8);
 
-    expect(selected.get(file.source_path)?.episode_number).toBe(3);
+    expect(selected.get(file.source_path)?.unit_number).toBe(3);
     expect(next.get(file.source_path)).toEqual({
-      anime_id: brandAnimeId(100),
-      episode_number: 8,
-      episode_numbers: [3, 4],
+      media_id: brandMediaId(100),
+      unit_number: 8,
+      unit_numbers: [3, 4],
       season: 2,
       source_path: file.source_path,
     });

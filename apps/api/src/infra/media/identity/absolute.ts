@@ -16,7 +16,7 @@ export function parseAbsoluteIdentity(
     if (num > 0 && num < 2000) {
       return new AbsoluteEpisodeIdentity({
         scheme: "absolute",
-        episode_numbers: [num],
+        unit_numbers: [num],
         label: String(num).padStart(2, "0"),
       });
     }
@@ -28,7 +28,7 @@ export function parseAbsoluteIdentity(
     if (num > 0 && num < 2000 && !isYearLike(num)) {
       return new AbsoluteEpisodeIdentity({
         scheme: "absolute",
-        episode_numbers: [num],
+        unit_numbers: [num],
         label: String(num).padStart(2, "0"),
       });
     }
@@ -40,7 +40,7 @@ export function parseAbsoluteIdentity(
     if (num > 0 && num < 2000) {
       return new AbsoluteEpisodeIdentity({
         scheme: "absolute",
-        episode_numbers: [num],
+        unit_numbers: [num],
         label: String(num).padStart(2, "0"),
       });
     }
@@ -61,7 +61,7 @@ export function parseAbsoluteIdentity(
 
       return new AbsoluteEpisodeIdentity({
         scheme: "absolute",
-        episode_numbers: [num],
+        unit_numbers: [num],
         label: String(num).padStart(2, "0"),
       });
     }
@@ -99,7 +99,7 @@ export function parseAbsoluteIdentity(
 
     return new AbsoluteEpisodeIdentity({
       scheme: "absolute",
-      episode_numbers: [num],
+      unit_numbers: [num],
       label: String(num).padStart(2, "0"),
     });
   }
@@ -155,7 +155,7 @@ function parseAbsoluteRange(value: string): AbsoluteEpisodeIdentity | undefined 
       const eps = rangeArray(start, end);
       return new AbsoluteEpisodeIdentity({
         scheme: "absolute",
-        episode_numbers: eps,
+        unit_numbers: eps,
         label:
           eps.length === 1
             ? String(eps[0]).padStart(2, "0")

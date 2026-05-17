@@ -1,19 +1,19 @@
 import { Effect } from "effect";
 import { and, eq, inArray, or } from "drizzle-orm";
 
-import { anime, episodes } from "@/db/schema.ts";
+import { media, mediaUnits } from "@/db/schema.ts";
 import type { AppDatabase } from "@/db/database.ts";
-import { getAnimeRowEffect as requireAnime } from "@/features/anime/shared/anime-read-repository.ts";
+import { getAnimeRowEffect as requireAnime } from "@/features/media/shared/media-read-repository.ts";
 import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 
 export const loadImportScanAnimeRows = (input: {
-  readonly animeId?: number;
+  readonly mediaId?: number;
   readonly db: AppDatabase;
   readonly tryDatabasePromise: TryDatabasePromise;
 }) =>
-  input.animeId
-    ? Effect.map(requireAnime(input.db, input.animeId), (row) => [row])
-    : input.tryDatabasePromise("Failed to scan import path", () => input.db.select().from(anime));
+  input.mediaId
+    ? Effect.map(requireAnime(input.db, input.mediaId), (row) => [row])
+    : input.tryDatabasePromise("Failed to scan import path", () => input.db.select().from(media));
 
 export const loadMappedEpisodeRows = (input: {
   readonly candidateAnimeIds: readonly number[];
@@ -31,13 +31,13 @@ export const loadMappedEpisodeRows = (input: {
 
   const byPath =
     input.candidatePaths.length > 0
-      ? inArray(episodes.filePath, [...input.candidatePaths])
+      ? inArray(mediaUnits.filePath, [...input.candidatePaths])
       : undefined;
   const byAnimeEpisode =
     input.candidateAnimeIds.length > 0 && input.episodeNumberCandidates.length > 0
       ? and(
-          inArray(episodes.animeId, [...input.candidateAnimeIds]),
-          inArray(episodes.number, [...input.episodeNumberCandidates]),
+          inArray(mediaUnits.mediaId, [...input.candidateAnimeIds]),
+          inArray(mediaUnits.number, [...input.episodeNumberCandidates]),
         )
       : undefined;
   const whereClause =
@@ -50,13 +50,13 @@ export const loadMappedEpisodeRows = (input: {
   return input.tryDatabasePromise("Failed to scan import path", () => {
     const query = input.db
       .select({
-        anime_id: episodes.animeId,
-        anime_title: anime.titleRomaji,
-        episode_number: episodes.number,
-        file_path: episodes.filePath,
+        media_id: mediaUnits.mediaId,
+        media_title: media.titleRomaji,
+        unit_number: mediaUnits.number,
+        file_path: mediaUnits.filePath,
       })
-      .from(episodes)
-      .innerJoin(anime, eq(episodes.animeId, anime.id));
+      .from(mediaUnits)
+      .innerJoin(media, eq(mediaUnits.mediaId, media.id));
 
     return query.where(whereClause);
   });
@@ -75,16 +75,16 @@ export const loadScopedEpisodeRows = (input: {
   return input.tryDatabasePromise("Failed to scan import path", () =>
     input.db
       .select({
-        aired: episodes.aired,
-        animeId: episodes.animeId,
-        number: episodes.number,
-        title: episodes.title,
+        aired: mediaUnits.aired,
+        mediaId: mediaUnits.mediaId,
+        number: mediaUnits.number,
+        title: mediaUnits.title,
       })
-      .from(episodes)
+      .from(mediaUnits)
       .where(
         and(
-          inArray(episodes.animeId, [...input.animeIds]),
-          inArray(episodes.number, [...input.episodeNumberCandidates]),
+          inArray(mediaUnits.mediaId, [...input.animeIds]),
+          inArray(mediaUnits.number, [...input.episodeNumberCandidates]),
         ),
       ),
   );

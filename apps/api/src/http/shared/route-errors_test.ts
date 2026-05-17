@@ -4,7 +4,7 @@ import { Effect, Logger } from "effect";
 
 import { DatabaseError } from "@/db/database.ts";
 import { AuthError } from "@/features/auth/errors.ts";
-import { AnimeConflictError, AnimeNotFoundError, AnimePathError } from "@/features/anime/errors.ts";
+import { MediaConflictError, MediaNotFoundError, MediaPathError } from "@/features/media/errors.ts";
 import {
   DownloadConflictError,
   DownloadNotFoundError,
@@ -30,9 +30,9 @@ import {
 } from "@/features/system/errors.ts";
 import { mapRouteError } from "@/http/shared/route-errors/index.ts";
 import {
-  EpisodeStreamAccessError,
-  EpisodeStreamRangeError,
-} from "@/features/anime/stream/anime-stream-errors.ts";
+  StreamAccessError,
+  StreamRangeError,
+} from "@/features/media/stream/media-stream-errors.ts";
 import { RequestValidationError } from "@/http/shared/route-validation.ts";
 import { routeResponse } from "@/http/shared/router-helpers.ts";
 
@@ -58,12 +58,12 @@ it("route errors maps known tagged errors to expected responses", () => {
       expected: { message: "Internal server error", status: 500 },
     },
     {
-      error: new EpisodeStreamAccessError({ message: "stream forbidden", status: 403 }),
+      error: new StreamAccessError({ message: "stream forbidden", status: 403 }),
       expected: { message: "stream forbidden", status: 403 },
     },
     {
-      error: new AnimeNotFoundError({ message: "anime missing" }),
-      expected: { message: "anime missing", status: 404 },
+      error: new MediaNotFoundError({ message: "media missing" }),
+      expected: { message: "media missing", status: 404 },
     },
     {
       error: new ImageAssetAccessError({
@@ -91,8 +91,8 @@ it("route errors maps known tagged errors to expected responses", () => {
       expected: { message: "download missing", status: 404 },
     },
     {
-      error: new OperationsAnimeNotFoundError({ message: "ops anime missing" }),
-      expected: { message: "ops anime missing", status: 404 },
+      error: new OperationsAnimeNotFoundError({ message: "ops media missing" }),
+      expected: { message: "ops media missing", status: 404 },
     },
     {
       error: new ProfileNotFoundError({ message: "profile missing" }),
@@ -109,8 +109,8 @@ it("route errors maps known tagged errors to expected responses", () => {
       expected: { message: "bad input", status: 400 },
     },
     {
-      error: new AnimeConflictError({ message: "anime conflict" }),
-      expected: { message: "anime conflict", status: 409 },
+      error: new MediaConflictError({ message: "media conflict" }),
+      expected: { message: "media conflict", status: 409 },
     },
     {
       error: new DownloadConflictError({ message: "download conflict" }),
@@ -121,8 +121,8 @@ it("route errors maps known tagged errors to expected responses", () => {
       expected: { message: "ops conflict", status: 409 },
     },
     {
-      error: new AnimePathError({ message: "bad anime path" }),
-      expected: { message: "bad anime path", status: 400 },
+      error: new MediaPathError({ message: "bad media path" }),
+      expected: { message: "bad media path", status: 400 },
     },
     {
       error: new OperationsPathError({ message: "bad ops path" }),
@@ -169,10 +169,10 @@ it("route errors maps known tagged errors to expected responses", () => {
   }
 });
 
-it("route errors preserves range headers for episode streaming", () => {
+it("route errors preserves range headers for stream", () => {
   assert.deepStrictEqual(
     mapRouteError(
-      new EpisodeStreamRangeError({
+      new StreamRangeError({
         fileSize: 1024,
         message: "Requested range not satisfiable",
         status: 416,

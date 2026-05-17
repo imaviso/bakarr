@@ -13,8 +13,8 @@ import type { AppConfigOverrides, BootstrapConfigOverrides } from "@/config/sche
 import type { ObservabilityConfigOverrides } from "@/config/observability.ts";
 import { BackgroundWorkerControllerLive } from "@/background/controller-core.ts";
 import { BackgroundTaskRunnerLive } from "@/background/task-runner.ts";
-import { AnimeEnrollmentServiceLive } from "@/features/anime/add/anime-enrollment-service.ts";
-import { makeAnimeFeatureLayer } from "@/features/anime/layer.ts";
+import { AnimeEnrollmentServiceLive } from "@/features/media/add/media-enrollment-service.ts";
+import { makeAnimeFeatureLayer } from "@/features/media/layer.ts";
 import { makeAuthFeatureLayer } from "@/features/auth/layer.ts";
 import { makeOperationsFeatureLayer } from "@/features/operations/layer.ts";
 import { LibraryBrowseServiceLive } from "@/features/operations/library/library-browse-service.ts";
@@ -81,7 +81,7 @@ export function makeApiLifecycleLayers(
     runtimeConfigSnapshotLayer,
   );
 
-  // Anime feature graph owns its internal service wiring.
+  // Media feature graph owns its internal service wiring.
   const animeLiveLayer = makeAnimeFeatureLayer(runtimeSupportLayer);
 
   const operationsLayer = makeOperationsFeatureLayer(runtimeSupportLayer);

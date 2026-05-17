@@ -2,7 +2,7 @@ import { assert, it } from "@effect/vitest";
 
 import { parseRssReleaseUnitNumbers } from "@/features/operations/background-search/background-search-rss-release.ts";
 
-it("parseRssReleaseUnitNumbers parses anime episode numbers", () => {
+it("parseRssReleaseUnitNumbers parses media episode numbers", () => {
   assert.deepStrictEqual(
     parseRssReleaseUnitNumbers({
       mediaKind: "anime",

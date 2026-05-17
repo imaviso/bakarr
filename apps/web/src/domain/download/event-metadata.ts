@@ -10,31 +10,31 @@ import {
 
 type DownloadEventLike = Pick<DownloadEvent, "metadata_json">;
 
-export function formatDownloadEventCoverage(coveredEpisodes?: readonly number[]) {
-  if (!coveredEpisodes?.length) {
+export function formatDownloadEventCoverage(coveredUnits?: readonly number[]) {
+  if (!coveredUnits?.length) {
     return undefined;
   }
 
-  return coveredEpisodes.length === 1
-    ? `Episode ${coveredEpisodes[0]}`
-    : `Episodes ${coveredEpisodes.join(", ")}`;
+  return coveredUnits.length === 1
+    ? `MediaUnit ${coveredUnits[0]}`
+    : `Episodes ${coveredUnits.join(", ")}`;
 }
 
 export function getDownloadEventMetadataSummary(input: DownloadEventLike) {
   const sourceMetadata = input.metadata_json?.source_metadata;
-  const coveredEpisodes = input.metadata_json?.covered_episodes;
+  const coveredUnits = input.metadata_json?.covered_units;
   const inferredBatch =
-    (coveredEpisodes?.length ?? 0) > 1 ||
+    (coveredUnits?.length ?? 0) > 1 ||
     (sourceMetadata?.source_identity?.scheme !== "daily" &&
-      (sourceMetadata?.source_identity?.episode_numbers?.length ?? 0) > 1) ||
+      (sourceMetadata?.source_identity?.unit_numbers?.length ?? 0) > 1) ||
     sourceMetadata?.source_identity?.scheme === "season";
 
   const sourceSummaryInput = buildReleaseSourceSummaryInput(sourceMetadata);
 
   return {
-    coverage: formatDownloadEventCoverage(coveredEpisodes),
+    coverage: formatDownloadEventCoverage(coveredUnits),
     decision: formatDownloadDecisionSummary({
-      covered_episodes: coveredEpisodes,
+      covered_units: coveredUnits,
       decision_reason: sourceMetadata?.decision_reason,
       is_batch: inferredBatch,
       source_metadata: sourceMetadata,

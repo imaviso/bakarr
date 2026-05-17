@@ -1,7 +1,7 @@
 import type { DownloadEventsExportInput, DownloadEventsFilterInput } from "~/api/contracts";
 
 export interface DownloadEventsQueryFields {
-  animeId: string;
+  mediaId: string;
   downloadId: string;
   endDate: string;
   eventType: string;
@@ -35,7 +35,7 @@ function parseOptionalText(value: string) {
 
 function normalizeDownloadEventsQueryFields(input: DownloadEventsQueryFields) {
   return {
-    animeId: parseOptionalPositiveInt(input.animeId),
+    mediaId: parseOptionalPositiveInt(input.mediaId),
     downloadId: parseOptionalPositiveInt(input.downloadId),
     endDate: parseOptionalText(input.endDate),
     eventType:
@@ -54,7 +54,7 @@ export function buildDownloadEventsFilterInput(
 
   return {
     direction: input.direction,
-    ...(base.animeId === undefined ? {} : { animeId: base.animeId }),
+    ...(base.mediaId === undefined ? {} : { mediaId: base.mediaId }),
     ...(cursor === undefined ? {} : { cursor }),
     ...(base.downloadId === undefined ? {} : { downloadId: base.downloadId }),
     ...(base.endDate === undefined ? {} : { endDate: base.endDate }),
@@ -72,7 +72,7 @@ export function buildDownloadEventsExportInput(
   const base = normalizeDownloadEventsQueryFields(input);
 
   return {
-    ...(base.animeId === undefined ? {} : { animeId: base.animeId }),
+    ...(base.mediaId === undefined ? {} : { mediaId: base.mediaId }),
     ...(base.downloadId === undefined ? {} : { downloadId: base.downloadId }),
     ...(base.endDate === undefined ? {} : { endDate: base.endDate }),
     ...(base.eventType === undefined ? {} : { eventType: base.eventType }),

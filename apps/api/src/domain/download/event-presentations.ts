@@ -2,13 +2,13 @@ import { inArray } from "drizzle-orm";
 import { Effect, Schema } from "effect";
 
 import {
-  brandAnimeId,
+  brandMediaId,
   brandDownloadEventId,
   brandDownloadId,
   DownloadEventMetadataSchema,
   type DownloadEvent,
 } from "@packages/shared/index.ts";
-import { anime, downloads } from "@/db/schema.ts";
+import { media, downloads } from "@/db/schema.ts";
 import type { AppDatabase, DatabaseError } from "@/db/database.ts";
 import { OperationsStoredDataError } from "@/features/operations/errors.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
@@ -16,13 +16,13 @@ import { tryDatabasePromise } from "@/infra/effect/db.ts";
 const DownloadEventMetadataJsonSchema = Schema.parseJson(DownloadEventMetadataSchema);
 
 export interface DownloadEventPresentationContext {
-  readonly animeImage?: string | undefined;
-  readonly animeTitle?: string | undefined;
+  readonly mediaImage?: string | undefined;
+  readonly mediaTitle?: string | undefined;
   readonly torrentName?: string | undefined;
 }
 
 export interface DownloadEventRowLike {
-  readonly animeId: number | null;
+  readonly mediaId: number | null;
   readonly createdAt: string;
   readonly downloadId: number | null;
   readonly eventType: string;
@@ -56,9 +56,9 @@ export const toDownloadEvent = Effect.fn("DownloadEventPresentations.toDownloadE
   context?: DownloadEventPresentationContext,
 ) {
   return {
-    anime_id: row.animeId === null ? undefined : brandAnimeId(row.animeId),
-    anime_image: context?.animeImage,
-    anime_title: context?.animeTitle,
+    media_id: row.mediaId === null ? undefined : brandMediaId(row.mediaId),
+    media_image: context?.mediaImage,
+    media_title: context?.mediaTitle,
     created_at: row.createdAt,
     download_id: row.downloadId === null ? undefined : brandDownloadId(row.downloadId),
     event_type: row.eventType,
@@ -80,7 +80,7 @@ export const loadDownloadEventPresentationContexts = Effect.fn(
   }
 
   const animeIds = [
-    ...new Set(rows.map((row) => row.animeId).filter((value): value is number => value !== null)),
+    ...new Set(rows.map((row) => row.mediaId).filter((value): value is number => value !== null)),
   ];
   const downloadIds = [
     ...new Set(
@@ -92,13 +92,13 @@ export const loadDownloadEventPresentationContexts = Effect.fn(
     tryDatabasePromise("Failed to load download event presentation contexts", () =>
       db
         .select({
-          coverImage: anime.coverImage,
-          id: anime.id,
-          titleEnglish: anime.titleEnglish,
-          titleRomaji: anime.titleRomaji,
+          coverImage: media.coverImage,
+          id: media.id,
+          titleEnglish: media.titleEnglish,
+          titleRomaji: media.titleRomaji,
         })
-        .from(anime)
-        .where(inArray(anime.id, chunk)),
+        .from(media)
+        .where(inArray(media.id, chunk)),
     ),
   );
   const animeById = new Map(animeRows.map((row) => [row.id, row] as const));
@@ -118,14 +118,14 @@ export const loadDownloadEventPresentationContexts = Effect.fn(
 
   return new Map(
     rows.map((row) => {
-      const animeRow = row.animeId !== null ? animeById.get(row.animeId) : undefined;
+      const animeRow = row.mediaId !== null ? animeById.get(row.mediaId) : undefined;
       const downloadRow = row.downloadId !== null ? downloadById.get(row.downloadId) : undefined;
 
       return [
         row.id,
         {
-          animeImage: animeRow?.coverImage ?? undefined,
-          animeTitle: animeRow?.titleEnglish ?? animeRow?.titleRomaji,
+          mediaImage: animeRow?.coverImage ?? undefined,
+          mediaTitle: animeRow?.titleEnglish ?? animeRow?.titleRomaji,
           torrentName: downloadRow?.torrentName ?? undefined,
         },
       ] as const;

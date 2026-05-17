@@ -56,12 +56,12 @@ function cloneDownloadSourceMetadata(value: DownloadSourceMetadata): DownloadSou
 }
 
 export function encodeDownloadEventMetadata(value: {
-  covered_episodes?: readonly number[];
+  covered_units?: readonly number[];
   imported_path?: string;
   source_metadata?: DownloadSourceMetadata;
 }): Effect.Effect<string, OperationsStoredDataError> {
   return Schema.encode(DownloadEventMetadataJsonSchema)({
-    covered_episodes: value.covered_episodes ? [...value.covered_episodes] : undefined,
+    covered_units: value.covered_units ? [...value.covered_units] : undefined,
     imported_path: value.imported_path,
     source_metadata: value.source_metadata,
   }).pipe(

@@ -3,7 +3,7 @@ import { Effect, Schema } from "effect";
 
 import {
   type UnmappedFolder,
-  AnimeSearchResultSchema,
+  MediaSearchResultSchema,
   UnmappedFolderMatchStatusSchema,
   UnmappedFolderSchema,
 } from "@packages/shared/index.ts";
@@ -13,7 +13,7 @@ import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { buildUnmappedFolderSearchQueries } from "@/features/operations/unmapped/unmapped-folders.ts";
 import { StoredUnmappedFolderCorruptError } from "@/features/system/errors.ts";
 
-const AnimeSearchResultListJsonSchema = Schema.parseJson(Schema.Array(AnimeSearchResultSchema));
+const AnimeSearchResultListJsonSchema = Schema.parseJson(Schema.Array(MediaSearchResultSchema));
 const decodeAnimeSearchResultList = Schema.decodeUnknown(AnimeSearchResultListJsonSchema);
 
 const encodeAnimeSearchResultList = (path: string, matches: UnmappedFolder["suggested_matches"]) =>

@@ -3,7 +3,7 @@ import { Context, Effect, Layer } from "effect";
 
 import type { Quality, QualityProfile } from "@packages/shared/index.ts";
 import { type AppDatabase, Database, DatabaseError } from "@/db/database.ts";
-import { anime } from "@/db/schema.ts";
+import { media } from "@/db/schema.ts";
 import { nowIsoFromClock, ClockService } from "@/infra/clock.ts";
 import {
   StoredConfigCorruptError,
@@ -55,8 +55,8 @@ const countAnimeUsingProfile = Effect.fn("QualityProfileService.countAnimeUsingP
   db: AppDatabase,
   profileName: string,
 ) {
-  const rows = yield* tryDatabasePromise("Failed to count anime", () =>
-    db.select({ value: count() }).from(anime).where(eq(anime.profileName, profileName)),
+  const rows = yield* tryDatabasePromise("Failed to count media", () =>
+    db.select({ value: count() }).from(media).where(eq(media.profileName, profileName)),
   );
   return rows[0]?.value ?? 0;
 });
@@ -119,7 +119,7 @@ const makeQualityProfileService = Effect.gen(function* () {
 
     if (referencingAnime > 0) {
       return yield* new ConfigValidationError({
-        message: `Cannot delete profile '${name}': still referenced by ${referencingAnime} anime`,
+        message: `Cannot delete profile '${name}': still referenced by ${referencingAnime} media`,
       });
     }
 

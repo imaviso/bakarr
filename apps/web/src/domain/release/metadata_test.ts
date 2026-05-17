@@ -15,7 +15,7 @@ it("release metadata helpers format shared source and parsed summaries", () => {
   });
   const parsedSummary = formatReleaseParsedSummary({
     parsed_air_date: "2025-03-14",
-    parsed_episode_label: "S01E01",
+    parsed_unit_label: "S01E01",
   });
 
   if (sourceSummary !== "SubsPlease • Nyaa • WEB-DL 1080p") {

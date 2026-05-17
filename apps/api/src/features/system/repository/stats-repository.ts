@@ -3,11 +3,11 @@ import { Effect } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
 import {
-  anime,
+  media,
   backgroundJobs,
   downloadEvents,
   downloads,
-  episodes,
+  mediaUnits,
   rssFeeds,
   systemLogs,
 } from "@/db/schema.ts";
@@ -67,8 +67,8 @@ export const countCompletedDownloads = Effect.fn("SystemStatsRepository.countCom
 export const countAnimeRows = Effect.fn("SystemStatsRepository.countAnimeRows")(function* (
   db: AppDatabase,
 ) {
-  const countRows = yield* tryDatabasePromise("Failed to count anime", () =>
-    db.select({ value: count() }).from(anime),
+  const countRows = yield* tryDatabasePromise("Failed to count media", () =>
+    db.select({ value: count() }).from(media),
   );
   const countRow = requireSingleRow(countRows, { value: 0 });
   return countRow.value;
@@ -76,8 +76,8 @@ export const countAnimeRows = Effect.fn("SystemStatsRepository.countAnimeRows")(
 
 export const countMonitoredAnimeRows = Effect.fn("SystemStatsRepository.countMonitoredAnimeRows")(
   function* (db: AppDatabase) {
-    const countRows = yield* tryDatabasePromise("Failed to count anime", () =>
-      db.select({ value: count() }).from(anime).where(eq(anime.monitored, true)),
+    const countRows = yield* tryDatabasePromise("Failed to count media", () =>
+      db.select({ value: count() }).from(media).where(eq(media.monitored, true)),
     );
     const countRow = requireSingleRow(countRows, { value: 0 });
     return countRow.value;
@@ -87,8 +87,8 @@ export const countMonitoredAnimeRows = Effect.fn("SystemStatsRepository.countMon
 export const countEpisodeRows = Effect.fn("SystemStatsRepository.countEpisodeRows")(function* (
   db: AppDatabase,
 ) {
-  const countRows = yield* tryDatabasePromise("Failed to count episodes", () =>
-    db.select({ value: count() }).from(episodes),
+  const countRows = yield* tryDatabasePromise("Failed to count mediaUnits", () =>
+    db.select({ value: count() }).from(mediaUnits),
   );
   const countRow = requireSingleRow(countRows, { value: 0 });
   return countRow.value;
@@ -97,8 +97,8 @@ export const countEpisodeRows = Effect.fn("SystemStatsRepository.countEpisodeRow
 export const countDownloadedEpisodeRows = Effect.fn(
   "SystemStatsRepository.countDownloadedEpisodeRows",
 )(function* (db: AppDatabase) {
-  const countRows = yield* tryDatabasePromise("Failed to count episodes", () =>
-    db.select({ value: count() }).from(episodes).where(eq(episodes.downloaded, true)),
+  const countRows = yield* tryDatabasePromise("Failed to count mediaUnits", () =>
+    db.select({ value: count() }).from(mediaUnits).where(eq(mediaUnits.downloaded, true)),
   );
   const countRow = requireSingleRow(countRows, { value: 0 });
   return countRow.value;
@@ -106,27 +106,26 @@ export const countDownloadedEpisodeRows = Effect.fn(
 
 export const countUpToDateAnimeRows = Effect.fn("SystemStatsRepository.countUpToDateAnimeRows")(
   function* (db: AppDatabase) {
-    const rows = yield* tryDatabasePromise("Failed to count up-to-date anime", () =>
+    const rows = yield* tryDatabasePromise("Failed to count up-to-date media", () =>
       db
         .select({
-          downloadedCount: sql<number>`coalesce(sum(case when ${episodes.downloaded} and ${episodes.number} <= ${anime.episodeCount} then 1 else 0 end), 0)`,
-          episodeCount: anime.episodeCount,
+          downloadedCount: sql<number>`coalesce(sum(case when ${mediaUnits.downloaded} and ${mediaUnits.number} <= ${media.unitCount} then 1 else 0 end), 0)`,
+          unitCount: media.unitCount,
         })
-        .from(anime)
-        .leftJoin(episodes, eq(episodes.animeId, anime.id))
+        .from(media)
+        .leftJoin(mediaUnits, eq(mediaUnits.mediaId, media.id))
         .where(
           and(
-            eq(anime.monitored, true),
-            sql`${anime.episodeCount} is not null`,
-            sql`${anime.episodeCount} > 0`,
+            eq(media.monitored, true),
+            sql`${media.unitCount} is not null`,
+            sql`${media.unitCount} > 0`,
           ),
         )
-        .groupBy(anime.id, anime.episodeCount),
+        .groupBy(media.id, media.unitCount),
     );
 
-    return rows.filter(
-      (row) => row.episodeCount !== null && row.downloadedCount === row.episodeCount,
-    ).length;
+    return rows.filter((row) => row.unitCount !== null && row.downloadedCount === row.unitCount)
+      .length;
   },
 );
 
@@ -146,8 +145,8 @@ export const loadSystemLibraryStatsAggregate = Effect.fn(
   const [
     totalAnime,
     monitoredAnime,
-    totalEpisodes,
-    downloadedEpisodes,
+    totalUnits,
+    downloadedUnits,
     totalRssFeeds,
     completedDownloads,
     upToDateAnime,
@@ -166,10 +165,10 @@ export const loadSystemLibraryStatsAggregate = Effect.fn(
 
   return {
     completedDownloads,
-    downloadedEpisodes,
+    downloadedUnits,
     monitoredAnime,
     totalAnime,
-    totalEpisodes,
+    totalUnits,
     totalRssFeeds,
     upToDateAnime,
   } as const;

@@ -1,7 +1,7 @@
 import { assert, it } from "@effect/vitest";
 import { Cause, Effect, Exit } from "effect";
 
-import { anime } from "@/db/schema.ts";
+import { media } from "@/db/schema.ts";
 import { FileSystemError, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import {
   makeNoopTestFileSystemWithOverridesEffect,
@@ -27,7 +27,7 @@ function shouldDeleteImportedData(config: ReturnType<typeof makeTestConfig> | nu
   return config?.downloads.delete_download_files_after_import ?? false;
 }
 
-function makeAnimeRow(overrides: Partial<typeof anime.$inferSelect>): typeof anime.$inferSelect {
+function makeAnimeRow(overrides: Partial<typeof media.$inferSelect>): typeof media.$inferSelect {
   return {
     addedAt: "2024-01-01T00:00:00.000Z",
     background: null,
@@ -37,7 +37,7 @@ function makeAnimeRow(overrides: Partial<typeof anime.$inferSelect>): typeof ani
     duration: null,
     endDate: null,
     endYear: null,
-    episodeCount: 12,
+    unitCount: 12,
     favorites: null,
     format: "TV",
     genres: "[]",
@@ -47,13 +47,13 @@ function makeAnimeRow(overrides: Partial<typeof anime.$inferSelect>): typeof ani
     members: null,
     monitored: true,
     nextAiringAt: null,
-    nextAiringEpisode: null,
+    nextAiringUnit: null,
     popularity: null,
     profileName: "Default",
-    recommendedAnime: null,
+    recommendedMedia: null,
     releaseProfileIds: "[]",
-    relatedAnime: null,
-    rootFolder: "/library/Anime",
+    relatedMedia: null,
+    rootFolder: "/library/Media",
     rank: null,
     rating: null,
     score: null,
@@ -65,7 +65,7 @@ function makeAnimeRow(overrides: Partial<typeof anime.$inferSelect>): typeof ani
     synonyms: null,
     titleEnglish: null,
     titleNative: null,
-    titleRomaji: "Anime",
+    titleRomaji: "Media",
     ...overrides,
   };
 }
@@ -351,7 +351,7 @@ it.scoped(
   "importDownloadedFile applies configured naming tokens from source filename metadata",
   () => {
     const namingFormat =
-      "{title} - S{season:02}E{episode:02} - {episode_title} [{quality} {resolution}][{video_codec}][{audio_codec} {audio_channels}][{group}]";
+      "{title} - S{season:02}E{episode:02} - {unit_title} [{quality} {resolution}][{video_codec}][{audio_codec} {audio_channels}][{group}]";
 
     return withFileSystemSandboxEffect(({ fs, root }) =>
       Effect.gen(function* () {
@@ -478,7 +478,7 @@ it.scoped("importDownloadedFile reuses stored provenance when source path is wea
             quality: "WEB-DL",
             resolution: "1080p",
             source_identity: {
-              episode_numbers: [1],
+              unit_numbers: [1],
               label: "01",
               scheme: "absolute",
             },
@@ -538,7 +538,7 @@ const makeImportRoots = Effect.fn("Test.makeImportRoots")(function* (
   fs: FileSystemShape,
   root: string,
 ) {
-  const animeRoot = `${root}/anime`;
+  const animeRoot = `${root}/media`;
   const sourceRoot = `${root}/source`;
   yield* fs.mkdir(animeRoot, { recursive: true });
   yield* fs.mkdir(sourceRoot, { recursive: true });

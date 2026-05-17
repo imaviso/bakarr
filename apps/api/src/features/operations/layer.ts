@@ -27,7 +27,7 @@ import {
   DownloadTriggerCoordinatorLive,
   UnmappedScanCoordinatorLive,
 } from "@/features/operations/tasks/runtime-support.ts";
-import { SearchEpisodeServiceLive } from "@/features/operations/search/search-orchestration-episode-support.ts";
+import { SearchUnitServiceLive } from "@/features/operations/search/search-orchestration-unit-support.ts";
 import { SearchReleaseServiceLive } from "@/features/operations/search/search-orchestration-release-search.ts";
 import { TorrentClientServiceLive } from "@/features/operations/qbittorrent/torrent-client-service.ts";
 import { UnmappedControlServiceLive } from "@/features/operations/unmapped/unmapped-control-service.ts";
@@ -102,7 +102,7 @@ export function makeOperationsFeatureLayer<ROut, E, RIn>(
   );
   const searchReleaseLayer = SearchReleaseServiceLive.pipe(Layer.provide(runtimeSupportLayer));
   const runtimeWithReleaseLayer = Layer.mergeAll(runtimeSupportLayer, searchReleaseLayer);
-  const searchEpisodeLayer = SearchEpisodeServiceLive.pipe(Layer.provide(runtimeWithReleaseLayer));
+  const searchUnitLayer = SearchUnitServiceLive.pipe(Layer.provide(runtimeWithReleaseLayer));
   const searchBackgroundMissingLayer = SearchBackgroundMissingServiceLive.pipe(
     Layer.provide(
       Layer.mergeAll(runtimeWithProgressLayer, backgroundSearchQueueLayer, searchReleaseLayer),
@@ -158,7 +158,7 @@ export function makeOperationsFeatureLayer<ROut, E, RIn>(
     backgroundSearchQueueLayer,
     backgroundSearchRssFeedLayer,
     searchReleaseLayer,
-    searchEpisodeLayer,
+    searchUnitLayer,
     searchBackgroundMissingLayer,
     searchBackgroundRssLayer,
     backgroundSearchRssWorkerLayer,

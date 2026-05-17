@@ -1,11 +1,11 @@
-import type { ParsedEpisodeIdentity } from "@/infra/media/identity/identity.ts";
+import type { ParsedUnitIdentity } from "@/infra/media/identity/identity.ts";
 import type { ParsedMediaFile, PathParseContext } from "@/infra/media/identity/types.ts";
 
 export interface ResolvedEpisodeTarget {
-  anime_id: number;
-  episode_numbers: number[];
+  media_id: number;
+  unit_numbers: number[];
   primary_episode_number: number;
-  source_identity?: ParsedEpisodeIdentity;
+  source_identity?: ParsedUnitIdentity;
 }
 
 interface AnimeCandidate {
@@ -14,7 +14,7 @@ interface AnimeCandidate {
   title_english?: string;
   title_native?: string;
   format?: string;
-  episode_count?: number;
+  unit_count?: number;
 }
 
 interface EpisodeCandidate {
@@ -25,15 +25,15 @@ interface EpisodeCandidate {
 const SPECIAL_FORMATS = new Set(["OVA", "ONA", "OAD", "SPECIAL", "MOVIE"]);
 
 /**
- * Resolve a parsed source identity to local episode numbers for a given anime entry.
+ * Resolve a parsed source identity to local episode numbers for a given media entry.
  * Daily identities resolve by matching air dates against episode metadata.
  */
 export function resolveSourceIdentityToEpisodeNumbers(input: {
-  anime: AnimeCandidate;
-  episodes: readonly EpisodeCandidate[];
-  source_identity: ParsedEpisodeIdentity;
+  media: AnimeCandidate;
+  mediaUnits: readonly EpisodeCandidate[];
+  source_identity: ParsedUnitIdentity;
 }): ResolvedEpisodeTarget | undefined {
-  const { anime: animeRow, episodes: episodeRows, source_identity } = input;
+  const { media: animeRow, mediaUnits: episodeRows, source_identity } = input;
 
   if (source_identity.scheme === "daily") {
     const matched: number[] = [];
@@ -47,8 +47,8 @@ export function resolveSourceIdentityToEpisodeNumbers(input: {
       return undefined;
     }
     return {
-      anime_id: animeRow.id,
-      episode_numbers: matched,
+      media_id: animeRow.id,
+      unit_numbers: matched,
       primary_episode_number: primaryEpisode,
       source_identity,
     };
@@ -58,36 +58,36 @@ export function resolveSourceIdentityToEpisodeNumbers(input: {
     if (source_identity.season === 0 && !isSpecialLikeEntry(animeRow)) {
       return undefined;
     }
-    const eps = source_identity.episode_numbers.filter((n: number) => n > 0 && n < 2000);
+    const eps = source_identity.unit_numbers.filter((n: number) => n > 0 && n < 2000);
     if (eps.length === 0) return undefined;
     const [primaryEpisode] = eps;
     if (primaryEpisode === undefined) {
       return undefined;
     }
     return {
-      anime_id: animeRow.id,
-      episode_numbers: eps,
+      media_id: animeRow.id,
+      unit_numbers: eps,
       primary_episode_number: primaryEpisode,
       source_identity,
     };
   }
 
-  const eps = source_identity.episode_numbers.filter((n: number) => n > 0 && n < 2000);
+  const eps = source_identity.unit_numbers.filter((n: number) => n > 0 && n < 2000);
   if (eps.length === 0) return undefined;
   const [primaryEpisode] = eps;
   if (primaryEpisode === undefined) {
     return undefined;
   }
   return {
-    anime_id: animeRow.id,
-    episode_numbers: eps,
+    media_id: animeRow.id,
+    unit_numbers: eps,
     primary_episode_number: primaryEpisode,
     source_identity,
   };
 }
 
 /**
- * Rank anime candidates for a parsed file, preferring sequels/specials
+ * Rank media candidates for a parsed file, preferring sequels/specials
  * based on source season hints and folder context.
  */
 export function rankAnimeCandidates(input: {

@@ -36,14 +36,14 @@ it.scoped("migrateDatabase applies embedded migrations idempotently", () =>
                 ),
               );
               const tables = yield* client.unsafe<{ name: string }>(
-                "select name from sqlite_master where type = 'table' and name in ('users', 'anime', 'downloads') order by name",
+                "select name from sqlite_master where type = 'table' and name in ('users', 'media', 'downloads') order by name",
               );
 
               assert.deepStrictEqual(Exit.isSuccess(first), true);
               assert.deepStrictEqual(Exit.isSuccess(second), true);
               assert.deepStrictEqual(
                 tables.map((row) => row.name),
-                ["anime", "downloads", "users"],
+                ["downloads", "media", "users"],
               );
             }),
         });

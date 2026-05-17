@@ -1,7 +1,7 @@
 /**
  * Normalize release/file strings before identity parsing.
  *
- * We keep this intentionally small and focused on high-signal anime patterns.
+ * We keep this intentionally small and focused on high-signal media patterns.
  */
 export function normalizeSourceText(value: string): string {
   const normalized = value

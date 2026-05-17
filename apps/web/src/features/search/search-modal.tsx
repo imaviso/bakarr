@@ -4,9 +4,9 @@ import { useSearchModalState } from "~/features/search/search-modal-state";
 import type { MediaUnitKind } from "~/api/contracts";
 
 interface SearchModalProps {
-  animeId: number;
-  episodeNumber: number;
-  episodeTitle?: string;
+  mediaId: number;
+  unitNumber: number;
+  unitTitle?: string;
   unitKind?: MediaUnitKind | undefined;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -14,8 +14,8 @@ interface SearchModalProps {
 
 export function SearchModal(props: SearchModalProps) {
   const state = useSearchModalState({
-    animeId: props.animeId,
-    episodeNumber: props.episodeNumber,
+    mediaId: props.mediaId,
+    unitNumber: props.unitNumber,
     open: props.open,
     onClose: () => props.onOpenChange(false),
   });
@@ -23,8 +23,8 @@ export function SearchModal(props: SearchModalProps) {
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
       <SearchModalContent
-        episodeNumber={props.episodeNumber}
-        episodeTitle={props.episodeTitle}
+        unitNumber={props.unitNumber}
+        unitTitle={props.unitTitle}
         unitKind={props.unitKind}
         state={state}
       />

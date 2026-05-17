@@ -36,7 +36,7 @@ import {
 import {
   OperationsTaskIdParamsSchema,
   OperationsTaskQuerySchema,
-} from "@/http/anime/request-schemas.ts";
+} from "@/http/media/request-schemas.ts";
 
 export const libraryRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
@@ -117,7 +117,7 @@ export const libraryRouter = HttpRouter.empty.pipe(
           "import unmapped folder",
         );
         yield* (yield* UnmappedImportService).importUnmappedFolder({
-          anime_id: body.anime_id,
+          media_id: body.media_id,
           folder_name: body.folder_name,
           ...(body.profile_name === undefined ? {} : { profile_name: body.profile_name }),
         });
@@ -132,7 +132,7 @@ export const libraryRouter = HttpRouter.empty.pipe(
         const body = yield* decodeJsonBodyWithLabel(ScanImportPathBodySchema, "scan import path");
         return yield* Effect.flatMap(ImportPathScanService, (service) =>
           service.scanImportPath({
-            ...(body.anime_id === undefined ? {} : { animeId: body.anime_id }),
+            ...(body.media_id === undefined ? {} : { mediaId: body.media_id }),
             ...(body.limit === undefined ? {} : { limit: body.limit }),
             path: body.path,
           }),
@@ -169,20 +169,20 @@ export const libraryRouter = HttpRouter.empty.pipe(
         const body = yield* decodeJsonBodyWithLabel(ImportFilesBodySchema, "import files");
         const files = body.files.map((file) =>
           Object.assign(
-            { anime_id: file.anime_id, episode_number: file.episode_number },
-            file.episode_numbers === undefined ? {} : { episode_numbers: file.episode_numbers },
+            { media_id: file.media_id, unit_number: file.unit_number },
+            file.unit_numbers === undefined ? {} : { unit_numbers: file.unit_numbers },
             file.season === undefined ? {} : { season: file.season },
             { source_path: file.source_path },
           ),
         );
-        const animeId = files[0]?.anime_id;
+        const mediaId = files[0]?.media_id;
 
         const taskLauncher = yield* OperationsTaskLauncherService;
         const catalogLibraryWrite = yield* CatalogLibraryWriteService;
         const operationsTaskService = yield* OperationsTaskWriteService;
 
         return yield* taskLauncher.launch({
-          ...(animeId === undefined ? {} : { animeId }),
+          ...(mediaId === undefined ? {} : { mediaId }),
           failureMessage: `Library import failed for ${files.length} file(s)`,
           operation: (taskId) =>
             Effect.gen(function* () {
@@ -204,13 +204,13 @@ export const libraryRouter = HttpRouter.empty.pipe(
             progressTotal: result.imported + result.failed,
           }),
           successPayload: (result: { readonly imported: number; readonly failed: number }) => ({
-            ...(animeId === undefined ? {} : { anime_id: animeId }),
+            ...(mediaId === undefined ? {} : { media_id: mediaId }),
             failed: result.failed,
             imported: result.imported,
             total: result.imported + result.failed,
           }),
           failurePayload: () => ({
-            ...(animeId === undefined ? {} : { anime_id: animeId }),
+            ...(mediaId === undefined ? {} : { media_id: mediaId }),
             failed: files.length,
             total: files.length,
           }),
@@ -231,7 +231,7 @@ export const libraryRouter = HttpRouter.empty.pipe(
         const decoded = yield* decodeOperationsTaskQuery(query);
 
         return yield* (yield* OperationsTaskReadService).listTasks({
-          ...(decoded.animeId === undefined ? {} : { animeId: decoded.animeId }),
+          ...(decoded.mediaId === undefined ? {} : { mediaId: decoded.mediaId }),
           ...(decoded.limit === undefined ? {} : { limit: decoded.limit }),
           ...(decoded.offset === undefined ? {} : { offset: decoded.offset }),
           taskKey: "library_import",

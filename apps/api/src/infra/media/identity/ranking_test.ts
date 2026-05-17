@@ -8,8 +8,8 @@ import {
 
 it("resolveSourceIdentityToEpisodeNumbers maps daily identities through episode air dates", () => {
   const resolved = resolveSourceIdentityToEpisodeNumbers({
-    anime: { id: 10, title_romaji: "Show" },
-    episodes: [
+    media: { id: 10, title_romaji: "Show" },
+    mediaUnits: [
       { aired: "2025-03-14", number: 7 },
       { aired: "2025-03-21", number: 8 },
     ],
@@ -20,14 +20,14 @@ it("resolveSourceIdentityToEpisodeNumbers maps daily identities through episode 
     }),
   });
 
-  assert.deepStrictEqual(resolved?.anime_id, 10);
-  assert.deepStrictEqual(resolved?.episode_numbers, [7]);
+  assert.deepStrictEqual(resolved?.media_id, 10);
+  assert.deepStrictEqual(resolved?.unit_numbers, [7]);
   assert.deepStrictEqual(resolved?.primary_episode_number, 7);
 });
 
 it("resolveSourceIdentityToEpisodeNumbers allows S00 only for special-like entries", () => {
   const identity = new SeasonEpisodeIdentity({
-    episode_numbers: [1],
+    unit_numbers: [1],
     label: "S00E01",
     scheme: "season",
     season: 0,
@@ -35,18 +35,18 @@ it("resolveSourceIdentityToEpisodeNumbers allows S00 only for special-like entri
 
   assert.deepStrictEqual(
     resolveSourceIdentityToEpisodeNumbers({
-      anime: { id: 1, title_romaji: "Show" },
-      episodes: [],
+      media: { id: 1, title_romaji: "Show" },
+      mediaUnits: [],
       source_identity: identity,
     }),
     undefined,
   );
   assert.deepStrictEqual(
     resolveSourceIdentityToEpisodeNumbers({
-      anime: { format: "SPECIAL", id: 2, title_romaji: "Show Special" },
-      episodes: [],
+      media: { format: "SPECIAL", id: 2, title_romaji: "Show Special" },
+      mediaUnits: [],
       source_identity: identity,
-    })?.episode_numbers,
+    })?.unit_numbers,
     [1],
   );
 });
@@ -61,7 +61,7 @@ it("rankAnimeCandidates prefers sequel and specials hints over loose title match
       kind: "episode",
       parsed_title: "Overlord",
       source_identity: new SeasonEpisodeIdentity({
-        episode_numbers: [3],
+        unit_numbers: [3],
         label: "S02E03",
         scheme: "season",
         season: 2,

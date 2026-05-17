@@ -34,29 +34,29 @@ function DashboardPage() {
 
   const recentActivity = activity.slice(0, 5);
 
-  const statsSummary = `${stats.total_anime} anime · ${stats.downloaded_episodes}/${stats.total_episodes} episodes · ${stats.downloaded_percent}% complete`;
+  const statsSummary = `${stats.total_media} anime · ${stats.downloaded_units}/${stats.total_units} episodes · ${stats.downloaded_percent}% complete`;
 
   return (
     <PageShell>
       <PageHeader title="Dashboard" subtitle={statsSummary} />
 
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-        <StatItem label="Anime" value={stats.total_anime} />
+        <StatItem label="Media" value={stats.total_media} />
         <StatItem
           label="Monitored"
-          value={stats.monitored_anime}
-          sub={`${stats.up_to_date_anime} up to date`}
+          value={stats.monitored_media}
+          sub={`${stats.up_to_date_media} up to date`}
         />
-        <StatItem label="Episodes" value={stats.total_episodes} />
+        <StatItem label="Episodes" value={stats.total_units} />
         <StatItem
           label="Downloaded"
-          value={stats.downloaded_episodes}
+          value={stats.downloaded_units}
           sub={`${stats.downloaded_percent}%`}
         />
         <StatItem
           label="Missing"
-          value={stats.missing_episodes}
-          tone={stats.missing_episodes > 0 ? "warning" : undefined}
+          value={stats.missing_units}
+          tone={stats.missing_units > 0 ? "warning" : undefined}
         />
         <Separator orientation="vertical" className="hidden h-6 sm:block" />
         <div className="flex items-center gap-3">
@@ -144,7 +144,7 @@ function ActivityRow(props: { item: ActivityItem }) {
         <CheckIcon className="h-4 w-4 text-success" />
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <p className="truncate text-sm font-medium">{props.item.anime_title}</p>
+        <p className="truncate text-sm font-medium">{props.item.media_title}</p>
         <p className="text-xs text-muted-foreground">{props.item.description}</p>
       </div>
       <time

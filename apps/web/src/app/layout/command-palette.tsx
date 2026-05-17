@@ -24,14 +24,14 @@ import {
 } from "~/components/ui/command";
 
 import { Kbd } from "~/components/ui/kbd";
-import { useAnimeListQuery } from "~/api/anime";
-import { animeSearchSubtitle } from "~/domain/anime/metadata";
+import { useMediaListQuery } from "~/api/media";
+import { animeSearchSubtitle } from "~/domain/media/metadata";
 import { cn } from "~/infra/utils";
 
 const navigationRoutes = [
   { title: "Dashboard", url: "/", icon: HouseIcon },
-  { title: "Library", url: "/anime", icon: TelevisionIcon },
-  { title: "Add Media", url: "/anime/add", icon: TelevisionIcon },
+  { title: "Library", url: "/media", icon: TelevisionIcon },
+  { title: "Add Media", url: "/media/add", icon: TelevisionIcon },
   { title: "RSS Feeds", url: "/rss", icon: RssIcon },
   { title: "Wanted", url: "/wanted", icon: MagnifyingGlassIcon },
   { title: "Calendar", url: "/calendar", icon: CalendarIcon },
@@ -42,7 +42,7 @@ const navigationRoutes = [
 
 function SearchResults(props: {
   inputValue: string;
-  animeList: ReturnType<typeof useAnimeListQuery>;
+  animeList: ReturnType<typeof useMediaListQuery>;
   onSelect: (path: string) => void;
 }) {
   const query = props.inputValue.toLowerCase().trim();
@@ -53,10 +53,10 @@ function SearchResults(props: {
     : !query
       ? data.slice(0, 10)
       : data
-          .filter((anime) => {
-            const title = anime.title.romaji?.toLowerCase() || "";
-            const english = anime.title.english?.toLowerCase() || "";
-            const native = anime.title.native?.toLowerCase() || "";
+          .filter((media) => {
+            const title = media.title.romaji?.toLowerCase() || "";
+            const english = media.title.english?.toLowerCase() || "";
+            const native = media.title.native?.toLowerCase() || "";
             return title.includes(query) || english.includes(query) || native.includes(query);
           })
           .slice(0, 10);
@@ -94,16 +94,16 @@ function SearchResults(props: {
         <>
           <CommandSeparator />
           <CommandGroup heading="Library">
-            {filteredLibrary.map((anime) => (
+            {filteredLibrary.map((media) => (
               <CommandItem
-                key={anime.id}
-                value={`library-${anime.id}`}
-                onSelect={() => props.onSelect(`/anime/${anime.id}`)}
+                key={media.id}
+                value={`library-${media.id}`}
+                onSelect={() => props.onSelect(`/media/${media.id}`)}
               >
-                {anime.cover_image ? (
+                {media.cover_image ? (
                   <img
-                    src={anime.cover_image}
-                    alt={anime.title.romaji}
+                    src={media.cover_image}
+                    alt={media.title.romaji}
                     loading="lazy"
                     className="h-8 w-6 shrink-0 bg-muted object-cover"
                   />
@@ -113,15 +113,15 @@ function SearchResults(props: {
                   </div>
                 )}
                 <div className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate font-medium">{anime.title.romaji}</span>
-                  {anime.title.english && anime.title.english !== anime.title.romaji && (
+                  <span className="truncate font-medium">{media.title.romaji}</span>
+                  {media.title.english && media.title.english !== media.title.romaji && (
                     <span className="truncate text-xs text-muted-foreground">
-                      {anime.title.english}
+                      {media.title.english}
                     </span>
                   )}
-                  {(animeSearchSubtitle(anime) || anime.genres?.length) && (
+                  {(animeSearchSubtitle(media) || media.genres?.length) && (
                     <span className="truncate text-xs text-muted-foreground">
-                      {[animeSearchSubtitle(anime), anime.genres?.[0]]
+                      {[animeSearchSubtitle(media), media.genres?.[0]]
                         .filter((value): value is string => Boolean(value))
                         .join(" • ")}
                     </span>
@@ -154,7 +154,7 @@ export function CommandPalette() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  const animeList = useAnimeListQuery({ enabled: open });
+  const animeList = useMediaListQuery({ enabled: open });
 
   const handleSelect = (path: string) => {
     setOpen(false);

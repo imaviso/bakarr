@@ -1,5 +1,5 @@
 import { Effect, Either } from "effect";
-import { brandAnimeId, type ImportResult } from "@packages/shared/index.ts";
+import { brandMediaId, type ImportResult } from "@packages/shared/index.ts";
 
 import type { AppDatabase } from "@/db/database.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
@@ -7,7 +7,7 @@ import {
   OperationsInfrastructureError,
   OperationsPathError,
 } from "@/features/operations/errors.ts";
-import { upsertEpisodeFilesAtomic } from "@/features/operations/download/download-episode-upsert-support.ts";
+import { upsertEpisodeFilesAtomic } from "@/features/operations/download/download-unit-upsert-support.ts";
 import type { LibraryImportPlan } from "@/features/operations/catalog/catalog-library-write-import-plan-support.ts";
 
 export interface WriteLibraryImportFileInput {
@@ -84,10 +84,10 @@ export const writeLibraryImportFile = Effect.fn("Operations.writeLibraryImportFi
     }
 
     return {
-      anime_id: brandAnimeId(plan.animeRow.id),
+      media_id: brandMediaId(plan.animeRow.id),
       destination_path: plan.destination,
-      episode_number: plan.episodeNumber,
-      episode_numbers: plan.allEpisodeNumbers.length > 1 ? [...plan.allEpisodeNumbers] : undefined,
+      unit_number: plan.unitNumber,
+      unit_numbers: plan.allEpisodeNumbers.length > 1 ? [...plan.allEpisodeNumbers] : undefined,
       naming_fallback_used: plan.namingPlan.fallbackUsed || undefined,
       naming_format_used: plan.namingPlan.formatUsed,
       naming_metadata_snapshot: plan.namingPlan.metadataSnapshot,

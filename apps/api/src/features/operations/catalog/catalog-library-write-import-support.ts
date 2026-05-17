@@ -11,9 +11,9 @@ import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 
 export interface LibraryImportFileInput {
   readonly source_path: string;
-  readonly anime_id: number;
-  readonly episode_number: number;
-  readonly episode_numbers?: readonly number[];
+  readonly media_id: number;
+  readonly unit_number: number;
+  readonly unit_numbers?: readonly number[];
   readonly season?: number;
 }
 

@@ -1,32 +1,32 @@
-import type { AnimeSeason } from "./contracts";
+import type { MediaSeason } from "./contracts";
 
 export const animeKeys = {
-  all: ["anime"] as const,
-  lists: () => ["anime", "list"] as const,
-  detail: (id: number) => ["anime", "detail", id] as const,
-  episodeScanTasks: {
-    all: (animeId: number) => ["anime", "detail", animeId, "scan-tasks"] as const,
-    byId: (animeId: number, taskId: number) =>
-      ["anime", "detail", animeId, "scan-tasks", taskId] as const,
+  all: ["media"] as const,
+  lists: () => ["media", "list"] as const,
+  detail: (id: number) => ["media", "detail", id] as const,
+  unitScanTasks: {
+    all: (mediaId: number) => ["media", "detail", mediaId, "scan-tasks"] as const,
+    byId: (mediaId: number, taskId: number) =>
+      ["media", "detail", mediaId, "scan-tasks", taskId] as const,
   },
-  episodes: (id: number) => ["anime", "detail", id, "episodes"] as const,
-  files: (id: number) => ["anime", "detail", id, "files"] as const,
+  units: (id: number) => ["media", "detail", id, "units"] as const,
+  files: (id: number) => ["media", "detail", id, "files"] as const,
   search: {
-    query: (q: string) => ["anime", "search", q] as const,
-    episode: (animeId: number, episodeNumber: number) =>
-      ["search", "episode", animeId, episodeNumber] as const,
-    releases: (query: string, options?: { animeId?: number; category?: string; filter?: string }) =>
+    query: (q: string) => ["media", "search", q] as const,
+    units: (mediaId: number, unitNumber: number) =>
+      ["search", "units", mediaId, unitNumber] as const,
+    releases: (query: string, options?: { mediaId?: number; category?: string; filter?: string }) =>
       ["search", "releases", { query, ...options }] as const,
   },
-  anilist: (id: number, mediaKind = "anime") => ["anime", "anilist", mediaKind, id] as const,
+  anilist: (id: number, mediaKind = "anime") => ["media", "anilist", mediaKind, id] as const,
   seasonal: (input?: {
-    season?: AnimeSeason | undefined;
+    season?: MediaSeason | undefined;
     year?: number | undefined;
     limit?: number | undefined;
     page?: number | undefined;
   }) =>
     [
-      "anime",
+      "media",
       "seasonal",
       input?.season ?? null,
       input?.year ?? null,
@@ -50,7 +50,7 @@ export const animeKeys = {
       byId: (taskId: number) => ["downloads", "tasks", taskId] as const,
     },
     events: (input?: {
-      animeId?: number;
+      mediaId?: number;
       cursor?: string;
       downloadId?: number;
       direction?: "next" | "prev";
@@ -71,7 +71,7 @@ export const animeKeys = {
   renamePreview: (id: number) => ["rename-preview", id] as const,
   rss: {
     all: ["rss"] as const,
-    anime: (id: number) => ["rss", "anime", id] as const,
+    media: (id: number) => ["rss", "media", id] as const,
   },
   calendar: (start: string, end: string) => ["calendar", start, end] as const,
   wanted: (limit: number) => ["wanted", limit] as const,

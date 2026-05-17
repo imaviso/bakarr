@@ -11,17 +11,17 @@ export function parseReleaseName(title: string): ParsedReleaseName {
   const resolution = parseResolution(title);
   const quality = parseQualityFromTitle(title);
   const batchTerms = [" batch", "complete", "全集", "season pack", "box", "collection"];
-  const episodeNumbers = parseEpisodeNumbersFromTitle(title);
+  const unitNumbers = parseEpisodeNumbersFromTitle(title);
   const seasonPack = looksLikeSeasonPack(title);
 
   return {
-    episodeNumber: episodeNumbers[0],
-    episodeNumbers,
+    unitNumber: unitNumbers[0],
+    unitNumbers,
     group: groupMatch?.[1],
     isBatch:
-      episodeNumbers.length > 1 ||
+      unitNumbers.length > 1 ||
       batchTerms.some((term) => lower.includes(term)) ||
-      (episodeNumbers.length === 0 && seasonPack),
+      (unitNumbers.length === 0 && seasonPack),
     isSeaDex: false,
     isSeaDexBest: false,
     quality,
@@ -41,7 +41,7 @@ export function parseEpisodeNumbersFromTitle(title: string): readonly number[] {
     return [];
   }
 
-  return result.source_identity.episode_numbers;
+  return result.source_identity.unit_numbers;
 }
 
 function looksLikeSeasonPack(title: string) {

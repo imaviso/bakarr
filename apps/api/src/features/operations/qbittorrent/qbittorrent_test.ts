@@ -165,10 +165,10 @@ it.effect("QBitTorrentClient sends qBittorrent add options", () =>
       client.addTorrentUrl(
         {
           baseUrl: "https://qbit.example",
-          category: "anime",
+          category: "media",
           password: "secret",
           ratioLimit: 1.5,
-          savePath: "/downloads/anime",
+          savePath: "/downloads/media",
           username: "demo",
         },
         "magnet:?xt=urn:btih:abc123",
@@ -217,9 +217,9 @@ it.effect("QBitTorrentClient sends qBittorrent add options", () =>
     );
 
     const params = new URLSearchParams(addBody);
-    assert.deepStrictEqual(params.get("category"), "anime");
+    assert.deepStrictEqual(params.get("category"), "media");
     assert.deepStrictEqual(params.get("ratioLimit"), "1.5");
-    assert.deepStrictEqual(params.get("savepath"), "/downloads/anime");
+    assert.deepStrictEqual(params.get("savepath"), "/downloads/media");
     assert.deepStrictEqual(params.get("urls"), "magnet:?xt=urn:btih:abc123");
   }),
 );

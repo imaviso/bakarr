@@ -25,7 +25,7 @@ import { tryDatabasePromise } from "@/infra/effect/db.ts";
 export type OperationsTaskKey = Schema.Schema.Type<typeof OperationTaskKeySchema>;
 
 class OperationsTaskQuery extends Schema.Class<OperationsTaskQuery>("OperationsTaskQuery")({
-  animeId: Schema.optional(Schema.Number),
+  mediaId: Schema.optional(Schema.Number),
   excludeTaskKeys: Schema.optional(Schema.Array(OperationTaskKeySchema)),
   limit: Schema.optional(Schema.Number),
   offset: Schema.optional(Schema.Number),
@@ -47,7 +47,7 @@ export interface OperationsTaskWriteServiceShape {
     readonly taskId: number;
   }) => Effect.Effect<void, DatabaseError | OperationsInfrastructureError>;
   readonly createTask: (input: {
-    readonly animeId?: number;
+    readonly mediaId?: number;
     readonly message: string;
     readonly taskKey: OperationsTaskKey;
   }) => Effect.Effect<AsyncOperationAccepted, DatabaseError | OperationsInfrastructureError>;
@@ -71,7 +71,7 @@ export interface OperationsTaskReadServiceShape {
     DatabaseError | OperationsInfrastructureError | OperationsTaskNotFoundError
   >;
   readonly listTasks: (input?: {
-    readonly animeId?: number;
+    readonly mediaId?: number;
     readonly excludeTaskKeys?: readonly OperationsTaskKey[];
     readonly limit?: number;
     readonly offset?: number;
@@ -133,7 +133,7 @@ const toOperationsTask = Effect.fn("OperationsTaskService.toOperationsTask")(fun
   readonly startedAt: string | null;
   readonly finishedAt: string | null;
   readonly updatedAt: string;
-  readonly animeId: number | null;
+  readonly mediaId: number | null;
   readonly payload: string | null;
 }) {
   const payload = yield* decodeTaskPayload(row.payload);
@@ -148,7 +148,7 @@ const toOperationsTask = Effect.fn("OperationsTaskService.toOperationsTask")(fun
     started_at: row.startedAt ?? undefined,
     finished_at: row.finishedAt ?? undefined,
     updated_at: row.updatedAt,
-    anime_id: row.animeId ?? undefined,
+    media_id: row.mediaId ?? undefined,
     ...(payload === null ? {} : { payload }),
   }).pipe(
     Effect.mapError(
@@ -168,7 +168,7 @@ const makeOperationsTaskWriteService = Effect.gen(function* () {
   const nowIso = () => nowIsoFromClock(clock);
 
   const createTask = Effect.fn("OperationsTaskWriteService.createTask")(function* (input: {
-    readonly animeId?: number;
+    readonly mediaId?: number;
     readonly message: string;
     readonly taskKey: OperationsTaskKey;
   }) {
@@ -177,7 +177,7 @@ const makeOperationsTaskWriteService = Effect.gen(function* () {
       db
         .insert(operationsTasks)
         .values({
-          animeId: input.animeId ?? null,
+          mediaId: input.mediaId ?? null,
           createdAt,
           finishedAt: null,
           message: input.message,
@@ -355,7 +355,7 @@ const makeOperationsTaskReadService = Effect.gen(function* () {
   });
 
   const listTasks = Effect.fn("OperationsTaskReadService.listTasks")(function* (input?: {
-    readonly animeId?: number;
+    readonly mediaId?: number;
     readonly excludeTaskKeys?: readonly OperationsTaskKey[];
     readonly limit?: number;
     readonly offset?: number;
@@ -372,7 +372,7 @@ const makeOperationsTaskReadService = Effect.gen(function* () {
     );
 
     const filteredByAnimeId =
-      query.animeId === undefined ? undefined : eq(operationsTasks.animeId, query.animeId);
+      query.mediaId === undefined ? undefined : eq(operationsTasks.mediaId, query.mediaId);
     const filteredByTaskKey =
       query.taskKey === undefined ? undefined : eq(operationsTasks.taskKey, query.taskKey);
     const filteredByExcludedTaskKeys =
@@ -420,7 +420,7 @@ export const OperationsTaskReadServiceLive = Layer.effect(
 export const decodeOperationsTaskQuery = Effect.fn(
   "OperationsTaskService.decodeOperationsTaskQuery",
 )(function* (input: {
-  readonly anime_id?: number | undefined;
+  readonly media_id?: number | undefined;
   readonly limit?: number | undefined;
   readonly offset?: number | undefined;
   readonly task_key?: string | undefined;
@@ -442,7 +442,7 @@ export const decodeOperationsTaskQuery = Effect.fn(
       );
 
   return {
-    ...(input.anime_id === undefined ? {} : { animeId: input.anime_id }),
+    ...(input.media_id === undefined ? {} : { mediaId: input.media_id }),
     ...(input.limit === undefined ? {} : { limit: input.limit }),
     ...(input.offset === undefined ? {} : { offset: input.offset }),
     ...(Option.isSome(decodedTaskKey) ? { taskKey: decodedTaskKey.value } : {}),

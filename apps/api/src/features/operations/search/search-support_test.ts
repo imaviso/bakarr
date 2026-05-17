@@ -46,9 +46,9 @@ it("toNyaaSearchResult preserves release fields and parses episode number", () =
   assert.deepStrictEqual(result.indexer, "Nyaa");
   assert.deepStrictEqual(result.parsed_group, "SubsPlease");
   assert.deepStrictEqual(result.parsed_quality, "WEB-DL 1080p");
-  assert.deepStrictEqual(result.parsed_episode, "1");
-  assert.deepStrictEqual(result.parsed_episode_label, "01");
-  assert.deepStrictEqual(result.parsed_episode_numbers, [1]);
+  assert.deepStrictEqual(result.parsed_unit, "1");
+  assert.deepStrictEqual(result.parsed_unit_label, "01");
+  assert.deepStrictEqual(result.parsed_unit_numbers, [1]);
   assert.deepStrictEqual(result.parsed_resolution, "1080p");
   assert.deepStrictEqual(result.trusted, true);
   assert.deepStrictEqual(result.remake, false);
@@ -84,7 +84,7 @@ it("toNyaaSearchResult maps daily releases to parsed air date", () => {
   const result = toNyaaSearchResult(release);
 
   assert.deepStrictEqual(result.parsed_air_date, "2025-03-14");
-  assert.deepStrictEqual(result.parsed_episode_numbers, undefined);
+  assert.deepStrictEqual(result.parsed_unit_numbers, undefined);
 });
 
 it("fallbackReleases builds a trusted placeholder release from title", () => {

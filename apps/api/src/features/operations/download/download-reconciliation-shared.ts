@@ -3,19 +3,19 @@ import { eq } from "drizzle-orm";
 import { Effect, Option } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
-import { anime, downloadEvents, downloads, systemLogs } from "@/db/schema.ts";
+import { media, downloadEvents, downloads, systemLogs } from "@/db/schema.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import type { MediaProbeShape } from "@/infra/media/probe.ts";
 import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { OperationsPathError } from "@/features/operations/errors.ts";
-import { getAnimeRowEffect as requireAnime } from "@/features/anime/shared/anime-read-repository.ts";
+import { getAnimeRowEffect as requireAnime } from "@/features/media/shared/media-read-repository.ts";
 import { decodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
 import { resolveAccessibleDownloadPath } from "@/features/operations/download/download-paths.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 
 export type DownloadRow = typeof downloads.$inferSelect;
-export type AnimeRow = typeof anime.$inferSelect;
+export type MediaRow = typeof media.$inferSelect;
 
 export type MaybeCleanupImportedTorrent = (
   config: Config | null | undefined,
@@ -32,7 +32,7 @@ export type DownloadReconciliationContext = {
   readonly maybeCleanupImportedTorrent: MaybeCleanupImportedTorrent;
   readonly eventBus: typeof EventBus.Service;
   readonly row: DownloadRow;
-  readonly animeRow: AnimeRow;
+  readonly animeRow: MediaRow;
   readonly runtimeConfig: Config;
   readonly storedSourceMetadata: DownloadSourceMetadata | undefined;
   readonly resolvedContentRoot: string;
@@ -47,7 +47,7 @@ export const finalizeDownloadImport = Effect.fn("OperationsService.finalizeDownl
     readonly downloadId: number;
     readonly fromStatus: string;
     readonly now: string;
-    readonly animeId: number;
+    readonly mediaId: number;
     readonly eventType: string;
     readonly eventMessage: string;
     readonly eventMetadata: string | null;
@@ -65,7 +65,7 @@ export const finalizeDownloadImport = Effect.fn("OperationsService.finalizeDownl
           .set({ reconciledAt: input.now })
           .where(eq(downloads.id, input.downloadId));
         await tx.insert(downloadEvents).values({
-          animeId: input.animeId,
+          mediaId: input.mediaId,
           createdAt: input.now,
           downloadId: input.downloadId,
           eventType: input.eventType,
@@ -128,7 +128,7 @@ export const loadDownloadReconciliationContext = Effect.fn(
   },
 ) {
   const storedSourceMetadata = yield* decodeDownloadSourceMetadata(input.row.sourceMetadata);
-  const animeRow = yield* requireAnime(input.db, input.row.animeId);
+  const animeRow = yield* requireAnime(input.db, input.row.mediaId);
   const runtimeConfig = yield* input.getRuntimeConfig();
   const resolvedContentRoot = yield* resolveAccessibleDownloadPath(
     input.fs,

@@ -17,7 +17,7 @@ import {
   SearchDownloadBodySchema,
   CalendarQuerySchema,
 } from "@/http/operations/request-schemas.ts";
-import { AddAnimeInputSchema } from "@/http/anime/request-schemas.ts";
+import { AddAnimeInputSchema } from "@/http/media/request-schemas.ts";
 import {
   ConfigSchema,
   SystemLogExportQuerySchema,
@@ -27,7 +27,7 @@ import {
 function makeValidConfig() {
   return {
     downloads: {
-      create_anime_folders: true,
+      create_media_folders: true,
       delete_download_files_after_import: false,
       reconcile_completed_downloads: true,
       remote_path_mappings: [["/remote/downloads", "/local/downloads"]],
@@ -72,11 +72,11 @@ function makeValidConfig() {
       },
     ],
     qbittorrent: {
-      default_category: "anime",
+      default_category: "media",
       enabled: true,
       password: "secret",
       ratio_limit: 1.5,
-      save_path: "/downloads/anime",
+      save_path: "/downloads/media",
       url: "http://localhost:8080",
       username: "admin",
     },
@@ -141,8 +141,8 @@ it("formatValidationErrorMessage formats schema errors as concise path summaries
 it("SearchDownloadBodySchema rejects non-positive and fractional identifiers", () => {
   const result = Schema.decodeUnknownEither(SearchDownloadBodySchema)(
     {
-      anime_id: 0,
-      episode_number: 1.5,
+      media_id: 0,
+      unit_number: 1.5,
       magnet: "magnet:?xt=urn:btih:test",
       release_context: {
         group: "SubsPlease",
@@ -155,8 +155,8 @@ it("SearchDownloadBodySchema rejects non-positive and fractional identifiers", (
   assert.deepStrictEqual(result._tag, "Left");
 
   if (result._tag === "Left") {
-    assert.match(result.left.message, /anime_id/);
-    assert.match(result.left.message, /episode_number/);
+    assert.match(result.left.message, /media_id/);
+    assert.match(result.left.message, /unit_number/);
   }
 });
 
@@ -182,8 +182,8 @@ it("auth request schemas reject oversized credentials and malformed API keys", (
 
 it("SearchDownloadBodySchema accepts structured release context", () => {
   const result = Schema.decodeUnknownEither(SearchDownloadBodySchema)({
-    anime_id: 1,
-    episode_number: 2,
+    media_id: 1,
+    unit_number: 2,
     magnet: "magnet:?xt=urn:btih:test",
     release_context: {
       download_action: {
@@ -213,7 +213,7 @@ it("SearchDownloadBodySchema accepts structured release context", () => {
 });
 
 it("AddAnimeInputSchema and ImportFilesBodySchema require positive integer ids", () => {
-  const addAnime = Schema.decodeUnknownEither(AddAnimeInputSchema)(
+  const addMedia = Schema.decodeUnknownEither(AddAnimeInputSchema)(
     {
       id: -3,
       monitor_and_search: false,
@@ -230,8 +230,8 @@ it("AddAnimeInputSchema and ImportFilesBodySchema require positive integer ids",
     {
       files: [
         {
-          anime_id: 2,
-          episode_number: 0,
+          media_id: 2,
+          unit_number: 0,
           source_path: "/downloads/file.mkv",
         },
       ],
@@ -239,16 +239,16 @@ it("AddAnimeInputSchema and ImportFilesBodySchema require positive integer ids",
     { errors: "all" },
   );
 
-  assert.deepStrictEqual(addAnime._tag, "Left");
+  assert.deepStrictEqual(addMedia._tag, "Left");
   assert.deepStrictEqual(importFiles._tag, "Left");
 
-  if (addAnime._tag === "Left") {
-    assert.match(addAnime.left.message, /id/);
-    assert.match(addAnime.left.message, /release_profile_ids/);
+  if (addMedia._tag === "Left") {
+    assert.match(addMedia.left.message, /id/);
+    assert.match(addMedia.left.message, /release_profile_ids/);
   }
 
   if (importFiles._tag === "Left") {
-    assert.match(importFiles.left.message, /episode_number/);
+    assert.match(importFiles.left.message, /unit_number/);
   }
 });
 
@@ -256,13 +256,13 @@ it("ImportFilesBodySchema accepts source metadata for naming reuse", () => {
   const importFiles = Schema.decodeUnknownEither(ImportFilesBodySchema)({
     files: [
       {
-        anime_id: 2,
-        episode_number: 1,
+        media_id: 2,
+        unit_number: 1,
         source_metadata: {
           quality: "WEB-DL",
           resolution: "1080p",
           source_identity: {
-            episode_numbers: [1],
+            unit_numbers: [1],
             label: "S01E01",
             scheme: "season",
             season: 1,
@@ -278,7 +278,7 @@ it("ImportFilesBodySchema accepts source metadata for naming reuse", () => {
 
 it("DownloadEventsQuerySchema accepts filtered query params", () => {
   const query = Schema.decodeUnknownEither(DownloadEventsQuerySchema)({
-    anime_id: "20",
+    media_id: "20",
     cursor: "400",
     direction: "next",
     download_id: "4",
@@ -294,7 +294,7 @@ it("DownloadEventsQuerySchema accepts filtered query params", () => {
 
 it("DownloadEventsExportQuerySchema accepts export query params", () => {
   const query = Schema.decodeUnknownEither(DownloadEventsExportQuerySchema)({
-    anime_id: "20",
+    media_id: "20",
     download_id: "4",
     end_date: "2026-03-18T23:59:59",
     event_type: "download.imported",
@@ -317,7 +317,7 @@ it("SystemLogsQuerySchema rejects unsupported log levels", () => {
 });
 
 it("AddAnimeInputSchema accepts existing-root flag", () => {
-  const addAnime = Schema.decodeUnknownEither(AddAnimeInputSchema)({
+  const addMedia = Schema.decodeUnknownEither(AddAnimeInputSchema)({
     id: 20,
     monitor_and_search: false,
     monitored: true,
@@ -327,16 +327,16 @@ it("AddAnimeInputSchema accepts existing-root flag", () => {
     use_existing_root: true,
   });
 
-  assert.deepStrictEqual(addAnime._tag, "Right");
+  assert.deepStrictEqual(addMedia._tag, "Right");
 });
 
 it("AddRssFeedBodySchema accepts http(s) RSS URLs", () => {
   const httpsResult = Schema.decodeUnknownEither(AddRssFeedBodySchema)({
-    anime_id: 20,
+    media_id: 20,
     url: "https://example.com/feed.xml",
   });
   const httpResult = Schema.decodeUnknownEither(AddRssFeedBodySchema)({
-    anime_id: 20,
+    media_id: 20,
     url: "http://example.com/feed.xml",
   });
 
@@ -346,14 +346,14 @@ it("AddRssFeedBodySchema accepts http(s) RSS URLs", () => {
 
 it("boundary request schemas reject malformed URL, path, and date inputs", () => {
   const rssFeed = Schema.decodeUnknownEither(AddRssFeedBodySchema)({
-    anime_id: 20,
+    media_id: 20,
     url: "ftp://example.com/feed",
   });
   const browse = Schema.decodeUnknownEither(BrowseQuerySchema)({
     path: "relative/path",
   });
   const unmappedImport = Schema.decodeUnknownEither(ImportUnmappedFolderBodySchema)({
-    anime_id: 20,
+    media_id: 20,
     folder_name: "../escape",
   });
   const calendar = Schema.decodeUnknownEither(CalendarQuerySchema)({

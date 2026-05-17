@@ -6,7 +6,7 @@ import {
   parseReleaseSourceIdentity,
   toSharedParsedEpisodeIdentity,
 } from "@/infra/media/identity/identity.ts";
-import { extractYearFromDate } from "@/domain/anime/date-utils.ts";
+import { extractYearFromDate } from "@/domain/media/date-utils.ts";
 import {
   extractAudioChannels,
   extractAudioCodec,
@@ -56,7 +56,7 @@ export function buildDownloadSourceMetadataFromRelease(input: {
     previous_quality: normalizeText(input.previousQuality),
     previous_score: normalizeFiniteNumber(input.previousScore),
     chosen_from_seadex: input.chosenFromSeadex,
-    episode_title: extractEpisodeTitleFromPath({
+    unit_title: extractEpisodeTitleFromPath({
       filePath: input.title,
       group,
       sourceIdentity,
@@ -105,7 +105,7 @@ export function mergeDownloadSourceMetadata(
     previous_quality: pickOverride(override.previous_quality, base.previous_quality),
     previous_score: pickOverride(override.previous_score, base.previous_score),
     chosen_from_seadex: pickOverride(override.chosen_from_seadex, base.chosen_from_seadex),
-    episode_title: pickOverride(override.episode_title, base.episode_title),
+    unit_title: pickOverride(override.unit_title, base.unit_title),
     group: pickOverride(override.group, base.group),
     indexer: pickOverride(override.indexer, base.indexer),
     is_seadex: pickOverride(override.is_seadex, base.is_seadex),
@@ -130,10 +130,10 @@ export function mergeDownloadSourceMetadata(
 
 export function buildEpisodeNamingInputFromPath(input: {
   animeStartDate?: string | null;
-  animeTitle: string;
+  mediaTitle: string;
   airDate?: string | null;
-  episodeNumbers: readonly number[];
-  episodeTitle?: string | null;
+  unitNumbers: readonly number[];
+  unitTitle?: string | null;
   filePath: string;
   rootFolder?: string;
   season?: number;
@@ -152,9 +152,9 @@ export function buildEpisodeNamingInputFromPath(input: {
     airDate: normalizeAirDate(input.airDate),
     audioChannels: extractAudioChannels(input.filePath),
     audioCodec: extractAudioCodec(input.filePath),
-    episodeNumbers: [...input.episodeNumbers],
-    episodeTitle:
-      normalizeText(input.episodeTitle) ??
+    unitNumbers: [...input.unitNumbers],
+    unitTitle:
+      normalizeText(input.unitTitle) ??
       extractEpisodeTitleFromPath({
         filePath: input.filePath,
         group,
@@ -165,7 +165,7 @@ export function buildEpisodeNamingInputFromPath(input: {
     resolution: parsed.resolution,
     season: sourceIdentity?.scheme === "season" ? sourceIdentity.season : input.season,
     sourceIdentity: sourceIdentityDto,
-    title: input.animeTitle,
+    title: input.mediaTitle,
     videoCodec: extractVideoCodec(input.filePath),
     year: extractYearFromDate(input.animeStartDate),
   };

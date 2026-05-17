@@ -33,7 +33,7 @@ export function SystemSettingsAutomationMetadataSection(
 
       <SettingRow
         label="Jikan Runtime Status"
-        description="MyAnimeList metadata enrichment via Jikan API"
+        description="MyMediaList metadata enrichment via Jikan API"
       >
         {props.systemStatus ? (
           <Badge
@@ -72,7 +72,7 @@ export function SystemSettingsAutomationMetadataSection(
       <props.form.Field name="metadata.anidb.enabled">
         {(field) => (
           <SettingRow
-            label="Enable AniDB Episode Metadata"
+            label="Enable AniDB MediaUnit Metadata"
             description="Use AniDB UDP API to enrich AniList metadata with episode titles and dates"
           >
             <Switch
@@ -154,7 +154,7 @@ export function SystemSettingsAutomationMetadataSection(
       <props.form.Field name="metadata.anidb.episode_limit">
         {(field) => (
           <SettingRow
-            label="AniDB Episode Lookup Limit"
+            label="AniDB MediaUnit Lookup Limit"
             description="Maximum episode count fetched per anime during refresh"
           >
             <FiniteNumberInput

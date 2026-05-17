@@ -10,7 +10,7 @@ export interface DownloadsEventsSearchState {
   activePreset: number | null | undefined;
   applyDateRangePreset: (hours: number) => void;
   exportInput: {
-    animeId?: number;
+    mediaId?: number;
     downloadId?: number;
     endDate?: string;
     eventType?: string;
@@ -21,7 +21,7 @@ export interface DownloadsEventsSearchState {
   };
   filterValue: DownloadEventsFilterValue;
   queryInput: {
-    animeId?: number;
+    mediaId?: number;
     cursor?: string;
     direction?: "next" | "prev";
     downloadId?: number;

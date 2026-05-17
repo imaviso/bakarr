@@ -1,6 +1,6 @@
 import type {
-  AnimeId,
-  AnimeSearchResult,
+  MediaId,
+  MediaSearchResult,
   DownloadSourceMetadata,
   ImportFileRequest,
   ScannedFile,
@@ -12,7 +12,7 @@ export function buildImportSourceMetadata(
     | "air_date"
     | "audio_channels"
     | "audio_codec"
-    | "episode_title"
+    | "unit_title"
     | "group"
     | "quality"
     | "resolution"
@@ -24,7 +24,7 @@ export function buildImportSourceMetadata(
     ...(file.air_date === undefined ? {} : { air_date: file.air_date }),
     ...(file.audio_channels === undefined ? {} : { audio_channels: file.audio_channels }),
     ...(file.audio_codec === undefined ? {} : { audio_codec: file.audio_codec }),
-    ...(file.episode_title === undefined ? {} : { episode_title: file.episode_title }),
+    ...(file.unit_title === undefined ? {} : { unit_title: file.unit_title }),
     ...(file.group === undefined ? {} : { group: file.group }),
     ...(file.quality === undefined ? {} : { quality: file.quality }),
     ...(file.resolution === undefined ? {} : { resolution: file.resolution }),
@@ -36,15 +36,15 @@ export function buildImportSourceMetadata(
 }
 
 export function buildImportFileRequest(input: {
-  animeId: AnimeId;
+  mediaId: MediaId;
   file: Pick<
     ScannedFile,
     | "air_date"
     | "audio_channels"
     | "audio_codec"
-    | "episode_number"
-    | "episode_numbers"
-    | "episode_title"
+    | "unit_number"
+    | "unit_numbers"
+    | "unit_title"
     | "group"
     | "quality"
     | "resolution"
@@ -53,17 +53,17 @@ export function buildImportFileRequest(input: {
     | "source_path"
     | "video_codec"
   >;
-  episodeNumber?: number;
-  episodeNumbers?: number[];
+  unitNumber?: number;
+  unitNumbers?: number[];
   season?: number;
   sourceMetadata?: DownloadSourceMetadata;
 }) {
   return {
-    anime_id: input.animeId,
-    episode_number: input.episodeNumber ?? Math.floor(input.file.episode_number),
+    media_id: input.mediaId,
+    unit_number: input.unitNumber ?? Math.floor(input.file.unit_number),
     ...(() => {
-      const episodeNumbers = input.episodeNumbers ?? input.file.episode_numbers;
-      return episodeNumbers === undefined ? {} : { episode_numbers: episodeNumbers };
+      const unitNumbers = input.unitNumbers ?? input.file.unit_numbers;
+      return unitNumbers === undefined ? {} : { unit_numbers: unitNumbers };
     })(),
     ...(() => {
       const season = input.season ?? input.file.season;
@@ -79,10 +79,10 @@ export function buildImportFileRequest(input: {
 
 export function findMissingImportCandidates(input: {
   files: readonly ImportFileRequest[];
-  localAnimeIds: ReadonlySet<AnimeId>;
-  candidates: readonly AnimeSearchResult[];
+  localAnimeIds: ReadonlySet<MediaId>;
+  candidates: readonly MediaSearchResult[];
 }) {
-  const missingIds = [...new Set(input.files.map((file) => file.anime_id))].filter(
+  const missingIds = [...new Set(input.files.map((file) => file.media_id))].filter(
     (id) => !input.localAnimeIds.has(id),
   );
 

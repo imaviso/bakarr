@@ -23,9 +23,9 @@ function animeInitials(title: string) {
 }
 
 interface DownloadRowMetaProps {
-  animeId?: number | undefined;
-  animeImage?: string | undefined;
-  animeTitle: string;
+  mediaId?: number | undefined;
+  mediaImage?: string | undefined;
+  mediaTitle: string;
   confidence?: ReleaseConfidenceMetadata | undefined;
   decisionBadge?: string | undefined;
   decisionSummary?: string | undefined;
@@ -50,26 +50,26 @@ export function DownloadRowMeta(props: DownloadRowMetaProps) {
     <div className="flex items-start gap-3">
       <Avatar className="size-8 rounded-none">
         <AvatarImage
-          {...(props.animeImage === undefined ? {} : { src: props.animeImage })}
-          alt={props.animeTitle}
+          {...(props.mediaImage === undefined ? {} : { src: props.mediaImage })}
+          alt={props.mediaTitle}
         />
         <AvatarFallback className="rounded-none text-xs font-medium">
-          {animeInitials(props.animeTitle)}
+          {animeInitials(props.mediaTitle)}
         </AvatarFallback>
       </Avatar>
       <div className="flex flex-col justify-center min-w-0">
         <div className="flex items-center gap-2 min-w-0 flex-wrap">
-          {props.animeId !== undefined ? (
+          {props.mediaId !== undefined ? (
             <Link
-              to="/anime/$id"
-              params={{ id: props.animeId.toString() }}
+              to="/media/$id"
+              params={{ id: props.mediaId.toString() }}
               className="line-clamp-1 text-sm hover:underline min-w-0 max-w-full"
-              title={props.animeTitle}
+              title={props.mediaTitle}
             >
-              {props.animeTitle}
+              {props.mediaTitle}
             </Link>
           ) : (
-            <span className="line-clamp-1 min-w-0 max-w-full">{props.animeTitle}</span>
+            <span className="line-clamp-1 min-w-0 max-w-full">{props.mediaTitle}</span>
           )}
           {props.decisionBadge && (
             <Badge variant="secondary" className="h-5 px-1.5 text-xs shrink-0">

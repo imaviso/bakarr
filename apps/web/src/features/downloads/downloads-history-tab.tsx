@@ -36,9 +36,9 @@ export function DownloadsHistoryTab(props: DownloadsHistoryTabProps) {
               <TableHead scope="col" className="w-[50px]">
                 <span className="sr-only">Status</span>
               </TableHead>
-              <TableHead scope="col">Anime</TableHead>
+              <TableHead scope="col">Media</TableHead>
               <TableHead scope="col" className="w-[100px]">
-                Episode
+                MediaUnit
               </TableHead>
               <TableHead scope="col" className="w-[180px] hidden md:table-cell">
                 Added

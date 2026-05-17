@@ -2,19 +2,19 @@ import { and, eq, sql } from "drizzle-orm";
 import { Effect, Schema } from "effect";
 
 import {
-  brandAnimeId,
-  type AnimeSearchResult,
+  brandMediaId,
+  type MediaSearchResult,
   type Config,
   type RenamePreviewItem,
 } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
-import { anime, episodes } from "@/db/schema.ts";
+import { media, mediaUnits } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { buildEpisodeFilenamePlan } from "@/features/operations/library/naming-canonical-support.ts";
 import { selectNamingFormat } from "@/features/operations/library/naming-format-support.ts";
 import { OperationsStoredDataError } from "@/features/operations/errors.ts";
-import { deriveAnimeSeason, extractYearFromDate } from "@/domain/anime/date-utils.ts";
-import { getAnimeRowEffect as requireAnime } from "@/features/anime/shared/anime-read-repository.ts";
+import { deriveAnimeSeason, extractYearFromDate } from "@/domain/media/date-utils.ts";
+import { getAnimeRowEffect as requireAnime } from "@/features/media/shared/media-read-repository.ts";
 
 export {
   analyzeScannedFile,
@@ -39,7 +39,7 @@ const decodeAnimeGenres = Effect.fn("Operations.decodeAnimeGenres")(function* (
       (cause) =>
         new OperationsStoredDataError({
           cause,
-          message: "Stored anime genres are corrupt",
+          message: "Stored media genres are corrupt",
         }),
     ),
   );
@@ -47,21 +47,21 @@ const decodeAnimeGenres = Effect.fn("Operations.decodeAnimeGenres")(function* (
 
 export const buildRenamePreview = Effect.fn("OperationsService.buildRenamePreview")(function* (
   db: AppDatabase,
-  animeId: number,
+  mediaId: number,
   runtimeConfig: Config,
 ) {
-  const animeRow = yield* requireAnime(db, animeId);
+  const animeRow = yield* requireAnime(db, mediaId);
   const namingSettings = {
     movieNamingFormat: runtimeConfig.library.movie_naming_format,
     namingFormat: runtimeConfig.library.naming_format,
     preferredTitle: runtimeConfig.library.preferred_title,
   };
   const namingFormat = selectNamingFormat(animeRow, namingSettings);
-  const rows = yield* tryDatabasePromise("Failed to load episodes for rename preview", () =>
+  const rows = yield* tryDatabasePromise("Failed to load mediaUnits for rename preview", () =>
     db
       .select()
-      .from(episodes)
-      .where(and(eq(episodes.animeId, animeId), sql`${episodes.filePath} is not null`)),
+      .from(mediaUnits)
+      .where(and(eq(mediaUnits.mediaId, mediaId), sql`${mediaUnits.filePath} is not null`)),
   );
 
   // Group rows by file path to handle multi-episode files
@@ -75,8 +75,8 @@ export const buildRenamePreview = Effect.fn("OperationsService.buildRenamePrevie
 
   const results: RenamePreviewItem[] = [];
   for (const [filePath, groupRows] of fileGroups) {
-    const episodeNumbers = groupRows.map((r) => r.number).toSorted((a, b) => a - b);
-    const [primaryEpisode] = episodeNumbers;
+    const unitNumbers = groupRows.map((r) => r.number).toSorted((a, b) => a - b);
+    const [primaryEpisode] = unitNumbers;
 
     if (primaryEpisode === undefined) {
       continue;
@@ -85,7 +85,7 @@ export const buildRenamePreview = Effect.fn("OperationsService.buildRenamePrevie
     const extension = filePath.includes(".") ? filePath.slice(filePath.lastIndexOf(".")) : ".mkv";
     const plan = buildEpisodeFilenamePlan({
       animeRow,
-      episodeNumbers,
+      unitNumbers,
       episodeRows: groupRows,
       filePath,
       namingFormat,
@@ -94,8 +94,8 @@ export const buildRenamePreview = Effect.fn("OperationsService.buildRenamePrevie
     const filename = `${plan.baseName}${extension}`;
     results.push({
       current_path: filePath,
-      episode_number: primaryEpisode,
-      episode_numbers: episodeNumbers.length > 1 ? episodeNumbers : undefined,
+      unit_number: primaryEpisode,
+      unit_numbers: unitNumbers.length > 1 ? unitNumbers : undefined,
       fallback_used: plan.fallbackUsed || undefined,
       format_used: plan.formatUsed,
       metadata_snapshot: plan.metadataSnapshot,
@@ -110,7 +110,7 @@ export const buildRenamePreview = Effect.fn("OperationsService.buildRenamePrevie
 });
 
 export const toAnimeSearchCandidate = Effect.fn("Operations.toAnimeSearchCandidate")(function* (
-  row: typeof anime.$inferSelect,
+  row: typeof media.$inferSelect,
 ) {
   return {
     already_in_library: true,
@@ -120,11 +120,11 @@ export const toAnimeSearchCandidate = Effect.fn("Operations.toAnimeSearchCandida
     duration: row.duration ?? undefined,
     end_date: row.endDate ?? undefined,
     end_year: row.endYear ?? undefined,
-    episode_count: row.episodeCount ?? undefined,
+    unit_count: row.unitCount ?? undefined,
     favorites: row.favorites ?? undefined,
     format: row.format,
     genres: yield* decodeAnimeGenres(row.genres),
-    id: brandAnimeId(row.id),
+    id: brandMediaId(row.id),
     members: row.members ?? undefined,
     popularity: row.popularity ?? undefined,
     rank: row.rank ?? undefined,
@@ -140,5 +140,5 @@ export const toAnimeSearchCandidate = Effect.fn("Operations.toAnimeSearchCandida
       native: row.titleNative ?? undefined,
       romaji: row.titleRomaji,
     },
-  } satisfies AnimeSearchResult;
+  } satisfies MediaSearchResult;
 });

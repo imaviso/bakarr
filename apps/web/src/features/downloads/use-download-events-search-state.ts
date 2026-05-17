@@ -23,7 +23,7 @@ export function useDownloadEventsSearchState(options: UseDownloadEventsSearchSta
   });
 
   const filterKeyByField: Record<keyof DownloadEventsFilterValue, string> = {
-    animeId: options.keys.animeId,
+    mediaId: options.keys.mediaId,
     downloadId: options.keys.downloadId,
     endDate: options.keys.endDate,
     eventType: options.keys.eventType,
@@ -32,7 +32,7 @@ export function useDownloadEventsSearchState(options: UseDownloadEventsSearchSta
   };
 
   const filterValue: DownloadEventsFilterValue = {
-    animeId: read(options.keys.animeId),
+    mediaId: read(options.keys.mediaId),
     downloadId: read(options.keys.downloadId),
     endDate: read(options.keys.endDate),
     eventType: read(options.keys.eventType),
@@ -41,7 +41,7 @@ export function useDownloadEventsSearchState(options: UseDownloadEventsSearchSta
   };
 
   const queryInput = buildDownloadEventsFilterInput({
-    animeId: read(options.keys.animeId),
+    mediaId: read(options.keys.mediaId),
     cursor: read(options.keys.cursor),
     direction: read(options.keys.direction) === "prev" ? "prev" : "next",
     downloadId: read(options.keys.downloadId),
@@ -52,7 +52,7 @@ export function useDownloadEventsSearchState(options: UseDownloadEventsSearchSta
   });
 
   const exportInput = buildDownloadEventsExportInput({
-    animeId: read(options.keys.animeId),
+    mediaId: read(options.keys.mediaId),
     downloadId: read(options.keys.downloadId),
     endDate: read(options.keys.endDate),
     eventType: read(options.keys.eventType),

@@ -1,8 +1,8 @@
 import type { Quality } from "@packages/shared/index.ts";
 
 export interface ParsedReleaseName {
-  readonly episodeNumber?: number | undefined;
-  readonly episodeNumbers: readonly number[];
+  readonly unitNumber?: number | undefined;
+  readonly unitNumbers: readonly number[];
   readonly group?: string | undefined;
   readonly isBatch: boolean;
   readonly isSeaDex: boolean;
@@ -11,7 +11,7 @@ export interface ParsedReleaseName {
   readonly resolution?: string | undefined;
 }
 
-export interface RankedCurrentEpisode {
+export interface RankedCurrentUnit {
   readonly downloaded: boolean;
   readonly filePath?: string | undefined;
   readonly isSeaDex?: boolean | undefined;

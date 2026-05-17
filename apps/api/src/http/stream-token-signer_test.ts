@@ -5,7 +5,7 @@ import { assert, it } from "@effect/vitest";
 import {
   StreamTokenSigner,
   StreamTokenSignerLive,
-} from "@/features/anime/stream/stream-token-signer.ts";
+} from "@/features/media/stream/stream-token-signer.ts";
 
 const randomLayer = Layer.succeed(RandomService, {
   randomBytes: () => Effect.succeed(new Uint8Array(32).fill(7)),
@@ -16,14 +16,14 @@ it.effect("StreamTokenSigner signs and verifies matching stream payloads", () =>
   Effect.gen(function* () {
     const signer = yield* StreamTokenSigner;
     const signature = yield* signer.sign({
-      animeId: 42,
-      episodeNumber: 7,
+      mediaId: 42,
+      unitNumber: 7,
       expiresAt: 2_000,
     });
 
     const isValid = yield* signer.verify({
-      animeId: 42,
-      episodeNumber: 7,
+      mediaId: 42,
+      unitNumber: 7,
       expiresAt: 2_000,
       nowMillis: 1_500,
       signatureHex: signature,
@@ -37,14 +37,14 @@ it.effect("StreamTokenSigner rejects expired stream payloads", () =>
   Effect.gen(function* () {
     const signer = yield* StreamTokenSigner;
     const signature = yield* signer.sign({
-      animeId: 42,
-      episodeNumber: 7,
+      mediaId: 42,
+      unitNumber: 7,
       expiresAt: 2_000,
     });
 
     const isValid = yield* signer.verify({
-      animeId: 42,
-      episodeNumber: 7,
+      mediaId: 42,
+      unitNumber: 7,
       expiresAt: 2_000,
       nowMillis: 2_001,
       signatureHex: signature,

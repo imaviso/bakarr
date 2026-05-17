@@ -27,14 +27,14 @@ import { useSystemTaskQuery, isTaskActive } from "~/api/operations-tasks";
 import { useSearchMissingMutation } from "~/api/system-downloads";
 import { systemConfigQueryOptions } from "~/api/system-config";
 import { wantedQueryOptions } from "~/api/system-wanted";
-import type { MissingEpisode } from "~/api/contracts";
+import type { MissingUnit } from "~/api/contracts";
 import { mediaUnitLabel } from "~/domain/media-unit";
 import { usePageTitle } from "~/domain/page-title";
 import {
   formatAiringDateWithPreferences,
   formatNextAiringEpisode,
   getAiringDisplayPreferences,
-} from "~/domain/anime/metadata";
+} from "~/domain/media/metadata";
 
 const WANTED_LIMIT = 100;
 
@@ -85,14 +85,14 @@ function WantedPage() {
 
   const [searchModalState, setSearchModalState] = useState<{
     open: boolean;
-    animeId: number;
-    episodeNumber: number;
-    episodeTitle?: string;
-    unitKind?: MissingEpisode["unit_kind"];
+    mediaId: number;
+    unitNumber: number;
+    unitTitle?: string;
+    unitKind?: MissingUnit["unit_kind"];
   }>({
     open: false,
-    animeId: 0,
-    episodeNumber: 1,
+    mediaId: 0,
+    unitNumber: 1,
   });
 
   const handleSearchAll = () => {
@@ -163,24 +163,24 @@ function WantedPage() {
                     return (
                       item && (
                         <WantedRow
-                          key={`${item.anime_id}-${item.episode_number}`}
+                          key={`${item.media_id}-${item.unit_number}`}
                           item={item}
                           airingPreferences={airingPreferences}
                           onSearch={() => {
-                            const episodeTitle = item.episode_title;
+                            const unitTitle = item.unit_title;
                             setSearchModalState(
-                              episodeTitle === undefined
+                              unitTitle === undefined
                                 ? {
                                     open: true,
-                                    animeId: item.anime_id,
-                                    episodeNumber: item.episode_number,
+                                    mediaId: item.media_id,
+                                    unitNumber: item.unit_number,
                                     unitKind: item.unit_kind,
                                   }
                                 : {
                                     open: true,
-                                    animeId: item.anime_id,
-                                    episodeNumber: item.episode_number,
-                                    episodeTitle,
+                                    mediaId: item.media_id,
+                                    unitNumber: item.unit_number,
+                                    unitTitle,
                                     unitKind: item.unit_kind,
                                   },
                             );
@@ -212,12 +212,12 @@ function WantedPage() {
 
       <Suspense fallback={null}>
         <SearchModalLazy
-          animeId={searchModalState.animeId}
-          episodeNumber={searchModalState.episodeNumber}
+          mediaId={searchModalState.mediaId}
+          unitNumber={searchModalState.unitNumber}
           unitKind={searchModalState.unitKind}
-          {...(searchModalState.episodeTitle === undefined
+          {...(searchModalState.unitTitle === undefined
             ? {}
-            : { episodeTitle: searchModalState.episodeTitle })}
+            : { unitTitle: searchModalState.unitTitle })}
           open={searchModalState.open}
           onOpenChange={(open) => setSearchModalState((prev) => ({ ...prev, open }))}
         />
@@ -227,7 +227,7 @@ function WantedPage() {
 }
 
 function WantedRow(props: {
-  item: MissingEpisode;
+  item: MissingUnit;
   airingPreferences: ReturnType<typeof getAiringDisplayPreferences>;
   onSearch: () => void;
 }) {
@@ -243,10 +243,10 @@ function WantedRow(props: {
     <TableRow>
       <TableCell>
         <div className="h-10 w-7 rounded-none overflow-hidden bg-muted">
-          {props.item.anime_image && (
+          {props.item.media_image && (
             <img
-              src={props.item.anime_image}
-              alt={props.item.anime_title}
+              src={props.item.media_image}
+              alt={props.item.media_title}
               loading="lazy"
               className="h-full w-full object-cover"
             />
@@ -255,15 +255,15 @@ function WantedRow(props: {
       </TableCell>
       <TableCell className="font-medium">
         <Link
-          to="/anime/$id"
-          params={{ id: props.item.anime_id.toString() }}
+          to="/media/$id"
+          params={{ id: props.item.media_id.toString() }}
           className="hover:underline"
         >
-          {props.item.anime_title}
+          {props.item.media_title}
         </Link>
-        {props.item.next_airing_episode && (
+        {props.item.next_airing_unit && (
           <div className="mt-1 text-[11px] text-muted-foreground">
-            {formatNextAiringEpisode(props.item.next_airing_episode, props.airingPreferences) ||
+            {formatNextAiringEpisode(props.item.next_airing_unit, props.airingPreferences) ||
               "Next airing scheduled"}
           </div>
         )}
@@ -271,7 +271,7 @@ function WantedRow(props: {
       <TableCell>
         <div className="flex flex-col items-start gap-1">
           <Badge variant="outline" className="tabular-nums">
-            {unitLabel} {props.item.episode_number.toString().padStart(2, "0")}
+            {unitLabel} {props.item.unit_number.toString().padStart(2, "0")}
           </Badge>
           {statusLabel && (
             <Badge variant={props.item.airing_status === "aired" ? "warning" : "info"}>
@@ -281,7 +281,7 @@ function WantedRow(props: {
         </div>
       </TableCell>
       <TableCell className="hidden md:table-cell text-muted-foreground truncate max-w-[200px]">
-        {props.item.episode_title || "-"}
+        {props.item.unit_title || "-"}
       </TableCell>
       <TableCell className="text-sm">
         {formatAiringDateWithPreferences(props.item.aired, props.airingPreferences) || "-"}

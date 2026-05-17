@@ -22,7 +22,7 @@ export const resolveCompletedContentPath = Effect.fn("Operations.resolveComplete
   function* (
     fs: FileSystemShape,
     contentPath: string,
-    episodeNumber: number,
+    unitNumber: number,
     options?: { expectedAirDate?: string },
   ) {
     const stat = yield* statMaybe(fs, contentPath);
@@ -60,7 +60,7 @@ export const resolveCompletedContentPath = Effect.fn("Operations.resolveComplete
           candidateCount === 1 ? Option.some(file.path) : state.firstCandidatePath;
         const matchingPath = Option.isSome(state.matchingPath)
           ? state.matchingPath
-          : matchesCompletedDownloadFile(file.path, episodeNumber, options?.expectedAirDate)
+          : matchesCompletedDownloadFile(file.path, unitNumber, options?.expectedAirDate)
             ? Option.some(file.path)
             : Option.none<string>();
 
@@ -172,11 +172,7 @@ const statMaybe = Effect.fn("Operations.statMaybe")(function* (fs: FileSystemSha
   );
 });
 
-function matchesCompletedDownloadFile(
-  path: string,
-  episodeNumber: number,
-  expectedAirDate?: string,
-) {
+function matchesCompletedDownloadFile(path: string, unitNumber: number, expectedAirDate?: string) {
   const identity = parseFileSourceIdentity(path).source_identity;
 
   if (!identity) {
@@ -187,5 +183,5 @@ function matchesCompletedDownloadFile(
     return expectedAirDate ? identity.air_dates.includes(expectedAirDate) : false;
   }
 
-  return identity.episode_numbers.includes(episodeNumber);
+  return identity.unit_numbers.includes(unitNumber);
 }

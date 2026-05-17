@@ -17,14 +17,14 @@ import { parseReleaseName } from "@/features/operations/search/release-ranking-p
 import { calculateReleaseScore } from "@/features/operations/search/release-ranking-scoring.ts";
 import { parseSizeLabelToBytes } from "@/features/operations/search/release-ranking-size.ts";
 import type {
-  RankedCurrentEpisode,
+  RankedCurrentUnit,
   RankedRelease,
 } from "@/features/operations/search/release-ranking-types.ts";
 
 export function decideDownloadAction(
   profile: QualityProfile,
   rules: readonly ReleaseProfileRule[],
-  current: Option.Option<RankedCurrentEpisode>,
+  current: Option.Option<RankedCurrentUnit>,
   release: RankedRelease,
   config: Config,
   options: { readonly allowUnknownQuality?: boolean } = {},
@@ -54,13 +54,13 @@ export function decideDownloadAction(
     return accept(release, releaseQuality, score);
   }
 
-  const currentEpisode = current.value;
+  const currentUnit = current.value;
 
   if (!profile.upgrade_allowed) {
     return reject("upgrades disabled");
   }
 
-  const currentAssessment = assessCurrentEpisode(currentEpisode, rules, config);
+  const currentAssessment = assessCurrentUnit(currentUnit, rules, config);
   const cutoffRank = cutoffQuality(profile.cutoff).rank;
   const currentMeetsCutoff = currentAssessment.quality.rank <= cutoffRank;
   const seadexPreferred = profile.seadex_preferred;
@@ -135,8 +135,8 @@ function evaluateRuleGuard(rules: readonly ReleaseProfileRule[], title: string) 
   return { _tag: "Pass" as const };
 }
 
-function assessCurrentEpisode(
-  current: RankedCurrentEpisode,
+function assessCurrentUnit(
+  current: RankedCurrentUnit,
   rules: readonly ReleaseProfileRule[],
   config: Config,
 ) {

@@ -26,14 +26,14 @@ export function useRssFeedsQuery() {
   return useQuery(rssFeedsQueryOptions());
 }
 
-export function animeRssFeedsQueryOptions(animeId: number) {
+export function animeRssFeedsQueryOptions(mediaId: number) {
   return queryOptions({
-    queryKey: animeKeys.rss.anime(animeId),
+    queryKey: animeKeys.rss.media(mediaId),
     queryFn: ({ signal }) =>
       Effect.runPromise(
         fetchJson(
           Schema.mutable(Schema.Array(RssFeedSchema)),
-          `${API_BASE}/anime/${animeId}/rss`,
+          `${API_BASE}/media/${mediaId}/rss`,
           undefined,
           signal,
         ),
@@ -42,10 +42,10 @@ export function animeRssFeedsQueryOptions(animeId: number) {
   });
 }
 
-export function useAnimeRssFeedsQuery(animeId: number) {
+export function useAnimeRssFeedsQuery(mediaId: number) {
   return useQuery({
-    ...animeRssFeedsQueryOptions(animeId),
-    enabled: !!animeId,
+    ...animeRssFeedsQueryOptions(mediaId),
+    enabled: !!mediaId,
   });
 }
 

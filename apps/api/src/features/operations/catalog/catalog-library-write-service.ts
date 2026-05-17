@@ -20,7 +20,7 @@ export interface CatalogLibraryWriteServiceShape {
     files: readonly LibraryImportFileInput[],
   ) => Effect.Effect<ImportResult, RuntimeConfigSnapshotError>;
   readonly renameFiles: (
-    animeId: number,
+    mediaId: number,
   ) => Effect.Effect<
     RenameResult,
     DatabaseError | OperationsAnimeNotFoundError | RuntimeConfigSnapshotError
@@ -55,10 +55,10 @@ export const CatalogLibraryWriteServiceLive = Layer.effect(
       });
     });
 
-    const renameFiles = Effect.fn("OperationsService.renameFiles")(function* (animeId: number) {
+    const renameFiles = Effect.fn("OperationsService.renameFiles")(function* (mediaId: number) {
       const runtimeConfig = yield* runtimeConfigSnapshot.getRuntimeConfig();
       return yield* renameLibraryFiles({
-        animeId,
+        mediaId,
         db,
         eventBus,
         fs,

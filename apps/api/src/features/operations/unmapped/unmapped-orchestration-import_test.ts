@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 import { dirname } from "node:path";
 
-import { anime, appConfig, episodes } from "@/db/schema.ts";
+import { media, appConfig, mediaUnits } from "@/db/schema.ts";
 import { encodeConfigCore, toConfigCore } from "@/features/system/config-codec.ts";
 import { makeUnmappedImportWorkflow } from "@/features/operations/unmapped/unmapped-orchestration-import.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
@@ -37,7 +37,7 @@ it.scoped("unmapped import rolls back when a later insert fails", () =>
         );
 
         yield* Effect.tryPromise(() =>
-          appDb.insert(anime).values(
+          appDb.insert(media).values(
             makeAnimeRow({
               id: 20,
               profileName: "Default",
@@ -56,7 +56,7 @@ it.scoped("unmapped import rolls back when a later insert fails", () =>
           databaseFile,
           run: (client) =>
             client.unsafe(
-              "create trigger episode_insert_abort before insert on episodes when (select count(*) from episodes where anime_id = new.anime_id) >= 1 begin select raise(fail, 'boom'); end;",
+              "create trigger episode_insert_abort before insert on media_units when (select count(*) from media_units where media_id = new.media_id) >= 1 begin select raise(fail, 'boom'); end;",
             ).withoutTransform,
         });
 
@@ -69,7 +69,7 @@ it.scoped("unmapped import rolls back when a later insert fails", () =>
 
         const exit = yield* Effect.exit(
           workflow.importUnmappedFolder({
-            anime_id: 20,
+            media_id: 20,
             folder_name: "incoming",
             profile_name: "Imported",
           }),
@@ -78,7 +78,7 @@ it.scoped("unmapped import rolls back when a later insert fails", () =>
         assert.deepStrictEqual(exit._tag, "Failure");
 
         const [animeRow] = yield* Effect.tryPromise(() =>
-          appDb.select().from(anime).where(eq(anime.id, 20)).limit(1),
+          appDb.select().from(media).where(eq(media.id, 20)).limit(1),
         );
         assert.deepStrictEqual(animeRow !== undefined, true);
         if (!animeRow) {
@@ -88,7 +88,7 @@ it.scoped("unmapped import rolls back when a later insert fails", () =>
         assert.deepStrictEqual(animeRow.rootFolder, "/library/Old Show");
 
         const episodeRows = yield* Effect.tryPromise(() =>
-          appDb.select().from(episodes).where(eq(episodes.animeId, 20)),
+          appDb.select().from(mediaUnits).where(eq(mediaUnits.mediaId, 20)),
         );
         assert.deepStrictEqual(episodeRows.length, 0);
       }),
@@ -96,7 +96,7 @@ it.scoped("unmapped import rolls back when a later insert fails", () =>
   }),
 );
 
-function makeAnimeRow(overrides: Partial<typeof anime.$inferSelect>): typeof anime.$inferSelect {
+function makeAnimeRow(overrides: Partial<typeof media.$inferSelect>): typeof media.$inferSelect {
   return {
     addedAt: "2024-01-01T00:00:00.000Z",
     background: null,
@@ -106,7 +106,7 @@ function makeAnimeRow(overrides: Partial<typeof anime.$inferSelect>): typeof ani
     duration: null,
     endDate: null,
     endYear: null,
-    episodeCount: 12,
+    unitCount: 12,
     favorites: null,
     format: "TV",
     genres: "[]",
@@ -116,13 +116,13 @@ function makeAnimeRow(overrides: Partial<typeof anime.$inferSelect>): typeof ani
     members: null,
     monitored: true,
     nextAiringAt: null,
-    nextAiringEpisode: null,
+    nextAiringUnit: null,
     popularity: null,
     profileName: "Default",
-    recommendedAnime: null,
+    recommendedMedia: null,
     releaseProfileIds: "[]",
-    relatedAnime: null,
-    rootFolder: "/library/Anime",
+    relatedMedia: null,
+    rootFolder: "/library/Media",
     rank: null,
     rating: null,
     score: null,
@@ -134,7 +134,7 @@ function makeAnimeRow(overrides: Partial<typeof anime.$inferSelect>): typeof ani
     synonyms: null,
     titleEnglish: null,
     titleNative: null,
-    titleRomaji: "Anime",
+    titleRomaji: "Media",
     ...overrides,
   };
 }

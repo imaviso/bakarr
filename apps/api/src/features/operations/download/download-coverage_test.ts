@@ -5,27 +5,27 @@ import {
   resolveReconciledBatchEpisodeNumbers,
 } from "@/features/operations/download/download-coverage.ts";
 
-it("inferCoveredEpisodeNumbers prefers explicit unique sorted episodes", () => {
+it("inferCoveredEpisodeNumbers prefers explicit unique sorted mediaUnits", () => {
   assert.deepStrictEqual(
     inferCoveredEpisodeNumbers({
       explicitEpisodes: [3, 1, 3, 2],
       isBatch: true,
-      missingEpisodes: [5],
+      missingUnits: [5],
       requestedEpisode: 4,
-      totalEpisodes: 12,
+      totalUnits: 12,
     }),
     [1, 2, 3],
   );
 });
 
-it("inferCoveredEpisodeNumbers expands batch to contiguous missing episodes", () => {
+it("inferCoveredEpisodeNumbers expands batch to contiguous missing mediaUnits", () => {
   assert.deepStrictEqual(
     inferCoveredEpisodeNumbers({
       explicitEpisodes: [],
       isBatch: true,
-      missingEpisodes: [1, 3, 4, 5, 7],
+      missingUnits: [1, 3, 4, 5, 7],
       requestedEpisode: 3,
-      totalEpisodes: 12,
+      totalUnits: 12,
     }),
     [3, 4, 5],
   );
@@ -36,7 +36,7 @@ it("inferCoveredEpisodeNumbers falls back to requested or total range", () => {
     inferCoveredEpisodeNumbers({
       explicitEpisodes: [],
       isBatch: false,
-      missingEpisodes: [],
+      missingUnits: [],
       requestedEpisode: 6,
     }),
     [6],
@@ -45,9 +45,9 @@ it("inferCoveredEpisodeNumbers falls back to requested or total range", () => {
     inferCoveredEpisodeNumbers({
       explicitEpisodes: [],
       isBatch: true,
-      missingEpisodes: [],
+      missingUnits: [],
       requestedEpisode: 10,
-      totalEpisodes: 12,
+      totalUnits: 12,
     }),
     [10, 11, 12],
   );
@@ -56,7 +56,7 @@ it("inferCoveredEpisodeNumbers falls back to requested or total range", () => {
 it("resolveReconciledBatchEpisodeNumbers prefers path identity, then single-candidate coverage", () => {
   assert.deepStrictEqual(
     resolveReconciledBatchEpisodeNumbers({
-      coveredEpisodes: [7, 8],
+      coveredUnits: [7, 8],
       path: "[Group] Show - 03-04 [1080p].mkv",
       totalCandidateCount: 2,
     }),
@@ -64,7 +64,7 @@ it("resolveReconciledBatchEpisodeNumbers prefers path identity, then single-cand
   );
   assert.deepStrictEqual(
     resolveReconciledBatchEpisodeNumbers({
-      coveredEpisodes: [7, 8],
+      coveredUnits: [7, 8],
       path: "Show 2025-03-14.mkv",
       totalCandidateCount: 1,
     }),
@@ -72,7 +72,7 @@ it("resolveReconciledBatchEpisodeNumbers prefers path identity, then single-cand
   );
   assert.deepStrictEqual(
     resolveReconciledBatchEpisodeNumbers({
-      coveredEpisodes: [7, 8],
+      coveredUnits: [7, 8],
       path: "Show 2025-03-14.mkv",
       totalCandidateCount: 2,
     }),

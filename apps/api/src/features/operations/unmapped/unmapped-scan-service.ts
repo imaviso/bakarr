@@ -3,7 +3,7 @@ import { Context, Effect, Layer } from "effect";
 import { Database } from "@/db/database.ts";
 import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
-import { AniListClient } from "@/features/anime/metadata/anilist.ts";
+import { AniListClient } from "@/features/media/metadata/anilist.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import {
   makeUnmappedScanWorkflow,

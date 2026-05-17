@@ -110,7 +110,7 @@ it("inferCoveredEpisodeNumbers prefers explicit ranges and falls back to missing
     inferCoveredEpisodeNumbers({
       explicitEpisodes: [3, 4, 5],
       isBatch: true,
-      missingEpisodes: [3, 4, 5, 6],
+      missingUnits: [3, 4, 5, 6],
       requestedEpisode: 3,
     }),
     [3, 4, 5],
@@ -120,7 +120,7 @@ it("inferCoveredEpisodeNumbers prefers explicit ranges and falls back to missing
     inferCoveredEpisodeNumbers({
       explicitEpisodes: [],
       isBatch: true,
-      missingEpisodes: [5, 6, 7],
+      missingUnits: [5, 6, 7],
       requestedEpisode: 5,
     }),
     [5, 6, 7],
@@ -130,7 +130,7 @@ it("inferCoveredEpisodeNumbers prefers explicit ranges and falls back to missing
     inferCoveredEpisodeNumbers({
       explicitEpisodes: [],
       isBatch: true,
-      missingEpisodes: [5, 6, 8, 9],
+      missingUnits: [5, 6, 8, 9],
       requestedEpisode: 5,
     }),
     [5, 6],
@@ -140,7 +140,7 @@ it("inferCoveredEpisodeNumbers prefers explicit ranges and falls back to missing
     inferCoveredEpisodeNumbers({
       explicitEpisodes: [],
       isBatch: false,
-      missingEpisodes: [5, 6, 7],
+      missingUnits: [5, 6, 7],
       requestedEpisode: 5,
     }),
     [5],
@@ -150,9 +150,9 @@ it("inferCoveredEpisodeNumbers prefers explicit ranges and falls back to missing
     inferCoveredEpisodeNumbers({
       explicitEpisodes: [],
       isBatch: true,
-      missingEpisodes: [],
+      missingUnits: [],
       requestedEpisode: 1,
-      totalEpisodes: 12,
+      totalUnits: 12,
     }),
     [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
   );
@@ -193,10 +193,10 @@ it("inferCoveredEpisodesFromTorrentContents parses real batch file lists", () =>
   );
 });
 
-it("resolveReconciledBatchEpisodeNumbers falls back to covered episodes for lone generic files", () => {
+it("resolveReconciledBatchEpisodeNumbers falls back to covered mediaUnits for lone generic files", () => {
   assert.deepStrictEqual(
     resolveReconciledBatchEpisodeNumbers({
-      coveredEpisodes: [1, 2, 3],
+      coveredUnits: [1, 2, 3],
       path: "/downloads/Show Season Pack.mkv",
       totalCandidateCount: 1,
     }),
@@ -205,7 +205,7 @@ it("resolveReconciledBatchEpisodeNumbers falls back to covered episodes for lone
 
   assert.deepStrictEqual(
     resolveReconciledBatchEpisodeNumbers({
-      coveredEpisodes: [1, 2, 3],
+      coveredUnits: [1, 2, 3],
       path: "/downloads/Show Season Pack.mkv",
       totalCandidateCount: 2,
     }),

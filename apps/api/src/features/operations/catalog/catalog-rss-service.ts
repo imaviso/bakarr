@@ -5,7 +5,7 @@ import type { RssFeed } from "@packages/shared/index.ts";
 import { Database, type DatabaseError } from "@/db/database.ts";
 import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
 import type { OperationsError } from "@/features/operations/errors.ts";
-import { getAnimeRowEffect as requireAnime } from "@/features/anime/shared/anime-read-repository.ts";
+import { getAnimeRowEffect as requireAnime } from "@/features/media/shared/media-read-repository.ts";
 import { toRssFeed } from "@/features/operations/repository/rss-repository.ts";
 import { appendLog } from "@/features/operations/shared/job-support.ts";
 import { rssFeeds } from "@/db/schema.ts";
@@ -13,9 +13,9 @@ import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 export interface CatalogRssServiceShape {
   readonly listRssFeeds: () => Effect.Effect<RssFeed[], DatabaseError>;
-  readonly listAnimeRssFeeds: (animeId: number) => Effect.Effect<RssFeed[], DatabaseError>;
+  readonly listAnimeRssFeeds: (mediaId: number) => Effect.Effect<RssFeed[], DatabaseError>;
   readonly addRssFeed: (input: {
-    anime_id: number;
+    media_id: number;
     url: string;
     name?: string;
   }) => Effect.Effect<RssFeed, OperationsError | DatabaseError>;
@@ -44,27 +44,27 @@ export const CatalogRssServiceLive = Layer.effect(
     });
 
     const listAnimeRssFeeds = Effect.fn("OperationsService.listAnimeRssFeeds")(function* (
-      animeId: number,
+      mediaId: number,
     ) {
-      const rows = yield* tryDatabasePromise("Failed to list anime RSS feeds", () =>
-        db.select().from(rssFeeds).where(eq(rssFeeds.animeId, animeId)),
+      const rows = yield* tryDatabasePromise("Failed to list media RSS feeds", () =>
+        db.select().from(rssFeeds).where(eq(rssFeeds.mediaId, mediaId)),
       );
 
       return rows.map(toRssFeed);
     });
 
     const addRssFeed = Effect.fn("OperationsService.addRssFeed")(function* (rssInput: {
-      anime_id: number;
+      media_id: number;
       url: string;
       name?: string;
     }) {
-      yield* requireAnime(db, rssInput.anime_id);
+      yield* requireAnime(db, rssInput.media_id);
       const now = yield* nowIso();
       const [row] = yield* tryDatabasePromise("Failed to add RSS feed", () =>
         db
           .insert(rssFeeds)
           .values({
-            animeId: rssInput.anime_id,
+            mediaId: rssInput.media_id,
             createdAt: now,
             enabled: true,
             lastChecked: null,
@@ -82,7 +82,7 @@ export const CatalogRssServiceLive = Layer.effect(
         db,
         "rss.created",
         "success",
-        `RSS feed added for anime ${rssInput.anime_id}`,
+        `RSS feed added for media ${rssInput.media_id}`,
         nowIso,
       );
 

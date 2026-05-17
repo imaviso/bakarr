@@ -22,7 +22,7 @@ export function normalizeLevel(level: string): "info" | "warn" | "error" | "succ
 export function eventTypeCondition(eventType: string) {
   switch (eventType) {
     case "Scan":
-      return sql`${systemLogs.eventType} like 'library.%' or ${systemLogs.eventType} like 'anime.%scan%' or ${systemLogs.eventType} like 'system.task.scan%'`;
+      return sql`${systemLogs.eventType} like 'library.%' or ${systemLogs.eventType} like 'media.%scan%' or ${systemLogs.eventType} like 'system.task.scan%'`;
     case "Download":
       return sql`${systemLogs.eventType} like 'downloads.%'`;
     case "Import":
@@ -30,7 +30,7 @@ export function eventTypeCondition(eventType: string) {
     case "RSS":
       return sql`${systemLogs.eventType} like 'rss.%' or ${systemLogs.eventType} like 'system.task.rss%'`;
     case "Metadata":
-      return sql`${systemLogs.eventType} like 'system.task.metadata_refresh%' or ${systemLogs.eventType} like 'anime.metadata%'`;
+      return sql`${systemLogs.eventType} like 'system.task.metadata_refresh%' or ${systemLogs.eventType} like 'media.metadata%'`;
     case "Error":
       return eq(systemLogs.level, "error");
     default:

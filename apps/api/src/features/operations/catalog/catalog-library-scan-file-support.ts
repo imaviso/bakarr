@@ -2,7 +2,7 @@ import { Effect } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
 import { classifyMediaArtifact, parseFileSourceIdentity } from "@/infra/media/identity/identity.ts";
-import { upsertEpisodeFilesAtomic } from "@/features/operations/download/download-episode-upsert-support.ts";
+import { upsertEpisodeFilesAtomic } from "@/features/operations/download/download-unit-upsert-support.ts";
 import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
 
 export interface LibraryScanCounts {
@@ -13,7 +13,7 @@ export interface LibraryScanCounts {
 export const countLibraryScanFile = Effect.fn("OperationsService.countLibraryScanFile")(function* (
   db: AppDatabase,
   input: {
-    animeId: number;
+    mediaId: number;
     counts: LibraryScanCounts;
     file: { readonly name: string; readonly path: string };
   },
@@ -36,15 +36,15 @@ export const countLibraryScanFile = Effect.fn("OperationsService.countLibrarySca
     } satisfies LibraryScanCounts;
   }
 
-  const episodeNumbers = identity.episode_numbers;
-  if (episodeNumbers.length === 0) {
+  const unitNumbers = identity.unit_numbers;
+  if (unitNumbers.length === 0) {
     return {
       matchedFiles: input.counts.matchedFiles,
       scannedFiles: input.counts.scannedFiles + 1,
     } satisfies LibraryScanCounts;
   }
 
-  yield* upsertEpisodeFilesAtomic(db, input.animeId, episodeNumbers, input.file.path).pipe(
+  yield* upsertEpisodeFilesAtomic(db, input.mediaId, unitNumbers, input.file.path).pipe(
     Effect.mapError(
       (cause) =>
         new OperationsInfrastructureError({
@@ -55,7 +55,7 @@ export const countLibraryScanFile = Effect.fn("OperationsService.countLibrarySca
   );
 
   return {
-    matchedFiles: input.counts.matchedFiles + episodeNumbers.length,
+    matchedFiles: input.counts.matchedFiles + unitNumbers.length,
     scannedFiles: input.counts.scannedFiles + 1,
   } satisfies LibraryScanCounts;
 });

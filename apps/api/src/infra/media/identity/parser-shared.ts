@@ -14,9 +14,9 @@ export function rangeArray(start: number, end: number): number[] {
   return Array.from({ length: end - start + 1 }, (_, i) => start + i);
 }
 
-export function formatSeasonLabel(season: number, episodes: number[]): string {
+export function formatSeasonLabel(season: number, mediaUnits: number[]): string {
   const s = String(season).padStart(2, "0");
-  const sorted = [...episodes].toSorted((a, b) => a - b);
+  const sorted = [...mediaUnits].toSorted((a, b) => a - b);
   const [firstEpisode] = sorted;
   if (firstEpisode === undefined) {
     return `S${s}`;

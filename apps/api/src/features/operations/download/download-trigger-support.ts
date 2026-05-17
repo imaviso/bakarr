@@ -3,9 +3,9 @@ import { eq } from "drizzle-orm";
 
 import type { DownloadAction, DownloadSourceMetadata } from "@packages/shared/index.ts";
 import { DatabaseError, type AppDatabase } from "@/db/database.ts";
-import { anime, downloads } from "@/db/schema.ts";
+import { media, downloads } from "@/db/schema.ts";
 import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
-import { getAnimeRowEffect as requireAnime } from "@/features/anime/shared/anime-read-repository.ts";
+import { getAnimeRowEffect as requireAnime } from "@/features/media/shared/media-read-repository.ts";
 import { encodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
 import { loadMissingEpisodeNumbers } from "@/features/operations/shared/job-support.ts";
 import {
@@ -30,8 +30,8 @@ import { resolveRequestedEpisodeNumber } from "@/features/operations/download/do
 import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 
 export interface PreparedTriggerDownload {
-  readonly animeRow: typeof anime.$inferSelect;
-  readonly coveredEpisodes: string | null;
+  readonly animeRow: typeof media.$inferSelect;
+  readonly coveredUnits: string | null;
   readonly effectiveIsBatch: boolean;
   readonly infoHash: string | null;
   readonly inferredCoveredEpisodes: readonly number[];
@@ -46,19 +46,19 @@ export const prepareTriggerDownload = Effect.fn("Operations.prepareTriggerDownlo
     readonly nowIso: () => Effect.Effect<string>;
     readonly triggerInput: TriggerDownloadInput;
   }) {
-    const animeRow = yield* requireAnime(input.db, input.triggerInput.anime_id);
+    const animeRow = yield* requireAnime(input.db, input.triggerInput.media_id);
     const now = yield* input.nowIso();
     const parsedRelease = parseReleaseName(input.triggerInput.title);
     const parsedVolumes = parseVolumeNumbersFromTitle(input.triggerInput.title);
     const inferredUnits =
-      animeRow.mediaKind === "anime" ? parsedRelease.episodeNumbers : parsedVolumes;
+      animeRow.mediaKind === "anime" ? parsedRelease.unitNumbers : parsedVolumes;
     const effectiveIsBatch =
       input.triggerInput.is_batch ??
       (animeRow.mediaKind === "anime" ? parsedRelease.isBatch : parsedVolumes.length > 1);
     const requestedEpisode = resolveRequestedEpisodeNumber({
-      ...(input.triggerInput.episode_number === undefined
+      ...(input.triggerInput.unit_number === undefined
         ? {}
-        : { explicitEpisode: input.triggerInput.episode_number }),
+        : { explicitEpisode: input.triggerInput.unit_number }),
       inferredEpisodes: inferredUnits,
       isBatch: effectiveIsBatch,
     });
@@ -66,22 +66,22 @@ export const prepareTriggerDownload = Effect.fn("Operations.prepareTriggerDownlo
     if (!requestedEpisode) {
       return yield* new OperationsInputError({
         message:
-          "episode_number is required when the release title does not include episode information",
+          "unit_number is required when the release title does not include episode information",
       });
     }
 
-    const missingEpisodes = yield* loadMissingEpisodeNumbers(input.db, animeRow.id);
+    const missingUnits = yield* loadMissingEpisodeNumbers(input.db, animeRow.id);
     const shouldDeferBatchCoverage = effectiveIsBatch && inferredUnits.length === 0;
     const inferredCoveredEpisodes = shouldDeferBatchCoverage
       ? []
       : inferCoveredEpisodeNumbers({
           explicitEpisodes: inferredUnits,
           isBatch: effectiveIsBatch,
-          totalEpisodes: animeRow.episodeCount,
-          missingEpisodes,
+          totalUnits: animeRow.unitCount,
+          missingUnits,
           requestedEpisode,
         });
-    const coveredEpisodes = yield* toCoveredEpisodesJson(inferredCoveredEpisodes);
+    const coveredUnits = yield* toCoveredEpisodesJson(inferredCoveredEpisodes);
     const releaseContext = input.triggerInput.release_context;
     const selectionMetadata = buildDownloadSelectionMetadata(releaseContext?.download_action);
     const chosenFromSeadex =
@@ -114,14 +114,14 @@ export const prepareTriggerDownload = Effect.fn("Operations.prepareTriggerDownlo
 
       if (overlapping) {
         return yield* new DownloadConflictError({
-          message: "An in-flight download already covers these episodes",
+          message: "An in-flight download already covers these mediaUnits",
         });
       }
     }
 
     return {
       animeRow,
-      coveredEpisodes,
+      coveredUnits,
       effectiveIsBatch,
       infoHash,
       inferredCoveredEpisodes,
@@ -146,12 +146,12 @@ export const insertQueuedDownload = Effect.fn("Operations.insertQueuedDownload")
         .insert(downloads)
         .values({
           addedAt: input.plan.now,
-          animeId: input.plan.animeRow.id,
-          animeTitle: input.plan.animeRow.titleRomaji,
+          mediaId: input.plan.animeRow.id,
+          mediaTitle: input.plan.animeRow.titleRomaji,
           contentPath: null,
-          coveredEpisodes: input.plan.coveredEpisodes,
+          coveredUnits: input.plan.coveredUnits,
           downloadDate: null,
-          episodeNumber: input.plan.requestedEpisode,
+          unitNumber: input.plan.requestedEpisode,
           isBatch: input.plan.effectiveIsBatch,
           downloadedBytes: 0,
           errorMessage: null,

@@ -2,26 +2,26 @@ import { and, eq, ne, or, sql } from "drizzle-orm";
 import { Context, Effect, Layer, Option } from "effect";
 
 import {
-  brandAnimeId,
+  brandMediaId,
   type QualityProfile,
   type ReleaseProfileRule,
 } from "@packages/shared/index.ts";
 
 import { Database } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
-import { anime, episodes } from "@/db/schema.ts";
+import { media, mediaUnits } from "@/db/schema.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
-import { backfillEpisodesFromNextAiringEffect } from "@/features/anime/episodes/anime-episode-backfill.ts";
+import { backfillEpisodesFromNextAiringEffect } from "@/features/media/units/media-unit-backfill.ts";
 import {
   decideDownloadAction,
   validateQualityProfileSizeLabels,
 } from "@/features/operations/search/release-ranking.ts";
-import { loadCurrentEpisodeState } from "@/features/anime/shared/anime-read-repository.ts";
+import { loadCurrentEpisodeState } from "@/features/media/shared/media-read-repository.ts";
 import {
   loadQualityProfile,
   loadReleaseRules,
 } from "@/features/operations/repository/profile-repository.ts";
-import { getAnimeRowEffect as requireAnime } from "@/features/anime/shared/anime-read-repository.ts";
+import { getAnimeRowEffect as requireAnime } from "@/features/media/shared/media-read-repository.ts";
 import { BackgroundSearchQueueService } from "@/features/operations/background-search/background-search-queue-service.ts";
 import {
   OperationsInfrastructureError,
@@ -35,7 +35,7 @@ import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-s
 
 export interface SearchBackgroundMissingServiceShape {
   readonly triggerSearchMissing: (
-    animeId?: number,
+    mediaId?: number,
   ) => Effect.Effect<void, DatabaseError | OperationsInfrastructureError>;
 }
 
@@ -70,11 +70,11 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
     );
 
     const logSearchMissingSkip = Effect.fn("BackgroundSearchMissing.logSearchMissingSkip")(
-      function* (input: { animeId: number; episodeNumber: number; reason: string }) {
+      function* (input: { mediaId: number; unitNumber: number; reason: string }) {
         yield* Effect.logDebug("Skipping missing-unit background action").pipe(
           Effect.annotateLogs({
-            animeId: input.animeId,
-            episodeNumber: input.episodeNumber,
+            mediaId: input.mediaId,
+            unitNumber: input.unitNumber,
             reason: input.reason,
           }),
         );
@@ -82,44 +82,44 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
     );
 
     const triggerSearchMissingBase = Effect.fn("operations.search.missing")(function* (
-      animeId?: number,
+      mediaId?: number,
     ) {
       yield* backfillEpisodesFromNextAiringEffect({
-        ...(animeId === undefined ? {} : { animeId }),
+        ...(mediaId === undefined ? {} : { mediaId }),
         db,
-        monitoredOnly: animeId === undefined,
+        monitoredOnly: mediaId === undefined,
       });
 
-      const title = animeId ? (yield* requireAnime(db, animeId)).titleRomaji : "all media";
+      const title = mediaId ? (yield* requireAnime(db, mediaId)).titleRomaji : "all media";
 
       yield* eventBus.publish({
         type: "SearchMissingStarted",
         payload: {
-          ...(animeId === undefined ? {} : { anime_id: brandAnimeId(animeId) }),
+          ...(mediaId === undefined ? {} : { media_id: brandMediaId(mediaId) }),
           title,
         },
       });
 
       const now = yield* nowIso();
       const missingConditions = [
-        eq(episodes.downloaded, false),
+        eq(mediaUnits.downloaded, false),
         or(
           and(
-            eq(anime.mediaKind, "anime"),
-            sql`${episodes.aired} is not null`,
-            sql`${episodes.aired} <= ${now}`,
+            eq(media.mediaKind, "anime"),
+            sql`${mediaUnits.aired} is not null`,
+            sql`${mediaUnits.aired} <= ${now}`,
           ),
-          ne(anime.mediaKind, "anime"),
+          ne(media.mediaKind, "anime"),
         ),
-        animeId ? eq(episodes.animeId, animeId) : eq(anime.monitored, true),
+        mediaId ? eq(mediaUnits.mediaId, mediaId) : eq(media.monitored, true),
       ];
       const missingRows = yield* tryDatabasePromise("Failed to queue missing-unit search", () =>
         db
           .select()
-          .from(episodes)
-          .innerJoin(anime, eq(anime.id, episodes.animeId))
+          .from(mediaUnits)
+          .innerJoin(media, eq(media.id, mediaUnits.mediaId))
           .where(and(...missingConditions))
-          .orderBy(episodes.aired, anime.titleRomaji)
+          .orderBy(mediaUnits.aired, media.titleRomaji)
           .limit(10),
       );
       const runtimeConfig = yield* runtimeConfigSnapshot.getRuntimeConfig();
@@ -129,46 +129,46 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
       const releaseRulesByAnimeId = new Map<number, readonly ReleaseProfileRule[]>();
 
       for (const row of missingRows) {
-        const existing = missingEpisodesByAnimeId.get(row.anime.id);
+        const existing = missingEpisodesByAnimeId.get(row.media.id);
         if (existing) {
-          existing.push(row.episodes.number);
+          existing.push(row.media_units.number);
         } else {
-          missingEpisodesByAnimeId.set(row.anime.id, [row.episodes.number]);
+          missingEpisodesByAnimeId.set(row.media.id, [row.media_units.number]);
         }
       }
 
       for (const row of missingRows) {
-        let profile = qualityProfileByName.get(row.anime.profileName);
+        let profile = qualityProfileByName.get(row.media.profileName);
 
         if (profile === undefined) {
-          const loadedProfile = yield* requireQualityProfile(row.anime.profileName);
+          const loadedProfile = yield* requireQualityProfile(row.media.profileName);
           yield* validateQualityProfileSizeLabels(loadedProfile);
-          qualityProfileByName.set(row.anime.profileName, loadedProfile);
+          qualityProfileByName.set(row.media.profileName, loadedProfile);
           profile = loadedProfile;
         }
 
-        let rules = releaseRulesByAnimeId.get(row.anime.id);
+        let rules = releaseRulesByAnimeId.get(row.media.id);
 
         if (rules === undefined) {
-          const loadedRules = yield* loadReleaseRules(db, row.anime);
-          releaseRulesByAnimeId.set(row.anime.id, loadedRules);
+          const loadedRules = yield* loadReleaseRules(db, row.media);
+          releaseRulesByAnimeId.set(row.media.id, loadedRules);
           rules = loadedRules;
         }
 
         const currentEpisode = yield* loadCurrentEpisodeState(
           db,
-          row.anime.id,
-          row.episodes.number,
+          row.media.id,
+          row.media_units.number,
         );
-        const candidates = yield* searchReleaseService.searchEpisodeReleases(
-          row.anime,
-          row.episodes.number,
+        const candidates = yield* searchReleaseService.searchUnitReleases(
+          row.media,
+          row.media_units.number,
           runtimeConfig,
         );
         const best = candidates
           .map((item) => ({
             action: decideDownloadAction(profile, rules, currentEpisode, item, runtimeConfig, {
-              allowUnknownQuality: row.anime.mediaKind !== "anime",
+              allowUnknownQuality: row.media.mediaKind !== "anime",
             }),
             item,
           }))
@@ -176,8 +176,8 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
 
         if (!best) {
           yield* logSearchMissingSkip({
-            animeId: row.anime.id,
-            episodeNumber: row.episodes.number,
+            mediaId: row.media.id,
+            unitNumber: row.media_units.number,
             reason: "no acceptable release candidates",
           });
           continue;
@@ -191,20 +191,20 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
 
         const queueResult = yield* queueService.queueReleaseIfEligible({
           action: best.action,
-          animeRow: row.anime,
+          animeRow: row.media,
           contextMessage: "Failed to queue missing-unit search",
           ...(decisionReason === undefined ? {} : { decisionReason }),
-          episodeNumber: row.episodes.number,
+          unitNumber: row.media_units.number,
           eventMessage: `Queued ${best.item.title}`,
           eventType: "download.search_missing.queued",
           item: best.item,
-          missingEpisodes: missingEpisodesByAnimeId.get(row.anime.id) ?? [],
+          missingUnits: missingEpisodesByAnimeId.get(row.media.id) ?? [],
         });
 
         if (queueResult._tag === "skipped") {
           yield* logSearchMissingSkip({
-            animeId: row.anime.id,
-            episodeNumber: row.episodes.number,
+            mediaId: row.media.id,
+            unitNumber: row.media_units.number,
             reason: "overlapping download already queued",
           });
           continue;
@@ -216,7 +216,7 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
       yield* eventBus.publish({
         type: "SearchMissingFinished",
         payload: {
-          ...(animeId === undefined ? {} : { anime_id: brandAnimeId(animeId) }),
+          ...(mediaId === undefined ? {} : { media_id: brandMediaId(mediaId) }),
           title,
           count: queued,
         },
@@ -225,9 +225,9 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
     });
 
     const triggerSearchMissing = Effect.fn("OperationsService.triggerSearchMissing")(function* (
-      animeId?: number,
+      mediaId?: number,
     ) {
-      return yield* triggerSearchMissingBase(animeId).pipe(
+      return yield* triggerSearchMissingBase(mediaId).pipe(
         Effect.mapError((error) =>
           error instanceof DatabaseError
             ? error

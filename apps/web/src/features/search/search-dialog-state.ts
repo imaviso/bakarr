@@ -1,8 +1,8 @@
 import { differenceInDays, format, isValid, parseISO } from "date-fns";
 import { useMemo, useState } from "react";
 import { useDebouncedValue } from "@tanstack/react-pacer";
-import { useGrabReleaseMutation } from "~/api/anime-mutations";
-import { useNyaaSearchQuery } from "~/api/anime";
+import { useGrabReleaseMutation } from "~/api/media-mutations";
+import { useNyaaSearchQuery } from "~/api/media";
 import {
   SEARCH_RELEASE_CATEGORY_LABELS,
   SEARCH_RELEASE_FILTER_LABELS,
@@ -50,7 +50,7 @@ export function useSearchDialogState(defaultQuery: string) {
 }
 
 export function useSearchDialogResultsState(input: {
-  animeId: number;
+  mediaId: number;
   category: string;
   filter: string;
   query: string;
@@ -59,7 +59,7 @@ export function useSearchDialogResultsState(input: {
   const [sortAsc, setSortAsc] = useState(false);
 
   const searchQuery = useNyaaSearchQuery(input.query, {
-    animeId: input.animeId,
+    mediaId: input.mediaId,
     category: input.category,
     filter: input.filter,
   });
@@ -115,16 +115,16 @@ export function useSearchDialogResultsState(input: {
 }
 
 export function useSearchDialogReleaseRowState(input: {
-  animeId: number;
+  mediaId: number;
   onGrab: () => void;
   result: NyaaSearchResult;
 }) {
   const grabMutation = useGrabReleaseMutation();
   const detectedIsBatch =
-    (input.result.parsed_episode_numbers?.length ?? 0) > 1 || !input.result.parsed_episode;
+    (input.result.parsed_unit_numbers?.length ?? 0) > 1 || !input.result.parsed_unit;
   const [episodeNumberInput, setEpisodeNumberInput] = useState(
-    input.result.parsed_episode?.toString() ||
-      input.result.parsed_episode_numbers?.[0]?.toString() ||
+    input.result.parsed_unit?.toString() ||
+      input.result.parsed_unit_numbers?.[0]?.toString() ||
       (detectedIsBatch ? "1" : ""),
   );
   const [isBatch, setIsBatch] = useState(detectedIsBatch);
@@ -137,7 +137,7 @@ export function useSearchDialogReleaseRowState(input: {
     is_seadex: input.result.is_seadex,
     is_seadex_best: input.result.is_seadex_best,
     parsed_air_date: input.result.parsed_air_date,
-    parsed_episode_label: input.result.parsed_episode_label,
+    parsed_unit_label: input.result.parsed_unit_label,
     quality: input.result.parsed_quality,
     remake: input.result.remake,
     resolution: input.result.parsed_resolution,
@@ -146,11 +146,11 @@ export function useSearchDialogReleaseRowState(input: {
   });
 
   const parsedEpisodeNumber = parseFloat(episodeNumberInput);
-  const episodeNumber = Number.isFinite(parsedEpisodeNumber) ? parsedEpisodeNumber : undefined;
+  const unitNumber = Number.isFinite(parsedEpisodeNumber) ? parsedEpisodeNumber : undefined;
 
   const grabPayload = buildGrabInputFromNyaaResult({
-    animeId: input.animeId,
-    episodeNumber,
+    mediaId: input.mediaId,
+    unitNumber,
     isBatch,
     result: input.result,
   });

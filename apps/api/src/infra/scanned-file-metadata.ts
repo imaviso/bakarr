@@ -1,11 +1,11 @@
-import type { ParsedEpisodeIdentity as SharedParsedEpisodeIdentity } from "@packages/shared/index.ts";
+import type { ParsedUnitIdentity as SharedParsedEpisodeIdentity } from "@packages/shared/index.ts";
 
 export interface ScannedFileMetadata {
   readonly air_date?: string;
   readonly audio_channels?: string;
   readonly audio_codec?: string;
   readonly duration_seconds?: number;
-  readonly episode_title?: string;
+  readonly unit_title?: string;
   readonly quality?: string;
   readonly video_codec?: string;
   readonly warnings: readonly string[];
@@ -19,8 +19,8 @@ export function buildScannedFileMetadata(input: {
   const warnings: string[] = [];
   const multipleEpisodes =
     input.sourceIdentity?.scheme !== "daily" &&
-    (input.sourceIdentity?.episode_numbers?.length ?? 0) > 1;
-  const episodeTitle = input.sourceIdentity
+    (input.sourceIdentity?.unit_numbers?.length ?? 0) > 1;
+  const unitTitle = input.sourceIdentity
     ? extractEpisodeTitleFromPath({
         filePath: input.filePath,
         group: input.group,
@@ -28,8 +28,8 @@ export function buildScannedFileMetadata(input: {
       })
     : undefined;
 
-  if (multipleEpisodes && episodeTitle) {
-    warnings.push("Skipped {episode_title} because the file covers multiple episodes");
+  if (multipleEpisodes && unitTitle) {
+    warnings.push("Skipped {unit_title} because the file covers multiple mediaUnits");
   }
 
   if (input.sourceIdentity?.scheme === "daily") {
@@ -48,13 +48,13 @@ export function buildScannedFileMetadata(input: {
   const audioCodec = extractAudioCodec(input.filePath);
   const quality = extractQualitySourceLabel(input.filePath);
   const videoCodec = extractVideoCodec(input.filePath);
-  const finalEpisodeTitle = multipleEpisodes ? undefined : episodeTitle;
+  const finalEpisodeTitle = multipleEpisodes ? undefined : unitTitle;
 
   return {
     ...(airDate ? { air_date: airDate } : {}),
     ...(audioChannels ? { audio_channels: audioChannels } : {}),
     ...(audioCodec ? { audio_codec: audioCodec } : {}),
-    ...(finalEpisodeTitle ? { episode_title: finalEpisodeTitle } : {}),
+    ...(finalEpisodeTitle ? { unit_title: finalEpisodeTitle } : {}),
     ...(quality ? { quality } : {}),
     ...(videoCodec ? { video_codec: videoCodec } : {}),
     warnings,

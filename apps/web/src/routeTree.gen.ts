@@ -18,11 +18,11 @@ import { Route as LayoutRssRouteImport } from './routes/_layout/rss'
 import { Route as LayoutLogsRouteImport } from './routes/_layout/logs'
 import { Route as LayoutDownloadsRouteImport } from './routes/_layout/downloads'
 import { Route as LayoutCalendarRouteImport } from './routes/_layout/calendar'
-import { Route as LayoutAnimeIndexRouteImport } from './routes/_layout/anime/index'
-import { Route as LayoutAnimeScanRouteImport } from './routes/_layout/anime/scan'
-import { Route as LayoutAnimeImportRouteImport } from './routes/_layout/anime/import'
-import { Route as LayoutAnimeAddRouteImport } from './routes/_layout/anime/add'
-import { Route as LayoutAnimeIdRouteImport } from './routes/_layout/anime/$id'
+import { Route as LayoutMediaIndexRouteImport } from './routes/_layout/media/index'
+import { Route as LayoutMediaScanRouteImport } from './routes/_layout/media/scan'
+import { Route as LayoutMediaImportRouteImport } from './routes/_layout/media/import'
+import { Route as LayoutMediaAddRouteImport } from './routes/_layout/media/add'
+import { Route as LayoutMediaIdRouteImport } from './routes/_layout/media/$id'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -68,29 +68,29 @@ const LayoutCalendarRoute = LayoutCalendarRouteImport.update({
   path: '/calendar',
   getParentRoute: () => LayoutRoute,
 } as any)
-const LayoutAnimeIndexRoute = LayoutAnimeIndexRouteImport.update({
-  id: '/anime/',
-  path: '/anime/',
+const LayoutMediaIndexRoute = LayoutMediaIndexRouteImport.update({
+  id: '/media/',
+  path: '/media/',
   getParentRoute: () => LayoutRoute,
 } as any)
-const LayoutAnimeScanRoute = LayoutAnimeScanRouteImport.update({
-  id: '/anime/scan',
-  path: '/anime/scan',
+const LayoutMediaScanRoute = LayoutMediaScanRouteImport.update({
+  id: '/media/scan',
+  path: '/media/scan',
   getParentRoute: () => LayoutRoute,
 } as any)
-const LayoutAnimeImportRoute = LayoutAnimeImportRouteImport.update({
-  id: '/anime/import',
-  path: '/anime/import',
+const LayoutMediaImportRoute = LayoutMediaImportRouteImport.update({
+  id: '/media/import',
+  path: '/media/import',
   getParentRoute: () => LayoutRoute,
 } as any)
-const LayoutAnimeAddRoute = LayoutAnimeAddRouteImport.update({
-  id: '/anime/add',
-  path: '/anime/add',
+const LayoutMediaAddRoute = LayoutMediaAddRouteImport.update({
+  id: '/media/add',
+  path: '/media/add',
   getParentRoute: () => LayoutRoute,
 } as any)
-const LayoutAnimeIdRoute = LayoutAnimeIdRouteImport.update({
-  id: '/anime/$id',
-  path: '/anime/$id',
+const LayoutMediaIdRoute = LayoutMediaIdRouteImport.update({
+  id: '/media/$id',
+  path: '/media/$id',
   getParentRoute: () => LayoutRoute,
 } as any)
 
@@ -103,11 +103,11 @@ export interface FileRoutesByFullPath {
   '/rss': typeof LayoutRssRoute
   '/settings': typeof LayoutSettingsRoute
   '/wanted': typeof LayoutWantedRoute
-  '/anime/$id': typeof LayoutAnimeIdRoute
-  '/anime/add': typeof LayoutAnimeAddRoute
-  '/anime/import': typeof LayoutAnimeImportRoute
-  '/anime/scan': typeof LayoutAnimeScanRoute
-  '/anime/': typeof LayoutAnimeIndexRoute
+  '/media/$id': typeof LayoutMediaIdRoute
+  '/media/add': typeof LayoutMediaAddRoute
+  '/media/import': typeof LayoutMediaImportRoute
+  '/media/scan': typeof LayoutMediaScanRoute
+  '/media/': typeof LayoutMediaIndexRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -118,11 +118,11 @@ export interface FileRoutesByTo {
   '/settings': typeof LayoutSettingsRoute
   '/wanted': typeof LayoutWantedRoute
   '/': typeof LayoutIndexRoute
-  '/anime/$id': typeof LayoutAnimeIdRoute
-  '/anime/add': typeof LayoutAnimeAddRoute
-  '/anime/import': typeof LayoutAnimeImportRoute
-  '/anime/scan': typeof LayoutAnimeScanRoute
-  '/anime': typeof LayoutAnimeIndexRoute
+  '/media/$id': typeof LayoutMediaIdRoute
+  '/media/add': typeof LayoutMediaAddRoute
+  '/media/import': typeof LayoutMediaImportRoute
+  '/media/scan': typeof LayoutMediaScanRoute
+  '/media': typeof LayoutMediaIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -135,11 +135,11 @@ export interface FileRoutesById {
   '/_layout/settings': typeof LayoutSettingsRoute
   '/_layout/wanted': typeof LayoutWantedRoute
   '/_layout/': typeof LayoutIndexRoute
-  '/_layout/anime/$id': typeof LayoutAnimeIdRoute
-  '/_layout/anime/add': typeof LayoutAnimeAddRoute
-  '/_layout/anime/import': typeof LayoutAnimeImportRoute
-  '/_layout/anime/scan': typeof LayoutAnimeScanRoute
-  '/_layout/anime/': typeof LayoutAnimeIndexRoute
+  '/_layout/media/$id': typeof LayoutMediaIdRoute
+  '/_layout/media/add': typeof LayoutMediaAddRoute
+  '/_layout/media/import': typeof LayoutMediaImportRoute
+  '/_layout/media/scan': typeof LayoutMediaScanRoute
+  '/_layout/media/': typeof LayoutMediaIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -152,11 +152,11 @@ export interface FileRouteTypes {
     | '/rss'
     | '/settings'
     | '/wanted'
-    | '/anime/$id'
-    | '/anime/add'
-    | '/anime/import'
-    | '/anime/scan'
-    | '/anime/'
+    | '/media/$id'
+    | '/media/add'
+    | '/media/import'
+    | '/media/scan'
+    | '/media/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -167,11 +167,11 @@ export interface FileRouteTypes {
     | '/settings'
     | '/wanted'
     | '/'
-    | '/anime/$id'
-    | '/anime/add'
-    | '/anime/import'
-    | '/anime/scan'
-    | '/anime'
+    | '/media/$id'
+    | '/media/add'
+    | '/media/import'
+    | '/media/scan'
+    | '/media'
   id:
     | '__root__'
     | '/_layout'
@@ -183,11 +183,11 @@ export interface FileRouteTypes {
     | '/_layout/settings'
     | '/_layout/wanted'
     | '/_layout/'
-    | '/_layout/anime/$id'
-    | '/_layout/anime/add'
-    | '/_layout/anime/import'
-    | '/_layout/anime/scan'
-    | '/_layout/anime/'
+    | '/_layout/media/$id'
+    | '/_layout/media/add'
+    | '/_layout/media/import'
+    | '/_layout/media/scan'
+    | '/_layout/media/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -260,39 +260,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutCalendarRouteImport
       parentRoute: typeof LayoutRoute
     }
-    '/_layout/anime/': {
-      id: '/_layout/anime/'
-      path: '/anime'
-      fullPath: '/anime/'
-      preLoaderRoute: typeof LayoutAnimeIndexRouteImport
+    '/_layout/media/': {
+      id: '/_layout/media/'
+      path: '/media'
+      fullPath: '/media/'
+      preLoaderRoute: typeof LayoutMediaIndexRouteImport
       parentRoute: typeof LayoutRoute
     }
-    '/_layout/anime/scan': {
-      id: '/_layout/anime/scan'
-      path: '/anime/scan'
-      fullPath: '/anime/scan'
-      preLoaderRoute: typeof LayoutAnimeScanRouteImport
+    '/_layout/media/scan': {
+      id: '/_layout/media/scan'
+      path: '/media/scan'
+      fullPath: '/media/scan'
+      preLoaderRoute: typeof LayoutMediaScanRouteImport
       parentRoute: typeof LayoutRoute
     }
-    '/_layout/anime/import': {
-      id: '/_layout/anime/import'
-      path: '/anime/import'
-      fullPath: '/anime/import'
-      preLoaderRoute: typeof LayoutAnimeImportRouteImport
+    '/_layout/media/import': {
+      id: '/_layout/media/import'
+      path: '/media/import'
+      fullPath: '/media/import'
+      preLoaderRoute: typeof LayoutMediaImportRouteImport
       parentRoute: typeof LayoutRoute
     }
-    '/_layout/anime/add': {
-      id: '/_layout/anime/add'
-      path: '/anime/add'
-      fullPath: '/anime/add'
-      preLoaderRoute: typeof LayoutAnimeAddRouteImport
+    '/_layout/media/add': {
+      id: '/_layout/media/add'
+      path: '/media/add'
+      fullPath: '/media/add'
+      preLoaderRoute: typeof LayoutMediaAddRouteImport
       parentRoute: typeof LayoutRoute
     }
-    '/_layout/anime/$id': {
-      id: '/_layout/anime/$id'
-      path: '/anime/$id'
-      fullPath: '/anime/$id'
-      preLoaderRoute: typeof LayoutAnimeIdRouteImport
+    '/_layout/media/$id': {
+      id: '/_layout/media/$id'
+      path: '/media/$id'
+      fullPath: '/media/$id'
+      preLoaderRoute: typeof LayoutMediaIdRouteImport
       parentRoute: typeof LayoutRoute
     }
   }
@@ -306,11 +306,11 @@ interface LayoutRouteChildren {
   LayoutSettingsRoute: typeof LayoutSettingsRoute
   LayoutWantedRoute: typeof LayoutWantedRoute
   LayoutIndexRoute: typeof LayoutIndexRoute
-  LayoutAnimeIdRoute: typeof LayoutAnimeIdRoute
-  LayoutAnimeAddRoute: typeof LayoutAnimeAddRoute
-  LayoutAnimeImportRoute: typeof LayoutAnimeImportRoute
-  LayoutAnimeScanRoute: typeof LayoutAnimeScanRoute
-  LayoutAnimeIndexRoute: typeof LayoutAnimeIndexRoute
+  LayoutMediaIdRoute: typeof LayoutMediaIdRoute
+  LayoutMediaAddRoute: typeof LayoutMediaAddRoute
+  LayoutMediaImportRoute: typeof LayoutMediaImportRoute
+  LayoutMediaScanRoute: typeof LayoutMediaScanRoute
+  LayoutMediaIndexRoute: typeof LayoutMediaIndexRoute
 }
 
 const LayoutRouteChildren: LayoutRouteChildren = {
@@ -321,11 +321,11 @@ const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutSettingsRoute: LayoutSettingsRoute,
   LayoutWantedRoute: LayoutWantedRoute,
   LayoutIndexRoute: LayoutIndexRoute,
-  LayoutAnimeIdRoute: LayoutAnimeIdRoute,
-  LayoutAnimeAddRoute: LayoutAnimeAddRoute,
-  LayoutAnimeImportRoute: LayoutAnimeImportRoute,
-  LayoutAnimeScanRoute: LayoutAnimeScanRoute,
-  LayoutAnimeIndexRoute: LayoutAnimeIndexRoute,
+  LayoutMediaIdRoute: LayoutMediaIdRoute,
+  LayoutMediaAddRoute: LayoutMediaAddRoute,
+  LayoutMediaImportRoute: LayoutMediaImportRoute,
+  LayoutMediaScanRoute: LayoutMediaScanRoute,
+  LayoutMediaIndexRoute: LayoutMediaIndexRoute,
 }
 
 const LayoutRouteWithChildren =

@@ -1,8 +1,8 @@
 import { and, eq } from "drizzle-orm";
 import { Effect, Option } from "effect";
-import { brandAnimeId } from "@packages/shared/index.ts";
+import { brandMediaId } from "@packages/shared/index.ts";
 
-import { episodes } from "@/db/schema.ts";
+import { mediaUnits } from "@/db/schema.ts";
 import { probeMediaMetadataOrUndefined } from "@/infra/media/probe.ts";
 import { buildEpisodeFilenamePlan } from "@/features/operations/library/naming-canonical-support.ts";
 import {
@@ -10,7 +10,7 @@ import {
   selectNamingFormat,
 } from "@/features/operations/library/naming-format-support.ts";
 import { importDownloadedFile } from "@/features/operations/download/download-file-import-support.ts";
-import { upsertEpisodeFile } from "@/features/operations/download/download-episode-upsert-support.ts";
+import { upsertEpisodeFile } from "@/features/operations/download/download-unit-upsert-support.ts";
 import { parseCoveredEpisodesEffect } from "@/features/operations/download/download-coverage.ts";
 import { resolveCompletedContentPath } from "@/features/operations/download/download-paths.ts";
 import {
@@ -46,11 +46,11 @@ export const reconcileSingleDownloadEffect = Effect.fn(
     () =>
       input.db
         .select()
-        .from(episodes)
+        .from(mediaUnits)
         .where(
           and(
-            eq(episodes.animeId, input.row.animeId),
-            eq(episodes.number, input.row.episodeNumber),
+            eq(mediaUnits.mediaId, input.row.mediaId),
+            eq(mediaUnits.number, input.row.unitNumber),
           ),
         )
         .limit(1),
@@ -77,7 +77,7 @@ export const reconcileSingleDownloadEffect = Effect.fn(
   const resolvedPath = yield* resolveCompletedContentPath(
     input.fs,
     input.resolvedContentRoot,
-    input.row.episodeNumber,
+    input.row.unitNumber,
     expectedAirDate ? { expectedAirDate } : undefined,
   ).pipe(
     Effect.mapError(
@@ -102,18 +102,18 @@ export const reconcileSingleDownloadEffect = Effect.fn(
     "Failed to reconcile completed download",
     () =>
       input.db
-        .select({ aired: episodes.aired, title: episodes.title })
-        .from(episodes)
+        .select({ aired: mediaUnits.aired, title: mediaUnits.title })
+        .from(mediaUnits)
         .where(
           and(
-            eq(episodes.animeId, input.row.animeId),
-            eq(episodes.number, input.row.episodeNumber),
+            eq(mediaUnits.mediaId, input.row.mediaId),
+            eq(mediaUnits.number, input.row.unitNumber),
           ),
         ),
   );
   const initialNamingPlan = buildEpisodeFilenamePlan({
     animeRow: input.animeRow,
-    episodeNumbers: [input.row.episodeNumber],
+    unitNumbers: [input.row.unitNumber],
     episodeRows,
     filePath: resolvedPathValue,
     namingFormat,
@@ -127,7 +127,7 @@ export const reconcileSingleDownloadEffect = Effect.fn(
   const managedPath = yield* importDownloadedFile(
     input.fs,
     input.animeRow,
-    input.row.episodeNumber,
+    input.row.unitNumber,
     resolvedPathValue,
     input.runtimeConfig.library.import_mode,
     {
@@ -139,13 +139,13 @@ export const reconcileSingleDownloadEffect = Effect.fn(
       ...(localMediaMetadata ? { localMediaMetadata } : {}),
     },
   ).pipe(Effect.mapError(mapReconciliationInfrastructureError));
-  yield* upsertEpisodeFile(input.db, input.row.animeId, input.row.episodeNumber, managedPath).pipe(
+  yield* upsertEpisodeFile(input.db, input.row.mediaId, input.row.unitNumber, managedPath).pipe(
     Effect.mapError(mapReconciliationInfrastructureError),
   );
   const singleNow = yield* input.nowIso();
-  const storedCoveredEpisodes = yield* parseCoveredEpisodesEffect(input.row.coveredEpisodes);
+  const storedCoveredEpisodes = yield* parseCoveredEpisodesEffect(input.row.coveredUnits);
   const eventMetadata = yield* encodeDownloadEventMetadata({
-    covered_episodes: storedCoveredEpisodes,
+    covered_units: storedCoveredEpisodes,
     imported_path: managedPath,
     ...(input.storedSourceMetadata ? { source_metadata: input.storedSourceMetadata } : {}),
   });
@@ -154,12 +154,12 @@ export const reconcileSingleDownloadEffect = Effect.fn(
     downloadId: input.row.id,
     fromStatus: input.row.status,
     now: singleNow,
-    animeId: input.row.animeId,
+    mediaId: input.row.mediaId,
     eventType: "download.imported",
-    eventMessage: `Imported ${input.row.animeTitle} episode ${input.row.episodeNumber}`,
+    eventMessage: `Imported ${input.row.mediaTitle} episode ${input.row.unitNumber}`,
     eventMetadata,
     logEventType: "downloads.reconciled",
-    logMessage: `Mapped completed torrent for ${input.row.animeTitle} episode ${input.row.episodeNumber}`,
+    logMessage: `Mapped completed torrent for ${input.row.mediaTitle} episode ${input.row.unitNumber}`,
     db: input.db,
     tryDatabasePromise: input.tryDatabasePromise,
   });
@@ -167,7 +167,7 @@ export const reconcileSingleDownloadEffect = Effect.fn(
   yield* input.eventBus.publish({
     type: "DownloadFinished",
     payload: {
-      anime_id: brandAnimeId(input.row.animeId),
+      media_id: brandMediaId(input.row.mediaId),
       imported_path: managedPath,
       source_metadata: input.storedSourceMetadata,
       title: input.row.torrentName,

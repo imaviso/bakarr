@@ -3,7 +3,7 @@ import { Cause, Effect, Option, Schema } from "effect";
 
 import * as schema from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { anime, appConfig, episodes, qualityProfiles, releaseProfiles } from "@/db/schema.ts";
+import { media, appConfig, mediaUnits, qualityProfiles, releaseProfiles } from "@/db/schema.ts";
 import { encodeConfigCore } from "@/features/system/config-codec.ts";
 import {
   encodeNumberList,
@@ -25,7 +25,7 @@ import {
 import {
   getAnimeRowEffect as requireAnime,
   loadCurrentEpisodeState,
-} from "@/features/anime/shared/anime-read-repository.ts";
+} from "@/features/media/shared/media-read-repository.ts";
 import {
   loadQualityProfile,
   loadReleaseRules,
@@ -45,7 +45,7 @@ it.scoped(
             library: {
               ...encodedDefaults.library,
               import_mode: "move",
-              library_path: "/anime-library",
+              library_path: "/media-library",
             },
           });
           const configData = yield* encodeConfigCore(decodedConfig);
@@ -69,7 +69,7 @@ it.scoped(
           yield* Effect.promise(() => db.insert(qualityProfiles).values(qualityProfileRow));
 
           const runtimeConfig = yield* loadRuntimeConfig(db);
-          assert.deepStrictEqual(runtimeConfig.library.library_path, "/anime-library");
+          assert.deepStrictEqual(runtimeConfig.library.library_path, "/media-library");
           assert.deepStrictEqual(runtimeConfig.library.import_mode, "move");
           assert.deepStrictEqual(runtimeConfig.profiles.length, 1);
           const [firstProfile] = runtimeConfig.profiles;
@@ -79,7 +79,7 @@ it.scoped(
           }
           assert.deepStrictEqual(firstProfile.name, "Default");
 
-          assert.deepStrictEqual(yield* getConfigLibraryPath(db), "/anime-library");
+          assert.deepStrictEqual(yield* getConfigLibraryPath(db), "/media-library");
           assert.deepStrictEqual(yield* currentImportMode(db), "move");
 
           const namingSettings = yield* currentNamingSettings(db);
@@ -103,7 +103,7 @@ it.scoped(
     }),
 );
 
-it.scoped("operations repository helpers load anime release rules and episode state", () =>
+it.scoped("operations repository helpers load media release rules and episode state", () =>
   withSqliteTestDbEffect({
     run: (db, _databaseFile) =>
       Effect.gen(function* () {
@@ -119,7 +119,7 @@ it.scoped("operations repository helpers load anime release rules and episode st
         ]);
 
         yield* Effect.promise(() =>
-          db.insert(anime).values({
+          db.insert(media).values({
             id: 20,
             malId: null,
             titleRomaji: "Naruto",
@@ -133,13 +133,13 @@ it.scoped("operations repository helpers load anime release rules and episode st
             coverImage: null,
             bannerImage: null,
             status: "RELEASING",
-            episodeCount: 12,
+            unitCount: 12,
             startDate: null,
             endDate: null,
             startYear: null,
             endYear: null,
             nextAiringAt: null,
-            nextAiringEpisode: null,
+            nextAiringUnit: null,
             profileName: "Default",
             rootFolder: "/library/Naruto",
             addedAt: "2024-01-01T00:00:00.000Z",
@@ -173,8 +173,8 @@ it.scoped("operations repository helpers load anime release rules and episode st
           ]),
         );
         yield* Effect.promise(() =>
-          db.insert(episodes).values({
-            animeId: 20,
+          db.insert(mediaUnits).values({
+            mediaId: 20,
             number: 1,
             title: null,
             aired: null,
@@ -229,7 +229,7 @@ it.effect("operations repository helpers encode and decode download provenance",
       selection_kind: "upgrade",
       selection_score: 12,
       source_identity: {
-        episode_numbers: [1],
+        unit_numbers: [1],
         label: "01",
         scheme: "absolute",
       },
@@ -246,7 +246,7 @@ it.effect("operations repository helpers encode and decode download provenance",
       selection_kind: "upgrade",
       selection_score: 12,
       source_identity: {
-        episode_numbers: [1],
+        unit_numbers: [1],
         label: "01",
         scheme: "absolute",
       },

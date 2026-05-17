@@ -5,7 +5,7 @@ import { DownloadTriggerService } from "@/features/operations/download/download-
 import { CatalogLibraryReadService } from "@/features/operations/catalog/catalog-library-read-service.ts";
 import { SearchBackgroundMissingService } from "@/features/operations/background-search/background-search-missing-support.ts";
 import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
-import { SearchEpisodeService } from "@/features/operations/search/search-orchestration-episode-support.ts";
+import { SearchUnitService } from "@/features/operations/search/search-orchestration-unit-support.ts";
 import { SearchReleaseService } from "@/features/operations/search/search-orchestration-release-search.ts";
 import {
   CalendarQuerySchema,
@@ -24,7 +24,7 @@ import {
   jsonResponse,
   successResponse,
 } from "@/http/shared/router-helpers.ts";
-import { SearchEpisodeParamsSchema } from "@/http/shared/common-request-schemas.ts";
+import { SearchUnitParamsSchema } from "@/http/shared/common-request-schemas.ts";
 
 export const searchRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
@@ -57,7 +57,7 @@ export const searchRouter = HttpRouter.empty.pipe(
         const query = yield* decodeQueryWithLabel(SearchReleasesQuerySchema, "search releases");
         return yield* (yield* SearchReleaseService).searchReleases(
           query.query ?? "",
-          query.anime_id,
+          query.media_id,
           query.category,
           query.filter,
         );
@@ -66,14 +66,11 @@ export const searchRouter = HttpRouter.empty.pipe(
     ),
   ),
   HttpRouter.get(
-    "/search/episode/:animeId/:episodeNumber",
+    "/search/units/:mediaId/:unitNumber",
     authedRouteResponse(
       Effect.gen(function* () {
-        const params = yield* decodePathParams(SearchEpisodeParamsSchema);
-        return yield* (yield* SearchEpisodeService).searchEpisode(
-          params.animeId,
-          params.episodeNumber,
-        );
+        const params = yield* decodePathParams(SearchUnitParamsSchema);
+        return yield* (yield* SearchUnitService).searchUnit(params.mediaId, params.unitNumber);
       }),
       jsonResponse,
     ),
@@ -84,8 +81,8 @@ export const searchRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const body = yield* decodeJsonBodyWithLabel(SearchDownloadBodySchema, "search download");
         yield* (yield* DownloadTriggerService).triggerDownload({
-          anime_id: body.anime_id,
-          ...(body.episode_number === undefined ? {} : { episode_number: body.episode_number }),
+          media_id: body.media_id,
+          ...(body.unit_number === undefined ? {} : { unit_number: body.unit_number }),
           ...(body.is_batch === undefined ? {} : { is_batch: body.is_batch }),
           magnet: body.magnet,
           ...(body.release_context === undefined ? {} : { release_context: body.release_context }),
@@ -106,24 +103,24 @@ export const searchRouter = HttpRouter.empty.pipe(
         );
         const searchBackgroundMissingService = yield* SearchBackgroundMissingService;
         return yield* (yield* OperationsTaskLauncherService).launch({
-          ...(body.anime_id === undefined ? {} : { animeId: body.anime_id }),
+          ...(body.media_id === undefined ? {} : { mediaId: body.media_id }),
           failureMessage:
-            body.anime_id === undefined
-              ? "Missing-episode search failed"
-              : `Missing-episode search failed for anime ${body.anime_id}`,
-          operation: () => searchBackgroundMissingService.triggerSearchMissing(body.anime_id),
+            body.media_id === undefined
+              ? "Missing-unit search failed"
+              : `Missing-unit search failed for media ${body.media_id}`,
+          operation: () => searchBackgroundMissingService.triggerSearchMissing(body.media_id),
           queuedMessage:
-            body.anime_id === undefined
-              ? "Queued missing-episode search for monitored anime"
-              : `Queued missing-episode search for anime ${body.anime_id}`,
+            body.media_id === undefined
+              ? "Queued missing-unit search for monitored media"
+              : `Queued missing-unit search for media ${body.media_id}`,
           runningMessage:
-            body.anime_id === undefined
-              ? "Searching missing episodes for monitored anime"
-              : `Searching missing episodes for anime ${body.anime_id}`,
+            body.media_id === undefined
+              ? "Searching missing mediaUnits for monitored media"
+              : `Searching missing mediaUnits for media ${body.media_id}`,
           successMessage: () =>
-            body.anime_id === undefined
-              ? "Finished missing-episode search for monitored anime"
-              : `Finished missing-episode search for anime ${body.anime_id}`,
+            body.media_id === undefined
+              ? "Finished missing-unit search for monitored media"
+              : `Finished missing-unit search for media ${body.media_id}`,
           taskKey: "downloads_search_missing_manual",
         });
       }),

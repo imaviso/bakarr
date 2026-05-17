@@ -19,7 +19,7 @@ import { formatDateTime } from "~/domain/date-time";
 interface ActiveDownloadActionsProps {
   allowedActions?: readonly string[] | undefined;
   downloadId?: number | undefined;
-  animeTitle?: string | undefined;
+  mediaTitle?: string | undefined;
 }
 
 export function ActiveDownloadActions(props: ActiveDownloadActionsProps) {
@@ -87,7 +87,7 @@ export function ActiveDownloadActions(props: ActiveDownloadActionsProps) {
         description="Timeline of queue, status, and import events for this download."
         {...(props.downloadId === undefined ? {} : { downloadId: props.downloadId })}
         formatTimestamp={(value) => formatDateTime(value)}
-        title={`Download Events${props.animeTitle ? ` - ${props.animeTitle}` : ""}`}
+        title={`Download Events${props.mediaTitle ? ` - ${props.mediaTitle}` : ""}`}
         triggerLabel="View download events"
       />
       {canRetry() && (
@@ -109,7 +109,7 @@ export function ActiveDownloadActions(props: ActiveDownloadActionsProps) {
 interface HistoryDownloadActionsProps {
   allowedActions?: readonly string[] | undefined;
   downloadId: number;
-  animeTitle: string;
+  mediaTitle: string;
 }
 
 export function HistoryDownloadActions(props: HistoryDownloadActionsProps) {
@@ -140,7 +140,7 @@ export function HistoryDownloadActions(props: HistoryDownloadActionsProps) {
         description="Timeline of queue, status, retry, and import events for this historical download."
         downloadId={props.downloadId}
         formatTimestamp={(value) => formatDateTime(value)}
-        title={`Download Events - ${props.animeTitle}`}
+        title={`Download Events - ${props.mediaTitle}`}
         triggerLabel="View download events"
       />
       {canReconcile() && (

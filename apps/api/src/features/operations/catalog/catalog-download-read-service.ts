@@ -31,7 +31,7 @@ export interface CatalogDownloadReadServiceShape {
     readonly limit?: number;
   }) => Effect.Effect<DownloadHistoryPage, ReadError>;
   readonly listDownloadEvents: (input?: {
-    readonly animeId?: number;
+    readonly mediaId?: number;
     readonly cursor?: string;
     readonly downloadId?: number;
     readonly direction?: "next" | "prev";
@@ -42,7 +42,7 @@ export interface CatalogDownloadReadServiceShape {
     readonly status?: string;
   }) => Effect.Effect<DownloadEventsPage, ReadError>;
   readonly streamDownloadEventsExportJson: (input?: {
-    readonly animeId?: number;
+    readonly mediaId?: number;
     readonly downloadId?: number;
     readonly endDate?: string;
     readonly eventType?: string;
@@ -52,7 +52,7 @@ export interface CatalogDownloadReadServiceShape {
     readonly status?: string;
   }) => Effect.Effect<DownloadEventExportStreamShape, ReadError>;
   readonly streamDownloadEventsExportCsv: (input?: {
-    readonly animeId?: number;
+    readonly mediaId?: number;
     readonly downloadId?: number;
     readonly endDate?: string;
     readonly eventType?: string;

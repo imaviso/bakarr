@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 
 import type { ScannerState } from "@packages/shared/index.ts";
-import { anime } from "@/db/schema.ts";
+import { media } from "@/db/schema.ts";
 import { buildUnmappedFolderSearchQueries } from "@/features/operations/unmapped/unmapped-folders.ts";
 import {
   findBestLocalAnimeMatch,
@@ -10,7 +10,7 @@ import {
 import { toAnimeSearchCandidate } from "@/features/operations/library/library-import.ts";
 
 export const findLocalFolderAnimeMatch = Effect.fn("OperationsService.findLocalFolderAnimeMatch")(
-  function* (folderName: string, animeRows: ReadonlyArray<typeof anime.$inferSelect>) {
+  function* (folderName: string, animeRows: ReadonlyArray<typeof media.$inferSelect>) {
     const queries = buildUnmappedFolderSearchQueries(folderName);
 
     for (const [index, query] of queries.entries()) {
@@ -35,7 +35,7 @@ export const findLocalFolderAnimeMatch = Effect.fn("OperationsService.findLocalF
 export const mergeLocalFolderMatch = Effect.fn("OperationsService.mergeLocalFolderMatch")(
   function* (
     folder: ScannerState["folders"][number],
-    animeRows: ReadonlyArray<typeof anime.$inferSelect>,
+    animeRows: ReadonlyArray<typeof media.$inferSelect>,
   ) {
     const localMatch = yield* findLocalFolderAnimeMatch(folder.name, animeRows);
 

@@ -1,7 +1,7 @@
 import { assert, it } from "@effect/vitest";
 import { Effect } from "effect";
 
-import { brandAnimeId, type AnimeSearchResult } from "@packages/shared/index.ts";
+import { brandMediaId, type MediaSearchResult } from "@packages/shared/index.ts";
 
 import {
   buildUnmappedFolderSearchQueries,
@@ -51,20 +51,20 @@ it.effect(
               return Effect.succeed([
                 {
                   already_in_library: false,
-                  id: brandAnimeId(1),
+                  id: brandMediaId(1),
                   title: { romaji: "Scissor Seven" },
                 },
-              ] satisfies AnimeSearchResult[]);
+              ] satisfies MediaSearchResult[]);
             case "Mono":
               return Effect.succeed([
                 {
                   already_in_library: false,
-                  id: brandAnimeId(2),
+                  id: brandMediaId(2),
                   title: { romaji: "Mono" },
                 },
-              ] satisfies AnimeSearchResult[]);
+              ] satisfies MediaSearchResult[]);
             default:
-              return Effect.succeed([] satisfies AnimeSearchResult[]);
+              return Effect.succeed([] satisfies MediaSearchResult[]);
           }
         },
       );
@@ -98,7 +98,7 @@ it("unmapped folder helpers track matching status transitions", () => {
     path: "/library/Naruto Archive",
     search_queries: ["Naruto Archive"],
     size: 0,
-    suggested_matches: [] as AnimeSearchResult[],
+    suggested_matches: [] as MediaSearchResult[],
   };
 
   const matching = markUnmappedFolderMatching(base);
@@ -107,7 +107,7 @@ it("unmapped folder helpers track matching status transitions", () => {
     [
       {
         already_in_library: true,
-        id: brandAnimeId(20),
+        id: brandMediaId(20),
         match_confidence: 0.98,
         match_reason: 'Matched a library title from the normalized folder name "Naruto Archive"',
         title: { romaji: "Naruto" },
@@ -145,10 +145,10 @@ it("unmapped folder helpers support pause and reset controls", () => {
     suggested_matches: [
       {
         already_in_library: true,
-        id: brandAnimeId(20),
+        id: brandMediaId(20),
         title: { romaji: "Naruto" },
       },
-    ] satisfies AnimeSearchResult[],
+    ] satisfies MediaSearchResult[],
   };
 
   const paused = markUnmappedFolderPaused(base);

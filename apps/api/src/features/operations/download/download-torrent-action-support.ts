@@ -122,19 +122,19 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
       }
     }
 
-    const coveredEpisodes = yield* parseCoveredEpisodesEffect(row.coveredEpisodes);
+    const coveredUnits = yield* parseCoveredEpisodesEffect(row.coveredUnits);
 
     if (action === "delete") {
       const sourceMetadata = yield* decodeDownloadSourceMetadata(row.sourceMetadata);
       yield* recordDownloadEvent(
         db,
         {
-          animeId: row.animeId,
+          mediaId: row.mediaId,
           downloadId: row.id,
           eventType: "download.deleted",
           fromStatus: row.status,
           metadataJson: {
-            covered_episodes: coveredEpisodes,
+            covered_units: coveredUnits,
             ...(sourceMetadata ? { source_metadata: sourceMetadata } : {}),
           },
           message: `Deleted ${row.torrentName}`,
@@ -160,12 +160,12 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
       yield* recordDownloadEvent(
         db,
         {
-          animeId: row.animeId,
+          mediaId: row.mediaId,
           downloadId: row.id,
           eventType: `download.${action}d`,
           fromStatus: row.status,
           metadataJson: {
-            covered_episodes: coveredEpisodes,
+            covered_units: coveredUnits,
             ...(actionSourceMetadata ? { source_metadata: actionSourceMetadata } : {}),
           },
           message: `${action === "pause" ? "Paused" : "Resumed"} ${row.torrentName}`,
@@ -197,7 +197,7 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
       });
     }
 
-    const coveredEpisodes = yield* parseCoveredEpisodesEffect(row.coveredEpisodes);
+    const coveredUnits = yield* parseCoveredEpisodesEffect(row.coveredUnits);
     const qbitResult = yield* torrentClientService
       .addTorrentUrlIfEnabled(row.magnet)
       .pipe(Effect.either);
@@ -228,12 +228,12 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
     yield* recordDownloadEvent(
       db,
       {
-        animeId: row.animeId,
+        mediaId: row.mediaId,
         downloadId: row.id,
         eventType: "download.retried",
         fromStatus: row.status,
         metadataJson: {
-          covered_episodes: coveredEpisodes,
+          covered_units: coveredUnits,
           ...(retrySourceMetadata ? { source_metadata: retrySourceMetadata } : {}),
         },
         message: `Retried ${row.torrentName}`,

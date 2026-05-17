@@ -21,7 +21,7 @@ it.effect("config codec round-trips config core without mutating arrays", () =>
   Effect.gen(function* () {
     const encoded = yield* encodeConfigCore({
       downloads: {
-        create_anime_folders: true,
+        create_media_folders: true,
         delete_download_files_after_import: true,
         reconcile_completed_downloads: true,
         remote_path_mappings: [["/remote", "/local"]],
@@ -55,11 +55,11 @@ it.effect("config codec round-trips config core without mutating arrays", () =>
         preferred_resolution: "1080p",
       },
       qbittorrent: {
-        default_category: "anime",
+        default_category: "media",
         enabled: true,
         password: "secret",
         ratio_limit: 1.5,
-        save_path: "/downloads/anime",
+        save_path: "/downloads/media",
         trusted_local: true,
         url: "http://localhost:8080",
         username: "admin",
@@ -80,7 +80,7 @@ it.effect("config codec round-trips config core without mutating arrays", () =>
     assert.deepStrictEqual(decoded.downloads.remove_torrent_on_import, false);
     assert.deepStrictEqual(decoded.downloads.remote_path_mappings, [["/remote", "/local"]]);
     assert.deepStrictEqual(decoded.qbittorrent.ratio_limit, 1.5);
-    assert.deepStrictEqual(decoded.qbittorrent.save_path, "/downloads/anime");
+    assert.deepStrictEqual(decoded.qbittorrent.save_path, "/downloads/media");
     assert.deepStrictEqual(decoded.qbittorrent.trusted_local, true);
     assert.deepStrictEqual(decoded.scheduler.cron_expression, "0 * * * *");
   }),
@@ -91,7 +91,7 @@ it.effect("config codec strips removed download preference fields from legacy co
     const decoded = yield* decodeConfigCore(
       yield* Schema.encode(Schema.parseJson(Schema.Unknown))({
         downloads: {
-          create_anime_folders: true,
+          create_media_folders: true,
           max_size_gb: 8,
           prefer_dual_audio: true,
           preferred_codec: "hevc",
@@ -127,7 +127,7 @@ it.effect("config codec strips removed download preference fields from legacy co
           preferred_resolution: "1080p",
         },
         qbittorrent: {
-          default_category: "anime",
+          default_category: "media",
           enabled: true,
           password: "secret",
           url: "http://localhost:8080",
@@ -145,7 +145,7 @@ it.effect("config codec strips removed download preference fields from legacy co
     );
 
     assert.deepStrictEqual(decoded.downloads, {
-      create_anime_folders: true,
+      create_media_folders: true,
       remote_path_mappings: [],
       root_path: "./downloads",
     });

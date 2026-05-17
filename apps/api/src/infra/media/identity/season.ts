@@ -18,7 +18,7 @@ export function parseSeasonEpisodeIdentity(value: string): SeasonEpisodeIdentity
       return new SeasonEpisodeIdentity({
         scheme: "season",
         season,
-        episode_numbers: eps,
+        unit_numbers: eps,
         label: formatSeasonLabel(season, eps),
       });
     }
@@ -34,7 +34,7 @@ export function parseSeasonEpisodeIdentity(value: string): SeasonEpisodeIdentity
       return new SeasonEpisodeIdentity({
         scheme: "season",
         season,
-        episode_numbers: eps,
+        unit_numbers: eps,
         label: formatSeasonLabel(season, eps),
       });
     }
@@ -50,7 +50,7 @@ export function parseSeasonEpisodeIdentity(value: string): SeasonEpisodeIdentity
       return new SeasonEpisodeIdentity({
         scheme: "season",
         season,
-        episode_numbers: [ep],
+        unit_numbers: [ep],
         label: `S${String(season).padStart(2, "0")}E${String(ep).padStart(2, "0")}`,
       });
     }
@@ -68,7 +68,7 @@ export function parseSeasonEpisodeIdentity(value: string): SeasonEpisodeIdentity
       return new SeasonEpisodeIdentity({
         scheme: "season",
         season,
-        episode_numbers: eps,
+        unit_numbers: eps,
         label: formatSeasonLabel(season, eps),
       });
     }
@@ -82,7 +82,7 @@ export function parseSeasonEpisodeIdentity(value: string): SeasonEpisodeIdentity
       return new SeasonEpisodeIdentity({
         scheme: "season",
         season,
-        episode_numbers: [ep],
+        unit_numbers: [ep],
         label: `S${String(season).padStart(2, "0")}E${String(ep).padStart(2, "0")}`,
       });
     }
@@ -98,7 +98,7 @@ export function parseSeasonEpisodeIdentity(value: string): SeasonEpisodeIdentity
       return new SeasonEpisodeIdentity({
         scheme: "season",
         season,
-        episode_numbers: [ep],
+        unit_numbers: [ep],
         label: `S${String(season).padStart(2, "0")}E${String(ep).padStart(2, "0")}`,
       });
     }
@@ -114,7 +114,7 @@ export function parseSeasonEpisodeIdentity(value: string): SeasonEpisodeIdentity
       return new SeasonEpisodeIdentity({
         scheme: "season",
         season,
-        episode_numbers: [ep],
+        unit_numbers: [ep],
         label: `S${String(season).padStart(2, "0")}E${String(ep).padStart(2, "0")}`,
       });
     }
@@ -130,7 +130,7 @@ export function parseSeasonEpisodeIdentity(value: string): SeasonEpisodeIdentity
       return new SeasonEpisodeIdentity({
         scheme: "season",
         season,
-        episode_numbers: [ep],
+        unit_numbers: [ep],
         label: `S${String(season).padStart(2, "0")}E${String(ep).padStart(2, "0")}`,
       });
     }
@@ -162,12 +162,12 @@ function collectSeasonEpisodes(value: string): number[] {
     return [];
   }
   const epMatches = episodePart.matchAll(/e(\d{1,4})/gi);
-  const episodes: number[] = [];
+  const mediaUnits: number[] = [];
   for (const m of epMatches) {
     const num = Number(m[1]);
     if (num > 0 && num < 2000) {
-      episodes.push(num);
+      mediaUnits.push(num);
     }
   }
-  return episodes;
+  return mediaUnits;
 }

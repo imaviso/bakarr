@@ -3,15 +3,15 @@ import { Context, Effect, Layer, Stream } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
-import { anime, episodes } from "@/db/schema.ts";
+import { media, mediaUnits } from "@/db/schema.ts";
 import {
   type FileSystemShape,
   isWithinPathRoot,
   sanitizePathSegmentEffect,
 } from "@/infra/filesystem/filesystem.ts";
 import { classifyMediaArtifact, parseFileSourceIdentity } from "@/infra/media/identity/identity.ts";
-import { inferAiredAt } from "@/domain/anime/derivations.ts";
-import { resolveAnimeRootFolderEffect } from "@/features/anime/shared/config-support.ts";
+import { inferAiredAt } from "@/domain/media/derivations.ts";
+import { resolveAnimeRootFolderEffect } from "@/features/media/shared/config-support.ts";
 import {
   OperationsAnimeNotFoundError,
   OperationsConflictError,
@@ -21,7 +21,7 @@ import {
 } from "@/features/operations/errors.ts";
 import { appendLog } from "@/features/operations/shared/job-support.ts";
 import { scanVideoFilesStream } from "@/features/operations/import-scan/file-scanner.ts";
-import { getAnimeRowEffect as requireAnime } from "@/features/anime/shared/anime-read-repository.ts";
+import { getAnimeRowEffect as requireAnime } from "@/features/media/shared/media-read-repository.ts";
 import { getConfigLibraryPath } from "@/features/operations/repository/config-repository.ts";
 import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 import { Database } from "@/db/database.ts";
@@ -32,7 +32,7 @@ import { tryDatabasePromise } from "@/infra/effect/db.ts";
 export interface UnmappedImportWorkflowShape {
   readonly importUnmappedFolder: (input: {
     folder_name: string;
-    anime_id: number;
+    media_id: number;
     profile_name?: string;
   }) => Effect.Effect<
     void,
@@ -60,7 +60,7 @@ export const cleanupPreviousAnimeRootFolderAfterImport = Effect.fn(
   const previousEntries = yield* Effect.either(fs.readDir(previousRootFolder));
 
   if (previousEntries._tag === "Left") {
-    yield* Effect.logWarning("Skipped previous anime folder cleanup after import").pipe(
+    yield* Effect.logWarning("Skipped previous media folder cleanup after import").pipe(
       Effect.annotateLogs({
         error: String(previousEntries.left),
         folder_path: previousRootFolder,
@@ -72,7 +72,7 @@ export const cleanupPreviousAnimeRootFolderAfterImport = Effect.fn(
   if (previousEntries.right.length === 0) {
     yield* fs.remove(previousRootFolder, { recursive: true }).pipe(
       Effect.catchTag("FileSystemError", (fsError) =>
-        Effect.logWarning("Failed to remove empty anime folder after import").pipe(
+        Effect.logWarning("Failed to remove empty media folder after import").pipe(
           Effect.annotateLogs({
             error: String(fsError),
             folder_path: previousRootFolder,
@@ -94,13 +94,13 @@ export function makeUnmappedImportWorkflow(input: {
 
   type EpisodeImportMapping = {
     readonly aired: string | null;
-    readonly episodeNumber: number;
+    readonly unitNumber: number;
     readonly filePath: string;
   };
 
   const importUnmappedFolder = Effect.fn("OperationsService.importUnmappedFolder")(
-    function* (input: { folder_name: string; anime_id: number; profile_name?: string }) {
-      const animeRow = yield* requireAnime(db, input.anime_id);
+    function* (input: { folder_name: string; media_id: number; profile_name?: string }) {
+      const animeRow = yield* requireAnime(db, input.media_id);
       const libraryPath = yield* getConfigLibraryPath(db);
       const folderName = yield* sanitizePathSegmentEffect(input.folder_name).pipe(
         Effect.mapError(
@@ -121,13 +121,13 @@ export function makeUnmappedImportWorkflow(input: {
 
       const existingOwner = yield* tryDatabasePromise("Failed to import unmapped folder", () =>
         db
-          .select({ id: anime.id, titleRomaji: anime.titleRomaji })
-          .from(anime)
-          .where(eq(anime.rootFolder, folderPath))
+          .select({ id: media.id, titleRomaji: media.titleRomaji })
+          .from(media)
+          .where(eq(media.rootFolder, folderPath))
           .limit(1),
       );
 
-      if (existingOwner[0] && existingOwner[0].id !== input.anime_id) {
+      if (existingOwner[0] && existingOwner[0].id !== input.media_id) {
         return yield* new OperationsConflictError({
           message: `Folder ${folderName} is already mapped to ${existingOwner[0].titleRomaji}`,
         });
@@ -176,23 +176,23 @@ export function makeUnmappedImportWorkflow(input: {
             return acc;
           }
 
-          const episodeNumbers = identity.episode_numbers;
-          if (episodeNumbers.length === 0) {
+          const unitNumbers = identity.unit_numbers;
+          if (unitNumbers.length === 0) {
             return acc;
           }
 
-          for (const episodeNumber of episodeNumbers) {
+          for (const unitNumber of unitNumbers) {
             acc.push({
               aired: inferAiredAt(
                 animeRow.status,
-                episodeNumber,
-                animeRow.episodeCount ?? undefined,
+                unitNumber,
+                animeRow.unitCount ?? undefined,
                 animeRow.startDate ?? undefined,
                 animeRow.endDate ?? undefined,
                 undefined,
                 fallbackNowIso,
               ),
-              episodeNumber,
+              unitNumber,
               filePath: file.path,
             });
           }
@@ -204,26 +204,26 @@ export function makeUnmappedImportWorkflow(input: {
       yield* tryDatabasePromise("Failed to import unmapped folder", () =>
         db.transaction(async (tx) => {
           await tx
-            .update(anime)
+            .update(media)
             .set({
               profileName: nextProfileName,
               rootFolder,
             })
-            .where(eq(anime.id, input.anime_id));
+            .where(eq(media.id, input.media_id));
 
           for (const mapping of episodeMappings) {
             await tx
-              .insert(episodes)
+              .insert(mediaUnits)
               .values({
                 aired: mapping.aired,
-                animeId: input.anime_id,
+                mediaId: input.media_id,
                 downloaded: true,
                 filePath: mapping.filePath,
-                number: mapping.episodeNumber,
+                number: mapping.unitNumber,
                 title: null,
               })
               .onConflictDoUpdate({
-                target: [episodes.animeId, episodes.number],
+                target: [mediaUnits.mediaId, mediaUnits.number],
                 set: {
                   downloaded: true,
                   filePath: mapping.filePath,
@@ -241,7 +241,7 @@ export function makeUnmappedImportWorkflow(input: {
         db,
         "library.unmapped.imported",
         "success",
-        `Mapped ${folderName} as the root folder for anime ${input.anime_id} and imported ${imported} episode(s)`,
+        `Mapped ${folderName} as the root folder for media ${input.media_id} and imported ${imported} episode(s)`,
         nowIso,
       );
       return undefined;

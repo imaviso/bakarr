@@ -40,7 +40,7 @@ export const validateConfigUpdate = Effect.fn("ConfigUpdateValidation.validateCo
 
       if (referencingAnime > 0) {
         return yield* new ConfigValidationError({
-          message: `Cannot remove profile '${removedProfileName}': still referenced by ${referencingAnime} anime`,
+          message: `Cannot remove profile '${removedProfileName}': still referenced by ${referencingAnime} media`,
         });
       }
     }

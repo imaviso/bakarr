@@ -6,9 +6,9 @@ const TOKEN_FIELD_MAP = {
   air_date: "airDate",
   audio_channels: "audioChannels",
   audio_codec: "audioCodec",
-  episode: "episodeNumbers",
-  episode_segment: "episodeNumbers",
-  episode_title: "episodeTitle",
+  episode: "unitNumbers",
+  episode_segment: "unitNumbers",
+  unit_title: "unitTitle",
   group: "group",
   quality: "quality",
   resolution: "resolution",
@@ -62,7 +62,7 @@ export function validateNamingMetadata(
       const field = TOKEN_FIELD_MAP[token];
       const value = metadata[field];
 
-      if (field === "episodeNumbers") {
+      if (field === "unitNumbers") {
         return !Array.isArray(value) || value.length === 0;
       }
 

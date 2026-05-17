@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 
 import {
-  brandAnimeId,
+  brandMediaId,
   brandDownloadId,
   type Download,
   type DownloadAllowedAction,
@@ -28,23 +28,23 @@ export const toDownload = Effect.fn("OperationsPresentation.toDownload")(functio
   row: DownloadRow,
   context?: DownloadPresentationContext,
 ) {
-  const coveredEpisodes = yield* decodeCoveredEpisodes(row.coveredEpisodes);
-  const coveragePending = row.isBatch && (!coveredEpisodes || coveredEpisodes.length === 0);
+  const coveredUnits = yield* decodeCoveredEpisodes(row.coveredUnits);
+  const coveragePending = row.isBatch && (!coveredUnits || coveredUnits.length === 0);
   const sourceMetadata = yield* decodeDownloadSourceMetadata(row.sourceMetadata);
   const policy = resolveDownloadActionPolicy(row.status, row.reconciledAt);
 
   return {
     added_at: row.addedAt,
-    anime_id: brandAnimeId(row.animeId),
-    anime_image: context?.animeImage,
-    anime_title: row.animeTitle,
+    media_id: brandMediaId(row.mediaId),
+    media_image: context?.mediaImage,
+    media_title: row.mediaTitle,
     content_path: row.contentPath ?? undefined,
     coverage_pending: coveragePending || undefined,
-    covered_episodes: coveredEpisodes,
+    covered_units: coveredUnits,
     decision_reason: sourceMetadata?.decision_reason,
     download_date: row.downloadDate ?? undefined,
     downloaded_bytes: row.downloadedBytes ?? undefined,
-    episode_number: row.episodeNumber,
+    unit_number: row.unitNumber,
     error_message: row.errorMessage ?? undefined,
     eta_seconds: row.etaSeconds ?? undefined,
     external_state: row.externalState ?? undefined,
@@ -74,8 +74,8 @@ export const toDownloadStatus = Effect.fn("OperationsPresentation.toDownloadStat
   const progress = row.progress ?? 0;
   const totalBytes = row.totalBytes ?? 0;
   const downloadedBytes = row.downloadedBytes ?? 0;
-  const coveredEpisodes = yield* decodeCoveredEpisodes(row.coveredEpisodes);
-  const coveragePending = row.isBatch && (!coveredEpisodes || coveredEpisodes.length === 0);
+  const coveredUnits = yield* decodeCoveredEpisodes(row.coveredUnits);
+  const coveragePending = row.isBatch && (!coveredUnits || coveredUnits.length === 0);
   const infoHash =
     row.infoHash ??
     (yield* new OperationsStoredDataError({
@@ -85,17 +85,17 @@ export const toDownloadStatus = Effect.fn("OperationsPresentation.toDownloadStat
   const policy = resolveDownloadActionPolicy(row.status, row.reconciledAt);
 
   return {
-    anime_id: brandAnimeId(row.animeId),
-    anime_image: context?.animeImage,
-    anime_title: row.animeTitle,
+    media_id: brandMediaId(row.mediaId),
+    media_image: context?.mediaImage,
+    media_title: row.mediaTitle,
     coverage_pending: coveragePending || undefined,
-    covered_episodes: coveredEpisodes,
+    covered_units: coveredUnits,
     decision_reason: sourceMetadata?.decision_reason,
     downloaded_bytes: downloadedBytes,
     eta: row.etaSeconds ?? 0,
     hash: infoHash,
     id: brandDownloadId(row.id),
-    episode_number: row.episodeNumber,
+    unit_number: row.unitNumber,
     imported_path: context?.importedPath,
     is_batch: row.isBatch,
     name: row.torrentName,

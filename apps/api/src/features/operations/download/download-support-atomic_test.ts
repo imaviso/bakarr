@@ -2,19 +2,19 @@ import { assert, it } from "@effect/vitest";
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
-import { upsertEpisodeFilesAtomic } from "@/features/operations/download/download-episode-upsert-support.ts";
+import { upsertEpisodeFilesAtomic } from "@/features/operations/download/download-unit-upsert-support.ts";
 import * as schema from "@/db/schema.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 
-it.scoped("upsertEpisodeFilesAtomic inserts multiple episodes atomically", () =>
+it.scoped("upsertEpisodeFilesAtomic inserts multiple mediaUnits atomically", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
 
         yield* Effect.tryPromise(() =>
-          appDb.insert(schema.anime).values({
+          appDb.insert(schema.media).values({
             id: 1,
             titleRomaji: "Test Show",
             rootFolder: "/test",
@@ -32,7 +32,7 @@ it.scoped("upsertEpisodeFilesAtomic inserts multiple episodes atomically", () =>
         yield* upsertEpisodeFilesAtomic(appDb, 1, [1, 2, 3], "/test/episode.mkv");
 
         const rows = yield* Effect.tryPromise(() =>
-          appDb.select().from(schema.episodes).where(eq(schema.episodes.animeId, 1)),
+          appDb.select().from(schema.mediaUnits).where(eq(schema.mediaUnits.mediaId, 1)),
         );
         assert.deepStrictEqual(rows.length, 3);
         const numbers = rows.map((r) => r.number).toSorted((a, b) => a - b);
@@ -47,14 +47,14 @@ it.scoped("upsertEpisodeFilesAtomic inserts multiple episodes atomically", () =>
   }),
 );
 
-it.scoped("upsertEpisodeFilesAtomic updates existing episodes", () =>
+it.scoped("upsertEpisodeFilesAtomic updates existing mediaUnits", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
 
         yield* Effect.tryPromise(() =>
-          appDb.insert(schema.anime).values({
+          appDb.insert(schema.media).values({
             id: 1,
             titleRomaji: "Test Show",
             rootFolder: "/test",
@@ -70,9 +70,9 @@ it.scoped("upsertEpisodeFilesAtomic updates existing episodes", () =>
         );
 
         yield* Effect.tryPromise(() =>
-          appDb.insert(schema.episodes).values([
-            { animeId: 1, number: 1, downloaded: false, filePath: null },
-            { animeId: 1, number: 2, downloaded: true, filePath: "/old.mkv" },
+          appDb.insert(schema.mediaUnits).values([
+            { mediaId: 1, number: 1, downloaded: false, filePath: null },
+            { mediaId: 1, number: 2, downloaded: true, filePath: "/old.mkv" },
           ]),
         );
 
@@ -81,9 +81,9 @@ it.scoped("upsertEpisodeFilesAtomic updates existing episodes", () =>
         const rows = yield* Effect.tryPromise(() =>
           appDb
             .select()
-            .from(schema.episodes)
-            .where(eq(schema.episodes.animeId, 1))
-            .orderBy(schema.episodes.number),
+            .from(schema.mediaUnits)
+            .where(eq(schema.mediaUnits.mediaId, 1))
+            .orderBy(schema.mediaUnits.number),
         );
 
         assert.deepStrictEqual(rows.length, 2);
@@ -109,7 +109,7 @@ it.scoped("upsertEpisodeFilesAtomic handles empty episode list", () =>
         const appDb: AppDatabase = db;
 
         yield* Effect.tryPromise(() =>
-          appDb.insert(schema.anime).values({
+          appDb.insert(schema.media).values({
             id: 1,
             titleRomaji: "Test Show",
             rootFolder: "/test",
@@ -126,7 +126,7 @@ it.scoped("upsertEpisodeFilesAtomic handles empty episode list", () =>
 
         yield* upsertEpisodeFilesAtomic(appDb, 1, [], "/test/episode.mkv");
 
-        const rows = yield* Effect.tryPromise(() => appDb.select().from(schema.episodes));
+        const rows = yield* Effect.tryPromise(() => appDb.select().from(schema.mediaUnits));
         assert.deepStrictEqual(rows.length, 0);
       }),
     schema,

@@ -3,7 +3,7 @@ import { Schema } from "effect";
 export type DownloadEventsDirection = "next" | "prev";
 
 export interface DownloadEventsSearchKeys {
-  animeId: string;
+  mediaId: string;
   cursor: string;
   direction: string;
   downloadId: string;
@@ -14,7 +14,7 @@ export interface DownloadEventsSearchKeys {
 }
 
 export const DOWNLOADS_EVENTS_SEARCH_KEYS = {
-  animeId: "events_anime_id",
+  mediaId: "events_media_id",
   cursor: "events_cursor",
   direction: "events_direction",
   downloadId: "events_download_id",
@@ -25,7 +25,7 @@ export const DOWNLOADS_EVENTS_SEARCH_KEYS = {
 } as const satisfies DownloadEventsSearchKeys;
 
 export const LOGS_DOWNLOAD_EVENTS_SEARCH_KEYS = {
-  animeId: "download_anime_id",
+  mediaId: "download_media_id",
   cursor: "download_cursor",
   direction: "download_direction",
   downloadId: "download_download_id",
@@ -36,21 +36,21 @@ export const LOGS_DOWNLOAD_EVENTS_SEARCH_KEYS = {
 } as const satisfies DownloadEventsSearchKeys;
 
 export function createDownloadsRouteSearch(input?: {
-  animeId?: string | undefined;
+  mediaId?: string | undefined;
   tab?: "events" | "history" | "queue" | undefined;
 }) {
-  const animeId = input?.animeId?.trim();
+  const mediaId = input?.mediaId?.trim();
 
   return {
     ...createDownloadEventsSearchDefaults(DOWNLOADS_EVENTS_SEARCH_KEYS),
-    ...(animeId ? { [DOWNLOADS_EVENTS_SEARCH_KEYS.animeId]: animeId } : {}),
+    ...(mediaId ? { [DOWNLOADS_EVENTS_SEARCH_KEYS.mediaId]: mediaId } : {}),
     tab: input?.tab ?? "queue",
   };
 }
 
-export function createLogsRouteSearch(input?: { animeId?: string | undefined }) {
+export function createLogsRouteSearch(input?: { mediaId?: string | undefined }) {
   const defaults = createDownloadEventsSearchDefaults(LOGS_DOWNLOAD_EVENTS_SEARCH_KEYS);
-  const animeId = input?.animeId?.trim();
+  const mediaId = input?.mediaId?.trim();
 
   return {
     ...defaults,
@@ -58,7 +58,7 @@ export function createLogsRouteSearch(input?: { animeId?: string | undefined }) 
     eventType: "",
     level: "",
     startDate: "",
-    ...(animeId ? { [LOGS_DOWNLOAD_EVENTS_SEARCH_KEYS.animeId]: animeId } : {}),
+    ...(mediaId ? { [LOGS_DOWNLOAD_EVENTS_SEARCH_KEYS.mediaId]: mediaId } : {}),
   };
 }
 
@@ -70,7 +70,7 @@ export function createDownloadEventsSearchDefaults(
   keys: DownloadEventsSearchKeys,
 ): Record<string, string> {
   return {
-    [keys.animeId]: "",
+    [keys.mediaId]: "",
     [keys.cursor]: "",
     [keys.direction]: "next",
     [keys.downloadId]: "",
@@ -91,8 +91,8 @@ export function createDownloadEventsSearchSchema(
   });
 
   return Schema.Struct({
-    [keys.animeId]: Schema.optionalWith(Schema.String, {
-      default: () => defaults[keys.animeId] ?? "",
+    [keys.mediaId]: Schema.optionalWith(Schema.String, {
+      default: () => defaults[keys.mediaId] ?? "",
     }),
     [keys.cursor]: Schema.optionalWith(Schema.String, {
       default: () => defaults[keys.cursor] ?? "",

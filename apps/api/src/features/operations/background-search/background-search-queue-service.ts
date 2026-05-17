@@ -2,7 +2,7 @@ import { Context, Effect, Layer } from "effect";
 
 import type { DownloadAction } from "@packages/shared/index.ts";
 import { Database, DatabaseError } from "@/db/database.ts";
-import { anime } from "@/db/schema.ts";
+import { media } from "@/db/schema.ts";
 import {
   buildDownloadSelectionMetadata,
   buildDownloadSourceMetadataFromRelease,
@@ -26,15 +26,15 @@ import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
 
 export interface BackgroundSearchQueueServiceShape {
   readonly queueReleaseIfEligible: (input: {
-    animeRow: typeof anime.$inferSelect;
+    animeRow: typeof media.$inferSelect;
     contextMessage: string;
     decisionReason?: string;
     action?: DownloadAction;
-    episodeNumber: number;
+    unitNumber: number;
     eventMessage: string;
     eventType: string;
     item: ParsedRelease;
-    missingEpisodes: readonly number[];
+    missingUnits: readonly number[];
   }) => Effect.Effect<
     { readonly _tag: "skipped" } | { readonly _tag: "queued" },
     DatabaseError | OperationsInfrastructureError
@@ -57,29 +57,29 @@ export const BackgroundSearchQueueServiceLive = Layer.effect(
 
     const queueReleaseIfEligible = Effect.fn("BackgroundSearchQueueService.queueReleaseIfEligible")(
       function* (input: {
-        animeRow: typeof anime.$inferSelect;
+        animeRow: typeof media.$inferSelect;
         contextMessage: string;
         decisionReason?: string;
         action?: DownloadAction;
-        episodeNumber: number;
+        unitNumber: number;
         eventMessage: string;
         eventType: string;
         item: ParsedRelease;
-        missingEpisodes: readonly number[];
+        missingUnits: readonly number[];
       }) {
         const parsedRelease = parseReleaseName(input.item.title);
         const explicitUnitNumbers =
           input.animeRow.mediaKind === "anime"
-            ? parsedRelease.episodeNumbers
+            ? parsedRelease.unitNumbers
             : parseVolumeNumbersFromTitle(input.item.title);
 
-        const coveredEpisodes = yield* toCoveredEpisodesJson(
+        const coveredUnits = yield* toCoveredEpisodesJson(
           inferCoveredEpisodeNumbers({
             explicitEpisodes: explicitUnitNumbers,
             isBatch: parsedRelease.isBatch || explicitUnitNumbers.length > 1,
-            totalEpisodes: input.animeRow.episodeCount,
-            missingEpisodes: input.missingEpisodes,
-            requestedEpisode: input.episodeNumber,
+            totalUnits: input.animeRow.unitCount,
+            missingUnits: input.missingUnits,
+            requestedEpisode: input.unitNumber,
           }),
         ).pipe(
           Effect.mapError(
@@ -92,7 +92,7 @@ export const BackgroundSearchQueueServiceLive = Layer.effect(
         );
 
         const queueEffect = Effect.gen(function* () {
-          const parsedCoveredEpisodes = yield* parseCoveredEpisodesEffect(coveredEpisodes);
+          const parsedCoveredEpisodes = yield* parseCoveredEpisodesEffect(coveredUnits);
           const overlapping = yield* hasOverlappingDownload(
             db,
             input.animeRow.id,
@@ -107,9 +107,9 @@ export const BackgroundSearchQueueServiceLive = Layer.effect(
           yield* queueParsedReleaseDownload({
             animeRow: input.animeRow,
             contextMessage: input.contextMessage,
-            coveredEpisodes,
+            coveredUnits,
             db,
-            episodeNumber: input.episodeNumber,
+            unitNumber: input.unitNumber,
             eventMessage: input.eventMessage,
             eventType: input.eventType,
             isBatch: parsedRelease.isBatch,

@@ -1,6 +1,6 @@
 import { index, integer, sqliteTable, text, unique } from "drizzle-orm/sqlite-core";
 
-export const anime = sqliteTable("anime", {
+export const media = sqliteTable("media", {
   id: integer("id").primaryKey(),
   mediaKind: text("media_kind").notNull().default("anime"),
   malId: integer("mal_id"),
@@ -23,16 +23,16 @@ export const anime = sqliteTable("anime", {
   coverImage: text("cover_image"),
   bannerImage: text("banner_image"),
   status: text("status").notNull(),
-  episodeCount: integer("episode_count"),
+  unitCount: integer("unit_count"),
   startDate: text("start_date"),
   endDate: text("end_date"),
   startYear: integer("start_year"),
   endYear: integer("end_year"),
   nextAiringAt: text("next_airing_at"),
-  nextAiringEpisode: integer("next_airing_episode"),
+  nextAiringUnit: integer("next_airing_unit"),
   synonyms: text("synonyms"),
-  relatedAnime: text("related_anime"),
-  recommendedAnime: text("recommended_anime"),
+  relatedMedia: text("related_media"),
+  recommendedMedia: text("recommended_media"),
   profileName: text("profile_name").notNull(),
   rootFolder: text("root_folder").notNull(),
   addedAt: text("added_at").notNull(),
@@ -40,13 +40,13 @@ export const anime = sqliteTable("anime", {
   releaseProfileIds: text("release_profile_ids").notNull(),
 });
 
-export const episodes = sqliteTable(
-  "episodes",
+export const mediaUnits = sqliteTable(
+  "media_units",
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
-    animeId: integer("anime_id")
+    mediaId: integer("media_id")
       .notNull()
-      .references(() => anime.id, { onDelete: "cascade" }),
+      .references(() => media.id, { onDelete: "cascade" }),
     number: integer("number").notNull(),
     title: text("title"),
     aired: text("aired"),
@@ -62,14 +62,14 @@ export const episodes = sqliteTable(
     audioChannels: text("audio_channels"),
   },
   (table) => [
-    unique("anime_episode_unique").on(table.animeId, table.number),
-    index("episodes_anime_aired_idx").on(table.animeId, table.aired),
+    unique("media_unit_unique").on(table.mediaId, table.number),
+    index("media_units_media_aired_idx").on(table.mediaId, table.aired),
   ],
 );
 
 export const anidbEpisodeCache = sqliteTable("anidb_episode_cache", {
-  animeId: integer("anime_id").primaryKey(),
-  episodes: text("episodes").notNull(),
+  mediaId: integer("media_id").primaryKey(),
+  mediaUnits: text("episodes").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
 
@@ -139,9 +139,9 @@ export const releaseProfiles = sqliteTable("release_profiles", {
 
 export const rssFeeds = sqliteTable("rss_feeds", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  animeId: integer("anime_id")
+  mediaId: integer("media_id")
     .notNull()
-    .references(() => anime.id, { onDelete: "cascade" }),
+    .references(() => media.id, { onDelete: "cascade" }),
   url: text("url").notNull(),
   name: text("name"),
   lastChecked: text("last_checked"),
@@ -151,13 +151,13 @@ export const rssFeeds = sqliteTable("rss_feeds", {
 
 export const downloads = sqliteTable("downloads", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  animeId: integer("anime_id")
+  mediaId: integer("media_id")
     .notNull()
-    .references(() => anime.id, { onDelete: "cascade" }),
-  animeTitle: text("anime_title").notNull(),
-  episodeNumber: integer("episode_number").notNull(),
+    .references(() => media.id, { onDelete: "cascade" }),
+  mediaTitle: text("media_title").notNull(),
+  unitNumber: integer("unit_number").notNull(),
   isBatch: integer("is_batch", { mode: "boolean" }).notNull().default(false),
-  coveredEpisodes: text("covered_episodes"),
+  coveredUnits: text("covered_units"),
   torrentName: text("torrent_name").notNull(),
   status: text("status").notNull(),
   progress: integer("progress"),
@@ -206,7 +206,7 @@ export const operationsTasks = sqliteTable(
     startedAt: text("started_at"),
     finishedAt: text("finished_at"),
     updatedAt: text("updated_at").notNull(),
-    animeId: integer("anime_id"),
+    mediaId: integer("media_id"),
     payload: text("payload"),
   },
   (table) => [
@@ -230,7 +230,7 @@ export const unmappedFolderMatches = sqliteTable("unmapped_folder_matches", {
 export const downloadEvents = sqliteTable("download_events", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   downloadId: integer("download_id"),
-  animeId: integer("anime_id"),
+  mediaId: integer("media_id"),
   eventType: text("event_type").notNull(),
   fromStatus: text("from_status"),
   toStatus: text("to_status"),
@@ -246,8 +246,8 @@ export const libraryRoots = sqliteTable("library_roots", {
 });
 
 export type UserRow = typeof users.$inferSelect;
-export type AnimeRow = typeof anime.$inferSelect;
-export type EpisodeRow = typeof episodes.$inferSelect;
+export type MediaRow = typeof media.$inferSelect;
+export type MediaUnitRow = typeof mediaUnits.$inferSelect;
 export type SessionRow = typeof sessions.$inferSelect;
 export type SystemLogRow = typeof systemLogs.$inferSelect;
 export type AppConfigRow = typeof appConfig.$inferSelect;

@@ -4,7 +4,7 @@ import { Effect, Either, Option } from "effect";
 import { makeDefaultAppConfig } from "@/config/schema.ts";
 import type { Config, QualityProfile } from "@packages/shared/index.ts";
 import {
-  compareEpisodeSearchResults,
+  compareUnitSearchResults,
   decideDownloadAction,
   parseEpisodeFromTitle,
   parseEpisodeNumbersFromTitle,
@@ -15,7 +15,7 @@ import {
 
 const baseConfig: Config = {
   downloads: {
-    create_anime_folders: true,
+    create_media_folders: true,
     remote_path_mappings: [],
     root_path: "./downloads",
   },
@@ -47,7 +47,7 @@ const baseConfig: Config = {
   },
   profiles: [],
   qbittorrent: {
-    default_category: "anime",
+    default_category: "media",
     enabled: false,
     password: null,
     url: "http://localhost:8080",
@@ -75,7 +75,7 @@ it("parse release name extracts group, episode, and quality", () => {
   const parsed = parseReleaseName("[SubsPlease] Frieren - 05 (1080p) [WEB-DL]");
 
   assert.deepStrictEqual(parsed.group, "SubsPlease");
-  assert.deepStrictEqual(parsed.episodeNumber, 5);
+  assert.deepStrictEqual(parsed.unitNumber, 5);
   assert.deepStrictEqual(parsed.resolution, "1080p");
   assert.deepStrictEqual(parsed.quality.name, "WEB-DL 1080p");
 });
@@ -396,7 +396,7 @@ it("SeaDex notes mentioning the release group boost the matching release", () =>
   assert.deepStrictEqual((matched.Accept?.score ?? 0) > (unmatched.Accept?.score ?? 0), true);
 });
 
-it("compare episode search results prefers higher scores before seeders", () => {
+it("compare unit search results prefers higher scores before seeders", () => {
   const lowerScoreMoreSeeders = {
     download_action: {
       Accept: {
@@ -436,12 +436,12 @@ it("compare episode search results prefers higher scores before seeders", () => 
   };
 
   assert.deepStrictEqual(
-    Math.sign(compareEpisodeSearchResults(lowerScoreMoreSeeders, higherScoreFewerSeeders)),
+    Math.sign(compareUnitSearchResults(lowerScoreMoreSeeders, higherScoreFewerSeeders)),
     1,
   );
 });
 
-it("compare episode search results prefers accepted higher-seeder entries", () => {
+it("compare unit search results prefers accepted higher-seeder entries", () => {
   const left = {
     download_action: { Reject: { reason: "no quality improvement" } },
     indexer: "Nyaa",
@@ -473,7 +473,7 @@ it("compare episode search results prefers accepted higher-seeder entries", () =
     title: "right",
   };
 
-  assert.deepStrictEqual(Math.sign(compareEpisodeSearchResults(left, right)), 1);
+  assert.deepStrictEqual(Math.sign(compareUnitSearchResults(left, right)), 1);
 });
 
 it("cutoff blocks better-quality upgrades once cutoff is met", () => {
@@ -516,7 +516,7 @@ it("unknown current quality does not block higher-quality upgrade", () => {
     [],
     Option.some({
       downloaded: true,
-      filePath: "Show Episode 01",
+      filePath: "Show MediaUnit 01",
       isSeaDex: false,
       isSeaDexBest: false,
     }),
@@ -572,7 +572,7 @@ it.effect("quality profile min_size cannot exceed max_size", () =>
   }),
 );
 
-it("compare episode search results prefers better quality over seeders when score ties", () => {
+it("compare unit search results prefers better quality over seeders when score ties", () => {
   const lowQualityMoreSeeders = {
     download_action: {
       Accept: {
@@ -612,7 +612,7 @@ it("compare episode search results prefers better quality over seeders when scor
   };
 
   assert.deepStrictEqual(
-    Math.sign(compareEpisodeSearchResults(lowQualityMoreSeeders, highQualityFewerSeeders)),
+    Math.sign(compareUnitSearchResults(lowQualityMoreSeeders, highQualityFewerSeeders)),
     1,
   );
 });
@@ -628,17 +628,17 @@ it("episode parser handles ranges and season packs", () => {
 
   const parsed = parseReleaseName("[Group] Show - 01-12 Batch [1080p]");
   assert.deepStrictEqual(parsed.isBatch, true);
-  assert.deepStrictEqual(parsed.episodeNumbers.length, 12);
+  assert.deepStrictEqual(parsed.unitNumbers.length, 12);
 
   const seasonPack = parseReleaseName(
     "[Flugel] Chainsaw Man S01 (BD 1080p HEVC Opus) [Multi Audio]",
   );
   assert.deepStrictEqual(seasonPack.isBatch, true);
-  assert.deepStrictEqual(seasonPack.episodeNumbers, []);
+  assert.deepStrictEqual(seasonPack.unitNumbers, []);
 
   const seasonPackWithChannels = parseReleaseName(
     "Classroom.of.the.Elite.S03.1080p.BluRay.10-Bit.Dual-Audio.FLAC5.1.x265-YURASUKA",
   );
   assert.deepStrictEqual(seasonPackWithChannels.isBatch, true);
-  assert.deepStrictEqual(seasonPackWithChannels.episodeNumbers, []);
+  assert.deepStrictEqual(seasonPackWithChannels.unitNumbers, []);
 });

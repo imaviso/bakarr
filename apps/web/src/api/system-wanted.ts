@@ -1,6 +1,6 @@
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { Effect, Schema } from "effect";
-import { MissingEpisodeSchema } from "@bakarr/shared";
+import { MissingUnitSchema } from "@bakarr/shared";
 import { API_BASE } from "~/api/constants";
 import { fetchJson } from "~/api/effect/api-client";
 import { animeKeys } from "./keys";
@@ -11,7 +11,7 @@ export function wantedQueryOptions(limit = 100) {
     queryFn: ({ signal }) =>
       Effect.runPromise(
         fetchJson(
-          Schema.mutable(Schema.Array(MissingEpisodeSchema)),
+          Schema.mutable(Schema.Array(MissingUnitSchema)),
           `${API_BASE}/wanted/missing?limit=${limit}`,
           undefined,
           signal,

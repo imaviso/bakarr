@@ -1,6 +1,6 @@
 import type {
-  AnimeSearchResult,
-  ParsedEpisodeIdentity,
+  MediaSearchResult,
+  ParsedUnitIdentity,
   ScannedFile,
   SkippedFile,
 } from "@packages/shared/index.ts";
@@ -8,7 +8,7 @@ import type {
 import {
   scoreAnimeSearchResultMatch,
   summarizeEpisodeCoverage,
-} from "@/domain/anime/derivations.ts";
+} from "@/domain/media/derivations.ts";
 import { buildScannedFileMetadata } from "@/infra/scanned-file-metadata.ts";
 import {
   buildPathParseContext,
@@ -20,7 +20,7 @@ import {
 } from "@/infra/media/identity/identity.ts";
 import { parseResolution } from "@/features/operations/search/release-ranking.ts";
 import { parseVolumeNumbersFromTitle } from "@/features/operations/search/release-volume.ts";
-import { anime } from "@/db/schema.ts";
+import { media } from "@/db/schema.ts";
 
 export interface AnalyzedFile {
   scanned: ScannedFile;
@@ -43,7 +43,7 @@ export function analyzeScannedFile(
   if (classification.kind === "extra" || classification.kind === "sample") {
     return {
       scanned: {
-        episode_number: 0,
+        unit_number: 0,
         filename: file.name,
         parsed_title: "",
         source_path: file.path,
@@ -63,17 +63,17 @@ export function analyzeScannedFile(
   const volumeNumbers = hasVolumeFileExtension(file.name)
     ? parseVolumeNumbersFromTitle(file.name)
     : [];
-  const episodeNumbers =
+  const unitNumbers =
     volumeNumbers.length > 0 ? volumeNumbers : getEpisodeNumbersFromSourceIdentity(sourceIdentity);
   const season = getSourceIdentitySeason(sourceIdentity);
-  const sourceIdentityDto: ParsedEpisodeIdentity | undefined =
+  const sourceIdentityDto: ParsedUnitIdentity | undefined =
     toSharedParsedEpisodeIdentity(sourceIdentity);
 
-  const [primaryEpisode] = episodeNumbers;
+  const [primaryEpisode] = unitNumbers;
   const needsManualMapping =
     (volumeNumbers.length === 0 && !sourceIdentity) ||
     (volumeNumbers.length === 0 && parsed.kind === "unknown") ||
-    (sourceIdentity?.scheme === "daily" && episodeNumbers.length === 0);
+    (sourceIdentity?.scheme === "daily" && unitNumbers.length === 0);
 
   const group = parsed.group ?? file.name.match(/^\[(.*?)\]/)?.[1];
   const metadata = buildScannedFileMetadata({
@@ -89,11 +89,11 @@ export function analyzeScannedFile(
       audio_codec: metadata.audio_codec,
       coverage_summary: summarizeEpisodeCoverage({
         ...(metadata.air_date === undefined ? {} : { airDate: metadata.air_date }),
-        ...(episodeNumbers.length === 0 ? {} : { episodeNumbers }),
+        ...(unitNumbers.length === 0 ? {} : { unitNumbers }),
       }),
-      episode_number: primaryEpisode ?? 0,
-      episode_numbers: episodeNumbers.length > 0 ? episodeNumbers : undefined,
-      episode_title: metadata.episode_title,
+      unit_number: primaryEpisode ?? 0,
+      unit_numbers: unitNumbers.length > 0 ? unitNumbers : undefined,
+      unit_title: metadata.unit_title,
       filename: file.name,
       group,
       match_reason: describeScannedFileMatch({
@@ -131,9 +131,9 @@ function hasVolumeFileExtension(name: string) {
 
 export function findBestLocalAnimeMatch(
   parsedTitle: string,
-  animeRows: Array<typeof anime.$inferSelect>,
+  animeRows: Array<typeof media.$inferSelect>,
 ) {
-  let bestMatch: typeof anime.$inferSelect | undefined;
+  let bestMatch: typeof media.$inferSelect | undefined;
   let bestScore = 0;
 
   for (const row of animeRows) {
@@ -148,13 +148,13 @@ export function findBestLocalAnimeMatch(
   return bestScore >= 0.55 ? bestMatch : undefined;
 }
 
-export function titlesMatch(parsedTitle: string, candidate: AnimeSearchResult) {
+export function titlesMatch(parsedTitle: string, candidate: MediaSearchResult) {
   return scoreAnimeSearchResultMatch(parsedTitle, candidate) >= 0.55;
 }
 
 export function scoreAnimeRowMatch(
   parsedTitle: string,
-  row: Pick<typeof anime.$inferSelect, "titleRomaji" | "titleEnglish" | "titleNative">,
+  row: Pick<typeof media.$inferSelect, "titleRomaji" | "titleEnglish" | "titleNative">,
 ) {
   return scoreAnimeSearchResultMatch(parsedTitle, {
     title: {
@@ -167,7 +167,7 @@ export function scoreAnimeRowMatch(
 
 function describeScannedFileMatch(input: {
   needsManualMapping: boolean;
-  sourceIdentity?: ParsedEpisodeIdentity;
+  sourceIdentity?: ParsedUnitIdentity;
 }) {
   if (input.needsManualMapping) {
     if (input.sourceIdentity?.scheme === "daily") {

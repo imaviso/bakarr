@@ -11,7 +11,7 @@ import {
 
 it("decisionReasonFromNyaaResult returns SeaDex Best reason for trusted batches", () => {
   const reason = decisionReasonFromNyaaResult({
-    coveredEpisodes: [1, 2],
+    coveredUnits: [1, 2],
     isBatch: true,
     isSeaDex: true,
     isSeaDexBest: true,
@@ -47,8 +47,8 @@ it("selectionMetadataFromNyaaResult marks SeaDex releases as accept", () => {
 
 it("buildGrabInputFromNyaaResult maps fields consistently", () => {
   const payload = buildGrabInputFromNyaaResult({
-    animeId: 55,
-    episodeNumber: 3,
+    mediaId: 55,
+    unitNumber: 3,
     isBatch: false,
     result: {
       indexer: "Nyaa",
@@ -58,8 +58,8 @@ it("buildGrabInputFromNyaaResult maps fields consistently", () => {
       leechers: 2,
       magnet: "magnet:?xt=urn:btih:hash123",
       parsed_air_date: "2025-03-10",
-      parsed_episode_label: "03",
-      parsed_episode_numbers: [3],
+      parsed_unit_label: "03",
+      parsed_unit_numbers: [3],
       parsed_group: "SubsPlease",
       parsed_quality: "WEB-DL",
       parsed_resolution: "1080p",
@@ -74,8 +74,8 @@ it("buildGrabInputFromNyaaResult maps fields consistently", () => {
   });
 
   if (
-    payload.anime_id !== 55 ||
-    payload.episode_number !== 3 ||
+    payload.media_id !== 55 ||
+    payload.unit_number !== 3 ||
     payload.release_context?.info_hash !== "hash123"
   ) {
     throw new Error(`Unexpected Nyaa payload mapping: ${JSON.stringify(payload)}`);
@@ -124,8 +124,8 @@ it("decisionReasonFromEpisodeResult prefers upgrade reason", () => {
 
 it("buildGrabInputFromEpisodeResult includes selected metadata", () => {
   const payload = buildGrabInputFromEpisodeResult({
-    animeId: 88,
-    episodeNumber: 7,
+    mediaId: 88,
+    unitNumber: 7,
     result: {
       download_action: {
         Accept: {
@@ -147,23 +147,23 @@ it("buildGrabInputFromEpisodeResult includes selected metadata", () => {
       is_seadex_best: false,
       leechers: 2,
       link: "magnet:?xt=urn:btih:hash-episode",
-      parsed_episode_label: "07",
-      parsed_episode_numbers: [7],
+      parsed_unit_label: "07",
+      parsed_unit_numbers: [7],
       parsed_resolution: "1080p",
       publish_date: "2025-03-12T00:00:00.000Z",
       quality: "WEB-DL",
       remake: false,
       seeders: 19,
       size: 734003200,
-      title: "Episode title",
+      title: "MediaUnit title",
       trusted: true,
       view_url: "https://example.test/episode/7",
     },
   });
 
   if (
-    payload.anime_id !== 88 ||
-    payload.episode_number !== 7 ||
+    payload.media_id !== 88 ||
+    payload.unit_number !== 7 ||
     payload.release_context?.info_hash !== "hash-episode"
   ) {
     throw new Error(`Unexpected episode payload mapping: ${JSON.stringify(payload)}`);

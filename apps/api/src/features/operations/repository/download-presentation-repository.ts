@@ -2,7 +2,7 @@ import { and, inArray, sql } from "drizzle-orm";
 import { Effect } from "effect";
 
 import type { AppDatabase, DatabaseError } from "@/db/database.ts";
-import { anime, downloads, episodes } from "@/db/schema.ts";
+import { media, downloads, mediaUnits } from "@/db/schema.ts";
 import { decodeOptionalNumberList } from "@/features/profiles/profile-codec.ts";
 import { OperationsStoredDataError } from "@/features/operations/errors.ts";
 import type { DownloadPresentationContext } from "@/features/operations/repository/types.ts";
@@ -20,16 +20,16 @@ export const loadDownloadPresentationContexts = Effect.fn(
     return new Map<number, DownloadPresentationContext>();
   }
 
-  const animeIds = [...new Set(rows.map((row) => row.animeId))];
+  const animeIds = [...new Set(rows.map((row) => row.mediaId))];
   const animeRows = yield* loadRowsByChunk(animeIds, (chunk) =>
     tryDatabasePromise("Failed to load download presentation contexts", () =>
       db
         .select({
-          coverImage: anime.coverImage,
-          id: anime.id,
+          coverImage: media.coverImage,
+          id: media.id,
         })
-        .from(anime)
-        .where(inArray(anime.id, chunk)),
+        .from(media)
+        .where(inArray(media.id, chunk)),
     ),
   );
   const animeImageById = new Map(
@@ -38,7 +38,7 @@ export const loadDownloadPresentationContexts = Effect.fn(
 
   const importedRows = rows.filter((row) => row.status === "imported" || row.reconciledAt !== null);
   let episodeRows: Array<{
-    animeId: number;
+    mediaId: number;
     filePath: string | null;
     number: number;
   }> = [];
@@ -47,39 +47,39 @@ export const loadDownloadPresentationContexts = Effect.fn(
     episodeRows = yield* tryDatabasePromise("Failed to load download presentation contexts", () =>
       db
         .select({
-          animeId: episodes.animeId,
-          filePath: episodes.filePath,
-          number: episodes.number,
+          mediaId: mediaUnits.mediaId,
+          filePath: mediaUnits.filePath,
+          number: mediaUnits.number,
         })
-        .from(episodes)
+        .from(mediaUnits)
         .where(
           and(
-            inArray(episodes.animeId, [...new Set(importedRows.map((row) => row.animeId))]),
-            sql`${episodes.filePath} is not null`,
+            inArray(mediaUnits.mediaId, [...new Set(importedRows.map((row) => row.mediaId))]),
+            sql`${mediaUnits.filePath} is not null`,
           ),
         ),
     );
   }
   const importedPathByEpisode = new Map(
     episodeRows.flatMap((row) =>
-      row.filePath ? [[`${row.animeId}:${row.number}`, row.filePath] as const] : [],
+      row.filePath ? [[`${row.mediaId}:${row.number}`, row.filePath] as const] : [],
     ),
   );
 
   const contexts = yield* Effect.forEach(rows, (row) =>
     Effect.gen(function* () {
-      const coveredEpisodes = (yield* decodeCoveredEpisodes(row.coveredEpisodes)) ?? [];
-      const episodeNumbers = coveredEpisodes.length > 0 ? coveredEpisodes : [row.episodeNumber];
+      const coveredUnits = (yield* decodeCoveredEpisodes(row.coveredUnits)) ?? [];
+      const unitNumbers = coveredUnits.length > 0 ? coveredUnits : [row.unitNumber];
       const importedPath =
-        episodeNumbers
-          .map((episodeNumber) => importedPathByEpisode.get(`${row.animeId}:${episodeNumber}`))
+        unitNumbers
+          .map((unitNumber) => importedPathByEpisode.get(`${row.mediaId}:${unitNumber}`))
           .find((value): value is string => typeof value === "string") ??
         (row.reconciledAt ? (row.contentPath ?? row.savePath ?? undefined) : undefined);
 
       return [
         row.id,
         {
-          animeImage: animeImageById.get(row.animeId),
+          mediaImage: animeImageById.get(row.mediaId),
           importedPath,
         },
       ] as const;

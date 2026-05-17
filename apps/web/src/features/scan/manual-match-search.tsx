@@ -1,7 +1,7 @@
-import type { AnimeSearchResult } from "~/api/contracts";
+import type { MediaSearchResult } from "~/api/contracts";
 import { ManualSearchCore } from "~/features/import/manual-search-core";
 
-export function ManualMatchSearch(props: { onSelect: (anime: AnimeSearchResult) => void }) {
+export function ManualMatchSearch(props: { onSelect: (anime: MediaSearchResult) => void }) {
   return (
     <ManualSearchCore
       addedIndicator="badge"

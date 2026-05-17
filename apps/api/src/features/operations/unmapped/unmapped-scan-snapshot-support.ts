@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
-import { anime } from "@/db/schema.ts";
+import { media } from "@/db/schema.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { OperationsPathError, OperationsStoredDataError } from "@/features/operations/errors.ts";
 import {
@@ -24,7 +24,7 @@ export const loadUnmappedFolderSnapshot = Effect.fn("OperationsService.loadUnmap
   }) {
     const root = yield* getConfigLibraryPath(input.db);
     const animeRows = yield* input.tryDatabasePromise("Failed to scan unmapped folders", () =>
-      input.db.select().from(anime),
+      input.db.select().from(media),
     );
     const mappedRoots = new Set(animeRows.map((row) => row.rootFolder));
     const cachedRows = yield* listUnmappedFolderMatchRows(input.db);

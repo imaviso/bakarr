@@ -8,7 +8,7 @@ import {
   MagnifyingGlassIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
-import { AnimeDiscoveryRow } from "~/features/anime/anime-discovery";
+import { AnimeDiscoveryRow } from "~/features/media/media-discovery";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,8 +28,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
-import type { AnimeSearchResult, UnmappedFolder } from "~/api/contracts";
-import { animeDisplayTitle, animeSearchSubtitle } from "~/domain/anime/metadata";
+import type { MediaSearchResult, UnmappedFolder } from "~/api/contracts";
+import { animeDisplayTitle, animeSearchSubtitle } from "~/domain/media/metadata";
 import { formatFileSize } from "~/domain/scanned-file";
 import { cn } from "~/infra/utils";
 import { useFolderItemController } from "~/features/scan/folder-item-controller";
@@ -44,7 +44,7 @@ export function FolderItem(props: {
   folder: UnmappedFolder;
   onOpenManualMatch?: (input: {
     folder: UnmappedFolder;
-    onSelect: (anime: AnimeSearchResult) => void;
+    onSelect: (anime: MediaSearchResult) => void;
   }) => void;
 }) {
   const state = useFolderItemController(props.folder);
@@ -119,8 +119,8 @@ export function FolderItem(props: {
                 )}
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                 {state.selectedAnime.format && <span>{state.selectedAnime.format}</span>}
-                {state.selectedAnime.episode_count && (
-                  <span>{state.selectedAnime.episode_count} episodes</span>
+                {state.selectedAnime.unit_count && (
+                  <span>{state.selectedAnime.unit_count} episodes</span>
                 )}
                 {animeSearchSubtitle(state.selectedAnime) && (
                   <span>{animeSearchSubtitle(state.selectedAnime)}</span>
@@ -144,9 +144,9 @@ export function FolderItem(props: {
                   {state.selectedAnime.description}
                 </p>
               )}
-              {state.selectedAnime.related_anime?.length ? (
+              {state.selectedAnime.related_media?.length ? (
                 <div className="space-y-1.5">
-                  {state.selectedAnime.related_anime?.slice(0, 2).map((related) => (
+                  {state.selectedAnime.related_media?.slice(0, 2).map((related) => (
                     <AnimeDiscoveryRow
                       key={`${related.id ?? "related"}-${animeDisplayTitle(related)}`}
                       entry={related}
@@ -156,9 +156,9 @@ export function FolderItem(props: {
                   ))}
                 </div>
               ) : null}
-              {state.selectedAnime.recommended_anime?.length ? (
+              {state.selectedAnime.recommended_media?.length ? (
                 <div className="space-y-1.5">
-                  {state.selectedAnime.recommended_anime?.slice(0, 2).map((recommended) => (
+                  {state.selectedAnime.recommended_media?.slice(0, 2).map((recommended) => (
                     <AnimeDiscoveryRow
                       key={`${recommended.id ?? "recommended"}-${animeDisplayTitle(recommended)}`}
                       entry={recommended}

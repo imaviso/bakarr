@@ -1,11 +1,11 @@
 import type {
   DownloadAction,
-  EpisodeSearchResult,
+  UnitSearchResult,
   NyaaSearchResult,
   SearchDownloadReleaseContext,
   SearchDownloadRequest,
 } from "~/api/contracts";
-import { brandAnimeId } from "@bakarr/shared";
+import { brandMediaId } from "@bakarr/shared";
 import { formatReleaseSearchDecisionReason, inferBatchKind } from "~/domain/batch-kind";
 
 export interface NyaaSelectionMetadata {
@@ -25,7 +25,7 @@ export function selectionMetadataFromNyaaResult(result: NyaaSearchResult): NyaaS
 }
 
 export function decisionReasonFromNyaaResult(input: {
-  coveredEpisodes?: readonly number[] | undefined;
+  coveredUnits?: readonly number[] | undefined;
   isBatch?: boolean | undefined;
   isSeaDex: boolean;
   isSeaDexBest: boolean;
@@ -33,7 +33,7 @@ export function decisionReasonFromNyaaResult(input: {
 }) {
   return formatReleaseSearchDecisionReason({
     batchKind: inferBatchKind({
-      coveredEpisodes: input.coveredEpisodes,
+      coveredUnits: input.coveredUnits,
       isBatch: input.isBatch,
     }),
     isSeaDex: input.isSeaDex,
@@ -43,17 +43,17 @@ export function decisionReasonFromNyaaResult(input: {
 }
 
 export function buildGrabInputFromNyaaResult(input: {
-  animeId: number;
+  mediaId: number;
   result: NyaaSearchResult;
-  episodeNumber?: number | undefined;
+  unitNumber?: number | undefined;
   isBatch?: boolean | undefined;
 }): SearchDownloadRequest {
-  const { animeId, episodeNumber, isBatch, result } = input;
+  const { mediaId, unitNumber, isBatch, result } = input;
 
   return {
-    anime_id: brandAnimeId(animeId),
+    media_id: brandMediaId(mediaId),
     magnet: result.magnet,
-    ...(episodeNumber === undefined ? {} : { episode_number: episodeNumber }),
+    ...(unitNumber === undefined ? {} : { unit_number: unitNumber }),
     release_context: toReleaseContext({
       ...result,
       group: result.parsed_group,
@@ -65,7 +65,7 @@ export function buildGrabInputFromNyaaResult(input: {
   };
 }
 
-export function decisionReasonFromEpisodeResult(result: EpisodeSearchResult) {
+export function decisionReasonFromEpisodeResult(result: UnitSearchResult) {
   if (result.download_action.Upgrade) {
     return `Upgrade: ${result.download_action.Upgrade.reason}`;
   }
@@ -78,22 +78,22 @@ export function decisionReasonFromEpisodeResult(result: EpisodeSearchResult) {
 
   return formatReleaseSearchDecisionReason({
     batchKind: inferBatchKind({
-      coveredEpisodes: result.parsed_episode_numbers,
+      coveredUnits: result.parsed_unit_numbers,
       isBatch:
-        (result.parsed_episode_numbers?.length ?? 0) > 1 ||
-        (result.parsed_episode_label !== undefined && result.parsed_episode_numbers === undefined),
+        (result.parsed_unit_numbers?.length ?? 0) > 1 ||
+        (result.parsed_unit_label !== undefined && result.parsed_unit_numbers === undefined),
       sourceIdentity: result.parsed_air_date
         ? {
             air_dates: [result.parsed_air_date],
-            label: result.parsed_episode_label ?? result.parsed_air_date,
+            label: result.parsed_unit_label ?? result.parsed_air_date,
             scheme: "daily",
           }
-        : result.parsed_episode_numbers
+        : result.parsed_unit_numbers
           ? {
-              episode_numbers: result.parsed_episode_numbers,
+              unit_numbers: result.parsed_unit_numbers,
               label:
-                result.parsed_episode_label ??
-                String(result.parsed_episode_numbers[0] ?? "").padStart(2, "0"),
+                result.parsed_unit_label ??
+                String(result.parsed_unit_numbers[0] ?? "").padStart(2, "0"),
               scheme: "absolute",
             }
           : undefined,
@@ -105,13 +105,13 @@ export function decisionReasonFromEpisodeResult(result: EpisodeSearchResult) {
 }
 
 export function buildGrabInputFromEpisodeResult(input: {
-  animeId: number;
-  episodeNumber: number;
-  result: EpisodeSearchResult;
+  mediaId: number;
+  unitNumber: number;
+  result: UnitSearchResult;
 }): SearchDownloadRequest {
   return {
-    anime_id: brandAnimeId(input.animeId),
-    episode_number: input.episodeNumber,
+    media_id: brandMediaId(input.mediaId),
+    unit_number: input.unitNumber,
     title: input.result.title,
     magnet: input.result.link,
     release_context: toReleaseContext(input.result, { includeDownloadAction: true }),

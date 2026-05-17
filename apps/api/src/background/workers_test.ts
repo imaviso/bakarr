@@ -14,7 +14,7 @@ import { makeSkippingSerializedEffectRunner } from "@/infra/effect/coalescing-sk
 
 const baseConfig: Config = {
   downloads: {
-    create_anime_folders: true,
+    create_media_folders: true,
     remote_path_mappings: [],
     root_path: "./downloads",
   },
@@ -46,7 +46,7 @@ const baseConfig: Config = {
   },
   profiles: [],
   qbittorrent: {
-    default_category: "anime",
+    default_category: "media",
     enabled: false,
     password: null,
     url: "http://localhost:8080",

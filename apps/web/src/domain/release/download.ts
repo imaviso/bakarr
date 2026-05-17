@@ -1,4 +1,4 @@
-import type { DownloadSourceMetadata, ParsedEpisodeIdentity } from "~/api/contracts";
+import type { DownloadSourceMetadata, ParsedUnitIdentity } from "~/api/contracts";
 
 interface ParsedIdentityInput {
   parsedAirDate?: string | undefined;
@@ -8,7 +8,7 @@ interface ParsedIdentityInput {
 
 export function buildParsedEpisodeIdentity(
   input: ParsedIdentityInput,
-): ParsedEpisodeIdentity | undefined {
+): ParsedUnitIdentity | undefined {
   if (!input.parsedEpisodeLabel) {
     return undefined;
   }
@@ -23,7 +23,7 @@ export function buildParsedEpisodeIdentity(
 
   if (input.parsedEpisodeNumbers?.length) {
     return {
-      episode_numbers: input.parsedEpisodeNumbers,
+      unit_numbers: input.parsedEpisodeNumbers,
       label: input.parsedEpisodeLabel,
       scheme: "absolute",
     };
@@ -35,7 +35,7 @@ export function buildParsedEpisodeIdentity(
 interface DownloadSourceMetadataInput {
   parsedTitle: string;
   selectionKind: NonNullable<DownloadSourceMetadata["selection_kind"]>;
-  sourceIdentity?: ParsedEpisodeIdentity | undefined;
+  sourceIdentity?: ParsedUnitIdentity | undefined;
   airDate?: string | undefined;
   chosenFromSeaDex?: boolean | undefined;
   group?: string | undefined;

@@ -26,7 +26,7 @@ import {
   buildReleaseDisplay,
   buildSelectionDisplayFromDownloadAction,
 } from "~/domain/release/display";
-import type { EpisodeSearchResult, MediaUnitKind } from "~/api/contracts";
+import type { UnitSearchResult, MediaUnitKind } from "~/api/contracts";
 import { mediaUnitLabel } from "~/domain/media-unit";
 import { getReleaseConfidence } from "~/domain/release/selection";
 import { actionReasonFromDownloadAction } from "~/domain/release/grab";
@@ -34,8 +34,8 @@ import { cn } from "~/infra/utils";
 import type { SearchModalState } from "~/features/search/search-modal-state";
 
 interface SearchModalContentProps {
-  episodeNumber: number;
-  episodeTitle?: string | undefined;
+  unitNumber: number;
+  unitTitle?: string | undefined;
   unitKind?: MediaUnitKind | undefined;
   state: SearchModalState;
 }
@@ -47,8 +47,8 @@ export function SearchModalContent(props: SearchModalContentProps) {
       <DialogHeader>
         <DialogTitle>Manual Search</DialogTitle>
         <DialogDescription>
-          Searching for {unitLabel} {props.episodeNumber}
-          {props.episodeTitle && `- ${props.episodeTitle}`}
+          Searching for {unitLabel} {props.unitNumber}
+          {props.unitTitle && `- ${props.unitTitle}`}
         </DialogDescription>
       </DialogHeader>
 
@@ -131,8 +131,8 @@ export function SearchModalContent(props: SearchModalContentProps) {
 }
 
 function SearchReleaseRow(props: {
-  release: EpisodeSearchResult;
-  onDownload: (release: EpisodeSearchResult) => void;
+  release: UnitSearchResult;
+  onDownload: (release: UnitSearchResult) => void;
   isDownloading: boolean;
 }) {
   const action = props.release.download_action;
@@ -145,7 +145,7 @@ function SearchReleaseRow(props: {
     is_seadex: props.release.is_seadex,
     is_seadex_best: props.release.is_seadex_best,
     parsed_air_date: props.release.parsed_air_date,
-    parsed_episode_label: props.release.parsed_episode_label,
+    parsed_unit_label: props.release.parsed_unit_label,
     quality: props.release.quality,
     remake: props.release.remake,
     resolution: props.release.parsed_resolution,

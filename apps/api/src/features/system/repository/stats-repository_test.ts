@@ -2,7 +2,7 @@ import { assert, it } from "@effect/vitest";
 import { Effect } from "effect";
 
 import * as schema from "@/db/schema.ts";
-import { anime, episodes, downloads, rssFeeds } from "@/db/schema.ts";
+import { media, mediaUnits, downloads, rssFeeds } from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import {
   countAnimeRows,
@@ -36,10 +36,10 @@ it.scoped("countAnimeRows counts inserted rows", () =>
     run: (db) =>
       Effect.gen(function* () {
         yield* Effect.promise(() =>
-          db.insert(anime).values([
+          db.insert(media).values([
             {
               addedAt: "2025-01-01T00:00:00.000Z",
-              episodeCount: 12,
+              unitCount: 12,
               format: "TV",
               genres: "[]",
               monitored: true,
@@ -52,7 +52,7 @@ it.scoped("countAnimeRows counts inserted rows", () =>
             },
             {
               addedAt: "2025-01-02T00:00:00.000Z",
-              episodeCount: 24,
+              unitCount: 24,
               format: "TV",
               genres: "[]",
               monitored: false,
@@ -77,9 +77,9 @@ it.scoped("countEpisodeRows and countDownloadedEpisodeRows count correctly", () 
     run: (db) =>
       Effect.gen(function* () {
         yield* Effect.promise(() =>
-          db.insert(anime).values({
+          db.insert(media).values({
             addedAt: "2025-01-01T00:00:00.000Z",
-            episodeCount: 12,
+            unitCount: 12,
             format: "TV",
             genres: "[]",
             monitored: true,
@@ -92,18 +92,18 @@ it.scoped("countEpisodeRows and countDownloadedEpisodeRows count correctly", () 
           }),
         );
         yield* Effect.promise(() =>
-          db.insert(episodes).values([
+          db.insert(mediaUnits).values([
             {
-              animeId: 1,
+              mediaId: 1,
               downloaded: true,
               filePath: "/lib/1.mkv",
               number: 1,
               title: null,
               aired: null,
             },
-            { animeId: 1, downloaded: false, filePath: null, number: 2, title: null, aired: null },
+            { mediaId: 1, downloaded: false, filePath: null, number: 2, title: null, aired: null },
             {
-              animeId: 1,
+              mediaId: 1,
               downloaded: true,
               filePath: "/lib/3.mkv",
               number: 3,
@@ -124,9 +124,9 @@ it.scoped("countRssFeedRows counts feeds", () =>
     run: (db) =>
       Effect.gen(function* () {
         yield* Effect.promise(() =>
-          db.insert(anime).values({
+          db.insert(media).values({
             addedAt: "2025-01-01T00:00:00.000Z",
-            episodeCount: 12,
+            unitCount: 12,
             format: "TV",
             genres: "[]",
             monitored: true,
@@ -140,7 +140,7 @@ it.scoped("countRssFeedRows counts feeds", () =>
         );
         yield* Effect.promise(() =>
           db.insert(rssFeeds).values({
-            animeId: 1,
+            mediaId: 1,
             createdAt: "2025-01-01T00:00:00.000Z",
             enabled: true,
             url: "https://a.com/rss",
@@ -157,10 +157,10 @@ it.scoped("countQueuedDownloads and countActiveDownloads count by status", () =>
     run: (db) =>
       Effect.gen(function* () {
         yield* Effect.promise(() =>
-          db.insert(anime).values([
+          db.insert(media).values([
             {
               addedAt: "2025-01-01T00:00:00.000Z",
-              episodeCount: 12,
+              unitCount: 12,
               format: "TV",
               genres: "[]",
               monitored: true,
@@ -173,7 +173,7 @@ it.scoped("countQueuedDownloads and countActiveDownloads count by status", () =>
             },
             {
               addedAt: "2025-01-01T00:00:00.000Z",
-              episodeCount: 12,
+              unitCount: 12,
               format: "TV",
               genres: "[]",
               monitored: true,
@@ -190,13 +190,13 @@ it.scoped("countQueuedDownloads and countActiveDownloads count by status", () =>
           db.insert(downloads).values([
             {
               addedAt: "2025-01-01T00:00:00.000Z",
-              animeId: 1,
-              animeTitle: "Q1",
+              mediaId: 1,
+              mediaTitle: "Q1",
               contentPath: null,
-              coveredEpisodes: null,
+              coveredUnits: null,
               downloadDate: null,
               downloadedBytes: 0,
-              episodeNumber: 1,
+              unitNumber: 1,
               errorMessage: null,
               etaSeconds: null,
               externalState: "queued",
@@ -215,13 +215,13 @@ it.scoped("countQueuedDownloads and countActiveDownloads count by status", () =>
             },
             {
               addedAt: "2025-01-02T00:00:00.000Z",
-              animeId: 2,
-              animeTitle: "D1",
+              mediaId: 2,
+              mediaTitle: "D1",
               contentPath: null,
-              coveredEpisodes: null,
+              coveredUnits: null,
               downloadDate: null,
               downloadedBytes: 0,
-              episodeNumber: 2,
+              unitNumber: 2,
               errorMessage: null,
               etaSeconds: null,
               externalState: "downloading",
@@ -240,13 +240,13 @@ it.scoped("countQueuedDownloads and countActiveDownloads count by status", () =>
             },
             {
               addedAt: "2025-01-03T00:00:00.000Z",
-              animeId: 1,
-              animeTitle: "Q1",
+              mediaId: 1,
+              mediaTitle: "Q1",
               contentPath: null,
-              coveredEpisodes: null,
+              coveredUnits: null,
               downloadDate: null,
               downloadedBytes: 0,
-              episodeNumber: 2,
+              unitNumber: 2,
               errorMessage: null,
               etaSeconds: null,
               externalState: "completed",
@@ -278,9 +278,9 @@ it.scoped("loadSystemLibraryStatsAggregate aggregates all library stats", () =>
     run: (db) =>
       Effect.gen(function* () {
         yield* Effect.promise(() =>
-          db.insert(anime).values({
+          db.insert(media).values({
             addedAt: "2025-01-01T00:00:00.000Z",
-            episodeCount: 2,
+            unitCount: 2,
             format: "TV",
             genres: "[]",
             monitored: true,
@@ -293,9 +293,9 @@ it.scoped("loadSystemLibraryStatsAggregate aggregates all library stats", () =>
           }),
         );
         yield* Effect.promise(() =>
-          db.insert(episodes).values([
+          db.insert(mediaUnits).values([
             {
-              animeId: 1,
+              mediaId: 1,
               downloaded: true,
               filePath: "/lib/1.mkv",
               number: 1,
@@ -303,7 +303,7 @@ it.scoped("loadSystemLibraryStatsAggregate aggregates all library stats", () =>
               aired: null,
             },
             {
-              animeId: 1,
+              mediaId: 1,
               downloaded: true,
               filePath: "/lib/2.mkv",
               number: 2,
@@ -315,13 +315,13 @@ it.scoped("loadSystemLibraryStatsAggregate aggregates all library stats", () =>
         yield* Effect.promise(() =>
           db.insert(downloads).values({
             addedAt: "2025-01-01T00:00:00.000Z",
-            animeId: 1,
-            animeTitle: "A",
+            mediaId: 1,
+            mediaTitle: "A",
             contentPath: null,
-            coveredEpisodes: null,
+            coveredUnits: null,
             downloadDate: null,
             downloadedBytes: 0,
-            episodeNumber: 1,
+            unitNumber: 1,
             errorMessage: null,
             etaSeconds: null,
             externalState: "completed",
@@ -343,8 +343,8 @@ it.scoped("loadSystemLibraryStatsAggregate aggregates all library stats", () =>
         const stats = yield* loadSystemLibraryStatsAggregate(db);
         assert.deepStrictEqual(stats.totalAnime, 1);
         assert.deepStrictEqual(stats.monitoredAnime, 1);
-        assert.deepStrictEqual(stats.totalEpisodes, 2);
-        assert.deepStrictEqual(stats.downloadedEpisodes, 2);
+        assert.deepStrictEqual(stats.totalUnits, 2);
+        assert.deepStrictEqual(stats.downloadedUnits, 2);
         assert.deepStrictEqual(stats.totalRssFeeds, 0);
         assert.deepStrictEqual(stats.completedDownloads, 1);
         assert.deepStrictEqual(stats.upToDateAnime, 1);
@@ -358,10 +358,10 @@ it.scoped("loadSystemDownloadStatsAggregate aggregates download status counts", 
     run: (db) =>
       Effect.gen(function* () {
         yield* Effect.promise(() =>
-          db.insert(anime).values([
+          db.insert(media).values([
             {
               addedAt: "2025-01-01T00:00:00.000Z",
-              episodeCount: 12,
+              unitCount: 12,
               format: "TV",
               genres: "[]",
               monitored: true,
@@ -374,7 +374,7 @@ it.scoped("loadSystemDownloadStatsAggregate aggregates download status counts", 
             },
             {
               addedAt: "2025-01-01T00:00:00.000Z",
-              episodeCount: 12,
+              unitCount: 12,
               format: "TV",
               genres: "[]",
               monitored: true,
@@ -387,7 +387,7 @@ it.scoped("loadSystemDownloadStatsAggregate aggregates download status counts", 
             },
             {
               addedAt: "2025-01-01T00:00:00.000Z",
-              episodeCount: 12,
+              unitCount: 12,
               format: "TV",
               genres: "[]",
               monitored: true,
@@ -404,13 +404,13 @@ it.scoped("loadSystemDownloadStatsAggregate aggregates download status counts", 
           db.insert(downloads).values([
             {
               addedAt: "2025-01-01T00:00:00.000Z",
-              animeId: 1,
-              animeTitle: "Q",
+              mediaId: 1,
+              mediaTitle: "Q",
               contentPath: null,
-              coveredEpisodes: null,
+              coveredUnits: null,
               downloadDate: null,
               downloadedBytes: 0,
-              episodeNumber: 1,
+              unitNumber: 1,
               errorMessage: null,
               etaSeconds: null,
               externalState: "queued",
@@ -429,13 +429,13 @@ it.scoped("loadSystemDownloadStatsAggregate aggregates download status counts", 
             },
             {
               addedAt: "2025-01-02T00:00:00.000Z",
-              animeId: 2,
-              animeTitle: "D",
+              mediaId: 2,
+              mediaTitle: "D",
               contentPath: null,
-              coveredEpisodes: null,
+              coveredUnits: null,
               downloadDate: null,
               downloadedBytes: 0,
-              episodeNumber: 2,
+              unitNumber: 2,
               errorMessage: null,
               etaSeconds: null,
               externalState: "downloading",
@@ -454,13 +454,13 @@ it.scoped("loadSystemDownloadStatsAggregate aggregates download status counts", 
             },
             {
               addedAt: "2025-01-03T00:00:00.000Z",
-              animeId: 3,
-              animeTitle: "E",
+              mediaId: 3,
+              mediaTitle: "E",
               contentPath: null,
-              coveredEpisodes: null,
+              coveredUnits: null,
               downloadDate: null,
               downloadedBytes: 0,
-              episodeNumber: 3,
+              unitNumber: 3,
               errorMessage: "fail",
               etaSeconds: null,
               externalState: "error",

@@ -1,8 +1,8 @@
 import { Schema } from "effect";
 
 import {
-  AnimeIdFromStringSchema,
-  EpisodeNumberFromStringSchema,
+  MediaIdFromStringSchema,
+  UnitNumberFromStringSchema,
   PositiveIntFromStringSchema,
 } from "@/domain/domain-schema.ts";
 
@@ -34,9 +34,9 @@ export class IdParamsSchema extends Schema.Class<IdParamsSchema>("IdParamsSchema
   id: PositiveIntFromStringSchema,
 }) {}
 
-export class SearchEpisodeParamsSchema extends Schema.Class<SearchEpisodeParamsSchema>(
-  "SearchEpisodeParamsSchema",
+export class SearchUnitParamsSchema extends Schema.Class<SearchUnitParamsSchema>(
+  "SearchUnitParamsSchema",
 )({
-  animeId: AnimeIdFromStringSchema,
-  episodeNumber: EpisodeNumberFromStringSchema,
+  mediaId: MediaIdFromStringSchema,
+  unitNumber: UnitNumberFromStringSchema,
 }) {}

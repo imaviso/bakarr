@@ -2,17 +2,17 @@ import { and, asc, eq, ne, or, sql } from "drizzle-orm";
 import { Context, Effect, Layer } from "effect";
 
 import {
-  brandAnimeId,
+  brandMediaId,
   type CalendarEvent,
-  type MissingEpisode,
+  type MissingUnit,
   type RenamePreviewItem,
 } from "@packages/shared/index.ts";
 import { Database, type DatabaseError } from "@/db/database.ts";
-import { anime, episodes } from "@/db/schema.ts";
+import { media, mediaUnits } from "@/db/schema.ts";
 import type { OperationsError } from "@/features/operations/errors.ts";
 import { buildRenamePreview } from "@/features/operations/library/library-import.ts";
 import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
-import { deriveEpisodeTimelineMetadata } from "@/domain/anime/derivations.ts";
+import { deriveEpisodeTimelineMetadata } from "@/domain/media/derivations.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import {
   RuntimeConfigSnapshotService,
@@ -20,7 +20,7 @@ import {
 } from "@/features/system/runtime-config-snapshot-service.ts";
 
 export interface CatalogLibraryReadServiceShape {
-  readonly getWantedMissing: (limit: number) => Effect.Effect<MissingEpisode[], DatabaseError>;
+  readonly getWantedMissing: (limit: number) => Effect.Effect<MissingUnit[], DatabaseError>;
   readonly getCalendarWithDefaults: (input: {
     readonly start?: string;
     readonly end?: string;
@@ -30,7 +30,7 @@ export interface CatalogLibraryReadServiceShape {
     end: string,
   ) => Effect.Effect<CalendarEvent[], DatabaseError>;
   readonly getRenamePreview: (
-    animeId: number,
+    mediaId: number,
   ) => Effect.Effect<
     RenamePreviewItem[],
     OperationsError | DatabaseError | RuntimeConfigSnapshotError
@@ -54,36 +54,36 @@ export const CatalogLibraryReadServiceLive = Layer.effect(
       limit: number,
     ) {
       const now = new Date(yield* nowIso()).toISOString();
-      const rows = yield* tryDatabasePromise("Failed to load wanted episodes", () =>
+      const rows = yield* tryDatabasePromise("Failed to load wanted mediaUnits", () =>
         db
           .select({
-            animeId: anime.id,
-            animeTitle: anime.titleRomaji,
-            mediaKind: anime.mediaKind,
-            coverImage: anime.coverImage,
-            nextAiringAt: anime.nextAiringAt,
-            nextAiringEpisode: anime.nextAiringEpisode,
-            episodeNumber: episodes.number,
-            title: episodes.title,
-            aired: episodes.aired,
+            mediaId: media.id,
+            mediaTitle: media.titleRomaji,
+            mediaKind: media.mediaKind,
+            coverImage: media.coverImage,
+            nextAiringAt: media.nextAiringAt,
+            nextAiringUnit: media.nextAiringUnit,
+            unitNumber: mediaUnits.number,
+            title: mediaUnits.title,
+            aired: mediaUnits.aired,
           })
-          .from(episodes)
-          .innerJoin(anime, eq(anime.id, episodes.animeId))
+          .from(mediaUnits)
+          .innerJoin(media, eq(media.id, mediaUnits.mediaId))
           .where(
             and(
-              eq(anime.monitored, true),
-              eq(episodes.downloaded, false),
+              eq(media.monitored, true),
+              eq(mediaUnits.downloaded, false),
               or(
                 and(
-                  eq(anime.mediaKind, "anime"),
-                  sql`${episodes.aired} is not null`,
-                  sql`${episodes.aired} <= ${now}`,
+                  eq(media.mediaKind, "anime"),
+                  sql`${mediaUnits.aired} is not null`,
+                  sql`${mediaUnits.aired} <= ${now}`,
                 ),
-                ne(anime.mediaKind, "anime"),
+                ne(media.mediaKind, "anime"),
               ),
             ),
           )
-          .orderBy(sql`${episodes.aired} is null`, asc(episodes.aired), anime.titleRomaji)
+          .orderBy(sql`${mediaUnits.aired} is null`, asc(mediaUnits.aired), media.titleRomaji)
           .limit(Math.max(1, limit)),
       );
 
@@ -93,21 +93,21 @@ export const CatalogLibraryReadServiceLive = Layer.effect(
         return {
           aired: row.aired ?? undefined,
           airing_status: timeline.airing_status,
-          anime_id: brandAnimeId(row.animeId),
-          anime_image: row.coverImage ?? undefined,
-          anime_title: row.animeTitle,
+          media_id: brandMediaId(row.mediaId),
+          media_image: row.coverImage ?? undefined,
+          media_title: row.mediaTitle,
           unit_kind: row.mediaKind === "anime" ? "episode" : "volume",
-          episode_number: row.episodeNumber,
-          episode_title: row.title ?? undefined,
+          unit_number: row.unitNumber,
+          unit_title: row.title ?? undefined,
           is_future: timeline.is_future,
-          next_airing_episode:
-            row.nextAiringAt && row.nextAiringEpisode
+          next_airing_unit:
+            row.nextAiringAt && row.nextAiringUnit
               ? {
                   airing_at: row.nextAiringAt,
-                  episode: row.nextAiringEpisode,
+                  episode: row.nextAiringUnit,
                 }
               : undefined,
-        } satisfies MissingEpisode;
+        } satisfies MissingUnit;
       });
     });
 
@@ -120,13 +120,13 @@ export const CatalogLibraryReadServiceLive = Layer.effect(
       const rows = yield* tryDatabasePromise("Failed to load calendar events", () =>
         db
           .select()
-          .from(episodes)
-          .innerJoin(anime, eq(anime.id, episodes.animeId))
-          .where(and(sql`${episodes.aired} >= ${start}`, sql`${episodes.aired} <= ${end}`))
-          .orderBy(episodes.aired, anime.titleRomaji),
+          .from(mediaUnits)
+          .innerJoin(media, eq(media.id, mediaUnits.mediaId))
+          .where(and(sql`${mediaUnits.aired} >= ${start}`, sql`${mediaUnits.aired} <= ${end}`))
+          .orderBy(mediaUnits.aired, media.titleRomaji),
       );
 
-      return rows.map(({ anime: animeRow, episodes: episodeRow }) => {
+      return rows.map(({ media: animeRow, media_units: episodeRow }) => {
         const timeline = deriveEpisodeTimelineMetadata(episodeRow.aired ?? undefined, now);
 
         return {
@@ -134,13 +134,13 @@ export const CatalogLibraryReadServiceLive = Layer.effect(
           end: episodeRow.aired ?? nowIsoValue,
           extended_props: {
             airing_status: timeline.airing_status,
-            anime_id: brandAnimeId(animeRow.id),
-            anime_image: animeRow.coverImage ?? undefined,
-            anime_title: animeRow.titleRomaji,
+            media_id: brandMediaId(animeRow.id),
+            media_image: animeRow.coverImage ?? undefined,
+            media_title: animeRow.titleRomaji,
             downloaded: episodeRow.downloaded,
             unit_kind: animeRow.mediaKind === "anime" ? "episode" : "volume",
-            episode_number: episodeRow.number,
-            episode_title: episodeRow.title ?? undefined,
+            unit_number: episodeRow.number,
+            unit_title: episodeRow.title ?? undefined,
             is_future: timeline.is_future,
           },
           id: `${animeRow.id}-${episodeRow.number}`,
@@ -158,10 +158,10 @@ export const CatalogLibraryReadServiceLive = Layer.effect(
     );
 
     const getRenamePreview = Effect.fn("OperationsService.getRenamePreview")(function* (
-      animeId: number,
+      mediaId: number,
     ) {
       const runtimeConfig = yield* runtimeConfigSnapshot.getRuntimeConfig();
-      return yield* buildRenamePreview(db, animeId, runtimeConfig);
+      return yield* buildRenamePreview(db, mediaId, runtimeConfig);
     });
 
     return CatalogLibraryReadService.of({
@@ -178,13 +178,13 @@ function isAllDayAiring(aired?: string | null) {
 }
 
 function buildCalendarEventTitle(
-  animeTitle: string,
+  mediaTitle: string,
   episodeRow: { number: number; title: string | null },
   mediaKind: string,
 ) {
-  const unitLabel = mediaKind === "anime" ? "Episode" : "Volume";
+  const unitLabel = mediaKind === "anime" ? "MediaUnit" : "Volume";
 
   return episodeRow.title
-    ? `${animeTitle} - ${unitLabel} ${episodeRow.number}: ${episodeRow.title}`
-    : `${animeTitle} - ${unitLabel} ${episodeRow.number}`;
+    ? `${mediaTitle} - ${unitLabel} ${episodeRow.number}: ${episodeRow.title}`
+    : `${mediaTitle} - ${unitLabel} ${episodeRow.number}`;
 }

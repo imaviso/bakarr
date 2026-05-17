@@ -12,17 +12,17 @@ export const NonNegativeIntFromStringSchema = Schema.NumberFromString.pipe(
   Schema.nonNegative(),
 );
 
-export const AnimeIdSchema = PositiveIntSchema.pipe(Schema.brand("AnimeId"));
-export const AnimeIdFromStringSchema = PositiveIntFromStringSchema.pipe(Schema.brand("AnimeId"));
+export const MediaIdSchema = PositiveIntSchema.pipe(Schema.brand("MediaId"));
+export const MediaIdFromStringSchema = PositiveIntFromStringSchema.pipe(Schema.brand("MediaId"));
 
 export const DownloadIdSchema = PositiveIntSchema.pipe(Schema.brand("DownloadId"));
 export const DownloadIdFromStringSchema = PositiveIntFromStringSchema.pipe(
   Schema.brand("DownloadId"),
 );
 
-export const EpisodeNumberSchema = PositiveIntSchema.pipe(Schema.brand("EpisodeNumber"));
-export const EpisodeNumberFromStringSchema = PositiveIntFromStringSchema.pipe(
-  Schema.brand("EpisodeNumber"),
+export const UnitNumberSchema = PositiveIntSchema.pipe(Schema.brand("UnitNumber"));
+export const UnitNumberFromStringSchema = PositiveIntFromStringSchema.pipe(
+  Schema.brand("UnitNumber"),
 );
 
 export const ReleaseProfileIdSchema = PositiveIntSchema.pipe(Schema.brand("ReleaseProfileId"));

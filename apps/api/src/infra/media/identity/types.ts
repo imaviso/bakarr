@@ -1,4 +1,4 @@
-import type { ParsedEpisodeIdentity } from "@/infra/media/identity/model.ts";
+import type { ParsedUnitIdentity } from "@/infra/media/identity/model.ts";
 
 export interface PathParseContext {
   entry_folder_title?: string;
@@ -12,7 +12,7 @@ export type MediaArtifactKind = "episode" | "extra" | "sample" | "unknown";
 export interface ParsedMediaFile {
   kind: MediaArtifactKind;
   parsed_title: string;
-  source_identity?: ParsedEpisodeIdentity | undefined;
+  source_identity?: ParsedUnitIdentity | undefined;
   group?: string | undefined;
   resolution?: string | undefined;
   skip_reason?: string | undefined;

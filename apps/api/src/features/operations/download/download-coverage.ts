@@ -19,14 +19,14 @@ import { eq } from "drizzle-orm";
 const IN_FLIGHT_STATUSES = new Set(["queued", "downloading", "paused"]);
 
 export function toCoveredEpisodesJson(
-  episodes: readonly number[],
+  mediaUnits: readonly number[],
 ): Effect.Effect<string | null, OperationsStoredDataError> {
-  return encodeOptionalNumberList(episodes).pipe(
+  return encodeOptionalNumberList(mediaUnits).pipe(
     Effect.mapError(
       (cause) =>
         new OperationsStoredDataError({
           cause,
-          message: "Covered episodes metadata is invalid",
+          message: "Covered mediaUnits metadata is invalid",
         }),
     ),
   );
@@ -48,9 +48,9 @@ export const parseCoveredEpisodesEffect = Effect.fn("Operations.parseCoveredEpis
 
 export const hasOverlappingDownload = Effect.fn("Operations.hasOverlappingDownload")(function* (
   db: AppDatabase,
-  animeId: number,
+  mediaId: number,
   infoHash: string,
-  coveredEpisodes: readonly number[],
+  coveredUnits: readonly number[],
 ) {
   const existingByHash = yield* tryDatabasePromise("Failed to check overlapping download", () =>
     db
@@ -67,12 +67,12 @@ export const hasOverlappingDownload = Effect.fn("Operations.hasOverlappingDownlo
     return true;
   }
 
-  if (coveredEpisodes.length === 0) {
+  if (coveredUnits.length === 0) {
     return false;
   }
 
   const rows = yield* tryDatabasePromise("Failed to check overlapping download", () =>
-    db.select().from(downloads).where(eq(downloads.animeId, animeId)),
+    db.select().from(downloads).where(eq(downloads.mediaId, mediaId)),
   );
 
   for (const row of rows) {
@@ -80,9 +80,9 @@ export const hasOverlappingDownload = Effect.fn("Operations.hasOverlappingDownlo
       continue;
     }
 
-    const existingCovered = yield* parseCoveredEpisodesEffect(row.coveredEpisodes);
+    const existingCovered = yield* parseCoveredEpisodesEffect(row.coveredUnits);
 
-    if (existingCovered.some((episode) => coveredEpisodes.includes(episode))) {
+    if (existingCovered.some((episode) => coveredUnits.includes(episode))) {
       return true;
     }
   }
@@ -93,8 +93,8 @@ export const hasOverlappingDownload = Effect.fn("Operations.hasOverlappingDownlo
 export function inferCoveredEpisodeNumbers(input: {
   readonly explicitEpisodes: readonly number[];
   readonly isBatch: boolean;
-  readonly totalEpisodes?: number | null;
-  readonly missingEpisodes: readonly number[];
+  readonly totalUnits?: number | null;
+  readonly missingUnits: readonly number[];
   readonly requestedEpisode: number;
 }): readonly number[] {
   if (input.explicitEpisodes.length > 0) {
@@ -105,7 +105,7 @@ export function inferCoveredEpisodeNumbers(input: {
     return [input.requestedEpisode];
   }
 
-  const filtered = [...new Set(input.missingEpisodes)]
+  const filtered = [...new Set(input.missingUnits)]
     .filter((episode) => episode >= input.requestedEpisode)
     .toSorted((left, right) => left - right);
 
@@ -132,8 +132,8 @@ export function inferCoveredEpisodeNumbers(input: {
     return contiguous;
   }
 
-  if (input.totalEpisodes && input.totalEpisodes >= input.requestedEpisode) {
-    return rangeArray(input.requestedEpisode, input.totalEpisodes);
+  if (input.totalUnits && input.totalUnits >= input.requestedEpisode) {
+    return rangeArray(input.requestedEpisode, input.totalUnits);
   }
 
   return [input.requestedEpisode];
@@ -143,7 +143,7 @@ export function inferCoveredEpisodesFromTorrentContents(input: {
   readonly files: readonly QBitTorrentFile[];
   readonly rootName: string;
 }) {
-  const episodes = new Set<number>();
+  const mediaUnits = new Set<number>();
 
   for (const file of input.files) {
     const fullPath = `${input.rootName.replace(/\/+$/, "")}/${file.name.replace(/^\/+/, "")}`;
@@ -162,27 +162,27 @@ export function inferCoveredEpisodesFromTorrentContents(input: {
       continue;
     }
 
-    for (const episode of identity.episode_numbers) {
-      episodes.add(episode);
+    for (const episode of identity.unit_numbers) {
+      mediaUnits.add(episode);
     }
   }
 
-  return [...episodes].toSorted((left, right) => left - right);
+  return [...mediaUnits].toSorted((left, right) => left - right);
 }
 
 export function resolveReconciledBatchEpisodeNumbers(input: {
   readonly path: string;
-  readonly coveredEpisodes: readonly number[];
+  readonly coveredUnits: readonly number[];
   readonly totalCandidateCount: number;
 }) {
   const identity = parseFileSourceIdentity(input.path).source_identity;
 
   if (identity && identity.scheme !== "daily") {
-    return [...identity.episode_numbers];
+    return [...identity.unit_numbers];
   }
 
-  if (input.totalCandidateCount === 1 && input.coveredEpisodes.length > 0) {
-    return [...input.coveredEpisodes];
+  if (input.totalCandidateCount === 1 && input.coveredUnits.length > 0) {
+    return [...input.coveredUnits];
   }
 
   return [];

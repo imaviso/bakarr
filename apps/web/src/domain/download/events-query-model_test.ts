@@ -21,7 +21,7 @@ describe("buildDownloadEventsFilterInput", () => {
   it("omits invalid numeric filters rather than sending coerced ids", () => {
     expect(
       buildDownloadEventsFilterInput({
-        animeId: "1e3",
+        mediaId: "1e3",
         cursor: "",
         direction: "next",
         downloadId: "+42",
@@ -36,7 +36,7 @@ describe("buildDownloadEventsFilterInput", () => {
   it("trims text filters and omits whitespace-only values", () => {
     expect(
       buildDownloadEventsFilterInput({
-        animeId: "",
+        mediaId: "",
         cursor: "  cursor-1  ",
         direction: "prev",
         downloadId: "",

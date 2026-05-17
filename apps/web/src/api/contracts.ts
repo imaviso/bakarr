@@ -18,10 +18,10 @@ export const SEARCH_RELEASE_CATEGORY_OPTIONS = [
 export type SearchReleaseCategory = (typeof SEARCH_RELEASE_CATEGORY_OPTIONS)[number];
 
 export const SEARCH_RELEASE_CATEGORY_LABELS: Record<SearchReleaseCategory, string> = {
-  all_anime: "All Anime",
-  anime_english: "Anime (English)",
-  anime_non_english: "Anime (Non-Eng)",
-  anime_raw: "Anime (Raw)",
+  all_anime: "All Media",
+  anime_english: "Media (English)",
+  anime_non_english: "Media (Non-Eng)",
+  anime_raw: "Media (Raw)",
 };
 
 export const SEARCH_RELEASE_FILTER_OPTIONS = ["no_filter", "no_remakes", "trusted_only"] as const;
@@ -51,7 +51,7 @@ export type DownloadEventTypeFilterOption = (typeof DOWNLOAD_EVENT_TYPE_FILTER_O
 
 export const SEASONAL_ANIME_PROVIDER_VALUES = ["anilist", "jikan_fallback"] as const;
 
-export type SeasonalAnimeProvider = (typeof SEASONAL_ANIME_PROVIDER_VALUES)[number];
+export type SeasonalMediaProvider = (typeof SEASONAL_ANIME_PROVIDER_VALUES)[number];
 
 export const MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS = 3;
 
@@ -59,12 +59,9 @@ export interface ScanFolderResult {
   found: number;
   total: number;
 }
-export type ImportFileRequest = Pick<
-  ImportedFile,
-  "anime_id" | "episode_number" | "source_path"
-> & {
+export type ImportFileRequest = Pick<ImportedFile, "media_id" | "unit_number" | "source_path"> & {
   season?: number | undefined;
-  episode_numbers?: number[] | undefined;
+  unit_numbers?: number[] | undefined;
   source_metadata?: DownloadSourceMetadata | undefined;
 };
 
@@ -75,11 +72,11 @@ export type ReleaseProfileUpdateRequest = Pick<
   "enabled" | "is_global" | "name" | "rules"
 >;
 
-export type RssFeedCreateRequest = Pick<RssFeed, "anime_id" | "name" | "url">;
+export type RssFeedCreateRequest = Pick<RssFeed, "media_id" | "name" | "url">;
 
 export interface UnmappedFolderImportRequest {
   folder_name: string;
-  anime_id: number;
+  media_id: number;
   profile_name?: string;
 }
 
@@ -108,7 +105,7 @@ export interface AnimeEpisodeStreamUrl {
 }
 
 export interface DownloadEventsFilterInput {
-  animeId?: number;
+  mediaId?: number;
   cursor?: string;
   downloadId?: number;
   direction?: "next" | "prev";
@@ -120,7 +117,7 @@ export interface DownloadEventsFilterInput {
 }
 
 export interface DownloadEventsExportInput {
-  animeId?: number;
+  mediaId?: number;
   downloadId?: number;
   endDate?: string;
   eventType?: string;

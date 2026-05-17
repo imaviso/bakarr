@@ -77,9 +77,9 @@ export function ActiveDownloadRow(props: { item: DownloadStatus }) {
       </TableCell>
       <TableCell className="font-medium py-2 min-w-[280px] md:min-w-[320px]">
         <DownloadRowMeta
-          animeId={props.item.anime_id}
-          animeImage={props.item.anime_image}
-          animeTitle={props.item.anime_title ?? props.item.name}
+          mediaId={props.item.media_id}
+          mediaImage={props.item.media_image}
+          mediaTitle={props.item.media_title ?? props.item.name}
           confidence={getDownloadReleaseConfidence(props.item)}
           decisionBadge={formatDownloadDecisionBadge(props.item)}
           decisionSummary={formatDownloadDecisionSummary(props.item)}
@@ -99,12 +99,12 @@ export function ActiveDownloadRow(props: { item: DownloadStatus }) {
           remake={props.item.source_metadata?.remake}
         >
           {(props.item.is_batch ||
-            props.item.covered_episodes?.length ||
+            props.item.covered_units?.length ||
             props.item.coverage_pending) && (
             <span className="text-xs text-muted-foreground line-clamp-1">
               {formatEpisodeCoverage(
-                props.item.episode_number ?? 1,
-                props.item.covered_episodes,
+                props.item.unit_number ?? 1,
+                props.item.covered_units,
                 props.item.coverage_pending,
               )}
             </span>
@@ -136,7 +136,7 @@ export function ActiveDownloadRow(props: { item: DownloadStatus }) {
         <ActiveDownloadActions
           allowedActions={props.item.allowed_actions}
           downloadId={props.item.id}
-          animeTitle={props.item.anime_title}
+          mediaTitle={props.item.media_title}
         />
       </TableCell>
     </TableRow>
@@ -157,9 +157,9 @@ export function DownloadRow(props: { item: Download; isHistory?: boolean }) {
       </TableCell>
       <TableCell className="font-medium py-2 min-w-[280px] md:min-w-[320px]">
         <DownloadRowMeta
-          animeId={props.item.anime_id}
-          animeImage={props.item.anime_image}
-          animeTitle={props.item.anime_title}
+          mediaId={props.item.media_id}
+          mediaImage={props.item.media_image}
+          mediaTitle={props.item.media_title}
           confidence={getDownloadReleaseConfidence(props.item)}
           decisionBadge={formatDownloadDecisionBadge(props.item)}
           decisionSummary={formatDownloadDecisionSummary(props.item)}
@@ -183,14 +183,14 @@ export function DownloadRow(props: { item: Download; isHistory?: boolean }) {
       <TableCell className="py-2 min-w-[110px] md:min-w-[120px]">
         <Badge variant="outline" className="tabular-nums text-xs">
           {formatEpisodeCoverage(
-            props.item.episode_number,
-            props.item.covered_episodes,
+            props.item.unit_number,
+            props.item.covered_units,
             props.item.coverage_pending,
           )}
         </Badge>
-        {formatCoverageMeta(props.item.covered_episodes, props.item.coverage_pending) && (
+        {formatCoverageMeta(props.item.covered_units, props.item.coverage_pending) && (
           <div className="mt-1 text-[11px] text-muted-foreground">
-            {formatCoverageMeta(props.item.covered_episodes, props.item.coverage_pending)}
+            {formatCoverageMeta(props.item.covered_units, props.item.coverage_pending)}
           </div>
         )}
       </TableCell>
@@ -224,7 +224,7 @@ export function DownloadRow(props: { item: Download; isHistory?: boolean }) {
         <HistoryDownloadActions
           allowedActions={props.item.allowed_actions}
           downloadId={props.item.id}
-          animeTitle={props.item.anime_title}
+          mediaTitle={props.item.media_title}
         />
       </TableCell>
     </TableRow>

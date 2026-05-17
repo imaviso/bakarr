@@ -1,7 +1,7 @@
 export interface TriggerDownloadInput {
-  readonly anime_id: number;
+  readonly media_id: number;
   readonly magnet: string;
-  readonly episode_number?: number;
+  readonly unit_number?: number;
   readonly title: string;
   readonly is_batch?: boolean;
   readonly release_context?: import("@packages/shared/index.ts").SearchDownloadReleaseContext;

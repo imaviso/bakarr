@@ -1,7 +1,7 @@
 import { assert, it } from "@effect/vitest";
 import { Cause, Effect, Exit } from "effect";
 import {
-  brandAnimeId,
+  brandMediaId,
   brandDownloadEventId,
   brandDownloadId,
   brandRssFeedId,
@@ -23,7 +23,7 @@ import { OperationsStoredDataError } from "@/features/operations/errors.ts";
 it.effect("repository mappers convert RSS feed and download event rows", () =>
   Effect.gen(function* () {
     const feed = toRssFeed({
-      animeId: 20,
+      mediaId: 20,
       createdAt: "2024-01-01T00:00:00.000Z",
       enabled: true,
       id: 3,
@@ -33,7 +33,7 @@ it.effect("repository mappers convert RSS feed and download event rows", () =>
     } satisfies typeof rssFeeds.$inferSelect);
 
     assert.deepStrictEqual(feed, {
-      anime_id: brandAnimeId(20),
+      media_id: brandMediaId(20),
       created_at: "2024-01-01T00:00:00.000Z",
       enabled: true,
       id: brandRssFeedId(3),
@@ -44,7 +44,7 @@ it.effect("repository mappers convert RSS feed and download event rows", () =>
 
     const event = yield* toDownloadEvent(
       {
-        animeId: null,
+        mediaId: null,
         createdAt: "2024-01-01T00:00:00.000Z",
         downloadId: 4,
         eventType: "download.started",
@@ -52,7 +52,7 @@ it.effect("repository mappers convert RSS feed and download event rows", () =>
         id: 8,
         message: "Started Naruto - 01",
         metadata: yield* encodeDownloadEventMetadata({
-          covered_episodes: [1],
+          covered_units: [1],
           imported_path: "/library/Naruto/Naruto - 01.mkv",
           source_metadata: {
             group: "SubsPlease",
@@ -63,16 +63,16 @@ it.effect("repository mappers convert RSS feed and download event rows", () =>
         toStatus: "downloading",
       } satisfies typeof downloadEvents.$inferSelect,
       {
-        animeImage: "https://example.com/naruto.jpg",
-        animeTitle: "Naruto",
+        mediaImage: "https://example.com/naruto.jpg",
+        mediaTitle: "Naruto",
         torrentName: "Naruto - 01",
       },
     );
 
     assert.deepStrictEqual(event, {
-      anime_id: undefined,
-      anime_image: "https://example.com/naruto.jpg",
-      anime_title: "Naruto",
+      media_id: undefined,
+      media_image: "https://example.com/naruto.jpg",
+      media_title: "Naruto",
       created_at: "2024-01-01T00:00:00.000Z",
       download_id: brandDownloadId(4),
       event_type: "download.started",
@@ -80,7 +80,7 @@ it.effect("repository mappers convert RSS feed and download event rows", () =>
       id: brandDownloadEventId(8),
       message: "Started Naruto - 01",
       metadata: yield* encodeDownloadEventMetadata({
-        covered_episodes: [1],
+        covered_units: [1],
         imported_path: "/library/Naruto/Naruto - 01.mkv",
         source_metadata: {
           group: "SubsPlease",
@@ -89,7 +89,7 @@ it.effect("repository mappers convert RSS feed and download event rows", () =>
         },
       }),
       metadata_json: {
-        covered_episodes: [1],
+        covered_units: [1],
         imported_path: "/library/Naruto/Naruto - 01.mkv",
         source_metadata: {
           group: "SubsPlease",
@@ -103,10 +103,10 @@ it.effect("repository mappers convert RSS feed and download event rows", () =>
   }),
 );
 
-it.effect("toDownloadEvent decodes covered_episodes and source_metadata for lifecycle events", () =>
+it.effect("toDownloadEvent decodes covered_units and source_metadata for lifecycle events", () =>
   Effect.gen(function* () {
     const pauseEvent = yield* toDownloadEvent({
-      animeId: 42,
+      mediaId: 42,
       createdAt: "2024-02-01T12:00:00.000Z",
       downloadId: 7,
       eventType: "download.paused",
@@ -114,7 +114,7 @@ it.effect("toDownloadEvent decodes covered_episodes and source_metadata for life
       id: 10,
       message: "Paused [SubsPlease] Naruto - 02",
       metadata: yield* encodeDownloadEventMetadata({
-        covered_episodes: [2],
+        covered_units: [2],
         source_metadata: {
           indexer: "Nyaa",
           resolution: "720p",
@@ -125,12 +125,12 @@ it.effect("toDownloadEvent decodes covered_episodes and source_metadata for life
       toStatus: "paused",
     } satisfies typeof downloadEvents.$inferSelect);
 
-    assert.deepStrictEqual(pauseEvent.anime_id, 42);
+    assert.deepStrictEqual(pauseEvent.media_id, 42);
     assert.deepStrictEqual(pauseEvent.download_id, 7);
     assert.deepStrictEqual(pauseEvent.event_type, "download.paused");
     assert.deepStrictEqual(pauseEvent.from_status, "downloading");
     assert.deepStrictEqual(pauseEvent.to_status, "paused");
-    assert.deepStrictEqual(pauseEvent.metadata_json?.covered_episodes, [2]);
+    assert.deepStrictEqual(pauseEvent.metadata_json?.covered_units, [2]);
     assert.deepStrictEqual(pauseEvent.metadata_json?.source_metadata?.indexer, "Nyaa");
     assert.deepStrictEqual(pauseEvent.metadata_json?.source_metadata?.resolution, "720p");
     assert.deepStrictEqual(
@@ -140,15 +140,15 @@ it.effect("toDownloadEvent decodes covered_episodes and source_metadata for life
     assert.deepStrictEqual(pauseEvent.metadata_json?.source_metadata?.trusted, true);
 
     const statusChangeEvent = yield* toDownloadEvent({
-      animeId: 99,
+      mediaId: 99,
       createdAt: "2024-03-01T08:30:00.000Z",
       downloadId: 12,
       eventType: "download.status_changed",
       fromStatus: "queued",
       id: 15,
-      message: "[Group] Anime - 05 moved to downloading",
+      message: "[Group] Media - 05 moved to downloading",
       metadata: yield* encodeDownloadEventMetadata({
-        covered_episodes: [5, 6],
+        covered_units: [5, 6],
         source_metadata: {
           decision_reason: "Upgrade from 480p",
           indexer: "Nyaa",
@@ -157,7 +157,7 @@ it.effect("toDownloadEvent decodes covered_episodes and source_metadata for life
       toStatus: "downloading",
     } satisfies typeof downloadEvents.$inferSelect);
 
-    assert.deepStrictEqual(statusChangeEvent.metadata_json?.covered_episodes, [5, 6]);
+    assert.deepStrictEqual(statusChangeEvent.metadata_json?.covered_units, [5, 6]);
     assert.deepStrictEqual(
       statusChangeEvent.metadata_json?.source_metadata?.decision_reason,
       "Upgrade from 480p",
@@ -170,13 +170,13 @@ it.effect("repository download mappers decode optional fields and derive status 
   Effect.gen(function* () {
     const row = {
       addedAt: "2024-01-01T00:00:00.000Z",
-      animeId: 20,
-      animeTitle: "Naruto",
+      mediaId: 20,
+      mediaTitle: "Naruto",
       contentPath: "/downloads/Naruto - 01.mkv",
-      coveredEpisodes: "[1,2]",
+      coveredUnits: "[1,2]",
       downloadDate: "2024-01-01T00:05:00.000Z",
       downloadedBytes: 500,
-      episodeNumber: 1,
+      unitNumber: 1,
       errorMessage: null,
       etaSeconds: null,
       externalState: "downloading",
@@ -209,11 +209,11 @@ it.effect("repository download mappers decode optional fields and derive status 
     } satisfies typeof downloads.$inferSelect;
 
     const download = yield* toDownload(row, {
-      animeImage: "https://example.com/naruto.jpg",
+      mediaImage: "https://example.com/naruto.jpg",
       importedPath: "/library/Naruto/Naruto - 01.mkv",
     });
-    assert.deepStrictEqual(download.covered_episodes, [1, 2]);
-    assert.deepStrictEqual(download.anime_image, "https://example.com/naruto.jpg");
+    assert.deepStrictEqual(download.covered_units, [1, 2]);
+    assert.deepStrictEqual(download.media_image, "https://example.com/naruto.jpg");
     assert.deepStrictEqual(download.content_path, "/downloads/Naruto - 01.mkv");
     assert.deepStrictEqual(download.decision_reason, "Accepted (WEB-DL 1080p, score 12)");
     assert.deepStrictEqual(download.group_name, "SubsPlease");
@@ -227,12 +227,12 @@ it.effect("repository download mappers decode optional fields and derive status 
     assert.deepStrictEqual(download.source_metadata?.selection_score, 12);
 
     const queuedStatus = yield* toDownloadStatus(row, {
-      animeImage: "https://example.com/naruto.jpg",
+      mediaImage: "https://example.com/naruto.jpg",
       importedPath: "/library/Naruto/Naruto - 01.mkv",
     });
-    assert.deepStrictEqual(queuedStatus.anime_id, 20);
-    assert.deepStrictEqual(queuedStatus.anime_image, "https://example.com/naruto.jpg");
-    assert.deepStrictEqual(queuedStatus.anime_title, "Naruto");
+    assert.deepStrictEqual(queuedStatus.media_id, 20);
+    assert.deepStrictEqual(queuedStatus.media_image, "https://example.com/naruto.jpg");
+    assert.deepStrictEqual(queuedStatus.media_title, "Naruto");
     assert.deepStrictEqual(queuedStatus.decision_reason, "Accepted (WEB-DL 1080p, score 12)");
     assert.deepStrictEqual(queuedStatus.hash, "generated-hash");
     assert.deepStrictEqual(queuedStatus.imported_path, "/library/Naruto/Naruto - 01.mkv");
@@ -252,14 +252,14 @@ it.effect("repository download mappers decode optional fields and derive status 
         status: "downloading",
       },
       {
-        animeImage: "https://example.com/naruto.jpg",
+        mediaImage: "https://example.com/naruto.jpg",
       },
     );
     assert.deepStrictEqual(activeStatus.hash, "abcdef");
-    assert.deepStrictEqual(activeStatus.anime_image, "https://example.com/naruto.jpg");
-    assert.deepStrictEqual(activeStatus.covered_episodes, [1, 2]);
+    assert.deepStrictEqual(activeStatus.media_image, "https://example.com/naruto.jpg");
+    assert.deepStrictEqual(activeStatus.covered_units, [1, 2]);
     assert.deepStrictEqual(activeStatus.coverage_pending, undefined);
-    assert.deepStrictEqual(activeStatus.episode_number, 1);
+    assert.deepStrictEqual(activeStatus.unit_number, 1);
     assert.deepStrictEqual(activeStatus.is_batch, true);
     assert.deepStrictEqual(activeStatus.progress, 0.8);
     assert.deepStrictEqual(activeStatus.speed, 0);
@@ -270,13 +270,13 @@ it.effect("repository download mappers flag unresolved batch coverage", () =>
   Effect.gen(function* () {
     const row = {
       addedAt: "2024-01-01T00:00:00.000Z",
-      animeId: 20,
-      animeTitle: "Chainsaw Man",
+      mediaId: 20,
+      mediaTitle: "Chainsaw Man",
       contentPath: null,
-      coveredEpisodes: null,
+      coveredUnits: null,
       downloadDate: null,
       downloadedBytes: 0,
-      episodeNumber: 1,
+      unitNumber: 1,
       errorMessage: null,
       etaSeconds: null,
       externalState: "queued",
@@ -302,10 +302,10 @@ it.effect("repository download mappers flag unresolved batch coverage", () =>
     const status = yield* toDownloadStatus(row, {});
 
     assert.deepStrictEqual(download.coverage_pending, true);
-    assert.deepStrictEqual(download.covered_episodes, undefined);
+    assert.deepStrictEqual(download.covered_units, undefined);
     assert.deepStrictEqual(download.source_metadata, undefined);
     assert.deepStrictEqual(status.coverage_pending, true);
-    assert.deepStrictEqual(status.covered_episodes, undefined);
+    assert.deepStrictEqual(status.covered_units, undefined);
     assert.deepStrictEqual(status.source_metadata, undefined);
   }),
 );
@@ -314,13 +314,13 @@ it.effect("toDownloadStatus fails when stored infoHash is missing", () =>
   Effect.gen(function* () {
     const row = {
       addedAt: "2024-01-01T00:00:00.000Z",
-      animeId: 20,
-      animeTitle: "Broken Download",
+      mediaId: 20,
+      mediaTitle: "Broken Download",
       contentPath: null,
-      coveredEpisodes: null,
+      coveredUnits: null,
       downloadDate: null,
       downloadedBytes: 0,
-      episodeNumber: 1,
+      unitNumber: 1,
       errorMessage: null,
       etaSeconds: null,
       externalState: "queued",

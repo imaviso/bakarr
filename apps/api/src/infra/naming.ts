@@ -2,12 +2,12 @@
  * Config-backed naming renderer for episode filenames.
  *
  * Supported placeholders:
- * - {title}              - Anime title (sanitized for filesystem)
+ * - {title}              - Media title (sanitized for filesystem)
  * - {episode}            - Primary episode number (zero-padded to 2 digits)
  * - {episode:02}         - Primary episode number (zero-padded to 2 digits)
  * - {episode:03}         - Primary episode number (zero-padded to 3 digits)
  * - {episode_segment}    - Entry-local numbering: "03", "03-04", "014"
- * - {episode_title}      - Episode title (sanitized for filesystem)
+ * - {unit_title}      - MediaUnit title (sanitized for filesystem)
  * - {air_date}           - Air date in YYYY-MM-DD format (if available)
  * - {source_episode_segment} - Source label: "S02E03", "S01E01-E02", "2025-03-14"
  * - {season}             - Season number (zero-padded to 2 digits)
@@ -23,15 +23,15 @@
 
 import { sanitizeFilename } from "@/infra/filesystem/filesystem.ts";
 import { formatEpisodeSegment } from "@/infra/media/identity/identity.ts";
-import type { ParsedEpisodeIdentity } from "@packages/shared/index.ts";
+import type { ParsedUnitIdentity } from "@packages/shared/index.ts";
 
 export interface NamingInput {
   readonly title: string;
-  readonly episodeNumbers: readonly number[];
-  readonly sourceIdentity?: ParsedEpisodeIdentity | undefined;
+  readonly unitNumbers: readonly number[];
+  readonly sourceIdentity?: ParsedUnitIdentity | undefined;
   readonly season?: number | undefined;
   readonly year?: number | undefined;
-  readonly episodeTitle?: string | undefined;
+  readonly unitTitle?: string | undefined;
   readonly group?: string | undefined;
   readonly resolution?: string | undefined;
   readonly quality?: string | undefined;
@@ -49,7 +49,7 @@ const TOKEN_PATTERNS = {
   audioCodec: /\{audio_codec\}/g,
   episode: /\{episode(?::(\d+))?\}/g,
   episodeSegment: /\{episode_segment\}/g,
-  episodeTitle: /\{episode_title\}/g,
+  unitTitle: /\{unit_title\}/g,
   group: /\{group\}/g,
   quality: /\{quality\}/g,
   resolution: /\{resolution\}/g,
@@ -76,9 +76,9 @@ const WRAPPED_SEGMENT_PATTERNS: Record<"(" | "[", RegExp> = {
 
 export function renderEpisodeFilename(format: string, input: NamingInput): string {
   const formatHasResolutionToken = RESOLUTION_TOKEN_PATTERN.test(format);
-  const primaryEpisode = input.episodeNumbers[0] ?? 0;
+  const primaryEpisode = input.unitNumbers[0] ?? 0;
   const segment = formatEpisodeSegment({
-    episode_numbers: input.episodeNumbers,
+    unit_numbers: input.unitNumbers,
   });
 
   let sourceSegment = "";
@@ -107,8 +107,8 @@ export function renderEpisodeFilename(format: string, input: NamingInput): strin
   });
 
   result = result.replace(
-    TOKEN_PATTERNS.episodeTitle,
-    input.episodeTitle ? sanitizeFilename(input.episodeTitle) : "",
+    TOKEN_PATTERNS.unitTitle,
+    input.unitTitle ? sanitizeFilename(input.unitTitle) : "",
   );
 
   result = result.replace(TOKEN_PATTERNS.year, input.year ? String(input.year) : "");

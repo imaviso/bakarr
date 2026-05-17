@@ -6,57 +6,57 @@ import { formatSelectionSummary, getReleaseConfidence } from "~/domain/release/s
 type DownloadLike = Partial<
   Pick<
     Download | DownloadStatus,
-    "covered_episodes" | "decision_reason" | "is_batch" | "source_metadata"
+    "covered_units" | "decision_reason" | "is_batch" | "source_metadata"
   >
 >;
 
 export function formatDownloadParsedMeta(item: DownloadLike) {
   return formatReleaseParsedSummary({
     parsed_air_date: item.source_metadata?.air_date,
-    parsed_episode_label: item.source_metadata?.source_identity?.label,
+    parsed_unit_label: item.source_metadata?.source_identity?.label,
   });
 }
 
 export function formatEpisodeCoverage(
-  episodeNumber: number,
-  coveredEpisodes?: number[],
+  unitNumber: number,
+  coveredUnits?: number[],
   coveragePending?: boolean,
 ) {
   if (coveragePending) {
     return "Batch pending";
   }
 
-  if (!coveredEpisodes || coveredEpisodes.length === 0) {
-    return `Ep ${episodeNumber.toString().padStart(2, "0")}`;
+  if (!coveredUnits || coveredUnits.length === 0) {
+    return `Ep ${unitNumber.toString().padStart(2, "0")}`;
   }
 
-  if (coveredEpisodes.length === 1) {
-    const first = coveredEpisodes[0];
+  if (coveredUnits.length === 1) {
+    const first = coveredUnits[0];
     if (first === undefined) {
-      return `Ep ${episodeNumber.toString().padStart(2, "0")}`;
+      return `Ep ${unitNumber.toString().padStart(2, "0")}`;
     }
     return `Ep ${first.toString().padStart(2, "0")}`;
   }
 
-  const sorted = [...coveredEpisodes].toSorted((a, b) => a - b);
+  const sorted = [...coveredUnits].toSorted((a, b) => a - b);
   const first = sorted[0];
   const last = sorted[sorted.length - 1];
   if (first === undefined || last === undefined) {
-    return `Ep ${episodeNumber.toString().padStart(2, "0")}`;
+    return `Ep ${unitNumber.toString().padStart(2, "0")}`;
   }
   return `Batch ${first.toString().padStart(2, "0")}-${last.toString().padStart(2, "0")}`;
 }
 
-export function formatCoverageMeta(coveredEpisodes?: number[], coveragePending?: boolean) {
+export function formatCoverageMeta(coveredUnits?: number[], coveragePending?: boolean) {
   if (coveragePending) {
     return "Waiting for qBittorrent file metadata";
   }
 
-  if (!coveredEpisodes || coveredEpisodes.length <= 1) {
+  if (!coveredUnits || coveredUnits.length <= 1) {
     return undefined;
   }
 
-  return `${coveredEpisodes.length} episodes: ${coveredEpisodes.join(", ")}`;
+  return `${coveredUnits.length} episodes: ${coveredUnits.join(", ")}`;
 }
 
 export function formatDownloadReleaseMeta(input: {
@@ -123,7 +123,7 @@ function normalizeLegacyManualDecisionReason(item: DownloadLike) {
   }
 
   const batchKind = inferBatchKind({
-    coveredEpisodes: item.covered_episodes,
+    coveredUnits: item.covered_units,
     isBatch: item.is_batch,
     sourceIdentity: item.source_metadata?.source_identity,
   });

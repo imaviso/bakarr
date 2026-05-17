@@ -10,7 +10,7 @@ import {
 } from "@/features/operations/tasks/operations-task-service.ts";
 
 export interface OperationsTaskLaunchInput<A> {
-  readonly animeId?: number;
+  readonly mediaId?: number;
   readonly queuedMessage: string;
   readonly runningMessage: string;
   readonly successMessage: (result: A) => string;
@@ -71,7 +71,7 @@ const makeOperationsTaskLauncherService = Effect.gen(function* () {
     <A>(input: OperationsTaskLaunchInput<A>) =>
       Effect.gen(function* () {
         const accepted = yield* tasks.createTask({
-          ...(input.animeId === undefined ? {} : { animeId: input.animeId }),
+          ...(input.mediaId === undefined ? {} : { mediaId: input.mediaId }),
           message: input.queuedMessage,
           taskKey: input.taskKey,
         });
@@ -107,7 +107,7 @@ const makeOperationsTaskLauncherService = Effect.gen(function* () {
               Effect.annotateLogs(
                 compactLogAnnotations({
                   ...errorLogAnnotations(error),
-                  animeId: input.animeId,
+                  mediaId: input.mediaId,
                   cause: Cause.pretty(cause),
                   component: "operations",
                   event: "operations.task.failed",

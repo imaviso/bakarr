@@ -18,7 +18,7 @@ import { Label } from "~/components/ui/label";
 import { DOWNLOAD_EVENT_TYPE_FILTER_OPTIONS } from "~/api/contracts";
 
 export interface DownloadEventsFilterValue {
-  animeId: string;
+  mediaId: string;
   downloadId: string;
   endDate: string;
   eventType: string;
@@ -47,12 +47,12 @@ export function DownloadEventsFilters(props: DownloadEventsFiltersProps) {
     <>
       <div className="grid gap-3 md:grid-cols-[1fr_1fr_240px_auto]">
         <div className="space-y-1">
-          <Label htmlFor="download-events-anime-id">Anime ID</Label>
+          <Label htmlFor="download-events-anime-id">Media ID</Label>
           <Input
             id="download-events-anime-id"
             type="number"
-            value={props.value.animeId}
-            onChange={(event) => props.onFieldChange("animeId", event.currentTarget.value)}
+            value={props.value.mediaId}
+            onChange={(event) => props.onFieldChange("mediaId", event.currentTarget.value)}
             placeholder="Any anime"
           />
         </div>

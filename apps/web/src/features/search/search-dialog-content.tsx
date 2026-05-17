@@ -50,7 +50,7 @@ const categoryOptions = Object.keys(CATEGORY_LABELS);
 const filterOptions = Object.keys(FILTER_LABELS);
 
 interface SearchDialogContentProps {
-  animeId: number;
+  mediaId: number;
   category: string;
   debouncedQuery: string;
   filter: string;
@@ -116,7 +116,7 @@ export function SearchDialogContent(props: SearchDialogContentProps) {
       <div className="flex-1 overflow-hidden relative bg-muted">
         {props.open && (
           <SearchResults
-            animeId={props.animeId}
+            mediaId={props.mediaId}
             query={props.debouncedQuery}
             category={props.category}
             filter={props.filter}
@@ -144,14 +144,14 @@ export function SearchDialogContent(props: SearchDialogContentProps) {
 }
 
 function SearchResults(props: {
-  animeId: number;
+  mediaId: number;
   query: string;
   category: string;
   filter: string;
   onGrab: () => void;
 }) {
   const state = useSearchDialogResultsState({
-    animeId: props.animeId,
+    mediaId: props.mediaId,
     category: props.category,
     filter: props.filter,
     query: props.query,
@@ -172,11 +172,11 @@ function SearchResults(props: {
             <TableHead
               scope="col"
               className="h-9 text-xs font-medium cursor-pointer hover:text-foreground transition-colors select-none"
-              onClick={() => state.toggleSort("parsed_episode")}
+              onClick={() => state.toggleSort("parsed_unit")}
             >
               <div className="flex items-center gap-1">
                 Ep
-                {state.sortCol === "parsed_episode" &&
+                {state.sortCol === "parsed_unit" &&
                   (state.sortAsc ? (
                     <SortAscendingIcon className="h-3 w-3" />
                   ) : (
@@ -241,7 +241,7 @@ function SearchResults(props: {
               <ReleaseRow
                 key={result.info_hash ?? result.title}
                 result={result}
-                animeId={props.animeId}
+                mediaId={props.mediaId}
                 onGrab={props.onGrab}
               />
             ))
@@ -327,9 +327,9 @@ function SearchResultsSkeleton() {
   );
 }
 
-function ReleaseRow(props: { result: NyaaSearchResult; animeId: number; onGrab: () => void }) {
+function ReleaseRow(props: { result: NyaaSearchResult; mediaId: number; onGrab: () => void }) {
   const state = useSearchDialogReleaseRowState({
-    animeId: props.animeId,
+    mediaId: props.mediaId,
     onGrab: props.onGrab,
     result: props.result,
   });
@@ -359,9 +359,9 @@ function ReleaseRow(props: { result: NyaaSearchResult; animeId: number; onGrab: 
         />
       </TableCell>
       <TableCell className="py-2.5">
-        {props.result.parsed_episode ? (
+        {props.result.parsed_unit ? (
           <span className="font-mono text-xs text-foreground bg-muted px-1.5 py-0.5 rounded-none">
-            {props.result.parsed_episode}
+            {props.result.parsed_unit}
           </span>
         ) : (
           <span className="text-muted-foreground text-xs">-</span>
@@ -422,7 +422,7 @@ function ReleaseRow(props: { result: NyaaSearchResult; animeId: number; onGrab: 
               </div>
               <div className="space-y-1">
                 <Label htmlFor={episodeInputId} className="text-xs text-muted-foreground">
-                  {state.isBatch ? "First episode in pack" : "Episode number"}
+                  {state.isBatch ? "First episode in pack" : "MediaUnit number"}
                 </Label>
                 {state.isBatch && (
                   <p className="text-[11px] leading-snug text-muted-foreground">
@@ -437,7 +437,7 @@ function ReleaseRow(props: { result: NyaaSearchResult; animeId: number; onGrab: 
                     value={state.episodeNumberInput}
                     onChange={(event) => state.setEpisodeNumberInput(event.currentTarget.value)}
                     className="h-7 text-xs font-mono"
-                    placeholder={state.isBatch ? "First ep" : "Episode #"}
+                    placeholder={state.isBatch ? "First ep" : "MediaUnit #"}
                   />
                 </div>
                 <Button

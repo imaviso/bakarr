@@ -26,14 +26,14 @@ import {
 it("buildEpisodeNamingInputFromPath extracts local filename metadata for rename tokens", () => {
   const input = buildEpisodeNamingInputFromPath({
     animeStartDate: "2012-01-08",
-    animeTitle: "Nisemonogatari",
-    episodeNumbers: [1],
+    mediaTitle: "Nisemonogatari",
+    unitNumbers: [1],
     filePath:
       "/mnt/media2/Shows/Nisemonogatari (2012)/Season 1/Nisemonogatari - S01E01 - Karen Bee, Part 1 -[1920x1080]-[hevc]-[aac][MTBB].mkv",
     rootFolder: "/mnt/media2/Shows/Nisemonogatari (2012)",
   });
 
-  assert.deepStrictEqual(input.episodeTitle, "Karen Bee, Part 1");
+  assert.deepStrictEqual(input.unitTitle, "Karen Bee, Part 1");
   assert.deepStrictEqual(input.group, "MTBB");
   assert.deepStrictEqual(input.quality, undefined);
   assert.deepStrictEqual(input.resolution, "1080p");
@@ -46,13 +46,13 @@ it("buildEpisodeNamingInputFromPath extracts local filename metadata for rename 
 
 it("buildEpisodeNamingInputFromPath keeps stored episode title over filename fallback", () => {
   const input = buildEpisodeNamingInputFromPath({
-    animeTitle: "Show Name",
-    episodeNumbers: [1],
-    episodeTitle: "Canonical Episode Title",
-    filePath: "/library/Show Name - S01E01 - Source Episode Title [1080p].mkv",
+    mediaTitle: "Show Name",
+    unitNumbers: [1],
+    unitTitle: "Canonical MediaUnit Title",
+    filePath: "/library/Show Name - S01E01 - Source MediaUnit Title [1080p].mkv",
   });
 
-  assert.deepStrictEqual(input.episodeTitle, "Canonical Episode Title");
+  assert.deepStrictEqual(input.unitTitle, "Canonical MediaUnit Title");
 });
 
 it("selectAnimeTitleForNaming honors preferred title with fallback", () => {
@@ -143,7 +143,7 @@ it("inspectNamingFormat and validation identify missing fields", () => {
   ]);
 
   const validation = validateNamingMetadata("{title} - S{season:02}E{episode:02}", {
-    episodeNumbers: [1],
+    unitNumbers: [1],
     title: "Naruto",
   });
 
@@ -155,7 +155,7 @@ it("resolveFilenameRenderPlan falls back when critical tokens are missing", () =
     animeFormat: "TV",
     format: "{title} - S{season:02}E{episode:02}",
     metadata: {
-      episodeNumbers: [1],
+      unitNumbers: [1],
       title: "Naruto",
     },
   });
@@ -168,7 +168,7 @@ it("buildCanonicalEpisodeNamingInput prefers DB data and preserves daily air dat
   const result = buildCanonicalEpisodeNamingInput({
     animeStartDate: "2025-01-01",
     animeStartYear: 2025,
-    animeTitle: "Show Name",
+    mediaTitle: "Show Name",
     downloadSourceMetadata: {
       air_date: "2025-03-14",
       source_identity: {
@@ -177,21 +177,21 @@ it("buildCanonicalEpisodeNamingInput prefers DB data and preserves daily air dat
         scheme: "daily",
       },
     },
-    episodeNumbers: [1],
+    unitNumbers: [1],
     episodeRows: [{ aired: "2025-03-14T12:00:00.000Z", title: "DB Title" }],
     filePath: "/downloads/Show.2025-03-14.mkv",
   });
 
   assert.deepStrictEqual(result.namingInput.airDate, "2025-03-14");
-  assert.deepStrictEqual(result.namingInput.episodeTitle, "DB Title");
+  assert.deepStrictEqual(result.namingInput.unitTitle, "DB Title");
   assert.deepStrictEqual(result.namingInput.year, 2025);
 });
 
 it("buildCanonicalEpisodeNamingInput warns on ambiguous multi-episode metadata", () => {
   const result = buildCanonicalEpisodeNamingInput({
     animeStartDate: "2025-01-01",
-    animeTitle: "Show Name",
-    episodeNumbers: [1, 2],
+    mediaTitle: "Show Name",
+    unitNumbers: [1, 2],
     episodeRows: [
       { aired: "2025-01-01", title: "Part A" },
       { aired: "2025-01-08", title: "Part B" },
@@ -199,7 +199,7 @@ it("buildCanonicalEpisodeNamingInput warns on ambiguous multi-episode metadata",
     filePath: "/downloads/Show - 01-02.mkv",
   });
 
-  assert.deepStrictEqual(result.namingInput.episodeTitle, undefined);
+  assert.deepStrictEqual(result.namingInput.unitTitle, undefined);
   assert.deepStrictEqual(result.namingInput.airDate, undefined);
   assert.deepStrictEqual(result.warnings.length, 2);
 });
@@ -213,7 +213,7 @@ it("buildEpisodeFilenamePlan exposes fallback and warning details", () => {
       startYear: 2025,
       titleRomaji: "Show",
     },
-    episodeNumbers: [1],
+    unitNumbers: [1],
     filePath: "/downloads/Show - 01.mkv",
     namingFormat: "{title} - S{season:02}E{episode:02}",
     preferredTitle: "romaji",
@@ -231,7 +231,7 @@ it("buildEpisodeFilenamePlan fills media tokens from local metadata when heurist
       rootFolder: "/library/Show",
       titleRomaji: "Show",
     },
-    episodeNumbers: [1],
+    unitNumbers: [1],
     filePath: "/downloads/download.mkv",
     localMediaMetadata: {
       audio_channels: "2.0",
@@ -299,8 +299,8 @@ it("buildDownloadSourceMetadataFromRelease marks BD releases as BluRay", () => {
 
 it("buildEpisodeNamingInputFromPath recognizes plain WEB releases and 2ch audio", () => {
   const input = buildEpisodeNamingInputFromPath({
-    animeTitle: "Show Name",
-    episodeNumbers: [1],
+    mediaTitle: "Show Name",
+    unitNumbers: [1],
     filePath: "/downloads/[Group] Show Name - 01 [WEB 1080p] [VP9] [Opus 2ch].mkv",
   });
 
@@ -318,7 +318,7 @@ it("mergeDownloadSourceMetadata preserves baseline fields and overlays UI metada
       parsed_title: "[SubsPlease] Show - 01 (1080p)",
       resolution: "1080p",
       source_identity: {
-        episode_numbers: [1],
+        unit_numbers: [1],
         label: "01",
         scheme: "absolute",
       },
@@ -343,7 +343,7 @@ it("mergeDownloadSourceMetadata preserves baseline fields and overlays UI metada
   assert.deepStrictEqual(merged.selection_kind, "upgrade");
   assert.deepStrictEqual(merged.selection_score, 12);
   assert.deepStrictEqual(merged.source_identity, {
-    episode_numbers: [1],
+    unit_numbers: [1],
     label: "01",
     scheme: "absolute",
   });

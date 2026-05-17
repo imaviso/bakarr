@@ -22,7 +22,7 @@ it("inferBatchKind returns undefined when input is not a batch", () => {
 });
 
 it("inferBatchKind detects batch from episode coverage", () => {
-  assertEquals(inferBatchKind({ coveredEpisodes: [1, 2] }), "batch");
+  assertEquals(inferBatchKind({ coveredUnits: [1, 2] }), "batch");
 });
 
 it("inferBatchKind detects season packs from season identities", () => {
@@ -31,7 +31,7 @@ it("inferBatchKind detects season packs from season identities", () => {
       sourceIdentity: {
         scheme: "season",
         season: 2,
-        episode_numbers: [1],
+        unit_numbers: [1],
         label: "S02E01",
       },
     }),

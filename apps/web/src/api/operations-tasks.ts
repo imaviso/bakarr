@@ -21,13 +21,13 @@ export function operationTaskPollInterval(task: OperationTask | undefined) {
 }
 
 function buildTaskQueryParams(input?: {
-  readonly animeId?: number;
+  readonly mediaId?: number;
   readonly taskKey?: OperationTaskKey;
 }) {
   const params = new URLSearchParams();
 
-  if (input?.animeId !== undefined) {
-    params.set("anime_id", String(input.animeId));
+  if (input?.mediaId !== undefined) {
+    params.set("media_id", String(input.mediaId));
   }
 
   if (input?.taskKey !== undefined) {
@@ -39,7 +39,7 @@ function buildTaskQueryParams(input?: {
 }
 
 export function systemTasksQueryOptions(input?: {
-  readonly animeId?: number;
+  readonly mediaId?: number;
   readonly taskKey?: OperationTaskKey;
 }) {
   return queryOptions({
@@ -49,7 +49,7 @@ export function systemTasksQueryOptions(input?: {
         fetchJson(
           Schema.Array(OperationTaskSchema),
           `${API_BASE}/system/tasks${buildTaskQueryParams({
-            ...(input?.animeId === undefined ? {} : { animeId: input.animeId }),
+            ...(input?.mediaId === undefined ? {} : { mediaId: input.mediaId }),
             ...(input?.taskKey === undefined ? {} : { taskKey: input.taskKey }),
           })}`,
           undefined,
@@ -64,7 +64,7 @@ export function systemTasksQueryOptions(input?: {
 }
 
 export function useSystemTasksQuery(
-  input: { readonly animeId?: number; readonly taskKey?: OperationTaskKey } = {},
+  input: { readonly mediaId?: number; readonly taskKey?: OperationTaskKey } = {},
 ) {
   return useQuery(systemTasksQueryOptions(input));
 }
@@ -103,7 +103,7 @@ export function useSystemTaskQuery(taskId: number | undefined) {
   });
 }
 
-export function libraryImportTasksQueryOptions(input?: { readonly animeId?: number }) {
+export function libraryImportTasksQueryOptions(input?: { readonly mediaId?: number }) {
   return queryOptions({
     queryKey: [...animeKeys.library.importTasks.all(), input ?? {}] as const,
     queryFn: ({ signal }) =>
@@ -111,7 +111,7 @@ export function libraryImportTasksQueryOptions(input?: { readonly animeId?: numb
         fetchJson(
           Schema.Array(OperationTaskSchema),
           `${API_BASE}/library/import/tasks${buildTaskQueryParams(
-            input?.animeId === undefined ? undefined : { animeId: input.animeId },
+            input?.mediaId === undefined ? undefined : { mediaId: input.mediaId },
           )}`,
           undefined,
           signal,
@@ -124,7 +124,7 @@ export function libraryImportTasksQueryOptions(input?: { readonly animeId?: numb
   });
 }
 
-export function useLibraryImportTasksQuery(input: { readonly animeId?: number } = {}) {
+export function useLibraryImportTasksQuery(input: { readonly mediaId?: number } = {}) {
   return useQuery(libraryImportTasksQueryOptions(input));
 }
 
@@ -167,14 +167,14 @@ export function useLibraryImportTaskQuery(taskId: number | undefined) {
   });
 }
 
-export function animeScanTasksQueryOptions(animeId: number) {
+export function animeScanTasksQueryOptions(mediaId: number) {
   return queryOptions({
-    queryKey: animeKeys.episodeScanTasks.all(animeId),
+    queryKey: animeKeys.unitScanTasks.all(mediaId),
     queryFn: ({ signal }) =>
       Effect.runPromise(
         fetchJson(
           Schema.Array(OperationTaskSchema),
-          `${API_BASE}/anime/${animeId}/episodes/scan/tasks`,
+          `${API_BASE}/media/${mediaId}/units/scan/tasks`,
           undefined,
           signal,
         ),
@@ -186,25 +186,25 @@ export function animeScanTasksQueryOptions(animeId: number) {
   });
 }
 
-export function useAnimeScanTasksQuery(animeId: number | undefined) {
+export function useAnimeScanTasksQuery(mediaId: number | undefined) {
   return useQuery({
     queryKey:
-      animeId === undefined
-        ? (["anime", "detail", "scan-tasks", "pending"] as const)
-        : animeKeys.episodeScanTasks.all(animeId),
+      mediaId === undefined
+        ? (["media", "detail", "scan-tasks", "pending"] as const)
+        : animeKeys.unitScanTasks.all(mediaId),
     queryFn:
-      animeId === undefined
+      mediaId === undefined
         ? skipToken
         : ({ signal }) =>
             Effect.runPromise(
               fetchJson(
                 Schema.Array(OperationTaskSchema),
-                `${API_BASE}/anime/${animeId}/episodes/scan/tasks`,
+                `${API_BASE}/media/${mediaId}/units/scan/tasks`,
                 undefined,
                 signal,
               ),
             ),
-    enabled: animeId !== undefined,
+    enabled: mediaId !== undefined,
     refetchInterval: (query) => {
       const data = query.state.data;
       return data?.some((task) => isTaskActive(task)) ? 1000 : false;
@@ -213,16 +213,16 @@ export function useAnimeScanTasksQuery(animeId: number | undefined) {
 }
 
 export function animeScanTaskQueryOptions(input: {
-  readonly animeId: number;
+  readonly mediaId: number;
   readonly taskId: number;
 }) {
   return queryOptions({
-    queryKey: animeKeys.episodeScanTasks.byId(input.animeId, input.taskId),
+    queryKey: animeKeys.unitScanTasks.byId(input.mediaId, input.taskId),
     queryFn: ({ signal }) =>
       Effect.runPromise(
         fetchJson(
           OperationTaskSchema,
-          `${API_BASE}/anime/${input.animeId}/episodes/scan/tasks/${input.taskId}`,
+          `${API_BASE}/media/${input.mediaId}/units/scan/tasks/${input.taskId}`,
           undefined,
           signal,
         ),
@@ -232,27 +232,27 @@ export function animeScanTaskQueryOptions(input: {
 }
 
 export function useAnimeScanTaskQuery(input: {
-  readonly animeId?: number;
+  readonly mediaId?: number;
   readonly taskId?: number;
 }) {
   return useQuery({
     queryKey:
-      input.animeId === undefined || input.taskId === undefined
-        ? (["anime", "detail", "scan-tasks", "pending"] as const)
-        : animeKeys.episodeScanTasks.byId(input.animeId, input.taskId),
+      input.mediaId === undefined || input.taskId === undefined
+        ? (["media", "detail", "scan-tasks", "pending"] as const)
+        : animeKeys.unitScanTasks.byId(input.mediaId, input.taskId),
     queryFn:
-      input.animeId === undefined || input.taskId === undefined
+      input.mediaId === undefined || input.taskId === undefined
         ? skipToken
         : ({ signal }) =>
             Effect.runPromise(
               fetchJson(
                 OperationTaskSchema,
-                `${API_BASE}/anime/${input.animeId}/episodes/scan/tasks/${input.taskId}`,
+                `${API_BASE}/media/${input.mediaId}/units/scan/tasks/${input.taskId}`,
                 undefined,
                 signal,
               ),
             ),
-    enabled: input.animeId !== undefined && input.taskId !== undefined,
+    enabled: input.mediaId !== undefined && input.taskId !== undefined,
     refetchInterval: (query) => operationTaskPollInterval(query.state.data),
   });
 }

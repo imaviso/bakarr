@@ -10,7 +10,7 @@ import {
 
 export function formatDownloadNotificationDescription(input: {
   imported_path?: string | undefined;
-  covered_episodes?: number[] | undefined;
+  covered_units?: number[] | undefined;
   is_batch?: boolean | undefined;
   source_metadata?: DownloadSourceMetadata | undefined;
 }) {
@@ -21,7 +21,7 @@ export function formatDownloadNotificationDescription(input: {
     source_metadata: input.source_metadata,
   });
   const decisionSummary = formatDownloadDecisionSummary({
-    covered_episodes: input.covered_episodes,
+    covered_units: input.covered_units,
     decision_reason: input.source_metadata?.decision_reason,
     is_batch: input.is_batch,
     source_metadata: input.source_metadata,

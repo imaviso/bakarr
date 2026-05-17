@@ -18,7 +18,7 @@ describe("parseVolumeNumbersFromTitle", () => {
     assert.deepStrictEqual(parseVolumeNumbersFromTitle("Title Volume 12 [v2]"), [12]);
   });
 
-  it("does not treat anime episode labels as volumes", () => {
+  it("does not treat media episode labels as volumes", () => {
     assert.deepStrictEqual(parseVolumeNumbersFromTitle("Title - 07 [1080p]"), []);
     assert.deepStrictEqual(parseVolumeNumbersFromTitle("Title S01E07"), []);
   });

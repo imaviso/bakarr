@@ -1,24 +1,24 @@
-import type { AnimeSearchResult, ScannedFile } from "@packages/shared/index.ts";
-import { scoreAnimeSearchResultMatch } from "@/domain/anime/derivations.ts";
+import type { MediaSearchResult, ScannedFile } from "@packages/shared/index.ts";
+import { scoreAnimeSearchResultMatch } from "@/domain/media/derivations.ts";
 import { titlesMatch } from "@/features/operations/library/library-import-analysis-support.ts";
 
 export function enrichedEpisodeNumbers(
-  files: readonly Pick<ScannedFile, "episode_number" | "episode_numbers">[],
+  files: readonly Pick<ScannedFile, "unit_number" | "unit_numbers">[],
 ) {
   return files.flatMap((file) => {
-    if (file.episode_numbers?.length) {
-      return file.episode_numbers;
+    if (file.unit_numbers?.length) {
+      return file.unit_numbers;
     }
 
-    return file.episode_number > 0 ? [file.episode_number] : [];
+    return file.unit_number > 0 ? [file.unit_number] : [];
   });
 }
 
 export function findBestRemoteCandidate(
   parsedTitle: string,
-  candidates: readonly AnimeSearchResult[],
+  candidates: readonly MediaSearchResult[],
 ) {
-  let bestCandidate: AnimeSearchResult | undefined;
+  let bestCandidate: MediaSearchResult | undefined;
   let bestScore = 0;
 
   for (const candidate of candidates) {

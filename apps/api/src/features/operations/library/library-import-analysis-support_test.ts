@@ -1,7 +1,7 @@
 import { assert, it } from "@effect/vitest";
-import { brandAnimeId } from "@packages/shared/index.ts";
+import { brandMediaId } from "@packages/shared/index.ts";
 
-import { anime } from "@/db/schema.ts";
+import { media } from "@/db/schema.ts";
 import {
   analyzeScannedFile,
   findBestLocalAnimeMatch,
@@ -9,10 +9,10 @@ import {
   titlesMatch,
 } from "@/features/operations/library/library-import-analysis-support.ts";
 
-type AnimeRow = typeof anime.$inferSelect;
+type MediaRow = typeof media.$inferSelect;
 
-function animeRow(input: Pick<AnimeRow, "id" | "titleRomaji"> & Partial<AnimeRow>): AnimeRow {
-  const row: AnimeRow = {
+function animeRow(input: Pick<MediaRow, "id" | "titleRomaji"> & Partial<MediaRow>): MediaRow {
+  const row: MediaRow = {
     addedAt: "2025-01-01T00:00:00.000Z",
     bannerImage: null,
     background: null,
@@ -21,7 +21,7 @@ function animeRow(input: Pick<AnimeRow, "id" | "titleRomaji"> & Partial<AnimeRow
     duration: null,
     endDate: null,
     endYear: null,
-    episodeCount: null,
+    unitCount: null,
     favorites: null,
     format: "TV",
     genres: "[]",
@@ -31,13 +31,13 @@ function animeRow(input: Pick<AnimeRow, "id" | "titleRomaji"> & Partial<AnimeRow
     members: null,
     monitored: true,
     nextAiringAt: null,
-    nextAiringEpisode: null,
+    nextAiringUnit: null,
     popularity: null,
     profileName: "Default",
     rank: null,
     rating: null,
-    recommendedAnime: null,
-    relatedAnime: null,
+    recommendedMedia: null,
+    relatedMedia: null,
     releaseProfileIds: "[]",
     rootFolder: `/library/${input.titleRomaji}`,
     score: null,
@@ -75,8 +75,8 @@ it("analyzeScannedFile maps archive volume labels to import unit numbers", () =>
     path: "/library/Witch Hat Atelier Vol. 07.cbz",
   });
 
-  assert.deepStrictEqual(result.scanned.episode_number, 7);
-  assert.deepStrictEqual(result.scanned.episode_numbers, [7]);
+  assert.deepStrictEqual(result.scanned.unit_number, 7);
+  assert.deepStrictEqual(result.scanned.unit_numbers, [7]);
   assert.deepStrictEqual(result.scanned.parsed_title, "Witch Hat Atelier");
   assert.deepStrictEqual(result.scanned.needs_manual_mapping, undefined);
 });
@@ -91,11 +91,11 @@ it("scoreAnimeRowMatch and titlesMatch share normalized title scoring", () => {
   );
   assert.deepStrictEqual(
     titlesMatch("Dungeon Meshi", {
-      id: brandAnimeId(1),
+      id: brandMediaId(1),
       already_in_library: false,
       cover_image: undefined,
       description: undefined,
-      episode_count: undefined,
+      unit_count: undefined,
       format: "TV",
       start_date: undefined,
       status: "FINISHED",

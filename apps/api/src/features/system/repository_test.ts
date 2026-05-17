@@ -1,15 +1,15 @@
 import { assert, it } from "@effect/vitest";
 import { Cause, Effect, Exit, Schema } from "effect";
-import { brandAnimeId } from "@packages/shared/index.ts";
+import { brandMediaId } from "@packages/shared/index.ts";
 import { ConfigCoreSchema } from "@/features/system/config-schema.ts";
 
 import * as schema from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import {
-  anime,
+  media,
   backgroundJobs,
   downloads,
-  episodes,
+  mediaUnits,
   rssFeeds,
   systemLogs,
   unmappedFolderMatches,
@@ -106,7 +106,7 @@ it.scoped("system repository query helpers filter logs and count system state", 
           ]),
         );
         yield* Effect.promise(() =>
-          db.insert(anime).values({
+          db.insert(media).values({
             id: 20,
             malId: null,
             titleRomaji: "Naruto",
@@ -120,13 +120,13 @@ it.scoped("system repository query helpers filter logs and count system state", 
             coverImage: null,
             bannerImage: null,
             status: "RELEASING",
-            episodeCount: 2,
+            unitCount: 2,
             startDate: null,
             endDate: null,
             startYear: null,
             endYear: null,
             nextAiringAt: null,
-            nextAiringEpisode: null,
+            nextAiringUnit: null,
             profileName: "Default",
             rootFolder: "/library/Naruto",
             addedAt: "2024-01-01T00:00:00.000Z",
@@ -135,9 +135,9 @@ it.scoped("system repository query helpers filter logs and count system state", 
           }),
         );
         yield* Effect.promise(() =>
-          db.insert(episodes).values([
+          db.insert(mediaUnits).values([
             {
-              animeId: 20,
+              mediaId: 20,
               number: 1,
               title: null,
               aired: null,
@@ -145,7 +145,7 @@ it.scoped("system repository query helpers filter logs and count system state", 
               filePath: "/library/Naruto/01.mkv",
             },
             {
-              animeId: 20,
+              mediaId: 20,
               number: 2,
               title: null,
               aired: null,
@@ -157,11 +157,11 @@ it.scoped("system repository query helpers filter logs and count system state", 
         yield* Effect.promise(() =>
           db.insert(downloads).values([
             {
-              animeId: 20,
-              animeTitle: "Naruto",
-              episodeNumber: 1,
+              mediaId: 20,
+              mediaTitle: "Naruto",
+              unitNumber: 1,
               isBatch: false,
-              coveredEpisodes: null,
+              coveredUnits: null,
               torrentName: "Naruto - 01",
               status: "queued",
               progress: null,
@@ -185,11 +185,11 @@ it.scoped("system repository query helpers filter logs and count system state", 
               reconciledAt: null,
             },
             {
-              animeId: 20,
-              animeTitle: "Naruto",
-              episodeNumber: 2,
+              mediaId: 20,
+              mediaTitle: "Naruto",
+              unitNumber: 2,
               isBatch: false,
-              coveredEpisodes: null,
+              coveredUnits: null,
               torrentName: "Naruto - 02",
               status: "paused",
               progress: null,
@@ -213,11 +213,11 @@ it.scoped("system repository query helpers filter logs and count system state", 
               reconciledAt: null,
             },
             {
-              animeId: 20,
-              animeTitle: "Naruto",
-              episodeNumber: 3,
+              mediaId: 20,
+              mediaTitle: "Naruto",
+              unitNumber: 3,
               isBatch: false,
-              coveredEpisodes: null,
+              coveredUnits: null,
               torrentName: "Naruto - 03",
               status: "error",
               progress: null,
@@ -241,11 +241,11 @@ it.scoped("system repository query helpers filter logs and count system state", 
               reconciledAt: null,
             },
             {
-              animeId: 20,
-              animeTitle: "Naruto",
-              episodeNumber: 4,
+              mediaId: 20,
+              mediaTitle: "Naruto",
+              unitNumber: 4,
               isBatch: false,
-              coveredEpisodes: null,
+              coveredUnits: null,
               torrentName: "Naruto - 04",
               status: "completed",
               progress: null,
@@ -269,11 +269,11 @@ it.scoped("system repository query helpers filter logs and count system state", 
               reconciledAt: null,
             },
             {
-              animeId: 20,
-              animeTitle: "Naruto",
-              episodeNumber: 5,
+              mediaId: 20,
+              mediaTitle: "Naruto",
+              unitNumber: 5,
               isBatch: false,
-              coveredEpisodes: null,
+              coveredUnits: null,
               torrentName: "Naruto - 05",
               status: "imported",
               progress: null,
@@ -322,7 +322,7 @@ it.scoped("system repository query helpers filter logs and count system state", 
         );
         yield* Effect.promise(() =>
           db.insert(rssFeeds).values({
-            animeId: 20,
+            mediaId: 20,
             url: "https://example.com/rss.xml",
             name: null,
             lastChecked: null,
@@ -372,12 +372,12 @@ it.scoped("system repository query helpers filter logs and count system state", 
   }),
 );
 
-it.scoped("countUpToDateAnimeRows counts monitored anime with complete downloads", () =>
+it.scoped("countUpToDateAnimeRows counts monitored media with complete downloads", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         yield* Effect.promise(() =>
-          db.insert(anime).values([
+          db.insert(media).values([
             {
               addedAt: "2024-01-01T00:00:00.000Z",
               bannerImage: null,
@@ -385,16 +385,16 @@ it.scoped("countUpToDateAnimeRows counts monitored anime with complete downloads
               description: null,
               endDate: null,
               endYear: null,
-              episodeCount: 2,
+              unitCount: 2,
               format: "TV",
               genres: "[]",
               id: 21,
               malId: null,
               monitored: true,
               nextAiringAt: null,
-              nextAiringEpisode: null,
+              nextAiringUnit: null,
               profileName: "Default",
-              recommendedAnime: null,
+              recommendedMedia: null,
               releaseProfileIds: "[]",
               rootFolder: "/library/Full",
               score: null,
@@ -414,16 +414,16 @@ it.scoped("countUpToDateAnimeRows counts monitored anime with complete downloads
               description: null,
               endDate: null,
               endYear: null,
-              episodeCount: 2,
+              unitCount: 2,
               format: "TV",
               genres: "[]",
               id: 22,
               malId: null,
               monitored: false,
               nextAiringAt: null,
-              nextAiringEpisode: null,
+              nextAiringUnit: null,
               profileName: "Default",
-              recommendedAnime: null,
+              recommendedMedia: null,
               releaseProfileIds: "[]",
               rootFolder: "/library/Partial",
               score: null,
@@ -443,16 +443,16 @@ it.scoped("countUpToDateAnimeRows counts monitored anime with complete downloads
               description: null,
               endDate: null,
               endYear: null,
-              episodeCount: 2,
+              unitCount: 2,
               format: "TV",
               genres: "[]",
               id: 23,
               malId: null,
               monitored: true,
               nextAiringAt: null,
-              nextAiringEpisode: null,
+              nextAiringUnit: null,
               profileName: "Default",
-              recommendedAnime: null,
+              recommendedMedia: null,
               releaseProfileIds: "[]",
               rootFolder: "/library/MonitoredPartial",
               score: null,
@@ -468,9 +468,9 @@ it.scoped("countUpToDateAnimeRows counts monitored anime with complete downloads
           ]),
         );
         yield* Effect.promise(() =>
-          db.insert(episodes).values([
+          db.insert(mediaUnits).values([
             {
-              animeId: 21,
+              mediaId: 21,
               aired: null,
               audioChannels: null,
               audioCodec: null,
@@ -486,7 +486,7 @@ it.scoped("countUpToDateAnimeRows counts monitored anime with complete downloads
               videoCodec: null,
             },
             {
-              animeId: 21,
+              mediaId: 21,
               aired: null,
               audioChannels: null,
               audioCodec: null,
@@ -502,7 +502,7 @@ it.scoped("countUpToDateAnimeRows counts monitored anime with complete downloads
               videoCodec: null,
             },
             {
-              animeId: 22,
+              mediaId: 22,
               aired: null,
               audioChannels: null,
               audioCodec: null,
@@ -518,7 +518,7 @@ it.scoped("countUpToDateAnimeRows counts monitored anime with complete downloads
               videoCodec: null,
             },
             {
-              animeId: 22,
+              mediaId: 22,
               aired: null,
               audioChannels: null,
               audioCodec: null,
@@ -534,7 +534,7 @@ it.scoped("countUpToDateAnimeRows counts monitored anime with complete downloads
               videoCodec: null,
             },
             {
-              animeId: 22,
+              mediaId: 22,
               aired: null,
               audioChannels: null,
               audioCodec: null,
@@ -550,7 +550,7 @@ it.scoped("countUpToDateAnimeRows counts monitored anime with complete downloads
               videoCodec: null,
             },
             {
-              animeId: 23,
+              mediaId: 23,
               aired: null,
               audioChannels: null,
               audioCodec: null,
@@ -566,7 +566,7 @@ it.scoped("countUpToDateAnimeRows counts monitored anime with complete downloads
               videoCodec: null,
             },
             {
-              animeId: 23,
+              mediaId: 23,
               aired: null,
               audioChannels: null,
               audioCodec: null,
@@ -606,7 +606,7 @@ it.scoped("unmapped folder match rows persist cached suggestions", () =>
               suggested_matches: [
                 {
                   already_in_library: true,
-                  id: brandAnimeId(20),
+                  id: brandMediaId(20),
                   match_confidence: 0.97,
                   match_reason:
                     'Matched a library title from the normalized folder name "Naruto Archive"',

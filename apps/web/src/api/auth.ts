@@ -98,7 +98,7 @@ export function renamePreviewQueryOptions(id: number) {
       runApiEffect(
         fetchJson(
           Schema.Array(RenamePreviewItemSchema),
-          `${API_BASE}/anime/${id}/rename-preview`,
+          `${API_BASE}/media/${id}/rename-preview`,
           undefined,
           signal,
         ),
@@ -115,11 +115,11 @@ export function useRenamePreviewQuery(id: number, options?: { enabled?: boolean 
 
 export function useAnimeEpisodeStreamUrlMutation() {
   return useMutation({
-    mutationFn: (input: { animeId: number; episodeNumber: number }) =>
+    mutationFn: (input: { mediaId: number; unitNumber: number }) =>
       runApiEffect(
         fetchJson(
           AnimeEpisodeStreamUrlSchema,
-          `${API_BASE}/anime/${input.animeId}/stream-url?episodeNumber=${input.episodeNumber}`,
+          `${API_BASE}/media/${input.mediaId}/stream-url?unitNumber=${input.unitNumber}`,
         ),
       ),
   });
@@ -130,12 +130,12 @@ export function useExecuteRenameMutation() {
   return useMutation({
     mutationFn: (id: number) =>
       runApiEffect(
-        fetchJson(RenameResultSchema, `${API_BASE}/anime/${id}/rename`, {
+        fetchJson(RenameResultSchema, `${API_BASE}/media/${id}/rename`, {
           method: "POST",
         }),
       ),
     onSuccess: (_, id) => {
-      void queryClient.invalidateQueries({ queryKey: animeKeys.episodes(id) });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.units(id) });
       void queryClient.invalidateQueries({ queryKey: animeKeys.detail(id) });
     },
   });

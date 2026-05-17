@@ -112,10 +112,10 @@ export function useImportUnmappedFolderMutation() {
       void queryClient.invalidateQueries({ queryKey: animeKeys.library.unmapped() });
       void queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
       void queryClient.invalidateQueries({
-        queryKey: animeKeys.detail(variables.anime_id),
+        queryKey: animeKeys.detail(variables.media_id),
       });
       void queryClient.invalidateQueries({
-        queryKey: animeKeys.episodes(variables.anime_id),
+        queryKey: animeKeys.units(variables.media_id),
       });
       void queryClient.invalidateQueries({ queryKey: animeKeys.system.status() });
     },
@@ -124,7 +124,7 @@ export function useImportUnmappedFolderMutation() {
 
 export function useScanImportPathMutation() {
   return useMutation({
-    mutationFn: (data: { path: string; anime_id?: number }) =>
+    mutationFn: (data: { path: string; media_id?: number }) =>
       Effect.runPromise(
         fetchJson(ScanResultSchema, `${API_BASE}/library/import/scan`, {
           method: "POST",

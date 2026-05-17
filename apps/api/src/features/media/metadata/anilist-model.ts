@@ -1,0 +1,604 @@
+import { Schema } from "effect";
+
+import {
+  MediaDiscoveryEntrySchema,
+  MediaSearchResultSchema,
+  brandMediaId,
+  type MediaDiscoveryEntry,
+  type MediaKind,
+} from "@packages/shared/index.ts";
+import { deriveAnimeSeason } from "@/domain/media/date-utils.ts";
+
+const AnimeMetadataTitleSchema = Schema.Struct({
+  english: Schema.optional(Schema.String),
+  native: Schema.optional(Schema.String),
+  romaji: Schema.String,
+});
+
+const AnimeDateStringSchema = Schema.String.pipe(
+  Schema.pattern(/^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?)?$/),
+);
+const AnimePositiveIntSchema = Schema.Number.pipe(Schema.int(), Schema.positive());
+const AnimeNonNegativeIntSchema = Schema.Number.pipe(Schema.int(), Schema.nonNegative());
+const AnimeScoreSchema = Schema.Number.pipe(Schema.between(0, 100));
+
+const AnimeMetadataAiringScheduleItemSchema = Schema.Struct({
+  airingAt: AnimeDateStringSchema,
+  episode: AnimePositiveIntSchema,
+});
+
+export const AnimeMetadataEpisodeSchema = Schema.Struct({
+  aired: Schema.optional(AnimeDateStringSchema),
+  durationSeconds: Schema.optional(AnimePositiveIntSchema),
+  number: AnimePositiveIntSchema,
+  title: Schema.optional(Schema.String),
+});
+
+export const AnimeMetadataSchema = Schema.Struct({
+  background: Schema.optional(Schema.String),
+  bannerImage: Schema.optional(Schema.String),
+  coverImage: Schema.optional(Schema.String),
+  description: Schema.optional(Schema.String),
+  duration: Schema.optional(Schema.String),
+  endDate: Schema.optional(AnimeDateStringSchema),
+  endYear: Schema.optional(AnimeNonNegativeIntSchema),
+  mediaUnits: Schema.optional(Schema.Array(AnimeMetadataEpisodeSchema)),
+  unitCount: Schema.optional(AnimeNonNegativeIntSchema),
+  favorites: Schema.optional(AnimeNonNegativeIntSchema),
+  format: Schema.String,
+  futureAiringSchedule: Schema.optional(Schema.Array(AnimeMetadataAiringScheduleItemSchema)),
+  genres: Schema.optional(Schema.Array(Schema.String)),
+  id: AnimePositiveIntSchema,
+  malId: Schema.optional(AnimePositiveIntSchema),
+  members: Schema.optional(AnimeNonNegativeIntSchema),
+  nextAiringUnit: Schema.optional(AnimeMetadataAiringScheduleItemSchema),
+  popularity: Schema.optional(AnimePositiveIntSchema),
+  rank: Schema.optional(AnimePositiveIntSchema),
+  rating: Schema.optional(Schema.String),
+  recommendedMedia: Schema.optional(Schema.Array(MediaDiscoveryEntrySchema)),
+  relatedMedia: Schema.optional(Schema.Array(MediaDiscoveryEntrySchema)),
+  score: Schema.optional(AnimeScoreSchema),
+  source: Schema.optional(Schema.String),
+  startDate: Schema.optional(AnimeDateStringSchema),
+  startYear: Schema.optional(AnimeNonNegativeIntSchema),
+  status: Schema.String,
+  studios: Schema.optional(Schema.Array(Schema.String)),
+  synonyms: Schema.optional(Schema.Array(Schema.String)),
+  title: AnimeMetadataTitleSchema,
+});
+
+export type AnimeMetadata = Schema.Schema.Type<typeof AnimeMetadataSchema>;
+export type AnimeMetadataEpisode = Schema.Schema.Type<typeof AnimeMetadataEpisodeSchema>;
+
+const AniListTitleSchema = Schema.Struct({
+  english: Schema.optional(Schema.NullOr(Schema.String)),
+  native: Schema.optional(Schema.NullOr(Schema.String)),
+  romaji: Schema.optional(Schema.NullOr(Schema.String)),
+});
+
+const AniListDateSchema = Schema.Struct({
+  day: Schema.optional(Schema.NullOr(Schema.Number)),
+  month: Schema.optional(Schema.NullOr(Schema.Number)),
+  year: Schema.optional(Schema.NullOr(Schema.Number)),
+});
+
+const AniListCoverImageSchema = Schema.Struct({
+  extraLarge: Schema.optional(Schema.NullOr(Schema.String)),
+  large: Schema.optional(Schema.NullOr(Schema.String)),
+});
+
+const AniListRelationNodeSchema = Schema.Struct({
+  averageScore: Schema.optional(Schema.NullOr(Schema.Number)),
+  coverImage: Schema.optional(AniListCoverImageSchema),
+  format: Schema.optional(Schema.NullOr(Schema.String)),
+  id: Schema.Number,
+  startDate: Schema.optional(AniListDateSchema),
+  status: Schema.optional(Schema.NullOr(Schema.String)),
+  title: Schema.optional(AniListTitleSchema),
+});
+
+const AniListRelationEdgeSchema = Schema.Struct({
+  node: Schema.optional(Schema.NullOr(AniListRelationNodeSchema)),
+  relationType: Schema.optional(Schema.NullOr(Schema.String)),
+});
+
+const AniListRelationConnectionSchema = Schema.Struct({
+  edges: Schema.Array(AniListRelationEdgeSchema),
+});
+
+const AniListRecommendationNodeSchema = Schema.Struct({
+  mediaRecommendation: Schema.optional(Schema.NullOr(AniListRelationNodeSchema)),
+});
+
+const AniListRecommendationConnectionSchema = Schema.Struct({
+  nodes: Schema.Array(AniListRecommendationNodeSchema),
+});
+
+const AniListStudioNodeSchema = Schema.Struct({
+  name: Schema.optional(Schema.NullOr(Schema.String)),
+});
+
+const AniListStudioConnectionSchema = Schema.Struct({
+  nodes: Schema.Array(AniListStudioNodeSchema),
+});
+
+const AniListRankingSchema = Schema.Struct({
+  allTime: Schema.optional(Schema.NullOr(Schema.Boolean)),
+  rank: Schema.optional(Schema.NullOr(Schema.Number)),
+  type: Schema.optional(Schema.NullOr(Schema.String)),
+});
+
+const AniListSearchMediaSchema = Schema.Struct({
+  bannerImage: Schema.optional(Schema.NullOr(Schema.String)),
+  coverImage: Schema.optional(AniListCoverImageSchema),
+  description: Schema.optional(Schema.NullOr(Schema.String)),
+  duration: Schema.optional(Schema.NullOr(Schema.Number)),
+  endDate: Schema.optional(AniListDateSchema),
+  episodes: Schema.optional(Schema.NullOr(Schema.Number)),
+  chapters: Schema.optional(Schema.NullOr(Schema.Number)),
+  favourites: Schema.optional(Schema.NullOr(Schema.Number)),
+  format: Schema.optional(Schema.NullOr(Schema.String)),
+  genres: Schema.optional(Schema.Array(Schema.String)),
+  id: Schema.Number,
+  popularity: Schema.optional(Schema.NullOr(Schema.Number)),
+  rankings: Schema.optional(Schema.Array(AniListRankingSchema)),
+  relations: Schema.optional(AniListRelationConnectionSchema),
+  recommendations: Schema.optional(AniListRecommendationConnectionSchema),
+  source: Schema.optional(Schema.NullOr(Schema.String)),
+  startDate: Schema.optional(AniListDateSchema),
+  status: Schema.optional(Schema.NullOr(Schema.String)),
+  synonyms: Schema.optional(Schema.Array(Schema.String)),
+  title: Schema.optional(AniListTitleSchema),
+  volumes: Schema.optional(Schema.NullOr(Schema.Number)),
+});
+
+const AniListAiringScheduleSchema = Schema.Struct({
+  airingAt: Schema.Number,
+  episode: Schema.Number,
+});
+
+const AniListAiringConnectionSchema = Schema.Struct({
+  nodes: Schema.Array(AniListAiringScheduleSchema),
+});
+
+const AniListSearchPageSchema = Schema.Struct({
+  media: Schema.Array(AniListSearchMediaSchema),
+  pageInfo: Schema.optional(
+    Schema.Struct({
+      hasNextPage: Schema.optional(Schema.NullOr(Schema.Boolean)),
+    }),
+  ),
+});
+
+const AniListSearchDataSchema = Schema.Struct({
+  Page: AniListSearchPageSchema,
+});
+
+export const AniListSearchPayloadSchema = Schema.Struct({
+  data: AniListSearchDataSchema,
+});
+
+export const AniListSeasonalPayloadSchema = Schema.Struct({
+  data: AniListSearchDataSchema,
+});
+
+type AniListDateInput = {
+  readonly day?: number | null | undefined;
+  readonly month?: number | null | undefined;
+  readonly year?: number | null | undefined;
+};
+
+type AniListDiscoveryNodeInput = {
+  readonly averageScore?: number | null | undefined;
+  readonly coverImage?:
+    | {
+        readonly extraLarge?: string | null | undefined;
+        readonly large?: string | null | undefined;
+      }
+    | undefined;
+  readonly format?: string | null | undefined;
+  readonly id: number;
+  readonly startDate?: AniListDateInput | undefined;
+  readonly status?: string | null | undefined;
+  readonly title?:
+    | {
+        readonly english?: string | null | undefined;
+        readonly native?: string | null | undefined;
+        readonly romaji?: string | null | undefined;
+      }
+    | undefined;
+};
+
+const AniListDetailMediaSchema = Schema.Struct({
+  airingSchedule: Schema.optional(Schema.NullOr(AniListAiringConnectionSchema)),
+  averageScore: Schema.optional(Schema.NullOr(Schema.Number)),
+  bannerImage: Schema.optional(Schema.NullOr(Schema.String)),
+  coverImage: Schema.optional(AniListCoverImageSchema),
+  description: Schema.optional(Schema.NullOr(Schema.String)),
+  duration: Schema.optional(Schema.NullOr(Schema.Number)),
+  endDate: Schema.optional(AniListDateSchema),
+  episodes: Schema.optional(Schema.NullOr(Schema.Number)),
+  chapters: Schema.optional(Schema.NullOr(Schema.Number)),
+  favourites: Schema.optional(Schema.NullOr(Schema.Number)),
+  format: Schema.optional(Schema.NullOr(Schema.String)),
+  genres: Schema.optional(Schema.Array(Schema.String)),
+  id: Schema.Number,
+  idMal: Schema.optional(Schema.NullOr(Schema.Number)),
+  nextAiringEpisode: Schema.optional(Schema.NullOr(AniListAiringScheduleSchema)),
+  popularity: Schema.optional(Schema.NullOr(Schema.Number)),
+  rankings: Schema.optional(Schema.Array(AniListRankingSchema)),
+  recommendations: Schema.optional(AniListRecommendationConnectionSchema),
+  relations: Schema.optional(AniListRelationConnectionSchema),
+  source: Schema.optional(Schema.NullOr(Schema.String)),
+  startDate: Schema.optional(AniListDateSchema),
+  status: Schema.optional(Schema.NullOr(Schema.String)),
+  studios: Schema.optional(AniListStudioConnectionSchema),
+  synonyms: Schema.optional(Schema.Array(Schema.String)),
+  title: Schema.optional(AniListTitleSchema),
+  volumes: Schema.optional(Schema.NullOr(Schema.Number)),
+});
+
+const AniListDetailDataSchema = Schema.Struct({
+  Media: Schema.optional(Schema.NullOr(AniListDetailMediaSchema)),
+});
+
+export const AniListDetailPayloadSchema = Schema.Struct({
+  data: AniListDetailDataSchema,
+});
+
+export const AnimeSearchResultFromAniListSchema = Schema.transform(
+  AniListSearchMediaSchema,
+  MediaSearchResultSchema,
+  {
+    decode: (entry) => ({
+      already_in_library: false,
+      banner_image: entry.bannerImage ?? undefined,
+      cover_image: entry.coverImage?.extraLarge ?? entry.coverImage?.large ?? undefined,
+      description: entry.description ?? undefined,
+      duration: normalizeDuration(entry.duration),
+      end_date: toIsoDate(entry.endDate),
+      end_year: entry.endDate?.year ?? undefined,
+      unit_count: entry.episodes ?? undefined,
+      favorites: entry.favourites ?? undefined,
+      format: entry.format ?? undefined,
+      genres: entry.genres ? [...entry.genres] : undefined,
+      id: entry.id,
+      media_kind: toMediaKind(entry.format),
+      members: entry.popularity ?? undefined,
+      popularity: pickAniListRanking(entry.rankings, "POPULAR"),
+      rank: pickAniListRanking(entry.rankings, "RATED"),
+      rating: undefined,
+      recommended_media: normalizeRecommendations(entry.recommendations?.nodes),
+      related_media: normalizeDiscoveryEntries(entry.relations?.edges),
+      season: deriveAnimeSeason(toIsoDate(entry.startDate)),
+      season_year: entry.startDate?.year ?? undefined,
+      source: entry.source ?? undefined,
+      start_date: toIsoDate(entry.startDate),
+      start_year: entry.startDate?.year ?? undefined,
+      status: entry.status ?? undefined,
+      synonyms: normalizeSynonyms(entry.synonyms),
+      volume_count: entry.volumes ?? undefined,
+      chapter_count: entry.chapters ?? undefined,
+      title: {
+        english: entry.title?.english ?? undefined,
+        native: entry.title?.native ?? undefined,
+        romaji: entry.title?.romaji ?? undefined,
+      },
+    }),
+    encode: (entry) => ({
+      bannerImage: entry.banner_image,
+      coverImage: entry.cover_image
+        ? { extraLarge: entry.cover_image, large: entry.cover_image }
+        : undefined,
+      description: entry.description,
+      duration: parseDurationMinutes(entry.duration),
+      endDate: undefined,
+      episodes: entry.unit_count,
+      favourites: entry.favorites,
+      format: entry.format,
+      genres: entry.genres,
+      id: entry.id,
+      popularity: entry.members ?? entry.popularity,
+      rankings: undefined,
+      recommendations: undefined,
+      relations: undefined,
+      source: entry.source,
+      startDate: undefined,
+      status: entry.status,
+      synonyms: entry.synonyms,
+      title: {
+        english: entry.title.english,
+        native: entry.title.native,
+        romaji: entry.title.romaji,
+      },
+    }),
+  },
+);
+
+export const AnimeMetadataFromAniListSchema = Schema.transform(
+  AniListDetailMediaSchema,
+  AnimeMetadataSchema,
+  {
+    decode: (media) => ({
+      background: undefined,
+      bannerImage: media.bannerImage ?? undefined,
+      coverImage: media.coverImage?.extraLarge ?? media.coverImage?.large ?? undefined,
+      description: media.description ?? undefined,
+      duration: normalizeDuration(media.duration),
+      endDate: toIsoDate(media.endDate),
+      endYear: media.endDate?.year ?? undefined,
+      unitCount: media.episodes ?? media.volumes ?? undefined,
+      favorites: media.favourites ?? undefined,
+      format: media.format ?? "TV",
+      futureAiringSchedule: normalizeFutureAiringSchedule(
+        media.airingSchedule?.nodes,
+        media.nextAiringEpisode ?? undefined,
+      ),
+      genres: [...(media.genres ?? [])],
+      id: media.id,
+      malId: media.idMal ?? undefined,
+      members: media.popularity ?? undefined,
+      nextAiringUnit: toNextAiringEpisode(media.nextAiringEpisode),
+      popularity: pickAniListRanking(media.rankings, "POPULAR"),
+      rank: pickAniListRanking(media.rankings, "RATED"),
+      rating: undefined,
+      recommendedMedia: normalizeRecommendations(media.recommendations?.nodes),
+      relatedMedia: normalizeDiscoveryEntries(media.relations?.edges),
+      score: media.averageScore ?? undefined,
+      source: media.source ?? undefined,
+      startDate: toIsoDate(media.startDate),
+      startYear: media.startDate?.year ?? undefined,
+      status: media.status ?? "UNKNOWN",
+      studios: Array.isArray(media.studios?.nodes)
+        ? media.studios.nodes
+            .map((entry) => entry.name)
+            .filter((name): name is string => typeof name === "string" && name.length > 0)
+        : [],
+      synonyms: normalizeSynonyms(media.synonyms),
+      title: {
+        english: media.title?.english ?? undefined,
+        native: media.title?.native ?? undefined,
+        romaji: media.title?.romaji ?? `Media ${media.id}`,
+      },
+    }),
+    encode: (metadata) => ({
+      airingSchedule: undefined,
+      averageScore: metadata.score,
+      bannerImage: metadata.bannerImage,
+      coverImage: metadata.coverImage
+        ? { extraLarge: metadata.coverImage, large: metadata.coverImage }
+        : undefined,
+      description: metadata.description,
+      duration: parseDurationMinutes(metadata.duration),
+      endDate: undefined,
+      episodes: metadata.unitCount,
+      favourites: metadata.favorites,
+      format: metadata.format,
+      genres: metadata.genres,
+      id: metadata.id,
+      idMal: metadata.malId,
+      nextAiringEpisode: undefined,
+      popularity: metadata.members ?? metadata.popularity,
+      rankings: undefined,
+      recommendations: undefined,
+      relations: undefined,
+      source: metadata.source,
+      startDate: undefined,
+      status: metadata.status,
+      studios: undefined,
+      synonyms: metadata.synonyms,
+      title: {
+        english: metadata.title.english,
+        native: metadata.title.native,
+        romaji: metadata.title.romaji,
+      },
+    }),
+  },
+);
+
+function toMediaKind(format: string | null | undefined): MediaKind {
+  if (format === "NOVEL") {
+    return "light_novel";
+  }
+
+  if (format === "MANGA" || format === "ONE_SHOT") {
+    return "manga";
+  }
+
+  return "anime";
+}
+
+function pickAniListRanking(
+  rankings:
+    | ReadonlyArray<{
+        readonly allTime?: boolean | null | undefined;
+        readonly rank?: number | null | undefined;
+        readonly type?: string | null | undefined;
+      }>
+    | undefined,
+  type: "POPULAR" | "RATED",
+) {
+  if (!Array.isArray(rankings) || rankings.length === 0) {
+    return undefined;
+  }
+
+  for (const ranking of rankings) {
+    if (ranking.type !== type || ranking.allTime === false) {
+      continue;
+    }
+
+    if (typeof ranking.rank === "number") {
+      return ranking.rank;
+    }
+  }
+
+  return undefined;
+}
+
+function normalizeDuration(durationMinutes: number | null | undefined) {
+  if (
+    durationMinutes === null ||
+    durationMinutes === undefined ||
+    !Number.isFinite(durationMinutes)
+  ) {
+    return undefined;
+  }
+
+  return `${Math.trunc(durationMinutes)} min`;
+}
+
+function parseDurationMinutes(duration: string | undefined) {
+  if (!duration) {
+    return undefined;
+  }
+
+  const match = /^(\d+)\s*min$/.exec(duration.trim());
+  const minutes = match?.[1];
+  return minutes ? Number.parseInt(minutes, 10) : undefined;
+}
+
+function toIsoDate(date?: AniListDateInput): string | undefined {
+  if (!date?.year || !date?.month) {
+    return undefined;
+  }
+
+  const day = date.day ?? 1;
+
+  return `${String(date.year).padStart(4, "0")}-${String(date.month).padStart(
+    2,
+    "0",
+  )}-${String(day).padStart(2, "0")}`;
+}
+
+function toNextAiringEpisode(airing: { airingAt: number; episode: number } | null | undefined) {
+  if (!airing) {
+    return undefined;
+  }
+
+  return {
+    airingAt: new Date(airing.airingAt * 1000).toISOString(),
+    episode: airing.episode,
+  };
+}
+
+function normalizeFutureAiringSchedule(
+  schedule: ReadonlyArray<{ airingAt: number; episode: number }> | undefined,
+  nextAiringUnit: { airingAt: number; episode: number } | undefined,
+) {
+  const merged = [
+    ...(Array.isArray(schedule) ? schedule : []),
+    ...(nextAiringUnit === undefined ? [] : [nextAiringUnit]),
+  ];
+
+  if (merged.length === 0) {
+    return [];
+  }
+
+  const dedupedByEpisode = new Map<number, number>();
+
+  for (const entry of merged) {
+    if (!Number.isFinite(entry.episode) || entry.episode <= 0 || !Number.isFinite(entry.airingAt)) {
+      continue;
+    }
+
+    const existingAiringAt = dedupedByEpisode.get(entry.episode);
+
+    if (existingAiringAt === undefined || entry.airingAt < existingAiringAt) {
+      dedupedByEpisode.set(entry.episode, entry.airingAt);
+    }
+  }
+
+  return [...dedupedByEpisode.entries()]
+    .toSorted((left, right) => left[0] - right[0])
+    .map(([episode, airingAt]) => ({
+      airingAt: new Date(airingAt * 1000).toISOString(),
+      episode,
+    }));
+}
+
+function normalizeDiscoveryEntries(
+  edges:
+    | ReadonlyArray<{
+        readonly relationType?: string | null | undefined;
+        readonly node?: AniListDiscoveryNodeInput | null | undefined;
+      }>
+    | undefined,
+) {
+  if (!Array.isArray(edges) || edges.length === 0) {
+    return [];
+  }
+
+  const seen = new Set<number>();
+
+  return edges.flatMap((edge) => {
+    const { node } = edge;
+
+    if (!node || seen.has(node.id)) {
+      return [];
+    }
+
+    seen.add(node.id);
+
+    return [toDiscoveryEntry(node, edge.relationType ?? undefined)];
+  });
+}
+
+function normalizeRecommendations(
+  nodes:
+    | ReadonlyArray<{
+        readonly mediaRecommendation?: AniListDiscoveryNodeInput | null | undefined;
+      }>
+    | undefined,
+) {
+  if (!Array.isArray(nodes) || nodes.length === 0) {
+    return [];
+  }
+
+  const seen = new Set<number>();
+
+  return nodes.flatMap((entry) => {
+    const media = entry.mediaRecommendation;
+
+    if (!media || seen.has(media.id)) {
+      return [];
+    }
+
+    seen.add(media.id);
+
+    return [toDiscoveryEntry(media)];
+  });
+}
+
+function toDiscoveryEntry(
+  node: AniListDiscoveryNodeInput,
+  relationType?: string,
+): MediaDiscoveryEntry {
+  return {
+    cover_image: node.coverImage?.extraLarge ?? node.coverImage?.large ?? undefined,
+    format: node.format ?? undefined,
+    id: brandMediaId(node.id),
+    rating: node.averageScore ?? undefined,
+    relation_type: relationType,
+    season: deriveAnimeSeason(toIsoDate(node.startDate)),
+    season_year: node.startDate?.year ?? undefined,
+    start_year: node.startDate?.year ?? undefined,
+    status: node.status ?? undefined,
+    title: {
+      english: node.title?.english ?? undefined,
+      native: node.title?.native ?? undefined,
+      romaji: node.title?.romaji ?? undefined,
+    },
+  };
+}
+
+function normalizeSynonyms(synonyms: ReadonlyArray<string> | undefined) {
+  if (!Array.isArray(synonyms) || synonyms.length === 0) {
+    return undefined;
+  }
+
+  const unique = [
+    ...new Set(synonyms.map((value) => value.trim()).filter((value) => value.length > 0)),
+  ];
+
+  return unique.length > 0 ? unique : undefined;
+}

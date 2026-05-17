@@ -10,11 +10,11 @@ import type { DatabaseError } from "@/db/database.ts";
 export interface RuntimeMetricsSummary {
   readonly active_download_items: number;
   readonly active_torrents: number;
-  readonly downloaded_episodes: number;
-  readonly missing_episodes: number;
+  readonly downloaded_units: number;
+  readonly missing_units: number;
   readonly pending_downloads: number;
-  readonly total_anime: number;
-  readonly total_episodes: number;
+  readonly total_media: number;
+  readonly total_units: number;
 }
 
 export type SystemRuntimeMetricsError = SystemReadStatusError | DatabaseError;
@@ -47,11 +47,11 @@ export const SystemRuntimeMetricsServiceLive = Layer.effect(
       return {
         active_download_items: status.pending_downloads + status.active_torrents,
         active_torrents: status.active_torrents,
-        downloaded_episodes: stats.downloaded_episodes,
-        missing_episodes: stats.missing_episodes,
+        downloaded_units: stats.downloaded_units,
+        missing_units: stats.missing_units,
         pending_downloads: status.pending_downloads,
-        total_anime: stats.total_anime,
-        total_episodes: stats.total_episodes,
+        total_media: stats.total_media,
+        total_units: stats.total_units,
       } satisfies RuntimeMetricsSummary;
     });
 
@@ -67,14 +67,14 @@ export const SystemRuntimeMetricsServiceLive = Layer.effect(
           `bakarr_active_torrents ${metricsSummary.active_torrents}`,
           "# TYPE bakarr_pending_downloads gauge",
           `bakarr_pending_downloads ${metricsSummary.pending_downloads}`,
-          "# TYPE bakarr_total_anime gauge",
-          `bakarr_total_anime ${metricsSummary.total_anime}`,
-          "# TYPE bakarr_total_episodes gauge",
-          `bakarr_total_episodes ${metricsSummary.total_episodes}`,
-          "# TYPE bakarr_downloaded_episodes gauge",
-          `bakarr_downloaded_episodes ${metricsSummary.downloaded_episodes}`,
-          "# TYPE bakarr_missing_episodes gauge",
-          `bakarr_missing_episodes ${metricsSummary.missing_episodes}`,
+          "# TYPE bakarr_total_media gauge",
+          `bakarr_total_media ${metricsSummary.total_media}`,
+          "# TYPE bakarr_total_units gauge",
+          `bakarr_total_units ${metricsSummary.total_units}`,
+          "# TYPE bakarr_downloaded_units gauge",
+          `bakarr_downloaded_units ${metricsSummary.downloaded_units}`,
+          "# TYPE bakarr_missing_units gauge",
+          `bakarr_missing_units ${metricsSummary.missing_units}`,
           "# TYPE bakarr_active_download_items gauge",
           `bakarr_active_download_items ${metricsSummary.active_download_items}`,
           ...renderBakarrPrometheusMetrics(snapshot),

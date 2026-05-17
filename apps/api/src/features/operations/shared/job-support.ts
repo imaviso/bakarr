@@ -3,7 +3,7 @@ import { Effect } from "effect";
 
 import type { DownloadSourceMetadata } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
-import { downloadEvents, downloads, episodes, systemLogs } from "@/db/schema.ts";
+import { downloadEvents, downloads, mediaUnits, systemLogs } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import {
   markJobFailed as markJobFailedBase,
@@ -37,7 +37,7 @@ export const appendLog = Effect.fn("JobSupport.appendLog")(function* (
 export const recordDownloadEvent = Effect.fn("JobSupport.recordDownloadEvent")(function* (
   db: AppDatabase,
   input: {
-    animeId?: number;
+    mediaId?: number;
     downloadId?: number;
     eventType: string;
     fromStatus?: string | null;
@@ -46,7 +46,7 @@ export const recordDownloadEvent = Effect.fn("JobSupport.recordDownloadEvent")(f
     metadata?: string | null;
     metadataJson?:
       | {
-          covered_episodes?: readonly number[];
+          covered_units?: readonly number[];
           imported_path?: string;
           source_metadata?: DownloadSourceMetadata;
         }
@@ -61,7 +61,7 @@ export const recordDownloadEvent = Effect.fn("JobSupport.recordDownloadEvent")(f
 
   yield* tryDatabasePromise("Failed to record download event", () =>
     db.insert(downloadEvents).values({
-      animeId: input.animeId ?? null,
+      mediaId: input.mediaId ?? null,
       createdAt: now,
       downloadId: input.downloadId ?? null,
       eventType: input.eventType,
@@ -127,12 +127,12 @@ export const updateJobProgress = Effect.fn("JobSupport.updateJobProgress")(funct
 });
 
 export const loadMissingEpisodeNumbers = Effect.fn("JobSupport.loadMissingEpisodeNumbers")(
-  function* (db: AppDatabase, animeId: number) {
+  function* (db: AppDatabase, mediaId: number) {
     const rows = yield* tryDatabasePromise("Failed to load missing unit numbers", () =>
       db
         .select()
-        .from(episodes)
-        .where(and(eq(episodes.animeId, animeId), eq(episodes.downloaded, false))),
+        .from(mediaUnits)
+        .where(and(eq(mediaUnits.mediaId, mediaId), eq(mediaUnits.downloaded, false))),
     );
     return rows.map((row) => row.number).toSorted((left, right) => left - right);
   },

@@ -6,7 +6,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip
 
 interface SearchDialogProps {
   trigger?: ReactNode;
-  animeId: number;
+  mediaId: number;
   defaultQuery: string;
   tooltip?: string;
 }
@@ -37,7 +37,7 @@ export function SearchDialog(props: SearchDialogProps) {
       )}
 
       <SearchDialogContent
-        animeId={props.animeId}
+        mediaId={props.mediaId}
         open={state.open}
         setOpen={state.setOpen}
         query={state.query}

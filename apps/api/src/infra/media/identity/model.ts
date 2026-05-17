@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-import type { ParsedEpisodeIdentity as SharedParsedEpisodeIdentity } from "@packages/shared/index.ts";
+import type { ParsedUnitIdentity as SharedParsedEpisodeIdentity } from "@packages/shared/index.ts";
 
 const EpisodeNumberListSchema = Schema.Array(Schema.Number);
 const AirDateListSchema = Schema.Array(Schema.String);
@@ -8,7 +8,7 @@ const AirDateListSchema = Schema.Array(Schema.String);
 export class SeasonEpisodeIdentity extends Schema.Class<SeasonEpisodeIdentity>(
   "SeasonEpisodeIdentity",
 )({
-  episode_numbers: EpisodeNumberListSchema,
+  unit_numbers: EpisodeNumberListSchema,
   label: Schema.String,
   scheme: Schema.Literal("season"),
   season: Schema.Number,
@@ -17,7 +17,7 @@ export class SeasonEpisodeIdentity extends Schema.Class<SeasonEpisodeIdentity>(
 export class AbsoluteEpisodeIdentity extends Schema.Class<AbsoluteEpisodeIdentity>(
   "AbsoluteEpisodeIdentity",
 )({
-  episode_numbers: EpisodeNumberListSchema,
+  unit_numbers: EpisodeNumberListSchema,
   label: Schema.String,
   scheme: Schema.Literal("absolute"),
 }) {}
@@ -30,26 +30,26 @@ export class DailyEpisodeIdentity extends Schema.Class<DailyEpisodeIdentity>(
   scheme: Schema.Literal("daily"),
 }) {}
 
-export const ParsedEpisodeIdentitySchema = Schema.Union(
+export const ParsedUnitIdentitySchema = Schema.Union(
   SeasonEpisodeIdentity,
   AbsoluteEpisodeIdentity,
   DailyEpisodeIdentity,
 );
 
-export type ParsedEpisodeIdentity = Schema.Schema.Type<typeof ParsedEpisodeIdentitySchema>;
+export type ParsedUnitIdentity = Schema.Schema.Type<typeof ParsedUnitIdentitySchema>;
 
 export function getEpisodeNumbersFromSourceIdentity(
-  identity?: ParsedEpisodeIdentity | SharedParsedEpisodeIdentity,
+  identity?: ParsedUnitIdentity | SharedParsedEpisodeIdentity,
 ): number[] {
   if (!identity || identity.scheme === "daily") {
     return [];
   }
 
-  return [...(identity.episode_numbers ?? [])];
+  return [...(identity.unit_numbers ?? [])];
 }
 
 export function getSourceIdentityAirDate(
-  identity?: ParsedEpisodeIdentity | SharedParsedEpisodeIdentity,
+  identity?: ParsedUnitIdentity | SharedParsedEpisodeIdentity,
 ): string | undefined {
   if (!identity || identity.scheme !== "daily") {
     return undefined;
@@ -59,13 +59,13 @@ export function getSourceIdentityAirDate(
 }
 
 export function getSourceIdentitySeason(
-  identity?: ParsedEpisodeIdentity | SharedParsedEpisodeIdentity,
+  identity?: ParsedUnitIdentity | SharedParsedEpisodeIdentity,
 ): number | undefined {
   return identity?.scheme === "season" ? identity.season : undefined;
 }
 
 export function toSharedParsedEpisodeIdentity(
-  identity?: ParsedEpisodeIdentity | SharedParsedEpisodeIdentity,
+  identity?: ParsedUnitIdentity | SharedParsedEpisodeIdentity,
 ): SharedParsedEpisodeIdentity | undefined {
   if (!identity) {
     return undefined;
@@ -74,14 +74,14 @@ export function toSharedParsedEpisodeIdentity(
   switch (identity.scheme) {
     case "season":
       return {
-        episode_numbers: [...(identity.episode_numbers ?? [])],
+        unit_numbers: [...(identity.unit_numbers ?? [])],
         label: identity.label,
         scheme: "season",
         season: identity.season,
       };
     case "absolute":
       return {
-        episode_numbers: [...(identity.episode_numbers ?? [])],
+        unit_numbers: [...(identity.unit_numbers ?? [])],
         label: identity.label,
         scheme: "absolute",
       };

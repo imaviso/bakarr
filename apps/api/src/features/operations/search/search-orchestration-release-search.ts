@@ -4,7 +4,7 @@ import type { Config, SearchResults } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { Database } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
-import { anime } from "@/db/schema.ts";
+import { media } from "@/db/schema.ts";
 import { compactLogAnnotations, errorLogAnnotations } from "@/infra/logging.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
 import { RssClient } from "@/features/operations/rss/rss-client.ts";
@@ -16,7 +16,7 @@ import {
 } from "@/features/operations/errors.ts";
 import { SeaDexClient } from "@/features/operations/search/seadex-client.ts";
 import { applySeaDexMatch } from "@/features/operations/search/seadex-matching.ts";
-import { getAnimeRowEffect as requireAnime } from "@/features/anime/shared/anime-read-repository.ts";
+import { getAnimeRowEffect as requireAnime } from "@/features/media/shared/media-read-repository.ts";
 import {
   mapSearchCategory,
   mapSearchFilter,
@@ -50,19 +50,19 @@ const AnimeSynonymsJsonSchema = Schema.parseJson(Schema.Array(Schema.String));
 
 export interface SearchReleaseServiceShape {
   readonly enrichSeaDexReleases: (
-    animeRow: typeof anime.$inferSelect,
+    animeRow: typeof media.$inferSelect,
     releases: readonly ParsedRelease[],
     config: Config,
   ) => Effect.Effect<ParsedRelease[], ExternalCallError>;
-  readonly searchEpisodeReleases: (
-    animeRow: typeof anime.$inferSelect,
-    episodeNumber: number,
+  readonly searchUnitReleases: (
+    animeRow: typeof media.$inferSelect,
+    unitNumber: number,
     config: Config,
   ) => Effect.Effect<ParsedRelease[], SearchReleaseSourceError>;
   readonly searchNyaaReleases: SearchNyaaReleases;
   readonly searchReleases: (
     query: string,
-    animeId?: number,
+    mediaId?: number,
     category?: string,
     filter?: string,
   ) => Effect.Effect<SearchResults, OperationsError | DatabaseError | RuntimeConfigSnapshotError>;
@@ -100,7 +100,7 @@ export function makeSearchReleaseSupport(input: {
   });
 
   const enrichSeaDexReleases = Effect.fn("OperationsService.enrichSeaDexReleases")(function* (
-    animeRow: typeof anime.$inferSelect,
+    animeRow: typeof media.$inferSelect,
     releases: readonly ParsedRelease[],
   ) {
     if (releases.length === 0) {
@@ -116,8 +116,8 @@ export function makeSearchReleaseSupport(input: {
         Effect.logWarning("SeaDex enrichment failed").pipe(
           Effect.annotateLogs(
             compactLogAnnotations({
-              animeId: animeRow.id,
-              animeTitle: animeRow.titleRomaji,
+              mediaId: animeRow.id,
+              mediaTitle: animeRow.titleRomaji,
               component: "operations",
               event: "operations.seadex.enrichment.failed",
               ...errorLogAnnotations(error),
@@ -134,17 +134,17 @@ export function makeSearchReleaseSupport(input: {
     return releases.map((release) => applySeaDexMatch(release, entry.value));
   });
 
-  const searchEpisodeReleases = Effect.fn("OperationsService.searchEpisodeReleases")(function* (
-    animeRow: typeof anime.$inferSelect,
-    episodeNumber: number,
+  const searchUnitReleases = Effect.fn("OperationsService.searchUnitReleases")(function* (
+    animeRow: typeof media.$inferSelect,
+    unitNumber: number,
     config: Config,
   ) {
-    yield* Effect.annotateCurrentSpan("animeId", animeRow.id);
-    yield* Effect.annotateCurrentSpan("episodeNumber", episodeNumber);
+    yield* Effect.annotateCurrentSpan("mediaId", animeRow.id);
+    yield* Effect.annotateCurrentSpan("unitNumber", unitNumber);
 
     const results = yield* collectUnitSearchReleases(
       animeRow,
-      episodeNumber,
+      unitNumber,
       config,
       searchNyaaReleases,
     );
@@ -156,15 +156,15 @@ export function makeSearchReleaseSupport(input: {
 
   const searchReleasesInternal = Effect.fn("OperationsService.searchReleasesInternal")(function* (
     query: string,
-    animeId?: number,
+    mediaId?: number,
     category?: string,
     filter?: string,
   ) {
-    if (animeId !== undefined) {
-      yield* Effect.annotateCurrentSpan("animeId", animeId);
+    if (mediaId !== undefined) {
+      yield* Effect.annotateCurrentSpan("mediaId", mediaId);
     }
 
-    const animeRow = animeId ? yield* requireAnime(db, animeId) : null;
+    const animeRow = mediaId ? yield* requireAnime(db, mediaId) : null;
     const searchQuery = (query || animeRow?.titleRomaji || "").trim();
 
     if (searchQuery.length === 0) {
@@ -199,16 +199,16 @@ export function makeSearchReleaseSupport(input: {
 
   const searchReleases = Effect.fn("OperationsService.searchReleases")(function* (
     query: string,
-    animeId?: number,
+    mediaId?: number,
     category?: string,
     filter?: string,
   ) {
-    return yield* searchReleasesInternal(query, animeId, category, filter);
+    return yield* searchReleasesInternal(query, mediaId, category, filter);
   });
 
   return {
     enrichSeaDexReleases,
-    searchEpisodeReleases,
+    searchUnitReleases,
     searchNyaaReleases,
     searchReleases,
   } satisfies SearchReleaseServiceShape;
@@ -220,21 +220,21 @@ function buildNyaaSearchUrl(query: string, category: string, filter: string) {
   )}&f=${encodeURIComponent(filter)}`;
 }
 
-function buildEpisodeSearchQueries(animeRow: typeof anime.$inferSelect, episodeNumber: number) {
-  const paddedEpisode = String(episodeNumber).padStart(2, "0");
+function buildEpisodeSearchQueries(animeRow: typeof media.$inferSelect, unitNumber: number) {
+  const paddedEpisode = String(unitNumber).padStart(2, "0");
   const seasonEpisode = `S01E${paddedEpisode}`;
   const aliases = buildAnimeSearchAliases(animeRow);
 
   return uniqueStrings(
     aliases.flatMap((alias) => [
       `${alias} ${paddedEpisode}`,
-      `${alias} ${episodeNumber}`,
+      `${alias} ${unitNumber}`,
       `${alias} ${seasonEpisode}`,
     ]),
   );
 }
 
-function buildVolumeSearchQueries(animeRow: typeof anime.$inferSelect, volumeNumber: number) {
+function buildVolumeSearchQueries(animeRow: typeof media.$inferSelect, volumeNumber: number) {
   const paddedVolume = String(volumeNumber).padStart(2, "0");
   const aliases = buildAnimeSearchAliases(animeRow);
 
@@ -248,11 +248,11 @@ function buildVolumeSearchQueries(animeRow: typeof anime.$inferSelect, volumeNum
   );
 }
 
-function buildBroadSearchQueries(animeRow: typeof anime.$inferSelect) {
+function buildBroadSearchQueries(animeRow: typeof media.$inferSelect) {
   return buildAnimeSearchAliases(animeRow);
 }
 
-function buildAnimeSearchAliases(animeRow: typeof anime.$inferSelect) {
+function buildAnimeSearchAliases(animeRow: typeof media.$inferSelect) {
   const aliases = [
     animeRow.titleRomaji,
     animeRow.titleEnglish,
@@ -308,14 +308,14 @@ function uniqueStrings(values: readonly string[]) {
 
 function getEpisodeReleaseRejectionReason(
   item: ParsedRelease,
-  episodeNumber: number,
+  unitNumber: number,
   seenInfoHashes: ReadonlySet<string>,
 ) {
   const parsedRelease = parseReleaseName(item.title);
 
   if (
-    parsedRelease.episodeNumbers.length > 0 &&
-    !parsedRelease.episodeNumbers.includes(episodeNumber) &&
+    parsedRelease.unitNumbers.length > 0 &&
+    !parsedRelease.unitNumbers.includes(unitNumber) &&
     !parsedRelease.isBatch
   ) {
     return "episode_mismatch" as const;
@@ -347,24 +347,24 @@ function getVolumeReleaseRejectionReason(
 }
 
 function collectUnitSearchReleases(
-  animeRow: typeof anime.$inferSelect,
-  episodeNumber: number,
+  animeRow: typeof media.$inferSelect,
+  unitNumber: number,
   config: Config,
   searchNyaaReleases: SearchNyaaReleases,
 ): Effect.Effect<ParsedRelease[], SearchReleaseSourceError> {
   const seenInfoHashes = new Set<string>();
   const mediaKind = animeRow.mediaKind;
-  const keepUnitRelease = (item: ParsedRelease, query: string, phase: "episode" | "fallback") => {
+  const keepUnitRelease = (item: ParsedRelease, query: string, phase: "unit" | "fallback") => {
     const rejectionReason =
       mediaKind === "anime"
-        ? getEpisodeReleaseRejectionReason(item, episodeNumber, seenInfoHashes)
-        : getVolumeReleaseRejectionReason(item, episodeNumber, seenInfoHashes);
+        ? getEpisodeReleaseRejectionReason(item, unitNumber, seenInfoHashes)
+        : getVolumeReleaseRejectionReason(item, unitNumber, seenInfoHashes);
 
     if (rejectionReason !== null) {
-      return Effect.logDebug("Rejected episode search release").pipe(
+      return Effect.logDebug("Rejected unit search release").pipe(
         Effect.annotateLogs({
-          animeId: animeRow.id,
-          episodeNumber,
+          mediaId: animeRow.id,
+          unitNumber,
           event: "operations.search.unit.release.rejected",
           infoHash: item.infoHash,
           phase,
@@ -379,7 +379,7 @@ function collectUnitSearchReleases(
     seenInfoHashes.add(item.infoHash);
     return Effect.succeed(true);
   };
-  const collectQueries = (queries: readonly string[], phase: "episode" | "fallback") =>
+  const collectQueries = (queries: readonly string[], phase: "unit" | "fallback") =>
     Effect.forEach(
       queries,
       (query) =>
@@ -387,11 +387,11 @@ function collectUnitSearchReleases(
           ? Effect.succeed([] as readonly ParsedRelease[])
           : searchNyaaReleases(query, config).pipe(
               Effect.tap((items) =>
-                Effect.logDebug("Episode search query completed").pipe(
+                Effect.logDebug("MediaUnit search query completed").pipe(
                   Effect.annotateLogs({
-                    animeId: animeRow.id,
-                    episodeNumber,
-                    event: "operations.search.episode.query.completed",
+                    mediaId: animeRow.id,
+                    unitNumber,
+                    event: "operations.search.unit.query.completed",
                     phase,
                     query,
                     resultCount: items.length,
@@ -406,15 +406,15 @@ function collectUnitSearchReleases(
     ).pipe(Effect.map((groups) => groups.flat().slice(0, 10)));
 
   return Effect.gen(function* () {
-    const episodeResults = yield* collectQueries(
+    const unitResults = yield* collectQueries(
       mediaKind === "anime"
-        ? buildEpisodeSearchQueries(animeRow, episodeNumber)
-        : buildVolumeSearchQueries(animeRow, episodeNumber),
-      "episode",
+        ? buildEpisodeSearchQueries(animeRow, unitNumber)
+        : buildVolumeSearchQueries(animeRow, unitNumber),
+      "unit",
     );
 
-    if (episodeResults.length > 0 || seenInfoHashes.size >= 10) {
-      return episodeResults;
+    if (unitResults.length > 0 || seenInfoHashes.size >= 10) {
+      return unitResults;
     }
 
     return yield* collectQueries(buildBroadSearchQueries(animeRow), "fallback");

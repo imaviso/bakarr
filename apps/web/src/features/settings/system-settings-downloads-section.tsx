@@ -172,7 +172,7 @@ export function SystemSettingsDownloadsSection(props: SystemSettingsDownloadsSec
         )}
       </props.form.Field>
 
-      <props.form.Field name="downloads.create_anime_folders">
+      <props.form.Field name="downloads.create_media_folders">
         {(field) => (
           <SettingRow
             label="Create Media Folders"

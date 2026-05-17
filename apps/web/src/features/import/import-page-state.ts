@@ -3,7 +3,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { systemConfigQueryOptions } from "~/api/system-config";
 import { toImportInputMode, useImportFlow } from "~/features/import/use-import-flow";
 import type { FileRowAnimeOption, Step } from "~/features/import/types";
-import { animeDisplayTitle } from "~/domain/anime/metadata";
+import { animeDisplayTitle } from "~/domain/media/metadata";
 
 export type BrowseRootKey = "library" | "recycle" | "downloads";
 
@@ -19,7 +19,7 @@ export const importSteps: { id: Step; label: string; description: string }[] = [
 ];
 
 interface CreateImportPageStateOptions {
-  animeId: number | undefined;
+  mediaId: number | undefined;
   onImportSuccess: () => void;
 }
 
@@ -27,7 +27,7 @@ export function useImportPageState(options: CreateImportPageStateOptions) {
   const [latestImportTaskId, setLatestImportTaskId] = useState<number | undefined>(undefined);
 
   const flow = useImportFlow({
-    ...(options.animeId === undefined ? {} : { animeId: options.animeId }),
+    ...(options.mediaId === undefined ? {} : { mediaId: options.mediaId }),
     onImportQueued: (taskId) => {
       setLatestImportTaskId(taskId);
     },
@@ -59,15 +59,15 @@ export function useImportPageState(options: CreateImportPageStateOptions) {
 
   const animeList = flow.animeList;
   const candidateList = flow.candidates;
-  const animeIds = new Set(animeList.map((anime) => anime.id));
+  const animeIds = new Set(animeList.map((media) => media.id));
 
   const animeOptions: FileRowAnimeOption[] = [
-    ...animeList.map((anime) => ({
-      id: anime.id,
+    ...animeList.map((media) => ({
+      id: media.id,
       source: "library" as const,
       title: {
-        romaji: animeDisplayTitle(anime),
-        ...(anime.title.english ? { english: anime.title.english } : {}),
+        romaji: animeDisplayTitle(media),
+        ...(media.title.english ? { english: media.title.english } : {}),
       },
     })),
     ...candidateList

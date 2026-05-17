@@ -12,23 +12,23 @@ import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-s
 import { makeTestConfig } from "@/test/config-fixture.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 
-it.scoped("getWantedMissing includes non-anime units without air dates", () =>
+it.scoped("getWantedMissing includes non-media units without air dates", () =>
   withSqliteTestDbEffect({
     schema,
     run: (db, databaseFile, client) =>
       Effect.gen(function* () {
         yield* Effect.promise(() =>
           db
-            .insert(schema.anime)
+            .insert(schema.media)
             .values([
-              animeRow({ id: 1, mediaKind: "anime", titleRomaji: "Anime" }),
+              animeRow({ id: 1, mediaKind: "anime", titleRomaji: "Media" }),
               animeRow({ id: 2, mediaKind: "manga", titleRomaji: "Manga" }),
             ]),
         );
         yield* Effect.promise(() =>
-          db.insert(schema.episodes).values([
-            { aired: "2025-01-01T00:00:00.000Z", animeId: 1, downloaded: false, number: 1 },
-            { aired: null, animeId: 2, downloaded: false, number: 1 },
+          db.insert(schema.mediaUnits).values([
+            { aired: "2025-01-01T00:00:00.000Z", mediaId: 1, downloaded: false, number: 1 },
+            { aired: null, mediaId: 2, downloaded: false, number: 1 },
           ]),
         );
 
@@ -58,9 +58,9 @@ it.scoped("getWantedMissing includes non-anime units without air dates", () =>
         );
 
         assert.deepStrictEqual(
-          wanted.map((row) => ({ title: row.anime_title, unitKind: row.unit_kind })),
+          wanted.map((row) => ({ title: row.media_title, unitKind: row.unit_kind })),
           [
-            { title: "Anime", unitKind: "episode" },
+            { title: "Media", unitKind: "episode" },
             { title: "Manga", unitKind: "volume" },
           ],
         );
@@ -72,7 +72,7 @@ function animeRow(input: {
   readonly id: number;
   readonly mediaKind: string;
   readonly titleRomaji: string;
-}): typeof schema.anime.$inferInsert {
+}): typeof schema.media.$inferInsert {
   return {
     addedAt: "2025-01-01T00:00:00.000Z",
     format: "TV",

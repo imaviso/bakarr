@@ -18,7 +18,7 @@ export function applyImportCandidateSelection(
 
     for (const file of input.files) {
       const current = selectedFilesByPath.get(file.source_path);
-      if (current && current.anime_id === input.candidate_id) {
+      if (current && current.media_id === input.candidate_id) {
         selectedFilesByPath.delete(file.source_path);
       }
     }
@@ -44,7 +44,7 @@ export function applyImportCandidateSelection(
       } else if (fileSeason === 1 && !currentSelection) {
         shouldSelect = true;
       }
-    } else if (!currentSelection || currentSelection.anime_id === input.candidate_id) {
+    } else if (!currentSelection || currentSelection.media_id === input.candidate_id) {
       shouldSelect = true;
     }
 
@@ -78,15 +78,15 @@ function inferCandidateSeason(title: string) {
 }
 
 function buildImportFileSelection(
-  animeId: ImportCandidateSelectionRequest["candidate_id"],
+  mediaId: ImportCandidateSelectionRequest["candidate_id"],
   file: ScannedFile,
 ): ImportFileSelection {
   const sourceMetadata = toImportSourceMetadata(file);
 
   return {
-    anime_id: animeId,
-    episode_number: Math.floor(file.episode_number),
-    ...(file.episode_numbers === undefined ? {} : { episode_numbers: file.episode_numbers }),
+    media_id: mediaId,
+    unit_number: Math.floor(file.unit_number),
+    ...(file.unit_numbers === undefined ? {} : { unit_numbers: file.unit_numbers }),
     ...(file.season === undefined ? {} : { season: file.season }),
     ...(sourceMetadata === undefined ? {} : { source_metadata: sourceMetadata }),
     source_path: file.source_path,
@@ -98,7 +98,7 @@ function toImportSourceMetadata(file: ScannedFile): DownloadSourceMetadata | und
     ...(file.air_date === undefined ? {} : { air_date: file.air_date }),
     ...(file.audio_channels === undefined ? {} : { audio_channels: file.audio_channels }),
     ...(file.audio_codec === undefined ? {} : { audio_codec: file.audio_codec }),
-    ...(file.episode_title === undefined ? {} : { episode_title: file.episode_title }),
+    ...(file.unit_title === undefined ? {} : { unit_title: file.unit_title }),
     ...(file.group === undefined ? {} : { group: file.group }),
     ...(file.quality === undefined ? {} : { quality: file.quality }),
     ...(file.resolution === undefined ? {} : { resolution: file.resolution }),

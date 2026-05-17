@@ -1,9 +1,9 @@
-import type { AnimeId, AnimeSearchResult, ScannedFile } from "~/api/contracts";
+import type { MediaId, MediaSearchResult, ScannedFile } from "~/api/contracts";
 
 export type Step = "scan" | "review";
 
 export type FileRowAnimeOption = {
-  id: AnimeId;
+  id: MediaId;
   title: { romaji: string; english?: string | undefined };
   source: "library" | "candidate";
 };
@@ -12,22 +12,22 @@ export interface FileRowProps {
   file: ScannedFile;
   animeOptions: FileRowAnimeOption[];
   isSelected: boolean;
-  selectedAnimeId?: AnimeId | undefined;
+  selectedAnimeId?: MediaId | undefined;
   currentEpisode?: number | undefined;
   currentSeason?: number | null | undefined;
-  onToggle: (animeId: AnimeId) => void;
-  onAnimeChange: (animeId: AnimeId) => void;
+  onToggle: (mediaId: MediaId) => void;
+  onAnimeChange: (mediaId: MediaId) => void;
   onMappingChange: (season: number, episode: number) => void;
 }
 
 export interface ManualSearchProps {
-  onSelect: (candidate: AnimeSearchResult) => void;
-  existingIds: Set<AnimeId>;
+  onSelect: (candidate: MediaSearchResult) => void;
+  existingIds: Set<MediaId>;
 }
 
 export interface CandidateCardProps {
-  candidate: AnimeSearchResult;
-  libraryIds: ReadonlySet<AnimeId>;
+  candidate: MediaSearchResult;
+  libraryIds: ReadonlySet<MediaId>;
   isSelected: boolean;
   isLocal: boolean;
   isManual: boolean;

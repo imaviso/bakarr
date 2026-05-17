@@ -1,4 +1,4 @@
-import type { ParsedEpisodeIdentity } from "@bakarr/shared";
+import type { ParsedUnitIdentity } from "@bakarr/shared";
 
 export type BatchKind = "batch" | "season pack";
 
@@ -8,14 +8,14 @@ export function toBatchKindLabel(kind: BatchKind) {
 
 export function inferBatchKind(input: {
   isBatch?: boolean | undefined;
-  coveredEpisodes?: readonly number[] | undefined;
-  sourceIdentity?: ParsedEpisodeIdentity | undefined;
+  coveredUnits?: readonly number[] | undefined;
+  sourceIdentity?: ParsedUnitIdentity | undefined;
 }): BatchKind | undefined {
-  const coveredEpisodeCount = input.coveredEpisodes?.length ?? 0;
+  const coveredEpisodeCount = input.coveredUnits?.length ?? 0;
   const sourceIdentityEpisodeCount =
     input.sourceIdentity?.scheme === "daily"
       ? 0
-      : (input.sourceIdentity?.episode_numbers?.length ?? 0);
+      : (input.sourceIdentity?.unit_numbers?.length ?? 0);
   const hasSeasonIdentity = input.sourceIdentity?.scheme === "season";
   const inferredBatch =
     input.isBatch || coveredEpisodeCount > 1 || sourceIdentityEpisodeCount > 1 || hasSeasonIdentity;

@@ -17,12 +17,12 @@ export function SystemSettingsGeneralNamingSection(props: SystemSettingsGeneralN
               <Input
                 value={field.state.value}
                 onInput={(event) => field.handleChange(event.currentTarget.value)}
-                placeholder="{title} - S{season:02}E{episode:02} - {episode_title} [{quality} {resolution}][{video_codec}][{audio_codec} {audio_channels}]"
+                placeholder="{title} - S{season:02}E{episode:02} - {unit_title} [{quality} {resolution}][{video_codec}][{audio_codec} {audio_channels}]"
                 className="font-mono text-xs"
               />
               <div className="text-xs text-muted-foreground">
                 {
-                  "{title}, {episode}, {episode:02}, {episode:03}, {episode_segment}, {source_episode_segment}, {episode_title}, {season}, {season:02}, {year}, {air_date}, {group}, {resolution}, {quality}, {video_codec}, {audio_codec}, {audio_channels}"
+                  "{title}, {episode}, {episode:02}, {episode:03}, {episode_segment}, {source_episode_segment}, {unit_title}, {season}, {season:02}, {year}, {air_date}, {group}, {resolution}, {quality}, {video_codec}, {audio_codec}, {audio_channels}"
                 }
               </div>
             </div>

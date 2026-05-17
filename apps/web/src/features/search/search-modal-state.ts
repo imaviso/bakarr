@@ -1,23 +1,23 @@
-import { useEpisodeSearchQuery } from "~/api/anime";
-import { useGrabReleaseMutation } from "~/api/anime-mutations";
-import type { EpisodeSearchResult } from "~/api/contracts";
+import { useUnitSearchQuery } from "~/api/media";
+import { useGrabReleaseMutation } from "~/api/media-mutations";
+import type { UnitSearchResult } from "~/api/contracts";
 import { buildGrabInputFromEpisodeResult } from "~/domain/release/grab";
 
 interface SearchModalStateOptions {
-  animeId: number;
-  episodeNumber: number;
+  mediaId: number;
+  unitNumber: number;
   open: boolean;
   onClose: () => void;
 }
 
 export function useSearchModalState(options: SearchModalStateOptions) {
-  const searchQuery = useEpisodeSearchQuery(options.animeId, options.episodeNumber, options.open);
+  const searchQuery = useUnitSearchQuery(options.mediaId, options.unitNumber, options.open);
   const grabRelease = useGrabReleaseMutation();
 
-  const handleDownload = (release: EpisodeSearchResult) => {
+  const handleDownload = (release: UnitSearchResult) => {
     const payload = buildGrabInputFromEpisodeResult({
-      animeId: options.animeId,
-      episodeNumber: options.episodeNumber,
+      mediaId: options.mediaId,
+      unitNumber: options.unitNumber,
       result: release,
     });
 

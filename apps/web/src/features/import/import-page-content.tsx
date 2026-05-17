@@ -14,7 +14,7 @@ import {
 } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import { Suspense } from "react";
-import { AddAnimeDialog } from "~/features/anime/add-anime-dialog";
+import { AddAnimeDialog } from "~/features/media/add-media-dialog";
 import { FileBrowser } from "~/components/shared/file-browser";
 import { CandidateCard, FileRow, ManualSearch } from "~/features/import";
 import { importSteps, type ImportPageState } from "~/features/import/import-page-state";
@@ -57,9 +57,9 @@ export function ImportPageContent(props: ImportPageContentProps) {
 
       {props.state.flow.activeAddCandidate && (
         <AddAnimeDialog
-          anime={props.state.flow.activeAddCandidate}
+          media={props.state.flow.activeAddCandidate}
           open
-          onOpenChange={(nextOpen) => {
+          onOpenChange={(nextOpen: boolean) => {
             if (!nextOpen) {
               props.state.flow.closeAddCandidateDialog();
             }
@@ -76,7 +76,7 @@ function ImportTopBar(props: { state: ImportPageState }) {
     <div className="shrink-0 border-b bg-muted px-6 py-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link to="/anime" search={DEFAULT_ANIME_SEARCH}>
+          <Link to="/media" search={DEFAULT_ANIME_SEARCH}>
             <Button variant="ghost" size="icon" className="relative after:absolute after:-inset-2">
               <ArrowLeftIcon className="h-4 w-4" />
             </Button>
@@ -342,7 +342,7 @@ function ImportReviewStep(props: { state: ImportPageState }) {
               </DialogTrigger>
               <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
-                  <DialogTitle>Search Anime</DialogTitle>
+                  <DialogTitle>Search Media</DialogTitle>
                   <DialogDescription>
                     Search for the series to match your files against.
                   </DialogDescription>
@@ -387,8 +387,8 @@ function ImportReviewStep(props: { state: ImportPageState }) {
               file={file}
               animeOptions={props.state.animeOptions}
               isSelected={props.state.flow.selectedFiles.has(file.source_path)}
-              selectedAnimeId={props.state.flow.selectedFiles.get(file.source_path)?.anime_id}
-              currentEpisode={props.state.flow.selectedFiles.get(file.source_path)?.episode_number}
+              selectedAnimeId={props.state.flow.selectedFiles.get(file.source_path)?.media_id}
+              currentEpisode={props.state.flow.selectedFiles.get(file.source_path)?.unit_number}
               currentSeason={props.state.flow.selectedFiles.get(file.source_path)?.season ?? null}
               onToggle={(id) => props.state.flow.toggleFile(file, id)}
               onAnimeChange={(id) => props.state.flow.updateFileAnime(file, id)}

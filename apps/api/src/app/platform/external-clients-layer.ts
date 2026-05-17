@@ -1,9 +1,9 @@
 import { Layer } from "effect";
 
-import { AniListClientLive, type AniListClient } from "@/features/anime/metadata/anilist.ts";
-import { AniDbClientLive, type AniDbClient } from "@/features/anime/metadata/anidb.ts";
-import { JikanClientLive, type JikanClient } from "@/features/anime/metadata/jikan.ts";
-import { ManamiClientLive, type ManamiClient } from "@/features/anime/metadata/manami.ts";
+import { AniListClientLive, type AniListClient } from "@/features/media/metadata/anilist.ts";
+import { AniDbClientLive, type AniDbClient } from "@/features/media/metadata/anidb.ts";
+import { JikanClientLive, type JikanClient } from "@/features/media/metadata/jikan.ts";
+import { ManamiClientLive, type ManamiClient } from "@/features/media/metadata/manami.ts";
 import {
   QBitTorrentClientLive,
   type QBitTorrentClient,

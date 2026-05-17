@@ -33,7 +33,7 @@ export function makeDefaultConfig(databasePath: string): ConfigCore {
       worker_threads: 4,
     },
     qbittorrent: {
-      default_category: "anime",
+      default_category: "media",
       enabled: false,
       password: null,
       ratio_limit: null,
@@ -63,7 +63,7 @@ export function makeDefaultConfig(databasePath: string): ConfigCore {
       },
     },
     downloads: {
-      create_anime_folders: true,
+      create_media_folders: true,
       delete_download_files_after_import: false,
       reconcile_completed_downloads: true,
       remove_torrent_on_import: true,
@@ -78,7 +78,7 @@ export function makeDefaultConfig(databasePath: string): ConfigCore {
       library_path: "./library",
       movie_naming_format: "{title} ({year})",
       naming_format:
-        "{title} - S{season:02}E{episode:02} - {episode_title} [{quality} {resolution}][{video_codec}][{audio_codec} {audio_channels}]",
+        "{title} - S{season:02}E{episode:02} - {unit_title} [{quality} {resolution}][{video_codec}][{audio_codec} {audio_channels}]",
       preferred_title: "romaji",
       recycle_cleanup_days: 30,
       recycle_path: "./recycle-bin",

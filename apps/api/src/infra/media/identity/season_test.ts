@@ -7,7 +7,7 @@ it("parseSeasonEpisodeIdentity parses season episode ranges", () => {
 
   assert.deepStrictEqual(parsed?.scheme, "season");
   assert.deepStrictEqual(parsed?.season, 2);
-  assert.deepStrictEqual(parsed?.episode_numbers, [3, 4, 5]);
+  assert.deepStrictEqual(parsed?.unit_numbers, [3, 4, 5]);
   assert.deepStrictEqual(parsed?.label, "S02E03-E05");
 });
 
@@ -15,7 +15,7 @@ it("parseSeasonEpisodeIdentity parses repeated episode markers", () => {
   const parsed = parseSeasonEpisodeIdentity("Show.S01E01E03E05.1080p");
 
   assert.deepStrictEqual(parsed?.season, 1);
-  assert.deepStrictEqual(parsed?.episode_numbers, [1, 3, 5]);
+  assert.deepStrictEqual(parsed?.unit_numbers, [1, 3, 5]);
   assert.deepStrictEqual(parsed?.label, "S01E01-S01E03-S01E05");
 });
 

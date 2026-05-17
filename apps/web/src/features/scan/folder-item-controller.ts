@@ -1,6 +1,6 @@
 import { useState } from "react";
-import type { AddAnimeRequest, AnimeSearchResult, UnmappedFolder } from "~/api/contracts";
-import { useAddAnimeMutation } from "~/api/anime-mutations";
+import type { AddAnimeRequest, MediaSearchResult, UnmappedFolder } from "~/api/contracts";
+import { useAddMediaMutation } from "~/api/media-mutations";
 import {
   useControlUnmappedFolderMutation,
   useImportUnmappedFolderMutation,
@@ -10,13 +10,13 @@ import { useProfilesQuery } from "~/api/profiles";
 import { runFolderBackgroundMatchAction } from "~/features/scan/background-matching-actions";
 
 export function useFolderItemController(folder: UnmappedFolder) {
-  const addAnimeMutation = useAddAnimeMutation();
+  const addAnimeMutation = useAddMediaMutation();
   const controlMutation = useControlUnmappedFolderMutation();
   const importMutation = useImportUnmappedFolderMutation();
   const scanMutation = useScanLibraryMutation();
   const profilesQuery = useProfilesQuery();
 
-  const [manualMatch, setManualMatch] = useState<AnimeSearchResult | null>(null);
+  const [manualMatch, setManualMatch] = useState<MediaSearchResult | null>(null);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [selectedProfileName, setSelectedProfileName] = useState("");
 
@@ -46,13 +46,13 @@ export function useFolderItemController(folder: UnmappedFolder) {
   };
 
   const handleImport = () => {
-    const anime = selectedAnime;
-    if (!anime) return;
+    const media = selectedAnime;
+    if (!media) return;
 
-    if (anime.already_in_library) {
+    if (media.already_in_library) {
       importMutation.mutate(
         {
-          anime_id: anime.id,
+          media_id: media.id,
           folder_name: folder.name,
         },
         {
@@ -70,7 +70,7 @@ export function useFolderItemController(folder: UnmappedFolder) {
     }
 
     const payload: AddAnimeRequest = {
-      id: anime.id,
+      id: media.id,
       monitor_and_search: false,
       monitored: true,
       profile_name: profileName,
@@ -83,7 +83,7 @@ export function useFolderItemController(folder: UnmappedFolder) {
       onSuccess: (createdAnime) => {
         importMutation.mutate(
           {
-            anime_id: createdAnime.id,
+            media_id: createdAnime.id,
             folder_name: folder.name,
           },
           {

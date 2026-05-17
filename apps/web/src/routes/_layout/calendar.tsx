@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { AnimeCalendar } from "~/features/anime/anime-calendar";
+import { AnimeCalendar } from "~/features/media/media-calendar";
 import { GeneralError } from "~/components/shared/general-error";
 import { usePageTitle } from "~/domain/page-title";
 

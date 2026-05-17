@@ -1,13 +1,13 @@
 import { CheckIcon, FileIcon } from "@phosphor-icons/react";
-import { AnimeDiscoveryRow } from "~/features/anime/anime-discovery";
+import { AnimeDiscoveryRow } from "~/features/media/media-discovery";
 import { Badge } from "~/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
-import type { AnimeSearchResult } from "~/api/contracts";
-import { animeDisplayTitle, animeSearchSubtitle } from "~/domain/anime/metadata";
+import type { MediaSearchResult } from "~/api/contracts";
+import { animeDisplayTitle, animeSearchSubtitle } from "~/domain/media/metadata";
 import { cn } from "~/infra/utils";
 
 interface CandidateCardProps {
-  candidate: AnimeSearchResult;
+  candidate: MediaSearchResult;
   libraryIds: ReadonlySet<number>;
   isSelected: boolean;
   isLocal: boolean;
@@ -105,11 +105,11 @@ export function CandidateCard(props: CandidateCardProps) {
         </div>
       </button>
 
-      {props.candidate.related_anime?.length || props.candidate.recommended_anime?.length ? (
+      {props.candidate.related_media?.length || props.candidate.recommended_media?.length ? (
         <div className="space-y-1 border-t border-border bg-muted px-3 py-2">
-          {props.candidate.related_anime?.length ? (
+          {props.candidate.related_media?.length ? (
             <>
-              {props.candidate.related_anime?.slice(0, 2).map((related) => (
+              {props.candidate.related_media?.slice(0, 2).map((related) => (
                 <AnimeDiscoveryRow
                   key={`${related.id ?? "related"}-${animeDisplayTitle(related)}`}
                   entry={related}
@@ -119,9 +119,9 @@ export function CandidateCard(props: CandidateCardProps) {
               ))}
             </>
           ) : null}
-          {props.candidate.recommended_anime?.length ? (
+          {props.candidate.recommended_media?.length ? (
             <>
-              {props.candidate.recommended_anime?.slice(0, 2).map((recommended) => (
+              {props.candidate.recommended_media?.slice(0, 2).map((recommended) => (
                 <AnimeDiscoveryRow
                   key={`${recommended.id ?? "recommended"}-${animeDisplayTitle(recommended)}`}
                   entry={recommended}

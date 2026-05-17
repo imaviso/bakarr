@@ -26,7 +26,7 @@ export const rssRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const body = yield* decodeJsonBodyWithLabel(AddRssFeedBodySchema, "add RSS feed");
         return yield* (yield* CatalogRssService).addRssFeed({
-          anime_id: body.anime_id,
+          media_id: body.media_id,
           ...(body.name === undefined ? {} : { name: body.name }),
           url: body.url,
         });

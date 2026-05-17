@@ -1,6 +1,6 @@
 export type {
   ParsedReleaseName,
-  RankedCurrentEpisode,
+  RankedCurrentUnit,
   RankedRelease,
 } from "@/features/operations/search/release-ranking-types.ts";
 export {
@@ -13,7 +13,7 @@ export {
   parseResolution,
 } from "@/features/operations/search/release-ranking-quality.ts";
 export {
-  compareEpisodeSearchResults,
+  compareUnitSearchResults,
   decideDownloadAction,
   validateQualityProfileSizeLabels,
 } from "@/features/operations/search/release-ranking-policy.ts";

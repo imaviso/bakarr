@@ -1,12 +1,12 @@
 import { Effect } from "effect";
 
 import {
-  type AnimeSearchResult,
+  type MediaSearchResult,
   MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS,
   type ScannerState,
   type UnmappedFolder,
 } from "@packages/shared/index.ts";
-import { scoreAnimeSearchResultMatch } from "@/domain/anime/derivations.ts";
+import { scoreAnimeSearchResultMatch } from "@/domain/media/derivations.ts";
 
 type UnmappedFolderInput = Pick<ScannerState["folders"][number], "name" | "path">;
 
@@ -40,13 +40,13 @@ export function buildUnmappedFolderSearchQueries(folderName: string): string[] {
 
 export const suggestUnmappedFolders = Effect.fn("Operations.suggestUnmappedFolders")(function* (
   folders: readonly UnmappedFolderInput[],
-  search: (query: string) => Effect.Effect<AnimeSearchResult[]>,
+  search: (query: string) => Effect.Effect<MediaSearchResult[]>,
   options?: { readonly concurrency?: number },
 ) {
   const queriesByFolder = new Map(
     folders.map((folder) => [folder.path, buildUnmappedFolderSearchQueries(folder.name)]),
   );
-  const queryResults = new Map<string, readonly AnimeSearchResult[]>();
+  const queryResults = new Map<string, readonly MediaSearchResult[]>();
   const uniqueQueries = [...new Set([...queriesByFolder.values()].flatMap((queries) => queries))];
 
   yield* Effect.forEach(
@@ -80,7 +80,7 @@ export const suggestUnmappedFolders = Effect.fn("Operations.suggestUnmappedFolde
 
 export function mergeUnmappedFolderSuggestions(
   folder: UnmappedFolder,
-  suggestions: readonly AnimeSearchResult[],
+  suggestions: readonly MediaSearchResult[],
   nowIso: string,
 ): UnmappedFolder {
   return {
@@ -184,7 +184,7 @@ function normalizeSearchText(value: string) {
 function firstMatchingSuggestions(
   folderName: string,
   queries: readonly string[],
-  queryResults: ReadonlyMap<string, readonly AnimeSearchResult[]>,
+  queryResults: ReadonlyMap<string, readonly MediaSearchResult[]>,
 ) {
   for (const query of queries) {
     const matches = queryResults.get(query);
@@ -201,7 +201,7 @@ function annotateUnmappedSuggestions(
   folderName: string,
   query: string,
   primaryQuery: string | undefined,
-  matches: readonly AnimeSearchResult[],
+  matches: readonly MediaSearchResult[],
 ) {
   const matchReason =
     query === primaryQuery

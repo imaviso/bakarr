@@ -1,16 +1,16 @@
-import type { AnimeId, ImportFileRequest, ScannedFile } from "~/api/contracts";
+import type { MediaId, ImportFileRequest, ScannedFile } from "~/api/contracts";
 import { buildImportFileRequest } from "~/features/import/import-flow";
 
 export function toggleSelectedImportFile(
   selectedFiles: Map<string, ImportFileRequest>,
   file: ScannedFile,
-  targetAnimeId: AnimeId,
+  targetAnimeId: MediaId,
 ) {
   const next = new Map(selectedFiles);
   if (next.has(file.source_path)) {
     next.delete(file.source_path);
   } else {
-    next.set(file.source_path, buildImportFileRequest({ animeId: targetAnimeId, file }));
+    next.set(file.source_path, buildImportFileRequest({ mediaId: targetAnimeId, file }));
   }
   return next;
 }
@@ -18,7 +18,7 @@ export function toggleSelectedImportFile(
 export function updateSelectedImportFileAnime(
   selectedFiles: Map<string, ImportFileRequest>,
   file: ScannedFile,
-  newAnimeId: AnimeId,
+  newAnimeId: MediaId,
 ) {
   const next = new Map(selectedFiles);
   const existing = next.get(file.source_path);
@@ -29,11 +29,9 @@ export function updateSelectedImportFileAnime(
   next.set(
     file.source_path,
     buildImportFileRequest({
-      animeId: newAnimeId,
-      episodeNumber: existing.episode_number,
-      ...(existing.episode_numbers === undefined
-        ? {}
-        : { episodeNumbers: existing.episode_numbers }),
+      mediaId: newAnimeId,
+      unitNumber: existing.unit_number,
+      ...(existing.unit_numbers === undefined ? {} : { unitNumbers: existing.unit_numbers }),
       file,
       ...(existing.season === undefined ? {} : { season: existing.season }),
       ...(existing.source_metadata === undefined
@@ -60,9 +58,9 @@ export function updateSelectedImportFileMapping(
   next.set(
     file.source_path,
     buildImportFileRequest({
-      animeId: current.anime_id,
-      episodeNumber: episode,
-      ...(current.episode_numbers === undefined ? {} : { episodeNumbers: current.episode_numbers }),
+      mediaId: current.media_id,
+      unitNumber: episode,
+      ...(current.unit_numbers === undefined ? {} : { unitNumbers: current.unit_numbers }),
       file,
       season,
       ...(current.source_metadata === undefined ? {} : { sourceMetadata: current.source_metadata }),
