@@ -84,6 +84,7 @@ export const reconcileBatchDownloadEffect = Effect.fn("OperationsService.reconci
 
       const unitNumbers = resolveReconciledBatchEpisodeNumbers({
         coveredUnits,
+        parseVolumeNumbers: input.animeRow.mediaKind !== "anime",
         path,
         totalCandidateCount: batchPaths.length,
       });

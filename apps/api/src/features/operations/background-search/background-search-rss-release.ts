@@ -1,4 +1,4 @@
-import { parseEpisodeNumbersFromTitle } from "@/features/operations/search/release-ranking.ts";
+import { parseUnitNumbersFromTitle } from "@/features/operations/search/release-ranking.ts";
 import { parseVolumeNumbersFromTitle } from "@/features/operations/search/release-volume.ts";
 
 export function parseRssReleaseUnitNumbers(input: {
@@ -6,7 +6,7 @@ export function parseRssReleaseUnitNumbers(input: {
   readonly title: string;
 }): readonly number[] {
   if (input.mediaKind === "anime") {
-    return parseEpisodeNumbersFromTitle(input.title);
+    return parseUnitNumbersFromTitle(input.title);
   }
 
   return parseVolumeNumbersFromTitle(input.title);

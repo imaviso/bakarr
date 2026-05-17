@@ -56,7 +56,7 @@ function StatusIcon({ status }: { status: string }) {
   );
 }
 
-interface AnimeDetailsHeaderProps {
+interface MediaDetailsHeaderProps {
   media: Media;
   mediaId: number;
   isMonitored: boolean;
@@ -71,10 +71,10 @@ interface AnimeDetailsHeaderProps {
   onScanFolder: () => void;
   onRenameFiles: () => void;
   onOpenBulkMapping: () => void;
-  onDeleteAnime: () => void;
+  onDeleteMedia: () => void;
 }
 
-export function AnimeDetailsHeader(props: AnimeDetailsHeaderProps) {
+export function MediaDetailsHeader(props: MediaDetailsHeaderProps) {
   const mediaLabel = mediaKindLabel(props.media.media_kind);
   const unitLabelPlural = mediaUnitLabel(
     props.media.media_kind === "anime" ? "episode" : "volume",
@@ -275,7 +275,7 @@ export function AnimeDetailsHeader(props: AnimeDetailsHeaderProps) {
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction
-                  onClick={props.onDeleteAnime}
+                  onClick={props.onDeleteMedia}
                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 >
                   Delete

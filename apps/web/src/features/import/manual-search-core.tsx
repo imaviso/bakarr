@@ -8,7 +8,7 @@ import {
 } from "@phosphor-icons/react";
 import { useMemo, useRef, useState } from "react";
 import { useDebouncedValue } from "@tanstack/react-pacer";
-import { AnimeDiscoveryRow } from "~/features/media/media-discovery";
+import { MediaDiscoveryRow } from "~/features/media/media-discovery";
 import { Badge } from "~/components/ui/badge";
 import { Input } from "~/components/ui/input";
 import {
@@ -184,7 +184,7 @@ export function ManualSearchCore(props: ManualSearchCoreProps) {
                       {media.related_media?.length && (
                         <div className="mt-1 space-y-1">
                           {media.related_media?.slice(0, 2).map((related) => (
-                            <AnimeDiscoveryRow
+                            <MediaDiscoveryRow
                               key={`${related.id ?? "related"}-${animeDisplayTitle(related)}`}
                               entry={related}
                               libraryIds={libraryIds}
@@ -196,7 +196,7 @@ export function ManualSearchCore(props: ManualSearchCoreProps) {
                       {media.recommended_media?.length && (
                         <div className="mt-1 space-y-1">
                           {media.recommended_media?.slice(0, 2).map((recommended) => (
-                            <AnimeDiscoveryRow
+                            <MediaDiscoveryRow
                               key={`${recommended.id ?? "recommended"}-${animeDisplayTitle(recommended)}`}
                               entry={recommended}
                               libraryIds={libraryIds}

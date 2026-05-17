@@ -8,7 +8,7 @@ import {
   MagnifyingGlassIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
-import { AnimeDiscoveryRow } from "~/features/media/media-discovery";
+import { MediaDiscoveryRow } from "~/features/media/media-discovery";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -147,7 +147,7 @@ export function FolderItem(props: {
               {state.selectedAnime.related_media?.length ? (
                 <div className="space-y-1.5">
                   {state.selectedAnime.related_media?.slice(0, 2).map((related) => (
-                    <AnimeDiscoveryRow
+                    <MediaDiscoveryRow
                       key={`${related.id ?? "related"}-${animeDisplayTitle(related)}`}
                       entry={related}
                       libraryIds={state.selectedAnimeIds}
@@ -159,7 +159,7 @@ export function FolderItem(props: {
               {state.selectedAnime.recommended_media?.length ? (
                 <div className="space-y-1.5">
                   {state.selectedAnime.recommended_media?.slice(0, 2).map((recommended) => (
-                    <AnimeDiscoveryRow
+                    <MediaDiscoveryRow
                       key={`${recommended.id ?? "recommended"}-${animeDisplayTitle(recommended)}`}
                       entry={recommended}
                       libraryIds={state.selectedAnimeIds}

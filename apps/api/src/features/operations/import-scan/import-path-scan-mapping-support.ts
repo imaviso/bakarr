@@ -1,6 +1,6 @@
 import { brandMediaId, type FileUnitMapping, type ScannedFile } from "@packages/shared/index.ts";
 
-import { toEpisodeNumbers } from "@/features/operations/import-scan/import-path-scan-unit-support.ts";
+import { toUnitNumbers } from "@/features/operations/import-scan/import-path-scan-unit-support.ts";
 
 type EpisodeFileMappingRow = {
   media_id: number;
@@ -54,7 +54,7 @@ export function buildScannedFileLibrarySignals(input: {
   targetAnime?: { id: number; title: string } | undefined;
 }) {
   const existing_mapping = input.mappingIndex.byPath.get(input.file.source_path);
-  const unitNumbers = toEpisodeNumbers(input.file);
+  const unitNumbers = toUnitNumbers(input.file);
   const { targetAnime } = input;
 
   if (!targetAnime || unitNumbers.length === 0) {

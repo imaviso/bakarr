@@ -20,7 +20,7 @@ import {
   jsonResponse,
 } from "@/http/shared/router-helpers.ts";
 
-export const animeReadRouter = HttpRouter.empty.pipe(
+export const mediaReadRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
     "/media",
     authedRouteResponse(

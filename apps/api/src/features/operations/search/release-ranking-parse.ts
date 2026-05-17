@@ -11,7 +11,7 @@ export function parseReleaseName(title: string): ParsedReleaseName {
   const resolution = parseResolution(title);
   const quality = parseQualityFromTitle(title);
   const batchTerms = [" batch", "complete", "全集", "season pack", "box", "collection"];
-  const unitNumbers = parseEpisodeNumbersFromTitle(title);
+  const unitNumbers = parseUnitNumbersFromTitle(title);
   const seasonPack = looksLikeSeasonPack(title);
 
   return {
@@ -29,11 +29,11 @@ export function parseReleaseName(title: string): ParsedReleaseName {
   };
 }
 
-export function parseEpisodeFromTitle(title: string): number | undefined {
-  return parseEpisodeNumbersFromTitle(title)[0];
+export function parseUnitFromTitle(title: string): number | undefined {
+  return parseUnitNumbersFromTitle(title)[0];
 }
 
-export function parseEpisodeNumbersFromTitle(title: string): readonly number[] {
+export function parseUnitNumbersFromTitle(title: string): readonly number[] {
   const result = parseReleaseSourceIdentity(title);
   if (!result.source_identity) return [];
 

@@ -1,6 +1,6 @@
 import type { PreferredTitle, ScannedFile } from "@packages/shared/index.ts";
 
-import { toEpisodeNumbers } from "@/features/operations/import-scan/import-path-scan-unit-support.ts";
+import { toUnitNumbers } from "@/features/operations/import-scan/import-path-scan-unit-support.ts";
 import { buildEpisodeFilenamePlan } from "@/features/operations/library/naming-canonical-support.ts";
 
 export function buildScannedFileNamingPlan(input: {
@@ -44,7 +44,7 @@ export function buildScannedFileNamingPlan(input: {
     return {};
   }
 
-  const unitNumbers = toEpisodeNumbers(input.file);
+  const unitNumbers = toUnitNumbers(input.file);
 
   if (unitNumbers.length === 0) {
     return {};

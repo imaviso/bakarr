@@ -225,12 +225,12 @@ export const MediaTitleSchema: Schema.Schema<Media["title"]> = Schema.Struct({
 });
 
 export interface NextAiringUnit {
-  episode: number;
+  unit_number: number;
   airing_at: string;
 }
 
 export const NextAiringUnitSchema: Schema.Schema<NextAiringUnit> = Schema.Struct({
-  episode: Schema.Number,
+  unit_number: Schema.Number,
   airing_at: Schema.String,
 });
 

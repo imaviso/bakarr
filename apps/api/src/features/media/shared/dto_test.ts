@@ -131,7 +131,7 @@ it.effect("toAnimeDto builds progress, metadata, and decoded arrays", () =>
     assert.deepStrictEqual(result.synonyms, ["Naruto Alt"]);
     assert.deepStrictEqual(result.end_year, 2024);
     assert.deepStrictEqual(result.source, "MANGA");
-    assert.deepStrictEqual(result.next_airing_unit?.episode, 5);
+    assert.deepStrictEqual(result.next_airing_unit?.unit_number, 5);
   }),
 );
 

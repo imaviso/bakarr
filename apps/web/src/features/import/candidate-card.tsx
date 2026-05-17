@@ -1,5 +1,5 @@
 import { CheckIcon, FileIcon } from "@phosphor-icons/react";
-import { AnimeDiscoveryRow } from "~/features/media/media-discovery";
+import { MediaDiscoveryRow } from "~/features/media/media-discovery";
 import { Badge } from "~/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
 import type { MediaSearchResult } from "~/api/contracts";
@@ -110,7 +110,7 @@ export function CandidateCard(props: CandidateCardProps) {
           {props.candidate.related_media?.length ? (
             <>
               {props.candidate.related_media?.slice(0, 2).map((related) => (
-                <AnimeDiscoveryRow
+                <MediaDiscoveryRow
                   key={`${related.id ?? "related"}-${animeDisplayTitle(related)}`}
                   entry={related}
                   libraryIds={props.libraryIds}
@@ -122,7 +122,7 @@ export function CandidateCard(props: CandidateCardProps) {
           {props.candidate.recommended_media?.length ? (
             <>
               {props.candidate.recommended_media?.slice(0, 2).map((recommended) => (
-                <AnimeDiscoveryRow
+                <MediaDiscoveryRow
                   key={`${recommended.id ?? "recommended"}-${animeDisplayTitle(recommended)}`}
                   entry={recommended}
                   libraryIds={props.libraryIds}

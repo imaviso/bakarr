@@ -5,6 +5,7 @@
 .direnv/
 
 *.tsbuildinfo
+*.bak
 build.log
 node_modules/
 data/

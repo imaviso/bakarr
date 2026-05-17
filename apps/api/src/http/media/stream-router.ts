@@ -14,7 +14,7 @@ import {
   routeResponse,
 } from "@/http/shared/router-helpers.ts";
 
-export const animeStreamRouter = HttpRouter.empty.pipe(
+export const mediaStreamRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
     "/stream/:id/:unitNumber",
     routeResponse(

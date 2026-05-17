@@ -178,7 +178,7 @@ function toAnimeDtoProgress(
         row.nextAiringAt && row.nextAiringUnit
           ? {
               airing_at: row.nextAiringAt,
-              episode: row.nextAiringUnit,
+              unit_number: row.nextAiringUnit,
             }
           : undefined,
       score: row.score ?? undefined,

@@ -31,7 +31,7 @@ import {
   successResponse,
 } from "@/http/shared/router-helpers.ts";
 
-export const animeWriteRouter = HttpRouter.empty.pipe(
+export const mediaWriteRouter = HttpRouter.empty.pipe(
   HttpRouter.post(
     "/media",
     authedRouteResponse(

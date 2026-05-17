@@ -88,7 +88,7 @@ export const toAnimeDto = Effect.fn("AnimeDto.toAnimeDto")(function* (
       row.nextAiringUnit && row.nextAiringAt
         ? {
             airing_at: row.nextAiringAt,
-            episode: row.nextAiringUnit,
+            unit_number: row.nextAiringUnit,
           }
         : undefined,
     recommended_media: recommendedMedia,

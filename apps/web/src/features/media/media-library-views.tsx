@@ -20,7 +20,7 @@ import type { Media } from "~/api/contracts";
 import { useDeleteMediaMutation } from "~/api/media-mutations";
 import {
   animeDateSubtitle,
-  formatNextAiringEpisode,
+  formatNextAiringUnit,
   type getAiringDisplayPreferences,
 } from "~/domain/media/metadata";
 import { mediaKindLabel } from "~/domain/media-unit";
@@ -214,7 +214,7 @@ export function AnimeGridView(props: AnimeLibraryViewProps) {
                         </div>
                       </div>
                       <div className="line-clamp-1 text-[11px] text-muted-foreground">
-                        {formatNextAiringEpisode(media.next_airing_unit, props.airingPreferences) ||
+                        {formatNextAiringUnit(media.next_airing_unit, props.airingPreferences) ||
                           nextProgressLabel(media)}
                       </div>
                     </div>
@@ -355,7 +355,7 @@ export function AnimeListView(props: AnimeLibraryViewProps) {
                 </TableCell>
                 <TableCell className="hidden lg:table-cell">
                   <div className="text-sm">
-                    {formatNextAiringEpisode(media.next_airing_unit, props.airingPreferences) ||
+                    {formatNextAiringUnit(media.next_airing_unit, props.airingPreferences) ||
                       "No upcoming airing"}
                   </div>
                 </TableCell>

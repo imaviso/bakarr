@@ -27,11 +27,19 @@ it("naming: {episode} pads to 2 digits by default", () => {
   assert.deepStrictEqual(renderEpisodeFilename("{episode}", makeInput({ unitNumbers: [5] })), "05");
 });
 
+it("naming: {unit} pads to 2 digits by default", () => {
+  assert.deepStrictEqual(renderEpisodeFilename("{unit}", makeInput({ unitNumbers: [5] })), "05");
+});
+
 it("naming: {episode:02} pads to 2 digits", () => {
   assert.deepStrictEqual(
     renderEpisodeFilename("{episode:02}", makeInput({ unitNumbers: [3] })),
     "03",
   );
+});
+
+it("naming: {unit:02} pads to 2 digits", () => {
+  assert.deepStrictEqual(renderEpisodeFilename("{unit:02}", makeInput({ unitNumbers: [3] })), "03");
 });
 
 it("naming: {episode:03} pads to 3 digits", () => {
@@ -59,6 +67,13 @@ it("naming: {episode_segment} single episode", () => {
   );
 });
 
+it("naming: {unit_segment} single unit", () => {
+  assert.deepStrictEqual(
+    renderEpisodeFilename("{unit_segment}", makeInput({ unitNumbers: [3] })),
+    "03",
+  );
+});
+
 it("naming: {episode_segment} multi-episode range", () => {
   assert.deepStrictEqual(
     renderEpisodeFilename("{episode_segment}", makeInput({ unitNumbers: [3, 4] })),
@@ -77,6 +92,23 @@ it("naming: {source_episode_segment} uses source label when available", () => {
   assert.deepStrictEqual(
     renderEpisodeFilename(
       "{source_episode_segment}",
+      makeInput({
+        unitNumbers: [3],
+        sourceIdentity: {
+          scheme: "absolute",
+          label: "S02E03",
+          unit_numbers: [3],
+        },
+      }),
+    ),
+    "S02E03",
+  );
+});
+
+it("naming: {source_unit_segment} uses source label when available", () => {
+  assert.deepStrictEqual(
+    renderEpisodeFilename(
+      "{source_unit_segment}",
       makeInput({
         unitNumbers: [3],
         sourceIdentity: {

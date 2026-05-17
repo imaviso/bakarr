@@ -1,15 +1,20 @@
 /**
- * Config-backed naming renderer for episode filenames.
+ * Config-backed naming renderer for media-unit filenames.
  *
  * Supported placeholders:
  * - {title}              - Media title (sanitized for filesystem)
- * - {episode}            - Primary episode number (zero-padded to 2 digits)
- * - {episode:02}         - Primary episode number (zero-padded to 2 digits)
- * - {episode:03}         - Primary episode number (zero-padded to 3 digits)
- * - {episode_segment}    - Entry-local numbering: "03", "03-04", "014"
- * - {unit_title}      - MediaUnit title (sanitized for filesystem)
+ * - {unit}               - Primary unit number (zero-padded to 2 digits)
+ * - {unit:02}            - Primary unit number (zero-padded to 2 digits)
+ * - {unit:03}            - Primary unit number (zero-padded to 3 digits)
+ * - {episode}            - Alias for {unit}, kept for existing formats
+ * - {episode:02}         - Alias for {unit:02}, kept for existing formats
+ * - {episode:03}         - Alias for {unit:03}, kept for existing formats
+ * - {unit_segment}       - Entry-local numbering: "03", "03-04", "014"
+ * - {episode_segment}    - Alias for {unit_segment}, kept for existing formats
+ * - {unit_title}         - Media unit title (sanitized for filesystem)
  * - {air_date}           - Air date in YYYY-MM-DD format (if available)
- * - {source_episode_segment} - Source label: "S02E03", "S01E01-E02", "2025-03-14"
+ * - {source_unit_segment} - Source label: "S02E03", "S01E01-E02", "2025-03-14"
+ * - {source_episode_segment} - Alias for {source_unit_segment}, kept for existing formats
  * - {season}             - Season number (zero-padded to 2 digits)
  * - {season:02}          - Season number (zero-padded to 2 digits)
  * - {year}               - Release year (e.g. "2012")
@@ -47,14 +52,14 @@ const TOKEN_PATTERNS = {
   airDate: /\{air_date\}/g,
   audioChannels: /\{audio_channels\}/g,
   audioCodec: /\{audio_codec\}/g,
-  episode: /\{episode(?::(\d+))?\}/g,
-  episodeSegment: /\{episode_segment\}/g,
+  unit: /\{(?:unit|episode)(?::(\d+))?\}/g,
+  unitSegment: /\{(?:unit|episode)_segment\}/g,
   unitTitle: /\{unit_title\}/g,
   group: /\{group\}/g,
   quality: /\{quality\}/g,
   resolution: /\{resolution\}/g,
   season: /\{season(?::(\d+))?\}/g,
-  sourceEpisodeSegment: /\{source_episode_segment\}/g,
+  sourceUnitSegment: /\{source_(?:unit|episode)_segment\}/g,
   title: /\{title\}/g,
   videoCodec: /\{video_codec\}/g,
   year: /\{year\}/g,
@@ -76,7 +81,7 @@ const WRAPPED_SEGMENT_PATTERNS: Record<"(" | "[", RegExp> = {
 
 export function renderEpisodeFilename(format: string, input: NamingInput): string {
   const formatHasResolutionToken = RESOLUTION_TOKEN_PATTERN.test(format);
-  const primaryEpisode = input.unitNumbers[0] ?? 0;
+  const primaryUnit = input.unitNumbers[0] ?? 0;
   const segment = formatEpisodeSegment({
     unit_numbers: input.unitNumbers,
   });
@@ -90,14 +95,14 @@ export function renderEpisodeFilename(format: string, input: NamingInput): strin
 
   result = result.replace(TOKEN_PATTERNS.title, sanitizeFilename(input.title));
 
-  result = result.replace(TOKEN_PATTERNS.episode, (_, padStr) => {
+  result = result.replace(TOKEN_PATTERNS.unit, (_, padStr) => {
     const pad = padStr ? Number(padStr) : 2;
-    return String(primaryEpisode).padStart(pad, "0");
+    return String(primaryUnit).padStart(pad, "0");
   });
 
-  result = result.replace(TOKEN_PATTERNS.episodeSegment, segment);
+  result = result.replace(TOKEN_PATTERNS.unitSegment, segment);
 
-  result = result.replace(TOKEN_PATTERNS.sourceEpisodeSegment, sourceSegment || segment);
+  result = result.replace(TOKEN_PATTERNS.sourceUnitSegment, sourceSegment || segment);
 
   result = result.replace(TOKEN_PATTERNS.airDate, input.airDate ?? "");
 

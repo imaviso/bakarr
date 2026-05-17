@@ -22,7 +22,7 @@ export function mediaUnitLabel(unitKind: MediaUnitKind | undefined, count = 1) {
     return count === 1 ? "Volume" : "Volumes";
   }
 
-  return count === 1 ? "MediaUnit" : "Episodes";
+  return count === 1 ? "Episode" : "Episodes";
 }
 
 export function mediaUnitShortLabel(unitKind: MediaUnitKind | undefined, count: number) {

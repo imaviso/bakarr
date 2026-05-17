@@ -18,7 +18,7 @@ function AltTitlesSubtitle({ anime }: { anime: MediaSearchResult }) {
   );
 }
 
-interface AnimeSearchResultCardProps {
+interface MediaSearchResultCardProps {
   media: MediaSearchResult;
   added: boolean;
   onSelect: (media: MediaSearchResult) => void;
@@ -27,7 +27,7 @@ interface AnimeSearchResultCardProps {
   compact?: boolean;
 }
 
-export function AnimeSearchResultCard(props: AnimeSearchResultCardProps) {
+export function MediaSearchResultCard(props: MediaSearchResultCardProps) {
   return (
     <Card className="overflow-hidden flex flex-col transition-colors hover:border-primary/50 group">
       <div className="relative aspect-[2/3] w-full bg-muted overflow-hidden">

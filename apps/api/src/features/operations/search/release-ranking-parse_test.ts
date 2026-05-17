@@ -1,8 +1,8 @@
 import { assert, it } from "@effect/vitest";
 
 import {
-  parseEpisodeFromTitle,
-  parseEpisodeNumbersFromTitle,
+  parseUnitFromTitle,
+  parseUnitNumbersFromTitle,
   parseReleaseName,
 } from "@/features/operations/search/release-ranking-parse.ts";
 
@@ -31,7 +31,7 @@ it("parseReleaseName treats ordinal season dash episode releases as single media
   assert.deepStrictEqual(parsed.isBatch, false);
 });
 
-it("parseEpisodeFromTitle ignores daily source identities", () => {
-  assert.deepStrictEqual(parseEpisodeFromTitle("[Group] Show - 2025.03.14 [1080p]"), undefined);
-  assert.deepStrictEqual(parseEpisodeNumbersFromTitle("[Group] Show - 02-04 [1080p]"), [2, 3, 4]);
+it("parseUnitFromTitle ignores daily source identities", () => {
+  assert.deepStrictEqual(parseUnitFromTitle("[Group] Show - 2025.03.14 [1080p]"), undefined);
+  assert.deepStrictEqual(parseUnitNumbersFromTitle("[Group] Show - 02-04 [1080p]"), [2, 3, 4]);
 });

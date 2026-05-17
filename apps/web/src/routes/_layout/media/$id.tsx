@@ -2,7 +2,7 @@ import { useCallback, useMemo, Suspense, lazy } from "react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Schema } from "effect";
-import { AnimeDetailsHeader } from "~/features/media/media-details-header";
+import { MediaDetailsHeader } from "~/features/media/media-details-header";
 import { AnimeDetailsMeta } from "~/features/media/media-details-meta";
 import { AnimeDetailsSidebar } from "~/features/media/media-details-sidebar";
 import { AnimeEpisodesPanel } from "~/features/media/media-units-panel";
@@ -192,7 +192,7 @@ function AnimeDetailsPage() {
   return (
     <AnimeDetailsDialogsProvider value={{ ...dialogsState, ...dialogsDispatch }}>
       <PageShell>
-        <AnimeDetailsHeader
+        <MediaDetailsHeader
           media={media}
           mediaId={mediaId}
           isMonitored={isMonitored}
@@ -207,7 +207,7 @@ function AnimeDetailsPage() {
           onScanFolder={actions.handleScanFolder}
           onRenameFiles={handleRenameFiles}
           onOpenBulkMapping={handleOpenBulkMapping}
-          onDeleteAnime={handleDeleteAnime}
+          onDeleteMedia={handleDeleteAnime}
         />
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">

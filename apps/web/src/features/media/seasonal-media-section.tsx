@@ -2,7 +2,7 @@ import { CaretLeftIcon, CaretRightIcon, InfoIcon } from "@phosphor-icons/react";
 import { useSuspenseInfiniteQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { AnimeSearchResultCard } from "~/features/media/media-search-result-card";
+import { MediaSearchResultCard } from "~/features/media/media-search-result-card";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
 import { useContainerWidth } from "~/hooks/use-container-width";
@@ -177,7 +177,7 @@ export function SeasonalAnimeSection(props: SeasonalAnimeSectionProps) {
               >
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                   {rowItems(vRow.index).map((media) => (
-                    <AnimeSearchResultCard
+                    <MediaSearchResultCard
                       key={media.id}
                       media={media}
                       added={props.libraryIds.has(media.id)}

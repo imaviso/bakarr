@@ -4,8 +4,8 @@ export type {
   RankedRelease,
 } from "@/features/operations/search/release-ranking-types.ts";
 export {
-  parseEpisodeFromTitle,
-  parseEpisodeNumbersFromTitle,
+  parseUnitFromTitle,
+  parseUnitNumbersFromTitle,
   parseReleaseName,
 } from "@/features/operations/search/release-ranking-parse.ts";
 export {

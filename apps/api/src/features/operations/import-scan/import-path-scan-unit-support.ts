@@ -1,6 +1,6 @@
 import type { ScannedFile } from "@packages/shared/index.ts";
 
-export function toEpisodeNumbers(file: Pick<ScannedFile, "unit_number" | "unit_numbers">) {
+export function toUnitNumbers(file: Pick<ScannedFile, "unit_number" | "unit_numbers">) {
   if (file.unit_numbers?.length) {
     return file.unit_numbers;
   }
@@ -8,9 +8,9 @@ export function toEpisodeNumbers(file: Pick<ScannedFile, "unit_number" | "unit_n
   return file.unit_number > 0 ? [file.unit_number] : [];
 }
 
-export function selectEpisodeRowsForFile(
+export function selectUnitRowsForFile(
   file: Pick<ScannedFile, "unit_number" | "unit_numbers">,
-  rowsByAnimeEpisode: Map<
+  rowsByMediaUnit: Map<
     string,
     {
       aired?: string | null;
@@ -25,10 +25,10 @@ export function selectEpisodeRowsForFile(
     return undefined;
   }
 
-  const unitNumbers = toEpisodeNumbers(file);
+  const unitNumbers = toUnitNumbers(file);
 
   return unitNumbers.flatMap((unitNumber) => {
-    const row = rowsByAnimeEpisode.get(`${mediaId}:${unitNumber}`);
+    const row = rowsByMediaUnit.get(`${mediaId}:${unitNumber}`);
     return row
       ? [
           {

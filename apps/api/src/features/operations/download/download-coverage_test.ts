@@ -1,6 +1,7 @@
 import { assert, it } from "@effect/vitest";
 
 import {
+  inferCoveredEpisodesFromTorrentContents,
   inferCoveredEpisodeNumbers,
   resolveReconciledBatchEpisodeNumbers,
 } from "@/features/operations/download/download-coverage.ts";
@@ -79,3 +80,48 @@ it("resolveReconciledBatchEpisodeNumbers prefers path identity, then single-cand
     [],
   );
 });
+
+it("resolveReconciledBatchEpisodeNumbers parses literature volume files when enabled", () => {
+  assert.deepStrictEqual(
+    resolveReconciledBatchEpisodeNumbers({
+      coveredUnits: [],
+      parseVolumeNumbers: true,
+      path: "Overlord v01 - The Undead King [Yen Press] [LuCaZ] {r3}.epub",
+      totalCandidateCount: 16,
+    }),
+    [1],
+  );
+  assert.deepStrictEqual(
+    resolveReconciledBatchEpisodeNumbers({
+      coveredUnits: [],
+      path: "Overlord v01 - The Undead King [Yen Press] [LuCaZ] {r3}.epub",
+      totalCandidateCount: 16,
+    }),
+    [],
+  );
+});
+
+it("inferCoveredEpisodesFromTorrentContents parses qBittorrent literature file lists", () => {
+  assert.deepStrictEqual(
+    inferCoveredEpisodesFromTorrentContents({
+      files: [
+        qbitFile("Overlord v01 - The Undead King [Yen Press] [LuCaZ] {r3}.epub"),
+        qbitFile("Overlord v02 - The Dark Warrior [Yen Press] [LuCaZ] {r2}.epub"),
+        qbitFile("Overlord v16 - The Half-Elf Demigod (Part II) [Yen Press] [LuCaZ].epub"),
+      ],
+      parseVolumeNumbers: true,
+      rootName: "Overlord [Yen Press] [LuCaZ]",
+    }),
+    [1, 2, 16],
+  );
+});
+
+function qbitFile(name: string) {
+  return {
+    is_seed: false,
+    name,
+    priority: 1,
+    progress: 1,
+    size: 1,
+  };
+}

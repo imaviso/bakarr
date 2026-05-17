@@ -37,9 +37,9 @@ import { DEFAULT_SEASON_WINDOW, parseAddMediaSearch, type AddMediaSearch } from 
 
 const SEARCH_DEBOUNCE_MS = 250;
 
-const AnimeSearchResultCardLazy = lazy(() =>
+const MediaSearchResultCardLazy = lazy(() =>
   import("~/features/media/media-search-result-card").then((module) => ({
-    default: module.AnimeSearchResultCard,
+    default: module.MediaSearchResultCard,
   })),
 );
 const SeasonalAnimeSectionLazy = lazy(() =>
@@ -392,7 +392,7 @@ function SearchResults(props: SearchResultsProps) {
               >
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
                   {rowItems(vRow.index).map((media) => (
-                    <AnimeSearchResultCardLazy
+                    <MediaSearchResultCardLazy
                       key={media.id}
                       media={media}
                       added={props.libraryIds.has(media.id)}

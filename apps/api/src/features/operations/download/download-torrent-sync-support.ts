@@ -3,7 +3,7 @@ import { Context, Effect, Layer } from "effect";
 
 import type { Config, DownloadSourceMetadata } from "@packages/shared/index.ts";
 import { Database, type DatabaseError } from "@/db/database.ts";
-import { downloads } from "@/db/schema.ts";
+import { downloads, media } from "@/db/schema.ts";
 import {
   inferCoveredEpisodesFromTorrentContents,
   parseCoveredEpisodesEffect,
@@ -105,8 +105,16 @@ export function makeDownloadTorrentSyncSupport(input: DownloadTorrentSyncSupport
       return;
     }
 
+    const mediaRows = yield* tryDatabasePromise("Failed to sync downloads with qBittorrent", () =>
+      db
+        .select({ mediaKind: media.mediaKind })
+        .from(media)
+        .where(eq(media.id, input.mediaId))
+        .limit(1),
+    );
     const inferredEpisodes = inferCoveredEpisodesFromTorrentContents({
       files: contentsResult.right.files,
+      parseVolumeNumbers: mediaRows[0]?.mediaKind !== "anime",
       rootName: input.torrentName,
     });
 

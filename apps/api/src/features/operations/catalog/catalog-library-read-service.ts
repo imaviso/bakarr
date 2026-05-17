@@ -104,7 +104,7 @@ export const CatalogLibraryReadServiceLive = Layer.effect(
             row.nextAiringAt && row.nextAiringUnit
               ? {
                   airing_at: row.nextAiringAt,
-                  episode: row.nextAiringUnit,
+                  unit_number: row.nextAiringUnit,
                 }
               : undefined,
         } satisfies MissingUnit;

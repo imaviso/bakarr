@@ -7,14 +7,14 @@ import { cn } from "~/infra/utils";
 
 type DiscoveryEntry = NonNullable<Media["related_media"]>[number];
 
-interface AnimeDiscoveryRowProps {
+interface MediaDiscoveryRowProps {
   entry: DiscoveryEntry;
   libraryIds: ReadonlySet<number>;
   compact?: boolean;
   onNavigate?: () => void;
 }
 
-export function AnimeDiscoveryRow(props: AnimeDiscoveryRowProps) {
+export function MediaDiscoveryRow(props: MediaDiscoveryRowProps) {
   const subtitle = animeDiscoverySubtitle({
     format: props.entry.format,
     relation_type: props.entry.relation_type,
@@ -105,7 +105,7 @@ export function AnimeDiscoverySection(props: AnimeDiscoverySectionProps) {
             </div>
             <div className="space-y-2">
               {related.map((entry) => (
-                <AnimeDiscoveryRow key={entry.id} entry={entry} libraryIds={props.libraryIds} />
+                <MediaDiscoveryRow key={entry.id} entry={entry} libraryIds={props.libraryIds} />
               ))}
             </div>
           </section>
@@ -118,7 +118,7 @@ export function AnimeDiscoverySection(props: AnimeDiscoverySectionProps) {
             </div>
             <div className="space-y-2">
               {recommended.slice(0, 6).map((entry) => (
-                <AnimeDiscoveryRow key={entry.id} entry={entry} libraryIds={props.libraryIds} />
+                <MediaDiscoveryRow key={entry.id} entry={entry} libraryIds={props.libraryIds} />
               ))}
             </div>
           </section>

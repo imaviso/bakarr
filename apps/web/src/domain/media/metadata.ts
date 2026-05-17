@@ -8,7 +8,7 @@ type AnimeDateContext = {
   start_year?: number | undefined;
 };
 
-type AnimeNextAiringContext = Media["next_airing_unit"];
+type NextAiringUnitContext = Media["next_airing_unit"];
 
 export interface AiringDisplayPreferences {
   dayStartHour: number;
@@ -92,8 +92,8 @@ function formatRelationType(value: string) {
   return value.toLowerCase().replaceAll("_", " ");
 }
 
-export function formatNextAiringEpisode(
-  nextAiring?: AnimeNextAiringContext,
+export function formatNextAiringUnit(
+  nextAiring?: NextAiringUnitContext,
   preferences?: AiringDisplayPreferences,
 ) {
   if (!nextAiring?.airing_at) {
@@ -102,10 +102,10 @@ export function formatNextAiringEpisode(
 
   const airingLabel = formatAiringDateTimeWithPreferences(nextAiring.airing_at, preferences);
   if (!airingLabel) {
-    return `Ep ${nextAiring.episode}`;
+    return `Unit ${nextAiring.unit_number}`;
   }
 
-  return `Ep ${nextAiring.episode} airs ${airingLabel}`;
+  return `Unit ${nextAiring.unit_number} airs ${airingLabel}`;
 }
 
 export function hasEpisodeAired(airedDate?: string, now = new Date()) {

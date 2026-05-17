@@ -6,8 +6,8 @@ import type { Config, QualityProfile } from "@packages/shared/index.ts";
 import {
   compareUnitSearchResults,
   decideDownloadAction,
-  parseEpisodeFromTitle,
-  parseEpisodeNumbersFromTitle,
+  parseUnitFromTitle,
+  parseUnitNumbersFromTitle,
   parseQualityFromTitle,
   parseReleaseName,
   validateQualityProfileSizeLabels,
@@ -618,13 +618,13 @@ it("compare unit search results prefers better quality over seeders when score t
 });
 
 it("episode parser handles sxxexx and dash patterns", () => {
-  assert.deepStrictEqual(parseEpisodeFromTitle("Show.S01E07.1080p.WEB.mkv"), 7);
-  assert.deepStrictEqual(parseEpisodeFromTitle("[Group] Show - 12 [1080p]"), 12);
+  assert.deepStrictEqual(parseUnitFromTitle("Show.S01E07.1080p.WEB.mkv"), 7);
+  assert.deepStrictEqual(parseUnitFromTitle("[Group] Show - 12 [1080p]"), 12);
 });
 
 it("episode parser handles ranges and season packs", () => {
-  assert.deepStrictEqual(parseEpisodeNumbersFromTitle("[Group] Show - 01-03 [1080p]"), [1, 2, 3]);
-  assert.deepStrictEqual(parseEpisodeNumbersFromTitle("Show S01E01-E04 1080p"), [1, 2, 3, 4]);
+  assert.deepStrictEqual(parseUnitNumbersFromTitle("[Group] Show - 01-03 [1080p]"), [1, 2, 3]);
+  assert.deepStrictEqual(parseUnitNumbersFromTitle("Show S01E01-E04 1080p"), [1, 2, 3, 4]);
 
   const parsed = parseReleaseName("[Group] Show - 01-12 Batch [1080p]");
   assert.deepStrictEqual(parsed.isBatch, true);

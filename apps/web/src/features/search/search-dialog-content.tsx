@@ -32,6 +32,8 @@ import {
   TableRow,
 } from "~/components/ui/table";
 import { EmptyState } from "~/components/shared/empty-state";
+import type { MediaKind } from "~/api/contracts";
+import { mediaUnitLabel } from "~/domain/media-unit";
 import { ReleaseSelectionMeta } from "~/features/downloads/release-search/release-meta";
 import {
   ReleasePeersCell,
@@ -51,6 +53,7 @@ const filterOptions = Object.keys(FILTER_LABELS);
 
 interface SearchDialogContentProps {
   mediaId: number;
+  mediaKind: MediaKind;
   category: string;
   debouncedQuery: string;
   filter: string;
@@ -66,6 +69,8 @@ export function SearchDialogContent(props: SearchDialogContentProps) {
   const handleGrab = () => {
     props.setOpen(false);
   };
+  const unitKind = props.mediaKind === "anime" ? "episode" : "volume";
+  const unitLabel = mediaUnitLabel(unitKind);
 
   return (
     <DialogContent className="sm:max-w-7xl w-full h-[85vh] flex flex-col p-0 gap-0 border-none sm:rounded-none bg-background overflow-hidden">
@@ -117,9 +122,11 @@ export function SearchDialogContent(props: SearchDialogContentProps) {
         {props.open && (
           <SearchResults
             mediaId={props.mediaId}
+            mediaKind={props.mediaKind}
             query={props.debouncedQuery}
             category={props.category}
             filter={props.filter}
+            unitLabel={unitLabel}
             onGrab={handleGrab}
           />
         )}
@@ -145,9 +152,11 @@ export function SearchDialogContent(props: SearchDialogContentProps) {
 
 function SearchResults(props: {
   mediaId: number;
+  mediaKind: MediaKind;
   query: string;
   category: string;
   filter: string;
+  unitLabel: string;
   onGrab: () => void;
 }) {
   const state = useSearchDialogResultsState({
@@ -158,7 +167,7 @@ function SearchResults(props: {
   });
 
   if (state.searchQuery.isLoading) {
-    return <SearchResultsSkeleton />;
+    return <SearchResultsSkeleton unitHeader={props.mediaKind === "anime" ? "Ep" : "Vol"} />;
   }
 
   return (
@@ -175,7 +184,7 @@ function SearchResults(props: {
               onClick={() => state.toggleSort("parsed_unit")}
             >
               <div className="flex items-center gap-1">
-                Ep
+                {props.mediaKind === "anime" ? "Ep" : "Vol"}
                 {state.sortCol === "parsed_unit" &&
                   (state.sortAsc ? (
                     <SortAscendingIcon className="h-3 w-3" />
@@ -242,6 +251,7 @@ function SearchResults(props: {
                 key={result.info_hash ?? result.title}
                 result={result}
                 mediaId={props.mediaId}
+                unitLabel={props.unitLabel}
                 onGrab={props.onGrab}
               />
             ))
@@ -262,7 +272,7 @@ function SearchResults(props: {
   );
 }
 
-function SearchResultsSkeleton() {
+function SearchResultsSkeleton(props: { unitHeader: string }) {
   return (
     <div className="h-full overflow-hidden flex flex-col">
       <Table>
@@ -272,7 +282,7 @@ function SearchResultsSkeleton() {
               Release
             </TableHead>
             <TableHead scope="col" className="h-9 text-xs font-medium">
-              Ep
+              {props.unitHeader}
             </TableHead>
             <TableHead scope="col" className="h-9 text-xs font-medium">
               Res
@@ -327,7 +337,12 @@ function SearchResultsSkeleton() {
   );
 }
 
-function ReleaseRow(props: { result: NyaaSearchResult; mediaId: number; onGrab: () => void }) {
+function ReleaseRow(props: {
+  result: NyaaSearchResult;
+  mediaId: number;
+  unitLabel: string;
+  onGrab: () => void;
+}) {
   const state = useSearchDialogReleaseRowState({
     mediaId: props.mediaId,
     onGrab: props.onGrab,
@@ -399,8 +414,8 @@ function ReleaseRow(props: { result: NyaaSearchResult; mediaId: number; onGrab: 
                 <h4 className="text-xs font-medium text-foreground">Confirm Download</h4>
                 <p className="text-xs text-muted-foreground">
                   {state.isBatch
-                    ? "Enter the episode number for the first file in this pack."
-                    : "Enter the episode number this release should map to."}
+                    ? `Enter the ${props.unitLabel.toLowerCase()} number for the first file in this pack.`
+                    : `Enter the ${props.unitLabel.toLowerCase()} number this release should map to.`}
                 </p>
                 {state.selectionSummary && (
                   <ReleaseSelectionMeta
@@ -410,23 +425,26 @@ function ReleaseRow(props: { result: NyaaSearchResult; mediaId: number; onGrab: 
                   />
                 )}
               </div>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center gap-2">
                 <Checkbox
                   id={batchCheckboxId}
                   checked={state.isBatch}
                   onCheckedChange={state.setIsBatch}
                 />
                 <Label htmlFor={batchCheckboxId} className="text-xs">
-                  Batch or season pack (multiple episodes)
+                  Batch or pack (multiple {props.unitLabel.toLowerCase()}s)
                 </Label>
               </div>
               <div className="space-y-1">
                 <Label htmlFor={episodeInputId} className="text-xs text-muted-foreground">
-                  {state.isBatch ? "First episode in pack" : "MediaUnit number"}
+                  {state.isBatch
+                    ? `First ${props.unitLabel.toLowerCase()} in pack`
+                    : `${props.unitLabel} number`}
                 </Label>
                 {state.isBatch && (
                   <p className="text-[11px] leading-snug text-muted-foreground">
-                    Example: for episodes 13-24, enter 13. Files after it map in order.
+                    Example: for {props.unitLabel.toLowerCase()}s 13-24, enter 13. Files after it
+                    map in order.
                   </p>
                 )}
               </div>
@@ -437,7 +455,9 @@ function ReleaseRow(props: { result: NyaaSearchResult; mediaId: number; onGrab: 
                     value={state.episodeNumberInput}
                     onChange={(event) => state.setEpisodeNumberInput(event.currentTarget.value)}
                     className="h-7 text-xs font-mono"
-                    placeholder={state.isBatch ? "First ep" : "MediaUnit #"}
+                    placeholder={
+                      state.isBatch ? `First ${props.unitLabel}` : `${props.unitLabel} #`
+                    }
                   />
                 </div>
                 <Button

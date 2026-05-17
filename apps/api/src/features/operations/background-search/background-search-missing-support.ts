@@ -109,7 +109,10 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
             sql`${mediaUnits.aired} is not null`,
             sql`${mediaUnits.aired} <= ${now}`,
           ),
-          ne(media.mediaKind, "anime"),
+          and(
+            ne(media.mediaKind, "anime"),
+            or(sql`${mediaUnits.aired} is null`, sql`${mediaUnits.aired} <= ${now}`),
+          ),
         ),
         mediaId ? eq(mediaUnits.mediaId, mediaId) : eq(media.monitored, true),
       ];
@@ -119,7 +122,7 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
           .from(mediaUnits)
           .innerJoin(media, eq(media.id, mediaUnits.mediaId))
           .where(and(...missingConditions))
-          .orderBy(mediaUnits.aired, media.titleRomaji)
+          .orderBy(media.titleRomaji, mediaUnits.number)
           .limit(10),
       );
       const runtimeConfig = yield* runtimeConfigSnapshot.getRuntimeConfig();

@@ -12,6 +12,7 @@ import {
   classifyMediaArtifact,
   parseFileSourceIdentity,
 } from "@/infra/media/identity/identity.ts";
+import { parseVolumeNumbersFromTitle } from "@/features/operations/search/release-volume.ts";
 import type { QBitTorrentFile } from "@/features/operations/qbittorrent/qbittorrent.ts";
 import { OperationsStoredDataError } from "@/features/operations/errors.ts";
 import { eq } from "drizzle-orm";
@@ -141,6 +142,7 @@ export function inferCoveredEpisodeNumbers(input: {
 
 export function inferCoveredEpisodesFromTorrentContents(input: {
   readonly files: readonly QBitTorrentFile[];
+  readonly parseVolumeNumbers?: boolean;
   readonly rootName: string;
 }) {
   const mediaUnits = new Set<number>();
@@ -159,6 +161,11 @@ export function inferCoveredEpisodesFromTorrentContents(input: {
     const identity = parsed.source_identity;
 
     if (!identity || identity.scheme === "daily") {
+      if (input.parseVolumeNumbers) {
+        for (const volume of parseVolumeNumbersFromTitle(fileName)) {
+          mediaUnits.add(volume);
+        }
+      }
       continue;
     }
 
@@ -173,12 +180,21 @@ export function inferCoveredEpisodesFromTorrentContents(input: {
 export function resolveReconciledBatchEpisodeNumbers(input: {
   readonly path: string;
   readonly coveredUnits: readonly number[];
+  readonly parseVolumeNumbers?: boolean;
   readonly totalCandidateCount: number;
 }) {
   const identity = parseFileSourceIdentity(input.path).source_identity;
 
   if (identity && identity.scheme !== "daily") {
     return [...identity.unit_numbers];
+  }
+
+  if (input.parseVolumeNumbers) {
+    const fileName = input.path.split("/").pop() ?? input.path;
+    const volumes = parseVolumeNumbersFromTitle(fileName);
+    if (volumes.length > 0) {
+      return volumes;
+    }
   }
 
   if (input.totalCandidateCount === 1 && input.coveredUnits.length > 0) {

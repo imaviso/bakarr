@@ -32,7 +32,7 @@ import { mediaUnitLabel } from "~/domain/media-unit";
 import { usePageTitle } from "~/domain/page-title";
 import {
   formatAiringDateWithPreferences,
-  formatNextAiringEpisode,
+  formatNextAiringUnit,
   getAiringDisplayPreferences,
 } from "~/domain/media/metadata";
 
@@ -263,7 +263,7 @@ function WantedRow(props: {
         </Link>
         {props.item.next_airing_unit && (
           <div className="mt-1 text-[11px] text-muted-foreground">
-            {formatNextAiringEpisode(props.item.next_airing_unit, props.airingPreferences) ||
+            {formatNextAiringUnit(props.item.next_airing_unit, props.airingPreferences) ||
               "Next airing scheduled"}
           </div>
         )}

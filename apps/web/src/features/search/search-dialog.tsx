@@ -40,6 +40,7 @@ export function SearchDialog(props: SearchDialogProps) {
 
       <SearchDialogContent
         mediaId={props.mediaId}
+        mediaKind={props.mediaKind}
         open={state.open}
         setOpen={state.setOpen}
         query={state.query}

@@ -72,11 +72,15 @@ export const BackgroundSearchQueueServiceLive = Layer.effect(
           input.animeRow.mediaKind === "anime"
             ? parsedRelease.unitNumbers
             : parseVolumeNumbersFromTitle(input.item.title);
+        const isBatch =
+          input.animeRow.mediaKind === "anime"
+            ? parsedRelease.isBatch
+            : explicitUnitNumbers.length > 1;
 
         const coveredUnits = yield* toCoveredEpisodesJson(
           inferCoveredEpisodeNumbers({
             explicitEpisodes: explicitUnitNumbers,
-            isBatch: parsedRelease.isBatch || explicitUnitNumbers.length > 1,
+            isBatch,
             totalUnits: input.animeRow.unitCount,
             missingUnits: input.missingUnits,
             requestedEpisode: input.unitNumber,
@@ -112,7 +116,7 @@ export const BackgroundSearchQueueServiceLive = Layer.effect(
             unitNumber: input.unitNumber,
             eventMessage: input.eventMessage,
             eventType: input.eventType,
-            isBatch: parsedRelease.isBatch,
+            isBatch,
             item: input.item,
             nowIso,
             sourceMetadata: mergeDownloadSourceMetadata(

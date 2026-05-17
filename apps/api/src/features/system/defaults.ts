@@ -78,7 +78,7 @@ export function makeDefaultConfig(databasePath: string): ConfigCore {
       library_path: "./library",
       movie_naming_format: "{title} ({year})",
       naming_format:
-        "{title} - S{season:02}E{episode:02} - {unit_title} [{quality} {resolution}][{video_codec}][{audio_codec} {audio_channels}]",
+        "{title} - {source_unit_segment} - {unit_title} [{quality} {resolution}][{video_codec}][{audio_codec} {audio_channels}]",
       preferred_title: "romaji",
       recycle_cleanup_days: 30,
       recycle_path: "./recycle-bin",

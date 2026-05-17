@@ -23,7 +23,7 @@ import {
   buildScannedFileLibrarySignals,
 } from "@/features/operations/import-scan/import-path-scan-mapping-support.ts";
 import { buildScannedFileNamingPlan } from "@/features/operations/import-scan/import-path-scan-naming-support.ts";
-import { selectEpisodeRowsForFile } from "@/features/operations/import-scan/import-path-scan-unit-support.ts";
+import { selectUnitRowsForFile } from "@/features/operations/import-scan/import-path-scan-unit-support.ts";
 import {
   discoverImportScanFiles,
   extractScanCandidatePaths,
@@ -174,7 +174,7 @@ export const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathE
         const namingPlan = buildScannedFileNamingPlan({
           animeRow: namingAnimeRow,
           ...(() => {
-            const episodeRows = selectEpisodeRowsForFile(
+            const episodeRows = selectUnitRowsForFile(
               file,
               episodeRowsByAnimeEpisode,
               targetAnime?.id,
