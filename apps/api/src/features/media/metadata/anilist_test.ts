@@ -1,12 +1,16 @@
 import { assert, it } from "@effect/vitest";
-import { HttpClient, HttpClientResponse } from "@effect/platform";
-import { Effect, Layer, Option } from "effect";
+import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
+import { Effect, Layer, Option, Schema } from "effect";
 
 import { AniListClient, AniListClientLive } from "@/features/media/metadata/anilist.ts";
 import { ClockServiceLive } from "@/infra/clock.ts";
 import { ExternalCallLive } from "@/infra/effect/retry.ts";
 
 const ExternalCallTestLayer = ExternalCallLive.pipe(Layer.provide(ClockServiceLive));
+const AniListRequestBodySchema = Schema.Struct({
+  query: Schema.String,
+  variables: Schema.Record({ key: Schema.String, value: Schema.Unknown }),
+});
 
 it.scoped("AniListClient decodes search responses from the provided HttpClient", () =>
   Effect.gen(function* () {
@@ -293,6 +297,49 @@ it.scoped("AniListClient decodes detail responses from the provided HttpClient",
   }),
 );
 
+it.scoped("AniListClient detail lookup omits media type when kind is unknown", () =>
+  Effect.gen(function* () {
+    let requestBody: Schema.Schema.Type<typeof AniListRequestBodySchema> | undefined;
+    const clientLayer = AniListClientLive.pipe(
+      Layer.provide(
+        Layer.mergeAll(
+          ClockServiceLive,
+          ExternalCallTestLayer,
+          Layer.succeed(
+            HttpClient.HttpClient,
+            makeAniListClient(
+              (request) => {
+                requestBody = decodeAniListRequestBody(request);
+              },
+              [],
+              {
+                chapters: 42,
+                format: "NOVEL",
+                id: 9876,
+                status: "FINISHED",
+                title: { romaji: "Remote Light Novel" },
+                volumes: 6,
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+
+    const result = yield* Effect.flatMap(AniListClient, (client) =>
+      client.getAnimeMetadataById(9876),
+    ).pipe(Effect.provide(clientLayer));
+
+    assert.deepStrictEqual(Option.isSome(result), true);
+    assert.deepStrictEqual(requestBody?.variables["id"], 9876);
+    assert.deepStrictEqual(Object.hasOwn(requestBody?.variables ?? {}, "type"), false);
+    if (Option.isSome(result)) {
+      assert.deepStrictEqual(result.value.format, "NOVEL");
+      assert.deepStrictEqual(result.value.unitCount, 6);
+    }
+  }),
+);
+
 it.scoped("AniListClient keeps next airing as future schedule fallback", () =>
   Effect.gen(function* () {
     const clientLayer = AniListClientLive.pipe(
@@ -406,13 +453,13 @@ it.scoped("AniListClient decodes seasonal responses and backfills missing season
 );
 
 function makeAniListClient(
-  onRequest: () => void,
+  onRequest: (request: HttpClientRequest.HttpClientRequest) => void,
   searchMedia: ReadonlyArray<unknown>,
   detailMedia: unknown,
 ) {
   return HttpClient.make((request) =>
     Effect.sync(() => {
-      onRequest();
+      onRequest(request);
 
       return HttpClientResponse.fromWeb(
         request,
@@ -439,6 +486,16 @@ function makeAniListClient(
         ),
       );
     }),
+  );
+}
+
+function decodeAniListRequestBody(request: HttpClientRequest.HttpClientRequest) {
+  if (request.body._tag !== "Uint8Array") {
+    throw new Error("AniList request body was not encoded as bytes");
+  }
+
+  return Schema.decodeUnknownSync(AniListRequestBodySchema)(
+    JSON.parse(new TextDecoder().decode(request.body.body)),
   );
 }
 

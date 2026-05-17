@@ -69,15 +69,7 @@ export function useFolderItemController(folder: UnmappedFolder) {
       return;
     }
 
-    const payload: AddAnimeRequest = {
-      id: media.id,
-      monitor_and_search: false,
-      monitored: true,
-      profile_name: profileName,
-      release_profile_ids: [],
-      root_folder: folder.path,
-      use_existing_root: true,
-    };
+    const payload = buildAddMediaRequestFromFolderMatch(media, profileName, folder.path);
 
     addAnimeMutation.mutate(payload, {
       onSuccess: (createdAnime) => {
@@ -111,5 +103,22 @@ export function useFolderItemController(folder: UnmappedFolder) {
     setManualMatch,
     setResetConfirmOpen,
     setSelectedProfileName,
+  };
+}
+
+export function buildAddMediaRequestFromFolderMatch(
+  media: MediaSearchResult,
+  profileName: string,
+  folderPath: string,
+): AddAnimeRequest {
+  return {
+    id: media.id,
+    ...(media.media_kind === undefined ? {} : { media_kind: media.media_kind }),
+    monitor_and_search: false,
+    monitored: true,
+    profile_name: profileName,
+    release_profile_ids: [],
+    root_folder: folderPath,
+    use_existing_root: true,
   };
 }

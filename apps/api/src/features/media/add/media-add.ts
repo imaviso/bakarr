@@ -25,6 +25,7 @@ import {
   fetchPersistedEpisodeRowsEffect,
   requireAnimeMetadataEffect,
 } from "@/features/media/add/media-add-validation.ts";
+import { mediaKindFromAniListFormat } from "@/features/media/shared/media-kind.ts";
 
 export const addAnimeEffect = Effect.fn("AnimeAdd.addAnimeEffect")(function* (input: {
   metadataProvider: typeof AnimeMetadataProviderService.Service;
@@ -37,14 +38,15 @@ export const addAnimeEffect = Effect.fn("AnimeAdd.addAnimeEffect")(function* (in
 }) {
   yield* checkAnimeExistsEffect(input.db, input.animeInput.id);
 
-  const mediaKind = input.animeInput.media_kind ?? "anime";
+  const requestedMediaKind = input.animeInput.media_kind;
   const metadataLookup = yield* input.metadataProvider.getAnimeMetadataById(
     input.animeInput.id,
-    mediaKind,
+    requestedMediaKind,
   );
   const validMetadata = yield* requireAnimeMetadataEffect(
     metadataLookup._tag === "NotFound" ? Option.none() : Option.some(metadataLookup.metadata),
   );
+  const mediaKind = requestedMediaKind ?? mediaKindFromAniListFormat(validMetadata.format);
 
   yield* checkProfileExistsEffect(input.db, input.animeInput.profile_name);
 

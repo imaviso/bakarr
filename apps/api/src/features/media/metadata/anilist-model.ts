@@ -8,6 +8,7 @@ import {
   type MediaKind,
 } from "@packages/shared/index.ts";
 import { deriveAnimeSeason } from "@/domain/media/date-utils.ts";
+import { mediaKindFromAniListFormat } from "@/features/media/shared/media-kind.ts";
 
 const AnimeMetadataTitleSchema = Schema.Struct({
   english: Schema.optional(Schema.String),
@@ -397,15 +398,7 @@ export const AnimeMetadataFromAniListSchema = Schema.transform(
 );
 
 function toMediaKind(format: string | null | undefined): MediaKind {
-  if (format === "NOVEL") {
-    return "light_novel";
-  }
-
-  if (format === "MANGA" || format === "ONE_SHOT") {
-    return "manga";
-  }
-
-  return "anime";
+  return mediaKindFromAniListFormat(format ?? undefined);
 }
 
 function pickAniListRanking(

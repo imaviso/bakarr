@@ -10,3 +10,15 @@ export function decodeMediaKind(value: string): MediaKind {
       throw new Error(`Invalid media kind: ${value}`);
   }
 }
+
+export function mediaKindFromAniListFormat(format: string | undefined): MediaKind {
+  if (format === "NOVEL") {
+    return "light_novel";
+  }
+
+  if (format === "MANGA" || format === "ONE_SHOT") {
+    return "manga";
+  }
+
+  return "anime";
+}

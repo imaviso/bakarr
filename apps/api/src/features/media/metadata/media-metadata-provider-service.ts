@@ -14,6 +14,7 @@ import { JikanClient } from "@/features/media/metadata/jikan.ts";
 import type { JikanNormalizedAnime } from "@/features/media/metadata/jikan-model.ts";
 import { ManamiClient } from "@/features/media/metadata/manami.ts";
 import { mergeAnimeMetadata } from "@/features/media/metadata/metadata-merge.ts";
+import { mediaKindFromAniListFormat } from "@/features/media/shared/media-kind.ts";
 import type { ExternalCallError } from "@/infra/effect/retry.ts";
 
 export type AnimeMetadataLookupResult =
@@ -72,7 +73,7 @@ export const AnimeMetadataProviderServiceLive = Layer.effect(
     const enrichmentService = yield* AnimeMetadataEnrichmentService;
 
     const getAnimeMetadataById = Effect.fn("AnimeMetadataProviderService.getAnimeMetadataById")(
-      function* (id: number, mediaKind: MediaKind = "anime") {
+      function* (id: number, mediaKind?: MediaKind) {
         const metadata = yield* aniList.getAnimeMetadataById(id, mediaKind);
 
         if (Option.isNone(metadata)) {
@@ -80,7 +81,8 @@ export const AnimeMetadataProviderServiceLive = Layer.effect(
         }
 
         const baseMetadata = metadata.value;
-        if (mediaKind !== "anime") {
+        const effectiveMediaKind = mediaKind ?? mediaKindFromAniListFormat(baseMetadata.format);
+        if (effectiveMediaKind !== "anime") {
           return {
             _tag: "Found",
             enrichment: {

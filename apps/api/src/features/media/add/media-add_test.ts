@@ -114,6 +114,57 @@ it.scoped("addAnimeEffect persists MAL backfill and mapped relation metadata", (
   }),
 );
 
+it.scoped("addAnimeEffect infers light novel media kind when request omits it", () =>
+  withSqliteTestDbEffect({
+    run: (db) =>
+      Effect.gen(function* () {
+        const appDb: AppDatabase = db;
+        const mediaId = 701;
+
+        yield* insertQualityProfileEffect(appDb, "Default");
+
+        const animeInput = yield* Schema.decodeUnknown(AddAnimeInput)({
+          id: mediaId,
+          monitor_and_search: false,
+          monitored: true,
+          profile_name: "Default",
+          release_profile_ids: [],
+          root_folder: "/library/Light Novel",
+          use_existing_root: true,
+        });
+
+        yield* addAnimeEffect({
+          metadataProvider: {
+            getAnimeMetadataById: () =>
+              Effect.succeed({
+                _tag: "Found",
+                enrichment: {
+                  _tag: "Degraded",
+                  reason: { _tag: "AniDbNoEpisodeMetadata" },
+                },
+                metadata: { ...makeMetadata(mediaId), format: "NOVEL", unitCount: 6 },
+              }),
+          },
+          animeInput,
+          db: appDb,
+          eventPublisher: { publish: () => Effect.void },
+          fs: makeFileSystemStub(),
+          imageCacheService: {
+            cacheMetadataImages: () => Effect.succeed({}),
+          },
+          nowIso: () => Effect.succeed("2026-04-11T00:00:00.000Z"),
+        });
+
+        const [row] = yield* Effect.promise(() =>
+          appDb.select().from(media).where(eq(media.id, mediaId)),
+        );
+        assert(row);
+        assert.deepStrictEqual(row.mediaKind, "light_novel");
+      }),
+    schema,
+  }),
+);
+
 const insertQualityProfileEffect = Effect.fn("Test.insertQualityProfile")(function* (
   db: AppDatabase,
   name: string,

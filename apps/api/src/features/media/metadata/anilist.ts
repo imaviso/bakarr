@@ -362,7 +362,7 @@ export const AniListClientLive = Layer.effect(
 
     const getAnimeMetadataById = Effect.fn("AniListClient.getAnimeMetadataById")(function* (
       id: number,
-      mediaKind: MediaKind = "anime",
+      mediaKind?: MediaKind,
     ) {
       return yield* tryFetchDetail(client, externalCall, id, mediaKind);
     });
@@ -459,14 +459,14 @@ const tryFetchDetail = Effect.fn("AniListClient.tryFetchDetail")(function* (
   client: HttpClient.HttpClient,
   externalCall: ExternalCallShape,
   id: number,
-  mediaKind: MediaKind,
+  mediaKind: MediaKind | undefined,
 ) {
   const payload = yield* callAniList(
     client,
     externalCall,
     "detail",
     DETAIL_ANIME_QUERY,
-    { id, type: toAniListMediaType(mediaKind) },
+    { id, type: toOptionalAniListMediaType(mediaKind) },
     AniListDetailPayloadSchema,
   );
   const media = payload.data.Media;
@@ -490,6 +490,10 @@ const tryFetchDetail = Effect.fn("AniListClient.tryFetchDetail")(function* (
 
 function toAniListMediaType(mediaKind: MediaKind) {
   return mediaKind === "anime" ? "ANIME" : "MANGA";
+}
+
+function toOptionalAniListMediaType(mediaKind: MediaKind | undefined) {
+  return mediaKind === undefined ? undefined : toAniListMediaType(mediaKind);
 }
 
 const tryFetchSeasonal = Effect.fn("AniListClient.tryFetchSeasonal")(function* (
