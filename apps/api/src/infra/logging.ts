@@ -54,7 +54,7 @@ export interface RuntimeLogLevelStateShape {
 
 export interface RuntimeLogSinkShape {
   readonly write: (input: {
-    readonly levelLabel: string;
+    readonly level: LogLevel.LogLevel;
     readonly line: string;
   }) => Effect.Effect<void>;
 }
@@ -84,20 +84,19 @@ export const RuntimeLogLevelStateLive = Layer.effect(
 export const RuntimeLogSinkLive = Layer.succeed(
   RuntimeLogSink,
   RuntimeLogSink.of({
-    write: ({ levelLabel, line }) =>
+    write: ({ level, line }) =>
       Effect.sync(() => {
-        switch (levelLabel) {
-          case "ERROR":
-          case "FATAL":
-            console.error(line);
-            break;
-          case "WARN":
-            console.warn(line);
-            break;
-          default:
-            console.log(line);
-            break;
+        if (level.ordinal >= LogLevel.Error.ordinal) {
+          console.error(line);
+          return;
         }
+
+        if (level.ordinal >= LogLevel.Warning.ordinal) {
+          console.warn(line);
+          return;
+        }
+
+        console.log(line);
       }),
   }),
 );
@@ -126,7 +125,7 @@ const makeRuntimeLoggerLayer = Effect.fn("Logging.makeRuntimeLoggerLayer")(funct
         const line = Logger.jsonLogger.log(options);
 
         yield* sink.write({
-          levelLabel: options.logLevel.label,
+          level: options.logLevel,
           line,
         });
       }),

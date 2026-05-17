@@ -3,7 +3,7 @@ import { HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { Effect, Logger } from "effect";
 
 import { DatabaseError } from "@/db/database.ts";
-import { AuthError } from "@/features/auth/errors.ts";
+import { AuthForbiddenError, AuthUnauthorizedError } from "@/features/auth/errors.ts";
 import { MediaConflictError, MediaNotFoundError, MediaPathError } from "@/features/media/errors.ts";
 import {
   DownloadConflictError,
@@ -198,13 +198,10 @@ it("route errors falls back for unknown failures", () => {
 });
 
 it("auth route errors map auth failures locally", () => {
-  assert.deepStrictEqual(
-    mapRouteError(new AuthError({ kind: "Forbidden", message: "forbidden" })),
-    {
-      message: "forbidden",
-      status: 403,
-    },
-  );
+  assert.deepStrictEqual(mapRouteError(new AuthForbiddenError({ message: "forbidden" })), {
+    message: "forbidden",
+    status: 403,
+  });
 });
 
 it.effect("route responses log mapped client errors below error level", () =>
@@ -216,7 +213,7 @@ it.effect("route responses log mapped client errors below error level", () =>
     const request = HttpServerRequest.fromWeb(new Request("http://localhost/api/auth/me"));
 
     const response = yield* routeResponse(
-      Effect.fail(new AuthError({ kind: "Unauthorized", message: "Unauthorized" })),
+      Effect.fail(new AuthUnauthorizedError({ message: "Unauthorized" })),
       (value) => HttpServerResponse.json(value),
       mapRouteError,
     ).pipe(

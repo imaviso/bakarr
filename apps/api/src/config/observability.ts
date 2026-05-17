@@ -1,6 +1,7 @@
 import { Config as EffectConfig, Context, Effect, Layer, Redacted, Schema } from "effect";
 
 import { AppConfig } from "@/config/schema.ts";
+import { readConfigValue } from "@/config/read-config-value.ts";
 import { PositiveIntSchema } from "@/domain/domain-schema.ts";
 
 export class ObservabilityConfigModel extends Schema.Class<ObservabilityConfigModel>(
@@ -170,10 +171,6 @@ export class ObservabilityConfig extends Context.Tag("@bakarr/api/ObservabilityC
       }),
     );
   }
-}
-
-function readConfigValue<A>(override: A | undefined, config: EffectConfig.Config<A>) {
-  return override === undefined ? config : EffectConfig.succeed(override);
 }
 
 function readNullableConfigValue<A>(

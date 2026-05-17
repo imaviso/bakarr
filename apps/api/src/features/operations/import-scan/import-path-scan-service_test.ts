@@ -59,7 +59,7 @@ function scanImportPathEffect(
           Layer.mergeAll(
             Layer.succeed(Database, {
               get client(): never {
-                return Effect.runSync(Effect.dieMessage("test database stub"));
+                throw new Error("test database stub");
               },
               db: undefined!,
             }),

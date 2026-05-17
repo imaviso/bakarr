@@ -160,6 +160,5 @@ export function makeApiLifecycleLayers(
 
   return {
     appLayer,
-    platformLayer,
   } as const;
 }

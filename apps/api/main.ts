@@ -7,12 +7,7 @@ import { createServer } from "node:http";
 
 import { makeDotenvConfigProvider } from "./src/config/provider.ts";
 import { createHttpApp } from "./src/http/http-app.ts";
-import {
-  bootstrapProgram,
-  logServerStarting,
-  logServerStopping,
-  startBackgroundWorkers,
-} from "./src/app/startup.ts";
+import { bootstrapProgram, logServerListening, startBackgroundWorkers } from "./src/app/startup.ts";
 import { makeApiLifecycleLayers } from "./src/app/lifecycle-layers.ts";
 
 /**
@@ -37,14 +32,24 @@ const mainProgram = Effect.fn("api.main")(function* () {
   const httpApp = yield* createHttpApp();
 
   yield* startBackgroundWorkers();
-  yield* logServerStarting(config);
-  yield* Effect.addFinalizer(() => logServerStopping());
 
-  return yield* Layer.launch(
-    HttpServer.serve(httpApp).pipe(
-      Layer.provide(NodeHttpServer.layer(() => createServer(), { port: config.port })),
+  const serverLayer = Layer.mergeAll(
+    HttpServer.serve(httpApp),
+    Layer.scopedDiscard(logServerListening(config)),
+  ).pipe(
+    Layer.provide(
+      NodeHttpServer.layer(
+        () => {
+          const srv = createServer();
+          srv.keepAliveTimeout = 5000;
+          return srv;
+        },
+        { port: config.port },
+      ),
     ),
   );
+
+  return yield* Layer.launch(serverLayer);
 });
 
 const loadDotenvConfigProvider = Effect.fn("api.loadDotenvConfigProvider")(function* () {

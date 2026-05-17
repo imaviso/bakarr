@@ -12,9 +12,7 @@ import type {
 export function makeDatabaseServiceStub(db: AppDatabase): DatabaseService {
   return {
     get client(): never {
-      return Effect.runSync(
-        Effect.dieMessage("test database stub should not access sqlite client"),
-      );
+      throw new Error("test database stub should not access sqlite client");
     },
     db,
   };

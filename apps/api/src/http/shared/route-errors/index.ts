@@ -7,7 +7,14 @@ import { ExternalCallError } from "@/infra/effect/retry.ts";
 import { PasswordError } from "@/security/password.ts";
 import { TokenHasherError } from "@/security/token-hasher.ts";
 import { RequestValidationError } from "@/http/shared/route-validation.ts";
-import { AuthError } from "@/features/auth/errors.ts";
+import {
+  AuthBadRequestError,
+  type AuthError,
+  AuthErrorSchema,
+  AuthForbiddenError,
+  AuthNotFoundError,
+  AuthUnauthorizedError,
+} from "@/features/auth/errors.ts";
 import { mapMediaRouteError } from "@/http/shared/route-errors/media.ts";
 import { mapOperationsRouteError } from "@/http/shared/route-errors/operations.ts";
 import { mapSystemRouteError } from "@/http/shared/route-errors/system.ts";
@@ -37,7 +44,7 @@ type CommonRouteError =
   | WorkerTimeoutError;
 
 const CommonRouteErrorSchema = Schema.Union(
-  AuthError,
+  AuthErrorSchema,
   DatabaseError,
   DomainConflictError,
   DomainInputError,
@@ -57,17 +64,22 @@ const serviceUnavailable = fixedStatus("External service unavailable", 503);
 const authCryptoFailure = fixedStatus("Authentication crypto failed", 500);
 const internalServerError = fixedStatus("Internal server error", 500);
 
-const authErrorStatuses = {
-  BadRequest: 400,
-  Forbidden: 403,
-  NotFound: 404,
-  Unauthorized: 401,
-} satisfies Record<AuthError["kind"], 400 | 401 | 403 | 404>;
-
 const taggedCommonRouteErrorMappers = {
-  AuthError: (error: AuthError): RouteErrorResponse => ({
+  AuthBadRequestError: (error: AuthBadRequestError): RouteErrorResponse => ({
     message: error.message,
-    status: mapAuthErrorStatus(error.kind),
+    status: 400,
+  }),
+  AuthForbiddenError: (error: AuthForbiddenError): RouteErrorResponse => ({
+    message: error.message,
+    status: 403,
+  }),
+  AuthNotFoundError: (error: AuthNotFoundError): RouteErrorResponse => ({
+    message: error.message,
+    status: 404,
+  }),
+  AuthUnauthorizedError: (error: AuthUnauthorizedError): RouteErrorResponse => ({
+    message: error.message,
+    status: 401,
   }),
   DatabaseError: internalServerError,
   DomainConflictError: (error: DomainConflictError): RouteErrorResponse => ({
@@ -128,8 +140,4 @@ export function mapRouteError(error: unknown): RouteErrorResponse {
 
 function mapTaggedCommonRouteError(error: CommonRouteError): RouteErrorResponse {
   return Match.valueTags(error, taggedCommonRouteErrorMappers);
-}
-
-function mapAuthErrorStatus(kind: AuthError["kind"]): 400 | 401 | 403 | 404 {
-  return authErrorStatuses[kind];
 }

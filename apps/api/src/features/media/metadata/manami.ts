@@ -96,7 +96,37 @@ export class ManamiClient extends Context.Tag("@bakarr/api/ManamiClient")<
   ManamiClientShape
 >() {}
 
-export const ManamiClientLive = Layer.scoped(
+export const ManamiSqliteClientLive = Layer.unwrapEffect(
+  Effect.gen(function* () {
+    const appConfig = yield* AppConfig;
+    const fs = yield* FileSystem;
+    const cachePaths = resolveCachePaths(appConfig.databaseFile);
+
+    yield* fs.mkdir(cachePaths.directory, { recursive: true }).pipe(
+      Effect.mapError((cause) =>
+        ExternalCallError.make({
+          cause,
+          message: "Manami cache directory creation failed",
+          operation: "manami.dataset.cache.mkdir",
+        }),
+      ),
+    );
+
+    return NodeSqliteClient.layer({
+      filename: cachePaths.sqliteFile,
+    }).pipe(
+      Layer.mapError((cause) =>
+        ExternalCallError.make({
+          cause,
+          message: "Manami sqlite open failed",
+          operation: "manami.sqlite.open",
+        }),
+      ),
+    );
+  }),
+);
+
+const ManamiClientLayer = Layer.scoped(
   ManamiClient,
   Effect.gen(function* () {
     const appConfig = yield* AppConfig;
@@ -104,6 +134,7 @@ export const ManamiClientLive = Layer.scoped(
     const clock = yield* ClockService;
     const externalCall = yield* ExternalCall;
     const fs = yield* FileSystem;
+    const sqliteClient = yield* NodeSqliteClient.SqliteClient;
     const cachePaths = resolveCachePaths(appConfig.databaseFile);
     yield* fs.mkdir(cachePaths.directory, { recursive: true }).pipe(
       Effect.mapError((cause) =>
@@ -114,21 +145,6 @@ export const ManamiClientLive = Layer.scoped(
         }),
       ),
     );
-    const sqliteContext = yield* Layer.build(
-      NodeSqliteClient.layer({
-        filename: cachePaths.sqliteFile,
-      }),
-    ).pipe(
-      Effect.mapError((cause) =>
-        ExternalCallError.make({
-          cause,
-          message: "Manami sqlite open failed",
-          operation: "manami.sqlite.open",
-        }),
-      ),
-    );
-    const sqliteClient = Context.get(sqliteContext, NodeSqliteClient.SqliteClient);
-
     const refreshRunner = yield* makeSingleFlightEffectRunner(
       refreshSqliteCacheIfNeeded(client, clock, externalCall, fs, sqliteClient, cachePaths),
     );
@@ -293,6 +309,8 @@ export const ManamiClientLive = Layer.scoped(
     });
   }),
 );
+
+export const ManamiClientLive = ManamiClientLayer.pipe(Layer.provide(ManamiSqliteClientLive));
 
 const refreshSqliteCacheIfNeeded = Effect.fn("ManamiClient.refreshSqliteCacheIfNeeded")(function* (
   client: HttpClient.HttpClient,

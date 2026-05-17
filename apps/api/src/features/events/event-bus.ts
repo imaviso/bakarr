@@ -19,13 +19,8 @@ export interface EventBusShape {
 
 export class EventBus extends Context.Tag("@bakarr/api/EventBus")<EventBus, EventBusShape>() {}
 
-export const makeEventBus = Effect.fn("Events.makeEventBus")((
-  options: { readonly capacity?: number } = {},
-) => {
-  const capacity = options.capacity ?? DEFAULT_EVENT_BUS_CAPACITY;
-
-  return Effect.gen(function* () {
-    const pubsub = yield* PubSub.sliding<NotificationEvent>(capacity);
+const makeEventBusFromPubSub = (pubsub: PubSub.PubSub<NotificationEvent>, capacity: number) =>
+  Effect.gen(function* () {
     const publish = Effect.fn("EventBus.publish")(function* (event: NotificationEvent) {
       yield* PubSub.publish(pubsub, event);
     });
@@ -69,9 +64,26 @@ export const makeEventBus = Effect.fn("Events.makeEventBus")((
       withSubscriptionStream,
     } satisfies EventBusShape;
   });
+
+export const makeEventBus = Effect.fn("Events.makeEventBus")((
+  options: { readonly capacity?: number } = {},
+) => {
+  const capacity = options.capacity ?? DEFAULT_EVENT_BUS_CAPACITY;
+
+  return Effect.gen(function* () {
+    const pubsub = yield* PubSub.sliding<NotificationEvent>(capacity);
+    return yield* makeEventBusFromPubSub(pubsub, capacity);
+  });
 });
 
-export const EventBusLive = Layer.effect(EventBus, makeEventBus());
+export const EventBusLive = Layer.scoped(
+  EventBus,
+  Effect.gen(function* () {
+    const pubsub = yield* PubSub.sliding<NotificationEvent>(DEFAULT_EVENT_BUS_CAPACITY);
+    yield* Effect.addFinalizer(() => PubSub.shutdown(pubsub));
+    return yield* makeEventBusFromPubSub(pubsub, DEFAULT_EVENT_BUS_CAPACITY);
+  }),
+);
 
 export const EventBusNoopLive = Layer.succeed(
   EventBus,

@@ -2,7 +2,7 @@ import { HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { Duration, Effect, Option } from "effect";
 
 import { AppConfig } from "@/config/schema.ts";
-import { AuthError } from "@/features/auth/errors.ts";
+import { AuthForbiddenError, AuthUnauthorizedError } from "@/features/auth/errors.ts";
 import { AuthSessionService } from "@/features/auth/session-service.ts";
 
 function extractApiKeyFromHeaders(headers: Readonly<Record<string, string | undefined>>) {
@@ -27,11 +27,11 @@ export const requireViewerFromHttpRequest = Effect.fn("Http.requireViewerFromHtt
     const viewer = yield* auth.resolveViewer(sessionToken, apiKey);
 
     if (Option.isNone(viewer)) {
-      return yield* new AuthError({ kind: "Unauthorized", message: "Unauthorized" });
+      return yield* new AuthUnauthorizedError({ message: "Unauthorized" });
     }
 
     if (viewer.value.must_change_password && options.allowPasswordChangeRequired !== true) {
-      return yield* new AuthError({ kind: "Forbidden", message: "Password change required" });
+      return yield* new AuthForbiddenError({ message: "Password change required" });
     }
 
     return viewer.value;

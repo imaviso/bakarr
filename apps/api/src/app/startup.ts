@@ -1,3 +1,4 @@
+import { HttpServer } from "@effect/platform";
 import { Effect } from "effect";
 
 import { BackgroundWorkerController } from "@/background/controller-core.ts";
@@ -26,19 +27,24 @@ export const startBackgroundWorkers = Effect.fn("api.background.start")(function
   yield* runtimeControl.start(config);
 });
 
-export const logServerStarting = Effect.fn("api.server.logStarting")(function* (
+export const logServerListening = Effect.fn("api.server.logListening")(function* (
   config: AppConfigShape,
 ) {
-  yield* Effect.logInfo("api server starting").pipe(
+  const address = yield* HttpServer.addressFormattedWith((value) => Effect.succeed(value));
+
+  yield* Effect.logInfo("api server listening").pipe(
     Effect.annotateLogs(
       compactLogAnnotations({
+        address,
         appVersion: config.appVersion,
         component: "api",
-        event: "api.server.starting",
+        event: "api.server.listening",
         port: config.port,
       }),
     ),
   );
+
+  yield* Effect.addFinalizer(() => logServerStopping());
 });
 
 export const logServerStopping = Effect.fn("api.server.logStopping")(function* () {

@@ -2,6 +2,7 @@ import { Config as EffectConfig, Context, Effect, Layer, Option, Schema } from "
 
 import { PositiveIntSchema } from "@/domain/domain-schema.ts";
 import { randomHex } from "@/infra/random.ts";
+import { readConfigValue } from "@/config/read-config-value.ts";
 
 const PortSchema = Schema.Number.pipe(Schema.int(), Schema.between(1, 65_535));
 
@@ -159,8 +160,4 @@ export class BootstrapConfig extends Context.Tag("@bakarr/api/BootstrapConfig")<
       }),
     );
   }
-}
-
-function readConfigValue<A>(override: A | undefined, config: EffectConfig.Config<A>) {
-  return override === undefined ? config : EffectConfig.succeed(override);
 }

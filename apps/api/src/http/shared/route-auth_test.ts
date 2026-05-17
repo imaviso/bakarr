@@ -7,7 +7,7 @@ import {
   type AppConfigShape,
   AppConfig,
 } from "@/config/schema.ts";
-import { AuthError } from "@/features/auth/errors.ts";
+import { AuthForbiddenError, AuthUnauthorizedError } from "@/features/auth/errors.ts";
 import {
   AuthSessionService,
   type AuthSessionServiceShape,
@@ -114,10 +114,7 @@ it.effect("requireViewerFromHttpRequest fails with AuthError when viewer is miss
       const failure = Cause.failureOption(exit.cause);
       assert.deepStrictEqual(failure._tag, "Some");
       if (failure._tag === "Some") {
-        assert.deepStrictEqual(failure.value instanceof AuthError, true);
-        if (failure.value instanceof AuthError) {
-          assert.deepStrictEqual(failure.value.kind, "Unauthorized");
-        }
+        assert.deepStrictEqual(failure.value instanceof AuthUnauthorizedError, true);
       }
     }
   }),
@@ -144,8 +141,7 @@ it.effect("requireViewerFromHttpRequest blocks users who must change password", 
     if (exit._tag === "Failure") {
       const failure = Cause.failureOption(exit.cause);
       assert.deepStrictEqual(failure._tag, "Some");
-      if (failure._tag === "Some" && failure.value instanceof AuthError) {
-        assert.deepStrictEqual(failure.value.kind, "Forbidden");
+      if (failure._tag === "Some" && failure.value instanceof AuthForbiddenError) {
         assert.deepStrictEqual(failure.value.message, "Password change required");
       }
     }

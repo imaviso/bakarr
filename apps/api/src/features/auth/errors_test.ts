@@ -1,16 +1,26 @@
 import { assert, it } from "@effect/vitest";
 
-import { AuthError } from "@/features/auth/errors.ts";
+import {
+  AuthBadRequestError,
+  AuthForbiddenError,
+  AuthNotFoundError,
+  AuthUnauthorizedError,
+} from "@/features/auth/errors.ts";
 
-it("AuthError constructs with message and kind", () => {
-  const error = new AuthError({ kind: "Unauthorized", message: "invalid credentials" });
+it("auth errors construct with message and tag", () => {
+  const error = new AuthUnauthorizedError({ message: "invalid credentials" });
   assert.deepStrictEqual(error.message, "invalid credentials");
-  assert.deepStrictEqual(error.kind, "Unauthorized");
+  assert.deepStrictEqual(error._tag, "AuthUnauthorizedError");
 });
 
-it("AuthError supports all valid route-mapped kinds", () => {
-  for (const kind of ["BadRequest", "Unauthorized", "Forbidden", "NotFound"] as const) {
-    const error = new AuthError({ kind, message: "test" });
-    assert.deepStrictEqual(error.kind, kind);
+it("auth errors expose separate tags for route mapping", () => {
+  for (const [ErrorClass, tag] of [
+    [AuthBadRequestError, "AuthBadRequestError"],
+    [AuthUnauthorizedError, "AuthUnauthorizedError"],
+    [AuthForbiddenError, "AuthForbiddenError"],
+    [AuthNotFoundError, "AuthNotFoundError"],
+  ] as const) {
+    const error = new ErrorClass({ message: "test" });
+    assert.deepStrictEqual(error._tag, tag);
   }
 });

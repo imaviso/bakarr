@@ -49,7 +49,10 @@ export function makeAppPlatformCoreRuntimeLayer(
   const configLayer = configBaseLayer;
   const runtimeLayer = AppRuntime.Live.pipe(Layer.provide(clockAndHttpLayer));
   const externalCallLayer = ExternalCallLive.pipe(Layer.provide(clockAndHttpLayer));
-  const databaseLayer = DatabaseLayerLive.pipe(Layer.provide(configLayer));
+  const databaseLayer = DatabaseLayerLive.pipe(
+    Layer.provide(configLayer),
+    Layer.provide(NodeContext.layer),
+  );
   const eventBusLayer = EventBusLive;
   const backgroundMonitorLayer = withRuntimeSupport(BackgroundWorkerMonitorLive);
   const telemetryLayer = TelemetryLayer.pipe(

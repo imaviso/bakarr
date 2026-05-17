@@ -6,7 +6,13 @@ import { nowIsoFromClock, ClockService } from "@/infra/clock.ts";
 import { randomHexFrom, RandomService } from "@/infra/random.ts";
 import { hashPassword, PasswordCrypto, verifyPassword } from "@/security/password.ts";
 import { TokenHasher, type TokenHasherError } from "@/security/token-hasher.ts";
-import { AuthError, type AuthCryptoError } from "@/features/auth/errors.ts";
+import {
+  AuthBadRequestError,
+  type AuthCryptoError,
+  type AuthError,
+  AuthNotFoundError,
+  AuthUnauthorizedError,
+} from "@/features/auth/errors.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { AuthUserRepository } from "@/features/auth/user-repository.ts";
 
@@ -44,7 +50,7 @@ const makeAuthCredentialService = Effect.gen(function* () {
     const rowOption = yield* users.findUserById(userId);
 
     if (Option.isNone(rowOption)) {
-      return yield* AuthError.make({ kind: "NotFound", message: "User not found" });
+      return yield* AuthNotFoundError.make({ message: "User not found" });
     }
 
     const row = rowOption.value;
@@ -56,15 +62,13 @@ const makeAuthCredentialService = Effect.gen(function* () {
     );
 
     if (!verified) {
-      return yield* AuthError.make({
-        kind: "Unauthorized",
+      return yield* AuthUnauthorizedError.make({
         message: "Current password is incorrect",
       });
     }
 
     if (!request.new_password || request.new_password.length < 8) {
-      return yield* AuthError.make({
-        kind: "BadRequest",
+      return yield* AuthBadRequestError.make({
         message: "New password must be at least 8 characters",
       });
     }
@@ -90,7 +94,7 @@ const makeAuthCredentialService = Effect.gen(function* () {
     const rowOption = yield* users.findUserById(userId);
 
     if (Option.isNone(rowOption)) {
-      return yield* AuthError.make({ kind: "NotFound", message: "User not found" });
+      return yield* AuthNotFoundError.make({ message: "User not found" });
     }
 
     return { api_key: "************************", api_key_masked: true };
@@ -102,7 +106,7 @@ const makeAuthCredentialService = Effect.gen(function* () {
     const rowOption = yield* users.findUserById(userId);
 
     if (Option.isNone(rowOption)) {
-      return yield* AuthError.make({ kind: "NotFound", message: "User not found" });
+      return yield* AuthNotFoundError.make({ message: "User not found" });
     }
 
     const row = rowOption.value;

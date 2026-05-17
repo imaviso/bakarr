@@ -14,7 +14,11 @@ import { nowIsoFromClock, ClockService } from "@/infra/clock.ts";
 import { randomHexFrom, RandomService } from "@/infra/random.ts";
 import { PasswordCrypto, verifyPassword } from "@/security/password.ts";
 import { TokenHasher, type TokenHasherError } from "@/security/token-hasher.ts";
-import { AuthError, type AuthCryptoError } from "@/features/auth/errors.ts";
+import {
+  type AuthCryptoError,
+  type AuthError,
+  AuthUnauthorizedError,
+} from "@/features/auth/errors.ts";
 import { AuthUserRepository } from "@/features/auth/user-repository.ts";
 
 export interface SessionIdentity {
@@ -89,8 +93,7 @@ const makeAuthSessionService = Effect.gen(function* () {
     const rowOption = yield* usersRepository.findUserByUsername(request.username);
 
     if (Option.isNone(rowOption)) {
-      return yield* AuthError.make({
-        kind: "Unauthorized",
+      return yield* AuthUnauthorizedError.make({
         message: "Invalid username or password",
       });
     }
@@ -100,8 +103,7 @@ const makeAuthSessionService = Effect.gen(function* () {
     const verified = yield* verifyPassword(passwordCrypto, request.password, row.passwordHash);
 
     if (!verified) {
-      return yield* AuthError.make({
-        kind: "Unauthorized",
+      return yield* AuthUnauthorizedError.make({
         message: "Invalid username or password",
       });
     }
@@ -126,7 +128,7 @@ const makeAuthSessionService = Effect.gen(function* () {
     const rowOption = yield* usersRepository.findUserByApiKey(hashedApiKey);
 
     if (Option.isNone(rowOption)) {
-      return yield* AuthError.make({ kind: "Unauthorized", message: "Invalid API key" });
+      return yield* AuthUnauthorizedError.make({ message: "Invalid API key" });
     }
 
     const row = rowOption.value;
