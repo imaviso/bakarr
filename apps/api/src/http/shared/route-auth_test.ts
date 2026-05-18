@@ -177,9 +177,12 @@ it.effect("persistSessionResponse sets secure cookie flags when configured", () 
       sessionDurationDays: 7,
     });
 
-    const response = yield* persistSessionResponse("session-token", { ok: true }).pipe(
-      Effect.provideService(AppConfig, config),
-    );
+    const response = yield* persistSessionResponse("session-token", {
+      api_key: "test-key",
+      api_key_masked: false,
+      must_change_password: false,
+      username: "admin",
+    }).pipe(Effect.provideService(AppConfig, config));
 
     const webResponse = HttpServerResponse.toWeb(response);
     const setCookie = webResponse.headers.get("set-cookie");
@@ -195,7 +198,12 @@ it.effect("persistSessionResponse sets secure cookie flags when configured", () 
 
 it.effect("persistSessionResponse omits secure flag when disabled", () =>
   Effect.gen(function* () {
-    const response = yield* persistSessionResponse("session-token", { ok: true }).pipe(
+    const response = yield* persistSessionResponse("session-token", {
+      api_key: "test-key",
+      api_key_masked: false,
+      must_change_password: false,
+      username: "admin",
+    }).pipe(
       Effect.provideService(
         AppConfig,
         makeConfig({

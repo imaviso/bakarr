@@ -1,5 +1,10 @@
 import { HttpRouter } from "@effect/platform";
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
+import {
+  AsyncOperationAcceptedSchema,
+  DownloadEventsPageSchema,
+  DownloadSchema,
+} from "@packages/shared/index.ts";
 
 import { HttpServerResponse } from "@effect/platform";
 import { CatalogDownloadCommandService } from "@/features/operations/catalog/catalog-download-command-service.ts";
@@ -14,11 +19,11 @@ import {
   toDownloadEventsQueryParams,
 } from "@/http/operations/request-schemas.ts";
 import {
-  acceptedResponse,
   authedRouteResponse,
   decodePathParams,
   decodeQueryWithLabel,
-  jsonResponse,
+  schemaAcceptedResponse,
+  schemaJsonResponse,
   successResponse,
 } from "@/http/shared/router-helpers.ts";
 
@@ -42,7 +47,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
     "/downloads/queue",
     authedRouteResponse(
       Effect.flatMap(CatalogDownloadReadService, (service) => service.listDownloadQueue()),
-      jsonResponse,
+      schemaJsonResponse(Schema.Array(DownloadSchema)),
     ),
   ),
   HttpRouter.get(
@@ -51,7 +56,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
       Effect.flatMap(CatalogDownloadReadService, (service) =>
         service.listDownloadHistory().pipe(Effect.map((page) => page.downloads)),
       ),
-      jsonResponse,
+      schemaJsonResponse(Schema.Array(DownloadSchema)),
     ),
   ),
   HttpRouter.get(
@@ -63,7 +68,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
           toDownloadEventsQueryParams(query),
         );
       }),
-      jsonResponse,
+      schemaJsonResponse(DownloadEventsPageSchema),
     ),
   ),
   HttpRouter.get(
@@ -148,7 +153,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
           taskKey: "downloads_sync_manual",
         });
       }),
-      acceptedResponse,
+      schemaAcceptedResponse(AsyncOperationAcceptedSchema),
     ),
   ),
   HttpRouter.del(

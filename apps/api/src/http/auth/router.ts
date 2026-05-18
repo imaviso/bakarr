@@ -3,6 +3,8 @@ import { Effect } from "effect";
 
 import {
   ApiKeyLoginRequestSchema,
+  ApiKeyResponseSchema,
+  AuthUserSchema,
   ChangePasswordRequestSchema,
   LoginRequestSchema,
 } from "@packages/shared/index.ts";
@@ -12,6 +14,8 @@ import { AuthSessionService } from "@/features/auth/session-service.ts";
 import {
   decodeJsonBodyWithLabel,
   routeResponse,
+  schemaJsonResponse,
+  successResponse,
   withAuthViewer,
 } from "@/http/shared/router-helpers.ts";
 import { persistSessionResponse } from "@/http/shared/route-auth.ts";
@@ -55,10 +59,7 @@ export const authRouter = HttpRouter.empty.pipe(
       () =>
         Effect.gen(function* () {
           const config = yield* AppConfig;
-          const response = yield* HttpServerResponse.json({
-            data: null,
-            success: true,
-          });
+          const response = yield* successResponse();
 
           return HttpServerResponse.expireCookie(response, config.sessionCookieName, {
             httpOnly: true,
@@ -74,7 +75,7 @@ export const authRouter = HttpRouter.empty.pipe(
     "/me",
     routeResponse(
       withAuthViewer((viewer) => Effect.succeed(viewer), { allowPasswordChangeRequired: true }),
-      (viewer) => HttpServerResponse.json(viewer),
+      schemaJsonResponse(AuthUserSchema),
       mapRouteError,
     ),
   ),
@@ -87,7 +88,7 @@ export const authRouter = HttpRouter.empty.pipe(
           return yield* auth.getApiKey(viewer.id);
         }),
       ),
-      (value) => HttpServerResponse.json(value),
+      schemaJsonResponse(ApiKeyResponseSchema),
       mapRouteError,
     ),
   ),
@@ -100,7 +101,7 @@ export const authRouter = HttpRouter.empty.pipe(
           return yield* auth.regenerateApiKey(viewer.id);
         }),
       ),
-      (value) => HttpServerResponse.json(value),
+      schemaJsonResponse(ApiKeyResponseSchema),
       mapRouteError,
     ),
   ),
@@ -119,7 +120,7 @@ export const authRouter = HttpRouter.empty.pipe(
           }),
         { allowPasswordChangeRequired: true },
       ),
-      () => HttpServerResponse.json({ data: null, success: true }),
+      successResponse,
       mapRouteError,
     ),
   ),

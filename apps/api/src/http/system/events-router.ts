@@ -6,6 +6,8 @@ import { SystemEventsService } from "@/features/system/system-events-service.ts"
 import { encodeNotificationEventJson } from "@/http/event-socket.ts";
 import { authedRouteResponse } from "@/http/shared/router-helpers.ts";
 
+const EVENT_SOCKET_IDLE_TIMEOUT = "5 minutes";
+
 export const buildSystemEventsResponse = Effect.fn("Http.buildSystemEventsResponse")(function* <E>(
   events: Stream.Stream<NotificationEvent, E>,
 ) {
@@ -18,6 +20,7 @@ export const buildSystemEventsResponse = Effect.fn("Http.buildSystemEventsRespon
   }
 
   return yield* encodeNotificationEventStream(events).pipe(
+    Stream.timeout(EVENT_SOCKET_IDLE_TIMEOUT),
     Stream.pipeThroughChannel(HttpServerRequest.upgradeChannel()),
     Stream.runDrain,
     Effect.catchAll((error) => (isExpectedSocketClose(error) ? Effect.void : Effect.fail(error))),

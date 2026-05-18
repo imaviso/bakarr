@@ -1,5 +1,6 @@
 import { HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { Duration, Effect, Option } from "effect";
+import { LoginResponseSchema, type LoginResponse } from "@packages/shared/index.ts";
 
 import { AppConfig } from "@/config/schema.ts";
 import { AuthForbiddenError, AuthUnauthorizedError } from "@/features/auth/errors.ts";
@@ -40,10 +41,10 @@ export const requireViewerFromHttpRequest = Effect.fn("Http.requireViewerFromHtt
 
 export const persistSessionResponse = Effect.fn("Http.persistSessionResponse")(function* (
   token: string,
-  body: unknown,
+  body: LoginResponse,
 ) {
   const config = yield* AppConfig;
-  const response = yield* HttpServerResponse.json(body);
+  const response = yield* HttpServerResponse.schemaJson(LoginResponseSchema)(body);
 
   return HttpServerResponse.unsafeSetCookie(response, config.sessionCookieName, token, {
     httpOnly: true,

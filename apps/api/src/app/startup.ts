@@ -2,6 +2,7 @@ import { HttpServer } from "@effect/platform";
 import { Effect } from "effect";
 
 import { BackgroundWorkerController } from "@/background/controller-core.ts";
+import { initializeBackgroundWorkerMetrics } from "@/background/monitor.ts";
 import { AppConfig, type AppConfigShape } from "@/config/schema.ts";
 import { migrateDatabase } from "@/db/migrate.ts";
 import { AuthBootstrapService } from "@/features/auth/bootstrap-service.ts";
@@ -26,6 +27,7 @@ export const startBackgroundWorkers = Effect.fn("api.background.start")(function
   const systemConfig = yield* SystemConfigService;
   const config = yield* systemConfig.getConfig();
 
+  yield* initializeBackgroundWorkerMetrics();
   yield* runtimeControl.start(config);
 });
 

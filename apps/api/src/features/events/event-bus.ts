@@ -1,4 +1,16 @@
-import { Context, Effect, Exit, Layer, Option, PubSub, Queue, Ref, Scope, Stream } from "effect";
+import {
+  Cause,
+  Context,
+  Effect,
+  Exit,
+  Layer,
+  Option,
+  PubSub,
+  Queue,
+  Ref,
+  Scope,
+  Stream,
+} from "effect";
 
 import type { NotificationEvent } from "@packages/shared/index.ts";
 
@@ -118,6 +130,13 @@ function makeInitializedSubscription(input: {
         yield* Effect.forkIn(input.relayScope)(
           Queue.take(input.pubsubQueue).pipe(
             Effect.flatMap((event) => Queue.offer(input.slidingQueue, event)),
+            Effect.tapErrorCause((cause) =>
+              Cause.isInterruptedOnly(cause)
+                ? Effect.void
+                : Effect.logWarning("event bus relay fiber failed").pipe(
+                    Effect.annotateLogs({ cause: Cause.pretty(cause), component: "events" }),
+                  ),
+            ),
             Effect.forever,
           ),
         );

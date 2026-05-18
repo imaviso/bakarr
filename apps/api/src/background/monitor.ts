@@ -44,7 +44,6 @@ export const makeBackgroundWorkerMonitor = Effect.fn("Background.makeBackgroundW
   function* () {
     const clock = yield* ClockService;
     const state = yield* Ref.make(initialBackgroundWorkerSnapshot());
-    yield* preRegisterBackgroundWorkerMetrics(BACKGROUND_WORKER_NAMES);
 
     const updateWorker = (
       workerName: BackgroundWorkerName,
@@ -170,4 +169,10 @@ export const makeBackgroundWorkerMonitor = Effect.fn("Background.makeBackgroundW
 export const BackgroundWorkerMonitorLive = Layer.effect(
   BackgroundWorkerMonitor,
   makeBackgroundWorkerMonitor(),
+);
+
+export const initializeBackgroundWorkerMetrics = Effect.fn("Background.initializeWorkerMetrics")(
+  function* () {
+    yield* preRegisterBackgroundWorkerMetrics(BACKGROUND_WORKER_NAMES);
+  },
 );

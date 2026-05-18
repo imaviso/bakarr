@@ -1,5 +1,6 @@
 import { HttpRouter, HttpServerResponse } from "@effect/platform";
 import { Effect } from "effect";
+import { SystemLogsResponseSchema } from "@packages/shared/index.ts";
 
 import { SystemLogService } from "@/features/system/system-log-service.ts";
 import {
@@ -11,7 +12,7 @@ import {
 import {
   authedRouteResponse,
   decodeQueryWithLabel,
-  jsonResponse,
+  schemaJsonResponse,
   successResponse,
 } from "@/http/shared/router-helpers.ts";
 
@@ -23,7 +24,7 @@ export const logsRouter = HttpRouter.empty.pipe(
         const query = yield* decodeQueryWithLabel(SystemLogsQuerySchema, "system logs");
         return yield* (yield* SystemLogService).getLogs(toSystemLogsQueryParams(query));
       }),
-      jsonResponse,
+      schemaJsonResponse(SystemLogsResponseSchema),
     ),
   ),
   HttpRouter.del(

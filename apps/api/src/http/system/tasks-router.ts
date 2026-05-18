@@ -1,9 +1,12 @@
 import { HttpRouter } from "@effect/platform";
 import { Effect } from "effect";
+import { AsyncOperationAcceptedSchema } from "@packages/shared/index.ts";
 
 import { BackgroundTaskRunner } from "@/background/task-runner.ts";
 import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
-import { acceptedResponse, authedRouteResponse } from "@/http/shared/router-helpers.ts";
+import { authedRouteResponse, schemaAcceptedResponse } from "@/http/shared/router-helpers.ts";
+
+const acceptedOperationResponse = schemaAcceptedResponse(AsyncOperationAcceptedSchema);
 
 export const systemTasksRouter = HttpRouter.empty.pipe(
   HttpRouter.post(
@@ -20,7 +23,7 @@ export const systemTasksRouter = HttpRouter.empty.pipe(
           taskKey: "system_task_scan_manual",
         });
       }),
-      acceptedResponse,
+      acceptedOperationResponse,
     ),
   ),
   HttpRouter.post(
@@ -37,7 +40,7 @@ export const systemTasksRouter = HttpRouter.empty.pipe(
           taskKey: "system_task_rss_manual",
         });
       }),
-      acceptedResponse,
+      acceptedOperationResponse,
     ),
   ),
   HttpRouter.post(
@@ -54,7 +57,7 @@ export const systemTasksRouter = HttpRouter.empty.pipe(
           taskKey: "system_task_metadata_refresh_manual",
         });
       }),
-      acceptedResponse,
+      acceptedOperationResponse,
     ),
   ),
 );

@@ -1,5 +1,6 @@
 import { HttpRouter } from "@effect/platform";
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
+import { RssFeedSchema } from "@packages/shared/index.ts";
 
 import { CatalogRssService } from "@/features/operations/catalog/catalog-rss-service.ts";
 import { AddRssFeedBodySchema, EnabledBodySchema } from "@/http/operations/request-schemas.ts";
@@ -7,7 +8,7 @@ import {
   authedRouteResponse,
   decodeJsonBodyWithLabel,
   decodePathParams,
-  jsonResponse,
+  schemaJsonResponse,
   successResponse,
 } from "@/http/shared/router-helpers.ts";
 import { IdParamsSchema } from "@/http/shared/common-request-schemas.ts";
@@ -17,7 +18,7 @@ export const rssRouter = HttpRouter.empty.pipe(
     "/rss",
     authedRouteResponse(
       Effect.flatMap(CatalogRssService, (service) => service.listRssFeeds()),
-      jsonResponse,
+      schemaJsonResponse(Schema.Array(RssFeedSchema)),
     ),
   ),
   HttpRouter.post(
@@ -31,7 +32,7 @@ export const rssRouter = HttpRouter.empty.pipe(
           url: body.url,
         });
       }),
-      jsonResponse,
+      schemaJsonResponse(RssFeedSchema),
     ),
   ),
   HttpRouter.del(

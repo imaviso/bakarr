@@ -1,5 +1,16 @@
 import { HttpRouter } from "@effect/platform";
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
+import {
+  MediaListResponseSchema,
+  MediaSchema,
+  MediaSearchResponseSchema,
+  MediaSearchResultSchema,
+  MediaUnitSchema,
+  RenamePreviewItemSchema,
+  RssFeedSchema,
+  SeasonalMediaResponseSchema,
+  VideoFileSchema,
+} from "@packages/shared/index.ts";
 
 import { AnimeFileService } from "@/features/media/files/media-file-service.ts";
 import { AnimeQueryService } from "@/features/media/query/query-service.ts";
@@ -17,8 +28,10 @@ import {
   authedRouteResponse,
   decodePathParams,
   decodeQuery,
-  jsonResponse,
+  schemaJsonResponse,
 } from "@/http/shared/router-helpers.ts";
+
+const StreamUrlResponseSchema = Schema.Struct({ url: Schema.String });
 
 export const mediaReadRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
@@ -32,7 +45,7 @@ export const mediaReadRouter = HttpRouter.empty.pipe(
           offset: query.offset,
         });
       }),
-      jsonResponse,
+      schemaJsonResponse(MediaListResponseSchema),
     ),
   ),
   HttpRouter.get(
@@ -42,7 +55,7 @@ export const mediaReadRouter = HttpRouter.empty.pipe(
         const query = yield* decodeQuery(SeasonalMediaQuerySchema);
         return yield* (yield* AnimeQueryService).listSeasonalAnime(query);
       }),
-      jsonResponse,
+      schemaJsonResponse(SeasonalMediaResponseSchema),
     ),
   ),
   HttpRouter.get(
@@ -52,7 +65,7 @@ export const mediaReadRouter = HttpRouter.empty.pipe(
         const query = yield* decodeQuery(SearchMediaQuerySchema);
         return yield* (yield* AnimeQueryService).searchAnime(query.q ?? "", query.media_kind);
       }),
-      jsonResponse,
+      schemaJsonResponse(MediaSearchResponseSchema),
     ),
   ),
   HttpRouter.get(
@@ -63,7 +76,7 @@ export const mediaReadRouter = HttpRouter.empty.pipe(
         const query = yield* decodeQuery(SearchMediaQuerySchema);
         return yield* (yield* AnimeQueryService).getAnimeByAnilistId(params.id, query.media_kind);
       }),
-      jsonResponse,
+      schemaJsonResponse(MediaSearchResultSchema),
     ),
   ),
   HttpRouter.get(
@@ -73,7 +86,7 @@ export const mediaReadRouter = HttpRouter.empty.pipe(
         const params = yield* decodePathParams(IdParamsSchema);
         return yield* (yield* AnimeQueryService).getMedia(params.id);
       }),
-      jsonResponse,
+      schemaJsonResponse(MediaSchema),
     ),
   ),
   HttpRouter.get(
@@ -83,7 +96,7 @@ export const mediaReadRouter = HttpRouter.empty.pipe(
         const params = yield* decodePathParams(IdParamsSchema);
         return yield* (yield* AnimeQueryService).listEpisodes(params.id);
       }),
-      jsonResponse,
+      schemaJsonResponse(Schema.Array(MediaUnitSchema)),
     ),
   ),
   HttpRouter.get(
@@ -93,7 +106,7 @@ export const mediaReadRouter = HttpRouter.empty.pipe(
         const params = yield* decodePathParams(IdParamsSchema);
         return yield* (yield* AnimeFileService).listFiles(params.id);
       }),
-      jsonResponse,
+      schemaJsonResponse(Schema.Array(VideoFileSchema)),
     ),
   ),
   HttpRouter.get(
@@ -103,7 +116,7 @@ export const mediaReadRouter = HttpRouter.empty.pipe(
         const params = yield* decodePathParams(IdParamsSchema);
         return yield* (yield* CatalogRssService).listAnimeRssFeeds(params.id);
       }),
-      jsonResponse,
+      schemaJsonResponse(Schema.Array(RssFeedSchema)),
     ),
   ),
   HttpRouter.get(
@@ -113,7 +126,7 @@ export const mediaReadRouter = HttpRouter.empty.pipe(
         const params = yield* decodePathParams(IdParamsSchema);
         return yield* (yield* CatalogLibraryReadService).getRenamePreview(params.id);
       }),
-      jsonResponse,
+      schemaJsonResponse(Schema.Array(RenamePreviewItemSchema)),
     ),
   ),
   HttpRouter.get(
@@ -124,7 +137,7 @@ export const mediaReadRouter = HttpRouter.empty.pipe(
         const query = yield* decodeQuery(StreamUrlQuerySchema);
         return yield* (yield* AnimeStreamService).createStreamUrl(params.id, query.unitNumber);
       }),
-      jsonResponse,
+      schemaJsonResponse(StreamUrlResponseSchema),
     ),
   ),
 );

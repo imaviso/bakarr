@@ -45,7 +45,7 @@ export function makeBackgroundWorkerPolicy(): BackgroundWorkerPolicy {
     }
 
     if (Cause.isInterruptedOnly(exit.cause)) {
-      return yield* Effect.interrupt;
+      return undefined;
     }
 
     if (Cause.isDie(exit.cause)) {
@@ -213,10 +213,11 @@ export const forkSupervisedWorker = Effect.fn("Background.forkSupervisedWorker")
   task: Effect.Effect<void, unknown>,
   monitor: BackgroundWorkerMonitorShape,
 ) {
-  yield* monitor.markDaemonStarted(workerName);
-
   yield* Effect.forkIn(scope)(
-    task.pipe(
+    Effect.gen(function* () {
+      yield* monitor.markDaemonStarted(workerName);
+      yield* task;
+    }).pipe(
       Effect.ensuring(monitor.markDaemonStopped(workerName)),
       Effect.withSpan(`background.loop.${workerName}`),
     ),

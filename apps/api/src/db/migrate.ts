@@ -10,7 +10,9 @@ const applyMigrationStatements = Effect.fn("Database.applyMigrationStatements")(
 ) {
   const sql = yield* SqlClient.SqlClient;
 
-  yield* Effect.forEach(statements, (statement) => sql.unsafe(statement), { discard: true });
+  yield* sql.withTransaction(
+    Effect.forEach(statements, (statement) => sql.unsafe(statement), { discard: true }),
+  );
 });
 
 const embeddedDrizzleMigrationLoader = Migrator.fromRecord(
@@ -34,8 +36,9 @@ export const runEmbeddedDrizzleMigrations = Effect.fn("Database.runEmbeddedDrizz
  * Called during {@link bootstrap} in main.ts as the first step of the startup
  * sequence. Migrations run synchronously against the SQLite database before any
  * services are initialized. If a migration fails, the startup Effect fails with
- * a {@link DatabaseError} and the process exits — there is no automatic rollback
- * or retry. The operator must fix the migration or database state and restart.
+ * a {@link DatabaseError} and the process exits. Each migration file runs inside
+ * one SQL transaction so a failed statement does not leave earlier statements
+ * from the same file partially applied.
  *
  * This is intentional for a single-user LAN deployment: a half-migrated
  * database should not silently serve requests.

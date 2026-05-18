@@ -1,5 +1,13 @@
 import { HttpRouter } from "@effect/platform";
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
+import {
+  AsyncOperationAcceptedSchema,
+  BrowseResultSchema,
+  ImportCandidateSelectionResultSchema,
+  OperationTaskSchema,
+  ScanResultSchema,
+  ScannerStateSchema,
+} from "@packages/shared/index.ts";
 
 import { LibraryBrowseService } from "@/features/operations/library/library-browse-service.ts";
 import { CatalogLibraryWriteService } from "@/features/operations/catalog/catalog-library-write-service.ts";
@@ -20,12 +28,12 @@ import {
   ScanImportPathBodySchema,
 } from "@/http/operations/request-schemas.ts";
 import {
-  acceptedResponse,
   authedRouteResponse,
   decodeJsonBodyWithLabel,
   decodePathParams,
   decodeQueryWithLabel,
-  jsonResponse,
+  schemaAcceptedResponse,
+  schemaJsonResponse,
   successResponse,
 } from "@/http/shared/router-helpers.ts";
 import {
@@ -38,12 +46,14 @@ import {
   OperationsTaskQuerySchema,
 } from "@/http/media/request-schemas.ts";
 
+const acceptedOperationResponse = schemaAcceptedResponse(AsyncOperationAcceptedSchema);
+
 export const libraryRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
     "/library/unmapped",
     authedRouteResponse(
       Effect.flatMap(UnmappedScanService, (service) => service.getUnmappedFolders()),
-      jsonResponse,
+      schemaJsonResponse(ScannerStateSchema),
     ),
   ),
   HttpRouter.get(
@@ -51,13 +61,15 @@ export const libraryRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const query = yield* decodeQueryWithLabel(BrowseQuerySchema, "library browse");
-        return yield* (yield* LibraryBrowseService).browse({
+        const result = yield* (yield* LibraryBrowseService).browse({
           ...(query.limit === undefined ? {} : { limit: query.limit }),
           ...(query.offset === undefined ? {} : { offset: query.offset }),
           ...(query.path === undefined ? {} : { path: query.path }),
         });
+
+        return { ...result, entries: [...result.entries] };
       }),
-      jsonResponse,
+      schemaJsonResponse(BrowseResultSchema),
     ),
   ),
   HttpRouter.post(
@@ -79,7 +91,7 @@ export const libraryRouter = HttpRouter.empty.pipe(
           taskKey: "unmapped_scan_manual",
         });
       }),
-      acceptedResponse,
+      acceptedOperationResponse,
     ),
   ),
   HttpRouter.post(
@@ -138,7 +150,7 @@ export const libraryRouter = HttpRouter.empty.pipe(
           }),
         );
       }),
-      jsonResponse,
+      schemaJsonResponse(ScanResultSchema),
     ),
   ),
   HttpRouter.post(
@@ -159,7 +171,7 @@ export const libraryRouter = HttpRouter.empty.pipe(
           selected_files: body.selected_files,
         });
       }),
-      jsonResponse,
+      schemaJsonResponse(ImportCandidateSelectionResultSchema),
     ),
   ),
   HttpRouter.post(
@@ -217,7 +229,7 @@ export const libraryRouter = HttpRouter.empty.pipe(
           taskKey: "library_import",
         });
       }),
-      acceptedResponse,
+      acceptedOperationResponse,
     ),
   ),
   HttpRouter.get(
@@ -237,7 +249,7 @@ export const libraryRouter = HttpRouter.empty.pipe(
           taskKey: "library_import",
         });
       }),
-      jsonResponse,
+      schemaJsonResponse(Schema.Array(OperationTaskSchema)),
     ),
   ),
   HttpRouter.get(
@@ -255,7 +267,7 @@ export const libraryRouter = HttpRouter.empty.pipe(
 
         return task;
       }),
-      jsonResponse,
+      schemaJsonResponse(OperationTaskSchema),
     ),
   ),
 );

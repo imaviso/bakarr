@@ -1,5 +1,5 @@
 import { HttpRouter } from "@effect/platform";
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
 
 import { AnimeFileService } from "@/features/media/files/media-file-service.ts";
 import { AnimeEnrollmentService } from "@/features/media/add/media-enrollment-service.ts";
@@ -9,7 +9,13 @@ import { OperationsTaskNotFoundError } from "@/features/operations/errors.ts";
 import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
 import { OperationsTaskReadService } from "@/features/operations/tasks/operations-task-service.ts";
 import { CatalogLibraryWriteService } from "@/features/operations/catalog/catalog-library-write-service.ts";
-import { brandMediaId } from "@packages/shared/index.ts";
+import {
+  AsyncOperationAcceptedSchema,
+  brandMediaId,
+  MediaSchema,
+  OperationTaskSchema,
+  RenameResultSchema,
+} from "@packages/shared/index.ts";
 import {
   AddAnimeInputSchema,
   MediaUnitParamsSchema,
@@ -23,13 +29,15 @@ import {
 } from "@/http/media/request-schemas.ts";
 import { IdParamsSchema } from "@/http/shared/common-request-schemas.ts";
 import {
-  acceptedResponse,
   authedRouteResponse,
   decodeJsonBodyWithLabel,
   decodePathParams,
-  jsonResponse,
+  schemaAcceptedResponse,
+  schemaJsonResponse,
   successResponse,
 } from "@/http/shared/router-helpers.ts";
+
+const acceptedOperationResponse = schemaAcceptedResponse(AsyncOperationAcceptedSchema);
 
 export const mediaWriteRouter = HttpRouter.empty.pipe(
   HttpRouter.post(
@@ -39,7 +47,7 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
         const body = yield* decodeJsonBodyWithLabel(AddAnimeInputSchema, "add media");
         return yield* (yield* AnimeEnrollmentService).enroll(body);
       }),
-      jsonResponse,
+      schemaJsonResponse(MediaSchema),
     ),
   ),
   HttpRouter.del(
@@ -117,7 +125,7 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
           taskKey: "media_refresh_units_manual",
         });
       }),
-      acceptedResponse,
+      acceptedOperationResponse,
     ),
   ),
   HttpRouter.post(
@@ -149,7 +157,7 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
           taskKey: "media_scan_folder",
         });
       }),
-      acceptedResponse,
+      acceptedOperationResponse,
     ),
   ),
   HttpRouter.get(
@@ -162,7 +170,7 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
           taskKey: "media_scan_folder",
         });
       }),
-      jsonResponse,
+      schemaJsonResponse(Schema.Array(OperationTaskSchema)),
     ),
   ),
   HttpRouter.get(
@@ -186,7 +194,7 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
 
         return task;
       }),
-      jsonResponse,
+      schemaJsonResponse(OperationTaskSchema),
     ),
   ),
   HttpRouter.del(
@@ -235,7 +243,7 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
         const params = yield* decodePathParams(IdParamsSchema);
         return yield* (yield* CatalogLibraryWriteService).renameFiles(params.id);
       }),
-      jsonResponse,
+      schemaJsonResponse(RenameResultSchema),
     ),
   ),
 );

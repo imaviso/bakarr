@@ -1,5 +1,6 @@
 import { HttpRouter } from "@effect/platform";
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
+import { QualitySchema, ReleaseProfileSchema } from "@packages/shared/index.ts";
 
 import { QualityProfileService } from "@/features/system/quality-profile-service.ts";
 import { ReleaseProfileService } from "@/features/system/release-profile-service.ts";
@@ -20,7 +21,7 @@ import {
   authedRouteResponse,
   decodeJsonBodyWithLabel,
   decodePathParams,
-  jsonResponse,
+  schemaJsonResponse,
   successResponse,
 } from "@/http/shared/router-helpers.ts";
 
@@ -31,7 +32,7 @@ export const configRouter = HttpRouter.empty.pipe(
       Effect.flatMap(SystemConfigService, (service) =>
         service.getConfig().pipe(Effect.map(redactConfigSecrets)),
       ),
-      jsonResponse,
+      schemaJsonResponse(ConfigSchema),
     ),
   ),
   HttpRouter.put(
@@ -48,14 +49,14 @@ export const configRouter = HttpRouter.empty.pipe(
     "/api/profiles",
     authedRouteResponse(
       Effect.flatMap(QualityProfileService, (service) => service.listProfiles()),
-      jsonResponse,
+      schemaJsonResponse(Schema.Array(QualityProfileSchema)),
     ),
   ),
   HttpRouter.get(
     "/api/profiles/qualities",
     authedRouteResponse(
       Effect.flatMap(QualityProfileService, (service) => service.listQualities()),
-      jsonResponse,
+      schemaJsonResponse(Schema.Array(QualitySchema)),
     ),
   ),
   HttpRouter.post(
@@ -65,7 +66,7 @@ export const configRouter = HttpRouter.empty.pipe(
         const body = yield* decodeJsonBodyWithLabel(QualityProfileSchema, "create quality profile");
         return yield* (yield* QualityProfileService).createProfile(body);
       }),
-      jsonResponse,
+      schemaJsonResponse(QualityProfileSchema),
     ),
   ),
   HttpRouter.put(
@@ -76,7 +77,7 @@ export const configRouter = HttpRouter.empty.pipe(
         const body = yield* decodeJsonBodyWithLabel(QualityProfileSchema, "update quality profile");
         return yield* (yield* QualityProfileService).updateProfile(params.name, body);
       }),
-      jsonResponse,
+      schemaJsonResponse(QualityProfileSchema),
     ),
   ),
   HttpRouter.del(
@@ -93,7 +94,7 @@ export const configRouter = HttpRouter.empty.pipe(
     "/api/release-profiles",
     authedRouteResponse(
       Effect.flatMap(ReleaseProfileService, (service) => service.listReleaseProfiles()),
-      jsonResponse,
+      schemaJsonResponse(Schema.Array(ReleaseProfileSchema)),
     ),
   ),
   HttpRouter.post(
@@ -106,7 +107,7 @@ export const configRouter = HttpRouter.empty.pipe(
         );
         return yield* (yield* ReleaseProfileService).createReleaseProfile(body);
       }),
-      jsonResponse,
+      schemaJsonResponse(ReleaseProfileSchema),
     ),
   ),
   HttpRouter.put(

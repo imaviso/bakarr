@@ -1,5 +1,12 @@
 import { HttpRouter } from "@effect/platform";
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
+import {
+  AsyncOperationAcceptedSchema,
+  CalendarEventSchema,
+  MissingUnitSchema,
+  SearchResultsSchema,
+  UnitSearchResultSchema,
+} from "@packages/shared/index.ts";
 
 import { DownloadTriggerService } from "@/features/operations/download/download-trigger-service.ts";
 import { CatalogLibraryReadService } from "@/features/operations/catalog/catalog-library-read-service.ts";
@@ -15,16 +22,18 @@ import {
   WantedMissingQuerySchema,
 } from "@/http/operations/request-schemas.ts";
 import {
-  acceptedResponse,
   authedRouteResponse,
   decodeJsonBodyWithLabel,
   decodeOptionalJsonBodyWithLabel,
   decodePathParams,
   decodeQueryWithLabel,
-  jsonResponse,
+  schemaAcceptedResponse,
+  schemaJsonResponse,
   successResponse,
 } from "@/http/shared/router-helpers.ts";
 import { SearchUnitParamsSchema } from "@/http/shared/common-request-schemas.ts";
+
+const acceptedOperationResponse = schemaAcceptedResponse(AsyncOperationAcceptedSchema);
 
 export const searchRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
@@ -34,7 +43,7 @@ export const searchRouter = HttpRouter.empty.pipe(
         const query = yield* decodeQueryWithLabel(WantedMissingQuerySchema, "wanted missing");
         return yield* (yield* CatalogLibraryReadService).getWantedMissing(query.limit ?? 50);
       }),
-      jsonResponse,
+      schemaJsonResponse(Schema.Array(MissingUnitSchema)),
     ),
   ),
   HttpRouter.get(
@@ -47,7 +56,7 @@ export const searchRouter = HttpRouter.empty.pipe(
           ...(query.start === undefined ? {} : { start: query.start }),
         });
       }),
-      jsonResponse,
+      schemaJsonResponse(Schema.Array(CalendarEventSchema)),
     ),
   ),
   HttpRouter.get(
@@ -62,7 +71,7 @@ export const searchRouter = HttpRouter.empty.pipe(
           query.filter,
         );
       }),
-      jsonResponse,
+      schemaJsonResponse(SearchResultsSchema),
     ),
   ),
   HttpRouter.get(
@@ -72,7 +81,7 @@ export const searchRouter = HttpRouter.empty.pipe(
         const params = yield* decodePathParams(SearchUnitParamsSchema);
         return yield* (yield* SearchUnitService).searchUnit(params.mediaId, params.unitNumber);
       }),
-      jsonResponse,
+      schemaJsonResponse(Schema.Array(UnitSearchResultSchema)),
     ),
   ),
   HttpRouter.post(
@@ -124,7 +133,7 @@ export const searchRouter = HttpRouter.empty.pipe(
           taskKey: "downloads_search_missing_manual",
         });
       }),
-      acceptedResponse,
+      acceptedOperationResponse,
     ),
   ),
 );

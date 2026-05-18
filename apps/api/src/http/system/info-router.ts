@@ -1,5 +1,13 @@
 import { HttpRouter } from "@effect/platform";
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
+import {
+  ActivityItemSchema,
+  BackgroundJobStatusSchema,
+  LibraryStatsSchema,
+  ObservabilityStatusSchema,
+  OperationTaskSchema,
+  OpsDashboardSchema,
+} from "@packages/shared/index.ts";
 
 import { BackgroundJobStatusService } from "@/features/system/background-job-status-service.ts";
 import { ObservabilityConfig } from "@/config/observability.ts";
@@ -17,7 +25,7 @@ import {
   authedRouteResponse,
   decodePathParams,
   decodeQueryWithLabel,
-  jsonResponse,
+  schemaJsonResponse,
 } from "@/http/shared/router-helpers.ts";
 
 export const infoRouter = HttpRouter.empty.pipe(
@@ -27,14 +35,14 @@ export const infoRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         return makeObservabilityStatus(yield* ObservabilityConfig);
       }),
-      jsonResponse,
+      schemaJsonResponse(ObservabilityStatusSchema),
     ),
   ),
   HttpRouter.get(
     "/api/system/dashboard",
     authedRouteResponse(
       Effect.flatMap(SystemReadService, (service) => service.getDashboard()),
-      jsonResponse,
+      schemaJsonResponse(OpsDashboardSchema),
     ),
   ),
   HttpRouter.get(
@@ -43,7 +51,7 @@ export const infoRouter = HttpRouter.empty.pipe(
       Effect.flatMap(BackgroundJobStatusService, (service) =>
         service.getSnapshot().pipe(Effect.map((snapshot) => snapshot.jobs)),
       ),
-      jsonResponse,
+      schemaJsonResponse(Schema.Array(BackgroundJobStatusSchema)),
     ),
   ),
   HttpRouter.get(
@@ -57,7 +65,7 @@ export const infoRouter = HttpRouter.empty.pipe(
           excludeTaskKeys: ["media_scan_folder", "library_import"],
         });
       }),
-      jsonResponse,
+      schemaJsonResponse(Schema.Array(OperationTaskSchema)),
     ),
   ),
   HttpRouter.get(
@@ -67,21 +75,21 @@ export const infoRouter = HttpRouter.empty.pipe(
         const params = yield* decodePathParams(OperationsTaskIdParamsSchema);
         return yield* (yield* OperationsTaskReadService).getTask(params.taskId);
       }),
-      jsonResponse,
+      schemaJsonResponse(OperationTaskSchema),
     ),
   ),
   HttpRouter.get(
     "/api/library/stats",
     authedRouteResponse(
       Effect.flatMap(SystemReadService, (service) => service.getLibraryStats()),
-      jsonResponse,
+      schemaJsonResponse(LibraryStatsSchema),
     ),
   ),
   HttpRouter.get(
     "/api/library/activity",
     authedRouteResponse(
       Effect.flatMap(SystemReadService, (service) => service.getActivity()),
-      jsonResponse,
+      schemaJsonResponse(Schema.Array(ActivityItemSchema)),
     ),
   ),
 );

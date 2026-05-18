@@ -54,7 +54,7 @@ it.scoped("migrateDatabase applies embedded migrations idempotently", () =>
 
 it.effect("setAndVerifyPragmas succeeds when SQLite invariants hold", () =>
   Effect.gen(function* () {
-    const client = makePragmaClient({ foreignKeys: 1, journalMode: "wal" });
+    const client = makePragmaClient({ busyTimeout: 5000, foreignKeys: 1, journalMode: "wal" });
 
     const exit = yield* Effect.exit(setAndVerifyPragmas(client));
 
@@ -64,7 +64,7 @@ it.effect("setAndVerifyPragmas succeeds when SQLite invariants hold", () =>
 
 it.effect("setAndVerifyPragmas dies when journal mode is not WAL", () =>
   Effect.gen(function* () {
-    const client = makePragmaClient({ foreignKeys: 1, journalMode: "delete" });
+    const client = makePragmaClient({ busyTimeout: 5000, foreignKeys: 1, journalMode: "delete" });
 
     const exit = yield* Effect.exit(setAndVerifyPragmas(client));
 
@@ -74,7 +74,7 @@ it.effect("setAndVerifyPragmas dies when journal mode is not WAL", () =>
 
 it.effect("setAndVerifyPragmas dies when foreign keys are disabled", () =>
   Effect.gen(function* () {
-    const client = makePragmaClient({ foreignKeys: 0, journalMode: "wal" });
+    const client = makePragmaClient({ busyTimeout: 5000, foreignKeys: 0, journalMode: "wal" });
 
     const exit = yield* Effect.exit(setAndVerifyPragmas(client));
 
@@ -82,7 +82,11 @@ it.effect("setAndVerifyPragmas dies when foreign keys are disabled", () =>
   }),
 );
 
-function makePragmaClient(input: { readonly foreignKeys: number; readonly journalMode: string }) {
+function makePragmaClient(input: {
+  readonly busyTimeout: number;
+  readonly foreignKeys: number;
+  readonly journalMode: string;
+}) {
   return {
     unsafe: (statement: string) => {
       if (statement === "PRAGMA journal_mode") {
@@ -91,6 +95,10 @@ function makePragmaClient(input: { readonly foreignKeys: number; readonly journa
 
       if (statement === "PRAGMA foreign_keys") {
         return Effect.succeed([{ foreign_keys: input.foreignKeys }]);
+      }
+
+      if (statement === "PRAGMA busy_timeout") {
+        return Effect.succeed([{ busy_timeout: input.busyTimeout }]);
       }
 
       return Effect.succeed([]);

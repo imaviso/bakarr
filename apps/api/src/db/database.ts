@@ -58,12 +58,15 @@ export const setAndVerifyPragmas = Effect.fn("Database.setAndVerifyPragmas")(fun
 ) {
   yield* executeSql(client, "PRAGMA journal_mode = WAL");
   yield* executeSql(client, "PRAGMA foreign_keys = ON");
+  yield* executeSql(client, "PRAGMA busy_timeout = 5000");
 
   const journalMode = yield* executeSql(client, "PRAGMA journal_mode");
   const foreignKeys = yield* executeSql(client, "PRAGMA foreign_keys");
+  const busyTimeout = yield* executeSql(client, "PRAGMA busy_timeout");
 
   const journalModeValue = toSqlitePragmaValue(firstRowValue(journalMode[0]));
   const foreignKeysValue = toSqlitePragmaValue(firstRowValue(foreignKeys[0]));
+  const busyTimeoutValue = toSqlitePragmaValue(firstRowValue(busyTimeout[0]));
 
   if (journalModeValue.toLowerCase() !== "wal") {
     return yield* Effect.dieMessage(
@@ -74,6 +77,12 @@ export const setAndVerifyPragmas = Effect.fn("Database.setAndVerifyPragmas")(fun
   if (foreignKeysValue !== "1") {
     return yield* Effect.dieMessage(
       `SQLite startup invariant failed: foreign_keys expected 1 but received ${foreignKeysValue || "<empty>"}`,
+    );
+  }
+
+  if (busyTimeoutValue !== "5000") {
+    return yield* Effect.dieMessage(
+      `SQLite startup invariant failed: busy_timeout expected 5000 but received ${busyTimeoutValue || "<empty>"}`,
     );
   }
 

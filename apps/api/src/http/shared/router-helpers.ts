@@ -112,12 +112,24 @@ export const routeResponse = <A, E, R, E2, R2>(
     );
   });
 
-export const jsonResponse = (value: unknown) => HttpServerResponse.json(value);
+export const schemaJsonResponse = <A, I, R>(schema: Schema.Schema<A, I, R>) =>
+  HttpServerResponse.schemaJson(schema);
 
-export const successResponse = () => HttpServerResponse.json({ data: null, success: true });
+const SuccessResponseSchema = Schema.Struct({
+  data: Schema.Null,
+  success: Schema.Literal(true),
+});
 
-export const acceptedResponse = (value: unknown) =>
-  HttpServerResponse.json({ data: value, success: true }, { status: 202 });
+export const successResponse = () =>
+  HttpServerResponse.schemaJson(SuccessResponseSchema)({ data: null, success: true });
+
+export const schemaAcceptedResponse =
+  <A, I, R>(schema: Schema.Schema<A, I, R>) =>
+  (value: A) =>
+    HttpServerResponse.schemaJson(Schema.Struct({ data: schema, success: Schema.Literal(true) }))(
+      { data: value, success: true },
+      { status: 202 },
+    );
 
 export const withAuthViewer = <A, E, R>(
   effect: (viewer: AuthUser) => Effect.Effect<A, E, R>,
