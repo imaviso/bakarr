@@ -143,7 +143,7 @@ function parseDotenvText(
     const entries = new Map<string, string>();
 
     for (const [key, value] of Object.entries(parsed)) {
-      if (value !== undefined && DOTENV_KEY_PATTERN.test(key)) {
+      if (value !== undefined) {
         entries.set(key, value);
       }
     }

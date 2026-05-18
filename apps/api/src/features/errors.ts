@@ -2,12 +2,12 @@ import { Schema } from "effect";
 
 export class DomainNotFoundError extends Schema.TaggedError<DomainNotFoundError>()(
   "DomainNotFoundError",
-  { message: Schema.String },
+  { cause: Schema.optional(Schema.Defect), message: Schema.String },
 ) {}
 
 export class DomainConflictError extends Schema.TaggedError<DomainConflictError>()(
   "DomainConflictError",
-  { message: Schema.String },
+  { cause: Schema.optional(Schema.Defect), message: Schema.String },
 ) {}
 
 export class DomainInputError extends Schema.TaggedError<DomainInputError>()("DomainInputError", {

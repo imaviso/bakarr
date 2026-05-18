@@ -25,7 +25,7 @@ import { makeApiLifecycleLayers } from "./src/app/lifecycle-layers.ts";
  * After bootstrap, main.ts loads the full Config via getConfig to start
  * background workers. If config decoding fails, startup fails fast.
  */
-const mainProgram = Effect.fn("api.main")(function* () {
+const mainProgram = Effect.gen(function* () {
   const config = yield* bootstrapProgram().pipe(Effect.withSpan("api.bootstrap"));
   const httpApp = yield* createHttpApp();
 
@@ -47,15 +47,15 @@ const mainProgram = Effect.fn("api.main")(function* () {
     ),
   );
 
-  return yield* Layer.launch(serverLayer);
+  yield* Layer.launch(serverLayer);
 });
 
-const runApiProgram = Effect.fn("api.run")(function* () {
+const runApiProgram = Effect.gen(function* () {
   const appLayer = makeApiLifecycleLayers().appLayer;
 
-  return yield* Effect.scoped(mainProgram()).pipe(Effect.provide(appLayer));
+  yield* Effect.scoped(mainProgram).pipe(Effect.provide(appLayer));
 });
 
 if (import.meta.main) {
-  NodeRuntime.runMain(runApiProgram());
+  NodeRuntime.runMain(runApiProgram);
 }
