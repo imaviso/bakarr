@@ -85,8 +85,8 @@ export function useRegenerateApiKeyMutation() {
           method: "POST",
         }),
       ),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: animeKeys.auth.apiKey() });
+    onSuccess: (data) => {
+      queryClient.setQueryData(animeKeys.auth.apiKey(), data);
     },
   });
 }

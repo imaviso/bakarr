@@ -43,6 +43,11 @@ export function syncAuthenticatedUser(username: string, mustChangePassword = fal
   emit();
 }
 
+export function replaceApiKey(apiKey: string) {
+  authState = { ...authState, apiKey: normalizeApiKey(apiKey), isAuthenticated: true };
+  emit();
+}
+
 export function clearAuthState() {
   authState = { isAuthenticated: false };
   emit();

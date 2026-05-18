@@ -5,6 +5,7 @@ import {
   getAuthState,
   loginSuccess,
   logout,
+  replaceApiKey,
   subscribeAuth,
   syncAuthenticatedUser,
 } from "~/app/auth-state";
@@ -18,6 +19,7 @@ export {
   syncAuthenticatedUser,
   clearAuthState,
   logout,
+  replaceApiKey,
 };
 
 // Create the auth context
@@ -27,6 +29,7 @@ interface AuthContextValue {
   syncAuthenticatedUser: typeof syncAuthenticatedUser;
   clearAuthState: typeof clearAuthState;
   logout: typeof logout;
+  replaceApiKey: typeof replaceApiKey;
   getAuthHeaders: typeof getAuthHeaders;
 }
 
@@ -42,6 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       syncAuthenticatedUser,
       clearAuthState,
       logout,
+      replaceApiKey,
       getAuthHeaders,
     }),
     [auth],

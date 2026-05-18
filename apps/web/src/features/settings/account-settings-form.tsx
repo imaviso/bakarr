@@ -60,7 +60,7 @@ function getFirstErrorMessage(errors: readonly unknown[]): string | undefined {
 }
 
 export function AccountSettingsForm() {
-  const { auth, clearAuthState } = useAuth();
+  const { auth, clearAuthState, replaceApiKey } = useAuth();
   const navigate = useNavigate();
   const changePassword = useChangePasswordMutation();
   const regenerateApiKey = useRegenerateApiKeyMutation();
@@ -112,6 +112,10 @@ export function AccountSettingsForm() {
     regenerateApiKey.mutate(undefined, {
       onError: (error) => {
         toast.error(errorMessage(error, "Failed to regenerate API key"));
+      },
+      onSuccess: (response) => {
+        replaceApiKey(response.api_key);
+        toast.success("API key regenerated. Copy it now and store it safely.");
       },
     });
   };
