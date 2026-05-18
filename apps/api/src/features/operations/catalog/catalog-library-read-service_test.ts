@@ -9,6 +9,7 @@ import {
 } from "@/features/operations/catalog/catalog-library-read-service.ts";
 import { ClockService } from "@/infra/clock.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 
@@ -17,7 +18,7 @@ it.scoped("getWantedMissing includes non-media units without air dates", () =>
     schema,
     run: (db, databaseFile, client) =>
       Effect.gen(function* () {
-        yield* Effect.promise(() =>
+        yield* tryDatabasePromise("Failed to seed media for catalog test", () =>
           db
             .insert(schema.media)
             .values([
@@ -25,37 +26,30 @@ it.scoped("getWantedMissing includes non-media units without air dates", () =>
               animeRow({ id: 2, mediaKind: "manga", titleRomaji: "Manga" }),
             ]),
         );
-        yield* Effect.promise(() =>
+        yield* tryDatabasePromise("Failed to seed mediaUnits for catalog test", () =>
           db.insert(schema.mediaUnits).values([
             { aired: "2025-01-01T00:00:00.000Z", mediaId: 1, downloaded: false, number: 1 },
             { aired: null, mediaId: 2, downloaded: false, number: 1 },
           ]),
         );
 
+        const dependenciesLayer = Layer.mergeAll(
+          Layer.succeed(Database, { client, db }),
+          Layer.succeed(ClockService, {
+            currentMonotonicMillis: Effect.succeed(0),
+            currentTimeMillis: Effect.succeed(new Date("2025-02-01T00:00:00.000Z").getTime()),
+          }),
+          Layer.succeed(RuntimeConfigSnapshotService, {
+            getRuntimeConfig: () => Effect.succeed(makeTestConfig(databaseFile)),
+            replaceRuntimeConfig: () => Effect.void,
+          }),
+        );
+        const serviceLayer = CatalogLibraryReadServiceLive.pipe(Layer.provide(dependenciesLayer));
+
         const wanted = yield* Effect.gen(function* () {
           const service = yield* CatalogLibraryReadService;
           return yield* service.getWantedMissing(10);
-        }).pipe(
-          Effect.provide(
-            CatalogLibraryReadServiceLive.pipe(
-              Layer.provide(
-                Layer.mergeAll(
-                  Layer.succeed(Database, { client, db }),
-                  Layer.succeed(ClockService, {
-                    currentMonotonicMillis: Effect.succeed(0),
-                    currentTimeMillis: Effect.succeed(
-                      new Date("2025-02-01T00:00:00.000Z").getTime(),
-                    ),
-                  }),
-                  Layer.succeed(RuntimeConfigSnapshotService, {
-                    getRuntimeConfig: () => Effect.succeed(makeTestConfig(databaseFile)),
-                    replaceRuntimeConfig: () => Effect.void,
-                  }),
-                ),
-              ),
-            ),
-          ),
-        );
+        }).pipe(Effect.provide(serviceLayer));
 
         assert.deepStrictEqual(
           wanted.map((row) => ({ title: row.media_title, unitKind: row.unit_kind })),

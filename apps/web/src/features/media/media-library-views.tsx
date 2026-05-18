@@ -23,7 +23,12 @@ import {
   formatNextAiringUnit,
   type getAiringDisplayPreferences,
 } from "~/domain/media/metadata";
-import { mediaKindLabel } from "~/domain/media-unit";
+import {
+  mediaKindLabel,
+  mediaUnitKindFromMediaKind,
+  mediaUnitShortLabel,
+  mediaUnitLabel,
+} from "~/domain/media-unit";
 import { cn } from "~/infra/utils";
 
 interface AnimeLibraryViewProps {
@@ -60,19 +65,23 @@ function progressSummary(media: Media) {
 }
 
 function nextProgressLabel(media: Media) {
+  const unitKind = mediaUnitKindFromMediaKind(media.media_kind);
+
   if (media.progress.is_up_to_date) {
     return "Up to date";
   }
 
   if (media.progress.next_missing_unit) {
-    return `Next missing: Ep ${media.progress.next_missing_unit}`;
+    return `Next missing: ${mediaUnitShortLabel(unitKind, media.progress.next_missing_unit)}`;
   }
 
   if (media.progress.latest_downloaded_unit) {
-    return `Latest: Ep ${media.progress.latest_downloaded_unit}`;
+    return `Latest: ${mediaUnitShortLabel(unitKind, media.progress.latest_downloaded_unit)}`;
   }
 
-  return media.progress.downloaded > 0 ? "Episodes available" : "No downloads yet";
+  return media.progress.downloaded > 0
+    ? `${mediaUnitLabel(unitKind, 2)} available`
+    : "No downloads yet";
 }
 
 function statusTone(media: Media) {

@@ -14,6 +14,7 @@ import {
   decodeStoredSynonymsEffect,
 } from "@/features/media/shared/decode-support.ts";
 import { FileSystemError, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 
 it.scoped("addAnimeEffect persists MAL backfill and mapped relation metadata", () =>
@@ -84,7 +85,7 @@ it.scoped("addAnimeEffect persists MAL backfill and mapped relation metadata", (
           nowIso: () => Effect.succeed("2026-04-11T00:00:00.000Z"),
         });
 
-        const [row] = yield* Effect.promise(() =>
+        const [row] = yield* tryDatabasePromise("Failed to query media for add assertion", () =>
           appDb.select().from(media).where(eq(media.id, mediaId)),
         );
         assert(row);
@@ -155,7 +156,7 @@ it.scoped("addAnimeEffect infers light novel media kind when request omits it", 
           nowIso: () => Effect.succeed("2026-04-11T00:00:00.000Z"),
         });
 
-        const [row] = yield* Effect.promise(() =>
+        const [row] = yield* tryDatabasePromise("Failed to query media for add assertion", () =>
           appDb.select().from(media).where(eq(media.id, mediaId)),
         );
         assert(row);
@@ -169,7 +170,7 @@ const insertQualityProfileEffect = Effect.fn("Test.insertQualityProfile")(functi
   db: AppDatabase,
   name: string,
 ) {
-  yield* Effect.promise(() =>
+  yield* tryDatabasePromise("Failed to insert quality profile for media add test", () =>
     db.insert(qualityProfiles).values({
       allowedQualities: "1080p",
       cutoff: "720p",

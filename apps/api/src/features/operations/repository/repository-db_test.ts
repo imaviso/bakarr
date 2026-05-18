@@ -4,6 +4,7 @@ import { Cause, Effect, Option, Schema } from "effect";
 import * as schema from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { media, appConfig, mediaUnits, qualityProfiles, releaseProfiles } from "@/db/schema.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { encodeConfigCore } from "@/features/system/config-codec.ts";
 import {
   encodeNumberList,
@@ -61,14 +62,16 @@ it.scoped(
             upgrade_allowed: true,
           });
 
-          yield* Effect.promise(() =>
+          yield* tryDatabasePromise("Failed to seed appConfig for operations test", () =>
             db.insert(appConfig).values({
               id: 1,
               data: configData,
               updatedAt: "2024-01-01T00:00:00.000Z",
             }),
           );
-          yield* Effect.promise(() => db.insert(qualityProfiles).values(qualityProfileRow));
+          yield* tryDatabasePromise("Failed to seed qualityProfiles for operations test", () =>
+            db.insert(qualityProfiles).values(qualityProfileRow),
+          );
 
           const runtimeConfig = yield* loadRuntimeConfig(db);
           assert.deepStrictEqual(runtimeConfig.library.anime_path, "/media-library");
@@ -120,7 +123,7 @@ it.scoped("operations repository helpers load media release rules and episode st
           { rule_type: "must_not", score: 0, term: "Dub" },
         ]);
 
-        yield* Effect.promise(() =>
+        yield* tryDatabasePromise("Failed to seed media for release rules test", () =>
           db.insert(media).values({
             id: 20,
             malId: null,
@@ -149,7 +152,7 @@ it.scoped("operations repository helpers load media release rules and episode st
             releaseProfileIds,
           }),
         );
-        yield* Effect.promise(() =>
+        yield* tryDatabasePromise("Failed to seed releaseProfiles for release rules test", () =>
           db.insert(releaseProfiles).values([
             {
               id: 1,
@@ -174,7 +177,7 @@ it.scoped("operations repository helpers load media release rules and episode st
             },
           ]),
         );
-        yield* Effect.promise(() =>
+        yield* tryDatabasePromise("Failed to seed mediaUnits for release rules test", () =>
           db.insert(mediaUnits).values({
             mediaId: 20,
             number: 1,

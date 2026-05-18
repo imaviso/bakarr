@@ -18,18 +18,20 @@ export class TokenHasher extends Context.Tag("@bakarr/security/TokenHasher")<
 
 const textEncoder = new TextEncoder();
 
-export const TokenHasherLive = Layer.succeed(TokenHasher, {
-  hashToken: Effect.fn("TokenHasher.hashToken")(function* (token: string) {
-    const data = textEncoder.encode(token);
-    const hashBuffer = yield* Effect.tryPromise({
-      try: () => crypto.subtle.digest("SHA-256", data),
-      catch: (cause) =>
-        new TokenHasherError({
-          cause,
-          message: "Failed to hash token",
-        }),
-    });
+const hashToken = Effect.fn("TokenHasher.hashToken")(function* (token: string) {
+  const data = textEncoder.encode(token);
+  const hashBuffer = yield* Effect.tryPromise({
+    try: () => crypto.subtle.digest("SHA-256", data),
+    catch: (cause) =>
+      new TokenHasherError({
+        cause,
+        message: "Failed to hash token",
+      }),
+  });
 
-    return bytesToHex(new Uint8Array(hashBuffer));
-  }),
+  return bytesToHex(new Uint8Array(hashBuffer));
+});
+
+export const TokenHasherLive = Layer.succeed(TokenHasher, {
+  hashToken,
 });

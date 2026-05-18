@@ -5,6 +5,7 @@ import { Cause, Effect, Exit, Option } from "effect";
 import * as schema from "@/db/schema.ts";
 import { media, mediaUnits } from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import {
   getAnimeRowEffect,
   getEpisodeRowEffect,
@@ -16,7 +17,7 @@ import { MediaNotFoundError } from "@/features/media/errors.ts";
 type TestDatabase = SqliteRemoteDatabase<typeof schema>;
 
 function seedAnime(db: TestDatabase) {
-  return Effect.promise(() =>
+  return tryDatabasePromise("Failed to seed test anime for read repository", () =>
     db
       .insert(media)
       .values({
@@ -38,7 +39,7 @@ function seedAnime(db: TestDatabase) {
 }
 
 function seedEpisode(db: TestDatabase, mediaId: number, epNum: number) {
-  return Effect.promise(() =>
+  return tryDatabasePromise("Failed to seed test episode", () =>
     db
       .insert(mediaUnits)
       .values({

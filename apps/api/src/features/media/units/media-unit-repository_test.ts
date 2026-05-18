@@ -6,6 +6,7 @@ import { Effect } from "effect";
 import * as schema from "@/db/schema.ts";
 import { media, mediaUnits } from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import {
   clearEpisodeMappingEffect,
   upsertEpisodeEffect,
@@ -14,7 +15,7 @@ import {
 type TestDatabase = SqliteRemoteDatabase<typeof schema>;
 
 function seedAnime(db: TestDatabase) {
-  return Effect.promise(() =>
+  return tryDatabasePromise("Failed to seed test anime", () =>
     db
       .insert(media)
       .values({
@@ -49,7 +50,7 @@ it.scoped("clearEpisodeMappingEffect clears episode file fields", () =>
 
         yield* clearEpisodeMappingEffect(db, 1, 3);
 
-        const rows = yield* Effect.promise(() =>
+        const rows = yield* tryDatabasePromise("Failed to query mediaUnits for assertion", () =>
           db.select().from(mediaUnits).where(eq(mediaUnits.id, 1)),
         );
         assert.deepStrictEqual(rows[0]?.downloaded, false);
@@ -78,7 +79,7 @@ it.scoped("upsertEpisodeEffect updates existing episode on conflict", () =>
           resolution: "720p",
         });
 
-        const rows = yield* Effect.promise(() =>
+        const rows = yield* tryDatabasePromise("Failed to query mediaUnits for assertion", () =>
           db.select().from(mediaUnits).where(eq(mediaUnits.id, 1)),
         );
         assert.deepStrictEqual(rows.length, 1);
@@ -104,7 +105,7 @@ it.scoped("upsertEpisodeEffect does not overwrite unspecified fields on conflict
           title: "New Title",
         });
 
-        const rows = yield* Effect.promise(() =>
+        const rows = yield* tryDatabasePromise("Failed to query mediaUnits for assertion", () =>
           db.select().from(mediaUnits).where(eq(mediaUnits.id, 1)),
         );
         assert.deepStrictEqual(rows.length, 1);

@@ -6,14 +6,14 @@ export function mediaUnitKindFromMediaKind(mediaKind: MediaKind): MediaUnitKind 
 
 export function mediaKindLabel(mediaKind: MediaKind | undefined) {
   if (mediaKind === "manga") {
-    return "manga";
+    return "Manga";
   }
 
   if (mediaKind === "light_novel") {
-    return "light novel";
+    return "Light Novel";
   }
 
-  return "media";
+  return "Media";
 }
 
 export function mediaUnitLabel(unitKind: MediaUnitKind | undefined, count = 1) {

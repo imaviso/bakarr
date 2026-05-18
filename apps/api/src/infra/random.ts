@@ -12,13 +12,15 @@ export class RandomService extends Context.Tag("@bakarr/lib/RandomService")<
   RandomServiceShape
 >() {}
 
+const randomUuidService = Effect.fn("RandomService.randomUuid")(
+  (): Effect.Effect<string> => Effect.sync(() => crypto.randomUUID()),
+);
+
 export const RandomServiceLive = Layer.succeed(RandomService, {
   randomBytes: Effect.fn("RandomService.randomBytes")(
     (bytes: number): Effect.Effect<Uint8Array> => Effect.sync(() => randomBytesSync(bytes)),
   ),
-  randomUuid: Effect.sync(() => crypto.randomUUID()).pipe(
-    Effect.withSpan("RandomService.randomUuid"),
-  ),
+  randomUuid: randomUuidService(),
 });
 
 export function hexFromBytes(data: Uint8Array): string {

@@ -34,7 +34,7 @@ function DashboardPage() {
 
   const recentActivity = activity.slice(0, 5);
 
-  const statsSummary = `${stats.total_media} anime · ${stats.downloaded_units}/${stats.total_units} episodes · ${stats.downloaded_percent}% complete`;
+  const statsSummary = `${stats.total_media} media · ${stats.downloaded_units}/${stats.total_units} units · ${stats.downloaded_percent}% complete`;
 
   return (
     <PageShell>
@@ -47,7 +47,7 @@ function DashboardPage() {
           value={stats.monitored_media}
           sub={`${stats.up_to_date_media} up to date`}
         />
-        <StatItem label="Episodes" value={stats.total_units} />
+        <StatItem label="Units" value={stats.total_units} />
         <StatItem
           label="Downloaded"
           value={stats.downloaded_units}

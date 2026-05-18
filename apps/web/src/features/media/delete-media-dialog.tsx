@@ -19,7 +19,7 @@ interface DeleteAnimeDialogProps {
 }
 
 export function DeleteAnimeDialog(props: DeleteAnimeDialogProps) {
-  const mediaLabel = props.mediaLabel ?? "media";
+  const mediaLabel = props.mediaLabel ?? "Media";
 
   return (
     <AlertDialog>

@@ -7,6 +7,7 @@ import * as schema from "@/db/schema.ts";
 import { media, mediaUnits } from "@/db/schema.ts";
 import { backfillEpisodesFromNextAiringEffect } from "@/features/media/units/media-unit-backfill.ts";
 import { MAX_INFERRED_EPISODE_NUMBER } from "@/features/media/units/unit-backfill-policy.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 
 it.scoped("backfillEpisodesFromNextAiringEffect inserts previous missing mediaUnits", () =>
@@ -15,7 +16,7 @@ it.scoped("backfillEpisodesFromNextAiringEffect inserts previous missing mediaUn
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
 
-        yield* Effect.promise(() =>
+        yield* tryDatabasePromise("Failed to seed media for backfill test", () =>
           appDb.insert(media).values({
             id: 991,
             titleRomaji: "Backfill Show",
@@ -33,7 +34,7 @@ it.scoped("backfillEpisodesFromNextAiringEffect inserts previous missing mediaUn
           }),
         );
 
-        yield* Effect.promise(() =>
+        yield* tryDatabasePromise("Failed to seed media for backfill test", () =>
           appDb.insert(mediaUnits).values({
             mediaId: 991,
             number: 2,
@@ -49,12 +50,14 @@ it.scoped("backfillEpisodesFromNextAiringEffect inserts previous missing mediaUn
           monitoredOnly: true,
         });
 
-        const rows = yield* Effect.promise(() =>
-          appDb
-            .select()
-            .from(mediaUnits)
-            .where(eq(mediaUnits.mediaId, 991))
-            .orderBy(mediaUnits.number),
+        const rows = yield* tryDatabasePromise(
+          "Failed to query mediaUnits for backfill assertion",
+          () =>
+            appDb
+              .select()
+              .from(mediaUnits)
+              .where(eq(mediaUnits.mediaId, 991))
+              .orderBy(mediaUnits.number),
         );
 
         assert.deepStrictEqual(
@@ -75,7 +78,7 @@ it.scoped("backfillEpisodesFromNextAiringEffect scopes to mediaId when provided"
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
 
-        yield* Effect.promise(() =>
+        yield* tryDatabasePromise("Failed to seed media for backfill test", () =>
           appDb.insert(media).values([
             {
               id: 991,
@@ -116,11 +119,13 @@ it.scoped("backfillEpisodesFromNextAiringEffect scopes to mediaId when provided"
           monitoredOnly: false,
         });
 
-        const rows = yield* Effect.promise(() =>
-          appDb
-            .select({ mediaId: mediaUnits.mediaId, number: mediaUnits.number })
-            .from(mediaUnits)
-            .orderBy(mediaUnits.mediaId, mediaUnits.number),
+        const rows = yield* tryDatabasePromise(
+          "Failed to query mediaUnits for backfill assertion",
+          () =>
+            appDb
+              .select({ mediaId: mediaUnits.mediaId, number: mediaUnits.number })
+              .from(mediaUnits)
+              .orderBy(mediaUnits.mediaId, mediaUnits.number),
         );
 
         assert.deepStrictEqual(rows, [{ mediaId: 991, number: 1 }]);
@@ -135,7 +140,7 @@ it.scoped("backfillEpisodesFromNextAiringEffect caps inferred rows", () =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
 
-        yield* Effect.promise(() =>
+        yield* tryDatabasePromise("Failed to seed media for backfill test", () =>
           appDb.insert(media).values({
             id: 993,
             titleRomaji: "Backfill Long Show",
@@ -158,12 +163,14 @@ it.scoped("backfillEpisodesFromNextAiringEffect caps inferred rows", () =>
           monitoredOnly: true,
         });
 
-        const rows = yield* Effect.promise(() =>
-          appDb
-            .select({ number: mediaUnits.number })
-            .from(mediaUnits)
-            .where(eq(mediaUnits.mediaId, 993))
-            .orderBy(mediaUnits.number),
+        const rows = yield* tryDatabasePromise(
+          "Failed to query mediaUnits for backfill assertion",
+          () =>
+            appDb
+              .select({ number: mediaUnits.number })
+              .from(mediaUnits)
+              .where(eq(mediaUnits.mediaId, 993))
+              .orderBy(mediaUnits.number),
         );
 
         assert.deepStrictEqual(rows.length, MAX_INFERRED_EPISODE_NUMBER);

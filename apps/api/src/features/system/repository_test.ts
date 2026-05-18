@@ -14,6 +14,7 @@ import {
   systemLogs,
   unmappedFolderMatches,
 } from "@/db/schema.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { StoredUnmappedFolderCorruptError } from "@/features/system/errors.ts";
 import { encodeConfigCore } from "@/features/system/config-codec.ts";
 import { makeDefaultConfig } from "@/features/system/defaults.ts";
@@ -80,7 +81,7 @@ it.scoped("system repository query helpers filter logs and count system state", 
   withSqliteTestDbEffect({
     run: (db, _databaseFile) =>
       Effect.gen(function* () {
-        yield* Effect.promise(() =>
+        yield* tryDatabasePromise("Failed to seed systemLogs for repository test", () =>
           db.insert(systemLogs).values([
             {
               eventType: "library.scan.started",
@@ -105,7 +106,7 @@ it.scoped("system repository query helpers filter logs and count system state", 
             },
           ]),
         );
-        yield* Effect.promise(() =>
+        yield* tryDatabasePromise("Failed to seed media for repository test", () =>
           db.insert(media).values({
             id: 20,
             malId: null,
@@ -134,7 +135,7 @@ it.scoped("system repository query helpers filter logs and count system state", 
             releaseProfileIds: "[]",
           }),
         );
-        yield* Effect.promise(() =>
+        yield* tryDatabasePromise("Failed to seed mediaUnits for query helpers test", () =>
           db.insert(mediaUnits).values([
             {
               mediaId: 20,
@@ -154,7 +155,7 @@ it.scoped("system repository query helpers filter logs and count system state", 
             },
           ]),
         );
-        yield* Effect.promise(() =>
+        yield* tryDatabasePromise("Failed to seed downloads for query helpers test", () =>
           db.insert(downloads).values([
             {
               mediaId: 20,
@@ -298,7 +299,7 @@ it.scoped("system repository query helpers filter logs and count system state", 
             },
           ]),
         );
-        yield* Effect.promise(() =>
+        yield* tryDatabasePromise("Failed to seed backgroundJobs for query helpers test", () =>
           db.insert(backgroundJobs).values([
             {
               name: "rss",
@@ -320,7 +321,7 @@ it.scoped("system repository query helpers filter logs and count system state", 
             },
           ]),
         );
-        yield* Effect.promise(() =>
+        yield* tryDatabasePromise("Failed to seed rssFeed for query helpers test", () =>
           db.insert(rssFeeds).values({
             mediaId: 20,
             url: "https://example.com/rss.xml",
@@ -376,7 +377,7 @@ it.scoped("countUpToDateAnimeRows counts monitored media with complete downloads
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        yield* Effect.promise(() =>
+        yield* tryDatabasePromise("Failed to seed media for countUpToDateAnimeRows test", () =>
           db.insert(media).values([
             {
               addedAt: "2024-01-01T00:00:00.000Z",
@@ -467,7 +468,7 @@ it.scoped("countUpToDateAnimeRows counts monitored media with complete downloads
             },
           ]),
         );
-        yield* Effect.promise(() =>
+        yield* tryDatabasePromise("Failed to seed mediaUnits for countUpToDateAnimeRows test", () =>
           db.insert(mediaUnits).values([
             {
               mediaId: 21,
@@ -636,7 +637,7 @@ it.scoped("decodeUnmappedFolderMatchRow fails for corrupt stored suggestions", (
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        yield* Effect.promise(() =>
+        yield* tryDatabasePromise("Failed to seed corrupt unmappedFolderMatch", () =>
           db.insert(unmappedFolderMatches).values({
             lastMatchedAt: null,
             lastMatchError: null,

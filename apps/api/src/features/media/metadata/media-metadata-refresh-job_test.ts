@@ -8,6 +8,7 @@ import { media, backgroundJobs, systemLogs } from "@/db/schema.ts";
 import type { AnimeMetadata } from "@/features/media/metadata/anilist-model.ts";
 import { refreshMetadataForMonitoredAnimeEffect } from "@/features/media/metadata/media-metadata-refresh-job.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 
 it.scoped(
@@ -49,10 +50,18 @@ it.scoped(
             refreshConcurrency: 2,
           });
 
-          const [jobRow] = yield* Effect.promise(() =>
-            appDb.select().from(backgroundJobs).where(eq(backgroundJobs.name, "metadata_refresh")),
+          const [jobRow] = yield* tryDatabasePromise(
+            "Failed to query backgroundJobs for refresh assertion",
+            () =>
+              appDb
+                .select()
+                .from(backgroundJobs)
+                .where(eq(backgroundJobs.name, "metadata_refresh")),
           );
-          const allLogs = yield* Effect.promise(() => appDb.select().from(systemLogs));
+          const allLogs = yield* tryDatabasePromise(
+            "Failed to query systemLogs for refresh assertion",
+            () => appDb.select().from(systemLogs),
+          );
 
           assert.deepStrictEqual(result.refreshed, 1);
           assert.deepStrictEqual(jobRow?.lastStatus, "success");
@@ -113,8 +122,13 @@ it.scoped(
             refreshConcurrency: 1,
           }).pipe(Effect.either);
 
-          const [jobRow] = yield* Effect.promise(() =>
-            appDb.select().from(backgroundJobs).where(eq(backgroundJobs.name, "metadata_refresh")),
+          const [jobRow] = yield* tryDatabasePromise(
+            "Failed to query backgroundJobs for top-level failure assertion",
+            () =>
+              appDb
+                .select()
+                .from(backgroundJobs)
+                .where(eq(backgroundJobs.name, "metadata_refresh")),
           );
 
           assert.deepStrictEqual(result._tag, "Left");
@@ -133,7 +147,7 @@ it.scoped(
 );
 
 const insertAnimeRow = Effect.fn("Test.insertAnimeRow")(function* (db: AppDatabase, id: number) {
-  yield* Effect.promise(() =>
+  yield* tryDatabasePromise("Failed to insert test anime row for refresh job", () =>
     db.insert(media).values({
       id,
       titleRomaji: `Media ${id}`,

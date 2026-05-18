@@ -75,7 +75,7 @@ export function EditPathDialog(props: EditPathDialogProps) {
                   value={field.state.value}
                   onBlur={field.handleBlur}
                   onChange={(event) => field.handleChange(event.currentTarget.value)}
-                  placeholder="/path/to/anime"
+                  placeholder="/path/to/media"
                 />
               )}
             </form.Field>

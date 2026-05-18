@@ -192,7 +192,7 @@ export function ManualMappingDialog(props: ManualMappingDialogProps) {
         <DialogHeader>
           <DialogTitle>Manual Mapping - MediaUnit {props.unitNumber}</DialogTitle>
           <DialogDescription>
-            Select a file from the anime directory to map to this episode.
+            Select a file from the media directory to map to this media unit.
           </DialogDescription>
         </DialogHeader>
 
@@ -201,7 +201,7 @@ export function ManualMappingDialog(props: ManualMappingDialogProps) {
             <div className="border rounded-none max-h-[300px] overflow-y-auto">
               {files.length === 0 && (
                 <div className="p-4 text-center text-sm text-muted-foreground">
-                  No video files found in the anime directory.
+                  No video files found in the media directory.
                 </div>
               )}
               <Table>

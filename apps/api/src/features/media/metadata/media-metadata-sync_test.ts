@@ -13,6 +13,7 @@ import {
   decodeStoredDiscoveryEntriesEffect,
   decodeStoredSynonymsEffect,
 } from "@/features/media/shared/decode-support.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 
 it.scoped("syncAnimeMetadataEffect stores locally cached image paths", () =>
@@ -64,7 +65,7 @@ it.scoped("syncAnimeMetadataEffect stores locally cached image paths", () =>
           nowIso: () => Effect.succeed("2026-04-11T00:00:00.000Z"),
         });
 
-        const [row] = yield* Effect.promise(() =>
+        const [row] = yield* tryDatabasePromise("Failed to query media for sync assertion", () =>
           appDb.select().from(media).where(eq(media.id, mediaId)),
         );
 
@@ -122,8 +123,9 @@ it.scoped("syncAnimeMetadataEffect keeps existing image paths if caching fails",
           nowIso: () => Effect.succeed("2026-04-11T00:00:00.000Z"),
         });
 
-        const [row] = yield* Effect.promise(() =>
-          appDb.select().from(media).where(eq(media.id, mediaId)),
+        const [row] = yield* tryDatabasePromise(
+          "Failed to query media for image cache failure assertion",
+          () => appDb.select().from(media).where(eq(media.id, mediaId)),
         );
 
         assert.deepStrictEqual(
@@ -199,8 +201,9 @@ it.scoped("syncAnimeMetadataEffect persists enrichment metadata fields from prov
           nowIso: () => Effect.succeed("2026-04-11T00:00:00.000Z"),
         });
 
-        const [row] = yield* Effect.promise(() =>
-          appDb.select().from(media).where(eq(media.id, mediaId)),
+        const [row] = yield* tryDatabasePromise(
+          "Failed to query media for enrichment assertion",
+          () => appDb.select().from(media).where(eq(media.id, mediaId)),
         );
         assert(row);
 
@@ -252,7 +255,7 @@ const insertAnimeRow = Effect.fn("Test.insertAnimeRow")(function* (
     readonly coverImage: string;
   },
 ) {
-  yield* Effect.promise(() =>
+  yield* tryDatabasePromise("Failed to insert test anime row for metadata sync", () =>
     db.insert(media).values({
       id,
       titleRomaji: `Media ${id}`,

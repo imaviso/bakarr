@@ -3,6 +3,8 @@ import { eq } from "drizzle-orm";
 import { Cause, Effect, Exit } from "effect";
 import { brandMediaId } from "@packages/shared/index.ts";
 
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
+
 import * as schema from "@/db/schema.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { media, appConfig, mediaUnits, qualityProfiles, systemLogs } from "@/db/schema.ts";
@@ -44,7 +46,7 @@ it.scoped("upsertEpisode prevents duplicate media episode rows", () =>
           title: "MediaUnit 1 updated",
         });
 
-        const rows = yield* Effect.promise(() =>
+        const rows = yield* tryDatabasePromise("Failed to query mediaUnits", () =>
           db.select().from(mediaUnits).where(eq(mediaUnits.mediaId, 1)),
         );
         assert.deepStrictEqual(rows.length, 1);
@@ -60,7 +62,7 @@ it.scoped("ensureEpisodes rejects duplicate episode inserts for same media", () 
     run: (db) =>
       Effect.gen(function* () {
         yield* insertAnimeEffect(db, 2, 1);
-        yield* Effect.promise(() =>
+        yield* tryDatabasePromise("Failed to seed mediaUnit for duplicate test", () =>
           db.insert(mediaUnits).values({
             audioChannels: null,
             audioCodec: null,
@@ -92,7 +94,7 @@ it.scoped("ensureEpisodes rejects duplicate episode inserts for same media", () 
         );
 
         const duplicateInsert = yield* Effect.exit(
-          Effect.tryPromise(() =>
+          tryDatabasePromise("Expected duplicate insert to fail", () =>
             db.insert(mediaUnits).values({
               audioChannels: null,
               audioCodec: null,
@@ -194,14 +196,17 @@ it.scoped("insertAnimeAggregateAtomic rolls back media inserts when a later writ
         );
         assert.deepStrictEqual(exit._tag, "Failure");
 
-        const animeRows = yield* Effect.promise(() =>
-          db.select().from(media).where(eq(media.id, 77)),
+        const animeRows = yield* tryDatabasePromise(
+          "Failed to query media for rollback assertion",
+          () => db.select().from(media).where(eq(media.id, 77)),
         );
-        const episodeRows = yield* Effect.promise(() =>
-          db.select().from(mediaUnits).where(eq(mediaUnits.mediaId, 77)),
+        const episodeRows = yield* tryDatabasePromise(
+          "Failed to query mediaUnits for rollback assertion",
+          () => db.select().from(mediaUnits).where(eq(mediaUnits.mediaId, 77)),
         );
-        const logRows = yield* Effect.promise(() =>
-          db.select().from(systemLogs).where(eq(systemLogs.message, "This should fail")),
+        const logRows = yield* tryDatabasePromise(
+          "Failed to query systemLogs for rollback assertion",
+          () => db.select().from(systemLogs).where(eq(systemLogs.message, "This should fail")),
         );
 
         assert.deepStrictEqual(animeRows.length, 0);
@@ -350,8 +355,9 @@ it.scoped("syncEpisodeMetadataEffect applies AniDB episode titles and dates", ()
           },
         ]);
 
-        const rows = yield* Effect.promise(() =>
-          db.select().from(mediaUnits).where(eq(mediaUnits.mediaId, 25)),
+        const rows = yield* tryDatabasePromise(
+          "Failed to query mediaUnits for sync assertion",
+          () => db.select().from(mediaUnits).where(eq(mediaUnits.mediaId, 25)),
         );
         const first = rows.find((row) => row.number === 1);
 
@@ -383,7 +389,7 @@ it.scoped("media repository helpers fail explicitly on corrupt stored config", (
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        yield* Effect.promise(() =>
+        yield* tryDatabasePromise("Failed to seed corrupt appConfig for error test", () =>
           db.insert(appConfig).values({
             id: 1,
             data: "{not-json",
@@ -440,7 +446,7 @@ it.scoped("media repository helpers use stored config when available", () =>
           Effect.flatMap((core) => encodeConfigCore(core)),
         );
 
-        yield* Effect.promise(() =>
+        yield* tryDatabasePromise("Failed to seed appConfig for config test", () =>
           db.insert(appConfig).values({
             id: 1,
             data: encodedConfig,
@@ -465,7 +471,7 @@ it.scoped("qualityProfileExistsEffect checks stored quality profile rows", () =>
       Effect.gen(function* () {
         assert.deepStrictEqual(yield* qualityProfileExistsEffect(db, "Standard"), false);
 
-        yield* Effect.promise(() =>
+        yield* tryDatabasePromise("Failed to seed quality profile", () =>
           db.insert(qualityProfiles).values({
             allowedQualities: "1080p",
             cutoff: "720p",
@@ -570,7 +576,9 @@ it.scoped("media root-folder triggers reject overlapping roots", () =>
         yield* insertAnimeWithRootEffect(db, 30, 12, "/library/Naruto/");
 
         const overlappingInsert = yield* Effect.exit(
-          Effect.tryPromise(() => insertAnimeWithRoot(db, 31, 12, "/library/Naruto/Season 1")),
+          tryDatabasePromise("Expected overlapping root insert to fail", () =>
+            insertAnimeWithRoot(db, 31, 12, "/library/Naruto/Season 1"),
+          ),
         );
         assert.deepStrictEqual(overlappingInsert._tag, "Failure");
       }),
@@ -583,12 +591,16 @@ const insertAnimeEffect = Effect.fn("AnimeRepositoryTest.insertAnimeEffect")(fun
   id: number,
   unitCount: number,
 ) {
-  yield* Effect.promise(() => insertAnimeWithRoot(db, id, unitCount, `/library/Show-${id}`));
+  yield* tryDatabasePromise("Failed to insert test anime", () =>
+    insertAnimeWithRoot(db, id, unitCount, `/library/Show-${id}`),
+  );
 });
 
 const insertAnimeWithRootEffect = Effect.fn("AnimeRepositoryTest.insertAnimeWithRootEffect")(
   function* (db: AppDatabase, id: number, unitCount: number, rootFolder: string) {
-    yield* Effect.promise(() => insertAnimeWithRoot(db, id, unitCount, rootFolder));
+    yield* tryDatabasePromise("Failed to insert test anime with root", () =>
+      insertAnimeWithRoot(db, id, unitCount, rootFolder),
+    );
   },
 );
 

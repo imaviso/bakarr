@@ -13,9 +13,9 @@ import {
 } from "@/infra/media/probe.ts";
 import { commandArgs, makeCommandExecutorStub } from "@/test/stubs.ts";
 
-it("parseFfprobeJson extracts canonical media metadata", () => {
-  const result = Effect.runSync(
-    parseFfprobeJson(
+it.effect("parseFfprobeJson extracts canonical media metadata", () =>
+  Effect.gen(function* () {
+    const result = yield* parseFfprobeJson(
       JSON.stringify({
         format: {
           duration: "1440.4",
@@ -35,33 +35,35 @@ it("parseFfprobeJson extracts canonical media metadata", () => {
           },
         ],
       }),
-    ),
-  );
+    );
 
-  assert.deepStrictEqual(result._tag, "MediaProbeMetadataFound");
-  if (result._tag === "MediaProbeMetadataFound") {
-    assert.deepStrictEqual(result.metadata, {
-      audio_channels: "2.0",
-      audio_codec: "AAC",
-      duration_seconds: 1440,
-      resolution: "1080p",
-      video_codec: "HEVC",
-    });
-  }
-});
-
-it("parseFfprobeJson returns typed failure for invalid output", () => {
-  const exit = Effect.runSyncExit(parseFfprobeJson('{"streams":"bad"}'));
-
-  assert.deepStrictEqual(Exit.isFailure(exit), true);
-  if (Exit.isFailure(exit)) {
-    const failure = Cause.failureOption(exit.cause);
-    assert.deepStrictEqual(failure._tag, "Some");
-    if (failure._tag === "Some") {
-      assert.deepStrictEqual(failure.value._tag, "MediaProbeFailure");
+    assert.deepStrictEqual(result._tag, "MediaProbeMetadataFound");
+    if (result._tag === "MediaProbeMetadataFound") {
+      assert.deepStrictEqual(result.metadata, {
+        audio_channels: "2.0",
+        audio_codec: "AAC",
+        duration_seconds: 1440,
+        resolution: "1080p",
+        video_codec: "HEVC",
+      });
     }
-  }
-});
+  }),
+);
+
+it.effect("parseFfprobeJson returns typed failure for invalid output", () =>
+  Effect.gen(function* () {
+    const exit = yield* Effect.exit(parseFfprobeJson('{"streams":"bad"}'));
+
+    assert.deepStrictEqual(Exit.isFailure(exit), true);
+    if (Exit.isFailure(exit)) {
+      const failure = Cause.failureOption(exit.cause);
+      assert.deepStrictEqual(failure._tag, "Some");
+      if (failure._tag === "Some") {
+        assert.deepStrictEqual(failure.value._tag, "MediaProbeFailure");
+      }
+    }
+  }),
+);
 
 it("mergeProbedMediaMetadata fills only missing fields", () => {
   assert.deepStrictEqual(
@@ -135,17 +137,25 @@ it.effect("MediaProbe enforces global ffprobe concurrency limit", () =>
         maxActive = active;
       }
 
-      return Effect.promise(
-        () =>
-          new Promise<string>((resolve) => {
-            setTimeout(() => {
-              active -= 1;
-              resolve(
-                '{"streams":[{"codec_type":"video","codec_name":"h264","width":1920,"height":1080}],"format":{"duration":"24"}}',
-              );
-            }, 25);
-          }),
-      );
+      return Effect.async<string>((resume) => {
+        let completed = false;
+        const timeout = setTimeout(() => {
+          completed = true;
+          active -= 1;
+          resume(
+            Effect.succeed(
+              '{"streams":[{"codec_type":"video","codec_name":"h264","width":1920,"height":1080}],"format":{"duration":"24"}}',
+            ),
+          );
+        }, 25);
+
+        return Effect.sync(() => {
+          clearTimeout(timeout);
+          if (!completed) {
+            active -= 1;
+          }
+        });
+      });
     });
 
     yield* Effect.flatMap(MediaProbe, (mediaProbe) =>

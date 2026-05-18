@@ -5,6 +5,7 @@ import { Cause, Effect, Exit, Option } from "effect";
 import * as schema from "@/db/schema.ts";
 import { media, qualityProfiles } from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import {
   checkProfileExistsEffect,
   checkRootFolderNotOwnedEffect,
@@ -17,7 +18,7 @@ import { ProfileNotFoundError } from "@/features/system/errors.ts";
 type TestDatabase = SqliteRemoteDatabase<typeof schema>;
 
 function seedAnime(db: TestDatabase) {
-  return Effect.promise(() =>
+  return tryDatabasePromise("Failed to seed test anime for validation", () =>
     db.insert(media).values({
       addedAt: "2025-01-01T00:00:00.000Z",
       unitCount: 12,
@@ -36,7 +37,7 @@ function seedAnime(db: TestDatabase) {
 }
 
 function seedQualityProfile(db: TestDatabase) {
-  return Effect.promise(() =>
+  return tryDatabasePromise("Failed to seed quality profile for validation", () =>
     db.insert(qualityProfiles).values({
       allowedQualities: "[]",
       cutoff: "1080p",

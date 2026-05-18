@@ -9,6 +9,7 @@ import { makeBackgroundSearchRssWorkerService } from "@/features/operations/back
 import { SearchBackgroundRssService } from "@/features/operations/background-search/background-search-rss-support.ts";
 import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
 import { type OperationsProgressShape } from "@/features/operations/tasks/operations-progress-service.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { assert, describe, it } from "@effect/vitest";
 
@@ -36,12 +37,14 @@ describe("BackgroundSearchRssWorkerService", () => {
             },
           });
 
-          const [job] = yield* Effect.promise(() =>
-            db
-              .select()
-              .from(schema.backgroundJobs)
-              .where(eq(schema.backgroundJobs.name, "rss"))
-              .limit(1),
+          const [job] = yield* tryDatabasePromise(
+            "Failed to query backgroundJobs for RSS assertion",
+            () =>
+              db
+                .select()
+                .from(schema.backgroundJobs)
+                .where(eq(schema.backgroundJobs.name, "rss"))
+                .limit(1),
           );
           assert.deepStrictEqual(job !== undefined, true);
           if (!job) {
@@ -98,12 +101,14 @@ describe("BackgroundSearchRssWorkerService", () => {
             }
           }
 
-          const [job] = yield* Effect.promise(() =>
-            db
-              .select()
-              .from(schema.backgroundJobs)
-              .where(eq(schema.backgroundJobs.name, "rss"))
-              .limit(1),
+          const [job] = yield* tryDatabasePromise(
+            "Failed to query backgroundJobs for RSS assertion",
+            () =>
+              db
+                .select()
+                .from(schema.backgroundJobs)
+                .where(eq(schema.backgroundJobs.name, "rss"))
+                .limit(1),
           );
           assert.deepStrictEqual(job !== undefined, true);
           if (!job) {
@@ -154,12 +159,14 @@ describe("BackgroundSearchRssWorkerService", () => {
             }
           }
 
-          const [job] = yield* Effect.promise(() =>
-            db
-              .select()
-              .from(schema.backgroundJobs)
-              .where(eq(schema.backgroundJobs.name, "rss"))
-              .limit(1),
+          const [job] = yield* tryDatabasePromise(
+            "Failed to query backgroundJobs for RSS assertion",
+            () =>
+              db
+                .select()
+                .from(schema.backgroundJobs)
+                .where(eq(schema.backgroundJobs.name, "rss"))
+                .limit(1),
           );
           assert.deepStrictEqual(job !== undefined, true);
           if (!job) {

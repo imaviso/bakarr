@@ -4,13 +4,14 @@ import { Effect } from "effect";
 import * as schema from "@/db/schema.ts";
 import { qualityProfiles } from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { qualityProfileExistsEffect } from "@/features/media/shared/profile-support.ts";
 
 it.scoped("qualityProfileExistsEffect returns true for existing profile", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        yield* Effect.promise(() =>
+        yield* tryDatabasePromise("Failed to seed quality profile 'HD'", () =>
           db.insert(qualityProfiles).values({
             allowedQualities: "[]",
             cutoff: "1080p",
@@ -43,7 +44,7 @@ it.scoped("qualityProfileExistsEffect is case sensitive", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        yield* Effect.promise(() =>
+        yield* tryDatabasePromise("Failed to seed quality profile 'Default'", () =>
           db.insert(qualityProfiles).values({
             allowedQualities: "[]",
             cutoff: "1080p",

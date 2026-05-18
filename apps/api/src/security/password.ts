@@ -7,7 +7,7 @@ const PASSWORD_SCHEME = "pbkdf2_sha256";
 const ITERATIONS = 310_000;
 const KEY_LENGTH = 32;
 
-export interface PasswordCryptoPrimitives {
+interface PasswordCryptoPrimitives {
   readonly deriveBits: (
     algorithm: Pbkdf2Params,
     keyMaterial: CryptoKey,
@@ -23,7 +23,22 @@ export interface PasswordCryptoPrimitives {
   ) => Promise<CryptoKey>;
 }
 
-export const WebPasswordCrypto: PasswordCryptoPrimitives = {
+export class PasswordError extends Schema.TaggedError<PasswordError>()("PasswordError", {
+  cause: Schema.optional(Schema.Defect),
+  message: Schema.String,
+}) {}
+
+export interface PasswordCryptoShape {
+  readonly deriveBits: (
+    keyMaterial: CryptoKey,
+    salt: ArrayBuffer,
+    iterations: number,
+  ) => Effect.Effect<Uint8Array, PasswordError>;
+  readonly deriveKeyMaterial: (password: string) => Effect.Effect<CryptoKey, PasswordError>;
+  readonly randomBytes: (bytes: number) => Effect.Effect<Uint8Array, PasswordError>;
+}
+
+const webPasswordCryptoPrimitives: PasswordCryptoPrimitives = {
   deriveBits: (algorithm, keyMaterial, length) =>
     crypto.subtle.deriveBits(algorithm, keyMaterial, length),
   getRandomValues: (data) => {
@@ -36,15 +51,16 @@ export const WebPasswordCrypto: PasswordCryptoPrimitives = {
 
 export class PasswordCrypto extends Context.Tag("@bakarr/security/PasswordCrypto")<
   PasswordCrypto,
-  PasswordCryptoPrimitives
+  PasswordCryptoShape
 >() {}
 
-export const PasswordCryptoLive = Layer.succeed(PasswordCrypto, WebPasswordCrypto);
+export const WebPasswordCrypto: PasswordCryptoShape = {
+  deriveBits: deriveBitsWith(webPasswordCryptoPrimitives),
+  deriveKeyMaterial: deriveKeyMaterialWith(webPasswordCryptoPrimitives),
+  randomBytes: randomBytesWith(webPasswordCryptoPrimitives),
+};
 
-export class PasswordError extends Schema.TaggedError<PasswordError>()("PasswordError", {
-  cause: Schema.optional(Schema.Defect),
-  message: Schema.String,
-}) {}
+export const PasswordCryptoLive = Layer.succeed(PasswordCrypto, WebPasswordCrypto);
 
 function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   const buffer = new ArrayBuffer(bytes.length);
@@ -59,51 +75,6 @@ function timingSafeEqual(left: Uint8Array, right: Uint8Array): boolean {
 
   return nodeTimingSafeEqual(Buffer.from(left), Buffer.from(right));
 }
-
-const deriveKeyMaterial = Effect.fn("Password.deriveKeyMaterial")(function* (
-  primitives: PasswordCryptoPrimitives,
-  password: string,
-) {
-  const keyMaterial = yield* Effect.tryPromise({
-    try: () =>
-      primitives.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, [
-        "deriveBits",
-      ]),
-    catch: (cause) =>
-      new PasswordError({
-        cause,
-        message: "Failed to import key material",
-      }),
-  });
-  return keyMaterial;
-});
-
-const deriveBits = Effect.fn("Password.deriveBits")(function* (
-  primitives: PasswordCryptoPrimitives,
-  keyMaterial: CryptoKey,
-  salt: ArrayBuffer,
-  iterations: number,
-) {
-  const bits = yield* Effect.tryPromise({
-    try: () =>
-      primitives.deriveBits(
-        {
-          hash: "SHA-256",
-          iterations,
-          name: "PBKDF2",
-          salt,
-        },
-        keyMaterial,
-        KEY_LENGTH * 8,
-      ),
-    catch: (cause) =>
-      new PasswordError({
-        cause,
-        message: "Failed to derive password hash",
-      }),
-  });
-  return new Uint8Array(bits);
-});
 
 const parseHex = Effect.fn("Password.parseHex")(function* (value: string, message: string) {
   const decoded = hexToBytes(value);
@@ -145,38 +116,86 @@ const parseStoredHash = Effect.fn("Password.parseStoredHash")(function* (storedH
 });
 
 export const hashPassword = Effect.fn("Password.hash")(function* (
-  primitives: PasswordCryptoPrimitives,
+  crypto: PasswordCryptoShape,
   password: string,
 ) {
-  const salt = yield* randomBytesEffect(primitives, 16);
-  const keyMaterial = yield* deriveKeyMaterial(primitives, password);
-  const hash = yield* deriveBits(primitives, keyMaterial, toArrayBuffer(salt), ITERATIONS);
+  const salt = yield* crypto.randomBytes(16);
+  const keyMaterial = yield* crypto.deriveKeyMaterial(password);
+  const hash = yield* crypto.deriveBits(keyMaterial, toArrayBuffer(salt), ITERATIONS);
 
   return [PASSWORD_SCHEME, String(ITERATIONS), bytesToHex(salt), bytesToHex(hash)].join("$");
 });
 
 export const verifyPassword = Effect.fn("Password.verify")(function* (
-  primitives: PasswordCryptoPrimitives,
+  crypto: PasswordCryptoShape,
   password: string,
   storedHash: string,
 ) {
   const { hash: expected, iterations, salt } = yield* parseStoredHash(storedHash);
-  const keyMaterial = yield* deriveKeyMaterial(primitives, password);
-  const actual = yield* deriveBits(primitives, keyMaterial, toArrayBuffer(salt), iterations);
+  const keyMaterial = yield* crypto.deriveKeyMaterial(password);
+  const actual = yield* crypto.deriveBits(keyMaterial, toArrayBuffer(salt), iterations);
 
   return timingSafeEqual(expected, actual);
 });
 
-const randomBytesEffect = (primitives: PasswordCryptoPrimitives, bytes: number) =>
-  Effect.try({
-    try: () => {
-      const data = new Uint8Array(bytes);
-      primitives.getRandomValues(data);
-      return data;
-    },
-    catch: (cause) =>
-      new PasswordError({
-        cause,
-        message: "Failed to generate password salt",
-      }),
+function deriveKeyMaterialWith(primitives: PasswordCryptoPrimitives) {
+  return Effect.fn("PasswordCrypto.deriveKeyMaterial")(function* (password: string) {
+    const keyMaterial = yield* Effect.tryPromise({
+      try: () =>
+        primitives.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, [
+          "deriveBits",
+        ]),
+      catch: (cause) =>
+        new PasswordError({
+          cause,
+          message: "Failed to import key material",
+        }),
+    });
+    return keyMaterial;
   });
+}
+
+function deriveBitsWith(primitives: PasswordCryptoPrimitives) {
+  return Effect.fn("PasswordCrypto.deriveBits")(function* (
+    keyMaterial: CryptoKey,
+    salt: ArrayBuffer,
+    iterations: number,
+  ) {
+    const bits = yield* Effect.tryPromise({
+      try: () =>
+        primitives.deriveBits(
+          {
+            hash: "SHA-256",
+            iterations,
+            name: "PBKDF2",
+            salt,
+          },
+          keyMaterial,
+          KEY_LENGTH * 8,
+        ),
+      catch: (cause) =>
+        new PasswordError({
+          cause,
+          message: "Failed to derive password hash",
+        }),
+    });
+    return new Uint8Array(bits);
+  });
+}
+
+function randomBytesWith(primitives: PasswordCryptoPrimitives) {
+  return Effect.fn("PasswordCrypto.randomBytes")((bytes: number) =>
+    Effect.try({
+      try: () => {
+        const data = new Uint8Array(bytes);
+        primitives.getRandomValues(data);
+        return data;
+      },
+      catch: (cause) =>
+        new PasswordError({
+          cause,
+          message: "Failed to generate password salt",
+        }),
+    }),
+  );
+}

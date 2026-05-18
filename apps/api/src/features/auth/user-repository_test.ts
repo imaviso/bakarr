@@ -6,13 +6,14 @@ import { Effect, Option } from "effect";
 import * as schema from "@/db/schema.ts";
 import { appConfig, sessions, systemLogs, users } from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 import { makeAuthUserRepository } from "@/features/auth/user-repository.ts";
 
 type TestDatabase = SqliteRemoteDatabase<typeof schema>;
 
 function seedUser(db: TestDatabase) {
-  return Effect.promise(() =>
+  return tryDatabasePromise("Failed to seed test user", () =>
     db
       .insert(users)
       .values({
@@ -28,7 +29,7 @@ function seedUser(db: TestDatabase) {
 }
 
 function seedAppConfig(db: TestDatabase) {
-  return Effect.promise(() =>
+  return tryDatabasePromise("Failed to seed test appConfig", () =>
     db
       .insert(appConfig)
       .values({
@@ -148,15 +149,17 @@ it.scoped("changePasswordState updates password and sets mustChangePassword to f
           username: user.username,
         });
 
-        const updated = yield* Effect.promise(() =>
-          db.select().from(users).where(eq(users.id, user.id)).limit(1),
+        const updated = yield* tryDatabasePromise(
+          "Failed to query users after password change",
+          () => db.select().from(users).where(eq(users.id, user.id)).limit(1),
         );
         assert.deepStrictEqual(updated[0]?.passwordHash, "new-hash");
         assert.deepStrictEqual(updated[0]?.apiKey, "new-api-key-hash");
         assert.deepStrictEqual(updated[0]?.mustChangePassword, false);
 
-        const configRow = yield* Effect.promise(() =>
-          db.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1),
+        const configRow = yield* tryDatabasePromise(
+          "Failed to query appConfig after password change",
+          () => db.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1),
         );
         assert.deepStrictEqual(configRow[0]?.bootstrapPassword, null);
       }),
@@ -172,7 +175,7 @@ it.scoped("changePasswordState deletes all existing sessions", () =>
         const user = yield* seedUser(db);
         yield* seedAppConfig(db);
 
-        yield* Effect.promise(() =>
+        yield* tryDatabasePromise("Failed to seed session 1", () =>
           db.insert(sessions).values({
             createdAt: "2025-01-01T00:00:00.000Z",
             expiresAt: "2025-12-01T00:00:00.000Z",
@@ -181,7 +184,7 @@ it.scoped("changePasswordState deletes all existing sessions", () =>
             userId: user.id,
           }),
         );
-        yield* Effect.promise(() =>
+        yield* tryDatabasePromise("Failed to seed session 2", () =>
           db.insert(sessions).values({
             createdAt: "2025-01-02T00:00:00.000Z",
             expiresAt: "2025-12-02T00:00:00.000Z",
@@ -199,8 +202,9 @@ it.scoped("changePasswordState deletes all existing sessions", () =>
           username: user.username,
         });
 
-        const remainingSessions = yield* Effect.promise(() =>
-          db.select().from(sessions).where(eq(sessions.userId, user.id)),
+        const remainingSessions = yield* tryDatabasePromise(
+          "Failed to query sessions after deletion",
+          () => db.select().from(sessions).where(eq(sessions.userId, user.id)),
         );
         assert.deepStrictEqual(remainingSessions.length, 0);
       }),
@@ -224,8 +228,10 @@ it.scoped("changePasswordState writes system log entry", () =>
           username: user.username,
         });
 
-        const logs = yield* Effect.promise(() =>
-          db.select().from(systemLogs).where(eq(systemLogs.eventType, "auth.password.changed")),
+        const logs = yield* tryDatabasePromise(
+          "Failed to query systemLogs for password change",
+          () =>
+            db.select().from(systemLogs).where(eq(systemLogs.eventType, "auth.password.changed")),
         );
         assert.deepStrictEqual(logs.length, 1);
         assert.deepStrictEqual(logs[0]?.message.includes("changed"), true);
@@ -241,7 +247,7 @@ it.scoped("regenerateApiKeyState updates apiKey and deletes sessions", () =>
         const repo = makeAuthUserRepository(db);
         const user = yield* seedUser(db);
 
-        yield* Effect.promise(() =>
+        yield* tryDatabasePromise("Failed to seed session for api key regeneration", () =>
           db.insert(sessions).values({
             createdAt: "2025-01-01T00:00:00.000Z",
             expiresAt: "2025-12-01T00:00:00.000Z",
@@ -258,18 +264,25 @@ it.scoped("regenerateApiKeyState updates apiKey and deletes sessions", () =>
           username: user.username,
         });
 
-        const updated = yield* Effect.promise(() =>
-          db.select().from(users).where(eq(users.id, user.id)).limit(1),
+        const updated = yield* tryDatabasePromise(
+          "Failed to query users after api key regeneration",
+          () => db.select().from(users).where(eq(users.id, user.id)).limit(1),
         );
         assert.deepStrictEqual(updated[0]?.apiKey, "new-api-key-hash");
 
-        const remainingSessions = yield* Effect.promise(() =>
-          db.select().from(sessions).where(eq(sessions.userId, user.id)),
+        const remainingSessions = yield* tryDatabasePromise(
+          "Failed to query sessions after api key regeneration",
+          () => db.select().from(sessions).where(eq(sessions.userId, user.id)),
         );
         assert.deepStrictEqual(remainingSessions.length, 0);
 
-        const logs = yield* Effect.promise(() =>
-          db.select().from(systemLogs).where(eq(systemLogs.eventType, "auth.api_key.regenerated")),
+        const logs = yield* tryDatabasePromise(
+          "Failed to query systemLogs for api key regeneration",
+          () =>
+            db
+              .select()
+              .from(systemLogs)
+              .where(eq(systemLogs.eventType, "auth.api_key.regenerated")),
         );
         assert.deepStrictEqual(logs.length, 1);
       }),

@@ -4,6 +4,7 @@ import { Effect } from "effect";
 import * as schema from "@/db/schema.ts";
 import { media, mediaUnits, downloads, rssFeeds } from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import {
   countAnimeRows,
   countMonitoredAnimeRows,
@@ -35,7 +36,7 @@ it.scoped("countAnimeRows counts inserted rows", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        yield* Effect.promise(() =>
+        yield* tryDatabasePromise("Failed to seed media for count test", () =>
           db.insert(media).values([
             {
               addedAt: "2025-01-01T00:00:00.000Z",
@@ -76,7 +77,7 @@ it.scoped("countEpisodeRows and countDownloadedEpisodeRows count correctly", () 
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        yield* Effect.promise(() =>
+        yield* tryDatabasePromise("Failed to seed media row", () =>
           db.insert(media).values({
             addedAt: "2025-01-01T00:00:00.000Z",
             unitCount: 12,
@@ -91,7 +92,7 @@ it.scoped("countEpisodeRows and countDownloadedEpisodeRows count correctly", () 
             titleRomaji: "A",
           }),
         );
-        yield* Effect.promise(() =>
+        yield* tryDatabasePromise("Failed to seed mediaUnits", () =>
           db.insert(mediaUnits).values([
             {
               mediaId: 1,
@@ -123,7 +124,7 @@ it.scoped("countRssFeedRows counts feeds", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        yield* Effect.promise(() =>
+        yield* tryDatabasePromise("Failed to seed media row", () =>
           db.insert(media).values({
             addedAt: "2025-01-01T00:00:00.000Z",
             unitCount: 12,
@@ -138,7 +139,7 @@ it.scoped("countRssFeedRows counts feeds", () =>
             titleRomaji: "A",
           }),
         );
-        yield* Effect.promise(() =>
+        yield* tryDatabasePromise("Failed to seed rssFeeds", () =>
           db.insert(rssFeeds).values({
             mediaId: 1,
             createdAt: "2025-01-01T00:00:00.000Z",
@@ -156,7 +157,7 @@ it.scoped("countQueuedDownloads and countActiveDownloads count by status", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        yield* Effect.promise(() =>
+        yield* tryDatabasePromise("Failed to seed media for count test", () =>
           db.insert(media).values([
             {
               addedAt: "2025-01-01T00:00:00.000Z",
@@ -186,7 +187,7 @@ it.scoped("countQueuedDownloads and countActiveDownloads count by status", () =>
             },
           ]),
         );
-        yield* Effect.promise(() =>
+        yield* tryDatabasePromise("Failed to seed downloads", () =>
           db.insert(downloads).values([
             {
               addedAt: "2025-01-01T00:00:00.000Z",
@@ -277,7 +278,7 @@ it.scoped("loadSystemLibraryStatsAggregate aggregates all library stats", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        yield* Effect.promise(() =>
+        yield* tryDatabasePromise("Failed to seed media row", () =>
           db.insert(media).values({
             addedAt: "2025-01-01T00:00:00.000Z",
             unitCount: 2,
@@ -292,7 +293,7 @@ it.scoped("loadSystemLibraryStatsAggregate aggregates all library stats", () =>
             titleRomaji: "A",
           }),
         );
-        yield* Effect.promise(() =>
+        yield* tryDatabasePromise("Failed to seed mediaUnits", () =>
           db.insert(mediaUnits).values([
             {
               mediaId: 1,
@@ -312,7 +313,7 @@ it.scoped("loadSystemLibraryStatsAggregate aggregates all library stats", () =>
             },
           ]),
         );
-        yield* Effect.promise(() =>
+        yield* tryDatabasePromise("Failed to seed download row", () =>
           db.insert(downloads).values({
             addedAt: "2025-01-01T00:00:00.000Z",
             mediaId: 1,
@@ -357,7 +358,7 @@ it.scoped("loadSystemDownloadStatsAggregate aggregates download status counts", 
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        yield* Effect.promise(() =>
+        yield* tryDatabasePromise("Failed to seed media for count test", () =>
           db.insert(media).values([
             {
               addedAt: "2025-01-01T00:00:00.000Z",
@@ -400,7 +401,7 @@ it.scoped("loadSystemDownloadStatsAggregate aggregates download status counts", 
             },
           ]),
         );
-        yield* Effect.promise(() =>
+        yield* tryDatabasePromise("Failed to seed downloads", () =>
           db.insert(downloads).values([
             {
               addedAt: "2025-01-01T00:00:00.000Z",
