@@ -12,8 +12,6 @@ export class AppRuntime extends Effect.Service<AppRuntime>()("@bakarr/api/AppRun
     return { startedAt: new Date(millis) };
   }),
 }) {
-  static readonly Live = AppRuntime.Default;
-
   static test(startedAt: Date) {
     return Layer.succeed(AppRuntime, AppRuntime.make({ startedAt }));
   }

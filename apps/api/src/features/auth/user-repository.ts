@@ -301,4 +301,3 @@ export function makeAuthUserRepository(db: AppDatabase): AuthUserRepositoryShape
   } satisfies AuthUserRepositoryShape;
 }
 
-export const AuthUserRepositoryLive = AuthUserRepository.Default;

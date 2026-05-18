@@ -2,11 +2,11 @@ import { assert, it } from "@effect/vitest";
 import { HttpClient, HttpClientResponse } from "@effect/platform";
 import { Effect, Either, Layer, Option } from "effect";
 
-import { ClockServiceLive } from "@/infra/clock.ts";
+import { ClockService } from "@/infra/clock.ts";
 import { ExternalCallError, ExternalCallLive } from "@/infra/effect/retry.ts";
 import { SeaDexClient, SeaDexClientLive } from "@/features/operations/search/seadex-client.ts";
 
-const ExternalCallTestLayer = ExternalCallLive.pipe(Layer.provide(ClockServiceLive));
+const ExternalCallTestLayer = ExternalCallLive.pipe(Layer.provide(ClockService.Default));
 
 it.effect("SeaDexClient fetches and decodes entry by AniList ID", () =>
   Effect.gen(function* () {
@@ -91,7 +91,7 @@ function makeSeaDexLayer(payload: unknown) {
   return SeaDexClientLive.pipe(
     Layer.provide(
       Layer.mergeAll(
-        ClockServiceLive,
+        ClockService.Default,
         ExternalCallTestLayer,
         Layer.succeed(HttpClient.HttpClient, makeSeaDexHttpClient(payload)),
       ),

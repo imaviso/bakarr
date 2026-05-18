@@ -1,7 +1,7 @@
 import { assert, it } from "@effect/vitest";
 import { Effect, Either, Fiber, Layer, TestClock } from "effect";
 
-import { ClockServiceLive } from "@/infra/clock.ts";
+import { ClockService } from "@/infra/clock.ts";
 import {
   ExternalCallError,
   ExternalCallPolicyLive,
@@ -14,7 +14,7 @@ class TestFailureError extends Error {
 }
 
 const TestExternalCallLayer = Layer.mergeAll(
-  ClockServiceLive,
+  ClockService.Default,
   ExternalCallPolicyLive,
   makeExternalCallSemaphoresLive(),
 );

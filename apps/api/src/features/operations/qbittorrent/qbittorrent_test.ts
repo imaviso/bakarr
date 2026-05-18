@@ -2,14 +2,14 @@ import { assert, it } from "@effect/vitest";
 import { HttpClient, HttpClientError, HttpClientResponse } from "@effect/platform";
 import { Cause, Deferred, Effect, Exit, Fiber, Layer, Redacted, TestClock } from "effect";
 
-import { ClockService, ClockServiceLive } from "@/infra/clock.ts";
+import { ClockService } from "@/infra/clock.ts";
 import { ExternalCallLive } from "@/infra/effect/retry.ts";
 import {
   QBitTorrentClient,
   QBitTorrentClientLive,
 } from "@/features/operations/qbittorrent/qbittorrent.ts";
 
-const ExternalCallWithLiveClock = ExternalCallLive.pipe(Layer.provide(ClockServiceLive));
+const ExternalCallWithLiveClock = ExternalCallLive.pipe(Layer.provide(ClockService.Default));
 
 it.scoped("QBitTorrentClient uses provided HttpClient", () =>
   Effect.gen(function* () {
@@ -26,7 +26,7 @@ it.scoped("QBitTorrentClient uses provided HttpClient", () =>
         QBitTorrentClientLive.pipe(
           Layer.provide(
             Layer.mergeAll(
-              ClockServiceLive,
+              ClockService.Default,
               ExternalCallWithLiveClock,
               Layer.succeed(
                 HttpClient.HttpClient,
@@ -77,7 +77,7 @@ it.effect("QBitTorrentClient can load torrent contents", () =>
         QBitTorrentClientLive.pipe(
           Layer.provide(
             Layer.mergeAll(
-              ClockServiceLive,
+              ClockService.Default,
               ExternalCallWithLiveClock,
               Layer.succeed(HttpClient.HttpClient, makeQBitClient()),
             ),
@@ -116,7 +116,7 @@ it.effect("QBitTorrentClient falls back to no-auth request when login fails", ()
         QBitTorrentClientLive.pipe(
           Layer.provide(
             Layer.mergeAll(
-              ClockServiceLive,
+              ClockService.Default,
               ExternalCallWithLiveClock,
               Layer.succeed(
                 HttpClient.HttpClient,
@@ -178,7 +178,7 @@ it.effect("QBitTorrentClient sends qBittorrent add options", () =>
         QBitTorrentClientLive.pipe(
           Layer.provide(
             Layer.mergeAll(
-              ClockServiceLive,
+              ClockService.Default,
               ExternalCallWithLiveClock,
               Layer.succeed(
                 HttpClient.HttpClient,
@@ -344,7 +344,7 @@ it.effect("QBitTorrentClient shares in-flight login across concurrent requests",
     const clientLayer = QBitTorrentClientLive.pipe(
       Layer.provide(
         Layer.mergeAll(
-          ClockServiceLive,
+          ClockService.Default,
           ExternalCallWithLiveClock,
           Layer.succeed(
             HttpClient.HttpClient,

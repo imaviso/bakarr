@@ -12,7 +12,7 @@ import {
   OperationsTaskWriteServiceLive,
 } from "@/features/operations/tasks/operations-task-service.ts";
 import { EventBusNoopLive } from "@/features/events/event-bus.ts";
-import { ClockServiceLive } from "@/infra/clock.ts";
+import { ClockService } from "@/infra/clock.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import * as schema from "@/db/schema.ts";
 
@@ -28,7 +28,7 @@ describe("OperationsTaskService", () => {
           const serviceLayer = Layer.mergeAll(
             OperationsTaskReadServiceLive,
             OperationsTaskWriteServiceLive,
-          ).pipe(Layer.provide(Layer.mergeAll(databaseLayer, ClockServiceLive, EventBusNoopLive)));
+          ).pipe(Layer.provide(Layer.mergeAll(databaseLayer, ClockService.Default, EventBusNoopLive)));
 
           const accepted = yield* Effect.flatMap(OperationsTaskWriteService, (service) =>
             service.createTask({

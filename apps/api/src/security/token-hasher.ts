@@ -31,4 +31,3 @@ export class TokenHasher extends Effect.Service<TokenHasher>()("@bakarr/security
   succeed: { hashToken },
 }) {}
 
-export const TokenHasherLive = TokenHasher.Default;

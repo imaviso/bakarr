@@ -8,9 +8,9 @@ import {
 } from "@/background/controller-core.ts";
 import { Database, type AppDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
-import { ClockServiceLive } from "@/infra/clock.ts";
+import { ClockService } from "@/infra/clock.ts";
 import { RuntimeLogLevelStateLive } from "@/infra/logging.ts";
-import { RandomServiceLive } from "@/infra/random.ts";
+import { RandomService } from "@/infra/random.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { makeDatabaseServiceStub } from "@/test/stubs.ts";
@@ -190,9 +190,9 @@ function makeSystemConfigUpdateTestLayer(input: {
 }) {
   const baseLayer = Layer.mergeAll(
     AppConfig.layerWithOverrides({ databaseFile: input.databaseFile }).pipe(
-      Layer.provide(RandomServiceLive),
+      Layer.provide(RandomService.Default),
     ),
-    ClockServiceLive,
+    ClockService.Default,
     RuntimeLogLevelStateLive,
     Layer.succeed(Database, makeDatabaseServiceStub(input.db)),
     Layer.succeed(BackgroundWorkerController, makeBackgroundWorkerControllerStub(input.reloads)),

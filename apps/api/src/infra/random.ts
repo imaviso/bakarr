@@ -18,7 +18,6 @@ export class RandomService extends Effect.Service<RandomService>()("@bakarr/lib/
   }),
 }) {}
 
-export const RandomServiceLive = RandomService.Default;
 
 export function hexFromBytes(data: Uint8Array): string {
   return bytesToHex(data);

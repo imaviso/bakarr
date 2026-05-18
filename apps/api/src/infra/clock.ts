@@ -14,8 +14,6 @@ export class ClockService extends Effect.Service<ClockService>()("@bakarr/lib/Cl
   }),
 }) {}
 
-export const ClockServiceLive = ClockService.Default;
-
 export function isoStringFromMillis(millis: number): string {
   return new Date(millis).toISOString();
 }

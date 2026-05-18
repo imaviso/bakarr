@@ -3,10 +3,10 @@ import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platf
 import { Effect, Layer, Option, Schema } from "effect";
 
 import { AniListClient, AniListClientLive } from "@/features/media/metadata/anilist.ts";
-import { ClockServiceLive } from "@/infra/clock.ts";
+import { ClockService } from "@/infra/clock.ts";
 import { ExternalCallLive } from "@/infra/effect/retry.ts";
 
-const ExternalCallTestLayer = ExternalCallLive.pipe(Layer.provide(ClockServiceLive));
+const ExternalCallTestLayer = ExternalCallLive.pipe(Layer.provide(ClockService.Default));
 const AniListRequestBodySchema = Schema.Struct({
   query: Schema.String,
   variables: Schema.Record({ key: Schema.String, value: Schema.Unknown }),
@@ -19,7 +19,7 @@ it.scoped("AniListClient decodes search responses from the provided HttpClient",
     const clientLayer = AniListClientLive.pipe(
       Layer.provide(
         Layer.mergeAll(
-          ClockServiceLive,
+          ClockService.Default,
           ExternalCallTestLayer,
           Layer.succeed(
             HttpClient.HttpClient,
@@ -145,7 +145,7 @@ it.scoped("AniListClient decodes detail responses from the provided HttpClient",
     const clientLayer = AniListClientLive.pipe(
       Layer.provide(
         Layer.mergeAll(
-          ClockServiceLive,
+          ClockService.Default,
           ExternalCallTestLayer,
           Layer.succeed(
             HttpClient.HttpClient,
@@ -303,7 +303,7 @@ it.scoped("AniListClient detail lookup omits media type when kind is unknown", (
     const clientLayer = AniListClientLive.pipe(
       Layer.provide(
         Layer.mergeAll(
-          ClockServiceLive,
+          ClockService.Default,
           ExternalCallTestLayer,
           Layer.succeed(
             HttpClient.HttpClient,
@@ -345,7 +345,7 @@ it.scoped("AniListClient keeps next airing as future schedule fallback", () =>
     const clientLayer = AniListClientLive.pipe(
       Layer.provide(
         Layer.mergeAll(
-          ClockServiceLive,
+          ClockService.Default,
           ExternalCallTestLayer,
           Layer.succeed(
             HttpClient.HttpClient,
@@ -414,7 +414,7 @@ it.scoped("AniListClient decodes seasonal responses and backfills missing season
     const clientLayer = AniListClientLive.pipe(
       Layer.provide(
         Layer.mergeAll(
-          ClockServiceLive,
+          ClockService.Default,
           ExternalCallTestLayer,
           Layer.succeed(
             HttpClient.HttpClient,

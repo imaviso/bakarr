@@ -17,7 +17,7 @@ import {
   parseAniListIdFromSource,
   parseMalIdFromSource,
 } from "@/features/media/metadata/manami-url.ts";
-import { ClockService, ClockServiceLive } from "@/infra/clock.ts";
+import { ClockService } from "@/infra/clock.ts";
 import { ExternalCallError, ExternalCallLive } from "@/infra/effect/retry.ts";
 import { FileSystem, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { withFileSystemSandboxEffect } from "@/test/filesystem-test.ts";
@@ -398,7 +398,7 @@ function makeManamiClientLayer(input: {
   readonly httpClient: HttpClient.HttpClient;
   readonly root: string;
 }) {
-  const clockLayer = input.clockLayer ?? ClockServiceLive;
+  const clockLayer = input.clockLayer ?? ClockService.Default;
   const externalCallLayer = ExternalCallLive.pipe(Layer.provide(clockLayer));
 
   return ManamiClientLive.pipe(

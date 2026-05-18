@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 
-import { TokenHasher, TokenHasherLive } from "@/security/token-hasher.ts";
+import { TokenHasher } from "@/security/token-hasher.ts";
 import { assert, it } from "@effect/vitest";
 
 it.effect("TokenHasher produces stable SHA-256 hex digests", () =>
@@ -8,14 +8,14 @@ it.effect("TokenHasher produces stable SHA-256 hex digests", () =>
     const token = "bakarr-session-token";
 
     const first = yield* Effect.flatMap(TokenHasher, (hasher) => hasher.hashToken(token)).pipe(
-      Effect.provide(TokenHasherLive),
+      Effect.provide(TokenHasher.Default),
     );
     const second = yield* Effect.flatMap(TokenHasher, (hasher) => hasher.hashToken(token)).pipe(
-      Effect.provide(TokenHasherLive),
+      Effect.provide(TokenHasher.Default),
     );
     const different = yield* Effect.flatMap(TokenHasher, (hasher) =>
       hasher.hashToken("bakarr-session-token-2"),
-    ).pipe(Effect.provide(TokenHasherLive));
+    ).pipe(Effect.provide(TokenHasher.Default));
 
     assert.deepStrictEqual(first, second);
     assert.deepStrictEqual(first.length, 64);

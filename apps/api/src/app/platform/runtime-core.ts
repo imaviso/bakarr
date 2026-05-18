@@ -14,15 +14,15 @@ import { ObservabilityConfig, type ObservabilityConfigOverrides } from "@/config
 import { makeDotenvConfigProvider } from "@/config/provider.ts";
 import { DatabaseLayerLive } from "@/db/database.ts";
 import { BackgroundWorkerMonitorLive } from "@/background/monitor.ts";
-import { EventBusLive } from "@/features/events/event-bus.ts";
-import { ClockServiceLive } from "@/infra/clock.ts";
+import { EventBus } from "@/features/events/event-bus.ts";
+import { ClockService } from "@/infra/clock.ts";
 import { ExternalCallLive } from "@/infra/effect/retry.ts";
 import { FileSystemLive } from "@/infra/filesystem/filesystem.ts";
-import { RandomServiceLive } from "@/infra/random.ts";
+import { RandomService } from "@/infra/random.ts";
 import { RuntimeLoggerLayer } from "@/infra/logging.ts";
 import { TelemetryLayer } from "@/infra/telemetry.ts";
-import { PasswordCryptoLive } from "@/security/password.ts";
-import { TokenHasherLive } from "@/security/token-hasher.ts";
+import { PasswordCrypto } from "@/security/password.ts";
+import { TokenHasher } from "@/security/token-hasher.ts";
 
 export interface AppPlatformRuntimeOptions {
   readonly configProvider?: ConfigProvider.ConfigProvider;
@@ -32,8 +32,8 @@ export function makeAppPlatformCoreRuntimeLayer(
   overrides: AppConfigOverrides & BootstrapConfigOverrides & ObservabilityConfigOverrides = {},
   options?: AppPlatformRuntimeOptions,
 ) {
-  const clockAndHttpLayer = Layer.mergeAll(ClockServiceLive, FetchHttpClient.layer);
-  const runtimeSupportLayer = Layer.mergeAll(clockAndHttpLayer, RandomServiceLive);
+  const clockAndHttpLayer = Layer.mergeAll(ClockService.Default, FetchHttpClient.layer);
+  const runtimeSupportLayer = Layer.mergeAll(clockAndHttpLayer, RandomService.Default);
   const withRuntimeSupport = <A, E, R>(layer: Layer.Layer<A, E, R>) =>
     layer.pipe(Layer.provide(runtimeSupportLayer));
 
@@ -53,13 +53,13 @@ export function makeAppPlatformCoreRuntimeLayer(
     bootstrapConfigLayer,
     observabilityConfigLayer,
   ).pipe(Layer.provide(configProviderLayer));
-  const runtimeLayer = AppRuntime.Live.pipe(Layer.provide(clockAndHttpLayer));
+  const runtimeLayer = AppRuntime.Default.pipe(Layer.provide(clockAndHttpLayer));
   const externalCallLayer = ExternalCallLive.pipe(Layer.provide(clockAndHttpLayer));
   const databaseLayer = DatabaseLayerLive.pipe(
     Layer.provide(configLayer),
     Layer.provide(NodeContext.layer),
   );
-  const eventBusLayer = EventBusLive;
+  const eventBusLayer = EventBus.Default;
   const backgroundMonitorLayer = withRuntimeSupport(BackgroundWorkerMonitorLive);
   const telemetryLayer = TelemetryLayer.pipe(
     Layer.provide(Layer.mergeAll(configLayer, runtimeSupportLayer)),
@@ -80,8 +80,8 @@ export function makeAppPlatformCoreRuntimeLayer(
     eventBusLayer,
     backgroundMonitorLayer,
     FileSystemLive,
-    PasswordCryptoLive,
-    TokenHasherLive,
+    PasswordCrypto.Default,
+    TokenHasher.Default,
   );
 
   return Layer.mergeAll(platformCoreLayer, infrastructureLayer);
