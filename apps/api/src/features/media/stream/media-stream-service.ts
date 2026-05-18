@@ -35,7 +35,7 @@ export class AnimeStreamService extends Context.Tag("@bakarr/api/AnimeStreamServ
   AnimeStreamServiceShape
 >() {}
 
-const makeAnimeStreamService = Effect.gen(function* () {
+const makeAnimeStreamService = Effect.fn("AnimeStreamService.make")(function* () {
   const { db } = yield* Database;
   const fs = yield* FileSystem;
   const clock = yield* ClockService;
@@ -153,7 +153,7 @@ const makeAnimeStreamService = Effect.gen(function* () {
   });
 });
 
-export const AnimeStreamServiceLive = Layer.effect(AnimeStreamService, makeAnimeStreamService);
+export const AnimeStreamServiceLive = Layer.effect(AnimeStreamService, makeAnimeStreamService());
 
 function buildStreamPath(
   mediaId: number,

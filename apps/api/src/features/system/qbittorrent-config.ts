@@ -3,6 +3,7 @@ import ipaddr from "ipaddr.js";
 
 import type { Config } from "@packages/shared/index.ts";
 import { ConfigValidationError } from "@/features/system/errors.ts";
+import { parseUrlEffect } from "@/infra/url.ts";
 
 function normalizeHostname(hostname: string): string {
   return hostname
@@ -86,14 +87,14 @@ function isPrivateQBitHost(hostname: string): boolean {
 const configValidationError = (message: string) => new ConfigValidationError({ message });
 
 const parseUrl = (raw: string) =>
-  Effect.try({
-    try: () => new URL(raw.trim()),
-    catch: (cause) =>
+  parseUrlEffect(
+    raw.trim(),
+    (cause) =>
       new ConfigValidationError({
         cause,
         message: "qBittorrent URL is invalid",
       }),
-  });
+  );
 
 const normalizeBaseUrl = Effect.fn("SystemConfig.normalizeQBitTorrentBaseUrl")(function* (
   raw: string,

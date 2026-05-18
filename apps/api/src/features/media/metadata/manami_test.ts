@@ -398,7 +398,7 @@ function makeManamiClientLayer(input: {
   return ManamiClientLive.pipe(
     Layer.provide(
       Layer.mergeAll(
-        AppConfig.layer({ databaseFile: `${input.root}/bakarr.sqlite` }),
+        AppConfig.layerWithOverrides({ databaseFile: `${input.root}/bakarr.sqlite` }),
         clockLayer,
         externalCallLayer,
         Layer.succeed(FileSystem, input.fs),

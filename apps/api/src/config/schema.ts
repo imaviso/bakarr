@@ -67,7 +67,11 @@ export function makeDefaultBootstrapConfig(): BootstrapConfigShape {
 }
 
 export class AppConfig extends Context.Tag("@bakarr/api/AppConfig")<AppConfig, AppConfigShape>() {
-  static layer(overrides: AppConfigOverrides = {}) {
+  static Live = AppConfig.layerWithOverrides();
+
+  static layer = AppConfig.Live;
+
+  static layerWithOverrides(overrides: AppConfigOverrides = {}) {
     return Layer.effect(
       AppConfig,
       Effect.gen(function* () {
@@ -126,7 +130,11 @@ export class BootstrapConfig extends Context.Tag("@bakarr/api/BootstrapConfig")<
   BootstrapConfig,
   BootstrapConfigShape
 >() {
-  static layer(overrides: BootstrapConfigOverrides = {}) {
+  static Live = BootstrapConfig.layerWithOverrides();
+
+  static layer = BootstrapConfig.Live;
+
+  static layerWithOverrides(overrides: BootstrapConfigOverrides = {}) {
     return Layer.effect(
       BootstrapConfig,
       Effect.gen(function* () {

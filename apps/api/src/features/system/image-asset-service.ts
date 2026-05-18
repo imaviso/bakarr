@@ -81,7 +81,7 @@ function mapAssetPathError(error: { readonly cause?: unknown }, message: string)
   return accessError(message, error.cause);
 }
 
-const makeImageAssetService = Effect.gen(function* () {
+const makeImageAssetService = Effect.fn("ImageAssetService.make")(function* () {
   const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
   const fs = yield* FileSystem;
 
@@ -157,4 +157,4 @@ const makeImageAssetService = Effect.gen(function* () {
   return { resolveImageAsset } satisfies ImageAssetServiceShape;
 });
 
-export const ImageAssetServiceLive = Layer.effect(ImageAssetService, makeImageAssetService);
+export const ImageAssetServiceLive = Layer.effect(ImageAssetService, makeImageAssetService());

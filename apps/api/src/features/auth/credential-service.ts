@@ -32,7 +32,7 @@ export class AuthCredentialService extends Context.Tag("@bakarr/api/AuthCredenti
   AuthCredentialServiceShape
 >() {}
 
-const makeAuthCredentialService = Effect.gen(function* () {
+const makeAuthCredentialService = Effect.fn("AuthCredentialService.make")(function* () {
   const users = yield* AuthUserRepository;
   const clock = yield* ClockService;
   const passwordCrypto = yield* PasswordCrypto;
@@ -136,5 +136,5 @@ const makeAuthCredentialService = Effect.gen(function* () {
 
 export const AuthCredentialServiceLive = Layer.effect(
   AuthCredentialService,
-  makeAuthCredentialService,
+  makeAuthCredentialService(),
 );

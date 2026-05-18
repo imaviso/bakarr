@@ -35,7 +35,7 @@ export class AnimeEnrollmentService extends Context.Tag("@bakarr/api/AnimeEnroll
   AnimeEnrollmentServiceShape
 >() {}
 
-const makeAnimeEnrollmentService = Effect.gen(function* () {
+const makeAnimeEnrollmentService = Effect.fn("AnimeEnrollmentService.make")(function* () {
   const { db } = yield* Database;
   const eventBus = yield* EventBus;
   const metadataProvider = yield* AnimeMetadataProviderService;
@@ -76,5 +76,5 @@ const makeAnimeEnrollmentService = Effect.gen(function* () {
 
 export const AnimeEnrollmentServiceLive = Layer.effect(
   AnimeEnrollmentService,
-  makeAnimeEnrollmentService,
+  makeAnimeEnrollmentService(),
 );

@@ -29,7 +29,7 @@ export class SystemBootstrapService extends Context.Tag("@bakarr/api/SystemBoots
   SystemBootstrapServiceShape
 >() {}
 
-const makeSystemBootstrapService = Effect.gen(function* () {
+const makeSystemBootstrapService = Effect.fn("SystemBootstrapService.make")(function* () {
   const { db } = yield* Database;
   const config = yield* AppConfig;
   const clock = yield* ClockService;
@@ -93,5 +93,5 @@ const makeSystemBootstrapService = Effect.gen(function* () {
 
 export const SystemBootstrapServiceLive = Layer.effect(
   SystemBootstrapService,
-  makeSystemBootstrapService,
+  makeSystemBootstrapService(),
 );

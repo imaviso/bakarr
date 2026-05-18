@@ -52,7 +52,7 @@ export class AnimeFileService extends Context.Tag("@bakarr/api/AnimeFileService"
   AnimeFileServiceShape
 >() {}
 
-const makeAnimeFileService = Effect.gen(function* () {
+const makeAnimeFileService = Effect.fn("AnimeFileService.make")(function* () {
   const { db } = yield* Database;
   const eventBus = yield* EventBus;
   const fs = yield* FileSystem;
@@ -111,4 +111,4 @@ const makeAnimeFileService = Effect.gen(function* () {
   });
 });
 
-export const AnimeFileServiceLive = Layer.effect(AnimeFileService, makeAnimeFileService);
+export const AnimeFileServiceLive = Layer.effect(AnimeFileService, makeAnimeFileService());

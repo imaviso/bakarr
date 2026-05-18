@@ -28,7 +28,7 @@ export class BackgroundJobStatusService extends Context.Tag(
   "@bakarr/api/BackgroundJobStatusService",
 )<BackgroundJobStatusService, BackgroundJobStatusServiceShape>() {}
 
-const makeBackgroundJobStatusService = Effect.gen(function* () {
+const makeBackgroundJobStatusService = Effect.fn("BackgroundJobStatusService.make")(function* () {
   const { db } = yield* Database;
   const monitor = yield* BackgroundWorkerMonitor;
   const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
@@ -52,5 +52,5 @@ const makeBackgroundJobStatusService = Effect.gen(function* () {
 
 export const BackgroundJobStatusServiceLive = Layer.effect(
   BackgroundJobStatusService,
-  makeBackgroundJobStatusService,
+  makeBackgroundJobStatusService(),
 );

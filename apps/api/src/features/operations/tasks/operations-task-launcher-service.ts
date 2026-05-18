@@ -37,108 +37,110 @@ export class OperationsTaskLauncherService extends Context.Tag(
 
 const OPERATIONS_TASK_WORKER_CONCURRENCY = 4;
 
-const makeOperationsTaskLauncherService = Effect.gen(function* () {
-  const tasks = yield* OperationsTaskWriteService;
-  const taskQueue = yield* Effect.acquireRelease(
-    Queue.unbounded<Effect.Effect<void, DatabaseError | OperationsInfrastructureError>>(),
-    Queue.shutdown,
-  );
+const makeOperationsTaskLauncherService = Effect.fn("OperationsTaskLauncherService.make")(
+  function* () {
+    const tasks = yield* OperationsTaskWriteService;
+    const taskQueue = yield* Effect.acquireRelease(
+      Queue.unbounded<Effect.Effect<void, DatabaseError | OperationsInfrastructureError>>(),
+      Queue.shutdown,
+    );
 
-  const runQueuedTask = Effect.fn("OperationsTaskLauncherService.runQueuedTask")(
-    (taskEffect: Effect.Effect<void, DatabaseError | OperationsInfrastructureError>) =>
-      taskEffect.pipe(
-        Effect.catchAllCause((cause) =>
-          Effect.logError("Operations task launcher worker failed").pipe(
-            Effect.annotateLogs({
-              cause: Cause.pretty(cause),
-              component: "operations",
-              event: "operations.task.launcher.worker.failed",
-            }),
+    const runQueuedTask = Effect.fn("OperationsTaskLauncherService.runQueuedTask")(
+      (taskEffect: Effect.Effect<void, DatabaseError | OperationsInfrastructureError>) =>
+        taskEffect.pipe(
+          Effect.catchAllCause((cause) =>
+            Effect.logError("Operations task launcher worker failed").pipe(
+              Effect.annotateLogs({
+                cause: Cause.pretty(cause),
+                component: "operations",
+                event: "operations.task.launcher.worker.failed",
+              }),
+            ),
           ),
         ),
-      ),
-  );
+    );
 
-  const workerLoop = Queue.take(taskQueue).pipe(Effect.flatMap(runQueuedTask), Effect.forever);
+    const workerLoop = Queue.take(taskQueue).pipe(Effect.flatMap(runQueuedTask), Effect.forever);
 
-  yield* Effect.forEach(
-    Array.from({ length: OPERATIONS_TASK_WORKER_CONCURRENCY }),
-    () => workerLoop.pipe(Effect.forkScoped),
-    { discard: true },
-  );
+    yield* Effect.forEach(
+      Array.from({ length: OPERATIONS_TASK_WORKER_CONCURRENCY }),
+      () => workerLoop.pipe(Effect.forkScoped),
+      { discard: true },
+    );
 
-  const launch = Effect.fn("OperationsTaskLauncherService.launch")(
-    <A>(input: OperationsTaskLaunchInput<A>) =>
-      Effect.gen(function* () {
-        const accepted = yield* tasks.createTask({
-          ...(input.mediaId === undefined ? {} : { mediaId: input.mediaId }),
-          message: input.queuedMessage,
-          taskKey: input.taskKey,
-        });
-        const taskId = accepted.task_id;
-
-        const runTask = Effect.gen(function* () {
-          yield* tasks.markRunningTask({
-            message: input.runningMessage,
-            taskId,
+    const launch = Effect.fn("OperationsTaskLauncherService.launch")(
+      <A>(input: OperationsTaskLaunchInput<A>) =>
+        Effect.gen(function* () {
+          const accepted = yield* tasks.createTask({
+            ...(input.mediaId === undefined ? {} : { mediaId: input.mediaId }),
+            message: input.queuedMessage,
+            taskKey: input.taskKey,
           });
+          const taskId = accepted.task_id;
 
-          const result = yield* input.operation(taskId);
-          const progress = input.successProgress ? input.successProgress(result) : undefined;
+          const runTask = Effect.gen(function* () {
+            yield* tasks.markRunningTask({
+              message: input.runningMessage,
+              taskId,
+            });
 
-          yield* tasks.completeSucceededTask({
-            message: input.successMessage(result),
-            ...(input.successPayload === undefined
-              ? {}
-              : { payload: input.successPayload(result) }),
-            ...(progress?.progressCurrent === undefined
-              ? {}
-              : { progressCurrent: progress.progressCurrent }),
-            ...(progress?.progressTotal === undefined
-              ? {}
-              : { progressTotal: progress.progressTotal }),
-            taskId,
-          });
-        }).pipe(
-          Effect.catchAllCause((cause) => {
-            const error = Cause.squash(cause);
+            const result = yield* input.operation(taskId);
+            const progress = input.successProgress ? input.successProgress(result) : undefined;
 
-            return Effect.logError("Operations task failed").pipe(
-              Effect.annotateLogs(
-                compactLogAnnotations({
-                  ...errorLogAnnotations(error),
-                  mediaId: input.mediaId,
-                  cause: Cause.pretty(cause),
-                  component: "operations",
-                  event: "operations.task.failed",
-                  taskId,
-                  taskKey: input.taskKey,
-                }),
-              ),
-              Effect.zipRight(
-                tasks.completeFailedTask({
-                  error,
-                  message: input.failureMessage,
-                  ...(input.failurePayload === undefined
-                    ? {}
-                    : { payload: input.failurePayload(error) }),
-                  taskId,
-                }),
-              ),
-            );
-          }),
-        );
+            yield* tasks.completeSucceededTask({
+              message: input.successMessage(result),
+              ...(input.successPayload === undefined
+                ? {}
+                : { payload: input.successPayload(result) }),
+              ...(progress?.progressCurrent === undefined
+                ? {}
+                : { progressCurrent: progress.progressCurrent }),
+              ...(progress?.progressTotal === undefined
+                ? {}
+                : { progressTotal: progress.progressTotal }),
+              taskId,
+            });
+          }).pipe(
+            Effect.catchAllCause((cause) => {
+              const error = Cause.squash(cause);
 
-        yield* Queue.offer(taskQueue, runTask);
+              return Effect.logError("Operations task failed").pipe(
+                Effect.annotateLogs(
+                  compactLogAnnotations({
+                    ...errorLogAnnotations(error),
+                    mediaId: input.mediaId,
+                    cause: Cause.pretty(cause),
+                    component: "operations",
+                    event: "operations.task.failed",
+                    taskId,
+                    taskKey: input.taskKey,
+                  }),
+                ),
+                Effect.zipRight(
+                  tasks.completeFailedTask({
+                    error,
+                    message: input.failureMessage,
+                    ...(input.failurePayload === undefined
+                      ? {}
+                      : { payload: input.failurePayload(error) }),
+                    taskId,
+                  }),
+                ),
+              );
+            }),
+          );
 
-        return accepted;
-      }),
-  );
+          yield* Queue.offer(taskQueue, runTask);
 
-  return OperationsTaskLauncherService.of({ launch });
-});
+          return accepted;
+        }),
+    );
+
+    return OperationsTaskLauncherService.of({ launch });
+  },
+);
 
 export const OperationsTaskLauncherServiceLive = Layer.scoped(
   OperationsTaskLauncherService,
-  makeOperationsTaskLauncherService,
+  makeOperationsTaskLauncherService(),
 );

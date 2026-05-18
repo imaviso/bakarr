@@ -67,7 +67,11 @@ export class ObservabilityConfig extends Context.Tag("@bakarr/api/ObservabilityC
   ObservabilityConfig,
   ObservabilityConfigShape
 >() {
-  static layer(overrides: ObservabilityConfigOverrides = {}) {
+  static Live = ObservabilityConfig.layerWithOverrides();
+
+  static layer = ObservabilityConfig.Live;
+
+  static layerWithOverrides(overrides: ObservabilityConfigOverrides = {}) {
     return Layer.effect(
       ObservabilityConfig,
       Effect.gen(function* () {

@@ -1,4 +1,5 @@
 import { Option } from "effect";
+import { parseUrlOption } from "@/infra/url.ts";
 import type { ParsedRelease } from "@/features/operations/rss/rss-client-parse.ts";
 import { parseReleaseName } from "@/features/operations/search/release-ranking.ts";
 import type { SeaDexEntry, SeaDexRelease } from "@/features/operations/search/seadex-client.ts";
@@ -143,7 +144,7 @@ function inferTrackerName(value?: string): string | undefined {
   }
 
   return Option.getOrElse(
-    Option.liftThrowable(() => normalizeTrackerName(new URL(value).hostname))(),
+    Option.map(parseUrlOption(value), (url) => normalizeTrackerName(url.hostname)),
     () => normalizeTrackerName(value),
   );
 }
@@ -176,8 +177,7 @@ function canonicalTrackerUrl(value?: string): string | undefined {
   }
 
   return Option.getOrElse(
-    Option.liftThrowable(() => {
-      const url = new URL(value);
+    Option.map(parseUrlOption(value), (url) => {
       const tracker = normalizeTrackerName(url.hostname);
 
       if (!tracker) {
@@ -191,7 +191,7 @@ function canonicalTrackerUrl(value?: string): string | undefined {
 
       const pathname = url.pathname.toLowerCase().replace(/\/+$/, "") || "/";
       return `${tracker}:${pathname}`;
-    })(),
+    }),
     () => undefined,
   );
 }

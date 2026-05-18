@@ -2,6 +2,7 @@ import { Effect, Either, Option } from "effect";
 import ipaddr from "ipaddr.js";
 
 import { DnsResolver, isDnsNoRecordError } from "@/infra/dns-resolver.ts";
+import { parseUrlEffect } from "@/infra/url.ts";
 import { RssFeedRejectedError } from "@/features/operations/errors.ts";
 
 const PRIVATE_IPV4_CIDRS: readonly [ipaddr.IPv4, number][] = [
@@ -41,14 +42,14 @@ export type PinnedRequestTarget =
 
 export const resolvePinnedRequestTarget = Effect.fn("RssClient.resolvePinnedRequestTarget")(
   function* (urlString: string, dns: typeof DnsResolver.Service) {
-    const parsedUrlResult = yield* Effect.try({
-      try: () => new URL(urlString),
-      catch: (cause) =>
+    const parsedUrlResult = yield* parseUrlEffect(
+      urlString,
+      (cause) =>
         new RssFeedRejectedError({
           cause,
           message: "RSS feed URL format is invalid",
         }),
-    }).pipe(Effect.either);
+    ).pipe(Effect.either);
 
     if (Either.isLeft(parsedUrlResult)) {
       return yield* parsedUrlResult.left;

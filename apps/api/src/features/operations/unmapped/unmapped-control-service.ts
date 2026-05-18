@@ -58,7 +58,7 @@ export class UnmappedControlService extends Context.Tag("@bakarr/api/UnmappedCon
   UnmappedControlServiceShape
 >() {}
 
-const makeUnmappedControlService = Effect.gen(function* () {
+const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(function* () {
   const { db } = yield* Database;
   const fs = yield* FileSystem;
   const clock = yield* ClockService;
@@ -238,5 +238,5 @@ const makeUnmappedControlService = Effect.gen(function* () {
 
 export const UnmappedControlServiceLive = Layer.effect(
   UnmappedControlService,
-  makeUnmappedControlService,
+  makeUnmappedControlService(),
 );

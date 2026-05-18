@@ -52,7 +52,7 @@ export class SystemLogService extends Context.Tag("@bakarr/api/SystemLogService"
   SystemLogServiceShape
 >() {}
 
-const makeSystemLogService = Effect.gen(function* () {
+const makeSystemLogService = Effect.fn("SystemLogService.make")(function* () {
   const { db } = yield* Database;
   const clock = yield* ClockService;
   const eventBus = yield* EventBus;
@@ -134,4 +134,4 @@ const makeSystemLogService = Effect.gen(function* () {
   } satisfies SystemLogServiceShape;
 });
 
-export const SystemLogServiceLive = Layer.effect(SystemLogService, makeSystemLogService);
+export const SystemLogServiceLive = Layer.effect(SystemLogService, makeSystemLogService());

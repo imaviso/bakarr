@@ -50,7 +50,7 @@ export class LibraryBrowseService extends Context.Tag("@bakarr/api/LibraryBrowse
   LibraryBrowseServiceShape
 >() {}
 
-const makeLibraryBrowseService = Effect.gen(function* () {
+const makeLibraryBrowseService = Effect.fn("LibraryBrowseService.make")(function* () {
   const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
   const fs = yield* FileSystem;
 
@@ -133,7 +133,7 @@ const makeLibraryBrowseService = Effect.gen(function* () {
 
 export const LibraryBrowseServiceLive = Layer.effect(
   LibraryBrowseService,
-  makeLibraryBrowseService,
+  makeLibraryBrowseService(),
 );
 
 // ---------------------------------------------------------------------------

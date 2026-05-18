@@ -34,7 +34,7 @@ export class AnimeMaintenanceService extends Context.Tag("@bakarr/api/AnimeMaint
   AnimeMaintenanceServiceShape
 >() {}
 
-const makeAnimeMaintenanceService = Effect.gen(function* () {
+const makeAnimeMaintenanceService = Effect.fn("AnimeMaintenanceService.make")(function* () {
   const { db } = yield* Database;
   const eventBus = yield* EventBus;
   const metadataProvider = yield* AnimeMetadataProviderService;
@@ -108,5 +108,5 @@ const makeAnimeMaintenanceService = Effect.gen(function* () {
 
 export const AnimeMaintenanceServiceLive = Layer.effect(
   AnimeMaintenanceService,
-  makeAnimeMaintenanceService,
+  makeAnimeMaintenanceService(),
 );

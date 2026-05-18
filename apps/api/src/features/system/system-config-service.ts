@@ -24,7 +24,7 @@ export class SystemConfigService extends Context.Tag("@bakarr/api/SystemConfigSe
   SystemConfigServiceShape
 >() {}
 
-const makeSystemConfigService = Effect.gen(function* () {
+const makeSystemConfigService = Effect.fn("SystemConfigService.make")(function* () {
   const systemConfigRepository = yield* SystemConfigRepository;
   const qualityProfileRepository = yield* QualityProfileRepository;
 
@@ -61,7 +61,7 @@ const makeSystemConfigService = Effect.gen(function* () {
   return { getConfig } satisfies SystemConfigServiceShape;
 });
 
-export const SystemConfigServiceLive = Layer.effect(SystemConfigService, makeSystemConfigService);
+export const SystemConfigServiceLive = Layer.effect(SystemConfigService, makeSystemConfigService());
 
 export function redactConfigSecrets(config: Config): Config {
   return {

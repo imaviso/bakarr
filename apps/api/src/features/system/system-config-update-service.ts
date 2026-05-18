@@ -48,7 +48,7 @@ const countAnimeUsingProfile = Effect.fn("SystemConfigUpdateService.countAnimeUs
   },
 );
 
-const makeSystemConfigUpdateService = Effect.gen(function* () {
+const makeSystemConfigUpdateService = Effect.fn("SystemConfigUpdateService.make")(function* () {
   const { db } = yield* Database;
   const appConfig = yield* AppConfig;
   const clock = yield* ClockService;
@@ -116,7 +116,7 @@ const makeSystemConfigUpdateService = Effect.gen(function* () {
 
 export const SystemConfigUpdateServiceLive = Layer.effect(
   SystemConfigUpdateService,
-  makeSystemConfigUpdateService,
+  makeSystemConfigUpdateService(),
 );
 
 const preserveStoredPasswords = Effect.fn("SystemConfigUpdateService.preserveStoredPasswords")(

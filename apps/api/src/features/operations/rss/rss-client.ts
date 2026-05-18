@@ -2,6 +2,7 @@ import { Context, Effect, Either, Layer, Option, Stream } from "effect";
 
 import { DnsResolver } from "@/infra/dns-resolver.ts";
 import { ExternalCall, ExternalCallError, type ExternalCallShape } from "@/infra/effect/retry.ts";
+import { parseUrlEffect } from "@/infra/url.ts";
 import {
   RssFeedParseError,
   RssFeedRejectedError,
@@ -40,14 +41,14 @@ const makeFetchItems = (
   externalCall: ExternalCallShape,
 ) =>
   Effect.fn("RssClient.fetchItems")(function* (url: string) {
-    const parsedUrl = yield* Effect.try({
-      try: () => new URL(url),
-      catch: (cause) =>
+    const parsedUrl = yield* parseUrlEffect(
+      url,
+      (cause) =>
         new RssFeedRejectedError({
           cause,
           message: "RSS feed URL is invalid",
         }),
-    });
+    );
 
     if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
       return yield* new RssFeedRejectedError({
@@ -127,14 +128,15 @@ const makeFetchItems = (
           });
         }
 
-        const redirectResult = yield* Effect.try({
-          try: () => new URL(location, currentUrl),
-          catch: (cause) =>
+        const redirectResult = yield* parseUrlEffect(
+          location,
+          (cause) =>
             new RssFeedRejectedError({
               cause,
               message: "Invalid redirect URL",
             }),
-        }).pipe(Effect.either);
+          currentUrl,
+        ).pipe(Effect.either);
 
         if (Either.isLeft(redirectResult)) {
           return yield* redirectResult.left;

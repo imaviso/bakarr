@@ -56,7 +56,7 @@ export class AuthSessionService extends Context.Tag("@bakarr/api/AuthSessionServ
 const DAY_MS = 24 * 60 * 60 * 1000;
 const SESSION_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
-const makeAuthSessionService = Effect.gen(function* () {
+const makeAuthSessionService = Effect.fn("AuthSessionService.make")(function* () {
   const usersRepository = yield* AuthUserRepository;
   const config = yield* AppConfig;
   const clock = yield* ClockService;
@@ -210,7 +210,7 @@ const makeAuthSessionService = Effect.gen(function* () {
   } satisfies AuthSessionServiceShape;
 });
 
-export const AuthSessionServiceLive = Layer.effect(AuthSessionService, makeAuthSessionService);
+export const AuthSessionServiceLive = Layer.effect(AuthSessionService, makeAuthSessionService());
 
 function toLoginResult(userRow: typeof users.$inferSelect, token: string) {
   return {

@@ -93,24 +93,26 @@ export const makeBackgroundWorkerController = Effect.fn(
   } satisfies BackgroundWorkerControllerShape;
 });
 
-const makeBackgroundWorkerControllerLive = Effect.gen(function* () {
-  const monitor = yield* BackgroundWorkerMonitor;
-  const taskRunner = yield* BackgroundTaskRunner;
-  const spawnWorkers = makeBackgroundWorkerSpawner({
-    monitor,
-    taskRunner,
-  });
+const makeBackgroundWorkerControllerLive = Effect.fn("BackgroundWorkerController.make")(
+  function* () {
+    const monitor = yield* BackgroundWorkerMonitor;
+    const taskRunner = yield* BackgroundTaskRunner;
+    const spawnWorkers = makeBackgroundWorkerSpawner({
+      monitor,
+      taskRunner,
+    });
 
-  const controller = yield* makeBackgroundWorkerController({
-    spawnWorkers,
-  });
+    const controller = yield* makeBackgroundWorkerController({
+      spawnWorkers,
+    });
 
-  yield* Effect.addFinalizer(() => controller.stop());
+    yield* Effect.addFinalizer(() => controller.stop());
 
-  return controller;
-});
+    return controller;
+  },
+);
 
 export const BackgroundWorkerControllerLive = Layer.scoped(
   BackgroundWorkerController,
-  makeBackgroundWorkerControllerLive,
+  makeBackgroundWorkerControllerLive(),
 );

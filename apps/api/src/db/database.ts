@@ -96,7 +96,7 @@ function firstRowValue(row: Record<string, unknown> | undefined) {
   return row ? Object.values(row)[0] : undefined;
 }
 
-const makeDatabase = Effect.gen(function* () {
+const makeDatabase = Effect.fn("Database.make")(function* () {
   const client = yield* NodeSqliteClient.SqliteClient;
 
   yield* setAndVerifyPragmas(client);
@@ -109,7 +109,7 @@ const makeDatabase = Effect.gen(function* () {
   };
 });
 
-export const DatabaseLive = Layer.scoped(Database, makeDatabase);
+export const DatabaseLive = Layer.scoped(Database, makeDatabase());
 
 export const DatabaseSqlClientLive = Layer.unwrapEffect(
   Effect.gen(function* () {

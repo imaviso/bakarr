@@ -20,7 +20,7 @@ export class LibraryRootsQueryService extends Context.Tag("@bakarr/api/LibraryRo
   LibraryRootsQueryServiceShape
 >() {}
 
-const makeLibraryRootsQueryService = Effect.gen(function* () {
+const makeLibraryRootsQueryService = Effect.fn("LibraryRootsQueryService.make")(function* () {
   const { db } = yield* Database;
 
   const listRoots = Effect.fn("LibraryRootsQueryService.listRoots")(function* () {
@@ -47,5 +47,5 @@ const makeLibraryRootsQueryService = Effect.gen(function* () {
 
 export const LibraryRootsQueryServiceLive = Layer.effect(
   LibraryRootsQueryService,
-  makeLibraryRootsQueryService,
+  makeLibraryRootsQueryService(),
 );

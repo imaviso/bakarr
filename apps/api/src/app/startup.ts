@@ -12,7 +12,8 @@ import { compactLogAnnotations } from "@/infra/logging.ts";
 export const bootstrapProgram = Effect.fn("api.bootstrap")(function* () {
   yield* migrateDatabase();
 
-  yield* (yield* SystemBootstrapService).ensureInitialized();
+  const systemBootstrap = yield* SystemBootstrapService;
+  yield* systemBootstrap.ensureInitialized();
 
   const auth = yield* AuthBootstrapService;
   yield* auth.ensureBootstrapUser();
@@ -22,7 +23,8 @@ export const bootstrapProgram = Effect.fn("api.bootstrap")(function* () {
 
 export const startBackgroundWorkers = Effect.fn("api.background.start")(function* () {
   const runtimeControl = yield* BackgroundWorkerController;
-  const config = yield* (yield* SystemConfigService).getConfig();
+  const systemConfig = yield* SystemConfigService;
+  const config = yield* systemConfig.getConfig();
 
   yield* runtimeControl.start(config);
 });

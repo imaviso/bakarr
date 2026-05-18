@@ -19,7 +19,7 @@ export class AuthBootstrapService extends Context.Tag("@bakarr/api/AuthBootstrap
   AuthBootstrapServiceShape
 >() {}
 
-const makeAuthBootstrapService = Effect.gen(function* () {
+const makeAuthBootstrapService = Effect.fn("AuthBootstrapService.make")(function* () {
   const users = yield* AuthUserRepository;
   const config = yield* BootstrapConfig;
   const clock = yield* ClockService;
@@ -95,5 +95,5 @@ const makeAuthBootstrapService = Effect.gen(function* () {
 
 export const AuthBootstrapServiceLive = Layer.effect(
   AuthBootstrapService,
-  makeAuthBootstrapService,
+  makeAuthBootstrapService(),
 );

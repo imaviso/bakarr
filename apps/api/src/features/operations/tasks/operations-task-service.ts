@@ -161,7 +161,7 @@ const toOperationsTask = Effect.fn("OperationsTaskService.toOperationsTask")(fun
   );
 });
 
-const makeOperationsTaskWriteService = Effect.gen(function* () {
+const makeOperationsTaskWriteService = Effect.fn("OperationsTaskWriteService.make")(function* () {
   const { db } = yield* Database;
   const clock = yield* ClockService;
   const eventBus = yield* EventBus;
@@ -338,7 +338,7 @@ const makeOperationsTaskWriteService = Effect.gen(function* () {
   });
 });
 
-const makeOperationsTaskReadService = Effect.gen(function* () {
+const makeOperationsTaskReadService = Effect.fn("OperationsTaskReadService.make")(function* () {
   const { db } = yield* Database;
 
   const getTask = Effect.fn("OperationsTaskReadService.getTask")(function* (taskId: number) {
@@ -412,12 +412,12 @@ const makeOperationsTaskReadService = Effect.gen(function* () {
 
 export const OperationsTaskWriteServiceLive = Layer.effect(
   OperationsTaskWriteService,
-  makeOperationsTaskWriteService,
+  makeOperationsTaskWriteService(),
 );
 
 export const OperationsTaskReadServiceLive = Layer.effect(
   OperationsTaskReadService,
-  makeOperationsTaskReadService,
+  makeOperationsTaskReadService(),
 );
 
 export const decodeOperationsTaskQuery = Effect.fn(

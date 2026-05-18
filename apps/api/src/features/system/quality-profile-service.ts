@@ -61,7 +61,7 @@ const countAnimeUsingProfile = Effect.fn("QualityProfileService.countAnimeUsingP
   return rows[0]?.value ?? 0;
 });
 
-const makeQualityProfileService = Effect.gen(function* () {
+const makeQualityProfileService = Effect.fn("QualityProfileService.make")(function* () {
   const { db } = yield* Database;
   const clock = yield* ClockService;
   const nowIso = () => nowIsoFromClock(clock);
@@ -145,5 +145,5 @@ const makeQualityProfileService = Effect.gen(function* () {
 
 export const QualityProfileServiceLive = Layer.effect(
   QualityProfileService,
-  makeQualityProfileService,
+  makeQualityProfileService(),
 );

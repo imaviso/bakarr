@@ -40,7 +40,7 @@ export class ReleaseProfileService extends Context.Tag("@bakarr/api/ReleaseProfi
   ReleaseProfileServiceShape
 >() {}
 
-const makeReleaseProfileService = Effect.gen(function* () {
+const makeReleaseProfileService = Effect.fn("ReleaseProfileService.make")(function* () {
   const { db } = yield* Database;
   const clock = yield* ClockService;
   const nowIso = () => nowIsoFromClock(clock);
@@ -105,5 +105,5 @@ const makeReleaseProfileService = Effect.gen(function* () {
 
 export const ReleaseProfileServiceLive = Layer.effect(
   ReleaseProfileService,
-  makeReleaseProfileService,
+  makeReleaseProfileService(),
 );

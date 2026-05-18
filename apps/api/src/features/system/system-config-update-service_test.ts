@@ -189,7 +189,9 @@ function makeSystemConfigUpdateTestLayer(input: {
   readonly runtimeConfigRef: Ref.Ref<Config>;
 }) {
   const baseLayer = Layer.mergeAll(
-    AppConfig.layer({ databaseFile: input.databaseFile }).pipe(Layer.provide(RandomServiceLive)),
+    AppConfig.layerWithOverrides({ databaseFile: input.databaseFile }).pipe(
+      Layer.provide(RandomServiceLive),
+    ),
     ClockServiceLive,
     RuntimeLogLevelStateLive,
     Layer.succeed(Database, makeDatabaseServiceStub(input.db)),

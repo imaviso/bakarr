@@ -51,7 +51,7 @@ export class AnimeSettingsService extends Context.Tag("@bakarr/api/AnimeSettings
   AnimeSettingsServiceShape
 >() {}
 
-const makeAnimeSettingsService = Effect.gen(function* () {
+const makeAnimeSettingsService = Effect.fn("AnimeSettingsService.make")(function* () {
   const { db } = yield* Database;
   const eventBus = yield* EventBus;
   const fs = yield* FileSystem;
@@ -196,5 +196,5 @@ const makeAnimeSettingsService = Effect.gen(function* () {
 
 export const AnimeSettingsServiceLive = Layer.effect(
   AnimeSettingsService,
-  makeAnimeSettingsService,
+  makeAnimeSettingsService(),
 );

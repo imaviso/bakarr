@@ -24,7 +24,7 @@ export class UnmappedScanService extends Context.Tag("@bakarr/api/UnmappedScanSe
   UnmappedScanServiceShape
 >() {}
 
-const makeUnmappedScanService = Effect.gen(function* () {
+const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* () {
   const { db } = yield* Database;
   const aniList = yield* AniListClient;
   const fs = yield* FileSystem;
@@ -49,4 +49,4 @@ const makeUnmappedScanService = Effect.gen(function* () {
   });
 });
 
-export const UnmappedScanServiceLive = Layer.effect(UnmappedScanService, makeUnmappedScanService);
+export const UnmappedScanServiceLive = Layer.effect(UnmappedScanService, makeUnmappedScanService());
