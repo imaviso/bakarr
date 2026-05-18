@@ -1,16 +1,4 @@
-import {
-  Cause,
-  Context,
-  Effect,
-  Exit,
-  Layer,
-  Option,
-  PubSub,
-  Queue,
-  Ref,
-  Scope,
-  Stream,
-} from "effect";
+import { Cause, Effect, Exit, Layer, Option, PubSub, Queue, Ref, Scope, Stream } from "effect";
 
 import type { NotificationEvent } from "@packages/shared/index.ts";
 
@@ -29,49 +17,53 @@ export interface EventBusShape {
   ) => Stream.Stream<A, E>;
 }
 
-export class EventBus extends Context.Tag("@bakarr/api/EventBus")<EventBus, EventBusShape>() {}
+export class EventBus extends Effect.Service<EventBus>()("@bakarr/api/EventBus", {
+  scoped: Effect.gen(function* () {
+    const pubsub = yield* PubSub.sliding<NotificationEvent>(DEFAULT_EVENT_BUS_CAPACITY);
+    yield* Effect.addFinalizer(() => PubSub.shutdown(pubsub));
+    return makeEventBusFromPubSub(pubsub, DEFAULT_EVENT_BUS_CAPACITY);
+  }),
+}) {}
 
 const makeEventBusFromPubSub = (pubsub: PubSub.PubSub<NotificationEvent>, capacity: number) =>
-  Effect.succeed(
-    EventBus.of({
-      publish: Effect.fn("EventBus.publish")(function* (event: NotificationEvent) {
-        yield* PubSub.publish(pubsub, event);
-      }),
-      publishInfo: Effect.fn("EventBus.publishInfo")(function* (message: string) {
-        yield* PubSub.publish(pubsub, {
-          type: "Info",
-          payload: { message },
-        });
-      }),
-      withSubscriptionStream: <A, E>(
-        use: (subscription: EventSubscription) => Stream.Stream<A, E>,
-      ): Stream.Stream<A, E> =>
-        Stream.unwrapScoped(
-          Effect.gen(function* () {
-            const pubsubQueue = yield* PubSub.subscribe(pubsub);
-            const slidingQueue = yield* Effect.acquireRelease(
-              Queue.sliding<NotificationEvent>(capacity),
-              Queue.shutdown,
-            );
-            const initializationLock = yield* Effect.makeSemaphore(1);
-            const initialBufferedRef = yield* Ref.make<Option.Option<readonly NotificationEvent[]>>(
-              Option.none(),
-            );
-            const relayScope = yield* Scope.make();
-            yield* Effect.addFinalizer(() => Scope.close(relayScope, Exit.void));
-            const subscription = makeInitializedSubscription({
-              initialBufferedRef,
-              initializationLock,
-              pubsubQueue,
-              relayScope,
-              slidingQueue,
-            });
-
-            return use(subscription);
-          }),
-        ),
+  ({
+    publish: Effect.fn("EventBus.publish")(function* (event: NotificationEvent) {
+      yield* PubSub.publish(pubsub, event);
     }),
-  );
+    publishInfo: Effect.fn("EventBus.publishInfo")(function* (message: string) {
+      yield* PubSub.publish(pubsub, {
+        type: "Info",
+        payload: { message },
+      });
+    }),
+    withSubscriptionStream: <A, E>(
+      use: (subscription: EventSubscription) => Stream.Stream<A, E>,
+    ): Stream.Stream<A, E> =>
+      Stream.unwrapScoped(
+        Effect.gen(function* () {
+          const pubsubQueue = yield* PubSub.subscribe(pubsub);
+          const slidingQueue = yield* Effect.acquireRelease(
+            Queue.sliding<NotificationEvent>(capacity),
+            Queue.shutdown,
+          );
+          const initializationLock = yield* Effect.makeSemaphore(1);
+          const initialBufferedRef = yield* Ref.make<Option.Option<readonly NotificationEvent[]>>(
+            Option.none(),
+          );
+          const relayScope = yield* Scope.make();
+          yield* Effect.addFinalizer(() => Scope.close(relayScope, Exit.void));
+          const subscription = makeInitializedSubscription({
+            initialBufferedRef,
+            initializationLock,
+            pubsubQueue,
+            relayScope,
+            slidingQueue,
+          });
+
+          return use(subscription);
+        }),
+      ),
+  }) satisfies EventBusShape;
 
 export const makeEventBus = Effect.fn("Events.makeEventBus")((
   options: { readonly capacity?: number } = {},
@@ -80,22 +72,15 @@ export const makeEventBus = Effect.fn("Events.makeEventBus")((
 
   return Effect.gen(function* () {
     const pubsub = yield* PubSub.sliding<NotificationEvent>(capacity);
-    return yield* makeEventBusFromPubSub(pubsub, capacity);
+    return EventBus.make(makeEventBusFromPubSub(pubsub, capacity));
   });
 });
 
-export const EventBusLive = Layer.scoped(
-  EventBus,
-  Effect.gen(function* () {
-    const pubsub = yield* PubSub.sliding<NotificationEvent>(DEFAULT_EVENT_BUS_CAPACITY);
-    yield* Effect.addFinalizer(() => PubSub.shutdown(pubsub));
-    return yield* makeEventBusFromPubSub(pubsub, DEFAULT_EVENT_BUS_CAPACITY);
-  }),
-);
+export const EventBusLive = EventBus.Default;
 
 export const EventBusNoopLive = Layer.succeed(
   EventBus,
-  EventBus.of({
+  EventBus.make({
     publish: () => Effect.void,
     publishInfo: () => Effect.void,
     withSubscriptionStream: <A, E>(use: (subscription: EventSubscription) => Stream.Stream<A, E>) =>

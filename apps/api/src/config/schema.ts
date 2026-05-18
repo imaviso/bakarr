@@ -1,8 +1,8 @@
-import { Config as EffectConfig, Context, Effect, Layer, Option, Schema } from "effect";
+import { Context, Effect, Layer, Option, Schema } from "effect";
 
 import { PositiveIntSchema } from "@/domain/domain-schema.ts";
 import { randomHex } from "@/infra/random.ts";
-import { readConfigValue } from "@/config/read-config-value.ts";
+import { readConfigValueWithDefault } from "@/config/read-config-value.ts";
 
 const PortSchema = Schema.Number.pipe(Schema.int(), Schema.between(1, 65_535));
 
@@ -76,41 +76,35 @@ export class AppConfig extends Context.Tag("@bakarr/api/AppConfig")<AppConfig, A
       AppConfig,
       Effect.gen(function* () {
         const defaults = makeDefaultAppConfig();
-        const appVersion = yield* readConfigValue(
+        const appVersion = yield* readConfigValueWithDefault(
           overrides.appVersion,
-          Schema.Config("BAKARR_APP_VERSION", Schema.String).pipe(
-            EffectConfig.orElse(() => EffectConfig.succeed(defaults.appVersion)),
-          ),
+          Schema.Config("BAKARR_APP_VERSION", Schema.String),
+          defaults.appVersion,
         );
-        const databaseFile = yield* readConfigValue(
+        const databaseFile = yield* readConfigValueWithDefault(
           overrides.databaseFile,
-          Schema.Config("DATABASE_FILE", Schema.String).pipe(
-            EffectConfig.orElse(() => EffectConfig.succeed(defaults.databaseFile)),
-          ),
+          Schema.Config("DATABASE_FILE", Schema.String),
+          defaults.databaseFile,
         );
-        const port = yield* readConfigValue(
+        const port = yield* readConfigValueWithDefault(
           overrides.port,
-          Schema.Config("PORT", PortConfigSchema).pipe(
-            EffectConfig.orElse(() => EffectConfig.succeed(defaults.port)),
-          ),
+          Schema.Config("PORT", PortConfigSchema),
+          defaults.port,
         );
-        const sessionCookieName = yield* readConfigValue(
+        const sessionCookieName = yield* readConfigValueWithDefault(
           overrides.sessionCookieName,
-          Schema.Config("SESSION_COOKIE_NAME", Schema.String).pipe(
-            EffectConfig.orElse(() => EffectConfig.succeed(defaults.sessionCookieName)),
-          ),
+          Schema.Config("SESSION_COOKIE_NAME", Schema.String),
+          defaults.sessionCookieName,
         );
-        const sessionCookieSecure = yield* readConfigValue(
+        const sessionCookieSecure = yield* readConfigValueWithDefault(
           overrides.sessionCookieSecure,
-          Schema.Config("SESSION_COOKIE_SECURE", Schema.BooleanFromString).pipe(
-            EffectConfig.orElse(() => EffectConfig.succeed(defaults.sessionCookieSecure)),
-          ),
+          Schema.Config("SESSION_COOKIE_SECURE", Schema.BooleanFromString),
+          defaults.sessionCookieSecure,
         );
-        const sessionDurationDays = yield* readConfigValue(
+        const sessionDurationDays = yield* readConfigValueWithDefault(
           overrides.sessionDurationDays,
-          Schema.Config("SESSION_DURATION_DAYS", PositiveIntConfigSchema).pipe(
-            EffectConfig.orElse(() => EffectConfig.succeed(defaults.sessionDurationDays)),
-          ),
+          Schema.Config("SESSION_DURATION_DAYS", PositiveIntConfigSchema),
+          defaults.sessionDurationDays,
         );
 
         return new AppConfigModel({
@@ -153,11 +147,10 @@ export class BootstrapConfig extends Context.Tag("@bakarr/api/BootstrapConfig")<
           bootstrapPasswordFromEnv,
           () => generatedBootstrapPassword,
         );
-        const bootstrapUsername = yield* readConfigValue(
+        const bootstrapUsername = yield* readConfigValueWithDefault(
           overrides.bootstrapUsername,
-          Schema.Config("BAKARR_BOOTSTRAP_USERNAME", Schema.String).pipe(
-            EffectConfig.orElse(() => EffectConfig.succeed(defaults.bootstrapUsername)),
-          ),
+          Schema.Config("BAKARR_BOOTSTRAP_USERNAME", Schema.String),
+          defaults.bootstrapUsername,
         );
 
         return new BootstrapConfigModel({

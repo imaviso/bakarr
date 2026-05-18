@@ -64,10 +64,13 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
               resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
               searchAnime: () => Effect.succeed([]),
             }),
-            Layer.succeed(ClockService, {
-              currentMonotonicMillis: Effect.succeed(0),
-              currentTimeMillis: Effect.succeed(new Date("2025-04-01T10:00:00.000Z").getTime()),
-            }),
+            Layer.succeed(
+              ClockService,
+              ClockService.make({
+                currentMonotonicMillis: Effect.succeed(0),
+                currentTimeMillis: Effect.succeed(new Date("2025-04-01T10:00:00.000Z").getTime()),
+              }),
+            ),
             Layer.succeed(Database, {
               client,
               db,
@@ -148,10 +151,13 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
                   resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
                   searchAnime: () => Effect.succeed([]),
                 }),
-                Layer.succeed(ClockService, {
-                  currentMonotonicMillis: Effect.succeed(0),
-                  currentTimeMillis: Effect.sync(() => currentTime),
-                }),
+                Layer.succeed(
+                  ClockService,
+                  ClockService.make({
+                    currentMonotonicMillis: Effect.succeed(0),
+                    currentTimeMillis: Effect.sync(() => currentTime),
+                  }),
+                ),
                 Layer.succeed(Database, {
                   client,
                   db,
@@ -228,10 +234,13 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
                   resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
                   searchAnime: () => Effect.succeed([]),
                 }),
-                Layer.succeed(ClockService, {
-                  currentMonotonicMillis: Effect.succeed(0),
-                  currentTimeMillis: Effect.sync(() => currentTime),
-                }),
+                Layer.succeed(
+                  ClockService,
+                  ClockService.make({
+                    currentMonotonicMillis: Effect.succeed(0),
+                    currentTimeMillis: Effect.sync(() => currentTime),
+                  }),
+                ),
                 Layer.succeed(Database, {
                   client,
                   db,
@@ -308,10 +317,15 @@ describe("AnimeQueryService.searchAnime", () => {
                       },
                     ]),
                 }),
-                Layer.succeed(ClockService, {
-                  currentMonotonicMillis: Effect.succeed(0),
-                  currentTimeMillis: Effect.succeed(new Date("2025-04-01T10:00:00.000Z").getTime()),
-                }),
+                Layer.succeed(
+                  ClockService,
+                  ClockService.make({
+                    currentMonotonicMillis: Effect.succeed(0),
+                    currentTimeMillis: Effect.succeed(
+                      new Date("2025-04-01T10:00:00.000Z").getTime(),
+                    ),
+                  }),
+                ),
                 Layer.succeed(Database, {
                   client,
                   db,

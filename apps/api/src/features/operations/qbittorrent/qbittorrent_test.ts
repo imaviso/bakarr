@@ -230,10 +230,13 @@ it.effect(
     Effect.gen(function* () {
       const loginCalls: string[] = [];
       const infoCookies: string[] = [];
-      const testClockLayer = Layer.succeed(ClockService, {
-        currentMonotonicMillis: TestClock.currentTimeMillis,
-        currentTimeMillis: TestClock.currentTimeMillis,
-      });
+      const testClockLayer = Layer.succeed(
+        ClockService,
+        ClockService.make({
+          currentMonotonicMillis: TestClock.currentTimeMillis,
+          currentTimeMillis: TestClock.currentTimeMillis,
+        }),
+      );
       const externalCallLayer = ExternalCallLive.pipe(Layer.provide(testClockLayer));
       const clientLayer = QBitTorrentClientLive.pipe(
         Layer.provide(

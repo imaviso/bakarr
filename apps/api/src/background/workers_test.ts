@@ -195,10 +195,13 @@ it.effect("repeatWorker runs exactly once at startup for cron loops", () =>
   }),
 );
 
-const TestClockLayer = Layer.succeed(ClockService, {
-  currentMonotonicMillis: Effect.succeed(0),
-  currentTimeMillis: Effect.succeed(1704067200000),
-});
+const TestClockLayer = Layer.succeed(
+  ClockService,
+  ClockService.make({
+    currentMonotonicMillis: Effect.succeed(0),
+    currentTimeMillis: Effect.succeed(1704067200000),
+  }),
+);
 
 it.effect("background worker monitor tracks supervision state and counters", () =>
   Effect.gen(function* () {

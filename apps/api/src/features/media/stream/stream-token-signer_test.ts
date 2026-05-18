@@ -8,10 +8,13 @@ import {
 } from "@/features/media/stream/stream-token-signer.ts";
 import { RandomService } from "@/infra/random.ts";
 
-const randomLayer = Layer.succeed(RandomService, {
-  randomBytes: (bytes: number) => Effect.succeed(new Uint8Array(bytes).fill(7)),
-  randomUuid: Effect.succeed("test-uuid"),
-});
+const randomLayer = Layer.succeed(
+  RandomService,
+  RandomService.make({
+    randomBytes: (bytes: number) => Effect.succeed(new Uint8Array(bytes).fill(7)),
+    randomUuid: Effect.succeed("test-uuid"),
+  }),
+);
 
 it("StreamTokenSignerError constructs", () => {
   const error = new StreamTokenSignerError({ message: "sign failed" });

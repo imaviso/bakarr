@@ -267,10 +267,13 @@ it.scoped("ManamiClient rebuilds invalid sqlite cache from local dataset", () =>
 
       let requestCount = 0;
       const clientLayer = makeManamiClientLayer({
-        clockLayer: Layer.succeed(ClockService, {
-          currentMonotonicMillis: Effect.succeed(clockNow),
-          currentTimeMillis: Effect.succeed(clockNow),
-        }),
+        clockLayer: Layer.succeed(
+          ClockService,
+          ClockService.make({
+            currentMonotonicMillis: Effect.succeed(clockNow),
+            currentTimeMillis: Effect.succeed(clockNow),
+          }),
+        ),
         fs,
         httpClient: HttpClient.make((request) =>
           Effect.sync(() => {
@@ -359,10 +362,13 @@ it.scoped("ManamiClient refreshes stale sqlite cache", () =>
       const clockNow = MANAMI_CACHE_REFRESH_INTERVAL_MS * 2;
       let requestCount = 0;
       const clientLayer = makeManamiClientLayer({
-        clockLayer: Layer.succeed(ClockService, {
-          currentMonotonicMillis: Effect.succeed(clockNow),
-          currentTimeMillis: Effect.succeed(clockNow),
-        }),
+        clockLayer: Layer.succeed(
+          ClockService,
+          ClockService.make({
+            currentMonotonicMillis: Effect.succeed(clockNow),
+            currentTimeMillis: Effect.succeed(clockNow),
+          }),
+        ),
         fs,
         httpClient: HttpClient.make((request) =>
           Effect.sync(() => {

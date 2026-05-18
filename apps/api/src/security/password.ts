@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Option, Schema } from "effect";
+import { Effect, Option, Schema } from "effect";
 import { timingSafeEqual as nodeTimingSafeEqual } from "node:crypto";
 
 import { bytesToHex, hexToBytes } from "@/infra/hex.ts";
@@ -49,18 +49,18 @@ const webPasswordCryptoPrimitives: PasswordCryptoPrimitives = {
     crypto.subtle.importKey(format, keyData, algorithm, extractable, [...keyUsages]),
 };
 
-export class PasswordCrypto extends Context.Tag("@bakarr/security/PasswordCrypto")<
-  PasswordCrypto,
-  PasswordCryptoShape
->() {}
-
 export const WebPasswordCrypto: PasswordCryptoShape = {
   deriveBits: deriveBitsWith(webPasswordCryptoPrimitives),
   deriveKeyMaterial: deriveKeyMaterialWith(webPasswordCryptoPrimitives),
   randomBytes: randomBytesWith(webPasswordCryptoPrimitives),
 };
 
-export const PasswordCryptoLive = Layer.succeed(PasswordCrypto, WebPasswordCrypto);
+export class PasswordCrypto extends Effect.Service<PasswordCrypto>()(
+  "@bakarr/security/PasswordCrypto",
+  { succeed: WebPasswordCrypto },
+) {}
+
+export const PasswordCryptoLive = PasswordCrypto.Default;
 
 function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   const buffer = new ArrayBuffer(bytes.length);

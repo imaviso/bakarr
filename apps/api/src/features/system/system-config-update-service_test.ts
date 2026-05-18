@@ -200,15 +200,18 @@ function makeSystemConfigUpdateTestLayer(input: {
       getRuntimeConfig: () => Ref.get(input.runtimeConfigRef),
       replaceRuntimeConfig: (config) => Ref.set(input.runtimeConfigRef, config),
     }),
-    Layer.succeed(EventBus, {
-      publish: () => Effect.void,
-      publishInfo: () => Effect.void,
-      withSubscriptionStream: (use) =>
-        use({
-          stream: Stream.empty,
-          takeBufferedOnce: Effect.succeed([]),
-        }),
-    }),
+    Layer.succeed(
+      EventBus,
+      EventBus.make({
+        publish: () => Effect.void,
+        publishInfo: () => Effect.void,
+        withSubscriptionStream: (use) =>
+          use({
+            stream: Stream.empty,
+            takeBufferedOnce: Effect.succeed([]),
+          }),
+      }),
+    ),
   );
 
   return SystemConfigUpdateServiceLive.pipe(Layer.provide(baseLayer));

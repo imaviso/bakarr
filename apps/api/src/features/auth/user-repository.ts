@@ -1,5 +1,5 @@
 import { and, eq, gt } from "drizzle-orm";
-import { Context, Effect, Layer, Option } from "effect";
+import { Effect, Option } from "effect";
 
 import { Database, type AppDatabase, type DatabaseError } from "@/db/database.ts";
 import { appConfig, sessions, systemLogs, users } from "@/db/schema.ts";
@@ -71,10 +71,15 @@ export interface AuthUserRepositoryShape {
   }) => Effect.Effect<void, DatabaseError>;
 }
 
-export class AuthUserRepository extends Context.Tag("@bakarr/api/AuthUserRepository")<
-  AuthUserRepository,
-  AuthUserRepositoryShape
->() {}
+export class AuthUserRepository extends Effect.Service<AuthUserRepository>()(
+  "@bakarr/api/AuthUserRepository",
+  {
+    effect: Effect.gen(function* () {
+      const { db } = yield* Database;
+      return makeAuthUserRepository(db);
+    }),
+  },
+) {}
 
 export function makeAuthUserRepository(db: AppDatabase): AuthUserRepositoryShape {
   const findUserByUsername = Effect.fn("AuthUserRepository.findUserByUsername")(function* (
@@ -280,7 +285,7 @@ export function makeAuthUserRepository(db: AppDatabase): AuthUserRepositoryShape
     );
   });
 
-  return AuthUserRepository.of({
+  return {
     changePasswordState,
     createBootstrapUser,
     createSession,
@@ -293,13 +298,7 @@ export function makeAuthUserRepository(db: AppDatabase): AuthUserRepositoryShape
     refreshSession,
     resolveUserBySessionToken,
     writeLog,
-  });
+  } satisfies AuthUserRepositoryShape;
 }
 
-export const AuthUserRepositoryLive = Layer.effect(
-  AuthUserRepository,
-  Effect.gen(function* () {
-    const { db } = yield* Database;
-    return makeAuthUserRepository(db);
-  }),
-);
+export const AuthUserRepositoryLive = AuthUserRepository.Default;

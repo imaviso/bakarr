@@ -1,27 +1,20 @@
-import { Clock, Context, Effect, Layer } from "effect";
+import { Clock, Effect } from "effect";
 
 export interface ClockServiceShape {
   readonly currentMonotonicMillis: Effect.Effect<number>;
   readonly currentTimeMillis: Effect.Effect<number>;
 }
 
-export class ClockService extends Context.Tag("@bakarr/lib/ClockService")<
-  ClockService,
-  ClockServiceShape
->() {}
+export class ClockService extends Effect.Service<ClockService>()("@bakarr/lib/ClockService", {
+  sync: () => ({
+    currentMonotonicMillis: Effect.fn("ClockService.currentMonotonicMillis")(() =>
+      Effect.sync(() => performance.now()),
+    )(),
+    currentTimeMillis: Effect.fn("ClockService.currentTimeMillis")(() => Clock.currentTimeMillis)(),
+  }),
+}) {}
 
-const currentMonotonicMillis = Effect.fn("ClockService.currentMonotonicMillis")(() =>
-  Effect.sync(() => performance.now()),
-);
-
-const currentTimeMillis = Effect.fn("ClockService.currentTimeMillis")(
-  () => Clock.currentTimeMillis,
-);
-
-export const ClockServiceLive = Layer.succeed(ClockService, {
-  currentMonotonicMillis: currentMonotonicMillis(),
-  currentTimeMillis: currentTimeMillis(),
-});
+export const ClockServiceLive = ClockService.Default;
 
 export function isoStringFromMillis(millis: number): string {
   return new Date(millis).toISOString();

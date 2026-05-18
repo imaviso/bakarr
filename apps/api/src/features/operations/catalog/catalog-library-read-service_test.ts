@@ -35,10 +35,13 @@ it.scoped("getWantedMissing includes non-media units without air dates", () =>
 
         const dependenciesLayer = Layer.mergeAll(
           Layer.succeed(Database, { client, db }),
-          Layer.succeed(ClockService, {
-            currentMonotonicMillis: Effect.succeed(0),
-            currentTimeMillis: Effect.succeed(new Date("2025-02-01T00:00:00.000Z").getTime()),
-          }),
+          Layer.succeed(
+            ClockService,
+            ClockService.make({
+              currentMonotonicMillis: Effect.succeed(0),
+              currentTimeMillis: Effect.succeed(new Date("2025-02-01T00:00:00.000Z").getTime()),
+            }),
+          ),
           Layer.succeed(RuntimeConfigSnapshotService, {
             getRuntimeConfig: () => Effect.succeed(makeTestConfig(databaseFile)),
             replaceRuntimeConfig: () => Effect.void,

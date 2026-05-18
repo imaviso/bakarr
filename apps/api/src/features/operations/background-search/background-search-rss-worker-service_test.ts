@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 
 import type { AppDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
-import type { EventBusShape } from "@/features/events/event-bus.ts";
+import { EventBus, type EventBusShape } from "@/features/events/event-bus.ts";
 import { SearchBackgroundMissingService } from "@/features/operations/background-search/background-search-missing-support.ts";
 import { makeBackgroundSearchRssWorkerService } from "@/features/operations/background-search/background-search-rss-worker-service.ts";
 import { SearchBackgroundRssService } from "@/features/operations/background-search/background-search-rss-support.ts";
@@ -210,7 +210,7 @@ function makeWorkerTestLayer(input: {
   readonly rssService: typeof SearchBackgroundRssService.Service;
 }) {
   return {
-    eventBus: makeEventBusStub(input.events),
+    eventBus: EventBus.make(makeEventBusStub(input.events)),
     missingService: input.missingService,
     progress: makeOperationsProgressStub(),
     rssService: input.rssService,

@@ -7,10 +7,13 @@ import {
   StreamTokenSignerLive,
 } from "@/features/media/stream/stream-token-signer.ts";
 
-const randomLayer = Layer.succeed(RandomService, {
-  randomBytes: () => Effect.succeed(new Uint8Array(32).fill(7)),
-  randomUuid: Effect.succeed("test-uuid"),
-});
+const randomLayer = Layer.succeed(
+  RandomService,
+  RandomService.make({
+    randomBytes: () => Effect.succeed(new Uint8Array(32).fill(7)),
+    randomUuid: Effect.succeed("test-uuid"),
+  }),
+);
 
 it.effect("StreamTokenSigner signs and verifies matching stream payloads", () =>
   Effect.gen(function* () {

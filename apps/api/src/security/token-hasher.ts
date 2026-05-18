@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Schema } from "effect";
+import { Effect, Schema } from "effect";
 
 import { bytesToHex } from "@/infra/hex.ts";
 
@@ -10,11 +10,6 @@ export class TokenHasherError extends Schema.TaggedError<TokenHasherError>()("To
 export interface TokenHasherShape {
   readonly hashToken: (token: string) => Effect.Effect<string, TokenHasherError>;
 }
-
-export class TokenHasher extends Context.Tag("@bakarr/security/TokenHasher")<
-  TokenHasher,
-  TokenHasherShape
->() {}
 
 const textEncoder = new TextEncoder();
 
@@ -32,6 +27,8 @@ const hashToken = Effect.fn("TokenHasher.hashToken")(function* (token: string) {
   return bytesToHex(new Uint8Array(hashBuffer));
 });
 
-export const TokenHasherLive = Layer.succeed(TokenHasher, {
-  hashToken,
-});
+export class TokenHasher extends Effect.Service<TokenHasher>()("@bakarr/security/TokenHasher", {
+  succeed: { hashToken },
+}) {}
+
+export const TokenHasherLive = TokenHasher.Default;
