@@ -11,7 +11,7 @@ import {
 } from "@/features/system/config-codec.ts";
 import { decodeQualityProfileRow } from "@/features/profiles/profile-codec.ts";
 import type { NamingSettings } from "@/features/operations/repository/types.ts";
-import type { MediaKind } from "@packages/shared/index.ts";
+import { MEDIA_KIND_VALUES, type MediaKind } from "@packages/shared/index.ts";
 import { getLibraryPathForMediaKind } from "@/features/media/shared/config-support.ts";
 
 const mapConfigError = (message: string) =>
@@ -38,18 +38,28 @@ export const loadRuntimeConfig = Effect.fn("ConfigRepository.loadRuntimeConfig")
   return yield* composeConfig(core, profiles).pipe(mapConfigError("Failed to load runtime config"));
 });
 
+export const getConfigLibraryRoots = Effect.fn("ConfigRepository.getConfigLibraryRoots")(function* (
+  db: AppDatabase,
+) {
+  const rows = yield* tryDatabasePromise("Failed to load config library paths", () =>
+    db.select().from(appConfig).limit(1),
+  );
+  const library = yield* decodeStoredLibraryConfig(rows[0]).pipe(
+    mapConfigError("Failed to load config library paths"),
+  );
+
+  return MEDIA_KIND_VALUES.map((mediaKind) => ({
+    mediaKind,
+    path: getLibraryPathForMediaKind(library, mediaKind),
+  }));
+});
+
 export const getConfigLibraryPath = Effect.fn("ConfigRepository.getConfigLibraryPath")(function* (
   db: AppDatabase,
   mediaKind: MediaKind = "anime",
 ) {
-  const rows = yield* tryDatabasePromise("Failed to load config library path", () =>
-    db.select().from(appConfig).limit(1),
-  );
-  const library = yield* decodeStoredLibraryConfig(rows[0]).pipe(
-    mapConfigError("Failed to load config library path"),
-  );
-
-  return getLibraryPathForMediaKind(library, mediaKind);
+  const roots = yield* getConfigLibraryRoots(db);
+  return roots.find((root) => root.mediaKind === mediaKind)?.path ?? "./library/anime";
 });
 
 export const currentImportMode = Effect.fn("ConfigRepository.currentImportMode")(function* (

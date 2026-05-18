@@ -300,4 +300,3 @@ export function makeAuthUserRepository(db: AppDatabase): AuthUserRepositoryShape
     writeLog,
   } satisfies AuthUserRepositoryShape;
 }
-

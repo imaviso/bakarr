@@ -15,6 +15,7 @@ import { ConfigCoreSchema } from "@/features/system/config-schema.ts";
 import { makeDefaultConfig } from "@/features/system/defaults.ts";
 import {
   getConfigLibraryPath,
+  getConfigLibraryRoots,
   currentImportMode,
   currentNamingSettings,
   loadRuntimeConfig,
@@ -85,6 +86,12 @@ it.scoped(
           assert.deepStrictEqual(firstProfile.name, "Default");
 
           assert.deepStrictEqual(yield* getConfigLibraryPath(db), "/media-library");
+          assert.deepStrictEqual(yield* getConfigLibraryPath(db, "manga"), "/media-library/manga");
+          assert.deepStrictEqual(yield* getConfigLibraryRoots(db), [
+            { mediaKind: "anime", path: "/media-library" },
+            { mediaKind: "manga", path: "/media-library/manga" },
+            { mediaKind: "light_novel", path: "/media-library/light-novels" },
+          ]);
           assert.deepStrictEqual(yield* currentImportMode(db), "move");
 
           const namingSettings = yield* currentNamingSettings(db);

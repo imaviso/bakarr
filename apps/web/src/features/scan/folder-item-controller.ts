@@ -31,7 +31,7 @@ export function useFolderItemController(folder: UnmappedFolder) {
   const selectedAnimeIds =
     selectedAnime?.id === undefined ? new Set<number>() : new Set([selectedAnime.id]);
 
-  const importLabel = existingAnime ? "Use existing anime" : "Add and use folder";
+  const importLabel = existingAnime ? "Use existing media" : "Add and use folder";
 
   const isImporting = addAnimeMutation.isPending || importMutation.isPending;
   const isControlling = controlMutation.isPending;

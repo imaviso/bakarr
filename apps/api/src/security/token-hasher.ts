@@ -30,4 +30,3 @@ const hashToken = Effect.fn("TokenHasher.hashToken")(function* (token: string) {
 export class TokenHasher extends Effect.Service<TokenHasher>()("@bakarr/security/TokenHasher", {
   succeed: { hashToken },
 }) {}
-

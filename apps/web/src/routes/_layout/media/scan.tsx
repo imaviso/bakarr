@@ -224,7 +224,7 @@ function ScanPageHeader(props: ScanPageHeaderProps) {
                 Import folders
               </h1>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground md:text-[15px]">
-                Map existing folders to anime and import episodes.
+                Map existing folders to anime, manga, or light novels and import units.
               </p>
               <p className="mt-1 max-w-3xl text-xs uppercase tracking-[0.18em] text-muted-foreground">
                 Start a background pass to work through queued folders one by one. It stops
@@ -364,7 +364,11 @@ function ScanDialogs(props: ScanDialogsProps) {
               </span>
             </DialogDescription>
           </DialogHeader>
-          <ManualMatchSearch onSelect={props.onManualMatchSelect} />
+          <ManualMatchSearch
+            key={props.manualMatchDialog?.folder.path ?? "closed"}
+            initialMediaKind={props.manualMatchDialog?.folder.media_kind}
+            onSelect={props.onManualMatchSelect}
+          />
         </DialogContent>
       </Dialog>
     </>

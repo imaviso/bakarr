@@ -76,7 +76,6 @@ export const makeEventBus = Effect.fn("Events.makeEventBus")((
   });
 });
 
-
 export const EventBusNoopLive = Layer.succeed(
   EventBus,
   EventBus.make({

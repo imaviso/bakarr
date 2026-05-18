@@ -21,9 +21,10 @@ export const matchSingleUnmappedFolder = Effect.fn("OperationsService.matchSingl
   }) {
     const queries = buildUnmappedFolderSearchQueries(input.folder.name);
 
+    const mediaKind = input.folder.media_kind ?? "anime";
     const suggestions = yield* Effect.forEach(
       queries,
-      (query) => input.aniList.searchAnimeMetadata(query),
+      (query) => input.aniList.searchAnimeMetadata(query, mediaKind),
       { concurrency: 1 },
     ).pipe(Effect.map((resultSets) => resultSets.find((results) => results.length > 0) ?? []));
 
@@ -32,7 +33,7 @@ export const matchSingleUnmappedFolder = Effect.fn("OperationsService.matchSingl
         ...input.folder,
         suggested_matches: suggestions,
       },
-      input.animeRows,
+      input.animeRows.filter((row) => row.mediaKind === mediaKind),
     );
 
     const annotatedSuggestions = yield* markSearchResultsAlreadyInLibraryEffect(

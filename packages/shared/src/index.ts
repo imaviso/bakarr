@@ -2207,6 +2207,7 @@ export interface UnmappedFolder {
   last_match_error?: string | undefined;
   last_matched_at?: string | undefined;
   match_status?: UnmappedFolderMatchStatus | undefined;
+  media_kind?: MediaKind | undefined;
   name: string;
   path: string;
   search_queries?: string[] | undefined;
@@ -2220,6 +2221,7 @@ export const UnmappedFolderSchema = Schema.mutable(
     last_match_error: Schema.optional(Schema.String),
     last_matched_at: Schema.optional(Schema.String),
     match_status: Schema.optional(UnmappedFolderMatchStatusSchema),
+    media_kind: Schema.optional(MediaKindSchema),
     name: Schema.String,
     path: Schema.String,
     search_queries: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),

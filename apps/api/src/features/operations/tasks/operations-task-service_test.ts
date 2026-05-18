@@ -28,7 +28,9 @@ describe("OperationsTaskService", () => {
           const serviceLayer = Layer.mergeAll(
             OperationsTaskReadServiceLive,
             OperationsTaskWriteServiceLive,
-          ).pipe(Layer.provide(Layer.mergeAll(databaseLayer, ClockService.Default, EventBusNoopLive)));
+          ).pipe(
+            Layer.provide(Layer.mergeAll(databaseLayer, ClockService.Default, EventBusNoopLive)),
+          );
 
           const accepted = yield* Effect.flatMap(OperationsTaskWriteService, (service) =>
             service.createTask({

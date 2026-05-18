@@ -2,6 +2,7 @@ import { Effect } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
 import { media } from "@/db/schema.ts";
+import { isNotFoundError } from "@/infra/filesystem/fs-errors.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { OperationsPathError, OperationsStoredDataError } from "@/features/operations/errors.ts";
 import {
@@ -12,7 +13,7 @@ import {
   ensureFolderMatchStatus,
   listUnmappedFolderEntries,
 } from "@/features/operations/unmapped/unmapped-folder-list-support.ts";
-import { getConfigLibraryPath } from "@/features/operations/repository/config-repository.ts";
+import { getConfigLibraryRoots } from "@/features/operations/repository/config-repository.ts";
 import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 
 export const loadUnmappedFolderSnapshot = Effect.fn("OperationsService.loadUnmappedFolderSnapshot")(
@@ -22,7 +23,7 @@ export const loadUnmappedFolderSnapshot = Effect.fn("OperationsService.loadUnmap
     nowIso?: () => Effect.Effect<string> | undefined;
     tryDatabasePromise: TryDatabasePromise;
   }) {
-    const root = yield* getConfigLibraryPath(input.db);
+    const roots = yield* getConfigLibraryRoots(input.db);
     const animeRows = yield* input.tryDatabasePromise("Failed to scan unmapped folders", () =>
       input.db.select().from(media),
     );
@@ -40,17 +41,27 @@ export const loadUnmappedFolderSnapshot = Effect.fn("OperationsService.loadUnmap
       ),
     );
     const cachedByPath = new Map(decodedRows.map((decoded) => [decoded.path, decoded] as const));
-    const entries = yield* input.fs.readDir(root).pipe(
-      Effect.mapError(
-        (cause) =>
-          new OperationsPathError({
-            cause,
-            message: `Library root is inaccessible: ${root}`,
-          }),
+    const folders = yield* Effect.flatMap(
+      Effect.forEach(roots, ({ mediaKind, path: root }) =>
+        input.fs.readDir(root).pipe(
+          Effect.catchTag("FileSystemError", (cause) =>
+            isNotFoundError(cause)
+              ? Effect.succeed([])
+              : Effect.fail(
+                  new OperationsPathError({
+                    cause,
+                    message: `Library root is inaccessible: ${root}`,
+                  }),
+                ),
+          ),
+          Effect.map((entries) =>
+            listUnmappedFolderEntries(root, entries, mappedRoots, mediaKind).map((folder) =>
+              ensureFolderMatchStatus(folder, cachedByPath.get(folder.path)),
+            ),
+          ),
+        ),
       ),
-    );
-    const folders = listUnmappedFolderEntries(root, entries, mappedRoots).map((folder) =>
-      ensureFolderMatchStatus(folder, cachedByPath.get(folder.path)),
+      (rootFolders) => Effect.succeed(rootFolders.flat()),
     );
 
     return {

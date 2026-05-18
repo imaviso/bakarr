@@ -1,4 +1,4 @@
-import type { ScannerState } from "@packages/shared/index.ts";
+import type { MediaKind, ScannerState } from "@packages/shared/index.ts";
 import type { DirEntry } from "@/infra/filesystem/filesystem.ts";
 import {
   buildUnmappedFolderSearchQueries,
@@ -11,6 +11,7 @@ export function listUnmappedFolderEntries(
   root: string,
   entries: readonly DirEntry[],
   mappedRoots: ReadonlySet<string>,
+  mediaKind: MediaKind,
 ) {
   return entries.flatMap((entry) => {
     if (!entry.isDirectory) {
@@ -26,6 +27,7 @@ export function listUnmappedFolderEntries(
     return [
       {
         match_status: "pending" as const,
+        media_kind: mediaKind,
         name: entry.name,
         path: fullPath,
         search_queries: buildUnmappedFolderSearchQueries(entry.name),
@@ -50,6 +52,7 @@ export function ensureFolderMatchStatus(
     last_match_error: cached.last_match_error,
     last_matched_at: cached.last_matched_at,
     match_status: cached.match_status,
+    media_kind: folder.media_kind,
     search_queries: folder.search_queries,
     size: cached.size,
     suggested_matches: cached.suggested_matches,

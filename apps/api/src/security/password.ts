@@ -60,7 +60,6 @@ export class PasswordCrypto extends Effect.Service<PasswordCrypto>()(
   { succeed: WebPasswordCrypto },
 ) {}
 
-
 function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   const buffer = new ArrayBuffer(bytes.length);
   new Uint8Array(buffer).set(bytes);

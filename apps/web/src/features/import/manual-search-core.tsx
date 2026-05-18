@@ -34,13 +34,14 @@ interface ManualSearchCoreProps {
   disableSelectionForAdded: boolean;
   emptyPrompt: string;
   existingIds?: ReadonlySet<number>;
+  initialMediaKind?: MediaKind | undefined;
   onSelect: (anime: MediaSearchResult) => void;
 }
 
 export function ManualSearchCore(props: ManualSearchCoreProps) {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
-  const [mediaKind, setMediaKind] = useState<MediaKind>("anime");
+  const [mediaKind, setMediaKind] = useState<MediaKind>(props.initialMediaKind ?? "anime");
   const [debouncedQuery] = useDebouncedValue(query, { wait: SEARCH_DEBOUNCE_MS });
 
   const search = useMediaSearchQuery(debouncedQuery, mediaKind);

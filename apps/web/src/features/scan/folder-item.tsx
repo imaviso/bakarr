@@ -30,6 +30,7 @@ import {
 } from "~/components/ui/select";
 import type { MediaSearchResult, UnmappedFolder } from "~/api/contracts";
 import { animeDisplayTitle, animeSearchSubtitle } from "~/domain/media/metadata";
+import { mediaKindLabel, mediaUnitShortLabel } from "~/domain/media-unit";
 import { formatFileSize } from "~/domain/scanned-file";
 import { cn } from "~/infra/utils";
 import { useFolderItemController } from "~/features/scan/folder-item-controller";
@@ -61,6 +62,9 @@ export function FolderItem(props: {
               <p className="truncate text-sm font-medium text-foreground" title={props.folder.name}>
                 {props.folder.name}
               </p>
+              {props.folder.media_kind && (
+                <Badge variant="secondary">{mediaKindLabel(props.folder.media_kind)}</Badge>
+              )}
               <Badge variant="outline">{folderStatusLabel(props.folder)}</Badge>
             </div>
             <p className="truncate text-xs text-muted-foreground" title={props.folder.path}>
@@ -120,7 +124,12 @@ export function FolderItem(props: {
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                 {state.selectedAnime.format && <span>{state.selectedAnime.format}</span>}
                 {state.selectedAnime.unit_count && (
-                  <span>{state.selectedAnime.unit_count} episodes</span>
+                  <span>
+                    {mediaUnitShortLabel(
+                      state.selectedAnime.media_kind === "anime" ? "episode" : "volume",
+                      state.selectedAnime.unit_count,
+                    )}
+                  </span>
                 )}
                 {animeSearchSubtitle(state.selectedAnime) && (
                   <span>{animeSearchSubtitle(state.selectedAnime)}</span>
@@ -171,14 +180,14 @@ export function FolderItem(props: {
               {!state.selectedAnime.already_in_library && (
                 <div className="space-y-2 pt-1">
                   <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                    Quality profile for the new anime
+                    Quality profile for the new media
                   </span>
                   <Select
                     value={state.selectedProfile?.name ?? undefined}
                     onValueChange={(value) => state.setSelectedProfileName(value ?? "")}
                   >
                     <SelectTrigger
-                      aria-label="Quality profile for the new anime"
+                      aria-label="Quality profile for the new media"
                       className="h-9 bg-background"
                     >
                       <SelectValue placeholder="Select profile..." />
