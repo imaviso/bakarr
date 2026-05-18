@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from "effect";
+import { Context, Effect, Layer, Redacted } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 import {
@@ -83,7 +83,7 @@ const maybeQBitConfig = (config: Config) => {
     config: new QBitConfigModel({
       baseUrl: config.qbittorrent.url,
       category: config.qbittorrent.default_category,
-      password: config.qbittorrent.password ?? "",
+      password: Redacted.make(config.qbittorrent.password ?? ""),
       ratioLimit: config.qbittorrent.ratio_limit ?? undefined,
       savePath: config.qbittorrent.save_path || undefined,
       username: config.qbittorrent.username,

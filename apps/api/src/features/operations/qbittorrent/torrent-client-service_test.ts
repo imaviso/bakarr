@@ -1,5 +1,5 @@
 import { assert, it } from "@effect/vitest";
-import { Effect, Layer } from "effect";
+import { Effect, Layer, Redacted } from "effect";
 
 import { QBitTorrentClient } from "@/features/operations/qbittorrent/qbittorrent.ts";
 import {
@@ -32,7 +32,7 @@ it.effect("TorrentClientService allows trusted-local qBittorrent without passwor
             deleteTorrent: () => Effect.void,
             listTorrentContents: () => Effect.succeed([]),
             listTorrents: (qbitConfig) => {
-              capturedPassword = qbitConfig.password;
+              capturedPassword = Redacted.value(qbitConfig.password);
               return Effect.succeed([]);
             },
             pauseTorrent: () => Effect.void,

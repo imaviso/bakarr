@@ -270,7 +270,7 @@ const failRuntimeConfigLoad = (error: DatabaseError | StoredConfigCorruptError, 
     Effect.zipRight(
       AniDbRuntimeConfigError.make({
         cause: error.cause ?? error,
-        message: "AniDB lookup failed while loading runtime config",
+        message: `AniDB lookup failed while loading runtime config: ${error.message}`,
       }),
     ),
   );

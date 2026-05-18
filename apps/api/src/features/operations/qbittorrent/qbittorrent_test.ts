@@ -1,6 +1,6 @@
 import { assert, it } from "@effect/vitest";
 import { HttpClient, HttpClientError, HttpClientResponse } from "@effect/platform";
-import { Cause, Deferred, Effect, Exit, Fiber, Layer, TestClock } from "effect";
+import { Cause, Deferred, Effect, Exit, Fiber, Layer, Redacted, TestClock } from "effect";
 
 import { ClockService, ClockServiceLive } from "@/infra/clock.ts";
 import { ExternalCallLive } from "@/infra/effect/retry.ts";
@@ -18,7 +18,7 @@ it.scoped("QBitTorrentClient uses provided HttpClient", () =>
     const torrents = yield* Effect.flatMap(QBitTorrentClient, (client) =>
       client.listTorrents({
         baseUrl: "https://qbit.example",
-        password: "secret",
+        password: Redacted.make("secret"),
         username: "demo",
       }),
     ).pipe(
@@ -67,7 +67,7 @@ it.effect("QBitTorrentClient can load torrent contents", () =>
       client.listTorrentContents(
         {
           baseUrl: "https://qbit.example",
-          password: "secret",
+          password: Redacted.make("secret"),
           username: "demo",
         },
         "abc123",
@@ -108,7 +108,7 @@ it.effect("QBitTorrentClient falls back to no-auth request when login fails", ()
     const torrents = yield* Effect.flatMap(QBitTorrentClient, (client) =>
       client.listTorrents({
         baseUrl: "http://localhost:8080",
-        password: "secret",
+        password: Redacted.make("secret"),
         username: "admin",
       }),
     ).pipe(
@@ -166,7 +166,7 @@ it.effect("QBitTorrentClient sends qBittorrent add options", () =>
         {
           baseUrl: "https://qbit.example",
           category: "media",
-          password: "secret",
+          password: Redacted.make("secret"),
           ratioLimit: 1.5,
           savePath: "/downloads/media",
           username: "demo",
@@ -306,7 +306,7 @@ it.effect(
 
       const config = {
         baseUrl: "https://qbit.example",
-        password: "secret",
+        password: Redacted.make("secret"),
         username: "demo",
       };
 
@@ -385,7 +385,7 @@ it.effect("QBitTorrentClient shares in-flight login across concurrent requests",
 
     const config = {
       baseUrl: "https://qbit.example",
-      password: "secret",
+      password: Redacted.make("secret"),
       username: "demo",
     };
 

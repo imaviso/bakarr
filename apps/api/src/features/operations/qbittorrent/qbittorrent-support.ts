@@ -5,6 +5,7 @@ import type { ClockService } from "@/infra/clock.ts";
 import { ExternalCallError, type ExternalCallShape } from "@/infra/effect/retry.ts";
 import {
   QBitTorrentClientError,
+  qbitPasswordValue,
   type QBitConfig,
 } from "@/features/operations/qbittorrent/qbittorrent-models.ts";
 
@@ -191,7 +192,7 @@ export const makeLogin = (execute: ExecuteQBitRequest) =>
       HttpClientRequest.post(resolveUrl(config.baseUrl, "/api/v2/auth/login")).pipe(
         HttpClientRequest.setHeader("Referer", config.baseUrl),
         HttpClientRequest.bodyUrlParams({
-          password: config.password,
+          password: qbitPasswordValue(config),
           username: config.username,
         }),
       ),

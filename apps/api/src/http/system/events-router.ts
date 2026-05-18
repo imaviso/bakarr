@@ -14,9 +14,12 @@ export const buildSystemEventsResponse = Effect.fn("Http.buildSystemEventsRespon
   const request = yield* HttpServerRequest.HttpServerRequest;
 
   if (!isWebSocketUpgradeRequest(request)) {
-    return HttpServerResponse.stream(encodeNotificationEventStream(events), {
-      contentType: "application/x-ndjson",
-    });
+    return HttpServerResponse.stream(
+      encodeNotificationEventStream(events).pipe(Stream.timeout(EVENT_SOCKET_IDLE_TIMEOUT)),
+      {
+        contentType: "application/x-ndjson",
+      },
+    );
   }
 
   return yield* encodeNotificationEventStream(events).pipe(

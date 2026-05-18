@@ -159,8 +159,50 @@
     {
       "idx": 22,
       "version": "7",
+      "when": 1774000000000,
+      "tag": "0022_library_roots",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1774100000000,
+      "tag": "0023_anidb_episode_cache",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1774200000000,
+      "tag": "0024_anime_rich_metadata",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
       "when": 1774300000000,
       "tag": "0025_seasonal_anime_cache",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1774400000000,
+      "tag": "0026_operations_tasks",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1774500000000,
+      "tag": "0027_media_kind",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1774600000000,
+      "tag": "0028_media_physical_rename",
       "breakpoints": true
     }
   ]

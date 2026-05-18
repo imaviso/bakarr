@@ -1,6 +1,8 @@
 import { assert, it } from "@effect/vitest";
+import { Redacted } from "effect";
 
 import {
+  qbitPasswordValue,
   QBitTorrentClientError,
   QBitConfigModel,
 } from "@/features/operations/qbittorrent/qbittorrent-models.ts";
@@ -20,11 +22,11 @@ it("QBitTorrentClientError constructs without cause", () => {
 it("QBitConfigModel constructs", () => {
   const config = new QBitConfigModel({
     baseUrl: "http://localhost:8080",
-    password: "",
+    password: Redacted.make("secret"),
     username: "admin",
   });
   assert.deepStrictEqual(config.baseUrl, "http://localhost:8080");
-  assert.deepStrictEqual(config.password, "");
+  assert.deepStrictEqual(qbitPasswordValue(config), "secret");
   assert.deepStrictEqual(config.username, "admin");
 });
 

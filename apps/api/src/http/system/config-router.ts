@@ -40,9 +40,11 @@ export const configRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const body = yield* decodeJsonBodyWithLabel(ConfigSchema, "update system config");
-        return yield* (yield* SystemConfigUpdateService).updateConfig(body);
+        return yield* (yield* SystemConfigUpdateService)
+          .updateConfig(body)
+          .pipe(Effect.map(redactConfigSecrets));
       }),
-      successResponse,
+      schemaJsonResponse(ConfigSchema),
     ),
   ),
   HttpRouter.get(
