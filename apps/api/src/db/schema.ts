@@ -1,44 +1,48 @@
 import { index, integer, sqliteTable, text, unique } from "drizzle-orm/sqlite-core";
 
-export const media = sqliteTable("media", {
-  id: integer("id").primaryKey(),
-  mediaKind: text("media_kind").notNull().default("anime"),
-  malId: integer("mal_id"),
-  titleRomaji: text("title_romaji").notNull(),
-  titleEnglish: text("title_english"),
-  titleNative: text("title_native"),
-  format: text("format").notNull(),
-  description: text("description"),
-  background: text("background"),
-  source: text("source"),
-  duration: text("duration"),
-  rating: text("rating"),
-  rank: integer("rank"),
-  popularity: integer("popularity"),
-  members: integer("members"),
-  favorites: integer("favorites"),
-  score: integer("score"),
-  genres: text("genres").notNull(),
-  studios: text("studios").notNull(),
-  coverImage: text("cover_image"),
-  bannerImage: text("banner_image"),
-  status: text("status").notNull(),
-  unitCount: integer("unit_count"),
-  startDate: text("start_date"),
-  endDate: text("end_date"),
-  startYear: integer("start_year"),
-  endYear: integer("end_year"),
-  nextAiringAt: text("next_airing_at"),
-  nextAiringUnit: integer("next_airing_unit"),
-  synonyms: text("synonyms"),
-  relatedMedia: text("related_media"),
-  recommendedMedia: text("recommended_media"),
-  profileName: text("profile_name").notNull(),
-  rootFolder: text("root_folder").notNull(),
-  addedAt: text("added_at").notNull(),
-  monitored: integer("monitored", { mode: "boolean" }).notNull().default(true),
-  releaseProfileIds: text("release_profile_ids").notNull(),
-});
+export const media = sqliteTable(
+  "media",
+  {
+    id: integer("id").primaryKey(),
+    mediaKind: text("media_kind").notNull().default("anime"),
+    malId: integer("mal_id"),
+    titleRomaji: text("title_romaji").notNull(),
+    titleEnglish: text("title_english"),
+    titleNative: text("title_native"),
+    format: text("format").notNull(),
+    description: text("description"),
+    background: text("background"),
+    source: text("source"),
+    duration: text("duration"),
+    rating: text("rating"),
+    rank: integer("rank"),
+    popularity: integer("popularity"),
+    members: integer("members"),
+    favorites: integer("favorites"),
+    score: integer("score"),
+    genres: text("genres").notNull(),
+    studios: text("studios").notNull(),
+    coverImage: text("cover_image"),
+    bannerImage: text("banner_image"),
+    status: text("status").notNull(),
+    unitCount: integer("unit_count"),
+    startDate: text("start_date"),
+    endDate: text("end_date"),
+    startYear: integer("start_year"),
+    endYear: integer("end_year"),
+    nextAiringAt: text("next_airing_at"),
+    nextAiringUnit: integer("next_airing_unit"),
+    synonyms: text("synonyms"),
+    relatedMedia: text("related_media"),
+    recommendedMedia: text("recommended_media"),
+    profileName: text("profile_name").notNull(),
+    rootFolder: text("root_folder").notNull(),
+    addedAt: text("added_at").notNull(),
+    monitored: integer("monitored", { mode: "boolean" }).notNull().default(true),
+    releaseProfileIds: text("release_profile_ids").notNull(),
+  },
+  (table) => [index("media_monitored_unit_count_idx").on(table.monitored, table.unitCount)],
+);
 
 export const mediaUnits = sqliteTable(
   "media_units",
@@ -64,6 +68,13 @@ export const mediaUnits = sqliteTable(
   (table) => [
     unique("media_unit_unique").on(table.mediaId, table.number),
     index("media_units_media_aired_idx").on(table.mediaId, table.aired),
+    index("media_units_downloaded_idx").on(table.downloaded),
+    index("media_units_media_downloaded_number_idx").on(
+      table.mediaId,
+      table.downloaded,
+      table.number,
+    ),
+    index("media_units_media_file_path_idx").on(table.mediaId, table.filePath),
   ],
 );
 
@@ -103,14 +114,22 @@ export const sessions = sqliteTable("sessions", {
   lastSeenAt: text("last_seen_at").notNull(),
 });
 
-export const systemLogs = sqliteTable("system_logs", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  eventType: text("event_type").notNull(),
-  level: text("level").notNull(),
-  message: text("message").notNull(),
-  details: text("details"),
-  createdAt: text("created_at").notNull(),
-});
+export const systemLogs = sqliteTable(
+  "system_logs",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    eventType: text("event_type").notNull(),
+    level: text("level").notNull(),
+    message: text("message").notNull(),
+    details: text("details"),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    index("system_logs_event_type_id_idx").on(table.eventType, table.id),
+    index("system_logs_level_id_idx").on(table.level, table.id),
+    index("system_logs_created_at_id_idx").on(table.createdAt, table.id),
+  ],
+);
 
 export const appConfig = sqliteTable("app_config", {
   id: integer("id").primaryKey(),
@@ -149,37 +168,41 @@ export const rssFeeds = sqliteTable("rss_feeds", {
   createdAt: text("created_at").notNull(),
 });
 
-export const downloads = sqliteTable("downloads", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  mediaId: integer("media_id")
-    .notNull()
-    .references(() => media.id, { onDelete: "cascade" }),
-  mediaTitle: text("media_title").notNull(),
-  unitNumber: integer("unit_number").notNull(),
-  isBatch: integer("is_batch", { mode: "boolean" }).notNull().default(false),
-  coveredUnits: text("covered_units"),
-  torrentName: text("torrent_name").notNull(),
-  status: text("status").notNull(),
-  progress: integer("progress"),
-  addedAt: text("added_at").notNull(),
-  downloadDate: text("download_date"),
-  groupName: text("group_name"),
-  magnet: text("magnet"),
-  infoHash: text("info_hash").unique(),
-  externalState: text("external_state"),
-  errorMessage: text("error_message"),
-  savePath: text("save_path"),
-  contentPath: text("content_path"),
-  totalBytes: integer("total_bytes"),
-  downloadedBytes: integer("downloaded_bytes"),
-  speedBytes: integer("speed_bytes"),
-  etaSeconds: integer("eta_seconds"),
-  sourceMetadata: text("source_metadata"),
-  lastSyncedAt: text("last_synced_at"),
-  retryCount: integer("retry_count").notNull().default(0),
-  lastErrorAt: text("last_error_at"),
-  reconciledAt: text("reconciled_at"),
-});
+export const downloads = sqliteTable(
+  "downloads",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    mediaId: integer("media_id")
+      .notNull()
+      .references(() => media.id, { onDelete: "cascade" }),
+    mediaTitle: text("media_title").notNull(),
+    unitNumber: integer("unit_number").notNull(),
+    isBatch: integer("is_batch", { mode: "boolean" }).notNull().default(false),
+    coveredUnits: text("covered_units"),
+    torrentName: text("torrent_name").notNull(),
+    status: text("status").notNull(),
+    progress: integer("progress"),
+    addedAt: text("added_at").notNull(),
+    downloadDate: text("download_date"),
+    groupName: text("group_name"),
+    magnet: text("magnet"),
+    infoHash: text("info_hash").unique(),
+    externalState: text("external_state"),
+    errorMessage: text("error_message"),
+    savePath: text("save_path"),
+    contentPath: text("content_path"),
+    totalBytes: integer("total_bytes"),
+    downloadedBytes: integer("downloaded_bytes"),
+    speedBytes: integer("speed_bytes"),
+    etaSeconds: integer("eta_seconds"),
+    sourceMetadata: text("source_metadata"),
+    lastSyncedAt: text("last_synced_at"),
+    retryCount: integer("retry_count").notNull().default(0),
+    lastErrorAt: text("last_error_at"),
+    reconciledAt: text("reconciled_at"),
+  },
+  (table) => [index("downloads_status_id_idx").on(table.status, table.id)],
+);
 
 export const backgroundJobs = sqliteTable("background_jobs", {
   name: text("name").primaryKey(),
@@ -227,17 +250,28 @@ export const unmappedFolderMatches = sqliteTable("unmapped_folder_matches", {
   updatedAt: text("updated_at").notNull(),
 });
 
-export const downloadEvents = sqliteTable("download_events", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  downloadId: integer("download_id"),
-  mediaId: integer("media_id"),
-  eventType: text("event_type").notNull(),
-  fromStatus: text("from_status"),
-  toStatus: text("to_status"),
-  message: text("message").notNull(),
-  metadata: text("metadata"),
-  createdAt: text("created_at").notNull(),
-});
+export const downloadEvents = sqliteTable(
+  "download_events",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    downloadId: integer("download_id"),
+    mediaId: integer("media_id"),
+    eventType: text("event_type").notNull(),
+    fromStatus: text("from_status"),
+    toStatus: text("to_status"),
+    message: text("message").notNull(),
+    metadata: text("metadata"),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    index("download_events_media_id_id_idx").on(table.mediaId, table.id),
+    index("download_events_download_id_id_idx").on(table.downloadId, table.id),
+    index("download_events_event_type_id_idx").on(table.eventType, table.id),
+    index("download_events_created_at_id_idx").on(table.createdAt, table.id),
+    index("download_events_from_status_id_idx").on(table.fromStatus, table.id),
+    index("download_events_to_status_id_idx").on(table.toStatus, table.id),
+  ],
+);
 
 export const libraryRoots = sqliteTable("library_roots", {
   id: integer("id").primaryKey({ autoIncrement: true }),

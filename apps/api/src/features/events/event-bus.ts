@@ -2,7 +2,7 @@ import { Cause, Effect, Exit, Layer, Option, PubSub, Queue, Ref, Scope, Stream }
 
 import type { NotificationEvent } from "@packages/shared/index.ts";
 
-export const DEFAULT_EVENT_BUS_CAPACITY = 256;
+export const DEFAULT_EVENT_BUS_CAPACITY = 1024;
 
 export interface EventSubscription {
   readonly takeBufferedOnce: Effect.Effect<readonly NotificationEvent[]>;

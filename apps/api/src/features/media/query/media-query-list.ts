@@ -25,6 +25,8 @@ interface EpisodeStats {
   readonly latestDownloadedUnit?: number;
 }
 
+const DTO_PROGRESS_YIELD_INTERVAL = 50;
+
 export const listAnimeEffect = Effect.fn("AnimeQueryList.listAnimeEffect")(function* (
   db: AppDatabase,
   params: MediaListQueryParams = {},
@@ -99,9 +101,25 @@ export const listAnimeEffect = Effect.fn("AnimeQueryList.listAnimeEffect")(funct
     }
   }
 
-  const animeProgressRows = yield* Effect.forEach(animeRows, (row) =>
-    toAnimeDtoProgress(row, episodeStatsByAnimeId.get(row.id), missingNumbersByAnimeId.get(row.id)),
-  );
+  const animeProgressRows: Media[] = [];
+  for (let index = 0; index < animeRows.length; index++) {
+    if (index > 0 && index % DTO_PROGRESS_YIELD_INTERVAL === 0) {
+      yield* Effect.yieldNow();
+    }
+
+    const row = animeRows[index];
+    if (!row) {
+      continue;
+    }
+
+    animeProgressRows.push(
+      yield* toAnimeDtoProgress(
+        row,
+        episodeStatsByAnimeId.get(row.id),
+        missingNumbersByAnimeId.get(row.id),
+      ),
+    );
+  }
 
   const total = totalCountResult[0]?.count;
 

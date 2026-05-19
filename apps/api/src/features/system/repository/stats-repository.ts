@@ -139,59 +139,81 @@ export const countRssFeedRows = Effect.fn("SystemStatsRepository.countRssFeedRow
   return countRow.value;
 });
 
+interface SystemLibraryStatsAggregateRow {
+  readonly completedDownloads: number;
+  readonly downloadedUnits: number;
+  readonly monitoredAnime: number;
+  readonly totalAnime: number;
+  readonly totalRssFeeds: number;
+  readonly totalUnits: number;
+  readonly upToDateAnime: number;
+}
+
+interface SystemDownloadStatsAggregateRow {
+  readonly activeDownloads: number;
+  readonly failedDownloads: number;
+  readonly importedDownloads: number;
+  readonly queuedDownloads: number;
+}
+
 export const loadSystemLibraryStatsAggregate = Effect.fn(
   "SystemStatsRepository.loadSystemLibraryStatsAggregate",
 )(function* (db: AppDatabase) {
-  const [
-    totalAnime,
-    monitoredAnime,
-    totalUnits,
-    downloadedUnits,
-    totalRssFeeds,
-    completedDownloads,
-    upToDateAnime,
-  ] = yield* Effect.all(
-    [
-      countAnimeRows(db),
-      countMonitoredAnimeRows(db),
-      countEpisodeRows(db),
-      countDownloadedEpisodeRows(db),
-      countRssFeedRows(db),
-      countCompletedDownloads(db),
-      countUpToDateAnimeRows(db),
-    ],
-    { concurrency: "unbounded" },
+  const row = yield* tryDatabasePromise("Failed to load system library stats", () =>
+    db.get<SystemLibraryStatsAggregateRow>(sql`
+      select
+        (select count(*) from ${media}) as totalAnime,
+        (select count(*) from ${media} where ${media.monitored} = 1) as monitoredAnime,
+        (select count(*) from ${mediaUnits}) as totalUnits,
+        (select count(*) from ${mediaUnits} where ${mediaUnits.downloaded} = 1) as downloadedUnits,
+        (select count(*) from ${rssFeeds}) as totalRssFeeds,
+        (select count(*) from ${downloads} where ${downloads.status} = 'completed') as completedDownloads,
+        (
+          select count(*)
+          from (
+            select ${media.id}
+            from ${media}
+            left join ${mediaUnits} on ${mediaUnits.mediaId} = ${media.id}
+            where ${media.monitored} = 1
+              and ${media.unitCount} is not null
+              and ${media.unitCount} > 0
+            group by ${media.id}, ${media.unitCount}
+            having coalesce(sum(case when ${mediaUnits.downloaded} = 1 and ${mediaUnits.number} <= ${media.unitCount} then 1 else 0 end), 0) = ${media.unitCount}
+          )
+        ) as upToDateAnime
+    `),
   );
 
   return {
-    completedDownloads,
-    downloadedUnits,
-    monitoredAnime,
-    totalAnime,
-    totalUnits,
-    totalRssFeeds,
-    upToDateAnime,
+    completedDownloads: row?.completedDownloads ?? 0,
+    downloadedUnits: row?.downloadedUnits ?? 0,
+    monitoredAnime: row?.monitoredAnime ?? 0,
+    totalAnime: row?.totalAnime ?? 0,
+    totalRssFeeds: row?.totalRssFeeds ?? 0,
+    totalUnits: row?.totalUnits ?? 0,
+    upToDateAnime: row?.upToDateAnime ?? 0,
   } as const;
 });
 
 export const loadSystemDownloadStatsAggregate = Effect.fn(
   "SystemStatsRepository.loadSystemDownloadStatsAggregate",
 )(function* (db: AppDatabase) {
-  const [queuedDownloads, activeDownloads, failedDownloads, importedDownloads] = yield* Effect.all(
-    [
-      countQueuedDownloads(db),
-      countActiveDownloads(db),
-      countFailedDownloads(db),
-      countImportedDownloads(db),
-    ],
-    { concurrency: "unbounded" },
+  const row = yield* tryDatabasePromise("Failed to load system download stats", () =>
+    db.get<SystemDownloadStatsAggregateRow>(sql`
+      select
+        coalesce(sum(case when ${downloads.status} = 'queued' then 1 else 0 end), 0) as queuedDownloads,
+        coalesce(sum(case when ${downloads.status} in ('downloading', 'paused') then 1 else 0 end), 0) as activeDownloads,
+        coalesce(sum(case when ${downloads.status} = 'error' then 1 else 0 end), 0) as failedDownloads,
+        coalesce(sum(case when ${downloads.status} = 'imported' then 1 else 0 end), 0) as importedDownloads
+      from ${downloads}
+    `),
   );
 
   return {
-    activeDownloads,
-    failedDownloads,
-    importedDownloads,
-    queuedDownloads,
+    activeDownloads: row?.activeDownloads ?? 0,
+    failedDownloads: row?.failedDownloads ?? 0,
+    importedDownloads: row?.importedDownloads ?? 0,
+    queuedDownloads: row?.queuedDownloads ?? 0,
   } as const;
 });
 

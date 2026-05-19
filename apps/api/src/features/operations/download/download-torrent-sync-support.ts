@@ -1,4 +1,4 @@
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, sql, type SQL } from "drizzle-orm";
 import { Context, Effect, Layer } from "effect";
 
 import type { Config, DownloadSourceMetadata } from "@packages/shared/index.ts";
@@ -26,6 +26,40 @@ import { DownloadReconciliationService } from "@/features/operations/download/do
 
 function shouldReconcileCompletedDownloads(config: Config | null) {
   return config?.downloads.reconcile_completed_downloads ?? true;
+}
+
+const TORRENT_SYNC_UPDATE_CHUNK_SIZE = 50;
+
+type TorrentSyncSqlValue = number | string | null;
+
+interface TorrentSyncUpdate {
+  readonly contentPath: string | null;
+  readonly downloadedBytes: number;
+  readonly downloadDate: string | null;
+  readonly errorMessage: string | null;
+  readonly etaSeconds: number;
+  readonly externalState: string;
+  readonly hash: string;
+  readonly lastErrorAt: string | null;
+  readonly lastSyncedAt: string;
+  readonly nextStatus: string;
+  readonly progress: number;
+  readonly savePath: string | null;
+  readonly speedBytes: number;
+  readonly status: string;
+  readonly torrentName: string;
+  readonly totalBytes: number;
+}
+
+function buildTorrentSyncCase(
+  rows: readonly TorrentSyncUpdate[],
+  selectValue: (row: TorrentSyncUpdate) => TorrentSyncSqlValue,
+  fallback: SQL,
+): SQL {
+  return sql`case ${downloads.infoHash} ${sql.join(
+    rows.map((row) => sql`when ${row.hash} then ${selectValue(row)}`),
+    sql` `,
+  )} else ${fallback} end`;
 }
 
 export interface DownloadTorrentSyncSupportInput extends DownloadTorrentActionSupportInput {
@@ -160,6 +194,92 @@ export function makeDownloadTorrentSyncSupport(input: DownloadTorrentSyncSupport
     );
   });
 
+  const updateDownloadsFromTorrentRows = Effect.fn(
+    "OperationsService.updateDownloadsFromTorrentRows",
+  )(function* (rows: readonly TorrentSyncUpdate[]) {
+    if (rows.length === 0) {
+      return;
+    }
+
+    for (let index = 0; index < rows.length; index += TORRENT_SYNC_UPDATE_CHUNK_SIZE) {
+      const chunk = rows.slice(index, index + TORRENT_SYNC_UPDATE_CHUNK_SIZE);
+
+      yield* tryDatabasePromise("Failed to sync downloads with qBittorrent", () =>
+        db
+          .update(downloads)
+          .set({
+            contentPath: buildTorrentSyncCase(
+              chunk,
+              (row) => row.contentPath,
+              sql`${downloads.contentPath}`,
+            ),
+            downloadDate: buildTorrentSyncCase(
+              chunk,
+              (row) => row.downloadDate,
+              sql`${downloads.downloadDate}`,
+            ),
+            downloadedBytes: buildTorrentSyncCase(
+              chunk,
+              (row) => row.downloadedBytes,
+              sql`${downloads.downloadedBytes}`,
+            ),
+            errorMessage: buildTorrentSyncCase(
+              chunk,
+              (row) => row.errorMessage,
+              sql`${downloads.errorMessage}`,
+            ),
+            etaSeconds: buildTorrentSyncCase(
+              chunk,
+              (row) => row.etaSeconds,
+              sql`${downloads.etaSeconds}`,
+            ),
+            externalState: buildTorrentSyncCase(
+              chunk,
+              (row) => row.externalState,
+              sql`${downloads.externalState}`,
+            ),
+            lastErrorAt: buildTorrentSyncCase(
+              chunk,
+              (row) => row.lastErrorAt,
+              sql`${downloads.lastErrorAt}`,
+            ),
+            lastSyncedAt: buildTorrentSyncCase(
+              chunk,
+              (row) => row.lastSyncedAt,
+              sql`${downloads.lastSyncedAt}`,
+            ),
+            progress: buildTorrentSyncCase(
+              chunk,
+              (row) => row.progress,
+              sql`${downloads.progress}`,
+            ),
+            savePath: buildTorrentSyncCase(
+              chunk,
+              (row) => row.savePath,
+              sql`${downloads.savePath}`,
+            ),
+            speedBytes: buildTorrentSyncCase(
+              chunk,
+              (row) => row.speedBytes,
+              sql`${downloads.speedBytes}`,
+            ),
+            status: buildTorrentSyncCase(chunk, (row) => row.nextStatus, sql`${downloads.status}`),
+            totalBytes: buildTorrentSyncCase(
+              chunk,
+              (row) => row.totalBytes,
+              sql`${downloads.totalBytes}`,
+            ),
+          })
+          .where(
+            inArray(
+              downloads.infoHash,
+              chunk.map((row) => row.hash),
+            ),
+          ),
+      );
+    }
+  });
+
   const syncDownloadsWithQBitEffect = Effect.fn("OperationsService.syncDownloadsWithQBit")(
     function* () {
       const runtimeConfig = yield* input.getRuntimeConfig();
@@ -194,8 +314,8 @@ export function makeDownloadTorrentSyncSupport(input: DownloadTorrentSyncSupport
         allExistingDownloads.map((d) => [d.infoHash?.toLowerCase(), d]),
       );
 
-      for (const torrent of torrents) {
-        const syncNow = yield* nowIso();
+      const syncNow = yield* nowIso();
+      const updateRows = torrents.map((torrent): TorrentSyncUpdate => {
         const status = mapQBitState(torrent.state);
         const hash = torrent.hash.toLowerCase();
         const existing = existingDownloadsMap.get(hash);
@@ -204,38 +324,38 @@ export function makeDownloadTorrentSyncSupport(input: DownloadTorrentSyncSupport
         const nextExternalState = preservedImported
           ? (existing?.externalState ?? "imported")
           : torrent.state;
-        let nextDownloadDate: string | null;
-        if (preservedImported) {
-          nextDownloadDate = existing?.downloadDate ?? syncNow;
-        } else {
-          nextDownloadDate = status === "completed" ? syncNow : null;
-        }
+        const nextDownloadDate = preservedImported
+          ? (existing?.downloadDate ?? syncNow)
+          : status === "completed"
+            ? syncNow
+            : null;
 
-        let errorMessage: string | null = null;
-        if (!preservedImported && status === "error") {
-          errorMessage = `qBittorrent state: ${torrent.state}`;
-        }
+        return {
+          contentPath: torrent.content_path ?? null,
+          downloadedBytes: torrent.downloaded,
+          downloadDate: nextDownloadDate,
+          errorMessage:
+            !preservedImported && status === "error" ? `qBittorrent state: ${torrent.state}` : null,
+          etaSeconds: torrent.eta,
+          externalState: nextExternalState,
+          hash,
+          lastErrorAt: preservedImported || status !== "error" ? null : syncNow,
+          lastSyncedAt: syncNow,
+          nextStatus,
+          progress: Math.round(torrent.progress * 100),
+          savePath: torrent.save_path ?? null,
+          status,
+          torrentName: torrent.name,
+          totalBytes: torrent.size,
+          speedBytes: torrent.dlspeed,
+        };
+      });
 
-        yield* tryDatabasePromise("Failed to sync downloads with qBittorrent", () =>
-          db
-            .update(downloads)
-            .set({
-              contentPath: torrent.content_path ?? null,
-              downloadDate: nextDownloadDate,
-              downloadedBytes: torrent.downloaded,
-              errorMessage,
-              etaSeconds: torrent.eta,
-              externalState: nextExternalState,
-              lastErrorAt: preservedImported || status !== "error" ? null : syncNow,
-              lastSyncedAt: syncNow,
-              progress: Math.round(torrent.progress * 100),
-              savePath: torrent.save_path ?? null,
-              speedBytes: torrent.dlspeed,
-              status: nextStatus,
-              totalBytes: torrent.size,
-            })
-            .where(eq(downloads.infoHash, torrent.hash.toLowerCase())),
-        );
+      yield* updateDownloadsFromTorrentRows(updateRows);
+
+      for (const updateRow of updateRows) {
+        const existing = existingDownloadsMap.get(updateRow.hash);
+        const preservedImported = Boolean(existing?.reconciledAt);
 
         if (existing && existing.isBatch && !preservedImported) {
           const sourceMetadata = yield* decodeDownloadSourceMetadata(existing.sourceMetadata);
@@ -243,13 +363,13 @@ export function makeDownloadTorrentSyncSupport(input: DownloadTorrentSyncSupport
             mediaId: existing.mediaId,
             downloadId: existing.id,
             existingCoveredEpisodes: existing.coveredUnits,
-            infoHash: torrent.hash.toLowerCase(),
-            torrentName: torrent.name,
+            infoHash: updateRow.hash,
+            torrentName: updateRow.torrentName,
             ...(sourceMetadata ? { sourceMetadata } : {}),
           });
         }
 
-        if (existing && existing.status !== nextStatus) {
+        if (existing && existing.status !== updateRow.nextStatus) {
           const coveredUnits = yield* parseCoveredEpisodesEffect(existing.coveredUnits);
           const statusSourceMetadata = yield* decodeDownloadSourceMetadata(existing.sourceMetadata);
           yield* recordDownloadEvent(
@@ -263,17 +383,17 @@ export function makeDownloadTorrentSyncSupport(input: DownloadTorrentSyncSupport
                 covered_units: coveredUnits,
                 ...(statusSourceMetadata ? { source_metadata: statusSourceMetadata } : {}),
               },
-              message: `${existing.torrentName} moved to ${nextStatus}`,
-              toStatus: nextStatus,
+              message: `${existing.torrentName} moved to ${updateRow.nextStatus}`,
+              toStatus: updateRow.nextStatus,
             },
             nowIso,
           );
         }
 
-        if (status === "completed" && shouldReconcileCompletedDownloads(runtimeConfig)) {
+        if (updateRow.status === "completed" && shouldReconcileCompletedDownloads(runtimeConfig)) {
           yield* reconcileCompletedTorrentEffect(
-            torrent.hash.toLowerCase(),
-            torrent.content_path ?? torrent.save_path,
+            updateRow.hash,
+            updateRow.contentPath ?? updateRow.savePath ?? undefined,
           );
         }
       }
