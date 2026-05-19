@@ -1,8 +1,29 @@
 import { assert, it } from "@effect/vitest";
 import { Effect } from "effect";
 
-import { collectVideoFiles } from "@/features/media/files/files.ts";
+import { collectVideoFiles, collectVolumeFiles } from "@/features/media/files/files.ts";
 import { withFileSystemSandboxEffect, writeTextFile } from "@/test/filesystem-test.ts";
+
+it.scoped("collectVolumeFiles discovers cbz/pdf/epub files recursively", () =>
+  withFileSystemSandboxEffect(({ fs, root }) =>
+    Effect.gen(function* () {
+      const mangaRoot = `${root}/manga`;
+      yield* fs.mkdir(mangaRoot, { recursive: true });
+      yield* fs.mkdir(`${mangaRoot}/Volumes`, { recursive: true });
+      yield* writeTextFile(fs, `${mangaRoot}/Yotsuba&! v01.cbz`, "cbz");
+      yield* writeTextFile(fs, `${mangaRoot}/Yotsuba&! v02.cbz`, "cbz");
+      yield* writeTextFile(fs, `${mangaRoot}/Volumes/Yotsuba&! v03.cbz`, "cbz");
+      yield* writeTextFile(fs, `${mangaRoot}/readme.txt`, "text");
+      yield* writeTextFile(fs, `${mangaRoot}/cover.jpg`, "image");
+      yield* writeTextFile(fs, `${mangaRoot}/Show - 01.mkv`, "video");
+
+      const files = yield* collectVolumeFiles(fs, mangaRoot);
+
+      assert.deepStrictEqual(files.length, 3);
+      assert.ok(files.every((f) => f.name.endsWith(".cbz")));
+    }),
+  ),
+);
 
 it.scoped("collectVideoFiles discovers video files recursively", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>

@@ -16,7 +16,7 @@ import {
   parseFileSourceIdentity,
   toSharedParsedEpisodeIdentity,
 } from "@/infra/media/identity/identity.ts";
-import { collectVideoFiles } from "@/features/media/files/files.ts";
+import { collectVideoFiles, collectVolumeFiles } from "@/features/media/files/files.ts";
 import { buildScannedFileMetadata } from "@/infra/scanned-file-metadata.ts";
 import { getAnimeRowEffect } from "@/features/media/shared/media-read-repository.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
@@ -113,7 +113,8 @@ export const listAnimeFilesEffect = Effect.fn("AnimeFileList.listAnimeFilesEffec
     mediaProbe: MediaProbeShape;
   }) {
     const animeRow = yield* getAnimeRowEffect(input.db, input.mediaId);
-    const files = yield* collectVideoFiles(input.fs, animeRow.rootFolder).pipe(
+    const collectFiles = animeRow.mediaKind === "anime" ? collectVideoFiles : collectVolumeFiles;
+    const files = yield* collectFiles(input.fs, animeRow.rootFolder).pipe(
       Effect.mapError(
         (cause) =>
           new MediaPathError({

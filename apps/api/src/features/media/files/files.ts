@@ -74,3 +74,60 @@ function isVideoFile(name: string) {
     name.toLowerCase().endsWith(extension),
   );
 }
+
+function isVolumeFile(name: string) {
+  return [".cbz", ".cbr", ".pdf", ".epub"].some((extension) =>
+    name.toLowerCase().endsWith(extension),
+  );
+}
+
+export const collectVolumeFiles = Effect.fn("AnimeService.collectVolumeFiles")(function* (
+  fs: FileSystemShape,
+  rootFolder: string,
+) {
+  const entries: VideoFile[] = [];
+  const stack = [rootFolder];
+  let isRoot = true;
+
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (!current) {
+      continue;
+    }
+
+    const isCurrentRoot = isRoot;
+    isRoot = false;
+
+    const dirEntries = yield* fs
+      .readDir(current)
+      .pipe(
+        Effect.catchTag("FileSystemError", (error) =>
+          !isCurrentRoot && isNotFoundError(error)
+            ? Effect.succeed<DirEntry[]>([])
+            : Effect.fail(error),
+        ),
+      );
+
+    for (const entry of dirEntries) {
+      const fullPath = `${current.replace(/\/$/, "")}/${entry.name}`;
+
+      if (entry.isDirectory) {
+        stack.push(fullPath);
+        continue;
+      }
+
+      if (!entry.isFile || !isVolumeFile(entry.name)) {
+        continue;
+      }
+
+      entries.push({
+        name: entry.name,
+        path: fullPath,
+        size: entry.size,
+        unit_number: parseEpisodeNumber(fullPath),
+      });
+    }
+  }
+
+  return entries.toSorted((left, right) => left.name.localeCompare(right.name));
+});
