@@ -76,35 +76,47 @@ export class AppConfig extends Context.Tag("@bakarr/api/AppConfig")<AppConfig, A
       AppConfig,
       Effect.gen(function* () {
         const defaults = makeDefaultAppConfig();
-        const appVersion = yield* readConfigValueWithDefault(
-          overrides.appVersion,
-          Schema.Config("BAKARR_APP_VERSION", Schema.String),
-          defaults.appVersion,
-        );
-        const databaseFile = yield* readConfigValueWithDefault(
-          overrides.databaseFile,
-          Schema.Config("DATABASE_FILE", Schema.String),
-          defaults.databaseFile,
-        );
-        const port = yield* readConfigValueWithDefault(
-          overrides.port,
-          Schema.Config("PORT", PortConfigSchema),
-          defaults.port,
-        );
-        const sessionCookieName = yield* readConfigValueWithDefault(
-          overrides.sessionCookieName,
-          Schema.Config("SESSION_COOKIE_NAME", Schema.String),
-          defaults.sessionCookieName,
-        );
-        const sessionCookieSecure = yield* readConfigValueWithDefault(
-          overrides.sessionCookieSecure,
-          Schema.Config("SESSION_COOKIE_SECURE", Schema.BooleanFromString),
-          defaults.sessionCookieSecure,
-        );
-        const sessionDurationDays = yield* readConfigValueWithDefault(
-          overrides.sessionDurationDays,
-          Schema.Config("SESSION_DURATION_DAYS", PositiveIntConfigSchema),
-          defaults.sessionDurationDays,
+        const {
+          appVersion,
+          databaseFile,
+          port,
+          sessionCookieName,
+          sessionCookieSecure,
+          sessionDurationDays,
+        } = yield* Effect.all(
+          {
+            appVersion: readConfigValueWithDefault(
+              overrides.appVersion,
+              Schema.Config("BAKARR_APP_VERSION", Schema.String),
+              defaults.appVersion,
+            ),
+            databaseFile: readConfigValueWithDefault(
+              overrides.databaseFile,
+              Schema.Config("DATABASE_FILE", Schema.String),
+              defaults.databaseFile,
+            ),
+            port: readConfigValueWithDefault(
+              overrides.port,
+              Schema.Config("PORT", PortConfigSchema),
+              defaults.port,
+            ),
+            sessionCookieName: readConfigValueWithDefault(
+              overrides.sessionCookieName,
+              Schema.Config("SESSION_COOKIE_NAME", Schema.String),
+              defaults.sessionCookieName,
+            ),
+            sessionCookieSecure: readConfigValueWithDefault(
+              overrides.sessionCookieSecure,
+              Schema.Config("SESSION_COOKIE_SECURE", Schema.BooleanFromString),
+              defaults.sessionCookieSecure,
+            ),
+            sessionDurationDays: readConfigValueWithDefault(
+              overrides.sessionDurationDays,
+              Schema.Config("SESSION_DURATION_DAYS", PositiveIntConfigSchema),
+              defaults.sessionDurationDays,
+            ),
+          },
+          { concurrency: "unbounded" },
         );
 
         return new AppConfigModel({

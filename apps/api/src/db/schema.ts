@@ -41,7 +41,11 @@ export const media = sqliteTable(
     monitored: integer("monitored", { mode: "boolean" }).notNull().default(true),
     releaseProfileIds: text("release_profile_ids").notNull(),
   },
-  (table) => [index("media_monitored_unit_count_idx").on(table.monitored, table.unitCount)],
+  (table) => [
+    index("media_monitored_unit_count_idx").on(table.monitored, table.unitCount),
+    index("media_kind_idx").on(table.mediaKind),
+    index("media_profile_name_idx").on(table.profileName),
+  ],
 );
 
 export const mediaUnits = sqliteTable(
@@ -125,8 +129,8 @@ export const systemLogs = sqliteTable(
     createdAt: text("created_at").notNull(),
   },
   (table) => [
-    index("system_logs_event_type_id_idx").on(table.eventType, table.id),
-    index("system_logs_level_id_idx").on(table.level, table.id),
+    index("system_logs_event_type_created_at_idx").on(table.eventType, table.createdAt),
+    index("system_logs_level_created_at_idx").on(table.level, table.createdAt),
     index("system_logs_created_at_id_idx").on(table.createdAt, table.id),
   ],
 );

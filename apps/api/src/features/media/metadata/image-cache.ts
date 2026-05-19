@@ -4,6 +4,7 @@ import { Effect, Option, Schema } from "effect";
 import { collectBoundedBytes } from "@/domain/bounded-stream.ts";
 
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
+import { isNotFoundError } from "@/infra/filesystem/fs-errors.ts";
 
 export interface CachedAnimeImages {
   readonly bannerImage?: string | undefined;
@@ -92,24 +93,30 @@ const cacheAnimeImage = Effect.fn("AnimeService.cacheAnimeImage")(function* (
   return `/api/images/media/${mediaId}/${filename}`;
 });
 
+const CACHED_IMAGE_EXTENSIONS = ["jpg", "png", "webp", "gif", "svg"] as const;
+
 const findCachedImagePath = Effect.fn("AnimeService.findCachedImagePath")(function* (
   fs: FileSystemShape,
   baseDir: string,
   mediaId: number,
   kind: "banner" | "cover",
 ) {
-  const entries = yield* fs.readDir(baseDir);
+  for (const extension of CACHED_IMAGE_EXTENSIONS) {
+    const fileName = `${kind}.${extension}`;
+    const statResult = yield* fs
+      .stat(`${baseDir}/${fileName}`)
+      .pipe(
+        Effect.catchTag("FileSystemError", (error) =>
+          isNotFoundError(error) ? Effect.succeed(undefined) : Effect.fail(error),
+        ),
+      );
 
-  const [existing] = entries
-    .filter((entry) => entry.isFile && entry.name.startsWith(`${kind}.`))
-    .map((entry) => entry.name)
-    .toSorted();
-
-  if (!existing) {
-    return undefined;
+    if (statResult?.isFile) {
+      return `/api/images/media/${mediaId}/${fileName}`;
+    }
   }
 
-  return `/api/images/media/${mediaId}/${existing}`;
+  return undefined;
 });
 
 const downloadImage = Effect.fn("AnimeService.downloadImage")(function* (

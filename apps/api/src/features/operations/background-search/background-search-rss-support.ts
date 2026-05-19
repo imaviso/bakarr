@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { Context, Effect, Layer } from "effect";
+import { Context, Effect, Layer, Ref } from "effect";
 
 import { DatabaseError } from "@/db/database.ts";
 import { Database } from "@/db/database.ts";
@@ -36,24 +36,23 @@ export const SearchBackgroundRssServiceLive = Layer.effect(
           db.select().from(rssFeeds).where(eq(rssFeeds.enabled, true)),
         );
         const runtimeConfig = yield* runtimeConfigSnapshot.getRuntimeConfig();
-        let newItems = 0;
+        const startedFeedsRef = yield* Ref.make(0);
 
         const processRssFeed = Effect.fn("operations.rss.feed")(function* (
           feed: (typeof feeds)[number],
-          _index: number,
         ) {
-          return yield* rssFeedService.processFeed(feed, runtimeConfig);
-        });
-
-        for (const [index, feed] of feeds.entries()) {
+          const current = yield* Ref.modify(startedFeedsRef, (value) => [value + 1, value + 1]);
           yield* progress.publishRssCheckProgress({
-            current: index + 1,
+            current,
             total: feeds.length,
             feed_name: feed.name ?? feed.url,
           });
 
-          newItems += yield* processRssFeed(feed, index);
-        }
+          return yield* rssFeedService.processFeed(feed, runtimeConfig);
+        });
+
+        const feedNewItemCounts = yield* Effect.forEach(feeds, processRssFeed, { concurrency: 4 });
+        const newItems = feedNewItemCounts.reduce((total, count) => total + count, 0);
 
         return { newItems, totalFeeds: feeds.length } as const;
       }).pipe(

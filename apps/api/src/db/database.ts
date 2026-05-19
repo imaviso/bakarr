@@ -53,12 +53,18 @@ const executeSql = Effect.fn("Database.executeSql")(function* (
   return yield* client.unsafe(statement).pipe(Effect.mapError(sqliteSetupError));
 });
 
+const SQLITE_BUSY_TIMEOUT_MS = 5_000;
+const SQLITE_CACHE_SIZE_KIB = 65_536;
+const SQLITE_MMAP_SIZE_BYTES = 268_435_456;
+
 export const setAndVerifyPragmas = Effect.fn("Database.setAndVerifyPragmas")(function* (
   client: SqlitePragmaClient,
 ) {
   yield* executeSql(client, "PRAGMA journal_mode = WAL");
   yield* executeSql(client, "PRAGMA foreign_keys = ON");
-  yield* executeSql(client, "PRAGMA busy_timeout = 5000");
+  yield* executeSql(client, `PRAGMA busy_timeout = ${SQLITE_BUSY_TIMEOUT_MS}`);
+  yield* executeSql(client, `PRAGMA cache_size = -${SQLITE_CACHE_SIZE_KIB}`);
+  yield* executeSql(client, `PRAGMA mmap_size = ${SQLITE_MMAP_SIZE_BYTES}`);
 
   const journalMode = yield* executeSql(client, "PRAGMA journal_mode");
   const foreignKeys = yield* executeSql(client, "PRAGMA foreign_keys");
@@ -80,9 +86,9 @@ export const setAndVerifyPragmas = Effect.fn("Database.setAndVerifyPragmas")(fun
     );
   }
 
-  if (busyTimeoutValue !== "5000") {
+  if (busyTimeoutValue !== String(SQLITE_BUSY_TIMEOUT_MS)) {
     return yield* Effect.dieMessage(
-      `SQLite startup invariant failed: busy_timeout expected 5000 but received ${busyTimeoutValue || "<empty>"}`,
+      `SQLite startup invariant failed: busy_timeout expected ${SQLITE_BUSY_TIMEOUT_MS} but received ${busyTimeoutValue || "<empty>"}`,
     );
   }
 

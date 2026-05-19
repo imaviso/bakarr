@@ -38,6 +38,10 @@ export const collectBoundedBytes = Effect.fn("BoundedStream.collectBoundedBytes"
       return Effect.void;
     }),
     Effect.map(() => {
+      if (chunks.length === 1) {
+        return chunks[0]!;
+      }
+
       const bytes = new Uint8Array(totalBytes);
       let offset = 0;
       for (const chunk of chunks) {
