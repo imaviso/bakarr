@@ -44,7 +44,7 @@ export const runEmbeddedDrizzleMigrations = Effect.fn("Database.runEmbeddedDrizz
  * database should not silently serve requests.
  */
 export const migrateDatabase = Effect.fn("Database.migrate")(function* () {
-  yield* Database;
+  const { client } = yield* Database;
 
   yield* runEmbeddedDrizzleMigrations().pipe(
     Effect.mapError(
@@ -52,6 +52,16 @@ export const migrateDatabase = Effect.fn("Database.migrate")(function* () {
         new DatabaseError({
           cause,
           message: "Failed to run database migrations",
+        }),
+    ),
+  );
+
+  yield* client.unsafe("PRAGMA optimize").pipe(
+    Effect.mapError(
+      (cause) =>
+        new DatabaseError({
+          cause,
+          message: "Failed to optimize SQLite query planner statistics",
         }),
     ),
   );

@@ -35,16 +35,43 @@ export interface BackgroundWorkerPolicy {
   ) => Effect.Effect<void, E, R>;
 }
 
+const BACKGROUND_WORKER_FAILURE_BACKOFF_BASE_MS = 5_000;
+const BACKGROUND_WORKER_FAILURE_BACKOFF_MAX_MS = 60_000;
+
 export function makeBackgroundWorkerPolicy(): BackgroundWorkerPolicy {
+  const failureCounts = new Map<BackgroundWorkerName, number>();
+
+  const resetFailureCount = Effect.fn("Background.resetFailureCount")(
+    (workerName: BackgroundWorkerName) =>
+      Effect.sync(() => {
+        failureCounts.set(workerName, 0);
+      }),
+  );
+
+  const nextFailureBackoffMs = Effect.fn("Background.nextFailureBackoffMs")(
+    (workerName: BackgroundWorkerName) =>
+      Effect.sync(() => {
+        const failureCount = (failureCounts.get(workerName) ?? 0) + 1;
+        failureCounts.set(workerName, failureCount);
+
+        return Math.min(
+          BACKGROUND_WORKER_FAILURE_BACKOFF_MAX_MS,
+          failureCount * BACKGROUND_WORKER_FAILURE_BACKOFF_BASE_MS,
+        );
+      }),
+  );
+
   const keepWorkerAlive = Effect.fn("Background.keepWorkerAlive")(function* <E>(
     workerName: BackgroundWorkerName,
     exit: Exit.Exit<void, E>,
   ) {
     if (exit._tag === "Success") {
+      yield* resetFailureCount(workerName);
       return undefined;
     }
 
     if (Cause.isInterruptedOnly(exit.cause)) {
+      yield* resetFailureCount(workerName);
       return undefined;
     }
 
@@ -52,9 +79,12 @@ export function makeBackgroundWorkerPolicy(): BackgroundWorkerPolicy {
       return yield* Effect.failCause(exit.cause);
     }
 
+    const backoffMs = yield* nextFailureBackoffMs(workerName);
+
     yield* Effect.logWarning("background worker run failed; keeping daemon alive").pipe(
       Effect.annotateLogs(
         compactLogAnnotations({
+          backoffMs,
           component: "background",
           event: "background.worker.run.failed",
           workerName,
@@ -63,6 +93,7 @@ export function makeBackgroundWorkerPolicy(): BackgroundWorkerPolicy {
       ),
     );
 
+    yield* Effect.sleep(`${backoffMs} millis`);
     return undefined;
   });
 

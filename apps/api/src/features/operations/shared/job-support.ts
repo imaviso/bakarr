@@ -34,42 +34,70 @@ export const appendLog = Effect.fn("JobSupport.appendLog")(function* (
   );
 });
 
-export const recordDownloadEvent = Effect.fn("JobSupport.recordDownloadEvent")(function* (
-  db: AppDatabase,
-  input: {
-    mediaId?: number;
-    downloadId?: number;
-    eventType: string;
-    fromStatus?: string | null;
-    toStatus?: string | null;
-    message: string;
-    metadata?: string | null;
-    metadataJson?:
-      | {
-          covered_units?: readonly number[];
-          imported_path?: string;
-          source_metadata?: DownloadSourceMetadata;
-        }
-      | undefined;
-  },
-  nowIso: NowIso,
+export interface DownloadEventRecordInput {
+  readonly mediaId?: number;
+  readonly downloadId?: number;
+  readonly eventType: string;
+  readonly fromStatus?: string | null;
+  readonly toStatus?: string | null;
+  readonly message: string;
+  readonly metadata?: string | null;
+  readonly metadataJson?:
+    | {
+        readonly covered_units?: readonly number[];
+        readonly imported_path?: string;
+        readonly source_metadata?: DownloadSourceMetadata;
+      }
+    | undefined;
+}
+
+const toDownloadEventInsert = Effect.fn("JobSupport.toDownloadEventInsert")(function* (
+  input: DownloadEventRecordInput,
+  createdAt: string,
 ) {
-  const now = yield* nowIso();
   const metadata = input.metadataJson
     ? yield* encodeDownloadEventMetadata(input.metadataJson)
     : (input.metadata ?? null);
 
+  return {
+    mediaId: input.mediaId ?? null,
+    createdAt,
+    downloadId: input.downloadId ?? null,
+    eventType: input.eventType,
+    fromStatus: input.fromStatus ?? null,
+    message: input.message,
+    metadata,
+    toStatus: input.toStatus ?? null,
+  } satisfies typeof downloadEvents.$inferInsert;
+});
+
+export const recordDownloadEvent = Effect.fn("JobSupport.recordDownloadEvent")(function* (
+  db: AppDatabase,
+  input: DownloadEventRecordInput,
+  nowIso: NowIso,
+) {
+  const now = yield* nowIso();
+  const row = yield* toDownloadEventInsert(input, now);
+
   yield* tryDatabasePromise("Failed to record download event", () =>
-    db.insert(downloadEvents).values({
-      mediaId: input.mediaId ?? null,
-      createdAt: now,
-      downloadId: input.downloadId ?? null,
-      eventType: input.eventType,
-      fromStatus: input.fromStatus ?? null,
-      message: input.message,
-      metadata,
-      toStatus: input.toStatus ?? null,
-    }),
+    db.insert(downloadEvents).values(row),
+  );
+});
+
+export const recordDownloadEvents = Effect.fn("JobSupport.recordDownloadEvents")(function* (
+  db: AppDatabase,
+  inputs: readonly DownloadEventRecordInput[],
+  nowIso: NowIso,
+) {
+  if (inputs.length === 0) {
+    return;
+  }
+
+  const now = yield* nowIso();
+  const rows = yield* Effect.forEach(inputs, (input) => toDownloadEventInsert(input, now));
+
+  yield* tryDatabasePromise("Failed to record download events", () =>
+    db.insert(downloadEvents).values(rows),
   );
 });
 

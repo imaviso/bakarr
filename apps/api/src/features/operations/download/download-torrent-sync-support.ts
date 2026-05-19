@@ -10,7 +10,11 @@ import {
   toCoveredEpisodesJson,
 } from "@/features/operations/download/download-coverage.ts";
 import { decodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
-import { recordDownloadEvent } from "@/features/operations/shared/job-support.ts";
+import {
+  recordDownloadEvent,
+  recordDownloadEvents,
+  type DownloadEventRecordInput,
+} from "@/features/operations/shared/job-support.ts";
 import type { OperationsError } from "@/features/operations/errors.ts";
 import type { ExternalCallError } from "@/infra/effect/retry.ts";
 import { mapQBitState } from "@/features/operations/qbittorrent/qbittorrent.ts";
@@ -280,6 +284,38 @@ export function makeDownloadTorrentSyncSupport(input: DownloadTorrentSyncSupport
     }
   });
 
+  const buildStatusChangeEvents = Effect.fn("OperationsService.buildStatusChangeEvents")(function* (
+    rows: readonly TorrentSyncUpdate[],
+    existingDownloadsMap: ReadonlyMap<string | undefined, typeof downloads.$inferSelect>,
+  ) {
+    const maybeEvents: Array<DownloadEventRecordInput | null> = yield* Effect.forEach(rows, (row) =>
+      Effect.gen(function* () {
+        const existing = existingDownloadsMap.get(row.hash);
+        if (!existing || existing.status === row.nextStatus) {
+          return null as DownloadEventRecordInput | null;
+        }
+
+        const coveredUnits = yield* parseCoveredEpisodesEffect(existing.coveredUnits);
+        const sourceMetadata = yield* decodeDownloadSourceMetadata(existing.sourceMetadata);
+
+        return {
+          mediaId: existing.mediaId,
+          downloadId: existing.id,
+          eventType: "download.status_changed",
+          fromStatus: existing.status,
+          metadataJson: {
+            covered_units: coveredUnits,
+            ...(sourceMetadata ? { source_metadata: sourceMetadata } : {}),
+          },
+          message: `${existing.torrentName} moved to ${row.nextStatus}`,
+          toStatus: row.nextStatus,
+        } satisfies DownloadEventRecordInput as DownloadEventRecordInput | null;
+      }),
+    );
+
+    return maybeEvents.filter((event): event is DownloadEventRecordInput => event !== null);
+  });
+
   const syncDownloadsWithQBitEffect = Effect.fn("OperationsService.syncDownloadsWithQBit")(
     function* () {
       const runtimeConfig = yield* input.getRuntimeConfig();
@@ -353,6 +389,9 @@ export function makeDownloadTorrentSyncSupport(input: DownloadTorrentSyncSupport
 
       yield* updateDownloadsFromTorrentRows(updateRows);
 
+      const statusEvents = yield* buildStatusChangeEvents(updateRows, existingDownloadsMap);
+      yield* recordDownloadEvents(db, statusEvents, nowIso);
+
       for (const updateRow of updateRows) {
         const existing = existingDownloadsMap.get(updateRow.hash);
         const preservedImported = Boolean(existing?.reconciledAt);
@@ -367,27 +406,6 @@ export function makeDownloadTorrentSyncSupport(input: DownloadTorrentSyncSupport
             torrentName: updateRow.torrentName,
             ...(sourceMetadata ? { sourceMetadata } : {}),
           });
-        }
-
-        if (existing && existing.status !== updateRow.nextStatus) {
-          const coveredUnits = yield* parseCoveredEpisodesEffect(existing.coveredUnits);
-          const statusSourceMetadata = yield* decodeDownloadSourceMetadata(existing.sourceMetadata);
-          yield* recordDownloadEvent(
-            db,
-            {
-              mediaId: existing.mediaId,
-              downloadId: existing.id,
-              eventType: "download.status_changed",
-              fromStatus: existing.status,
-              metadataJson: {
-                covered_units: coveredUnits,
-                ...(statusSourceMetadata ? { source_metadata: statusSourceMetadata } : {}),
-              },
-              message: `${existing.torrentName} moved to ${updateRow.nextStatus}`,
-              toStatus: updateRow.nextStatus,
-            },
-            nowIso,
-          );
         }
 
         if (updateRow.status === "completed" && shouldReconcileCompletedDownloads(runtimeConfig)) {
