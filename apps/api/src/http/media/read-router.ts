@@ -1,4 +1,4 @@
-import { HttpRouter } from "@effect/platform";
+import { HttpRouter, HttpServerResponse } from "@effect/platform";
 import { Effect, Schema } from "effect";
 import {
   MediaListResponseSchema,
@@ -6,6 +6,7 @@ import {
   MediaSearchResponseSchema,
   MediaSearchResultSchema,
   MediaUnitSchema,
+  ReaderPagesResponseSchema,
   RenamePreviewItemSchema,
   RssFeedSchema,
   SeasonalMediaResponseSchema,
@@ -15,10 +16,13 @@ import {
 import { AnimeFileService } from "@/features/media/files/media-file-service.ts";
 import { AnimeQueryService } from "@/features/media/query/query-service.ts";
 import { AnimeStreamService } from "@/features/media/stream/media-stream-service.ts";
+import { MediaReaderService } from "@/features/media/reader/media-reader-service.ts";
 import { CatalogRssService } from "@/features/operations/catalog/catalog-rss-service.ts";
 import { CatalogLibraryReadService } from "@/features/operations/catalog/catalog-library-read-service.ts";
 import {
   ListMediaQuerySchema,
+  MediaUnitPageParamsSchema,
+  MediaUnitParamsSchema,
   SearchMediaQuerySchema,
   SeasonalMediaQuerySchema,
   StreamUrlQuerySchema,
@@ -100,6 +104,39 @@ export const mediaReadRouter = HttpRouter.empty.pipe(
     ),
   ),
   HttpRouter.get(
+    "/media/:id/units/:unitNumber/pages",
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(MediaUnitParamsSchema);
+        return yield* (yield* MediaReaderService).listPages(params.id, params.unitNumber);
+      }),
+      schemaJsonResponse(ReaderPagesResponseSchema),
+    ),
+  ),
+  HttpRouter.get(
+    "/media/:id/units/:unitNumber/pages/:pageNumber/image",
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(MediaUnitPageParamsSchema);
+        return yield* (yield* MediaReaderService).readPageImage(
+          params.id,
+          params.unitNumber,
+          params.pageNumber,
+        );
+      }),
+      (page) =>
+        Effect.succeed(
+          HttpServerResponse.uint8Array(page.bytes, {
+            contentType: page.mediaType,
+            headers: {
+              "Cache-Control": "private, max-age=86400",
+              "Content-Disposition": inlineImageContentDisposition(page.fileName),
+            },
+          }),
+        ),
+    ),
+  ),
+  HttpRouter.get(
     "/media/:id/files",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -141,3 +178,8 @@ export const mediaReadRouter = HttpRouter.empty.pipe(
     ),
   ),
 );
+
+function inlineImageContentDisposition(fileName: string) {
+  const sanitized = fileName.replace(/[\r\n]/g, "_").replace(/["\\]/g, "_");
+  return `inline; filename="${sanitized}"; filename*=UTF-8''${encodeURIComponent(fileName)}`;
+}

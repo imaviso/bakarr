@@ -49,6 +49,7 @@
           nodejs
           pnpm
           ffmpeg
+          poppler-utils
         ];
       };
     });

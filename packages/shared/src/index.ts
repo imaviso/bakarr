@@ -428,6 +428,28 @@ export const MediaUnitSchema: Schema.Schema<MediaUnit> = Schema.Struct({
   audio_channels: Schema.optional(Schema.String),
 });
 
+export interface ReaderPage {
+  index: number;
+  page_number: number;
+  url: string;
+  media_type?: string | undefined;
+}
+
+export const ReaderPageSchema: Schema.Schema<ReaderPage> = Schema.Struct({
+  index: Schema.Number,
+  page_number: Schema.Number,
+  url: Schema.String,
+  media_type: Schema.optional(Schema.String),
+});
+
+export interface ReaderPagesResponse {
+  pages: ReaderPage[];
+}
+
+export const ReaderPagesResponseSchema: Schema.Schema<ReaderPagesResponse> = Schema.Struct({
+  pages: Schema.mutable(Schema.Array(ReaderPageSchema)),
+});
+
 export interface VideoFile {
   name: string;
   path: string;

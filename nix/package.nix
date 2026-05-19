@@ -7,6 +7,7 @@
   pnpmConfigHook,
   cacert,
   ffmpeg,
+  poppler-utils,
   python3,
   pkg-config,
   makeWrapper,
@@ -86,7 +87,7 @@ stdenv.mkDerivation (finalAttrs: {
     mkdir -p $out/bin
     makeWrapper ${nodejs}/bin/node $out/bin/bakarr-api \
       --add-flags $out/share/bakarr/api/main.js \
-      --prefix PATH : ${lib.makeBinPath [ffmpeg]} \
+      --prefix PATH : ${lib.makeBinPath [ffmpeg poppler-utils]} \
       --run 'if [ -z "$DATABASE_FILE" ]; then if [ -n "$XDG_STATE_HOME" ]; then state_home="$XDG_STATE_HOME"; elif [ -n "$HOME" ]; then state_home="$HOME/.local/state"; else state_home="/tmp"; fi; export DATABASE_FILE="$state_home/bakarr/bakarr.sqlite"; fi; mkdir -p "$(dirname "$DATABASE_FILE")"'
 
     runHook postInstall

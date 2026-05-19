@@ -79,6 +79,14 @@ export class MediaUnitParamsSchema extends Schema.Class<MediaUnitParamsSchema>(
   id: MediaIdFromStringSchema,
 }) {}
 
+export class MediaUnitPageParamsSchema extends Schema.Class<MediaUnitPageParamsSchema>(
+  "MediaUnitPageParamsSchema",
+)({
+  pageNumber: PositiveIntFromStringSchema,
+  unitNumber: UnitNumberFromStringSchema,
+  id: MediaIdFromStringSchema,
+}) {}
+
 class StreamQuerySchema extends Schema.Class<StreamQuerySchema>("StreamQuerySchema")({
   exp: Schema.NumberFromString.pipe(Schema.int(), Schema.positive()),
   sig: StreamSignatureStringSchema,

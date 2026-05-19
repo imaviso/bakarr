@@ -2,6 +2,7 @@ import { Match, Schema } from "effect";
 
 import { AniDbRuntimeConfigError } from "@/features/media/errors.ts";
 import { ImageCacheError } from "@/features/media/metadata/media-image-cache-service.ts";
+import { ReaderAccessError } from "@/features/media/reader/media-reader-errors.ts";
 import {
   StreamAccessError,
   StreamRangeError,
@@ -12,6 +13,7 @@ import { errorStatus, messageStatus } from "@/http/shared/route-errors/helpers.t
 const MediaRouteErrorSchema = Schema.Union(
   AniDbRuntimeConfigError,
   ImageCacheError,
+  ReaderAccessError,
   StreamAccessError,
   StreamRangeError,
 );
@@ -25,6 +27,7 @@ const mediaRouteErrorMappers: {
 } = {
   AniDbRuntimeConfigError: messageStatus(500),
   ImageCacheError: messageStatus(500),
+  ReaderAccessError: errorStatus,
   StreamAccessError: errorStatus,
   StreamRangeError: (error) => ({
     headers: { "Content-Range": `bytes */${error.fileSize}` },

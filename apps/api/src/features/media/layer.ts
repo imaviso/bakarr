@@ -6,6 +6,7 @@ import { AnimeMaintenanceServiceLive } from "@/features/media/metadata/media-mai
 import { AnimeMetadataEnrichmentServiceLive } from "@/features/media/metadata/media-metadata-enrichment-service.ts";
 import { AnimeMetadataProviderServiceLive } from "@/features/media/metadata/media-metadata-provider-service.ts";
 import { AnimeSeasonalProviderServiceLive } from "@/features/media/query/media-seasonal-provider-service.ts";
+import { MediaReaderServiceLive } from "@/features/media/reader/media-reader-service.ts";
 import { AnimeSettingsServiceLive } from "@/features/media/shared/media-settings-service.ts";
 import { AnimeStreamServiceLive } from "@/features/media/stream/media-stream-service.ts";
 import { AnimeQueryServiceLive } from "@/features/media/query/query-service.ts";
@@ -30,6 +31,7 @@ export function makeAnimeFeatureLayer<ROut, E, RIn>(
     animeImageCacheLayer,
     AnimeQueryServiceLive,
     AnimeFileServiceLive,
+    MediaReaderServiceLive,
     animeMaintenanceLayer,
     animeMetadataEnrichmentLayer,
     animeMetadataProviderLayer,
