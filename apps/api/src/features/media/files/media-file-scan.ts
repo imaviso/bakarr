@@ -13,8 +13,11 @@ import {
   parseFileSourceIdentity,
   toSharedParsedEpisodeIdentity,
 } from "@/infra/media/identity/identity.ts";
-import { collectVideoFiles, collectVolumeFiles } from "@/features/media/files/files.ts";
-import { parseVolumeNumbersFromTitle } from "@/features/operations/search/release-volume.ts";
+import {
+  collectVideoFiles,
+  collectVolumeFiles,
+  extractUnitNumbersFromFile,
+} from "@/features/media/files/files.ts";
 import { buildScannedFileMetadata } from "@/infra/scanned-file-metadata.ts";
 import { getAnimeRowEffect } from "@/features/media/shared/media-read-repository.ts";
 import { buildAiringScheduleMap } from "@/features/media/units/media-schedule-repository.ts";
@@ -87,26 +90,8 @@ export const scanAnimeFolderEffect = Effect.fn("AnimeFileScan.scanAnimeFolderEff
 
       const mergedMetadata = mergeProbedMediaMetadata(probeInput, probedMetadata);
 
-      const identity = parsed.source_identity;
       const isVolumeMedia = animeRow.mediaKind !== "anime";
-      let unitNumbers: readonly number[];
-
-      if (isVolumeMedia) {
-        const volumeNumbers = parseVolumeNumbersFromTitle(file.name);
-        if (volumeNumbers.length > 0) {
-          unitNumbers = volumeNumbers;
-        } else if (identity && identity.scheme !== "daily") {
-          unitNumbers = identity.unit_numbers;
-        } else {
-          continue;
-        }
-      } else {
-        if (!identity || identity.scheme === "daily") {
-          continue;
-        }
-        unitNumbers = identity.unit_numbers;
-      }
-
+      const unitNumbers = extractUnitNumbersFromFile(file.name, file.path, isVolumeMedia);
       if (unitNumbers.length === 0) {
         continue;
       }

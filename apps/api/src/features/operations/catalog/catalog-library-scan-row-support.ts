@@ -24,7 +24,13 @@ export const scanAnimeLibraryRow = Effect.fn("OperationsService.scanAnimeLibrary
     ),
     Stream.runFoldEffect(
       { matchedFiles: 0, scannedFiles: 0 } satisfies LibraryScanCounts,
-      (counts, file) => countLibraryScanFile(db, { mediaId: animeRow.id, counts, file }),
+      (counts, file) =>
+        countLibraryScanFile(db, {
+          mediaId: animeRow.id,
+          mediaKind: animeRow.mediaKind,
+          counts,
+          file,
+        }),
     ),
   );
 });

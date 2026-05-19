@@ -9,8 +9,8 @@ import {
   isWithinPathRoot,
   sanitizePathSegmentEffect,
 } from "@/infra/filesystem/filesystem.ts";
-import { classifyMediaArtifact, parseFileSourceIdentity } from "@/infra/media/identity/identity.ts";
-import { parseVolumeNumbersFromTitle } from "@/features/operations/search/release-volume.ts";
+import { classifyMediaArtifact } from "@/infra/media/identity/identity.ts";
+import { extractUnitNumbersFromFile } from "@/features/media/files/files.ts";
 import { inferAiredAt } from "@/domain/media/derivations.ts";
 import { resolveAnimeRootFolderEffect } from "@/features/media/shared/config-support.ts";
 import { decodeMediaKind } from "@/features/media/shared/media-kind.ts";
@@ -174,27 +174,8 @@ export function makeUnmappedImportWorkflow(input: {
             return acc;
           }
 
-          const parsed = parseFileSourceIdentity(file.path);
-          const identity = parsed.source_identity;
           const isVolumeMedia = animeRow.mediaKind !== "anime";
-          let unitNumbers: readonly number[];
-
-          if (isVolumeMedia) {
-            const volumeNumbers = parseVolumeNumbersFromTitle(file.name);
-            if (volumeNumbers.length > 0) {
-              unitNumbers = volumeNumbers;
-            } else if (identity && identity.scheme !== "daily") {
-              unitNumbers = identity.unit_numbers;
-            } else {
-              return acc;
-            }
-          } else {
-            if (!identity || identity.scheme === "daily") {
-              return acc;
-            }
-            unitNumbers = identity.unit_numbers;
-          }
-
+          const unitNumbers = extractUnitNumbersFromFile(file.name, file.path, isVolumeMedia);
           if (unitNumbers.length === 0) {
             return acc;
           }

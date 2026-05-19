@@ -1,7 +1,8 @@
 import { Effect } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
-import { classifyMediaArtifact, parseFileSourceIdentity } from "@/infra/media/identity/identity.ts";
+import { classifyMediaArtifact } from "@/infra/media/identity/identity.ts";
+import { extractUnitNumbersFromFile } from "@/features/media/files/files.ts";
 import { upsertEpisodeFilesAtomic } from "@/features/operations/download/download-unit-upsert-support.ts";
 import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
 
@@ -14,6 +15,7 @@ export const countLibraryScanFile = Effect.fn("OperationsService.countLibrarySca
   db: AppDatabase,
   input: {
     mediaId: number;
+    mediaKind: string;
     counts: LibraryScanCounts;
     file: { readonly name: string; readonly path: string };
   },
@@ -26,17 +28,8 @@ export const countLibraryScanFile = Effect.fn("OperationsService.countLibrarySca
     } satisfies LibraryScanCounts;
   }
 
-  const parsed = parseFileSourceIdentity(input.file.path);
-  const identity = parsed.source_identity;
-
-  if (!identity || identity.scheme === "daily") {
-    return {
-      matchedFiles: input.counts.matchedFiles,
-      scannedFiles: input.counts.scannedFiles + 1,
-    } satisfies LibraryScanCounts;
-  }
-
-  const unitNumbers = identity.unit_numbers;
+  const isVolumeMedia = input.mediaKind !== "anime";
+  const unitNumbers = extractUnitNumbersFromFile(input.file.name, input.file.path, isVolumeMedia);
   if (unitNumbers.length === 0) {
     return {
       matchedFiles: input.counts.matchedFiles,

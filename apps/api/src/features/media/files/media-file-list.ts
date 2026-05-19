@@ -16,7 +16,11 @@ import {
   parseFileSourceIdentity,
   toSharedParsedEpisodeIdentity,
 } from "@/infra/media/identity/identity.ts";
-import { collectVideoFiles, collectVolumeFiles } from "@/features/media/files/files.ts";
+import {
+  collectVideoFiles,
+  collectVolumeFiles,
+  extractUnitNumbersFromFile,
+} from "@/features/media/files/files.ts";
 import { buildScannedFileMetadata } from "@/infra/scanned-file-metadata.ts";
 import { getAnimeRowEffect } from "@/features/media/shared/media-read-repository.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
@@ -160,8 +164,9 @@ export const listAnimeFilesEffect = Effect.fn("AnimeFileList.listAnimeFilesEffec
       const parsed = parseFileSourceIdentity(file.path);
       const identity = parsed.source_identity;
       const sharedIdentity = toSharedParsedEpisodeIdentity(identity);
-      const unitNumber =
-        identity && identity.scheme !== "daily" ? identity.unit_numbers[0] : undefined;
+      const isVolumeMedia = animeRow.mediaKind !== "anime";
+      const unitNumbers = extractUnitNumbersFromFile(file.name, file.path, isVolumeMedia);
+      const unitNumber = unitNumbers.length > 0 ? unitNumbers[0] : undefined;
 
       const metadata = buildScannedFileMetadata({
         filePath: file.path,
@@ -174,8 +179,7 @@ export const listAnimeFilesEffect = Effect.fn("AnimeFileList.listAnimeFilesEffec
         audio_channels: metadata.audio_channels,
         audio_codec: metadata.audio_codec,
         unit_number: unitNumber,
-        unit_numbers:
-          identity && identity.scheme !== "daily" ? [...identity.unit_numbers] : undefined,
+        unit_numbers: unitNumbers.length > 0 ? [...unitNumbers] : undefined,
         unit_title: metadata.unit_title,
         group: parsed.group ?? undefined,
         duration_seconds: metadata.duration_seconds,

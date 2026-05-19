@@ -3,6 +3,10 @@ import type { DirEntry, FileSystemShape } from "@/infra/filesystem/filesystem.ts
 import { isNotFoundError } from "@/infra/filesystem/fs-errors.ts";
 import { Effect } from "effect";
 import { classifyMediaArtifact, parseFileSourceIdentity } from "@/infra/media/identity/identity.ts";
+import { parseVolumeNumbersFromTitle } from "@/features/operations/search/release-volume.ts";
+
+const VIDEO_EXTENSIONS = [".mkv", ".mp4", ".avi", ".mov", ".webm"];
+const VOLUME_EXTENSIONS = [".cbz", ".cbr", ".pdf", ".epub"];
 
 function parseEpisodeNumber(path: string): number | undefined {
   const parsed = parseFileSourceIdentity(path);
@@ -13,9 +17,47 @@ function parseEpisodeNumber(path: string): number | undefined {
 
 export { parseEpisodeNumber };
 
+/**
+ * Extract unit numbers from a file, preferring volume-number parsing for
+ * non-video media (manga/LN). Falls back to the episode identity parser.
+ */
+export function extractUnitNumbersFromFile(
+  name: string,
+  path: string,
+  isVolumeMedia: boolean,
+): readonly number[] {
+  if (isVolumeMedia) {
+    const volumeNumbers = parseVolumeNumbersFromTitle(name);
+    if (volumeNumbers.length > 0) return volumeNumbers;
+  }
+
+  const identity = parseFileSourceIdentity(path).source_identity;
+  if (!identity || identity.scheme === "daily") return [];
+  return identity.unit_numbers;
+}
+
+function hasExtension(name: string, extensions: readonly string[]) {
+  return extensions.some((ext) => name.toLowerCase().endsWith(ext));
+}
+
 export const collectVideoFiles = Effect.fn("AnimeService.collectVideoFiles")(function* (
   fs: FileSystemShape,
   rootFolder: string,
+) {
+  return yield* collectMediaFiles(fs, rootFolder, VIDEO_EXTENSIONS);
+});
+
+export const collectVolumeFiles = Effect.fn("AnimeService.collectVolumeFiles")(function* (
+  fs: FileSystemShape,
+  rootFolder: string,
+) {
+  return yield* collectMediaFiles(fs, rootFolder, VOLUME_EXTENSIONS);
+});
+
+const collectMediaFiles = Effect.fn("AnimeService.collectMediaFiles")(function* (
+  fs: FileSystemShape,
+  rootFolder: string,
+  extensions: readonly string[],
 ) {
   const entries: VideoFile[] = [];
   const stack = [rootFolder];
@@ -48,7 +90,7 @@ export const collectVideoFiles = Effect.fn("AnimeService.collectVideoFiles")(fun
         continue;
       }
 
-      if (!entry.isFile || !isVideoFile(entry.name)) {
+      if (!entry.isFile || !hasExtension(entry.name, extensions)) {
         continue;
       }
 
@@ -62,69 +104,6 @@ export const collectVideoFiles = Effect.fn("AnimeService.collectVideoFiles")(fun
         name: entry.name,
         path: fullPath,
         size: entry.size,
-      });
-    }
-  }
-
-  return entries.toSorted((left, right) => left.name.localeCompare(right.name));
-});
-
-function isVideoFile(name: string) {
-  return [".mkv", ".mp4", ".avi", ".mov", ".webm"].some((extension) =>
-    name.toLowerCase().endsWith(extension),
-  );
-}
-
-function isVolumeFile(name: string) {
-  return [".cbz", ".cbr", ".pdf", ".epub"].some((extension) =>
-    name.toLowerCase().endsWith(extension),
-  );
-}
-
-export const collectVolumeFiles = Effect.fn("AnimeService.collectVolumeFiles")(function* (
-  fs: FileSystemShape,
-  rootFolder: string,
-) {
-  const entries: VideoFile[] = [];
-  const stack = [rootFolder];
-  let isRoot = true;
-
-  while (stack.length > 0) {
-    const current = stack.pop();
-    if (!current) {
-      continue;
-    }
-
-    const isCurrentRoot = isRoot;
-    isRoot = false;
-
-    const dirEntries = yield* fs
-      .readDir(current)
-      .pipe(
-        Effect.catchTag("FileSystemError", (error) =>
-          !isCurrentRoot && isNotFoundError(error)
-            ? Effect.succeed<DirEntry[]>([])
-            : Effect.fail(error),
-        ),
-      );
-
-    for (const entry of dirEntries) {
-      const fullPath = `${current.replace(/\/$/, "")}/${entry.name}`;
-
-      if (entry.isDirectory) {
-        stack.push(fullPath);
-        continue;
-      }
-
-      if (!entry.isFile || !isVolumeFile(entry.name)) {
-        continue;
-      }
-
-      entries.push({
-        name: entry.name,
-        path: fullPath,
-        size: entry.size,
-        unit_number: parseEpisodeNumber(fullPath),
       });
     }
   }
