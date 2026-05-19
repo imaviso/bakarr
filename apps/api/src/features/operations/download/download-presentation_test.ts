@@ -76,14 +76,14 @@ it.effect("toDownloadStatus clamps progress and exposes runtime actions", () =>
       makeDownloadRow({ progress: 150, status: "downloading" }),
     );
     assert.deepStrictEqual(downloading.progress, 1);
-    assert.deepStrictEqual(downloading.allowed_actions, ["pause"]);
+    assert.deepStrictEqual(downloading.allowed_actions, ["delete", "pause"]);
 
     const failed = yield* toDownloadStatus(makeDownloadRow({ progress: -10, status: "error" }));
     assert.deepStrictEqual(failed.progress, 0);
-    assert.deepStrictEqual(failed.allowed_actions, ["retry", "resume"]);
+    assert.deepStrictEqual(failed.allowed_actions, ["delete", "retry", "resume"]);
 
     const completed = yield* toDownloadStatus(makeDownloadRow({ status: "completed" }));
-    assert.deepStrictEqual(completed.allowed_actions, undefined);
+    assert.deepStrictEqual(completed.allowed_actions, ["delete"]);
   }),
 );
 

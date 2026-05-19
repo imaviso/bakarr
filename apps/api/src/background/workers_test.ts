@@ -96,7 +96,7 @@ it("build background schedule enables RSS and library loops", () => {
   const schedule = buildBackgroundSchedule(baseConfig);
 
   assert.deepStrictEqual(schedule.initialDelayMs, 5_000);
-  assert.deepStrictEqual(schedule.downloadSyncMs, 15_000);
+  assert.deepStrictEqual(schedule.downloadSyncMs, 5_000);
   assert.deepStrictEqual(schedule.rssCheckMs, 30 * 60 * 1000);
   assert.deepStrictEqual(schedule.libraryScanMs, 12 * 60 * 60 * 1000);
   assert.deepStrictEqual(schedule.metadataRefreshMs, 24 * 60 * 60 * 1000);

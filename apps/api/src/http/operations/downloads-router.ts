@@ -4,6 +4,7 @@ import {
   AsyncOperationAcceptedSchema,
   DownloadEventsPageSchema,
   DownloadSchema,
+  DownloadStatusSchema,
 } from "@packages/shared/index.ts";
 
 import { HttpServerResponse } from "@effect/platform";
@@ -47,7 +48,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
     "/downloads/queue",
     authedRouteResponse(
       Effect.flatMap(CatalogDownloadReadService, (service) => service.listDownloadQueue()),
-      schemaJsonResponse(Schema.Array(DownloadSchema)),
+      schemaJsonResponse(Schema.Array(DownloadStatusSchema)),
     ),
   ),
   HttpRouter.get(

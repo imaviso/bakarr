@@ -117,7 +117,7 @@ function resolveDownloadActionPolicy(
 } {
   const state = normalizeDownloadState(status);
   const download = new Set<DownloadAllowedAction>(["delete"]);
-  const runtime = new Set<DownloadAllowedAction>();
+  const runtime = new Set<DownloadAllowedAction>(["delete"]);
 
   switch (state) {
     case "downloading": {

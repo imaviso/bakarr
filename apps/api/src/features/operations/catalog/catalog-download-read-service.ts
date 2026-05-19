@@ -1,7 +1,6 @@
 import { Context, Effect, Layer } from "effect";
 
 import type {
-  Download,
   DownloadEventsPage,
   DownloadHistoryPage,
   DownloadStatus,
@@ -25,7 +24,7 @@ import { tryDatabasePromise } from "@/infra/effect/db.ts";
 type ReadError = DatabaseError | OperationsStoredDataError;
 
 export interface CatalogDownloadReadServiceShape {
-  readonly listDownloadQueue: () => Effect.Effect<Download[], ReadError>;
+  readonly listDownloadQueue: () => Effect.Effect<DownloadStatus[], ReadError>;
   readonly listDownloadHistory: (input?: {
     readonly cursor?: string;
     readonly limit?: number;
@@ -101,7 +100,7 @@ export const CatalogDownloadReadServiceLive = Layer.effect(
       getDownloadRuntimeSummary: progressReads.getDownloadRuntimeSummary,
       listDownloadEvents: eventReads.listDownloadEvents,
       listDownloadHistory: listReads.listDownloadHistory,
-      listDownloadQueue: listReads.listDownloadQueue,
+      listDownloadQueue: progressReads.getDownloadProgress,
       streamDownloadEventsExportCsv,
       streamDownloadEventsExportJson,
     });

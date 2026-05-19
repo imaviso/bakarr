@@ -20,7 +20,7 @@ it("buildBackgroundSchedule converts enabled intervals to milliseconds", () => {
   const schedule = buildBackgroundSchedule(config);
 
   assert.deepStrictEqual(schedule.initialDelayMs, 3_000);
-  assert.deepStrictEqual(schedule.downloadSyncMs, 15_000);
+  assert.deepStrictEqual(schedule.downloadSyncMs, 5_000);
   assert.deepStrictEqual(schedule.rssCheckMs, 600_000);
   assert.deepStrictEqual(schedule.libraryScanMs, 7_200_000);
   assert.deepStrictEqual(schedule.metadataRefreshMs, 21_600_000);
@@ -53,7 +53,7 @@ it("resolveBackgroundWorkerLoopPlan resolves interval, cron, and disabled worker
   const schedule = buildBackgroundSchedule(config);
 
   assert.deepStrictEqual(resolveBackgroundWorkerLoopPlan(schedule, "download_sync"), {
-    intervalMs: 15_000,
+    intervalMs: 5_000,
   });
   assert.deepStrictEqual(resolveBackgroundWorkerLoopPlan(schedule, "rss"), {
     cronExpression: "0 * * * *",

@@ -83,7 +83,7 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
 
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-      <DialogContent className="sm:max-w-[550px]">
+      <DialogContent className="w-[min(calc(100vw-2rem),56rem)] max-w-none max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             {props.media.cover_image ? (

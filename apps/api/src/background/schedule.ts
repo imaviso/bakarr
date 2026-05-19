@@ -4,7 +4,7 @@ import { Either, Schema } from "effect";
 import type { Config } from "@packages/shared/index.ts";
 import type { BackgroundWorkerName } from "@/background/worker-model.ts";
 
-const DEFAULT_DOWNLOAD_SYNC_MS = 15_000;
+const DEFAULT_DOWNLOAD_SYNC_MS = 5_000;
 
 export type BackgroundWorkerLoopPlan =
   | {

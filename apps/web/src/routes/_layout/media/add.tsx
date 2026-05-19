@@ -24,11 +24,9 @@ import type { MediaSearchResult } from "~/api/contracts";
 import {
   mediaByAnilistIdQueryOptions,
   mediaListQueryOptions,
+  useMediaListQuery,
   useMediaSearchQuery,
-  seasonalMediaInfiniteQueryOptions,
 } from "~/api/media";
-import { profilesQueryOptions, releaseProfilesQueryOptions } from "~/api/profiles";
-import { systemConfigQueryOptions } from "~/api/system-config";
 import { errorMessage } from "~/api/effect/errors";
 import { usePageTitle } from "~/domain/page-title";
 import { mediaKindLabel } from "~/domain/media-unit";
@@ -55,22 +53,13 @@ const AddAnimeDialogLazy = lazy(() =>
 
 export const Route = createFileRoute("/_layout/media/add")({
   validateSearch: parseAddMediaSearch,
-  loader: async ({ context: { queryClient }, location }) => {
+  loader: ({ context: { queryClient }, location }) => {
     const search = parseAddMediaSearch(location.search as Record<string, unknown>);
-    await Promise.all([
-      queryClient.ensureQueryData(mediaListQueryOptions()),
-      queryClient.ensureQueryData(profilesQueryOptions()),
-      queryClient.ensureQueryData(releaseProfilesQueryOptions()),
-      queryClient.ensureQueryData(systemConfigQueryOptions()),
-    ]);
-    await queryClient.prefetchInfiniteQuery(
-      seasonalMediaInfiniteQueryOptions({
-        season: search.season ?? DEFAULT_SEASON_WINDOW.season,
-        year: search.year ?? DEFAULT_SEASON_WINDOW.year,
-      }),
-    );
+
+    void queryClient.prefetchQuery(mediaListQueryOptions());
+
     if (search.id) {
-      await queryClient.ensureQueryData(
+      void queryClient.prefetchQuery(
         mediaByAnilistIdQueryOptions(search.id, search.media_kind ?? "anime"),
       );
     }
@@ -99,7 +88,7 @@ function AddAnimePage() {
   const searchResults = searchQuery.data?.results ?? [];
   const canSearch = debouncedQuery.trim().length >= 3;
   const searchDegraded = searchQuery.data?.degraded ?? false;
-  const { data: animeList } = useSuspenseQuery(mediaListQueryOptions());
+  const { data: animeList = [] } = useMediaListQuery();
   const libraryIds = new Set(animeList.map((media) => media.id));
 
   const updateSearch = (patch: Partial<AddMediaSearch>) => {
@@ -202,25 +191,27 @@ function AddAnimePage() {
           />
         </TabsContent>
         <TabsContent value="seasonal" className="mt-6 flex flex-1 min-h-0 flex-col">
-          <Suspense fallback={null}>
-            <SeasonalAnimeSectionLazy
-              active={activeTab === "seasonal"}
-              seasonWindow={{ season: selectedSeason, year: selectedYear }}
-              onPrevious={() => {
-                const previous = shiftSeasonWindow(
-                  { season: selectedSeason, year: selectedYear },
-                  -1,
-                );
-                updateSearch({ season: previous.season, year: previous.year });
-              }}
-              onNext={() => {
-                const next = shiftSeasonWindow({ season: selectedSeason, year: selectedYear }, 1);
-                updateSearch({ season: next.season, year: next.year });
-              }}
-              libraryIds={libraryIds}
-              onSelectAnime={handleSelectAnime}
-            />
-          </Suspense>
+          {activeTab === "seasonal" && (
+            <Suspense fallback={null}>
+              <SeasonalAnimeSectionLazy
+                active
+                seasonWindow={{ season: selectedSeason, year: selectedYear }}
+                onPrevious={() => {
+                  const previous = shiftSeasonWindow(
+                    { season: selectedSeason, year: selectedYear },
+                    -1,
+                  );
+                  updateSearch({ season: previous.season, year: previous.year });
+                }}
+                onNext={() => {
+                  const next = shiftSeasonWindow({ season: selectedSeason, year: selectedYear }, 1);
+                  updateSearch({ season: next.season, year: next.year });
+                }}
+                libraryIds={libraryIds}
+                onSelectAnime={handleSelectAnime}
+              />
+            </Suspense>
+          )}
         </TabsContent>
       </Tabs>
 

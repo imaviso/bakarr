@@ -2477,7 +2477,7 @@ itWithTestContext("download pause resume and delete endpoints update queue state
       headers: { Cookie: sessionCookie },
     });
     const pausedDownloads = await queueAfterPause.json();
-    assert.deepStrictEqual(pausedDownloads[0]["status"], "paused");
+    assert.deepStrictEqual(pausedDownloads[0]["state"], "paused");
 
     const resumeResponse = await ctx.app.request("/api/downloads/1/resume", {
       headers: { Cookie: sessionCookie },
@@ -2489,7 +2489,7 @@ itWithTestContext("download pause resume and delete endpoints update queue state
       headers: { Cookie: sessionCookie },
     });
     const resumedDownloads = await queueAfterResume.json();
-    assert.deepStrictEqual(resumedDownloads[0]["status"], "downloading");
+    assert.deepStrictEqual(resumedDownloads[0]["state"], "downloading");
 
     const deleteResponse = await ctx.app.request("/api/downloads/1?delete_files=true", {
       headers: { Cookie: sessionCookie },

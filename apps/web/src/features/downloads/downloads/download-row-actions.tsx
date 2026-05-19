@@ -26,6 +26,7 @@ export function ActiveDownloadActions(props: ActiveDownloadActionsProps) {
   const pauseDownload = usePauseDownloadMutation();
   const resumeDownload = useResumeDownloadMutation();
   const retryDownload = useRetryDownloadMutation();
+  const deleteDownload = useDeleteDownloadMutation();
   const allowedActions = props.allowedActions ?? [];
 
   const handlePause = () => {
@@ -52,6 +53,15 @@ export function ActiveDownloadActions(props: ActiveDownloadActionsProps) {
     retryDownload.mutate(props.downloadId);
   };
 
+  const handleDelete = () => {
+    if (!props.downloadId) {
+      return;
+    }
+
+    deleteDownload.mutate({ downloadId: props.downloadId });
+  };
+
+  const canDelete = () => allowedActions.includes("delete");
   const canPause = () => allowedActions.includes("pause");
   const canResume = () => allowedActions.includes("resume");
   const canRetry = () => allowedActions.includes("retry");
@@ -100,6 +110,18 @@ export function ActiveDownloadActions(props: ActiveDownloadActionsProps) {
           disabled={!props.downloadId || retryDownload.isPending}
         >
           <ArrowClockwiseIcon className="h-4 w-4" />
+        </Button>
+      )}
+      {canDelete() && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative after:absolute after:-inset-2 h-7 w-7 text-destructive hover:text-destructive"
+          aria-label="Remove download"
+          onClick={handleDelete}
+          disabled={!props.downloadId || deleteDownload.isPending}
+        >
+          <TrashIcon className="h-4 w-4" />
         </Button>
       )}
     </div>

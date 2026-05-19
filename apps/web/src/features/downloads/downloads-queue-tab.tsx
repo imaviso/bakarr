@@ -49,7 +49,7 @@ export function DownloadsQueueTab(props: DownloadsQueueTabProps) {
               <TableHead scope="col" className="w-[120px]">
                 Status
               </TableHead>
-              <TableHead scope="col" className="w-[120px] text-right">
+              <TableHead scope="col" className="w-[150px] text-right">
                 Actions
               </TableHead>
             </TableRow>

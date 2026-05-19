@@ -58,9 +58,7 @@ export function DownloadsView(props: DownloadsViewProps) {
 
       <Tabs
         value={props.searchTab}
-        onChange={(value) =>
-          props.state.handleTabChange(typeof value === "string" ? value : undefined)
-        }
+        onValueChange={(value) => props.state.handleTabChange(value)}
         className="flex min-h-0 flex-1 flex-col"
       >
         <TabsList variant="line" className="w-full justify-start gap-6">

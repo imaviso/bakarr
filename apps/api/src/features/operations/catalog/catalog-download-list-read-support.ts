@@ -1,7 +1,7 @@
 import { desc, lt, sql } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type { Download, DownloadHistoryPage } from "@packages/shared/index.ts";
+import type { DownloadHistoryPage } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import { downloads } from "@/db/schema.ts";
@@ -15,18 +15,6 @@ export function makeCatalogDownloadListReads(input: {
   readonly tryDatabasePromise: TryDatabasePromise;
 }) {
   const { db, tryDatabasePromise } = input;
-
-  const listDownloadQueue = Effect.fn("OperationsService.listDownloadQueue")(function* () {
-    const rows = yield* tryDatabasePromise("Failed to list download queue", () =>
-      db
-        .select()
-        .from(downloads)
-        .where(sql`${downloads.status} in ('queued', 'downloading', 'paused')`)
-        .orderBy(desc(downloads.id)),
-    );
-    const contexts = yield* loadDownloadPresentationContexts(db, rows);
-    return yield* Effect.forEach(rows, (row) => toDownload(row, contexts.get(row.id)));
-  });
 
   const listDownloadHistory = Effect.fn("OperationsService.listDownloadHistory")(function* (
     queryInput: { cursor?: string; limit?: number } = {},
@@ -65,15 +53,10 @@ export function makeCatalogDownloadListReads(input: {
 
   return {
     listDownloadHistory,
-    listDownloadQueue,
   } satisfies {
     readonly listDownloadHistory: (input?: {
       readonly cursor?: string;
       readonly limit?: number;
     }) => Effect.Effect<DownloadHistoryPage, DatabaseError | OperationsStoredDataError>;
-    readonly listDownloadQueue: () => Effect.Effect<
-      Download[],
-      DatabaseError | OperationsStoredDataError
-    >;
   };
 }
