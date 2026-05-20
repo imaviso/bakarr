@@ -8,6 +8,7 @@ import {
 } from "@packages/shared/index.ts";
 import { qualityProfiles, releaseProfiles } from "@/db/schema.ts";
 import { StoredConfigCorruptError } from "@/features/system/errors.ts";
+import { decodeJson, encodeJson } from "@/infra/effect/schema-json.ts";
 import {
   NumberListSchema,
   ReleaseProfileRulesSchema,
@@ -15,10 +16,6 @@ import {
   type CreateReleaseProfileInput,
   type UpdateReleaseProfileInput,
 } from "@/features/system/config-schema.ts";
-
-const StringListJsonSchema = Schema.parseJson(StringListSchema);
-const NumberListJsonSchema = Schema.parseJson(NumberListSchema);
-const ReleaseProfileRulesJsonSchema = Schema.parseJson(ReleaseProfileRulesSchema);
 
 const QualityProfileRowSchema = Schema.Struct({
   allowedQualities: Schema.String,
@@ -59,30 +56,23 @@ function storedConfigCorrupt(message: string, cause: unknown) {
 
 export const encodeStringList = Effect.fn("ProfileCodec.encodeStringList")(
   (values: readonly string[]): Effect.Effect<string, StoredConfigCorruptError> =>
-    Schema.encode(StringListJsonSchema)([...values]).pipe(
-      Effect.mapError((cause) =>
-        storedConfigCorrupt("String list is invalid and could not be encoded", cause),
-      ),
+    encodeJson(StringListSchema, [...values], (cause) =>
+      storedConfigCorrupt("String list is invalid and could not be encoded", cause),
     ),
 );
 
 export const encodeNumberList = Effect.fn("ProfileCodec.encodeNumberList")(
   (values: readonly number[]): Effect.Effect<string, StoredConfigCorruptError> =>
-    Schema.encode(NumberListJsonSchema)([...values]).pipe(
-      Effect.mapError((cause) =>
-        storedConfigCorrupt("Number list is invalid and could not be encoded", cause),
-      ),
+    encodeJson(NumberListSchema, [...values], (cause) =>
+      storedConfigCorrupt("Number list is invalid and could not be encoded", cause),
     ),
 );
 
 export const decodeNumberList = Effect.fn("ProfileCodec.decodeNumberList")(
   (value: string): Effect.Effect<number[], StoredConfigCorruptError> =>
-    Schema.decodeUnknown(NumberListJsonSchema)(value).pipe(
-      Effect.map((arr) => [...arr]),
-      Effect.mapError((cause) =>
-        storedConfigCorrupt("Stored number list is corrupt and could not be decoded", cause),
-      ),
-    ),
+    decodeJson(NumberListSchema, value, (cause) =>
+      storedConfigCorrupt("Stored number list is corrupt and could not be decoded", cause),
+    ).pipe(Effect.map((arr) => [...arr])),
 );
 
 export const encodeOptionalNumberList = Effect.fn("ProfileCodec.encodeOptionalNumberList")((
@@ -102,29 +92,25 @@ export const decodeOptionalNumberList = Effect.fn("ProfileCodec.decodeOptionalNu
     return Effect.succeed([]);
   }
 
-  return Schema.decodeUnknown(NumberListJsonSchema)(value).pipe(
-    Effect.map((arr) => [...arr]),
-    Effect.mapError((cause) =>
-      storedConfigCorrupt("Stored optional number list is corrupt and could not be decoded", cause),
-    ),
-  );
+  return decodeJson(NumberListSchema, value, (cause) =>
+    storedConfigCorrupt("Stored optional number list is corrupt and could not be decoded", cause),
+  ).pipe(Effect.map((arr) => [...arr]));
 });
 
 export const decodeStringList = Effect.fn("ProfileCodec.decodeStringList")(
   (value: string): Effect.Effect<string[], StoredConfigCorruptError> =>
-    Schema.decodeUnknown(StringListJsonSchema)(value).pipe(
-      Effect.map((arr) => [...arr]),
-      Effect.mapError((cause) =>
-        storedConfigCorrupt("Stored string list is corrupt and could not be decoded", cause),
-      ),
-    ),
+    decodeJson(StringListSchema, value, (cause) =>
+      storedConfigCorrupt("Stored string list is corrupt and could not be decoded", cause),
+    ).pipe(Effect.map((arr) => [...arr])),
 );
 
 export const encodeQualityProfileRow = Effect.fn("ProfileCodec.encodeQualityProfileRow")(
   (
     profile: QualityProfile,
   ): Effect.Effect<Schema.Schema.Type<typeof QualityProfileRowSchema>, StoredConfigCorruptError> =>
-    Schema.encode(StringListJsonSchema)([...profile.allowed_qualities]).pipe(
+    encodeJson(StringListSchema, [...profile.allowed_qualities], (cause) =>
+      storedConfigCorrupt("Quality profile is invalid and could not be encoded", cause),
+    ).pipe(
       Effect.map((allowedQualities) => ({
         allowedQualities,
         cutoff: profile.cutoff,
@@ -147,7 +133,12 @@ export const decodeQualityProfileRow = Effect.fn("ProfileCodec.decodeQualityProf
   ): Effect.Effect<QualityProfile, StoredConfigCorruptError> =>
     Schema.decodeUnknown(QualityProfileRowSchema)(row).pipe(
       Effect.flatMap((decodedRow) =>
-        Schema.decodeUnknown(StringListJsonSchema)(decodedRow.allowedQualities).pipe(
+        decodeJson(StringListSchema, decodedRow.allowedQualities, (cause) =>
+          storedConfigCorrupt(
+            "Stored quality profile row is corrupt and could not be decoded",
+            cause,
+          ),
+        ).pipe(
           Effect.map((allowed_qualities) => ({
             allowed_qualities,
             cutoff: decodedRow.cutoff,
@@ -170,24 +161,19 @@ export const decodeQualityProfileRow = Effect.fn("ProfileCodec.decodeQualityProf
 
 export const encodeReleaseProfileRules = Effect.fn("ProfileCodec.encodeReleaseProfileRules")(
   (rules: readonly ReleaseProfileRule[]): Effect.Effect<string, StoredConfigCorruptError> =>
-    Schema.encode(ReleaseProfileRulesJsonSchema)([...rules]).pipe(
-      Effect.mapError((cause) =>
-        storedConfigCorrupt("Release profile rules are invalid and could not be encoded", cause),
-      ),
+    encodeJson(ReleaseProfileRulesSchema, [...rules], (cause) =>
+      storedConfigCorrupt("Release profile rules are invalid and could not be encoded", cause),
     ),
 );
 
 export const decodeReleaseProfileRules = Effect.fn("ProfileCodec.decodeReleaseProfileRules")(
   (value: string): Effect.Effect<ReleaseProfileRule[], StoredConfigCorruptError> =>
-    Schema.decodeUnknown(ReleaseProfileRulesJsonSchema)(value).pipe(
-      Effect.map((arr) => [...arr]),
-      Effect.mapError((cause) =>
-        storedConfigCorrupt(
-          "Stored release profile rules are corrupt and could not be decoded",
-          cause,
-        ),
+    decodeJson(ReleaseProfileRulesSchema, value, (cause) =>
+      storedConfigCorrupt(
+        "Stored release profile rules are corrupt and could not be decoded",
+        cause,
       ),
-    ),
+    ).pipe(Effect.map((arr) => [...arr])),
 );
 
 export const encodeReleaseProfileRow = Effect.fn("ProfileCodec.encodeReleaseProfileRow")(
@@ -211,7 +197,12 @@ export const decodeReleaseProfileRow = Effect.fn("ProfileCodec.decodeReleaseProf
   ): Effect.Effect<ReleaseProfile, StoredConfigCorruptError> =>
     Schema.decodeUnknown(ReleaseProfileRowSchema)(row).pipe(
       Effect.flatMap((decodedRow) =>
-        Schema.decodeUnknown(ReleaseProfileRulesJsonSchema)(decodedRow.rules).pipe(
+        decodeJson(ReleaseProfileRulesSchema, decodedRow.rules, (cause) =>
+          storedConfigCorrupt(
+            "Stored release profile row is corrupt and could not be decoded",
+            cause,
+          ),
+        ).pipe(
           Effect.map((rules) => ({
             enabled: decodedRow.enabled,
             id: brandReleaseProfileId(decodedRow.id),

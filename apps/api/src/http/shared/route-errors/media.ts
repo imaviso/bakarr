@@ -8,7 +8,11 @@ import {
   StreamRangeError,
 } from "@/features/media/stream/media-stream-errors.ts";
 import type { RouteErrorResponse } from "@/http/shared/route-types.ts";
-import { errorStatus, messageStatus } from "@/http/shared/route-errors/helpers.ts";
+import {
+  errorStatus,
+  mapTaggedRouteError,
+  messageStatus,
+} from "@/http/shared/route-errors/helpers.ts";
 
 const MediaRouteErrorSchema = Schema.Union(
   AniDbRuntimeConfigError,
@@ -36,12 +40,6 @@ const mediaRouteErrorMappers: {
   }),
 };
 
-const isMediaRouteError = Schema.is(MediaRouteErrorSchema);
-
-export function mapMediaRouteError(error: unknown): RouteErrorResponse | undefined {
-  if (!isMediaRouteError(error)) {
-    return undefined;
-  }
-
-  return Match.valueTags(error, mediaRouteErrorMappers);
-}
+export const mapMediaRouteError = mapTaggedRouteError(MediaRouteErrorSchema, (error) =>
+  Match.valueTags(error, mediaRouteErrorMappers),
+);

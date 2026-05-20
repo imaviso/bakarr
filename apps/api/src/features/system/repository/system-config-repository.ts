@@ -1,9 +1,9 @@
 import { eq } from "drizzle-orm";
-import { Context, Effect, Layer } from "effect";
+import { Context, Effect, Layer, Option } from "effect";
 
 import { Database, type AppDatabase, type DatabaseError } from "@/db/database.ts";
 import { appConfig } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { queryFirst, tryDatabasePromise } from "@/infra/effect/db.ts";
 
 export interface SystemConfigRepositoryShape {
   readonly loadSystemConfigRow: () => Effect.Effect<
@@ -25,11 +25,11 @@ export class SystemConfigRepository extends Context.Tag("@bakarr/api/SystemConfi
 
 export const loadSystemConfigRow = Effect.fn("SystemConfigRepository.loadSystemConfigRow")(
   function* (db: AppDatabase) {
-    const rows = yield* tryDatabasePromise("Failed to load system config", () =>
+    const row = yield* queryFirst("Failed to load system config", () =>
       db.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1),
     );
 
-    return rows[0];
+    return Option.getOrUndefined(row);
   },
 );
 

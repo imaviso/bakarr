@@ -9,7 +9,6 @@ import { TokenHasherError } from "@/security/token-hasher.ts";
 import { RequestValidationError } from "@/http/shared/route-validation.ts";
 import {
   AuthBadRequestError,
-  type AuthError,
   AuthErrorSchema,
   AuthForbiddenError,
   AuthNotFoundError,
@@ -18,7 +17,7 @@ import {
 import { mapMediaRouteError } from "@/http/shared/route-errors/media.ts";
 import { mapOperationsRouteError } from "@/http/shared/route-errors/operations.ts";
 import { mapSystemRouteError } from "@/http/shared/route-errors/system.ts";
-import { fixedStatus } from "@/http/shared/route-errors/helpers.ts";
+import { fixedStatus, mapTaggedRouteError } from "@/http/shared/route-errors/helpers.ts";
 import {
   DomainConflictError,
   DomainInputError,
@@ -27,21 +26,6 @@ import {
   InfrastructureError,
   StoredDataError,
 } from "@/features/errors.ts";
-
-type CommonRouteError =
-  | AuthError
-  | DatabaseError
-  | DomainConflictError
-  | DomainInputError
-  | DomainNotFoundError
-  | DomainPathError
-  | ExternalCallError
-  | InfrastructureError
-  | PasswordError
-  | RequestValidationError
-  | StoredDataError
-  | TokenHasherError
-  | WorkerTimeoutError;
 
 const CommonRouteErrorSchema = Schema.Union(
   AuthErrorSchema,
@@ -113,11 +97,14 @@ const taggedCommonRouteErrorMappers = {
   WorkerTimeoutError: internalServerError,
 } as const;
 
-const isCommonRouteError = Schema.is(CommonRouteErrorSchema);
+const mapCommonRouteError = mapTaggedRouteError(CommonRouteErrorSchema, (error) =>
+  Match.valueTags(error, taggedCommonRouteErrorMappers),
+);
 
 export function mapRouteError(error: unknown): RouteErrorResponse {
-  if (isCommonRouteError(error)) {
-    return mapTaggedCommonRouteError(error);
+  const commonRouteError = mapCommonRouteError(error);
+  if (commonRouteError !== undefined) {
+    return commonRouteError;
   }
 
   const mediaRouteError = mapMediaRouteError(error);
@@ -136,8 +123,4 @@ export function mapRouteError(error: unknown): RouteErrorResponse {
   }
 
   return { message: "Unexpected server error", status: 500 };
-}
-
-function mapTaggedCommonRouteError(error: CommonRouteError): RouteErrorResponse {
-  return Match.valueTags(error, taggedCommonRouteErrorMappers);
 }

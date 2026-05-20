@@ -64,14 +64,6 @@ export class UpdateReleaseProfileSchema extends Schema.Class<UpdateReleaseProfil
 
 export type UpdateReleaseProfileInput = Schema.Schema.Type<typeof UpdateReleaseProfileSchema>;
 
-export class ConfigCoreSchema extends Schema.Class<ConfigCoreSchema>("ConfigCoreSchema")({
-  downloads: DownloadsConfigSchema,
-  general: GeneralConfigSchema,
-  library: LibraryConfigSchema,
-  metadata: Schema.optional(MetadataProvidersConfigSchema),
-  nyaa: NyaaConfigSchema,
-  qbittorrent: QbittorrentConfigSchema,
-  scheduler: SchedulerConfigSchema,
-}) {}
+export const ConfigCoreSchema = SharedConfigSchema.pipe(Schema.omit("profiles"));
 
 export const ConfigSchema = SharedConfigSchema;

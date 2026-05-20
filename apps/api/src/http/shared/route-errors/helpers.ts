@@ -1,4 +1,21 @@
+import { Schema } from "effect";
+
 import type { RouteErrorResponse } from "@/http/shared/route-types.ts";
+
+export function mapTaggedRouteError<A extends { readonly _tag: string }, I, R>(
+  schema: Schema.Schema<A, I, R>,
+  map: (error: A) => RouteErrorResponse,
+) {
+  const isRouteError = Schema.is(schema);
+
+  return (error: unknown): RouteErrorResponse | undefined => {
+    if (!isRouteError(error)) {
+      return undefined;
+    }
+
+    return map(error);
+  };
+}
 
 export const messageStatus =
   (status: number) =>

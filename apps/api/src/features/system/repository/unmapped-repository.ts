@@ -1,5 +1,5 @@
 import { eq, notInArray } from "drizzle-orm";
-import { Effect, Schema } from "effect";
+import { Effect, Option, Schema } from "effect";
 
 import {
   type UnmappedFolder,
@@ -9,22 +9,22 @@ import {
 } from "@packages/shared/index.ts";
 import { DatabaseError, type AppDatabase } from "@/db/database.ts";
 import { unmappedFolderMatches } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { queryFirst, tryDatabasePromise } from "@/infra/effect/db.ts";
 import { buildUnmappedFolderSearchQueries } from "@/features/operations/unmapped/unmapped-folders.ts";
 import { StoredUnmappedFolderCorruptError } from "@/features/system/errors.ts";
+import { decodeJson, encodeJson } from "@/infra/effect/schema-json.ts";
 
-const AnimeSearchResultListJsonSchema = Schema.parseJson(Schema.Array(MediaSearchResultSchema));
-const decodeAnimeSearchResultList = Schema.decodeUnknown(AnimeSearchResultListJsonSchema);
+const AnimeSearchResultListSchema = Schema.Array(MediaSearchResultSchema);
 
 const encodeAnimeSearchResultList = (path: string, matches: UnmappedFolder["suggested_matches"]) =>
-  Schema.encode(AnimeSearchResultListJsonSchema)(matches).pipe(
-    Effect.mapError(
-      (cause) =>
-        new DatabaseError({
-          cause,
-          message: `Failed to encode unmapped folder suggestions for ${path}`,
-        }),
-    ),
+  encodeJson(
+    AnimeSearchResultListSchema,
+    matches,
+    (cause) =>
+      new DatabaseError({
+        cause,
+        message: `Failed to encode unmapped folder suggestions for ${path}`,
+      }),
   );
 
 export const listUnmappedFolderMatchRows = Effect.fn(
@@ -100,26 +100,25 @@ export const upsertUnmappedFolderMatchRows = Effect.fn(
 export const loadUnmappedFolderMatchRow = Effect.fn(
   "SystemUnmappedRepository.loadUnmappedFolderMatchRow",
 )(function* (db: AppDatabase, path: string) {
-  const rows = yield* tryDatabasePromise("Failed to load unmapped folder match", () =>
+  const row = yield* queryFirst("Failed to load unmapped folder match", () =>
     db.select().from(unmappedFolderMatches).where(eq(unmappedFolderMatches.path, path)).limit(1),
   );
 
-  return rows[0];
+  return Option.getOrUndefined(row);
 });
 
 export const decodeUnmappedFolderMatchRow = Effect.fn(
   "SystemUnmappedRepository.decodeUnmappedFolderMatchRow",
 )(function* (row: typeof unmappedFolderMatches.$inferSelect) {
-  const suggestedMatches = yield* decodeAnimeSearchResultList(row.suggestedMatches).pipe(
-    Effect.map((decoded) => [...decoded]),
-    Effect.mapError(
-      (cause) =>
-        new StoredUnmappedFolderCorruptError({
-          cause,
-          message: `Stored unmapped folder suggestions are corrupt for ${row.path}`,
-        }),
-    ),
-  );
+  const suggestedMatches = yield* decodeJson(
+    AnimeSearchResultListSchema,
+    row.suggestedMatches,
+    (cause) =>
+      new StoredUnmappedFolderCorruptError({
+        cause,
+        message: `Stored unmapped folder suggestions are corrupt for ${row.path}`,
+      }),
+  ).pipe(Effect.map((decoded) => [...decoded]));
   const matchStatus = yield* Schema.decodeUnknown(UnmappedFolderMatchStatusSchema)(
     row.matchStatus,
   ).pipe(

@@ -1,4 +1,4 @@
-import { Effect, Schedule } from "effect";
+import { Effect, Option, Schedule } from "effect";
 
 import { DatabaseError } from "@/db/database.ts";
 
@@ -25,4 +25,12 @@ export const tryDatabasePromise = Effect.fn("Database.tryDatabasePromise")(
         ),
       ),
     ),
+);
+
+export const queryFirst = Effect.fn("Database.queryFirst")(
+  <A>(
+    message: string,
+    try_: () => Promise<readonly A[]>,
+  ): Effect.Effect<Option.Option<A>, DatabaseError> =>
+    tryDatabasePromise(message, try_).pipe(Effect.map((rows) => Option.fromNullable(rows[0]))),
 );

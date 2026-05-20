@@ -3,21 +3,20 @@ import { Effect, Option } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
 import { media, mediaUnits } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { queryFirst, tryDatabasePromise } from "@/infra/effect/db.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";
 
 export const getAnimeRowEffect = Effect.fn("AnimeRepository.getAnimeRow")(function* (
   db: AppDatabase,
   mediaId: number,
 ) {
-  const rows = yield* tryDatabasePromise("Failed to load media", () =>
+  const row = yield* queryFirst("Failed to load media", () =>
     db.select().from(media).where(eq(media.id, mediaId)).limit(1),
   );
-  const [row] = rows;
-  if (!row) {
+  if (Option.isNone(row)) {
     return yield* new MediaNotFoundError({ message: "Media not found" });
   }
-  return row;
+  return row.value;
 });
 
 export const requireAnimeExistsEffect = Effect.fn("AnimeRepository.requireAnimeExists")(function* (
@@ -32,23 +31,22 @@ export const getEpisodeRowEffect = Effect.fn("AnimeRepository.getEpisodeRow")(fu
   mediaId: number,
   unitNumber: number,
 ) {
-  const rows = yield* tryDatabasePromise("Failed to load episode", () =>
+  const row = yield* queryFirst("Failed to load episode", () =>
     db
       .select()
       .from(mediaUnits)
       .where(and(eq(mediaUnits.mediaId, mediaId), eq(mediaUnits.number, unitNumber)))
       .limit(1),
   );
-  const [row] = rows;
-  if (!row) {
+  if (Option.isNone(row)) {
     return yield* new MediaNotFoundError({ message: "MediaUnit not found" });
   }
-  return row;
+  return row.value;
 });
 
 export const loadCurrentEpisodeState = Effect.fn("AnimeRepository.loadCurrentEpisodeState")(
   function* (db: AppDatabase, mediaId: number, unitNumber: number) {
-    const rows = yield* tryDatabasePromise("Failed to load episode state", () =>
+    const row = yield* queryFirst("Failed to load episode state", () =>
       db
         .select()
         .from(mediaUnits)
@@ -56,12 +54,10 @@ export const loadCurrentEpisodeState = Effect.fn("AnimeRepository.loadCurrentEpi
         .limit(1),
     );
 
-    const [row] = rows;
-
-    return row
+    return Option.isSome(row)
       ? Option.some({
-          downloaded: row.downloaded,
-          ...(row.filePath == null ? {} : { filePath: row.filePath }),
+          downloaded: row.value.downloaded,
+          ...(row.value.filePath == null ? {} : { filePath: row.value.filePath }),
         })
       : Option.none();
   },

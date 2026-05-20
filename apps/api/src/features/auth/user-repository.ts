@@ -3,7 +3,7 @@ import { Effect, Option } from "effect";
 
 import { Database, type AppDatabase, type DatabaseError } from "@/db/database.ts";
 import { appConfig, sessions, systemLogs, users } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { queryFirst, tryDatabasePromise } from "@/infra/effect/db.ts";
 
 export type AuthUserRow = typeof users.$inferSelect;
 
@@ -85,33 +85,30 @@ export function makeAuthUserRepository(db: AppDatabase): AuthUserRepositoryShape
   const findUserByUsername = Effect.fn("AuthUserRepository.findUserByUsername")(function* (
     username: string,
   ) {
-    const rows = yield* tryDatabasePromise("Failed to find user by username", () =>
+    return yield* queryFirst("Failed to find user by username", () =>
       db.select().from(users).where(eq(users.username, username)).limit(1),
     );
-    return Option.fromNullable(rows[0]);
   });
 
   const findUserByApiKey = Effect.fn("AuthUserRepository.findUserByApiKey")(function* (
     apiKey: string,
   ) {
-    const rows = yield* tryDatabasePromise("Failed to find user by API key", () =>
+    return yield* queryFirst("Failed to find user by API key", () =>
       db.select().from(users).where(eq(users.apiKey, apiKey)).limit(1),
     );
-    return Option.fromNullable(rows[0]);
   });
 
   const findUserById = Effect.fn("AuthUserRepository.findUserById")(function* (userId: number) {
-    const rows = yield* tryDatabasePromise("Failed to find user by ID", () =>
+    return yield* queryFirst("Failed to find user by ID", () =>
       db.select().from(users).where(eq(users.id, userId)).limit(1),
     );
-    return Option.fromNullable(rows[0]);
   });
 
   const findAnyUserId = Effect.fn("AuthUserRepository.findAnyUserId")(function* () {
-    const rows = yield* tryDatabasePromise("Failed to find user", () =>
+    const row = yield* queryFirst("Failed to find user", () =>
       db.select({ id: users.id }).from(users).limit(1),
     );
-    return Option.fromNullable(rows[0]?.id);
+    return Option.map(row, (value) => value.id);
   });
 
   const changePasswordState = Effect.fn("AuthUserRepository.changePasswordState")(
@@ -218,7 +215,7 @@ export function makeAuthUserRepository(db: AppDatabase): AuthUserRepositoryShape
 
   const resolveUserBySessionToken = Effect.fn("AuthUserRepository.resolveUserBySessionToken")(
     function* (tokenHash: string, now: string) {
-      const rows = yield* tryDatabasePromise("Failed to resolve the current user", () =>
+      const row = yield* queryFirst("Failed to resolve the current user", () =>
         db
           .select({
             createdAt: users.createdAt,
@@ -234,12 +231,15 @@ export function makeAuthUserRepository(db: AppDatabase): AuthUserRepositoryShape
           .limit(1),
       );
 
-      const row = rows[0];
-      if (!row || row.lastSeenAt === undefined || row.createdAt === undefined) {
+      if (
+        Option.isNone(row) ||
+        row.value.lastSeenAt === undefined ||
+        row.value.createdAt === undefined
+      ) {
         return Option.none<AuthSessionUserRow>();
       }
 
-      return Option.some(row);
+      return Option.some(row.value);
     },
   );
 

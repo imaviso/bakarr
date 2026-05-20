@@ -6,7 +6,11 @@ import {
   RssFeedTooLargeError,
 } from "@/features/operations/errors.ts";
 import type { RouteErrorResponse } from "@/http/shared/route-types.ts";
-import { fixedStatus, messageStatus } from "@/http/shared/route-errors/helpers.ts";
+import {
+  fixedStatus,
+  mapTaggedRouteError,
+  messageStatus,
+} from "@/http/shared/route-errors/helpers.ts";
 
 const OperationsRouteErrorSchema = Schema.Union(
   RssFeedParseError,
@@ -30,12 +34,6 @@ const operationsRouteErrorMappers: {
   RssFeedTooLargeError: rssTooLarge,
 };
 
-const isOperationsRouteError = Schema.is(OperationsRouteErrorSchema);
-
-export function mapOperationsRouteError(error: unknown): RouteErrorResponse | undefined {
-  if (!isOperationsRouteError(error)) {
-    return undefined;
-  }
-
-  return Match.valueTags(error, operationsRouteErrorMappers);
-}
+export const mapOperationsRouteError = mapTaggedRouteError(OperationsRouteErrorSchema, (error) =>
+  Match.valueTags(error, operationsRouteErrorMappers),
+);

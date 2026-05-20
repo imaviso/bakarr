@@ -11,7 +11,12 @@ import {
   StoredUnmappedFolderCorruptError,
 } from "@/features/system/errors.ts";
 import type { RouteErrorResponse } from "@/http/shared/route-types.ts";
-import { errorStatus, fixedStatus, messageStatus } from "@/http/shared/route-errors/helpers.ts";
+import {
+  errorStatus,
+  fixedStatus,
+  mapTaggedRouteError,
+  messageStatus,
+} from "@/http/shared/route-errors/helpers.ts";
 
 const internalServerError = fixedStatus("Internal server error", 500);
 
@@ -43,12 +48,6 @@ const systemRouteErrorMappers: {
   StoredUnmappedFolderCorruptError: internalServerError,
 };
 
-const isSystemRouteError = Schema.is(SystemRouteErrorSchema);
-
-export function mapSystemRouteError(error: unknown): RouteErrorResponse | undefined {
-  if (!isSystemRouteError(error)) {
-    return undefined;
-  }
-
-  return Match.valueTags(error, systemRouteErrorMappers);
-}
+export const mapSystemRouteError = mapTaggedRouteError(SystemRouteErrorSchema, (error) =>
+  Match.valueTags(error, systemRouteErrorMappers),
+);
