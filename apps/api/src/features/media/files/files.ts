@@ -8,14 +8,11 @@ import { parseVolumeNumbersFromTitle } from "@/features/operations/search/releas
 const VIDEO_EXTENSIONS = [".mkv", ".mp4", ".avi", ".mov", ".webm"];
 const VOLUME_EXTENSIONS = [".cbz", ".cbr", ".pdf", ".epub"];
 
-function parseEpisodeNumber(path: string): number | undefined {
-  const parsed = parseFileSourceIdentity(path);
-  const identity = parsed.source_identity;
-  if (!identity || identity.scheme === "daily") return undefined;
-  return identity.unit_numbers[0];
+function parseEpisodeNumber(name: string, path: string, isVolumeMedia: boolean): number | undefined {
+  return extractUnitNumbersFromFile(name, path, isVolumeMedia)[0];
 }
 
-export { parseEpisodeNumber };
+// No longer exported — use extractUnitNumbersFromFile directly.
 
 /**
  * Extract unit numbers from a file, preferring volume-number parsing for
@@ -100,7 +97,7 @@ const collectMediaFiles = Effect.fn("AnimeService.collectMediaFiles")(function* 
       }
 
       entries.push({
-        unit_number: parseEpisodeNumber(fullPath),
+        unit_number: parseEpisodeNumber(entry.name, fullPath, extensions === VOLUME_EXTENSIONS),
         name: entry.name,
         path: fullPath,
         size: entry.size,
