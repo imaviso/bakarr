@@ -12,6 +12,10 @@ import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-s
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
+import {
+  makeMediaReadRepository,
+  MediaReadRepository,
+} from "@/features/media/shared/media-read-repository.ts";
 
 it.scoped("getWantedMissing includes non-media units without air dates", () =>
   withSqliteTestDbEffect({
@@ -35,6 +39,7 @@ it.scoped("getWantedMissing includes non-media units without air dates", () =>
 
         const dependenciesLayer = Layer.mergeAll(
           Layer.succeed(Database, { client, db }),
+          Layer.succeed(MediaReadRepository, makeMediaReadRepository(db)),
           Layer.succeed(
             ClockService,
             ClockService.make({

@@ -8,6 +8,7 @@ import { AppConfig } from "@/config/schema.ts";
 import { FileSystem, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";
 import { resolveUnitFileEffect } from "@/features/media/files/media-file-read.ts";
+import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import {
   findZipEntry,
   imageMediaType,
@@ -143,6 +144,7 @@ class ArchiveCache {
 const makeMediaReaderService = Effect.fn("MediaReaderService.make")(function* () {
   const { db } = yield* Database;
   const fs = yield* FileSystem;
+  const mediaReadRepository = yield* MediaReadRepository;
   const executor = yield* CommandExecutor.CommandExecutor;
   const config = yield* AppConfig;
   const cacheRoot = join(dirname(resolve(config.databaseFile)), "reader-cache");
@@ -166,7 +168,13 @@ const makeMediaReaderService = Effect.fn("MediaReaderService.make")(function* ()
     mediaId: number,
     unitNumber: number,
   ) {
-    const unitFile = yield* resolveReaderUnitFile({ db, fs, mediaId, unitNumber });
+    const unitFile = yield* resolveReaderUnitFile({
+      db,
+      fs,
+      mediaId,
+      mediaReadRepository,
+      unitNumber,
+    });
     const sources = yield* listReadablePageSources({
       archiveCache,
       archiveLoadSemaphores,
@@ -186,7 +194,13 @@ const makeMediaReaderService = Effect.fn("MediaReaderService.make")(function* ()
     unitNumber: number,
     pageNumber: number,
   ) {
-    const unitFile = yield* resolveReaderUnitFile({ db, fs, mediaId, unitNumber });
+    const unitFile = yield* resolveReaderUnitFile({
+      db,
+      fs,
+      mediaId,
+      mediaReadRepository,
+      unitNumber,
+    });
     const sources = yield* listReadablePageSources({
       archiveCache,
       archiveLoadSemaphores,
@@ -215,6 +229,7 @@ export const MediaReaderServiceLive = Layer.effect(MediaReaderService, makeMedia
 const resolveReaderUnitFile = Effect.fn("MediaReader.resolveReaderUnitFile")(function* (input: {
   readonly db: AppDatabase;
   readonly fs: FileSystemShape;
+  readonly mediaReadRepository: typeof MediaReadRepository.Service;
   readonly mediaId: number;
   readonly unitNumber: number;
 }) {
@@ -222,6 +237,7 @@ const resolveReaderUnitFile = Effect.fn("MediaReader.resolveReaderUnitFile")(fun
     db: input.db,
     fs: input.fs,
     mediaId: input.mediaId,
+    mediaReadRepository: input.mediaReadRepository,
     unitNumber: input.unitNumber,
   });
 
@@ -371,7 +387,9 @@ const listArchivePages = Effect.fn("MediaReader.listArchivePages")(function* (in
                                 status: 404,
                               }),
                           ),
-                          Effect.flatMap((bytes) => parseZipArchive(bytes, input.unitFile.filePath)),
+                          Effect.flatMap((bytes) =>
+                            parseZipArchive(bytes, input.unitFile.filePath),
+                          ),
                           Effect.tap((parsed) =>
                             Effect.sync(() => input.archiveCache.set(cacheKey, parsed)),
                           ),

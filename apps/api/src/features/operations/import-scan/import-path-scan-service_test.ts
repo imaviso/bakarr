@@ -12,6 +12,8 @@ import { FileSystem, type FileSystemShape } from "@/infra/filesystem/filesystem.
 import { MediaProbe } from "@/infra/media/probe.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
 import { makeRuntimeConfigSnapshotStub } from "@/test/stubs.ts";
+import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { OperationsConfigRepository } from "@/features/operations/repository/config-repository.ts";
 
 describe("ImportPathScanService", () => {
   it.effect("rejects paths outside library, recycle, and downloads roots", () =>
@@ -71,6 +73,21 @@ function scanImportPathEffect(
             Layer.succeed(FileSystem, fs),
             Layer.succeed(MediaProbe, {
               probeVideoFile: () => Effect.dieMessage("not used in test"),
+            }),
+            Layer.succeed(MediaReadRepository, {
+              findAnimeRootFolderOwner: () => Effect.dieMessage("not used in test"),
+              getAnimeRow: () => Effect.dieMessage("not used in test"),
+              getEpisodeRow: () => Effect.dieMessage("not used in test"),
+              loadCurrentEpisodeState: () => Effect.dieMessage("not used in test"),
+              requireAnimeExists: () => Effect.dieMessage("not used in test"),
+            }),
+            Layer.succeed(OperationsConfigRepository, {
+              currentImportMode: () => Effect.dieMessage("not used in test"),
+              currentNamingSettings: () => Effect.dieMessage("not used in test"),
+              getConfigLibraryPath: () => Effect.dieMessage("not used in test"),
+              getConfigLibraryRoots: () => Effect.dieMessage("not used in test"),
+              listLibraryRoots: () => Effect.dieMessage("not used in test"),
+              loadRuntimeConfig: () => Effect.dieMessage("not used in test"),
             }),
             Layer.succeed(
               RuntimeConfigSnapshotService,

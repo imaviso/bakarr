@@ -19,7 +19,7 @@ import {
   extractUnitNumbersFromFile,
 } from "@/features/media/files/files.ts";
 import { buildScannedFileMetadata } from "@/infra/scanned-file-metadata.ts";
-import { getAnimeRowEffect } from "@/features/media/shared/media-read-repository.ts";
+import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
 import { buildAiringScheduleMap } from "@/features/media/units/media-schedule-repository.ts";
 import { inferAiredAt } from "@/domain/media/derivations.ts";
 import { upsertEpisodeEffect } from "@/features/media/units/media-unit-repository.ts";
@@ -30,10 +30,11 @@ export const scanAnimeFolderEffect = Effect.fn("AnimeFileScan.scanAnimeFolderEff
     mediaId: number;
     db: AppDatabase;
     fs: FileSystemShape;
+    mediaReadRepository: MediaReadRepositoryShape;
     mediaProbe: MediaProbeShape;
     nowIso: () => Effect.Effect<string>;
   }) {
-    const animeRow = yield* getAnimeRowEffect(input.db, input.mediaId);
+    const animeRow = yield* input.mediaReadRepository.getAnimeRow(input.mediaId);
     const collectFiles = animeRow.mediaKind === "anime" ? collectVideoFiles : collectVolumeFiles;
     const files = yield* collectFiles(input.fs, animeRow.rootFolder).pipe(
       Effect.mapError(

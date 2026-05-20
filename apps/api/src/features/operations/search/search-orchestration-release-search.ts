@@ -16,7 +16,7 @@ import {
 } from "@/features/operations/errors.ts";
 import { SeaDexClient } from "@/features/operations/search/seadex-client.ts";
 import { applySeaDexMatch } from "@/features/operations/search/seadex-matching.ts";
-import { getAnimeRowEffect as requireAnime } from "@/features/media/shared/media-read-repository.ts";
+import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import {
   mapSearchCategory,
   mapSearchCategoryForMediaKind,
@@ -73,10 +73,11 @@ export interface SearchReleaseServiceShape {
 export function makeSearchReleaseSupport(input: {
   db: AppDatabase;
   getRuntimeConfig: () => Effect.Effect<Config, RuntimeConfigSnapshotError>;
+  mediaReadRepository: typeof MediaReadRepository.Service;
   rssClient: typeof RssClient.Service;
   seadexClient: typeof SeaDexClient.Service;
 }) {
-  const { db, getRuntimeConfig, rssClient, seadexClient } = input;
+  const { getRuntimeConfig, mediaReadRepository, rssClient, seadexClient } = input;
 
   const mapSearchReleaseError = (cause: unknown): SearchReleaseError =>
     cause instanceof DatabaseError || cause instanceof ExternalCallError || isOperationsError(cause)
@@ -166,7 +167,7 @@ export function makeSearchReleaseSupport(input: {
       yield* Effect.annotateCurrentSpan("mediaId", mediaId);
     }
 
-    const animeRow = mediaId ? yield* requireAnime(db, mediaId) : null;
+    const animeRow = mediaId ? yield* mediaReadRepository.getAnimeRow(mediaId) : null;
     const searchQuery = (query || animeRow?.titleRomaji || "").trim();
 
     if (searchQuery.length === 0) {
@@ -450,11 +451,13 @@ export const SearchReleaseServiceLive = Layer.effect(
     const { db } = yield* Database;
     const rssClient = yield* RssClient;
     const seadexClient = yield* SeaDexClient;
+    const mediaReadRepository = yield* MediaReadRepository;
     const runtimeConfigSnapshotService = yield* RuntimeConfigSnapshotService;
 
     return makeSearchReleaseSupport({
       db,
       getRuntimeConfig: runtimeConfigSnapshotService.getRuntimeConfig,
+      mediaReadRepository,
       rssClient,
       seadexClient,
     });

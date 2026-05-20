@@ -6,12 +6,7 @@ import * as schema from "@/db/schema.ts";
 import { media, mediaUnits } from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
-import {
-  getAnimeRowEffect,
-  getEpisodeRowEffect,
-  findAnimeRootFolderOwnerEffect,
-  requireAnimeExistsEffect,
-} from "@/features/media/shared/media-read-repository.ts";
+import { makeMediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";
 
 type TestDatabase = SqliteRemoteDatabase<typeof schema>;
@@ -59,7 +54,8 @@ it.scoped("getAnimeRowEffect returns row by id", () =>
     run: (db) =>
       Effect.gen(function* () {
         yield* seedAnime(db);
-        const row = yield* getAnimeRowEffect(db, 1);
+        const repository = makeMediaReadRepository(db);
+        const row = yield* repository.getAnimeRow(1);
         assert.deepStrictEqual(row.titleRomaji, "Naruto");
         assert.deepStrictEqual(row.unitCount, 12);
       }),
@@ -71,7 +67,8 @@ it.scoped("getAnimeRowEffect fails with MediaNotFoundError for missing id", () =
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        const exit = yield* Effect.exit(getAnimeRowEffect(db, 999));
+        const repository = makeMediaReadRepository(db);
+        const exit = yield* Effect.exit(repository.getAnimeRow(999));
         assert.deepStrictEqual(Exit.isFailure(exit), true);
         if (Exit.isFailure(exit)) {
           const failure = Cause.failureOption(exit.cause);
@@ -89,7 +86,8 @@ it.scoped("requireAnimeExistsEffect succeeds when media exists", () =>
     run: (db) =>
       Effect.gen(function* () {
         yield* seedAnime(db);
-        const exit = yield* Effect.exit(requireAnimeExistsEffect(db, 1));
+        const repository = makeMediaReadRepository(db);
+        const exit = yield* Effect.exit(repository.requireAnimeExists(1));
         assert.deepStrictEqual(exit._tag, "Success");
       }),
     schema,
@@ -102,7 +100,8 @@ it.scoped("getEpisodeRowEffect returns episode by media and number", () =>
       Effect.gen(function* () {
         yield* seedAnime(db);
         yield* seedEpisode(db, 1, 5);
-        const row = yield* getEpisodeRowEffect(db, 1, 5);
+        const repository = makeMediaReadRepository(db);
+        const row = yield* repository.getEpisodeRow(1, 5);
         assert.deepStrictEqual(row.number, 5);
         assert.deepStrictEqual(row.title, "MediaUnit 5");
       }),
@@ -115,7 +114,8 @@ it.scoped("getEpisodeRowEffect fails for non-existent episode", () =>
     run: (db) =>
       Effect.gen(function* () {
         yield* seedAnime(db);
-        const exit = yield* Effect.exit(getEpisodeRowEffect(db, 1, 99));
+        const repository = makeMediaReadRepository(db);
+        const exit = yield* Effect.exit(repository.getEpisodeRow(1, 99));
         assert.deepStrictEqual(Exit.isFailure(exit), true);
         if (Exit.isFailure(exit)) {
           const failure = Cause.failureOption(exit.cause);
@@ -133,7 +133,8 @@ it.scoped("findAnimeRootFolderOwnerEffect finds exact root match", () =>
     run: (db) =>
       Effect.gen(function* () {
         yield* seedAnime(db);
-        const owner = yield* findAnimeRootFolderOwnerEffect(db, "/library/Naruto");
+        const repository = makeMediaReadRepository(db);
+        const owner = yield* repository.findAnimeRootFolderOwner("/library/Naruto");
         assert.ok(owner !== null);
         assert.deepStrictEqual(owner.titleRomaji, "Naruto");
       }),
@@ -146,7 +147,8 @@ it.scoped("findAnimeRootFolderOwnerEffect finds by child path match", () =>
     run: (db) =>
       Effect.gen(function* () {
         yield* seedAnime(db);
-        const owner = yield* findAnimeRootFolderOwnerEffect(db, "/library/Naruto/Season 1");
+        const repository = makeMediaReadRepository(db);
+        const owner = yield* repository.findAnimeRootFolderOwner("/library/Naruto/Season 1");
         assert.ok(owner !== null);
         assert.deepStrictEqual(owner.titleRomaji, "Naruto");
       }),
@@ -158,7 +160,8 @@ it.scoped("findAnimeRootFolderOwnerEffect returns null for no match", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        const owner = yield* findAnimeRootFolderOwnerEffect(db, "/library/Unknown");
+        const repository = makeMediaReadRepository(db);
+        const owner = yield* repository.findAnimeRootFolderOwner("/library/Unknown");
         assert.deepStrictEqual(owner, null);
       }),
     schema,

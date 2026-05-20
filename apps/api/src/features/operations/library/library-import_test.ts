@@ -16,6 +16,7 @@ import { media } from "@/db/schema.ts";
 import { OperationsStoredDataError } from "@/features/operations/errors.ts";
 import { encodeConfigCore, toConfigCore } from "@/features/system/config-codec.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
+import { makeMediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 
 it("analyzeScannedFile strips release noise and extracts metadata", () => {
   const result = analyzeScannedFile({
@@ -177,7 +178,12 @@ it.scoped("buildRenamePreview fills naming tokens from existing file metadata", 
           }),
         );
 
-        const preview = yield* buildRenamePreview(appDb, 1, testConfig);
+        const preview = yield* buildRenamePreview(
+          appDb,
+          1,
+          testConfig,
+          makeMediaReadRepository(appDb),
+        );
         const firstPreview = preview[0];
         assert(firstPreview);
 
@@ -243,7 +249,12 @@ it.scoped("buildRenamePreview respects preferred English title and movie naming 
           }),
         );
 
-        const preview = yield* buildRenamePreview(appDb, 1, testConfig);
+        const preview = yield* buildRenamePreview(
+          appDb,
+          1,
+          testConfig,
+          makeMediaReadRepository(appDb),
+        );
         const firstPreview = preview[0];
         assert(firstPreview);
 
@@ -297,7 +308,12 @@ it.scoped("buildRenamePreview reports fallback when season metadata is missing",
           }),
         );
 
-        const preview = yield* buildRenamePreview(appDb, 1, testConfig);
+        const preview = yield* buildRenamePreview(
+          appDb,
+          1,
+          testConfig,
+          makeMediaReadRepository(appDb),
+        );
         const firstPreview = preview[0];
         assert(firstPreview);
 

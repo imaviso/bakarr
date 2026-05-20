@@ -9,7 +9,7 @@ import type { MediaProbeShape } from "@/infra/media/probe.ts";
 import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { OperationsPathError } from "@/features/operations/errors.ts";
-import { getAnimeRowEffect as requireAnime } from "@/features/media/shared/media-read-repository.ts";
+import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import { decodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
 import { resolveAccessibleDownloadPath } from "@/features/operations/download/download-paths.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
@@ -125,10 +125,11 @@ export const loadDownloadReconciliationContext = Effect.fn(
   > & {
     readonly contentPath: string;
     readonly getRuntimeConfig: RuntimeConfigLoader;
+    readonly mediaReadRepository: typeof MediaReadRepository.Service;
   },
 ) {
   const storedSourceMetadata = yield* decodeDownloadSourceMetadata(input.row.sourceMetadata);
-  const animeRow = yield* requireAnime(input.db, input.row.mediaId);
+  const animeRow = yield* input.mediaReadRepository.getAnimeRow(input.row.mediaId);
   const runtimeConfig = yield* input.getRuntimeConfig();
   const resolvedContentRoot = yield* resolveAccessibleDownloadPath(
     input.fs,

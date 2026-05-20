@@ -14,6 +14,7 @@ import { renameLibraryFiles } from "@/features/operations/catalog/catalog-librar
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
+import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 
 export interface CatalogLibraryWriteServiceShape {
   readonly importFiles: (
@@ -37,6 +38,7 @@ export const CatalogLibraryWriteServiceLive = Layer.effect(
     const { db } = yield* Database;
     const eventBus = yield* EventBus;
     const fs = yield* FileSystem;
+    const mediaReadRepository = yield* MediaReadRepository;
     const mediaProbe = yield* MediaProbe;
     const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
 
@@ -49,6 +51,7 @@ export const CatalogLibraryWriteServiceLive = Layer.effect(
         eventBus,
         files,
         fs,
+        mediaReadRepository,
         mediaProbe,
         runtimeConfig,
         tryDatabasePromise,
@@ -62,6 +65,7 @@ export const CatalogLibraryWriteServiceLive = Layer.effect(
         db,
         eventBus,
         fs,
+        mediaReadRepository,
         runtimeConfig,
         tryDatabasePromise,
       });

@@ -8,6 +8,7 @@ import { MediaNotFoundError } from "@/features/media/errors.ts";
 import { StreamAccessError } from "@/features/media/stream/media-stream-errors.ts";
 import { resolveUnitFileEffect } from "@/features/media/files/media-file-read.ts";
 import { StreamTokenSigner } from "@/features/media/stream/stream-token-signer.ts";
+import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 
 const STREAM_EXPIRY_MS = 6 * 60 * 60 * 1000;
 
@@ -38,6 +39,7 @@ export class AnimeStreamService extends Context.Tag("@bakarr/api/AnimeStreamServ
 const makeAnimeStreamService = Effect.fn("AnimeStreamService.make")(function* () {
   const { db } = yield* Database;
   const fs = yield* FileSystem;
+  const mediaReadRepository = yield* MediaReadRepository;
   const clock = yield* ClockService;
   const signer = yield* StreamTokenSigner;
 
@@ -100,6 +102,7 @@ const makeAnimeStreamService = Effect.fn("AnimeStreamService.make")(function* ()
       const resolvedEpisodeFile = yield* resolveUnitFileEffect({
         mediaId: input.mediaId,
         db,
+        mediaReadRepository,
         unitNumber: input.unitNumber,
         fs,
       });

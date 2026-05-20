@@ -17,6 +17,13 @@ import { AnimeEnrollmentServiceLive } from "@/features/media/add/media-enrollmen
 import { makeAnimeFeatureLayer } from "@/features/media/layer.ts";
 import { makeAuthFeatureLayer } from "@/features/auth/layer.ts";
 import { makeOperationsFeatureLayer } from "@/features/operations/layer.ts";
+import { MediaReadRepositoryLive } from "@/features/media/shared/media-read-repository.ts";
+import { OperationsConfigRepositoryLive } from "@/features/operations/repository/config-repository.ts";
+import { OperationsProfileRepositoryLive } from "@/features/operations/repository/profile-repository.ts";
+import { SystemLogRepositoryLive } from "@/features/system/repository/log-repository.ts";
+import { ReleaseProfileRepositoryLive } from "@/features/system/repository/release-profile-repository.ts";
+import { SystemStatsRepositoryLive } from "@/features/system/repository/stats-repository.ts";
+import { SystemUnmappedRepositoryLive } from "@/features/system/repository/unmapped-repository.ts";
 import { LibraryBrowseServiceLive } from "@/features/operations/library/library-browse-service.ts";
 import { OperationsTaskLauncherServiceLive } from "@/features/operations/tasks/operations-task-launcher-service.ts";
 import { BackgroundJobStatusServiceLive } from "@/features/system/background-job-status-service.ts";
@@ -56,6 +63,9 @@ export function makeApiLifecycleLayers(
     SystemConfigRepositoryLive,
     QualityProfileRepositoryLive,
   ).pipe(Layer.provide(platformRuntimeLayer));
+  const qualityProfileRepositoryLayer = QualityProfileRepositoryLive.pipe(
+    Layer.provide(platformRuntimeLayer),
+  );
   const systemConfigLayer = SystemConfigServiceLive.pipe(
     Layer.provide(systemConfigRepositoryLayer),
   );
@@ -79,6 +89,23 @@ export function makeApiLifecycleLayers(
     platformLayer,
     systemConfigLayer,
     runtimeConfigSnapshotLayer,
+  );
+  const mediaReadRepositoryLayer = MediaReadRepositoryLive.pipe(Layer.provide(runtimeSupportLayer));
+  const operationsConfigRepositoryLayer = OperationsConfigRepositoryLive.pipe(
+    Layer.provide(runtimeSupportLayer),
+  );
+  const operationsProfileRepositoryLayer = OperationsProfileRepositoryLive.pipe(
+    Layer.provide(runtimeSupportLayer),
+  );
+  const systemUnmappedRepositoryLayer = SystemUnmappedRepositoryLive.pipe(
+    Layer.provide(runtimeSupportLayer),
+  );
+  const systemStatsRepositoryLayer = SystemStatsRepositoryLive.pipe(
+    Layer.provide(runtimeSupportLayer),
+  );
+  const systemLogRepositoryLayer = SystemLogRepositoryLive.pipe(Layer.provide(runtimeSupportLayer));
+  const releaseProfileRepositoryLayer = ReleaseProfileRepositoryLive.pipe(
+    Layer.provide(runtimeSupportLayer),
   );
 
   // Media feature graph owns its internal service wiring.
@@ -105,10 +132,11 @@ export function makeApiLifecycleLayers(
     backgroundControllerLayer,
   );
   const backgroundJobStatusLayer = BackgroundJobStatusServiceLive.pipe(
-    Layer.provide(runtimeWithBackgroundControllerLayer),
+    Layer.provide(Layer.mergeAll(runtimeWithBackgroundControllerLayer, systemStatsRepositoryLayer)),
   );
   const runtimeWithBackgroundJobStatusLayer = Layer.mergeAll(
     runtimeSupportLayer,
+    systemStatsRepositoryLayer,
     backgroundJobStatusLayer,
   );
   const systemReadLayer = SystemReadServiceLive.pipe(
@@ -118,15 +146,44 @@ export function makeApiLifecycleLayers(
     Layer.provide(systemReadLayer),
   );
   const systemLayer = Layer.mergeAll(
-    SystemBootstrapServiceLive.pipe(Layer.provide(runtimeSupportLayer)),
+    SystemBootstrapServiceLive.pipe(
+      Layer.provide(Layer.mergeAll(runtimeSupportLayer, systemConfigRepositoryLayer)),
+    ),
     ImageAssetServiceLive.pipe(Layer.provide(runtimeSupportLayer)),
-    QualityProfileServiceLive.pipe(Layer.provide(runtimeSupportLayer)),
-    ReleaseProfileServiceLive.pipe(Layer.provide(runtimeSupportLayer)),
-    SystemLogServiceLive.pipe(Layer.provide(runtimeSupportLayer)),
+    QualityProfileServiceLive.pipe(
+      Layer.provide(
+        Layer.mergeAll(
+          runtimeSupportLayer,
+          qualityProfileRepositoryLayer,
+          systemLogRepositoryLayer,
+        ),
+      ),
+    ),
+    ReleaseProfileServiceLive.pipe(
+      Layer.provide(
+        Layer.mergeAll(
+          runtimeSupportLayer,
+          releaseProfileRepositoryLayer,
+          systemLogRepositoryLayer,
+        ),
+      ),
+    ),
+    SystemLogServiceLive.pipe(
+      Layer.provide(Layer.mergeAll(runtimeSupportLayer, systemLogRepositoryLayer)),
+    ),
     backgroundJobStatusLayer,
     systemReadLayer,
     systemRuntimeMetricsLayer,
-    SystemConfigUpdateServiceLive.pipe(Layer.provide(runtimeWithBackgroundControllerLayer)),
+    SystemConfigUpdateServiceLive.pipe(
+      Layer.provide(
+        Layer.mergeAll(
+          runtimeWithBackgroundControllerLayer,
+          systemConfigRepositoryLayer,
+          qualityProfileRepositoryLayer,
+          systemLogRepositoryLayer,
+        ),
+      ),
+    ),
     SystemEventsServiceLive.pipe(
       Layer.provide(Layer.mergeAll(runtimeSupportLayer, operationsLayer)),
     ),
@@ -155,7 +212,27 @@ export function makeApiLifecycleLayers(
   const appFeatureSubgraphLayer = Layer.mergeAll(appFeatureBaseLayer, operationsTaskLauncherLayer);
   const appLayer = Layer.mergeAll(
     runtimeSupportLayer,
-    appFeatureSubgraphLayer.pipe(Layer.provide(runtimeSupportLayer)),
+    mediaReadRepositoryLayer,
+    operationsConfigRepositoryLayer,
+    operationsProfileRepositoryLayer,
+    systemLogRepositoryLayer,
+    releaseProfileRepositoryLayer,
+    systemStatsRepositoryLayer,
+    systemUnmappedRepositoryLayer,
+    appFeatureSubgraphLayer.pipe(
+      Layer.provide(
+        Layer.mergeAll(
+          runtimeSupportLayer,
+          mediaReadRepositoryLayer,
+          operationsConfigRepositoryLayer,
+          operationsProfileRepositoryLayer,
+          systemLogRepositoryLayer,
+          releaseProfileRepositoryLayer,
+          systemStatsRepositoryLayer,
+          systemUnmappedRepositoryLayer,
+        ),
+      ),
+    ),
   );
 
   return {

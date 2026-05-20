@@ -6,7 +6,7 @@ import { mediaUnits } from "@/db/schema.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { isWithinPathRoot } from "@/infra/filesystem/filesystem.ts";
 import { MediaPathError } from "@/features/media/errors.ts";
-import { getAnimeRowEffect } from "@/features/media/shared/media-read-repository.ts";
+import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
 import {
   clearEpisodeMappingEffect,
   bulkMapEpisodeFilesAtomicEffect,
@@ -19,8 +19,14 @@ import {
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 export const deleteEpisodeFileEffect = Effect.fn("AnimeFileWrite.deleteEpisodeFileEffect")(
-  function* (input: { mediaId: number; db: AppDatabase; unitNumber: number; fs: FileSystemShape }) {
-    const animeRow = yield* getAnimeRowEffect(input.db, input.mediaId);
+  function* (input: {
+    mediaId: number;
+    db: AppDatabase;
+    mediaReadRepository: MediaReadRepositoryShape;
+    unitNumber: number;
+    fs: FileSystemShape;
+  }) {
+    const animeRow = yield* input.mediaReadRepository.getAnimeRow(input.mediaId);
     const episodeRows = yield* tryDatabasePromise("Failed to find episode", () =>
       input.db
         .select({
@@ -74,8 +80,9 @@ export const mapEpisodeFileEffect = Effect.fn("AnimeFileWrite.mapEpisodeFileEffe
     unitNumber: number;
     filePath: string;
     fs: FileSystemShape;
+    mediaReadRepository: MediaReadRepositoryShape;
   }) {
-    const animeRow = yield* getAnimeRowEffect(input.db, input.mediaId);
+    const animeRow = yield* input.mediaReadRepository.getAnimeRow(input.mediaId);
 
     if (input.filePath.trim().length === 0) {
       yield* clearEpisodeMappingEffect(input.db, input.mediaId, input.unitNumber);
@@ -102,9 +109,10 @@ export const bulkMapEpisodeFilesEffect = Effect.fn("AnimeFileWrite.bulkMapEpisod
     mediaId: number;
     db: AppDatabase;
     fs: FileSystemShape;
+    mediaReadRepository: MediaReadRepositoryShape;
     mappings: readonly { unit_number: number; file_path: string }[];
   }) {
-    const animeRow = yield* getAnimeRowEffect(input.db, input.mediaId);
+    const animeRow = yield* input.mediaReadRepository.getAnimeRow(input.mediaId);
     const animeRoot = yield* loadAnimeRoot(input.fs, animeRow.rootFolder);
 
     const validated: {

@@ -5,6 +5,7 @@ import type { AppDatabase } from "@/db/database.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import type { MediaProbeShape } from "@/infra/media/probe.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
+import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import { buildLibraryImportPlan } from "@/features/operations/catalog/catalog-library-write-import-plan-support.ts";
 import { writeLibraryImportFile } from "@/features/operations/catalog/catalog-library-write-import-file-support.ts";
 import type { TryDatabasePromise } from "@/infra/effect/db.ts";
@@ -21,6 +22,7 @@ export interface ImportLibraryFilesInput {
   readonly db: AppDatabase;
   readonly eventBus: typeof EventBus.Service;
   readonly fs: FileSystemShape;
+  readonly mediaReadRepository: typeof MediaReadRepository.Service;
   readonly mediaProbe: MediaProbeShape;
   readonly runtimeConfig: Config;
   readonly tryDatabasePromise: TryDatabasePromise;
@@ -30,7 +32,16 @@ export interface ImportLibraryFilesInput {
 export const importLibraryFiles = Effect.fn("Operations.importLibraryFiles")((
   input: ImportLibraryFilesInput,
 ): Effect.Effect<ImportResult> => {
-  const { db, eventBus, fs, mediaProbe, runtimeConfig, tryDatabasePromise, files } = input;
+  const {
+    db,
+    eventBus,
+    fs,
+    mediaReadRepository,
+    mediaProbe,
+    runtimeConfig,
+    tryDatabasePromise,
+    files,
+  } = input;
   return Effect.gen(function* () {
     yield* eventBus.publish({
       type: "ImportStarted",
@@ -46,6 +57,7 @@ export const importLibraryFiles = Effect.fn("Operations.importLibraryFiles")((
       const planned = yield* buildLibraryImportPlan({
         db,
         fs,
+        mediaReadRepository,
         mediaProbe,
         runtimeConfig,
         tryDatabasePromise,

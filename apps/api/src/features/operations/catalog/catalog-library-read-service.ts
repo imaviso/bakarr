@@ -18,6 +18,7 @@ import {
   RuntimeConfigSnapshotService,
   type RuntimeConfigSnapshotError,
 } from "@/features/system/runtime-config-snapshot-service.ts";
+import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 
 export interface CatalogLibraryReadServiceShape {
   readonly getWantedMissing: (limit: number) => Effect.Effect<MissingUnit[], DatabaseError>;
@@ -48,6 +49,7 @@ export const CatalogLibraryReadServiceLive = Layer.effect(
     const { db } = yield* Database;
     const clock = yield* ClockService;
     const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
+    const mediaReadRepository = yield* MediaReadRepository;
     const nowIso = () => nowIsoFromClock(clock);
 
     const getWantedMissing = Effect.fn("OperationsService.getWantedMissing")(function* (
@@ -161,7 +163,7 @@ export const CatalogLibraryReadServiceLive = Layer.effect(
       mediaId: number,
     ) {
       const runtimeConfig = yield* runtimeConfigSnapshot.getRuntimeConfig();
-      return yield* buildRenamePreview(db, mediaId, runtimeConfig);
+      return yield* buildRenamePreview(db, mediaId, runtimeConfig, mediaReadRepository);
     });
 
     return CatalogLibraryReadService.of({

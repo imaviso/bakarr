@@ -5,7 +5,7 @@ import type { DownloadAction, DownloadSourceMetadata } from "@packages/shared/in
 import { DatabaseError, type AppDatabase } from "@/db/database.ts";
 import { media, downloads } from "@/db/schema.ts";
 import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
-import { getAnimeRowEffect as requireAnime } from "@/features/media/shared/media-read-repository.ts";
+import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import { encodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
 import { loadMissingEpisodeNumbers } from "@/features/operations/shared/job-support.ts";
 import {
@@ -43,10 +43,11 @@ export interface PreparedTriggerDownload {
 export const prepareTriggerDownload = Effect.fn("Operations.prepareTriggerDownload")(
   function* (input: {
     readonly db: AppDatabase;
+    readonly mediaReadRepository: typeof MediaReadRepository.Service;
     readonly nowIso: () => Effect.Effect<string>;
     readonly triggerInput: TriggerDownloadInput;
   }) {
-    const animeRow = yield* requireAnime(input.db, input.triggerInput.media_id);
+    const animeRow = yield* input.mediaReadRepository.getAnimeRow(input.triggerInput.media_id);
     const now = yield* input.nowIso();
     const parsedRelease = parseReleaseName(input.triggerInput.title);
     const parsedVolumes = parseVolumeNumbersFromTitle(input.triggerInput.title);

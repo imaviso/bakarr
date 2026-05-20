@@ -14,7 +14,7 @@ import { buildEpisodeFilenamePlan } from "@/features/operations/library/naming-c
 import { selectNamingFormat } from "@/features/operations/library/naming-format-support.ts";
 import { OperationsStoredDataError } from "@/features/operations/errors.ts";
 import { deriveAnimeSeason, extractYearFromDate } from "@/domain/media/date-utils.ts";
-import { getAnimeRowEffect as requireAnime } from "@/features/media/shared/media-read-repository.ts";
+import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
 
 export {
   analyzeScannedFile,
@@ -49,8 +49,9 @@ export const buildRenamePreview = Effect.fn("OperationsService.buildRenamePrevie
   db: AppDatabase,
   mediaId: number,
   runtimeConfig: Config,
+  mediaReadRepository: MediaReadRepositoryShape,
 ) {
-  const animeRow = yield* requireAnime(db, mediaId);
+  const animeRow = yield* mediaReadRepository.getAnimeRow(mediaId);
   const namingSettings = {
     movieNamingFormat: runtimeConfig.library.movie_naming_format,
     namingFormat: runtimeConfig.library.naming_format,

@@ -22,7 +22,7 @@ import {
   extractUnitNumbersFromFile,
 } from "@/features/media/files/files.ts";
 import { buildScannedFileMetadata } from "@/infra/scanned-file-metadata.ts";
-import { getAnimeRowEffect } from "@/features/media/shared/media-read-repository.ts";
+import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { MediaPathError } from "@/features/media/errors.ts";
 
@@ -114,9 +114,10 @@ export const listAnimeFilesEffect = Effect.fn("AnimeFileList.listAnimeFilesEffec
     mediaId: number;
     db: AppDatabase;
     fs: FileSystemShape;
+    mediaReadRepository: MediaReadRepositoryShape;
     mediaProbe: MediaProbeShape;
   }) {
-    const animeRow = yield* getAnimeRowEffect(input.db, input.mediaId);
+    const animeRow = yield* input.mediaReadRepository.getAnimeRow(input.mediaId);
     const collectFiles = animeRow.mediaKind === "anime" ? collectVideoFiles : collectVolumeFiles;
     const files = yield* collectFiles(input.fs, animeRow.rootFolder).pipe(
       Effect.mapError(

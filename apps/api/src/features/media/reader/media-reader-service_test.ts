@@ -16,6 +16,10 @@ import {
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { makeTestFileSystemEffect } from "@/test/filesystem-test.ts";
 import { makeCommandExecutorStub, makeDatabaseServiceStub } from "@/test/stubs.ts";
+import {
+  makeMediaReadRepository,
+  MediaReadRepository,
+} from "@/features/media/shared/media-read-repository.ts";
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
@@ -56,6 +60,7 @@ it.scoped("MediaReaderService exposes cbz archive pages and image bytes", () =>
                 makeCommandExecutorStub(() => Effect.succeed("")),
               ),
               Layer.succeed(Database, makeDatabaseServiceStub(appDb)),
+              Layer.succeed(MediaReadRepository, makeMediaReadRepository(appDb)),
               Layer.succeed(FileSystem, fs),
             ),
           ),

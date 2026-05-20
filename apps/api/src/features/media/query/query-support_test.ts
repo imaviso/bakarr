@@ -20,6 +20,7 @@ import {
 import { listEpisodesEffect } from "@/features/media/query/media-query-units.ts";
 import { annotateAnimeSearchResultsForQuery } from "@/features/media/query/media-search-annotation.ts";
 import { listAnimeFilesEffect } from "@/features/media/files/media-file-list.ts";
+import { makeMediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import type { AnimeMetadata } from "@/features/media/metadata/anilist-model.ts";
 
 it("annotateAnimeSearchResultsForQuery adds confidence and reasons", () => {
@@ -195,6 +196,7 @@ it.scoped("listAnimeFilesEffect caches probed metadata to episode rows", () =>
             mediaId: 101,
             db: appDb,
             fs,
+            mediaReadRepository: makeMediaReadRepository(appDb),
             mediaProbe,
           });
 
@@ -218,6 +220,7 @@ it.scoped("listAnimeFilesEffect caches probed metadata to episode rows", () =>
             mediaId: 101,
             db: appDb,
             fs,
+            mediaReadRepository: makeMediaReadRepository(appDb),
             mediaProbe,
           });
 
@@ -312,6 +315,7 @@ it.scoped("getAnimeEffect returns discovery metadata from database storage", () 
         const result = yield* getAnimeEffect({
           db: appDb,
           id: 80,
+          mediaReadRepository: makeMediaReadRepository(appDb),
         });
 
         assert.deepStrictEqual(result.related_media?.[0]?.relation_type, "PREQUEL");
@@ -359,6 +363,7 @@ it.scoped("getAnimeEffect uses stored discovery metadata from database", () =>
         const result = yield* getAnimeEffect({
           db: appDb,
           id: 90,
+          mediaReadRepository: makeMediaReadRepository(appDb),
         });
 
         assert.deepStrictEqual(result.id, 90);

@@ -17,6 +17,7 @@ import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-confi
 import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import type { MediaProbeShape } from "@/infra/media/probe.ts";
+import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 
 function shouldRemoveTorrentOnImport(config: Config | null | undefined) {
   return config?.downloads.remove_torrent_on_import ?? true;
@@ -30,6 +31,7 @@ export function makeDownloadCompletedTorrentReconciliation(
   db: AppDatabase,
   fs: FileSystemShape,
   mediaProbe: MediaProbeShape,
+  mediaReadRepository: typeof MediaReadRepository.Service,
   torrentClientService: typeof TorrentClientService.Service,
   eventBus: typeof EventBus.Service,
   tryDatabasePromise: TryDatabasePromise,
@@ -94,6 +96,7 @@ export function makeDownloadCompletedTorrentReconciliation(
         tryDatabasePromise,
         contentPath,
         getRuntimeConfig,
+        mediaReadRepository,
       });
 
       if (Option.isNone(context)) {

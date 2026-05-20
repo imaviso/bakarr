@@ -11,7 +11,7 @@ import {
   type ProbedMediaMetadata,
 } from "@/infra/media/probe.ts";
 import { OperationsAnimeNotFoundError, OperationsPathError } from "@/features/operations/errors.ts";
-import { getAnimeRowEffect as requireAnime } from "@/features/media/shared/media-read-repository.ts";
+import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import { buildEpisodeFilenamePlan } from "@/features/operations/library/naming-canonical-support.ts";
 import type { EpisodeFilenamePlan } from "@/features/operations/library/naming-types.ts";
 import {
@@ -23,6 +23,7 @@ import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 export interface BuildLibraryImportPlanInput {
   readonly db: AppDatabase;
   readonly fs: FileSystemShape;
+  readonly mediaReadRepository: typeof MediaReadRepository.Service;
   readonly mediaProbe: MediaProbeShape;
   readonly runtimeConfig: Config;
   readonly tryDatabasePromise: TryDatabasePromise;
@@ -55,7 +56,8 @@ export const buildLibraryImportPlan = Effect.fn("Operations.buildLibraryImportPl
   LibraryImportPlan,
   DatabaseError | OperationsPathError | OperationsAnimeNotFoundError
 > => {
-  const { db, file, fs, mediaProbe, runtimeConfig, tryDatabasePromise } = input;
+  const { db, file, fs, mediaReadRepository, mediaProbe, runtimeConfig, tryDatabasePromise } =
+    input;
   return Effect.gen(function* () {
     const resolvedSource = yield* fs.realPath(file.source_path).pipe(
       Effect.mapError(
@@ -67,7 +69,7 @@ export const buildLibraryImportPlan = Effect.fn("Operations.buildLibraryImportPl
       ),
     );
 
-    const animeRow = yield* requireAnime(db, file.media_id);
+    const animeRow = yield* mediaReadRepository.getAnimeRow(file.media_id);
     const importMode = runtimeConfig.library.import_mode;
     const namingSettings = {
       movieNamingFormat: runtimeConfig.library.movie_naming_format,

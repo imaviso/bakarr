@@ -14,6 +14,7 @@ import {
 } from "@/features/media/add/media-add-validation.ts";
 import { MediaConflictError } from "@/features/media/errors.ts";
 import { ProfileNotFoundError } from "@/features/system/errors.ts";
+import { makeMediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 
 type TestDatabase = SqliteRemoteDatabase<typeof schema>;
 
@@ -113,7 +114,9 @@ it.scoped("checkRootFolderNotOwnedEffect returns error when folder already mappe
     run: (db) =>
       Effect.gen(function* () {
         yield* seedAnime(db);
-        const exit = yield* Effect.exit(checkRootFolderNotOwnedEffect(db, "/library/Existing"));
+        const exit = yield* Effect.exit(
+          checkRootFolderNotOwnedEffect(makeMediaReadRepository(db), "/library/Existing"),
+        );
         assert.deepStrictEqual(Exit.isFailure(exit), true);
         if (Exit.isFailure(exit)) {
           const failure = Cause.failureOption(exit.cause);
@@ -134,7 +137,9 @@ it.scoped("checkRootFolderNotOwnedEffect succeeds for unmapped folder", () =>
     run: (db) =>
       Effect.gen(function* () {
         yield* seedAnime(db);
-        const exit = yield* Effect.exit(checkRootFolderNotOwnedEffect(db, "/library/NewAnime"));
+        const exit = yield* Effect.exit(
+          checkRootFolderNotOwnedEffect(makeMediaReadRepository(db), "/library/NewAnime"),
+        );
         assert.deepStrictEqual(exit._tag, "Success");
       }),
     schema,

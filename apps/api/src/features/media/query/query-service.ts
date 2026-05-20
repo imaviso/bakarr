@@ -33,6 +33,7 @@ import { AnimeSeasonalProviderService } from "@/features/media/query/media-seaso
 import { listSeasonalAnimeEffect } from "@/features/media/query/media-query-seasonal.ts";
 import { markSearchResultsAlreadyInLibraryEffect } from "@/features/media/query/search-results.ts";
 import { ManamiClient } from "@/features/media/metadata/manami.ts";
+import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import {
   readSeasonalAnimeCache,
   readStaleSeasonalAnimeCache,
@@ -84,11 +85,12 @@ export const AnimeQueryServiceLive = Layer.effect(
     const aniList = yield* AniListClient;
     const manami = yield* ManamiClient;
     const clock = yield* ClockService;
+    const mediaReadRepository = yield* MediaReadRepository;
     const providerService = yield* AnimeSeasonalProviderService;
 
     return {
       getMedia: Effect.fn("AnimeQueryService.getMedia")(function* (id: number) {
-        return yield* getAnimeEffect({ db, id });
+        return yield* getAnimeEffect({ db, id, mediaReadRepository });
       }),
       getAnimeByAnilistId: Effect.fn("AnimeQueryService.getAnimeByAnilistId")(function* (
         id: number,

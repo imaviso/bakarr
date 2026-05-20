@@ -15,6 +15,7 @@ import {
 } from "@/features/media/shared/decode-support.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
+import { makeMediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 
 it.scoped("syncAnimeMetadataEffect stores locally cached image paths", () =>
   withSqliteTestDbEffect({
@@ -62,6 +63,7 @@ it.scoped("syncAnimeMetadataEffect stores locally cached image paths", () =>
           mediaId,
           db: appDb,
           eventPublisher: Option.none(),
+          mediaReadRepository: makeMediaReadRepository(appDb),
           nowIso: () => Effect.succeed("2026-04-11T00:00:00.000Z"),
         });
 
@@ -120,6 +122,7 @@ it.scoped("syncAnimeMetadataEffect keeps existing image paths if caching fails",
           mediaId,
           db: appDb,
           eventPublisher: Option.none(),
+          mediaReadRepository: makeMediaReadRepository(appDb),
           nowIso: () => Effect.succeed("2026-04-11T00:00:00.000Z"),
         });
 
@@ -198,6 +201,7 @@ it.scoped("syncAnimeMetadataEffect persists enrichment metadata fields from prov
           mediaId,
           db: appDb,
           eventPublisher: Option.none(),
+          mediaReadRepository: makeMediaReadRepository(appDb),
           nowIso: () => Effect.succeed("2026-04-11T00:00:00.000Z"),
         });
 

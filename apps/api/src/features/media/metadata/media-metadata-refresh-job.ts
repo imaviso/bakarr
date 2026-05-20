@@ -19,6 +19,7 @@ import {
 import { appendSystemLog } from "@/features/system/support.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
 import { markJobFailureOrFailWithError } from "@/infra/job-failure-support.ts";
+import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
 
 type MetadataRefreshError = DatabaseError | ExternalCallError;
 
@@ -28,6 +29,7 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
   imageCacheService: typeof AnimeImageCacheService.Service;
   metadataProvider: typeof AnimeMetadataProviderService.Service;
   db: AppDatabase;
+  mediaReadRepository: MediaReadRepositoryShape;
   nowIso: () => Effect.Effect<string, MetadataRefreshError>;
   refreshConcurrency: number;
 }) {
@@ -136,6 +138,7 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
             mediaId: monitored.id,
             db: input.db,
             eventPublisher: Option.none(),
+            mediaReadRepository: input.mediaReadRepository,
             nowIso,
           });
 

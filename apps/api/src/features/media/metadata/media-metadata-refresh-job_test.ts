@@ -10,6 +10,7 @@ import { refreshMetadataForMonitoredAnimeEffect } from "@/features/media/metadat
 import { ExternalCallError } from "@/infra/effect/retry.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
+import { makeMediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 
 it.scoped(
   "refreshMetadataForMonitoredAnimeEffect skips per-media external failures and completes",
@@ -46,6 +47,7 @@ it.scoped(
                     }),
             },
             db: appDb,
+            mediaReadRepository: makeMediaReadRepository(appDb),
             nowIso: () => Effect.succeed("2026-04-16T00:00:00.000Z"),
             refreshConcurrency: 2,
           });
@@ -118,6 +120,7 @@ it.scoped(
                 }),
             },
             db: appDb,
+            mediaReadRepository: makeMediaReadRepository(appDb),
             nowIso,
             refreshConcurrency: 1,
           }).pipe(Effect.either);

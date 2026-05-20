@@ -19,6 +19,7 @@ import type {
 } from "@/features/operations/errors.ts";
 import type { MaybeCleanupImportedTorrent } from "@/features/operations/download/download-reconciliation-shared.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
+import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 
 export interface DownloadReconciliationServiceShape {
   readonly maybeCleanupImportedTorrent: MaybeCleanupImportedTorrent;
@@ -53,6 +54,7 @@ export const DownloadReconciliationServiceLive = Layer.effect(
     const eventBus = yield* EventBus;
     const fs = yield* FileSystem;
     const mediaProbe = yield* MediaProbe;
+    const mediaReadRepository = yield* MediaReadRepository;
     const torrentClientService = yield* TorrentClientService;
     const clock = yield* ClockService;
     const random = yield* RandomService;
@@ -65,6 +67,7 @@ export const DownloadReconciliationServiceLive = Layer.effect(
         db,
         fs,
         mediaProbe,
+        mediaReadRepository,
         torrentClientService,
         eventBus,
         tryDatabasePromise,

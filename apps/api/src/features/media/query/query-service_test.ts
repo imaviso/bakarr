@@ -11,6 +11,10 @@ import { Database } from "@/db/database.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
 import { ManamiClient } from "@/features/media/metadata/manami.ts";
+import {
+  makeMediaReadRepository,
+  MediaReadRepository,
+} from "@/features/media/shared/media-read-repository.ts";
 
 function makeSeasonalResult(input: {
   id: number;
@@ -75,6 +79,7 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
               client,
               db,
             }),
+            Layer.succeed(MediaReadRepository, makeMediaReadRepository(db)),
           );
 
           const queryServiceLayer = AnimeQueryServiceLive.pipe(Layer.provide(baseLayer));
@@ -162,6 +167,7 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
                   client,
                   db,
                 }),
+                Layer.succeed(MediaReadRepository, makeMediaReadRepository(db)),
               ),
             ),
           );
@@ -245,6 +251,7 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
                   client,
                   db,
                 }),
+                Layer.succeed(MediaReadRepository, makeMediaReadRepository(db)),
               ),
             ),
           );
@@ -330,6 +337,7 @@ describe("AnimeQueryService.searchAnime", () => {
                   client,
                   db,
                 }),
+                Layer.succeed(MediaReadRepository, makeMediaReadRepository(db)),
               ),
             ),
           );

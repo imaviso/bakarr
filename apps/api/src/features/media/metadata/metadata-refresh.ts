@@ -7,6 +7,7 @@ import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
 import { AnimeImageCacheService } from "@/features/media/metadata/media-image-cache-service.ts";
 import { AnimeMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
 import { refreshMetadataForMonitoredAnimeEffect } from "@/features/media/metadata/media-metadata-refresh-job.ts";
+import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 
 const DEFAULT_METADATA_REFRESH_CONCURRENCY = 2;
 
@@ -14,6 +15,7 @@ export const makeMetadataRefreshRunner = Effect.fn("AnimeMetadataRefresh.makeRun
   const { db } = yield* Database;
   const imageCacheService = yield* AnimeImageCacheService;
   const metadataProvider = yield* AnimeMetadataProviderService;
+  const mediaReadRepository = yield* MediaReadRepository;
   const clock = yield* ClockService;
   const refreshConcurrency = yield* Schema.Config(
     "BAKARR_METADATA_REFRESH_CONCURRENCY",
@@ -25,6 +27,7 @@ export const makeMetadataRefreshRunner = Effect.fn("AnimeMetadataRefresh.makeRun
       imageCacheService,
       metadataProvider,
       db,
+      mediaReadRepository,
       nowIso: () => nowIsoFromClock(clock),
       refreshConcurrency,
     }),

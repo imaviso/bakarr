@@ -33,6 +33,10 @@ import { TorrentClientServiceLive } from "@/features/operations/qbittorrent/torr
 import { UnmappedControlServiceLive } from "@/features/operations/unmapped/unmapped-control-service.ts";
 import { UnmappedImportServiceLive } from "@/features/operations/unmapped/unmapped-orchestration-import.ts";
 import { UnmappedScanServiceLive } from "@/features/operations/unmapped/unmapped-scan-service.ts";
+import { MediaReadRepositoryLive } from "@/features/media/shared/media-read-repository.ts";
+import { OperationsConfigRepositoryLive } from "@/features/operations/repository/config-repository.ts";
+import { OperationsProfileRepositoryLive } from "@/features/operations/repository/profile-repository.ts";
+import { SystemUnmappedRepositoryLive } from "@/features/system/repository/unmapped-repository.ts";
 
 export function makeOperationsFeatureLayer<ROut, E, RIn>(
   runtimeSupportLayer: Layer.Layer<ROut, E, RIn>,
@@ -43,9 +47,23 @@ export function makeOperationsFeatureLayer<ROut, E, RIn>(
   const operationsTaskWriteLayer = OperationsTaskWriteServiceLive.pipe(
     Layer.provide(runtimeSupportLayer),
   );
+  const mediaReadRepositoryLayer = MediaReadRepositoryLive.pipe(Layer.provide(runtimeSupportLayer));
+  const operationsConfigRepositoryLayer = OperationsConfigRepositoryLive.pipe(
+    Layer.provide(runtimeSupportLayer),
+  );
+  const operationsProfileRepositoryLayer = OperationsProfileRepositoryLive.pipe(
+    Layer.provide(runtimeSupportLayer),
+  );
+  const systemUnmappedRepositoryLayer = SystemUnmappedRepositoryLive.pipe(
+    Layer.provide(runtimeSupportLayer),
+  );
   const operationsRuntimeLayer = Layer.mergeAll(
     runtimeSupportLayer,
+    operationsConfigRepositoryLayer,
+    operationsProfileRepositoryLayer,
+    systemUnmappedRepositoryLayer,
     DownloadTriggerCoordinatorLive,
+    mediaReadRepositoryLayer,
     UnmappedScanCoordinatorLive,
   );
   const torrentClientLayer = TorrentClientServiceLive.pipe(Layer.provide(operationsRuntimeLayer));
@@ -100,7 +118,7 @@ export function makeOperationsFeatureLayer<ROut, E, RIn>(
   const backgroundSearchRssFeedLayer = BackgroundSearchRssFeedServiceLive.pipe(
     Layer.provide(runtimeWithQueueLayer),
   );
-  const searchReleaseLayer = SearchReleaseServiceLive.pipe(Layer.provide(runtimeSupportLayer));
+  const searchReleaseLayer = SearchReleaseServiceLive.pipe(Layer.provide(operationsRuntimeLayer));
   const runtimeWithReleaseLayer = Layer.mergeAll(runtimeSupportLayer, searchReleaseLayer);
   const searchUnitLayer = SearchUnitServiceLive.pipe(Layer.provide(runtimeWithReleaseLayer));
   const searchBackgroundMissingLayer = SearchBackgroundMissingServiceLive.pipe(
@@ -127,24 +145,24 @@ export function makeOperationsFeatureLayer<ROut, E, RIn>(
     ),
   );
   const catalogLibraryReadLayer = CatalogLibraryReadServiceLive.pipe(
-    Layer.provide(runtimeSupportLayer),
+    Layer.provide(operationsRuntimeLayer),
   );
   const catalogLibraryWriteLayer = CatalogLibraryWriteServiceLive.pipe(
-    Layer.provide(runtimeSupportLayer),
+    Layer.provide(operationsRuntimeLayer),
   );
   const catalogLibraryScanLayer = CatalogLibraryScanServiceLive.pipe(
     Layer.provide(runtimeWithProgressLayer),
   );
-  const importPathScanLayer = ImportPathScanServiceLive.pipe(Layer.provide(runtimeSupportLayer));
-  const catalogRssLayer = CatalogRssServiceLive.pipe(Layer.provide(runtimeSupportLayer));
+  const importPathScanLayer = ImportPathScanServiceLive.pipe(Layer.provide(operationsRuntimeLayer));
+  const catalogRssLayer = CatalogRssServiceLive.pipe(Layer.provide(operationsRuntimeLayer));
   const libraryRootsQueryLayer = LibraryRootsQueryServiceLive.pipe(
-    Layer.provide(runtimeSupportLayer),
+    Layer.provide(operationsConfigRepositoryLayer),
   );
   const unmappedScanLayer = UnmappedScanServiceLive.pipe(Layer.provide(operationsRuntimeLayer));
   const unmappedControlLayer = UnmappedControlServiceLive.pipe(
     Layer.provide(Layer.mergeAll(runtimeSupportLayer, unmappedScanLayer)),
   );
-  const unmappedImportLayer = UnmappedImportServiceLive.pipe(Layer.provide(runtimeSupportLayer));
+  const unmappedImportLayer = UnmappedImportServiceLive.pipe(Layer.provide(operationsRuntimeLayer));
   const operationsLayer = Layer.mergeAll(
     torrentClientLayer,
     downloadReconciliationLayer,
@@ -154,6 +172,10 @@ export function makeOperationsFeatureLayer<ROut, E, RIn>(
     downloadTriggerLayer,
     catalogDownloadReadLayer,
     catalogDownloadCommandLayer,
+    mediaReadRepositoryLayer,
+    operationsConfigRepositoryLayer,
+    operationsProfileRepositoryLayer,
+    systemUnmappedRepositoryLayer,
     operationsProgressLayer,
     backgroundSearchQueueLayer,
     backgroundSearchRssFeedLayer,

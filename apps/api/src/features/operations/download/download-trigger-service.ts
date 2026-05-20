@@ -24,6 +24,7 @@ import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
 import { tryDatabasePromise, type TryDatabasePromise } from "@/infra/effect/db.ts";
 import { DownloadProgressSupport } from "@/features/operations/download/download-progress-support.ts";
 import { DownloadTriggerCoordinator } from "@/features/operations/tasks/runtime-support.ts";
+import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 
 export interface DownloadTriggerServiceShape {
   readonly triggerDownload: (
@@ -43,6 +44,7 @@ export function makeDownloadTriggerService(input: {
   readonly db: AppDatabase;
   readonly torrentClientService: typeof TorrentClientService.Service;
   readonly eventBus: typeof EventBus.Service;
+  readonly mediaReadRepository: typeof MediaReadRepository.Service;
   readonly tryDatabasePromise: TryDatabasePromise;
   readonly nowIso: () => Effect.Effect<string>;
   readonly downloadTriggerCoordinator: DownloadTriggerCoordinatorShape;
@@ -55,6 +57,7 @@ export function makeDownloadTriggerService(input: {
     db,
     torrentClientService,
     eventBus,
+    mediaReadRepository,
     tryDatabasePromise,
     downloadTriggerCoordinator,
     publishDownloadProgress,
@@ -67,6 +70,7 @@ export function makeDownloadTriggerService(input: {
     yield* Effect.annotateCurrentSpan("mediaId", triggerInput.media_id);
     const plan = yield* prepareTriggerDownload({
       db,
+      mediaReadRepository,
       nowIso,
       triggerInput,
     });
@@ -159,11 +163,13 @@ export const DownloadTriggerServiceLive = Layer.effect(
     const clock = yield* ClockService;
     const progressSupport = yield* DownloadProgressSupport;
     const downloadTriggerCoordinator = yield* DownloadTriggerCoordinator;
+    const mediaReadRepository = yield* MediaReadRepository;
 
     return makeDownloadTriggerService({
       db,
       downloadTriggerCoordinator,
       eventBus,
+      mediaReadRepository,
       nowIso: () => nowIsoFromClock(clock),
       publishDownloadProgress: progressSupport.publishDownloadProgress,
       torrentClientService,

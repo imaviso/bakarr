@@ -17,6 +17,8 @@ import {
   type RuntimeConfigSnapshotError,
 } from "@/features/system/runtime-config-snapshot-service.ts";
 import { getConfiguredLibraryPaths } from "@/features/media/shared/config-support.ts";
+import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { OperationsConfigRepository } from "@/features/operations/repository/config-repository.ts";
 
 export interface ImportPathScanServiceShape {
   readonly scanImportPath: (input: {
@@ -41,6 +43,8 @@ export const ImportPathScanServiceLive = Layer.effect(
     const aniList = yield* AniListClient;
     const fs = yield* FileSystem;
     const mediaProbe = yield* MediaProbe;
+    const mediaReadRepository = yield* MediaReadRepository;
+    const configRepository = yield* OperationsConfigRepository;
     const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
 
     const scanImportPath = Effect.fn("ImportPathScanService.scanImportPath")(function* (input: {
@@ -91,9 +95,11 @@ export const ImportPathScanServiceLive = Layer.effect(
       return yield* scanImportPathEffect({
         aniList,
         ...(input.mediaId === undefined ? {} : { mediaId: input.mediaId }),
+        configRepository,
         db,
         fs,
         ...(input.limit === undefined ? {} : { limit: input.limit }),
+        mediaReadRepository,
         mediaProbe,
         path: canonicalPath,
         tryDatabasePromise,

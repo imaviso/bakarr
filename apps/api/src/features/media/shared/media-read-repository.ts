@@ -1,12 +1,62 @@
 import { and, eq } from "drizzle-orm";
-import { Effect, Option } from "effect";
+import { Context, Effect, Layer, Option } from "effect";
 
-import type { AppDatabase } from "@/db/database.ts";
+import { Database, type AppDatabase, type DatabaseError } from "@/db/database.ts";
 import { media, mediaUnits } from "@/db/schema.ts";
 import { queryFirst, tryDatabasePromise } from "@/infra/effect/db.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";
 
-export const getAnimeRowEffect = Effect.fn("AnimeRepository.getAnimeRow")(function* (
+export interface MediaReadRepositoryShape {
+  readonly getAnimeRow: (
+    mediaId: number,
+  ) => Effect.Effect<typeof media.$inferSelect, DatabaseError | MediaNotFoundError>;
+  readonly requireAnimeExists: (
+    mediaId: number,
+  ) => Effect.Effect<void, DatabaseError | MediaNotFoundError>;
+  readonly getEpisodeRow: (
+    mediaId: number,
+    unitNumber: number,
+  ) => Effect.Effect<typeof mediaUnits.$inferSelect, DatabaseError | MediaNotFoundError>;
+  readonly loadCurrentEpisodeState: (
+    mediaId: number,
+    unitNumber: number,
+  ) => Effect.Effect<
+    Option.Option<{ readonly downloaded: boolean; readonly filePath?: string }>,
+    DatabaseError
+  >;
+  readonly findAnimeRootFolderOwner: (
+    rootFolder: string,
+  ) => Effect.Effect<
+    { readonly id: number; readonly rootFolder: string; readonly titleRomaji: string } | null,
+    DatabaseError
+  >;
+}
+
+export class MediaReadRepository extends Context.Tag("@bakarr/api/MediaReadRepository")<
+  MediaReadRepository,
+  MediaReadRepositoryShape
+>() {}
+
+export function makeMediaReadRepository(db: AppDatabase): MediaReadRepositoryShape {
+  return MediaReadRepository.of({
+    findAnimeRootFolderOwner: (rootFolder) => findAnimeRootFolderOwnerEffect(db, rootFolder),
+    getAnimeRow: (mediaId) => getAnimeRowEffect(db, mediaId),
+    getEpisodeRow: (mediaId, unitNumber) => getEpisodeRowEffect(db, mediaId, unitNumber),
+    loadCurrentEpisodeState: (mediaId, unitNumber) =>
+      loadCurrentEpisodeStateEffect(db, mediaId, unitNumber),
+    requireAnimeExists: (mediaId) => requireAnimeExistsEffect(db, mediaId),
+  });
+}
+
+export const MediaReadRepositoryLive = Layer.effect(
+  MediaReadRepository,
+  Effect.gen(function* () {
+    const { db } = yield* Database;
+    return makeMediaReadRepository(db);
+  }),
+);
+
+const getAnimeRowEffect = Effect.fn("AnimeRepository.getAnimeRow")(function* (
   db: AppDatabase,
   mediaId: number,
 ) {
@@ -19,14 +69,14 @@ export const getAnimeRowEffect = Effect.fn("AnimeRepository.getAnimeRow")(functi
   return row.value;
 });
 
-export const requireAnimeExistsEffect = Effect.fn("AnimeRepository.requireAnimeExists")(function* (
+const requireAnimeExistsEffect = Effect.fn("AnimeRepository.requireAnimeExists")(function* (
   db: AppDatabase,
   mediaId: number,
 ) {
   yield* getAnimeRowEffect(db, mediaId);
 });
 
-export const getEpisodeRowEffect = Effect.fn("AnimeRepository.getEpisodeRow")(function* (
+const getEpisodeRowEffect = Effect.fn("AnimeRepository.getEpisodeRow")(function* (
   db: AppDatabase,
   mediaId: number,
   unitNumber: number,
@@ -44,7 +94,7 @@ export const getEpisodeRowEffect = Effect.fn("AnimeRepository.getEpisodeRow")(fu
   return row.value;
 });
 
-export const loadCurrentEpisodeState = Effect.fn("AnimeRepository.loadCurrentEpisodeState")(
+const loadCurrentEpisodeStateEffect = Effect.fn("AnimeRepository.loadCurrentEpisodeState")(
   function* (db: AppDatabase, mediaId: number, unitNumber: number) {
     const row = yield* queryFirst("Failed to load episode state", () =>
       db
@@ -63,7 +113,7 @@ export const loadCurrentEpisodeState = Effect.fn("AnimeRepository.loadCurrentEpi
   },
 );
 
-export const findAnimeRootFolderOwnerEffect = Effect.fn("AnimeRepository.findAnimeRootFolderOwner")(
+const findAnimeRootFolderOwnerEffect = Effect.fn("AnimeRepository.findAnimeRootFolderOwner")(
   function* (db: AppDatabase, rootFolder: string) {
     const normalized = normalizeRootFolder(rootFolder);
     const rows = yield* tryDatabasePromise("Failed to find media root folder owner", () =>

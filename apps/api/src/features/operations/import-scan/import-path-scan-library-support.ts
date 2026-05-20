@@ -3,16 +3,17 @@ import { and, eq, inArray, or } from "drizzle-orm";
 
 import { media, mediaUnits } from "@/db/schema.ts";
 import type { AppDatabase } from "@/db/database.ts";
-import { getAnimeRowEffect as requireAnime } from "@/features/media/shared/media-read-repository.ts";
+import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 
 export const loadImportScanAnimeRows = (input: {
   readonly mediaId?: number;
   readonly db: AppDatabase;
+  readonly mediaReadRepository: typeof MediaReadRepository.Service;
   readonly tryDatabasePromise: TryDatabasePromise;
 }) =>
   input.mediaId
-    ? Effect.map(requireAnime(input.db, input.mediaId), (row) => [row])
+    ? Effect.map(input.mediaReadRepository.getAnimeRow(input.mediaId), (row) => [row])
     : input.tryDatabasePromise("Failed to scan import path", () => input.db.select().from(media));
 
 export const loadMappedEpisodeRows = (input: {

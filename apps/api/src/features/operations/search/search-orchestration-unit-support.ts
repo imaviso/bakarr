@@ -11,12 +11,8 @@ import {
   OperationsInputError,
   type OperationsError,
 } from "@/features/operations/errors.ts";
-import { loadCurrentEpisodeState } from "@/features/media/shared/media-read-repository.ts";
-import {
-  loadQualityProfile,
-  loadReleaseRules,
-} from "@/features/operations/repository/profile-repository.ts";
-import { getAnimeRowEffect as requireAnime } from "@/features/media/shared/media-read-repository.ts";
+import { OperationsProfileRepository } from "@/features/operations/repository/profile-repository.ts";
+import type { OperationsProfileRepositoryShape } from "@/features/operations/repository/profile-repository.ts";
 import { compareUnitSearchResults } from "@/features/operations/search/release-ranking.ts";
 import { validateQualityProfileSizeLabels } from "@/features/operations/search/release-ranking.ts";
 import type { ParsedRelease } from "@/features/operations/rss/rss-client-parse.ts";
@@ -25,10 +21,13 @@ import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
 import { SearchReleaseService } from "@/features/operations/search/search-orchestration-release-search.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
+import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 
 export interface SearchUnitSupportInput {
   readonly db: AppDatabase;
   readonly getRuntimeConfig: () => Effect.Effect<Config, RuntimeConfigSnapshotError>;
+  readonly mediaReadRepository: typeof MediaReadRepository.Service;
+  readonly profileRepository: OperationsProfileRepositoryShape;
   readonly searchUnitReleases: (
     animeRow: SearchUnitMediaRow,
     unitNumber: number,
@@ -46,7 +45,7 @@ export interface SearchUnitServiceShape {
 }
 
 export function makeSearchUnitSupport(input: SearchUnitSupportInput) {
-  const { db, getRuntimeConfig, searchUnitReleases } = input;
+  const { getRuntimeConfig, mediaReadRepository, profileRepository, searchUnitReleases } = input;
 
   const mapSearchUnitError = (
     cause: unknown,
@@ -62,9 +61,9 @@ export function makeSearchUnitSupport(input: SearchUnitSupportInput) {
     mediaId: number,
     unitNumber: number,
   ) {
-    const animeRow = yield* requireAnime(db, mediaId);
+    const animeRow = yield* mediaReadRepository.getAnimeRow(mediaId);
     const runtimeConfig = yield* getRuntimeConfig();
-    const profileOption = yield* loadQualityProfile(db, animeRow.profileName);
+    const profileOption = yield* profileRepository.loadQualityProfile(animeRow.profileName);
 
     if (Option.isNone(profileOption)) {
       return yield* new OperationsInputError({
@@ -76,8 +75,8 @@ export function makeSearchUnitSupport(input: SearchUnitSupportInput) {
 
     yield* validateQualityProfileSizeLabels(profile);
 
-    const rules = yield* loadReleaseRules(db, animeRow);
-    const currentUnit = yield* loadCurrentEpisodeState(db, mediaId, unitNumber);
+    const rules = yield* profileRepository.loadReleaseRules(animeRow);
+    const currentUnit = yield* mediaReadRepository.loadCurrentEpisodeState(mediaId, unitNumber);
     const results = yield* searchUnitReleases(animeRow, unitNumber, runtimeConfig).pipe(
       Effect.mapError(mapSearchUnitError),
     );
@@ -110,12 +109,16 @@ export const SearchUnitServiceLive = Layer.effect(
   SearchUnitService,
   Effect.gen(function* () {
     const { db } = yield* Database;
+    const mediaReadRepository = yield* MediaReadRepository;
+    const profileRepository = yield* OperationsProfileRepository;
     const searchReleaseService = yield* SearchReleaseService;
     const runtimeConfigSnapshotService = yield* RuntimeConfigSnapshotService;
 
     return makeSearchUnitSupport({
       db,
       getRuntimeConfig: runtimeConfigSnapshotService.getRuntimeConfig,
+      mediaReadRepository,
+      profileRepository,
       searchUnitReleases: searchReleaseService.searchUnitReleases,
     });
   }),

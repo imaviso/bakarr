@@ -26,6 +26,7 @@ import {
   requireAnimeMetadataEffect,
 } from "@/features/media/add/media-add-validation.ts";
 import { mediaKindFromAniListFormat } from "@/features/media/shared/media-kind.ts";
+import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
 
 export const addAnimeEffect = Effect.fn("AnimeAdd.addAnimeEffect")(function* (input: {
   metadataProvider: typeof AnimeMetadataProviderService.Service;
@@ -34,6 +35,7 @@ export const addAnimeEffect = Effect.fn("AnimeAdd.addAnimeEffect")(function* (in
   eventPublisher: Pick<EventBusShape, "publish">;
   fs: FileSystemShape;
   imageCacheService: typeof AnimeImageCacheService.Service;
+  mediaReadRepository: MediaReadRepositoryShape;
   nowIso: () => Effect.Effect<string>;
 }) {
   yield* checkAnimeExistsEffect(input.db, input.animeInput.id);
@@ -59,7 +61,7 @@ export const addAnimeEffect = Effect.fn("AnimeAdd.addAnimeEffect")(function* (in
       : { mediaKind, useExistingRoot: input.animeInput.use_existing_root },
   );
 
-  yield* checkRootFolderNotOwnedEffect(input.db, rootFolder);
+  yield* checkRootFolderNotOwnedEffect(input.mediaReadRepository, rootFolder);
 
   yield* input.fs.mkdir(rootFolder, { recursive: true }).pipe(
     Effect.mapError(

@@ -6,7 +6,7 @@ import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import type { MediaProbeShape } from "@/infra/media/probe.ts";
 import type { AnimeEventPublisher } from "@/features/media/shared/media-orchestration-shared.ts";
 import { scanAnimeFolderEffect } from "@/features/media/files/media-file-scan.ts";
-import { getAnimeRowEffect } from "@/features/media/shared/media-read-repository.ts";
+import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
 import { appendSystemLog } from "@/features/system/support.ts";
 
 export const scanAnimeFolderOrchestrationEffect = Effect.fn(
@@ -16,11 +16,12 @@ export const scanAnimeFolderOrchestrationEffect = Effect.fn(
   db: AppDatabase;
   eventPublisher: AnimeEventPublisher;
   fs: FileSystemShape;
+  mediaReadRepository: MediaReadRepositoryShape;
   mediaProbe: MediaProbeShape;
   nowIso: () => Effect.Effect<string>;
 }) {
   const { nowIso } = input;
-  const startAnimeRow = yield* getAnimeRowEffect(input.db, input.mediaId);
+  const startAnimeRow = yield* input.mediaReadRepository.getAnimeRow(input.mediaId);
 
   yield* input.eventPublisher.publish({
     type: "ScanFolderStarted",
@@ -34,6 +35,7 @@ export const scanAnimeFolderOrchestrationEffect = Effect.fn(
     mediaId: input.mediaId,
     db: input.db,
     fs: input.fs,
+    mediaReadRepository: input.mediaReadRepository,
     mediaProbe: input.mediaProbe,
     nowIso,
   });

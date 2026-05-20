@@ -20,7 +20,7 @@ import {
 import { MAX_INFERRED_EPISODE_NUMBER } from "@/features/media/units/unit-backfill-policy.ts";
 import { upsertEpisodeEffect } from "@/features/media/units/media-unit-repository.ts";
 import { syncEpisodeMetadataEffect } from "@/features/media/units/media-unit-metadata-sync.ts";
-import { findAnimeRootFolderOwnerEffect } from "@/features/media/shared/media-read-repository.ts";
+import { makeMediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import { inferAiredAt } from "@/domain/media/derivations.ts";
 import { markSearchResultsAlreadyInLibraryEffect } from "@/features/media/query/search-results.ts";
 import {
@@ -547,7 +547,8 @@ it.scoped("findAnimeRootFolderOwner returns the mapped media for a root", () =>
       Effect.gen(function* () {
         yield* insertAnimeEffect(db, 20, 12);
 
-        const owner = yield* findAnimeRootFolderOwnerEffect(db, "/library/Show-20");
+        const repository = makeMediaReadRepository(db);
+        const owner = yield* repository.findAnimeRootFolderOwner("/library/Show-20");
         assert.deepStrictEqual(owner?.id, 20);
         assert.deepStrictEqual(owner?.titleRomaji, "Show 20");
       }),
@@ -561,7 +562,8 @@ it.scoped("findAnimeRootFolderOwner handles trailing slash parents", () =>
       Effect.gen(function* () {
         yield* insertAnimeWithRootEffect(db, 21, 12, "/library/Naruto/");
 
-        const owner = yield* findAnimeRootFolderOwnerEffect(db, "/library/Naruto/Season 1");
+        const repository = makeMediaReadRepository(db);
+        const owner = yield* repository.findAnimeRootFolderOwner("/library/Naruto/Season 1");
 
         assert.deepStrictEqual(owner?.id, 21);
       }),

@@ -17,12 +17,8 @@ import {
   validateQualityProfileSizeLabels,
 } from "@/features/operations/search/release-ranking.ts";
 import { parseRssReleaseUnitNumbers } from "@/features/operations/background-search/background-search-rss-release.ts";
-import { loadCurrentEpisodeState } from "@/features/media/shared/media-read-repository.ts";
-import {
-  loadQualityProfile,
-  loadReleaseRules,
-} from "@/features/operations/repository/profile-repository.ts";
-import { getAnimeRowEffect as requireAnime } from "@/features/media/shared/media-read-repository.ts";
+import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { OperationsProfileRepository } from "@/features/operations/repository/profile-repository.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 export interface BackgroundSearchRssFeedServiceShape {
@@ -43,11 +39,13 @@ export const BackgroundSearchRssFeedServiceLive = Layer.effect(
     const clock = yield* ClockService;
     const rssClient = yield* RssClient;
     const queueService = yield* BackgroundSearchQueueService;
+    const mediaReadRepository = yield* MediaReadRepository;
+    const profileRepository = yield* OperationsProfileRepository;
     const nowIso = () => nowIsoFromClock(clock);
 
     const requireQualityProfile = Effect.fn("BackgroundSearchRssFeed.requireQualityProfile")(
       function* (profileName: string) {
-        const profileOption = yield* loadQualityProfile(db, profileName);
+        const profileOption = yield* profileRepository.loadQualityProfile(profileName);
 
         if (Option.isNone(profileOption)) {
           return yield* new OperationsInputError({
@@ -90,7 +88,7 @@ export const BackgroundSearchRssFeedServiceLive = Layer.effect(
         ),
         Effect.flatMap((items) =>
           Effect.gen(function* () {
-            const animeRow = yield* requireAnime(db, feed.mediaId);
+            const animeRow = yield* mediaReadRepository.getAnimeRow(feed.mediaId);
 
             if (!animeRow.monitored) {
               yield* logRssSkip({
@@ -104,7 +102,7 @@ export const BackgroundSearchRssFeedServiceLive = Layer.effect(
 
             const profile = yield* requireQualityProfile(animeRow.profileName);
             yield* validateQualityProfileSizeLabels(profile);
-            const rules = yield* loadReleaseRules(db, animeRow);
+            const rules = yield* profileRepository.loadReleaseRules(animeRow);
             let queuedForFeed = 0;
 
             const slice = items.slice(0, 10);
@@ -165,7 +163,10 @@ export const BackgroundSearchRssFeedServiceLive = Layer.effect(
                 continue;
               }
 
-              const currentEpisode = yield* loadCurrentEpisodeState(db, animeRow.id, unitNumber);
+              const currentEpisode = yield* mediaReadRepository.loadCurrentEpisodeState(
+                animeRow.id,
+                unitNumber,
+              );
               const action = decideDownloadAction(
                 profile,
                 rules,

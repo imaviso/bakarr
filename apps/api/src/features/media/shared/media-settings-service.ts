@@ -15,10 +15,7 @@ import {
   resolveConfiguredLibraryRoot,
   assertPathWithinLibraryRoot,
 } from "@/features/media/shared/media-path-policy.ts";
-import {
-  requireAnimeExistsEffect,
-  findAnimeRootFolderOwnerEffect,
-} from "@/features/media/shared/media-read-repository.ts";
+import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import {
   MediaPathError,
   MediaConflictError,
@@ -55,6 +52,7 @@ const makeAnimeSettingsService = Effect.fn("AnimeSettingsService.make")(function
   const { db } = yield* Database;
   const eventBus = yield* EventBus;
   const fs = yield* FileSystem;
+  const mediaReadRepository = yield* MediaReadRepository;
   const clock = yield* ClockService;
   const nowIso = () => nowIsoFromClock(clock);
 
@@ -62,7 +60,7 @@ const makeAnimeSettingsService = Effect.fn("AnimeSettingsService.make")(function
     id: number,
     monitored: boolean,
   ) {
-    yield* requireAnimeExistsEffect(db, id);
+    yield* mediaReadRepository.requireAnimeExists(id);
     yield* tryDatabasePromise("Failed to update media", () =>
       db.update(media).set({ monitored }).where(eq(media.id, id)),
     );
@@ -90,7 +88,7 @@ const makeAnimeSettingsService = Effect.fn("AnimeSettingsService.make")(function
     const canonicalLibraryRoot = yield* resolveConfiguredLibraryRoot(fs, configuredLibraryPath);
 
     yield* assertPathWithinLibraryRoot(fs, trimmedPath, canonicalLibraryRoot);
-    yield* requireAnimeExistsEffect(db, id);
+    yield* mediaReadRepository.requireAnimeExists(id);
 
     yield* fs.mkdir(trimmedPath, { recursive: true }).pipe(
       Effect.mapError(
@@ -112,7 +110,7 @@ const makeAnimeSettingsService = Effect.fn("AnimeSettingsService.make")(function
       ),
     );
 
-    const existingRootOwner = yield* findAnimeRootFolderOwnerEffect(db, canonicalPath);
+    const existingRootOwner = yield* mediaReadRepository.findAnimeRootFolderOwner(canonicalPath);
 
     if (existingRootOwner && existingRootOwner.id !== id) {
       return yield* new MediaConflictError({
@@ -148,7 +146,7 @@ const makeAnimeSettingsService = Effect.fn("AnimeSettingsService.make")(function
       });
     }
 
-    yield* requireAnimeExistsEffect(db, id);
+    yield* mediaReadRepository.requireAnimeExists(id);
     yield* tryDatabasePromise("Failed to update media", () =>
       db.update(media).set({ profileName }).where(eq(media.id, id)),
     );
@@ -162,7 +160,7 @@ const makeAnimeSettingsService = Effect.fn("AnimeSettingsService.make")(function
     id: number,
     releaseProfileIds: number[],
   ) {
-    yield* requireAnimeExistsEffect(db, id);
+    yield* mediaReadRepository.requireAnimeExists(id);
     const encodedReleaseProfileIds = yield* encodeNumberList(releaseProfileIds).pipe(
       Effect.mapError(
         (cause) =>

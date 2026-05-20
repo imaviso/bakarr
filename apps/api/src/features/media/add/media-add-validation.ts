@@ -5,7 +5,7 @@ import { ProfileNotFoundError } from "@/features/system/errors.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { media, mediaUnits } from "@/db/schema.ts";
 import { MediaConflictError, MediaNotFoundError } from "@/features/media/errors.ts";
-import { findAnimeRootFolderOwnerEffect } from "@/features/media/shared/media-read-repository.ts";
+import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
 import { qualityProfileExistsEffect } from "@/features/media/shared/profile-support.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
@@ -51,8 +51,8 @@ export const checkProfileExistsEffect = Effect.fn("AnimeAddValidation.checkProfi
 
 export const checkRootFolderNotOwnedEffect = Effect.fn(
   "AnimeAddValidation.checkRootFolderNotOwned",
-)(function* (db: AppDatabase, rootFolder: string) {
-  const existingRootOwner = yield* findAnimeRootFolderOwnerEffect(db, rootFolder);
+)(function* (mediaReadRepository: MediaReadRepositoryShape, rootFolder: string) {
+  const existingRootOwner = yield* mediaReadRepository.findAnimeRootFolderOwner(rootFolder);
 
   if (existingRootOwner) {
     return yield* new MediaConflictError({

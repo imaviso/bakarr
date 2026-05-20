@@ -10,6 +10,7 @@ import { RssClient } from "@/features/operations/rss/rss-client.ts";
 import type { ParsedRelease } from "@/features/operations/rss/rss-client-parse.ts";
 import { SeaDexClient } from "@/features/operations/search/seadex-client.ts";
 import { makeSearchReleaseSupport } from "@/features/operations/search/search-orchestration-release-search.ts";
+import { makeMediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 
 it.scoped(
   "searchUnitReleases fails instead of silently degrading when SeaDex enrichment fails",
@@ -36,6 +37,7 @@ it.scoped(
           const searchReleaseService = makeSearchReleaseSupport({
             db,
             getRuntimeConfig: () => Effect.succeed(config),
+            mediaReadRepository: makeMediaReadRepository(db),
             rssClient,
             seadexClient,
           });
@@ -88,6 +90,7 @@ it.scoped("searchUnitReleases tries season episode query variants", () =>
         const searchReleaseService = makeSearchReleaseSupport({
           db,
           getRuntimeConfig: () => Effect.succeed(config),
+          mediaReadRepository: makeMediaReadRepository(db),
           rssClient,
           seadexClient,
         });
@@ -135,6 +138,7 @@ it.scoped("searchUnitReleases searches stored synonyms and normalized aliases", 
         const searchReleaseService = makeSearchReleaseSupport({
           db,
           getRuntimeConfig: () => Effect.succeed(makeTestConfig("/tmp/test.sqlite")),
+          mediaReadRepository: makeMediaReadRepository(db),
           rssClient,
           seadexClient: makeSeaDexNoneClient(),
         });
@@ -189,6 +193,7 @@ it.scoped("searchUnitReleases falls back to broad title search and keeps request
         const searchReleaseService = makeSearchReleaseSupport({
           db,
           getRuntimeConfig: () => Effect.succeed(config),
+          mediaReadRepository: makeMediaReadRepository(db),
           rssClient,
           seadexClient: makeSeaDexNoneClient(),
         });
@@ -235,6 +240,7 @@ it.scoped("searchUnitReleases uses Nyaa literature category for manga", () =>
         const searchReleaseService = makeSearchReleaseSupport({
           db,
           getRuntimeConfig: () => Effect.succeed(config),
+          mediaReadRepository: makeMediaReadRepository(db),
           rssClient,
           seadexClient: makeSeaDexNoneClient(),
         });

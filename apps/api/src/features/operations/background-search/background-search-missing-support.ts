@@ -16,12 +16,8 @@ import {
   decideDownloadAction,
   validateQualityProfileSizeLabels,
 } from "@/features/operations/search/release-ranking.ts";
-import { loadCurrentEpisodeState } from "@/features/media/shared/media-read-repository.ts";
-import {
-  loadQualityProfile,
-  loadReleaseRules,
-} from "@/features/operations/repository/profile-repository.ts";
-import { getAnimeRowEffect as requireAnime } from "@/features/media/shared/media-read-repository.ts";
+import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { OperationsProfileRepository } from "@/features/operations/repository/profile-repository.ts";
 import { BackgroundSearchQueueService } from "@/features/operations/background-search/background-search-queue-service.ts";
 import {
   OperationsInfrastructureError,
@@ -52,12 +48,14 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
     const progress = yield* OperationsProgress;
     const searchReleaseService = yield* SearchReleaseService;
     const queueService = yield* BackgroundSearchQueueService;
+    const mediaReadRepository = yield* MediaReadRepository;
+    const profileRepository = yield* OperationsProfileRepository;
     const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
     const nowIso = () => nowIsoFromClock(clock);
 
     const requireQualityProfile = Effect.fn("BackgroundSearchMissing.requireQualityProfile")(
       function* (profileName: string) {
-        const profileOption = yield* loadQualityProfile(db, profileName);
+        const profileOption = yield* profileRepository.loadQualityProfile(profileName);
 
         if (Option.isNone(profileOption)) {
           return yield* new OperationsInputError({
@@ -90,7 +88,9 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
         monitoredOnly: mediaId === undefined,
       });
 
-      const title = mediaId ? (yield* requireAnime(db, mediaId)).titleRomaji : "all media";
+      const title = mediaId
+        ? (yield* mediaReadRepository.getAnimeRow(mediaId)).titleRomaji
+        : "all media";
 
       yield* eventBus.publish({
         type: "SearchMissingStarted",
@@ -153,13 +153,12 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
         let rules = releaseRulesByAnimeId.get(row.media.id);
 
         if (rules === undefined) {
-          const loadedRules = yield* loadReleaseRules(db, row.media);
+          const loadedRules = yield* profileRepository.loadReleaseRules(row.media);
           releaseRulesByAnimeId.set(row.media.id, loadedRules);
           rules = loadedRules;
         }
 
-        const currentEpisode = yield* loadCurrentEpisodeState(
-          db,
+        const currentEpisode = yield* mediaReadRepository.loadCurrentEpisodeState(
           row.media.id,
           row.media_units.number,
         );

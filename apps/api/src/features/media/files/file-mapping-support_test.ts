@@ -6,6 +6,7 @@ import * as schema from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { withFileSystemSandboxEffect, writeTextFile } from "@/test/filesystem-test.ts";
 import { resolveUnitFileEffect } from "@/features/media/files/media-file-read.ts";
+import { makeMediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 
 const insertAnime = Effect.fn("Test.insertAnime")(function* (db: AppDatabase, rootFolder: string) {
   yield* Effect.tryPromise(() =>
@@ -46,6 +47,7 @@ it.scoped("resolveUnitFileEffect returns resolved file when mapping is valid", (
           const result = yield* resolveUnitFileEffect({
             mediaId: 1,
             db: appDb,
+            mediaReadRepository: makeMediaReadRepository(appDb),
             unitNumber: 1,
             fs,
           });
@@ -80,6 +82,7 @@ it.scoped("resolveUnitFileEffect returns unmapped state when no file path is sto
           const result = yield* resolveUnitFileEffect({
             mediaId: 1,
             db: appDb,
+            mediaReadRepository: makeMediaReadRepository(appDb),
             unitNumber: 1,
             fs,
           });
@@ -111,6 +114,7 @@ it.scoped("resolveUnitFileEffect returns missing state when mapped file is inacc
           const result = yield* resolveUnitFileEffect({
             mediaId: 1,
             db: appDb,
+            mediaReadRepository: makeMediaReadRepository(appDb),
             unitNumber: 1,
             fs,
           });
@@ -145,6 +149,7 @@ it.scoped(
             const result = yield* resolveUnitFileEffect({
               mediaId: 1,
               db: appDb,
+              mediaReadRepository: makeMediaReadRepository(appDb),
               unitNumber: 1,
               fs,
             });
@@ -183,6 +188,7 @@ it.scoped("resolveUnitFileEffect returns outside-root state when mapping escapes
           const result = yield* resolveUnitFileEffect({
             mediaId: 1,
             db: appDb,
+            mediaReadRepository: makeMediaReadRepository(appDb),
             unitNumber: 1,
             fs,
           });

@@ -24,10 +24,7 @@ import {
   decodeDownloadSourceMetadata,
   encodeDownloadSourceMetadata,
 } from "@/features/operations/repository/download-repository.ts";
-import {
-  getAnimeRowEffect as requireAnime,
-  loadCurrentEpisodeState,
-} from "@/features/media/shared/media-read-repository.ts";
+import { makeMediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import {
   loadQualityProfile,
   loadReleaseRules,
@@ -195,7 +192,8 @@ it.scoped("operations repository helpers load media release rules and episode st
           }),
         );
 
-        const animeRow = yield* requireAnime(db, 20);
+        const mediaReadRepository = makeMediaReadRepository(db);
+        const animeRow = yield* mediaReadRepository.getAnimeRow(20);
         assert.deepStrictEqual(animeRow.titleRomaji, "Naruto");
 
         const releaseRules = yield* loadReleaseRules(db, animeRow);
@@ -204,7 +202,7 @@ it.scoped("operations repository helpers load media release rules and episode st
           { rule_type: "must", score: 0, term: "1080p" },
         ]);
 
-        const episodeState = yield* loadCurrentEpisodeState(db, 20, 1);
+        const episodeState = yield* mediaReadRepository.loadCurrentEpisodeState(20, 1);
         assert.deepStrictEqual(episodeState._tag, "Some");
         if (episodeState._tag === "Some") {
           assert.deepStrictEqual(episodeState.value, {
@@ -212,9 +210,12 @@ it.scoped("operations repository helpers load media release rules and episode st
             filePath: "/library/Naruto/Naruto - 01.mkv",
           });
         }
-        assert.deepStrictEqual(yield* loadCurrentEpisodeState(db, 20, 2), Option.none());
+        assert.deepStrictEqual(
+          yield* mediaReadRepository.loadCurrentEpisodeState(20, 2),
+          Option.none(),
+        );
 
-        const notFoundExit = yield* Effect.exit(requireAnime(db, 999));
+        const notFoundExit = yield* Effect.exit(mediaReadRepository.getAnimeRow(999));
         assert.deepStrictEqual(notFoundExit._tag, "Failure");
         if (notFoundExit._tag === "Failure") {
           const failure = Cause.failureOption(notFoundExit.cause);

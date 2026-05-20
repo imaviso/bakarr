@@ -1,9 +1,7 @@
-import { asc } from "drizzle-orm";
 import { Context, Effect, Layer } from "effect";
 
-import { Database, DatabaseError } from "@/db/database.ts";
-import { libraryRoots } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { DatabaseError } from "@/db/database.ts";
+import { OperationsConfigRepository } from "@/features/operations/repository/config-repository.ts";
 
 export interface LibraryRoot {
   readonly id: number;
@@ -21,25 +19,10 @@ export class LibraryRootsQueryService extends Context.Tag("@bakarr/api/LibraryRo
 >() {}
 
 const makeLibraryRootsQueryService = Effect.fn("LibraryRootsQueryService.make")(function* () {
-  const { db } = yield* Database;
+  const operationsConfigRepository = yield* OperationsConfigRepository;
 
   const listRoots = Effect.fn("LibraryRootsQueryService.listRoots")(function* () {
-    const rows = yield* tryDatabasePromise("Failed to load library roots", () =>
-      db
-        .select({
-          id: libraryRoots.id,
-          label: libraryRoots.label,
-          path: libraryRoots.path,
-        })
-        .from(libraryRoots)
-        .orderBy(asc(libraryRoots.label)),
-    );
-
-    return rows.map((row) => ({
-      id: row.id,
-      label: row.label,
-      path: row.path,
-    }));
+    return yield* operationsConfigRepository.listLibraryRoots();
   });
 
   return { listRoots } satisfies LibraryRootsQueryServiceShape;

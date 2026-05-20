@@ -3,10 +3,7 @@ import { Effect } from "effect";
 import type { AppDatabase } from "@/db/database.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { isWithinPathRoot } from "@/infra/filesystem/filesystem.ts";
-import {
-  getAnimeRowEffect,
-  getEpisodeRowEffect,
-} from "@/features/media/shared/media-read-repository.ts";
+import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
 import {
   EpisodeFileResolved,
   EpisodeFileUnmapped,
@@ -16,9 +13,18 @@ import {
 } from "@/features/media/files/media-file-resolution.ts";
 
 export const resolveUnitFileEffect = Effect.fn("AnimeFileRead.resolveUnitFileEffect")(
-  function* (input: { mediaId: number; db: AppDatabase; unitNumber: number; fs: FileSystemShape }) {
-    const animeRow = yield* getAnimeRowEffect(input.db, input.mediaId);
-    const episodeRow = yield* getEpisodeRowEffect(input.db, input.mediaId, input.unitNumber);
+  function* (input: {
+    mediaId: number;
+    db: AppDatabase;
+    mediaReadRepository: MediaReadRepositoryShape;
+    unitNumber: number;
+    fs: FileSystemShape;
+  }) {
+    const animeRow = yield* input.mediaReadRepository.getAnimeRow(input.mediaId);
+    const episodeRow = yield* input.mediaReadRepository.getEpisodeRow(
+      input.mediaId,
+      input.unitNumber,
+    );
 
     if (!episodeRow.filePath) {
       return new EpisodeFileUnmapped();

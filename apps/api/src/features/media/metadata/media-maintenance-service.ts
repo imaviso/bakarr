@@ -9,7 +9,7 @@ import { AnimeImageCacheService } from "@/features/media/metadata/media-image-ca
 import { syncEpisodeMetadataEffect } from "@/features/media/units/media-unit-metadata-sync.ts";
 import { syncEpisodeScheduleEffect } from "@/features/media/units/media-unit-schedule-sync.ts";
 import { syncAnimeMetadataEffect } from "@/features/media/metadata/media-metadata-sync.ts";
-import { getAnimeRowEffect } from "@/features/media/shared/media-read-repository.ts";
+import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import type { MediaServiceError } from "@/features/media/errors.ts";
 import { makeMetadataRefreshRunner } from "@/features/media/metadata/metadata-refresh.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
@@ -39,6 +39,7 @@ const makeAnimeMaintenanceService = Effect.fn("AnimeMaintenanceService.make")(fu
   const eventBus = yield* EventBus;
   const metadataProvider = yield* AnimeMetadataProviderService;
   const imageCacheService = yield* AnimeImageCacheService;
+  const mediaReadRepository = yield* MediaReadRepository;
   const clock = yield* ClockService;
   const nowIso = () => nowIsoFromClock(clock);
   const metadataRefreshRunner = yield* makeMetadataRefreshRunner();
@@ -53,7 +54,7 @@ const makeAnimeMaintenanceService = Effect.fn("AnimeMaintenanceService.make")(fu
   const refreshEpisodes = Effect.fn("AnimeMaintenanceService.refreshEpisodes")(function* (
     mediaId: number,
   ) {
-    const startAnimeRow = yield* getAnimeRowEffect(db, mediaId);
+    const startAnimeRow = yield* mediaReadRepository.getAnimeRow(mediaId);
 
     yield* eventBus.publish({
       type: "RefreshStarted",
@@ -66,6 +67,7 @@ const makeAnimeMaintenanceService = Effect.fn("AnimeMaintenanceService.make")(fu
       mediaId,
       db,
       eventPublisher: Option.some(eventBus),
+      mediaReadRepository,
       nowIso,
     });
 

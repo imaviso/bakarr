@@ -5,7 +5,7 @@ import type { RssFeed } from "@packages/shared/index.ts";
 import { Database, DatabaseError } from "@/db/database.ts";
 import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
 import type { OperationsError } from "@/features/operations/errors.ts";
-import { getAnimeRowEffect as requireAnime } from "@/features/media/shared/media-read-repository.ts";
+import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import { toRssFeed } from "@/features/operations/repository/rss-repository.ts";
 import { appendLog } from "@/features/operations/shared/job-support.ts";
 import { rssFeeds } from "@/db/schema.ts";
@@ -32,6 +32,7 @@ export const CatalogRssServiceLive = Layer.effect(
   CatalogRssService,
   Effect.gen(function* () {
     const { db } = yield* Database;
+    const mediaReadRepository = yield* MediaReadRepository;
     const clock = yield* ClockService;
     const nowIso = () => nowIsoFromClock(clock);
 
@@ -58,7 +59,7 @@ export const CatalogRssServiceLive = Layer.effect(
       url: string;
       name?: string;
     }) {
-      yield* requireAnime(db, rssInput.media_id);
+      yield* mediaReadRepository.getAnimeRow(rssInput.media_id);
       const now = yield* nowIso();
       const [row] = yield* tryDatabasePromise("Failed to add RSS feed", () =>
         db
