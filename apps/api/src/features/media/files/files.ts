@@ -8,7 +8,11 @@ import { parseVolumeNumbersFromTitle } from "@/features/operations/search/releas
 const VIDEO_EXTENSIONS = [".mkv", ".mp4", ".avi", ".mov", ".webm"];
 const VOLUME_EXTENSIONS = [".cbz", ".cbr", ".pdf", ".epub"];
 
-function parseEpisodeNumber(name: string, path: string, isVolumeMedia: boolean): number | undefined {
+function parseEpisodeNumber(
+  name: string,
+  path: string,
+  isVolumeMedia: boolean,
+): number | undefined {
   return extractUnitNumbersFromFile(name, path, isVolumeMedia)[0];
 }
 

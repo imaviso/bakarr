@@ -62,7 +62,7 @@ export const CatalogDownloadCommandServiceLive = Layer.effect(
 
       const finishedAt = yield* clock.currentMonotonicMillis;
 
-      yield* Effect.logInfo("download state sync completed").pipe(
+      yield* Effect.logDebug("download state sync completed").pipe(
         Effect.annotateLogs({
           component: "downloads",
           durationMs: durationMsSince(startedAt, finishedAt),

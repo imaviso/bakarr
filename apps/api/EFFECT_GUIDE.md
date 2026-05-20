@@ -76,12 +76,14 @@ compatibility layers.
 
 ## Services And Layers
 
-- Use `Context.Tag("@bakarr/ServiceName")<...>()` for exported service
-  contracts.
+- Prefer `Effect.Service<Self>()` as the default for service contracts —
+  bundles Tag, Layer, and optional accessors in one declaration (since Effect
+  3.9.0).
+- Use `Context.Tag("@bakarr/ServiceName")<...>()` only when you need a
+  standalone contract (no bundled layer) or multiple different layer
+  implementations for the same tag.
 - Use `Context.GenericTag(...)` only for simple local tags where a class adds no
   value.
-- Use `Effect.Service` when accessors, `Default` or `Live` layers, or
-  parameterized constructors materially improve ergonomics.
 - Keep service members `readonly`.
 - Keep service APIs small and usually `R = never`; satisfy dependencies while
   building the layer, not in every method signature.
@@ -238,27 +240,20 @@ compatibility layers.
 ### Service Tag And Layer
 
 ```ts
-import { Context, Effect, Layer } from "effect";
+import { Effect } from "effect";
 
-class Users extends Context.Tag("@bakarr/Users")<
-  Users,
-  {
-    readonly findById: (id: UserId) => Effect.Effect<User, UserNotFound>;
-  }
->() {
-  static readonly Live = Layer.effect(
-    Users,
-    Effect.gen(function* () {
-      const client = yield* ExternalClient;
-
-      const findById = Effect.fn("Users.findById")(function* (id: UserId) {
+class Users extends Effect.Service<Users>()("@bakarr/Users", {
+  accessors: true,
+  effect: Effect.gen(function* () {
+    const client = yield* ExternalClient;
+    return {
+      findById: Effect.fn("Users.findById")(function* (id: UserId) {
         return yield* client.findUser(id);
-      });
-
-      return Users.of({ findById });
-    }),
-  );
-}
+      }),
+    };
+  }),
+  dependencies: [ExternalClient.Default],
+}) {}
 ```
 
 ### Schema Record And Derived Payload

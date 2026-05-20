@@ -170,7 +170,7 @@ export const makeExternalCall = Effect.fn("ExternalCall.makeExternalCall")(funct
 
         if (Either.isRight(attemptResult)) {
           const finishedAt = yield* clock.currentMonotonicMillis;
-          yield* Effect.logInfo("external call completed").pipe(
+          yield* Effect.logDebug("external call completed").pipe(
             Effect.annotateLogs({
               durationMs: durationMsSince(startedAt, finishedAt),
               maxAttempts,
