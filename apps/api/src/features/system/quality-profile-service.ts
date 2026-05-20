@@ -1,9 +1,7 @@
-import { count, eq } from "drizzle-orm";
 import { Context, Effect, Layer } from "effect";
 
 import type { Quality, QualityProfile } from "@packages/shared/index.ts";
-import { type AppDatabase, Database, DatabaseError } from "@/db/database.ts";
-import { media } from "@/db/schema.ts";
+import { DatabaseError } from "@/db/database.ts";
 import { nowIsoFromClock, ClockService } from "@/infra/clock.ts";
 import {
   StoredConfigCorruptError,
@@ -14,16 +12,9 @@ import {
   decodeQualityProfileRow,
   encodeQualityProfileRow,
 } from "@/features/profiles/profile-codec.ts";
-import { appendSystemLog } from "@/features/system/support.ts";
 import { DEFAULT_QUALITIES } from "@/features/system/defaults.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
-import {
-  deleteQualityProfileRow,
-  insertQualityProfileRow,
-  listQualityProfileRows,
-  loadQualityProfileRow,
-  renameQualityProfileWithCascade,
-} from "@/features/system/repository/quality-profile-repository.ts";
+import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
+import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
 
 export interface QualityProfileServiceShape {
   readonly listProfiles: () => Effect.Effect<
@@ -51,23 +42,14 @@ export class QualityProfileService extends Context.Tag("@bakarr/api/QualityProfi
   QualityProfileServiceShape
 >() {}
 
-const countAnimeUsingProfile = Effect.fn("QualityProfileService.countAnimeUsingProfile")(function* (
-  db: AppDatabase,
-  profileName: string,
-) {
-  const rows = yield* tryDatabasePromise("Failed to count media", () =>
-    db.select({ value: count() }).from(media).where(eq(media.profileName, profileName)),
-  );
-  return rows[0]?.value ?? 0;
-});
-
 const makeQualityProfileService = Effect.fn("QualityProfileService.make")(function* () {
-  const { db } = yield* Database;
   const clock = yield* ClockService;
+  const qualityProfileRepository = yield* QualityProfileRepository;
+  const systemLogRepository = yield* SystemLogRepository;
   const nowIso = () => nowIsoFromClock(clock);
 
   const listProfiles = Effect.fn("QualityProfileService.listProfiles")(function* () {
-    const rows = yield* listQualityProfileRows(db);
+    const rows = yield* qualityProfileRepository.listQualityProfileRows();
     return yield* Effect.forEach(rows, decodeQualityProfileRow);
   });
 
@@ -80,9 +62,8 @@ const makeQualityProfileService = Effect.fn("QualityProfileService.make")(functi
   ) {
     const encodedProfile = yield* encodeQualityProfileRow(profile);
 
-    yield* insertQualityProfileRow(db, encodedProfile);
-    yield* appendSystemLog(
-      db,
+    yield* qualityProfileRepository.insertQualityProfileRow(encodedProfile);
+    yield* systemLogRepository.appendLog(
       "profiles.created",
       "success",
       `Quality profile '${profile.name}' created`,
@@ -95,7 +76,7 @@ const makeQualityProfileService = Effect.fn("QualityProfileService.make")(functi
     name: string,
     profile: QualityProfile,
   ) {
-    const existing = yield* loadQualityProfileRow(db, name);
+    const existing = yield* qualityProfileRepository.loadQualityProfileRow(name);
 
     if (!existing) {
       return yield* new ProfileNotFoundError({ message: "Quality profile not found" });
@@ -103,9 +84,8 @@ const makeQualityProfileService = Effect.fn("QualityProfileService.make")(functi
 
     const encodedProfile = yield* encodeQualityProfileRow(profile);
 
-    yield* renameQualityProfileWithCascade(db, name, encodedProfile);
-    yield* appendSystemLog(
-      db,
+    yield* qualityProfileRepository.renameQualityProfileWithCascade(name, encodedProfile);
+    yield* systemLogRepository.appendLog(
       "profiles.updated",
       "success",
       `Quality profile '${name}' updated`,
@@ -115,7 +95,7 @@ const makeQualityProfileService = Effect.fn("QualityProfileService.make")(functi
   });
 
   const deleteProfile = Effect.fn("QualityProfileService.deleteProfile")(function* (name: string) {
-    const referencingAnime = yield* countAnimeUsingProfile(db, name);
+    const referencingAnime = yield* qualityProfileRepository.countAnimeUsingProfile(name);
 
     if (referencingAnime > 0) {
       return yield* new ConfigValidationError({
@@ -123,9 +103,8 @@ const makeQualityProfileService = Effect.fn("QualityProfileService.make")(functi
       });
     }
 
-    yield* deleteQualityProfileRow(db, name);
-    yield* appendSystemLog(
-      db,
+    yield* qualityProfileRepository.deleteQualityProfileRow(name);
+    yield* systemLogRepository.appendLog(
       "profiles.deleted",
       "success",
       `Quality profile '${name}' deleted`,

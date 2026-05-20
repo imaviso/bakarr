@@ -5,10 +5,7 @@ import { DatabaseError } from "@/db/database.ts";
 import type { EventBusShape } from "@/features/events/event-bus.ts";
 import { type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import type { AniListClient } from "@/features/media/metadata/anilist.ts";
-import {
-  deleteUnmappedFolderMatchRowsNotInPaths,
-  upsertUnmappedFolderMatchRows,
-} from "@/features/system/repository/unmapped-repository.ts";
+import type { SystemUnmappedRepositoryShape } from "@/features/system/repository/unmapped-repository.ts";
 import {
   OperationsPathError,
   OperationsInfrastructureError,
@@ -27,6 +24,7 @@ import {
 } from "@/features/operations/unmapped/unmapped-folder-list-support.ts";
 import { markUnmappedFolderMatching } from "@/features/operations/unmapped/unmapped-folders.ts";
 import type { TryDatabasePromise } from "@/infra/effect/db.ts";
+import type { OperationsConfigRepositoryShape } from "@/features/operations/repository/config-repository.ts";
 import type { UnmappedScanCoordinatorShape } from "@/features/operations/tasks/runtime-support.ts";
 import type { UnmappedScanQueryShape } from "@/features/operations/unmapped/unmapped-orchestration-scan-query.ts";
 import { makeUnmappedScanQuerySupport } from "@/features/operations/unmapped/unmapped-orchestration-scan-query.ts";
@@ -43,21 +41,34 @@ export interface UnmappedScanWorkflowShape {
 
 export function makeUnmappedScanWorkflow(input: {
   aniList: typeof AniListClient.Service;
+  configRepository: OperationsConfigRepositoryShape;
   db: AppDatabase;
   eventBus: EventBusShape;
   unmappedScanCoordinator: UnmappedScanCoordinatorShape;
   fs: FileSystemShape;
   nowIso: () => Effect.Effect<string>;
+  systemUnmappedRepository: SystemUnmappedRepositoryShape;
   tryDatabasePromise: TryDatabasePromise;
 }) {
-  const { aniList, db, eventBus, fs, tryDatabasePromise, unmappedScanCoordinator } = input;
+  const {
+    aniList,
+    configRepository,
+    db,
+    eventBus,
+    fs,
+    systemUnmappedRepository,
+    tryDatabasePromise,
+    unmappedScanCoordinator,
+  } = input;
   const { nowIso } = input;
   const { getUnmappedFolders, loadQueuedUnmappedFolders, matchAndPersistUnmappedFolder } =
     makeUnmappedScanQuerySupport({
       aniList,
+      configRepository,
       db,
       fs,
       nowIso,
+      systemUnmappedRepository,
       tryDatabasePromise,
     });
 
@@ -99,9 +110,8 @@ export function makeUnmappedScanWorkflow(input: {
 
       const { folders, queuedFolders, snapshot } = yield* loadQueuedUnmappedFolders();
 
-      yield* upsertUnmappedFolderMatchRows(db, queuedFolders, yield* nowIso());
-      yield* deleteUnmappedFolderMatchRowsNotInPaths(
-        db,
+      yield* systemUnmappedRepository.upsertMatchRows(queuedFolders, yield* nowIso());
+      yield* systemUnmappedRepository.deleteMatchRowsNotInPaths(
         folders.map((folder) => folder.path),
       );
 
@@ -127,7 +137,7 @@ export function makeUnmappedScanWorkflow(input: {
       );
 
       const matchingFolder = markUnmappedFolderMatching(nextTarget);
-      yield* upsertUnmappedFolderMatchRows(db, [matchingFolder], yield* nowIso());
+      yield* systemUnmappedRepository.upsertMatchRows([matchingFolder], yield* nowIso());
 
       const matchResult = yield* matchAndPersistUnmappedFolder(matchingFolder, snapshot.animeRows);
 

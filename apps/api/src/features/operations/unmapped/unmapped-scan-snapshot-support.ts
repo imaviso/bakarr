@@ -7,28 +7,30 @@ import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { OperationsPathError, OperationsStoredDataError } from "@/features/operations/errors.ts";
 import {
   decodeUnmappedFolderMatchRow,
-  listUnmappedFolderMatchRows,
+  type SystemUnmappedRepositoryShape,
 } from "@/features/system/repository/unmapped-repository.ts";
 import {
   ensureFolderMatchStatus,
   listUnmappedFolderEntries,
 } from "@/features/operations/unmapped/unmapped-folder-list-support.ts";
-import { getConfigLibraryRoots } from "@/features/operations/repository/config-repository.ts";
+import type { OperationsConfigRepositoryShape } from "@/features/operations/repository/config-repository.ts";
 import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 
 export const loadUnmappedFolderSnapshot = Effect.fn("OperationsService.loadUnmappedFolderSnapshot")(
   function* (input: {
     db: AppDatabase;
+    configRepository: OperationsConfigRepositoryShape;
     fs: FileSystemShape;
     nowIso?: () => Effect.Effect<string> | undefined;
+    systemUnmappedRepository: SystemUnmappedRepositoryShape;
     tryDatabasePromise: TryDatabasePromise;
   }) {
-    const roots = yield* getConfigLibraryRoots(input.db);
+    const roots = yield* input.configRepository.getConfigLibraryRoots();
     const animeRows = yield* input.tryDatabasePromise("Failed to scan unmapped folders", () =>
       input.db.select().from(media),
     );
     const mappedRoots = new Set(animeRows.map((row) => row.rootFolder));
-    const cachedRows = yield* listUnmappedFolderMatchRows(input.db);
+    const cachedRows = yield* input.systemUnmappedRepository.listMatchRows();
     const decodedRows = yield* Effect.forEach(cachedRows, (row) =>
       decodeUnmappedFolderMatchRow(row).pipe(
         Effect.mapError(

@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { Context, Effect, Layer, Option } from "effect";
 
 import { Database, type AppDatabase, type DatabaseError } from "@/db/database.ts";
-import { appConfig } from "@/db/schema.ts";
+import { appConfig, qualityProfiles } from "@/db/schema.ts";
 import { queryFirst, tryDatabasePromise } from "@/infra/effect/db.ts";
 
 export interface SystemConfigRepositoryShape {
@@ -15,6 +15,14 @@ export interface SystemConfigRepositoryShape {
   ) => Effect.Effect<void, DatabaseError>;
   readonly upsertSystemConfigRow: (
     input: typeof appConfig.$inferInsert,
+  ) => Effect.Effect<void, DatabaseError>;
+  readonly updateSystemConfigAtomic: (
+    coreInput: typeof appConfig.$inferInsert,
+    profileRows: readonly (typeof qualityProfiles.$inferInsert)[],
+  ) => Effect.Effect<void, DatabaseError>;
+  readonly ensureBootstrapSystemState: (
+    coreInput: typeof appConfig.$inferInsert,
+    profileRows: readonly (typeof qualityProfiles.$inferInsert)[],
   ) => Effect.Effect<void, DatabaseError>;
 }
 
@@ -55,10 +63,64 @@ export const upsertSystemConfigRow = Effect.fn("SystemConfigRepository.upsertSys
   },
 );
 
+export const updateSystemConfigAtomic = Effect.fn(
+  "SystemConfigRepository.updateSystemConfigAtomic",
+)(function* (
+  db: AppDatabase,
+  coreInput: typeof appConfig.$inferInsert,
+  profileRows: readonly (typeof qualityProfiles.$inferInsert)[],
+) {
+  yield* tryDatabasePromise("Failed to update system config", () =>
+    db.transaction(async (tx) => {
+      await tx
+        .insert(appConfig)
+        .values(coreInput)
+        .onConflictDoUpdate({
+          target: appConfig.id,
+          set: { data: coreInput.data, updatedAt: coreInput.updatedAt },
+        });
+
+      await tx.delete(qualityProfiles);
+
+      if (profileRows.length > 0) {
+        await tx.insert(qualityProfiles).values([...profileRows]);
+      }
+    }),
+  );
+});
+
+export const ensureBootstrapSystemState = Effect.fn(
+  "SystemConfigRepository.ensureBootstrapSystemState",
+)(function* (
+  db: AppDatabase,
+  coreInput: typeof appConfig.$inferInsert,
+  profileRows: readonly (typeof qualityProfiles.$inferInsert)[],
+) {
+  yield* tryDatabasePromise("Failed to ensure bootstrap system state", () =>
+    db.transaction(async (tx) => {
+      const configRows = await tx.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1);
+
+      if (configRows.length === 0) {
+        await tx.insert(appConfig).values(coreInput);
+      }
+
+      const existingProfiles = await tx.select().from(qualityProfiles).limit(1);
+
+      if (existingProfiles.length === 0) {
+        await tx.insert(qualityProfiles).values([...profileRows]);
+      }
+    }),
+  );
+});
+
 export function makeSystemConfigRepository(db: AppDatabase): SystemConfigRepositoryShape {
   return SystemConfigRepository.of({
+    ensureBootstrapSystemState: (coreInput, profileRows) =>
+      ensureBootstrapSystemState(db, coreInput, profileRows),
     insertSystemConfigRow: (input) => insertSystemConfigRow(db, input),
     loadSystemConfigRow: () => loadSystemConfigRow(db),
+    updateSystemConfigAtomic: (coreInput, profileRows) =>
+      updateSystemConfigAtomic(db, coreInput, profileRows),
     upsertSystemConfigRow: (input) => upsertSystemConfigRow(db, input),
   });
 }

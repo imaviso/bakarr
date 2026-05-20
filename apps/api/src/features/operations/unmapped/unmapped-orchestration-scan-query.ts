@@ -7,10 +7,7 @@ import { media, backgroundJobs } from "@/db/schema.ts";
 import { type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import type { AniListClient } from "@/features/media/metadata/anilist.ts";
 import { OperationsPathError, OperationsStoredDataError } from "@/features/operations/errors.ts";
-import {
-  deleteUnmappedFolderMatchRowsNotInPaths,
-  upsertUnmappedFolderMatchRows,
-} from "@/features/system/repository/unmapped-repository.ts";
+import { type SystemUnmappedRepositoryShape } from "@/features/system/repository/unmapped-repository.ts";
 import {
   prepareUnmappedFoldersForScan,
   toUnmappedMatchErrorMessage,
@@ -23,6 +20,7 @@ import {
   markUnmappedFolderFailed,
 } from "@/features/operations/unmapped/unmapped-folders.ts";
 import type { TryDatabasePromise } from "@/infra/effect/db.ts";
+import type { OperationsConfigRepositoryShape } from "@/features/operations/repository/config-repository.ts";
 
 export interface UnmappedScanSnapshot {
   readonly animeRows: ReadonlyArray<typeof media.$inferSelect>;
@@ -65,19 +63,31 @@ export interface UnmappedScanQueryShape {
 
 export function makeUnmappedScanQuerySupport(input: {
   aniList: typeof AniListClient.Service;
+  configRepository: OperationsConfigRepositoryShape;
   db: AppDatabase;
   fs: FileSystemShape;
   nowIso: () => Effect.Effect<string>;
+  systemUnmappedRepository: SystemUnmappedRepositoryShape;
   tryDatabasePromise: TryDatabasePromise;
 }) {
-  const { aniList, db, fs, nowIso, tryDatabasePromise } = input;
+  const {
+    aniList,
+    configRepository,
+    db,
+    fs,
+    nowIso,
+    systemUnmappedRepository,
+    tryDatabasePromise,
+  } = input;
 
   const loadQueuedUnmappedFolders = Effect.fn("OperationsService.loadQueuedUnmappedFolders")(
     function* () {
       const snapshot = yield* loadUnmappedFolderSnapshot({
         db,
+        configRepository,
         fs,
         nowIso,
+        systemUnmappedRepository,
         tryDatabasePromise,
       });
       const folders = yield* Effect.forEach(snapshot.folders, (folder) =>
@@ -92,8 +102,10 @@ export function makeUnmappedScanQuerySupport(input: {
   const getUnmappedFolders = Effect.fn("OperationsService.getUnmappedFolders")(function* () {
     const snapshot = yield* loadUnmappedFolderSnapshot({
       db,
+      configRepository,
       fs,
       nowIso,
+      systemUnmappedRepository,
       tryDatabasePromise,
     });
     const [job] = yield* tryDatabasePromise("Failed to scan unmapped folders", () =>
@@ -106,11 +118,8 @@ export function makeUnmappedScanQuerySupport(input: {
 
     const newFolders = folders.filter((folder) => !snapshot.cachedByPath.has(folder.path));
 
-    yield* upsertUnmappedFolderMatchRows(db, newFolders, yield* nowIso());
-    yield* deleteUnmappedFolderMatchRowsNotInPaths(
-      db,
-      folders.map((folder) => folder.path),
-    );
+    yield* systemUnmappedRepository.upsertMatchRows(newFolders, yield* nowIso());
+    yield* systemUnmappedRepository.deleteMatchRowsNotInPaths(folders.map((folder) => folder.path));
 
     const hasOutstandingMatches = folders.some(isUnmappedFolderOutstanding);
     const matchCounts = countScannerMatches(folders);
@@ -151,7 +160,7 @@ export function makeUnmappedScanQuerySupport(input: {
       const errorMessage = toUnmappedMatchErrorMessage(matchResult.left);
       const now = yield* nowIso();
       const failedFolder = markUnmappedFolderFailed(matchingFolder, errorMessage, now);
-      yield* upsertUnmappedFolderMatchRows(db, [failedFolder], yield* nowIso());
+      yield* systemUnmappedRepository.upsertMatchRows([failedFolder], yield* nowIso());
 
       return {
         _tag: "Failed" as const,
@@ -159,7 +168,7 @@ export function makeUnmappedScanQuerySupport(input: {
       } satisfies UnmappedMatchResult;
     }
 
-    yield* upsertUnmappedFolderMatchRows(db, [matchResult.right], yield* nowIso());
+    yield* systemUnmappedRepository.upsertMatchRows([matchResult.right], yield* nowIso());
 
     return {
       _tag: "Matched" as const,

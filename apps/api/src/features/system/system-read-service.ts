@@ -2,11 +2,8 @@ import { Context, Effect, Layer } from "effect";
 
 import { AppRuntime } from "@/app/runtime.ts";
 import { AppConfig } from "@/config/schema.ts";
-import { Database, type DatabaseError } from "@/db/database.ts";
-import {
-  loadDownloadEventPresentationContexts,
-  toDownloadEvent,
-} from "@/domain/download/event-presentations.ts";
+import type { DatabaseError } from "@/db/database.ts";
+import { toDownloadEvent } from "@/domain/download/event-presentations.ts";
 import {
   type BackgroundJobStatusError,
   BackgroundJobStatusService,
@@ -21,12 +18,7 @@ import {
   selectStoragePath,
 } from "@/features/system/disk-space.ts";
 import { StoredConfigCorruptError, StoredConfigMissingError } from "@/features/system/errors.ts";
-import {
-  listRecentDownloadEventRows,
-  listRecentSystemLogRows,
-  loadSystemDownloadStatsAggregate,
-  loadSystemLibraryStatsAggregate,
-} from "@/features/system/repository/stats-repository.ts";
+import { SystemStatsRepository } from "@/features/system/repository/stats-repository.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { ClockService } from "@/infra/clock.ts";
 import {
@@ -63,16 +55,16 @@ export class SystemReadService extends Context.Tag("@bakarr/api/SystemReadServic
 export const SystemReadServiceLive = Layer.effect(
   SystemReadService,
   Effect.gen(function* () {
-    const { db } = yield* Database;
     const appConfig = yield* AppConfig;
     const runtime = yield* AppRuntime;
     const clock = yield* ClockService;
     const diskSpaceInspector = yield* DiskSpaceInspector;
     const backgroundJobStatusService = yield* BackgroundJobStatusService;
+    const systemStatsRepository = yield* SystemStatsRepository;
     const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
 
     const getActivity = Effect.fn("SystemReadService.getActivity")(function* () {
-      const rows = yield* listRecentSystemLogRows(db, 20);
+      const rows = yield* systemStatsRepository.listRecentSystemLogRows(20);
 
       return rows.map(
         (row) =>
@@ -88,10 +80,11 @@ export const SystemReadServiceLive = Layer.effect(
     });
 
     const getDashboard = Effect.fn("SystemReadService.getDashboard")(function* () {
-      const downloadStats = yield* loadSystemDownloadStatsAggregate(db);
+      const downloadStats = yield* systemStatsRepository.loadSystemDownloadStatsAggregate();
       const snapshot = yield* backgroundJobStatusService.getSnapshot();
-      const events = yield* listRecentDownloadEventRows(db, 12);
-      const eventContexts = yield* loadDownloadEventPresentationContexts(db, events);
+      const events = yield* systemStatsRepository.listRecentDownloadEventRows(12);
+      const eventContexts =
+        yield* systemStatsRepository.loadDownloadEventPresentationContexts(events);
       const recentDownloadEvents = yield* Effect.forEach(events, (row) =>
         toDownloadEvent(row, eventContexts.get(row.id)),
       );
@@ -108,7 +101,7 @@ export const SystemReadServiceLive = Layer.effect(
     });
 
     const getLibraryStats = Effect.fn("SystemReadService.getLibraryStats")(function* () {
-      const aggregate = yield* loadSystemLibraryStatsAggregate(db);
+      const aggregate = yield* systemStatsRepository.loadSystemLibraryStatsAggregate();
 
       return {
         downloaded_units: aggregate.downloadedUnits,
@@ -136,7 +129,7 @@ export const SystemReadServiceLive = Layer.effect(
         anidbConfig.password.trim().length > 0;
       const storagePath = selectStoragePath(currentConfig, appConfig.databaseFile);
       const diskSpace = yield* diskSpaceInspector.getDiskSpaceSafe(storagePath);
-      const downloadStats = yield* loadSystemDownloadStatsAggregate(db);
+      const downloadStats = yield* systemStatsRepository.loadSystemDownloadStatsAggregate();
       const snapshot = yield* backgroundJobStatusService.getSnapshot();
       const rssJob = findBackgroundJobStatus(snapshot.jobs, "rss");
       const scanJob = findBackgroundJobStatus(snapshot.jobs, "library_scan");

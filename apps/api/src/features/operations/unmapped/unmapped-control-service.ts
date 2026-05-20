@@ -9,11 +9,10 @@ import type {
 } from "@/features/operations/errors.ts";
 import { UnmappedScanService } from "@/features/operations/unmapped/unmapped-scan-service.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { OperationsConfigRepository } from "@/features/operations/repository/config-repository.ts";
 import {
   decodeUnmappedFolderMatchRow,
-  listUnmappedFolderMatchRows,
-  loadUnmappedFolderMatchRow,
-  upsertUnmappedFolderMatchRows,
+  SystemUnmappedRepository,
 } from "@/features/system/repository/unmapped-repository.ts";
 import {
   OperationsConflictError,
@@ -61,6 +60,8 @@ export class UnmappedControlService extends Context.Tag("@bakarr/api/UnmappedCon
 const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(function* () {
   const { db } = yield* Database;
   const fs = yield* FileSystem;
+  const configRepository = yield* OperationsConfigRepository;
+  const systemUnmappedRepository = yield* SystemUnmappedRepository;
   const clock = yield* ClockService;
   const scanService = yield* UnmappedScanService;
   const nowIso = () => nowIsoFromClock(clock);
@@ -80,7 +81,7 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
   const loadCurrentFolder = Effect.fn("OperationsService.loadCurrentFolder")(function* (
     path: string,
   ) {
-    const row = yield* loadUnmappedFolderMatchRow(db, path);
+    const row = yield* systemUnmappedRepository.loadMatchRow(path);
 
     if (!row) {
       return yield* new OperationsInputError({ message: "Unmapped folder not found" });
@@ -110,8 +111,10 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
   ) {
     const snapshot = yield* loadUnmappedFolderSnapshot({
       db,
+      configRepository,
       fs,
       nowIso,
+      systemUnmappedRepository,
       tryDatabasePromise,
     });
     const target = snapshot.folders.find((folder) => folder.path === path);
@@ -121,7 +124,7 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
     }
 
     const matchingFolder = markUnmappedFolderMatching(target);
-    yield* upsertUnmappedFolderMatchRows(db, [matchingFolder], yield* nowIso());
+    yield* systemUnmappedRepository.upsertMatchRows([matchingFolder], yield* nowIso());
 
     const matchResult = yield* scanService.matchAndPersistUnmappedFolder(
       matchingFolder,
@@ -173,7 +176,7 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
           ? resetUnmappedFolderMatch(current)
           : transitionFolderForAction(current, input.action);
 
-      yield* upsertUnmappedFolderMatchRows(db, [nextFolder], yield* nowIso());
+      yield* systemUnmappedRepository.upsertMatchRows([nextFolder], yield* nowIso());
 
       if (input.action === "refresh") {
         return yield* refreshFolderMatch(current, input.path);
@@ -189,7 +192,7 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
     function* (input: {
       action: "pause_queued" | "resume_paused" | "reset_failed" | "retry_failed";
     }) {
-      const rows = yield* listUnmappedFolderMatchRows(db);
+      const rows = yield* systemUnmappedRepository.listMatchRows();
       const folders = yield* Effect.forEach(rows, (row) => decodeStoredFolder(row));
 
       let nextFolders: UnmappedFolder[];
@@ -212,7 +215,7 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
         return { affectedCount: 0 };
       }
 
-      yield* upsertUnmappedFolderMatchRows(db, nextFolders, yield* nowIso());
+      yield* systemUnmappedRepository.upsertMatchRows(nextFolders, yield* nowIso());
 
       let logMessage = `Queued ${nextFolders.length} failed unmapped folder(s) for retry`;
 

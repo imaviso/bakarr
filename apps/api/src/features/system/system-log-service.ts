@@ -1,18 +1,12 @@
 import { Context, Effect, Layer } from "effect";
 
 import type { SystemLogsResponse } from "@packages/shared/index.ts";
-import { Database, DatabaseError } from "@/db/database.ts";
-import { systemLogs } from "@/db/schema.ts";
+import { DatabaseError } from "@/db/database.ts";
 import { nowIsoFromClock, ClockService } from "@/infra/clock.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
-import { appendSystemLog } from "@/features/system/support.ts";
-import { loadSystemLogPage } from "@/features/system/repository/stats-repository.ts";
+import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 import {
   buildSystemLogExportPlan,
-  loadSystemLogExportHeader,
-  streamLogExportCsv as renderSystemLogExportCsv,
-  streamLogExportJson as renderSystemLogExportJson,
   type SystemLogExportStreamShape,
   toSystemLog,
 } from "@/features/system/system-log-export.ts";
@@ -53,9 +47,9 @@ export class SystemLogService extends Context.Tag("@bakarr/api/SystemLogService"
 >() {}
 
 const makeSystemLogService = Effect.fn("SystemLogService.make")(function* () {
-  const { db } = yield* Database;
   const clock = yield* ClockService;
   const eventBus = yield* EventBus;
+  const systemLogRepository = yield* SystemLogRepository;
   const nowIso = () => nowIsoFromClock(clock);
 
   const getLogs = Effect.fn("SystemLogService.getLogs")(function* (input: {
@@ -68,7 +62,7 @@ const makeSystemLogService = Effect.fn("SystemLogService.make")(function* () {
   }) {
     const safePage = Math.max(1, input.page);
     const safePageSize = Math.max(1, Math.min(input.pageSize ?? PAGE_SIZE, 10_000));
-    const { rows, total } = yield* loadSystemLogPage(db, {
+    const { rows, total } = yield* systemLogRepository.loadPage({
       ...(input.endDate === undefined ? {} : { endDate: input.endDate }),
       ...(input.eventType === undefined ? {} : { eventType: input.eventType }),
       ...(input.level === undefined ? {} : { level: input.level }),
@@ -84,7 +78,7 @@ const makeSystemLogService = Effect.fn("SystemLogService.make")(function* () {
   });
 
   const clearLogs = Effect.fn("SystemLogService.clearLogs")(function* () {
-    yield* tryDatabasePromise("Failed to clear system logs", () => db.delete(systemLogs));
+    yield* systemLogRepository.clearLogs();
   });
 
   const streamLogExportJson = Effect.fn("SystemLogService.streamLogExportJson")(function* (input: {
@@ -94,11 +88,11 @@ const makeSystemLogService = Effect.fn("SystemLogService.make")(function* () {
     startDate?: string;
   }) {
     const plan = buildSystemLogExportPlan(input);
-    const header = yield* loadSystemLogExportHeader(db, plan, nowIso);
+    const header = yield* systemLogRepository.loadExportHeader(plan, nowIso);
 
     return {
       header,
-      stream: renderSystemLogExportJson(db, plan),
+      stream: systemLogRepository.streamExportJson(plan),
     } satisfies SystemLogExportStreamShape;
   });
 
@@ -109,11 +103,11 @@ const makeSystemLogService = Effect.fn("SystemLogService.make")(function* () {
     startDate?: string;
   }) {
     const plan = buildSystemLogExportPlan(input);
-    const header = yield* loadSystemLogExportHeader(db, plan, nowIso);
+    const header = yield* systemLogRepository.loadExportHeader(plan, nowIso);
 
     return {
       header,
-      stream: renderSystemLogExportCsv(db, plan),
+      stream: systemLogRepository.streamExportCsv(plan),
     } satisfies SystemLogExportStreamShape;
   });
 
@@ -121,7 +115,7 @@ const makeSystemLogService = Effect.fn("SystemLogService.make")(function* () {
     message: string,
     eventType: string,
   ) {
-    yield* appendSystemLog(db, eventType, "info", message, nowIso);
+    yield* systemLogRepository.appendLog(eventType, "info", message, nowIso);
     yield* eventBus.publishInfo(message);
   });
 

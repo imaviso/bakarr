@@ -1,7 +1,7 @@
 import { Context, Effect, Layer } from "effect";
 
 import type { ReleaseProfile } from "@packages/shared/index.ts";
-import { Database, DatabaseError } from "@/db/database.ts";
+import { DatabaseError } from "@/db/database.ts";
 import { nowIsoFromClock, ClockService } from "@/infra/clock.ts";
 import { StoredConfigCorruptError } from "@/features/system/errors.ts";
 import {
@@ -12,13 +12,8 @@ import type {
   CreateReleaseProfileInput,
   UpdateReleaseProfileInput,
 } from "@/features/system/config-schema.ts";
-import { appendSystemLog } from "@/features/system/support.ts";
-import {
-  deleteReleaseProfileRow,
-  insertReleaseProfileRow,
-  listReleaseProfileRows,
-  updateReleaseProfileRow,
-} from "@/features/system/repository/release-profile-repository.ts";
+import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
+import { ReleaseProfileRepository } from "@/features/system/repository/release-profile-repository.ts";
 
 export interface ReleaseProfileServiceShape {
   readonly listReleaseProfiles: () => Effect.Effect<
@@ -41,12 +36,13 @@ export class ReleaseProfileService extends Context.Tag("@bakarr/api/ReleaseProfi
 >() {}
 
 const makeReleaseProfileService = Effect.fn("ReleaseProfileService.make")(function* () {
-  const { db } = yield* Database;
   const clock = yield* ClockService;
+  const releaseProfileRepository = yield* ReleaseProfileRepository;
+  const systemLogRepository = yield* SystemLogRepository;
   const nowIso = () => nowIsoFromClock(clock);
 
   const listReleaseProfiles = Effect.fn("ReleaseProfileService.listReleaseProfiles")(function* () {
-    const rows = yield* listReleaseProfileRows(db);
+    const rows = yield* releaseProfileRepository.listReleaseProfileRows();
     return yield* Effect.forEach(rows, decodeReleaseProfileRow);
   });
 
@@ -54,10 +50,9 @@ const makeReleaseProfileService = Effect.fn("ReleaseProfileService.make")(functi
     input: CreateReleaseProfileInput,
   ) {
     const row = yield* encodeReleaseProfileRow(input);
-    const created = yield* insertReleaseProfileRow(db, row);
+    const created = yield* releaseProfileRepository.insertReleaseProfileRow(row);
 
-    yield* appendSystemLog(
-      db,
+    yield* systemLogRepository.appendLog(
       "release_profiles.created",
       "success",
       `Release profile '${input.name}' created`,
@@ -71,10 +66,9 @@ const makeReleaseProfileService = Effect.fn("ReleaseProfileService.make")(functi
     input: UpdateReleaseProfileInput,
   ) {
     const row = yield* encodeReleaseProfileRow(input);
-    yield* updateReleaseProfileRow(db, id, row);
+    yield* releaseProfileRepository.updateReleaseProfileRow(id, row);
 
-    yield* appendSystemLog(
-      db,
+    yield* systemLogRepository.appendLog(
       "release_profiles.updated",
       "success",
       `Release profile '${input.name}' updated`,
@@ -85,9 +79,8 @@ const makeReleaseProfileService = Effect.fn("ReleaseProfileService.make")(functi
   const deleteReleaseProfile = Effect.fn("ReleaseProfileService.deleteReleaseProfile")(function* (
     id: number,
   ) {
-    yield* deleteReleaseProfileRow(db, id);
-    yield* appendSystemLog(
-      db,
+    yield* releaseProfileRepository.deleteReleaseProfileRow(id);
+    yield* systemLogRepository.appendLog(
       "release_profiles.deleted",
       "success",
       `Release profile ${id} deleted`,

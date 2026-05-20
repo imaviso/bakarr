@@ -2,11 +2,10 @@ import { Context, Effect, Layer } from "effect";
 
 import type { BackgroundJobStatus } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
-import { Database } from "@/db/database.ts";
 import { BackgroundWorkerMonitor } from "@/background/monitor.ts";
 import { composeBackgroundJobStatuses } from "@/features/system/background-status.ts";
 import { ConfigValidationError } from "@/features/system/errors.ts";
-import { listBackgroundJobRows } from "@/features/system/repository/stats-repository.ts";
+import { SystemStatsRepository } from "@/features/system/repository/stats-repository.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 
@@ -29,13 +28,13 @@ export class BackgroundJobStatusService extends Context.Tag(
 )<BackgroundJobStatusService, BackgroundJobStatusServiceShape>() {}
 
 const makeBackgroundJobStatusService = Effect.fn("BackgroundJobStatusService.make")(function* () {
-  const { db } = yield* Database;
   const monitor = yield* BackgroundWorkerMonitor;
+  const systemStatsRepository = yield* SystemStatsRepository;
   const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
 
   const getSnapshot = Effect.fn("BackgroundJobStatusService.getSnapshot")(function* () {
     const currentConfig = yield* runtimeConfigSnapshot.getRuntimeConfig();
-    const jobRows = yield* listBackgroundJobRows(db);
+    const jobRows = yield* systemStatsRepository.listBackgroundJobRows();
     const liveSnapshot = yield* monitor.snapshot();
     const jobs = composeBackgroundJobStatuses(currentConfig, liveSnapshot, jobRows);
 

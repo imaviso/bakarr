@@ -24,7 +24,7 @@ export interface SystemLogExportStreamShape {
   readonly stream: Stream.Stream<Uint8Array, DatabaseError>;
 }
 
-interface SystemLogExportPlan {
+export interface SystemLogExportPlan {
   readonly conditions: readonly SQL[];
   readonly limit: number;
 }

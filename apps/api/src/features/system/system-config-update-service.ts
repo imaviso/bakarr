@@ -1,10 +1,8 @@
-import { count, eq } from "drizzle-orm";
 import { Context, Effect, Layer, Option } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 import { AppConfig } from "@/config/schema.ts";
-import { type AppDatabase, Database, DatabaseError } from "@/db/database.ts";
-import { media } from "@/db/schema.ts";
+import { DatabaseError } from "@/db/database.ts";
 import { nowIsoFromClock, ClockService } from "@/infra/clock.ts";
 import { RuntimeLogLevelState } from "@/infra/logging.ts";
 import { BackgroundWorkerController } from "@/background/controller-core.ts";
@@ -18,15 +16,13 @@ import {
   type ConfigCore,
 } from "@/features/system/config-codec.ts";
 import { ConfigValidationError, StoredConfigCorruptError } from "@/features/system/errors.ts";
-import { appendSystemLog } from "@/features/system/support.ts";
+import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 import { applyRuntimeLogLevelFromConfig } from "@/features/system/runtime-config.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { buildPersistedConfigStates } from "@/features/system/system-config-update-support.ts";
 import { makeDefaultConfig } from "@/features/system/defaults.ts";
-import { listQualityProfileRows } from "@/features/system/repository/quality-profile-repository.ts";
-import { loadSystemConfigRow } from "@/features/system/repository/system-config-repository.ts";
-import { updateSystemConfigAtomic } from "@/features/system/repository/config-transaction-repository.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
+import { SystemConfigRepository } from "@/features/system/repository/system-config-repository.ts";
 
 export interface SystemConfigUpdateServiceShape {
   readonly updateConfig: (
@@ -39,30 +35,23 @@ export class SystemConfigUpdateService extends Context.Tag("@bakarr/api/SystemCo
   SystemConfigUpdateServiceShape
 >() {}
 
-const countAnimeUsingProfile = Effect.fn("SystemConfigUpdateService.countAnimeUsingProfile")(
-  function* (db: AppDatabase, profileName: string) {
-    const rows = yield* tryDatabasePromise("Failed to count media", () =>
-      db.select({ value: count() }).from(media).where(eq(media.profileName, profileName)),
-    );
-    return rows[0]?.value ?? 0;
-  },
-);
-
 const makeSystemConfigUpdateService = Effect.fn("SystemConfigUpdateService.make")(function* () {
-  const { db } = yield* Database;
   const appConfig = yield* AppConfig;
   const clock = yield* ClockService;
+  const qualityProfileRepository = yield* QualityProfileRepository;
   const runtimeControl = yield* BackgroundWorkerController;
   const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
   const runtimeLogLevelState = yield* RuntimeLogLevelState;
+  const systemConfigRepository = yield* SystemConfigRepository;
+  const systemLogRepository = yield* SystemLogRepository;
   const eventBus = yield* EventBus;
   const nowIso = () => nowIsoFromClock(clock);
 
   const updateConfig = Effect.fn("SystemConfigUpdateService.updateConfig")(function* (
     nextConfig: Config,
   ) {
-    const existingProfileRows = yield* listQualityProfileRows(db);
-    const previousConfigRow = yield* loadSystemConfigRow(db);
+    const existingProfileRows = yield* qualityProfileRepository.listQualityProfileRows();
+    const previousConfigRow = yield* systemConfigRepository.loadSystemConfigRow();
     const effectiveConfig = yield* preserveStoredPasswords({
       appDatabaseFile: appConfig.databaseFile,
       nextConfig,
@@ -70,7 +59,8 @@ const makeSystemConfigUpdateService = Effect.fn("SystemConfigUpdateService.make"
     });
     const normalizedConfig = yield* normalizeConfig(effectiveConfig);
     yield* validateConfigUpdate({
-      countAnimeUsingProfile: (profileName) => countAnimeUsingProfile(db, profileName),
+      countAnimeUsingProfile: (profileName) =>
+        qualityProfileRepository.countAnimeUsingProfile(profileName),
       existingProfileRows,
       nextConfig: normalizedConfig,
     });
@@ -93,14 +83,14 @@ const makeSystemConfigUpdateService = Effect.fn("SystemConfigUpdateService.make"
           .pipe(Effect.zipRight(runtimeConfigSnapshot.replaceRuntimeConfig(value))),
       nextConfig: normalizedConfig,
       nextState,
-      persistState: (state) => updateSystemConfigAtomic(db, state.coreRow, state.profileRows),
+      persistState: (state) =>
+        systemConfigRepository.updateSystemConfigAtomic(state.coreRow, state.profileRows),
       previousState,
     });
 
     yield* applyRuntimeLogLevelFromConfig(runtimeLogLevelState, normalizedConfig);
 
-    yield* appendSystemLog(
-      db,
+    yield* systemLogRepository.appendLog(
       "system.config.updated",
       "success",
       "System configuration updated",

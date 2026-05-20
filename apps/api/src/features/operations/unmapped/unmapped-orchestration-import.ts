@@ -23,8 +23,11 @@ import {
 } from "@/features/operations/errors.ts";
 import { appendLog } from "@/features/operations/shared/job-support.ts";
 import { scanVideoFilesStream } from "@/features/operations/import-scan/file-scanner.ts";
-import { getAnimeRowEffect as requireAnime } from "@/features/media/shared/media-read-repository.ts";
-import { getConfigLibraryPath } from "@/features/operations/repository/config-repository.ts";
+import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import {
+  OperationsConfigRepository,
+  type OperationsConfigRepositoryShape,
+} from "@/features/operations/repository/config-repository.ts";
 import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 import { Database } from "@/db/database.ts";
 import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
@@ -88,11 +91,13 @@ export const cleanupPreviousAnimeRootFolderAfterImport = Effect.fn(
 
 export function makeUnmappedImportWorkflow(input: {
   db: AppDatabase;
+  configRepository: OperationsConfigRepositoryShape;
   fs: FileSystemShape;
+  mediaReadRepository: typeof MediaReadRepository.Service;
   nowIso: () => Effect.Effect<string>;
   tryDatabasePromise: TryDatabasePromise;
 }) {
-  const { db, fs, nowIso, tryDatabasePromise } = input;
+  const { configRepository, db, fs, mediaReadRepository, nowIso, tryDatabasePromise } = input;
 
   type EpisodeImportMapping = {
     readonly aired: string | null;
@@ -102,9 +107,9 @@ export function makeUnmappedImportWorkflow(input: {
 
   const importUnmappedFolder = Effect.fn("OperationsService.importUnmappedFolder")(
     function* (input: { folder_name: string; media_id: number; profile_name?: string }) {
-      const animeRow = yield* requireAnime(db, input.media_id);
+      const animeRow = yield* mediaReadRepository.getAnimeRow(input.media_id);
       const mediaKind = decodeMediaKind(animeRow.mediaKind);
-      const libraryPath = yield* getConfigLibraryPath(db, mediaKind);
+      const libraryPath = yield* configRepository.getConfigLibraryPath(mediaKind);
       const folderName = yield* sanitizePathSegmentEffect(input.folder_name).pipe(
         Effect.mapError(
           (cause) =>
@@ -256,12 +261,16 @@ export const UnmappedImportServiceLive = Layer.effect(
   UnmappedImportService,
   Effect.gen(function* () {
     const { db } = yield* Database;
+    const configRepository = yield* OperationsConfigRepository;
     const fs = yield* FileSystem;
     const clock = yield* ClockService;
+    const mediaReadRepository = yield* MediaReadRepository;
 
     return makeUnmappedImportWorkflow({
       db,
+      configRepository,
       fs,
+      mediaReadRepository,
       nowIso: () => nowIsoFromClock(clock),
       tryDatabasePromise,
     });

@@ -1,17 +1,14 @@
 import { Context, Effect, Layer } from "effect";
-import { eq } from "drizzle-orm";
 
 import { AppConfig } from "@/config/schema.ts";
-import { Database, DatabaseError } from "@/db/database.ts";
-import { appConfig, qualityProfiles } from "@/db/schema.ts";
+import { DatabaseError } from "@/db/database.ts";
 import { nowIsoFromClock, ClockService } from "@/infra/clock.ts";
 import { RuntimeLogLevelState } from "@/infra/logging.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { DEFAULT_PROFILES, makeDefaultConfig } from "@/features/system/defaults.ts";
 import { decodeConfigCore, encodeConfigCore } from "@/features/system/config-codec.ts";
 import { encodeQualityProfileRow } from "@/features/profiles/profile-codec.ts";
 import { applyRuntimeLogLevelFromConfig } from "@/features/system/runtime-config.ts";
-import { loadSystemConfigRow } from "@/features/system/repository/system-config-repository.ts";
+import { SystemConfigRepository } from "@/features/system/repository/system-config-repository.ts";
 export interface SystemBootstrapServiceShape {
   /**
    * First-run initialization (idempotent):
@@ -30,10 +27,10 @@ export class SystemBootstrapService extends Context.Tag("@bakarr/api/SystemBoots
 >() {}
 
 const makeSystemBootstrapService = Effect.fn("SystemBootstrapService.make")(function* () {
-  const { db } = yield* Database;
   const config = yield* AppConfig;
   const clock = yield* ClockService;
   const runtimeLogLevelState = yield* RuntimeLogLevelState;
+  const systemConfigRepository = yield* SystemConfigRepository;
   const nowIso = () => nowIsoFromClock(clock);
 
   const ensureInitialized = Effect.fn("SystemBootstrapService.ensureInitialized")(function* () {
@@ -57,27 +54,16 @@ const makeSystemBootstrapService = Effect.fn("SystemBootstrapService.make")(func
       ),
     );
 
-    yield* tryDatabasePromise("Failed to ensure bootstrap system state", () =>
-      db.transaction(async (tx) => {
-        const configRows = await tx.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1);
-
-        if (configRows.length === 0) {
-          await tx.insert(appConfig).values({
-            data: initialConfigData,
-            id: 1,
-            updatedAt: initNow,
-          });
-        }
-
-        const existingProfiles = await tx.select().from(qualityProfiles).limit(1);
-
-        if (existingProfiles.length === 0) {
-          await tx.insert(qualityProfiles).values(initialProfiles);
-        }
-      }),
+    yield* systemConfigRepository.ensureBootstrapSystemState(
+      {
+        data: initialConfigData,
+        id: 1,
+        updatedAt: initNow,
+      },
+      initialProfiles,
     );
 
-    const storedConfig = yield* loadSystemConfigRow(db);
+    const storedConfig = yield* systemConfigRepository.loadSystemConfigRow();
 
     if (storedConfig) {
       const decoded = yield* decodeConfigCore(storedConfig.data).pipe(Effect.either);

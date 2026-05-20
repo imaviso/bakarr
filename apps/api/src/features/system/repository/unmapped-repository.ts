@@ -1,5 +1,5 @@
 import { eq, notInArray } from "drizzle-orm";
-import { Effect, Option, Schema } from "effect";
+import { Context, Effect, Layer, Option, Schema } from "effect";
 
 import {
   type UnmappedFolder,
@@ -7,7 +7,7 @@ import {
   UnmappedFolderMatchStatusSchema,
   UnmappedFolderSchema,
 } from "@packages/shared/index.ts";
-import { DatabaseError, type AppDatabase } from "@/db/database.ts";
+import { Database, DatabaseError, type AppDatabase } from "@/db/database.ts";
 import { unmappedFolderMatches } from "@/db/schema.ts";
 import { queryFirst, tryDatabasePromise } from "@/infra/effect/db.ts";
 import { buildUnmappedFolderSearchQueries } from "@/features/operations/unmapped/unmapped-folders.ts";
@@ -15,6 +15,23 @@ import { StoredUnmappedFolderCorruptError } from "@/features/system/errors.ts";
 import { decodeJson, encodeJson } from "@/infra/effect/schema-json.ts";
 
 const AnimeSearchResultListSchema = Schema.Array(MediaSearchResultSchema);
+
+export interface SystemUnmappedRepositoryShape {
+  readonly listMatchRows: () => ReturnType<typeof listUnmappedFolderMatchRows>;
+  readonly deleteMatchRowsNotInPaths: (
+    paths: readonly string[],
+  ) => ReturnType<typeof deleteUnmappedFolderMatchRowsNotInPaths>;
+  readonly upsertMatchRows: (
+    folders: readonly UnmappedFolder[],
+    updatedAt: string,
+  ) => ReturnType<typeof upsertUnmappedFolderMatchRows>;
+  readonly loadMatchRow: (path: string) => ReturnType<typeof loadUnmappedFolderMatchRow>;
+}
+
+export class SystemUnmappedRepository extends Context.Tag("@bakarr/api/SystemUnmappedRepository")<
+  SystemUnmappedRepository,
+  SystemUnmappedRepositoryShape
+>() {}
 
 const encodeAnimeSearchResultList = (path: string, matches: UnmappedFolder["suggested_matches"]) =>
   encodeJson(
@@ -151,3 +168,20 @@ export const decodeUnmappedFolderMatchRow = Effect.fn(
     ),
   );
 });
+
+export function makeSystemUnmappedRepository(db: AppDatabase): SystemUnmappedRepositoryShape {
+  return SystemUnmappedRepository.of({
+    deleteMatchRowsNotInPaths: (paths) => deleteUnmappedFolderMatchRowsNotInPaths(db, paths),
+    listMatchRows: () => listUnmappedFolderMatchRows(db),
+    loadMatchRow: (path) => loadUnmappedFolderMatchRow(db, path),
+    upsertMatchRows: (folders, updatedAt) => upsertUnmappedFolderMatchRows(db, folders, updatedAt),
+  });
+}
+
+export const SystemUnmappedRepositoryLive = Layer.effect(
+  SystemUnmappedRepository,
+  Effect.gen(function* () {
+    const { db } = yield* Database;
+    return makeSystemUnmappedRepository(db);
+  }),
+);

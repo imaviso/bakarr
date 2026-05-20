@@ -11,6 +11,8 @@ import { makeTestFileSystemEffect, writeTextFile } from "@/test/filesystem-test.
 import { withSqliteRawClientEffect, withSqliteTestDbEffect } from "@/test/database-test.ts";
 import * as schema from "@/db/schema.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
+import { makeMediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { makeOperationsConfigRepository } from "@/features/operations/repository/config-repository.ts";
 
 it.scoped("unmapped import rolls back when a later insert fails", () =>
   withSqliteTestDbEffect({
@@ -63,8 +65,10 @@ it.scoped("unmapped import rolls back when a later insert fails", () =>
         });
 
         const workflow = makeUnmappedImportWorkflow({
+          configRepository: makeOperationsConfigRepository(appDb),
           db: appDb,
           fs,
+          mediaReadRepository: makeMediaReadRepository(appDb),
           nowIso: () => Effect.succeed("2024-01-01T00:00:00.000Z"),
           tryDatabasePromise,
         });

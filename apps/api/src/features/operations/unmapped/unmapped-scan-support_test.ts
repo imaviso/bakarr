@@ -8,6 +8,8 @@ import { ConfigCoreSchema } from "@/features/system/config-schema.ts";
 import { makeDefaultConfig } from "@/features/system/defaults.ts";
 import { loadUnmappedFolderSnapshot } from "@/features/operations/unmapped/unmapped-scan-snapshot-support.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { makeOperationsConfigRepository } from "@/features/operations/repository/config-repository.ts";
+import { makeSystemUnmappedRepository } from "@/features/system/repository/unmapped-repository.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { withFileSystemSandboxEffect, writeTextFile } from "@/test/filesystem-test.ts";
 import { ensureFolderMatchStatus } from "@/features/operations/unmapped/unmapped-folder-list-support.ts";
@@ -75,8 +77,10 @@ it.scoped("loadUnmappedFolderSnapshot scans anime, manga, and light novel roots"
 
           const snapshot = yield* loadUnmappedFolderSnapshot({
             db,
+            configRepository: makeOperationsConfigRepository(db),
             fs,
             nowIso: () => Effect.succeed("2024-01-01T00:00:00.000Z"),
+            systemUnmappedRepository: makeSystemUnmappedRepository(db),
             tryDatabasePromise,
           });
 

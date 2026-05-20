@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import { Context, Effect, Layer } from "effect";
 
 import { Database, type AppDatabase, type DatabaseError } from "@/db/database.ts";
@@ -7,6 +7,7 @@ import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 export interface QualityProfileRepositoryShape {
   readonly deleteQualityProfileRow: (name: string) => Effect.Effect<void, DatabaseError>;
+  readonly countAnimeUsingProfile: (profileName: string) => Effect.Effect<number, DatabaseError>;
   readonly insertQualityProfileRow: (
     row: typeof qualityProfiles.$inferInsert,
   ) => Effect.Effect<void, DatabaseError>;
@@ -48,6 +49,15 @@ export const loadAnyQualityProfileRow = Effect.fn(
 
   return rows[0];
 });
+
+export const countAnimeUsingProfile = Effect.fn("QualityProfileRepository.countAnimeUsingProfile")(
+  function* (db: AppDatabase, profileName: string) {
+    const rows = yield* tryDatabasePromise("Failed to count media", () =>
+      db.select({ value: count() }).from(media).where(eq(media.profileName, profileName)),
+    );
+    return rows[0]?.value ?? 0;
+  },
+);
 
 export const listQualityProfileRows = Effect.fn("QualityProfileRepository.listQualityProfileRows")(
   function* (db: AppDatabase) {
@@ -119,6 +129,7 @@ export const deleteQualityProfileRow = Effect.fn(
 
 export function makeQualityProfileRepository(db: AppDatabase): QualityProfileRepositoryShape {
   return QualityProfileRepository.of({
+    countAnimeUsingProfile: (profileName) => countAnimeUsingProfile(db, profileName),
     deleteQualityProfileRow: (name) => deleteQualityProfileRow(db, name),
     insertQualityProfileRow: (row) => insertQualityProfileRow(db, row),
     insertQualityProfileRows: (rows) => insertQualityProfileRows(db, rows),

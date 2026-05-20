@@ -1,7 +1,7 @@
 import { and, count, desc, eq, sql, type SQL } from "drizzle-orm";
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 
-import type { AppDatabase } from "@/db/database.ts";
+import { Database, type AppDatabase } from "@/db/database.ts";
 import {
   media,
   backgroundJobs,
@@ -12,6 +12,10 @@ import {
   systemLogs,
 } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import {
+  loadDownloadEventPresentationContexts as loadStoredDownloadEventPresentationContexts,
+  type DownloadEventRowLike,
+} from "@/domain/download/event-presentations.ts";
 import { buildSystemLogConditions } from "@/features/system/system-log-export.ts";
 
 const countDownloadsWhere = Effect.fn("SystemStatsRepository.countDownloadsWhere")(function* (
@@ -33,6 +37,36 @@ const countDownloadsWhere = Effect.fn("SystemStatsRepository.countDownloadsWhere
 function requireSingleRow<T>(rows: ReadonlyArray<T>, fallback: T): T {
   return rows[0] ?? fallback;
 }
+
+export interface SystemStatsRepositoryShape {
+  readonly listBackgroundJobRows: () => ReturnType<typeof listBackgroundJobRows>;
+  readonly listRecentSystemLogRows: (limit: number) => ReturnType<typeof listRecentSystemLogRows>;
+  readonly listRecentDownloadEventRows: (
+    limit: number,
+  ) => ReturnType<typeof listRecentDownloadEventRows>;
+  readonly loadDownloadEventPresentationContexts: (
+    rows: readonly DownloadEventRowLike[],
+  ) => ReturnType<typeof loadStoredDownloadEventPresentationContexts>;
+  readonly loadSystemDownloadStatsAggregate: () => ReturnType<
+    typeof loadSystemDownloadStatsAggregate
+  >;
+  readonly loadSystemLibraryStatsAggregate: () => ReturnType<
+    typeof loadSystemLibraryStatsAggregate
+  >;
+  readonly loadSystemLogPage: (input: {
+    endDate?: string;
+    eventType?: string;
+    level?: string;
+    page: number;
+    pageSize: number;
+    startDate?: string;
+  }) => ReturnType<typeof loadSystemLogPage>;
+}
+
+export class SystemStatsRepository extends Context.Tag("@bakarr/api/SystemStatsRepository")<
+  SystemStatsRepository,
+  SystemStatsRepositoryShape
+>() {}
 
 export const countQueuedDownloads = Effect.fn("SystemStatsRepository.countQueuedDownloads")(
   function* (db: AppDatabase) {
@@ -272,3 +306,24 @@ export const loadSystemLogPage = Effect.fn("SystemStatsRepository.loadSystemLogP
 
   return { rows, total };
 });
+
+export function makeSystemStatsRepository(db: AppDatabase): SystemStatsRepositoryShape {
+  return SystemStatsRepository.of({
+    listBackgroundJobRows: () => listBackgroundJobRows(db),
+    listRecentDownloadEventRows: (limit) => listRecentDownloadEventRows(db, limit),
+    listRecentSystemLogRows: (limit) => listRecentSystemLogRows(db, limit),
+    loadDownloadEventPresentationContexts: (rows) =>
+      loadStoredDownloadEventPresentationContexts(db, rows),
+    loadSystemDownloadStatsAggregate: () => loadSystemDownloadStatsAggregate(db),
+    loadSystemLibraryStatsAggregate: () => loadSystemLibraryStatsAggregate(db),
+    loadSystemLogPage: (input) => loadSystemLogPage(db, input),
+  });
+}
+
+export const SystemStatsRepositoryLive = Layer.effect(
+  SystemStatsRepository,
+  Effect.gen(function* () {
+    const { db } = yield* Database;
+    return makeSystemStatsRepository(db);
+  }),
+);
