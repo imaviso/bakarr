@@ -7,7 +7,46 @@ import { ExternalCallLive } from "@/infra/effect/retry.ts";
 import {
   QBitTorrentClient,
   QBitTorrentClientLive,
+  mapQBitState,
 } from "@/features/operations/qbittorrent/qbittorrent.ts";
+
+it("mapQBitState maps seeding states to completed", () => {
+  assert.deepStrictEqual(mapQBitState("pausedUP"), "completed");
+  assert.deepStrictEqual(mapQBitState("queuedUP"), "completed");
+  assert.deepStrictEqual(mapQBitState("stalledUP"), "completed");
+  assert.deepStrictEqual(mapQBitState("checkingUP"), "completed");
+  assert.deepStrictEqual(mapQBitState("forcedUP"), "completed");
+  assert.deepStrictEqual(mapQBitState("uploading"), "completed");
+});
+
+it("mapQBitState maps downloading states to downloading", () => {
+  assert.deepStrictEqual(mapQBitState("downloading"), "downloading");
+  assert.deepStrictEqual(mapQBitState("forcedDL"), "downloading");
+  assert.deepStrictEqual(mapQBitState("metaDL"), "downloading");
+  assert.deepStrictEqual(mapQBitState("stalledDL"), "downloading");
+  assert.deepStrictEqual(mapQBitState("checkingDL"), "downloading");
+  assert.deepStrictEqual(mapQBitState("allocating"), "downloading");
+  assert.deepStrictEqual(mapQBitState("checkingResumeData"), "downloading");
+  assert.deepStrictEqual(mapQBitState("moving"), "downloading");
+});
+
+it("mapQBitState maps error and paused states", () => {
+  assert.deepStrictEqual(mapQBitState("error"), "error");
+  assert.deepStrictEqual(mapQBitState("missingFiles"), "error");
+  assert.deepStrictEqual(mapQBitState("pausedDL"), "paused");
+  assert.deepStrictEqual(mapQBitState("queuedDL"), "queued");
+});
+
+it("mapQBitState handles case insensitivity", () => {
+  assert.deepStrictEqual(mapQBitState("PAUSEDUP"), "completed");
+  assert.deepStrictEqual(mapQBitState("StalledDL"), "downloading");
+  assert.deepStrictEqual(mapQBitState("MissingFiles"), "error");
+});
+
+it("mapQBitState defaults unrecognised states to queued", () => {
+  assert.deepStrictEqual(mapQBitState("bogus"), "queued");
+  assert.deepStrictEqual(mapQBitState(""), "queued");
+});
 
 const ExternalCallWithLiveClock = ExternalCallLive.pipe(Layer.provide(ClockService.Default));
 

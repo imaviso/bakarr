@@ -40,6 +40,56 @@ export interface PreparedTriggerDownload {
   readonly sourceMetadata: DownloadSourceMetadata;
 }
 
+export function resolveTriggerDownloadCoveragePlan(input: {
+  readonly explicitIsBatch?: boolean;
+  readonly explicitUnitNumber?: number;
+  readonly mediaKind: (typeof media.$inferSelect)["mediaKind"];
+  readonly missingUnits: readonly number[];
+  readonly title: string;
+  readonly totalUnits?: number | null;
+}) {
+  const parsedRelease = parseReleaseName(input.title);
+  const parsedVolumes = parseVolumeNumbersFromTitle(input.title);
+  const inferredUnits = input.mediaKind === "anime" ? parsedRelease.unitNumbers : parsedVolumes;
+  const effectiveIsBatch =
+    input.explicitIsBatch ??
+    (input.mediaKind === "anime" ? parsedRelease.isBatch : parsedVolumes.length > 1);
+  const requestedEpisode = resolveRequestedEpisodeNumber({
+    ...(input.explicitUnitNumber === undefined
+      ? {}
+      : { explicitEpisode: input.explicitUnitNumber }),
+    inferredEpisodes: inferredUnits,
+    isBatch: effectiveIsBatch,
+  });
+
+  if (!requestedEpisode) {
+    return {
+      effectiveIsBatch,
+      inferredCoveredEpisodes: [] as readonly number[],
+      inferredUnits,
+      requestedEpisode,
+    };
+  }
+
+  const shouldDeferBatchCoverage = effectiveIsBatch && inferredUnits.length === 0;
+  const inferredCoveredEpisodes = shouldDeferBatchCoverage
+    ? []
+    : inferCoveredEpisodeNumbers({
+        explicitEpisodes: inferredUnits,
+        isBatch: effectiveIsBatch,
+        ...(input.totalUnits === undefined ? {} : { totalUnits: input.totalUnits }),
+        missingUnits: input.missingUnits,
+        requestedEpisode,
+      });
+
+  return {
+    effectiveIsBatch,
+    inferredCoveredEpisodes,
+    inferredUnits,
+    requestedEpisode,
+  };
+}
+
 export const prepareTriggerDownload = Effect.fn("Operations.prepareTriggerDownload")(
   function* (input: {
     readonly triggerRepo: typeof DownloadTriggerRepository.Service;
@@ -49,20 +99,20 @@ export const prepareTriggerDownload = Effect.fn("Operations.prepareTriggerDownlo
   }) {
     const animeRow = yield* input.mediaReadRepository.getAnimeRow(input.triggerInput.media_id);
     const now = yield* input.nowIso();
-    const parsedRelease = parseReleaseName(input.triggerInput.title);
-    const parsedVolumes = parseVolumeNumbersFromTitle(input.triggerInput.title);
-    const inferredUnits =
-      animeRow.mediaKind === "anime" ? parsedRelease.unitNumbers : parsedVolumes;
-    const effectiveIsBatch =
-      input.triggerInput.is_batch ??
-      (animeRow.mediaKind === "anime" ? parsedRelease.isBatch : parsedVolumes.length > 1);
-    const requestedEpisode = resolveRequestedEpisodeNumber({
+    const missingUnits = yield* input.triggerRepo.listMissingEpisodeNumbers(animeRow.id);
+    const plan = resolveTriggerDownloadCoveragePlan({
+      ...(input.triggerInput.is_batch === undefined
+        ? {}
+        : { explicitIsBatch: input.triggerInput.is_batch }),
       ...(input.triggerInput.unit_number === undefined
         ? {}
-        : { explicitEpisode: input.triggerInput.unit_number }),
-      inferredEpisodes: inferredUnits,
-      isBatch: effectiveIsBatch,
+        : { explicitUnitNumber: input.triggerInput.unit_number }),
+      mediaKind: animeRow.mediaKind,
+      missingUnits,
+      title: input.triggerInput.title,
+      totalUnits: animeRow.unitCount,
     });
+    const { effectiveIsBatch, inferredCoveredEpisodes, requestedEpisode } = plan;
 
     if (!requestedEpisode) {
       return yield* new OperationsInputError({
@@ -71,17 +121,6 @@ export const prepareTriggerDownload = Effect.fn("Operations.prepareTriggerDownlo
       });
     }
 
-    const missingUnits = yield* input.triggerRepo.listMissingEpisodeNumbers(animeRow.id);
-    const shouldDeferBatchCoverage = effectiveIsBatch && inferredUnits.length === 0;
-    const inferredCoveredEpisodes = shouldDeferBatchCoverage
-      ? []
-      : inferCoveredEpisodeNumbers({
-          explicitEpisodes: inferredUnits,
-          isBatch: effectiveIsBatch,
-          totalUnits: animeRow.unitCount,
-          missingUnits,
-          requestedEpisode,
-        });
     const coveredUnits = yield* toCoveredEpisodesJson(inferredCoveredEpisodes);
     const releaseContext = input.triggerInput.release_context;
     const selectionMetadata = buildDownloadSelectionMetadata(releaseContext?.download_action);
@@ -230,7 +269,7 @@ export const addMagnetToQueuedDownload = Effect.fn("Operations.addMagnetToQueued
   },
 );
 
-function deriveTriggerDecisionReason(input: {
+export function deriveTriggerDecisionReason(input: {
   action?: DownloadAction | undefined;
   isBatch: boolean;
   isSeadex?: boolean | undefined;

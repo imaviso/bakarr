@@ -21,9 +21,13 @@ import {
 } from "@/features/operations/errors.ts";
 import { appendLog } from "@/features/operations/shared/job-support.ts";
 import {
+  transitionUnmappedFolderForControlAction,
+  transitionUnmappedFoldersForBulkControlAction,
+  type UnmappedFolderBulkControlAction,
+  type UnmappedFolderControlAction,
+} from "@/features/operations/unmapped/unmapped-control-policy.ts";
+import {
   markUnmappedFolderMatching,
-  markUnmappedFolderPaused,
-  markUnmappedFolderPending,
   resetUnmappedFolderMatch,
 } from "@/features/operations/unmapped/unmapped-folders.ts";
 import { loadUnmappedFolderSnapshot } from "@/features/operations/unmapped/unmapped-scan-snapshot-support.ts";
@@ -90,21 +94,6 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
     return yield* decodeStoredFolder(row);
   });
 
-  const transitionFolderForAction = (
-    folder: UnmappedFolder,
-    action: "pause" | "resume" | "reset",
-  ) => {
-    if (action === "pause") {
-      return markUnmappedFolderPaused(folder);
-    }
-
-    if (action === "resume") {
-      return markUnmappedFolderPending(folder);
-    }
-
-    return resetUnmappedFolderMatch(folder);
-  };
-
   const refreshFolderMatch = Effect.fn("OperationsService.refreshFolderMatch")(function* (
     current: UnmappedFolder,
     path: string,
@@ -149,7 +138,7 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
   });
 
   const appendControlActionLog = Effect.fn("OperationsService.appendControlActionLog")(function* (
-    action: "pause" | "resume" | "reset",
+    action: UnmappedFolderControlAction,
     folderName: string,
   ) {
     yield* appendLog(
@@ -174,7 +163,7 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
       const nextFolder =
         input.action === "refresh"
           ? resetUnmappedFolderMatch(current)
-          : transitionFolderForAction(current, input.action);
+          : transitionUnmappedFolderForControlAction(current, input.action);
 
       yield* systemUnmappedRepository.upsertMatchRows([nextFolder], yield* nowIso());
 
@@ -195,21 +184,10 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
       const rows = yield* systemUnmappedRepository.listMatchRows();
       const folders = yield* Effect.forEach(rows, (row) => decodeStoredFolder(row));
 
-      let nextFolders: UnmappedFolder[];
-
-      if (input.action === "pause_queued") {
-        nextFolders = folders
-          .filter((folder) => folder.match_status === "pending")
-          .map((folder) => markUnmappedFolderPaused(folder));
-      } else if (input.action === "resume_paused") {
-        nextFolders = folders
-          .filter((folder) => folder.match_status === "paused")
-          .map((folder) => markUnmappedFolderPending(folder));
-      } else {
-        nextFolders = folders
-          .filter((folder) => folder.match_status === "failed")
-          .map((folder) => resetUnmappedFolderMatch(folder));
-      }
+      const nextFolders = transitionUnmappedFoldersForBulkControlAction(
+        folders,
+        input.action satisfies UnmappedFolderBulkControlAction,
+      );
 
       if (nextFolders.length === 0) {
         return { affectedCount: 0 };

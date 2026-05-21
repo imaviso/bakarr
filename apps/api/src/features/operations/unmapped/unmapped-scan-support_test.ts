@@ -1,6 +1,10 @@
 import { assert, it } from "@effect/vitest";
 import { Effect, Schema } from "effect";
-import { brandMediaId } from "@packages/shared/index.ts";
+import {
+  brandMediaId,
+  type MediaSearchResult,
+  type UnmappedFolder,
+} from "@packages/shared/index.ts";
 import * as schema from "@/db/schema.ts";
 import { appConfig } from "@/db/schema.ts";
 import { encodeConfigCore } from "@/features/system/config-codec.ts";
@@ -12,8 +16,23 @@ import { makeOperationsConfigRepository } from "@/features/operations/repository
 import { makeSystemUnmappedRepository } from "@/features/system/repository/unmapped-repository.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { withFileSystemSandboxEffect, writeTextFile } from "@/test/filesystem-test.ts";
-import { ensureFolderMatchStatus } from "@/features/operations/unmapped/unmapped-folder-list-support.ts";
+import {
+  countCompletedUnmappedMatches,
+  ensureFolderMatchStatus,
+  prepareUnmappedFoldersForScan,
+} from "@/features/operations/unmapped/unmapped-folder-list-support.ts";
 import { loadUnmappedFolderVideoSize } from "@/features/operations/unmapped/unmapped-scan-video-support.ts";
+
+function makeFolder(input: Partial<UnmappedFolder> & Pick<UnmappedFolder, "match_status">) {
+  return {
+    name: "Naruto Archive",
+    path: "/library/Naruto Archive",
+    search_queries: ["Naruto Archive"],
+    size: 0,
+    suggested_matches: [] satisfies MediaSearchResult[],
+    ...input,
+  } satisfies UnmappedFolder;
+}
 
 it.scoped("loadUnmappedFolderVideoSize sums nested video files", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
@@ -127,4 +146,79 @@ it("ensureFolderMatchStatus preserves cached size and source media kind", () => 
   assert.deepStrictEqual(merged.match_status, "failed");
   assert.deepStrictEqual(merged.match_attempts, 2);
   assert.deepStrictEqual(merged.media_kind, "manga");
+});
+
+it("prepareUnmappedFoldersForScan retries stale matching and retryable failed folders", () => {
+  const discovered = makeFolder({
+    match_status: "pending",
+    name: "Naruto Archive",
+    path: "/library/Naruto Archive",
+  });
+  const staleMatching = makeFolder({
+    last_matched_at: "2024-01-01T00:00:00.000Z",
+    match_attempts: 0,
+    match_status: "matching",
+    name: "Old Naruto Name",
+    path: "/library/Naruto Archive",
+    size: 2048,
+  });
+  const retryableFailed = makeFolder({
+    last_match_error: "rate limited",
+    last_matched_at: "2024-01-01T00:00:00.000Z",
+    match_attempts: 1,
+    match_status: "failed",
+    path: "/library/Retryable",
+  });
+
+  const folders = prepareUnmappedFoldersForScan(
+    [discovered, { ...discovered, name: "Retryable", path: "/library/Retryable" }],
+    new Map([
+      [staleMatching.path, staleMatching],
+      [retryableFailed.path, retryableFailed],
+    ]),
+  );
+
+  assert.deepStrictEqual(
+    folders.map((folder) => [folder.name, folder.path, folder.match_status, folder.match_attempts]),
+    [
+      ["Naruto Archive", "/library/Naruto Archive", "pending", 0],
+      ["Retryable", "/library/Retryable", "pending", 1],
+    ],
+  );
+  assert.deepStrictEqual(folders[0]?.size, 2048);
+});
+
+it("prepareUnmappedFoldersForScan preserves completed and exhausted failed folders", () => {
+  const completed = makeFolder({
+    last_matched_at: "2024-01-01T00:00:00.000Z",
+    match_status: "done",
+    path: "/library/Done",
+  });
+  const exhaustedFailed = makeFolder({
+    last_match_error: "AniList unavailable",
+    last_matched_at: "2024-01-01T00:00:00.000Z",
+    match_attempts: 3,
+    match_status: "failed",
+    path: "/library/Failed",
+  });
+
+  const folders = prepareUnmappedFoldersForScan(
+    [
+      makeFolder({ match_status: "pending", name: "Done", path: "/library/Done" }),
+      makeFolder({ match_status: "pending", name: "Failed", path: "/library/Failed" }),
+    ],
+    new Map([
+      [completed.path, completed],
+      [exhaustedFailed.path, exhaustedFailed],
+    ]),
+  );
+
+  assert.deepStrictEqual(
+    folders.map((folder) => [folder.name, folder.match_status, folder.match_attempts]),
+    [
+      ["Done", "done", 0],
+      ["Failed", "failed", 3],
+    ],
+  );
+  assert.deepStrictEqual(countCompletedUnmappedMatches(folders), 2);
 });
