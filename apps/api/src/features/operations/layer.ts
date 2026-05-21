@@ -34,18 +34,27 @@ import { UnmappedControlServiceLive } from "@/features/operations/unmapped/unmap
 import { UnmappedImportServiceLive } from "@/features/operations/unmapped/unmapped-orchestration-import.ts";
 import { UnmappedScanServiceLive } from "@/features/operations/unmapped/unmapped-scan-service.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { DownloadActionRepository } from "@/features/operations/repository/download-action-repository.ts";
+import { DownloadProgressRepository } from "@/features/operations/repository/download-progress-repository.ts";
+import { DownloadReconciliationRepository } from "@/features/operations/repository/download-reconciliation-repository.ts";
+import { DownloadSyncRepository } from "@/features/operations/repository/download-sync-repository.ts";
+import { DownloadTriggerRepository } from "@/features/operations/repository/download-trigger-repository.ts";
 import { OperationsConfigRepository } from "@/features/operations/repository/config-repository.ts";
 import { OperationsProfileRepository } from "@/features/operations/repository/profile-repository.ts";
+import { OperationsTaskRepository } from "@/features/operations/repository/task-repository.ts";
 import { SystemUnmappedRepository } from "@/features/system/repository/unmapped-repository.ts";
 
 export function makeOperationsFeatureLayer<ROut, E, RIn>(
   runtimeSupportLayer: Layer.Layer<ROut, E, RIn>,
 ) {
-  const operationsTaskReadLayer = OperationsTaskReadServiceLive.pipe(
+  const operationsTaskRepositoryLayer = OperationsTaskRepository.Default.pipe(
     Layer.provide(runtimeSupportLayer),
   );
+  const operationsTaskReadLayer = OperationsTaskReadServiceLive.pipe(
+    Layer.provide(Layer.mergeAll(runtimeSupportLayer, operationsTaskRepositoryLayer)),
+  );
   const operationsTaskWriteLayer = OperationsTaskWriteServiceLive.pipe(
-    Layer.provide(runtimeSupportLayer),
+    Layer.provide(Layer.mergeAll(runtimeSupportLayer, operationsTaskRepositoryLayer)),
   );
   const mediaReadRepositoryLayer = MediaReadRepository.Default.pipe(
     Layer.provide(runtimeSupportLayer),
@@ -59,10 +68,26 @@ export function makeOperationsFeatureLayer<ROut, E, RIn>(
   const systemUnmappedRepositoryLayer = SystemUnmappedRepository.Default.pipe(
     Layer.provide(runtimeSupportLayer),
   );
+  const downloadProgressRepositoryLayer = DownloadProgressRepository.Default.pipe(
+    Layer.provide(runtimeSupportLayer),
+  );
+  const downloadActionRepositoryLayer = DownloadActionRepository.Default.pipe(
+    Layer.provide(runtimeSupportLayer),
+  );
+  const downloadTriggerRepositoryLayer = DownloadTriggerRepository.Default.pipe(
+    Layer.provide(runtimeSupportLayer),
+  );
+  const downloadSyncRepositoryLayer = DownloadSyncRepository.Default.pipe(
+    Layer.provide(runtimeSupportLayer),
+  );
+  const downloadReconciliationRepositoryLayer = DownloadReconciliationRepository.Default.pipe(
+    Layer.provide(runtimeSupportLayer),
+  );
   const operationsRuntimeLayer = Layer.mergeAll(
     runtimeSupportLayer,
     operationsConfigRepositoryLayer,
     operationsProfileRepositoryLayer,
+    operationsTaskRepositoryLayer,
     systemUnmappedRepositoryLayer,
     DownloadTriggerCoordinatorLive,
     mediaReadRepositoryLayer,
@@ -71,14 +96,15 @@ export function makeOperationsFeatureLayer<ROut, E, RIn>(
   const torrentClientLayer = TorrentClientServiceLive.pipe(Layer.provide(operationsRuntimeLayer));
   const downloadRuntimeLayer = Layer.mergeAll(operationsRuntimeLayer, torrentClientLayer);
   const downloadReconciliationLayer = DownloadReconciliationServiceLive.pipe(
-    Layer.provide(downloadRuntimeLayer),
+    Layer.provide(Layer.mergeAll(downloadRuntimeLayer, downloadReconciliationRepositoryLayer)),
   );
   const downloadActionLayer = DownloadTorrentActionServiceLive.pipe(
-    Layer.provide(downloadRuntimeLayer),
+    Layer.provide(Layer.mergeAll(downloadRuntimeLayer, downloadActionRepositoryLayer)),
   );
   const downloadSyncRuntimeLayer = Layer.mergeAll(
     downloadRuntimeLayer,
     downloadReconciliationLayer,
+    downloadSyncRepositoryLayer,
   );
   const downloadSyncLayer = DownloadTorrentSyncServiceLive.pipe(
     Layer.provide(downloadSyncRuntimeLayer),
@@ -87,6 +113,7 @@ export function makeOperationsFeatureLayer<ROut, E, RIn>(
     downloadSyncRuntimeLayer,
     downloadActionLayer,
     downloadSyncLayer,
+    downloadProgressRepositoryLayer,
   );
   const downloadProgressSupportLayer = DownloadProgressSupportLive.pipe(
     Layer.provide(downloadProgressRuntimeLayer),
@@ -94,6 +121,7 @@ export function makeOperationsFeatureLayer<ROut, E, RIn>(
   const triggerRuntimeLayer = Layer.mergeAll(
     downloadProgressRuntimeLayer,
     downloadProgressSupportLayer,
+    downloadTriggerRepositoryLayer,
   );
   const downloadTriggerLayer = DownloadTriggerServiceLive.pipe(Layer.provide(triggerRuntimeLayer));
   const catalogDownloadReadLayer = CatalogDownloadReadServiceLive.pipe(
@@ -177,7 +205,13 @@ export function makeOperationsFeatureLayer<ROut, E, RIn>(
     mediaReadRepositoryLayer,
     operationsConfigRepositoryLayer,
     operationsProfileRepositoryLayer,
+    operationsTaskRepositoryLayer,
     systemUnmappedRepositoryLayer,
+    downloadActionRepositoryLayer,
+    downloadTriggerRepositoryLayer,
+    downloadSyncRepositoryLayer,
+    downloadReconciliationRepositoryLayer,
+    downloadProgressRepositoryLayer,
     operationsProgressLayer,
     backgroundSearchQueueLayer,
     backgroundSearchRssFeedLayer,

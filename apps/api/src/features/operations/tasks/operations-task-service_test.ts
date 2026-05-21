@@ -15,6 +15,7 @@ import { EventBusNoopLive } from "@/features/events/event-bus.ts";
 import { ClockService } from "@/infra/clock.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import * as schema from "@/db/schema.ts";
+import { OperationsTaskRepository } from "@/features/operations/repository/task-repository.ts";
 
 describe("OperationsTaskService", () => {
   it.scoped("creates and fetches tasks", () =>
@@ -25,11 +26,14 @@ describe("OperationsTaskService", () => {
             client,
             db,
           });
+          const repositoryLayer = OperationsTaskRepository.Default.pipe(
+            Layer.provide(databaseLayer),
+          );
           const serviceLayer = Layer.mergeAll(
             OperationsTaskReadServiceLive,
             OperationsTaskWriteServiceLive,
           ).pipe(
-            Layer.provide(Layer.mergeAll(databaseLayer, ClockService.Default, EventBusNoopLive)),
+            Layer.provide(Layer.mergeAll(repositoryLayer, ClockService.Default, EventBusNoopLive)),
           );
 
           const accepted = yield* Effect.flatMap(OperationsTaskWriteService, (service) =>

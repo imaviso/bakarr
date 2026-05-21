@@ -1,28 +1,23 @@
-import { eq, sql } from "drizzle-orm";
 import { Context, Effect, Layer } from "effect";
 
-import type { AppDatabase } from "@/db/database.ts";
-import { Database, DatabaseError } from "@/db/database.ts";
-import { downloads } from "@/db/schema.ts";
+import { DatabaseError } from "@/db/database.ts";
 import {
   DownloadConflictError,
   DownloadNotFoundError,
   OperationsInfrastructureError,
   OperationsStoredDataError,
 } from "@/features/operations/errors.ts";
+import { DownloadActionRepository } from "@/features/operations/repository/download-action-repository.ts";
 import { decodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
 import { parseCoveredEpisodesEffect } from "@/features/operations/download/download-coverage.ts";
-import { recordDownloadEvent } from "@/features/operations/shared/job-support.ts";
-import { tryDatabasePromise, type TryDatabasePromise } from "@/infra/effect/db.ts";
 import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 
 export interface DownloadTorrentActionSupportInput {
-  readonly db: AppDatabase;
+  readonly actionRepo: typeof DownloadActionRepository.Service;
   readonly torrentClientService: typeof TorrentClientService.Service;
-  readonly tryDatabasePromise: TryDatabasePromise;
   readonly nowIso: () => Effect.Effect<string>;
   readonly getRuntimeConfig: () => Effect.Effect<
     import("@packages/shared/index.ts").Config,
@@ -61,44 +56,37 @@ export class DownloadTorrentActionService extends Context.Tag(
 export const DownloadTorrentActionServiceLive = Layer.effect(
   DownloadTorrentActionService,
   Effect.gen(function* () {
-    const { db } = yield* Database;
+    const actionRepo = yield* DownloadActionRepository;
     const torrentClientService = yield* TorrentClientService;
     const clock = yield* ClockService;
     const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
 
     return DownloadTorrentActionService.of(
       makeDownloadTorrentActionSupport({
-        db,
+        actionRepo,
         getRuntimeConfig: runtimeConfigSnapshot.getRuntimeConfig,
         nowIso: () => nowIsoFromClock(clock),
         torrentClientService,
-        tryDatabasePromise,
       }),
     );
   }),
 );
 
 export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSupportInput) {
-  const { db, torrentClientService, tryDatabasePromise } = input;
-  const { nowIso } = input;
+  const { actionRepo, torrentClientService, nowIso } = input;
 
   const mapQBitError = (message: string) => (cause: unknown) =>
-    cause instanceof DatabaseError
-      ? cause
-      : new OperationsInfrastructureError({
-          message,
-          cause,
-        });
+    new OperationsInfrastructureError({
+      message,
+      cause,
+    });
 
   const applyDownloadActionEffect = Effect.fn("OperationsService.applyDownloadAction")(function* (
     id: number,
     action: "pause" | "resume" | "delete",
     deleteFiles = false,
   ) {
-    const rows = yield* tryDatabasePromise(`Failed to ${action} download`, () =>
-      db.select().from(downloads).where(eq(downloads.id, id)).limit(1),
-    );
-    const [row] = rows;
+    const row = yield* actionRepo.loadDownloadRow(id);
 
     if (!row) {
       return yield* new DownloadNotFoundError({
@@ -126,8 +114,8 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
 
     if (action === "delete") {
       const sourceMetadata = yield* decodeDownloadSourceMetadata(row.sourceMetadata);
-      yield* recordDownloadEvent(
-        db,
+      const deleteNow = yield* nowIso();
+      yield* actionRepo.insertDownloadEvent(
         {
           mediaId: row.mediaId,
           downloadId: row.id,
@@ -140,25 +128,20 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
           message: `Deleted ${row.torrentName}`,
           toStatus: "deleted",
         },
-        nowIso,
+        deleteNow,
       );
-      yield* tryDatabasePromise("Failed to remove download", () =>
-        db.delete(downloads).where(eq(downloads.id, id)),
-      );
+      yield* actionRepo.deleteDownloadRow(id);
     } else {
-      yield* tryDatabasePromise(`Failed to ${action} download`, () =>
-        db
-          .update(downloads)
-          .set({
-            externalState: action,
-            status: action === "pause" ? "paused" : "downloading",
-          })
-          .where(eq(downloads.id, id)),
-      );
+      const nextStatus = action === "pause" ? "paused" : "downloading";
+      yield* actionRepo.updateDownloadStatusRow({
+        id,
+        externalState: action,
+        status: nextStatus,
+      });
 
       const actionSourceMetadata = yield* decodeDownloadSourceMetadata(row.sourceMetadata);
-      yield* recordDownloadEvent(
-        db,
+      const actionNow = yield* nowIso();
+      yield* actionRepo.insertDownloadEvent(
         {
           mediaId: row.mediaId,
           downloadId: row.id,
@@ -169,9 +152,9 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
             ...(actionSourceMetadata ? { source_metadata: actionSourceMetadata } : {}),
           },
           message: `${action === "pause" ? "Paused" : "Resumed"} ${row.torrentName}`,
-          toStatus: action === "pause" ? "paused" : "downloading",
+          toStatus: nextStatus,
         },
-        nowIso,
+        actionNow,
       );
     }
     return undefined;
@@ -180,10 +163,7 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
   const retryDownloadById = Effect.fn("OperationsService.retryDownloadById")(function* (
     id: number,
   ) {
-    const rows = yield* tryDatabasePromise("Failed to retry download", () =>
-      db.select().from(downloads).where(eq(downloads.id, id)).limit(1),
-    );
-    const [row] = rows;
+    const row = yield* actionRepo.loadDownloadRow(id);
 
     if (!row) {
       return yield* new DownloadNotFoundError({
@@ -209,24 +189,15 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
     const startedInQBit = qbitResult.right._tag === "Added";
 
     const retryNow = yield* nowIso();
-    yield* tryDatabasePromise("Failed to retry download", () =>
-      db
-        .update(downloads)
-        .set({
-          errorMessage: null,
-          externalState: startedInQBit ? "downloading" : "queued",
-          lastErrorAt: null,
-          lastSyncedAt: retryNow,
-          progress: 0,
-          retryCount: sql`${downloads.retryCount} + 1`,
-          status: startedInQBit ? "downloading" : "queued",
-        })
-        .where(eq(downloads.id, id)),
-    );
+    yield* actionRepo.updateDownloadRetryRow({
+      id,
+      externalState: startedInQBit ? "downloading" : "queued",
+      retryNow,
+      status: startedInQBit ? "downloading" : "queued",
+    });
 
     const retrySourceMetadata = yield* decodeDownloadSourceMetadata(row.sourceMetadata);
-    yield* recordDownloadEvent(
-      db,
+    yield* actionRepo.insertDownloadEvent(
       {
         mediaId: row.mediaId,
         downloadId: row.id,
@@ -239,7 +210,7 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
         message: `Retried ${row.torrentName}`,
         toStatus: startedInQBit ? "downloading" : "queued",
       },
-      nowIso,
+      retryNow,
     );
     return undefined;
   });

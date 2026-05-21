@@ -1,7 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type { DownloadSourceMetadata } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { downloadEvents, downloads, mediaUnits, systemLogs } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
@@ -11,7 +10,10 @@ import {
   markJobSucceeded as markJobSucceededBase,
   updateJobProgress as updateJobProgressBase,
 } from "@/infra/job-status.ts";
-import { encodeDownloadEventMetadata } from "@/features/operations/repository/download-repository.ts";
+import {
+  toDownloadEventInsert,
+  type DownloadEventRecordInput,
+} from "@/features/operations/repository/download-repository.ts";
 
 type NowIso = () => Effect.Effect<string>;
 
@@ -32,43 +34,6 @@ export const appendLog = Effect.fn("JobSupport.appendLog")(function* (
       message,
     }),
   );
-});
-
-export interface DownloadEventRecordInput {
-  readonly mediaId?: number;
-  readonly downloadId?: number;
-  readonly eventType: string;
-  readonly fromStatus?: string | null;
-  readonly toStatus?: string | null;
-  readonly message: string;
-  readonly metadata?: string | null;
-  readonly metadataJson?:
-    | {
-        readonly covered_units?: readonly number[];
-        readonly imported_path?: string;
-        readonly source_metadata?: DownloadSourceMetadata;
-      }
-    | undefined;
-}
-
-const toDownloadEventInsert = Effect.fn("JobSupport.toDownloadEventInsert")(function* (
-  input: DownloadEventRecordInput,
-  createdAt: string,
-) {
-  const metadata = input.metadataJson
-    ? yield* encodeDownloadEventMetadata(input.metadataJson)
-    : (input.metadata ?? null);
-
-  return {
-    mediaId: input.mediaId ?? null,
-    createdAt,
-    downloadId: input.downloadId ?? null,
-    eventType: input.eventType,
-    fromStatus: input.fromStatus ?? null,
-    message: input.message,
-    metadata,
-    toStatus: input.toStatus ?? null,
-  } satisfies typeof downloadEvents.$inferInsert;
 });
 
 export const recordDownloadEvent = Effect.fn("JobSupport.recordDownloadEvent")(function* (

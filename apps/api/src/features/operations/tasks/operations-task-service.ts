@@ -1,4 +1,3 @@
-import { and, desc, eq, notInArray } from "drizzle-orm";
 import { Context, Effect, Layer, Option, Schema } from "effect";
 
 import type {
@@ -12,15 +11,14 @@ import {
   OperationTaskSchema,
   OperationTaskPayloadSchema,
 } from "@packages/shared/index.ts";
-import { Database, DatabaseError } from "@/db/database.ts";
-import { operationsTasks } from "@/db/schema.ts";
+import { DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import {
   OperationsInfrastructureError,
   OperationsTaskNotFoundError,
 } from "@/features/operations/errors.ts";
 import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { OperationsTaskRepository } from "@/features/operations/repository/task-repository.ts";
 
 export type OperationsTaskKey = Schema.Schema.Type<typeof OperationTaskKeySchema>;
 
@@ -162,7 +160,7 @@ const toOperationsTask = Effect.fn("OperationsTaskService.toOperationsTask")(fun
 });
 
 const makeOperationsTaskWriteService = Effect.fn("OperationsTaskWriteService.make")(function* () {
-  const { db } = yield* Database;
+  const repository = yield* OperationsTaskRepository;
   const clock = yield* ClockService;
   const eventBus = yield* EventBus;
   const nowIso = () => nowIsoFromClock(clock);
@@ -173,39 +171,18 @@ const makeOperationsTaskWriteService = Effect.fn("OperationsTaskWriteService.mak
     readonly taskKey: OperationsTaskKey;
   }) {
     const createdAt = yield* nowIso();
-    const rows = yield* tryDatabasePromise("Failed to create operations task", () =>
-      db
-        .insert(operationsTasks)
-        .values({
-          mediaId: input.mediaId ?? null,
-          createdAt,
-          finishedAt: null,
-          message: input.message,
-          payload: null,
-          progressCurrent: 0,
-          progressTotal: 100,
-          startedAt: null,
-          status: "queued",
-          taskKey: input.taskKey,
-          updatedAt: createdAt,
-        })
-        .returning({ id: operationsTasks.id }),
-    );
-
-    const created = rows[0];
-
-    if (!created) {
-      return yield* new DatabaseError({
-        cause: new Error("Operations task insert returned no rows"),
-        message: "Failed to create operations task",
-      });
-    }
+    const taskId = yield* repository.createTaskRow({
+      createdAt,
+      ...(input.mediaId === undefined ? {} : { mediaId: input.mediaId }),
+      message: input.message,
+      taskKey: input.taskKey,
+    });
 
     const accepted = {
       accepted_at: createdAt,
       message: input.message,
       status: "queued",
-      task_id: created.id,
+      task_id: taskId,
       task_key: input.taskKey,
     };
 
@@ -224,7 +201,7 @@ const makeOperationsTaskWriteService = Effect.fn("OperationsTaskWriteService.mak
     yield* eventBus.publish({
       type: "Info",
       payload: {
-        message: `${input.message} (task #${created.id})`,
+        message: `${input.message} (task #${taskId})`,
       },
     });
 
@@ -234,19 +211,7 @@ const makeOperationsTaskWriteService = Effect.fn("OperationsTaskWriteService.mak
   const markRunningTask = Effect.fn("OperationsTaskWriteService.markRunningTask")(
     function* (input: { readonly message: string; readonly taskId: number }) {
       const startedAt = yield* nowIso();
-      yield* tryDatabasePromise("Failed to mark operations task running", () =>
-        db
-          .update(operationsTasks)
-          .set({
-            message: input.message,
-            progressCurrent: 0,
-            progressTotal: 100,
-            startedAt,
-            status: "running",
-            updatedAt: startedAt,
-          })
-          .where(eq(operationsTasks.id, input.taskId)),
-      );
+      yield* repository.markRunningTaskRow({ ...input, startedAt });
     },
   );
 
@@ -258,18 +223,7 @@ const makeOperationsTaskWriteService = Effect.fn("OperationsTaskWriteService.mak
       readonly taskId: number;
     }) {
       const updatedAt = yield* nowIso();
-      yield* tryDatabasePromise("Failed to update operations task progress", () =>
-        db
-          .update(operationsTasks)
-          .set({
-            ...(input.message === undefined ? {} : { message: input.message }),
-            progressCurrent: input.progressCurrent,
-            progressTotal: input.progressTotal,
-            status: "running",
-            updatedAt,
-          })
-          .where(eq(operationsTasks.id, input.taskId)),
-      );
+      yield* repository.updateTaskProgressRow({ ...input, updatedAt });
     },
   );
 
@@ -283,20 +237,14 @@ const makeOperationsTaskWriteService = Effect.fn("OperationsTaskWriteService.mak
     }) {
       const finishedAt = yield* nowIso();
       const payload = yield* encodeTaskPayload(input.payload);
-      yield* tryDatabasePromise("Failed to mark operations task succeeded", () =>
-        db
-          .update(operationsTasks)
-          .set({
-            finishedAt,
-            message: input.message,
-            payload: payload.length === 0 ? null : payload,
-            progressCurrent: input.progressCurrent ?? 100,
-            progressTotal: input.progressTotal ?? 100,
-            status: "succeeded",
-            updatedAt: finishedAt,
-          })
-          .where(eq(operationsTasks.id, input.taskId)),
-      );
+      yield* repository.completeSucceededTaskRow({
+        finishedAt,
+        message: input.message,
+        payload: payload.length === 0 ? null : payload,
+        progressCurrent: input.progressCurrent ?? 100,
+        progressTotal: input.progressTotal ?? 100,
+        taskId: input.taskId,
+      });
     },
   );
 
@@ -314,18 +262,12 @@ const makeOperationsTaskWriteService = Effect.fn("OperationsTaskWriteService.mak
         error: errorMessage,
       });
 
-      yield* tryDatabasePromise("Failed to mark operations task failed", () =>
-        db
-          .update(operationsTasks)
-          .set({
-            finishedAt,
-            message: input.message,
-            payload: payload.length === 0 ? null : payload,
-            status: "failed",
-            updatedAt: finishedAt,
-          })
-          .where(eq(operationsTasks.id, input.taskId)),
-      );
+      yield* repository.completeFailedTaskRow({
+        finishedAt,
+        message: input.message,
+        payload: payload.length === 0 ? null : payload,
+        taskId: input.taskId,
+      });
     },
   );
 
@@ -339,14 +281,10 @@ const makeOperationsTaskWriteService = Effect.fn("OperationsTaskWriteService.mak
 });
 
 const makeOperationsTaskReadService = Effect.fn("OperationsTaskReadService.make")(function* () {
-  const { db } = yield* Database;
+  const repository = yield* OperationsTaskRepository;
 
   const getTask = Effect.fn("OperationsTaskReadService.getTask")(function* (taskId: number) {
-    const rows = yield* tryDatabasePromise("Failed to load operations task", () =>
-      db.select().from(operationsTasks).where(eq(operationsTasks.id, taskId)).limit(1),
-    );
-
-    const [row] = rows;
+    const row = yield* repository.loadTaskRow(taskId);
 
     if (!row) {
       return yield* new OperationsTaskNotFoundError({
@@ -374,31 +312,12 @@ const makeOperationsTaskReadService = Effect.fn("OperationsTaskReadService.make"
       ),
     );
 
-    const filteredByAnimeId =
-      query.mediaId === undefined ? undefined : eq(operationsTasks.mediaId, query.mediaId);
-    const filteredByTaskKey =
-      query.taskKey === undefined ? undefined : eq(operationsTasks.taskKey, query.taskKey);
-    const filteredByExcludedTaskKeys =
-      query.excludeTaskKeys === undefined || query.excludeTaskKeys.length === 0
-        ? undefined
-        : notInArray(operationsTasks.taskKey, [...query.excludeTaskKeys]);
-    const conditions = [filteredByAnimeId, filteredByTaskKey, filteredByExcludedTaskKeys].filter(
-      (condition) => condition !== undefined,
-    );
-    const whereClause =
-      conditions.length === 0
-        ? undefined
-        : conditions.length === 1
-          ? conditions[0]
-          : and(...conditions);
-    const rows = yield* tryDatabasePromise("Failed to list operations tasks", () => {
-      const stmt = db
-        .select()
-        .from(operationsTasks)
-        .orderBy(desc(operationsTasks.id))
-        .limit(query.limit ?? 100)
-        .offset(query.offset ?? 0);
-      return whereClause ? stmt.where(whereClause) : stmt;
+    const rows = yield* repository.listTaskRows({
+      ...(query.mediaId === undefined ? {} : { mediaId: query.mediaId }),
+      ...(query.excludeTaskKeys === undefined ? {} : { excludeTaskKeys: query.excludeTaskKeys }),
+      limit: query.limit ?? 100,
+      offset: query.offset ?? 0,
+      ...(query.taskKey === undefined ? {} : { taskKey: query.taskKey }),
     });
 
     return yield* Effect.forEach(rows, (row) => toOperationsTask(row));

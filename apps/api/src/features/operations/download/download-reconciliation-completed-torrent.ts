@@ -1,11 +1,9 @@
-import { eq } from "drizzle-orm";
 import { Cause, Effect, Option } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
-import type { AppDatabase } from "@/db/database.ts";
-import { downloads } from "@/db/schema.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
+import { DownloadReconciliationRepository } from "@/features/operations/repository/download-reconciliation-repository.ts";
 import {
   loadDownloadReconciliationContext,
   type DownloadReconciliationContext,
@@ -14,7 +12,6 @@ import {
 import { reconcileBatchDownloadEffect } from "@/features/operations/download/download-reconciliation-batch.ts";
 import { reconcileSingleDownloadEffect } from "@/features/operations/download/download-reconciliation-single.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
-import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import type { MediaProbeShape } from "@/infra/media/probe.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
@@ -28,13 +25,12 @@ function shouldDeleteImportedData(config: Config | null | undefined) {
 }
 
 export function makeDownloadCompletedTorrentReconciliation(
-  db: AppDatabase,
+  repo: typeof DownloadReconciliationRepository.Service,
   fs: FileSystemShape,
   mediaProbe: MediaProbeShape,
   mediaReadRepository: typeof MediaReadRepository.Service,
   torrentClientService: typeof TorrentClientService.Service,
   eventBus: typeof EventBus.Service,
-  tryDatabasePromise: TryDatabasePromise,
   nowIso: () => Effect.Effect<string>,
   randomUuid: () => Effect.Effect<string>,
   getRuntimeConfig: () => Effect.Effect<Config, RuntimeConfigSnapshotError>,
@@ -71,10 +67,7 @@ export function makeDownloadCompletedTorrentReconciliation(
         return;
       }
 
-      const rows = yield* tryDatabasePromise("Failed to reconcile completed download", () =>
-        db.select().from(downloads).where(eq(downloads.infoHash, infoHash)).limit(1),
-      );
-      const [row] = rows;
+      const row = yield* repo.loadDownloadByInfoHash(infoHash);
 
       if (!row) {
         return;
@@ -85,7 +78,7 @@ export function makeDownloadCompletedTorrentReconciliation(
       }
 
       const context = yield* loadDownloadReconciliationContext({
-        db,
+        repo,
         eventBus,
         fs,
         mediaProbe,
@@ -93,7 +86,6 @@ export function makeDownloadCompletedTorrentReconciliation(
         nowIso,
         randomUuid,
         row,
-        tryDatabasePromise,
         contentPath,
         getRuntimeConfig,
         mediaReadRepository,

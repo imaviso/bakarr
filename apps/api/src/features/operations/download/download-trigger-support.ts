@@ -1,20 +1,19 @@
 import { Effect, Option } from "effect";
-import { eq } from "drizzle-orm";
 
 import type { DownloadAction, DownloadSourceMetadata } from "@packages/shared/index.ts";
-import { DatabaseError, type AppDatabase } from "@/db/database.ts";
-import { media, downloads } from "@/db/schema.ts";
+import { DatabaseError } from "@/db/database.ts";
+import { media } from "@/db/schema.ts";
 import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { DownloadTriggerRepository } from "@/features/operations/repository/download-trigger-repository.ts";
 import { encodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
-import { loadMissingEpisodeNumbers } from "@/features/operations/shared/job-support.ts";
 import {
   buildDownloadSelectionMetadata,
   buildDownloadSourceMetadataFromRelease,
 } from "@/features/operations/library/naming-metadata-support.ts";
 import {
-  hasOverlappingDownload,
   inferCoveredEpisodeNumbers,
+  parseCoveredEpisodesEffect,
   toCoveredEpisodesJson,
 } from "@/features/operations/download/download-coverage.ts";
 import { parseMagnetInfoHash } from "@/features/operations/download/download-paths.ts";
@@ -27,7 +26,8 @@ import {
 } from "@/features/operations/errors.ts";
 import type { TriggerDownloadInput } from "@/features/operations/download/download-orchestration-shared.ts";
 import { resolveRequestedEpisodeNumber } from "@/features/operations/download/download-orchestration-shared.ts";
-import type { TryDatabasePromise } from "@/infra/effect/db.ts";
+
+const IN_FLIGHT_STATUSES = new Set(["queued", "downloading", "paused"]);
 
 export interface PreparedTriggerDownload {
   readonly animeRow: typeof media.$inferSelect;
@@ -42,7 +42,7 @@ export interface PreparedTriggerDownload {
 
 export const prepareTriggerDownload = Effect.fn("Operations.prepareTriggerDownload")(
   function* (input: {
-    readonly db: AppDatabase;
+    readonly triggerRepo: typeof DownloadTriggerRepository.Service;
     readonly mediaReadRepository: typeof MediaReadRepository.Service;
     readonly nowIso: () => Effect.Effect<string>;
     readonly triggerInput: TriggerDownloadInput;
@@ -71,7 +71,7 @@ export const prepareTriggerDownload = Effect.fn("Operations.prepareTriggerDownlo
       });
     }
 
-    const missingUnits = yield* loadMissingEpisodeNumbers(input.db, animeRow.id);
+    const missingUnits = yield* input.triggerRepo.listMissingEpisodeNumbers(animeRow.id);
     const shouldDeferBatchCoverage = effectiveIsBatch && inferredUnits.length === 0;
     const inferredCoveredEpisodes = shouldDeferBatchCoverage
       ? []
@@ -106,17 +106,30 @@ export const prepareTriggerDownload = Effect.fn("Operations.prepareTriggerDownlo
     );
 
     if (infoHash) {
-      const overlapping = yield* hasOverlappingDownload(
-        input.db,
-        animeRow.id,
-        infoHash,
-        inferredCoveredEpisodes,
-      );
+      const existingByHash = yield* input.triggerRepo.lookupDownloadByInfoHash(infoHash);
 
-      if (overlapping) {
+      if (existingByHash && IN_FLIGHT_STATUSES.has(existingByHash.status)) {
         return yield* new DownloadConflictError({
           message: "An in-flight download already covers these mediaUnits",
         });
+      }
+
+      if (inferredCoveredEpisodes.length > 0) {
+        const mediaDownloads = yield* input.triggerRepo.listDownloadsByMediaId(animeRow.id);
+
+        for (const row of mediaDownloads) {
+          if (!IN_FLIGHT_STATUSES.has(row.status)) {
+            continue;
+          }
+
+          const existingCovered = yield* parseCoveredEpisodesEffect(row.coveredUnits);
+
+          if (existingCovered.some((episode) => inferredCoveredEpisodes.includes(episode))) {
+            return yield* new DownloadConflictError({
+              message: "An in-flight download already covers these mediaUnits",
+            });
+          }
+        }
       }
     }
 
@@ -134,44 +147,27 @@ export const prepareTriggerDownload = Effect.fn("Operations.prepareTriggerDownlo
 );
 
 export const insertQueuedDownload = Effect.fn("Operations.insertQueuedDownload")(function* (input: {
-  readonly db: AppDatabase;
+  readonly triggerRepo: typeof DownloadTriggerRepository.Service;
   readonly plan: PreparedTriggerDownload;
   readonly triggerInput: TriggerDownloadInput;
-  readonly tryDatabasePromise: TryDatabasePromise;
 }) {
   const encodedSourceMetadata = yield* encodeDownloadSourceMetadata(input.plan.sourceMetadata);
 
   const insertResult = yield* Effect.either(
-    input.tryDatabasePromise("Failed to trigger download", () =>
-      input.db
-        .insert(downloads)
-        .values({
-          addedAt: input.plan.now,
-          mediaId: input.plan.animeRow.id,
-          mediaTitle: input.plan.animeRow.titleRomaji,
-          contentPath: null,
-          coveredUnits: input.plan.coveredUnits,
-          downloadDate: null,
-          unitNumber: input.plan.requestedEpisode,
-          isBatch: input.plan.effectiveIsBatch,
-          downloadedBytes: 0,
-          errorMessage: null,
-          etaSeconds: null,
-          externalState: "queued",
-          groupName: input.triggerInput.release_context?.group ?? null,
-          infoHash: input.plan.infoHash,
-          lastSyncedAt: input.plan.now,
-          magnet: input.triggerInput.magnet,
-          progress: 0,
-          savePath: null,
-          sourceMetadata: encodedSourceMetadata,
-          speedBytes: 0,
-          status: "queued",
-          torrentName: input.triggerInput.title,
-          totalBytes: null,
-        })
-        .returning({ id: downloads.id }),
-    ),
+    input.triggerRepo.insertQueuedDownloadRow({
+      addedAt: input.plan.now,
+      coveredUnits: input.plan.coveredUnits,
+      groupName: input.triggerInput.release_context?.group ?? null,
+      infoHash: input.plan.infoHash,
+      isBatch: input.plan.effectiveIsBatch,
+      lastSyncedAt: input.plan.now,
+      magnet: input.triggerInput.magnet,
+      mediaId: input.plan.animeRow.id,
+      mediaTitle: input.plan.animeRow.titleRomaji,
+      sourceMetadata: encodedSourceMetadata,
+      torrentName: input.triggerInput.title,
+      unitNumber: input.plan.requestedEpisode,
+    }),
   );
 
   if (insertResult._tag === "Left") {
@@ -184,25 +180,15 @@ export const insertQueuedDownload = Effect.fn("Operations.insertQueuedDownload")
     return yield* insertError;
   }
 
-  const insertedRow = insertResult.right[0];
-
-  if (!insertedRow) {
-    return yield* new DatabaseError({
-      cause: new Error("Download insert returned no rows"),
-      message: "Failed to create download",
-    });
-  }
-
-  return insertedRow.id;
+  return insertResult.right;
 });
 
 export const addMagnetToQueuedDownload = Effect.fn("Operations.addMagnetToQueuedDownload")(
   function* (input: {
-    readonly db: AppDatabase;
+    readonly triggerRepo: typeof DownloadTriggerRepository.Service;
     readonly insertedId: number;
     readonly magnet: string;
     readonly torrentClientService: typeof TorrentClientService.Service;
-    readonly tryDatabasePromise: TryDatabasePromise;
   }) {
     const qbitResult = yield* Effect.either(
       input.torrentClientService.addTorrentUrlIfEnabled(input.magnet),
@@ -210,9 +196,7 @@ export const addMagnetToQueuedDownload = Effect.fn("Operations.addMagnetToQueued
 
     if (qbitResult._tag === "Left") {
       const cleanupResult = yield* Effect.either(
-        input.tryDatabasePromise("Cleanup failed download", () =>
-          input.db.delete(downloads).where(eq(downloads.id, input.insertedId)),
-        ),
+        input.triggerRepo.deleteDownloadRow(input.insertedId),
       );
 
       if (cleanupResult._tag === "Left") {
@@ -233,12 +217,11 @@ export const addMagnetToQueuedDownload = Effect.fn("Operations.addMagnetToQueued
     }
 
     if (qbitResult.right._tag === "Added") {
-      yield* input.tryDatabasePromise("Update download status", () =>
-        input.db
-          .update(downloads)
-          .set({ externalState: "downloading", status: "downloading" })
-          .where(eq(downloads.id, input.insertedId)),
-      );
+      yield* input.triggerRepo.updateDownloadStatusRow({
+        externalState: "downloading",
+        id: input.insertedId,
+        status: "downloading",
+      });
 
       return "downloading" as const;
     }

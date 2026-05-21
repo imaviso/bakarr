@@ -9,7 +9,6 @@ import {
   insertQueuedDownload,
   prepareTriggerDownload,
 } from "@/features/operations/download/download-trigger-support.ts";
-import { appendLog, recordDownloadEvent } from "@/features/operations/shared/job-support.ts";
 import {
   DownloadConflictError,
   OperationsAnimeNotFoundError,
@@ -19,9 +18,8 @@ import {
 } from "@/features/operations/errors.ts";
 import type { TriggerDownloadInput } from "@/features/operations/download/download-orchestration-shared.ts";
 import type { DownloadTriggerCoordinatorShape } from "@/features/operations/tasks/runtime-support.ts";
-import { Database, type AppDatabase } from "@/db/database.ts";
+import { DownloadTriggerRepository } from "@/features/operations/repository/download-trigger-repository.ts";
 import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
-import { tryDatabasePromise, type TryDatabasePromise } from "@/infra/effect/db.ts";
 import { DownloadProgressSupport } from "@/features/operations/download/download-progress-support.ts";
 import { DownloadTriggerCoordinator } from "@/features/operations/tasks/runtime-support.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
@@ -41,11 +39,10 @@ export interface DownloadTriggerServiceShape {
 }
 
 export function makeDownloadTriggerService(input: {
-  readonly db: AppDatabase;
+  readonly triggerRepo: typeof DownloadTriggerRepository.Service;
   readonly torrentClientService: typeof TorrentClientService.Service;
   readonly eventBus: typeof EventBus.Service;
   readonly mediaReadRepository: typeof MediaReadRepository.Service;
-  readonly tryDatabasePromise: TryDatabasePromise;
   readonly nowIso: () => Effect.Effect<string>;
   readonly downloadTriggerCoordinator: DownloadTriggerCoordinatorShape;
   readonly publishDownloadProgress: () => Effect.Effect<
@@ -54,22 +51,21 @@ export function makeDownloadTriggerService(input: {
   >;
 }) {
   const {
-    db,
+    triggerRepo,
     torrentClientService,
     eventBus,
     mediaReadRepository,
-    tryDatabasePromise,
     downloadTriggerCoordinator,
     publishDownloadProgress,
+    nowIso,
   } = input;
-  const { nowIso } = input;
 
   const executeTriggerDownload = Effect.fn("OperationsService.executeTriggerDownload")(function* (
     triggerInput: TriggerDownloadInput,
   ) {
     yield* Effect.annotateCurrentSpan("mediaId", triggerInput.media_id);
     const plan = yield* prepareTriggerDownload({
-      db,
+      triggerRepo,
       mediaReadRepository,
       nowIso,
       triggerInput,
@@ -80,23 +76,21 @@ export function makeDownloadTriggerService(input: {
     yield* Effect.annotateCurrentSpan("unitNumber", plan.requestedEpisode);
 
     const insertedId = yield* insertQueuedDownload({
-      db,
+      triggerRepo,
       plan,
       triggerInput,
-      tryDatabasePromise,
     });
     const status = yield* addMagnetToQueuedDownload({
-      db,
+      triggerRepo,
       insertedId,
       magnet: triggerInput.magnet,
       torrentClientService,
-      tryDatabasePromise,
     });
     const shouldDeferBatchCoverage =
       plan.effectiveIsBatch && plan.inferredCoveredEpisodes.length === 0;
 
-    yield* recordDownloadEvent(
-      db,
+    const eventNow = yield* nowIso();
+    yield* triggerRepo.insertDownloadEvent(
       {
         mediaId: plan.animeRow.id,
         downloadId: insertedId,
@@ -109,18 +103,18 @@ export function makeDownloadTriggerService(input: {
         metadata: plan.coveredUnits,
         toStatus: status,
       },
-      nowIso,
+      eventNow,
     );
 
-    yield* appendLog(
-      db,
-      "downloads.triggered",
-      "success",
-      shouldDeferBatchCoverage
+    const logNow = yield* nowIso();
+    yield* triggerRepo.appendLogRow({
+      eventType: "downloads.triggered",
+      level: "success",
+      message: shouldDeferBatchCoverage
         ? `Queued batch download for ${plan.animeRow.titleRomaji}; waiting for qBittorrent metadata to determine covered mediaUnits`
         : `Queued download for ${plan.animeRow.titleRomaji} episode ${plan.requestedEpisode}`,
-      nowIso,
-    );
+      createdAt: logNow,
+    });
 
     yield* eventBus.publish({
       type: "DownloadStarted",
@@ -157,7 +151,7 @@ export class DownloadTriggerService extends Context.Tag("@bakarr/api/DownloadTri
 export const DownloadTriggerServiceLive = Layer.effect(
   DownloadTriggerService,
   Effect.gen(function* () {
-    const { db } = yield* Database;
+    const triggerRepo = yield* DownloadTriggerRepository;
     const eventBus = yield* EventBus;
     const torrentClientService = yield* TorrentClientService;
     const clock = yield* ClockService;
@@ -166,14 +160,13 @@ export const DownloadTriggerServiceLive = Layer.effect(
     const mediaReadRepository = yield* MediaReadRepository;
 
     return makeDownloadTriggerService({
-      db,
+      triggerRepo,
       downloadTriggerCoordinator,
       eventBus,
       mediaReadRepository,
       nowIso: () => nowIsoFromClock(clock),
       publishDownloadProgress: progressSupport.publishDownloadProgress,
       torrentClientService,
-      tryDatabasePromise,
     });
   }),
 );

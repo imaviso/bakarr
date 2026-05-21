@@ -1,9 +1,7 @@
-import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type { AppDatabase, DatabaseError } from "@/db/database.ts";
-import { downloads } from "@/db/schema.ts";
-import type { TryDatabasePromise } from "@/infra/effect/db.ts";
+import type { DatabaseError } from "@/db/database.ts";
+import { DownloadReconciliationRepository } from "@/features/operations/repository/download-reconciliation-repository.ts";
 import type { ExternalCallError } from "@/infra/effect/retry.ts";
 import {
   DownloadConflictError,
@@ -13,7 +11,7 @@ import {
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 
 export function makeReconcileDownloadByIdEffect(input: {
-  readonly db: AppDatabase;
+  readonly repo: typeof DownloadReconciliationRepository.Service;
   readonly reconcileCompletedTorrentEffect: (
     infoHash: string,
     contentPath: string | undefined,
@@ -21,15 +19,11 @@ export function makeReconcileDownloadByIdEffect(input: {
     void,
     ExternalCallError | OperationsError | DatabaseError | RuntimeConfigSnapshotError
   >;
-  readonly tryDatabasePromise: TryDatabasePromise;
 }) {
-  const { db, reconcileCompletedTorrentEffect, tryDatabasePromise } = input;
+  const { repo, reconcileCompletedTorrentEffect } = input;
 
   return Effect.fn("OperationsService.reconcileDownloadById")(function* (id: number) {
-    const rows = yield* tryDatabasePromise("Failed to reconcile download", () =>
-      db.select().from(downloads).where(eq(downloads.id, id)).limit(1),
-    );
-    const [row] = rows;
+    const row = yield* repo.loadDownloadById(id);
 
     if (!row) {
       return yield* new DownloadNotFoundError({

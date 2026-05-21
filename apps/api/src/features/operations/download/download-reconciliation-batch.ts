@@ -1,8 +1,6 @@
-import { and, eq, inArray } from "drizzle-orm";
 import { Effect } from "effect";
 import { brandMediaId } from "@packages/shared/index.ts";
 
-import { mediaUnits } from "@/db/schema.ts";
 import { classifyMediaArtifact } from "@/infra/media/identity/identity.ts";
 import { probeMediaMetadataOrUndefined } from "@/infra/media/probe.ts";
 import { buildEpisodeFilenamePlan } from "@/features/operations/library/naming-canonical-support.ts";
@@ -11,7 +9,6 @@ import {
   selectNamingFormat,
 } from "@/features/operations/library/naming-format-support.ts";
 import { importDownloadedFile } from "@/features/operations/download/download-file-import-support.ts";
-import { upsertEpisodeFilesAtomic } from "@/features/operations/download/download-unit-upsert-support.ts";
 import {
   parseCoveredEpisodesEffect,
   resolveReconciledBatchEpisodeNumbers,
@@ -120,23 +117,19 @@ export const reconcileBatchDownloadEffect = Effect.fn("OperationsService.reconci
 
     const allEpisodeRows: BatchEpisodeRow[] =
       allRelevantEpisodes.size > 0
-        ? yield* input.tryDatabasePromise("Failed to reconcile completed download", () =>
-            input.db
-              .select({
-                aired: mediaUnits.aired,
-                downloaded: mediaUnits.downloaded,
-                filePath: mediaUnits.filePath,
-                number: mediaUnits.number,
-                title: mediaUnits.title,
-              })
-              .from(mediaUnits)
-              .where(
-                and(
-                  eq(mediaUnits.mediaId, input.row.mediaId),
-                  inArray(mediaUnits.number, [...allRelevantEpisodes]),
-                ),
+        ? yield* input.repo
+            .loadMediaUnitsByNumbers(input.row.mediaId, [...allRelevantEpisodes])
+            .pipe(
+              Effect.map((rows) =>
+                rows.map((r) => ({
+                  aired: r.aired,
+                  downloaded: r.downloaded,
+                  filePath: r.filePath,
+                  number: r.number,
+                  title: r.title,
+                })),
               ),
-          )
+            )
         : [];
 
     const episodeMap = new Map<number, BatchEpisodeRow>();
@@ -192,12 +185,9 @@ export const reconcileBatchDownloadEffect = Effect.fn("OperationsService.reconci
           ...(localMediaMetadata ? { localMediaMetadata } : {}),
         },
       ).pipe(Effect.mapError(mapReconciliationInfrastructureError));
-      yield* upsertEpisodeFilesAtomic(
-        input.db,
-        input.row.mediaId,
-        relevantEpisodes,
-        managedPath,
-      ).pipe(Effect.mapError(mapReconciliationInfrastructureError));
+      yield* input.repo
+        .upsertEpisodeFiles(input.row.mediaId, relevantEpisodes, managedPath)
+        .pipe(Effect.mapError(mapReconciliationInfrastructureError));
 
       for (const unitNumber of relevantEpisodes) {
         const existing = episodeMap.get(unitNumber);
@@ -240,6 +230,7 @@ export const reconcileBatchDownloadEffect = Effect.fn("OperationsService.reconci
     });
 
     yield* finalizeDownloadImport({
+      repo: input.repo,
       downloadId: input.row.id,
       fromStatus: input.row.status,
       now: batchNow,
@@ -253,8 +244,6 @@ export const reconcileBatchDownloadEffect = Effect.fn("OperationsService.reconci
       logMessage: batchAlreadyImported
         ? `Marked already-imported batch torrent as reconciled for ${input.row.mediaTitle}`
         : `Mapped completed batch torrent for ${input.row.mediaTitle}`,
-      db: input.db,
-      tryDatabasePromise: input.tryDatabasePromise,
     });
     yield* input.maybeCleanupImportedTorrent(input.runtimeConfig, input.row.infoHash);
     yield* input.eventBus.publish({

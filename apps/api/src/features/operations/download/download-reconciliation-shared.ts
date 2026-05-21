@@ -1,15 +1,14 @@
 import type { Config, DownloadSourceMetadata } from "@packages/shared/index.ts";
-import { eq } from "drizzle-orm";
 import { Effect, Option } from "effect";
 
-import type { AppDatabase } from "@/db/database.ts";
-import { media, downloadEvents, downloads, systemLogs } from "@/db/schema.ts";
+import type { downloads } from "@/db/schema.ts";
+import { media } from "@/db/schema.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import type { MediaProbeShape } from "@/infra/media/probe.ts";
-import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { OperationsPathError } from "@/features/operations/errors.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { DownloadReconciliationRepository } from "@/features/operations/repository/download-reconciliation-repository.ts";
 import { decodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
 import { resolveAccessibleDownloadPath } from "@/features/operations/download/download-paths.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
@@ -23,10 +22,9 @@ export type MaybeCleanupImportedTorrent = (
 ) => Effect.Effect<void>;
 
 export type DownloadReconciliationContext = {
-  readonly db: AppDatabase;
+  readonly repo: typeof DownloadReconciliationRepository.Service;
   readonly fs: FileSystemShape;
   readonly mediaProbe: MediaProbeShape;
-  readonly tryDatabasePromise: TryDatabasePromise;
   readonly nowIso: () => Effect.Effect<string>;
   readonly randomUuid: () => Effect.Effect<string>;
   readonly maybeCleanupImportedTorrent: MaybeCleanupImportedTorrent;
@@ -42,8 +40,7 @@ type RuntimeConfigLoader = () => Effect.Effect<Config, RuntimeConfigSnapshotErro
 
 export const finalizeDownloadImport = Effect.fn("OperationsService.finalizeDownloadImport")(
   function* (input: {
-    readonly db: AppDatabase;
-    readonly tryDatabasePromise: TryDatabasePromise;
+    readonly repo: typeof DownloadReconciliationRepository.Service;
     readonly downloadId: number;
     readonly fromStatus: string;
     readonly now: string;
@@ -54,56 +51,29 @@ export const finalizeDownloadImport = Effect.fn("OperationsService.finalizeDownl
     readonly logEventType: string;
     readonly logMessage: string;
   }) {
-    yield* input.tryDatabasePromise("Failed to reconcile completed download", async () => {
-      await input.db.transaction(async (tx) => {
-        await tx
-          .update(downloads)
-          .set({ externalState: "imported", progress: 100, status: "imported" })
-          .where(eq(downloads.id, input.downloadId));
-        await tx
-          .update(downloads)
-          .set({ reconciledAt: input.now })
-          .where(eq(downloads.id, input.downloadId));
-        await tx.insert(downloadEvents).values({
-          mediaId: input.mediaId,
-          createdAt: input.now,
-          downloadId: input.downloadId,
-          eventType: input.eventType,
-          fromStatus: input.fromStatus,
-          message: input.eventMessage,
-          metadata: input.eventMetadata,
-          toStatus: "imported",
-        });
-        await tx.insert(systemLogs).values({
-          createdAt: input.now,
-          details: null,
-          eventType: input.logEventType,
-          level: "success",
-          message: input.logMessage,
-        });
-      });
+    yield* input.repo.finalizeDownloadImport({
+      downloadId: input.downloadId,
+      fromStatus: input.fromStatus,
+      now: input.now,
+      mediaId: input.mediaId,
+      eventType: input.eventType,
+      eventMessage: input.eventMessage,
+      eventMetadata: input.eventMetadata,
+      logEventType: input.logEventType,
+      logMessage: input.logMessage,
     });
   },
 );
 
 export const markDownloadReconciled = Effect.fn("OperationsService.markDownloadReconciled")(
   function* (input: {
-    readonly db: AppDatabase;
-    readonly tryDatabasePromise: TryDatabasePromise;
+    readonly repo: typeof DownloadReconciliationRepository.Service;
     readonly downloadId: number;
     readonly now: string;
   }) {
-    yield* input.tryDatabasePromise("Failed to reconcile completed download", async () => {
-      await input.db.transaction(async (tx) => {
-        await tx
-          .update(downloads)
-          .set({ externalState: "imported", progress: 100, status: "imported" })
-          .where(eq(downloads.id, input.downloadId));
-        await tx
-          .update(downloads)
-          .set({ reconciledAt: input.now })
-          .where(eq(downloads.id, input.downloadId));
-      });
+    yield* input.repo.markDownloadReconciled({
+      downloadId: input.downloadId,
+      now: input.now,
     });
   },
 );
@@ -113,7 +83,7 @@ export const loadDownloadReconciliationContext = Effect.fn(
 )(function* (
   input: Pick<
     DownloadReconciliationContext,
-    | "db"
+    | "repo"
     | "fs"
     | "mediaProbe"
     | "eventBus"
@@ -121,7 +91,6 @@ export const loadDownloadReconciliationContext = Effect.fn(
     | "nowIso"
     | "randomUuid"
     | "row"
-    | "tryDatabasePromise"
   > & {
     readonly contentPath: string;
     readonly getRuntimeConfig: RuntimeConfigLoader;
@@ -150,7 +119,7 @@ export const loadDownloadReconciliationContext = Effect.fn(
   }
 
   return Option.some({
-    db: input.db,
+    repo: input.repo,
     animeRow,
     eventBus: input.eventBus,
     fs: input.fs,
@@ -162,6 +131,5 @@ export const loadDownloadReconciliationContext = Effect.fn(
     runtimeConfig,
     row: input.row,
     storedSourceMetadata,
-    tryDatabasePromise: input.tryDatabasePromise,
   } satisfies DownloadReconciliationContext);
 });

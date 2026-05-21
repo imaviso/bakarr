@@ -1,14 +1,10 @@
-import { desc, inArray } from "drizzle-orm";
 import { Context, Effect, Layer } from "effect";
 
-import { Database, type AppDatabase } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
-import { downloads } from "@/db/schema.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { toDownloadStatus } from "@/features/operations/download/download-presentation.ts";
-import { loadDownloadPresentationContexts } from "@/features/operations/repository/download-presentation-repository.ts";
 import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
-import { tryDatabasePromise, type TryDatabasePromise } from "@/infra/effect/db.ts";
+import { DownloadProgressRepository } from "@/features/operations/repository/download-progress-repository.ts";
 
 export interface DownloadProgressSupportShape {
   readonly publishDownloadProgress: () => Effect.Effect<
@@ -23,25 +19,18 @@ export class DownloadProgressSupport extends Context.Tag("@bakarr/api/DownloadPr
 >() {}
 
 export interface DownloadProgressSupportInput {
-  readonly db: AppDatabase;
+  readonly downloadProgressRepository: typeof DownloadProgressRepository.Service;
   readonly eventBus: typeof EventBus.Service;
-  readonly tryDatabasePromise: TryDatabasePromise;
 }
 
 export function makeDownloadProgressSupport(input: DownloadProgressSupportInput) {
-  const { db, eventBus, tryDatabasePromise } = input;
+  const { downloadProgressRepository, eventBus } = input;
 
   const getDownloadProgressSnapshotEffect = Effect.fn(
     "OperationsService.getDownloadProgressSnapshot",
   )(function* () {
-    const rows = yield* tryDatabasePromise("Failed to load download progress snapshot", () =>
-      db
-        .select()
-        .from(downloads)
-        .where(inArray(downloads.status, ["queued", "downloading", "paused"]))
-        .orderBy(desc(downloads.id)),
-    );
-    const contexts = yield* loadDownloadPresentationContexts(db, rows);
+    const rows = yield* downloadProgressRepository.listActiveDownloadRows();
+    const contexts = yield* downloadProgressRepository.loadPresentationContexts(rows);
     return yield* Effect.forEach(rows, (row) => toDownloadStatus(row, contexts.get(row.id)));
   });
 
@@ -73,13 +62,12 @@ export function makeDownloadProgressSupport(input: DownloadProgressSupportInput)
 export const DownloadProgressSupportLive = Layer.effect(
   DownloadProgressSupport,
   Effect.gen(function* () {
-    const { db } = yield* Database;
+    const downloadProgressRepository = yield* DownloadProgressRepository;
     const eventBus = yield* EventBus;
 
     return makeDownloadProgressSupport({
-      db,
+      downloadProgressRepository,
       eventBus,
-      tryDatabasePromise,
     });
   }),
 );
