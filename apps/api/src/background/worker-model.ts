@@ -5,6 +5,7 @@ export const BACKGROUND_WORKER_NAMES = [
   "rss",
   "library_scan",
   "metadata_refresh",
+  "manami_refresh",
 ] as const;
 
 export const BACKGROUND_JOB_NAMES = [...BACKGROUND_WORKER_NAMES, "unmapped_scan"] as const;
@@ -16,6 +17,7 @@ export type BackgroundWorkerName = Schema.Schema.Type<typeof BackgroundWorkerNam
 export const BACKGROUND_WORKER_TIMEOUT_MS = {
   download_sync: 300_000,
   library_scan: 300_000,
+  manami_refresh: 300_000,
   metadata_refresh: 60_000,
   rss: 120_000,
 } as const satisfies Record<BackgroundWorkerName, number>;
@@ -41,6 +43,7 @@ export class BackgroundWorkerSnapshotModel extends Schema.Class<BackgroundWorker
 )({
   download_sync: BackgroundWorkerStatsModel,
   library_scan: BackgroundWorkerStatsModel,
+  manami_refresh: BackgroundWorkerStatsModel,
   metadata_refresh: BackgroundWorkerStatsModel,
   rss: BackgroundWorkerStatsModel,
 }) {}
@@ -65,6 +68,7 @@ export function initialBackgroundWorkerSnapshot(): BackgroundWorkerSnapshot {
   return new BackgroundWorkerSnapshotModel({
     download_sync: emptyBackgroundWorkerStats(),
     library_scan: emptyBackgroundWorkerStats(),
+    manami_refresh: emptyBackgroundWorkerStats(),
     metadata_refresh: emptyBackgroundWorkerStats(),
     rss: emptyBackgroundWorkerStats(),
   });
@@ -80,6 +84,8 @@ export function updateWorkerInSnapshot(
       workerName === "download_sync" ? update(snapshot.download_sync) : snapshot.download_sync,
     library_scan:
       workerName === "library_scan" ? update(snapshot.library_scan) : snapshot.library_scan,
+    manami_refresh:
+      workerName === "manami_refresh" ? update(snapshot.manami_refresh) : snapshot.manami_refresh,
     metadata_refresh:
       workerName === "metadata_refresh"
         ? update(snapshot.metadata_refresh)

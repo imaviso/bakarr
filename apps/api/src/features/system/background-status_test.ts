@@ -18,6 +18,7 @@ it("background status composes persisted job rows with live running state", () =
   const snapshot = new BackgroundWorkerSnapshotModel({
     download_sync: baseSnapshot.download_sync,
     library_scan: baseSnapshot.library_scan,
+    manami_refresh: baseSnapshot.manami_refresh,
     metadata_refresh: baseSnapshot.metadata_refresh,
     rss: new BackgroundWorkerStatsModel({
       daemonRunning: true,
@@ -70,6 +71,7 @@ it("background status falls back to live failure details for workers without his
       successCount: 0,
     }),
     library_scan: baseSnapshot2.library_scan,
+    manami_refresh: baseSnapshot2.manami_refresh,
     metadata_refresh: baseSnapshot2.metadata_refresh,
     rss: baseSnapshot2.rss,
   });

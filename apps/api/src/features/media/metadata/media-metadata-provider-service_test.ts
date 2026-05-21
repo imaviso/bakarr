@@ -268,7 +268,9 @@ it.effect("merges Jikan/Manami metadata before applying AniDB episode enrichment
   }).pipe(Effect.provide(providerLayer));
 });
 
-it.effect("bubbles Manami getByAniListId failure", () => {
+it.effect("degrades gracefully when Manami getByAniListId fails", () => {
+  let refreshCount = 0;
+
   const providerLayer = makeProviderLayer({
     cacheState: { _tag: "Missing" },
     getByAniListIdError: ExternalCallError.make({
@@ -276,21 +278,33 @@ it.effect("bubbles Manami getByAniListId failure", () => {
       message: "Manami lookup failed",
       operation: "ManamiClient.getByAniListId",
     }),
-    onRefresh: () => {},
+    onRefresh: () => {
+      refreshCount += 1;
+    },
   });
 
   return Effect.gen(function* () {
     const service = yield* AnimeMetadataProviderService;
-    const error = yield* service.getAnimeMetadataById(1001).pipe(Effect.flip);
+    const result = yield* service.getAnimeMetadataById(1001);
 
-    assert.deepStrictEqual(error._tag, "ExternalCallError");
-    if (error._tag === "ExternalCallError") {
-      assert.deepStrictEqual(error.operation, "ManamiClient.getByAniListId");
+    assert.deepStrictEqual(result._tag, "Found");
+    if (result._tag === "Found") {
+      assert.deepStrictEqual(result.enrichment._tag, "Degraded");
+      if (result.enrichment._tag === "Degraded") {
+        assert.deepStrictEqual(result.enrichment.reason, {
+          _tag: "AniDbRefreshPending",
+          cacheState: "missing",
+        });
+      }
     }
+
+    assert.deepStrictEqual(refreshCount, 1);
   }).pipe(Effect.provide(providerLayer));
 });
 
-it.effect("bubbles Manami resolveMalIdFromAniListId failure when AniList MAL id missing", () => {
+it.effect("degrades gracefully when Manami resolveMalIdFromAniListId fails", () => {
+  let refreshCount = 0;
+
   const providerLayer = makeProviderLayer({
     cacheState: { _tag: "Missing" },
     metadata: makeMetadata(1004, {
@@ -301,17 +315,27 @@ it.effect("bubbles Manami resolveMalIdFromAniListId failure when AniList MAL id 
       message: "Manami MAL id resolve failed",
       operation: "ManamiClient.resolveMalIdFromAniListId",
     }),
-    onRefresh: () => {},
+    onRefresh: () => {
+      refreshCount += 1;
+    },
   });
 
   return Effect.gen(function* () {
     const service = yield* AnimeMetadataProviderService;
-    const error = yield* service.getAnimeMetadataById(1004).pipe(Effect.flip);
+    const result = yield* service.getAnimeMetadataById(1004);
 
-    assert.deepStrictEqual(error._tag, "ExternalCallError");
-    if (error._tag === "ExternalCallError") {
-      assert.deepStrictEqual(error.operation, "ManamiClient.resolveMalIdFromAniListId");
+    assert.deepStrictEqual(result._tag, "Found");
+    if (result._tag === "Found") {
+      assert.deepStrictEqual(result.enrichment._tag, "Degraded");
+      if (result.enrichment._tag === "Degraded") {
+        assert.deepStrictEqual(result.enrichment.reason, {
+          _tag: "AniDbRefreshPending",
+          cacheState: "missing",
+        });
+      }
     }
+
+    assert.deepStrictEqual(refreshCount, 1);
   }).pipe(Effect.provide(providerLayer));
 });
 
@@ -340,45 +364,62 @@ it.effect("bubbles Jikan getAnimeByMalId failure when MAL id available", () => {
   }).pipe(Effect.provide(providerLayer));
 });
 
-it.effect("bubbles Manami resolveAniListIdFromMalId failure during relation mapping", () => {
-  const providerLayer = makeProviderLayer({
-    cacheState: { _tag: "Missing" },
-    jikanMetadata: makeJikanMetadata({
-      endDate: undefined,
-      unitCount: undefined,
-      format: undefined,
-      genres: [],
-      malId: 606,
-      relations: [{ malId: 909, relation: "Sequel", title: "Related" }],
-      score: undefined,
-      startDate: undefined,
-      status: undefined,
-      studios: [],
-      synopsis: undefined,
-      title: {},
-      titleVariants: [],
-    }),
-    metadata: makeMetadata(1006, {
-      malId: 606,
-    }),
-    resolveAniListIdFromMalIdError: ExternalCallError.make({
-      cause: new Error("manami resolveAniListIdFromMalId failed"),
-      message: "Manami AniList id resolve failed",
-      operation: "ManamiClient.resolveAniListIdFromMalId",
-    }),
-    onRefresh: () => {},
-  });
+it.effect(
+  "degrades gracefully when Manami resolveAniListIdFromMalId fails during relation mapping",
+  () => {
+    let refreshCount = 0;
 
-  return Effect.gen(function* () {
-    const service = yield* AnimeMetadataProviderService;
-    const error = yield* service.getAnimeMetadataById(1006).pipe(Effect.flip);
+    const providerLayer = makeProviderLayer({
+      cacheState: { _tag: "Missing" },
+      jikanMetadata: makeJikanMetadata({
+        endDate: undefined,
+        unitCount: undefined,
+        format: undefined,
+        genres: [],
+        malId: 606,
+        relations: [{ malId: 909, relation: "Sequel", title: "Related" }],
+        score: undefined,
+        startDate: undefined,
+        status: undefined,
+        studios: [],
+        synopsis: undefined,
+        title: {},
+        titleVariants: [],
+      }),
+      metadata: makeMetadata(1006, {
+        malId: 606,
+      }),
+      resolveAniListIdFromMalIdError: ExternalCallError.make({
+        cause: new Error("manami resolveAniListIdFromMalId failed"),
+        message: "Manami AniList id resolve failed",
+        operation: "ManamiClient.resolveAniListIdFromMalId",
+      }),
+      onRefresh: () => {
+        refreshCount += 1;
+      },
+    });
 
-    assert.deepStrictEqual(error._tag, "ExternalCallError");
-    if (error._tag === "ExternalCallError") {
-      assert.deepStrictEqual(error.operation, "ManamiClient.resolveAniListIdFromMalId");
-    }
-  }).pipe(Effect.provide(providerLayer));
-});
+    return Effect.gen(function* () {
+      const service = yield* AnimeMetadataProviderService;
+      const result = yield* service.getAnimeMetadataById(1006);
+
+      assert.deepStrictEqual(result._tag, "Found");
+      if (result._tag === "Found") {
+        assert.deepStrictEqual(result.enrichment._tag, "Degraded");
+        if (result.enrichment._tag === "Degraded") {
+          assert.deepStrictEqual(result.enrichment.reason, {
+            _tag: "AniDbRefreshPending",
+            cacheState: "missing",
+          });
+        }
+        // related media IDs should not be resolved when Manami is down
+        assert.deepStrictEqual(result.metadata.relatedMedia?.length ?? 0, 0);
+      }
+
+      assert.deepStrictEqual(refreshCount, 1);
+    }).pipe(Effect.provide(providerLayer));
+  },
+);
 
 function makeProviderLayer(input: {
   readonly cacheState:

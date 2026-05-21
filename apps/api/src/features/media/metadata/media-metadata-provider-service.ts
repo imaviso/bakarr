@@ -93,10 +93,17 @@ export const AnimeMetadataProviderServiceLive = Layer.effect(
           } as const satisfies AnimeMetadataLookupResult;
         }
 
-        const manamiMetadata = yield* manami.getByAniListId(baseMetadata.id);
+        const manamiMetadata = yield* optionalManamiLookup(manami.getByAniListId(baseMetadata.id), {
+          mediaId: baseMetadata.id,
+          lookup: "getByAniListId",
+        });
+
         const effectiveMalId =
           baseMetadata.malId === undefined
-            ? yield* manami.resolveMalIdFromAniListId(baseMetadata.id)
+            ? yield* optionalManamiLookup(manami.resolveMalIdFromAniListId(baseMetadata.id), {
+                mediaId: baseMetadata.id,
+                lookup: "resolveMalIdFromAniListId",
+              })
             : Option.some(baseMetadata.malId);
 
         if (baseMetadata.malId === undefined && Option.isSome(effectiveMalId)) {
@@ -247,9 +254,10 @@ const resolveMalToAniListIdMap = Effect.fn("AnimeMetadataProviderService.resolve
     const pairs = yield* Effect.forEach(
       uniqueMalIds,
       (malId) =>
-        manami
-          .resolveAniListIdFromMalId(malId)
-          .pipe(Effect.map((mediaId) => [malId, mediaId] as const)),
+        optionalManamiLookup(manami.resolveAniListIdFromMalId(malId), {
+          malId,
+          lookup: "resolveAniListIdFromMalId",
+        }).pipe(Effect.map((mediaId) => [malId, mediaId] as const)),
       { concurrency: 4 },
     );
 
@@ -264,3 +272,28 @@ const resolveMalToAniListIdMap = Effect.fn("AnimeMetadataProviderService.resolve
     return output.size > 0 ? output : undefined;
   },
 );
+
+function optionalManamiLookup<A>(
+  effect: Effect.Effect<Option.Option<A>, ExternalCallError>,
+  annotations: ManamiLookupAnnotations,
+): Effect.Effect<Option.Option<A>> {
+  return effect.pipe(
+    Effect.catchAll((error) =>
+      Effect.logWarning("Manami lookup degraded").pipe(
+        Effect.annotateLogs({
+          ...annotations,
+          error: error.message,
+          operation: error.operation,
+          provider: "Manami",
+        }),
+        Effect.as(Option.none<A>()),
+      ),
+    ),
+  );
+}
+
+interface ManamiLookupAnnotations {
+  readonly lookup: string;
+  readonly malId?: number;
+  readonly mediaId?: number;
+}

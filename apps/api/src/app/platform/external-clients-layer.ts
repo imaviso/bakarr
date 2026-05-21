@@ -3,7 +3,11 @@ import { Layer } from "effect";
 import { AniListClientLive, type AniListClient } from "@/features/media/metadata/anilist.ts";
 import { AniDbClientLive, type AniDbClient } from "@/features/media/metadata/anidb.ts";
 import { JikanClientLive, type JikanClient } from "@/features/media/metadata/jikan.ts";
-import { ManamiClientLive, type ManamiClient } from "@/features/media/metadata/manami.ts";
+import {
+  ManamiClientLive,
+  type ManamiCacheRefreshClient,
+  type ManamiClient,
+} from "@/features/media/metadata/manami.ts";
 import {
   QBitTorrentClientLive,
   type QBitTorrentClient,
@@ -17,7 +21,7 @@ export interface AppExternalClientLayerOptions {
   readonly aniDbLayer?: Layer.Layer<AniDbClient>;
   readonly aniListLayer?: Layer.Layer<AniListClient>;
   readonly jikanLayer?: Layer.Layer<JikanClient>;
-  readonly manamiLayer?: Layer.Layer<ManamiClient>;
+  readonly manamiLayer?: Layer.Layer<ManamiClient | ManamiCacheRefreshClient>;
   readonly qbitLayer?: Layer.Layer<QBitTorrentClient>;
   readonly rssLayer?: Layer.Layer<RssClient>;
   readonly seadexLayer?: Layer.Layer<SeaDexClient>;

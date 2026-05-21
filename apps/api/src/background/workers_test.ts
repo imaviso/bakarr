@@ -99,6 +99,7 @@ it("build background schedule enables RSS and library loops", () => {
   assert.deepStrictEqual(schedule.downloadSyncMs, 5_000);
   assert.deepStrictEqual(schedule.rssCheckMs, 30 * 60 * 1000);
   assert.deepStrictEqual(schedule.libraryScanMs, 12 * 60 * 60 * 1000);
+  assert.deepStrictEqual(schedule.manamiRefreshMs, 24 * 60 * 60 * 1000);
   assert.deepStrictEqual(schedule.metadataRefreshMs, 24 * 60 * 60 * 1000);
 });
 
@@ -118,6 +119,7 @@ it("build background schedule disables loops when config disables them", () => {
   assert.deepStrictEqual(schedule.initialDelayMs, 5_000);
   assert.deepStrictEqual(schedule.rssCheckMs, null);
   assert.deepStrictEqual(schedule.libraryScanMs, null);
+  assert.deepStrictEqual(schedule.manamiRefreshMs, null);
   assert.deepStrictEqual(schedule.metadataRefreshMs, null);
 });
 

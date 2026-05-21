@@ -125,6 +125,7 @@ export function makeBackgroundWorkerSpawner(input: {
     > = {
       download_sync: taskRunner.runDownloadSyncWorkerTask,
       library_scan: taskRunner.runLibraryScanWorkerTask,
+      manami_refresh: taskRunner.runManamiRefreshWorkerTask,
       metadata_refresh: taskRunner.runMetadataRefreshWorkerTask,
       rss: taskRunner.runRssWorkerTask,
     };

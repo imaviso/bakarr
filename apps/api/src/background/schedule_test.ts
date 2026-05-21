@@ -23,6 +23,7 @@ it("buildBackgroundSchedule converts enabled intervals to milliseconds", () => {
   assert.deepStrictEqual(schedule.downloadSyncMs, 5_000);
   assert.deepStrictEqual(schedule.rssCheckMs, 600_000);
   assert.deepStrictEqual(schedule.libraryScanMs, 7_200_000);
+  assert.deepStrictEqual(schedule.manamiRefreshMs, 86_400_000);
   assert.deepStrictEqual(schedule.metadataRefreshMs, 21_600_000);
 });
 
@@ -36,6 +37,7 @@ it("buildBackgroundSchedule disables scheduler-bound workers when scheduler is d
 
   assert.deepStrictEqual(schedule.rssCheckMs, null);
   assert.deepStrictEqual(schedule.rssCronExpression, null);
+  assert.deepStrictEqual(schedule.manamiRefreshMs, null);
   assert.deepStrictEqual(schedule.metadataRefreshMs, null);
 });
 
@@ -60,4 +62,8 @@ it("resolveBackgroundWorkerLoopPlan resolves interval, cron, and disabled worker
     initialDelayMs: 5_000,
   });
   assert.deepStrictEqual(resolveBackgroundWorkerLoopPlan(schedule, "library_scan"), null);
+  assert.deepStrictEqual(resolveBackgroundWorkerLoopPlan(schedule, "manami_refresh"), {
+    initialDelayMs: 5_000,
+    intervalMs: 86_400_000,
+  });
 });

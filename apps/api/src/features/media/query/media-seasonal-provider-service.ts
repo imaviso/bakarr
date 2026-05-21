@@ -120,9 +120,19 @@ export const AnimeSeasonalProviderServiceLive = Layer.effect(
         });
 
         const mappedEntries = yield* Effect.forEach(jikanEntries, (entry) =>
-          manami
-            .resolveAniListIdFromMalId(entry.malId)
-            .pipe(Effect.map((anilistIdOption) => [entry, anilistIdOption] as const)),
+          manami.resolveAniListIdFromMalId(entry.malId).pipe(
+            Effect.catchAll((error) =>
+              Effect.logWarning("Manami seasonal mapping degraded").pipe(
+                Effect.annotateLogs({
+                  malId: entry.malId,
+                  operation: error.operation,
+                  provider: "Manami",
+                }),
+                Effect.as(Option.none<number>()),
+              ),
+            ),
+            Effect.map((anilistIdOption) => [entry, anilistIdOption] as const),
+          ),
         );
 
         const results: Array<MediaSearchResult> = [];

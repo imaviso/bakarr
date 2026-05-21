@@ -9,6 +9,7 @@ import {
   MANAMI_CACHE_META_FILE,
   MANAMI_CACHE_REFRESH_INTERVAL_MS,
   MANAMI_CACHE_SQLITE_FILE,
+  ManamiCacheRefreshClient,
   ManamiClient,
   ManamiClientLive,
 } from "@/features/media/metadata/manami.ts";
@@ -62,8 +63,8 @@ it.scoped("ManamiClient maps non-2xx response as ExternalCallError with response
         root,
       });
 
-      const result = yield* Effect.flatMap(ManamiClient, (client) =>
-        client.getByAniListId(1001),
+      const result = yield* Effect.flatMap(ManamiCacheRefreshClient, (client) =>
+        client.refreshCacheIfNeeded(),
       ).pipe(Effect.provide(clientLayer), Effect.either);
 
       assert.ok(Either.isLeft(result));
@@ -100,8 +101,8 @@ it.scoped("ManamiClient maps decode failures as ExternalCallError with json oper
         root,
       });
 
-      const result = yield* Effect.flatMap(ManamiClient, (client) =>
-        client.getByAniListId(1001),
+      const result = yield* Effect.flatMap(ManamiCacheRefreshClient, (client) =>
+        client.refreshCacheIfNeeded(),
       ).pipe(Effect.provide(clientLayer), Effect.either);
 
       assert.ok(Either.isLeft(result));
@@ -111,7 +112,7 @@ it.scoped("ManamiClient maps decode failures as ExternalCallError with json oper
   ),
 );
 
-it.scoped("ManamiClient downloads once and serves sqlite lookups", () =>
+it.scoped("ManamiClient lookup does not download missing cache", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       let requestCount = 0;
@@ -130,21 +131,56 @@ it.scoped("ManamiClient downloads once and serves sqlite lookups", () =>
       });
 
       const result = yield* Effect.flatMap(ManamiClient, (client) =>
-        Effect.gen(function* () {
-          const concurrent = yield* Effect.all(
-            [
-              client.getByAniListId(1001),
-              client.getByMalId(3003),
-              client.resolveMalIdFromAniListId(1003),
-              client.resolveAniListIdFromMalId(3001),
-            ],
-            { concurrency: "unbounded" },
-          );
-          const secondLookup = yield* client.getByAniListId(1003);
+        client.getByAniListId(1001),
+      ).pipe(Effect.provide(clientLayer), Effect.either);
 
-          return { concurrent, secondLookup } as const;
-        }),
-      ).pipe(Effect.provide(clientLayer));
+      assert.ok(Either.isLeft(result));
+      assert.ok(result.left instanceof ExternalCallError);
+      assert.deepStrictEqual(result.left.operation, "manami.sqlite.lookup.by_anilist");
+      assert.deepStrictEqual(requestCount, 0);
+    }),
+  ),
+);
+
+it.scoped("ManamiClient refreshes once and serves sqlite lookups", () =>
+  withFileSystemSandboxEffect(({ fs, root }) =>
+    Effect.gen(function* () {
+      let requestCount = 0;
+      const clientLayer = makeManamiClientLayer({
+        fs,
+        httpClient: HttpClient.make((request) =>
+          Effect.sync(() => {
+            requestCount += 1;
+            return HttpClientResponse.fromWeb(
+              request,
+              Response.json(SYNTHETIC_DATASET, { status: 200 }),
+            );
+          }),
+        ),
+        root,
+      });
+
+      const result = yield* Effect.gen(function* () {
+        const client = yield* ManamiClient;
+        const refreshClient = yield* ManamiCacheRefreshClient;
+
+        yield* Effect.all(
+          [refreshClient.refreshCacheIfNeeded(), refreshClient.refreshCacheIfNeeded()],
+          { concurrency: "unbounded" },
+        );
+        const concurrent = yield* Effect.all(
+          [
+            client.getByAniListId(1001),
+            client.getByMalId(3003),
+            client.resolveMalIdFromAniListId(1003),
+            client.resolveAniListIdFromMalId(3001),
+          ],
+          { concurrency: "unbounded" },
+        );
+        const secondLookup = yield* client.getByAniListId(1003);
+
+        return { concurrent, secondLookup } as const;
+      }).pipe(Effect.provide(clientLayer));
 
       const [byAniList, byMal, malFromAniList, aniListFromMal] = result.concurrent;
 
@@ -184,9 +220,13 @@ it.scoped("ManamiClient searches cached titles and synonyms", () =>
         root,
       });
 
-      const results = yield* Effect.flatMap(ManamiClient, (client) =>
-        client.searchAnime("Alpha Alias", 10),
-      ).pipe(Effect.provide(clientLayer));
+      const results = yield* Effect.gen(function* () {
+        const client = yield* ManamiClient;
+        const refreshClient = yield* ManamiCacheRefreshClient;
+
+        yield* refreshClient.refreshCacheIfNeeded();
+        return yield* client.searchAnime("Alpha Alias", 10);
+      }).pipe(Effect.provide(clientLayer));
 
       assert.deepStrictEqual(
         results.map((result) => result.id),
@@ -220,9 +260,13 @@ it.scoped("ManamiClient reuses sqlite cache across layer restarts", () =>
         root,
       });
 
-      const firstResult = yield* Effect.flatMap(ManamiClient, (client) =>
-        client.getByAniListId(1001),
-      ).pipe(Effect.provide(initialLayer));
+      const firstResult = yield* Effect.gen(function* () {
+        const client = yield* ManamiClient;
+        const refreshClient = yield* ManamiCacheRefreshClient;
+
+        yield* refreshClient.refreshCacheIfNeeded();
+        return yield* client.getByAniListId(1001);
+      }).pipe(Effect.provide(initialLayer));
 
       let secondRunRequests = 0;
       const restartedLayer = makeManamiClientLayer({
@@ -287,9 +331,13 @@ it.scoped("ManamiClient rebuilds invalid sqlite cache from local dataset", () =>
         root,
       });
 
-      const result = yield* Effect.flatMap(ManamiClient, (client) =>
-        client.getByAniListId(1001),
-      ).pipe(Effect.provide(clientLayer));
+      const result = yield* Effect.gen(function* () {
+        const client = yield* ManamiClient;
+        const refreshClient = yield* ManamiCacheRefreshClient;
+
+        yield* refreshClient.refreshCacheIfNeeded();
+        return yield* client.getByAniListId(1001);
+      }).pipe(Effect.provide(clientLayer));
 
       assert.deepStrictEqual(result.pipe(Option.map((entry) => entry.title)), Option.some("Alpha"));
       assert.deepStrictEqual(requestCount, 0);
@@ -315,8 +363,12 @@ it.scoped("ManamiClient fills duplicate cross-id links while keeping first title
         root,
       });
 
-      const result = yield* Effect.flatMap(ManamiClient, (client) =>
-        Effect.all(
+      const result = yield* Effect.gen(function* () {
+        const client = yield* ManamiClient;
+        const refreshClient = yield* ManamiCacheRefreshClient;
+
+        yield* refreshClient.refreshCacheIfNeeded();
+        return yield* Effect.all(
           [
             client.resolveMalIdFromAniListId(5001),
             client.resolveAniListIdFromMalId(9002),
@@ -324,8 +376,8 @@ it.scoped("ManamiClient fills duplicate cross-id links while keeping first title
             client.getByMalId(9002),
           ],
           { concurrency: "unbounded" },
-        ),
-      ).pipe(Effect.provide(clientLayer));
+        );
+      }).pipe(Effect.provide(clientLayer));
 
       const [malFromAniList, aniListFromMal, firstMalLookup, secondMalLookup] = result;
 
@@ -382,9 +434,13 @@ it.scoped("ManamiClient refreshes stale sqlite cache", () =>
         root,
       });
 
-      const result = yield* Effect.flatMap(ManamiClient, (client) =>
-        client.getByAniListId(1001),
-      ).pipe(Effect.provide(clientLayer));
+      const result = yield* Effect.gen(function* () {
+        const client = yield* ManamiClient;
+        const refreshClient = yield* ManamiCacheRefreshClient;
+
+        yield* refreshClient.refreshCacheIfNeeded();
+        return yield* client.getByAniListId(1001);
+      }).pipe(Effect.provide(clientLayer));
 
       assert.deepStrictEqual(result.pipe(Option.map((entry) => entry.title)), Option.some("Alpha"));
       assert.deepStrictEqual(requestCount, 1);

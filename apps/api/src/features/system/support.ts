@@ -149,6 +149,12 @@ function describeJobSchedule(config: Config, name: string) {
     return { mode: "disabled" as const, value: undefined };
   }
 
+  if (name === "manami_refresh") {
+    return config.scheduler.enabled
+      ? { mode: "interval" as const, value: "24h" }
+      : { mode: "disabled" as const, value: undefined };
+  }
+
   if (name === "unmapped_scan") {
     return { mode: "manual" as const, value: undefined };
   }

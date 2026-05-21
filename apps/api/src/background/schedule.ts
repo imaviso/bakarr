@@ -5,6 +5,7 @@ import type { Config } from "@packages/shared/index.ts";
 import type { BackgroundWorkerName } from "@/background/worker-model.ts";
 
 const DEFAULT_DOWNLOAD_SYNC_MS = 5_000;
+const DEFAULT_MANAMI_REFRESH_MS = 24 * 60 * 60 * 1000;
 
 export type BackgroundWorkerLoopPlan =
   | {
@@ -20,6 +21,7 @@ export class BackgroundSchedule extends Schema.Class<BackgroundSchedule>("Backgr
   downloadSyncMs: Schema.Number,
   initialDelayMs: Schema.Number,
   libraryScanMs: Schema.NullOr(Schema.Number),
+  manamiRefreshMs: Schema.NullOr(Schema.Number),
   metadataRefreshMs: Schema.NullOr(Schema.Number),
   rssCheckMs: Schema.NullOr(Schema.Number),
   rssCronExpression: Schema.NullOr(Schema.String),
@@ -43,6 +45,7 @@ export function buildBackgroundSchedule(config: Config): BackgroundSchedule {
     initialDelayMs: Math.max(config.scheduler.check_delay_seconds, 0) * 1000,
     downloadSyncMs: DEFAULT_DOWNLOAD_SYNC_MS,
     libraryScanMs,
+    manamiRefreshMs: config.scheduler.enabled ? DEFAULT_MANAMI_REFRESH_MS : null,
     metadataRefreshMs,
     rssCronExpression,
     rssCheckMs,
@@ -106,6 +109,13 @@ export function resolveBackgroundWorkerLoopPlan(
         : {
             initialDelayMs: schedule.initialDelayMs,
             intervalMs: schedule.metadataRefreshMs,
+          };
+    case "manami_refresh":
+      return schedule.manamiRefreshMs === null
+        ? null
+        : {
+            initialDelayMs: schedule.initialDelayMs,
+            intervalMs: schedule.manamiRefreshMs,
           };
   }
 

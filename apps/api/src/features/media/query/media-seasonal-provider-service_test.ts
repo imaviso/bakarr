@@ -468,7 +468,7 @@ describe("AnimeSeasonalProviderService", () => {
     }).pipe(Effect.provide(providerLayer));
   });
 
-  it.effect("bubbles manami resolve failure during jikan fallback", () => {
+  it.effect("drops jikan entries when manami mapping fails during fallback", () => {
     const providerLayer = AnimeSeasonalProviderServiceLive.pipe(
       Layer.provideMerge(
         Layer.mergeAll(
@@ -513,14 +513,16 @@ describe("AnimeSeasonalProviderService", () => {
 
     return Effect.gen(function* () {
       const service = yield* AnimeSeasonalProviderService;
-      const error = yield* service
-        .getSeasonalAnime({ limit: 10, page: 1, season: "spring", year: 2025 })
-        .pipe(Effect.flip);
+      const result = yield* service.getSeasonalAnime({
+        limit: 10,
+        page: 1,
+        season: "spring",
+        year: 2025,
+      });
 
-      assert.deepStrictEqual(error._tag, "ExternalCallError");
-      if (error._tag === "ExternalCallError") {
-        assert.deepStrictEqual(error.operation, "manami.resolveAniListIdFromMalId");
-      }
+      assert.deepStrictEqual(result.provider, "jikan_fallback");
+      assert.deepStrictEqual(result.degraded, true);
+      assert.deepStrictEqual(result.results, []);
     }).pipe(Effect.provide(providerLayer));
   });
 });

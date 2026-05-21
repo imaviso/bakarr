@@ -22,7 +22,7 @@ import { createHttpApp } from "./src/http/http-app.ts";
 import { commandArgs, commandName } from "./src/test/stubs.ts";
 import { AniListClient } from "./src/features/media/metadata/anilist.ts";
 import { JikanClient } from "./src/features/media/metadata/jikan.ts";
-import { ManamiClient } from "./src/features/media/metadata/manami.ts";
+import { ManamiCacheRefreshClient, ManamiClient } from "./src/features/media/metadata/manami.ts";
 import {
   mapQBitState,
   type QBitTorrent,
@@ -41,7 +41,7 @@ declare global {
 
 type TestContextOptions = {
   readonly jikanLayer?: Layer.Layer<JikanClient>;
-  readonly manamiLayer?: Layer.Layer<ManamiClient>;
+  readonly manamiLayer?: Layer.Layer<ManamiCacheRefreshClient | ManamiClient>;
   readonly metricsRequireAuth?: boolean;
   readonly qbitLayer?: Layer.Layer<QBitTorrentClient>;
   readonly rssLayer?: Layer.Layer<RssClient>;
@@ -4805,17 +4805,22 @@ const testJikanLayer = Layer.succeed(JikanClient, {
   getSeasonalAnime: () => Effect.succeed([]),
 });
 
-const testManamiLayer = Layer.succeed(ManamiClient, {
-  getByAniListId: () => Effect.succeed(Option.none()),
-  getByMalId: () => Effect.succeed(Option.none()),
-  resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
-  resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-  searchAnime: () => Effect.succeed([]),
-});
+const testManamiLayer = Layer.mergeAll(
+  Layer.succeed(ManamiClient, {
+    getByAniListId: () => Effect.succeed(Option.none()),
+    getByMalId: () => Effect.succeed(Option.none()),
+    resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
+    resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
+    searchAnime: () => Effect.succeed([]),
+  }),
+  Layer.succeed(ManamiCacheRefreshClient, {
+    refreshCacheIfNeeded: () => Effect.succeed(false),
+  }),
+);
 
 async function createTestContext(options?: {
   jikanLayer?: Layer.Layer<JikanClient>;
-  manamiLayer?: Layer.Layer<ManamiClient>;
+  manamiLayer?: Layer.Layer<ManamiCacheRefreshClient | ManamiClient>;
   metricsRequireAuth?: boolean;
   qbitLayer?: Layer.Layer<QBitTorrentClient>;
   rssLayer?: Layer.Layer<RssClient>;

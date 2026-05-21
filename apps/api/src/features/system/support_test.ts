@@ -16,6 +16,7 @@ it("system support normalizes levels and deduplicates job names", () => {
     "custom",
     "download_sync",
     "library_scan",
+    "manami_refresh",
     "metadata_refresh",
     "rss",
     "unmapped_scan",
@@ -36,6 +37,10 @@ it("system support derives background job schedule modes", () => {
   );
   assert.deepStrictEqual(
     toBackgroundJobStatus(config, undefined, "metadata_refresh").schedule_value,
+    "24h",
+  );
+  assert.deepStrictEqual(
+    toBackgroundJobStatus(config, undefined, "manami_refresh").schedule_value,
     "24h",
   );
   assert.deepStrictEqual(
@@ -68,6 +73,10 @@ it("system support derives background job schedule modes", () => {
   );
   assert.deepStrictEqual(
     toBackgroundJobStatus(disabledConfig, undefined, "metadata_refresh").schedule_mode,
+    "disabled",
+  );
+  assert.deepStrictEqual(
+    toBackgroundJobStatus(disabledConfig, undefined, "manami_refresh").schedule_mode,
     "disabled",
   );
 });
