@@ -1,6 +1,8 @@
 import { Effect } from "effect";
+import { and, eq, isNotNull } from "drizzle-orm";
 
 import type { AppDatabase } from "@/db/database.ts";
+import { mediaUnits } from "@/db/schema.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import type { MediaProbeShape } from "@/infra/media/probe.ts";
 import {
@@ -22,8 +24,12 @@ import { buildScannedFileMetadata } from "@/infra/scanned-file-metadata.ts";
 import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
 import { buildAiringScheduleMap } from "@/features/media/units/media-schedule-repository.ts";
 import { inferAiredAt } from "@/domain/media/derivations.ts";
-import { upsertEpisodeEffect } from "@/features/media/units/media-unit-repository.ts";
+import {
+  clearEpisodeMappingEffect,
+  upsertEpisodeEffect,
+} from "@/features/media/units/media-unit-repository.ts";
 import { MediaPathError } from "@/features/media/errors.ts";
+import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 export const scanAnimeFolderEffect = Effect.fn("AnimeFileScan.scanAnimeFolderEffect")(
   function* (input: {
@@ -44,6 +50,12 @@ export const scanAnimeFolderEffect = Effect.fn("AnimeFileScan.scanAnimeFolderEff
             message: "Media root folder does not exist or is inaccessible",
           }),
       ),
+    );
+
+    yield* clearMissingEpisodeFileMappingsEffect(
+      input.db,
+      input.mediaId,
+      files.map((file) => file.path),
     );
 
     let found = 0;
@@ -143,3 +155,21 @@ export const scanAnimeFolderEffect = Effect.fn("AnimeFileScan.scanAnimeFolderEff
     };
   },
 );
+
+const clearMissingEpisodeFileMappingsEffect = Effect.fn(
+  "AnimeFileScan.clearMissingEpisodeFileMappingsEffect",
+)(function* (db: AppDatabase, mediaId: number, presentFilePaths: readonly string[]) {
+  const presentFilePathSet = new Set(presentFilePaths);
+  const mappedRows = yield* tryDatabasePromise("Failed to list mapped episode files", () =>
+    db
+      .select({ filePath: mediaUnits.filePath, number: mediaUnits.number })
+      .from(mediaUnits)
+      .where(and(eq(mediaUnits.mediaId, mediaId), isNotNull(mediaUnits.filePath))),
+  );
+
+  for (const row of mappedRows) {
+    if (row.filePath !== null && !presentFilePathSet.has(row.filePath)) {
+      yield* clearEpisodeMappingEffect(db, mediaId, row.number);
+    }
+  }
+});

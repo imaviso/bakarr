@@ -1075,6 +1075,68 @@ itWithTestContext("system library scan task maps files across anime roots", asyn
   });
 });
 
+itWithTestContext("anime folder scan clears mappings for deleted files", async (ctx) => {
+  const { sessionCookie } = await loginAsBootstrapAdmin(ctx);
+
+  await withTempDir(async (rootFolder) => {
+    const addResponse = await ctx.app.request("/api/media", {
+      body: JSON.stringify({
+        id: 20,
+        monitor_and_search: false,
+        monitored: true,
+        profile_name: "Default",
+        release_profile_ids: [],
+        root_folder: rootFolder,
+      }),
+      headers: {
+        Cookie: sessionCookie,
+        "Content-Type": "application/json",
+      },
+      method: "POST",
+    });
+    assert.deepStrictEqual(addResponse["status"], 200);
+
+    const filePath = `${rootFolder}/Naruto - 001.mkv`;
+    await writeTextFile(filePath, "video");
+
+    const firstScanResponse = await ctx.app.request("/api/media/20/units/scan", {
+      headers: { Cookie: sessionCookie },
+      method: "POST",
+    });
+    const firstScan = await expectAcceptedTaskResponse(firstScanResponse);
+    await waitForAnimeScanTask({
+      animeId: 20,
+      ctx,
+      sessionCookie,
+      taskId: firstScan.task_id,
+    });
+
+    await removePath(filePath);
+
+    const secondScanResponse = await ctx.app.request("/api/media/20/units/scan", {
+      headers: { Cookie: sessionCookie },
+      method: "POST",
+    });
+    const secondScan = await expectAcceptedTaskResponse(secondScanResponse);
+    await waitForAnimeScanTask({
+      animeId: 20,
+      ctx,
+      sessionCookie,
+      taskId: secondScan.task_id,
+    });
+
+    const episodesResponse = await ctx.app.request("/api/media/20/units", {
+      headers: { Cookie: sessionCookie },
+    });
+    assert.deepStrictEqual(episodesResponse["status"], 200);
+    const episodes = await episodesResponse.json();
+    const episodeOne = episodes.find((episode: { number: number }) => episode.number === 1);
+    assert.ok(episodeOne);
+    assert.deepStrictEqual(episodeOne.downloaded, false);
+    assert.deepStrictEqual(episodeOne.file_path, undefined);
+  });
+});
+
 itWithTestContext("system health, log export, log clear, and image fallbacks work", async (ctx) => {
   const liveResponse = await ctx.app.request("/api/system/health/live");
   assert.deepStrictEqual(liveResponse["status"], 200);
