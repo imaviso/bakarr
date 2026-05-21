@@ -74,21 +74,27 @@ function scanImportPathEffect(
             Layer.succeed(MediaProbe, {
               probeVideoFile: () => Effect.dieMessage("not used in test"),
             }),
-            Layer.succeed(MediaReadRepository, {
-              findAnimeRootFolderOwner: () => Effect.dieMessage("not used in test"),
-              getAnimeRow: () => Effect.dieMessage("not used in test"),
-              getEpisodeRow: () => Effect.dieMessage("not used in test"),
-              loadCurrentEpisodeState: () => Effect.dieMessage("not used in test"),
-              requireAnimeExists: () => Effect.dieMessage("not used in test"),
-            }),
-            Layer.succeed(OperationsConfigRepository, {
-              currentImportMode: () => Effect.dieMessage("not used in test"),
-              currentNamingSettings: () => Effect.dieMessage("not used in test"),
-              getConfigLibraryPath: () => Effect.dieMessage("not used in test"),
-              getConfigLibraryRoots: () => Effect.dieMessage("not used in test"),
-              listLibraryRoots: () => Effect.dieMessage("not used in test"),
-              loadRuntimeConfig: () => Effect.dieMessage("not used in test"),
-            }),
+            Layer.succeed(
+              MediaReadRepository,
+              MediaReadRepository.make({
+                findAnimeRootFolderOwner: () => Effect.dieMessage("not used in test"),
+                getAnimeRow: () => Effect.dieMessage("not used in test"),
+                getEpisodeRow: () => Effect.dieMessage("not used in test"),
+                loadCurrentEpisodeState: () => Effect.dieMessage("not used in test"),
+                requireAnimeExists: () => Effect.dieMessage("not used in test"),
+              }),
+            ),
+            Layer.succeed(
+              OperationsConfigRepository,
+              OperationsConfigRepository.make({
+                currentImportMode: () => Effect.dieMessage("not used in test"),
+                currentNamingSettings: () => Effect.dieMessage("not used in test"),
+                getConfigLibraryPath: () => Effect.dieMessage("not used in test"),
+                getConfigLibraryRoots: () => Effect.dieMessage("not used in test"),
+                listLibraryRoots: () => Effect.dieMessage("not used in test"),
+                loadRuntimeConfig: () => Effect.dieMessage("not used in test"),
+              }),
+            ),
             Layer.succeed(
               RuntimeConfigSnapshotService,
               makeRuntimeConfigSnapshotStub(

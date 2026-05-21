@@ -12,8 +12,8 @@ import {
   SystemConfigService,
   SystemConfigServiceLive,
 } from "@/features/system/system-config-service.ts";
-import { QualityProfileRepositoryLive } from "@/features/system/repository/quality-profile-repository.ts";
-import { SystemConfigRepositoryLive } from "@/features/system/repository/system-config-repository.ts";
+import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
+import { SystemConfigRepository } from "@/features/system/repository/system-config-repository.ts";
 
 describe("SystemConfigService", () => {
   it.effect("redactConfigSecrets strips qBittorrent and AniDB passwords for API responses", () =>
@@ -50,7 +50,9 @@ describe("SystemConfigService", () => {
       run: (db, _databaseFile) =>
         Effect.gen(function* () {
           const layer = SystemConfigServiceLive.pipe(
-            Layer.provide(Layer.mergeAll(SystemConfigRepositoryLive, QualityProfileRepositoryLive)),
+            Layer.provide(
+              Layer.mergeAll(SystemConfigRepository.Default, QualityProfileRepository.Default),
+            ),
             Layer.provide(Layer.succeed(Database, makeDatabaseServiceStub(db))),
           );
 

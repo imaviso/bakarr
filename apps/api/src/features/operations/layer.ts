@@ -33,10 +33,10 @@ import { TorrentClientServiceLive } from "@/features/operations/qbittorrent/torr
 import { UnmappedControlServiceLive } from "@/features/operations/unmapped/unmapped-control-service.ts";
 import { UnmappedImportServiceLive } from "@/features/operations/unmapped/unmapped-orchestration-import.ts";
 import { UnmappedScanServiceLive } from "@/features/operations/unmapped/unmapped-scan-service.ts";
-import { MediaReadRepositoryLive } from "@/features/media/shared/media-read-repository.ts";
-import { OperationsConfigRepositoryLive } from "@/features/operations/repository/config-repository.ts";
-import { OperationsProfileRepositoryLive } from "@/features/operations/repository/profile-repository.ts";
-import { SystemUnmappedRepositoryLive } from "@/features/system/repository/unmapped-repository.ts";
+import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { OperationsConfigRepository } from "@/features/operations/repository/config-repository.ts";
+import { OperationsProfileRepository } from "@/features/operations/repository/profile-repository.ts";
+import { SystemUnmappedRepository } from "@/features/system/repository/unmapped-repository.ts";
 
 export function makeOperationsFeatureLayer<ROut, E, RIn>(
   runtimeSupportLayer: Layer.Layer<ROut, E, RIn>,
@@ -47,14 +47,16 @@ export function makeOperationsFeatureLayer<ROut, E, RIn>(
   const operationsTaskWriteLayer = OperationsTaskWriteServiceLive.pipe(
     Layer.provide(runtimeSupportLayer),
   );
-  const mediaReadRepositoryLayer = MediaReadRepositoryLive.pipe(Layer.provide(runtimeSupportLayer));
-  const operationsConfigRepositoryLayer = OperationsConfigRepositoryLive.pipe(
+  const mediaReadRepositoryLayer = MediaReadRepository.Default.pipe(
     Layer.provide(runtimeSupportLayer),
   );
-  const operationsProfileRepositoryLayer = OperationsProfileRepositoryLive.pipe(
+  const operationsConfigRepositoryLayer = OperationsConfigRepository.Default.pipe(
     Layer.provide(runtimeSupportLayer),
   );
-  const systemUnmappedRepositoryLayer = SystemUnmappedRepositoryLive.pipe(
+  const operationsProfileRepositoryLayer = OperationsProfileRepository.Default.pipe(
+    Layer.provide(runtimeSupportLayer),
+  );
+  const systemUnmappedRepositoryLayer = SystemUnmappedRepository.Default.pipe(
     Layer.provide(runtimeSupportLayer),
   );
   const operationsRuntimeLayer = Layer.mergeAll(

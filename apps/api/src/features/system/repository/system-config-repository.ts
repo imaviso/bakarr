@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { Context, Effect, Layer, Option } from "effect";
+import { Effect, Option } from "effect";
 
 import { Database, type AppDatabase, type DatabaseError } from "@/db/database.ts";
 import { appConfig, qualityProfiles } from "@/db/schema.ts";
@@ -26,10 +26,15 @@ export interface SystemConfigRepositoryShape {
   ) => Effect.Effect<void, DatabaseError>;
 }
 
-export class SystemConfigRepository extends Context.Tag("@bakarr/api/SystemConfigRepository")<
-  SystemConfigRepository,
-  SystemConfigRepositoryShape
->() {}
+export class SystemConfigRepository extends Effect.Service<SystemConfigRepository>()(
+  "@bakarr/api/SystemConfigRepository",
+  {
+    effect: Effect.gen(function* () {
+      const { db } = yield* Database;
+      return makeSystemConfigRepositoryShape(db);
+    }),
+  },
+) {}
 
 export const loadSystemConfigRow = Effect.fn("SystemConfigRepository.loadSystemConfigRow")(
   function* (db: AppDatabase) {
@@ -113,8 +118,8 @@ export const ensureBootstrapSystemState = Effect.fn(
   );
 });
 
-export function makeSystemConfigRepository(db: AppDatabase): SystemConfigRepositoryShape {
-  return SystemConfigRepository.of({
+function makeSystemConfigRepositoryShape(db: AppDatabase): SystemConfigRepositoryShape {
+  return {
     ensureBootstrapSystemState: (coreInput, profileRows) =>
       ensureBootstrapSystemState(db, coreInput, profileRows),
     insertSystemConfigRow: (input) => insertSystemConfigRow(db, input),
@@ -122,13 +127,9 @@ export function makeSystemConfigRepository(db: AppDatabase): SystemConfigReposit
     updateSystemConfigAtomic: (coreInput, profileRows) =>
       updateSystemConfigAtomic(db, coreInput, profileRows),
     upsertSystemConfigRow: (input) => upsertSystemConfigRow(db, input),
-  });
+  } satisfies SystemConfigRepositoryShape;
 }
 
-export const SystemConfigRepositoryLive = Layer.effect(
-  SystemConfigRepository,
-  Effect.gen(function* () {
-    const { db } = yield* Database;
-    return makeSystemConfigRepository(db);
-  }),
-);
+export function makeSystemConfigRepository(db: AppDatabase): SystemConfigRepository {
+  return SystemConfigRepository.make(makeSystemConfigRepositoryShape(db));
+}

@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { Context, Effect, Layer, Option } from "effect";
+import { Effect, Option } from "effect";
 
 import { Database, type AppDatabase, type DatabaseError } from "@/db/database.ts";
 import { media, mediaUnits } from "@/db/schema.ts";
@@ -32,29 +32,30 @@ export interface MediaReadRepositoryShape {
   >;
 }
 
-export class MediaReadRepository extends Context.Tag("@bakarr/api/MediaReadRepository")<
-  MediaReadRepository,
-  MediaReadRepositoryShape
->() {}
+export class MediaReadRepository extends Effect.Service<MediaReadRepository>()(
+  "@bakarr/api/MediaReadRepository",
+  {
+    effect: Effect.gen(function* () {
+      const { db } = yield* Database;
+      return makeMediaReadRepositoryShape(db);
+    }),
+  },
+) {}
 
-export function makeMediaReadRepository(db: AppDatabase): MediaReadRepositoryShape {
-  return MediaReadRepository.of({
+function makeMediaReadRepositoryShape(db: AppDatabase): MediaReadRepositoryShape {
+  return {
     findAnimeRootFolderOwner: (rootFolder) => findAnimeRootFolderOwnerEffect(db, rootFolder),
     getAnimeRow: (mediaId) => getAnimeRowEffect(db, mediaId),
     getEpisodeRow: (mediaId, unitNumber) => getEpisodeRowEffect(db, mediaId, unitNumber),
     loadCurrentEpisodeState: (mediaId, unitNumber) =>
       loadCurrentEpisodeStateEffect(db, mediaId, unitNumber),
     requireAnimeExists: (mediaId) => requireAnimeExistsEffect(db, mediaId),
-  });
+  } satisfies MediaReadRepositoryShape;
 }
 
-export const MediaReadRepositoryLive = Layer.effect(
-  MediaReadRepository,
-  Effect.gen(function* () {
-    const { db } = yield* Database;
-    return makeMediaReadRepository(db);
-  }),
-);
+export function makeMediaReadRepository(db: AppDatabase): MediaReadRepository {
+  return MediaReadRepository.make(makeMediaReadRepositoryShape(db));
+}
 
 const getAnimeRowEffect = Effect.fn("AnimeRepository.getAnimeRow")(function* (
   db: AppDatabase,

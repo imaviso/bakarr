@@ -23,10 +23,10 @@ import {
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import {
   loadSystemConfigRow,
-  SystemConfigRepositoryLive,
+  SystemConfigRepository,
 } from "@/features/system/repository/system-config-repository.ts";
-import { QualityProfileRepositoryLive } from "@/features/system/repository/quality-profile-repository.ts";
-import { SystemLogRepositoryLive } from "@/features/system/repository/log-repository.ts";
+import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
+import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 
 describe("SystemConfigUpdateService", () => {
@@ -223,9 +223,9 @@ function makeSystemConfigUpdateTestLayer(input: {
     Layer.provide(
       Layer.mergeAll(
         baseLayer,
-        QualityProfileRepositoryLive.pipe(Layer.provide(baseLayer)),
-        SystemConfigRepositoryLive.pipe(Layer.provide(baseLayer)),
-        SystemLogRepositoryLive.pipe(Layer.provide(baseLayer)),
+        QualityProfileRepository.Default.pipe(Layer.provide(baseLayer)),
+        SystemConfigRepository.Default.pipe(Layer.provide(baseLayer)),
+        SystemLogRepository.Default.pipe(Layer.provide(baseLayer)),
       ),
     ),
   );

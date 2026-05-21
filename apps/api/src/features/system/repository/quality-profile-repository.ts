@@ -1,5 +1,5 @@
 import { count, eq } from "drizzle-orm";
-import { Context, Effect, Layer } from "effect";
+import { Effect } from "effect";
 
 import { Database, type AppDatabase, type DatabaseError } from "@/db/database.ts";
 import { media, qualityProfiles } from "@/db/schema.ts";
@@ -35,10 +35,15 @@ export interface QualityProfileRepositoryShape {
   ) => Effect.Effect<void, DatabaseError>;
 }
 
-export class QualityProfileRepository extends Context.Tag("@bakarr/api/QualityProfileRepository")<
-  QualityProfileRepository,
-  QualityProfileRepositoryShape
->() {}
+export class QualityProfileRepository extends Effect.Service<QualityProfileRepository>()(
+  "@bakarr/api/QualityProfileRepository",
+  {
+    effect: Effect.gen(function* () {
+      const { db } = yield* Database;
+      return makeQualityProfileRepositoryShape(db);
+    }),
+  },
+) {}
 
 export const loadAnyQualityProfileRow = Effect.fn(
   "QualityProfileRepository.loadAnyQualityProfileRow",
@@ -127,8 +132,8 @@ export const deleteQualityProfileRow = Effect.fn(
   );
 });
 
-export function makeQualityProfileRepository(db: AppDatabase): QualityProfileRepositoryShape {
-  return QualityProfileRepository.of({
+function makeQualityProfileRepositoryShape(db: AppDatabase): QualityProfileRepositoryShape {
+  return {
     countAnimeUsingProfile: (profileName) => countAnimeUsingProfile(db, profileName),
     deleteQualityProfileRow: (name) => deleteQualityProfileRow(db, name),
     insertQualityProfileRow: (row) => insertQualityProfileRow(db, row),
@@ -139,13 +144,9 @@ export function makeQualityProfileRepository(db: AppDatabase): QualityProfileRep
     renameQualityProfileWithCascade: (oldName, row) =>
       renameQualityProfileWithCascade(db, oldName, row),
     updateQualityProfileRow: (name, row) => updateQualityProfileRow(db, name, row),
-  });
+  } satisfies QualityProfileRepositoryShape;
 }
 
-export const QualityProfileRepositoryLive = Layer.effect(
-  QualityProfileRepository,
-  Effect.gen(function* () {
-    const { db } = yield* Database;
-    return makeQualityProfileRepository(db);
-  }),
-);
+export function makeQualityProfileRepository(db: AppDatabase): QualityProfileRepository {
+  return QualityProfileRepository.make(makeQualityProfileRepositoryShape(db));
+}

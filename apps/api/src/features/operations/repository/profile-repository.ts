@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { Context, Effect, Layer, Option } from "effect";
+import { Effect, Option } from "effect";
 
 import type { QualityProfile, ReleaseProfileRule } from "@packages/shared/index.ts";
 import { Database, DatabaseError, type AppDatabase } from "@/db/database.ts";
@@ -18,9 +18,15 @@ export interface OperationsProfileRepositoryShape {
   }) => ReturnType<typeof loadReleaseRules>;
 }
 
-export class OperationsProfileRepository extends Context.Tag(
+export class OperationsProfileRepository extends Effect.Service<OperationsProfileRepository>()(
   "@bakarr/api/OperationsProfileRepository",
-)<OperationsProfileRepository, OperationsProfileRepositoryShape>() {}
+  {
+    effect: Effect.gen(function* () {
+      const { db } = yield* Database;
+      return makeOperationsProfileRepositoryShape(db);
+    }),
+  },
+) {}
 
 const mapDecodeError = (message: string) =>
   Effect.mapError((cause: unknown) =>
@@ -66,17 +72,13 @@ export const loadReleaseRules = Effect.fn("ProfileRepository.loadReleaseRules")(
   return decodedRules.flat() as readonly ReleaseProfileRule[];
 });
 
-export function makeOperationsProfileRepository(db: AppDatabase): OperationsProfileRepositoryShape {
-  return OperationsProfileRepository.of({
+function makeOperationsProfileRepositoryShape(db: AppDatabase): OperationsProfileRepositoryShape {
+  return {
     loadQualityProfile: (name) => loadQualityProfile(db, name),
     loadReleaseRules: (animeRow) => loadReleaseRules(db, animeRow),
-  });
+  } satisfies OperationsProfileRepositoryShape;
 }
 
-export const OperationsProfileRepositoryLive = Layer.effect(
-  OperationsProfileRepository,
-  Effect.gen(function* () {
-    const { db } = yield* Database;
-    return makeOperationsProfileRepository(db);
-  }),
-);
+export function makeOperationsProfileRepository(db: AppDatabase): OperationsProfileRepository {
+  return OperationsProfileRepository.make(makeOperationsProfileRepositoryShape(db));
+}

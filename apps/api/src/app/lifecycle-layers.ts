@@ -17,13 +17,13 @@ import { AnimeEnrollmentServiceLive } from "@/features/media/add/media-enrollmen
 import { makeAnimeFeatureLayer } from "@/features/media/layer.ts";
 import { makeAuthFeatureLayer } from "@/features/auth/layer.ts";
 import { makeOperationsFeatureLayer } from "@/features/operations/layer.ts";
-import { MediaReadRepositoryLive } from "@/features/media/shared/media-read-repository.ts";
-import { OperationsConfigRepositoryLive } from "@/features/operations/repository/config-repository.ts";
-import { OperationsProfileRepositoryLive } from "@/features/operations/repository/profile-repository.ts";
-import { SystemLogRepositoryLive } from "@/features/system/repository/log-repository.ts";
-import { ReleaseProfileRepositoryLive } from "@/features/system/repository/release-profile-repository.ts";
-import { SystemStatsRepositoryLive } from "@/features/system/repository/stats-repository.ts";
-import { SystemUnmappedRepositoryLive } from "@/features/system/repository/unmapped-repository.ts";
+import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { OperationsConfigRepository } from "@/features/operations/repository/config-repository.ts";
+import { OperationsProfileRepository } from "@/features/operations/repository/profile-repository.ts";
+import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
+import { ReleaseProfileRepository } from "@/features/system/repository/release-profile-repository.ts";
+import { SystemStatsRepository } from "@/features/system/repository/stats-repository.ts";
+import { SystemUnmappedRepository } from "@/features/system/repository/unmapped-repository.ts";
 import { LibraryBrowseServiceLive } from "@/features/operations/library/library-browse-service.ts";
 import { OperationsTaskLauncherServiceLive } from "@/features/operations/tasks/operations-task-launcher-service.ts";
 import { BackgroundJobStatusServiceLive } from "@/features/system/background-job-status-service.ts";
@@ -39,8 +39,8 @@ import { SystemEventsServiceLive } from "@/features/system/system-events-service
 import { SystemLogServiceLive } from "@/features/system/system-log-service.ts";
 import { SystemReadServiceLive } from "@/features/system/system-read-service.ts";
 import { SystemRuntimeMetricsServiceLive } from "@/features/system/system-runtime-metrics-service.ts";
-import { QualityProfileRepositoryLive } from "@/features/system/repository/quality-profile-repository.ts";
-import { SystemConfigRepositoryLive } from "@/features/system/repository/system-config-repository.ts";
+import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
+import { SystemConfigRepository } from "@/features/system/repository/system-config-repository.ts";
 import { MediaProbeLive } from "@/infra/media/probe.ts";
 
 export type ApiLifecycleOptions = AppPlatformRuntimeOptions &
@@ -60,10 +60,10 @@ export function makeApiLifecycleLayers(
 
   // Runtime config graph: system config -> validated runtime snapshot.
   const systemConfigRepositoryLayer = Layer.mergeAll(
-    SystemConfigRepositoryLive,
-    QualityProfileRepositoryLive,
+    SystemConfigRepository.Default,
+    QualityProfileRepository.Default,
   ).pipe(Layer.provide(platformRuntimeLayer));
-  const qualityProfileRepositoryLayer = QualityProfileRepositoryLive.pipe(
+  const qualityProfileRepositoryLayer = QualityProfileRepository.Default.pipe(
     Layer.provide(platformRuntimeLayer),
   );
   const systemConfigLayer = SystemConfigServiceLive.pipe(
@@ -90,21 +90,25 @@ export function makeApiLifecycleLayers(
     systemConfigLayer,
     runtimeConfigSnapshotLayer,
   );
-  const mediaReadRepositoryLayer = MediaReadRepositoryLive.pipe(Layer.provide(runtimeSupportLayer));
-  const operationsConfigRepositoryLayer = OperationsConfigRepositoryLive.pipe(
+  const mediaReadRepositoryLayer = MediaReadRepository.Default.pipe(
     Layer.provide(runtimeSupportLayer),
   );
-  const operationsProfileRepositoryLayer = OperationsProfileRepositoryLive.pipe(
+  const operationsConfigRepositoryLayer = OperationsConfigRepository.Default.pipe(
     Layer.provide(runtimeSupportLayer),
   );
-  const systemUnmappedRepositoryLayer = SystemUnmappedRepositoryLive.pipe(
+  const operationsProfileRepositoryLayer = OperationsProfileRepository.Default.pipe(
     Layer.provide(runtimeSupportLayer),
   );
-  const systemStatsRepositoryLayer = SystemStatsRepositoryLive.pipe(
+  const systemUnmappedRepositoryLayer = SystemUnmappedRepository.Default.pipe(
     Layer.provide(runtimeSupportLayer),
   );
-  const systemLogRepositoryLayer = SystemLogRepositoryLive.pipe(Layer.provide(runtimeSupportLayer));
-  const releaseProfileRepositoryLayer = ReleaseProfileRepositoryLive.pipe(
+  const systemStatsRepositoryLayer = SystemStatsRepository.Default.pipe(
+    Layer.provide(runtimeSupportLayer),
+  );
+  const systemLogRepositoryLayer = SystemLogRepository.Default.pipe(
+    Layer.provide(runtimeSupportLayer),
+  );
+  const releaseProfileRepositoryLayer = ReleaseProfileRepository.Default.pipe(
     Layer.provide(runtimeSupportLayer),
   );
 

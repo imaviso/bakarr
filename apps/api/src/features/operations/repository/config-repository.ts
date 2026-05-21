@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from "effect";
+import { Effect } from "effect";
 import { asc } from "drizzle-orm";
 
 import { Database, DatabaseError, type AppDatabase } from "@/db/database.ts";
@@ -23,9 +23,15 @@ export interface OperationsConfigRepositoryShape {
   readonly currentNamingSettings: () => ReturnType<typeof currentNamingSettings>;
 }
 
-export class OperationsConfigRepository extends Context.Tag(
+export class OperationsConfigRepository extends Effect.Service<OperationsConfigRepository>()(
   "@bakarr/api/OperationsConfigRepository",
-)<OperationsConfigRepository, OperationsConfigRepositoryShape>() {}
+  {
+    effect: Effect.gen(function* () {
+      const { db } = yield* Database;
+      return makeOperationsConfigRepositoryShape(db);
+    }),
+  },
+) {}
 
 const mapConfigError = (message: string) =>
   Effect.mapError((cause: unknown) =>
@@ -126,21 +132,17 @@ export const currentNamingSettings = Effect.fn("ConfigRepository.currentNamingSe
   } satisfies NamingSettings;
 });
 
-export function makeOperationsConfigRepository(db: AppDatabase): OperationsConfigRepositoryShape {
-  return OperationsConfigRepository.of({
+function makeOperationsConfigRepositoryShape(db: AppDatabase): OperationsConfigRepositoryShape {
+  return {
     currentImportMode: () => currentImportMode(db),
     currentNamingSettings: () => currentNamingSettings(db),
     getConfigLibraryPath: (mediaKind) => getConfigLibraryPath(db, mediaKind),
     getConfigLibraryRoots: () => getConfigLibraryRoots(db),
     listLibraryRoots: () => listLibraryRoots(db),
     loadRuntimeConfig: () => loadRuntimeConfig(db),
-  });
+  } satisfies OperationsConfigRepositoryShape;
 }
 
-export const OperationsConfigRepositoryLive = Layer.effect(
-  OperationsConfigRepository,
-  Effect.gen(function* () {
-    const { db } = yield* Database;
-    return makeOperationsConfigRepository(db);
-  }),
-);
+export function makeOperationsConfigRepository(db: AppDatabase): OperationsConfigRepository {
+  return OperationsConfigRepository.make(makeOperationsConfigRepositoryShape(db));
+}

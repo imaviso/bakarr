@@ -8,7 +8,7 @@ import { AnimeMetadataProviderServiceLive } from "@/features/media/metadata/medi
 import { AnimeSeasonalProviderServiceLive } from "@/features/media/query/media-seasonal-provider-service.ts";
 import { MediaReaderServiceLive } from "@/features/media/reader/media-reader-service.ts";
 import { AnimeSettingsServiceLive } from "@/features/media/shared/media-settings-service.ts";
-import { MediaReadRepositoryLive } from "@/features/media/shared/media-read-repository.ts";
+import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import { AnimeStreamServiceLive } from "@/features/media/stream/media-stream-service.ts";
 import { AnimeQueryServiceLive } from "@/features/media/query/query-service.ts";
 import { StreamTokenSignerLive } from "@/features/media/stream/stream-token-signer.ts";
@@ -16,7 +16,9 @@ import { StreamTokenSignerLive } from "@/features/media/stream/stream-token-sign
 export function makeAnimeFeatureLayer<ROut, E, RIn>(
   runtimeSupportLayer: Layer.Layer<ROut, E, RIn>,
 ) {
-  const mediaReadRepositoryLayer = MediaReadRepositoryLive.pipe(Layer.provide(runtimeSupportLayer));
+  const mediaReadRepositoryLayer = MediaReadRepository.Default.pipe(
+    Layer.provide(runtimeSupportLayer),
+  );
   const animeImageCacheLayer = AnimeImageCacheServiceLive;
   const animeMetadataEnrichmentLayer = AnimeMetadataEnrichmentServiceLive;
   const animeMetadataProviderLayer = AnimeMetadataProviderServiceLive.pipe(

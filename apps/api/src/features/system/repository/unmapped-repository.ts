@@ -1,5 +1,5 @@
 import { eq, notInArray } from "drizzle-orm";
-import { Context, Effect, Layer, Option, Schema } from "effect";
+import { Effect, Option, Schema } from "effect";
 
 import {
   type UnmappedFolder,
@@ -28,10 +28,15 @@ export interface SystemUnmappedRepositoryShape {
   readonly loadMatchRow: (path: string) => ReturnType<typeof loadUnmappedFolderMatchRow>;
 }
 
-export class SystemUnmappedRepository extends Context.Tag("@bakarr/api/SystemUnmappedRepository")<
-  SystemUnmappedRepository,
-  SystemUnmappedRepositoryShape
->() {}
+export class SystemUnmappedRepository extends Effect.Service<SystemUnmappedRepository>()(
+  "@bakarr/api/SystemUnmappedRepository",
+  {
+    effect: Effect.gen(function* () {
+      const { db } = yield* Database;
+      return makeSystemUnmappedRepositoryShape(db);
+    }),
+  },
+) {}
 
 const encodeAnimeSearchResultList = (path: string, matches: UnmappedFolder["suggested_matches"]) =>
   encodeJson(
@@ -169,19 +174,15 @@ export const decodeUnmappedFolderMatchRow = Effect.fn(
   );
 });
 
-export function makeSystemUnmappedRepository(db: AppDatabase): SystemUnmappedRepositoryShape {
-  return SystemUnmappedRepository.of({
+function makeSystemUnmappedRepositoryShape(db: AppDatabase): SystemUnmappedRepositoryShape {
+  return {
     deleteMatchRowsNotInPaths: (paths) => deleteUnmappedFolderMatchRowsNotInPaths(db, paths),
     listMatchRows: () => listUnmappedFolderMatchRows(db),
     loadMatchRow: (path) => loadUnmappedFolderMatchRow(db, path),
     upsertMatchRows: (folders, updatedAt) => upsertUnmappedFolderMatchRows(db, folders, updatedAt),
-  });
+  } satisfies SystemUnmappedRepositoryShape;
 }
 
-export const SystemUnmappedRepositoryLive = Layer.effect(
-  SystemUnmappedRepository,
-  Effect.gen(function* () {
-    const { db } = yield* Database;
-    return makeSystemUnmappedRepository(db);
-  }),
-);
+export function makeSystemUnmappedRepository(db: AppDatabase): SystemUnmappedRepository {
+  return SystemUnmappedRepository.make(makeSystemUnmappedRepositoryShape(db));
+}

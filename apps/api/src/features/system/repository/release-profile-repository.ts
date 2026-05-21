@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { Context, Effect, Layer } from "effect";
+import { Effect } from "effect";
 
 import { Database, DatabaseError, type AppDatabase } from "@/db/database.ts";
 import { releaseProfiles } from "@/db/schema.ts";
@@ -17,10 +17,15 @@ export interface ReleaseProfileRepositoryShape {
   ) => ReturnType<typeof updateReleaseProfileRow>;
 }
 
-export class ReleaseProfileRepository extends Context.Tag("@bakarr/api/ReleaseProfileRepository")<
-  ReleaseProfileRepository,
-  ReleaseProfileRepositoryShape
->() {}
+export class ReleaseProfileRepository extends Effect.Service<ReleaseProfileRepository>()(
+  "@bakarr/api/ReleaseProfileRepository",
+  {
+    effect: Effect.gen(function* () {
+      const { db } = yield* Database;
+      return makeReleaseProfileRepositoryShape(db);
+    }),
+  },
+) {}
 
 export const listReleaseProfileRows = Effect.fn("ReleaseProfileRepository.listReleaseProfileRows")(
   function* (db: AppDatabase) {
@@ -65,19 +70,15 @@ export const deleteReleaseProfileRow = Effect.fn(
   );
 });
 
-export function makeReleaseProfileRepository(db: AppDatabase): ReleaseProfileRepositoryShape {
-  return ReleaseProfileRepository.of({
+function makeReleaseProfileRepositoryShape(db: AppDatabase): ReleaseProfileRepositoryShape {
+  return {
     deleteReleaseProfileRow: (id) => deleteReleaseProfileRow(db, id),
     insertReleaseProfileRow: (row) => insertReleaseProfileRow(db, row),
     listReleaseProfileRows: () => listReleaseProfileRows(db),
     updateReleaseProfileRow: (id, row) => updateReleaseProfileRow(db, id, row),
-  });
+  } satisfies ReleaseProfileRepositoryShape;
 }
 
-export const ReleaseProfileRepositoryLive = Layer.effect(
-  ReleaseProfileRepository,
-  Effect.gen(function* () {
-    const { db } = yield* Database;
-    return makeReleaseProfileRepository(db);
-  }),
-);
+export function makeReleaseProfileRepository(db: AppDatabase): ReleaseProfileRepository {
+  return ReleaseProfileRepository.make(makeReleaseProfileRepositoryShape(db));
+}

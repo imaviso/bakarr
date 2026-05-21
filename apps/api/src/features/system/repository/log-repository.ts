@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from "effect";
+import { Effect } from "effect";
 
 import { Database, type AppDatabase } from "@/db/database.ts";
 import { systemLogs } from "@/db/schema.ts";
@@ -38,10 +38,15 @@ export interface SystemLogRepositoryShape {
   readonly streamExportJson: (plan: SystemLogExportPlan) => ReturnType<typeof streamLogExportJson>;
 }
 
-export class SystemLogRepository extends Context.Tag("@bakarr/api/SystemLogRepository")<
-  SystemLogRepository,
-  SystemLogRepositoryShape
->() {}
+export class SystemLogRepository extends Effect.Service<SystemLogRepository>()(
+  "@bakarr/api/SystemLogRepository",
+  {
+    effect: Effect.gen(function* () {
+      const { db } = yield* Database;
+      return makeSystemLogRepositoryShape(db);
+    }),
+  },
+) {}
 
 export const clearSystemLogRows = Effect.fn("SystemLogRepository.clearSystemLogRows")(function* (
   db: AppDatabase,
@@ -49,8 +54,8 @@ export const clearSystemLogRows = Effect.fn("SystemLogRepository.clearSystemLogR
   yield* tryDatabasePromise("Failed to clear system logs", () => db.delete(systemLogs));
 });
 
-export function makeSystemLogRepository(db: AppDatabase): SystemLogRepositoryShape {
-  return SystemLogRepository.of({
+function makeSystemLogRepositoryShape(db: AppDatabase): SystemLogRepositoryShape {
+  return {
     appendLog: (eventType, level, message, nowIso) =>
       appendSystemLog(db, eventType, level, message, nowIso),
     clearLogs: () => clearSystemLogRows(db),
@@ -58,13 +63,9 @@ export function makeSystemLogRepository(db: AppDatabase): SystemLogRepositorySha
     loadPage: (input) => loadSystemLogPage(db, input),
     streamExportCsv: (plan) => streamLogExportCsv(db, plan),
     streamExportJson: (plan) => streamLogExportJson(db, plan),
-  });
+  } satisfies SystemLogRepositoryShape;
 }
 
-export const SystemLogRepositoryLive = Layer.effect(
-  SystemLogRepository,
-  Effect.gen(function* () {
-    const { db } = yield* Database;
-    return makeSystemLogRepository(db);
-  }),
-);
+export function makeSystemLogRepository(db: AppDatabase): SystemLogRepository {
+  return SystemLogRepository.make(makeSystemLogRepositoryShape(db));
+}

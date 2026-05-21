@@ -1,5 +1,5 @@
 import { and, count, desc, eq, sql, type SQL } from "drizzle-orm";
-import { Context, Effect, Layer } from "effect";
+import { Effect } from "effect";
 
 import { Database, type AppDatabase } from "@/db/database.ts";
 import {
@@ -63,10 +63,15 @@ export interface SystemStatsRepositoryShape {
   }) => ReturnType<typeof loadSystemLogPage>;
 }
 
-export class SystemStatsRepository extends Context.Tag("@bakarr/api/SystemStatsRepository")<
-  SystemStatsRepository,
-  SystemStatsRepositoryShape
->() {}
+export class SystemStatsRepository extends Effect.Service<SystemStatsRepository>()(
+  "@bakarr/api/SystemStatsRepository",
+  {
+    effect: Effect.gen(function* () {
+      const { db } = yield* Database;
+      return makeSystemStatsRepositoryShape(db);
+    }),
+  },
+) {}
 
 export const countQueuedDownloads = Effect.fn("SystemStatsRepository.countQueuedDownloads")(
   function* (db: AppDatabase) {
@@ -307,8 +312,8 @@ export const loadSystemLogPage = Effect.fn("SystemStatsRepository.loadSystemLogP
   return { rows, total };
 });
 
-export function makeSystemStatsRepository(db: AppDatabase): SystemStatsRepositoryShape {
-  return SystemStatsRepository.of({
+function makeSystemStatsRepositoryShape(db: AppDatabase): SystemStatsRepositoryShape {
+  return {
     listBackgroundJobRows: () => listBackgroundJobRows(db),
     listRecentDownloadEventRows: (limit) => listRecentDownloadEventRows(db, limit),
     listRecentSystemLogRows: (limit) => listRecentSystemLogRows(db, limit),
@@ -317,13 +322,9 @@ export function makeSystemStatsRepository(db: AppDatabase): SystemStatsRepositor
     loadSystemDownloadStatsAggregate: () => loadSystemDownloadStatsAggregate(db),
     loadSystemLibraryStatsAggregate: () => loadSystemLibraryStatsAggregate(db),
     loadSystemLogPage: (input) => loadSystemLogPage(db, input),
-  });
+  } satisfies SystemStatsRepositoryShape;
 }
 
-export const SystemStatsRepositoryLive = Layer.effect(
-  SystemStatsRepository,
-  Effect.gen(function* () {
-    const { db } = yield* Database;
-    return makeSystemStatsRepository(db);
-  }),
-);
+export function makeSystemStatsRepository(db: AppDatabase): SystemStatsRepository {
+  return SystemStatsRepository.make(makeSystemStatsRepositoryShape(db));
+}
