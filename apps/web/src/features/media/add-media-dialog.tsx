@@ -110,12 +110,12 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
                     <Badge
                       key={chip}
                       variant="outline"
-                      className="inline-flex items-center gap-1 rounded-none font-normal text-muted-foreground"
+                      className="inline-flex items-center gap-1 rounded-none font-normal text-muted-foreground max-w-full"
                     >
                       {(chip.includes("/") || /^\d{4}$/.test(chip)) && (
-                        <CalendarIcon className="h-3 w-3" />
+                        <CalendarIcon className="h-3 w-3 shrink-0" />
                       )}
-                      <span>{chip}</span>
+                      <span className="truncate">{chip}</span>
                     </Badge>
                   ))}
                 </div>
@@ -126,9 +126,9 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
                     <Badge
                       key={genre}
                       variant="outline"
-                      className="rounded-none font-normal text-muted-foreground"
+                      className="rounded-none font-normal text-muted-foreground max-w-full"
                     >
-                      {genre}
+                      <span className="truncate min-w-0">{genre}</span>
                     </Badge>
                   ))}
                 </div>
@@ -144,21 +144,23 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
                     <Badge
                       key={discoveryPreviewKey(related, "related")}
                       variant="outline"
-                      className="rounded-none font-normal text-muted-foreground"
+                      className="rounded-none font-normal text-muted-foreground max-w-full"
                     >
-                      {[
-                        animeDisplayTitle(related),
-                        ...animeDiscoverySubtitle({
-                          format: related.format,
-                          relation_type: related.relation_type,
-                          season: related.season,
-                          season_year: related.season_year,
-                          start_year: related.start_year,
-                          status: related.status,
-                        }),
-                      ]
-                        .filter(Boolean)
-                        .join(" - ")}
+                      <span className="truncate min-w-0">
+                        {[
+                          animeDisplayTitle(related),
+                          ...animeDiscoverySubtitle({
+                            format: related.format,
+                            relation_type: related.relation_type,
+                            season: related.season,
+                            season_year: related.season_year,
+                            start_year: related.start_year,
+                            status: related.status,
+                          }),
+                        ]
+                          .filter(Boolean)
+                          .join(" - ")}
+                      </span>
                     </Badge>
                   ))}
                 </div>
@@ -169,21 +171,23 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
                     <Badge
                       key={discoveryPreviewKey(recommended, "recommended")}
                       variant="outline"
-                      className="rounded-none font-normal text-muted-foreground"
+                      className="rounded-none font-normal text-muted-foreground max-w-full"
                     >
-                      {[
-                        animeDisplayTitle(recommended),
-                        ...animeDiscoverySubtitle({
-                          format: recommended.format,
-                          relation_type: recommended.relation_type,
-                          season: recommended.season,
-                          season_year: recommended.season_year,
-                          start_year: recommended.start_year,
-                          status: recommended.status,
-                        }),
-                      ]
-                        .filter(Boolean)
-                        .join(" - ")}
+                      <span className="truncate min-w-0">
+                        {[
+                          animeDisplayTitle(recommended),
+                          ...animeDiscoverySubtitle({
+                            format: recommended.format,
+                            relation_type: recommended.relation_type,
+                            season: recommended.season,
+                            season_year: recommended.season_year,
+                            start_year: recommended.start_year,
+                            status: recommended.status,
+                          }),
+                        ]
+                          .filter(Boolean)
+                          .join(" - ")}
+                      </span>
                     </Badge>
                   ))}
                 </div>
@@ -195,7 +199,7 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
               )}
             </div>
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="whitespace-pre-line line-clamp-4 mt-2">
             {props.media.description?.trim()
               ? props.media.description
               : `Configure how this ${mediaKindLabel(props.media.media_kind)} should be added to your library.`}

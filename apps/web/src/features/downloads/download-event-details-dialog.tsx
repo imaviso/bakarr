@@ -45,15 +45,25 @@ export function DownloadEventDetailsDialog(props: DownloadEventDetailsDialogProp
 
           <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
             {props.event?.event_type ? (
-              <Badge variant="outline">{props.event.event_type}</Badge>
+              <Badge variant="outline" className="max-w-full">
+                <span className="truncate min-w-0">{props.event.event_type}</span>
+              </Badge>
             ) : null}
             {props.event?.download_id !== undefined ? (
-              <Badge variant="outline">Download #{props.event.download_id}</Badge>
+              <Badge variant="outline" className="max-w-full">
+                <span className="truncate min-w-0">Download #{props.event.download_id}</span>
+              </Badge>
             ) : null}
-            {summary?.coverage ? <Badge variant="outline">{summary?.coverage}</Badge> : null}
+            {summary?.coverage ? (
+              <Badge variant="outline" className="max-w-full">
+                <span className="truncate min-w-0">{summary?.coverage}</span>
+              </Badge>
+            ) : null}
             {props.event?.from_status || props.event?.to_status ? (
-              <Badge variant="outline">
-                {props.event?.from_status || "-"} -&gt; {props.event?.to_status || "-"}
+              <Badge variant="outline" className="max-w-full">
+                <span className="truncate min-w-0">
+                  {props.event?.from_status || "-"} -&gt; {props.event?.to_status || "-"}
+                </span>
               </Badge>
             ) : null}
           </div>
