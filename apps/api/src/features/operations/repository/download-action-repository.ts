@@ -18,10 +18,7 @@ export interface DownloadActionRepositoryShape {
   readonly insertDownloadEvent: (
     input: DownloadEventRecordInput,
     createdAt: string,
-  ) => Effect.Effect<
-    void,
-    DatabaseError | import("@/features/operations/errors.ts").OperationsStoredDataError
-  >;
+  ) => Effect.Effect<void, DatabaseError | import("@/features/errors.ts").StoredDataError>;
   readonly loadDownloadRow: (id: number) => Effect.Effect<DownloadRow | undefined, DatabaseError>;
   readonly updateDownloadRetryRow: (input: {
     readonly id: number;

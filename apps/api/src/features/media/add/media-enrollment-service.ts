@@ -8,8 +8,8 @@ import { AnimeMetadataProviderService } from "@/features/media/metadata/media-me
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { SearchBackgroundMissingService } from "@/features/operations/background-search/background-search-missing-support.ts";
 import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
-import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
-import type { ProfileNotFoundError } from "@/features/system/errors.ts";
+import { InfrastructureError } from "@/features/errors.ts";
+import type { DomainNotFoundError } from "@/features/errors.ts";
 import type { AddAnimeInput } from "@/features/media/add/add-media-input.ts";
 import type { MediaServiceError } from "@/features/media/errors.ts";
 import { addAnimeEffect } from "@/features/media/add/media-add.ts";
@@ -18,8 +18,8 @@ import { MediaReadRepository } from "@/features/media/shared/media-read-reposito
 export type AnimeEnrollmentError =
   | DatabaseError
   | MediaServiceError
-  | ProfileNotFoundError
-  | OperationsInfrastructureError;
+  | DomainNotFoundError
+  | InfrastructureError;
 
 const makeAnimeEnrollmentService = Effect.fn("AnimeEnrollmentService.make")(function* () {
   const { db } = yield* Database;

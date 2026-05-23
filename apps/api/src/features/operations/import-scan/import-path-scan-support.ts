@@ -5,7 +5,7 @@ import type { AppDatabase } from "@/db/database.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { type MediaProbeShape } from "@/infra/media/probe.ts";
 import type { AniListClient } from "@/features/media/metadata/anilist.ts";
-import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
+import { InfrastructureError } from "@/features/errors.ts";
 import {
   findBestLocalAnimeMatch,
   scoreAnimeRowMatch,
@@ -101,7 +101,7 @@ export const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathE
 
     if (input.mediaId) {
       if (!selectedAnimeRow) {
-        return yield* new OperationsInfrastructureError({
+        return yield* new InfrastructureError({
           message: `Selected media ${input.mediaId} is unavailable for import scan`,
           cause: new Error(`Media ${input.mediaId} not found in database`),
         });

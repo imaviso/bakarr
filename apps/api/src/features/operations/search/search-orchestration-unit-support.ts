@@ -6,18 +6,15 @@ import { Database } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { media } from "@/db/schema.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
-import {
-  isOperationsError,
-  OperationsInputError,
-  type OperationsError,
-} from "@/features/operations/errors.ts";
+import { DomainInputError } from "@/features/errors.ts";
+import { isOperationsError, type OperationsError } from "@/features/operations/errors.ts";
 import { OperationsProfileRepository } from "@/features/operations/repository/profile-repository.ts";
 import type { OperationsProfileRepositoryShape } from "@/features/operations/repository/profile-repository.ts";
 import { compareUnitSearchResults } from "@/features/operations/search/release-ranking.ts";
 import { validateQualityProfileSizeLabels } from "@/features/operations/search/release-ranking.ts";
 import type { ParsedRelease } from "@/features/operations/rss/rss-client-parse.ts";
 import { toUnitSearchResult } from "@/features/operations/search/search-orchestration-unit-result.ts";
-import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
+import { InfrastructureError } from "@/features/errors.ts";
 import { SearchReleaseService } from "@/features/operations/search/search-orchestration-release-search.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
@@ -52,7 +49,7 @@ export function makeSearchUnitSupport(input: SearchUnitSupportInput) {
   ): ExternalCallError | OperationsError | DatabaseError =>
     cause instanceof DatabaseError || cause instanceof ExternalCallError || isOperationsError(cause)
       ? cause
-      : new OperationsInfrastructureError({
+      : new InfrastructureError({
           message: "Failed to search unit releases",
           cause,
         });
@@ -66,7 +63,7 @@ export function makeSearchUnitSupport(input: SearchUnitSupportInput) {
     const profileOption = yield* profileRepository.loadQualityProfile(animeRow.profileName);
 
     if (Option.isNone(profileOption)) {
-      return yield* new OperationsInputError({
+      return yield* new DomainInputError({
         message: `Quality profile '${animeRow.profileName}' not found`,
       });
     }

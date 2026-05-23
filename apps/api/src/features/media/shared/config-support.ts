@@ -6,7 +6,7 @@ import { appConfig } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { decodeConfigCore, decodeImagePath } from "@/features/system/config-codec.ts";
 import { makeDefaultConfig } from "@/features/system/defaults.ts";
-import { MediaStoredDataError } from "@/features/media/errors.ts";
+import { StoredDataError } from "@/features/errors.ts";
 import type { MediaKind } from "@packages/shared/index.ts";
 
 export const resolveAnimeRootFolderEffect = Effect.fn("AnimeConfigSupport.resolveAnimeRootFolder")(
@@ -24,7 +24,7 @@ export const resolveAnimeRootFolderEffect = Effect.fn("AnimeConfigSupport.resolv
       ? yield* decodeConfigCore(rows[0].data).pipe(
           Effect.mapError(
             (cause) =>
-              new MediaStoredDataError({
+              new StoredDataError({
                 cause,
                 message: "Stored media configuration is corrupt",
               }),
@@ -67,7 +67,7 @@ export const getConfiguredImagesPathEffect = Effect.fn(
   return yield* decodeImagePath(rows[0]).pipe(
     Effect.mapError(
       (cause) =>
-        new MediaStoredDataError({
+        new StoredDataError({
           cause,
           message: "Stored media image path configuration is corrupt",
         }),
@@ -86,7 +86,7 @@ export const getConfiguredLibraryPathEffect = Effect.fn(
     ? yield* decodeConfigCore(rows[0].data).pipe(
         Effect.mapError(
           (cause) =>
-            new MediaStoredDataError({
+            new StoredDataError({
               cause,
               message: "Stored media configuration is corrupt",
             }),

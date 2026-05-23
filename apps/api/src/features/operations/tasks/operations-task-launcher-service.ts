@@ -2,7 +2,7 @@ import { Cause, Effect, Queue } from "effect";
 
 import type { AsyncOperationAccepted, OperationTaskPayload } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
-import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
+import { InfrastructureError } from "@/features/errors.ts";
 import { compactLogAnnotations, errorLogAnnotations } from "@/infra/logging.ts";
 import {
   type OperationsTaskKey,
@@ -28,7 +28,7 @@ export interface OperationsTaskLaunchInput<A> {
 export interface OperationsTaskLauncherServiceShape {
   readonly launch: <A>(
     input: OperationsTaskLaunchInput<A>,
-  ) => Effect.Effect<AsyncOperationAccepted, DatabaseError | OperationsInfrastructureError>;
+  ) => Effect.Effect<AsyncOperationAccepted, DatabaseError | InfrastructureError>;
 }
 
 const OPERATIONS_TASK_WORKER_CONCURRENCY = 4;
@@ -37,12 +37,12 @@ const makeOperationsTaskLauncherService = Effect.fn("OperationsTaskLauncherServi
   function* () {
     const tasks = yield* OperationsTaskWriteService;
     const taskQueue = yield* Effect.acquireRelease(
-      Queue.unbounded<Effect.Effect<void, DatabaseError | OperationsInfrastructureError>>(),
+      Queue.unbounded<Effect.Effect<void, DatabaseError | InfrastructureError>>(),
       Queue.shutdown,
     );
 
     const runQueuedTask = Effect.fn("OperationsTaskLauncherService.runQueuedTask")(
-      (taskEffect: Effect.Effect<void, DatabaseError | OperationsInfrastructureError>) =>
+      (taskEffect: Effect.Effect<void, DatabaseError | InfrastructureError>) =>
         taskEffect.pipe(
           Effect.catchAllCause((cause) =>
             Effect.logError("Operations task launcher worker failed").pipe(

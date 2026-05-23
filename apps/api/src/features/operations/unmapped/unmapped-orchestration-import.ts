@@ -15,12 +15,12 @@ import { inferAiredAt } from "@/domain/media/derivations.ts";
 import { resolveAnimeRootFolderEffect } from "@/features/media/shared/config-support.ts";
 import { decodeMediaKind } from "@/features/media/shared/media-kind.ts";
 import {
-  OperationsAnimeNotFoundError,
-  OperationsConflictError,
-  OperationsInputError,
-  OperationsPathError,
-  OperationsInfrastructureError,
-} from "@/features/operations/errors.ts";
+  DomainConflictError,
+  DomainInputError,
+  DomainNotFoundError,
+  DomainPathError,
+  InfrastructureError,
+} from "@/features/errors.ts";
 import { appendLog } from "@/features/operations/shared/job-support.ts";
 import { scanVideoFilesStream } from "@/features/operations/import-scan/file-scanner.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
@@ -42,11 +42,11 @@ export interface UnmappedImportWorkflowShape {
   }) => Effect.Effect<
     void,
     | DatabaseError
-    | OperationsAnimeNotFoundError
-    | OperationsConflictError
-    | OperationsInputError
-    | OperationsPathError
-    | OperationsInfrastructureError
+    | DomainNotFoundError
+    | DomainConflictError
+    | DomainInputError
+    | DomainPathError
+    | InfrastructureError
   >;
 }
 
@@ -108,7 +108,7 @@ export function makeUnmappedImportWorkflow(input: {
       const folderName = yield* sanitizePathSegmentEffect(input.folder_name).pipe(
         Effect.mapError(
           (cause) =>
-            new OperationsInputError({
+            new DomainInputError({
               cause,
               message: "folder_name must be a single folder name",
             }),
@@ -117,7 +117,7 @@ export function makeUnmappedImportWorkflow(input: {
       const folderPath = `${libraryPath.replace(/\/$/, "")}/${folderName}`;
 
       if (!isWithinPathRoot(folderPath, libraryPath)) {
-        return yield* new OperationsInputError({
+        return yield* new DomainInputError({
           message: "folder_name must stay within the library root",
         });
       }
@@ -131,7 +131,7 @@ export function makeUnmappedImportWorkflow(input: {
       );
 
       if (existingOwner[0] && existingOwner[0].id !== input.media_id) {
-        return yield* new OperationsConflictError({
+        return yield* new DomainConflictError({
           message: `Folder ${folderName} is already mapped to ${existingOwner[0].titleRomaji}`,
         });
       }
@@ -142,7 +142,7 @@ export function makeUnmappedImportWorkflow(input: {
       }).pipe(
         Effect.catchTag("StoredDataError", (e) =>
           Effect.fail(
-            new OperationsInfrastructureError({
+            new InfrastructureError({
               message: "Failed to import unmapped folder",
               cause: e,
             }),
@@ -161,7 +161,7 @@ export function makeUnmappedImportWorkflow(input: {
         scanVideoFilesStream(fs, folderPath).pipe(
           Stream.mapError(
             (cause) =>
-              new OperationsPathError({
+              new DomainPathError({
                 cause,
                 message: `Folder is inaccessible: ${folderPath}`,
               }),

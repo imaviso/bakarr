@@ -9,7 +9,7 @@ import {
 import { toSharedParsedEpisodeIdentity } from "@/infra/media/identity/identity.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { downloadEvents, downloads } from "@/db/schema.ts";
-import { OperationsStoredDataError } from "@/features/operations/errors.ts";
+import { StoredDataError } from "@/features/errors.ts";
 import { decodeJson, encodeJson } from "@/infra/effect/schema-json.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
@@ -32,7 +32,7 @@ export interface DownloadEventRecordInput {
 
 export function encodeDownloadSourceMetadata(
   value: DownloadSourceMetadata,
-): Effect.Effect<string, OperationsStoredDataError> {
+): Effect.Effect<string, StoredDataError> {
   return encodeJson(
     DownloadSourceMetadataSchema,
     {
@@ -40,7 +40,7 @@ export function encodeDownloadSourceMetadata(
       seadex_tags: value.seadex_tags ? [...value.seadex_tags] : undefined,
     },
     (cause) =>
-      new OperationsStoredDataError({
+      new StoredDataError({
         cause,
         message: "Download source metadata is invalid",
       }),
@@ -58,7 +58,7 @@ export const decodeDownloadSourceMetadata = Effect.fn(
     DownloadSourceMetadataSchema,
     value,
     (cause) =>
-      new OperationsStoredDataError({
+      new StoredDataError({
         cause,
         message: "Stored download source metadata is corrupt",
       }),
@@ -77,7 +77,7 @@ export function encodeDownloadEventMetadata(value: {
   covered_units?: readonly number[];
   imported_path?: string;
   source_metadata?: DownloadSourceMetadata;
-}): Effect.Effect<string, OperationsStoredDataError> {
+}): Effect.Effect<string, StoredDataError> {
   return encodeJson(
     DownloadEventMetadataSchema,
     {
@@ -86,7 +86,7 @@ export function encodeDownloadEventMetadata(value: {
       source_metadata: value.source_metadata,
     },
     (cause) =>
-      new OperationsStoredDataError({
+      new StoredDataError({
         cause,
         message: "Download event metadata is invalid",
       }),

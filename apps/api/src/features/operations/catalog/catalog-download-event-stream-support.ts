@@ -9,7 +9,7 @@ import {
   toDownloadEvent,
 } from "@/domain/download/event-presentations.ts";
 import type { TryDatabasePromise } from "@/infra/effect/db.ts";
-import type { OperationsStoredDataError } from "@/features/operations/errors.ts";
+import type { StoredDataError } from "@/features/errors.ts";
 
 export interface DownloadEventExportHeader {
   readonly exported: number;
@@ -87,7 +87,7 @@ export function streamDownloadEvents(input: {
     readonly limit: number;
     readonly order: "asc" | "desc";
   };
-}): Stream.Stream<DownloadEvent, DatabaseError | OperationsStoredDataError> {
+}): Stream.Stream<DownloadEvent, DatabaseError | StoredDataError> {
   const pageSize = 500;
 
   return Stream.unfoldChunkEffect(

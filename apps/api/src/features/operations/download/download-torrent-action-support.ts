@@ -2,11 +2,11 @@ import { Effect } from "effect";
 
 import { DatabaseError } from "@/db/database.ts";
 import {
-  DownloadConflictError,
-  DownloadNotFoundError,
-  OperationsInfrastructureError,
-  OperationsStoredDataError,
-} from "@/features/operations/errors.ts";
+  DomainConflictError,
+  DomainNotFoundError,
+  InfrastructureError,
+  StoredDataError,
+} from "@/features/errors.ts";
 import { DownloadActionRepository } from "@/features/operations/repository/download-action-repository.ts";
 import { decodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
 import { parseCoveredEpisodesEffect } from "@/features/operations/download/download-coverage.ts";
@@ -32,20 +32,17 @@ export interface DownloadTorrentActionSupportShape {
     deleteFiles?: boolean,
   ) => Effect.Effect<
     void,
-    | DatabaseError
-    | DownloadNotFoundError
-    | OperationsStoredDataError
-    | OperationsInfrastructureError
+    DatabaseError | DomainNotFoundError | StoredDataError | InfrastructureError
   >;
   readonly retryDownloadById: (
     id: number,
   ) => Effect.Effect<
     void,
     | DatabaseError
-    | DownloadNotFoundError
-    | DownloadConflictError
-    | OperationsStoredDataError
-    | OperationsInfrastructureError
+    | DomainNotFoundError
+    | DomainConflictError
+    | StoredDataError
+    | InfrastructureError
   >;
 }
 
@@ -53,7 +50,7 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
   const { actionRepo, torrentClientService, nowIso } = input;
 
   const mapQBitError = (message: string) => (cause: unknown) =>
-    new OperationsInfrastructureError({
+    new InfrastructureError({
       message,
       cause,
     });
@@ -66,7 +63,7 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
     const row = yield* actionRepo.loadDownloadRow(id);
 
     if (!row) {
-      return yield* new DownloadNotFoundError({
+      return yield* new DomainNotFoundError({
         message: "Download not found",
       });
     }
@@ -143,13 +140,13 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
     const row = yield* actionRepo.loadDownloadRow(id);
 
     if (!row) {
-      return yield* new DownloadNotFoundError({
+      return yield* new DomainNotFoundError({
         message: "Download not found",
       });
     }
 
     if (!row.magnet) {
-      return yield* new DownloadConflictError({
+      return yield* new DomainConflictError({
         message: "Download cannot be retried without a magnet link",
       });
     }

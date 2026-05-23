@@ -29,7 +29,7 @@ import {
   loadQualityProfile,
   loadReleaseRules,
 } from "@/features/operations/repository/profile-repository.ts";
-import { OperationsAnimeNotFoundError } from "@/features/operations/errors.ts";
+import { DomainNotFoundError } from "@/features/errors.ts";
 
 it.scoped(
   "operations repository helpers load runtime config and config-backed library settings",
@@ -221,7 +221,7 @@ it.scoped("operations repository helpers load media release rules and episode st
           const failure = Cause.failureOption(notFoundExit.cause);
           assert.deepStrictEqual(failure._tag, "Some");
           if (failure._tag === "Some") {
-            assert.deepStrictEqual(failure.value instanceof OperationsAnimeNotFoundError, true);
+            assert.deepStrictEqual(failure.value instanceof DomainNotFoundError, true);
           }
         }
       }),

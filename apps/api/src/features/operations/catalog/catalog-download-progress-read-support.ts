@@ -7,7 +7,7 @@ import type { DatabaseError } from "@/db/database.ts";
 import { downloads } from "@/db/schema.ts";
 import { toDownloadStatus } from "@/features/operations/download/download-presentation.ts";
 import { loadDownloadPresentationContexts } from "@/features/operations/repository/download-presentation-repository.ts";
-import type { OperationsStoredDataError } from "@/features/operations/errors.ts";
+import type { StoredDataError } from "@/features/errors.ts";
 import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 
 export interface DownloadRuntimeSummary {
@@ -70,11 +70,11 @@ export function makeCatalogDownloadProgressReads(input: {
   } satisfies {
     readonly getDownloadProgress: () => Effect.Effect<
       DownloadStatus[],
-      DatabaseError | OperationsStoredDataError
+      DatabaseError | StoredDataError
     >;
     readonly getDownloadProgressBootstrap: (input?: {
       readonly limit?: number;
-    }) => Effect.Effect<DownloadStatus[], DatabaseError | OperationsStoredDataError>;
+    }) => Effect.Effect<DownloadStatus[], DatabaseError | StoredDataError>;
     readonly getDownloadRuntimeSummary: () => Effect.Effect<DownloadRuntimeSummary, DatabaseError>;
   };
 }

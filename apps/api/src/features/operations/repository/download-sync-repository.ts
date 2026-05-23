@@ -50,17 +50,11 @@ export interface DownloadSyncRepositoryShape {
   readonly insertDownloadEvent: (
     input: DownloadEventRecordInput,
     createdAt: string,
-  ) => Effect.Effect<
-    void,
-    DatabaseError | import("@/features/operations/errors.ts").OperationsStoredDataError
-  >;
+  ) => Effect.Effect<void, DatabaseError | import("@/features/errors.ts").StoredDataError>;
   readonly insertDownloadEvents: (
     inputs: readonly DownloadEventRecordInput[],
     createdAt: string,
-  ) => Effect.Effect<
-    void,
-    DatabaseError | import("@/features/operations/errors.ts").OperationsStoredDataError
-  >;
+  ) => Effect.Effect<void, DatabaseError | import("@/features/errors.ts").StoredDataError>;
   readonly listDownloadsByInfoHashes: (
     infoHashes: readonly string[],
   ) => Effect.Effect<readonly DownloadRow[], DatabaseError>;

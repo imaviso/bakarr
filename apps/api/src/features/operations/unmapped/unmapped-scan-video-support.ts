@@ -1,7 +1,7 @@
 import { Effect, Stream } from "effect";
 
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
-import { OperationsPathError } from "@/features/operations/errors.ts";
+import { DomainPathError } from "@/features/errors.ts";
 import { scanVideoFilesStream } from "@/features/operations/import-scan/file-scanner.ts";
 
 export const loadUnmappedFolderVideoSize = Effect.fn(
@@ -14,7 +14,7 @@ export const loadUnmappedFolderVideoSize = Effect.fn(
   ).pipe(
     Effect.mapError(
       (cause) =>
-        new OperationsPathError({
+        new DomainPathError({
           cause,
           message: `Unmapped folder is inaccessible: ${path}`,
         }),

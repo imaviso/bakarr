@@ -10,14 +10,6 @@ import {
 } from "@/features/errors.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
 
-export { DomainConflictError as DownloadConflictError } from "@/features/errors.ts";
-export { DomainConflictError as OperationsConflictError } from "@/features/errors.ts";
-export { DomainInputError as OperationsInputError } from "@/features/errors.ts";
-export { DomainNotFoundError as DownloadNotFoundError } from "@/features/errors.ts";
-export { DomainNotFoundError as OperationsAnimeNotFoundError } from "@/features/errors.ts";
-export { DomainNotFoundError as OperationsTaskNotFoundError } from "@/features/errors.ts";
-export { DomainPathError as OperationsPathError } from "@/features/errors.ts";
-
 export class RssFeedRejectedError extends Schema.TaggedError<RssFeedRejectedError>()(
   "RssFeedRejectedError",
   { cause: Schema.optional(Schema.Defect), message: Schema.String },
@@ -32,9 +24,6 @@ export class RssFeedTooLargeError extends Schema.TaggedError<RssFeedTooLargeErro
   "RssFeedTooLargeError",
   { cause: Schema.optional(Schema.Defect), message: Schema.String },
 ) {}
-
-export { InfrastructureError as OperationsInfrastructureError } from "@/features/errors.ts";
-export { StoredDataError as OperationsStoredDataError } from "@/features/errors.ts";
 
 export type OperationsError =
   | DomainNotFoundError

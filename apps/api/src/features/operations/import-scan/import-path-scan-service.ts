@@ -6,11 +6,7 @@ import { Database, DatabaseError } from "@/db/database.ts";
 import { FileSystem, isWithinPathRoot } from "@/infra/filesystem/filesystem.ts";
 import { MediaProbe } from "@/infra/media/probe.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
-import {
-  OperationsInfrastructureError,
-  OperationsInputError,
-  OperationsPathError,
-} from "@/features/operations/errors.ts";
+import { DomainInputError, DomainPathError, InfrastructureError } from "@/features/errors.ts";
 import { scanImportPathEffect } from "@/features/operations/import-scan/import-path-scan-support.ts";
 import {
   RuntimeConfigSnapshotService,
@@ -27,7 +23,7 @@ export interface ImportPathScanServiceShape {
     readonly path: string;
   }) => Effect.Effect<
     ScanResult,
-    DatabaseError | OperationsInputError | OperationsPathError | OperationsInfrastructureError
+    DatabaseError | DomainInputError | DomainPathError | InfrastructureError
   >;
 }
 
@@ -52,7 +48,7 @@ export class ImportPathScanService extends Effect.Service<ImportPathScanService>
           Effect.mapError((error: RuntimeConfigSnapshotError) =>
             error instanceof DatabaseError
               ? error
-              : new OperationsInfrastructureError({
+              : new InfrastructureError({
                   message: "Failed to load runtime config for import scan",
                   cause: error,
                 }),
@@ -61,7 +57,7 @@ export class ImportPathScanService extends Effect.Service<ImportPathScanService>
         const canonicalPath = yield* fs.realPath(input.path).pipe(
           Effect.mapError(
             (cause) =>
-              new OperationsPathError({
+              new DomainPathError({
                 cause,
                 message: `Import path is inaccessible: ${input.path}`,
               }),
@@ -83,7 +79,7 @@ export class ImportPathScanService extends Effect.Service<ImportPathScanService>
         const isAllowed = allowedPrefixes.some((prefix) => isWithinPathRoot(canonicalPath, prefix));
 
         if (!isAllowed) {
-          return yield* new OperationsInputError({
+          return yield* new DomainInputError({
             message: "Import path must be inside library, recycle, or downloads root",
           });
         }
@@ -102,10 +98,10 @@ export class ImportPathScanService extends Effect.Service<ImportPathScanService>
         }).pipe(
           Effect.mapError((error) =>
             error instanceof DatabaseError ||
-            error instanceof OperationsInputError ||
-            error instanceof OperationsPathError
+            error instanceof DomainInputError ||
+            error instanceof DomainPathError
               ? error
-              : new OperationsInfrastructureError({
+              : new InfrastructureError({
                   message: "Failed to scan import path",
                   cause: error,
                 }),

@@ -2,7 +2,7 @@ import { Effect, Stream } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
 import { media } from "@/db/schema.ts";
-import { OperationsPathError } from "@/features/operations/errors.ts";
+import { DomainPathError } from "@/features/errors.ts";
 import { scanVideoFilesStream } from "@/features/operations/import-scan/file-scanner.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import {
@@ -18,7 +18,7 @@ export const scanAnimeLibraryRow = Effect.fn("OperationsService.scanAnimeLibrary
   return yield* scanVideoFilesStream(fs, animeRow.rootFolder).pipe(
     Stream.mapError(
       () =>
-        new OperationsPathError({
+        new DomainPathError({
           message: `Media library folder is inaccessible: ${animeRow.rootFolder}`,
         }),
     ),

@@ -3,10 +3,7 @@ import { brandMediaId, type ImportResult } from "@packages/shared/index.ts";
 
 import type { AppDatabase } from "@/db/database.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
-import {
-  OperationsInfrastructureError,
-  OperationsPathError,
-} from "@/features/operations/errors.ts";
+import { DomainPathError, InfrastructureError } from "@/features/errors.ts";
 import { upsertEpisodeFilesAtomic } from "@/features/operations/download/download-unit-upsert-support.ts";
 import type { LibraryImportPlan } from "@/features/operations/catalog/catalog-library-write-import-plan-support.ts";
 
@@ -18,17 +15,14 @@ export interface WriteLibraryImportFileInput {
 
 export const writeLibraryImportFile = Effect.fn("Operations.writeLibraryImportFile")((
   input: WriteLibraryImportFileInput,
-): Effect.Effect<
-  ImportResult["imported_files"][number],
-  OperationsPathError | OperationsInfrastructureError
-> => {
+): Effect.Effect<ImportResult["imported_files"][number], DomainPathError | InfrastructureError> => {
   const { db, fs, plan } = input;
   return Effect.gen(function* () {
     if (plan.importMode === "move") {
       yield* fs.rename(plan.resolvedSource, plan.destination).pipe(
         Effect.mapError(
           (cause) =>
-            new OperationsPathError({
+            new DomainPathError({
               cause,
               message: `Failed to move file into library: ${plan.sourcePath}`,
             }),
@@ -38,7 +32,7 @@ export const writeLibraryImportFile = Effect.fn("Operations.writeLibraryImportFi
       yield* fs.copyFile(plan.resolvedSource, plan.destination).pipe(
         Effect.mapError(
           (cause) =>
-            new OperationsPathError({
+            new DomainPathError({
               cause,
               message: `Failed to copy file into library: ${plan.sourcePath}`,
             }),
@@ -54,7 +48,7 @@ export const writeLibraryImportFile = Effect.fn("Operations.writeLibraryImportFi
     ).pipe(
       Effect.mapError(
         (cause) =>
-          new OperationsInfrastructureError({
+          new InfrastructureError({
             cause,
             message: "Failed to import episode files atomically",
           }),

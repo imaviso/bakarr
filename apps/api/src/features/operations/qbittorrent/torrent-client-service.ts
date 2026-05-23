@@ -16,11 +16,11 @@ import {
   RuntimeConfigSnapshotService,
   type RuntimeConfigSnapshotError,
 } from "@/features/system/runtime-config-snapshot-service.ts";
-import { OperationsInputError } from "@/features/operations/errors.ts";
+import { DomainInputError } from "@/features/errors.ts";
 
 type TorrentClientServiceError =
   | ExternalCallError
-  | OperationsInputError
+  | DomainInputError
   | QBitTorrentClientError
   | RuntimeConfigSnapshotError;
 
@@ -73,7 +73,7 @@ export class TorrentClientService extends Effect.Service<TorrentClientService>()
         const state = maybeQBitConfig(runtimeConfig);
 
         if (state._tag === "InvalidConfig") {
-          return yield* new OperationsInputError({
+          return yield* new DomainInputError({
             message: state.reason,
           });
         }

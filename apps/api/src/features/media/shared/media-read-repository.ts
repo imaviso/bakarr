@@ -4,19 +4,19 @@ import { Effect, Option } from "effect";
 import { Database, type AppDatabase, type DatabaseError } from "@/db/database.ts";
 import { media, mediaUnits } from "@/db/schema.ts";
 import { queryFirst, tryDatabasePromise } from "@/infra/effect/db.ts";
-import { MediaNotFoundError } from "@/features/media/errors.ts";
+import { DomainNotFoundError } from "@/features/errors.ts";
 
 export interface MediaReadRepositoryShape {
   readonly getAnimeRow: (
     mediaId: number,
-  ) => Effect.Effect<typeof media.$inferSelect, DatabaseError | MediaNotFoundError>;
+  ) => Effect.Effect<typeof media.$inferSelect, DatabaseError | DomainNotFoundError>;
   readonly requireAnimeExists: (
     mediaId: number,
-  ) => Effect.Effect<void, DatabaseError | MediaNotFoundError>;
+  ) => Effect.Effect<void, DatabaseError | DomainNotFoundError>;
   readonly getEpisodeRow: (
     mediaId: number,
     unitNumber: number,
-  ) => Effect.Effect<typeof mediaUnits.$inferSelect, DatabaseError | MediaNotFoundError>;
+  ) => Effect.Effect<typeof mediaUnits.$inferSelect, DatabaseError | DomainNotFoundError>;
   readonly loadCurrentEpisodeState: (
     mediaId: number,
     unitNumber: number,
@@ -65,7 +65,7 @@ const getAnimeRowEffect = Effect.fn("AnimeRepository.getAnimeRow")(function* (
     db.select().from(media).where(eq(media.id, mediaId)).limit(1),
   );
   if (Option.isNone(row)) {
-    return yield* new MediaNotFoundError({ message: "Media not found" });
+    return yield* new DomainNotFoundError({ message: "Media not found" });
   }
   return row.value;
 });
@@ -90,7 +90,7 @@ const getEpisodeRowEffect = Effect.fn("AnimeRepository.getEpisodeRow")(function*
       .limit(1),
   );
   if (Option.isNone(row)) {
-    return yield* new MediaNotFoundError({ message: "MediaUnit not found" });
+    return yield* new DomainNotFoundError({ message: "MediaUnit not found" });
   }
   return row.value;
 });

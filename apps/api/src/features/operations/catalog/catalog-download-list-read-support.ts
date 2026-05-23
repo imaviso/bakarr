@@ -7,7 +7,7 @@ import type { DatabaseError } from "@/db/database.ts";
 import { downloads } from "@/db/schema.ts";
 import { toDownload } from "@/features/operations/download/download-presentation.ts";
 import { loadDownloadPresentationContexts } from "@/features/operations/repository/download-presentation-repository.ts";
-import type { OperationsStoredDataError } from "@/features/operations/errors.ts";
+import type { StoredDataError } from "@/features/errors.ts";
 import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 
 export function makeCatalogDownloadListReads(input: {
@@ -57,6 +57,6 @@ export function makeCatalogDownloadListReads(input: {
     readonly listDownloadHistory: (input?: {
       readonly cursor?: string;
       readonly limit?: number;
-    }) => Effect.Effect<DownloadHistoryPage, DatabaseError | OperationsStoredDataError>;
+    }) => Effect.Effect<DownloadHistoryPage, DatabaseError | StoredDataError>;
   };
 }

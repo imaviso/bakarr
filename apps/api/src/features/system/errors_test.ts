@@ -1,10 +1,10 @@
 import { assert, it } from "@effect/vitest";
 
+import { DomainNotFoundError } from "@/features/errors.ts";
 import {
   ConfigValidationError,
   StoredConfigCorruptError,
   StoredConfigMissingError,
-  ProfileNotFoundError,
   ImageAssetNotFoundError,
   ImageAssetTooLargeError,
   ImageAssetAccessError,
@@ -28,8 +28,8 @@ it("StoredConfigMissingError constructs", () => {
   assert.deepStrictEqual(error._tag, "StoredConfigMissingError");
 });
 
-it("ProfileNotFoundError constructs", () => {
-  const error = new ProfileNotFoundError({ message: "not found" });
+it("DomainNotFoundError constructs", () => {
+  const error = new DomainNotFoundError({ message: "not found" });
   assert.deepStrictEqual(error._tag, "DomainNotFoundError");
 });
 
@@ -68,7 +68,7 @@ it("isStoredConfigReadError matches StoredConfigMissingError", () => {
 it("isStoredConfigReadError rejects other errors", () => {
   assert.deepStrictEqual(isStoredConfigReadError(new Error("random")), false);
   assert.deepStrictEqual(
-    isStoredConfigReadError(new ProfileNotFoundError({ message: "nope" })),
+    isStoredConfigReadError(new DomainNotFoundError({ message: "nope" })),
     false,
   );
 });

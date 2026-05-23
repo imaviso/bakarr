@@ -9,7 +9,7 @@ import {
   RuntimeConfigSnapshotService,
   type RuntimeConfigSnapshotError,
 } from "@/features/system/runtime-config-snapshot-service.ts";
-import { OperationsInputError, OperationsPathError } from "@/features/operations/errors.ts";
+import { DomainInputError, DomainPathError } from "@/features/errors.ts";
 import { getConfiguredLibraryPaths } from "@/features/media/shared/config-support.ts";
 
 const MAX_BROWSE_LIMIT = 500;
@@ -32,10 +32,7 @@ export interface BrowseResult {
   readonly total: number;
 }
 
-export type LibraryBrowseError =
-  | OperationsInputError
-  | OperationsPathError
-  | RuntimeConfigSnapshotError;
+export type LibraryBrowseError = DomainInputError | DomainPathError | RuntimeConfigSnapshotError;
 
 export interface LibraryBrowseServiceShape {
   readonly browse: (input: {
@@ -102,7 +99,7 @@ const makeLibraryBrowseService = Effect.fn("LibraryBrowseService.make")(function
     const canonicalPath = yield* fs.realPath(requestedPath).pipe(
       Effect.mapError(
         (cause) =>
-          new OperationsPathError({
+          new DomainPathError({
             cause,
             message: `Path is inaccessible: ${requestedPath}`,
           }),
@@ -112,7 +109,7 @@ const makeLibraryBrowseService = Effect.fn("LibraryBrowseService.make")(function
     const isAllowed = allowedPrefixes.some((prefix) => isWithinPathRoot(canonicalPath, prefix));
 
     if (!isAllowed) {
-      return yield* new OperationsInputError({
+      return yield* new DomainInputError({
         message: "Path is outside allowed import roots",
       });
     }
@@ -141,14 +138,14 @@ function browseFsPath(
   fs: FileSystemShape,
   path: string,
   options: { readonly limit?: number | undefined; readonly offset?: number | undefined },
-): Effect.Effect<BrowseResult, OperationsPathError> {
+): Effect.Effect<BrowseResult, DomainPathError> {
   return Effect.gen(function* () {
     const offset = Math.max(0, options.offset ?? 0);
 
     const dirEntries = yield* fs.readDir(path).pipe(
       Effect.mapError(
         (cause) =>
-          new OperationsPathError({
+          new DomainPathError({
             cause,
             message: `Path is inaccessible: ${path}`,
           }),

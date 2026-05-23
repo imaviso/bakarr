@@ -4,7 +4,7 @@ import type { AppDatabase } from "@/db/database.ts";
 import { media } from "@/db/schema.ts";
 import { isNotFoundError } from "@/infra/filesystem/fs-errors.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
-import { OperationsPathError, OperationsStoredDataError } from "@/features/operations/errors.ts";
+import { DomainPathError, StoredDataError } from "@/features/errors.ts";
 import {
   decodeUnmappedFolderMatchRow,
   type SystemUnmappedRepositoryShape,
@@ -35,7 +35,7 @@ export const loadUnmappedFolderSnapshot = Effect.fn("OperationsService.loadUnmap
       decodeUnmappedFolderMatchRow(row).pipe(
         Effect.mapError(
           (error) =>
-            new OperationsStoredDataError({
+            new StoredDataError({
               cause: error.cause,
               message: error.message,
             }),
@@ -50,7 +50,7 @@ export const loadUnmappedFolderSnapshot = Effect.fn("OperationsService.loadUnmap
             isNotFoundError(cause)
               ? Effect.succeed([])
               : Effect.fail(
-                  new OperationsPathError({
+                  new DomainPathError({
                     cause,
                     message: `Library root is inaccessible: ${root}`,
                   }),

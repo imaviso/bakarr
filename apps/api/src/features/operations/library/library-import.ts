@@ -12,7 +12,7 @@ import { media, mediaUnits } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { buildEpisodeFilenamePlan } from "@/features/operations/library/naming-canonical-support.ts";
 import { selectNamingFormat } from "@/features/operations/library/naming-format-support.ts";
-import { OperationsStoredDataError } from "@/features/operations/errors.ts";
+import { StoredDataError } from "@/features/errors.ts";
 import { deriveAnimeSeason, extractYearFromDate } from "@/domain/media/date-utils.ts";
 import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
 
@@ -37,7 +37,7 @@ const decodeAnimeGenres = Effect.fn("Operations.decodeAnimeGenres")(function* (
     Effect.map((decoded) => [...decoded]),
     Effect.mapError(
       (cause) =>
-        new OperationsStoredDataError({
+        new StoredDataError({
           cause,
           message: "Stored media genres are corrupt",
         }),

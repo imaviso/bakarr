@@ -1,10 +1,9 @@
 import { eq } from "drizzle-orm";
 import { Effect, Option } from "effect";
 
-import { ProfileNotFoundError } from "@/features/system/errors.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { media, mediaUnits } from "@/db/schema.ts";
-import { MediaConflictError, MediaNotFoundError } from "@/features/media/errors.ts";
+import { DomainConflictError, DomainNotFoundError } from "@/features/errors.ts";
 import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
 import { qualityProfileExistsEffect } from "@/features/media/shared/profile-support.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
@@ -18,7 +17,7 @@ export const checkAnimeExistsEffect = Effect.fn("AnimeAddValidation.checkAnimeEx
   );
 
   if (existing[0]) {
-    return yield* new MediaConflictError({
+    return yield* new DomainConflictError({
       message: "Media already exists",
     });
   }
@@ -28,9 +27,9 @@ export const checkAnimeExistsEffect = Effect.fn("AnimeAddValidation.checkAnimeEx
 
 export const requireAnimeMetadataEffect = <T>(
   metadata: Option.Option<T>,
-): Effect.Effect<T, MediaNotFoundError> => {
+): Effect.Effect<T, DomainNotFoundError> => {
   if (Option.isNone(metadata)) {
-    return Effect.fail(new MediaNotFoundError({ message: "Media not found" }));
+    return Effect.fail(new DomainNotFoundError({ message: "Media not found" }));
   }
   return Effect.succeed(metadata.value);
 };
@@ -40,7 +39,7 @@ export const checkProfileExistsEffect = Effect.fn("AnimeAddValidation.checkProfi
     const profileExists = yield* qualityProfileExistsEffect(db, profileName);
 
     if (!profileExists) {
-      return yield* new ProfileNotFoundError({
+      return yield* new DomainNotFoundError({
         message: `Quality profile '${profileName}' not found`,
       });
     }
@@ -55,7 +54,7 @@ export const checkRootFolderNotOwnedEffect = Effect.fn(
   const existingRootOwner = yield* mediaReadRepository.findAnimeRootFolderOwner(rootFolder);
 
   if (existingRootOwner) {
-    return yield* new MediaConflictError({
+    return yield* new DomainConflictError({
       message: `Folder is already mapped to ${existingRootOwner.titleRomaji}`,
     });
   }

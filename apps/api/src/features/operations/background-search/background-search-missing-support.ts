@@ -19,10 +19,7 @@ import {
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import { OperationsProfileRepository } from "@/features/operations/repository/profile-repository.ts";
 import { BackgroundSearchQueueService } from "@/features/operations/background-search/background-search-queue-service.ts";
-import {
-  OperationsInfrastructureError,
-  OperationsInputError,
-} from "@/features/operations/errors.ts";
+import { DomainInputError, InfrastructureError } from "@/features/errors.ts";
 import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
 import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
 import { SearchReleaseService } from "@/features/operations/search/search-orchestration-release-search.ts";
@@ -32,7 +29,7 @@ import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-s
 export interface SearchBackgroundMissingServiceShape {
   readonly triggerSearchMissing: (
     mediaId?: number,
-  ) => Effect.Effect<void, DatabaseError | OperationsInfrastructureError>;
+  ) => Effect.Effect<void, DatabaseError | InfrastructureError>;
 }
 
 export class SearchBackgroundMissingService extends Effect.Service<SearchBackgroundMissingService>()(
@@ -55,7 +52,7 @@ export class SearchBackgroundMissingService extends Effect.Service<SearchBackgro
           const profileOption = yield* profileRepository.loadQualityProfile(profileName);
 
           if (Option.isNone(profileOption)) {
-            return yield* new OperationsInputError({
+            return yield* new DomainInputError({
               message: `Quality profile '${profileName}' not found`,
             });
           }
@@ -230,7 +227,7 @@ export class SearchBackgroundMissingService extends Effect.Service<SearchBackgro
           Effect.mapError((error) =>
             error instanceof DatabaseError
               ? error
-              : new OperationsInfrastructureError({
+              : new InfrastructureError({
                   message: "Failed to queue missing-unit search",
                   cause: error,
                 }),

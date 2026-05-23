@@ -1,6 +1,6 @@
 import { Effect, Schema } from "effect";
 import { MediaDiscoveryEntrySchema } from "@packages/shared/index.ts";
-import { MediaStoredDataError } from "@/features/media/errors.ts";
+import { StoredDataError } from "@/features/errors.ts";
 
 const AnimeDiscoveryEntryListJsonSchema = Schema.parseJson(Schema.Array(MediaDiscoveryEntrySchema));
 const AnimeSynonymsJsonSchema = Schema.parseJson(Schema.Array(Schema.String));
@@ -18,7 +18,7 @@ export const decodeStoredStringListEffect = Effect.fn(
     Effect.map((decoded) => [...decoded]),
     Effect.mapError(
       (cause) =>
-        new MediaStoredDataError({
+        new StoredDataError({
           cause,
           message: `Stored media ${field} JSON is corrupt`,
         }),
@@ -37,7 +37,7 @@ export const decodeStoredNumberListEffect = Effect.fn(
     Effect.map((decoded) => [...decoded]),
     Effect.mapError(
       (cause) =>
-        new MediaStoredDataError({
+        new StoredDataError({
           cause,
           message: `Stored media ${field} JSON is corrupt`,
         }),
@@ -56,7 +56,7 @@ export const decodeStoredDiscoveryEntriesEffect = Effect.fn(
     Effect.map((decoded) => [...decoded]),
     Effect.mapError(
       (cause) =>
-        new MediaStoredDataError({
+        new StoredDataError({
           cause,
           message: `Stored media ${field} JSON is corrupt`,
         }),
@@ -78,7 +78,7 @@ export const decodeStoredSynonymsEffect = Effect.fn(
     }),
     Effect.mapError(
       (cause) =>
-        new MediaStoredDataError({
+        new StoredDataError({
           cause,
           message: "Stored media synonyms JSON is corrupt",
         }),

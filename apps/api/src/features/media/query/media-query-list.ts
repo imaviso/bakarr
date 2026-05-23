@@ -10,7 +10,7 @@ import {
 } from "@packages/shared/index.ts";
 import { DatabaseError, type AppDatabase } from "@/db/database.ts";
 import { media, mediaUnits } from "@/db/schema.ts";
-import { MediaStoredDataError } from "@/features/media/errors.ts";
+import { StoredDataError } from "@/features/errors.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { deriveAnimeSeason, extractYearFromDate } from "@/domain/media/date-utils.ts";
 import {
@@ -143,7 +143,7 @@ function toAnimeDtoProgress(
   row: typeof media.$inferSelect,
   progress?: EpisodeStats,
   missingNumbers: readonly number[] = [],
-): Effect.Effect<Media, MediaStoredDataError> {
+): Effect.Effect<Media, StoredDataError> {
   const downloaded = progress?.downloaded ?? 0;
   const total = row.unitCount ?? undefined;
   const sortedMissing = total

@@ -6,11 +6,8 @@ import type { EventBusShape } from "@/features/events/event-bus.ts";
 import { type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import type { AniListClient } from "@/features/media/metadata/anilist.ts";
 import type { SystemUnmappedRepositoryShape } from "@/features/system/repository/unmapped-repository.ts";
-import {
-  OperationsPathError,
-  OperationsInfrastructureError,
-  type OperationsStoredDataError,
-} from "@/features/operations/errors.ts";
+import { DomainPathError, InfrastructureError } from "@/features/errors.ts";
+import type { StoredDataError } from "@/features/errors.ts";
 import {
   appendLog,
   markJobFailed,
@@ -35,7 +32,7 @@ export interface UnmappedScanWorkflowShape {
   readonly matchAndPersistUnmappedFolder: UnmappedScanQueryShape["matchAndPersistUnmappedFolder"];
   readonly runUnmappedScan: () => Effect.Effect<
     { folderCount: number },
-    DatabaseError | OperationsPathError | OperationsInfrastructureError | OperationsStoredDataError
+    DatabaseError | DomainPathError | InfrastructureError | StoredDataError
   >;
 }
 
@@ -72,9 +69,7 @@ export function makeUnmappedScanWorkflow(input: {
       tryDatabasePromise,
     });
 
-  const failAfterMarkingJobFailure = (
-    error: DatabaseError | OperationsPathError | OperationsStoredDataError,
-  ) =>
+  const failAfterMarkingJobFailure = (error: DatabaseError | DomainPathError | StoredDataError) =>
     markJobFailureOrFailWithError({
       error,
       job: "unmapped_scan",
@@ -87,7 +82,7 @@ export function makeUnmappedScanWorkflow(input: {
     );
 
   const failInfrastructureAfterMarkingJobFailure = (cause: Cause.Cause<unknown>) => {
-    const infrastructureError = new OperationsInfrastructureError({
+    const infrastructureError = new InfrastructureError({
       message: "Failed to scan unmapped folders",
       cause,
     });

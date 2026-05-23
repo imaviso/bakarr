@@ -19,11 +19,7 @@ import {
 import { parseMagnetInfoHash } from "@/features/operations/download/download-paths.ts";
 import { parseReleaseName } from "@/features/operations/search/release-ranking.ts";
 import { parseVolumeNumbersFromTitle } from "@/features/operations/search/release-volume.ts";
-import {
-  DownloadConflictError,
-  OperationsInfrastructureError,
-  OperationsInputError,
-} from "@/features/operations/errors.ts";
+import { DomainConflictError, DomainInputError, InfrastructureError } from "@/features/errors.ts";
 import type { TriggerDownloadInput } from "@/features/operations/download/download-orchestration-shared.ts";
 import { resolveRequestedEpisodeNumber } from "@/features/operations/download/download-orchestration-shared.ts";
 
@@ -115,7 +111,7 @@ export const prepareTriggerDownload = Effect.fn("Operations.prepareTriggerDownlo
     const { effectiveIsBatch, inferredCoveredEpisodes, requestedEpisode } = plan;
 
     if (!requestedEpisode) {
-      return yield* new OperationsInputError({
+      return yield* new DomainInputError({
         message:
           "unit_number is required when the release title does not include episode information",
       });
@@ -148,7 +144,7 @@ export const prepareTriggerDownload = Effect.fn("Operations.prepareTriggerDownlo
       const existingByHash = yield* input.triggerRepo.lookupDownloadByInfoHash(infoHash);
 
       if (existingByHash && IN_FLIGHT_STATUSES.has(existingByHash.status)) {
-        return yield* new DownloadConflictError({
+        return yield* new DomainConflictError({
           message: "An in-flight download already covers these mediaUnits",
         });
       }
@@ -164,7 +160,7 @@ export const prepareTriggerDownload = Effect.fn("Operations.prepareTriggerDownlo
           const existingCovered = yield* parseCoveredEpisodesEffect(row.coveredUnits);
 
           if (existingCovered.some((episode) => inferredCoveredEpisodes.includes(episode))) {
-            return yield* new DownloadConflictError({
+            return yield* new DomainConflictError({
               message: "An in-flight download already covers these mediaUnits",
             });
           }
@@ -212,7 +208,7 @@ export const insertQueuedDownload = Effect.fn("Operations.insertQueuedDownload")
   if (insertResult._tag === "Left") {
     const insertError = insertResult.left;
     if (insertError instanceof DatabaseError && insertError.isUniqueConstraint()) {
-      return yield* new DownloadConflictError({
+      return yield* new DomainConflictError({
         message: "Download already exists",
       });
     }
@@ -249,7 +245,7 @@ export const addMagnetToQueuedDownload = Effect.fn("Operations.addMagnetToQueued
         );
       }
 
-      return yield* new OperationsInfrastructureError({
+      return yield* new InfrastructureError({
         message: "Failed to trigger download",
         cause: qbitResult.left,
       });

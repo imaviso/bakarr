@@ -5,7 +5,7 @@ import { DatabaseError } from "@/db/database.ts";
 import { Database } from "@/db/database.ts";
 import { rssFeeds } from "@/db/schema.ts";
 import { BackgroundSearchRssFeedService } from "@/features/operations/background-search/background-search-rss-feed-service.ts";
-import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
+import { InfrastructureError } from "@/features/errors.ts";
 import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
@@ -14,7 +14,7 @@ import { ExternalCallError } from "@/infra/effect/retry.ts";
 export interface SearchBackgroundRssServiceShape {
   readonly runRssCheck: () => Effect.Effect<
     { readonly newItems: number; readonly totalFeeds: number },
-    DatabaseError | OperationsInfrastructureError | ExternalCallError
+    DatabaseError | InfrastructureError | ExternalCallError
   >;
 }
 
@@ -59,16 +59,16 @@ export class SearchBackgroundRssService extends Effect.Service<SearchBackgroundR
           Effect.mapError((error) =>
             error instanceof DatabaseError ||
             error instanceof ExternalCallError ||
-            error instanceof OperationsInfrastructureError
+            error instanceof InfrastructureError
               ? error
-              : new OperationsInfrastructureError({
+              : new InfrastructureError({
                   message: "Failed to run RSS check",
                   cause: error,
                 }),
           ),
           Effect.catchAllDefect((defect) =>
             Effect.fail(
-              new OperationsInfrastructureError({
+              new InfrastructureError({
                 message: "Failed to run RSS check",
                 cause: defect,
               }),

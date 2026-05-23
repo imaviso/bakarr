@@ -2,7 +2,7 @@ import { Effect } from "effect";
 
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { isWithinPathRoot } from "@/infra/filesystem/filesystem.ts";
-import { MediaPathError } from "@/features/media/errors.ts";
+import { DomainPathError } from "@/features/errors.ts";
 
 export const loadAnimeRoot = Effect.fn("AnimeFilePathPolicy.loadAnimeRoot")(function* (
   fs: FileSystemShape,
@@ -11,7 +11,7 @@ export const loadAnimeRoot = Effect.fn("AnimeFilePathPolicy.loadAnimeRoot")(func
   return yield* fs.realPath(rootFolder).pipe(
     Effect.mapError(
       (cause) =>
-        new MediaPathError({
+        new DomainPathError({
           cause,
           message: "Media root folder does not exist",
         }),
@@ -29,7 +29,7 @@ export const validateEpisodeFilePath = Effect.fn("AnimeFilePathPolicy.validateEp
     const resolvedPath = yield* input.fs.realPath(input.filePath).pipe(
       Effect.mapError(
         (cause) =>
-          new MediaPathError({
+          new DomainPathError({
             cause,
             message: "File path does not exist or is inaccessible",
           }),
@@ -37,7 +37,7 @@ export const validateEpisodeFilePath = Effect.fn("AnimeFilePathPolicy.validateEp
     );
 
     if (!isWithinPathRoot(resolvedPath, input.animeRoot)) {
-      return yield* new MediaPathError({
+      return yield* new DomainPathError({
         message: input.outOfRootMessage,
       });
     }

@@ -18,7 +18,7 @@ import {
 } from "@/features/operations/repository/download-repository.ts";
 import { toDownloadEvent } from "@/domain/download/event-presentations.ts";
 import { toRssFeed } from "@/features/operations/repository/rss-repository.ts";
-import { OperationsStoredDataError } from "@/features/operations/errors.ts";
+import { StoredDataError } from "@/features/errors.ts";
 
 it.effect("repository mappers convert RSS feed and download event rows", () =>
   Effect.gen(function* () {
@@ -349,7 +349,7 @@ it.effect("toDownloadStatus fails when stored infoHash is missing", () =>
       const failure = Cause.failureOption(exit.cause);
       assert.deepStrictEqual(failure._tag, "Some");
       if (failure._tag === "Some") {
-        assert.deepStrictEqual(failure.value instanceof OperationsStoredDataError, true);
+        assert.deepStrictEqual(failure.value instanceof StoredDataError, true);
       }
     }
   }),

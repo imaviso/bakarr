@@ -1,53 +1,52 @@
 import { assert, it } from "@effect/vitest";
 
 import {
-  DownloadNotFoundError,
-  OperationsAnimeNotFoundError,
-  OperationsTaskNotFoundError,
-  DownloadConflictError,
-  OperationsInputError,
-  OperationsConflictError,
-  OperationsPathError,
+  DomainConflictError,
+  DomainInputError,
+  DomainNotFoundError,
+  DomainPathError,
+  InfrastructureError,
+  StoredDataError,
+} from "@/features/errors.ts";
+import {
   RssFeedRejectedError,
   RssFeedParseError,
   RssFeedTooLargeError,
-  OperationsStoredDataError,
-  OperationsInfrastructureError,
   isOperationsError,
 } from "@/features/operations/errors.ts";
 
-it("DownloadNotFoundError constructs", () => {
-  const error = new DownloadNotFoundError({ message: "not found" });
+it("DomainNotFoundError constructs", () => {
+  const error = new DomainNotFoundError({ message: "not found" });
   assert.deepStrictEqual(error._tag, "DomainNotFoundError");
 });
 
-it("OperationsAnimeNotFoundError constructs", () => {
-  const error = new OperationsAnimeNotFoundError({ message: "media missing" });
+it("DomainNotFoundError constructs", () => {
+  const error = new DomainNotFoundError({ message: "media missing" });
   assert.deepStrictEqual(error._tag, "DomainNotFoundError");
 });
 
-it("OperationsTaskNotFoundError constructs", () => {
-  const error = new OperationsTaskNotFoundError({ message: "task gone" });
+it("DomainNotFoundError constructs", () => {
+  const error = new DomainNotFoundError({ message: "task gone" });
   assert.deepStrictEqual(error._tag, "DomainNotFoundError");
 });
 
-it("DownloadConflictError constructs", () => {
-  const error = new DownloadConflictError({ message: "duplicate" });
+it("DomainConflictError constructs", () => {
+  const error = new DomainConflictError({ message: "duplicate" });
   assert.deepStrictEqual(error._tag, "DomainConflictError");
 });
 
-it("OperationsInputError constructs with optional cause", () => {
-  const error = new OperationsInputError({ message: "bad input" });
+it("DomainInputError constructs with optional cause", () => {
+  const error = new DomainInputError({ message: "bad input" });
   assert.deepStrictEqual(error._tag, "DomainInputError");
 });
 
-it("OperationsConflictError constructs", () => {
-  const error = new OperationsConflictError({ message: "conflict" });
+it("DomainConflictError constructs", () => {
+  const error = new DomainConflictError({ message: "conflict" });
   assert.deepStrictEqual(error._tag, "DomainConflictError");
 });
 
-it("OperationsPathError constructs", () => {
-  const error = new OperationsPathError({ message: "bad path" });
+it("DomainPathError constructs", () => {
+  const error = new DomainPathError({ message: "bad path" });
   assert.deepStrictEqual(error._tag, "DomainPathError");
 });
 
@@ -66,19 +65,19 @@ it("RssFeedTooLargeError constructs", () => {
   assert.deepStrictEqual(error._tag, "RssFeedTooLargeError");
 });
 
-it("OperationsStoredDataError constructs", () => {
-  const error = new OperationsStoredDataError({ message: "corrupt" });
+it("StoredDataError constructs", () => {
+  const error = new StoredDataError({ message: "corrupt" });
   assert.deepStrictEqual(error._tag, "StoredDataError");
 });
 
-it("OperationsInfrastructureError constructs", () => {
-  const error = new OperationsInfrastructureError({ cause: new Error("db"), message: "infra" });
+it("InfrastructureError constructs", () => {
+  const error = new InfrastructureError({ cause: new Error("db"), message: "infra" });
   assert.deepStrictEqual(error._tag, "InfrastructureError");
 });
 
 it("isOperationsError returns true for all operation error types", () => {
-  assert.ok(isOperationsError(new DownloadNotFoundError({ message: "x" })));
-  assert.ok(isOperationsError(new OperationsInputError({ message: "x" })));
+  assert.ok(isOperationsError(new DomainNotFoundError({ message: "x" })));
+  assert.ok(isOperationsError(new DomainInputError({ message: "x" })));
   assert.ok(isOperationsError(new RssFeedParseError({ message: "x" })));
   assert.ok(isOperationsError(new RssFeedTooLargeError({ message: "x" })));
 });

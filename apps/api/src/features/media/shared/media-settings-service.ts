@@ -16,13 +16,10 @@ import {
   assertPathWithinLibraryRoot,
 } from "@/features/media/shared/media-path-policy.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
-import {
-  MediaPathError,
-  MediaConflictError,
-  type MediaServiceError,
-} from "@/features/media/errors.ts";
-import { ProfileNotFoundError } from "@/features/system/errors.ts";
-import { MediaStoredDataError } from "@/features/media/errors.ts";
+import { DomainConflictError, DomainPathError } from "@/features/errors.ts";
+import { type MediaServiceError } from "@/features/media/errors.ts";
+import { DomainNotFoundError } from "@/features/errors.ts";
+import { StoredDataError } from "@/features/errors.ts";
 
 export interface AnimeSettingsServiceShape {
   readonly setMonitored: (
@@ -36,11 +33,11 @@ export interface AnimeSettingsServiceShape {
   readonly updateProfile: (
     id: number,
     profileName: string,
-  ) => Effect.Effect<void, MediaServiceError | DatabaseError | ProfileNotFoundError>;
+  ) => Effect.Effect<void, MediaServiceError | DatabaseError | DomainNotFoundError>;
   readonly updateReleaseProfiles: (
     id: number,
     releaseProfileIds: number[],
-  ) => Effect.Effect<void, MediaServiceError | DatabaseError | MediaStoredDataError>;
+  ) => Effect.Effect<void, MediaServiceError | DatabaseError | StoredDataError>;
 }
 
 const makeAnimeSettingsService = Effect.fn("AnimeSettingsService.make")(function* () {
@@ -73,7 +70,7 @@ const makeAnimeSettingsService = Effect.fn("AnimeSettingsService.make")(function
     const configuredLibraryPath = yield* getConfiguredLibraryPathEffect(db).pipe(
       Effect.mapError(
         (cause) =>
-          new MediaPathError({
+          new DomainPathError({
             cause,
             message: "Configured library root is inaccessible",
           }),
@@ -88,7 +85,7 @@ const makeAnimeSettingsService = Effect.fn("AnimeSettingsService.make")(function
     yield* fs.mkdir(trimmedPath, { recursive: true }).pipe(
       Effect.mapError(
         (cause) =>
-          new MediaPathError({
+          new DomainPathError({
             cause,
             message: "Failed to create or access the requested media path",
           }),
@@ -98,7 +95,7 @@ const makeAnimeSettingsService = Effect.fn("AnimeSettingsService.make")(function
     const canonicalPath = yield* fs.realPath(trimmedPath).pipe(
       Effect.mapError(
         (cause) =>
-          new MediaPathError({
+          new DomainPathError({
             cause,
             message: "Path does not exist or is inaccessible",
           }),
@@ -108,7 +105,7 @@ const makeAnimeSettingsService = Effect.fn("AnimeSettingsService.make")(function
     const existingRootOwner = yield* mediaReadRepository.findAnimeRootFolderOwner(canonicalPath);
 
     if (existingRootOwner && existingRootOwner.id !== id) {
-      return yield* new MediaConflictError({
+      return yield* new DomainConflictError({
         message: `Folder is already mapped to ${existingRootOwner.titleRomaji}`,
       });
     }
@@ -136,7 +133,7 @@ const makeAnimeSettingsService = Effect.fn("AnimeSettingsService.make")(function
     const profileExists = yield* qualityProfileExistsEffect(db, profileName);
 
     if (!profileExists) {
-      return yield* new ProfileNotFoundError({
+      return yield* new DomainNotFoundError({
         message: `Quality profile '${profileName}' not found`,
       });
     }
@@ -159,7 +156,7 @@ const makeAnimeSettingsService = Effect.fn("AnimeSettingsService.make")(function
     const encodedReleaseProfileIds = yield* encodeNumberList(releaseProfileIds).pipe(
       Effect.mapError(
         (cause) =>
-          new MediaStoredDataError({
+          new StoredDataError({
             cause,
             message: "Media release profile ids are invalid",
           }),

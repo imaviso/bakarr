@@ -4,13 +4,10 @@ import { EventBus } from "@/features/events/event-bus.ts";
 import { makeOperationsProgressPublishers } from "@/features/operations/tasks/operations-progress-publishers.ts";
 import { DownloadProgressSupport } from "@/features/operations/download/download-progress-support.ts";
 import { type DatabaseError } from "@/db/database.ts";
-import type { OperationsInfrastructureError } from "@/features/operations/errors.ts";
+import type { InfrastructureError } from "@/features/errors.ts";
 
 export interface OperationsProgressShape {
-  readonly publishDownloadProgress: () => Effect.Effect<
-    void,
-    DatabaseError | OperationsInfrastructureError
-  >;
+  readonly publishDownloadProgress: () => Effect.Effect<void, DatabaseError | InfrastructureError>;
   readonly publishLibraryScanProgress: (scanned: number) => Effect.Effect<void>;
   readonly publishRssCheckProgress: (input: {
     current: number;

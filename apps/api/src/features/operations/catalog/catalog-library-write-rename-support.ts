@@ -7,7 +7,7 @@ import { mediaUnits } from "@/db/schema.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { buildRenamePreview } from "@/features/operations/library/library-import.ts";
-import { OperationsAnimeNotFoundError, OperationsPathError } from "@/features/operations/errors.ts";
+import { DomainNotFoundError, DomainPathError } from "@/features/errors.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 
@@ -25,7 +25,7 @@ export const renameLibraryFiles = Effect.fn("Operations.renameLibraryFiles")((
   input: RenameLibraryFilesInput,
 ): Effect.Effect<
   { failed: number; failures: string[]; renamed: number },
-  DatabaseError | OperationsAnimeNotFoundError
+  DatabaseError | DomainNotFoundError
 > => {
   const { db, eventBus, fs, mediaReadRepository, runtimeConfig, tryDatabasePromise, mediaId } =
     input;
@@ -48,7 +48,7 @@ export const renameLibraryFiles = Effect.fn("Operations.renameLibraryFiles")((
       const result = yield* fs.rename(item.current_path, item.new_path).pipe(
         Effect.mapError(
           (cause) =>
-            new OperationsPathError({
+            new DomainPathError({
               cause,
               message: `Failed to rename file ${item.current_path}`,
             }),

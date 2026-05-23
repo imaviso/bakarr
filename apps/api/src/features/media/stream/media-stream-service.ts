@@ -4,7 +4,7 @@ import type { DatabaseError } from "@/db/database.ts";
 import { Database } from "@/db/database.ts";
 import { ClockService } from "@/infra/clock.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
-import { MediaNotFoundError } from "@/features/media/errors.ts";
+import { DomainNotFoundError } from "@/features/errors.ts";
 import { StreamAccessError } from "@/features/media/stream/media-stream-errors.ts";
 import { resolveUnitFileEffect } from "@/features/media/files/media-file-read.ts";
 import { StreamTokenSigner } from "@/features/media/stream/stream-token-signer.ts";
@@ -28,7 +28,7 @@ export interface AnimeStreamServiceShape {
     readonly unitNumber: number;
     readonly expiresAt: number;
     readonly signatureHex: string;
-  }) => Effect.Effect<ResolvedStreamFile, DatabaseError | MediaNotFoundError | StreamAccessError>;
+  }) => Effect.Effect<ResolvedStreamFile, DatabaseError | DomainNotFoundError | StreamAccessError>;
 }
 
 const makeAnimeStreamService = Effect.fn("AnimeStreamService.make")(function* () {

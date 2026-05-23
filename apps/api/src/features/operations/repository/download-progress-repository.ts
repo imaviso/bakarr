@@ -5,7 +5,7 @@ import { Database, DatabaseError, type AppDatabase } from "@/db/database.ts";
 import { downloads } from "@/db/schema.ts";
 import { loadDownloadPresentationContexts } from "@/features/operations/repository/download-presentation-repository.ts";
 import type { DownloadPresentationContext } from "@/features/operations/repository/types.ts";
-import { OperationsStoredDataError } from "@/features/operations/errors.ts";
+import { StoredDataError } from "@/features/errors.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 type DownloadRow = typeof downloads.$inferSelect;
@@ -14,10 +14,7 @@ export interface DownloadProgressRepositoryShape {
   readonly listActiveDownloadRows: () => Effect.Effect<readonly DownloadRow[], DatabaseError>;
   readonly loadPresentationContexts: (
     rows: readonly DownloadRow[],
-  ) => Effect.Effect<
-    Map<number, DownloadPresentationContext>,
-    DatabaseError | OperationsStoredDataError
-  >;
+  ) => Effect.Effect<Map<number, DownloadPresentationContext>, DatabaseError | StoredDataError>;
 }
 
 export class DownloadProgressRepository extends Effect.Service<DownloadProgressRepository>()(

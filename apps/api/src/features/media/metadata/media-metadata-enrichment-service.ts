@@ -11,7 +11,8 @@ import {
 import type { AniDbEpisodeLookupInput } from "@/features/media/metadata/anidb-protocol.ts";
 import type { AnimeMetadataEpisode } from "@/features/media/metadata/anilist-model.ts";
 import { syncEpisodeMetadataEffect } from "@/features/media/units/media-unit-metadata-sync.ts";
-import { AniDbRuntimeConfigError, type MediaStoredDataError } from "@/features/media/errors.ts";
+import type { StoredDataError } from "@/features/errors.ts";
+import { AniDbRuntimeConfigError } from "@/features/media/errors.ts";
 import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
@@ -41,7 +42,7 @@ export interface AnimeMetadataEnrichmentServiceShape {
     mediaId: number,
   ) => Effect.Effect<
     AnimeMetadataEnrichmentCacheState,
-    DatabaseError | MediaStoredDataError | AniDbRuntimeConfigError
+    DatabaseError | StoredDataError | AniDbRuntimeConfigError
   >;
   readonly requestAniDbRefresh: (request: AniDbRefreshRequest) => Effect.Effect<void>;
 }

@@ -9,7 +9,7 @@ import {
 } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { media } from "@/db/schema.ts";
-import { MediaNotFoundError } from "@/features/media/errors.ts";
+import { DomainNotFoundError } from "@/features/errors.ts";
 import type { AniListClient } from "@/features/media/metadata/anilist.ts";
 import type { ManamiClient } from "@/features/media/metadata/manami.ts";
 import { markSearchResultsAlreadyInLibraryEffect } from "@/features/media/query/search-results.ts";
@@ -88,7 +88,7 @@ export const getAnimeByAnilistIdEffect = Effect.fn("AnimeQuerySearch.getAnimeByA
     const metadata = yield* input.aniList.getAnimeMetadataById(input.id, mediaKind);
 
     if (Option.isNone(metadata)) {
-      return yield* new MediaNotFoundError({
+      return yield* new DomainNotFoundError({
         message: "Media not found",
       });
     }

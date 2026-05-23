@@ -2,7 +2,8 @@ import { Effect } from "effect";
 
 import type { QualityProfile } from "@packages/shared/index.ts";
 import { nowIsoFromClock, ClockService } from "@/infra/clock.ts";
-import { ProfileNotFoundError, ConfigValidationError } from "@/features/system/errors.ts";
+import { DomainNotFoundError } from "@/features/errors.ts";
+import { ConfigValidationError } from "@/features/system/errors.ts";
 import {
   decodeQualityProfileRow,
   encodeQualityProfileRow,
@@ -48,7 +49,7 @@ const makeQualityProfileService = Effect.fn("QualityProfileService.make")(functi
     const existing = yield* qualityProfileRepository.loadQualityProfileRow(name);
 
     if (!existing) {
-      return yield* new ProfileNotFoundError({ message: "Quality profile not found" });
+      return yield* new DomainNotFoundError({ message: "Quality profile not found" });
     }
 
     const encodedProfile = yield* encodeQualityProfileRow(profile);

@@ -10,7 +10,7 @@ import {
   type MediaProbeShape,
   type ProbedMediaMetadata,
 } from "@/infra/media/probe.ts";
-import { OperationsAnimeNotFoundError, OperationsPathError } from "@/features/operations/errors.ts";
+import { DomainNotFoundError, DomainPathError } from "@/features/errors.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import { buildEpisodeFilenamePlan } from "@/features/operations/library/naming-canonical-support.ts";
 import type { EpisodeFilenamePlan } from "@/features/operations/library/naming-types.ts";
@@ -52,17 +52,14 @@ export interface LibraryImportPlan {
 
 export const buildLibraryImportPlan = Effect.fn("Operations.buildLibraryImportPlan")((
   input: BuildLibraryImportPlanInput,
-): Effect.Effect<
-  LibraryImportPlan,
-  DatabaseError | OperationsPathError | OperationsAnimeNotFoundError
-> => {
+): Effect.Effect<LibraryImportPlan, DatabaseError | DomainPathError | DomainNotFoundError> => {
   const { db, file, fs, mediaReadRepository, mediaProbe, runtimeConfig, tryDatabasePromise } =
     input;
   return Effect.gen(function* () {
     const resolvedSource = yield* fs.realPath(file.source_path).pipe(
       Effect.mapError(
         (cause) =>
-          new OperationsPathError({
+          new DomainPathError({
             cause,
             message: `Source path is inaccessible: ${file.source_path}`,
           }),

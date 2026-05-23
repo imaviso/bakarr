@@ -13,7 +13,7 @@ import {
   toAnimeSearchCandidate,
 } from "@/features/operations/library/library-import.ts";
 import { media } from "@/db/schema.ts";
-import { OperationsStoredDataError } from "@/features/operations/errors.ts";
+import { StoredDataError } from "@/features/errors.ts";
 import { encodeConfigCore, toConfigCore } from "@/features/system/config-codec.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
 import { makeMediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
@@ -429,7 +429,7 @@ it.effect("toAnimeSearchCandidate fails for corrupt stored genres", () =>
       const failure = Cause.failureOption(exit.cause);
       assert.deepStrictEqual(failure._tag, "Some");
       if (failure._tag === "Some") {
-        assert.deepStrictEqual(failure.value instanceof OperationsStoredDataError, true);
+        assert.deepStrictEqual(failure.value instanceof StoredDataError, true);
       }
     }
   }),

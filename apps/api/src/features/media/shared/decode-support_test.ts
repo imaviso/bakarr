@@ -6,14 +6,14 @@ import {
   decodeStoredNumberListEffect,
   decodeStoredSynonymsEffect,
 } from "@/features/media/shared/decode-support.ts";
-import { MediaStoredDataError } from "@/features/media/errors.ts";
+import { StoredDataError } from "@/features/errors.ts";
 
 function assertStoredDataError(exit: Exit.Exit<unknown, unknown>, message: string) {
   assert.deepStrictEqual(Exit.isFailure(exit), true);
   if (Exit.isFailure(exit)) {
     const failure = Cause.failureOption(exit.cause);
     assert.ok(Option.isSome(failure));
-    assert.ok(failure.value instanceof MediaStoredDataError);
+    assert.ok(failure.value instanceof StoredDataError);
     assert.deepStrictEqual(failure.value.message, message);
   }
 }

@@ -6,7 +6,7 @@ import type { ReaderPage, ReaderPagesResponse } from "@packages/shared/index.ts"
 import { Database, type AppDatabase, type DatabaseError } from "@/db/database.ts";
 import { AppConfig } from "@/config/schema.ts";
 import { FileSystem, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
-import { MediaNotFoundError } from "@/features/media/errors.ts";
+import { DomainNotFoundError } from "@/features/errors.ts";
 import { resolveUnitFileEffect } from "@/features/media/files/media-file-read.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import {
@@ -34,12 +34,12 @@ export interface MediaReaderServiceShape {
   readonly listPages: (
     mediaId: number,
     unitNumber: number,
-  ) => Effect.Effect<ReaderPagesResponse, DatabaseError | MediaNotFoundError | ReaderAccessError>;
+  ) => Effect.Effect<ReaderPagesResponse, DatabaseError | DomainNotFoundError | ReaderAccessError>;
   readonly readPageImage: (
     mediaId: number,
     unitNumber: number,
     pageNumber: number,
-  ) => Effect.Effect<ReaderPageImage, DatabaseError | MediaNotFoundError | ReaderAccessError>;
+  ) => Effect.Effect<ReaderPageImage, DatabaseError | DomainNotFoundError | ReaderAccessError>;
 }
 
 interface ReaderUnitFile {

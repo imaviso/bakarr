@@ -13,7 +13,7 @@ import {
   encodeAnimeSynonyms,
 } from "@/features/media/metadata/discovery-metadata-codec.ts";
 import { toAnimeDto } from "@/features/media/shared/dto.ts";
-import { MediaPathError, MediaStoredDataError } from "@/features/media/errors.ts";
+import { DomainPathError, StoredDataError } from "@/features/errors.ts";
 import { buildMissingEpisodeRows } from "@/features/media/units/media-schedule-repository.ts";
 import { insertAnimeAggregateAtomicEffect } from "@/features/media/shared/aggregate-support.ts";
 import { resolveAnimeRootFolderEffect } from "@/features/media/shared/config-support.ts";
@@ -66,7 +66,7 @@ export const addAnimeEffect = Effect.fn("AnimeAdd.addAnimeEffect")(function* (in
   yield* input.fs.mkdir(rootFolder, { recursive: true }).pipe(
     Effect.mapError(
       (cause) =>
-        new MediaPathError({
+        new DomainPathError({
           cause,
           message: "Failed to create or access the media root folder",
         }),
@@ -108,7 +108,7 @@ export const addAnimeEffect = Effect.fn("AnimeAdd.addAnimeEffect")(function* (in
     genres: yield* encodeStringList(validMetadata.genres ?? []).pipe(
       Effect.mapError(
         (cause) =>
-          new MediaStoredDataError({
+          new StoredDataError({
             cause,
             message: "Media genres metadata is invalid",
           }),
@@ -128,7 +128,7 @@ export const addAnimeEffect = Effect.fn("AnimeAdd.addAnimeEffect")(function* (in
     releaseProfileIds: yield* encodeNumberList(input.animeInput.release_profile_ids).pipe(
       Effect.mapError(
         (cause) =>
-          new MediaStoredDataError({
+          new StoredDataError({
             cause,
             message: "Media release profile ids are invalid",
           }),
@@ -143,7 +143,7 @@ export const addAnimeEffect = Effect.fn("AnimeAdd.addAnimeEffect")(function* (in
     studios: yield* encodeStringList(validMetadata.studios ?? []).pipe(
       Effect.mapError(
         (cause) =>
-          new MediaStoredDataError({
+          new StoredDataError({
             cause,
             message: "Media studios metadata is invalid",
           }),

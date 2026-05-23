@@ -6,7 +6,7 @@ import { media } from "@/db/schema.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import type { MediaProbeShape } from "@/infra/media/probe.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
-import { OperationsPathError } from "@/features/operations/errors.ts";
+import { DomainPathError } from "@/features/errors.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import { DownloadReconciliationRepository } from "@/features/operations/repository/download-reconciliation-repository.ts";
 import { decodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
@@ -107,7 +107,7 @@ export const loadDownloadReconciliationContext = Effect.fn(
   ).pipe(
     Effect.mapError(
       (cause) =>
-        new OperationsPathError({
+        new DomainPathError({
           cause,
           message: `Download content path is inaccessible: ${input.contentPath}`,
         }),

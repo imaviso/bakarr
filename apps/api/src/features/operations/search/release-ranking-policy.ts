@@ -3,7 +3,7 @@ import { Effect, Either, Option } from "effect";
 import type { DownloadAction, UnitSearchResult, QualityProfile } from "@packages/shared/index.ts";
 
 export { decideDownloadAction } from "@/features/operations/search/release-ranking-action.ts";
-import { OperationsInputError } from "@/features/operations/errors.ts";
+import { DomainInputError } from "@/features/errors.ts";
 import { parseSizeLabelToBytes } from "@/features/operations/search/release-ranking-size.ts";
 
 export const validateQualityProfileSizeLabels = Effect.fn(
@@ -29,7 +29,7 @@ export const validateQualityProfileSizeLabels = Effect.fn(
     Option.isSome(maxSizeOption) &&
     minSizeOption.value > maxSizeOption.value
   ) {
-    return yield* new OperationsInputError({
+    return yield* new DomainInputError({
       message: "Quality profile min_size cannot exceed max_size",
     });
   }

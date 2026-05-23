@@ -4,15 +4,14 @@ import { Effect, Logger } from "effect";
 
 import { DatabaseError } from "@/db/database.ts";
 import { AuthForbiddenError, AuthUnauthorizedError } from "@/features/auth/errors.ts";
-import { MediaConflictError, MediaNotFoundError, MediaPathError } from "@/features/media/errors.ts";
 import {
-  DownloadConflictError,
-  DownloadNotFoundError,
-  OperationsAnimeNotFoundError,
-  OperationsConflictError,
-  OperationsInputError,
-  OperationsPathError,
-  OperationsStoredDataError,
+  DomainConflictError,
+  DomainInputError,
+  DomainNotFoundError,
+  DomainPathError,
+  StoredDataError,
+} from "@/features/errors.ts";
+import {
   RssFeedParseError,
   RssFeedRejectedError,
   RssFeedTooLargeError,
@@ -23,7 +22,6 @@ import {
   ImageAssetAccessError,
   ImageAssetNotFoundError,
   ImageAssetTooLargeError,
-  ProfileNotFoundError,
   StoredUnmappedFolderCorruptError,
   StoredConfigCorruptError,
   StoredConfigMissingError,
@@ -62,7 +60,7 @@ it("route errors maps known tagged errors to expected responses", () => {
       expected: { message: "stream forbidden", status: 403 },
     },
     {
-      error: new MediaNotFoundError({ message: "media missing" }),
+      error: new DomainNotFoundError({ message: "media missing" }),
       expected: { message: "media missing", status: 404 },
     },
     {
@@ -87,15 +85,15 @@ it("route errors maps known tagged errors to expected responses", () => {
       },
     },
     {
-      error: new DownloadNotFoundError({ message: "download missing" }),
+      error: new DomainNotFoundError({ message: "download missing" }),
       expected: { message: "download missing", status: 404 },
     },
     {
-      error: new OperationsAnimeNotFoundError({ message: "ops media missing" }),
+      error: new DomainNotFoundError({ message: "ops media missing" }),
       expected: { message: "ops media missing", status: 404 },
     },
     {
-      error: new ProfileNotFoundError({ message: "profile missing" }),
+      error: new DomainNotFoundError({ message: "profile missing" }),
       expected: { message: "profile missing", status: 404 },
     },
     {
@@ -105,31 +103,31 @@ it("route errors maps known tagged errors to expected responses", () => {
       expected: { message: "Internal server error", status: 500 },
     },
     {
-      error: new OperationsInputError({ message: "bad input" }),
+      error: new DomainInputError({ message: "bad input" }),
       expected: { message: "bad input", status: 400 },
     },
     {
-      error: new MediaConflictError({ message: "media conflict" }),
+      error: new DomainConflictError({ message: "media conflict" }),
       expected: { message: "media conflict", status: 409 },
     },
     {
-      error: new DownloadConflictError({ message: "download conflict" }),
+      error: new DomainConflictError({ message: "download conflict" }),
       expected: { message: "download conflict", status: 409 },
     },
     {
-      error: new OperationsConflictError({ message: "ops conflict" }),
+      error: new DomainConflictError({ message: "ops conflict" }),
       expected: { message: "ops conflict", status: 409 },
     },
     {
-      error: new MediaPathError({ message: "bad media path" }),
+      error: new DomainPathError({ message: "bad media path" }),
       expected: { message: "bad media path", status: 400 },
     },
     {
-      error: new OperationsPathError({ message: "bad ops path" }),
+      error: new DomainPathError({ message: "bad ops path" }),
       expected: { message: "bad ops path", status: 400 },
     },
     {
-      error: new OperationsStoredDataError({ message: "stored ops data is corrupt" }),
+      error: new StoredDataError({ message: "stored ops data is corrupt" }),
       expected: { message: "stored ops data is corrupt", status: 500 },
     },
     {

@@ -4,7 +4,7 @@ import type { AppDatabase } from "@/db/database.ts";
 import { classifyMediaArtifact } from "@/infra/media/identity/identity.ts";
 import { extractUnitNumbersFromFile } from "@/features/media/files/files.ts";
 import { upsertEpisodeFilesAtomic } from "@/features/operations/download/download-unit-upsert-support.ts";
-import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
+import { InfrastructureError } from "@/features/errors.ts";
 
 export interface LibraryScanCounts {
   readonly matchedFiles: number;
@@ -40,7 +40,7 @@ export const countLibraryScanFile = Effect.fn("OperationsService.countLibrarySca
   yield* upsertEpisodeFilesAtomic(db, input.mediaId, unitNumbers, input.file.path).pipe(
     Effect.mapError(
       (cause) =>
-        new OperationsInfrastructureError({
+        new InfrastructureError({
           message: "Failed to run library scan",
           cause,
         }),

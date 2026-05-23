@@ -10,12 +10,12 @@ import {
   prepareTriggerDownload,
 } from "@/features/operations/download/download-trigger-support.ts";
 import {
-  DownloadConflictError,
-  OperationsAnimeNotFoundError,
-  OperationsInfrastructureError,
-  OperationsInputError,
-  OperationsStoredDataError,
-} from "@/features/operations/errors.ts";
+  DomainConflictError,
+  DomainInputError,
+  DomainNotFoundError,
+  InfrastructureError,
+  StoredDataError,
+} from "@/features/errors.ts";
 import type { TriggerDownloadInput } from "@/features/operations/download/download-orchestration-shared.ts";
 import type { DownloadTriggerCoordinatorShape } from "@/features/operations/tasks/runtime-support.ts";
 import { DownloadTriggerRepository } from "@/features/operations/repository/download-trigger-repository.ts";
@@ -30,11 +30,11 @@ export interface DownloadTriggerServiceShape {
   ) => Effect.Effect<
     void,
     | DatabaseError
-    | DownloadConflictError
-    | OperationsAnimeNotFoundError
-    | OperationsInputError
-    | OperationsStoredDataError
-    | OperationsInfrastructureError
+    | DomainConflictError
+    | DomainNotFoundError
+    | DomainInputError
+    | StoredDataError
+    | InfrastructureError
   >;
 }
 
@@ -45,10 +45,7 @@ export function makeDownloadTriggerService(input: {
   readonly mediaReadRepository: typeof MediaReadRepository.Service;
   readonly nowIso: () => Effect.Effect<string>;
   readonly downloadTriggerCoordinator: DownloadTriggerCoordinatorShape;
-  readonly publishDownloadProgress: () => Effect.Effect<
-    void,
-    DatabaseError | OperationsInfrastructureError
-  >;
+  readonly publishDownloadProgress: () => Effect.Effect<void, DatabaseError | InfrastructureError>;
 }) {
   const {
     triggerRepo,

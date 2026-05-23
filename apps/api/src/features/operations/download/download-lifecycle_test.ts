@@ -16,7 +16,7 @@ import {
 } from "@/features/operations/download/download-coverage.ts";
 import { Cause, Effect, Exit, Option } from "effect";
 import { withFileSystemSandboxEffect, writeTextFile } from "@/test/filesystem-test.ts";
-import { OperationsStoredDataError } from "@/features/operations/errors.ts";
+import { StoredDataError } from "@/features/errors.ts";
 
 it("parseMagnetInfoHash extracts btih from magnet links", () => {
   assert.deepStrictEqual(
@@ -237,7 +237,7 @@ it.effect(
         const failure = Cause.failureOption(exit.cause);
         assert.deepStrictEqual(failure._tag, "Some");
         if (failure._tag === "Some") {
-          assert.deepStrictEqual(failure.value instanceof OperationsStoredDataError, true);
+          assert.deepStrictEqual(failure.value instanceof StoredDataError, true);
         }
       }
     }),

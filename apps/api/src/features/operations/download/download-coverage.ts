@@ -14,18 +14,18 @@ import {
 } from "@/infra/media/identity/identity.ts";
 import { parseVolumeNumbersFromTitle } from "@/features/operations/search/release-volume.ts";
 import type { QBitTorrentFile } from "@/features/operations/qbittorrent/qbittorrent.ts";
-import { OperationsStoredDataError } from "@/features/operations/errors.ts";
+import { StoredDataError } from "@/features/errors.ts";
 import { eq } from "drizzle-orm";
 
 const IN_FLIGHT_STATUSES = new Set(["queued", "downloading", "paused"]);
 
 export function toCoveredEpisodesJson(
   mediaUnits: readonly number[],
-): Effect.Effect<string | null, OperationsStoredDataError> {
+): Effect.Effect<string | null, StoredDataError> {
   return encodeOptionalNumberList(mediaUnits).pipe(
     Effect.mapError(
       (cause) =>
-        new OperationsStoredDataError({
+        new StoredDataError({
           cause,
           message: "Covered mediaUnits metadata is invalid",
         }),
@@ -38,7 +38,7 @@ export const parseCoveredEpisodesEffect = Effect.fn("Operations.parseCoveredEpis
     return yield* decodeOptionalNumberList(value).pipe(
       Effect.mapError(
         (cause) =>
-          new OperationsStoredDataError({
+          new StoredDataError({
             cause,
             message: "Stored covered episode metadata is corrupt",
           }),

@@ -13,10 +13,7 @@ import {
 } from "@packages/shared/index.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
-import {
-  OperationsInfrastructureError,
-  OperationsTaskNotFoundError,
-} from "@/features/operations/errors.ts";
+import { DomainNotFoundError, InfrastructureError } from "@/features/errors.ts";
 import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
 import { OperationsTaskRepository } from "@/features/operations/repository/task-repository.ts";
 
@@ -36,57 +33,54 @@ export interface OperationsTaskWriteServiceShape {
     readonly message: string;
     readonly payload?: OperationTaskPayload;
     readonly taskId: number;
-  }) => Effect.Effect<void, DatabaseError | OperationsInfrastructureError>;
+  }) => Effect.Effect<void, DatabaseError | InfrastructureError>;
   readonly completeSucceededTask: (input: {
     readonly message: string;
     readonly payload?: OperationTaskPayload;
     readonly progressCurrent?: number;
     readonly progressTotal?: number;
     readonly taskId: number;
-  }) => Effect.Effect<void, DatabaseError | OperationsInfrastructureError>;
+  }) => Effect.Effect<void, DatabaseError | InfrastructureError>;
   readonly createTask: (input: {
     readonly mediaId?: number;
     readonly message: string;
     readonly taskKey: OperationsTaskKey;
-  }) => Effect.Effect<AsyncOperationAccepted, DatabaseError | OperationsInfrastructureError>;
+  }) => Effect.Effect<AsyncOperationAccepted, DatabaseError | InfrastructureError>;
   readonly markRunningTask: (input: {
     readonly message: string;
     readonly taskId: number;
-  }) => Effect.Effect<void, DatabaseError | OperationsInfrastructureError>;
+  }) => Effect.Effect<void, DatabaseError | InfrastructureError>;
   readonly updateTaskProgress: (input: {
     readonly message?: string;
     readonly progressCurrent: number;
     readonly progressTotal: number;
     readonly taskId: number;
-  }) => Effect.Effect<void, DatabaseError | OperationsInfrastructureError>;
+  }) => Effect.Effect<void, DatabaseError | InfrastructureError>;
 }
 
 export interface OperationsTaskReadServiceShape {
   readonly getTask: (
     taskId: number,
-  ) => Effect.Effect<
-    OperationTask,
-    DatabaseError | OperationsInfrastructureError | OperationsTaskNotFoundError
-  >;
+  ) => Effect.Effect<OperationTask, DatabaseError | InfrastructureError | DomainNotFoundError>;
   readonly listTasks: (input?: {
     readonly mediaId?: number;
     readonly excludeTaskKeys?: readonly OperationsTaskKey[];
     readonly limit?: number;
     readonly offset?: number;
     readonly taskKey?: OperationsTaskKey;
-  }) => Effect.Effect<readonly OperationTask[], DatabaseError | OperationsInfrastructureError>;
+  }) => Effect.Effect<readonly OperationTask[], DatabaseError | InfrastructureError>;
 }
 
 export const decodeTaskPayload = Effect.fn("OperationsTaskService.decodeTaskPayload")(
   (
     value: string | null | undefined,
-  ): Effect.Effect<OperationTaskPayload | null, OperationsInfrastructureError> =>
+  ): Effect.Effect<OperationTaskPayload | null, InfrastructureError> =>
     value === undefined || value === null || value.length === 0
       ? Effect.succeed(null)
       : Schema.decodeUnknown(Schema.parseJson(OperationTaskPayloadSchema))(value).pipe(
           Effect.mapError(
             (cause) =>
-              new OperationsInfrastructureError({
+              new InfrastructureError({
                 message: "Stored operations task payload is invalid",
                 cause,
               }),
@@ -95,15 +89,13 @@ export const decodeTaskPayload = Effect.fn("OperationsTaskService.decodeTaskPayl
 );
 
 export const encodeTaskPayload = Effect.fn("OperationsTaskService.encodeTaskPayload")(
-  (
-    payload: OperationTaskPayload | undefined,
-  ): Effect.Effect<string, OperationsInfrastructureError> =>
+  (payload: OperationTaskPayload | undefined): Effect.Effect<string, InfrastructureError> =>
     payload === undefined
       ? Effect.succeed("")
       : Schema.encodeUnknown(Schema.parseJson(OperationTaskPayloadSchema))(payload).pipe(
           Effect.mapError(
             (cause) =>
-              new OperationsInfrastructureError({
+              new InfrastructureError({
                 message: "Failed to encode operations task payload",
                 cause,
               }),
@@ -142,7 +134,7 @@ const toOperationsTask = Effect.fn("OperationsTaskService.toOperationsTask")(fun
   }).pipe(
     Effect.mapError(
       (cause) =>
-        new OperationsInfrastructureError({
+        new InfrastructureError({
           message: "Stored operations task row is invalid",
           cause,
         }),
@@ -182,7 +174,7 @@ const makeOperationsTaskWriteService = Effect.fn("OperationsTaskWriteService.mak
     ).pipe(
       Effect.mapError(
         (cause) =>
-          new OperationsInfrastructureError({
+          new InfrastructureError({
             message: "Failed to build accepted operations task payload",
             cause,
           }),
@@ -278,7 +270,7 @@ const makeOperationsTaskReadService = Effect.fn("OperationsTaskReadService.make"
     const row = yield* repository.loadTaskRow(taskId);
 
     if (!row) {
-      return yield* new OperationsTaskNotFoundError({
+      return yield* new DomainNotFoundError({
         message: `Operations task ${taskId} not found`,
       });
     }
@@ -296,7 +288,7 @@ const makeOperationsTaskReadService = Effect.fn("OperationsTaskReadService.make"
     const query = yield* Schema.decodeUnknown(OperationsTaskQuery)(input ?? {}).pipe(
       Effect.mapError(
         (cause) =>
-          new OperationsInfrastructureError({
+          new InfrastructureError({
             message: "Invalid operations task list query",
             cause,
           }),
@@ -350,7 +342,7 @@ export const decodeOperationsTaskQuery = Effect.fn(
         yield* Schema.decodeUnknown(OperationTaskKeySchema)(taskKeyOption.value).pipe(
           Effect.mapError(
             (cause) =>
-              new OperationsInfrastructureError({
+              new InfrastructureError({
                 message: "Invalid operations task key",
                 cause,
               }),

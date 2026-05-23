@@ -10,7 +10,7 @@ import { deriveEpisodeTimelineMetadata } from "@/domain/media/derivations.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { MediaProbeMetadataFound } from "@/infra/media/probe.ts";
 import { withFileSystemSandboxEffect, writeTextFile } from "@/test/filesystem-test.ts";
-import { MediaStoredDataError } from "@/features/media/errors.ts";
+import { StoredDataError } from "@/features/errors.ts";
 import { listAnimeEffect } from "@/features/media/query/media-query-list.ts";
 import { getAnimeEffect } from "@/features/media/query/media-query-get.ts";
 import {
@@ -831,7 +831,7 @@ it.scoped("listAnimeEffect fails when stored media JSON metadata is corrupt", ()
           const failure = Cause.failureOption(result.cause);
           assert.deepStrictEqual(failure._tag, "Some");
           if (failure._tag === "Some") {
-            assert.deepStrictEqual(failure.value instanceof MediaStoredDataError, true);
+            assert.deepStrictEqual(failure.value instanceof StoredDataError, true);
             assert.match(failure.value.message, /genres/i);
           }
         }

@@ -12,11 +12,8 @@ import { makeDownloadCompletedTorrentReconciliation } from "@/features/operation
 import { makeReconcileDownloadByIdEffect } from "@/features/operations/download/download-reconciliation-lookup.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import type { ExternalCallError } from "@/infra/effect/retry.ts";
-import type {
-  DownloadConflictError,
-  DownloadNotFoundError,
-  OperationsError,
-} from "@/features/operations/errors.ts";
+import type { DomainConflictError, DomainNotFoundError } from "@/features/errors.ts";
+import type { OperationsError } from "@/features/operations/errors.ts";
 import type { MaybeCleanupImportedTorrent } from "@/features/operations/download/download-reconciliation-shared.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
@@ -34,8 +31,8 @@ export interface DownloadReconciliationServiceShape {
     id: number,
   ) => Effect.Effect<
     void,
-    | DownloadConflictError
-    | DownloadNotFoundError
+    | DomainConflictError
+    | DomainNotFoundError
     | ExternalCallError
     | OperationsError
     | DatabaseError

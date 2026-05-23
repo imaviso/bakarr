@@ -3,10 +3,7 @@ import { Effect } from "effect";
 import { Database, type DatabaseError } from "@/db/database.ts";
 import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
-import type {
-  OperationsAnimeNotFoundError,
-  OperationsPathError,
-} from "@/features/operations/errors.ts";
+import type { DomainNotFoundError, DomainPathError } from "@/features/errors.ts";
 import { UnmappedScanService } from "@/features/operations/unmapped/unmapped-scan-service.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { OperationsConfigRepository } from "@/features/operations/repository/config-repository.ts";
@@ -14,11 +11,7 @@ import {
   decodeUnmappedFolderMatchRow,
   SystemUnmappedRepository,
 } from "@/features/system/repository/unmapped-repository.ts";
-import {
-  OperationsConflictError,
-  OperationsInputError,
-  OperationsStoredDataError,
-} from "@/features/operations/errors.ts";
+import { DomainConflictError, DomainInputError, StoredDataError } from "@/features/errors.ts";
 import { appendLog } from "@/features/operations/shared/job-support.ts";
 import {
   transitionUnmappedFolderForControlAction,
@@ -40,7 +33,7 @@ export interface UnmappedControlWorkflowShape {
     action: "pause_queued" | "resume_paused" | "reset_failed" | "retry_failed";
   }) => Effect.Effect<
     { affectedCount: number },
-    DatabaseError | OperationsPathError | OperationsStoredDataError | OperationsAnimeNotFoundError
+    DatabaseError | DomainPathError | StoredDataError | DomainNotFoundError
   >;
   readonly controlUnmappedFolder: (input: {
     action: "pause" | "resume" | "reset" | "refresh";
@@ -48,11 +41,11 @@ export interface UnmappedControlWorkflowShape {
   }) => Effect.Effect<
     { folderCount: number; folderPath: string },
     | DatabaseError
-    | OperationsConflictError
-    | OperationsInputError
-    | OperationsPathError
-    | OperationsStoredDataError
-    | OperationsAnimeNotFoundError
+    | DomainConflictError
+    | DomainInputError
+    | DomainPathError
+    | StoredDataError
+    | DomainNotFoundError
   >;
 }
 
@@ -66,7 +59,7 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
   const nowIso = () => nowIsoFromClock(clock);
 
   const toStoredDataError = (error: { cause?: unknown; message: string }) =>
-    new OperationsStoredDataError({
+    new StoredDataError({
       cause: error.cause ?? error,
       message: error.message,
     });
@@ -83,7 +76,7 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
     const row = yield* systemUnmappedRepository.loadMatchRow(path);
 
     if (!row) {
-      return yield* new OperationsInputError({ message: "Unmapped folder not found" });
+      return yield* new DomainInputError({ message: "Unmapped folder not found" });
     }
 
     return yield* decodeStoredFolder(row);
@@ -104,7 +97,7 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
     const target = snapshot.folders.find((folder) => folder.path === path);
 
     if (!target) {
-      return yield* new OperationsInputError({ message: "Unmapped folder not found" });
+      return yield* new DomainInputError({ message: "Unmapped folder not found" });
     }
 
     const matchingFolder = markUnmappedFolderMatching(target);
@@ -116,7 +109,7 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
     );
 
     if (matchResult._tag === "Failed") {
-      return yield* new OperationsConflictError({
+      return yield* new DomainConflictError({
         message: matchResult.folder.last_match_error ?? "Failed to refresh folder match",
       });
     }
@@ -150,7 +143,7 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
       const current = yield* loadCurrentFolder(input.path);
 
       if (current.match_status === "matching") {
-        return yield* new OperationsConflictError({
+        return yield* new DomainConflictError({
           message: "Folder is currently matching in the background",
         });
       }

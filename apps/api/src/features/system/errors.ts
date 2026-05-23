@@ -18,8 +18,6 @@ export class StoredConfigMissingError extends Schema.TaggedError<StoredConfigMis
   { message: Schema.String },
 ) {}
 
-export { DomainNotFoundError as ProfileNotFoundError } from "@/features/errors.ts";
-
 export class ImageAssetNotFoundError extends Schema.TaggedError<ImageAssetNotFoundError>()(
   "ImageAssetNotFoundError",
   {

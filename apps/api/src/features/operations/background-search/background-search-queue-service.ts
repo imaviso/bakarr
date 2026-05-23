@@ -22,7 +22,7 @@ import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-
 import { DownloadTriggerCoordinator } from "@/features/operations/tasks/runtime-support.ts";
 import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
-import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
+import { InfrastructureError } from "@/features/errors.ts";
 
 export interface BackgroundSearchQueueServiceShape {
   readonly queueReleaseIfEligible: (input: {
@@ -37,7 +37,7 @@ export interface BackgroundSearchQueueServiceShape {
     missingUnits: readonly number[];
   }) => Effect.Effect<
     { readonly _tag: "skipped" } | { readonly _tag: "queued" },
-    DatabaseError | OperationsInfrastructureError
+    DatabaseError | InfrastructureError
   >;
 }
 
@@ -86,7 +86,7 @@ export class BackgroundSearchQueueService extends Effect.Service<BackgroundSearc
         ).pipe(
           Effect.mapError(
             (cause) =>
-              new OperationsInfrastructureError({
+              new InfrastructureError({
                 message: "Failed to queue background release",
                 cause,
               }),
@@ -152,9 +152,9 @@ export class BackgroundSearchQueueService extends Effect.Service<BackgroundSearc
             tryDatabasePromise,
           }).pipe(
             Effect.mapError((cause) =>
-              cause instanceof DatabaseError || cause instanceof OperationsInfrastructureError
+              cause instanceof DatabaseError || cause instanceof InfrastructureError
                 ? cause
-                : new OperationsInfrastructureError({
+                : new InfrastructureError({
                     message: "Failed to queue background release",
                     cause,
                   }),
@@ -167,7 +167,7 @@ export class BackgroundSearchQueueService extends Effect.Service<BackgroundSearc
         return yield* downloadTriggerCoordinator.runExclusiveDownloadTrigger(queueEffect).pipe(
           Effect.mapError(
             (cause) =>
-              new OperationsInfrastructureError({
+              new InfrastructureError({
                 message: "Failed to queue background release",
                 cause,
               }),

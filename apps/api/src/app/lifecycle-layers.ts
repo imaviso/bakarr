@@ -126,11 +126,7 @@ export function makeApiLifecycleLayers(
   const appFeatureSubgraphLayer = Layer.mergeAll(appFeatureBaseLayer, operationsTaskLauncherLayer);
   const appLayer = Layer.mergeAll(
     runtimeSupportLayer,
-    mediaReadRepositoryLayer,
-    operationsConfigRepositoryLayer,
-    operationsProfileRepositoryLayer,
     systemRepositoriesLayer,
-    systemUnmappedRepositoryLayer,
     appFeatureSubgraphLayer.pipe(
       Layer.provide(
         Layer.mergeAll(

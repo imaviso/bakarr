@@ -5,7 +5,7 @@ import type { DownloadSourceMetadata } from "@packages/shared/index.ts";
 import { DatabaseError } from "@/db/database.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { media, downloads } from "@/db/schema.ts";
-import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
+import { InfrastructureError } from "@/features/errors.ts";
 import { recordDownloadEvent } from "@/features/operations/shared/job-support.ts";
 import {
   hasOverlappingDownload,
@@ -35,7 +35,7 @@ export const queueParsedReleaseDownload = Effect.fn("OperationsService.queuePars
     const mapQBitError = (message: string) => (cause: unknown) =>
       cause instanceof DatabaseError
         ? cause
-        : new OperationsInfrastructureError({
+        : new InfrastructureError({
             message,
             cause,
           });

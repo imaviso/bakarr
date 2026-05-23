@@ -3,14 +3,11 @@ import { Effect } from "effect";
 import { DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { toDownloadStatus } from "@/features/operations/download/download-presentation.ts";
-import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
+import { InfrastructureError } from "@/features/errors.ts";
 import { DownloadProgressRepository } from "@/features/operations/repository/download-progress-repository.ts";
 
 export interface DownloadProgressSupportShape {
-  readonly publishDownloadProgress: () => Effect.Effect<
-    void,
-    DatabaseError | OperationsInfrastructureError
-  >;
+  readonly publishDownloadProgress: () => Effect.Effect<void, DatabaseError | InfrastructureError>;
 }
 
 export interface DownloadProgressSupportInput {
@@ -35,7 +32,7 @@ export function makeDownloadProgressSupport(input: DownloadProgressSupportInput)
         Effect.mapError((error) =>
           error instanceof DatabaseError
             ? error
-            : new OperationsInfrastructureError({
+            : new InfrastructureError({
                 message: "Failed to load download progress snapshot",
                 cause: error,
               }),

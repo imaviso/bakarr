@@ -14,37 +14,30 @@ import {
   mapEpisodeFileEffect,
 } from "@/features/media/files/media-file-write.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
-import type {
-  MediaNotFoundError,
-  MediaPathError,
-  MediaStoredDataError,
-} from "@/features/media/errors.ts";
+import type { DomainNotFoundError, DomainPathError, StoredDataError } from "@/features/errors.ts";
 
 export interface AnimeFileServiceShape {
   readonly bulkMapEpisodeFiles: (
     mediaId: number,
     mappings: readonly { unit_number: number; file_path: string }[],
-  ) => Effect.Effect<void, DatabaseError | MediaNotFoundError | MediaPathError>;
+  ) => Effect.Effect<void, DatabaseError | DomainNotFoundError | DomainPathError>;
   readonly deleteEpisodeFile: (
     mediaId: number,
     unitNumber: number,
-  ) => Effect.Effect<void, DatabaseError | MediaNotFoundError | MediaPathError>;
+  ) => Effect.Effect<void, DatabaseError | DomainNotFoundError | DomainPathError>;
   readonly listFiles: (
     mediaId: number,
-  ) => Effect.Effect<readonly VideoFile[], DatabaseError | MediaNotFoundError | MediaPathError>;
+  ) => Effect.Effect<readonly VideoFile[], DatabaseError | DomainNotFoundError | DomainPathError>;
   readonly mapEpisodeFile: (
     mediaId: number,
     unitNumber: number,
     filePath: string,
-  ) => Effect.Effect<
-    void,
-    DatabaseError | MediaNotFoundError | MediaPathError | MediaStoredDataError
-  >;
+  ) => Effect.Effect<void, DatabaseError | DomainNotFoundError | DomainPathError | StoredDataError>;
   readonly scanFolder: (
     mediaId: number,
   ) => Effect.Effect<
     { readonly found: number; readonly total: number },
-    DatabaseError | MediaNotFoundError | MediaPathError | MediaStoredDataError
+    DatabaseError | DomainNotFoundError | DomainPathError | StoredDataError
   >;
 }
 

@@ -4,10 +4,7 @@ import type { AppDatabase, DatabaseError } from "@/db/database.ts";
 import { media } from "@/db/schema.ts";
 import { Database } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
-import {
-  OperationsPathError,
-  OperationsInfrastructureError,
-} from "@/features/operations/errors.ts";
+import { DomainPathError, InfrastructureError } from "@/features/errors.ts";
 import {
   markJobFailed,
   markJobStarted,
@@ -23,7 +20,7 @@ import { markJobFailureOrFailWithError } from "@/infra/job-failure-support.ts";
 export interface CatalogLibraryScanServiceShape {
   readonly runLibraryScan: () => Effect.Effect<
     { matched: number; scanned: number },
-    OperationsPathError | DatabaseError | OperationsInfrastructureError
+    DomainPathError | DatabaseError | InfrastructureError
   >;
 }
 
@@ -37,7 +34,7 @@ function makeCatalogLibraryScanSupport(input: {
 }): CatalogLibraryScanServiceShape {
   const { nowIso } = input;
   const failAfterMarkingJobFailure = (
-    cause: DatabaseError | OperationsInfrastructureError | OperationsPathError,
+    cause: DatabaseError | InfrastructureError | DomainPathError,
   ) =>
     markJobFailureOrFailWithError({
       error: cause,

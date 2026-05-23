@@ -3,11 +3,8 @@ import { Effect } from "effect";
 import type { DatabaseError } from "@/db/database.ts";
 import { DownloadReconciliationRepository } from "@/features/operations/repository/download-reconciliation-repository.ts";
 import type { ExternalCallError } from "@/infra/effect/retry.ts";
-import {
-  DownloadConflictError,
-  DownloadNotFoundError,
-  type OperationsError,
-} from "@/features/operations/errors.ts";
+import { DomainConflictError, DomainNotFoundError } from "@/features/errors.ts";
+import { type OperationsError } from "@/features/operations/errors.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 
 export function makeReconcileDownloadByIdEffect(input: {
@@ -26,7 +23,7 @@ export function makeReconcileDownloadByIdEffect(input: {
     const row = yield* repo.loadDownloadById(id);
 
     if (!row) {
-      return yield* new DownloadNotFoundError({
+      return yield* new DomainNotFoundError({
         message: "Download not found",
       });
     }
@@ -34,7 +31,7 @@ export function makeReconcileDownloadByIdEffect(input: {
     const contentPath = row.contentPath ?? row.savePath;
 
     if (!contentPath || !row.infoHash) {
-      return yield* new DownloadConflictError({
+      return yield* new DomainConflictError({
         message: "Download has no reconciliable content path",
       });
     }

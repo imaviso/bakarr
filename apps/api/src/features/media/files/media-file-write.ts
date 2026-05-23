@@ -5,7 +5,7 @@ import type { AppDatabase } from "@/db/database.ts";
 import { mediaUnits } from "@/db/schema.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { isWithinPathRoot } from "@/infra/filesystem/filesystem.ts";
-import { MediaPathError } from "@/features/media/errors.ts";
+import { DomainPathError } from "@/features/errors.ts";
 import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
 import {
   clearEpisodeMappingEffect,
@@ -43,7 +43,7 @@ export const deleteEpisodeFileEffect = Effect.fn("AnimeFileWrite.deleteEpisodeFi
       const resolvedPath = yield* input.fs.realPath(filePath).pipe(
         Effect.mapError(
           (cause) =>
-            new MediaPathError({
+            new DomainPathError({
               cause,
               message: "MediaUnit file path does not exist or is inaccessible",
             }),
@@ -52,7 +52,7 @@ export const deleteEpisodeFileEffect = Effect.fn("AnimeFileWrite.deleteEpisodeFi
       const animeRoot = yield* loadAnimeRoot(input.fs, animeRow.rootFolder);
 
       if (!isWithinPathRoot(resolvedPath, animeRoot)) {
-        return yield* new MediaPathError({
+        return yield* new DomainPathError({
           message: "File path is not within the media root folder",
         });
       }
@@ -60,7 +60,7 @@ export const deleteEpisodeFileEffect = Effect.fn("AnimeFileWrite.deleteEpisodeFi
       yield* input.fs.remove(filePath).pipe(
         Effect.mapError(
           (cause) =>
-            new MediaPathError({
+            new DomainPathError({
               cause,
               message: "Failed to delete episode file from disk",
             }),

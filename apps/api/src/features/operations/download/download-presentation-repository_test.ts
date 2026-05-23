@@ -6,7 +6,7 @@ import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { assert, it } from "@effect/vitest";
 import { encodeNumberList } from "@/features/profiles/profile-codec.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
-import { OperationsStoredDataError } from "@/features/operations/errors.ts";
+import { StoredDataError } from "@/features/errors.ts";
 import { loadDownloadPresentationContexts } from "@/features/operations/repository/download-presentation-repository.ts";
 
 it.scoped("download presentation contexts load imported paths", () =>
@@ -189,7 +189,7 @@ it.scoped("download presentation contexts fail for corrupt covered episode metad
           const failure = Cause.failureOption(exit.cause);
           assert.deepStrictEqual(failure._tag, "Some");
           if (failure._tag === "Some") {
-            assert.deepStrictEqual(failure.value instanceof OperationsStoredDataError, true);
+            assert.deepStrictEqual(failure.value instanceof StoredDataError, true);
           }
         }
       }),

@@ -2,25 +2,25 @@ import { Stream } from "effect";
 
 import type { DownloadEvent } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
-import type { OperationsStoredDataError } from "@/features/operations/errors.ts";
+import type { StoredDataError } from "@/features/errors.ts";
 import type { DownloadEventExportHeader } from "@/features/operations/catalog/catalog-download-event-stream-support.ts";
 
 export interface DownloadEventExportStreamShape {
   readonly header: DownloadEventExportHeader;
-  readonly stream: Stream.Stream<Uint8Array, DatabaseError | OperationsStoredDataError>;
+  readonly stream: Stream.Stream<Uint8Array, DatabaseError | StoredDataError>;
 }
 
 export interface DownloadEventCsvExportStreamShape {
   readonly header: DownloadEventExportHeader;
-  readonly stream: Stream.Stream<Uint8Array, DatabaseError | OperationsStoredDataError>;
+  readonly stream: Stream.Stream<Uint8Array, DatabaseError | StoredDataError>;
 }
 
 const textEncoder = new TextEncoder();
 
 export function renderDownloadEventsExportJson(
-  eventStream: Stream.Stream<DownloadEvent, DatabaseError | OperationsStoredDataError>,
+  eventStream: Stream.Stream<DownloadEvent, DatabaseError | StoredDataError>,
   header: DownloadEventExportHeader,
-): Stream.Stream<Uint8Array, DatabaseError | OperationsStoredDataError> {
+): Stream.Stream<Uint8Array, DatabaseError | StoredDataError> {
   const suffixMetadata = JSON.stringify(header);
   const objectPrefix = textEncoder.encode('{"events":[');
   const objectSuffix = textEncoder.encode(`],${suffixMetadata.slice(1)}`);
@@ -39,8 +39,8 @@ export function renderDownloadEventsExportJson(
 }
 
 export function renderDownloadEventsExportCsv(
-  eventStream: Stream.Stream<DownloadEvent, DatabaseError | OperationsStoredDataError>,
-): Stream.Stream<Uint8Array, DatabaseError | OperationsStoredDataError> {
+  eventStream: Stream.Stream<DownloadEvent, DatabaseError | StoredDataError>,
+): Stream.Stream<Uint8Array, DatabaseError | StoredDataError> {
   const csvHeader = textEncoder.encode(
     "id,created_at,event_type,from_status,to_status,media_id,media_title,download_id,torrent_name,message,metadata,metadata_json\n",
   );

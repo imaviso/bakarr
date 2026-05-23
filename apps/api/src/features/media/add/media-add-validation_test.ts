@@ -12,8 +12,8 @@ import {
   fetchPersistedEpisodeRowsEffect,
   checkAnimeExistsEffect,
 } from "@/features/media/add/media-add-validation.ts";
-import { MediaConflictError } from "@/features/media/errors.ts";
-import { ProfileNotFoundError } from "@/features/system/errors.ts";
+import { DomainConflictError } from "@/features/errors.ts";
+import { DomainNotFoundError } from "@/features/errors.ts";
 import { makeMediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 
 type TestDatabase = SqliteRemoteDatabase<typeof schema>;
@@ -63,7 +63,7 @@ it.scoped("checkProfileExistsEffect returns true when profile exists", () =>
   }),
 );
 
-it.scoped("checkProfileExistsEffect returns ProfileNotFoundError for missing profile", () =>
+it.scoped("checkProfileExistsEffect returns DomainNotFoundError for missing profile", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -72,7 +72,7 @@ it.scoped("checkProfileExistsEffect returns ProfileNotFoundError for missing pro
         if (Exit.isFailure(exit)) {
           const failure = Cause.failureOption(exit.cause);
           assert.ok(Option.isSome(failure));
-          assert.ok(failure.value instanceof ProfileNotFoundError);
+          assert.ok(failure.value instanceof DomainNotFoundError);
           assert.deepStrictEqual(failure.value.message, "Quality profile 'Missing' not found");
         }
       }),
@@ -80,7 +80,7 @@ it.scoped("checkProfileExistsEffect returns ProfileNotFoundError for missing pro
   }),
 );
 
-it.scoped("checkAnimeExistsEffect returns MediaConflictError when media exists", () =>
+it.scoped("checkAnimeExistsEffect returns DomainConflictError when media exists", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -90,7 +90,7 @@ it.scoped("checkAnimeExistsEffect returns MediaConflictError when media exists",
         if (Exit.isFailure(exit)) {
           const failure = Cause.failureOption(exit.cause);
           assert.ok(Option.isSome(failure));
-          assert.ok(failure.value instanceof MediaConflictError);
+          assert.ok(failure.value instanceof DomainConflictError);
           assert.deepStrictEqual(failure.value.message, "Media already exists");
         }
       }),
@@ -121,7 +121,7 @@ it.scoped("checkRootFolderNotOwnedEffect returns error when folder already mappe
         if (Exit.isFailure(exit)) {
           const failure = Cause.failureOption(exit.cause);
           assert.ok(Option.isSome(failure));
-          assert.ok(failure.value instanceof MediaConflictError);
+          assert.ok(failure.value instanceof DomainConflictError);
           assert.deepStrictEqual(
             failure.value.message,
             "Folder is already mapped to Existing Media",

@@ -25,12 +25,8 @@ import {
 } from "@/features/operations/search/search-support.ts";
 import { parseReleaseName } from "@/features/operations/search/release-ranking.ts";
 import { parseVolumeNumbersFromTitle } from "@/features/operations/search/release-volume.ts";
-import {
-  isOperationsError,
-  OperationsInputError,
-  OperationsInfrastructureError,
-  type OperationsError,
-} from "@/features/operations/errors.ts";
+import { DomainInputError, InfrastructureError } from "@/features/errors.ts";
+import { isOperationsError, type OperationsError } from "@/features/operations/errors.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 
@@ -82,7 +78,7 @@ export function makeSearchReleaseSupport(input: {
   const mapSearchReleaseError = (cause: unknown): SearchReleaseError =>
     cause instanceof DatabaseError || cause instanceof ExternalCallError || isOperationsError(cause)
       ? cause
-      : new OperationsInfrastructureError({
+      : new InfrastructureError({
           message: "Failed to search releases",
           cause,
         });
@@ -171,7 +167,7 @@ export function makeSearchReleaseSupport(input: {
     const searchQuery = (query || animeRow?.titleRomaji || "").trim();
 
     if (searchQuery.length === 0) {
-      return yield* new OperationsInputError({
+      return yield* new DomainInputError({
         message: "Search query is required",
       });
     }

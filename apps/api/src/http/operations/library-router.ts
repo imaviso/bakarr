@@ -11,7 +11,7 @@ import {
 
 import { LibraryBrowseService } from "@/features/operations/library/library-browse-service.ts";
 import { CatalogLibraryWriteService } from "@/features/operations/catalog/catalog-library-write-service.ts";
-import { OperationsTaskNotFoundError } from "@/features/operations/errors.ts";
+import { DomainNotFoundError } from "@/features/errors.ts";
 import { ImportPathScanService } from "@/features/operations/import-scan/import-path-scan-service.ts";
 import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
 import { UnmappedControlService } from "@/features/operations/unmapped/unmapped-control-service.ts";
@@ -260,7 +260,7 @@ export const libraryRouter = HttpRouter.empty.pipe(
         const task = yield* (yield* OperationsTaskReadService).getTask(params.taskId);
 
         if (task.task_key !== "library_import") {
-          return yield* new OperationsTaskNotFoundError({
+          return yield* new DomainNotFoundError({
             message: `Library import task ${params.taskId} not found`,
           });
         }

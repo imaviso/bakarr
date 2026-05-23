@@ -2,7 +2,7 @@ import { Effect } from "effect";
 import { win32 as PathForUtilities } from "node:path";
 
 import { isWithinPathRoot, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
-import { MediaPathError } from "@/features/media/errors.ts";
+import { DomainPathError } from "@/features/errors.ts";
 
 export const resolveConfiguredLibraryRoot = Effect.fn(
   "AnimePathPolicy.resolveConfiguredLibraryRoot",
@@ -30,7 +30,7 @@ export const findExistingAncestorPath = Effect.fn("AnimePathPolicy.findExistingA
       const parent = PathForUtilities.dirname(current.replace(/[\\/]+/g, "/"));
 
       if (parent === current) {
-        return yield* new MediaPathError({
+        return yield* new DomainPathError({
           message: "Media path must be within the configured library root",
         });
       }
@@ -46,7 +46,7 @@ export const assertPathWithinLibraryRoot = Effect.fn("AnimePathPolicy.assertPath
 
     if (resolvedPath._tag === "Right") {
       if (!isWithinPathRoot(resolvedPath.right, libraryRoot)) {
-        return yield* new MediaPathError({
+        return yield* new DomainPathError({
           message: "Media path must be within the configured library root",
         });
       }
@@ -57,7 +57,7 @@ export const assertPathWithinLibraryRoot = Effect.fn("AnimePathPolicy.assertPath
     const canonicalParent = yield* findExistingAncestorPath(fs, path);
 
     if (!isWithinPathRoot(canonicalParent, libraryRoot)) {
-      return yield* new MediaPathError({
+      return yield* new DomainPathError({
         message: "Media path must be within the configured library root",
       });
     }

@@ -29,7 +29,7 @@ import {
   type OpsDashboard,
   type SystemStatus,
 } from "@packages/shared/index.ts";
-import type { OperationsStoredDataError } from "@/features/operations/errors.ts";
+import type { StoredDataError } from "@/features/errors.ts";
 
 export type SystemReadStatusError =
   | BackgroundJobStatusError
@@ -38,7 +38,7 @@ export type SystemReadStatusError =
   | StoredConfigCorruptError
   | StoredConfigMissingError;
 
-export type SystemReadDashboardError = BackgroundJobStatusError | OperationsStoredDataError;
+export type SystemReadDashboardError = BackgroundJobStatusError | StoredDataError;
 
 export interface SystemReadServiceShape {
   readonly getActivity: () => Effect.Effect<ActivityItem[], DatabaseError>;

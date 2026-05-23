@@ -5,7 +5,7 @@ import {
   MediaDiscoveryEntrySchema,
   StringListSchema,
 } from "@packages/shared/index.ts";
-import { MediaStoredDataError } from "@/features/media/errors.ts";
+import { StoredDataError } from "@/features/errors.ts";
 
 const AnimeDiscoveryEntryListJsonSchema = Schema.parseJson(
   Schema.mutable(Schema.Array(MediaDiscoveryEntrySchema)),
@@ -14,7 +14,7 @@ const AnimeSynonymsJsonSchema = Schema.parseJson(StringListSchema);
 
 export function encodeAnimeDiscoveryEntries(
   entries: ReadonlyArray<MediaDiscoveryEntry> | undefined,
-): Effect.Effect<string | null, MediaStoredDataError> {
+): Effect.Effect<string | null, StoredDataError> {
   if (!entries || entries.length === 0) {
     return Effect.succeed(null);
   }
@@ -27,7 +27,7 @@ export function encodeAnimeDiscoveryEntries(
   ).pipe(
     Effect.mapError(
       (cause) =>
-        new MediaStoredDataError({
+        new StoredDataError({
           cause,
           message: "Media discovery metadata is invalid",
         }),
@@ -37,7 +37,7 @@ export function encodeAnimeDiscoveryEntries(
 
 export function encodeAnimeSynonyms(
   synonyms: ReadonlyArray<string> | undefined,
-): Effect.Effect<string | null, MediaStoredDataError> {
+): Effect.Effect<string | null, StoredDataError> {
   if (!synonyms || synonyms.length === 0) {
     return Effect.succeed(null);
   }
@@ -45,7 +45,7 @@ export function encodeAnimeSynonyms(
   return Schema.encode(AnimeSynonymsJsonSchema)([...synonyms]).pipe(
     Effect.mapError(
       (cause) =>
-        new MediaStoredDataError({
+        new StoredDataError({
           cause,
           message: "Media synonyms metadata is invalid",
         }),

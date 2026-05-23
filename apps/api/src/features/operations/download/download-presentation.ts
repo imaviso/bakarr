@@ -10,7 +10,7 @@ import {
 import type { downloads } from "@/db/schema.ts";
 import { decodeOptionalNumberList } from "@/features/profiles/profile-codec.ts";
 import type { DownloadPresentationContext } from "@/features/operations/repository/types.ts";
-import { OperationsStoredDataError } from "@/features/operations/errors.ts";
+import { StoredDataError } from "@/features/errors.ts";
 import { decodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
 
 type DownloadRow = typeof downloads.$inferSelect;
@@ -78,7 +78,7 @@ export const toDownloadStatus = Effect.fn("OperationsPresentation.toDownloadStat
   const coveragePending = row.isBatch && (!coveredUnits || coveredUnits.length === 0);
   const infoHash =
     row.infoHash ??
-    (yield* new OperationsStoredDataError({
+    (yield* new StoredDataError({
       message: "Stored download info hash is missing",
     }));
   const sourceMetadata = yield* decodeDownloadSourceMetadata(row.sourceMetadata);
@@ -188,7 +188,7 @@ const decodeCoveredEpisodes = Effect.fn("OperationsPresentation.decodeCoveredEpi
   return yield* decodeOptionalNumberList(value).pipe(
     Effect.mapError(
       (cause) =>
-        new OperationsStoredDataError({
+        new StoredDataError({
           cause,
           message: "Stored covered episode metadata is corrupt",
         }),

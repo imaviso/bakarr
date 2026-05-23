@@ -5,7 +5,7 @@ import { Database, type DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { MediaProbe } from "@/infra/media/probe.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
-import type { OperationsAnimeNotFoundError } from "@/features/operations/errors.ts";
+import type { DomainNotFoundError } from "@/features/errors.ts";
 import {
   importLibraryFiles,
   type LibraryImportFileInput,
@@ -24,7 +24,7 @@ export interface CatalogLibraryWriteServiceShape {
     mediaId: number,
   ) => Effect.Effect<
     RenameResult,
-    DatabaseError | OperationsAnimeNotFoundError | RuntimeConfigSnapshotError
+    DatabaseError | DomainNotFoundError | RuntimeConfigSnapshotError
   >;
 }
 

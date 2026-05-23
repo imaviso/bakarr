@@ -1,40 +1,40 @@
 import { assert, it } from "@effect/vitest";
 
 import {
-  MediaNotFoundError,
-  MediaConflictError,
-  MediaPathError,
-  MediaStoredDataError,
-  AniDbRuntimeConfigError,
-} from "@/features/media/errors.ts";
+  DomainConflictError,
+  DomainNotFoundError,
+  DomainPathError,
+  StoredDataError,
+} from "@/features/errors.ts";
+import { AniDbRuntimeConfigError } from "@/features/media/errors.ts";
 
-it("MediaNotFoundError constructs with message", () => {
-  const error = new MediaNotFoundError({ message: "not found" });
+it("DomainNotFoundError constructs with message", () => {
+  const error = new DomainNotFoundError({ message: "not found" });
   assert.deepStrictEqual(error.message, "not found");
   assert.deepStrictEqual(error._tag, "DomainNotFoundError");
 });
 
-it("MediaConflictError constructs with message", () => {
-  const error = new MediaConflictError({ message: "conflict" });
+it("DomainConflictError constructs with message", () => {
+  const error = new DomainConflictError({ message: "conflict" });
   assert.deepStrictEqual(error.message, "conflict");
   assert.deepStrictEqual(error._tag, "DomainConflictError");
 });
 
-it("MediaPathError constructs with message and optional cause", () => {
+it("DomainPathError constructs with message and optional cause", () => {
   const cause = new Error("fs error");
-  const error = new MediaPathError({ cause, message: "path error" });
+  const error = new DomainPathError({ cause, message: "path error" });
   assert.deepStrictEqual(error.message, "path error");
   assert.deepStrictEqual(error._tag, "DomainPathError");
 });
 
-it("MediaPathError constructs without cause", () => {
-  const error = new MediaPathError({ message: "boom" });
+it("DomainPathError constructs without cause", () => {
+  const error = new DomainPathError({ message: "boom" });
   assert.deepStrictEqual(error.message, "boom");
 });
 
-it("MediaStoredDataError constructs with cause and message", () => {
+it("StoredDataError constructs with cause and message", () => {
   const cause = new Error("parse");
-  const error = new MediaStoredDataError({ cause, message: "corrupt" });
+  const error = new StoredDataError({ cause, message: "corrupt" });
   assert.deepStrictEqual(error.message, "corrupt");
   assert.deepStrictEqual(error._tag, "StoredDataError");
 });

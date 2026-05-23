@@ -10,7 +10,7 @@ import {
 } from "@packages/shared/index.ts";
 import { media, downloads } from "@/db/schema.ts";
 import type { AppDatabase, DatabaseError } from "@/db/database.ts";
-import { OperationsStoredDataError } from "@/features/operations/errors.ts";
+import { StoredDataError } from "@/features/errors.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 const DownloadEventMetadataJsonSchema = Schema.parseJson(DownloadEventMetadataSchema);
@@ -43,7 +43,7 @@ export const decodeDownloadEventMetadata = Effect.fn(
   return yield* Schema.decodeUnknown(DownloadEventMetadataJsonSchema)(value).pipe(
     Effect.mapError(
       (cause) =>
-        new OperationsStoredDataError({
+        new StoredDataError({
           cause,
           message: "Stored download event metadata is corrupt",
         }),

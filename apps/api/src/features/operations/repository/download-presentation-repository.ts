@@ -4,7 +4,7 @@ import { Effect } from "effect";
 import type { AppDatabase, DatabaseError } from "@/db/database.ts";
 import { media, downloads, mediaUnits } from "@/db/schema.ts";
 import { decodeOptionalNumberList } from "@/features/profiles/profile-codec.ts";
-import { OperationsStoredDataError } from "@/features/operations/errors.ts";
+import { StoredDataError } from "@/features/errors.ts";
 import type { DownloadPresentationContext } from "@/features/operations/repository/types.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
@@ -116,7 +116,7 @@ const decodeCoveredEpisodes = Effect.fn("OperationsRepository.decodeCoveredEpiso
   return yield* decodeOptionalNumberList(value).pipe(
     Effect.mapError(
       (cause) =>
-        new OperationsStoredDataError({
+        new StoredDataError({
           cause,
           message: "Stored covered episode metadata is corrupt",
         }),

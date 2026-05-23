@@ -28,7 +28,7 @@ import {
   clearEpisodeMappingEffect,
   upsertEpisodeEffect,
 } from "@/features/media/units/media-unit-repository.ts";
-import { MediaPathError } from "@/features/media/errors.ts";
+import { DomainPathError } from "@/features/errors.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 export const scanAnimeFolderEffect = Effect.fn("AnimeFileScan.scanAnimeFolderEffect")(
@@ -45,7 +45,7 @@ export const scanAnimeFolderEffect = Effect.fn("AnimeFileScan.scanAnimeFolderEff
     const files = yield* collectFiles(input.fs, animeRow.rootFolder).pipe(
       Effect.mapError(
         (cause) =>
-          new MediaPathError({
+          new DomainPathError({
             cause,
             message: "Media root folder does not exist or is inaccessible",
           }),

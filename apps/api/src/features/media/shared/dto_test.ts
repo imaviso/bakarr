@@ -2,7 +2,7 @@ import { assert, it } from "@effect/vitest";
 import { Cause, Effect, Exit } from "effect";
 
 import { media, mediaUnits } from "@/db/schema.ts";
-import { MediaStoredDataError } from "@/features/media/errors.ts";
+import { StoredDataError } from "@/features/errors.ts";
 import { toAnimeDto } from "@/features/media/shared/dto.ts";
 
 it.effect("toAnimeDto builds progress, metadata, and decoded arrays", () =>
@@ -243,7 +243,7 @@ it.effect("toAnimeDto fails with typed stored-data errors for corrupt persisted 
       const failure = Cause.failureOption(exit.cause);
       assert.deepStrictEqual(failure._tag, "Some");
       if (failure._tag === "Some") {
-        assert.deepStrictEqual(failure.value instanceof MediaStoredDataError, true);
+        assert.deepStrictEqual(failure.value instanceof StoredDataError, true);
       }
     }
   }),

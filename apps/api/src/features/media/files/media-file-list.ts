@@ -24,7 +24,7 @@ import {
 import { buildScannedFileMetadata } from "@/infra/scanned-file-metadata.ts";
 import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
-import { MediaPathError } from "@/features/media/errors.ts";
+import { DomainPathError } from "@/features/errors.ts";
 
 interface EpisodeMediaCacheRow {
   readonly audioChannels: string | null;
@@ -122,7 +122,7 @@ export const listAnimeFilesEffect = Effect.fn("AnimeFileList.listAnimeFilesEffec
     const files = yield* collectFiles(input.fs, animeRow.rootFolder).pipe(
       Effect.mapError(
         (cause) =>
-          new MediaPathError({
+          new DomainPathError({
             cause,
             message: "Media root folder does not exist or is inaccessible",
           }),

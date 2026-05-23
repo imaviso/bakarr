@@ -3,7 +3,7 @@ import { Effect, Stream } from "effect";
 import type { ScannedFile, SkippedFile } from "@packages/shared/index.ts";
 import { scanVideoFilesStream } from "@/features/operations/import-scan/file-scanner.ts";
 import { resolveImportScanLimit } from "@/features/operations/import-scan/import-path-scan-policy.ts";
-import { OperationsPathError } from "@/features/operations/errors.ts";
+import { DomainPathError } from "@/features/errors.ts";
 import {
   analyzeScannedFile,
   type AnalyzedFile,
@@ -27,7 +27,7 @@ export const discoverImportScanFiles = Effect.fn("Operations.discoverImportScanF
     const canonicalPath = yield* input.fs.realPath(input.path).pipe(
       Effect.mapError(
         (cause) =>
-          new OperationsPathError({
+          new DomainPathError({
             cause,
             message: `Import path is inaccessible: ${input.path}`,
           }),
@@ -41,7 +41,7 @@ export const discoverImportScanFiles = Effect.fn("Operations.discoverImportScanF
         Stream.runCollect,
         Effect.mapError(
           (cause) =>
-            new OperationsPathError({
+            new DomainPathError({
               cause,
               message: `Import path is inaccessible: ${canonicalPath}`,
             }),

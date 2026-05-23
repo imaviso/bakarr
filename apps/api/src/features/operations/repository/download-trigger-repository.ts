@@ -24,10 +24,7 @@ export interface DownloadTriggerRepositoryShape {
   readonly insertDownloadEvent: (
     input: DownloadEventRecordInput,
     createdAt: string,
-  ) => Effect.Effect<
-    void,
-    DatabaseError | import("@/features/operations/errors.ts").OperationsStoredDataError
-  >;
+  ) => Effect.Effect<void, DatabaseError | import("@/features/errors.ts").StoredDataError>;
   readonly insertQueuedDownloadRow: (input: {
     readonly addedAt: string;
     readonly coveredUnits: string | null;

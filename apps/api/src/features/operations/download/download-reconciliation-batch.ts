@@ -14,10 +14,7 @@ import {
   resolveReconciledBatchEpisodeNumbers,
 } from "@/features/operations/download/download-coverage.ts";
 import { resolveBatchContentPaths } from "@/features/operations/download/download-paths.ts";
-import {
-  OperationsInfrastructureError,
-  OperationsPathError,
-} from "@/features/operations/errors.ts";
+import { DomainPathError, InfrastructureError } from "@/features/errors.ts";
 import { encodeDownloadEventMetadata } from "@/features/operations/repository/download-repository.ts";
 import {
   finalizeDownloadImport,
@@ -25,7 +22,7 @@ import {
 } from "@/features/operations/download/download-reconciliation-shared.ts";
 
 const mapReconciliationInfrastructureError = (cause: unknown) =>
-  new OperationsInfrastructureError({
+  new InfrastructureError({
     cause,
     message: "Failed to reconcile completed download",
   });
@@ -48,7 +45,7 @@ export const reconcileBatchDownloadEffect = Effect.fn("OperationsService.reconci
     const batchPaths = yield* resolveBatchContentPaths(input.fs, input.resolvedContentRoot).pipe(
       Effect.mapError(
         (cause) =>
-          new OperationsPathError({
+          new DomainPathError({
             cause,
             message: `Download content path is inaccessible: ${input.resolvedContentRoot}`,
           }),

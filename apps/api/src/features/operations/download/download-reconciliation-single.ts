@@ -10,10 +10,7 @@ import {
 import { importDownloadedFile } from "@/features/operations/download/download-file-import-support.ts";
 import { parseCoveredEpisodesEffect } from "@/features/operations/download/download-coverage.ts";
 import { resolveCompletedContentPath } from "@/features/operations/download/download-paths.ts";
-import {
-  OperationsInfrastructureError,
-  OperationsPathError,
-} from "@/features/operations/errors.ts";
+import { DomainPathError, InfrastructureError } from "@/features/errors.ts";
 import { encodeDownloadEventMetadata } from "@/features/operations/repository/download-repository.ts";
 import {
   finalizeDownloadImport,
@@ -22,7 +19,7 @@ import {
 } from "@/features/operations/download/download-reconciliation-shared.ts";
 
 const mapReconciliationInfrastructureError = (cause: unknown) =>
-  new OperationsInfrastructureError({
+  new InfrastructureError({
     cause,
     message: "Failed to reconcile completed download",
   });
@@ -68,7 +65,7 @@ export const reconcileSingleDownloadEffect = Effect.fn(
   ).pipe(
     Effect.mapError(
       (cause) =>
-        new OperationsPathError({
+        new DomainPathError({
           cause,
           message: `Download content path is inaccessible: ${input.resolvedContentRoot}`,
         }),

@@ -17,11 +17,11 @@ import {
   makeCatalogDownloadProgressReads,
   type DownloadRuntimeSummary,
 } from "@/features/operations/catalog/catalog-download-progress-read-support.ts";
-import { OperationsStoredDataError } from "@/features/operations/errors.ts";
+import { StoredDataError } from "@/features/errors.ts";
 import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
-type ReadError = DatabaseError | OperationsStoredDataError;
+type ReadError = DatabaseError | StoredDataError;
 
 export interface CatalogDownloadReadServiceShape {
   readonly listDownloadQueue: () => Effect.Effect<DownloadStatus[], ReadError>;

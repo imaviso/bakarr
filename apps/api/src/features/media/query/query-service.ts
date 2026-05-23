@@ -16,11 +16,8 @@ import type {
   SeasonalMediaResponse,
 } from "@packages/shared/index.ts";
 import { resolveSeasonFromDate, resolveSeasonYearFromDate } from "@packages/shared/index.ts";
-import {
-  type MediaServiceError,
-  MediaStoredDataError,
-  MediaNotFoundError,
-} from "@/features/media/errors.ts";
+import { DomainNotFoundError, StoredDataError } from "@/features/errors.ts";
+import { type MediaServiceError } from "@/features/media/errors.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
 import { listAnimeEffect } from "@/features/media/query/media-query-list.ts";
 import { getAnimeEffect } from "@/features/media/query/media-query-get.ts";
@@ -57,16 +54,16 @@ function toSeasonalAnimeCacheKey(input: {
 export interface AnimeQueryServiceShape {
   readonly listMedia: (
     params?: MediaListQueryParams,
-  ) => Effect.Effect<MediaListResponse, DatabaseError | MediaStoredDataError>;
+  ) => Effect.Effect<MediaListResponse, DatabaseError | StoredDataError>;
   readonly getMedia: (id: number) => Effect.Effect<Media, MediaServiceError | DatabaseError>;
   readonly searchAnime: (
     query: string,
     mediaKind?: MediaKind,
-  ) => Effect.Effect<MediaSearchResponse, DatabaseError | ExternalCallError | MediaStoredDataError>;
+  ) => Effect.Effect<MediaSearchResponse, DatabaseError | ExternalCallError | StoredDataError>;
   readonly getAnimeByAnilistId: (
     id: number,
     mediaKind?: MediaKind,
-  ) => Effect.Effect<MediaSearchResult, MediaNotFoundError | DatabaseError | ExternalCallError>;
+  ) => Effect.Effect<MediaSearchResult, DomainNotFoundError | DatabaseError | ExternalCallError>;
   readonly listEpisodes: (mediaId: number) => Effect.Effect<MediaUnit[], DatabaseError>;
   readonly listSeasonalAnime: (
     params?: SeasonalMediaQueryParams,

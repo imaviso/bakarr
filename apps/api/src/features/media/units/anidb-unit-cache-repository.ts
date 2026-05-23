@@ -7,7 +7,7 @@ import {
   AnimeMetadataEpisodeSchema,
   type AnimeMetadataEpisode,
 } from "@/features/media/metadata/anilist-model.ts";
-import { MediaStoredDataError } from "@/features/media/errors.ts";
+import { StoredDataError } from "@/features/errors.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 const AniDbEpisodeCachePayloadJsonSchema = Schema.parseJson(
@@ -48,7 +48,7 @@ export const loadAniDbEpisodeCacheEffect = Effect.fn("AniDbEpisodeCacheRepositor
   const decodedEpisodes = yield* decodeAniDbEpisodeCachePayload(row.mediaUnits).pipe(
     Effect.mapError(
       (cause) =>
-        new MediaStoredDataError({
+        new StoredDataError({
           cause,
           message: "AniDB episode cache is corrupt",
         }),
@@ -72,7 +72,7 @@ export const upsertAniDbEpisodeCacheEffect = Effect.fn("AniDbEpisodeCacheReposit
     const encodedEpisodes = yield* encodeAniDbEpisodeCachePayload([...input.mediaUnits]).pipe(
       Effect.mapError(
         (cause) =>
-          new MediaStoredDataError({
+          new StoredDataError({
             cause,
             message: "AniDB episode cache payload is invalid",
           }),

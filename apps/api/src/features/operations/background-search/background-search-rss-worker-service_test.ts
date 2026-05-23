@@ -7,7 +7,7 @@ import { EventBus, type EventBusShape } from "@/features/events/event-bus.ts";
 import { SearchBackgroundMissingService } from "@/features/operations/background-search/background-search-missing-support.ts";
 import { makeBackgroundSearchRssWorkerService } from "@/features/operations/background-search/background-search-rss-worker-service.ts";
 import { SearchBackgroundRssService } from "@/features/operations/background-search/background-search-rss-support.ts";
-import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
+import { InfrastructureError } from "@/features/errors.ts";
 import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
@@ -75,7 +75,7 @@ describe("BackgroundSearchRssWorkerService", () => {
               triggerSearchMissing: () =>
                 Effect.gen(function* () {
                   calls.push("missing");
-                  return yield* new OperationsInfrastructureError({
+                  return yield* new InfrastructureError({
                     message: "missing search failed",
                     cause: new Error("missing search failed"),
                   });
@@ -140,7 +140,7 @@ describe("BackgroundSearchRssWorkerService", () => {
               runRssCheck: () =>
                 Effect.gen(function* () {
                   calls.push("rss");
-                  return yield* new OperationsInfrastructureError({
+                  return yield* new InfrastructureError({
                     message: "rss check failed",
                     cause: new Error("rss check failed"),
                   });

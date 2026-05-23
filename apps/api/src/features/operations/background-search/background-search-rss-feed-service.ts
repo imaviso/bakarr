@@ -7,10 +7,7 @@ import { downloads, rssFeeds } from "@/db/schema.ts";
 import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
 import { RssClient } from "@/features/operations/rss/rss-client.ts";
 import { BackgroundSearchQueueService } from "@/features/operations/background-search/background-search-queue-service.ts";
-import {
-  OperationsInfrastructureError,
-  OperationsInputError,
-} from "@/features/operations/errors.ts";
+import { DomainInputError, InfrastructureError } from "@/features/errors.ts";
 import { loadMissingEpisodeNumbers } from "@/features/operations/shared/job-support.ts";
 import {
   decideDownloadAction,
@@ -25,7 +22,7 @@ export interface BackgroundSearchRssFeedServiceShape {
   readonly processFeed: (
     feed: typeof rssFeeds.$inferSelect,
     runtimeConfig: Config,
-  ) => Effect.Effect<number, DatabaseError | OperationsInfrastructureError>;
+  ) => Effect.Effect<number, DatabaseError | InfrastructureError>;
 }
 
 export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSearchRssFeedService>()(
@@ -45,7 +42,7 @@ export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSea
           const profileOption = yield* profileRepository.loadQualityProfile(profileName);
 
           if (Option.isNone(profileOption)) {
-            return yield* new OperationsInputError({
+            return yield* new DomainInputError({
               message: `Quality profile '${profileName}' not found`,
             });
           }
@@ -78,7 +75,7 @@ export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSea
           Effect.mapError((error) =>
             error instanceof DatabaseError
               ? error
-              : new OperationsInfrastructureError({
+              : new InfrastructureError({
                   message: `Failed to fetch RSS feed '${feed.name ?? feed.url}'`,
                   cause: error,
                 }),
@@ -228,7 +225,7 @@ export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSea
             }).pipe(
               Effect.catchTag("DomainNotFoundError", (error) =>
                 Effect.fail(
-                  new OperationsInfrastructureError({
+                  new InfrastructureError({
                     message: "Failed to run RSS check",
                     cause: error,
                   }),
@@ -236,7 +233,7 @@ export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSea
               ),
               Effect.catchTag("DomainInputError", (error) =>
                 Effect.fail(
-                  new OperationsInfrastructureError({
+                  new InfrastructureError({
                     message: "Failed to run RSS check",
                     cause: error,
                   }),

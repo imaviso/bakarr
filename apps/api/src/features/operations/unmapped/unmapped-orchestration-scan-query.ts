@@ -6,7 +6,7 @@ import type { AppDatabase, DatabaseError } from "@/db/database.ts";
 import { media, backgroundJobs } from "@/db/schema.ts";
 import { type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import type { AniListClient } from "@/features/media/metadata/anilist.ts";
-import { OperationsPathError, OperationsStoredDataError } from "@/features/operations/errors.ts";
+import { DomainPathError, StoredDataError } from "@/features/errors.ts";
 import { type SystemUnmappedRepositoryShape } from "@/features/system/repository/unmapped-repository.ts";
 import {
   prepareUnmappedFoldersForScan,
@@ -49,16 +49,16 @@ export type UnmappedMatchResult = UnmappedMatchResultFailed | UnmappedMatchResul
 export interface UnmappedScanQueryShape {
   readonly getUnmappedFolders: () => Effect.Effect<
     ScannerState,
-    DatabaseError | OperationsPathError | OperationsStoredDataError
+    DatabaseError | DomainPathError | StoredDataError
   >;
   readonly loadQueuedUnmappedFolders: () => Effect.Effect<
     UnmappedScanQueryResult,
-    DatabaseError | OperationsPathError | OperationsStoredDataError
+    DatabaseError | DomainPathError | StoredDataError
   >;
   readonly matchAndPersistUnmappedFolder: (
     matchingFolder: ScannerState["folders"][number],
     animeRows: ReadonlyArray<typeof media.$inferSelect>,
-  ) => Effect.Effect<UnmappedMatchResult, DatabaseError | OperationsStoredDataError>;
+  ) => Effect.Effect<UnmappedMatchResult, DatabaseError | StoredDataError>;
 }
 
 export function makeUnmappedScanQuerySupport(input: {

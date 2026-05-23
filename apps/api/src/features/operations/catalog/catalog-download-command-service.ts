@@ -6,11 +6,8 @@ import { DownloadTorrentActionService } from "@/features/operations/download/dow
 import { DownloadTorrentSyncService } from "@/features/operations/download/download-torrent-sync-support.ts";
 import { DownloadProgressSupport } from "@/features/operations/download/download-progress-support.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
-import {
-  isOperationsError,
-  type OperationsError,
-  OperationsInfrastructureError,
-} from "@/features/operations/errors.ts";
+import { InfrastructureError } from "@/features/errors.ts";
+import { isOperationsError, type OperationsError } from "@/features/operations/errors.ts";
 import { durationMsSince } from "@/infra/logging.ts";
 import { ClockService } from "@/infra/clock.ts";
 
@@ -44,7 +41,7 @@ export class CatalogDownloadCommandService extends Effect.Service<CatalogDownloa
             return cause;
           }
 
-          return new OperationsInfrastructureError({
+          return new InfrastructureError({
             cause,
             message,
           });
