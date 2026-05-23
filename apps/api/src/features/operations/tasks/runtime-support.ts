@@ -1,4 +1,4 @@
-import { Context, Effect, Exit, Layer, Scope } from "effect";
+import { Effect, Exit, Scope } from "effect";
 
 import { makeSerializedFlagCoordinator } from "@/infra/effect/coalescing-serialized-flag-coordinator.ts";
 
@@ -7,10 +7,6 @@ export interface DownloadTriggerCoordinatorShape {
     operation: Effect.Effect<A, E>,
   ) => Effect.Effect<A, E>;
 }
-
-export class DownloadTriggerCoordinator extends Context.Tag(
-  "@bakarr/api/DownloadTriggerCoordinator",
-)<DownloadTriggerCoordinator, DownloadTriggerCoordinatorShape>() {}
 
 const makeDownloadTriggerCoordinator = Effect.fn(
   "OperationsService.makeDownloadTriggerCoordinator",
@@ -25,10 +21,12 @@ const makeDownloadTriggerCoordinator = Effect.fn(
   } satisfies DownloadTriggerCoordinatorShape;
 });
 
-export const DownloadTriggerCoordinatorLive = Layer.effect(
-  DownloadTriggerCoordinator,
-  makeDownloadTriggerCoordinator(),
-);
+export class DownloadTriggerCoordinator extends Effect.Service<DownloadTriggerCoordinator>()(
+  "@bakarr/api/DownloadTriggerCoordinator",
+  { effect: makeDownloadTriggerCoordinator() },
+) {}
+
+export const DownloadTriggerCoordinatorLive = DownloadTriggerCoordinator.Default;
 
 export interface UnmappedScanCoordinatorShape {
   readonly completeUnmappedScan: () => Effect.Effect<void>;
@@ -45,11 +43,6 @@ export interface UnmappedScanCoordinatorShape {
     readonly whenBusy: Effect.Effect<A, E>;
   }) => Effect.Effect<A, E>;
 }
-
-export class UnmappedScanCoordinator extends Context.Tag("@bakarr/api/UnmappedScanCoordinator")<
-  UnmappedScanCoordinator,
-  UnmappedScanCoordinatorShape
->() {}
 
 const makeUnmappedScanCoordinator = Effect.fn("OperationsService.makeUnmappedScanCoordinator")(
   function* () {
@@ -109,7 +102,9 @@ const makeUnmappedScanCoordinator = Effect.fn("OperationsService.makeUnmappedSca
   },
 );
 
-export const UnmappedScanCoordinatorLive = Layer.scoped(
-  UnmappedScanCoordinator,
-  makeUnmappedScanCoordinator(),
-);
+export class UnmappedScanCoordinator extends Effect.Service<UnmappedScanCoordinator>()(
+  "@bakarr/api/UnmappedScanCoordinator",
+  { scoped: makeUnmappedScanCoordinator() },
+) {}
+
+export const UnmappedScanCoordinatorLive = UnmappedScanCoordinator.Default;

@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from "effect";
+import { Effect } from "effect";
 
 import type {
   DownloadEventsPage,
@@ -67,42 +67,42 @@ export interface CatalogDownloadReadServiceShape {
   readonly getDownloadRuntimeSummary: () => Effect.Effect<DownloadRuntimeSummary, DatabaseError>;
 }
 
-export class CatalogDownloadReadService extends Context.Tag(
+export class CatalogDownloadReadService extends Effect.Service<CatalogDownloadReadService>()(
   "@bakarr/api/CatalogDownloadReadService",
-)<CatalogDownloadReadService, CatalogDownloadReadServiceShape>() {}
+  {
+    effect: Effect.gen(function* () {
+      const { db } = yield* Database;
+      const clock = yield* ClockService;
+      const nowIso = () => nowIsoFromClock(clock);
 
-export const CatalogDownloadReadServiceLive = Layer.effect(
-  CatalogDownloadReadService,
-  Effect.gen(function* () {
-    const { db } = yield* Database;
-    const clock = yield* ClockService;
-    const nowIso = () => nowIsoFromClock(clock);
+      const listReads = makeCatalogDownloadListReads({ db, tryDatabasePromise });
+      const eventReads = makeCatalogDownloadEventReads({ db, nowIso, tryDatabasePromise });
+      const progressReads = makeCatalogDownloadProgressReads({ db, tryDatabasePromise });
 
-    const listReads = makeCatalogDownloadListReads({ db, tryDatabasePromise });
-    const eventReads = makeCatalogDownloadEventReads({ db, nowIso, tryDatabasePromise });
-    const progressReads = makeCatalogDownloadProgressReads({ db, tryDatabasePromise });
+      const streamDownloadEventsExportJson = Effect.fn(
+        "OperationsService.streamDownloadEventsExportJson",
+      )(function* (input: DownloadEventExportQuery = {}) {
+        return yield* eventReads.streamDownloadEventsExportJson(input);
+      });
 
-    const streamDownloadEventsExportJson = Effect.fn(
-      "OperationsService.streamDownloadEventsExportJson",
-    )(function* (input: DownloadEventExportQuery = {}) {
-      return yield* eventReads.streamDownloadEventsExportJson(input);
-    });
+      const streamDownloadEventsExportCsv = Effect.fn(
+        "OperationsService.streamDownloadEventsExportCsv",
+      )(function* (input: DownloadEventExportQuery = {}) {
+        return yield* eventReads.streamDownloadEventsExportCsv(input);
+      });
 
-    const streamDownloadEventsExportCsv = Effect.fn(
-      "OperationsService.streamDownloadEventsExportCsv",
-    )(function* (input: DownloadEventExportQuery = {}) {
-      return yield* eventReads.streamDownloadEventsExportCsv(input);
-    });
+      return {
+        getDownloadProgress: progressReads.getDownloadProgress,
+        getDownloadProgressBootstrap: progressReads.getDownloadProgressBootstrap,
+        getDownloadRuntimeSummary: progressReads.getDownloadRuntimeSummary,
+        listDownloadEvents: eventReads.listDownloadEvents,
+        listDownloadHistory: listReads.listDownloadHistory,
+        listDownloadQueue: progressReads.getDownloadProgress,
+        streamDownloadEventsExportCsv,
+        streamDownloadEventsExportJson,
+      } satisfies CatalogDownloadReadServiceShape;
+    }),
+  },
+) {}
 
-    return CatalogDownloadReadService.of({
-      getDownloadProgress: progressReads.getDownloadProgress,
-      getDownloadProgressBootstrap: progressReads.getDownloadProgressBootstrap,
-      getDownloadRuntimeSummary: progressReads.getDownloadRuntimeSummary,
-      listDownloadEvents: eventReads.listDownloadEvents,
-      listDownloadHistory: listReads.listDownloadHistory,
-      listDownloadQueue: progressReads.getDownloadProgress,
-      streamDownloadEventsExportCsv,
-      streamDownloadEventsExportJson,
-    });
-  }),
-);
+export const CatalogDownloadReadServiceLive = CatalogDownloadReadService.Default;

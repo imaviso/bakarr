@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Match } from "effect";
+import { Effect, Match } from "effect";
 
 import type { DatabaseError } from "@/db/database.ts";
 import { Database } from "@/db/database.ts";
@@ -30,11 +30,6 @@ export interface AnimeStreamServiceShape {
     readonly signatureHex: string;
   }) => Effect.Effect<ResolvedStreamFile, DatabaseError | MediaNotFoundError | StreamAccessError>;
 }
-
-export class AnimeStreamService extends Context.Tag("@bakarr/api/AnimeStreamService")<
-  AnimeStreamService,
-  AnimeStreamServiceShape
->() {}
 
 const makeAnimeStreamService = Effect.fn("AnimeStreamService.make")(function* () {
   const { db } = yield* Database;
@@ -150,13 +145,20 @@ const makeAnimeStreamService = Effect.fn("AnimeStreamService.make")(function* ()
     },
   );
 
-  return AnimeStreamService.of({
+  return {
     createStreamUrl,
     resolveAuthorizedStreamFile,
-  });
+  } satisfies AnimeStreamServiceShape;
 });
 
-export const AnimeStreamServiceLive = Layer.effect(AnimeStreamService, makeAnimeStreamService());
+export class AnimeStreamService extends Effect.Service<AnimeStreamService>()(
+  "@bakarr/api/AnimeStreamService",
+  {
+    effect: makeAnimeStreamService(),
+  },
+) {}
+
+export const AnimeStreamServiceLive = AnimeStreamService.Default;
 
 function buildStreamPath(
   mediaId: number,

@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from "effect";
+import { Effect } from "effect";
 
 import { Database } from "@/db/database.ts";
 import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
@@ -20,11 +20,6 @@ export interface UnmappedScanServiceShape {
   readonly matchAndPersistUnmappedFolder: UnmappedScanQueryShape["matchAndPersistUnmappedFolder"];
   readonly runUnmappedScan: UnmappedScanWorkflowShape["runUnmappedScan"];
 }
-
-export class UnmappedScanService extends Context.Tag("@bakarr/api/UnmappedScanService")<
-  UnmappedScanService,
-  UnmappedScanServiceShape
->() {}
 
 const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* () {
   const { db } = yield* Database;
@@ -48,11 +43,16 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
     tryDatabasePromise,
   });
 
-  return UnmappedScanService.of({
+  return {
     getUnmappedFolders: scanWorkflow.getUnmappedFolders,
     matchAndPersistUnmappedFolder: scanWorkflow.matchAndPersistUnmappedFolder,
     runUnmappedScan: scanWorkflow.runUnmappedScan,
-  });
+  } satisfies UnmappedScanServiceShape;
 });
 
-export const UnmappedScanServiceLive = Layer.effect(UnmappedScanService, makeUnmappedScanService());
+export class UnmappedScanService extends Effect.Service<UnmappedScanService>()(
+  "@bakarr/api/UnmappedScanService",
+  { effect: makeUnmappedScanService() },
+) {}
+
+export const UnmappedScanServiceLive = UnmappedScanService.Default;

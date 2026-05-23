@@ -18,11 +18,11 @@ it.scoped(
     withSqliteTestDbEffect({
       run: (db) =>
         Effect.gen(function* () {
-          const rssClient = {
+          const rssClient = RssClient.make({
             fetchItems: () => Effect.succeed([makeRelease()]),
-          } satisfies typeof RssClient.Service;
+          });
 
-          const seadexClient = {
+          const seadexClient = SeaDexClient.make({
             getEntryByAniListId: () =>
               Effect.fail(
                 new ExternalCallError({
@@ -31,7 +31,7 @@ it.scoped(
                   operation: "seadex.getEntryByAniListId",
                 }),
               ),
-          } satisfies typeof SeaDexClient.Service;
+          });
 
           const config = makeTestConfig("/tmp/test.sqlite");
           const searchReleaseService = makeSearchReleaseSupport({
@@ -64,7 +64,7 @@ it.scoped("searchUnitReleases tries season episode query variants", () =>
     run: (db) =>
       Effect.gen(function* () {
         const requestedQueries: string[] = [];
-        const rssClient = {
+        const rssClient = RssClient.make({
           fetchItems: (url: string) => {
             const query = new URL(url).searchParams.get("q") ?? "";
             requestedQueries.push(query);
@@ -80,11 +80,11 @@ it.scoped("searchUnitReleases tries season episode query variants", () =>
                 : [],
             );
           },
-        } satisfies typeof RssClient.Service;
+        });
 
-        const seadexClient = {
+        const seadexClient = SeaDexClient.make({
           getEntryByAniListId: () => Effect.succeed(Option.none()),
-        } satisfies typeof SeaDexClient.Service;
+        });
 
         const config = makeTestConfig("/tmp/test.sqlite");
         const searchReleaseService = makeSearchReleaseSupport({
@@ -118,7 +118,7 @@ it.scoped("searchUnitReleases searches stored synonyms and normalized aliases", 
     run: (db) =>
       Effect.gen(function* () {
         const requestedQueries: string[] = [];
-        const rssClient = {
+        const rssClient = RssClient.make({
           fetchItems: (url: string) => {
             const query = new URL(url).searchParams.get("q") ?? "";
             requestedQueries.push(query);
@@ -133,7 +133,7 @@ it.scoped("searchUnitReleases searches stored synonyms and normalized aliases", 
                 : [],
             );
           },
-        } satisfies typeof RssClient.Service;
+        });
 
         const searchReleaseService = makeSearchReleaseSupport({
           db,
@@ -167,7 +167,7 @@ it.scoped("searchUnitReleases falls back to broad title search and keeps request
     run: (db) =>
       Effect.gen(function* () {
         const requestedQueries: string[] = [];
-        const rssClient = {
+        const rssClient = RssClient.make({
           fetchItems: (url: string) => {
             const query = new URL(url).searchParams.get("q") ?? "";
             requestedQueries.push(query);
@@ -187,7 +187,7 @@ it.scoped("searchUnitReleases falls back to broad title search and keeps request
                 : [],
             );
           },
-        } satisfies typeof RssClient.Service;
+        });
 
         const config = makeTestConfig("/tmp/test.sqlite");
         const searchReleaseService = makeSearchReleaseSupport({
@@ -219,7 +219,7 @@ it.scoped("searchUnitReleases uses Nyaa literature category for manga", () =>
     run: (db) =>
       Effect.gen(function* () {
         const requestedCategories: string[] = [];
-        const rssClient = {
+        const rssClient = RssClient.make({
           fetchItems: (url: string) => {
             const parsedUrl = new URL(url);
             requestedCategories.push(parsedUrl.searchParams.get("c") ?? "");
@@ -234,7 +234,7 @@ it.scoped("searchUnitReleases uses Nyaa literature category for manga", () =>
                 : [],
             );
           },
-        } satisfies typeof RssClient.Service;
+        });
 
         const config = makeTestConfig("/tmp/test.sqlite");
         const searchReleaseService = makeSearchReleaseSupport({
@@ -331,8 +331,8 @@ function makeRelease(input: Partial<ParsedRelease> = {}): ParsedRelease {
   };
 }
 
-function makeSeaDexNoneClient(): typeof SeaDexClient.Service {
-  return {
+function makeSeaDexNoneClient() {
+  return SeaDexClient.make({
     getEntryByAniListId: () => Effect.succeed(Option.none()),
-  } satisfies typeof SeaDexClient.Service;
+  });
 }

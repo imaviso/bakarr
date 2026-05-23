@@ -1,5 +1,5 @@
 import { eq, inArray } from "drizzle-orm";
-import { Context, Effect, Layer, Option } from "effect";
+import { Effect, Option } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 import { Database, DatabaseError } from "@/db/database.ts";
@@ -28,91 +28,194 @@ export interface BackgroundSearchRssFeedServiceShape {
   ) => Effect.Effect<number, DatabaseError | OperationsInfrastructureError>;
 }
 
-export class BackgroundSearchRssFeedService extends Context.Tag(
+export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSearchRssFeedService>()(
   "@bakarr/api/BackgroundSearchRssFeedService",
-)<BackgroundSearchRssFeedService, BackgroundSearchRssFeedServiceShape>() {}
+  {
+    effect: Effect.gen(function* () {
+      const { db } = yield* Database;
+      const clock = yield* ClockService;
+      const rssClient = yield* RssClient;
+      const queueService = yield* BackgroundSearchQueueService;
+      const mediaReadRepository = yield* MediaReadRepository;
+      const profileRepository = yield* OperationsProfileRepository;
+      const nowIso = () => nowIsoFromClock(clock);
 
-export const BackgroundSearchRssFeedServiceLive = Layer.effect(
-  BackgroundSearchRssFeedService,
-  Effect.gen(function* () {
-    const { db } = yield* Database;
-    const clock = yield* ClockService;
-    const rssClient = yield* RssClient;
-    const queueService = yield* BackgroundSearchQueueService;
-    const mediaReadRepository = yield* MediaReadRepository;
-    const profileRepository = yield* OperationsProfileRepository;
-    const nowIso = () => nowIsoFromClock(clock);
+      const requireQualityProfile = Effect.fn("BackgroundSearchRssFeed.requireQualityProfile")(
+        function* (profileName: string) {
+          const profileOption = yield* profileRepository.loadQualityProfile(profileName);
 
-    const requireQualityProfile = Effect.fn("BackgroundSearchRssFeed.requireQualityProfile")(
-      function* (profileName: string) {
-        const profileOption = yield* profileRepository.loadQualityProfile(profileName);
+          if (Option.isNone(profileOption)) {
+            return yield* new OperationsInputError({
+              message: `Quality profile '${profileName}' not found`,
+            });
+          }
 
-        if (Option.isNone(profileOption)) {
-          return yield* new OperationsInputError({
-            message: `Quality profile '${profileName}' not found`,
-          });
-        }
-
-        return profileOption.value;
-      },
-    );
-
-    const logRssSkip = Effect.fn("BackgroundSearchRssFeed.logRssSkip")(function* (input: {
-      mediaId?: number;
-      feedId: number;
-      feedName: string;
-      reason: string;
-    }) {
-      yield* Effect.logDebug("Skipping RSS background action").pipe(
-        Effect.annotateLogs({
-          mediaId: input.mediaId,
-          feedId: input.feedId,
-          feedName: input.feedName,
-          reason: input.reason,
-        }),
+          return profileOption.value;
+        },
       );
-    });
 
-    const processFeed = Effect.fn("BackgroundSearchRssFeedService.processFeed")(function* (
-      feed: typeof rssFeeds.$inferSelect,
-      runtimeConfig: Config,
-    ) {
-      return yield* rssClient.fetchItems(feed.url).pipe(
-        Effect.mapError((error) =>
-          error instanceof DatabaseError
-            ? error
-            : new OperationsInfrastructureError({
-                message: `Failed to fetch RSS feed '${feed.name ?? feed.url}'`,
-                cause: error,
-              }),
-        ),
-        Effect.flatMap((items) =>
-          Effect.gen(function* () {
-            const animeRow = yield* mediaReadRepository.getAnimeRow(feed.mediaId);
+      const logRssSkip = Effect.fn("BackgroundSearchRssFeed.logRssSkip")(function* (input: {
+        mediaId?: number;
+        feedId: number;
+        feedName: string;
+        reason: string;
+      }) {
+        yield* Effect.logDebug("Skipping RSS background action").pipe(
+          Effect.annotateLogs({
+            mediaId: input.mediaId,
+            feedId: input.feedId,
+            feedName: input.feedName,
+            reason: input.reason,
+          }),
+        );
+      });
 
-            if (!animeRow.monitored) {
-              yield* logRssSkip({
-                mediaId: animeRow.id,
-                feedId: feed.id,
-                feedName: feed.name ?? feed.url,
-                reason: "media is not monitored",
-              });
-              return 0;
-            }
+      const processFeed = Effect.fn("BackgroundSearchRssFeedService.processFeed")(function* (
+        feed: typeof rssFeeds.$inferSelect,
+        runtimeConfig: Config,
+      ) {
+        return yield* rssClient.fetchItems(feed.url).pipe(
+          Effect.mapError((error) =>
+            error instanceof DatabaseError
+              ? error
+              : new OperationsInfrastructureError({
+                  message: `Failed to fetch RSS feed '${feed.name ?? feed.url}'`,
+                  cause: error,
+                }),
+          ),
+          Effect.flatMap((items) =>
+            Effect.gen(function* () {
+              const animeRow = yield* mediaReadRepository.getAnimeRow(feed.mediaId);
 
-            const profile = yield* requireQualityProfile(animeRow.profileName);
-            yield* validateQualityProfileSizeLabels(profile);
-            const rules = yield* profileRepository.loadReleaseRules(animeRow);
-            let queuedForFeed = 0;
+              if (!animeRow.monitored) {
+                yield* logRssSkip({
+                  mediaId: animeRow.id,
+                  feedId: feed.id,
+                  feedName: feed.name ?? feed.url,
+                  reason: "media is not monitored",
+                });
+                return 0;
+              }
 
-            const slice = items.slice(0, 10);
-            if (slice.length === 0) {
-              yield* logRssSkip({
-                mediaId: animeRow.id,
-                feedId: feed.id,
-                feedName: feed.name ?? feed.url,
-                reason: "feed returned no items",
-              });
+              const profile = yield* requireQualityProfile(animeRow.profileName);
+              yield* validateQualityProfileSizeLabels(profile);
+              const rules = yield* profileRepository.loadReleaseRules(animeRow);
+              let queuedForFeed = 0;
+
+              const slice = items.slice(0, 10);
+              if (slice.length === 0) {
+                yield* logRssSkip({
+                  mediaId: animeRow.id,
+                  feedId: feed.id,
+                  feedName: feed.name ?? feed.url,
+                  reason: "feed returned no items",
+                });
+                const feedCheckedAt = yield* nowIso();
+                yield* tryDatabasePromise("Failed to run RSS check", () =>
+                  db
+                    .update(rssFeeds)
+                    .set({ lastChecked: feedCheckedAt })
+                    .where(eq(rssFeeds.id, feed.id)),
+                );
+                return 0;
+              }
+
+              const existingDownloads = yield* tryDatabasePromise("Failed to run RSS check", () =>
+                db
+                  .select({ infoHash: downloads.infoHash })
+                  .from(downloads)
+                  .where(
+                    inArray(
+                      downloads.infoHash,
+                      slice.map((item) => item.infoHash),
+                    ),
+                  ),
+              );
+              const existingHashes = new Set(
+                existingDownloads.map((d) => d.infoHash?.toLowerCase()),
+              );
+              const missingUnits = yield* loadMissingEpisodeNumbers(db, animeRow.id);
+
+              for (const item of slice) {
+                if (existingHashes.has(item.infoHash.toLowerCase())) {
+                  yield* logRssSkip({
+                    mediaId: animeRow.id,
+                    feedId: feed.id,
+                    feedName: feed.name ?? feed.url,
+                    reason: `item already queued: ${item.infoHash}`,
+                  });
+                  continue;
+                }
+
+                const unitNumber = parseRssReleaseUnitNumbers({
+                  mediaKind: animeRow.mediaKind,
+                  title: item.title,
+                })[0];
+
+                if (unitNumber == null) {
+                  yield* logRssSkip({
+                    mediaId: animeRow.id,
+                    feedId: feed.id,
+                    feedName: feed.name ?? feed.url,
+                    reason: `could not parse unit number: ${item.title}`,
+                  });
+                  continue;
+                }
+
+                const currentEpisode = yield* mediaReadRepository.loadCurrentEpisodeState(
+                  animeRow.id,
+                  unitNumber,
+                );
+                const action = decideDownloadAction(
+                  profile,
+                  rules,
+                  currentEpisode,
+                  item,
+                  runtimeConfig,
+                  { allowUnknownQuality: animeRow.mediaKind !== "anime" },
+                );
+
+                if (!(action.Accept || action.Upgrade)) {
+                  yield* logRssSkip({
+                    mediaId: animeRow.id,
+                    feedId: feed.id,
+                    feedName: feed.name ?? feed.url,
+                    reason: `release not accepted: ${item.title}`,
+                  });
+                  continue;
+                }
+
+                const decisionReason =
+                  action.Upgrade?.reason ??
+                  (action.Accept
+                    ? `Accepted (${action.Accept.quality.name}, score ${action.Accept.score})`
+                    : undefined);
+
+                const queueResult = yield* queueService.queueReleaseIfEligible({
+                  action,
+                  animeRow,
+                  contextMessage: "Failed to run RSS check",
+                  ...(decisionReason === undefined ? {} : { decisionReason }),
+                  unitNumber,
+                  eventMessage: `Queued ${item.title} from RSS`,
+                  eventType: "download.rss.queued",
+                  item,
+                  missingUnits,
+                });
+
+                if (queueResult._tag === "skipped") {
+                  yield* logRssSkip({
+                    mediaId: animeRow.id,
+                    feedId: feed.id,
+                    feedName: feed.name ?? feed.url,
+                    reason: `overlapping download already queued: ${item.infoHash}`,
+                  });
+                  continue;
+                }
+
+                queuedForFeed += 1;
+              }
+
               const feedCheckedAt = yield* nowIso();
               yield* tryDatabasePromise("Failed to run RSS check", () =>
                 db
@@ -120,136 +223,33 @@ export const BackgroundSearchRssFeedServiceLive = Layer.effect(
                   .set({ lastChecked: feedCheckedAt })
                   .where(eq(rssFeeds.id, feed.id)),
               );
-              return 0;
-            }
 
-            const existingDownloads = yield* tryDatabasePromise("Failed to run RSS check", () =>
-              db
-                .select({ infoHash: downloads.infoHash })
-                .from(downloads)
-                .where(
-                  inArray(
-                    downloads.infoHash,
-                    slice.map((item) => item.infoHash),
-                  ),
+              return queuedForFeed;
+            }).pipe(
+              Effect.catchTag("DomainNotFoundError", (error) =>
+                Effect.fail(
+                  new OperationsInfrastructureError({
+                    message: "Failed to run RSS check",
+                    cause: error,
+                  }),
                 ),
-            );
-            const existingHashes = new Set(existingDownloads.map((d) => d.infoHash?.toLowerCase()));
-            const missingUnits = yield* loadMissingEpisodeNumbers(db, animeRow.id);
-
-            for (const item of slice) {
-              if (existingHashes.has(item.infoHash.toLowerCase())) {
-                yield* logRssSkip({
-                  mediaId: animeRow.id,
-                  feedId: feed.id,
-                  feedName: feed.name ?? feed.url,
-                  reason: `item already queued: ${item.infoHash}`,
-                });
-                continue;
-              }
-
-              const unitNumber = parseRssReleaseUnitNumbers({
-                mediaKind: animeRow.mediaKind,
-                title: item.title,
-              })[0];
-
-              if (unitNumber == null) {
-                yield* logRssSkip({
-                  mediaId: animeRow.id,
-                  feedId: feed.id,
-                  feedName: feed.name ?? feed.url,
-                  reason: `could not parse unit number: ${item.title}`,
-                });
-                continue;
-              }
-
-              const currentEpisode = yield* mediaReadRepository.loadCurrentEpisodeState(
-                animeRow.id,
-                unitNumber,
-              );
-              const action = decideDownloadAction(
-                profile,
-                rules,
-                currentEpisode,
-                item,
-                runtimeConfig,
-                { allowUnknownQuality: animeRow.mediaKind !== "anime" },
-              );
-
-              if (!(action.Accept || action.Upgrade)) {
-                yield* logRssSkip({
-                  mediaId: animeRow.id,
-                  feedId: feed.id,
-                  feedName: feed.name ?? feed.url,
-                  reason: `release not accepted: ${item.title}`,
-                });
-                continue;
-              }
-
-              const decisionReason =
-                action.Upgrade?.reason ??
-                (action.Accept
-                  ? `Accepted (${action.Accept.quality.name}, score ${action.Accept.score})`
-                  : undefined);
-
-              const queueResult = yield* queueService.queueReleaseIfEligible({
-                action,
-                animeRow,
-                contextMessage: "Failed to run RSS check",
-                ...(decisionReason === undefined ? {} : { decisionReason }),
-                unitNumber,
-                eventMessage: `Queued ${item.title} from RSS`,
-                eventType: "download.rss.queued",
-                item,
-                missingUnits,
-              });
-
-              if (queueResult._tag === "skipped") {
-                yield* logRssSkip({
-                  mediaId: animeRow.id,
-                  feedId: feed.id,
-                  feedName: feed.name ?? feed.url,
-                  reason: `overlapping download already queued: ${item.infoHash}`,
-                });
-                continue;
-              }
-
-              queuedForFeed += 1;
-            }
-
-            const feedCheckedAt = yield* nowIso();
-            yield* tryDatabasePromise("Failed to run RSS check", () =>
-              db
-                .update(rssFeeds)
-                .set({ lastChecked: feedCheckedAt })
-                .where(eq(rssFeeds.id, feed.id)),
-            );
-
-            return queuedForFeed;
-          }).pipe(
-            Effect.catchTag("DomainNotFoundError", (error) =>
-              Effect.fail(
-                new OperationsInfrastructureError({
-                  message: "Failed to run RSS check",
-                  cause: error,
-                }),
               ),
-            ),
-            Effect.catchTag("DomainInputError", (error) =>
-              Effect.fail(
-                new OperationsInfrastructureError({
-                  message: "Failed to run RSS check",
-                  cause: error,
-                }),
+              Effect.catchTag("DomainInputError", (error) =>
+                Effect.fail(
+                  new OperationsInfrastructureError({
+                    message: "Failed to run RSS check",
+                    cause: error,
+                  }),
+                ),
               ),
             ),
           ),
-        ),
-      );
-    });
+        );
+      });
 
-    return BackgroundSearchRssFeedService.of({
-      processFeed,
-    });
-  }),
-);
+      return { processFeed } satisfies BackgroundSearchRssFeedServiceShape;
+    }),
+  },
+) {}
+
+export const BackgroundSearchRssFeedServiceLive = BackgroundSearchRssFeedService.Default;

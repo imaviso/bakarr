@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from "effect";
+import { Effect } from "effect";
 import { brandMediaId } from "@packages/shared/index.ts";
 
 import { DatabaseError } from "@/db/database.ts";
@@ -143,30 +143,29 @@ export function makeDownloadTriggerService(input: {
   } satisfies DownloadTriggerServiceShape;
 }
 
-export class DownloadTriggerService extends Context.Tag("@bakarr/api/DownloadTriggerService")<
-  DownloadTriggerService,
-  DownloadTriggerServiceShape
->() {}
+export class DownloadTriggerService extends Effect.Service<DownloadTriggerService>()(
+  "@bakarr/api/DownloadTriggerService",
+  {
+    effect: Effect.gen(function* () {
+      const triggerRepo = yield* DownloadTriggerRepository;
+      const eventBus = yield* EventBus;
+      const torrentClientService = yield* TorrentClientService;
+      const clock = yield* ClockService;
+      const progressSupport = yield* DownloadProgressSupport;
+      const downloadTriggerCoordinator = yield* DownloadTriggerCoordinator;
+      const mediaReadRepository = yield* MediaReadRepository;
 
-export const DownloadTriggerServiceLive = Layer.effect(
-  DownloadTriggerService,
-  Effect.gen(function* () {
-    const triggerRepo = yield* DownloadTriggerRepository;
-    const eventBus = yield* EventBus;
-    const torrentClientService = yield* TorrentClientService;
-    const clock = yield* ClockService;
-    const progressSupport = yield* DownloadProgressSupport;
-    const downloadTriggerCoordinator = yield* DownloadTriggerCoordinator;
-    const mediaReadRepository = yield* MediaReadRepository;
+      return makeDownloadTriggerService({
+        triggerRepo,
+        downloadTriggerCoordinator,
+        eventBus,
+        mediaReadRepository,
+        nowIso: () => nowIsoFromClock(clock),
+        publishDownloadProgress: progressSupport.publishDownloadProgress,
+        torrentClientService,
+      });
+    }),
+  },
+) {}
 
-    return makeDownloadTriggerService({
-      triggerRepo,
-      downloadTriggerCoordinator,
-      eventBus,
-      mediaReadRepository,
-      nowIso: () => nowIsoFromClock(clock),
-      publishDownloadProgress: progressSupport.publishDownloadProgress,
-      torrentClientService,
-    });
-  }),
-);
+export const DownloadTriggerServiceLive = DownloadTriggerService.Default;

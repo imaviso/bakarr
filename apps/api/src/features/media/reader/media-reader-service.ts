@@ -1,6 +1,6 @@
 import { CommandExecutor } from "@effect/platform";
 import { dirname, join, resolve } from "node:path";
-import { Context, Effect, Layer, Match } from "effect";
+import { Effect, Match } from "effect";
 import type { ReaderPage, ReaderPagesResponse } from "@packages/shared/index.ts";
 
 import { Database, type AppDatabase, type DatabaseError } from "@/db/database.ts";
@@ -41,11 +41,6 @@ export interface MediaReaderServiceShape {
     pageNumber: number,
   ) => Effect.Effect<ReaderPageImage, DatabaseError | MediaNotFoundError | ReaderAccessError>;
 }
-
-export class MediaReaderService extends Context.Tag("@bakarr/api/MediaReaderService")<
-  MediaReaderService,
-  MediaReaderServiceShape
->() {}
 
 interface ReaderUnitFile {
   readonly fileName: string;
@@ -221,10 +216,17 @@ const makeMediaReaderService = Effect.fn("MediaReaderService.make")(function* ()
     return yield* readPageSourceImage({ executor, fs, getPdfRenderSemaphore, source });
   });
 
-  return MediaReaderService.of({ listPages, readPageImage });
+  return { listPages, readPageImage } satisfies MediaReaderServiceShape;
 });
 
-export const MediaReaderServiceLive = Layer.effect(MediaReaderService, makeMediaReaderService());
+export class MediaReaderService extends Effect.Service<MediaReaderService>()(
+  "@bakarr/api/MediaReaderService",
+  {
+    effect: makeMediaReaderService(),
+  },
+) {}
+
+export const MediaReaderServiceLive = MediaReaderService.Default;
 
 const resolveReaderUnitFile = Effect.fn("MediaReader.resolveReaderUnitFile")(function* (input: {
   readonly db: AppDatabase;

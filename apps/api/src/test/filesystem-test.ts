@@ -25,7 +25,7 @@ export const makeNoopTestFileSystemWithOverridesEffect = Effect.fn(
   "Test.makeNoopTestFileSystemWithOverridesEffect",
 )(function* (overrides: Partial<FileSystemShape>) {
   const base = yield* makeNoopTestFileSystemEffect({});
-  return { ...base, ...overrides };
+  return FileSystem.make(Object.assign({}, base, overrides));
 });
 
 export const withFileSystemSandboxEffect = Effect.fn("Test.withFileSystemSandboxEffect")(function* <

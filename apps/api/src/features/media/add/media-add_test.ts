@@ -9,6 +9,8 @@ import { media, qualityProfiles } from "@/db/schema.ts";
 import { AddAnimeInput } from "@/features/media/add/add-media-input.ts";
 import { addAnimeEffect } from "@/features/media/add/media-add.ts";
 import type { AnimeMetadata } from "@/features/media/metadata/anilist-model.ts";
+import { AnimeImageCacheService } from "@/features/media/metadata/media-image-cache-service.ts";
+import { AnimeMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
 import {
   decodeStoredDiscoveryEntriesEffect,
   decodeStoredSynonymsEffect,
@@ -52,7 +54,7 @@ it.scoped("addAnimeEffect persists MAL backfill and mapped relation metadata", (
         });
 
         yield* addAnimeEffect({
-          metadataProvider: {
+          metadataProvider: AnimeMetadataProviderService.make({
             getAnimeMetadataById: () =>
               Effect.succeed({
                 _tag: "Found",
@@ -62,7 +64,7 @@ it.scoped("addAnimeEffect persists MAL backfill and mapped relation metadata", (
                 },
                 metadata,
               }),
-          },
+          }),
           animeInput,
           db: appDb,
           eventPublisher: {
@@ -76,13 +78,13 @@ it.scoped("addAnimeEffect persists MAL backfill and mapped relation metadata", (
               }),
           },
           fs: makeFileSystemStub(),
-          imageCacheService: {
+          imageCacheService: AnimeImageCacheService.make({
             cacheMetadataImages: () =>
               Effect.succeed({
                 bannerImage: "/api/images/media/601/banner.jpg",
                 coverImage: "/api/images/media/601/cover.jpg",
               }),
-          },
+          }),
           mediaReadRepository: makeMediaReadRepository(appDb),
           nowIso: () => Effect.succeed("2026-04-11T00:00:00.000Z"),
         });
@@ -137,7 +139,7 @@ it.scoped("addAnimeEffect infers light novel media kind when request omits it", 
         });
 
         yield* addAnimeEffect({
-          metadataProvider: {
+          metadataProvider: AnimeMetadataProviderService.make({
             getAnimeMetadataById: () =>
               Effect.succeed({
                 _tag: "Found",
@@ -147,14 +149,14 @@ it.scoped("addAnimeEffect infers light novel media kind when request omits it", 
                 },
                 metadata: { ...makeMetadata(mediaId), format: "NOVEL", unitCount: 6 },
               }),
-          },
+          }),
           animeInput,
           db: appDb,
           eventPublisher: { publish: () => Effect.void },
           fs: makeFileSystemStub(),
-          imageCacheService: {
+          imageCacheService: AnimeImageCacheService.make({
             cacheMetadataImages: () => Effect.succeed({}),
-          },
+          }),
           mediaReadRepository: makeMediaReadRepository(appDb),
           nowIso: () => Effect.succeed("2026-04-11T00:00:00.000Z"),
         });

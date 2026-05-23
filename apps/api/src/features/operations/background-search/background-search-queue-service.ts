@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from "effect";
+import { Effect } from "effect";
 
 import type { DownloadAction } from "@packages/shared/index.ts";
 import { Database, DatabaseError } from "@/db/database.ts";
@@ -41,22 +41,20 @@ export interface BackgroundSearchQueueServiceShape {
   >;
 }
 
-export class BackgroundSearchQueueService extends Context.Tag(
+export class BackgroundSearchQueueService extends Effect.Service<BackgroundSearchQueueService>()(
   "@bakarr/api/BackgroundSearchQueueService",
-)<BackgroundSearchQueueService, BackgroundSearchQueueServiceShape>() {}
+  {
+    effect: Effect.gen(function* () {
+      const { db } = yield* Database;
+      const clock = yield* ClockService;
+      const torrentClientService = yield* TorrentClientService;
+      const downloadTriggerCoordinator = yield* DownloadTriggerCoordinator;
 
-export const BackgroundSearchQueueServiceLive = Layer.effect(
-  BackgroundSearchQueueService,
-  Effect.gen(function* () {
-    const { db } = yield* Database;
-    const clock = yield* ClockService;
-    const torrentClientService = yield* TorrentClientService;
-    const downloadTriggerCoordinator = yield* DownloadTriggerCoordinator;
+      const nowIso = () => nowIsoFromClock(clock);
 
-    const nowIso = () => nowIsoFromClock(clock);
-
-    const queueReleaseIfEligible = Effect.fn("BackgroundSearchQueueService.queueReleaseIfEligible")(
-      function* (input: {
+      const queueReleaseIfEligible = Effect.fn(
+        "BackgroundSearchQueueService.queueReleaseIfEligible",
+      )(function* (input: {
         animeRow: typeof media.$inferSelect;
         contextMessage: string;
         decisionReason?: string;
@@ -175,11 +173,13 @@ export const BackgroundSearchQueueServiceLive = Layer.effect(
               }),
           ),
         );
-      },
-    );
+      });
 
-    return BackgroundSearchQueueService.of({
-      queueReleaseIfEligible,
-    });
-  }),
-);
+      return {
+        queueReleaseIfEligible,
+      } satisfies BackgroundSearchQueueServiceShape;
+    }),
+  },
+) {}
+
+export const BackgroundSearchQueueServiceLive = BackgroundSearchQueueService.Default;

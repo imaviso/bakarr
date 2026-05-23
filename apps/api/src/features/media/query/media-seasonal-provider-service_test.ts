@@ -75,22 +75,31 @@ describe("AnimeSeasonalProviderService", () => {
     const providerLayer = AnimeSeasonalProviderServiceLive.pipe(
       Layer.provideMerge(
         Layer.mergeAll(
-          Layer.succeed(AniListClient, {
-            getAnimeMetadataById: () => Effect.succeed(Option.none()),
-            getSeasonalAnime: () => Effect.succeed(anilistResults),
-            searchAnimeMetadata: () => Effect.succeed([]),
-          }),
-          Layer.succeed(JikanClient, {
-            getAnimeByMalId: () => Effect.succeed(Option.none()),
-            getSeasonalAnime: () => Effect.succeed([]),
-          }),
-          Layer.succeed(ManamiClient, {
-            getByAniListId: () => Effect.succeed(Option.none()),
-            getByMalId: () => Effect.succeed(Option.none()),
-            resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
-            resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-            searchAnime: () => Effect.succeed([]),
-          }),
+          Layer.succeed(
+            AniListClient,
+            AniListClient.make({
+              getAnimeMetadataById: () => Effect.succeed(Option.none()),
+              getSeasonalAnime: () => Effect.succeed(anilistResults),
+              searchAnimeMetadata: () => Effect.succeed([]),
+            }),
+          ),
+          Layer.succeed(
+            JikanClient,
+            JikanClient.make({
+              getAnimeByMalId: () => Effect.succeed(Option.none()),
+              getSeasonalAnime: () => Effect.succeed([]),
+            }),
+          ),
+          Layer.succeed(
+            ManamiClient,
+            ManamiClient.make({
+              getByAniListId: () => Effect.succeed(Option.none()),
+              getByMalId: () => Effect.succeed(Option.none()),
+              resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
+              resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
+              searchAnime: () => Effect.succeed([]),
+            }),
+          ),
         ),
       ),
     );
@@ -119,22 +128,31 @@ describe("AnimeSeasonalProviderService", () => {
     const providerLayer = AnimeSeasonalProviderServiceLive.pipe(
       Layer.provideMerge(
         Layer.mergeAll(
-          Layer.succeed(AniListClient, {
-            getAnimeMetadataById: () => Effect.succeed(Option.none()),
-            getSeasonalAnime: () => Effect.succeed([]),
-            searchAnimeMetadata: () => Effect.succeed([]),
-          }),
-          Layer.succeed(JikanClient, {
-            getAnimeByMalId: () => Effect.dieMessage("unexpected jikan lookup"),
-            getSeasonalAnime: () => Effect.dieMessage("unexpected jikan seasonal lookup"),
-          }),
-          Layer.succeed(ManamiClient, {
-            getByAniListId: () => Effect.succeed(Option.none()),
-            getByMalId: () => Effect.succeed(Option.none()),
-            resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
-            resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-            searchAnime: () => Effect.succeed([]),
-          }),
+          Layer.succeed(
+            AniListClient,
+            AniListClient.make({
+              getAnimeMetadataById: () => Effect.succeed(Option.none()),
+              getSeasonalAnime: () => Effect.succeed([]),
+              searchAnimeMetadata: () => Effect.succeed([]),
+            }),
+          ),
+          Layer.succeed(
+            JikanClient,
+            JikanClient.make({
+              getAnimeByMalId: () => Effect.dieMessage("unexpected jikan lookup"),
+              getSeasonalAnime: () => Effect.dieMessage("unexpected jikan seasonal lookup"),
+            }),
+          ),
+          Layer.succeed(
+            ManamiClient,
+            ManamiClient.make({
+              getByAniListId: () => Effect.succeed(Option.none()),
+              getByMalId: () => Effect.succeed(Option.none()),
+              resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
+              resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
+              searchAnime: () => Effect.succeed([]),
+            }),
+          ),
         ),
       ),
     );
@@ -182,42 +200,51 @@ describe("AnimeSeasonalProviderService", () => {
     const providerLayer = AnimeSeasonalProviderServiceLive.pipe(
       Layer.provideMerge(
         Layer.mergeAll(
-          Layer.succeed(AniListClient, {
-            getAnimeMetadataById: () => Effect.succeed(Option.none()),
-            getSeasonalAnime: () =>
-              Effect.fail(
-                ExternalCallError.make({
-                  cause: new Error("AniList seasonal failed"),
-                  message: "AniList seasonal failed",
-                  operation: "anilist.seasonal",
+          Layer.succeed(
+            AniListClient,
+            AniListClient.make({
+              getAnimeMetadataById: () => Effect.succeed(Option.none()),
+              getSeasonalAnime: () =>
+                Effect.fail(
+                  ExternalCallError.make({
+                    cause: new Error("AniList seasonal failed"),
+                    message: "AniList seasonal failed",
+                    operation: "anilist.seasonal",
+                  }),
+                ),
+              searchAnimeMetadata: () => Effect.succeed([]),
+            }),
+          ),
+          Layer.succeed(
+            JikanClient,
+            JikanClient.make({
+              getAnimeByMalId: () => Effect.succeed(Option.none()),
+              getSeasonalAnime: () => Effect.succeed(jikanEntries),
+            }),
+          ),
+          Layer.succeed(
+            ManamiClient,
+            ManamiClient.make({
+              getByAniListId: () => Effect.succeed(Option.none()),
+              getByMalId: () => Effect.succeed(Option.none()),
+              resolveAniListIdFromMalId: (malId: number) =>
+                Effect.sync(() => {
+                  resolveCalls.push(malId);
+
+                  if (malId === 101) {
+                    return Option.some(2001);
+                  }
+
+                  if (malId === 102) {
+                    return Option.some(2002);
+                  }
+
+                  return Option.none();
                 }),
-              ),
-            searchAnimeMetadata: () => Effect.succeed([]),
-          }),
-          Layer.succeed(JikanClient, {
-            getAnimeByMalId: () => Effect.succeed(Option.none()),
-            getSeasonalAnime: () => Effect.succeed(jikanEntries),
-          }),
-          Layer.succeed(ManamiClient, {
-            getByAniListId: () => Effect.succeed(Option.none()),
-            getByMalId: () => Effect.succeed(Option.none()),
-            resolveAniListIdFromMalId: (malId: number) =>
-              Effect.sync(() => {
-                resolveCalls.push(malId);
-
-                if (malId === 101) {
-                  return Option.some(2001);
-                }
-
-                if (malId === 102) {
-                  return Option.some(2002);
-                }
-
-                return Option.none();
-              }),
-            resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-            searchAnime: () => Effect.succeed([]),
-          }),
+              resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
+              searchAnime: () => Effect.succeed([]),
+            }),
+          ),
         ),
       ),
     );
@@ -250,37 +277,46 @@ describe("AnimeSeasonalProviderService", () => {
     const providerLayer = AnimeSeasonalProviderServiceLive.pipe(
       Layer.provideMerge(
         Layer.mergeAll(
-          Layer.succeed(AniListClient, {
-            getAnimeMetadataById: () => Effect.succeed(Option.none()),
-            getSeasonalAnime: () =>
-              Effect.fail(
-                ExternalCallError.make({
-                  cause: new Error("AniList seasonal failed"),
-                  message: "AniList seasonal failed",
-                  operation: "anilist.seasonal",
-                }),
-              ),
-            searchAnimeMetadata: () => Effect.succeed([]),
-          }),
-          Layer.succeed(JikanClient, {
-            getAnimeByMalId: () => Effect.succeed(Option.none()),
-            getSeasonalAnime: () =>
-              Effect.succeed([
-                makeJikanSeasonalEntry(404, {
-                  season: undefined,
-                  seasonYear: undefined,
-                  startYear: undefined,
-                  title: { romaji: "Fallback Fill" },
-                }),
-              ]),
-          }),
-          Layer.succeed(ManamiClient, {
-            getByAniListId: () => Effect.succeed(Option.none()),
-            getByMalId: () => Effect.succeed(Option.none()),
-            resolveAniListIdFromMalId: () => Effect.succeed(Option.some(4404)),
-            resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-            searchAnime: () => Effect.succeed([]),
-          }),
+          Layer.succeed(
+            AniListClient,
+            AniListClient.make({
+              getAnimeMetadataById: () => Effect.succeed(Option.none()),
+              getSeasonalAnime: () =>
+                Effect.fail(
+                  ExternalCallError.make({
+                    cause: new Error("AniList seasonal failed"),
+                    message: "AniList seasonal failed",
+                    operation: "anilist.seasonal",
+                  }),
+                ),
+              searchAnimeMetadata: () => Effect.succeed([]),
+            }),
+          ),
+          Layer.succeed(
+            JikanClient,
+            JikanClient.make({
+              getAnimeByMalId: () => Effect.succeed(Option.none()),
+              getSeasonalAnime: () =>
+                Effect.succeed([
+                  makeJikanSeasonalEntry(404, {
+                    season: undefined,
+                    seasonYear: undefined,
+                    startYear: undefined,
+                    title: { romaji: "Fallback Fill" },
+                  }),
+                ]),
+            }),
+          ),
+          Layer.succeed(
+            ManamiClient,
+            ManamiClient.make({
+              getByAniListId: () => Effect.succeed(Option.none()),
+              getByMalId: () => Effect.succeed(Option.none()),
+              resolveAniListIdFromMalId: () => Effect.succeed(Option.some(4404)),
+              resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
+              searchAnime: () => Effect.succeed([]),
+            }),
+          ),
         ),
       ),
     );
@@ -318,40 +354,49 @@ describe("AnimeSeasonalProviderService", () => {
     const providerLayer = AnimeSeasonalProviderServiceLive.pipe(
       Layer.provideMerge(
         Layer.mergeAll(
-          Layer.succeed(AniListClient, {
-            getAnimeMetadataById: () => Effect.succeed(Option.none()),
-            getSeasonalAnime: () =>
-              Effect.fail(
-                ExternalCallError.make({
-                  cause: new Error("AniList seasonal failed"),
-                  message: "AniList seasonal failed",
-                  operation: "anilist.seasonal",
+          Layer.succeed(
+            AniListClient,
+            AniListClient.make({
+              getAnimeMetadataById: () => Effect.succeed(Option.none()),
+              getSeasonalAnime: () =>
+                Effect.fail(
+                  ExternalCallError.make({
+                    cause: new Error("AniList seasonal failed"),
+                    message: "AniList seasonal failed",
+                    operation: "anilist.seasonal",
+                  }),
+                ),
+              searchAnimeMetadata: () => Effect.succeed([]),
+            }),
+          ),
+          Layer.succeed(
+            JikanClient,
+            JikanClient.make({
+              getAnimeByMalId: () => Effect.succeed(Option.none()),
+              getSeasonalAnime: () => Effect.succeed(jikanEntries),
+            }),
+          ),
+          Layer.succeed(
+            ManamiClient,
+            ManamiClient.make({
+              getByAniListId: () => Effect.succeed(Option.none()),
+              getByMalId: () => Effect.succeed(Option.none()),
+              resolveAniListIdFromMalId: (malId: number) =>
+                Effect.sync(() => {
+                  if (malId === 101) {
+                    return Option.some(3001);
+                  }
+
+                  if (malId === 103) {
+                    return Option.some(3003);
+                  }
+
+                  return Option.none();
                 }),
-              ),
-            searchAnimeMetadata: () => Effect.succeed([]),
-          }),
-          Layer.succeed(JikanClient, {
-            getAnimeByMalId: () => Effect.succeed(Option.none()),
-            getSeasonalAnime: () => Effect.succeed(jikanEntries),
-          }),
-          Layer.succeed(ManamiClient, {
-            getByAniListId: () => Effect.succeed(Option.none()),
-            getByMalId: () => Effect.succeed(Option.none()),
-            resolveAniListIdFromMalId: (malId: number) =>
-              Effect.sync(() => {
-                if (malId === 101) {
-                  return Option.some(3001);
-                }
-
-                if (malId === 103) {
-                  return Option.some(3003);
-                }
-
-                return Option.none();
-              }),
-            resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-            searchAnime: () => Effect.succeed([]),
-          }),
+              resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
+              searchAnime: () => Effect.succeed([]),
+            }),
+          ),
         ),
       ),
     );
@@ -380,36 +425,45 @@ describe("AnimeSeasonalProviderService", () => {
     const providerLayer = AnimeSeasonalProviderServiceLive.pipe(
       Layer.provideMerge(
         Layer.mergeAll(
-          Layer.succeed(AniListClient, {
-            getAnimeMetadataById: () => Effect.succeed(Option.none()),
-            getSeasonalAnime: () =>
-              Effect.fail(
-                ExternalCallError.make({
-                  cause: new Error("AniList seasonal failed"),
-                  message: "AniList seasonal failed",
-                  operation: "anilist.seasonal",
-                }),
-              ),
-            searchAnimeMetadata: () => Effect.succeed([]),
-          }),
-          Layer.succeed(JikanClient, {
-            getAnimeByMalId: () => Effect.succeed(Option.none()),
-            getSeasonalAnime: () =>
-              Effect.fail(
-                ExternalCallError.make({
-                  cause: new Error("Jikan seasonal failed"),
-                  message: "Jikan seasonal failed",
-                  operation: "jikan.seasonal",
-                }),
-              ),
-          }),
-          Layer.succeed(ManamiClient, {
-            getByAniListId: () => Effect.succeed(Option.none()),
-            getByMalId: () => Effect.succeed(Option.none()),
-            resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
-            resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-            searchAnime: () => Effect.succeed([]),
-          }),
+          Layer.succeed(
+            AniListClient,
+            AniListClient.make({
+              getAnimeMetadataById: () => Effect.succeed(Option.none()),
+              getSeasonalAnime: () =>
+                Effect.fail(
+                  ExternalCallError.make({
+                    cause: new Error("AniList seasonal failed"),
+                    message: "AniList seasonal failed",
+                    operation: "anilist.seasonal",
+                  }),
+                ),
+              searchAnimeMetadata: () => Effect.succeed([]),
+            }),
+          ),
+          Layer.succeed(
+            JikanClient,
+            JikanClient.make({
+              getAnimeByMalId: () => Effect.succeed(Option.none()),
+              getSeasonalAnime: () =>
+                Effect.fail(
+                  ExternalCallError.make({
+                    cause: new Error("Jikan seasonal failed"),
+                    message: "Jikan seasonal failed",
+                    operation: "jikan.seasonal",
+                  }),
+                ),
+            }),
+          ),
+          Layer.succeed(
+            ManamiClient,
+            ManamiClient.make({
+              getByAniListId: () => Effect.succeed(Option.none()),
+              getByMalId: () => Effect.succeed(Option.none()),
+              resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
+              resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
+              searchAnime: () => Effect.succeed([]),
+            }),
+          ),
         ),
       ),
     );
@@ -428,29 +482,38 @@ describe("AnimeSeasonalProviderService", () => {
     const providerLayer = AnimeSeasonalProviderServiceLive.pipe(
       Layer.provideMerge(
         Layer.mergeAll(
-          Layer.succeed(AniListClient, {
-            getAnimeMetadataById: () => Effect.succeed(Option.none()),
-            getSeasonalAnime: () =>
-              Effect.fail(
-                ExternalCallError.make({
-                  cause: new Error("AniList seasonal normalize failed"),
-                  message: "AniList seasonal normalize failed",
-                  operation: "anilist.seasonal.normalize",
-                }),
-              ),
-            searchAnimeMetadata: () => Effect.succeed([]),
-          }),
-          Layer.succeed(JikanClient, {
-            getAnimeByMalId: () => Effect.succeed(Option.none()),
-            getSeasonalAnime: () => Effect.dieMessage("unexpected jikan fallback"),
-          }),
-          Layer.succeed(ManamiClient, {
-            getByAniListId: () => Effect.succeed(Option.none()),
-            getByMalId: () => Effect.succeed(Option.none()),
-            resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
-            resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-            searchAnime: () => Effect.succeed([]),
-          }),
+          Layer.succeed(
+            AniListClient,
+            AniListClient.make({
+              getAnimeMetadataById: () => Effect.succeed(Option.none()),
+              getSeasonalAnime: () =>
+                Effect.fail(
+                  ExternalCallError.make({
+                    cause: new Error("AniList seasonal normalize failed"),
+                    message: "AniList seasonal normalize failed",
+                    operation: "anilist.seasonal.normalize",
+                  }),
+                ),
+              searchAnimeMetadata: () => Effect.succeed([]),
+            }),
+          ),
+          Layer.succeed(
+            JikanClient,
+            JikanClient.make({
+              getAnimeByMalId: () => Effect.succeed(Option.none()),
+              getSeasonalAnime: () => Effect.dieMessage("unexpected jikan fallback"),
+            }),
+          ),
+          Layer.succeed(
+            ManamiClient,
+            ManamiClient.make({
+              getByAniListId: () => Effect.succeed(Option.none()),
+              getByMalId: () => Effect.succeed(Option.none()),
+              resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
+              resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
+              searchAnime: () => Effect.succeed([]),
+            }),
+          ),
         ),
       ),
     );
@@ -472,41 +535,50 @@ describe("AnimeSeasonalProviderService", () => {
     const providerLayer = AnimeSeasonalProviderServiceLive.pipe(
       Layer.provideMerge(
         Layer.mergeAll(
-          Layer.succeed(AniListClient, {
-            getAnimeMetadataById: () => Effect.succeed(Option.none()),
-            getSeasonalAnime: () =>
-              Effect.fail(
-                ExternalCallError.make({
-                  cause: new Error("AniList seasonal failed"),
-                  message: "AniList seasonal failed",
-                  operation: "anilist.seasonal",
-                }),
-              ),
-            searchAnimeMetadata: () => Effect.succeed([]),
-          }),
-          Layer.succeed(JikanClient, {
-            getAnimeByMalId: () => Effect.succeed(Option.none()),
-            getSeasonalAnime: () =>
-              Effect.succeed([
-                makeJikanSeasonalEntry(777, {
-                  title: { romaji: "Needs Mapping" },
-                }),
-              ]),
-          }),
-          Layer.succeed(ManamiClient, {
-            getByAniListId: () => Effect.succeed(Option.none()),
-            getByMalId: () => Effect.succeed(Option.none()),
-            resolveAniListIdFromMalId: () =>
-              Effect.fail(
-                ExternalCallError.make({
-                  cause: new Error("Manami mapping failed"),
-                  message: "Manami mapping failed",
-                  operation: "manami.resolveAniListIdFromMalId",
-                }),
-              ),
-            resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-            searchAnime: () => Effect.succeed([]),
-          }),
+          Layer.succeed(
+            AniListClient,
+            AniListClient.make({
+              getAnimeMetadataById: () => Effect.succeed(Option.none()),
+              getSeasonalAnime: () =>
+                Effect.fail(
+                  ExternalCallError.make({
+                    cause: new Error("AniList seasonal failed"),
+                    message: "AniList seasonal failed",
+                    operation: "anilist.seasonal",
+                  }),
+                ),
+              searchAnimeMetadata: () => Effect.succeed([]),
+            }),
+          ),
+          Layer.succeed(
+            JikanClient,
+            JikanClient.make({
+              getAnimeByMalId: () => Effect.succeed(Option.none()),
+              getSeasonalAnime: () =>
+                Effect.succeed([
+                  makeJikanSeasonalEntry(777, {
+                    title: { romaji: "Needs Mapping" },
+                  }),
+                ]),
+            }),
+          ),
+          Layer.succeed(
+            ManamiClient,
+            ManamiClient.make({
+              getByAniListId: () => Effect.succeed(Option.none()),
+              getByMalId: () => Effect.succeed(Option.none()),
+              resolveAniListIdFromMalId: () =>
+                Effect.fail(
+                  ExternalCallError.make({
+                    cause: new Error("Manami mapping failed"),
+                    message: "Manami mapping failed",
+                    operation: "manami.resolveAniListIdFromMalId",
+                  }),
+                ),
+              resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
+              searchAnime: () => Effect.succeed([]),
+            }),
+          ),
         ),
       ),
     );

@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Ref } from "effect";
+import { Effect, Ref } from "effect";
 
 import type { AppDatabase, DatabaseError } from "@/db/database.ts";
 import { media } from "@/db/schema.ts";
@@ -107,27 +107,26 @@ function makeCatalogLibraryScanSupport(input: {
   return { runLibraryScan };
 }
 
-export class CatalogLibraryScanService extends Context.Tag("@bakarr/api/CatalogLibraryScanService")<
-  CatalogLibraryScanService,
-  CatalogLibraryScanServiceShape
->() {}
+export class CatalogLibraryScanService extends Effect.Service<CatalogLibraryScanService>()(
+  "@bakarr/api/CatalogLibraryScanService",
+  {
+    effect: Effect.gen(function* () {
+      const { db } = yield* Database;
+      const eventBus = yield* EventBus;
+      const fs = yield* FileSystem;
+      const clock = yield* ClockService;
+      const progress = yield* OperationsProgress;
 
-export const CatalogLibraryScanServiceLive = Layer.effect(
-  CatalogLibraryScanService,
-  Effect.gen(function* () {
-    const { db } = yield* Database;
-    const eventBus = yield* EventBus;
-    const fs = yield* FileSystem;
-    const clock = yield* ClockService;
-    const progress = yield* OperationsProgress;
+      return makeCatalogLibraryScanSupport({
+        db,
+        eventBus,
+        fs,
+        nowIso: () => nowIsoFromClock(clock),
+        publishLibraryScanProgress: progress.publishLibraryScanProgress,
+        tryDatabasePromise,
+      });
+    }),
+  },
+) {}
 
-    return makeCatalogLibraryScanSupport({
-      db,
-      eventBus,
-      fs,
-      nowIso: () => nowIsoFromClock(clock),
-      publishLibraryScanProgress: progress.publishLibraryScanProgress,
-      tryDatabasePromise,
-    });
-  }),
-);
+export const CatalogLibraryScanServiceLive = CatalogLibraryScanService.Default;

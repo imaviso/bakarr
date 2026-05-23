@@ -1,4 +1,4 @@
-import { Context, Effect, Either, Layer, Option, Stream } from "effect";
+import { Effect, Either, Option, Stream } from "effect";
 
 import { DnsResolver } from "@/infra/dns-resolver.ts";
 import { ExternalCall, ExternalCallError, type ExternalCallShape } from "@/infra/effect/retry.ts";
@@ -28,7 +28,19 @@ interface RssClientShape {
   >;
 }
 
-export class RssClient extends Context.Tag("@bakarr/api/RssClient")<RssClient, RssClientShape>() {}
+export class RssClient extends Effect.Service<RssClient>()("@bakarr/api/RssClient", {
+  effect: Effect.gen(function* () {
+    const dns = yield* DnsResolver;
+    const externalCall = yield* ExternalCall;
+    const transport = yield* RssTransport;
+
+    return {
+      fetchItems: makeFetchItems(transport.execute, dns, externalCall),
+    } satisfies RssClientShape;
+  }),
+}) {}
+
+export const RssClientLive = RssClient.Default;
 
 const MAX_REDIRECT_HOPS = 5;
 
@@ -177,19 +189,6 @@ const makeFetchItems = (
       message: "RSS feed rejected: too many redirects",
     });
   });
-
-export const RssClientLive = Layer.effect(
-  RssClient,
-  Effect.gen(function* () {
-    const dns = yield* DnsResolver;
-    const externalCall = yield* ExternalCall;
-    const transport = yield* RssTransport;
-
-    return {
-      fetchItems: makeFetchItems(transport.execute, dns, externalCall),
-    } satisfies RssClientShape;
-  }),
-);
 
 function sanitizeRssUrlForLogs(url: string): string {
   return Option.getOrElse(

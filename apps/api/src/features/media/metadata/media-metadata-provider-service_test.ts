@@ -446,43 +446,55 @@ function makeProviderLayer(input: {
   readonly resolveMalIdFromAniListIdError?: ExternalCallError | undefined;
 }) {
   const dependenciesLayer = Layer.mergeAll(
-    Layer.succeed(AniListClient, {
-      getAnimeMetadataById: (id: number) =>
-        Effect.succeed(Option.some(input.metadata ?? makeMetadata(id))),
-      searchAnimeMetadata: () => Effect.succeed([]),
-      getSeasonalAnime: () => Effect.succeed([]),
-    }),
-    Layer.succeed(JikanClient, {
-      getAnimeByMalId: (malId: number) =>
-        input.getAnimeByMalIdError !== undefined
-          ? Effect.fail(input.getAnimeByMalIdError)
-          : Effect.sync(() => {
-              input.onJikanLookup?.(malId);
-              return Option.fromNullable(input.jikanMetadata);
-            }),
-      getSeasonalAnime: () => Effect.succeed([]),
-    }),
-    Layer.succeed(ManamiClient, {
-      getByAniListId: () =>
-        input.getByAniListIdError !== undefined
-          ? Effect.fail(input.getByAniListIdError)
-          : Effect.succeed(Option.fromNullable(input.manamiEntry)),
-      getByMalId: () => Effect.succeed(Option.none()),
-      resolveAniListIdFromMalId: (malId: number) =>
-        input.resolveAniListIdFromMalIdError !== undefined
-          ? Effect.fail(input.resolveAniListIdFromMalIdError)
-          : Effect.succeed(Option.fromNullable(input.aniListIdByMalId?.get(malId))),
-      resolveMalIdFromAniListId: () =>
-        input.resolveMalIdFromAniListIdError !== undefined
-          ? Effect.fail(input.resolveMalIdFromAniListIdError)
-          : Effect.succeed(Option.fromNullable(input.malIdFromAniListId)),
-      searchAnime: () => Effect.succeed([]),
-    }),
-    Layer.succeed(AnimeMetadataEnrichmentService, {
-      getAniDbCacheState: () => Effect.succeed(input.cacheState),
-      requestAniDbRefresh: (request: AniDbRefreshRequest) =>
-        Effect.sync(() => input.onRefresh(request)),
-    }),
+    Layer.succeed(
+      AniListClient,
+      AniListClient.make({
+        getAnimeMetadataById: (id: number) =>
+          Effect.succeed(Option.some(input.metadata ?? makeMetadata(id))),
+        searchAnimeMetadata: () => Effect.succeed([]),
+        getSeasonalAnime: () => Effect.succeed([]),
+      }),
+    ),
+    Layer.succeed(
+      JikanClient,
+      JikanClient.make({
+        getAnimeByMalId: (malId: number) =>
+          input.getAnimeByMalIdError !== undefined
+            ? Effect.fail(input.getAnimeByMalIdError)
+            : Effect.sync(() => {
+                input.onJikanLookup?.(malId);
+                return Option.fromNullable(input.jikanMetadata);
+              }),
+        getSeasonalAnime: () => Effect.succeed([]),
+      }),
+    ),
+    Layer.succeed(
+      ManamiClient,
+      ManamiClient.make({
+        getByAniListId: () =>
+          input.getByAniListIdError !== undefined
+            ? Effect.fail(input.getByAniListIdError)
+            : Effect.succeed(Option.fromNullable(input.manamiEntry)),
+        getByMalId: () => Effect.succeed(Option.none()),
+        resolveAniListIdFromMalId: (malId: number) =>
+          input.resolveAniListIdFromMalIdError !== undefined
+            ? Effect.fail(input.resolveAniListIdFromMalIdError)
+            : Effect.succeed(Option.fromNullable(input.aniListIdByMalId?.get(malId))),
+        resolveMalIdFromAniListId: () =>
+          input.resolveMalIdFromAniListIdError !== undefined
+            ? Effect.fail(input.resolveMalIdFromAniListIdError)
+            : Effect.succeed(Option.fromNullable(input.malIdFromAniListId)),
+        searchAnime: () => Effect.succeed([]),
+      }),
+    ),
+    Layer.succeed(
+      AnimeMetadataEnrichmentService,
+      AnimeMetadataEnrichmentService.make({
+        getAniDbCacheState: () => Effect.succeed(input.cacheState),
+        requestAniDbRefresh: (request: AniDbRefreshRequest) =>
+          Effect.sync(() => input.onRefresh(request)),
+      }),
+    ),
   );
 
   return AnimeMetadataProviderServiceLive.pipe(Layer.provideMerge(dependenciesLayer));

@@ -7,8 +7,12 @@ import type { AppDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
 import { media } from "@/db/schema.ts";
 import type { AnimeMetadata } from "@/features/media/metadata/anilist-model.ts";
-import { ImageCacheError } from "@/features/media/metadata/media-image-cache-service.ts";
+import {
+  ImageCacheError,
+  AnimeImageCacheService,
+} from "@/features/media/metadata/media-image-cache-service.ts";
 import { syncAnimeMetadataEffect } from "@/features/media/metadata/media-metadata-sync.ts";
+import { AnimeMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
 import {
   decodeStoredDiscoveryEntriesEffect,
   decodeStoredSynonymsEffect,
@@ -40,7 +44,7 @@ it.scoped("syncAnimeMetadataEffect stores locally cached image paths", () =>
         const metadata = makeMetadata(mediaId);
 
         const result = yield* syncAnimeMetadataEffect({
-          imageCacheService: {
+          imageCacheService: AnimeImageCacheService.make({
             cacheMetadataImages: (input) => {
               cacheInput = input;
               return Effect.succeed({
@@ -48,8 +52,8 @@ it.scoped("syncAnimeMetadataEffect stores locally cached image paths", () =>
                 coverImage: "/api/images/media/501/cover.jpg",
               });
             },
-          },
-          metadataProvider: {
+          }),
+          metadataProvider: AnimeMetadataProviderService.make({
             getAnimeMetadataById: () =>
               Effect.succeed({
                 _tag: "Found",
@@ -59,7 +63,7 @@ it.scoped("syncAnimeMetadataEffect stores locally cached image paths", () =>
                 },
                 metadata,
               }),
-          },
+          }),
           mediaId,
           db: appDb,
           eventPublisher: Option.none(),
@@ -98,7 +102,7 @@ it.scoped("syncAnimeMetadataEffect keeps existing image paths if caching fails",
         });
 
         const result = yield* syncAnimeMetadataEffect({
-          imageCacheService: {
+          imageCacheService: AnimeImageCacheService.make({
             cacheMetadataImages: () =>
               Effect.fail(
                 new ImageCacheError({
@@ -107,8 +111,8 @@ it.scoped("syncAnimeMetadataEffect keeps existing image paths if caching fails",
                   message: "Failed to cache media metadata images",
                 }),
               ),
-          },
-          metadataProvider: {
+          }),
+          metadataProvider: AnimeMetadataProviderService.make({
             getAnimeMetadataById: () =>
               Effect.succeed({
                 _tag: "Found",
@@ -118,7 +122,7 @@ it.scoped("syncAnimeMetadataEffect keeps existing image paths if caching fails",
                 },
                 metadata: makeMetadata(mediaId),
               }),
-          },
+          }),
           mediaId,
           db: appDb,
           eventPublisher: Option.none(),
@@ -180,14 +184,14 @@ it.scoped("syncAnimeMetadataEffect persists enrichment metadata fields from prov
         };
 
         const result = yield* syncAnimeMetadataEffect({
-          imageCacheService: {
+          imageCacheService: AnimeImageCacheService.make({
             cacheMetadataImages: () =>
               Effect.succeed({
                 bannerImage: "/api/images/media/503/banner.jpg",
                 coverImage: "/api/images/media/503/cover.jpg",
               }),
-          },
-          metadataProvider: {
+          }),
+          metadataProvider: AnimeMetadataProviderService.make({
             getAnimeMetadataById: () =>
               Effect.succeed({
                 _tag: "Found",
@@ -197,7 +201,7 @@ it.scoped("syncAnimeMetadataEffect persists enrichment metadata fields from prov
                 },
                 metadata,
               }),
-          },
+          }),
           mediaId,
           db: appDb,
           eventPublisher: Option.none(),

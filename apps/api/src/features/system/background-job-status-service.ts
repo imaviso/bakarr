@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from "effect";
+import { Effect } from "effect";
 
 import type { BackgroundJobStatus } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
@@ -23,10 +23,6 @@ export interface BackgroundJobStatusServiceShape {
   readonly getSnapshot: () => Effect.Effect<BackgroundJobStatusSnapshot, BackgroundJobStatusError>;
 }
 
-export class BackgroundJobStatusService extends Context.Tag(
-  "@bakarr/api/BackgroundJobStatusService",
-)<BackgroundJobStatusService, BackgroundJobStatusServiceShape>() {}
-
 const makeBackgroundJobStatusService = Effect.fn("BackgroundJobStatusService.make")(function* () {
   const monitor = yield* BackgroundWorkerMonitor;
   const systemStatsRepository = yield* SystemStatsRepository;
@@ -49,7 +45,11 @@ const makeBackgroundJobStatusService = Effect.fn("BackgroundJobStatusService.mak
   } satisfies BackgroundJobStatusServiceShape;
 });
 
-export const BackgroundJobStatusServiceLive = Layer.effect(
-  BackgroundJobStatusService,
-  makeBackgroundJobStatusService(),
-);
+export class BackgroundJobStatusService extends Effect.Service<BackgroundJobStatusService>()(
+  "@bakarr/api/BackgroundJobStatusService",
+  {
+    effect: makeBackgroundJobStatusService(),
+  },
+) {}
+
+export const BackgroundJobStatusServiceLive = BackgroundJobStatusService.Default;

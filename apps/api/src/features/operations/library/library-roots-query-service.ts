@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from "effect";
+import { Effect } from "effect";
 
 import { DatabaseError } from "@/db/database.ts";
 import { OperationsConfigRepository } from "@/features/operations/repository/config-repository.ts";
@@ -13,11 +13,6 @@ export interface LibraryRootsQueryServiceShape {
   readonly listRoots: () => Effect.Effect<LibraryRoot[], DatabaseError>;
 }
 
-export class LibraryRootsQueryService extends Context.Tag("@bakarr/api/LibraryRootsQueryService")<
-  LibraryRootsQueryService,
-  LibraryRootsQueryServiceShape
->() {}
-
 const makeLibraryRootsQueryService = Effect.fn("LibraryRootsQueryService.make")(function* () {
   const operationsConfigRepository = yield* OperationsConfigRepository;
 
@@ -28,7 +23,9 @@ const makeLibraryRootsQueryService = Effect.fn("LibraryRootsQueryService.make")(
   return { listRoots } satisfies LibraryRootsQueryServiceShape;
 });
 
-export const LibraryRootsQueryServiceLive = Layer.effect(
-  LibraryRootsQueryService,
-  makeLibraryRootsQueryService(),
-);
+export class LibraryRootsQueryService extends Effect.Service<LibraryRootsQueryService>()(
+  "@bakarr/api/LibraryRootsQueryService",
+  { effect: makeLibraryRootsQueryService() },
+) {}
+
+export const LibraryRootsQueryServiceLive = LibraryRootsQueryService.Default;

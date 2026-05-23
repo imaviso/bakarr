@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from "effect";
+import { Effect } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 import { DatabaseError } from "@/db/database.ts";
@@ -8,7 +8,8 @@ import {
   normalizeConfig,
 } from "@/features/system/config-codec.ts";
 import { decodeQualityProfileRow } from "@/features/profiles/profile-codec.ts";
-import { StoredConfigCorruptError, StoredConfigMissingError } from "@/features/system/errors.ts";
+import { StoredConfigCorruptError } from "@/features/system/errors.ts";
+import { StoredConfigMissingError } from "@/features/system/errors.ts";
 import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
 import { SystemConfigRepository } from "@/features/system/repository/system-config-repository.ts";
 
@@ -19,16 +20,13 @@ export interface SystemConfigServiceShape {
   >;
 }
 
-export class SystemConfigService extends Context.Tag("@bakarr/api/SystemConfigService")<
-  SystemConfigService,
-  SystemConfigServiceShape
->() {}
-
 const makeSystemConfigService = Effect.fn("SystemConfigService.make")(function* () {
   const systemConfigRepository = yield* SystemConfigRepository;
   const qualityProfileRepository = yield* QualityProfileRepository;
 
-  const getConfig = Effect.fn("SystemConfigService.getConfig")(function* () {
+  const getConfig: SystemConfigServiceShape["getConfig"] = Effect.fn(
+    "SystemConfigService.getConfig",
+  )(function* () {
     const storedConfig = yield* systemConfigRepository.loadSystemConfigRow();
     const profiles = yield* qualityProfileRepository.listQualityProfileRows();
 
@@ -61,7 +59,14 @@ const makeSystemConfigService = Effect.fn("SystemConfigService.make")(function* 
   return { getConfig } satisfies SystemConfigServiceShape;
 });
 
-export const SystemConfigServiceLive = Layer.effect(SystemConfigService, makeSystemConfigService());
+export class SystemConfigService extends Effect.Service<SystemConfigService>()(
+  "@bakarr/api/SystemConfigService",
+  {
+    effect: makeSystemConfigService(),
+  },
+) {}
+
+export const SystemConfigServiceLive = SystemConfigService.Default;
 
 export function redactConfigSecrets(config: Config): Config {
   return {

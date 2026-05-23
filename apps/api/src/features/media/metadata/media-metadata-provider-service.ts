@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Option } from "effect";
+import { Effect, Option } from "effect";
 
 import type { MediaKind } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
@@ -60,13 +60,8 @@ export interface AnimeMetadataProviderServiceShape {
   ) => Effect.Effect<AnimeMetadataLookupResult, AnimeMetadataLookupError>;
 }
 
-export class AnimeMetadataProviderService extends Context.Tag(
-  "@bakarr/api/AnimeMetadataProviderService",
-)<AnimeMetadataProviderService, AnimeMetadataProviderServiceShape>() {}
-
-export const AnimeMetadataProviderServiceLive = Layer.effect(
-  AnimeMetadataProviderService,
-  Effect.gen(function* () {
+const makeAnimeMetadataProviderService = Effect.fn("AnimeMetadataProviderService.make")(
+  function* () {
     const aniList = yield* AniListClient;
     const jikan = yield* JikanClient;
     const manami = yield* ManamiClient;
@@ -157,9 +152,18 @@ export const AnimeMetadataProviderServiceLive = Layer.effect(
       },
     );
 
-    return AnimeMetadataProviderService.of({ getAnimeMetadataById });
-  }),
+    return { getAnimeMetadataById } satisfies AnimeMetadataProviderServiceShape;
+  },
 );
+
+export class AnimeMetadataProviderService extends Effect.Service<AnimeMetadataProviderService>()(
+  "@bakarr/api/AnimeMetadataProviderService",
+  {
+    effect: makeAnimeMetadataProviderService(),
+  },
+) {}
+
+export const AnimeMetadataProviderServiceLive = AnimeMetadataProviderService.Default;
 
 const toFreshLookupResult = Effect.fn("AnimeMetadataProviderService.toFreshLookupResult")(
   function* (

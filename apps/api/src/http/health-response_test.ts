@@ -26,13 +26,16 @@ it.effect("health router ready endpoint maps system status failure to not-ready"
     const handler = HttpApp.toWebHandler(
       healthRouter.pipe(
         provideSharedRouterTestServices(),
-        Effect.provideService(SystemReadService, {
-          getActivity: () => Effect.dieMessage("unused system read service"),
-          getDashboard: () => Effect.dieMessage("unused system read service"),
-          getLibraryStats: () => Effect.dieMessage("unused system read service"),
-          getSystemStatus: () =>
-            Effect.fail(new StoredConfigMissingError({ message: "config missing" })),
-        }),
+        Effect.provideService(
+          SystemReadService,
+          SystemReadService.make({
+            getActivity: () => Effect.dieMessage("unused system read service"),
+            getDashboard: () => Effect.dieMessage("unused system read service"),
+            getLibraryStats: () => Effect.dieMessage("unused system read service"),
+            getSystemStatus: () =>
+              Effect.fail(new StoredConfigMissingError({ message: "config missing" })),
+          }),
+        ),
       ),
     );
     const response = yield* Effect.promise(() =>
@@ -51,12 +54,15 @@ function provideHealthRouterTestServices() {
   return (effect: typeof healthRouter) =>
     effect.pipe(
       provideSharedRouterTestServices(),
-      Effect.provideService(SystemReadService, {
-        getActivity: () => Effect.dieMessage("unused system read service"),
-        getDashboard: () => Effect.dieMessage("unused system read service"),
-        getLibraryStats: () => Effect.dieMessage("unused system read service"),
-        getSystemStatus: () => Effect.dieMessage("unused system status service"),
-      }),
+      Effect.provideService(
+        SystemReadService,
+        SystemReadService.make({
+          getActivity: () => Effect.dieMessage("unused system read service"),
+          getDashboard: () => Effect.dieMessage("unused system read service"),
+          getLibraryStats: () => Effect.dieMessage("unused system read service"),
+          getSystemStatus: () => Effect.dieMessage("unused system status service"),
+        }),
+      ),
     );
 }
 
@@ -64,11 +70,14 @@ function provideSharedRouterTestServices() {
   return <A, E, R>(effect: Effect.Effect<A, E, R>) =>
     effect.pipe(
       Effect.provideService(AppConfig, makeDefaultAppConfig()),
-      Effect.provideService(AuthSessionService, {
-        login: () => Effect.dieMessage("unused auth service"),
-        loginWithApiKey: () => Effect.dieMessage("unused auth service"),
-        logout: () => Effect.dieMessage("unused auth service"),
-        resolveViewer: () => Effect.dieMessage("unused auth service"),
-      }),
+      Effect.provideService(
+        AuthSessionService,
+        AuthSessionService.make({
+          login: () => Effect.dieMessage("unused auth service"),
+          loginWithApiKey: () => Effect.dieMessage("unused auth service"),
+          logout: () => Effect.dieMessage("unused auth service"),
+          resolveViewer: () => Effect.dieMessage("unused auth service"),
+        }),
+      ),
     );
 }

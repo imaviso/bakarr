@@ -1,5 +1,4 @@
-import { Context, Effect, Exit, Ref, Scope } from "effect";
-import { Layer } from "effect";
+import { Effect, Exit, Ref, Scope } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 import { BackgroundTaskRunner } from "@/background/task-runner.ts";
@@ -16,10 +15,6 @@ export interface BackgroundWorkerControllerShape {
   readonly reload: (config: Config) => Effect.Effect<void>;
   readonly stop: () => Effect.Effect<void>;
 }
-
-export class BackgroundWorkerController extends Context.Tag(
-  "@bakarr/api/BackgroundWorkerController",
-)<BackgroundWorkerController, BackgroundWorkerControllerShape>() {}
 
 export const makeBackgroundWorkerController = Effect.fn(
   "Background.makeBackgroundWorkerController",
@@ -112,7 +107,11 @@ const makeBackgroundWorkerControllerLive = Effect.fn("BackgroundWorkerController
   },
 );
 
-export const BackgroundWorkerControllerLive = Layer.scoped(
-  BackgroundWorkerController,
-  makeBackgroundWorkerControllerLive(),
-);
+export class BackgroundWorkerController extends Effect.Service<BackgroundWorkerController>()(
+  "@bakarr/api/BackgroundWorkerController",
+  {
+    scoped: makeBackgroundWorkerControllerLive(),
+  },
+) {}
+
+export const BackgroundWorkerControllerLive = BackgroundWorkerController.Default;

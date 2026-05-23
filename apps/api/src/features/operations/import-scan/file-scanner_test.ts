@@ -2,7 +2,7 @@ import { assert, it } from "@effect/vitest";
 
 import { Cause, Effect, Exit, Stream } from "effect";
 
-import { type DirEntry, FileSystemError } from "@/infra/filesystem/filesystem.ts";
+import { type DirEntry, FileSystem, FileSystemError } from "@/infra/filesystem/filesystem.ts";
 import { makeNoopTestFileSystemWithOverridesEffect } from "@/test/filesystem-test.ts";
 import {
   scanVideoFiles,
@@ -96,17 +96,18 @@ it.effect("scanVideoFilesStream uses streaming dir reader when available", () =>
       message: "readDir should not be used",
       path: "/library",
     });
-    const streamingFs = {
-      ...mockFs,
-      readDir: () =>
-        Effect.sync(() => {
-          readDirCalls += 1;
-        }).pipe(Effect.zipRight(Effect.fail(readDirError))),
-      readDirStream: (path: string | URL) => {
-        streamed += 1;
-        return Stream.fromIterable(tree.get(toPathString(path)) ?? []);
-      },
-    };
+    const streamingFs = FileSystem.make(
+      Object.assign({}, mockFs, {
+        readDir: () =>
+          Effect.sync(() => {
+            readDirCalls += 1;
+          }).pipe(Effect.zipRight(Effect.fail(readDirError))),
+        readDirStream: (path: string | URL) => {
+          streamed += 1;
+          return Stream.fromIterable(tree.get(toPathString(path)) ?? []);
+        },
+      }),
+    );
 
     const files = yield* Stream.runCollect(scanVideoFilesStream(streamingFs, "/library")).pipe(
       Effect.map((items) => Array.from(items, (file) => file.path)),

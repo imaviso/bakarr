@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Metric } from "effect";
+import { Effect, Metric } from "effect";
 
 import { renderBakarrPrometheusMetrics } from "@/infra/metrics.ts";
 import {
@@ -19,45 +19,30 @@ export interface RuntimeMetricsSummary {
 
 export type SystemRuntimeMetricsError = SystemReadStatusError | DatabaseError;
 
-export interface SystemRuntimeMetricsServiceShape {
-  readonly getRuntimeMetricsSummary: () => Effect.Effect<
-    RuntimeMetricsSummary,
-    SystemRuntimeMetricsError
-  >;
-  readonly renderPrometheusMetrics: () => Effect.Effect<string, SystemRuntimeMetricsError>;
-}
+const makeSystemRuntimeMetricsService = Effect.fn("SystemRuntimeMetricsService.make")(function* () {
+  const systemReadService = yield* SystemReadService;
 
-export class SystemRuntimeMetricsService extends Context.Tag(
-  "@bakarr/api/SystemRuntimeMetricsService",
-)<SystemRuntimeMetricsService, SystemRuntimeMetricsServiceShape>() {}
+  const getRuntimeMetricsSummary = Effect.fn(
+    "SystemRuntimeMetricsService.getRuntimeMetricsSummary",
+  )(function* () {
+    const [status, stats] = yield* Effect.all([
+      systemReadService.getSystemStatus(),
+      systemReadService.getLibraryStats(),
+    ]);
 
-export const SystemRuntimeMetricsServiceLive = Layer.effect(
-  SystemRuntimeMetricsService,
-  Effect.gen(function* () {
-    const systemReadService = yield* SystemReadService;
+    return {
+      active_download_items: status.pending_downloads + status.active_torrents,
+      active_torrents: status.active_torrents,
+      downloaded_units: stats.downloaded_units,
+      missing_units: stats.missing_units,
+      pending_downloads: status.pending_downloads,
+      total_media: stats.total_media,
+      total_units: stats.total_units,
+    } satisfies RuntimeMetricsSummary;
+  });
 
-    const getRuntimeMetricsSummary = Effect.fn(
-      "SystemRuntimeMetricsService.getRuntimeMetricsSummary",
-    )(function* () {
-      const [status, stats] = yield* Effect.all([
-        systemReadService.getSystemStatus(),
-        systemReadService.getLibraryStats(),
-      ]);
-
-      return {
-        active_download_items: status.pending_downloads + status.active_torrents,
-        active_torrents: status.active_torrents,
-        downloaded_units: stats.downloaded_units,
-        missing_units: stats.missing_units,
-        pending_downloads: status.pending_downloads,
-        total_media: stats.total_media,
-        total_units: stats.total_units,
-      } satisfies RuntimeMetricsSummary;
-    });
-
-    const renderPrometheusMetrics = Effect.fn(
-      "SystemRuntimeMetricsService.renderPrometheusMetrics",
-    )(function* () {
+  const renderPrometheusMetrics = Effect.fn("SystemRuntimeMetricsService.renderPrometheusMetrics")(
+    function* () {
       const metricsSummary = yield* getRuntimeMetricsSummary();
       const snapshot = yield* Metric.snapshot;
 
@@ -80,11 +65,20 @@ export const SystemRuntimeMetricsServiceLive = Layer.effect(
           ...renderBakarrPrometheusMetrics(snapshot),
         ].join("\n") + "\n"
       );
-    });
+    },
+  );
 
-    return SystemRuntimeMetricsService.of({
-      getRuntimeMetricsSummary,
-      renderPrometheusMetrics,
-    });
-  }),
-);
+  return {
+    getRuntimeMetricsSummary,
+    renderPrometheusMetrics,
+  };
+});
+
+export class SystemRuntimeMetricsService extends Effect.Service<SystemRuntimeMetricsService>()(
+  "@bakarr/api/SystemRuntimeMetricsService",
+  {
+    effect: makeSystemRuntimeMetricsService(),
+  },
+) {}
+
+export const SystemRuntimeMetricsServiceLive = SystemRuntimeMetricsService.Default;

@@ -2,8 +2,11 @@ import { symlink } from "node:fs/promises";
 
 import { Cause, Effect, Layer } from "effect";
 
-import { FileSystemError } from "@/infra/filesystem/filesystem.ts";
-import { FileSystem } from "@/infra/filesystem/filesystem.ts";
+import {
+  FileSystem,
+  FileSystemError,
+  type FileSystemShape,
+} from "@/infra/filesystem/filesystem.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
 import {
   makeFailingRuntimeConfigSnapshotStub,
@@ -116,7 +119,7 @@ it.scoped("resolveImageAsset preserves system config failures", () =>
           ImageAssetServiceLive.pipe(
             Layer.provide(
               Layer.mergeAll(
-                Layer.succeed(FileSystem, fs),
+                Layer.succeed(FileSystem, FileSystem.make(fs)),
                 Layer.succeed(
                   RuntimeConfigSnapshotService,
                   makeFailingRuntimeConfigSnapshotStub(
@@ -167,7 +170,7 @@ it.scoped("resolveImageAsset keeps filesystem access failures as infrastructure 
               path: imagePath,
             }),
           ),
-      } satisfies typeof FileSystem.Service;
+      } satisfies FileSystemShape;
 
       const exit = yield* ImageAssetService.pipe(
         Effect.flatMap((service) => service.resolveImageAsset("cover.png")),
@@ -191,11 +194,11 @@ it.scoped("resolveImageAsset keeps filesystem access failures as infrastructure 
   ),
 );
 
-function makeImageAssetLayer(fs: typeof FileSystem.Service, imagesRoot: string) {
+function makeImageAssetLayer(fs: FileSystemShape, imagesRoot: string) {
   return ImageAssetServiceLive.pipe(
     Layer.provide(
       Layer.mergeAll(
-        Layer.succeed(FileSystem, fs),
+        Layer.succeed(FileSystem, FileSystem.make(fs)),
         Layer.succeed(
           RuntimeConfigSnapshotService,
           makeSharedRuntimeConfigSnapshotStub(

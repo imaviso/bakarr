@@ -262,39 +262,45 @@ itWithTestContext("search releases enriches SeaDex metadata using AniList ID", a
 });
 
 it.scoped("search releases can match SeaDex by Nyaa URL when info hash is unavailable", () => {
-  const seadexLayer = Layer.succeed(SeaDexClient, {
-    getEntryByAniListId: (_aniListId: number) =>
-      Effect.succeed(
-        Option.some({
-          alID: 20,
-          comparison: "https://releases.moe/compare/naruto-url",
-          incomplete: false,
-          notes: "Matched by Nyaa URL fallback.",
-          releases: [
-            {
-              dualAudio: false,
-              groupedUrl: "https://releases.moe/collections/naruto-url",
-              infoHash: undefined,
-              isBest: false,
-              releaseGroup: "OtherGroup",
-              tags: ["Alt"],
-              tracker: "Nyaa",
-              url: "https://nyaa.si/download/7891011.torrent",
-            },
-          ],
-        }),
-      ),
-  });
-  const rssLayer = Layer.succeed(RssClient, {
-    fetchItems: (_url: string) =>
-      Effect.succeed([
-        makeTestRelease("[MysteryGroup] Naruto - 01 (1080p)", {
-          group: "MysteryGroup",
-          infoHash: "",
-          viewUrl: "https://nyaa.si/view/7891011",
-        }),
-      ]),
-  });
+  const seadexLayer = Layer.succeed(
+    SeaDexClient,
+    SeaDexClient.make({
+      getEntryByAniListId: (_aniListId: number) =>
+        Effect.succeed(
+          Option.some({
+            alID: 20,
+            comparison: "https://releases.moe/compare/naruto-url",
+            incomplete: false,
+            notes: "Matched by Nyaa URL fallback.",
+            releases: [
+              {
+                dualAudio: false,
+                groupedUrl: "https://releases.moe/collections/naruto-url",
+                infoHash: undefined,
+                isBest: false,
+                releaseGroup: "OtherGroup",
+                tags: ["Alt"],
+                tracker: "Nyaa",
+                url: "https://nyaa.si/download/7891011.torrent",
+              },
+            ],
+          }),
+        ),
+    }),
+  );
+  const rssLayer = Layer.succeed(
+    RssClient,
+    RssClient.make({
+      fetchItems: (_url: string) =>
+        Effect.succeed([
+          makeTestRelease("[MysteryGroup] Naruto - 01 (1080p)", {
+            group: "MysteryGroup",
+            infoHash: "",
+            viewUrl: "https://nyaa.si/view/7891011",
+          }),
+        ]),
+    }),
+  );
   return withTestContextEffect({
     options: { rssLayer, seadexLayer },
     run: (ctx) =>
@@ -344,44 +350,50 @@ it.scoped("search releases can match SeaDex by Nyaa URL when info hash is unavai
 });
 
 it.scoped("search releases only marks matching groups as SeaDex in fallback matching", () => {
-  const seadexLayer = Layer.succeed(SeaDexClient, {
-    getEntryByAniListId: (_aniListId: number) =>
-      Effect.succeed(
-        Option.some({
-          alID: 20,
-          comparison: "https://releases.moe/compare/yofukashi",
-          incomplete: false,
-          notes: "Okay-Subs is the recommended release.",
-          releases: [
-            {
-              dualAudio: false,
-              groupedUrl: "https://releases.moe/collections/yofukashi",
-              infoHash: undefined,
-              isBest: true,
-              releaseGroup: "Okay-Subs",
-              tags: ["Best"],
-              tracker: "Nyaa",
-              url: "https://nyaa.si/view/999999",
-            },
-          ],
-        }),
-      ),
-  });
-  const rssLayer = Layer.succeed(RssClient, {
-    fetchItems: (_url: string) =>
-      Effect.succeed([
-        makeTestRelease("[Okay-Subs] Yofukashi no Uta S2 - 12 [1080p]", {
-          group: "Okay-Subs",
-          infoHash: "",
-          viewUrl: "https://nyaa.si/view/111111",
-        }),
-        makeTestRelease("[EMBER] Yofukashi no Uta S2 - 12 [1080p]", {
-          group: "EMBER",
-          infoHash: "",
-          viewUrl: "https://nyaa.si/view/222222",
-        }),
-      ]),
-  });
+  const seadexLayer = Layer.succeed(
+    SeaDexClient,
+    SeaDexClient.make({
+      getEntryByAniListId: (_aniListId: number) =>
+        Effect.succeed(
+          Option.some({
+            alID: 20,
+            comparison: "https://releases.moe/compare/yofukashi",
+            incomplete: false,
+            notes: "Okay-Subs is the recommended release.",
+            releases: [
+              {
+                dualAudio: false,
+                groupedUrl: "https://releases.moe/collections/yofukashi",
+                infoHash: undefined,
+                isBest: true,
+                releaseGroup: "Okay-Subs",
+                tags: ["Best"],
+                tracker: "Nyaa",
+                url: "https://nyaa.si/view/999999",
+              },
+            ],
+          }),
+        ),
+    }),
+  );
+  const rssLayer = Layer.succeed(
+    RssClient,
+    RssClient.make({
+      fetchItems: (_url: string) =>
+        Effect.succeed([
+          makeTestRelease("[Okay-Subs] Yofukashi no Uta S2 - 12 [1080p]", {
+            group: "Okay-Subs",
+            infoHash: "",
+            viewUrl: "https://nyaa.si/view/111111",
+          }),
+          makeTestRelease("[EMBER] Yofukashi no Uta S2 - 12 [1080p]", {
+            group: "EMBER",
+            infoHash: "",
+            viewUrl: "https://nyaa.si/view/222222",
+          }),
+        ]),
+    }),
+  );
   return withTestContextEffect({
     options: { rssLayer, seadexLayer },
     run: (ctx) =>
@@ -1666,38 +1678,41 @@ it.scoped("download sync auto-imports paused seeding torrents", () =>
         const completedFile = `${completedRoot}/Naruto - 01.mkv`;
         yield* Effect.promise(() => writeTextFile(completedFile, "completed-download"));
 
-        const qbitLayer = Layer.succeed(QBitTorrentClient, {
-          addTorrentUrl: () => Effect.void,
-          deleteTorrent: () => Effect.void,
-          listTorrentContents: () =>
-            Effect.succeed([
-              {
-                index: 0,
-                is_seed: true,
-                name: "Naruto - 01.mkv",
-                priority: 1,
-                progress: 1,
-                size: 524_288_000,
-              },
-            ]),
-          listTorrents: () =>
-            Effect.succeed([
-              {
-                content_path: completedFile,
-                downloaded: 524_288_000,
-                dlspeed: 0,
-                eta: 0,
-                hash: magnetHash,
-                name: "Naruto - 01",
-                progress: 1,
-                save_path: completedRoot,
-                size: 524_288_000,
-                state: "pausedUP",
-              },
-            ] satisfies QBitTorrent[]),
-          pauseTorrent: () => Effect.void,
-          resumeTorrent: () => Effect.void,
-        });
+        const qbitLayer = Layer.succeed(
+          QBitTorrentClient,
+          QBitTorrentClient.make({
+            addTorrentUrl: () => Effect.void,
+            deleteTorrent: () => Effect.void,
+            listTorrentContents: () =>
+              Effect.succeed([
+                {
+                  index: 0,
+                  is_seed: true,
+                  name: "Naruto - 01.mkv",
+                  priority: 1,
+                  progress: 1,
+                  size: 524_288_000,
+                },
+              ]),
+            listTorrents: () =>
+              Effect.succeed([
+                {
+                  content_path: completedFile,
+                  downloaded: 524_288_000,
+                  dlspeed: 0,
+                  eta: 0,
+                  hash: magnetHash,
+                  name: "Naruto - 01",
+                  progress: 1,
+                  save_path: completedRoot,
+                  size: 524_288_000,
+                  state: "pausedUP",
+                },
+              ] satisfies QBitTorrent[]),
+            pauseTorrent: () => Effect.void,
+            resumeTorrent: () => Effect.void,
+          }),
+        );
 
         yield* withTestContextEffect({
           options: { qbitLayer },
@@ -1800,54 +1815,57 @@ it.scoped("download sync auto-imports paused seeding torrents", () =>
 
 it.scoped("download sync refines season-pack coverage from qBittorrent file list", () => {
   const magnetHash = "feedfeedfeedfeedfeedfeedfeedfeedfeedfeed";
-  const qbitLayer = Layer.succeed(QBitTorrentClient, {
-    addTorrentUrl: () => Effect.void,
-    deleteTorrent: () => Effect.void,
-    listTorrentContents: () =>
-      Effect.succeed([
-        {
-          index: 0,
-          is_seed: false,
-          name: "Season 01/Chainsaw Man - 01.mkv",
-          priority: 1,
-          progress: 0.2,
-          size: 100,
-        },
-        {
-          index: 1,
-          is_seed: false,
-          name: "Season 01/Chainsaw Man - 02.mkv",
-          priority: 1,
-          progress: 0.2,
-          size: 100,
-        },
-        {
-          index: 2,
-          is_seed: false,
-          name: "Season 01/NCOP.mkv",
-          priority: 1,
-          progress: 0.2,
-          size: 100,
-        },
-      ]),
-    listTorrents: () =>
-      Effect.succeed([
-        {
-          content_path: undefined,
-          downloaded: 0,
-          dlspeed: 1,
-          eta: 99,
-          hash: magnetHash,
-          name: "Chainsaw Man S01",
-          progress: 0.2,
-          save_path: "/downloads/chainsaw-man-s01",
-          size: 300,
-          state: "downloading",
-        },
-      ]),
-    pauseTorrent: () => Effect.void,
-    resumeTorrent: () => Effect.void,
-  });
+  const qbitLayer = Layer.succeed(
+    QBitTorrentClient,
+    QBitTorrentClient.make({
+      addTorrentUrl: () => Effect.void,
+      deleteTorrent: () => Effect.void,
+      listTorrentContents: () =>
+        Effect.succeed([
+          {
+            index: 0,
+            is_seed: false,
+            name: "Season 01/Chainsaw Man - 01.mkv",
+            priority: 1,
+            progress: 0.2,
+            size: 100,
+          },
+          {
+            index: 1,
+            is_seed: false,
+            name: "Season 01/Chainsaw Man - 02.mkv",
+            priority: 1,
+            progress: 0.2,
+            size: 100,
+          },
+          {
+            index: 2,
+            is_seed: false,
+            name: "Season 01/NCOP.mkv",
+            priority: 1,
+            progress: 0.2,
+            size: 100,
+          },
+        ]),
+      listTorrents: () =>
+        Effect.succeed([
+          {
+            content_path: undefined,
+            downloaded: 0,
+            dlspeed: 1,
+            eta: 99,
+            hash: magnetHash,
+            name: "Chainsaw Man S01",
+            progress: 0.2,
+            save_path: "/downloads/chainsaw-man-s01",
+            size: 300,
+            state: "downloading",
+          },
+        ]),
+      pauseTorrent: () => Effect.void,
+      resumeTorrent: () => Effect.void,
+    }),
+  );
 
   return withTestContextEffect({
     options: { qbitLayer },
@@ -4270,37 +4288,40 @@ function normalizeForSearch(s: string): string {
     .replace(/season\s*iii\b/gi, "season3");
 }
 
-const testAniListLayer = Layer.succeed(AniListClient, {
-  searchAnimeMetadata: (query: string) => {
-    const results: MediaSearchResult[] = [];
-    const normalizedQuery = normalizeForSearch(query);
-    for (const [id, meta] of TEST_ANIME_METADATA) {
-      const normalizedRomaji = normalizeForSearch(meta.title.romaji);
-      const normalizedEnglish = meta.title.english ? normalizeForSearch(meta.title.english) : "";
-      if (
-        normalizedRomaji.includes(normalizedQuery) ||
-        normalizedQuery.includes(normalizedRomaji) ||
-        (normalizedEnglish &&
-          (normalizedEnglish.includes(normalizedQuery) ||
-            normalizedQuery.includes(normalizedEnglish)))
-      ) {
-        results.push({
-          already_in_library: false,
-          cover_image: undefined,
-          unit_count: meta.unitCount,
-          format: meta.format,
-          id: brandMediaId(id),
-          status: meta["status"],
-          title: meta.title,
-        });
+const testAniListLayer = Layer.succeed(
+  AniListClient,
+  AniListClient.make({
+    searchAnimeMetadata: (query: string) => {
+      const results: MediaSearchResult[] = [];
+      const normalizedQuery = normalizeForSearch(query);
+      for (const [id, meta] of TEST_ANIME_METADATA) {
+        const normalizedRomaji = normalizeForSearch(meta.title.romaji);
+        const normalizedEnglish = meta.title.english ? normalizeForSearch(meta.title.english) : "";
+        if (
+          normalizedRomaji.includes(normalizedQuery) ||
+          normalizedQuery.includes(normalizedRomaji) ||
+          (normalizedEnglish &&
+            (normalizedEnglish.includes(normalizedQuery) ||
+              normalizedQuery.includes(normalizedEnglish)))
+        ) {
+          results.push({
+            already_in_library: false,
+            cover_image: undefined,
+            unit_count: meta.unitCount,
+            format: meta.format,
+            id: brandMediaId(id),
+            status: meta["status"],
+            title: meta.title,
+          });
+        }
       }
-    }
-    return Effect.succeed(results);
-  },
-  getAnimeMetadataById: (id: number) =>
-    Effect.succeed(Option.fromNullable(TEST_ANIME_METADATA.get(id))),
-  getSeasonalAnime: () => Effect.succeed([]),
-});
+      return Effect.succeed(results);
+    },
+    getAnimeMetadataById: (id: number) =>
+      Effect.succeed(Option.fromNullable(TEST_ANIME_METADATA.get(id))),
+    getSeasonalAnime: () => Effect.succeed([]),
+  }),
+);
 
 function deterministicHex(input: string): string {
   let hash = 0;
@@ -4356,43 +4377,58 @@ const TEST_SEADEX_ENTRIES = new Map<number, SeaDexEntry>([
   ],
 ]);
 
-const testRssLayer = Layer.succeed(RssClient, {
-  fetchItems: (url: string) => {
-    const query = decodeURIComponent(url).toLowerCase();
-    const releases: ParsedRelease[] = [];
-    if (query.includes("naruto")) {
-      releases.push(makeTestRelease(NARUTO_RELEASE_TITLE));
-    }
-    if (query.includes("hunter")) {
-      releases.push(
-        makeTestRelease("[SubsPlease] Hunter x Hunter (2011) - 02 (1080p) [DEF456].mkv"),
-      );
-    }
-    return Effect.succeed(releases);
-  },
-});
+const testRssLayer = Layer.succeed(
+  RssClient,
+  RssClient.make({
+    fetchItems: (url: string) => {
+      const query = decodeURIComponent(url).toLowerCase();
+      const releases: ParsedRelease[] = [];
+      if (query.includes("naruto")) {
+        releases.push(makeTestRelease(NARUTO_RELEASE_TITLE));
+      }
+      if (query.includes("hunter")) {
+        releases.push(
+          makeTestRelease("[SubsPlease] Hunter x Hunter (2011) - 02 (1080p) [DEF456].mkv"),
+        );
+      }
+      return Effect.succeed(releases);
+    },
+  }),
+);
 
-const testSeaDexLayer = Layer.succeed(SeaDexClient, {
-  getEntryByAniListId: (aniListId: number) =>
-    Effect.succeed(Option.fromNullable(TEST_SEADEX_ENTRIES.get(aniListId))),
-});
+const testSeaDexLayer = Layer.succeed(
+  SeaDexClient,
+  SeaDexClient.make({
+    getEntryByAniListId: (aniListId: number) =>
+      Effect.succeed(Option.fromNullable(TEST_SEADEX_ENTRIES.get(aniListId))),
+  }),
+);
 
-const testJikanLayer = Layer.succeed(JikanClient, {
-  getAnimeByMalId: () => Effect.succeed(Option.none()),
-  getSeasonalAnime: () => Effect.succeed([]),
-});
+const testJikanLayer = Layer.succeed(
+  JikanClient,
+  JikanClient.make({
+    getAnimeByMalId: () => Effect.succeed(Option.none()),
+    getSeasonalAnime: () => Effect.succeed([]),
+  }),
+);
 
 const testManamiLayer = Layer.mergeAll(
-  Layer.succeed(ManamiClient, {
-    getByAniListId: () => Effect.succeed(Option.none()),
-    getByMalId: () => Effect.succeed(Option.none()),
-    resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
-    resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-    searchAnime: () => Effect.succeed([]),
-  }),
-  Layer.succeed(ManamiCacheRefreshClient, {
-    refreshCacheIfNeeded: () => Effect.succeed(false),
-  }),
+  Layer.succeed(
+    ManamiClient,
+    ManamiClient.make({
+      getByAniListId: () => Effect.succeed(Option.none()),
+      getByMalId: () => Effect.succeed(Option.none()),
+      resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
+      resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
+      searchAnime: () => Effect.succeed([]),
+    }),
+  ),
+  Layer.succeed(
+    ManamiCacheRefreshClient,
+    ManamiCacheRefreshClient.make({
+      refreshCacheIfNeeded: () => Effect.succeed(false),
+    }),
+  ),
 );
 
 async function createTestContext(options?: {

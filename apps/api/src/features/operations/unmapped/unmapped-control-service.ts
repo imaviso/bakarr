@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from "effect";
+import { Effect } from "effect";
 
 import { Database, type DatabaseError } from "@/db/database.ts";
 import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
@@ -55,11 +55,6 @@ export interface UnmappedControlWorkflowShape {
     | OperationsAnimeNotFoundError
   >;
 }
-
-export class UnmappedControlService extends Context.Tag("@bakarr/api/UnmappedControlService")<
-  UnmappedControlService,
-  UnmappedControlServiceShape
->() {}
 
 const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(function* () {
   const { db } = yield* Database;
@@ -211,13 +206,15 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
     },
   );
 
-  return UnmappedControlService.of({
+  return {
     bulkControlUnmappedFolders,
     controlUnmappedFolder,
-  });
+  } satisfies UnmappedControlServiceShape;
 });
 
-export const UnmappedControlServiceLive = Layer.effect(
-  UnmappedControlService,
-  makeUnmappedControlService(),
-);
+export class UnmappedControlService extends Effect.Service<UnmappedControlService>()(
+  "@bakarr/api/UnmappedControlService",
+  { effect: makeUnmappedControlService() },
+) {}
+
+export const UnmappedControlServiceLive = UnmappedControlService.Default;

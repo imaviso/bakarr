@@ -1,4 +1,4 @@
-import { Context, Effect, Either, Layer, Option, Schema } from "effect";
+import { Effect, Either, Option, Schema } from "effect";
 
 import type { Config, SearchResults } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
@@ -440,26 +440,25 @@ function resolveSearchCategoryForMediaKind(
   return mapSearchCategoryForMediaKind(category, config.nyaa.default_category || "1_2", mediaKind);
 }
 
-export class SearchReleaseService extends Context.Tag("@bakarr/api/SearchReleaseService")<
-  SearchReleaseService,
-  SearchReleaseServiceShape
->() {}
+export class SearchReleaseService extends Effect.Service<SearchReleaseService>()(
+  "@bakarr/api/SearchReleaseService",
+  {
+    effect: Effect.gen(function* () {
+      const { db } = yield* Database;
+      const rssClient = yield* RssClient;
+      const seadexClient = yield* SeaDexClient;
+      const mediaReadRepository = yield* MediaReadRepository;
+      const runtimeConfigSnapshotService = yield* RuntimeConfigSnapshotService;
 
-export const SearchReleaseServiceLive = Layer.effect(
-  SearchReleaseService,
-  Effect.gen(function* () {
-    const { db } = yield* Database;
-    const rssClient = yield* RssClient;
-    const seadexClient = yield* SeaDexClient;
-    const mediaReadRepository = yield* MediaReadRepository;
-    const runtimeConfigSnapshotService = yield* RuntimeConfigSnapshotService;
+      return makeSearchReleaseSupport({
+        db,
+        getRuntimeConfig: runtimeConfigSnapshotService.getRuntimeConfig,
+        mediaReadRepository,
+        rssClient,
+        seadexClient,
+      });
+    }),
+  },
+) {}
 
-    return makeSearchReleaseSupport({
-      db,
-      getRuntimeConfig: runtimeConfigSnapshotService.getRuntimeConfig,
-      mediaReadRepository,
-      rssClient,
-      seadexClient,
-    });
-  }),
-);
+export const SearchReleaseServiceLive = SearchReleaseService.Default;

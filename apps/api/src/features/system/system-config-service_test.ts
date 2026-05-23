@@ -2,7 +2,6 @@ import { Cause, Effect, Exit, Layer } from "effect";
 
 import { Database } from "@/db/database.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { makeDatabaseServiceStub } from "@/test/stubs.ts";
 import { assert, describe, it } from "@effect/vitest";
 import * as schema from "@/db/schema.ts";
 import { StoredConfigMissingError } from "@/features/system/errors.ts";
@@ -47,13 +46,13 @@ describe("SystemConfigService", () => {
 
   it.scoped("fails when the stored config row is missing", () =>
     withSqliteTestDbEffect({
-      run: (db, _databaseFile) =>
+      run: (db, _databaseFile, client) =>
         Effect.gen(function* () {
           const layer = SystemConfigServiceLive.pipe(
             Layer.provide(
               Layer.mergeAll(SystemConfigRepository.Default, QualityProfileRepository.Default),
             ),
-            Layer.provide(Layer.succeed(Database, makeDatabaseServiceStub(db))),
+            Layer.provide(Layer.succeed(Database, Database.make({ client, db }))),
           );
 
           const exit = yield* Effect.exit(

@@ -1,23 +1,12 @@
-import { Context, Effect, Layer, Option } from "effect";
+import { Effect, Option } from "effect";
 
 import { BootstrapConfig } from "@/config/schema.ts";
-import { DatabaseError } from "@/db/database.ts";
 import { nowIsoFromClock, ClockService } from "@/infra/clock.ts";
 import { randomHexFrom, RandomService } from "@/infra/random.ts";
 import { hashPassword, PasswordCrypto } from "@/security/password.ts";
 import { TokenHasher } from "@/security/token-hasher.ts";
 import { announceBootstrapCredentials } from "@/features/auth/bootstrap-output.ts";
-import type { AuthCryptoError } from "@/features/auth/errors.ts";
 import { AuthUserRepository } from "@/features/auth/user-repository.ts";
-
-export interface AuthBootstrapServiceShape {
-  readonly ensureBootstrapUser: () => Effect.Effect<void, DatabaseError | AuthCryptoError>;
-}
-
-export class AuthBootstrapService extends Context.Tag("@bakarr/api/AuthBootstrapService")<
-  AuthBootstrapService,
-  AuthBootstrapServiceShape
->() {}
 
 const makeAuthBootstrapService = Effect.fn("AuthBootstrapService.make")(function* () {
   const users = yield* AuthUserRepository;
@@ -90,10 +79,14 @@ const makeAuthBootstrapService = Effect.fn("AuthBootstrapService.make")(function
     });
   });
 
-  return { ensureBootstrapUser } satisfies AuthBootstrapServiceShape;
+  return { ensureBootstrapUser };
 });
 
-export const AuthBootstrapServiceLive = Layer.effect(
-  AuthBootstrapService,
-  makeAuthBootstrapService(),
-);
+export class AuthBootstrapService extends Effect.Service<AuthBootstrapService>()(
+  "@bakarr/api/AuthBootstrapService",
+  {
+    effect: makeAuthBootstrapService(),
+  },
+) {}
+
+export const AuthBootstrapServiceLive = AuthBootstrapService.Default;

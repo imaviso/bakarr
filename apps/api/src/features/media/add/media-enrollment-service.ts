@@ -1,6 +1,5 @@
-import { Context, Effect, Layer } from "effect";
+import { Effect } from "effect";
 
-import type { Media } from "@packages/shared/index.ts";
 import { Database, type DatabaseError } from "@/db/database.ts";
 import { AnimeImageCacheService } from "@/features/media/metadata/media-image-cache-service.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
@@ -21,20 +20,6 @@ export type AnimeEnrollmentError =
   | MediaServiceError
   | ProfileNotFoundError
   | OperationsInfrastructureError;
-
-export interface AnimeEnrollmentServiceShape {
-  /**
-   * Add a media entry and, when `monitor_and_search` is set, immediately
-   * kick off a missing-unit search. This keeps cross-service orchestration
-   * out of the HTTP layer.
-   */
-  readonly enroll: (input: AddAnimeInput) => Effect.Effect<Media, AnimeEnrollmentError>;
-}
-
-export class AnimeEnrollmentService extends Context.Tag("@bakarr/api/AnimeEnrollmentService")<
-  AnimeEnrollmentService,
-  AnimeEnrollmentServiceShape
->() {}
 
 const makeAnimeEnrollmentService = Effect.fn("AnimeEnrollmentService.make")(function* () {
   const { db } = yield* Database;
@@ -74,10 +59,14 @@ const makeAnimeEnrollmentService = Effect.fn("AnimeEnrollmentService.make")(func
     return media;
   });
 
-  return { enroll } satisfies AnimeEnrollmentServiceShape;
+  return { enroll };
 });
 
-export const AnimeEnrollmentServiceLive = Layer.effect(
-  AnimeEnrollmentService,
-  makeAnimeEnrollmentService(),
-);
+export class AnimeEnrollmentService extends Effect.Service<AnimeEnrollmentService>()(
+  "@bakarr/api/AnimeEnrollmentService",
+  {
+    effect: makeAnimeEnrollmentService(),
+  },
+) {}
+
+export const AnimeEnrollmentServiceLive = AnimeEnrollmentService.Default;

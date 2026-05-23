@@ -1,5 +1,5 @@
 import { CommandExecutor } from "@effect/platform";
-import { Context, Effect, Either, Layer, ParseResult, Schema } from "effect";
+import { Effect, Either, ParseResult, Schema } from "effect";
 
 import { MediaProbeFailure, runFfprobeCommandWith } from "@/infra/media/probe-command.ts";
 
@@ -239,11 +239,6 @@ export interface MediaProbeShape {
   readonly probeVideoFile: (path: string) => Effect.Effect<MediaProbeResult, MediaProbeFailure>;
 }
 
-export class MediaProbe extends Context.Tag("@bakarr/api/MediaProbe")<
-  MediaProbe,
-  MediaProbeShape
->() {}
-
 export function shouldProbeMediaMetadata(input: {
   duration_seconds?: number | undefined;
   resolution?: string | undefined;
@@ -383,9 +378,8 @@ const makeMediaProbe = (
   return { probeVideoFile };
 };
 
-export const MediaProbeLive = Layer.effect(
-  MediaProbe,
-  Effect.gen(function* () {
+export class MediaProbe extends Effect.Service<MediaProbe>()("@bakarr/api/MediaProbe", {
+  effect: Effect.gen(function* () {
     const ffprobeSemaphore = yield* Effect.makeSemaphore(FFPROBE_CONCURRENCY_LIMIT);
     const executor = yield* CommandExecutor.CommandExecutor;
 
@@ -404,4 +398,6 @@ export const MediaProbeLive = Layer.effect(
 
     return makeMediaProbe(ffprobeSemaphore, executor);
   }),
-);
+}) {}
+
+export const MediaProbeLive = MediaProbe.Default;

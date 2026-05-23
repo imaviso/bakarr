@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from "effect";
+import { Effect } from "effect";
 
 import type { Config, DownloadSourceMetadata } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
@@ -51,31 +51,6 @@ export interface DownloadTorrentSyncSupportShape {
     OperationsError | RuntimeConfigSnapshotError
   >;
 }
-
-export class DownloadTorrentSyncService extends Context.Tag(
-  "@bakarr/api/DownloadTorrentSyncService",
-)<DownloadTorrentSyncService, DownloadTorrentSyncSupportShape>() {}
-
-export const DownloadTorrentSyncServiceLive = Layer.effect(
-  DownloadTorrentSyncService,
-  Effect.gen(function* () {
-    const syncRepo = yield* DownloadSyncRepository;
-    const torrentClientService = yield* TorrentClientService;
-    const clock = yield* ClockService;
-    const reconciliationService = yield* DownloadReconciliationService;
-    const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
-
-    return DownloadTorrentSyncService.of(
-      makeDownloadTorrentSyncSupport({
-        syncRepo,
-        getRuntimeConfig: runtimeConfigSnapshot.getRuntimeConfig,
-        nowIso: () => nowIsoFromClock(clock),
-        torrentClientService,
-        reconcileCompletedTorrentEffect: reconciliationService.reconcileCompletedTorrentEffect,
-      }),
-    );
-  }),
-);
 
 export function makeDownloadTorrentSyncSupport(input: DownloadTorrentSyncSupportInput) {
   const { syncRepo, reconcileCompletedTorrentEffect, torrentClientService, nowIso } = input;
@@ -302,3 +277,26 @@ export function makeDownloadTorrentSyncSupport(input: DownloadTorrentSyncSupport
     syncDownloadsWithQBitEffect,
   };
 }
+
+export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSyncService>()(
+  "@bakarr/api/DownloadTorrentSyncService",
+  {
+    effect: Effect.gen(function* () {
+      const syncRepo = yield* DownloadSyncRepository;
+      const torrentClientService = yield* TorrentClientService;
+      const clock = yield* ClockService;
+      const reconciliationService = yield* DownloadReconciliationService;
+      const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
+
+      return makeDownloadTorrentSyncSupport({
+        syncRepo,
+        getRuntimeConfig: runtimeConfigSnapshot.getRuntimeConfig,
+        nowIso: () => nowIsoFromClock(clock),
+        torrentClientService,
+        reconcileCompletedTorrentEffect: reconciliationService.reconcileCompletedTorrentEffect,
+      });
+    }),
+  },
+) {}
+
+export const DownloadTorrentSyncServiceLive = DownloadTorrentSyncService.Default;

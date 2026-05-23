@@ -1,5 +1,5 @@
 import { HttpClient } from "@effect/platform";
-import { Context, Effect, Layer, Schema } from "effect";
+import { Effect, Schema } from "effect";
 
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
@@ -39,59 +39,60 @@ interface ImageCacheResult {
   readonly coverImage?: string | undefined;
 }
 
-export class AnimeImageCacheService extends Context.Tag("@bakarr/api/AnimeImageCacheService")<
-  AnimeImageCacheService,
-  AnimeImageCacheServiceShape
->() {}
+const makeAnimeImageCacheService = Effect.fn("AnimeImageCacheService.make")(function* () {
+  const fs = yield* FileSystem;
+  const httpClient = yield* HttpClient.HttpClient;
+  const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
 
-export const AnimeImageCacheServiceLive = Layer.effect(
-  AnimeImageCacheService,
-  Effect.gen(function* () {
-    const fs = yield* FileSystem;
-    const httpClient = yield* HttpClient.HttpClient;
-    const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
+  const cacheMetadataImages = Effect.fn("AnimeImageCacheService.cacheMetadataImages")(function* (
+    input: ImageCacheInput,
+  ) {
+    const config = yield* runtimeConfigSnapshot.getRuntimeConfig().pipe(
+      Effect.mapError(
+        (cause) =>
+          new ImageCacheError({
+            mediaId: input.mediaId,
+            cause,
+            message: "Failed to resolve runtime config for image caching",
+          }),
+      ),
+    );
 
-    const cacheMetadataImages = Effect.fn("AnimeImageCacheService.cacheMetadataImages")(function* (
-      input: ImageCacheInput,
-    ) {
-      const config = yield* runtimeConfigSnapshot.getRuntimeConfig().pipe(
-        Effect.mapError(
-          (cause) =>
-            new ImageCacheError({
-              mediaId: input.mediaId,
-              cause,
-              message: "Failed to resolve runtime config for image caching",
-            }),
-        ),
-      );
+    const images: CachedAnimeImages = {
+      ...(input.bannerImage === undefined ? {} : { bannerImage: input.bannerImage ?? undefined }),
+      ...(input.coverImage === undefined ? {} : { coverImage: input.coverImage ?? undefined }),
+    };
+    const cached = yield* cacheAnimeMetadataImages(
+      fs,
+      httpClient,
+      config.general.images_path,
+      input.mediaId,
+      images,
+    ).pipe(
+      Effect.mapError(
+        (cause) =>
+          new ImageCacheError({
+            mediaId: input.mediaId,
+            cause,
+            message: "Failed to cache media metadata images",
+          }),
+      ),
+    );
 
-      const images: CachedAnimeImages = {
-        ...(input.bannerImage === undefined ? {} : { bannerImage: input.bannerImage ?? undefined }),
-        ...(input.coverImage === undefined ? {} : { coverImage: input.coverImage ?? undefined }),
-      };
-      const cached = yield* cacheAnimeMetadataImages(
-        fs,
-        httpClient,
-        config.general.images_path,
-        input.mediaId,
-        images,
-      ).pipe(
-        Effect.mapError(
-          (cause) =>
-            new ImageCacheError({
-              mediaId: input.mediaId,
-              cause,
-              message: "Failed to cache media metadata images",
-            }),
-        ),
-      );
+    return {
+      ...(cached.bannerImage === undefined ? {} : { bannerImage: cached.bannerImage }),
+      ...(cached.coverImage === undefined ? {} : { coverImage: cached.coverImage }),
+    } satisfies ImageCacheResult;
+  });
 
-      return {
-        ...(cached.bannerImage === undefined ? {} : { bannerImage: cached.bannerImage }),
-        ...(cached.coverImage === undefined ? {} : { coverImage: cached.coverImage }),
-      } satisfies ImageCacheResult;
-    });
+  return { cacheMetadataImages } satisfies AnimeImageCacheServiceShape;
+});
 
-    return AnimeImageCacheService.of({ cacheMetadataImages });
-  }),
-);
+export class AnimeImageCacheService extends Effect.Service<AnimeImageCacheService>()(
+  "@bakarr/api/AnimeImageCacheService",
+  {
+    effect: makeAnimeImageCacheService(),
+  },
+) {}
+
+export const AnimeImageCacheServiceLive = AnimeImageCacheService.Default;

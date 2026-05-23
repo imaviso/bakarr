@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from "effect";
+import { Effect } from "effect";
 
 import { AppConfig } from "@/config/schema.ts";
 import { DatabaseError } from "@/db/database.ts";
@@ -9,22 +9,6 @@ import { decodeConfigCore, encodeConfigCore } from "@/features/system/config-cod
 import { encodeQualityProfileRow } from "@/features/profiles/profile-codec.ts";
 import { applyRuntimeLogLevelFromConfig } from "@/features/system/runtime-config.ts";
 import { SystemConfigRepository } from "@/features/system/repository/system-config-repository.ts";
-export interface SystemBootstrapServiceShape {
-  /**
-   * First-run initialization (idempotent):
-   * - Insert default system config row if none exists.
-   * - Insert default quality profiles if none exist.
-   * - Apply the stored log level when config is decodable.
-   *
-   * Corrupt rows are skipped here.
-   */
-  readonly ensureInitialized: () => Effect.Effect<void, DatabaseError>;
-}
-
-export class SystemBootstrapService extends Context.Tag("@bakarr/api/SystemBootstrapService")<
-  SystemBootstrapService,
-  SystemBootstrapServiceShape
->() {}
 
 const makeSystemBootstrapService = Effect.fn("SystemBootstrapService.make")(function* () {
   const config = yield* AppConfig;
@@ -74,10 +58,14 @@ const makeSystemBootstrapService = Effect.fn("SystemBootstrapService.make")(func
     }
   });
 
-  return { ensureInitialized } satisfies SystemBootstrapServiceShape;
+  return { ensureInitialized };
 });
 
-export const SystemBootstrapServiceLive = Layer.effect(
-  SystemBootstrapService,
-  makeSystemBootstrapService(),
-);
+export class SystemBootstrapService extends Effect.Service<SystemBootstrapService>()(
+  "@bakarr/api/SystemBootstrapService",
+  {
+    effect: makeSystemBootstrapService(),
+  },
+) {}
+
+export const SystemBootstrapServiceLive = SystemBootstrapService.Default;

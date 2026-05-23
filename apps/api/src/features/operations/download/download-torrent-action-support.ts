@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from "effect";
+import { Effect } from "effect";
 
 import { DatabaseError } from "@/db/database.ts";
 import {
@@ -48,29 +48,6 @@ export interface DownloadTorrentActionSupportShape {
     | OperationsInfrastructureError
   >;
 }
-
-export class DownloadTorrentActionService extends Context.Tag(
-  "@bakarr/api/DownloadTorrentActionService",
-)<DownloadTorrentActionService, DownloadTorrentActionSupportShape>() {}
-
-export const DownloadTorrentActionServiceLive = Layer.effect(
-  DownloadTorrentActionService,
-  Effect.gen(function* () {
-    const actionRepo = yield* DownloadActionRepository;
-    const torrentClientService = yield* TorrentClientService;
-    const clock = yield* ClockService;
-    const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
-
-    return DownloadTorrentActionService.of(
-      makeDownloadTorrentActionSupport({
-        actionRepo,
-        getRuntimeConfig: runtimeConfigSnapshot.getRuntimeConfig,
-        nowIso: () => nowIsoFromClock(clock),
-        torrentClientService,
-      }),
-    );
-  }),
-);
 
 export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSupportInput) {
   const { actionRepo, torrentClientService, nowIso } = input;
@@ -220,3 +197,24 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
     retryDownloadById,
   };
 }
+
+export class DownloadTorrentActionService extends Effect.Service<DownloadTorrentActionService>()(
+  "@bakarr/api/DownloadTorrentActionService",
+  {
+    effect: Effect.gen(function* () {
+      const actionRepo = yield* DownloadActionRepository;
+      const torrentClientService = yield* TorrentClientService;
+      const clock = yield* ClockService;
+      const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
+
+      return makeDownloadTorrentActionSupport({
+        actionRepo,
+        getRuntimeConfig: runtimeConfigSnapshot.getRuntimeConfig,
+        nowIso: () => nowIsoFromClock(clock),
+        torrentClientService,
+      });
+    }),
+  },
+) {}
+
+export const DownloadTorrentActionServiceLive = DownloadTorrentActionService.Default;

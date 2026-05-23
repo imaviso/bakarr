@@ -1,6 +1,6 @@
 import * as SqliteDrizzle from "@effect/sql-drizzle/Sqlite";
 import * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
-import { Context, Effect, Layer, Schema } from "effect";
+import { Effect, Layer, Schema } from "effect";
 import type { SqliteRemoteDatabase } from "drizzle-orm/sqlite-proxy";
 
 import { AppConfig } from "@/config/schema.ts";
@@ -31,8 +31,6 @@ export interface DatabaseService {
   readonly client: NodeSqliteClient.SqliteClient;
   readonly db: AppDatabase;
 }
-
-export class Database extends Context.Tag("@bakarr/api/Database")<Database, DatabaseService>() {}
 
 interface SqlitePragmaClient {
   readonly unsafe: (
@@ -124,7 +122,11 @@ const makeDatabase = Effect.fn("Database.make")(function* () {
   };
 });
 
-export const DatabaseLive = Layer.scoped(Database, makeDatabase());
+export class Database extends Effect.Service<Database>()("@bakarr/api/Database", {
+  scoped: makeDatabase(),
+}) {}
+
+export const DatabaseLive = Database.Default;
 
 export const DatabaseSqlClientLive = Layer.unwrapEffect(
   Effect.gen(function* () {

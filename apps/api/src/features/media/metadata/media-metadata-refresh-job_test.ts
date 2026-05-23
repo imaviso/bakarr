@@ -8,6 +8,8 @@ import { media, backgroundJobs, systemLogs } from "@/db/schema.ts";
 import type { AnimeMetadata } from "@/features/media/metadata/anilist-model.ts";
 import { refreshMetadataForMonitoredAnimeEffect } from "@/features/media/metadata/media-metadata-refresh-job.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
+import { AnimeImageCacheService } from "@/features/media/metadata/media-image-cache-service.ts";
+import { AnimeMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { makeMediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
@@ -24,10 +26,10 @@ it.scoped(
           yield* insertAnimeRow(appDb, 802);
 
           const result = yield* refreshMetadataForMonitoredAnimeEffect({
-            imageCacheService: {
+            imageCacheService: AnimeImageCacheService.make({
               cacheMetadataImages: () => Effect.succeed({}),
-            },
-            metadataProvider: {
+            }),
+            metadataProvider: AnimeMetadataProviderService.make({
               getAnimeMetadataById: (id: number) =>
                 id === 801
                   ? Effect.fail(
@@ -45,7 +47,7 @@ it.scoped(
                       },
                       metadata: makeMetadata(id),
                     }),
-            },
+            }),
             db: appDb,
             mediaReadRepository: makeMediaReadRepository(appDb),
             nowIso: () => Effect.succeed("2026-04-16T00:00:00.000Z"),
@@ -110,15 +112,15 @@ it.scoped(
           })();
 
           const result = yield* refreshMetadataForMonitoredAnimeEffect({
-            imageCacheService: {
+            imageCacheService: AnimeImageCacheService.make({
               cacheMetadataImages: () => Effect.succeed({}),
-            },
-            metadataProvider: {
+            }),
+            metadataProvider: AnimeMetadataProviderService.make({
               getAnimeMetadataById: () =>
                 Effect.succeed({
                   _tag: "NotFound",
                 }),
-            },
+            }),
             db: appDb,
             mediaReadRepository: makeMediaReadRepository(appDb),
             nowIso,

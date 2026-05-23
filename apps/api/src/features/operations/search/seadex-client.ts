@@ -1,5 +1,5 @@
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
-import { Context, Effect, Layer, Option, Schema } from "effect";
+import { Effect, Option, Schema } from "effect";
 
 import { ExternalCall, ExternalCallError } from "@/infra/effect/retry.ts";
 
@@ -9,59 +9,8 @@ interface SeaDexClientShape {
   ) => Effect.Effect<Option.Option<SeaDexEntry>, ExternalCallError>;
 }
 
-export class SeaDexClient extends Context.Tag("@bakarr/api/SeaDexClient")<
-  SeaDexClient,
-  SeaDexClientShape
->() {}
-
-const SEADEX_API_BASE = "https://releases.moe/api/collections";
-
-class SeaDexTorrentSchema extends Schema.Class<SeaDexTorrentSchema>("SeaDexTorrentSchema")({
-  dualAudio: Schema.Boolean,
-  groupedUrl: Schema.String,
-  infoHash: Schema.optional(Schema.String),
-  isBest: Schema.Boolean,
-  releaseGroup: Schema.String,
-  tags: Schema.Array(Schema.String),
-  tracker: Schema.String,
-  url: Schema.String,
-}) {}
-
-class SeaDexApiEntryExpandSchema extends Schema.Class<SeaDexApiEntryExpandSchema>(
-  "SeaDexApiEntryExpandSchema",
-)({
-  trs: Schema.Array(SeaDexTorrentSchema),
-}) {}
-
-class SeaDexApiEntrySchema extends Schema.Class<SeaDexApiEntrySchema>("SeaDexApiEntrySchema")({
-  alID: Schema.Number,
-  comparison: Schema.optional(Schema.String),
-  incomplete: Schema.Boolean,
-  notes: Schema.optional(Schema.String),
-  expand: SeaDexApiEntryExpandSchema,
-}) {}
-
-class SeaDexApiEntryListSchema extends Schema.Class<SeaDexApiEntryListSchema>(
-  "SeaDexApiEntryListSchema",
-)({
-  items: Schema.Array(SeaDexApiEntrySchema),
-}) {}
-
-export type SeaDexRelease = Schema.Schema.Type<typeof SeaDexTorrentSchema>;
-
-export const SeaDexEntrySchema = Schema.Struct({
-  alID: Schema.Number,
-  comparison: Schema.optional(Schema.String),
-  incomplete: Schema.Boolean,
-  notes: Schema.optional(Schema.String),
-  releases: Schema.Array(SeaDexTorrentSchema),
-});
-
-export type SeaDexEntry = Schema.Schema.Type<typeof SeaDexEntrySchema>;
-
-export const SeaDexClientLive = Layer.effect(
-  SeaDexClient,
-  Effect.gen(function* () {
+export class SeaDexClient extends Effect.Service<SeaDexClient>()("@bakarr/api/SeaDexClient", {
+  effect: Effect.gen(function* () {
     const client = yield* HttpClient.HttpClient;
     const externalCall = yield* ExternalCall;
 
@@ -123,17 +72,64 @@ export const SeaDexClientLive = Layer.effect(
         return Option.none();
       }
 
-      return Option.some({
+      const result: SeaDexEntry = {
         alID: entry.alID,
         comparison: entry.comparison,
         incomplete: entry.incomplete,
         notes: entry.notes,
         releases: entry.expand.trs,
-      } satisfies SeaDexEntry);
+      };
+      return Option.some(result);
     });
 
     return {
       getEntryByAniListId,
     } satisfies SeaDexClientShape;
   }),
-);
+}) {}
+
+export const SeaDexClientLive = SeaDexClient.Default;
+
+const SEADEX_API_BASE = "https://releases.moe/api/collections";
+class SeaDexTorrentSchema extends Schema.Class<SeaDexTorrentSchema>("SeaDexTorrentSchema")({
+  dualAudio: Schema.Boolean,
+  groupedUrl: Schema.String,
+  infoHash: Schema.optional(Schema.String),
+  isBest: Schema.Boolean,
+  releaseGroup: Schema.String,
+  tags: Schema.Array(Schema.String),
+  tracker: Schema.String,
+  url: Schema.String,
+}) {}
+
+class SeaDexApiEntryExpandSchema extends Schema.Class<SeaDexApiEntryExpandSchema>(
+  "SeaDexApiEntryExpandSchema",
+)({
+  trs: Schema.Array(SeaDexTorrentSchema),
+}) {}
+
+class SeaDexApiEntrySchema extends Schema.Class<SeaDexApiEntrySchema>("SeaDexApiEntrySchema")({
+  alID: Schema.Number,
+  comparison: Schema.optional(Schema.String),
+  incomplete: Schema.Boolean,
+  notes: Schema.optional(Schema.String),
+  expand: SeaDexApiEntryExpandSchema,
+}) {}
+
+class SeaDexApiEntryListSchema extends Schema.Class<SeaDexApiEntryListSchema>(
+  "SeaDexApiEntryListSchema",
+)({
+  items: Schema.Array(SeaDexApiEntrySchema),
+}) {}
+
+export type SeaDexRelease = Schema.Schema.Type<typeof SeaDexTorrentSchema>;
+
+export const SeaDexEntrySchema = Schema.Struct({
+  alID: Schema.Number,
+  comparison: Schema.optional(Schema.String),
+  incomplete: Schema.Boolean,
+  notes: Schema.optional(Schema.String),
+  releases: Schema.Array(SeaDexTorrentSchema),
+});
+
+export type SeaDexEntry = Schema.Schema.Type<typeof SeaDexEntrySchema>;

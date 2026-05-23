@@ -40,34 +40,43 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
         Effect.gen(function* () {
           let providerCalls = 0;
 
-          const providerLayer = Layer.succeed(AnimeSeasonalProviderService, {
-            getSeasonalAnime: () => {
-              providerCalls += 1;
-              return Effect.succeed({
-                degraded: false,
-                hasMore: false,
-                provider: "anilist" as const,
-                results: [makeSeasonalResult({ id: 42, title: "Cached Spring" })],
-                season: "spring" as const,
-                year: 2025,
-              });
-            },
-          });
+          const providerLayer = Layer.succeed(
+            AnimeSeasonalProviderService,
+            AnimeSeasonalProviderService.make({
+              getSeasonalAnime: () => {
+                providerCalls += 1;
+                return Effect.succeed({
+                  degraded: false,
+                  hasMore: false,
+                  provider: "anilist" as const,
+                  results: [makeSeasonalResult({ id: 42, title: "Cached Spring" })],
+                  season: "spring" as const,
+                  year: 2025,
+                });
+              },
+            }),
+          );
 
           const baseLayer = Layer.mergeAll(
             providerLayer,
-            Layer.succeed(AniListClient, {
-              getAnimeMetadataById: () => Effect.succeed(Option.none()),
-              getSeasonalAnime: () => Effect.succeed([]),
-              searchAnimeMetadata: () => Effect.succeed([]),
-            }),
-            Layer.succeed(ManamiClient, {
-              getByAniListId: () => Effect.succeed(Option.none()),
-              getByMalId: () => Effect.succeed(Option.none()),
-              resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
-              resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-              searchAnime: () => Effect.succeed([]),
-            }),
+            Layer.succeed(
+              AniListClient,
+              AniListClient.make({
+                getAnimeMetadataById: () => Effect.succeed(Option.none()),
+                getSeasonalAnime: () => Effect.succeed([]),
+                searchAnimeMetadata: () => Effect.succeed([]),
+              }),
+            ),
+            Layer.succeed(
+              ManamiClient,
+              ManamiClient.make({
+                getByAniListId: () => Effect.succeed(Option.none()),
+                getByMalId: () => Effect.succeed(Option.none()),
+                resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
+                resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
+                searchAnime: () => Effect.succeed([]),
+              }),
+            ),
             Layer.succeed(
               ClockService,
               ClockService.make({
@@ -75,10 +84,13 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
                 currentTimeMillis: Effect.succeed(new Date("2025-04-01T10:00:00.000Z").getTime()),
               }),
             ),
-            Layer.succeed(Database, {
-              client,
-              db,
-            }),
+            Layer.succeed(
+              Database,
+              Database.make({
+                client,
+                db,
+              }),
+            ),
             Layer.succeed(MediaReadRepository, makeMediaReadRepository(db)),
           );
 
@@ -126,36 +138,45 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
           let providerCalls = 0;
           let currentTime = new Date("2025-04-01T10:00:00.000Z").getTime();
 
-          const providerLayer = Layer.succeed(AnimeSeasonalProviderService, {
-            getSeasonalAnime: () => {
-              providerCalls += 1;
-              return Effect.succeed({
-                degraded: false,
-                hasMore: false,
-                provider: "anilist" as const,
-                results: [makeSeasonalResult({ id: 7, title: `Fetch ${providerCalls}` })],
-                season: "spring" as const,
-                year: 2025,
-              });
-            },
-          });
+          const providerLayer = Layer.succeed(
+            AnimeSeasonalProviderService,
+            AnimeSeasonalProviderService.make({
+              getSeasonalAnime: () => {
+                providerCalls += 1;
+                return Effect.succeed({
+                  degraded: false,
+                  hasMore: false,
+                  provider: "anilist" as const,
+                  results: [makeSeasonalResult({ id: 7, title: `Fetch ${providerCalls}` })],
+                  season: "spring" as const,
+                  year: 2025,
+                });
+              },
+            }),
+          );
 
           const layer = AnimeQueryServiceLive.pipe(
             Layer.provide(
               Layer.mergeAll(
                 providerLayer,
-                Layer.succeed(AniListClient, {
-                  getAnimeMetadataById: () => Effect.succeed(Option.none()),
-                  getSeasonalAnime: () => Effect.succeed([]),
-                  searchAnimeMetadata: () => Effect.succeed([]),
-                }),
-                Layer.succeed(ManamiClient, {
-                  getByAniListId: () => Effect.succeed(Option.none()),
-                  getByMalId: () => Effect.succeed(Option.none()),
-                  resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
-                  resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-                  searchAnime: () => Effect.succeed([]),
-                }),
+                Layer.succeed(
+                  AniListClient,
+                  AniListClient.make({
+                    getAnimeMetadataById: () => Effect.succeed(Option.none()),
+                    getSeasonalAnime: () => Effect.succeed([]),
+                    searchAnimeMetadata: () => Effect.succeed([]),
+                  }),
+                ),
+                Layer.succeed(
+                  ManamiClient,
+                  ManamiClient.make({
+                    getByAniListId: () => Effect.succeed(Option.none()),
+                    getByMalId: () => Effect.succeed(Option.none()),
+                    resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
+                    resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
+                    searchAnime: () => Effect.succeed([]),
+                  }),
+                ),
                 Layer.succeed(
                   ClockService,
                   ClockService.make({
@@ -163,10 +184,13 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
                     currentTimeMillis: Effect.sync(() => currentTime),
                   }),
                 ),
-                Layer.succeed(Database, {
-                  client,
-                  db,
-                }),
+                Layer.succeed(
+                  Database,
+                  Database.make({
+                    client,
+                    db,
+                  }),
+                ),
                 Layer.succeed(MediaReadRepository, makeMediaReadRepository(db)),
               ),
             ),
@@ -199,47 +223,56 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
           let providerCalls = 0;
           let currentTime = new Date("2025-04-01T10:00:00.000Z").getTime();
 
-          const providerLayer = Layer.succeed(AnimeSeasonalProviderService, {
-            getSeasonalAnime: () => {
-              providerCalls += 1;
+          const providerLayer = Layer.succeed(
+            AnimeSeasonalProviderService,
+            AnimeSeasonalProviderService.make({
+              getSeasonalAnime: () => {
+                providerCalls += 1;
 
-              if (providerCalls === 1) {
-                return Effect.succeed({
-                  degraded: false,
-                  hasMore: false,
-                  provider: "anilist" as const,
-                  results: [makeSeasonalResult({ id: 9, title: "Stale Spring" })],
-                  season: "spring" as const,
-                  year: 2025,
-                });
-              }
+                if (providerCalls === 1) {
+                  return Effect.succeed({
+                    degraded: false,
+                    hasMore: false,
+                    provider: "anilist" as const,
+                    results: [makeSeasonalResult({ id: 9, title: "Stale Spring" })],
+                    season: "spring" as const,
+                    year: 2025,
+                  });
+                }
 
-              return Effect.fail(
-                ExternalCallError.make({
-                  cause: new Error("seasonal outage"),
-                  message: "Seasonal provider failed",
-                  operation: "anilist.seasonal",
-                }),
-              );
-            },
-          });
+                return Effect.fail(
+                  ExternalCallError.make({
+                    cause: new Error("seasonal outage"),
+                    message: "Seasonal provider failed",
+                    operation: "anilist.seasonal",
+                  }),
+                );
+              },
+            }),
+          );
 
           const layer = AnimeQueryServiceLive.pipe(
             Layer.provide(
               Layer.mergeAll(
                 providerLayer,
-                Layer.succeed(AniListClient, {
-                  getAnimeMetadataById: () => Effect.succeed(Option.none()),
-                  getSeasonalAnime: () => Effect.succeed([]),
-                  searchAnimeMetadata: () => Effect.succeed([]),
-                }),
-                Layer.succeed(ManamiClient, {
-                  getByAniListId: () => Effect.succeed(Option.none()),
-                  getByMalId: () => Effect.succeed(Option.none()),
-                  resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
-                  resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-                  searchAnime: () => Effect.succeed([]),
-                }),
+                Layer.succeed(
+                  AniListClient,
+                  AniListClient.make({
+                    getAnimeMetadataById: () => Effect.succeed(Option.none()),
+                    getSeasonalAnime: () => Effect.succeed([]),
+                    searchAnimeMetadata: () => Effect.succeed([]),
+                  }),
+                ),
+                Layer.succeed(
+                  ManamiClient,
+                  ManamiClient.make({
+                    getByAniListId: () => Effect.succeed(Option.none()),
+                    getByMalId: () => Effect.succeed(Option.none()),
+                    resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
+                    resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
+                    searchAnime: () => Effect.succeed([]),
+                  }),
+                ),
                 Layer.succeed(
                   ClockService,
                   ClockService.make({
@@ -247,10 +280,13 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
                     currentTimeMillis: Effect.sync(() => currentTime),
                   }),
                 ),
-                Layer.succeed(Database, {
-                  client,
-                  db,
-                }),
+                Layer.succeed(
+                  Database,
+                  Database.make({
+                    client,
+                    db,
+                  }),
+                ),
                 Layer.succeed(MediaReadRepository, makeMediaReadRepository(db)),
               ),
             ),
@@ -286,44 +322,53 @@ describe("AnimeQueryService.searchAnime", () => {
           const layer = AnimeQueryServiceLive.pipe(
             Layer.provide(
               Layer.mergeAll(
-                Layer.succeed(AnimeSeasonalProviderService, {
-                  getSeasonalAnime: () =>
-                    Effect.succeed({
-                      degraded: false,
-                      hasMore: false,
-                      provider: "anilist" as const,
-                      results: [],
-                      season: "spring" as const,
-                      year: 2025,
-                    }),
-                }),
-                Layer.succeed(AniListClient, {
-                  getAnimeMetadataById: () => Effect.succeed(Option.none()),
-                  getSeasonalAnime: () => Effect.succeed([]),
-                  searchAnimeMetadata: () =>
-                    Effect.fail(
-                      ExternalCallError.make({
-                        cause: new Error("rate limited"),
-                        message: "AniList search failed",
-                        operation: "anilist.search.response",
+                Layer.succeed(
+                  AnimeSeasonalProviderService,
+                  AnimeSeasonalProviderService.make({
+                    getSeasonalAnime: () =>
+                      Effect.succeed({
+                        degraded: false,
+                        hasMore: false,
+                        provider: "anilist" as const,
+                        results: [],
+                        season: "spring" as const,
+                        year: 2025,
                       }),
-                    ),
-                }),
-                Layer.succeed(ManamiClient, {
-                  getByAniListId: () => Effect.succeed(Option.none()),
-                  getByMalId: () => Effect.succeed(Option.none()),
-                  resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
-                  resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-                  searchAnime: () =>
-                    Effect.succeed([
-                      {
-                        already_in_library: false,
-                        id: brandMediaId(1001),
-                        synonyms: ["Alpha Alias"],
-                        title: { english: "Alpha", romaji: "Alpha" },
-                      },
-                    ]),
-                }),
+                  }),
+                ),
+                Layer.succeed(
+                  AniListClient,
+                  AniListClient.make({
+                    getAnimeMetadataById: () => Effect.succeed(Option.none()),
+                    getSeasonalAnime: () => Effect.succeed([]),
+                    searchAnimeMetadata: () =>
+                      Effect.fail(
+                        ExternalCallError.make({
+                          cause: new Error("rate limited"),
+                          message: "AniList search failed",
+                          operation: "anilist.search.response",
+                        }),
+                      ),
+                  }),
+                ),
+                Layer.succeed(
+                  ManamiClient,
+                  ManamiClient.make({
+                    getByAniListId: () => Effect.succeed(Option.none()),
+                    getByMalId: () => Effect.succeed(Option.none()),
+                    resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
+                    resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
+                    searchAnime: () =>
+                      Effect.succeed([
+                        {
+                          already_in_library: false,
+                          id: brandMediaId(1001),
+                          synonyms: ["Alpha Alias"],
+                          title: { english: "Alpha", romaji: "Alpha" },
+                        },
+                      ]),
+                  }),
+                ),
                 Layer.succeed(
                   ClockService,
                   ClockService.make({
@@ -333,10 +378,13 @@ describe("AnimeQueryService.searchAnime", () => {
                     ),
                   }),
                 ),
-                Layer.succeed(Database, {
-                  client,
-                  db,
-                }),
+                Layer.succeed(
+                  Database,
+                  Database.make({
+                    client,
+                    db,
+                  }),
+                ),
                 Layer.succeed(MediaReadRepository, makeMediaReadRepository(db)),
               ),
             ),

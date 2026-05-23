@@ -102,7 +102,7 @@ function browseEffect(fs: FileSystemShape, input: { readonly path?: string }) {
       LibraryBrowseServiceLive.pipe(
         Layer.provide(
           Layer.mergeAll(
-            Layer.succeed(FileSystem, fs),
+            Layer.succeed(FileSystem, FileSystem.make(fs)),
             Layer.succeed(
               RuntimeConfigSnapshotService,
               makeRuntimeConfigSnapshotStub(

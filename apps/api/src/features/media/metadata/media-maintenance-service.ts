@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { Context, Effect, Layer, Option } from "effect";
+import { Effect, Option } from "effect";
 import { brandMediaId } from "@packages/shared/index.ts";
 
 import { Database, type DatabaseError } from "@/db/database.ts";
@@ -28,11 +28,6 @@ export interface AnimeMaintenanceServiceShape {
     DatabaseError | ExternalCallError | MediaServiceError
   >;
 }
-
-export class AnimeMaintenanceService extends Context.Tag("@bakarr/api/AnimeMaintenanceService")<
-  AnimeMaintenanceService,
-  AnimeMaintenanceServiceShape
->() {}
 
 const makeAnimeMaintenanceService = Effect.fn("AnimeMaintenanceService.make")(function* () {
   const { db } = yield* Database;
@@ -101,14 +96,18 @@ const makeAnimeMaintenanceService = Effect.fn("AnimeMaintenanceService.make")(fu
     return result;
   });
 
-  return AnimeMaintenanceService.of({
+  return {
     deleteMedia,
     refreshEpisodes,
     refreshMetadataForMonitoredAnime,
-  });
+  } satisfies AnimeMaintenanceServiceShape;
 });
 
-export const AnimeMaintenanceServiceLive = Layer.effect(
-  AnimeMaintenanceService,
-  makeAnimeMaintenanceService(),
-);
+export class AnimeMaintenanceService extends Effect.Service<AnimeMaintenanceService>()(
+  "@bakarr/api/AnimeMaintenanceService",
+  {
+    effect: makeAnimeMaintenanceService(),
+  },
+) {}
+
+export const AnimeMaintenanceServiceLive = AnimeMaintenanceService.Default;

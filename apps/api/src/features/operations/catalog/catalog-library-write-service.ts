@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from "effect";
+import { Effect } from "effect";
 
 import type { ImportResult, RenameResult } from "@packages/shared/index.ts";
 import { Database, type DatabaseError } from "@/db/database.ts";
@@ -28,52 +28,52 @@ export interface CatalogLibraryWriteServiceShape {
   >;
 }
 
-export class CatalogLibraryWriteService extends Context.Tag(
+export class CatalogLibraryWriteService extends Effect.Service<CatalogLibraryWriteService>()(
   "@bakarr/api/CatalogLibraryWriteService",
-)<CatalogLibraryWriteService, CatalogLibraryWriteServiceShape>() {}
+  {
+    effect: Effect.gen(function* () {
+      const { db } = yield* Database;
+      const eventBus = yield* EventBus;
+      const fs = yield* FileSystem;
+      const mediaReadRepository = yield* MediaReadRepository;
+      const mediaProbe = yield* MediaProbe;
+      const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
 
-export const CatalogLibraryWriteServiceLive = Layer.effect(
-  CatalogLibraryWriteService,
-  Effect.gen(function* () {
-    const { db } = yield* Database;
-    const eventBus = yield* EventBus;
-    const fs = yield* FileSystem;
-    const mediaReadRepository = yield* MediaReadRepository;
-    const mediaProbe = yield* MediaProbe;
-    const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
-
-    const importFiles = Effect.fn("OperationsService.importFiles")(function* (
-      files: readonly LibraryImportFileInput[],
-    ) {
-      const runtimeConfig = yield* runtimeConfigSnapshot.getRuntimeConfig();
-      return yield* importLibraryFiles({
-        db,
-        eventBus,
-        files,
-        fs,
-        mediaReadRepository,
-        mediaProbe,
-        runtimeConfig,
-        tryDatabasePromise,
+      const importFiles = Effect.fn("OperationsService.importFiles")(function* (
+        files: readonly LibraryImportFileInput[],
+      ) {
+        const runtimeConfig = yield* runtimeConfigSnapshot.getRuntimeConfig();
+        return yield* importLibraryFiles({
+          db,
+          eventBus,
+          files,
+          fs,
+          mediaReadRepository,
+          mediaProbe,
+          runtimeConfig,
+          tryDatabasePromise,
+        });
       });
-    });
 
-    const renameFiles = Effect.fn("OperationsService.renameFiles")(function* (mediaId: number) {
-      const runtimeConfig = yield* runtimeConfigSnapshot.getRuntimeConfig();
-      return yield* renameLibraryFiles({
-        mediaId,
-        db,
-        eventBus,
-        fs,
-        mediaReadRepository,
-        runtimeConfig,
-        tryDatabasePromise,
+      const renameFiles = Effect.fn("OperationsService.renameFiles")(function* (mediaId: number) {
+        const runtimeConfig = yield* runtimeConfigSnapshot.getRuntimeConfig();
+        return yield* renameLibraryFiles({
+          mediaId,
+          db,
+          eventBus,
+          fs,
+          mediaReadRepository,
+          runtimeConfig,
+          tryDatabasePromise,
+        });
       });
-    });
 
-    return CatalogLibraryWriteService.of({
-      importFiles,
-      renameFiles,
-    });
-  }),
-);
+      return {
+        importFiles,
+        renameFiles,
+      } satisfies CatalogLibraryWriteServiceShape;
+    }),
+  },
+) {}
+
+export const CatalogLibraryWriteServiceLive = CatalogLibraryWriteService.Default;

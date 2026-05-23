@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from "effect";
+import { Effect } from "effect";
 import { desc, eq } from "drizzle-orm";
 import type { RssFeed } from "@packages/shared/index.ts";
 
@@ -23,97 +23,96 @@ export interface CatalogRssServiceShape {
   readonly toggleRssFeed: (id: number, enabled: boolean) => Effect.Effect<void, DatabaseError>;
 }
 
-export class CatalogRssService extends Context.Tag("@bakarr/api/CatalogRssService")<
-  CatalogRssService,
-  CatalogRssServiceShape
->() {}
+export class CatalogRssService extends Effect.Service<CatalogRssService>()(
+  "@bakarr/api/CatalogRssService",
+  {
+    effect: Effect.gen(function* () {
+      const { db } = yield* Database;
+      const mediaReadRepository = yield* MediaReadRepository;
+      const clock = yield* ClockService;
+      const nowIso = () => nowIsoFromClock(clock);
 
-export const CatalogRssServiceLive = Layer.effect(
-  CatalogRssService,
-  Effect.gen(function* () {
-    const { db } = yield* Database;
-    const mediaReadRepository = yield* MediaReadRepository;
-    const clock = yield* ClockService;
-    const nowIso = () => nowIsoFromClock(clock);
+      const listRssFeeds = Effect.fn("OperationsService.listRssFeeds")(function* () {
+        const rows = yield* tryDatabasePromise("Failed to list RSS feeds", () =>
+          db.select().from(rssFeeds).orderBy(desc(rssFeeds.id)),
+        );
 
-    const listRssFeeds = Effect.fn("OperationsService.listRssFeeds")(function* () {
-      const rows = yield* tryDatabasePromise("Failed to list RSS feeds", () =>
-        db.select().from(rssFeeds).orderBy(desc(rssFeeds.id)),
-      );
+        return rows.map(toRssFeed);
+      });
 
-      return rows.map(toRssFeed);
-    });
+      const listAnimeRssFeeds = Effect.fn("OperationsService.listAnimeRssFeeds")(function* (
+        mediaId: number,
+      ) {
+        const rows = yield* tryDatabasePromise("Failed to list media RSS feeds", () =>
+          db.select().from(rssFeeds).where(eq(rssFeeds.mediaId, mediaId)),
+        );
 
-    const listAnimeRssFeeds = Effect.fn("OperationsService.listAnimeRssFeeds")(function* (
-      mediaId: number,
-    ) {
-      const rows = yield* tryDatabasePromise("Failed to list media RSS feeds", () =>
-        db.select().from(rssFeeds).where(eq(rssFeeds.mediaId, mediaId)),
-      );
+        return rows.map(toRssFeed);
+      });
 
-      return rows.map(toRssFeed);
-    });
+      const addRssFeed = Effect.fn("OperationsService.addRssFeed")(function* (rssInput: {
+        media_id: number;
+        url: string;
+        name?: string;
+      }) {
+        yield* mediaReadRepository.getAnimeRow(rssInput.media_id);
+        const now = yield* nowIso();
+        const [row] = yield* tryDatabasePromise("Failed to add RSS feed", () =>
+          db
+            .insert(rssFeeds)
+            .values({
+              mediaId: rssInput.media_id,
+              createdAt: now,
+              enabled: true,
+              lastChecked: null,
+              name: rssInput.name ?? null,
+              url: rssInput.url,
+            })
+            .returning(),
+        );
 
-    const addRssFeed = Effect.fn("OperationsService.addRssFeed")(function* (rssInput: {
-      media_id: number;
-      url: string;
-      name?: string;
-    }) {
-      yield* mediaReadRepository.getAnimeRow(rssInput.media_id);
-      const now = yield* nowIso();
-      const [row] = yield* tryDatabasePromise("Failed to add RSS feed", () =>
-        db
-          .insert(rssFeeds)
-          .values({
-            mediaId: rssInput.media_id,
-            createdAt: now,
-            enabled: true,
-            lastChecked: null,
-            name: rssInput.name ?? null,
-            url: rssInput.url,
-          })
-          .returning(),
-      );
+        if (!row) {
+          return yield* new DatabaseError({
+            cause: new Error("RSS feed insert returned no rows"),
+            message: "Failed to add RSS feed",
+          });
+        }
 
-      if (!row) {
-        return yield* new DatabaseError({
-          cause: new Error("RSS feed insert returned no rows"),
-          message: "Failed to add RSS feed",
-        });
-      }
+        yield* appendLog(
+          db,
+          "rss.created",
+          "success",
+          `RSS feed added for media ${rssInput.media_id}`,
+          nowIso,
+        );
 
-      yield* appendLog(
-        db,
-        "rss.created",
-        "success",
-        `RSS feed added for media ${rssInput.media_id}`,
-        nowIso,
-      );
+        return toRssFeed(row);
+      });
 
-      return toRssFeed(row);
-    });
+      const deleteRssFeed = Effect.fn("OperationsService.deleteRssFeed")(function* (id: number) {
+        yield* tryDatabasePromise("Failed to delete RSS feed", () =>
+          db.delete(rssFeeds).where(eq(rssFeeds.id, id)),
+        );
+      });
 
-    const deleteRssFeed = Effect.fn("OperationsService.deleteRssFeed")(function* (id: number) {
-      yield* tryDatabasePromise("Failed to delete RSS feed", () =>
-        db.delete(rssFeeds).where(eq(rssFeeds.id, id)),
-      );
-    });
+      const toggleRssFeed = Effect.fn("OperationsService.toggleRssFeed")(function* (
+        id: number,
+        enabled: boolean,
+      ) {
+        yield* tryDatabasePromise("Failed to toggle RSS feed", () =>
+          db.update(rssFeeds).set({ enabled }).where(eq(rssFeeds.id, id)),
+        );
+      });
 
-    const toggleRssFeed = Effect.fn("OperationsService.toggleRssFeed")(function* (
-      id: number,
-      enabled: boolean,
-    ) {
-      yield* tryDatabasePromise("Failed to toggle RSS feed", () =>
-        db.update(rssFeeds).set({ enabled }).where(eq(rssFeeds.id, id)),
-      );
-    });
+      return {
+        addRssFeed,
+        deleteRssFeed,
+        listAnimeRssFeeds,
+        listRssFeeds,
+        toggleRssFeed,
+      } satisfies CatalogRssServiceShape;
+    }),
+  },
+) {}
 
-    return CatalogRssService.of({
-      addRssFeed,
-      deleteRssFeed,
-      listAnimeRssFeeds,
-      listRssFeeds,
-      toggleRssFeed,
-    });
-  }),
-);
+export const CatalogRssServiceLive = CatalogRssService.Default;

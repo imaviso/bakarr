@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from "effect";
+import { Effect } from "effect";
 
 import type { DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
@@ -43,46 +43,46 @@ export interface DownloadReconciliationServiceShape {
   >;
 }
 
-export class DownloadReconciliationService extends Context.Tag(
+export class DownloadReconciliationService extends Effect.Service<DownloadReconciliationService>()(
   "@bakarr/api/DownloadReconciliationService",
-)<DownloadReconciliationService, DownloadReconciliationServiceShape>() {}
+  {
+    effect: Effect.gen(function* () {
+      const repo = yield* DownloadReconciliationRepository;
+      const eventBus = yield* EventBus;
+      const fs = yield* FileSystem;
+      const mediaProbe = yield* MediaProbe;
+      const mediaReadRepository = yield* MediaReadRepository;
+      const torrentClientService = yield* TorrentClientService;
+      const clock = yield* ClockService;
+      const random = yield* RandomService;
+      const runtimeConfigSnapshotService = yield* RuntimeConfigSnapshotService;
+      const nowIso = () => nowIsoFromClock(clock);
+      const randomUuid = () => random.randomUuid;
 
-export const DownloadReconciliationServiceLive = Layer.effect(
-  DownloadReconciliationService,
-  Effect.gen(function* () {
-    const repo = yield* DownloadReconciliationRepository;
-    const eventBus = yield* EventBus;
-    const fs = yield* FileSystem;
-    const mediaProbe = yield* MediaProbe;
-    const mediaReadRepository = yield* MediaReadRepository;
-    const torrentClientService = yield* TorrentClientService;
-    const clock = yield* ClockService;
-    const random = yield* RandomService;
-    const runtimeConfigSnapshotService = yield* RuntimeConfigSnapshotService;
-    const nowIso = () => nowIsoFromClock(clock);
-    const randomUuid = () => random.randomUuid;
-
-    const { reconcileCompletedTorrentEffect, maybeCleanupImportedTorrent } =
-      makeDownloadCompletedTorrentReconciliation(
+      const { reconcileCompletedTorrentEffect, maybeCleanupImportedTorrent } =
+        makeDownloadCompletedTorrentReconciliation(
+          repo,
+          fs,
+          mediaProbe,
+          mediaReadRepository,
+          torrentClientService,
+          eventBus,
+          nowIso,
+          randomUuid,
+          runtimeConfigSnapshotService.getRuntimeConfig,
+        );
+      const reconcileDownloadByIdEffect = makeReconcileDownloadByIdEffect({
         repo,
-        fs,
-        mediaProbe,
-        mediaReadRepository,
-        torrentClientService,
-        eventBus,
-        nowIso,
-        randomUuid,
-        runtimeConfigSnapshotService.getRuntimeConfig,
-      );
-    const reconcileDownloadByIdEffect = makeReconcileDownloadByIdEffect({
-      repo,
-      reconcileCompletedTorrentEffect,
-    });
+        reconcileCompletedTorrentEffect,
+      });
 
-    return DownloadReconciliationService.of({
-      maybeCleanupImportedTorrent,
-      reconcileCompletedTorrentEffect,
-      reconcileDownloadByIdEffect,
-    });
-  }),
-);
+      return {
+        maybeCleanupImportedTorrent,
+        reconcileCompletedTorrentEffect,
+        reconcileDownloadByIdEffect,
+      } satisfies DownloadReconciliationServiceShape;
+    }),
+  },
+) {}
+
+export const DownloadReconciliationServiceLive = DownloadReconciliationService.Default;

@@ -11,7 +11,6 @@ import {
   RssTransport,
   RssTransportPayloadTooLargeError,
   RssTransportError,
-  type RssTransportShape,
 } from "@/features/operations/rss/rss-transport.ts";
 import {
   RssFeedParseError,
@@ -22,13 +21,16 @@ import {
 const ExternalCallTestLayer = ExternalCallLive.pipe(Layer.provide(ClockService.Default));
 
 function makeDnsLayer(mock: (name: string, type: "A" | "AAAA") => Promise<string[]>) {
-  return Layer.succeed(DnsResolver, {
-    resolve: (hostname, recordType) =>
-      Effect.tryPromise({
-        try: () => mock(hostname, recordType),
-        catch: (cause) => new DnsLookupError({ cause, hostname, recordType }),
-      }),
-  });
+  return Layer.succeed(
+    DnsResolver,
+    DnsResolver.make({
+      resolve: (hostname, recordType) =>
+        Effect.tryPromise({
+          try: () => mock(hostname, recordType),
+          catch: (cause) => new DnsLookupError({ cause, hostname, recordType }),
+        }),
+    }),
+  );
 }
 
 function makeNotFoundError() {
@@ -42,7 +44,7 @@ function rssLayer(
   execute: (url: string) => Effect.Effect<Response, unknown>,
   dnsMock: (name: string, type: "A" | "AAAA") => Promise<string[]>,
 ) {
-  const transport: RssTransportShape = {
+  const transport = RssTransport.make({
     execute: (target) =>
       execute(target.parsedUrl.href).pipe(
         Effect.mapError((cause) =>
@@ -70,7 +72,7 @@ function rssLayer(
           ),
         ),
       ),
-  };
+  });
 
   return RssClientLive.pipe(
     Layer.provide(
@@ -676,24 +678,27 @@ it.scoped("RssClient handles redirects manually when the transport returns 302 r
                 Layer.mergeAll(
                   ClockService.Default,
                   ExternalCallTestLayer,
-                  Layer.succeed(RssTransport, {
-                    execute: (target) => {
-                      calls.push(target.parsedUrl.href);
+                  Layer.succeed(
+                    RssTransport,
+                    RssTransport.make({
+                      execute: (target) => {
+                        calls.push(target.parsedUrl.href);
 
-                      return Effect.succeed({
-                        body: new Uint8Array(),
-                        headers: new Headers(
-                          target.parsedUrl.href.includes("feeds.example")
-                            ? {
-                                "content-type": "application/rss+xml",
-                                location: "http://192.168.1.100/private.xml",
-                              }
-                            : { "content-type": "application/rss+xml" },
-                        ),
-                        status: target.parsedUrl.href.includes("feeds.example") ? 302 : 200,
-                      });
-                    },
-                  }),
+                        return Effect.succeed({
+                          body: new Uint8Array(),
+                          headers: new Headers(
+                            target.parsedUrl.href.includes("feeds.example")
+                              ? {
+                                  "content-type": "application/rss+xml",
+                                  location: "http://192.168.1.100/private.xml",
+                                }
+                              : { "content-type": "application/rss+xml" },
+                          ),
+                          status: target.parsedUrl.href.includes("feeds.example") ? 302 : 200,
+                        });
+                      },
+                    }),
+                  ),
                   makeDnsLayer(() => Promise.resolve(["93.184.216.34"])),
                 ),
               ),

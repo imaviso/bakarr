@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Scope } from "effect";
+import { Effect, Scope } from "effect";
 
 import { EventBus } from "@/features/events/event-bus.ts";
 import { makeOperationsProgressPublishers } from "@/features/operations/tasks/operations-progress-publishers.ts";
@@ -19,21 +19,20 @@ export interface OperationsProgressShape {
   }) => Effect.Effect<void>;
 }
 
-export class OperationsProgress extends Context.Tag("@bakarr/api/OperationsProgress")<
-  OperationsProgress,
-  OperationsProgressShape
->() {}
+export class OperationsProgress extends Effect.Service<OperationsProgress>()(
+  "@bakarr/api/OperationsProgress",
+  {
+    scoped: Effect.gen(function* () {
+      yield* Scope.Scope;
+      const eventBus = yield* EventBus;
+      const downloadProgressSupport = yield* DownloadProgressSupport;
 
-export const ProgressLive = Layer.scoped(
-  OperationsProgress,
-  Effect.gen(function* () {
-    yield* Scope.Scope;
-    const eventBus = yield* EventBus;
-    const downloadProgressSupport = yield* DownloadProgressSupport;
+      return yield* makeOperationsProgressPublishers({
+        eventBus,
+        publishDownloadProgressEffect: downloadProgressSupport.publishDownloadProgress(),
+      });
+    }),
+  },
+) {}
 
-    return yield* makeOperationsProgressPublishers({
-      eventBus,
-      publishDownloadProgressEffect: downloadProgressSupport.publishDownloadProgress(),
-    });
-  }),
-);
+export const ProgressLive = OperationsProgress.Default;

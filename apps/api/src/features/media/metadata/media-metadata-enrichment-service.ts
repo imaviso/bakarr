@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { Cause, Context, Effect, Layer, Option, Queue, Ref } from "effect";
+import { Cause, Effect, Option, Queue, Ref } from "effect";
 
 import { Database, type DatabaseError } from "@/db/database.ts";
 import { media } from "@/db/schema.ts";
@@ -46,13 +46,8 @@ export interface AnimeMetadataEnrichmentServiceShape {
   readonly requestAniDbRefresh: (request: AniDbRefreshRequest) => Effect.Effect<void>;
 }
 
-export class AnimeMetadataEnrichmentService extends Context.Tag(
-  "@bakarr/api/AnimeMetadataEnrichmentService",
-)<AnimeMetadataEnrichmentService, AnimeMetadataEnrichmentServiceShape>() {}
-
-export const AnimeMetadataEnrichmentServiceLive = Layer.scoped(
-  AnimeMetadataEnrichmentService,
-  Effect.gen(function* () {
+const makeAnimeMetadataEnrichmentService = Effect.fn("AnimeMetadataEnrichmentService.make")(
+  function* () {
     const { db } = yield* Database;
     const aniDb = yield* AniDbClient;
     const clock = yield* ClockService;
@@ -194,9 +189,18 @@ export const AnimeMetadataEnrichmentServiceLive = Layer.scoped(
       },
     );
 
-    return AnimeMetadataEnrichmentService.of({
+    return {
       getAniDbCacheState,
       requestAniDbRefresh,
-    });
-  }),
+    } satisfies AnimeMetadataEnrichmentServiceShape;
+  },
 );
+
+export class AnimeMetadataEnrichmentService extends Effect.Service<AnimeMetadataEnrichmentService>()(
+  "@bakarr/api/AnimeMetadataEnrichmentService",
+  {
+    scoped: makeAnimeMetadataEnrichmentService(),
+  },
+) {}
+
+export const AnimeMetadataEnrichmentServiceLive = AnimeMetadataEnrichmentService.Default;

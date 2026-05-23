@@ -1,5 +1,5 @@
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
-import { Context, Effect, Layer, Option, Schema } from "effect";
+import { Effect, Option, Schema } from "effect";
 import type { MediaSeason } from "@packages/shared/index.ts";
 
 import {
@@ -30,79 +30,77 @@ interface JikanClientShape {
   }) => Effect.Effect<ReadonlyArray<JikanNormalizedSeasonalEntry>, ExternalCallError>;
 }
 
-export class JikanClient extends Context.Tag("@bakarr/api/JikanClient")<
-  JikanClient,
-  JikanClientShape
->() {}
+const makeJikanClient = Effect.fn("JikanClient.make")(function* () {
+  const client = yield* HttpClient.HttpClient;
+  const externalCall = yield* ExternalCall;
 
-export const JikanClientLive = Layer.effect(
-  JikanClient,
-  Effect.gen(function* () {
-    const client = yield* HttpClient.HttpClient;
-    const externalCall = yield* ExternalCall;
+  const getAnimeByMalId = Effect.fn("JikanClient.getAnimeByMalId")(function* (malId: number) {
+    const detail = yield* fetchDetail(client, externalCall, malId);
 
-    const getAnimeByMalId = Effect.fn("JikanClient.getAnimeByMalId")(function* (malId: number) {
-      const detail = yield* fetchDetail(client, externalCall, malId);
+    if (Option.isNone(detail)) {
+      return Option.none<JikanNormalizedAnime>();
+    }
 
-      if (Option.isNone(detail)) {
-        return Option.none<JikanNormalizedAnime>();
-      }
+    const recommendations = yield* fetchRecommendations(client, externalCall, malId);
 
-      const recommendations = yield* fetchRecommendations(client, externalCall, malId);
-
-      return Option.some({
-        ...detail.value,
-        recommendations,
-      });
+    return Option.some({
+      ...detail.value,
+      recommendations,
     });
+  });
 
-    const getSeasonalAnime = Effect.fn("JikanClient.getSeasonalAnime")(function* (input: {
-      season: MediaSeason;
-      year: number;
-      limit: number;
-      page?: number;
-    }) {
-      const response = yield* callJikan(
-        client,
-        externalCall,
-        `/seasons/${input.year}/${input.season}?limit=${input.limit}&page=${input.page ?? 1}`,
-        "jikan.seasonal",
-      );
+  const getSeasonalAnime = Effect.fn("JikanClient.getSeasonalAnime")(function* (input: {
+    season: MediaSeason;
+    year: number;
+    limit: number;
+    page?: number;
+  }) {
+    const response = yield* callJikan(
+      client,
+      externalCall,
+      `/seasons/${input.year}/${input.season}?limit=${input.limit}&page=${input.page ?? 1}`,
+      "jikan.seasonal",
+    );
 
-      if (Option.isNone(response)) {
-        return [];
-      }
+    if (Option.isNone(response)) {
+      return [];
+    }
 
-      const payload = yield* HttpClientResponse.schemaBodyJson(JikanSeasonalPayloadSchema)(
-        response.value,
-      ).pipe(
+    const payload = yield* HttpClientResponse.schemaBodyJson(JikanSeasonalPayloadSchema)(
+      response.value,
+    ).pipe(
+      Effect.mapError((cause) =>
+        ExternalCallError.make({
+          cause,
+          message: "Jikan seasonal response decode failed",
+          operation: "jikan.seasonal.json",
+        }),
+      ),
+    );
+
+    const entries = yield* Effect.forEach(payload.data, (entry) =>
+      Schema.decodeUnknown(JikanSeasonalEntryFromDetailSchema)(entry).pipe(
         Effect.mapError((cause) =>
           ExternalCallError.make({
             cause,
-            message: "Jikan seasonal response decode failed",
-            operation: "jikan.seasonal.json",
+            message: "Jikan seasonal entry normalization failed",
+            operation: "jikan.seasonal.normalize",
           }),
         ),
-      );
+      ),
+    );
 
-      const entries = yield* Effect.forEach(payload.data, (entry) =>
-        Schema.decodeUnknown(JikanSeasonalEntryFromDetailSchema)(entry).pipe(
-          Effect.mapError((cause) =>
-            ExternalCallError.make({
-              cause,
-              message: "Jikan seasonal entry normalization failed",
-              operation: "jikan.seasonal.normalize",
-            }),
-          ),
-        ),
-      );
+    return entries.slice(0, input.limit);
+  });
 
-      return entries.slice(0, input.limit);
-    });
+  return { getAnimeByMalId, getSeasonalAnime } satisfies JikanClientShape;
+});
 
-    return JikanClient.of({ getAnimeByMalId, getSeasonalAnime });
-  }),
-);
+export class JikanClient extends Effect.Service<JikanClient>()("@bakarr/api/JikanClient", {
+  effect: makeJikanClient(),
+}) {}
+
+export const JikanClientLive = JikanClient.Default;
 
 const fetchDetail = Effect.fn("JikanClient.fetchDetail")(function* (
   client: HttpClient.HttpClient,

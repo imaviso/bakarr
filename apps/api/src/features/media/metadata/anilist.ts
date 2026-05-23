@@ -1,5 +1,5 @@
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
-import { Context, Effect, Layer, Option, Schema } from "effect";
+import { Effect, Option, Schema } from "effect";
 
 import type { MediaSearchResult, MediaSeason, MediaKind } from "@packages/shared/index.ts";
 import { ExternalCall, ExternalCallError, type ExternalCallShape } from "@/infra/effect/retry.ts";
@@ -336,53 +336,52 @@ interface AniListClientShape {
   }) => Effect.Effect<MediaSearchResult[], ExternalCallError>;
 }
 
-export class AniListClient extends Context.Tag("@bakarr/api/AniListClient")<
-  AniListClient,
-  AniListClientShape
->() {}
+const makeAniListClient = Effect.fn("AniListClient.make")(function* () {
+  const client = yield* HttpClient.HttpClient;
+  const externalCall = yield* ExternalCall;
 
-export const AniListClientLive = Layer.effect(
-  AniListClient,
-  Effect.gen(function* () {
-    const client = yield* HttpClient.HttpClient;
-    const externalCall = yield* ExternalCall;
+  const searchAnimeMetadata = Effect.fn("AniListClient.searchAnimeMetadata")(function* (
+    query: string,
+    mediaKind: MediaKind = "anime",
+  ) {
+    const trimmed = query.trim();
 
-    const searchAnimeMetadata = Effect.fn("AniListClient.searchAnimeMetadata")(function* (
-      query: string,
-      mediaKind: MediaKind = "anime",
-    ) {
-      const trimmed = query.trim();
+    if (trimmed.length === 0) {
+      return [];
+    }
 
-      if (trimmed.length === 0) {
-        return [];
-      }
+    return yield* trySearchRemote(client, externalCall, trimmed, mediaKind);
+  });
 
-      return yield* trySearchRemote(client, externalCall, trimmed, mediaKind);
-    });
+  const getAnimeMetadataById = Effect.fn("AniListClient.getAnimeMetadataById")(function* (
+    id: number,
+    mediaKind?: MediaKind,
+  ) {
+    return yield* tryFetchDetail(client, externalCall, id, mediaKind);
+  });
 
-    const getAnimeMetadataById = Effect.fn("AniListClient.getAnimeMetadataById")(function* (
-      id: number,
-      mediaKind?: MediaKind,
-    ) {
-      return yield* tryFetchDetail(client, externalCall, id, mediaKind);
-    });
+  const getSeasonalAnime = Effect.fn("AniListClient.getSeasonalAnime")(function* (input: {
+    season: MediaSeason;
+    year: number;
+    limit: number;
+    page?: number;
+  }) {
+    return yield* tryFetchSeasonal(client, externalCall, input);
+  });
 
-    const getSeasonalAnime = Effect.fn("AniListClient.getSeasonalAnime")(function* (input: {
-      season: MediaSeason;
-      year: number;
-      limit: number;
-      page?: number;
-    }) {
-      return yield* tryFetchSeasonal(client, externalCall, input);
-    });
+  const service: AniListClientShape = {
+    getAnimeMetadataById,
+    getSeasonalAnime,
+    searchAnimeMetadata,
+  };
+  return service;
+});
 
-    return {
-      getAnimeMetadataById,
-      getSeasonalAnime,
-      searchAnimeMetadata,
-    } satisfies AniListClientShape;
-  }),
-);
+export class AniListClient extends Effect.Service<AniListClient>()("@bakarr/api/AniListClient", {
+  effect: makeAniListClient(),
+}) {}
+
+export const AniListClientLive = AniListClient.Default;
 
 const callAniList = <A, I>(
   client: HttpClient.HttpClient,

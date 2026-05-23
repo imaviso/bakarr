@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from "effect";
+import { Effect } from "effect";
 
 import type { DatabaseError } from "@/db/database.ts";
 import { FileSystem, isWithinPathRoot } from "@/infra/filesystem/filesystem.ts";
@@ -38,11 +38,6 @@ export interface ImageAssetServiceShape {
     | RuntimeConfigSnapshotError
   >;
 }
-
-export class ImageAssetService extends Context.Tag("@bakarr/api/ImageAssetService")<
-  ImageAssetService,
-  ImageAssetServiceShape
->() {}
 
 const SUPPORTED_IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"] as const;
 const MAX_IMAGE_ASSET_BYTES = 8 * 1024 * 1024;
@@ -157,4 +152,11 @@ const makeImageAssetService = Effect.fn("ImageAssetService.make")(function* () {
   return { resolveImageAsset } satisfies ImageAssetServiceShape;
 });
 
-export const ImageAssetServiceLive = Layer.effect(ImageAssetService, makeImageAssetService());
+export class ImageAssetService extends Effect.Service<ImageAssetService>()(
+  "@bakarr/api/ImageAssetService",
+  {
+    effect: makeImageAssetService(),
+  },
+) {}
+
+export const ImageAssetServiceLive = ImageAssetService.Default;

@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Option } from "effect";
+import { Effect, Option } from "effect";
 
 import { brandMediaId, type MediaSearchResult, type MediaSeason } from "@packages/shared/index.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
@@ -24,10 +24,6 @@ export interface AnimeSeasonalProviderServiceShape {
     page: number;
   }) => Effect.Effect<AnimeSeasonalResult, ExternalCallError>;
 }
-
-export class AnimeSeasonalProviderService extends Context.Tag(
-  "@bakarr/api/AnimeSeasonalProviderService",
-)<AnimeSeasonalProviderService, AnimeSeasonalProviderServiceShape>() {}
 
 function toAnimeSeason(value: string | undefined): MediaSeason | undefined {
   if (value === "winter" || value === "spring" || value === "summer" || value === "fall") {
@@ -70,9 +66,8 @@ function shouldFallbackToJikan(error: ExternalCallError) {
   return error.operation === "anilist.seasonal" || error.operation === "anilist.seasonal.response";
 }
 
-export const AnimeSeasonalProviderServiceLive = Layer.effect(
-  AnimeSeasonalProviderService,
-  Effect.gen(function* () {
+const makeAnimeSeasonalProviderService = Effect.fn("AnimeSeasonalProviderService.make")(
+  function* () {
     const aniList = yield* AniListClient;
     const jikan = yield* JikanClient;
     const manami = yield* ManamiClient;
@@ -156,6 +151,15 @@ export const AnimeSeasonalProviderServiceLive = Layer.effect(
       },
     );
 
-    return AnimeSeasonalProviderService.of({ getSeasonalAnime });
-  }),
+    return { getSeasonalAnime } satisfies AnimeSeasonalProviderServiceShape;
+  },
 );
+
+export class AnimeSeasonalProviderService extends Effect.Service<AnimeSeasonalProviderService>()(
+  "@bakarr/api/AnimeSeasonalProviderService",
+  {
+    effect: makeAnimeSeasonalProviderService(),
+  },
+) {}
+
+export const AnimeSeasonalProviderServiceLive = AnimeSeasonalProviderService.Default;

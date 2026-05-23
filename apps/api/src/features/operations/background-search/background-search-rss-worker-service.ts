@@ -1,4 +1,4 @@
-import { Cause, Context, Effect, Layer } from "effect";
+import { Cause, Effect } from "effect";
 
 import { Database } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
@@ -21,10 +21,6 @@ export type BackgroundSearchRssWorkerError = DatabaseError | ExternalCallError |
 export interface BackgroundSearchRssWorkerServiceShape {
   readonly runRssWorker: () => Effect.Effect<void, BackgroundSearchRssWorkerError>;
 }
-
-export class BackgroundSearchRssWorkerService extends Context.Tag(
-  "@bakarr/api/BackgroundSearchRssWorkerService",
-)<BackgroundSearchRssWorkerService, BackgroundSearchRssWorkerServiceShape>() {}
 
 export function makeBackgroundSearchRssWorkerService(input: {
   readonly db: typeof Database.Service.db;
@@ -71,26 +67,30 @@ export function makeBackgroundSearchRssWorkerService(input: {
     }).pipe(Effect.catchAllCause(markFailureAndRethrowCause));
   });
 
-  return BackgroundSearchRssWorkerService.of({ runRssWorker });
+  return { runRssWorker } satisfies BackgroundSearchRssWorkerServiceShape;
 }
 
-export const BackgroundSearchRssWorkerServiceLive = Layer.effect(
-  BackgroundSearchRssWorkerService,
-  Effect.gen(function* () {
-    const { db } = yield* Database;
-    const eventBus = yield* EventBus;
-    const progress = yield* OperationsProgress;
-    const clock = yield* ClockService;
-    const rssService = yield* SearchBackgroundRssService;
-    const missingService = yield* SearchBackgroundMissingService;
+export class BackgroundSearchRssWorkerService extends Effect.Service<BackgroundSearchRssWorkerService>()(
+  "@bakarr/api/BackgroundSearchRssWorkerService",
+  {
+    effect: Effect.gen(function* () {
+      const { db } = yield* Database;
+      const eventBus = yield* EventBus;
+      const progress = yield* OperationsProgress;
+      const clock = yield* ClockService;
+      const rssService = yield* SearchBackgroundRssService;
+      const missingService = yield* SearchBackgroundMissingService;
 
-    return makeBackgroundSearchRssWorkerService({
-      db,
-      eventBus,
-      missingService,
-      nowIso: () => nowIsoFromClock(clock),
-      progress,
-      rssService,
-    });
-  }),
-);
+      return makeBackgroundSearchRssWorkerService({
+        db,
+        eventBus,
+        missingService,
+        nowIso: () => nowIsoFromClock(clock),
+        progress,
+        rssService,
+      });
+    }),
+  },
+) {}
+
+export const BackgroundSearchRssWorkerServiceLive = BackgroundSearchRssWorkerService.Default;

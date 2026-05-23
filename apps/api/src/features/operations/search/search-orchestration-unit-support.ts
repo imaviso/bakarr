@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Option } from "effect";
+import { Effect, Option } from "effect";
 
 import type { Config, UnitSearchResult } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
@@ -100,26 +100,25 @@ export function makeSearchUnitSupport(input: SearchUnitSupportInput) {
   } satisfies SearchUnitServiceShape;
 }
 
-export class SearchUnitService extends Context.Tag("@bakarr/api/SearchUnitService")<
-  SearchUnitService,
-  SearchUnitServiceShape
->() {}
+export class SearchUnitService extends Effect.Service<SearchUnitService>()(
+  "@bakarr/api/SearchUnitService",
+  {
+    effect: Effect.gen(function* () {
+      const { db } = yield* Database;
+      const mediaReadRepository = yield* MediaReadRepository;
+      const profileRepository = yield* OperationsProfileRepository;
+      const searchReleaseService = yield* SearchReleaseService;
+      const runtimeConfigSnapshotService = yield* RuntimeConfigSnapshotService;
 
-export const SearchUnitServiceLive = Layer.effect(
-  SearchUnitService,
-  Effect.gen(function* () {
-    const { db } = yield* Database;
-    const mediaReadRepository = yield* MediaReadRepository;
-    const profileRepository = yield* OperationsProfileRepository;
-    const searchReleaseService = yield* SearchReleaseService;
-    const runtimeConfigSnapshotService = yield* RuntimeConfigSnapshotService;
+      return makeSearchUnitSupport({
+        db,
+        getRuntimeConfig: runtimeConfigSnapshotService.getRuntimeConfig,
+        mediaReadRepository,
+        profileRepository,
+        searchUnitReleases: searchReleaseService.searchUnitReleases,
+      });
+    }),
+  },
+) {}
 
-    return makeSearchUnitSupport({
-      db,
-      getRuntimeConfig: runtimeConfigSnapshotService.getRuntimeConfig,
-      mediaReadRepository,
-      profileRepository,
-      searchUnitReleases: searchReleaseService.searchUnitReleases,
-    });
-  }),
-);
+export const SearchUnitServiceLive = SearchUnitService.Default;

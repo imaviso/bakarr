@@ -1,7 +1,9 @@
 import { Effect, Exit, Layer } from "effect";
 import * as SqlClient from "@effect/sql/SqlClient";
+import * as SqliteDrizzle from "@effect/sql-drizzle/Sqlite";
 
 import { Database, setAndVerifyPragmas } from "@/db/database.ts";
+import * as schema from "@/db/schema.ts";
 import { migrateDatabase } from "@/db/migrate.ts";
 import { withFileSystemSandboxEffect } from "@/test/filesystem-test.ts";
 import { withSqliteRawClientEffect } from "@/test/database-test.ts";
@@ -16,12 +18,16 @@ it.scoped("migrateDatabase applies embedded migrations idempotently", () =>
           databaseFile,
           run: (client) =>
             Effect.gen(function* () {
-              const databaseLayer = Layer.succeed(Database, {
-                client,
-                get db(): never {
-                  throw new Error("migrateDatabase should not access drizzle db");
-                },
-              });
+              const db = yield* SqliteDrizzle.make<typeof schema>({ schema }).pipe(
+                Effect.provideService(SqlClient.SqlClient, client),
+              );
+              const databaseLayer = Layer.succeed(
+                Database,
+                Database.make({
+                  client,
+                  db,
+                }),
+              );
 
               const first = yield* Effect.exit(
                 migrateDatabase().pipe(

@@ -1,6 +1,6 @@
 import { type Socket } from "node:dgram";
 
-import { Context, Effect, Layer, Option, Ref, Scope } from "effect";
+import { Effect, Option, Ref, Scope } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 import { type DatabaseError } from "@/db/database.ts";
@@ -39,11 +39,6 @@ interface AniDbClientShape {
     input: AniDbEpisodeLookupInput,
   ) => Effect.Effect<AniDbEpisodeLookupResult, ExternalCallError | AniDbRuntimeConfigError>;
 }
-
-export class AniDbClient extends Context.Tag("@bakarr/api/AniDbClient")<
-  AniDbClient,
-  AniDbClientShape
->() {}
 
 interface AniDbSessionState {
   readonly configKey: string;
@@ -89,156 +84,159 @@ export function normalizeEpisodeCount(unitCount: number | undefined, episodeLimi
   return Math.min(normalized, episodeLimit);
 }
 
-export const AniDbClientLive = Layer.scoped(
-  AniDbClient,
-  Effect.gen(function* () {
-    yield* Scope.Scope;
-    const clock = yield* ClockService;
-    const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
-    const requestSemaphore = yield* Effect.makeSemaphore(1);
-    const lastPacketAtRef = yield* Ref.make(0);
-    const sessionRef = yield* Ref.make(Option.none<AniDbSessionState>());
+const makeAniDbClient = Effect.fn("AniDbClient.make")(function* () {
+  yield* Scope.Scope;
+  const clock = yield* ClockService;
+  const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
+  const requestSemaphore = yield* Effect.makeSemaphore(1);
+  const lastPacketAtRef = yield* Ref.make(0);
+  const sessionRef = yield* Ref.make(Option.none<AniDbSessionState>());
 
-    const closeSession = Effect.fn("AniDbClient.closeSession")(function* () {
-      const current = yield* Ref.getAndSet(sessionRef, Option.none<AniDbSessionState>());
+  const closeSession = Effect.fn("AniDbClient.closeSession")(function* () {
+    const current = yield* Ref.getAndSet(sessionRef, Option.none<AniDbSessionState>());
 
-      if (Option.isNone(current)) {
-        return;
-      }
+    if (Option.isNone(current)) {
+      return;
+    }
 
-      const session = current.value;
+    const session = current.value;
 
-      yield* logoutAniDbEffect(session.socket, session.sessionToken, clock, lastPacketAtRef).pipe(
-        Effect.timeout(ANIDB_CLOSE_SESSION_TIMEOUT),
-        Effect.catchTag("ExternalCallError", () => Effect.void),
-        Effect.catchTag("TimeoutException", () => Effect.void),
-      );
-      yield* closeAniDbSocketEffect(session.socket);
-    });
+    yield* logoutAniDbEffect(session.socket, session.sessionToken, clock, lastPacketAtRef).pipe(
+      Effect.timeout(ANIDB_CLOSE_SESSION_TIMEOUT),
+      Effect.catchTag("ExternalCallError", () => Effect.void),
+      Effect.catchTag("TimeoutException", () => Effect.void),
+    );
+    yield* closeAniDbSocketEffect(session.socket);
+  });
 
-    const createSession = Effect.fn("AniDbClient.createSession")(function* (config: {
-      readonly client: string;
-      readonly clientVersion: number;
-      readonly localPort: number;
-      readonly password: string;
-      readonly username: string;
-    }) {
-      const socket = yield* openAniDbSocketEffect(config.localPort);
+  const createSession = Effect.fn("AniDbClient.createSession")(function* (config: {
+    readonly client: string;
+    readonly clientVersion: number;
+    readonly localPort: number;
+    readonly password: string;
+    readonly username: string;
+  }) {
+    const socket = yield* openAniDbSocketEffect(config.localPort);
 
-      const sessionToken = yield* authenticateAniDbEffect(
-        socket,
-        config.username,
-        config.password,
-        config.client,
-        config.clientVersion,
-        clock,
-        lastPacketAtRef,
-      ).pipe(
-        Effect.catchTag("ExternalCallError", (error) =>
-          closeAniDbSocketEffect(socket).pipe(Effect.zipRight(Effect.fail(error))),
-        ),
-      );
+    const sessionToken = yield* authenticateAniDbEffect(
+      socket,
+      config.username,
+      config.password,
+      config.client,
+      config.clientVersion,
+      clock,
+      lastPacketAtRef,
+    ).pipe(
+      Effect.catchTag("ExternalCallError", (error) =>
+        closeAniDbSocketEffect(socket).pipe(Effect.zipRight(Effect.fail(error))),
+      ),
+    );
 
-      return {
-        configKey: toAniDbSessionConfigKey(config),
-        sessionToken,
-        socket,
-      } satisfies AniDbSessionState;
-    });
+    return {
+      configKey: toAniDbSessionConfigKey(config),
+      sessionToken,
+      socket,
+    } satisfies AniDbSessionState;
+  });
 
-    const ensureSession = Effect.fn("AniDbClient.ensureSession")(function* (config: {
-      readonly client: string;
-      readonly clientVersion: number;
-      readonly localPort: number;
-      readonly password: string;
-      readonly username: string;
-    }) {
-      const configKey = toAniDbSessionConfigKey(config);
-      const current = yield* Ref.get(sessionRef);
+  const ensureSession = Effect.fn("AniDbClient.ensureSession")(function* (config: {
+    readonly client: string;
+    readonly clientVersion: number;
+    readonly localPort: number;
+    readonly password: string;
+    readonly username: string;
+  }) {
+    const configKey = toAniDbSessionConfigKey(config);
+    const current = yield* Ref.get(sessionRef);
 
-      if (Option.isSome(current) && current.value.configKey === configKey) {
-        return current.value;
-      }
+    if (Option.isSome(current) && current.value.configKey === configKey) {
+      return current.value;
+    }
 
-      if (Option.isSome(current)) {
-        yield* closeSession();
-      }
+    if (Option.isSome(current)) {
+      yield* closeSession();
+    }
 
-      const session = yield* createSession(config);
-      yield* Ref.set(sessionRef, Option.some(session));
-      return session;
-    });
+    const session = yield* createSession(config);
+    yield* Ref.set(sessionRef, Option.some(session));
+    return session;
+  });
 
-    yield* Effect.addFinalizer(closeSession);
+  yield* Effect.addFinalizer(closeSession);
 
-    const getEpisodeMetadata: AniDbClientShape["getEpisodeMetadata"] = Effect.fn(
-      "AniDbClient.getEpisodeMetadata",
-    )(function* (input: AniDbEpisodeLookupInput) {
-      const runtimeConfig = yield* runtimeConfigSnapshot.getRuntimeConfig().pipe(
-        Effect.map(Option.some),
-        Effect.catchTag("StoredConfigMissingError", () => Effect.succeed(Option.none())),
-        Effect.catchTag("StoredConfigCorruptError", (error) =>
-          failRuntimeConfigLoad(error, "stored config is corrupt"),
-        ),
-        Effect.catchTag("DatabaseError", (error) =>
-          failRuntimeConfigLoad(error, "database read failed"),
-        ),
-      );
+  const getEpisodeMetadata: AniDbClientShape["getEpisodeMetadata"] = Effect.fn(
+    "AniDbClient.getEpisodeMetadata",
+  )(function* (input: AniDbEpisodeLookupInput) {
+    const runtimeConfig = yield* runtimeConfigSnapshot.getRuntimeConfig().pipe(
+      Effect.map(Option.some),
+      Effect.catchTag("StoredConfigMissingError", () => Effect.succeed(Option.none())),
+      Effect.catchTag("StoredConfigCorruptError", (error) =>
+        failRuntimeConfigLoad(error, "stored config is corrupt"),
+      ),
+      Effect.catchTag("DatabaseError", (error) =>
+        failRuntimeConfigLoad(error, "database read failed"),
+      ),
+    );
 
-      if (Option.isNone(runtimeConfig)) {
-        return { _tag: "AniDbLookupSkipped", reason: "runtime_config_unavailable" } as const;
-      }
+    if (Option.isNone(runtimeConfig)) {
+      return { _tag: "AniDbLookupSkipped", reason: "runtime_config_unavailable" } as const;
+    }
 
-      const config = resolveAniDbRuntimeConfig(runtimeConfig.value);
+    const config = resolveAniDbRuntimeConfig(runtimeConfig.value);
 
-      const unitCount = normalizeEpisodeCount(input.unitCount, config.episodeLimit);
+    const unitCount = normalizeEpisodeCount(input.unitCount, config.episodeLimit);
 
-      if (!config.enabled) {
-        return { _tag: "AniDbLookupSkipped", reason: "disabled" } as const;
-      }
+    if (!config.enabled) {
+      return { _tag: "AniDbLookupSkipped", reason: "disabled" } as const;
+    }
 
-      if (!config.username || !config.password) {
-        return { _tag: "AniDbLookupSkipped", reason: "missing_credentials" } as const;
-      }
+    if (!config.username || !config.password) {
+      return { _tag: "AniDbLookupSkipped", reason: "missing_credentials" } as const;
+    }
 
-      const username = config.username;
-      const password = config.password;
+    const username = config.username;
+    const password = config.password;
 
-      const titleCandidates = buildTitleCandidates(input.title, input.synonyms);
+    const titleCandidates = buildTitleCandidates(input.title, input.synonyms);
 
-      if (titleCandidates.length === 0) {
-        return { _tag: "AniDbLookupSkipped", reason: "missing_title_candidates" } as const;
-      }
+    if (titleCandidates.length === 0) {
+      return { _tag: "AniDbLookupSkipped", reason: "missing_title_candidates" } as const;
+    }
 
-      return yield* requestSemaphore.withPermits(1)(
-        Effect.gen(function* () {
-          const session = yield* ensureSession({
-            client: config.client,
-            clientVersion: config.clientVersion,
-            localPort: config.localPort,
-            password,
-            username,
-          });
+    return yield* requestSemaphore.withPermits(1)(
+      Effect.gen(function* () {
+        const session = yield* ensureSession({
+          client: config.client,
+          clientVersion: config.clientVersion,
+          localPort: config.localPort,
+          password,
+          username,
+        });
 
-          return yield* fetchAniDbEpisodesEffect({
-            clock,
-            unitCount,
-            lastPacketAtRef,
-            sessionToken: session.sessionToken,
-            socket: session.socket,
-            titleCandidates,
-          }).pipe(
-            Effect.catchTag("ExternalCallError", (error) =>
-              closeSession().pipe(Effect.zipRight(Effect.fail(error))),
-            ),
-          );
-        }),
-      );
-    });
+        return yield* fetchAniDbEpisodesEffect({
+          clock,
+          unitCount,
+          lastPacketAtRef,
+          sessionToken: session.sessionToken,
+          socket: session.socket,
+          titleCandidates,
+        }).pipe(
+          Effect.catchTag("ExternalCallError", (error) =>
+            closeSession().pipe(Effect.zipRight(Effect.fail(error))),
+          ),
+        );
+      }),
+    );
+  });
 
-    return AniDbClient.of({ getEpisodeMetadata });
-  }),
-);
+  return { getEpisodeMetadata } satisfies AniDbClientShape;
+});
+
+export class AniDbClient extends Effect.Service<AniDbClient>()("@bakarr/api/AniDbClient", {
+  scoped: makeAniDbClient(),
+}) {}
+
+export const AniDbClientLive = AniDbClient.Default;
 
 function toAniDbSessionConfigKey(config: {
   readonly client: string;

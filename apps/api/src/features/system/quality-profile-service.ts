@@ -1,13 +1,8 @@
-import { Context, Effect, Layer } from "effect";
+import { Effect } from "effect";
 
-import type { Quality, QualityProfile } from "@packages/shared/index.ts";
-import { DatabaseError } from "@/db/database.ts";
+import type { QualityProfile } from "@packages/shared/index.ts";
 import { nowIsoFromClock, ClockService } from "@/infra/clock.ts";
-import {
-  StoredConfigCorruptError,
-  ProfileNotFoundError,
-  ConfigValidationError,
-} from "@/features/system/errors.ts";
+import { ProfileNotFoundError, ConfigValidationError } from "@/features/system/errors.ts";
 import {
   decodeQualityProfileRow,
   encodeQualityProfileRow,
@@ -15,32 +10,6 @@ import {
 import { DEFAULT_QUALITIES } from "@/features/system/defaults.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
-
-export interface QualityProfileServiceShape {
-  readonly listProfiles: () => Effect.Effect<
-    QualityProfile[],
-    DatabaseError | StoredConfigCorruptError
-  >;
-  readonly listQualities: () => Effect.Effect<Quality[]>;
-  readonly createProfile: (
-    profile: QualityProfile,
-  ) => Effect.Effect<QualityProfile, DatabaseError | StoredConfigCorruptError>;
-  readonly updateProfile: (
-    name: string,
-    profile: QualityProfile,
-  ) => Effect.Effect<
-    QualityProfile,
-    DatabaseError | ProfileNotFoundError | StoredConfigCorruptError
-  >;
-  readonly deleteProfile: (
-    name: string,
-  ) => Effect.Effect<void, DatabaseError | ConfigValidationError>;
-}
-
-export class QualityProfileService extends Context.Tag("@bakarr/api/QualityProfileService")<
-  QualityProfileService,
-  QualityProfileServiceShape
->() {}
 
 const makeQualityProfileService = Effect.fn("QualityProfileService.make")(function* () {
   const clock = yield* ClockService;
@@ -119,10 +88,14 @@ const makeQualityProfileService = Effect.fn("QualityProfileService.make")(functi
     createProfile,
     updateProfile,
     deleteProfile,
-  } satisfies QualityProfileServiceShape;
+  };
 });
 
-export const QualityProfileServiceLive = Layer.effect(
-  QualityProfileService,
-  makeQualityProfileService(),
-);
+export class QualityProfileService extends Effect.Service<QualityProfileService>()(
+  "@bakarr/api/QualityProfileService",
+  {
+    effect: makeQualityProfileService(),
+  },
+) {}
+
+export const QualityProfileServiceLive = QualityProfileService.Default;

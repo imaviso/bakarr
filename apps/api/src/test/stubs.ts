@@ -3,20 +3,8 @@ import type { PlatformError } from "@effect/platform/Error";
 import { Effect, Stream } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
-import type { AppDatabase, DatabaseService } from "@/db/database.ts";
-import type {
-  RuntimeConfigSnapshotError,
-  RuntimeConfigSnapshotServiceShape,
-} from "@/features/system/runtime-config-snapshot-service.ts";
-
-export function makeDatabaseServiceStub(db: AppDatabase): DatabaseService {
-  return {
-    get client(): never {
-      throw new Error("test database stub should not access sqlite client");
-    },
-    db,
-  };
-}
+import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
+import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 
 export function makeCommandExecutorStub<E extends PlatformError = never>(
   runAsString: (
@@ -56,18 +44,18 @@ export function commandName(command: Parameters<CommandExecutor.CommandExecutor[
   return undefined;
 }
 
-export function makeRuntimeConfigSnapshotStub(config: Config): RuntimeConfigSnapshotServiceShape {
-  return {
+export function makeRuntimeConfigSnapshotStub(config: Config): RuntimeConfigSnapshotService {
+  return RuntimeConfigSnapshotService.make({
     getRuntimeConfig: () => Effect.succeed(config),
     replaceRuntimeConfig: () => Effect.void,
-  };
+  });
 }
 
 export function makeFailingRuntimeConfigSnapshotStub(
   error: RuntimeConfigSnapshotError,
-): RuntimeConfigSnapshotServiceShape {
-  return {
+): RuntimeConfigSnapshotService {
+  return RuntimeConfigSnapshotService.make({
     getRuntimeConfig: () => Effect.fail(error),
     replaceRuntimeConfig: () => Effect.void,
-  };
+  });
 }

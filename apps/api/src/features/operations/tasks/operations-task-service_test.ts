@@ -22,10 +22,13 @@ describe("OperationsTaskService", () => {
     withSqliteTestDbEffect({
       run: (db, _databaseFile, client) =>
         Effect.gen(function* () {
-          const databaseLayer = Layer.succeed(Database, {
-            client,
-            db,
-          });
+          const databaseLayer = Layer.succeed(
+            Database,
+            Database.make({
+              client,
+              db,
+            }),
+          );
           const repositoryLayer = OperationsTaskRepository.Default.pipe(
             Layer.provide(databaseLayer),
           );

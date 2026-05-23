@@ -1,6 +1,6 @@
 import { Chunk, Effect, Option, Stream } from "effect";
 
-import { FileSystem, FileSystemError } from "@/infra/filesystem/filesystem.ts";
+import { FileSystemError, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 
 export interface FileByteRange {
   readonly end: number;
@@ -11,7 +11,7 @@ const DEFAULT_STREAM_CHUNK_SIZE = 64 * 1024;
 const SEEK_FROM_START = 0;
 
 export function createFileChunkStream(
-  fs: typeof FileSystem.Service,
+  fs: FileSystemShape,
   path: string | URL,
   options?: {
     readonly chunkSize?: number;

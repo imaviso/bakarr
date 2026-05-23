@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Option } from "effect";
+import { Effect, Option } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 import { AppConfig } from "@/config/schema.ts";
@@ -29,11 +29,6 @@ export interface SystemConfigUpdateServiceShape {
     config: Config,
   ) => Effect.Effect<Config, DatabaseError | ConfigValidationError | StoredConfigCorruptError>;
 }
-
-export class SystemConfigUpdateService extends Context.Tag("@bakarr/api/SystemConfigUpdateService")<
-  SystemConfigUpdateService,
-  SystemConfigUpdateServiceShape
->() {}
 
 const makeSystemConfigUpdateService = Effect.fn("SystemConfigUpdateService.make")(function* () {
   const appConfig = yield* AppConfig;
@@ -104,10 +99,14 @@ const makeSystemConfigUpdateService = Effect.fn("SystemConfigUpdateService.make"
   return { updateConfig } satisfies SystemConfigUpdateServiceShape;
 });
 
-export const SystemConfigUpdateServiceLive = Layer.effect(
-  SystemConfigUpdateService,
-  makeSystemConfigUpdateService(),
-);
+export class SystemConfigUpdateService extends Effect.Service<SystemConfigUpdateService>()(
+  "@bakarr/api/SystemConfigUpdateService",
+  {
+    effect: makeSystemConfigUpdateService(),
+  },
+) {}
+
+export const SystemConfigUpdateServiceLive = SystemConfigUpdateService.Default;
 
 const preserveStoredPasswords = Effect.fn("SystemConfigUpdateService.preserveStoredPasswords")(
   function* (input: {

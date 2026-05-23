@@ -1,6 +1,6 @@
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
-import { Context, Effect, Layer, Schema } from "effect";
+import { Effect, Schema } from "effect";
 
 import { MAX_RSS_BYTES } from "@/features/operations/rss/rss-limits.ts";
 import type { PinnedRequestTarget } from "@/features/operations/rss/rss-client-ssrf.ts";
@@ -35,25 +35,8 @@ export interface RssTransportShape {
   ) => Effect.Effect<RssTransportResponse, RssTransportError | RssTransportPayloadTooLargeError>;
 }
 
-export class RssTransport extends Context.Tag("@bakarr/api/RssTransport")<
-  RssTransport,
-  RssTransportShape
->() {}
-
-interface RssTransportRequestConfig {
-  readonly headers: Record<string, string>;
-  readonly hostname: string;
-  readonly lookup: ((...lookupArgs: unknown[]) => void) | undefined;
-  readonly method: "GET";
-  readonly path: string;
-  readonly port: number | undefined;
-  readonly protocol: string;
-  readonly servername: string | undefined;
-}
-
-export const RssTransportLive = Layer.effect(
-  RssTransport,
-  Effect.sync(() => {
+export class RssTransport extends Effect.Service<RssTransport>()("@bakarr/api/RssTransport", {
+  sync: () => {
     const execute = Effect.fn("RssTransport.execute")(function* (target: PinnedRequestTarget) {
       return yield* Effect.tryPromise({
         try: (signal) =>
@@ -75,9 +58,22 @@ export const RssTransportLive = Layer.effect(
       });
     });
 
-    return RssTransport.of({ execute });
-  }),
-);
+    return { execute } satisfies RssTransportShape;
+  },
+}) {}
+
+export const RssTransportLive = RssTransport.Default;
+
+interface RssTransportRequestConfig {
+  readonly headers: Record<string, string>;
+  readonly hostname: string;
+  readonly lookup: ((...lookupArgs: unknown[]) => void) | undefined;
+  readonly method: "GET";
+  readonly path: string;
+  readonly port: number | undefined;
+  readonly protocol: string;
+  readonly servername: string | undefined;
+}
 
 const runPinnedHttpRequest = (input: {
   readonly signal?: AbortSignal;

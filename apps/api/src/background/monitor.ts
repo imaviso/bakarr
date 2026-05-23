@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Ref } from "effect";
+import { Effect, Ref } from "effect";
 
 import {
   BACKGROUND_WORKER_NAMES,
@@ -34,11 +34,6 @@ export interface BackgroundWorkerMonitorShape {
   ) => Effect.Effect<void>;
   readonly snapshot: () => Effect.Effect<BackgroundWorkerSnapshot>;
 }
-
-export class BackgroundWorkerMonitor extends Context.Tag("@bakarr/api/BackgroundWorkerMonitor")<
-  BackgroundWorkerMonitor,
-  BackgroundWorkerMonitorShape
->() {}
 
 export const makeBackgroundWorkerMonitor = Effect.fn("Background.makeBackgroundWorkerMonitor")(
   function* () {
@@ -166,10 +161,14 @@ export const makeBackgroundWorkerMonitor = Effect.fn("Background.makeBackgroundW
   },
 );
 
-export const BackgroundWorkerMonitorLive = Layer.effect(
-  BackgroundWorkerMonitor,
-  makeBackgroundWorkerMonitor(),
-);
+export class BackgroundWorkerMonitor extends Effect.Service<BackgroundWorkerMonitor>()(
+  "@bakarr/api/BackgroundWorkerMonitor",
+  {
+    effect: makeBackgroundWorkerMonitor(),
+  },
+) {}
+
+export const BackgroundWorkerMonitorLive = BackgroundWorkerMonitor.Default;
 
 export const initializeBackgroundWorkerMetrics = Effect.fn("Background.initializeWorkerMetrics")(
   function* () {

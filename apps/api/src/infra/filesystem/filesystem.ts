@@ -1,7 +1,7 @@
 import { FileSystem as PlatformFileSystem, Path as PlatformPath } from "@effect/platform";
 import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem";
 import * as NodePath from "@effect/platform-node/NodePath";
-import { Context, Effect, Layer, Option, Schema, Scope, Stream } from "effect";
+import { Effect, Layer, Option, Schema, Scope, Stream } from "effect";
 
 export {
   isWithinPathRoot,
@@ -94,10 +94,13 @@ const UNKNOWN_FILE_TYPE_FLAGS = {
   isSymlink: false,
 } as const;
 
-export class FileSystem extends Context.Tag("@bakarr/api/FileSystem")<
-  FileSystem,
-  FileSystemShape
->() {}
+export class FileSystem extends Effect.Service<FileSystem>()("@bakarr/api/FileSystem", {
+  effect: Effect.gen(function* () {
+    const platformFs = yield* PlatformFileSystem.FileSystem;
+    const pathService = yield* PlatformPath.Path;
+    return makeFileSystem(platformFs, pathService);
+  }),
+}) {}
 
 function wrap<A, R>(
   path: string | URL,
@@ -293,25 +296,16 @@ function makeFileSystem(
   };
 }
 
-const FileSystemFromPlatform = Layer.effect(
-  FileSystem,
-  Effect.gen(function* () {
-    const platformFs = yield* PlatformFileSystem.FileSystem;
-    const pathService = yield* PlatformPath.Path;
-    return makeFileSystem(platformFs, pathService);
-  }),
-);
-
-export const FileSystemLive = FileSystemFromPlatform.pipe(
+export const FileSystemLive = FileSystem.Default.pipe(
   Layer.provide(Layer.mergeAll(NodeFileSystem.layer, NodePath.layer)),
 );
 
-export const FileSystemNoop = FileSystemFromPlatform.pipe(
+export const FileSystemNoop = FileSystem.Default.pipe(
   Layer.provide(Layer.mergeAll(PlatformFileSystem.layerNoop({}), NodePath.layer)),
 );
 
 export function makeFileSystemNoopLayer(overrides: Partial<PlatformFileSystem.FileSystem>) {
-  return FileSystemFromPlatform.pipe(
+  return FileSystem.Default.pipe(
     Layer.provide(Layer.mergeAll(PlatformFileSystem.layerNoop(overrides), NodePath.layer)),
   );
 }

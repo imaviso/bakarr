@@ -1,4 +1,4 @@
-import { Cause, Context, Effect, Layer, Queue } from "effect";
+import { Cause, Effect, Queue } from "effect";
 
 import type { AsyncOperationAccepted, OperationTaskPayload } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
@@ -30,10 +30,6 @@ export interface OperationsTaskLauncherServiceShape {
     input: OperationsTaskLaunchInput<A>,
   ) => Effect.Effect<AsyncOperationAccepted, DatabaseError | OperationsInfrastructureError>;
 }
-
-export class OperationsTaskLauncherService extends Context.Tag(
-  "@bakarr/api/OperationsTaskLauncherService",
-)<OperationsTaskLauncherService, OperationsTaskLauncherServiceShape>() {}
 
 const OPERATIONS_TASK_WORKER_CONCURRENCY = 4;
 
@@ -136,11 +132,13 @@ const makeOperationsTaskLauncherService = Effect.fn("OperationsTaskLauncherServi
         }),
     );
 
-    return OperationsTaskLauncherService.of({ launch });
+    return { launch } satisfies OperationsTaskLauncherServiceShape;
   },
 );
 
-export const OperationsTaskLauncherServiceLive = Layer.scoped(
-  OperationsTaskLauncherService,
-  makeOperationsTaskLauncherService(),
-);
+export class OperationsTaskLauncherService extends Effect.Service<OperationsTaskLauncherService>()(
+  "@bakarr/api/OperationsTaskLauncherService",
+  { scoped: makeOperationsTaskLauncherService() },
+) {}
+
+export const OperationsTaskLauncherServiceLive = OperationsTaskLauncherService.Default;

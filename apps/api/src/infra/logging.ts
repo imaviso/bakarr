@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Logger, LogLevel, Ref } from "effect";
+import { Effect, Layer, Logger, LogLevel, Ref } from "effect";
 
 export function compactLogAnnotations(
   annotations: Record<string, unknown>,
@@ -59,31 +59,22 @@ export interface RuntimeLogSinkShape {
   }) => Effect.Effect<void>;
 }
 
-export class RuntimeLogLevelState extends Context.Tag("@bakarr/api/RuntimeLogLevelState")<
-  RuntimeLogLevelState,
-  RuntimeLogLevelStateShape
->() {}
+export class RuntimeLogLevelState extends Effect.Service<RuntimeLogLevelState>()(
+  "@bakarr/api/RuntimeLogLevelState",
+  {
+    effect: Effect.gen(function* () {
+      const ref = yield* Ref.make(LogLevel.Info);
 
-export class RuntimeLogSink extends Context.Tag("@bakarr/api/RuntimeLogSink")<
-  RuntimeLogSink,
-  RuntimeLogSinkShape
->() {}
+      return {
+        get: Ref.get(ref),
+        set: (level) => Ref.set(ref, parseRuntimeLogLevel(level)),
+      } satisfies RuntimeLogLevelStateShape;
+    }),
+  },
+) {}
 
-export const RuntimeLogLevelStateLive = Layer.effect(
-  RuntimeLogLevelState,
-  Effect.gen(function* () {
-    const ref = yield* Ref.make(LogLevel.Info);
-
-    return RuntimeLogLevelState.of({
-      get: Ref.get(ref),
-      set: (level) => Ref.set(ref, parseRuntimeLogLevel(level)),
-    });
-  }),
-);
-
-export const RuntimeLogSinkLive = Layer.succeed(
-  RuntimeLogSink,
-  RuntimeLogSink.of({
+export class RuntimeLogSink extends Effect.Service<RuntimeLogSink>()("@bakarr/api/RuntimeLogSink", {
+  succeed: {
     write: ({ level, line }) =>
       Effect.sync(() => {
         if (level.ordinal >= LogLevel.Error.ordinal) {
@@ -98,8 +89,11 @@ export const RuntimeLogSinkLive = Layer.succeed(
 
         console.log(line);
       }),
-  }),
-);
+  } satisfies RuntimeLogSinkShape,
+}) {}
+
+export const RuntimeLogLevelStateLive = RuntimeLogLevelState.Default;
+export const RuntimeLogSinkLive = RuntimeLogSink.Default;
 
 export const setRuntimeLogLevel = Effect.fn("Logging.setRuntimeLogLevel")(function* (
   level: string | undefined,

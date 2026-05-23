@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from "effect";
+import { Effect } from "effect";
 
 import { DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
@@ -12,11 +12,6 @@ export interface DownloadProgressSupportShape {
     DatabaseError | OperationsInfrastructureError
   >;
 }
-
-export class DownloadProgressSupport extends Context.Tag("@bakarr/api/DownloadProgressSupport")<
-  DownloadProgressSupport,
-  DownloadProgressSupportShape
->() {}
 
 export interface DownloadProgressSupportInput {
   readonly downloadProgressRepository: typeof DownloadProgressRepository.Service;
@@ -59,15 +54,19 @@ export function makeDownloadProgressSupport(input: DownloadProgressSupportInput)
   };
 }
 
-export const DownloadProgressSupportLive = Layer.effect(
-  DownloadProgressSupport,
-  Effect.gen(function* () {
-    const downloadProgressRepository = yield* DownloadProgressRepository;
-    const eventBus = yield* EventBus;
+export class DownloadProgressSupport extends Effect.Service<DownloadProgressSupport>()(
+  "@bakarr/api/DownloadProgressSupport",
+  {
+    effect: Effect.gen(function* () {
+      const downloadProgressRepository = yield* DownloadProgressRepository;
+      const eventBus = yield* EventBus;
 
-    return makeDownloadProgressSupport({
-      downloadProgressRepository,
-      eventBus,
-    });
-  }),
-);
+      return makeDownloadProgressSupport({
+        downloadProgressRepository,
+        eventBus,
+      });
+    }),
+  },
+) {}
+
+export const DownloadProgressSupportLive = DownloadProgressSupport.Default;

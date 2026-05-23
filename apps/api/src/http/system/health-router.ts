@@ -33,7 +33,10 @@ export const healthRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
     "/api/system/health/ready",
     routeResponse(
-      Effect.flatMap(SystemReadService, (service) => service.getSystemStatus()).pipe(
+      Effect.gen(function* () {
+        const service = yield* SystemReadService;
+        return yield* service.getSystemStatus();
+      }).pipe(
         Effect.map(() => ({ checks: { database: true }, ready: true }) as const),
         Effect.catchTags({
           ConfigValidationError: () => Effect.succeed(notReadyResponse),
@@ -52,7 +55,10 @@ export const healthRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
     "/api/system/status",
     authedRouteResponse(
-      Effect.flatMap(SystemReadService, (service) => service.getSystemStatus()),
+      Effect.gen(function* () {
+        const service = yield* SystemReadService;
+        return yield* service.getSystemStatus();
+      }),
       schemaJsonResponse(SystemStatusSchema),
     ),
   ),

@@ -1,45 +1,37 @@
-import { Context, Effect, Layer, Stream } from "effect";
+import { Effect, Stream } from "effect";
 
 import type { DownloadStatus, NotificationEvent } from "@packages/shared/index.ts";
-import type { DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { CatalogDownloadReadService } from "@/features/operations/catalog/catalog-download-read-service.ts";
-import type { OperationsStoredDataError } from "@/features/operations/errors.ts";
 
-export interface SystemEventsServiceShape {
-  readonly buildEventsStream: () => Stream.Stream<
-    NotificationEvent,
-    DatabaseError | OperationsStoredDataError
-  >;
-}
+const makeSystemEventsService = Effect.fn("SystemEventsService.make")(function* () {
+  const eventBus = yield* EventBus;
+  const downloadsReadService = yield* CatalogDownloadReadService;
 
-export class SystemEventsService extends Context.Tag("@bakarr/api/SystemEventsService")<
-  SystemEventsService,
-  SystemEventsServiceShape
->() {}
+  const buildEventsStream = () =>
+    eventBus.withSubscriptionStream((subscription) =>
+      Stream.unwrapScoped(
+        Effect.gen(function* () {
+          const downloads: readonly DownloadStatus[] =
+            yield* downloadsReadService.getDownloadProgressBootstrap();
+          const bufferedEvents = yield* subscription.takeBufferedOnce;
 
-export const SystemEventsServiceLive = Layer.effect(
-  SystemEventsService,
-  Effect.gen(function* () {
-    const eventBus = yield* EventBus;
-    const downloadsReadService = yield* CatalogDownloadReadService;
+          return buildDownloadProgressEventStream(downloads, bufferedEvents, subscription.stream);
+        }),
+      ),
+    );
 
-    const buildEventsStream = () =>
-      eventBus.withSubscriptionStream((subscription) =>
-        Stream.unwrapScoped(
-          Effect.gen(function* () {
-            const downloads: readonly DownloadStatus[] =
-              yield* downloadsReadService.getDownloadProgressBootstrap();
-            const bufferedEvents = yield* subscription.takeBufferedOnce;
+  return { buildEventsStream };
+});
 
-            return buildDownloadProgressEventStream(downloads, bufferedEvents, subscription.stream);
-          }),
-        ),
-      );
+export class SystemEventsService extends Effect.Service<SystemEventsService>()(
+  "@bakarr/api/SystemEventsService",
+  {
+    effect: makeSystemEventsService(),
+  },
+) {}
 
-    return SystemEventsService.of({ buildEventsStream });
-  }),
-);
+export const SystemEventsServiceLive = SystemEventsService.Default;
 
 function buildDownloadProgressEventStream(
   downloads: readonly DownloadStatus[],

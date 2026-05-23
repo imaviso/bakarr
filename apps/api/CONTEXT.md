@@ -106,7 +106,7 @@ and optional linked anime. Supports coalescing concurrent requests.
 - Single SQLite database, WAL mode, foreign keys enforced
 - Effect-TS for all concurrency, DI, error handling, and schema validation
 - Drizzle ORM for typed SQL queries
-- Layer-based DI with `Context.Tag` + `Layer.effect` / `Layer.scoped`
+- Layer-based DI with `Effect.Service` plus explicit app-layer composition
 - HTTP routes are thin adapters that call feature services
 - Feature services are domain modules with explicit dependencies via tags
 - Background workers run in scoped fibers under a controller

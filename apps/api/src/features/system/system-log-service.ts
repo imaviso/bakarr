@@ -1,7 +1,6 @@
-import { Context, Effect, Layer } from "effect";
+import { Effect } from "effect";
 
 import type { SystemLogsResponse } from "@packages/shared/index.ts";
-import { DatabaseError } from "@/db/database.ts";
 import { nowIsoFromClock, ClockService } from "@/infra/clock.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
@@ -12,39 +11,6 @@ import {
 } from "@/features/system/system-log-export.ts";
 
 const PAGE_SIZE = 50;
-
-export interface SystemLogServiceShape {
-  readonly getLogs: (input: {
-    page: number;
-    pageSize?: number;
-    level?: string;
-    eventType?: string;
-    startDate?: string;
-    endDate?: string;
-  }) => Effect.Effect<SystemLogsResponse, DatabaseError>;
-  readonly clearLogs: () => Effect.Effect<void, DatabaseError>;
-  readonly streamLogExportCsv: (input: {
-    endDate?: string;
-    eventType?: string;
-    level?: string;
-    startDate?: string;
-  }) => Effect.Effect<SystemLogExportStreamShape, DatabaseError>;
-  readonly streamLogExportJson: (input: {
-    endDate?: string;
-    eventType?: string;
-    level?: string;
-    startDate?: string;
-  }) => Effect.Effect<SystemLogExportStreamShape, DatabaseError>;
-  readonly triggerInfoEvent: (
-    message: string,
-    eventType: string,
-  ) => Effect.Effect<void, DatabaseError>;
-}
-
-export class SystemLogService extends Context.Tag("@bakarr/api/SystemLogService")<
-  SystemLogService,
-  SystemLogServiceShape
->() {}
 
 const makeSystemLogService = Effect.fn("SystemLogService.make")(function* () {
   const clock = yield* ClockService;
@@ -125,7 +91,14 @@ const makeSystemLogService = Effect.fn("SystemLogService.make")(function* () {
     streamLogExportCsv,
     streamLogExportJson,
     triggerInfoEvent,
-  } satisfies SystemLogServiceShape;
+  };
 });
 
-export const SystemLogServiceLive = Layer.effect(SystemLogService, makeSystemLogService());
+export class SystemLogService extends Effect.Service<SystemLogService>()(
+  "@bakarr/api/SystemLogService",
+  {
+    effect: makeSystemLogService(),
+  },
+) {}
+
+export const SystemLogServiceLive = SystemLogService.Default;

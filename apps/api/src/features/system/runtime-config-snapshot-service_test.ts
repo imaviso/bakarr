@@ -1,5 +1,6 @@
 import { Cause, Effect, Exit, Layer } from "effect";
 
+import type { Config } from "@packages/shared/index.ts";
 import { StoredConfigMissingError } from "@/features/system/errors.ts";
 import {
   RuntimeConfigSnapshotService,
@@ -16,13 +17,16 @@ it.effect("RuntimeConfigSnapshotService caches loaded config", () =>
 
     const layer = RuntimeConfigSnapshotServiceLive.pipe(
       Layer.provide(
-        Layer.succeed(SystemConfigService, {
-          getConfig: () =>
-            Effect.sync(() => {
-              calls += 1;
-              return config;
-            }),
-        }),
+        Layer.succeed(
+          SystemConfigService,
+          SystemConfigService.make({
+            getConfig: (): Effect.Effect<Config> =>
+              Effect.sync(() => {
+                calls += 1;
+                return config;
+              }),
+          }),
+        ),
       ),
     );
 
@@ -43,13 +47,16 @@ it.effect("RuntimeConfigSnapshotService returns replaced config without loading"
 
     const layer = RuntimeConfigSnapshotServiceLive.pipe(
       Layer.provide(
-        Layer.succeed(SystemConfigService, {
-          getConfig: () =>
-            Effect.sync(() => {
-              calls += 1;
-              return persisted;
-            }),
-        }),
+        Layer.succeed(
+          SystemConfigService,
+          SystemConfigService.make({
+            getConfig: (): Effect.Effect<Config> =>
+              Effect.sync(() => {
+                calls += 1;
+                return persisted;
+              }),
+          }),
+        ),
       ),
     );
 
@@ -71,9 +78,12 @@ it.effect("RuntimeConfigSnapshotService forwards SystemConfigService failures", 
 
     const layer = RuntimeConfigSnapshotServiceLive.pipe(
       Layer.provide(
-        Layer.succeed(SystemConfigService, {
-          getConfig: () => Effect.fail(missing),
-        }),
+        Layer.succeed(
+          SystemConfigService,
+          SystemConfigService.make({
+            getConfig: () => Effect.fail(missing),
+          }),
+        ),
       ),
     );
 

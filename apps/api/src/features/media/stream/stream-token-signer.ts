@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Option, Schema } from "effect";
+import { Effect, Option, Schema } from "effect";
 
 import { bytesToHex, hexToBytes } from "@/infra/hex.ts";
 import { RandomService } from "@/infra/random.ts";
@@ -11,96 +11,82 @@ export class StreamTokenSignerError extends Schema.TaggedError<StreamTokenSigner
   },
 ) {}
 
-export interface StreamTokenSignerShape {
-  readonly sign: (input: {
-    readonly mediaId: number;
-    readonly unitNumber: number;
-    readonly expiresAt: number;
-  }) => Effect.Effect<string, StreamTokenSignerError>;
-  readonly verify: (input: {
-    readonly mediaId: number;
-    readonly unitNumber: number;
-    readonly expiresAt: number;
-    readonly nowMillis: number;
-    readonly signatureHex: string;
-  }) => Effect.Effect<boolean, StreamTokenSignerError>;
-}
-
-export class StreamTokenSigner extends Context.Tag("@bakarr/api/StreamTokenSigner")<
-  StreamTokenSigner,
-  StreamTokenSignerShape
->() {}
-
 const textEncoder = new TextEncoder();
 
-export const StreamTokenSignerLive = Layer.effect(
-  StreamTokenSigner,
-  Effect.gen(function* () {
-    const random = yield* RandomService;
-    const secret = yield* random.randomBytes(32);
-    const secretBuffer = Uint8Array.from(secret).buffer;
-    const key = yield* Effect.tryPromise({
-      try: () =>
-        crypto.subtle.importKey("raw", secretBuffer, { name: "HMAC", hash: "SHA-256" }, false, [
-          "sign",
-          "verify",
-        ]),
+const makeStreamTokenSigner = Effect.fn("StreamTokenSigner.make")(function* () {
+  const random = yield* RandomService;
+  const secret = yield* random.randomBytes(32);
+  const secretBuffer = Uint8Array.from(secret).buffer;
+  const key = yield* Effect.tryPromise({
+    try: () =>
+      crypto.subtle.importKey("raw", secretBuffer, { name: "HMAC", hash: "SHA-256" }, false, [
+        "sign",
+        "verify",
+      ]),
+    catch: (cause) =>
+      new StreamTokenSignerError({
+        cause,
+        message: "Failed to initialize stream token signer",
+      }),
+  });
+
+  const sign = Effect.fn("StreamTokenSigner.sign")(function* (input: {
+    mediaId: number;
+    unitNumber: number;
+    expiresAt: number;
+  }) {
+    const signature = yield* Effect.tryPromise({
+      try: () => crypto.subtle.sign("HMAC", key, textEncoder.encode(toPayload(input))),
       catch: (cause) =>
         new StreamTokenSignerError({
           cause,
-          message: "Failed to initialize stream token signer",
+          message: "Failed to sign stream payload",
         }),
     });
 
-    const sign = Effect.fn("StreamTokenSigner.sign")(function* (input: {
-      mediaId: number;
-      unitNumber: number;
-      expiresAt: number;
-    }) {
-      const signature = yield* Effect.tryPromise({
-        try: () => crypto.subtle.sign("HMAC", key, textEncoder.encode(toPayload(input))),
-        catch: (cause) =>
-          new StreamTokenSignerError({
-            cause,
-            message: "Failed to sign stream payload",
-          }),
-      });
+    return bytesToHex(new Uint8Array(signature));
+  });
 
-      return bytesToHex(new Uint8Array(signature));
+  const verify = Effect.fn("StreamTokenSigner.verify")(function* (input: {
+    mediaId: number;
+    unitNumber: number;
+    expiresAt: number;
+    nowMillis: number;
+    signatureHex: string;
+  }) {
+    if (input.nowMillis > input.expiresAt) {
+      return false;
+    }
+
+    const signatureBytes = hexToBytes(input.signatureHex);
+    if (Option.isNone(signatureBytes) || signatureBytes.value.length !== 32) {
+      return false;
+    }
+
+    const signatureBuffer = Uint8Array.from(signatureBytes.value);
+
+    return yield* Effect.tryPromise({
+      try: () =>
+        crypto.subtle.verify("HMAC", key, signatureBuffer, textEncoder.encode(toPayload(input))),
+      catch: (cause) =>
+        new StreamTokenSignerError({
+          cause,
+          message: "Failed to verify stream payload",
+        }),
     });
+  });
 
-    const verify = Effect.fn("StreamTokenSigner.verify")(function* (input: {
-      mediaId: number;
-      unitNumber: number;
-      expiresAt: number;
-      nowMillis: number;
-      signatureHex: string;
-    }) {
-      if (input.nowMillis > input.expiresAt) {
-        return false;
-      }
+  return { sign, verify };
+});
 
-      const signatureBytes = hexToBytes(input.signatureHex);
-      if (Option.isNone(signatureBytes) || signatureBytes.value.length !== 32) {
-        return false;
-      }
+export class StreamTokenSigner extends Effect.Service<StreamTokenSigner>()(
+  "@bakarr/api/StreamTokenSigner",
+  {
+    effect: makeStreamTokenSigner(),
+  },
+) {}
 
-      const signatureBuffer = Uint8Array.from(signatureBytes.value);
-
-      return yield* Effect.tryPromise({
-        try: () =>
-          crypto.subtle.verify("HMAC", key, signatureBuffer, textEncoder.encode(toPayload(input))),
-        catch: (cause) =>
-          new StreamTokenSignerError({
-            cause,
-            message: "Failed to verify stream payload",
-          }),
-      });
-    });
-
-    return StreamTokenSigner.of({ sign, verify });
-  }),
-);
+export const StreamTokenSignerLive = StreamTokenSigner.Default;
 
 function toPayload(input: {
   readonly mediaId: number;

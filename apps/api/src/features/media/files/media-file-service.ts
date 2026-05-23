@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from "effect";
+import { Effect } from "effect";
 
 import type { VideoFile } from "@packages/shared/index.ts";
 import { Database, type DatabaseError } from "@/db/database.ts";
@@ -47,11 +47,6 @@ export interface AnimeFileServiceShape {
     DatabaseError | MediaNotFoundError | MediaPathError | MediaStoredDataError
   >;
 }
-
-export class AnimeFileService extends Context.Tag("@bakarr/api/AnimeFileService")<
-  AnimeFileService,
-  AnimeFileServiceShape
->() {}
 
 const makeAnimeFileService = Effect.fn("AnimeFileService.make")(function* () {
   const { db } = yield* Database;
@@ -105,13 +100,20 @@ const makeAnimeFileService = Effect.fn("AnimeFileService.make")(function* () {
     );
   });
 
-  return AnimeFileService.of({
+  return {
     bulkMapEpisodeFiles,
     deleteEpisodeFile,
     listFiles,
     mapEpisodeFile,
     scanFolder,
-  });
+  } satisfies AnimeFileServiceShape;
 });
 
-export const AnimeFileServiceLive = Layer.effect(AnimeFileService, makeAnimeFileService());
+export class AnimeFileService extends Effect.Service<AnimeFileService>()(
+  "@bakarr/api/AnimeFileService",
+  {
+    effect: makeAnimeFileService(),
+  },
+) {}
+
+export const AnimeFileServiceLive = AnimeFileService.Default;

@@ -22,6 +22,7 @@ import { annotateAnimeSearchResultsForQuery } from "@/features/media/query/media
 import { listAnimeFilesEffect } from "@/features/media/files/media-file-list.ts";
 import { makeMediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import type { AnimeMetadata } from "@/features/media/metadata/anilist-model.ts";
+import { AniListClient } from "@/features/media/metadata/anilist.ts";
 
 it("annotateAnimeSearchResultsForQuery adds confidence and reasons", () => {
   const results = annotateAnimeSearchResultsForQuery("Naruto", [
@@ -384,7 +385,7 @@ it.scoped("searchAnimeEffect fails when AniList search fails", () =>
         const appDb: AppDatabase = db;
         const result = yield* Effect.exit(
           searchAnimeEffect({
-            aniList: {
+            aniList: AniListClient.make({
               getAnimeMetadataById: () => Effect.succeed(Option.none()),
               searchAnimeMetadata: () =>
                 Effect.fail(
@@ -395,7 +396,7 @@ it.scoped("searchAnimeEffect fails when AniList search fails", () =>
                   }),
                 ),
               getSeasonalAnime: () => Effect.succeed([]),
-            },
+            }),
             db: appDb,
             query: "bake",
           }),
@@ -421,7 +422,7 @@ it.scoped("searchAnimeEffect reports non-degraded when AniList search succeeds",
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
         const result = yield* searchAnimeEffect({
-          aniList: {
+          aniList: AniListClient.make({
             getAnimeMetadataById: () => Effect.succeed(Option.none()),
             searchAnimeMetadata: () =>
               Effect.succeed([
@@ -432,7 +433,7 @@ it.scoped("searchAnimeEffect reports non-degraded when AniList search succeeds",
                 } satisfies MediaSearchResult,
               ]),
             getSeasonalAnime: () => Effect.succeed([]),
-          },
+          }),
           db: appDb,
           query: "bake",
         });
@@ -451,11 +452,11 @@ it.scoped("searchAnimeEffect falls back to Manami when AniList returns no result
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
         const result = yield* searchAnimeEffect({
-          aniList: {
+          aniList: AniListClient.make({
             getAnimeMetadataById: () => Effect.succeed(Option.none()),
             searchAnimeMetadata: () => Effect.succeed([]),
             getSeasonalAnime: () => Effect.succeed([]),
-          },
+          }),
           db: appDb,
           manami: {
             searchAnime: () =>
@@ -480,11 +481,11 @@ it.scoped("searchAnimeEffect falls back to Manami when AniList returns no result
 );
 
 function makeAniListStub(metadata: AnimeMetadata) {
-  return {
+  return AniListClient.make({
     getAnimeMetadataById: () => Effect.succeed(Option.some(metadata)),
     searchAnimeMetadata: () => Effect.succeed([]),
     getSeasonalAnime: () => Effect.succeed([]),
-  };
+  });
 }
 
 it.scoped("listAnimeEffect returns paginated results with defaults", () =>

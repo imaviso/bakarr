@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { Context, Effect, Layer, Stream } from "effect";
+import { Effect, Stream } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
@@ -49,11 +49,6 @@ export interface UnmappedImportWorkflowShape {
     | OperationsInfrastructureError
   >;
 }
-
-export class UnmappedImportService extends Context.Tag("@bakarr/api/UnmappedImportService")<
-  UnmappedImportService,
-  UnmappedImportWorkflowShape
->() {}
 
 export const cleanupPreviousAnimeRootFolderAfterImport = Effect.fn(
   "OperationsService.cleanupPreviousAnimeRootFolderAfterImport",
@@ -257,22 +252,26 @@ export function makeUnmappedImportWorkflow(input: {
   } satisfies UnmappedImportWorkflowShape;
 }
 
-export const UnmappedImportServiceLive = Layer.effect(
-  UnmappedImportService,
-  Effect.gen(function* () {
-    const { db } = yield* Database;
-    const configRepository = yield* OperationsConfigRepository;
-    const fs = yield* FileSystem;
-    const clock = yield* ClockService;
-    const mediaReadRepository = yield* MediaReadRepository;
+export class UnmappedImportService extends Effect.Service<UnmappedImportService>()(
+  "@bakarr/api/UnmappedImportService",
+  {
+    effect: Effect.gen(function* () {
+      const { db } = yield* Database;
+      const configRepository = yield* OperationsConfigRepository;
+      const fs = yield* FileSystem;
+      const clock = yield* ClockService;
+      const mediaReadRepository = yield* MediaReadRepository;
 
-    return makeUnmappedImportWorkflow({
-      db,
-      configRepository,
-      fs,
-      mediaReadRepository,
-      nowIso: () => nowIsoFromClock(clock),
-      tryDatabasePromise,
-    });
-  }),
-);
+      return makeUnmappedImportWorkflow({
+        db,
+        configRepository,
+        fs,
+        mediaReadRepository,
+        nowIso: () => nowIsoFromClock(clock),
+        tryDatabasePromise,
+      });
+    }),
+  },
+) {}
+
+export const UnmappedImportServiceLive = UnmappedImportService.Default;

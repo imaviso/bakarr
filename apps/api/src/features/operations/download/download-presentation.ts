@@ -84,7 +84,7 @@ export const toDownloadStatus = Effect.fn("OperationsPresentation.toDownloadStat
   const sourceMetadata = yield* decodeDownloadSourceMetadata(row.sourceMetadata);
   const policy = resolveDownloadActionPolicy(row.status, row.reconciledAt);
 
-  return {
+  const result: DownloadStatus = {
     media_id: brandMediaId(row.mediaId),
     media_image: context?.mediaImage,
     media_title: row.mediaTitle,
@@ -105,7 +105,8 @@ export const toDownloadStatus = Effect.fn("OperationsPresentation.toDownloadStat
     state: row.status,
     total_bytes: totalBytes,
     allowed_actions: policy.runtime,
-  } satisfies DownloadStatus;
+  };
+  return result;
 });
 
 function resolveDownloadActionPolicy(

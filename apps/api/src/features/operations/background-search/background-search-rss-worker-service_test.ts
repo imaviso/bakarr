@@ -8,7 +8,7 @@ import { SearchBackgroundMissingService } from "@/features/operations/background
 import { makeBackgroundSearchRssWorkerService } from "@/features/operations/background-search/background-search-rss-worker-service.ts";
 import { SearchBackgroundRssService } from "@/features/operations/background-search/background-search-rss-support.ts";
 import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
-import { type OperationsProgressShape } from "@/features/operations/tasks/operations-progress-service.ts";
+import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { assert, describe, it } from "@effect/vitest";
@@ -22,19 +22,19 @@ describe("BackgroundSearchRssWorkerService", () => {
           const result = yield* runWorkerScenario({
             calls,
             db,
-            missingService: {
+            missingService: SearchBackgroundMissingService.make({
               triggerSearchMissing: () =>
                 Effect.sync(() => {
                   calls.push("missing");
                 }),
-            },
-            rssService: {
+            }),
+            rssService: SearchBackgroundRssService.make({
               runRssCheck: () =>
                 Effect.sync(() => {
                   calls.push("rss");
                   return { newItems: 3, totalFeeds: 2 } as const;
                 }),
-            },
+            }),
           });
 
           const [job] = yield* tryDatabasePromise(
@@ -71,7 +71,7 @@ describe("BackgroundSearchRssWorkerService", () => {
           const result = yield* runWorkerScenario({
             calls,
             db,
-            missingService: {
+            missingService: SearchBackgroundMissingService.make({
               triggerSearchMissing: () =>
                 Effect.gen(function* () {
                   calls.push("missing");
@@ -80,14 +80,14 @@ describe("BackgroundSearchRssWorkerService", () => {
                     cause: new Error("missing search failed"),
                   });
                 }),
-            },
-            rssService: {
+            }),
+            rssService: SearchBackgroundRssService.make({
               runRssCheck: () =>
                 Effect.sync(() => {
                   calls.push("rss");
                   return { newItems: 2, totalFeeds: 1 } as const;
                 }),
-            },
+            }),
           });
 
           assert.deepStrictEqual(Exit.isFailure(result.exit), true);
@@ -130,13 +130,13 @@ describe("BackgroundSearchRssWorkerService", () => {
           const result = yield* runWorkerScenario({
             calls,
             db,
-            missingService: {
+            missingService: SearchBackgroundMissingService.make({
               triggerSearchMissing: () =>
                 Effect.sync(() => {
                   calls.push("missing");
                 }),
-            },
-            rssService: {
+            }),
+            rssService: SearchBackgroundRssService.make({
               runRssCheck: () =>
                 Effect.gen(function* () {
                   calls.push("rss");
@@ -145,7 +145,7 @@ describe("BackgroundSearchRssWorkerService", () => {
                     cause: new Error("rss check failed"),
                   });
                 }),
-            },
+            }),
           });
 
           assert.deepStrictEqual(Exit.isFailure(result.exit), true);
@@ -196,12 +196,12 @@ function makeEventBusStub(events: string[]): EventBusShape {
   };
 }
 
-function makeOperationsProgressStub(): OperationsProgressShape {
-  return {
+function makeOperationsProgressStub() {
+  return OperationsProgress.make({
     publishDownloadProgress: () => Effect.void,
     publishLibraryScanProgress: () => Effect.void,
     publishRssCheckProgress: () => Effect.void,
-  };
+  });
 }
 
 function makeWorkerTestLayer(input: {

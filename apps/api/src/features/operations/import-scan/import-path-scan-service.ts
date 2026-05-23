@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from "effect";
+import { Effect } from "effect";
 
 import type { ScanResult } from "@packages/shared/index.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
@@ -31,92 +31,91 @@ export interface ImportPathScanServiceShape {
   >;
 }
 
-export class ImportPathScanService extends Context.Tag("@bakarr/api/ImportPathScanService")<
-  ImportPathScanService,
-  ImportPathScanServiceShape
->() {}
+export class ImportPathScanService extends Effect.Service<ImportPathScanService>()(
+  "@bakarr/api/ImportPathScanService",
+  {
+    effect: Effect.gen(function* () {
+      const { db } = yield* Database;
+      const aniList = yield* AniListClient;
+      const fs = yield* FileSystem;
+      const mediaProbe = yield* MediaProbe;
+      const mediaReadRepository = yield* MediaReadRepository;
+      const configRepository = yield* OperationsConfigRepository;
+      const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
 
-export const ImportPathScanServiceLive = Layer.effect(
-  ImportPathScanService,
-  Effect.gen(function* () {
-    const { db } = yield* Database;
-    const aniList = yield* AniListClient;
-    const fs = yield* FileSystem;
-    const mediaProbe = yield* MediaProbe;
-    const mediaReadRepository = yield* MediaReadRepository;
-    const configRepository = yield* OperationsConfigRepository;
-    const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
-
-    const scanImportPath = Effect.fn("ImportPathScanService.scanImportPath")(function* (input: {
-      readonly mediaId?: number;
-      readonly limit?: number;
-      readonly path: string;
-    }) {
-      const config = yield* runtimeConfigSnapshot.getRuntimeConfig().pipe(
-        Effect.mapError((error: RuntimeConfigSnapshotError) =>
-          error instanceof DatabaseError
-            ? error
-            : new OperationsInfrastructureError({
-                message: "Failed to load runtime config for import scan",
-                cause: error,
+      const scanImportPath = Effect.fn("ImportPathScanService.scanImportPath")(function* (input: {
+        readonly mediaId?: number;
+        readonly limit?: number;
+        readonly path: string;
+      }) {
+        const config = yield* runtimeConfigSnapshot.getRuntimeConfig().pipe(
+          Effect.mapError((error: RuntimeConfigSnapshotError) =>
+            error instanceof DatabaseError
+              ? error
+              : new OperationsInfrastructureError({
+                  message: "Failed to load runtime config for import scan",
+                  cause: error,
+                }),
+          ),
+        );
+        const canonicalPath = yield* fs.realPath(input.path).pipe(
+          Effect.mapError(
+            (cause) =>
+              new OperationsPathError({
+                cause,
+                message: `Import path is inaccessible: ${input.path}`,
               }),
-        ),
-      );
-      const canonicalPath = yield* fs.realPath(input.path).pipe(
-        Effect.mapError(
-          (cause) =>
-            new OperationsPathError({
-              cause,
-              message: `Import path is inaccessible: ${input.path}`,
-            }),
-        ),
-      );
+          ),
+        );
 
-      const allowedPrefixes = [
-        ...new Set(
-          [
-            ...getConfiguredLibraryPaths(config.library),
-            config.library.recycle_path,
-            config.downloads.root_path,
-          ]
-            .map((path) => path.trim())
-            .filter((path) => path.length > 0),
-        ),
-      ];
+        const allowedPrefixes = [
+          ...new Set(
+            [
+              ...getConfiguredLibraryPaths(config.library),
+              config.library.recycle_path,
+              config.downloads.root_path,
+            ]
+              .map((path) => path.trim())
+              .filter((path) => path.length > 0),
+          ),
+        ];
 
-      const isAllowed = allowedPrefixes.some((prefix) => isWithinPathRoot(canonicalPath, prefix));
+        const isAllowed = allowedPrefixes.some((prefix) => isWithinPathRoot(canonicalPath, prefix));
 
-      if (!isAllowed) {
-        return yield* new OperationsInputError({
-          message: "Import path must be inside library, recycle, or downloads root",
-        });
-      }
+        if (!isAllowed) {
+          return yield* new OperationsInputError({
+            message: "Import path must be inside library, recycle, or downloads root",
+          });
+        }
 
-      return yield* scanImportPathEffect({
-        aniList,
-        ...(input.mediaId === undefined ? {} : { mediaId: input.mediaId }),
-        configRepository,
-        db,
-        fs,
-        ...(input.limit === undefined ? {} : { limit: input.limit }),
-        mediaReadRepository,
-        mediaProbe,
-        path: canonicalPath,
-        tryDatabasePromise,
-      }).pipe(
-        Effect.mapError((error) =>
-          error instanceof DatabaseError ||
-          error instanceof OperationsInputError ||
-          error instanceof OperationsPathError
-            ? error
-            : new OperationsInfrastructureError({
-                message: "Failed to scan import path",
-                cause: error,
-              }),
-        ),
-      );
-    });
+        return yield* scanImportPathEffect({
+          aniList,
+          ...(input.mediaId === undefined ? {} : { mediaId: input.mediaId }),
+          configRepository,
+          db,
+          fs,
+          ...(input.limit === undefined ? {} : { limit: input.limit }),
+          mediaReadRepository,
+          mediaProbe,
+          path: canonicalPath,
+          tryDatabasePromise,
+        }).pipe(
+          Effect.mapError((error) =>
+            error instanceof DatabaseError ||
+            error instanceof OperationsInputError ||
+            error instanceof OperationsPathError
+              ? error
+              : new OperationsInfrastructureError({
+                  message: "Failed to scan import path",
+                  cause: error,
+                }),
+          ),
+        );
+      });
 
-    return ImportPathScanService.of({ scanImportPath });
-  }),
-);
+      return { scanImportPath } satisfies ImportPathScanServiceShape;
+    }),
+  },
+) {}
+
+export const ImportPathScanServiceLive = ImportPathScanService.Default;

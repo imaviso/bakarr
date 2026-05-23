@@ -1,5 +1,5 @@
 import { resolve4, resolve6 } from "node:dns/promises";
-import { Context, Effect, Layer, Schema } from "effect";
+import { Effect, Layer, Schema } from "effect";
 
 export class DnsLookupError extends Schema.TaggedError<DnsLookupError>()("DnsLookupError", {
   cause: Schema.Defect,
@@ -14,23 +14,28 @@ export interface DnsResolverShape {
   ) => Effect.Effect<readonly string[], DnsLookupError>;
 }
 
-export class DnsResolver extends Context.Tag("@bakarr/api/DnsResolver")<
-  DnsResolver,
-  DnsResolverShape
->() {}
-
-export const DnsResolverLive = Layer.sync(DnsResolver, () => ({
-  resolve: Effect.fn("DnsResolver.resolve")(function* (hostname: string, recordType: "A" | "AAAA") {
-    return yield* Effect.tryPromise({
-      try: () => (recordType === "A" ? resolve4(hostname) : resolve6(hostname)),
-      catch: (cause) => new DnsLookupError({ cause, hostname, recordType }),
-    });
+export class DnsResolver extends Effect.Service<DnsResolver>()("@bakarr/api/DnsResolver", {
+  sync: () => ({
+    resolve: Effect.fn("DnsResolver.resolve")(function* (
+      hostname: string,
+      recordType: "A" | "AAAA",
+    ) {
+      return yield* Effect.tryPromise({
+        try: () => (recordType === "A" ? resolve4(hostname) : resolve6(hostname)),
+        catch: (cause) => new DnsLookupError({ cause, hostname, recordType }),
+      });
+    }),
   }),
-}));
+}) {}
 
-export const DnsResolverNoop = Layer.succeed(DnsResolver, {
-  resolve: () => Effect.succeed([]),
-});
+export const DnsResolverLive = DnsResolver.Default;
+
+export const DnsResolverNoop = Layer.succeed(
+  DnsResolver,
+  DnsResolver.make({
+    resolve: () => Effect.succeed([]),
+  }),
+);
 
 /** Classify a DNS lookup failure as a "no record" condition vs real error. */
 export function isDnsNoRecordError(cause: unknown): boolean {

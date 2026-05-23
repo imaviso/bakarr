@@ -2,6 +2,7 @@ import { Cause, Effect, Exit, Layer } from "effect";
 
 import { assert, describe, it } from "@effect/vitest";
 import { Database } from "@/db/database.ts";
+import * as schema from "@/db/schema.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
 import {
   ImportPathScanService,
@@ -12,42 +13,48 @@ import { FileSystem, type FileSystemShape } from "@/infra/filesystem/filesystem.
 import { MediaProbe } from "@/infra/media/probe.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
 import { makeRuntimeConfigSnapshotStub } from "@/test/stubs.ts";
+import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import { OperationsConfigRepository } from "@/features/operations/repository/config-repository.ts";
 
 describe("ImportPathScanService", () => {
-  it.effect("rejects paths outside library, recycle, and downloads roots", () =>
-    Effect.gen(function* () {
-      const fs = makeScanFileSystem({
-        realPath: () => Effect.succeed("/outside/imports"),
-      });
+  it.scoped("rejects paths outside library, recycle, and downloads roots", () =>
+    withSqliteTestDbEffect({
+      schema,
+      run: (db, _databaseFile, client) =>
+        Effect.gen(function* () {
+          const fs = makeScanFileSystem({
+            realPath: () => Effect.succeed("/outside/imports"),
+          });
 
-      const exit = yield* Effect.exit(
-        scanImportPathEffect(fs, {
-          path: "/outside/imports",
-        }),
-      );
-
-      assert.deepStrictEqual(exit._tag, "Failure");
-
-      if (Exit.isFailure(exit)) {
-        const failure = Cause.failureOption(exit.cause);
-        assert.deepStrictEqual(failure._tag, "Some");
-
-        if (failure._tag === "Some") {
-          assert.deepStrictEqual(failure.value._tag, "DomainInputError");
-          assert.deepStrictEqual(
-            failure.value.message,
-            "Import path must be inside library, recycle, or downloads root",
+          const exit = yield* Effect.exit(
+            scanImportPathEffect(fs, Database.make({ client, db }), {
+              path: "/outside/imports",
+            }),
           );
-        }
-      }
+
+          assert.deepStrictEqual(exit._tag, "Failure");
+
+          if (Exit.isFailure(exit)) {
+            const failure = Cause.failureOption(exit.cause);
+            assert.deepStrictEqual(failure._tag, "Some");
+
+            if (failure._tag === "Some") {
+              assert.deepStrictEqual(failure.value._tag, "DomainInputError");
+              assert.deepStrictEqual(
+                failure.value.message,
+                "Import path must be inside library, recycle, or downloads root",
+              );
+            }
+          }
+        }),
     }),
   );
 });
 
 function scanImportPathEffect(
   fs: FileSystemShape,
+  database: Database,
   input: {
     readonly mediaId?: number;
     readonly limit?: number;
@@ -59,21 +66,22 @@ function scanImportPathEffect(
       ImportPathScanServiceLive.pipe(
         Layer.provide(
           Layer.mergeAll(
-            Layer.succeed(Database, {
-              get client(): never {
-                throw new Error("test database stub");
-              },
-              db: undefined!,
-            }),
-            Layer.succeed(AniListClient, {
-              getAnimeMetadataById: () => Effect.dieMessage("not used in test"),
-              searchAnimeMetadata: () => Effect.dieMessage("not used in test"),
-              getSeasonalAnime: () => Effect.dieMessage("not used in test"),
-            }),
-            Layer.succeed(FileSystem, fs),
-            Layer.succeed(MediaProbe, {
-              probeVideoFile: () => Effect.dieMessage("not used in test"),
-            }),
+            Layer.succeed(Database, database),
+            Layer.succeed(
+              AniListClient,
+              AniListClient.make({
+                getAnimeMetadataById: () => Effect.dieMessage("not used in test"),
+                searchAnimeMetadata: () => Effect.dieMessage("not used in test"),
+                getSeasonalAnime: () => Effect.dieMessage("not used in test"),
+              }),
+            ),
+            Layer.succeed(FileSystem, FileSystem.make(fs)),
+            Layer.succeed(
+              MediaProbe,
+              MediaProbe.make({
+                probeVideoFile: () => Effect.dieMessage("not used in test"),
+              }),
+            ),
             Layer.succeed(
               MediaReadRepository,
               MediaReadRepository.make({

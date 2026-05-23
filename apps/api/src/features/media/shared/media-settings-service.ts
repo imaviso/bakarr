@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { Context, Effect, Layer } from "effect";
+import { Effect } from "effect";
 
 import { Database, type DatabaseError } from "@/db/database.ts";
 import { media } from "@/db/schema.ts";
@@ -42,11 +42,6 @@ export interface AnimeSettingsServiceShape {
     releaseProfileIds: number[],
   ) => Effect.Effect<void, MediaServiceError | DatabaseError | MediaStoredDataError>;
 }
-
-export class AnimeSettingsService extends Context.Tag("@bakarr/api/AnimeSettingsService")<
-  AnimeSettingsService,
-  AnimeSettingsServiceShape
->() {}
 
 const makeAnimeSettingsService = Effect.fn("AnimeSettingsService.make")(function* () {
   const { db } = yield* Database;
@@ -192,7 +187,11 @@ const makeAnimeSettingsService = Effect.fn("AnimeSettingsService.make")(function
   } satisfies AnimeSettingsServiceShape;
 });
 
-export const AnimeSettingsServiceLive = Layer.effect(
-  AnimeSettingsService,
-  makeAnimeSettingsService(),
-);
+export class AnimeSettingsService extends Effect.Service<AnimeSettingsService>()(
+  "@bakarr/api/AnimeSettingsService",
+  {
+    effect: makeAnimeSettingsService(),
+  },
+) {}
+
+export const AnimeSettingsServiceLive = AnimeSettingsService.Default;

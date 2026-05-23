@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from "effect";
+import { Effect } from "effect";
 
 import { Database, DatabaseError } from "@/db/database.ts";
 import { ClockService } from "@/infra/clock.ts";
@@ -73,117 +73,114 @@ export interface AnimeQueryServiceShape {
   ) => Effect.Effect<SeasonalMediaResponse, DatabaseError | ExternalCallError>;
 }
 
-export class AnimeQueryService extends Context.Tag("@bakarr/api/AnimeQueryService")<
-  AnimeQueryService,
-  AnimeQueryServiceShape
->() {}
+const makeAnimeQueryService = Effect.fn("AnimeQueryService.make")(function* () {
+  const { db } = yield* Database;
+  const aniList = yield* AniListClient;
+  const manami = yield* ManamiClient;
+  const clock = yield* ClockService;
+  const mediaReadRepository = yield* MediaReadRepository;
+  const providerService = yield* AnimeSeasonalProviderService;
 
-export const AnimeQueryServiceLive = Layer.effect(
-  AnimeQueryService,
-  Effect.gen(function* () {
-    const { db } = yield* Database;
-    const aniList = yield* AniListClient;
-    const manami = yield* ManamiClient;
-    const clock = yield* ClockService;
-    const mediaReadRepository = yield* MediaReadRepository;
-    const providerService = yield* AnimeSeasonalProviderService;
+  const service: AnimeQueryServiceShape = {
+    getMedia: Effect.fn("AnimeQueryService.getMedia")(function* (id: number) {
+      return yield* getAnimeEffect({ db, id, mediaReadRepository });
+    }),
+    getAnimeByAnilistId: Effect.fn("AnimeQueryService.getAnimeByAnilistId")(function* (
+      id: number,
+      mediaKind?: MediaKind,
+    ) {
+      return yield* getAnimeByAnilistIdEffect({
+        aniList,
+        db,
+        id,
+        ...(mediaKind === undefined ? {} : { mediaKind }),
+      });
+    }),
+    listMedia: Effect.fn("AnimeQueryService.listMedia")(function* (params?: MediaListQueryParams) {
+      return yield* listAnimeEffect(db, params);
+    }),
+    listEpisodes: Effect.fn("AnimeQueryService.listEpisodes")(function* (mediaId: number) {
+      const now = new Date(yield* clock.currentTimeMillis);
+      return yield* listEpisodesEffect({ mediaId, db, now });
+    }),
+    searchAnime: Effect.fn("AnimeQueryService.searchAnime")(function* (
+      query: string,
+      mediaKind?: MediaKind,
+    ) {
+      return yield* searchAnimeEffect({
+        aniList,
+        db,
+        manami,
+        ...(mediaKind === undefined ? {} : { mediaKind }),
+        query,
+      });
+    }),
+    listSeasonalAnime: Effect.fn("AnimeQueryService.listSeasonalAnime")(function* (
+      params?: SeasonalMediaQueryParams,
+    ) {
+      const now = new Date(yield* clock.currentTimeMillis);
+      const season = params?.season ?? resolveSeasonFromDate(now);
+      const year = params?.year ?? resolveSeasonYearFromDate(now);
+      const limit = clamp(params?.limit ?? 12, 1, 50);
+      const page = Math.max(1, Math.floor(params?.page ?? 1));
 
-    return {
-      getMedia: Effect.fn("AnimeQueryService.getMedia")(function* (id: number) {
-        return yield* getAnimeEffect({ db, id, mediaReadRepository });
-      }),
-      getAnimeByAnilistId: Effect.fn("AnimeQueryService.getAnimeByAnilistId")(function* (
-        id: number,
-        mediaKind?: MediaKind,
-      ) {
-        return yield* getAnimeByAnilistIdEffect({
-          aniList,
-          db,
-          id,
-          ...(mediaKind === undefined ? {} : { mediaKind }),
-        });
-      }),
-      listMedia: Effect.fn("AnimeQueryService.listMedia")(function* (
-        params?: MediaListQueryParams,
-      ) {
-        return yield* listAnimeEffect(db, params);
-      }),
-      listEpisodes: Effect.fn("AnimeQueryService.listEpisodes")(function* (mediaId: number) {
-        const now = new Date(yield* clock.currentTimeMillis);
-        return yield* listEpisodesEffect({ mediaId, db, now });
-      }),
-      searchAnime: Effect.fn("AnimeQueryService.searchAnime")(function* (
-        query: string,
-        mediaKind?: MediaKind,
-      ) {
-        return yield* searchAnimeEffect({
-          aniList,
-          db,
-          manami,
-          ...(mediaKind === undefined ? {} : { mediaKind }),
-          query,
-        });
-      }),
-      listSeasonalAnime: Effect.fn("AnimeQueryService.listSeasonalAnime")(function* (
-        params?: SeasonalMediaQueryParams,
-      ) {
-        const now = new Date(yield* clock.currentTimeMillis);
-        const season = params?.season ?? resolveSeasonFromDate(now);
-        const year = params?.year ?? resolveSeasonYearFromDate(now);
-        const limit = clamp(params?.limit ?? 12, 1, 50);
-        const page = Math.max(1, Math.floor(params?.page ?? 1));
+      const cacheKey = toSeasonalAnimeCacheKey({
+        season,
+        year,
+        limit,
+        page,
+      });
+      const nowMs = now.getTime();
 
-        const cacheKey = toSeasonalAnimeCacheKey({
-          season,
-          year,
-          limit,
-          page,
-        });
-        const nowMs = now.getTime();
+      const cached = yield* readSeasonalAnimeCache(db, cacheKey, nowMs);
+      if (cached !== null) {
+        const markedResults = yield* markSearchResultsAlreadyInLibraryEffect(db, cached.results);
+        return { ...cached, results: markedResults };
+      }
 
-        const cached = yield* readSeasonalAnimeCache(db, cacheKey, nowMs);
-        if (cached !== null) {
-          const markedResults = yield* markSearchResultsAlreadyInLibraryEffect(db, cached.results);
-          return { ...cached, results: markedResults };
-        }
+      const rawResponse = yield* listSeasonalAnimeEffect({
+        db,
+        limit,
+        now,
+        page,
+        providerService,
+        season,
+        year,
+      }).pipe(
+        Effect.catchTag("ExternalCallError", (error) =>
+          Effect.gen(function* () {
+            const stale = yield* readStaleSeasonalAnimeCache(db, cacheKey);
+            if (stale === null) {
+              return yield* error;
+            }
 
-        const rawResponse = yield* listSeasonalAnimeEffect({
-          db,
-          limit,
-          now,
-          page,
-          providerService,
-          season,
-          year,
-        }).pipe(
-          Effect.catchTag("ExternalCallError", (error) =>
-            Effect.gen(function* () {
-              const stale = yield* readStaleSeasonalAnimeCache(db, cacheKey);
-              if (stale === null) {
-                return yield* error;
-              }
+            yield* Effect.logWarning("Seasonal provider failed; using stale cache").pipe(
+              Effect.annotateLogs({
+                operation: error.operation,
+                season,
+                year,
+              }),
+            );
 
-              yield* Effect.logWarning("Seasonal provider failed; using stale cache").pipe(
-                Effect.annotateLogs({
-                  operation: error.operation,
-                  season,
-                  year,
-                }),
-              );
+            const markedResults = yield* markSearchResultsAlreadyInLibraryEffect(db, stale.results);
+            return { ...stale, degraded: true, results: markedResults };
+          }),
+        ),
+      );
 
-              const markedResults = yield* markSearchResultsAlreadyInLibraryEffect(
-                db,
-                stale.results,
-              );
-              return { ...stale, degraded: true, results: markedResults };
-            }),
-          ),
-        );
+      yield* writeSeasonalAnimeCache(db, cacheKey, rawResponse, nowMs);
 
-        yield* writeSeasonalAnimeCache(db, cacheKey, rawResponse, nowMs);
+      return rawResponse;
+    }),
+  };
+  return service;
+});
 
-        return rawResponse;
-      }),
-    } satisfies AnimeQueryServiceShape;
-  }),
-);
+export class AnimeQueryService extends Effect.Service<AnimeQueryService>()(
+  "@bakarr/api/AnimeQueryService",
+  {
+    effect: makeAnimeQueryService(),
+  },
+) {}
+
+export const AnimeQueryServiceLive = AnimeQueryService.Default;

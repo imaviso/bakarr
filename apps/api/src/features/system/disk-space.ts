@@ -1,7 +1,7 @@
 import { Command, CommandExecutor } from "@effect/platform";
 import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { Context, Effect, Either, Layer, Schema } from "effect";
+import { Effect, Either, Schema } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 import { getConfiguredLibraryPaths } from "@/features/media/shared/config-support.ts";
@@ -30,11 +30,6 @@ export interface DiskSpaceInspectorShape {
   readonly getDiskSpace: (path: string) => Effect.Effect<DiskSpace, DiskSpaceError>;
   readonly getDiskSpaceSafe: (path: string) => Effect.Effect<DiskSpace, DiskSpaceError>;
 }
-
-export class DiskSpaceInspector extends Context.Tag("@bakarr/api/DiskSpaceInspector")<
-  DiskSpaceInspector,
-  DiskSpaceInspectorShape
->() {}
 
 export const mapBlockStatsToDiskSpaceEffect = Effect.fn("DiskSpace.mapBlockStatsToDiskSpace")(
   function* (stat: BlockStatsShape) {
@@ -101,13 +96,17 @@ export function makeDiskSpaceInspector(
   };
 }
 
-export const DiskSpaceInspectorLive = Layer.effect(
-  DiskSpaceInspector,
-  Effect.gen(function* () {
-    const commandExecutor = yield* CommandExecutor.CommandExecutor;
-    return makeDiskSpaceInspector(commandExecutor);
-  }),
-);
+export class DiskSpaceInspector extends Effect.Service<DiskSpaceInspector>()(
+  "@bakarr/api/DiskSpaceInspector",
+  {
+    effect: Effect.gen(function* () {
+      const commandExecutor = yield* CommandExecutor.CommandExecutor;
+      return makeDiskSpaceInspector(commandExecutor);
+    }),
+  },
+) {}
+
+export const DiskSpaceInspectorLive = DiskSpaceInspector.Default;
 
 export function selectStoragePath(config: Config, databaseFile: string): string {
   const libraryPath = getConfiguredLibraryPaths(config.library).find(

@@ -8,10 +8,7 @@ import {
   AppConfig,
 } from "@/config/schema.ts";
 import { AuthForbiddenError, AuthUnauthorizedError } from "@/features/auth/errors.ts";
-import {
-  AuthSessionService,
-  type AuthSessionServiceShape,
-} from "@/features/auth/session-service.ts";
+import { AuthSessionService } from "@/features/auth/session-service.ts";
 import { persistSessionResponse, requireViewerFromHttpRequest } from "@/http/shared/route-auth.ts";
 import { assert, it } from "@effect/vitest";
 import { brandUserId, type AuthUser } from "@packages/shared/index.ts";
@@ -235,12 +232,12 @@ function makeConfig(overrides: Partial<AppConfigShape> = {}): AppConfigShape {
 }
 
 function makeAuthSessionService(
-  resolveViewer: AuthSessionServiceShape["resolveViewer"],
-): AuthSessionServiceShape {
-  return {
+  resolveViewer: AuthSessionService["resolveViewer"],
+): AuthSessionService {
+  return AuthSessionService.make({
     login: () => Effect.dieMessage("unused"),
     loginWithApiKey: () => Effect.dieMessage("unused"),
     logout: () => Effect.dieMessage("unused"),
     resolveViewer,
-  };
+  });
 }

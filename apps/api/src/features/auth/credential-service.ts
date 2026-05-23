@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Option } from "effect";
+import { Effect, Option } from "effect";
 
 import type { ApiKeyResponse, ChangePasswordRequest } from "@packages/shared/index.ts";
 import { DatabaseError } from "@/db/database.ts";
@@ -26,11 +26,6 @@ export interface AuthCredentialServiceShape {
     userId: number,
   ) => Effect.Effect<ApiKeyResponse, AuthError | DatabaseError | TokenHasherError>;
 }
-
-export class AuthCredentialService extends Context.Tag("@bakarr/api/AuthCredentialService")<
-  AuthCredentialService,
-  AuthCredentialServiceShape
->() {}
 
 const makeAuthCredentialService = Effect.fn("AuthCredentialService.make")(function* () {
   const users = yield* AuthUserRepository;
@@ -134,7 +129,11 @@ const makeAuthCredentialService = Effect.fn("AuthCredentialService.make")(functi
   } satisfies AuthCredentialServiceShape;
 });
 
-export const AuthCredentialServiceLive = Layer.effect(
-  AuthCredentialService,
-  makeAuthCredentialService(),
-);
+export class AuthCredentialService extends Effect.Service<AuthCredentialService>()(
+  "@bakarr/api/AuthCredentialService",
+  {
+    effect: makeAuthCredentialService(),
+  },
+) {}
+
+export const AuthCredentialServiceLive = AuthCredentialService.Default;

@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Option } from "effect";
+import { Effect, Option } from "effect";
 
 import {
   brandUserId,
@@ -47,11 +47,6 @@ export interface AuthSessionServiceShape {
     sessionToken: string | undefined,
   ) => Effect.Effect<void, DatabaseError | TokenHasherError>;
 }
-
-export class AuthSessionService extends Context.Tag("@bakarr/api/AuthSessionService")<
-  AuthSessionService,
-  AuthSessionServiceShape
->() {}
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const SESSION_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
@@ -210,7 +205,14 @@ const makeAuthSessionService = Effect.fn("AuthSessionService.make")(function* ()
   } satisfies AuthSessionServiceShape;
 });
 
-export const AuthSessionServiceLive = Layer.effect(AuthSessionService, makeAuthSessionService());
+export class AuthSessionService extends Effect.Service<AuthSessionService>()(
+  "@bakarr/api/AuthSessionService",
+  {
+    effect: makeAuthSessionService(),
+  },
+) {}
+
+export const AuthSessionServiceLive = AuthSessionService.Default;
 
 function toLoginResult(userRow: typeof users.$inferSelect, token: string) {
   return {

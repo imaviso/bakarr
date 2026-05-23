@@ -1,11 +1,9 @@
 import { Effect, Layer, Ref, Stream } from "effect";
+import type * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
 
 import type { Config } from "@packages/shared/index.ts";
 import { AppConfig } from "@/config/schema.ts";
-import {
-  BackgroundWorkerController,
-  type BackgroundWorkerControllerShape,
-} from "@/background/controller-core.ts";
+import { BackgroundWorkerController } from "@/background/controller-core.ts";
 import { Database, type AppDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
 import { ClockService } from "@/infra/clock.ts";
@@ -13,7 +11,6 @@ import { RuntimeLogLevelStateLive } from "@/infra/logging.ts";
 import { RandomService } from "@/infra/random.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { makeDatabaseServiceStub } from "@/test/stubs.ts";
 import { assert, describe, it } from "@effect/vitest";
 import { decodeStoredConfigRow } from "@/features/system/config-codec.ts";
 import {
@@ -32,13 +29,14 @@ import { EventBus } from "@/features/events/event-bus.ts";
 describe("SystemConfigUpdateService", () => {
   it.scoped("persists updated config and reloads background workers", () =>
     withSqliteTestDbEffect({
-      run: (db, databaseFile) =>
+      run: (db, databaseFile, client) =>
         Effect.gen(function* () {
           const reloads: Config[] = [];
           const runtimeConfigRef = yield* Ref.make(makeTestConfig(databaseFile));
           const fullLayer = makeSystemConfigUpdateTestLayer({
             db,
             databaseFile,
+            client,
             reloads,
             runtimeConfigRef,
           });
@@ -79,12 +77,13 @@ describe("SystemConfigUpdateService", () => {
 
   it.scoped("preserves the stored qBittorrent password when the update omits it", () =>
     withSqliteTestDbEffect({
-      run: (db, databaseFile) =>
+      run: (db, databaseFile, client) =>
         Effect.gen(function* () {
           const runtimeConfigRef = yield* Ref.make(makeTestConfig(databaseFile));
           const fullLayer = makeSystemConfigUpdateTestLayer({
             db,
             databaseFile,
+            client,
             reloads: [],
             runtimeConfigRef,
           });
@@ -124,12 +123,13 @@ describe("SystemConfigUpdateService", () => {
 
   it.scoped("preserves the stored AniDB password when the update omits it", () =>
     withSqliteTestDbEffect({
-      run: (db, databaseFile) =>
+      run: (db, databaseFile, client) =>
         Effect.gen(function* () {
           const runtimeConfigRef = yield* Ref.make(makeTestConfig(databaseFile));
           const fullLayer = makeSystemConfigUpdateTestLayer({
             db,
             databaseFile,
+            client,
             reloads: [],
             runtimeConfigRef,
           });
@@ -175,8 +175,8 @@ describe("SystemConfigUpdateService", () => {
   );
 });
 
-function makeBackgroundWorkerControllerStub(reloads: Config[]): BackgroundWorkerControllerShape {
-  return {
+function makeBackgroundWorkerControllerStub(reloads: Config[]): BackgroundWorkerController {
+  return BackgroundWorkerController.make({
     isStarted: () => Effect.succeed(false),
     reload: (config) =>
       Effect.sync(() => {
@@ -184,11 +184,12 @@ function makeBackgroundWorkerControllerStub(reloads: Config[]): BackgroundWorker
       }),
     start: () => Effect.void,
     stop: () => Effect.void,
-  };
+  });
 }
 
 function makeSystemConfigUpdateTestLayer(input: {
   readonly db: AppDatabase;
+  readonly client: NodeSqliteClient.SqliteClient;
   readonly databaseFile: string;
   readonly reloads: Config[];
   readonly runtimeConfigRef: Ref.Ref<Config>;
@@ -199,12 +200,15 @@ function makeSystemConfigUpdateTestLayer(input: {
     ),
     ClockService.Default,
     RuntimeLogLevelStateLive,
-    Layer.succeed(Database, makeDatabaseServiceStub(input.db)),
+    Layer.succeed(Database, Database.make({ client: input.client, db: input.db })),
     Layer.succeed(BackgroundWorkerController, makeBackgroundWorkerControllerStub(input.reloads)),
-    Layer.succeed(RuntimeConfigSnapshotService, {
-      getRuntimeConfig: () => Ref.get(input.runtimeConfigRef),
-      replaceRuntimeConfig: (config) => Ref.set(input.runtimeConfigRef, config),
-    }),
+    Layer.succeed(
+      RuntimeConfigSnapshotService,
+      RuntimeConfigSnapshotService.make({
+        getRuntimeConfig: () => Ref.get(input.runtimeConfigRef),
+        replaceRuntimeConfig: (config) => Ref.set(input.runtimeConfigRef, config),
+      }),
+    ),
     Layer.succeed(
       EventBus,
       EventBus.make({

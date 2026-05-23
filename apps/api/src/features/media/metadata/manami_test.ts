@@ -463,7 +463,7 @@ function makeManamiClientLayer(input: {
         AppConfig.layerWithOverrides({ databaseFile: `${input.root}/bakarr.sqlite` }),
         clockLayer,
         externalCallLayer,
-        Layer.succeed(FileSystem, input.fs),
+        Layer.succeed(FileSystem, FileSystem.make(input.fs)),
         Layer.succeed(HttpClient.HttpClient, input.httpClient),
       ),
     ),

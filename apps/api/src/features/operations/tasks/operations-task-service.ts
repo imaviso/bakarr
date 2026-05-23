@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Option, Schema } from "effect";
+import { Effect, Option, Schema } from "effect";
 
 import type {
   AsyncOperationAccepted,
@@ -76,15 +76,6 @@ export interface OperationsTaskReadServiceShape {
     readonly taskKey?: OperationsTaskKey;
   }) => Effect.Effect<readonly OperationTask[], DatabaseError | OperationsInfrastructureError>;
 }
-
-export class OperationsTaskWriteService extends Context.Tag(
-  "@bakarr/api/OperationsTaskWriteService",
-)<OperationsTaskWriteService, OperationsTaskWriteServiceShape>() {}
-
-export class OperationsTaskReadService extends Context.Tag("@bakarr/api/OperationsTaskReadService")<
-  OperationsTaskReadService,
-  OperationsTaskReadServiceShape
->() {}
 
 export const decodeTaskPayload = Effect.fn("OperationsTaskService.decodeTaskPayload")(
   (
@@ -271,13 +262,13 @@ const makeOperationsTaskWriteService = Effect.fn("OperationsTaskWriteService.mak
     },
   );
 
-  return OperationsTaskWriteService.of({
+  return {
     completeFailedTask,
     completeSucceededTask,
     createTask,
     markRunningTask,
     updateTaskProgress,
-  });
+  } satisfies OperationsTaskWriteServiceShape;
 });
 
 const makeOperationsTaskReadService = Effect.fn("OperationsTaskReadService.make")(function* () {
@@ -323,21 +314,25 @@ const makeOperationsTaskReadService = Effect.fn("OperationsTaskReadService.make"
     return yield* Effect.forEach(rows, (row) => toOperationsTask(row));
   });
 
-  return OperationsTaskReadService.of({
+  return {
     getTask,
     listTasks,
-  });
+  } satisfies OperationsTaskReadServiceShape;
 });
 
-export const OperationsTaskWriteServiceLive = Layer.effect(
-  OperationsTaskWriteService,
-  makeOperationsTaskWriteService(),
-);
+export class OperationsTaskWriteService extends Effect.Service<OperationsTaskWriteService>()(
+  "@bakarr/api/OperationsTaskWriteService",
+  { effect: makeOperationsTaskWriteService() },
+) {}
 
-export const OperationsTaskReadServiceLive = Layer.effect(
-  OperationsTaskReadService,
-  makeOperationsTaskReadService(),
-);
+export const OperationsTaskWriteServiceLive = OperationsTaskWriteService.Default;
+
+export class OperationsTaskReadService extends Effect.Service<OperationsTaskReadService>()(
+  "@bakarr/api/OperationsTaskReadService",
+  { effect: makeOperationsTaskReadService() },
+) {}
+
+export const OperationsTaskReadServiceLive = OperationsTaskReadService.Default;
 
 export const decodeOperationsTaskQuery = Effect.fn(
   "OperationsTaskService.decodeOperationsTaskQuery",
