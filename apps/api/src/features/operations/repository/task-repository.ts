@@ -2,7 +2,7 @@ import { and, desc, eq, notInArray } from "drizzle-orm";
 import { Effect, Schema } from "effect";
 
 import { OperationTaskKeySchema } from "@packages/shared/index.ts";
-import { Database, DatabaseError, type AppDatabase } from "@/db/database.ts";
+import { AppDrizzleDatabase, DatabaseError, type AppDatabase } from "@/db/database.ts";
 import { operationsTasks } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
@@ -63,9 +63,10 @@ export class OperationsTaskRepository extends Effect.Service<OperationsTaskRepos
   "@bakarr/api/OperationsTaskRepository",
   {
     effect: Effect.gen(function* () {
-      const { db } = yield* Database;
+      const db = yield* AppDrizzleDatabase;
       return makeOperationsTaskRepositoryShape(db);
     }),
+    dependencies: [AppDrizzleDatabase.Default],
   },
 ) {}
 

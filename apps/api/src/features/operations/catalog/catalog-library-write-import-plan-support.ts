@@ -10,7 +10,8 @@ import {
   type MediaProbeShape,
   type ProbedMediaMetadata,
 } from "@/infra/media/probe.ts";
-import { DomainNotFoundError, DomainPathError } from "@/features/errors.ts";
+import { DomainPathError } from "@/features/errors.ts";
+import type { MediaNotFoundError } from "@/features/media/errors.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import { buildEpisodeFilenamePlan } from "@/features/operations/library/naming-canonical-support.ts";
 import type { EpisodeFilenamePlan } from "@/features/operations/library/naming-types.ts";
@@ -52,7 +53,7 @@ export interface LibraryImportPlan {
 
 export const buildLibraryImportPlan = Effect.fn("Operations.buildLibraryImportPlan")((
   input: BuildLibraryImportPlanInput,
-): Effect.Effect<LibraryImportPlan, DatabaseError | DomainPathError | DomainNotFoundError> => {
+): Effect.Effect<LibraryImportPlan, DatabaseError | DomainPathError | MediaNotFoundError> => {
   const { db, file, fs, mediaReadRepository, mediaProbe, runtimeConfig, tryDatabasePromise } =
     input;
   return Effect.gen(function* () {

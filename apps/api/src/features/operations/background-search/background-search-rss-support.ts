@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { Effect, Ref } from "effect";
 
 import { DatabaseError } from "@/db/database.ts";
-import { Database } from "@/db/database.ts";
+import { AppDrizzleDatabase } from "@/db/database.ts";
 import { rssFeeds } from "@/db/schema.ts";
 import { BackgroundSearchRssFeedService } from "@/features/operations/background-search/background-search-rss-feed-service.ts";
 import { InfrastructureError } from "@/features/errors.ts";
@@ -22,7 +22,7 @@ export class SearchBackgroundRssService extends Effect.Service<SearchBackgroundR
   "@bakarr/api/SearchBackgroundRssService",
   {
     effect: Effect.gen(function* () {
-      const { db } = yield* Database;
+      const db = yield* AppDrizzleDatabase;
       const progress = yield* OperationsProgress;
       const rssFeedService = yield* BackgroundSearchRssFeedService;
       const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
@@ -79,6 +79,7 @@ export class SearchBackgroundRssService extends Effect.Service<SearchBackgroundR
 
       return { runRssCheck } satisfies SearchBackgroundRssServiceShape;
     }),
+    dependencies: [AppDrizzleDatabase.Default],
   },
 ) {}
 

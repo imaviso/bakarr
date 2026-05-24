@@ -5,7 +5,7 @@ import type {
   DownloadHistoryPage,
   DownloadStatus,
 } from "@packages/shared/index.ts";
-import { Database, type DatabaseError } from "@/db/database.ts";
+import { AppDrizzleDatabase, type DatabaseError } from "@/db/database.ts";
 import {
   makeCatalogDownloadEventReads,
   type DownloadEventCsvExportStreamShape,
@@ -71,7 +71,7 @@ export class CatalogDownloadReadService extends Effect.Service<CatalogDownloadRe
   "@bakarr/api/CatalogDownloadReadService",
   {
     effect: Effect.gen(function* () {
-      const { db } = yield* Database;
+      const db = yield* AppDrizzleDatabase;
       const clock = yield* ClockService;
       const nowIso = () => nowIsoFromClock(clock);
 
@@ -102,6 +102,7 @@ export class CatalogDownloadReadService extends Effect.Service<CatalogDownloadRe
         streamDownloadEventsExportJson,
       } satisfies CatalogDownloadReadServiceShape;
     }),
+    dependencies: [AppDrizzleDatabase.Default],
   },
 ) {}
 

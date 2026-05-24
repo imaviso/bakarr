@@ -1,17 +1,17 @@
 import { Effect } from "effect";
 
-import { Database, type DatabaseError } from "@/db/database.ts";
+import { AppDrizzleDatabase, type DatabaseError } from "@/db/database.ts";
 import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
-import type { DomainNotFoundError, DomainPathError } from "@/features/errors.ts";
+import type { DomainPathError } from "@/features/errors.ts";
 import { UnmappedScanService } from "@/features/operations/unmapped/unmapped-scan-service.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
-import { OperationsConfigRepository } from "@/features/operations/repository/config-repository.ts";
 import {
   decodeUnmappedFolderMatchRow,
   SystemUnmappedRepository,
 } from "@/features/system/repository/unmapped-repository.ts";
-import { DomainConflictError, DomainInputError, StoredDataError } from "@/features/errors.ts";
+import { DomainInputError, StoredDataError } from "@/features/errors.ts";
+import { OperationsConflictError, OperationsNotFoundError } from "@/features/operations/errors.ts";
 import { appendLog } from "@/features/operations/shared/job-support.ts";
 import {
   transitionUnmappedFolderForControlAction,
@@ -25,6 +25,9 @@ import {
 } from "@/features/operations/unmapped/unmapped-folders.ts";
 import { loadUnmappedFolderSnapshot } from "@/features/operations/unmapped/unmapped-scan-snapshot-support.ts";
 import type { UnmappedFolder } from "@packages/shared/index.ts";
+import { MEDIA_KIND_VALUES } from "@packages/shared/index.ts";
+import { getLibraryPathForMediaKind } from "@/features/media/shared/config-support.ts";
+import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 
 export type UnmappedControlServiceShape = UnmappedControlWorkflowShape;
 
@@ -33,7 +36,7 @@ export interface UnmappedControlWorkflowShape {
     action: "pause_queued" | "resume_paused" | "reset_failed" | "retry_failed";
   }) => Effect.Effect<
     { affectedCount: number },
-    DatabaseError | DomainPathError | StoredDataError | DomainNotFoundError
+    DatabaseError | DomainPathError | StoredDataError | OperationsNotFoundError
   >;
   readonly controlUnmappedFolder: (input: {
     action: "pause" | "resume" | "reset" | "refresh";
@@ -41,18 +44,18 @@ export interface UnmappedControlWorkflowShape {
   }) => Effect.Effect<
     { folderCount: number; folderPath: string },
     | DatabaseError
-    | DomainConflictError
+    | OperationsConflictError
     | DomainInputError
     | DomainPathError
     | StoredDataError
-    | DomainNotFoundError
+    | OperationsNotFoundError
   >;
 }
 
 const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(function* () {
-  const { db } = yield* Database;
+  const db = yield* AppDrizzleDatabase;
   const fs = yield* FileSystem;
-  const configRepository = yield* OperationsConfigRepository;
+  const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
   const systemUnmappedRepository = yield* SystemUnmappedRepository;
   const clock = yield* ClockService;
   const scanService = yield* UnmappedScanService;
@@ -88,9 +91,24 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
   ) {
     const snapshot = yield* loadUnmappedFolderSnapshot({
       db,
-      configRepository,
       fs,
       nowIso,
+      roots: Effect.fn("UnmappedControlService.getConfiguredRoots")(function* () {
+        const config = yield* runtimeConfigSnapshot.getRuntimeConfig().pipe(
+          Effect.mapError((error) =>
+            error._tag === "DatabaseError"
+              ? error
+              : new StoredDataError({
+                  cause: error,
+                  message: "Stored runtime config is unavailable for unmapped control",
+                }),
+          ),
+        );
+        return MEDIA_KIND_VALUES.map((mediaKind) => ({
+          mediaKind,
+          path: getLibraryPathForMediaKind(config.library, mediaKind),
+        }));
+      }),
       systemUnmappedRepository,
       tryDatabasePromise,
     });
@@ -109,7 +127,7 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
     );
 
     if (matchResult._tag === "Failed") {
-      return yield* new DomainConflictError({
+      return yield* new OperationsConflictError({
         message: matchResult.folder.last_match_error ?? "Failed to refresh folder match",
       });
     }
@@ -143,7 +161,7 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
       const current = yield* loadCurrentFolder(input.path);
 
       if (current.match_status === "matching") {
-        return yield* new DomainConflictError({
+        return yield* new OperationsConflictError({
           message: "Folder is currently matching in the background",
         });
       }

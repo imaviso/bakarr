@@ -2,7 +2,7 @@ import { and, desc, lt, sql, type SQL } from "drizzle-orm";
 import { Chunk, Effect, Option, Stream } from "effect";
 
 import { brandSystemLogId, type SystemLog } from "@packages/shared/index.ts";
-import { Database, DatabaseError } from "@/db/database.ts";
+import { type AppDatabase, DatabaseError } from "@/db/database.ts";
 import { systemLogs } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { eventTypeCondition, normalizeLevel } from "@/features/system/support.ts";
@@ -67,7 +67,7 @@ export function toSystemLog(row: typeof systemLogs.$inferSelect): SystemLog {
 }
 
 export const loadSystemLogExportHeader = Effect.fn("SystemLogExport.loadHeader")(function* (
-  db: typeof Database.Service.db,
+  db: AppDatabase,
   plan: SystemLogExportPlan,
   nowIso: () => Effect.Effect<string>,
 ) {
@@ -88,7 +88,7 @@ export const loadSystemLogExportHeader = Effect.fn("SystemLogExport.loadHeader")
 });
 
 export function streamLogExportJson(
-  db: typeof Database.Service.db,
+  db: AppDatabase,
   plan: SystemLogExportPlan,
 ): Stream.Stream<Uint8Array, DatabaseError> {
   const prefix = textEncoder.encode("[");
@@ -107,7 +107,7 @@ export function streamLogExportJson(
 }
 
 export function streamLogExportCsv(
-  db: typeof Database.Service.db,
+  db: AppDatabase,
   plan: SystemLogExportPlan,
 ): Stream.Stream<Uint8Array, DatabaseError> {
   const csvHeader = textEncoder.encode("id,level,event_type,message,created_at\n");
@@ -123,7 +123,7 @@ export function streamLogExportCsv(
 }
 
 function streamSystemLogs(
-  db: typeof Database.Service.db,
+  db: AppDatabase,
   plan: SystemLogExportPlan,
 ): Stream.Stream<SystemLog, DatabaseError> {
   return Stream.unfoldChunkEffect(

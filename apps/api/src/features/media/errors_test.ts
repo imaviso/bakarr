@@ -1,23 +1,22 @@
 import { assert, it } from "@effect/vitest";
 
+import { DomainPathError, StoredDataError } from "@/features/errors.ts";
 import {
-  DomainConflictError,
-  DomainNotFoundError,
-  DomainPathError,
-  StoredDataError,
-} from "@/features/errors.ts";
-import { AniDbRuntimeConfigError } from "@/features/media/errors.ts";
+  AniDbRuntimeConfigError,
+  MediaConflictError,
+  MediaNotFoundError,
+} from "@/features/media/errors.ts";
 
-it("DomainNotFoundError constructs with message", () => {
-  const error = new DomainNotFoundError({ message: "not found" });
+it("MediaNotFoundError constructs with message", () => {
+  const error = new MediaNotFoundError({ message: "not found" });
   assert.deepStrictEqual(error.message, "not found");
-  assert.deepStrictEqual(error._tag, "DomainNotFoundError");
+  assert.deepStrictEqual(error._tag, "MediaNotFoundError");
 });
 
-it("DomainConflictError constructs with message", () => {
-  const error = new DomainConflictError({ message: "conflict" });
+it("MediaConflictError constructs with message", () => {
+  const error = new MediaConflictError({ message: "conflict" });
   assert.deepStrictEqual(error.message, "conflict");
-  assert.deepStrictEqual(error._tag, "DomainConflictError");
+  assert.deepStrictEqual(error._tag, "MediaConflictError");
 });
 
 it("DomainPathError constructs with message and optional cause", () => {

@@ -7,7 +7,7 @@ import { media, mediaUnits } from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { makeMediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
-import { DomainNotFoundError } from "@/features/errors.ts";
+import { MediaNotFoundError } from "@/features/media/errors.ts";
 
 type TestDatabase = SqliteRemoteDatabase<typeof schema>;
 
@@ -63,7 +63,7 @@ it.scoped("getAnimeRowEffect returns row by id", () =>
   }),
 );
 
-it.scoped("getAnimeRowEffect fails with DomainNotFoundError for missing id", () =>
+it.scoped("getAnimeRowEffect fails with MediaNotFoundError for missing id", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -73,7 +73,7 @@ it.scoped("getAnimeRowEffect fails with DomainNotFoundError for missing id", () 
         if (Exit.isFailure(exit)) {
           const failure = Cause.failureOption(exit.cause);
           assert.ok(Option.isSome(failure));
-          assert.ok(failure.value instanceof DomainNotFoundError);
+          assert.ok(failure.value instanceof MediaNotFoundError);
           assert.deepStrictEqual(failure.value.message, "Media not found");
         }
       }),
@@ -120,7 +120,7 @@ it.scoped("getEpisodeRowEffect fails for non-existent episode", () =>
         if (Exit.isFailure(exit)) {
           const failure = Cause.failureOption(exit.cause);
           assert.ok(Option.isSome(failure));
-          assert.ok(failure.value instanceof DomainNotFoundError);
+          assert.ok(failure.value instanceof MediaNotFoundError);
           assert.deepStrictEqual(failure.value.message, "MediaUnit not found");
         }
       }),

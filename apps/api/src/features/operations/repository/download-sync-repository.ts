@@ -1,7 +1,7 @@
 import { eq, inArray, sql, type SQL } from "drizzle-orm";
 import { Effect } from "effect";
 
-import { Database, DatabaseError, type AppDatabase } from "@/db/database.ts";
+import { AppDrizzleDatabase, DatabaseError, type AppDatabase } from "@/db/database.ts";
 import { downloads, media } from "@/db/schema.ts";
 import {
   insertDownloadEventRow,
@@ -73,9 +73,10 @@ export class DownloadSyncRepository extends Effect.Service<DownloadSyncRepositor
   "@bakarr/api/DownloadSyncRepository",
   {
     effect: Effect.gen(function* () {
-      const { db } = yield* Database;
+      const db = yield* AppDrizzleDatabase;
       return makeDownloadSyncRepositoryShape(db);
     }),
+    dependencies: [AppDrizzleDatabase.Default],
   },
 ) {}
 

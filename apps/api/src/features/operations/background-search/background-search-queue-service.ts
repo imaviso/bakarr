@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 
 import type { DownloadAction } from "@packages/shared/index.ts";
-import { Database, DatabaseError } from "@/db/database.ts";
+import { AppDrizzleDatabase, DatabaseError } from "@/db/database.ts";
 import { media } from "@/db/schema.ts";
 import {
   buildDownloadSelectionMetadata,
@@ -45,7 +45,7 @@ export class BackgroundSearchQueueService extends Effect.Service<BackgroundSearc
   "@bakarr/api/BackgroundSearchQueueService",
   {
     effect: Effect.gen(function* () {
-      const { db } = yield* Database;
+      const db = yield* AppDrizzleDatabase;
       const clock = yield* ClockService;
       const torrentClientService = yield* TorrentClientService;
       const downloadTriggerCoordinator = yield* DownloadTriggerCoordinator;
@@ -179,6 +179,7 @@ export class BackgroundSearchQueueService extends Effect.Service<BackgroundSearc
         queueReleaseIfEligible,
       } satisfies BackgroundSearchQueueServiceShape;
     }),
+    dependencies: [AppDrizzleDatabase.Default],
   },
 ) {}
 

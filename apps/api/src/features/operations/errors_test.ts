@@ -1,38 +1,38 @@
 import { assert, it } from "@effect/vitest";
 
 import {
-  DomainConflictError,
   DomainInputError,
-  DomainNotFoundError,
   DomainPathError,
   InfrastructureError,
   StoredDataError,
 } from "@/features/errors.ts";
 import {
+  OperationsConflictError,
+  OperationsNotFoundError,
   RssFeedRejectedError,
   RssFeedParseError,
   RssFeedTooLargeError,
   isOperationsError,
 } from "@/features/operations/errors.ts";
 
-it("DomainNotFoundError constructs", () => {
-  const error = new DomainNotFoundError({ message: "not found" });
-  assert.deepStrictEqual(error._tag, "DomainNotFoundError");
+it("OperationsNotFoundError constructs", () => {
+  const error = new OperationsNotFoundError({ message: "not found" });
+  assert.deepStrictEqual(error._tag, "OperationsNotFoundError");
 });
 
-it("DomainNotFoundError constructs", () => {
-  const error = new DomainNotFoundError({ message: "media missing" });
-  assert.deepStrictEqual(error._tag, "DomainNotFoundError");
+it("OperationsNotFoundError constructs with media message", () => {
+  const error = new OperationsNotFoundError({ message: "media missing" });
+  assert.deepStrictEqual(error._tag, "OperationsNotFoundError");
 });
 
-it("DomainNotFoundError constructs", () => {
-  const error = new DomainNotFoundError({ message: "task gone" });
-  assert.deepStrictEqual(error._tag, "DomainNotFoundError");
+it("OperationsNotFoundError constructs with task message", () => {
+  const error = new OperationsNotFoundError({ message: "task gone" });
+  assert.deepStrictEqual(error._tag, "OperationsNotFoundError");
 });
 
-it("DomainConflictError constructs", () => {
-  const error = new DomainConflictError({ message: "duplicate" });
-  assert.deepStrictEqual(error._tag, "DomainConflictError");
+it("OperationsConflictError constructs", () => {
+  const error = new OperationsConflictError({ message: "duplicate" });
+  assert.deepStrictEqual(error._tag, "OperationsConflictError");
 });
 
 it("DomainInputError constructs with optional cause", () => {
@@ -40,9 +40,9 @@ it("DomainInputError constructs with optional cause", () => {
   assert.deepStrictEqual(error._tag, "DomainInputError");
 });
 
-it("DomainConflictError constructs", () => {
-  const error = new DomainConflictError({ message: "conflict" });
-  assert.deepStrictEqual(error._tag, "DomainConflictError");
+it("OperationsConflictError constructs with message", () => {
+  const error = new OperationsConflictError({ message: "conflict" });
+  assert.deepStrictEqual(error._tag, "OperationsConflictError");
 });
 
 it("DomainPathError constructs", () => {
@@ -76,7 +76,7 @@ it("InfrastructureError constructs", () => {
 });
 
 it("isOperationsError returns true for all operation error types", () => {
-  assert.ok(isOperationsError(new DomainNotFoundError({ message: "x" })));
+  assert.ok(isOperationsError(new OperationsNotFoundError({ message: "x" })));
   assert.ok(isOperationsError(new DomainInputError({ message: "x" })));
   assert.ok(isOperationsError(new RssFeedParseError({ message: "x" })));
   assert.ok(isOperationsError(new RssFeedTooLargeError({ message: "x" })));

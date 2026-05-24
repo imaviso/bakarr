@@ -1,6 +1,6 @@
 import { Config as EffectConfig, Effect, Schema } from "effect";
 
-import { Database } from "@/db/database.ts";
+import { AppDrizzleDatabase } from "@/db/database.ts";
 import { PositiveIntFromStringSchema } from "@/domain/domain-schema.ts";
 import { makeSingleFlightEffectRunner } from "@/infra/effect/coalescing-single-flight-runner.ts";
 import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
@@ -12,7 +12,7 @@ import { MediaReadRepository } from "@/features/media/shared/media-read-reposito
 const DEFAULT_METADATA_REFRESH_CONCURRENCY = 2;
 
 export const makeMetadataRefreshRunner = Effect.fn("AnimeMetadataRefresh.makeRunner")(function* () {
-  const { db } = yield* Database;
+  const db = yield* AppDrizzleDatabase;
   const imageCacheService = yield* AnimeImageCacheService;
   const metadataProvider = yield* AnimeMetadataProviderService;
   const mediaReadRepository = yield* MediaReadRepository;

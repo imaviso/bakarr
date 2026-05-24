@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { Effect, Option } from "effect";
 
-import { Database, type AppDatabase, type DatabaseError } from "@/db/database.ts";
+import { AppDrizzleDatabase, type AppDatabase, type DatabaseError } from "@/db/database.ts";
 import { appConfig, qualityProfiles } from "@/db/schema.ts";
 import { queryFirst, tryDatabasePromise } from "@/infra/effect/db.ts";
 
@@ -30,9 +30,10 @@ export class SystemConfigRepository extends Effect.Service<SystemConfigRepositor
   "@bakarr/api/SystemConfigRepository",
   {
     effect: Effect.gen(function* () {
-      const { db } = yield* Database;
+      const db = yield* AppDrizzleDatabase;
       return makeSystemConfigRepositoryShape(db);
     }),
+    dependencies: [AppDrizzleDatabase.Default],
   },
 ) {}
 

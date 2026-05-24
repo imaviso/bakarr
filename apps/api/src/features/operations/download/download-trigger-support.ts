@@ -19,7 +19,8 @@ import {
 import { parseMagnetInfoHash } from "@/features/operations/download/download-paths.ts";
 import { parseReleaseName } from "@/features/operations/search/release-ranking.ts";
 import { parseVolumeNumbersFromTitle } from "@/features/operations/search/release-volume.ts";
-import { DomainConflictError, DomainInputError, InfrastructureError } from "@/features/errors.ts";
+import { DomainInputError, InfrastructureError } from "@/features/errors.ts";
+import { OperationsConflictError } from "@/features/operations/errors.ts";
 import type { TriggerDownloadInput } from "@/features/operations/download/download-orchestration-shared.ts";
 import { resolveRequestedEpisodeNumber } from "@/features/operations/download/download-orchestration-shared.ts";
 
@@ -144,7 +145,7 @@ export const prepareTriggerDownload = Effect.fn("Operations.prepareTriggerDownlo
       const existingByHash = yield* input.triggerRepo.lookupDownloadByInfoHash(infoHash);
 
       if (existingByHash && IN_FLIGHT_STATUSES.has(existingByHash.status)) {
-        return yield* new DomainConflictError({
+        return yield* new OperationsConflictError({
           message: "An in-flight download already covers these mediaUnits",
         });
       }
@@ -160,7 +161,7 @@ export const prepareTriggerDownload = Effect.fn("Operations.prepareTriggerDownlo
           const existingCovered = yield* parseCoveredEpisodesEffect(row.coveredUnits);
 
           if (existingCovered.some((episode) => inferredCoveredEpisodes.includes(episode))) {
-            return yield* new DomainConflictError({
+            return yield* new OperationsConflictError({
               message: "An in-flight download already covers these mediaUnits",
             });
           }
@@ -208,7 +209,7 @@ export const insertQueuedDownload = Effect.fn("Operations.insertQueuedDownload")
   if (insertResult._tag === "Left") {
     const insertError = insertResult.left;
     if (insertError instanceof DatabaseError && insertError.isUniqueConstraint()) {
-      return yield* new DomainConflictError({
+      return yield* new OperationsConflictError({
         message: "Download already exists",
       });
     }

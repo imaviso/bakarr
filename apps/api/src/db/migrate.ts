@@ -2,7 +2,7 @@ import * as Migrator from "@effect/sql/Migrator";
 import * as SqlClient from "@effect/sql/SqlClient";
 import { Effect } from "effect";
 
-import { Database, DatabaseError } from "@/db/database.ts";
+import { AppSqlClient, DatabaseError } from "@/db/database.ts";
 import { embeddedDrizzleMigrations } from "@/generated/embedded-drizzle-migrations.ts";
 
 const applyMigrationStatements = Effect.fn("Database.applyMigrationStatements")(function* (
@@ -44,9 +44,10 @@ export const runEmbeddedDrizzleMigrations = Effect.fn("Database.runEmbeddedDrizz
  * database should not silently serve requests.
  */
 export const migrateDatabase = Effect.fn("Database.migrate")(function* () {
-  const { client } = yield* Database;
+  const client = yield* AppSqlClient;
 
   yield* runEmbeddedDrizzleMigrations().pipe(
+    Effect.provideService(SqlClient.SqlClient, client),
     Effect.mapError(
       (cause) =>
         new DatabaseError({

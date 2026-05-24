@@ -1,7 +1,7 @@
 import { count, eq } from "drizzle-orm";
 import { Effect } from "effect";
 
-import { Database, type AppDatabase, type DatabaseError } from "@/db/database.ts";
+import { AppDrizzleDatabase, type AppDatabase, type DatabaseError } from "@/db/database.ts";
 import { media, qualityProfiles } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
@@ -39,9 +39,10 @@ export class QualityProfileRepository extends Effect.Service<QualityProfileRepos
   "@bakarr/api/QualityProfileRepository",
   {
     effect: Effect.gen(function* () {
-      const { db } = yield* Database;
+      const db = yield* AppDrizzleDatabase;
       return makeQualityProfileRepositoryShape(db);
     }),
+    dependencies: [AppDrizzleDatabase.Default],
   },
 ) {}
 

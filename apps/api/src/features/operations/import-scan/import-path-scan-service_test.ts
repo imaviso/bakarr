@@ -1,13 +1,10 @@
 import { Cause, Effect, Exit, Layer } from "effect";
 
 import { assert, describe, it } from "@effect/vitest";
-import { Database } from "@/db/database.ts";
+import { AppDrizzleDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
-import {
-  ImportPathScanService,
-  ImportPathScanServiceLive,
-} from "@/features/operations/import-scan/import-path-scan-service.ts";
+import { ImportPathScanService } from "@/features/operations/import-scan/import-path-scan-service.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { FileSystem, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { MediaProbe } from "@/infra/media/probe.ts";
@@ -15,20 +12,19 @@ import { makeTestConfig } from "@/test/config-fixture.ts";
 import { makeRuntimeConfigSnapshotStub } from "@/test/stubs.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
-import { OperationsConfigRepository } from "@/features/operations/repository/config-repository.ts";
 
 describe("ImportPathScanService", () => {
   it.scoped("rejects paths outside library, recycle, and downloads roots", () =>
     withSqliteTestDbEffect({
       schema,
-      run: (db, _databaseFile, client) =>
+      run: (db) =>
         Effect.gen(function* () {
           const fs = makeScanFileSystem({
             realPath: () => Effect.succeed("/outside/imports"),
           });
 
           const exit = yield* Effect.exit(
-            scanImportPathEffect(fs, Database.make({ client, db }), {
+            scanImportPathEffect(fs, AppDrizzleDatabase.make(db), {
               path: "/outside/imports",
             }),
           );
@@ -54,7 +50,7 @@ describe("ImportPathScanService", () => {
 
 function scanImportPathEffect(
   fs: FileSystemShape,
-  database: Database,
+  database: AppDrizzleDatabase,
   input: {
     readonly mediaId?: number;
     readonly limit?: number;
@@ -63,10 +59,10 @@ function scanImportPathEffect(
 ) {
   return Effect.flatMap(ImportPathScanService, (service) => service.scanImportPath(input)).pipe(
     Effect.provide(
-      ImportPathScanServiceLive.pipe(
+      ImportPathScanService.DefaultWithoutDependencies.pipe(
         Layer.provide(
           Layer.mergeAll(
-            Layer.succeed(Database, database),
+            Layer.succeed(AppDrizzleDatabase, database),
             Layer.succeed(
               AniListClient,
               AniListClient.make({
@@ -90,17 +86,6 @@ function scanImportPathEffect(
                 getEpisodeRow: () => Effect.dieMessage("not used in test"),
                 loadCurrentEpisodeState: () => Effect.dieMessage("not used in test"),
                 requireAnimeExists: () => Effect.dieMessage("not used in test"),
-              }),
-            ),
-            Layer.succeed(
-              OperationsConfigRepository,
-              OperationsConfigRepository.make({
-                currentImportMode: () => Effect.dieMessage("not used in test"),
-                currentNamingSettings: () => Effect.dieMessage("not used in test"),
-                getConfigLibraryPath: () => Effect.dieMessage("not used in test"),
-                getConfigLibraryRoots: () => Effect.dieMessage("not used in test"),
-                listLibraryRoots: () => Effect.dieMessage("not used in test"),
-                loadRuntimeConfig: () => Effect.dieMessage("not used in test"),
               }),
             ),
             Layer.succeed(

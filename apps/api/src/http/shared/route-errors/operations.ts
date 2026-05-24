@@ -4,6 +4,8 @@ import {
   RssFeedParseError,
   RssFeedRejectedError,
   RssFeedTooLargeError,
+  OperationsConflictError,
+  OperationsNotFoundError,
 } from "@/features/operations/errors.ts";
 import type { RouteErrorResponse } from "@/http/shared/route-types.ts";
 import {
@@ -16,6 +18,8 @@ const OperationsRouteErrorSchema = Schema.Union(
   RssFeedParseError,
   RssFeedRejectedError,
   RssFeedTooLargeError,
+  OperationsConflictError,
+  OperationsNotFoundError,
 );
 
 type OperationsRouteError = Schema.Schema.Type<typeof OperationsRouteErrorSchema>;
@@ -32,6 +36,8 @@ const operationsRouteErrorMappers: {
   RssFeedParseError: invalidRssFeed,
   RssFeedRejectedError: messageStatus(400),
   RssFeedTooLargeError: rssTooLarge,
+  OperationsConflictError: messageStatus(409),
+  OperationsNotFoundError: messageStatus(404),
 };
 
 export const mapOperationsRouteError = mapTaggedRouteError(OperationsRouteErrorSchema, (error) =>

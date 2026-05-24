@@ -1,7 +1,7 @@
 import { and, count, desc, eq, sql, type SQL } from "drizzle-orm";
 import { Effect } from "effect";
 
-import { Database, type AppDatabase } from "@/db/database.ts";
+import { AppDrizzleDatabase, type AppDatabase } from "@/db/database.ts";
 import {
   media,
   backgroundJobs,
@@ -67,9 +67,10 @@ export class SystemStatsRepository extends Effect.Service<SystemStatsRepository>
   "@bakarr/api/SystemStatsRepository",
   {
     effect: Effect.gen(function* () {
-      const { db } = yield* Database;
+      const db = yield* AppDrizzleDatabase;
       return makeSystemStatsRepositoryShape(db);
     }),
+    dependencies: [AppDrizzleDatabase.Default],
   },
 ) {}
 

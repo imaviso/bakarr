@@ -34,19 +34,19 @@ import {
   loadMappedEpisodeRows,
   loadScopedEpisodeRows,
 } from "@/features/operations/import-scan/import-path-scan-library-support.ts";
-import type { OperationsConfigRepositoryShape } from "@/features/operations/repository/config-repository.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import type { NamingSettings } from "@/features/operations/repository/types.ts";
 
 export const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathEffect")(
   function* (input: {
     aniList: typeof AniListClient.Service;
     mediaId?: number;
     db: AppDatabase;
-    configRepository: OperationsConfigRepositoryShape;
     fs: FileSystemShape;
     limit?: number;
     mediaReadRepository: typeof MediaReadRepository.Service;
     mediaProbe: MediaProbeShape;
+    namingSettings: NamingSettings;
     path: string;
     tryDatabasePromise: TryDatabasePromise;
   }) {
@@ -84,7 +84,7 @@ export const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathE
       tryDatabasePromise: input.tryDatabasePromise,
     });
     const mappingIndex = buildEpisodeFileMappingIndex(mappedEpisodeRows);
-    const namingSettings = yield* input.configRepository.currentNamingSettings();
+    const namingSettings = input.namingSettings;
     const animeRowsById = new Map(animeRows.map((row) => [row.id, row]));
     const scopedEpisodeRows = yield* loadScopedEpisodeRows({
       animeIds: animeRows.map((row) => row.id),

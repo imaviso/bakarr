@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { Cause, Effect, Option, Queue, Ref } from "effect";
 
-import { Database, type DatabaseError } from "@/db/database.ts";
+import { AppDrizzleDatabase, type DatabaseError } from "@/db/database.ts";
 import { media } from "@/db/schema.ts";
 import { AniDbClient } from "@/features/media/metadata/anidb.ts";
 import {
@@ -49,7 +49,7 @@ export interface AnimeMetadataEnrichmentServiceShape {
 
 const makeAnimeMetadataEnrichmentService = Effect.fn("AnimeMetadataEnrichmentService.make")(
   function* () {
-    const { db } = yield* Database;
+    const db = yield* AppDrizzleDatabase;
     const aniDb = yield* AniDbClient;
     const clock = yield* ClockService;
     const queue = yield* Effect.acquireRelease(

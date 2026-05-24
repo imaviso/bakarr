@@ -1,7 +1,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { Effect } from "effect";
 
-import { Database, DatabaseError, type AppDatabase } from "@/db/database.ts";
+import { AppDrizzleDatabase, DatabaseError, type AppDatabase } from "@/db/database.ts";
 import { downloadEvents, downloads, mediaUnits, systemLogs } from "@/db/schema.ts";
 import { upsertEpisodeFilesAtomic } from "@/features/operations/download/download-unit-upsert-support.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
@@ -48,9 +48,10 @@ export class DownloadReconciliationRepository extends Effect.Service<DownloadRec
   "@bakarr/api/DownloadReconciliationRepository",
   {
     effect: Effect.gen(function* () {
-      const { db } = yield* Database;
+      const db = yield* AppDrizzleDatabase;
       return makeDownloadReconciliationRepositoryShape(db);
     }),
+    dependencies: [AppDrizzleDatabase.Default],
   },
 ) {}
 

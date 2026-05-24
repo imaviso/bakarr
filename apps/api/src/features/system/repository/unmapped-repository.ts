@@ -7,7 +7,7 @@ import {
   UnmappedFolderMatchStatusSchema,
   UnmappedFolderSchema,
 } from "@packages/shared/index.ts";
-import { Database, DatabaseError, type AppDatabase } from "@/db/database.ts";
+import { AppDrizzleDatabase, DatabaseError, type AppDatabase } from "@/db/database.ts";
 import { unmappedFolderMatches } from "@/db/schema.ts";
 import { queryFirst, tryDatabasePromise } from "@/infra/effect/db.ts";
 import { buildUnmappedFolderSearchQueries } from "@/features/operations/unmapped/unmapped-folders.ts";
@@ -32,9 +32,10 @@ export class SystemUnmappedRepository extends Effect.Service<SystemUnmappedRepos
   "@bakarr/api/SystemUnmappedRepository",
   {
     effect: Effect.gen(function* () {
-      const { db } = yield* Database;
+      const db = yield* AppDrizzleDatabase;
       return makeSystemUnmappedRepositoryShape(db);
     }),
+    dependencies: [AppDrizzleDatabase.Default],
   },
 ) {}
 

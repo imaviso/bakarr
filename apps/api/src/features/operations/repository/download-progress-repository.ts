@@ -1,7 +1,7 @@
 import { desc, inArray } from "drizzle-orm";
 import { Effect } from "effect";
 
-import { Database, DatabaseError, type AppDatabase } from "@/db/database.ts";
+import { AppDrizzleDatabase, DatabaseError, type AppDatabase } from "@/db/database.ts";
 import { downloads } from "@/db/schema.ts";
 import { loadDownloadPresentationContexts } from "@/features/operations/repository/download-presentation-repository.ts";
 import type { DownloadPresentationContext } from "@/features/operations/repository/types.ts";
@@ -21,9 +21,10 @@ export class DownloadProgressRepository extends Effect.Service<DownloadProgressR
   "@bakarr/api/DownloadProgressRepository",
   {
     effect: Effect.gen(function* () {
-      const { db } = yield* Database;
+      const db = yield* AppDrizzleDatabase;
       return makeDownloadProgressRepositoryShape(db);
     }),
+    dependencies: [AppDrizzleDatabase.Default],
   },
 ) {}
 

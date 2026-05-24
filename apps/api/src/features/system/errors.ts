@@ -1,7 +1,17 @@
-import { Schema } from "effect";
+import { ParseResult, Schema } from "effect";
 
 import { DomainNotFoundError } from "@/features/errors.ts";
 import { DiskSpaceError } from "@/features/system/disk-space.ts";
+
+export class SystemNotFoundError extends Schema.TaggedError<SystemNotFoundError>()(
+  "SystemNotFoundError",
+  { cause: Schema.optional(Schema.Defect), message: Schema.String },
+) {}
+
+export class SystemConflictError extends Schema.TaggedError<SystemConflictError>()(
+  "SystemConflictError",
+  { cause: Schema.optional(Schema.Defect), message: Schema.String },
+) {}
 
 export class ConfigValidationError extends Schema.TaggedError<ConfigValidationError>()(
   "ConfigValidationError",
@@ -17,6 +27,18 @@ export class StoredConfigMissingError extends Schema.TaggedError<StoredConfigMis
   "StoredConfigMissingError",
   { message: Schema.String },
 ) {}
+
+export function makeStoredConfigCorruptError(message: string, cause: unknown) {
+  const detail =
+    cause && ParseResult.isParseError(cause)
+      ? ParseResult.TreeFormatter.formatErrorSync(cause)
+      : undefined;
+
+  return new StoredConfigCorruptError({
+    cause,
+    message: detail ? `${message}: ${detail}` : message,
+  });
+}
 
 export class ImageAssetNotFoundError extends Schema.TaggedError<ImageAssetNotFoundError>()(
   "ImageAssetNotFoundError",
@@ -59,4 +81,6 @@ export type SystemConfigServiceError =
   | ConfigValidationError
   | DiskSpaceError
   | StoredConfigReadError
+  | SystemNotFoundError
+  | SystemConflictError
   | DomainNotFoundError;

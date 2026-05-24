@@ -1,9 +1,6 @@
 import { Effect, Exit, Layer } from "effect";
-import * as SqlClient from "@effect/sql/SqlClient";
-import * as SqliteDrizzle from "@effect/sql-drizzle/Sqlite";
 
-import { Database, setAndVerifyPragmas } from "@/db/database.ts";
-import * as schema from "@/db/schema.ts";
+import { AppSqlClient, setAndVerifyPragmas } from "@/db/database.ts";
 import { migrateDatabase } from "@/db/migrate.ts";
 import { withFileSystemSandboxEffect } from "@/test/filesystem-test.ts";
 import { withSqliteRawClientEffect } from "@/test/database-test.ts";
@@ -18,28 +15,13 @@ it.scoped("migrateDatabase applies embedded migrations idempotently", () =>
           databaseFile,
           run: (client) =>
             Effect.gen(function* () {
-              const db = yield* SqliteDrizzle.make<typeof schema>({ schema }).pipe(
-                Effect.provideService(SqlClient.SqlClient, client),
-              );
-              const databaseLayer = Layer.succeed(
-                Database,
-                Database.make({
-                  client,
-                  db,
-                }),
-              );
+              const databaseLayer = Layer.succeed(AppSqlClient, AppSqlClient.make(client));
 
               const first = yield* Effect.exit(
-                migrateDatabase().pipe(
-                  Effect.provide(databaseLayer),
-                  Effect.provideService(SqlClient.SqlClient, client),
-                ),
+                migrateDatabase().pipe(Effect.provide(databaseLayer)),
               );
               const second = yield* Effect.exit(
-                migrateDatabase().pipe(
-                  Effect.provide(databaseLayer),
-                  Effect.provideService(SqlClient.SqlClient, client),
-                ),
+                migrateDatabase().pipe(Effect.provide(databaseLayer)),
               );
               const tables = yield* client.unsafe<{ name: string }>(
                 "select name from sqlite_master where type = 'table' and name in ('users', 'media', 'downloads') order by name",

@@ -2,7 +2,7 @@ import { Effect } from "effect";
 import { desc, eq } from "drizzle-orm";
 import type { RssFeed } from "@packages/shared/index.ts";
 
-import { Database, DatabaseError } from "@/db/database.ts";
+import { AppDrizzleDatabase, DatabaseError } from "@/db/database.ts";
 import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
 import type { OperationsError } from "@/features/operations/errors.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
@@ -27,7 +27,7 @@ export class CatalogRssService extends Effect.Service<CatalogRssService>()(
   "@bakarr/api/CatalogRssService",
   {
     effect: Effect.gen(function* () {
-      const { db } = yield* Database;
+      const db = yield* AppDrizzleDatabase;
       const mediaReadRepository = yield* MediaReadRepository;
       const clock = yield* ClockService;
       const nowIso = () => nowIsoFromClock(clock);
@@ -112,6 +112,7 @@ export class CatalogRssService extends Effect.Service<CatalogRssService>()(
         toggleRssFeed,
       } satisfies CatalogRssServiceShape;
     }),
+    dependencies: [AppDrizzleDatabase.Default],
   },
 ) {}
 

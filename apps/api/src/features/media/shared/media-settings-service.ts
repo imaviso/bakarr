@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
-import { Database, type DatabaseError } from "@/db/database.ts";
+import { AppDrizzleDatabase, type DatabaseError } from "@/db/database.ts";
 import { media } from "@/db/schema.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
@@ -16,9 +16,12 @@ import {
   assertPathWithinLibraryRoot,
 } from "@/features/media/shared/media-path-policy.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
-import { DomainConflictError, DomainPathError } from "@/features/errors.ts";
-import { type MediaServiceError } from "@/features/media/errors.ts";
-import { DomainNotFoundError } from "@/features/errors.ts";
+import { DomainPathError } from "@/features/errors.ts";
+import {
+  MediaConflictError,
+  MediaNotFoundError,
+  type MediaServiceError,
+} from "@/features/media/errors.ts";
 import { StoredDataError } from "@/features/errors.ts";
 
 export interface AnimeSettingsServiceShape {
@@ -33,7 +36,7 @@ export interface AnimeSettingsServiceShape {
   readonly updateProfile: (
     id: number,
     profileName: string,
-  ) => Effect.Effect<void, MediaServiceError | DatabaseError | DomainNotFoundError>;
+  ) => Effect.Effect<void, MediaServiceError | DatabaseError>;
   readonly updateReleaseProfiles: (
     id: number,
     releaseProfileIds: number[],
@@ -41,7 +44,7 @@ export interface AnimeSettingsServiceShape {
 }
 
 const makeAnimeSettingsService = Effect.fn("AnimeSettingsService.make")(function* () {
-  const { db } = yield* Database;
+  const db = yield* AppDrizzleDatabase;
   const eventBus = yield* EventBus;
   const fs = yield* FileSystem;
   const mediaReadRepository = yield* MediaReadRepository;
@@ -105,7 +108,7 @@ const makeAnimeSettingsService = Effect.fn("AnimeSettingsService.make")(function
     const existingRootOwner = yield* mediaReadRepository.findAnimeRootFolderOwner(canonicalPath);
 
     if (existingRootOwner && existingRootOwner.id !== id) {
-      return yield* new DomainConflictError({
+      return yield* new MediaConflictError({
         message: `Folder is already mapped to ${existingRootOwner.titleRomaji}`,
       });
     }
@@ -133,7 +136,7 @@ const makeAnimeSettingsService = Effect.fn("AnimeSettingsService.make")(function
     const profileExists = yield* qualityProfileExistsEffect(db, profileName);
 
     if (!profileExists) {
-      return yield* new DomainNotFoundError({
+      return yield* new MediaNotFoundError({
         message: `Quality profile '${profileName}' not found`,
       });
     }

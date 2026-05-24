@@ -2,7 +2,7 @@ import { eq, inArray } from "drizzle-orm";
 import { Effect, Option } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
-import { Database, DatabaseError } from "@/db/database.ts";
+import { AppDrizzleDatabase, DatabaseError } from "@/db/database.ts";
 import { downloads, rssFeeds } from "@/db/schema.ts";
 import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
 import { RssClient } from "@/features/operations/rss/rss-client.ts";
@@ -29,7 +29,7 @@ export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSea
   "@bakarr/api/BackgroundSearchRssFeedService",
   {
     effect: Effect.gen(function* () {
-      const { db } = yield* Database;
+      const db = yield* AppDrizzleDatabase;
       const clock = yield* ClockService;
       const rssClient = yield* RssClient;
       const queueService = yield* BackgroundSearchQueueService;
@@ -223,7 +223,7 @@ export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSea
 
               return queuedForFeed;
             }).pipe(
-              Effect.catchTag("DomainNotFoundError", (error) =>
+              Effect.catchTag("MediaNotFoundError", (error) =>
                 Effect.fail(
                   new InfrastructureError({
                     message: "Failed to run RSS check",
@@ -246,6 +246,7 @@ export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSea
 
       return { processFeed } satisfies BackgroundSearchRssFeedServiceShape;
     }),
+    dependencies: [AppDrizzleDatabase.Default],
   },
 ) {}
 

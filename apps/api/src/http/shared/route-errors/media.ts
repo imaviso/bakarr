@@ -1,6 +1,10 @@
 import { Match, Schema } from "effect";
 
-import { AniDbRuntimeConfigError } from "@/features/media/errors.ts";
+import {
+  AniDbRuntimeConfigError,
+  MediaConflictError,
+  MediaNotFoundError,
+} from "@/features/media/errors.ts";
 import { ImageCacheError } from "@/features/media/metadata/media-image-cache-service.ts";
 import { ReaderAccessError } from "@/features/media/reader/media-reader-errors.ts";
 import {
@@ -17,6 +21,8 @@ import {
 const MediaRouteErrorSchema = Schema.Union(
   AniDbRuntimeConfigError,
   ImageCacheError,
+  MediaConflictError,
+  MediaNotFoundError,
   ReaderAccessError,
   StreamAccessError,
   StreamRangeError,
@@ -31,6 +37,8 @@ const mediaRouteErrorMappers: {
 } = {
   AniDbRuntimeConfigError: messageStatus(500),
   ImageCacheError: messageStatus(500),
+  MediaConflictError: messageStatus(409),
+  MediaNotFoundError: messageStatus(404),
   ReaderAccessError: errorStatus,
   StreamAccessError: errorStatus,
   StreamRangeError: (error) => ({

@@ -1,7 +1,11 @@
-import { Effect, ParseResult, Schema } from "effect";
+import { Effect, Schema } from "effect";
 
 import type { Config, QualityProfile } from "@packages/shared/index.ts";
-import { StoredConfigCorruptError, StoredConfigMissingError } from "@/features/system/errors.ts";
+import {
+  makeStoredConfigCorruptError,
+  StoredConfigCorruptError,
+  StoredConfigMissingError,
+} from "@/features/system/errors.ts";
 import { ConfigCoreSchema, ConfigSchema } from "@/features/system/config-schema.ts";
 import { normalizeMetadataProvidersConfig } from "@/features/system/metadata-providers-config.ts";
 import { normalizeQBitTorrentConfig } from "@/features/system/qbittorrent-config.ts";
@@ -23,22 +27,10 @@ export const normalizeConfig = Effect.fn("SystemConfig.normalizeConfig")(functio
   } satisfies Config;
 });
 
-function storedConfigCorrupt(message: string, cause: unknown) {
-  const detail =
-    cause && ParseResult.isParseError(cause)
-      ? ParseResult.TreeFormatter.formatErrorSync(cause)
-      : undefined;
-
-  return new StoredConfigCorruptError({
-    cause,
-    message: detail ? `${message}: ${detail}` : message,
-  });
-}
-
 export const encodeConfigCore = Effect.fn("ConfigCodec.encodeConfigCore")(
   (core: ConfigCore): Effect.Effect<string, StoredConfigCorruptError> =>
     encodeJson(ConfigCoreSchema, core, (cause) =>
-      storedConfigCorrupt("Config core is invalid and could not be encoded", cause),
+      makeStoredConfigCorruptError("Config core is invalid and could not be encoded", cause),
     ),
 );
 
@@ -46,7 +38,10 @@ export const toConfigCore = Effect.fn("ConfigCodec.toConfigCore")(
   (config: Config): Effect.Effect<ConfigCore, StoredConfigCorruptError> =>
     Schema.decodeUnknown(ConfigCoreSchema)(config).pipe(
       Effect.mapError((cause) =>
-        storedConfigCorrupt("Runtime configuration could not be projected to core schema", cause),
+        makeStoredConfigCorruptError(
+          "Runtime configuration could not be projected to core schema",
+          cause,
+        ),
       ),
     ),
 );
@@ -64,7 +59,10 @@ export const composeConfig = Effect.fn("ConfigCodec.composeConfig")(
         } satisfies Schema.Schema.Encoded<typeof ConfigSchema>),
       ),
       Effect.mapError((cause) =>
-        storedConfigCorrupt("Stored configuration is corrupt and could not be composed", cause),
+        makeStoredConfigCorruptError(
+          "Stored configuration is corrupt and could not be composed",
+          cause,
+        ),
       ),
     ),
 );
@@ -72,7 +70,10 @@ export const composeConfig = Effect.fn("ConfigCodec.composeConfig")(
 export const decodeConfigCore = Effect.fn("ConfigCodec.decodeConfigCore")(
   (value: string): Effect.Effect<ConfigCore, StoredConfigCorruptError> =>
     decodeJson(ConfigCoreSchema, value, (cause) =>
-      storedConfigCorrupt("Stored configuration is corrupt and could not be decoded", cause),
+      makeStoredConfigCorruptError(
+        "Stored configuration is corrupt and could not be decoded",
+        cause,
+      ),
     ),
 );
 
@@ -88,21 +89,6 @@ export const decodeStoredConfigRow = Effect.fn("ConfigCodec.decodeStoredConfigRo
   }
 
   return decodeConfigCore(row.data);
-});
-
-export const decodeStoredLibraryConfig = Effect.fn("ConfigCodec.decodeStoredLibraryConfig")((
-  row: { data: string } | undefined,
-): Effect.Effect<ConfigCore["library"], StoredConfigCorruptError> => {
-  if (!row) {
-    return Effect.fail(
-      new StoredConfigCorruptError({
-        cause: new Error("Missing stored configuration row"),
-        message: "Stored configuration is missing library settings",
-      }),
-    );
-  }
-
-  return decodeConfigCore(row.data).pipe(Effect.map((config) => ({ ...config.library })));
 });
 
 export const decodeImagePath = Effect.fn("ConfigCodec.decodeImagePath")((

@@ -16,7 +16,7 @@ import { StreamTokenSignerLive } from "@/features/media/stream/stream-token-sign
 export function makeAnimeFeatureLayer<ROut, E, RIn>(
   runtimeSupportLayer: Layer.Layer<ROut, E, RIn>,
 ) {
-  const mediaReadRepositoryLayer = MediaReadRepository.Default.pipe(
+  const mediaReadRepositoryLayer = MediaReadRepository.DefaultWithoutDependencies.pipe(
     Layer.provide(runtimeSupportLayer),
   );
   const animeImageCacheLayer = AnimeImageCacheServiceLive;

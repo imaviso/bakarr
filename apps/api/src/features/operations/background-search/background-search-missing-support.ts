@@ -7,7 +7,7 @@ import {
   type ReleaseProfileRule,
 } from "@packages/shared/index.ts";
 
-import { Database } from "@/db/database.ts";
+import { AppDrizzleDatabase } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { media, mediaUnits } from "@/db/schema.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
@@ -36,7 +36,7 @@ export class SearchBackgroundMissingService extends Effect.Service<SearchBackgro
   "@bakarr/api/SearchBackgroundMissingService",
   {
     effect: Effect.gen(function* () {
-      const { db } = yield* Database;
+      const db = yield* AppDrizzleDatabase;
       const eventBus = yield* EventBus;
       const clock = yield* ClockService;
       const progress = yield* OperationsProgress;
@@ -237,6 +237,7 @@ export class SearchBackgroundMissingService extends Effect.Service<SearchBackgro
 
       return { triggerSearchMissing } satisfies SearchBackgroundMissingServiceShape;
     }),
+    dependencies: [AppDrizzleDatabase.Default],
   },
 ) {}
 

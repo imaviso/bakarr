@@ -20,7 +20,7 @@ import {
   markUnmappedFolderFailed,
 } from "@/features/operations/unmapped/unmapped-folders.ts";
 import type { TryDatabasePromise } from "@/infra/effect/db.ts";
-import type { OperationsConfigRepositoryShape } from "@/features/operations/repository/config-repository.ts";
+import type { ConfigLibraryRoot } from "@/features/operations/unmapped/unmapped-scan-snapshot-support.ts";
 
 export interface UnmappedScanSnapshot {
   readonly animeRows: ReadonlyArray<typeof media.$inferSelect>;
@@ -63,30 +63,22 @@ export interface UnmappedScanQueryShape {
 
 export function makeUnmappedScanQuerySupport(input: {
   aniList: typeof AniListClient.Service;
-  configRepository: OperationsConfigRepositoryShape;
   db: AppDatabase;
   fs: FileSystemShape;
   nowIso: () => Effect.Effect<string>;
+  roots: () => Effect.Effect<readonly ConfigLibraryRoot[], DatabaseError | StoredDataError>;
   systemUnmappedRepository: SystemUnmappedRepositoryShape;
   tryDatabasePromise: TryDatabasePromise;
 }) {
-  const {
-    aniList,
-    configRepository,
-    db,
-    fs,
-    nowIso,
-    systemUnmappedRepository,
-    tryDatabasePromise,
-  } = input;
+  const { aniList, db, fs, nowIso, roots, systemUnmappedRepository, tryDatabasePromise } = input;
 
   const loadQueuedUnmappedFolders = Effect.fn("OperationsService.loadQueuedUnmappedFolders")(
     function* () {
       const snapshot = yield* loadUnmappedFolderSnapshot({
         db,
-        configRepository,
         fs,
         nowIso,
+        roots,
         systemUnmappedRepository,
         tryDatabasePromise,
       });
@@ -102,9 +94,9 @@ export function makeUnmappedScanQuerySupport(input: {
   const getUnmappedFolders = Effect.fn("OperationsService.getUnmappedFolders")(function* () {
     const snapshot = yield* loadUnmappedFolderSnapshot({
       db,
-      configRepository,
       fs,
       nowIso,
+      roots,
       systemUnmappedRepository,
       tryDatabasePromise,
     });

@@ -8,7 +8,18 @@ import {
   InfrastructureError,
   StoredDataError,
 } from "@/features/errors.ts";
+import { MediaConflictError, MediaNotFoundError } from "@/features/media/errors.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
+
+export class OperationsNotFoundError extends Schema.TaggedError<OperationsNotFoundError>()(
+  "OperationsNotFoundError",
+  { cause: Schema.optional(Schema.Defect), message: Schema.String },
+) {}
+
+export class OperationsConflictError extends Schema.TaggedError<OperationsConflictError>()(
+  "OperationsConflictError",
+  { cause: Schema.optional(Schema.Defect), message: Schema.String },
+) {}
 
 export class RssFeedRejectedError extends Schema.TaggedError<RssFeedRejectedError>()(
   "RssFeedRejectedError",
@@ -26,6 +37,10 @@ export class RssFeedTooLargeError extends Schema.TaggedError<RssFeedTooLargeErro
 ) {}
 
 export type OperationsError =
+  | OperationsNotFoundError
+  | OperationsConflictError
+  | MediaNotFoundError
+  | MediaConflictError
   | DomainNotFoundError
   | DomainConflictError
   | DomainInputError
@@ -41,8 +56,12 @@ export function isOperationsError(cause: unknown): cause is OperationsError {
   return (
     cause instanceof DomainNotFoundError ||
     cause instanceof DomainConflictError ||
+    cause instanceof OperationsNotFoundError ||
+    cause instanceof OperationsConflictError ||
     cause instanceof DomainInputError ||
     cause instanceof DomainPathError ||
+    cause instanceof MediaNotFoundError ||
+    cause instanceof MediaConflictError ||
     cause instanceof StoredDataError ||
     cause instanceof InfrastructureError ||
     cause instanceof RssFeedParseError ||

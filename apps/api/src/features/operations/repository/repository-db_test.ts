@@ -14,13 +14,6 @@ import {
 import { ConfigCoreSchema } from "@/features/system/config-schema.ts";
 import { makeDefaultConfig } from "@/features/system/defaults.ts";
 import {
-  getConfigLibraryPath,
-  getConfigLibraryRoots,
-  currentImportMode,
-  currentNamingSettings,
-  loadRuntimeConfig,
-} from "@/features/operations/repository/config-repository.ts";
-import {
   decodeDownloadSourceMetadata,
   encodeDownloadSourceMetadata,
 } from "@/features/operations/repository/download-repository.ts";
@@ -29,87 +22,57 @@ import {
   loadQualityProfile,
   loadReleaseRules,
 } from "@/features/operations/repository/profile-repository.ts";
-import { DomainNotFoundError } from "@/features/errors.ts";
+import { MediaNotFoundError } from "@/features/media/errors.ts";
 
-it.scoped(
-  "operations repository helpers load runtime config and config-backed library settings",
-  () =>
-    withSqliteTestDbEffect({
-      run: (db, databaseFile) =>
-        Effect.gen(function* () {
-          const defaults = makeDefaultConfig(databaseFile);
-          const encodedDefaults = yield* Schema.encode(ConfigCoreSchema)(defaults);
-          const decodedConfig = yield* Schema.decodeUnknown(ConfigCoreSchema)({
-            ...encodedDefaults,
-            library: {
-              ...encodedDefaults.library,
-              import_mode: "move",
-              anime_path: "/media-library",
-              manga_path: "/media-library/manga",
-              light_novel_path: "/media-library/light-novels",
-            },
-          });
-          const configData = yield* encodeConfigCore(decodedConfig);
-          const qualityProfileRow = yield* encodeQualityProfileRow({
-            allowed_qualities: ["1080p", "720p"],
-            cutoff: "1080p",
-            max_size: "4GB",
-            min_size: null,
-            name: "Default",
-            seadex_preferred: true,
-            upgrade_allowed: true,
-          });
+it.scoped("operations repository helpers load profile settings", () =>
+  withSqliteTestDbEffect({
+    run: (db, databaseFile) =>
+      Effect.gen(function* () {
+        const defaults = makeDefaultConfig(databaseFile);
+        const encodedDefaults = yield* Schema.encode(ConfigCoreSchema)(defaults);
+        const decodedConfig = yield* Schema.decodeUnknown(ConfigCoreSchema)({
+          ...encodedDefaults,
+          library: {
+            ...encodedDefaults.library,
+            import_mode: "move",
+            anime_path: "/media-library",
+            manga_path: "/media-library/manga",
+            light_novel_path: "/media-library/light-novels",
+          },
+        });
+        const configData = yield* encodeConfigCore(decodedConfig);
+        const qualityProfileRow = yield* encodeQualityProfileRow({
+          allowed_qualities: ["1080p", "720p"],
+          cutoff: "1080p",
+          max_size: "4GB",
+          min_size: null,
+          name: "Default",
+          seadex_preferred: true,
+          upgrade_allowed: true,
+        });
 
-          yield* tryDatabasePromise("Failed to seed appConfig for operations test", () =>
-            db.insert(appConfig).values({
-              id: 1,
-              data: configData,
-              updatedAt: "2024-01-01T00:00:00.000Z",
-            }),
-          );
-          yield* tryDatabasePromise("Failed to seed qualityProfiles for operations test", () =>
-            db.insert(qualityProfiles).values(qualityProfileRow),
-          );
+        yield* tryDatabasePromise("Failed to seed appConfig for operations test", () =>
+          db.insert(appConfig).values({
+            id: 1,
+            data: configData,
+            updatedAt: "2024-01-01T00:00:00.000Z",
+          }),
+        );
+        yield* tryDatabasePromise("Failed to seed qualityProfiles for operations test", () =>
+          db.insert(qualityProfiles).values(qualityProfileRow),
+        );
 
-          const runtimeConfig = yield* loadRuntimeConfig(db);
-          assert.deepStrictEqual(runtimeConfig.library.anime_path, "/media-library");
-          assert.deepStrictEqual(runtimeConfig.library.import_mode, "move");
-          assert.deepStrictEqual(runtimeConfig.profiles.length, 1);
-          const [firstProfile] = runtimeConfig.profiles;
-          assert.deepStrictEqual(firstProfile !== undefined, true);
-          if (!firstProfile) {
-            return;
-          }
-          assert.deepStrictEqual(firstProfile.name, "Default");
+        const storedProfile = yield* loadQualityProfile(db, "Default");
+        assert.deepStrictEqual(storedProfile._tag, "Some");
+        if (storedProfile._tag === "Some") {
+          assert.deepStrictEqual(storedProfile.value.max_size, "4GB");
+        }
 
-          assert.deepStrictEqual(yield* getConfigLibraryPath(db), "/media-library");
-          assert.deepStrictEqual(yield* getConfigLibraryPath(db, "manga"), "/media-library/manga");
-          assert.deepStrictEqual(yield* getConfigLibraryRoots(db), [
-            { mediaKind: "anime", path: "/media-library" },
-            { mediaKind: "manga", path: "/media-library/manga" },
-            { mediaKind: "light_novel", path: "/media-library/light-novels" },
-          ]);
-          assert.deepStrictEqual(yield* currentImportMode(db), "move");
-
-          const namingSettings = yield* currentNamingSettings(db);
-          assert.deepStrictEqual(namingSettings.namingFormat, defaults.library.naming_format);
-          assert.deepStrictEqual(
-            namingSettings.movieNamingFormat,
-            defaults.library.movie_naming_format,
-          );
-          assert.deepStrictEqual(namingSettings.preferredTitle, defaults.library.preferred_title);
-
-          const storedProfile = yield* loadQualityProfile(db, "Default");
-          assert.deepStrictEqual(storedProfile._tag, "Some");
-          if (storedProfile._tag === "Some") {
-            assert.deepStrictEqual(storedProfile.value.max_size, "4GB");
-          }
-
-          const fallbackProfile = yield* loadQualityProfile(db, "Missing");
-          assert.deepStrictEqual(fallbackProfile, Option.none());
-        }),
-      schema,
-    }),
+        const fallbackProfile = yield* loadQualityProfile(db, "Missing");
+        assert.deepStrictEqual(fallbackProfile, Option.none());
+      }),
+    schema,
+  }),
 );
 
 it.scoped("operations repository helpers load media release rules and episode state", () =>
@@ -221,7 +184,7 @@ it.scoped("operations repository helpers load media release rules and episode st
           const failure = Cause.failureOption(notFoundExit.cause);
           assert.deepStrictEqual(failure._tag, "Some");
           if (failure._tag === "Some") {
-            assert.deepStrictEqual(failure.value instanceof DomainNotFoundError, true);
+            assert.deepStrictEqual(failure.value instanceof MediaNotFoundError, true);
           }
         }
       }),

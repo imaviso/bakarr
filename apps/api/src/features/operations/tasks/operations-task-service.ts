@@ -13,7 +13,8 @@ import {
 } from "@packages/shared/index.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
-import { DomainNotFoundError, InfrastructureError } from "@/features/errors.ts";
+import { InfrastructureError } from "@/features/errors.ts";
+import { OperationsNotFoundError } from "@/features/operations/errors.ts";
 import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
 import { OperationsTaskRepository } from "@/features/operations/repository/task-repository.ts";
 
@@ -61,7 +62,7 @@ export interface OperationsTaskWriteServiceShape {
 export interface OperationsTaskReadServiceShape {
   readonly getTask: (
     taskId: number,
-  ) => Effect.Effect<OperationTask, DatabaseError | InfrastructureError | DomainNotFoundError>;
+  ) => Effect.Effect<OperationTask, DatabaseError | InfrastructureError | OperationsNotFoundError>;
   readonly listTasks: (input?: {
     readonly mediaId?: number;
     readonly excludeTaskKeys?: readonly OperationsTaskKey[];
@@ -270,7 +271,7 @@ const makeOperationsTaskReadService = Effect.fn("OperationsTaskReadService.make"
     const row = yield* repository.loadTaskRow(taskId);
 
     if (!row) {
-      return yield* new DomainNotFoundError({
+      return yield* new OperationsNotFoundError({
         message: `Operations task ${taskId} not found`,
       });
     }

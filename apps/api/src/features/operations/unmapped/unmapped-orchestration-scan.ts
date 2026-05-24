@@ -21,9 +21,9 @@ import {
 } from "@/features/operations/unmapped/unmapped-folder-list-support.ts";
 import { markUnmappedFolderMatching } from "@/features/operations/unmapped/unmapped-folders.ts";
 import type { TryDatabasePromise } from "@/infra/effect/db.ts";
-import type { OperationsConfigRepositoryShape } from "@/features/operations/repository/config-repository.ts";
 import type { UnmappedScanCoordinatorShape } from "@/features/operations/tasks/runtime-support.ts";
 import type { UnmappedScanQueryShape } from "@/features/operations/unmapped/unmapped-orchestration-scan-query.ts";
+import type { ConfigLibraryRoot } from "@/features/operations/unmapped/unmapped-scan-snapshot-support.ts";
 import { makeUnmappedScanQuerySupport } from "@/features/operations/unmapped/unmapped-orchestration-scan-query.ts";
 import { markJobFailureOrFailWithError } from "@/infra/job-failure-support.ts";
 
@@ -38,21 +38,21 @@ export interface UnmappedScanWorkflowShape {
 
 export function makeUnmappedScanWorkflow(input: {
   aniList: typeof AniListClient.Service;
-  configRepository: OperationsConfigRepositoryShape;
   db: AppDatabase;
   eventBus: EventBusShape;
   unmappedScanCoordinator: UnmappedScanCoordinatorShape;
   fs: FileSystemShape;
   nowIso: () => Effect.Effect<string>;
+  roots: () => Effect.Effect<readonly ConfigLibraryRoot[], DatabaseError | StoredDataError>;
   systemUnmappedRepository: SystemUnmappedRepositoryShape;
   tryDatabasePromise: TryDatabasePromise;
 }) {
   const {
     aniList,
-    configRepository,
     db,
     eventBus,
     fs,
+    roots,
     systemUnmappedRepository,
     tryDatabasePromise,
     unmappedScanCoordinator,
@@ -61,10 +61,10 @@ export function makeUnmappedScanWorkflow(input: {
   const { getUnmappedFolders, loadQueuedUnmappedFolders, matchAndPersistUnmappedFolder } =
     makeUnmappedScanQuerySupport({
       aniList,
-      configRepository,
       db,
       fs,
       nowIso,
+      roots,
       systemUnmappedRepository,
       tryDatabasePromise,
     });

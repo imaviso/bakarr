@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import * as SqliteClient from "@effect/sql-sqlite-node/SqliteClient";
 import { it } from "@effect/vitest";
-import { CommandExecutor } from "@effect/platform";
+import { CommandExecutor, FileSystem as PlatformFileSystem } from "@effect/platform";
+import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem";
 import { HttpApp } from "@effect/platform";
 import * as Context from "effect/Context";
 import { Effect, Layer, ManagedRuntime, Option, Schema, Stream } from "effect";
@@ -13,8 +14,7 @@ import {
   brandMediaId,
   OperationTaskSchema,
 } from "@packages/shared/index.ts";
-import { mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { bootstrapProgram } from "./src/app/startup.ts";
 import { makeApiLifecycleLayers } from "./src/app/lifecycle-layers.ts";
@@ -48,7 +48,7 @@ type TestContextOptions = {
   readonly skipInitialPasswordChange?: boolean;
 };
 
-type TestContext = Awaited<ReturnType<typeof createTestContext>>;
+type TestContext = Awaited<ReturnType<typeof createTestContextForDatabaseFile>>;
 type SqliteTestClient = ReturnType<typeof createClient>;
 type EventsReader = {
   readonly read: () => Promise<ReadableStreamReadResult<Uint8Array>>;
@@ -61,8 +61,14 @@ const withTestContextEffect = Effect.fn("Test.withTestContextEffect")(function* 
   readonly options?: TestContextOptions;
   readonly run: (ctx: TestContext) => Effect.Effect<A, E, R>;
 }) {
+  const fs = yield* PlatformFileSystem.FileSystem.pipe(Effect.provide(NodeFileSystem.layer));
+  const databaseFile = yield* fs.makeTempFileScoped({
+    prefix: "bakarr-api-test-",
+    suffix: ".sqlite",
+  });
+
   return yield* Effect.acquireUseRelease(
-    Effect.promise(() => createTestContext(input.options)),
+    Effect.promise(() => createTestContextForDatabaseFile(databaseFile, input.options)),
     input.run,
     (ctx) => Effect.promise(() => ctx.dispose()),
   );
@@ -71,11 +77,9 @@ const withTestContextEffect = Effect.fn("Test.withTestContextEffect")(function* 
 const withTempDirEffect = Effect.fn("Test.withTempDirEffect")(function* <A, E, R>(
   run: (path: string) => Effect.Effect<A, E, R>,
 ) {
-  return yield* Effect.acquireUseRelease(
-    Effect.promise(() => makeTempDir()),
-    run,
-    (path) => Effect.promise(() => removePath(path, { recursive: true })),
-  );
+  const fs = yield* PlatformFileSystem.FileSystem.pipe(Effect.provide(NodeFileSystem.layer));
+  const path = yield* fs.makeTempDirectoryScoped({ prefix: "bakarr-api-test-" });
+  return yield* run(path);
 });
 
 function itWithTestContext(
@@ -4431,16 +4435,18 @@ const testManamiLayer = Layer.mergeAll(
   ),
 );
 
-async function createTestContext(options?: {
-  jikanLayer?: Layer.Layer<JikanClient>;
-  manamiLayer?: Layer.Layer<ManamiCacheRefreshClient | ManamiClient>;
-  metricsRequireAuth?: boolean;
-  qbitLayer?: Layer.Layer<QBitTorrentClient>;
-  rssLayer?: Layer.Layer<RssClient>;
-  seadexLayer?: Layer.Layer<SeaDexClient>;
-  skipInitialPasswordChange?: boolean;
-}) {
-  const databaseFile = await makeTempFile({ suffix: ".sqlite" });
+async function createTestContextForDatabaseFile(
+  databaseFile: string,
+  options?: {
+    jikanLayer?: Layer.Layer<JikanClient>;
+    manamiLayer?: Layer.Layer<ManamiCacheRefreshClient | ManamiClient>;
+    metricsRequireAuth?: boolean;
+    qbitLayer?: Layer.Layer<QBitTorrentClient>;
+    rssLayer?: Layer.Layer<RssClient>;
+    seadexLayer?: Layer.Layer<SeaDexClient>;
+    skipInitialPasswordChange?: boolean;
+  },
+) {
   const runtime = ManagedRuntime.make(
     makeApiLifecycleLayers(
       {
@@ -4565,7 +4571,6 @@ async function createTestContext(options?: {
     databaseFile,
     dispose: async () => {
       await runtime.dispose();
-      await removePath(databaseFile);
     },
   };
 }
@@ -4587,17 +4592,6 @@ function makeCommandExecutorStub(
     streamLines: () => Stream.dieMessage("streamLines not implemented for test"),
     string: (command, _encoding) => runAsString(command),
   };
-}
-
-async function makeTempDir() {
-  return await mkdtemp(join(tmpdir(), "bakarr-api-test-"));
-}
-
-async function makeTempFile(options?: { readonly suffix?: string }) {
-  const directory = await makeTempDir();
-  const filePath = join(directory, `temp${options?.suffix ?? ""}`);
-  await writeFile(filePath, "");
-  return filePath;
 }
 
 async function mkdirPath(path: string, options?: { readonly recursive?: boolean }) {

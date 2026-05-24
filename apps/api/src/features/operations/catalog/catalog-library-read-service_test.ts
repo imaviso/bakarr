@@ -2,11 +2,8 @@ import { assert, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 
 import * as schema from "@/db/schema.ts";
-import { Database } from "@/db/database.ts";
-import {
-  CatalogLibraryReadService,
-  CatalogLibraryReadServiceLive,
-} from "@/features/operations/catalog/catalog-library-read-service.ts";
+import { AppDrizzleDatabase } from "@/db/database.ts";
+import { CatalogLibraryReadService } from "@/features/operations/catalog/catalog-library-read-service.ts";
 import { ClockService } from "@/infra/clock.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
@@ -20,7 +17,7 @@ import {
 it.scoped("getWantedMissing includes non-media units without air dates", () =>
   withSqliteTestDbEffect({
     schema,
-    run: (db, databaseFile, client) =>
+    run: (db, databaseFile) =>
       Effect.gen(function* () {
         yield* tryDatabasePromise("Failed to seed media for catalog test", () =>
           db
@@ -38,7 +35,7 @@ it.scoped("getWantedMissing includes non-media units without air dates", () =>
         );
 
         const dependenciesLayer = Layer.mergeAll(
-          Layer.succeed(Database, Database.make({ client, db })),
+          Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db)),
           Layer.succeed(MediaReadRepository, makeMediaReadRepository(db)),
           Layer.succeed(
             ClockService,
@@ -55,7 +52,9 @@ it.scoped("getWantedMissing includes non-media units without air dates", () =>
             }),
           ),
         );
-        const serviceLayer = CatalogLibraryReadServiceLive.pipe(Layer.provide(dependenciesLayer));
+        const serviceLayer = CatalogLibraryReadService.DefaultWithoutDependencies.pipe(
+          Layer.provide(dependenciesLayer),
+        );
 
         const wanted = yield* Effect.gen(function* () {
           const service = yield* CatalogLibraryReadService;

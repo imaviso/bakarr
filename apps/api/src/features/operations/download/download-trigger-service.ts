@@ -9,13 +9,9 @@ import {
   insertQueuedDownload,
   prepareTriggerDownload,
 } from "@/features/operations/download/download-trigger-support.ts";
-import {
-  DomainConflictError,
-  DomainInputError,
-  DomainNotFoundError,
-  InfrastructureError,
-  StoredDataError,
-} from "@/features/errors.ts";
+import { DomainInputError, InfrastructureError, StoredDataError } from "@/features/errors.ts";
+import type { MediaNotFoundError } from "@/features/media/errors.ts";
+import type { OperationsConflictError } from "@/features/operations/errors.ts";
 import type { TriggerDownloadInput } from "@/features/operations/download/download-orchestration-shared.ts";
 import type { DownloadTriggerCoordinatorShape } from "@/features/operations/tasks/runtime-support.ts";
 import { DownloadTriggerRepository } from "@/features/operations/repository/download-trigger-repository.ts";
@@ -30,8 +26,8 @@ export interface DownloadTriggerServiceShape {
   ) => Effect.Effect<
     void,
     | DatabaseError
-    | DomainConflictError
-    | DomainNotFoundError
+    | OperationsConflictError
+    | MediaNotFoundError
     | DomainInputError
     | StoredDataError
     | InfrastructureError

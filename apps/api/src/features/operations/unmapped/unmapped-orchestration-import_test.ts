@@ -12,7 +12,7 @@ import { withSqliteRawClientEffect, withSqliteTestDbEffect } from "@/test/databa
 import * as schema from "@/db/schema.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
 import { makeMediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
-import { makeOperationsConfigRepository } from "@/features/operations/repository/config-repository.ts";
+import { getLibraryPathForMediaKind } from "@/features/media/shared/config-support.ts";
 
 it.scoped("unmapped import rolls back when a later insert fails", () =>
   withSqliteTestDbEffect({
@@ -65,9 +65,10 @@ it.scoped("unmapped import rolls back when a later insert fails", () =>
         });
 
         const workflow = makeUnmappedImportWorkflow({
-          configRepository: makeOperationsConfigRepository(appDb),
           db: appDb,
           fs,
+          getLibraryPath: (mediaKind) =>
+            Effect.succeed(getLibraryPathForMediaKind(testConfig.library, mediaKind)),
           mediaReadRepository: makeMediaReadRepository(appDb),
           nowIso: () => Effect.succeed("2024-01-01T00:00:00.000Z"),
           tryDatabasePromise,

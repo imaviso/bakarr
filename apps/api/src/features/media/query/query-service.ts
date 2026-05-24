@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 
-import { Database, DatabaseError } from "@/db/database.ts";
+import { AppDrizzleDatabase, DatabaseError } from "@/db/database.ts";
 import { ClockService } from "@/infra/clock.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
 import type {
@@ -16,7 +16,8 @@ import type {
   SeasonalMediaResponse,
 } from "@packages/shared/index.ts";
 import { resolveSeasonFromDate, resolveSeasonYearFromDate } from "@packages/shared/index.ts";
-import { DomainNotFoundError, StoredDataError } from "@/features/errors.ts";
+import { StoredDataError } from "@/features/errors.ts";
+import { MediaNotFoundError } from "@/features/media/errors.ts";
 import { type MediaServiceError } from "@/features/media/errors.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
 import { listAnimeEffect } from "@/features/media/query/media-query-list.ts";
@@ -63,7 +64,7 @@ export interface AnimeQueryServiceShape {
   readonly getAnimeByAnilistId: (
     id: number,
     mediaKind?: MediaKind,
-  ) => Effect.Effect<MediaSearchResult, DomainNotFoundError | DatabaseError | ExternalCallError>;
+  ) => Effect.Effect<MediaSearchResult, MediaNotFoundError | DatabaseError | ExternalCallError>;
   readonly listEpisodes: (mediaId: number) => Effect.Effect<MediaUnit[], DatabaseError>;
   readonly listSeasonalAnime: (
     params?: SeasonalMediaQueryParams,
@@ -71,7 +72,7 @@ export interface AnimeQueryServiceShape {
 }
 
 const makeAnimeQueryService = Effect.fn("AnimeQueryService.make")(function* () {
-  const { db } = yield* Database;
+  const db = yield* AppDrizzleDatabase;
   const aniList = yield* AniListClient;
   const manami = yield* ManamiClient;
   const clock = yield* ClockService;

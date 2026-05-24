@@ -1,7 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
 import { Effect, Layer, Schema } from "effect";
 
-import { Database } from "@/db/database.ts";
+import { AppDrizzleDatabase } from "@/db/database.ts";
 import {
   decodeOperationsTaskQuery,
   decodeTaskPayload,
@@ -20,16 +20,10 @@ import { OperationsTaskRepository } from "@/features/operations/repository/task-
 describe("OperationsTaskService", () => {
   it.scoped("creates and fetches tasks", () =>
     withSqliteTestDbEffect({
-      run: (db, _databaseFile, client) =>
+      run: (db) =>
         Effect.gen(function* () {
-          const databaseLayer = Layer.succeed(
-            Database,
-            Database.make({
-              client,
-              db,
-            }),
-          );
-          const repositoryLayer = OperationsTaskRepository.Default.pipe(
+          const databaseLayer = Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db));
+          const repositoryLayer = OperationsTaskRepository.DefaultWithoutDependencies.pipe(
             Layer.provide(databaseLayer),
           );
           const serviceLayer = Layer.mergeAll(

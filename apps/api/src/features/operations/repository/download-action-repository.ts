@@ -1,7 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 import { Effect } from "effect";
 
-import { Database, DatabaseError, type AppDatabase } from "@/db/database.ts";
+import { AppDrizzleDatabase, DatabaseError, type AppDatabase } from "@/db/database.ts";
 import { downloads } from "@/db/schema.ts";
 import {
   deleteDownloadRow,
@@ -37,9 +37,10 @@ export class DownloadActionRepository extends Effect.Service<DownloadActionRepos
   "@bakarr/api/DownloadActionRepository",
   {
     effect: Effect.gen(function* () {
-      const { db } = yield* Database;
+      const db = yield* AppDrizzleDatabase;
       return makeDownloadActionRepositoryShape(db);
     }),
+    dependencies: [AppDrizzleDatabase.Default],
   },
 ) {}
 

@@ -1,5 +1,6 @@
 import * as SqliteDrizzle from "@effect/sql-drizzle/Sqlite";
 import * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
+import * as SqlClient from "@effect/sql/SqlClient";
 import { Effect, Layer, Schema } from "effect";
 import type { SqliteRemoteDatabase } from "drizzle-orm/sqlite-proxy";
 
@@ -25,11 +26,6 @@ export class DatabaseError extends Schema.TaggedError<DatabaseError>()("Database
 /** Check if a raw error cause represents an SQLite busy/lock condition. */
 export function isBusySqliteCause(cause: unknown): boolean {
   return isSqliteBusyLock(cause);
-}
-
-export interface DatabaseService {
-  readonly client: NodeSqliteClient.SqliteClient;
-  readonly db: AppDatabase;
 }
 
 interface SqlitePragmaClient {
@@ -109,24 +105,13 @@ function firstRowValue(row: Record<string, unknown> | undefined) {
   return row ? Object.values(row)[0] : undefined;
 }
 
-const makeDatabase = Effect.fn("Database.make")(function* () {
+const makeAppDrizzleDatabase = Effect.fn("AppDrizzleDatabase.make")(function* () {
   const client = yield* NodeSqliteClient.SqliteClient;
 
   yield* setAndVerifyPragmas(client);
 
-  const db = yield* SqliteDrizzle.make<typeof schema>({ schema });
-
-  return {
-    client,
-    db,
-  };
+  return yield* SqliteDrizzle.make<typeof schema>({ schema });
 });
-
-export class Database extends Effect.Service<Database>()("@bakarr/api/Database", {
-  scoped: makeDatabase(),
-}) {}
-
-export const DatabaseLive = Database.Default;
 
 export const DatabaseSqlClientLive = Layer.unwrapEffect(
   Effect.gen(function* () {
@@ -138,4 +123,19 @@ export const DatabaseSqlClientLive = Layer.unwrapEffect(
   }),
 );
 
-export const DatabaseLayerLive = DatabaseLive.pipe(Layer.provideMerge(DatabaseSqlClientLive));
+export class AppDrizzleDatabase extends Effect.Service<AppDrizzleDatabase>()(
+  "@bakarr/api/AppDrizzleDatabase",
+  {
+    scoped: makeAppDrizzleDatabase(),
+    dependencies: [DatabaseSqlClientLive],
+  },
+) {}
+
+export class AppSqlClient extends Effect.Service<AppSqlClient>()("@bakarr/api/AppSqlClient", {
+  effect: Effect.gen(function* () {
+    return yield* SqlClient.SqlClient;
+  }),
+  dependencies: [DatabaseSqlClientLive],
+}) {}
+
+export const DatabaseLayerLive = Layer.mergeAll(AppDrizzleDatabase.Default, AppSqlClient.Default);

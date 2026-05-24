@@ -2,7 +2,7 @@ import { Effect, Ref } from "effect";
 
 import type { AppDatabase, DatabaseError } from "@/db/database.ts";
 import { media } from "@/db/schema.ts";
-import { Database } from "@/db/database.ts";
+import { AppDrizzleDatabase } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { DomainPathError, InfrastructureError } from "@/features/errors.ts";
 import {
@@ -108,7 +108,7 @@ export class CatalogLibraryScanService extends Effect.Service<CatalogLibraryScan
   "@bakarr/api/CatalogLibraryScanService",
   {
     effect: Effect.gen(function* () {
-      const { db } = yield* Database;
+      const db = yield* AppDrizzleDatabase;
       const eventBus = yield* EventBus;
       const fs = yield* FileSystem;
       const clock = yield* ClockService;
@@ -123,6 +123,7 @@ export class CatalogLibraryScanService extends Effect.Service<CatalogLibraryScan
         tryDatabasePromise,
       });
     }),
+    dependencies: [AppDrizzleDatabase.Default],
   },
 ) {}
 

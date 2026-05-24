@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 
-import { Database, type AppDatabase } from "@/db/database.ts";
+import { AppDrizzleDatabase, type AppDatabase } from "@/db/database.ts";
 import { systemLogs } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { appendSystemLog } from "@/features/system/support.ts";
@@ -42,9 +42,10 @@ export class SystemLogRepository extends Effect.Service<SystemLogRepository>()(
   "@bakarr/api/SystemLogRepository",
   {
     effect: Effect.gen(function* () {
-      const { db } = yield* Database;
+      const db = yield* AppDrizzleDatabase;
       return makeSystemLogRepositoryShape(db);
     }),
+    dependencies: [AppDrizzleDatabase.Default],
   },
 ) {}
 

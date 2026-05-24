@@ -7,7 +7,7 @@ import * as schema from "@/db/schema.ts";
 import { AnimeQueryService, AnimeQueryServiceLive } from "@/features/media/query/query-service.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
 import { AnimeSeasonalProviderService } from "@/features/media/query/media-seasonal-provider-service.ts";
-import { Database } from "@/db/database.ts";
+import { AppDrizzleDatabase } from "@/db/database.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
 import { ManamiClient } from "@/features/media/metadata/manami.ts";
@@ -36,7 +36,7 @@ function makeSeasonalResult(input: {
 describe("AnimeQueryService.listSeasonalAnime", () => {
   it.scoped("uses db cache within ttl and skips provider call", () =>
     withSqliteTestDbEffect({
-      run: (db, _databaseFile, client) =>
+      run: (db) =>
         Effect.gen(function* () {
           let providerCalls = 0;
 
@@ -84,13 +84,7 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
                 currentTimeMillis: Effect.succeed(new Date("2025-04-01T10:00:00.000Z").getTime()),
               }),
             ),
-            Layer.succeed(
-              Database,
-              Database.make({
-                client,
-                db,
-              }),
-            ),
+            Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db)),
             Layer.succeed(MediaReadRepository, makeMediaReadRepository(db)),
           );
 
@@ -133,7 +127,7 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
 
   it.scoped("re-fetches when ttl expires", () =>
     withSqliteTestDbEffect({
-      run: (db, _databaseFile, client) =>
+      run: (db) =>
         Effect.gen(function* () {
           let providerCalls = 0;
           let currentTime = new Date("2025-04-01T10:00:00.000Z").getTime();
@@ -184,13 +178,7 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
                     currentTimeMillis: Effect.sync(() => currentTime),
                   }),
                 ),
-                Layer.succeed(
-                  Database,
-                  Database.make({
-                    client,
-                    db,
-                  }),
-                ),
+                Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db)),
                 Layer.succeed(MediaReadRepository, makeMediaReadRepository(db)),
               ),
             ),
@@ -218,7 +206,7 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
 
   it.scoped("returns stale cache as degraded when provider fails after ttl", () =>
     withSqliteTestDbEffect({
-      run: (db, _databaseFile, client) =>
+      run: (db) =>
         Effect.gen(function* () {
           let providerCalls = 0;
           let currentTime = new Date("2025-04-01T10:00:00.000Z").getTime();
@@ -280,13 +268,7 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
                     currentTimeMillis: Effect.sync(() => currentTime),
                   }),
                 ),
-                Layer.succeed(
-                  Database,
-                  Database.make({
-                    client,
-                    db,
-                  }),
-                ),
+                Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db)),
                 Layer.succeed(MediaReadRepository, makeMediaReadRepository(db)),
               ),
             ),
@@ -317,7 +299,7 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
 describe("AnimeQueryService.searchAnime", () => {
   it.scoped("falls back to Manami local search when AniList search fails", () =>
     withSqliteTestDbEffect({
-      run: (db, _databaseFile, client) =>
+      run: (db) =>
         Effect.gen(function* () {
           const layer = AnimeQueryServiceLive.pipe(
             Layer.provide(
@@ -378,13 +360,7 @@ describe("AnimeQueryService.searchAnime", () => {
                     ),
                   }),
                 ),
-                Layer.succeed(
-                  Database,
-                  Database.make({
-                    client,
-                    db,
-                  }),
-                ),
+                Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db)),
                 Layer.succeed(MediaReadRepository, makeMediaReadRepository(db)),
               ),
             ),

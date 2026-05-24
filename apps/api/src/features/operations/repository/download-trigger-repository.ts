@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { Effect } from "effect";
 
-import { Database, DatabaseError, type AppDatabase } from "@/db/database.ts";
+import { AppDrizzleDatabase, DatabaseError, type AppDatabase } from "@/db/database.ts";
 import { downloads, mediaUnits, systemLogs } from "@/db/schema.ts";
 import {
   deleteDownloadRow,
@@ -59,9 +59,10 @@ export class DownloadTriggerRepository extends Effect.Service<DownloadTriggerRep
   "@bakarr/api/DownloadTriggerRepository",
   {
     effect: Effect.gen(function* () {
-      const { db } = yield* Database;
+      const db = yield* AppDrizzleDatabase;
       return makeDownloadTriggerRepositoryShape(db);
     }),
+    dependencies: [AppDrizzleDatabase.Default],
   },
 ) {}
 

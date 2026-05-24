@@ -2,7 +2,7 @@ import { Effect, Either, Option, Schema } from "effect";
 
 import type { Config, SearchResults } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
-import { Database } from "@/db/database.ts";
+import { AppDrizzleDatabase } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { media } from "@/db/schema.ts";
 import { compactLogAnnotations, errorLogAnnotations } from "@/infra/logging.ts";
@@ -440,7 +440,7 @@ export class SearchReleaseService extends Effect.Service<SearchReleaseService>()
   "@bakarr/api/SearchReleaseService",
   {
     effect: Effect.gen(function* () {
-      const { db } = yield* Database;
+      const db = yield* AppDrizzleDatabase;
       const rssClient = yield* RssClient;
       const seadexClient = yield* SeaDexClient;
       const mediaReadRepository = yield* MediaReadRepository;
@@ -454,6 +454,7 @@ export class SearchReleaseService extends Effect.Service<SearchReleaseService>()
         seadexClient,
       });
     }),
+    dependencies: [AppDrizzleDatabase.Default],
   },
 ) {}
 

@@ -1,11 +1,11 @@
 import { Effect } from "effect";
 
 import type { ImportResult, RenameResult } from "@packages/shared/index.ts";
-import { Database, type DatabaseError } from "@/db/database.ts";
+import { AppDrizzleDatabase, type DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { MediaProbe } from "@/infra/media/probe.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
-import type { DomainNotFoundError } from "@/features/errors.ts";
+import type { MediaNotFoundError } from "@/features/media/errors.ts";
 import {
   importLibraryFiles,
   type LibraryImportFileInput,
@@ -22,17 +22,14 @@ export interface CatalogLibraryWriteServiceShape {
   ) => Effect.Effect<ImportResult, RuntimeConfigSnapshotError>;
   readonly renameFiles: (
     mediaId: number,
-  ) => Effect.Effect<
-    RenameResult,
-    DatabaseError | DomainNotFoundError | RuntimeConfigSnapshotError
-  >;
+  ) => Effect.Effect<RenameResult, DatabaseError | MediaNotFoundError | RuntimeConfigSnapshotError>;
 }
 
 export class CatalogLibraryWriteService extends Effect.Service<CatalogLibraryWriteService>()(
   "@bakarr/api/CatalogLibraryWriteService",
   {
     effect: Effect.gen(function* () {
-      const { db } = yield* Database;
+      const db = yield* AppDrizzleDatabase;
       const eventBus = yield* EventBus;
       const fs = yield* FileSystem;
       const mediaReadRepository = yield* MediaReadRepository;
@@ -73,6 +70,7 @@ export class CatalogLibraryWriteService extends Effect.Service<CatalogLibraryWri
         renameFiles,
       } satisfies CatalogLibraryWriteServiceShape;
     }),
+    dependencies: [AppDrizzleDatabase.Default],
   },
 ) {}
 

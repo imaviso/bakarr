@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 
-import { Database, type DatabaseError } from "@/db/database.ts";
+import { AppDrizzleDatabase, type DatabaseError } from "@/db/database.ts";
 import { AnimeImageCacheService } from "@/features/media/metadata/media-image-cache-service.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
@@ -22,7 +22,7 @@ export type AnimeEnrollmentError =
   | InfrastructureError;
 
 const makeAnimeEnrollmentService = Effect.fn("AnimeEnrollmentService.make")(function* () {
-  const { db } = yield* Database;
+  const db = yield* AppDrizzleDatabase;
   const eventBus = yield* EventBus;
   const metadataProvider = yield* AnimeMetadataProviderService;
   const imageCacheService = yield* AnimeImageCacheService;

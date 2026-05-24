@@ -4,7 +4,7 @@ import type * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
 import type { Config } from "@packages/shared/index.ts";
 import { AppConfig } from "@/config/schema.ts";
 import { BackgroundWorkerController } from "@/background/controller-core.ts";
-import { Database, type AppDatabase } from "@/db/database.ts";
+import { AppDrizzleDatabase, type AppDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
 import { ClockService } from "@/infra/clock.ts";
 import { RuntimeLogLevelStateLive } from "@/infra/logging.ts";
@@ -200,7 +200,7 @@ function makeSystemConfigUpdateTestLayer(input: {
     ),
     ClockService.Default,
     RuntimeLogLevelStateLive,
-    Layer.succeed(Database, Database.make({ client: input.client, db: input.db })),
+    Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(input.db)),
     Layer.succeed(BackgroundWorkerController, makeBackgroundWorkerControllerStub(input.reloads)),
     Layer.succeed(
       RuntimeConfigSnapshotService,

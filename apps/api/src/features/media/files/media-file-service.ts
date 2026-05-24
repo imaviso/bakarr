@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 
 import type { VideoFile } from "@packages/shared/index.ts";
-import { Database, type DatabaseError } from "@/db/database.ts";
+import { AppDrizzleDatabase, type DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
@@ -14,35 +14,36 @@ import {
   mapEpisodeFileEffect,
 } from "@/features/media/files/media-file-write.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
-import type { DomainNotFoundError, DomainPathError, StoredDataError } from "@/features/errors.ts";
+import type { DomainPathError, StoredDataError } from "@/features/errors.ts";
+import type { MediaNotFoundError } from "@/features/media/errors.ts";
 
 export interface AnimeFileServiceShape {
   readonly bulkMapEpisodeFiles: (
     mediaId: number,
     mappings: readonly { unit_number: number; file_path: string }[],
-  ) => Effect.Effect<void, DatabaseError | DomainNotFoundError | DomainPathError>;
+  ) => Effect.Effect<void, DatabaseError | MediaNotFoundError | DomainPathError>;
   readonly deleteEpisodeFile: (
     mediaId: number,
     unitNumber: number,
-  ) => Effect.Effect<void, DatabaseError | DomainNotFoundError | DomainPathError>;
+  ) => Effect.Effect<void, DatabaseError | MediaNotFoundError | DomainPathError>;
   readonly listFiles: (
     mediaId: number,
-  ) => Effect.Effect<readonly VideoFile[], DatabaseError | DomainNotFoundError | DomainPathError>;
+  ) => Effect.Effect<readonly VideoFile[], DatabaseError | MediaNotFoundError | DomainPathError>;
   readonly mapEpisodeFile: (
     mediaId: number,
     unitNumber: number,
     filePath: string,
-  ) => Effect.Effect<void, DatabaseError | DomainNotFoundError | DomainPathError | StoredDataError>;
+  ) => Effect.Effect<void, DatabaseError | MediaNotFoundError | DomainPathError | StoredDataError>;
   readonly scanFolder: (
     mediaId: number,
   ) => Effect.Effect<
     { readonly found: number; readonly total: number },
-    DatabaseError | DomainNotFoundError | DomainPathError | StoredDataError
+    DatabaseError | MediaNotFoundError | DomainPathError | StoredDataError
   >;
 }
 
 const makeAnimeFileService = Effect.fn("AnimeFileService.make")(function* () {
-  const { db } = yield* Database;
+  const db = yield* AppDrizzleDatabase;
   const eventBus = yield* EventBus;
   const fs = yield* FileSystem;
   const mediaProbe = yield* MediaProbe;

@@ -9,6 +9,8 @@ import {
   StoredConfigCorruptError,
   StoredConfigMissingError,
   StoredUnmappedFolderCorruptError,
+  SystemConflictError,
+  SystemNotFoundError,
 } from "@/features/system/errors.ts";
 import type { RouteErrorResponse } from "@/http/shared/route-types.ts";
 import {
@@ -29,6 +31,8 @@ const SystemRouteErrorSchema = Schema.Union(
   StoredConfigCorruptError,
   StoredConfigMissingError,
   StoredUnmappedFolderCorruptError,
+  SystemConflictError,
+  SystemNotFoundError,
 );
 
 type SystemRouteError = Schema.Schema.Type<typeof SystemRouteErrorSchema>;
@@ -46,6 +50,8 @@ const systemRouteErrorMappers: {
   StoredConfigCorruptError: internalServerError,
   StoredConfigMissingError: internalServerError,
   StoredUnmappedFolderCorruptError: internalServerError,
+  SystemConflictError: messageStatus(409),
+  SystemNotFoundError: messageStatus(404),
 };
 
 export const mapSystemRouteError = mapTaggedRouteError(SystemRouteErrorSchema, (error) =>

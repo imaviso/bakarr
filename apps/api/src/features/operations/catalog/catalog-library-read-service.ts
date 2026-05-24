@@ -7,7 +7,7 @@ import {
   type MissingUnit,
   type RenamePreviewItem,
 } from "@packages/shared/index.ts";
-import { Database, type DatabaseError } from "@/db/database.ts";
+import { AppDrizzleDatabase, type DatabaseError } from "@/db/database.ts";
 import { media, mediaUnits } from "@/db/schema.ts";
 import type { OperationsError } from "@/features/operations/errors.ts";
 import { buildRenamePreview } from "@/features/operations/library/library-import.ts";
@@ -42,7 +42,7 @@ export class CatalogLibraryReadService extends Effect.Service<CatalogLibraryRead
   "@bakarr/api/CatalogLibraryReadService",
   {
     effect: Effect.gen(function* () {
-      const { db } = yield* Database;
+      const db = yield* AppDrizzleDatabase;
       const clock = yield* ClockService;
       const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
       const mediaReadRepository = yield* MediaReadRepository;
@@ -169,6 +169,7 @@ export class CatalogLibraryReadService extends Effect.Service<CatalogLibraryRead
         getWantedMissing,
       } satisfies CatalogLibraryReadServiceShape;
     }),
+    dependencies: [AppDrizzleDatabase.Default],
   },
 ) {}
 

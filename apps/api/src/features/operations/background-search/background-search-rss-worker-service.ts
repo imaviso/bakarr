@@ -1,7 +1,6 @@
 import { Cause, Effect } from "effect";
 
-import { Database } from "@/db/database.ts";
-import { DatabaseError } from "@/db/database.ts";
+import { AppDrizzleDatabase, type AppDatabase, DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { SearchBackgroundMissingService } from "@/features/operations/background-search/background-search-missing-support.ts";
 import { SearchBackgroundRssService } from "@/features/operations/background-search/background-search-rss-support.ts";
@@ -23,7 +22,7 @@ export interface BackgroundSearchRssWorkerServiceShape {
 }
 
 export function makeBackgroundSearchRssWorkerService(input: {
-  readonly db: typeof Database.Service.db;
+  readonly db: AppDatabase;
   readonly eventBus: typeof EventBus.Service;
   readonly missingService: typeof SearchBackgroundMissingService.Service;
   readonly nowIso: () => Effect.Effect<string>;
@@ -74,7 +73,7 @@ export class BackgroundSearchRssWorkerService extends Effect.Service<BackgroundS
   "@bakarr/api/BackgroundSearchRssWorkerService",
   {
     effect: Effect.gen(function* () {
-      const { db } = yield* Database;
+      const db = yield* AppDrizzleDatabase;
       const eventBus = yield* EventBus;
       const progress = yield* OperationsProgress;
       const clock = yield* ClockService;
@@ -90,6 +89,7 @@ export class BackgroundSearchRssWorkerService extends Effect.Service<BackgroundS
         rssService,
       });
     }),
+    dependencies: [AppDrizzleDatabase.Default],
   },
 ) {}
 

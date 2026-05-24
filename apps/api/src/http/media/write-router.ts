@@ -5,7 +5,7 @@ import { AnimeFileService } from "@/features/media/files/media-file-service.ts";
 import { AnimeEnrollmentService } from "@/features/media/add/media-enrollment-service.ts";
 import { AnimeMaintenanceService } from "@/features/media/metadata/media-maintenance-service.ts";
 import { AnimeSettingsService } from "@/features/media/shared/media-settings-service.ts";
-import { DomainNotFoundError } from "@/features/errors.ts";
+import { MediaNotFoundError } from "@/features/media/errors.ts";
 import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
 import { OperationsTaskReadService } from "@/features/operations/tasks/operations-task-service.ts";
 import { CatalogLibraryWriteService } from "@/features/operations/catalog/catalog-library-write-service.ts";
@@ -181,13 +181,13 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
         const task = yield* (yield* OperationsTaskReadService).getTask(params.taskId);
 
         if (task.task_key !== "media_scan_folder") {
-          return yield* new DomainNotFoundError({
+          return yield* new MediaNotFoundError({
             message: `Media scan task ${params.taskId} not found`,
           });
         }
 
         if (task.media_id !== undefined && task.media_id !== params.id) {
-          return yield* new DomainNotFoundError({
+          return yield* new MediaNotFoundError({
             message: `Media scan task ${params.taskId} not found`,
           });
         }

@@ -1,12 +1,8 @@
 import { Effect } from "effect";
 
 import { DatabaseError } from "@/db/database.ts";
-import {
-  DomainConflictError,
-  DomainNotFoundError,
-  InfrastructureError,
-  StoredDataError,
-} from "@/features/errors.ts";
+import { InfrastructureError, StoredDataError } from "@/features/errors.ts";
+import { OperationsConflictError, OperationsNotFoundError } from "@/features/operations/errors.ts";
 import { DownloadActionRepository } from "@/features/operations/repository/download-action-repository.ts";
 import { decodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
 import { parseCoveredEpisodesEffect } from "@/features/operations/download/download-coverage.ts";
@@ -32,15 +28,15 @@ export interface DownloadTorrentActionSupportShape {
     deleteFiles?: boolean,
   ) => Effect.Effect<
     void,
-    DatabaseError | DomainNotFoundError | StoredDataError | InfrastructureError
+    DatabaseError | OperationsNotFoundError | StoredDataError | InfrastructureError
   >;
   readonly retryDownloadById: (
     id: number,
   ) => Effect.Effect<
     void,
     | DatabaseError
-    | DomainNotFoundError
-    | DomainConflictError
+    | OperationsNotFoundError
+    | OperationsConflictError
     | StoredDataError
     | InfrastructureError
   >;
@@ -63,7 +59,7 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
     const row = yield* actionRepo.loadDownloadRow(id);
 
     if (!row) {
-      return yield* new DomainNotFoundError({
+      return yield* new OperationsNotFoundError({
         message: "Download not found",
       });
     }
@@ -140,13 +136,13 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
     const row = yield* actionRepo.loadDownloadRow(id);
 
     if (!row) {
-      return yield* new DomainNotFoundError({
+      return yield* new OperationsNotFoundError({
         message: "Download not found",
       });
     }
 
     if (!row.magnet) {
-      return yield* new DomainConflictError({
+      return yield* new OperationsConflictError({
         message: "Download cannot be retried without a magnet link",
       });
     }

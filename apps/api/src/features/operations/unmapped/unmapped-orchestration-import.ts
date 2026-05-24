@@ -12,27 +12,24 @@ import {
 import { classifyMediaArtifact } from "@/infra/media/identity/identity.ts";
 import { extractUnitNumbersFromFile } from "@/features/media/files/files.ts";
 import { inferAiredAt } from "@/domain/media/derivations.ts";
-import { resolveAnimeRootFolderEffect } from "@/features/media/shared/config-support.ts";
-import { decodeMediaKind } from "@/features/media/shared/media-kind.ts";
 import {
-  DomainConflictError,
-  DomainInputError,
-  DomainNotFoundError,
-  DomainPathError,
-  InfrastructureError,
-} from "@/features/errors.ts";
+  getLibraryPathForMediaKind,
+  resolveAnimeRootFolderEffect,
+} from "@/features/media/shared/config-support.ts";
+import { decodeMediaKind } from "@/features/media/shared/media-kind.ts";
+import { DomainInputError, DomainPathError, InfrastructureError } from "@/features/errors.ts";
+import { OperationsConflictError, OperationsNotFoundError } from "@/features/operations/errors.ts";
+import type { MediaNotFoundError } from "@/features/media/errors.ts";
 import { appendLog } from "@/features/operations/shared/job-support.ts";
 import { scanVideoFilesStream } from "@/features/operations/import-scan/file-scanner.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
-import {
-  OperationsConfigRepository,
-  type OperationsConfigRepositoryShape,
-} from "@/features/operations/repository/config-repository.ts";
 import type { TryDatabasePromise } from "@/infra/effect/db.ts";
-import { Database } from "@/db/database.ts";
+import { AppDrizzleDatabase } from "@/db/database.ts";
 import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
+import type { MediaKind } from "@packages/shared/index.ts";
 
 export interface UnmappedImportWorkflowShape {
   readonly importUnmappedFolder: (input: {
@@ -42,8 +39,9 @@ export interface UnmappedImportWorkflowShape {
   }) => Effect.Effect<
     void,
     | DatabaseError
-    | DomainNotFoundError
-    | DomainConflictError
+    | OperationsNotFoundError
+    | OperationsConflictError
+    | MediaNotFoundError
     | DomainInputError
     | DomainPathError
     | InfrastructureError
@@ -86,13 +84,15 @@ export const cleanupPreviousAnimeRootFolderAfterImport = Effect.fn(
 
 export function makeUnmappedImportWorkflow(input: {
   db: AppDatabase;
-  configRepository: OperationsConfigRepositoryShape;
   fs: FileSystemShape;
+  getLibraryPath: (
+    mediaKind: MediaKind,
+  ) => Effect.Effect<string, DatabaseError | InfrastructureError>;
   mediaReadRepository: typeof MediaReadRepository.Service;
   nowIso: () => Effect.Effect<string>;
   tryDatabasePromise: TryDatabasePromise;
 }) {
-  const { configRepository, db, fs, mediaReadRepository, nowIso, tryDatabasePromise } = input;
+  const { db, fs, getLibraryPath, mediaReadRepository, nowIso, tryDatabasePromise } = input;
 
   type EpisodeImportMapping = {
     readonly aired: string | null;
@@ -104,7 +104,7 @@ export function makeUnmappedImportWorkflow(input: {
     function* (input: { folder_name: string; media_id: number; profile_name?: string }) {
       const animeRow = yield* mediaReadRepository.getAnimeRow(input.media_id);
       const mediaKind = decodeMediaKind(animeRow.mediaKind);
-      const libraryPath = yield* configRepository.getConfigLibraryPath(mediaKind);
+      const libraryPath = yield* getLibraryPath(mediaKind);
       const folderName = yield* sanitizePathSegmentEffect(input.folder_name).pipe(
         Effect.mapError(
           (cause) =>
@@ -131,7 +131,7 @@ export function makeUnmappedImportWorkflow(input: {
       );
 
       if (existingOwner[0] && existingOwner[0].id !== input.media_id) {
-        return yield* new DomainConflictError({
+        return yield* new OperationsConflictError({
           message: `Folder ${folderName} is already mapped to ${existingOwner[0].titleRomaji}`,
         });
       }
@@ -256,21 +256,34 @@ export class UnmappedImportService extends Effect.Service<UnmappedImportService>
   "@bakarr/api/UnmappedImportService",
   {
     effect: Effect.gen(function* () {
-      const { db } = yield* Database;
-      const configRepository = yield* OperationsConfigRepository;
+      const db = yield* AppDrizzleDatabase;
       const fs = yield* FileSystem;
       const clock = yield* ClockService;
       const mediaReadRepository = yield* MediaReadRepository;
+      const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
 
       return makeUnmappedImportWorkflow({
         db,
-        configRepository,
         fs,
+        getLibraryPath: Effect.fn("UnmappedImportService.getLibraryPath")(function* (mediaKind) {
+          const config = yield* runtimeConfigSnapshot.getRuntimeConfig().pipe(
+            Effect.mapError((error) =>
+              error._tag === "DatabaseError"
+                ? error
+                : new InfrastructureError({
+                    cause: error,
+                    message: "Failed to load runtime config for unmapped import",
+                  }),
+            ),
+          );
+          return getLibraryPathForMediaKind(config.library, mediaKind);
+        }),
         mediaReadRepository,
         nowIso: () => nowIsoFromClock(clock),
         tryDatabasePromise,
       });
     }),
+    dependencies: [AppDrizzleDatabase.Default],
   },
 ) {}
 

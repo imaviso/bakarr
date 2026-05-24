@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { Effect, Option } from "effect";
 import { brandMediaId } from "@packages/shared/index.ts";
 
-import { Database, type DatabaseError } from "@/db/database.ts";
+import { AppDrizzleDatabase, type DatabaseError } from "@/db/database.ts";
 import { media } from "@/db/schema.ts";
 import { AnimeMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
 import { AnimeImageCacheService } from "@/features/media/metadata/media-image-cache-service.ts";
@@ -30,7 +30,7 @@ export interface AnimeMaintenanceServiceShape {
 }
 
 const makeAnimeMaintenanceService = Effect.fn("AnimeMaintenanceService.make")(function* () {
-  const { db } = yield* Database;
+  const db = yield* AppDrizzleDatabase;
   const eventBus = yield* EventBus;
   const metadataProvider = yield* AnimeMetadataProviderService;
   const imageCacheService = yield* AnimeImageCacheService;

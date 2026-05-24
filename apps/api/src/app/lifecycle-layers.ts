@@ -18,7 +18,6 @@ import { makeAnimeFeatureLayer } from "@/features/media/layer.ts";
 import { makeAuthFeatureLayer } from "@/features/auth/layer.ts";
 import { makeOperationsFeatureLayer } from "@/features/operations/layer.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
-import { OperationsConfigRepository } from "@/features/operations/repository/config-repository.ts";
 import { OperationsProfileRepository } from "@/features/operations/repository/profile-repository.ts";
 import { SystemUnmappedRepository } from "@/features/system/repository/unmapped-repository.ts";
 import { LibraryBrowseServiceLive } from "@/features/operations/library/library-browse-service.ts";
@@ -63,19 +62,14 @@ export function makeApiLifecycleLayers(
     systemConfigLayer,
     runtimeConfigSnapshotLayer,
   );
-  const mediaReadRepositoryLayer = MediaReadRepository.Default.pipe(
+  const mediaReadRepositoryLayer = MediaReadRepository.DefaultWithoutDependencies.pipe(
     Layer.provide(runtimeSupportLayer),
   );
-  const operationsConfigRepositoryLayer = OperationsConfigRepository.Default.pipe(
+  const operationsProfileRepositoryLayer =
+    OperationsProfileRepository.DefaultWithoutDependencies.pipe(Layer.provide(runtimeSupportLayer));
+  const systemUnmappedRepositoryLayer = SystemUnmappedRepository.DefaultWithoutDependencies.pipe(
     Layer.provide(runtimeSupportLayer),
   );
-  const operationsProfileRepositoryLayer = OperationsProfileRepository.Default.pipe(
-    Layer.provide(runtimeSupportLayer),
-  );
-  const systemUnmappedRepositoryLayer = SystemUnmappedRepository.Default.pipe(
-    Layer.provide(runtimeSupportLayer),
-  );
-
   // Media feature graph owns its internal service wiring.
   const animeLiveLayer = makeAnimeFeatureLayer(runtimeSupportLayer);
 
@@ -131,11 +125,10 @@ export function makeApiLifecycleLayers(
       Layer.provide(
         Layer.mergeAll(
           runtimeSupportLayer,
-          mediaReadRepositoryLayer,
-          operationsConfigRepositoryLayer,
-          operationsProfileRepositoryLayer,
           systemConfigRepositoryLayer,
           systemRepositoriesLayer,
+          mediaReadRepositoryLayer,
+          operationsProfileRepositoryLayer,
           systemUnmappedRepositoryLayer,
         ),
       ),

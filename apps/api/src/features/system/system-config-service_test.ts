@@ -1,6 +1,6 @@
 import { Cause, Effect, Exit, Layer } from "effect";
 
-import { Database } from "@/db/database.ts";
+import { AppDrizzleDatabase } from "@/db/database.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { assert, describe, it } from "@effect/vitest";
 import * as schema from "@/db/schema.ts";
@@ -46,14 +46,13 @@ describe("SystemConfigService", () => {
 
   it.scoped("fails when the stored config row is missing", () =>
     withSqliteTestDbEffect({
-      run: (db, _databaseFile, client) =>
+      run: (db) =>
         Effect.gen(function* () {
-          const layer = SystemConfigServiceLive.pipe(
-            Layer.provide(
-              Layer.mergeAll(SystemConfigRepository.Default, QualityProfileRepository.Default),
-            ),
-            Layer.provide(Layer.succeed(Database, Database.make({ client, db }))),
-          );
+          const repositoryLayer = Layer.mergeAll(
+            SystemConfigRepository.DefaultWithoutDependencies,
+            QualityProfileRepository.DefaultWithoutDependencies,
+          ).pipe(Layer.provide(Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db))));
+          const layer = SystemConfigServiceLive.pipe(Layer.provide(repositoryLayer));
 
           const exit = yield* Effect.exit(
             Effect.flatMap(SystemConfigService, (service) => service.getConfig()).pipe(

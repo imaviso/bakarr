@@ -2,7 +2,7 @@ import { Effect, Option } from "effect";
 
 import type { Config, UnitSearchResult } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
-import { Database } from "@/db/database.ts";
+import { AppDrizzleDatabase } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { media } from "@/db/schema.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
@@ -101,7 +101,7 @@ export class SearchUnitService extends Effect.Service<SearchUnitService>()(
   "@bakarr/api/SearchUnitService",
   {
     effect: Effect.gen(function* () {
-      const { db } = yield* Database;
+      const db = yield* AppDrizzleDatabase;
       const mediaReadRepository = yield* MediaReadRepository;
       const profileRepository = yield* OperationsProfileRepository;
       const searchReleaseService = yield* SearchReleaseService;
@@ -115,6 +115,7 @@ export class SearchUnitService extends Effect.Service<SearchUnitService>()(
         searchUnitReleases: searchReleaseService.searchUnitReleases,
       });
     }),
+    dependencies: [AppDrizzleDatabase.Default],
   },
 ) {}
 

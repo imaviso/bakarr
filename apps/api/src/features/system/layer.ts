@@ -22,8 +22,8 @@ export function makeSystemConfigLayers<ROut, E, RIn>(
   runtimeSupportLayer: Layer.Layer<ROut, E, RIn>,
 ) {
   const systemConfigRepositoryLayer = Layer.mergeAll(
-    SystemConfigRepository.Default,
-    QualityProfileRepository.Default,
+    SystemConfigRepository.DefaultWithoutDependencies,
+    QualityProfileRepository.DefaultWithoutDependencies,
   ).pipe(Layer.provide(runtimeSupportLayer));
   const systemConfigLayer = SystemConfigServiceLive.pipe(
     Layer.provide(systemConfigRepositoryLayer),
@@ -66,16 +66,16 @@ export function makeSystemFeatureLayer<
     SystemConfigRepositoryIn
   >;
 }) {
-  const qualityProfileRepositoryLayer = QualityProfileRepository.Default.pipe(
+  const qualityProfileRepositoryLayer = QualityProfileRepository.DefaultWithoutDependencies.pipe(
     Layer.provide(input.runtimeSupportLayer),
   );
-  const systemStatsRepositoryLayer = SystemStatsRepository.Default.pipe(
+  const systemStatsRepositoryLayer = SystemStatsRepository.DefaultWithoutDependencies.pipe(
     Layer.provide(input.runtimeSupportLayer),
   );
-  const systemLogRepositoryLayer = SystemLogRepository.Default.pipe(
+  const systemLogRepositoryLayer = SystemLogRepository.DefaultWithoutDependencies.pipe(
     Layer.provide(input.runtimeSupportLayer),
   );
-  const releaseProfileRepositoryLayer = ReleaseProfileRepository.Default.pipe(
+  const releaseProfileRepositoryLayer = ReleaseProfileRepository.DefaultWithoutDependencies.pipe(
     Layer.provide(input.runtimeSupportLayer),
   );
 

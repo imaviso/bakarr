@@ -3,10 +3,10 @@ import { dirname, join, resolve } from "node:path";
 import { Effect, Match } from "effect";
 import type { ReaderPage, ReaderPagesResponse } from "@packages/shared/index.ts";
 
-import { Database, type AppDatabase, type DatabaseError } from "@/db/database.ts";
+import { AppDrizzleDatabase, type AppDatabase, type DatabaseError } from "@/db/database.ts";
 import { AppConfig } from "@/config/schema.ts";
 import { FileSystem, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
-import { DomainNotFoundError } from "@/features/errors.ts";
+import { MediaNotFoundError } from "@/features/media/errors.ts";
 import { resolveUnitFileEffect } from "@/features/media/files/media-file-read.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import {
@@ -34,12 +34,12 @@ export interface MediaReaderServiceShape {
   readonly listPages: (
     mediaId: number,
     unitNumber: number,
-  ) => Effect.Effect<ReaderPagesResponse, DatabaseError | DomainNotFoundError | ReaderAccessError>;
+  ) => Effect.Effect<ReaderPagesResponse, DatabaseError | MediaNotFoundError | ReaderAccessError>;
   readonly readPageImage: (
     mediaId: number,
     unitNumber: number,
     pageNumber: number,
-  ) => Effect.Effect<ReaderPageImage, DatabaseError | DomainNotFoundError | ReaderAccessError>;
+  ) => Effect.Effect<ReaderPageImage, DatabaseError | MediaNotFoundError | ReaderAccessError>;
 }
 
 interface ReaderUnitFile {
@@ -137,7 +137,7 @@ class ArchiveCache {
 }
 
 const makeMediaReaderService = Effect.fn("MediaReaderService.make")(function* () {
-  const { db } = yield* Database;
+  const db = yield* AppDrizzleDatabase;
   const fs = yield* FileSystem;
   const mediaReadRepository = yield* MediaReadRepository;
   const executor = yield* CommandExecutor.CommandExecutor;

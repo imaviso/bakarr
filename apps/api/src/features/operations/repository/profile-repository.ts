@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { Effect, Option } from "effect";
 
 import type { QualityProfile, ReleaseProfileRule } from "@packages/shared/index.ts";
-import { Database, DatabaseError, type AppDatabase } from "@/db/database.ts";
+import { AppDrizzleDatabase, DatabaseError, type AppDatabase } from "@/db/database.ts";
 import { qualityProfiles, releaseProfiles } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import {
@@ -22,9 +22,10 @@ export class OperationsProfileRepository extends Effect.Service<OperationsProfil
   "@bakarr/api/OperationsProfileRepository",
   {
     effect: Effect.gen(function* () {
-      const { db } = yield* Database;
+      const db = yield* AppDrizzleDatabase;
       return makeOperationsProfileRepositoryShape(db);
     }),
+    dependencies: [AppDrizzleDatabase.Default],
   },
 ) {}
 

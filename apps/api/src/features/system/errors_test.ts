@@ -1,6 +1,5 @@
 import { assert, it } from "@effect/vitest";
 
-import { DomainNotFoundError } from "@/features/errors.ts";
 import {
   ConfigValidationError,
   StoredConfigCorruptError,
@@ -10,6 +9,7 @@ import {
   ImageAssetAccessError,
   StoredUnmappedFolderCorruptError,
   isStoredConfigReadError,
+  SystemNotFoundError,
 } from "@/features/system/errors.ts";
 
 it("ConfigValidationError constructs", () => {
@@ -28,9 +28,9 @@ it("StoredConfigMissingError constructs", () => {
   assert.deepStrictEqual(error._tag, "StoredConfigMissingError");
 });
 
-it("DomainNotFoundError constructs", () => {
-  const error = new DomainNotFoundError({ message: "not found" });
-  assert.deepStrictEqual(error._tag, "DomainNotFoundError");
+it("SystemNotFoundError constructs", () => {
+  const error = new SystemNotFoundError({ message: "not found" });
+  assert.deepStrictEqual(error._tag, "SystemNotFoundError");
 });
 
 it("ImageAssetNotFoundError has status 404", () => {
@@ -68,7 +68,7 @@ it("isStoredConfigReadError matches StoredConfigMissingError", () => {
 it("isStoredConfigReadError rejects other errors", () => {
   assert.deepStrictEqual(isStoredConfigReadError(new Error("random")), false);
   assert.deepStrictEqual(
-    isStoredConfigReadError(new DomainNotFoundError({ message: "nope" })),
+    isStoredConfigReadError(new SystemNotFoundError({ message: "nope" })),
     false,
   );
 });

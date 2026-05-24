@@ -1,4 +1,5 @@
 import { FileSystem as PlatformFileSystem } from "@effect/platform";
+import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem";
 import { Effect, Scope } from "effect";
 
 import {
@@ -34,13 +35,11 @@ export const withFileSystemSandboxEffect = Effect.fn("Test.withFileSystemSandbox
   R,
 >(run: (input: { fs: FileSystemShape; root: string }) => Effect.Effect<A, E, R>) {
   yield* Scope.Scope;
-  const fs = yield* makeTestFileSystemEffect();
-  const root = `/tmp/bakarr-api-test-${crypto.randomUUID()}`;
-
-  yield* fs.mkdir(root, { recursive: true });
-  yield* Effect.addFinalizer(() =>
-    fs.remove(root, { recursive: true }).pipe(Effect.catchAll(() => Effect.void)),
+  const platformFs = yield* PlatformFileSystem.FileSystem.pipe(
+    Effect.provide(NodeFileSystem.layer),
   );
+  const fs = yield* makeTestFileSystemEffect();
+  const root = yield* platformFs.makeTempDirectoryScoped({ prefix: "bakarr-api-test-" });
 
   return yield* run({ fs, root });
 });

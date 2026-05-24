@@ -1,7 +1,7 @@
 import { and, eq, gt } from "drizzle-orm";
 import { Effect, Option } from "effect";
 
-import { Database, type AppDatabase, type DatabaseError } from "@/db/database.ts";
+import { AppDrizzleDatabase, type AppDatabase, type DatabaseError } from "@/db/database.ts";
 import { appConfig, sessions, systemLogs, users } from "@/db/schema.ts";
 import { queryFirst, tryDatabasePromise } from "@/infra/effect/db.ts";
 
@@ -75,9 +75,10 @@ export class AuthUserRepository extends Effect.Service<AuthUserRepository>()(
   "@bakarr/api/AuthUserRepository",
   {
     effect: Effect.gen(function* () {
-      const { db } = yield* Database;
+      const db = yield* AppDrizzleDatabase;
       return makeAuthUserRepository(db);
     }),
+    dependencies: [AppDrizzleDatabase.Default],
   },
 ) {}
 

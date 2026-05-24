@@ -2,7 +2,7 @@ import { Effect } from "effect";
 
 import type { ScanResult } from "@packages/shared/index.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
-import { Database, DatabaseError } from "@/db/database.ts";
+import { AppDrizzleDatabase, DatabaseError } from "@/db/database.ts";
 import { FileSystem, isWithinPathRoot } from "@/infra/filesystem/filesystem.ts";
 import { MediaProbe } from "@/infra/media/probe.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
@@ -14,7 +14,6 @@ import {
 } from "@/features/system/runtime-config-snapshot-service.ts";
 import { getConfiguredLibraryPaths } from "@/features/media/shared/config-support.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
-import { OperationsConfigRepository } from "@/features/operations/repository/config-repository.ts";
 
 export interface ImportPathScanServiceShape {
   readonly scanImportPath: (input: {
@@ -31,12 +30,11 @@ export class ImportPathScanService extends Effect.Service<ImportPathScanService>
   "@bakarr/api/ImportPathScanService",
   {
     effect: Effect.gen(function* () {
-      const { db } = yield* Database;
+      const db = yield* AppDrizzleDatabase;
       const aniList = yield* AniListClient;
       const fs = yield* FileSystem;
       const mediaProbe = yield* MediaProbe;
       const mediaReadRepository = yield* MediaReadRepository;
-      const configRepository = yield* OperationsConfigRepository;
       const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
 
       const scanImportPath = Effect.fn("ImportPathScanService.scanImportPath")(function* (input: {
@@ -87,12 +85,16 @@ export class ImportPathScanService extends Effect.Service<ImportPathScanService>
         return yield* scanImportPathEffect({
           aniList,
           ...(input.mediaId === undefined ? {} : { mediaId: input.mediaId }),
-          configRepository,
           db,
           fs,
           ...(input.limit === undefined ? {} : { limit: input.limit }),
           mediaReadRepository,
           mediaProbe,
+          namingSettings: {
+            movieNamingFormat: config.library.movie_naming_format,
+            namingFormat: config.library.naming_format,
+            preferredTitle: config.library.preferred_title,
+          },
           path: canonicalPath,
           tryDatabasePromise,
         }).pipe(
@@ -111,6 +113,7 @@ export class ImportPathScanService extends Effect.Service<ImportPathScanService>
 
       return { scanImportPath } satisfies ImportPathScanServiceShape;
     }),
+    dependencies: [AppDrizzleDatabase.Default],
   },
 ) {}
 
