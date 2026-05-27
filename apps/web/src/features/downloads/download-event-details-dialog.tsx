@@ -20,7 +20,7 @@ export function DownloadEventDetailsDialog(props: DownloadEventDetailsDialogProp
 
   return (
     <Dialog open={props.event !== null} onOpenChange={(open) => !open && props.onOpenChange(false)}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>
             {props.event?.media_title ??

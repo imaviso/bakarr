@@ -42,6 +42,7 @@ export function useAuthApiKeyQuery() {
 
 export function useLoginMutation() {
   return useMutation({
+    meta: { isAuth: true },
     mutationFn: (data: LoginRequest) =>
       runApiEffect(
         fetchJson(LoginResponseSchema, `${API_BASE}/auth/login`, {
@@ -54,6 +55,7 @@ export function useLoginMutation() {
 
 export function useApiKeyLoginMutation() {
   return useMutation({
+    meta: { isAuth: true },
     mutationFn: (data: ApiKeyLoginRequest) =>
       runApiEffect(
         fetchJson(LoginResponseSchema, `${API_BASE}/auth/login/api-key`, {
@@ -66,6 +68,7 @@ export function useApiKeyLoginMutation() {
 
 export function useChangePasswordMutation() {
   return useMutation({
+    meta: { isAuth: true },
     mutationFn: (data: ChangePasswordRequest) =>
       runApiEffect(
         fetchUnit(`${API_BASE}/auth/password`, {

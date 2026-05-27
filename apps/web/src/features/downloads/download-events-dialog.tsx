@@ -118,7 +118,7 @@ export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
       </Button>
 
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="w-[min(calc(100vw-2rem),72rem)] max-w-none max-h-[80vh] flex flex-col">
+        <DialogContent className="w-[min(calc(100vw-2rem),72rem)] max-w-none sm:max-w-none max-h-[80vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>{props.title}</DialogTitle>
             <DialogDescription>

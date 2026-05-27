@@ -16,7 +16,7 @@ interface LogDetailsDialogProps {
 export function LogDetailsDialog(props: LogDetailsDialogProps) {
   return (
     <Dialog open={!!props.log} onOpenChange={props.onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[80vh] flex flex-col">
+      <DialogContent className="sm:max-w-3xl max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Log Details</DialogTitle>
           <DialogDescription>

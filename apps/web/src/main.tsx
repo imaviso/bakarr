@@ -18,7 +18,10 @@ const queryClient = new QueryClient({
     },
     mutations: {
       networkMode: "always",
-      onError: (error) => {
+      onError: (error, _variables, _context, mutation) => {
+        if (mutation.meta?.["isAuth"]) {
+          return;
+        }
         if (isApiUnauthorizedError(error)) {
           void logout();
         }
