@@ -28,7 +28,7 @@ import {
 } from "@/features/operations/shared/job-support.ts";
 import { loadUnmappedFolderSnapshot } from "@/features/operations/unmapped/unmapped-scan-snapshot-support.ts";
 import { matchSingleUnmappedFolder } from "@/features/operations/unmapped/unmapped-scan-match-support.ts";
-import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
+import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { markJobFailureOrFailWithError } from "@/infra/job-failure-support.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
@@ -81,12 +81,10 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
   const aniList = yield* AniListClient;
   const eventBus = yield* EventBus;
   const fs = yield* FileSystem;
-  const clock = yield* ClockService;
   const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
   const systemUnmappedRepository = yield* SystemUnmappedRepository;
   const unmappedScanCoordinator = yield* UnmappedScanCoordinator;
-
-  const nowIso = () => nowIsoFromClock(clock);
+  const nowIso = currentNowIso;
 
   const loadConfiguredRoots = Effect.fn("UnmappedScanService.loadConfiguredRoots")(function* () {
     const config = yield* runtimeConfigSnapshot.getRuntimeConfig().pipe(

@@ -1,6 +1,6 @@
 import { Context, Duration, Either, Effect, Layer, Schema } from "effect";
 
-import { ClockService } from "@/infra/clock.ts";
+import { currentTimeNanos } from "@/infra/time.ts";
 import { PositiveIntFromStringSchema } from "@/domain/domain-schema.ts";
 import { compactLogAnnotations, durationMsSince, errorLogAnnotations } from "@/infra/logging.ts";
 
@@ -138,7 +138,6 @@ export const makeExternalCallSemaphoresLive = (overrides: ExternalCallTuningOver
 export const makeExternalCall = Effect.fn("ExternalCall.makeExternalCall")(function* (
   _overrides: ExternalCallTuningOverrides = {},
 ) {
-  const clock = yield* ClockService;
   const policy = yield* ExternalCallPolicy;
   const semaphores = yield* ExternalCallSemaphores;
 
@@ -152,7 +151,7 @@ export const makeExternalCall = Effect.fn("ExternalCall.makeExternalCall")(funct
     const maxAttempts = allowRetry ? policy.retryDelaysMs.length + 1 : 1;
 
     return yield* Effect.gen(function* () {
-      const startedAt = yield* clock.currentMonotonicMillis;
+      const startedAt = yield* currentTimeNanos;
       const pool = policy.resolvePool(operation);
       let attemptNumber = 1;
 
@@ -169,7 +168,7 @@ export const makeExternalCall = Effect.fn("ExternalCall.makeExternalCall")(funct
         );
 
         if (Either.isRight(attemptResult)) {
-          const finishedAt = yield* clock.currentMonotonicMillis;
+          const finishedAt = yield* currentTimeNanos;
           yield* Effect.logDebug("external call completed").pipe(
             Effect.annotateLogs({
               durationMs: durationMsSince(startedAt, finishedAt),
@@ -184,7 +183,7 @@ export const makeExternalCall = Effect.fn("ExternalCall.makeExternalCall")(funct
         const error = attemptResult.left;
 
         if (!allowRetry || attemptNumber >= maxAttempts || !isRetryable(error)) {
-          const finishedAt = yield* clock.currentMonotonicMillis;
+          const finishedAt = yield* currentTimeNanos;
           yield* Effect.logError("external call failed").pipe(
             Effect.annotateLogs(
               compactLogAnnotations({

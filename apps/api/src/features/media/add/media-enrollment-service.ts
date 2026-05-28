@@ -3,7 +3,7 @@ import { Effect } from "effect";
 import { AppDrizzleDatabase, type DatabaseError } from "@/db/database.ts";
 import { AnimeImageCacheService } from "@/features/media/metadata/media-image-cache-service.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
-import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
+import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { AnimeMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { SearchBackgroundMissingService } from "@/features/operations/background-search/background-search-missing-support.ts";
@@ -27,7 +27,6 @@ const makeAnimeEnrollmentService = Effect.fn("AnimeEnrollmentService.make")(func
   const metadataProvider = yield* AnimeMetadataProviderService;
   const imageCacheService = yield* AnimeImageCacheService;
   const fs = yield* FileSystem;
-  const clock = yield* ClockService;
   const mediaReadRepository = yield* MediaReadRepository;
   const searchBackgroundService = yield* SearchBackgroundMissingService;
   const taskLauncher = yield* OperationsTaskLauncherService;
@@ -41,7 +40,7 @@ const makeAnimeEnrollmentService = Effect.fn("AnimeEnrollmentService.make")(func
       fs,
       imageCacheService,
       mediaReadRepository,
-      nowIso: () => nowIsoFromClock(clock),
+      nowIso: currentNowIso,
     });
 
     if (input.monitor_and_search) {

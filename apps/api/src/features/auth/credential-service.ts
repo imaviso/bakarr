@@ -2,7 +2,7 @@ import { Effect, Option } from "effect";
 
 import type { ApiKeyResponse, ChangePasswordRequest } from "@packages/shared/index.ts";
 import { DatabaseError } from "@/db/database.ts";
-import { nowIsoFromClock, ClockService } from "@/infra/clock.ts";
+import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { randomHexFrom, RandomService } from "@/infra/random.ts";
 import { hashPassword, PasswordCrypto, verifyPassword } from "@/security/password.ts";
 import { TokenHasher, type TokenHasherError } from "@/security/token-hasher.ts";
@@ -29,12 +29,11 @@ export interface AuthCredentialServiceShape {
 
 const makeAuthCredentialService = Effect.fn("AuthCredentialService.make")(function* () {
   const users = yield* AuthUserRepository;
-  const clock = yield* ClockService;
   const passwordCrypto = yield* PasswordCrypto;
   const random = yield* RandomService;
   const tokenHasher = yield* TokenHasher;
   const eventBus = yield* EventBus;
-  const nowIso = () => nowIsoFromClock(clock);
+  const nowIso = currentNowIso;
   const randomHex = (bytes: number) => randomHexFrom(random, bytes);
   const hashToken = tokenHasher.hashToken;
 

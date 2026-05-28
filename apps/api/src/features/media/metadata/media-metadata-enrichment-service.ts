@@ -13,7 +13,7 @@ import type { AnimeMetadataEpisode } from "@/features/media/metadata/anilist-mod
 import { syncEpisodeMetadataEffect } from "@/features/media/units/media-unit-metadata-sync.ts";
 import type { StoredDataError } from "@/features/errors.ts";
 import { AniDbRuntimeConfigError } from "@/features/media/errors.ts";
-import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
+import { currentTimeMillis, nowIso as currentNowIso } from "@/infra/time.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 const ANIDB_CACHE_STALE_AFTER_MS = 6 * 60 * 60 * 1000;
@@ -51,7 +51,6 @@ const makeAnimeMetadataEnrichmentService = Effect.fn("AnimeMetadataEnrichmentSer
   function* () {
     const db = yield* AppDrizzleDatabase;
     const aniDb = yield* AniDbClient;
-    const clock = yield* ClockService;
     const queue = yield* Effect.acquireRelease(
       Queue.dropping<AniDbRefreshRequest>(ANIDB_REFRESH_QUEUE_CAPACITY),
       Queue.shutdown,
@@ -62,7 +61,7 @@ const makeAnimeMetadataEnrichmentService = Effect.fn("AnimeMetadataEnrichmentSer
       request: AniDbRefreshRequest,
     ) {
       const lookupResult = yield* aniDb.getEpisodeMetadata(request);
-      const updatedAt = yield* nowIsoFromClock(clock);
+      const updatedAt = yield* currentNowIso();
 
       if (lookupResult._tag === "AniDbLookupSkipped") {
         yield* upsertAniDbEpisodeCacheEffect({
@@ -132,7 +131,7 @@ const makeAnimeMetadataEnrichmentService = Effect.fn("AnimeMetadataEnrichmentSer
         }
 
         const cacheEntry = cacheEntryOption.value;
-        const nowMillis = yield* clock.currentTimeMillis;
+        const nowMillis = yield* currentTimeMillis;
         const updatedAtMillis = Date.parse(cacheEntry.updatedAt);
 
         if (

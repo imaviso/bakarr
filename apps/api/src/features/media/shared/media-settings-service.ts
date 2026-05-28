@@ -4,7 +4,7 @@ import { Effect } from "effect";
 import { AppDrizzleDatabase, type DatabaseError } from "@/db/database.ts";
 import { media } from "@/db/schema.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
-import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
+import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { appendSystemLog } from "@/features/system/support.ts";
@@ -48,8 +48,7 @@ const makeAnimeSettingsService = Effect.fn("AnimeSettingsService.make")(function
   const eventBus = yield* EventBus;
   const fs = yield* FileSystem;
   const mediaReadRepository = yield* MediaReadRepository;
-  const clock = yield* ClockService;
-  const nowIso = () => nowIsoFromClock(clock);
+  const nowIso = currentNowIso;
 
   const setMonitored = Effect.fn("AnimeSettingsService.setMonitored")(function* (
     id: number,

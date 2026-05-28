@@ -14,7 +14,7 @@ import type { MediaServiceError } from "@/features/media/errors.ts";
 import { makeMetadataRefreshRunner } from "@/features/media/metadata/metadata-refresh.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { appendSystemLog } from "@/features/system/support.ts";
-import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
+import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import type { ExternalCallError } from "@/infra/effect/retry.ts";
 
@@ -35,8 +35,7 @@ const makeAnimeMaintenanceService = Effect.fn("AnimeMaintenanceService.make")(fu
   const metadataProvider = yield* AnimeMetadataProviderService;
   const imageCacheService = yield* AnimeImageCacheService;
   const mediaReadRepository = yield* MediaReadRepository;
-  const clock = yield* ClockService;
-  const nowIso = () => nowIsoFromClock(clock);
+  const nowIso = currentNowIso;
   const metadataRefreshRunner = yield* makeMetadataRefreshRunner();
 
   const deleteMedia = Effect.fn("AnimeMaintenanceService.deleteMedia")(function* (id: number) {

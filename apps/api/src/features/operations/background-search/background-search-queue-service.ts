@@ -20,7 +20,7 @@ import { queueParsedReleaseDownload } from "@/features/operations/search/release
 import type { ParsedRelease } from "@/features/operations/rss/rss-client-parse.ts";
 import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
 import { DownloadTriggerCoordinator } from "@/features/operations/tasks/runtime-support.ts";
-import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
+import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { InfrastructureError } from "@/features/errors.ts";
 
@@ -46,11 +46,9 @@ export class BackgroundSearchQueueService extends Effect.Service<BackgroundSearc
   {
     effect: Effect.gen(function* () {
       const db = yield* AppDrizzleDatabase;
-      const clock = yield* ClockService;
       const torrentClientService = yield* TorrentClientService;
       const downloadTriggerCoordinator = yield* DownloadTriggerCoordinator;
-
-      const nowIso = () => nowIsoFromClock(clock);
+      const nowIso = currentNowIso;
 
       const queueReleaseIfEligible = Effect.fn(
         "BackgroundSearchQueueService.queueReleaseIfEligible",

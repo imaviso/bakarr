@@ -15,7 +15,7 @@ import { DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { InfrastructureError } from "@/features/errors.ts";
 import { OperationsNotFoundError } from "@/features/operations/errors.ts";
-import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
+import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { OperationsTaskRepository } from "@/features/operations/repository/task-repository.ts";
 
 export type OperationsTaskKey = Schema.Schema.Type<typeof OperationTaskKeySchema>;
@@ -145,9 +145,8 @@ const toOperationsTask = Effect.fn("OperationsTaskService.toOperationsTask")(fun
 
 const makeOperationsTaskWriteService = Effect.fn("OperationsTaskWriteService.make")(function* () {
   const repository = yield* OperationsTaskRepository;
-  const clock = yield* ClockService;
   const eventBus = yield* EventBus;
-  const nowIso = () => nowIsoFromClock(clock);
+  const nowIso = currentNowIso;
 
   const createTask = Effect.fn("OperationsTaskWriteService.createTask")(function* (input: {
     readonly mediaId?: number;

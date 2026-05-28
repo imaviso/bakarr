@@ -3,7 +3,7 @@ import { desc, eq } from "drizzle-orm";
 import type { RssFeed } from "@packages/shared/index.ts";
 
 import { AppDrizzleDatabase, DatabaseError } from "@/db/database.ts";
-import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
+import { nowIso as currentNowIso } from "@/infra/time.ts";
 import type { OperationsError } from "@/features/operations/errors.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import { toRssFeed } from "@/features/operations/repository/rss-repository.ts";
@@ -29,8 +29,7 @@ export class CatalogRssService extends Effect.Service<CatalogRssService>()(
     effect: Effect.gen(function* () {
       const db = yield* AppDrizzleDatabase;
       const mediaReadRepository = yield* MediaReadRepository;
-      const clock = yield* ClockService;
-      const nowIso = () => nowIsoFromClock(clock);
+      const nowIso = currentNowIso;
 
       const listRssFeeds = Effect.fn("OperationsService.listRssFeeds")(function* () {
         const rows = yield* tryDatabasePromise("Failed to list RSS feeds", () =>

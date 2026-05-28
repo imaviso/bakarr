@@ -1,7 +1,6 @@
 import { assert, it } from "@effect/vitest";
 import { Cause, Effect, Exit, Layer } from "effect";
 
-import { ClockService } from "@/infra/clock.ts";
 import { DnsLookupError, DnsResolver } from "@/infra/dns-resolver.ts";
 import { ExternalCallError, ExternalCallLive } from "@/infra/effect/retry.ts";
 import { RssClient, RssClientLive } from "@/features/operations/rss/rss-client.ts";
@@ -18,7 +17,7 @@ import {
   RssFeedTooLargeError,
 } from "@/features/operations/errors.ts";
 
-const ExternalCallTestLayer = ExternalCallLive.pipe(Layer.provide(ClockService.Default));
+const ExternalCallTestLayer = ExternalCallLive;
 
 function makeDnsLayer(mock: (name: string, type: "A" | "AAAA") => Promise<string[]>) {
   return Layer.succeed(
@@ -77,7 +76,6 @@ function rssLayer(
   return RssClientLive.pipe(
     Layer.provide(
       Layer.mergeAll(
-        ClockService.Default,
         ExternalCallTestLayer,
         Layer.succeed(RssTransport, transport),
         makeDnsLayer(dnsMock),
@@ -672,11 +670,9 @@ it.scoped("RssClient handles redirects manually when the transport returns 302 r
       ).pipe(
         Effect.provide(
           Layer.mergeAll(
-            ClockService.Default,
             RssClientLive.pipe(
               Layer.provide(
                 Layer.mergeAll(
-                  ClockService.Default,
                   ExternalCallTestLayer,
                   Layer.succeed(
                     RssTransport,
@@ -720,7 +716,7 @@ function fetchFeedItemsEffect(
 ) {
   return Effect.flatMap(RssClient, (client) =>
     client.fetchItems("https://feeds.example/releases.xml"),
-  ).pipe(Effect.provide(Layer.mergeAll(rssLayer(execute, dnsMock), ClockService.Default)));
+  ).pipe(Effect.provide(Layer.mergeAll(rssLayer(execute, dnsMock))));
 }
 
 function assertRssFailure(

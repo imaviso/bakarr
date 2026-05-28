@@ -1,10 +1,9 @@
 import { assert, it } from "@effect/vitest";
-import { Effect, Layer } from "effect";
+import { Effect, Layer, TestClock } from "effect";
 
 import * as schema from "@/db/schema.ts";
 import { AppDrizzleDatabase } from "@/db/database.ts";
 import { CatalogLibraryReadService } from "@/features/operations/catalog/catalog-library-read-service.ts";
-import { ClockService } from "@/infra/clock.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
@@ -34,16 +33,11 @@ it.scoped("getWantedMissing includes non-media units without air dates", () =>
           ]),
         );
 
+        yield* TestClock.setTime(new Date("2025-02-01T00:00:00.000Z").getTime());
+
         const dependenciesLayer = Layer.mergeAll(
           Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db)),
           Layer.succeed(MediaReadRepository, makeMediaReadRepository(db)),
-          Layer.succeed(
-            ClockService,
-            ClockService.make({
-              currentMonotonicMillis: Effect.succeed(0),
-              currentTimeMillis: Effect.succeed(new Date("2025-02-01T00:00:00.000Z").getTime()),
-            }),
-          ),
           Layer.succeed(
             RuntimeConfigSnapshotService,
             RuntimeConfigSnapshotService.make({

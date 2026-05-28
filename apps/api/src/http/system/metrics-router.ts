@@ -5,7 +5,7 @@ import { ObservabilityConfig } from "@/config/observability.ts";
 import { SystemRuntimeMetricsService } from "@/features/system/system-runtime-metrics-service.ts";
 import { requireViewerFromHttpRequest } from "@/http/shared/route-auth.ts";
 import { mapRouteError } from "@/http/shared/route-errors/index.ts";
-import { ClockService } from "@/infra/clock.ts";
+import { currentTimeNanos } from "@/infra/time.ts";
 import { recordHttpRequestMetrics } from "@/infra/metrics.ts";
 import { routeResponse } from "@/http/shared/router-helpers.ts";
 
@@ -20,14 +20,13 @@ const enforceMetricsAuthIfConfigured = Effect.gen(function* () {
 });
 
 const renderMetricsWithHttpMetrics = Effect.gen(function* () {
-  const clock = yield* ClockService;
   const service = yield* SystemRuntimeMetricsService;
-  const startedAt = yield* clock.currentMonotonicMillis;
+  const startedAt = yield* currentTimeNanos;
   const exit = yield* Effect.exit(
     Effect.zipRight(enforceMetricsAuthIfConfigured, service.renderPrometheusMetrics()),
   );
-  const finishedAt = yield* clock.currentMonotonicMillis;
-  const durationMs = finishedAt - startedAt;
+  const finishedAt = yield* currentTimeNanos;
+  const durationMs = Number((finishedAt - startedAt) / 1_000_000n);
   const status = exit._tag === "Success" ? 200 : statusFromFailureCause(exit.cause);
 
   yield* recordHttpRequestMetrics({

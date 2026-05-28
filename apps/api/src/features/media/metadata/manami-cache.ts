@@ -8,7 +8,7 @@ import {
   parseAniListIdFromSource,
   parseMalIdFromSource,
 } from "@/features/media/metadata/manami-url.ts";
-import type { ClockServiceShape } from "@/infra/clock.ts";
+import { currentTimeMillis } from "@/infra/time.ts";
 import { ExternalCallError, type ExternalCallShape } from "@/infra/effect/retry.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { isNotFoundError } from "@/infra/filesystem/fs-errors.ts";
@@ -48,13 +48,12 @@ type CacheState =
 export const refreshSqliteCacheIfNeeded = Effect.fn("ManamiCache.refreshSqliteCacheIfNeeded")(
   function* (
     client: HttpClient.HttpClient,
-    clock: ClockServiceShape,
     externalCall: ExternalCallShape,
     fs: FileSystemShape,
     sqliteClient: NodeSqliteClient.SqliteClient,
     paths: ManamiCachePaths,
   ) {
-    const now = yield* clock.currentTimeMillis;
+    const now = yield* currentTimeMillis;
     const cacheState = yield* inspectSqliteCacheState(fs, sqliteClient, paths, now);
 
     if (cacheState._tag === "Fresh") {

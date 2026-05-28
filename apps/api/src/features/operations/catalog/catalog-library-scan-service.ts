@@ -14,7 +14,7 @@ import { OperationsProgress } from "@/features/operations/tasks/operations-progr
 import { FileSystem, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { tryDatabasePromise, type TryDatabasePromise } from "@/infra/effect/db.ts";
 import { scanAnimeLibraryRow } from "@/features/operations/catalog/catalog-library-scan-row-support.ts";
-import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
+import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { markJobFailureOrFailWithError } from "@/infra/job-failure-support.ts";
 
 export interface CatalogLibraryScanServiceShape {
@@ -111,14 +111,13 @@ export class CatalogLibraryScanService extends Effect.Service<CatalogLibraryScan
       const db = yield* AppDrizzleDatabase;
       const eventBus = yield* EventBus;
       const fs = yield* FileSystem;
-      const clock = yield* ClockService;
       const progress = yield* OperationsProgress;
 
       return makeCatalogLibraryScanSupport({
         db,
         eventBus,
         fs,
-        nowIso: () => nowIsoFromClock(clock),
+        nowIso: currentNowIso,
         publishLibraryScanProgress: progress.publishLibraryScanProgress,
         tryDatabasePromise,
       });

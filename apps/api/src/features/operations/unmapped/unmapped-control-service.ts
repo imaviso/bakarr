@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 
 import { AppDrizzleDatabase, type DatabaseError } from "@/db/database.ts";
-import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
+import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import type { DomainPathError } from "@/features/errors.ts";
 import { UnmappedScanService } from "@/features/operations/unmapped/unmapped-scan-service.ts";
@@ -57,9 +57,8 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
   const fs = yield* FileSystem;
   const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
   const systemUnmappedRepository = yield* SystemUnmappedRepository;
-  const clock = yield* ClockService;
   const scanService = yield* UnmappedScanService;
-  const nowIso = () => nowIsoFromClock(clock);
+  const nowIso = currentNowIso;
 
   const toStoredDataError = (error: { cause?: unknown; message: string }) =>
     new StoredDataError({

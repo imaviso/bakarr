@@ -1,7 +1,7 @@
 import { Effect, Option } from "effect";
 
 import { BootstrapConfig } from "@/config/schema.ts";
-import { nowIsoFromClock, ClockService } from "@/infra/clock.ts";
+import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { randomHexFrom, RandomService } from "@/infra/random.ts";
 import { hashPassword, PasswordCrypto } from "@/security/password.ts";
 import { TokenHasher } from "@/security/token-hasher.ts";
@@ -11,11 +11,10 @@ import { AuthUserRepository } from "@/features/auth/user-repository.ts";
 const makeAuthBootstrapService = Effect.fn("AuthBootstrapService.make")(function* () {
   const users = yield* AuthUserRepository;
   const config = yield* BootstrapConfig;
-  const clock = yield* ClockService;
   const passwordCrypto = yield* PasswordCrypto;
   const random = yield* RandomService;
   const tokenHasher = yield* TokenHasher;
-  const nowIso = () => nowIsoFromClock(clock);
+  const nowIso = currentNowIso;
   const randomHex = (bytes: number) => randomHexFrom(random, bytes);
   const hashToken = tokenHasher.hashToken;
 

@@ -2,7 +2,7 @@ import { Effect } from "effect";
 
 import type { DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
-import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
+import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { MediaProbe } from "@/infra/media/probe.ts";
 import { RandomService } from "@/infra/random.ts";
@@ -50,10 +50,9 @@ export class DownloadReconciliationService extends Effect.Service<DownloadReconc
       const mediaProbe = yield* MediaProbe;
       const mediaReadRepository = yield* MediaReadRepository;
       const torrentClientService = yield* TorrentClientService;
-      const clock = yield* ClockService;
       const random = yield* RandomService;
       const runtimeConfigSnapshotService = yield* RuntimeConfigSnapshotService;
-      const nowIso = () => nowIsoFromClock(clock);
+      const nowIso = currentNowIso;
       const randomUuid = () => random.randomUuid;
 
       const { reconcileCompletedTorrentEffect, maybeCleanupImportedTorrent } =

@@ -6,7 +6,6 @@ import { AppConfig } from "@/config/schema.ts";
 import { BackgroundWorkerController } from "@/background/controller-core.ts";
 import { AppDrizzleDatabase, type AppDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
-import { ClockService } from "@/infra/clock.ts";
 import { RuntimeLogLevelStateLive } from "@/infra/logging.ts";
 import { RandomService } from "@/infra/random.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
@@ -198,7 +197,6 @@ function makeSystemConfigUpdateTestLayer(input: {
     AppConfig.layerWithOverrides({ databaseFile: input.databaseFile }).pipe(
       Layer.provide(RandomService.Default),
     ),
-    ClockService.Default,
     RuntimeLogLevelStateLive,
     Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(input.db)),
     Layer.succeed(BackgroundWorkerController, makeBackgroundWorkerControllerStub(input.reloads)),

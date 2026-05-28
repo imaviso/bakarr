@@ -1,7 +1,7 @@
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
 import { Deferred, Effect, Either, Ref } from "effect";
 
-import type { ClockService } from "@/infra/clock.ts";
+import { currentTimeMillis } from "@/infra/time.ts";
 import { ExternalCallError, type ExternalCallShape } from "@/infra/effect/retry.ts";
 import {
   QBitTorrentClientError,
@@ -48,7 +48,6 @@ export function withSessionCache(
   sessionLoginRef: Ref.Ref<
     Map<string, Deferred.Deferred<string, ExternalCallError | QBitTorrentClientError>>
   >,
-  clock: typeof ClockService.Service,
   login: (config: QBitConfig) => Effect.Effect<string, ExternalCallError | QBitTorrentClientError>,
 ) {
   type LoginGate = {
@@ -91,7 +90,7 @@ export function withSessionCache(
           const loginExit = yield* Effect.exit(restore(login(config)));
 
           if (loginExit._tag === "Success") {
-            const createdAt = yield* restore(clock.currentTimeMillis);
+            const createdAt = yield* restore(currentTimeMillis);
 
             yield* Ref.update(sessionsRef, (map) => {
               const next = new Map(map);
@@ -131,7 +130,7 @@ export function withSessionCache(
     >,
   ) {
     const sessionKey = getSessionKey(config);
-    const now = yield* clock.currentTimeMillis;
+    const now = yield* currentTimeMillis;
 
     const sessions = yield* Ref.get(sessionsRef);
     const cached = sessions.get(sessionKey);
@@ -167,7 +166,7 @@ export function withSessionCache(
     const response = yield* operation("");
 
     if (!isUnauthorizedStatus(response.status)) {
-      const createdAt = yield* clock.currentTimeMillis;
+      const createdAt = yield* currentTimeMillis;
       yield* Ref.update(sessionsRef, (map) => {
         const next = new Map(map);
         next.set(sessionKey, { cookie: "", createdAt });

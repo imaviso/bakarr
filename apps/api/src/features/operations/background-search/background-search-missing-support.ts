@@ -20,7 +20,7 @@ import { MediaReadRepository } from "@/features/media/shared/media-read-reposito
 import { OperationsProfileRepository } from "@/features/operations/repository/profile-repository.ts";
 import { BackgroundSearchQueueService } from "@/features/operations/background-search/background-search-queue-service.ts";
 import { DomainInputError, InfrastructureError } from "@/features/errors.ts";
-import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
+import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
 import { SearchReleaseService } from "@/features/operations/search/search-orchestration-release-search.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
@@ -38,14 +38,13 @@ export class SearchBackgroundMissingService extends Effect.Service<SearchBackgro
     effect: Effect.gen(function* () {
       const db = yield* AppDrizzleDatabase;
       const eventBus = yield* EventBus;
-      const clock = yield* ClockService;
       const progress = yield* OperationsProgress;
       const searchReleaseService = yield* SearchReleaseService;
       const queueService = yield* BackgroundSearchQueueService;
       const mediaReadRepository = yield* MediaReadRepository;
       const profileRepository = yield* OperationsProfileRepository;
       const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
-      const nowIso = () => nowIsoFromClock(clock);
+      const nowIso = currentNowIso;
 
       const requireQualityProfile = Effect.fn("BackgroundSearchMissing.requireQualityProfile")(
         function* (profileName: string) {

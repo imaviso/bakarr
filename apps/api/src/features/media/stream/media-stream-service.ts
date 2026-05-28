@@ -2,7 +2,7 @@ import { Effect, Match } from "effect";
 
 import type { DatabaseError } from "@/db/database.ts";
 import { AppDrizzleDatabase } from "@/db/database.ts";
-import { ClockService } from "@/infra/clock.ts";
+import { currentTimeMillis } from "@/infra/time.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";
 import { StreamAccessError } from "@/features/media/stream/media-stream-errors.ts";
@@ -35,14 +35,13 @@ const makeAnimeStreamService = Effect.fn("AnimeStreamService.make")(function* ()
   const db = yield* AppDrizzleDatabase;
   const fs = yield* FileSystem;
   const mediaReadRepository = yield* MediaReadRepository;
-  const clock = yield* ClockService;
   const signer = yield* StreamTokenSigner;
 
   const createStreamUrl = Effect.fn("AnimeStreamService.createStreamUrl")(function* (
     mediaId: number,
     unitNumber: number,
   ) {
-    const now = yield* clock.currentTimeMillis;
+    const now = yield* currentTimeMillis;
     const expiresAt = now + STREAM_EXPIRY_MS;
     const signature = yield* signer.sign({ mediaId, unitNumber, expiresAt }).pipe(
       Effect.mapError(
@@ -67,7 +66,7 @@ const makeAnimeStreamService = Effect.fn("AnimeStreamService.make")(function* ()
       readonly expiresAt: number;
       readonly signatureHex: string;
     }) {
-      const nowMillis = yield* clock.currentTimeMillis;
+      const nowMillis = yield* currentTimeMillis;
       const isAuthorized = yield* signer
         .verify({
           mediaId: input.mediaId,

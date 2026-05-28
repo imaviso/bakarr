@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
 
 import type { DownloadSourceMetadata } from "@packages/shared/index.ts";
 import {
@@ -10,7 +10,6 @@ import { toSharedParsedEpisodeIdentity } from "@/infra/media/identity/identity.t
 import type { AppDatabase } from "@/db/database.ts";
 import { downloadEvents, downloads } from "@/db/schema.ts";
 import { StoredDataError } from "@/features/errors.ts";
-import { decodeJson, encodeJson } from "@/infra/effect/schema-json.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 export interface DownloadEventRecordInput {
@@ -33,17 +32,17 @@ export interface DownloadEventRecordInput {
 export function encodeDownloadSourceMetadata(
   value: DownloadSourceMetadata,
 ): Effect.Effect<string, StoredDataError> {
-  return encodeJson(
-    DownloadSourceMetadataSchema,
-    {
-      ...value,
-      seadex_tags: value.seadex_tags ? [...value.seadex_tags] : undefined,
-    },
-    (cause) =>
-      new StoredDataError({
-        cause,
-        message: "Download source metadata is invalid",
-      }),
+  return Schema.encode(Schema.parseJson(DownloadSourceMetadataSchema))({
+    ...value,
+    seadex_tags: value.seadex_tags ? [...value.seadex_tags] : undefined,
+  }).pipe(
+    Effect.mapError(
+      (cause) =>
+        new StoredDataError({
+          cause,
+          message: "Download source metadata is invalid",
+        }),
+    ),
   );
 }
 
@@ -54,15 +53,16 @@ export const decodeDownloadSourceMetadata = Effect.fn(
     return undefined;
   }
 
-  return yield* decodeJson(
-    DownloadSourceMetadataSchema,
-    value,
-    (cause) =>
-      new StoredDataError({
-        cause,
-        message: "Stored download source metadata is corrupt",
-      }),
-  ).pipe(Effect.map((decoded) => cloneDownloadSourceMetadata(decoded)));
+  return yield* Schema.decodeUnknown(Schema.parseJson(DownloadSourceMetadataSchema))(value).pipe(
+    Effect.mapError(
+      (cause) =>
+        new StoredDataError({
+          cause,
+          message: "Stored download source metadata is corrupt",
+        }),
+    ),
+    Effect.map((decoded) => cloneDownloadSourceMetadata(decoded)),
+  );
 });
 
 function cloneDownloadSourceMetadata(value: DownloadSourceMetadata): DownloadSourceMetadata {
@@ -78,18 +78,18 @@ export function encodeDownloadEventMetadata(value: {
   imported_path?: string;
   source_metadata?: DownloadSourceMetadata;
 }): Effect.Effect<string, StoredDataError> {
-  return encodeJson(
-    DownloadEventMetadataSchema,
-    {
-      covered_units: value.covered_units ? [...value.covered_units] : undefined,
-      imported_path: value.imported_path,
-      source_metadata: value.source_metadata,
-    },
-    (cause) =>
-      new StoredDataError({
-        cause,
-        message: "Download event metadata is invalid",
-      }),
+  return Schema.encode(Schema.parseJson(DownloadEventMetadataSchema))({
+    covered_units: value.covered_units ? [...value.covered_units] : undefined,
+    imported_path: value.imported_path,
+    source_metadata: value.source_metadata,
+  }).pipe(
+    Effect.mapError(
+      (cause) =>
+        new StoredDataError({
+          cause,
+          message: "Download event metadata is invalid",
+        }),
+    ),
   );
 }
 

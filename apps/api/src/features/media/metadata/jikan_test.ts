@@ -3,10 +3,9 @@ import { assert, it } from "@effect/vitest";
 import { Effect, Either, Layer, Option } from "effect";
 
 import { JikanClient, JikanClientLive } from "@/features/media/metadata/jikan.ts";
-import { ClockService } from "@/infra/clock.ts";
 import { ExternalCallError, ExternalCallLive } from "@/infra/effect/retry.ts";
 
-const ExternalCallTestLayer = ExternalCallLive.pipe(Layer.provide(ClockService.Default));
+const ExternalCallTestLayer = ExternalCallLive;
 
 it.scoped("JikanClient maps full detail with recommendations", () =>
   Effect.gen(function* () {
@@ -15,7 +14,6 @@ it.scoped("JikanClient maps full detail with recommendations", () =>
     const clientLayer = JikanClientLive.pipe(
       Layer.provide(
         Layer.mergeAll(
-          ClockService.Default,
           ExternalCallTestLayer,
           Layer.succeed(
             HttpClient.HttpClient,
@@ -133,7 +131,6 @@ it.scoped("JikanClient falls back to basic detail when full endpoint missing", (
     const clientLayer = JikanClientLive.pipe(
       Layer.provide(
         Layer.mergeAll(
-          ClockService.Default,
           ExternalCallTestLayer,
           Layer.succeed(
             HttpClient.HttpClient,
@@ -230,7 +227,6 @@ it.scoped("JikanClient falls back to basic detail when full detail decode fails"
     const clientLayer = JikanClientLive.pipe(
       Layer.provide(
         Layer.mergeAll(
-          ClockService.Default,
           ExternalCallTestLayer,
           Layer.succeed(
             HttpClient.HttpClient,
@@ -294,7 +290,6 @@ it.scoped("JikanClient returns none when both detail endpoints missing", () =>
     const clientLayer = JikanClientLive.pipe(
       Layer.provide(
         Layer.mergeAll(
-          ClockService.Default,
           ExternalCallTestLayer,
           Layer.succeed(
             HttpClient.HttpClient,
@@ -327,7 +322,6 @@ it.scoped("JikanClient maps detail decode failures with operation name", () =>
     const clientLayer = JikanClientLive.pipe(
       Layer.provide(
         Layer.mergeAll(
-          ClockService.Default,
           ExternalCallTestLayer,
           Layer.succeed(
             HttpClient.HttpClient,
@@ -380,7 +374,6 @@ it.scoped("JikanClient ignores missing recommendations endpoint", () =>
     const clientLayer = JikanClientLive.pipe(
       Layer.provide(
         Layer.mergeAll(
-          ClockService.Default,
           ExternalCallTestLayer,
           Layer.succeed(
             HttpClient.HttpClient,
@@ -426,7 +419,6 @@ it.scoped("JikanClient ignores failing recommendations endpoint", () =>
     const clientLayer = JikanClientLive.pipe(
       Layer.provide(
         Layer.mergeAll(
-          ClockService.Default,
           ExternalCallTestLayer,
           Layer.succeed(
             HttpClient.HttpClient,
@@ -483,7 +475,6 @@ it.scoped("JikanClient decodes seasonal media response and applies limit", () =>
     const clientLayer = JikanClientLive.pipe(
       Layer.provide(
         Layer.mergeAll(
-          ClockService.Default,
           ExternalCallTestLayer,
           Layer.succeed(
             HttpClient.HttpClient,
@@ -545,7 +536,6 @@ it.scoped("JikanClient getSeasonalAnime returns empty array on 404", () =>
     const clientLayer = JikanClientLive.pipe(
       Layer.provide(
         Layer.mergeAll(
-          ClockService.Default,
           ExternalCallTestLayer,
           Layer.succeed(
             HttpClient.HttpClient,

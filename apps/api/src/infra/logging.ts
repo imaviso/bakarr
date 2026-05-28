@@ -6,8 +6,14 @@ export function compactLogAnnotations(
   return Object.fromEntries(Object.entries(annotations).filter(([, value]) => value !== undefined));
 }
 
-export function durationMsSince(startedAt: number, finishedAt: number): number {
-  return Math.max(0, Math.round(finishedAt - startedAt));
+export function durationMsSince(startedAt: number, finishedAt: number): number;
+export function durationMsSince(startedAt: bigint, finishedAt: bigint): number;
+export function durationMsSince(startedAt: number | bigint, finishedAt: number | bigint): number {
+  if (typeof startedAt === "bigint" && typeof finishedAt === "bigint") {
+    return Number((finishedAt - startedAt) / 1_000_000n);
+  }
+
+  return Math.max(0, Math.round(Number(finishedAt) - Number(startedAt)));
 }
 
 export function errorLogAnnotations(error: unknown): Record<string, unknown> {

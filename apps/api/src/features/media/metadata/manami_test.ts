@@ -1,6 +1,6 @@
 import { HttpClient, HttpClientResponse } from "@effect/platform";
 import { assert, it } from "@effect/vitest";
-import { Effect, Either, Layer, Option, Schema } from "effect";
+import { Effect, Either, Layer, Option, Schema, TestClock } from "effect";
 
 import { AppConfig } from "@/config/schema.ts";
 import {
@@ -18,7 +18,6 @@ import {
   parseAniListIdFromSource,
   parseMalIdFromSource,
 } from "@/features/media/metadata/manami-url.ts";
-import { ClockService } from "@/infra/clock.ts";
 import { ExternalCallError, ExternalCallLive } from "@/infra/effect/retry.ts";
 import { FileSystem, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { withFileSystemSandboxEffect } from "@/test/filesystem-test.ts";
@@ -310,14 +309,8 @@ it.scoped("ManamiClient rebuilds invalid sqlite cache from local dataset", () =>
       yield* fs.writeFile(`${cacheDir}/${MANAMI_CACHE_SQLITE_FILE}`, new Uint8Array());
 
       let requestCount = 0;
+      yield* TestClock.setTime(clockNow);
       const clientLayer = makeManamiClientLayer({
-        clockLayer: Layer.succeed(
-          ClockService,
-          ClockService.make({
-            currentMonotonicMillis: Effect.succeed(clockNow),
-            currentTimeMillis: Effect.succeed(clockNow),
-          }),
-        ),
         fs,
         httpClient: HttpClient.make((request) =>
           Effect.sync(() => {
@@ -413,14 +406,8 @@ it.scoped("ManamiClient refreshes stale sqlite cache", () =>
 
       const clockNow = MANAMI_CACHE_REFRESH_INTERVAL_MS * 2;
       let requestCount = 0;
+      yield* TestClock.setTime(clockNow);
       const clientLayer = makeManamiClientLayer({
-        clockLayer: Layer.succeed(
-          ClockService,
-          ClockService.make({
-            currentMonotonicMillis: Effect.succeed(clockNow),
-            currentTimeMillis: Effect.succeed(clockNow),
-          }),
-        ),
         fs,
         httpClient: HttpClient.make((request) =>
           Effect.sync(() => {
@@ -449,19 +436,16 @@ it.scoped("ManamiClient refreshes stale sqlite cache", () =>
 );
 
 function makeManamiClientLayer(input: {
-  readonly clockLayer?: Layer.Layer<ClockService>;
   readonly fs: FileSystemShape;
   readonly httpClient: HttpClient.HttpClient;
   readonly root: string;
 }) {
-  const clockLayer = input.clockLayer ?? ClockService.Default;
-  const externalCallLayer = ExternalCallLive.pipe(Layer.provide(clockLayer));
+  const externalCallLayer = ExternalCallLive;
 
   return ManamiClientLive.pipe(
     Layer.provide(
       Layer.mergeAll(
         AppConfig.layerWithOverrides({ databaseFile: `${input.root}/bakarr.sqlite` }),
-        clockLayer,
         externalCallLayer,
         Layer.succeed(FileSystem, FileSystem.make(input.fs)),
         Layer.succeed(HttpClient.HttpClient, input.httpClient),

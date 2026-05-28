@@ -3,7 +3,7 @@ import { Effect, Option } from "effect";
 import type { Config } from "@packages/shared/index.ts";
 import { AppConfig } from "@/config/schema.ts";
 import { DatabaseError } from "@/db/database.ts";
-import { nowIsoFromClock, ClockService } from "@/infra/clock.ts";
+import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { RuntimeLogLevelState } from "@/infra/logging.ts";
 import { BackgroundWorkerController } from "@/background/controller-core.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
@@ -32,7 +32,6 @@ export interface SystemConfigUpdateServiceShape {
 
 const makeSystemConfigUpdateService = Effect.fn("SystemConfigUpdateService.make")(function* () {
   const appConfig = yield* AppConfig;
-  const clock = yield* ClockService;
   const qualityProfileRepository = yield* QualityProfileRepository;
   const runtimeControl = yield* BackgroundWorkerController;
   const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
@@ -40,7 +39,7 @@ const makeSystemConfigUpdateService = Effect.fn("SystemConfigUpdateService.make"
   const systemConfigRepository = yield* SystemConfigRepository;
   const systemLogRepository = yield* SystemLogRepository;
   const eventBus = yield* EventBus;
-  const nowIso = () => nowIsoFromClock(clock);
+  const nowIso = currentNowIso;
 
   const updateConfig = Effect.fn("SystemConfigUpdateService.updateConfig")(function* (
     nextConfig: Config,

@@ -15,7 +15,7 @@ import {
   BACKGROUND_WORKER_TIMEOUT_MS,
   type BackgroundWorkerName,
 } from "@/background/worker-model.ts";
-import { ClockService } from "@/infra/clock.ts";
+import { currentTimeNanos } from "@/infra/time.ts";
 import { makeSkippingSerializedEffectRunner } from "@/infra/effect/coalescing-skipping-serialized-runner.ts";
 import { compactLogAnnotations, durationMsSince, errorLogAnnotations } from "@/infra/logging.ts";
 
@@ -154,7 +154,6 @@ export const withLockEffectOrFail = Effect.fn("Background.withLockEffectOrFail")
   monitor: BackgroundWorkerMonitorShape,
   timeoutMs?: number,
 ) {
-  const clock = yield* ClockService;
   const effectiveTimeout = timeoutMs ?? BACKGROUND_WORKER_TIMEOUT_MS[workerName];
   const taskWithTimeout = task.pipe(
     Effect.timeoutFail({
@@ -169,11 +168,11 @@ export const withLockEffectOrFail = Effect.fn("Background.withLockEffectOrFail")
   );
 
   const monitoredTask = Effect.gen(function* () {
-    const startedAt = yield* clock.currentMonotonicMillis;
+    const startedAt = yield* currentTimeNanos;
     yield* monitor.markRunStarted(workerName);
 
     const exit = yield* Effect.exit(taskWithTimeout);
-    const finishedAt = yield* clock.currentMonotonicMillis;
+    const finishedAt = yield* currentTimeNanos;
     const durationMs = durationMsSince(startedAt, finishedAt);
 
     if (exit._tag === "Success") {

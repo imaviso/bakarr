@@ -4,7 +4,7 @@ import { Effect, Option } from "effect";
 import type { Config } from "@packages/shared/index.ts";
 import { AppDrizzleDatabase, DatabaseError } from "@/db/database.ts";
 import { downloads, rssFeeds } from "@/db/schema.ts";
-import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
+import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { RssClient } from "@/features/operations/rss/rss-client.ts";
 import { BackgroundSearchQueueService } from "@/features/operations/background-search/background-search-queue-service.ts";
 import { DomainInputError, InfrastructureError } from "@/features/errors.ts";
@@ -30,12 +30,11 @@ export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSea
   {
     effect: Effect.gen(function* () {
       const db = yield* AppDrizzleDatabase;
-      const clock = yield* ClockService;
       const rssClient = yield* RssClient;
       const queueService = yield* BackgroundSearchQueueService;
       const mediaReadRepository = yield* MediaReadRepository;
       const profileRepository = yield* OperationsProfileRepository;
-      const nowIso = () => nowIsoFromClock(clock);
+      const nowIso = currentNowIso;
 
       const requireQualityProfile = Effect.fn("BackgroundSearchRssFeed.requireQualityProfile")(
         function* (profileName: string) {

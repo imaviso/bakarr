@@ -25,7 +25,7 @@ import { scanVideoFilesStream } from "@/features/operations/import-scan/file-sca
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 import { AppDrizzleDatabase } from "@/db/database.ts";
-import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
+import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
@@ -258,7 +258,6 @@ export class UnmappedImportService extends Effect.Service<UnmappedImportService>
     effect: Effect.gen(function* () {
       const db = yield* AppDrizzleDatabase;
       const fs = yield* FileSystem;
-      const clock = yield* ClockService;
       const mediaReadRepository = yield* MediaReadRepository;
       const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
 
@@ -279,7 +278,7 @@ export class UnmappedImportService extends Effect.Service<UnmappedImportService>
           return getLibraryPathForMediaKind(config.library, mediaKind);
         }),
         mediaReadRepository,
-        nowIso: () => nowIsoFromClock(clock),
+        nowIso: currentNowIso,
         tryDatabasePromise,
       });
     }),

@@ -18,7 +18,7 @@ import {
   type DownloadRuntimeSummary,
 } from "@/features/operations/catalog/catalog-download-progress-read-support.ts";
 import { StoredDataError } from "@/features/errors.ts";
-import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
+import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 type ReadError = DatabaseError | StoredDataError;
@@ -72,8 +72,7 @@ export class CatalogDownloadReadService extends Effect.Service<CatalogDownloadRe
   {
     effect: Effect.gen(function* () {
       const db = yield* AppDrizzleDatabase;
-      const clock = yield* ClockService;
-      const nowIso = () => nowIsoFromClock(clock);
+      const nowIso = currentNowIso;
 
       const listReads = makeCatalogDownloadListReads({ db, tryDatabasePromise });
       const eventReads = makeCatalogDownloadEventReads({ db, nowIso, tryDatabasePromise });

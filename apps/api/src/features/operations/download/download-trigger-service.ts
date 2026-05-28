@@ -15,7 +15,7 @@ import type { OperationsConflictError } from "@/features/operations/errors.ts";
 import type { TriggerDownloadInput } from "@/features/operations/download/download-orchestration-shared.ts";
 import type { DownloadTriggerCoordinatorShape } from "@/features/operations/tasks/runtime-support.ts";
 import { DownloadTriggerRepository } from "@/features/operations/repository/download-trigger-repository.ts";
-import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
+import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { DownloadProgressSupport } from "@/features/operations/download/download-progress-support.ts";
 import { DownloadTriggerCoordinator } from "@/features/operations/tasks/runtime-support.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
@@ -143,7 +143,6 @@ export class DownloadTriggerService extends Effect.Service<DownloadTriggerServic
       const triggerRepo = yield* DownloadTriggerRepository;
       const eventBus = yield* EventBus;
       const torrentClientService = yield* TorrentClientService;
-      const clock = yield* ClockService;
       const progressSupport = yield* DownloadProgressSupport;
       const downloadTriggerCoordinator = yield* DownloadTriggerCoordinator;
       const mediaReadRepository = yield* MediaReadRepository;
@@ -153,7 +152,7 @@ export class DownloadTriggerService extends Effect.Service<DownloadTriggerServic
         downloadTriggerCoordinator,
         eventBus,
         mediaReadRepository,
-        nowIso: () => nowIsoFromClock(clock),
+        nowIso: currentNowIso,
         publishDownloadProgress: progressSupport.publishDownloadProgress,
         torrentClientService,
       });

@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 
-import { nowIsoFromClock, ClockService } from "@/infra/clock.ts";
+import { nowIso as currentNowIso } from "@/infra/time.ts";
 import {
   decodeReleaseProfileRow,
   encodeReleaseProfileRow,
@@ -13,10 +13,9 @@ import { SystemLogRepository } from "@/features/system/repository/log-repository
 import { ReleaseProfileRepository } from "@/features/system/repository/release-profile-repository.ts";
 
 const makeReleaseProfileService = Effect.fn("ReleaseProfileService.make")(function* () {
-  const clock = yield* ClockService;
   const releaseProfileRepository = yield* ReleaseProfileRepository;
   const systemLogRepository = yield* SystemLogRepository;
-  const nowIso = () => nowIsoFromClock(clock);
+  const nowIso = currentNowIso;
 
   const listReleaseProfiles = Effect.fn("ReleaseProfileService.listReleaseProfiles")(function* () {
     const rows = yield* releaseProfileRepository.listReleaseProfileRows();

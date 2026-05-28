@@ -1,6 +1,5 @@
 import { assert, it } from "@effect/vitest";
-import { Deferred, Effect, Fiber, Layer, Logger, Metric, Ref, Scope, TestClock } from "effect";
-import { ClockService } from "@/infra/clock.ts";
+import { Deferred, Effect, Fiber, Logger, Metric, Ref, Scope, TestClock } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 import { buildBackgroundSchedule } from "@/background/schedule.ts";
@@ -197,16 +196,9 @@ it.effect("repeatWorker runs exactly once at startup for cron loops", () =>
   }),
 );
 
-const TestClockLayer = Layer.succeed(
-  ClockService,
-  ClockService.make({
-    currentMonotonicMillis: Effect.succeed(0),
-    currentTimeMillis: Effect.succeed(1704067200000),
-  }),
-);
-
 it.effect("background worker monitor tracks supervision state and counters", () =>
   Effect.gen(function* () {
+    yield* TestClock.setTime(1704067200000);
     const monitor = yield* makeBackgroundWorkerMonitor();
 
     yield* monitor.markDaemonStarted("rss");
@@ -228,7 +220,7 @@ it.effect("background worker monitor tracks supervision state and counters", () 
     assert.deepStrictEqual(typeof snapshot.rss.lastStartedAt, "string");
     assert.deepStrictEqual(typeof snapshot.rss.lastSucceededAt, "string");
     assert.deepStrictEqual(typeof snapshot.rss.lastFailedAt, "string");
-  }).pipe(Effect.provide(TestClockLayer)),
+  }),
 );
 
 it.effect("background worker monitor publishes Effect metrics", () =>
@@ -278,7 +270,7 @@ it.effect("background worker monitor publishes Effect metrics", () =>
       }),
       1,
     );
-  }).pipe(Effect.provide(TestClockLayer)),
+  }),
 );
 
 it.effect("background worker timeouts are tagged and recorded", () =>
@@ -306,7 +298,7 @@ it.effect("background worker timeouts are tagged and recorded", () =>
       messages.some((message) => message.includes("background worker timed out")),
       true,
     );
-  }).pipe(Effect.provide(TestClockLayer)),
+  }),
 );
 
 it.effect("background worker interruption marks run as interrupted", () =>
@@ -323,7 +315,7 @@ it.effect("background worker interruption marks run as interrupted", () =>
     assert.deepStrictEqual(snapshot.rss.failureCount, 0);
     assert.deepStrictEqual(snapshot.rss.lastErrorMessage, null);
     assert.deepStrictEqual(snapshot.rss.successCount, 0);
-  }).pipe(Effect.provide(TestClockLayer)),
+  }),
 );
 
 function counterDelta(

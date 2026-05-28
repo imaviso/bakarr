@@ -1,7 +1,6 @@
-import { Effect } from "effect";
+import { DateTime, Effect } from "effect";
 
 import { AppDrizzleDatabase, DatabaseError } from "@/db/database.ts";
-import { ClockService } from "@/infra/clock.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
 import type {
   MediaListQueryParams,
@@ -75,7 +74,6 @@ const makeAnimeQueryService = Effect.fn("AnimeQueryService.make")(function* () {
   const db = yield* AppDrizzleDatabase;
   const aniList = yield* AniListClient;
   const manami = yield* ManamiClient;
-  const clock = yield* ClockService;
   const mediaReadRepository = yield* MediaReadRepository;
   const providerService = yield* AnimeSeasonalProviderService;
 
@@ -98,7 +96,7 @@ const makeAnimeQueryService = Effect.fn("AnimeQueryService.make")(function* () {
       return yield* listAnimeEffect(db, params);
     }),
     listEpisodes: Effect.fn("AnimeQueryService.listEpisodes")(function* (mediaId: number) {
-      const now = new Date(yield* clock.currentTimeMillis);
+      const now = yield* DateTime.nowAsDate;
       return yield* listEpisodesEffect({ mediaId, db, now });
     }),
     searchAnime: Effect.fn("AnimeQueryService.searchAnime")(function* (
@@ -116,7 +114,7 @@ const makeAnimeQueryService = Effect.fn("AnimeQueryService.make")(function* () {
     listSeasonalAnime: Effect.fn("AnimeQueryService.listSeasonalAnime")(function* (
       params?: SeasonalMediaQueryParams,
     ) {
-      const now = new Date(yield* clock.currentTimeMillis);
+      const now = yield* DateTime.nowAsDate;
       const season = params?.season ?? resolveSeasonFromDate(now);
       const year = params?.year ?? resolveSeasonYearFromDate(now);
       const limit = clamp(params?.limit ?? 12, 1, 50);

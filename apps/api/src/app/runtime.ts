@@ -1,5 +1,4 @@
-import { Effect, Layer } from "effect";
-import { ClockService } from "@/infra/clock.ts";
+import { DateTime, Effect, Layer } from "effect";
 
 export interface AppRuntimeShape {
   readonly startedAt: Date;
@@ -7,9 +6,8 @@ export interface AppRuntimeShape {
 
 export class AppRuntime extends Effect.Service<AppRuntime>()("@bakarr/api/AppRuntime", {
   effect: Effect.gen(function* () {
-    const clock = yield* ClockService;
-    const millis = yield* clock.currentTimeMillis;
-    return { startedAt: new Date(millis) };
+    const startedAt = yield* DateTime.nowAsDate;
+    return { startedAt };
   }),
 }) {
   static test(startedAt: Date) {

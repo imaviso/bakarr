@@ -1,8 +1,7 @@
-import { Context, Effect, Layer, Option, Schema } from "effect";
+import { Config, Context, Effect, Layer, Option, Schema } from "effect";
 
 import { PositiveIntSchema } from "@/domain/domain-schema.ts";
 import { randomHex } from "@/infra/random.ts";
-import { readConfigValueWithDefault } from "@/config/read-config-value.ts";
 
 const PortSchema = Schema.Number.pipe(Schema.int(), Schema.between(1, 65_535));
 
@@ -76,48 +75,35 @@ export class AppConfig extends Context.Tag("@bakarr/api/AppConfig")<AppConfig, A
       AppConfig,
       Effect.gen(function* () {
         const defaults = makeDefaultAppConfig();
-        const {
-          appVersion,
-          databaseFile,
-          port,
-          sessionCookieName,
-          sessionCookieSecure,
-          sessionDurationDays,
-        } = yield* Effect.all(
-          {
-            appVersion: readConfigValueWithDefault(
-              overrides.appVersion,
-              Schema.Config("BAKARR_APP_VERSION", Schema.String),
-              defaults.appVersion,
-            ),
-            databaseFile: readConfigValueWithDefault(
-              overrides.databaseFile,
-              Schema.Config("DATABASE_FILE", Schema.String),
-              defaults.databaseFile,
-            ),
-            port: readConfigValueWithDefault(
-              overrides.port,
-              Schema.Config("PORT", PortConfigSchema),
-              defaults.port,
-            ),
-            sessionCookieName: readConfigValueWithDefault(
-              overrides.sessionCookieName,
-              Schema.Config("SESSION_COOKIE_NAME", Schema.String),
-              defaults.sessionCookieName,
-            ),
-            sessionCookieSecure: readConfigValueWithDefault(
-              overrides.sessionCookieSecure,
-              Schema.Config("SESSION_COOKIE_SECURE", Schema.BooleanFromString),
-              defaults.sessionCookieSecure,
-            ),
-            sessionDurationDays: readConfigValueWithDefault(
-              overrides.sessionDurationDays,
-              Schema.Config("SESSION_DURATION_DAYS", PositiveIntConfigSchema),
-              defaults.sessionDurationDays,
-            ),
-          },
-          { concurrency: "unbounded" },
-        );
+
+        const appVersion =
+          overrides.appVersion ??
+          (yield* Schema.Config("BAKARR_APP_VERSION", Schema.String).pipe(
+            Config.withDefault(defaults.appVersion),
+          ));
+        const databaseFile =
+          overrides.databaseFile ??
+          (yield* Schema.Config("DATABASE_FILE", Schema.String).pipe(
+            Config.withDefault(defaults.databaseFile),
+          ));
+        const port =
+          overrides.port ??
+          (yield* Schema.Config("PORT", PortConfigSchema).pipe(Config.withDefault(defaults.port)));
+        const sessionCookieName =
+          overrides.sessionCookieName ??
+          (yield* Schema.Config("SESSION_COOKIE_NAME", Schema.String).pipe(
+            Config.withDefault(defaults.sessionCookieName),
+          ));
+        const sessionCookieSecure =
+          overrides.sessionCookieSecure ??
+          (yield* Schema.Config("SESSION_COOKIE_SECURE", Schema.BooleanFromString).pipe(
+            Config.withDefault(defaults.sessionCookieSecure),
+          ));
+        const sessionDurationDays =
+          overrides.sessionDurationDays ??
+          (yield* Schema.Config("SESSION_DURATION_DAYS", PositiveIntConfigSchema).pipe(
+            Config.withDefault(defaults.sessionDurationDays),
+          ));
 
         return new AppConfigModel({
           appVersion,
@@ -148,22 +134,15 @@ export class BootstrapConfig extends Context.Tag("@bakarr/api/BootstrapConfig")<
         const bootstrapPasswordFromEnv =
           overrides.bootstrapPassword !== undefined
             ? Option.some(overrides.bootstrapPassword)
-            : yield* Schema.Config("BAKARR_BOOTSTRAP_PASSWORD", Schema.String).pipe(
-                Effect.map(Option.some),
-                Effect.orElse(() => Effect.succeed(Option.none())),
-              );
-        const generatedBootstrapPassword = Option.isNone(bootstrapPasswordFromEnv)
-          ? yield* randomHex(GENERATED_BOOTSTRAP_PASSWORD_BYTES)
-          : defaults.bootstrapPassword;
-        const bootstrapPassword = Option.getOrElse(
-          bootstrapPasswordFromEnv,
-          () => generatedBootstrapPassword,
-        );
-        const bootstrapUsername = yield* readConfigValueWithDefault(
-          overrides.bootstrapUsername,
-          Schema.Config("BAKARR_BOOTSTRAP_USERNAME", Schema.String),
-          defaults.bootstrapUsername,
-        );
+            : yield* Config.option(Schema.Config("BAKARR_BOOTSTRAP_PASSWORD", Schema.String));
+        const bootstrapPassword = Option.isSome(bootstrapPasswordFromEnv)
+          ? bootstrapPasswordFromEnv.value
+          : yield* randomHex(GENERATED_BOOTSTRAP_PASSWORD_BYTES);
+        const bootstrapUsername =
+          overrides.bootstrapUsername ??
+          (yield* Schema.Config("BAKARR_BOOTSTRAP_USERNAME", Schema.String).pipe(
+            Config.withDefault(defaults.bootstrapUsername),
+          ));
 
         return new BootstrapConfigModel({
           bootstrapPassword,

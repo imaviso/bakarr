@@ -1,7 +1,6 @@
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
 import { Deferred, Effect, Ref, Schema } from "effect";
 
-import { ClockService } from "@/infra/clock.ts";
 import { ExternalCall, ExternalCallError } from "@/infra/effect/retry.ts";
 import {
   authorizedRequest,
@@ -50,7 +49,6 @@ export class QBitTorrentClient extends Effect.Service<QBitTorrentClient>()(
   {
     effect: Effect.gen(function* () {
       const client = yield* HttpClient.HttpClient;
-      const clock = yield* ClockService;
       const externalCall = yield* ExternalCall;
       const sessionsRef = yield* Ref.make<Map<string, SessionEntry>>(new Map());
       const sessionLoginRef = yield* Ref.make<
@@ -59,7 +57,7 @@ export class QBitTorrentClient extends Effect.Service<QBitTorrentClient>()(
 
       const execute = makeExecute(client, externalCall.tryExternalEffect);
       const login = makeLogin(execute);
-      const withSession = withSessionCache(sessionsRef, sessionLoginRef, clock, login);
+      const withSession = withSessionCache(sessionsRef, sessionLoginRef, login);
       const postHashesAction = makePostHashesAction(withSession, execute);
 
       const addTorrentUrl = Effect.fn("QBitTorrentClient.addTorrentUrl")(function* (

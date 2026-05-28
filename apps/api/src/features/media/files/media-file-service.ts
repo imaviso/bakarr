@@ -3,7 +3,7 @@ import { Effect } from "effect";
 import type { VideoFile } from "@packages/shared/index.ts";
 import { AppDrizzleDatabase, type DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
-import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
+import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { MediaProbe } from "@/infra/media/probe.ts";
 import { listAnimeFilesEffect } from "@/features/media/files/media-file-list.ts";
@@ -48,8 +48,7 @@ const makeAnimeFileService = Effect.fn("AnimeFileService.make")(function* () {
   const fs = yield* FileSystem;
   const mediaProbe = yield* MediaProbe;
   const mediaReadRepository = yield* MediaReadRepository;
-  const clock = yield* ClockService;
-  const nowIso = () => nowIsoFromClock(clock);
+  const nowIso = currentNowIso;
 
   const listFiles = Effect.fn("AnimeFileService.listFiles")(function* (mediaId: number) {
     return yield* listAnimeFilesEffect({ mediaId, db, fs, mediaReadRepository, mediaProbe });

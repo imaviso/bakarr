@@ -9,7 +9,7 @@ import { EventBus } from "@/features/events/event-bus.ts";
 import { InfrastructureError } from "@/features/errors.ts";
 import { isOperationsError, type OperationsError } from "@/features/operations/errors.ts";
 import { durationMsSince } from "@/infra/logging.ts";
-import { ClockService } from "@/infra/clock.ts";
+import { currentTimeNanos } from "@/infra/time.ts";
 
 export interface CatalogDownloadCommandServiceShape {
   readonly pauseDownload: (id: number) => Effect.Effect<void, OperationsError | DatabaseError>;
@@ -27,7 +27,6 @@ export class CatalogDownloadCommandService extends Effect.Service<CatalogDownloa
   "@bakarr/api/CatalogDownloadCommandService",
   {
     effect: Effect.gen(function* () {
-      const clock = yield* ClockService;
       const torrentActions = yield* DownloadTorrentActionService;
       const torrentSync = yield* DownloadTorrentSyncService;
       const reconciliation = yield* DownloadReconciliationService;
@@ -50,11 +49,11 @@ export class CatalogDownloadCommandService extends Effect.Service<CatalogDownloa
       const syncDownloadState = Effect.fn("operations.downloads.sync_state")(function* (
         trigger: string,
       ) {
-        const startedAt = yield* clock.currentMonotonicMillis;
+        const startedAt = yield* currentTimeNanos;
 
         yield* torrentSync.syncDownloadsWithQBitEffect();
 
-        const finishedAt = yield* clock.currentMonotonicMillis;
+        const finishedAt = yield* currentTimeNanos;
 
         yield* Effect.logDebug("download state sync completed").pipe(
           Effect.annotateLogs({

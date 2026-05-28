@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 
 import type { QualityProfile } from "@packages/shared/index.ts";
-import { nowIsoFromClock, ClockService } from "@/infra/clock.ts";
+import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { ConfigValidationError, SystemNotFoundError } from "@/features/system/errors.ts";
 import {
   decodeQualityProfileRow,
@@ -12,10 +12,9 @@ import { SystemLogRepository } from "@/features/system/repository/log-repository
 import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
 
 const makeQualityProfileService = Effect.fn("QualityProfileService.make")(function* () {
-  const clock = yield* ClockService;
   const qualityProfileRepository = yield* QualityProfileRepository;
   const systemLogRepository = yield* SystemLogRepository;
-  const nowIso = () => nowIsoFromClock(clock);
+  const nowIso = currentNowIso;
 
   const listProfiles = Effect.fn("QualityProfileService.listProfiles")(function* () {
     const rows = yield* qualityProfileRepository.listQualityProfileRows();

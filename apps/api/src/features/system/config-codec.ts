@@ -9,7 +9,6 @@ import {
 import { ConfigCoreSchema, ConfigSchema } from "@/features/system/config-schema.ts";
 import { normalizeMetadataProvidersConfig } from "@/features/system/metadata-providers-config.ts";
 import { normalizeQBitTorrentConfig } from "@/features/system/qbittorrent-config.ts";
-import { decodeJson, encodeJson } from "@/infra/effect/schema-json.ts";
 
 export type ConfigCore = Schema.Schema.Type<typeof ConfigCoreSchema>;
 export type ConfigCoreEncoded = Schema.Schema.Encoded<typeof ConfigCoreSchema>;
@@ -29,8 +28,10 @@ export const normalizeConfig = Effect.fn("SystemConfig.normalizeConfig")(functio
 
 export const encodeConfigCore = Effect.fn("ConfigCodec.encodeConfigCore")(
   (core: ConfigCore): Effect.Effect<string, StoredConfigCorruptError> =>
-    encodeJson(ConfigCoreSchema, core, (cause) =>
-      makeStoredConfigCorruptError("Config core is invalid and could not be encoded", cause),
+    Schema.encode(Schema.parseJson(ConfigCoreSchema))(core).pipe(
+      Effect.mapError((cause) =>
+        makeStoredConfigCorruptError("Config core is invalid and could not be encoded", cause),
+      ),
     ),
 );
 
@@ -69,10 +70,12 @@ export const composeConfig = Effect.fn("ConfigCodec.composeConfig")(
 
 export const decodeConfigCore = Effect.fn("ConfigCodec.decodeConfigCore")(
   (value: string): Effect.Effect<ConfigCore, StoredConfigCorruptError> =>
-    decodeJson(ConfigCoreSchema, value, (cause) =>
-      makeStoredConfigCorruptError(
-        "Stored configuration is corrupt and could not be decoded",
-        cause,
+    Schema.decodeUnknown(Schema.parseJson(ConfigCoreSchema))(value).pipe(
+      Effect.mapError((cause) =>
+        makeStoredConfigCorruptError(
+          "Stored configuration is corrupt and could not be decoded",
+          cause,
+        ),
       ),
     ),
 );

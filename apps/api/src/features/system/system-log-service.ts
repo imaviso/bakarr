@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 
 import type { SystemLogsResponse } from "@packages/shared/index.ts";
-import { nowIsoFromClock, ClockService } from "@/infra/clock.ts";
+import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 import {
@@ -13,10 +13,9 @@ import {
 const PAGE_SIZE = 50;
 
 const makeSystemLogService = Effect.fn("SystemLogService.make")(function* () {
-  const clock = yield* ClockService;
   const eventBus = yield* EventBus;
   const systemLogRepository = yield* SystemLogRepository;
-  const nowIso = () => nowIsoFromClock(clock);
+  const nowIso = currentNowIso;
 
   const getLogs = Effect.fn("SystemLogService.getLogs")(function* (input: {
     level?: string;

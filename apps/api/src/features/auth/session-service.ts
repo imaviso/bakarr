@@ -10,7 +10,7 @@ import {
 import { AppConfig } from "@/config/schema.ts";
 import { DatabaseError } from "@/db/database.ts";
 import type { users } from "@/db/schema.ts";
-import { nowIsoFromClock, ClockService } from "@/infra/clock.ts";
+import { currentTimeMillis, nowIso as currentNowIso } from "@/infra/time.ts";
 import { randomHexFrom, RandomService } from "@/infra/random.ts";
 import { PasswordCrypto, verifyPassword } from "@/security/password.ts";
 import { TokenHasher, type TokenHasherError } from "@/security/token-hasher.ts";
@@ -54,17 +54,15 @@ const SESSION_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 const makeAuthSessionService = Effect.fn("AuthSessionService.make")(function* () {
   const usersRepository = yield* AuthUserRepository;
   const config = yield* AppConfig;
-  const clock = yield* ClockService;
   const passwordCrypto = yield* PasswordCrypto;
   const random = yield* RandomService;
   const tokenHasher = yield* TokenHasher;
-  const nowIso = () => nowIsoFromClock(clock);
-  const currentTimeMillis = () => clock.currentTimeMillis;
+  const nowIso = currentNowIso;
   const randomHex = (bytes: number) => randomHexFrom(random, bytes);
   const hashToken = tokenHasher.hashToken;
 
   const expiresAtIso = Effect.fn("AuthSessionService.expiresAtIso")(function* () {
-    const now = yield* currentTimeMillis();
+    const now = yield* currentTimeMillis;
     return nowPlusDurationIso(now, config.sessionDurationDays * DAY_MS);
   });
 
@@ -155,7 +153,7 @@ const makeAuthSessionService = Effect.fn("AuthSessionService.make")(function* ()
 
       if (Option.isSome(result)) {
         const row = result.value;
-        const nowMillis = yield* currentTimeMillis();
+        const nowMillis = yield* currentTimeMillis;
         const lastSeenAtMillis = isoToMillis(row.lastSeenAt);
         const needsRefresh =
           Number.isFinite(nowMillis) &&

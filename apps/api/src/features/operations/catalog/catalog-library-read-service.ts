@@ -11,7 +11,7 @@ import { AppDrizzleDatabase, type DatabaseError } from "@/db/database.ts";
 import { media, mediaUnits } from "@/db/schema.ts";
 import type { OperationsError } from "@/features/operations/errors.ts";
 import { buildRenamePreview } from "@/features/operations/library/library-import.ts";
-import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
+import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { deriveEpisodeTimelineMetadata } from "@/domain/media/derivations.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import {
@@ -43,10 +43,9 @@ export class CatalogLibraryReadService extends Effect.Service<CatalogLibraryRead
   {
     effect: Effect.gen(function* () {
       const db = yield* AppDrizzleDatabase;
-      const clock = yield* ClockService;
       const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
       const mediaReadRepository = yield* MediaReadRepository;
-      const nowIso = () => nowIsoFromClock(clock);
+      const nowIso = currentNowIso;
 
       const getWantedMissing = Effect.fn("OperationsService.getWantedMissing")(function* (
         limit: number,

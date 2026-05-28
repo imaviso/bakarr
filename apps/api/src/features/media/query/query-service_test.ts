@@ -1,8 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
-import { Effect, Layer, Option } from "effect";
+import { Effect, Layer, Option, TestClock } from "effect";
 
 import { brandMediaId, type MediaSearchResult } from "@packages/shared/index.ts";
-import { ClockService } from "@/infra/clock.ts";
 import * as schema from "@/db/schema.ts";
 import { AnimeQueryService, AnimeQueryServiceLive } from "@/features/media/query/query-service.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
@@ -77,13 +76,6 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
                 searchAnime: () => Effect.succeed([]),
               }),
             ),
-            Layer.succeed(
-              ClockService,
-              ClockService.make({
-                currentMonotonicMillis: Effect.succeed(0),
-                currentTimeMillis: Effect.succeed(new Date("2025-04-01T10:00:00.000Z").getTime()),
-              }),
-            ),
             Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db)),
             Layer.succeed(MediaReadRepository, makeMediaReadRepository(db)),
           );
@@ -97,6 +89,7 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
             limit: number;
           }) =>
             Effect.gen(function* () {
+              yield* TestClock.setTime(new Date("2025-04-01T10:00:00.000Z").getTime());
               const service = yield* AnimeQueryService;
               return yield* service.listSeasonalAnime(input);
             }).pipe(Effect.provide(queryServiceLayer));
@@ -129,8 +122,8 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
     withSqliteTestDbEffect({
       run: (db) =>
         Effect.gen(function* () {
+          yield* TestClock.setTime(new Date("2025-04-01T10:00:00.000Z").getTime());
           let providerCalls = 0;
-          let currentTime = new Date("2025-04-01T10:00:00.000Z").getTime();
 
           const providerLayer = Layer.succeed(
             AnimeSeasonalProviderService,
@@ -171,13 +164,6 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
                     searchAnime: () => Effect.succeed([]),
                   }),
                 ),
-                Layer.succeed(
-                  ClockService,
-                  ClockService.make({
-                    currentMonotonicMillis: Effect.succeed(0),
-                    currentTimeMillis: Effect.sync(() => currentTime),
-                  }),
-                ),
                 Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db)),
                 Layer.succeed(MediaReadRepository, makeMediaReadRepository(db)),
               ),
@@ -189,7 +175,7 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
           yield* service.listSeasonalAnime({ season: "spring", year: 2025, page: 1, limit: 12 });
           assert.deepStrictEqual(providerCalls, 1);
 
-          currentTime += 1000 * 60 * 6;
+          yield* TestClock.adjust("6 minutes");
           const refreshed = yield* service.listSeasonalAnime({
             season: "spring",
             year: 2025,
@@ -208,8 +194,8 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
     withSqliteTestDbEffect({
       run: (db) =>
         Effect.gen(function* () {
+          yield* TestClock.setTime(new Date("2025-04-01T10:00:00.000Z").getTime());
           let providerCalls = 0;
-          let currentTime = new Date("2025-04-01T10:00:00.000Z").getTime();
 
           const providerLayer = Layer.succeed(
             AnimeSeasonalProviderService,
@@ -261,13 +247,6 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
                     searchAnime: () => Effect.succeed([]),
                   }),
                 ),
-                Layer.succeed(
-                  ClockService,
-                  ClockService.make({
-                    currentMonotonicMillis: Effect.succeed(0),
-                    currentTimeMillis: Effect.sync(() => currentTime),
-                  }),
-                ),
                 Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db)),
                 Layer.succeed(MediaReadRepository, makeMediaReadRepository(db)),
               ),
@@ -277,7 +256,7 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
           const service = yield* AnimeQueryService.pipe(Effect.provide(layer));
 
           yield* service.listSeasonalAnime({ season: "spring", year: 2025, page: 1, limit: 12 });
-          currentTime += 1000 * 60 * 6;
+          yield* TestClock.adjust("6 minutes");
 
           const stale = yield* service.listSeasonalAnime({
             season: "spring",
@@ -301,6 +280,7 @@ describe("AnimeQueryService.searchAnime", () => {
     withSqliteTestDbEffect({
       run: (db) =>
         Effect.gen(function* () {
+          yield* TestClock.setTime(new Date("2025-04-01T10:00:00.000Z").getTime());
           const layer = AnimeQueryServiceLive.pipe(
             Layer.provide(
               Layer.mergeAll(
@@ -349,15 +329,6 @@ describe("AnimeQueryService.searchAnime", () => {
                           title: { english: "Alpha", romaji: "Alpha" },
                         },
                       ]),
-                  }),
-                ),
-                Layer.succeed(
-                  ClockService,
-                  ClockService.make({
-                    currentMonotonicMillis: Effect.succeed(0),
-                    currentTimeMillis: Effect.succeed(
-                      new Date("2025-04-01T10:00:00.000Z").getTime(),
-                    ),
                   }),
                 ),
                 Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db)),

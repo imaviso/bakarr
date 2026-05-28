@@ -20,7 +20,7 @@ import {
 import { StoredConfigCorruptError, StoredConfigMissingError } from "@/features/system/errors.ts";
 import { SystemStatsRepository } from "@/features/system/repository/stats-repository.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
-import { ClockService } from "@/infra/clock.ts";
+import { currentTimeMillis } from "@/infra/time.ts";
 import {
   brandActivityId,
   brandMediaId,
@@ -50,7 +50,6 @@ export interface SystemReadServiceShape {
 const makeSystemReadService = Effect.fn("SystemReadService.make")(function* () {
   const appConfig = yield* AppConfig;
   const runtime = yield* AppRuntime;
-  const clock = yield* ClockService;
   const diskSpaceInspector = yield* DiskSpaceInspector;
   const backgroundJobStatusService = yield* BackgroundJobStatusService;
   const systemStatsRepository = yield* SystemStatsRepository;
@@ -127,7 +126,7 @@ const makeSystemReadService = Effect.fn("SystemReadService.make")(function* () {
     const rssJob = findBackgroundJobStatus(snapshot.jobs, "rss");
     const scanJob = findBackgroundJobStatus(snapshot.jobs, "library_scan");
     const metadataRefreshJob = findBackgroundJobStatus(snapshot.jobs, "metadata_refresh");
-    const now = yield* clock.currentTimeMillis;
+    const now = yield* currentTimeMillis;
 
     return {
       active_torrents: downloadStats.activeDownloads,

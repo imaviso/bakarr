@@ -1,154 +1,78 @@
-import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem";
-import { randomUUID } from "node:crypto";
-import { rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { assert, it } from "@effect/vitest";
-import { Cause, Config, ConfigProvider, Effect, Exit, Redacted } from "effect";
+import { Error as PlatformError, FileSystem, PlatformConfigProvider } from "@effect/platform";
+import { assert, describe, it } from "@effect/vitest";
+import { Config, ConfigProvider, Effect, Layer } from "effect";
 
-import { makeDotenvConfigProvider } from "@/config/provider.ts";
+describe("PlatformConfigProvider", () => {
+  const ExampleConfig = Config.all({
+    value: Config.string("VALUE"),
+    number: Config.number("NUMBER"),
+  });
 
-const withNodeFs = Effect.provide(NodeFileSystem.layer);
-
-it.scoped("dotenv provider uses .env values when env vars are missing", () =>
-  withTempEnvFile(
-    [
-      "PORT=9200",
-      "BAKARR_BOOTSTRAP_USERNAME=dotenv-admin",
-      'BAKARR_BOOTSTRAP_PASSWORD="super-secret"',
-    ].join("\n"),
-    (dotenvFile) =>
-      Effect.gen(function* () {
-        const provider = yield* makeDotenvConfigProvider({
-          envProvider: ConfigProvider.fromMap(new Map()),
-          path: dotenvFile,
-        }).pipe(withNodeFs);
-
-        const result = yield* Effect.gen(function* () {
-          const port = yield* Config.number("PORT");
-          const username = yield* Config.string("BAKARR_BOOTSTRAP_USERNAME");
-          const password = yield* Config.redacted("BAKARR_BOOTSTRAP_PASSWORD");
-
-          return {
-            password: Redacted.value(password),
-            port,
-            username,
-          };
-        }).pipe(Effect.withConfigProvider(provider));
-
-        assert.deepStrictEqual(result.port, 9200);
-        assert.deepStrictEqual(result.username, "dotenv-admin");
-        assert.deepStrictEqual(result.password, "super-secret");
-      }),
-  ),
-);
-
-it.scoped("dotenv provider prioritizes environment variables over .env", () =>
-  withTempEnvFile("PORT=9200\n", (dotenvFile) =>
+  it.effect("loads values from dotenv when current values are missing", () =>
     Effect.gen(function* () {
-      const provider = yield* makeDotenvConfigProvider({
-        envProvider: ConfigProvider.fromMap(new Map([["PORT", "9300"]])),
-        path: dotenvFile,
-      }).pipe(withNodeFs);
-
-      const result = yield* Config.number("PORT").pipe(Effect.withConfigProvider(provider));
-
-      assert.deepStrictEqual(result, 9300);
-    }),
-  ),
-);
-
-it.scoped("dotenv provider handles missing dotenv file", () =>
-  Effect.gen(function* () {
-    const provider = yield* makeDotenvConfigProvider({
-      envProvider: ConfigProvider.fromMap(new Map([["SESSION_COOKIE_NAME", "from-env"]])),
-      path: "./missing-dotenv-file.env",
-    }).pipe(withNodeFs);
-
-    const value = yield* Config.string("SESSION_COOKIE_NAME").pipe(
-      Effect.withConfigProvider(provider),
-    );
-
-    assert.deepStrictEqual(value, "from-env");
-  }),
-);
-
-it.scoped("dotenv provider parses export comments and quoted values", () =>
-  withTempEnvFile(
-    [
-      "export BAKARR_BOOTSTRAP_USERNAME=from-export",
-      "SESSION_COOKIE_NAME=session-from-dotenv # trailing comment",
-      "PORT=9401",
-      'BAKARR_BOOTSTRAP_PASSWORD="line1\\nline2 # kept"',
-      "MISSING_KEY='raw # kept'",
-    ].join("\n"),
-    (dotenvFile) =>
-      Effect.gen(function* () {
-        const provider = yield* makeDotenvConfigProvider({
-          envProvider: ConfigProvider.fromMap(new Map()),
-          path: dotenvFile,
-        }).pipe(withNodeFs);
-
-        const result = yield* Effect.gen(function* () {
-          const username = yield* Config.string("BAKARR_BOOTSTRAP_USERNAME");
-          const cookie = yield* Config.string("SESSION_COOKIE_NAME");
-          const port = yield* Config.number("PORT");
-          const password = yield* Config.redacted("BAKARR_BOOTSTRAP_PASSWORD");
-          const missing = yield* Config.string("MISSING_KEY");
-
-          return {
-            cookie,
-            missing,
-            password: Redacted.value(password),
-            port,
-            username,
-          };
-        }).pipe(Effect.withConfigProvider(provider));
-
-        assert.deepStrictEqual(result.username, "from-export");
-        assert.deepStrictEqual(result.cookie, "session-from-dotenv");
-        assert.deepStrictEqual(result.port, 9401);
-        assert.deepStrictEqual(result.password, "line1\nline2 # kept");
-        assert.deepStrictEqual(result.missing, "raw # kept");
-      }),
-  ),
-);
-
-it.scoped("dotenv provider fails with line information on parse errors", () =>
-  withTempEnvFile(["PORT=9402", "INVALID_LINE"].join("\n"), (dotenvFile) =>
-    Effect.gen(function* () {
-      const exit = yield* Effect.exit(
-        makeDotenvConfigProvider({ path: dotenvFile }).pipe(withNodeFs),
+      const baseProvider = Layer.setConfigProvider(ConfigProvider.fromMap(new Map()));
+      const fileSystem = FileSystem.layerNoop({
+        readFileString: () => Effect.succeed("VALUE=hello\nNUMBER=69"),
+      });
+      const layer = PlatformConfigProvider.layerDotEnvAdd(".env").pipe(
+        Layer.provide(fileSystem),
+        Layer.provide(baseProvider),
       );
 
-      assert.deepStrictEqual(Exit.isFailure(exit), true);
+      const result = yield* ExampleConfig.pipe(Effect.provide(layer));
 
-      if (Exit.isFailure(exit)) {
-        const failure = Cause.failureOption(exit.cause);
-        assert.deepStrictEqual(failure._tag, "Some");
-
-        if (failure._tag === "Some") {
-          assert.deepStrictEqual(failure.value._tag, "DotenvParseError");
-
-          if (failure.value._tag === "DotenvParseError") {
-            assert.deepStrictEqual(failure.value.line, 2);
-          }
-        }
-      }
+      assert.deepStrictEqual(result, { number: 69, value: "hello" });
     }),
-  ),
-);
+  );
 
-const withTempEnvFile = Effect.fn("Test.withTempEnvFile")(function* <A, E, R>(
-  contents: string,
-  run: (filePath: string) => Effect.Effect<A, E, R>,
-) {
-  const filePath = join(tmpdir(), `bakarr-${randomUUID()}.env`);
+  it.effect("keeps current config provider precedence over dotenv", () =>
+    Effect.gen(function* () {
+      const baseProvider = Layer.setConfigProvider(
+        ConfigProvider.fromMap(new Map([["VALUE", "env"]])),
+      );
+      const fileSystem = FileSystem.layerNoop({
+        readFileString: () => Effect.succeed("VALUE=dotenv\nNUMBER=69"),
+      });
+      const layer = PlatformConfigProvider.layerDotEnvAdd(".env").pipe(
+        Layer.provide(fileSystem),
+        Layer.provide(baseProvider),
+      );
 
-  return yield* Effect.acquireUseRelease(
-    Effect.tryPromise(() => writeFile(filePath, contents)).pipe(Effect.as(filePath)),
-    run,
-    (path) =>
-      Effect.tryPromise(() => rm(path, { force: true })).pipe(Effect.catchAll(() => Effect.void)),
+      const result = yield* ExampleConfig.pipe(Effect.provide(layer));
+
+      assert.deepStrictEqual(result, { number: 69, value: "env" });
+    }),
+  );
+
+  it.effect("ignores missing dotenv files", () =>
+    Effect.gen(function* () {
+      const baseProvider = Layer.setConfigProvider(
+        ConfigProvider.fromMap(
+          new Map([
+            ["VALUE", "env"],
+            ["NUMBER", "71"],
+          ]),
+        ),
+      );
+      const fileSystem = FileSystem.layerNoop({
+        readFileString: () =>
+          Effect.fail(
+            new PlatformError.SystemError({
+              method: "readFileString",
+              module: "FileSystem",
+              pathOrDescriptor: ".env",
+              reason: "NotFound",
+            }),
+          ),
+      });
+      const layer = PlatformConfigProvider.layerDotEnvAdd(".env").pipe(
+        Layer.provide(fileSystem),
+        Layer.provide(baseProvider),
+      );
+
+      const result = yield* ExampleConfig.pipe(Effect.provide(layer));
+
+      assert.deepStrictEqual(result, { number: 71, value: "env" });
+    }),
   );
 });

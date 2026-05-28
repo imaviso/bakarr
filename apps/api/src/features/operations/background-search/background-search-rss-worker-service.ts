@@ -12,7 +12,7 @@ import {
 import type { OperationsError } from "@/features/operations/errors.ts";
 import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
 import type { ExternalCallError } from "@/infra/effect/retry.ts";
-import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
+import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { markJobFailureOrFailWithCause } from "@/infra/job-failure-support.ts";
 
 export type BackgroundSearchRssWorkerError = DatabaseError | ExternalCallError | OperationsError;
@@ -76,7 +76,6 @@ export class BackgroundSearchRssWorkerService extends Effect.Service<BackgroundS
       const db = yield* AppDrizzleDatabase;
       const eventBus = yield* EventBus;
       const progress = yield* OperationsProgress;
-      const clock = yield* ClockService;
       const rssService = yield* SearchBackgroundRssService;
       const missingService = yield* SearchBackgroundMissingService;
 
@@ -84,7 +83,7 @@ export class BackgroundSearchRssWorkerService extends Effect.Service<BackgroundS
         db,
         eventBus,
         missingService,
-        nowIso: () => nowIsoFromClock(clock),
+        nowIso: currentNowIso,
         progress,
         rssService,
       });

@@ -1,8 +1,7 @@
 import { type Socket } from "node:dgram";
 
-import { Effect, Ref } from "effect";
+import { Clock, Effect, Ref } from "effect";
 
-import { type ClockServiceShape } from "@/infra/clock.ts";
 import { parseAniDbResponse } from "@/features/media/metadata/anidb-protocol.ts";
 import { sendAndReceiveAniDbPacketEffect } from "@/features/media/metadata/anidb-socket.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
@@ -13,11 +12,10 @@ const ANIDB_MIN_PACKET_INTERVAL_MS = 2_200;
 export const sendAniDbCommandEffect = Effect.fn("AniDbClient.sendCommand")(function* (
   socket: Socket,
   command: string,
-  clock: ClockServiceShape,
   lastPacketAtRef: Ref.Ref<number>,
   operation: string,
 ) {
-  yield* waitForPacketWindowEffect(clock, lastPacketAtRef);
+  yield* waitForPacketWindowEffect(lastPacketAtRef);
 
   const responseRaw = yield* sendAndReceiveAniDbPacketEffect(socket, command).pipe(
     Effect.mapError((cause) =>
@@ -48,7 +46,6 @@ export const authenticateAniDbEffect = Effect.fn("AniDbClient.authenticate")(fun
   password: string,
   client: string,
   clientVersion: number,
-  clock: ClockServiceShape,
   lastPacketAtRef: Ref.Ref<number>,
 ) {
   const response = yield* sendAniDbCommandEffect(
@@ -60,7 +57,6 @@ export const authenticateAniDbEffect = Effect.fn("AniDbClient.authenticate")(fun
       `client=${encodeCommandValue(client)}`,
       `clientver=${clientVersion}`,
     ].join("&"),
-    clock,
     lastPacketAtRef,
     "auth",
   );
@@ -89,13 +85,11 @@ export const authenticateAniDbEffect = Effect.fn("AniDbClient.authenticate")(fun
 export const logoutAniDbEffect = Effect.fn("AniDbClient.logout")(function* (
   socket: Socket,
   sessionToken: string,
-  clock: ClockServiceShape,
   lastPacketAtRef: Ref.Ref<number>,
 ) {
   const response = yield* sendAniDbCommandEffect(
     socket,
     `LOGOUT s=${sessionToken}`,
-    clock,
     lastPacketAtRef,
     "logout",
   );
@@ -112,10 +106,9 @@ export const logoutAniDbEffect = Effect.fn("AniDbClient.logout")(function* (
 });
 
 const waitForPacketWindowEffect = Effect.fn("AniDbClient.waitForPacketWindow")(function* (
-  clock: ClockServiceShape,
   lastPacketAtRef: Ref.Ref<number>,
 ) {
-  const now = yield* clock.currentMonotonicMillis;
+  const now = Number((yield* Clock.currentTimeNanos) / 1_000_000n);
   const lastPacketAt = yield* Ref.get(lastPacketAtRef);
   const elapsed = now - lastPacketAt;
 
@@ -123,7 +116,7 @@ const waitForPacketWindowEffect = Effect.fn("AniDbClient.waitForPacketWindow")(f
     yield* Effect.sleep(`${ANIDB_MIN_PACKET_INTERVAL_MS - elapsed} millis`);
   }
 
-  const nextPacketAt = yield* clock.currentMonotonicMillis;
+  const nextPacketAt = Number((yield* Clock.currentTimeNanos) / 1_000_000n);
   yield* Ref.set(lastPacketAtRef, nextPacketAt);
 });
 

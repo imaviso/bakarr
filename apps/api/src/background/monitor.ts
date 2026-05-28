@@ -9,7 +9,7 @@ import {
   initialBackgroundWorkerSnapshot,
   updateWorkerInSnapshot,
 } from "@/background/worker-model.ts";
-import { ClockService, isoStringFromMillis } from "@/infra/clock.ts";
+import { nowIso } from "@/infra/time.ts";
 import {
   preRegisterBackgroundWorkerMetrics,
   recordBackgroundWorkerRun,
@@ -37,7 +37,6 @@ export interface BackgroundWorkerMonitorShape {
 
 export const makeBackgroundWorkerMonitor = Effect.fn("Background.makeBackgroundWorkerMonitor")(
   function* () {
-    const clock = yield* ClockService;
     const state = yield* Ref.make(initialBackgroundWorkerSnapshot());
 
     const updateWorker = (
@@ -66,7 +65,7 @@ export const makeBackgroundWorkerMonitor = Effect.fn("Background.makeBackgroundW
       error: string,
       durationMs?: number,
     ) {
-      const now = yield* Effect.map(clock.currentTimeMillis, isoStringFromMillis);
+      const now = yield* nowIso();
       yield* updateWorker(workerName, (stats) =>
         mergeWorkerStats(stats, {
           failureCount: stats.failureCount + 1,
@@ -86,7 +85,7 @@ export const makeBackgroundWorkerMonitor = Effect.fn("Background.makeBackgroundW
     const markRunStarted = Effect.fn("BackgroundWorkerMonitor.markRunStarted")(function* (
       workerName: BackgroundWorkerName,
     ) {
-      const now = yield* Effect.map(clock.currentTimeMillis, isoStringFromMillis);
+      const now = yield* nowIso();
       yield* updateWorker(workerName, (stats) =>
         mergeWorkerStats(stats, { lastStartedAt: now, runRunning: true }),
       );
@@ -97,7 +96,7 @@ export const makeBackgroundWorkerMonitor = Effect.fn("Background.makeBackgroundW
       workerName: BackgroundWorkerName,
       durationMs?: number,
     ) {
-      const now = yield* Effect.map(clock.currentTimeMillis, isoStringFromMillis);
+      const now = yield* nowIso();
       yield* updateWorker(workerName, (stats) =>
         mergeWorkerStats(stats, {
           lastSucceededAt: now,

@@ -22,7 +22,7 @@ import {
   type RuntimeConfigSnapshotError,
 } from "@/features/system/runtime-config-snapshot-service.ts";
 import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
-import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
+import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { DownloadReconciliationService } from "@/features/operations/download/download-reconciliation-service.ts";
 
 function shouldReconcileCompletedDownloads(config: Config | null) {
@@ -284,14 +284,13 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
     effect: Effect.gen(function* () {
       const syncRepo = yield* DownloadSyncRepository;
       const torrentClientService = yield* TorrentClientService;
-      const clock = yield* ClockService;
       const reconciliationService = yield* DownloadReconciliationService;
       const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
 
       return makeDownloadTorrentSyncSupport({
         syncRepo,
         getRuntimeConfig: runtimeConfigSnapshot.getRuntimeConfig,
-        nowIso: () => nowIsoFromClock(clock),
+        nowIso: currentNowIso,
         torrentClientService,
         reconcileCompletedTorrentEffect: reconciliationService.reconcileCompletedTorrentEffect,
       });

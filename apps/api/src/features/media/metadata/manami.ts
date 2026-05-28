@@ -10,7 +10,6 @@ import {
 } from "@/features/media/metadata/manami-cache.ts";
 import { makeSingleFlightEffectRunner } from "@/infra/effect/coalescing-single-flight-runner.ts";
 import { ExternalCall, ExternalCallError } from "@/infra/effect/retry.ts";
-import { ClockService } from "@/infra/clock.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 
 export {
@@ -257,13 +256,12 @@ const ManamiLookupClientLayer = ManamiClient.Default;
 const makeManamiCacheRefreshClient = Effect.fn("ManamiCacheRefreshClient.make")(function* () {
   const appConfig = yield* AppConfig;
   const client = yield* HttpClient.HttpClient;
-  const clock = yield* ClockService;
   const externalCall = yield* ExternalCall;
   const fs = yield* FileSystem;
   const sqliteClient = yield* NodeSqliteClient.SqliteClient;
   const cachePaths = resolveManamiCachePaths(appConfig.databaseFile);
   const refreshRunner = yield* makeSingleFlightEffectRunner(
-    refreshSqliteCacheIfNeeded(client, clock, externalCall, fs, sqliteClient, cachePaths),
+    refreshSqliteCacheIfNeeded(client, externalCall, fs, sqliteClient, cachePaths),
   );
 
   const refreshCacheIfNeeded = Effect.fn("ManamiCacheRefreshClient.refreshCacheIfNeeded")(

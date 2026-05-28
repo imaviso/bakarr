@@ -8,7 +8,7 @@ import { decodeDownloadSourceMetadata } from "@/features/operations/repository/d
 import { parseCoveredEpisodesEffect } from "@/features/operations/download/download-coverage.ts";
 import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
-import { ClockService, nowIsoFromClock } from "@/infra/clock.ts";
+import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 
 export interface DownloadTorrentActionSupportInput {
@@ -197,13 +197,12 @@ export class DownloadTorrentActionService extends Effect.Service<DownloadTorrent
     effect: Effect.gen(function* () {
       const actionRepo = yield* DownloadActionRepository;
       const torrentClientService = yield* TorrentClientService;
-      const clock = yield* ClockService;
       const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
 
       return makeDownloadTorrentActionSupport({
         actionRepo,
         getRuntimeConfig: runtimeConfigSnapshot.getRuntimeConfig,
-        nowIso: () => nowIsoFromClock(clock),
+        nowIso: currentNowIso,
         torrentClientService,
       });
     }),

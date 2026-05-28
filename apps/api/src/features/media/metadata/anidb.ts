@@ -4,7 +4,6 @@ import { Effect, Option, Ref, Scope } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 import { type DatabaseError } from "@/db/database.ts";
-import { ClockService, type ClockServiceShape } from "@/infra/clock.ts";
 import {
   buildTitleCandidates,
   parseAnimeLookupMatch,
@@ -86,7 +85,6 @@ export function normalizeEpisodeCount(unitCount: number | undefined, episodeLimi
 
 const makeAniDbClient = Effect.fn("AniDbClient.make")(function* () {
   yield* Scope.Scope;
-  const clock = yield* ClockService;
   const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
   const requestSemaphore = yield* Effect.makeSemaphore(1);
   const lastPacketAtRef = yield* Ref.make(0);
@@ -101,7 +99,7 @@ const makeAniDbClient = Effect.fn("AniDbClient.make")(function* () {
 
     const session = current.value;
 
-    yield* logoutAniDbEffect(session.socket, session.sessionToken, clock, lastPacketAtRef).pipe(
+    yield* logoutAniDbEffect(session.socket, session.sessionToken, lastPacketAtRef).pipe(
       Effect.timeout(ANIDB_CLOSE_SESSION_TIMEOUT),
       Effect.catchTag("ExternalCallError", () => Effect.void),
       Effect.catchTag("TimeoutException", () => Effect.void),
@@ -124,7 +122,6 @@ const makeAniDbClient = Effect.fn("AniDbClient.make")(function* () {
       config.password,
       config.client,
       config.clientVersion,
-      clock,
       lastPacketAtRef,
     ).pipe(
       Effect.catchTag("ExternalCallError", (error) =>
@@ -214,7 +211,6 @@ const makeAniDbClient = Effect.fn("AniDbClient.make")(function* () {
         });
 
         return yield* fetchAniDbEpisodesEffect({
-          clock,
           unitCount,
           lastPacketAtRef,
           sessionToken: session.sessionToken,
@@ -274,7 +270,6 @@ const failRuntimeConfigLoad = (error: DatabaseError | StoredConfigCorruptError, 
   );
 
 const fetchAniDbEpisodesEffect = Effect.fn("AniDbClient.fetchEpisodes")(function* (input: {
-  clock: ClockServiceShape;
   unitCount: number;
   lastPacketAtRef: Ref.Ref<number>;
   sessionToken: string;
@@ -282,7 +277,6 @@ const fetchAniDbEpisodesEffect = Effect.fn("AniDbClient.fetchEpisodes")(function
   titleCandidates: ReadonlyArray<AniDbTitleCandidate>;
 }) {
   const aidOption = yield* resolveAnimeIdEffect({
-    clock: input.clock,
     lastPacketAtRef: input.lastPacketAtRef,
     sessionToken: input.sessionToken,
     socket: input.socket,
@@ -311,7 +305,6 @@ const fetchAniDbEpisodesEffect = Effect.fn("AniDbClient.fetchEpisodes")(function
         const response = yield* sendAniDbCommandEffect(
           input.socket,
           `EPISODE aid=${aidOption.value}&epno=${unitNumber}&s=${input.sessionToken}`,
-          input.clock,
           input.lastPacketAtRef,
           "episode",
         );
@@ -343,7 +336,6 @@ const fetchAniDbEpisodesEffect = Effect.fn("AniDbClient.fetchEpisodes")(function
 });
 
 const resolveAnimeIdEffect = Effect.fn("AniDbClient.resolveAnimeId")(function* (input: {
-  clock: ClockServiceShape;
   lastPacketAtRef: Ref.Ref<number>;
   sessionToken: string;
   socket: Socket;
@@ -360,7 +352,6 @@ const resolveAnimeIdEffect = Effect.fn("AniDbClient.resolveAnimeId")(function* (
     const response = yield* sendAniDbCommandEffect(
       input.socket,
       `ANIME aname=${encodeURIComponent(candidate.value)}&s=${input.sessionToken}`,
-      input.clock,
       input.lastPacketAtRef,
       "media",
     );

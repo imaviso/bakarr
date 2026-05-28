@@ -2,7 +2,7 @@ import { Effect } from "effect";
 
 import { AppConfig } from "@/config/schema.ts";
 import { DatabaseError } from "@/db/database.ts";
-import { nowIsoFromClock, ClockService } from "@/infra/clock.ts";
+import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { RuntimeLogLevelState } from "@/infra/logging.ts";
 import { DEFAULT_PROFILES, makeDefaultConfig } from "@/features/system/defaults.ts";
 import { decodeConfigCore, encodeConfigCore } from "@/features/system/config-codec.ts";
@@ -12,10 +12,9 @@ import { SystemConfigRepository } from "@/features/system/repository/system-conf
 
 const makeSystemBootstrapService = Effect.fn("SystemBootstrapService.make")(function* () {
   const config = yield* AppConfig;
-  const clock = yield* ClockService;
   const runtimeLogLevelState = yield* RuntimeLogLevelState;
   const systemConfigRepository = yield* SystemConfigRepository;
-  const nowIso = () => nowIsoFromClock(clock);
+  const nowIso = currentNowIso;
 
   const ensureInitialized = Effect.fn("SystemBootstrapService.ensureInitialized")(function* () {
     const initNow = yield* nowIso();
