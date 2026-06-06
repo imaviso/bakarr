@@ -205,7 +205,18 @@ in {
           PORT = toString cfg.port;
         }
         // observabilityEnv
-        // lib.mapAttrs (_: value: toString value) cfg.environment;
+        // lib.mapAttrs (
+          _: value:
+            if lib.isBool value
+            then
+              (
+                if value
+                then "true"
+                else "false"
+              )
+            else toString value
+        )
+        cfg.environment;
 
       serviceConfig =
         {
