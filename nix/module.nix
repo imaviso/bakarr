@@ -5,7 +5,10 @@
   ...
 }: let
   cfg = config.services.bakarr;
-  optionalEnv = name: value: lib.optionalAttrs (value != null) {${name} = toString value;};
+  optionalEnv = name: value: lib.optionalAttrs (value != null) {
+    ${name} =
+      if lib.isBool value then (if value then "true" else "false") else toString value;
+  };
   observabilityEnv =
     optionalEnv "OTEL_EXPORTER_OTLP_ENDPOINT" cfg.observability.otlpEndpoint
     // optionalEnv "OTEL_SERVICE_NAME" cfg.observability.serviceName
