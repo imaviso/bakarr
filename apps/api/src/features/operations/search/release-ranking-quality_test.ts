@@ -20,11 +20,17 @@ it("parseQualityFromTitle combines source and resolution markers", () => {
     "WEB-DL 720p",
   );
   assert.deepStrictEqual(parseQualityFromTitle("[Group] Show - 01 [DVD 576p]").name, "DVD 576p");
+  assert.deepStrictEqual(
+    parseQualityFromTitle("[Group] Show - 09 [540p AMZN WEB-DL]").name,
+    "WEB-DL 540p",
+  );
 });
 
 it("parseQualityFromTitle defaults source to WEB-DL when only resolution exists", () => {
   assert.deepStrictEqual(parseQualityFromTitle("[Group] Show - 01 [1080p]").name, "WEB-DL 1080p");
   assert.deepStrictEqual(parseQualityFromTitle("[Group] Show - 01").name, "Unknown");
+  assert.deepStrictEqual(parseQualityFromTitle("[Group] Show - 01 [WEB-DL]").name, "Unknown");
+  assert.deepStrictEqual(parseQualityFromTitle("[Group] Show - 01 [AMZN]").name, "Unknown");
 });
 
 it("cutoffQuality resolves labels through quality parsing and fallback", () => {

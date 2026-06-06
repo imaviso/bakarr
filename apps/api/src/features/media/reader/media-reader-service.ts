@@ -89,15 +89,6 @@ const naturalPathCollator = new Intl.Collator(undefined, {
   sensitivity: "base",
 });
 
-const getOrCreateSemaphore = (map: Map<string, Effect.Semaphore>, key: string) =>
-  Effect.gen(function* () {
-    const existing = map.get(key);
-    if (existing) return existing;
-    const created = yield* Effect.makeSemaphore(1);
-    map.set(key, created);
-    return created;
-  });
-
 /**
  * In-memory archive cache with fixed TTL. Entries expire 10 minutes after
  * insertion — no touch-on-access, so large archives won't live forever
@@ -144,8 +135,12 @@ const makeMediaReaderService = Effect.fn("MediaReaderService.make")(function* ()
   const config = yield* AppConfig;
   const cacheRoot = join(dirname(resolve(config.databaseFile)), "reader-cache");
   const archiveCache = new ArchiveCache(ARCHIVE_CACHE_TTL_MS);
-  const pdfRenderSemaphores = new Map<string, Effect.Semaphore>();
-  const archiveLoadSemaphores = new Map<string, Effect.Semaphore>();
+  const getPdfRenderSemaphore = yield* Effect.cachedFunction((_cacheDirectory: string) =>
+    Effect.makeSemaphore(1),
+  );
+  const getArchiveLoadSemaphore = yield* Effect.cachedFunction((_cacheKey: string) =>
+    Effect.makeSemaphore(1),
+  );
 
   // Background fiber that sweeps expired archive cache entries
   yield* Effect.forkDaemon(
@@ -155,9 +150,6 @@ const makeMediaReaderService = Effect.fn("MediaReaderService.make")(function* ()
       ),
     ),
   );
-
-  const getPdfRenderSemaphore = (cacheDirectory: string) =>
-    getOrCreateSemaphore(pdfRenderSemaphores, cacheDirectory);
 
   const listPages = Effect.fn("MediaReaderService.listPages")(function* (
     mediaId: number,
@@ -172,7 +164,7 @@ const makeMediaReaderService = Effect.fn("MediaReaderService.make")(function* ()
     });
     const sources = yield* listReadablePageSources({
       archiveCache,
-      archiveLoadSemaphores,
+      getArchiveLoadSemaphore,
       cacheRoot,
       executor,
       fs,
@@ -198,7 +190,7 @@ const makeMediaReaderService = Effect.fn("MediaReaderService.make")(function* ()
     });
     const sources = yield* listReadablePageSources({
       archiveCache,
-      archiveLoadSemaphores,
+      getArchiveLoadSemaphore,
       cacheRoot,
       executor,
       fs,
@@ -289,7 +281,7 @@ const resolveReaderUnitFile = Effect.fn("MediaReader.resolveReaderUnitFile")(fun
 
 const listReadablePageSources = Effect.fn("MediaReader.listReadablePageSources")(function* (input: {
   readonly archiveCache: ArchiveCache;
-  readonly archiveLoadSemaphores: Map<string, Effect.Semaphore>;
+  readonly getArchiveLoadSemaphore: (cacheKey: string) => Effect.Effect<Effect.Semaphore>;
   readonly cacheRoot: string;
   readonly executor: CommandExecutor.CommandExecutor;
   readonly fs: FileSystemShape;
@@ -321,7 +313,7 @@ const listReadablePageSources = Effect.fn("MediaReader.listReadablePageSources")
   if (hasExtension(input.unitFile.fileName, ARCHIVE_EXTENSIONS)) {
     return yield* listArchivePages({
       archiveCache: input.archiveCache,
-      archiveLoadSemaphores: input.archiveLoadSemaphores,
+      getArchiveLoadSemaphore: input.getArchiveLoadSemaphore,
       format: "zip",
       fs: input.fs,
       unitFile: input.unitFile,
@@ -331,7 +323,7 @@ const listReadablePageSources = Effect.fn("MediaReader.listReadablePageSources")
   if (hasExtension(input.unitFile.fileName, EPUB_EXTENSIONS)) {
     return yield* listArchivePages({
       archiveCache: input.archiveCache,
-      archiveLoadSemaphores: input.archiveLoadSemaphores,
+      getArchiveLoadSemaphore: input.getArchiveLoadSemaphore,
       format: "epub",
       fs: input.fs,
       unitFile: input.unitFile,
@@ -362,7 +354,7 @@ const listReadablePageSources = Effect.fn("MediaReader.listReadablePageSources")
 
 const listArchivePages = Effect.fn("MediaReader.listArchivePages")(function* (input: {
   readonly archiveCache: ArchiveCache;
-  readonly archiveLoadSemaphores: Map<string, Effect.Semaphore>;
+  readonly getArchiveLoadSemaphore: (cacheKey: string) => Effect.Effect<Effect.Semaphore>;
   readonly format: "epub" | "zip";
   readonly fs: FileSystemShape;
   readonly unitFile: ReaderUnitFile;
@@ -372,7 +364,7 @@ const listArchivePages = Effect.fn("MediaReader.listArchivePages")(function* (in
     Effect.flatMap((cached) =>
       cached
         ? Effect.succeed(cached)
-        : getOrCreateSemaphore(input.archiveLoadSemaphores, cacheKey).pipe(
+        : input.getArchiveLoadSemaphore(cacheKey).pipe(
             Effect.flatMap((sem) =>
               sem.withPermits(1)(
                 // Double-check after acquiring to avoid redundant load

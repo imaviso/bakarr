@@ -27,6 +27,7 @@ const QUALITY_ID = {
   WEBRIP_2160P: 13,
   WEBRIP_1080P: 14,
   WEBRIP_720P: 15,
+  WEBDL_540P: 16,
   UNKNOWN: 99,
 } as const;
 
@@ -45,7 +46,8 @@ const QUALITY_DEFS: ReadonlyArray<Quality & { readonly sourceKind: QualitySource
   makeQuality(QUALITY_ID.HDTV_1080P, "HDTV 1080p", "hdtv", 1080, 12, "HDTV"),
   makeQuality(QUALITY_ID.HDTV_720P, "HDTV 720p", "hdtv", 720, 13, "HDTV"),
   makeQuality(QUALITY_ID.DVD_576P, "DVD 576p", "dvd", 576, 14, "DVD"),
-  makeQuality(QUALITY_ID.SDTV_480P, "SDTV 480p", "sdtv", 480, 15, "SDTV"),
+  makeQuality(QUALITY_ID.WEBDL_540P, "WEB-DL 540p", "web", 540, 15, "WebDl"),
+  makeQuality(QUALITY_ID.SDTV_480P, "SDTV 480p", "sdtv", 480, 16, "SDTV"),
   makeQuality(QUALITY_ID.UNKNOWN, "Unknown", "unknown", 0, 99, "Unknown"),
 ];
 const UNKNOWN_QUALITY =
@@ -61,21 +63,17 @@ export function parseQualityFromTitle(title: string): Quality {
   const parsedResolution = parseResolution(title);
   const source = inferSource(lower);
 
-  if (!parsedResolution && source === "Unknown") {
+  if (!parsedResolution) {
     return stripSourceKind(UNKNOWN_QUALITY);
   }
 
-  const resolution = parsedResolution ? Number(parsedResolution.replace("p", "")) : 1080;
   const normalizedSource = source === "Unknown" ? "WebDl" : source;
+  const resolution = Number(parsedResolution.replace("p", ""));
 
   const exact = QUALITY_DEFS.find(
     (quality) => quality.sourceKind === normalizedSource && quality.resolution === resolution,
   );
-  if (exact) {
-    return stripSourceKind(exact);
-  }
-
-  return stripSourceKind(UNKNOWN_QUALITY);
+  return stripSourceKind(exact ?? UNKNOWN_QUALITY);
 }
 
 export function cutoffQuality(label: string): Quality {
@@ -85,7 +83,11 @@ export function cutoffQuality(label: string): Quality {
   }
 
   const parsedResolution = parseResolution(label);
-  const resolution = parsedResolution ? Number(parsedResolution.replace("p", "")) : 1080;
+  if (!parsedResolution) {
+    return stripSourceKind(BLURAY_1080P);
+  }
+
+  const resolution = Number(parsedResolution.replace("p", ""));
   const exact = QUALITY_DEFS.find(
     (quality) => quality.resolution === resolution && quality.sourceKind === "BluRay",
   );

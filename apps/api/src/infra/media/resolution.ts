@@ -5,6 +5,7 @@ export function parseResolutionLabel(value: string): string | undefined {
   if (lower.includes("1080")) return "1080p";
   if (lower.includes("720")) return "720p";
   if (lower.includes("576")) return "576p";
+  if (lower.includes("540")) return "540p";
   if (lower.includes("480")) return "480p";
 
   return undefined;

@@ -1,4 +1,4 @@
-import { Context, Duration, Either, Effect, Layer, Schema } from "effect";
+import { Cause, Context, Duration, Effect, Layer, Ref, Schedule, Schema } from "effect";
 
 import { currentTimeNanos } from "@/infra/time.ts";
 import { PositiveIntFromStringSchema } from "@/domain/domain-schema.ts";
@@ -135,92 +135,102 @@ export const makeExternalCallSemaphores = Effect.fn("ExternalCall.makeExternalCa
 export const makeExternalCallSemaphoresLive = (overrides: ExternalCallTuningOverrides = {}) =>
   Layer.effect(ExternalCallSemaphores, makeExternalCallSemaphores(overrides));
 
-export const makeExternalCall = Effect.fn("ExternalCall.makeExternalCall")(function* (
-  _overrides: ExternalCallTuningOverrides = {},
-) {
+export const makeExternalCall = Effect.fn("ExternalCall.makeExternalCall")(function* () {
   const policy = yield* ExternalCallPolicy;
   const semaphores = yield* ExternalCallSemaphores;
 
-  const tryExternalEffect = Effect.fn("ExternalCall.tryExternalEffect")(function* <A, E, R>(
-    operation: string,
-    effect: Effect.Effect<A, E, R>,
-    options?: ExternalCallOptions,
-  ) {
-    const allowRetry = options?.idempotent !== false;
-    const isRetryable = options?.isRetryableError ?? (() => true);
-    const maxAttempts = allowRetry ? policy.retryDelaysMs.length + 1 : 1;
+  const tryExternalEffect = Effect.fn("ExternalCall.tryExternalEffect")(
+    <A, E, R>(operation: string, effect: Effect.Effect<A, E, R>, options?: ExternalCallOptions) =>
+      Effect.gen(function* () {
+        const startedAt = yield* currentTimeNanos;
+        const attemptsUsedRef = yield* Ref.make(0);
+        const allowRetry = options?.idempotent !== false;
+        const isRetryable = options?.isRetryableError ?? (() => true);
+        const maxAttempts = allowRetry ? policy.retryDelaysMs.length + 1 : 1;
+        const pool = policy.resolvePool(operation);
 
-    return yield* Effect.gen(function* () {
-      const startedAt = yield* currentTimeNanos;
-      const pool = policy.resolvePool(operation);
-      let attemptNumber = 1;
+        const performAttempt = Effect.gen(function* () {
+          yield* Ref.update(attemptsUsedRef, (attemptsUsed) => attemptsUsed + 1);
 
-      while (true) {
-        const attemptResult = yield* Effect.either(
-          semaphores.withPermits(
+          return yield* semaphores.withPermits(
             pool,
             effect.pipe(
               Effect.timeout(policy.timeout),
               Effect.scoped,
               Effect.mapError((cause) => toExternalCallError(operation, cause)),
             ),
+          );
+        });
+
+        const retrySchedule = Schedule.recurs(policy.retryDelaysMs.length).pipe(
+          Schedule.addDelay((retryCount) => policy.retryDelaysMs[retryCount] ?? 0),
+          Schedule.checkEffect((error: ExternalCallError) =>
+            Effect.gen(function* () {
+              const attemptsUsed = yield* Ref.get(attemptsUsedRef);
+
+              if (!allowRetry || attemptsUsed >= maxAttempts || !isRetryable(error)) {
+                return false;
+              }
+
+              const retryDelayMs = policy.retryDelaysMs[attemptsUsed - 1] ?? 0;
+              yield* Effect.logWarning("external call attempt failed; retrying").pipe(
+                Effect.annotateLogs(
+                  compactLogAnnotations({
+                    attempt: attemptsUsed,
+                    maxAttempts,
+                    nextDelayMs: retryDelayMs,
+                    ...errorLogAnnotations(error),
+                  }),
+                ),
+              );
+
+              return true;
+            }),
           ),
         );
 
-        if (Either.isRight(attemptResult)) {
-          const finishedAt = yield* currentTimeNanos;
-          yield* Effect.logDebug("external call completed").pipe(
-            Effect.annotateLogs({
-              durationMs: durationMsSince(startedAt, finishedAt),
-              maxAttempts,
-              attemptsUsed: attemptNumber,
-            }),
-          );
-
-          return attemptResult.right;
-        }
-
-        const error = attemptResult.left;
-
-        if (!allowRetry || attemptNumber >= maxAttempts || !isRetryable(error)) {
-          const finishedAt = yield* currentTimeNanos;
-          yield* Effect.logError("external call failed").pipe(
-            Effect.annotateLogs(
-              compactLogAnnotations({
-                durationMs: durationMsSince(startedAt, finishedAt),
-                maxAttempts,
-                attemptsUsed: attemptNumber,
-                ...errorLogAnnotations(error),
-              }),
+        return yield* performAttempt.pipe(
+          Effect.retry(retrySchedule),
+          Effect.tap(() =>
+            Ref.get(attemptsUsedRef).pipe(
+              Effect.flatMap((attemptsUsed) =>
+                currentTimeNanos.pipe(
+                  Effect.flatMap((finishedAt) =>
+                    Effect.logDebug("external call completed").pipe(
+                      Effect.annotateLogs({
+                        durationMs: durationMsSince(startedAt, finishedAt),
+                        maxAttempts,
+                        attemptsUsed,
+                      }),
+                    ),
+                  ),
+                ),
+              ),
             ),
-          );
-
-          return yield* error;
-        }
-
-        const retryDelayMs = policy.retryDelaysMs[attemptNumber - 1]!;
-        yield* Effect.logWarning("external call attempt failed; retrying").pipe(
-          Effect.annotateLogs(
-            compactLogAnnotations({
-              attempt: attemptNumber,
-              maxAttempts,
-              nextDelayMs: retryDelayMs,
-              ...errorLogAnnotations(error),
-            }),
+          ),
+          Effect.tapErrorCause((cause) =>
+            Ref.get(attemptsUsedRef).pipe(
+              Effect.flatMap((attemptsUsed) =>
+                currentTimeNanos.pipe(
+                  Effect.flatMap((finishedAt) =>
+                    Effect.logError("external call failed").pipe(
+                      Effect.annotateLogs(
+                        compactLogAnnotations({
+                          durationMs: durationMsSince(startedAt, finishedAt),
+                          maxAttempts,
+                          attemptsUsed,
+                          ...errorLogAnnotations(Cause.squash(cause)),
+                        }),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
         );
-
-        yield* Effect.sleep(retryDelayMs);
-        attemptNumber += 1;
-      }
-    }).pipe(
-      Effect.withLogSpan(operation),
-      Effect.annotateLogs({
-        component: "external",
-        externalOperation: operation,
       }),
-    );
-  });
+  );
 
   const tryExternal = Effect.fn("ExternalCall.tryExternal")(function* <A>(
     operation: string,

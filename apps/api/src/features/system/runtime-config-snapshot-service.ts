@@ -38,8 +38,12 @@ const makeRuntimeConfigSnapshotService = Effect.fn("RuntimeConfigSnapshotService
             }
 
             const loaded = yield* systemConfigService.getConfig();
-            yield* Ref.set(configRef, Option.some(loaded));
-            return loaded;
+
+            return yield* Ref.modify(configRef, (current) =>
+              Option.isSome(current)
+                ? [current.value, current]
+                : ([loaded, Option.some(loaded)] as const),
+            );
           }),
         );
       },

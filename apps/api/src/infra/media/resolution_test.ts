@@ -9,5 +9,6 @@ it("parseResolutionLabel detects common release resolutions", () => {
   assert.deepStrictEqual(parseResolutionLabel("Show 720p"), "720p");
   assert.deepStrictEqual(parseResolutionLabel("DVD 576p"), "576p");
   assert.deepStrictEqual(parseResolutionLabel("SD 480p"), "480p");
+  assert.deepStrictEqual(parseResolutionLabel("Show [540p AMZN WEB-DL]"), "540p");
   assert.deepStrictEqual(parseResolutionLabel("Show WEB-DL"), undefined);
 });

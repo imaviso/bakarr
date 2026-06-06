@@ -107,6 +107,36 @@ it.effect("event bus subscriptions are interrupted when the scope closes", () =>
   }),
 );
 
+it.scoped("event bus replays buffered events before the live stream", () =>
+  Effect.gen(function* () {
+    const eventBus = yield* makeEventBus({ capacity: 8 });
+    const bufferedEvent = { type: "Info", payload: { message: "buffered" } } as const;
+    yield* eventBus.publish(bufferedEvent);
+
+    const ready = yield* Deferred.make<void>();
+    const stream = eventBus.withSubscriptionStream((subscription: EventSubscription) =>
+      Stream.unwrapScoped(
+        Effect.gen(function* () {
+          const bufferedEvents = yield* subscription.takeBufferedOnce;
+          assert.deepStrictEqual(bufferedEvents, [bufferedEvent]);
+          yield* Deferred.succeed(ready, void 0);
+          return subscription.stream;
+        }),
+      ),
+    );
+
+    const fiber = yield* Effect.fork(Stream.runCollect(stream.pipe(Stream.take(1))));
+    yield* Deferred.await(ready);
+
+    const liveEvent = { type: "Info", payload: { message: "live" } } as const;
+    yield* eventBus.publish(liveEvent);
+
+    const events = yield* Fiber.join(fiber);
+
+    assert.deepStrictEqual(Array.from(events), [liveEvent]);
+  }),
+);
+
 const takeNextEvent = <A>(stream: Stream.Stream<A>) =>
   Stream.runCollect(stream.pipe(Stream.take(1))).pipe(
     Effect.map((events) => Array.from(events)[0]),

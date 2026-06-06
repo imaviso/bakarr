@@ -1,9 +1,16 @@
-import { Cause, Effect, Exit, Layer, Option, PubSub, Queue, Ref, Scope, Stream } from "effect";
+import { Effect, Layer, PubSub, Queue, Stream } from "effect";
 
 import type { NotificationEvent } from "@packages/shared/index.ts";
 
 export const DEFAULT_EVENT_BUS_CAPACITY = 1024;
 
+/**
+ * Subscription view over the event bus.
+ *
+ * Call `takeBufferedOnce` after bootstrap work that may publish events and
+ * before consuming `stream` when you want replayed bootstrap events folded
+ * into an initial snapshot without duplicating them.
+ */
 export interface EventSubscription {
   readonly takeBufferedOnce: Effect.Effect<readonly NotificationEvent[]>;
   readonly stream: Stream.Stream<NotificationEvent>;
@@ -19,13 +26,16 @@ export interface EventBusShape {
 
 export class EventBus extends Effect.Service<EventBus>()("@bakarr/api/EventBus", {
   scoped: Effect.gen(function* () {
-    const pubsub = yield* PubSub.sliding<NotificationEvent>(DEFAULT_EVENT_BUS_CAPACITY);
+    const pubsub = yield* PubSub.sliding<NotificationEvent>({
+      capacity: DEFAULT_EVENT_BUS_CAPACITY,
+      replay: DEFAULT_EVENT_BUS_CAPACITY,
+    });
     yield* Effect.addFinalizer(() => PubSub.shutdown(pubsub));
-    return makeEventBusFromPubSub(pubsub, DEFAULT_EVENT_BUS_CAPACITY);
+    return makeEventBusFromPubSub(pubsub);
   }),
 }) {}
 
-const makeEventBusFromPubSub = (pubsub: PubSub.PubSub<NotificationEvent>, capacity: number) =>
+const makeEventBusFromPubSub = (pubsub: PubSub.PubSub<NotificationEvent>) =>
   ({
     publish: Effect.fn("EventBus.publish")(function* (event: NotificationEvent) {
       yield* PubSub.publish(pubsub, event);
@@ -41,40 +51,33 @@ const makeEventBusFromPubSub = (pubsub: PubSub.PubSub<NotificationEvent>, capaci
     ): Stream.Stream<A, E> =>
       Stream.unwrapScoped(
         Effect.gen(function* () {
-          const pubsubQueue = yield* PubSub.subscribe(pubsub);
-          const slidingQueue = yield* Effect.acquireRelease(
-            Queue.sliding<NotificationEvent>(capacity),
-            Queue.shutdown,
+          const subscriptionQueue = yield* PubSub.subscribe(pubsub);
+          const takeBufferedOnce = yield* Effect.cached(
+            Queue.takeAll(subscriptionQueue).pipe(
+              Effect.map((events) => Array.from(events)),
+              Effect.withSpan("EventBus.takeBufferedOnce"),
+            ),
           );
-          const initializationLock = yield* Effect.makeSemaphore(1);
-          const initialBufferedRef = yield* Ref.make<Option.Option<readonly NotificationEvent[]>>(
-            Option.none(),
-          );
-          const relayScope = yield* Scope.make();
-          yield* Effect.addFinalizer(() => Scope.close(relayScope, Exit.void));
-          const subscription = makeInitializedSubscription({
-            initialBufferedRef,
-            initializationLock,
-            pubsubQueue,
-            relayScope,
-            slidingQueue,
-          });
 
-          return use(subscription);
+          return use({
+            takeBufferedOnce,
+            stream: Stream.fromQueue(subscriptionQueue, { shutdown: false }),
+          });
         }),
       ),
   }) satisfies EventBusShape;
 
-export const makeEventBus = Effect.fn("Events.makeEventBus")((
-  options: { readonly capacity?: number } = {},
-) => {
-  const capacity = options.capacity ?? DEFAULT_EVENT_BUS_CAPACITY;
-
-  return Effect.gen(function* () {
-    const pubsub = yield* PubSub.sliding<NotificationEvent>(capacity);
-    return EventBus.make(makeEventBusFromPubSub(pubsub, capacity));
-  });
-});
+export const makeEventBus = Effect.fn("Events.makeEventBus")(
+  (options: { readonly capacity?: number } = {}) =>
+    Effect.gen(function* () {
+      const capacity = options.capacity ?? DEFAULT_EVENT_BUS_CAPACITY;
+      const pubsub = yield* PubSub.sliding<NotificationEvent>({
+        capacity,
+        replay: capacity,
+      });
+      return EventBus.make(makeEventBusFromPubSub(pubsub));
+    }),
+);
 
 export const EventBusNoopLive = Layer.succeed(
   EventBus,
@@ -83,67 +86,8 @@ export const EventBusNoopLive = Layer.succeed(
     publishInfo: () => Effect.void,
     withSubscriptionStream: <A, E>(use: (subscription: EventSubscription) => Stream.Stream<A, E>) =>
       use({
-        stream: Stream.empty,
         takeBufferedOnce: Effect.succeed([]),
+        stream: Stream.empty,
       }),
   }),
 );
-
-function makeInitializedSubscription(input: {
-  readonly initialBufferedRef: Ref.Ref<Option.Option<readonly NotificationEvent[]>>;
-  readonly initializationLock: Effect.Semaphore;
-  readonly pubsubQueue: Queue.Dequeue<NotificationEvent>;
-  readonly relayScope: Scope.CloseableScope;
-  readonly slidingQueue: Queue.Queue<NotificationEvent>;
-}): EventSubscription {
-  const initialize = input.initializationLock
-    .withPermits(1)(
-      Effect.gen(function* () {
-        const initialized = yield* Ref.get(input.initialBufferedRef);
-
-        if (Option.isSome(initialized)) {
-          return;
-        }
-
-        const pending = yield* Queue.takeAll(input.pubsubQueue);
-        yield* Effect.forEach(pending, (event) => Queue.offer(input.slidingQueue, event), {
-          discard: true,
-        });
-
-        yield* Effect.forkIn(input.relayScope)(
-          Queue.take(input.pubsubQueue).pipe(
-            Effect.flatMap((event) => Queue.offer(input.slidingQueue, event)),
-            Effect.tapErrorCause((cause) =>
-              Cause.isInterruptedOnly(cause)
-                ? Effect.void
-                : Effect.logWarning("event bus relay fiber failed").pipe(
-                    Effect.annotateLogs({ cause: Cause.pretty(cause), component: "events" }),
-                  ),
-            ),
-            Effect.forever,
-          ),
-        );
-
-        yield* Ref.set(input.initialBufferedRef, Option.some(Array.from(pending)));
-      }),
-    )
-    .pipe(Effect.withSpan("EventBus.initializeSubscription"));
-
-  const takeBufferedOnce = initialize.pipe(
-    Effect.zipRight(
-      Ref.modify(input.initialBufferedRef, (state) =>
-        Option.match(state, {
-          onNone: () => [[], Option.none()] as const,
-          onSome: (events) => [events, Option.none()] as const,
-        }),
-      ),
-    ),
-  );
-
-  return {
-    takeBufferedOnce,
-    stream: Stream.unwrap(
-      initialize.pipe(Effect.as(Stream.fromQueue(input.slidingQueue, { shutdown: false }))),
-    ),
-  };
-}

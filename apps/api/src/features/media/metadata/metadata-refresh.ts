@@ -19,7 +19,7 @@ export const makeMetadataRefreshRunner = Effect.fn("AnimeMetadataRefresh.makeRun
   const refreshConcurrency = yield* Schema.Config(
     "BAKARR_METADATA_REFRESH_CONCURRENCY",
     PositiveIntFromStringSchema,
-  ).pipe(EffectConfig.orElse(() => EffectConfig.succeed(DEFAULT_METADATA_REFRESH_CONCURRENCY)));
+  ).pipe(EffectConfig.withDefault(DEFAULT_METADATA_REFRESH_CONCURRENCY));
 
   return yield* makeSingleFlightEffectRunner(
     refreshMetadataForMonitoredAnimeEffect({

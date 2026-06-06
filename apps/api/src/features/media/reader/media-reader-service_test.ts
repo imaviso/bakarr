@@ -1,7 +1,7 @@
 import { CommandExecutor } from "@effect/platform";
 import { dirname } from "node:path";
 import { TextEncoder } from "node:util";
-import { Effect, Layer } from "effect";
+import { Deferred, Effect, Fiber, Layer } from "effect";
 import { assert, it } from "@effect/vitest";
 
 import type { AppDatabase } from "@/db/database.ts";
@@ -81,6 +81,88 @@ it.scoped("MediaReaderService exposes cbz archive pages and image bytes", () =>
         assert.deepStrictEqual(result.pages.pages[1]?.media_type, "image/png");
         assert.deepStrictEqual(result.image.mediaType, "image/png");
         assert.deepStrictEqual(textDecoder.decode(result.image.bytes), "page-two");
+      }),
+  }),
+);
+
+it.scoped("MediaReaderService shares archive loads across concurrent readers", () =>
+  withSqliteTestDbEffect({
+    schema,
+    run: (db, databaseFile) =>
+      Effect.gen(function* () {
+        const appDb: AppDatabase = db;
+        const baseFs = yield* makeTestFileSystemEffect();
+        const readStarted = yield* Deferred.make<void>();
+        const releaseRead = yield* Deferred.make<void>();
+        let readCalls = 0;
+        const libraryRoot = `${dirname(databaseFile)}/library`;
+        const filePath = `${libraryRoot}/Volume 1.cbz`;
+        const fs = FileSystem.make(
+          Object.assign({}, baseFs, {
+            readFile: (path: string | URL) =>
+              Effect.gen(function* () {
+                readCalls += 1;
+
+                if (readCalls === 1) {
+                  yield* Deferred.succeed(readStarted, void 0);
+                }
+
+                yield* Deferred.await(releaseRead);
+                return yield* baseFs.readFile(path);
+              }),
+          }),
+        );
+
+        yield* baseFs.mkdir(libraryRoot, { recursive: true });
+        yield* baseFs.writeFile(
+          filePath,
+          makeStoredZip([
+            { path: "page1.jpg", text: "page-one" },
+            { path: "page2.png", text: "page-two" },
+          ]),
+        );
+        yield* seedMediaUnit(appDb, libraryRoot, filePath);
+
+        const readerLayer = MediaReaderServiceLive.pipe(
+          Layer.provide(
+            Layer.mergeAll(
+              Layer.succeed(AppConfig, {
+                appVersion: "0.1.0",
+                databaseFile,
+                port: 8000,
+                sessionCookieName: "bakarr_session",
+                sessionCookieSecure: true,
+                sessionDurationDays: 30,
+              }),
+              Layer.succeed(
+                CommandExecutor.CommandExecutor,
+                makeCommandExecutorStub(() => Effect.succeed("")),
+              ),
+              Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(appDb)),
+              Layer.succeed(MediaReadRepository, makeMediaReadRepository(appDb)),
+              Layer.succeed(FileSystem, fs),
+            ),
+          ),
+        );
+
+        const result = yield* Effect.gen(function* () {
+          const reader = yield* MediaReaderService;
+          const first = yield* Effect.fork(reader.listPages(1, 1));
+          yield* Deferred.await(readStarted);
+          const second = yield* Effect.fork(reader.listPages(1, 1));
+          yield* Deferred.succeed(releaseRead, void 0);
+
+          return {
+            first: yield* Fiber.join(first),
+            second: yield* Fiber.join(second),
+          };
+        }).pipe(Effect.provide(readerLayer));
+
+        assert.deepStrictEqual(readCalls, 1);
+        assert.deepStrictEqual(
+          result.first.pages.map((page) => page.url),
+          result.second.pages.map((page) => page.url),
+        );
       }),
   }),
 );

@@ -1,4 +1,4 @@
-import { Cause, Effect, Exit, Layer } from "effect";
+import { Cause, Deferred, Effect, Exit, Fiber, Layer } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 import { StoredConfigMissingError } from "@/features/system/errors.ts";
@@ -72,6 +72,48 @@ it.effect("RuntimeConfigSnapshotService returns replaced config without loading"
   }),
 );
 
+it.effect(
+  "RuntimeConfigSnapshotService keeps replaced config if replacement happens during initial load",
+  () =>
+    Effect.gen(function* () {
+      let calls = 0;
+      const loadStarted = yield* Deferred.make<void>();
+      const loadRelease = yield* Deferred.make<void>();
+      const persisted = makeTestConfig("./runtime-config-persisted.sqlite");
+      const replaced = makeTestConfig("./runtime-config-replaced.sqlite");
+
+      const layer = RuntimeConfigSnapshotServiceLive.pipe(
+        Layer.provide(
+          Layer.succeed(
+            SystemConfigService,
+            SystemConfigService.make({
+              getConfig: (): Effect.Effect<Config> =>
+                Effect.gen(function* () {
+                  calls += 1;
+                  yield* Deferred.succeed(loadStarted, void 0);
+                  yield* Deferred.await(loadRelease);
+                  return persisted;
+                }),
+            }),
+          ),
+        ),
+      );
+
+      const result = yield* Effect.flatMap(RuntimeConfigSnapshotService, (service) =>
+        Effect.gen(function* () {
+          const fiber = yield* Effect.fork(service.getRuntimeConfig());
+          yield* Deferred.await(loadStarted);
+          yield* service.replaceRuntimeConfig(replaced);
+          yield* Deferred.succeed(loadRelease, void 0);
+          return yield* Fiber.join(fiber);
+        }),
+      ).pipe(Effect.provide(layer));
+
+      assert.deepStrictEqual(result, replaced);
+      assert.deepStrictEqual(calls, 1);
+    }),
+);
+
 it.effect("RuntimeConfigSnapshotService forwards SystemConfigService failures", () =>
   Effect.gen(function* () {
     const missing = new StoredConfigMissingError({ message: "missing config" });
@@ -103,5 +145,44 @@ it.effect("RuntimeConfigSnapshotService forwards SystemConfigService failures", 
         assert.deepStrictEqual(failure.value._tag, "StoredConfigMissingError");
       }
     }
+  }),
+);
+
+it.effect("RuntimeConfigSnapshotService retries after a failed load", () =>
+  Effect.gen(function* () {
+    let calls = 0;
+    const recovered = makeTestConfig("./runtime-config-recovered.sqlite");
+    const missing = new StoredConfigMissingError({ message: "missing config" });
+
+    const layer = RuntimeConfigSnapshotServiceLive.pipe(
+      Layer.provide(
+        Layer.succeed(
+          SystemConfigService,
+          SystemConfigService.make({
+            getConfig: () =>
+              Effect.gen(function* () {
+                calls += 1;
+
+                if (calls === 1) {
+                  return yield* Effect.fail(missing);
+                }
+
+                return recovered;
+              }),
+          }),
+        ),
+      ),
+    );
+
+    const result = yield* Effect.flatMap(RuntimeConfigSnapshotService, (service) =>
+      Effect.gen(function* () {
+        const first = yield* Effect.exit(service.getRuntimeConfig());
+        assert.deepStrictEqual(Exit.isFailure(first), true);
+        return yield* service.getRuntimeConfig();
+      }),
+    ).pipe(Effect.provide(layer));
+
+    assert.deepStrictEqual(result, recovered);
+    assert.deepStrictEqual(calls, 2);
   }),
 );
