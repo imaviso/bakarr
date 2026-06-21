@@ -17,7 +17,7 @@ import {
   SearchDownloadBodySchema,
   CalendarQuerySchema,
 } from "@/http/operations/request-schemas.ts";
-import { AddAnimeInputSchema } from "@/http/media/request-schemas.ts";
+import { AddAnimeInputSchema, BulkUnitMappingsBodySchema } from "@/http/media/request-schemas.ts";
 import {
   ConfigSchema,
   SystemLogExportQuerySchema,
@@ -370,4 +370,38 @@ it("boundary request schemas reject malformed URL, path, and date inputs", () =>
   assert.deepStrictEqual(unmappedImport._tag, "Left");
   assert.deepStrictEqual(calendar._tag, "Left");
   assert.deepStrictEqual(systemLogExport._tag, "Left");
+});
+
+it("BulkUnitMappingsBodySchema accepts empty file_path as unmap signal", () => {
+  const unmapOnly = Schema.decodeUnknownEither(BulkUnitMappingsBodySchema)({
+    mappings: [{ unit_number: 1, file_path: "" }],
+  });
+  const mixed = Schema.decodeUnknownEither(BulkUnitMappingsBodySchema)({
+    mappings: [
+      { unit_number: 1, file_path: "" },
+      { unit_number: 2, file_path: "/library/Naruto - 02.mkv" },
+    ],
+  });
+
+  assert.deepStrictEqual(unmapOnly._tag, "Right");
+  assert.deepStrictEqual(mixed._tag, "Right");
+  if (mixed._tag === "Right") {
+    assert.strictEqual(mixed.right.mappings.length, 2);
+    assert.strictEqual(mixed.right.mappings[0]?.file_path, "");
+    assert.strictEqual(mixed.right.mappings[1]?.file_path, "/library/Naruto - 02.mkv");
+  }
+});
+
+it("BulkUnitMappingsBodySchema rejects non-positive unit_number", () => {
+  const result = Schema.decodeUnknownEither(BulkUnitMappingsBodySchema)({
+    mappings: [{ unit_number: 0, file_path: "" }],
+  });
+
+  assert.deepStrictEqual(result._tag, "Left");
+});
+
+it("BulkUnitMappingsBodySchema rejects missing mappings array", () => {
+  const result = Schema.decodeUnknownEither(BulkUnitMappingsBodySchema)({});
+
+  assert.deepStrictEqual(result._tag, "Left");
 });

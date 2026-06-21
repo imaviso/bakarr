@@ -48,7 +48,7 @@ export class FilePathBodySchema extends Schema.Class<FilePathBodySchema>("FilePa
 
 const BulkUnitMappingItemSchema = Schema.Struct({
   unit_number: UnitNumberSchema,
-  file_path: AbsoluteFilesystemPathStringSchema,
+  file_path: Schema.String,
 });
 
 export class BulkUnitMappingsBodySchema extends Schema.Class<BulkUnitMappingsBodySchema>(
