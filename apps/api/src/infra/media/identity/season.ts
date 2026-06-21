@@ -141,7 +141,7 @@ export function parseSeasonEpisodeIdentity(value: string): SeasonEpisodeIdentity
 
 function hasMalformedSeasonEpisodeRange(value: string) {
   const match = value.match(
-    /(?:^|[\s._\-[(])s\d{1,2}[\s._-]*e(\d{1,4})\s*[-~]\s*(?:s\d{1,2}[\s._-]*)?e?(\d{1,4})(?:[\s._\-\])]|$)/i,
+    /(?:^|[\s._\-[(])s\d{1,2}[\s._-]*e(\d{1,4})\s*[-~]\s*(?:s\d{1,2}[\s._-]*)?e(\d{1,4})(?:[\s._\-\])]|$)/i,
   );
 
   if (!match) {

@@ -33,3 +33,11 @@ it("parseSeasonEpisodeIdentity rejects impossible episode ranges", () => {
   assert.deepStrictEqual(parseSeasonEpisodeIdentity("Show - S01E05-E03"), undefined);
   assert.deepStrictEqual(parseSeasonEpisodeIdentity("Show - S01E01-E2500"), undefined);
 });
+
+it("parseSeasonEpisodeIdentity ignores numeric episode titles", () => {
+  const parsed = parseSeasonEpisodeIdentity("Show - S02E05 - 800 Million");
+
+  assert.deepStrictEqual(parsed?.season, 2);
+  assert.deepStrictEqual(parsed?.unit_numbers, [5]);
+  assert.deepStrictEqual(parsed?.label, "S02E05");
+});

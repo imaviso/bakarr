@@ -140,6 +140,20 @@ it("parseFileSourceIdentity: complex Sonarr filename", () => {
   }
 });
 
+it("parseFileSourceIdentity: Sonarr filename with numeric title keeps SxxExx identity", () => {
+  const result = parseFileSourceIdentity(
+    "My Dress-Up Darling (2022) - S02E05 - 800 Million [WEBDL-1080p][AAC 2.0][x264]-VARYG.mkv",
+  );
+
+  assert.deepStrictEqual(result.kind, "episode");
+  assert.deepStrictEqual(result.source_identity?.scheme, "season");
+  if (result.source_identity?.scheme === "season") {
+    assert.deepStrictEqual(result.source_identity.season, 2);
+    assert.deepStrictEqual(result.source_identity.unit_numbers, [5]);
+    assert.deepStrictEqual(result.source_identity.label, "S02E05");
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Absolute number parsing
 // ---------------------------------------------------------------------------
