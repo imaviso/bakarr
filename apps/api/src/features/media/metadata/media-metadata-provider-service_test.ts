@@ -339,28 +339,44 @@ it.effect("degrades gracefully when Manami resolveMalIdFromAniListId fails", () 
   }).pipe(Effect.provide(providerLayer));
 });
 
-it.effect("bubbles Jikan getAnimeByMalId failure when MAL id available", () => {
+it.effect("degrades gracefully when Jikan getAnimeByMalId fails", () => {
+  let refreshCount = 0;
+
   const providerLayer = makeProviderLayer({
     cacheState: { _tag: "Missing" },
     metadata: makeMetadata(1005, {
       malId: 505,
+      description: "AniList description",
+      genres: ["Action"],
     }),
     getAnimeByMalIdError: ExternalCallError.make({
       cause: new Error("jikan getAnimeByMalId failed"),
       message: "Jikan lookup failed",
       operation: "JikanClient.getAnimeByMalId",
     }),
-    onRefresh: () => {},
+    onRefresh: () => {
+      refreshCount += 1;
+    },
   });
 
   return Effect.gen(function* () {
     const service = yield* AnimeMetadataProviderService;
-    const error = yield* service.getAnimeMetadataById(1005).pipe(Effect.flip);
+    const result = yield* service.getAnimeMetadataById(1005);
 
-    assert.deepStrictEqual(error._tag, "ExternalCallError");
-    if (error._tag === "ExternalCallError") {
-      assert.deepStrictEqual(error.operation, "JikanClient.getAnimeByMalId");
+    assert.deepStrictEqual(result._tag, "Found");
+    if (result._tag === "Found") {
+      assert.deepStrictEqual(result.metadata.description, "AniList description");
+      assert.deepStrictEqual(result.metadata.genres, ["Action"]);
+      assert.deepStrictEqual(result.enrichment._tag, "Degraded");
+      if (result.enrichment._tag === "Degraded") {
+        assert.deepStrictEqual(result.enrichment.reason, {
+          _tag: "AniDbRefreshPending",
+          cacheState: "missing",
+        });
+      }
     }
+
+    assert.deepStrictEqual(refreshCount, 1);
   }).pipe(Effect.provide(providerLayer));
 });
 

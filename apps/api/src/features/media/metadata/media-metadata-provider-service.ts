@@ -89,17 +89,25 @@ const makeAnimeMetadataProviderService = Effect.fn("AnimeMetadataProviderService
           } as const satisfies AnimeMetadataLookupResult;
         }
 
-        const manamiMetadata = yield* optionalManamiLookup(manami.getByAniListId(baseMetadata.id), {
-          mediaId: baseMetadata.id,
-          lookup: "getByAniListId",
-        });
+        const manamiMetadata = yield* optionalExternalMetadataLookup(
+          manami.getByAniListId(baseMetadata.id),
+          {
+            lookup: "getByAniListId",
+            mediaId: baseMetadata.id,
+            provider: "Manami",
+          },
+        );
 
         const effectiveMalId =
           baseMetadata.malId === undefined
-            ? yield* optionalManamiLookup(manami.resolveMalIdFromAniListId(baseMetadata.id), {
-                mediaId: baseMetadata.id,
-                lookup: "resolveMalIdFromAniListId",
-              })
+            ? yield* optionalExternalMetadataLookup(
+                manami.resolveMalIdFromAniListId(baseMetadata.id),
+                {
+                  lookup: "resolveMalIdFromAniListId",
+                  mediaId: baseMetadata.id,
+                  provider: "Manami",
+                },
+              )
             : Option.some(baseMetadata.malId);
 
         if (baseMetadata.malId === undefined && Option.isSome(effectiveMalId)) {
@@ -113,7 +121,12 @@ const makeAnimeMetadataProviderService = Effect.fn("AnimeMetadataProviderService
         }
 
         const jikanMetadata = Option.isSome(effectiveMalId)
-          ? yield* jikan.getAnimeByMalId(effectiveMalId.value)
+          ? yield* optionalExternalMetadataLookup(jikan.getAnimeByMalId(effectiveMalId.value), {
+              lookup: "getAnimeByMalId",
+              malId: effectiveMalId.value,
+              mediaId: baseMetadata.id,
+              provider: "Jikan",
+            })
           : Option.none<JikanNormalizedAnime>();
         const malToAniListId = yield* resolveMalToAniListIdMap(jikanMetadata, manami);
         const mergedMetadata = mergeAnimeMetadata({
@@ -259,9 +272,10 @@ const resolveMalToAniListIdMap = Effect.fn("AnimeMetadataProviderService.resolve
     const pairs = yield* Effect.forEach(
       uniqueMalIds,
       (malId) =>
-        optionalManamiLookup(manami.resolveAniListIdFromMalId(malId), {
+        optionalExternalMetadataLookup(manami.resolveAniListIdFromMalId(malId), {
           malId,
           lookup: "resolveAniListIdFromMalId",
+          provider: "Manami",
         }).pipe(Effect.map((mediaId) => [malId, mediaId] as const)),
       { concurrency: 4 },
     );
@@ -278,18 +292,17 @@ const resolveMalToAniListIdMap = Effect.fn("AnimeMetadataProviderService.resolve
   },
 );
 
-function optionalManamiLookup<A>(
+function optionalExternalMetadataLookup<A>(
   effect: Effect.Effect<Option.Option<A>, ExternalCallError>,
-  annotations: ManamiLookupAnnotations,
+  annotations: ExternalMetadataLookupAnnotations,
 ): Effect.Effect<Option.Option<A>> {
   return effect.pipe(
     Effect.catchAll((error) =>
-      Effect.logWarning("Manami lookup degraded").pipe(
+      Effect.logWarning(`${annotations.provider} lookup degraded`).pipe(
         Effect.annotateLogs({
           ...annotations,
           error: error.message,
           operation: error.operation,
-          provider: "Manami",
         }),
         Effect.as(Option.none<A>()),
       ),
@@ -297,8 +310,9 @@ function optionalManamiLookup<A>(
   );
 }
 
-interface ManamiLookupAnnotations {
+interface ExternalMetadataLookupAnnotations {
   readonly lookup: string;
   readonly malId?: number;
   readonly mediaId?: number;
+  readonly provider: "Jikan" | "Manami";
 }
