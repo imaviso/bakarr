@@ -8,8 +8,8 @@ export const DEFAULT_EVENT_BUS_CAPACITY = 1024;
  * Subscription view over the event bus.
  *
  * Call `takeBufferedOnce` after bootstrap work that may publish events and
- * before consuming `stream` when you want replayed bootstrap events folded
- * into an initial snapshot without duplicating them.
+ * before consuming `stream` when you want events published after subscription
+ * folded into an initial snapshot without duplicating them.
  */
 export interface EventSubscription {
   readonly takeBufferedOnce: Effect.Effect<readonly NotificationEvent[]>;
@@ -28,7 +28,6 @@ export class EventBus extends Effect.Service<EventBus>()("@bakarr/api/EventBus",
   scoped: Effect.gen(function* () {
     const pubsub = yield* PubSub.sliding<NotificationEvent>({
       capacity: DEFAULT_EVENT_BUS_CAPACITY,
-      replay: DEFAULT_EVENT_BUS_CAPACITY,
     });
     yield* Effect.addFinalizer(() => PubSub.shutdown(pubsub));
     return makeEventBusFromPubSub(pubsub);
@@ -71,10 +70,7 @@ export const makeEventBus = Effect.fn("Events.makeEventBus")(
   (options: { readonly capacity?: number } = {}) =>
     Effect.gen(function* () {
       const capacity = options.capacity ?? DEFAULT_EVENT_BUS_CAPACITY;
-      const pubsub = yield* PubSub.sliding<NotificationEvent>({
-        capacity,
-        replay: capacity,
-      });
+      const pubsub = yield* PubSub.sliding<NotificationEvent>({ capacity });
       return EventBus.make(makeEventBusFromPubSub(pubsub));
     }),
 );

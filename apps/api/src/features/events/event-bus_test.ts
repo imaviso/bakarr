@@ -107,18 +107,17 @@ it.effect("event bus subscriptions are interrupted when the scope closes", () =>
   }),
 );
 
-it.scoped("event bus replays buffered events before the live stream", () =>
+it.scoped("event bus does not replay events published before subscription", () =>
   Effect.gen(function* () {
     const eventBus = yield* makeEventBus({ capacity: 8 });
-    const bufferedEvent = { type: "Info", payload: { message: "buffered" } } as const;
-    yield* eventBus.publish(bufferedEvent);
+    yield* eventBus.publish({ type: "Info", payload: { message: "old" } });
 
     const ready = yield* Deferred.make<void>();
     const stream = eventBus.withSubscriptionStream((subscription: EventSubscription) =>
       Stream.unwrapScoped(
         Effect.gen(function* () {
           const bufferedEvents = yield* subscription.takeBufferedOnce;
-          assert.deepStrictEqual(bufferedEvents, [bufferedEvent]);
+          assert.deepStrictEqual(bufferedEvents, []);
           yield* Deferred.succeed(ready, void 0);
           return subscription.stream;
         }),
@@ -127,6 +126,42 @@ it.scoped("event bus replays buffered events before the live stream", () =>
 
     const fiber = yield* Effect.fork(Stream.runCollect(stream.pipe(Stream.take(1))));
     yield* Deferred.await(ready);
+
+    const liveEvent = { type: "Info", payload: { message: "live" } } as const;
+    yield* eventBus.publish(liveEvent);
+
+    const events = yield* Fiber.join(fiber);
+
+    assert.deepStrictEqual(Array.from(events), [liveEvent]);
+  }),
+);
+
+it.scoped("event bus buffers events published during subscription bootstrap", () =>
+  Effect.gen(function* () {
+    const eventBus = yield* makeEventBus({ capacity: 8 });
+    const subscribed = yield* Deferred.make<void>();
+    const releaseBootstrap = yield* Deferred.make<void>();
+    const bufferedTaken = yield* Deferred.make<void>();
+    const bootstrapEvent = { type: "Info", payload: { message: "bootstrap" } } as const;
+
+    const stream = eventBus.withSubscriptionStream((subscription: EventSubscription) =>
+      Stream.unwrapScoped(
+        Effect.gen(function* () {
+          yield* Deferred.succeed(subscribed, void 0);
+          yield* Deferred.await(releaseBootstrap);
+          const bufferedEvents = yield* subscription.takeBufferedOnce;
+          assert.deepStrictEqual(bufferedEvents, [bootstrapEvent]);
+          yield* Deferred.succeed(bufferedTaken, void 0);
+          return subscription.stream;
+        }),
+      ),
+    );
+
+    const fiber = yield* Effect.fork(Stream.runCollect(stream.pipe(Stream.take(1))));
+    yield* Deferred.await(subscribed);
+    yield* eventBus.publish(bootstrapEvent);
+    yield* Deferred.succeed(releaseBootstrap, void 0);
+    yield* Deferred.await(bufferedTaken);
 
     const liveEvent = { type: "Info", payload: { message: "live" } } as const;
     yield* eventBus.publish(liveEvent);
