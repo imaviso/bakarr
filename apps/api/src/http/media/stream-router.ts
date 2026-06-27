@@ -76,6 +76,7 @@ export const mediaStreamRouter = HttpRouter.empty.pipe(
 );
 
 function inlineContentDisposition(fileName: string) {
-  const sanitized = fileName.replace(/[\r\n]/g, "_").replace(/["\\]/g, "_");
+  const asciiOnly = fileName.replace(/[^\x20-\x7E]/g, "_");
+  const sanitized = asciiOnly.replace(/[\r\n]/g, "_").replace(/["\\]/g, "_");
   return `inline; filename="${sanitized}"; filename*=UTF-8''${encodeURIComponent(fileName)}`;
 }
