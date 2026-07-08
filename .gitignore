@@ -19,3 +19,4 @@ bakarr.sqlite-shm
 bakarr.sqlite-wal
 *sqlite*
 cache/
+result

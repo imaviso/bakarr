@@ -47,6 +47,7 @@
       default = pkgs.mkShellNoCC {
         packages = with pkgs; [
           nodejs
+          deno
           pnpm
           ffmpeg
           poppler-utils

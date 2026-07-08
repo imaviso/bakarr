@@ -25,12 +25,12 @@
   },
   "devDependencies": {
     "@effect/language-service": "^0.79.0",
-    "@types/node": "^25.5.0",
+    "@types/node": "^25.9.4",
     "oxfmt": "^0.41.0",
-    "oxlint": "^1.64.0",
+    "oxlint": "^1.73.0",
     "oxlint-tsgolint": "^0.18.1",
-    "tsx": "^4.21.0",
-    "vitest": "^4.1.6"
+    "tsx": "^4.23.0",
+    "vitest": "^4.1.10"
   },
   "packageManager": "pnpm@10.33.2",
   "pnpm": {

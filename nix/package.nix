@@ -43,7 +43,8 @@ stdenv.mkDerivation (finalAttrs: {
     inherit (finalAttrs) pname version src;
     pnpm = pnpm;
     fetcherVersion = 3;
-    hash = "sha256-5HmdMVI9HfE3VmjR5jzjqCrLmL8KAS8hqGQ9p4jmmnU=";
+    hash = "sha256-jEKg27ztPVTtbo3wEVnERus5FXDsk74EYbXm9wfaHKE=";
+    pnpmInstallFlags = ["--config.minimum-release-age=0"];
   };
 
   nativeBuildInputs = [
@@ -57,6 +58,7 @@ stdenv.mkDerivation (finalAttrs: {
   ];
 
   PNPM_CONFIG_MANAGE_PACKAGE_MANAGER_VERSIONS = "false";
+  PNPM_MINIMUM_RELEASE_AGE = "0";
   SSL_CERT_FILE = "${cacert}/etc/ssl/certs/ca-bundle.crt";
   NODE_EXTRA_CA_CERTS = "${cacert}/etc/ssl/certs/ca-bundle.crt";
   npm_config_cafile = "${cacert}/etc/ssl/certs/ca-bundle.crt";
