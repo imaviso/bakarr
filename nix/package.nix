@@ -2,6 +2,7 @@
   lib,
   stdenv,
   nodejs,
+  node-gyp,
   pnpm,
   fetchPnpmDeps,
   pnpmConfigHook,
@@ -53,6 +54,7 @@ stdenv.mkDerivation (finalAttrs: {
     pnpmConfigHook
     python3
     pkg-config
+    node-gyp
     makeWrapper
     writableTmpDirAsHomeHook
   ];
@@ -68,7 +70,10 @@ stdenv.mkDerivation (finalAttrs: {
   buildPhase = ''
     runHook preBuild
 
-      pnpm --filter @bakarr/api rebuild
+    # Rebuild better-sqlite3 native module (pnpmConfigHook runs with --ignore-scripts)
+    node-gyp rebuild --release \
+      --directory=apps/api/node_modules/better-sqlite3 \
+      --python="$(command -v python3)"
 
     pnpm --filter @bakarr/web build
     pnpm --filter @bakarr/api build
