@@ -12,6 +12,7 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -112,6 +113,13 @@ export function BulkMappingDialog(props: BulkMappingDialogProps) {
                     <TableCell className="font-medium">Ep {episode.number}</TableCell>
                     <TableCell>
                       <Select
+                        items={[
+                          { value: "", label: "(Unmap / No File)" },
+                          ...files.map((file) => ({
+                            value: file.path,
+                            label: `${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)${file.unit_number !== null ? ` [Ep ${file.unit_number}]` : ""}`,
+                          })),
+                        ]}
                         value={mappings[episode.number] ?? episode.file_path ?? ""}
                         onValueChange={(value) => handleMap(episode.number, value ?? "")}
                       >
@@ -119,16 +127,18 @@ export function BulkMappingDialog(props: BulkMappingDialogProps) {
                           <SelectValue placeholder="Select file..." />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">(Unmap / No File)</SelectItem>
-                          {files.map((file) => {
-                            const itemSize = (file.size / 1024 / 1024).toFixed(1);
-                            return (
-                              <SelectItem key={file.path} value={file.path}>
-                                {file.name} ({itemSize} MB)
-                                {file.unit_number !== null ? ` [Ep ${file.unit_number}]` : ""}
-                              </SelectItem>
-                            );
-                          })}
+                          <SelectGroup>
+                            <SelectItem value="">(Unmap / No File)</SelectItem>
+                            {files.map((file) => {
+                              const itemSize = (file.size / 1024 / 1024).toFixed(1);
+                              return (
+                                <SelectItem key={file.path} value={file.path}>
+                                  {file.name} ({itemSize} MB)
+                                  {file.unit_number !== null ? ` [Ep ${file.unit_number}]` : ""}
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectGroup>
                         </SelectContent>
                       </Select>
                     </TableCell>

@@ -92,6 +92,24 @@ function formatRelationType(value: string) {
   return value.toLowerCase().replaceAll("_", " ");
 }
 
+export function cleanSynopsis(text?: string) {
+  if (!text) return undefined;
+  return text
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]*>/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/\s*\(Source:\s*[^)]*\)\s*$/i, "")
+    .trim();
+}
+
+export function formatMediaSource(source?: string) {
+  if (!source) return undefined;
+  return source
+    .toLowerCase()
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 export function formatNextAiringUnit(
   nextAiring?: NextAiringUnitContext,
   preferences?: AiringDisplayPreferences,

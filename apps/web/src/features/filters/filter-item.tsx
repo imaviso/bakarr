@@ -3,6 +3,7 @@ import { Button } from "~/components/ui/button";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -77,6 +78,7 @@ export function FilterItem(props: FilterItemProps) {
       <div className="text-sm font-medium text-muted-foreground px-2">{column?.label}</div>
 
       <Select
+        items={operatorOptions}
         value={props.filter.operator}
         onValueChange={(value) => {
           const matchedOperator = operatorOptions.find((option) => option.value === value)?.value;
@@ -87,11 +89,13 @@ export function FilterItem(props: FilterItemProps) {
           <SelectValue placeholder="Select operator" />
         </SelectTrigger>
         <SelectContent>
-          {operatorOptions.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              {option.label}
-            </SelectItem>
-          ))}
+          <SelectGroup>
+            {operatorOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectGroup>
         </SelectContent>
       </Select>
 
@@ -106,17 +110,23 @@ export function FilterItem(props: FilterItemProps) {
           className="h-8 w-[160px] px-2 bg-background focus-visible:ring-0 focus-visible:ring-offset-0 border-muted-foreground/20"
         />
       ) : (
-        <Select value={selectedValue} onValueChange={(value) => handleValueChange(value ?? null)}>
+        <Select
+          items={column?.options ?? []}
+          value={selectedValue}
+          onValueChange={(value) => handleValueChange(value ?? null)}
+        >
           <SelectTrigger className="w-[160px] h-8 px-2 bg-background focus:ring-0 focus:ring-offset-0 border-muted-foreground/20">
             <SelectValue placeholder="Select value" />
           </SelectTrigger>
           <SelectContent>
-            {(column?.options ?? []).map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.icon && <span className="mr-2">{option.icon}</span>}
-                {option.label}
-              </SelectItem>
-            ))}
+            <SelectGroup>
+              {(column?.options ?? []).map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.icon && <span className="mr-2">{option.icon}</span>}
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
           </SelectContent>
         </Select>
       )}

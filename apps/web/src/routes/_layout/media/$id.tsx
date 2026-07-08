@@ -5,6 +5,7 @@ import { Schema } from "effect";
 import { MediaDetailsHeader } from "~/features/media/media-details-header";
 import { AnimeDetailsMeta } from "~/features/media/media-details-meta";
 import { AnimeDetailsSidebar } from "~/features/media/media-details-sidebar";
+import { cleanSynopsis } from "~/domain/media/metadata";
 import { AnimeEpisodesPanel } from "~/features/media/media-units-panel";
 import { AnimeDiscoverySection } from "~/features/media/media-discovery";
 import { AnimeError } from "~/features/media/media-error";
@@ -221,7 +222,7 @@ function AnimeDetailsPage() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm leading-relaxed whitespace-pre-line text-muted-foreground">
-                    {media.description}
+                    {cleanSynopsis(media.description)}
                   </p>
                 </CardContent>
               </Card>

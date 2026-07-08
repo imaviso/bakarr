@@ -16,6 +16,7 @@ import { Input } from "~/components/ui/input";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -34,6 +35,12 @@ import { shiftSeasonWindow } from "~/domain/seasonal-navigation";
 import { DEFAULT_SEASON_WINDOW, parseAddMediaSearch, type AddMediaSearch } from "./-add-search";
 
 const SEARCH_DEBOUNCE_MS = 250;
+
+const mediaKindItems = [
+  { label: "Anime", value: "anime" as const },
+  { label: "Manga", value: "manga" as const },
+  { label: "Light novel", value: "light_novel" as const },
+];
 
 const MediaSearchResultCardLazy = lazy(() =>
   import("~/features/media/media-search-result-card").then((module) => ({
@@ -141,6 +148,7 @@ function AddAnimePage() {
           />
         </div>
         <Select
+          items={mediaKindItems}
           value={mediaKind}
           onValueChange={(value) =>
             updateSearch({
@@ -154,9 +162,13 @@ function AddAnimePage() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="anime">Anime</SelectItem>
-            <SelectItem value="manga">Manga</SelectItem>
-            <SelectItem value="light_novel">Light novel</SelectItem>
+            <SelectGroup>
+              {mediaKindItems.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
           </SelectContent>
         </Select>
       </PageHeader>

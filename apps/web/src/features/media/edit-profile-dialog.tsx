@@ -14,6 +14,7 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -101,6 +102,7 @@ function EditProfileDialogContent(props: EditProfileDialogProps) {
             <div className="space-y-2">
               <Label htmlFor="profile-select">Quality Profile</Label>
               <Select
+                items={props.profiles.map((p) => ({ value: p.name, label: p.name }))}
                 value={field.state.value}
                 onValueChange={(value) => {
                   if (value !== null) {
@@ -112,11 +114,13 @@ function EditProfileDialogContent(props: EditProfileDialogProps) {
                   <SelectValue placeholder="Select profile..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {props.profiles.map((profile) => (
-                    <SelectItem key={profile.name} value={profile.name}>
-                      {profile.name}
-                    </SelectItem>
-                  ))}
+                  <SelectGroup>
+                    {props.profiles.map((profile) => (
+                      <SelectItem key={profile.name} value={profile.name}>
+                        {profile.name}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             </div>

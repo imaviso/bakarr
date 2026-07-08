@@ -2,6 +2,7 @@ import { PlayIcon } from "@phosphor-icons/react";
 import { Badge } from "~/components/ui/badge";
 import { Card, CardContent } from "~/components/ui/card";
 import { SectionLabel } from "~/components/shared/section-label";
+import { formatMediaSource } from "~/domain/media/metadata";
 import type { Media } from "~/api/contracts";
 
 const COMPACT_NUMBER = new Intl.NumberFormat(undefined, { notation: "compact" });
@@ -50,7 +51,7 @@ export function AnimeDetailsSidebar(props: AnimeDetailsSidebarProps) {
               {props.media.source && (
                 <div>
                   <dt className="text-muted-foreground">Source</dt>
-                  <dd className="font-medium">{props.media.source}</dd>
+                  <dd className="font-medium">{formatMediaSource(props.media.source)}</dd>
                 </div>
               )}
               {props.media.duration && (

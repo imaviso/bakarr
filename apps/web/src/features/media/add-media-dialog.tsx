@@ -25,6 +25,7 @@ import { Label } from "~/components/ui/label";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -39,6 +40,7 @@ import {
   animeDisplayTitle,
   animeSearchSubtitle,
 } from "~/domain/media/metadata";
+import { cleanSynopsis } from "~/domain/media/metadata";
 import { mediaKindLabel, mediaUnitLabel, mediaUnitShortLabel } from "~/domain/media-unit";
 import { formatMatchConfidence } from "~/domain/scanned-file";
 import { cn } from "~/infra/utils";
@@ -83,7 +85,7 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
 
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-      <DialogContent className="w-[min(calc(100vw-2rem),56rem)] max-w-none sm:max-w-none max-h-[85vh] overflow-y-auto">
+      <DialogContent className="w-[100vw-2rem] max-w-none sm:max-w-none max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             {props.media.cover_image ? (
@@ -201,7 +203,7 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
           </DialogTitle>
           <DialogDescription className="whitespace-pre-line line-clamp-4 mt-2">
             {props.media.description?.trim()
-              ? props.media.description
+              ? cleanSynopsis(props.media.description)
               : `Configure how this ${mediaKindLabel(props.media.media_kind)} should be added to your library.`}
           </DialogDescription>
         </DialogHeader>
@@ -311,6 +313,7 @@ function AddAnimeForm(props: AddAnimeFormProps) {
           <div className="space-y-2">
             <Label htmlFor="quality-profile-select">Quality Profile</Label>
             <Select
+              items={props.profiles.map((p) => ({ value: p.name, label: p.name }))}
               value={field.state.value}
               onValueChange={(value) => {
                 if (value !== null) {
@@ -322,11 +325,13 @@ function AddAnimeForm(props: AddAnimeFormProps) {
                 <SelectValue placeholder="Select profile" />
               </SelectTrigger>
               <SelectContent>
-                {props.profiles.map((profile) => (
-                  <SelectItem key={profile.name} value={profile.name}>
-                    {profile.name}
-                  </SelectItem>
-                ))}
+                <SelectGroup>
+                  {props.profiles.map((profile) => (
+                    <SelectItem key={profile.name} value={profile.name}>
+                      {profile.name}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
               </SelectContent>
             </Select>
           </div>

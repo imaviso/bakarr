@@ -194,7 +194,7 @@ function SettingsMobileSelect({
 
   return (
     <div className="md:hidden">
-      <Select value={activeTab} onValueChange={onTabChange}>
+      <Select items={ALL_ITEMS} value={activeTab} onValueChange={onTabChange}>
         <SelectTrigger className="w-full">
           <SelectValue>
             {activeItem && (

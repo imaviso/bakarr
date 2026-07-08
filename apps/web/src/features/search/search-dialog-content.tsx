@@ -18,6 +18,7 @@ import { Input } from "~/components/ui/input";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -48,8 +49,8 @@ import {
 } from "~/features/search/search-dialog-state";
 import type { NyaaSearchResult } from "~/api/contracts";
 
-const categoryOptions = Object.keys(CATEGORY_LABELS);
-const filterOptions = Object.keys(FILTER_LABELS);
+const categoryItems = Object.entries(CATEGORY_LABELS).map(([value, label]) => ({ value, label }));
+const filterItems = Object.entries(FILTER_LABELS).map(([value, label]) => ({ value, label }));
 
 interface SearchDialogContentProps {
   mediaId: number;
@@ -88,31 +89,43 @@ export function SearchDialogContent(props: SearchDialogContentProps) {
         </div>
 
         <div className="flex items-center gap-2 px-4 pb-3 overflow-x-auto">
-          <Select value={props.category} onValueChange={(value) => props.setCategory(value)}>
+          <Select
+            items={categoryItems}
+            value={props.category}
+            onValueChange={(value) => props.setCategory(value)}
+          >
             <SelectTrigger className="h-7 w-auto min-w-[130px] text-xs bg-muted border-transparent hover:bg-muted focus:ring-0 gap-2 rounded-none shadow-none px-2.5">
               <span className="text-muted-foreground">Category:</span>
               <SelectValue placeholder="Category" />
             </SelectTrigger>
             <SelectContent>
-              {categoryOptions.map((option) => (
-                <SelectItem key={option} value={option}>
-                  {CATEGORY_LABELS[option] ?? option}
-                </SelectItem>
-              ))}
+              <SelectGroup>
+                {categoryItems.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
             </SelectContent>
           </Select>
 
-          <Select value={props.filter} onValueChange={(value) => props.setFilter(value)}>
+          <Select
+            items={filterItems}
+            value={props.filter}
+            onValueChange={(value) => props.setFilter(value)}
+          >
             <SelectTrigger className="h-7 w-auto min-w-[120px] text-xs bg-muted border-transparent hover:bg-muted focus:ring-0 gap-2 rounded-none shadow-none px-2.5">
               <FunnelIcon className="h-3 w-3 text-muted-foreground" />
               <SelectValue placeholder="Filter" />
             </SelectTrigger>
             <SelectContent>
-              {filterOptions.map((option) => (
-                <SelectItem key={option} value={option}>
-                  {FILTER_LABELS[option] ?? option}
-                </SelectItem>
-              ))}
+              <SelectGroup>
+                {filterItems.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
             </SelectContent>
           </Select>
         </div>

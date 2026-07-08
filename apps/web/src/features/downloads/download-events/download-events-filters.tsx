@@ -9,6 +9,7 @@ import { Button } from "~/components/ui/button";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -71,6 +72,7 @@ export function DownloadEventsFilters(props: DownloadEventsFiltersProps) {
             Event Type
           </label>
           <Select
+            items={DOWNLOAD_EVENT_TYPE_FILTER_OPTIONS.map((o) => ({ value: o, label: o }))}
             value={props.value.eventType}
             onValueChange={(value) => props.onFieldChange("eventType", value ?? "")}
           >
@@ -78,11 +80,13 @@ export function DownloadEventsFilters(props: DownloadEventsFiltersProps) {
               <SelectValue placeholder="all" />
             </SelectTrigger>
             <SelectContent>
-              {DOWNLOAD_EVENT_TYPE_FILTER_OPTIONS.map((option) => (
-                <SelectItem key={option} value={option}>
-                  {option}
-                </SelectItem>
-              ))}
+              <SelectGroup>
+                {DOWNLOAD_EVENT_TYPE_FILTER_OPTIONS.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
             </SelectContent>
           </Select>
         </div>

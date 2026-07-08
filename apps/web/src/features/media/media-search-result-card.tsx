@@ -3,7 +3,12 @@ import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent } from "~/components/ui/card";
 import type { MediaSearchResult } from "~/api/contracts";
-import { animeAltTitles, animeDisplayTitle, animeSearchSubtitle } from "~/domain/media/metadata";
+import {
+  animeAltTitles,
+  animeDisplayTitle,
+  animeSearchSubtitle,
+  cleanSynopsis,
+} from "~/domain/media/metadata";
 import { mediaUnitShortLabel } from "~/domain/media-unit";
 import { formatMatchConfidence } from "~/domain/scanned-file";
 import { cn } from "~/infra/utils";
@@ -135,7 +140,7 @@ export function MediaSearchResultCard(props: MediaSearchResultCardProps) {
         </div>
         {!props.compact && props.media.description && (
           <p className="mt-2 text-xs text-muted-foreground line-clamp-3">
-            {props.media.description}
+            {cleanSynopsis(props.media.description)}
           </p>
         )}
       </CardContent>
