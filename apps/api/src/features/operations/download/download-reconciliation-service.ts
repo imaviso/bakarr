@@ -7,19 +7,26 @@ import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { MediaProbe } from "@/infra/media/probe.ts";
 import { RandomService } from "@/infra/random.ts";
 import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
-import { DownloadReconciliationRepository } from "@/features/operations/repository/download-reconciliation-repository.ts";
-import { makeDownloadCompletedTorrentReconciliation } from "@/features/operations/download/download-reconciliation-completed-torrent.ts";
-import { makeReconcileDownloadByIdEffect } from "@/features/operations/download/download-reconciliation-lookup.ts";
+import { DownloadRepository } from "@/features/operations/repository/download-repository-service.ts";
+import { DownloadProgressSupport } from "@/features/operations/download/download-progress-support.ts";
+import { makeDownloadCompletedTorrentReconciliation } from "@/features/operations/download/download-reconciliation.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import type { ExternalCallError } from "@/infra/effect/retry.ts";
-import type { DomainConflictError, DomainNotFoundError } from "@/features/errors.ts";
+import type {
+  DomainConflictError,
+  DomainNotFoundError,
+  InfrastructureError,
+} from "@/features/errors.ts";
 import type { OperationsError } from "@/features/operations/errors.ts";
-import type { MaybeCleanupImportedTorrent } from "@/features/operations/download/download-reconciliation-shared.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 
 export interface DownloadReconciliationServiceShape {
-  readonly maybeCleanupImportedTorrent: MaybeCleanupImportedTorrent;
+  readonly maybeCleanupImportedTorrent: (
+    config: import("@packages/shared/index.ts").Config | null | undefined,
+    infoHash: string | null,
+  ) => Effect.Effect<void>;
   readonly reconcileCompletedTorrentEffect: (
     infoHash: string,
     contentPath: string | undefined,
@@ -36,6 +43,7 @@ export interface DownloadReconciliationServiceShape {
     | ExternalCallError
     | OperationsError
     | DatabaseError
+    | InfrastructureError
     | RuntimeConfigSnapshotError
   >;
 }
@@ -43,38 +51,49 @@ export interface DownloadReconciliationServiceShape {
 export class DownloadReconciliationService extends Effect.Service<DownloadReconciliationService>()(
   "@bakarr/api/DownloadReconciliationService",
   {
+    dependencies: [
+      DownloadRepository.Default,
+      EventBus.Default,
+      MediaReadRepository.Default,
+      MediaUnitRepository.Default,
+      RandomService.Default,
+    ],
     effect: Effect.gen(function* () {
-      const repo = yield* DownloadReconciliationRepository;
+      const repo = yield* DownloadRepository;
       const eventBus = yield* EventBus;
       const fs = yield* FileSystem;
       const mediaProbe = yield* MediaProbe;
       const mediaReadRepository = yield* MediaReadRepository;
+      const mediaUnitRepository = yield* MediaUnitRepository;
       const torrentClientService = yield* TorrentClientService;
+      const progressSupport = yield* DownloadProgressSupport;
       const random = yield* RandomService;
       const runtimeConfigSnapshotService = yield* RuntimeConfigSnapshotService;
-      const nowIso = currentNowIso;
-      const randomUuid = () => random.randomUuid;
 
-      const { reconcileCompletedTorrentEffect, maybeCleanupImportedTorrent } =
-        makeDownloadCompletedTorrentReconciliation(
-          repo,
-          fs,
-          mediaProbe,
-          mediaReadRepository,
-          torrentClientService,
-          eventBus,
-          nowIso,
-          randomUuid,
-          runtimeConfigSnapshotService.getRuntimeConfig,
-        );
-      const reconcileDownloadByIdEffect = makeReconcileDownloadByIdEffect({
+      const core = makeDownloadCompletedTorrentReconciliation(
         repo,
-        reconcileCompletedTorrentEffect,
-      });
+        mediaUnitRepository,
+        fs,
+        mediaProbe,
+        mediaReadRepository,
+        torrentClientService,
+        eventBus,
+        currentNowIso,
+        () => random.randomUuid,
+        runtimeConfigSnapshotService.getRuntimeConfig,
+      );
+
+      const reconcileDownloadByIdEffect = Effect.fn("OperationsService.reconcileDownloadById")(
+        function* (id: number) {
+          yield* core.reconcileDownloadByIdEffect(id);
+          yield* progressSupport.publishDownloadProgress();
+          yield* eventBus.publishInfo(`Reconciled download ${id}`);
+        },
+      );
 
       return {
-        maybeCleanupImportedTorrent,
-        reconcileCompletedTorrentEffect,
+        maybeCleanupImportedTorrent: core.maybeCleanupImportedTorrent,
+        reconcileCompletedTorrentEffect: core.reconcileCompletedTorrentEffect,
         reconcileDownloadByIdEffect,
       } satisfies DownloadReconciliationServiceShape;
     }),

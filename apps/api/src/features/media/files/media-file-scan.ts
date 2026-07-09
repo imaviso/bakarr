@@ -24,10 +24,7 @@ import { buildScannedFileMetadata } from "@/infra/scanned-file-metadata.ts";
 import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
 import { buildAiringScheduleMap } from "@/features/media/units/media-schedule-repository.ts";
 import { inferAiredAt } from "@/domain/media/derivations.ts";
-import {
-  clearEpisodeMappingEffect,
-  upsertEpisodeEffect,
-} from "@/features/media/units/media-unit-repository.ts";
+import type { MediaUnitRepositoryShape } from "@/features/media/units/media-unit-repository.ts";
 import { DomainPathError } from "@/features/errors.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
@@ -37,6 +34,7 @@ export const scanAnimeFolderEffect = Effect.fn("AnimeFileScan.scanAnimeFolderEff
     db: AppDatabase;
     fs: FileSystemShape;
     mediaReadRepository: MediaReadRepositoryShape;
+    mediaUnitRepository: MediaUnitRepositoryShape;
     mediaProbe: MediaProbeShape;
     nowIso: () => Effect.Effect<string>;
   }) {
@@ -54,6 +52,7 @@ export const scanAnimeFolderEffect = Effect.fn("AnimeFileScan.scanAnimeFolderEff
 
     yield* clearMissingEpisodeFileMappingsEffect(
       input.db,
+      input.mediaUnitRepository,
       input.mediaId,
       files.map((file) => file.path),
     );
@@ -112,7 +111,7 @@ export const scanAnimeFolderEffect = Effect.fn("AnimeFileScan.scanAnimeFolderEff
       const currentIso = yield* input.nowIso();
 
       for (const unitNumber of unitNumbers) {
-        yield* upsertEpisodeEffect(input.db, input.mediaId, unitNumber, {
+        yield* input.mediaUnitRepository.upsertEpisode(input.mediaId, unitNumber, {
           aired: inferAiredAt(
             animeRow.status,
             unitNumber,
@@ -158,7 +157,12 @@ export const scanAnimeFolderEffect = Effect.fn("AnimeFileScan.scanAnimeFolderEff
 
 const clearMissingEpisodeFileMappingsEffect = Effect.fn(
   "AnimeFileScan.clearMissingEpisodeFileMappingsEffect",
-)(function* (db: AppDatabase, mediaId: number, presentFilePaths: readonly string[]) {
+)(function* (
+  db: AppDatabase,
+  mediaUnitRepository: MediaUnitRepositoryShape,
+  mediaId: number,
+  presentFilePaths: readonly string[],
+) {
   const presentFilePathSet = new Set(presentFilePaths);
   const mappedRows = yield* tryDatabasePromise("Failed to list mapped episode files", () =>
     db
@@ -169,7 +173,7 @@ const clearMissingEpisodeFileMappingsEffect = Effect.fn(
 
   for (const row of mappedRows) {
     if (row.filePath !== null && !presentFilePathSet.has(row.filePath)) {
-      yield* clearEpisodeMappingEffect(db, mediaId, row.number);
+      yield* mediaUnitRepository.clearEpisodeMapping(mediaId, row.number);
     }
   }
 });

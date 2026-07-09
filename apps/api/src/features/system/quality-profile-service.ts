@@ -6,7 +6,7 @@ import { ConfigValidationError, SystemNotFoundError } from "@/features/system/er
 import {
   decodeQualityProfileRow,
   encodeQualityProfileRow,
-} from "@/features/profiles/profile-codec.ts";
+} from "@/features/system/profile-codec.ts";
 import { DEFAULT_QUALITIES } from "@/features/system/defaults.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";

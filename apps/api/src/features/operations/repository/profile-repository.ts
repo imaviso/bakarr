@@ -9,7 +9,7 @@ import {
   decodeNumberList,
   decodeQualityProfileRow,
   decodeReleaseProfileRules,
-} from "@/features/profiles/profile-codec.ts";
+} from "@/features/system/profile-codec.ts";
 
 export interface OperationsProfileRepositoryShape {
   readonly loadQualityProfile: (name: string) => ReturnType<typeof loadQualityProfile>;

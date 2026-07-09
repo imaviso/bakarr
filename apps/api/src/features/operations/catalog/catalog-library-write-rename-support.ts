@@ -1,24 +1,22 @@
-import { and, eq, inArray } from "drizzle-orm";
 import { Effect, Either } from "effect";
 
 import { brandMediaId, type Config } from "@packages/shared/index.ts";
 import type { AppDatabase, DatabaseError } from "@/db/database.ts";
-import { mediaUnits } from "@/db/schema.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { buildRenamePreview } from "@/features/operations/library/library-import.ts";
 import { DomainPathError } from "@/features/errors.ts";
 import type { MediaNotFoundError } from "@/features/media/errors.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
-import type { TryDatabasePromise } from "@/infra/effect/db.ts";
+import type { MediaUnitRepositoryShape } from "@/features/media/units/media-unit-repository.ts";
 
 export interface RenameLibraryFilesInput {
   readonly db: AppDatabase;
   readonly eventBus: typeof EventBus.Service;
   readonly fs: FileSystemShape;
   readonly mediaReadRepository: typeof MediaReadRepository.Service;
+  readonly mediaUnitRepository: MediaUnitRepositoryShape;
   readonly runtimeConfig: Config;
-  readonly tryDatabasePromise: TryDatabasePromise;
   readonly mediaId: number;
 }
 
@@ -28,7 +26,7 @@ export const renameLibraryFiles = Effect.fn("Operations.renameLibraryFiles")((
   { failed: number; failures: string[]; renamed: number },
   DatabaseError | MediaNotFoundError
 > => {
-  const { db, eventBus, fs, mediaReadRepository, runtimeConfig, tryDatabasePromise, mediaId } =
+  const { db, eventBus, fs, mediaReadRepository, mediaUnitRepository, runtimeConfig, mediaId } =
     input;
   return Effect.gen(function* () {
     const animeRow = yield* mediaReadRepository.getAnimeRow(mediaId);
@@ -46,6 +44,7 @@ export const renameLibraryFiles = Effect.fn("Operations.renameLibraryFiles")((
     const failures: string[] = [];
 
     for (const item of preview) {
+      const unitNumbers = item.unit_numbers?.length ? item.unit_numbers : [item.unit_number];
       const result = yield* fs.rename(item.current_path, item.new_path).pipe(
         Effect.mapError(
           (cause) =>
@@ -55,19 +54,7 @@ export const renameLibraryFiles = Effect.fn("Operations.renameLibraryFiles")((
             }),
         ),
         Effect.zipRight(
-          tryDatabasePromise("Failed to rename files", () =>
-            db
-              .update(mediaUnits)
-              .set({ filePath: item.new_path })
-              .where(
-                and(
-                  eq(mediaUnits.mediaId, mediaId),
-                  item.unit_numbers?.length
-                    ? inArray(mediaUnits.number, item.unit_numbers)
-                    : eq(mediaUnits.number, item.unit_number),
-                ),
-              ),
-          ).pipe(
+          mediaUnitRepository.updateUnitFilePaths(mediaId, unitNumbers, item.new_path).pipe(
             Effect.catchTag("DatabaseError", (error) =>
               fs.rename(item.new_path, item.current_path).pipe(
                 Effect.catchTag("FileSystemError", (fsError) =>

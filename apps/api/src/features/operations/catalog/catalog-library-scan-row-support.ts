@@ -1,8 +1,8 @@
 import { Effect, Stream } from "effect";
 
-import type { AppDatabase } from "@/db/database.ts";
 import { media } from "@/db/schema.ts";
 import { DomainPathError } from "@/features/errors.ts";
+import type { MediaUnitRepositoryShape } from "@/features/media/units/media-unit-repository.ts";
 import { scanVideoFilesStream } from "@/features/operations/import-scan/file-scanner.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import {
@@ -11,7 +11,7 @@ import {
 } from "@/features/operations/catalog/catalog-library-scan-file-support.ts";
 
 export const scanAnimeLibraryRow = Effect.fn("OperationsService.scanAnimeLibraryRow")(function* (
-  db: AppDatabase,
+  mediaUnitRepository: MediaUnitRepositoryShape,
   fs: FileSystemShape,
   animeRow: typeof media.$inferSelect,
 ) {
@@ -25,7 +25,7 @@ export const scanAnimeLibraryRow = Effect.fn("OperationsService.scanAnimeLibrary
     Stream.runFoldEffect(
       { matchedFiles: 0, scannedFiles: 0 } satisfies LibraryScanCounts,
       (counts, file) =>
-        countLibraryScanFile(db, {
+        countLibraryScanFile(mediaUnitRepository, {
           mediaId: animeRow.id,
           mediaKind: animeRow.mediaKind,
           counts,

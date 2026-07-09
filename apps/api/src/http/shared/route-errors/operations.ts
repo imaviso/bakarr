@@ -7,6 +7,7 @@ import {
   OperationsConflictError,
   OperationsNotFoundError,
 } from "@/features/operations/errors.ts";
+import { QBitTorrentClientError } from "@/features/operations/qbittorrent/qbittorrent-models.ts";
 import type { RouteErrorResponse } from "@/http/shared/route-types.ts";
 import {
   fixedStatus,
@@ -20,6 +21,7 @@ const OperationsRouteErrorSchema = Schema.Union(
   RssFeedTooLargeError,
   OperationsConflictError,
   OperationsNotFoundError,
+  QBitTorrentClientError,
 );
 
 type OperationsRouteError = Schema.Schema.Type<typeof OperationsRouteErrorSchema>;
@@ -27,6 +29,8 @@ type OperationsRouteError = Schema.Schema.Type<typeof OperationsRouteErrorSchema
 const invalidRssFeed = fixedStatus("RSS feed response was invalid", 503);
 
 const rssTooLarge = fixedStatus("RSS feed payload exceeded the allowed size", 503);
+
+const qbitUnavailable = fixedStatus("qBittorrent unavailable", 503);
 
 const operationsRouteErrorMappers: {
   [K in OperationsRouteError["_tag"]]: (
@@ -38,6 +42,7 @@ const operationsRouteErrorMappers: {
   RssFeedTooLargeError: rssTooLarge,
   OperationsConflictError: messageStatus(409),
   OperationsNotFoundError: messageStatus(404),
+  QBitTorrentClientError: qbitUnavailable,
 };
 
 export const mapOperationsRouteError = mapTaggedRouteError(OperationsRouteErrorSchema, (error) =>

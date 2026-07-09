@@ -6,7 +6,7 @@ import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { RuntimeLogLevelState } from "@/infra/logging.ts";
 import { DEFAULT_PROFILES, makeDefaultConfig } from "@/features/system/defaults.ts";
 import { decodeConfigCore, encodeConfigCore } from "@/features/system/config-codec.ts";
-import { encodeQualityProfileRow } from "@/features/profiles/profile-codec.ts";
+import { encodeQualityProfileRow } from "@/features/system/profile-codec.ts";
 import { applyRuntimeLogLevelFromConfig } from "@/features/system/runtime-config.ts";
 import { SystemConfigRepository } from "@/features/system/repository/system-config-repository.ts";
 

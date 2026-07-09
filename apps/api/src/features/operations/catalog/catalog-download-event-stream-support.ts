@@ -7,7 +7,7 @@ import { downloadEvents } from "@/db/schema.ts";
 import {
   loadDownloadEventPresentationContexts,
   toDownloadEvent,
-} from "@/domain/download/event-presentations.ts";
+} from "@/features/operations/download/download-event-presentations.ts";
 import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 import type { StoredDataError } from "@/features/errors.ts";
 

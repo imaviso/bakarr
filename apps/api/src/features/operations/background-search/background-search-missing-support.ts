@@ -11,12 +11,12 @@ import { AppDrizzleDatabase } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { media, mediaUnits } from "@/db/schema.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
-import { backfillEpisodesFromNextAiringEffect } from "@/features/media/units/media-unit-backfill.ts";
 import {
   decideDownloadAction,
   validateQualityProfileSizeLabels,
 } from "@/features/operations/search/release-ranking.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import { OperationsProfileRepository } from "@/features/operations/repository/profile-repository.ts";
 import { BackgroundSearchQueueService } from "@/features/operations/background-search/background-search-queue-service.ts";
 import { DomainInputError, InfrastructureError } from "@/features/errors.ts";
@@ -42,6 +42,7 @@ export class SearchBackgroundMissingService extends Effect.Service<SearchBackgro
       const searchReleaseService = yield* SearchReleaseService;
       const queueService = yield* BackgroundSearchQueueService;
       const mediaReadRepository = yield* MediaReadRepository;
+      const mediaUnitRepository = yield* MediaUnitRepository;
       const profileRepository = yield* OperationsProfileRepository;
       const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
       const nowIso = currentNowIso;
@@ -75,9 +76,8 @@ export class SearchBackgroundMissingService extends Effect.Service<SearchBackgro
       const triggerSearchMissingBase = Effect.fn("operations.search.missing")(function* (
         mediaId?: number,
       ) {
-        yield* backfillEpisodesFromNextAiringEffect({
+        yield* mediaUnitRepository.backfillFromNextAiring({
           ...(mediaId === undefined ? {} : { mediaId }),
-          db,
           monitoredOnly: mediaId === undefined,
         });
 

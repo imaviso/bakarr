@@ -18,6 +18,7 @@ import { makeAnimeFeatureLayer } from "@/features/media/layer.ts";
 import { makeAuthFeatureLayer } from "@/features/auth/layer.ts";
 import { makeOperationsFeatureLayer } from "@/features/operations/layer.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import { OperationsProfileRepository } from "@/features/operations/repository/profile-repository.ts";
 import { SystemUnmappedRepository } from "@/features/system/repository/unmapped-repository.ts";
 import { LibraryBrowseServiceLive } from "@/features/operations/library/library-browse-service.ts";
@@ -35,23 +36,19 @@ export function makeApiLifecycleLayers(
   overrides: AppConfigOverrides & BootstrapConfigOverrides & ObservabilityConfigOverrides = {},
   options?: ApiLifecycleOptions,
 ) {
-  // Platform core: config, database, runtime primitives, logging.
   const platformCoreLayer = makeAppPlatformCoreRuntimeLayer(overrides, options);
   const platformRuntimeLayer = options?.commandExecutorLayer
     ? Layer.mergeAll(platformCoreLayer, options.commandExecutorLayer)
     : platformCoreLayer;
 
-  // Runtime config graph: system config -> validated runtime snapshot.
   const { runtimeConfigSnapshotLayer, systemConfigLayer, systemConfigRepositoryLayer } =
     makeSystemConfigLayers(platformRuntimeLayer);
   const configRuntimeLayer = Layer.mergeAll(platformRuntimeLayer, runtimeConfigSnapshotLayer);
 
-  // External clients depend on runtime config + platform runtime.
   const externalClientLayer = makeAppExternalClientLayer(options).pipe(
     Layer.provide(configRuntimeLayer),
   );
 
-  // Infrastructure layer adds command-backed probing services.
   const platformExternalLayer = Layer.mergeAll(platformRuntimeLayer, externalClientLayer);
   const infrastructureLayer = Layer.mergeAll(MediaProbeLive, DiskSpaceInspectorLive).pipe(
     Layer.provide(platformExternalLayer),
@@ -62,21 +59,18 @@ export function makeApiLifecycleLayers(
     systemConfigLayer,
     runtimeConfigSnapshotLayer,
   );
-  const mediaReadRepositoryLayer = MediaReadRepository.DefaultWithoutDependencies.pipe(
-    Layer.provide(runtimeSupportLayer),
-  );
-  const operationsProfileRepositoryLayer =
-    OperationsProfileRepository.DefaultWithoutDependencies.pipe(Layer.provide(runtimeSupportLayer));
-  const systemUnmappedRepositoryLayer = SystemUnmappedRepository.DefaultWithoutDependencies.pipe(
-    Layer.provide(runtimeSupportLayer),
-  );
-  // Media feature graph owns its internal service wiring.
-  const animeLiveLayer = makeAnimeFeatureLayer(runtimeSupportLayer);
 
+  const sharedRepos = Layer.mergeAll(
+    MediaReadRepository.Default,
+    MediaUnitRepository.Default,
+    OperationsProfileRepository.Default,
+    SystemUnmappedRepository.Default,
+  ).pipe(Layer.provide(runtimeSupportLayer));
+
+  const animeLiveLayer = makeAnimeFeatureLayer(runtimeSupportLayer);
   const operationsLayer = makeOperationsFeatureLayer(runtimeSupportLayer);
   const appDomainSubgraphLayer = Layer.mergeAll(animeLiveLayer, operationsLayer);
 
-  // Background worker runtime sits on top of domain + runtime support.
   const backgroundTaskRunnerLayer = BackgroundTaskRunnerLive.pipe(
     Layer.provide(Layer.mergeAll(appDomainSubgraphLayer, runtimeSupportLayer)),
   );
@@ -88,7 +82,6 @@ export function makeApiLifecycleLayers(
     backgroundControllerLayer,
   );
 
-  // System + auth + orchestration features.
   const { repositoriesLayer: systemRepositoriesLayer, systemLayer } = makeSystemFeatureLayer({
     backgroundControllerLayer,
     operationsLayer,
@@ -127,9 +120,7 @@ export function makeApiLifecycleLayers(
           runtimeSupportLayer,
           systemConfigRepositoryLayer,
           systemRepositoriesLayer,
-          mediaReadRepositoryLayer,
-          operationsProfileRepositoryLayer,
-          systemUnmappedRepositoryLayer,
+          sharedRepos,
         ),
       ),
     ),

@@ -14,6 +14,7 @@ import {
   mapEpisodeFileEffect,
 } from "@/features/media/files/media-file-write.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import type { DomainPathError, StoredDataError } from "@/features/errors.ts";
 import type { MediaNotFoundError } from "@/features/media/errors.ts";
 
@@ -48,6 +49,7 @@ const makeAnimeFileService = Effect.fn("AnimeFileService.make")(function* () {
   const fs = yield* FileSystem;
   const mediaProbe = yield* MediaProbe;
   const mediaReadRepository = yield* MediaReadRepository;
+  const mediaUnitRepository = yield* MediaUnitRepository;
   const nowIso = currentNowIso;
 
   const listFiles = Effect.fn("AnimeFileService.listFiles")(function* (mediaId: number) {
@@ -61,6 +63,7 @@ const makeAnimeFileService = Effect.fn("AnimeFileService.make")(function* () {
       eventPublisher: eventBus,
       fs,
       mediaReadRepository,
+      mediaUnitRepository,
       mediaProbe,
       nowIso,
     });
@@ -70,7 +73,14 @@ const makeAnimeFileService = Effect.fn("AnimeFileService.make")(function* () {
     mediaId: number,
     unitNumber: number,
   ) {
-    yield* deleteEpisodeFileEffect({ mediaId, db, mediaReadRepository, unitNumber, fs });
+    yield* deleteEpisodeFileEffect({
+      mediaId,
+      db,
+      mediaReadRepository,
+      mediaUnitRepository,
+      unitNumber,
+      fs,
+    });
     yield* eventBus.publishInfo(`Deleted mapped file for media ${mediaId} episode ${unitNumber}`);
   });
 
@@ -79,7 +89,14 @@ const makeAnimeFileService = Effect.fn("AnimeFileService.make")(function* () {
     unitNumber: number,
     filePath: string,
   ) {
-    yield* mapEpisodeFileEffect({ mediaId, db, mediaReadRepository, unitNumber, filePath, fs });
+    yield* mapEpisodeFileEffect({
+      mediaId,
+      mediaReadRepository,
+      mediaUnitRepository,
+      unitNumber,
+      filePath,
+      fs,
+    });
     yield* eventBus.publishInfo(`Mapped file for media ${mediaId} episode ${unitNumber}`);
   });
 
@@ -87,7 +104,13 @@ const makeAnimeFileService = Effect.fn("AnimeFileService.make")(function* () {
     mediaId: number,
     mappings: readonly { unit_number: number; file_path: string }[],
   ) {
-    yield* bulkMapEpisodeFilesEffect({ mediaId, db, fs, mediaReadRepository, mappings });
+    yield* bulkMapEpisodeFilesEffect({
+      mediaId,
+      fs,
+      mediaReadRepository,
+      mediaUnitRepository,
+      mappings,
+    });
     yield* eventBus.publishInfo(
       `Updated ${mappings.length} episode mapping(s) for media ${mediaId}`,
     );

@@ -8,8 +8,10 @@ import {
 } from "@packages/shared/index.ts";
 
 import { HttpServerResponse } from "@effect/platform";
-import { CatalogDownloadCommandService } from "@/features/operations/catalog/catalog-download-command-service.ts";
 import { CatalogDownloadReadService } from "@/features/operations/catalog/catalog-download-read-service.ts";
+import { DownloadReconciliationService } from "@/features/operations/download/download-reconciliation-service.ts";
+import { DownloadTorrentActionService } from "@/features/operations/download/download-torrent-action-support.ts";
+import { DownloadTorrentSyncService } from "@/features/operations/download/download-torrent-sync-support.ts";
 import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
 import { IdParamsSchema } from "@/http/shared/common-request-schemas.ts";
 import {
@@ -27,21 +29,6 @@ import {
   schemaJsonResponse,
   successResponse,
 } from "@/http/shared/router-helpers.ts";
-
-const commandRoute = <E, R>(
-  action: (
-    service: typeof CatalogDownloadCommandService.Service,
-    id: number,
-  ) => Effect.Effect<void, E, R>,
-) =>
-  authedRouteResponse(
-    Effect.gen(function* () {
-      const params = yield* decodePathParams(IdParamsSchema);
-      const service = yield* CatalogDownloadCommandService;
-      yield* action(service, params.id);
-    }),
-    successResponse,
-  );
 
 export const downloadsRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
@@ -126,28 +113,52 @@ export const downloadsRouter = HttpRouter.empty.pipe(
   ),
   HttpRouter.post(
     "/downloads/:id/pause",
-    commandRoute((service, id) => service.pauseDownload(id)),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        yield* (yield* DownloadTorrentActionService).applyDownloadActionEffect(params.id, "pause");
+      }),
+      successResponse,
+    ),
   ),
   HttpRouter.post(
     "/downloads/:id/resume",
-    commandRoute((service, id) => service.resumeDownload(id)),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        yield* (yield* DownloadTorrentActionService).applyDownloadActionEffect(params.id, "resume");
+      }),
+      successResponse,
+    ),
   ),
   HttpRouter.post(
     "/downloads/:id/retry",
-    commandRoute((service, id) => service.retryDownload(id)),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        yield* (yield* DownloadTorrentActionService).retryDownloadById(params.id);
+      }),
+      successResponse,
+    ),
   ),
   HttpRouter.post(
     "/downloads/:id/reconcile",
-    commandRoute((service, id) => service.reconcileDownload(id)),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        yield* (yield* DownloadReconciliationService).reconcileDownloadByIdEffect(params.id);
+      }),
+      successResponse,
+    ),
   ),
   HttpRouter.post(
     "/downloads/sync",
     authedRouteResponse(
       Effect.gen(function* () {
-        const service = yield* CatalogDownloadCommandService;
+        const torrentSync = yield* DownloadTorrentSyncService;
         return yield* (yield* OperationsTaskLauncherService).launch({
           failureMessage: "Manual download sync failed",
-          operation: () => service.syncDownloads(),
+          operation: () => torrentSync.syncDownloads(),
           queuedMessage: "Queued manual download sync",
           runningMessage: "Running manual download sync",
           successMessage: () => "Manual download sync finished",
@@ -163,8 +174,9 @@ export const downloadsRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
         const query = yield* decodeQueryWithLabel(DeleteDownloadQuerySchema, "delete download");
-        yield* (yield* CatalogDownloadCommandService).removeDownload(
+        yield* (yield* DownloadTorrentActionService).applyDownloadActionEffect(
           params.id,
+          "delete",
           query.delete_files === "true",
         );
       }),

@@ -14,6 +14,7 @@ import type { AddAnimeInput } from "@/features/media/add/add-media-input.ts";
 import type { MediaServiceError } from "@/features/media/errors.ts";
 import { addAnimeEffect } from "@/features/media/add/media-add.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 
 export type AnimeEnrollmentError =
   | DatabaseError
@@ -28,6 +29,7 @@ const makeAnimeEnrollmentService = Effect.fn("AnimeEnrollmentService.make")(func
   const imageCacheService = yield* AnimeImageCacheService;
   const fs = yield* FileSystem;
   const mediaReadRepository = yield* MediaReadRepository;
+  const mediaUnitRepository = yield* MediaUnitRepository;
   const searchBackgroundService = yield* SearchBackgroundMissingService;
   const taskLauncher = yield* OperationsTaskLauncherService;
 
@@ -40,6 +42,7 @@ const makeAnimeEnrollmentService = Effect.fn("AnimeEnrollmentService.make")(func
       fs,
       imageCacheService,
       mediaReadRepository,
+      mediaUnitRepository,
       nowIso: currentNowIso,
     });
 

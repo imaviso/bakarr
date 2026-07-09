@@ -1,9 +1,8 @@
 import { Effect } from "effect";
 
-import type { AppDatabase } from "@/db/database.ts";
 import { classifyMediaArtifact } from "@/infra/media/identity/identity.ts";
 import { extractUnitNumbersFromFile } from "@/features/media/files/files.ts";
-import { upsertEpisodeFilesAtomic } from "@/features/operations/download/download-unit-upsert-support.ts";
+import type { MediaUnitRepositoryShape } from "@/features/media/units/media-unit-repository.ts";
 import { InfrastructureError } from "@/features/errors.ts";
 
 export interface LibraryScanCounts {
@@ -12,7 +11,7 @@ export interface LibraryScanCounts {
 }
 
 export const countLibraryScanFile = Effect.fn("OperationsService.countLibraryScanFile")(function* (
-  db: AppDatabase,
+  mediaUnitRepository: MediaUnitRepositoryShape,
   input: {
     mediaId: number;
     mediaKind: string;
@@ -37,7 +36,7 @@ export const countLibraryScanFile = Effect.fn("OperationsService.countLibrarySca
     } satisfies LibraryScanCounts;
   }
 
-  yield* upsertEpisodeFilesAtomic(db, input.mediaId, unitNumbers, input.file.path).pipe(
+  yield* mediaUnitRepository.upsertEpisodeFiles(input.mediaId, unitNumbers, input.file.path).pipe(
     Effect.mapError(
       (cause) =>
         new InfrastructureError({

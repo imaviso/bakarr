@@ -5,16 +5,17 @@ import { Effect } from "effect";
 import type { AppDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
 import { media, mediaUnits } from "@/db/schema.ts";
-import { backfillEpisodesFromNextAiringEffect } from "@/features/media/units/media-unit-backfill.ts";
+import { makeMediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import { MAX_INFERRED_EPISODE_NUMBER } from "@/features/media/units/unit-backfill-policy.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 
-it.scoped("backfillEpisodesFromNextAiringEffect inserts previous missing mediaUnits", () =>
+it.scoped("backfillFromNextAiring inserts previous missing mediaUnits", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
+        const units = makeMediaUnitRepository(appDb);
 
         yield* tryDatabasePromise("Failed to seed media for backfill test", () =>
           appDb.insert(media).values({
@@ -45,8 +46,7 @@ it.scoped("backfillEpisodesFromNextAiringEffect inserts previous missing mediaUn
           }),
         );
 
-        yield* backfillEpisodesFromNextAiringEffect({
-          db: appDb,
+        yield* units.backfillFromNextAiring({
           monitoredOnly: true,
         });
 
@@ -72,11 +72,12 @@ it.scoped("backfillEpisodesFromNextAiringEffect inserts previous missing mediaUn
   }),
 );
 
-it.scoped("backfillEpisodesFromNextAiringEffect scopes to mediaId when provided", () =>
+it.scoped("backfillFromNextAiring scopes to mediaId when provided", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
+        const units = makeMediaUnitRepository(appDb);
 
         yield* tryDatabasePromise("Failed to seed media for backfill test", () =>
           appDb.insert(media).values([
@@ -113,9 +114,8 @@ it.scoped("backfillEpisodesFromNextAiringEffect scopes to mediaId when provided"
           ]),
         );
 
-        yield* backfillEpisodesFromNextAiringEffect({
+        yield* units.backfillFromNextAiring({
           mediaId: 991,
-          db: appDb,
           monitoredOnly: false,
         });
 
@@ -134,11 +134,12 @@ it.scoped("backfillEpisodesFromNextAiringEffect scopes to mediaId when provided"
   }),
 );
 
-it.scoped("backfillEpisodesFromNextAiringEffect caps inferred rows", () =>
+it.scoped("backfillFromNextAiring caps inferred rows", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
+        const units = makeMediaUnitRepository(appDb);
 
         yield* tryDatabasePromise("Failed to seed media for backfill test", () =>
           appDb.insert(media).values({
@@ -158,8 +159,7 @@ it.scoped("backfillEpisodesFromNextAiringEffect caps inferred rows", () =>
           }),
         );
 
-        yield* backfillEpisodesFromNextAiringEffect({
-          db: appDb,
+        yield* units.backfillFromNextAiring({
           monitoredOnly: true,
         });
 

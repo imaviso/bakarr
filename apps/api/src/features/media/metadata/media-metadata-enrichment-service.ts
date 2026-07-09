@@ -10,7 +10,7 @@ import {
 } from "@/features/media/units/anidb-unit-cache-repository.ts";
 import type { AniDbEpisodeLookupInput } from "@/features/media/metadata/anidb-protocol.ts";
 import type { AnimeMetadataEpisode } from "@/features/media/metadata/anilist-model.ts";
-import { syncEpisodeMetadataEffect } from "@/features/media/units/media-unit-metadata-sync.ts";
+import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import type { StoredDataError } from "@/features/errors.ts";
 import { AniDbRuntimeConfigError } from "@/features/media/errors.ts";
 import { currentTimeMillis, nowIso as currentNowIso } from "@/infra/time.ts";
@@ -51,6 +51,7 @@ const makeAnimeMetadataEnrichmentService = Effect.fn("AnimeMetadataEnrichmentSer
   function* () {
     const db = yield* AppDrizzleDatabase;
     const aniDb = yield* AniDbClient;
+    const mediaUnitRepository = yield* MediaUnitRepository;
     const queue = yield* Effect.acquireRelease(
       Queue.dropping<AniDbRefreshRequest>(ANIDB_REFRESH_QUEUE_CAPACITY),
       Queue.shutdown,
@@ -92,7 +93,7 @@ const makeAnimeMetadataEnrichmentService = Effect.fn("AnimeMetadataEnrichmentSer
       );
 
       if (existingAnimeRows[0]) {
-        yield* syncEpisodeMetadataEffect(db, request.mediaId, lookupResult.mediaUnits);
+        yield* mediaUnitRepository.syncEpisodeMetadata(request.mediaId, lookupResult.mediaUnits);
       }
     });
 

@@ -111,7 +111,7 @@ export class CatalogRssService extends Effect.Service<CatalogRssService>()(
         toggleRssFeed,
       } satisfies CatalogRssServiceShape;
     }),
-    dependencies: [AppDrizzleDatabase.Default],
+    dependencies: [AppDrizzleDatabase.Default, MediaReadRepository.Default],
   },
 ) {}
 

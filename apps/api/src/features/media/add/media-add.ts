@@ -1,6 +1,6 @@
 import { Effect, Option } from "effect";
 
-import { encodeNumberList, encodeStringList } from "@/features/profiles/profile-codec.ts";
+import { encodeNumberList, encodeStringList } from "@/features/system/profile-codec.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
@@ -17,7 +17,6 @@ import { DomainPathError, StoredDataError } from "@/features/errors.ts";
 import { buildMissingEpisodeRows } from "@/features/media/units/media-schedule-repository.ts";
 import { insertAnimeAggregateAtomicEffect } from "@/features/media/shared/aggregate-support.ts";
 import { resolveAnimeRootFolderEffect } from "@/features/media/shared/config-support.ts";
-import { syncEpisodeMetadataEffect } from "@/features/media/units/media-unit-metadata-sync.ts";
 import {
   checkAnimeExistsEffect,
   checkProfileExistsEffect,
@@ -27,6 +26,7 @@ import {
 } from "@/features/media/add/media-add-validation.ts";
 import { mediaKindFromAniListFormat } from "@/features/media/shared/media-kind.ts";
 import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
+import type { MediaUnitRepositoryShape } from "@/features/media/units/media-unit-repository.ts";
 
 export const addAnimeEffect = Effect.fn("AnimeAdd.addAnimeEffect")(function* (input: {
   metadataProvider: typeof AnimeMetadataProviderService.Service;
@@ -36,6 +36,7 @@ export const addAnimeEffect = Effect.fn("AnimeAdd.addAnimeEffect")(function* (in
   fs: FileSystemShape;
   imageCacheService: typeof AnimeImageCacheService.Service;
   mediaReadRepository: MediaReadRepositoryShape;
+  mediaUnitRepository: MediaUnitRepositoryShape;
   nowIso: () => Effect.Effect<string>;
 }) {
   yield* checkAnimeExistsEffect(input.db, input.animeInput.id);
@@ -181,7 +182,7 @@ export const addAnimeEffect = Effect.fn("AnimeAdd.addAnimeEffect")(function* (in
     },
   });
 
-  yield* syncEpisodeMetadataEffect(input.db, animeRow.id, validMetadata.mediaUnits);
+  yield* input.mediaUnitRepository.syncEpisodeMetadata(animeRow.id, validMetadata.mediaUnits);
 
   yield* input.eventPublisher.publish({
     type: "Info",

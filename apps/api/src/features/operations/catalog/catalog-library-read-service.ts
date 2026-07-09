@@ -168,7 +168,7 @@ export class CatalogLibraryReadService extends Effect.Service<CatalogLibraryRead
         getWantedMissing,
       } satisfies CatalogLibraryReadServiceShape;
     }),
-    dependencies: [AppDrizzleDatabase.Default],
+    dependencies: [AppDrizzleDatabase.Default, MediaReadRepository.Default],
   },
 ) {}
 

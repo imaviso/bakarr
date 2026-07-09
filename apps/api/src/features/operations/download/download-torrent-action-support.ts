@@ -1,210 +1,185 @@
 import { Effect } from "effect";
 
 import { DatabaseError } from "@/db/database.ts";
-import { InfrastructureError, StoredDataError } from "@/features/errors.ts";
+import { EventBus } from "@/features/events/event-bus.ts";
+import { DomainInputError, InfrastructureError, StoredDataError } from "@/features/errors.ts";
+import { DownloadProgressSupport } from "@/features/operations/download/download-progress-support.ts";
 import { OperationsConflictError, OperationsNotFoundError } from "@/features/operations/errors.ts";
-import { DownloadActionRepository } from "@/features/operations/repository/download-action-repository.ts";
+import { DownloadRepository } from "@/features/operations/repository/download-repository-service.ts";
 import { decodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
 import { parseCoveredEpisodesEffect } from "@/features/operations/download/download-coverage.ts";
 import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
+import { QBitTorrentClientError } from "@/features/operations/qbittorrent/qbittorrent-models.ts";
+import type { ExternalCallError } from "@/infra/effect/retry.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
-import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 
-export interface DownloadTorrentActionSupportInput {
-  readonly actionRepo: typeof DownloadActionRepository.Service;
-  readonly torrentClientService: typeof TorrentClientService.Service;
-  readonly nowIso: () => Effect.Effect<string>;
-  readonly getRuntimeConfig: () => Effect.Effect<
-    import("@packages/shared/index.ts").Config,
-    RuntimeConfigSnapshotError
-  >;
-}
+type TorrentActionError =
+  | DatabaseError
+  | DomainInputError
+  | ExternalCallError
+  | InfrastructureError
+  | OperationsNotFoundError
+  | OperationsConflictError
+  | QBitTorrentClientError
+  | RuntimeConfigSnapshotError
+  | StoredDataError;
 
-export interface DownloadTorrentActionSupportShape {
+export interface DownloadTorrentActionServiceShape {
   readonly applyDownloadActionEffect: (
     id: number,
     action: "pause" | "resume" | "delete",
     deleteFiles?: boolean,
-  ) => Effect.Effect<
-    void,
-    DatabaseError | OperationsNotFoundError | StoredDataError | InfrastructureError
-  >;
-  readonly retryDownloadById: (
-    id: number,
-  ) => Effect.Effect<
-    void,
-    | DatabaseError
-    | OperationsNotFoundError
-    | OperationsConflictError
-    | StoredDataError
-    | InfrastructureError
-  >;
-}
-
-export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSupportInput) {
-  const { actionRepo, torrentClientService, nowIso } = input;
-
-  const mapQBitError = (message: string) => (cause: unknown) =>
-    new InfrastructureError({
-      message,
-      cause,
-    });
-
-  const applyDownloadActionEffect = Effect.fn("OperationsService.applyDownloadAction")(function* (
-    id: number,
-    action: "pause" | "resume" | "delete",
-    deleteFiles = false,
-  ) {
-    const row = yield* actionRepo.loadDownloadRow(id);
-
-    if (!row) {
-      return yield* new OperationsNotFoundError({
-        message: "Download not found",
-      });
-    }
-
-    if (row.infoHash) {
-      if (action === "pause") {
-        yield* torrentClientService
-          .pauseTorrentIfEnabled(row.infoHash)
-          .pipe(Effect.asVoid, Effect.mapError(mapQBitError("Failed to pause download")));
-      } else if (action === "resume") {
-        yield* torrentClientService
-          .resumeTorrentIfEnabled(row.infoHash)
-          .pipe(Effect.asVoid, Effect.mapError(mapQBitError("Failed to resume download")));
-      } else {
-        yield* torrentClientService
-          .deleteTorrentIfEnabled(row.infoHash, deleteFiles)
-          .pipe(Effect.asVoid, Effect.mapError(mapQBitError("Failed to remove download")));
-      }
-    }
-
-    const coveredUnits = yield* parseCoveredEpisodesEffect(row.coveredUnits);
-
-    if (action === "delete") {
-      const sourceMetadata = yield* decodeDownloadSourceMetadata(row.sourceMetadata);
-      const deleteNow = yield* nowIso();
-      yield* actionRepo.insertDownloadEvent(
-        {
-          mediaId: row.mediaId,
-          downloadId: row.id,
-          eventType: "download.deleted",
-          fromStatus: row.status,
-          metadataJson: {
-            covered_units: coveredUnits,
-            ...(sourceMetadata ? { source_metadata: sourceMetadata } : {}),
-          },
-          message: `Deleted ${row.torrentName}`,
-          toStatus: "deleted",
-        },
-        deleteNow,
-      );
-      yield* actionRepo.deleteDownloadRow(id);
-    } else {
-      const nextStatus = action === "pause" ? "paused" : "downloading";
-      yield* actionRepo.updateDownloadStatusRow({
-        id,
-        externalState: action,
-        status: nextStatus,
-      });
-
-      const actionSourceMetadata = yield* decodeDownloadSourceMetadata(row.sourceMetadata);
-      const actionNow = yield* nowIso();
-      yield* actionRepo.insertDownloadEvent(
-        {
-          mediaId: row.mediaId,
-          downloadId: row.id,
-          eventType: `download.${action}d`,
-          fromStatus: row.status,
-          metadataJson: {
-            covered_units: coveredUnits,
-            ...(actionSourceMetadata ? { source_metadata: actionSourceMetadata } : {}),
-          },
-          message: `${action === "pause" ? "Paused" : "Resumed"} ${row.torrentName}`,
-          toStatus: nextStatus,
-        },
-        actionNow,
-      );
-    }
-    return undefined;
-  });
-
-  const retryDownloadById = Effect.fn("OperationsService.retryDownloadById")(function* (
-    id: number,
-  ) {
-    const row = yield* actionRepo.loadDownloadRow(id);
-
-    if (!row) {
-      return yield* new OperationsNotFoundError({
-        message: "Download not found",
-      });
-    }
-
-    if (!row.magnet) {
-      return yield* new OperationsConflictError({
-        message: "Download cannot be retried without a magnet link",
-      });
-    }
-
-    const coveredUnits = yield* parseCoveredEpisodesEffect(row.coveredUnits);
-    const qbitResult = yield* torrentClientService
-      .addTorrentUrlIfEnabled(row.magnet)
-      .pipe(Effect.either);
-
-    if (qbitResult._tag === "Left") {
-      return yield* mapQBitError("Failed to retry download")(qbitResult.left);
-    }
-
-    const startedInQBit = qbitResult.right._tag === "Added";
-
-    const retryNow = yield* nowIso();
-    yield* actionRepo.updateDownloadRetryRow({
-      id,
-      externalState: startedInQBit ? "downloading" : "queued",
-      retryNow,
-      status: startedInQBit ? "downloading" : "queued",
-    });
-
-    const retrySourceMetadata = yield* decodeDownloadSourceMetadata(row.sourceMetadata);
-    yield* actionRepo.insertDownloadEvent(
-      {
-        mediaId: row.mediaId,
-        downloadId: row.id,
-        eventType: "download.retried",
-        fromStatus: row.status,
-        metadataJson: {
-          covered_units: coveredUnits,
-          ...(retrySourceMetadata ? { source_metadata: retrySourceMetadata } : {}),
-        },
-        message: `Retried ${row.torrentName}`,
-        toStatus: startedInQBit ? "downloading" : "queued",
-      },
-      retryNow,
-    );
-    return undefined;
-  });
-
-  return {
-    applyDownloadActionEffect,
-    retryDownloadById,
-  };
+  ) => Effect.Effect<void, TorrentActionError>;
+  readonly retryDownloadById: (id: number) => Effect.Effect<void, TorrentActionError>;
 }
 
 export class DownloadTorrentActionService extends Effect.Service<DownloadTorrentActionService>()(
   "@bakarr/api/DownloadTorrentActionService",
   {
+    dependencies: [DownloadRepository.Default, EventBus.Default],
     effect: Effect.gen(function* () {
-      const actionRepo = yield* DownloadActionRepository;
+      const actionRepo = yield* DownloadRepository;
+      const eventBus = yield* EventBus;
+      const progressSupport = yield* DownloadProgressSupport;
       const torrentClientService = yield* TorrentClientService;
-      const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
 
-      return makeDownloadTorrentActionSupport({
-        actionRepo,
-        getRuntimeConfig: runtimeConfigSnapshot.getRuntimeConfig,
-        nowIso: currentNowIso,
-        torrentClientService,
+      const applyDownloadActionEffect = Effect.fn("OperationsService.applyDownloadAction")(
+        function* (id: number, action: "pause" | "resume" | "delete", deleteFiles = false) {
+          const row = yield* actionRepo.loadDownloadById(id);
+
+          if (!row) {
+            return yield* new OperationsNotFoundError({
+              message: "Download not found",
+            });
+          }
+
+          if (row.infoHash) {
+            if (action === "pause") {
+              yield* torrentClientService.pauseTorrentIfEnabled(row.infoHash).pipe(Effect.asVoid);
+            } else if (action === "resume") {
+              yield* torrentClientService.resumeTorrentIfEnabled(row.infoHash).pipe(Effect.asVoid);
+            } else {
+              yield* torrentClientService
+                .deleteTorrentIfEnabled(row.infoHash, deleteFiles)
+                .pipe(Effect.asVoid);
+            }
+          }
+
+          const coveredUnits = yield* parseCoveredEpisodesEffect(row.coveredUnits);
+
+          if (action === "delete") {
+            const sourceMetadata = yield* decodeDownloadSourceMetadata(row.sourceMetadata);
+            const deleteNow = yield* currentNowIso();
+            yield* actionRepo.insertDownloadEvent(
+              {
+                mediaId: row.mediaId,
+                downloadId: row.id,
+                eventType: "download.deleted",
+                fromStatus: row.status,
+                metadataJson: {
+                  covered_units: coveredUnits,
+                  ...(sourceMetadata ? { source_metadata: sourceMetadata } : {}),
+                },
+                message: `Deleted ${row.torrentName}`,
+                toStatus: "deleted",
+              },
+              deleteNow,
+            );
+            yield* actionRepo.deleteDownloadRow(id);
+          } else {
+            const nextStatus = action === "pause" ? "paused" : "downloading";
+            yield* actionRepo.updateDownloadStatusRow({
+              id,
+              externalState: action,
+              status: nextStatus,
+            });
+
+            const actionSourceMetadata = yield* decodeDownloadSourceMetadata(row.sourceMetadata);
+            const actionNow = yield* currentNowIso();
+            yield* actionRepo.insertDownloadEvent(
+              {
+                mediaId: row.mediaId,
+                downloadId: row.id,
+                eventType: `download.${action}d`,
+                fromStatus: row.status,
+                metadataJson: {
+                  covered_units: coveredUnits,
+                  ...(actionSourceMetadata ? { source_metadata: actionSourceMetadata } : {}),
+                },
+                message: `${action === "pause" ? "Paused" : "Resumed"} ${row.torrentName}`,
+                toStatus: nextStatus,
+              },
+              actionNow,
+            );
+          }
+
+          if (action === "pause") {
+            yield* eventBus.publishInfo(`Paused download ${id}`);
+          } else if (action === "resume") {
+            yield* eventBus.publishInfo(`Resumed download ${id}`);
+          } else {
+            yield* eventBus.publishInfo(`Removed download ${id}`);
+          }
+
+          return undefined;
+        },
+      );
+
+      const retryDownloadById = Effect.fn("OperationsService.retryDownloadById")(function* (
+        id: number,
+      ) {
+        const row = yield* actionRepo.loadDownloadById(id);
+
+        if (!row) {
+          return yield* new OperationsNotFoundError({
+            message: "Download not found",
+          });
+        }
+
+        if (!row.magnet) {
+          return yield* new OperationsConflictError({
+            message: "Download cannot be retried without a magnet link",
+          });
+        }
+
+        const coveredUnits = yield* parseCoveredEpisodesEffect(row.coveredUnits);
+        const qbitResult = yield* torrentClientService.addTorrentUrlIfEnabled(row.magnet);
+        const startedInQBit = qbitResult._tag === "Added";
+
+        const retryNow = yield* currentNowIso();
+        yield* actionRepo.updateDownloadRetryRow({
+          id,
+          externalState: startedInQBit ? "downloading" : "queued",
+          retryNow,
+          status: startedInQBit ? "downloading" : "queued",
+        });
+
+        const retrySourceMetadata = yield* decodeDownloadSourceMetadata(row.sourceMetadata);
+        yield* actionRepo.insertDownloadEvent(
+          {
+            mediaId: row.mediaId,
+            downloadId: row.id,
+            eventType: "download.retried",
+            fromStatus: row.status,
+            metadataJson: {
+              covered_units: coveredUnits,
+              ...(retrySourceMetadata ? { source_metadata: retrySourceMetadata } : {}),
+            },
+            message: `Retried ${row.torrentName}`,
+            toStatus: startedInQBit ? "downloading" : "queued",
+          },
+          retryNow,
+        );
+        yield* progressSupport.publishDownloadProgress();
+        yield* eventBus.publishInfo(`Retried download ${id}`);
+        return undefined;
       });
+
+      return {
+        applyDownloadActionEffect,
+        retryDownloadById,
+      } satisfies DownloadTorrentActionServiceShape;
     }),
   },
 ) {}

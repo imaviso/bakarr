@@ -2,17 +2,18 @@ import { assert, it } from "@effect/vitest";
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
-import { upsertEpisodeFilesAtomic } from "@/features/operations/download/download-unit-upsert-support.ts";
+import { makeMediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import * as schema from "@/db/schema.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 
-it.scoped("upsertEpisodeFilesAtomic inserts multiple mediaUnits atomically", () =>
+it.scoped("upsertEpisodeFiles inserts multiple mediaUnits atomically", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
+        const units = makeMediaUnitRepository(appDb);
 
         yield* tryDatabasePromise("Failed test database setup", () =>
           appDb.insert(schema.media).values({
@@ -30,7 +31,7 @@ it.scoped("upsertEpisodeFilesAtomic inserts multiple mediaUnits atomically", () 
           }),
         );
 
-        yield* upsertEpisodeFilesAtomic(appDb, 1, [1, 2, 3], "/test/episode.mkv");
+        yield* units.upsertEpisodeFiles(1, [1, 2, 3], "/test/episode.mkv");
 
         const rows = yield* tryDatabasePromise("Failed test database assertion", () =>
           appDb.select().from(schema.mediaUnits).where(eq(schema.mediaUnits.mediaId, 1)),
@@ -48,11 +49,12 @@ it.scoped("upsertEpisodeFilesAtomic inserts multiple mediaUnits atomically", () 
   }),
 );
 
-it.scoped("upsertEpisodeFilesAtomic updates existing mediaUnits", () =>
+it.scoped("upsertEpisodeFiles updates existing mediaUnits", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
+        const units = makeMediaUnitRepository(appDb);
 
         yield* tryDatabasePromise("Failed test database setup", () =>
           appDb.insert(schema.media).values({
@@ -77,7 +79,7 @@ it.scoped("upsertEpisodeFilesAtomic updates existing mediaUnits", () =>
           ]),
         );
 
-        yield* upsertEpisodeFilesAtomic(appDb, 1, [1, 2], "/new.mkv");
+        yield* units.upsertEpisodeFiles(1, [1, 2], "/new.mkv");
 
         const rows = yield* tryDatabasePromise("Failed test database assertion", () =>
           appDb
@@ -103,11 +105,12 @@ it.scoped("upsertEpisodeFilesAtomic updates existing mediaUnits", () =>
   }),
 );
 
-it.scoped("upsertEpisodeFilesAtomic handles empty episode list", () =>
+it.scoped("upsertEpisodeFiles handles empty episode list", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
+        const units = makeMediaUnitRepository(appDb);
 
         yield* tryDatabasePromise("Failed test database setup", () =>
           appDb.insert(schema.media).values({
@@ -125,7 +128,7 @@ it.scoped("upsertEpisodeFilesAtomic handles empty episode list", () =>
           }),
         );
 
-        yield* upsertEpisodeFilesAtomic(appDb, 1, [], "/test/episode.mkv");
+        yield* units.upsertEpisodeFiles(1, [], "/test/episode.mkv");
 
         const rows = yield* tryDatabasePromise("Failed test database assertion", () =>
           appDb.select().from(schema.mediaUnits),

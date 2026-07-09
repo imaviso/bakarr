@@ -8,7 +8,7 @@ import { makeCatalogDownloadEventExportSupport } from "@/features/operations/cat
 import {
   loadDownloadEventPresentationContexts,
   toDownloadEvent,
-} from "@/domain/download/event-presentations.ts";
+} from "@/features/operations/download/download-event-presentations.ts";
 import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 
 export type {

@@ -7,9 +7,7 @@ import {
   decodeTaskPayload,
   encodeTaskPayload,
   OperationsTaskReadService,
-  OperationsTaskReadServiceLive,
   OperationsTaskWriteService,
-  OperationsTaskWriteServiceLive,
 } from "@/features/operations/tasks/operations-task-service.ts";
 import { EventBusNoopLive } from "@/features/events/event-bus.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
@@ -26,8 +24,8 @@ describe("OperationsTaskService", () => {
             Layer.provide(databaseLayer),
           );
           const serviceLayer = Layer.mergeAll(
-            OperationsTaskReadServiceLive,
-            OperationsTaskWriteServiceLive,
+            OperationsTaskReadService.DefaultWithoutDependencies,
+            OperationsTaskWriteService.DefaultWithoutDependencies,
           ).pipe(Layer.provide(Layer.mergeAll(repositoryLayer, EventBusNoopLive)));
 
           const accepted = yield* Effect.flatMap(OperationsTaskWriteService, (service) =>

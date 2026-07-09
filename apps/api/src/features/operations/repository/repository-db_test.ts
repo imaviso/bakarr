@@ -10,7 +10,7 @@ import {
   encodeNumberList,
   encodeQualityProfileRow,
   encodeReleaseProfileRules,
-} from "@/features/profiles/profile-codec.ts";
+} from "@/features/system/profile-codec.ts";
 import { ConfigCoreSchema } from "@/features/system/config-schema.ts";
 import { makeDefaultConfig } from "@/features/system/defaults.ts";
 import {

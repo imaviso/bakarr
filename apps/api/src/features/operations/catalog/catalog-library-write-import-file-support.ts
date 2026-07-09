@@ -1,14 +1,13 @@
 import { Effect, Either } from "effect";
 import { brandMediaId, type ImportResult } from "@packages/shared/index.ts";
 
-import type { AppDatabase } from "@/db/database.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { DomainPathError, InfrastructureError } from "@/features/errors.ts";
-import { upsertEpisodeFilesAtomic } from "@/features/operations/download/download-unit-upsert-support.ts";
+import type { MediaUnitRepositoryShape } from "@/features/media/units/media-unit-repository.ts";
 import type { LibraryImportPlan } from "@/features/operations/catalog/catalog-library-write-import-plan-support.ts";
 
 export interface WriteLibraryImportFileInput {
-  readonly db: AppDatabase;
+  readonly mediaUnitRepository: MediaUnitRepositoryShape;
   readonly fs: FileSystemShape;
   readonly plan: LibraryImportPlan;
 }
@@ -16,7 +15,7 @@ export interface WriteLibraryImportFileInput {
 export const writeLibraryImportFile = Effect.fn("Operations.writeLibraryImportFile")((
   input: WriteLibraryImportFileInput,
 ): Effect.Effect<ImportResult["imported_files"][number], DomainPathError | InfrastructureError> => {
-  const { db, fs, plan } = input;
+  const { mediaUnitRepository, fs, plan } = input;
   return Effect.gen(function* () {
     if (plan.importMode === "move") {
       yield* fs.rename(plan.resolvedSource, plan.destination).pipe(
@@ -40,21 +39,18 @@ export const writeLibraryImportFile = Effect.fn("Operations.writeLibraryImportFi
       );
     }
 
-    const dbResult = yield* upsertEpisodeFilesAtomic(
-      db,
-      plan.animeRow.id,
-      plan.allEpisodeNumbers,
-      plan.destination,
-    ).pipe(
-      Effect.mapError(
-        (cause) =>
-          new InfrastructureError({
-            cause,
-            message: "Failed to import episode files atomically",
-          }),
-      ),
-      Effect.either,
-    );
+    const dbResult = yield* mediaUnitRepository
+      .upsertEpisodeFiles(plan.animeRow.id, plan.allEpisodeNumbers, plan.destination)
+      .pipe(
+        Effect.mapError(
+          (cause) =>
+            new InfrastructureError({
+              cause,
+              message: "Failed to import episode files atomically",
+            }),
+        ),
+        Effect.either,
+      );
 
     if (Either.isLeft(dbResult)) {
       const rollbackEffect =

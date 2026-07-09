@@ -7,7 +7,7 @@ import {
   decodeStoredConfigRow,
   normalizeConfig,
 } from "@/features/system/config-codec.ts";
-import { decodeQualityProfileRow } from "@/features/profiles/profile-codec.ts";
+import { decodeQualityProfileRow } from "@/features/system/profile-codec.ts";
 import { StoredConfigCorruptError } from "@/features/system/errors.ts";
 import { StoredConfigMissingError } from "@/features/system/errors.ts";
 import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";

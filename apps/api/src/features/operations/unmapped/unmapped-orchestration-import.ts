@@ -3,7 +3,7 @@ import { Effect, Stream } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
-import { media, mediaUnits } from "@/db/schema.ts";
+import { media } from "@/db/schema.ts";
 import {
   type FileSystemShape,
   isWithinPathRoot,
@@ -23,6 +23,10 @@ import type { MediaNotFoundError } from "@/features/media/errors.ts";
 import { appendLog } from "@/features/operations/shared/job-support.ts";
 import { scanVideoFilesStream } from "@/features/operations/import-scan/file-scanner.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import {
+  MediaUnitRepository,
+  type MediaUnitRepositoryShape,
+} from "@/features/media/units/media-unit-repository.ts";
 import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 import { AppDrizzleDatabase } from "@/db/database.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
@@ -89,10 +93,19 @@ export function makeUnmappedImportWorkflow(input: {
     mediaKind: MediaKind,
   ) => Effect.Effect<string, DatabaseError | InfrastructureError>;
   mediaReadRepository: typeof MediaReadRepository.Service;
+  mediaUnitRepository: MediaUnitRepositoryShape;
   nowIso: () => Effect.Effect<string>;
   tryDatabasePromise: TryDatabasePromise;
 }) {
-  const { db, fs, getLibraryPath, mediaReadRepository, nowIso, tryDatabasePromise } = input;
+  const {
+    db,
+    fs,
+    getLibraryPath,
+    mediaReadRepository,
+    mediaUnitRepository,
+    nowIso,
+    tryDatabasePromise,
+  } = input;
 
   type EpisodeImportMapping = {
     readonly aired: string | null;
@@ -200,36 +213,17 @@ export function makeUnmappedImportWorkflow(input: {
         },
       );
 
-      yield* tryDatabasePromise("Failed to import unmapped folder", () =>
-        db.transaction(async (tx) => {
-          await tx
-            .update(media)
-            .set({
-              profileName: nextProfileName,
-              rootFolder,
-            })
-            .where(eq(media.id, input.media_id));
-
-          for (const mapping of episodeMappings) {
-            await tx
-              .insert(mediaUnits)
-              .values({
-                aired: mapping.aired,
-                mediaId: input.media_id,
-                downloaded: true,
-                filePath: mapping.filePath,
-                number: mapping.unitNumber,
-                title: null,
-              })
-              .onConflictDoUpdate({
-                target: [mediaUnits.mediaId, mediaUnits.number],
-                set: {
-                  downloaded: true,
-                  filePath: mapping.filePath,
-                },
-              });
-          }
-        }),
+      yield* mediaUnitRepository.setMediaRootAndMapUnits(
+        input.media_id,
+        {
+          profileName: nextProfileName,
+          rootFolder,
+        },
+        episodeMappings.map((mapping) => ({
+          aired: mapping.aired,
+          unitNumber: mapping.unitNumber,
+          filePath: mapping.filePath,
+        })),
       );
 
       yield* cleanupPreviousAnimeRootFolderAfterImport(fs, animeRow.rootFolder, rootFolder);
@@ -259,6 +253,7 @@ export class UnmappedImportService extends Effect.Service<UnmappedImportService>
       const db = yield* AppDrizzleDatabase;
       const fs = yield* FileSystem;
       const mediaReadRepository = yield* MediaReadRepository;
+      const mediaUnitRepository = yield* MediaUnitRepository;
       const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
 
       return makeUnmappedImportWorkflow({
@@ -278,6 +273,7 @@ export class UnmappedImportService extends Effect.Service<UnmappedImportService>
           return getLibraryPathForMediaKind(config.library, mediaKind);
         }),
         mediaReadRepository,
+        mediaUnitRepository,
         nowIso: currentNowIso,
         tryDatabasePromise,
       });

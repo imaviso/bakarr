@@ -5,7 +5,7 @@ import { DatabaseError } from "@/db/database.ts";
 import { media } from "@/db/schema.ts";
 import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
-import { DownloadTriggerRepository } from "@/features/operations/repository/download-trigger-repository.ts";
+import { DownloadRepository } from "@/features/operations/repository/download-repository-service.ts";
 import { encodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
 import {
   buildDownloadSelectionMetadata,
@@ -89,7 +89,7 @@ export function resolveTriggerDownloadCoveragePlan(input: {
 
 export const prepareTriggerDownload = Effect.fn("Operations.prepareTriggerDownload")(
   function* (input: {
-    readonly triggerRepo: typeof DownloadTriggerRepository.Service;
+    readonly triggerRepo: typeof DownloadRepository.Service;
     readonly mediaReadRepository: typeof MediaReadRepository.Service;
     readonly nowIso: () => Effect.Effect<string>;
     readonly triggerInput: TriggerDownloadInput;
@@ -183,7 +183,7 @@ export const prepareTriggerDownload = Effect.fn("Operations.prepareTriggerDownlo
 );
 
 export const insertQueuedDownload = Effect.fn("Operations.insertQueuedDownload")(function* (input: {
-  readonly triggerRepo: typeof DownloadTriggerRepository.Service;
+  readonly triggerRepo: typeof DownloadRepository.Service;
   readonly plan: PreparedTriggerDownload;
   readonly triggerInput: TriggerDownloadInput;
 }) {
@@ -221,7 +221,7 @@ export const insertQueuedDownload = Effect.fn("Operations.insertQueuedDownload")
 
 export const addMagnetToQueuedDownload = Effect.fn("Operations.addMagnetToQueuedDownload")(
   function* (input: {
-    readonly triggerRepo: typeof DownloadTriggerRepository.Service;
+    readonly triggerRepo: typeof DownloadRepository.Service;
     readonly insertedId: number;
     readonly magnet: string;
     readonly torrentClientService: typeof TorrentClientService.Service;

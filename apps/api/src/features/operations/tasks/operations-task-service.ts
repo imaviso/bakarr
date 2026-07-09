@@ -314,17 +314,23 @@ const makeOperationsTaskReadService = Effect.fn("OperationsTaskReadService.make"
 
 export class OperationsTaskWriteService extends Effect.Service<OperationsTaskWriteService>()(
   "@bakarr/api/OperationsTaskWriteService",
-  { effect: makeOperationsTaskWriteService() },
+  {
+    dependencies: [OperationsTaskRepository.Default],
+    effect: makeOperationsTaskWriteService(),
+  },
 ) {}
 
-export const OperationsTaskWriteServiceLive = OperationsTaskWriteService.Default;
+export const OperationsTaskWriteServiceLive = OperationsTaskWriteService.DefaultWithoutDependencies;
 
 export class OperationsTaskReadService extends Effect.Service<OperationsTaskReadService>()(
   "@bakarr/api/OperationsTaskReadService",
-  { effect: makeOperationsTaskReadService() },
+  {
+    dependencies: [OperationsTaskRepository.Default],
+    effect: makeOperationsTaskReadService(),
+  },
 ) {}
 
-export const OperationsTaskReadServiceLive = OperationsTaskReadService.Default;
+export const OperationsTaskReadServiceLive = OperationsTaskReadService.DefaultWithoutDependencies;
 
 export const decodeOperationsTaskQuery = Effect.fn(
   "OperationsTaskService.decodeOperationsTaskQuery",

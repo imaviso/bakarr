@@ -7,10 +7,7 @@ import * as schema from "@/db/schema.ts";
 import { media, mediaUnits } from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
-import {
-  clearEpisodeMappingEffect,
-  upsertEpisodeEffect,
-} from "@/features/media/units/media-unit-repository.ts";
+import { makeMediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 
 type TestDatabase = SqliteRemoteDatabase<typeof schema>;
 
@@ -36,19 +33,20 @@ function seedAnime(db: TestDatabase) {
   );
 }
 
-it.scoped("clearEpisodeMappingEffect clears episode file fields", () =>
+it.scoped("clearEpisodeMapping clears episode file fields", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
+        const units = makeMediaUnitRepository(db);
         yield* seedAnime(db);
-        yield* upsertEpisodeEffect(db, 1, 3, {
+        yield* units.upsertEpisode(1, 3, {
           downloaded: true,
           filePath: "/library/Show/Show - 03.mkv",
           resolution: "1080p",
           videoCodec: "HEVC",
         });
 
-        yield* clearEpisodeMappingEffect(db, 1, 3);
+        yield* units.clearEpisodeMapping(1, 3);
 
         const rows = yield* tryDatabasePromise("Failed to query mediaUnits for assertion", () =>
           db.select().from(mediaUnits).where(eq(mediaUnits.id, 1)),
@@ -62,17 +60,18 @@ it.scoped("clearEpisodeMappingEffect clears episode file fields", () =>
   }),
 );
 
-it.scoped("upsertEpisodeEffect updates existing episode on conflict", () =>
+it.scoped("upsertEpisode updates existing episode on conflict", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
+        const units = makeMediaUnitRepository(db);
         yield* seedAnime(db);
-        yield* upsertEpisodeEffect(db, 1, 2, {
+        yield* units.upsertEpisode(1, 2, {
           downloaded: true,
           filePath: "/library/Show/Show - 02.mkv",
           title: "Original",
         });
-        yield* upsertEpisodeEffect(db, 1, 2, {
+        yield* units.upsertEpisode(1, 2, {
           downloaded: true,
           filePath: "/library/Show/Show - 02 v2.mkv",
           title: "Updated",
@@ -91,17 +90,18 @@ it.scoped("upsertEpisodeEffect updates existing episode on conflict", () =>
   }),
 );
 
-it.scoped("upsertEpisodeEffect does not overwrite unspecified fields on conflict", () =>
+it.scoped("upsertEpisode does not overwrite unspecified fields on conflict", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
+        const units = makeMediaUnitRepository(db);
         yield* seedAnime(db);
-        yield* upsertEpisodeEffect(db, 1, 4, {
+        yield* units.upsertEpisode(1, 4, {
           downloaded: true,
           filePath: "/library/Show/Show - 04.mkv",
           resolution: "1080p",
         });
-        yield* upsertEpisodeEffect(db, 1, 4, {
+        yield* units.upsertEpisode(1, 4, {
           title: "New Title",
         });
 

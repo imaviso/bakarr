@@ -13,13 +13,9 @@ import { encodeConfigCore, toConfigCore } from "@/features/system/config-codec.t
 import { makeTestConfig } from "@/test/config-fixture.ts";
 import { qualityProfileExistsEffect } from "@/features/media/shared/profile-support.ts";
 
-import {
-  buildMissingEpisodeRows,
-  ensureEpisodesEffect,
-} from "@/features/media/units/media-schedule-repository.ts";
+import { buildMissingEpisodeRows } from "@/features/media/units/media-schedule-repository.ts";
 import { MAX_INFERRED_EPISODE_NUMBER } from "@/features/media/units/unit-backfill-policy.ts";
-import { upsertEpisodeEffect } from "@/features/media/units/media-unit-repository.ts";
-import { syncEpisodeMetadataEffect } from "@/features/media/units/media-unit-metadata-sync.ts";
+import { makeMediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import { makeMediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import { inferAiredAt } from "@/domain/media/derivations.ts";
 import { markSearchResultsAlreadyInLibraryEffect } from "@/features/media/query/search-results.ts";
@@ -34,14 +30,15 @@ it.scoped("upsertEpisode prevents duplicate media episode rows", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
+        const units = makeMediaUnitRepository(db);
         yield* insertAnimeEffect(db, 1, 12);
 
-        yield* upsertEpisodeEffect(db, 1, 1, {
+        yield* units.upsertEpisode(1, 1, {
           downloaded: true,
           filePath: "/library/Test Show/Test Show - 01.mkv",
           title: "MediaUnit 1",
         });
-        yield* upsertEpisodeEffect(db, 1, 1, {
+        yield* units.upsertEpisode(1, 1, {
           downloaded: false,
           title: "MediaUnit 1 updated",
         });
@@ -81,8 +78,7 @@ it.scoped("ensureEpisodes rejects duplicate episode inserts for same media", () 
           }),
         );
 
-        yield* ensureEpisodesEffect(
-          db,
+        yield* makeMediaUnitRepository(db).ensureEpisodes(
           2,
           1,
           "RELEASING",
@@ -330,13 +326,13 @@ it("inferAiredAt prefers AniList future schedule over heuristics", () => {
   assert.deepStrictEqual(airedAt, "2024-03-20T12:00:00.000Z");
 });
 
-it.scoped("syncEpisodeMetadataEffect applies AniDB episode titles and dates", () =>
+it.scoped("syncEpisodeMetadata applies AniDB episode titles and dates", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
+        const units = makeMediaUnitRepository(db);
         yield* insertAnimeEffect(db, 25, 2);
-        yield* ensureEpisodesEffect(
-          db,
+        yield* units.ensureEpisodes(
           25,
           2,
           "RELEASING",
@@ -347,7 +343,7 @@ it.scoped("syncEpisodeMetadataEffect applies AniDB episode titles and dates", ()
           () => Effect.succeed("2024-01-01T00:00:00.000Z"),
         );
 
-        yield* syncEpisodeMetadataEffect(db, 25, [
+        yield* units.syncEpisodeMetadata(25, [
           {
             aired: "2024-01-02T00:00:00.000Z",
             number: 1,

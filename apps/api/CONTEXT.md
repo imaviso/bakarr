@@ -112,3 +112,14 @@ and optional linked anime. Supports coalescing concurrent requests.
 - Background workers run in scoped fibers under a controller
 - Test integration uses real SQLite with HTTP-level assertions
 - Config is env-var based with dotenv + Schema.Config validation
+
+## Persistence Seams
+
+- `DownloadRepository` owns Download aggregate SQL (lifecycle, sync, trigger, presentation, events)
+- `MediaUnitRepository` owns Episode/unit write paths (upsert, map, clear, backfill, schedule sync)
+- Drizzle stays behind repository tags (ADR-0001); pure codecs live next to system profiles
+
+## Naming
+
+- Storage/API path vocabulary is **Media** (`media` table, `/media` routes, `MediaId`)
+- Some service/method names still say Anime; prefer Media for new code

@@ -15,7 +15,7 @@ import {
   encodeOptionalNumberList,
   encodeQualityProfileRow,
   encodeReleaseProfileRules,
-} from "@/features/profiles/profile-codec.ts";
+} from "@/features/system/profile-codec.ts";
 
 it.effect("config codec round-trips config core without mutating arrays", () =>
   Effect.gen(function* () {

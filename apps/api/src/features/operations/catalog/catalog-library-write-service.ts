@@ -15,6 +15,7 @@ import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 
 export interface CatalogLibraryWriteServiceShape {
   readonly importFiles: (
@@ -33,6 +34,7 @@ export class CatalogLibraryWriteService extends Effect.Service<CatalogLibraryWri
       const eventBus = yield* EventBus;
       const fs = yield* FileSystem;
       const mediaReadRepository = yield* MediaReadRepository;
+      const mediaUnitRepository = yield* MediaUnitRepository;
       const mediaProbe = yield* MediaProbe;
       const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
 
@@ -46,6 +48,7 @@ export class CatalogLibraryWriteService extends Effect.Service<CatalogLibraryWri
           files,
           fs,
           mediaReadRepository,
+          mediaUnitRepository,
           mediaProbe,
           runtimeConfig,
           tryDatabasePromise,
@@ -60,8 +63,8 @@ export class CatalogLibraryWriteService extends Effect.Service<CatalogLibraryWri
           eventBus,
           fs,
           mediaReadRepository,
+          mediaUnitRepository,
           runtimeConfig,
-          tryDatabasePromise,
         });
       });
 
@@ -70,7 +73,6 @@ export class CatalogLibraryWriteService extends Effect.Service<CatalogLibraryWri
         renameFiles,
       } satisfies CatalogLibraryWriteServiceShape;
     }),
-    dependencies: [AppDrizzleDatabase.Default],
   },
 ) {}
 

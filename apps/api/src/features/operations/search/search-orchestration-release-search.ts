@@ -454,7 +454,7 @@ export class SearchReleaseService extends Effect.Service<SearchReleaseService>()
         seadexClient,
       });
     }),
-    dependencies: [AppDrizzleDatabase.Default],
+    dependencies: [AppDrizzleDatabase.Default, MediaReadRepository.Default],
   },
 ) {}
 

@@ -2,10 +2,7 @@ import { assert, it } from "@effect/vitest";
 import { Effect, Layer, Redacted } from "effect";
 
 import { QBitTorrentClient } from "@/features/operations/qbittorrent/qbittorrent.ts";
-import {
-  TorrentClientService,
-  TorrentClientServiceLive,
-} from "@/features/operations/qbittorrent/torrent-client-service.ts";
+import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
 import { makeRuntimeConfigSnapshotStub } from "@/test/stubs.ts";
@@ -23,7 +20,7 @@ it.effect("TorrentClientService allows trusted-local qBittorrent without passwor
         trusted_local: true,
       },
     };
-    const serviceLayer = TorrentClientServiceLive.pipe(
+    const serviceLayer = TorrentClientService.Default.pipe(
       Layer.provide(
         Layer.mergeAll(
           Layer.succeed(RuntimeConfigSnapshotService, makeRuntimeConfigSnapshotStub(testConfig)),

@@ -8,8 +8,8 @@ import type { ExternalCallError } from "@/infra/effect/retry.ts";
 import type { MediaServiceError } from "@/features/media/errors.ts";
 import type { OperationsError } from "@/features/operations/errors.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
-import { CatalogDownloadCommandService } from "@/features/operations/catalog/catalog-download-command-service.ts";
 import { CatalogLibraryScanService } from "@/features/operations/catalog/catalog-library-scan-service.ts";
+import { DownloadTorrentSyncService } from "@/features/operations/download/download-torrent-sync-support.ts";
 import { AnimeMaintenanceService } from "@/features/media/metadata/media-maintenance-service.ts";
 import { ManamiCacheRefreshClient } from "@/features/media/metadata/manami.ts";
 import { BackgroundSearchRssWorkerService } from "@/features/operations/background-search/background-search-rss-worker-service.ts";
@@ -31,7 +31,7 @@ export interface BackgroundTaskRunnerShape {
 }
 
 const makeBackgroundTaskRunner = Effect.fn("BackgroundTaskRunner.make")(function* () {
-  const downloadCommandService = yield* CatalogDownloadCommandService;
+  const torrentSync = yield* DownloadTorrentSyncService;
   const catalogLibraryScanService = yield* CatalogLibraryScanService;
   const animeMaintenanceService = yield* AnimeMaintenanceService;
   const backgroundSearchRssWorkerService = yield* BackgroundSearchRssWorkerService;
@@ -39,7 +39,7 @@ const makeBackgroundTaskRunner = Effect.fn("BackgroundTaskRunner.make")(function
   const monitor = yield* BackgroundWorkerMonitor;
 
   const runDownloadSyncTask = Effect.fn("Background.runDownloadSyncTask")(function* () {
-    yield* downloadCommandService.syncDownloads();
+    yield* torrentSync.syncDownloads();
   });
   const runLibraryScanTask = Effect.fn("Background.runLibraryScanTask")(function* () {
     yield* catalogLibraryScanService.runLibraryScan();

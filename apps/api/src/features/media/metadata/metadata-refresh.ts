@@ -8,6 +8,7 @@ import { AnimeImageCacheService } from "@/features/media/metadata/media-image-ca
 import { AnimeMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
 import { refreshMetadataForMonitoredAnimeEffect } from "@/features/media/metadata/media-metadata-refresh-job.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 
 const DEFAULT_METADATA_REFRESH_CONCURRENCY = 2;
 
@@ -16,6 +17,7 @@ export const makeMetadataRefreshRunner = Effect.fn("AnimeMetadataRefresh.makeRun
   const imageCacheService = yield* AnimeImageCacheService;
   const metadataProvider = yield* AnimeMetadataProviderService;
   const mediaReadRepository = yield* MediaReadRepository;
+  const mediaUnitRepository = yield* MediaUnitRepository;
   const refreshConcurrency = yield* Schema.Config(
     "BAKARR_METADATA_REFRESH_CONCURRENCY",
     PositiveIntFromStringSchema,
@@ -27,6 +29,7 @@ export const makeMetadataRefreshRunner = Effect.fn("AnimeMetadataRefresh.makeRun
       metadataProvider,
       db,
       mediaReadRepository,
+      mediaUnitRepository,
       nowIso: currentNowIso,
       refreshConcurrency,
     }),

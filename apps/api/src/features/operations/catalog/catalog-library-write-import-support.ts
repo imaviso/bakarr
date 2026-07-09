@@ -6,6 +6,7 @@ import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import type { MediaProbeShape } from "@/infra/media/probe.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import type { MediaUnitRepositoryShape } from "@/features/media/units/media-unit-repository.ts";
 import { buildLibraryImportPlan } from "@/features/operations/catalog/catalog-library-write-import-plan-support.ts";
 import { writeLibraryImportFile } from "@/features/operations/catalog/catalog-library-write-import-file-support.ts";
 import type { TryDatabasePromise } from "@/infra/effect/db.ts";
@@ -23,6 +24,7 @@ export interface ImportLibraryFilesInput {
   readonly eventBus: typeof EventBus.Service;
   readonly fs: FileSystemShape;
   readonly mediaReadRepository: typeof MediaReadRepository.Service;
+  readonly mediaUnitRepository: MediaUnitRepositoryShape;
   readonly mediaProbe: MediaProbeShape;
   readonly runtimeConfig: Config;
   readonly tryDatabasePromise: TryDatabasePromise;
@@ -37,6 +39,7 @@ export const importLibraryFiles = Effect.fn("Operations.importLibraryFiles")((
     eventBus,
     fs,
     mediaReadRepository,
+    mediaUnitRepository,
     mediaProbe,
     runtimeConfig,
     tryDatabasePromise,
@@ -72,9 +75,11 @@ export const importLibraryFiles = Effect.fn("Operations.importLibraryFiles")((
         continue;
       }
 
-      const imported = yield* writeLibraryImportFile({ db, fs, plan: planned.right }).pipe(
-        Effect.either,
-      );
+      const imported = yield* writeLibraryImportFile({
+        mediaUnitRepository,
+        fs,
+        plan: planned.right,
+      }).pipe(Effect.either);
       if (imported._tag === "Left") {
         failedFiles.push({
           source_path: file.source_path,

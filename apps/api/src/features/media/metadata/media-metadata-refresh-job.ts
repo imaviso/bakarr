@@ -6,8 +6,6 @@ import { DatabaseError } from "@/db/database.ts";
 import { media } from "@/db/schema.ts";
 import { AnimeImageCacheService } from "@/features/media/metadata/media-image-cache-service.ts";
 import type { AnimeMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
-import { syncEpisodeMetadataEffect } from "@/features/media/units/media-unit-metadata-sync.ts";
-import { syncEpisodeScheduleEffect } from "@/features/media/units/media-unit-schedule-sync.ts";
 import { syncAnimeMetadataEffect } from "@/features/media/metadata/media-metadata-sync.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import {
@@ -20,6 +18,7 @@ import { appendSystemLog } from "@/features/system/support.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
 import { markJobFailureOrFailWithError } from "@/infra/job-failure-support.ts";
 import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
+import type { MediaUnitRepositoryShape } from "@/features/media/units/media-unit-repository.ts";
 
 type MetadataRefreshError = DatabaseError | ExternalCallError;
 
@@ -30,6 +29,7 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
   metadataProvider: typeof AnimeMetadataProviderService.Service;
   db: AppDatabase;
   mediaReadRepository: MediaReadRepositoryShape;
+  mediaUnitRepository: MediaUnitRepositoryShape;
   nowIso: () => Effect.Effect<string, MetadataRefreshError>;
   refreshConcurrency: number;
 }) {
@@ -142,14 +142,13 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
             nowIso,
           });
 
-          yield* syncEpisodeScheduleEffect(
-            input.db,
+          yield* input.mediaUnitRepository.syncEpisodeSchedule(
             monitored.id,
             nextAnimeRow,
             metadata?.futureAiringSchedule,
             nowIso,
           );
-          yield* syncEpisodeMetadataEffect(input.db, monitored.id, metadata?.mediaUnits);
+          yield* input.mediaUnitRepository.syncEpisodeMetadata(monitored.id, metadata?.mediaUnits);
           refreshed += 1;
         }).pipe(
           Effect.catchTag("ExternalCallError", (error) =>

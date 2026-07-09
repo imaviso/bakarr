@@ -8,7 +8,7 @@ import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { appendSystemLog } from "@/features/system/support.ts";
-import { encodeNumberList } from "@/features/profiles/profile-codec.ts";
+import { encodeNumberList } from "@/features/system/profile-codec.ts";
 import { qualityProfileExistsEffect } from "@/features/media/shared/profile-support.ts";
 import { getConfiguredLibraryPathEffect } from "@/features/media/shared/config-support.ts";
 import {

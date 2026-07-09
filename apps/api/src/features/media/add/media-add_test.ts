@@ -19,6 +19,7 @@ import { FileSystemError, type FileSystemShape } from "@/infra/filesystem/filesy
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { makeMediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { makeMediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 
 it.scoped("addAnimeEffect persists MAL backfill and mapped relation metadata", () =>
   withSqliteTestDbEffect({
@@ -86,6 +87,7 @@ it.scoped("addAnimeEffect persists MAL backfill and mapped relation metadata", (
               }),
           }),
           mediaReadRepository: makeMediaReadRepository(appDb),
+          mediaUnitRepository: makeMediaUnitRepository(appDb),
           nowIso: () => Effect.succeed("2026-04-11T00:00:00.000Z"),
         });
 
@@ -158,6 +160,7 @@ it.scoped("addAnimeEffect infers light novel media kind when request omits it", 
             cacheMetadataImages: () => Effect.succeed({}),
           }),
           mediaReadRepository: makeMediaReadRepository(appDb),
+          mediaUnitRepository: makeMediaUnitRepository(appDb),
           nowIso: () => Effect.succeed("2026-04-11T00:00:00.000Z"),
         });
 

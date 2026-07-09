@@ -9,6 +9,7 @@ import { AnimeSeasonalProviderServiceLive } from "@/features/media/query/media-s
 import { MediaReaderServiceLive } from "@/features/media/reader/media-reader-service.ts";
 import { AnimeSettingsServiceLive } from "@/features/media/shared/media-settings-service.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import { AnimeStreamServiceLive } from "@/features/media/stream/media-stream-service.ts";
 import { AnimeQueryServiceLive } from "@/features/media/query/query-service.ts";
 import { StreamTokenSignerLive } from "@/features/media/stream/stream-token-signer.ts";
@@ -16,9 +17,10 @@ import { StreamTokenSignerLive } from "@/features/media/stream/stream-token-sign
 export function makeAnimeFeatureLayer<ROut, E, RIn>(
   runtimeSupportLayer: Layer.Layer<ROut, E, RIn>,
 ) {
-  const mediaReadRepositoryLayer = MediaReadRepository.DefaultWithoutDependencies.pipe(
-    Layer.provide(runtimeSupportLayer),
-  );
+  const mediaRepositoryLayer = Layer.mergeAll(
+    MediaReadRepository.DefaultWithoutDependencies,
+    MediaUnitRepository.DefaultWithoutDependencies,
+  ).pipe(Layer.provide(runtimeSupportLayer));
   const animeImageCacheLayer = AnimeImageCacheServiceLive;
   const animeMetadataEnrichmentLayer = AnimeMetadataEnrichmentServiceLive;
   const animeMetadataProviderLayer = AnimeMetadataProviderServiceLive.pipe(
@@ -31,17 +33,22 @@ export function makeAnimeFeatureLayer<ROut, E, RIn>(
   const animeStreamLayer = AnimeStreamServiceLive.pipe(Layer.provide(animeStreamTokenSignerLayer));
   const animeSeasonalProviderLayer = AnimeSeasonalProviderServiceLive;
 
+  const mediaServicesRuntime = Layer.mergeAll(runtimeSupportLayer, mediaRepositoryLayer);
+
   return Layer.mergeAll(
     animeImageCacheLayer,
     AnimeQueryServiceLive,
     AnimeFileServiceLive,
-    mediaReadRepositoryLayer,
+    mediaRepositoryLayer,
     MediaReaderServiceLive,
-    animeMaintenanceLayer.pipe(Layer.provide(mediaReadRepositoryLayer)),
+    animeMaintenanceLayer.pipe(Layer.provide(Layer.mergeAll(animeMetadataProviderLayer, animeImageCacheLayer))),
     animeMetadataEnrichmentLayer,
     animeMetadataProviderLayer,
-    AnimeSettingsServiceLive.pipe(Layer.provide(mediaReadRepositoryLayer)),
+    AnimeSettingsServiceLive,
     animeStreamTokenSignerLayer,
     animeStreamLayer,
-  ).pipe(Layer.provideMerge(animeSeasonalProviderLayer), Layer.provide(runtimeSupportLayer));
+  ).pipe(
+    Layer.provideMerge(animeSeasonalProviderLayer),
+    Layer.provide(mediaServicesRuntime),
+  );
 }

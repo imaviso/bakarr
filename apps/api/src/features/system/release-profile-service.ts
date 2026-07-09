@@ -4,7 +4,7 @@ import { nowIso as currentNowIso } from "@/infra/time.ts";
 import {
   decodeReleaseProfileRow,
   encodeReleaseProfileRow,
-} from "@/features/profiles/profile-codec.ts";
+} from "@/features/system/profile-codec.ts";
 import type {
   CreateReleaseProfileInput,
   UpdateReleaseProfileInput,

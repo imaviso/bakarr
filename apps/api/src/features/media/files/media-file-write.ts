@@ -7,11 +7,7 @@ import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { isWithinPathRoot } from "@/infra/filesystem/filesystem.ts";
 import { DomainPathError } from "@/features/errors.ts";
 import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
-import {
-  clearEpisodeMappingEffect,
-  bulkMapEpisodeFilesAtomicEffect,
-  upsertEpisodeEffect,
-} from "@/features/media/units/media-unit-repository.ts";
+import type { MediaUnitRepositoryShape } from "@/features/media/units/media-unit-repository.ts";
 import {
   loadAnimeRoot,
   validateEpisodeFilePath,
@@ -23,6 +19,7 @@ export const deleteEpisodeFileEffect = Effect.fn("AnimeFileWrite.deleteEpisodeFi
     mediaId: number;
     db: AppDatabase;
     mediaReadRepository: MediaReadRepositoryShape;
+    mediaUnitRepository: MediaUnitRepositoryShape;
     unitNumber: number;
     fs: FileSystemShape;
   }) {
@@ -68,7 +65,7 @@ export const deleteEpisodeFileEffect = Effect.fn("AnimeFileWrite.deleteEpisodeFi
       );
     }
 
-    yield* clearEpisodeMappingEffect(input.db, input.mediaId, input.unitNumber);
+    yield* input.mediaUnitRepository.clearEpisodeMapping(input.mediaId, input.unitNumber);
     return undefined;
   },
 );
@@ -76,16 +73,16 @@ export const deleteEpisodeFileEffect = Effect.fn("AnimeFileWrite.deleteEpisodeFi
 export const mapEpisodeFileEffect = Effect.fn("AnimeFileWrite.mapEpisodeFileEffect")(
   function* (input: {
     mediaId: number;
-    db: AppDatabase;
     unitNumber: number;
     filePath: string;
     fs: FileSystemShape;
     mediaReadRepository: MediaReadRepositoryShape;
+    mediaUnitRepository: MediaUnitRepositoryShape;
   }) {
     const animeRow = yield* input.mediaReadRepository.getAnimeRow(input.mediaId);
 
     if (input.filePath.trim().length === 0) {
-      yield* clearEpisodeMappingEffect(input.db, input.mediaId, input.unitNumber);
+      yield* input.mediaUnitRepository.clearEpisodeMapping(input.mediaId, input.unitNumber);
       return;
     }
 
@@ -97,7 +94,7 @@ export const mapEpisodeFileEffect = Effect.fn("AnimeFileWrite.mapEpisodeFileEffe
       outOfRootMessage: "File path is not within the media root folder",
     });
 
-    yield* upsertEpisodeEffect(input.db, input.mediaId, input.unitNumber, {
+    yield* input.mediaUnitRepository.upsertEpisode(input.mediaId, input.unitNumber, {
       downloaded: true,
       filePath: input.filePath,
     });
@@ -107,9 +104,9 @@ export const mapEpisodeFileEffect = Effect.fn("AnimeFileWrite.mapEpisodeFileEffe
 export const bulkMapEpisodeFilesEffect = Effect.fn("AnimeFileWrite.bulkMapEpisodeFilesEffect")(
   function* (input: {
     mediaId: number;
-    db: AppDatabase;
     fs: FileSystemShape;
     mediaReadRepository: MediaReadRepositoryShape;
+    mediaUnitRepository: MediaUnitRepositoryShape;
     mappings: readonly { unit_number: number; file_path: string }[];
   }) {
     const animeRow = yield* input.mediaReadRepository.getAnimeRow(input.mediaId);
@@ -145,6 +142,6 @@ export const bulkMapEpisodeFilesEffect = Effect.fn("AnimeFileWrite.bulkMapEpisod
       });
     }
 
-    yield* bulkMapEpisodeFilesAtomicEffect(input.db, input.mediaId, validated);
+    yield* input.mediaUnitRepository.bulkMapEpisodeFiles(input.mediaId, validated);
   },
 );

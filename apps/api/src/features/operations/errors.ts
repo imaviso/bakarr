@@ -9,6 +9,7 @@ import {
   StoredDataError,
 } from "@/features/errors.ts";
 import { MediaConflictError, MediaNotFoundError } from "@/features/media/errors.ts";
+import { QBitTorrentClientError } from "@/features/operations/qbittorrent/qbittorrent-models.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
 
 export class OperationsNotFoundError extends Schema.TaggedError<OperationsNotFoundError>()(
@@ -50,6 +51,7 @@ export type OperationsError =
   | RssFeedParseError
   | RssFeedRejectedError
   | RssFeedTooLargeError
+  | QBitTorrentClientError
   | ExternalCallError;
 
 export function isOperationsError(cause: unknown): cause is OperationsError {
@@ -67,6 +69,7 @@ export function isOperationsError(cause: unknown): cause is OperationsError {
     cause instanceof RssFeedParseError ||
     cause instanceof RssFeedRejectedError ||
     cause instanceof RssFeedTooLargeError ||
+    cause instanceof QBitTorrentClientError ||
     cause instanceof ExternalCallError
   );
 }
