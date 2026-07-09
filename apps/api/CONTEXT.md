@@ -117,7 +117,9 @@ and optional linked anime. Supports coalescing concurrent requests.
 
 - `DownloadRepository` owns Download aggregate SQL (lifecycle, sync, trigger, presentation, events)
 - `MediaUnitRepository` owns Episode/unit write paths (upsert, map, clear, backfill, schedule sync)
-- Drizzle stays behind repository tags (ADR-0001); pure codecs live next to system profiles
+- Drizzle stays behind `Effect.Service` repository contracts (ADR-0001)
+- Slice repos by aggregate, not caller workflow (ADR-0004)
+- Pure codecs live next to system profiles
 
 ## Naming
 
