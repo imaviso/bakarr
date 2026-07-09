@@ -1,4 +1,4 @@
-import { Cause, Effect, Exit, Option } from "effect";
+import { Cause, Effect, Exit, Layer, Option } from "effect";
 
 import * as dbSchema from "@/db/schema.ts";
 import { media } from "@/db/schema.ts";
@@ -9,8 +9,42 @@ import { ExternalCallError } from "@/infra/effect/retry.ts";
 import { RssClient } from "@/features/operations/rss/rss-client.ts";
 import type { ParsedRelease } from "@/features/operations/rss/rss-client-parse.ts";
 import { SeaDexClient } from "@/features/operations/search/seadex-client.ts";
-import { makeSearchReleaseSupport } from "@/features/operations/search/search-orchestration-release-search.ts";
-import { makeMediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { SearchReleaseService } from "@/features/operations/search/search-orchestration-release-search.ts";
+import {
+  makeMediaReadRepository,
+  MediaReadRepository,
+} from "@/features/media/shared/media-read-repository.ts";
+import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
+import type { Config } from "@packages/shared/index.ts";
+import type { AppDatabase } from "@/db/database.ts";
+
+function withSearchReleaseService(input: {
+  readonly db: AppDatabase;
+  readonly config: Config;
+  readonly rssClient: typeof RssClient.Service;
+  readonly seadexClient: typeof SeaDexClient.Service;
+}) {
+  const layer = SearchReleaseService.DefaultWithoutDependencies.pipe(
+    Layer.provide(
+      Layer.mergeAll(
+        Layer.succeed(RssClient, input.rssClient),
+        Layer.succeed(SeaDexClient, input.seadexClient),
+        Layer.succeed(MediaReadRepository, makeMediaReadRepository(input.db)),
+        Layer.succeed(
+          RuntimeConfigSnapshotService,
+          RuntimeConfigSnapshotService.make({
+            getRuntimeConfig: () => Effect.succeed(input.config),
+            replaceRuntimeConfig: () => Effect.void,
+          }),
+        ),
+      ),
+    ),
+  );
+
+  return Effect.gen(function* () {
+    return yield* SearchReleaseService;
+  }).pipe(Effect.provide(layer));
+}
 
 it.scoped(
   "searchUnitReleases fails instead of silently degrading when SeaDex enrichment fails",
@@ -18,28 +52,23 @@ it.scoped(
     withSqliteTestDbEffect({
       run: (db) =>
         Effect.gen(function* () {
-          const rssClient = RssClient.make({
-            fetchItems: () => Effect.succeed([makeRelease()]),
-          });
-
-          const seadexClient = SeaDexClient.make({
-            getEntryByAniListId: () =>
-              Effect.fail(
-                new ExternalCallError({
-                  cause: new Error("SeaDex unavailable"),
-                  message: "SeaDex lookup failed",
-                  operation: "seadex.getEntryByAniListId",
-                }),
-              ),
-          });
-
           const config = makeTestConfig("/tmp/test.sqlite");
-          const searchReleaseService = makeSearchReleaseSupport({
+          const searchReleaseService = yield* withSearchReleaseService({
+            config,
             db,
-            getRuntimeConfig: () => Effect.succeed(config),
-            mediaReadRepository: makeMediaReadRepository(db),
-            rssClient,
-            seadexClient,
+            rssClient: RssClient.make({
+              fetchItems: () => Effect.succeed([makeRelease()]),
+            }),
+            seadexClient: SeaDexClient.make({
+              getEntryByAniListId: () =>
+                Effect.fail(
+                  new ExternalCallError({
+                    cause: new Error("SeaDex unavailable"),
+                    message: "SeaDex lookup failed",
+                    operation: "seadex.getEntryByAniListId",
+                  }),
+                ),
+            }),
           });
 
           const exit = yield* Effect.exit(
@@ -64,35 +93,28 @@ it.scoped("searchUnitReleases tries season episode query variants", () =>
     run: (db) =>
       Effect.gen(function* () {
         const requestedQueries: string[] = [];
-        const rssClient = RssClient.make({
-          fetchItems: (url: string) => {
-            const query = new URL(url).searchParams.get("q") ?? "";
-            requestedQueries.push(query);
-
-            return Effect.succeed(
-              query === "Release that Witch S01E08"
-                ? [
-                    makeRelease({
-                      title:
-                        "[ToonsHub] Release that Witch S01E08 1080p CR WEB-DL AAC2.0 H.264 (Fangkai Nage Nüwu, Multi-Subs)",
-                    }),
-                  ]
-                : [],
-            );
-          },
-        });
-
-        const seadexClient = SeaDexClient.make({
-          getEntryByAniListId: () => Effect.succeed(Option.none()),
-        });
-
         const config = makeTestConfig("/tmp/test.sqlite");
-        const searchReleaseService = makeSearchReleaseSupport({
+        const searchReleaseService = yield* withSearchReleaseService({
+          config,
           db,
-          getRuntimeConfig: () => Effect.succeed(config),
-          mediaReadRepository: makeMediaReadRepository(db),
-          rssClient,
-          seadexClient,
+          rssClient: RssClient.make({
+            fetchItems: (url: string) => {
+              const query = new URL(url).searchParams.get("q") ?? "";
+              requestedQueries.push(query);
+
+              return Effect.succeed(
+                query === "Release that Witch S01E08"
+                  ? [
+                      makeRelease({
+                        title:
+                          "[ToonsHub] Release that Witch S01E08 1080p CR WEB-DL AAC2.0 H.264 (Fangkai Nage Nüwu, Multi-Subs)",
+                      }),
+                    ]
+                  : [],
+              );
+            },
+          }),
+          seadexClient: makeSeaDexNoneClient(),
         });
 
         const releases = yield* searchReleaseService.searchUnitReleases(
@@ -118,28 +140,26 @@ it.scoped("searchUnitReleases searches stored synonyms and normalized aliases", 
     run: (db) =>
       Effect.gen(function* () {
         const requestedQueries: string[] = [];
-        const rssClient = RssClient.make({
-          fetchItems: (url: string) => {
-            const query = new URL(url).searchParams.get("q") ?? "";
-            requestedQueries.push(query);
-
-            return Effect.succeed(
-              query === "Fangkai Nage Nuwu S01E08"
-                ? [
-                    makeRelease({
-                      title: "[ToonsHub] Fangkai Nage Nuwu S01E08 1080p CR WEB-DL AAC2.0 H.264",
-                    }),
-                  ]
-                : [],
-            );
-          },
-        });
-
-        const searchReleaseService = makeSearchReleaseSupport({
+        const config = makeTestConfig("/tmp/test.sqlite");
+        const searchReleaseService = yield* withSearchReleaseService({
+          config,
           db,
-          getRuntimeConfig: () => Effect.succeed(makeTestConfig("/tmp/test.sqlite")),
-          mediaReadRepository: makeMediaReadRepository(db),
-          rssClient,
+          rssClient: RssClient.make({
+            fetchItems: (url: string) => {
+              const query = new URL(url).searchParams.get("q") ?? "";
+              requestedQueries.push(query);
+
+              return Effect.succeed(
+                query === "Fangkai Nage Nuwu S01E08"
+                  ? [
+                      makeRelease({
+                        title: "[ToonsHub] Fangkai Nage Nuwu S01E08 1080p CR WEB-DL AAC2.0 H.264",
+                      }),
+                    ]
+                  : [],
+              );
+            },
+          }),
           seadexClient: makeSeaDexNoneClient(),
         });
 
@@ -149,7 +169,7 @@ it.scoped("searchUnitReleases searches stored synonyms and normalized aliases", 
             titleRomaji: "Fangkai Nage Nüwu",
           }),
           8,
-          makeTestConfig("/tmp/test.sqlite"),
+          config,
         );
 
         assert.deepStrictEqual(requestedQueries.includes("Fangkai Nage Nuwu S01E08"), true);
@@ -167,34 +187,31 @@ it.scoped("searchUnitReleases falls back to broad title search and keeps request
     run: (db) =>
       Effect.gen(function* () {
         const requestedQueries: string[] = [];
-        const rssClient = RssClient.make({
-          fetchItems: (url: string) => {
-            const query = new URL(url).searchParams.get("q") ?? "";
-            requestedQueries.push(query);
-
-            return Effect.succeed(
-              query === "Release that Witch"
-                ? [
-                    makeRelease({
-                      infoHash: "1000000000000000000000000000000000000000",
-                      title: "[SubsPlease] Release that Witch - 07 (1080p)",
-                    }),
-                    makeRelease({
-                      infoHash: "2000000000000000000000000000000000000000",
-                      title: "[SubsPlease] Release that Witch - 08 (1080p)",
-                    }),
-                  ]
-                : [],
-            );
-          },
-        });
-
         const config = makeTestConfig("/tmp/test.sqlite");
-        const searchReleaseService = makeSearchReleaseSupport({
+        const searchReleaseService = yield* withSearchReleaseService({
+          config,
           db,
-          getRuntimeConfig: () => Effect.succeed(config),
-          mediaReadRepository: makeMediaReadRepository(db),
-          rssClient,
+          rssClient: RssClient.make({
+            fetchItems: (url: string) => {
+              const query = new URL(url).searchParams.get("q") ?? "";
+              requestedQueries.push(query);
+
+              return Effect.succeed(
+                query === "Release that Witch"
+                  ? [
+                      makeRelease({
+                        infoHash: "1000000000000000000000000000000000000000",
+                        title: "[SubsPlease] Release that Witch - 07 (1080p)",
+                      }),
+                      makeRelease({
+                        infoHash: "2000000000000000000000000000000000000000",
+                        title: "[SubsPlease] Release that Witch - 08 (1080p)",
+                      }),
+                    ]
+                  : [],
+              );
+            },
+          }),
           seadexClient: makeSeaDexNoneClient(),
         });
 
@@ -219,29 +236,26 @@ it.scoped("searchUnitReleases uses Nyaa literature category for manga", () =>
     run: (db) =>
       Effect.gen(function* () {
         const requestedCategories: string[] = [];
-        const rssClient = RssClient.make({
-          fetchItems: (url: string) => {
-            const parsedUrl = new URL(url);
-            requestedCategories.push(parsedUrl.searchParams.get("c") ?? "");
-
-            return Effect.succeed(
-              parsedUrl.searchParams.get("q") === "Witch Hat Atelier Vol 02"
-                ? [
-                    makeRelease({
-                      title: "[Group] Witch Hat Atelier Vol 02 [English]",
-                    }),
-                  ]
-                : [],
-            );
-          },
-        });
-
         const config = makeTestConfig("/tmp/test.sqlite");
-        const searchReleaseService = makeSearchReleaseSupport({
+        const searchReleaseService = yield* withSearchReleaseService({
+          config,
           db,
-          getRuntimeConfig: () => Effect.succeed(config),
-          mediaReadRepository: makeMediaReadRepository(db),
-          rssClient,
+          rssClient: RssClient.make({
+            fetchItems: (url: string) => {
+              const parsedUrl = new URL(url);
+              requestedCategories.push(parsedUrl.searchParams.get("c") ?? "");
+
+              return Effect.succeed(
+                parsedUrl.searchParams.get("q") === "Witch Hat Atelier Vol 02"
+                  ? [
+                      makeRelease({
+                        title: "[Group] Witch Hat Atelier Vol 02 [English]",
+                      }),
+                    ]
+                  : [],
+              );
+            },
+          }),
           seadexClient: makeSeaDexNoneClient(),
         });
 

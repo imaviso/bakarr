@@ -1,8 +1,6 @@
 import { Effect, Either, Option, Schema } from "effect";
 
 import type { Config, SearchResults } from "@packages/shared/index.ts";
-import type { AppDatabase } from "@/db/database.ts";
-import { AppDrizzleDatabase } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { media } from "@/db/schema.ts";
 import { compactLogAnnotations, errorLogAnnotations } from "@/infra/logging.ts";
@@ -25,12 +23,11 @@ import {
 } from "@/features/operations/search/search-support.ts";
 import { parseReleaseName } from "@/features/operations/search/release-ranking.ts";
 import { parseVolumeNumbersFromTitle } from "@/features/operations/search/release-volume.ts";
-import { DomainInputError, InfrastructureError } from "@/features/errors.ts";
-import { isOperationsError, type OperationsError } from "@/features/operations/errors.ts";
+import { DomainInputError } from "@/features/errors.ts";
+import type { OperationsError } from "@/features/operations/errors.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 
-type SearchReleaseError = ExternalCallError | OperationsError | DatabaseError;
 type SearchReleaseSourceError =
   | ExternalCallError
   | RssFeedParseError
@@ -56,164 +53,21 @@ export interface SearchReleaseServiceShape {
     animeRow: typeof media.$inferSelect,
     unitNumber: number,
     config: Config,
-  ) => Effect.Effect<ParsedRelease[], SearchReleaseSourceError>;
+  ) => Effect.Effect<ParsedRelease[], SearchReleaseSourceError | ExternalCallError>;
   readonly searchNyaaReleases: SearchNyaaReleases;
   readonly searchReleases: (
     query: string,
     mediaId?: number,
     category?: string,
     filter?: string,
-  ) => Effect.Effect<SearchResults, OperationsError | DatabaseError | RuntimeConfigSnapshotError>;
-}
-
-export function makeSearchReleaseSupport(input: {
-  db: AppDatabase;
-  getRuntimeConfig: () => Effect.Effect<Config, RuntimeConfigSnapshotError>;
-  mediaReadRepository: typeof MediaReadRepository.Service;
-  rssClient: typeof RssClient.Service;
-  seadexClient: typeof SeaDexClient.Service;
-}) {
-  const { getRuntimeConfig, mediaReadRepository, rssClient, seadexClient } = input;
-
-  const mapSearchReleaseError = (cause: unknown): SearchReleaseError =>
-    cause instanceof DatabaseError || cause instanceof ExternalCallError || isOperationsError(cause)
-      ? cause
-      : new InfrastructureError({
-          message: "Failed to search releases",
-          cause,
-        });
-
-  const searchNyaaReleases = Effect.fn("OperationsService.searchNyaaReleases")(function* (
-    query: string,
-    config: Config,
-    category?: string,
-    filter?: string,
-  ) {
-    const resolvedCategory = mapSearchCategory(category, config.nyaa.default_category || "1_2");
-    const resolvedFilter = mapSearchFilter(filter, config.nyaa.filter_remakes ? "1" : "0");
-    yield* Effect.annotateCurrentSpan("queryLength", query.length);
-    yield* Effect.annotateCurrentSpan("category", resolvedCategory);
-    yield* Effect.annotateCurrentSpan("filter", resolvedFilter);
-    const url = buildNyaaSearchUrl(query, resolvedCategory, resolvedFilter);
-    return [...(yield* rssClient.fetchItems(url))];
-  });
-
-  const enrichSeaDexReleases = Effect.fn("OperationsService.enrichSeaDexReleases")(function* (
-    animeRow: typeof media.$inferSelect,
-    releases: readonly ParsedRelease[],
-  ) {
-    if (releases.length === 0) {
-      return [...releases];
-    }
-
-    if (animeRow.mediaKind !== "anime") {
-      return [...releases];
-    }
-
-    const entry = yield* seadexClient.getEntryByAniListId(animeRow.id).pipe(
-      Effect.tapError((error) =>
-        Effect.logWarning("SeaDex enrichment failed").pipe(
-          Effect.annotateLogs(
-            compactLogAnnotations({
-              mediaId: animeRow.id,
-              mediaTitle: animeRow.titleRomaji,
-              component: "operations",
-              event: "operations.seadex.enrichment.failed",
-              ...errorLogAnnotations(error),
-            }),
-          ),
-        ),
-      ),
-    );
-
-    if (Option.isNone(entry) || entry.value.releases.length === 0) {
-      return [...releases];
-    }
-
-    return releases.map((release) => applySeaDexMatch(release, entry.value));
-  });
-
-  const searchUnitReleases = Effect.fn("OperationsService.searchUnitReleases")(function* (
-    animeRow: typeof media.$inferSelect,
-    unitNumber: number,
-    config: Config,
-  ) {
-    yield* Effect.annotateCurrentSpan("mediaId", animeRow.id);
-    yield* Effect.annotateCurrentSpan("unitNumber", unitNumber);
-
-    const results = yield* collectUnitSearchReleases(
-      animeRow,
-      unitNumber,
-      config,
-      searchNyaaReleases,
-    );
-
-    const enriched = yield* enrichSeaDexReleases(animeRow, results.slice(0, 10));
-    yield* Effect.annotateCurrentSpan("resultCount", enriched.length);
-    return enriched;
-  });
-
-  const searchReleasesInternal = Effect.fn("OperationsService.searchReleasesInternal")(function* (
-    query: string,
-    mediaId?: number,
-    category?: string,
-    filter?: string,
-  ) {
-    if (mediaId !== undefined) {
-      yield* Effect.annotateCurrentSpan("mediaId", mediaId);
-    }
-
-    const animeRow = mediaId ? yield* mediaReadRepository.getAnimeRow(mediaId) : null;
-    const searchQuery = (query || animeRow?.titleRomaji || "").trim();
-
-    if (searchQuery.length === 0) {
-      return yield* new DomainInputError({
-        message: "Search query is required",
-      });
-    }
-
-    const runtimeConfig = yield* getRuntimeConfig();
-    const results = yield* searchNyaaReleases(
-      searchQuery,
-      runtimeConfig,
-      resolveSearchCategoryForMediaKind(category, runtimeConfig, animeRow?.mediaKind),
-      filter,
-    ).pipe(Effect.mapError(mapSearchReleaseError));
-
-    const enrichedResults = animeRow
-      ? yield* enrichSeaDexReleases(animeRow, results).pipe(Effect.mapError(mapSearchReleaseError))
-      : results;
-
-    yield* Effect.annotateCurrentSpan("resultCount", enrichedResults.length);
-
-    return {
-      results: enrichedResults.map(toNyaaSearchResult),
-      seadex_groups: [
-        ...new Set(
-          enrichedResults
-            .filter((item) => item.isSeaDex)
-            .map((item) => item.seaDexReleaseGroup ?? item.group)
-            .filter((value): value is string => Boolean(value)),
-        ),
-      ],
-    } satisfies SearchResults;
-  });
-
-  const searchReleases = Effect.fn("OperationsService.searchReleases")(function* (
-    query: string,
-    mediaId?: number,
-    category?: string,
-    filter?: string,
-  ) {
-    return yield* searchReleasesInternal(query, mediaId, category, filter);
-  });
-
-  return {
-    enrichSeaDexReleases,
-    searchUnitReleases,
-    searchNyaaReleases,
-    searchReleases,
-  } satisfies SearchReleaseServiceShape;
+  ) => Effect.Effect<
+    SearchResults,
+    | OperationsError
+    | DatabaseError
+    | RuntimeConfigSnapshotError
+    | ExternalCallError
+    | SearchReleaseSourceError
+  >;
 }
 
 function buildNyaaSearchUrl(query: string, category: string, filter: string) {
@@ -440,21 +294,134 @@ export class SearchReleaseService extends Effect.Service<SearchReleaseService>()
   "@bakarr/api/SearchReleaseService",
   {
     effect: Effect.gen(function* () {
-      const db = yield* AppDrizzleDatabase;
       const rssClient = yield* RssClient;
       const seadexClient = yield* SeaDexClient;
       const mediaReadRepository = yield* MediaReadRepository;
       const runtimeConfigSnapshotService = yield* RuntimeConfigSnapshotService;
+      const getRuntimeConfig = runtimeConfigSnapshotService.getRuntimeConfig;
 
-      return makeSearchReleaseSupport({
-        db,
-        getRuntimeConfig: runtimeConfigSnapshotService.getRuntimeConfig,
-        mediaReadRepository,
-        rssClient,
-        seadexClient,
+      const searchNyaaReleases = Effect.fn("OperationsService.searchNyaaReleases")(function* (
+        query: string,
+        config: Config,
+        category?: string,
+        filter?: string,
+      ) {
+        const resolvedCategory = mapSearchCategory(category, config.nyaa.default_category || "1_2");
+        const resolvedFilter = mapSearchFilter(filter, config.nyaa.filter_remakes ? "1" : "0");
+        yield* Effect.annotateCurrentSpan("queryLength", query.length);
+        yield* Effect.annotateCurrentSpan("category", resolvedCategory);
+        yield* Effect.annotateCurrentSpan("filter", resolvedFilter);
+        const url = buildNyaaSearchUrl(query, resolvedCategory, resolvedFilter);
+        return [...(yield* rssClient.fetchItems(url))];
       });
+
+      const enrichSeaDexReleases = Effect.fn("OperationsService.enrichSeaDexReleases")(function* (
+        animeRow: typeof media.$inferSelect,
+        releases: readonly ParsedRelease[],
+      ) {
+        if (releases.length === 0) {
+          return [...releases];
+        }
+
+        if (animeRow.mediaKind !== "anime") {
+          return [...releases];
+        }
+
+        const entry = yield* seadexClient.getEntryByAniListId(animeRow.id).pipe(
+          Effect.tapError((error) =>
+            Effect.logWarning("SeaDex enrichment failed").pipe(
+              Effect.annotateLogs(
+                compactLogAnnotations({
+                  mediaId: animeRow.id,
+                  mediaTitle: animeRow.titleRomaji,
+                  component: "operations",
+                  event: "operations.seadex.enrichment.failed",
+                  ...errorLogAnnotations(error),
+                }),
+              ),
+            ),
+          ),
+        );
+
+        if (Option.isNone(entry) || entry.value.releases.length === 0) {
+          return [...releases];
+        }
+
+        return releases.map((release) => applySeaDexMatch(release, entry.value));
+      });
+
+      const searchUnitReleases = Effect.fn("OperationsService.searchUnitReleases")(function* (
+        animeRow: typeof media.$inferSelect,
+        unitNumber: number,
+        config: Config,
+      ) {
+        yield* Effect.annotateCurrentSpan("mediaId", animeRow.id);
+        yield* Effect.annotateCurrentSpan("unitNumber", unitNumber);
+
+        const results = yield* collectUnitSearchReleases(
+          animeRow,
+          unitNumber,
+          config,
+          searchNyaaReleases,
+        );
+
+        const enriched = yield* enrichSeaDexReleases(animeRow, results.slice(0, 10));
+        yield* Effect.annotateCurrentSpan("resultCount", enriched.length);
+        return enriched;
+      });
+
+      const searchReleases = Effect.fn("OperationsService.searchReleases")(function* (
+        query: string,
+        mediaId?: number,
+        category?: string,
+        filter?: string,
+      ) {
+        if (mediaId !== undefined) {
+          yield* Effect.annotateCurrentSpan("mediaId", mediaId);
+        }
+
+        const animeRow = mediaId ? yield* mediaReadRepository.getAnimeRow(mediaId) : null;
+        const searchQuery = (query || animeRow?.titleRomaji || "").trim();
+
+        if (searchQuery.length === 0) {
+          return yield* new DomainInputError({
+            message: "Search query is required",
+          });
+        }
+
+        const runtimeConfig = yield* getRuntimeConfig();
+        const results = yield* searchNyaaReleases(
+          searchQuery,
+          runtimeConfig,
+          resolveSearchCategoryForMediaKind(category, runtimeConfig, animeRow?.mediaKind),
+          filter,
+        );
+
+        const enrichedResults = animeRow ? yield* enrichSeaDexReleases(animeRow, results) : results;
+
+        yield* Effect.annotateCurrentSpan("resultCount", enrichedResults.length);
+
+        return {
+          results: enrichedResults.map(toNyaaSearchResult),
+          seadex_groups: [
+            ...new Set(
+              enrichedResults
+                .filter((item) => item.isSeaDex)
+                .map((item) => item.seaDexReleaseGroup ?? item.group)
+                .filter((value): value is string => Boolean(value)),
+            ),
+          ],
+        } satisfies SearchResults;
+      });
+
+      return {
+        enrichSeaDexReleases,
+        searchUnitReleases,
+        searchNyaaReleases,
+        searchReleases,
+      } satisfies SearchReleaseServiceShape;
     }),
-    dependencies: [AppDrizzleDatabase.Default, MediaReadRepository.Default],
+    dependencies: [MediaReadRepository.Default],
   },
 ) {}
 

@@ -29,6 +29,12 @@ import { MEDIA_KIND_VALUES } from "@packages/shared/index.ts";
 import { getLibraryPathForMediaKind } from "@/features/media/shared/config-support.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 
+const toStoredDataError = (error: { cause?: unknown; message: string }) =>
+  new StoredDataError({
+    cause: error.cause ?? error,
+    message: error.message,
+  });
+
 export type UnmappedControlServiceShape = UnmappedControlWorkflowShape;
 
 export interface UnmappedControlWorkflowShape {
@@ -59,12 +65,6 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
   const systemUnmappedRepository = yield* SystemUnmappedRepository;
   const scanService = yield* UnmappedScanService;
   const nowIso = currentNowIso;
-
-  const toStoredDataError = (error: { cause?: unknown; message: string }) =>
-    new StoredDataError({
-      cause: error.cause ?? error,
-      message: error.message,
-    });
 
   const decodeStoredFolder = Effect.fn("OperationsService.decodeStoredFolder")(function* (
     row: Parameters<typeof decodeUnmappedFolderMatchRow>[0],

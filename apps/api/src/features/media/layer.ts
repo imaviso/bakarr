@@ -18,8 +18,8 @@ export function makeAnimeFeatureLayer<ROut, E, RIn>(
   runtimeSupportLayer: Layer.Layer<ROut, E, RIn>,
 ) {
   const mediaRepositoryLayer = Layer.mergeAll(
-    MediaReadRepository.DefaultWithoutDependencies,
-    MediaUnitRepository.DefaultWithoutDependencies,
+    MediaReadRepository.Default,
+    MediaUnitRepository.Default,
   ).pipe(Layer.provide(runtimeSupportLayer));
   const animeImageCacheLayer = AnimeImageCacheServiceLive;
   const animeMetadataEnrichmentLayer = AnimeMetadataEnrichmentServiceLive;
@@ -41,14 +41,13 @@ export function makeAnimeFeatureLayer<ROut, E, RIn>(
     AnimeFileServiceLive,
     mediaRepositoryLayer,
     MediaReaderServiceLive,
-    animeMaintenanceLayer.pipe(Layer.provide(Layer.mergeAll(animeMetadataProviderLayer, animeImageCacheLayer))),
+    animeMaintenanceLayer.pipe(
+      Layer.provide(Layer.mergeAll(animeMetadataProviderLayer, animeImageCacheLayer)),
+    ),
     animeMetadataEnrichmentLayer,
     animeMetadataProviderLayer,
     AnimeSettingsServiceLive,
     animeStreamTokenSignerLayer,
     animeStreamLayer,
-  ).pipe(
-    Layer.provideMerge(animeSeasonalProviderLayer),
-    Layer.provide(mediaServicesRuntime),
-  );
+  ).pipe(Layer.provideMerge(animeSeasonalProviderLayer), Layer.provide(mediaServicesRuntime));
 }

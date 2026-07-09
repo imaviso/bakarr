@@ -99,7 +99,9 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
           return;
         }
 
-        const currentEpisodes = yield* parseCoveredEpisodesEffect(refineInput.existingCoveredEpisodes);
+        const currentEpisodes = yield* parseCoveredEpisodesEffect(
+          refineInput.existingCoveredEpisodes,
+        );
         if (
           currentEpisodes.length === inferredEpisodes.length &&
           currentEpisodes.every((episode, index) => episode === inferredEpisodes[index])
@@ -124,7 +126,9 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
             eventType: "download.coverage_refined",
             metadataJson: {
               covered_units: inferredEpisodes,
-              ...(refineInput.sourceMetadata ? { source_metadata: refineInput.sourceMetadata } : {}),
+              ...(refineInput.sourceMetadata
+                ? { source_metadata: refineInput.sourceMetadata }
+                : {}),
             },
             message: `Refined batch mediaUnits from qBittorrent file list: ${inferredEpisodes.join(", ")}`,
             metadata: encodedInferredEpisodes,

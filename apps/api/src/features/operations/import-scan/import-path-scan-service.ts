@@ -34,7 +34,11 @@ import {
   type RuntimeConfigSnapshotError,
 } from "@/features/system/runtime-config-snapshot-service.ts";
 import { tryDatabasePromise, type TryDatabasePromise } from "@/infra/effect/db.ts";
-import { FileSystem, isWithinPathRoot, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
+import {
+  FileSystem,
+  isWithinPathRoot,
+  type FileSystemShape,
+} from "@/infra/filesystem/filesystem.ts";
 import { MediaProbe, type MediaProbeShape } from "@/infra/media/probe.ts";
 
 const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathEffect")(function* (input: {

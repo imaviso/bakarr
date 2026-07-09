@@ -16,6 +16,14 @@ import { encodeDownloadSourceMetadata } from "@/features/operations/repository/d
 import type { ParsedRelease } from "@/features/operations/rss/rss-client-parse.ts";
 import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 
+const mapQBitError = (message: string) => (cause: unknown) =>
+  cause instanceof DatabaseError
+    ? cause
+    : new InfrastructureError({
+        message,
+        cause,
+      });
+
 export const queueParsedReleaseDownload = Effect.fn("OperationsService.queueParsedReleaseDownload")(
   function* (input: {
     animeRow: typeof media.$inferSelect;
@@ -32,14 +40,6 @@ export const queueParsedReleaseDownload = Effect.fn("OperationsService.queuePars
     nowIso: () => Effect.Effect<string>;
     tryDatabasePromise: TryDatabasePromise;
   }) {
-    const mapQBitError = (message: string) => (cause: unknown) =>
-      cause instanceof DatabaseError
-        ? cause
-        : new InfrastructureError({
-            message,
-            cause,
-          });
-
     const coveredEpisodeNumbers = yield* parseCoveredEpisodesEffect(input.coveredUnits);
     const now = yield* input.nowIso();
 

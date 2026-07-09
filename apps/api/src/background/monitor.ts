@@ -35,6 +35,20 @@ export interface BackgroundWorkerMonitorShape {
   readonly snapshot: () => Effect.Effect<BackgroundWorkerSnapshot>;
 }
 
+function mergeWorkerStats(stats: BackgroundWorkerStats, patch: Partial<BackgroundWorkerStats>) {
+  return new BackgroundWorkerStatsModel({
+    daemonRunning: patch.daemonRunning ?? stats.daemonRunning,
+    failureCount: patch.failureCount ?? stats.failureCount,
+    lastErrorMessage: patch.lastErrorMessage ?? stats.lastErrorMessage,
+    lastFailedAt: patch.lastFailedAt ?? stats.lastFailedAt,
+    lastStartedAt: patch.lastStartedAt ?? stats.lastStartedAt,
+    lastSucceededAt: patch.lastSucceededAt ?? stats.lastSucceededAt,
+    runRunning: patch.runRunning ?? stats.runRunning,
+    skipCount: patch.skipCount ?? stats.skipCount,
+    successCount: patch.successCount ?? stats.successCount,
+  });
+}
+
 export const makeBackgroundWorkerMonitor = Effect.fn("Background.makeBackgroundWorkerMonitor")(
   function* () {
     const state = yield* Ref.make(initialBackgroundWorkerSnapshot());
@@ -43,22 +57,6 @@ export const makeBackgroundWorkerMonitor = Effect.fn("Background.makeBackgroundW
       workerName: BackgroundWorkerName,
       update: (stats: BackgroundWorkerStats) => BackgroundWorkerStats,
     ) => Ref.update(state, (current) => updateWorkerInSnapshot(current, workerName, update));
-
-    const mergeWorkerStats = (
-      stats: BackgroundWorkerStats,
-      patch: Partial<BackgroundWorkerStats>,
-    ) =>
-      new BackgroundWorkerStatsModel({
-        daemonRunning: patch.daemonRunning ?? stats.daemonRunning,
-        failureCount: patch.failureCount ?? stats.failureCount,
-        lastErrorMessage: patch.lastErrorMessage ?? stats.lastErrorMessage,
-        lastFailedAt: patch.lastFailedAt ?? stats.lastFailedAt,
-        lastStartedAt: patch.lastStartedAt ?? stats.lastStartedAt,
-        lastSucceededAt: patch.lastSucceededAt ?? stats.lastSucceededAt,
-        runRunning: patch.runRunning ?? stats.runRunning,
-        skipCount: patch.skipCount ?? stats.skipCount,
-        successCount: patch.successCount ?? stats.successCount,
-      });
 
     const markRunFailed = Effect.fn("BackgroundWorkerMonitor.markRunFailed")(function* (
       workerName: BackgroundWorkerName,

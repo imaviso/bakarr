@@ -17,6 +17,7 @@ import {
   makeCatalogDownloadProgressReads,
   type DownloadRuntimeSummary,
 } from "@/features/operations/catalog/catalog-download-progress-read-support.ts";
+import { DownloadRepository } from "@/features/operations/repository/download-repository-service.ts";
 import { StoredDataError } from "@/features/errors.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
@@ -72,11 +73,12 @@ export class CatalogDownloadReadService extends Effect.Service<CatalogDownloadRe
   {
     effect: Effect.gen(function* () {
       const db = yield* AppDrizzleDatabase;
+      const downloadRepository = yield* DownloadRepository;
       const nowIso = currentNowIso;
 
       const listReads = makeCatalogDownloadListReads({ db, tryDatabasePromise });
       const eventReads = makeCatalogDownloadEventReads({ db, nowIso, tryDatabasePromise });
-      const progressReads = makeCatalogDownloadProgressReads({ db, tryDatabasePromise });
+      const progressReads = makeCatalogDownloadProgressReads(downloadRepository);
 
       const streamDownloadEventsExportJson = Effect.fn(
         "OperationsService.streamDownloadEventsExportJson",
@@ -101,7 +103,7 @@ export class CatalogDownloadReadService extends Effect.Service<CatalogDownloadRe
         streamDownloadEventsExportJson,
       } satisfies CatalogDownloadReadServiceShape;
     }),
-    dependencies: [AppDrizzleDatabase.Default],
+    dependencies: [AppDrizzleDatabase.Default, DownloadRepository.Default],
   },
 ) {}
 

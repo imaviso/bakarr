@@ -320,7 +320,7 @@ export class OperationsTaskWriteService extends Effect.Service<OperationsTaskWri
   },
 ) {}
 
-export const OperationsTaskWriteServiceLive = OperationsTaskWriteService.DefaultWithoutDependencies;
+export const OperationsTaskWriteServiceLive = OperationsTaskWriteService.Default;
 
 export class OperationsTaskReadService extends Effect.Service<OperationsTaskReadService>()(
   "@bakarr/api/OperationsTaskReadService",
@@ -330,7 +330,7 @@ export class OperationsTaskReadService extends Effect.Service<OperationsTaskRead
   },
 ) {}
 
-export const OperationsTaskReadServiceLive = OperationsTaskReadService.DefaultWithoutDependencies;
+export const OperationsTaskReadServiceLive = OperationsTaskReadService.Default;
 
 export const decodeOperationsTaskQuery = Effect.fn(
   "OperationsTaskService.decodeOperationsTaskQuery",

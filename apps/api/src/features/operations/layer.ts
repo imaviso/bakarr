@@ -60,9 +60,7 @@ export function makeOperationsFeatureLayer<ROut, E, RIn>(
   );
 
   const torrentClientLayer = TorrentClientServiceLive.pipe(Layer.provide(baseRuntime));
-  const downloadProgressSupportLayer = DownloadProgressSupportLive.pipe(
-    Layer.provide(baseRuntime),
-  );
+  const downloadProgressSupportLayer = DownloadProgressSupportLive.pipe(Layer.provide(baseRuntime));
   const downloadCore = Layer.mergeAll(
     baseRuntime,
     torrentClientLayer,
@@ -83,9 +81,7 @@ export function makeOperationsFeatureLayer<ROut, E, RIn>(
     downloadSyncLayer,
   );
   const downloadTriggerLayer = DownloadTriggerServiceLive.pipe(Layer.provide(downloadStack));
-  const catalogDownloadReadLayer = CatalogDownloadReadServiceLive.pipe(
-    Layer.provide(runtimeSupportLayer),
-  );
+  const catalogDownloadReadLayer = CatalogDownloadReadServiceLive.pipe(Layer.provide(baseRuntime));
   const operationsProgressLayer = ProgressLive.pipe(
     Layer.provide(
       Layer.mergeAll(
@@ -115,20 +111,12 @@ export function makeOperationsFeatureLayer<ROut, E, RIn>(
   );
   const searchBackgroundRssLayer = SearchBackgroundRssServiceLive.pipe(
     Layer.provide(
-      Layer.mergeAll(
-        runtimeWithProgress,
-        backgroundSearchRssFeedLayer,
-        backgroundSearchQueueLayer,
-      ),
+      Layer.mergeAll(runtimeWithProgress, backgroundSearchRssFeedLayer, backgroundSearchQueueLayer),
     ),
   );
   const backgroundSearchRssWorkerLayer = BackgroundSearchRssWorkerServiceLive.pipe(
     Layer.provide(
-      Layer.mergeAll(
-        runtimeWithProgress,
-        searchBackgroundRssLayer,
-        searchBackgroundMissingLayer,
-      ),
+      Layer.mergeAll(runtimeWithProgress, searchBackgroundRssLayer, searchBackgroundMissingLayer),
     ),
   );
 

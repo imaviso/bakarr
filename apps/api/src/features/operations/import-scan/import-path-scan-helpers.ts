@@ -366,28 +366,30 @@ export function extractScanCandidatePaths(files: readonly Pick<ScannedFile, "sou
 
 const ENRICH_IMPORT_SCAN_CONCURRENCY = 4;
 
-export const enrichImportScanFiles = Effect.fn("Operations.enrichImportScanFiles")(function* (input: {
-  readonly files: readonly ScannedFile[];
-  readonly mediaProbe: MediaProbeShape;
-}) {
-  return yield* Effect.forEach(
-    input.files,
-    (file) =>
-      Effect.gen(function* () {
-        if (!shouldProbeMediaMetadata(file)) {
-          return file;
-        }
+export const enrichImportScanFiles = Effect.fn("Operations.enrichImportScanFiles")(
+  function* (input: {
+    readonly files: readonly ScannedFile[];
+    readonly mediaProbe: MediaProbeShape;
+  }) {
+    return yield* Effect.forEach(
+      input.files,
+      (file) =>
+        Effect.gen(function* () {
+          if (!shouldProbeMediaMetadata(file)) {
+            return file;
+          }
 
-        const probeMetadata = yield* probeMediaMetadataOrUndefined(
-          input.mediaProbe,
-          file.source_path,
-        );
+          const probeMetadata = yield* probeMediaMetadataOrUndefined(
+            input.mediaProbe,
+            file.source_path,
+          );
 
-        return mergeProbedMediaMetadata(file, probeMetadata);
-      }),
-    { concurrency: ENRICH_IMPORT_SCAN_CONCURRENCY },
-  );
-});
+          return mergeProbedMediaMetadata(file, probeMetadata);
+        }),
+      { concurrency: ENRICH_IMPORT_SCAN_CONCURRENCY },
+    );
+  },
+);
 
 export const loadImportScanAnimeRows = (input: {
   readonly mediaId?: number;
@@ -473,4 +475,3 @@ export const loadScopedEpisodeRows = (input: {
       ),
   );
 };
-

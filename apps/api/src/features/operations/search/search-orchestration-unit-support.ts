@@ -1,16 +1,13 @@
 import { Effect, Option } from "effect";
 
 import type { UnitSearchResult } from "@packages/shared/index.ts";
-import { DatabaseError } from "@/db/database.ts";
 import { media } from "@/db/schema.ts";
-import { ExternalCallError } from "@/infra/effect/retry.ts";
 import { DomainInputError } from "@/features/errors.ts";
-import { isOperationsError, type OperationsError } from "@/features/operations/errors.ts";
+import type { OperationsError } from "@/features/operations/errors.ts";
 import { OperationsProfileRepository } from "@/features/operations/repository/profile-repository.ts";
 import { compareUnitSearchResults } from "@/features/operations/search/release-ranking.ts";
 import { validateQualityProfileSizeLabels } from "@/features/operations/search/release-ranking.ts";
 import { toUnitSearchResult } from "@/features/operations/search/search-orchestration-unit-result.ts";
-import { InfrastructureError } from "@/features/errors.ts";
 import { SearchReleaseService } from "@/features/operations/search/search-orchestration-release-search.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
@@ -24,16 +21,6 @@ export interface SearchUnitServiceShape {
     unitNumber: number,
   ) => Effect.Effect<UnitSearchResult[], OperationsError | RuntimeConfigSnapshotError>;
 }
-
-const mapSearchUnitError = (
-  cause: unknown,
-): ExternalCallError | OperationsError | DatabaseError =>
-  cause instanceof DatabaseError || cause instanceof ExternalCallError || isOperationsError(cause)
-    ? cause
-    : new InfrastructureError({
-        message: "Failed to search unit releases",
-        cause,
-      });
 
 export class SearchUnitService extends Effect.Service<SearchUnitService>()(
   "@bakarr/api/SearchUnitService",
@@ -64,9 +51,11 @@ export class SearchUnitService extends Effect.Service<SearchUnitService>()(
 
         const rules = yield* profileRepository.loadReleaseRules(animeRow);
         const currentUnit = yield* mediaReadRepository.loadCurrentEpisodeState(mediaId, unitNumber);
-        const results = yield* searchReleaseService
-          .searchUnitReleases(animeRow, unitNumber, runtimeConfig)
-          .pipe(Effect.mapError(mapSearchUnitError));
+        const results = yield* searchReleaseService.searchUnitReleases(
+          animeRow,
+          unitNumber,
+          runtimeConfig,
+        );
 
         return results
           .map((item) =>
@@ -86,7 +75,11 @@ export class SearchUnitService extends Effect.Service<SearchUnitService>()(
         searchUnit,
       } satisfies SearchUnitServiceShape;
     }),
-    dependencies: [MediaReadRepository.Default, OperationsProfileRepository.Default],
+    dependencies: [
+      MediaReadRepository.Default,
+      OperationsProfileRepository.Default,
+      SearchReleaseService.Default,
+    ],
   },
 ) {}
 

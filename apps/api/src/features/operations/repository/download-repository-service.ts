@@ -93,7 +93,10 @@ export interface DownloadRepositoryShape {
     readonly torrentName: string;
     readonly unitNumber: number;
   }) => Effect.Effect<number, DatabaseError>;
-  readonly listActiveDownloadRows: () => Effect.Effect<readonly DownloadRow[], DatabaseError>;
+  readonly countActiveDownloads: () => Effect.Effect<number, DatabaseError>;
+  readonly listActiveDownloadRows: (
+    limit?: number,
+  ) => Effect.Effect<readonly DownloadRow[], DatabaseError>;
   readonly listDownloadsByInfoHashes: (
     infoHashes: readonly string[],
   ) => Effect.Effect<readonly DownloadRow[], DatabaseError>;
@@ -163,7 +166,8 @@ function makeDownloadRepositoryShape(db: AppDatabase): DownloadRepositoryShape {
     insertDownloadEvent: (input, createdAt) => insertDownloadEventRow(db, input, createdAt),
     insertDownloadEvents: (inputs, createdAt) => insertDownloadEventRows(db, inputs, createdAt),
     insertQueuedDownloadRow: (input) => insertQueuedDownloadRow(db, input),
-    listActiveDownloadRows: () => listActiveDownloadRows(db),
+    countActiveDownloads: () => countActiveDownloads(db),
+    listActiveDownloadRows: (limit) => listActiveDownloadRows(db, limit),
     listDownloadsByInfoHashes: (infoHashes) => listDownloadsByInfoHashes(db, infoHashes),
     listDownloadsByMediaId: (mediaId) => listDownloadsByMediaId(db, mediaId),
     listMissingEpisodeNumbers: (mediaId) => listMissingEpisodeNumbers(db, mediaId),
@@ -382,14 +386,28 @@ const insertQueuedDownloadRow = Effect.fn("DownloadRepository.insertQueuedDownlo
 
 const listActiveDownloadRows = Effect.fn("DownloadRepository.listActiveDownloadRows")(function* (
   db: AppDatabase,
+  limit?: number,
 ) {
-  return yield* tryDatabasePromise("Failed to load download progress snapshot", () =>
-    db
+  return yield* tryDatabasePromise("Failed to load download progress snapshot", () => {
+    const query = db
       .select()
       .from(downloads)
       .where(inArray(downloads.status, ["queued", "downloading", "paused"]))
-      .orderBy(desc(downloads.id)),
+      .orderBy(desc(downloads.id));
+    return limit === undefined ? query : query.limit(limit);
+  });
+});
+
+const countActiveDownloads = Effect.fn("DownloadRepository.countActiveDownloads")(function* (
+  db: AppDatabase,
+) {
+  const countRows = yield* tryDatabasePromise("Failed to count active downloads", () =>
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(downloads)
+      .where(inArray(downloads.status, ["queued", "downloading", "paused"])),
   );
+  return countRows[0]?.count ?? 0;
 });
 
 const listDownloadsByInfoHashes = Effect.fn("DownloadRepository.listDownloadsByInfoHashes")(
@@ -558,4 +576,3 @@ const updateDownloadRetryRow = Effect.fn("DownloadRepository.updateDownloadRetry
       .where(eq(downloads.id, input.id)),
   );
 });
-
