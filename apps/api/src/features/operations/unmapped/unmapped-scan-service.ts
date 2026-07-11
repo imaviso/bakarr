@@ -109,11 +109,10 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
   const loadMergedUnmappedFolders = Effect.fn("UnmappedScanService.loadMergedUnmappedFolders")(
     function* () {
       const snapshot = yield* loadUnmappedFolderSnapshot({
-        db,
         fs,
         roots: loadConfiguredRoots,
         systemUnmappedRepository,
-        tryDatabasePromise,
+        mediaReadRepository,
       });
 
       const folders = yield* Effect.forEach(snapshot.folders, (folder) =>

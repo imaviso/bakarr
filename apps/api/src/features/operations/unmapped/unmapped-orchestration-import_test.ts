@@ -5,7 +5,6 @@ import { dirname } from "node:path";
 import { media, appConfig, mediaUnits } from "@/db/schema.ts";
 import { encodeConfigCore, toConfigCore } from "@/features/system/config-codec.ts";
 import { makeUnmappedImportWorkflow } from "@/features/operations/unmapped/unmapped-orchestration-import.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { assert, it } from "@effect/vitest";
 import { makeTestFileSystemEffect, writeTextFile } from "@/test/filesystem-test.ts";
 import { withSqliteRawClientEffect, withSqliteTestDbEffect } from "@/test/database-test.ts";
@@ -75,7 +74,6 @@ it.scoped("unmapped import rolls back when a later insert fails", () =>
           mediaUnitRepository: makeMediaUnitRepository(appDb),
           nowIso: () => Effect.succeed("2024-01-01T00:00:00.000Z"),
           systemConfigRepository: makeSystemConfigRepository(appDb),
-          tryDatabasePromise,
         });
 
         const exit = yield* Effect.exit(

@@ -393,13 +393,11 @@ export const enrichImportScanFiles = Effect.fn("Operations.enrichImportScanFiles
 
 export const loadImportScanMediaRows = (input: {
   readonly mediaId?: number;
-  readonly db: AppDatabase;
   readonly mediaReadRepository: typeof MediaReadRepository.Service;
-  readonly tryDatabasePromise: TryDatabasePromise;
 }) =>
   input.mediaId
     ? Effect.map(input.mediaReadRepository.getMediaRow(input.mediaId), (row) => [row])
-    : input.tryDatabasePromise("Failed to scan import path", () => input.db.select().from(media));
+    : input.mediaReadRepository.listAllMediaRows();
 
 export const loadMappedEpisodeRows = (input: {
   readonly candidateAnimeIds: readonly number[];

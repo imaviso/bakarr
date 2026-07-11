@@ -1,9 +1,7 @@
-import { eq } from "drizzle-orm";
 import { Effect, Stream } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
-import { media } from "@/db/schema.ts";
 import {
   type FileSystemShape,
   isWithinPathRoot,
@@ -27,11 +25,9 @@ import {
   MediaUnitRepository,
   type MediaUnitRepositoryShape,
 } from "@/features/media/units/media-unit-repository.ts";
-import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 import { AppDrizzleDatabase } from "@/db/database.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { SystemConfigRepository } from "@/features/system/repository/system-config-repository.ts";
 import type { MediaKind } from "@packages/shared/index.ts";
@@ -97,7 +93,6 @@ export function makeUnmappedImportWorkflow(input: {
   mediaUnitRepository: MediaUnitRepositoryShape;
   nowIso: () => Effect.Effect<string>;
   systemConfigRepository: typeof SystemConfigRepository.Service;
-  tryDatabasePromise: TryDatabasePromise;
 }) {
   const {
     db,
@@ -107,7 +102,6 @@ export function makeUnmappedImportWorkflow(input: {
     mediaUnitRepository,
     nowIso,
     systemConfigRepository,
-    tryDatabasePromise,
   } = input;
 
   type EpisodeImportMapping = {
@@ -138,17 +132,11 @@ export function makeUnmappedImportWorkflow(input: {
         });
       }
 
-      const existingOwner = yield* tryDatabasePromise("Failed to import unmapped folder", () =>
-        db
-          .select({ id: media.id, titleRomaji: media.titleRomaji })
-          .from(media)
-          .where(eq(media.rootFolder, folderPath))
-          .limit(1),
-      );
+      const existingOwner = yield* mediaReadRepository.findMediaByExactRootFolder(folderPath);
 
-      if (existingOwner[0] && existingOwner[0].id !== input.media_id) {
+      if (existingOwner && existingOwner.id !== input.media_id) {
         return yield* new OperationsConflictError({
-          message: `Folder ${folderName} is already mapped to ${existingOwner[0].titleRomaji}`,
+          message: `Folder ${folderName} is already mapped to ${existingOwner.titleRomaji}`,
         });
       }
 
@@ -285,7 +273,6 @@ export class UnmappedImportService extends Effect.Service<UnmappedImportService>
         mediaUnitRepository,
         nowIso: currentNowIso,
         systemConfigRepository,
-        tryDatabasePromise,
       });
     }),
     dependencies: [AppDrizzleDatabase.Default, SystemConfigRepository.Default],

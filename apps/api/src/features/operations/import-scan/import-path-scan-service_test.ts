@@ -96,6 +96,8 @@ function scanImportPathEffect(
                 listWantedMissing: () => Effect.dieMessage("not used in test"),
                 loadCurrentEpisodeState: () => Effect.dieMessage("not used in test"),
                 mediaExists: () => Effect.dieMessage("not used in test"),
+                listAllMediaRows: () => Effect.dieMessage("not used in test"),
+                findMediaByExactRootFolder: () => Effect.dieMessage("not used in test"),
                 requireMediaExists: () => Effect.dieMessage("not used in test"),
                 deleteMedia: () => Effect.dieMessage("not used in test"),
                 insertMediaAggregate: () => Effect.dieMessage("not used in test"),

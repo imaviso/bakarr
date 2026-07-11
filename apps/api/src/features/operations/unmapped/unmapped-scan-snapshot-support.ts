@@ -1,7 +1,6 @@
 import { Effect } from "effect";
 
-import type { AppDatabase, DatabaseError } from "@/db/database.ts";
-import { media } from "@/db/schema.ts";
+import type { DatabaseError } from "@/db/database.ts";
 import { isNotFoundError } from "@/infra/filesystem/fs-errors.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { DomainPathError, StoredDataError } from "@/features/errors.ts";
@@ -13,8 +12,8 @@ import {
   ensureFolderMatchStatus,
   listUnmappedFolderEntries,
 } from "@/features/operations/unmapped/unmapped-folder-list-support.ts";
-import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 import type { MediaKind } from "@packages/shared/index.ts";
+import type { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 
 export interface ConfigLibraryRoot {
   readonly mediaKind: MediaKind;
@@ -23,16 +22,13 @@ export interface ConfigLibraryRoot {
 
 export const loadUnmappedFolderSnapshot = Effect.fn("OperationsService.loadUnmappedFolderSnapshot")(
   function* (input: {
-    db: AppDatabase;
     fs: FileSystemShape;
     nowIso?: () => Effect.Effect<string> | undefined;
     roots: () => Effect.Effect<readonly ConfigLibraryRoot[], DatabaseError | StoredDataError>;
     systemUnmappedRepository: SystemUnmappedRepositoryShape;
-    tryDatabasePromise: TryDatabasePromise;
+    mediaReadRepository: typeof MediaReadRepository.Service;
   }) {
-    const animeRows = yield* input.tryDatabasePromise("Failed to scan unmapped folders", () =>
-      input.db.select().from(media),
-    );
+    const animeRows = yield* input.mediaReadRepository.listAllMediaRows();
     const mappedRoots = new Set(animeRows.map((row) => row.rootFolder));
     const cachedRows = yield* input.systemUnmappedRepository.listMatchRows();
     const roots = yield* input.roots();

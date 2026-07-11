@@ -60,9 +60,7 @@ const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathEffect")
   });
   const animeRows = yield* loadImportScanMediaRows({
     ...(input.mediaId === undefined ? {} : { mediaId: input.mediaId }),
-    db: input.db,
     mediaReadRepository: input.mediaReadRepository,
-    tryDatabasePromise: input.tryDatabasePromise,
   });
   const enrichedFiles = yield* enrichImportScanFiles({
     files: discovery.episodeFiles.map((entry) => entry.scanned),

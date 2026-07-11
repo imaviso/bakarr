@@ -131,7 +131,7 @@ function hasVolumeFileExtension(name: string) {
 
 export function findBestLocalMediaMatch(
   parsedTitle: string,
-  animeRows: Array<typeof media.$inferSelect>,
+  animeRows: readonly (typeof media.$inferSelect)[],
 ) {
   let bestMatch: typeof media.$inferSelect | undefined;
   let bestScore = 0;

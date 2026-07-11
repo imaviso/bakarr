@@ -5,7 +5,8 @@ import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import type { DomainPathError } from "@/features/errors.ts";
 import { UnmappedScanService } from "@/features/operations/unmapped/unmapped-scan-service.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+
 import {
   decodeUnmappedFolderMatchRow,
   SystemUnmappedRepository,
@@ -63,6 +64,7 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
   const fs = yield* FileSystem;
   const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
   const systemUnmappedRepository = yield* SystemUnmappedRepository;
+  const mediaReadRepository = yield* MediaReadRepository;
   const scanService = yield* UnmappedScanService;
   const nowIso = currentNowIso;
 
@@ -89,7 +91,6 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
     path: string,
   ) {
     const snapshot = yield* loadUnmappedFolderSnapshot({
-      db,
       fs,
       nowIso,
       roots: Effect.fn("UnmappedControlService.getConfiguredRoots")(function* () {
@@ -109,7 +110,7 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
         }));
       }),
       systemUnmappedRepository,
-      tryDatabasePromise,
+      mediaReadRepository,
     });
     const target = snapshot.folders.find((folder) => folder.path === path);
 

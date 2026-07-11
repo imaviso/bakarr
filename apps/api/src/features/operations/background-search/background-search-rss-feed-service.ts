@@ -1,14 +1,13 @@
-import { inArray } from "drizzle-orm";
 import { Effect, Option } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
-import { AppDrizzleDatabase, DatabaseError } from "@/db/database.ts";
-import { downloads, rssFeeds } from "@/db/schema.ts";
+import { DatabaseError } from "@/db/database.ts";
+import { rssFeeds } from "@/db/schema.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { RssClient } from "@/features/operations/rss/rss-client.ts";
 import { BackgroundSearchQueueService } from "@/features/operations/background-search/background-search-queue-service.ts";
 import { DomainInputError, InfrastructureError } from "@/features/errors.ts";
-import { loadMissingEpisodeNumbers } from "@/features/operations/shared/job-support.ts";
+import { DownloadRepository } from "@/features/operations/repository/download-repository-service.ts";
 import {
   decideDownloadAction,
   validateQualityProfileSizeLabels,
@@ -17,7 +16,6 @@ import { parseRssReleaseUnitNumbers } from "@/features/operations/background-sea
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import { OperationsProfileRepository } from "@/features/operations/repository/profile-repository.ts";
 import { RssFeedRepository } from "@/features/operations/repository/rss-feed-repository-service.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 export type BackgroundSearchRssFeedError =
   | DatabaseError
@@ -36,12 +34,12 @@ export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSea
   "@bakarr/api/BackgroundSearchRssFeedService",
   {
     effect: Effect.gen(function* () {
-      const db = yield* AppDrizzleDatabase;
       const rssClient = yield* RssClient;
       const queueService = yield* BackgroundSearchQueueService;
       const mediaReadRepository = yield* MediaReadRepository;
       const profileRepository = yield* OperationsProfileRepository;
       const rssFeedRepository = yield* RssFeedRepository;
+      const downloadRepository = yield* DownloadRepository;
       const nowIso = currentNowIso;
 
       const requireQualityProfile = Effect.fn("BackgroundSearchRssFeed.requireQualityProfile")(
@@ -119,21 +117,11 @@ export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSea
                 return 0;
               }
 
-              const existingDownloads = yield* tryDatabasePromise("Failed to run RSS check", () =>
-                db
-                  .select({ infoHash: downloads.infoHash })
-                  .from(downloads)
-                  .where(
-                    inArray(
-                      downloads.infoHash,
-                      slice.map((item) => item.infoHash),
-                    ),
-                  ),
+              const existingRows = yield* downloadRepository.listDownloadsByInfoHashes(
+                slice.map((item) => item.infoHash),
               );
-              const existingHashes = new Set(
-                existingDownloads.map((d) => d.infoHash?.toLowerCase()),
-              );
-              const missingUnits = yield* loadMissingEpisodeNumbers(db, animeRow.id);
+              const existingHashes = new Set(existingRows.map((d) => d.infoHash?.toLowerCase()));
+              const missingUnits = yield* downloadRepository.listMissingEpisodeNumbers(animeRow.id);
 
               for (const item of slice) {
                 if (existingHashes.has(item.infoHash.toLowerCase())) {
@@ -227,9 +215,9 @@ export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSea
       return { processFeed } satisfies BackgroundSearchRssFeedServiceShape;
     }),
     dependencies: [
-      AppDrizzleDatabase.Default,
       MediaReadRepository.Default,
       RssFeedRepository.Default,
+      DownloadRepository.Default,
     ],
   },
 ) {}

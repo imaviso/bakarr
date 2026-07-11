@@ -42,6 +42,12 @@ export interface MediaReadRepositoryShape {
     { readonly id: number; readonly rootFolder: string; readonly titleRomaji: string } | null,
     DatabaseError
   >;
+  readonly findMediaByExactRootFolder: (
+    rootFolder: string,
+  ) => Effect.Effect<
+    { readonly id: number; readonly titleRomaji: string } | undefined,
+    DatabaseError
+  >;
   readonly countMedia: (input: {
     readonly monitored?: boolean;
   }) => Effect.Effect<number, DatabaseError>;
@@ -50,6 +56,10 @@ export interface MediaReadRepositoryShape {
     readonly limit: number;
     readonly offset: number;
   }) => Effect.Effect<readonly (typeof media.$inferSelect)[], DatabaseError>;
+  readonly listAllMediaRows: () => Effect.Effect<
+    readonly (typeof media.$inferSelect)[],
+    DatabaseError
+  >;
   readonly listUnitRowsByMediaId: (
     mediaId: number,
   ) => Effect.Effect<readonly (typeof mediaUnits.$inferSelect)[], DatabaseError>;
@@ -126,6 +136,8 @@ function makeMediaReadRepositoryShape(db: AppDatabase): MediaReadRepositoryShape
     countMedia: (input) => countMediaEffect(db, input),
     findExistingMediaIds: (mediaIds) => findExistingMediaIdsEffect(db, mediaIds),
     findMediaRootFolderOwner: (rootFolder) => findMediaRootFolderOwnerEffect(db, rootFolder),
+    findMediaByExactRootFolder: (rootFolder) => findMediaByExactRootFolderEffect(db, rootFolder),
+    listAllMediaRows: () => listAllMediaRowsEffect(db),
     getMediaRow: (mediaId) => getMediaRowEffect(db, mediaId),
     getEpisodeRow: (mediaId, unitNumber) => getEpisodeRowEffect(db, mediaId, unitNumber),
     listCalendarEvents: (start, end, now) => listCalendarEventsEffect(db, start, end, now),
@@ -212,6 +224,19 @@ const loadCurrentEpisodeStateEffect = Effect.fn("MediaReadRepository.loadCurrent
       : Option.none();
   },
 );
+
+const findMediaByExactRootFolderEffect = Effect.fn(
+  "MediaReadRepository.findMediaByExactRootFolder",
+)(function* (db: AppDatabase, rootFolder: string) {
+  const rows = yield* tryDatabasePromise("Failed to find media by root folder", () =>
+    db
+      .select({ id: media.id, titleRomaji: media.titleRomaji })
+      .from(media)
+      .where(eq(media.rootFolder, rootFolder))
+      .limit(1),
+  );
+  return rows[0];
+});
 
 const findMediaRootFolderOwnerEffect = Effect.fn("MediaReadRepository.findMediaRootFolderOwner")(
   function* (db: AppDatabase, rootFolder: string) {
@@ -378,6 +403,14 @@ const findExistingMediaIdsEffect = Effect.fn("MediaReadRepository.findExistingMe
       .where(inArray(media.id, [...mediaIds])),
   );
   return new Set(rows.map((row) => row.id));
+});
+
+const listAllMediaRowsEffect = Effect.fn("MediaReadRepository.listAllMediaRows")(function* (
+  db: AppDatabase,
+) {
+  return yield* tryDatabasePromise("Failed to list all media", () =>
+    db.select().from(media).orderBy(media.id),
+  );
 });
 
 const listMediaRowsEffect = Effect.fn("MediaReadRepository.listMediaRows")(function* (

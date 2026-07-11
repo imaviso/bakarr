@@ -13,6 +13,7 @@ import { makeDefaultConfig } from "@/features/system/defaults.ts";
 import { loadUnmappedFolderSnapshot } from "@/features/operations/unmapped/unmapped-scan-snapshot-support.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { makeSystemUnmappedRepository } from "@/features/system/repository/unmapped-repository.ts";
+import { makeMediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { withFileSystemSandboxEffect, writeTextFile } from "@/test/filesystem-test.ts";
 import {
@@ -94,7 +95,6 @@ it.scoped("loadUnmappedFolderSnapshot scans anime, manga, and light novel roots"
           );
 
           const snapshot = yield* loadUnmappedFolderSnapshot({
-            db,
             fs,
             nowIso: () => Effect.succeed("2024-01-01T00:00:00.000Z"),
             roots: () =>
@@ -104,7 +104,7 @@ it.scoped("loadUnmappedFolderSnapshot scans anime, manga, and light novel roots"
                 { mediaKind: "light_novel", path: lightNovelRoot },
               ]),
             systemUnmappedRepository: makeSystemUnmappedRepository(db),
-            tryDatabasePromise,
+            mediaReadRepository: makeMediaReadRepository(db),
           });
 
           assert.deepStrictEqual(
