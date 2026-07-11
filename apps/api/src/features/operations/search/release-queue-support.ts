@@ -24,7 +24,7 @@ const mapQBitError = (message: string) => (cause: unknown) =>
         cause,
       });
 
-export const queueParsedReleaseDownload = Effect.fn("OperationsService.queueParsedReleaseDownload")(
+export const queueParsedReleaseDownload = Effect.fn("ReleaseQueue.queueParsedReleaseDownload")(
   function* (input: {
     animeRow: typeof media.$inferSelect;
     contextMessage: string;

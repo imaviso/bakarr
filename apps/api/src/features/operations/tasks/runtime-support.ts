@@ -9,7 +9,7 @@ export interface DownloadTriggerCoordinatorShape {
 }
 
 const makeDownloadTriggerCoordinator = Effect.fn(
-  "OperationsService.makeDownloadTriggerCoordinator",
+  "RuntimeCoordinator.makeDownloadTriggerCoordinator",
 )(function* () {
   const semaphore = yield* Effect.makeSemaphore(1);
   const runExclusiveDownloadTrigger = Effect.fn(
@@ -44,7 +44,7 @@ export interface UnmappedScanCoordinatorShape {
   }) => Effect.Effect<A, E>;
 }
 
-const makeUnmappedScanCoordinator = Effect.fn("OperationsService.makeUnmappedScanCoordinator")(
+const makeUnmappedScanCoordinator = Effect.fn("RuntimeCoordinator.makeUnmappedScanCoordinator")(
   function* () {
     const coordinator = yield* makeSerializedFlagCoordinator();
     const scope = yield* Scope.make();

@@ -21,7 +21,6 @@ import { MediaReadRepository } from "@/features/media/shared/media-read-reposito
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import { OperationsProfileRepository } from "@/features/operations/repository/profile-repository.ts";
 import { SystemUnmappedRepository } from "@/features/system/repository/unmapped-repository.ts";
-import { LibraryBrowseServiceLive } from "@/features/operations/library/library-browse-service.ts";
 import { OperationsTaskLauncherServiceLive } from "@/features/operations/tasks/operations-task-launcher-service.ts";
 import { DiskSpaceInspectorLive } from "@/features/system/disk-space.ts";
 import { makeSystemConfigLayers, makeSystemFeatureLayer } from "@/features/system/layer.ts";
@@ -95,9 +94,6 @@ export function makeApiLifecycleLayers(
   const operationsTaskLauncherLayer = OperationsTaskLauncherServiceLive.pipe(
     Layer.provide(operationsLayer),
   );
-  const libraryLayer = LibraryBrowseServiceLive.pipe(
-    Layer.provide(Layer.mergeAll(systemLayer, operationsLayer)),
-  );
   const animeEnrollmentLayer = MediaEnrollmentServiceLive.pipe(
     Layer.provide(Layer.mergeAll(animeLiveLayer, operationsLayer, operationsTaskLauncherLayer)),
   );
@@ -107,7 +103,6 @@ export function makeApiLifecycleLayers(
     runtimeWorkerSubgraphLayer,
     authLayer,
     systemLayer,
-    libraryLayer,
     animeEnrollmentLayer,
   );
   const appFeatureSubgraphLayer = Layer.mergeAll(appFeatureBaseLayer, operationsTaskLauncherLayer);

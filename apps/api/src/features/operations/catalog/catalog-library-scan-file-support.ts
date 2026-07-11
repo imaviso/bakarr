@@ -10,7 +10,7 @@ export interface LibraryScanCounts {
   readonly scannedFiles: number;
 }
 
-export const countLibraryScanFile = Effect.fn("OperationsService.countLibraryScanFile")(function* (
+export const countLibraryScanFile = Effect.fn("CatalogScanFile.countLibraryScanFile")(function* (
   mediaUnitRepository: MediaUnitRepositoryShape,
   input: {
     mediaId: number;

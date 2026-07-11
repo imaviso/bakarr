@@ -16,6 +16,7 @@ import { DownloadTorrentActionServiceLive } from "@/features/operations/download
 import { DownloadTorrentSyncServiceLive } from "@/features/operations/download/download-torrent-sync-support.ts";
 import { DownloadTriggerServiceLive } from "@/features/operations/download/download-trigger-service.ts";
 import { ImportPathScanServiceLive } from "@/features/operations/import-scan/import-path-scan-service.ts";
+import { LibraryBrowseServiceLive } from "@/features/operations/library/library-browse-service.ts";
 import { ProgressLive } from "@/features/operations/tasks/operations-progress-service.ts";
 import {
   OperationsTaskReadServiceLive,
@@ -166,5 +167,6 @@ export function makeOperationsFeatureLayer<ROut, E, RIn>(
     unmappedScanLayer,
     unmappedControlLayer,
     unmappedImportLayer,
+    LibraryBrowseServiceLive,
   );
 }

@@ -51,7 +51,7 @@ function makeCatalogLibraryScanSupport(input: {
       Effect.zipRight(Effect.fail(cause)),
     );
 
-  const runLibraryScan = Effect.fn("OperationsService.runLibraryScan")(
+  const runLibraryScan = Effect.fn("CatalogLibraryScan.runLibraryScan")(
     function* () {
       yield* Effect.annotateCurrentSpan("job", "library_scan");
       yield* markJobStarted(input.db, "library_scan", nowIso);

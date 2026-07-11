@@ -50,75 +50,75 @@ export class DownloadTriggerService extends Effect.Service<DownloadTriggerServic
       const downloadTriggerCoordinator = yield* DownloadTriggerCoordinator;
       const mediaReadRepository = yield* MediaReadRepository;
 
-      const executeTriggerDownload = Effect.fn("OperationsService.executeTriggerDownload")(
-        function* (triggerInput: TriggerDownloadInput) {
-          yield* Effect.annotateCurrentSpan("mediaId", triggerInput.media_id);
-          const plan = yield* prepareTriggerDownload({
-            triggerRepo,
-            mediaReadRepository,
-            nowIso: currentNowIso,
-            triggerInput,
-          });
+      const executeTriggerDownload = Effect.fn("DownloadTrigger.executeTriggerDownload")(function* (
+        triggerInput: TriggerDownloadInput,
+      ) {
+        yield* Effect.annotateCurrentSpan("mediaId", triggerInput.media_id);
+        const plan = yield* prepareTriggerDownload({
+          triggerRepo,
+          mediaReadRepository,
+          nowIso: currentNowIso,
+          triggerInput,
+        });
 
-          yield* Effect.annotateCurrentSpan("isBatch", plan.effectiveIsBatch);
-          yield* Effect.annotateCurrentSpan("hasMagnet", Boolean(triggerInput.magnet));
-          yield* Effect.annotateCurrentSpan("unitNumber", plan.requestedEpisode);
+        yield* Effect.annotateCurrentSpan("isBatch", plan.effectiveIsBatch);
+        yield* Effect.annotateCurrentSpan("hasMagnet", Boolean(triggerInput.magnet));
+        yield* Effect.annotateCurrentSpan("unitNumber", plan.requestedEpisode);
 
-          const insertedId = yield* insertQueuedDownload({
-            triggerRepo,
-            plan,
-            triggerInput,
-          });
-          const status = yield* addMagnetToQueuedDownload({
-            triggerRepo,
-            insertedId,
-            magnet: triggerInput.magnet,
-            torrentClientService,
-          });
-          const shouldDeferBatchCoverage =
-            plan.effectiveIsBatch && plan.inferredCoveredEpisodes.length === 0;
+        const insertedId = yield* insertQueuedDownload({
+          triggerRepo,
+          plan,
+          triggerInput,
+        });
+        const status = yield* addMagnetToQueuedDownload({
+          triggerRepo,
+          insertedId,
+          magnet: triggerInput.magnet,
+          torrentClientService,
+        });
+        const shouldDeferBatchCoverage =
+          plan.effectiveIsBatch && plan.inferredCoveredEpisodes.length === 0;
 
-          const eventNow = yield* currentNowIso();
-          yield* triggerRepo.insertDownloadEvent(
-            {
-              mediaId: plan.animeRow.id,
-              downloadId: insertedId,
-              eventType: "download.queued",
-              metadataJson: {
-                covered_units: plan.inferredCoveredEpisodes,
-                source_metadata: plan.sourceMetadata,
-              },
-              message: `Queued ${triggerInput.title}`,
-              metadata: plan.coveredUnits,
-              toStatus: status,
-            },
-            eventNow,
-          );
-
-          const logNow = yield* currentNowIso();
-          yield* triggerRepo.appendLogRow({
-            eventType: "downloads.triggered",
-            level: "success",
-            message: shouldDeferBatchCoverage
-              ? `Queued batch download for ${plan.animeRow.titleRomaji}; waiting for qBittorrent metadata to determine covered mediaUnits`
-              : `Queued download for ${plan.animeRow.titleRomaji} episode ${plan.requestedEpisode}`,
-            createdAt: logNow,
-          });
-
-          yield* eventBus.publish({
-            type: "DownloadStarted",
-            payload: {
-              media_id: brandMediaId(plan.animeRow.id),
+        const eventNow = yield* currentNowIso();
+        yield* triggerRepo.insertDownloadEvent(
+          {
+            mediaId: plan.animeRow.id,
+            downloadId: insertedId,
+            eventType: "download.queued",
+            metadataJson: {
+              covered_units: plan.inferredCoveredEpisodes,
               source_metadata: plan.sourceMetadata,
-              title: triggerInput.title,
             },
-          });
+            message: `Queued ${triggerInput.title}`,
+            metadata: plan.coveredUnits,
+            toStatus: status,
+          },
+          eventNow,
+        );
 
-          yield* progressSupport.publishDownloadProgress();
-        },
-      );
+        const logNow = yield* currentNowIso();
+        yield* triggerRepo.appendLogRow({
+          eventType: "downloads.triggered",
+          level: "success",
+          message: shouldDeferBatchCoverage
+            ? `Queued batch download for ${plan.animeRow.titleRomaji}; waiting for qBittorrent metadata to determine covered mediaUnits`
+            : `Queued download for ${plan.animeRow.titleRomaji} episode ${plan.requestedEpisode}`,
+          createdAt: logNow,
+        });
 
-      const triggerDownload = Effect.fn("OperationsService.triggerDownload")(function* (
+        yield* eventBus.publish({
+          type: "DownloadStarted",
+          payload: {
+            media_id: brandMediaId(plan.animeRow.id),
+            source_metadata: plan.sourceMetadata,
+            title: triggerInput.title,
+          },
+        });
+
+        yield* progressSupport.publishDownloadProgress();
+      });
+
+      const triggerDownload = Effect.fn("DownloadTrigger.triggerDownload")(function* (
         input: TriggerDownloadInput,
       ) {
         yield* Effect.annotateCurrentSpan("mediaId", input.media_id);

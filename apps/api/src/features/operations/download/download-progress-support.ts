@@ -14,7 +14,7 @@ export interface DownloadProgressSupportShape {
   readonly publishDownloadProgress: () => Effect.Effect<void, DatabaseError | StoredDataError>;
 }
 
-export const loadActiveDownloadSnapshot = Effect.fn("OperationsService.loadActiveDownloadSnapshot")(
+export const loadActiveDownloadSnapshot = Effect.fn("DownloadProgress.loadActiveDownloadSnapshot")(
   function* (input: {
     readonly listRows: () => Effect.Effect<readonly DownloadRow[], DatabaseError>;
     readonly loadContexts: (
@@ -38,7 +38,7 @@ export class DownloadProgressSupport extends Effect.Service<DownloadProgressSupp
       const eventBus = yield* EventBus;
 
       const getDownloadProgressSnapshotEffect = Effect.fn(
-        "OperationsService.getDownloadProgressSnapshot",
+        "DownloadProgress.getDownloadProgressSnapshot",
       )(function* () {
         return yield* loadActiveDownloadSnapshot({
           listRows: () => downloadProgressRepository.listActiveDownloadRows(),
@@ -46,7 +46,7 @@ export class DownloadProgressSupport extends Effect.Service<DownloadProgressSupp
         });
       });
 
-      const publishDownloadProgress = Effect.fn("OperationsService.publishDownloadProgress")(
+      const publishDownloadProgress = Effect.fn("DownloadProgress.publishDownloadProgress")(
         function* () {
           const activeDownloads = yield* getDownloadProgressSnapshotEffect();
 

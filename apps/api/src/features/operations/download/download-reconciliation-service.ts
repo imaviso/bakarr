@@ -64,13 +64,13 @@ export class DownloadReconciliationService extends Effect.Service<DownloadReconc
         runtimeConfigSnapshotService.getRuntimeConfig,
       );
 
-      const reconcileDownloadByIdEffect = Effect.fn("OperationsService.reconcileDownloadById")(
-        function* (id: number) {
-          yield* core.reconcileDownloadByIdEffect(id);
-          yield* progressSupport.publishDownloadProgress();
-          yield* eventBus.publishInfo(`Reconciled download ${id}`);
-        },
-      );
+      const reconcileDownloadByIdEffect = Effect.fn(
+        "DownloadReconcileService.reconcileDownloadById",
+      )(function* (id: number) {
+        yield* core.reconcileDownloadByIdEffect(id);
+        yield* progressSupport.publishDownloadProgress();
+        yield* eventBus.publishInfo(`Reconciled download ${id}`);
+      });
 
       return {
         maybeCleanupImportedTorrent: core.maybeCleanupImportedTorrent,

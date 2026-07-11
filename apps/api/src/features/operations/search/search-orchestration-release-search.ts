@@ -300,7 +300,7 @@ export class SearchReleaseService extends Effect.Service<SearchReleaseService>()
       const runtimeConfigSnapshotService = yield* RuntimeConfigSnapshotService;
       const getRuntimeConfig = runtimeConfigSnapshotService.getRuntimeConfig;
 
-      const searchNyaaReleases = Effect.fn("OperationsService.searchNyaaReleases")(function* (
+      const searchNyaaReleases = Effect.fn("SearchRelease.searchNyaaReleases")(function* (
         query: string,
         config: Config,
         category?: string,
@@ -315,7 +315,7 @@ export class SearchReleaseService extends Effect.Service<SearchReleaseService>()
         return [...(yield* rssClient.fetchItems(url))];
       });
 
-      const enrichSeaDexReleases = Effect.fn("OperationsService.enrichSeaDexReleases")(function* (
+      const enrichSeaDexReleases = Effect.fn("SearchRelease.enrichSeaDexReleases")(function* (
         animeRow: typeof media.$inferSelect,
         releases: readonly ParsedRelease[],
       ) {
@@ -350,7 +350,7 @@ export class SearchReleaseService extends Effect.Service<SearchReleaseService>()
         return releases.map((release) => applySeaDexMatch(release, entry.value));
       });
 
-      const searchUnitReleases = Effect.fn("OperationsService.searchUnitReleases")(function* (
+      const searchUnitReleases = Effect.fn("SearchRelease.searchUnitReleases")(function* (
         animeRow: typeof media.$inferSelect,
         unitNumber: number,
         config: Config,
@@ -370,7 +370,7 @@ export class SearchReleaseService extends Effect.Service<SearchReleaseService>()
         return enriched;
       });
 
-      const searchReleases = Effect.fn("OperationsService.searchReleases")(function* (
+      const searchReleases = Effect.fn("SearchRelease.searchReleases")(function* (
         query: string,
         mediaId?: number,
         category?: string,

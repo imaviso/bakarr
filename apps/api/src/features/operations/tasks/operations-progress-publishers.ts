@@ -7,7 +7,7 @@ import { EventBus } from "@/features/events/event-bus.ts";
 import type { StoredDataError } from "@/features/errors.ts";
 
 export const makeOperationsProgressPublishers = Effect.fn(
-  "OperationsService.makeProgressPublishers",
+  "ProgressPublishers.makeProgressPublishers",
 )(function* (input: {
   eventBus: typeof EventBus.Service;
   publishDownloadProgressEffect: Effect.Effect<void, DatabaseError | StoredDataError>;

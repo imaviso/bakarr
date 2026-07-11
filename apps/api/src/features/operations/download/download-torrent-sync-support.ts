@@ -51,7 +51,7 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
       const progressSupport = yield* DownloadProgressSupport;
 
       const refineBatchCoverageFromTorrentFiles = Effect.fn(
-        "OperationsService.refineBatchCoverageFromTorrentFiles",
+        "TorrentSync.refineBatchCoverageFromTorrentFiles",
       )(function* (refineInput: {
         mediaId: number;
         downloadId: number;
@@ -129,7 +129,7 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
       });
 
       const updateDownloadsFromTorrentRows = Effect.fn(
-        "OperationsService.updateDownloadsFromTorrentRows",
+        "TorrentSync.updateDownloadsFromTorrentRows",
       )(function* (rows: readonly TorrentSyncUpdate[]) {
         if (rows.length === 0) {
           return;
@@ -141,43 +141,41 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
         }
       });
 
-      const buildStatusChangeEvents = Effect.fn("OperationsService.buildStatusChangeEvents")(
-        function* (
-          rows: readonly TorrentSyncUpdate[],
-          existingDownloadsMap: ReadonlyMap<string | undefined, typeof downloads.$inferSelect>,
-        ) {
-          const maybeEvents: Array<DownloadEventRecordInput | null> = yield* Effect.forEach(
-            rows,
-            (row) =>
-              Effect.gen(function* () {
-                const existing = existingDownloadsMap.get(row.hash);
-                if (!existing || existing.status === row.nextStatus) {
-                  return null as DownloadEventRecordInput | null;
-                }
+      const buildStatusChangeEvents = Effect.fn("TorrentSync.buildStatusChangeEvents")(function* (
+        rows: readonly TorrentSyncUpdate[],
+        existingDownloadsMap: ReadonlyMap<string | undefined, typeof downloads.$inferSelect>,
+      ) {
+        const maybeEvents: Array<DownloadEventRecordInput | null> = yield* Effect.forEach(
+          rows,
+          (row) =>
+            Effect.gen(function* () {
+              const existing = existingDownloadsMap.get(row.hash);
+              if (!existing || existing.status === row.nextStatus) {
+                return null as DownloadEventRecordInput | null;
+              }
 
-                const coveredUnits = yield* parseCoveredEpisodesEffect(existing.coveredUnits);
-                const sourceMetadata = yield* decodeDownloadSourceMetadata(existing.sourceMetadata);
+              const coveredUnits = yield* parseCoveredEpisodesEffect(existing.coveredUnits);
+              const sourceMetadata = yield* decodeDownloadSourceMetadata(existing.sourceMetadata);
 
-                return {
-                  mediaId: existing.mediaId,
-                  downloadId: existing.id,
-                  eventType: "download.status_changed",
-                  fromStatus: existing.status,
-                  metadataJson: {
-                    covered_units: coveredUnits,
-                    ...(sourceMetadata ? { source_metadata: sourceMetadata } : {}),
-                  },
-                  message: `${existing.torrentName} moved to ${row.nextStatus}`,
-                  toStatus: row.nextStatus,
-                } satisfies DownloadEventRecordInput as DownloadEventRecordInput | null;
-              }),
-          );
+              return {
+                mediaId: existing.mediaId,
+                downloadId: existing.id,
+                eventType: "download.status_changed",
+                fromStatus: existing.status,
+                metadataJson: {
+                  covered_units: coveredUnits,
+                  ...(sourceMetadata ? { source_metadata: sourceMetadata } : {}),
+                },
+                message: `${existing.torrentName} moved to ${row.nextStatus}`,
+                toStatus: row.nextStatus,
+              } satisfies DownloadEventRecordInput as DownloadEventRecordInput | null;
+            }),
+        );
 
-          return maybeEvents.filter((event): event is DownloadEventRecordInput => event !== null);
-        },
-      );
+        return maybeEvents.filter((event): event is DownloadEventRecordInput => event !== null);
+      });
 
-      const syncDownloadsWithQBitEffect = Effect.fn("OperationsService.syncDownloadsWithQBit")(
+      const syncDownloadsWithQBitEffect = Effect.fn("TorrentSync.syncDownloadsWithQBit")(
         function* () {
           const runtimeConfig = yield* runtimeConfigSnapshot.getRuntimeConfig();
           const torrentsResult = yield* torrentClientService
@@ -281,7 +279,7 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
         },
       );
 
-      const syncDownloads = Effect.fn("OperationsService.syncDownloads")(function* () {
+      const syncDownloads = Effect.fn("TorrentSync.syncDownloads")(function* () {
         const startedAt = yield* currentTimeNanos;
 
         yield* syncDownloadsWithQBitEffect();

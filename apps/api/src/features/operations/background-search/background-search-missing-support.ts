@@ -219,20 +219,20 @@ export class SearchBackgroundMissingService extends Effect.Service<SearchBackgro
         yield* progress.publishDownloadProgress();
       });
 
-      const triggerSearchMissing = Effect.fn("OperationsService.triggerSearchMissing")(function* (
-        mediaId?: number,
-      ) {
-        return yield* triggerSearchMissingBase(mediaId).pipe(
-          Effect.mapError((error) =>
-            error instanceof DatabaseError
-              ? error
-              : new InfrastructureError({
-                  message: "Failed to queue missing-unit search",
-                  cause: error,
-                }),
-          ),
-        );
-      });
+      const triggerSearchMissing = Effect.fn("BackgroundSearchMissing.triggerSearchMissing")(
+        function* (mediaId?: number) {
+          return yield* triggerSearchMissingBase(mediaId).pipe(
+            Effect.mapError((error) =>
+              error instanceof DatabaseError
+                ? error
+                : new InfrastructureError({
+                    message: "Failed to queue missing-unit search",
+                    cause: error,
+                  }),
+            ),
+          );
+        },
+      );
 
       return { triggerSearchMissing } satisfies SearchBackgroundMissingServiceShape;
     }),

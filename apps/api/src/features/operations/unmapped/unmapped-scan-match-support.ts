@@ -11,7 +11,7 @@ import {
 } from "@/features/operations/unmapped/unmapped-folders.ts";
 import { media } from "@/db/schema.ts";
 
-export const matchSingleUnmappedFolder = Effect.fn("OperationsService.matchSingleUnmappedFolder")(
+export const matchSingleUnmappedFolder = Effect.fn("UnmappedScanMatch.matchSingleUnmappedFolder")(
   function* (input: {
     aniList: typeof AniListClient.Service;
     animeRows: ReadonlyArray<typeof media.$inferSelect>;

@@ -48,7 +48,7 @@ export class SearchUnitService extends Effect.Service<SearchUnitService>()(
       const searchReleaseService = yield* SearchReleaseService;
       const runtimeConfigSnapshotService = yield* RuntimeConfigSnapshotService;
 
-      const searchUnit = Effect.fn("OperationsService.searchUnit")(function* (
+      const searchUnit = Effect.fn("SearchUnit.searchUnit")(function* (
         mediaId: number,
         unitNumber: number,
       ) {

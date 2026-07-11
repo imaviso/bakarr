@@ -42,7 +42,7 @@ const decodeMediaGenres = Effect.fn("Operations.decodeMediaGenres")(function* (
   );
 });
 
-export const buildRenamePreview = Effect.fn("OperationsService.buildRenamePreview")(function* (
+export const buildRenamePreview = Effect.fn("LibraryImport.buildRenamePreview")(function* (
   mediaId: number,
   runtimeConfig: Config,
   mediaReadRepository: MediaReadRepositoryShape,

@@ -50,7 +50,7 @@ export interface UnmappedImportWorkflowShape {
 }
 
 export const cleanupPreviousMediaRootFolderAfterImport = Effect.fn(
-  "OperationsService.cleanupPreviousMediaRootFolderAfterImport",
+  "UnmappedImportService.cleanupPreviousMediaRootFolderAfterImport",
 )(function* (fs: FileSystemShape, previousRootFolder: string, nextRootFolder: string) {
   if (previousRootFolder === nextRootFolder) {
     return;
@@ -110,7 +110,7 @@ export function makeUnmappedImportWorkflow(input: {
     readonly filePath: string;
   };
 
-  const importUnmappedFolder = Effect.fn("OperationsService.importUnmappedFolder")(
+  const importUnmappedFolder = Effect.fn("UnmappedImportService.importUnmappedFolder")(
     function* (input: { folder_name: string; media_id: number; profile_name?: string }) {
       const animeRow = yield* mediaReadRepository.getMediaRow(input.media_id);
       const mediaKind = decodeMediaKind(animeRow.mediaKind);

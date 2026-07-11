@@ -36,7 +36,7 @@ export class CatalogLibraryWriteService extends Effect.Service<CatalogLibraryWri
       const mediaProbe = yield* MediaProbe;
       const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
 
-      const importFiles = Effect.fn("OperationsService.importFiles")(function* (
+      const importFiles = Effect.fn("CatalogLibraryWrite.importFiles")(function* (
         files: readonly LibraryImportFileInput[],
       ) {
         const runtimeConfig = yield* runtimeConfigSnapshot.getRuntimeConfig();
@@ -51,7 +51,7 @@ export class CatalogLibraryWriteService extends Effect.Service<CatalogLibraryWri
         });
       });
 
-      const renameFiles = Effect.fn("OperationsService.renameFiles")(function* (mediaId: number) {
+      const renameFiles = Effect.fn("CatalogLibraryWrite.renameFiles")(function* (mediaId: number) {
         const runtimeConfig = yield* runtimeConfigSnapshot.getRuntimeConfig();
         return yield* renameLibraryFiles({
           mediaId,

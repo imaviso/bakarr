@@ -98,7 +98,7 @@ function shouldDeleteImportedData(config: Config | null | undefined) {
 }
 
 const loadDownloadReconciliationContext = Effect.fn(
-  "OperationsService.loadDownloadReconciliationContext",
+  "DownloadReconcile.loadDownloadReconciliationContext",
 )(function* (
   input: Pick<
     DownloadReconciliationContext,
@@ -155,7 +155,7 @@ const loadDownloadReconciliationContext = Effect.fn(
   } satisfies DownloadReconciliationContext);
 });
 
-const reconcileBatchDownloadEffect = Effect.fn("OperationsService.reconcileBatchDownload")(
+const reconcileBatchDownloadEffect = Effect.fn("DownloadReconcile.reconcileBatchDownload")(
   function* (input: DownloadReconciliationContext) {
     if (!input.row.isBatch) {
       return false;
@@ -379,7 +379,7 @@ const reconcileBatchDownloadEffect = Effect.fn("OperationsService.reconcileBatch
 );
 
 const reconcileSingleDownloadEffect = Effect.fn(
-  "OperationsService.reconcileCompletedTorrentSingle",
+  "DownloadReconcile.reconcileCompletedTorrentSingle",
 )(function* (input: DownloadReconciliationContext) {
   if (!input.row.contentPath && !input.row.savePath) {
     return;
@@ -513,7 +513,7 @@ export function makeDownloadCompletedTorrentReconciliation(
   randomUuid: () => Effect.Effect<string>,
   getRuntimeConfig: () => Effect.Effect<Config, RuntimeConfigSnapshotError>,
 ) {
-  const maybeCleanupImportedTorrent = Effect.fn("OperationsService.maybeCleanupImportedTorrent")(
+  const maybeCleanupImportedTorrent = Effect.fn("DownloadReconcile.maybeCleanupImportedTorrent")(
     function* (config: Config | null | undefined, infoHash: string | null) {
       if (!infoHash || !shouldRemoveTorrentOnImport(config)) {
         return;
@@ -539,7 +539,7 @@ export function makeDownloadCompletedTorrentReconciliation(
     },
   );
 
-  const reconcileCompletedTorrentEffect = Effect.fn("OperationsService.reconcileCompletedTorrent")(
+  const reconcileCompletedTorrentEffect = Effect.fn("DownloadReconcile.reconcileCompletedTorrent")(
     function* (infoHash: string, contentPath: string | undefined) {
       if (!contentPath) {
         return;
@@ -586,7 +586,7 @@ export function makeDownloadCompletedTorrentReconciliation(
     },
   );
 
-  const reconcileDownloadByIdEffect = Effect.fn("OperationsService.reconcileDownloadById")(
+  const reconcileDownloadByIdEffect = Effect.fn("DownloadReconcile.reconcileDownloadById")(
     function* (id: number) {
       const row = yield* repo.loadDownloadById(id);
 

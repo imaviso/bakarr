@@ -24,7 +24,7 @@ export class SearchBackgroundRssService extends Effect.Service<SearchBackgroundR
       const rssFeedRepository = yield* RssFeedRepository;
       const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
 
-      const runRssCheck = Effect.fn("OperationsService.runRssCheck")(function* () {
+      const runRssCheck = Effect.fn("BackgroundSearchRss.runRssCheck")(function* () {
         return yield* Effect.gen(function* () {
           const feeds = yield* rssFeedRepository.listEnabledRows();
           const runtimeConfig = yield* runtimeConfigSnapshot.getRuntimeConfig();

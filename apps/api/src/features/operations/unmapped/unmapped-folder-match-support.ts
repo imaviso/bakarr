@@ -9,7 +9,7 @@ import {
 } from "@/features/operations/library/library-import-analysis-support.ts";
 import { toMediaSearchCandidate } from "@/features/operations/library/library-import.ts";
 
-export const findLocalFolderMediaMatch = Effect.fn("OperationsService.findLocalFolderMediaMatch")(
+export const findLocalFolderMediaMatch = Effect.fn("UnmappedFolderMatch.findLocalFolderMediaMatch")(
   function* (folderName: string, animeRows: ReadonlyArray<typeof media.$inferSelect>) {
     const queries = buildUnmappedFolderSearchQueries(folderName);
 
@@ -32,7 +32,7 @@ export const findLocalFolderMediaMatch = Effect.fn("OperationsService.findLocalF
   },
 );
 
-export const mergeLocalFolderMatch = Effect.fn("OperationsService.mergeLocalFolderMatch")(
+export const mergeLocalFolderMatch = Effect.fn("UnmappedFolderMatch.mergeLocalFolderMatch")(
   function* (
     folder: ScannerState["folders"][number],
     animeRows: ReadonlyArray<typeof media.$inferSelect>,

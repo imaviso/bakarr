@@ -44,89 +44,91 @@ export class DownloadTorrentActionService extends Effect.Service<DownloadTorrent
       const progressSupport = yield* DownloadProgressSupport;
       const torrentClientService = yield* TorrentClientService;
 
-      const applyDownloadActionEffect = Effect.fn("OperationsService.applyDownloadAction")(
-        function* (id: number, action: "pause" | "resume" | "delete", deleteFiles = false) {
-          const row = yield* actionRepo.loadDownloadById(id);
+      const applyDownloadActionEffect = Effect.fn("TorrentAction.applyDownloadAction")(function* (
+        id: number,
+        action: "pause" | "resume" | "delete",
+        deleteFiles = false,
+      ) {
+        const row = yield* actionRepo.loadDownloadById(id);
 
-          if (!row) {
-            return yield* new OperationsNotFoundError({
-              message: "Download not found",
-            });
-          }
+        if (!row) {
+          return yield* new OperationsNotFoundError({
+            message: "Download not found",
+          });
+        }
 
-          if (row.infoHash) {
-            if (action === "pause") {
-              yield* torrentClientService.pauseTorrentIfEnabled(row.infoHash).pipe(Effect.asVoid);
-            } else if (action === "resume") {
-              yield* torrentClientService.resumeTorrentIfEnabled(row.infoHash).pipe(Effect.asVoid);
-            } else {
-              yield* torrentClientService
-                .deleteTorrentIfEnabled(row.infoHash, deleteFiles)
-                .pipe(Effect.asVoid);
-            }
-          }
-
-          const coveredUnits = yield* parseCoveredEpisodesEffect(row.coveredUnits);
-
-          if (action === "delete") {
-            const sourceMetadata = yield* decodeDownloadSourceMetadata(row.sourceMetadata);
-            const deleteNow = yield* currentNowIso();
-            yield* actionRepo.insertDownloadEvent(
-              {
-                mediaId: row.mediaId,
-                downloadId: row.id,
-                eventType: "download.deleted",
-                fromStatus: row.status,
-                metadataJson: {
-                  covered_units: coveredUnits,
-                  ...(sourceMetadata ? { source_metadata: sourceMetadata } : {}),
-                },
-                message: `Deleted ${row.torrentName}`,
-                toStatus: "deleted",
-              },
-              deleteNow,
-            );
-            yield* actionRepo.deleteDownloadRow(id);
-          } else {
-            const nextStatus = action === "pause" ? "paused" : "downloading";
-            yield* actionRepo.updateDownloadStatusRow({
-              id,
-              externalState: action,
-              status: nextStatus,
-            });
-
-            const actionSourceMetadata = yield* decodeDownloadSourceMetadata(row.sourceMetadata);
-            const actionNow = yield* currentNowIso();
-            yield* actionRepo.insertDownloadEvent(
-              {
-                mediaId: row.mediaId,
-                downloadId: row.id,
-                eventType: `download.${action}d`,
-                fromStatus: row.status,
-                metadataJson: {
-                  covered_units: coveredUnits,
-                  ...(actionSourceMetadata ? { source_metadata: actionSourceMetadata } : {}),
-                },
-                message: `${action === "pause" ? "Paused" : "Resumed"} ${row.torrentName}`,
-                toStatus: nextStatus,
-              },
-              actionNow,
-            );
-          }
-
+        if (row.infoHash) {
           if (action === "pause") {
-            yield* eventBus.publishInfo(`Paused download ${id}`);
+            yield* torrentClientService.pauseTorrentIfEnabled(row.infoHash).pipe(Effect.asVoid);
           } else if (action === "resume") {
-            yield* eventBus.publishInfo(`Resumed download ${id}`);
+            yield* torrentClientService.resumeTorrentIfEnabled(row.infoHash).pipe(Effect.asVoid);
           } else {
-            yield* eventBus.publishInfo(`Removed download ${id}`);
+            yield* torrentClientService
+              .deleteTorrentIfEnabled(row.infoHash, deleteFiles)
+              .pipe(Effect.asVoid);
           }
+        }
 
-          return undefined;
-        },
-      );
+        const coveredUnits = yield* parseCoveredEpisodesEffect(row.coveredUnits);
 
-      const retryDownloadById = Effect.fn("OperationsService.retryDownloadById")(function* (
+        if (action === "delete") {
+          const sourceMetadata = yield* decodeDownloadSourceMetadata(row.sourceMetadata);
+          const deleteNow = yield* currentNowIso();
+          yield* actionRepo.insertDownloadEvent(
+            {
+              mediaId: row.mediaId,
+              downloadId: row.id,
+              eventType: "download.deleted",
+              fromStatus: row.status,
+              metadataJson: {
+                covered_units: coveredUnits,
+                ...(sourceMetadata ? { source_metadata: sourceMetadata } : {}),
+              },
+              message: `Deleted ${row.torrentName}`,
+              toStatus: "deleted",
+            },
+            deleteNow,
+          );
+          yield* actionRepo.deleteDownloadRow(id);
+        } else {
+          const nextStatus = action === "pause" ? "paused" : "downloading";
+          yield* actionRepo.updateDownloadStatusRow({
+            id,
+            externalState: action,
+            status: nextStatus,
+          });
+
+          const actionSourceMetadata = yield* decodeDownloadSourceMetadata(row.sourceMetadata);
+          const actionNow = yield* currentNowIso();
+          yield* actionRepo.insertDownloadEvent(
+            {
+              mediaId: row.mediaId,
+              downloadId: row.id,
+              eventType: `download.${action}d`,
+              fromStatus: row.status,
+              metadataJson: {
+                covered_units: coveredUnits,
+                ...(actionSourceMetadata ? { source_metadata: actionSourceMetadata } : {}),
+              },
+              message: `${action === "pause" ? "Paused" : "Resumed"} ${row.torrentName}`,
+              toStatus: nextStatus,
+            },
+            actionNow,
+          );
+        }
+
+        if (action === "pause") {
+          yield* eventBus.publishInfo(`Paused download ${id}`);
+        } else if (action === "resume") {
+          yield* eventBus.publishInfo(`Resumed download ${id}`);
+        } else {
+          yield* eventBus.publishInfo(`Removed download ${id}`);
+        }
+
+        return undefined;
+      });
+
+      const retryDownloadById = Effect.fn("TorrentAction.retryDownloadById")(function* (
         id: number,
       ) {
         const row = yield* actionRepo.loadDownloadById(id);

@@ -68,13 +68,13 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
   const scanService = yield* UnmappedScanService;
   const nowIso = currentNowIso;
 
-  const decodeStoredFolder = Effect.fn("OperationsService.decodeStoredFolder")(function* (
+  const decodeStoredFolder = Effect.fn("UnmappedControlService.decodeStoredFolder")(function* (
     row: Parameters<typeof decodeUnmappedFolderMatchRow>[0],
   ) {
     return yield* decodeUnmappedFolderMatchRow(row).pipe(Effect.mapError(toStoredDataError));
   });
 
-  const loadCurrentFolder = Effect.fn("OperationsService.loadCurrentFolder")(function* (
+  const loadCurrentFolder = Effect.fn("UnmappedControlService.loadCurrentFolder")(function* (
     path: string,
   ) {
     const row = yield* systemUnmappedRepository.loadMatchRow(path);
@@ -86,7 +86,7 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
     return yield* decodeStoredFolder(row);
   });
 
-  const refreshFolderMatch = Effect.fn("OperationsService.refreshFolderMatch")(function* (
+  const refreshFolderMatch = Effect.fn("UnmappedControlService.refreshFolderMatch")(function* (
     current: UnmappedFolder,
     path: string,
   ) {
@@ -143,20 +143,19 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
     return { folderCount: 1, folderPath: path };
   });
 
-  const appendControlActionLog = Effect.fn("OperationsService.appendControlActionLog")(function* (
-    action: UnmappedFolderControlAction,
-    folderName: string,
-  ) {
-    yield* appendLog(
-      db,
-      "library.unmapped.control",
-      "info",
-      `${action} unmapped folder ${folderName}`,
-      nowIso,
-    );
-  });
+  const appendControlActionLog = Effect.fn("UnmappedControlService.appendControlActionLog")(
+    function* (action: UnmappedFolderControlAction, folderName: string) {
+      yield* appendLog(
+        db,
+        "library.unmapped.control",
+        "info",
+        `${action} unmapped folder ${folderName}`,
+        nowIso,
+      );
+    },
+  );
 
-  const controlUnmappedFolder = Effect.fn("OperationsService.controlUnmappedFolder")(
+  const controlUnmappedFolder = Effect.fn("UnmappedControlService.controlUnmappedFolder")(
     function* (input: { action: "pause" | "resume" | "reset" | "refresh"; path: string }) {
       const current = yield* loadCurrentFolder(input.path);
 
@@ -183,7 +182,7 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
     },
   );
 
-  const bulkControlUnmappedFolders = Effect.fn("OperationsService.bulkControlUnmappedFolders")(
+  const bulkControlUnmappedFolders = Effect.fn("UnmappedControlService.bulkControlUnmappedFolders")(
     function* (input: {
       action: "pause_queued" | "resume_paused" | "reset_failed" | "retry_failed";
     }) {

@@ -5,7 +5,7 @@ import { DomainPathError } from "@/features/errors.ts";
 import { scanVideoFilesStream } from "@/features/operations/import-scan/file-scanner.ts";
 
 export const loadUnmappedFolderVideoSize = Effect.fn(
-  "OperationsService.loadUnmappedFolderVideoSize",
+  "UnmappedVideoSupport.loadUnmappedFolderVideoSize",
 )(function* (fs: FileSystemShape, path: string) {
   return yield* Stream.runFold(
     scanVideoFilesStream(fs, path),
