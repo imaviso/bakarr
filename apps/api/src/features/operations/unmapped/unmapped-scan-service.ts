@@ -32,6 +32,7 @@ import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { markJobFailureOrFailWithError } from "@/infra/job-failure-support.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
+import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { SystemUnmappedRepository } from "@/features/system/repository/unmapped-repository.ts";
 import { UnmappedScanCoordinator } from "@/features/operations/tasks/runtime-support.ts";
@@ -81,6 +82,7 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
   const aniList = yield* AniListClient;
   const eventBus = yield* EventBus;
   const fs = yield* FileSystem;
+  const mediaReadRepository = yield* MediaReadRepository;
   const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
   const systemUnmappedRepository = yield* SystemUnmappedRepository;
   const unmappedScanCoordinator = yield* UnmappedScanCoordinator;
@@ -174,8 +176,8 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
       matchSingleUnmappedFolder({
         aniList,
         animeRows,
-        db,
         folder: matchingFolder,
+        mediaReadRepository,
         nowIso,
       }),
     );

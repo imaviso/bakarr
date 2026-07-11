@@ -115,13 +115,19 @@ and optional linked anime. Supports coalescing concurrent requests.
 
 ## Persistence Seams
 
-- `DownloadRepository` owns Download aggregate SQL (lifecycle, sync, trigger, presentation, events)
-- `MediaUnitRepository` owns Episode/unit write paths (upsert, map, clear, backfill, schedule sync)
+- `DownloadRepository` owns Download aggregate SQL (lifecycle, sync, trigger, presentation, events, catalog history/event reads + export stream)
+- `MediaUnitRepository` owns Episode/unit write paths (upsert, map, clear, probe cache, backfill, schedule/metadata sync)
+- `MediaReadRepository` owns Media row R/W + unit reads (list/count, progress, wanted/calendar, mapped units, settings, insert aggregate, delete, monitored ids)
+- `RssFeedRepository` owns RSS feed table SQL (list/insert/toggle/delete/lastChecked)
+- `SeasonalMediaCacheRepository` owns `seasonal_anime_cache` read/write
+- `AniDbUnitCacheRepository` owns AniDB episode cache table
 - Drizzle stays behind `Effect.Service` repository contracts (ADR-0001)
 - Slice repos by aggregate, not caller workflow (ADR-0004)
 - Pure codecs live next to system profiles
+- Residual work tracked in `RESIDUAL_PLAN.md`
 
 ## Naming
 
 - Storage/API path vocabulary is **Media** (`media` table, `/media` routes, `MediaId`)
-- Some service/method names still say Anime; prefer Media for new code
+- Feature services, repos, and domain helpers use **Media** names (`MediaQueryService`, `getMediaRow`, …)
+- Keep **Anime** only for provider/metadata models and clients (`AnimeMetadata`, AniList/AniDB/Jikan/Manami APIs) and the `mediaKind: "anime"` value

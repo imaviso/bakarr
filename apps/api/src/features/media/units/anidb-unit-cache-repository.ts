@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { Effect, Option, Schema } from "effect";
 
-import type { AppDatabase } from "@/db/database.ts";
+import { AppDrizzleDatabase, type AppDatabase, type DatabaseError } from "@/db/database.ts";
 import { anidbEpisodeCache } from "@/db/schema.ts";
 import {
   AnimeMetadataEpisodeSchema,
@@ -23,7 +23,40 @@ export interface AniDbEpisodeCacheRecord {
   readonly updatedAt: string;
 }
 
-export const loadAniDbEpisodeCacheEffect = Effect.fn("AniDbEpisodeCacheRepository.load")(function* (
+export interface AniDbUnitCacheRepositoryShape {
+  readonly load: (
+    mediaId: number,
+  ) => Effect.Effect<Option.Option<AniDbEpisodeCacheRecord>, DatabaseError | StoredDataError>;
+  readonly upsert: (input: {
+    readonly mediaId: number;
+    readonly mediaUnits: ReadonlyArray<AnimeMetadataEpisode>;
+    readonly updatedAt: string;
+  }) => Effect.Effect<void, DatabaseError | StoredDataError>;
+}
+
+export class AniDbUnitCacheRepository extends Effect.Service<AniDbUnitCacheRepository>()(
+  "@bakarr/api/AniDbUnitCacheRepository",
+  {
+    effect: Effect.gen(function* () {
+      const db = yield* AppDrizzleDatabase;
+      return makeAniDbUnitCacheRepositoryShape(db);
+    }),
+    dependencies: [AppDrizzleDatabase.Default],
+  },
+) {}
+
+function makeAniDbUnitCacheRepositoryShape(db: AppDatabase): AniDbUnitCacheRepositoryShape {
+  return {
+    load: (mediaId) => loadAniDbEpisodeCache(db, mediaId),
+    upsert: (input) => upsertAniDbEpisodeCache(db, input),
+  };
+}
+
+export function makeAniDbUnitCacheRepository(db: AppDatabase): AniDbUnitCacheRepository {
+  return AniDbUnitCacheRepository.make(makeAniDbUnitCacheRepositoryShape(db));
+}
+
+const loadAniDbEpisodeCache = Effect.fn("AniDbUnitCacheRepository.load")(function* (
   db: AppDatabase,
   mediaId: number,
 ) {
@@ -62,38 +95,38 @@ export const loadAniDbEpisodeCacheEffect = Effect.fn("AniDbEpisodeCacheRepositor
   } satisfies AniDbEpisodeCacheRecord);
 });
 
-export const upsertAniDbEpisodeCacheEffect = Effect.fn("AniDbEpisodeCacheRepository.upsert")(
-  function* (input: {
+const upsertAniDbEpisodeCache = Effect.fn("AniDbUnitCacheRepository.upsert")(function* (
+  db: AppDatabase,
+  input: {
     readonly mediaId: number;
-    readonly db: AppDatabase;
     readonly mediaUnits: ReadonlyArray<AnimeMetadataEpisode>;
     readonly updatedAt: string;
-  }) {
-    const encodedEpisodes = yield* encodeAniDbEpisodeCachePayload([...input.mediaUnits]).pipe(
-      Effect.mapError(
-        (cause) =>
-          new StoredDataError({
-            cause,
-            message: "AniDB episode cache payload is invalid",
-          }),
-      ),
-    );
+  },
+) {
+  const encodedEpisodes = yield* encodeAniDbEpisodeCachePayload([...input.mediaUnits]).pipe(
+    Effect.mapError(
+      (cause) =>
+        new StoredDataError({
+          cause,
+          message: "AniDB episode cache payload is invalid",
+        }),
+    ),
+  );
 
-    yield* tryDatabasePromise("Failed to upsert AniDB episode cache", () =>
-      input.db
-        .insert(anidbEpisodeCache)
-        .values({
-          mediaId: input.mediaId,
+  yield* tryDatabasePromise("Failed to upsert AniDB episode cache", () =>
+    db
+      .insert(anidbEpisodeCache)
+      .values({
+        mediaId: input.mediaId,
+        mediaUnits: encodedEpisodes,
+        updatedAt: input.updatedAt,
+      })
+      .onConflictDoUpdate({
+        set: {
           mediaUnits: encodedEpisodes,
           updatedAt: input.updatedAt,
-        })
-        .onConflictDoUpdate({
-          set: {
-            mediaUnits: encodedEpisodes,
-            updatedAt: input.updatedAt,
-          },
-          target: anidbEpisodeCache.mediaId,
-        }),
-    );
-  },
-);
+        },
+        target: anidbEpisodeCache.mediaId,
+      }),
+  );
+});

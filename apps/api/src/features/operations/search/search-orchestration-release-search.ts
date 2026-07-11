@@ -24,7 +24,7 @@ import {
 import { parseReleaseName } from "@/features/operations/search/release-ranking.ts";
 import { parseVolumeNumbersFromTitle } from "@/features/operations/search/release-volume.ts";
 import { DomainInputError } from "@/features/errors.ts";
-import type { OperationsError } from "@/features/operations/errors.ts";
+import { MediaNotFoundError } from "@/features/media/errors.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 
@@ -33,6 +33,13 @@ type SearchReleaseSourceError =
   | RssFeedParseError
   | RssFeedRejectedError
   | RssFeedTooLargeError;
+
+export type SearchReleasesError =
+  | DatabaseError
+  | MediaNotFoundError
+  | DomainInputError
+  | RuntimeConfigSnapshotError
+  | SearchReleaseSourceError;
 type SearchNyaaReleases = (
   query: string,
   config: Config,
@@ -60,14 +67,7 @@ export interface SearchReleaseServiceShape {
     mediaId?: number,
     category?: string,
     filter?: string,
-  ) => Effect.Effect<
-    SearchResults,
-    | OperationsError
-    | DatabaseError
-    | RuntimeConfigSnapshotError
-    | ExternalCallError
-    | SearchReleaseSourceError
-  >;
+  ) => Effect.Effect<SearchResults, SearchReleasesError>;
 }
 
 function buildNyaaSearchUrl(query: string, category: string, filter: string) {
@@ -380,7 +380,7 @@ export class SearchReleaseService extends Effect.Service<SearchReleaseService>()
           yield* Effect.annotateCurrentSpan("mediaId", mediaId);
         }
 
-        const animeRow = mediaId ? yield* mediaReadRepository.getAnimeRow(mediaId) : null;
+        const animeRow = mediaId ? yield* mediaReadRepository.getMediaRow(mediaId) : null;
         const searchQuery = (query || animeRow?.titleRomaji || "").trim();
 
         if (searchQuery.length === 0) {

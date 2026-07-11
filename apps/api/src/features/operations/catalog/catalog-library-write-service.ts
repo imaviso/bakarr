@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 
 import type { ImportResult, RenameResult } from "@packages/shared/index.ts";
-import { AppDrizzleDatabase, type DatabaseError } from "@/db/database.ts";
+import type { DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { MediaProbe } from "@/infra/media/probe.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
@@ -11,7 +11,6 @@ import {
   type LibraryImportFileInput,
 } from "@/features/operations/catalog/catalog-library-write-import-support.ts";
 import { renameLibraryFiles } from "@/features/operations/catalog/catalog-library-write-rename-support.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
@@ -30,7 +29,6 @@ export class CatalogLibraryWriteService extends Effect.Service<CatalogLibraryWri
   "@bakarr/api/CatalogLibraryWriteService",
   {
     effect: Effect.gen(function* () {
-      const db = yield* AppDrizzleDatabase;
       const eventBus = yield* EventBus;
       const fs = yield* FileSystem;
       const mediaReadRepository = yield* MediaReadRepository;
@@ -43,7 +41,6 @@ export class CatalogLibraryWriteService extends Effect.Service<CatalogLibraryWri
       ) {
         const runtimeConfig = yield* runtimeConfigSnapshot.getRuntimeConfig();
         return yield* importLibraryFiles({
-          db,
           eventBus,
           files,
           fs,
@@ -51,7 +48,6 @@ export class CatalogLibraryWriteService extends Effect.Service<CatalogLibraryWri
           mediaUnitRepository,
           mediaProbe,
           runtimeConfig,
-          tryDatabasePromise,
         });
       });
 
@@ -59,7 +55,6 @@ export class CatalogLibraryWriteService extends Effect.Service<CatalogLibraryWri
         const runtimeConfig = yield* runtimeConfigSnapshot.getRuntimeConfig();
         return yield* renameLibraryFiles({
           mediaId,
-          db,
           eventBus,
           fs,
           mediaReadRepository,
@@ -73,6 +68,7 @@ export class CatalogLibraryWriteService extends Effect.Service<CatalogLibraryWri
         renameFiles,
       } satisfies CatalogLibraryWriteServiceShape;
     }),
+    dependencies: [MediaReadRepository.Default, MediaUnitRepository.Default],
   },
 ) {}
 

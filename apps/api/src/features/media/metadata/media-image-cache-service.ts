@@ -4,8 +4,8 @@ import { Effect, Schema } from "effect";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import {
-  cacheAnimeMetadataImages,
-  type CachedAnimeImages,
+  cacheMediaMetadataImages,
+  type CachedMediaImages,
 } from "@/features/media/metadata/image-cache.ts";
 
 export class ImageCacheError extends Schema.TaggedError<ImageCacheError>()("ImageCacheError", {
@@ -14,7 +14,7 @@ export class ImageCacheError extends Schema.TaggedError<ImageCacheError>()("Imag
   message: Schema.String,
 }) {}
 
-export interface AnimeImageCacheServiceShape {
+export interface MediaImageCacheServiceShape {
   readonly cacheMetadataImages: (input: {
     readonly mediaId: number;
     readonly bannerImage?: string | null;
@@ -39,12 +39,12 @@ interface ImageCacheResult {
   readonly coverImage?: string | undefined;
 }
 
-const makeAnimeImageCacheService = Effect.fn("AnimeImageCacheService.make")(function* () {
+const makeMediaImageCacheService = Effect.fn("MediaImageCacheService.make")(function* () {
   const fs = yield* FileSystem;
   const httpClient = yield* HttpClient.HttpClient;
   const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
 
-  const cacheMetadataImages = Effect.fn("AnimeImageCacheService.cacheMetadataImages")(function* (
+  const cacheMetadataImages = Effect.fn("MediaImageCacheService.cacheMetadataImages")(function* (
     input: ImageCacheInput,
   ) {
     const config = yield* runtimeConfigSnapshot.getRuntimeConfig().pipe(
@@ -58,11 +58,11 @@ const makeAnimeImageCacheService = Effect.fn("AnimeImageCacheService.make")(func
       ),
     );
 
-    const images: CachedAnimeImages = {
+    const images: CachedMediaImages = {
       ...(input.bannerImage === undefined ? {} : { bannerImage: input.bannerImage ?? undefined }),
       ...(input.coverImage === undefined ? {} : { coverImage: input.coverImage ?? undefined }),
     };
-    const cached = yield* cacheAnimeMetadataImages(
+    const cached = yield* cacheMediaMetadataImages(
       fs,
       httpClient,
       config.general.images_path,
@@ -85,14 +85,14 @@ const makeAnimeImageCacheService = Effect.fn("AnimeImageCacheService.make")(func
     } satisfies ImageCacheResult;
   });
 
-  return { cacheMetadataImages } satisfies AnimeImageCacheServiceShape;
+  return { cacheMetadataImages } satisfies MediaImageCacheServiceShape;
 });
 
-export class AnimeImageCacheService extends Effect.Service<AnimeImageCacheService>()(
-  "@bakarr/api/AnimeImageCacheService",
+export class MediaImageCacheService extends Effect.Service<MediaImageCacheService>()(
+  "@bakarr/api/MediaImageCacheService",
   {
-    effect: makeAnimeImageCacheService(),
+    effect: makeMediaImageCacheService(),
   },
 ) {}
 
-export const AnimeImageCacheServiceLive = AnimeImageCacheService.Default;
+export const MediaImageCacheServiceLive = MediaImageCacheService.Default;

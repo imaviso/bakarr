@@ -1,48 +1,60 @@
 import { Effect } from "effect";
 
-import { AppDrizzleDatabase, type DatabaseError } from "@/db/database.ts";
-import { AnimeImageCacheService } from "@/features/media/metadata/media-image-cache-service.ts";
+import type { DatabaseError } from "@/db/database.ts";
+import { MediaImageCacheService } from "@/features/media/metadata/media-image-cache-service.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
-import { AnimeMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
+import { MediaMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { SearchBackgroundMissingService } from "@/features/operations/background-search/background-search-missing-support.ts";
 import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
-import { InfrastructureError } from "@/features/errors.ts";
-import type { DomainNotFoundError } from "@/features/errors.ts";
-import type { AddAnimeInput } from "@/features/media/add/add-media-input.ts";
-import type { MediaServiceError } from "@/features/media/errors.ts";
-import { addAnimeEffect } from "@/features/media/add/media-add.ts";
+import { DomainPathError, InfrastructureError, StoredDataError } from "@/features/errors.ts";
+import type { AddMediaInput } from "@/features/media/add/add-media-input.ts";
+import {
+  AniDbRuntimeConfigError,
+  MediaConflictError,
+  MediaNotFoundError,
+} from "@/features/media/errors.ts";
+import { addMediaEffect } from "@/features/media/add/media-add.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
+import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
+import { SystemConfigRepository } from "@/features/system/repository/system-config-repository.ts";
+import type { ExternalCallError } from "@/infra/effect/retry.ts";
 
-export type AnimeEnrollmentError =
+export type MediaEnrollmentError =
   | DatabaseError
-  | MediaServiceError
-  | DomainNotFoundError
+  | MediaConflictError
+  | MediaNotFoundError
+  | ExternalCallError
+  | StoredDataError
+  | AniDbRuntimeConfigError
+  | DomainPathError
   | InfrastructureError;
 
-const makeAnimeEnrollmentService = Effect.fn("AnimeEnrollmentService.make")(function* () {
-  const db = yield* AppDrizzleDatabase;
+const makeMediaEnrollmentService = Effect.fn("MediaEnrollmentService.make")(function* () {
   const eventBus = yield* EventBus;
-  const metadataProvider = yield* AnimeMetadataProviderService;
-  const imageCacheService = yield* AnimeImageCacheService;
+  const metadataProvider = yield* MediaMetadataProviderService;
+  const imageCacheService = yield* MediaImageCacheService;
   const fs = yield* FileSystem;
   const mediaReadRepository = yield* MediaReadRepository;
   const mediaUnitRepository = yield* MediaUnitRepository;
+  const qualityProfileRepository = yield* QualityProfileRepository;
+  const systemConfigRepository = yield* SystemConfigRepository;
   const searchBackgroundService = yield* SearchBackgroundMissingService;
   const taskLauncher = yield* OperationsTaskLauncherService;
 
-  const enroll = Effect.fn("AnimeEnrollmentService.enroll")(function* (input: AddAnimeInput) {
-    const media = yield* addAnimeEffect({
+  const enroll = Effect.fn("MediaEnrollmentService.enroll")(function* (input: AddMediaInput) {
+    const media = yield* addMediaEffect({
       metadataProvider,
       animeInput: input,
-      db,
       eventPublisher: eventBus,
       fs,
       imageCacheService,
       mediaReadRepository,
       mediaUnitRepository,
+      qualityProfileRepository,
+      systemConfigRepository,
       nowIso: currentNowIso,
     });
 
@@ -64,11 +76,11 @@ const makeAnimeEnrollmentService = Effect.fn("AnimeEnrollmentService.make")(func
   return { enroll };
 });
 
-export class AnimeEnrollmentService extends Effect.Service<AnimeEnrollmentService>()(
-  "@bakarr/api/AnimeEnrollmentService",
+export class MediaEnrollmentService extends Effect.Service<MediaEnrollmentService>()(
+  "@bakarr/api/MediaEnrollmentService",
   {
-    effect: makeAnimeEnrollmentService(),
+    effect: makeMediaEnrollmentService(),
   },
 ) {}
 
-export const AnimeEnrollmentServiceLive = AnimeEnrollmentService.Default;
+export const MediaEnrollmentServiceLive = MediaEnrollmentService.Default;

@@ -1,20 +1,15 @@
-import { eq } from "drizzle-orm";
 import { Cause, Effect, Option, Queue, Ref } from "effect";
 
-import { AppDrizzleDatabase, type DatabaseError } from "@/db/database.ts";
-import { media } from "@/db/schema.ts";
+import type { DatabaseError } from "@/db/database.ts";
 import { AniDbClient } from "@/features/media/metadata/anidb.ts";
-import {
-  loadAniDbEpisodeCacheEffect,
-  upsertAniDbEpisodeCacheEffect,
-} from "@/features/media/units/anidb-unit-cache-repository.ts";
+import { AniDbUnitCacheRepository } from "@/features/media/units/anidb-unit-cache-repository.ts";
 import type { AniDbEpisodeLookupInput } from "@/features/media/metadata/anidb-protocol.ts";
 import type { AnimeMetadataEpisode } from "@/features/media/metadata/anilist-model.ts";
+import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import type { StoredDataError } from "@/features/errors.ts";
 import { AniDbRuntimeConfigError } from "@/features/media/errors.ts";
 import { currentTimeMillis, nowIso as currentNowIso } from "@/infra/time.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 const ANIDB_CACHE_STALE_AFTER_MS = 6 * 60 * 60 * 1000;
 const ANIDB_REFRESH_QUEUE_CAPACITY = 256;
@@ -23,7 +18,7 @@ export interface AniDbRefreshRequest extends AniDbEpisodeLookupInput {
   readonly mediaId: number;
 }
 
-export type AnimeMetadataEnrichmentCacheState =
+export type MediaMetadataEnrichmentCacheState =
   | {
       readonly _tag: "Missing";
     }
@@ -37,20 +32,21 @@ export type AnimeMetadataEnrichmentCacheState =
       readonly updatedAt: string;
     };
 
-export interface AnimeMetadataEnrichmentServiceShape {
+export interface MediaMetadataEnrichmentServiceShape {
   readonly getAniDbCacheState: (
     mediaId: number,
   ) => Effect.Effect<
-    AnimeMetadataEnrichmentCacheState,
+    MediaMetadataEnrichmentCacheState,
     DatabaseError | StoredDataError | AniDbRuntimeConfigError
   >;
   readonly requestAniDbRefresh: (request: AniDbRefreshRequest) => Effect.Effect<void>;
 }
 
-const makeAnimeMetadataEnrichmentService = Effect.fn("AnimeMetadataEnrichmentService.make")(
+const makeMediaMetadataEnrichmentService = Effect.fn("MediaMetadataEnrichmentService.make")(
   function* () {
-    const db = yield* AppDrizzleDatabase;
     const aniDb = yield* AniDbClient;
+    const aniDbUnitCacheRepository = yield* AniDbUnitCacheRepository;
+    const mediaReadRepository = yield* MediaReadRepository;
     const mediaUnitRepository = yield* MediaUnitRepository;
     const queue = yield* Effect.acquireRelease(
       Queue.dropping<AniDbRefreshRequest>(ANIDB_REFRESH_QUEUE_CAPACITY),
@@ -58,16 +54,15 @@ const makeAnimeMetadataEnrichmentService = Effect.fn("AnimeMetadataEnrichmentSer
     );
     const queuedAnimeIdsRef = yield* Ref.make(new Set<number>());
 
-    const runAniDbRefresh = Effect.fn("AnimeMetadataEnrichmentService.runAniDbRefresh")(function* (
+    const runAniDbRefresh = Effect.fn("MediaMetadataEnrichmentService.runAniDbRefresh")(function* (
       request: AniDbRefreshRequest,
     ) {
       const lookupResult = yield* aniDb.getEpisodeMetadata(request);
       const updatedAt = yield* currentNowIso();
 
       if (lookupResult._tag === "AniDbLookupSkipped") {
-        yield* upsertAniDbEpisodeCacheEffect({
+        yield* aniDbUnitCacheRepository.upsert({
           mediaId: request.mediaId,
-          db,
           mediaUnits: [],
           updatedAt,
         });
@@ -81,18 +76,15 @@ const makeAnimeMetadataEnrichmentService = Effect.fn("AnimeMetadataEnrichmentSer
         return;
       }
 
-      yield* upsertAniDbEpisodeCacheEffect({
+      yield* aniDbUnitCacheRepository.upsert({
         mediaId: request.mediaId,
-        db,
         mediaUnits: lookupResult.mediaUnits,
         updatedAt,
       });
 
-      const existingAnimeRows = yield* tryDatabasePromise("Failed to check media existence", () =>
-        db.select({ id: media.id }).from(media).where(eq(media.id, request.mediaId)).limit(1),
-      );
+      const exists = yield* mediaReadRepository.mediaExists(request.mediaId);
 
-      if (existingAnimeRows[0]) {
+      if (exists) {
         yield* mediaUnitRepository.syncEpisodeMetadata(request.mediaId, lookupResult.mediaUnits);
       }
     });
@@ -121,14 +113,14 @@ const makeAnimeMetadataEnrichmentService = Effect.fn("AnimeMetadataEnrichmentSer
       Effect.forkScoped,
     );
 
-    const getAniDbCacheState = Effect.fn("AnimeMetadataEnrichmentService.getAniDbCacheState")(
+    const getAniDbCacheState = Effect.fn("MediaMetadataEnrichmentService.getAniDbCacheState")(
       function* (mediaId: number) {
-        const cacheEntryOption = yield* loadAniDbEpisodeCacheEffect(db, mediaId);
+        const cacheEntryOption = yield* aniDbUnitCacheRepository.load(mediaId);
 
         if (Option.isNone(cacheEntryOption)) {
           return {
             _tag: "Missing",
-          } as const satisfies AnimeMetadataEnrichmentCacheState;
+          } as const satisfies MediaMetadataEnrichmentCacheState;
         }
 
         const cacheEntry = cacheEntryOption.value;
@@ -142,18 +134,18 @@ const makeAnimeMetadataEnrichmentService = Effect.fn("AnimeMetadataEnrichmentSer
           return {
             _tag: "Stale",
             updatedAt: cacheEntry.updatedAt,
-          } as const satisfies AnimeMetadataEnrichmentCacheState;
+          } as const satisfies MediaMetadataEnrichmentCacheState;
         }
 
         return {
           _tag: "Fresh",
           mediaUnits: cacheEntry.mediaUnits,
           updatedAt: cacheEntry.updatedAt,
-        } as const satisfies AnimeMetadataEnrichmentCacheState;
+        } as const satisfies MediaMetadataEnrichmentCacheState;
       },
     );
 
-    const requestAniDbRefresh = Effect.fn("AnimeMetadataEnrichmentService.requestAniDbRefresh")(
+    const requestAniDbRefresh = Effect.fn("MediaMetadataEnrichmentService.requestAniDbRefresh")(
       function* (request: AniDbRefreshRequest) {
         const shouldQueue = yield* Ref.modify(queuedAnimeIdsRef, (queuedAnimeIds) => {
           if (queuedAnimeIds.has(request.mediaId)) {
@@ -193,15 +185,20 @@ const makeAnimeMetadataEnrichmentService = Effect.fn("AnimeMetadataEnrichmentSer
     return {
       getAniDbCacheState,
       requestAniDbRefresh,
-    } satisfies AnimeMetadataEnrichmentServiceShape;
+    } satisfies MediaMetadataEnrichmentServiceShape;
   },
 );
 
-export class AnimeMetadataEnrichmentService extends Effect.Service<AnimeMetadataEnrichmentService>()(
-  "@bakarr/api/AnimeMetadataEnrichmentService",
+export class MediaMetadataEnrichmentService extends Effect.Service<MediaMetadataEnrichmentService>()(
+  "@bakarr/api/MediaMetadataEnrichmentService",
   {
-    scoped: makeAnimeMetadataEnrichmentService(),
+    scoped: makeMediaMetadataEnrichmentService(),
+    dependencies: [
+      AniDbUnitCacheRepository.Default,
+      MediaReadRepository.Default,
+      MediaUnitRepository.Default,
+    ],
   },
 ) {}
 
-export const AnimeMetadataEnrichmentServiceLive = AnimeMetadataEnrichmentService.Default;
+export const MediaMetadataEnrichmentServiceLive = MediaMetadataEnrichmentService.Default;

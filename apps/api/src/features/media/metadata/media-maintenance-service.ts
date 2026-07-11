@@ -1,67 +1,70 @@
-import { eq } from "drizzle-orm";
 import { Effect, Option } from "effect";
 import { brandMediaId } from "@packages/shared/index.ts";
 
-import { AppDrizzleDatabase, type DatabaseError } from "@/db/database.ts";
-import { media } from "@/db/schema.ts";
-import { AnimeMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
-import { AnimeImageCacheService } from "@/features/media/metadata/media-image-cache-service.ts";
-import { syncAnimeMetadataEffect } from "@/features/media/metadata/media-metadata-sync.ts";
+import type { DatabaseError } from "@/db/database.ts";
+import { MediaMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
+import { MediaImageCacheService } from "@/features/media/metadata/media-image-cache-service.ts";
+import { syncMediaMetadataEffect } from "@/features/media/metadata/media-metadata-sync.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
-import type { MediaServiceError } from "@/features/media/errors.ts";
+import { AniDbRuntimeConfigError, MediaNotFoundError } from "@/features/media/errors.ts";
 import { makeMetadataRefreshRunner } from "@/features/media/metadata/metadata-refresh.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
-import { appendSystemLog } from "@/features/system/support.ts";
+import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import type { ExternalCallError } from "@/infra/effect/retry.ts";
+import type { StoredDataError } from "@/features/errors.ts";
 
-export interface AnimeMaintenanceServiceShape {
+export interface MediaMaintenanceServiceShape {
   readonly deleteMedia: (id: number) => Effect.Effect<void, DatabaseError>;
   readonly refreshEpisodes: (
     mediaId: number,
-  ) => Effect.Effect<void, MediaServiceError | DatabaseError>;
-  readonly refreshMetadataForMonitoredAnime: () => Effect.Effect<
+  ) => Effect.Effect<
+    void,
+    | DatabaseError
+    | MediaNotFoundError
+    | ExternalCallError
+    | StoredDataError
+    | AniDbRuntimeConfigError
+  >;
+  readonly refreshMetadataForMonitoredMedia: () => Effect.Effect<
     { refreshed: number },
-    DatabaseError | ExternalCallError | MediaServiceError
+    DatabaseError | ExternalCallError
   >;
 }
 
-const makeAnimeMaintenanceService = Effect.fn("AnimeMaintenanceService.make")(function* () {
-  const db = yield* AppDrizzleDatabase;
+const makeMediaMaintenanceService = Effect.fn("MediaMaintenanceService.make")(function* () {
   const eventBus = yield* EventBus;
-  const metadataProvider = yield* AnimeMetadataProviderService;
-  const imageCacheService = yield* AnimeImageCacheService;
+  const metadataProvider = yield* MediaMetadataProviderService;
+  const imageCacheService = yield* MediaImageCacheService;
   const mediaReadRepository = yield* MediaReadRepository;
   const mediaUnitRepository = yield* MediaUnitRepository;
+  const systemLogRepository = yield* SystemLogRepository;
   const nowIso = currentNowIso;
   const metadataRefreshRunner = yield* makeMetadataRefreshRunner();
 
-  const deleteMedia = Effect.fn("AnimeMaintenanceService.deleteMedia")(function* (id: number) {
-    yield* tryDatabasePromise("Failed to delete media", () =>
-      db.delete(media).where(eq(media.id, id)),
-    );
-    yield* appendSystemLog(db, "media.deleted", "success", `Deleted media ${id}`, nowIso);
+  const deleteMedia = Effect.fn("MediaMaintenanceService.deleteMedia")(function* (id: number) {
+    yield* mediaReadRepository.deleteMedia(id);
+    yield* systemLogRepository.appendLog("media.deleted", "success", `Deleted media ${id}`, nowIso);
   });
 
-  const refreshEpisodes = Effect.fn("AnimeMaintenanceService.refreshEpisodes")(function* (
+  const refreshEpisodes = Effect.fn("MediaMaintenanceService.refreshEpisodes")(function* (
     mediaId: number,
   ) {
-    const startAnimeRow = yield* mediaReadRepository.getAnimeRow(mediaId);
+    const startAnimeRow = yield* mediaReadRepository.getMediaRow(mediaId);
 
     yield* eventBus.publish({
       type: "RefreshStarted",
       payload: { media_id: brandMediaId(mediaId), title: startAnimeRow.titleRomaji },
     });
 
-    const { animeRow, metadata, nextAnimeRow } = yield* syncAnimeMetadataEffect({
+    const { animeRow, metadata, nextAnimeRow } = yield* syncMediaMetadataEffect({
       imageCacheService,
       metadataProvider,
       mediaId,
-      db,
       eventPublisher: Option.some(eventBus),
       mediaReadRepository,
+      systemLogRepository,
       nowIso,
     });
 
@@ -72,8 +75,7 @@ const makeAnimeMaintenanceService = Effect.fn("AnimeMaintenanceService.make")(fu
       nowIso,
     );
     yield* mediaUnitRepository.syncEpisodeMetadata(mediaId, metadata?.mediaUnits);
-    yield* appendSystemLog(
-      db,
+    yield* systemLogRepository.appendLog(
       "media.mediaUnits.refreshed",
       "success",
       `Refreshed mediaUnits for ${animeRow.titleRomaji}`,
@@ -85,8 +87,8 @@ const makeAnimeMaintenanceService = Effect.fn("AnimeMaintenanceService.make")(fu
     });
   });
 
-  const refreshMetadataForMonitoredAnime = Effect.fn(
-    "AnimeMaintenanceService.refreshMetadataForMonitoredAnime",
+  const refreshMetadataForMonitoredMedia = Effect.fn(
+    "MediaMaintenanceService.refreshMetadataForMonitoredMedia",
   )(function* () {
     yield* eventBus.publishInfo("Metadata refresh started");
     const result = yield* metadataRefreshRunner.trigger;
@@ -97,15 +99,15 @@ const makeAnimeMaintenanceService = Effect.fn("AnimeMaintenanceService.make")(fu
   return {
     deleteMedia,
     refreshEpisodes,
-    refreshMetadataForMonitoredAnime,
-  } satisfies AnimeMaintenanceServiceShape;
+    refreshMetadataForMonitoredMedia,
+  } satisfies MediaMaintenanceServiceShape;
 });
 
-export class AnimeMaintenanceService extends Effect.Service<AnimeMaintenanceService>()(
-  "@bakarr/api/AnimeMaintenanceService",
+export class MediaMaintenanceService extends Effect.Service<MediaMaintenanceService>()(
+  "@bakarr/api/MediaMaintenanceService",
   {
-    effect: makeAnimeMaintenanceService(),
+    effect: makeMediaMaintenanceService(),
   },
 ) {}
 
-export const AnimeMaintenanceServiceLive = AnimeMaintenanceService.Default;
+export const MediaMaintenanceServiceLive = MediaMaintenanceService.Default;

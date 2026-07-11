@@ -1,7 +1,7 @@
 import { HttpServerRequest, HttpServerResponse, HttpRouter } from "@effect/platform";
 import { Effect } from "effect";
 
-import { AnimeStreamService } from "@/features/media/stream/media-stream-service.ts";
+import { MediaStreamService } from "@/features/media/stream/media-stream-service.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { MediaUnitParamsSchema, StreamQuerySchema } from "@/http/media/request-schemas.ts";
 import { parseStreamRange } from "@/http/media/streaming-range.ts";
@@ -32,7 +32,7 @@ export const mediaStreamRouter = HttpRouter.empty.pipe(
         );
 
         const request = yield* HttpServerRequest.HttpServerRequest;
-        const streamService = yield* AnimeStreamService;
+        const streamService = yield* MediaStreamService;
         const fs = yield* FileSystem;
         const streamFile = yield* streamService.resolveAuthorizedStreamFile({
           mediaId: params.id,

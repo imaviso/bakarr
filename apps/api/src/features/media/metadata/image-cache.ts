@@ -6,7 +6,7 @@ import { collectBoundedBytes } from "@/domain/bounded-stream.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { isNotFoundError } from "@/infra/filesystem/fs-errors.ts";
 
-export interface CachedAnimeImages {
+export interface CachedMediaImages {
   readonly bannerImage?: string | undefined;
   readonly coverImage?: string | undefined;
 }
@@ -27,13 +27,13 @@ export class ImageTooLargeError extends Schema.TaggedError<ImageTooLargeError>()
   },
 ) {}
 
-export const cacheAnimeMetadataImages = Effect.fn("AnimeService.cacheAnimeMetadataImages")(
+export const cacheMediaMetadataImages = Effect.fn("MediaService.cacheMediaMetadataImages")(
   function* (
     fs: FileSystemShape,
     client: HttpClient.HttpClient,
     imagesRoot: string,
     mediaId: number,
-    images: CachedAnimeImages,
+    images: CachedMediaImages,
   ) {
     const baseDir = `${imagesRoot.replace(/\/$/, "")}/media/${mediaId}`;
 
@@ -46,7 +46,7 @@ export const cacheAnimeMetadataImages = Effect.fn("AnimeService.cacheAnimeMetada
         ),
       );
 
-    const coverImage = yield* cacheAnimeImage(
+    const coverImage = yield* cacheMediaImage(
       fs,
       client,
       baseDir,
@@ -54,7 +54,7 @@ export const cacheAnimeMetadataImages = Effect.fn("AnimeService.cacheAnimeMetada
       "cover",
       images.coverImage,
     ).pipe(withImageCacheWarning("cover"));
-    const bannerImage = yield* cacheAnimeImage(
+    const bannerImage = yield* cacheMediaImage(
       fs,
       client,
       baseDir,
@@ -63,11 +63,11 @@ export const cacheAnimeMetadataImages = Effect.fn("AnimeService.cacheAnimeMetada
       images.bannerImage,
     ).pipe(withImageCacheWarning("banner"));
 
-    return { bannerImage, coverImage } satisfies CachedAnimeImages;
+    return { bannerImage, coverImage } satisfies CachedMediaImages;
   },
 );
 
-const cacheAnimeImage = Effect.fn("AnimeService.cacheAnimeImage")(function* (
+const cacheMediaImage = Effect.fn("MediaImageCache.cacheMediaImage")(function* (
   fs: FileSystemShape,
   client: HttpClient.HttpClient,
   baseDir: string,
@@ -95,7 +95,7 @@ const cacheAnimeImage = Effect.fn("AnimeService.cacheAnimeImage")(function* (
 
 const CACHED_IMAGE_EXTENSIONS = ["jpg", "png", "webp", "gif", "svg"] as const;
 
-const findCachedImagePath = Effect.fn("AnimeService.findCachedImagePath")(function* (
+const findCachedImagePath = Effect.fn("MediaService.findCachedImagePath")(function* (
   fs: FileSystemShape,
   baseDir: string,
   mediaId: number,
@@ -119,7 +119,7 @@ const findCachedImagePath = Effect.fn("AnimeService.findCachedImagePath")(functi
   return undefined;
 });
 
-const downloadImage = Effect.fn("AnimeService.downloadImage")(function* (
+const downloadImage = Effect.fn("MediaService.downloadImage")(function* (
   client: HttpClient.HttpClient,
   url: string,
 ) {

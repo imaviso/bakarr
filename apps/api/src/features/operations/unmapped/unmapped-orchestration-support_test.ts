@@ -3,10 +3,10 @@ import { Effect } from "effect";
 
 import { FileSystemError } from "@/infra/filesystem/filesystem.ts";
 import { makeNoopTestFileSystemWithOverridesEffect } from "@/test/filesystem-test.ts";
-import { cleanupPreviousAnimeRootFolderAfterImport } from "@/features/operations/unmapped/unmapped-orchestration-import.ts";
+import { cleanupPreviousMediaRootFolderAfterImport } from "@/features/operations/unmapped/unmapped-orchestration-import.ts";
 
 it.effect(
-  "cleanupPreviousAnimeRootFolderAfterImport skips removal when previous folder cannot be read",
+  "cleanupPreviousMediaRootFolderAfterImport skips removal when previous folder cannot be read",
   () =>
     Effect.gen(function* () {
       let removeCalls = 0;
@@ -26,7 +26,7 @@ it.effect(
         },
       });
 
-      yield* cleanupPreviousAnimeRootFolderAfterImport(
+      yield* cleanupPreviousMediaRootFolderAfterImport(
         fs,
         "/library/Old Show",
         "/library/New Show",

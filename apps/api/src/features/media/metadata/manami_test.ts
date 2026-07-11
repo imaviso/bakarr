@@ -224,7 +224,7 @@ it.scoped("ManamiClient searches cached titles and synonyms", () =>
         const refreshClient = yield* ManamiCacheRefreshClient;
 
         yield* refreshClient.refreshCacheIfNeeded();
-        return yield* client.searchAnime("Alpha Alias", 10);
+        return yield* client.searchMedia("Alpha Alias", 10);
       }).pipe(Effect.provide(clientLayer));
 
       assert.deepStrictEqual(

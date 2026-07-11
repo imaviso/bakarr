@@ -13,9 +13,9 @@ import {
   VideoFileSchema,
 } from "@packages/shared/index.ts";
 
-import { AnimeFileService } from "@/features/media/files/media-file-service.ts";
-import { AnimeQueryService } from "@/features/media/query/query-service.ts";
-import { AnimeStreamService } from "@/features/media/stream/media-stream-service.ts";
+import { MediaFileService } from "@/features/media/files/media-file-service.ts";
+import { MediaQueryService } from "@/features/media/query/query-service.ts";
+import { MediaStreamService } from "@/features/media/stream/media-stream-service.ts";
 import { MediaReaderService } from "@/features/media/reader/media-reader-service.ts";
 import { CatalogRssService } from "@/features/operations/catalog/catalog-rss-service.ts";
 import { CatalogLibraryReadService } from "@/features/operations/catalog/catalog-library-read-service.ts";
@@ -43,7 +43,7 @@ export const mediaReadRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const query = yield* decodeQuery(ListMediaQuerySchema);
-        return yield* (yield* AnimeQueryService).listMedia({
+        return yield* (yield* MediaQueryService).listMedia({
           limit: query.limit,
           monitored: query.monitored,
           offset: query.offset,
@@ -57,7 +57,7 @@ export const mediaReadRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const query = yield* decodeQuery(SeasonalMediaQuerySchema);
-        return yield* (yield* AnimeQueryService).listSeasonalAnime(query);
+        return yield* (yield* MediaQueryService).listSeasonalMedia(query);
       }),
       schemaJsonResponse(SeasonalMediaResponseSchema),
     ),
@@ -67,7 +67,7 @@ export const mediaReadRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const query = yield* decodeQuery(SearchMediaQuerySchema);
-        return yield* (yield* AnimeQueryService).searchAnime(query.q ?? "", query.media_kind);
+        return yield* (yield* MediaQueryService).searchMedia(query.q ?? "", query.media_kind);
       }),
       schemaJsonResponse(MediaSearchResponseSchema),
     ),
@@ -78,7 +78,7 @@ export const mediaReadRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
         const query = yield* decodeQuery(SearchMediaQuerySchema);
-        return yield* (yield* AnimeQueryService).getAnimeByAnilistId(params.id, query.media_kind);
+        return yield* (yield* MediaQueryService).getMediaByAnilistId(params.id, query.media_kind);
       }),
       schemaJsonResponse(MediaSearchResultSchema),
     ),
@@ -88,7 +88,7 @@ export const mediaReadRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        return yield* (yield* AnimeQueryService).getMedia(params.id);
+        return yield* (yield* MediaQueryService).getMedia(params.id);
       }),
       schemaJsonResponse(MediaSchema),
     ),
@@ -98,7 +98,7 @@ export const mediaReadRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        return yield* (yield* AnimeQueryService).listEpisodes(params.id);
+        return yield* (yield* MediaQueryService).listEpisodes(params.id);
       }),
       schemaJsonResponse(Schema.Array(MediaUnitSchema)),
     ),
@@ -141,7 +141,7 @@ export const mediaReadRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        return yield* (yield* AnimeFileService).listFiles(params.id);
+        return yield* (yield* MediaFileService).listFiles(params.id);
       }),
       schemaJsonResponse(Schema.Array(VideoFileSchema)),
     ),
@@ -151,7 +151,7 @@ export const mediaReadRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        return yield* (yield* CatalogRssService).listAnimeRssFeeds(params.id);
+        return yield* (yield* CatalogRssService).listMediaRssFeeds(params.id);
       }),
       schemaJsonResponse(Schema.Array(RssFeedSchema)),
     ),
@@ -172,7 +172,7 @@ export const mediaReadRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
         const query = yield* decodeQuery(StreamUrlQuerySchema);
-        return yield* (yield* AnimeStreamService).createStreamUrl(params.id, query.unitNumber);
+        return yield* (yield* MediaStreamService).createStreamUrl(params.id, query.unitNumber);
       }),
       schemaJsonResponse(StreamUrlResponseSchema),
     ),

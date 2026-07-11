@@ -5,8 +5,8 @@ import type { DatabaseError } from "@/db/database.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
 import type { AnimeMetadata } from "@/features/media/metadata/anilist-model.ts";
 import {
-  AnimeMetadataEnrichmentService,
-  type AnimeMetadataEnrichmentCacheState,
+  MediaMetadataEnrichmentService,
+  type MediaMetadataEnrichmentCacheState,
 } from "@/features/media/metadata/media-metadata-enrichment-service.ts";
 import { mergeAnimeMetadataEpisodes } from "@/features/media/units/unit-merge.ts";
 import type { StoredDataError } from "@/features/errors.ts";
@@ -18,17 +18,17 @@ import { mergeAnimeMetadata } from "@/features/media/metadata/metadata-merge.ts"
 import { mediaKindFromAniListFormat } from "@/features/media/shared/media-kind.ts";
 import type { ExternalCallError } from "@/infra/effect/retry.ts";
 
-export type AnimeMetadataLookupResult =
+export type MediaMetadataLookupResult =
   | {
       readonly _tag: "NotFound";
     }
   | {
       readonly _tag: "Found";
-      readonly enrichment: AnimeMetadataEnrichmentResult;
+      readonly enrichment: MediaMetadataEnrichmentResult;
       readonly metadata: AnimeMetadata;
     };
 
-export type AnimeMetadataEnrichmentResult =
+export type MediaMetadataEnrichmentResult =
   | {
       readonly _tag: "Enriched";
       readonly mediaUnits: number;
@@ -54,26 +54,26 @@ export type AnimeMetadataLookupError =
   | StoredDataError
   | AniDbRuntimeConfigError;
 
-export interface AnimeMetadataProviderServiceShape {
+export interface MediaMetadataProviderServiceShape {
   readonly getAnimeMetadataById: (
     id: number,
     mediaKind?: MediaKind,
-  ) => Effect.Effect<AnimeMetadataLookupResult, AnimeMetadataLookupError>;
+  ) => Effect.Effect<MediaMetadataLookupResult, AnimeMetadataLookupError>;
 }
 
-const makeAnimeMetadataProviderService = Effect.fn("AnimeMetadataProviderService.make")(
+const makeMediaMetadataProviderService = Effect.fn("MediaMetadataProviderService.make")(
   function* () {
     const aniList = yield* AniListClient;
     const jikan = yield* JikanClient;
     const manami = yield* ManamiClient;
-    const enrichmentService = yield* AnimeMetadataEnrichmentService;
+    const enrichmentService = yield* MediaMetadataEnrichmentService;
 
-    const getAnimeMetadataById = Effect.fn("AnimeMetadataProviderService.getAnimeMetadataById")(
+    const getAnimeMetadataById = Effect.fn("MediaMetadataProviderService.getAnimeMetadataById")(
       function* (id: number, mediaKind?: MediaKind) {
         const metadata = yield* aniList.getAnimeMetadataById(id, mediaKind);
 
         if (Option.isNone(metadata)) {
-          return { _tag: "NotFound" } as const satisfies AnimeMetadataLookupResult;
+          return { _tag: "NotFound" } as const satisfies MediaMetadataLookupResult;
         }
 
         const baseMetadata = metadata.value;
@@ -86,7 +86,7 @@ const makeAnimeMetadataProviderService = Effect.fn("AnimeMetadataProviderService
               reason: { _tag: "AniDbNoEpisodeMetadata" },
             },
             metadata: baseMetadata,
-          } as const satisfies AnimeMetadataLookupResult;
+          } as const satisfies MediaMetadataLookupResult;
         }
 
         const manamiMetadata = yield* optionalExternalMetadataLookup(
@@ -159,30 +159,30 @@ const makeAnimeMetadataProviderService = Effect.fn("AnimeMetadataProviderService
             },
           },
           metadata: mergedMetadata,
-        } as const satisfies AnimeMetadataLookupResult;
+        } as const satisfies MediaMetadataLookupResult;
 
         yield* logEnrichmentResult(mergedMetadata.id, result.enrichment);
         return result;
       },
     );
 
-    return { getAnimeMetadataById } satisfies AnimeMetadataProviderServiceShape;
+    return { getAnimeMetadataById } satisfies MediaMetadataProviderServiceShape;
   },
 );
 
-export class AnimeMetadataProviderService extends Effect.Service<AnimeMetadataProviderService>()(
-  "@bakarr/api/AnimeMetadataProviderService",
+export class MediaMetadataProviderService extends Effect.Service<MediaMetadataProviderService>()(
+  "@bakarr/api/MediaMetadataProviderService",
   {
-    effect: makeAnimeMetadataProviderService(),
+    effect: makeMediaMetadataProviderService(),
   },
 ) {}
 
-export const AnimeMetadataProviderServiceLive = AnimeMetadataProviderService.Default;
+export const MediaMetadataProviderServiceLive = MediaMetadataProviderService.Default;
 
-const toFreshLookupResult = Effect.fn("AnimeMetadataProviderService.toFreshLookupResult")(
+const toFreshLookupResult = Effect.fn("MediaMetadataProviderService.toFreshLookupResult")(
   function* (
     baseMetadata: AnimeMetadata,
-    cacheState: Extract<AnimeMetadataEnrichmentCacheState, { _tag: "Fresh" }>,
+    cacheState: Extract<MediaMetadataEnrichmentCacheState, { _tag: "Fresh" }>,
   ) {
     const mergedEpisodes = mergeLookupEpisodes(baseMetadata, cacheState);
 
@@ -196,7 +196,7 @@ const toFreshLookupResult = Effect.fn("AnimeMetadataProviderService.toFreshLooku
           },
         },
         metadata: baseMetadata,
-      } as const satisfies AnimeMetadataLookupResult;
+      } as const satisfies MediaMetadataLookupResult;
 
       yield* logEnrichmentResult(baseMetadata.id, result.enrichment);
       return result;
@@ -213,19 +213,19 @@ const toFreshLookupResult = Effect.fn("AnimeMetadataProviderService.toFreshLooku
         ...baseMetadata,
         mediaUnits: mergedEpisodes,
       },
-    } as const satisfies AnimeMetadataLookupResult;
+    } as const satisfies MediaMetadataLookupResult;
   },
 );
 
 const mergeLookupEpisodes = (
   metadata: AnimeMetadata,
-  cacheState: Extract<AnimeMetadataEnrichmentCacheState, { _tag: "Fresh" }>,
+  cacheState: Extract<MediaMetadataEnrichmentCacheState, { _tag: "Fresh" }>,
 ): AnimeMetadata["mediaUnits"] => {
   return mergeAnimeMetadataEpisodes(metadata.mediaUnits, cacheState.mediaUnits);
 };
 
-const logEnrichmentResult = Effect.fn("AnimeMetadataProviderService.logEnrichmentResult")(
-  function* (mediaId: number, result: AnimeMetadataEnrichmentResult) {
+const logEnrichmentResult = Effect.fn("MediaMetadataProviderService.logEnrichmentResult")(
+  function* (mediaId: number, result: MediaMetadataEnrichmentResult) {
     if (result._tag === "Enriched") {
       return;
     }
@@ -249,7 +249,7 @@ interface ManamiMalIdResolver {
   ) => Effect.Effect<Option.Option<number>, ExternalCallError>;
 }
 
-const resolveMalToAniListIdMap = Effect.fn("AnimeMetadataProviderService.resolveMalToAniListIdMap")(
+const resolveMalToAniListIdMap = Effect.fn("MediaMetadataProviderService.resolveMalToAniListIdMap")(
   function* (jikanMetadata: Option.Option<JikanNormalizedAnime>, manami: ManamiMalIdResolver) {
     if (Option.isNone(jikanMetadata)) {
       return undefined;

@@ -1,22 +1,16 @@
-import { eq } from "drizzle-orm";
 import { Effect, Option } from "effect";
 
-import type { AppDatabase } from "@/db/database.ts";
-import { media, mediaUnits } from "@/db/schema.ts";
 import { MediaConflictError, MediaNotFoundError } from "@/features/media/errors.ts";
 import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
-import { qualityProfileExistsEffect } from "@/features/media/shared/profile-support.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import type { QualityProfileRepositoryShape } from "@/features/system/repository/quality-profile-repository.ts";
 
-export const checkAnimeExistsEffect = Effect.fn("AnimeAddValidation.checkAnimeExists")(function* (
-  db: AppDatabase,
+export const checkMediaExistsEffect = Effect.fn("MediaAddValidation.checkMediaExists")(function* (
+  mediaReadRepository: MediaReadRepositoryShape,
   mediaId: number,
 ) {
-  const existing = yield* tryDatabasePromise("Failed to check media existence", () =>
-    db.select({ id: media.id }).from(media).where(eq(media.id, mediaId)).limit(1),
-  );
+  const exists = yield* mediaReadRepository.mediaExists(mediaId);
 
-  if (existing[0]) {
+  if (exists) {
     return yield* new MediaConflictError({
       message: "Media already exists",
     });
@@ -25,7 +19,7 @@ export const checkAnimeExistsEffect = Effect.fn("AnimeAddValidation.checkAnimeEx
   return undefined;
 });
 
-export const requireAnimeMetadataEffect = <T>(
+export const requireMediaMetadataEffect = <T>(
   metadata: Option.Option<T>,
 ): Effect.Effect<T, MediaNotFoundError> => {
   if (Option.isNone(metadata)) {
@@ -34,9 +28,9 @@ export const requireAnimeMetadataEffect = <T>(
   return Effect.succeed(metadata.value);
 };
 
-export const checkProfileExistsEffect = Effect.fn("AnimeAddValidation.checkProfileExists")(
-  function* (db: AppDatabase, profileName: string) {
-    const profileExists = yield* qualityProfileExistsEffect(db, profileName);
+export const checkProfileExistsEffect = Effect.fn("MediaAddValidation.checkProfileExists")(
+  function* (qualityProfileRepository: QualityProfileRepositoryShape, profileName: string) {
+    const profileExists = yield* qualityProfileRepository.qualityProfileExists(profileName);
 
     if (!profileExists) {
       return yield* new MediaNotFoundError({
@@ -49,9 +43,9 @@ export const checkProfileExistsEffect = Effect.fn("AnimeAddValidation.checkProfi
 );
 
 export const checkRootFolderNotOwnedEffect = Effect.fn(
-  "AnimeAddValidation.checkRootFolderNotOwned",
+  "MediaAddValidation.checkRootFolderNotOwned",
 )(function* (mediaReadRepository: MediaReadRepositoryShape, rootFolder: string) {
-  const existingRootOwner = yield* mediaReadRepository.findAnimeRootFolderOwner(rootFolder);
+  const existingRootOwner = yield* mediaReadRepository.findMediaRootFolderOwner(rootFolder);
 
   if (existingRootOwner) {
     return yield* new MediaConflictError({
@@ -63,9 +57,7 @@ export const checkRootFolderNotOwnedEffect = Effect.fn(
 });
 
 export const fetchPersistedEpisodeRowsEffect = Effect.fn(
-  "AnimeAddValidation.fetchPersistedEpisodeRows",
-)(function* (db: AppDatabase, mediaId: number) {
-  return yield* tryDatabasePromise("Failed to fetch persisted mediaUnits", () =>
-    db.select().from(mediaUnits).where(eq(mediaUnits.mediaId, mediaId)),
-  );
+  "MediaAddValidation.fetchPersistedEpisodeRows",
+)(function* (mediaReadRepository: MediaReadRepositoryShape, mediaId: number) {
+  return yield* mediaReadRepository.listUnitRowsByMediaId(mediaId);
 });

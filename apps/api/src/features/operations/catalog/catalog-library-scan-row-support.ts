@@ -10,7 +10,7 @@ import {
   type LibraryScanCounts,
 } from "@/features/operations/catalog/catalog-library-scan-file-support.ts";
 
-export const scanAnimeLibraryRow = Effect.fn("OperationsService.scanAnimeLibraryRow")(function* (
+export const scanMediaLibraryRow = Effect.fn("OperationsService.scanMediaLibraryRow")(function* (
   mediaUnitRepository: MediaUnitRepositoryShape,
   fs: FileSystemShape,
   animeRow: typeof media.$inferSelect,

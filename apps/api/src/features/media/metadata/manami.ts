@@ -40,7 +40,7 @@ interface ManamiClientShape {
   readonly resolveMalIdFromAniListId: (
     anilistId: number,
   ) => Effect.Effect<Option.Option<number>, ExternalCallError>;
-  readonly searchAnime: (
+  readonly searchMedia: (
     query: string,
     limit: number,
   ) => Effect.Effect<ReadonlyArray<MediaSearchResult>, ExternalCallError>;
@@ -204,7 +204,7 @@ const makeManamiClient = Effect.fn("ManamiClient.make")(function* () {
       );
   });
 
-  const searchAnime = Effect.fn("ManamiClient.searchAnime")(function* (
+  const searchMedia = Effect.fn("ManamiClient.searchMedia")(function* (
     query: string,
     limit: number,
   ) {
@@ -243,7 +243,7 @@ const makeManamiClient = Effect.fn("ManamiClient.make")(function* () {
     getByMalId,
     resolveAniListIdFromMalId,
     resolveMalIdFromAniListId,
-    searchAnime,
+    searchMedia,
   } satisfies ManamiClientShape;
 });
 

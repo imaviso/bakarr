@@ -4,7 +4,7 @@ import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { isWithinPathRoot } from "@/infra/filesystem/filesystem.ts";
 import { DomainPathError } from "@/features/errors.ts";
 
-export const loadAnimeRoot = Effect.fn("AnimeFilePathPolicy.loadAnimeRoot")(function* (
+export const loadMediaRoot = Effect.fn("MediaFilePathPolicy.loadMediaRoot")(function* (
   fs: FileSystemShape,
   rootFolder: string,
 ) {
@@ -19,7 +19,7 @@ export const loadAnimeRoot = Effect.fn("AnimeFilePathPolicy.loadAnimeRoot")(func
   );
 });
 
-export const validateEpisodeFilePath = Effect.fn("AnimeFilePathPolicy.validateEpisodeFilePath")(
+export const validateEpisodeFilePath = Effect.fn("MediaFilePathPolicy.validateEpisodeFilePath")(
   function* (input: {
     animeRoot: string;
     filePath: string;

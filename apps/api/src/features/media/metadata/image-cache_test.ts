@@ -4,12 +4,12 @@ import { Cause, Effect, Exit } from "effect";
 
 import { exists, withFileSystemSandboxEffect } from "@/test/filesystem-test.ts";
 import {
-  cacheAnimeMetadataImages,
+  cacheMediaMetadataImages,
   ImageCacheError,
   ImageTooLargeError,
 } from "@/features/media/metadata/image-cache.ts";
 
-it.scoped("cacheAnimeMetadataImages uses provided HttpClient for remote images", () =>
+it.scoped("cacheMediaMetadataImages uses provided HttpClient for remote images", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const imageBytes = Uint8Array.from([137, 80, 78, 71]);
@@ -22,7 +22,7 @@ it.scoped("cacheAnimeMetadataImages uses provided HttpClient for remote images",
         });
       });
 
-      const result = yield* cacheAnimeMetadataImages(fs, client, root, 55, {
+      const result = yield* cacheMediaMetadataImages(fs, client, root, 55, {
         coverImage: "https://example.com/cover",
       });
 
@@ -33,11 +33,11 @@ it.scoped("cacheAnimeMetadataImages uses provided HttpClient for remote images",
   ),
 );
 
-it.scoped("cacheAnimeMetadataImages saves cover and banner files locally", () =>
+it.scoped("cacheMediaMetadataImages saves cover and banner files locally", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const dataUrl = "data:image/png;base64,iVBORw0KGgo=";
-      const result = yield* cacheAnimeMetadataImages(fs, makeImageHttpClient(), root, 99, {
+      const result = yield* cacheMediaMetadataImages(fs, makeImageHttpClient(), root, 99, {
         bannerImage: dataUrl,
         coverImage: dataUrl,
       });
@@ -50,13 +50,13 @@ it.scoped("cacheAnimeMetadataImages saves cover and banner files locally", () =>
   ),
 );
 
-it.scoped("cacheAnimeMetadataImages fails on unsupported image types", () =>
+it.scoped("cacheMediaMetadataImages fails on unsupported image types", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const coverUrl = "https://example.com/cover";
       const bannerUrl = "https://example.com/banner";
       const result = yield* Effect.exit(
-        cacheAnimeMetadataImages(
+        cacheMediaMetadataImages(
           fs,
           makeImageHttpClient(
             () =>
@@ -88,12 +88,12 @@ it.scoped("cacheAnimeMetadataImages fails on unsupported image types", () =>
   ),
 );
 
-it.scoped("cacheAnimeMetadataImages fails oversized images by Content-Length", () =>
+it.scoped("cacheMediaMetadataImages fails oversized images by Content-Length", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const coverUrl = "https://example.com/huge.png";
       const result = yield* Effect.exit(
-        cacheAnimeMetadataImages(
+        cacheMediaMetadataImages(
           fs,
           makeImageHttpClient(
             () =>
@@ -126,7 +126,7 @@ it.scoped("cacheAnimeMetadataImages fails oversized images by Content-Length", (
   ),
 );
 
-it.scoped("cacheAnimeMetadataImages fails oversized images by streamed bytes", () =>
+it.scoped("cacheMediaMetadataImages fails oversized images by streamed bytes", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const largeBody = new Uint8Array(11 * 1024 * 1024);
@@ -138,7 +138,7 @@ it.scoped("cacheAnimeMetadataImages fails oversized images by streamed bytes", (
       });
       const coverUrl = "https://example.com/huge-stream.png";
       const result = yield* Effect.exit(
-        cacheAnimeMetadataImages(
+        cacheMediaMetadataImages(
           fs,
           makeImageHttpClient(
             () =>

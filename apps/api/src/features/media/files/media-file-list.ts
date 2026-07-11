@@ -1,8 +1,5 @@
-import { and, eq, isNotNull } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type { AppDatabase } from "@/db/database.ts";
-import { mediaUnits } from "@/db/schema.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import type { MediaProbeShape } from "@/infra/media/probe.ts";
 import type { VideoFile } from "@packages/shared/index.ts";
@@ -23,7 +20,7 @@ import {
 } from "@/features/media/files/files.ts";
 import { buildScannedFileMetadata } from "@/infra/scanned-file-metadata.ts";
 import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import type { MediaUnitRepositoryShape } from "@/features/media/units/media-unit-repository.ts";
 import { DomainPathError } from "@/features/errors.ts";
 
 interface EpisodeMediaCacheRow {
@@ -109,15 +106,15 @@ function hasEpisodeProbeCachePatch(patch: EpisodeProbeCachePatch) {
   );
 }
 
-export const listAnimeFilesEffect = Effect.fn("AnimeFileList.listAnimeFilesEffect")(
+export const listMediaFilesEffect = Effect.fn("MediaFileList.listMediaFilesEffect")(
   function* (input: {
     mediaId: number;
-    db: AppDatabase;
     fs: FileSystemShape;
     mediaReadRepository: MediaReadRepositoryShape;
+    mediaUnitRepository: MediaUnitRepositoryShape;
     mediaProbe: MediaProbeShape;
   }) {
-    const animeRow = yield* input.mediaReadRepository.getAnimeRow(input.mediaId);
+    const animeRow = yield* input.mediaReadRepository.getMediaRow(input.mediaId);
     const collectFiles = animeRow.mediaKind === "anime" ? collectVideoFiles : collectVolumeFiles;
     const files = yield* collectFiles(input.fs, animeRow.rootFolder).pipe(
       Effect.mapError(
@@ -129,20 +126,16 @@ export const listAnimeFilesEffect = Effect.fn("AnimeFileList.listAnimeFilesEffec
       ),
     );
 
-    const cachedEpisodeRows = yield* tryDatabasePromise("Failed to list video files", () =>
-      input.db
-        .select({
-          audioChannels: mediaUnits.audioChannels,
-          audioCodec: mediaUnits.audioCodec,
-          durationSeconds: mediaUnits.durationSeconds,
-          filePath: mediaUnits.filePath,
-          id: mediaUnits.id,
-          resolution: mediaUnits.resolution,
-          videoCodec: mediaUnits.videoCodec,
-        })
-        .from(mediaUnits)
-        .where(and(eq(mediaUnits.mediaId, input.mediaId), isNotNull(mediaUnits.filePath))),
-    );
+    const mappedRows = yield* input.mediaReadRepository.listMappedUnitRows(input.mediaId);
+    const cachedEpisodeRows: EpisodeMediaCacheRow[] = mappedRows.map((row) => ({
+      audioChannels: row.audioChannels,
+      audioCodec: row.audioCodec,
+      durationSeconds: row.durationSeconds,
+      filePath: row.filePath,
+      id: row.id,
+      resolution: row.resolution,
+      videoCodec: row.videoCodec,
+    }));
 
     const cachedEpisodeRowsByPath = new Map<string, EpisodeMediaCacheRow[]>();
 
@@ -156,7 +149,7 @@ export const listAnimeFilesEffect = Effect.fn("AnimeFileList.listAnimeFilesEffec
       cachedEpisodeRowsByPath.set(row.filePath, current);
     }
 
-    const processAnimeFile = Effect.fn("AnimeFileList.processAnimeFile")(function* (file: {
+    const processMediaFile = Effect.fn("MediaFileList.processMediaFile")(function* (file: {
       readonly name: string;
       readonly path: string;
       readonly size: number;
@@ -204,45 +197,43 @@ export const listAnimeFilesEffect = Effect.fn("AnimeFileList.listAnimeFilesEffec
       const mergedMetadata = mergeProbedMediaMetadata(mergedWithCachedMetadata, probedMetadata);
 
       if (probedMetadata && cachedRowsForFile.length > 0) {
-        yield* tryDatabasePromise("Failed to cache probed media metadata", async () => {
-          const cacheMetadataInput: {
-            readonly audio_channels?: string;
-            readonly audio_codec?: string;
-            readonly duration_seconds?: number;
-            readonly resolution?: string;
-            readonly video_codec?: string;
-          } = {
-            ...(probedMetadata.audio_channels === undefined
-              ? {}
-              : { audio_channels: probedMetadata.audio_channels }),
-            ...(probedMetadata.audio_codec === undefined
-              ? {}
-              : { audio_codec: probedMetadata.audio_codec }),
-            ...(probedMetadata.duration_seconds === undefined
-              ? {}
-              : { duration_seconds: probedMetadata.duration_seconds }),
-            ...(probedMetadata.resolution === undefined
-              ? {}
-              : { resolution: probedMetadata.resolution }),
-            ...(probedMetadata.video_codec === undefined
-              ? {}
-              : { video_codec: probedMetadata.video_codec }),
-          };
+        const cacheMetadataInput: {
+          readonly audio_channels?: string;
+          readonly audio_codec?: string;
+          readonly duration_seconds?: number;
+          readonly resolution?: string;
+          readonly video_codec?: string;
+        } = {
+          ...(probedMetadata.audio_channels === undefined
+            ? {}
+            : { audio_channels: probedMetadata.audio_channels }),
+          ...(probedMetadata.audio_codec === undefined
+            ? {}
+            : { audio_codec: probedMetadata.audio_codec }),
+          ...(probedMetadata.duration_seconds === undefined
+            ? {}
+            : { duration_seconds: probedMetadata.duration_seconds }),
+          ...(probedMetadata.resolution === undefined
+            ? {}
+            : { resolution: probedMetadata.resolution }),
+          ...(probedMetadata.video_codec === undefined
+            ? {}
+            : { video_codec: probedMetadata.video_codec }),
+        };
 
-          for (const row of cachedRowsForFile) {
-            const patch = toEpisodeProbeCachePatch(row, cacheMetadataInput);
-            if (!hasEpisodeProbeCachePatch(patch)) {
-              continue;
-            }
-
-            await input.db.update(mediaUnits).set(patch).where(eq(mediaUnits.id, row.id));
+        for (const row of cachedRowsForFile) {
+          const patch = toEpisodeProbeCachePatch(row, cacheMetadataInput);
+          if (!hasEpisodeProbeCachePatch(patch)) {
+            continue;
           }
-        });
+
+          yield* input.mediaUnitRepository.patchUnitProbeMetadata(row.id, patch);
+        }
       }
 
       return mergedMetadata;
     });
 
-    return yield* Effect.forEach(files, processAnimeFile, { concurrency: 4 });
+    return yield* Effect.forEach(files, processMediaFile, { concurrency: 4 });
   },
 );

@@ -5,7 +5,7 @@ import { isWithinPathRoot, type FileSystemShape } from "@/infra/filesystem/files
 import { DomainPathError } from "@/features/errors.ts";
 
 export const resolveConfiguredLibraryRoot = Effect.fn(
-  "AnimePathPolicy.resolveConfiguredLibraryRoot",
+  "MediaPathPolicy.resolveConfiguredLibraryRoot",
 )(function* (fs: FileSystemShape, configuredLibraryPath: string) {
   const resolved = yield* Effect.either(fs.realPath(configuredLibraryPath));
 
@@ -16,7 +16,7 @@ export const resolveConfiguredLibraryRoot = Effect.fn(
   return configuredLibraryPath;
 });
 
-export const findExistingAncestorPath = Effect.fn("AnimePathPolicy.findExistingAncestorPath")(
+export const findExistingAncestorPath = Effect.fn("MediaPathPolicy.findExistingAncestorPath")(
   function* (fs: FileSystemShape, path: string) {
     let current = path;
 
@@ -40,7 +40,7 @@ export const findExistingAncestorPath = Effect.fn("AnimePathPolicy.findExistingA
   },
 );
 
-export const assertPathWithinLibraryRoot = Effect.fn("AnimePathPolicy.assertPathWithinLibraryRoot")(
+export const assertPathWithinLibraryRoot = Effect.fn("MediaPathPolicy.assertPathWithinLibraryRoot")(
   function* (fs: FileSystemShape, path: string, libraryRoot: string) {
     const resolvedPath = yield* Effect.either(fs.realPath(path));
 

@@ -37,6 +37,8 @@ import { DownloadRepository } from "@/features/operations/repository/download-re
 import { LibraryRootsRepository } from "@/features/operations/repository/library-roots-repository.ts";
 import { OperationsProfileRepository } from "@/features/operations/repository/profile-repository.ts";
 import { OperationsTaskRepository } from "@/features/operations/repository/task-repository.ts";
+import { RssFeedRepository } from "@/features/operations/repository/rss-feed-repository-service.ts";
+import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 import { SystemUnmappedRepository } from "@/features/system/repository/unmapped-repository.ts";
 
 export function makeOperationsFeatureLayer<ROut, E, RIn>(
@@ -49,6 +51,8 @@ export function makeOperationsFeatureLayer<ROut, E, RIn>(
     LibraryRootsRepository.Default,
     OperationsProfileRepository.Default,
     OperationsTaskRepository.Default,
+    RssFeedRepository.Default,
+    SystemLogRepository.Default,
     SystemUnmappedRepository.Default,
   ).pipe(Layer.provide(runtimeSupportLayer));
 

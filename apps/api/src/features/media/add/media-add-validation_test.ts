@@ -10,10 +10,11 @@ import {
   checkProfileExistsEffect,
   checkRootFolderNotOwnedEffect,
   fetchPersistedEpisodeRowsEffect,
-  checkAnimeExistsEffect,
+  checkMediaExistsEffect,
 } from "@/features/media/add/media-add-validation.ts";
 import { MediaConflictError, MediaNotFoundError } from "@/features/media/errors.ts";
 import { makeMediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { makeQualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
 
 type TestDatabase = SqliteRemoteDatabase<typeof schema>;
 
@@ -55,7 +56,9 @@ it.scoped("checkProfileExistsEffect returns true when profile exists", () =>
     run: (db) =>
       Effect.gen(function* () {
         yield* seedQualityProfile(db);
-        const exit = yield* Effect.exit(checkProfileExistsEffect(db, "Default"));
+        const exit = yield* Effect.exit(
+          checkProfileExistsEffect(makeQualityProfileRepository(db), "Default"),
+        );
         assert.deepStrictEqual(exit._tag, "Success");
       }),
     schema,
@@ -66,7 +69,9 @@ it.scoped("checkProfileExistsEffect returns MediaNotFoundError for missing profi
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        const exit = yield* Effect.exit(checkProfileExistsEffect(db, "Missing"));
+        const exit = yield* Effect.exit(
+          checkProfileExistsEffect(makeQualityProfileRepository(db), "Missing"),
+        );
         assert.deepStrictEqual(Exit.isFailure(exit), true);
         if (Exit.isFailure(exit)) {
           const failure = Cause.failureOption(exit.cause);
@@ -79,12 +84,12 @@ it.scoped("checkProfileExistsEffect returns MediaNotFoundError for missing profi
   }),
 );
 
-it.scoped("checkAnimeExistsEffect returns MediaConflictError when media exists", () =>
+it.scoped("checkMediaExistsEffect returns MediaConflictError when media exists", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         yield* seedAnime(db);
-        const exit = yield* Effect.exit(checkAnimeExistsEffect(db, 1));
+        const exit = yield* Effect.exit(checkMediaExistsEffect(makeMediaReadRepository(db), 1));
         assert.deepStrictEqual(Exit.isFailure(exit), true);
         if (Exit.isFailure(exit)) {
           const failure = Cause.failureOption(exit.cause);
@@ -97,11 +102,11 @@ it.scoped("checkAnimeExistsEffect returns MediaConflictError when media exists",
   }),
 );
 
-it.scoped("checkAnimeExistsEffect succeeds when media does not exist", () =>
+it.scoped("checkMediaExistsEffect succeeds when media does not exist", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        const exit = yield* Effect.exit(checkAnimeExistsEffect(db, 999));
+        const exit = yield* Effect.exit(checkMediaExistsEffect(makeMediaReadRepository(db), 999));
         assert.deepStrictEqual(exit._tag, "Success");
       }),
     schema,
@@ -150,7 +155,7 @@ it.scoped("fetchPersistedEpisodeRowsEffect returns empty when no mediaUnits", ()
     run: (db) =>
       Effect.gen(function* () {
         yield* seedAnime(db);
-        const rows = yield* fetchPersistedEpisodeRowsEffect(db, 1);
+        const rows = yield* fetchPersistedEpisodeRowsEffect(makeMediaReadRepository(db), 1);
         assert.deepStrictEqual(rows, []);
       }),
     schema,

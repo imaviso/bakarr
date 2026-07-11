@@ -1,4 +1,3 @@
-import { eq } from "drizzle-orm";
 import { Effect, Option } from "effect";
 
 import {
@@ -7,21 +6,19 @@ import {
   type MediaSearchResult,
   type MediaKind,
 } from "@packages/shared/index.ts";
-import type { AppDatabase } from "@/db/database.ts";
-import { media } from "@/db/schema.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";
 import type { AniListClient } from "@/features/media/metadata/anilist.ts";
 import type { ManamiClient } from "@/features/media/metadata/manami.ts";
 import { markSearchResultsAlreadyInLibraryEffect } from "@/features/media/query/search-results.ts";
-import { annotateAnimeSearchResultsForQuery } from "@/features/media/query/media-search-annotation.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { annotateMediaSearchResultsForQuery } from "@/features/media/query/media-search-annotation.ts";
+import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
 import { deriveAnimeSeason } from "@/domain/media/date-utils.ts";
 
-export const searchAnimeEffect = Effect.fn("AnimeQuerySearch.searchAnimeEffect")(function* (input: {
+export const searchMediaEffect = Effect.fn("MediaQuerySearch.searchMediaEffect")(function* (input: {
   aniList: typeof AniListClient.Service;
-  db: AppDatabase;
-  manami?: Pick<typeof ManamiClient.Service, "searchAnime">;
+  manami?: Pick<typeof ManamiClient.Service, "searchMedia">;
   mediaKind?: MediaKind;
+  mediaReadRepository: MediaReadRepositoryShape;
   query: string;
 }) {
   const mediaKind = input.mediaKind ?? "anime";
@@ -42,7 +39,7 @@ export const searchAnimeEffect = Effect.fn("AnimeQuerySearch.searchAnimeEffect")
               }),
             );
 
-            return yield* manami.searchAnime(input.query, 20);
+            return yield* manami.searchMedia(input.query, 20);
           })
         : Effect.succeed(results);
     }),
@@ -62,14 +59,17 @@ export const searchAnimeEffect = Effect.fn("AnimeQuerySearch.searchAnimeEffect")
           }),
         );
 
-        return yield* input.manami.searchAnime(input.query, 20);
+        return yield* input.manami.searchMedia(input.query, 20);
       }),
     ),
   );
 
-  const annotated = annotateAnimeSearchResultsForQuery(input.query, results);
+  const annotated = annotateMediaSearchResultsForQuery(input.query, results);
 
-  const marked = yield* markSearchResultsAlreadyInLibraryEffect(input.db, annotated);
+  const marked = yield* markSearchResultsAlreadyInLibraryEffect(
+    input.mediaReadRepository,
+    annotated,
+  );
 
   return {
     degraded,
@@ -77,12 +77,12 @@ export const searchAnimeEffect = Effect.fn("AnimeQuerySearch.searchAnimeEffect")
   } satisfies MediaSearchResponse;
 });
 
-export const getAnimeByAnilistIdEffect = Effect.fn("AnimeQuerySearch.getAnimeByAnilistIdEffect")(
+export const getMediaByAnilistIdEffect = Effect.fn("MediaQuerySearch.getMediaByAnilistIdEffect")(
   function* (input: {
     aniList: typeof AniListClient.Service;
-    db: AppDatabase;
     id: number;
     mediaKind?: MediaKind;
+    mediaReadRepository: MediaReadRepositoryShape;
   }) {
     const mediaKind = input.mediaKind ?? "anime";
     const metadata = yield* input.aniList.getAnimeMetadataById(input.id, mediaKind);
@@ -94,12 +94,10 @@ export const getAnimeByAnilistIdEffect = Effect.fn("AnimeQuerySearch.getAnimeByA
     }
     const metadataValue = metadata.value;
 
-    const existing = yield* tryDatabasePromise("Failed to check library status", () =>
-      input.db.select({ id: media.id }).from(media).where(eq(media.id, input.id)).limit(1),
-    );
+    const alreadyInLibrary = yield* input.mediaReadRepository.mediaExists(input.id);
 
     return {
-      already_in_library: Boolean(existing[0]),
+      already_in_library: alreadyInLibrary,
       banner_image: metadataValue.bannerImage,
       cover_image: metadataValue.coverImage,
       description: metadataValue.description,

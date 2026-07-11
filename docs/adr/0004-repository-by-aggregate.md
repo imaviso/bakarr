@@ -29,9 +29,12 @@ call graph.
    for the same aggregate if read and write surfaces diverge enough to justify
    two Tags). Examples:
    - `DownloadRepository` — Download lifecycle SQL (queue, sync, action,
-     events, presentation contexts, finalize import)
+     events, presentation contexts, finalize import, catalog history/events)
    - `MediaUnitRepository` — Episode/unit writes (upsert, map, clear, backfill,
      schedule/metadata sync)
+   - `MediaReadRepository` — Media/unit reads (row loads, wanted/calendar,
+     mapped-file units)
+   - `RssFeedRepository` — RSS feed table (list/insert/toggle/delete)
 2. **Methods name domain operations**, not the service that happens to call
    them. Prefer `finalizeDownloadImport` / `listActiveDownloadRows` over
    inventing a new Tag for each HTTP or worker entrypoint.

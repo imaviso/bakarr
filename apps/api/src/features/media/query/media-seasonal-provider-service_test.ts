@@ -4,8 +4,8 @@ import { assert, describe, it } from "@effect/vitest";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
 import { brandMediaId, type MediaSearchResult, type MediaSeason } from "@packages/shared/index.ts";
 import {
-  AnimeSeasonalProviderService,
-  AnimeSeasonalProviderServiceLive,
+  MediaSeasonalProviderService,
+  MediaSeasonalProviderServiceLive,
 } from "@/features/media/query/media-seasonal-provider-service.ts";
 import { JikanClient } from "@/features/media/metadata/jikan.ts";
 import type { JikanNormalizedSeasonalEntry } from "@/features/media/metadata/jikan-model.ts";
@@ -55,7 +55,7 @@ function makeJikanSeasonalEntry(
   };
 }
 
-describe("AnimeSeasonalProviderService", () => {
+describe("MediaSeasonalProviderService", () => {
   it.effect("returns anilist results on success", () => {
     const anilistResults: Array<MediaSearchResult> = [
       makeAniListSearchResult(1, {
@@ -72,7 +72,7 @@ describe("AnimeSeasonalProviderService", () => {
       }),
     ];
 
-    const providerLayer = AnimeSeasonalProviderServiceLive.pipe(
+    const providerLayer = MediaSeasonalProviderServiceLive.pipe(
       Layer.provideMerge(
         Layer.mergeAll(
           Layer.succeed(
@@ -97,7 +97,7 @@ describe("AnimeSeasonalProviderService", () => {
               getByMalId: () => Effect.succeed(Option.none()),
               resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
               resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-              searchAnime: () => Effect.succeed([]),
+              searchMedia: () => Effect.succeed([]),
             }),
           ),
         ),
@@ -105,7 +105,7 @@ describe("AnimeSeasonalProviderService", () => {
     );
 
     return Effect.gen(function* () {
-      const service = yield* AnimeSeasonalProviderService;
+      const service = yield* MediaSeasonalProviderService;
       const result = yield* service.getSeasonalAnime({
         limit: 10,
         page: 1,
@@ -125,7 +125,7 @@ describe("AnimeSeasonalProviderService", () => {
   });
 
   it.effect("returns empty anilist results without degrading", () => {
-    const providerLayer = AnimeSeasonalProviderServiceLive.pipe(
+    const providerLayer = MediaSeasonalProviderServiceLive.pipe(
       Layer.provideMerge(
         Layer.mergeAll(
           Layer.succeed(
@@ -150,7 +150,7 @@ describe("AnimeSeasonalProviderService", () => {
               getByMalId: () => Effect.succeed(Option.none()),
               resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
               resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-              searchAnime: () => Effect.succeed([]),
+              searchMedia: () => Effect.succeed([]),
             }),
           ),
         ),
@@ -158,7 +158,7 @@ describe("AnimeSeasonalProviderService", () => {
     );
 
     return Effect.gen(function* () {
-      const service = yield* AnimeSeasonalProviderService;
+      const service = yield* MediaSeasonalProviderService;
       const result = yield* service.getSeasonalAnime({
         limit: 10,
         page: 1,
@@ -197,7 +197,7 @@ describe("AnimeSeasonalProviderService", () => {
 
     const resolveCalls: Array<number> = [];
 
-    const providerLayer = AnimeSeasonalProviderServiceLive.pipe(
+    const providerLayer = MediaSeasonalProviderServiceLive.pipe(
       Layer.provideMerge(
         Layer.mergeAll(
           Layer.succeed(
@@ -242,7 +242,7 @@ describe("AnimeSeasonalProviderService", () => {
                   return Option.none();
                 }),
               resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-              searchAnime: () => Effect.succeed([]),
+              searchMedia: () => Effect.succeed([]),
             }),
           ),
         ),
@@ -250,7 +250,7 @@ describe("AnimeSeasonalProviderService", () => {
     );
 
     return Effect.gen(function* () {
-      const service = yield* AnimeSeasonalProviderService;
+      const service = yield* MediaSeasonalProviderService;
       const result = yield* service.getSeasonalAnime({
         limit: 10,
         page: 1,
@@ -274,7 +274,7 @@ describe("AnimeSeasonalProviderService", () => {
   });
 
   it.effect("fills missing jikan seasonal fields from requested season window", () => {
-    const providerLayer = AnimeSeasonalProviderServiceLive.pipe(
+    const providerLayer = MediaSeasonalProviderServiceLive.pipe(
       Layer.provideMerge(
         Layer.mergeAll(
           Layer.succeed(
@@ -314,7 +314,7 @@ describe("AnimeSeasonalProviderService", () => {
               getByMalId: () => Effect.succeed(Option.none()),
               resolveAniListIdFromMalId: () => Effect.succeed(Option.some(4404)),
               resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-              searchAnime: () => Effect.succeed([]),
+              searchMedia: () => Effect.succeed([]),
             }),
           ),
         ),
@@ -322,7 +322,7 @@ describe("AnimeSeasonalProviderService", () => {
     );
 
     return Effect.gen(function* () {
-      const service = yield* AnimeSeasonalProviderService;
+      const service = yield* MediaSeasonalProviderService;
       const result = yield* service.getSeasonalAnime({
         limit: 10,
         page: 1,
@@ -351,7 +351,7 @@ describe("AnimeSeasonalProviderService", () => {
       }),
     ];
 
-    const providerLayer = AnimeSeasonalProviderServiceLive.pipe(
+    const providerLayer = MediaSeasonalProviderServiceLive.pipe(
       Layer.provideMerge(
         Layer.mergeAll(
           Layer.succeed(
@@ -394,7 +394,7 @@ describe("AnimeSeasonalProviderService", () => {
                   return Option.none();
                 }),
               resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-              searchAnime: () => Effect.succeed([]),
+              searchMedia: () => Effect.succeed([]),
             }),
           ),
         ),
@@ -402,7 +402,7 @@ describe("AnimeSeasonalProviderService", () => {
     );
 
     return Effect.gen(function* () {
-      const service = yield* AnimeSeasonalProviderService;
+      const service = yield* MediaSeasonalProviderService;
       const result = yield* service.getSeasonalAnime({
         limit: 10,
         page: 1,
@@ -422,7 +422,7 @@ describe("AnimeSeasonalProviderService", () => {
   });
 
   it.effect("bubbles jikan failure when anilist also fails", () => {
-    const providerLayer = AnimeSeasonalProviderServiceLive.pipe(
+    const providerLayer = MediaSeasonalProviderServiceLive.pipe(
       Layer.provideMerge(
         Layer.mergeAll(
           Layer.succeed(
@@ -461,7 +461,7 @@ describe("AnimeSeasonalProviderService", () => {
               getByMalId: () => Effect.succeed(Option.none()),
               resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
               resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-              searchAnime: () => Effect.succeed([]),
+              searchMedia: () => Effect.succeed([]),
             }),
           ),
         ),
@@ -469,7 +469,7 @@ describe("AnimeSeasonalProviderService", () => {
     );
 
     return Effect.gen(function* () {
-      const service = yield* AnimeSeasonalProviderService;
+      const service = yield* MediaSeasonalProviderService;
       const error = yield* service
         .getSeasonalAnime({ limit: 10, page: 1, season: "spring", year: 2025 })
         .pipe(Effect.flip);
@@ -479,7 +479,7 @@ describe("AnimeSeasonalProviderService", () => {
   });
 
   it.effect("fails fast for AniList normalization failures", () => {
-    const providerLayer = AnimeSeasonalProviderServiceLive.pipe(
+    const providerLayer = MediaSeasonalProviderServiceLive.pipe(
       Layer.provideMerge(
         Layer.mergeAll(
           Layer.succeed(
@@ -511,7 +511,7 @@ describe("AnimeSeasonalProviderService", () => {
               getByMalId: () => Effect.succeed(Option.none()),
               resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
               resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-              searchAnime: () => Effect.succeed([]),
+              searchMedia: () => Effect.succeed([]),
             }),
           ),
         ),
@@ -519,7 +519,7 @@ describe("AnimeSeasonalProviderService", () => {
     );
 
     return Effect.gen(function* () {
-      const service = yield* AnimeSeasonalProviderService;
+      const service = yield* MediaSeasonalProviderService;
       const error = yield* service
         .getSeasonalAnime({ limit: 10, page: 1, season: "spring", year: 2025 })
         .pipe(Effect.flip);
@@ -532,7 +532,7 @@ describe("AnimeSeasonalProviderService", () => {
   });
 
   it.effect("drops jikan entries when manami mapping fails during fallback", () => {
-    const providerLayer = AnimeSeasonalProviderServiceLive.pipe(
+    const providerLayer = MediaSeasonalProviderServiceLive.pipe(
       Layer.provideMerge(
         Layer.mergeAll(
           Layer.succeed(
@@ -576,7 +576,7 @@ describe("AnimeSeasonalProviderService", () => {
                   }),
                 ),
               resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-              searchAnime: () => Effect.succeed([]),
+              searchMedia: () => Effect.succeed([]),
             }),
           ),
         ),
@@ -584,7 +584,7 @@ describe("AnimeSeasonalProviderService", () => {
     );
 
     return Effect.gen(function* () {
-      const service = yield* AnimeSeasonalProviderService;
+      const service = yield* MediaSeasonalProviderService;
       const result = yield* service.getSeasonalAnime({
         limit: 10,
         page: 1,

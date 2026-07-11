@@ -1120,7 +1120,7 @@ itWithTestContext("anime folder scan clears mappings for deleted files", async (
       method: "POST",
     });
     const firstScan = await expectAcceptedTaskResponse(firstScanResponse);
-    await waitForAnimeScanTask({
+    await waitForMediaScanTask({
       animeId: 20,
       ctx,
       sessionCookie,
@@ -1134,7 +1134,7 @@ itWithTestContext("anime folder scan clears mappings for deleted files", async (
       method: "POST",
     });
     const secondScan = await expectAcceptedTaskResponse(secondScanResponse);
-    await waitForAnimeScanTask({
+    await waitForMediaScanTask({
       animeId: 20,
       ctx,
       sessionCookie,
@@ -2591,7 +2591,7 @@ itWithTestContext("anime CRUD and unit scan flow works", async (ctx) => {
     });
 
     const acceptedScan = await expectAcceptedTaskResponse(scanResponse);
-    const completedScanTask = await waitForAnimeScanTask({
+    const completedScanTask = await waitForMediaScanTask({
       animeId: 20,
       ctx,
       sessionCookie,
@@ -2685,7 +2685,7 @@ itWithTestContext("rss, wanted, rename, and download helper endpoints work", asy
         method: "POST",
       });
       const acceptedInitialAnimeScan = await expectAcceptedTaskResponse(initialAnimeScan);
-      await waitForAnimeScanTask({
+      await waitForMediaScanTask({
         animeId: 11061,
         ctx,
         sessionCookie,
@@ -4424,7 +4424,7 @@ const testManamiLayer = Layer.mergeAll(
       getByMalId: () => Effect.succeed(Option.none()),
       resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
       resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-      searchAnime: () => Effect.succeed([]),
+      searchMedia: () => Effect.succeed([]),
     }),
   ),
   Layer.succeed(
@@ -4740,7 +4740,7 @@ async function waitForSystemTask(input: {
   });
 }
 
-async function waitForAnimeScanTask(input: {
+async function waitForMediaScanTask(input: {
   readonly animeId: number;
   readonly ctx: TestContext;
   readonly sessionCookie: string;

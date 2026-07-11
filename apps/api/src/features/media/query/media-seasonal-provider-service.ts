@@ -7,7 +7,7 @@ import { JikanClient } from "@/features/media/metadata/jikan.ts";
 import type { JikanNormalizedSeasonalEntry } from "@/features/media/metadata/jikan-model.ts";
 import { ManamiClient } from "@/features/media/metadata/manami.ts";
 
-export interface AnimeSeasonalResult {
+export interface MediaSeasonalResult {
   readonly provider: "anilist" | "jikan_fallback";
   readonly degraded: boolean;
   readonly hasMore: boolean;
@@ -16,13 +16,13 @@ export interface AnimeSeasonalResult {
   readonly year: number;
 }
 
-export interface AnimeSeasonalProviderServiceShape {
+export interface MediaSeasonalProviderServiceShape {
   readonly getSeasonalAnime: (input: {
     season: MediaSeason;
     year: number;
     limit: number;
     page: number;
-  }) => Effect.Effect<AnimeSeasonalResult, ExternalCallError>;
+  }) => Effect.Effect<MediaSeasonalResult, ExternalCallError>;
 }
 
 function toAnimeSeason(value: string | undefined): MediaSeason | undefined {
@@ -66,13 +66,13 @@ function shouldFallbackToJikan(error: ExternalCallError) {
   return error.operation === "anilist.seasonal" || error.operation === "anilist.seasonal.response";
 }
 
-const makeAnimeSeasonalProviderService = Effect.fn("AnimeSeasonalProviderService.make")(
+const makeMediaSeasonalProviderService = Effect.fn("MediaSeasonalProviderService.make")(
   function* () {
     const aniList = yield* AniListClient;
     const jikan = yield* JikanClient;
     const manami = yield* ManamiClient;
 
-    const getSeasonalAnime = Effect.fn("AnimeSeasonalProviderService.getSeasonalAnime")(
+    const getSeasonalAnime = Effect.fn("MediaSeasonalProviderService.getSeasonalAnime")(
       function* (input: { season: MediaSeason; year: number; limit: number; page: number }) {
         const anilistAttempt = yield* aniList
           .getSeasonalAnime({
@@ -91,7 +91,7 @@ const makeAnimeSeasonalProviderService = Effect.fn("AnimeSeasonalProviderService
             results: anilistAttempt.right,
             season: input.season,
             year: input.year,
-          } satisfies AnimeSeasonalResult;
+          } satisfies MediaSeasonalResult;
         }
 
         if (!shouldFallbackToJikan(anilistAttempt.left)) {
@@ -147,19 +147,19 @@ const makeAnimeSeasonalProviderService = Effect.fn("AnimeSeasonalProviderService
           results,
           season: input.season,
           year: input.year,
-        } satisfies AnimeSeasonalResult;
+        } satisfies MediaSeasonalResult;
       },
     );
 
-    return { getSeasonalAnime } satisfies AnimeSeasonalProviderServiceShape;
+    return { getSeasonalAnime } satisfies MediaSeasonalProviderServiceShape;
   },
 );
 
-export class AnimeSeasonalProviderService extends Effect.Service<AnimeSeasonalProviderService>()(
-  "@bakarr/api/AnimeSeasonalProviderService",
+export class MediaSeasonalProviderService extends Effect.Service<MediaSeasonalProviderService>()(
+  "@bakarr/api/MediaSeasonalProviderService",
   {
-    effect: makeAnimeSeasonalProviderService(),
+    effect: makeMediaSeasonalProviderService(),
   },
 ) {}
 
-export const AnimeSeasonalProviderServiceLive = AnimeSeasonalProviderService.Default;
+export const MediaSeasonalProviderServiceLive = MediaSeasonalProviderService.Default;

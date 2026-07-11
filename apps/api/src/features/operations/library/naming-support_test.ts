@@ -10,7 +10,7 @@ import {
   buildDownloadSourceMetadataFromRelease,
   buildEpisodeNamingInputFromPath,
   mergeDownloadSourceMetadata,
-  selectAnimeYearForNaming,
+  selectMediaYearForNaming,
 } from "@/features/operations/library/naming-metadata-support.ts";
 import {
   inspectNamingFormat,
@@ -19,8 +19,8 @@ import {
   validateNamingMetadata,
 } from "@/features/operations/library/naming-format-support.ts";
 import {
-  selectAnimeTitleForNaming,
-  selectAnimeTitleForNamingDetails,
+  selectMediaTitleForNaming,
+  selectMediaTitleForNamingDetails,
 } from "@/features/operations/library/naming-title-support.ts";
 
 it("buildEpisodeNamingInputFromPath extracts local filename metadata for rename tokens", () => {
@@ -55,9 +55,9 @@ it("buildEpisodeNamingInputFromPath keeps stored episode title over filename fal
   assert.deepStrictEqual(input.unitTitle, "Canonical MediaUnit Title");
 });
 
-it("selectAnimeTitleForNaming honors preferred title with fallback", () => {
+it("selectMediaTitleForNaming honors preferred title with fallback", () => {
   assert.deepStrictEqual(
-    selectAnimeTitleForNaming(
+    selectMediaTitleForNaming(
       {
         titleEnglish: "English Title",
         titleNative: "Native Title",
@@ -69,7 +69,7 @@ it("selectAnimeTitleForNaming honors preferred title with fallback", () => {
   );
 
   assert.deepStrictEqual(
-    selectAnimeTitleForNaming(
+    selectMediaTitleForNaming(
       {
         titleEnglish: null,
         titleNative: "Native Title",
@@ -81,7 +81,7 @@ it("selectAnimeTitleForNaming honors preferred title with fallback", () => {
   );
 
   assert.deepStrictEqual(
-    selectAnimeTitleForNaming(
+    selectMediaTitleForNaming(
       {
         titleEnglish: "English Title",
         titleNative: "Native Title",
@@ -93,9 +93,9 @@ it("selectAnimeTitleForNaming honors preferred title with fallback", () => {
   );
 });
 
-it("selectAnimeTitleForNamingDetails reports which title source won", () => {
+it("selectMediaTitleForNamingDetails reports which title source won", () => {
   assert.deepStrictEqual(
-    selectAnimeTitleForNamingDetails(
+    selectMediaTitleForNamingDetails(
       {
         titleEnglish: null,
         titleNative: "Native Title",
@@ -123,9 +123,9 @@ it("selectNamingFormat uses movie format only for movies", () => {
   );
 });
 
-it("selectAnimeYearForNaming prefers preserved year metadata", () => {
+it("selectMediaYearForNaming prefers preserved year metadata", () => {
   assert.deepStrictEqual(
-    selectAnimeYearForNaming({
+    selectMediaYearForNaming({
       endDate: "2017-01-01",
       endYear: 2017,
       startDate: "2016-01-01",

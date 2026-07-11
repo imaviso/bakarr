@@ -5,18 +5,22 @@ import type { downloads } from "@/db/schema.ts";
 import { media } from "@/db/schema.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
-import { DomainPathError, InfrastructureError } from "@/features/errors.ts";
+import { DomainPathError, StoredDataError } from "@/features/errors.ts";
+import { MediaNotFoundError } from "@/features/media/errors.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
-import type { MediaUnitRepositoryShape } from "@/features/media/units/media-unit-repository.ts";
+import type {
+  MediaUnitRepositoryShape,
+  UpsertEpisodeFileError,
+} from "@/features/media/units/media-unit-repository.ts";
 import { classifyMediaArtifact } from "@/infra/media/identity/identity.ts";
 import { probeMediaMetadataOrUndefined, type MediaProbeShape } from "@/infra/media/probe.ts";
-import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
-import type { ExternalCallError } from "@/infra/effect/retry.ts";
+import type { FileSystemError, FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { buildEpisodeFilenamePlan } from "@/features/operations/library/naming-canonical-support.ts";
 import {
   hasMissingLocalMediaNamingFields,
   selectNamingFormat,
 } from "@/features/operations/library/naming-format-support.ts";
+import { ImportFileError } from "@/features/operations/download/download-file-import-errors.ts";
 import { importDownloadedFile } from "@/features/operations/download/download-file-import-support.ts";
 import {
   parseCoveredEpisodesEffect,
@@ -33,11 +37,7 @@ import {
 } from "@/features/operations/repository/download-repository.ts";
 import { DownloadRepository } from "@/features/operations/repository/download-repository-service.ts";
 import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
-import {
-  OperationsConflictError,
-  OperationsNotFoundError,
-  type OperationsError,
-} from "@/features/operations/errors.ts";
+import { OperationsConflictError, OperationsNotFoundError } from "@/features/operations/errors.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 
 type DownloadRow = typeof downloads.$inferSelect;
@@ -74,11 +74,20 @@ type BatchEpisodeRow = {
   readonly title: string | null;
 };
 
-const mapReconciliationInfrastructureError = (cause: unknown) =>
-  new InfrastructureError({
-    cause,
-    message: "Failed to reconcile completed download",
-  });
+export type ReconcileCompletedError =
+  | DatabaseError
+  | MediaNotFoundError
+  | StoredDataError
+  | DomainPathError
+  | ImportFileError
+  | FileSystemError
+  | UpsertEpisodeFileError
+  | RuntimeConfigSnapshotError;
+
+export type ReconcileByIdError =
+  | OperationsNotFoundError
+  | OperationsConflictError
+  | ReconcileCompletedError;
 
 function shouldRemoveTorrentOnImport(config: Config | null | undefined) {
   return config?.downloads.remove_torrent_on_import ?? true;
@@ -109,7 +118,7 @@ const loadDownloadReconciliationContext = Effect.fn(
   },
 ) {
   const storedSourceMetadata = yield* decodeDownloadSourceMetadata(input.row.sourceMetadata);
-  const animeRow = yield* input.mediaReadRepository.getAnimeRow(input.row.mediaId);
+  const animeRow = yield* input.mediaReadRepository.getMediaRow(input.row.mediaId);
   const runtimeConfig = yield* input.getRuntimeConfig();
   const resolvedContentRoot = yield* resolveAccessibleDownloadPath(
     input.fs,
@@ -292,10 +301,12 @@ const reconcileBatchDownloadEffect = Effect.fn("OperationsService.reconcileBatch
             : {}),
           ...(localMediaMetadata ? { localMediaMetadata } : {}),
         },
-      ).pipe(Effect.mapError(mapReconciliationInfrastructureError));
-      yield* input.mediaUnitRepository
-        .upsertEpisodeFiles(input.row.mediaId, relevantEpisodes, managedPath)
-        .pipe(Effect.mapError(mapReconciliationInfrastructureError));
+      );
+      yield* input.mediaUnitRepository.upsertEpisodeFiles(
+        input.row.mediaId,
+        relevantEpisodes,
+        managedPath,
+      );
 
       for (const unitNumber of relevantEpisodes) {
         const existing = episodeMap.get(unitNumber);
@@ -453,10 +464,12 @@ const reconcileSingleDownloadEffect = Effect.fn(
       ...(input.storedSourceMetadata ? { downloadSourceMetadata: input.storedSourceMetadata } : {}),
       ...(localMediaMetadata ? { localMediaMetadata } : {}),
     },
-  ).pipe(Effect.mapError(mapReconciliationInfrastructureError));
-  yield* input.mediaUnitRepository
-    .upsertEpisodeFiles(input.row.mediaId, [input.row.unitNumber], managedPath)
-    .pipe(Effect.mapError(mapReconciliationInfrastructureError));
+  );
+  yield* input.mediaUnitRepository.upsertEpisodeFiles(
+    input.row.mediaId,
+    [input.row.unitNumber],
+    managedPath,
+  );
   const singleNow = yield* input.nowIso();
   const storedCoveredEpisodes = yield* parseCoveredEpisodesEffect(input.row.coveredUnits);
   const eventMetadata = yield* encodeDownloadEventMetadata({
@@ -605,20 +618,7 @@ export function makeDownloadCompletedTorrentReconciliation(
     readonly reconcileCompletedTorrentEffect: (
       infoHash: string,
       contentPath: string | undefined,
-    ) => Effect.Effect<
-      void,
-      ExternalCallError | OperationsError | DatabaseError | RuntimeConfigSnapshotError
-    >;
-    readonly reconcileDownloadByIdEffect: (
-      id: number,
-    ) => Effect.Effect<
-      void,
-      | import("@/features/errors.ts").DomainConflictError
-      | import("@/features/errors.ts").DomainNotFoundError
-      | ExternalCallError
-      | OperationsError
-      | DatabaseError
-      | RuntimeConfigSnapshotError
-    >;
+    ) => Effect.Effect<void, ReconcileCompletedError>;
+    readonly reconcileDownloadByIdEffect: (id: number) => Effect.Effect<void, ReconcileByIdError>;
   };
 }

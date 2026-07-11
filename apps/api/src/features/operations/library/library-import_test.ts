@@ -8,9 +8,9 @@ import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import {
   analyzeScannedFile,
   buildRenamePreview,
-  findBestLocalAnimeMatch,
+  findBestLocalMediaMatch,
   titlesMatch,
-  toAnimeSearchCandidate,
+  toMediaSearchCandidate,
 } from "@/features/operations/library/library-import.ts";
 import { media } from "@/db/schema.ts";
 import { StoredDataError } from "@/features/errors.ts";
@@ -158,7 +158,7 @@ it.scoped("buildRenamePreview fills naming tokens from existing file metadata", 
 
         yield* Effect.tryPromise(() =>
           appDb.insert(media).values(
-            makeAnimeRow({
+            makeMediaRow({
               unitCount: 11,
               rootFolder,
               startDate: "2012-01-08",
@@ -178,12 +178,7 @@ it.scoped("buildRenamePreview fills naming tokens from existing file metadata", 
           }),
         );
 
-        const preview = yield* buildRenamePreview(
-          appDb,
-          1,
-          testConfig,
-          makeMediaReadRepository(appDb),
-        );
+        const preview = yield* buildRenamePreview(1, testConfig, makeMediaReadRepository(appDb));
         const firstPreview = preview[0];
         assert(firstPreview);
 
@@ -227,7 +222,7 @@ it.scoped("buildRenamePreview respects preferred English title and movie naming 
 
         yield* Effect.tryPromise(() =>
           appDb.insert(media).values(
-            makeAnimeRow({
+            makeMediaRow({
               format: "MOVIE",
               rootFolder: "/mnt/media2/Movies/Kimi no Na wa.",
               startDate: "2016-08-26",
@@ -249,12 +244,7 @@ it.scoped("buildRenamePreview respects preferred English title and movie naming 
           }),
         );
 
-        const preview = yield* buildRenamePreview(
-          appDb,
-          1,
-          testConfig,
-          makeMediaReadRepository(appDb),
-        );
+        const preview = yield* buildRenamePreview(1, testConfig, makeMediaReadRepository(appDb));
         const firstPreview = preview[0];
         assert(firstPreview);
 
@@ -290,7 +280,7 @@ it.scoped("buildRenamePreview reports fallback when season metadata is missing",
 
         yield* Effect.tryPromise(() =>
           appDb.insert(media).values(
-            makeAnimeRow({
+            makeMediaRow({
               rootFolder: "/library/Show",
               titleRomaji: "Show",
             }),
@@ -308,12 +298,7 @@ it.scoped("buildRenamePreview reports fallback when season metadata is missing",
           }),
         );
 
-        const preview = yield* buildRenamePreview(
-          appDb,
-          1,
-          testConfig,
-          makeMediaReadRepository(appDb),
-        );
+        const preview = yield* buildRenamePreview(1, testConfig, makeMediaReadRepository(appDb));
         const firstPreview = preview[0];
         assert(firstPreview);
 
@@ -327,8 +312,8 @@ it.scoped("buildRenamePreview reports fallback when season metadata is missing",
   }),
 );
 
-it("findBestLocalAnimeMatch handles title normalization and rejects weak matches", () => {
-  const naruto = makeAnimeRow({
+it("findBestLocalMediaMatch handles title normalization and rejects weak matches", () => {
+  const naruto = makeMediaRow({
     addedAt: "2024-01-01T00:00:00.000Z",
     bannerImage: null,
     coverImage: null,
@@ -351,7 +336,7 @@ it("findBestLocalAnimeMatch handles title normalization and rejects weak matches
     titleNative: null,
     titleRomaji: "Naruto II",
   });
-  const bleach = makeAnimeRow({
+  const bleach = makeMediaRow({
     ...naruto,
     id: 21,
     rootFolder: "/library/Bleach",
@@ -359,17 +344,17 @@ it("findBestLocalAnimeMatch handles title normalization and rejects weak matches
     titleRomaji: "Bleach",
   });
 
-  assert.deepStrictEqual(findBestLocalAnimeMatch("Naruto Season 2", [naruto, bleach])?.id, 20);
+  assert.deepStrictEqual(findBestLocalMediaMatch("Naruto Season 2", [naruto, bleach])?.id, 20);
   assert.deepStrictEqual(
-    findBestLocalAnimeMatch("Completely Different Show", [naruto, bleach]),
+    findBestLocalMediaMatch("Completely Different Show", [naruto, bleach]),
     undefined,
   );
 });
 
 it.effect("titlesMatch checks normalized candidate titles", () =>
   Effect.gen(function* () {
-    const candidate = yield* toAnimeSearchCandidate(
-      makeAnimeRow({
+    const candidate = yield* toMediaSearchCandidate(
+      makeMediaRow({
         addedAt: "2024-01-01T00:00:00.000Z",
         bannerImage: "/images/banner.jpg",
         coverImage: null,
@@ -412,11 +397,11 @@ it.effect("titlesMatch checks normalized candidate titles", () =>
   }),
 );
 
-it.effect("toAnimeSearchCandidate fails for corrupt stored genres", () =>
+it.effect("toMediaSearchCandidate fails for corrupt stored genres", () =>
   Effect.gen(function* () {
     const exit = yield* Effect.exit(
-      toAnimeSearchCandidate(
-        makeAnimeRow({
+      toMediaSearchCandidate(
+        makeMediaRow({
           genres: "not-json",
           id: 31,
           titleRomaji: "Broken Show",
@@ -435,7 +420,7 @@ it.effect("toAnimeSearchCandidate fails for corrupt stored genres", () =>
   }),
 );
 
-function makeAnimeRow(overrides: Partial<typeof media.$inferSelect>): typeof media.$inferSelect {
+function makeMediaRow(overrides: Partial<typeof media.$inferSelect>): typeof media.$inferSelect {
   return {
     addedAt: "2024-01-01T00:00:00.000Z",
     background: null,

@@ -6,8 +6,8 @@ import { media, mediaUnits, downloads, rssFeeds } from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import {
-  countAnimeRows,
-  countMonitoredAnimeRows,
+  countMediaRows,
+  countMonitoredMediaRows,
   countEpisodeRows,
   countDownloadedEpisodeRows,
   countRssFeedRows,
@@ -21,18 +21,18 @@ import {
   loadSystemLogPage,
 } from "@/features/system/repository/stats-repository.ts";
 
-it.scoped("countAnimeRows returns 0 for empty table", () =>
+it.scoped("countMediaRows returns 0 for empty table", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        const count = yield* countAnimeRows(db);
+        const count = yield* countMediaRows(db);
         assert.deepStrictEqual(count, 0);
       }),
     schema,
   }),
 );
 
-it.scoped("countAnimeRows counts inserted rows", () =>
+it.scoped("countMediaRows counts inserted rows", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -66,8 +66,8 @@ it.scoped("countAnimeRows counts inserted rows", () =>
             },
           ]),
         );
-        assert.deepStrictEqual(yield* countAnimeRows(db), 2);
-        assert.deepStrictEqual(yield* countMonitoredAnimeRows(db), 1);
+        assert.deepStrictEqual(yield* countMediaRows(db), 2);
+        assert.deepStrictEqual(yield* countMonitoredMediaRows(db), 1);
       }),
     schema,
   }),

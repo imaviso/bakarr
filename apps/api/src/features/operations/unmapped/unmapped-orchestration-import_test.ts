@@ -14,6 +14,7 @@ import { makeTestConfig } from "@/test/config-fixture.ts";
 import { makeMediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import { makeMediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import { getLibraryPathForMediaKind } from "@/features/media/shared/config-support.ts";
+import { makeSystemConfigRepository } from "@/features/system/repository/system-config-repository.ts";
 
 it.scoped("unmapped import rolls back when a later insert fails", () =>
   withSqliteTestDbEffect({
@@ -43,7 +44,7 @@ it.scoped("unmapped import rolls back when a later insert fails", () =>
 
         yield* Effect.tryPromise(() =>
           appDb.insert(media).values(
-            makeAnimeRow({
+            makeMediaRow({
               id: 20,
               profileName: "Default",
               rootFolder: "/library/Old Show",
@@ -73,6 +74,7 @@ it.scoped("unmapped import rolls back when a later insert fails", () =>
           mediaReadRepository: makeMediaReadRepository(appDb),
           mediaUnitRepository: makeMediaUnitRepository(appDb),
           nowIso: () => Effect.succeed("2024-01-01T00:00:00.000Z"),
+          systemConfigRepository: makeSystemConfigRepository(appDb),
           tryDatabasePromise,
         });
 
@@ -105,7 +107,7 @@ it.scoped("unmapped import rolls back when a later insert fails", () =>
   }),
 );
 
-function makeAnimeRow(overrides: Partial<typeof media.$inferSelect>): typeof media.$inferSelect {
+function makeMediaRow(overrides: Partial<typeof media.$inferSelect>): typeof media.$inferSelect {
   return {
     addedAt: "2024-01-01T00:00:00.000Z",
     background: null,

@@ -1,8 +1,8 @@
 import type { PreferredTitle } from "@packages/shared/index.ts";
 
-import type { SelectedAnimeTitleForNaming } from "@/features/operations/library/naming-types.ts";
+import type { SelectedMediaTitleForNaming } from "@/features/operations/library/naming-types.ts";
 
-export function selectAnimeTitleForNaming(
+export function selectMediaTitleForNaming(
   animeRow: {
     titleRomaji: string;
     titleEnglish?: string | null;
@@ -10,17 +10,17 @@ export function selectAnimeTitleForNaming(
   },
   preferredTitle: PreferredTitle,
 ): string {
-  return selectAnimeTitleForNamingDetails(animeRow, preferredTitle).title;
+  return selectMediaTitleForNamingDetails(animeRow, preferredTitle).title;
 }
 
-export function selectAnimeTitleForNamingDetails(
+export function selectMediaTitleForNamingDetails(
   animeRow: {
     titleRomaji: string;
     titleEnglish?: string | null;
     titleNative?: string | null;
   },
   preferredTitle: PreferredTitle,
-): SelectedAnimeTitleForNaming {
+): SelectedMediaTitleForNaming {
   const orderedTitles = resolveOrderedAnimeTitles(animeRow, preferredTitle);
 
   for (const entry of orderedTitles) {

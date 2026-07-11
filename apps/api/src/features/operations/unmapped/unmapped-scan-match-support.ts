@@ -1,9 +1,9 @@
 import { Effect } from "effect";
 
 import type { ScannerState } from "@packages/shared/index.ts";
-import type { AppDatabase } from "@/db/database.ts";
 import type { AniListClient } from "@/features/media/metadata/anilist.ts";
 import { markSearchResultsAlreadyInLibraryEffect } from "@/features/media/query/search-results.ts";
+import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
 import { mergeLocalFolderMatch } from "@/features/operations/unmapped/unmapped-folder-match-support.ts";
 import {
   buildUnmappedFolderSearchQueries,
@@ -15,8 +15,8 @@ export const matchSingleUnmappedFolder = Effect.fn("OperationsService.matchSingl
   function* (input: {
     aniList: typeof AniListClient.Service;
     animeRows: ReadonlyArray<typeof media.$inferSelect>;
-    db: AppDatabase;
     folder: ScannerState["folders"][number];
+    mediaReadRepository: MediaReadRepositoryShape;
     nowIso: () => Effect.Effect<string>;
   }) {
     const queries = buildUnmappedFolderSearchQueries(input.folder.name);
@@ -37,7 +37,7 @@ export const matchSingleUnmappedFolder = Effect.fn("OperationsService.matchSingl
     );
 
     const annotatedSuggestions = yield* markSearchResultsAlreadyInLibraryEffect(
-      input.db,
+      input.mediaReadRepository,
       withLocal.suggested_matches,
     );
 

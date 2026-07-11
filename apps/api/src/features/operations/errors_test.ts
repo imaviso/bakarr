@@ -12,7 +12,6 @@ import {
   RssFeedRejectedError,
   RssFeedParseError,
   RssFeedTooLargeError,
-  isOperationsError,
 } from "@/features/operations/errors.ts";
 
 it("OperationsNotFoundError constructs", () => {
@@ -73,15 +72,4 @@ it("StoredDataError constructs", () => {
 it("InfrastructureError constructs", () => {
   const error = new InfrastructureError({ cause: new Error("db"), message: "infra" });
   assert.deepStrictEqual(error._tag, "InfrastructureError");
-});
-
-it("isOperationsError returns true for all operation error types", () => {
-  assert.ok(isOperationsError(new OperationsNotFoundError({ message: "x" })));
-  assert.ok(isOperationsError(new DomainInputError({ message: "x" })));
-  assert.ok(isOperationsError(new RssFeedParseError({ message: "x" })));
-  assert.ok(isOperationsError(new RssFeedTooLargeError({ message: "x" })));
-});
-
-it("isOperationsError returns false for plain Error", () => {
-  assert.deepStrictEqual(isOperationsError(new Error("nope")), false);
 });

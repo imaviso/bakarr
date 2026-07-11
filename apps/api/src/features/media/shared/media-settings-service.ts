@@ -1,15 +1,10 @@
-import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
-import { AppDrizzleDatabase, type DatabaseError } from "@/db/database.ts";
-import { media } from "@/db/schema.ts";
+import type { DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
-import { appendSystemLog } from "@/features/system/support.ts";
 import { encodeNumberList } from "@/features/system/profile-codec.ts";
-import { qualityProfileExistsEffect } from "@/features/media/shared/profile-support.ts";
 import { getConfiguredLibraryPathEffect } from "@/features/media/shared/config-support.ts";
 import {
   resolveConfiguredLibraryRoot,
@@ -17,59 +12,63 @@ import {
 } from "@/features/media/shared/media-path-policy.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import { DomainPathError } from "@/features/errors.ts";
-import {
-  MediaConflictError,
-  MediaNotFoundError,
-  type MediaServiceError,
-} from "@/features/media/errors.ts";
+import { MediaConflictError, MediaNotFoundError } from "@/features/media/errors.ts";
 import { StoredDataError } from "@/features/errors.ts";
+import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
+import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
+import { SystemConfigRepository } from "@/features/system/repository/system-config-repository.ts";
 
-export interface AnimeSettingsServiceShape {
+export interface MediaSettingsServiceShape {
   readonly setMonitored: (
     id: number,
     monitored: boolean,
-  ) => Effect.Effect<void, MediaServiceError | DatabaseError>;
+  ) => Effect.Effect<void, DatabaseError | MediaNotFoundError>;
   readonly updatePath: (
     id: number,
     path: string,
-  ) => Effect.Effect<void, MediaServiceError | DatabaseError>;
+  ) => Effect.Effect<
+    void,
+    DatabaseError | MediaNotFoundError | MediaConflictError | DomainPathError
+  >;
   readonly updateProfile: (
     id: number,
     profileName: string,
-  ) => Effect.Effect<void, MediaServiceError | DatabaseError>;
+  ) => Effect.Effect<void, DatabaseError | MediaNotFoundError>;
   readonly updateReleaseProfiles: (
     id: number,
     releaseProfileIds: number[],
-  ) => Effect.Effect<void, MediaServiceError | DatabaseError | StoredDataError>;
+  ) => Effect.Effect<void, DatabaseError | MediaNotFoundError | StoredDataError>;
 }
 
-const makeAnimeSettingsService = Effect.fn("AnimeSettingsService.make")(function* () {
-  const db = yield* AppDrizzleDatabase;
+const makeMediaSettingsService = Effect.fn("MediaSettingsService.make")(function* () {
   const eventBus = yield* EventBus;
   const fs = yield* FileSystem;
   const mediaReadRepository = yield* MediaReadRepository;
+  const qualityProfileRepository = yield* QualityProfileRepository;
+  const systemConfigRepository = yield* SystemConfigRepository;
+  const systemLogRepository = yield* SystemLogRepository;
   const nowIso = currentNowIso;
 
-  const setMonitored = Effect.fn("AnimeSettingsService.setMonitored")(function* (
+  const setMonitored = Effect.fn("MediaSettingsService.setMonitored")(function* (
     id: number,
     monitored: boolean,
   ) {
-    yield* mediaReadRepository.requireAnimeExists(id);
-    yield* tryDatabasePromise("Failed to update media", () =>
-      db.update(media).set({ monitored }).where(eq(media.id, id)),
-    );
+    yield* mediaReadRepository.requireMediaExists(id);
+    yield* mediaReadRepository.updateMonitored(id, monitored);
     const message = `Media ${id} monitoring updated`;
-    yield* appendSystemLog(db, "media.updated", "success", message, nowIso);
+    yield* systemLogRepository.appendLog("media.updated", "success", message, nowIso);
     yield* eventBus.publishInfo(message);
   });
 
-  const updatePath = Effect.fn("AnimeSettingsService.updatePath")(function* (
+  const updatePath = Effect.fn("MediaSettingsService.updatePath")(function* (
     id: number,
     path: string,
   ) {
     const trimmedPath = path.trim();
 
-    const configuredLibraryPath = yield* getConfiguredLibraryPathEffect(db).pipe(
+    const configuredLibraryPath = yield* getConfiguredLibraryPathEffect(
+      systemConfigRepository,
+    ).pipe(
       Effect.mapError(
         (cause) =>
           new DomainPathError({
@@ -82,7 +81,7 @@ const makeAnimeSettingsService = Effect.fn("AnimeSettingsService.make")(function
     const canonicalLibraryRoot = yield* resolveConfiguredLibraryRoot(fs, configuredLibraryPath);
 
     yield* assertPathWithinLibraryRoot(fs, trimmedPath, canonicalLibraryRoot);
-    yield* mediaReadRepository.requireAnimeExists(id);
+    yield* mediaReadRepository.requireMediaExists(id);
 
     yield* fs.mkdir(trimmedPath, { recursive: true }).pipe(
       Effect.mapError(
@@ -104,7 +103,7 @@ const makeAnimeSettingsService = Effect.fn("AnimeSettingsService.make")(function
       ),
     );
 
-    const existingRootOwner = yield* mediaReadRepository.findAnimeRootFolderOwner(canonicalPath);
+    const existingRootOwner = yield* mediaReadRepository.findMediaRootFolderOwner(canonicalPath);
 
     if (existingRootOwner && existingRootOwner.id !== id) {
       return yield* new MediaConflictError({
@@ -112,12 +111,9 @@ const makeAnimeSettingsService = Effect.fn("AnimeSettingsService.make")(function
       });
     }
 
-    yield* tryDatabasePromise("Failed to update media path", () =>
-      db.update(media).set({ rootFolder: canonicalPath }).where(eq(media.id, id)),
-    );
+    yield* mediaReadRepository.updateRootFolder(id, canonicalPath);
 
-    yield* appendSystemLog(
-      db,
+    yield* systemLogRepository.appendLog(
       "media.path.updated",
       "success",
       `Updated path for media ${id}`,
@@ -128,11 +124,11 @@ const makeAnimeSettingsService = Effect.fn("AnimeSettingsService.make")(function
     return undefined;
   });
 
-  const updateProfile = Effect.fn("AnimeSettingsService.updateProfile")(function* (
+  const updateProfile = Effect.fn("MediaSettingsService.updateProfile")(function* (
     id: number,
     profileName: string,
   ) {
-    const profileExists = yield* qualityProfileExistsEffect(db, profileName);
+    const profileExists = yield* qualityProfileRepository.qualityProfileExists(profileName);
 
     if (!profileExists) {
       return yield* new MediaNotFoundError({
@@ -140,21 +136,19 @@ const makeAnimeSettingsService = Effect.fn("AnimeSettingsService.make")(function
       });
     }
 
-    yield* mediaReadRepository.requireAnimeExists(id);
-    yield* tryDatabasePromise("Failed to update media", () =>
-      db.update(media).set({ profileName }).where(eq(media.id, id)),
-    );
+    yield* mediaReadRepository.requireMediaExists(id);
+    yield* mediaReadRepository.updateProfileName(id, profileName);
     const message = `Updated profile for media ${id}`;
-    yield* appendSystemLog(db, "media.updated", "success", message, nowIso);
+    yield* systemLogRepository.appendLog("media.updated", "success", message, nowIso);
     yield* eventBus.publishInfo(message);
     return undefined;
   });
 
-  const updateReleaseProfiles = Effect.fn("AnimeSettingsService.updateReleaseProfiles")(function* (
+  const updateReleaseProfiles = Effect.fn("MediaSettingsService.updateReleaseProfiles")(function* (
     id: number,
     releaseProfileIds: number[],
   ) {
-    yield* mediaReadRepository.requireAnimeExists(id);
+    yield* mediaReadRepository.requireMediaExists(id);
     const encodedReleaseProfileIds = yield* encodeNumberList(releaseProfileIds).pipe(
       Effect.mapError(
         (cause) =>
@@ -165,16 +159,9 @@ const makeAnimeSettingsService = Effect.fn("AnimeSettingsService.make")(function
       ),
     );
 
-    yield* tryDatabasePromise("Failed to update media", () =>
-      db
-        .update(media)
-        .set({
-          releaseProfileIds: encodedReleaseProfileIds,
-        })
-        .where(eq(media.id, id)),
-    );
+    yield* mediaReadRepository.updateReleaseProfileIds(id, encodedReleaseProfileIds);
     const message = `Updated release profiles for media ${id}`;
-    yield* appendSystemLog(db, "media.updated", "success", message, nowIso);
+    yield* systemLogRepository.appendLog("media.updated", "success", message, nowIso);
     yield* eventBus.publishInfo(message);
   });
 
@@ -183,14 +170,20 @@ const makeAnimeSettingsService = Effect.fn("AnimeSettingsService.make")(function
     updatePath,
     updateProfile,
     updateReleaseProfiles,
-  } satisfies AnimeSettingsServiceShape;
+  } satisfies MediaSettingsServiceShape;
 });
 
-export class AnimeSettingsService extends Effect.Service<AnimeSettingsService>()(
-  "@bakarr/api/AnimeSettingsService",
+export class MediaSettingsService extends Effect.Service<MediaSettingsService>()(
+  "@bakarr/api/MediaSettingsService",
   {
-    effect: makeAnimeSettingsService(),
+    effect: makeMediaSettingsService(),
+    dependencies: [
+      MediaReadRepository.Default,
+      QualityProfileRepository.Default,
+      SystemConfigRepository.Default,
+      SystemLogRepository.Default,
+    ],
   },
 ) {}
 
-export const AnimeSettingsServiceLive = AnimeSettingsService.Default;
+export const MediaSettingsServiceLive = MediaSettingsService.Default;

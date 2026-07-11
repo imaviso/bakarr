@@ -123,6 +123,16 @@ export interface MediaUnitRepositoryShape {
     readonly mediaId?: number;
     readonly monitoredOnly: boolean;
   }) => Effect.Effect<void, DatabaseError>;
+  readonly patchUnitProbeMetadata: (
+    unitId: number,
+    patch: {
+      readonly audioChannels?: string | null | undefined;
+      readonly audioCodec?: string | null | undefined;
+      readonly durationSeconds?: number | null | undefined;
+      readonly resolution?: string | null | undefined;
+      readonly videoCodec?: string | null | undefined;
+    },
+  ) => Effect.Effect<void, DatabaseError>;
 }
 
 export class MediaUnitRepository extends Effect.Service<MediaUnitRepository>()(
@@ -146,6 +156,7 @@ function makeMediaUnitRepositoryShape(db: AppDatabase): MediaUnitRepositoryShape
     updateUnitFilePaths: (mediaId, unitNumbers, filePath) =>
       updateUnitFilePaths(db, mediaId, unitNumbers, filePath),
     upsertUnitMappings: (mediaId, mappings) => upsertUnitMappings(db, mediaId, mappings),
+    patchUnitProbeMetadata: (unitId, patch) => patchUnitProbeMetadata(db, unitId, patch),
     setMediaRootAndMapUnits: (mediaId, patch, mappings) =>
       setMediaRootAndMapUnits(db, mediaId, patch, mappings),
     ensureEpisodes: (
@@ -253,6 +264,31 @@ const clearEpisodeMapping = Effect.fn("MediaUnitRepository.clearEpisodeMapping")
         audioChannels: null,
       })
       .where(and(eq(mediaUnits.mediaId, mediaId), eq(mediaUnits.number, unitNumber))),
+  );
+});
+
+const patchUnitProbeMetadata = Effect.fn("MediaUnitRepository.patchUnitProbeMetadata")(function* (
+  db: AppDatabase,
+  unitId: number,
+  patch: {
+    readonly audioChannels?: string | null | undefined;
+    readonly audioCodec?: string | null | undefined;
+    readonly durationSeconds?: number | null | undefined;
+    readonly resolution?: string | null | undefined;
+    readonly videoCodec?: string | null | undefined;
+  },
+) {
+  yield* tryDatabasePromise("Failed to cache probed media metadata", () =>
+    db
+      .update(mediaUnits)
+      .set({
+        ...(patch.audioChannels === undefined ? {} : { audioChannels: patch.audioChannels }),
+        ...(patch.audioCodec === undefined ? {} : { audioCodec: patch.audioCodec }),
+        ...(patch.durationSeconds === undefined ? {} : { durationSeconds: patch.durationSeconds }),
+        ...(patch.resolution === undefined ? {} : { resolution: patch.resolution }),
+        ...(patch.videoCodec === undefined ? {} : { videoCodec: patch.videoCodec }),
+      })
+      .where(eq(mediaUnits.id, unitId)),
   );
 });
 

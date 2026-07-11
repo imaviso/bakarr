@@ -8,7 +8,7 @@ it("rejects invalid scheduler cron expressions", () =>
   Effect.gen(function* () {
     const exit = yield* Effect.exit(
       validateConfigUpdate({
-        countAnimeUsingProfile: () => Effect.succeed(0),
+        countMediaUsingProfile: () => Effect.succeed(0),
         existingProfileRows: [],
         nextConfig: makeTestConfig("./test.sqlite", (config) => ({
           ...config,
@@ -37,7 +37,7 @@ it("rejects removing profiles that are still referenced", () =>
   Effect.gen(function* () {
     const exit = yield* Effect.exit(
       validateConfigUpdate({
-        countAnimeUsingProfile: (profileName) => Effect.succeed(profileName === "legacy" ? 2 : 0),
+        countMediaUsingProfile: (profileName) => Effect.succeed(profileName === "legacy" ? 2 : 0),
         existingProfileRows: [{ name: "legacy" }, { name: "keep" }],
         nextConfig: makeTestConfig("./test.sqlite"),
       }),
@@ -59,7 +59,7 @@ it("rejects invalid qBittorrent URLs", () =>
   Effect.gen(function* () {
     const exit = yield* Effect.exit(
       validateConfigUpdate({
-        countAnimeUsingProfile: () => Effect.succeed(0),
+        countMediaUsingProfile: () => Effect.succeed(0),
         existingProfileRows: [],
         nextConfig: makeTestConfig("./test.sqlite", (config) => ({
           ...config,
@@ -87,7 +87,7 @@ it("rejects private qBittorrent URLs when trusted_local is disabled", () =>
   Effect.gen(function* () {
     const exit = yield* Effect.exit(
       validateConfigUpdate({
-        countAnimeUsingProfile: () => Effect.succeed(0),
+        countMediaUsingProfile: () => Effect.succeed(0),
         existingProfileRows: [],
         nextConfig: makeTestConfig("./test.sqlite", (config) => ({
           ...config,

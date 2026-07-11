@@ -13,7 +13,7 @@ export interface ExistingConfigProfileRow {
 export const validateConfigUpdate = Effect.fn("ConfigUpdateValidation.validateConfigUpdate")(
   function* (input: {
     readonly existingProfileRows: ReadonlyArray<ExistingConfigProfileRow>;
-    readonly countAnimeUsingProfile: (profileName: string) => Effect.Effect<number, DatabaseError>;
+    readonly countMediaUsingProfile: (profileName: string) => Effect.Effect<number, DatabaseError>;
     readonly nextConfig: Config;
   }) {
     const cronExpression = input.nextConfig.scheduler.cron_expression?.trim();
@@ -36,7 +36,7 @@ export const validateConfigUpdate = Effect.fn("ConfigUpdateValidation.validateCo
       .filter((name) => !keptProfileNames.has(name));
 
     for (const removedProfileName of removedProfileNames) {
-      const referencingAnime = yield* input.countAnimeUsingProfile(removedProfileName);
+      const referencingAnime = yield* input.countMediaUsingProfile(removedProfileName);
 
       if (referencingAnime > 0) {
         return yield* new ConfigValidationError({

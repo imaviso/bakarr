@@ -94,7 +94,7 @@ export const prepareTriggerDownload = Effect.fn("Operations.prepareTriggerDownlo
     readonly nowIso: () => Effect.Effect<string>;
     readonly triggerInput: TriggerDownloadInput;
   }) {
-    const animeRow = yield* input.mediaReadRepository.getAnimeRow(input.triggerInput.media_id);
+    const animeRow = yield* input.mediaReadRepository.getMediaRow(input.triggerInput.media_id);
     const now = yield* input.nowIso();
     const missingUnits = yield* input.triggerRepo.listMissingEpisodeNumbers(animeRow.id);
     const plan = resolveTriggerDownloadCoveragePlan({

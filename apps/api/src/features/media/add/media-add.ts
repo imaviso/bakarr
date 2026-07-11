@@ -1,60 +1,61 @@
 import { Effect, Option } from "effect";
 
 import { encodeNumberList, encodeStringList } from "@/features/system/profile-codec.ts";
-import type { AppDatabase } from "@/db/database.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import type { EventBusShape } from "@/features/events/event-bus.ts";
-import type { AddAnimeInput } from "@/features/media/add/add-media-input.ts";
-import { AnimeImageCacheService } from "@/features/media/metadata/media-image-cache-service.ts";
-import type { AnimeMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
+import type { AddMediaInput } from "@/features/media/add/add-media-input.ts";
+import { MediaImageCacheService } from "@/features/media/metadata/media-image-cache-service.ts";
+import type { MediaMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
 import {
   encodeAnimeDiscoveryEntries,
   encodeAnimeSynonyms,
 } from "@/features/media/metadata/discovery-metadata-codec.ts";
-import { toAnimeDto } from "@/features/media/shared/dto.ts";
+import { toMediaDto } from "@/features/media/shared/dto.ts";
 import { DomainPathError, StoredDataError } from "@/features/errors.ts";
 import { buildMissingEpisodeRows } from "@/features/media/units/media-schedule-repository.ts";
-import { insertAnimeAggregateAtomicEffect } from "@/features/media/shared/aggregate-support.ts";
-import { resolveAnimeRootFolderEffect } from "@/features/media/shared/config-support.ts";
+import { resolveMediaRootFolderEffect } from "@/features/media/shared/config-support.ts";
 import {
-  checkAnimeExistsEffect,
+  checkMediaExistsEffect,
   checkProfileExistsEffect,
   checkRootFolderNotOwnedEffect,
   fetchPersistedEpisodeRowsEffect,
-  requireAnimeMetadataEffect,
+  requireMediaMetadataEffect,
 } from "@/features/media/add/media-add-validation.ts";
 import { mediaKindFromAniListFormat } from "@/features/media/shared/media-kind.ts";
 import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
 import type { MediaUnitRepositoryShape } from "@/features/media/units/media-unit-repository.ts";
+import type { QualityProfileRepositoryShape } from "@/features/system/repository/quality-profile-repository.ts";
+import type { SystemConfigRepositoryShape } from "@/features/system/repository/system-config-repository.ts";
 
-export const addAnimeEffect = Effect.fn("AnimeAdd.addAnimeEffect")(function* (input: {
-  metadataProvider: typeof AnimeMetadataProviderService.Service;
-  animeInput: AddAnimeInput;
-  db: AppDatabase;
+export const addMediaEffect = Effect.fn("MediaAdd.addMediaEffect")(function* (input: {
+  metadataProvider: typeof MediaMetadataProviderService.Service;
+  animeInput: AddMediaInput;
   eventPublisher: Pick<EventBusShape, "publish">;
   fs: FileSystemShape;
-  imageCacheService: typeof AnimeImageCacheService.Service;
+  imageCacheService: typeof MediaImageCacheService.Service;
   mediaReadRepository: MediaReadRepositoryShape;
   mediaUnitRepository: MediaUnitRepositoryShape;
+  qualityProfileRepository: QualityProfileRepositoryShape;
+  systemConfigRepository: SystemConfigRepositoryShape;
   nowIso: () => Effect.Effect<string>;
 }) {
-  yield* checkAnimeExistsEffect(input.db, input.animeInput.id);
+  yield* checkMediaExistsEffect(input.mediaReadRepository, input.animeInput.id);
 
   const requestedMediaKind = input.animeInput.media_kind;
   const metadataLookup = yield* input.metadataProvider.getAnimeMetadataById(
     input.animeInput.id,
     requestedMediaKind,
   );
-  const validMetadata = yield* requireAnimeMetadataEffect(
+  const validMetadata = yield* requireMediaMetadataEffect(
     metadataLookup._tag === "NotFound" ? Option.none() : Option.some(metadataLookup.metadata),
   );
   const mediaKind = requestedMediaKind ?? mediaKindFromAniListFormat(validMetadata.format);
 
-  yield* checkProfileExistsEffect(input.db, input.animeInput.profile_name);
+  yield* checkProfileExistsEffect(input.qualityProfileRepository, input.animeInput.profile_name);
 
-  const rootFolder = yield* resolveAnimeRootFolderEffect(
-    input.db,
+  const rootFolder = yield* resolveMediaRootFolderEffect(
+    input.systemConfigRepository,
     input.animeInput.root_folder,
     validMetadata.title.romaji,
     input.animeInput.use_existing_root === undefined
@@ -94,7 +95,7 @@ export const addAnimeEffect = Effect.fn("AnimeAdd.addAnimeEffect")(function* (in
 
   const createdAt = yield* input.nowIso();
 
-  const animeRow = {
+  const mediaRow = {
     addedAt: createdAt,
     background: validMetadata.background ?? null,
     bannerImage: cachedImages.bannerImage ?? null,
@@ -158,8 +159,8 @@ export const addAnimeEffect = Effect.fn("AnimeAdd.addAnimeEffect")(function* (in
     titleRomaji: validMetadata.title.romaji,
   };
 
-  const episodeRows = buildMissingEpisodeRows({
-    mediaId: animeRow.id,
+  const unitRows = buildMissingEpisodeRows({
+    mediaId: mediaRow.id,
     unitCount: validMetadata.unitCount,
     endDate: validMetadata.endDate ?? undefined,
     existingRows: [],
@@ -170,26 +171,29 @@ export const addAnimeEffect = Effect.fn("AnimeAdd.addAnimeEffect")(function* (in
     status: validMetadata.status,
   });
 
-  yield* insertAnimeAggregateAtomicEffect(input.db, {
-    animeRow,
-    episodeRows,
+  yield* input.mediaReadRepository.insertMediaAggregate({
+    mediaRow,
+    unitRows,
     log: {
       createdAt,
       details: null,
       eventType: "media.created",
       level: "success",
-      message: `Added ${animeRow.titleRomaji} to library`,
+      message: `Added ${mediaRow.titleRomaji} to library`,
     },
   });
 
-  yield* input.mediaUnitRepository.syncEpisodeMetadata(animeRow.id, validMetadata.mediaUnits);
+  yield* input.mediaUnitRepository.syncEpisodeMetadata(mediaRow.id, validMetadata.mediaUnits);
 
   yield* input.eventPublisher.publish({
     type: "Info",
-    payload: { message: `Added ${animeRow.titleRomaji} to library` },
+    payload: { message: `Added ${mediaRow.titleRomaji} to library` },
   });
 
-  const persistedEpisodeRows = yield* fetchPersistedEpisodeRowsEffect(input.db, animeRow.id);
+  const persistedEpisodeRows = yield* fetchPersistedEpisodeRowsEffect(
+    input.mediaReadRepository,
+    mediaRow.id,
+  );
 
-  return yield* toAnimeDto(animeRow, persistedEpisodeRows);
+  return yield* toMediaDto(mediaRow, persistedEpisodeRows);
 });

@@ -1,24 +1,21 @@
 import { Effect } from "effect";
-import { desc, eq } from "drizzle-orm";
-import type { RssFeed } from "@packages/shared/index.ts";
 
-import { AppDrizzleDatabase, DatabaseError } from "@/db/database.ts";
-import { nowIso as currentNowIso } from "@/infra/time.ts";
-import type { OperationsError } from "@/features/operations/errors.ts";
+import type { RssFeed } from "@packages/shared/index.ts";
+import type { DatabaseError } from "@/db/database.ts";
+import { MediaNotFoundError } from "@/features/media/errors.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
-import { toRssFeed } from "@/features/operations/repository/rss-repository.ts";
-import { appendLog } from "@/features/operations/shared/job-support.ts";
-import { rssFeeds } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { RssFeedRepository } from "@/features/operations/repository/rss-feed-repository-service.ts";
+import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
+import { nowIso as currentNowIso } from "@/infra/time.ts";
 
 export interface CatalogRssServiceShape {
   readonly listRssFeeds: () => Effect.Effect<RssFeed[], DatabaseError>;
-  readonly listAnimeRssFeeds: (mediaId: number) => Effect.Effect<RssFeed[], DatabaseError>;
+  readonly listMediaRssFeeds: (mediaId: number) => Effect.Effect<RssFeed[], DatabaseError>;
   readonly addRssFeed: (input: {
     media_id: number;
     url: string;
     name?: string;
-  }) => Effect.Effect<RssFeed, OperationsError | DatabaseError>;
+  }) => Effect.Effect<RssFeed, DatabaseError | MediaNotFoundError>;
   readonly deleteRssFeed: (id: number) => Effect.Effect<void, DatabaseError>;
   readonly toggleRssFeed: (id: number, enabled: boolean) => Effect.Effect<void, DatabaseError>;
 }
@@ -27,91 +24,69 @@ export class CatalogRssService extends Effect.Service<CatalogRssService>()(
   "@bakarr/api/CatalogRssService",
   {
     effect: Effect.gen(function* () {
-      const db = yield* AppDrizzleDatabase;
       const mediaReadRepository = yield* MediaReadRepository;
+      const rssFeedRepository = yield* RssFeedRepository;
+      const systemLogRepository = yield* SystemLogRepository;
       const nowIso = currentNowIso;
 
-      const listRssFeeds = Effect.fn("OperationsService.listRssFeeds")(function* () {
-        const rows = yield* tryDatabasePromise("Failed to list RSS feeds", () =>
-          db.select().from(rssFeeds).orderBy(desc(rssFeeds.id)),
-        );
-
-        return rows.map(toRssFeed);
+      const listRssFeeds = Effect.fn("CatalogRssService.listRssFeeds")(function* () {
+        return yield* rssFeedRepository.listAll();
       });
 
-      const listAnimeRssFeeds = Effect.fn("OperationsService.listAnimeRssFeeds")(function* (
+      const listMediaRssFeeds = Effect.fn("CatalogRssService.listMediaRssFeeds")(function* (
         mediaId: number,
       ) {
-        const rows = yield* tryDatabasePromise("Failed to list media RSS feeds", () =>
-          db.select().from(rssFeeds).where(eq(rssFeeds.mediaId, mediaId)),
-        );
-
-        return rows.map(toRssFeed);
+        return yield* rssFeedRepository.listByMediaId(mediaId);
       });
 
-      const addRssFeed = Effect.fn("OperationsService.addRssFeed")(function* (rssInput: {
+      const addRssFeed = Effect.fn("CatalogRssService.addRssFeed")(function* (rssInput: {
         media_id: number;
         url: string;
         name?: string;
       }) {
-        yield* mediaReadRepository.getAnimeRow(rssInput.media_id);
+        yield* mediaReadRepository.getMediaRow(rssInput.media_id);
         const now = yield* nowIso();
-        const [row] = yield* tryDatabasePromise("Failed to add RSS feed", () =>
-          db
-            .insert(rssFeeds)
-            .values({
-              mediaId: rssInput.media_id,
-              createdAt: now,
-              enabled: true,
-              lastChecked: null,
-              name: rssInput.name ?? null,
-              url: rssInput.url,
-            })
-            .returning(),
-        );
+        const feed = yield* rssFeedRepository.insertFeed({
+          createdAt: now,
+          mediaId: rssInput.media_id,
+          name: rssInput.name ?? null,
+          url: rssInput.url,
+        });
 
-        if (!row) {
-          return yield* new DatabaseError({
-            cause: new Error("RSS feed insert returned no rows"),
-            message: "Failed to add RSS feed",
-          });
-        }
-
-        yield* appendLog(
-          db,
+        yield* systemLogRepository.appendLog(
           "rss.created",
           "success",
           `RSS feed added for media ${rssInput.media_id}`,
           nowIso,
         );
 
-        return toRssFeed(row);
+        return feed;
       });
 
-      const deleteRssFeed = Effect.fn("OperationsService.deleteRssFeed")(function* (id: number) {
-        yield* tryDatabasePromise("Failed to delete RSS feed", () =>
-          db.delete(rssFeeds).where(eq(rssFeeds.id, id)),
-        );
+      const deleteRssFeed = Effect.fn("CatalogRssService.deleteRssFeed")(function* (id: number) {
+        yield* rssFeedRepository.deleteById(id);
       });
 
-      const toggleRssFeed = Effect.fn("OperationsService.toggleRssFeed")(function* (
+      const toggleRssFeed = Effect.fn("CatalogRssService.toggleRssFeed")(function* (
         id: number,
         enabled: boolean,
       ) {
-        yield* tryDatabasePromise("Failed to toggle RSS feed", () =>
-          db.update(rssFeeds).set({ enabled }).where(eq(rssFeeds.id, id)),
-        );
+        yield* rssFeedRepository.setEnabled(id, enabled);
       });
 
       return {
         addRssFeed,
         deleteRssFeed,
-        listAnimeRssFeeds,
+        listMediaRssFeeds,
         listRssFeeds,
         toggleRssFeed,
       } satisfies CatalogRssServiceShape;
     }),
-    dependencies: [AppDrizzleDatabase.Default, MediaReadRepository.Default],
+    dependencies: [
+      MediaReadRepository.Default,
+      RssFeedRepository.Default,
+      SystemLogRepository.Default,
+    ],
   },
 ) {}
 

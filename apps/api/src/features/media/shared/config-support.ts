@@ -1,27 +1,22 @@
-import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type { AppDatabase } from "@/db/database.ts";
-import { appConfig } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { decodeConfigCore, decodeImagePath } from "@/features/system/config-codec.ts";
 import { makeDefaultConfig } from "@/features/system/defaults.ts";
 import { StoredDataError } from "@/features/errors.ts";
+import type { SystemConfigRepositoryShape } from "@/features/system/repository/system-config-repository.ts";
 import type { MediaKind } from "@packages/shared/index.ts";
 
-export const resolveAnimeRootFolderEffect = Effect.fn("AnimeConfigSupport.resolveAnimeRootFolder")(
+export const resolveMediaRootFolderEffect = Effect.fn("MediaConfigSupport.resolveMediaRootFolder")(
   function* (
-    db: AppDatabase,
+    systemConfigRepository: SystemConfigRepositoryShape,
     requestedRootFolder: string,
     title: string,
     options: { readonly mediaKind?: MediaKind; readonly useExistingRoot?: boolean } = {},
   ) {
     const trimmed = requestedRootFolder.trim();
-    const rows = yield* tryDatabasePromise("Failed to resolve media root folder", () =>
-      db.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1),
-    );
-    const configCore = rows[0]
-      ? yield* decodeConfigCore(rows[0].data).pipe(
+    const row = yield* systemConfigRepository.loadSystemConfigRow();
+    const configCore = row
+      ? yield* decodeConfigCore(row.data).pipe(
           Effect.mapError(
             (cause) =>
               new StoredDataError({
@@ -58,13 +53,11 @@ export const resolveAnimeRootFolderEffect = Effect.fn("AnimeConfigSupport.resolv
 );
 
 export const getConfiguredImagesPathEffect = Effect.fn(
-  "AnimeConfigSupport.getConfiguredImagesPath",
-)(function* (db: AppDatabase) {
-  const rows = yield* tryDatabasePromise("Failed to load configured images path", () =>
-    db.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1),
-  );
+  "MediaConfigSupport.getConfiguredImagesPath",
+)(function* (systemConfigRepository: SystemConfigRepositoryShape) {
+  const row = yield* systemConfigRepository.loadSystemConfigRow();
 
-  return yield* decodeImagePath(rows[0]).pipe(
+  return yield* decodeImagePath(row).pipe(
     Effect.mapError(
       (cause) =>
         new StoredDataError({
@@ -76,14 +69,12 @@ export const getConfiguredImagesPathEffect = Effect.fn(
 });
 
 export const getConfiguredLibraryPathEffect = Effect.fn(
-  "AnimeConfigSupport.getConfiguredLibraryPath",
-)(function* (db: AppDatabase, mediaKind: MediaKind = "anime") {
-  const rows = yield* tryDatabasePromise("Failed to load configured library path", () =>
-    db.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1),
-  );
+  "MediaConfigSupport.getConfiguredLibraryPath",
+)(function* (systemConfigRepository: SystemConfigRepositoryShape, mediaKind: MediaKind = "anime") {
+  const row = yield* systemConfigRepository.loadSystemConfigRow();
 
-  const configCore = rows[0]
-    ? yield* decodeConfigCore(rows[0].data).pipe(
+  const configCore = row
+    ? yield* decodeConfigCore(row.data).pipe(
         Effect.mapError(
           (cause) =>
             new StoredDataError({

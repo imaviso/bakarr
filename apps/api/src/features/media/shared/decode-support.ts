@@ -8,7 +8,7 @@ const StringListJsonSchema = Schema.parseJson(Schema.Array(Schema.String));
 const NumberListJsonSchema = Schema.parseJson(Schema.Array(Schema.Number));
 
 export const decodeStoredStringListEffect = Effect.fn(
-  "AnimeDecodeSupport.decodeStoredStringListEffect",
+  "MediaDecodeSupport.decodeStoredStringListEffect",
 )(function* (value: string | null, field: string) {
   if (!value) {
     return [];
@@ -27,7 +27,7 @@ export const decodeStoredStringListEffect = Effect.fn(
 });
 
 export const decodeStoredNumberListEffect = Effect.fn(
-  "AnimeDecodeSupport.decodeStoredNumberListEffect",
+  "MediaDecodeSupport.decodeStoredNumberListEffect",
 )(function* (value: string | null, field: string) {
   if (!value) {
     return [];
@@ -46,7 +46,7 @@ export const decodeStoredNumberListEffect = Effect.fn(
 });
 
 export const decodeStoredDiscoveryEntriesEffect = Effect.fn(
-  "AnimeDecodeSupport.decodeStoredDiscoveryEntriesEffect",
+  "MediaDecodeSupport.decodeStoredDiscoveryEntriesEffect",
 )(function* (value: string | null, field: string) {
   if (!value) {
     return undefined;
@@ -65,7 +65,7 @@ export const decodeStoredDiscoveryEntriesEffect = Effect.fn(
 });
 
 export const decodeStoredSynonymsEffect = Effect.fn(
-  "AnimeDecodeSupport.decodeStoredSynonymsEffect",
+  "MediaDecodeSupport.decodeStoredSynonymsEffect",
 )(function* (value: string | null) {
   if (!value) {
     return undefined;

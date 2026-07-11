@@ -4,11 +4,11 @@ import { brandMediaId } from "@packages/shared/index.ts";
 import { assert, it } from "@effect/vitest";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
 import type { AnimeMetadata } from "@/features/media/metadata/anilist-model.ts";
-import { AnimeMetadataEnrichmentService } from "@/features/media/metadata/media-metadata-enrichment-service.ts";
+import { MediaMetadataEnrichmentService } from "@/features/media/metadata/media-metadata-enrichment-service.ts";
 import type { AniDbRefreshRequest } from "@/features/media/metadata/media-metadata-enrichment-service.ts";
 import {
-  AnimeMetadataProviderService,
-  AnimeMetadataProviderServiceLive,
+  MediaMetadataProviderService,
+  MediaMetadataProviderServiceLive,
 } from "@/features/media/metadata/media-metadata-provider-service.ts";
 import { JikanClient } from "@/features/media/metadata/jikan.ts";
 import type { JikanNormalizedAnime } from "@/features/media/metadata/jikan-model.ts";
@@ -26,7 +26,7 @@ it.effect("returns refresh pending when AniDB cache is missing", () => {
   });
 
   return Effect.gen(function* () {
-    const service = yield* AnimeMetadataProviderService;
+    const service = yield* MediaMetadataProviderService;
     const result = yield* service.getAnimeMetadataById(1001);
 
     assert.deepStrictEqual(result._tag, "Found");
@@ -89,7 +89,7 @@ it.effect("backfills MAL id via Manami and merges metadata for AniDB refresh", (
   });
 
   return Effect.gen(function* () {
-    const service = yield* AnimeMetadataProviderService;
+    const service = yield* MediaMetadataProviderService;
     const result = yield* service.getAnimeMetadataById(1003);
 
     assert.deepStrictEqual(jikanRequests, [777]);
@@ -132,7 +132,7 @@ it.effect("returns enriched metadata when AniDB cache is fresh", () => {
   });
 
   return Effect.gen(function* () {
-    const service = yield* AnimeMetadataProviderService;
+    const service = yield* MediaMetadataProviderService;
     const result = yield* service.getAnimeMetadataById(1002);
 
     assert.deepStrictEqual(result._tag, "Found");
@@ -223,7 +223,7 @@ it.effect("merges Jikan/Manami metadata before applying AniDB episode enrichment
   });
 
   return Effect.gen(function* () {
-    const service = yield* AnimeMetadataProviderService;
+    const service = yield* MediaMetadataProviderService;
     const result = yield* service.getAnimeMetadataById(1002);
 
     assert.deepStrictEqual(result._tag, "Found");
@@ -284,7 +284,7 @@ it.effect("degrades gracefully when Manami getByAniListId fails", () => {
   });
 
   return Effect.gen(function* () {
-    const service = yield* AnimeMetadataProviderService;
+    const service = yield* MediaMetadataProviderService;
     const result = yield* service.getAnimeMetadataById(1001);
 
     assert.deepStrictEqual(result._tag, "Found");
@@ -321,7 +321,7 @@ it.effect("degrades gracefully when Manami resolveMalIdFromAniListId fails", () 
   });
 
   return Effect.gen(function* () {
-    const service = yield* AnimeMetadataProviderService;
+    const service = yield* MediaMetadataProviderService;
     const result = yield* service.getAnimeMetadataById(1004);
 
     assert.deepStrictEqual(result._tag, "Found");
@@ -360,7 +360,7 @@ it.effect("degrades gracefully when Jikan getAnimeByMalId fails", () => {
   });
 
   return Effect.gen(function* () {
-    const service = yield* AnimeMetadataProviderService;
+    const service = yield* MediaMetadataProviderService;
     const result = yield* service.getAnimeMetadataById(1005);
 
     assert.deepStrictEqual(result._tag, "Found");
@@ -416,7 +416,7 @@ it.effect(
     });
 
     return Effect.gen(function* () {
-      const service = yield* AnimeMetadataProviderService;
+      const service = yield* MediaMetadataProviderService;
       const result = yield* service.getAnimeMetadataById(1006);
 
       assert.deepStrictEqual(result._tag, "Found");
@@ -500,12 +500,12 @@ function makeProviderLayer(input: {
           input.resolveMalIdFromAniListIdError !== undefined
             ? Effect.fail(input.resolveMalIdFromAniListIdError)
             : Effect.succeed(Option.fromNullable(input.malIdFromAniListId)),
-        searchAnime: () => Effect.succeed([]),
+        searchMedia: () => Effect.succeed([]),
       }),
     ),
     Layer.succeed(
-      AnimeMetadataEnrichmentService,
-      AnimeMetadataEnrichmentService.make({
+      MediaMetadataEnrichmentService,
+      MediaMetadataEnrichmentService.make({
         getAniDbCacheState: () => Effect.succeed(input.cacheState),
         requestAniDbRefresh: (request: AniDbRefreshRequest) =>
           Effect.sync(() => input.onRefresh(request)),
@@ -513,7 +513,7 @@ function makeProviderLayer(input: {
     ),
   );
 
-  return AnimeMetadataProviderServiceLive.pipe(Layer.provideMerge(dependenciesLayer));
+  return MediaMetadataProviderServiceLive.pipe(Layer.provideMerge(dependenciesLayer));
 }
 
 function makeMetadata(id: number, overrides?: Partial<AnimeMetadata>): AnimeMetadata {

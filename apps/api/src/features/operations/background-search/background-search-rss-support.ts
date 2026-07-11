@@ -1,13 +1,10 @@
-import { eq } from "drizzle-orm";
 import { Effect, Ref } from "effect";
 
 import { DatabaseError } from "@/db/database.ts";
-import { AppDrizzleDatabase } from "@/db/database.ts";
-import { rssFeeds } from "@/db/schema.ts";
 import { BackgroundSearchRssFeedService } from "@/features/operations/background-search/background-search-rss-feed-service.ts";
 import { InfrastructureError } from "@/features/errors.ts";
+import { RssFeedRepository } from "@/features/operations/repository/rss-feed-repository-service.ts";
 import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
 
@@ -22,16 +19,14 @@ export class SearchBackgroundRssService extends Effect.Service<SearchBackgroundR
   "@bakarr/api/SearchBackgroundRssService",
   {
     effect: Effect.gen(function* () {
-      const db = yield* AppDrizzleDatabase;
       const progress = yield* OperationsProgress;
       const rssFeedService = yield* BackgroundSearchRssFeedService;
+      const rssFeedRepository = yield* RssFeedRepository;
       const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
 
       const runRssCheck = Effect.fn("OperationsService.runRssCheck")(function* () {
         return yield* Effect.gen(function* () {
-          const feeds = yield* tryDatabasePromise("Failed to run RSS check", () =>
-            db.select().from(rssFeeds).where(eq(rssFeeds.enabled, true)),
-          );
+          const feeds = yield* rssFeedRepository.listEnabledRows();
           const runtimeConfig = yield* runtimeConfigSnapshot.getRuntimeConfig();
           const startedFeedsRef = yield* Ref.make(0);
 
@@ -79,7 +74,7 @@ export class SearchBackgroundRssService extends Effect.Service<SearchBackgroundR
 
       return { runRssCheck } satisfies SearchBackgroundRssServiceShape;
     }),
-    dependencies: [AppDrizzleDatabase.Default],
+    dependencies: [RssFeedRepository.Default],
   },
 ) {}
 

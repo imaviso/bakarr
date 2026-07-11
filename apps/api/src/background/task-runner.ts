@@ -5,21 +5,31 @@ import { BackgroundWorkerMonitor } from "@/background/monitor.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import type { WorkerTimeoutError } from "@/background/workers.ts";
 import type { ExternalCallError } from "@/infra/effect/retry.ts";
-import type { MediaServiceError } from "@/features/media/errors.ts";
-import type { OperationsError } from "@/features/operations/errors.ts";
+import type { DomainPathError, InfrastructureError, StoredDataError } from "@/features/errors.ts";
+import type { MediaNotFoundError } from "@/features/media/errors.ts";
+import type { UpsertEpisodeFileError } from "@/features/media/units/media-unit-repository.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 import { CatalogLibraryScanService } from "@/features/operations/catalog/catalog-library-scan-service.ts";
+import type { DownloadTorrentSyncError } from "@/features/operations/download/download-torrent-sync-support.ts";
 import { DownloadTorrentSyncService } from "@/features/operations/download/download-torrent-sync-support.ts";
-import { AnimeMaintenanceService } from "@/features/media/metadata/media-maintenance-service.ts";
+import { MediaMaintenanceService } from "@/features/media/metadata/media-maintenance-service.ts";
 import { ManamiCacheRefreshClient } from "@/features/media/metadata/manami.ts";
 import { BackgroundSearchRssWorkerService } from "@/features/operations/background-search/background-search-rss-worker-service.ts";
+import type { FileSystemError } from "@/infra/filesystem/filesystem.ts";
+import type { ImportFileError } from "@/features/operations/download/download-file-import-errors.ts";
 
 export type BackgroundTaskRunnerError =
-  | MediaServiceError
   | DatabaseError
+  | DomainPathError
+  | InfrastructureError
   | ExternalCallError
-  | OperationsError
+  | StoredDataError
+  | MediaNotFoundError
   | RuntimeConfigSnapshotError
+  | DownloadTorrentSyncError
+  | FileSystemError
+  | UpsertEpisodeFileError
+  | ImportFileError
   | WorkerTimeoutError;
 
 export interface BackgroundTaskRunnerShape {
@@ -33,7 +43,7 @@ export interface BackgroundTaskRunnerShape {
 const makeBackgroundTaskRunner = Effect.fn("BackgroundTaskRunner.make")(function* () {
   const torrentSync = yield* DownloadTorrentSyncService;
   const catalogLibraryScanService = yield* CatalogLibraryScanService;
-  const animeMaintenanceService = yield* AnimeMaintenanceService;
+  const animeMaintenanceService = yield* MediaMaintenanceService;
   const backgroundSearchRssWorkerService = yield* BackgroundSearchRssWorkerService;
   const manami = yield* ManamiCacheRefreshClient;
   const monitor = yield* BackgroundWorkerMonitor;
@@ -45,7 +55,7 @@ const makeBackgroundTaskRunner = Effect.fn("BackgroundTaskRunner.make")(function
     yield* catalogLibraryScanService.runLibraryScan();
   });
   const runMetadataRefreshTask = Effect.fn("Background.runMetadataRefreshTask")(function* () {
-    yield* animeMaintenanceService.refreshMetadataForMonitoredAnime().pipe(Effect.asVoid);
+    yield* animeMaintenanceService.refreshMetadataForMonitoredMedia().pipe(Effect.asVoid);
   });
   const runManamiRefreshTask = Effect.fn("Background.runManamiRefreshTask")(function* () {
     const refreshed = yield* manami.refreshCacheIfNeeded();

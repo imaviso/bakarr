@@ -1,4 +1,3 @@
-import { and, eq, sql } from "drizzle-orm";
 import { Effect, Schema } from "effect";
 
 import {
@@ -7,9 +6,7 @@ import {
   type Config,
   type RenamePreviewItem,
 } from "@packages/shared/index.ts";
-import type { AppDatabase } from "@/db/database.ts";
-import { media, mediaUnits } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import type { media } from "@/db/schema.ts";
 import { buildEpisodeFilenamePlan } from "@/features/operations/library/naming-canonical-support.ts";
 import { selectNamingFormat } from "@/features/operations/library/naming-format-support.ts";
 import { StoredDataError } from "@/features/errors.ts";
@@ -18,15 +15,15 @@ import type { MediaReadRepositoryShape } from "@/features/media/shared/media-rea
 
 export {
   analyzeScannedFile,
-  findBestLocalAnimeMatch,
-  scoreAnimeRowMatch,
+  findBestLocalMediaMatch,
+  scoreMediaRowMatch,
   titlesMatch,
   type AnalyzedFile,
 } from "@/features/operations/library/library-import-analysis-support.ts";
 
 const AnimeGenresJsonSchema = Schema.parseJson(Schema.Array(Schema.String));
 
-const decodeAnimeGenres = Effect.fn("Operations.decodeAnimeGenres")(function* (
+const decodeMediaGenres = Effect.fn("Operations.decodeMediaGenres")(function* (
   value: string | null,
 ) {
   if (!value) {
@@ -46,27 +43,22 @@ const decodeAnimeGenres = Effect.fn("Operations.decodeAnimeGenres")(function* (
 });
 
 export const buildRenamePreview = Effect.fn("OperationsService.buildRenamePreview")(function* (
-  db: AppDatabase,
   mediaId: number,
   runtimeConfig: Config,
   mediaReadRepository: MediaReadRepositoryShape,
 ) {
-  const animeRow = yield* mediaReadRepository.getAnimeRow(mediaId);
+  const animeRow = yield* mediaReadRepository.getMediaRow(mediaId);
   const namingSettings = {
     movieNamingFormat: runtimeConfig.library.movie_naming_format,
     namingFormat: runtimeConfig.library.naming_format,
     preferredTitle: runtimeConfig.library.preferred_title,
   };
   const namingFormat = selectNamingFormat(animeRow, namingSettings);
-  const rows = yield* tryDatabasePromise("Failed to load mediaUnits for rename preview", () =>
-    db
-      .select()
-      .from(mediaUnits)
-      .where(and(eq(mediaUnits.mediaId, mediaId), sql`${mediaUnits.filePath} is not null`)),
-  );
+  const rows = yield* mediaReadRepository.listMappedUnitRows(mediaId);
 
   // Group rows by file path to handle multi-episode files
-  const fileGroups = new Map<string, typeof rows>();
+  type MappedUnitRow = (typeof rows)[number];
+  const fileGroups = new Map<string, MappedUnitRow[]>();
   for (const row of rows) {
     if (!row.filePath) continue;
     const existing = fileGroups.get(row.filePath) ?? [];
@@ -110,7 +102,7 @@ export const buildRenamePreview = Effect.fn("OperationsService.buildRenamePrevie
   return results;
 });
 
-export const toAnimeSearchCandidate = Effect.fn("Operations.toAnimeSearchCandidate")(function* (
+export const toMediaSearchCandidate = Effect.fn("Operations.toMediaSearchCandidate")(function* (
   row: typeof media.$inferSelect,
 ) {
   return {
@@ -124,7 +116,7 @@ export const toAnimeSearchCandidate = Effect.fn("Operations.toAnimeSearchCandida
     unit_count: row.unitCount ?? undefined,
     favorites: row.favorites ?? undefined,
     format: row.format,
-    genres: yield* decodeAnimeGenres(row.genres),
+    genres: yield* decodeMediaGenres(row.genres),
     id: brandMediaId(row.id),
     members: row.members ?? undefined,
     popularity: row.popularity ?? undefined,

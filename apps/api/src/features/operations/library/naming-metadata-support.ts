@@ -202,7 +202,7 @@ export function buildDownloadSelectionMetadata(
   return {};
 }
 
-export function selectAnimeYearForNaming(input: {
+export function selectMediaYearForNaming(input: {
   startYear?: number | null;
   startDate?: string | null;
   endYear?: number | null;

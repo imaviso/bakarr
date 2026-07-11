@@ -129,7 +129,7 @@ function hasVolumeFileExtension(name: string) {
   return /\.(?:cbz|cbr|pdf|epub)$/i.test(name);
 }
 
-export function findBestLocalAnimeMatch(
+export function findBestLocalMediaMatch(
   parsedTitle: string,
   animeRows: Array<typeof media.$inferSelect>,
 ) {
@@ -137,7 +137,7 @@ export function findBestLocalAnimeMatch(
   let bestScore = 0;
 
   for (const row of animeRows) {
-    const score = scoreAnimeRowMatch(parsedTitle, row);
+    const score = scoreMediaRowMatch(parsedTitle, row);
 
     if (score > bestScore) {
       bestScore = score;
@@ -152,7 +152,7 @@ export function titlesMatch(parsedTitle: string, candidate: MediaSearchResult) {
   return scoreAnimeSearchResultMatch(parsedTitle, candidate) >= 0.55;
 }
 
-export function scoreAnimeRowMatch(
+export function scoreMediaRowMatch(
   parsedTitle: string,
   row: Pick<typeof media.$inferSelect, "titleRomaji" | "titleEnglish" | "titleNative">,
 ) {

@@ -4,13 +4,13 @@ import { type DatabaseError } from "@/db/database.ts";
 import { makeCoalescedEffectRunner } from "@/infra/effect/coalescing-coalesced-runner.ts";
 import { makeLatestValuePublisher } from "@/infra/effect/coalescing-latest-value-publisher.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
-import type { InfrastructureError } from "@/features/errors.ts";
+import type { StoredDataError } from "@/features/errors.ts";
 
 export const makeOperationsProgressPublishers = Effect.fn(
   "OperationsService.makeProgressPublishers",
 )(function* (input: {
   eventBus: typeof EventBus.Service;
-  publishDownloadProgressEffect: Effect.Effect<void, DatabaseError | InfrastructureError>;
+  publishDownloadProgressEffect: Effect.Effect<void, DatabaseError | StoredDataError>;
 }) {
   const coalescedDownloadProgressPublisher = yield* makeCoalescedEffectRunner(
     input.publishDownloadProgressEffect,

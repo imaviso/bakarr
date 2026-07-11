@@ -4,8 +4,8 @@ import { brandMediaId } from "@packages/shared/index.ts";
 import { media } from "@/db/schema.ts";
 import {
   analyzeScannedFile,
-  findBestLocalAnimeMatch,
-  scoreAnimeRowMatch,
+  findBestLocalMediaMatch,
+  scoreMediaRowMatch,
   titlesMatch,
 } from "@/features/operations/library/library-import-analysis-support.ts";
 
@@ -81,9 +81,9 @@ it("analyzeScannedFile maps archive volume labels to import unit numbers", () =>
   assert.deepStrictEqual(result.scanned.needs_manual_mapping, undefined);
 });
 
-it("scoreAnimeRowMatch and titlesMatch share normalized title scoring", () => {
+it("scoreMediaRowMatch and titlesMatch share normalized title scoring", () => {
   assert.deepStrictEqual(
-    scoreAnimeRowMatch(
+    scoreMediaRowMatch(
       "Dungeon Meshi",
       animeRow({ id: 1, titleEnglish: "Delicious in Dungeon", titleRomaji: "Dungeon Meshi" }),
     ),
@@ -106,12 +106,12 @@ it("scoreAnimeRowMatch and titlesMatch share normalized title scoring", () => {
   );
 });
 
-it("findBestLocalAnimeMatch returns only matches above confidence threshold", () => {
+it("findBestLocalMediaMatch returns only matches above confidence threshold", () => {
   const rows = [
     animeRow({ id: 1, titleRomaji: "Unrelated Show" }),
     animeRow({ id: 2, titleEnglish: "Delicious in Dungeon", titleRomaji: "Dungeon Meshi" }),
   ];
 
-  assert.deepStrictEqual(findBestLocalAnimeMatch("Dungeon Meshi", rows)?.id, 2);
-  assert.deepStrictEqual(findBestLocalAnimeMatch("Completely Different", rows), undefined);
+  assert.deepStrictEqual(findBestLocalMediaMatch("Dungeon Meshi", rows)?.id, 2);
+  assert.deepStrictEqual(findBestLocalMediaMatch("Completely Different", rows), undefined);
 });

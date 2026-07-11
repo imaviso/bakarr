@@ -17,17 +17,17 @@ import {
   enrichedEpisodeNumbers,
   extractScanCandidatePaths,
   findBestRemoteCandidate,
-  loadImportScanAnimeRows,
+  loadImportScanMediaRows,
   loadMappedEpisodeRows,
   loadScopedEpisodeRows,
   roundConfidence,
   selectUnitRowsForFile,
 } from "@/features/operations/import-scan/import-path-scan-helpers.ts";
 import {
-  findBestLocalAnimeMatch,
-  scoreAnimeRowMatch,
+  findBestLocalMediaMatch,
+  scoreMediaRowMatch,
 } from "@/features/operations/library/library-import-analysis-support.ts";
-import { toAnimeSearchCandidate } from "@/features/operations/library/library-import.ts";
+import { toMediaSearchCandidate } from "@/features/operations/library/library-import.ts";
 import type { NamingSettings } from "@/features/operations/repository/types.ts";
 import {
   RuntimeConfigSnapshotService,
@@ -58,7 +58,7 @@ const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathEffect")
     ...(input.limit === undefined ? {} : { limit: input.limit }),
     path: input.path,
   });
-  const animeRows = yield* loadImportScanAnimeRows({
+  const animeRows = yield* loadImportScanMediaRows({
     ...(input.mediaId === undefined ? {} : { mediaId: input.mediaId }),
     db: input.db,
     mediaReadRepository: input.mediaReadRepository,
@@ -110,7 +110,7 @@ const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathEffect")
       });
     }
 
-    candidateMap.set(selectedAnimeRow.id, yield* toAnimeSearchCandidate(selectedAnimeRow));
+    candidateMap.set(selectedAnimeRow.id, yield* toMediaSearchCandidate(selectedAnimeRow));
   } else {
     const parsedTitles = [
       ...new Set(
@@ -130,7 +130,7 @@ const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathEffect")
   }
 
   for (const row of animeRows) {
-    candidateMap.set(row.id, yield* toAnimeSearchCandidate(row));
+    candidateMap.set(row.id, yield* toMediaSearchCandidate(row));
   }
 
   return {
@@ -138,7 +138,7 @@ const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathEffect")
     files: enrichedFiles.map((file) => {
       const localMatch = input.mediaId
         ? selectedAnimeRow
-        : findBestLocalAnimeMatch(file.parsed_title, animeRows);
+        : findBestLocalMediaMatch(file.parsed_title, animeRows);
       const remoteMatch =
         !input.mediaId && !localMatch
           ? findBestRemoteCandidate(file.parsed_title, [...candidateMap.values()])
@@ -149,7 +149,7 @@ const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathEffect")
       if (input.mediaId) {
         matchConfidence = 1;
       } else if (localMatch) {
-        matchConfidence = roundConfidence(scoreAnimeRowMatch(file.parsed_title, localMatch));
+        matchConfidence = roundConfidence(scoreMediaRowMatch(file.parsed_title, localMatch));
       } else {
         matchConfidence = remoteMatch?.confidence;
       }

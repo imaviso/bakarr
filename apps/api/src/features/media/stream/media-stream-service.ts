@@ -18,7 +18,7 @@ export interface ResolvedStreamFile {
   readonly fileSize: number;
 }
 
-export interface AnimeStreamServiceShape {
+export interface MediaStreamServiceShape {
   readonly createStreamUrl: (
     mediaId: number,
     unitNumber: number,
@@ -31,13 +31,13 @@ export interface AnimeStreamServiceShape {
   }) => Effect.Effect<ResolvedStreamFile, DatabaseError | MediaNotFoundError | StreamAccessError>;
 }
 
-const makeAnimeStreamService = Effect.fn("AnimeStreamService.make")(function* () {
+const makeMediaStreamService = Effect.fn("MediaStreamService.make")(function* () {
   const db = yield* AppDrizzleDatabase;
   const fs = yield* FileSystem;
   const mediaReadRepository = yield* MediaReadRepository;
   const signer = yield* StreamTokenSigner;
 
-  const createStreamUrl = Effect.fn("AnimeStreamService.createStreamUrl")(function* (
+  const createStreamUrl = Effect.fn("MediaStreamService.createStreamUrl")(function* (
     mediaId: number,
     unitNumber: number,
   ) {
@@ -59,7 +59,7 @@ const makeAnimeStreamService = Effect.fn("AnimeStreamService.make")(function* ()
     };
   });
 
-  const resolveAuthorizedStreamFile = Effect.fn("AnimeStreamService.resolveAuthorizedStreamFile")(
+  const resolveAuthorizedStreamFile = Effect.fn("MediaStreamService.resolveAuthorizedStreamFile")(
     function* (input: {
       readonly mediaId: number;
       readonly unitNumber: number;
@@ -147,17 +147,17 @@ const makeAnimeStreamService = Effect.fn("AnimeStreamService.make")(function* ()
   return {
     createStreamUrl,
     resolveAuthorizedStreamFile,
-  } satisfies AnimeStreamServiceShape;
+  } satisfies MediaStreamServiceShape;
 });
 
-export class AnimeStreamService extends Effect.Service<AnimeStreamService>()(
-  "@bakarr/api/AnimeStreamService",
+export class MediaStreamService extends Effect.Service<MediaStreamService>()(
+  "@bakarr/api/MediaStreamService",
   {
-    effect: makeAnimeStreamService(),
+    effect: makeMediaStreamService(),
   },
 ) {}
 
-export const AnimeStreamServiceLive = AnimeStreamService.Default;
+export const MediaStreamServiceLive = MediaStreamService.Default;
 
 function buildStreamPath(
   mediaId: number,

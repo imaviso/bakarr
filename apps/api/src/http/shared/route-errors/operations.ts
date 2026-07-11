@@ -7,7 +7,10 @@ import {
   OperationsConflictError,
   OperationsNotFoundError,
 } from "@/features/operations/errors.ts";
+import { ImportFileError } from "@/features/operations/download/download-file-import-errors.ts";
+import { UpsertEpisodeFileError } from "@/features/media/units/media-unit-repository.ts";
 import { QBitTorrentClientError } from "@/features/operations/qbittorrent/qbittorrent-models.ts";
+import { FileSystemError } from "@/infra/filesystem/filesystem.ts";
 import type { RouteErrorResponse } from "@/http/shared/route-types.ts";
 import {
   fixedStatus,
@@ -22,6 +25,9 @@ const OperationsRouteErrorSchema = Schema.Union(
   OperationsConflictError,
   OperationsNotFoundError,
   QBitTorrentClientError,
+  ImportFileError,
+  FileSystemError,
+  UpsertEpisodeFileError,
 );
 
 type OperationsRouteError = Schema.Schema.Type<typeof OperationsRouteErrorSchema>;
@@ -43,6 +49,9 @@ const operationsRouteErrorMappers: {
   OperationsConflictError: messageStatus(409),
   OperationsNotFoundError: messageStatus(404),
   QBitTorrentClientError: qbitUnavailable,
+  ImportFileError: messageStatus(500),
+  FileSystemError: messageStatus(500),
+  UpsertEpisodeFileError: messageStatus(500),
 };
 
 export const mapOperationsRouteError = mapTaggedRouteError(OperationsRouteErrorSchema, (error) =>

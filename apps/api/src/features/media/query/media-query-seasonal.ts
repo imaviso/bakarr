@@ -7,20 +7,20 @@ import {
   type SeasonalMediaQueryParams,
   type SeasonalMediaResponse,
 } from "@packages/shared/index.ts";
-import type { AppDatabase } from "@/db/database.ts";
-import type { AnimeSeasonalProviderServiceShape } from "@/features/media/query/media-seasonal-provider-service.ts";
+import type { MediaSeasonalProviderServiceShape } from "@/features/media/query/media-seasonal-provider-service.ts";
 import { markSearchResultsAlreadyInLibraryEffect } from "@/features/media/query/search-results.ts";
+import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
 
 /** Clamp a number to [min, max]. */
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
-export const listSeasonalAnimeEffect = Effect.fn("AnimeQuerySeasonal.listSeasonalAnimeEffect")(
+export const listSeasonalMediaEffect = Effect.fn("MediaQuerySeasonal.listSeasonalMediaEffect")(
   function* (
     input: {
-      db: AppDatabase;
-      providerService: AnimeSeasonalProviderServiceShape;
+      mediaReadRepository: MediaReadRepositoryShape;
+      providerService: MediaSeasonalProviderServiceShape;
       now: Date;
     } & SeasonalMediaQueryParams,
   ) {
@@ -37,7 +37,7 @@ export const listSeasonalAnimeEffect = Effect.fn("AnimeQuerySeasonal.listSeasona
     });
 
     const marked: Array<MediaSearchResult> = yield* markSearchResultsAlreadyInLibraryEffect(
-      input.db,
+      input.mediaReadRepository,
       seasonalResult.results,
     );
 

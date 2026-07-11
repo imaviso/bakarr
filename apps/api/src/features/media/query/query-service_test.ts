@@ -3,9 +3,9 @@ import { Effect, Layer, Option, TestClock } from "effect";
 
 import { brandMediaId, type MediaSearchResult } from "@packages/shared/index.ts";
 import * as schema from "@/db/schema.ts";
-import { AnimeQueryService, AnimeQueryServiceLive } from "@/features/media/query/query-service.ts";
+import { MediaQueryService, MediaQueryServiceLive } from "@/features/media/query/query-service.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
-import { AnimeSeasonalProviderService } from "@/features/media/query/media-seasonal-provider-service.ts";
+import { MediaSeasonalProviderService } from "@/features/media/query/media-seasonal-provider-service.ts";
 import { AppDrizzleDatabase } from "@/db/database.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
@@ -14,6 +14,10 @@ import {
   makeMediaReadRepository,
   MediaReadRepository,
 } from "@/features/media/shared/media-read-repository.ts";
+import {
+  makeSeasonalMediaCacheRepository,
+  SeasonalMediaCacheRepository,
+} from "@/features/media/query/seasonal-media-cache-repository.ts";
 
 function makeSeasonalResult(input: {
   id: number;
@@ -32,7 +36,7 @@ function makeSeasonalResult(input: {
   };
 }
 
-describe("AnimeQueryService.listSeasonalAnime", () => {
+describe("MediaQueryService.listSeasonalMedia", () => {
   it.scoped("uses db cache within ttl and skips provider call", () =>
     withSqliteTestDbEffect({
       run: (db) =>
@@ -40,8 +44,8 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
           let providerCalls = 0;
 
           const providerLayer = Layer.succeed(
-            AnimeSeasonalProviderService,
-            AnimeSeasonalProviderService.make({
+            MediaSeasonalProviderService,
+            MediaSeasonalProviderService.make({
               getSeasonalAnime: () => {
                 providerCalls += 1;
                 return Effect.succeed({
@@ -73,16 +77,17 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
                 getByMalId: () => Effect.succeed(Option.none()),
                 resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
                 resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-                searchAnime: () => Effect.succeed([]),
+                searchMedia: () => Effect.succeed([]),
               }),
             ),
             Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db)),
             Layer.succeed(MediaReadRepository, makeMediaReadRepository(db)),
+            Layer.succeed(SeasonalMediaCacheRepository, makeSeasonalMediaCacheRepository(db)),
           );
 
-          const queryServiceLayer = AnimeQueryServiceLive.pipe(Layer.provide(baseLayer));
+          const queryServiceLayer = MediaQueryServiceLive.pipe(Layer.provide(baseLayer));
 
-          const listSeasonalAnime = (input: {
+          const listSeasonalMedia = (input: {
             season: "spring";
             year: number;
             page: number;
@@ -90,11 +95,11 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
           }) =>
             Effect.gen(function* () {
               yield* TestClock.setTime(new Date("2025-04-01T10:00:00.000Z").getTime());
-              const service = yield* AnimeQueryService;
-              return yield* service.listSeasonalAnime(input);
+              const service = yield* MediaQueryService;
+              return yield* service.listSeasonalMedia(input);
             }).pipe(Effect.provide(queryServiceLayer));
 
-          const first = yield* listSeasonalAnime({
+          const first = yield* listSeasonalMedia({
             limit: 12,
             page: 1,
             season: "spring",
@@ -104,7 +109,7 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
           assert.deepStrictEqual(first.results.length, 1);
           assert.deepStrictEqual(providerCalls, 1);
 
-          const second = yield* listSeasonalAnime({
+          const second = yield* listSeasonalMedia({
             limit: 12,
             page: 1,
             season: "spring",
@@ -126,8 +131,8 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
           let providerCalls = 0;
 
           const providerLayer = Layer.succeed(
-            AnimeSeasonalProviderService,
-            AnimeSeasonalProviderService.make({
+            MediaSeasonalProviderService,
+            MediaSeasonalProviderService.make({
               getSeasonalAnime: () => {
                 providerCalls += 1;
                 return Effect.succeed({
@@ -142,7 +147,7 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
             }),
           );
 
-          const layer = AnimeQueryServiceLive.pipe(
+          const layer = MediaQueryServiceLive.pipe(
             Layer.provide(
               Layer.mergeAll(
                 providerLayer,
@@ -161,22 +166,23 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
                     getByMalId: () => Effect.succeed(Option.none()),
                     resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
                     resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-                    searchAnime: () => Effect.succeed([]),
+                    searchMedia: () => Effect.succeed([]),
                   }),
                 ),
                 Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db)),
                 Layer.succeed(MediaReadRepository, makeMediaReadRepository(db)),
+                Layer.succeed(SeasonalMediaCacheRepository, makeSeasonalMediaCacheRepository(db)),
               ),
             ),
           );
 
-          const service = yield* AnimeQueryService.pipe(Effect.provide(layer));
+          const service = yield* MediaQueryService.pipe(Effect.provide(layer));
 
-          yield* service.listSeasonalAnime({ season: "spring", year: 2025, page: 1, limit: 12 });
+          yield* service.listSeasonalMedia({ season: "spring", year: 2025, page: 1, limit: 12 });
           assert.deepStrictEqual(providerCalls, 1);
 
           yield* TestClock.adjust("6 minutes");
-          const refreshed = yield* service.listSeasonalAnime({
+          const refreshed = yield* service.listSeasonalMedia({
             season: "spring",
             year: 2025,
             page: 1,
@@ -198,8 +204,8 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
           let providerCalls = 0;
 
           const providerLayer = Layer.succeed(
-            AnimeSeasonalProviderService,
-            AnimeSeasonalProviderService.make({
+            MediaSeasonalProviderService,
+            MediaSeasonalProviderService.make({
               getSeasonalAnime: () => {
                 providerCalls += 1;
 
@@ -225,7 +231,7 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
             }),
           );
 
-          const layer = AnimeQueryServiceLive.pipe(
+          const layer = MediaQueryServiceLive.pipe(
             Layer.provide(
               Layer.mergeAll(
                 providerLayer,
@@ -244,21 +250,22 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
                     getByMalId: () => Effect.succeed(Option.none()),
                     resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
                     resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-                    searchAnime: () => Effect.succeed([]),
+                    searchMedia: () => Effect.succeed([]),
                   }),
                 ),
                 Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db)),
                 Layer.succeed(MediaReadRepository, makeMediaReadRepository(db)),
+                Layer.succeed(SeasonalMediaCacheRepository, makeSeasonalMediaCacheRepository(db)),
               ),
             ),
           );
 
-          const service = yield* AnimeQueryService.pipe(Effect.provide(layer));
+          const service = yield* MediaQueryService.pipe(Effect.provide(layer));
 
-          yield* service.listSeasonalAnime({ season: "spring", year: 2025, page: 1, limit: 12 });
+          yield* service.listSeasonalMedia({ season: "spring", year: 2025, page: 1, limit: 12 });
           yield* TestClock.adjust("6 minutes");
 
-          const stale = yield* service.listSeasonalAnime({
+          const stale = yield* service.listSeasonalMedia({
             season: "spring",
             year: 2025,
             page: 1,
@@ -275,18 +282,18 @@ describe("AnimeQueryService.listSeasonalAnime", () => {
   );
 });
 
-describe("AnimeQueryService.searchAnime", () => {
+describe("MediaQueryService.searchMedia", () => {
   it.scoped("falls back to Manami local search when AniList search fails", () =>
     withSqliteTestDbEffect({
       run: (db) =>
         Effect.gen(function* () {
           yield* TestClock.setTime(new Date("2025-04-01T10:00:00.000Z").getTime());
-          const layer = AnimeQueryServiceLive.pipe(
+          const layer = MediaQueryServiceLive.pipe(
             Layer.provide(
               Layer.mergeAll(
                 Layer.succeed(
-                  AnimeSeasonalProviderService,
-                  AnimeSeasonalProviderService.make({
+                  MediaSeasonalProviderService,
+                  MediaSeasonalProviderService.make({
                     getSeasonalAnime: () =>
                       Effect.succeed({
                         degraded: false,
@@ -320,7 +327,7 @@ describe("AnimeQueryService.searchAnime", () => {
                     getByMalId: () => Effect.succeed(Option.none()),
                     resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
                     resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-                    searchAnime: () =>
+                    searchMedia: () =>
                       Effect.succeed([
                         {
                           already_in_library: false,
@@ -333,12 +340,13 @@ describe("AnimeQueryService.searchAnime", () => {
                 ),
                 Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db)),
                 Layer.succeed(MediaReadRepository, makeMediaReadRepository(db)),
+                Layer.succeed(SeasonalMediaCacheRepository, makeSeasonalMediaCacheRepository(db)),
               ),
             ),
           );
 
-          const service = yield* AnimeQueryService.pipe(Effect.provide(layer));
-          const result = yield* service.searchAnime("Alpha Alias");
+          const service = yield* MediaQueryService.pipe(Effect.provide(layer));
+          const result = yield* service.searchMedia("Alpha Alias");
 
           assert.deepStrictEqual(result.degraded, true);
           assert.deepStrictEqual(

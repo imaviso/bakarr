@@ -6,6 +6,7 @@ import { qualityProfiles } from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { qualityProfileExistsEffect } from "@/features/media/shared/profile-support.ts";
+import { makeQualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
 
 it.scoped("qualityProfileExistsEffect returns true for existing profile", () =>
   withSqliteTestDbEffect({
@@ -22,7 +23,7 @@ it.scoped("qualityProfileExistsEffect returns true for existing profile", () =>
             upgradeAllowed: false,
           }),
         );
-        const exists = yield* qualityProfileExistsEffect(db, "HD");
+        const exists = yield* qualityProfileExistsEffect(makeQualityProfileRepository(db), "HD");
         assert.deepStrictEqual(exists, true);
       }),
     schema,
@@ -33,7 +34,10 @@ it.scoped("qualityProfileExistsEffect returns false for non-existent profile", (
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        const exists = yield* qualityProfileExistsEffect(db, "Missing");
+        const exists = yield* qualityProfileExistsEffect(
+          makeQualityProfileRepository(db),
+          "Missing",
+        );
         assert.deepStrictEqual(exists, false);
       }),
     schema,
@@ -55,7 +59,10 @@ it.scoped("qualityProfileExistsEffect is case sensitive", () =>
             upgradeAllowed: true,
           }),
         );
-        const exists = yield* qualityProfileExistsEffect(db, "default");
+        const exists = yield* qualityProfileExistsEffect(
+          makeQualityProfileRepository(db),
+          "default",
+        );
         assert.deepStrictEqual(exists, false);
       }),
     schema,

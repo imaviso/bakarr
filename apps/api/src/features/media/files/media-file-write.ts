@@ -1,40 +1,29 @@
-import { eq, and } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type { AppDatabase } from "@/db/database.ts";
-import { mediaUnits } from "@/db/schema.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { isWithinPathRoot } from "@/infra/filesystem/filesystem.ts";
 import { DomainPathError } from "@/features/errors.ts";
 import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
 import type { MediaUnitRepositoryShape } from "@/features/media/units/media-unit-repository.ts";
 import {
-  loadAnimeRoot,
+  loadMediaRoot,
   validateEpisodeFilePath,
 } from "@/features/media/files/media-file-path-policy.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
-export const deleteEpisodeFileEffect = Effect.fn("AnimeFileWrite.deleteEpisodeFileEffect")(
+export const deleteEpisodeFileEffect = Effect.fn("MediaFileWrite.deleteEpisodeFileEffect")(
   function* (input: {
     mediaId: number;
-    db: AppDatabase;
     mediaReadRepository: MediaReadRepositoryShape;
     mediaUnitRepository: MediaUnitRepositoryShape;
     unitNumber: number;
     fs: FileSystemShape;
   }) {
-    const animeRow = yield* input.mediaReadRepository.getAnimeRow(input.mediaId);
-    const episodeRows = yield* tryDatabasePromise("Failed to find episode", () =>
-      input.db
-        .select({
-          filePath: mediaUnits.filePath,
-        })
-        .from(mediaUnits)
-        .where(and(eq(mediaUnits.mediaId, input.mediaId), eq(mediaUnits.number, input.unitNumber)))
-        .limit(1),
+    const animeRow = yield* input.mediaReadRepository.getMediaRow(input.mediaId);
+    const episodeState = yield* input.mediaReadRepository.loadCurrentEpisodeState(
+      input.mediaId,
+      input.unitNumber,
     );
-
-    const filePath = episodeRows[0]?.filePath;
+    const filePath = episodeState._tag === "Some" ? episodeState.value.filePath : undefined;
 
     if (filePath) {
       const resolvedPath = yield* input.fs.realPath(filePath).pipe(
@@ -46,7 +35,7 @@ export const deleteEpisodeFileEffect = Effect.fn("AnimeFileWrite.deleteEpisodeFi
             }),
         ),
       );
-      const animeRoot = yield* loadAnimeRoot(input.fs, animeRow.rootFolder);
+      const animeRoot = yield* loadMediaRoot(input.fs, animeRow.rootFolder);
 
       if (!isWithinPathRoot(resolvedPath, animeRoot)) {
         return yield* new DomainPathError({
@@ -70,7 +59,7 @@ export const deleteEpisodeFileEffect = Effect.fn("AnimeFileWrite.deleteEpisodeFi
   },
 );
 
-export const mapEpisodeFileEffect = Effect.fn("AnimeFileWrite.mapEpisodeFileEffect")(
+export const mapEpisodeFileEffect = Effect.fn("MediaFileWrite.mapEpisodeFileEffect")(
   function* (input: {
     mediaId: number;
     unitNumber: number;
@@ -79,14 +68,14 @@ export const mapEpisodeFileEffect = Effect.fn("AnimeFileWrite.mapEpisodeFileEffe
     mediaReadRepository: MediaReadRepositoryShape;
     mediaUnitRepository: MediaUnitRepositoryShape;
   }) {
-    const animeRow = yield* input.mediaReadRepository.getAnimeRow(input.mediaId);
+    const animeRow = yield* input.mediaReadRepository.getMediaRow(input.mediaId);
 
     if (input.filePath.trim().length === 0) {
       yield* input.mediaUnitRepository.clearEpisodeMapping(input.mediaId, input.unitNumber);
       return;
     }
 
-    const animeRoot = yield* loadAnimeRoot(input.fs, animeRow.rootFolder);
+    const animeRoot = yield* loadMediaRoot(input.fs, animeRow.rootFolder);
     yield* validateEpisodeFilePath({
       animeRoot,
       filePath: input.filePath,
@@ -101,7 +90,7 @@ export const mapEpisodeFileEffect = Effect.fn("AnimeFileWrite.mapEpisodeFileEffe
   },
 );
 
-export const bulkMapEpisodeFilesEffect = Effect.fn("AnimeFileWrite.bulkMapEpisodeFilesEffect")(
+export const bulkMapEpisodeFilesEffect = Effect.fn("MediaFileWrite.bulkMapEpisodeFilesEffect")(
   function* (input: {
     mediaId: number;
     fs: FileSystemShape;
@@ -109,8 +98,8 @@ export const bulkMapEpisodeFilesEffect = Effect.fn("AnimeFileWrite.bulkMapEpisod
     mediaUnitRepository: MediaUnitRepositoryShape;
     mappings: readonly { unit_number: number; file_path: string }[];
   }) {
-    const animeRow = yield* input.mediaReadRepository.getAnimeRow(input.mediaId);
-    const animeRoot = yield* loadAnimeRoot(input.fs, animeRow.rootFolder);
+    const animeRow = yield* input.mediaReadRepository.getMediaRow(input.mediaId);
+    const animeRoot = yield* loadMediaRoot(input.fs, animeRow.rootFolder);
 
     const validated: {
       unit_number: number;

@@ -1,19 +1,9 @@
-import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type { AppDatabase } from "@/db/database.ts";
-import { qualityProfiles } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import type { QualityProfileRepositoryShape } from "@/features/system/repository/quality-profile-repository.ts";
 
-export const qualityProfileExistsEffect = Effect.fn("AnimeProfileSupport.qualityProfileExists")(
-  function* (db: AppDatabase, name: string) {
-    const rows = yield* tryDatabasePromise("Failed to verify quality profile", () =>
-      db
-        .select({ name: qualityProfiles.name })
-        .from(qualityProfiles)
-        .where(eq(qualityProfiles.name, name))
-        .limit(1),
-    );
-    return rows.length > 0;
+export const qualityProfileExistsEffect = Effect.fn("MediaProfileSupport.qualityProfileExists")(
+  function* (qualityProfileRepository: QualityProfileRepositoryShape, name: string) {
+    return yield* qualityProfileRepository.qualityProfileExists(name);
   },
 );

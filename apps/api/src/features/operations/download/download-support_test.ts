@@ -27,7 +27,7 @@ function shouldDeleteImportedData(config: ReturnType<typeof makeTestConfig> | nu
   return config?.downloads.delete_download_files_after_import ?? false;
 }
 
-function makeAnimeRow(overrides: Partial<typeof media.$inferSelect>): typeof media.$inferSelect {
+function makeMediaRow(overrides: Partial<typeof media.$inferSelect>): typeof media.$inferSelect {
   return {
     addedAt: "2024-01-01T00:00:00.000Z",
     background: null,
@@ -117,7 +117,7 @@ it.scoped("importDownloadedFile keeps existing destination when staging copy fai
       const exit = yield* Effect.exit(
         importDownloadedFile(
           failingFs,
-          makeAnimeRow({
+          makeMediaRow({
             rootFolder: animeRoot,
             titleRomaji: "Naruto",
           }),
@@ -154,7 +154,7 @@ it.scoped("importDownloadedFile surfaces stat access errors instead of treating 
       const exit = yield* Effect.exit(
         importDownloadedFile(
           accessErrorFs,
-          makeAnimeRow({
+          makeMediaRow({
             rootFolder: animeRoot,
             titleRomaji: "Naruto",
           }),
@@ -203,7 +203,7 @@ it.scoped("importDownloadedFile cleans staged temp file when backup rename fails
       const exit = yield* Effect.exit(
         importDownloadedFile(
           failingBackupFs,
-          makeAnimeRow({
+          makeMediaRow({
             rootFolder: animeRoot,
             titleRomaji: "Naruto",
           }),
@@ -262,7 +262,7 @@ it.scoped("importDownloadedFile returns composed failure when restore also fails
       const exit = yield* Effect.exit(
         importDownloadedFile(
           restoreFailureFs,
-          makeAnimeRow({
+          makeMediaRow({
             rootFolder: animeRoot,
             titleRomaji: "Naruto",
           }),
@@ -319,7 +319,7 @@ it.scoped(
         const exit = yield* Effect.exit(
           importDownloadedFile(
             crossFilesystemFs,
-            makeAnimeRow({
+            makeMediaRow({
               rootFolder: animeRoot,
               titleRomaji: "Naruto",
             }),
@@ -363,7 +363,7 @@ it.scoped(
 
         const destination = yield* importDownloadedFile(
           fs,
-          makeAnimeRow({
+          makeMediaRow({
             rootFolder: animeRoot,
             startDate: "2025-04-03",
             startYear: 2025,
@@ -394,7 +394,7 @@ it.scoped("importDownloadedFile respects preferred title when building destinati
 
       const destination = yield* importDownloadedFile(
         fs,
-        makeAnimeRow({
+        makeMediaRow({
           format: "MOVIE",
           rootFolder: animeRoot,
           startDate: "2016-08-26",
@@ -429,7 +429,7 @@ it.scoped("importDownloadedFile uses episode DB metadata and fallback naming pla
 
       const destination = yield* importDownloadedFile(
         fs,
-        makeAnimeRow({
+        makeMediaRow({
           format: "TV",
           rootFolder: animeRoot,
           startDate: "2025-01-01",
@@ -463,7 +463,7 @@ it.scoped("importDownloadedFile reuses stored provenance when source path is wea
 
       const destination = yield* importDownloadedFile(
         fs,
-        makeAnimeRow({
+        makeMediaRow({
           format: "TV",
           rootFolder: animeRoot,
           startDate: "2025-01-01",
@@ -505,7 +505,7 @@ it.scoped("importDownloadedFile uses local media metadata when heuristics are mi
 
       const destination = yield* importDownloadedFile(
         fs,
-        makeAnimeRow({
+        makeMediaRow({
           format: "TV",
           rootFolder: animeRoot,
           startDate: "2025-01-01",

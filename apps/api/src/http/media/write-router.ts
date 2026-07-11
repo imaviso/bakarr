@@ -1,10 +1,10 @@
 import { HttpRouter } from "@effect/platform";
 import { Effect, Schema } from "effect";
 
-import { AnimeFileService } from "@/features/media/files/media-file-service.ts";
-import { AnimeEnrollmentService } from "@/features/media/add/media-enrollment-service.ts";
-import { AnimeMaintenanceService } from "@/features/media/metadata/media-maintenance-service.ts";
-import { AnimeSettingsService } from "@/features/media/shared/media-settings-service.ts";
+import { MediaFileService } from "@/features/media/files/media-file-service.ts";
+import { MediaEnrollmentService } from "@/features/media/add/media-enrollment-service.ts";
+import { MediaMaintenanceService } from "@/features/media/metadata/media-maintenance-service.ts";
+import { MediaSettingsService } from "@/features/media/shared/media-settings-service.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";
 import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
 import { OperationsTaskReadService } from "@/features/operations/tasks/operations-task-service.ts";
@@ -17,7 +17,7 @@ import {
   RenameResultSchema,
 } from "@packages/shared/index.ts";
 import {
-  AddAnimeInputSchema,
+  AddMediaInputSchema,
   MediaUnitParamsSchema,
   BulkUnitMappingsBodySchema,
   FilePathBodySchema,
@@ -44,8 +44,8 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
     "/media",
     authedRouteResponse(
       Effect.gen(function* () {
-        const body = yield* decodeJsonBodyWithLabel(AddAnimeInputSchema, "add media");
-        return yield* (yield* AnimeEnrollmentService).enroll(body);
+        const body = yield* decodeJsonBodyWithLabel(AddMediaInputSchema, "add media");
+        return yield* (yield* MediaEnrollmentService).enroll(body);
       }),
       schemaJsonResponse(MediaSchema),
     ),
@@ -55,7 +55,7 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        yield* (yield* AnimeMaintenanceService).deleteMedia(params.id);
+        yield* (yield* MediaMaintenanceService).deleteMedia(params.id);
       }),
       successResponse,
     ),
@@ -66,7 +66,7 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
         const body = yield* decodeJsonBodyWithLabel(MonitoredBodySchema, "update monitored status");
-        yield* (yield* AnimeSettingsService).setMonitored(params.id, body.monitored);
+        yield* (yield* MediaSettingsService).setMonitored(params.id, body.monitored);
       }),
       successResponse,
     ),
@@ -77,7 +77,7 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
         const body = yield* decodeJsonBodyWithLabel(PathBodySchema, "update media path");
-        yield* (yield* AnimeSettingsService).updatePath(params.id, body.path);
+        yield* (yield* MediaSettingsService).updatePath(params.id, body.path);
       }),
       successResponse,
     ),
@@ -88,7 +88,7 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
         const body = yield* decodeJsonBodyWithLabel(ProfileNameBodySchema, "update media profile");
-        yield* (yield* AnimeSettingsService).updateProfile(params.id, body.profile_name);
+        yield* (yield* MediaSettingsService).updateProfile(params.id, body.profile_name);
       }),
       successResponse,
     ),
@@ -102,7 +102,7 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
           ReleaseProfileIdsBodySchema,
           "update release profiles",
         );
-        yield* (yield* AnimeSettingsService).updateReleaseProfiles(params.id, [
+        yield* (yield* MediaSettingsService).updateReleaseProfiles(params.id, [
           ...body.release_profile_ids,
         ]);
       }),
@@ -114,7 +114,7 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        const animeMaintenanceService = yield* AnimeMaintenanceService;
+        const animeMaintenanceService = yield* MediaMaintenanceService;
         return yield* (yield* OperationsTaskLauncherService).launch({
           mediaId: params.id,
           failureMessage: `MediaUnit metadata refresh failed for media ${params.id}`,
@@ -133,7 +133,7 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        const animeFileService = yield* AnimeFileService;
+        const animeFileService = yield* MediaFileService;
         return yield* (yield* OperationsTaskLauncherService).launch({
           mediaId: params.id,
           failureMessage: `Folder scan failed for media ${params.id}`,
@@ -202,7 +202,7 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(MediaUnitParamsSchema);
-        yield* (yield* AnimeFileService).deleteEpisodeFile(params.id, params.unitNumber);
+        yield* (yield* MediaFileService).deleteEpisodeFile(params.id, params.unitNumber);
       }),
       successResponse,
     ),
@@ -213,7 +213,7 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const params = yield* decodePathParams(MediaUnitParamsSchema);
         const body = yield* decodeJsonBodyWithLabel(FilePathBodySchema, "map episode file");
-        yield* (yield* AnimeFileService).mapEpisodeFile(
+        yield* (yield* MediaFileService).mapEpisodeFile(
           params.id,
           params.unitNumber,
           body.file_path,
@@ -231,7 +231,7 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
           BulkUnitMappingsBodySchema,
           "bulk map mediaUnits",
         );
-        yield* (yield* AnimeFileService).bulkMapEpisodeFiles(params.id, [...body.mappings]);
+        yield* (yield* MediaFileService).bulkMapEpisodeFiles(params.id, [...body.mappings]);
       }),
       successResponse,
     ),

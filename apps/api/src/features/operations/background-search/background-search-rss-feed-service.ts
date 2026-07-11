@@ -1,4 +1,4 @@
-import { eq, inArray } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
 import { Effect, Option } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
@@ -16,13 +16,20 @@ import {
 import { parseRssReleaseUnitNumbers } from "@/features/operations/background-search/background-search-rss-release.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import { OperationsProfileRepository } from "@/features/operations/repository/profile-repository.ts";
+import { RssFeedRepository } from "@/features/operations/repository/rss-feed-repository-service.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
+
+export type BackgroundSearchRssFeedError =
+  | DatabaseError
+  | InfrastructureError
+  | DomainInputError
+  | import("@/features/media/errors.ts").MediaNotFoundError;
 
 export interface BackgroundSearchRssFeedServiceShape {
   readonly processFeed: (
     feed: typeof rssFeeds.$inferSelect,
     runtimeConfig: Config,
-  ) => Effect.Effect<number, DatabaseError | InfrastructureError>;
+  ) => Effect.Effect<number, BackgroundSearchRssFeedError>;
 }
 
 export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSearchRssFeedService>()(
@@ -34,6 +41,7 @@ export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSea
       const queueService = yield* BackgroundSearchQueueService;
       const mediaReadRepository = yield* MediaReadRepository;
       const profileRepository = yield* OperationsProfileRepository;
+      const rssFeedRepository = yield* RssFeedRepository;
       const nowIso = currentNowIso;
 
       const requireQualityProfile = Effect.fn("BackgroundSearchRssFeed.requireQualityProfile")(
@@ -81,7 +89,7 @@ export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSea
           ),
           Effect.flatMap((items) =>
             Effect.gen(function* () {
-              const animeRow = yield* mediaReadRepository.getAnimeRow(feed.mediaId);
+              const animeRow = yield* mediaReadRepository.getMediaRow(feed.mediaId);
 
               if (!animeRow.monitored) {
                 yield* logRssSkip({
@@ -107,12 +115,7 @@ export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSea
                   reason: "feed returned no items",
                 });
                 const feedCheckedAt = yield* nowIso();
-                yield* tryDatabasePromise("Failed to run RSS check", () =>
-                  db
-                    .update(rssFeeds)
-                    .set({ lastChecked: feedCheckedAt })
-                    .where(eq(rssFeeds.id, feed.id)),
-                );
+                yield* rssFeedRepository.markLastChecked(feed.id, feedCheckedAt);
                 return 0;
               }
 
@@ -213,39 +216,21 @@ export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSea
               }
 
               const feedCheckedAt = yield* nowIso();
-              yield* tryDatabasePromise("Failed to run RSS check", () =>
-                db
-                  .update(rssFeeds)
-                  .set({ lastChecked: feedCheckedAt })
-                  .where(eq(rssFeeds.id, feed.id)),
-              );
+              yield* rssFeedRepository.markLastChecked(feed.id, feedCheckedAt);
 
               return queuedForFeed;
-            }).pipe(
-              Effect.catchTag("MediaNotFoundError", (error) =>
-                Effect.fail(
-                  new InfrastructureError({
-                    message: "Failed to run RSS check",
-                    cause: error,
-                  }),
-                ),
-              ),
-              Effect.catchTag("DomainInputError", (error) =>
-                Effect.fail(
-                  new InfrastructureError({
-                    message: "Failed to run RSS check",
-                    cause: error,
-                  }),
-                ),
-              ),
-            ),
+            }),
           ),
         );
       });
 
       return { processFeed } satisfies BackgroundSearchRssFeedServiceShape;
     }),
-    dependencies: [AppDrizzleDatabase.Default],
+    dependencies: [
+      AppDrizzleDatabase.Default,
+      MediaReadRepository.Default,
+      RssFeedRepository.Default,
+    ],
   },
 ) {}
 

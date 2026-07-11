@@ -13,8 +13,8 @@ import type { AppConfigOverrides, BootstrapConfigOverrides } from "@/config/sche
 import type { ObservabilityConfigOverrides } from "@/config/observability.ts";
 import { BackgroundWorkerControllerLive } from "@/background/controller-core.ts";
 import { BackgroundTaskRunnerLive } from "@/background/task-runner.ts";
-import { AnimeEnrollmentServiceLive } from "@/features/media/add/media-enrollment-service.ts";
-import { makeAnimeFeatureLayer } from "@/features/media/layer.ts";
+import { MediaEnrollmentServiceLive } from "@/features/media/add/media-enrollment-service.ts";
+import { makeMediaFeatureLayer } from "@/features/media/layer.ts";
 import { makeAuthFeatureLayer } from "@/features/auth/layer.ts";
 import { makeOperationsFeatureLayer } from "@/features/operations/layer.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
@@ -67,7 +67,7 @@ export function makeApiLifecycleLayers(
     SystemUnmappedRepository.Default,
   ).pipe(Layer.provide(runtimeSupportLayer));
 
-  const animeLiveLayer = makeAnimeFeatureLayer(runtimeSupportLayer);
+  const animeLiveLayer = makeMediaFeatureLayer(runtimeSupportLayer);
   const operationsLayer = makeOperationsFeatureLayer(runtimeSupportLayer);
   const appDomainSubgraphLayer = Layer.mergeAll(animeLiveLayer, operationsLayer);
 
@@ -98,7 +98,7 @@ export function makeApiLifecycleLayers(
   const libraryLayer = LibraryBrowseServiceLive.pipe(
     Layer.provide(Layer.mergeAll(systemLayer, operationsLayer)),
   );
-  const animeEnrollmentLayer = AnimeEnrollmentServiceLive.pipe(
+  const animeEnrollmentLayer = MediaEnrollmentServiceLive.pipe(
     Layer.provide(Layer.mergeAll(animeLiveLayer, operationsLayer, operationsTaskLauncherLayer)),
   );
 

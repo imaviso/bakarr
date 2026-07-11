@@ -1,17 +1,17 @@
 import { Effect } from "effect";
 
-import { DatabaseError } from "@/db/database.ts";
+import type { DatabaseError } from "@/db/database.ts";
 import type { downloads } from "@/db/schema.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { toDownloadStatus } from "@/features/operations/download/download-presentation.ts";
-import { InfrastructureError, type StoredDataError } from "@/features/errors.ts";
+import type { StoredDataError } from "@/features/errors.ts";
 import type { DownloadPresentationContext } from "@/features/operations/repository/types.ts";
 import { DownloadRepository } from "@/features/operations/repository/download-repository-service.ts";
 
 type DownloadRow = typeof downloads.$inferSelect;
 
 export interface DownloadProgressSupportShape {
-  readonly publishDownloadProgress: () => Effect.Effect<void, DatabaseError | InfrastructureError>;
+  readonly publishDownloadProgress: () => Effect.Effect<void, DatabaseError | StoredDataError>;
 }
 
 export const loadActiveDownloadSnapshot = Effect.fn("OperationsService.loadActiveDownloadSnapshot")(
@@ -48,16 +48,7 @@ export class DownloadProgressSupport extends Effect.Service<DownloadProgressSupp
 
       const publishDownloadProgress = Effect.fn("OperationsService.publishDownloadProgress")(
         function* () {
-          const activeDownloads = yield* getDownloadProgressSnapshotEffect().pipe(
-            Effect.mapError((error) =>
-              error instanceof DatabaseError
-                ? error
-                : new InfrastructureError({
-                    message: "Failed to load download progress snapshot",
-                    cause: error,
-                  }),
-            ),
-          );
+          const activeDownloads = yield* getDownloadProgressSnapshotEffect();
 
           return yield* eventBus.publish({
             type: "DownloadProgress",

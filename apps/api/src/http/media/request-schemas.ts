@@ -14,7 +14,7 @@ import {
   MediaKindSchema,
   OperationTaskKeySchema,
 } from "@packages/shared/index.ts";
-export { AddAnimeInput as AddAnimeInputSchema } from "@/features/media/add/add-media-input.ts";
+export { AddMediaInput as AddMediaInputSchema } from "@/features/media/add/add-media-input.ts";
 
 const ReleaseProfileIdArraySchema = Schema.Array(ReleaseProfileIdSchema);
 

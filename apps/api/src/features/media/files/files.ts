@@ -41,21 +41,21 @@ function hasExtension(name: string, extensions: readonly string[]) {
   return extensions.some((ext) => name.toLowerCase().endsWith(ext));
 }
 
-export const collectVideoFiles = Effect.fn("AnimeService.collectVideoFiles")(function* (
+export const collectVideoFiles = Effect.fn("MediaService.collectVideoFiles")(function* (
   fs: FileSystemShape,
   rootFolder: string,
 ) {
   return yield* collectMediaFiles(fs, rootFolder, VIDEO_EXTENSIONS);
 });
 
-export const collectVolumeFiles = Effect.fn("AnimeService.collectVolumeFiles")(function* (
+export const collectVolumeFiles = Effect.fn("MediaService.collectVolumeFiles")(function* (
   fs: FileSystemShape,
   rootFolder: string,
 ) {
   return yield* collectMediaFiles(fs, rootFolder, VOLUME_EXTENSIONS);
 });
 
-const collectMediaFiles = Effect.fn("AnimeService.collectMediaFiles")(function* (
+const collectMediaFiles = Effect.fn("MediaService.collectMediaFiles")(function* (
   fs: FileSystemShape,
   rootFolder: string,
   extensions: readonly string[],

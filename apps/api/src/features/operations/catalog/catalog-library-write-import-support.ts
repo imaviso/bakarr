@@ -1,7 +1,6 @@
 import { Effect } from "effect";
 
 import type { Config, ImportResult } from "@packages/shared/index.ts";
-import type { AppDatabase } from "@/db/database.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import type { MediaProbeShape } from "@/infra/media/probe.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
@@ -9,7 +8,6 @@ import { MediaReadRepository } from "@/features/media/shared/media-read-reposito
 import type { MediaUnitRepositoryShape } from "@/features/media/units/media-unit-repository.ts";
 import { buildLibraryImportPlan } from "@/features/operations/catalog/catalog-library-write-import-plan-support.ts";
 import { writeLibraryImportFile } from "@/features/operations/catalog/catalog-library-write-import-file-support.ts";
-import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 
 export interface LibraryImportFileInput {
   readonly source_path: string;
@@ -20,14 +18,12 @@ export interface LibraryImportFileInput {
 }
 
 export interface ImportLibraryFilesInput {
-  readonly db: AppDatabase;
   readonly eventBus: typeof EventBus.Service;
   readonly fs: FileSystemShape;
   readonly mediaReadRepository: typeof MediaReadRepository.Service;
   readonly mediaUnitRepository: MediaUnitRepositoryShape;
   readonly mediaProbe: MediaProbeShape;
   readonly runtimeConfig: Config;
-  readonly tryDatabasePromise: TryDatabasePromise;
   readonly files: readonly LibraryImportFileInput[];
 }
 
@@ -35,14 +31,12 @@ export const importLibraryFiles = Effect.fn("Operations.importLibraryFiles")((
   input: ImportLibraryFilesInput,
 ): Effect.Effect<ImportResult> => {
   const {
-    db,
     eventBus,
     fs,
     mediaReadRepository,
     mediaUnitRepository,
     mediaProbe,
     runtimeConfig,
-    tryDatabasePromise,
     files,
   } = input;
   return Effect.gen(function* () {
@@ -58,12 +52,10 @@ export const importLibraryFiles = Effect.fn("Operations.importLibraryFiles")((
 
     for (const file of files) {
       const planned = yield* buildLibraryImportPlan({
-        db,
         fs,
         mediaReadRepository,
         mediaProbe,
         runtimeConfig,
-        tryDatabasePromise,
         file,
       }).pipe(Effect.either);
 

@@ -72,7 +72,7 @@ it.scoped(
           });
 
           const exit = yield* Effect.exit(
-            searchReleaseService.searchUnitReleases(makeAnimeRow(), 1, config),
+            searchReleaseService.searchUnitReleases(makeMediaRow(), 1, config),
           );
 
           assert.deepStrictEqual(Exit.isFailure(exit), true);
@@ -118,7 +118,7 @@ it.scoped("searchUnitReleases tries season episode query variants", () =>
         });
 
         const releases = yield* searchReleaseService.searchUnitReleases(
-          makeAnimeRow({ titleEnglish: "Release that Witch", titleRomaji: "Fangkai Nage Nüwu" }),
+          makeMediaRow({ titleEnglish: "Release that Witch", titleRomaji: "Fangkai Nage Nüwu" }),
           8,
           config,
         );
@@ -164,7 +164,7 @@ it.scoped("searchUnitReleases searches stored synonyms and normalized aliases", 
         });
 
         const releases = yield* searchReleaseService.searchUnitReleases(
-          makeAnimeRow({
+          makeMediaRow({
             synonyms: '["Fangkai Nage Nuwu"]',
             titleRomaji: "Fangkai Nage Nüwu",
           }),
@@ -216,7 +216,7 @@ it.scoped("searchUnitReleases falls back to broad title search and keeps request
         });
 
         const releases = yield* searchReleaseService.searchUnitReleases(
-          makeAnimeRow({ titleEnglish: "Release that Witch", titleRomaji: "Fangkai Nage Nüwu" }),
+          makeMediaRow({ titleEnglish: "Release that Witch", titleRomaji: "Fangkai Nage Nüwu" }),
           8,
           config,
         );
@@ -260,7 +260,7 @@ it.scoped("searchUnitReleases uses Nyaa literature category for manga", () =>
         });
 
         const releases = yield* searchReleaseService.searchUnitReleases(
-          makeAnimeRow({
+          makeMediaRow({
             mediaKind: "manga",
             titleRomaji: "Witch Hat Atelier",
           }),
@@ -281,7 +281,7 @@ it.scoped("searchUnitReleases uses Nyaa literature category for manga", () =>
   }),
 );
 
-function makeAnimeRow(input: Partial<typeof media.$inferSelect> = {}): typeof media.$inferSelect {
+function makeMediaRow(input: Partial<typeof media.$inferSelect> = {}): typeof media.$inferSelect {
   return {
     addedAt: "2024-01-01T00:00:00.000Z",
     background: null,

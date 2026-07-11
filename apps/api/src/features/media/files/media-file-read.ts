@@ -12,7 +12,7 @@ import {
   EpisodeFileOutsideRoot,
 } from "@/features/media/files/media-file-resolution.ts";
 
-export const resolveUnitFileEffect = Effect.fn("AnimeFileRead.resolveUnitFileEffect")(
+export const resolveUnitFileEffect = Effect.fn("MediaFileRead.resolveUnitFileEffect")(
   function* (input: {
     mediaId: number;
     db: AppDatabase;
@@ -20,7 +20,7 @@ export const resolveUnitFileEffect = Effect.fn("AnimeFileRead.resolveUnitFileEff
     unitNumber: number;
     fs: FileSystemShape;
   }) {
-    const animeRow = yield* input.mediaReadRepository.getAnimeRow(input.mediaId);
+    const animeRow = yield* input.mediaReadRepository.getMediaRow(input.mediaId);
     const episodeRow = yield* input.mediaReadRepository.getEpisodeRow(
       input.mediaId,
       input.unitNumber,

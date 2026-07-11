@@ -1,9 +1,8 @@
 import { Effect } from "effect";
-import { and, eq, inArray } from "drizzle-orm";
 import type { Config, DownloadSourceMetadata, ImportMode } from "@packages/shared/index.ts";
 
-import type { AppDatabase, DatabaseError } from "@/db/database.ts";
-import { media, mediaUnits } from "@/db/schema.ts";
+import type { DatabaseError } from "@/db/database.ts";
+import { media } from "@/db/schema.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import {
   probeMediaMetadataOrUndefined,
@@ -19,15 +18,12 @@ import {
   hasMissingLocalMediaNamingFields,
   selectNamingFormat,
 } from "@/features/operations/library/naming-format-support.ts";
-import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 
 export interface BuildLibraryImportPlanInput {
-  readonly db: AppDatabase;
   readonly fs: FileSystemShape;
   readonly mediaReadRepository: typeof MediaReadRepository.Service;
   readonly mediaProbe: MediaProbeShape;
   readonly runtimeConfig: Config;
-  readonly tryDatabasePromise: TryDatabasePromise;
   readonly file: {
     source_path: string;
     media_id: number;
@@ -54,8 +50,7 @@ export interface LibraryImportPlan {
 export const buildLibraryImportPlan = Effect.fn("Operations.buildLibraryImportPlan")((
   input: BuildLibraryImportPlanInput,
 ): Effect.Effect<LibraryImportPlan, DatabaseError | DomainPathError | MediaNotFoundError> => {
-  const { db, file, fs, mediaReadRepository, mediaProbe, runtimeConfig, tryDatabasePromise } =
-    input;
+  const { file, fs, mediaReadRepository, mediaProbe, runtimeConfig } = input;
   return Effect.gen(function* () {
     const resolvedSource = yield* fs.realPath(file.source_path).pipe(
       Effect.mapError(
@@ -67,7 +62,7 @@ export const buildLibraryImportPlan = Effect.fn("Operations.buildLibraryImportPl
       ),
     );
 
-    const animeRow = yield* mediaReadRepository.getAnimeRow(file.media_id);
+    const animeRow = yield* mediaReadRepository.getMediaRow(file.media_id);
     const importMode = runtimeConfig.library.import_mode;
     const namingSettings = {
       movieNamingFormat: runtimeConfig.library.movie_naming_format,
@@ -76,18 +71,11 @@ export const buildLibraryImportPlan = Effect.fn("Operations.buildLibraryImportPl
     };
     const namingFormat = selectNamingFormat(animeRow, namingSettings);
     const allEpisodeNumbers = file.unit_numbers?.length ? file.unit_numbers : [file.unit_number];
-    const episodeNumbersForQuery = [...allEpisodeNumbers];
-    const episodeRows = yield* tryDatabasePromise("Failed to import files", () =>
-      db
-        .select({ aired: mediaUnits.aired, title: mediaUnits.title })
-        .from(mediaUnits)
-        .where(
-          and(
-            eq(mediaUnits.mediaId, file.media_id),
-            inArray(mediaUnits.number, episodeNumbersForQuery),
-          ),
-        ),
-    );
+    const episodeNumbersForQuery = new Set(allEpisodeNumbers);
+    const unitRows = yield* mediaReadRepository.listUnitRowsByMediaId(file.media_id);
+    const episodeRows = unitRows
+      .filter((row) => episodeNumbersForQuery.has(row.number))
+      .map((row) => ({ aired: row.aired, title: row.title }));
     const extension = file.source_path.includes(".")
       ? file.source_path.slice(file.source_path.lastIndexOf("."))
       : ".mkv";

@@ -82,7 +82,7 @@ export class SearchBackgroundMissingService extends Effect.Service<SearchBackgro
         });
 
         const title = mediaId
-          ? (yield* mediaReadRepository.getAnimeRow(mediaId)).titleRomaji
+          ? (yield* mediaReadRepository.getMediaRow(mediaId)).titleRomaji
           : "all media";
 
         yield* eventBus.publish({

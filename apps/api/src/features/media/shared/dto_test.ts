@@ -3,11 +3,11 @@ import { Cause, Effect, Exit } from "effect";
 
 import { media, mediaUnits } from "@/db/schema.ts";
 import { StoredDataError } from "@/features/errors.ts";
-import { toAnimeDto } from "@/features/media/shared/dto.ts";
+import { toMediaDto } from "@/features/media/shared/dto.ts";
 
-it.effect("toAnimeDto builds progress, metadata, and decoded arrays", () =>
+it.effect("toMediaDto builds progress, metadata, and decoded arrays", () =>
   Effect.gen(function* () {
-    const result = yield* toAnimeDto(
+    const result = yield* toMediaDto(
       {
         addedAt: "2024-01-01T00:00:00.000Z",
         background: "Background lore",
@@ -135,9 +135,9 @@ it.effect("toAnimeDto builds progress, metadata, and decoded arrays", () =>
   }),
 );
 
-it.effect("toAnimeDto handles media with unknown episode totals", () =>
+it.effect("toMediaDto handles media with unknown episode totals", () =>
   Effect.gen(function* () {
-    const result = yield* toAnimeDto(
+    const result = yield* toMediaDto(
       {
         addedAt: "2024-01-01T00:00:00.000Z",
         background: null,
@@ -191,10 +191,10 @@ it.effect("toAnimeDto handles media with unknown episode totals", () =>
   }),
 );
 
-it.effect("toAnimeDto fails with typed stored-data errors for corrupt persisted JSON", () =>
+it.effect("toMediaDto fails with typed stored-data errors for corrupt persisted JSON", () =>
   Effect.gen(function* () {
     const exit = yield* Effect.exit(
-      toAnimeDto(
+      toMediaDto(
         {
           addedAt: "2024-01-01T00:00:00.000Z",
           background: null,

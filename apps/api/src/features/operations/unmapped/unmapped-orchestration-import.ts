@@ -14,7 +14,7 @@ import { extractUnitNumbersFromFile } from "@/features/media/files/files.ts";
 import { inferAiredAt } from "@/domain/media/derivations.ts";
 import {
   getLibraryPathForMediaKind,
-  resolveAnimeRootFolderEffect,
+  resolveMediaRootFolderEffect,
 } from "@/features/media/shared/config-support.ts";
 import { decodeMediaKind } from "@/features/media/shared/media-kind.ts";
 import { DomainInputError, DomainPathError, InfrastructureError } from "@/features/errors.ts";
@@ -33,6 +33,7 @@ import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
+import { SystemConfigRepository } from "@/features/system/repository/system-config-repository.ts";
 import type { MediaKind } from "@packages/shared/index.ts";
 
 export interface UnmappedImportWorkflowShape {
@@ -52,8 +53,8 @@ export interface UnmappedImportWorkflowShape {
   >;
 }
 
-export const cleanupPreviousAnimeRootFolderAfterImport = Effect.fn(
-  "OperationsService.cleanupPreviousAnimeRootFolderAfterImport",
+export const cleanupPreviousMediaRootFolderAfterImport = Effect.fn(
+  "OperationsService.cleanupPreviousMediaRootFolderAfterImport",
 )(function* (fs: FileSystemShape, previousRootFolder: string, nextRootFolder: string) {
   if (previousRootFolder === nextRootFolder) {
     return;
@@ -95,6 +96,7 @@ export function makeUnmappedImportWorkflow(input: {
   mediaReadRepository: typeof MediaReadRepository.Service;
   mediaUnitRepository: MediaUnitRepositoryShape;
   nowIso: () => Effect.Effect<string>;
+  systemConfigRepository: typeof SystemConfigRepository.Service;
   tryDatabasePromise: TryDatabasePromise;
 }) {
   const {
@@ -104,6 +106,7 @@ export function makeUnmappedImportWorkflow(input: {
     mediaReadRepository,
     mediaUnitRepository,
     nowIso,
+    systemConfigRepository,
     tryDatabasePromise,
   } = input;
 
@@ -115,7 +118,7 @@ export function makeUnmappedImportWorkflow(input: {
 
   const importUnmappedFolder = Effect.fn("OperationsService.importUnmappedFolder")(
     function* (input: { folder_name: string; media_id: number; profile_name?: string }) {
-      const animeRow = yield* mediaReadRepository.getAnimeRow(input.media_id);
+      const animeRow = yield* mediaReadRepository.getMediaRow(input.media_id);
       const mediaKind = decodeMediaKind(animeRow.mediaKind);
       const libraryPath = yield* getLibraryPath(mediaKind);
       const folderName = yield* sanitizePathSegmentEffect(input.folder_name).pipe(
@@ -149,10 +152,15 @@ export function makeUnmappedImportWorkflow(input: {
         });
       }
 
-      const rootFolder = yield* resolveAnimeRootFolderEffect(db, folderPath, animeRow.titleRomaji, {
-        mediaKind,
-        useExistingRoot: true,
-      }).pipe(
+      const rootFolder = yield* resolveMediaRootFolderEffect(
+        systemConfigRepository,
+        folderPath,
+        animeRow.titleRomaji,
+        {
+          mediaKind,
+          useExistingRoot: true,
+        },
+      ).pipe(
         Effect.catchTag("StoredDataError", (e) =>
           Effect.fail(
             new InfrastructureError({
@@ -226,7 +234,7 @@ export function makeUnmappedImportWorkflow(input: {
         })),
       );
 
-      yield* cleanupPreviousAnimeRootFolderAfterImport(fs, animeRow.rootFolder, rootFolder);
+      yield* cleanupPreviousMediaRootFolderAfterImport(fs, animeRow.rootFolder, rootFolder);
 
       const imported = episodeMappings.length;
 
@@ -255,6 +263,7 @@ export class UnmappedImportService extends Effect.Service<UnmappedImportService>
       const mediaReadRepository = yield* MediaReadRepository;
       const mediaUnitRepository = yield* MediaUnitRepository;
       const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
+      const systemConfigRepository = yield* SystemConfigRepository;
 
       return makeUnmappedImportWorkflow({
         db,
@@ -275,10 +284,11 @@ export class UnmappedImportService extends Effect.Service<UnmappedImportService>
         mediaReadRepository,
         mediaUnitRepository,
         nowIso: currentNowIso,
+        systemConfigRepository,
         tryDatabasePromise,
       });
     }),
-    dependencies: [AppDrizzleDatabase.Default],
+    dependencies: [AppDrizzleDatabase.Default, SystemConfigRepository.Default],
   },
 ) {}
 

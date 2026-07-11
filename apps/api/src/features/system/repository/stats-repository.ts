@@ -104,7 +104,7 @@ export const countCompletedDownloads = Effect.fn("SystemStatsRepository.countCom
   },
 );
 
-export const countAnimeRows = Effect.fn("SystemStatsRepository.countAnimeRows")(function* (
+export const countMediaRows = Effect.fn("SystemStatsRepository.countMediaRows")(function* (
   db: AppDatabase,
 ) {
   const countRows = yield* tryDatabasePromise("Failed to count media", () =>
@@ -114,7 +114,7 @@ export const countAnimeRows = Effect.fn("SystemStatsRepository.countAnimeRows")(
   return countRow.value;
 });
 
-export const countMonitoredAnimeRows = Effect.fn("SystemStatsRepository.countMonitoredAnimeRows")(
+export const countMonitoredMediaRows = Effect.fn("SystemStatsRepository.countMonitoredMediaRows")(
   function* (db: AppDatabase) {
     const countRows = yield* tryDatabasePromise("Failed to count media", () =>
       db.select({ value: count() }).from(media).where(eq(media.monitored, true)),
@@ -144,7 +144,7 @@ export const countDownloadedEpisodeRows = Effect.fn(
   return countRow.value;
 });
 
-export const countUpToDateAnimeRows = Effect.fn("SystemStatsRepository.countUpToDateAnimeRows")(
+export const countUpToDateMediaRows = Effect.fn("SystemStatsRepository.countUpToDateMediaRows")(
   function* (db: AppDatabase) {
     const rows = yield* tryDatabasePromise("Failed to count up-to-date media", () =>
       db

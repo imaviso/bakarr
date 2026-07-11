@@ -9,13 +9,12 @@ import {
   markJobStarted,
   markJobSucceeded,
 } from "@/features/operations/shared/job-support.ts";
-import type { OperationsError } from "@/features/operations/errors.ts";
 import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
-import type { ExternalCallError } from "@/infra/effect/retry.ts";
+import type { InfrastructureError, StoredDataError } from "@/features/errors.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { markJobFailureOrFailWithCause } from "@/infra/job-failure-support.ts";
 
-export type BackgroundSearchRssWorkerError = DatabaseError | ExternalCallError | OperationsError;
+export type BackgroundSearchRssWorkerError = DatabaseError | InfrastructureError | StoredDataError;
 
 export interface BackgroundSearchRssWorkerServiceShape {
   readonly runRssWorker: () => Effect.Effect<void, BackgroundSearchRssWorkerError>;

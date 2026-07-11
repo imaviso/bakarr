@@ -1,29 +1,28 @@
 import { Effect } from "effect";
 import { brandMediaId } from "@packages/shared/index.ts";
 
-import type { AppDatabase } from "@/db/database.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import type { MediaProbeShape } from "@/infra/media/probe.ts";
-import type { AnimeEventPublisher } from "@/features/media/shared/media-orchestration-shared.ts";
-import { scanAnimeFolderEffect } from "@/features/media/files/media-file-scan.ts";
+import type { MediaEventPublisher } from "@/features/media/shared/media-orchestration-shared.ts";
+import { scanMediaFolderEffect } from "@/features/media/files/media-file-scan.ts";
 import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
 import type { MediaUnitRepositoryShape } from "@/features/media/units/media-unit-repository.ts";
-import { appendSystemLog } from "@/features/system/support.ts";
+import type { SystemLogRepositoryShape } from "@/features/system/repository/log-repository.ts";
 
-export const scanAnimeFolderOrchestrationEffect = Effect.fn(
-  "AnimeService.scanAnimeFolderOrchestrationEffect",
+export const scanMediaFolderOrchestrationEffect = Effect.fn(
+  "MediaService.scanMediaFolderOrchestrationEffect",
 )(function* (input: {
   mediaId: number;
-  db: AppDatabase;
-  eventPublisher: AnimeEventPublisher;
+  eventPublisher: MediaEventPublisher;
   fs: FileSystemShape;
   mediaReadRepository: MediaReadRepositoryShape;
   mediaUnitRepository: MediaUnitRepositoryShape;
   mediaProbe: MediaProbeShape;
   nowIso: () => Effect.Effect<string>;
+  systemLogRepository: SystemLogRepositoryShape;
 }) {
   const { nowIso } = input;
-  const startAnimeRow = yield* input.mediaReadRepository.getAnimeRow(input.mediaId);
+  const startAnimeRow = yield* input.mediaReadRepository.getMediaRow(input.mediaId);
 
   yield* input.eventPublisher.publish({
     type: "ScanFolderStarted",
@@ -33,9 +32,8 @@ export const scanAnimeFolderOrchestrationEffect = Effect.fn(
     },
   });
 
-  const { animeRow, found, total } = yield* scanAnimeFolderEffect({
+  const { animeRow, found, total } = yield* scanMediaFolderEffect({
     mediaId: input.mediaId,
-    db: input.db,
     fs: input.fs,
     mediaReadRepository: input.mediaReadRepository,
     mediaUnitRepository: input.mediaUnitRepository,
@@ -43,8 +41,7 @@ export const scanAnimeFolderOrchestrationEffect = Effect.fn(
     nowIso,
   });
 
-  yield* appendSystemLog(
-    input.db,
+  yield* input.systemLogRepository.appendLog(
     "media.folder.scanned",
     "success",
     `Scanned ${animeRow.titleRomaji} folder and found ${found} files`,

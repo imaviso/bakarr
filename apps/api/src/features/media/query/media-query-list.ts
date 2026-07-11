@@ -1,4 +1,3 @@
-import { and, count, eq, inArray, sql } from "drizzle-orm";
 import { Effect } from "effect";
 
 import {
@@ -8,10 +7,8 @@ import {
   type MediaListQueryParams,
   type MediaListResponse,
 } from "@packages/shared/index.ts";
-import { DatabaseError, type AppDatabase } from "@/db/database.ts";
-import { media, mediaUnits } from "@/db/schema.ts";
+import { media } from "@/db/schema.ts";
 import { StoredDataError } from "@/features/errors.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { deriveAnimeSeason, extractYearFromDate } from "@/domain/media/date-utils.ts";
 import {
   decodeStoredDiscoveryEntriesEffect,
@@ -19,6 +16,7 @@ import {
   decodeStoredStringListEffect,
 } from "@/features/media/shared/decode-support.ts";
 import { decodeMediaKind } from "@/features/media/shared/media-kind.ts";
+import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
 
 interface EpisodeStats {
   readonly downloaded: number;
@@ -27,45 +25,24 @@ interface EpisodeStats {
 
 const DTO_PROGRESS_YIELD_INTERVAL = 50;
 
-export const listAnimeEffect = Effect.fn("AnimeQueryList.listAnimeEffect")(function* (
-  db: AppDatabase,
+export const listMediaEffect = Effect.fn("MediaQueryList.listMediaEffect")(function* (
+  mediaReadRepository: MediaReadRepositoryShape,
   params: MediaListQueryParams = {},
 ) {
   const limit = Math.min(Math.max(params.limit ?? 100, 1), 500);
   const offset = Math.max(params.offset ?? 0, 0);
+  const monitoredFilter = params.monitored === undefined ? {} : { monitored: params.monitored };
 
-  const monitoredCondition =
-    params.monitored !== undefined ? eq(media.monitored, params.monitored) : undefined;
-
-  const [animeRows, totalCountResult] = yield* Effect.all([
-    tryDatabasePromise("Failed to list media", () => {
-      const baseQuery = db.select().from(media);
-      const query = monitoredCondition ? baseQuery.where(monitoredCondition) : baseQuery;
-      return query.orderBy(media.id).limit(limit).offset(offset);
-    }),
-    tryDatabasePromise("Failed to count media", () => {
-      const countQuery = db.select({ count: count() }).from(media);
-      return monitoredCondition ? countQuery.where(monitoredCondition) : countQuery;
-    }),
+  const [animeRows, total] = yield* Effect.all([
+    mediaReadRepository.listMediaRows({ ...monitoredFilter, limit, offset }),
+    mediaReadRepository.countMedia(monitoredFilter),
   ]);
 
   const animeIds = animeRows.map((row) => row.id);
   const episodeStatsByAnimeId = new Map<number, EpisodeStats>();
 
   if (animeIds.length > 0) {
-    const episodeStats = yield* tryDatabasePromise("Failed to list media", () =>
-      db
-        .select({
-          mediaId: mediaUnits.mediaId,
-          downloadedCount: sql<number>`coalesce(sum(case when ${mediaUnits.downloaded} then 1 else 0 end), 0)`,
-          latestDownloadedUnit: sql<
-            number | null
-          >`max(case when ${mediaUnits.downloaded} then ${mediaUnits.number} else null end)`,
-        })
-        .from(mediaUnits)
-        .where(inArray(mediaUnits.mediaId, animeIds))
-        .groupBy(mediaUnits.mediaId),
-    );
+    const episodeStats = yield* mediaReadRepository.listUnitProgressStats(animeIds);
 
     for (const stat of episodeStats) {
       const latestDownloadedUnit =
@@ -78,18 +55,7 @@ export const listAnimeEffect = Effect.fn("AnimeQueryList.listAnimeEffect")(funct
     }
   }
 
-  const airedEpisodeRows =
-    animeIds.length === 0
-      ? []
-      : yield* tryDatabasePromise("Failed to list media", () =>
-          db
-            .select({
-              mediaId: mediaUnits.mediaId,
-              number: mediaUnits.number,
-            })
-            .from(mediaUnits)
-            .where(and(inArray(mediaUnits.mediaId, animeIds), eq(mediaUnits.downloaded, false))),
-        );
+  const airedEpisodeRows = yield* mediaReadRepository.listMissingUnitNumbers(animeIds);
 
   const missingNumbersByAnimeId = new Map<number, number[]>();
   for (const row of airedEpisodeRows) {
@@ -113,21 +79,12 @@ export const listAnimeEffect = Effect.fn("AnimeQueryList.listAnimeEffect")(funct
     }
 
     animeProgressRows.push(
-      yield* toAnimeDtoProgress(
+      yield* toMediaDtoProgress(
         row,
         episodeStatsByAnimeId.get(row.id),
         missingNumbersByAnimeId.get(row.id),
       ),
     );
-  }
-
-  const total = totalCountResult[0]?.count;
-
-  if (total === undefined) {
-    return yield* new DatabaseError({
-      cause: new Error("Media count query returned no rows"),
-      message: "Failed to list media",
-    });
   }
 
   return {
@@ -139,7 +96,7 @@ export const listAnimeEffect = Effect.fn("AnimeQueryList.listAnimeEffect")(funct
   } satisfies MediaListResponse;
 });
 
-function toAnimeDtoProgress(
+function toMediaDtoProgress(
   row: typeof media.$inferSelect,
   progress?: EpisodeStats,
   missingNumbers: readonly number[] = [],

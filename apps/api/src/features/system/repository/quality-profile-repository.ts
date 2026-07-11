@@ -7,7 +7,7 @@ import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 export interface QualityProfileRepositoryShape {
   readonly deleteQualityProfileRow: (name: string) => Effect.Effect<void, DatabaseError>;
-  readonly countAnimeUsingProfile: (profileName: string) => Effect.Effect<number, DatabaseError>;
+  readonly countMediaUsingProfile: (profileName: string) => Effect.Effect<number, DatabaseError>;
   readonly insertQualityProfileRow: (
     row: typeof qualityProfiles.$inferInsert,
   ) => Effect.Effect<void, DatabaseError>;
@@ -25,6 +25,7 @@ export interface QualityProfileRepositoryShape {
   readonly loadQualityProfileRow: (
     name: string,
   ) => Effect.Effect<typeof qualityProfiles.$inferSelect | undefined, DatabaseError>;
+  readonly qualityProfileExists: (name: string) => Effect.Effect<boolean, DatabaseError>;
   readonly renameQualityProfileWithCascade: (
     oldName: string,
     row: typeof qualityProfiles.$inferInsert,
@@ -56,7 +57,7 @@ export const loadAnyQualityProfileRow = Effect.fn(
   return rows[0];
 });
 
-export const countAnimeUsingProfile = Effect.fn("QualityProfileRepository.countAnimeUsingProfile")(
+export const countMediaUsingProfile = Effect.fn("QualityProfileRepository.countMediaUsingProfile")(
   function* (db: AppDatabase, profileName: string) {
     const rows = yield* tryDatabasePromise("Failed to count media", () =>
       db.select({ value: count() }).from(media).where(eq(media.profileName, profileName)),
@@ -103,6 +104,19 @@ export const loadQualityProfileRow = Effect.fn("QualityProfileRepository.loadQua
   },
 );
 
+export const qualityProfileExists = Effect.fn("QualityProfileRepository.qualityProfileExists")(
+  function* (db: AppDatabase, name: string) {
+    const rows = yield* tryDatabasePromise("Failed to verify quality profile", () =>
+      db
+        .select({ name: qualityProfiles.name })
+        .from(qualityProfiles)
+        .where(eq(qualityProfiles.name, name))
+        .limit(1),
+    );
+    return rows.length > 0;
+  },
+);
+
 export const updateQualityProfileRow = Effect.fn(
   "QualityProfileRepository.updateQualityProfileRow",
 )(function* (db: AppDatabase, name: string, row: typeof qualityProfiles.$inferInsert) {
@@ -135,13 +149,14 @@ export const deleteQualityProfileRow = Effect.fn(
 
 function makeQualityProfileRepositoryShape(db: AppDatabase): QualityProfileRepositoryShape {
   return {
-    countAnimeUsingProfile: (profileName) => countAnimeUsingProfile(db, profileName),
+    countMediaUsingProfile: (profileName) => countMediaUsingProfile(db, profileName),
     deleteQualityProfileRow: (name) => deleteQualityProfileRow(db, name),
     insertQualityProfileRow: (row) => insertQualityProfileRow(db, row),
     insertQualityProfileRows: (rows) => insertQualityProfileRows(db, rows),
     listQualityProfileRows: () => listQualityProfileRows(db),
     loadAnyQualityProfileRow: () => loadAnyQualityProfileRow(db),
     loadQualityProfileRow: (name) => loadQualityProfileRow(db, name),
+    qualityProfileExists: (name) => qualityProfileExists(db, name),
     renameQualityProfileWithCascade: (oldName, row) =>
       renameQualityProfileWithCascade(db, oldName, row),
     updateQualityProfileRow: (name, row) => updateQualityProfileRow(db, name, row),

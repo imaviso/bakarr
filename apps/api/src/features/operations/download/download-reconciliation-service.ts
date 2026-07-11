@@ -1,6 +1,5 @@
 import { Effect } from "effect";
 
-import type { DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
@@ -11,14 +10,10 @@ import { DownloadRepository } from "@/features/operations/repository/download-re
 import { DownloadProgressSupport } from "@/features/operations/download/download-progress-support.ts";
 import { makeDownloadCompletedTorrentReconciliation } from "@/features/operations/download/download-reconciliation.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
-import type { ExternalCallError } from "@/infra/effect/retry.ts";
 import type {
-  DomainConflictError,
-  DomainNotFoundError,
-  InfrastructureError,
-} from "@/features/errors.ts";
-import type { OperationsError } from "@/features/operations/errors.ts";
-import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
+  ReconcileByIdError,
+  ReconcileCompletedError,
+} from "@/features/operations/download/download-reconciliation.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 
@@ -30,22 +25,8 @@ export interface DownloadReconciliationServiceShape {
   readonly reconcileCompletedTorrentEffect: (
     infoHash: string,
     contentPath: string | undefined,
-  ) => Effect.Effect<
-    void,
-    ExternalCallError | OperationsError | DatabaseError | RuntimeConfigSnapshotError
-  >;
-  readonly reconcileDownloadByIdEffect: (
-    id: number,
-  ) => Effect.Effect<
-    void,
-    | DomainConflictError
-    | DomainNotFoundError
-    | ExternalCallError
-    | OperationsError
-    | DatabaseError
-    | InfrastructureError
-    | RuntimeConfigSnapshotError
-  >;
+  ) => Effect.Effect<void, ReconcileCompletedError>;
+  readonly reconcileDownloadByIdEffect: (id: number) => Effect.Effect<void, ReconcileByIdError>;
 }
 
 export class DownloadReconciliationService extends Effect.Service<DownloadReconciliationService>()(

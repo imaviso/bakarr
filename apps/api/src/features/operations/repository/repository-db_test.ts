@@ -156,7 +156,7 @@ it.scoped("operations repository helpers load media release rules and episode st
         );
 
         const mediaReadRepository = makeMediaReadRepository(db);
-        const animeRow = yield* mediaReadRepository.getAnimeRow(20);
+        const animeRow = yield* mediaReadRepository.getMediaRow(20);
         assert.deepStrictEqual(animeRow.titleRomaji, "Naruto");
 
         const releaseRules = yield* loadReleaseRules(db, animeRow);
@@ -178,7 +178,7 @@ it.scoped("operations repository helpers load media release rules and episode st
           Option.none(),
         );
 
-        const notFoundExit = yield* Effect.exit(mediaReadRepository.getAnimeRow(999));
+        const notFoundExit = yield* Effect.exit(mediaReadRepository.getMediaRow(999));
         assert.deepStrictEqual(notFoundExit._tag, "Failure");
         if (notFoundExit._tag === "Failure") {
           const failure = Cause.failureOption(notFoundExit.cause);

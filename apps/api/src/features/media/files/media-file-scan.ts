@@ -1,8 +1,5 @@
 import { Effect } from "effect";
-import { and, eq, isNotNull } from "drizzle-orm";
 
-import type { AppDatabase } from "@/db/database.ts";
-import { mediaUnits } from "@/db/schema.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import type { MediaProbeShape } from "@/infra/media/probe.ts";
 import {
@@ -26,19 +23,17 @@ import { buildAiringScheduleMap } from "@/features/media/units/media-schedule-re
 import { inferAiredAt } from "@/domain/media/derivations.ts";
 import type { MediaUnitRepositoryShape } from "@/features/media/units/media-unit-repository.ts";
 import { DomainPathError } from "@/features/errors.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
-export const scanAnimeFolderEffect = Effect.fn("AnimeFileScan.scanAnimeFolderEffect")(
+export const scanMediaFolderEffect = Effect.fn("MediaFileScan.scanMediaFolderEffect")(
   function* (input: {
     mediaId: number;
-    db: AppDatabase;
     fs: FileSystemShape;
     mediaReadRepository: MediaReadRepositoryShape;
     mediaUnitRepository: MediaUnitRepositoryShape;
     mediaProbe: MediaProbeShape;
     nowIso: () => Effect.Effect<string>;
   }) {
-    const animeRow = yield* input.mediaReadRepository.getAnimeRow(input.mediaId);
+    const animeRow = yield* input.mediaReadRepository.getMediaRow(input.mediaId);
     const collectFiles = animeRow.mediaKind === "anime" ? collectVideoFiles : collectVolumeFiles;
     const files = yield* collectFiles(input.fs, animeRow.rootFolder).pipe(
       Effect.mapError(
@@ -51,7 +46,7 @@ export const scanAnimeFolderEffect = Effect.fn("AnimeFileScan.scanAnimeFolderEff
     );
 
     yield* clearMissingEpisodeFileMappingsEffect(
-      input.db,
+      input.mediaReadRepository,
       input.mediaUnitRepository,
       input.mediaId,
       files.map((file) => file.path),
@@ -156,20 +151,15 @@ export const scanAnimeFolderEffect = Effect.fn("AnimeFileScan.scanAnimeFolderEff
 );
 
 const clearMissingEpisodeFileMappingsEffect = Effect.fn(
-  "AnimeFileScan.clearMissingEpisodeFileMappingsEffect",
+  "MediaFileScan.clearMissingEpisodeFileMappingsEffect",
 )(function* (
-  db: AppDatabase,
+  mediaReadRepository: MediaReadRepositoryShape,
   mediaUnitRepository: MediaUnitRepositoryShape,
   mediaId: number,
   presentFilePaths: readonly string[],
 ) {
   const presentFilePathSet = new Set(presentFilePaths);
-  const mappedRows = yield* tryDatabasePromise("Failed to list mapped episode files", () =>
-    db
-      .select({ filePath: mediaUnits.filePath, number: mediaUnits.number })
-      .from(mediaUnits)
-      .where(and(eq(mediaUnits.mediaId, mediaId), isNotNull(mediaUnits.filePath))),
-  );
+  const mappedRows = yield* mediaReadRepository.listMappedUnitRows(mediaId);
 
   for (const row of mappedRows) {
     if (row.filePath !== null && !presentFilePathSet.has(row.filePath)) {

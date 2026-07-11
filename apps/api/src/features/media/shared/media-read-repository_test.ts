@@ -49,13 +49,13 @@ function seedEpisode(db: TestDatabase, mediaId: number, epNum: number) {
   );
 }
 
-it.scoped("getAnimeRowEffect returns row by id", () =>
+it.scoped("getMediaRowEffect returns row by id", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         yield* seedAnime(db);
         const repository = makeMediaReadRepository(db);
-        const row = yield* repository.getAnimeRow(1);
+        const row = yield* repository.getMediaRow(1);
         assert.deepStrictEqual(row.titleRomaji, "Naruto");
         assert.deepStrictEqual(row.unitCount, 12);
       }),
@@ -63,12 +63,12 @@ it.scoped("getAnimeRowEffect returns row by id", () =>
   }),
 );
 
-it.scoped("getAnimeRowEffect fails with MediaNotFoundError for missing id", () =>
+it.scoped("getMediaRowEffect fails with MediaNotFoundError for missing id", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const repository = makeMediaReadRepository(db);
-        const exit = yield* Effect.exit(repository.getAnimeRow(999));
+        const exit = yield* Effect.exit(repository.getMediaRow(999));
         assert.deepStrictEqual(Exit.isFailure(exit), true);
         if (Exit.isFailure(exit)) {
           const failure = Cause.failureOption(exit.cause);
@@ -81,13 +81,13 @@ it.scoped("getAnimeRowEffect fails with MediaNotFoundError for missing id", () =
   }),
 );
 
-it.scoped("requireAnimeExistsEffect succeeds when media exists", () =>
+it.scoped("requireMediaExistsEffect succeeds when media exists", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         yield* seedAnime(db);
         const repository = makeMediaReadRepository(db);
-        const exit = yield* Effect.exit(repository.requireAnimeExists(1));
+        const exit = yield* Effect.exit(repository.requireMediaExists(1));
         assert.deepStrictEqual(exit._tag, "Success");
       }),
     schema,
@@ -128,13 +128,13 @@ it.scoped("getEpisodeRowEffect fails for non-existent episode", () =>
   }),
 );
 
-it.scoped("findAnimeRootFolderOwnerEffect finds exact root match", () =>
+it.scoped("findMediaRootFolderOwnerEffect finds exact root match", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         yield* seedAnime(db);
         const repository = makeMediaReadRepository(db);
-        const owner = yield* repository.findAnimeRootFolderOwner("/library/Naruto");
+        const owner = yield* repository.findMediaRootFolderOwner("/library/Naruto");
         assert.ok(owner !== null);
         assert.deepStrictEqual(owner.titleRomaji, "Naruto");
       }),
@@ -142,13 +142,13 @@ it.scoped("findAnimeRootFolderOwnerEffect finds exact root match", () =>
   }),
 );
 
-it.scoped("findAnimeRootFolderOwnerEffect finds by child path match", () =>
+it.scoped("findMediaRootFolderOwnerEffect finds by child path match", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         yield* seedAnime(db);
         const repository = makeMediaReadRepository(db);
-        const owner = yield* repository.findAnimeRootFolderOwner("/library/Naruto/Season 1");
+        const owner = yield* repository.findMediaRootFolderOwner("/library/Naruto/Season 1");
         assert.ok(owner !== null);
         assert.deepStrictEqual(owner.titleRomaji, "Naruto");
       }),
@@ -156,12 +156,12 @@ it.scoped("findAnimeRootFolderOwnerEffect finds by child path match", () =>
   }),
 );
 
-it.scoped("findAnimeRootFolderOwnerEffect returns null for no match", () =>
+it.scoped("findMediaRootFolderOwnerEffect returns null for no match", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const repository = makeMediaReadRepository(db);
-        const owner = yield* repository.findAnimeRootFolderOwner("/library/Unknown");
+        const owner = yield* repository.findMediaRootFolderOwner("/library/Unknown");
         assert.deepStrictEqual(owner, null);
       }),
     schema,

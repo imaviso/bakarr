@@ -6,17 +6,18 @@ import type { AppDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
 import { media, backgroundJobs, systemLogs } from "@/db/schema.ts";
 import type { AnimeMetadata } from "@/features/media/metadata/anilist-model.ts";
-import { refreshMetadataForMonitoredAnimeEffect } from "@/features/media/metadata/media-metadata-refresh-job.ts";
+import { refreshMetadataForMonitoredMediaEffect } from "@/features/media/metadata/media-metadata-refresh-job.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
-import { AnimeImageCacheService } from "@/features/media/metadata/media-image-cache-service.ts";
-import { AnimeMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
+import { MediaImageCacheService } from "@/features/media/metadata/media-image-cache-service.ts";
+import { MediaMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { makeMediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import { makeMediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
+import { makeSystemLogRepository } from "@/features/system/repository/log-repository.ts";
 
 it.scoped(
-  "refreshMetadataForMonitoredAnimeEffect skips per-media external failures and completes",
+  "refreshMetadataForMonitoredMediaEffect skips per-media external failures and completes",
   () =>
     withSqliteTestDbEffect({
       run: (db) =>
@@ -26,11 +27,11 @@ it.scoped(
           yield* insertAnimeRow(appDb, 801);
           yield* insertAnimeRow(appDb, 802);
 
-          const result = yield* refreshMetadataForMonitoredAnimeEffect({
-            imageCacheService: AnimeImageCacheService.make({
+          const result = yield* refreshMetadataForMonitoredMediaEffect({
+            imageCacheService: MediaImageCacheService.make({
               cacheMetadataImages: () => Effect.succeed({}),
             }),
-            metadataProvider: AnimeMetadataProviderService.make({
+            metadataProvider: MediaMetadataProviderService.make({
               getAnimeMetadataById: (id: number) =>
                 id === 801
                   ? Effect.fail(
@@ -52,6 +53,7 @@ it.scoped(
             db: appDb,
             mediaReadRepository: makeMediaReadRepository(appDb),
             mediaUnitRepository: makeMediaUnitRepository(appDb),
+            systemLogRepository: makeSystemLogRepository(appDb),
             nowIso: () => Effect.succeed("2026-04-16T00:00:00.000Z"),
             refreshConcurrency: 2,
           });
@@ -85,7 +87,7 @@ it.scoped(
 );
 
 it.scoped(
-  "refreshMetadataForMonitoredAnimeEffect preserves ExternalCallError type for top-level failures",
+  "refreshMetadataForMonitoredMediaEffect preserves ExternalCallError type for top-level failures",
   () =>
     withSqliteTestDbEffect({
       run: (db) =>
@@ -113,11 +115,11 @@ it.scoped(
               );
           })();
 
-          const result = yield* refreshMetadataForMonitoredAnimeEffect({
-            imageCacheService: AnimeImageCacheService.make({
+          const result = yield* refreshMetadataForMonitoredMediaEffect({
+            imageCacheService: MediaImageCacheService.make({
               cacheMetadataImages: () => Effect.succeed({}),
             }),
-            metadataProvider: AnimeMetadataProviderService.make({
+            metadataProvider: MediaMetadataProviderService.make({
               getAnimeMetadataById: () =>
                 Effect.succeed({
                   _tag: "NotFound",
@@ -126,6 +128,7 @@ it.scoped(
             db: appDb,
             mediaReadRepository: makeMediaReadRepository(appDb),
             mediaUnitRepository: makeMediaUnitRepository(appDb),
+            systemLogRepository: makeSystemLogRepository(appDb),
             nowIso,
             refreshConcurrency: 1,
           }).pipe(Effect.either);

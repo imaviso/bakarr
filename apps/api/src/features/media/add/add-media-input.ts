@@ -5,7 +5,7 @@ import { MediaKindSchema } from "@packages/shared/index.ts";
 
 const ReleaseProfileIdArraySchema = Schema.Array(ReleaseProfileIdSchema);
 
-export class AddAnimeInput extends Schema.Class<AddAnimeInput>("AddAnimeInput")({
+export class AddMediaInput extends Schema.Class<AddMediaInput>("AddMediaInput")({
   id: MediaIdSchema,
   media_kind: Schema.optional(MediaKindSchema),
   monitor_and_search: Schema.Boolean,

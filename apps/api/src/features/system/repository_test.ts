@@ -25,7 +25,7 @@ import {
 } from "@/features/system/repository/system-config-repository.ts";
 import {
   countActiveDownloads,
-  countAnimeRows,
+  countMediaRows,
   countCompletedDownloads,
   countDownloadedEpisodeRows,
   countEpisodeRows,
@@ -33,7 +33,7 @@ import {
   countImportedDownloads,
   countQueuedDownloads,
   countRssFeedRows,
-  countUpToDateAnimeRows,
+  countUpToDateMediaRows,
   loadSystemLogPage,
 } from "@/features/system/repository/stats-repository.ts";
 import {
@@ -364,7 +364,7 @@ it.scoped("system repository query helpers filter logs and count system state", 
         assert.deepStrictEqual(yield* countFailedDownloads(db), 1);
         assert.deepStrictEqual(yield* countCompletedDownloads(db), 1);
         assert.deepStrictEqual(yield* countImportedDownloads(db), 1);
-        assert.deepStrictEqual(yield* countAnimeRows(db), 1);
+        assert.deepStrictEqual(yield* countMediaRows(db), 1);
         assert.deepStrictEqual(yield* countEpisodeRows(db), 2);
         assert.deepStrictEqual(yield* countDownloadedEpisodeRows(db), 1);
         assert.deepStrictEqual(yield* countRssFeedRows(db), 1);
@@ -373,11 +373,11 @@ it.scoped("system repository query helpers filter logs and count system state", 
   }),
 );
 
-it.scoped("countUpToDateAnimeRows counts monitored media with complete downloads", () =>
+it.scoped("countUpToDateMediaRows counts monitored media with complete downloads", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        yield* tryDatabasePromise("Failed to seed media for countUpToDateAnimeRows test", () =>
+        yield* tryDatabasePromise("Failed to seed media for countUpToDateMediaRows test", () =>
           db.insert(media).values([
             {
               addedAt: "2024-01-01T00:00:00.000Z",
@@ -468,7 +468,7 @@ it.scoped("countUpToDateAnimeRows counts monitored media with complete downloads
             },
           ]),
         );
-        yield* tryDatabasePromise("Failed to seed mediaUnits for countUpToDateAnimeRows test", () =>
+        yield* tryDatabasePromise("Failed to seed mediaUnits for countUpToDateMediaRows test", () =>
           db.insert(mediaUnits).values([
             {
               mediaId: 21,
@@ -585,7 +585,7 @@ it.scoped("countUpToDateAnimeRows counts monitored media with complete downloads
           ]),
         );
 
-        assert.deepStrictEqual(yield* countUpToDateAnimeRows(db), 1);
+        assert.deepStrictEqual(yield* countUpToDateMediaRows(db), 1);
       }),
     schema,
   }),

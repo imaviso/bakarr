@@ -1,6 +1,6 @@
 import { DateTime, Effect } from "effect";
 
-import { AppDrizzleDatabase, DatabaseError } from "@/db/database.ts";
+import { DatabaseError } from "@/db/database.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
 import type {
   MediaListQueryParams,
@@ -17,32 +17,27 @@ import type {
 import { resolveSeasonFromDate, resolveSeasonYearFromDate } from "@packages/shared/index.ts";
 import { StoredDataError } from "@/features/errors.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";
-import { type MediaServiceError } from "@/features/media/errors.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
-import { listAnimeEffect } from "@/features/media/query/media-query-list.ts";
-import { getAnimeEffect } from "@/features/media/query/media-query-get.ts";
+import { listMediaEffect } from "@/features/media/query/media-query-list.ts";
+import { getMediaEffect } from "@/features/media/query/media-query-get.ts";
 import {
-  searchAnimeEffect,
-  getAnimeByAnilistIdEffect,
+  searchMediaEffect,
+  getMediaByAnilistIdEffect,
 } from "@/features/media/query/media-query-search.ts";
 import { listEpisodesEffect } from "@/features/media/query/media-query-units.ts";
-import { AnimeSeasonalProviderService } from "@/features/media/query/media-seasonal-provider-service.ts";
-import { listSeasonalAnimeEffect } from "@/features/media/query/media-query-seasonal.ts";
+import { MediaSeasonalProviderService } from "@/features/media/query/media-seasonal-provider-service.ts";
+import { listSeasonalMediaEffect } from "@/features/media/query/media-query-seasonal.ts";
 import { markSearchResultsAlreadyInLibraryEffect } from "@/features/media/query/search-results.ts";
 import { ManamiClient } from "@/features/media/metadata/manami.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
-import {
-  readSeasonalAnimeCache,
-  readStaleSeasonalAnimeCache,
-  writeSeasonalAnimeCache,
-} from "@/features/media/query/seasonal-media-cache.ts";
+import { SeasonalMediaCacheRepository } from "@/features/media/query/seasonal-media-cache-repository.ts";
 
 /** Clamp a number to [min, max]. */
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
-function toSeasonalAnimeCacheKey(input: {
+function toSeasonalMediaCacheKey(input: {
   season: MediaSeason;
   year: number;
   limit: number;
@@ -51,67 +46,69 @@ function toSeasonalAnimeCacheKey(input: {
   return `${input.season}:${input.year}:${input.limit}:${input.page}`;
 }
 
-export interface AnimeQueryServiceShape {
+export interface MediaQueryServiceShape {
   readonly listMedia: (
     params?: MediaListQueryParams,
   ) => Effect.Effect<MediaListResponse, DatabaseError | StoredDataError>;
-  readonly getMedia: (id: number) => Effect.Effect<Media, MediaServiceError | DatabaseError>;
-  readonly searchAnime: (
+  readonly getMedia: (
+    id: number,
+  ) => Effect.Effect<Media, DatabaseError | MediaNotFoundError | StoredDataError>;
+  readonly searchMedia: (
     query: string,
     mediaKind?: MediaKind,
   ) => Effect.Effect<MediaSearchResponse, DatabaseError | ExternalCallError | StoredDataError>;
-  readonly getAnimeByAnilistId: (
+  readonly getMediaByAnilistId: (
     id: number,
     mediaKind?: MediaKind,
   ) => Effect.Effect<MediaSearchResult, MediaNotFoundError | DatabaseError | ExternalCallError>;
   readonly listEpisodes: (mediaId: number) => Effect.Effect<MediaUnit[], DatabaseError>;
-  readonly listSeasonalAnime: (
+  readonly listSeasonalMedia: (
     params?: SeasonalMediaQueryParams,
   ) => Effect.Effect<SeasonalMediaResponse, DatabaseError | ExternalCallError>;
 }
 
-const makeAnimeQueryService = Effect.fn("AnimeQueryService.make")(function* () {
-  const db = yield* AppDrizzleDatabase;
+const makeMediaQueryService = Effect.fn("MediaQueryService.make")(function* () {
   const aniList = yield* AniListClient;
   const manami = yield* ManamiClient;
   const mediaReadRepository = yield* MediaReadRepository;
-  const providerService = yield* AnimeSeasonalProviderService;
+  const providerService = yield* MediaSeasonalProviderService;
+  const seasonalMediaCacheRepository = yield* SeasonalMediaCacheRepository;
 
-  const service: AnimeQueryServiceShape = {
-    getMedia: Effect.fn("AnimeQueryService.getMedia")(function* (id: number) {
-      return yield* getAnimeEffect({ db, id, mediaReadRepository });
+  const service: MediaQueryServiceShape = {
+    getMedia: Effect.fn("MediaQueryService.getMedia")(function* (id: number) {
+      return yield* getMediaEffect({ id, mediaReadRepository });
     }),
-    getAnimeByAnilistId: Effect.fn("AnimeQueryService.getAnimeByAnilistId")(function* (
+    getMediaByAnilistId: Effect.fn("MediaQueryService.getMediaByAnilistId")(function* (
       id: number,
       mediaKind?: MediaKind,
     ) {
-      return yield* getAnimeByAnilistIdEffect({
+      return yield* getMediaByAnilistIdEffect({
         aniList,
-        db,
         id,
+        mediaReadRepository,
         ...(mediaKind === undefined ? {} : { mediaKind }),
       });
     }),
-    listMedia: Effect.fn("AnimeQueryService.listMedia")(function* (params?: MediaListQueryParams) {
-      return yield* listAnimeEffect(db, params);
+    listMedia: Effect.fn("MediaQueryService.listMedia")(function* (params?: MediaListQueryParams) {
+      return yield* listMediaEffect(mediaReadRepository, params);
     }),
-    listEpisodes: Effect.fn("AnimeQueryService.listEpisodes")(function* (mediaId: number) {
+    listEpisodes: Effect.fn("MediaQueryService.listEpisodes")(function* (mediaId: number) {
       const now = yield* DateTime.nowAsDate;
-      return yield* listEpisodesEffect({ mediaId, db, now });
+      return yield* listEpisodesEffect({ mediaId, mediaReadRepository, now });
     }),
-    searchAnime: Effect.fn("AnimeQueryService.searchAnime")(function* (
+    searchMedia: Effect.fn("MediaQueryService.searchMedia")(function* (
       query: string,
       mediaKind?: MediaKind,
     ) {
-      return yield* searchAnimeEffect({
+      return yield* searchMediaEffect({
         aniList,
-        db,
         manami,
+        mediaReadRepository,
         ...(mediaKind === undefined ? {} : { mediaKind }),
         query,
       });
     }),
-    listSeasonalAnime: Effect.fn("AnimeQueryService.listSeasonalAnime")(function* (
+    listSeasonalMedia: Effect.fn("MediaQueryService.listSeasonalMedia")(function* (
       params?: SeasonalMediaQueryParams,
     ) {
       const now = yield* DateTime.nowAsDate;
@@ -120,7 +117,7 @@ const makeAnimeQueryService = Effect.fn("AnimeQueryService.make")(function* () {
       const limit = clamp(params?.limit ?? 12, 1, 50);
       const page = Math.max(1, Math.floor(params?.page ?? 1));
 
-      const cacheKey = toSeasonalAnimeCacheKey({
+      const cacheKey = toSeasonalMediaCacheKey({
         season,
         year,
         limit,
@@ -128,15 +125,18 @@ const makeAnimeQueryService = Effect.fn("AnimeQueryService.make")(function* () {
       });
       const nowMs = now.getTime();
 
-      const cached = yield* readSeasonalAnimeCache(db, cacheKey, nowMs);
+      const cached = yield* seasonalMediaCacheRepository.read(cacheKey, nowMs);
       if (cached !== null) {
-        const markedResults = yield* markSearchResultsAlreadyInLibraryEffect(db, cached.results);
+        const markedResults = yield* markSearchResultsAlreadyInLibraryEffect(
+          mediaReadRepository,
+          cached.results,
+        );
         return { ...cached, results: markedResults };
       }
 
-      const rawResponse = yield* listSeasonalAnimeEffect({
-        db,
+      const rawResponse = yield* listSeasonalMediaEffect({
         limit,
+        mediaReadRepository,
         now,
         page,
         providerService,
@@ -145,7 +145,7 @@ const makeAnimeQueryService = Effect.fn("AnimeQueryService.make")(function* () {
       }).pipe(
         Effect.catchTag("ExternalCallError", (error) =>
           Effect.gen(function* () {
-            const stale = yield* readStaleSeasonalAnimeCache(db, cacheKey);
+            const stale = yield* seasonalMediaCacheRepository.readStale(cacheKey);
             if (stale === null) {
               return yield* error;
             }
@@ -158,13 +158,16 @@ const makeAnimeQueryService = Effect.fn("AnimeQueryService.make")(function* () {
               }),
             );
 
-            const markedResults = yield* markSearchResultsAlreadyInLibraryEffect(db, stale.results);
+            const markedResults = yield* markSearchResultsAlreadyInLibraryEffect(
+              mediaReadRepository,
+              stale.results,
+            );
             return { ...stale, degraded: true, results: markedResults };
           }),
         ),
       );
 
-      yield* writeSeasonalAnimeCache(db, cacheKey, rawResponse, nowMs);
+      yield* seasonalMediaCacheRepository.write(cacheKey, rawResponse, nowMs);
 
       return rawResponse;
     }),
@@ -172,11 +175,11 @@ const makeAnimeQueryService = Effect.fn("AnimeQueryService.make")(function* () {
   return service;
 });
 
-export class AnimeQueryService extends Effect.Service<AnimeQueryService>()(
-  "@bakarr/api/AnimeQueryService",
+export class MediaQueryService extends Effect.Service<MediaQueryService>()(
+  "@bakarr/api/MediaQueryService",
   {
-    effect: makeAnimeQueryService(),
+    effect: makeMediaQueryService(),
   },
 ) {}
 
-export const AnimeQueryServiceLive = AnimeQueryService.Default;
+export const MediaQueryServiceLive = MediaQueryService.Default;

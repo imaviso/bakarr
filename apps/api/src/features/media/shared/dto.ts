@@ -33,9 +33,9 @@ function deriveDownloadedPercent(downloaded: number, total?: number) {
   return Math.min(100, Math.round((downloaded / total) * 100));
 }
 
-export const toAnimeDto = Effect.fn("AnimeDto.toAnimeDto")(function* (
+export const toMediaDto = Effect.fn("MediaDto.toMediaDto")(function* (
   row: typeof media.$inferSelect,
-  episodeRows: Array<typeof mediaUnits.$inferSelect>,
+  episodeRows: readonly (typeof mediaUnits.$inferSelect)[],
   discovery?: AnimeDiscoveryMetadata,
 ) {
   const downloadedUnits = episodeRows

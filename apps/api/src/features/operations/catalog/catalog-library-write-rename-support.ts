@@ -1,7 +1,7 @@
 import { Effect, Either } from "effect";
 
 import { brandMediaId, type Config } from "@packages/shared/index.ts";
-import type { AppDatabase, DatabaseError } from "@/db/database.ts";
+import type { DatabaseError } from "@/db/database.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { buildRenamePreview } from "@/features/operations/library/library-import.ts";
@@ -11,7 +11,6 @@ import { MediaReadRepository } from "@/features/media/shared/media-read-reposito
 import type { MediaUnitRepositoryShape } from "@/features/media/units/media-unit-repository.ts";
 
 export interface RenameLibraryFilesInput {
-  readonly db: AppDatabase;
   readonly eventBus: typeof EventBus.Service;
   readonly fs: FileSystemShape;
   readonly mediaReadRepository: typeof MediaReadRepository.Service;
@@ -26,11 +25,10 @@ export const renameLibraryFiles = Effect.fn("Operations.renameLibraryFiles")((
   { failed: number; failures: string[]; renamed: number },
   DatabaseError | MediaNotFoundError
 > => {
-  const { db, eventBus, fs, mediaReadRepository, mediaUnitRepository, runtimeConfig, mediaId } =
-    input;
+  const { eventBus, fs, mediaReadRepository, mediaUnitRepository, runtimeConfig, mediaId } = input;
   return Effect.gen(function* () {
-    const animeRow = yield* mediaReadRepository.getAnimeRow(mediaId);
-    const preview = yield* buildRenamePreview(db, mediaId, runtimeConfig, mediaReadRepository);
+    const animeRow = yield* mediaReadRepository.getMediaRow(mediaId);
+    const preview = yield* buildRenamePreview(mediaId, runtimeConfig, mediaReadRepository);
 
     yield* eventBus.publish({
       type: "RenameStarted",

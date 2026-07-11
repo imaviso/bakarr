@@ -17,4 +17,5 @@ Common domain errors map once in `http/shared/route-errors/index.ts`. Feature ro
 - HTTP status mapping for shared domain failures has one seam.
 - Feature mappers no longer depend on route mapper order for common error classes.
 - Feature-specific HTTP behavior requires a feature-specific tagged error rather than an alias of a shared domain error.
-- Prefer boundary-specific tags that survive orchestration (e.g. `QBitTorrentClientError`, RSS feed errors) over collapsing into `InfrastructureError` then remapping at HTTP. Map those tags in the feature route-error module.
+- Prefer boundary-specific tags that survive orchestration (e.g. `QBitTorrentClientError`, RSS feed errors, `ImportFileError`) over collapsing into `InfrastructureError` then remapping at HTTP. Map those tags in the feature route-error module.
+- Do not maintain mega-unions (`OperationsError`) or type-guards that re-list every feature error; use method-local error unions.

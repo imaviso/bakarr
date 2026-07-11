@@ -4,22 +4,22 @@ import type { ScannerState } from "@packages/shared/index.ts";
 import { media } from "@/db/schema.ts";
 import { buildUnmappedFolderSearchQueries } from "@/features/operations/unmapped/unmapped-folders.ts";
 import {
-  findBestLocalAnimeMatch,
-  scoreAnimeRowMatch,
+  findBestLocalMediaMatch,
+  scoreMediaRowMatch,
 } from "@/features/operations/library/library-import-analysis-support.ts";
-import { toAnimeSearchCandidate } from "@/features/operations/library/library-import.ts";
+import { toMediaSearchCandidate } from "@/features/operations/library/library-import.ts";
 
-export const findLocalFolderAnimeMatch = Effect.fn("OperationsService.findLocalFolderAnimeMatch")(
+export const findLocalFolderMediaMatch = Effect.fn("OperationsService.findLocalFolderMediaMatch")(
   function* (folderName: string, animeRows: ReadonlyArray<typeof media.$inferSelect>) {
     const queries = buildUnmappedFolderSearchQueries(folderName);
 
     for (const [index, query] of queries.entries()) {
-      const match = findBestLocalAnimeMatch(query, [...animeRows]);
+      const match = findBestLocalMediaMatch(query, [...animeRows]);
 
       if (match) {
         return {
-          ...(yield* toAnimeSearchCandidate(match)),
-          match_confidence: roundConfidence(scoreAnimeRowMatch(query, match)),
+          ...(yield* toMediaSearchCandidate(match)),
+          match_confidence: roundConfidence(scoreMediaRowMatch(query, match)),
           match_reason:
             index === 0
               ? `Matched a library title from the normalized folder name "${folderName}"`
@@ -37,7 +37,7 @@ export const mergeLocalFolderMatch = Effect.fn("OperationsService.mergeLocalFold
     folder: ScannerState["folders"][number],
     animeRows: ReadonlyArray<typeof media.$inferSelect>,
   ) {
-    const localMatch = yield* findLocalFolderAnimeMatch(folder.name, animeRows);
+    const localMatch = yield* findLocalFolderMediaMatch(folder.name, animeRows);
 
     if (!localMatch) {
       return folder;

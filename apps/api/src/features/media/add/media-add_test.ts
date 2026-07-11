@@ -6,11 +6,11 @@ import { brandMediaId } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
 import { media, qualityProfiles } from "@/db/schema.ts";
-import { AddAnimeInput } from "@/features/media/add/add-media-input.ts";
-import { addAnimeEffect } from "@/features/media/add/media-add.ts";
+import { AddMediaInput } from "@/features/media/add/add-media-input.ts";
+import { addMediaEffect } from "@/features/media/add/media-add.ts";
 import type { AnimeMetadata } from "@/features/media/metadata/anilist-model.ts";
-import { AnimeImageCacheService } from "@/features/media/metadata/media-image-cache-service.ts";
-import { AnimeMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
+import { MediaImageCacheService } from "@/features/media/metadata/media-image-cache-service.ts";
+import { MediaMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
 import {
   decodeStoredDiscoveryEntriesEffect,
   decodeStoredSynonymsEffect,
@@ -20,8 +20,10 @@ import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { makeMediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import { makeMediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
+import { makeQualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
+import { makeSystemConfigRepository } from "@/features/system/repository/system-config-repository.ts";
 
-it.scoped("addAnimeEffect persists MAL backfill and mapped relation metadata", () =>
+it.scoped("addMediaEffect persists MAL backfill and mapped relation metadata", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -44,7 +46,7 @@ it.scoped("addAnimeEffect persists MAL backfill and mapped relation metadata", (
         };
 
         const events: Array<{ type: string; message?: string }> = [];
-        const animeInput = yield* Schema.decodeUnknown(AddAnimeInput)({
+        const animeInput = yield* Schema.decodeUnknown(AddMediaInput)({
           id: mediaId,
           monitor_and_search: false,
           monitored: true,
@@ -54,8 +56,8 @@ it.scoped("addAnimeEffect persists MAL backfill and mapped relation metadata", (
           use_existing_root: true,
         });
 
-        yield* addAnimeEffect({
-          metadataProvider: AnimeMetadataProviderService.make({
+        yield* addMediaEffect({
+          metadataProvider: MediaMetadataProviderService.make({
             getAnimeMetadataById: () =>
               Effect.succeed({
                 _tag: "Found",
@@ -67,7 +69,6 @@ it.scoped("addAnimeEffect persists MAL backfill and mapped relation metadata", (
               }),
           }),
           animeInput,
-          db: appDb,
           eventPublisher: {
             publish: (event) =>
               Effect.sync(() => {
@@ -79,7 +80,7 @@ it.scoped("addAnimeEffect persists MAL backfill and mapped relation metadata", (
               }),
           },
           fs: makeFileSystemStub(),
-          imageCacheService: AnimeImageCacheService.make({
+          imageCacheService: MediaImageCacheService.make({
             cacheMetadataImages: () =>
               Effect.succeed({
                 bannerImage: "/api/images/media/601/banner.jpg",
@@ -88,6 +89,8 @@ it.scoped("addAnimeEffect persists MAL backfill and mapped relation metadata", (
           }),
           mediaReadRepository: makeMediaReadRepository(appDb),
           mediaUnitRepository: makeMediaUnitRepository(appDb),
+          qualityProfileRepository: makeQualityProfileRepository(appDb),
+          systemConfigRepository: makeSystemConfigRepository(appDb),
           nowIso: () => Effect.succeed("2026-04-11T00:00:00.000Z"),
         });
 
@@ -121,7 +124,7 @@ it.scoped("addAnimeEffect persists MAL backfill and mapped relation metadata", (
   }),
 );
 
-it.scoped("addAnimeEffect infers light novel media kind when request omits it", () =>
+it.scoped("addMediaEffect infers light novel media kind when request omits it", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -130,7 +133,7 @@ it.scoped("addAnimeEffect infers light novel media kind when request omits it", 
 
         yield* insertQualityProfileEffect(appDb, "Default");
 
-        const animeInput = yield* Schema.decodeUnknown(AddAnimeInput)({
+        const animeInput = yield* Schema.decodeUnknown(AddMediaInput)({
           id: mediaId,
           monitor_and_search: false,
           monitored: true,
@@ -140,8 +143,8 @@ it.scoped("addAnimeEffect infers light novel media kind when request omits it", 
           use_existing_root: true,
         });
 
-        yield* addAnimeEffect({
-          metadataProvider: AnimeMetadataProviderService.make({
+        yield* addMediaEffect({
+          metadataProvider: MediaMetadataProviderService.make({
             getAnimeMetadataById: () =>
               Effect.succeed({
                 _tag: "Found",
@@ -153,14 +156,15 @@ it.scoped("addAnimeEffect infers light novel media kind when request omits it", 
               }),
           }),
           animeInput,
-          db: appDb,
           eventPublisher: { publish: () => Effect.void },
           fs: makeFileSystemStub(),
-          imageCacheService: AnimeImageCacheService.make({
+          imageCacheService: MediaImageCacheService.make({
             cacheMetadataImages: () => Effect.succeed({}),
           }),
           mediaReadRepository: makeMediaReadRepository(appDb),
           mediaUnitRepository: makeMediaUnitRepository(appDb),
+          qualityProfileRepository: makeQualityProfileRepository(appDb),
+          systemConfigRepository: makeSystemConfigRepository(appDb),
           nowIso: () => Effect.succeed("2026-04-11T00:00:00.000Z"),
         });
 

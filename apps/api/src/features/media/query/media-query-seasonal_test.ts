@@ -9,10 +9,11 @@ import {
 } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
-import { listSeasonalAnimeEffect } from "@/features/media/query/media-query-seasonal.ts";
+import { listSeasonalMediaEffect } from "@/features/media/query/media-query-seasonal.ts";
+import { makeMediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 
-describe("listSeasonalAnimeEffect", () => {
+describe("listSeasonalMediaEffect", () => {
   it("resolves defaults from now + marks already_in_library", () =>
     withSqliteTestDbEffect({
       run: (db) =>
@@ -38,8 +39,8 @@ describe("listSeasonalAnimeEffect", () => {
 
           const now = new Date("2025-06-15T12:00:00Z");
 
-          const result = yield* listSeasonalAnimeEffect({
-            db: appDb,
+          const result = yield* listSeasonalMediaEffect({
+            mediaReadRepository: makeMediaReadRepository(appDb),
             now,
             providerService: {
               getSeasonalAnime: (input: {
@@ -97,8 +98,8 @@ describe("listSeasonalAnimeEffect", () => {
         Effect.gen(function* () {
           const appDb: AppDatabase = db;
 
-          const result = yield* listSeasonalAnimeEffect({
-            db: appDb,
+          const result = yield* listSeasonalMediaEffect({
+            mediaReadRepository: makeMediaReadRepository(appDb),
             limit: 5,
             now: new Date("2025-06-15T12:00:00Z"),
             providerService: {

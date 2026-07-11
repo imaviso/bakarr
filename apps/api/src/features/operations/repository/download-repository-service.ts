@@ -1,8 +1,22 @@
 import { and, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
-import { Effect } from "effect";
+import { Effect, type Stream } from "effect";
 
+import type {
+  DownloadEvent,
+  DownloadEventsPage,
+  DownloadHistoryPage,
+} from "@packages/shared/index.ts";
 import { AppDrizzleDatabase, DatabaseError, type AppDatabase } from "@/db/database.ts";
 import { downloadEvents, downloads, media, mediaUnits, systemLogs } from "@/db/schema.ts";
+import {
+  listDownloadEvents as listDownloadEventsPage,
+  listDownloadHistory as listDownloadHistoryPage,
+  loadDownloadEventExportHeader as loadDownloadEventExportHeaderPage,
+  streamDownloadEvents as streamDownloadEventsPage,
+  type DownloadEventExportHeader,
+  type DownloadEventExportQuery,
+  type DownloadEventListQuery,
+} from "@/features/operations/repository/download-catalog-read.ts";
 import { loadDownloadPresentationContexts } from "@/features/operations/repository/download-presentation-repository.ts";
 import {
   deleteDownloadRow,
@@ -14,6 +28,12 @@ import {
 import type { DownloadPresentationContext } from "@/features/operations/repository/types.ts";
 import { StoredDataError } from "@/features/errors.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
+
+export type {
+  DownloadEventExportHeader,
+  DownloadEventExportQuery,
+  DownloadEventListQuery,
+} from "@/features/operations/repository/download-catalog-read.ts";
 
 type DownloadRow = typeof downloads.$inferSelect;
 type MediaUnitRow = typeof mediaUnits.$inferSelect;
@@ -97,6 +117,13 @@ export interface DownloadRepositoryShape {
   readonly listActiveDownloadRows: (
     limit?: number,
   ) => Effect.Effect<readonly DownloadRow[], DatabaseError>;
+  readonly listDownloadEvents: (
+    input?: DownloadEventListQuery,
+  ) => Effect.Effect<DownloadEventsPage, DatabaseError | StoredDataError>;
+  readonly listDownloadHistory: (input?: {
+    readonly cursor?: string;
+    readonly limit?: number;
+  }) => Effect.Effect<DownloadHistoryPage, DatabaseError | StoredDataError>;
   readonly listDownloadsByInfoHashes: (
     infoHashes: readonly string[],
   ) => Effect.Effect<readonly DownloadRow[], DatabaseError>;
@@ -110,6 +137,10 @@ export interface DownloadRepositoryShape {
   readonly loadDownloadByInfoHash: (
     infoHash: string,
   ) => Effect.Effect<DownloadRow | undefined, DatabaseError>;
+  readonly loadDownloadEventExportHeader: (
+    input: DownloadEventExportQuery | undefined,
+    generatedAt: string,
+  ) => Effect.Effect<DownloadEventExportHeader, DatabaseError>;
   readonly loadMediaUnitsByNumbers: (
     mediaId: number,
     numbers: readonly number[],
@@ -117,6 +148,9 @@ export interface DownloadRepositoryShape {
   readonly loadPresentationContexts: (
     rows: readonly DownloadRow[],
   ) => Effect.Effect<Map<number, DownloadPresentationContext>, DatabaseError | StoredDataError>;
+  readonly streamDownloadEvents: (
+    input?: DownloadEventExportQuery,
+  ) => Stream.Stream<DownloadEvent, DatabaseError | StoredDataError>;
   readonly lookupDownloadByInfoHash: (
     infoHash: string,
   ) => Effect.Effect<{ id: number; status: string } | undefined, DatabaseError>;
@@ -168,13 +202,18 @@ function makeDownloadRepositoryShape(db: AppDatabase): DownloadRepositoryShape {
     insertQueuedDownloadRow: (input) => insertQueuedDownloadRow(db, input),
     countActiveDownloads: () => countActiveDownloads(db),
     listActiveDownloadRows: (limit) => listActiveDownloadRows(db, limit),
+    listDownloadEvents: (input) => listDownloadEventsPage(db, input),
+    listDownloadHistory: (input) => listDownloadHistoryPage(db, input),
     listDownloadsByInfoHashes: (infoHashes) => listDownloadsByInfoHashes(db, infoHashes),
     listDownloadsByMediaId: (mediaId) => listDownloadsByMediaId(db, mediaId),
     listMissingEpisodeNumbers: (mediaId) => listMissingEpisodeNumbers(db, mediaId),
     loadDownloadById: (id) => loadDownloadById(db, id),
     loadDownloadByInfoHash: (infoHash) => loadDownloadByInfoHash(db, infoHash),
+    loadDownloadEventExportHeader: (input, generatedAt) =>
+      loadDownloadEventExportHeaderPage(db, input, generatedAt),
     loadMediaUnitsByNumbers: (mediaId, numbers) => loadMediaUnitsByNumbers(db, mediaId, numbers),
     loadPresentationContexts: (rows) => loadPresentationContexts(db, rows),
+    streamDownloadEvents: (input) => streamDownloadEventsPage(db, input),
     lookupDownloadByInfoHash: (infoHash) => lookupDownloadByInfoHash(db, infoHash),
     lookupMediaKind: (mediaId) => lookupMediaKind(db, mediaId),
     markDownloadReconciled: (input) => markDownloadReconciled(db, input),

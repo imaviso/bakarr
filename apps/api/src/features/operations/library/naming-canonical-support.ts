@@ -13,10 +13,10 @@ import {
 import type { ProbedMediaMetadata } from "@/infra/media/probe.ts";
 import {
   buildEpisodeNamingInputFromPath,
-  selectAnimeYearForNaming,
+  selectMediaYearForNaming,
 } from "@/features/operations/library/naming-metadata-support.ts";
 import { resolveFilenameRenderPlan } from "@/features/operations/library/naming-format-support.ts";
-import { selectAnimeTitleForNamingDetails } from "@/features/operations/library/naming-title-support.ts";
+import { selectMediaTitleForNamingDetails } from "@/features/operations/library/naming-title-support.ts";
 import type {
   CanonicalEpisodeNamingInput,
   EpisodeFilenamePlan,
@@ -82,7 +82,7 @@ export function buildCanonicalEpisodeNamingInput(input: {
         normalizeText(input.downloadSourceMetadata?.video_codec) ??
         pathInput.videoCodec ??
         input.localMediaMetadata?.video_codec,
-      year: selectAnimeYearForNaming({
+      year: selectMediaYearForNaming({
         ...(input.animeEndDate === undefined ? {} : { endDate: input.animeEndDate }),
         ...(input.animeEndYear === undefined ? {} : { endYear: input.animeEndYear }),
         ...(input.animeStartDate === undefined ? {} : { startDate: input.animeStartDate }),
@@ -114,7 +114,7 @@ export function buildEpisodeFilenamePlan(input: {
   downloadSourceMetadata?: DownloadSourceMetadata;
   localMediaMetadata?: ProbedMediaMetadata;
 }): EpisodeFilenamePlan {
-  const titleSelection = selectAnimeTitleForNamingDetails(input.animeRow, input.preferredTitle);
+  const titleSelection = selectMediaTitleForNamingDetails(input.animeRow, input.preferredTitle);
   const canonical = buildCanonicalEpisodeNamingInput({
     ...(input.animeRow.endDate === undefined ? {} : { animeEndDate: input.animeRow.endDate }),
     ...(input.animeRow.endYear === undefined ? {} : { animeEndYear: input.animeRow.endYear }),

@@ -22,7 +22,7 @@ export interface EpisodeFilenamePlan {
   readonly warnings: readonly string[];
 }
 
-export interface SelectedAnimeTitleForNaming {
+export interface SelectedMediaTitleForNaming {
   readonly title: string;
   readonly source: NamingTitleSource;
 }

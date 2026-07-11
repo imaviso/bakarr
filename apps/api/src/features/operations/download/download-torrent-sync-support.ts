@@ -1,7 +1,6 @@
 import { Effect } from "effect";
 
 import type { Config, DownloadSourceMetadata } from "@packages/shared/index.ts";
-import type { DatabaseError } from "@/db/database.ts";
 import type { downloads } from "@/db/schema.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import {
@@ -18,17 +17,13 @@ import {
   DownloadRepository,
   type TorrentSyncUpdate,
 } from "@/features/operations/repository/download-repository-service.ts";
-import type { OperationsError } from "@/features/operations/errors.ts";
 import { mapQBitState } from "@/features/operations/qbittorrent/qbittorrent.ts";
-import {
-  RuntimeConfigSnapshotService,
-  type RuntimeConfigSnapshotError,
-} from "@/features/system/runtime-config-snapshot-service.ts";
+import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
 import { durationMsSince } from "@/infra/logging.ts";
 import { currentTimeNanos, nowIso as currentNowIso } from "@/infra/time.ts";
+import type { ReconcileCompletedError } from "@/features/operations/download/download-reconciliation.ts";
 import { DownloadReconciliationService } from "@/features/operations/download/download-reconciliation-service.ts";
-import type { InfrastructureError } from "@/features/errors.ts";
 
 function shouldReconcileCompletedDownloads(config: Config | null) {
   return config?.downloads.reconcile_completed_downloads ?? true;
@@ -36,15 +31,11 @@ function shouldReconcileCompletedDownloads(config: Config | null) {
 
 const TORRENT_SYNC_UPDATE_CHUNK_SIZE = 50;
 
+export type DownloadTorrentSyncError = ReconcileCompletedError;
+
 export interface DownloadTorrentSyncSupportShape {
-  readonly syncDownloads: () => Effect.Effect<
-    void,
-    DatabaseError | InfrastructureError | OperationsError | RuntimeConfigSnapshotError
-  >;
-  readonly syncDownloadsWithQBitEffect: () => Effect.Effect<
-    void,
-    OperationsError | RuntimeConfigSnapshotError
-  >;
+  readonly syncDownloads: () => Effect.Effect<void, DownloadTorrentSyncError>;
+  readonly syncDownloadsWithQBitEffect: () => Effect.Effect<void, DownloadTorrentSyncError>;
 }
 
 export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSyncService>()(

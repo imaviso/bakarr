@@ -1,10 +1,10 @@
 import { assert, it } from "@effect/vitest";
 import { Schema } from "effect";
 
-import { AddAnimeInput } from "@/features/media/add/add-media-input.ts";
+import { AddMediaInput } from "@/features/media/add/add-media-input.ts";
 
-it("AddAnimeInput decodes valid payload", () => {
-  const result = Schema.decodeUnknownEither(AddAnimeInput)({
+it("AddMediaInput decodes valid payload", () => {
+  const result = Schema.decodeUnknownEither(AddMediaInput)({
     id: 42,
     monitor_and_search: true,
     monitored: true,
@@ -20,8 +20,8 @@ it("AddAnimeInput decodes valid payload", () => {
   }
 });
 
-it("AddAnimeInput rejects negative ids", () => {
-  const result = Schema.decodeUnknownEither(AddAnimeInput)({
+it("AddMediaInput rejects negative ids", () => {
+  const result = Schema.decodeUnknownEither(AddMediaInput)({
     id: -1,
     monitor_and_search: true,
     monitored: true,
@@ -32,13 +32,13 @@ it("AddAnimeInput rejects negative ids", () => {
   assert.deepStrictEqual(result._tag, "Left");
 });
 
-it("AddAnimeInput rejects missing required fields", () => {
-  const result = Schema.decodeUnknownEither(AddAnimeInput)({});
+it("AddMediaInput rejects missing required fields", () => {
+  const result = Schema.decodeUnknownEither(AddMediaInput)({});
   assert.deepStrictEqual(result._tag, "Left");
 });
 
-it("AddAnimeInput accepts use_existing_root option", () => {
-  const result = Schema.decodeUnknownEither(AddAnimeInput)({
+it("AddMediaInput accepts use_existing_root option", () => {
+  const result = Schema.decodeUnknownEither(AddMediaInput)({
     id: 5,
     monitor_and_search: false,
     monitored: true,

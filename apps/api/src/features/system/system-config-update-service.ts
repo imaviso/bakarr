@@ -53,8 +53,8 @@ const makeSystemConfigUpdateService = Effect.fn("SystemConfigUpdateService.make"
     });
     const normalizedConfig = yield* normalizeConfig(effectiveConfig);
     yield* validateConfigUpdate({
-      countAnimeUsingProfile: (profileName) =>
-        qualityProfileRepository.countAnimeUsingProfile(profileName),
+      countMediaUsingProfile: (profileName) =>
+        qualityProfileRepository.countMediaUsingProfile(profileName),
       existingProfileRows,
       nextConfig: normalizedConfig,
     });

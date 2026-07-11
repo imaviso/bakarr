@@ -1,10 +1,13 @@
 import { Effect, Ref } from "effect";
 
 import type { AppDatabase, DatabaseError } from "@/db/database.ts";
-import { media } from "@/db/schema.ts";
 import { AppDrizzleDatabase } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { DomainPathError, InfrastructureError } from "@/features/errors.ts";
+import {
+  MediaReadRepository,
+  type MediaReadRepositoryShape,
+} from "@/features/media/shared/media-read-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import {
   markJobFailed,
@@ -13,8 +16,7 @@ import {
 } from "@/features/operations/shared/job-support.ts";
 import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
 import { FileSystem, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
-import { tryDatabasePromise, type TryDatabasePromise } from "@/infra/effect/db.ts";
-import { scanAnimeLibraryRow } from "@/features/operations/catalog/catalog-library-scan-row-support.ts";
+import { scanMediaLibraryRow } from "@/features/operations/catalog/catalog-library-scan-row-support.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { markJobFailureOrFailWithError } from "@/infra/job-failure-support.ts";
 
@@ -29,10 +31,10 @@ function makeCatalogLibraryScanSupport(input: {
   db: AppDatabase;
   eventBus: typeof EventBus.Service;
   fs: FileSystemShape;
+  mediaReadRepository: MediaReadRepositoryShape;
   mediaUnitRepository: import("@/features/media/units/media-unit-repository.ts").MediaUnitRepositoryShape;
   nowIso: () => Effect.Effect<string>;
   publishLibraryScanProgress: (scanned: number) => Effect.Effect<void>;
-  tryDatabasePromise: TryDatabasePromise;
 }): CatalogLibraryScanServiceShape {
   const { nowIso } = input;
   const failAfterMarkingJobFailure = (
@@ -54,9 +56,10 @@ function makeCatalogLibraryScanSupport(input: {
       yield* Effect.annotateCurrentSpan("job", "library_scan");
       yield* markJobStarted(input.db, "library_scan", nowIso);
 
-      const animeRows = yield* input.tryDatabasePromise("Failed to run library scan", () =>
-        input.db.select().from(media),
-      );
+      const animeRows = yield* input.mediaReadRepository.listMediaRows({
+        limit: Number.MAX_SAFE_INTEGER,
+        offset: 0,
+      });
       yield* Effect.annotateCurrentSpan("mediaCount", animeRows.length);
       const scannedRef = yield* Ref.make(0);
       const matchedRef = yield* Ref.make(0);
@@ -66,7 +69,7 @@ function makeCatalogLibraryScanSupport(input: {
       yield* Effect.forEach(
         animeRows,
         (animeRow) =>
-          scanAnimeLibraryRow(input.mediaUnitRepository, input.fs, animeRow).pipe(
+          scanMediaLibraryRow(input.mediaUnitRepository, input.fs, animeRow).pipe(
             Effect.tap(({ scannedFiles, matchedFiles }) =>
               Effect.gen(function* () {
                 const newScanned = yield* Ref.updateAndGet(scannedRef, (n) => n + scannedFiles);
@@ -113,6 +116,7 @@ export class CatalogLibraryScanService extends Effect.Service<CatalogLibraryScan
       const db = yield* AppDrizzleDatabase;
       const eventBus = yield* EventBus;
       const fs = yield* FileSystem;
+      const mediaReadRepository = yield* MediaReadRepository;
       const mediaUnitRepository = yield* MediaUnitRepository;
       const progress = yield* OperationsProgress;
 
@@ -120,13 +124,13 @@ export class CatalogLibraryScanService extends Effect.Service<CatalogLibraryScan
         db,
         eventBus,
         fs,
+        mediaReadRepository,
         mediaUnitRepository,
         nowIso: currentNowIso,
         publishLibraryScanProgress: progress.publishLibraryScanProgress,
-        tryDatabasePromise,
       });
     }),
-    dependencies: [AppDrizzleDatabase.Default],
+    dependencies: [AppDrizzleDatabase.Default, MediaReadRepository.Default],
   },
 ) {}
 

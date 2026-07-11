@@ -63,7 +63,7 @@ const makeQualityProfileService = Effect.fn("QualityProfileService.make")(functi
   });
 
   const deleteProfile = Effect.fn("QualityProfileService.deleteProfile")(function* (name: string) {
-    const referencingAnime = yield* qualityProfileRepository.countAnimeUsingProfile(name);
+    const referencingAnime = yield* qualityProfileRepository.countMediaUsingProfile(name);
 
     if (referencingAnime > 0) {
       return yield* new ConfigValidationError({

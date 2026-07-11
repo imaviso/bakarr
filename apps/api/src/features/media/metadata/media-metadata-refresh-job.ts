@@ -1,35 +1,33 @@
-import { eq } from "drizzle-orm";
 import { Cause, Effect, Option } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
-import { media } from "@/db/schema.ts";
-import { AnimeImageCacheService } from "@/features/media/metadata/media-image-cache-service.ts";
-import type { AnimeMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
-import { syncAnimeMetadataEffect } from "@/features/media/metadata/media-metadata-sync.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { MediaImageCacheService } from "@/features/media/metadata/media-image-cache-service.ts";
+import type { MediaMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
+import { syncMediaMetadataEffect } from "@/features/media/metadata/media-metadata-sync.ts";
 import {
   formatJobFailureMessage,
   markJobFailed,
   markJobStarted,
   markJobSucceeded,
 } from "@/infra/job-status.ts";
-import { appendSystemLog } from "@/features/system/support.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
 import { markJobFailureOrFailWithError } from "@/infra/job-failure-support.ts";
 import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
 import type { MediaUnitRepositoryShape } from "@/features/media/units/media-unit-repository.ts";
+import type { SystemLogRepositoryShape } from "@/features/system/repository/log-repository.ts";
 
 type MetadataRefreshError = DatabaseError | ExternalCallError;
 
-export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
-  "AnimeService.refreshMetadataForMonitoredAnimeEffect",
+export const refreshMetadataForMonitoredMediaEffect = Effect.fn(
+  "MediaService.refreshMetadataForMonitoredMediaEffect",
 )(function* (input: {
-  imageCacheService: typeof AnimeImageCacheService.Service;
-  metadataProvider: typeof AnimeMetadataProviderService.Service;
+  imageCacheService: typeof MediaImageCacheService.Service;
+  metadataProvider: typeof MediaMetadataProviderService.Service;
   db: AppDatabase;
   mediaReadRepository: MediaReadRepositoryShape;
   mediaUnitRepository: MediaUnitRepositoryShape;
+  systemLogRepository: SystemLogRepositoryShape;
   nowIso: () => Effect.Effect<string, MetadataRefreshError>;
   refreshConcurrency: number;
 }) {
@@ -48,26 +46,22 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
     }).pipe(
       Effect.catchTag("JobFailurePersistenceError", () => Effect.void),
       Effect.zipRight(
-        appendSystemLog(
-          input.db,
-          "system.task.metadata_refresh.failed",
-          "error",
-          message,
-          nowIso,
-        ).pipe(
-          Effect.catchAllCause((appendLogCause) =>
-            Effect.logError("Failed to append metadata refresh failure log").pipe(
-              Effect.annotateLogs({
-                append_log_cause: Cause.pretty(appendLogCause),
-                job: "metadata_refresh",
-                run_failure: error.message,
-              }),
-              Effect.zipRight(
-                Effect.failCause(Cause.sequential(Cause.fail(error), appendLogCause)),
+        input.systemLogRepository
+          .appendLog("system.task.metadata_refresh.failed", "error", message, nowIso)
+          .pipe(
+            Effect.catchAllCause((appendLogCause) =>
+              Effect.logError("Failed to append metadata refresh failure log").pipe(
+                Effect.annotateLogs({
+                  append_log_cause: Cause.pretty(appendLogCause),
+                  job: "metadata_refresh",
+                  run_failure: error.message,
+                }),
+                Effect.zipRight(
+                  Effect.failCause(Cause.sequential(Cause.fail(error), appendLogCause)),
+                ),
               ),
             ),
           ),
-        ),
       ),
       Effect.zipRight(Effect.fail(error)),
     );
@@ -87,34 +81,36 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
     }).pipe(
       Effect.catchTag("JobFailurePersistenceError", () => Effect.void),
       Effect.zipRight(
-        appendSystemLog(
-          input.db,
-          "system.task.metadata_refresh.failed",
-          "error",
-          formatJobFailureMessage(cause),
-          nowIso,
-        ).pipe(
-          Effect.catchAllCause((appendLogCause) =>
-            Effect.logError("Failed to append metadata refresh infrastructure failure log").pipe(
-              Effect.annotateLogs({
-                append_log_cause: Cause.pretty(appendLogCause),
-                job: "metadata_refresh",
-                run_failure_cause: Cause.pretty(cause),
-              }),
-              Effect.zipRight(
-                Effect.failCause(Cause.sequential(Cause.fail(infrastructureError), appendLogCause)),
+        input.systemLogRepository
+          .appendLog(
+            "system.task.metadata_refresh.failed",
+            "error",
+            formatJobFailureMessage(cause),
+            nowIso,
+          )
+          .pipe(
+            Effect.catchAllCause((appendLogCause) =>
+              Effect.logError("Failed to append metadata refresh infrastructure failure log").pipe(
+                Effect.annotateLogs({
+                  append_log_cause: Cause.pretty(appendLogCause),
+                  job: "metadata_refresh",
+                  run_failure_cause: Cause.pretty(cause),
+                }),
+                Effect.zipRight(
+                  Effect.failCause(
+                    Cause.sequential(Cause.fail(infrastructureError), appendLogCause),
+                  ),
+                ),
               ),
             ),
           ),
-        ),
       ),
       Effect.zipRight(Effect.fail(infrastructureError)),
     );
   };
 
   yield* markJobStarted(input.db, "metadata_refresh", nowIso);
-  yield* appendSystemLog(
-    input.db,
+  yield* input.systemLogRepository.appendLog(
     "system.task.metadata_refresh.started",
     "info",
     "Metadata refresh started",
@@ -122,33 +118,31 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
   );
 
   return yield* Effect.gen(function* () {
-    const monitoredAnime = yield* tryDatabasePromise("Failed to refresh metadata", () =>
-      input.db.select({ id: media.id }).from(media).where(eq(media.monitored, true)),
-    );
+    const monitoredMediaIds = yield* input.mediaReadRepository.listMonitoredMediaIds();
     let refreshed = 0;
     let skippedExternal = 0;
 
     yield* Effect.forEach(
-      monitoredAnime,
-      (monitored) =>
+      monitoredMediaIds,
+      (mediaId) =>
         Effect.gen(function* () {
-          const { metadata, nextAnimeRow } = yield* syncAnimeMetadataEffect({
+          const { metadata, nextAnimeRow } = yield* syncMediaMetadataEffect({
             imageCacheService: input.imageCacheService,
             metadataProvider: input.metadataProvider,
-            mediaId: monitored.id,
-            db: input.db,
+            mediaId,
             eventPublisher: Option.none(),
             mediaReadRepository: input.mediaReadRepository,
+            systemLogRepository: input.systemLogRepository,
             nowIso,
           });
 
           yield* input.mediaUnitRepository.syncEpisodeSchedule(
-            monitored.id,
+            mediaId,
             nextAnimeRow,
             metadata?.futureAiringSchedule,
             nowIso,
           );
-          yield* input.mediaUnitRepository.syncEpisodeMetadata(monitored.id, metadata?.mediaUnits);
+          yield* input.mediaUnitRepository.syncEpisodeMetadata(mediaId, metadata?.mediaUnits);
           refreshed += 1;
         }).pipe(
           Effect.catchTag("ExternalCallError", (error) =>
@@ -156,7 +150,7 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
               "Skipping metadata refresh for media after external call failure",
             ).pipe(
               Effect.annotateLogs({
-                mediaId: monitored.id,
+                mediaId,
                 externalOperation: error.operation,
               }),
               Effect.tap(() =>
@@ -176,8 +170,7 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
         : `Refreshed ${refreshed} monitored media (${skippedExternal} skipped due external failures)`;
 
     yield* markJobSucceeded(input.db, "metadata_refresh", message, nowIso);
-    yield* appendSystemLog(
-      input.db,
+    yield* input.systemLogRepository.appendLog(
       "system.task.metadata_refresh.completed",
       "success",
       message,

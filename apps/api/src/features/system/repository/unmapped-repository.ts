@@ -13,7 +13,7 @@ import { queryFirst, tryDatabasePromise } from "@/infra/effect/db.ts";
 import { buildUnmappedFolderSearchQueries } from "@/features/operations/unmapped/unmapped-folders.ts";
 import { StoredUnmappedFolderCorruptError } from "@/features/system/errors.ts";
 
-const AnimeSearchResultListSchema = Schema.Array(MediaSearchResultSchema);
+const MediaSearchResultListSchema = Schema.Array(MediaSearchResultSchema);
 
 export interface SystemUnmappedRepositoryShape {
   readonly listMatchRows: () => ReturnType<typeof listUnmappedFolderMatchRows>;
@@ -38,8 +38,8 @@ export class SystemUnmappedRepository extends Effect.Service<SystemUnmappedRepos
   },
 ) {}
 
-const encodeAnimeSearchResultList = (path: string, matches: UnmappedFolder["suggested_matches"]) =>
-  Schema.encode(Schema.parseJson(AnimeSearchResultListSchema))(matches).pipe(
+const encodeMediaSearchResultList = (path: string, matches: UnmappedFolder["suggested_matches"]) =>
+  Schema.encode(Schema.parseJson(MediaSearchResultListSchema))(matches).pipe(
     Effect.mapError(
       (cause) =>
         new DatabaseError({
@@ -80,7 +80,7 @@ export const upsertUnmappedFolderMatchRows = Effect.fn(
   }
 
   const persistedFolders = yield* Effect.forEach(folders, (folder) =>
-    encodeAnimeSearchResultList(folder.path, folder.suggested_matches).pipe(
+    encodeMediaSearchResultList(folder.path, folder.suggested_matches).pipe(
       Effect.map((suggestedMatches) => ({ folder, suggestedMatches })),
     ),
   );
@@ -133,7 +133,7 @@ export const decodeUnmappedFolderMatchRow = Effect.fn(
   "SystemUnmappedRepository.decodeUnmappedFolderMatchRow",
 )(function* (row: typeof unmappedFolderMatches.$inferSelect) {
   const suggestedMatches = yield* Schema.decodeUnknown(
-    Schema.parseJson(AnimeSearchResultListSchema),
+    Schema.parseJson(MediaSearchResultListSchema),
   )(row.suggestedMatches).pipe(
     Effect.mapError(
       (cause) =>

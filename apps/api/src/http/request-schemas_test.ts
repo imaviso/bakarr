@@ -17,7 +17,7 @@ import {
   SearchDownloadBodySchema,
   CalendarQuerySchema,
 } from "@/http/operations/request-schemas.ts";
-import { AddAnimeInputSchema, BulkUnitMappingsBodySchema } from "@/http/media/request-schemas.ts";
+import { AddMediaInputSchema, BulkUnitMappingsBodySchema } from "@/http/media/request-schemas.ts";
 import {
   ConfigSchema,
   SystemLogExportQuerySchema,
@@ -214,8 +214,8 @@ it("SearchDownloadBodySchema accepts structured release context", () => {
   assert.deepStrictEqual(result._tag, "Right");
 });
 
-it("AddAnimeInputSchema and ImportFilesBodySchema require positive integer ids", () => {
-  const addMedia = Schema.decodeUnknownEither(AddAnimeInputSchema)(
+it("AddMediaInputSchema and ImportFilesBodySchema require positive integer ids", () => {
+  const addMedia = Schema.decodeUnknownEither(AddMediaInputSchema)(
     {
       id: -3,
       monitor_and_search: false,
@@ -318,8 +318,8 @@ it("SystemLogsQuerySchema rejects unsupported log levels", () => {
   assert.deepStrictEqual(query._tag, "Left");
 });
 
-it("AddAnimeInputSchema accepts existing-root flag", () => {
-  const addMedia = Schema.decodeUnknownEither(AddAnimeInputSchema)({
+it("AddMediaInputSchema accepts existing-root flag", () => {
+  const addMedia = Schema.decodeUnknownEither(AddMediaInputSchema)({
     id: 20,
     monitor_and_search: false,
     monitored: true,
