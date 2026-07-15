@@ -46,7 +46,7 @@
     devShells = forEachSupportedSystem ({pkgs}: {
       default = pkgs.mkShellNoCC {
         packages = with pkgs; [
-          nodejs
+          nodejs_latest
           deno
           pnpm
           ffmpeg

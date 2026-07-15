@@ -1,7 +1,7 @@
 {
   lib,
   stdenv,
-  nodejs,
+  nodejs_latest,
   node-gyp,
   pnpm,
   fetchPnpmDeps,
@@ -43,13 +43,13 @@ stdenv.mkDerivation (finalAttrs: {
   pnpmDeps = fetchPnpmDeps {
     inherit (finalAttrs) pname version src;
     pnpm = pnpm;
-    fetcherVersion = 3;
-    hash = "sha256-jEKg27ztPVTtbo3wEVnERus5FXDsk74EYbXm9wfaHKE=";
+    fetcherVersion = 4;
+    hash = "sha256-6g7PvQ2sz7uWQEQzIZSwmM0DhbdZGB2iLzTvZbR6YMk=";
     pnpmInstallFlags = ["--config.minimum-release-age=0"];
   };
 
   nativeBuildInputs = [
-    nodejs
+    nodejs_latest
     pnpm
     pnpmConfigHook
     python3
@@ -64,7 +64,7 @@ stdenv.mkDerivation (finalAttrs: {
   SSL_CERT_FILE = "${cacert}/etc/ssl/certs/ca-bundle.crt";
   NODE_EXTRA_CA_CERTS = "${cacert}/etc/ssl/certs/ca-bundle.crt";
   npm_config_cafile = "${cacert}/etc/ssl/certs/ca-bundle.crt";
-  npm_config_nodedir = "${nodejs}";
+  npm_config_nodedir = "${nodejs_latest}";
   PNPM_CONFIG_CAFILE = "${cacert}/etc/ssl/certs/ca-bundle.crt";
 
   buildPhase = ''
@@ -92,7 +92,7 @@ stdenv.mkDerivation (finalAttrs: {
     cp -RL node_modules/.pnpm/file-uri-to-path@*/node_modules/file-uri-to-path $out/share/bakarr/node_modules/file-uri-to-path
 
     mkdir -p $out/bin
-    makeWrapper ${nodejs}/bin/node $out/bin/bakarr-api \
+    makeWrapper ${nodejs_latest}/bin/node $out/bin/bakarr-api \
       --add-flags $out/share/bakarr/api/main.js \
       --prefix PATH : ${lib.makeBinPath [ffmpeg poppler-utils]} \
       --run 'if [ -z "$DATABASE_FILE" ]; then if [ -n "$XDG_STATE_HOME" ]; then state_home="$XDG_STATE_HOME"; elif [ -n "$HOME" ]; then state_home="$HOME/.local/state"; else state_home="/tmp"; fi; export DATABASE_FILE="$state_home/bakarr/bakarr.sqlite"; fi; mkdir -p "$(dirname "$DATABASE_FILE")"'
