@@ -1,15 +1,11 @@
 import * as Cron from "effect/Cron";
-import { Effect, Either } from "effect";
+import { Either } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 import { eq, sql } from "drizzle-orm";
 
 import { BACKGROUND_JOB_NAMES } from "@/background/worker-model.ts";
-import type { AppDatabase } from "@/db/database.ts";
 import { systemLogs } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
-
-type NowIso<E = never> = () => Effect.Effect<string, E>;
 
 export function normalizeLevel(level: string): "info" | "warn" | "error" | "success" {
   if (level === "warn" || level === "error" || level === "success") {
@@ -37,25 +33,6 @@ export function eventTypeCondition(eventType: string) {
       return eq(systemLogs.eventType, eventType);
   }
 }
-
-export const appendSystemLog = Effect.fn("SystemSupport.appendSystemLog")(function* <E>(
-  db: AppDatabase,
-  eventType: string,
-  level: string,
-  message: string,
-  nowIso: NowIso<E>,
-) {
-  const now = yield* nowIso();
-  yield* tryDatabasePromise("Failed to append system log", () =>
-    db.insert(systemLogs).values({
-      createdAt: now,
-      details: null,
-      eventType,
-      level,
-      message,
-    }),
-  );
-});
 
 export function toBackgroundJobStatus(
   config: Config,

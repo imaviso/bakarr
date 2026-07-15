@@ -36,8 +36,6 @@ export const PureDbLeaves = Layer.mergeAll(
   SystemConfigRepository.Default,
 );
 
-export function providePureDbLeaves<ROut, E, RIn>(
-  runtimeSupportLayer: Layer.Layer<ROut, E, RIn>,
-) {
+export function providePureDbLeaves<ROut, E, RIn>(runtimeSupportLayer: Layer.Layer<ROut, E, RIn>) {
   return PureDbLeaves.pipe(Layer.provide(runtimeSupportLayer));
 }

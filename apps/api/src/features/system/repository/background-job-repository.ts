@@ -1,23 +1,27 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { Effect } from "effect";
 
 import { AppDrizzleDatabase, type AppDatabase, type DatabaseError } from "@/db/database.ts";
 import { backgroundJobs } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
-import {
-  markJobFailed as markJobFailedBase,
-  markJobStarted as markJobStartedBase,
-  markJobSucceeded as markJobSucceededBase,
-  updateJobProgress as updateJobProgressBase,
-} from "@/infra/job-status.ts";
+import { formatJobFailureMessage } from "@/infra/job-status.ts";
 
 type NowIso<E = never> = () => Effect.Effect<string, E>;
 type BackgroundJobRow = typeof backgroundJobs.$inferSelect;
 
+interface JobUpsertInput {
+  readonly errorMessage: string;
+  readonly isRunning: boolean;
+  readonly lastMessage: string | null;
+  readonly lastStatus: "failed" | "running" | "success";
+  readonly lastSuccessAt: string | null;
+  readonly progressCurrent: number | null;
+  readonly progressTotal: number | null;
+  readonly incrementRunCount?: boolean;
+}
+
 export interface BackgroundJobRepositoryShape {
-  readonly loadByName: (
-    name: string,
-  ) => Effect.Effect<BackgroundJobRow | undefined, DatabaseError>;
+  readonly loadByName: (name: string) => Effect.Effect<BackgroundJobRow | undefined, DatabaseError>;
   readonly markStarted: <E>(
     name: string,
     nowIso: NowIso<E>,
@@ -52,6 +56,10 @@ export class BackgroundJobRepository extends Effect.Service<BackgroundJobReposit
   },
 ) {}
 
+export function makeBackgroundJobRepository(db: AppDatabase): BackgroundJobRepository {
+  return BackgroundJobRepository.make(makeBackgroundJobRepositoryShape(db));
+}
+
 function makeBackgroundJobRepositoryShape(db: AppDatabase): BackgroundJobRepositoryShape {
   return {
     loadByName: (name) => loadByName(db, name),
@@ -61,10 +69,6 @@ function makeBackgroundJobRepositoryShape(db: AppDatabase): BackgroundJobReposit
     updateProgress: (name, progressCurrent, progressTotal, nowIso, message) =>
       updateProgress(db, name, progressCurrent, progressTotal, nowIso, message),
   } satisfies BackgroundJobRepositoryShape;
-}
-
-export function makeBackgroundJobRepository(db: AppDatabase): BackgroundJobRepository {
-  return BackgroundJobRepository.make(makeBackgroundJobRepositoryShape(db));
 }
 
 const loadByName = Effect.fn("BackgroundJobRepository.loadByName")(function* (
@@ -82,7 +86,16 @@ const markStarted = Effect.fn("BackgroundJobRepository.markStarted")(function* <
   name: string,
   nowIso: NowIso<E>,
 ) {
-  yield* markJobStartedBase(db, name, nowIso);
+  yield* upsertJobStatus(db, name, nowIso, {
+    errorMessage: "Failed to mark job started",
+    isRunning: true,
+    lastMessage: null,
+    lastStatus: "running",
+    lastSuccessAt: null,
+    progressCurrent: null,
+    progressTotal: null,
+    incrementRunCount: true,
+  });
 });
 
 const markSucceeded = Effect.fn("BackgroundJobRepository.markSucceeded")(function* <E>(
@@ -91,7 +104,17 @@ const markSucceeded = Effect.fn("BackgroundJobRepository.markSucceeded")(functio
   message: string,
   nowIso: NowIso<E>,
 ) {
-  yield* markJobSucceededBase(db, name, message, nowIso);
+  const now = yield* nowIso();
+
+  yield* upsertJobStatus(db, name, () => Effect.succeed(now), {
+    errorMessage: "Failed to mark job succeeded",
+    isRunning: false,
+    lastMessage: message,
+    lastStatus: "success",
+    lastSuccessAt: now,
+    progressCurrent: null,
+    progressTotal: null,
+  });
 });
 
 const markFailed = Effect.fn("BackgroundJobRepository.markFailed")(function* <E>(
@@ -100,7 +123,15 @@ const markFailed = Effect.fn("BackgroundJobRepository.markFailed")(function* <E>
   cause: unknown,
   nowIso: NowIso<E>,
 ) {
-  yield* markJobFailedBase(db, name, cause, nowIso);
+  yield* upsertJobStatus(db, name, nowIso, {
+    errorMessage: "Failed to mark job failed",
+    isRunning: false,
+    lastMessage: formatJobFailureMessage(cause),
+    lastStatus: "failed",
+    lastSuccessAt: null,
+    progressCurrent: null,
+    progressTotal: null,
+  });
 });
 
 const updateProgress = Effect.fn("BackgroundJobRepository.updateProgress")(function* <E>(
@@ -111,5 +142,50 @@ const updateProgress = Effect.fn("BackgroundJobRepository.updateProgress")(funct
   nowIso: NowIso<E>,
   message?: string,
 ) {
-  yield* updateJobProgressBase(db, name, progressCurrent, progressTotal, nowIso, message);
+  yield* upsertJobStatus(db, name, nowIso, {
+    errorMessage: "Failed to update job progress",
+    isRunning: true,
+    lastMessage: message ?? null,
+    lastStatus: "running",
+    lastSuccessAt: null,
+    progressCurrent,
+    progressTotal,
+  });
+});
+
+const upsertJobStatus = Effect.fn("BackgroundJobRepository.upsertJobStatus")(function* <E>(
+  db: AppDatabase,
+  name: string,
+  nowIso: NowIso<E>,
+  input: JobUpsertInput,
+) {
+  const now = yield* nowIso();
+  const insertValues = {
+    isRunning: input.isRunning,
+    lastMessage: input.lastMessage,
+    lastRunAt: now,
+    lastStatus: input.lastStatus,
+    lastSuccessAt: input.lastSuccessAt,
+    name,
+    progressCurrent: input.progressCurrent,
+    progressTotal: input.progressTotal,
+    runCount: 1,
+  };
+  const updateValues = {
+    isRunning: input.isRunning,
+    lastMessage: input.lastMessage,
+    lastRunAt: now,
+    lastStatus: input.lastStatus,
+    lastSuccessAt: input.lastSuccessAt,
+    progressCurrent: input.progressCurrent,
+    progressTotal: input.progressTotal,
+    ...(input.incrementRunCount ? { runCount: sql`${backgroundJobs.runCount} + 1` } : {}),
+  };
+
+  yield* tryDatabasePromise(input.errorMessage, () =>
+    db.insert(backgroundJobs).values(insertValues).onConflictDoUpdate({
+      target: backgroundJobs.name,
+      set: updateValues,
+    }),
+  );
 });

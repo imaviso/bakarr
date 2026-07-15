@@ -14,21 +14,21 @@ Do not re-litigate ADR-0001/0002/0004.
 
 ## Done
 
-| Area                    | Outcome                                                                                          |
-| ----------------------- | ------------------------------------------------------------------------------------------------ |
-| Persistence seams       | Leaf repos as Effect.Service; orchestration composes Tags                                        |
-| Error bags              | Mega-unions removed; boundary tags survive route mapping                                         |
-| Anime→Media naming      | Feature Tags/methods Media; provider models stay Anime\*                                         |
-| Pure DB leaves          | `app/pure-db-leaves.ts` — single PureDbLeaves used by media/ops/lifecycle                        |
-| Background jobs         | BackgroundJobRepository                                                                          |
-| Release queue/coverage  | DownloadRepository only; job-support deleted                                                     |
-| Import-scan / unmapped  | MediaRead + BackgroundJob + SystemLog                                                            |
-| Reader/stream           | No AppDrizzleDatabase                                                                            |
-| Span names              | Per-service (not OperationsService.\*)                                                           |
-| LibraryBrowse           | In operations feature layer                                                                      |
-| Task launcher           | In operations feature layer                                                                      |
-| MediaEnrollment         | Bridges media+ops via `appDomainSubgraphLayer` only (no extra task-launcher special case)        |
-| Reconciliation policy   | Pure config predicates in `download-reconciliation-policy.ts`                                    |
+| Area                   | Outcome                                                                                   |
+| ---------------------- | ----------------------------------------------------------------------------------------- |
+| Persistence seams      | Leaf repos as Effect.Service; orchestration composes Tags                                 |
+| Error bags             | Mega-unions removed; boundary tags survive route mapping                                  |
+| Anime→Media naming     | Feature Tags/methods Media; provider models stay Anime\*                                  |
+| Pure DB leaves         | `app/pure-db-leaves.ts` — single PureDbLeaves used by media/ops/lifecycle                 |
+| Background jobs        | BackgroundJobRepository                                                                   |
+| Release queue/coverage | DownloadRepository only; job-support deleted                                              |
+| Import-scan / unmapped | MediaRead + BackgroundJob + SystemLog                                                     |
+| Reader/stream          | No AppDrizzleDatabase                                                                     |
+| Span names             | Per-service (not OperationsService.\*)                                                    |
+| LibraryBrowse          | In operations feature layer                                                               |
+| Task launcher          | In operations feature layer                                                               |
+| MediaEnrollment        | Bridges media+ops via `appDomainSubgraphLayer` only (no extra task-launcher special case) |
+| Reconciliation policy  | Pure config predicates in `download-reconciliation-policy.ts`                             |
 
 ## Execution rules
 

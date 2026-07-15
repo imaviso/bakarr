@@ -125,7 +125,4 @@ export const queueParsedReleaseDownload = Effect.fn("ReleaseQueue.queueParsedRel
   },
 );
 
-export type QueueParsedReleaseDownloadError =
-  | DatabaseError
-  | InfrastructureError
-  | StoredDataError;
+export type QueueParsedReleaseDownloadError = DatabaseError | InfrastructureError | StoredDataError;

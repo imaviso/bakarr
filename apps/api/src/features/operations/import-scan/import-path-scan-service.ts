@@ -74,20 +74,20 @@ const scanImportPathEffect = Effect.fn("ImportPathScanService.scanImportPathEffe
       discovery.analyzed.map((entry) => entry.scanned),
     );
     const candidateAnimeIds = animeRows.map((row) => row.id);
-  const mappedEpisodeRows = yield* loadMappedEpisodeRows({
-    candidateAnimeIds,
-    candidatePaths,
-    episodeNumberCandidates,
-    mediaReadRepository: input.mediaReadRepository,
-  });
-  const mappingIndex = buildEpisodeFileMappingIndex(mappedEpisodeRows);
-  const namingSettings = input.namingSettings;
-  const animeRowsById = new Map(animeRows.map((row) => [row.id, row]));
-  const scopedEpisodeRows = yield* loadScopedEpisodeRows({
-    animeIds: animeRows.map((row) => row.id),
-    episodeNumberCandidates,
-    mediaReadRepository: input.mediaReadRepository,
-  });
+    const mappedEpisodeRows = yield* loadMappedEpisodeRows({
+      candidateAnimeIds,
+      candidatePaths,
+      episodeNumberCandidates,
+      mediaReadRepository: input.mediaReadRepository,
+    });
+    const mappingIndex = buildEpisodeFileMappingIndex(mappedEpisodeRows);
+    const namingSettings = input.namingSettings;
+    const animeRowsById = new Map(animeRows.map((row) => [row.id, row]));
+    const scopedEpisodeRows = yield* loadScopedEpisodeRows({
+      animeIds: animeRows.map((row) => row.id),
+      episodeNumberCandidates,
+      mediaReadRepository: input.mediaReadRepository,
+    });
     const episodeRowsByAnimeEpisode = new Map(
       scopedEpisodeRows.map((row) => [`${row.mediaId}:${row.number}`, row] as const),
     );
