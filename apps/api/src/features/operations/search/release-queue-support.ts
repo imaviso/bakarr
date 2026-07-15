@@ -1,20 +1,17 @@
-import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
 import type { DownloadSourceMetadata } from "@packages/shared/index.ts";
 import { DatabaseError } from "@/db/database.ts";
-import type { AppDatabase } from "@/db/database.ts";
-import { media, downloads } from "@/db/schema.ts";
-import { InfrastructureError } from "@/features/errors.ts";
-import { recordDownloadEvent } from "@/features/operations/shared/job-support.ts";
+import { media } from "@/db/schema.ts";
+import { InfrastructureError, StoredDataError } from "@/features/errors.ts";
 import {
   hasOverlappingDownload,
   parseCoveredEpisodesEffect,
 } from "@/features/operations/download/download-coverage.ts";
 import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
 import { encodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
+import type { DownloadRepository } from "@/features/operations/repository/download-repository-service.ts";
 import type { ParsedRelease } from "@/features/operations/rss/rss-client-parse.ts";
-import type { TryDatabasePromise } from "@/infra/effect/db.ts";
 
 const mapQBitError = (message: string) => (cause: unknown) =>
   cause instanceof DatabaseError
@@ -29,7 +26,7 @@ export const queueParsedReleaseDownload = Effect.fn("ReleaseQueue.queueParsedRel
     animeRow: typeof media.$inferSelect;
     contextMessage: string;
     coveredUnits: string | null;
-    db: AppDatabase;
+    downloadRepository: typeof DownloadRepository.Service;
     unitNumber: number;
     eventMessage: string;
     eventType: string;
@@ -38,13 +35,12 @@ export const queueParsedReleaseDownload = Effect.fn("ReleaseQueue.queueParsedRel
     sourceMetadata: DownloadSourceMetadata;
     torrentClientService: typeof TorrentClientService.Service;
     nowIso: () => Effect.Effect<string>;
-    tryDatabasePromise: TryDatabasePromise;
   }) {
     const coveredEpisodeNumbers = yield* parseCoveredEpisodesEffect(input.coveredUnits);
     const now = yield* input.nowIso();
 
     const overlapping = yield* hasOverlappingDownload(
-      input.db,
+      input.downloadRepository,
       input.animeRow.id,
       input.item.infoHash,
       coveredEpisodeNumbers,
@@ -57,36 +53,21 @@ export const queueParsedReleaseDownload = Effect.fn("ReleaseQueue.queueParsedRel
     const encodedSourceMetadata = yield* encodeDownloadSourceMetadata(input.sourceMetadata);
 
     const insertResult = yield* Effect.either(
-      input.tryDatabasePromise(input.contextMessage, () =>
-        input.db
-          .insert(downloads)
-          .values({
-            addedAt: now,
-            mediaId: input.animeRow.id,
-            mediaTitle: input.animeRow.titleRomaji,
-            contentPath: null,
-            coveredUnits: input.coveredUnits,
-            downloadDate: null,
-            downloadedBytes: 0,
-            unitNumber: input.unitNumber,
-            errorMessage: null,
-            etaSeconds: null,
-            externalState: "queued",
-            groupName: input.item.group ?? null,
-            infoHash: input.item.infoHash,
-            isBatch: input.isBatch,
-            lastSyncedAt: now,
-            magnet: input.item.magnet,
-            progress: 0,
-            savePath: null,
-            speedBytes: 0,
-            sourceMetadata: encodedSourceMetadata,
-            status: "queued",
-            torrentName: input.item.title,
-            totalBytes: input.item.sizeBytes,
-          })
-          .returning({ id: downloads.id }),
-      ),
+      input.downloadRepository.insertQueuedDownloadRow({
+        addedAt: now,
+        coveredUnits: input.coveredUnits,
+        groupName: input.item.group ?? null,
+        infoHash: input.item.infoHash,
+        isBatch: input.isBatch,
+        lastSyncedAt: now,
+        magnet: input.item.magnet,
+        mediaId: input.animeRow.id,
+        mediaTitle: input.animeRow.titleRomaji,
+        sourceMetadata: encodedSourceMetadata,
+        torrentName: input.item.title,
+        totalBytes: input.item.sizeBytes,
+        unitNumber: input.unitNumber,
+      }),
     );
 
     if (insertResult._tag === "Left") {
@@ -99,14 +80,7 @@ export const queueParsedReleaseDownload = Effect.fn("ReleaseQueue.queueParsedRel
       return yield* dbError;
     }
 
-    const insertedRow = insertResult.right[0];
-    if (!insertedRow) {
-      return yield* new DatabaseError({
-        cause: new Error("Queued download insert returned no rows"),
-        message: "Failed to queue download",
-      });
-    }
-    const insertedId = insertedRow.id;
+    const insertedId = insertResult.right;
     let status = "queued";
 
     const qbitResult = yield* Effect.either(
@@ -114,24 +88,20 @@ export const queueParsedReleaseDownload = Effect.fn("ReleaseQueue.queueParsedRel
     );
 
     if (qbitResult._tag === "Left") {
-      yield* input.tryDatabasePromise("Cleanup failed download", () =>
-        input.db.delete(downloads).where(eq(downloads.id, insertedId)),
-      );
+      yield* input.downloadRepository.deleteDownloadRow(insertedId);
       return yield* mapQBitError(input.contextMessage)(qbitResult.left);
     }
 
     if (qbitResult.right._tag === "Added") {
       status = "downloading";
-      yield* input.tryDatabasePromise("Update download status", () =>
-        input.db
-          .update(downloads)
-          .set({ status, externalState: status })
-          .where(eq(downloads.id, insertedId)),
-      );
+      yield* input.downloadRepository.updateDownloadStatusRow({
+        id: insertedId,
+        externalState: status,
+        status,
+      });
     }
 
-    yield* recordDownloadEvent(
-      input.db,
+    yield* input.downloadRepository.insertDownloadEvent(
       {
         mediaId: input.animeRow.id,
         downloadId: insertedId,
@@ -144,7 +114,7 @@ export const queueParsedReleaseDownload = Effect.fn("ReleaseQueue.queueParsedRel
         },
         toStatus: status,
       },
-      input.nowIso,
+      now,
     );
 
     return {
@@ -154,3 +124,8 @@ export const queueParsedReleaseDownload = Effect.fn("ReleaseQueue.queueParsedRel
     } as const;
   },
 );
+
+export type QueueParsedReleaseDownloadError =
+  | DatabaseError
+  | InfrastructureError
+  | StoredDataError;

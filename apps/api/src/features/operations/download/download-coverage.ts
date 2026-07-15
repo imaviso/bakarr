@@ -1,12 +1,9 @@
 import { Effect } from "effect";
 
-import type { AppDatabase } from "@/db/database.ts";
-import { downloads } from "@/db/schema.ts";
 import {
   encodeOptionalNumberList,
   decodeOptionalNumberList,
 } from "@/features/system/profile-codec.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import {
   buildPathParseContext,
   classifyMediaArtifact,
@@ -15,7 +12,7 @@ import {
 import { parseVolumeNumbersFromTitle } from "@/features/operations/search/release-volume.ts";
 import type { QBitTorrentFile } from "@/features/operations/qbittorrent/qbittorrent.ts";
 import { StoredDataError } from "@/features/errors.ts";
-import { eq } from "drizzle-orm";
+import type { DownloadRepository } from "@/features/operations/repository/download-repository-service.ts";
 
 const IN_FLIGHT_STATUSES = new Set(["queued", "downloading", "paused"]);
 
@@ -48,23 +45,14 @@ export const parseCoveredEpisodesEffect = Effect.fn("Operations.parseCoveredEpis
 );
 
 export const hasOverlappingDownload = Effect.fn("Operations.hasOverlappingDownload")(function* (
-  db: AppDatabase,
+  downloadRepository: typeof DownloadRepository.Service,
   mediaId: number,
   infoHash: string,
   coveredUnits: readonly number[],
 ) {
-  const existingByHash = yield* tryDatabasePromise("Failed to check overlapping download", () =>
-    db
-      .select({
-        id: downloads.id,
-        status: downloads.status,
-      })
-      .from(downloads)
-      .where(eq(downloads.infoHash, infoHash))
-      .limit(1),
-  );
+  const existingByHash = yield* downloadRepository.lookupDownloadByInfoHash(infoHash);
 
-  if (existingByHash[0] && IN_FLIGHT_STATUSES.has(existingByHash[0].status)) {
+  if (existingByHash && IN_FLIGHT_STATUSES.has(existingByHash.status)) {
     return true;
   }
 
@@ -72,9 +60,7 @@ export const hasOverlappingDownload = Effect.fn("Operations.hasOverlappingDownlo
     return false;
   }
 
-  const rows = yield* tryDatabasePromise("Failed to check overlapping download", () =>
-    db.select().from(downloads).where(eq(downloads.mediaId, mediaId)),
-  );
+  const rows = yield* downloadRepository.listDownloadsByMediaId(mediaId);
 
   for (const row of rows) {
     if (!IN_FLIGHT_STATUSES.has(row.status)) {

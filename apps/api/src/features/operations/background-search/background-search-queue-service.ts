@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 
 import type { DownloadAction } from "@packages/shared/index.ts";
-import { AppDrizzleDatabase, DatabaseError } from "@/db/database.ts";
+import { DatabaseError } from "@/db/database.ts";
 import { media } from "@/db/schema.ts";
 import {
   buildDownloadSelectionMetadata,
@@ -20,8 +20,8 @@ import { queueParsedReleaseDownload } from "@/features/operations/search/release
 import type { ParsedRelease } from "@/features/operations/rss/rss-client-parse.ts";
 import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
 import { DownloadTriggerCoordinator } from "@/features/operations/tasks/runtime-support.ts";
+import { DownloadRepository } from "@/features/operations/repository/download-repository-service.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { InfrastructureError } from "@/features/errors.ts";
 
 export interface BackgroundSearchQueueServiceShape {
@@ -45,7 +45,7 @@ export class BackgroundSearchQueueService extends Effect.Service<BackgroundSearc
   "@bakarr/api/BackgroundSearchQueueService",
   {
     effect: Effect.gen(function* () {
-      const db = yield* AppDrizzleDatabase;
+      const downloadRepository = yield* DownloadRepository;
       const torrentClientService = yield* TorrentClientService;
       const downloadTriggerCoordinator = yield* DownloadTriggerCoordinator;
       const nowIso = currentNowIso;
@@ -94,7 +94,7 @@ export class BackgroundSearchQueueService extends Effect.Service<BackgroundSearc
         const queueEffect = Effect.gen(function* () {
           const parsedCoveredEpisodes = yield* parseCoveredEpisodesEffect(coveredUnits);
           const overlapping = yield* hasOverlappingDownload(
-            db,
+            downloadRepository,
             input.animeRow.id,
             input.item.infoHash,
             parsedCoveredEpisodes,
@@ -108,7 +108,7 @@ export class BackgroundSearchQueueService extends Effect.Service<BackgroundSearc
             animeRow: input.animeRow,
             contextMessage: input.contextMessage,
             coveredUnits,
-            db,
+            downloadRepository,
             unitNumber: input.unitNumber,
             eventMessage: input.eventMessage,
             eventType: input.eventType,
@@ -147,7 +147,6 @@ export class BackgroundSearchQueueService extends Effect.Service<BackgroundSearc
               }),
             ),
             torrentClientService,
-            tryDatabasePromise,
           }).pipe(
             Effect.mapError((cause) =>
               cause instanceof DatabaseError || cause instanceof InfrastructureError
@@ -177,7 +176,7 @@ export class BackgroundSearchQueueService extends Effect.Service<BackgroundSearc
         queueReleaseIfEligible,
       } satisfies BackgroundSearchQueueServiceShape;
     }),
-    dependencies: [AppDrizzleDatabase.Default],
+    dependencies: [DownloadRepository.Default],
   },
 ) {}
 

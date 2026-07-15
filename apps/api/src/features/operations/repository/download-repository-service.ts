@@ -111,6 +111,7 @@ export interface DownloadRepositoryShape {
     readonly mediaTitle: string;
     readonly sourceMetadata: string;
     readonly torrentName: string;
+    readonly totalBytes?: number | null;
     readonly unitNumber: number;
   }) => Effect.Effect<number, DatabaseError>;
   readonly countActiveDownloads: () => Effect.Effect<number, DatabaseError>;
@@ -377,6 +378,7 @@ const insertQueuedDownloadRow = Effect.fn("DownloadRepository.insertQueuedDownlo
     readonly mediaTitle: string;
     readonly sourceMetadata: string;
     readonly torrentName: string;
+    readonly totalBytes?: number | null;
     readonly unitNumber: number;
   },
 ) {
@@ -406,7 +408,7 @@ const insertQueuedDownloadRow = Effect.fn("DownloadRepository.insertQueuedDownlo
         speedBytes: 0,
         status: "queued",
         torrentName: input.torrentName,
-        totalBytes: null,
+        totalBytes: input.totalBytes ?? null,
       })
       .returning({ id: downloads.id }),
   );
