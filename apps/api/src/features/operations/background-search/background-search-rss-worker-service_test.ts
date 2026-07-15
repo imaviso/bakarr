@@ -11,6 +11,7 @@ import { InfrastructureError } from "@/features/errors.ts";
 import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
+import { makeBackgroundJobRepository } from "@/features/system/repository/background-job-repository.ts";
 import { assert, describe, it } from "@effect/vitest";
 
 describe("BackgroundSearchRssWorkerService", () => {
@@ -232,7 +233,7 @@ const runWorkerScenario = Effect.fn("BackgroundSearchRssWorkerServiceTest.runWor
     });
     const exit = yield* Effect.exit(
       makeBackgroundSearchRssWorkerService({
-        db: input.db,
+        backgroundJobRepository: makeBackgroundJobRepository(input.db),
         eventBus: deps.eventBus,
         missingService: deps.missingService,
         nowIso: () => Effect.succeed("2024-01-01T00:00:00.000Z"),

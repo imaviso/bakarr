@@ -14,6 +14,7 @@ import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { makeMediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import { makeMediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
+import { makeBackgroundJobRepository } from "@/features/system/repository/background-job-repository.ts";
 import { makeSystemLogRepository } from "@/features/system/repository/log-repository.ts";
 
 it.scoped(
@@ -50,7 +51,7 @@ it.scoped(
                       metadata: makeMetadata(id),
                     }),
             }),
-            db: appDb,
+            backgroundJobRepository: makeBackgroundJobRepository(appDb),
             mediaReadRepository: makeMediaReadRepository(appDb),
             mediaUnitRepository: makeMediaUnitRepository(appDb),
             systemLogRepository: makeSystemLogRepository(appDb),
@@ -125,7 +126,7 @@ it.scoped(
                   _tag: "NotFound",
                 }),
             }),
-            db: appDb,
+            backgroundJobRepository: makeBackgroundJobRepository(appDb),
             mediaReadRepository: makeMediaReadRepository(appDb),
             mediaUnitRepository: makeMediaUnitRepository(appDb),
             systemLogRepository: makeSystemLogRepository(appDb),

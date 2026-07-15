@@ -1,6 +1,5 @@
 import { Config as EffectConfig, Effect, Schema } from "effect";
 
-import { AppDrizzleDatabase } from "@/db/database.ts";
 import { PositiveIntFromStringSchema } from "@/domain/domain-schema.ts";
 import { makeSingleFlightEffectRunner } from "@/infra/effect/coalescing-single-flight-runner.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
@@ -9,12 +8,13 @@ import { MediaMetadataProviderService } from "@/features/media/metadata/media-me
 import { refreshMetadataForMonitoredMediaEffect } from "@/features/media/metadata/media-metadata-refresh-job.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
+import { BackgroundJobRepository } from "@/features/system/repository/background-job-repository.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 
 const DEFAULT_METADATA_REFRESH_CONCURRENCY = 2;
 
 export const makeMetadataRefreshRunner = Effect.fn("MediaMetadataRefresh.makeRunner")(function* () {
-  const db = yield* AppDrizzleDatabase;
+  const backgroundJobRepository = yield* BackgroundJobRepository;
   const imageCacheService = yield* MediaImageCacheService;
   const metadataProvider = yield* MediaMetadataProviderService;
   const mediaReadRepository = yield* MediaReadRepository;
@@ -29,7 +29,7 @@ export const makeMetadataRefreshRunner = Effect.fn("MediaMetadataRefresh.makeRun
     refreshMetadataForMonitoredMediaEffect({
       imageCacheService,
       metadataProvider,
-      db,
+      backgroundJobRepository,
       mediaReadRepository,
       mediaUnitRepository,
       systemLogRepository,

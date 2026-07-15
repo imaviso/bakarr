@@ -1,6 +1,5 @@
 import { Effect, Stream } from "effect";
 
-import type { AppDatabase } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
 import {
   type FileSystemShape,
@@ -18,18 +17,17 @@ import { decodeMediaKind } from "@/features/media/shared/media-kind.ts";
 import { DomainInputError, DomainPathError, InfrastructureError } from "@/features/errors.ts";
 import { OperationsConflictError, OperationsNotFoundError } from "@/features/operations/errors.ts";
 import type { MediaNotFoundError } from "@/features/media/errors.ts";
-import { appendLog } from "@/features/operations/shared/job-support.ts";
 import { scanVideoFilesStream } from "@/features/operations/import-scan/file-scanner.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import {
   MediaUnitRepository,
   type MediaUnitRepositoryShape,
 } from "@/features/media/units/media-unit-repository.ts";
-import { AppDrizzleDatabase } from "@/db/database.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { SystemConfigRepository } from "@/features/system/repository/system-config-repository.ts";
+import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 import type { MediaKind } from "@packages/shared/index.ts";
 
 export interface UnmappedImportWorkflowShape {
@@ -84,7 +82,6 @@ export const cleanupPreviousMediaRootFolderAfterImport = Effect.fn(
 });
 
 export function makeUnmappedImportWorkflow(input: {
-  db: AppDatabase;
   fs: FileSystemShape;
   getLibraryPath: (
     mediaKind: MediaKind,
@@ -93,15 +90,16 @@ export function makeUnmappedImportWorkflow(input: {
   mediaUnitRepository: MediaUnitRepositoryShape;
   nowIso: () => Effect.Effect<string>;
   systemConfigRepository: typeof SystemConfigRepository.Service;
+  systemLogRepository: typeof SystemLogRepository.Service;
 }) {
   const {
-    db,
     fs,
     getLibraryPath,
     mediaReadRepository,
     mediaUnitRepository,
     nowIso,
     systemConfigRepository,
+    systemLogRepository,
   } = input;
 
   type EpisodeImportMapping = {
@@ -226,8 +224,7 @@ export function makeUnmappedImportWorkflow(input: {
 
       const imported = episodeMappings.length;
 
-      yield* appendLog(
-        db,
+      yield* systemLogRepository.appendLog(
         "library.unmapped.imported",
         "success",
         `Mapped ${folderName} as the root folder for media ${input.media_id} and imported ${imported} episode(s)`,
@@ -246,15 +243,14 @@ export class UnmappedImportService extends Effect.Service<UnmappedImportService>
   "@bakarr/api/UnmappedImportService",
   {
     effect: Effect.gen(function* () {
-      const db = yield* AppDrizzleDatabase;
       const fs = yield* FileSystem;
       const mediaReadRepository = yield* MediaReadRepository;
       const mediaUnitRepository = yield* MediaUnitRepository;
       const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
       const systemConfigRepository = yield* SystemConfigRepository;
+      const systemLogRepository = yield* SystemLogRepository;
 
       return makeUnmappedImportWorkflow({
-        db,
         fs,
         getLibraryPath: Effect.fn("UnmappedImportService.getLibraryPath")(function* (mediaKind) {
           const config = yield* runtimeConfigSnapshot.getRuntimeConfig().pipe(
@@ -273,9 +269,10 @@ export class UnmappedImportService extends Effect.Service<UnmappedImportService>
         mediaUnitRepository,
         nowIso: currentNowIso,
         systemConfigRepository,
+        systemLogRepository,
       });
     }),
-    dependencies: [AppDrizzleDatabase.Default, SystemConfigRepository.Default],
+    dependencies: [SystemConfigRepository.Default, SystemLogRepository.Default],
   },
 ) {}
 

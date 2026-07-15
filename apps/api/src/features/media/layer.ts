@@ -15,6 +15,7 @@ import { SeasonalMediaCacheRepository } from "@/features/media/query/seasonal-me
 import { MediaStreamServiceLive } from "@/features/media/stream/media-stream-service.ts";
 import { MediaQueryServiceLive } from "@/features/media/query/query-service.ts";
 import { StreamTokenSignerLive } from "@/features/media/stream/stream-token-signer.ts";
+import { BackgroundJobRepository } from "@/features/system/repository/background-job-repository.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
 import { SystemConfigRepository } from "@/features/system/repository/system-config-repository.ts";
@@ -23,6 +24,7 @@ export function makeMediaFeatureLayer<ROut, E, RIn>(
   runtimeSupportLayer: Layer.Layer<ROut, E, RIn>,
 ) {
   const mediaRepositoryLayer = Layer.mergeAll(
+    BackgroundJobRepository.Default,
     MediaReadRepository.Default,
     MediaUnitRepository.Default,
     AniDbUnitCacheRepository.Default,

@@ -1,5 +1,6 @@
 import { Layer } from "effect";
 
+import { BackgroundJobRepository } from "@/features/system/repository/background-job-repository.ts";
 import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
 import { ReleaseProfileRepository } from "@/features/system/repository/release-profile-repository.ts";
 import { SystemConfigRepository } from "@/features/system/repository/system-config-repository.ts";
@@ -67,6 +68,7 @@ export function makeSystemFeatureLayer<
   >;
 }) {
   const pureSystemRepos = Layer.mergeAll(
+    BackgroundJobRepository.Default,
     QualityProfileRepository.Default,
     SystemStatsRepository.Default,
     SystemLogRepository.Default,

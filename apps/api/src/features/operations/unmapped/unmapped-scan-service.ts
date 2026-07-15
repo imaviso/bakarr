@@ -1,9 +1,8 @@
-import { eq } from "drizzle-orm";
 import { Cause, Effect } from "effect";
 
 import { MEDIA_KIND_VALUES, type ScannerState } from "@packages/shared/index.ts";
-import { AppDrizzleDatabase, type DatabaseError } from "@/db/database.ts";
-import { backgroundJobs, media } from "@/db/schema.ts";
+import type { DatabaseError } from "@/db/database.ts";
+import { media } from "@/db/schema.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { DomainPathError, InfrastructureError, StoredDataError } from "@/features/errors.ts";
 import { getLibraryPathForMediaKind } from "@/features/media/shared/config-support.ts";
@@ -19,13 +18,6 @@ import {
   markUnmappedFolderFailed,
   markUnmappedFolderMatching,
 } from "@/features/operations/unmapped/unmapped-folders.ts";
-import {
-  appendLog,
-  markJobFailed,
-  markJobStarted,
-  markJobSucceeded,
-  updateJobProgress,
-} from "@/features/operations/shared/job-support.ts";
 import { loadUnmappedFolderSnapshot } from "@/features/operations/unmapped/unmapped-scan-snapshot-support.ts";
 import { matchSingleUnmappedFolder } from "@/features/operations/unmapped/unmapped-scan-match-support.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
@@ -34,9 +26,10 @@ import { markJobFailureOrFailWithError } from "@/infra/job-failure-support.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
+import { BackgroundJobRepository } from "@/features/system/repository/background-job-repository.ts";
+import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 import { SystemUnmappedRepository } from "@/features/system/repository/unmapped-repository.ts";
 import { UnmappedScanCoordinator } from "@/features/operations/tasks/runtime-support.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 export interface UnmappedScanServiceShape {
   readonly getUnmappedFolders: () => Effect.Effect<
@@ -78,12 +71,13 @@ interface UnmappedMatchResultMatched {
 type UnmappedMatchResult = UnmappedMatchResultFailed | UnmappedMatchResultMatched;
 
 const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* () {
-  const db = yield* AppDrizzleDatabase;
   const aniList = yield* AniListClient;
+  const backgroundJobRepository = yield* BackgroundJobRepository;
   const eventBus = yield* EventBus;
   const fs = yield* FileSystem;
   const mediaReadRepository = yield* MediaReadRepository;
   const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
+  const systemLogRepository = yield* SystemLogRepository;
   const systemUnmappedRepository = yield* SystemUnmappedRepository;
   const unmappedScanCoordinator = yield* UnmappedScanCoordinator;
   const nowIso = currentNowIso;
@@ -137,9 +131,7 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
 
   const getUnmappedFolders = Effect.fn("UnmappedScanService.getUnmappedFolders")(function* () {
     const { folders, snapshot } = yield* loadMergedUnmappedFolders();
-    const [job] = yield* tryDatabasePromise("Failed to scan unmapped folders", () =>
-      db.select().from(backgroundJobs).where(eq(backgroundJobs.name, "unmapped_scan")).limit(1),
-    );
+    const job = yield* backgroundJobRepository.loadByName("unmapped_scan");
 
     const newFolders = folders.filter((folder) => !snapshot.cachedByPath.has(folder.path));
     const now = yield* nowIso();
@@ -209,7 +201,7 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
       job: "unmapped_scan",
       logAnnotations: { run_failure: error.message },
       logMessage: "Failed to record unmapped scan job failure",
-      markFailed: markJobFailed(db, "unmapped_scan", error, nowIso),
+      markFailed: backgroundJobRepository.markFailed("unmapped_scan", error, nowIso),
     }).pipe(
       Effect.catchTag("JobFailurePersistenceError", () => Effect.void),
       Effect.zipRight(Effect.fail(error)),
@@ -226,7 +218,7 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
       job: "unmapped_scan",
       logAnnotations: { run_failure_cause: Cause.pretty(cause) },
       logMessage: "Failed to record unmapped scan infrastructure failure",
-      markFailed: markJobFailed(db, "unmapped_scan", cause, nowIso),
+      markFailed: backgroundJobRepository.markFailed("unmapped_scan", cause, nowIso),
     }).pipe(
       Effect.catchTag("JobFailurePersistenceError", () => Effect.void),
       Effect.zipRight(Effect.fail(infrastructureError)),
@@ -235,7 +227,7 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
 
   const runUnmappedScanPass = Effect.fn("UnmappedScanService.runUnmappedScanPass")(
     function* () {
-      yield* markJobStarted(db, "unmapped_scan", nowIso);
+      yield* backgroundJobRepository.markStarted("unmapped_scan", nowIso);
 
       const { folders, queuedFolders, snapshot } = yield* loadQueuedUnmappedFolders();
 
@@ -247,8 +239,7 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
       const nextTarget = queuedFolders.find(isUnmappedFolderQueuedForMatch);
 
       if (!nextTarget) {
-        yield* markJobSucceeded(
-          db,
+        yield* backgroundJobRepository.markSucceeded(
           "unmapped_scan",
           `Processed ${queuedFolders.length} unmapped folder(s)`,
           nowIso,
@@ -257,8 +248,7 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
         return { folderCount: queuedFolders.length };
       }
 
-      yield* updateJobProgress(
-        db,
+      yield* backgroundJobRepository.updateProgress(
         "unmapped_scan",
         countCompletedUnmappedMatches(queuedFolders) + 1,
         queuedFolders.length,
@@ -273,15 +263,13 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
 
       if (matchResult._tag === "Failed") {
         const failedFolder = matchResult.folder;
-        yield* markJobFailed(
-          db,
+        yield* backgroundJobRepository.markFailed(
           "unmapped_scan",
           failedFolder.last_match_error ?? `Failed to match ${nextTarget.name}`,
           nowIso,
         );
 
-        yield* appendLog(
-          db,
+        yield* systemLogRepository.appendLog(
           "library.unmapped.scan",
           "warn",
           `Failed to match unmapped folder ${nextTarget.name}: ${
@@ -293,14 +281,12 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
         return { folderCount: queuedFolders.length };
       }
 
-      yield* markJobSucceeded(
-        db,
+      yield* backgroundJobRepository.markSucceeded(
         "unmapped_scan",
         `Processed ${nextTarget.name} (${queuedFolders.length} unmapped folder(s) total)`,
         nowIso,
       );
-      yield* appendLog(
-        db,
+      yield* systemLogRepository.appendLog(
         "library.unmapped.scan",
         "info",
         `Matched unmapped folder ${nextTarget.name}`,

@@ -1,7 +1,6 @@
 import { Effect, Ref } from "effect";
 
-import type { AppDatabase, DatabaseError } from "@/db/database.ts";
-import { AppDrizzleDatabase } from "@/db/database.ts";
+import type { DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { DomainPathError, InfrastructureError } from "@/features/errors.ts";
 import {
@@ -9,16 +8,15 @@ import {
   type MediaReadRepositoryShape,
 } from "@/features/media/shared/media-read-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
-import {
-  markJobFailed,
-  markJobStarted,
-  markJobSucceeded,
-} from "@/features/operations/shared/job-support.ts";
 import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
 import { FileSystem, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { scanMediaLibraryRow } from "@/features/operations/catalog/catalog-library-scan-row-support.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { markJobFailureOrFailWithError } from "@/infra/job-failure-support.ts";
+import {
+  BackgroundJobRepository,
+  type BackgroundJobRepositoryShape,
+} from "@/features/system/repository/background-job-repository.ts";
 
 export interface CatalogLibraryScanServiceShape {
   readonly runLibraryScan: () => Effect.Effect<
@@ -28,7 +26,7 @@ export interface CatalogLibraryScanServiceShape {
 }
 
 function makeCatalogLibraryScanSupport(input: {
-  db: AppDatabase;
+  backgroundJobRepository: BackgroundJobRepositoryShape;
   eventBus: typeof EventBus.Service;
   fs: FileSystemShape;
   mediaReadRepository: MediaReadRepositoryShape;
@@ -45,7 +43,7 @@ function makeCatalogLibraryScanSupport(input: {
       job: "library_scan",
       logAnnotations: { run_failure: cause.message },
       logMessage: "Failed to record library scan job failure",
-      markFailed: markJobFailed(input.db, "library_scan", cause, nowIso),
+      markFailed: input.backgroundJobRepository.markFailed("library_scan", cause, nowIso),
     }).pipe(
       Effect.catchTag("JobFailurePersistenceError", () => Effect.void),
       Effect.zipRight(Effect.fail(cause)),
@@ -54,7 +52,7 @@ function makeCatalogLibraryScanSupport(input: {
   const runLibraryScan = Effect.fn("CatalogLibraryScan.runLibraryScan")(
     function* () {
       yield* Effect.annotateCurrentSpan("job", "library_scan");
-      yield* markJobStarted(input.db, "library_scan", nowIso);
+      yield* input.backgroundJobRepository.markStarted("library_scan", nowIso);
 
       const animeRows = yield* input.mediaReadRepository.listMediaRows({
         limit: Number.MAX_SAFE_INTEGER,
@@ -86,8 +84,7 @@ function makeCatalogLibraryScanSupport(input: {
       yield* Effect.annotateCurrentSpan("scannedFiles", scanned);
       yield* Effect.annotateCurrentSpan("matchedFiles", matched);
 
-      yield* markJobSucceeded(
-        input.db,
+      yield* input.backgroundJobRepository.markSucceeded(
         "library_scan",
         `Scanned ${scanned} file(s), matched ${matched}`,
         nowIso,
@@ -113,7 +110,7 @@ export class CatalogLibraryScanService extends Effect.Service<CatalogLibraryScan
   "@bakarr/api/CatalogLibraryScanService",
   {
     effect: Effect.gen(function* () {
-      const db = yield* AppDrizzleDatabase;
+      const backgroundJobRepository = yield* BackgroundJobRepository;
       const eventBus = yield* EventBus;
       const fs = yield* FileSystem;
       const mediaReadRepository = yield* MediaReadRepository;
@@ -121,7 +118,7 @@ export class CatalogLibraryScanService extends Effect.Service<CatalogLibraryScan
       const progress = yield* OperationsProgress;
 
       return makeCatalogLibraryScanSupport({
-        db,
+        backgroundJobRepository,
         eventBus,
         fs,
         mediaReadRepository,
@@ -130,7 +127,7 @@ export class CatalogLibraryScanService extends Effect.Service<CatalogLibraryScan
         publishLibraryScanProgress: progress.publishLibraryScanProgress,
       });
     }),
-    dependencies: [AppDrizzleDatabase.Default, MediaReadRepository.Default],
+    dependencies: [BackgroundJobRepository.Default, MediaReadRepository.Default],
   },
 ) {}
 

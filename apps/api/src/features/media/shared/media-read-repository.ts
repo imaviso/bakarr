@@ -87,6 +87,31 @@ export interface MediaReadRepositoryShape {
   readonly listMappedUnitRows: (
     mediaId: number,
   ) => Effect.Effect<readonly (typeof mediaUnits.$inferSelect)[], DatabaseError>;
+  readonly listImportScanMappedUnits: (input: {
+    readonly mediaIds: readonly number[];
+    readonly paths: readonly string[];
+    readonly unitNumbers: readonly number[];
+  }) => Effect.Effect<
+    readonly {
+      readonly media_id: number;
+      readonly media_title: string;
+      readonly unit_number: number;
+      readonly file_path: string | null;
+    }[],
+    DatabaseError
+  >;
+  readonly listScopedUnitRows: (input: {
+    readonly mediaIds: readonly number[];
+    readonly unitNumbers: readonly number[];
+  }) => Effect.Effect<
+    readonly {
+      readonly aired: string | null;
+      readonly mediaId: number;
+      readonly number: number;
+      readonly title: string | null;
+    }[],
+    DatabaseError
+  >;
   readonly listWantedMissing: (
     limit: number,
     nowIso: string,
@@ -142,6 +167,8 @@ function makeMediaReadRepositoryShape(db: AppDatabase): MediaReadRepositoryShape
     getEpisodeRow: (mediaId, unitNumber) => getEpisodeRowEffect(db, mediaId, unitNumber),
     listCalendarEvents: (start, end, now) => listCalendarEventsEffect(db, start, end, now),
     listMappedUnitRows: (mediaId) => listMappedUnitRowsEffect(db, mediaId),
+    listImportScanMappedUnits: (input) => listImportScanMappedUnitsEffect(db, input),
+    listScopedUnitRows: (input) => listScopedUnitRowsEffect(db, input),
     listMediaRows: (input) => listMediaRowsEffect(db, input),
     listMissingUnitNumbers: (mediaIds) => listMissingUnitNumbersEffect(db, mediaIds),
     listUnitProgressStats: (mediaIds) => listUnitProgressStatsEffect(db, mediaIds),
@@ -376,6 +403,81 @@ const listMappedUnitRowsEffect = Effect.fn("MediaReadRepository.listMappedUnitRo
       .select()
       .from(mediaUnits)
       .where(and(eq(mediaUnits.mediaId, mediaId), sql`${mediaUnits.filePath} is not null`)),
+  );
+});
+
+const listImportScanMappedUnitsEffect = Effect.fn("MediaReadRepository.listImportScanMappedUnits")(
+  function* (
+    db: AppDatabase,
+    input: {
+      readonly mediaIds: readonly number[];
+      readonly paths: readonly string[];
+      readonly unitNumbers: readonly number[];
+    },
+  ) {
+    if (
+      input.paths.length === 0 &&
+      (input.mediaIds.length === 0 || input.unitNumbers.length === 0)
+    ) {
+      return [] as const;
+    }
+
+    const byPath =
+      input.paths.length > 0 ? inArray(mediaUnits.filePath, [...input.paths]) : undefined;
+    const byMediaUnit =
+      input.mediaIds.length > 0 && input.unitNumbers.length > 0
+        ? and(
+            inArray(mediaUnits.mediaId, [...input.mediaIds]),
+            inArray(mediaUnits.number, [...input.unitNumbers]),
+          )
+        : undefined;
+    const whereClause = byPath && byMediaUnit ? or(byPath, byMediaUnit) : (byPath ?? byMediaUnit);
+
+    if (!whereClause) {
+      return [] as const;
+    }
+
+    return yield* tryDatabasePromise("Failed to scan import path", () =>
+      db
+        .select({
+          media_id: mediaUnits.mediaId,
+          media_title: media.titleRomaji,
+          unit_number: mediaUnits.number,
+          file_path: mediaUnits.filePath,
+        })
+        .from(mediaUnits)
+        .innerJoin(media, eq(mediaUnits.mediaId, media.id))
+        .where(whereClause),
+    );
+  },
+);
+
+const listScopedUnitRowsEffect = Effect.fn("MediaReadRepository.listScopedUnitRows")(function* (
+  db: AppDatabase,
+  input: {
+    readonly mediaIds: readonly number[];
+    readonly unitNumbers: readonly number[];
+  },
+) {
+  if (input.mediaIds.length === 0 || input.unitNumbers.length === 0) {
+    return [] as const;
+  }
+
+  return yield* tryDatabasePromise("Failed to scan import path", () =>
+    db
+      .select({
+        aired: mediaUnits.aired,
+        mediaId: mediaUnits.mediaId,
+        number: mediaUnits.number,
+        title: mediaUnits.title,
+      })
+      .from(mediaUnits)
+      .where(
+        and(
+          inArray(mediaUnits.mediaId, [...input.mediaIds]),
+          inArray(mediaUnits.number, [...input.unitNumbers]),
+        ),
+      ),
   );
 });
 

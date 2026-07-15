@@ -3,7 +3,7 @@ import { dirname, join, resolve } from "node:path";
 import { Effect, Match } from "effect";
 import type { ReaderPage, ReaderPagesResponse } from "@packages/shared/index.ts";
 
-import { AppDrizzleDatabase, type AppDatabase, type DatabaseError } from "@/db/database.ts";
+import type { DatabaseError } from "@/db/database.ts";
 import { AppConfig } from "@/config/schema.ts";
 import { FileSystem, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";
@@ -128,7 +128,6 @@ class ArchiveCache {
 }
 
 const makeMediaReaderService = Effect.fn("MediaReaderService.make")(function* () {
-  const db = yield* AppDrizzleDatabase;
   const fs = yield* FileSystem;
   const mediaReadRepository = yield* MediaReadRepository;
   const executor = yield* CommandExecutor.CommandExecutor;
@@ -156,7 +155,6 @@ const makeMediaReaderService = Effect.fn("MediaReaderService.make")(function* ()
     unitNumber: number,
   ) {
     const unitFile = yield* resolveReaderUnitFile({
-      db,
       fs,
       mediaId,
       mediaReadRepository,
@@ -182,7 +180,6 @@ const makeMediaReaderService = Effect.fn("MediaReaderService.make")(function* ()
     pageNumber: number,
   ) {
     const unitFile = yield* resolveReaderUnitFile({
-      db,
       fs,
       mediaId,
       mediaReadRepository,
@@ -221,14 +218,12 @@ export class MediaReaderService extends Effect.Service<MediaReaderService>()(
 export const MediaReaderServiceLive = MediaReaderService.Default;
 
 const resolveReaderUnitFile = Effect.fn("MediaReader.resolveReaderUnitFile")(function* (input: {
-  readonly db: AppDatabase;
   readonly fs: FileSystemShape;
   readonly mediaReadRepository: typeof MediaReadRepository.Service;
   readonly mediaId: number;
   readonly unitNumber: number;
 }) {
   const resolvedEpisodeFile = yield* resolveUnitFileEffect({
-    db: input.db,
     fs: input.fs,
     mediaId: input.mediaId,
     mediaReadRepository: input.mediaReadRepository,

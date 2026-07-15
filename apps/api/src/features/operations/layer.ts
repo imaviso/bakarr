@@ -39,6 +39,7 @@ import { LibraryRootsRepository } from "@/features/operations/repository/library
 import { OperationsProfileRepository } from "@/features/operations/repository/profile-repository.ts";
 import { OperationsTaskRepository } from "@/features/operations/repository/task-repository.ts";
 import { RssFeedRepository } from "@/features/operations/repository/rss-feed-repository-service.ts";
+import { BackgroundJobRepository } from "@/features/system/repository/background-job-repository.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 import { SystemUnmappedRepository } from "@/features/system/repository/unmapped-repository.ts";
 
@@ -46,6 +47,7 @@ export function makeOperationsFeatureLayer<ROut, E, RIn>(
   runtimeSupportLayer: Layer.Layer<ROut, E, RIn>,
 ) {
   const pureDbRepos = Layer.mergeAll(
+    BackgroundJobRepository.Default,
     DownloadRepository.Default,
     MediaReadRepository.Default,
     MediaUnitRepository.Default,

@@ -1,6 +1,5 @@
 import { Effect } from "effect";
 
-import type { AppDatabase } from "@/db/database.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { isWithinPathRoot } from "@/infra/filesystem/filesystem.ts";
 import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
@@ -15,7 +14,6 @@ import {
 export const resolveUnitFileEffect = Effect.fn("MediaFileRead.resolveUnitFileEffect")(
   function* (input: {
     mediaId: number;
-    db: AppDatabase;
     mediaReadRepository: MediaReadRepositoryShape;
     unitNumber: number;
     fs: FileSystemShape;

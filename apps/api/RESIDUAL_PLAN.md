@@ -1,6 +1,6 @@
 # API residual deepen plan
 
-Status: **P0 complete; P1 mostly complete; P2 partial.**
+Status: **P0 complete; P1 complete; P2 mostly complete.**
 
 Do not re-litigate ADR-0001/0002/0004.
 
@@ -32,28 +32,27 @@ Do not re-litigate ADR-0001/0002/0004.
 | Config/profile helpers                        | SystemConfigRepository + QualityProfileRepository.qualityProfileExists                                                                         |
 | Mega-unions                                   | removed                                                                                                                                        |
 | Anime→Media naming                            | feature Tags/methods Media; provider models stay Anime\*                                                                                       |
-| RSS feed processFeed                          | no catchTag collapse MediaNotFound/DomainInput (outer runRssCheck still maps worker-safe Infra)                                                |
+| RSS feed processFeed                          | DownloadRepository for infoHash + missing units; no free download SQL                                                                          |
+| Job marks                                     | `BackgroundJobRepository` — markStarted/Succeeded/Failed/updateProgress/loadByName                                                             |
+| Catalog library scan                          | BackgroundJobRepository only (no AppDrizzleDatabase)                                                                                           |
+| import-scan free SQL                          | MediaReadRepository.listAllMediaRows / listImportScanMappedUnits / listScopedUnitRows                                                          |
+| unmapped free SQL                             | MediaRead + BackgroundJob + SystemLog; no raw backgroundJobs/media selects                                                                     |
+| Span polish                                   | OperationsService.\* renamed to actual service names                                                                                           |
+| LibraryBrowse                                 | in operations feature layer (not special-cased in lifecycle)                                                                                   |
+| Reader/stream                                 | no AppDrizzleDatabase; resolveUnitFileEffect uses MediaRead only                                                                               |
 
 ## Still open
 
-### P1 leftovers
-
-| Item                                      | Notes                                                                                                                                          |
-| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| Job marks (`markJob*` / `job-support.ts`) | Still raw `db` for backgroundJobs + some download helpers. Prefer SystemStats/job Tag or keep free helpers private to ops until multi-adapter. |
-| Catalog library scan                      | Media list via MediaRead; still needs `db` for markJob\* only                                                                                  |
-| Download infoHash SQL in RSS feed         | Still free select on downloads in processFeed — absorb into DownloadRepository if touched again                                                |
-| import-scan / unmapped free SQL           | Not fully drained                                                                                                                              |
-
-### P2 leftovers
+### Optional / low priority
 
 | Item                             | Notes                                                                                                                                                                                      |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Layer DAG                        | Pure-db leaves still merged in lifecycle `sharedRepos` **and** media/ops feature layers (Effect memoizes Default). Optional: single exported `pureDbLeaves` module used once at lifecycle. |
-| Enrollment/browse home           | Still special-cased in `lifecycle-layers.ts`                                                                                                                                               |
+| MediaEnrollment special-case     | Still wired in `lifecycle-layers.ts` (crosses media + ops: SearchBackgroundMissing + TaskLauncher)                                                                                         |
 | Reconciliation file split        | Private pure/IO phases only; no new Tags                                                                                                                                                   |
-| Span polish                      | Remaining `OperationsService.*` / mixed locals                                                                                                                                             |
-| Reader/stream AppDrizzleDatabase | Out of core residual; touch when next edited                                                                                                                                               |
+| release-queue free SQL           | `release-queue-support.ts` still takes raw `db` for insert/delete/update downloads — absorb into DownloadRepository when next touched                                                      |
+| job-support residual             | Only `recordDownloadEvent` left (thin wrapper); prefer DownloadRepository.insertDownloadEvent when callers can take the Tag                                                                |
+| download-coverage free SQL       | `hasOverlappingDownload` still raw select — DownloadRepository already has lookup methods                                                                                                  |
 
 ## Execution rules (when continuing)
 
@@ -77,9 +76,12 @@ class FooRepository extends Effect.Service<FooRepository>()("@bakarr/api/FooRepo
 
 ```bash
 rg -n "AppDrizzleDatabase|tryDatabasePromise" apps/api/src/features/media --glob '*.ts' \
-  | rg -v 'repository/|_test\.ts|reader/|stream/'
+  | rg -v 'repository/|_test\.ts'
 
 rg -n "OperationsError|isOperationsError|MediaServiceError" apps/api/src --glob '*.ts'
+
+rg -n "markJobStarted|markJobFailed|JobSupport\." apps/api/src --glob '*.ts' \
+  | rg -v 'background-job-repository|job-status|job-support'
 ```
 
 ## Verify

@@ -1,20 +1,15 @@
 import { Cause, Effect, Option } from "effect";
 
-import type { AppDatabase } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { MediaImageCacheService } from "@/features/media/metadata/media-image-cache-service.ts";
 import type { MediaMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
 import { syncMediaMetadataEffect } from "@/features/media/metadata/media-metadata-sync.ts";
-import {
-  formatJobFailureMessage,
-  markJobFailed,
-  markJobStarted,
-  markJobSucceeded,
-} from "@/infra/job-status.ts";
+import { formatJobFailureMessage } from "@/infra/job-status.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
 import { markJobFailureOrFailWithError } from "@/infra/job-failure-support.ts";
 import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
 import type { MediaUnitRepositoryShape } from "@/features/media/units/media-unit-repository.ts";
+import type { BackgroundJobRepositoryShape } from "@/features/system/repository/background-job-repository.ts";
 import type { SystemLogRepositoryShape } from "@/features/system/repository/log-repository.ts";
 
 type MetadataRefreshError = DatabaseError | ExternalCallError;
@@ -24,7 +19,7 @@ export const refreshMetadataForMonitoredMediaEffect = Effect.fn(
 )(function* (input: {
   imageCacheService: typeof MediaImageCacheService.Service;
   metadataProvider: typeof MediaMetadataProviderService.Service;
-  db: AppDatabase;
+  backgroundJobRepository: BackgroundJobRepositoryShape;
   mediaReadRepository: MediaReadRepositoryShape;
   mediaUnitRepository: MediaUnitRepositoryShape;
   systemLogRepository: SystemLogRepositoryShape;
@@ -42,7 +37,7 @@ export const refreshMetadataForMonitoredMediaEffect = Effect.fn(
       job: "metadata_refresh",
       logAnnotations: { run_failure: error.message },
       logMessage: "Failed to record metadata refresh job failure",
-      markFailed: markJobFailed(input.db, "metadata_refresh", error, nowIso),
+      markFailed: input.backgroundJobRepository.markFailed("metadata_refresh", error, nowIso),
     }).pipe(
       Effect.catchTag("JobFailurePersistenceError", () => Effect.void),
       Effect.zipRight(
@@ -77,7 +72,7 @@ export const refreshMetadataForMonitoredMediaEffect = Effect.fn(
       job: "metadata_refresh",
       logAnnotations: { run_failure_cause: Cause.pretty(cause) },
       logMessage: "Failed to record metadata refresh infrastructure failure",
-      markFailed: markJobFailed(input.db, "metadata_refresh", cause, nowIso),
+      markFailed: input.backgroundJobRepository.markFailed("metadata_refresh", cause, nowIso),
     }).pipe(
       Effect.catchTag("JobFailurePersistenceError", () => Effect.void),
       Effect.zipRight(
@@ -109,7 +104,7 @@ export const refreshMetadataForMonitoredMediaEffect = Effect.fn(
     );
   };
 
-  yield* markJobStarted(input.db, "metadata_refresh", nowIso);
+  yield* input.backgroundJobRepository.markStarted("metadata_refresh", nowIso);
   yield* input.systemLogRepository.appendLog(
     "system.task.metadata_refresh.started",
     "info",
@@ -169,7 +164,7 @@ export const refreshMetadataForMonitoredMediaEffect = Effect.fn(
         ? `Refreshed ${refreshed} monitored media`
         : `Refreshed ${refreshed} monitored media (${skippedExternal} skipped due external failures)`;
 
-    yield* markJobSucceeded(input.db, "metadata_refresh", message, nowIso);
+    yield* input.backgroundJobRepository.markSucceeded("metadata_refresh", message, nowIso);
     yield* input.systemLogRepository.appendLog(
       "system.task.metadata_refresh.completed",
       "success",

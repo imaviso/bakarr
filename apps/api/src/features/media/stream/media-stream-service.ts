@@ -1,7 +1,6 @@
 import { Effect, Match } from "effect";
 
 import type { DatabaseError } from "@/db/database.ts";
-import { AppDrizzleDatabase } from "@/db/database.ts";
 import { currentTimeMillis } from "@/infra/time.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";
@@ -32,7 +31,6 @@ export interface MediaStreamServiceShape {
 }
 
 const makeMediaStreamService = Effect.fn("MediaStreamService.make")(function* () {
-  const db = yield* AppDrizzleDatabase;
   const fs = yield* FileSystem;
   const mediaReadRepository = yield* MediaReadRepository;
   const signer = yield* StreamTokenSigner;
@@ -95,7 +93,6 @@ const makeMediaStreamService = Effect.fn("MediaStreamService.make")(function* ()
 
       const resolvedEpisodeFile = yield* resolveUnitFileEffect({
         mediaId: input.mediaId,
-        db,
         mediaReadRepository,
         unitNumber: input.unitNumber,
         fs,

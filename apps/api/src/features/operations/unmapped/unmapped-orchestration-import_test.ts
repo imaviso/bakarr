@@ -14,6 +14,7 @@ import { makeMediaReadRepository } from "@/features/media/shared/media-read-repo
 import { makeMediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import { getLibraryPathForMediaKind } from "@/features/media/shared/config-support.ts";
 import { makeSystemConfigRepository } from "@/features/system/repository/system-config-repository.ts";
+import { makeSystemLogRepository } from "@/features/system/repository/log-repository.ts";
 
 it.scoped("unmapped import rolls back when a later insert fails", () =>
   withSqliteTestDbEffect({
@@ -66,7 +67,6 @@ it.scoped("unmapped import rolls back when a later insert fails", () =>
         });
 
         const workflow = makeUnmappedImportWorkflow({
-          db: appDb,
           fs,
           getLibraryPath: (mediaKind) =>
             Effect.succeed(getLibraryPathForMediaKind(testConfig.library, mediaKind)),
@@ -74,6 +74,7 @@ it.scoped("unmapped import rolls back when a later insert fails", () =>
           mediaUnitRepository: makeMediaUnitRepository(appDb),
           nowIso: () => Effect.succeed("2024-01-01T00:00:00.000Z"),
           systemConfigRepository: makeSystemConfigRepository(appDb),
+          systemLogRepository: makeSystemLogRepository(appDb),
         });
 
         const exit = yield* Effect.exit(

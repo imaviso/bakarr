@@ -1,8 +1,7 @@
 import { Effect } from "effect";
 
 import { brandMediaId, type MediaSearchResult, type ScanResult } from "@packages/shared/index.ts";
-import type { AppDatabase } from "@/db/database.ts";
-import { AppDrizzleDatabase, DatabaseError } from "@/db/database.ts";
+import { DatabaseError } from "@/db/database.ts";
 import { summarizeEpisodeCoverage } from "@/domain/media/derivations.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
 import { getConfiguredLibraryPaths } from "@/features/media/shared/config-support.ts";
@@ -33,7 +32,6 @@ import {
   RuntimeConfigSnapshotService,
   type RuntimeConfigSnapshotError,
 } from "@/features/system/runtime-config-snapshot-service.ts";
-import { tryDatabasePromise, type TryDatabasePromise } from "@/infra/effect/db.ts";
 import {
   FileSystem,
   isWithinPathRoot,
@@ -45,14 +43,12 @@ const scanImportPathEffect = Effect.fn("ImportPathScanService.scanImportPathEffe
   function* (input: {
     aniList: typeof AniListClient.Service;
     mediaId?: number;
-    db: AppDatabase;
     fs: FileSystemShape;
     limit?: number;
     mediaReadRepository: typeof MediaReadRepository.Service;
     mediaProbe: MediaProbeShape;
     namingSettings: NamingSettings;
     path: string;
-    tryDatabasePromise: TryDatabasePromise;
   }) {
     const discovery = yield* discoverImportScanFiles({
       fs: input.fs,
@@ -78,22 +74,20 @@ const scanImportPathEffect = Effect.fn("ImportPathScanService.scanImportPathEffe
       discovery.analyzed.map((entry) => entry.scanned),
     );
     const candidateAnimeIds = animeRows.map((row) => row.id);
-    const mappedEpisodeRows = yield* loadMappedEpisodeRows({
-      candidateAnimeIds,
-      candidatePaths,
-      db: input.db,
-      episodeNumberCandidates,
-      tryDatabasePromise: input.tryDatabasePromise,
-    });
-    const mappingIndex = buildEpisodeFileMappingIndex(mappedEpisodeRows);
-    const namingSettings = input.namingSettings;
-    const animeRowsById = new Map(animeRows.map((row) => [row.id, row]));
-    const scopedEpisodeRows = yield* loadScopedEpisodeRows({
-      animeIds: animeRows.map((row) => row.id),
-      db: input.db,
-      episodeNumberCandidates,
-      tryDatabasePromise: input.tryDatabasePromise,
-    });
+  const mappedEpisodeRows = yield* loadMappedEpisodeRows({
+    candidateAnimeIds,
+    candidatePaths,
+    episodeNumberCandidates,
+    mediaReadRepository: input.mediaReadRepository,
+  });
+  const mappingIndex = buildEpisodeFileMappingIndex(mappedEpisodeRows);
+  const namingSettings = input.namingSettings;
+  const animeRowsById = new Map(animeRows.map((row) => [row.id, row]));
+  const scopedEpisodeRows = yield* loadScopedEpisodeRows({
+    animeIds: animeRows.map((row) => row.id),
+    episodeNumberCandidates,
+    mediaReadRepository: input.mediaReadRepository,
+  });
     const episodeRowsByAnimeEpisode = new Map(
       scopedEpisodeRows.map((row) => [`${row.mediaId}:${row.number}`, row] as const),
     );
@@ -254,7 +248,6 @@ export class ImportPathScanService extends Effect.Service<ImportPathScanService>
   "@bakarr/api/ImportPathScanService",
   {
     effect: Effect.gen(function* () {
-      const db = yield* AppDrizzleDatabase;
       const aniList = yield* AniListClient;
       const fs = yield* FileSystem;
       const mediaProbe = yield* MediaProbe;
@@ -309,7 +302,6 @@ export class ImportPathScanService extends Effect.Service<ImportPathScanService>
         return yield* scanImportPathEffect({
           aniList,
           ...(input.mediaId === undefined ? {} : { mediaId: input.mediaId }),
-          db,
           fs,
           ...(input.limit === undefined ? {} : { limit: input.limit }),
           mediaReadRepository,
@@ -320,7 +312,6 @@ export class ImportPathScanService extends Effect.Service<ImportPathScanService>
             preferredTitle: config.library.preferred_title,
           },
           path: canonicalPath,
-          tryDatabasePromise,
         }).pipe(
           Effect.mapError((error) =>
             error instanceof DatabaseError ||
@@ -337,7 +328,7 @@ export class ImportPathScanService extends Effect.Service<ImportPathScanService>
 
       return { scanImportPath } satisfies ImportPathScanServiceShape;
     }),
-    dependencies: [AppDrizzleDatabase.Default],
+    dependencies: [MediaReadRepository.Default],
   },
 ) {}
 

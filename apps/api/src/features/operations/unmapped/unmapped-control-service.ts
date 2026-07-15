@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 
-import { AppDrizzleDatabase, type DatabaseError } from "@/db/database.ts";
+import type { DatabaseError } from "@/db/database.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import type { DomainPathError } from "@/features/errors.ts";
@@ -13,7 +13,7 @@ import {
 } from "@/features/system/repository/unmapped-repository.ts";
 import { DomainInputError, StoredDataError } from "@/features/errors.ts";
 import { OperationsConflictError, OperationsNotFoundError } from "@/features/operations/errors.ts";
-import { appendLog } from "@/features/operations/shared/job-support.ts";
+import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 import {
   transitionUnmappedFolderForControlAction,
   transitionUnmappedFoldersForBulkControlAction,
@@ -60,9 +60,9 @@ export interface UnmappedControlWorkflowShape {
 }
 
 const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(function* () {
-  const db = yield* AppDrizzleDatabase;
   const fs = yield* FileSystem;
   const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
+  const systemLogRepository = yield* SystemLogRepository;
   const systemUnmappedRepository = yield* SystemUnmappedRepository;
   const mediaReadRepository = yield* MediaReadRepository;
   const scanService = yield* UnmappedScanService;
@@ -132,8 +132,7 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
       });
     }
 
-    yield* appendLog(
-      db,
+    yield* systemLogRepository.appendLog(
       "library.unmapped.control",
       "info",
       `refreshed unmapped folder ${current.name}`,
@@ -145,8 +144,7 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
 
   const appendControlActionLog = Effect.fn("UnmappedControlService.appendControlActionLog")(
     function* (action: UnmappedFolderControlAction, folderName: string) {
-      yield* appendLog(
-        db,
+      yield* systemLogRepository.appendLog(
         "library.unmapped.control",
         "info",
         `${action} unmapped folder ${folderName}`,
@@ -210,7 +208,12 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
         logMessage = `Reset ${nextFolders.length} failed unmapped folder(s)`;
       }
 
-      yield* appendLog(db, "library.unmapped.control.bulk", "info", logMessage, nowIso);
+      yield* systemLogRepository.appendLog(
+        "library.unmapped.control.bulk",
+        "info",
+        logMessage,
+        nowIso,
+      );
 
       return { affectedCount: nextFolders.length };
     },
