@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, gte, lt, lte, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, lt, lte, or, sql, type SQL } from "drizzle-orm";
 import { Chunk, Effect, Option, Stream } from "effect";
 
 import type {
@@ -7,15 +7,102 @@ import type {
   DownloadHistoryPage,
 } from "@packages/shared/index.ts";
 import type { AppDatabase, DatabaseError } from "@/db/database.ts";
-import { downloadEvents, downloads } from "@/db/schema.ts";
+import { downloadEvents, downloads, media } from "@/db/schema.ts";
 import { toDownload } from "@/features/operations/download/download-presentation.ts";
 import {
-  loadDownloadEventPresentationContexts,
   toDownloadEvent,
+  type DownloadEventPresentationContext,
+  type DownloadEventRowLike,
 } from "@/features/operations/download/download-event-presentations.ts";
 import { loadDownloadPresentationContexts } from "@/features/operations/repository/download-presentation-repository.ts";
 import { StoredDataError } from "@/features/errors.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
+
+const SQLITE_IN_LIST_CHUNK_SIZE = 900;
+const CHUNK_LOAD_CONCURRENCY = 4;
+
+export const loadDownloadEventPresentationContexts = Effect.fn(
+  "DownloadRepository.loadDownloadEventPresentationContexts",
+)(function* (db: AppDatabase, rows: readonly DownloadEventRowLike[]) {
+  if (rows.length === 0) {
+    return new Map<number, DownloadEventPresentationContext>();
+  }
+
+  const animeIds = [
+    ...new Set(rows.map((row) => row.mediaId).filter((value): value is number => value !== null)),
+  ];
+  const downloadIds = [
+    ...new Set(
+      rows.map((row) => row.downloadId).filter((value): value is number => value !== null),
+    ),
+  ];
+
+  const animeRows = yield* loadRowsByChunk(animeIds, (chunk) =>
+    tryDatabasePromise("Failed to load download event presentation contexts", () =>
+      db
+        .select({
+          coverImage: media.coverImage,
+          id: media.id,
+          titleEnglish: media.titleEnglish,
+          titleRomaji: media.titleRomaji,
+        })
+        .from(media)
+        .where(inArray(media.id, chunk)),
+    ),
+  );
+  const animeById = new Map(animeRows.map((row) => [row.id, row] as const));
+
+  const downloadRows = yield* loadRowsByChunk(downloadIds, (chunk) =>
+    tryDatabasePromise("Failed to load download event presentation contexts", () =>
+      db
+        .select({
+          id: downloads.id,
+          torrentName: downloads.torrentName,
+        })
+        .from(downloads)
+        .where(inArray(downloads.id, chunk)),
+    ),
+  );
+  const downloadById = new Map(downloadRows.map((row) => [row.id, row] as const));
+
+  return new Map(
+    rows.map((row) => {
+      const animeRow = row.mediaId !== null ? animeById.get(row.mediaId) : undefined;
+      const downloadRow = row.downloadId !== null ? downloadById.get(row.downloadId) : undefined;
+
+      return [
+        row.id,
+        {
+          mediaImage: animeRow?.coverImage ?? undefined,
+          mediaTitle: animeRow?.titleEnglish ?? animeRow?.titleRomaji,
+          torrentName: downloadRow?.torrentName ?? undefined,
+        },
+      ] as const;
+    }),
+  );
+});
+
+const loadRowsByChunk = Effect.fn("DownloadRepository.loadRowsByChunk")(
+  <TId, TRow>(
+    ids: readonly TId[],
+    loadChunk: (chunk: readonly TId[]) => Effect.Effect<readonly TRow[], DatabaseError>,
+  ): Effect.Effect<readonly TRow[], DatabaseError> =>
+    Effect.gen(function* () {
+      if (ids.length === 0) {
+        return [] as TRow[];
+      }
+
+      const chunks: TId[][] = [];
+      for (let index = 0; index < ids.length; index += SQLITE_IN_LIST_CHUNK_SIZE) {
+        chunks.push(ids.slice(index, index + SQLITE_IN_LIST_CHUNK_SIZE) as TId[]);
+      }
+      const chunkResults = yield* Effect.forEach(chunks, loadChunk, {
+        concurrency: CHUNK_LOAD_CONCURRENCY,
+      });
+
+      return chunkResults.flatMap((chunk) => chunk);
+    }),
+);
 
 export interface DownloadEventListQuery {
   readonly mediaId?: number;

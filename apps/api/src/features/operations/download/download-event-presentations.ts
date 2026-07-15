@@ -1,4 +1,3 @@
-import { inArray } from "drizzle-orm";
 import { Effect, Schema } from "effect";
 
 import {
@@ -8,10 +7,7 @@ import {
   DownloadEventMetadataSchema,
   type DownloadEvent,
 } from "@packages/shared/index.ts";
-import { media, downloads } from "@/db/schema.ts";
-import type { AppDatabase, DatabaseError } from "@/db/database.ts";
 import { StoredDataError } from "@/features/errors.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
 const DownloadEventMetadataJsonSchema = Schema.parseJson(DownloadEventMetadataSchema);
 
@@ -71,96 +67,3 @@ export const toDownloadEvent = Effect.fn("DownloadEventPresentations.toDownloadE
     to_status: row.toStatus ?? undefined,
   } satisfies DownloadEvent;
 });
-
-export const loadDownloadEventPresentationContexts = Effect.fn(
-  "DownloadEventPresentations.loadDownloadEventPresentationContexts",
-)(function* (db: AppDatabase, rows: readonly DownloadEventRowLike[]) {
-  if (rows.length === 0) {
-    return new Map<number, DownloadEventPresentationContext>();
-  }
-
-  const animeIds = [
-    ...new Set(rows.map((row) => row.mediaId).filter((value): value is number => value !== null)),
-  ];
-  const downloadIds = [
-    ...new Set(
-      rows.map((row) => row.downloadId).filter((value): value is number => value !== null),
-    ),
-  ];
-
-  const animeRows = yield* loadRowsByChunk(animeIds, (chunk) =>
-    tryDatabasePromise("Failed to load download event presentation contexts", () =>
-      db
-        .select({
-          coverImage: media.coverImage,
-          id: media.id,
-          titleEnglish: media.titleEnglish,
-          titleRomaji: media.titleRomaji,
-        })
-        .from(media)
-        .where(inArray(media.id, chunk)),
-    ),
-  );
-  const animeById = new Map(animeRows.map((row) => [row.id, row] as const));
-
-  const downloadRows = yield* loadRowsByChunk(downloadIds, (chunk) =>
-    tryDatabasePromise("Failed to load download event presentation contexts", () =>
-      db
-        .select({
-          id: downloads.id,
-          torrentName: downloads.torrentName,
-        })
-        .from(downloads)
-        .where(inArray(downloads.id, chunk)),
-    ),
-  );
-  const downloadById = new Map(downloadRows.map((row) => [row.id, row] as const));
-
-  return new Map(
-    rows.map((row) => {
-      const animeRow = row.mediaId !== null ? animeById.get(row.mediaId) : undefined;
-      const downloadRow = row.downloadId !== null ? downloadById.get(row.downloadId) : undefined;
-
-      return [
-        row.id,
-        {
-          mediaImage: animeRow?.coverImage ?? undefined,
-          mediaTitle: animeRow?.titleEnglish ?? animeRow?.titleRomaji,
-          torrentName: downloadRow?.torrentName ?? undefined,
-        },
-      ] as const;
-    }),
-  );
-});
-
-const SQLITE_IN_LIST_CHUNK_SIZE = 900;
-const CHUNK_LOAD_CONCURRENCY = 4;
-
-const loadRowsByChunk = Effect.fn("DownloadEventPresentations.loadRowsByChunk")(
-  <TId, TRow>(
-    ids: readonly TId[],
-    loadChunk: (chunk: readonly TId[]) => Effect.Effect<readonly TRow[], DatabaseError>,
-  ): Effect.Effect<readonly TRow[], DatabaseError> =>
-    Effect.gen(function* () {
-      if (ids.length === 0) {
-        return [] as TRow[];
-      }
-
-      const chunks = chunkValues(ids, SQLITE_IN_LIST_CHUNK_SIZE);
-      const chunkResults = yield* Effect.forEach(chunks, loadChunk, {
-        concurrency: CHUNK_LOAD_CONCURRENCY,
-      });
-
-      return chunkResults.flatMap((chunk) => chunk);
-    }),
-);
-
-function chunkValues<T>(values: readonly T[], size: number) {
-  const chunks: T[][] = [];
-
-  for (let index = 0; index < values.length; index += size) {
-    chunks.push(values.slice(index, index + size));
-  }
-
-  return chunks;
-}

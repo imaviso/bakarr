@@ -99,6 +99,7 @@ function scanImportPathEffect(
                 listAllMediaRows: () => Effect.dieMessage("not used in test"),
                 listImportScanMappedUnits: () => Effect.dieMessage("not used in test"),
                 listScopedUnitRows: () => Effect.dieMessage("not used in test"),
+                listMissingUnitSearchRows: () => Effect.dieMessage("not used in test"),
                 findMediaByExactRootFolder: () => Effect.dieMessage("not used in test"),
                 requireMediaExists: () => Effect.dieMessage("not used in test"),
                 deleteMedia: () => Effect.dieMessage("not used in test"),

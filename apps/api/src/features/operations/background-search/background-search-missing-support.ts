@@ -1,4 +1,3 @@
-import { and, eq, ne, or, sql } from "drizzle-orm";
 import { Effect, Option } from "effect";
 
 import {
@@ -7,9 +6,7 @@ import {
   type ReleaseProfileRule,
 } from "@packages/shared/index.ts";
 
-import { AppDrizzleDatabase } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
-import { media, mediaUnits } from "@/db/schema.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import {
   decideDownloadAction,
@@ -23,7 +20,6 @@ import { DomainInputError, InfrastructureError } from "@/features/errors.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
 import { SearchReleaseService } from "@/features/operations/search/search-orchestration-release-search.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 
 export interface SearchBackgroundMissingServiceShape {
@@ -36,7 +32,6 @@ export class SearchBackgroundMissingService extends Effect.Service<SearchBackgro
   "@bakarr/api/SearchBackgroundMissingService",
   {
     effect: Effect.gen(function* () {
-      const db = yield* AppDrizzleDatabase;
       const eventBus = yield* EventBus;
       const progress = yield* OperationsProgress;
       const searchReleaseService = yield* SearchReleaseService;
@@ -94,30 +89,11 @@ export class SearchBackgroundMissingService extends Effect.Service<SearchBackgro
         });
 
         const now = yield* nowIso();
-        const missingConditions = [
-          eq(mediaUnits.downloaded, false),
-          or(
-            and(
-              eq(media.mediaKind, "anime"),
-              sql`${mediaUnits.aired} is not null`,
-              sql`${mediaUnits.aired} <= ${now}`,
-            ),
-            and(
-              ne(media.mediaKind, "anime"),
-              or(sql`${mediaUnits.aired} is null`, sql`${mediaUnits.aired} <= ${now}`),
-            ),
-          ),
-          mediaId ? eq(mediaUnits.mediaId, mediaId) : eq(media.monitored, true),
-        ];
-        const missingRows = yield* tryDatabasePromise("Failed to queue missing-unit search", () =>
-          db
-            .select()
-            .from(mediaUnits)
-            .innerJoin(media, eq(media.id, mediaUnits.mediaId))
-            .where(and(...missingConditions))
-            .orderBy(media.titleRomaji, mediaUnits.number)
-            .limit(10),
-        );
+        const missingRows = yield* mediaReadRepository.listMissingUnitSearchRows({
+          ...(mediaId === undefined ? {} : { mediaId }),
+          nowIso: now,
+          limit: 10,
+        });
         const runtimeConfig = yield* runtimeConfigSnapshot.getRuntimeConfig();
         let queued = 0;
         const missingEpisodesByAnimeId = new Map<number, number[]>();
@@ -236,7 +212,7 @@ export class SearchBackgroundMissingService extends Effect.Service<SearchBackgro
 
       return { triggerSearchMissing } satisfies SearchBackgroundMissingServiceShape;
     }),
-    dependencies: [AppDrizzleDatabase.Default],
+    dependencies: [MediaReadRepository.Default, MediaUnitRepository.Default],
   },
 ) {}
 

@@ -116,6 +116,17 @@ export interface MediaReadRepositoryShape {
     limit: number,
     nowIso: string,
   ) => Effect.Effect<MissingUnit[], DatabaseError>;
+  readonly listMissingUnitSearchRows: (input: {
+    readonly mediaId?: number;
+    readonly nowIso: string;
+    readonly limit: number;
+  }) => Effect.Effect<
+    readonly {
+      readonly media: typeof media.$inferSelect;
+      readonly media_units: typeof mediaUnits.$inferSelect;
+    }[],
+    DatabaseError
+  >;
   readonly updateMonitored: (
     mediaId: number,
     monitored: boolean,
@@ -175,6 +186,7 @@ function makeMediaReadRepositoryShape(db: AppDatabase): MediaReadRepositoryShape
     listUnitRowsByMediaId: (mediaId) => listUnitRowsByMediaIdEffect(db, mediaId),
     listUnitRowsWithMediaKind: (mediaId) => listUnitRowsWithMediaKindEffect(db, mediaId),
     listWantedMissing: (limit, nowIso) => listWantedMissingEffect(db, limit, nowIso),
+    listMissingUnitSearchRows: (input) => listMissingUnitSearchRowsEffect(db, input),
     loadCurrentEpisodeState: (mediaId, unitNumber) =>
       loadCurrentEpisodeStateEffect(db, mediaId, unitNumber),
     mediaExists: (mediaId) => mediaExistsEffect(db, mediaId),
@@ -353,6 +365,45 @@ const listWantedMissingEffect = Effect.fn("MediaReadRepository.listWantedMissing
     } satisfies MissingUnit;
   });
 });
+
+const listMissingUnitSearchRowsEffect = Effect.fn("MediaReadRepository.listMissingUnitSearchRows")(
+  function* (
+    db: AppDatabase,
+    input: {
+      readonly mediaId?: number;
+      readonly nowIso: string;
+      readonly limit: number;
+    },
+  ) {
+    const missingConditions = [
+      eq(mediaUnits.downloaded, false),
+      or(
+        and(
+          eq(media.mediaKind, "anime"),
+          sql`${mediaUnits.aired} is not null`,
+          sql`${mediaUnits.aired} <= ${input.nowIso}`,
+        ),
+        and(
+          ne(media.mediaKind, "anime"),
+          or(sql`${mediaUnits.aired} is null`, sql`${mediaUnits.aired} <= ${input.nowIso}`),
+        ),
+      ),
+      input.mediaId === undefined
+        ? eq(media.monitored, true)
+        : eq(mediaUnits.mediaId, input.mediaId),
+    ];
+
+    return yield* tryDatabasePromise("Failed to queue missing-unit search", () =>
+      db
+        .select()
+        .from(mediaUnits)
+        .innerJoin(media, eq(media.id, mediaUnits.mediaId))
+        .where(and(...missingConditions))
+        .orderBy(media.titleRomaji, mediaUnits.number)
+        .limit(Math.max(1, input.limit)),
+    );
+  },
+);
 
 const listCalendarEventsEffect = Effect.fn("MediaReadRepository.listCalendarEvents")(function* (
   db: AppDatabase,

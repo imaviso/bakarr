@@ -12,10 +12,8 @@ import {
   systemLogs,
 } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
-import {
-  loadDownloadEventPresentationContexts as loadStoredDownloadEventPresentationContexts,
-  type DownloadEventRowLike,
-} from "@/features/operations/download/download-event-presentations.ts";
+import type { DownloadEventRowLike } from "@/features/operations/download/download-event-presentations.ts";
+import { loadDownloadEventPresentationContexts as loadStoredDownloadEventPresentationContexts } from "@/features/operations/repository/download-catalog-read.ts";
 import { buildSystemLogConditions } from "@/features/system/system-log-export.ts";
 
 const countDownloadsWhere = Effect.fn("SystemStatsRepository.countDownloadsWhere")(function* (
