@@ -64,16 +64,19 @@ stdenv.mkDerivation (finalAttrs: {
   SSL_CERT_FILE = "${cacert}/etc/ssl/certs/ca-bundle.crt";
   NODE_EXTRA_CA_CERTS = "${cacert}/etc/ssl/certs/ca-bundle.crt";
   npm_config_cafile = "${cacert}/etc/ssl/certs/ca-bundle.crt";
-  npm_config_nodedir = "${nodejs_latest}";
   PNPM_CONFIG_CAFILE = "${cacert}/etc/ssl/certs/ca-bundle.crt";
 
   buildPhase = ''
     runHook preBuild
 
-    # Rebuild better-sqlite3 native module (pnpmConfigHook runs with --ignore-scripts)
-    node-gyp rebuild --release \
-      --directory=apps/api/node_modules/better-sqlite3 \
-      --python="$(command -v python3)"
+    # Rebuild better-sqlite3 against nodejs_latest. nixpkgs node-gyp wrapper
+    # hardcodes npm_config_nodedir to pkgs.nodejs (not latest) — bypass it.
+    env -u npm_config_nodedir \
+      ${nodejs_latest}/bin/node ${node-gyp}/lib/node_modules/node-gyp/bin/node-gyp.js \
+        rebuild --release \
+        --directory=apps/api/node_modules/better-sqlite3 \
+        --nodedir="${nodejs_latest}" \
+        --python="$(command -v python3)"
 
     pnpm --filter @bakarr/web build
     pnpm --filter @bakarr/api build
