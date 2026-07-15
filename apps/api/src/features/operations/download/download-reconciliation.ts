@@ -39,6 +39,10 @@ import { DownloadRepository } from "@/features/operations/repository/download-re
 import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
 import { OperationsConflictError, OperationsNotFoundError } from "@/features/operations/errors.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
+import {
+  shouldDeleteImportedData,
+  shouldRemoveTorrentOnImport,
+} from "@/features/operations/download/download-reconciliation-policy.ts";
 
 type DownloadRow = typeof downloads.$inferSelect;
 type MediaRow = typeof media.$inferSelect;
@@ -88,14 +92,6 @@ export type ReconcileByIdError =
   | OperationsNotFoundError
   | OperationsConflictError
   | ReconcileCompletedError;
-
-function shouldRemoveTorrentOnImport(config: Config | null | undefined) {
-  return config?.downloads.remove_torrent_on_import ?? true;
-}
-
-function shouldDeleteImportedData(config: Config | null | undefined) {
-  return config?.downloads.delete_download_files_after_import ?? false;
-}
 
 const loadDownloadReconciliationContext = Effect.fn(
   "DownloadReconcile.loadDownloadReconciliationContext",

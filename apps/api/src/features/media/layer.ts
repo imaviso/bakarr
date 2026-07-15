@@ -1,5 +1,6 @@
 import { Layer } from "effect";
 
+import { providePureDbLeaves } from "@/app/pure-db-leaves.ts";
 import { MediaFileServiceLive } from "@/features/media/files/media-file-service.ts";
 import { MediaImageCacheServiceLive } from "@/features/media/metadata/media-image-cache-service.ts";
 import { MediaMaintenanceServiceLive } from "@/features/media/metadata/media-maintenance-service.ts";
@@ -8,31 +9,14 @@ import { MediaMetadataProviderServiceLive } from "@/features/media/metadata/medi
 import { MediaSeasonalProviderServiceLive } from "@/features/media/query/media-seasonal-provider-service.ts";
 import { MediaReaderServiceLive } from "@/features/media/reader/media-reader-service.ts";
 import { MediaSettingsServiceLive } from "@/features/media/shared/media-settings-service.ts";
-import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
-import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
-import { AniDbUnitCacheRepository } from "@/features/media/units/anidb-unit-cache-repository.ts";
-import { SeasonalMediaCacheRepository } from "@/features/media/query/seasonal-media-cache-repository.ts";
 import { MediaStreamServiceLive } from "@/features/media/stream/media-stream-service.ts";
 import { MediaQueryServiceLive } from "@/features/media/query/query-service.ts";
 import { StreamTokenSignerLive } from "@/features/media/stream/stream-token-signer.ts";
-import { BackgroundJobRepository } from "@/features/system/repository/background-job-repository.ts";
-import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
-import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
-import { SystemConfigRepository } from "@/features/system/repository/system-config-repository.ts";
 
 export function makeMediaFeatureLayer<ROut, E, RIn>(
   runtimeSupportLayer: Layer.Layer<ROut, E, RIn>,
 ) {
-  const mediaRepositoryLayer = Layer.mergeAll(
-    BackgroundJobRepository.Default,
-    MediaReadRepository.Default,
-    MediaUnitRepository.Default,
-    AniDbUnitCacheRepository.Default,
-    SeasonalMediaCacheRepository.Default,
-    SystemLogRepository.Default,
-    QualityProfileRepository.Default,
-    SystemConfigRepository.Default,
-  ).pipe(Layer.provide(runtimeSupportLayer));
+  const mediaRepositoryLayer = providePureDbLeaves(runtimeSupportLayer);
   const animeImageCacheLayer = MediaImageCacheServiceLive;
   const animeMetadataEnrichmentLayer = MediaMetadataEnrichmentServiceLive;
   const animeMetadataProviderLayer = MediaMetadataProviderServiceLive.pipe(

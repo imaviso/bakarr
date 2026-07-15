@@ -32,36 +32,17 @@ import { TorrentClientServiceLive } from "@/features/operations/qbittorrent/torr
 import { UnmappedControlServiceLive } from "@/features/operations/unmapped/unmapped-control-service.ts";
 import { UnmappedImportServiceLive } from "@/features/operations/unmapped/unmapped-orchestration-import.ts";
 import { UnmappedScanServiceLive } from "@/features/operations/unmapped/unmapped-scan-service.ts";
-import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
-import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
-import { DownloadRepository } from "@/features/operations/repository/download-repository-service.ts";
-import { LibraryRootsRepository } from "@/features/operations/repository/library-roots-repository.ts";
-import { OperationsProfileRepository } from "@/features/operations/repository/profile-repository.ts";
-import { OperationsTaskRepository } from "@/features/operations/repository/task-repository.ts";
-import { RssFeedRepository } from "@/features/operations/repository/rss-feed-repository-service.ts";
-import { BackgroundJobRepository } from "@/features/system/repository/background-job-repository.ts";
-import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
-import { SystemUnmappedRepository } from "@/features/system/repository/unmapped-repository.ts";
+import { providePureDbLeaves } from "@/app/pure-db-leaves.ts";
+import { OperationsTaskLauncherServiceLive } from "@/features/operations/tasks/operations-task-launcher-service.ts";
 
 export function makeOperationsFeatureLayer<ROut, E, RIn>(
   runtimeSupportLayer: Layer.Layer<ROut, E, RIn>,
 ) {
-  const pureDbRepos = Layer.mergeAll(
-    BackgroundJobRepository.Default,
-    DownloadRepository.Default,
-    MediaReadRepository.Default,
-    MediaUnitRepository.Default,
-    LibraryRootsRepository.Default,
-    OperationsProfileRepository.Default,
-    OperationsTaskRepository.Default,
-    RssFeedRepository.Default,
-    SystemLogRepository.Default,
-    SystemUnmappedRepository.Default,
-  ).pipe(Layer.provide(runtimeSupportLayer));
+  const pureDbLeaves = providePureDbLeaves(runtimeSupportLayer);
 
   const baseRuntime = Layer.mergeAll(
     runtimeSupportLayer,
-    pureDbRepos,
+    pureDbLeaves,
     DownloadTriggerCoordinatorLive,
     UnmappedScanCoordinatorLive,
   );
@@ -141,6 +122,9 @@ export function makeOperationsFeatureLayer<ROut, E, RIn>(
   const unmappedImportLayer = UnmappedImportServiceLive.pipe(Layer.provide(baseRuntime));
   const operationsTaskReadLayer = OperationsTaskReadServiceLive.pipe(Layer.provide(baseRuntime));
   const operationsTaskWriteLayer = OperationsTaskWriteServiceLive.pipe(Layer.provide(baseRuntime));
+  const operationsTaskLauncherLayer = OperationsTaskLauncherServiceLive.pipe(
+    Layer.provide(Layer.mergeAll(baseRuntime, operationsTaskWriteLayer)),
+  );
 
   return Layer.mergeAll(
     torrentClientLayer,
@@ -150,7 +134,7 @@ export function makeOperationsFeatureLayer<ROut, E, RIn>(
     downloadProgressSupportLayer,
     downloadTriggerLayer,
     catalogDownloadReadLayer,
-    pureDbRepos,
+    pureDbLeaves,
     operationsProgressLayer,
     backgroundSearchQueueLayer,
     backgroundSearchRssFeedLayer,
@@ -162,6 +146,7 @@ export function makeOperationsFeatureLayer<ROut, E, RIn>(
     catalogLibraryReadLayer,
     operationsTaskReadLayer,
     operationsTaskWriteLayer,
+    operationsTaskLauncherLayer,
     catalogLibraryWriteLayer,
     catalogLibraryScanLayer,
     importPathScanLayer,
