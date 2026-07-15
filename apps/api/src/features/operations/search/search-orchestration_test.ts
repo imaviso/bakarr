@@ -1,4 +1,4 @@
-import { Cause, Effect, Exit, Layer, Option } from "effect";
+import { Effect, Layer, Option } from "effect";
 
 import * as dbSchema from "@/db/schema.ts";
 import { media } from "@/db/schema.ts";
@@ -46,46 +46,37 @@ function withSearchReleaseService(input: {
   }).pipe(Effect.provide(layer));
 }
 
-it.scoped(
-  "searchUnitReleases fails instead of silently degrading when SeaDex enrichment fails",
-  () =>
-    withSqliteTestDbEffect({
-      run: (db) =>
-        Effect.gen(function* () {
-          const config = makeTestConfig("/tmp/test.sqlite");
-          const searchReleaseService = yield* withSearchReleaseService({
-            config,
-            db,
-            rssClient: RssClient.make({
-              fetchItems: () => Effect.succeed([makeRelease()]),
-            }),
-            seadexClient: SeaDexClient.make({
-              getEntryByAniListId: () =>
-                Effect.fail(
-                  new ExternalCallError({
-                    cause: new Error("SeaDex unavailable"),
-                    message: "SeaDex lookup failed",
-                    operation: "seadex.getEntryByAniListId",
-                  }),
-                ),
-            }),
-          });
+it.scoped("searchUnitReleases returns unenriched releases when SeaDex enrichment fails", () =>
+  withSqliteTestDbEffect({
+    run: (db) =>
+      Effect.gen(function* () {
+        const config = makeTestConfig("/tmp/test.sqlite");
+        const release = makeRelease();
+        const searchReleaseService = yield* withSearchReleaseService({
+          config,
+          db,
+          rssClient: RssClient.make({
+            fetchItems: () => Effect.succeed([release]),
+          }),
+          seadexClient: SeaDexClient.make({
+            getEntryByAniListId: () =>
+              Effect.fail(
+                new ExternalCallError({
+                  cause: new Error("SeaDex unavailable"),
+                  message: "SeaDex lookup failed",
+                  operation: "seadex.getEntryByAniListId",
+                }),
+              ),
+          }),
+        });
 
-          const exit = yield* Effect.exit(
-            searchReleaseService.searchUnitReleases(makeMediaRow(), 1, config),
-          );
+        const releases = yield* searchReleaseService.searchUnitReleases(makeMediaRow(), 1, config);
 
-          assert.deepStrictEqual(Exit.isFailure(exit), true);
-          if (Exit.isFailure(exit)) {
-            const failure = Cause.failureOption(exit.cause);
-            assert.deepStrictEqual(failure._tag, "Some");
-            if (failure._tag === "Some") {
-              assert.deepStrictEqual(failure.value._tag, "ExternalCallError");
-            }
-          }
-        }),
-      schema: dbSchema,
-    }),
+        assert.deepStrictEqual(releases, [release]);
+        assert.deepStrictEqual(releases[0]?.isSeaDex, false);
+      }),
+    schema: dbSchema,
+  }),
 );
 
 it.scoped("searchUnitReleases tries season episode query variants", () =>

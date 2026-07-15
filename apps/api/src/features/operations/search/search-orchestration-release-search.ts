@@ -54,13 +54,12 @@ export interface SearchReleaseServiceShape {
   readonly enrichSeaDexReleases: (
     animeRow: typeof media.$inferSelect,
     releases: readonly ParsedRelease[],
-    config: Config,
-  ) => Effect.Effect<ParsedRelease[], ExternalCallError>;
+  ) => Effect.Effect<ParsedRelease[]>;
   readonly searchUnitReleases: (
     animeRow: typeof media.$inferSelect,
     unitNumber: number,
     config: Config,
-  ) => Effect.Effect<ParsedRelease[], SearchReleaseSourceError | ExternalCallError>;
+  ) => Effect.Effect<ParsedRelease[], SearchReleaseSourceError>;
   readonly searchNyaaReleases: SearchNyaaReleases;
   readonly searchReleases: (
     query: string,
@@ -341,6 +340,7 @@ export class SearchReleaseService extends Effect.Service<SearchReleaseService>()
               ),
             ),
           ),
+          Effect.catchAll(() => Effect.succeed(Option.none())),
         );
 
         if (Option.isNone(entry) || entry.value.releases.length === 0) {

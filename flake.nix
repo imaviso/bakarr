@@ -44,13 +44,16 @@
     };
 
     devShells = forEachSupportedSystem ({pkgs}: {
-      default = pkgs.mkShellNoCC {
+      # mkShell (not NoCC): better-sqlite3 needs gcc/make + python for node-gyp.
+      default = pkgs.mkShell {
         packages = with pkgs; [
           nodejs_latest
           deno
           pnpm
           ffmpeg
           poppler-utils
+          python3
+          pkg-config
         ];
       };
     });
