@@ -6,7 +6,7 @@ import * as schema from "@/db/schema.ts";
 import { media, mediaUnits } from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
-import { makeMediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { makeMediaRepository } from "@/features/media/shared/media-repository.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";
 
 type TestDatabase = SqliteRemoteDatabase<typeof schema>;
@@ -54,7 +54,7 @@ it.scoped("getMediaRowEffect returns row by id", () =>
     run: (db) =>
       Effect.gen(function* () {
         yield* seedAnime(db);
-        const repository = makeMediaReadRepository(db);
+        const repository = makeMediaRepository(db);
         const row = yield* repository.getMediaRow(1);
         assert.deepStrictEqual(row.titleRomaji, "Naruto");
         assert.deepStrictEqual(row.unitCount, 12);
@@ -67,7 +67,7 @@ it.scoped("getMediaRowEffect fails with MediaNotFoundError for missing id", () =
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        const repository = makeMediaReadRepository(db);
+        const repository = makeMediaRepository(db);
         const exit = yield* Effect.exit(repository.getMediaRow(999));
         assert.deepStrictEqual(Exit.isFailure(exit), true);
         if (Exit.isFailure(exit)) {
@@ -86,7 +86,7 @@ it.scoped("requireMediaExistsEffect succeeds when media exists", () =>
     run: (db) =>
       Effect.gen(function* () {
         yield* seedAnime(db);
-        const repository = makeMediaReadRepository(db);
+        const repository = makeMediaRepository(db);
         const exit = yield* Effect.exit(repository.requireMediaExists(1));
         assert.deepStrictEqual(exit._tag, "Success");
       }),
@@ -100,7 +100,7 @@ it.scoped("getEpisodeRowEffect returns episode by media and number", () =>
       Effect.gen(function* () {
         yield* seedAnime(db);
         yield* seedEpisode(db, 1, 5);
-        const repository = makeMediaReadRepository(db);
+        const repository = makeMediaRepository(db);
         const row = yield* repository.getEpisodeRow(1, 5);
         assert.deepStrictEqual(row.number, 5);
         assert.deepStrictEqual(row.title, "MediaUnit 5");
@@ -114,7 +114,7 @@ it.scoped("getEpisodeRowEffect fails for non-existent episode", () =>
     run: (db) =>
       Effect.gen(function* () {
         yield* seedAnime(db);
-        const repository = makeMediaReadRepository(db);
+        const repository = makeMediaRepository(db);
         const exit = yield* Effect.exit(repository.getEpisodeRow(1, 99));
         assert.deepStrictEqual(Exit.isFailure(exit), true);
         if (Exit.isFailure(exit)) {
@@ -133,7 +133,7 @@ it.scoped("findMediaRootFolderOwnerEffect finds exact root match", () =>
     run: (db) =>
       Effect.gen(function* () {
         yield* seedAnime(db);
-        const repository = makeMediaReadRepository(db);
+        const repository = makeMediaRepository(db);
         const owner = yield* repository.findMediaRootFolderOwner("/library/Naruto");
         assert.ok(owner !== null);
         assert.deepStrictEqual(owner.titleRomaji, "Naruto");
@@ -147,7 +147,7 @@ it.scoped("findMediaRootFolderOwnerEffect finds by child path match", () =>
     run: (db) =>
       Effect.gen(function* () {
         yield* seedAnime(db);
-        const repository = makeMediaReadRepository(db);
+        const repository = makeMediaRepository(db);
         const owner = yield* repository.findMediaRootFolderOwner("/library/Naruto/Season 1");
         assert.ok(owner !== null);
         assert.deepStrictEqual(owner.titleRomaji, "Naruto");
@@ -160,7 +160,7 @@ it.scoped("findMediaRootFolderOwnerEffect returns null for no match", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        const repository = makeMediaReadRepository(db);
+        const repository = makeMediaRepository(db);
         const owner = yield* repository.findMediaRootFolderOwner("/library/Unknown");
         assert.deepStrictEqual(owner, null);
       }),

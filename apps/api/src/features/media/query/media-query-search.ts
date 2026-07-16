@@ -11,14 +11,14 @@ import type { AniListClient } from "@/features/media/metadata/anilist.ts";
 import type { ManamiClient } from "@/features/media/metadata/manami.ts";
 import { markSearchResultsAlreadyInLibraryEffect } from "@/features/media/query/search-results.ts";
 import { annotateMediaSearchResultsForQuery } from "@/features/media/query/media-search-annotation.ts";
-import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
+import type { MediaRepositoryShape } from "@/features/media/shared/media-repository.ts";
 import { deriveAnimeSeason } from "@/domain/media/date-utils.ts";
 
 export const searchMediaEffect = Effect.fn("MediaQuerySearch.searchMediaEffect")(function* (input: {
   aniList: typeof AniListClient.Service;
   manami?: Pick<typeof ManamiClient.Service, "searchMedia">;
   mediaKind?: MediaKind;
-  mediaReadRepository: MediaReadRepositoryShape;
+  mediaReadRepository: MediaRepositoryShape;
   query: string;
 }) {
   const mediaKind = input.mediaKind ?? "anime";
@@ -82,7 +82,7 @@ export const getMediaByAnilistIdEffect = Effect.fn("MediaQuerySearch.getMediaByA
     aniList: typeof AniListClient.Service;
     id: number;
     mediaKind?: MediaKind;
-    mediaReadRepository: MediaReadRepositoryShape;
+    mediaReadRepository: MediaRepositoryShape;
   }) {
     const mediaKind = input.mediaKind ?? "anime";
     const metadata = yield* input.aniList.getAnimeMetadataById(input.id, mediaKind);

@@ -13,7 +13,7 @@ import {
 import { renameLibraryFiles } from "@/features/operations/catalog/catalog-library-write-rename-support.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
-import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 
 export interface CatalogLibraryWriteServiceShape {
@@ -31,7 +31,7 @@ export class CatalogLibraryWriteService extends Effect.Service<CatalogLibraryWri
     effect: Effect.gen(function* () {
       const eventBus = yield* EventBus;
       const fs = yield* FileSystem;
-      const mediaReadRepository = yield* MediaReadRepository;
+      const mediaReadRepository = yield* MediaRepository;
       const mediaUnitRepository = yield* MediaUnitRepository;
       const mediaProbe = yield* MediaProbe;
       const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
@@ -68,7 +68,7 @@ export class CatalogLibraryWriteService extends Effect.Service<CatalogLibraryWri
         renameFiles,
       } satisfies CatalogLibraryWriteServiceShape;
     }),
-    dependencies: [MediaReadRepository.Default, MediaUnitRepository.Default],
+    dependencies: [MediaRepository.Default, MediaUnitRepository.Default],
   },
 ) {}
 

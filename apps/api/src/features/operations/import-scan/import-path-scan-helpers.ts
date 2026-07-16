@@ -10,7 +10,7 @@ import {
 } from "@packages/shared/index.ts";
 import { scoreAnimeSearchResultMatch } from "@/domain/media/derivations.ts";
 import { DomainPathError } from "@/features/errors.ts";
-import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { scanVideoFilesStream } from "@/features/operations/import-scan/file-scanner.ts";
 import {
   analyzeScannedFile,
@@ -389,7 +389,7 @@ export const enrichImportScanFiles = Effect.fn("Operations.enrichImportScanFiles
 
 export const loadImportScanMediaRows = (input: {
   readonly mediaId?: number;
-  readonly mediaReadRepository: typeof MediaReadRepository.Service;
+  readonly mediaReadRepository: typeof MediaRepository.Service;
 }) =>
   input.mediaId
     ? Effect.map(input.mediaReadRepository.getMediaRow(input.mediaId), (row) => [row])
@@ -399,7 +399,7 @@ export const loadMappedEpisodeRows = (input: {
   readonly candidateAnimeIds: readonly number[];
   readonly candidatePaths: readonly string[];
   readonly episodeNumberCandidates: readonly number[];
-  readonly mediaReadRepository: typeof MediaReadRepository.Service;
+  readonly mediaReadRepository: typeof MediaRepository.Service;
 }) =>
   input.mediaReadRepository.listImportScanMappedUnits({
     mediaIds: input.candidateAnimeIds,
@@ -410,7 +410,7 @@ export const loadMappedEpisodeRows = (input: {
 export const loadScopedEpisodeRows = (input: {
   readonly animeIds: readonly number[];
   readonly episodeNumberCandidates: readonly number[];
-  readonly mediaReadRepository: typeof MediaReadRepository.Service;
+  readonly mediaReadRepository: typeof MediaRepository.Service;
 }) =>
   input.mediaReadRepository.listScopedUnitRows({
     mediaIds: input.animeIds,

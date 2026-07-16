@@ -8,7 +8,7 @@ import { AppConfig } from "@/config/schema.ts";
 import { FileSystem, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";
 import { resolveUnitFileEffect } from "@/features/media/files/media-file-read.ts";
-import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import {
   findZipEntry,
   imageMediaType,
@@ -129,7 +129,7 @@ class ArchiveCache {
 
 const makeMediaReaderService = Effect.fn("MediaReaderService.make")(function* () {
   const fs = yield* FileSystem;
-  const mediaReadRepository = yield* MediaReadRepository;
+  const mediaReadRepository = yield* MediaRepository;
   const executor = yield* CommandExecutor.CommandExecutor;
   const config = yield* AppConfig;
   const cacheRoot = join(dirname(resolve(config.databaseFile)), "reader-cache");
@@ -219,7 +219,7 @@ export const MediaReaderServiceLive = MediaReaderService.Default;
 
 const resolveReaderUnitFile = Effect.fn("MediaReader.resolveReaderUnitFile")(function* (input: {
   readonly fs: FileSystemShape;
-  readonly mediaReadRepository: typeof MediaReadRepository.Service;
+  readonly mediaReadRepository: typeof MediaRepository.Service;
   readonly mediaId: number;
   readonly unitNumber: number;
 }) {

@@ -24,7 +24,7 @@ import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { markJobFailureOrFailWithError } from "@/infra/job-failure-support.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
-import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { BackgroundJobRepository } from "@/features/system/repository/background-job-repository.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
@@ -75,7 +75,7 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
   const backgroundJobRepository = yield* BackgroundJobRepository;
   const eventBus = yield* EventBus;
   const fs = yield* FileSystem;
-  const mediaReadRepository = yield* MediaReadRepository;
+  const mediaReadRepository = yield* MediaRepository;
   const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
   const systemLogRepository = yield* SystemLogRepository;
   const systemUnmappedRepository = yield* SystemUnmappedRepository;

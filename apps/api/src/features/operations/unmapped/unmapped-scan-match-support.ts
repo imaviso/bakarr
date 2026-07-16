@@ -3,7 +3,7 @@ import { Effect } from "effect";
 import type { ScannerState } from "@packages/shared/index.ts";
 import type { AniListClient } from "@/features/media/metadata/anilist.ts";
 import { markSearchResultsAlreadyInLibraryEffect } from "@/features/media/query/search-results.ts";
-import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
+import type { MediaRepositoryShape } from "@/features/media/shared/media-repository.ts";
 import { mergeLocalFolderMatch } from "@/features/operations/unmapped/unmapped-folder-match-support.ts";
 import {
   buildUnmappedFolderSearchQueries,
@@ -16,7 +16,7 @@ export const matchSingleUnmappedFolder = Effect.fn("UnmappedScanMatch.matchSingl
     aniList: typeof AniListClient.Service;
     animeRows: ReadonlyArray<typeof media.$inferSelect>;
     folder: ScannerState["folders"][number];
-    mediaReadRepository: MediaReadRepositoryShape;
+    mediaReadRepository: MediaRepositoryShape;
     nowIso: () => Effect.Effect<string>;
   }) {
     const queries = buildUnmappedFolderSearchQueries(input.folder.name);

@@ -1,11 +1,11 @@
 import { Effect } from "effect";
 
 import type { MediaSearchResult } from "@packages/shared/index.ts";
-import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
+import type { MediaRepositoryShape } from "@/features/media/shared/media-repository.ts";
 
 export const markSearchResultsAlreadyInLibraryEffect = Effect.fn(
   "MediaSearchResults.markSearchResultsAlreadyInLibrary",
-)(function* (mediaReadRepository: MediaReadRepositoryShape, results: readonly MediaSearchResult[]) {
+)(function* (mediaReadRepository: MediaRepositoryShape, results: readonly MediaSearchResult[]) {
   const ids = [...new Set(results.map((result) => result.id))];
 
   if (ids.length === 0) {

@@ -7,7 +7,7 @@ import { syncMediaMetadataEffect } from "@/features/media/metadata/media-metadat
 import { formatJobFailureMessage } from "@/infra/job-status.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
 import { markJobFailureOrFailWithError } from "@/infra/job-failure-support.ts";
-import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
+import type { MediaRepositoryShape } from "@/features/media/shared/media-repository.ts";
 import type { MediaUnitRepositoryShape } from "@/features/media/units/media-unit-repository.ts";
 import type { BackgroundJobRepositoryShape } from "@/features/system/repository/background-job-repository.ts";
 import type { SystemLogRepositoryShape } from "@/features/system/repository/log-repository.ts";
@@ -20,7 +20,7 @@ export const refreshMetadataForMonitoredMediaEffect = Effect.fn(
   imageCacheService: typeof MediaImageCacheService.Service;
   metadataProvider: typeof MediaMetadataProviderService.Service;
   backgroundJobRepository: BackgroundJobRepositoryShape;
-  mediaReadRepository: MediaReadRepositoryShape;
+  mediaReadRepository: MediaRepositoryShape;
   mediaUnitRepository: MediaUnitRepositoryShape;
   systemLogRepository: SystemLogRepositoryShape;
   nowIso: () => Effect.Effect<string, MetadataRefreshError>;

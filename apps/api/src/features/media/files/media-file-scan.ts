@@ -18,7 +18,7 @@ import {
   extractUnitNumbersFromFile,
 } from "@/features/media/files/files.ts";
 import { buildScannedFileMetadata } from "@/infra/scanned-file-metadata.ts";
-import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
+import type { MediaRepositoryShape } from "@/features/media/shared/media-repository.ts";
 import { buildAiringScheduleMap } from "@/features/media/units/media-schedule-repository.ts";
 import { inferAiredAt } from "@/domain/media/derivations.ts";
 import type { MediaUnitRepositoryShape } from "@/features/media/units/media-unit-repository.ts";
@@ -28,7 +28,7 @@ export const scanMediaFolderEffect = Effect.fn("MediaFileScan.scanMediaFolderEff
   function* (input: {
     mediaId: number;
     fs: FileSystemShape;
-    mediaReadRepository: MediaReadRepositoryShape;
+    mediaReadRepository: MediaRepositoryShape;
     mediaUnitRepository: MediaUnitRepositoryShape;
     mediaProbe: MediaProbeShape;
     nowIso: () => Effect.Effect<string>;
@@ -153,7 +153,7 @@ export const scanMediaFolderEffect = Effect.fn("MediaFileScan.scanMediaFolderEff
 const clearMissingEpisodeFileMappingsEffect = Effect.fn(
   "MediaFileScan.clearMissingEpisodeFileMappingsEffect",
 )(function* (
-  mediaReadRepository: MediaReadRepositoryShape,
+  mediaReadRepository: MediaRepositoryShape,
   mediaUnitRepository: MediaUnitRepositoryShape,
   mediaId: number,
   presentFilePaths: readonly string[],

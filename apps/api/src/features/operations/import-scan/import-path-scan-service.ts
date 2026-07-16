@@ -5,7 +5,7 @@ import { DatabaseError } from "@/db/database.ts";
 import { summarizeEpisodeCoverage } from "@/domain/media/derivations.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
 import { getConfiguredLibraryPaths } from "@/features/media/shared/config-support.ts";
-import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { DomainInputError, DomainPathError, InfrastructureError } from "@/features/errors.ts";
 import {
   buildEpisodeFileMappingIndex,
@@ -45,7 +45,7 @@ const scanImportPathEffect = Effect.fn("ImportPathScanService.scanImportPathEffe
     mediaId?: number;
     fs: FileSystemShape;
     limit?: number;
-    mediaReadRepository: typeof MediaReadRepository.Service;
+    mediaReadRepository: typeof MediaRepository.Service;
     mediaProbe: MediaProbeShape;
     namingSettings: NamingSettings;
     path: string;
@@ -251,7 +251,7 @@ export class ImportPathScanService extends Effect.Service<ImportPathScanService>
       const aniList = yield* AniListClient;
       const fs = yield* FileSystem;
       const mediaProbe = yield* MediaProbe;
-      const mediaReadRepository = yield* MediaReadRepository;
+      const mediaReadRepository = yield* MediaRepository;
       const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
 
       const scanImportPath = Effect.fn("ImportPathScanService.scanImportPath")(function* (input: {
@@ -328,7 +328,7 @@ export class ImportPathScanService extends Effect.Service<ImportPathScanService>
 
       return { scanImportPath } satisfies ImportPathScanServiceShape;
     }),
-    dependencies: [MediaReadRepository.Default],
+    dependencies: [MediaRepository.Default],
   },
 ) {}
 

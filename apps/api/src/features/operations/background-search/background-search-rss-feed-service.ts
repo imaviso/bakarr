@@ -13,7 +13,7 @@ import {
   validateQualityProfileSizeLabels,
 } from "@/features/operations/search/release-ranking.ts";
 import { parseRssReleaseUnitNumbers } from "@/features/operations/background-search/background-search-rss-release.ts";
-import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { RssFeedRepository } from "@/features/operations/repository/rss-feed-repository-service.ts";
 import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
 import { ReleaseProfileRepository } from "@/features/system/repository/release-profile-repository.ts";
@@ -38,7 +38,7 @@ export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSea
     effect: Effect.gen(function* () {
       const rssClient = yield* RssClient;
       const queueService = yield* BackgroundSearchQueueService;
-      const mediaReadRepository = yield* MediaReadRepository;
+      const mediaReadRepository = yield* MediaRepository;
       const qualityProfileRepository = yield* QualityProfileRepository;
       const releaseProfileRepository = yield* ReleaseProfileRepository;
       const rssFeedRepository = yield* RssFeedRepository;
@@ -220,11 +220,7 @@ export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSea
 
       return { processFeed } satisfies BackgroundSearchRssFeedServiceShape;
     }),
-    dependencies: [
-      MediaReadRepository.Default,
-      RssFeedRepository.Default,
-      DownloadRepository.Default,
-    ],
+    dependencies: [MediaRepository.Default, RssFeedRepository.Default, DownloadRepository.Default],
   },
 ) {}
 

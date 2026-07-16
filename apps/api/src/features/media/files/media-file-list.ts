@@ -19,7 +19,7 @@ import {
   extractUnitNumbersFromFile,
 } from "@/features/media/files/files.ts";
 import { buildScannedFileMetadata } from "@/infra/scanned-file-metadata.ts";
-import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
+import type { MediaRepositoryShape } from "@/features/media/shared/media-repository.ts";
 import type { MediaUnitRepositoryShape } from "@/features/media/units/media-unit-repository.ts";
 import { DomainPathError } from "@/features/errors.ts";
 
@@ -110,7 +110,7 @@ export const listMediaFilesEffect = Effect.fn("MediaFileList.listMediaFilesEffec
   function* (input: {
     mediaId: number;
     fs: FileSystemShape;
-    mediaReadRepository: MediaReadRepositoryShape;
+    mediaReadRepository: MediaRepositoryShape;
     mediaUnitRepository: MediaUnitRepositoryShape;
     mediaProbe: MediaProbeShape;
   }) {

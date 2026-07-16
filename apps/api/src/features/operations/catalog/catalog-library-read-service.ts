@@ -3,14 +3,14 @@ import { Effect } from "effect";
 import type { RenamePreviewItem } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";
-import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { buildRenamePreview } from "@/features/operations/library/library-import.ts";
 import {
   RuntimeConfigSnapshotService,
   type RuntimeConfigSnapshotError,
 } from "@/features/system/runtime-config-snapshot-service.ts";
 
-/** Rename preview only — wanted/calendar use MediaReadRepository + nowIso at route. */
+/** Rename preview only — wanted/calendar use MediaRepository + nowIso at route. */
 export interface CatalogLibraryReadServiceShape {
   readonly getRenamePreview: (
     mediaId: number,
@@ -25,7 +25,7 @@ export class CatalogLibraryReadService extends Effect.Service<CatalogLibraryRead
   {
     effect: Effect.gen(function* () {
       const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
-      const mediaReadRepository = yield* MediaReadRepository;
+      const mediaReadRepository = yield* MediaRepository;
 
       const getRenamePreview = Effect.fn("CatalogLibraryReadService.getRenamePreview")(function* (
         mediaId: number,
@@ -38,7 +38,7 @@ export class CatalogLibraryReadService extends Effect.Service<CatalogLibraryRead
         getRenamePreview,
       } satisfies CatalogLibraryReadServiceShape;
     }),
-    dependencies: [MediaReadRepository.Default],
+    dependencies: [MediaRepository.Default],
   },
 ) {}
 

@@ -5,7 +5,7 @@ import { AniDbClient } from "@/features/media/metadata/anidb.ts";
 import { AniDbUnitCacheRepository } from "@/features/media/units/anidb-unit-cache-repository.ts";
 import type { AniDbEpisodeLookupInput } from "@/features/media/metadata/anidb-protocol.ts";
 import type { AnimeMetadataEpisode } from "@/features/media/metadata/anilist-model.ts";
-import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import type { StoredDataError } from "@/features/errors.ts";
 import { AniDbRuntimeConfigError } from "@/features/media/errors.ts";
@@ -46,7 +46,7 @@ const makeMediaMetadataEnrichmentService = Effect.fn("MediaMetadataEnrichmentSer
   function* () {
     const aniDb = yield* AniDbClient;
     const aniDbUnitCacheRepository = yield* AniDbUnitCacheRepository;
-    const mediaReadRepository = yield* MediaReadRepository;
+    const mediaReadRepository = yield* MediaRepository;
     const mediaUnitRepository = yield* MediaUnitRepository;
     const queue = yield* Effect.acquireRelease(
       Queue.dropping<AniDbRefreshRequest>(ANIDB_REFRESH_QUEUE_CAPACITY),
@@ -195,7 +195,7 @@ export class MediaMetadataEnrichmentService extends Effect.Service<MediaMetadata
     scoped: makeMediaMetadataEnrichmentService(),
     dependencies: [
       AniDbUnitCacheRepository.Default,
-      MediaReadRepository.Default,
+      MediaRepository.Default,
       MediaUnitRepository.Default,
     ],
   },

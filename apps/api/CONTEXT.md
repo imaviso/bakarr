@@ -121,7 +121,7 @@ and optional linked media. Supports coalescing concurrent requests.
 
 - `DownloadRepository` owns Download aggregate SQL (lifecycle, sync, trigger, presentation, events, catalog history/event reads + export stream)
 - `MediaUnitRepository` owns unit write paths (upsert, map, clear, probe cache, backfill, schedule/metadata sync)
-- `MediaReadRepository` owns Media row R/W + unit reads (list/count, progress, wanted/calendar, mapped units, settings, insert aggregate, delete, monitored ids)
+- `MediaRepository` owns Media row R/W + unit reads (list/count, progress, wanted/calendar, mapped units, settings, insert aggregate, delete, monitored ids)
 - `RssFeedRepository` owns RSS feed table SQL (list/insert/toggle/delete/lastChecked)
 - `SeasonalMediaCacheRepository` owns `seasonal_anime_cache` read/write
 - `AniDbUnitCacheRepository` owns AniDB episode cache table

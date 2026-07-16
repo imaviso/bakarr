@@ -79,7 +79,7 @@ Modules. Delete `OperationsProfileRepository`.
 
 **Solution:**
 
-- Reads → `MediaUnitRepository` / `MediaReadRepository`
+- Reads → `MediaUnitRepository` / `MediaRepository`
 - Standalone log → `SystemLogRepository`
 - Keep atomic multi-table import on Download only (document)
 
@@ -132,9 +132,9 @@ unused `*Live = Default`.
 
 **Done when:** Filename = Tag role; fewer intermediate Services.
 
-### 8. MediaReadRepository rename
+### 8. MediaRepository rename
 
-**Files:** `media-read-repository.ts` (~762), all imports, CONTEXT.
+**Files:** `media-repository.ts` (~762), all imports, CONTEXT.
 
 **Problem:** “Read” owns writes.
 
@@ -198,6 +198,6 @@ rg -n "animeLiveLayer|animeEnrollment" apps/api/src
 | 5   | **done** — PureDbLeaves once at lifecycle; media/ops take leaves arg; anime* → media* wiring names                                                                                                          |
 | 6   | pending                                                                                                                                                                                                     |
 | 7   | pending                                                                                                                                                                                                     |
-| 8   | pending                                                                                                                                                                                                     |
+| 8   | **done** — MediaReadRepository → MediaRepository (file, Tag, spans, docs)                                                                                                                                   |
 | 9   | pending                                                                                                                                                                                                     |
 | 10  | pending                                                                                                                                                                                                     |

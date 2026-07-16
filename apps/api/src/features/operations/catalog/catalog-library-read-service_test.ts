@@ -4,7 +4,7 @@ import { Effect, TestClock } from "effect";
 import * as schema from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { makeMediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { makeMediaRepository } from "@/features/media/shared/media-repository.ts";
 
 it.scoped("listWantedMissing includes non-media units without air dates", () =>
   withSqliteTestDbEffect({
@@ -28,7 +28,7 @@ it.scoped("listWantedMissing includes non-media units without air dates", () =>
 
         yield* TestClock.setTime(new Date("2025-02-01T00:00:00.000Z").getTime());
 
-        const mediaRead = makeMediaReadRepository(db);
+        const mediaRead = makeMediaRepository(db);
         const wanted = yield* mediaRead.listWantedMissing(10, "2025-02-01T00:00:00.000Z");
 
         assert.deepStrictEqual(

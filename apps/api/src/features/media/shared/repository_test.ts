@@ -16,7 +16,7 @@ import { qualityProfileExistsEffect } from "@/features/media/shared/profile-supp
 import { buildMissingEpisodeRows } from "@/features/media/units/media-schedule-repository.ts";
 import { MAX_INFERRED_EPISODE_NUMBER } from "@/features/media/units/unit-backfill-policy.ts";
 import { makeMediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
-import { makeMediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { makeMediaRepository } from "@/features/media/shared/media-repository.ts";
 import { inferAiredAt } from "@/domain/media/derivations.ts";
 import { markSearchResultsAlreadyInLibraryEffect } from "@/features/media/query/search-results.ts";
 import {
@@ -121,7 +121,7 @@ it.scoped("insertAnimeAggregateAtomic rolls back media inserts when a later writ
     run: (db) =>
       Effect.gen(function* () {
         const exit = yield* Effect.exit(
-          makeMediaReadRepository(db).insertMediaAggregate({
+          makeMediaRepository(db).insertMediaAggregate({
             mediaRow: {
               id: 77,
               malId: null,
@@ -511,47 +511,44 @@ it.scoped("markSearchResultsAlreadyInLibrary annotates local matches", () =>
       Effect.gen(function* () {
         yield* insertMediaEffect(db, 20, 12);
 
-        const results = yield* markSearchResultsAlreadyInLibraryEffect(
-          makeMediaReadRepository(db),
-          [
-            {
-              already_in_library: false,
-              banner_image: undefined,
-              cover_image: undefined,
-              description: undefined,
-              end_date: undefined,
-              end_year: undefined,
-              unit_count: 12,
-              format: "TV",
-              genres: undefined,
-              id: brandMediaId(20),
-              season: undefined,
-              season_year: undefined,
-              start_date: undefined,
-              start_year: undefined,
-              status: "RELEASING",
-              title: { romaji: "Naruto" },
-            },
-            {
-              already_in_library: false,
-              banner_image: undefined,
-              cover_image: undefined,
-              description: undefined,
-              end_date: undefined,
-              end_year: undefined,
-              unit_count: 24,
-              format: "TV",
-              genres: undefined,
-              id: brandMediaId(21),
-              season: undefined,
-              season_year: undefined,
-              start_date: undefined,
-              start_year: undefined,
-              status: "RELEASING",
-              title: { romaji: "Bleach" },
-            },
-          ],
-        );
+        const results = yield* markSearchResultsAlreadyInLibraryEffect(makeMediaRepository(db), [
+          {
+            already_in_library: false,
+            banner_image: undefined,
+            cover_image: undefined,
+            description: undefined,
+            end_date: undefined,
+            end_year: undefined,
+            unit_count: 12,
+            format: "TV",
+            genres: undefined,
+            id: brandMediaId(20),
+            season: undefined,
+            season_year: undefined,
+            start_date: undefined,
+            start_year: undefined,
+            status: "RELEASING",
+            title: { romaji: "Naruto" },
+          },
+          {
+            already_in_library: false,
+            banner_image: undefined,
+            cover_image: undefined,
+            description: undefined,
+            end_date: undefined,
+            end_year: undefined,
+            unit_count: 24,
+            format: "TV",
+            genres: undefined,
+            id: brandMediaId(21),
+            season: undefined,
+            season_year: undefined,
+            start_date: undefined,
+            start_year: undefined,
+            status: "RELEASING",
+            title: { romaji: "Bleach" },
+          },
+        ]);
 
         assert.deepStrictEqual(results[0]?.already_in_library, true);
         assert.deepStrictEqual(results[1]?.already_in_library, false);
@@ -566,7 +563,7 @@ it.scoped("findMediaRootFolderOwner returns the mapped media for a root", () =>
       Effect.gen(function* () {
         yield* insertMediaEffect(db, 20, 12);
 
-        const repository = makeMediaReadRepository(db);
+        const repository = makeMediaRepository(db);
         const owner = yield* repository.findMediaRootFolderOwner("/library/Show-20");
         assert.deepStrictEqual(owner?.id, 20);
         assert.deepStrictEqual(owner?.titleRomaji, "Show 20");
@@ -581,7 +578,7 @@ it.scoped("findMediaRootFolderOwner handles trailing slash parents", () =>
       Effect.gen(function* () {
         yield* insertMediaWithRootEffect(db, 21, 12, "/library/Naruto/");
 
-        const repository = makeMediaReadRepository(db);
+        const repository = makeMediaRepository(db);
         const owner = yield* repository.findMediaRootFolderOwner("/library/Naruto/Season 1");
 
         assert.deepStrictEqual(owner?.id, 21);
@@ -607,7 +604,7 @@ it.scoped("media root-folder triggers reject overlapping roots", () =>
   }),
 );
 
-const insertMediaEffect = Effect.fn("MediaReadRepositoryTest.insertMediaEffect")(function* (
+const insertMediaEffect = Effect.fn("MediaRepositoryTest.insertMediaEffect")(function* (
   db: AppDatabase,
   id: number,
   unitCount: number,
@@ -617,7 +614,7 @@ const insertMediaEffect = Effect.fn("MediaReadRepositoryTest.insertMediaEffect")
   );
 });
 
-const insertMediaWithRootEffect = Effect.fn("MediaReadRepositoryTest.insertMediaWithRootEffect")(
+const insertMediaWithRootEffect = Effect.fn("MediaRepositoryTest.insertMediaWithRootEffect")(
   function* (db: AppDatabase, id: number, unitCount: number, rootFolder: string) {
     yield* tryDatabasePromise("Failed to insert test anime with root", () =>
       insertAnimeWithRoot(db, id, unitCount, rootFolder),

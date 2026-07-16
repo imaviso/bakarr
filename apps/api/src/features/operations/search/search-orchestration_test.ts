@@ -10,10 +10,7 @@ import { RssClient } from "@/features/operations/rss/rss-client.ts";
 import type { ParsedRelease } from "@/features/operations/rss/rss-client-parse.ts";
 import { SeaDexClient } from "@/features/operations/search/seadex-client.ts";
 import { SearchReleaseService } from "@/features/operations/search/search-orchestration-release-search.ts";
-import {
-  makeMediaReadRepository,
-  MediaReadRepository,
-} from "@/features/media/shared/media-read-repository.ts";
+import { makeMediaRepository, MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import type { Config } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
@@ -29,7 +26,7 @@ function withSearchReleaseService(input: {
       Layer.mergeAll(
         Layer.succeed(RssClient, input.rssClient),
         Layer.succeed(SeaDexClient, input.seadexClient),
-        Layer.succeed(MediaReadRepository, makeMediaReadRepository(input.db)),
+        Layer.succeed(MediaRepository, makeMediaRepository(input.db)),
         Layer.succeed(
           RuntimeConfigSnapshotService,
           RuntimeConfigSnapshotService.make({

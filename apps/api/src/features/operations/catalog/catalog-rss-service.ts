@@ -3,7 +3,7 @@ import { Effect } from "effect";
 import type { RssFeed } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";
-import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { RssFeedRepository } from "@/features/operations/repository/rss-feed-repository-service.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
@@ -21,7 +21,7 @@ export class CatalogRssService extends Effect.Service<CatalogRssService>()(
   "@bakarr/api/CatalogRssService",
   {
     effect: Effect.gen(function* () {
-      const mediaReadRepository = yield* MediaReadRepository;
+      const mediaReadRepository = yield* MediaRepository;
       const rssFeedRepository = yield* RssFeedRepository;
       const systemLogRepository = yield* SystemLogRepository;
       const nowIso = currentNowIso;
@@ -54,11 +54,7 @@ export class CatalogRssService extends Effect.Service<CatalogRssService>()(
         addRssFeed,
       } satisfies CatalogRssServiceShape;
     }),
-    dependencies: [
-      MediaReadRepository.Default,
-      RssFeedRepository.Default,
-      SystemLogRepository.Default,
-    ],
+    dependencies: [MediaRepository.Default, RssFeedRepository.Default, SystemLogRepository.Default],
   },
 ) {}
 

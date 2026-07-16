@@ -29,7 +29,7 @@ import { MediaSeasonalProviderService } from "@/features/media/query/media-seaso
 import { listSeasonalMediaEffect } from "@/features/media/query/media-query-seasonal.ts";
 import { markSearchResultsAlreadyInLibraryEffect } from "@/features/media/query/search-results.ts";
 import { ManamiClient } from "@/features/media/metadata/manami.ts";
-import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { SeasonalMediaCacheRepository } from "@/features/media/query/seasonal-media-cache-repository.ts";
 
 /** Clamp a number to [min, max]. */
@@ -70,7 +70,7 @@ export interface MediaQueryServiceShape {
 const makeMediaQueryService = Effect.fn("MediaQueryService.make")(function* () {
   const aniList = yield* AniListClient;
   const manami = yield* ManamiClient;
-  const mediaReadRepository = yield* MediaReadRepository;
+  const mediaReadRepository = yield* MediaRepository;
   const providerService = yield* MediaSeasonalProviderService;
   const seasonalMediaCacheRepository = yield* SeasonalMediaCacheRepository;
 

@@ -1,6 +1,6 @@
 import { Layer } from "effect";
 
-import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import { AniDbUnitCacheRepository } from "@/features/media/units/anidb-unit-cache-repository.ts";
 import { SeasonalMediaCacheRepository } from "@/features/media/query/seasonal-media-cache-repository.ts";
@@ -23,7 +23,7 @@ import { SystemConfigRepository } from "@/features/system/repository/system-conf
 export const PureDbLeaves = Layer.mergeAll(
   BackgroundJobRepository.Default,
   DownloadRepository.Default,
-  MediaReadRepository.Default,
+  MediaRepository.Default,
   MediaUnitRepository.Default,
   AniDbUnitCacheRepository.Default,
   SeasonalMediaCacheRepository.Default,

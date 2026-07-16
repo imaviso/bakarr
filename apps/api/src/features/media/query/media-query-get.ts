@@ -1,11 +1,11 @@
 import { Effect } from "effect";
 
 import { toMediaDto } from "@/features/media/shared/dto.ts";
-import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
+import type { MediaRepositoryShape } from "@/features/media/shared/media-repository.ts";
 
 export const getMediaEffect = Effect.fn("MediaQueryGet.getMediaEffect")(function* (input: {
   id: number;
-  mediaReadRepository: MediaReadRepositoryShape;
+  mediaReadRepository: MediaRepositoryShape;
 }) {
   const row = yield* input.mediaReadRepository.getMediaRow(input.id);
   const episodeRows = yield* input.mediaReadRepository.listUnitRowsByMediaId(input.id);

@@ -7,7 +7,7 @@ import type { DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { DomainPathError, StoredDataError } from "@/features/errors.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";
-import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import type {
   MediaUnitRepositoryShape,
   UpsertEpisodeFileError,
@@ -52,7 +52,7 @@ type MaybeCleanupImportedTorrent = (
 
 type DownloadReconciliationContext = {
   readonly repo: typeof DownloadRepository.Service;
-  readonly mediaReadRepository: typeof MediaReadRepository.Service;
+  readonly mediaReadRepository: typeof MediaRepository.Service;
   readonly mediaUnitRepository: MediaUnitRepositoryShape;
   readonly fs: FileSystemShape;
   readonly mediaProbe: MediaProbeShape;
@@ -109,7 +109,7 @@ export const loadDownloadReconciliationContext = Effect.fn(
   > & {
     readonly contentPath: string;
     readonly getRuntimeConfig: RuntimeConfigLoader;
-    readonly mediaReadRepository: typeof MediaReadRepository.Service;
+    readonly mediaReadRepository: typeof MediaRepository.Service;
   },
 ) {
   const storedSourceMetadata = yield* decodeDownloadSourceMetadata(input.row.sourceMetadata);

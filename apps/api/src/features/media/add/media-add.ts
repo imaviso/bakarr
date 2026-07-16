@@ -23,7 +23,7 @@ import {
   requireMediaMetadataEffect,
 } from "@/features/media/add/media-add-validation.ts";
 import { mediaKindFromAniListFormat } from "@/features/media/shared/media-kind.ts";
-import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
+import type { MediaRepositoryShape } from "@/features/media/shared/media-repository.ts";
 import type { MediaUnitRepositoryShape } from "@/features/media/units/media-unit-repository.ts";
 import type { QualityProfileRepositoryShape } from "@/features/system/repository/quality-profile-repository.ts";
 import type { SystemConfigRepositoryShape } from "@/features/system/repository/system-config-repository.ts";
@@ -34,7 +34,7 @@ export const addMediaEffect = Effect.fn("MediaAdd.addMediaEffect")(function* (in
   eventPublisher: Pick<EventBusShape, "publish">;
   fs: FileSystemShape;
   imageCacheService: typeof MediaImageCacheService.Service;
-  mediaReadRepository: MediaReadRepositoryShape;
+  mediaReadRepository: MediaRepositoryShape;
   mediaUnitRepository: MediaUnitRepositoryShape;
   qualityProfileRepository: QualityProfileRepositoryShape;
   systemConfigRepository: SystemConfigRepositoryShape;

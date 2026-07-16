@@ -9,7 +9,7 @@ import {
 } from "@packages/shared/index.ts";
 import type { MediaSeasonalProviderServiceShape } from "@/features/media/query/media-seasonal-provider-service.ts";
 import { markSearchResultsAlreadyInLibraryEffect } from "@/features/media/query/search-results.ts";
-import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
+import type { MediaRepositoryShape } from "@/features/media/shared/media-repository.ts";
 
 /** Clamp a number to [min, max]. */
 function clamp(value: number, min: number, max: number): number {
@@ -19,7 +19,7 @@ function clamp(value: number, min: number, max: number): number {
 export const listSeasonalMediaEffect = Effect.fn("MediaQuerySeasonal.listSeasonalMediaEffect")(
   function* (
     input: {
-      mediaReadRepository: MediaReadRepositoryShape;
+      mediaReadRepository: MediaRepositoryShape;
       providerService: MediaSeasonalProviderServiceShape;
       now: Date;
     } & SeasonalMediaQueryParams,

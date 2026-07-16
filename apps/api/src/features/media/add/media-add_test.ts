@@ -18,7 +18,7 @@ import {
 import { FileSystemError, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { makeMediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { makeMediaRepository } from "@/features/media/shared/media-repository.ts";
 import { makeMediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import { makeQualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
 import { makeSystemConfigRepository } from "@/features/system/repository/system-config-repository.ts";
@@ -87,7 +87,7 @@ it.scoped("addMediaEffect persists MAL backfill and mapped relation metadata", (
                 coverImage: "/api/images/media/601/cover.jpg",
               }),
           }),
-          mediaReadRepository: makeMediaReadRepository(appDb),
+          mediaReadRepository: makeMediaRepository(appDb),
           mediaUnitRepository: makeMediaUnitRepository(appDb),
           qualityProfileRepository: makeQualityProfileRepository(appDb),
           systemConfigRepository: makeSystemConfigRepository(appDb),
@@ -161,7 +161,7 @@ it.scoped("addMediaEffect infers light novel media kind when request omits it", 
           imageCacheService: MediaImageCacheService.make({
             cacheMetadataImages: () => Effect.succeed({}),
           }),
-          mediaReadRepository: makeMediaReadRepository(appDb),
+          mediaReadRepository: makeMediaRepository(appDb),
           mediaUnitRepository: makeMediaUnitRepository(appDb),
           qualityProfileRepository: makeQualityProfileRepository(appDb),
           systemConfigRepository: makeSystemConfigRepository(appDb),

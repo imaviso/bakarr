@@ -10,7 +10,7 @@ import {
 import type { AppDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
 import { listSeasonalMediaEffect } from "@/features/media/query/media-query-seasonal.ts";
-import { makeMediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { makeMediaRepository } from "@/features/media/shared/media-repository.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 
 describe("listSeasonalMediaEffect", () => {
@@ -40,7 +40,7 @@ describe("listSeasonalMediaEffect", () => {
           const now = new Date("2025-06-15T12:00:00Z");
 
           const result = yield* listSeasonalMediaEffect({
-            mediaReadRepository: makeMediaReadRepository(appDb),
+            mediaReadRepository: makeMediaRepository(appDb),
             now,
             providerService: {
               getSeasonalAnime: (input: {
@@ -99,7 +99,7 @@ describe("listSeasonalMediaEffect", () => {
           const appDb: AppDatabase = db;
 
           const result = yield* listSeasonalMediaEffect({
-            mediaReadRepository: makeMediaReadRepository(appDb),
+            mediaReadRepository: makeMediaRepository(appDb),
             limit: 5,
             now: new Date("2025-06-15T12:00:00Z"),
             providerService: {

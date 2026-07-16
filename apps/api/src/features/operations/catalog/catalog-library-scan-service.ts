@@ -4,9 +4,9 @@ import type { DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { DomainPathError, InfrastructureError } from "@/features/errors.ts";
 import {
-  MediaReadRepository,
-  type MediaReadRepositoryShape,
-} from "@/features/media/shared/media-read-repository.ts";
+  MediaRepository,
+  type MediaRepositoryShape,
+} from "@/features/media/shared/media-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
 import { FileSystem, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
@@ -29,7 +29,7 @@ function makeCatalogLibraryScanSupport(input: {
   backgroundJobRepository: BackgroundJobRepositoryShape;
   eventBus: typeof EventBus.Service;
   fs: FileSystemShape;
-  mediaReadRepository: MediaReadRepositoryShape;
+  mediaReadRepository: MediaRepositoryShape;
   mediaUnitRepository: import("@/features/media/units/media-unit-repository.ts").MediaUnitRepositoryShape;
   nowIso: () => Effect.Effect<string>;
   publishLibraryScanProgress: (scanned: number) => Effect.Effect<void>;
@@ -113,7 +113,7 @@ export class CatalogLibraryScanService extends Effect.Service<CatalogLibraryScan
       const backgroundJobRepository = yield* BackgroundJobRepository;
       const eventBus = yield* EventBus;
       const fs = yield* FileSystem;
-      const mediaReadRepository = yield* MediaReadRepository;
+      const mediaReadRepository = yield* MediaRepository;
       const mediaUnitRepository = yield* MediaUnitRepository;
       const progress = yield* OperationsProgress;
 
@@ -127,7 +127,7 @@ export class CatalogLibraryScanService extends Effect.Service<CatalogLibraryScan
         publishLibraryScanProgress: progress.publishLibraryScanProgress,
       });
     }),
-    dependencies: [BackgroundJobRepository.Default, MediaReadRepository.Default],
+    dependencies: [BackgroundJobRepository.Default, MediaRepository.Default],
   },
 ) {}
 

@@ -2,7 +2,7 @@ import { Effect } from "effect";
 
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { isWithinPathRoot } from "@/infra/filesystem/filesystem.ts";
-import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
+import type { MediaRepositoryShape } from "@/features/media/shared/media-repository.ts";
 import {
   EpisodeFileResolved,
   EpisodeFileUnmapped,
@@ -14,7 +14,7 @@ import {
 export const resolveUnitFileEffect = Effect.fn("MediaFileRead.resolveUnitFileEffect")(
   function* (input: {
     mediaId: number;
-    mediaReadRepository: MediaReadRepositoryShape;
+    mediaReadRepository: MediaRepositoryShape;
     unitNumber: number;
     fs: FileSystemShape;
   }) {

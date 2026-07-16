@@ -13,7 +13,7 @@ import {
   checkMediaExistsEffect,
 } from "@/features/media/add/media-add-validation.ts";
 import { MediaConflictError, MediaNotFoundError } from "@/features/media/errors.ts";
-import { makeMediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { makeMediaRepository } from "@/features/media/shared/media-repository.ts";
 import { makeQualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
 
 type TestDatabase = SqliteRemoteDatabase<typeof schema>;
@@ -89,7 +89,7 @@ it.scoped("checkMediaExistsEffect returns MediaConflictError when media exists",
     run: (db) =>
       Effect.gen(function* () {
         yield* seedAnime(db);
-        const exit = yield* Effect.exit(checkMediaExistsEffect(makeMediaReadRepository(db), 1));
+        const exit = yield* Effect.exit(checkMediaExistsEffect(makeMediaRepository(db), 1));
         assert.deepStrictEqual(Exit.isFailure(exit), true);
         if (Exit.isFailure(exit)) {
           const failure = Cause.failureOption(exit.cause);
@@ -106,7 +106,7 @@ it.scoped("checkMediaExistsEffect succeeds when media does not exist", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        const exit = yield* Effect.exit(checkMediaExistsEffect(makeMediaReadRepository(db), 999));
+        const exit = yield* Effect.exit(checkMediaExistsEffect(makeMediaRepository(db), 999));
         assert.deepStrictEqual(exit._tag, "Success");
       }),
     schema,
@@ -119,7 +119,7 @@ it.scoped("checkRootFolderNotOwnedEffect returns error when folder already mappe
       Effect.gen(function* () {
         yield* seedAnime(db);
         const exit = yield* Effect.exit(
-          checkRootFolderNotOwnedEffect(makeMediaReadRepository(db), "/library/Existing"),
+          checkRootFolderNotOwnedEffect(makeMediaRepository(db), "/library/Existing"),
         );
         assert.deepStrictEqual(Exit.isFailure(exit), true);
         if (Exit.isFailure(exit)) {
@@ -142,7 +142,7 @@ it.scoped("checkRootFolderNotOwnedEffect succeeds for unmapped folder", () =>
       Effect.gen(function* () {
         yield* seedAnime(db);
         const exit = yield* Effect.exit(
-          checkRootFolderNotOwnedEffect(makeMediaReadRepository(db), "/library/NewAnime"),
+          checkRootFolderNotOwnedEffect(makeMediaRepository(db), "/library/NewAnime"),
         );
         assert.deepStrictEqual(exit._tag, "Success");
       }),
@@ -155,7 +155,7 @@ it.scoped("fetchPersistedEpisodeRowsEffect returns empty when no mediaUnits", ()
     run: (db) =>
       Effect.gen(function* () {
         yield* seedAnime(db);
-        const rows = yield* fetchPersistedEpisodeRowsEffect(makeMediaReadRepository(db), 1);
+        const rows = yield* fetchPersistedEpisodeRowsEffect(makeMediaRepository(db), 1);
         assert.deepStrictEqual(rows, []);
       }),
     schema,

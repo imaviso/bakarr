@@ -13,7 +13,7 @@ import {
   deleteEpisodeFileEffect,
   mapEpisodeFileEffect,
 } from "@/features/media/files/media-file-write.ts";
-import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 import type { DomainPathError, StoredDataError } from "@/features/errors.ts";
@@ -48,7 +48,7 @@ const makeMediaFileService = Effect.fn("MediaFileService.make")(function* () {
   const eventBus = yield* EventBus;
   const fs = yield* FileSystem;
   const mediaProbe = yield* MediaProbe;
-  const mediaReadRepository = yield* MediaReadRepository;
+  const mediaReadRepository = yield* MediaRepository;
   const mediaUnitRepository = yield* MediaUnitRepository;
   const systemLogRepository = yield* SystemLogRepository;
   const nowIso = currentNowIso;
@@ -134,7 +134,7 @@ export class MediaFileService extends Effect.Service<MediaFileService>()(
   {
     effect: makeMediaFileService(),
     dependencies: [
-      MediaReadRepository.Default,
+      MediaRepository.Default,
       MediaUnitRepository.Default,
       SystemLogRepository.Default,
     ],

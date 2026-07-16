@@ -12,7 +12,7 @@ import {
   decideDownloadAction,
   validateQualityProfileSizeLabels,
 } from "@/features/operations/search/release-ranking.ts";
-import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import { BackgroundSearchQueueService } from "@/features/operations/background-search/background-search-queue-service.ts";
 import { DomainInputError, InfrastructureError } from "@/features/errors.ts";
@@ -37,7 +37,7 @@ export class SearchBackgroundMissingService extends Effect.Service<SearchBackgro
       const progress = yield* OperationsProgress;
       const searchReleaseService = yield* SearchReleaseService;
       const queueService = yield* BackgroundSearchQueueService;
-      const mediaReadRepository = yield* MediaReadRepository;
+      const mediaReadRepository = yield* MediaRepository;
       const mediaUnitRepository = yield* MediaUnitRepository;
       const qualityProfileRepository = yield* QualityProfileRepository;
       const releaseProfileRepository = yield* ReleaseProfileRepository;
@@ -214,7 +214,7 @@ export class SearchBackgroundMissingService extends Effect.Service<SearchBackgro
 
       return { triggerSearchMissing } satisfies SearchBackgroundMissingServiceShape;
     }),
-    dependencies: [MediaReadRepository.Default, MediaUnitRepository.Default],
+    dependencies: [MediaRepository.Default, MediaUnitRepository.Default],
   },
 ) {}
 

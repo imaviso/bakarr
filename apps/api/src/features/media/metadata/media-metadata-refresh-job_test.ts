@@ -12,7 +12,7 @@ import { MediaImageCacheService } from "@/features/media/metadata/media-image-ca
 import { MediaMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { makeMediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { makeMediaRepository } from "@/features/media/shared/media-repository.ts";
 import { makeMediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import { makeBackgroundJobRepository } from "@/features/system/repository/background-job-repository.ts";
 import { makeSystemLogRepository } from "@/features/system/repository/log-repository.ts";
@@ -52,7 +52,7 @@ it.scoped(
                     }),
             }),
             backgroundJobRepository: makeBackgroundJobRepository(appDb),
-            mediaReadRepository: makeMediaReadRepository(appDb),
+            mediaReadRepository: makeMediaRepository(appDb),
             mediaUnitRepository: makeMediaUnitRepository(appDb),
             systemLogRepository: makeSystemLogRepository(appDb),
             nowIso: () => Effect.succeed("2026-04-16T00:00:00.000Z"),
@@ -127,7 +127,7 @@ it.scoped(
                 }),
             }),
             backgroundJobRepository: makeBackgroundJobRepository(appDb),
-            mediaReadRepository: makeMediaReadRepository(appDb),
+            mediaReadRepository: makeMediaRepository(appDb),
             mediaUnitRepository: makeMediaUnitRepository(appDb),
             systemLogRepository: makeSystemLogRepository(appDb),
             nowIso,

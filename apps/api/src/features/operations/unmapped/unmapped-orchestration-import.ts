@@ -18,7 +18,7 @@ import { DomainInputError, DomainPathError, InfrastructureError } from "@/featur
 import { OperationsConflictError, OperationsNotFoundError } from "@/features/operations/errors.ts";
 import type { MediaNotFoundError } from "@/features/media/errors.ts";
 import { scanVideoFilesStream } from "@/features/operations/import-scan/file-scanner.ts";
-import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import {
   MediaUnitRepository,
   type MediaUnitRepositoryShape,
@@ -87,7 +87,7 @@ export function makeUnmappedImportWorkflow(input: {
   getLibraryPath: (
     mediaKind: MediaKind,
   ) => Effect.Effect<string, DatabaseError | InfrastructureError>;
-  mediaReadRepository: typeof MediaReadRepository.Service;
+  mediaReadRepository: typeof MediaRepository.Service;
   mediaUnitRepository: MediaUnitRepositoryShape;
   nowIso: () => Effect.Effect<string>;
   systemConfigRepository: typeof SystemConfigRepository.Service;
@@ -245,14 +245,14 @@ export class UnmappedImportService extends Effect.Service<UnmappedImportService>
   {
     // FS + media + runtime config provided by ops feature layer.
     dependencies: [
-      MediaReadRepository.Default,
+      MediaRepository.Default,
       MediaUnitRepository.Default,
       SystemConfigRepository.Default,
       SystemLogRepository.Default,
     ],
     effect: Effect.gen(function* () {
       const fs = yield* FileSystem;
-      const mediaReadRepository = yield* MediaReadRepository;
+      const mediaReadRepository = yield* MediaRepository;
       const mediaUnitRepository = yield* MediaUnitRepository;
       const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
       const systemConfigRepository = yield* SystemConfigRepository;

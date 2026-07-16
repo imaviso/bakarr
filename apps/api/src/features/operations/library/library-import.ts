@@ -11,7 +11,7 @@ import { buildEpisodeFilenamePlan } from "@/features/operations/library/naming-c
 import { selectNamingFormat } from "@/features/operations/library/naming-format-support.ts";
 import { StoredDataError } from "@/features/errors.ts";
 import { deriveAnimeSeason, extractYearFromDate } from "@/domain/media/date-utils.ts";
-import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
+import type { MediaRepositoryShape } from "@/features/media/shared/media-repository.ts";
 
 export {
   analyzeScannedFile,
@@ -45,7 +45,7 @@ const decodeMediaGenres = Effect.fn("Operations.decodeMediaGenres")(function* (
 export const buildRenamePreview = Effect.fn("LibraryImport.buildRenamePreview")(function* (
   mediaId: number,
   runtimeConfig: Config,
-  mediaReadRepository: MediaReadRepositoryShape,
+  mediaReadRepository: MediaRepositoryShape,
 ) {
   const animeRow = yield* mediaReadRepository.getMediaRow(mediaId);
   const namingSettings = {

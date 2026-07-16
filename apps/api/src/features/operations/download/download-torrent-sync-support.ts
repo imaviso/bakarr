@@ -24,7 +24,7 @@ import { durationMsSince } from "@/infra/logging.ts";
 import { currentTimeNanos, nowIso as currentNowIso } from "@/infra/time.ts";
 import type { ReconcileCompletedError } from "@/features/operations/download/download-reconciliation.ts";
 import { DownloadReconciliationService } from "@/features/operations/download/download-reconciliation-service.ts";
-import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 
 function shouldReconcileCompletedDownloads(config: Config | null) {
   return config?.downloads.reconcile_completed_downloads ?? true;
@@ -43,10 +43,10 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
   "@bakarr/api/DownloadTorrentSyncService",
   {
     // Reconciliation/progress/torrent/config provided by ops feature layer.
-    dependencies: [DownloadRepository.Default, EventBus.Default, MediaReadRepository.Default],
+    dependencies: [DownloadRepository.Default, EventBus.Default, MediaRepository.Default],
     effect: Effect.gen(function* () {
       const syncRepo = yield* DownloadRepository;
-      const mediaReadRepository = yield* MediaReadRepository;
+      const mediaReadRepository = yield* MediaRepository;
       const torrentClientService = yield* TorrentClientService;
       const reconciliationService = yield* DownloadReconciliationService;
       const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;

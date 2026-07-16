@@ -17,7 +17,7 @@ import { DownloadRepository } from "@/features/operations/repository/download-re
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { DownloadProgressSupport } from "@/features/operations/download/download-progress-support.ts";
 import { DownloadTriggerCoordinator } from "@/features/operations/tasks/runtime-support.ts";
-import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 
 export interface DownloadTriggerServiceShape {
@@ -42,7 +42,7 @@ export class DownloadTriggerService extends Effect.Service<DownloadTriggerServic
       DownloadRepository.Default,
       DownloadTriggerCoordinator.Default,
       EventBus.Default,
-      MediaReadRepository.Default,
+      MediaRepository.Default,
       SystemLogRepository.Default,
     ],
     effect: Effect.gen(function* () {
@@ -52,7 +52,7 @@ export class DownloadTriggerService extends Effect.Service<DownloadTriggerServic
       const progressSupport = yield* DownloadProgressSupport;
       const downloadTriggerCoordinator = yield* DownloadTriggerCoordinator;
       const systemLogRepository = yield* SystemLogRepository;
-      const mediaReadRepository = yield* MediaReadRepository;
+      const mediaReadRepository = yield* MediaRepository;
 
       const executeTriggerDownload = Effect.fn("DownloadTrigger.executeTriggerDownload")(function* (
         triggerInput: TriggerDownloadInput,

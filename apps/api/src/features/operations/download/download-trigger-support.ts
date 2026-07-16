@@ -4,7 +4,7 @@ import type { DownloadAction, DownloadSourceMetadata } from "@packages/shared/in
 import { DatabaseError } from "@/db/database.ts";
 import { media } from "@/db/schema.ts";
 import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
-import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { DownloadRepository } from "@/features/operations/repository/download-repository-service.ts";
 import { encodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
 import {
@@ -90,7 +90,7 @@ export function resolveTriggerDownloadCoveragePlan(input: {
 export const prepareTriggerDownload = Effect.fn("Operations.prepareTriggerDownload")(
   function* (input: {
     readonly triggerRepo: typeof DownloadRepository.Service;
-    readonly mediaReadRepository: typeof MediaReadRepository.Service;
+    readonly mediaReadRepository: typeof MediaRepository.Service;
     readonly nowIso: () => Effect.Effect<string>;
     readonly triggerInput: TriggerDownloadInput;
   }) {

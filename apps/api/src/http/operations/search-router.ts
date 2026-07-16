@@ -13,7 +13,7 @@ import { SearchBackgroundMissingService } from "@/features/operations/background
 import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
 import { SearchUnitService } from "@/features/operations/search/search-orchestration-unit-support.ts";
 import { SearchReleaseService } from "@/features/operations/search/search-orchestration-release-search.ts";
-import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { nowIso } from "@/infra/time.ts";
 import {
   CalendarQuerySchema,
@@ -43,7 +43,7 @@ export const searchRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const query = yield* decodeQueryWithLabel(WantedMissingQuerySchema, "wanted missing");
         const now = yield* nowIso();
-        return yield* (yield* MediaReadRepository).listWantedMissing(query.limit ?? 50, now);
+        return yield* (yield* MediaRepository).listWantedMissing(query.limit ?? 50, now);
       }),
       schemaJsonResponse(Schema.Array(MissingUnitSchema)),
     ),
@@ -55,7 +55,7 @@ export const searchRouter = HttpRouter.empty.pipe(
         const query = yield* decodeQueryWithLabel(CalendarQuerySchema, "calendar");
         const nowIsoValue = yield* nowIso();
         const now = new Date(nowIsoValue);
-        return yield* (yield* MediaReadRepository).listCalendarEvents(
+        return yield* (yield* MediaRepository).listCalendarEvents(
           query.start ?? nowIsoValue,
           query.end ?? nowIsoValue,
           now,

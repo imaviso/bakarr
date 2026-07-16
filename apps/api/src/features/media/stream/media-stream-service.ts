@@ -7,7 +7,7 @@ import { MediaNotFoundError } from "@/features/media/errors.ts";
 import { StreamAccessError } from "@/features/media/stream/media-stream-errors.ts";
 import { resolveUnitFileEffect } from "@/features/media/files/media-file-read.ts";
 import { StreamTokenSigner } from "@/features/media/stream/stream-token-signer.ts";
-import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 
 const STREAM_EXPIRY_MS = 6 * 60 * 60 * 1000;
 
@@ -32,7 +32,7 @@ export interface MediaStreamServiceShape {
 
 const makeMediaStreamService = Effect.fn("MediaStreamService.make")(function* () {
   const fs = yield* FileSystem;
-  const mediaReadRepository = yield* MediaReadRepository;
+  const mediaReadRepository = yield* MediaRepository;
   const signer = yield* StreamTokenSigner;
 
   const createStreamUrl = Effect.fn("MediaStreamService.createStreamUrl")(function* (

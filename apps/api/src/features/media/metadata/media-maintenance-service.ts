@@ -5,7 +5,7 @@ import type { DatabaseError } from "@/db/database.ts";
 import { MediaMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
 import { MediaImageCacheService } from "@/features/media/metadata/media-image-cache-service.ts";
 import { syncMediaMetadataEffect } from "@/features/media/metadata/media-metadata-sync.ts";
-import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import { AniDbRuntimeConfigError, MediaNotFoundError } from "@/features/media/errors.ts";
 import { makeMetadataRefreshRunner } from "@/features/media/metadata/metadata-refresh.ts";
@@ -37,7 +37,7 @@ const makeMediaMaintenanceService = Effect.fn("MediaMaintenanceService.make")(fu
   const eventBus = yield* EventBus;
   const metadataProvider = yield* MediaMetadataProviderService;
   const imageCacheService = yield* MediaImageCacheService;
-  const mediaReadRepository = yield* MediaReadRepository;
+  const mediaReadRepository = yield* MediaRepository;
   const mediaUnitRepository = yield* MediaUnitRepository;
   const systemLogRepository = yield* SystemLogRepository;
   const nowIso = currentNowIso;

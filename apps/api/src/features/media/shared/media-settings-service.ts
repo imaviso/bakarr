@@ -10,7 +10,7 @@ import {
   resolveConfiguredLibraryRoot,
   assertPathWithinLibraryRoot,
 } from "@/features/media/shared/media-path-policy.ts";
-import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { DomainPathError } from "@/features/errors.ts";
 import { MediaConflictError, MediaNotFoundError } from "@/features/media/errors.ts";
 import { StoredDataError } from "@/features/errors.ts";
@@ -43,7 +43,7 @@ export interface MediaSettingsServiceShape {
 const makeMediaSettingsService = Effect.fn("MediaSettingsService.make")(function* () {
   const eventBus = yield* EventBus;
   const fs = yield* FileSystem;
-  const mediaReadRepository = yield* MediaReadRepository;
+  const mediaReadRepository = yield* MediaRepository;
   const qualityProfileRepository = yield* QualityProfileRepository;
   const systemConfigRepository = yield* SystemConfigRepository;
   const systemLogRepository = yield* SystemLogRepository;
@@ -178,7 +178,7 @@ export class MediaSettingsService extends Effect.Service<MediaSettingsService>()
   {
     effect: makeMediaSettingsService(),
     dependencies: [
-      MediaReadRepository.Default,
+      MediaRepository.Default,
       QualityProfileRepository.Default,
       SystemConfigRepository.Default,
       SystemLogRepository.Default,

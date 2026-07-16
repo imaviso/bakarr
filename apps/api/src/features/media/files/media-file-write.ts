@@ -3,7 +3,7 @@ import { Effect } from "effect";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { isWithinPathRoot } from "@/infra/filesystem/filesystem.ts";
 import { DomainPathError } from "@/features/errors.ts";
-import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
+import type { MediaRepositoryShape } from "@/features/media/shared/media-repository.ts";
 import type { MediaUnitRepositoryShape } from "@/features/media/units/media-unit-repository.ts";
 import {
   loadMediaRoot,
@@ -13,7 +13,7 @@ import {
 export const deleteEpisodeFileEffect = Effect.fn("MediaFileWrite.deleteEpisodeFileEffect")(
   function* (input: {
     mediaId: number;
-    mediaReadRepository: MediaReadRepositoryShape;
+    mediaReadRepository: MediaRepositoryShape;
     mediaUnitRepository: MediaUnitRepositoryShape;
     unitNumber: number;
     fs: FileSystemShape;
@@ -65,7 +65,7 @@ export const mapEpisodeFileEffect = Effect.fn("MediaFileWrite.mapEpisodeFileEffe
     unitNumber: number;
     filePath: string;
     fs: FileSystemShape;
-    mediaReadRepository: MediaReadRepositoryShape;
+    mediaReadRepository: MediaRepositoryShape;
     mediaUnitRepository: MediaUnitRepositoryShape;
   }) {
     const animeRow = yield* input.mediaReadRepository.getMediaRow(input.mediaId);
@@ -94,7 +94,7 @@ export const bulkMapEpisodeFilesEffect = Effect.fn("MediaFileWrite.bulkMapEpisod
   function* (input: {
     mediaId: number;
     fs: FileSystemShape;
-    mediaReadRepository: MediaReadRepositoryShape;
+    mediaReadRepository: MediaRepositoryShape;
     mediaUnitRepository: MediaUnitRepositoryShape;
     mappings: readonly { unit_number: number; file_path: string }[];
   }) {

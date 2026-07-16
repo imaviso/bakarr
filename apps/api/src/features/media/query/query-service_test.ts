@@ -10,10 +10,7 @@ import { AppDrizzleDatabase } from "@/db/database.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
 import { ManamiClient } from "@/features/media/metadata/manami.ts";
-import {
-  makeMediaReadRepository,
-  MediaReadRepository,
-} from "@/features/media/shared/media-read-repository.ts";
+import { makeMediaRepository, MediaRepository } from "@/features/media/shared/media-repository.ts";
 import {
   makeSeasonalMediaCacheRepository,
   SeasonalMediaCacheRepository,
@@ -81,7 +78,7 @@ describe("MediaQueryService.listSeasonalMedia", () => {
               }),
             ),
             Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db)),
-            Layer.succeed(MediaReadRepository, makeMediaReadRepository(db)),
+            Layer.succeed(MediaRepository, makeMediaRepository(db)),
             Layer.succeed(SeasonalMediaCacheRepository, makeSeasonalMediaCacheRepository(db)),
           );
 
@@ -170,7 +167,7 @@ describe("MediaQueryService.listSeasonalMedia", () => {
                   }),
                 ),
                 Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db)),
-                Layer.succeed(MediaReadRepository, makeMediaReadRepository(db)),
+                Layer.succeed(MediaRepository, makeMediaRepository(db)),
                 Layer.succeed(SeasonalMediaCacheRepository, makeSeasonalMediaCacheRepository(db)),
               ),
             ),
@@ -254,7 +251,7 @@ describe("MediaQueryService.listSeasonalMedia", () => {
                   }),
                 ),
                 Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db)),
-                Layer.succeed(MediaReadRepository, makeMediaReadRepository(db)),
+                Layer.succeed(MediaRepository, makeMediaRepository(db)),
                 Layer.succeed(SeasonalMediaCacheRepository, makeSeasonalMediaCacheRepository(db)),
               ),
             ),
@@ -339,7 +336,7 @@ describe("MediaQueryService.searchMedia", () => {
                   }),
                 ),
                 Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db)),
-                Layer.succeed(MediaReadRepository, makeMediaReadRepository(db)),
+                Layer.succeed(MediaRepository, makeMediaRepository(db)),
                 Layer.succeed(SeasonalMediaCacheRepository, makeSeasonalMediaCacheRepository(db)),
               ),
             ),

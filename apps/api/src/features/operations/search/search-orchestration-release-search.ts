@@ -14,7 +14,7 @@ import {
 } from "@/features/operations/errors.ts";
 import { SeaDexClient } from "@/features/operations/search/seadex-client.ts";
 import { applySeaDexMatch } from "@/features/operations/search/seadex-matching.ts";
-import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import {
   mapSearchCategory,
   mapSearchCategoryForMediaKind,
@@ -295,7 +295,7 @@ export class SearchReleaseService extends Effect.Service<SearchReleaseService>()
     effect: Effect.gen(function* () {
       const rssClient = yield* RssClient;
       const seadexClient = yield* SeaDexClient;
-      const mediaReadRepository = yield* MediaReadRepository;
+      const mediaReadRepository = yield* MediaRepository;
       const runtimeConfigSnapshotService = yield* RuntimeConfigSnapshotService;
       const getRuntimeConfig = runtimeConfigSnapshotService.getRuntimeConfig;
 
@@ -421,7 +421,7 @@ export class SearchReleaseService extends Effect.Service<SearchReleaseService>()
         searchReleases,
       } satisfies SearchReleaseServiceShape;
     }),
-    dependencies: [MediaReadRepository.Default],
+    dependencies: [MediaRepository.Default],
   },
 ) {}
 

@@ -22,7 +22,7 @@ import {
   shouldRemoveTorrentOnImport,
 } from "@/features/operations/download/download-reconciliation-policy.ts";
 import { OperationsConflictError, OperationsNotFoundError } from "@/features/operations/errors.ts";
-import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 
 export interface DownloadReconciliationServiceShape {
@@ -44,7 +44,7 @@ export class DownloadReconciliationService extends Effect.Service<DownloadReconc
     dependencies: [
       DownloadRepository.Default,
       EventBus.Default,
-      MediaReadRepository.Default,
+      MediaRepository.Default,
       MediaUnitRepository.Default,
       RandomService.Default,
     ],
@@ -53,7 +53,7 @@ export class DownloadReconciliationService extends Effect.Service<DownloadReconc
       const eventBus = yield* EventBus;
       const fs = yield* FileSystem;
       const mediaProbe = yield* MediaProbe;
-      const mediaReadRepository = yield* MediaReadRepository;
+      const mediaReadRepository = yield* MediaRepository;
       const mediaUnitRepository = yield* MediaUnitRepository;
       const torrentClientService = yield* TorrentClientService;
       const progressSupport = yield* DownloadProgressSupport;

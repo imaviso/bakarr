@@ -5,7 +5,7 @@ import { ImageCacheError } from "@/features/media/metadata/media-image-cache-ser
 import type { AnimeMetadata } from "@/features/media/metadata/anilist-model.ts";
 import type { MediaMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
 import type { MediaEventPublisher } from "@/features/media/shared/media-orchestration-shared.ts";
-import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
+import type { MediaRepositoryShape } from "@/features/media/shared/media-repository.ts";
 import {
   encodeAnimeDiscoveryEntries,
   encodeAnimeSynonyms,
@@ -19,7 +19,7 @@ export const syncMediaMetadataEffect = Effect.fn("MediaMetadataSync.syncMediaMet
   metadataProvider: typeof MediaMetadataProviderService.Service;
   mediaId: number;
   eventPublisher: Option.Option<MediaEventPublisher>;
-  mediaReadRepository: MediaReadRepositoryShape;
+  mediaReadRepository: MediaRepositoryShape;
   systemLogRepository: SystemLogRepositoryShape;
   nowIso: () => Effect.Effect<string, E>;
 }) {

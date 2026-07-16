@@ -19,7 +19,7 @@ import { QualityProfileRepository } from "@/features/system/repository/quality-p
 import { ReleaseProfileRepository } from "@/features/system/repository/release-profile-repository.ts";
 import type { StoredConfigCorruptError } from "@/features/system/errors.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";
-import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import type { ExternalCallError } from "@/infra/effect/retry.ts";
 
 export type SearchUnitMediaRow = typeof media.$inferSelect;
@@ -46,7 +46,7 @@ export class SearchUnitService extends Effect.Service<SearchUnitService>()(
   "@bakarr/api/SearchUnitService",
   {
     effect: Effect.gen(function* () {
-      const mediaReadRepository = yield* MediaReadRepository;
+      const mediaReadRepository = yield* MediaRepository;
       const qualityProfileRepository = yield* QualityProfileRepository;
       const releaseProfileRepository = yield* ReleaseProfileRepository;
       const searchReleaseService = yield* SearchReleaseService;
@@ -99,7 +99,7 @@ export class SearchUnitService extends Effect.Service<SearchUnitService>()(
       } satisfies SearchUnitServiceShape;
     }),
     dependencies: [
-      MediaReadRepository.Default,
+      MediaRepository.Default,
       QualityProfileRepository.Default,
       ReleaseProfileRepository.Default,
       SearchReleaseService.Default,

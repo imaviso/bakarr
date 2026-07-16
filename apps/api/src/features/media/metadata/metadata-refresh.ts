@@ -6,7 +6,7 @@ import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { MediaImageCacheService } from "@/features/media/metadata/media-image-cache-service.ts";
 import { MediaMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
 import { refreshMetadataForMonitoredMediaEffect } from "@/features/media/metadata/media-metadata-refresh-job.ts";
-import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import { BackgroundJobRepository } from "@/features/system/repository/background-job-repository.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
@@ -17,7 +17,7 @@ export const makeMetadataRefreshRunner = Effect.fn("MediaMetadataRefresh.makeRun
   const backgroundJobRepository = yield* BackgroundJobRepository;
   const imageCacheService = yield* MediaImageCacheService;
   const metadataProvider = yield* MediaMetadataProviderService;
-  const mediaReadRepository = yield* MediaReadRepository;
+  const mediaReadRepository = yield* MediaRepository;
   const mediaUnitRepository = yield* MediaUnitRepository;
   const systemLogRepository = yield* SystemLogRepository;
   const refreshConcurrency = yield* Schema.Config(

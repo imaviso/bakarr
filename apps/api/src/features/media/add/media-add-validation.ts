@@ -1,11 +1,11 @@
 import { Effect, Option } from "effect";
 
 import { MediaConflictError, MediaNotFoundError } from "@/features/media/errors.ts";
-import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
+import type { MediaRepositoryShape } from "@/features/media/shared/media-repository.ts";
 import type { QualityProfileRepositoryShape } from "@/features/system/repository/quality-profile-repository.ts";
 
 export const checkMediaExistsEffect = Effect.fn("MediaAddValidation.checkMediaExists")(function* (
-  mediaReadRepository: MediaReadRepositoryShape,
+  mediaReadRepository: MediaRepositoryShape,
   mediaId: number,
 ) {
   const exists = yield* mediaReadRepository.mediaExists(mediaId);
@@ -44,7 +44,7 @@ export const checkProfileExistsEffect = Effect.fn("MediaAddValidation.checkProfi
 
 export const checkRootFolderNotOwnedEffect = Effect.fn(
   "MediaAddValidation.checkRootFolderNotOwned",
-)(function* (mediaReadRepository: MediaReadRepositoryShape, rootFolder: string) {
+)(function* (mediaReadRepository: MediaRepositoryShape, rootFolder: string) {
   const existingRootOwner = yield* mediaReadRepository.findMediaRootFolderOwner(rootFolder);
 
   if (existingRootOwner) {
@@ -58,6 +58,6 @@ export const checkRootFolderNotOwnedEffect = Effect.fn(
 
 export const fetchPersistedEpisodeRowsEffect = Effect.fn(
   "MediaAddValidation.fetchPersistedEpisodeRows",
-)(function* (mediaReadRepository: MediaReadRepositoryShape, mediaId: number) {
+)(function* (mediaReadRepository: MediaRepositoryShape, mediaId: number) {
   return yield* mediaReadRepository.listUnitRowsByMediaId(mediaId);
 });

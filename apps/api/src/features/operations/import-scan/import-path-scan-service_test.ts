@@ -11,7 +11,7 @@ import { MediaProbe } from "@/infra/media/probe.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
 import { makeRuntimeConfigSnapshotStub } from "@/test/stubs.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 
 describe("ImportPathScanService", () => {
   it.scoped("rejects paths outside library, recycle, and downloads roots", () =>
@@ -79,8 +79,8 @@ function scanImportPathEffect(
               }),
             ),
             Layer.succeed(
-              MediaReadRepository,
-              MediaReadRepository.make({
+              MediaRepository,
+              MediaRepository.make({
                 countMedia: () => Effect.dieMessage("not used in test"),
                 findExistingMediaIds: () => Effect.dieMessage("not used in test"),
                 findMediaRootFolderOwner: () => Effect.dieMessage("not used in test"),

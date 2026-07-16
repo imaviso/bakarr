@@ -13,7 +13,7 @@ import {
   listUnmappedFolderEntries,
 } from "@/features/operations/unmapped/unmapped-folder-list-support.ts";
 import type { MediaKind } from "@packages/shared/index.ts";
-import type { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import type { MediaRepository } from "@/features/media/shared/media-repository.ts";
 
 export interface ConfigLibraryRoot {
   readonly mediaKind: MediaKind;
@@ -27,7 +27,7 @@ export const loadUnmappedFolderSnapshot = Effect.fn(
   nowIso?: () => Effect.Effect<string> | undefined;
   roots: () => Effect.Effect<readonly ConfigLibraryRoot[], DatabaseError | StoredDataError>;
   systemUnmappedRepository: SystemUnmappedRepositoryShape;
-  mediaReadRepository: typeof MediaReadRepository.Service;
+  mediaReadRepository: typeof MediaRepository.Service;
 }) {
   const animeRows = yield* input.mediaReadRepository.listAllMediaRows();
   const mappedRoots = new Set(animeRows.map((row) => row.rootFolder));

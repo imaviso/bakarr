@@ -7,13 +7,13 @@ import { EventBus } from "@/features/events/event-bus.ts";
 import { buildRenamePreview } from "@/features/operations/library/library-import.ts";
 import { DomainPathError } from "@/features/errors.ts";
 import type { MediaNotFoundError } from "@/features/media/errors.ts";
-import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import type { MediaUnitRepositoryShape } from "@/features/media/units/media-unit-repository.ts";
 
 export interface RenameLibraryFilesInput {
   readonly eventBus: typeof EventBus.Service;
   readonly fs: FileSystemShape;
-  readonly mediaReadRepository: typeof MediaReadRepository.Service;
+  readonly mediaReadRepository: typeof MediaRepository.Service;
   readonly mediaUnitRepository: MediaUnitRepositoryShape;
   readonly runtimeConfig: Config;
   readonly mediaId: number;

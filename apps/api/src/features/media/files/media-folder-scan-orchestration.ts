@@ -5,7 +5,7 @@ import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import type { MediaProbeShape } from "@/infra/media/probe.ts";
 import type { MediaEventPublisher } from "@/features/media/shared/media-orchestration-shared.ts";
 import { scanMediaFolderEffect } from "@/features/media/files/media-file-scan.ts";
-import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
+import type { MediaRepositoryShape } from "@/features/media/shared/media-repository.ts";
 import type { MediaUnitRepositoryShape } from "@/features/media/units/media-unit-repository.ts";
 import type { SystemLogRepositoryShape } from "@/features/system/repository/log-repository.ts";
 
@@ -15,7 +15,7 @@ export const scanMediaFolderOrchestrationEffect = Effect.fn(
   mediaId: number;
   eventPublisher: MediaEventPublisher;
   fs: FileSystemShape;
-  mediaReadRepository: MediaReadRepositoryShape;
+  mediaReadRepository: MediaRepositoryShape;
   mediaUnitRepository: MediaUnitRepositoryShape;
   mediaProbe: MediaProbeShape;
   nowIso: () => Effect.Effect<string>;

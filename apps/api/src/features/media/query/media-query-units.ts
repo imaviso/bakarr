@@ -2,10 +2,10 @@ import { Effect } from "effect";
 
 import type { MediaUnit } from "@packages/shared/index.ts";
 import { deriveEpisodeTimelineMetadata } from "@/domain/media/derivations.ts";
-import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
+import type { MediaRepositoryShape } from "@/features/media/shared/media-repository.ts";
 
 export const listEpisodesEffect = Effect.fn("MediaQueryUnits.listEpisodesEffect")(
-  function* (input: { mediaId: number; mediaReadRepository: MediaReadRepositoryShape; now: Date }) {
+  function* (input: { mediaId: number; mediaReadRepository: MediaRepositoryShape; now: Date }) {
     const rows = yield* input.mediaReadRepository.listUnitRowsWithMediaKind(input.mediaId);
 
     return rows

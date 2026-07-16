@@ -11,7 +11,7 @@ import {
 } from "@/infra/media/probe.ts";
 import { DomainPathError } from "@/features/errors.ts";
 import type { MediaNotFoundError } from "@/features/media/errors.ts";
-import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { buildEpisodeFilenamePlan } from "@/features/operations/library/naming-canonical-support.ts";
 import type { EpisodeFilenamePlan } from "@/features/operations/library/naming-types.ts";
 import {
@@ -21,7 +21,7 @@ import {
 
 export interface BuildLibraryImportPlanInput {
   readonly fs: FileSystemShape;
-  readonly mediaReadRepository: typeof MediaReadRepository.Service;
+  readonly mediaReadRepository: typeof MediaRepository.Service;
   readonly mediaProbe: MediaProbeShape;
   readonly runtimeConfig: Config;
   readonly file: {

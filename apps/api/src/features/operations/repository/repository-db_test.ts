@@ -17,7 +17,7 @@ import {
   decodeDownloadSourceMetadata,
   encodeDownloadSourceMetadata,
 } from "@/features/operations/repository/download-repository.ts";
-import { makeMediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { makeMediaRepository } from "@/features/media/shared/media-repository.ts";
 import { loadQualityProfile } from "@/features/system/repository/quality-profile-repository.ts";
 import { loadReleaseRules } from "@/features/system/repository/release-profile-repository.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";
@@ -153,7 +153,7 @@ it.scoped("operations repository helpers load media release rules and episode st
           }),
         );
 
-        const mediaReadRepository = makeMediaReadRepository(db);
+        const mediaReadRepository = makeMediaRepository(db);
         const animeRow = yield* mediaReadRepository.getMediaRow(20);
         assert.deepStrictEqual(animeRow.titleRomaji, "Naruto");
 

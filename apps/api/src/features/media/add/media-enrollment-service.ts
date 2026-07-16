@@ -16,7 +16,7 @@ import {
   MediaNotFoundError,
 } from "@/features/media/errors.ts";
 import { addMediaEffect } from "@/features/media/add/media-add.ts";
-import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
 import { SystemConfigRepository } from "@/features/system/repository/system-config-repository.ts";
@@ -37,7 +37,7 @@ const makeMediaEnrollmentService = Effect.fn("MediaEnrollmentService.make")(func
   const metadataProvider = yield* MediaMetadataProviderService;
   const imageCacheService = yield* MediaImageCacheService;
   const fs = yield* FileSystem;
-  const mediaReadRepository = yield* MediaReadRepository;
+  const mediaReadRepository = yield* MediaRepository;
   const mediaUnitRepository = yield* MediaUnitRepository;
   const qualityProfileRepository = yield* QualityProfileRepository;
   const systemConfigRepository = yield* SystemConfigRepository;

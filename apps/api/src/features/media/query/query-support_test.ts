@@ -20,7 +20,7 @@ import {
 import { listEpisodesEffect } from "@/features/media/query/media-query-units.ts";
 import { annotateMediaSearchResultsForQuery } from "@/features/media/query/media-search-annotation.ts";
 import { listMediaFilesEffect } from "@/features/media/files/media-file-list.ts";
-import { makeMediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { makeMediaRepository } from "@/features/media/shared/media-repository.ts";
 import { makeMediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import type { AnimeMetadata } from "@/features/media/metadata/anilist-model.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
@@ -122,7 +122,7 @@ it.scoped("listEpisodesEffect fills missing media metadata from ffprobe", () =>
 
           const result = yield* listEpisodesEffect({
             mediaId: 1,
-            mediaReadRepository: makeMediaReadRepository(appDb),
+            mediaReadRepository: makeMediaRepository(appDb),
             now: new Date("2024-01-02T00:00:00.000Z"),
           });
 
@@ -197,7 +197,7 @@ it.scoped("listMediaFilesEffect caches probed metadata to episode rows", () =>
           const first = yield* listMediaFilesEffect({
             mediaId: 101,
             fs,
-            mediaReadRepository: makeMediaReadRepository(appDb),
+            mediaReadRepository: makeMediaRepository(appDb),
             mediaUnitRepository: makeMediaUnitRepository(appDb),
             mediaProbe,
           });
@@ -221,7 +221,7 @@ it.scoped("listMediaFilesEffect caches probed metadata to episode rows", () =>
           const second = yield* listMediaFilesEffect({
             mediaId: 101,
             fs,
-            mediaReadRepository: makeMediaReadRepository(appDb),
+            mediaReadRepository: makeMediaRepository(appDb),
             mediaUnitRepository: makeMediaUnitRepository(appDb),
             mediaProbe,
           });
@@ -268,7 +268,7 @@ it.scoped("getMediaByAnilistIdEffect returns related and recommended metadata", 
             synonyms: ["Stub Alias"],
             title: { english: "Stub Show", romaji: "Stub Show" },
           }),
-          mediaReadRepository: makeMediaReadRepository(appDb),
+          mediaReadRepository: makeMediaRepository(appDb),
           id: 55,
         });
 
@@ -316,7 +316,7 @@ it.scoped("getMediaEffect returns discovery metadata from database storage", () 
 
         const result = yield* getMediaEffect({
           id: 80,
-          mediaReadRepository: makeMediaReadRepository(appDb),
+          mediaReadRepository: makeMediaRepository(appDb),
         });
 
         assert.deepStrictEqual(result.related_media?.[0]?.relation_type, "PREQUEL");
@@ -363,7 +363,7 @@ it.scoped("getMediaEffect uses stored discovery metadata from database", () =>
 
         const result = yield* getMediaEffect({
           id: 90,
-          mediaReadRepository: makeMediaReadRepository(appDb),
+          mediaReadRepository: makeMediaRepository(appDb),
         });
 
         assert.deepStrictEqual(result.id, 90);
@@ -396,7 +396,7 @@ it.scoped("searchMediaEffect fails when AniList search fails", () =>
                 ),
               getSeasonalAnime: () => Effect.succeed([]),
             }),
-            mediaReadRepository: makeMediaReadRepository(appDb),
+            mediaReadRepository: makeMediaRepository(appDb),
             query: "bake",
           }),
         );
@@ -433,7 +433,7 @@ it.scoped("searchMediaEffect reports non-degraded when AniList search succeeds",
               ]),
             getSeasonalAnime: () => Effect.succeed([]),
           }),
-          mediaReadRepository: makeMediaReadRepository(appDb),
+          mediaReadRepository: makeMediaRepository(appDb),
           query: "bake",
         });
 
@@ -456,7 +456,7 @@ it.scoped("searchMediaEffect falls back to Manami when AniList returns no result
             searchAnimeMetadata: () => Effect.succeed([]),
             getSeasonalAnime: () => Effect.succeed([]),
           }),
-          mediaReadRepository: makeMediaReadRepository(appDb),
+          mediaReadRepository: makeMediaRepository(appDb),
           manami: {
             searchMedia: () =>
               Effect.succeed([
@@ -510,7 +510,7 @@ it.scoped("listMediaEffect returns paginated results with defaults", () =>
           );
         }
 
-        const result = yield* listMediaEffect(makeMediaReadRepository(appDb));
+        const result = yield* listMediaEffect(makeMediaRepository(appDb));
 
         assert.deepStrictEqual(result.total, 5);
         assert.deepStrictEqual(result.offset, 0);
@@ -545,7 +545,7 @@ it.scoped("listMediaEffect respects limit and offset", () =>
           );
         }
 
-        const page1 = yield* listMediaEffect(makeMediaReadRepository(appDb), {
+        const page1 = yield* listMediaEffect(makeMediaRepository(appDb), {
           limit: 3,
           offset: 0,
         });
@@ -556,7 +556,7 @@ it.scoped("listMediaEffect respects limit and offset", () =>
         assert.deepStrictEqual(page1.has_more, true);
         assert.deepStrictEqual(page1.total, 10);
 
-        const page2 = yield* listMediaEffect(makeMediaReadRepository(appDb), {
+        const page2 = yield* listMediaEffect(makeMediaRepository(appDb), {
           limit: 3,
           offset: 3,
         });
@@ -566,7 +566,7 @@ it.scoped("listMediaEffect respects limit and offset", () =>
         assert.deepStrictEqual(page2First.id, 4);
         assert.deepStrictEqual(page2.has_more, true);
 
-        const page4 = yield* listMediaEffect(makeMediaReadRepository(appDb), {
+        const page4 = yield* listMediaEffect(makeMediaRepository(appDb), {
           limit: 3,
           offset: 9,
         });
@@ -601,7 +601,7 @@ it.scoped("listMediaEffect caps limit at 500", () =>
           }),
         );
 
-        const result = yield* listMediaEffect(makeMediaReadRepository(appDb), { limit: 1000 });
+        const result = yield* listMediaEffect(makeMediaRepository(appDb), { limit: 1000 });
         assert.deepStrictEqual(result.limit, 500);
       }),
     schema,
@@ -629,7 +629,7 @@ it.scoped("listMediaEffect floors limit at 1", () =>
           }),
         );
 
-        const result = yield* listMediaEffect(makeMediaReadRepository(appDb), { limit: 0 });
+        const result = yield* listMediaEffect(makeMediaRepository(appDb), { limit: 0 });
         assert.deepStrictEqual(result.limit, 1);
       }),
     schema,
@@ -657,7 +657,7 @@ it.scoped("listMediaEffect floors negative offset at 0", () =>
           }),
         );
 
-        const result = yield* listMediaEffect(makeMediaReadRepository(appDb), { offset: -10 });
+        const result = yield* listMediaEffect(makeMediaRepository(appDb), { offset: -10 });
         assert.deepStrictEqual(result.offset, 0);
       }),
     schema,
@@ -694,7 +694,7 @@ it.scoped("listMediaEffect aggregates episode download counts", () =>
           ]),
         );
 
-        const result = yield* listMediaEffect(makeMediaReadRepository(appDb));
+        const result = yield* listMediaEffect(makeMediaRepository(appDb));
         const firstItem = result.items[0];
         assert(firstItem);
         assert.deepStrictEqual(result.items.length, 1);
@@ -740,11 +740,11 @@ it.scoped("listMediaEffect filters by monitored status", () =>
           ]),
         );
 
-        const allResults = yield* listMediaEffect(makeMediaReadRepository(appDb));
+        const allResults = yield* listMediaEffect(makeMediaRepository(appDb));
         assert.deepStrictEqual(allResults.total, 2);
         assert.deepStrictEqual(allResults.items.length, 2);
 
-        const monitoredOnly = yield* listMediaEffect(makeMediaReadRepository(appDb), {
+        const monitoredOnly = yield* listMediaEffect(makeMediaRepository(appDb), {
           monitored: true,
         });
         const monitoredFirst = monitoredOnly.items[0];
@@ -752,7 +752,7 @@ it.scoped("listMediaEffect filters by monitored status", () =>
         assert.deepStrictEqual(monitoredOnly.total, 1);
         assert.deepStrictEqual(monitoredFirst.id, 1);
 
-        const unmonitoredOnly = yield* listMediaEffect(makeMediaReadRepository(appDb), {
+        const unmonitoredOnly = yield* listMediaEffect(makeMediaRepository(appDb), {
           monitored: false,
         });
         const unmonitoredFirst = unmonitoredOnly.items[0];
@@ -795,7 +795,7 @@ it.scoped("listMediaEffect includes progress and metadata fields needed by list 
           ]),
         );
 
-        const result = yield* listMediaEffect(makeMediaReadRepository(appDb));
+        const result = yield* listMediaEffect(makeMediaRepository(appDb));
         assert.deepStrictEqual(result.items.length, 1);
 
         const media = result.items[0];
@@ -837,7 +837,7 @@ it.scoped("listMediaEffect fails when stored media JSON metadata is corrupt", ()
           }),
         );
 
-        const result = yield* Effect.exit(listMediaEffect(makeMediaReadRepository(appDb)));
+        const result = yield* Effect.exit(listMediaEffect(makeMediaRepository(appDb)));
         assert.deepStrictEqual(Exit.isFailure(result), true);
         if (Exit.isFailure(result)) {
           const failure = Cause.failureOption(result.cause);

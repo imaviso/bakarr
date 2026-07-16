@@ -19,7 +19,7 @@ import {
 } from "@/features/media/shared/decode-support.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { makeMediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { makeMediaRepository } from "@/features/media/shared/media-repository.ts";
 import { makeSystemLogRepository } from "@/features/system/repository/log-repository.ts";
 
 it.scoped("syncMediaMetadataEffect stores locally cached image paths", () =>
@@ -67,7 +67,7 @@ it.scoped("syncMediaMetadataEffect stores locally cached image paths", () =>
           }),
           mediaId,
           eventPublisher: Option.none(),
-          mediaReadRepository: makeMediaReadRepository(appDb),
+          mediaReadRepository: makeMediaRepository(appDb),
           systemLogRepository: makeSystemLogRepository(appDb),
           nowIso: () => Effect.succeed("2026-04-11T00:00:00.000Z"),
         });
@@ -126,7 +126,7 @@ it.scoped("syncMediaMetadataEffect keeps existing image paths if caching fails",
           }),
           mediaId,
           eventPublisher: Option.none(),
-          mediaReadRepository: makeMediaReadRepository(appDb),
+          mediaReadRepository: makeMediaRepository(appDb),
           systemLogRepository: makeSystemLogRepository(appDb),
           nowIso: () => Effect.succeed("2026-04-11T00:00:00.000Z"),
         });
@@ -205,7 +205,7 @@ it.scoped("syncMediaMetadataEffect persists enrichment metadata fields from prov
           }),
           mediaId,
           eventPublisher: Option.none(),
-          mediaReadRepository: makeMediaReadRepository(appDb),
+          mediaReadRepository: makeMediaRepository(appDb),
           systemLogRepository: makeSystemLogRepository(appDb),
           nowIso: () => Effect.succeed("2026-04-11T00:00:00.000Z"),
         });

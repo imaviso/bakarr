@@ -16,7 +16,7 @@ import {
   decodeStoredStringListEffect,
 } from "@/features/media/shared/decode-support.ts";
 import { decodeMediaKind } from "@/features/media/shared/media-kind.ts";
-import type { MediaReadRepositoryShape } from "@/features/media/shared/media-read-repository.ts";
+import type { MediaRepositoryShape } from "@/features/media/shared/media-repository.ts";
 
 interface EpisodeStats {
   readonly downloaded: number;
@@ -26,7 +26,7 @@ interface EpisodeStats {
 const DTO_PROGRESS_YIELD_INTERVAL = 50;
 
 export const listMediaEffect = Effect.fn("MediaQueryList.listMediaEffect")(function* (
-  mediaReadRepository: MediaReadRepositoryShape,
+  mediaReadRepository: MediaRepositoryShape,
   params: MediaListQueryParams = {},
 ) {
   const limit = Math.min(Math.max(params.limit ?? 100, 1), 500);
