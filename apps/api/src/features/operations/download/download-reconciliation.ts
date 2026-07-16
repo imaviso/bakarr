@@ -23,8 +23,8 @@ import {
 import { ImportFileError } from "@/features/operations/download/download-file-import-errors.ts";
 import { importDownloadedFile } from "@/features/operations/download/download-file-import-support.ts";
 import {
-  parseCoveredEpisodesEffect,
-  resolveReconciledBatchEpisodeNumbers,
+  parseCoveredUnitsEffect,
+  resolveReconciledBatchUnitNumbers,
 } from "@/features/operations/download/download-coverage.ts";
 import {
   resolveAccessibleDownloadPath,
@@ -35,7 +35,7 @@ import {
   decodeDownloadSourceMetadata,
   encodeDownloadEventMetadata,
 } from "@/features/operations/repository/download-row-codec.ts";
-import { DownloadRepository } from "@/features/operations/repository/download-repository-service.ts";
+import { DownloadRepository } from "@/features/operations/repository/download-repository.ts";
 import type {
   OperationsConflictError,
   OperationsNotFoundError,
@@ -157,7 +157,7 @@ export const reconcileBatchDownloadEffect = Effect.fn("DownloadReconcile.reconci
       return false;
     }
 
-    const coveredUnits = yield* parseCoveredEpisodesEffect(input.row.coveredUnits);
+    const coveredUnits = yield* parseCoveredUnitsEffect(input.row.coveredUnits);
     const batchPaths = yield* resolveBatchContentPaths(input.fs, input.resolvedContentRoot).pipe(
       Effect.mapError(
         (cause) =>
@@ -192,7 +192,7 @@ export const reconcileBatchDownloadEffect = Effect.fn("DownloadReconcile.reconci
         continue;
       }
 
-      const unitNumbers = resolveReconciledBatchEpisodeNumbers({
+      const unitNumbers = resolveReconciledBatchUnitNumbers({
         coveredUnits,
         parseVolumeNumbers: input.animeRow.mediaKind !== "anime",
         path,
@@ -337,7 +337,7 @@ export const reconcileBatchDownloadEffect = Effect.fn("DownloadReconcile.reconci
     }
 
     const batchNow = yield* input.nowIso();
-    const storedCoveredEpisodes = yield* parseCoveredEpisodesEffect(input.row.coveredUnits);
+    const storedCoveredEpisodes = yield* parseCoveredUnitsEffect(input.row.coveredUnits);
     const eventMetadata = yield* encodeDownloadEventMetadata({
       covered_units: storedCoveredEpisodes,
       imported_path: input.animeRow.rootFolder,
@@ -467,7 +467,7 @@ export const reconcileSingleDownloadEffect = Effect.fn(
     managedPath,
   );
   const singleNow = yield* input.nowIso();
-  const storedCoveredEpisodes = yield* parseCoveredEpisodesEffect(input.row.coveredUnits);
+  const storedCoveredEpisodes = yield* parseCoveredUnitsEffect(input.row.coveredUnits);
   const eventMetadata = yield* encodeDownloadEventMetadata({
     covered_units: storedCoveredEpisodes,
     imported_path: managedPath,

@@ -13,10 +13,10 @@ import { DomainInputError, InfrastructureError, StoredDataError } from "@/featur
 import type { MediaNotFoundError } from "@/features/media/errors.ts";
 import type { OperationsConflictError } from "@/features/operations/errors.ts";
 import type { TriggerDownloadInput } from "@/features/operations/download/download-orchestration-shared.ts";
-import { DownloadRepository } from "@/features/operations/repository/download-repository-service.ts";
+import { DownloadRepository } from "@/features/operations/repository/download-repository.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { DownloadProgressService } from "@/features/operations/download/download-progress-service.ts";
-import { DownloadTriggerCoordinator } from "@/features/operations/tasks/runtime-support.ts";
+import { DownloadTriggerCoordinator } from "@/features/operations/tasks/task-coordinators.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 

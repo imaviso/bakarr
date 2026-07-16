@@ -7,7 +7,7 @@ import { EventBus } from "@/features/events/event-bus.ts";
 import { toDownloadStatus } from "@/features/operations/download/download-presentation.ts";
 import type { StoredDataError } from "@/features/errors.ts";
 import type { DownloadPresentationContext } from "@/features/operations/repository/types.ts";
-import { DownloadRepository } from "@/features/operations/repository/download-repository-service.ts";
+import { DownloadRepository } from "@/features/operations/repository/download-repository.ts";
 
 type DownloadRow = typeof downloads.$inferSelect;
 type ProgressError = DatabaseError | StoredDataError;

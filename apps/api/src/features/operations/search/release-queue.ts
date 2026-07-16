@@ -6,11 +6,11 @@ import { media } from "@/db/schema.ts";
 import { InfrastructureError, StoredDataError } from "@/features/errors.ts";
 import {
   hasOverlappingDownload,
-  parseCoveredEpisodesEffect,
+  parseCoveredUnitsEffect,
 } from "@/features/operations/download/download-coverage.ts";
 import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
 import { encodeDownloadSourceMetadata } from "@/features/operations/repository/download-row-codec.ts";
-import type { DownloadRepository } from "@/features/operations/repository/download-repository-service.ts";
+import type { DownloadRepository } from "@/features/operations/repository/download-repository.ts";
 import type { ParsedRelease } from "@/features/operations/rss/rss-client-parse.ts";
 
 const mapQBitError = (message: string) => (cause: unknown) =>
@@ -36,7 +36,7 @@ export const queueParsedReleaseDownload = Effect.fn("ReleaseQueue.queueParsedRel
     torrentClientService: typeof TorrentClientService.Service;
     nowIso: () => Effect.Effect<string>;
   }) {
-    const coveredEpisodeNumbers = yield* parseCoveredEpisodesEffect(input.coveredUnits);
+    const coveredEpisodeNumbers = yield* parseCoveredUnitsEffect(input.coveredUnits);
     const now = yield* input.nowIso();
 
     const overlapping = yield* hasOverlappingDownload(

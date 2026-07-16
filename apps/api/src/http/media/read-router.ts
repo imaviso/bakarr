@@ -18,7 +18,7 @@ import { MediaQueryService } from "@/features/media/query/query-service.ts";
 import { MediaStreamService } from "@/features/media/stream/media-stream-service.ts";
 import { MediaReaderService } from "@/features/media/reader/media-reader-service.ts";
 import { CatalogLibraryReadService } from "@/features/operations/catalog/catalog-library-read-service.ts";
-import { RssFeedRepository } from "@/features/operations/repository/rss-feed-repository-service.ts";
+import { RssFeedRepository } from "@/features/operations/repository/rss-feed-repository.ts";
 import {
   ListMediaQuerySchema,
   MediaUnitPageParamsSchema,

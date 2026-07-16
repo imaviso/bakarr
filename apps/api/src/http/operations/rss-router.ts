@@ -3,7 +3,7 @@ import { Effect, Schema } from "effect";
 import { RssFeedSchema } from "@packages/shared/index.ts";
 
 import { CatalogRssService } from "@/features/operations/catalog/catalog-rss-service.ts";
-import { RssFeedRepository } from "@/features/operations/repository/rss-feed-repository-service.ts";
+import { RssFeedRepository } from "@/features/operations/repository/rss-feed-repository.ts";
 import { AddRssFeedBodySchema, EnabledBodySchema } from "@/http/operations/request-schemas.ts";
 import {
   authedRouteResponse,

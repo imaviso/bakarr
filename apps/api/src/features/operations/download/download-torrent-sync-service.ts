@@ -4,9 +4,9 @@ import type { Config, DownloadSourceMetadata } from "@packages/shared/index.ts";
 import type { downloads } from "@/db/schema.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import {
-  inferCoveredEpisodesFromTorrentContents,
-  parseCoveredEpisodesEffect,
-  toCoveredEpisodesJson,
+  inferCoveredUnitsFromTorrentContents,
+  parseCoveredUnitsEffect,
+  toCoveredUnitsJson,
 } from "@/features/operations/download/download-coverage.ts";
 import { DownloadProgressService } from "@/features/operations/download/download-progress-service.ts";
 import {
@@ -16,7 +16,7 @@ import {
 import {
   DownloadRepository,
   type TorrentSyncUpdate,
-} from "@/features/operations/repository/download-repository-service.ts";
+} from "@/features/operations/repository/download-repository.ts";
 import { mapQBitState } from "@/features/operations/qbittorrent/qbittorrent.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
@@ -85,7 +85,7 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
         const mediaRowOption = yield* mediaRepository
           .getMediaRow(refineInput.mediaId)
           .pipe(Effect.option);
-        const inferredEpisodes = inferCoveredEpisodesFromTorrentContents({
+        const inferredEpisodes = inferCoveredUnitsFromTorrentContents({
           files: contentsResult.right.files,
           parseVolumeNumbers: Option.match(mediaRowOption, {
             onNone: () => true,
@@ -98,9 +98,7 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
           return;
         }
 
-        const currentEpisodes = yield* parseCoveredEpisodesEffect(
-          refineInput.existingCoveredEpisodes,
-        );
+        const currentEpisodes = yield* parseCoveredUnitsEffect(refineInput.existingCoveredEpisodes);
         if (
           currentEpisodes.length === inferredEpisodes.length &&
           currentEpisodes.every((episode, index) => episode === inferredEpisodes[index])
@@ -108,7 +106,7 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
           return;
         }
 
-        const encodedInferredEpisodes = yield* toCoveredEpisodesJson(inferredEpisodes);
+        const encodedInferredEpisodes = yield* toCoveredUnitsJson(inferredEpisodes);
 
         yield* syncRepo.updateDownloadCoveredUnits({
           coveredUnits: encodedInferredEpisodes,
@@ -162,7 +160,7 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
                 return null as DownloadEventRecordInput | null;
               }
 
-              const coveredUnits = yield* parseCoveredEpisodesEffect(existing.coveredUnits);
+              const coveredUnits = yield* parseCoveredUnitsEffect(existing.coveredUnits);
               const sourceMetadata = yield* decodeDownloadSourceMetadata(existing.sourceMetadata);
 
               return {

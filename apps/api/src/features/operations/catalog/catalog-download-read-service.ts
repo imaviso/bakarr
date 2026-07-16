@@ -10,13 +10,13 @@ import {
 import {
   DownloadRepository,
   type DownloadEventExportQuery,
-} from "@/features/operations/repository/download-repository-service.ts";
+} from "@/features/operations/repository/download-repository.ts";
 import { StoredDataError } from "@/features/errors.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 
 type ReadError = DatabaseError | StoredDataError;
 
-export type { DownloadEventExportQuery } from "@/features/operations/repository/download-repository-service.ts";
+export type { DownloadEventExportQuery } from "@/features/operations/repository/download-repository.ts";
 export type {
   DownloadEventCsvExportStreamShape,
   DownloadEventExportStreamShape,

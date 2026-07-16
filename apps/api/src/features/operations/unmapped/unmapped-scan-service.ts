@@ -29,7 +29,7 @@ import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-s
 import { BackgroundJobRepository } from "@/features/system/repository/background-job-repository.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 import { SystemUnmappedRepository } from "@/features/system/repository/unmapped-repository.ts";
-import { UnmappedScanCoordinator } from "@/features/operations/tasks/runtime-support.ts";
+import { UnmappedScanCoordinator } from "@/features/operations/tasks/task-coordinators.ts";
 
 export interface UnmappedScanServiceShape {
   readonly getUnmappedFolders: () => Effect.Effect<

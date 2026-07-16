@@ -25,7 +25,7 @@ import {
 import {
   DownloadTriggerCoordinatorLive,
   UnmappedScanCoordinatorLive,
-} from "@/features/operations/tasks/runtime-support.ts";
+} from "@/features/operations/tasks/task-coordinators.ts";
 import { SearchUnitServiceLive } from "@/features/operations/search/search-unit-service.ts";
 import { SearchReleaseServiceLive } from "@/features/operations/search/search-orchestration-release-search.ts";
 import { TorrentClientServiceLive } from "@/features/operations/qbittorrent/torrent-client-service.ts";

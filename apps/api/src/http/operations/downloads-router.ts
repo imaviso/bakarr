@@ -13,7 +13,7 @@ import { DownloadProgressService } from "@/features/operations/download/download
 import { DownloadReconciliationService } from "@/features/operations/download/download-reconciliation-service.ts";
 import { DownloadTorrentActionService } from "@/features/operations/download/download-torrent-action-service.ts";
 import { DownloadTorrentSyncService } from "@/features/operations/download/download-torrent-sync-service.ts";
-import { DownloadRepository } from "@/features/operations/repository/download-repository-service.ts";
+import { DownloadRepository } from "@/features/operations/repository/download-repository.ts";
 import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
 import { IdParamsSchema } from "@/http/shared/common-request-schemas.ts";
 import {

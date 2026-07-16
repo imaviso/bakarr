@@ -81,8 +81,7 @@ export const cleanupPreviousMediaRootFolderAfterImport = Effect.fn(
   }
 });
 
-/** Test factory — production uses UnmappedImportService.Default. */
-export function makeUnmappedImportWorkflow(input: {
+function buildUnmappedImportWorkflow(input: {
   fs: FileSystemShape;
   getLibraryPath: (
     mediaKind: MediaKind,
@@ -258,7 +257,7 @@ export class UnmappedImportService extends Effect.Service<UnmappedImportService>
       const systemConfigRepository = yield* SystemConfigRepository;
       const systemLogRepository = yield* SystemLogRepository;
 
-      return makeUnmappedImportWorkflow({
+      return buildUnmappedImportWorkflow({
         fs,
         getLibraryPath: Effect.fn("UnmappedImportService.getLibraryPath")(function* (mediaKind) {
           const config = yield* runtimeConfigSnapshot.getRuntimeConfig().pipe(
@@ -284,3 +283,6 @@ export class UnmappedImportService extends Effect.Service<UnmappedImportService>
 ) {}
 
 export const UnmappedImportServiceLive = UnmappedImportService.Default;
+
+/** Test factory — production uses UnmappedImportService.Default. */
+export const makeUnmappedImportWorkflow = buildUnmappedImportWorkflow;

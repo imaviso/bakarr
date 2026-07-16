@@ -10,17 +10,17 @@ import {
 } from "@/features/operations/library/naming-metadata-support.ts";
 import {
   hasOverlappingDownload,
-  inferCoveredEpisodeNumbers,
-  parseCoveredEpisodesEffect,
-  toCoveredEpisodesJson,
+  inferCoveredUnitNumbers,
+  parseCoveredUnitsEffect,
+  toCoveredUnitsJson,
 } from "@/features/operations/download/download-coverage.ts";
 import { parseReleaseName } from "@/features/operations/search/release-ranking.ts";
 import { parseVolumeNumbersFromTitle } from "@/features/operations/search/release-volume.ts";
-import { queueParsedReleaseDownload } from "@/features/operations/search/release-queue-support.ts";
+import { queueParsedReleaseDownload } from "@/features/operations/search/release-queue.ts";
 import type { ParsedRelease } from "@/features/operations/rss/rss-client-parse.ts";
 import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
-import { DownloadTriggerCoordinator } from "@/features/operations/tasks/runtime-support.ts";
-import { DownloadRepository } from "@/features/operations/repository/download-repository-service.ts";
+import { DownloadTriggerCoordinator } from "@/features/operations/tasks/task-coordinators.ts";
+import { DownloadRepository } from "@/features/operations/repository/download-repository.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { InfrastructureError } from "@/features/errors.ts";
 
@@ -73,8 +73,8 @@ export class BackgroundSearchQueueService extends Effect.Service<BackgroundSearc
             ? parsedRelease.isBatch
             : explicitUnitNumbers.length > 1;
 
-        const coveredUnits = yield* toCoveredEpisodesJson(
-          inferCoveredEpisodeNumbers({
+        const coveredUnits = yield* toCoveredUnitsJson(
+          inferCoveredUnitNumbers({
             explicitEpisodes: explicitUnitNumbers,
             isBatch,
             totalUnits: input.animeRow.unitCount,
@@ -92,7 +92,7 @@ export class BackgroundSearchQueueService extends Effect.Service<BackgroundSearc
         );
 
         const queueEffect = Effect.gen(function* () {
-          const parsedCoveredEpisodes = yield* parseCoveredEpisodesEffect(coveredUnits);
+          const parsedCoveredEpisodes = yield* parseCoveredUnitsEffect(coveredUnits);
           const overlapping = yield* hasOverlappingDownload(
             downloadRepository,
             input.animeRow.id,

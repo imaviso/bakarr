@@ -7,14 +7,14 @@ import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { RssClient } from "@/features/operations/rss/rss-client.ts";
 import { BackgroundSearchQueueService } from "@/features/operations/background-search/background-search-queue-service.ts";
 import { DomainInputError, InfrastructureError } from "@/features/errors.ts";
-import { DownloadRepository } from "@/features/operations/repository/download-repository-service.ts";
+import { DownloadRepository } from "@/features/operations/repository/download-repository.ts";
 import {
   decideDownloadAction,
   validateQualityProfileSizeLabels,
 } from "@/features/operations/search/release-ranking.ts";
 import { parseRssReleaseUnitNumbers } from "@/features/operations/background-search/background-search-rss-release.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
-import { RssFeedRepository } from "@/features/operations/repository/rss-feed-repository-service.ts";
+import { RssFeedRepository } from "@/features/operations/repository/rss-feed-repository.ts";
 import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
 import { ReleaseProfileRepository } from "@/features/system/repository/release-profile-repository.ts";
 

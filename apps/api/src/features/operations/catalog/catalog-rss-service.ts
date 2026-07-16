@@ -4,7 +4,7 @@ import type { RssFeed } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
-import { RssFeedRepository } from "@/features/operations/repository/rss-feed-repository-service.ts";
+import { RssFeedRepository } from "@/features/operations/repository/rss-feed-repository.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 

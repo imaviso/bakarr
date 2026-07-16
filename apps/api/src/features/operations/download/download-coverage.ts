@@ -12,11 +12,11 @@ import {
 import { parseVolumeNumbersFromTitle } from "@/features/operations/search/release-volume.ts";
 import type { QBitTorrentFile } from "@/features/operations/qbittorrent/qbittorrent.ts";
 import { StoredDataError } from "@/features/errors.ts";
-import type { DownloadRepository } from "@/features/operations/repository/download-repository-service.ts";
+import type { DownloadRepository } from "@/features/operations/repository/download-repository.ts";
 
 const IN_FLIGHT_STATUSES = new Set(["queued", "downloading", "paused"]);
 
-export function toCoveredEpisodesJson(
+export function toCoveredUnitsJson(
   mediaUnits: readonly number[],
 ): Effect.Effect<string | null, StoredDataError> {
   return encodeOptionalNumberList(mediaUnits).pipe(
@@ -30,19 +30,19 @@ export function toCoveredEpisodesJson(
   );
 }
 
-export const parseCoveredEpisodesEffect = Effect.fn("Operations.parseCoveredEpisodesEffect")(
-  function* (value: string | null | undefined) {
-    return yield* decodeOptionalNumberList(value).pipe(
-      Effect.mapError(
-        (cause) =>
-          new StoredDataError({
-            cause,
-            message: "Stored covered episode metadata is corrupt",
-          }),
-      ),
-    );
-  },
-);
+export const parseCoveredUnitsEffect = Effect.fn("Operations.parseCoveredUnitsEffect")(function* (
+  value: string | null | undefined,
+) {
+  return yield* decodeOptionalNumberList(value).pipe(
+    Effect.mapError(
+      (cause) =>
+        new StoredDataError({
+          cause,
+          message: "Stored covered episode metadata is corrupt",
+        }),
+    ),
+  );
+});
 
 export const hasOverlappingDownload = Effect.fn("Operations.hasOverlappingDownload")(function* (
   downloadRepository: typeof DownloadRepository.Service,
@@ -67,7 +67,7 @@ export const hasOverlappingDownload = Effect.fn("Operations.hasOverlappingDownlo
       continue;
     }
 
-    const existingCovered = yield* parseCoveredEpisodesEffect(row.coveredUnits);
+    const existingCovered = yield* parseCoveredUnitsEffect(row.coveredUnits);
 
     if (existingCovered.some((episode) => coveredUnits.includes(episode))) {
       return true;
@@ -77,7 +77,7 @@ export const hasOverlappingDownload = Effect.fn("Operations.hasOverlappingDownlo
   return false;
 });
 
-export function inferCoveredEpisodeNumbers(input: {
+export function inferCoveredUnitNumbers(input: {
   readonly explicitEpisodes: readonly number[];
   readonly isBatch: boolean;
   readonly totalUnits?: number | null;
@@ -126,7 +126,7 @@ export function inferCoveredEpisodeNumbers(input: {
   return [input.requestedEpisode];
 }
 
-export function inferCoveredEpisodesFromTorrentContents(input: {
+export function inferCoveredUnitsFromTorrentContents(input: {
   readonly files: readonly QBitTorrentFile[];
   readonly parseVolumeNumbers?: boolean;
   readonly rootName: string;
@@ -163,7 +163,7 @@ export function inferCoveredEpisodesFromTorrentContents(input: {
   return [...mediaUnits].toSorted((left, right) => left - right);
 }
 
-export function resolveReconciledBatchEpisodeNumbers(input: {
+export function resolveReconciledBatchUnitNumbers(input: {
   readonly path: string;
   readonly coveredUnits: readonly number[];
   readonly parseVolumeNumbers?: boolean;

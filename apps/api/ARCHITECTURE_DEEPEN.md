@@ -73,7 +73,7 @@ Modules. Delete `OperationsProfileRepository`.
 
 ### 3. Download cross-aggregate methods
 
-**Files:** `download-repository-service.ts` and callers.
+**Files:** `download-repository.ts` and callers.
 
 **Problem:** Non-tx methods hit mediaUnits / media / systemLogs under Download Tag.
 
@@ -189,15 +189,15 @@ rg -n "animeLiveLayer|animeEnrollment" apps/api/src
 
 ## Progress
 
-| #   | Status                                                                                                                                                                                                      |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | **done** — catalog slim: export-only download read; RSS add-only; rename-preview-only library read; routes→repos for list/history/progress                                                                  |
-| 2   | **done** — OperationsProfileRepository deleted; loadQualityProfile / loadReleaseRules on system profile repos                                                                                               |
-| 3   | **done** — non-tx reads/logs off Download; MediaRead.loadUnitsByNumbers; SystemLog append; finalizeDownloadImport keeps multi-table tx                                                                      |
-| 4   | **partial** — kill reconciliation make*; leaf deps where safe; full Default trees still blocked by incomplete nested services                                                                               |
-| 5   | **done** — PureDbLeaves once at lifecycle; media/ops take leaves arg; anime* → media* wiring names                                                                                                          |
-| 6   | **partial** — presentation SQL in catalog-read; `download-repository.ts` → `download-row-codec.ts`                                                                                                          |
-| 7   | **partial** — ProgressService rename; `*-support` Services → honest `*-service` files (missing/rss/torrent action+sync/search-unit); mediaRepository locals                                                   |
-| 8   | **done** — MediaReadRepository → MediaRepository (file, Tag, spans, docs)                                                                                                                                   |
-| 9   | **done** — feature APIs + naming helpers Unit\*; keep format tokens `{episode}` + AnimeMetadataEpisode                                                                                                      |
-| 10  | **partial** — BackgroundTaskRunnerError → WorkerTimeout \| Infrastructure only (map at job edge)                                                                                                            |
+| #   | Status                                                                                                                                     |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | **done** — catalog slim: export-only download read; RSS add-only; rename-preview-only library read; routes→repos for list/history/progress |
+| 2   | **done** — OperationsProfileRepository deleted; loadQualityProfile / loadReleaseRules on system profile repos                              |
+| 3   | **done** — non-tx reads/logs off Download; MediaRead.loadUnitsByNumbers; SystemLog append; finalizeDownloadImport keeps multi-table tx     |
+| 4   | **partial** — kill reconciliation make\*; unmapped production uses build\* only (make\* test export); full Default trees still blocked     |
+| 5   | **done** — PureDbLeaves once at lifecycle; media/ops take leaves arg; anime* → media* wiring names                                         |
+| 6   | **partial** — presentation in catalog-read; row-codec; `download-repository-service` → `download-repository`; rss-feed-repository same     |
+| 7   | **partial** — ProgressService + service filenames; release-queue / task-coordinators rename; pure helpers still \*-support                 |
+| 8   | **done** — MediaReadRepository → MediaRepository (file, Tag, spans, docs)                                                                  |
+| 9   | **done** — feature APIs + naming helpers + covered-units helpers Unit\*; keep format tokens `{episode}` + AnimeMetadataEpisode             |
+| 10  | **partial** — BackgroundTaskRunnerError → WorkerTimeout \| Infrastructure only (map at job edge)                                           |

@@ -7,7 +7,7 @@ import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { MediaProbe } from "@/infra/media/probe.ts";
 import { RandomService } from "@/infra/random.ts";
 import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
-import { DownloadRepository } from "@/features/operations/repository/download-repository-service.ts";
+import { DownloadRepository } from "@/features/operations/repository/download-repository.ts";
 import { DownloadProgressService } from "@/features/operations/download/download-progress-service.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import {

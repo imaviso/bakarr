@@ -8,11 +8,11 @@ import {
   resolveCompletedContentPath,
 } from "@/features/operations/download/download-paths.ts";
 import {
-  inferCoveredEpisodeNumbers,
-  inferCoveredEpisodesFromTorrentContents,
-  parseCoveredEpisodesEffect,
-  resolveReconciledBatchEpisodeNumbers,
-  toCoveredEpisodesJson,
+  inferCoveredUnitNumbers,
+  inferCoveredUnitsFromTorrentContents,
+  parseCoveredUnitsEffect,
+  resolveReconciledBatchUnitNumbers,
+  toCoveredUnitsJson,
 } from "@/features/operations/download/download-coverage.ts";
 import { Cause, Effect, Exit, Option } from "effect";
 import { withFileSystemSandboxEffect, writeTextFile } from "@/test/filesystem-test.ts";
@@ -105,9 +105,9 @@ it.scoped(
     ),
 );
 
-it("inferCoveredEpisodeNumbers prefers explicit ranges and falls back to missing tails for batches", () => {
+it("inferCoveredUnitNumbers prefers explicit ranges and falls back to missing tails for batches", () => {
   assert.deepStrictEqual(
-    inferCoveredEpisodeNumbers({
+    inferCoveredUnitNumbers({
       explicitEpisodes: [3, 4, 5],
       isBatch: true,
       missingUnits: [3, 4, 5, 6],
@@ -117,7 +117,7 @@ it("inferCoveredEpisodeNumbers prefers explicit ranges and falls back to missing
   );
 
   assert.deepStrictEqual(
-    inferCoveredEpisodeNumbers({
+    inferCoveredUnitNumbers({
       explicitEpisodes: [],
       isBatch: true,
       missingUnits: [5, 6, 7],
@@ -127,7 +127,7 @@ it("inferCoveredEpisodeNumbers prefers explicit ranges and falls back to missing
   );
 
   assert.deepStrictEqual(
-    inferCoveredEpisodeNumbers({
+    inferCoveredUnitNumbers({
       explicitEpisodes: [],
       isBatch: true,
       missingUnits: [5, 6, 8, 9],
@@ -137,7 +137,7 @@ it("inferCoveredEpisodeNumbers prefers explicit ranges and falls back to missing
   );
 
   assert.deepStrictEqual(
-    inferCoveredEpisodeNumbers({
+    inferCoveredUnitNumbers({
       explicitEpisodes: [],
       isBatch: false,
       missingUnits: [5, 6, 7],
@@ -147,7 +147,7 @@ it("inferCoveredEpisodeNumbers prefers explicit ranges and falls back to missing
   );
 
   assert.deepStrictEqual(
-    inferCoveredEpisodeNumbers({
+    inferCoveredUnitNumbers({
       explicitEpisodes: [],
       isBatch: true,
       missingUnits: [],
@@ -158,9 +158,9 @@ it("inferCoveredEpisodeNumbers prefers explicit ranges and falls back to missing
   );
 });
 
-it("inferCoveredEpisodesFromTorrentContents parses real batch file lists", () => {
+it("inferCoveredUnitsFromTorrentContents parses real batch file lists", () => {
   assert.deepStrictEqual(
-    inferCoveredEpisodesFromTorrentContents({
+    inferCoveredUnitsFromTorrentContents({
       files: [
         {
           index: 0,
@@ -193,9 +193,9 @@ it("inferCoveredEpisodesFromTorrentContents parses real batch file lists", () =>
   );
 });
 
-it("resolveReconciledBatchEpisodeNumbers falls back to covered mediaUnits for lone generic files", () => {
+it("resolveReconciledBatchUnitNumbers falls back to covered mediaUnits for lone generic files", () => {
   assert.deepStrictEqual(
-    resolveReconciledBatchEpisodeNumbers({
+    resolveReconciledBatchUnitNumbers({
       coveredUnits: [1, 2, 3],
       path: "/downloads/Show Season Pack.mkv",
       totalCandidateCount: 1,
@@ -204,7 +204,7 @@ it("resolveReconciledBatchEpisodeNumbers falls back to covered mediaUnits for lo
   );
 
   assert.deepStrictEqual(
-    resolveReconciledBatchEpisodeNumbers({
+    resolveReconciledBatchUnitNumbers({
       coveredUnits: [1, 2, 3],
       path: "/downloads/Show Season Pack.mkv",
       totalCandidateCount: 2,
@@ -226,12 +226,12 @@ it.effect(
   "covered episode serialization round-trips optional values and rejects corrupt data",
   () =>
     Effect.gen(function* () {
-      assert.deepStrictEqual(yield* toCoveredEpisodesJson([1, 2, 3]), "[1,2,3]");
-      assert.deepStrictEqual(yield* parseCoveredEpisodesEffect("[1,2,3]"), [1, 2, 3]);
-      assert.deepStrictEqual(yield* toCoveredEpisodesJson([]), null);
-      assert.deepStrictEqual(yield* parseCoveredEpisodesEffect(null), []);
+      assert.deepStrictEqual(yield* toCoveredUnitsJson([1, 2, 3]), "[1,2,3]");
+      assert.deepStrictEqual(yield* parseCoveredUnitsEffect("[1,2,3]"), [1, 2, 3]);
+      assert.deepStrictEqual(yield* toCoveredUnitsJson([]), null);
+      assert.deepStrictEqual(yield* parseCoveredUnitsEffect(null), []);
 
-      const exit = yield* Effect.exit(parseCoveredEpisodesEffect("not-json"));
+      const exit = yield* Effect.exit(parseCoveredUnitsEffect("not-json"));
       assert.deepStrictEqual(Exit.isFailure(exit), true);
       if (Exit.isFailure(exit)) {
         const failure = Cause.failureOption(exit.cause);

@@ -5,9 +5,9 @@ import { EventBus } from "@/features/events/event-bus.ts";
 import { DomainInputError, InfrastructureError, StoredDataError } from "@/features/errors.ts";
 import { DownloadProgressService } from "@/features/operations/download/download-progress-service.ts";
 import { OperationsConflictError, OperationsNotFoundError } from "@/features/operations/errors.ts";
-import { DownloadRepository } from "@/features/operations/repository/download-repository-service.ts";
+import { DownloadRepository } from "@/features/operations/repository/download-repository.ts";
 import { decodeDownloadSourceMetadata } from "@/features/operations/repository/download-row-codec.ts";
-import { parseCoveredEpisodesEffect } from "@/features/operations/download/download-coverage.ts";
+import { parseCoveredUnitsEffect } from "@/features/operations/download/download-coverage.ts";
 import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
 import { QBitTorrentClientError } from "@/features/operations/qbittorrent/qbittorrent-models.ts";
 import type { ExternalCallError } from "@/infra/effect/retry.ts";
@@ -70,7 +70,7 @@ export class DownloadTorrentActionService extends Effect.Service<DownloadTorrent
           }
         }
 
-        const coveredUnits = yield* parseCoveredEpisodesEffect(row.coveredUnits);
+        const coveredUnits = yield* parseCoveredUnitsEffect(row.coveredUnits);
 
         if (action === "delete") {
           const sourceMetadata = yield* decodeDownloadSourceMetadata(row.sourceMetadata);
@@ -146,7 +146,7 @@ export class DownloadTorrentActionService extends Effect.Service<DownloadTorrent
           });
         }
 
-        const coveredUnits = yield* parseCoveredEpisodesEffect(row.coveredUnits);
+        const coveredUnits = yield* parseCoveredUnitsEffect(row.coveredUnits);
         const qbitResult = yield* torrentClientService.addTorrentUrlIfEnabled(row.magnet);
         const startedInQBit = qbitResult._tag === "Added";
 

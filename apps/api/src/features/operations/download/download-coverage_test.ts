@@ -1,14 +1,14 @@
 import { assert, it } from "@effect/vitest";
 
 import {
-  inferCoveredEpisodesFromTorrentContents,
-  inferCoveredEpisodeNumbers,
-  resolveReconciledBatchEpisodeNumbers,
+  inferCoveredUnitsFromTorrentContents,
+  inferCoveredUnitNumbers,
+  resolveReconciledBatchUnitNumbers,
 } from "@/features/operations/download/download-coverage.ts";
 
-it("inferCoveredEpisodeNumbers prefers explicit unique sorted mediaUnits", () => {
+it("inferCoveredUnitNumbers prefers explicit unique sorted mediaUnits", () => {
   assert.deepStrictEqual(
-    inferCoveredEpisodeNumbers({
+    inferCoveredUnitNumbers({
       explicitEpisodes: [3, 1, 3, 2],
       isBatch: true,
       missingUnits: [5],
@@ -19,9 +19,9 @@ it("inferCoveredEpisodeNumbers prefers explicit unique sorted mediaUnits", () =>
   );
 });
 
-it("inferCoveredEpisodeNumbers expands batch to contiguous missing mediaUnits", () => {
+it("inferCoveredUnitNumbers expands batch to contiguous missing mediaUnits", () => {
   assert.deepStrictEqual(
-    inferCoveredEpisodeNumbers({
+    inferCoveredUnitNumbers({
       explicitEpisodes: [],
       isBatch: true,
       missingUnits: [1, 3, 4, 5, 7],
@@ -32,9 +32,9 @@ it("inferCoveredEpisodeNumbers expands batch to contiguous missing mediaUnits", 
   );
 });
 
-it("inferCoveredEpisodeNumbers falls back to requested or total range", () => {
+it("inferCoveredUnitNumbers falls back to requested or total range", () => {
   assert.deepStrictEqual(
-    inferCoveredEpisodeNumbers({
+    inferCoveredUnitNumbers({
       explicitEpisodes: [],
       isBatch: false,
       missingUnits: [],
@@ -43,7 +43,7 @@ it("inferCoveredEpisodeNumbers falls back to requested or total range", () => {
     [6],
   );
   assert.deepStrictEqual(
-    inferCoveredEpisodeNumbers({
+    inferCoveredUnitNumbers({
       explicitEpisodes: [],
       isBatch: true,
       missingUnits: [],
@@ -54,9 +54,9 @@ it("inferCoveredEpisodeNumbers falls back to requested or total range", () => {
   );
 });
 
-it("resolveReconciledBatchEpisodeNumbers prefers path identity, then single-candidate coverage", () => {
+it("resolveReconciledBatchUnitNumbers prefers path identity, then single-candidate coverage", () => {
   assert.deepStrictEqual(
-    resolveReconciledBatchEpisodeNumbers({
+    resolveReconciledBatchUnitNumbers({
       coveredUnits: [7, 8],
       path: "[Group] Show - 03-04 [1080p].mkv",
       totalCandidateCount: 2,
@@ -64,7 +64,7 @@ it("resolveReconciledBatchEpisodeNumbers prefers path identity, then single-cand
     [3, 4],
   );
   assert.deepStrictEqual(
-    resolveReconciledBatchEpisodeNumbers({
+    resolveReconciledBatchUnitNumbers({
       coveredUnits: [7, 8],
       path: "Show 2025-03-14.mkv",
       totalCandidateCount: 1,
@@ -72,7 +72,7 @@ it("resolveReconciledBatchEpisodeNumbers prefers path identity, then single-cand
     [7, 8],
   );
   assert.deepStrictEqual(
-    resolveReconciledBatchEpisodeNumbers({
+    resolveReconciledBatchUnitNumbers({
       coveredUnits: [7, 8],
       path: "Show 2025-03-14.mkv",
       totalCandidateCount: 2,
@@ -81,9 +81,9 @@ it("resolveReconciledBatchEpisodeNumbers prefers path identity, then single-cand
   );
 });
 
-it("resolveReconciledBatchEpisodeNumbers parses literature volume files when enabled", () => {
+it("resolveReconciledBatchUnitNumbers parses literature volume files when enabled", () => {
   assert.deepStrictEqual(
-    resolveReconciledBatchEpisodeNumbers({
+    resolveReconciledBatchUnitNumbers({
       coveredUnits: [],
       parseVolumeNumbers: true,
       path: "Overlord v01 - The Undead King [Yen Press] [LuCaZ] {r3}.epub",
@@ -92,7 +92,7 @@ it("resolveReconciledBatchEpisodeNumbers parses literature volume files when ena
     [1],
   );
   assert.deepStrictEqual(
-    resolveReconciledBatchEpisodeNumbers({
+    resolveReconciledBatchUnitNumbers({
       coveredUnits: [],
       path: "Overlord v01 - The Undead King [Yen Press] [LuCaZ] {r3}.epub",
       totalCandidateCount: 16,
@@ -101,9 +101,9 @@ it("resolveReconciledBatchEpisodeNumbers parses literature volume files when ena
   );
 });
 
-it("inferCoveredEpisodesFromTorrentContents parses qBittorrent literature file lists", () => {
+it("inferCoveredUnitsFromTorrentContents parses qBittorrent literature file lists", () => {
   assert.deepStrictEqual(
-    inferCoveredEpisodesFromTorrentContents({
+    inferCoveredUnitsFromTorrentContents({
       files: [
         qbitFile("Overlord v01 - The Undead King [Yen Press] [LuCaZ] {r3}.epub"),
         qbitFile("Overlord v02 - The Dark Warrior [Yen Press] [LuCaZ] {r2}.epub"),

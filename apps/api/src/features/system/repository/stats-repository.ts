@@ -13,7 +13,7 @@ import {
 } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import type { DownloadEventRowLike } from "@/features/operations/download/download-event-presentations.ts";
-import { loadDownloadEventPresentationContexts as loadStoredDownloadEventPresentationContexts } from "@/features/operations/repository/download-repository-service.ts";
+import { loadDownloadEventPresentationContexts as loadStoredDownloadEventPresentationContexts } from "@/features/operations/repository/download-repository.ts";
 
 const countDownloadsWhere = Effect.fn("SystemStatsRepository.countDownloadsWhere")(function* (
   db: AppDatabase,

@@ -5,16 +5,16 @@ import { DatabaseError } from "@/db/database.ts";
 import { media } from "@/db/schema.ts";
 import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
-import { DownloadRepository } from "@/features/operations/repository/download-repository-service.ts";
+import { DownloadRepository } from "@/features/operations/repository/download-repository.ts";
 import { encodeDownloadSourceMetadata } from "@/features/operations/repository/download-row-codec.ts";
 import {
   buildDownloadSelectionMetadata,
   buildDownloadSourceMetadataFromRelease,
 } from "@/features/operations/library/naming-metadata-support.ts";
 import {
-  inferCoveredEpisodeNumbers,
-  parseCoveredEpisodesEffect,
-  toCoveredEpisodesJson,
+  inferCoveredUnitNumbers,
+  parseCoveredUnitsEffect,
+  toCoveredUnitsJson,
 } from "@/features/operations/download/download-coverage.ts";
 import { parseMagnetInfoHash } from "@/features/operations/download/download-paths.ts";
 import { parseReleaseName } from "@/features/operations/search/release-ranking.ts";
@@ -71,7 +71,7 @@ export function resolveTriggerDownloadCoveragePlan(input: {
   const shouldDeferBatchCoverage = effectiveIsBatch && inferredUnits.length === 0;
   const inferredCoveredEpisodes = shouldDeferBatchCoverage
     ? []
-    : inferCoveredEpisodeNumbers({
+    : inferCoveredUnitNumbers({
         explicitEpisodes: inferredUnits,
         isBatch: effectiveIsBatch,
         ...(input.totalUnits === undefined ? {} : { totalUnits: input.totalUnits }),
@@ -121,7 +121,7 @@ export const prepareTriggerDownload = Effect.fn("Operations.prepareTriggerDownlo
       });
     }
 
-    const coveredUnits = yield* toCoveredEpisodesJson(inferredCoveredEpisodes);
+    const coveredUnits = yield* toCoveredUnitsJson(inferredCoveredEpisodes);
     const releaseContext = input.triggerInput.release_context;
     const selectionMetadata = buildDownloadSelectionMetadata(releaseContext?.download_action);
     const chosenFromSeadex =
@@ -161,7 +161,7 @@ export const prepareTriggerDownload = Effect.fn("Operations.prepareTriggerDownlo
             continue;
           }
 
-          const existingCovered = yield* parseCoveredEpisodesEffect(row.coveredUnits);
+          const existingCovered = yield* parseCoveredUnitsEffect(row.coveredUnits);
 
           if (existingCovered.some((episode) => inferredCoveredEpisodes.includes(episode))) {
             return yield* new OperationsConflictError({
