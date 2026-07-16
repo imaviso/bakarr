@@ -72,12 +72,7 @@ export function makeOperationsFeatureLayer<ROut, E, RIn>(
   const catalogDownloadReadLayer = CatalogDownloadReadServiceLive.pipe(Layer.provide(baseRuntime));
   const operationsProgressLayer = ProgressLive.pipe(
     Layer.provide(
-      Layer.mergeAll(
-        downloadStack,
-        downloadTriggerLayer,
-        catalogDownloadReadLayer,
-        downloadProgressSupportLayer,
-      ),
+      Layer.mergeAll(downloadStack, downloadTriggerLayer, downloadProgressSupportLayer),
     ),
   );
   const runtimeWithProgress = Layer.mergeAll(baseRuntime, operationsProgressLayer);

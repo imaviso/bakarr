@@ -9,9 +9,11 @@ import {
 
 import { HttpServerResponse } from "@effect/platform";
 import { CatalogDownloadReadService } from "@/features/operations/catalog/catalog-download-read-service.ts";
+import { DownloadProgressSupport } from "@/features/operations/download/download-progress-support.ts";
 import { DownloadReconciliationService } from "@/features/operations/download/download-reconciliation-service.ts";
 import { DownloadTorrentActionService } from "@/features/operations/download/download-torrent-action-support.ts";
 import { DownloadTorrentSyncService } from "@/features/operations/download/download-torrent-sync-support.ts";
+import { DownloadRepository } from "@/features/operations/repository/download-repository-service.ts";
 import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
 import { IdParamsSchema } from "@/http/shared/common-request-schemas.ts";
 import {
@@ -34,15 +36,15 @@ export const downloadsRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
     "/downloads/queue",
     authedRouteResponse(
-      Effect.flatMap(CatalogDownloadReadService, (service) => service.listDownloadQueue()),
+      Effect.flatMap(DownloadProgressSupport, (service) => service.getDownloadProgress()),
       schemaJsonResponse(Schema.Array(DownloadStatusSchema)),
     ),
   ),
   HttpRouter.get(
     "/downloads/history",
     authedRouteResponse(
-      Effect.flatMap(CatalogDownloadReadService, (service) =>
-        service.listDownloadHistory().pipe(Effect.map((page) => page.downloads)),
+      Effect.flatMap(DownloadRepository, (repo) =>
+        repo.listDownloadHistory().pipe(Effect.map((page) => page.downloads)),
       ),
       schemaJsonResponse(Schema.Array(DownloadSchema)),
     ),
@@ -52,7 +54,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const query = yield* decodeQueryWithLabel(DownloadEventsQuerySchema, "download events");
-        return yield* (yield* CatalogDownloadReadService).listDownloadEvents(
+        return yield* (yield* DownloadRepository).listDownloadEvents(
           toDownloadEventsQueryParams(query),
         );
       }),

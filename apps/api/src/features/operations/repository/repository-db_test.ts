@@ -18,10 +18,8 @@ import {
   encodeDownloadSourceMetadata,
 } from "@/features/operations/repository/download-repository.ts";
 import { makeMediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
-import {
-  loadQualityProfile,
-  loadReleaseRules,
-} from "@/features/operations/repository/profile-repository.ts";
+import { loadQualityProfile } from "@/features/system/repository/quality-profile-repository.ts";
+import { loadReleaseRules } from "@/features/system/repository/release-profile-repository.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";
 
 it.scoped("operations repository helpers load profile settings", () =>

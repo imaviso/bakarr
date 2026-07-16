@@ -1,5 +1,6 @@
 import { Effect } from "effect";
 
+import type { DownloadStatus } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import type { downloads } from "@/db/schema.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
@@ -9,9 +10,18 @@ import type { DownloadPresentationContext } from "@/features/operations/reposito
 import { DownloadRepository } from "@/features/operations/repository/download-repository-service.ts";
 
 type DownloadRow = typeof downloads.$inferSelect;
+type ProgressError = DatabaseError | StoredDataError;
 
 export interface DownloadProgressSupportShape {
-  readonly publishDownloadProgress: () => Effect.Effect<void, DatabaseError | StoredDataError>;
+  readonly getDownloadProgress: () => Effect.Effect<DownloadStatus[], ProgressError>;
+  readonly getDownloadProgressBootstrap: (input?: {
+    readonly limit?: number;
+  }) => Effect.Effect<DownloadStatus[], ProgressError>;
+  readonly getDownloadRuntimeSummary: () => Effect.Effect<
+    { readonly active_count: number },
+    DatabaseError
+  >;
+  readonly publishDownloadProgress: () => Effect.Effect<void, ProgressError>;
 }
 
 export const loadActiveDownloadSnapshot = Effect.fn("DownloadProgress.loadActiveDownloadSnapshot")(
@@ -34,21 +44,37 @@ export class DownloadProgressSupport extends Effect.Service<DownloadProgressSupp
   "@bakarr/api/DownloadProgressSupport",
   {
     effect: Effect.gen(function* () {
-      const downloadProgressRepository = yield* DownloadRepository;
+      const downloadRepository = yield* DownloadRepository;
       const eventBus = yield* EventBus;
 
-      const getDownloadProgressSnapshotEffect = Effect.fn(
-        "DownloadProgress.getDownloadProgressSnapshot",
-      )(function* () {
+      const getDownloadProgress = Effect.fn("DownloadProgress.getDownloadProgress")(function* () {
         return yield* loadActiveDownloadSnapshot({
-          listRows: () => downloadProgressRepository.listActiveDownloadRows(),
-          loadContexts: (rows) => downloadProgressRepository.loadPresentationContexts(rows),
+          listRows: () => downloadRepository.listActiveDownloadRows(),
+          loadContexts: (rows) => downloadRepository.loadPresentationContexts(rows),
         });
       });
 
+      const getDownloadProgressBootstrap = Effect.fn(
+        "DownloadProgress.getDownloadProgressBootstrap",
+      )(function* (input: { limit?: number } = {}) {
+        const limit = Math.max(1, Math.min(input.limit ?? 200, 500));
+        return yield* loadActiveDownloadSnapshot({
+          listRows: () => downloadRepository.listActiveDownloadRows(limit),
+          loadContexts: (rows) => downloadRepository.loadPresentationContexts(rows),
+        });
+      });
+
+      const getDownloadRuntimeSummary = Effect.fn("DownloadProgress.getDownloadRuntimeSummary")(
+        function* () {
+          return {
+            active_count: yield* downloadRepository.countActiveDownloads(),
+          };
+        },
+      );
+
       const publishDownloadProgress = Effect.fn("DownloadProgress.publishDownloadProgress")(
         function* () {
-          const activeDownloads = yield* getDownloadProgressSnapshotEffect();
+          const activeDownloads = yield* getDownloadProgress();
 
           return yield* eventBus.publish({
             type: "DownloadProgress",
@@ -58,6 +84,9 @@ export class DownloadProgressSupport extends Effect.Service<DownloadProgressSupp
       );
 
       return {
+        getDownloadProgress,
+        getDownloadProgressBootstrap,
+        getDownloadRuntimeSummary,
         publishDownloadProgress,
       } satisfies DownloadProgressSupportShape;
     }),

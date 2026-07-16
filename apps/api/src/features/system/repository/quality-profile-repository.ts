@@ -1,9 +1,12 @@
 import { count, eq } from "drizzle-orm";
-import { Effect } from "effect";
+import { Effect, Option } from "effect";
 
+import type { QualityProfile } from "@packages/shared/index.ts";
 import { AppDrizzleDatabase, type AppDatabase, type DatabaseError } from "@/db/database.ts";
 import { media, qualityProfiles } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { decodeQualityProfileRow } from "@/features/system/profile-codec.ts";
+import type { StoredConfigCorruptError } from "@/features/system/errors.ts";
 
 export interface QualityProfileRepositoryShape {
   readonly deleteQualityProfileRow: (name: string) => Effect.Effect<void, DatabaseError>;
@@ -22,6 +25,9 @@ export interface QualityProfileRepositoryShape {
     typeof qualityProfiles.$inferSelect | undefined,
     DatabaseError
   >;
+  readonly loadQualityProfile: (
+    name: string,
+  ) => Effect.Effect<Option.Option<QualityProfile>, DatabaseError | StoredConfigCorruptError>;
   readonly loadQualityProfileRow: (
     name: string,
   ) => Effect.Effect<typeof qualityProfiles.$inferSelect | undefined, DatabaseError>;
@@ -104,6 +110,17 @@ export const loadQualityProfileRow = Effect.fn("QualityProfileRepository.loadQua
   },
 );
 
+export const loadQualityProfile = Effect.fn("QualityProfileRepository.loadQualityProfile")(
+  function* (db: AppDatabase, name: string) {
+    const row = yield* loadQualityProfileRow(db, name);
+    if (!row) {
+      return Option.none<QualityProfile>();
+    }
+
+    return yield* decodeQualityProfileRow(row).pipe(Effect.map((profile) => Option.some(profile)));
+  },
+);
+
 export const qualityProfileExists = Effect.fn("QualityProfileRepository.qualityProfileExists")(
   function* (db: AppDatabase, name: string) {
     const rows = yield* tryDatabasePromise("Failed to verify quality profile", () =>
@@ -155,6 +172,7 @@ function makeQualityProfileRepositoryShape(db: AppDatabase): QualityProfileRepos
     insertQualityProfileRows: (rows) => insertQualityProfileRows(db, rows),
     listQualityProfileRows: () => listQualityProfileRows(db),
     loadAnyQualityProfileRow: () => loadAnyQualityProfileRow(db),
+    loadQualityProfile: (name) => loadQualityProfile(db, name),
     loadQualityProfileRow: (name) => loadQualityProfileRow(db, name),
     qualityProfileExists: (name) => qualityProfileExists(db, name),
     renameQualityProfileWithCascade: (oldName, row) =>

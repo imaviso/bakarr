@@ -2,18 +2,18 @@ import { Effect, Stream } from "effect";
 
 import type { DownloadStatus, NotificationEvent } from "@packages/shared/index.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
-import { CatalogDownloadReadService } from "@/features/operations/catalog/catalog-download-read-service.ts";
+import { DownloadProgressSupport } from "@/features/operations/download/download-progress-support.ts";
 
 const makeSystemEventsService = Effect.fn("SystemEventsService.make")(function* () {
   const eventBus = yield* EventBus;
-  const downloadsReadService = yield* CatalogDownloadReadService;
+  const downloadProgress = yield* DownloadProgressSupport;
 
   const buildEventsStream = () =>
     eventBus.withSubscriptionStream((subscription) =>
       Stream.unwrapScoped(
         Effect.gen(function* () {
           const downloads: readonly DownloadStatus[] =
-            yield* downloadsReadService.getDownloadProgressBootstrap();
+            yield* downloadProgress.getDownloadProgressBootstrap();
           const bufferedEvents = yield* subscription.takeBufferedOnce;
 
           return buildDownloadProgressEventStream(downloads, bufferedEvents, subscription.stream);

@@ -14,13 +14,14 @@ import {
 } from "@/features/operations/search/release-ranking.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
-import { OperationsProfileRepository } from "@/features/operations/repository/profile-repository.ts";
 import { BackgroundSearchQueueService } from "@/features/operations/background-search/background-search-queue-service.ts";
 import { DomainInputError, InfrastructureError } from "@/features/errors.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
 import { SearchReleaseService } from "@/features/operations/search/search-orchestration-release-search.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
+import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
+import { ReleaseProfileRepository } from "@/features/system/repository/release-profile-repository.ts";
 
 export interface SearchBackgroundMissingServiceShape {
   readonly triggerSearchMissing: (
@@ -38,13 +39,14 @@ export class SearchBackgroundMissingService extends Effect.Service<SearchBackgro
       const queueService = yield* BackgroundSearchQueueService;
       const mediaReadRepository = yield* MediaReadRepository;
       const mediaUnitRepository = yield* MediaUnitRepository;
-      const profileRepository = yield* OperationsProfileRepository;
+      const qualityProfileRepository = yield* QualityProfileRepository;
+      const releaseProfileRepository = yield* ReleaseProfileRepository;
       const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
       const nowIso = currentNowIso;
 
       const requireQualityProfile = Effect.fn("BackgroundSearchMissing.requireQualityProfile")(
         function* (profileName: string) {
-          const profileOption = yield* profileRepository.loadQualityProfile(profileName);
+          const profileOption = yield* qualityProfileRepository.loadQualityProfile(profileName);
 
           if (Option.isNone(profileOption)) {
             return yield* new DomainInputError({
@@ -122,7 +124,7 @@ export class SearchBackgroundMissingService extends Effect.Service<SearchBackgro
           let rules = releaseRulesByAnimeId.get(row.media.id);
 
           if (rules === undefined) {
-            const loadedRules = yield* profileRepository.loadReleaseRules(row.media);
+            const loadedRules = yield* releaseProfileRepository.loadReleaseRules(row.media);
             releaseRulesByAnimeId.set(row.media.id, loadedRules);
             rules = loadedRules;
           }

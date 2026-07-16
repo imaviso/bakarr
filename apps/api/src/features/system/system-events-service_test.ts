@@ -3,7 +3,7 @@ import { Effect, Layer, Stream } from "effect";
 
 import { brandMediaId, brandDownloadId } from "@packages/shared/index.ts";
 import { makeEventBus, EventBus } from "@/features/events/event-bus.ts";
-import { CatalogDownloadReadService } from "@/features/operations/catalog/catalog-download-read-service.ts";
+import { DownloadProgressSupport } from "@/features/operations/download/download-progress-support.ts";
 import {
   SystemEventsService,
   SystemEventsServiceLive,
@@ -19,8 +19,8 @@ it.scoped("SystemEventsService does not lose buffered events during stream boots
         Layer.mergeAll(
           Layer.succeed(EventBus, eventBus),
           Layer.succeed(
-            CatalogDownloadReadService,
-            CatalogDownloadReadService.make({
+            DownloadProgressSupport,
+            DownloadProgressSupport.make({
               getDownloadProgress: () => Effect.succeed(snapshotDownloads),
               getDownloadProgressBootstrap: () =>
                 Effect.gen(function* () {
@@ -32,11 +32,7 @@ it.scoped("SystemEventsService does not lose buffered events during stream boots
                   return snapshotDownloads;
                 }),
               getDownloadRuntimeSummary: () => Effect.succeed({ active_count: 1 }),
-              listDownloadEvents: () => Effect.dieMessage("unused in test"),
-              listDownloadHistory: () => Effect.dieMessage("unused in test"),
-              listDownloadQueue: () => Effect.dieMessage("unused in test"),
-              streamDownloadEventsExportCsv: () => Effect.dieMessage("unused in test"),
-              streamDownloadEventsExportJson: () => Effect.dieMessage("unused in test"),
+              publishDownloadProgress: () => Effect.void,
             }),
           ),
         ),

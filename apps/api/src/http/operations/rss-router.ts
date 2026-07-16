@@ -3,6 +3,7 @@ import { Effect, Schema } from "effect";
 import { RssFeedSchema } from "@packages/shared/index.ts";
 
 import { CatalogRssService } from "@/features/operations/catalog/catalog-rss-service.ts";
+import { RssFeedRepository } from "@/features/operations/repository/rss-feed-repository-service.ts";
 import { AddRssFeedBodySchema, EnabledBodySchema } from "@/http/operations/request-schemas.ts";
 import {
   authedRouteResponse,
@@ -17,7 +18,7 @@ export const rssRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
     "/rss",
     authedRouteResponse(
-      Effect.flatMap(CatalogRssService, (service) => service.listRssFeeds()),
+      Effect.flatMap(RssFeedRepository, (repo) => repo.listAll()),
       schemaJsonResponse(Schema.Array(RssFeedSchema)),
     ),
   ),
@@ -40,7 +41,7 @@ export const rssRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        yield* (yield* CatalogRssService).deleteRssFeed(params.id);
+        yield* (yield* RssFeedRepository).deleteById(params.id);
       }),
       successResponse,
     ),
@@ -51,7 +52,7 @@ export const rssRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
         const body = yield* decodeJsonBodyWithLabel(EnabledBodySchema, "toggle RSS feed");
-        yield* (yield* CatalogRssService).toggleRssFeed(params.id, body.enabled);
+        yield* (yield* RssFeedRepository).setEnabled(params.id, body.enabled);
       }),
       successResponse,
     ),

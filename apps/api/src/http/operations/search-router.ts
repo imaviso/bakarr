@@ -9,11 +9,12 @@ import {
 } from "@packages/shared/index.ts";
 
 import { DownloadTriggerService } from "@/features/operations/download/download-trigger-service.ts";
-import { CatalogLibraryReadService } from "@/features/operations/catalog/catalog-library-read-service.ts";
 import { SearchBackgroundMissingService } from "@/features/operations/background-search/background-search-missing-support.ts";
 import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
 import { SearchUnitService } from "@/features/operations/search/search-orchestration-unit-support.ts";
 import { SearchReleaseService } from "@/features/operations/search/search-orchestration-release-search.ts";
+import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { nowIso } from "@/infra/time.ts";
 import {
   CalendarQuerySchema,
   SearchDownloadBodySchema,
@@ -41,7 +42,8 @@ export const searchRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const query = yield* decodeQueryWithLabel(WantedMissingQuerySchema, "wanted missing");
-        return yield* (yield* CatalogLibraryReadService).getWantedMissing(query.limit ?? 50);
+        const now = yield* nowIso();
+        return yield* (yield* MediaReadRepository).listWantedMissing(query.limit ?? 50, now);
       }),
       schemaJsonResponse(Schema.Array(MissingUnitSchema)),
     ),
@@ -51,10 +53,13 @@ export const searchRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const query = yield* decodeQueryWithLabel(CalendarQuerySchema, "calendar");
-        return yield* (yield* CatalogLibraryReadService).getCalendarWithDefaults({
-          ...(query.end === undefined ? {} : { end: query.end }),
-          ...(query.start === undefined ? {} : { start: query.start }),
-        });
+        const nowIsoValue = yield* nowIso();
+        const now = new Date(nowIsoValue);
+        return yield* (yield* MediaReadRepository).listCalendarEvents(
+          query.start ?? nowIsoValue,
+          query.end ?? nowIsoValue,
+          now,
+        );
       }),
       schemaJsonResponse(Schema.Array(CalendarEventSchema)),
     ),

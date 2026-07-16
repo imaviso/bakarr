@@ -9,13 +9,15 @@ import {
   RssFeedRejectedError,
   RssFeedTooLargeError,
 } from "@/features/operations/errors.ts";
-import { OperationsProfileRepository } from "@/features/operations/repository/profile-repository.ts";
 import { compareUnitSearchResults } from "@/features/operations/search/release-ranking.ts";
 import { validateQualityProfileSizeLabels } from "@/features/operations/search/release-ranking.ts";
 import { toUnitSearchResult } from "@/features/operations/search/search-orchestration-unit-result.ts";
 import { SearchReleaseService } from "@/features/operations/search/search-orchestration-release-search.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
+import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
+import { ReleaseProfileRepository } from "@/features/system/repository/release-profile-repository.ts";
+import type { StoredConfigCorruptError } from "@/features/system/errors.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 import type { ExternalCallError } from "@/infra/effect/retry.ts";
@@ -30,7 +32,8 @@ export type SearchUnitError =
   | ExternalCallError
   | RssFeedParseError
   | RssFeedRejectedError
-  | RssFeedTooLargeError;
+  | RssFeedTooLargeError
+  | StoredConfigCorruptError;
 
 export interface SearchUnitServiceShape {
   readonly searchUnit: (
@@ -44,7 +47,8 @@ export class SearchUnitService extends Effect.Service<SearchUnitService>()(
   {
     effect: Effect.gen(function* () {
       const mediaReadRepository = yield* MediaReadRepository;
-      const profileRepository = yield* OperationsProfileRepository;
+      const qualityProfileRepository = yield* QualityProfileRepository;
+      const releaseProfileRepository = yield* ReleaseProfileRepository;
       const searchReleaseService = yield* SearchReleaseService;
       const runtimeConfigSnapshotService = yield* RuntimeConfigSnapshotService;
 
@@ -54,7 +58,9 @@ export class SearchUnitService extends Effect.Service<SearchUnitService>()(
       ) {
         const animeRow = yield* mediaReadRepository.getMediaRow(mediaId);
         const runtimeConfig = yield* runtimeConfigSnapshotService.getRuntimeConfig();
-        const profileOption = yield* profileRepository.loadQualityProfile(animeRow.profileName);
+        const profileOption = yield* qualityProfileRepository.loadQualityProfile(
+          animeRow.profileName,
+        );
 
         if (Option.isNone(profileOption)) {
           return yield* new DomainInputError({
@@ -66,7 +72,7 @@ export class SearchUnitService extends Effect.Service<SearchUnitService>()(
 
         yield* validateQualityProfileSizeLabels(profile);
 
-        const rules = yield* profileRepository.loadReleaseRules(animeRow);
+        const rules = yield* releaseProfileRepository.loadReleaseRules(animeRow);
         const currentUnit = yield* mediaReadRepository.loadCurrentEpisodeState(mediaId, unitNumber);
         const results = yield* searchReleaseService.searchUnitReleases(
           animeRow,
@@ -94,7 +100,8 @@ export class SearchUnitService extends Effect.Service<SearchUnitService>()(
     }),
     dependencies: [
       MediaReadRepository.Default,
-      OperationsProfileRepository.Default,
+      QualityProfileRepository.Default,
+      ReleaseProfileRepository.Default,
       SearchReleaseService.Default,
     ],
   },

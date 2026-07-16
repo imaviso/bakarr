@@ -14,14 +14,16 @@ import {
 } from "@/features/operations/search/release-ranking.ts";
 import { parseRssReleaseUnitNumbers } from "@/features/operations/background-search/background-search-rss-release.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
-import { OperationsProfileRepository } from "@/features/operations/repository/profile-repository.ts";
 import { RssFeedRepository } from "@/features/operations/repository/rss-feed-repository-service.ts";
+import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
+import { ReleaseProfileRepository } from "@/features/system/repository/release-profile-repository.ts";
 
 export type BackgroundSearchRssFeedError =
   | DatabaseError
   | InfrastructureError
   | DomainInputError
-  | import("@/features/media/errors.ts").MediaNotFoundError;
+  | import("@/features/media/errors.ts").MediaNotFoundError
+  | import("@/features/system/errors.ts").StoredConfigCorruptError;
 
 export interface BackgroundSearchRssFeedServiceShape {
   readonly processFeed: (
@@ -37,14 +39,15 @@ export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSea
       const rssClient = yield* RssClient;
       const queueService = yield* BackgroundSearchQueueService;
       const mediaReadRepository = yield* MediaReadRepository;
-      const profileRepository = yield* OperationsProfileRepository;
+      const qualityProfileRepository = yield* QualityProfileRepository;
+      const releaseProfileRepository = yield* ReleaseProfileRepository;
       const rssFeedRepository = yield* RssFeedRepository;
       const downloadRepository = yield* DownloadRepository;
       const nowIso = currentNowIso;
 
       const requireQualityProfile = Effect.fn("BackgroundSearchRssFeed.requireQualityProfile")(
         function* (profileName: string) {
-          const profileOption = yield* profileRepository.loadQualityProfile(profileName);
+          const profileOption = yield* qualityProfileRepository.loadQualityProfile(profileName);
 
           if (Option.isNone(profileOption)) {
             return yield* new DomainInputError({
@@ -101,7 +104,7 @@ export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSea
 
               const profile = yield* requireQualityProfile(animeRow.profileName);
               yield* validateQualityProfileSizeLabels(profile);
-              const rules = yield* profileRepository.loadReleaseRules(animeRow);
+              const rules = yield* releaseProfileRepository.loadReleaseRules(animeRow);
               let queuedForFeed = 0;
 
               const slice = items.slice(0, 10);

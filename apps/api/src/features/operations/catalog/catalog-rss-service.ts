@@ -8,16 +8,13 @@ import { RssFeedRepository } from "@/features/operations/repository/rss-feed-rep
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 
+/** Multi-repo RSS create only — list/delete/toggle use RssFeedRepository. */
 export interface CatalogRssServiceShape {
-  readonly listRssFeeds: () => Effect.Effect<RssFeed[], DatabaseError>;
-  readonly listMediaRssFeeds: (mediaId: number) => Effect.Effect<RssFeed[], DatabaseError>;
   readonly addRssFeed: (input: {
     media_id: number;
     url: string;
     name?: string;
   }) => Effect.Effect<RssFeed, DatabaseError | MediaNotFoundError>;
-  readonly deleteRssFeed: (id: number) => Effect.Effect<void, DatabaseError>;
-  readonly toggleRssFeed: (id: number, enabled: boolean) => Effect.Effect<void, DatabaseError>;
 }
 
 export class CatalogRssService extends Effect.Service<CatalogRssService>()(
@@ -28,16 +25,6 @@ export class CatalogRssService extends Effect.Service<CatalogRssService>()(
       const rssFeedRepository = yield* RssFeedRepository;
       const systemLogRepository = yield* SystemLogRepository;
       const nowIso = currentNowIso;
-
-      const listRssFeeds = Effect.fn("CatalogRssService.listRssFeeds")(function* () {
-        return yield* rssFeedRepository.listAll();
-      });
-
-      const listMediaRssFeeds = Effect.fn("CatalogRssService.listMediaRssFeeds")(function* (
-        mediaId: number,
-      ) {
-        return yield* rssFeedRepository.listByMediaId(mediaId);
-      });
 
       const addRssFeed = Effect.fn("CatalogRssService.addRssFeed")(function* (rssInput: {
         media_id: number;
@@ -63,23 +50,8 @@ export class CatalogRssService extends Effect.Service<CatalogRssService>()(
         return feed;
       });
 
-      const deleteRssFeed = Effect.fn("CatalogRssService.deleteRssFeed")(function* (id: number) {
-        yield* rssFeedRepository.deleteById(id);
-      });
-
-      const toggleRssFeed = Effect.fn("CatalogRssService.toggleRssFeed")(function* (
-        id: number,
-        enabled: boolean,
-      ) {
-        yield* rssFeedRepository.setEnabled(id, enabled);
-      });
-
       return {
         addRssFeed,
-        deleteRssFeed,
-        listMediaRssFeeds,
-        listRssFeeds,
-        toggleRssFeed,
       } satisfies CatalogRssServiceShape;
     }),
     dependencies: [

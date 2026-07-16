@@ -6,13 +6,13 @@ import { AniDbUnitCacheRepository } from "@/features/media/units/anidb-unit-cach
 import { SeasonalMediaCacheRepository } from "@/features/media/query/seasonal-media-cache-repository.ts";
 import { DownloadRepository } from "@/features/operations/repository/download-repository-service.ts";
 import { LibraryRootsRepository } from "@/features/operations/repository/library-roots-repository.ts";
-import { OperationsProfileRepository } from "@/features/operations/repository/profile-repository.ts";
 import { OperationsTaskRepository } from "@/features/operations/repository/task-repository.ts";
 import { RssFeedRepository } from "@/features/operations/repository/rss-feed-repository-service.ts";
 import { BackgroundJobRepository } from "@/features/system/repository/background-job-repository.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 import { SystemUnmappedRepository } from "@/features/system/repository/unmapped-repository.ts";
 import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
+import { ReleaseProfileRepository } from "@/features/system/repository/release-profile-repository.ts";
 import { SystemConfigRepository } from "@/features/system/repository/system-config-repository.ts";
 
 /**
@@ -27,12 +27,12 @@ export const PureDbLeaves = Layer.mergeAll(
   AniDbUnitCacheRepository.Default,
   SeasonalMediaCacheRepository.Default,
   LibraryRootsRepository.Default,
-  OperationsProfileRepository.Default,
   OperationsTaskRepository.Default,
   RssFeedRepository.Default,
   SystemLogRepository.Default,
   SystemUnmappedRepository.Default,
   QualityProfileRepository.Default,
+  ReleaseProfileRepository.Default,
   SystemConfigRepository.Default,
 );
 
