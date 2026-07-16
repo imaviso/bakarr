@@ -96,7 +96,10 @@ export const prepareTriggerDownload = Effect.fn("Operations.prepareTriggerDownlo
   }) {
     const animeRow = yield* input.mediaReadRepository.getMediaRow(input.triggerInput.media_id);
     const now = yield* input.nowIso();
-    const missingUnits = yield* input.triggerRepo.listMissingEpisodeNumbers(animeRow.id);
+    const missingRows = yield* input.mediaReadRepository.listMissingUnitNumbers([animeRow.id]);
+    const missingUnits = missingRows
+      .map((row) => row.number)
+      .toSorted((left, right) => left - right);
     const plan = resolveTriggerDownloadCoveragePlan({
       ...(input.triggerInput.is_batch === undefined
         ? {}

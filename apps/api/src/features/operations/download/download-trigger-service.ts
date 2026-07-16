@@ -18,6 +18,7 @@ import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { DownloadProgressSupport } from "@/features/operations/download/download-progress-support.ts";
 import { DownloadTriggerCoordinator } from "@/features/operations/tasks/runtime-support.ts";
 import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
+import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 
 export interface DownloadTriggerServiceShape {
   readonly triggerDownload: (
@@ -41,6 +42,7 @@ export class DownloadTriggerService extends Effect.Service<DownloadTriggerServic
       EventBus.Default,
       DownloadTriggerCoordinator.Default,
       MediaReadRepository.Default,
+      SystemLogRepository.Default,
     ],
     effect: Effect.gen(function* () {
       const triggerRepo = yield* DownloadRepository;
@@ -48,6 +50,7 @@ export class DownloadTriggerService extends Effect.Service<DownloadTriggerServic
       const torrentClientService = yield* TorrentClientService;
       const progressSupport = yield* DownloadProgressSupport;
       const downloadTriggerCoordinator = yield* DownloadTriggerCoordinator;
+      const systemLogRepository = yield* SystemLogRepository;
       const mediaReadRepository = yield* MediaReadRepository;
 
       const executeTriggerDownload = Effect.fn("DownloadTrigger.executeTriggerDownload")(function* (
@@ -96,15 +99,14 @@ export class DownloadTriggerService extends Effect.Service<DownloadTriggerServic
           eventNow,
         );
 
-        const logNow = yield* currentNowIso();
-        yield* triggerRepo.appendLogRow({
-          eventType: "downloads.triggered",
-          level: "success",
-          message: shouldDeferBatchCoverage
+        yield* systemLogRepository.appendLog(
+          "downloads.triggered",
+          "success",
+          shouldDeferBatchCoverage
             ? `Queued batch download for ${plan.animeRow.titleRomaji}; waiting for qBittorrent metadata to determine covered mediaUnits`
             : `Queued download for ${plan.animeRow.titleRomaji} episode ${plan.requestedEpisode}`,
-          createdAt: logNow,
-        });
+          currentNowIso,
+        );
 
         yield* eventBus.publish({
           type: "DownloadStarted",

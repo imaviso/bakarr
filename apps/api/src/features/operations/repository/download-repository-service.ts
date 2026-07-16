@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
+import { desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { Effect, type Stream } from "effect";
 
 import type {
@@ -7,7 +7,7 @@ import type {
   DownloadHistoryPage,
 } from "@packages/shared/index.ts";
 import { AppDrizzleDatabase, DatabaseError, type AppDatabase } from "@/db/database.ts";
-import { downloadEvents, downloads, media, mediaUnits, systemLogs } from "@/db/schema.ts";
+import { downloadEvents, downloads, systemLogs } from "@/db/schema.ts";
 import {
   listDownloadEvents as listDownloadEventsPage,
   listDownloadHistory as listDownloadHistoryPage,
@@ -36,7 +36,6 @@ export type {
 } from "@/features/operations/repository/download-catalog-read.ts";
 
 type DownloadRow = typeof downloads.$inferSelect;
-type MediaUnitRow = typeof mediaUnits.$inferSelect;
 type TorrentSyncSqlValue = number | string | null;
 
 export interface TorrentSyncUpdate {
@@ -70,16 +69,11 @@ function buildTorrentSyncCase(
 }
 
 export interface DownloadRepositoryShape {
-  readonly appendLogRow: (input: {
-    readonly createdAt: string;
-    readonly eventType: string;
-    readonly level: string;
-    readonly message: string;
-  }) => Effect.Effect<void, DatabaseError>;
   readonly bulkUpdateTorrentSyncRows: (
     chunk: readonly TorrentSyncUpdate[],
   ) => Effect.Effect<void, DatabaseError>;
   readonly deleteDownloadRow: (id: number) => Effect.Effect<void, DatabaseError>;
+  /** Atomic import write: downloads + download_events + system_logs (lifecycle tx). */
   readonly finalizeDownloadImport: (input: {
     readonly downloadId: number;
     readonly fromStatus: string;
@@ -131,9 +125,6 @@ export interface DownloadRepositoryShape {
   readonly listDownloadsByMediaId: (
     mediaId: number,
   ) => Effect.Effect<readonly DownloadRow[], DatabaseError>;
-  readonly listMissingEpisodeNumbers: (
-    mediaId: number,
-  ) => Effect.Effect<readonly number[], DatabaseError>;
   readonly loadDownloadById: (id: number) => Effect.Effect<DownloadRow | undefined, DatabaseError>;
   readonly loadDownloadByInfoHash: (
     infoHash: string,
@@ -142,10 +133,6 @@ export interface DownloadRepositoryShape {
     input: DownloadEventExportQuery | undefined,
     generatedAt: string,
   ) => Effect.Effect<DownloadEventExportHeader, DatabaseError>;
-  readonly loadMediaUnitsByNumbers: (
-    mediaId: number,
-    numbers: readonly number[],
-  ) => Effect.Effect<readonly MediaUnitRow[], DatabaseError>;
   readonly loadPresentationContexts: (
     rows: readonly DownloadRow[],
   ) => Effect.Effect<Map<number, DownloadPresentationContext>, DatabaseError | StoredDataError>;
@@ -155,9 +142,6 @@ export interface DownloadRepositoryShape {
   readonly lookupDownloadByInfoHash: (
     infoHash: string,
   ) => Effect.Effect<{ id: number; status: string } | undefined, DatabaseError>;
-  readonly lookupMediaKind: (
-    mediaId: number,
-  ) => Effect.Effect<{ mediaKind: string } | undefined, DatabaseError>;
   readonly markDownloadReconciled: (input: {
     readonly downloadId: number;
     readonly now: string;
@@ -194,7 +178,6 @@ export class DownloadRepository extends Effect.Service<DownloadRepository>()(
 
 function makeDownloadRepositoryShape(db: AppDatabase): DownloadRepositoryShape {
   return {
-    appendLogRow: (input) => appendLogRow(db, input),
     bulkUpdateTorrentSyncRows: (chunk) => bulkUpdateTorrentSyncRows(db, chunk),
     deleteDownloadRow: (id) => deleteDownloadRow(db, id, "Failed to remove download"),
     finalizeDownloadImport: (input) => finalizeDownloadImport(db, input),
@@ -207,16 +190,13 @@ function makeDownloadRepositoryShape(db: AppDatabase): DownloadRepositoryShape {
     listDownloadHistory: (input) => listDownloadHistoryPage(db, input),
     listDownloadsByInfoHashes: (infoHashes) => listDownloadsByInfoHashes(db, infoHashes),
     listDownloadsByMediaId: (mediaId) => listDownloadsByMediaId(db, mediaId),
-    listMissingEpisodeNumbers: (mediaId) => listMissingEpisodeNumbers(db, mediaId),
     loadDownloadById: (id) => loadDownloadById(db, id),
     loadDownloadByInfoHash: (infoHash) => loadDownloadByInfoHash(db, infoHash),
     loadDownloadEventExportHeader: (input, generatedAt) =>
       loadDownloadEventExportHeaderPage(db, input, generatedAt),
-    loadMediaUnitsByNumbers: (mediaId, numbers) => loadMediaUnitsByNumbers(db, mediaId, numbers),
     loadPresentationContexts: (rows) => loadPresentationContexts(db, rows),
     streamDownloadEvents: (input) => streamDownloadEventsPage(db, input),
     lookupDownloadByInfoHash: (infoHash) => lookupDownloadByInfoHash(db, infoHash),
-    lookupMediaKind: (mediaId) => lookupMediaKind(db, mediaId),
     markDownloadReconciled: (input) => markDownloadReconciled(db, input),
     updateDownloadCoveredUnits: (input) => updateDownloadCoveredUnits(db, input),
     updateDownloadRetryRow: (input) => updateDownloadRetryRow(db, input),
@@ -228,26 +208,6 @@ function makeDownloadRepositoryShape(db: AppDatabase): DownloadRepositoryShape {
 export function makeDownloadRepository(db: AppDatabase): DownloadRepository {
   return DownloadRepository.make(makeDownloadRepositoryShape(db));
 }
-
-const appendLogRow = Effect.fn("DownloadRepository.appendLogRow")(function* (
-  db: AppDatabase,
-  input: {
-    readonly createdAt: string;
-    readonly eventType: string;
-    readonly level: string;
-    readonly message: string;
-  },
-) {
-  yield* tryDatabasePromise("Failed to append log", () =>
-    db.insert(systemLogs).values({
-      createdAt: input.createdAt,
-      details: null,
-      eventType: input.eventType,
-      level: input.level,
-      message: input.message,
-    }),
-  );
-});
 
 const bulkUpdateTorrentSyncRows = Effect.fn("DownloadRepository.bulkUpdateTorrentSyncRows")(
   function* (db: AppDatabase, chunk: readonly TorrentSyncUpdate[]) {
@@ -471,18 +431,6 @@ const listDownloadsByMediaId = Effect.fn("DownloadRepository.listDownloadsByMedi
   );
 });
 
-const listMissingEpisodeNumbers = Effect.fn("DownloadRepository.listMissingEpisodeNumbers")(
-  function* (db: AppDatabase, mediaId: number) {
-    const rows = yield* tryDatabasePromise("Failed to load missing unit numbers", () =>
-      db
-        .select()
-        .from(mediaUnits)
-        .where(and(eq(mediaUnits.mediaId, mediaId), eq(mediaUnits.downloaded, false))),
-    );
-    return rows.map((row) => row.number).toSorted((left, right) => left - right);
-  },
-);
-
 const loadDownloadById = Effect.fn("DownloadRepository.loadDownloadById")(function* (
   db: AppDatabase,
   id: number,
@@ -501,23 +449,6 @@ const loadDownloadByInfoHash = Effect.fn("DownloadRepository.loadDownloadByInfoH
     db.select().from(downloads).where(eq(downloads.infoHash, infoHash)).limit(1),
   );
   return rows[0];
-});
-
-const loadMediaUnitsByNumbers = Effect.fn("DownloadRepository.loadMediaUnitsByNumbers")(function* (
-  db: AppDatabase,
-  mediaId: number,
-  numbers: readonly number[],
-) {
-  if (numbers.length === 0) {
-    return [] as readonly MediaUnitRow[];
-  }
-
-  return yield* tryDatabasePromise("Failed to reconcile completed download", () =>
-    db
-      .select()
-      .from(mediaUnits)
-      .where(and(eq(mediaUnits.mediaId, mediaId), inArray(mediaUnits.number, [...numbers]))),
-  );
 });
 
 const loadPresentationContexts = Effect.fn("DownloadRepository.loadPresentationContexts")(
@@ -541,16 +472,6 @@ const lookupDownloadByInfoHash = Effect.fn("DownloadRepository.lookupDownloadByI
     return rows[0];
   },
 );
-
-const lookupMediaKind = Effect.fn("DownloadRepository.lookupMediaKind")(function* (
-  db: AppDatabase,
-  mediaId: number,
-) {
-  const rows = yield* tryDatabasePromise("Failed to sync downloads with qBittorrent", () =>
-    db.select({ mediaKind: media.mediaKind }).from(media).where(eq(media.id, mediaId)).limit(1),
-  );
-  return rows[0];
-});
 
 const markDownloadReconciled = Effect.fn("DownloadRepository.markDownloadReconciled")(function* (
   db: AppDatabase,

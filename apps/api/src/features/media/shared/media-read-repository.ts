@@ -79,6 +79,10 @@ export interface MediaReadRepositoryShape {
     readonly { readonly mediaId: number; readonly number: number }[],
     DatabaseError
   >;
+  readonly loadUnitsByNumbers: (
+    mediaId: number,
+    numbers: readonly number[],
+  ) => Effect.Effect<readonly (typeof mediaUnits.$inferSelect)[], DatabaseError>;
   readonly listCalendarEvents: (
     start: string,
     end: string,
@@ -189,6 +193,7 @@ function makeMediaReadRepositoryShape(db: AppDatabase): MediaReadRepositoryShape
     listMissingUnitSearchRows: (input) => listMissingUnitSearchRowsEffect(db, input),
     loadCurrentEpisodeState: (mediaId, unitNumber) =>
       loadCurrentEpisodeStateEffect(db, mediaId, unitNumber),
+    loadUnitsByNumbers: (mediaId, numbers) => loadUnitsByNumbersEffect(db, mediaId, numbers),
     mediaExists: (mediaId) => mediaExistsEffect(db, mediaId),
     requireMediaExists: (mediaId) => requireMediaExistsEffect(db, mediaId),
     deleteMedia: (mediaId) => deleteMediaEffect(db, mediaId),
@@ -649,6 +654,23 @@ const listMissingUnitNumbersEffect = Effect.fn("MediaReadRepository.listMissingU
     );
   },
 );
+
+const loadUnitsByNumbersEffect = Effect.fn("MediaReadRepository.loadUnitsByNumbers")(function* (
+  db: AppDatabase,
+  mediaId: number,
+  numbers: readonly number[],
+) {
+  if (numbers.length === 0) {
+    return [] as readonly (typeof mediaUnits.$inferSelect)[];
+  }
+
+  return yield* tryDatabasePromise("Failed to load media units", () =>
+    db
+      .select()
+      .from(mediaUnits)
+      .where(and(eq(mediaUnits.mediaId, mediaId), inArray(mediaUnits.number, [...numbers]))),
+  );
+});
 
 const updateMonitoredEffect = Effect.fn("MediaReadRepository.updateMonitored")(function* (
   db: AppDatabase,

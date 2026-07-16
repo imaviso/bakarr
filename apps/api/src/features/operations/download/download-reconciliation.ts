@@ -54,6 +54,7 @@ type MaybeCleanupImportedTorrent = (
 
 type DownloadReconciliationContext = {
   readonly repo: typeof DownloadRepository.Service;
+  readonly mediaReadRepository: typeof MediaReadRepository.Service;
   readonly mediaUnitRepository: MediaUnitRepositoryShape;
   readonly fs: FileSystemShape;
   readonly mediaProbe: MediaProbeShape;
@@ -136,6 +137,7 @@ const loadDownloadReconciliationContext = Effect.fn(
 
   return Option.some({
     repo: input.repo,
+    mediaReadRepository: input.mediaReadRepository,
     mediaUnitRepository: input.mediaUnitRepository,
     animeRow,
     eventBus: input.eventBus,
@@ -230,8 +232,8 @@ const reconcileBatchDownloadEffect = Effect.fn("DownloadReconcile.reconcileBatch
 
     const allEpisodeRows: BatchEpisodeRow[] =
       allRelevantEpisodes.size > 0
-        ? yield* input.repo
-            .loadMediaUnitsByNumbers(input.row.mediaId, [...allRelevantEpisodes])
+        ? yield* input.mediaReadRepository
+            .loadUnitsByNumbers(input.row.mediaId, [...allRelevantEpisodes])
             .pipe(
               Effect.map((rows) =>
                 rows.map((r) => ({
@@ -385,7 +387,7 @@ const reconcileSingleDownloadEffect = Effect.fn(
     return;
   }
 
-  const existingRows = yield* input.repo.loadMediaUnitsByNumbers(input.row.mediaId, [
+  const existingRows = yield* input.mediaReadRepository.loadUnitsByNumbers(input.row.mediaId, [
     input.row.unitNumber,
   ]);
   const existingEpisode = existingRows[0];
@@ -430,8 +432,8 @@ const reconcileSingleDownloadEffect = Effect.fn(
     movieNamingFormat: input.runtimeConfig.library.movie_naming_format,
     namingFormat: input.runtimeConfig.library.naming_format,
   });
-  const episodeRows = yield* input.repo
-    .loadMediaUnitsByNumbers(input.row.mediaId, [input.row.unitNumber])
+  const episodeRows = yield* input.mediaReadRepository
+    .loadUnitsByNumbers(input.row.mediaId, [input.row.unitNumber])
     .pipe(Effect.map((rows) => rows.map((r) => ({ aired: r.aired, title: r.title }))));
   const initialNamingPlan = buildEpisodeFilenamePlan({
     animeRow: input.animeRow,

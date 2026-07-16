@@ -193,7 +193,7 @@ rg -n "animeLiveLayer|animeEnrollment" apps/api/src
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | 1   | **done** — catalog slim: export-only download read; RSS add-only; rename-preview-only library read; routes→repos for list/history/progress |
 | 2   | **done** — OperationsProfileRepository deleted; loadQualityProfile / loadReleaseRules on system profile repos                              |
-| 3   | pending                                                                                                                                    |
+| 3 | **done** — non-tx reads/logs off Download; MediaRead.loadUnitsByNumbers; SystemLog append; finalizeDownloadImport keeps multi-table tx |
 | 4   | pending                                                                                                                                    |
 | 5   | pending                                                                                                                                    |
 | 6   | pending                                                                                                                                    |

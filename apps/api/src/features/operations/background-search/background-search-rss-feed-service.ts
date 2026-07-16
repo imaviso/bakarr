@@ -124,7 +124,10 @@ export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSea
                 slice.map((item) => item.infoHash),
               );
               const existingHashes = new Set(existingRows.map((d) => d.infoHash?.toLowerCase()));
-              const missingUnits = yield* downloadRepository.listMissingEpisodeNumbers(animeRow.id);
+              const missingRows = yield* mediaReadRepository.listMissingUnitNumbers([animeRow.id]);
+              const missingUnits = missingRows
+                .map((row) => row.number)
+                .toSorted((left, right) => left - right);
 
               for (const item of slice) {
                 if (existingHashes.has(item.infoHash.toLowerCase())) {

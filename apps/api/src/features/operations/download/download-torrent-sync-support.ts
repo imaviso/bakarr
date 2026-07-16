@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, Option } from "effect";
 
 import type { Config, DownloadSourceMetadata } from "@packages/shared/index.ts";
 import type { downloads } from "@/db/schema.ts";
@@ -24,6 +24,7 @@ import { durationMsSince } from "@/infra/logging.ts";
 import { currentTimeNanos, nowIso as currentNowIso } from "@/infra/time.ts";
 import type { ReconcileCompletedError } from "@/features/operations/download/download-reconciliation.ts";
 import { DownloadReconciliationService } from "@/features/operations/download/download-reconciliation-service.ts";
+import { MediaReadRepository } from "@/features/media/shared/media-read-repository.ts";
 
 function shouldReconcileCompletedDownloads(config: Config | null) {
   return config?.downloads.reconcile_completed_downloads ?? true;
@@ -41,9 +42,10 @@ export interface DownloadTorrentSyncSupportShape {
 export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSyncService>()(
   "@bakarr/api/DownloadTorrentSyncService",
   {
-    dependencies: [DownloadRepository.Default, EventBus.Default],
+    dependencies: [DownloadRepository.Default, EventBus.Default, MediaReadRepository.Default],
     effect: Effect.gen(function* () {
       const syncRepo = yield* DownloadRepository;
+      const mediaReadRepository = yield* MediaReadRepository;
       const torrentClientService = yield* TorrentClientService;
       const reconciliationService = yield* DownloadReconciliationService;
       const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
@@ -79,10 +81,15 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
           return;
         }
 
-        const mediaRow = yield* syncRepo.lookupMediaKind(refineInput.mediaId);
+        const mediaRowOption = yield* mediaReadRepository
+          .getMediaRow(refineInput.mediaId)
+          .pipe(Effect.option);
         const inferredEpisodes = inferCoveredEpisodesFromTorrentContents({
           files: contentsResult.right.files,
-          parseVolumeNumbers: mediaRow?.mediaKind !== "anime",
+          parseVolumeNumbers: Option.match(mediaRowOption, {
+            onNone: () => true,
+            onSome: (row) => row.mediaKind !== "anime",
+          }),
           rootName: refineInput.torrentName,
         });
 
