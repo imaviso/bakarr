@@ -206,6 +206,7 @@ function makeOperationsProgressStub() {
     getDownloadProgressBootstrap: () => Effect.succeed([]),
     getDownloadRuntimeSummary: () => Effect.succeed({ active_count: 0 }),
     publishDownloadProgress: () => Effect.void,
+    publishDownloadProgressNow: () => Effect.void,
     publishLibraryScanProgress: () => Effect.void,
     publishRssCheckProgress: () => Effect.void,
   });

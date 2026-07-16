@@ -10,7 +10,6 @@ import { CatalogLibraryReadServiceLive } from "@/features/operations/catalog/cat
 import { CatalogLibraryScanServiceLive } from "@/features/operations/catalog/catalog-library-scan-service.ts";
 import { CatalogLibraryWriteServiceLive } from "@/features/operations/catalog/catalog-library-write-service.ts";
 import { CatalogRssServiceLive } from "@/features/operations/catalog/catalog-rss-service.ts";
-import { DownloadProgressServiceLive } from "@/features/operations/download/download-progress-service.ts";
 import { DownloadReconciliationServiceLive } from "@/features/operations/download/download-reconciliation-service.ts";
 import { DownloadTorrentActionServiceLive } from "@/features/operations/download/download-torrent-action-service.ts";
 import { DownloadTorrentSyncServiceLive } from "@/features/operations/download/download-torrent-sync-service.ts";
@@ -46,8 +45,9 @@ export function makeOperationsFeatureLayer<ROut, E, RIn, LeavesOut, LeavesE, Lea
   );
 
   const torrentClientLayer = TorrentClientServiceLive.pipe(Layer.provide(baseRuntime));
-  const downloadProgressLayer = DownloadProgressServiceLive.pipe(Layer.provide(baseRuntime));
-  const downloadCore = Layer.mergeAll(baseRuntime, torrentClientLayer, downloadProgressLayer);
+  // Single progress Tag (scoped): get* + immediate + coalesced publish
+  const operationsProgressLayer = OperationsProgressLive.pipe(Layer.provide(baseRuntime));
+  const downloadCore = Layer.mergeAll(baseRuntime, torrentClientLayer, operationsProgressLayer);
 
   const downloadReconciliationLayer = DownloadReconciliationServiceLive.pipe(
     Layer.provide(downloadCore),
@@ -64,9 +64,6 @@ export function makeOperationsFeatureLayer<ROut, E, RIn, LeavesOut, LeavesE, Lea
   );
   const downloadTriggerLayer = DownloadTriggerServiceLive.pipe(Layer.provide(downloadStack));
   const catalogDownloadReadLayer = CatalogDownloadReadServiceLive.pipe(Layer.provide(baseRuntime));
-  const operationsProgressLayer = OperationsProgressLive.pipe(
-    Layer.provide(Layer.mergeAll(downloadCore, downloadProgressLayer)),
-  );
   const runtimeWithProgress = Layer.mergeAll(baseRuntime, operationsProgressLayer);
 
   const backgroundSearchQueueLayer = BackgroundSearchQueueServiceLive.pipe(
@@ -113,16 +110,14 @@ export function makeOperationsFeatureLayer<ROut, E, RIn, LeavesOut, LeavesE, Lea
     Layer.provide(Layer.mergeAll(baseRuntime, operationsTaskWriteLayer)),
   );
 
-  // pureDbLeaves provided once at lifecycle — not re-exported here
   return Layer.mergeAll(
     torrentClientLayer,
     downloadReconciliationLayer,
     downloadActionLayer,
     downloadSyncLayer,
-    downloadProgressLayer,
+    operationsProgressLayer,
     downloadTriggerLayer,
     catalogDownloadReadLayer,
-    operationsProgressLayer,
     backgroundSearchQueueLayer,
     backgroundSearchRssFeedLayer,
     searchReleaseLayer,

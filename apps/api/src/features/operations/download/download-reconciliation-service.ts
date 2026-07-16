@@ -8,7 +8,7 @@ import { MediaProbe } from "@/infra/media/probe.ts";
 import { RandomService } from "@/infra/random.ts";
 import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
 import { DownloadRepository } from "@/features/operations/repository/download-repository.ts";
-import { DownloadProgressService } from "@/features/operations/download/download-progress-service.ts";
+import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import {
   loadDownloadReconciliationContext,
@@ -56,7 +56,7 @@ export class DownloadReconciliationService extends Effect.Service<DownloadReconc
       const mediaRepository = yield* MediaRepository;
       const mediaUnitRepository = yield* MediaUnitRepository;
       const torrentClientService = yield* TorrentClientService;
-      const progressSupport = yield* DownloadProgressService;
+      const progress = yield* OperationsProgress;
       const random = yield* RandomService;
       const runtimeConfigSnapshotService = yield* RuntimeConfigSnapshotService;
       const nowIso = currentNowIso;
@@ -150,7 +150,7 @@ export class DownloadReconciliationService extends Effect.Service<DownloadReconc
         }
 
         yield* reconcileCompletedTorrentEffect(row.infoHash, contentPath);
-        yield* progressSupport.publishDownloadProgress();
+        yield* progress.publishDownloadProgressNow();
         yield* eventBus.publishInfo(`Reconciled download ${id}`);
       });
 

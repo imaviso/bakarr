@@ -9,7 +9,7 @@ import {
 
 import { HttpServerResponse } from "@effect/platform";
 import { CatalogDownloadReadService } from "@/features/operations/catalog/catalog-download-read-service.ts";
-import { DownloadProgressService } from "@/features/operations/download/download-progress-service.ts";
+import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
 import { DownloadReconciliationService } from "@/features/operations/download/download-reconciliation-service.ts";
 import { DownloadTorrentActionService } from "@/features/operations/download/download-torrent-action-service.ts";
 import { DownloadTorrentSyncService } from "@/features/operations/download/download-torrent-sync-service.ts";
@@ -36,7 +36,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
     "/downloads/queue",
     authedRouteResponse(
-      Effect.flatMap(DownloadProgressService, (service) => service.getDownloadProgress()),
+      Effect.flatMap(OperationsProgress, (service) => service.getDownloadProgress()),
       schemaJsonResponse(Schema.Array(DownloadStatusSchema)),
     ),
   ),
