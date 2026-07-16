@@ -40,7 +40,7 @@ export const writeLibraryImportFile = Effect.fn("Operations.writeLibraryImportFi
     }
 
     const dbResult = yield* mediaUnitRepository
-      .upsertEpisodeFiles(plan.animeRow.id, plan.allEpisodeNumbers, plan.destination)
+      .upsertUnitFiles(plan.animeRow.id, plan.allEpisodeNumbers, plan.destination)
       .pipe(
         Effect.mapError(
           (cause) =>

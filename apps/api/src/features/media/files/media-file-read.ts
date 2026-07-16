@@ -4,11 +4,11 @@ import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { isWithinPathRoot } from "@/infra/filesystem/filesystem.ts";
 import type { MediaRepositoryShape } from "@/features/media/shared/media-repository.ts";
 import {
-  EpisodeFileResolved,
-  EpisodeFileUnmapped,
-  EpisodeFileRootInaccessible,
-  EpisodeFileMissing,
-  EpisodeFileOutsideRoot,
+  UnitFileResolved,
+  UnitFileUnmapped,
+  UnitFileRootInaccessible,
+  UnitFileMissing,
+  UnitFileOutsideRoot,
 } from "@/features/media/files/media-file-resolution.ts";
 
 export const resolveUnitFileEffect = Effect.fn("MediaFileRead.resolveUnitFileEffect")(
@@ -19,13 +19,10 @@ export const resolveUnitFileEffect = Effect.fn("MediaFileRead.resolveUnitFileEff
     fs: FileSystemShape;
   }) {
     const animeRow = yield* input.mediaReadRepository.getMediaRow(input.mediaId);
-    const episodeRow = yield* input.mediaReadRepository.getEpisodeRow(
-      input.mediaId,
-      input.unitNumber,
-    );
+    const episodeRow = yield* input.mediaReadRepository.getUnitRow(input.mediaId, input.unitNumber);
 
     if (!episodeRow.filePath) {
-      return new EpisodeFileUnmapped();
+      return new UnitFileUnmapped();
     }
 
     const animeRootResult = yield* Effect.either(input.fs.realPath(animeRow.rootFolder));
@@ -38,7 +35,7 @@ export const resolveUnitFileEffect = Effect.fn("MediaFileRead.resolveUnitFileEff
           rootFolder: animeRow.rootFolder,
         }),
       );
-      return new EpisodeFileRootInaccessible({
+      return new UnitFileRootInaccessible({
         rootFolder: animeRow.rootFolder,
       });
     }
@@ -53,7 +50,7 @@ export const resolveUnitFileEffect = Effect.fn("MediaFileRead.resolveUnitFileEff
           filePath: episodeRow.filePath,
         }),
       );
-      return new EpisodeFileMissing({
+      return new UnitFileMissing({
         filePath: episodeRow.filePath,
       });
     }
@@ -69,13 +66,13 @@ export const resolveUnitFileEffect = Effect.fn("MediaFileRead.resolveUnitFileEff
           animeRoot: animeRootResult.right,
         }),
       );
-      return new EpisodeFileOutsideRoot({
+      return new UnitFileOutsideRoot({
         animeRoot: animeRootResult.right,
         filePath,
       });
     }
 
-    return new EpisodeFileResolved({
+    return new UnitFileResolved({
       fileName: filePath.split("/").pop() ?? `episode-${input.unitNumber}`,
       filePath,
     });

@@ -73,7 +73,7 @@ export class SearchUnitService extends Effect.Service<SearchUnitService>()(
         yield* validateQualityProfileSizeLabels(profile);
 
         const rules = yield* releaseProfileRepository.loadReleaseRules(animeRow);
-        const currentUnit = yield* mediaReadRepository.loadCurrentEpisodeState(mediaId, unitNumber);
+        const currentUnit = yield* mediaReadRepository.loadCurrentUnitState(mediaId, unitNumber);
         const results = yield* searchReleaseService.searchUnitReleases(
           animeRow,
           unitNumber,

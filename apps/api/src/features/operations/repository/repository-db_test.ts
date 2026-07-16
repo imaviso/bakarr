@@ -163,7 +163,7 @@ it.scoped("operations repository helpers load media release rules and episode st
           { rule_type: "must", score: 0, term: "1080p" },
         ]);
 
-        const episodeState = yield* mediaReadRepository.loadCurrentEpisodeState(20, 1);
+        const episodeState = yield* mediaReadRepository.loadCurrentUnitState(20, 1);
         assert.deepStrictEqual(episodeState._tag, "Some");
         if (episodeState._tag === "Some") {
           assert.deepStrictEqual(episodeState.value, {
@@ -172,7 +172,7 @@ it.scoped("operations repository helpers load media release rules and episode st
           });
         }
         assert.deepStrictEqual(
-          yield* mediaReadRepository.loadCurrentEpisodeState(20, 2),
+          yield* mediaReadRepository.loadCurrentUnitState(20, 2),
           Option.none(),
         );
 

@@ -25,11 +25,11 @@ export interface MediaRepositoryShape {
   readonly findExistingMediaIds: (
     mediaIds: readonly number[],
   ) => Effect.Effect<ReadonlySet<number>, DatabaseError>;
-  readonly getEpisodeRow: (
+  readonly getUnitRow: (
     mediaId: number,
     unitNumber: number,
   ) => Effect.Effect<typeof mediaUnits.$inferSelect, DatabaseError | MediaNotFoundError>;
-  readonly loadCurrentEpisodeState: (
+  readonly loadCurrentUnitState: (
     mediaId: number,
     unitNumber: number,
   ) => Effect.Effect<
@@ -179,7 +179,7 @@ function makeMediaRepositoryShape(db: AppDatabase): MediaRepositoryShape {
     findMediaByExactRootFolder: (rootFolder) => findMediaByExactRootFolderEffect(db, rootFolder),
     listAllMediaRows: () => listAllMediaRowsEffect(db),
     getMediaRow: (mediaId) => getMediaRowEffect(db, mediaId),
-    getEpisodeRow: (mediaId, unitNumber) => getEpisodeRowEffect(db, mediaId, unitNumber),
+    getUnitRow: (mediaId, unitNumber) => getUnitRowEffect(db, mediaId, unitNumber),
     listCalendarEvents: (start, end, now) => listCalendarEventsEffect(db, start, end, now),
     listMappedUnitRows: (mediaId) => listMappedUnitRowsEffect(db, mediaId),
     listImportScanMappedUnits: (input) => listImportScanMappedUnitsEffect(db, input),
@@ -191,8 +191,8 @@ function makeMediaRepositoryShape(db: AppDatabase): MediaRepositoryShape {
     listUnitRowsWithMediaKind: (mediaId) => listUnitRowsWithMediaKindEffect(db, mediaId),
     listWantedMissing: (limit, nowIso) => listWantedMissingEffect(db, limit, nowIso),
     listMissingUnitSearchRows: (input) => listMissingUnitSearchRowsEffect(db, input),
-    loadCurrentEpisodeState: (mediaId, unitNumber) =>
-      loadCurrentEpisodeStateEffect(db, mediaId, unitNumber),
+    loadCurrentUnitState: (mediaId, unitNumber) =>
+      loadCurrentUnitStateEffect(db, mediaId, unitNumber),
     loadUnitsByNumbers: (mediaId, numbers) => loadUnitsByNumbersEffect(db, mediaId, numbers),
     mediaExists: (mediaId) => mediaExistsEffect(db, mediaId),
     requireMediaExists: (mediaId) => requireMediaExistsEffect(db, mediaId),
@@ -232,7 +232,7 @@ const requireMediaExistsEffect = Effect.fn("MediaRepository.requireMediaExists")
   yield* getMediaRowEffect(db, mediaId);
 });
 
-const getEpisodeRowEffect = Effect.fn("MediaRepository.getEpisodeRow")(function* (
+const getUnitRowEffect = Effect.fn("MediaRepository.getUnitRow")(function* (
   db: AppDatabase,
   mediaId: number,
   unitNumber: number,
@@ -250,24 +250,26 @@ const getEpisodeRowEffect = Effect.fn("MediaRepository.getEpisodeRow")(function*
   return row.value;
 });
 
-const loadCurrentEpisodeStateEffect = Effect.fn("MediaRepository.loadCurrentEpisodeState")(
-  function* (db: AppDatabase, mediaId: number, unitNumber: number) {
-    const row = yield* queryFirst("Failed to load episode state", () =>
-      db
-        .select()
-        .from(mediaUnits)
-        .where(and(eq(mediaUnits.mediaId, mediaId), eq(mediaUnits.number, unitNumber)))
-        .limit(1),
-    );
+const loadCurrentUnitStateEffect = Effect.fn("MediaRepository.loadCurrentUnitState")(function* (
+  db: AppDatabase,
+  mediaId: number,
+  unitNumber: number,
+) {
+  const row = yield* queryFirst("Failed to load episode state", () =>
+    db
+      .select()
+      .from(mediaUnits)
+      .where(and(eq(mediaUnits.mediaId, mediaId), eq(mediaUnits.number, unitNumber)))
+      .limit(1),
+  );
 
-    return Option.isSome(row)
-      ? Option.some({
-          downloaded: row.value.downloaded,
-          ...(row.value.filePath == null ? {} : { filePath: row.value.filePath }),
-        })
-      : Option.none();
-  },
-);
+  return Option.isSome(row)
+    ? Option.some({
+        downloaded: row.value.downloaded,
+        ...(row.value.filePath == null ? {} : { filePath: row.value.filePath }),
+      })
+    : Option.none();
+});
 
 const findMediaByExactRootFolderEffect = Effect.fn("MediaRepository.findMediaByExactRootFolder")(
   function* (db: AppDatabase, rootFolder: string) {

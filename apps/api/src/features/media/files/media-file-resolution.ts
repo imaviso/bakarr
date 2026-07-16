@@ -1,41 +1,35 @@
 import { Schema } from "effect";
 
-export class EpisodeFileResolved extends Schema.TaggedClass<EpisodeFileResolved>()(
-  "EpisodeFileResolved",
-  {
-    fileName: Schema.String,
-    filePath: Schema.String,
-  },
-) {}
+export class UnitFileResolved extends Schema.TaggedClass<UnitFileResolved>()("UnitFileResolved", {
+  fileName: Schema.String,
+  filePath: Schema.String,
+}) {}
 
-export class EpisodeFileUnmapped extends Schema.TaggedClass<EpisodeFileUnmapped>()(
-  "EpisodeFileUnmapped",
+export class UnitFileUnmapped extends Schema.TaggedClass<UnitFileUnmapped>()(
+  "UnitFileUnmapped",
   {},
 ) {}
 
-export class EpisodeFileRootInaccessible extends Schema.TaggedClass<EpisodeFileRootInaccessible>()(
-  "EpisodeFileRootInaccessible",
+export class UnitFileRootInaccessible extends Schema.TaggedClass<UnitFileRootInaccessible>()(
+  "UnitFileRootInaccessible",
   { rootFolder: Schema.String },
 ) {}
 
-export class EpisodeFileMissing extends Schema.TaggedClass<EpisodeFileMissing>()(
-  "EpisodeFileMissing",
-  {
-    filePath: Schema.String,
-  },
-) {}
+export class UnitFileMissing extends Schema.TaggedClass<UnitFileMissing>()("UnitFileMissing", {
+  filePath: Schema.String,
+}) {}
 
-export class EpisodeFileOutsideRoot extends Schema.TaggedClass<EpisodeFileOutsideRoot>()(
-  "EpisodeFileOutsideRoot",
+export class UnitFileOutsideRoot extends Schema.TaggedClass<UnitFileOutsideRoot>()(
+  "UnitFileOutsideRoot",
   {
     animeRoot: Schema.String,
     filePath: Schema.String,
   },
 ) {}
 
-export type EpisodeFileResolution =
-  | EpisodeFileResolved
-  | EpisodeFileUnmapped
-  | EpisodeFileRootInaccessible
-  | EpisodeFileMissing
-  | EpisodeFileOutsideRoot;
+export type UnitFileResolution =
+  | UnitFileResolved
+  | UnitFileUnmapped
+  | UnitFileRootInaccessible
+  | UnitFileMissing
+  | UnitFileOutsideRoot;

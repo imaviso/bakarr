@@ -9,9 +9,9 @@ import { MediaProbe } from "@/infra/media/probe.ts";
 import { listMediaFilesEffect } from "@/features/media/files/media-file-list.ts";
 import { scanMediaFolderOrchestrationEffect } from "@/features/media/files/media-folder-scan-orchestration.ts";
 import {
-  bulkMapEpisodeFilesEffect,
-  deleteEpisodeFileEffect,
-  mapEpisodeFileEffect,
+  bulkMapUnitFilesEffect,
+  deleteUnitFileEffect,
+  mapUnitFileEffect,
 } from "@/features/media/files/media-file-write.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
@@ -20,18 +20,18 @@ import type { DomainPathError, StoredDataError } from "@/features/errors.ts";
 import type { MediaNotFoundError } from "@/features/media/errors.ts";
 
 export interface MediaFileServiceShape {
-  readonly bulkMapEpisodeFiles: (
+  readonly bulkMapUnitFiles: (
     mediaId: number,
     mappings: readonly { unit_number: number; file_path: string }[],
   ) => Effect.Effect<void, DatabaseError | MediaNotFoundError | DomainPathError>;
-  readonly deleteEpisodeFile: (
+  readonly deleteUnitFile: (
     mediaId: number,
     unitNumber: number,
   ) => Effect.Effect<void, DatabaseError | MediaNotFoundError | DomainPathError>;
   readonly listFiles: (
     mediaId: number,
   ) => Effect.Effect<readonly VideoFile[], DatabaseError | MediaNotFoundError | DomainPathError>;
-  readonly mapEpisodeFile: (
+  readonly mapUnitFile: (
     mediaId: number,
     unitNumber: number,
     filePath: string,
@@ -76,11 +76,11 @@ const makeMediaFileService = Effect.fn("MediaFileService.make")(function* () {
     });
   });
 
-  const deleteEpisodeFile = Effect.fn("MediaFileService.deleteEpisodeFile")(function* (
+  const deleteUnitFile = Effect.fn("MediaFileService.deleteUnitFile")(function* (
     mediaId: number,
     unitNumber: number,
   ) {
-    yield* deleteEpisodeFileEffect({
+    yield* deleteUnitFileEffect({
       mediaId,
       mediaReadRepository,
       mediaUnitRepository,
@@ -90,12 +90,12 @@ const makeMediaFileService = Effect.fn("MediaFileService.make")(function* () {
     yield* eventBus.publishInfo(`Deleted mapped file for media ${mediaId} episode ${unitNumber}`);
   });
 
-  const mapEpisodeFile = Effect.fn("MediaFileService.mapEpisodeFile")(function* (
+  const mapUnitFile = Effect.fn("MediaFileService.mapUnitFile")(function* (
     mediaId: number,
     unitNumber: number,
     filePath: string,
   ) {
-    yield* mapEpisodeFileEffect({
+    yield* mapUnitFileEffect({
       mediaId,
       mediaReadRepository,
       mediaUnitRepository,
@@ -106,11 +106,11 @@ const makeMediaFileService = Effect.fn("MediaFileService.make")(function* () {
     yield* eventBus.publishInfo(`Mapped file for media ${mediaId} episode ${unitNumber}`);
   });
 
-  const bulkMapEpisodeFiles = Effect.fn("MediaFileService.bulkMapEpisodeFiles")(function* (
+  const bulkMapUnitFiles = Effect.fn("MediaFileService.bulkMapUnitFiles")(function* (
     mediaId: number,
     mappings: readonly { unit_number: number; file_path: string }[],
   ) {
-    yield* bulkMapEpisodeFilesEffect({
+    yield* bulkMapUnitFilesEffect({
       mediaId,
       fs,
       mediaReadRepository,
@@ -121,10 +121,10 @@ const makeMediaFileService = Effect.fn("MediaFileService.make")(function* () {
   });
 
   return {
-    bulkMapEpisodeFiles,
-    deleteEpisodeFile,
+    bulkMapUnitFiles,
+    deleteUnitFile,
     listFiles,
-    mapEpisodeFile,
+    mapUnitFile,
     scanFolder,
   } satisfies MediaFileServiceShape;
 });

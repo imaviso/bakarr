@@ -68,13 +68,13 @@ const makeMediaMaintenanceService = Effect.fn("MediaMaintenanceService.make")(fu
       nowIso,
     });
 
-    yield* mediaUnitRepository.syncEpisodeSchedule(
+    yield* mediaUnitRepository.syncUnitSchedule(
       mediaId,
       nextAnimeRow,
       metadata?.futureAiringSchedule,
       nowIso,
     );
-    yield* mediaUnitRepository.syncEpisodeMetadata(mediaId, metadata?.mediaUnits);
+    yield* mediaUnitRepository.syncUnitMetadata(mediaId, metadata?.mediaUnits);
     yield* systemLogRepository.appendLog(
       "media.mediaUnits.refreshed",
       "success",

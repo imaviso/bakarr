@@ -155,7 +155,7 @@ export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSea
                   continue;
                 }
 
-                const currentEpisode = yield* mediaReadRepository.loadCurrentEpisodeState(
+                const currentEpisode = yield* mediaReadRepository.loadCurrentUnitState(
                   animeRow.id,
                   unitNumber,
                 );

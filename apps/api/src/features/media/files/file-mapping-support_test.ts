@@ -51,8 +51,8 @@ it.scoped("resolveUnitFileEffect returns resolved file when mapping is valid", (
             fs,
           });
 
-          assert.deepStrictEqual(result._tag, "EpisodeFileResolved");
-          if (result._tag === "EpisodeFileResolved") {
+          assert.deepStrictEqual(result._tag, "UnitFileResolved");
+          if (result._tag === "UnitFileResolved") {
             assert.deepStrictEqual(result.fileName, "MediaUnit 1.mkv");
             assert.deepStrictEqual(result.filePath, filePath);
           }
@@ -85,7 +85,7 @@ it.scoped("resolveUnitFileEffect returns unmapped state when no file path is sto
             fs,
           });
 
-          assert.deepStrictEqual(result._tag, "EpisodeFileUnmapped");
+          assert.deepStrictEqual(result._tag, "UnitFileUnmapped");
         }),
       ),
     schema,
@@ -116,7 +116,7 @@ it.scoped("resolveUnitFileEffect returns missing state when mapped file is inacc
             fs,
           });
 
-          assert.deepStrictEqual(result._tag, "EpisodeFileMissing");
+          assert.deepStrictEqual(result._tag, "UnitFileMissing");
         }),
       ),
     schema,
@@ -150,7 +150,7 @@ it.scoped(
               fs,
             });
 
-            assert.deepStrictEqual(result._tag, "EpisodeFileRootInaccessible");
+            assert.deepStrictEqual(result._tag, "UnitFileRootInaccessible");
           }),
         ),
       schema,
@@ -188,7 +188,7 @@ it.scoped("resolveUnitFileEffect returns outside-root state when mapping escapes
             fs,
           });
 
-          assert.deepStrictEqual(result._tag, "EpisodeFileOutsideRoot");
+          assert.deepStrictEqual(result._tag, "UnitFileOutsideRoot");
         }),
       ),
     schema,

@@ -45,7 +45,7 @@ export const scanMediaFolderEffect = Effect.fn("MediaFileScan.scanMediaFolderEff
       ),
     );
 
-    yield* clearMissingEpisodeFileMappingsEffect(
+    yield* clearMissingUnitFileMappingsEffect(
       input.mediaReadRepository,
       input.mediaUnitRepository,
       input.mediaId,
@@ -106,7 +106,7 @@ export const scanMediaFolderEffect = Effect.fn("MediaFileScan.scanMediaFolderEff
       const currentIso = yield* input.nowIso();
 
       for (const unitNumber of unitNumbers) {
-        yield* input.mediaUnitRepository.upsertEpisode(input.mediaId, unitNumber, {
+        yield* input.mediaUnitRepository.upsertUnit(input.mediaId, unitNumber, {
           aired: inferAiredAt(
             animeRow.status,
             unitNumber,
@@ -150,8 +150,8 @@ export const scanMediaFolderEffect = Effect.fn("MediaFileScan.scanMediaFolderEff
   },
 );
 
-const clearMissingEpisodeFileMappingsEffect = Effect.fn(
-  "MediaFileScan.clearMissingEpisodeFileMappingsEffect",
+const clearMissingUnitFileMappingsEffect = Effect.fn(
+  "MediaFileScan.clearMissingUnitFileMappingsEffect",
 )(function* (
   mediaReadRepository: MediaRepositoryShape,
   mediaUnitRepository: MediaUnitRepositoryShape,
@@ -163,7 +163,7 @@ const clearMissingEpisodeFileMappingsEffect = Effect.fn(
 
   for (const row of mappedRows) {
     if (row.filePath !== null && !presentFilePathSet.has(row.filePath)) {
-      yield* mediaUnitRepository.clearEpisodeMapping(mediaId, row.number);
+      yield* mediaUnitRepository.clearUnitMapping(mediaId, row.number);
     }
   }
 });

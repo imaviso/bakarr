@@ -85,7 +85,7 @@ const makeMediaMetadataEnrichmentService = Effect.fn("MediaMetadataEnrichmentSer
       const exists = yield* mediaReadRepository.mediaExists(request.mediaId);
 
       if (exists) {
-        yield* mediaUnitRepository.syncEpisodeMetadata(request.mediaId, lookupResult.mediaUnits);
+        yield* mediaUnitRepository.syncUnitMetadata(request.mediaId, lookupResult.mediaUnits);
       }
     });
 

@@ -183,7 +183,7 @@ export const addMediaEffect = Effect.fn("MediaAdd.addMediaEffect")(function* (in
     },
   });
 
-  yield* input.mediaUnitRepository.syncEpisodeMetadata(mediaRow.id, validMetadata.mediaUnits);
+  yield* input.mediaUnitRepository.syncUnitMetadata(mediaRow.id, validMetadata.mediaUnits);
 
   yield* input.eventPublisher.publish({
     type: "Info",

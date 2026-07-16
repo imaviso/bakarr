@@ -33,20 +33,20 @@ function seedAnime(db: TestDatabase) {
   );
 }
 
-it.scoped("clearEpisodeMapping clears episode file fields", () =>
+it.scoped("clearUnitMapping clears episode file fields", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const units = makeMediaUnitRepository(db);
         yield* seedAnime(db);
-        yield* units.upsertEpisode(1, 3, {
+        yield* units.upsertUnit(1, 3, {
           downloaded: true,
           filePath: "/library/Show/Show - 03.mkv",
           resolution: "1080p",
           videoCodec: "HEVC",
         });
 
-        yield* units.clearEpisodeMapping(1, 3);
+        yield* units.clearUnitMapping(1, 3);
 
         const rows = yield* tryDatabasePromise("Failed to query mediaUnits for assertion", () =>
           db.select().from(mediaUnits).where(eq(mediaUnits.id, 1)),
@@ -60,18 +60,18 @@ it.scoped("clearEpisodeMapping clears episode file fields", () =>
   }),
 );
 
-it.scoped("upsertEpisode updates existing episode on conflict", () =>
+it.scoped("upsertUnit updates existing episode on conflict", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const units = makeMediaUnitRepository(db);
         yield* seedAnime(db);
-        yield* units.upsertEpisode(1, 2, {
+        yield* units.upsertUnit(1, 2, {
           downloaded: true,
           filePath: "/library/Show/Show - 02.mkv",
           title: "Original",
         });
-        yield* units.upsertEpisode(1, 2, {
+        yield* units.upsertUnit(1, 2, {
           downloaded: true,
           filePath: "/library/Show/Show - 02 v2.mkv",
           title: "Updated",
@@ -90,18 +90,18 @@ it.scoped("upsertEpisode updates existing episode on conflict", () =>
   }),
 );
 
-it.scoped("upsertEpisode does not overwrite unspecified fields on conflict", () =>
+it.scoped("upsertUnit does not overwrite unspecified fields on conflict", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const units = makeMediaUnitRepository(db);
         yield* seedAnime(db);
-        yield* units.upsertEpisode(1, 4, {
+        yield* units.upsertUnit(1, 4, {
           downloaded: true,
           filePath: "/library/Show/Show - 04.mkv",
           resolution: "1080p",
         });
-        yield* units.upsertEpisode(1, 4, {
+        yield* units.upsertUnit(1, 4, {
           title: "New Title",
         });
 

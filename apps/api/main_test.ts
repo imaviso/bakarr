@@ -2239,11 +2239,11 @@ itWithTestContext("anime update, map, stream, and delete endpoints work", async 
       assert.deepStrictEqual(streamAuthorized.headers.get("content-type"), "video/x-matroska");
       assert.deepStrictEqual(await streamAuthorized.text(), "streamable");
 
-      const deleteEpisodeFileResponse = await ctx.app.request("/api/media/20/units/1/file", {
+      const deleteUnitFileResponse = await ctx.app.request("/api/media/20/units/1/file", {
         headers: { Cookie: apiKeySessionCookie },
         method: "DELETE",
       });
-      assert.deepStrictEqual(deleteEpisodeFileResponse["status"], 200);
+      assert.deepStrictEqual(deleteUnitFileResponse["status"], 200);
 
       const episodesAfterDelete = await ctx.app.request("/api/media/20/units", {
         headers: { Cookie: apiKeySessionCookie },

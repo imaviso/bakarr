@@ -129,7 +129,7 @@ export class SearchBackgroundMissingService extends Effect.Service<SearchBackgro
             rules = loadedRules;
           }
 
-          const currentEpisode = yield* mediaReadRepository.loadCurrentEpisodeState(
+          const currentEpisode = yield* mediaReadRepository.loadCurrentUnitState(
             row.media.id,
             row.media_units.number,
           );

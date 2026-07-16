@@ -91,18 +91,18 @@ const makeMediaStreamService = Effect.fn("MediaStreamService.make")(function* ()
         });
       }
 
-      const resolvedEpisodeFile = yield* resolveUnitFileEffect({
+      const resolvedUnitFile = yield* resolveUnitFileEffect({
         mediaId: input.mediaId,
         mediaReadRepository,
         unitNumber: input.unitNumber,
         fs,
       });
 
-      const unitFile = yield* Match.value(resolvedEpisodeFile).pipe(
-        Match.tag("EpisodeFileUnmapped", "EpisodeFileMissing", () =>
+      const unitFile = yield* Match.value(resolvedUnitFile).pipe(
+        Match.tag("UnitFileUnmapped", "UnitFileMissing", () =>
           Effect.fail(new StreamAccessError({ message: "MediaUnit file not found", status: 404 })),
         ),
-        Match.tag("EpisodeFileRootInaccessible", () =>
+        Match.tag("UnitFileRootInaccessible", () =>
           Effect.fail(
             new StreamAccessError({
               message: "Media root folder is inaccessible",
@@ -110,7 +110,7 @@ const makeMediaStreamService = Effect.fn("MediaStreamService.make")(function* ()
             }),
           ),
         ),
-        Match.tag("EpisodeFileOutsideRoot", () =>
+        Match.tag("UnitFileOutsideRoot", () =>
           Effect.fail(
             new StreamAccessError({
               message: "MediaUnit file mapping is invalid",
@@ -118,7 +118,7 @@ const makeMediaStreamService = Effect.fn("MediaStreamService.make")(function* ()
             }),
           ),
         ),
-        Match.tag("EpisodeFileResolved", (file) => Effect.succeed(file)),
+        Match.tag("UnitFileResolved", (file) => Effect.succeed(file)),
         Match.exhaustive,
       );
 

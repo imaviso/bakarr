@@ -7,10 +7,10 @@ import type { MediaRepositoryShape } from "@/features/media/shared/media-reposit
 import type { MediaUnitRepositoryShape } from "@/features/media/units/media-unit-repository.ts";
 import {
   loadMediaRoot,
-  validateEpisodeFilePath,
+  validateUnitFilePath,
 } from "@/features/media/files/media-file-path-policy.ts";
 
-export const deleteEpisodeFileEffect = Effect.fn("MediaFileWrite.deleteEpisodeFileEffect")(
+export const deleteUnitFileEffect = Effect.fn("MediaFileWrite.deleteUnitFileEffect")(
   function* (input: {
     mediaId: number;
     mediaReadRepository: MediaRepositoryShape;
@@ -19,7 +19,7 @@ export const deleteEpisodeFileEffect = Effect.fn("MediaFileWrite.deleteEpisodeFi
     fs: FileSystemShape;
   }) {
     const animeRow = yield* input.mediaReadRepository.getMediaRow(input.mediaId);
-    const episodeState = yield* input.mediaReadRepository.loadCurrentEpisodeState(
+    const episodeState = yield* input.mediaReadRepository.loadCurrentUnitState(
       input.mediaId,
       input.unitNumber,
     );
@@ -54,43 +54,41 @@ export const deleteEpisodeFileEffect = Effect.fn("MediaFileWrite.deleteEpisodeFi
       );
     }
 
-    yield* input.mediaUnitRepository.clearEpisodeMapping(input.mediaId, input.unitNumber);
+    yield* input.mediaUnitRepository.clearUnitMapping(input.mediaId, input.unitNumber);
     return undefined;
   },
 );
 
-export const mapEpisodeFileEffect = Effect.fn("MediaFileWrite.mapEpisodeFileEffect")(
-  function* (input: {
-    mediaId: number;
-    unitNumber: number;
-    filePath: string;
-    fs: FileSystemShape;
-    mediaReadRepository: MediaRepositoryShape;
-    mediaUnitRepository: MediaUnitRepositoryShape;
-  }) {
-    const animeRow = yield* input.mediaReadRepository.getMediaRow(input.mediaId);
+export const mapUnitFileEffect = Effect.fn("MediaFileWrite.mapUnitFileEffect")(function* (input: {
+  mediaId: number;
+  unitNumber: number;
+  filePath: string;
+  fs: FileSystemShape;
+  mediaReadRepository: MediaRepositoryShape;
+  mediaUnitRepository: MediaUnitRepositoryShape;
+}) {
+  const animeRow = yield* input.mediaReadRepository.getMediaRow(input.mediaId);
 
-    if (input.filePath.trim().length === 0) {
-      yield* input.mediaUnitRepository.clearEpisodeMapping(input.mediaId, input.unitNumber);
-      return;
-    }
+  if (input.filePath.trim().length === 0) {
+    yield* input.mediaUnitRepository.clearUnitMapping(input.mediaId, input.unitNumber);
+    return;
+  }
 
-    const animeRoot = yield* loadMediaRoot(input.fs, animeRow.rootFolder);
-    yield* validateEpisodeFilePath({
-      animeRoot,
-      filePath: input.filePath,
-      fs: input.fs,
-      outOfRootMessage: "File path is not within the media root folder",
-    });
+  const animeRoot = yield* loadMediaRoot(input.fs, animeRow.rootFolder);
+  yield* validateUnitFilePath({
+    animeRoot,
+    filePath: input.filePath,
+    fs: input.fs,
+    outOfRootMessage: "File path is not within the media root folder",
+  });
 
-    yield* input.mediaUnitRepository.upsertEpisode(input.mediaId, input.unitNumber, {
-      downloaded: true,
-      filePath: input.filePath,
-    });
-  },
-);
+  yield* input.mediaUnitRepository.upsertUnit(input.mediaId, input.unitNumber, {
+    downloaded: true,
+    filePath: input.filePath,
+  });
+});
 
-export const bulkMapEpisodeFilesEffect = Effect.fn("MediaFileWrite.bulkMapEpisodeFilesEffect")(
+export const bulkMapUnitFilesEffect = Effect.fn("MediaFileWrite.bulkMapUnitFilesEffect")(
   function* (input: {
     mediaId: number;
     fs: FileSystemShape;
@@ -117,7 +115,7 @@ export const bulkMapEpisodeFilesEffect = Effect.fn("MediaFileWrite.bulkMapEpisod
         continue;
       }
 
-      yield* validateEpisodeFilePath({
+      yield* validateUnitFilePath({
         animeRoot,
         filePath: mapping.file_path,
         fs: input.fs,
@@ -131,6 +129,6 @@ export const bulkMapEpisodeFilesEffect = Effect.fn("MediaFileWrite.bulkMapEpisod
       });
     }
 
-    yield* input.mediaUnitRepository.bulkMapEpisodeFiles(input.mediaId, validated);
+    yield* input.mediaUnitRepository.bulkMapUnitFiles(input.mediaId, validated);
   },
 );

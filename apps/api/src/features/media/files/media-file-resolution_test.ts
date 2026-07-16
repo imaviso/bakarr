@@ -1,39 +1,39 @@
 import { assert, it } from "@effect/vitest";
 
 import {
-  EpisodeFileResolved,
-  EpisodeFileUnmapped,
-  EpisodeFileRootInaccessible,
-  EpisodeFileMissing,
-  EpisodeFileOutsideRoot,
+  UnitFileResolved,
+  UnitFileUnmapped,
+  UnitFileRootInaccessible,
+  UnitFileMissing,
+  UnitFileOutsideRoot,
 } from "@/features/media/files/media-file-resolution.ts";
 
-it("EpisodeFileResolved constructs with fileName and filePath", () => {
-  const resolved = new EpisodeFileResolved({ fileName: "ep.mkv", filePath: "/lib/ep.mkv" });
-  assert.deepStrictEqual(resolved._tag, "EpisodeFileResolved");
+it("UnitFileResolved constructs with fileName and filePath", () => {
+  const resolved = new UnitFileResolved({ fileName: "ep.mkv", filePath: "/lib/ep.mkv" });
+  assert.deepStrictEqual(resolved._tag, "UnitFileResolved");
   assert.deepStrictEqual(resolved.fileName, "ep.mkv");
 });
 
-it("EpisodeFileUnmapped constructs with no fields", () => {
-  const unmapped = new EpisodeFileUnmapped({});
-  assert.deepStrictEqual(unmapped._tag, "EpisodeFileUnmapped");
+it("UnitFileUnmapped constructs with no fields", () => {
+  const unmapped = new UnitFileUnmapped({});
+  assert.deepStrictEqual(unmapped._tag, "UnitFileUnmapped");
 });
 
-it("EpisodeFileRootInaccessible holds rootFolder", () => {
-  const err = new EpisodeFileRootInaccessible({ rootFolder: "/lib" });
-  assert.deepStrictEqual(err._tag, "EpisodeFileRootInaccessible");
+it("UnitFileRootInaccessible holds rootFolder", () => {
+  const err = new UnitFileRootInaccessible({ rootFolder: "/lib" });
+  assert.deepStrictEqual(err._tag, "UnitFileRootInaccessible");
   assert.deepStrictEqual(err.rootFolder, "/lib");
 });
 
-it("EpisodeFileMissing holds filePath", () => {
-  const err = new EpisodeFileMissing({ filePath: "/lib/ep.mkv" });
-  assert.deepStrictEqual(err._tag, "EpisodeFileMissing");
+it("UnitFileMissing holds filePath", () => {
+  const err = new UnitFileMissing({ filePath: "/lib/ep.mkv" });
+  assert.deepStrictEqual(err._tag, "UnitFileMissing");
   assert.deepStrictEqual(err.filePath, "/lib/ep.mkv");
 });
 
-it("EpisodeFileOutsideRoot holds animeRoot and filePath", () => {
-  const err = new EpisodeFileOutsideRoot({ animeRoot: "/lib", filePath: "/other/ep.mkv" });
-  assert.deepStrictEqual(err._tag, "EpisodeFileOutsideRoot");
+it("UnitFileOutsideRoot holds animeRoot and filePath", () => {
+  const err = new UnitFileOutsideRoot({ animeRoot: "/lib", filePath: "/other/ep.mkv" });
+  assert.deepStrictEqual(err._tag, "UnitFileOutsideRoot");
   assert.deepStrictEqual(err.animeRoot, "/lib");
   assert.deepStrictEqual(err.filePath, "/other/ep.mkv");
 });

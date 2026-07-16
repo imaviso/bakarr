@@ -10,7 +10,7 @@ import { MediaNotFoundError } from "@/features/media/errors.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import type {
   MediaUnitRepositoryShape,
-  UpsertEpisodeFileError,
+  UpsertUnitFileError,
 } from "@/features/media/units/media-unit-repository.ts";
 import { classifyMediaArtifact } from "@/infra/media/identity/identity.ts";
 import { probeMediaMetadataOrUndefined, type MediaProbeShape } from "@/infra/media/probe.ts";
@@ -84,7 +84,7 @@ export type ReconcileCompletedError =
   | DomainPathError
   | ImportFileError
   | FileSystemError
-  | UpsertEpisodeFileError
+  | UpsertUnitFileError
   | RuntimeConfigSnapshotError;
 
 export type ReconcileByIdError =
@@ -298,7 +298,7 @@ export const reconcileBatchDownloadEffect = Effect.fn("DownloadReconcile.reconci
           ...(localMediaMetadata ? { localMediaMetadata } : {}),
         },
       );
-      yield* input.mediaUnitRepository.upsertEpisodeFiles(
+      yield* input.mediaUnitRepository.upsertUnitFiles(
         input.row.mediaId,
         relevantEpisodes,
         managedPath,
@@ -461,7 +461,7 @@ export const reconcileSingleDownloadEffect = Effect.fn(
       ...(localMediaMetadata ? { localMediaMetadata } : {}),
     },
   );
-  yield* input.mediaUnitRepository.upsertEpisodeFiles(
+  yield* input.mediaUnitRepository.upsertUnitFiles(
     input.row.mediaId,
     [input.row.unitNumber],
     managedPath,

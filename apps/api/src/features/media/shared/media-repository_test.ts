@@ -94,14 +94,14 @@ it.scoped("requireMediaExistsEffect succeeds when media exists", () =>
   }),
 );
 
-it.scoped("getEpisodeRowEffect returns episode by media and number", () =>
+it.scoped("getUnitRowEffect returns episode by media and number", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         yield* seedAnime(db);
         yield* seedEpisode(db, 1, 5);
         const repository = makeMediaRepository(db);
-        const row = yield* repository.getEpisodeRow(1, 5);
+        const row = yield* repository.getUnitRow(1, 5);
         assert.deepStrictEqual(row.number, 5);
         assert.deepStrictEqual(row.title, "MediaUnit 5");
       }),
@@ -109,13 +109,13 @@ it.scoped("getEpisodeRowEffect returns episode by media and number", () =>
   }),
 );
 
-it.scoped("getEpisodeRowEffect fails for non-existent episode", () =>
+it.scoped("getUnitRowEffect fails for non-existent episode", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         yield* seedAnime(db);
         const repository = makeMediaRepository(db);
-        const exit = yield* Effect.exit(repository.getEpisodeRow(1, 99));
+        const exit = yield* Effect.exit(repository.getUnitRow(1, 99));
         assert.deepStrictEqual(Exit.isFailure(exit), true);
         if (Exit.isFailure(exit)) {
           const failure = Cause.failureOption(exit.cause);

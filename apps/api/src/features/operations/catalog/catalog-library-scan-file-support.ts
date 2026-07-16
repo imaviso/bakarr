@@ -36,7 +36,7 @@ export const countLibraryScanFile = Effect.fn("CatalogScanFile.countLibraryScanF
     } satisfies LibraryScanCounts;
   }
 
-  yield* mediaUnitRepository.upsertEpisodeFiles(input.mediaId, unitNumbers, input.file.path).pipe(
+  yield* mediaUnitRepository.upsertUnitFiles(input.mediaId, unitNumbers, input.file.path).pipe(
     Effect.mapError(
       (cause) =>
         new InfrastructureError({

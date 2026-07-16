@@ -202,7 +202,7 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(MediaUnitParamsSchema);
-        yield* (yield* MediaFileService).deleteEpisodeFile(params.id, params.unitNumber);
+        yield* (yield* MediaFileService).deleteUnitFile(params.id, params.unitNumber);
       }),
       successResponse,
     ),
@@ -213,11 +213,7 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const params = yield* decodePathParams(MediaUnitParamsSchema);
         const body = yield* decodeJsonBodyWithLabel(FilePathBodySchema, "map episode file");
-        yield* (yield* MediaFileService).mapEpisodeFile(
-          params.id,
-          params.unitNumber,
-          body.file_path,
-        );
+        yield* (yield* MediaFileService).mapUnitFile(params.id, params.unitNumber, body.file_path);
       }),
       successResponse,
     ),
@@ -231,7 +227,7 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
           BulkUnitMappingsBodySchema,
           "bulk map mediaUnits",
         );
-        yield* (yield* MediaFileService).bulkMapEpisodeFiles(params.id, [...body.mappings]);
+        yield* (yield* MediaFileService).bulkMapUnitFiles(params.id, [...body.mappings]);
       }),
       successResponse,
     ),

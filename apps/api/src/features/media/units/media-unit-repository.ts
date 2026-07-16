@@ -15,7 +15,7 @@ import {
 } from "@/features/media/units/unit-backfill-policy.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
-export type UpsertEpisodePatch = {
+export type UpsertUnitPatch = {
   aired?: string | null;
   downloaded?: boolean;
   filePath?: string | null;
@@ -30,7 +30,7 @@ export type UpsertEpisodePatch = {
   title?: string | null;
 };
 
-export type BulkMapEpisodeEntry = {
+export type BulkMapUnitEntry = {
   unit_number: number;
   file_path: string;
   clear: boolean;
@@ -42,8 +42,8 @@ export type UnitFileMapping = {
   readonly aired?: string | null;
 };
 
-export class UpsertEpisodeFileError extends Schema.TaggedError<UpsertEpisodeFileError>()(
-  "UpsertEpisodeFileError",
+export class UpsertUnitFileError extends Schema.TaggedError<UpsertUnitFileError>()(
+  "UpsertUnitFileError",
   {
     media_id: Schema.Number,
     unit_number: Schema.Number,
@@ -53,24 +53,24 @@ export class UpsertEpisodeFileError extends Schema.TaggedError<UpsertEpisodeFile
 ) {}
 
 export interface MediaUnitRepositoryShape {
-  readonly upsertEpisode: (
+  readonly upsertUnit: (
     mediaId: number,
     unitNumber: number,
-    patch: UpsertEpisodePatch,
+    patch: UpsertUnitPatch,
   ) => Effect.Effect<void, DatabaseError>;
-  readonly clearEpisodeMapping: (
+  readonly clearUnitMapping: (
     mediaId: number,
     unitNumber: number,
   ) => Effect.Effect<void, DatabaseError>;
-  readonly bulkMapEpisodeFiles: (
+  readonly bulkMapUnitFiles: (
     mediaId: number,
-    mappings: readonly BulkMapEpisodeEntry[],
+    mappings: readonly BulkMapUnitEntry[],
   ) => Effect.Effect<void, DatabaseError>;
-  readonly upsertEpisodeFiles: (
+  readonly upsertUnitFiles: (
     mediaId: number,
     unitNumbers: readonly number[],
     destination: string,
-  ) => Effect.Effect<void, DatabaseError | UpsertEpisodeFileError>;
+  ) => Effect.Effect<void, DatabaseError | UpsertUnitFileError>;
   readonly updateUnitFilePaths: (
     mediaId: number,
     unitNumbers: readonly number[],
@@ -85,7 +85,7 @@ export interface MediaUnitRepositoryShape {
     patch: { readonly profileName: string; readonly rootFolder: string },
     mappings: readonly UnitFileMapping[],
   ) => Effect.Effect<void, DatabaseError>;
-  readonly ensureEpisodes: <E>(
+  readonly ensureUnits: <E>(
     mediaId: number,
     unitCount: number | undefined,
     status: string,
@@ -95,7 +95,7 @@ export interface MediaUnitRepositoryShape {
     resetMissingOnly: boolean,
     nowIso: () => Effect.Effect<string, E>,
   ) => Effect.Effect<void, DatabaseError | E>;
-  readonly updateEpisodeAirDates: <E>(
+  readonly updateUnitAirDates: <E>(
     mediaId: number,
     unitCount: number | undefined,
     status: string,
@@ -104,11 +104,11 @@ export interface MediaUnitRepositoryShape {
     futureAiringSchedule: ReadonlyArray<FutureAiringScheduleEntry> | undefined,
     nowIso: () => Effect.Effect<string, E>,
   ) => Effect.Effect<void, DatabaseError | E>;
-  readonly syncEpisodeMetadata: (
+  readonly syncUnitMetadata: (
     mediaId: number,
     episodeMetadata: ReadonlyArray<AnimeMetadataEpisode> | undefined,
   ) => Effect.Effect<void, DatabaseError>;
-  readonly syncEpisodeSchedule: <E>(
+  readonly syncUnitSchedule: <E>(
     mediaId: number,
     nextAnimeRow: {
       readonly unitCount: number | null;
@@ -148,18 +148,18 @@ export class MediaUnitRepository extends Effect.Service<MediaUnitRepository>()(
 
 function makeMediaUnitRepositoryShape(db: AppDatabase): MediaUnitRepositoryShape {
   return {
-    upsertEpisode: (mediaId, unitNumber, patch) => upsertEpisode(db, mediaId, unitNumber, patch),
-    clearEpisodeMapping: (mediaId, unitNumber) => clearEpisodeMapping(db, mediaId, unitNumber),
-    bulkMapEpisodeFiles: (mediaId, mappings) => bulkMapEpisodeFiles(db, mediaId, mappings),
-    upsertEpisodeFiles: (mediaId, unitNumbers, destination) =>
-      upsertEpisodeFiles(db, mediaId, unitNumbers, destination),
+    upsertUnit: (mediaId, unitNumber, patch) => upsertUnit(db, mediaId, unitNumber, patch),
+    clearUnitMapping: (mediaId, unitNumber) => clearUnitMapping(db, mediaId, unitNumber),
+    bulkMapUnitFiles: (mediaId, mappings) => bulkMapUnitFiles(db, mediaId, mappings),
+    upsertUnitFiles: (mediaId, unitNumbers, destination) =>
+      upsertUnitFiles(db, mediaId, unitNumbers, destination),
     updateUnitFilePaths: (mediaId, unitNumbers, filePath) =>
       updateUnitFilePaths(db, mediaId, unitNumbers, filePath),
     upsertUnitMappings: (mediaId, mappings) => upsertUnitMappings(db, mediaId, mappings),
     patchUnitProbeMetadata: (unitId, patch) => patchUnitProbeMetadata(db, unitId, patch),
     setMediaRootAndMapUnits: (mediaId, patch, mappings) =>
       setMediaRootAndMapUnits(db, mediaId, patch, mappings),
-    ensureEpisodes: (
+    ensureUnits: (
       mediaId,
       unitCount,
       status,
@@ -169,7 +169,7 @@ function makeMediaUnitRepositoryShape(db: AppDatabase): MediaUnitRepositoryShape
       resetMissingOnly,
       nowIso,
     ) =>
-      ensureEpisodes(
+      ensureUnits(
         db,
         mediaId,
         unitCount,
@@ -180,7 +180,7 @@ function makeMediaUnitRepositoryShape(db: AppDatabase): MediaUnitRepositoryShape
         resetMissingOnly,
         nowIso,
       ),
-    updateEpisodeAirDates: (
+    updateUnitAirDates: (
       mediaId,
       unitCount,
       status,
@@ -189,7 +189,7 @@ function makeMediaUnitRepositoryShape(db: AppDatabase): MediaUnitRepositoryShape
       futureAiringSchedule,
       nowIso,
     ) =>
-      updateEpisodeAirDates(
+      updateUnitAirDates(
         db,
         mediaId,
         unitCount,
@@ -199,10 +199,9 @@ function makeMediaUnitRepositoryShape(db: AppDatabase): MediaUnitRepositoryShape
         futureAiringSchedule,
         nowIso,
       ),
-    syncEpisodeMetadata: (mediaId, episodeMetadata) =>
-      syncEpisodeMetadata(db, mediaId, episodeMetadata),
-    syncEpisodeSchedule: (mediaId, nextAnimeRow, futureAiringSchedule, nowIso) =>
-      syncEpisodeSchedule(db, mediaId, nextAnimeRow, futureAiringSchedule, nowIso),
+    syncUnitMetadata: (mediaId, episodeMetadata) => syncUnitMetadata(db, mediaId, episodeMetadata),
+    syncUnitSchedule: (mediaId, nextAnimeRow, futureAiringSchedule, nowIso) =>
+      syncUnitSchedule(db, mediaId, nextAnimeRow, futureAiringSchedule, nowIso),
     backfillFromNextAiring: (input) => backfillFromNextAiring(db, input),
   } satisfies MediaUnitRepositoryShape;
 }
@@ -211,11 +210,11 @@ export function makeMediaUnitRepository(db: AppDatabase): MediaUnitRepository {
   return MediaUnitRepository.make(makeMediaUnitRepositoryShape(db));
 }
 
-const upsertEpisode = Effect.fn("MediaUnitRepository.upsertEpisode")(function* (
+const upsertUnit = Effect.fn("MediaUnitRepository.upsertUnit")(function* (
   db: AppDatabase,
   mediaId: number,
   unitNumber: number,
-  patch: UpsertEpisodePatch,
+  patch: UpsertUnitPatch,
 ) {
   const values = buildInsertEpisodeValues(mediaId, unitNumber, patch);
   const conflictSet = buildEpisodeConflictSet(patch);
@@ -243,7 +242,7 @@ const upsertEpisode = Effect.fn("MediaUnitRepository.upsertEpisode")(function* (
   );
 });
 
-const clearEpisodeMapping = Effect.fn("MediaUnitRepository.clearEpisodeMapping")(function* (
+const clearUnitMapping = Effect.fn("MediaUnitRepository.clearUnitMapping")(function* (
   db: AppDatabase,
   mediaId: number,
   unitNumber: number,
@@ -292,10 +291,10 @@ const patchUnitProbeMetadata = Effect.fn("MediaUnitRepository.patchUnitProbeMeta
   );
 });
 
-const bulkMapEpisodeFiles = Effect.fn("MediaUnitRepository.bulkMapEpisodeFiles")(function* (
+const bulkMapUnitFiles = Effect.fn("MediaUnitRepository.bulkMapUnitFiles")(function* (
   db: AppDatabase,
   mediaId: number,
-  mappings: readonly BulkMapEpisodeEntry[],
+  mappings: readonly BulkMapUnitEntry[],
 ) {
   yield* tryDatabasePromise("Failed to bulk-map episode files", () =>
     db.transaction(async (tx) => {
@@ -341,7 +340,7 @@ const bulkMapEpisodeFiles = Effect.fn("MediaUnitRepository.bulkMapEpisodeFiles")
   );
 });
 
-const upsertEpisodeFiles = Effect.fn("MediaUnitRepository.upsertEpisodeFiles")(function* (
+const upsertUnitFiles = Effect.fn("MediaUnitRepository.upsertUnitFiles")(function* (
   db: AppDatabase,
   mediaId: number,
   unitNumbers: readonly number[],
@@ -403,7 +402,7 @@ const upsertEpisodeFiles = Effect.fn("MediaUnitRepository.upsertEpisodeFiles")(f
   ).pipe(
     Effect.mapError(
       (cause) =>
-        new UpsertEpisodeFileError({
+        new UpsertUnitFileError({
           media_id: mediaId,
           unit_number: unitNumbers[0] ?? 0,
           message: cause.message,
@@ -503,7 +502,7 @@ async function writeUnitMapping(
     });
 }
 
-const ensureEpisodes = Effect.fn("MediaUnitRepository.ensureEpisodes")(function* <E>(
+const ensureUnits = Effect.fn("MediaUnitRepository.ensureUnits")(function* <E>(
   db: AppDatabase,
   mediaId: number,
   unitCount: number | undefined,
@@ -543,7 +542,7 @@ const ensureEpisodes = Effect.fn("MediaUnitRepository.ensureEpisodes")(function*
   );
 });
 
-const updateEpisodeAirDates = Effect.fn("MediaUnitRepository.updateEpisodeAirDates")(function* <E>(
+const updateUnitAirDates = Effect.fn("MediaUnitRepository.updateUnitAirDates")(function* <E>(
   db: AppDatabase,
   mediaId: number,
   unitCount: number | undefined,
@@ -595,7 +594,7 @@ const updateEpisodeAirDates = Effect.fn("MediaUnitRepository.updateEpisodeAirDat
   }
 });
 
-const syncEpisodeMetadata = Effect.fn("MediaUnitRepository.syncEpisodeMetadata")(function* (
+const syncUnitMetadata = Effect.fn("MediaUnitRepository.syncUnitMetadata")(function* (
   db: AppDatabase,
   mediaId: number,
   episodeMetadata: ReadonlyArray<AnimeMetadataEpisode> | undefined,
@@ -640,7 +639,7 @@ const syncEpisodeMetadata = Effect.fn("MediaUnitRepository.syncEpisodeMetadata")
   );
 });
 
-const syncEpisodeSchedule = Effect.fn("MediaUnitRepository.syncEpisodeSchedule")(function* <E>(
+const syncUnitSchedule = Effect.fn("MediaUnitRepository.syncUnitSchedule")(function* <E>(
   db: AppDatabase,
   mediaId: number,
   nextAnimeRow: {
@@ -652,7 +651,7 @@ const syncEpisodeSchedule = Effect.fn("MediaUnitRepository.syncEpisodeSchedule")
   futureAiringSchedule: ReadonlyArray<FutureAiringScheduleEntry> | undefined,
   nowIso: () => Effect.Effect<string, E>,
 ) {
-  yield* ensureEpisodes(
+  yield* ensureUnits(
     db,
     mediaId,
     nextAnimeRow.unitCount ?? undefined,
@@ -663,7 +662,7 @@ const syncEpisodeSchedule = Effect.fn("MediaUnitRepository.syncEpisodeSchedule")
     false,
     nowIso,
   );
-  yield* updateEpisodeAirDates(
+  yield* updateUnitAirDates(
     db,
     mediaId,
     nextAnimeRow.unitCount ?? undefined,
@@ -805,7 +804,7 @@ const backfillFromNextAiring = Effect.fn("MediaUnitRepository.backfillFromNextAi
   );
 });
 
-function buildInsertEpisodeValues(mediaId: number, unitNumber: number, patch: UpsertEpisodePatch) {
+function buildInsertEpisodeValues(mediaId: number, unitNumber: number, patch: UpsertUnitPatch) {
   return {
     aired: patch.aired ?? null,
     mediaId,
@@ -824,7 +823,7 @@ function buildInsertEpisodeValues(mediaId: number, unitNumber: number, patch: Up
   } satisfies typeof mediaUnits.$inferInsert;
 }
 
-function buildEpisodeConflictSet(patch: UpsertEpisodePatch) {
+function buildEpisodeConflictSet(patch: UpsertUnitPatch) {
   return {
     ...(patch.aired === undefined ? {} : { aired: patch.aired }),
     ...(patch.audioChannels === undefined ? {} : { audioChannels: patch.audioChannels }),

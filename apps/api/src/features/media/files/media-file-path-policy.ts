@@ -19,7 +19,7 @@ export const loadMediaRoot = Effect.fn("MediaFilePathPolicy.loadMediaRoot")(func
   );
 });
 
-export const validateEpisodeFilePath = Effect.fn("MediaFilePathPolicy.validateEpisodeFilePath")(
+export const validateUnitFilePath = Effect.fn("MediaFilePathPolicy.validateUnitFilePath")(
   function* (input: {
     animeRoot: string;
     filePath: string;

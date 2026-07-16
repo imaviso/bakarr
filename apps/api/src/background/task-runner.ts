@@ -7,7 +7,7 @@ import type { WorkerTimeoutError } from "@/background/workers.ts";
 import type { ExternalCallError } from "@/infra/effect/retry.ts";
 import type { DomainPathError, InfrastructureError, StoredDataError } from "@/features/errors.ts";
 import type { MediaNotFoundError } from "@/features/media/errors.ts";
-import type { UpsertEpisodeFileError } from "@/features/media/units/media-unit-repository.ts";
+import type { UpsertUnitFileError } from "@/features/media/units/media-unit-repository.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 import { CatalogLibraryScanService } from "@/features/operations/catalog/catalog-library-scan-service.ts";
 import type { DownloadTorrentSyncError } from "@/features/operations/download/download-torrent-sync-support.ts";
@@ -28,7 +28,7 @@ export type BackgroundTaskRunnerError =
   | RuntimeConfigSnapshotError
   | DownloadTorrentSyncError
   | FileSystemError
-  | UpsertEpisodeFileError
+  | UpsertUnitFileError
   | ImportFileError
   | WorkerTimeoutError;
 

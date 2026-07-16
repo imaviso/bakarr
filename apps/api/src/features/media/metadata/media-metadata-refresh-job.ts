@@ -131,13 +131,13 @@ export const refreshMetadataForMonitoredMediaEffect = Effect.fn(
             nowIso,
           });
 
-          yield* input.mediaUnitRepository.syncEpisodeSchedule(
+          yield* input.mediaUnitRepository.syncUnitSchedule(
             mediaId,
             nextAnimeRow,
             metadata?.futureAiringSchedule,
             nowIso,
           );
-          yield* input.mediaUnitRepository.syncEpisodeMetadata(mediaId, metadata?.mediaUnits);
+          yield* input.mediaUnitRepository.syncUnitMetadata(mediaId, metadata?.mediaUnits);
           refreshed += 1;
         }).pipe(
           Effect.catchTag("ExternalCallError", (error) =>

@@ -27,19 +27,19 @@ import {
 import { makeQualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
 import { makeSystemConfigRepository } from "@/features/system/repository/system-config-repository.ts";
 
-it.scoped("upsertEpisode prevents duplicate media episode rows", () =>
+it.scoped("upsertUnit prevents duplicate media episode rows", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const units = makeMediaUnitRepository(db);
         yield* insertMediaEffect(db, 1, 12);
 
-        yield* units.upsertEpisode(1, 1, {
+        yield* units.upsertUnit(1, 1, {
           downloaded: true,
           filePath: "/library/Test Show/Test Show - 01.mkv",
           title: "MediaUnit 1",
         });
-        yield* units.upsertEpisode(1, 1, {
+        yield* units.upsertUnit(1, 1, {
           downloaded: false,
           title: "MediaUnit 1 updated",
         });
@@ -55,7 +55,7 @@ it.scoped("upsertEpisode prevents duplicate media episode rows", () =>
   }),
 );
 
-it.scoped("ensureEpisodes rejects duplicate episode inserts for same media", () =>
+it.scoped("ensureUnits rejects duplicate episode inserts for same media", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -79,7 +79,7 @@ it.scoped("ensureEpisodes rejects duplicate episode inserts for same media", () 
           }),
         );
 
-        yield* makeMediaUnitRepository(db).ensureEpisodes(
+        yield* makeMediaUnitRepository(db).ensureUnits(
           2,
           1,
           "RELEASING",
@@ -327,13 +327,13 @@ it("inferAiredAt prefers AniList future schedule over heuristics", () => {
   assert.deepStrictEqual(airedAt, "2024-03-20T12:00:00.000Z");
 });
 
-it.scoped("syncEpisodeMetadata applies AniDB episode titles and dates", () =>
+it.scoped("syncUnitMetadata applies AniDB episode titles and dates", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const units = makeMediaUnitRepository(db);
         yield* insertMediaEffect(db, 25, 2);
-        yield* units.ensureEpisodes(
+        yield* units.ensureUnits(
           25,
           2,
           "RELEASING",
@@ -344,7 +344,7 @@ it.scoped("syncEpisodeMetadata applies AniDB episode titles and dates", () =>
           () => Effect.succeed("2024-01-01T00:00:00.000Z"),
         );
 
-        yield* units.syncEpisodeMetadata(25, [
+        yield* units.syncUnitMetadata(25, [
           {
             aired: "2024-01-02T00:00:00.000Z",
             number: 1,

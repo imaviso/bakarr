@@ -199,5 +199,5 @@ rg -n "animeLiveLayer|animeEnrollment" apps/api/src
 | 6   | pending                                                                                                                                                                                                     |
 | 7   | **partial** — DownloadProgressSupport → DownloadProgressService; OperationsProgress exposes get\* + coalesced publish; ProgressLive → OperationsProgressLive                                                |
 | 8   | **done** — MediaReadRepository → MediaRepository (file, Tag, spans, docs)                                                                                                                                   |
-| 9   | pending                                                                                                                                                                                                     |
+| 9   | **partial** — MediaUnit/Media/MediaFile public APIs Episode→Unit; keep naming tokens + provider AnimeMetadataEpisode                                                                                        |
 | 10  | pending                                                                                                                                                                                                     |

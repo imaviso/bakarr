@@ -223,18 +223,18 @@ const resolveReaderUnitFile = Effect.fn("MediaReader.resolveReaderUnitFile")(fun
   readonly mediaId: number;
   readonly unitNumber: number;
 }) {
-  const resolvedEpisodeFile = yield* resolveUnitFileEffect({
+  const resolvedUnitFile = yield* resolveUnitFileEffect({
     fs: input.fs,
     mediaId: input.mediaId,
     mediaReadRepository: input.mediaReadRepository,
     unitNumber: input.unitNumber,
   });
 
-  const unitFile = yield* Match.value(resolvedEpisodeFile).pipe(
-    Match.tag("EpisodeFileUnmapped", "EpisodeFileMissing", () =>
+  const unitFile = yield* Match.value(resolvedUnitFile).pipe(
+    Match.tag("UnitFileUnmapped", "UnitFileMissing", () =>
       Effect.fail(new ReaderAccessError({ message: "MediaUnit file not found", status: 404 })),
     ),
-    Match.tag("EpisodeFileRootInaccessible", () =>
+    Match.tag("UnitFileRootInaccessible", () =>
       Effect.fail(
         new ReaderAccessError({
           message: "Media root folder is inaccessible",
@@ -242,7 +242,7 @@ const resolveReaderUnitFile = Effect.fn("MediaReader.resolveReaderUnitFile")(fun
         }),
       ),
     ),
-    Match.tag("EpisodeFileOutsideRoot", () =>
+    Match.tag("UnitFileOutsideRoot", () =>
       Effect.fail(
         new ReaderAccessError({
           message: "MediaUnit file mapping is invalid",
@@ -250,7 +250,7 @@ const resolveReaderUnitFile = Effect.fn("MediaReader.resolveReaderUnitFile")(fun
         }),
       ),
     ),
-    Match.tag("EpisodeFileResolved", (file) => Effect.succeed(file)),
+    Match.tag("UnitFileResolved", (file) => Effect.succeed(file)),
     Match.exhaustive,
   );
 
