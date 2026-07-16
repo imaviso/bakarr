@@ -1,29 +1,33 @@
 # Bakarr API Domain Model
 
-Bakarr is a single-user anime library manager. It tracks anime entries, manages
-episode files, downloads torrents via qBittorrent, searches releases through RSS
+Bakarr is a single-user anime library manager. It tracks media entries, manages
+unit files, downloads torrents via qBittorrent, searches releases through RSS
 feeds, and matches file system folders against metadata providers.
 
 ## Domain Concepts
 
-### Anime
+### Media
 
-A tracked show. Has metadata (title, format, genres, studios) sourced from
-AniList/AniDB/Jikan/Manami. Belongs to a root folder on disk. Has a quality
-profile and release profiles. Monitored anime receive automatic episode searches.
+A tracked show (storage/API path). Has metadata (title, format, genres, studios)
+sourced from AniList/AniDB/Jikan/Manami. Belongs to a root folder on disk. Has a
+quality profile and release profiles. Monitored media receive automatic unit
+searches.
 
-### Episode
+Provider/metadata clients still speak **Anime** (`AnimeMetadata`, AniList
+payloads, `mediaKind: "anime"`). Feature code uses **Media**.
 
-A numbered unit within an anime. Can be downloaded (file mapped), aired, or
-missing. File mapping associates an episode number with a disk path. Metadata
-includes group name, resolution, quality, codec info.
+### MediaUnit
+
+A numbered unit within a media entry (episode for anime). Can be downloaded
+(file mapped), aired, or missing. File mapping associates a unit number with a
+disk path. Metadata includes group name, resolution, quality, codec info.
 
 ### Download
 
 A torrent download managed by qBittorrent. Has lifecycle states (queued,
 downloading, completed, failed, reconciled). Reconciliation matches
-completed torrents to anime+episode, maps files, and records the event.
-Covered episodes track which episode numbers a batch download covers.
+completed torrents to media+unit, maps files, and records the event.
+Covered units track which unit numbers a batch download covers.
 
 ### Quality Profile
 
@@ -33,31 +37,31 @@ allowed flag, allowed qualities list, size limits. Used for release ranking.
 ### Release Profile
 
 Named rule set for scoring releases (preferred/must/avoid terms). Can be
-global or anime-specific. Rules influence search result ranking.
+global or media-specific. Rules influence search result ranking.
 
 ### Library
 
 Filesystem roots managed by the system. The library scan walks roots,
-identifies video files, matches them to known anime+episodes by naming
-convention. Unmapped folders are subdirectories not yet matched to an anime.
+identifies video files, matches them to known media+units by naming
+convention. Unmapped folders are subdirectories not yet matched to media.
 
 ### Unmapped Folder
 
-A library subdirectory not yet matched to an anime entry. Has match status
+A library subdirectory not yet matched to a media entry. Has match status
 (pending/matching/done/failed) and optional suggested matches from search
 providers. Scanned on demand with coalescing (concurrent scans deduplicate).
 
 ### RSS Feed
 
-A per-anime RSS URL for release monitoring. Background RSS worker fetches
-feeds, parses releases, matches episodes, enqueues downloads for monitored
-anime.
+A per-media RSS URL for release monitoring. Background RSS worker fetches
+feeds, parses releases, matches units, enqueues downloads for monitored
+media.
 
 ### Search
 
 Release search queries external RSS/indexer sources, parses results,
 enriches with SeaDex quality metadata, scores by release ranking policy,
-and returns ranked results. Can be triggered manually per episode or by
+and returns ranked results. Can be triggered manually per unit or by
 background workers.
 
 ### System Config
@@ -89,7 +93,7 @@ refresh, RSS processing. Controlled by BackgroundWorkerController
 
 A tracked unit of work triggered by API calls (e.g. unmapped scan).
 Has a task key, status (pending/running/completed/failed), progress,
-and optional linked anime. Supports coalescing concurrent requests.
+and optional linked media. Supports coalescing concurrent requests.
 
 ## External Providers
 
@@ -116,15 +120,17 @@ and optional linked anime. Supports coalescing concurrent requests.
 ## Persistence Seams
 
 - `DownloadRepository` owns Download aggregate SQL (lifecycle, sync, trigger, presentation, events, catalog history/event reads + export stream)
-- `MediaUnitRepository` owns Episode/unit write paths (upsert, map, clear, probe cache, backfill, schedule/metadata sync)
+- `MediaUnitRepository` owns unit write paths (upsert, map, clear, probe cache, backfill, schedule/metadata sync)
 - `MediaReadRepository` owns Media row R/W + unit reads (list/count, progress, wanted/calendar, mapped units, settings, insert aggregate, delete, monitored ids)
 - `RssFeedRepository` owns RSS feed table SQL (list/insert/toggle/delete/lastChecked)
 - `SeasonalMediaCacheRepository` owns `seasonal_anime_cache` read/write
 - `AniDbUnitCacheRepository` owns AniDB episode cache table
+- `SystemLogRepository` owns system log append/page/export stream SQL
+- `BackgroundJobRepository` owns background job status upsert SQL
 - Drizzle stays behind `Effect.Service` repository contracts (ADR-0001)
 - Slice repos by aggregate, not caller workflow (ADR-0004)
 - Pure codecs live next to system profiles
-- Residual work tracked in `RESIDUAL_PLAN.md`
+- Residual deepen complete — see `RESIDUAL_PLAN.md`
 
 ## Naming
 

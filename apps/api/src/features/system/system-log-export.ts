@@ -1,10 +1,10 @@
-import { sql, type SQL } from "drizzle-orm";
+import { eq, sql, type SQL } from "drizzle-orm";
 import { Stream } from "effect";
 
 import { brandSystemLogId, type SystemLog } from "@packages/shared/index.ts";
 import { systemLogs } from "@/db/schema.ts";
 import type { DatabaseError } from "@/db/database.ts";
-import { eventTypeCondition, normalizeLevel } from "@/features/system/support.ts";
+import { normalizeLevel } from "@/features/system/support.ts";
 
 const EXPORT_LIMIT = 10_000;
 const textEncoder = new TextEncoder();
@@ -51,6 +51,25 @@ export function buildSystemLogConditions(input: {
     input.startDate ? sql`${systemLogs.createdAt} >= ${input.startDate}` : undefined,
     input.endDate ? sql`${systemLogs.createdAt} <= ${input.endDate}` : undefined,
   ].filter((value): value is Exclude<typeof value, undefined> => value !== undefined);
+}
+
+function eventTypeCondition(eventType: string) {
+  switch (eventType) {
+    case "Scan":
+      return sql`${systemLogs.eventType} like 'library.%' or ${systemLogs.eventType} like 'media.%scan%' or ${systemLogs.eventType} like 'system.task.scan%'`;
+    case "Download":
+      return sql`${systemLogs.eventType} like 'downloads.%'`;
+    case "Import":
+      return sql`${systemLogs.eventType} like 'library.%import%'`;
+    case "RSS":
+      return sql`${systemLogs.eventType} like 'rss.%' or ${systemLogs.eventType} like 'system.task.rss%'`;
+    case "Metadata":
+      return sql`${systemLogs.eventType} like 'system.task.metadata_refresh%' or ${systemLogs.eventType} like 'media.metadata%'`;
+    case "Error":
+      return eq(systemLogs.level, "error");
+    default:
+      return eq(systemLogs.eventType, eventType);
+  }
 }
 
 export function toSystemLog(row: typeof systemLogs.$inferSelect): SystemLog {

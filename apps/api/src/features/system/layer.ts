@@ -48,7 +48,7 @@ export function makeSystemFeatureLayer<
   BackgroundError,
   BackgroundIn,
   OperationsOut,
-  OperationsError,
+  OpsE,
   OperationsIn,
   SystemConfigOut,
   SystemConfigError,
@@ -58,7 +58,7 @@ export function makeSystemFeatureLayer<
   SystemConfigRepositoryIn,
 >(input: {
   readonly backgroundControllerLayer: Layer.Layer<BackgroundOut, BackgroundError, BackgroundIn>;
-  readonly operationsLayer: Layer.Layer<OperationsOut, OperationsError, OperationsIn>;
+  readonly operationsLayer: Layer.Layer<OperationsOut, OpsE, OperationsIn>;
   readonly runtimeSupportLayer: Layer.Layer<RuntimeOut, RuntimeError, RuntimeIn>;
   readonly systemConfigLayer: Layer.Layer<SystemConfigOut, SystemConfigError, SystemConfigIn>;
   readonly systemConfigRepositoryLayer: Layer.Layer<

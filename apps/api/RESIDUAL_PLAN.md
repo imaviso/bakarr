@@ -1,8 +1,10 @@
 # API residual deepen plan
 
-Status: **Complete** (optional leftovers landed).
+Status: **Complete**.
 
 Do not re-litigate ADR-0001/0002/0004.
+Free SQL outside `*repository*` seams: none remaining in features.
+`make*Repository(db)` helpers are test factories only.
 
 ## Goals
 

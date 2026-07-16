@@ -1,4 +1,4 @@
-import { and, desc, lt, sql } from "drizzle-orm";
+import { and, count, desc, lt, sql } from "drizzle-orm";
 import { Chunk, Effect, Option, Stream } from "effect";
 
 import type { SystemLog } from "@packages/shared/index.ts";
@@ -6,17 +6,25 @@ import { AppDrizzleDatabase, type AppDatabase, type DatabaseError } from "@/db/d
 import { systemLogs } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import {
+  buildSystemLogConditions,
   encodeLogExportCsvStream,
   encodeLogExportJsonStream,
   toSystemLog,
   type SystemLogExportHeader,
   type SystemLogExportPlan,
 } from "@/features/system/system-log-export.ts";
-import { loadSystemLogPage } from "@/features/system/repository/stats-repository.ts";
 
 const EXPORT_PAGE_SIZE = 500;
 
 type NowIso<E = never> = () => Effect.Effect<string, E>;
+type SystemLogPageInput = {
+  endDate?: string;
+  eventType?: string;
+  level?: string;
+  page: number;
+  pageSize: number;
+  startDate?: string;
+};
 
 export interface SystemLogRepositoryShape {
   readonly appendLog: <E>(
@@ -30,14 +38,9 @@ export interface SystemLogRepositoryShape {
     plan: SystemLogExportPlan,
     nowIso: NowIso,
   ) => Effect.Effect<SystemLogExportHeader, DatabaseError>;
-  readonly loadPage: (input: {
-    endDate?: string;
-    eventType?: string;
-    level?: string;
-    page: number;
-    pageSize: number;
-    startDate?: string;
-  }) => ReturnType<typeof loadSystemLogPage>;
+  readonly loadPage: (
+    input: SystemLogPageInput,
+  ) => Effect.Effect<{ rows: (typeof systemLogs.$inferSelect)[]; total: number }, DatabaseError>;
   readonly streamExportCsv: (plan: SystemLogExportPlan) => Stream.Stream<Uint8Array, DatabaseError>;
   readonly streamExportJson: (
     plan: SystemLogExportPlan,
@@ -92,6 +95,31 @@ const appendSystemLog = Effect.fn("SystemLogRepository.appendLog")(function* <E>
 
 const clearSystemLogRows = Effect.fn("SystemLogRepository.clearLogs")(function* (db: AppDatabase) {
   yield* tryDatabasePromise("Failed to clear system logs", () => db.delete(systemLogs));
+});
+
+export const loadSystemLogPage = Effect.fn("SystemLogRepository.loadPage")(function* (
+  db: AppDatabase,
+  input: SystemLogPageInput,
+) {
+  const conditions = buildSystemLogConditions(input);
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+  const countQuery = db.select({ value: count() }).from(systemLogs);
+  const rowsQuery = db
+    .select()
+    .from(systemLogs)
+    .orderBy(desc(systemLogs.id))
+    .limit(input.pageSize)
+    .offset((input.page - 1) * input.pageSize);
+
+  const totalRows = yield* tryDatabasePromise("Failed to load system logs", () =>
+    whereClause ? countQuery.where(whereClause) : countQuery,
+  );
+  const total = totalRows[0]?.value ?? 0;
+  const rows = yield* tryDatabasePromise("Failed to load system logs", () =>
+    whereClause ? rowsQuery.where(whereClause) : rowsQuery,
+  );
+
+  return { rows, total };
 });
 
 const loadSystemLogExportHeader = Effect.fn("SystemLogRepository.loadExportHeader")(function* (

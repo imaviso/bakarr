@@ -92,9 +92,9 @@ const loadRowsByChunk = Effect.fn("DownloadRepository.loadRowsByChunk")(
         return [] as TRow[];
       }
 
-      const chunks: TId[][] = [];
+      const chunks: (readonly TId[])[] = [];
       for (let index = 0; index < ids.length; index += SQLITE_IN_LIST_CHUNK_SIZE) {
-        chunks.push([...ids.slice(index, index + SQLITE_IN_LIST_CHUNK_SIZE)]);
+        chunks.push(ids.slice(index, index + SQLITE_IN_LIST_CHUNK_SIZE));
       }
       const chunkResults = yield* Effect.forEach(chunks, loadChunk, {
         concurrency: CHUNK_LOAD_CONCURRENCY,

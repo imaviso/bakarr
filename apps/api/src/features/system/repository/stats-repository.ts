@@ -14,7 +14,6 @@ import {
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import type { DownloadEventRowLike } from "@/features/operations/download/download-event-presentations.ts";
 import { loadDownloadEventPresentationContexts as loadStoredDownloadEventPresentationContexts } from "@/features/operations/repository/download-catalog-read.ts";
-import { buildSystemLogConditions } from "@/features/system/system-log-export.ts";
 
 const countDownloadsWhere = Effect.fn("SystemStatsRepository.countDownloadsWhere")(function* (
   db: AppDatabase,
@@ -51,14 +50,6 @@ export interface SystemStatsRepositoryShape {
   readonly loadSystemLibraryStatsAggregate: () => ReturnType<
     typeof loadSystemLibraryStatsAggregate
   >;
-  readonly loadSystemLogPage: (input: {
-    endDate?: string;
-    eventType?: string;
-    level?: string;
-    page: number;
-    pageSize: number;
-    startDate?: string;
-  }) => ReturnType<typeof loadSystemLogPage>;
 }
 
 export class SystemStatsRepository extends Effect.Service<SystemStatsRepository>()(
@@ -279,38 +270,6 @@ export const listRecentDownloadEventRows = Effect.fn(
   );
 });
 
-export const loadSystemLogPage = Effect.fn("SystemStatsRepository.loadSystemLogPage")(function* (
-  db: AppDatabase,
-  input: {
-    endDate?: string;
-    eventType?: string;
-    level?: string;
-    page: number;
-    pageSize: number;
-    startDate?: string;
-  },
-) {
-  const conditions = buildSystemLogConditions(input);
-  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-  const countQuery = db.select({ value: count() }).from(systemLogs);
-  const rowsQuery = db
-    .select()
-    .from(systemLogs)
-    .orderBy(desc(systemLogs.id))
-    .limit(input.pageSize)
-    .offset((input.page - 1) * input.pageSize);
-
-  const totalRows = yield* tryDatabasePromise("Failed to load system logs", () =>
-    whereClause ? countQuery.where(whereClause) : countQuery,
-  );
-  const total = requireSingleRow(totalRows, { value: 0 }).value;
-  const rows = yield* tryDatabasePromise("Failed to load system logs", () =>
-    whereClause ? rowsQuery.where(whereClause) : rowsQuery,
-  );
-
-  return { rows, total };
-});
-
 function makeSystemStatsRepositoryShape(db: AppDatabase): SystemStatsRepositoryShape {
   return {
     listBackgroundJobRows: () => listBackgroundJobRows(db),
@@ -320,7 +279,6 @@ function makeSystemStatsRepositoryShape(db: AppDatabase): SystemStatsRepositoryS
       loadStoredDownloadEventPresentationContexts(db, rows),
     loadSystemDownloadStatsAggregate: () => loadSystemDownloadStatsAggregate(db),
     loadSystemLibraryStatsAggregate: () => loadSystemLibraryStatsAggregate(db),
-    loadSystemLogPage: (input) => loadSystemLogPage(db, input),
   } satisfies SystemStatsRepositoryShape;
 }
 

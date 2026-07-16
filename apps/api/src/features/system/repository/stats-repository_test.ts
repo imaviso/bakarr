@@ -18,8 +18,8 @@ import {
   loadSystemDownloadStatsAggregate,
   listBackgroundJobRows,
   listRecentSystemLogRows,
-  loadSystemLogPage,
 } from "@/features/system/repository/stats-repository.ts";
+import { loadSystemLogPage } from "@/features/system/repository/log-repository.ts";
 
 it.scoped("countMediaRows returns 0 for empty table", () =>
   withSqliteTestDbEffect({

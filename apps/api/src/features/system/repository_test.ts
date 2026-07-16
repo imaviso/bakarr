@@ -34,8 +34,8 @@ import {
   countQueuedDownloads,
   countRssFeedRows,
   countUpToDateMediaRows,
-  loadSystemLogPage,
 } from "@/features/system/repository/stats-repository.ts";
+import { loadSystemLogPage } from "@/features/system/repository/log-repository.ts";
 import {
   decodeUnmappedFolderMatchRow,
   listUnmappedFolderMatchRows,
