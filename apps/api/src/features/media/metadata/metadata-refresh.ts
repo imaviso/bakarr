@@ -17,7 +17,7 @@ export const makeMetadataRefreshRunner = Effect.fn("MediaMetadataRefresh.makeRun
   const backgroundJobRepository = yield* BackgroundJobRepository;
   const imageCacheService = yield* MediaImageCacheService;
   const metadataProvider = yield* MediaMetadataProviderService;
-  const mediaReadRepository = yield* MediaRepository;
+  const mediaRepository = yield* MediaRepository;
   const mediaUnitRepository = yield* MediaUnitRepository;
   const systemLogRepository = yield* SystemLogRepository;
   const refreshConcurrency = yield* Schema.Config(
@@ -30,7 +30,7 @@ export const makeMetadataRefreshRunner = Effect.fn("MediaMetadataRefresh.makeRun
       imageCacheService,
       metadataProvider,
       backgroundJobRepository,
-      mediaReadRepository,
+      mediaRepository,
       mediaUnitRepository,
       systemLogRepository,
       nowIso: currentNowIso,

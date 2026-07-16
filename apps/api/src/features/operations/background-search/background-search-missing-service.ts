@@ -37,7 +37,7 @@ export class SearchBackgroundMissingService extends Effect.Service<SearchBackgro
       const progress = yield* OperationsProgress;
       const searchReleaseService = yield* SearchReleaseService;
       const queueService = yield* BackgroundSearchQueueService;
-      const mediaReadRepository = yield* MediaRepository;
+      const mediaRepository = yield* MediaRepository;
       const mediaUnitRepository = yield* MediaUnitRepository;
       const qualityProfileRepository = yield* QualityProfileRepository;
       const releaseProfileRepository = yield* ReleaseProfileRepository;
@@ -79,7 +79,7 @@ export class SearchBackgroundMissingService extends Effect.Service<SearchBackgro
         });
 
         const title = mediaId
-          ? (yield* mediaReadRepository.getMediaRow(mediaId)).titleRomaji
+          ? (yield* mediaRepository.getMediaRow(mediaId)).titleRomaji
           : "all media";
 
         yield* eventBus.publish({
@@ -91,7 +91,7 @@ export class SearchBackgroundMissingService extends Effect.Service<SearchBackgro
         });
 
         const now = yield* nowIso();
-        const missingRows = yield* mediaReadRepository.listMissingUnitSearchRows({
+        const missingRows = yield* mediaRepository.listMissingUnitSearchRows({
           ...(mediaId === undefined ? {} : { mediaId }),
           nowIso: now,
           limit: 10,
@@ -129,7 +129,7 @@ export class SearchBackgroundMissingService extends Effect.Service<SearchBackgro
             rules = loadedRules;
           }
 
-          const currentEpisode = yield* mediaReadRepository.loadCurrentUnitState(
+          const currentEpisode = yield* mediaRepository.loadCurrentUnitState(
             row.media.id,
             row.media_units.number,
           );

@@ -45,16 +45,16 @@ const decodeMediaGenres = Effect.fn("Operations.decodeMediaGenres")(function* (
 export const buildRenamePreview = Effect.fn("LibraryImport.buildRenamePreview")(function* (
   mediaId: number,
   runtimeConfig: Config,
-  mediaReadRepository: MediaRepositoryShape,
+  mediaRepository: MediaRepositoryShape,
 ) {
-  const animeRow = yield* mediaReadRepository.getMediaRow(mediaId);
+  const animeRow = yield* mediaRepository.getMediaRow(mediaId);
   const namingSettings = {
     movieNamingFormat: runtimeConfig.library.movie_naming_format,
     namingFormat: runtimeConfig.library.naming_format,
     preferredTitle: runtimeConfig.library.preferred_title,
   };
   const namingFormat = selectNamingFormat(animeRow, namingSettings);
-  const rows = yield* mediaReadRepository.listMappedUnitRows(mediaId);
+  const rows = yield* mediaRepository.listMappedUnitRows(mediaId);
 
   // Group rows by file path to handle multi-episode files
   type MappedUnitRow = (typeof rows)[number];

@@ -87,7 +87,7 @@ export function makeUnmappedImportWorkflow(input: {
   getLibraryPath: (
     mediaKind: MediaKind,
   ) => Effect.Effect<string, DatabaseError | InfrastructureError>;
-  mediaReadRepository: typeof MediaRepository.Service;
+  mediaRepository: typeof MediaRepository.Service;
   mediaUnitRepository: MediaUnitRepositoryShape;
   nowIso: () => Effect.Effect<string>;
   systemConfigRepository: typeof SystemConfigRepository.Service;
@@ -96,7 +96,7 @@ export function makeUnmappedImportWorkflow(input: {
   const {
     fs,
     getLibraryPath,
-    mediaReadRepository,
+    mediaRepository,
     mediaUnitRepository,
     nowIso,
     systemConfigRepository,
@@ -111,7 +111,7 @@ export function makeUnmappedImportWorkflow(input: {
 
   const importUnmappedFolder = Effect.fn("UnmappedImportService.importUnmappedFolder")(
     function* (input: { folder_name: string; media_id: number; profile_name?: string }) {
-      const animeRow = yield* mediaReadRepository.getMediaRow(input.media_id);
+      const animeRow = yield* mediaRepository.getMediaRow(input.media_id);
       const mediaKind = decodeMediaKind(animeRow.mediaKind);
       const libraryPath = yield* getLibraryPath(mediaKind);
       const folderName = yield* sanitizePathSegmentEffect(input.folder_name).pipe(
@@ -131,7 +131,7 @@ export function makeUnmappedImportWorkflow(input: {
         });
       }
 
-      const existingOwner = yield* mediaReadRepository.findMediaByExactRootFolder(folderPath);
+      const existingOwner = yield* mediaRepository.findMediaByExactRootFolder(folderPath);
 
       if (existingOwner && existingOwner.id !== input.media_id) {
         return yield* new OperationsConflictError({
@@ -252,7 +252,7 @@ export class UnmappedImportService extends Effect.Service<UnmappedImportService>
     ],
     effect: Effect.gen(function* () {
       const fs = yield* FileSystem;
-      const mediaReadRepository = yield* MediaRepository;
+      const mediaRepository = yield* MediaRepository;
       const mediaUnitRepository = yield* MediaUnitRepository;
       const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
       const systemConfigRepository = yield* SystemConfigRepository;
@@ -273,7 +273,7 @@ export class UnmappedImportService extends Effect.Service<UnmappedImportService>
           );
           return getLibraryPathForMediaKind(config.library, mediaKind);
         }),
-        mediaReadRepository,
+        mediaRepository,
         mediaUnitRepository,
         nowIso: currentNowIso,
         systemConfigRepository,

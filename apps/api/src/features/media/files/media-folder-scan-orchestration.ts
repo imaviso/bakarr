@@ -15,14 +15,14 @@ export const scanMediaFolderOrchestrationEffect = Effect.fn(
   mediaId: number;
   eventPublisher: MediaEventPublisher;
   fs: FileSystemShape;
-  mediaReadRepository: MediaRepositoryShape;
+  mediaRepository: MediaRepositoryShape;
   mediaUnitRepository: MediaUnitRepositoryShape;
   mediaProbe: MediaProbeShape;
   nowIso: () => Effect.Effect<string>;
   systemLogRepository: SystemLogRepositoryShape;
 }) {
   const { nowIso } = input;
-  const startAnimeRow = yield* input.mediaReadRepository.getMediaRow(input.mediaId);
+  const startAnimeRow = yield* input.mediaRepository.getMediaRow(input.mediaId);
 
   yield* input.eventPublisher.publish({
     type: "ScanFolderStarted",
@@ -35,7 +35,7 @@ export const scanMediaFolderOrchestrationEffect = Effect.fn(
   const { animeRow, found, total } = yield* scanMediaFolderEffect({
     mediaId: input.mediaId,
     fs: input.fs,
-    mediaReadRepository: input.mediaReadRepository,
+    mediaRepository: input.mediaRepository,
     mediaUnitRepository: input.mediaUnitRepository,
     mediaProbe: input.mediaProbe,
     nowIso,

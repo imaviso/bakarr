@@ -43,7 +43,7 @@ export interface MediaSettingsServiceShape {
 const makeMediaSettingsService = Effect.fn("MediaSettingsService.make")(function* () {
   const eventBus = yield* EventBus;
   const fs = yield* FileSystem;
-  const mediaReadRepository = yield* MediaRepository;
+  const mediaRepository = yield* MediaRepository;
   const qualityProfileRepository = yield* QualityProfileRepository;
   const systemConfigRepository = yield* SystemConfigRepository;
   const systemLogRepository = yield* SystemLogRepository;
@@ -53,8 +53,8 @@ const makeMediaSettingsService = Effect.fn("MediaSettingsService.make")(function
     id: number,
     monitored: boolean,
   ) {
-    yield* mediaReadRepository.requireMediaExists(id);
-    yield* mediaReadRepository.updateMonitored(id, monitored);
+    yield* mediaRepository.requireMediaExists(id);
+    yield* mediaRepository.updateMonitored(id, monitored);
     const message = `Media ${id} monitoring updated`;
     yield* systemLogRepository.appendLog("media.updated", "success", message, nowIso);
     yield* eventBus.publishInfo(message);
@@ -81,7 +81,7 @@ const makeMediaSettingsService = Effect.fn("MediaSettingsService.make")(function
     const canonicalLibraryRoot = yield* resolveConfiguredLibraryRoot(fs, configuredLibraryPath);
 
     yield* assertPathWithinLibraryRoot(fs, trimmedPath, canonicalLibraryRoot);
-    yield* mediaReadRepository.requireMediaExists(id);
+    yield* mediaRepository.requireMediaExists(id);
 
     yield* fs.mkdir(trimmedPath, { recursive: true }).pipe(
       Effect.mapError(
@@ -103,7 +103,7 @@ const makeMediaSettingsService = Effect.fn("MediaSettingsService.make")(function
       ),
     );
 
-    const existingRootOwner = yield* mediaReadRepository.findMediaRootFolderOwner(canonicalPath);
+    const existingRootOwner = yield* mediaRepository.findMediaRootFolderOwner(canonicalPath);
 
     if (existingRootOwner && existingRootOwner.id !== id) {
       return yield* new MediaConflictError({
@@ -111,7 +111,7 @@ const makeMediaSettingsService = Effect.fn("MediaSettingsService.make")(function
       });
     }
 
-    yield* mediaReadRepository.updateRootFolder(id, canonicalPath);
+    yield* mediaRepository.updateRootFolder(id, canonicalPath);
 
     yield* systemLogRepository.appendLog(
       "media.path.updated",
@@ -136,8 +136,8 @@ const makeMediaSettingsService = Effect.fn("MediaSettingsService.make")(function
       });
     }
 
-    yield* mediaReadRepository.requireMediaExists(id);
-    yield* mediaReadRepository.updateProfileName(id, profileName);
+    yield* mediaRepository.requireMediaExists(id);
+    yield* mediaRepository.updateProfileName(id, profileName);
     const message = `Updated profile for media ${id}`;
     yield* systemLogRepository.appendLog("media.updated", "success", message, nowIso);
     yield* eventBus.publishInfo(message);
@@ -148,7 +148,7 @@ const makeMediaSettingsService = Effect.fn("MediaSettingsService.make")(function
     id: number,
     releaseProfileIds: number[],
   ) {
-    yield* mediaReadRepository.requireMediaExists(id);
+    yield* mediaRepository.requireMediaExists(id);
     const encodedReleaseProfileIds = yield* encodeNumberList(releaseProfileIds).pipe(
       Effect.mapError(
         (cause) =>
@@ -159,7 +159,7 @@ const makeMediaSettingsService = Effect.fn("MediaSettingsService.make")(function
       ),
     );
 
-    yield* mediaReadRepository.updateReleaseProfileIds(id, encodedReleaseProfileIds);
+    yield* mediaRepository.updateReleaseProfileIds(id, encodedReleaseProfileIds);
     const message = `Updated release profiles for media ${id}`;
     yield* systemLogRepository.appendLog("media.updated", "success", message, nowIso);
     yield* eventBus.publishInfo(message);

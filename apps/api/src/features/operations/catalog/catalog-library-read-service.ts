@@ -25,13 +25,13 @@ export class CatalogLibraryReadService extends Effect.Service<CatalogLibraryRead
   {
     effect: Effect.gen(function* () {
       const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
-      const mediaReadRepository = yield* MediaRepository;
+      const mediaRepository = yield* MediaRepository;
 
       const getRenamePreview = Effect.fn("CatalogLibraryReadService.getRenamePreview")(function* (
         mediaId: number,
       ) {
         const runtimeConfig = yield* runtimeConfigSnapshot.getRuntimeConfig();
-        return yield* buildRenamePreview(mediaId, runtimeConfig, mediaReadRepository);
+        return yield* buildRenamePreview(mediaId, runtimeConfig, mediaRepository);
       });
 
       return {

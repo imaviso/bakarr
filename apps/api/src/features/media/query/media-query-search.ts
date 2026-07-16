@@ -18,7 +18,7 @@ export const searchMediaEffect = Effect.fn("MediaQuerySearch.searchMediaEffect")
   aniList: typeof AniListClient.Service;
   manami?: Pick<typeof ManamiClient.Service, "searchMedia">;
   mediaKind?: MediaKind;
-  mediaReadRepository: MediaRepositoryShape;
+  mediaRepository: MediaRepositoryShape;
   query: string;
 }) {
   const mediaKind = input.mediaKind ?? "anime";
@@ -66,10 +66,7 @@ export const searchMediaEffect = Effect.fn("MediaQuerySearch.searchMediaEffect")
 
   const annotated = annotateMediaSearchResultsForQuery(input.query, results);
 
-  const marked = yield* markSearchResultsAlreadyInLibraryEffect(
-    input.mediaReadRepository,
-    annotated,
-  );
+  const marked = yield* markSearchResultsAlreadyInLibraryEffect(input.mediaRepository, annotated);
 
   return {
     degraded,
@@ -82,7 +79,7 @@ export const getMediaByAnilistIdEffect = Effect.fn("MediaQuerySearch.getMediaByA
     aniList: typeof AniListClient.Service;
     id: number;
     mediaKind?: MediaKind;
-    mediaReadRepository: MediaRepositoryShape;
+    mediaRepository: MediaRepositoryShape;
   }) {
     const mediaKind = input.mediaKind ?? "anime";
     const metadata = yield* input.aniList.getAnimeMetadataById(input.id, mediaKind);
@@ -94,7 +91,7 @@ export const getMediaByAnilistIdEffect = Effect.fn("MediaQuerySearch.getMediaByA
     }
     const metadataValue = metadata.value;
 
-    const alreadyInLibrary = yield* input.mediaReadRepository.mediaExists(input.id);
+    const alreadyInLibrary = yield* input.mediaRepository.mediaExists(input.id);
 
     return {
       already_in_library: alreadyInLibrary,

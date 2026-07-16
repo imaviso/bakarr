@@ -48,7 +48,7 @@ const makeMediaFileService = Effect.fn("MediaFileService.make")(function* () {
   const eventBus = yield* EventBus;
   const fs = yield* FileSystem;
   const mediaProbe = yield* MediaProbe;
-  const mediaReadRepository = yield* MediaRepository;
+  const mediaRepository = yield* MediaRepository;
   const mediaUnitRepository = yield* MediaUnitRepository;
   const systemLogRepository = yield* SystemLogRepository;
   const nowIso = currentNowIso;
@@ -57,7 +57,7 @@ const makeMediaFileService = Effect.fn("MediaFileService.make")(function* () {
     return yield* listMediaFilesEffect({
       mediaId,
       fs,
-      mediaReadRepository,
+      mediaRepository,
       mediaUnitRepository,
       mediaProbe,
     });
@@ -68,7 +68,7 @@ const makeMediaFileService = Effect.fn("MediaFileService.make")(function* () {
       mediaId,
       eventPublisher: eventBus,
       fs,
-      mediaReadRepository,
+      mediaRepository,
       mediaUnitRepository,
       mediaProbe,
       nowIso,
@@ -82,7 +82,7 @@ const makeMediaFileService = Effect.fn("MediaFileService.make")(function* () {
   ) {
     yield* deleteUnitFileEffect({
       mediaId,
-      mediaReadRepository,
+      mediaRepository,
       mediaUnitRepository,
       unitNumber,
       fs,
@@ -97,7 +97,7 @@ const makeMediaFileService = Effect.fn("MediaFileService.make")(function* () {
   ) {
     yield* mapUnitFileEffect({
       mediaId,
-      mediaReadRepository,
+      mediaRepository,
       mediaUnitRepository,
       unitNumber,
       filePath,
@@ -113,7 +113,7 @@ const makeMediaFileService = Effect.fn("MediaFileService.make")(function* () {
     yield* bulkMapUnitFilesEffect({
       mediaId,
       fs,
-      mediaReadRepository,
+      mediaRepository,
       mediaUnitRepository,
       mappings,
     });

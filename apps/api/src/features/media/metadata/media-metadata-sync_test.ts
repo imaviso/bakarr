@@ -67,7 +67,7 @@ it.scoped("syncMediaMetadataEffect stores locally cached image paths", () =>
           }),
           mediaId,
           eventPublisher: Option.none(),
-          mediaReadRepository: makeMediaRepository(appDb),
+          mediaRepository: makeMediaRepository(appDb),
           systemLogRepository: makeSystemLogRepository(appDb),
           nowIso: () => Effect.succeed("2026-04-11T00:00:00.000Z"),
         });
@@ -126,7 +126,7 @@ it.scoped("syncMediaMetadataEffect keeps existing image paths if caching fails",
           }),
           mediaId,
           eventPublisher: Option.none(),
-          mediaReadRepository: makeMediaRepository(appDb),
+          mediaRepository: makeMediaRepository(appDb),
           systemLogRepository: makeSystemLogRepository(appDb),
           nowIso: () => Effect.succeed("2026-04-11T00:00:00.000Z"),
         });
@@ -205,7 +205,7 @@ it.scoped("syncMediaMetadataEffect persists enrichment metadata fields from prov
           }),
           mediaId,
           eventPublisher: Option.none(),
-          mediaReadRepository: makeMediaRepository(appDb),
+          mediaRepository: makeMediaRepository(appDb),
           systemLogRepository: makeSystemLogRepository(appDb),
           nowIso: () => Effect.succeed("2026-04-11T00:00:00.000Z"),
         });

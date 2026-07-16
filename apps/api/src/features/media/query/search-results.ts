@@ -5,14 +5,14 @@ import type { MediaRepositoryShape } from "@/features/media/shared/media-reposit
 
 export const markSearchResultsAlreadyInLibraryEffect = Effect.fn(
   "MediaSearchResults.markSearchResultsAlreadyInLibrary",
-)(function* (mediaReadRepository: MediaRepositoryShape, results: readonly MediaSearchResult[]) {
+)(function* (mediaRepository: MediaRepositoryShape, results: readonly MediaSearchResult[]) {
   const ids = [...new Set(results.map((result) => result.id))];
 
   if (ids.length === 0) {
     return [...results];
   }
 
-  const libraryIds = yield* mediaReadRepository.findExistingMediaIds(ids);
+  const libraryIds = yield* mediaRepository.findExistingMediaIds(ids);
 
   return results.map((result) => ({
     ...result,

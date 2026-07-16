@@ -27,9 +27,9 @@ export const loadUnmappedFolderSnapshot = Effect.fn(
   nowIso?: () => Effect.Effect<string> | undefined;
   roots: () => Effect.Effect<readonly ConfigLibraryRoot[], DatabaseError | StoredDataError>;
   systemUnmappedRepository: SystemUnmappedRepositoryShape;
-  mediaReadRepository: typeof MediaRepository.Service;
+  mediaRepository: typeof MediaRepository.Service;
 }) {
-  const animeRows = yield* input.mediaReadRepository.listAllMediaRows();
+  const animeRows = yield* input.mediaRepository.listAllMediaRows();
   const mappedRoots = new Set(animeRows.map((row) => row.rootFolder));
   const cachedRows = yield* input.systemUnmappedRepository.listMatchRows();
   const roots = yield* input.roots();

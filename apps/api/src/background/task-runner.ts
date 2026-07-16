@@ -5,7 +5,7 @@ import { BackgroundWorkerMonitor } from "@/background/monitor.ts";
 import type { WorkerTimeoutError } from "@/background/workers.ts";
 import { InfrastructureError } from "@/features/errors.ts";
 import { CatalogLibraryScanService } from "@/features/operations/catalog/catalog-library-scan-service.ts";
-import { DownloadTorrentSyncService } from "@/features/operations/download/download-torrent-sync-support.ts";
+import { DownloadTorrentSyncService } from "@/features/operations/download/download-torrent-sync-service.ts";
 import { MediaMaintenanceService } from "@/features/media/metadata/media-maintenance-service.ts";
 import { ManamiCacheRefreshClient } from "@/features/media/metadata/manami.ts";
 import { BackgroundSearchRssWorkerService } from "@/features/operations/background-search/background-search-rss-worker-service.ts";

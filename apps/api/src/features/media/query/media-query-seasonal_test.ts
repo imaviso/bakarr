@@ -40,7 +40,7 @@ describe("listSeasonalMediaEffect", () => {
           const now = new Date("2025-06-15T12:00:00Z");
 
           const result = yield* listSeasonalMediaEffect({
-            mediaReadRepository: makeMediaRepository(appDb),
+            mediaRepository: makeMediaRepository(appDb),
             now,
             providerService: {
               getSeasonalAnime: (input: {
@@ -99,7 +99,7 @@ describe("listSeasonalMediaEffect", () => {
           const appDb: AppDatabase = db;
 
           const result = yield* listSeasonalMediaEffect({
-            mediaReadRepository: makeMediaRepository(appDb),
+            mediaRepository: makeMediaRepository(appDb),
             limit: 5,
             now: new Date("2025-06-15T12:00:00Z"),
             providerService: {

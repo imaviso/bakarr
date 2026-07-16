@@ -32,7 +32,7 @@ export interface MediaStreamServiceShape {
 
 const makeMediaStreamService = Effect.fn("MediaStreamService.make")(function* () {
   const fs = yield* FileSystem;
-  const mediaReadRepository = yield* MediaRepository;
+  const mediaRepository = yield* MediaRepository;
   const signer = yield* StreamTokenSigner;
 
   const createStreamUrl = Effect.fn("MediaStreamService.createStreamUrl")(function* (
@@ -93,7 +93,7 @@ const makeMediaStreamService = Effect.fn("MediaStreamService.make")(function* ()
 
       const resolvedUnitFile = yield* resolveUnitFileEffect({
         mediaId: input.mediaId,
-        mediaReadRepository,
+        mediaRepository,
         unitNumber: input.unitNumber,
         fs,
       });

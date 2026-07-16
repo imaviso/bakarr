@@ -34,13 +34,13 @@ export const addMediaEffect = Effect.fn("MediaAdd.addMediaEffect")(function* (in
   eventPublisher: Pick<EventBusShape, "publish">;
   fs: FileSystemShape;
   imageCacheService: typeof MediaImageCacheService.Service;
-  mediaReadRepository: MediaRepositoryShape;
+  mediaRepository: MediaRepositoryShape;
   mediaUnitRepository: MediaUnitRepositoryShape;
   qualityProfileRepository: QualityProfileRepositoryShape;
   systemConfigRepository: SystemConfigRepositoryShape;
   nowIso: () => Effect.Effect<string>;
 }) {
-  yield* checkMediaExistsEffect(input.mediaReadRepository, input.animeInput.id);
+  yield* checkMediaExistsEffect(input.mediaRepository, input.animeInput.id);
 
   const requestedMediaKind = input.animeInput.media_kind;
   const metadataLookup = yield* input.metadataProvider.getAnimeMetadataById(
@@ -63,7 +63,7 @@ export const addMediaEffect = Effect.fn("MediaAdd.addMediaEffect")(function* (in
       : { mediaKind, useExistingRoot: input.animeInput.use_existing_root },
   );
 
-  yield* checkRootFolderNotOwnedEffect(input.mediaReadRepository, rootFolder);
+  yield* checkRootFolderNotOwnedEffect(input.mediaRepository, rootFolder);
 
   yield* input.fs.mkdir(rootFolder, { recursive: true }).pipe(
     Effect.mapError(
@@ -171,7 +171,7 @@ export const addMediaEffect = Effect.fn("MediaAdd.addMediaEffect")(function* (in
     status: validMetadata.status,
   });
 
-  yield* input.mediaReadRepository.insertMediaAggregate({
+  yield* input.mediaRepository.insertMediaAggregate({
     mediaRow,
     unitRows,
     log: {
@@ -191,7 +191,7 @@ export const addMediaEffect = Effect.fn("MediaAdd.addMediaEffect")(function* (in
   });
 
   const persistedEpisodeRows = yield* fetchPersistedEpisodeRowsEffect(
-    input.mediaReadRepository,
+    input.mediaRepository,
     mediaRow.id,
   );
 

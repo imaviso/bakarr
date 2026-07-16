@@ -90,13 +90,13 @@ export function resolveTriggerDownloadCoveragePlan(input: {
 export const prepareTriggerDownload = Effect.fn("Operations.prepareTriggerDownload")(
   function* (input: {
     readonly triggerRepo: typeof DownloadRepository.Service;
-    readonly mediaReadRepository: typeof MediaRepository.Service;
+    readonly mediaRepository: typeof MediaRepository.Service;
     readonly nowIso: () => Effect.Effect<string>;
     readonly triggerInput: TriggerDownloadInput;
   }) {
-    const animeRow = yield* input.mediaReadRepository.getMediaRow(input.triggerInput.media_id);
+    const animeRow = yield* input.mediaRepository.getMediaRow(input.triggerInput.media_id);
     const now = yield* input.nowIso();
-    const missingRows = yield* input.mediaReadRepository.listMissingUnitNumbers([animeRow.id]);
+    const missingRows = yield* input.mediaRepository.listMissingUnitNumbers([animeRow.id]);
     const missingUnits = missingRows
       .map((row) => row.number)
       .toSorted((left, right) => left - right);

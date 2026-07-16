@@ -14,12 +14,12 @@ import {
 export const resolveUnitFileEffect = Effect.fn("MediaFileRead.resolveUnitFileEffect")(
   function* (input: {
     mediaId: number;
-    mediaReadRepository: MediaRepositoryShape;
+    mediaRepository: MediaRepositoryShape;
     unitNumber: number;
     fs: FileSystemShape;
   }) {
-    const animeRow = yield* input.mediaReadRepository.getMediaRow(input.mediaId);
-    const episodeRow = yield* input.mediaReadRepository.getUnitRow(input.mediaId, input.unitNumber);
+    const animeRow = yield* input.mediaRepository.getMediaRow(input.mediaId);
+    const episodeRow = yield* input.mediaRepository.getUnitRow(input.mediaId, input.unitNumber);
 
     if (!episodeRow.filePath) {
       return new UnitFileUnmapped();

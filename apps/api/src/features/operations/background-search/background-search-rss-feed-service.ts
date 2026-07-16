@@ -38,7 +38,7 @@ export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSea
     effect: Effect.gen(function* () {
       const rssClient = yield* RssClient;
       const queueService = yield* BackgroundSearchQueueService;
-      const mediaReadRepository = yield* MediaRepository;
+      const mediaRepository = yield* MediaRepository;
       const qualityProfileRepository = yield* QualityProfileRepository;
       const releaseProfileRepository = yield* ReleaseProfileRepository;
       const rssFeedRepository = yield* RssFeedRepository;
@@ -90,7 +90,7 @@ export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSea
           ),
           Effect.flatMap((items) =>
             Effect.gen(function* () {
-              const animeRow = yield* mediaReadRepository.getMediaRow(feed.mediaId);
+              const animeRow = yield* mediaRepository.getMediaRow(feed.mediaId);
 
               if (!animeRow.monitored) {
                 yield* logRssSkip({
@@ -124,7 +124,7 @@ export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSea
                 slice.map((item) => item.infoHash),
               );
               const existingHashes = new Set(existingRows.map((d) => d.infoHash?.toLowerCase()));
-              const missingRows = yield* mediaReadRepository.listMissingUnitNumbers([animeRow.id]);
+              const missingRows = yield* mediaRepository.listMissingUnitNumbers([animeRow.id]);
               const missingUnits = missingRows
                 .map((row) => row.number)
                 .toSorted((left, right) => left - right);
@@ -155,7 +155,7 @@ export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSea
                   continue;
                 }
 
-                const currentEpisode = yield* mediaReadRepository.loadCurrentUnitState(
+                const currentEpisode = yield* mediaRepository.loadCurrentUnitState(
                   animeRow.id,
                   unitNumber,
                 );

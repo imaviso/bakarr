@@ -13,7 +13,7 @@ import type { MediaUnitRepositoryShape } from "@/features/media/units/media-unit
 export interface RenameLibraryFilesInput {
   readonly eventBus: typeof EventBus.Service;
   readonly fs: FileSystemShape;
-  readonly mediaReadRepository: typeof MediaRepository.Service;
+  readonly mediaRepository: typeof MediaRepository.Service;
   readonly mediaUnitRepository: MediaUnitRepositoryShape;
   readonly runtimeConfig: Config;
   readonly mediaId: number;
@@ -25,10 +25,10 @@ export const renameLibraryFiles = Effect.fn("Operations.renameLibraryFiles")((
   { failed: number; failures: string[]; renamed: number },
   DatabaseError | MediaNotFoundError
 > => {
-  const { eventBus, fs, mediaReadRepository, mediaUnitRepository, runtimeConfig, mediaId } = input;
+  const { eventBus, fs, mediaRepository, mediaUnitRepository, runtimeConfig, mediaId } = input;
   return Effect.gen(function* () {
-    const animeRow = yield* mediaReadRepository.getMediaRow(mediaId);
-    const preview = yield* buildRenamePreview(mediaId, runtimeConfig, mediaReadRepository);
+    const animeRow = yield* mediaRepository.getMediaRow(mediaId);
+    const preview = yield* buildRenamePreview(mediaId, runtimeConfig, mediaRepository);
 
     yield* eventBus.publish({
       type: "RenameStarted",

@@ -122,7 +122,7 @@ it.scoped("listEpisodesEffect fills missing media metadata from ffprobe", () =>
 
           const result = yield* listEpisodesEffect({
             mediaId: 1,
-            mediaReadRepository: makeMediaRepository(appDb),
+            mediaRepository: makeMediaRepository(appDb),
             now: new Date("2024-01-02T00:00:00.000Z"),
           });
 
@@ -197,7 +197,7 @@ it.scoped("listMediaFilesEffect caches probed metadata to episode rows", () =>
           const first = yield* listMediaFilesEffect({
             mediaId: 101,
             fs,
-            mediaReadRepository: makeMediaRepository(appDb),
+            mediaRepository: makeMediaRepository(appDb),
             mediaUnitRepository: makeMediaUnitRepository(appDb),
             mediaProbe,
           });
@@ -221,7 +221,7 @@ it.scoped("listMediaFilesEffect caches probed metadata to episode rows", () =>
           const second = yield* listMediaFilesEffect({
             mediaId: 101,
             fs,
-            mediaReadRepository: makeMediaRepository(appDb),
+            mediaRepository: makeMediaRepository(appDb),
             mediaUnitRepository: makeMediaUnitRepository(appDb),
             mediaProbe,
           });
@@ -268,7 +268,7 @@ it.scoped("getMediaByAnilistIdEffect returns related and recommended metadata", 
             synonyms: ["Stub Alias"],
             title: { english: "Stub Show", romaji: "Stub Show" },
           }),
-          mediaReadRepository: makeMediaRepository(appDb),
+          mediaRepository: makeMediaRepository(appDb),
           id: 55,
         });
 
@@ -316,7 +316,7 @@ it.scoped("getMediaEffect returns discovery metadata from database storage", () 
 
         const result = yield* getMediaEffect({
           id: 80,
-          mediaReadRepository: makeMediaRepository(appDb),
+          mediaRepository: makeMediaRepository(appDb),
         });
 
         assert.deepStrictEqual(result.related_media?.[0]?.relation_type, "PREQUEL");
@@ -363,7 +363,7 @@ it.scoped("getMediaEffect uses stored discovery metadata from database", () =>
 
         const result = yield* getMediaEffect({
           id: 90,
-          mediaReadRepository: makeMediaRepository(appDb),
+          mediaRepository: makeMediaRepository(appDb),
         });
 
         assert.deepStrictEqual(result.id, 90);
@@ -396,7 +396,7 @@ it.scoped("searchMediaEffect fails when AniList search fails", () =>
                 ),
               getSeasonalAnime: () => Effect.succeed([]),
             }),
-            mediaReadRepository: makeMediaRepository(appDb),
+            mediaRepository: makeMediaRepository(appDb),
             query: "bake",
           }),
         );
@@ -433,7 +433,7 @@ it.scoped("searchMediaEffect reports non-degraded when AniList search succeeds",
               ]),
             getSeasonalAnime: () => Effect.succeed([]),
           }),
-          mediaReadRepository: makeMediaRepository(appDb),
+          mediaRepository: makeMediaRepository(appDb),
           query: "bake",
         });
 
@@ -456,7 +456,7 @@ it.scoped("searchMediaEffect falls back to Manami when AniList returns no result
             searchAnimeMetadata: () => Effect.succeed([]),
             getSeasonalAnime: () => Effect.succeed([]),
           }),
-          mediaReadRepository: makeMediaRepository(appDb),
+          mediaRepository: makeMediaRepository(appDb),
           manami: {
             searchMedia: () =>
               Effect.succeed([

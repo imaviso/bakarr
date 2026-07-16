@@ -70,7 +70,7 @@ it.scoped("unmapped import rolls back when a later insert fails", () =>
           fs,
           getLibraryPath: (mediaKind) =>
             Effect.succeed(getLibraryPathForMediaKind(testConfig.library, mediaKind)),
-          mediaReadRepository: makeMediaRepository(appDb),
+          mediaRepository: makeMediaRepository(appDb),
           mediaUnitRepository: makeMediaUnitRepository(appDb),
           nowIso: () => Effect.succeed("2024-01-01T00:00:00.000Z"),
           systemConfigRepository: makeSystemConfigRepository(appDb),

@@ -46,7 +46,7 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
     dependencies: [DownloadRepository.Default, EventBus.Default, MediaRepository.Default],
     effect: Effect.gen(function* () {
       const syncRepo = yield* DownloadRepository;
-      const mediaReadRepository = yield* MediaRepository;
+      const mediaRepository = yield* MediaRepository;
       const torrentClientService = yield* TorrentClientService;
       const reconciliationService = yield* DownloadReconciliationService;
       const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
@@ -82,7 +82,7 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
           return;
         }
 
-        const mediaRowOption = yield* mediaReadRepository
+        const mediaRowOption = yield* mediaRepository
           .getMediaRow(refineInput.mediaId)
           .pipe(Effect.option);
         const inferredEpisodes = inferCoveredEpisodesFromTorrentContents({

@@ -70,13 +70,13 @@ export interface MediaQueryServiceShape {
 const makeMediaQueryService = Effect.fn("MediaQueryService.make")(function* () {
   const aniList = yield* AniListClient;
   const manami = yield* ManamiClient;
-  const mediaReadRepository = yield* MediaRepository;
+  const mediaRepository = yield* MediaRepository;
   const providerService = yield* MediaSeasonalProviderService;
   const seasonalMediaCacheRepository = yield* SeasonalMediaCacheRepository;
 
   const service: MediaQueryServiceShape = {
     getMedia: Effect.fn("MediaQueryService.getMedia")(function* (id: number) {
-      return yield* getMediaEffect({ id, mediaReadRepository });
+      return yield* getMediaEffect({ id, mediaRepository });
     }),
     getMediaByAnilistId: Effect.fn("MediaQueryService.getMediaByAnilistId")(function* (
       id: number,
@@ -85,16 +85,16 @@ const makeMediaQueryService = Effect.fn("MediaQueryService.make")(function* () {
       return yield* getMediaByAnilistIdEffect({
         aniList,
         id,
-        mediaReadRepository,
+        mediaRepository,
         ...(mediaKind === undefined ? {} : { mediaKind }),
       });
     }),
     listMedia: Effect.fn("MediaQueryService.listMedia")(function* (params?: MediaListQueryParams) {
-      return yield* listMediaEffect(mediaReadRepository, params);
+      return yield* listMediaEffect(mediaRepository, params);
     }),
     listEpisodes: Effect.fn("MediaQueryService.listEpisodes")(function* (mediaId: number) {
       const now = yield* DateTime.nowAsDate;
-      return yield* listEpisodesEffect({ mediaId, mediaReadRepository, now });
+      return yield* listEpisodesEffect({ mediaId, mediaRepository, now });
     }),
     searchMedia: Effect.fn("MediaQueryService.searchMedia")(function* (
       query: string,
@@ -103,7 +103,7 @@ const makeMediaQueryService = Effect.fn("MediaQueryService.make")(function* () {
       return yield* searchMediaEffect({
         aniList,
         manami,
-        mediaReadRepository,
+        mediaRepository,
         ...(mediaKind === undefined ? {} : { mediaKind }),
         query,
       });
@@ -128,7 +128,7 @@ const makeMediaQueryService = Effect.fn("MediaQueryService.make")(function* () {
       const cached = yield* seasonalMediaCacheRepository.read(cacheKey, nowMs);
       if (cached !== null) {
         const markedResults = yield* markSearchResultsAlreadyInLibraryEffect(
-          mediaReadRepository,
+          mediaRepository,
           cached.results,
         );
         return { ...cached, results: markedResults };
@@ -136,7 +136,7 @@ const makeMediaQueryService = Effect.fn("MediaQueryService.make")(function* () {
 
       const rawResponse = yield* listSeasonalMediaEffect({
         limit,
-        mediaReadRepository,
+        mediaRepository,
         now,
         page,
         providerService,
@@ -159,7 +159,7 @@ const makeMediaQueryService = Effect.fn("MediaQueryService.make")(function* () {
             );
 
             const markedResults = yield* markSearchResultsAlreadyInLibraryEffect(
-              mediaReadRepository,
+              mediaRepository,
               stale.results,
             );
             return { ...stale, degraded: true, results: markedResults };

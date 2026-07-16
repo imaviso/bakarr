@@ -75,7 +75,7 @@ function buildNyaaSearchUrl(query: string, category: string, filter: string) {
   )}&f=${encodeURIComponent(filter)}`;
 }
 
-function buildEpisodeSearchQueries(animeRow: typeof media.$inferSelect, unitNumber: number) {
+function buildUnitSearchQueries(animeRow: typeof media.$inferSelect, unitNumber: number) {
   const paddedEpisode = String(unitNumber).padStart(2, "0");
   const seasonEpisode = `S01E${paddedEpisode}`;
   const aliases = buildAnimeSearchAliases(animeRow);
@@ -161,7 +161,7 @@ function uniqueStrings(values: readonly string[]) {
   return unique;
 }
 
-function getEpisodeReleaseRejectionReason(
+function getUnitReleaseRejectionReason(
   item: ParsedRelease,
   unitNumber: number,
   seenInfoHashes: ReadonlySet<string>,
@@ -213,7 +213,7 @@ function collectUnitSearchReleases(
   const keepUnitRelease = (item: ParsedRelease, query: string, phase: "unit" | "fallback") => {
     const rejectionReason =
       mediaKind === "anime"
-        ? getEpisodeReleaseRejectionReason(item, unitNumber, seenInfoHashes)
+        ? getUnitReleaseRejectionReason(item, unitNumber, seenInfoHashes)
         : getVolumeReleaseRejectionReason(item, unitNumber, seenInfoHashes);
 
     if (rejectionReason !== null) {
@@ -264,7 +264,7 @@ function collectUnitSearchReleases(
   return Effect.gen(function* () {
     const unitResults = yield* collectQueries(
       mediaKind === "anime"
-        ? buildEpisodeSearchQueries(animeRow, unitNumber)
+        ? buildUnitSearchQueries(animeRow, unitNumber)
         : buildVolumeSearchQueries(animeRow, unitNumber),
       "unit",
     );
@@ -295,7 +295,7 @@ export class SearchReleaseService extends Effect.Service<SearchReleaseService>()
     effect: Effect.gen(function* () {
       const rssClient = yield* RssClient;
       const seadexClient = yield* SeaDexClient;
-      const mediaReadRepository = yield* MediaRepository;
+      const mediaRepository = yield* MediaRepository;
       const runtimeConfigSnapshotService = yield* RuntimeConfigSnapshotService;
       const getRuntimeConfig = runtimeConfigSnapshotService.getRuntimeConfig;
 
@@ -380,7 +380,7 @@ export class SearchReleaseService extends Effect.Service<SearchReleaseService>()
           yield* Effect.annotateCurrentSpan("mediaId", mediaId);
         }
 
-        const animeRow = mediaId ? yield* mediaReadRepository.getMediaRow(mediaId) : null;
+        const animeRow = mediaId ? yield* mediaRepository.getMediaRow(mediaId) : null;
         const searchQuery = (query || animeRow?.titleRomaji || "").trim();
 
         if (searchQuery.length === 0) {

@@ -19,12 +19,12 @@ export const syncMediaMetadataEffect = Effect.fn("MediaMetadataSync.syncMediaMet
   metadataProvider: typeof MediaMetadataProviderService.Service;
   mediaId: number;
   eventPublisher: Option.Option<MediaEventPublisher>;
-  mediaReadRepository: MediaRepositoryShape;
+  mediaRepository: MediaRepositoryShape;
   systemLogRepository: SystemLogRepositoryShape;
   nowIso: () => Effect.Effect<string, E>;
 }) {
   const { nowIso } = input;
-  const animeRow = yield* input.mediaReadRepository.getMediaRow(input.mediaId);
+  const animeRow = yield* input.mediaRepository.getMediaRow(input.mediaId);
   const metadataLookup = yield* input.metadataProvider.getAnimeMetadataById(input.mediaId);
   const metadata =
     metadataLookup._tag === "NotFound"
@@ -96,7 +96,7 @@ export const syncMediaMetadataEffect = Effect.fn("MediaMetadataSync.syncMediaMet
     titleRomaji: metadataValue.title.romaji,
   };
 
-  yield* input.mediaReadRepository.updateMediaRow(input.mediaId, nextAnimeRow);
+  yield* input.mediaRepository.updateMediaRow(input.mediaId, nextAnimeRow);
 
   const message = `Refreshed metadata for ${animeRow.titleRomaji}`;
   yield* input.systemLogRepository.appendLog("media.updated", "success", message, nowIso);

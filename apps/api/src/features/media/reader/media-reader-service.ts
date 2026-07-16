@@ -129,7 +129,7 @@ class ArchiveCache {
 
 const makeMediaReaderService = Effect.fn("MediaReaderService.make")(function* () {
   const fs = yield* FileSystem;
-  const mediaReadRepository = yield* MediaRepository;
+  const mediaRepository = yield* MediaRepository;
   const executor = yield* CommandExecutor.CommandExecutor;
   const config = yield* AppConfig;
   const cacheRoot = join(dirname(resolve(config.databaseFile)), "reader-cache");
@@ -157,7 +157,7 @@ const makeMediaReaderService = Effect.fn("MediaReaderService.make")(function* ()
     const unitFile = yield* resolveReaderUnitFile({
       fs,
       mediaId,
-      mediaReadRepository,
+      mediaRepository,
       unitNumber,
     });
     const sources = yield* listReadablePageSources({
@@ -182,7 +182,7 @@ const makeMediaReaderService = Effect.fn("MediaReaderService.make")(function* ()
     const unitFile = yield* resolveReaderUnitFile({
       fs,
       mediaId,
-      mediaReadRepository,
+      mediaRepository,
       unitNumber,
     });
     const sources = yield* listReadablePageSources({
@@ -219,14 +219,14 @@ export const MediaReaderServiceLive = MediaReaderService.Default;
 
 const resolveReaderUnitFile = Effect.fn("MediaReader.resolveReaderUnitFile")(function* (input: {
   readonly fs: FileSystemShape;
-  readonly mediaReadRepository: typeof MediaRepository.Service;
+  readonly mediaRepository: typeof MediaRepository.Service;
   readonly mediaId: number;
   readonly unitNumber: number;
 }) {
   const resolvedUnitFile = yield* resolveUnitFileEffect({
     fs: input.fs,
     mediaId: input.mediaId,
-    mediaReadRepository: input.mediaReadRepository,
+    mediaRepository: input.mediaRepository,
     unitNumber: input.unitNumber,
   });
 

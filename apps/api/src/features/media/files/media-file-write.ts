@@ -13,13 +13,13 @@ import {
 export const deleteUnitFileEffect = Effect.fn("MediaFileWrite.deleteUnitFileEffect")(
   function* (input: {
     mediaId: number;
-    mediaReadRepository: MediaRepositoryShape;
+    mediaRepository: MediaRepositoryShape;
     mediaUnitRepository: MediaUnitRepositoryShape;
     unitNumber: number;
     fs: FileSystemShape;
   }) {
-    const animeRow = yield* input.mediaReadRepository.getMediaRow(input.mediaId);
-    const episodeState = yield* input.mediaReadRepository.loadCurrentUnitState(
+    const animeRow = yield* input.mediaRepository.getMediaRow(input.mediaId);
+    const episodeState = yield* input.mediaRepository.loadCurrentUnitState(
       input.mediaId,
       input.unitNumber,
     );
@@ -64,10 +64,10 @@ export const mapUnitFileEffect = Effect.fn("MediaFileWrite.mapUnitFileEffect")(f
   unitNumber: number;
   filePath: string;
   fs: FileSystemShape;
-  mediaReadRepository: MediaRepositoryShape;
+  mediaRepository: MediaRepositoryShape;
   mediaUnitRepository: MediaUnitRepositoryShape;
 }) {
-  const animeRow = yield* input.mediaReadRepository.getMediaRow(input.mediaId);
+  const animeRow = yield* input.mediaRepository.getMediaRow(input.mediaId);
 
   if (input.filePath.trim().length === 0) {
     yield* input.mediaUnitRepository.clearUnitMapping(input.mediaId, input.unitNumber);
@@ -92,11 +92,11 @@ export const bulkMapUnitFilesEffect = Effect.fn("MediaFileWrite.bulkMapUnitFiles
   function* (input: {
     mediaId: number;
     fs: FileSystemShape;
-    mediaReadRepository: MediaRepositoryShape;
+    mediaRepository: MediaRepositoryShape;
     mediaUnitRepository: MediaUnitRepositoryShape;
     mappings: readonly { unit_number: number; file_path: string }[];
   }) {
-    const animeRow = yield* input.mediaReadRepository.getMediaRow(input.mediaId);
+    const animeRow = yield* input.mediaRepository.getMediaRow(input.mediaId);
     const animeRoot = yield* loadMediaRoot(input.fs, animeRow.rootFolder);
 
     const validated: {

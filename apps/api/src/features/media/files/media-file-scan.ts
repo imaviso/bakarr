@@ -28,12 +28,12 @@ export const scanMediaFolderEffect = Effect.fn("MediaFileScan.scanMediaFolderEff
   function* (input: {
     mediaId: number;
     fs: FileSystemShape;
-    mediaReadRepository: MediaRepositoryShape;
+    mediaRepository: MediaRepositoryShape;
     mediaUnitRepository: MediaUnitRepositoryShape;
     mediaProbe: MediaProbeShape;
     nowIso: () => Effect.Effect<string>;
   }) {
-    const animeRow = yield* input.mediaReadRepository.getMediaRow(input.mediaId);
+    const animeRow = yield* input.mediaRepository.getMediaRow(input.mediaId);
     const collectFiles = animeRow.mediaKind === "anime" ? collectVideoFiles : collectVolumeFiles;
     const files = yield* collectFiles(input.fs, animeRow.rootFolder).pipe(
       Effect.mapError(
@@ -46,7 +46,7 @@ export const scanMediaFolderEffect = Effect.fn("MediaFileScan.scanMediaFolderEff
     );
 
     yield* clearMissingUnitFileMappingsEffect(
-      input.mediaReadRepository,
+      input.mediaRepository,
       input.mediaUnitRepository,
       input.mediaId,
       files.map((file) => file.path),
@@ -153,13 +153,13 @@ export const scanMediaFolderEffect = Effect.fn("MediaFileScan.scanMediaFolderEff
 const clearMissingUnitFileMappingsEffect = Effect.fn(
   "MediaFileScan.clearMissingUnitFileMappingsEffect",
 )(function* (
-  mediaReadRepository: MediaRepositoryShape,
+  mediaRepository: MediaRepositoryShape,
   mediaUnitRepository: MediaUnitRepositoryShape,
   mediaId: number,
   presentFilePaths: readonly string[],
 ) {
   const presentFilePathSet = new Set(presentFilePaths);
-  const mappedRows = yield* mediaReadRepository.listMappedUnitRows(mediaId);
+  const mappedRows = yield* mediaRepository.listMappedUnitRows(mediaId);
 
   for (const row of mappedRows) {
     if (row.filePath !== null && !presentFilePathSet.has(row.filePath)) {

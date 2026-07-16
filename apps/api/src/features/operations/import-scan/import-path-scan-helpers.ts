@@ -389,19 +389,19 @@ export const enrichImportScanFiles = Effect.fn("Operations.enrichImportScanFiles
 
 export const loadImportScanMediaRows = (input: {
   readonly mediaId?: number;
-  readonly mediaReadRepository: typeof MediaRepository.Service;
+  readonly mediaRepository: typeof MediaRepository.Service;
 }) =>
   input.mediaId
-    ? Effect.map(input.mediaReadRepository.getMediaRow(input.mediaId), (row) => [row])
-    : input.mediaReadRepository.listAllMediaRows();
+    ? Effect.map(input.mediaRepository.getMediaRow(input.mediaId), (row) => [row])
+    : input.mediaRepository.listAllMediaRows();
 
 export const loadMappedEpisodeRows = (input: {
   readonly candidateAnimeIds: readonly number[];
   readonly candidatePaths: readonly string[];
   readonly episodeNumberCandidates: readonly number[];
-  readonly mediaReadRepository: typeof MediaRepository.Service;
+  readonly mediaRepository: typeof MediaRepository.Service;
 }) =>
-  input.mediaReadRepository.listImportScanMappedUnits({
+  input.mediaRepository.listImportScanMappedUnits({
     mediaIds: input.candidateAnimeIds,
     paths: input.candidatePaths,
     unitNumbers: input.episodeNumberCandidates,
@@ -410,9 +410,9 @@ export const loadMappedEpisodeRows = (input: {
 export const loadScopedEpisodeRows = (input: {
   readonly animeIds: readonly number[];
   readonly episodeNumberCandidates: readonly number[];
-  readonly mediaReadRepository: typeof MediaRepository.Service;
+  readonly mediaRepository: typeof MediaRepository.Service;
 }) =>
-  input.mediaReadRepository.listScopedUnitRows({
+  input.mediaRepository.listScopedUnitRows({
     mediaIds: input.animeIds,
     unitNumbers: input.episodeNumberCandidates,
   });

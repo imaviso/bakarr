@@ -16,7 +16,7 @@ export const matchSingleUnmappedFolder = Effect.fn("UnmappedScanMatch.matchSingl
     aniList: typeof AniListClient.Service;
     animeRows: ReadonlyArray<typeof media.$inferSelect>;
     folder: ScannerState["folders"][number];
-    mediaReadRepository: MediaRepositoryShape;
+    mediaRepository: MediaRepositoryShape;
     nowIso: () => Effect.Effect<string>;
   }) {
     const queries = buildUnmappedFolderSearchQueries(input.folder.name);
@@ -37,7 +37,7 @@ export const matchSingleUnmappedFolder = Effect.fn("UnmappedScanMatch.matchSingl
     );
 
     const annotatedSuggestions = yield* markSearchResultsAlreadyInLibraryEffect(
-      input.mediaReadRepository,
+      input.mediaRepository,
       withLocal.suggested_matches,
     );
 

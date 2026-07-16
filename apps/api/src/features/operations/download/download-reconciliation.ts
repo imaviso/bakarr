@@ -52,7 +52,7 @@ type MaybeCleanupImportedTorrent = (
 
 type DownloadReconciliationContext = {
   readonly repo: typeof DownloadRepository.Service;
-  readonly mediaReadRepository: typeof MediaRepository.Service;
+  readonly mediaRepository: typeof MediaRepository.Service;
   readonly mediaUnitRepository: MediaUnitRepositoryShape;
   readonly fs: FileSystemShape;
   readonly mediaProbe: MediaProbeShape;
@@ -109,11 +109,11 @@ export const loadDownloadReconciliationContext = Effect.fn(
   > & {
     readonly contentPath: string;
     readonly getRuntimeConfig: RuntimeConfigLoader;
-    readonly mediaReadRepository: typeof MediaRepository.Service;
+    readonly mediaRepository: typeof MediaRepository.Service;
   },
 ) {
   const storedSourceMetadata = yield* decodeDownloadSourceMetadata(input.row.sourceMetadata);
-  const animeRow = yield* input.mediaReadRepository.getMediaRow(input.row.mediaId);
+  const animeRow = yield* input.mediaRepository.getMediaRow(input.row.mediaId);
   const runtimeConfig = yield* input.getRuntimeConfig();
   const resolvedContentRoot = yield* resolveAccessibleDownloadPath(
     input.fs,
@@ -135,7 +135,7 @@ export const loadDownloadReconciliationContext = Effect.fn(
 
   return Option.some({
     repo: input.repo,
-    mediaReadRepository: input.mediaReadRepository,
+    mediaRepository: input.mediaRepository,
     mediaUnitRepository: input.mediaUnitRepository,
     animeRow,
     eventBus: input.eventBus,
@@ -230,7 +230,7 @@ export const reconcileBatchDownloadEffect = Effect.fn("DownloadReconcile.reconci
 
     const allEpisodeRows: BatchEpisodeRow[] =
       allRelevantEpisodes.size > 0
-        ? yield* input.mediaReadRepository
+        ? yield* input.mediaRepository
             .loadUnitsByNumbers(input.row.mediaId, [...allRelevantEpisodes])
             .pipe(
               Effect.map((rows) =>
@@ -385,7 +385,7 @@ export const reconcileSingleDownloadEffect = Effect.fn(
     return;
   }
 
-  const existingRows = yield* input.mediaReadRepository.loadUnitsByNumbers(input.row.mediaId, [
+  const existingRows = yield* input.mediaRepository.loadUnitsByNumbers(input.row.mediaId, [
     input.row.unitNumber,
   ]);
   const existingEpisode = existingRows[0];
@@ -430,7 +430,7 @@ export const reconcileSingleDownloadEffect = Effect.fn(
     movieNamingFormat: input.runtimeConfig.library.movie_naming_format,
     namingFormat: input.runtimeConfig.library.naming_format,
   });
-  const episodeRows = yield* input.mediaReadRepository
+  const episodeRows = yield* input.mediaRepository
     .loadUnitsByNumbers(input.row.mediaId, [input.row.unitNumber])
     .pipe(Effect.map((rows) => rows.map((r) => ({ aired: r.aired, title: r.title }))));
   const initialNamingPlan = buildUnitFilenamePlan({

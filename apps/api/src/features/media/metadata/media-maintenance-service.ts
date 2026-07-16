@@ -37,21 +37,21 @@ const makeMediaMaintenanceService = Effect.fn("MediaMaintenanceService.make")(fu
   const eventBus = yield* EventBus;
   const metadataProvider = yield* MediaMetadataProviderService;
   const imageCacheService = yield* MediaImageCacheService;
-  const mediaReadRepository = yield* MediaRepository;
+  const mediaRepository = yield* MediaRepository;
   const mediaUnitRepository = yield* MediaUnitRepository;
   const systemLogRepository = yield* SystemLogRepository;
   const nowIso = currentNowIso;
   const metadataRefreshRunner = yield* makeMetadataRefreshRunner();
 
   const deleteMedia = Effect.fn("MediaMaintenanceService.deleteMedia")(function* (id: number) {
-    yield* mediaReadRepository.deleteMedia(id);
+    yield* mediaRepository.deleteMedia(id);
     yield* systemLogRepository.appendLog("media.deleted", "success", `Deleted media ${id}`, nowIso);
   });
 
   const refreshEpisodes = Effect.fn("MediaMaintenanceService.refreshEpisodes")(function* (
     mediaId: number,
   ) {
-    const startAnimeRow = yield* mediaReadRepository.getMediaRow(mediaId);
+    const startAnimeRow = yield* mediaRepository.getMediaRow(mediaId);
 
     yield* eventBus.publish({
       type: "RefreshStarted",
@@ -63,7 +63,7 @@ const makeMediaMaintenanceService = Effect.fn("MediaMaintenanceService.make")(fu
       metadataProvider,
       mediaId,
       eventPublisher: Option.some(eventBus),
-      mediaReadRepository,
+      mediaRepository,
       systemLogRepository,
       nowIso,
     });

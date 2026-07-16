@@ -20,7 +20,7 @@ export const refreshMetadataForMonitoredMediaEffect = Effect.fn(
   imageCacheService: typeof MediaImageCacheService.Service;
   metadataProvider: typeof MediaMetadataProviderService.Service;
   backgroundJobRepository: BackgroundJobRepositoryShape;
-  mediaReadRepository: MediaRepositoryShape;
+  mediaRepository: MediaRepositoryShape;
   mediaUnitRepository: MediaUnitRepositoryShape;
   systemLogRepository: SystemLogRepositoryShape;
   nowIso: () => Effect.Effect<string, MetadataRefreshError>;
@@ -113,7 +113,7 @@ export const refreshMetadataForMonitoredMediaEffect = Effect.fn(
   );
 
   return yield* Effect.gen(function* () {
-    const monitoredMediaIds = yield* input.mediaReadRepository.listMonitoredMediaIds();
+    const monitoredMediaIds = yield* input.mediaRepository.listMonitoredMediaIds();
     let refreshed = 0;
     let skippedExternal = 0;
 
@@ -126,7 +126,7 @@ export const refreshMetadataForMonitoredMediaEffect = Effect.fn(
             metadataProvider: input.metadataProvider,
             mediaId,
             eventPublisher: Option.none(),
-            mediaReadRepository: input.mediaReadRepository,
+            mediaRepository: input.mediaRepository,
             systemLogRepository: input.systemLogRepository,
             nowIso,
           });

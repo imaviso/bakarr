@@ -52,7 +52,7 @@ export class DownloadTriggerService extends Effect.Service<DownloadTriggerServic
       const progressSupport = yield* DownloadProgressService;
       const downloadTriggerCoordinator = yield* DownloadTriggerCoordinator;
       const systemLogRepository = yield* SystemLogRepository;
-      const mediaReadRepository = yield* MediaRepository;
+      const mediaRepository = yield* MediaRepository;
 
       const executeTriggerDownload = Effect.fn("DownloadTrigger.executeTriggerDownload")(function* (
         triggerInput: TriggerDownloadInput,
@@ -60,7 +60,7 @@ export class DownloadTriggerService extends Effect.Service<DownloadTriggerServic
         yield* Effect.annotateCurrentSpan("mediaId", triggerInput.media_id);
         const plan = yield* prepareTriggerDownload({
           triggerRepo,
-          mediaReadRepository,
+          mediaRepository,
           nowIso: currentNowIso,
           triggerInput,
         });

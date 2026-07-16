@@ -31,7 +31,7 @@ export class CatalogLibraryWriteService extends Effect.Service<CatalogLibraryWri
     effect: Effect.gen(function* () {
       const eventBus = yield* EventBus;
       const fs = yield* FileSystem;
-      const mediaReadRepository = yield* MediaRepository;
+      const mediaRepository = yield* MediaRepository;
       const mediaUnitRepository = yield* MediaUnitRepository;
       const mediaProbe = yield* MediaProbe;
       const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
@@ -44,7 +44,7 @@ export class CatalogLibraryWriteService extends Effect.Service<CatalogLibraryWri
           eventBus,
           files,
           fs,
-          mediaReadRepository,
+          mediaRepository,
           mediaUnitRepository,
           mediaProbe,
           runtimeConfig,
@@ -57,7 +57,7 @@ export class CatalogLibraryWriteService extends Effect.Service<CatalogLibraryWri
           mediaId,
           eventBus,
           fs,
-          mediaReadRepository,
+          mediaRepository,
           mediaUnitRepository,
           runtimeConfig,
         });

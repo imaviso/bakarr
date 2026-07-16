@@ -64,7 +64,7 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
   const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
   const systemLogRepository = yield* SystemLogRepository;
   const systemUnmappedRepository = yield* SystemUnmappedRepository;
-  const mediaReadRepository = yield* MediaRepository;
+  const mediaRepository = yield* MediaRepository;
   const scanService = yield* UnmappedScanService;
   const nowIso = currentNowIso;
 
@@ -110,7 +110,7 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
         }));
       }),
       systemUnmappedRepository,
-      mediaReadRepository,
+      mediaRepository,
     });
     const target = snapshot.folders.find((folder) => folder.path === path);
 

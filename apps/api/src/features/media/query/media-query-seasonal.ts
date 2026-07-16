@@ -19,7 +19,7 @@ function clamp(value: number, min: number, max: number): number {
 export const listSeasonalMediaEffect = Effect.fn("MediaQuerySeasonal.listSeasonalMediaEffect")(
   function* (
     input: {
-      mediaReadRepository: MediaRepositoryShape;
+      mediaRepository: MediaRepositoryShape;
       providerService: MediaSeasonalProviderServiceShape;
       now: Date;
     } & SeasonalMediaQueryParams,
@@ -37,7 +37,7 @@ export const listSeasonalMediaEffect = Effect.fn("MediaQuerySeasonal.listSeasona
     });
 
     const marked: Array<MediaSearchResult> = yield* markSearchResultsAlreadyInLibraryEffect(
-      input.mediaReadRepository,
+      input.mediaRepository,
       seasonalResult.results,
     );
 

@@ -45,7 +45,7 @@ const scanImportPathEffect = Effect.fn("ImportPathScanService.scanImportPathEffe
     mediaId?: number;
     fs: FileSystemShape;
     limit?: number;
-    mediaReadRepository: typeof MediaRepository.Service;
+    mediaRepository: typeof MediaRepository.Service;
     mediaProbe: MediaProbeShape;
     namingSettings: NamingSettings;
     path: string;
@@ -57,7 +57,7 @@ const scanImportPathEffect = Effect.fn("ImportPathScanService.scanImportPathEffe
     });
     const animeRows = yield* loadImportScanMediaRows({
       ...(input.mediaId === undefined ? {} : { mediaId: input.mediaId }),
-      mediaReadRepository: input.mediaReadRepository,
+      mediaRepository: input.mediaRepository,
     });
     const enrichedFiles = yield* enrichImportScanFiles({
       files: discovery.episodeFiles.map((entry) => entry.scanned),
@@ -78,7 +78,7 @@ const scanImportPathEffect = Effect.fn("ImportPathScanService.scanImportPathEffe
       candidateAnimeIds,
       candidatePaths,
       episodeNumberCandidates,
-      mediaReadRepository: input.mediaReadRepository,
+      mediaRepository: input.mediaRepository,
     });
     const mappingIndex = buildUnitFileMappingIndex(mappedEpisodeRows);
     const namingSettings = input.namingSettings;
@@ -86,7 +86,7 @@ const scanImportPathEffect = Effect.fn("ImportPathScanService.scanImportPathEffe
     const scopedEpisodeRows = yield* loadScopedEpisodeRows({
       animeIds: animeRows.map((row) => row.id),
       episodeNumberCandidates,
-      mediaReadRepository: input.mediaReadRepository,
+      mediaRepository: input.mediaRepository,
     });
     const episodeRowsByAnimeEpisode = new Map(
       scopedEpisodeRows.map((row) => [`${row.mediaId}:${row.number}`, row] as const),
@@ -251,7 +251,7 @@ export class ImportPathScanService extends Effect.Service<ImportPathScanService>
       const aniList = yield* AniListClient;
       const fs = yield* FileSystem;
       const mediaProbe = yield* MediaProbe;
-      const mediaReadRepository = yield* MediaRepository;
+      const mediaRepository = yield* MediaRepository;
       const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
 
       const scanImportPath = Effect.fn("ImportPathScanService.scanImportPath")(function* (input: {
@@ -304,7 +304,7 @@ export class ImportPathScanService extends Effect.Service<ImportPathScanService>
           ...(input.mediaId === undefined ? {} : { mediaId: input.mediaId }),
           fs,
           ...(input.limit === undefined ? {} : { limit: input.limit }),
-          mediaReadRepository,
+          mediaRepository,
           mediaProbe,
           namingSettings: {
             movieNamingFormat: config.library.movie_naming_format,

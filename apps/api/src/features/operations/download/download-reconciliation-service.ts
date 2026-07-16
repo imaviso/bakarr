@@ -53,7 +53,7 @@ export class DownloadReconciliationService extends Effect.Service<DownloadReconc
       const eventBus = yield* EventBus;
       const fs = yield* FileSystem;
       const mediaProbe = yield* MediaProbe;
-      const mediaReadRepository = yield* MediaRepository;
+      const mediaRepository = yield* MediaRepository;
       const mediaUnitRepository = yield* MediaUnitRepository;
       const torrentClientService = yield* TorrentClientService;
       const progressSupport = yield* DownloadProgressService;
@@ -113,7 +113,7 @@ export class DownloadReconciliationService extends Effect.Service<DownloadReconc
           row,
           contentPath,
           getRuntimeConfig,
-          mediaReadRepository,
+          mediaRepository,
         });
 
         if (Option.isNone(context)) {

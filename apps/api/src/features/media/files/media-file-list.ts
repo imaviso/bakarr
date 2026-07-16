@@ -110,11 +110,11 @@ export const listMediaFilesEffect = Effect.fn("MediaFileList.listMediaFilesEffec
   function* (input: {
     mediaId: number;
     fs: FileSystemShape;
-    mediaReadRepository: MediaRepositoryShape;
+    mediaRepository: MediaRepositoryShape;
     mediaUnitRepository: MediaUnitRepositoryShape;
     mediaProbe: MediaProbeShape;
   }) {
-    const animeRow = yield* input.mediaReadRepository.getMediaRow(input.mediaId);
+    const animeRow = yield* input.mediaRepository.getMediaRow(input.mediaId);
     const collectFiles = animeRow.mediaKind === "anime" ? collectVideoFiles : collectVolumeFiles;
     const files = yield* collectFiles(input.fs, animeRow.rootFolder).pipe(
       Effect.mapError(
@@ -126,7 +126,7 @@ export const listMediaFilesEffect = Effect.fn("MediaFileList.listMediaFilesEffec
       ),
     );
 
-    const mappedRows = yield* input.mediaReadRepository.listMappedUnitRows(input.mediaId);
+    const mappedRows = yield* input.mediaRepository.listMappedUnitRows(input.mediaId);
     const cachedEpisodeRows: EpisodeMediaCacheRow[] = mappedRows.map((row) => ({
       audioChannels: row.audioChannels,
       audioCodec: row.audioCodec,

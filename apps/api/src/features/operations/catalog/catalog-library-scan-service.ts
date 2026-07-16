@@ -29,7 +29,7 @@ function makeCatalogLibraryScanSupport(input: {
   backgroundJobRepository: BackgroundJobRepositoryShape;
   eventBus: typeof EventBus.Service;
   fs: FileSystemShape;
-  mediaReadRepository: MediaRepositoryShape;
+  mediaRepository: MediaRepositoryShape;
   mediaUnitRepository: import("@/features/media/units/media-unit-repository.ts").MediaUnitRepositoryShape;
   nowIso: () => Effect.Effect<string>;
   publishLibraryScanProgress: (scanned: number) => Effect.Effect<void>;
@@ -54,7 +54,7 @@ function makeCatalogLibraryScanSupport(input: {
       yield* Effect.annotateCurrentSpan("job", "library_scan");
       yield* input.backgroundJobRepository.markStarted("library_scan", nowIso);
 
-      const animeRows = yield* input.mediaReadRepository.listMediaRows({
+      const animeRows = yield* input.mediaRepository.listMediaRows({
         limit: Number.MAX_SAFE_INTEGER,
         offset: 0,
       });
@@ -113,7 +113,7 @@ export class CatalogLibraryScanService extends Effect.Service<CatalogLibraryScan
       const backgroundJobRepository = yield* BackgroundJobRepository;
       const eventBus = yield* EventBus;
       const fs = yield* FileSystem;
-      const mediaReadRepository = yield* MediaRepository;
+      const mediaRepository = yield* MediaRepository;
       const mediaUnitRepository = yield* MediaUnitRepository;
       const progress = yield* OperationsProgress;
 
@@ -121,7 +121,7 @@ export class CatalogLibraryScanService extends Effect.Service<CatalogLibraryScan
         backgroundJobRepository,
         eventBus,
         fs,
-        mediaReadRepository,
+        mediaRepository,
         mediaUnitRepository,
         nowIso: currentNowIso,
         publishLibraryScanProgress: progress.publishLibraryScanProgress,

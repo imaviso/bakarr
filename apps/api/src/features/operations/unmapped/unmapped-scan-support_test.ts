@@ -104,7 +104,7 @@ it.scoped("loadUnmappedFolderSnapshot scans anime, manga, and light novel roots"
                 { mediaKind: "light_novel", path: lightNovelRoot },
               ]),
             systemUnmappedRepository: makeSystemUnmappedRepository(db),
-            mediaReadRepository: makeMediaRepository(db),
+            mediaRepository: makeMediaRepository(db),
           });
 
           assert.deepStrictEqual(

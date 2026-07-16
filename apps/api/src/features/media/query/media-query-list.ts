@@ -26,7 +26,7 @@ interface EpisodeStats {
 const DTO_PROGRESS_YIELD_INTERVAL = 50;
 
 export const listMediaEffect = Effect.fn("MediaQueryList.listMediaEffect")(function* (
-  mediaReadRepository: MediaRepositoryShape,
+  mediaRepository: MediaRepositoryShape,
   params: MediaListQueryParams = {},
 ) {
   const limit = Math.min(Math.max(params.limit ?? 100, 1), 500);
@@ -34,15 +34,15 @@ export const listMediaEffect = Effect.fn("MediaQueryList.listMediaEffect")(funct
   const monitoredFilter = params.monitored === undefined ? {} : { monitored: params.monitored };
 
   const [animeRows, total] = yield* Effect.all([
-    mediaReadRepository.listMediaRows({ ...monitoredFilter, limit, offset }),
-    mediaReadRepository.countMedia(monitoredFilter),
+    mediaRepository.listMediaRows({ ...monitoredFilter, limit, offset }),
+    mediaRepository.countMedia(monitoredFilter),
   ]);
 
   const animeIds = animeRows.map((row) => row.id);
   const episodeStatsByAnimeId = new Map<number, EpisodeStats>();
 
   if (animeIds.length > 0) {
-    const episodeStats = yield* mediaReadRepository.listUnitProgressStats(animeIds);
+    const episodeStats = yield* mediaRepository.listUnitProgressStats(animeIds);
 
     for (const stat of episodeStats) {
       const latestDownloadedUnit =
@@ -55,7 +55,7 @@ export const listMediaEffect = Effect.fn("MediaQueryList.listMediaEffect")(funct
     }
   }
 
-  const airedEpisodeRows = yield* mediaReadRepository.listMissingUnitNumbers(animeIds);
+  const airedEpisodeRows = yield* mediaRepository.listMissingUnitNumbers(animeIds);
 
   const missingNumbersByAnimeId = new Map<number, number[]>();
   for (const row of airedEpisodeRows) {

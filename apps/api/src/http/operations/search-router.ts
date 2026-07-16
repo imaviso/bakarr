@@ -9,9 +9,9 @@ import {
 } from "@packages/shared/index.ts";
 
 import { DownloadTriggerService } from "@/features/operations/download/download-trigger-service.ts";
-import { SearchBackgroundMissingService } from "@/features/operations/background-search/background-search-missing-support.ts";
+import { SearchBackgroundMissingService } from "@/features/operations/background-search/background-search-missing-service.ts";
 import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
-import { SearchUnitService } from "@/features/operations/search/search-orchestration-unit-support.ts";
+import { SearchUnitService } from "@/features/operations/search/search-unit-service.ts";
 import { SearchReleaseService } from "@/features/operations/search/search-orchestration-release-search.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { nowIso } from "@/infra/time.ts";

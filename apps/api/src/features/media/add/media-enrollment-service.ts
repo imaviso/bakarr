@@ -6,7 +6,7 @@ import { EventBus } from "@/features/events/event-bus.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { MediaMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
-import { SearchBackgroundMissingService } from "@/features/operations/background-search/background-search-missing-support.ts";
+import { SearchBackgroundMissingService } from "@/features/operations/background-search/background-search-missing-service.ts";
 import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
 import { DomainPathError, InfrastructureError, StoredDataError } from "@/features/errors.ts";
 import type { AddMediaInput } from "@/features/media/add/add-media-input.ts";
@@ -37,7 +37,7 @@ const makeMediaEnrollmentService = Effect.fn("MediaEnrollmentService.make")(func
   const metadataProvider = yield* MediaMetadataProviderService;
   const imageCacheService = yield* MediaImageCacheService;
   const fs = yield* FileSystem;
-  const mediaReadRepository = yield* MediaRepository;
+  const mediaRepository = yield* MediaRepository;
   const mediaUnitRepository = yield* MediaUnitRepository;
   const qualityProfileRepository = yield* QualityProfileRepository;
   const systemConfigRepository = yield* SystemConfigRepository;
@@ -51,7 +51,7 @@ const makeMediaEnrollmentService = Effect.fn("MediaEnrollmentService.make")(func
       eventPublisher: eventBus,
       fs,
       imageCacheService,
-      mediaReadRepository,
+      mediaRepository,
       mediaUnitRepository,
       qualityProfileRepository,
       systemConfigRepository,

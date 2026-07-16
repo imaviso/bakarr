@@ -5,10 +5,10 @@ import type { MediaRepositoryShape } from "@/features/media/shared/media-reposit
 
 export const getMediaEffect = Effect.fn("MediaQueryGet.getMediaEffect")(function* (input: {
   id: number;
-  mediaReadRepository: MediaRepositoryShape;
+  mediaRepository: MediaRepositoryShape;
 }) {
-  const row = yield* input.mediaReadRepository.getMediaRow(input.id);
-  const episodeRows = yield* input.mediaReadRepository.listUnitRowsByMediaId(input.id);
+  const row = yield* input.mediaRepository.getMediaRow(input.id);
+  const episodeRows = yield* input.mediaRepository.listUnitRowsByMediaId(input.id);
 
   return yield* toMediaDto(row, episodeRows);
 });

@@ -75,7 +75,7 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
   const backgroundJobRepository = yield* BackgroundJobRepository;
   const eventBus = yield* EventBus;
   const fs = yield* FileSystem;
-  const mediaReadRepository = yield* MediaRepository;
+  const mediaRepository = yield* MediaRepository;
   const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
   const systemLogRepository = yield* SystemLogRepository;
   const systemUnmappedRepository = yield* SystemUnmappedRepository;
@@ -106,7 +106,7 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
         fs,
         roots: loadConfiguredRoots,
         systemUnmappedRepository,
-        mediaReadRepository,
+        mediaRepository,
       });
 
       const folders = yield* Effect.forEach(snapshot.folders, (folder) =>
@@ -168,7 +168,7 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
         aniList,
         animeRows,
         folder: matchingFolder,
-        mediaReadRepository,
+        mediaRepository,
         nowIso,
       }),
     );

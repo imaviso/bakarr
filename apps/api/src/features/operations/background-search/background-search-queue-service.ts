@@ -176,7 +176,7 @@ export class BackgroundSearchQueueService extends Effect.Service<BackgroundSearc
         queueReleaseIfEligible,
       } satisfies BackgroundSearchQueueServiceShape;
     }),
-    dependencies: [DownloadRepository.Default],
+    dependencies: [DownloadRepository.Default, DownloadTriggerCoordinator.Default],
   },
 ) {}
 

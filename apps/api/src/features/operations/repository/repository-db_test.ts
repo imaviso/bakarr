@@ -153,8 +153,8 @@ it.scoped("operations repository helpers load media release rules and episode st
           }),
         );
 
-        const mediaReadRepository = makeMediaRepository(db);
-        const animeRow = yield* mediaReadRepository.getMediaRow(20);
+        const mediaRepository = makeMediaRepository(db);
+        const animeRow = yield* mediaRepository.getMediaRow(20);
         assert.deepStrictEqual(animeRow.titleRomaji, "Naruto");
 
         const releaseRules = yield* loadReleaseRules(db, animeRow);
@@ -163,7 +163,7 @@ it.scoped("operations repository helpers load media release rules and episode st
           { rule_type: "must", score: 0, term: "1080p" },
         ]);
 
-        const episodeState = yield* mediaReadRepository.loadCurrentUnitState(20, 1);
+        const episodeState = yield* mediaRepository.loadCurrentUnitState(20, 1);
         assert.deepStrictEqual(episodeState._tag, "Some");
         if (episodeState._tag === "Some") {
           assert.deepStrictEqual(episodeState.value, {
@@ -171,12 +171,9 @@ it.scoped("operations repository helpers load media release rules and episode st
             filePath: "/library/Naruto/Naruto - 01.mkv",
           });
         }
-        assert.deepStrictEqual(
-          yield* mediaReadRepository.loadCurrentUnitState(20, 2),
-          Option.none(),
-        );
+        assert.deepStrictEqual(yield* mediaRepository.loadCurrentUnitState(20, 2), Option.none());
 
-        const notFoundExit = yield* Effect.exit(mediaReadRepository.getMediaRow(999));
+        const notFoundExit = yield* Effect.exit(mediaRepository.getMediaRow(999));
         assert.deepStrictEqual(notFoundExit._tag, "Failure");
         if (notFoundExit._tag === "Failure") {
           const failure = Cause.failureOption(notFoundExit.cause);

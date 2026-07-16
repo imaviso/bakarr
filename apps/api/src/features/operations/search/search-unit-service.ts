@@ -46,7 +46,7 @@ export class SearchUnitService extends Effect.Service<SearchUnitService>()(
   "@bakarr/api/SearchUnitService",
   {
     effect: Effect.gen(function* () {
-      const mediaReadRepository = yield* MediaRepository;
+      const mediaRepository = yield* MediaRepository;
       const qualityProfileRepository = yield* QualityProfileRepository;
       const releaseProfileRepository = yield* ReleaseProfileRepository;
       const searchReleaseService = yield* SearchReleaseService;
@@ -56,7 +56,7 @@ export class SearchUnitService extends Effect.Service<SearchUnitService>()(
         mediaId: number,
         unitNumber: number,
       ) {
-        const animeRow = yield* mediaReadRepository.getMediaRow(mediaId);
+        const animeRow = yield* mediaRepository.getMediaRow(mediaId);
         const runtimeConfig = yield* runtimeConfigSnapshotService.getRuntimeConfig();
         const profileOption = yield* qualityProfileRepository.loadQualityProfile(
           animeRow.profileName,
@@ -73,7 +73,7 @@ export class SearchUnitService extends Effect.Service<SearchUnitService>()(
         yield* validateQualityProfileSizeLabels(profile);
 
         const rules = yield* releaseProfileRepository.loadReleaseRules(animeRow);
-        const currentUnit = yield* mediaReadRepository.loadCurrentUnitState(mediaId, unitNumber);
+        const currentUnit = yield* mediaRepository.loadCurrentUnitState(mediaId, unitNumber);
         const results = yield* searchReleaseService.searchUnitReleases(
           animeRow,
           unitNumber,

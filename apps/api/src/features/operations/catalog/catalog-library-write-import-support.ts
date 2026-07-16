@@ -20,7 +20,7 @@ export interface LibraryImportFileInput {
 export interface ImportLibraryFilesInput {
   readonly eventBus: typeof EventBus.Service;
   readonly fs: FileSystemShape;
-  readonly mediaReadRepository: typeof MediaRepository.Service;
+  readonly mediaRepository: typeof MediaRepository.Service;
   readonly mediaUnitRepository: MediaUnitRepositoryShape;
   readonly mediaProbe: MediaProbeShape;
   readonly runtimeConfig: Config;
@@ -30,15 +30,8 @@ export interface ImportLibraryFilesInput {
 export const importLibraryFiles = Effect.fn("Operations.importLibraryFiles")((
   input: ImportLibraryFilesInput,
 ): Effect.Effect<ImportResult> => {
-  const {
-    eventBus,
-    fs,
-    mediaReadRepository,
-    mediaUnitRepository,
-    mediaProbe,
-    runtimeConfig,
-    files,
-  } = input;
+  const { eventBus, fs, mediaRepository, mediaUnitRepository, mediaProbe, runtimeConfig, files } =
+    input;
   return Effect.gen(function* () {
     yield* eventBus.publish({
       type: "ImportStarted",
@@ -53,7 +46,7 @@ export const importLibraryFiles = Effect.fn("Operations.importLibraryFiles")((
     for (const file of files) {
       const planned = yield* buildLibraryImportPlan({
         fs,
-        mediaReadRepository,
+        mediaRepository,
         mediaProbe,
         runtimeConfig,
         file,

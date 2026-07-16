@@ -3,8 +3,8 @@ import { Layer } from "effect";
 import { BackgroundSearchQueueServiceLive } from "@/features/operations/background-search/background-search-queue-service.ts";
 import { BackgroundSearchRssFeedServiceLive } from "@/features/operations/background-search/background-search-rss-feed-service.ts";
 import { BackgroundSearchRssWorkerServiceLive } from "@/features/operations/background-search/background-search-rss-worker-service.ts";
-import { SearchBackgroundMissingServiceLive } from "@/features/operations/background-search/background-search-missing-support.ts";
-import { SearchBackgroundRssServiceLive } from "@/features/operations/background-search/background-search-rss-support.ts";
+import { SearchBackgroundMissingServiceLive } from "@/features/operations/background-search/background-search-missing-service.ts";
+import { SearchBackgroundRssServiceLive } from "@/features/operations/background-search/background-search-rss-service.ts";
 import { CatalogDownloadReadServiceLive } from "@/features/operations/catalog/catalog-download-read-service.ts";
 import { CatalogLibraryReadServiceLive } from "@/features/operations/catalog/catalog-library-read-service.ts";
 import { CatalogLibraryScanServiceLive } from "@/features/operations/catalog/catalog-library-scan-service.ts";
@@ -12,8 +12,8 @@ import { CatalogLibraryWriteServiceLive } from "@/features/operations/catalog/ca
 import { CatalogRssServiceLive } from "@/features/operations/catalog/catalog-rss-service.ts";
 import { DownloadProgressServiceLive } from "@/features/operations/download/download-progress-service.ts";
 import { DownloadReconciliationServiceLive } from "@/features/operations/download/download-reconciliation-service.ts";
-import { DownloadTorrentActionServiceLive } from "@/features/operations/download/download-torrent-action-support.ts";
-import { DownloadTorrentSyncServiceLive } from "@/features/operations/download/download-torrent-sync-support.ts";
+import { DownloadTorrentActionServiceLive } from "@/features/operations/download/download-torrent-action-service.ts";
+import { DownloadTorrentSyncServiceLive } from "@/features/operations/download/download-torrent-sync-service.ts";
 import { DownloadTriggerServiceLive } from "@/features/operations/download/download-trigger-service.ts";
 import { ImportPathScanServiceLive } from "@/features/operations/import-scan/import-path-scan-service.ts";
 import { LibraryBrowseServiceLive } from "@/features/operations/library/library-browse-service.ts";
@@ -26,7 +26,7 @@ import {
   DownloadTriggerCoordinatorLive,
   UnmappedScanCoordinatorLive,
 } from "@/features/operations/tasks/runtime-support.ts";
-import { SearchUnitServiceLive } from "@/features/operations/search/search-orchestration-unit-support.ts";
+import { SearchUnitServiceLive } from "@/features/operations/search/search-unit-service.ts";
 import { SearchReleaseServiceLive } from "@/features/operations/search/search-orchestration-release-search.ts";
 import { TorrentClientServiceLive } from "@/features/operations/qbittorrent/torrent-client-service.ts";
 import { UnmappedControlServiceLive } from "@/features/operations/unmapped/unmapped-control-service.ts";

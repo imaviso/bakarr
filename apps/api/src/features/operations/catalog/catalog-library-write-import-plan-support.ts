@@ -21,7 +21,7 @@ import {
 
 export interface BuildLibraryImportPlanInput {
   readonly fs: FileSystemShape;
-  readonly mediaReadRepository: typeof MediaRepository.Service;
+  readonly mediaRepository: typeof MediaRepository.Service;
   readonly mediaProbe: MediaProbeShape;
   readonly runtimeConfig: Config;
   readonly file: {
@@ -50,7 +50,7 @@ export interface LibraryImportPlan {
 export const buildLibraryImportPlan = Effect.fn("Operations.buildLibraryImportPlan")((
   input: BuildLibraryImportPlanInput,
 ): Effect.Effect<LibraryImportPlan, DatabaseError | DomainPathError | MediaNotFoundError> => {
-  const { file, fs, mediaReadRepository, mediaProbe, runtimeConfig } = input;
+  const { file, fs, mediaRepository, mediaProbe, runtimeConfig } = input;
   return Effect.gen(function* () {
     const resolvedSource = yield* fs.realPath(file.source_path).pipe(
       Effect.mapError(
@@ -62,7 +62,7 @@ export const buildLibraryImportPlan = Effect.fn("Operations.buildLibraryImportPl
       ),
     );
 
-    const animeRow = yield* mediaReadRepository.getMediaRow(file.media_id);
+    const animeRow = yield* mediaRepository.getMediaRow(file.media_id);
     const importMode = runtimeConfig.library.import_mode;
     const namingSettings = {
       movieNamingFormat: runtimeConfig.library.movie_naming_format,
@@ -72,7 +72,7 @@ export const buildLibraryImportPlan = Effect.fn("Operations.buildLibraryImportPl
     const namingFormat = selectNamingFormat(animeRow, namingSettings);
     const allEpisodeNumbers = file.unit_numbers?.length ? file.unit_numbers : [file.unit_number];
     const episodeNumbersForQuery = new Set(allEpisodeNumbers);
-    const unitRows = yield* mediaReadRepository.listUnitRowsByMediaId(file.media_id);
+    const unitRows = yield* mediaRepository.listUnitRowsByMediaId(file.media_id);
     const episodeRows = unitRows
       .filter((row) => episodeNumbersForQuery.has(row.number))
       .map((row) => ({ aired: row.aired, title: row.title }));

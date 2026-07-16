@@ -46,7 +46,7 @@ const makeMediaMetadataEnrichmentService = Effect.fn("MediaMetadataEnrichmentSer
   function* () {
     const aniDb = yield* AniDbClient;
     const aniDbUnitCacheRepository = yield* AniDbUnitCacheRepository;
-    const mediaReadRepository = yield* MediaRepository;
+    const mediaRepository = yield* MediaRepository;
     const mediaUnitRepository = yield* MediaUnitRepository;
     const queue = yield* Effect.acquireRelease(
       Queue.dropping<AniDbRefreshRequest>(ANIDB_REFRESH_QUEUE_CAPACITY),
@@ -82,7 +82,7 @@ const makeMediaMetadataEnrichmentService = Effect.fn("MediaMetadataEnrichmentSer
         updatedAt,
       });
 
-      const exists = yield* mediaReadRepository.mediaExists(request.mediaId);
+      const exists = yield* mediaRepository.mediaExists(request.mediaId);
 
       if (exists) {
         yield* mediaUnitRepository.syncUnitMetadata(request.mediaId, lookupResult.mediaUnits);

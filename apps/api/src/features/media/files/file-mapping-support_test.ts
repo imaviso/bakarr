@@ -46,7 +46,7 @@ it.scoped("resolveUnitFileEffect returns resolved file when mapping is valid", (
 
           const result = yield* resolveUnitFileEffect({
             mediaId: 1,
-            mediaReadRepository: makeMediaRepository(appDb),
+            mediaRepository: makeMediaRepository(appDb),
             unitNumber: 1,
             fs,
           });
@@ -80,7 +80,7 @@ it.scoped("resolveUnitFileEffect returns unmapped state when no file path is sto
 
           const result = yield* resolveUnitFileEffect({
             mediaId: 1,
-            mediaReadRepository: makeMediaRepository(appDb),
+            mediaRepository: makeMediaRepository(appDb),
             unitNumber: 1,
             fs,
           });
@@ -111,7 +111,7 @@ it.scoped("resolveUnitFileEffect returns missing state when mapped file is inacc
 
           const result = yield* resolveUnitFileEffect({
             mediaId: 1,
-            mediaReadRepository: makeMediaRepository(appDb),
+            mediaRepository: makeMediaRepository(appDb),
             unitNumber: 1,
             fs,
           });
@@ -145,7 +145,7 @@ it.scoped(
 
             const result = yield* resolveUnitFileEffect({
               mediaId: 1,
-              mediaReadRepository: makeMediaRepository(appDb),
+              mediaRepository: makeMediaRepository(appDb),
               unitNumber: 1,
               fs,
             });
@@ -183,7 +183,7 @@ it.scoped("resolveUnitFileEffect returns outside-root state when mapping escapes
 
           const result = yield* resolveUnitFileEffect({
             mediaId: 1,
-            mediaReadRepository: makeMediaRepository(appDb),
+            mediaRepository: makeMediaRepository(appDb),
             unitNumber: 1,
             fs,
           });

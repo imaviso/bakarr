@@ -21,7 +21,7 @@ export class CatalogRssService extends Effect.Service<CatalogRssService>()(
   "@bakarr/api/CatalogRssService",
   {
     effect: Effect.gen(function* () {
-      const mediaReadRepository = yield* MediaRepository;
+      const mediaRepository = yield* MediaRepository;
       const rssFeedRepository = yield* RssFeedRepository;
       const systemLogRepository = yield* SystemLogRepository;
       const nowIso = currentNowIso;
@@ -31,7 +31,7 @@ export class CatalogRssService extends Effect.Service<CatalogRssService>()(
         url: string;
         name?: string;
       }) {
-        yield* mediaReadRepository.getMediaRow(rssInput.media_id);
+        yield* mediaRepository.getMediaRow(rssInput.media_id);
         const now = yield* nowIso();
         const feed = yield* rssFeedRepository.insertFeed({
           createdAt: now,
