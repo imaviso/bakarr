@@ -17,7 +17,7 @@ import {
   titlesMatch,
   type AnalyzedFile,
 } from "@/features/operations/library/library-import-analysis-support.ts";
-import { buildEpisodeFilenamePlan } from "@/features/operations/library/naming-canonical-support.ts";
+import { buildUnitFilenamePlan } from "@/features/operations/library/naming-canonical-support.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import {
   mergeProbedMediaMetadata,
@@ -106,22 +106,22 @@ export function findBestRemoteCandidate(
     : undefined;
 }
 
-type EpisodeFileMappingRow = {
+type UnitFileMappingRow = {
   media_id: number;
   media_title: string;
   unit_number: number;
   file_path: string | null;
 };
 
-export type EpisodeFileMappingIndex = {
-  byAnimeEpisode: Map<string, EpisodeFileMappingRow>;
+export type UnitFileMappingIndex = {
+  byMediaUnit: Map<string, UnitFileMappingRow>;
   byPath: Map<string, FileUnitMapping>;
 };
 
-export function buildEpisodeFileMappingIndex(
-  rows: readonly EpisodeFileMappingRow[],
-): EpisodeFileMappingIndex {
-  const byAnimeEpisode = new Map<string, EpisodeFileMappingRow>();
+export function buildUnitFileMappingIndex(
+  rows: readonly UnitFileMappingRow[],
+): UnitFileMappingIndex {
+  const byMediaUnit = new Map<string, UnitFileMappingRow>();
   const byPath = new Map<string, FileUnitMapping>();
 
   for (const row of rows) {
@@ -129,7 +129,7 @@ export function buildEpisodeFileMappingIndex(
       continue;
     }
 
-    byAnimeEpisode.set(`${row.media_id}:${row.unit_number}`, row);
+    byMediaUnit.set(`${row.media_id}:${row.unit_number}`, row);
 
     const existing = byPath.get(row.file_path);
     if (existing) {
@@ -149,12 +149,12 @@ export function buildEpisodeFileMappingIndex(
     });
   }
 
-  return { byAnimeEpisode, byPath };
+  return { byMediaUnit, byPath };
 }
 
 export function buildScannedFileLibrarySignals(input: {
   file: Pick<ScannedFile, "unit_number" | "unit_numbers" | "source_path">;
-  mappingIndex: EpisodeFileMappingIndex;
+  mappingIndex: UnitFileMappingIndex;
   targetAnime?: { id: number; title: string } | undefined;
 }) {
   const existing_mapping = input.mappingIndex.byPath.get(input.file.source_path);
@@ -166,7 +166,7 @@ export function buildScannedFileLibrarySignals(input: {
   }
 
   const conflicts = unitNumbers.flatMap((unitNumber) => {
-    const existing = input.mappingIndex.byAnimeEpisode.get(`${targetAnime.id}:${unitNumber}`);
+    const existing = input.mappingIndex.byMediaUnit.get(`${targetAnime.id}:${unitNumber}`);
 
     if (!existing || existing.file_path === input.file.source_path) {
       return [];
@@ -241,7 +241,7 @@ export function buildScannedFileNamingPlan(input: {
     return {};
   }
 
-  const plan = buildEpisodeFilenamePlan({
+  const plan = buildUnitFilenamePlan({
     animeRow: input.animeRow,
     downloadSourceMetadata: {
       ...(input.file.air_date === undefined ? {} : { air_date: input.file.air_date }),

@@ -2,7 +2,7 @@ import { assert, it } from "@effect/vitest";
 
 import {
   buildCanonicalEpisodeNamingInput,
-  buildEpisodeFilenamePlan,
+  buildUnitFilenamePlan,
 } from "@/features/operations/library/naming-canonical-support.ts";
 
 it("buildCanonicalEpisodeNamingInput prefers download metadata over path and probe metadata", () => {
@@ -72,8 +72,8 @@ it("buildCanonicalEpisodeNamingInput warns and skips ambiguous multi-episode met
   ]);
 });
 
-it("buildEpisodeFilenamePlan reports fallback details and metadata snapshot", () => {
-  const plan = buildEpisodeFilenamePlan({
+it("buildUnitFilenamePlan reports fallback details and metadata snapshot", () => {
+  const plan = buildUnitFilenamePlan({
     animeRow: {
       format: "TV",
       startDate: "2025-01-01",

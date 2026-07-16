@@ -13,7 +13,7 @@ export interface CanonicalEpisodeNamingInput {
   readonly warnings: readonly string[];
 }
 
-export interface EpisodeFilenamePlan {
+export interface UnitFilenamePlan {
   readonly baseName: string;
   readonly fallbackUsed: boolean;
   readonly formatUsed: string;

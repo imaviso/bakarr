@@ -79,7 +79,7 @@ const WRAPPED_SEGMENT_PATTERNS: Record<"(" | "[", RegExp> = {
   "[": /\[([^\]]*)\]/g,
 };
 
-export function renderEpisodeFilename(format: string, input: NamingInput): string {
+export function renderUnitFilename(format: string, input: NamingInput): string {
   const formatHasResolutionToken = RESOLUTION_TOKEN_PATTERN.test(format);
   const primaryUnit = input.unitNumbers[0] ?? 0;
   const segment = formatEpisodeSegment({

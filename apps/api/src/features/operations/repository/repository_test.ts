@@ -15,7 +15,7 @@ import {
 import {
   encodeDownloadEventMetadata,
   encodeDownloadSourceMetadata,
-} from "@/features/operations/repository/download-repository.ts";
+} from "@/features/operations/repository/download-row-codec.ts";
 import { toDownloadEvent } from "@/features/operations/download/download-event-presentations.ts";
 import { toRssFeed } from "@/features/operations/repository/rss-repository.ts";
 import { StoredDataError } from "@/features/errors.ts";

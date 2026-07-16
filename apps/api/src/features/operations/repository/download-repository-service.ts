@@ -24,7 +24,7 @@ import {
   insertDownloadEventRows,
   type DownloadEventRecordInput,
   updateDownloadStatusRow,
-} from "@/features/operations/repository/download-repository.ts";
+} from "@/features/operations/repository/download-row-codec.ts";
 import type { DownloadPresentationContext } from "@/features/operations/repository/types.ts";
 import { StoredDataError } from "@/features/errors.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";

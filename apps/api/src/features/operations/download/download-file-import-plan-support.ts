@@ -2,7 +2,7 @@ import { Effect } from "effect";
 
 import type { DownloadSourceMetadata, PreferredTitle } from "@packages/shared/index.ts";
 import { media } from "@/db/schema.ts";
-import { buildEpisodeFilenamePlan } from "@/features/operations/library/naming-canonical-support.ts";
+import { buildUnitFilenamePlan } from "@/features/operations/library/naming-canonical-support.ts";
 import type { ProbedMediaMetadata } from "@/infra/media/probe.ts";
 
 export interface DownloadFileImportPlan {
@@ -30,7 +30,7 @@ export const buildDownloadFileImportPlan = Effect.fn("Operations.buildDownloadFi
       ? input.sourcePath.slice(input.sourcePath.lastIndexOf("."))
       : ".mkv";
     const namingFormat = input.options.namingFormat ?? "{title} - {episode_segment}";
-    const namingPlan = buildEpisodeFilenamePlan({
+    const namingPlan = buildUnitFilenamePlan({
       animeRow: input.animeRow,
       unitNumbers: input.unitNumbers,
       filePath: input.sourcePath,

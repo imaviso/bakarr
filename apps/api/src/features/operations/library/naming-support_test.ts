@@ -3,7 +3,7 @@ import { brandQualityId } from "@packages/shared/index.ts";
 
 import {
   buildCanonicalEpisodeNamingInput,
-  buildEpisodeFilenamePlan,
+  buildUnitFilenamePlan,
 } from "@/features/operations/library/naming-canonical-support.ts";
 import {
   buildDownloadSelectionMetadata,
@@ -204,8 +204,8 @@ it("buildCanonicalEpisodeNamingInput warns on ambiguous multi-episode metadata",
   assert.deepStrictEqual(result.warnings.length, 2);
 });
 
-it("buildEpisodeFilenamePlan exposes fallback and warning details", () => {
-  const plan = buildEpisodeFilenamePlan({
+it("buildUnitFilenamePlan exposes fallback and warning details", () => {
+  const plan = buildUnitFilenamePlan({
     animeRow: {
       format: "TV",
       rootFolder: "/library/Show",
@@ -224,8 +224,8 @@ it("buildEpisodeFilenamePlan exposes fallback and warning details", () => {
   assert.deepStrictEqual(plan.missingFields, ["season"]);
 });
 
-it("buildEpisodeFilenamePlan fills media tokens from local metadata when heuristics are weak", () => {
-  const plan = buildEpisodeFilenamePlan({
+it("buildUnitFilenamePlan fills media tokens from local metadata when heuristics are weak", () => {
+  const plan = buildUnitFilenamePlan({
     animeRow: {
       format: "TV",
       rootFolder: "/library/Show",

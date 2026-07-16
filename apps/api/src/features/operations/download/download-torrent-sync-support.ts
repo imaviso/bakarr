@@ -12,7 +12,7 @@ import { DownloadProgressService } from "@/features/operations/download/download
 import {
   decodeDownloadSourceMetadata,
   type DownloadEventRecordInput,
-} from "@/features/operations/repository/download-repository.ts";
+} from "@/features/operations/repository/download-row-codec.ts";
 import {
   DownloadRepository,
   type TorrentSyncUpdate,

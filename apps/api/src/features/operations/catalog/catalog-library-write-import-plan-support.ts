@@ -12,8 +12,8 @@ import {
 import { DomainPathError } from "@/features/errors.ts";
 import type { MediaNotFoundError } from "@/features/media/errors.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
-import { buildEpisodeFilenamePlan } from "@/features/operations/library/naming-canonical-support.ts";
-import type { EpisodeFilenamePlan } from "@/features/operations/library/naming-types.ts";
+import { buildUnitFilenamePlan } from "@/features/operations/library/naming-canonical-support.ts";
+import type { UnitFilenamePlan } from "@/features/operations/library/naming-types.ts";
 import {
   hasMissingLocalMediaNamingFields,
   selectNamingFormat,
@@ -42,7 +42,7 @@ export interface LibraryImportPlan {
   readonly unitNumber: number;
   readonly localMediaMetadata?: ProbedMediaMetadata;
   readonly resolvedSource: string;
-  readonly namingPlan: EpisodeFilenamePlan;
+  readonly namingPlan: UnitFilenamePlan;
   readonly sourcePath: string;
   readonly sourceMetadata?: DownloadSourceMetadata;
 }
@@ -79,7 +79,7 @@ export const buildLibraryImportPlan = Effect.fn("Operations.buildLibraryImportPl
     const extension = file.source_path.includes(".")
       ? file.source_path.slice(file.source_path.lastIndexOf("."))
       : ".mkv";
-    const initialNamingPlan = buildEpisodeFilenamePlan({
+    const initialNamingPlan = buildUnitFilenamePlan({
       animeRow,
       ...(file.source_metadata === undefined
         ? {}
@@ -95,7 +95,7 @@ export const buildLibraryImportPlan = Effect.fn("Operations.buildLibraryImportPl
       ? yield* probeMediaMetadataOrUndefined(mediaProbe, file.source_path)
       : undefined;
     const namingPlan = localMediaMetadata
-      ? buildEpisodeFilenamePlan({
+      ? buildUnitFilenamePlan({
           animeRow,
           ...(file.source_metadata === undefined
             ? {}

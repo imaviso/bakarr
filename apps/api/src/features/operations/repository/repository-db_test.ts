@@ -16,7 +16,7 @@ import { makeDefaultConfig } from "@/features/system/defaults.ts";
 import {
   decodeDownloadSourceMetadata,
   encodeDownloadSourceMetadata,
-} from "@/features/operations/repository/download-repository.ts";
+} from "@/features/operations/repository/download-row-codec.ts";
 import { makeMediaRepository } from "@/features/media/shared/media-repository.ts";
 import { loadQualityProfile } from "@/features/system/repository/quality-profile-repository.ts";
 import { loadReleaseRules } from "@/features/system/repository/release-profile-repository.ts";

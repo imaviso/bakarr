@@ -2,7 +2,7 @@ import { assert, it } from "@effect/vitest";
 import { brandMediaId } from "@packages/shared/index.ts";
 
 import {
-  buildEpisodeFileMappingIndex,
+  buildUnitFileMappingIndex,
   buildScannedFileLibrarySignals,
   buildScannedFileNamingPlan,
   DEFAULT_IMPORT_SCAN_LIMIT,
@@ -19,7 +19,7 @@ it("resolveImportScanLimit defaults missing values and clamps bounds", () => {
 });
 
 it("buildScannedFileLibrarySignals reports existing exact-path mappings", () => {
-  const mappingIndex = buildEpisodeFileMappingIndex([
+  const mappingIndex = buildUnitFileMappingIndex([
     {
       media_id: 20,
       media_title: "Naruto",
@@ -56,7 +56,7 @@ it("buildScannedFileLibrarySignals reports existing exact-path mappings", () => 
 });
 
 it("buildScannedFileLibrarySignals reports duplicate episode conflicts", () => {
-  const mappingIndex = buildEpisodeFileMappingIndex([
+  const mappingIndex = buildUnitFileMappingIndex([
     {
       media_id: 20,
       media_title: "Naruto",

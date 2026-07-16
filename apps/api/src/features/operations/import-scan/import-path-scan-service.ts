@@ -8,7 +8,7 @@ import { getConfiguredLibraryPaths } from "@/features/media/shared/config-suppor
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { DomainInputError, DomainPathError, InfrastructureError } from "@/features/errors.ts";
 import {
-  buildEpisodeFileMappingIndex,
+  buildUnitFileMappingIndex,
   buildScannedFileLibrarySignals,
   buildScannedFileNamingPlan,
   discoverImportScanFiles,
@@ -80,7 +80,7 @@ const scanImportPathEffect = Effect.fn("ImportPathScanService.scanImportPathEffe
       episodeNumberCandidates,
       mediaReadRepository: input.mediaReadRepository,
     });
-    const mappingIndex = buildEpisodeFileMappingIndex(mappedEpisodeRows);
+    const mappingIndex = buildUnitFileMappingIndex(mappedEpisodeRows);
     const namingSettings = input.namingSettings;
     const animeRowsById = new Map(animeRows.map((row) => [row.id, row]));
     const scopedEpisodeRows = yield* loadScopedEpisodeRows({

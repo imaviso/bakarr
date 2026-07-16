@@ -15,7 +15,7 @@ import type {
 import { classifyMediaArtifact } from "@/infra/media/identity/identity.ts";
 import { probeMediaMetadataOrUndefined, type MediaProbeShape } from "@/infra/media/probe.ts";
 import type { FileSystemError, FileSystemShape } from "@/infra/filesystem/filesystem.ts";
-import { buildEpisodeFilenamePlan } from "@/features/operations/library/naming-canonical-support.ts";
+import { buildUnitFilenamePlan } from "@/features/operations/library/naming-canonical-support.ts";
 import {
   hasMissingLocalMediaNamingFields,
   selectNamingFormat,
@@ -34,7 +34,7 @@ import {
 import {
   decodeDownloadSourceMetadata,
   encodeDownloadEventMetadata,
-} from "@/features/operations/repository/download-repository.ts";
+} from "@/features/operations/repository/download-row-codec.ts";
 import { DownloadRepository } from "@/features/operations/repository/download-repository-service.ts";
 import type {
   OperationsConflictError,
@@ -265,7 +265,7 @@ export const reconcileBatchDownloadEffect = Effect.fn("DownloadReconcile.reconci
         continue;
       }
 
-      const initialNamingPlan = buildEpisodeFilenamePlan({
+      const initialNamingPlan = buildUnitFilenamePlan({
         animeRow: input.animeRow,
         unitNumbers: relevantEpisodes,
         episodeRows: episodeRowsForNaming,
@@ -433,7 +433,7 @@ export const reconcileSingleDownloadEffect = Effect.fn(
   const episodeRows = yield* input.mediaReadRepository
     .loadUnitsByNumbers(input.row.mediaId, [input.row.unitNumber])
     .pipe(Effect.map((rows) => rows.map((r) => ({ aired: r.aired, title: r.title }))));
-  const initialNamingPlan = buildEpisodeFilenamePlan({
+  const initialNamingPlan = buildUnitFilenamePlan({
     animeRow: input.animeRow,
     unitNumbers: [input.row.unitNumber],
     episodeRows,

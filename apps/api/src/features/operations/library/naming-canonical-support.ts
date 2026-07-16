@@ -1,4 +1,4 @@
-import { type NamingInput, renderEpisodeFilename } from "@/infra/naming.ts";
+import { type NamingInput, renderUnitFilename } from "@/infra/naming.ts";
 import type {
   DownloadSourceMetadata,
   ParsedUnitIdentity as SharedParsedEpisodeIdentity,
@@ -19,7 +19,7 @@ import { resolveFilenameRenderPlan } from "@/features/operations/library/naming-
 import { selectMediaTitleForNamingDetails } from "@/features/operations/library/naming-title-support.ts";
 import type {
   CanonicalEpisodeNamingInput,
-  EpisodeFilenamePlan,
+  UnitFilenamePlan,
 } from "@/features/operations/library/naming-types.ts";
 
 export function buildCanonicalEpisodeNamingInput(input: {
@@ -93,7 +93,7 @@ export function buildCanonicalEpisodeNamingInput(input: {
   };
 }
 
-export function buildEpisodeFilenamePlan(input: {
+export function buildUnitFilenamePlan(input: {
   animeRow: {
     endDate?: string | null;
     endYear?: number | null;
@@ -113,7 +113,7 @@ export function buildEpisodeFilenamePlan(input: {
   episodeRows?: readonly { title?: string | null; aired?: string | null }[];
   downloadSourceMetadata?: DownloadSourceMetadata;
   localMediaMetadata?: ProbedMediaMetadata;
-}): EpisodeFilenamePlan {
+}): UnitFilenamePlan {
   const titleSelection = selectMediaTitleForNamingDetails(input.animeRow, input.preferredTitle);
   const canonical = buildCanonicalEpisodeNamingInput({
     ...(input.animeRow.endDate === undefined ? {} : { animeEndDate: input.animeRow.endDate }),
@@ -140,7 +140,7 @@ export function buildEpisodeFilenamePlan(input: {
   });
 
   return {
-    baseName: renderEpisodeFilename(renderPlan.formatUsed, canonical.namingInput),
+    baseName: renderUnitFilename(renderPlan.formatUsed, canonical.namingInput),
     fallbackUsed: renderPlan.fallbackUsed,
     formatUsed: renderPlan.formatUsed,
     metadataSnapshot: toRenamePreviewMetadataSnapshot(canonical.namingInput, titleSelection.source),

@@ -7,7 +7,7 @@ import {
   type RenamePreviewItem,
 } from "@packages/shared/index.ts";
 import type { media } from "@/db/schema.ts";
-import { buildEpisodeFilenamePlan } from "@/features/operations/library/naming-canonical-support.ts";
+import { buildUnitFilenamePlan } from "@/features/operations/library/naming-canonical-support.ts";
 import { selectNamingFormat } from "@/features/operations/library/naming-format-support.ts";
 import { StoredDataError } from "@/features/errors.ts";
 import { deriveAnimeSeason, extractYearFromDate } from "@/domain/media/date-utils.ts";
@@ -76,7 +76,7 @@ export const buildRenamePreview = Effect.fn("LibraryImport.buildRenamePreview")(
     }
 
     const extension = filePath.includes(".") ? filePath.slice(filePath.lastIndexOf(".")) : ".mkv";
-    const plan = buildEpisodeFilenamePlan({
+    const plan = buildUnitFilenamePlan({
       animeRow,
       unitNumbers,
       episodeRows: groupRows,
