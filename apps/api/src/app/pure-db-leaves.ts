@@ -17,7 +17,8 @@ import { SystemConfigRepository } from "@/features/system/repository/system-conf
 
 /**
  * Leaf repos whose only infra dep is AppDrizzleDatabase (via runtime).
- * Effect memoizes each Service.Default by identity — provide once at lifecycle preferred.
+ * Provide once at lifecycle (`makeApiLifecycleLayers`); pass into feature layers for
+ * construction. Do not re-merge inside media/ops feature layers.
  */
 export const PureDbLeaves = Layer.mergeAll(
   BackgroundJobRepository.Default,

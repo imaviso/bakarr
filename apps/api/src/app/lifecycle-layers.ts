@@ -55,13 +55,12 @@ export function makeApiLifecycleLayers(
     runtimeConfigSnapshotLayer,
   );
 
-  // Single lifecycle provide of pure-db leaves (feature layers also merge PureDbLeaves;
-  // Effect memoizes each Service.Default by identity).
+  // PureDbLeaves provided once — feature layers receive it for construction only.
   const pureDbLeaves = providePureDbLeaves(runtimeSupportLayer);
 
-  const animeLiveLayer = makeMediaFeatureLayer(runtimeSupportLayer);
-  const operationsLayer = makeOperationsFeatureLayer(runtimeSupportLayer);
-  const appDomainSubgraphLayer = Layer.mergeAll(animeLiveLayer, operationsLayer);
+  const mediaFeatureLayer = makeMediaFeatureLayer(runtimeSupportLayer, pureDbLeaves);
+  const operationsLayer = makeOperationsFeatureLayer(runtimeSupportLayer, pureDbLeaves);
+  const appDomainSubgraphLayer = Layer.mergeAll(mediaFeatureLayer, operationsLayer);
 
   const backgroundTaskRunnerLayer = BackgroundTaskRunnerLive.pipe(
     Layer.provide(Layer.mergeAll(appDomainSubgraphLayer, runtimeSupportLayer)),
@@ -85,7 +84,7 @@ export function makeApiLifecycleLayers(
   const authLayer = makeAuthFeatureLayer(runtimeSupportLayer);
 
   // Enrollment bridges media + ops (missing-search + task launcher live in ops layer).
-  const animeEnrollmentLayer = MediaEnrollmentServiceLive.pipe(
+  const mediaEnrollmentLayer = MediaEnrollmentServiceLive.pipe(
     Layer.provide(appDomainSubgraphLayer),
   );
 
@@ -94,10 +93,12 @@ export function makeApiLifecycleLayers(
     runtimeWorkerSubgraphLayer,
     authLayer,
     systemLayer,
-    animeEnrollmentLayer,
+    mediaEnrollmentLayer,
   );
+
   const appLayer = Layer.mergeAll(
     runtimeSupportLayer,
+    pureDbLeaves,
     systemRepositoriesLayer,
     appFeatureBaseLayer.pipe(
       Layer.provide(

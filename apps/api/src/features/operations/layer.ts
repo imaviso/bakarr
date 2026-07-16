@@ -32,14 +32,12 @@ import { TorrentClientServiceLive } from "@/features/operations/qbittorrent/torr
 import { UnmappedControlServiceLive } from "@/features/operations/unmapped/unmapped-control-service.ts";
 import { UnmappedImportServiceLive } from "@/features/operations/unmapped/unmapped-orchestration-import.ts";
 import { UnmappedScanServiceLive } from "@/features/operations/unmapped/unmapped-scan-service.ts";
-import { providePureDbLeaves } from "@/app/pure-db-leaves.ts";
 import { OperationsTaskLauncherServiceLive } from "@/features/operations/tasks/operations-task-launcher-service.ts";
 
-export function makeOperationsFeatureLayer<ROut, E, RIn>(
+export function makeOperationsFeatureLayer<ROut, E, RIn, LeavesOut, LeavesE, LeavesIn>(
   runtimeSupportLayer: Layer.Layer<ROut, E, RIn>,
+  pureDbLeaves: Layer.Layer<LeavesOut, LeavesE, LeavesIn>,
 ) {
-  const pureDbLeaves = providePureDbLeaves(runtimeSupportLayer);
-
   const baseRuntime = Layer.mergeAll(
     runtimeSupportLayer,
     pureDbLeaves,
@@ -121,6 +119,7 @@ export function makeOperationsFeatureLayer<ROut, E, RIn>(
     Layer.provide(Layer.mergeAll(baseRuntime, operationsTaskWriteLayer)),
   );
 
+  // pureDbLeaves provided once at lifecycle — not re-exported here
   return Layer.mergeAll(
     torrentClientLayer,
     downloadReconciliationLayer,
@@ -129,7 +128,6 @@ export function makeOperationsFeatureLayer<ROut, E, RIn>(
     downloadProgressSupportLayer,
     downloadTriggerLayer,
     catalogDownloadReadLayer,
-    pureDbLeaves,
     operationsProgressLayer,
     backgroundSearchQueueLayer,
     backgroundSearchRssFeedLayer,

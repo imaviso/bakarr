@@ -195,7 +195,7 @@ rg -n "animeLiveLayer|animeEnrollment" apps/api/src
 | 2   | **done** — OperationsProfileRepository deleted; loadQualityProfile / loadReleaseRules on system profile repos                                                                                               |
 | 3   | **done** — non-tx reads/logs off Download; MediaRead.loadUnitsByNumbers; SystemLog append; finalizeDownloadImport keeps multi-table tx                                                                      |
 | 4   | **partial** — kill makeDownloadCompletedTorrentReconciliation; inline rss worker; complete leaf deps (Progress+EventBus); unmapped/rss make\* remain test factories only; full Default trees deferred to #5 |
-| 5   | pending                                                                                                                                                                                                     |
+| 5   | **done** — PureDbLeaves once at lifecycle; media/ops take leaves arg; anime* → media* wiring names                                                                                                          |
 | 6   | pending                                                                                                                                                                                                     |
 | 7   | pending                                                                                                                                                                                                     |
 | 8   | pending                                                                                                                                                                                                     |
