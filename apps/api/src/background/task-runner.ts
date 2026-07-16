@@ -2,35 +2,16 @@ import { Effect } from "effect";
 
 import { withLockEffectOrFail } from "@/background/workers.ts";
 import { BackgroundWorkerMonitor } from "@/background/monitor.ts";
-import type { DatabaseError } from "@/db/database.ts";
 import type { WorkerTimeoutError } from "@/background/workers.ts";
-import type { ExternalCallError } from "@/infra/effect/retry.ts";
-import type { DomainPathError, InfrastructureError, StoredDataError } from "@/features/errors.ts";
-import type { MediaNotFoundError } from "@/features/media/errors.ts";
-import type { UpsertUnitFileError } from "@/features/media/units/media-unit-repository.ts";
-import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
+import { InfrastructureError } from "@/features/errors.ts";
 import { CatalogLibraryScanService } from "@/features/operations/catalog/catalog-library-scan-service.ts";
-import type { DownloadTorrentSyncError } from "@/features/operations/download/download-torrent-sync-support.ts";
 import { DownloadTorrentSyncService } from "@/features/operations/download/download-torrent-sync-support.ts";
 import { MediaMaintenanceService } from "@/features/media/metadata/media-maintenance-service.ts";
 import { ManamiCacheRefreshClient } from "@/features/media/metadata/manami.ts";
 import { BackgroundSearchRssWorkerService } from "@/features/operations/background-search/background-search-rss-worker-service.ts";
-import type { FileSystemError } from "@/infra/filesystem/filesystem.ts";
-import type { ImportFileError } from "@/features/operations/download/download-file-import-errors.ts";
 
-export type BackgroundTaskRunnerError =
-  | DatabaseError
-  | DomainPathError
-  | InfrastructureError
-  | ExternalCallError
-  | StoredDataError
-  | MediaNotFoundError
-  | RuntimeConfigSnapshotError
-  | DownloadTorrentSyncError
-  | FileSystemError
-  | UpsertUnitFileError
-  | ImportFileError
-  | WorkerTimeoutError;
+/** Job edge only — domain/infra tags mapped into InfrastructureError; timeout stays typed. */
+export type BackgroundTaskRunnerError = WorkerTimeoutError | InfrastructureError;
 
 export interface BackgroundTaskRunnerShape {
   readonly runDownloadSyncWorkerTask: () => Effect.Effect<void, BackgroundTaskRunnerError>;
@@ -40,25 +21,39 @@ export interface BackgroundTaskRunnerShape {
   readonly runRssWorkerTask: () => Effect.Effect<void, BackgroundTaskRunnerError>;
 }
 
+const mapWorkerFailure =
+  (job: string) =>
+  (error: unknown): InfrastructureError =>
+    new InfrastructureError({
+      message: `Background worker '${job}' failed`,
+      cause: error,
+    });
+
 const makeBackgroundTaskRunner = Effect.fn("BackgroundTaskRunner.make")(function* () {
   const torrentSync = yield* DownloadTorrentSyncService;
   const catalogLibraryScanService = yield* CatalogLibraryScanService;
-  const animeMaintenanceService = yield* MediaMaintenanceService;
+  const mediaMaintenanceService = yield* MediaMaintenanceService;
   const backgroundSearchRssWorkerService = yield* BackgroundSearchRssWorkerService;
   const manami = yield* ManamiCacheRefreshClient;
   const monitor = yield* BackgroundWorkerMonitor;
 
   const runDownloadSyncTask = Effect.fn("Background.runDownloadSyncTask")(function* () {
-    yield* torrentSync.syncDownloads();
+    yield* torrentSync.syncDownloads().pipe(Effect.mapError(mapWorkerFailure("download_sync")));
   });
   const runLibraryScanTask = Effect.fn("Background.runLibraryScanTask")(function* () {
-    yield* catalogLibraryScanService.runLibraryScan();
+    yield* catalogLibraryScanService
+      .runLibraryScan()
+      .pipe(Effect.mapError(mapWorkerFailure("library_scan")));
   });
   const runMetadataRefreshTask = Effect.fn("Background.runMetadataRefreshTask")(function* () {
-    yield* animeMaintenanceService.refreshMetadataForMonitoredMedia().pipe(Effect.asVoid);
+    yield* mediaMaintenanceService
+      .refreshMetadataForMonitoredMedia()
+      .pipe(Effect.mapError(mapWorkerFailure("metadata_refresh")), Effect.asVoid);
   });
   const runManamiRefreshTask = Effect.fn("Background.runManamiRefreshTask")(function* () {
-    const refreshed = yield* manami.refreshCacheIfNeeded();
+    const refreshed = yield* manami
+      .refreshCacheIfNeeded()
+      .pipe(Effect.mapError(mapWorkerFailure("manami_refresh")));
     yield* Effect.logInfo("Manami cache refresh checked").pipe(
       Effect.annotateLogs({
         provider: "Manami",
@@ -67,7 +62,9 @@ const makeBackgroundTaskRunner = Effect.fn("BackgroundTaskRunner.make")(function
     );
   });
   const runRssTask = Effect.fn("Background.runRssTask")(function* () {
-    yield* backgroundSearchRssWorkerService.runRssWorker();
+    yield* backgroundSearchRssWorkerService
+      .runRssWorker()
+      .pipe(Effect.mapError(mapWorkerFailure("rss")));
   });
 
   const downloadSyncWorkerTask = yield* withLockEffectOrFail(

@@ -3,7 +3,7 @@ import { Stream } from "effect";
 import type { DownloadEvent } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import type { StoredDataError } from "@/features/errors.ts";
-import type { DownloadEventExportHeader } from "@/features/operations/repository/download-catalog-read.ts";
+import type { DownloadEventExportHeader } from "@/features/operations/repository/download-repository-service.ts";
 
 export interface DownloadEventExportStreamShape {
   readonly header: DownloadEventExportHeader;

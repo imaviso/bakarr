@@ -7,16 +7,19 @@ import type {
   DownloadHistoryPage,
 } from "@packages/shared/index.ts";
 import type { AppDatabase, DatabaseError } from "@/db/database.ts";
-import { downloadEvents, downloads, media } from "@/db/schema.ts";
+import { downloadEvents, downloads, media, mediaUnits } from "@/db/schema.ts";
 import { toDownload } from "@/features/operations/download/download-presentation.ts";
 import {
   toDownloadEvent,
   type DownloadEventPresentationContext,
   type DownloadEventRowLike,
 } from "@/features/operations/download/download-event-presentations.ts";
-import { loadDownloadPresentationContexts } from "@/features/operations/repository/download-presentation-repository.ts";
+import { decodeOptionalNumberList } from "@/features/system/profile-codec.ts";
 import { StoredDataError } from "@/features/errors.ts";
+import type { DownloadPresentationContext } from "@/features/operations/repository/types.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
+
+type DownloadRow = typeof downloads.$inferSelect;
 
 const SQLITE_IN_LIST_CHUNK_SIZE = 900;
 const CHUNK_LOAD_CONCURRENCY = 4;
@@ -103,6 +106,99 @@ const loadRowsByChunk = Effect.fn("DownloadRepository.loadRowsByChunk")(
       return chunkResults.flatMap((chunk) => chunk);
     }),
 );
+
+/** Internal Download aggregate SQL — presentation contexts for active download rows. */
+export const loadDownloadPresentationContexts = Effect.fn(
+  "DownloadRepository.loadDownloadPresentationContexts",
+)(function* (db: AppDatabase, rows: readonly DownloadRow[]) {
+  if (rows.length === 0) {
+    return new Map<number, DownloadPresentationContext>();
+  }
+
+  const animeIds = [...new Set(rows.map((row) => row.mediaId))];
+  const importedMediaIds = [
+    ...new Set(
+      rows
+        .filter((row) => row.status === "imported" || row.reconciledAt !== null)
+        .map((row) => row.mediaId),
+    ),
+  ];
+  const mediaUnitsJoinCondition =
+    importedMediaIds.length > 0
+      ? and(
+          eq(mediaUnits.mediaId, media.id),
+          inArray(mediaUnits.mediaId, importedMediaIds),
+          sql`${mediaUnits.filePath} is not null`,
+        )
+      : sql`0 = 1`;
+
+  const presentationRows = yield* loadRowsByChunk(animeIds, (chunk) =>
+    tryDatabasePromise("Failed to load download presentation contexts", () =>
+      db
+        .select({
+          coverImage: media.coverImage,
+          filePath: mediaUnits.filePath,
+          id: media.id,
+          number: mediaUnits.number,
+        })
+        .from(media)
+        .leftJoin(mediaUnits, mediaUnitsJoinCondition)
+        .where(inArray(media.id, chunk)),
+    ),
+  );
+  const animeImageById = new Map<number, string | undefined>();
+  const importedPathByEpisode = new Map<string, string>();
+
+  for (const row of presentationRows) {
+    animeImageById.set(row.id, row.coverImage ?? undefined);
+
+    if (row.filePath && row.number !== null) {
+      importedPathByEpisode.set(`${row.id}:${row.number}`, row.filePath);
+    }
+  }
+
+  const contexts = yield* Effect.forEach(rows, (row) =>
+    Effect.gen(function* () {
+      const coveredUnits = (yield* decodeCoveredEpisodes(row.coveredUnits)) ?? [];
+      const unitNumbers = coveredUnits.length > 0 ? coveredUnits : [row.unitNumber];
+      const rowCanShowImportedPath = row.status === "imported" || row.reconciledAt !== null;
+      const importedPath = rowCanShowImportedPath
+        ? (unitNumbers
+            .map((unitNumber) => importedPathByEpisode.get(`${row.mediaId}:${unitNumber}`))
+            .find((value): value is string => typeof value === "string") ??
+          (row.reconciledAt ? (row.contentPath ?? row.savePath ?? undefined) : undefined))
+        : undefined;
+
+      return [
+        row.id,
+        {
+          mediaImage: animeImageById.get(row.mediaId),
+          importedPath,
+        },
+      ] as const;
+    }),
+  );
+
+  return new Map(contexts);
+});
+
+const decodeCoveredEpisodes = Effect.fn("DownloadRepository.decodeCoveredEpisodes")(function* (
+  value: string | null | undefined,
+) {
+  if (!value) {
+    return undefined;
+  }
+
+  return yield* decodeOptionalNumberList(value).pipe(
+    Effect.mapError(
+      (cause) =>
+        new StoredDataError({
+          cause,
+          message: "Stored covered episode metadata is corrupt",
+        }),
+    ),
+  );
+});
 
 export interface DownloadEventListQuery {
   readonly mediaId?: number;

@@ -17,7 +17,7 @@ import {
   type DownloadEventExportQuery,
   type DownloadEventListQuery,
 } from "@/features/operations/repository/download-catalog-read.ts";
-import { loadDownloadPresentationContexts } from "@/features/operations/repository/download-presentation-repository.ts";
+import { loadDownloadPresentationContexts } from "@/features/operations/repository/download-catalog-read.ts";
 import {
   deleteDownloadRow,
   insertDownloadEventRow,
@@ -34,6 +34,7 @@ export type {
   DownloadEventExportQuery,
   DownloadEventListQuery,
 } from "@/features/operations/repository/download-catalog-read.ts";
+export { loadDownloadEventPresentationContexts } from "@/features/operations/repository/download-catalog-read.ts";
 
 type DownloadRow = typeof downloads.$inferSelect;
 type TorrentSyncSqlValue = number | string | null;

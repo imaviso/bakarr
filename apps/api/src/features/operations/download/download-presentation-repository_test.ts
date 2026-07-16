@@ -7,7 +7,7 @@ import { assert, it } from "@effect/vitest";
 import { encodeNumberList } from "@/features/system/profile-codec.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { StoredDataError } from "@/features/errors.ts";
-import { loadDownloadPresentationContexts } from "@/features/operations/repository/download-presentation-repository.ts";
+import { loadDownloadPresentationContexts } from "@/features/operations/repository/download-catalog-read.ts";
 
 it.scoped("download presentation contexts load imported paths", () =>
   withSqliteTestDbEffect({
