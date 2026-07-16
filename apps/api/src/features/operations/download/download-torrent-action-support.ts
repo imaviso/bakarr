@@ -3,7 +3,7 @@ import { Effect } from "effect";
 import { DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { DomainInputError, InfrastructureError, StoredDataError } from "@/features/errors.ts";
-import { DownloadProgressSupport } from "@/features/operations/download/download-progress-support.ts";
+import { DownloadProgressService } from "@/features/operations/download/download-progress-service.ts";
 import { OperationsConflictError, OperationsNotFoundError } from "@/features/operations/errors.ts";
 import { DownloadRepository } from "@/features/operations/repository/download-repository-service.ts";
 import { decodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
@@ -42,7 +42,7 @@ export class DownloadTorrentActionService extends Effect.Service<DownloadTorrent
     effect: Effect.gen(function* () {
       const actionRepo = yield* DownloadRepository;
       const eventBus = yield* EventBus;
-      const progressSupport = yield* DownloadProgressSupport;
+      const progressSupport = yield* DownloadProgressService;
       const torrentClientService = yield* TorrentClientService;
 
       const applyDownloadActionEffect = Effect.fn("TorrentAction.applyDownloadAction")(function* (

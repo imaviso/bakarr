@@ -197,7 +197,7 @@ rg -n "animeLiveLayer|animeEnrollment" apps/api/src
 | 4   | **partial** — kill makeDownloadCompletedTorrentReconciliation; inline rss worker; complete leaf deps (Progress+EventBus); unmapped/rss make\* remain test factories only; full Default trees deferred to #5 |
 | 5   | **done** — PureDbLeaves once at lifecycle; media/ops take leaves arg; anime* → media* wiring names                                                                                                          |
 | 6   | pending                                                                                                                                                                                                     |
-| 7   | pending                                                                                                                                                                                                     |
+| 7   | **partial** — DownloadProgressSupport → DownloadProgressService; OperationsProgress exposes get\* + coalesced publish; ProgressLive → OperationsProgressLive                                                |
 | 8   | **done** — MediaReadRepository → MediaRepository (file, Tag, spans, docs)                                                                                                                                   |
 | 9   | pending                                                                                                                                                                                                     |
 | 10  | pending                                                                                                                                                                                                     |

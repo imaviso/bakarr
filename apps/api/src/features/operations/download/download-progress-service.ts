@@ -12,7 +12,7 @@ import { DownloadRepository } from "@/features/operations/repository/download-re
 type DownloadRow = typeof downloads.$inferSelect;
 type ProgressError = DatabaseError | StoredDataError;
 
-export interface DownloadProgressSupportShape {
+export interface DownloadProgressServiceShape {
   readonly getDownloadProgress: () => Effect.Effect<DownloadStatus[], ProgressError>;
   readonly getDownloadProgressBootstrap: (input?: {
     readonly limit?: number;
@@ -21,6 +21,7 @@ export interface DownloadProgressSupportShape {
     { readonly active_count: number },
     DatabaseError
   >;
+  /** Immediate publish (sync/trigger/action). Coalesced path is OperationsProgress. */
   readonly publishDownloadProgress: () => Effect.Effect<void, ProgressError>;
 }
 
@@ -40,8 +41,8 @@ export const loadActiveDownloadSnapshot = Effect.fn("DownloadProgress.loadActive
   },
 );
 
-export class DownloadProgressSupport extends Effect.Service<DownloadProgressSupport>()(
-  "@bakarr/api/DownloadProgressSupport",
+export class DownloadProgressService extends Effect.Service<DownloadProgressService>()(
+  "@bakarr/api/DownloadProgressService",
   {
     effect: Effect.gen(function* () {
       const downloadRepository = yield* DownloadRepository;
@@ -88,10 +89,10 @@ export class DownloadProgressSupport extends Effect.Service<DownloadProgressSupp
         getDownloadProgressBootstrap,
         getDownloadRuntimeSummary,
         publishDownloadProgress,
-      } satisfies DownloadProgressSupportShape;
+      } satisfies DownloadProgressServiceShape;
     }),
     dependencies: [DownloadRepository.Default, EventBus.Default],
   },
 ) {}
 
-export const DownloadProgressSupportLive = DownloadProgressSupport.Default;
+export const DownloadProgressServiceLive = DownloadProgressService.Default;

@@ -202,6 +202,9 @@ function makeEventBusStub(events: string[]): EventBusShape {
 
 function makeOperationsProgressStub() {
   return OperationsProgress.make({
+    getDownloadProgress: () => Effect.succeed([]),
+    getDownloadProgressBootstrap: () => Effect.succeed([]),
+    getDownloadRuntimeSummary: () => Effect.succeed({ active_count: 0 }),
     publishDownloadProgress: () => Effect.void,
     publishLibraryScanProgress: () => Effect.void,
     publishRssCheckProgress: () => Effect.void,

@@ -3,7 +3,7 @@ import { Effect, Layer, Stream } from "effect";
 
 import { brandMediaId, brandDownloadId } from "@packages/shared/index.ts";
 import { makeEventBus, EventBus } from "@/features/events/event-bus.ts";
-import { DownloadProgressSupport } from "@/features/operations/download/download-progress-support.ts";
+import { DownloadProgressService } from "@/features/operations/download/download-progress-service.ts";
 import {
   SystemEventsService,
   SystemEventsServiceLive,
@@ -19,8 +19,8 @@ it.scoped("SystemEventsService does not lose buffered events during stream boots
         Layer.mergeAll(
           Layer.succeed(EventBus, eventBus),
           Layer.succeed(
-            DownloadProgressSupport,
-            DownloadProgressSupport.make({
+            DownloadProgressService,
+            DownloadProgressService.make({
               getDownloadProgress: () => Effect.succeed(snapshotDownloads),
               getDownloadProgressBootstrap: () =>
                 Effect.gen(function* () {

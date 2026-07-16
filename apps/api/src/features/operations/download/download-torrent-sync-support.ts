@@ -8,7 +8,7 @@ import {
   parseCoveredEpisodesEffect,
   toCoveredEpisodesJson,
 } from "@/features/operations/download/download-coverage.ts";
-import { DownloadProgressSupport } from "@/features/operations/download/download-progress-support.ts";
+import { DownloadProgressService } from "@/features/operations/download/download-progress-service.ts";
 import {
   decodeDownloadSourceMetadata,
   type DownloadEventRecordInput,
@@ -51,7 +51,7 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
       const reconciliationService = yield* DownloadReconciliationService;
       const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
       const eventBus = yield* EventBus;
-      const progressSupport = yield* DownloadProgressSupport;
+      const progressSupport = yield* DownloadProgressService;
 
       const refineBatchCoverageFromTorrentFiles = Effect.fn(
         "TorrentSync.refineBatchCoverageFromTorrentFiles",

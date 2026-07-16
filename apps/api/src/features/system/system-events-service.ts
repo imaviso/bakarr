@@ -2,11 +2,11 @@ import { Effect, Stream } from "effect";
 
 import type { DownloadStatus, NotificationEvent } from "@packages/shared/index.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
-import { DownloadProgressSupport } from "@/features/operations/download/download-progress-support.ts";
+import { DownloadProgressService } from "@/features/operations/download/download-progress-service.ts";
 
 const makeSystemEventsService = Effect.fn("SystemEventsService.make")(function* () {
   const eventBus = yield* EventBus;
-  const downloadProgress = yield* DownloadProgressSupport;
+  const downloadProgress = yield* DownloadProgressService;
 
   const buildEventsStream = () =>
     eventBus.withSubscriptionStream((subscription) =>

@@ -22,7 +22,7 @@ export type {
   DownloadEventExportStreamShape,
 } from "@/features/operations/catalog/catalog-download-event-render-support.ts";
 
-/** Export streams only — list/history/progress live on DownloadRepository / DownloadProgressSupport. */
+/** Export streams only — list/history/progress live on DownloadRepository / DownloadProgressService. */
 export interface CatalogDownloadReadServiceShape {
   readonly streamDownloadEventsExportJson: (
     input?: DownloadEventExportQuery,

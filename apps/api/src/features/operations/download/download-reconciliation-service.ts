@@ -8,7 +8,7 @@ import { MediaProbe } from "@/infra/media/probe.ts";
 import { RandomService } from "@/infra/random.ts";
 import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
 import { DownloadRepository } from "@/features/operations/repository/download-repository-service.ts";
-import { DownloadProgressSupport } from "@/features/operations/download/download-progress-support.ts";
+import { DownloadProgressService } from "@/features/operations/download/download-progress-service.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import {
   loadDownloadReconciliationContext,
@@ -56,7 +56,7 @@ export class DownloadReconciliationService extends Effect.Service<DownloadReconc
       const mediaReadRepository = yield* MediaRepository;
       const mediaUnitRepository = yield* MediaUnitRepository;
       const torrentClientService = yield* TorrentClientService;
-      const progressSupport = yield* DownloadProgressSupport;
+      const progressSupport = yield* DownloadProgressService;
       const random = yield* RandomService;
       const runtimeConfigSnapshotService = yield* RuntimeConfigSnapshotService;
       const nowIso = currentNowIso;
