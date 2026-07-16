@@ -1,3 +1,7 @@
+/**
+ * Internal Download aggregate SQL (catalog history/events + presentation).
+ * Public access: DownloadRepository methods / re-exports only.
+ */
 import { and, asc, desc, eq, gt, gte, inArray, lt, lte, or, sql, type SQL } from "drizzle-orm";
 import { Chunk, Effect, Option, Stream } from "effect";
 

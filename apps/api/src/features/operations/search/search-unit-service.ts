@@ -98,11 +98,11 @@ export class SearchUnitService extends Effect.Service<SearchUnitService>()(
         searchUnit,
       } satisfies SearchUnitServiceShape;
     }),
+    // SearchRelease + RuntimeConfig provided by ops feature layer (incomplete Defaults).
     dependencies: [
       MediaRepository.Default,
       QualityProfileRepository.Default,
       ReleaseProfileRepository.Default,
-      SearchReleaseService.Default,
     ],
   },
 ) {}

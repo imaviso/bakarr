@@ -220,7 +220,14 @@ export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSea
 
       return { processFeed } satisfies BackgroundSearchRssFeedServiceShape;
     }),
-    dependencies: [MediaRepository.Default, RssFeedRepository.Default, DownloadRepository.Default],
+    // RssClient + queue provided by ops feature layer.
+    dependencies: [
+      DownloadRepository.Default,
+      MediaRepository.Default,
+      QualityProfileRepository.Default,
+      ReleaseProfileRepository.Default,
+      RssFeedRepository.Default,
+    ],
   },
 ) {}
 

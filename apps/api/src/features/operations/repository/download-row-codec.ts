@@ -1,3 +1,7 @@
+/**
+ * Internal Download aggregate codecs + low-level event/status SQL.
+ * Public access: re-exported from download-repository.ts.
+ */
 import { eq } from "drizzle-orm";
 import { Effect, Schema } from "effect";
 
@@ -47,7 +51,7 @@ export function encodeDownloadSourceMetadata(
 }
 
 export const decodeDownloadSourceMetadata = Effect.fn(
-  "OperationsRepository.decodeDownloadSourceMetadata",
+  "DownloadRepository.decodeDownloadSourceMetadata",
 )(function* (value: string | null | undefined) {
   if (!value) {
     return undefined;
@@ -93,7 +97,7 @@ export function encodeDownloadEventMetadata(value: {
   );
 }
 
-export const toDownloadEventInsert = Effect.fn("OperationsRepository.toDownloadEventInsert")(
+export const toDownloadEventInsert = Effect.fn("DownloadRepository.toDownloadEventInsert")(
   function* (input: DownloadEventRecordInput, createdAt: string) {
     const metadata = input.metadataJson
       ? yield* encodeDownloadEventMetadata(input.metadataJson)
@@ -112,7 +116,7 @@ export const toDownloadEventInsert = Effect.fn("OperationsRepository.toDownloadE
   },
 );
 
-export const insertDownloadEventRow = Effect.fn("OperationsRepository.insertDownloadEventRow")(
+export const insertDownloadEventRow = Effect.fn("DownloadRepository.insertDownloadEventRow")(
   function* (db: AppDatabase, input: DownloadEventRecordInput, createdAt: string) {
     const row = yield* toDownloadEventInsert(input, createdAt);
     yield* tryDatabasePromise("Failed to record download event", () =>
@@ -121,7 +125,7 @@ export const insertDownloadEventRow = Effect.fn("OperationsRepository.insertDown
   },
 );
 
-export const insertDownloadEventRows = Effect.fn("OperationsRepository.insertDownloadEventRows")(
+export const insertDownloadEventRows = Effect.fn("DownloadRepository.insertDownloadEventRows")(
   function* (db: AppDatabase, inputs: readonly DownloadEventRecordInput[], createdAt: string) {
     if (inputs.length === 0) {
       return;
@@ -134,7 +138,7 @@ export const insertDownloadEventRows = Effect.fn("OperationsRepository.insertDow
   },
 );
 
-export const deleteDownloadRow = Effect.fn("OperationsRepository.deleteDownloadRow")(function* (
+export const deleteDownloadRow = Effect.fn("DownloadRepository.deleteDownloadRow")(function* (
   db: AppDatabase,
   id: number,
   errorMessage: string,
@@ -142,7 +146,7 @@ export const deleteDownloadRow = Effect.fn("OperationsRepository.deleteDownloadR
   yield* tryDatabasePromise(errorMessage, () => db.delete(downloads).where(eq(downloads.id, id)));
 });
 
-export const updateDownloadStatusRow = Effect.fn("OperationsRepository.updateDownloadStatusRow")(
+export const updateDownloadStatusRow = Effect.fn("DownloadRepository.updateDownloadStatusRow")(
   function* (
     db: AppDatabase,
     input: {

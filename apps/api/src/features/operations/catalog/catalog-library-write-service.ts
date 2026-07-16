@@ -68,7 +68,8 @@ export class CatalogLibraryWriteService extends Effect.Service<CatalogLibraryWri
         renameFiles,
       } satisfies CatalogLibraryWriteServiceShape;
     }),
-    dependencies: [MediaRepository.Default, MediaUnitRepository.Default],
+    // FS + EventBus + RuntimeConfig provided by ops feature layer.
+    dependencies: [EventBus.Default, MediaRepository.Default, MediaUnitRepository.Default],
   },
 ) {}
 

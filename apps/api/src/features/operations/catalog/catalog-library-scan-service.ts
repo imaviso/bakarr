@@ -127,7 +127,13 @@ export class CatalogLibraryScanService extends Effect.Service<CatalogLibraryScan
         publishLibraryScanProgress: progress.publishLibraryScanProgress,
       });
     }),
-    dependencies: [BackgroundJobRepository.Default, MediaRepository.Default],
+    // FS + OperationsProgress provided by ops feature layer.
+    dependencies: [
+      BackgroundJobRepository.Default,
+      EventBus.Default,
+      MediaRepository.Default,
+      MediaUnitRepository.Default,
+    ],
   },
 ) {}
 

@@ -214,7 +214,14 @@ export class SearchBackgroundMissingService extends Effect.Service<SearchBackgro
 
       return { triggerSearchMissing } satisfies SearchBackgroundMissingServiceShape;
     }),
-    dependencies: [MediaRepository.Default, MediaUnitRepository.Default],
+    // Progress/SearchRelease/Queue/RuntimeConfig provided by ops feature layer.
+    dependencies: [
+      EventBus.Default,
+      MediaRepository.Default,
+      MediaUnitRepository.Default,
+      QualityProfileRepository.Default,
+      ReleaseProfileRepository.Default,
+    ],
   },
 ) {}
 
