@@ -34,7 +34,7 @@ import {
 import {
   decodeDownloadSourceMetadata,
   encodeDownloadEventMetadata,
-} from "@/features/operations/repository/download-row-codec.ts";
+} from "@/features/operations/repository/download-repository.ts";
 import { DownloadRepository } from "@/features/operations/repository/download-repository.ts";
 import type {
   OperationsConflictError,

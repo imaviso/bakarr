@@ -35,6 +35,12 @@ export type {
   DownloadEventListQuery,
 } from "@/features/operations/repository/download-catalog-read.ts";
 export { loadDownloadEventPresentationContexts } from "@/features/operations/repository/download-catalog-read.ts";
+export {
+  decodeDownloadSourceMetadata,
+  encodeDownloadEventMetadata,
+  encodeDownloadSourceMetadata,
+  type DownloadEventRecordInput,
+} from "@/features/operations/repository/download-row-codec.ts";
 
 type DownloadRow = typeof downloads.$inferSelect;
 type TorrentSyncSqlValue = number | string | null;

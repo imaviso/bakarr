@@ -12,7 +12,7 @@ import { OperationsProgress } from "@/features/operations/tasks/operations-progr
 import {
   decodeDownloadSourceMetadata,
   type DownloadEventRecordInput,
-} from "@/features/operations/repository/download-row-codec.ts";
+} from "@/features/operations/repository/download-repository.ts";
 import {
   DownloadRepository,
   type TorrentSyncUpdate,
@@ -22,9 +22,10 @@ import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-s
 import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
 import { durationMsSince } from "@/infra/logging.ts";
 import { currentTimeNanos, nowIso as currentNowIso } from "@/infra/time.ts";
-import type { ReconcileCompletedError } from "@/features/operations/download/download-reconciliation.ts";
 import { DownloadReconciliationService } from "@/features/operations/download/download-reconciliation-service.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
+import { DatabaseError } from "@/db/database.ts";
+import { InfrastructureError } from "@/features/errors.ts";
 
 function shouldReconcileCompletedDownloads(config: Config | null) {
   return config?.downloads.reconcile_completed_downloads ?? true;
@@ -32,12 +33,21 @@ function shouldReconcileCompletedDownloads(config: Config | null) {
 
 const TORRENT_SYNC_UPDATE_CHUNK_SIZE = 50;
 
-export type DownloadTorrentSyncError = ReconcileCompletedError;
+/** Job-edge union — reconcile domain tags collapsed for background sync. */
+export type DownloadTorrentSyncError = DatabaseError | InfrastructureError;
 
-export interface DownloadTorrentSyncSupportShape {
+export interface DownloadTorrentSyncServiceShape {
   readonly syncDownloads: () => Effect.Effect<void, DownloadTorrentSyncError>;
   readonly syncDownloadsWithQBitEffect: () => Effect.Effect<void, DownloadTorrentSyncError>;
 }
+
+const mapSyncError = (error: unknown): DownloadTorrentSyncError =>
+  error instanceof DatabaseError
+    ? error
+    : new InfrastructureError({
+        message: "Download torrent sync failed",
+        cause: error,
+      });
 
 export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSyncService>()(
   "@bakarr/api/DownloadTorrentSyncService",
@@ -183,130 +193,134 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
 
       const syncDownloadsWithQBitEffect = Effect.fn("TorrentSync.syncDownloadsWithQBit")(
         function* () {
-          const runtimeConfig = yield* runtimeConfigSnapshot.getRuntimeConfig();
-          const torrentsResult = yield* torrentClientService
-            .listTorrentsIfEnabled()
-            .pipe(Effect.either);
+          return yield* Effect.gen(function* () {
+            const runtimeConfig = yield* runtimeConfigSnapshot.getRuntimeConfig();
+            const torrentsResult = yield* torrentClientService
+              .listTorrentsIfEnabled()
+              .pipe(Effect.either);
 
-          if (torrentsResult._tag === "Left") {
-            yield* Effect.logWarning("qBittorrent unreachable, skipping download sync").pipe(
-              Effect.annotateLogs({ error: String(torrentsResult.left) }),
-            );
-            return;
-          }
-
-          if (torrentsResult.right._tag === "Disabled") {
-            return;
-          }
-
-          const torrents = torrentsResult.right.torrents;
-
-          if (torrents.length === 0) {
-            return;
-          }
-
-          const infoHashes = torrents.map((t) => t.hash.toLowerCase());
-          const allExistingDownloads = yield* syncRepo.listDownloadsByInfoHashes(infoHashes);
-
-          const existingDownloadsMap = new Map(
-            allExistingDownloads.map((d) => [d.infoHash?.toLowerCase(), d]),
-          );
-
-          const syncNow = yield* currentNowIso();
-          const updateRows = torrents.map((torrent): TorrentSyncUpdate => {
-            const status = mapQBitState(torrent.state);
-            const hash = torrent.hash.toLowerCase();
-            const existing = existingDownloadsMap.get(hash);
-            const preservedImported = Boolean(existing?.reconciledAt);
-            const nextStatus = preservedImported ? "imported" : status;
-            const nextExternalState = preservedImported
-              ? (existing?.externalState ?? "imported")
-              : torrent.state;
-            const nextDownloadDate = preservedImported
-              ? (existing?.downloadDate ?? syncNow)
-              : status === "completed"
-                ? syncNow
-                : null;
-
-            return {
-              contentPath: torrent.content_path ?? null,
-              downloadedBytes: torrent.downloaded,
-              downloadDate: nextDownloadDate,
-              errorMessage:
-                !preservedImported && status === "error"
-                  ? `qBittorrent state: ${torrent.state}`
-                  : null,
-              etaSeconds: torrent.eta,
-              externalState: nextExternalState,
-              hash,
-              lastErrorAt: preservedImported || status !== "error" ? null : syncNow,
-              lastSyncedAt: syncNow,
-              nextStatus,
-              progress: Math.round(torrent.progress * 100),
-              savePath: torrent.save_path ?? null,
-              status,
-              torrentName: torrent.name,
-              totalBytes: torrent.size,
-              speedBytes: torrent.dlspeed,
-            };
-          });
-
-          yield* updateDownloadsFromTorrentRows(updateRows);
-
-          const statusEvents = yield* buildStatusChangeEvents(updateRows, existingDownloadsMap);
-          yield* syncRepo.insertDownloadEvents(statusEvents, syncNow);
-
-          for (const updateRow of updateRows) {
-            const existing = existingDownloadsMap.get(updateRow.hash);
-            const preservedImported = Boolean(existing?.reconciledAt);
-
-            if (existing && existing.isBatch && !preservedImported) {
-              const sourceMetadata = yield* decodeDownloadSourceMetadata(existing.sourceMetadata);
-              yield* refineBatchCoverageFromTorrentFiles({
-                mediaId: existing.mediaId,
-                downloadId: existing.id,
-                existingCoveredEpisodes: existing.coveredUnits,
-                infoHash: updateRow.hash,
-                torrentName: updateRow.torrentName,
-                ...(sourceMetadata ? { sourceMetadata } : {}),
-              });
-            }
-
-            if (
-              updateRow.status === "completed" &&
-              shouldReconcileCompletedDownloads(runtimeConfig)
-            ) {
-              yield* reconciliationService.reconcileCompletedTorrentEffect(
-                updateRow.hash,
-                updateRow.contentPath ?? updateRow.savePath ?? undefined,
+            if (torrentsResult._tag === "Left") {
+              yield* Effect.logWarning("qBittorrent unreachable, skipping download sync").pipe(
+                Effect.annotateLogs({ error: String(torrentsResult.left) }),
               );
+              return;
             }
-          }
+
+            if (torrentsResult.right._tag === "Disabled") {
+              return;
+            }
+
+            const torrents = torrentsResult.right.torrents;
+
+            if (torrents.length === 0) {
+              return;
+            }
+
+            const infoHashes = torrents.map((t) => t.hash.toLowerCase());
+            const allExistingDownloads = yield* syncRepo.listDownloadsByInfoHashes(infoHashes);
+
+            const existingDownloadsMap = new Map(
+              allExistingDownloads.map((d) => [d.infoHash?.toLowerCase(), d]),
+            );
+
+            const syncNow = yield* currentNowIso();
+            const updateRows = torrents.map((torrent): TorrentSyncUpdate => {
+              const status = mapQBitState(torrent.state);
+              const hash = torrent.hash.toLowerCase();
+              const existing = existingDownloadsMap.get(hash);
+              const preservedImported = Boolean(existing?.reconciledAt);
+              const nextStatus = preservedImported ? "imported" : status;
+              const nextExternalState = preservedImported
+                ? (existing?.externalState ?? "imported")
+                : torrent.state;
+              const nextDownloadDate = preservedImported
+                ? (existing?.downloadDate ?? syncNow)
+                : status === "completed"
+                  ? syncNow
+                  : null;
+
+              return {
+                contentPath: torrent.content_path ?? null,
+                downloadedBytes: torrent.downloaded,
+                downloadDate: nextDownloadDate,
+                errorMessage:
+                  !preservedImported && status === "error"
+                    ? `qBittorrent state: ${torrent.state}`
+                    : null,
+                etaSeconds: torrent.eta,
+                externalState: nextExternalState,
+                hash,
+                lastErrorAt: preservedImported || status !== "error" ? null : syncNow,
+                lastSyncedAt: syncNow,
+                nextStatus,
+                progress: Math.round(torrent.progress * 100),
+                savePath: torrent.save_path ?? null,
+                status,
+                torrentName: torrent.name,
+                totalBytes: torrent.size,
+                speedBytes: torrent.dlspeed,
+              };
+            });
+
+            yield* updateDownloadsFromTorrentRows(updateRows);
+
+            const statusEvents = yield* buildStatusChangeEvents(updateRows, existingDownloadsMap);
+            yield* syncRepo.insertDownloadEvents(statusEvents, syncNow);
+
+            for (const updateRow of updateRows) {
+              const existing = existingDownloadsMap.get(updateRow.hash);
+              const preservedImported = Boolean(existing?.reconciledAt);
+
+              if (existing && existing.isBatch && !preservedImported) {
+                const sourceMetadata = yield* decodeDownloadSourceMetadata(existing.sourceMetadata);
+                yield* refineBatchCoverageFromTorrentFiles({
+                  mediaId: existing.mediaId,
+                  downloadId: existing.id,
+                  existingCoveredEpisodes: existing.coveredUnits,
+                  infoHash: updateRow.hash,
+                  torrentName: updateRow.torrentName,
+                  ...(sourceMetadata ? { sourceMetadata } : {}),
+                });
+              }
+
+              if (
+                updateRow.status === "completed" &&
+                shouldReconcileCompletedDownloads(runtimeConfig)
+              ) {
+                yield* reconciliationService.reconcileCompletedTorrentEffect(
+                  updateRow.hash,
+                  updateRow.contentPath ?? updateRow.savePath ?? undefined,
+                );
+              }
+            }
+          }).pipe(Effect.mapError(mapSyncError));
         },
       );
 
       const syncDownloads = Effect.fn("TorrentSync.syncDownloads")(function* () {
-        const startedAt = yield* currentTimeNanos;
+        return yield* Effect.gen(function* () {
+          const startedAt = yield* currentTimeNanos;
 
-        yield* syncDownloadsWithQBitEffect();
+          yield* syncDownloadsWithQBitEffect();
 
-        const finishedAt = yield* currentTimeNanos;
+          const finishedAt = yield* currentTimeNanos;
 
-        yield* Effect.logDebug("download state sync completed").pipe(
-          Effect.annotateLogs({
-            component: "downloads",
-            durationMs: durationMsSince(startedAt, finishedAt),
-            syncTrigger: "downloads.manual_sync",
-          }),
-        );
-        yield* progress.publishDownloadProgressNow();
-        yield* eventBus.publishInfo("Download sync finished");
+          yield* Effect.logDebug("download state sync completed").pipe(
+            Effect.annotateLogs({
+              component: "downloads",
+              durationMs: durationMsSince(startedAt, finishedAt),
+              syncTrigger: "downloads.manual_sync",
+            }),
+          );
+          yield* progress.publishDownloadProgressNow();
+          yield* eventBus.publishInfo("Download sync finished");
+        }).pipe(Effect.mapError(mapSyncError));
       });
 
       return {
         syncDownloads,
         syncDownloadsWithQBitEffect,
-      } satisfies DownloadTorrentSyncSupportShape;
+      } satisfies DownloadTorrentSyncServiceShape;
     }),
   },
 ) {}

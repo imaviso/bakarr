@@ -6,7 +6,7 @@ import { DomainInputError, InfrastructureError, StoredDataError } from "@/featur
 import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
 import { OperationsConflictError, OperationsNotFoundError } from "@/features/operations/errors.ts";
 import { DownloadRepository } from "@/features/operations/repository/download-repository.ts";
-import { decodeDownloadSourceMetadata } from "@/features/operations/repository/download-row-codec.ts";
+import { decodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
 import { parseCoveredUnitsEffect } from "@/features/operations/download/download-coverage.ts";
 import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
 import { QBitTorrentClientError } from "@/features/operations/qbittorrent/qbittorrent-models.ts";

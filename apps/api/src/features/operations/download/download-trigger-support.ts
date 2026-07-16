@@ -6,7 +6,7 @@ import { media } from "@/db/schema.ts";
 import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { DownloadRepository } from "@/features/operations/repository/download-repository.ts";
-import { encodeDownloadSourceMetadata } from "@/features/operations/repository/download-row-codec.ts";
+import { encodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
 import {
   buildDownloadSelectionMetadata,
   buildDownloadSourceMetadataFromRelease,

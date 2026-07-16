@@ -194,10 +194,10 @@ rg -n "animeLiveLayer|animeEnrollment" apps/api/src
 | 1   | **done** — catalog slim: export-only download read; RSS add-only; rename-preview-only library read; routes→repos for list/history/progress |
 | 2   | **done** — OperationsProfileRepository deleted; loadQualityProfile / loadReleaseRules on system profile repos                              |
 | 3   | **done** — non-tx reads/logs off Download; MediaRead.loadUnitsByNumbers; SystemLog append; finalizeDownloadImport keeps multi-table tx     |
-| 4   | **partial** — kill reconciliation make\*; unmapped production uses build\* only (make\* test export); full Default trees still blocked     |
+| 4   | **partial** — make\* bags mostly gone; enrollment leaf deps; full Default trees still blocked by nested incomplete services                |
 | 5   | **done** — PureDbLeaves once at lifecycle; media/ops take leaves arg; anime* → media* wiring names                                         |
-| 6   | **partial** — presentation in catalog-read; row-codec; `download-repository-service` → `download-repository`; rss-feed-repository same     |
-| 7   | **done** — single OperationsProgress Tag (get* + publish now/coalesced); deleted DownloadProgressService                                   |
+| 6   | **partial** — Download public surface = download-repository (re-exports codecs/catalog); internal row-codec + catalog-read                 |
+| 7   | **done** — single OperationsProgress Tag (get\* + publish now/coalesced); deleted DownloadProgressService                                  |
 | 8   | **done** — MediaReadRepository → MediaRepository (file, Tag, spans, docs)                                                                  |
 | 9   | **done** — feature APIs + naming helpers + covered-units helpers Unit\*; keep format tokens `{episode}` + AnimeMetadataEpisode             |
-| 10  | **partial** — BackgroundTaskRunnerError → WorkerTimeout \| Infrastructure only (map at job edge)                                           |
+| 10  | **done** — job edges map to Infrastructure\|Database\|WorkerTimeout; HTTP domain unions intentional (ADR-0002)                             |

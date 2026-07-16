@@ -5,16 +5,25 @@ import { EventBus } from "@/features/events/event-bus.ts";
 import { SearchBackgroundMissingService } from "@/features/operations/background-search/background-search-missing-service.ts";
 import { SearchBackgroundRssService } from "@/features/operations/background-search/background-search-rss-service.ts";
 import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
-import type { InfrastructureError, StoredDataError } from "@/features/errors.ts";
+import { InfrastructureError } from "@/features/errors.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { markJobFailureOrFailWithCause } from "@/infra/job-failure-support.ts";
 import { BackgroundJobRepository } from "@/features/system/repository/background-job-repository.ts";
 
-export type BackgroundSearchRssWorkerError = DatabaseError | InfrastructureError | StoredDataError;
+/** Job-edge union — non-domain failures collapsed to InfrastructureError. */
+export type BackgroundSearchRssWorkerError = DatabaseError | InfrastructureError;
 
 export interface BackgroundSearchRssWorkerServiceShape {
   readonly runRssWorker: () => Effect.Effect<void, BackgroundSearchRssWorkerError>;
 }
+
+const mapWorkerError = (error: unknown): BackgroundSearchRssWorkerError =>
+  error instanceof DatabaseError
+    ? error
+    : new InfrastructureError({
+        message: "RSS background worker failed",
+        cause: error,
+      });
 
 export class BackgroundSearchRssWorkerService extends Effect.Service<BackgroundSearchRssWorkerService>()(
   "@bakarr/api/BackgroundSearchRssWorkerService",
@@ -47,10 +56,10 @@ export class BackgroundSearchRssWorkerService extends Effect.Service<BackgroundS
           yield* backgroundJobRepository.markStarted("rss", nowIso);
           yield* eventBus.publish({ type: "RssCheckStarted" });
 
-          const result = yield* rssService.runRssCheck();
+          const result = yield* rssService.runRssCheck().pipe(Effect.mapError(mapWorkerError));
           yield* Effect.annotateCurrentSpan("totalFeeds", result.totalFeeds);
           yield* Effect.annotateCurrentSpan("newItems", result.newItems);
-          yield* missingService.triggerSearchMissing();
+          yield* missingService.triggerSearchMissing().pipe(Effect.mapError(mapWorkerError));
 
           yield* backgroundJobRepository.markSucceeded(
             "rss",
@@ -61,7 +70,7 @@ export class BackgroundSearchRssWorkerService extends Effect.Service<BackgroundS
             type: "RssCheckFinished",
             payload: { new_items: result.newItems, total_feeds: result.totalFeeds },
           });
-          yield* progress.publishDownloadProgress();
+          yield* progress.publishDownloadProgress().pipe(Effect.mapError(mapWorkerError));
         }).pipe(Effect.catchAllCause(markFailureAndRethrowCause));
       });
 

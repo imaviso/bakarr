@@ -79,6 +79,14 @@ const makeMediaEnrollmentService = Effect.fn("MediaEnrollmentService.make")(func
 export class MediaEnrollmentService extends Effect.Service<MediaEnrollmentService>()(
   "@bakarr/api/MediaEnrollmentService",
   {
+    // Metadata/FS/task/search provided by domain subgraph at lifecycle.
+    dependencies: [
+      EventBus.Default,
+      MediaRepository.Default,
+      MediaUnitRepository.Default,
+      QualityProfileRepository.Default,
+      SystemConfigRepository.Default,
+    ],
     effect: makeMediaEnrollmentService(),
   },
 ) {}
