@@ -1,4 +1,4 @@
-import { Cause, Effect, Option } from "effect";
+import { Effect, Option } from "effect";
 import { brandMediaId, type Config, type DownloadSourceMetadata } from "@packages/shared/index.ts";
 
 import type { downloads } from "@/db/schema.ts";
@@ -36,13 +36,11 @@ import {
   encodeDownloadEventMetadata,
 } from "@/features/operations/repository/download-repository.ts";
 import { DownloadRepository } from "@/features/operations/repository/download-repository-service.ts";
-import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
-import { OperationsConflictError, OperationsNotFoundError } from "@/features/operations/errors.ts";
+import type {
+  OperationsConflictError,
+  OperationsNotFoundError,
+} from "@/features/operations/errors.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
-import {
-  shouldDeleteImportedData,
-  shouldRemoveTorrentOnImport,
-} from "@/features/operations/download/download-reconciliation-policy.ts";
 
 type DownloadRow = typeof downloads.$inferSelect;
 type MediaRow = typeof media.$inferSelect;
@@ -94,7 +92,7 @@ export type ReconcileByIdError =
   | OperationsConflictError
   | ReconcileCompletedError;
 
-const loadDownloadReconciliationContext = Effect.fn(
+export const loadDownloadReconciliationContext = Effect.fn(
   "DownloadReconcile.loadDownloadReconciliationContext",
 )(function* (
   input: Pick<
@@ -153,7 +151,7 @@ const loadDownloadReconciliationContext = Effect.fn(
   } satisfies DownloadReconciliationContext);
 });
 
-const reconcileBatchDownloadEffect = Effect.fn("DownloadReconcile.reconcileBatchDownload")(
+export const reconcileBatchDownloadEffect = Effect.fn("DownloadReconcile.reconcileBatchDownload")(
   function* (input: DownloadReconciliationContext) {
     if (!input.row.isBatch) {
       return false;
@@ -376,7 +374,7 @@ const reconcileBatchDownloadEffect = Effect.fn("DownloadReconcile.reconcileBatch
   },
 );
 
-const reconcileSingleDownloadEffect = Effect.fn(
+export const reconcileSingleDownloadEffect = Effect.fn(
   "DownloadReconcile.reconcileCompletedTorrentSingle",
 )(function* (input: DownloadReconciliationContext) {
   if (!input.row.contentPath && !input.row.savePath) {
@@ -498,125 +496,3 @@ const reconcileSingleDownloadEffect = Effect.fn(
     },
   });
 });
-
-export function makeDownloadCompletedTorrentReconciliation(
-  repo: typeof DownloadRepository.Service,
-  mediaUnitRepository: MediaUnitRepositoryShape,
-  fs: FileSystemShape,
-  mediaProbe: MediaProbeShape,
-  mediaReadRepository: typeof MediaReadRepository.Service,
-  torrentClientService: typeof TorrentClientService.Service,
-  eventBus: typeof EventBus.Service,
-  nowIso: () => Effect.Effect<string>,
-  randomUuid: () => Effect.Effect<string>,
-  getRuntimeConfig: () => Effect.Effect<Config, RuntimeConfigSnapshotError>,
-) {
-  const maybeCleanupImportedTorrent = Effect.fn("DownloadReconcile.maybeCleanupImportedTorrent")(
-    function* (config: Config | null | undefined, infoHash: string | null) {
-      if (!infoHash || !shouldRemoveTorrentOnImport(config)) {
-        return;
-      }
-
-      yield* torrentClientService
-        .deleteTorrentIfEnabled(infoHash, shouldDeleteImportedData(config))
-        .pipe(
-          Effect.flatMap((result) =>
-            result._tag === "Disabled"
-              ? Effect.logDebug("Skipped qBittorrent cleanup because it is disabled")
-              : Effect.void,
-          ),
-          Effect.catchAllCause((cause) =>
-            Effect.logWarning("Failed to delete imported torrent from qBittorrent").pipe(
-              Effect.annotateLogs({
-                infoHash,
-                cause: Cause.pretty(cause),
-              }),
-            ),
-          ),
-        );
-    },
-  );
-
-  const reconcileCompletedTorrentEffect = Effect.fn("DownloadReconcile.reconcileCompletedTorrent")(
-    function* (infoHash: string, contentPath: string | undefined) {
-      if (!contentPath) {
-        return;
-      }
-
-      const row = yield* repo.loadDownloadByInfoHash(infoHash);
-
-      if (!row) {
-        return;
-      }
-
-      if (row.reconciledAt) {
-        return;
-      }
-
-      const context = yield* loadDownloadReconciliationContext({
-        repo,
-        mediaUnitRepository,
-        eventBus,
-        fs,
-        mediaProbe,
-        maybeCleanupImportedTorrent,
-        nowIso,
-        randomUuid,
-        row,
-        contentPath,
-        getRuntimeConfig,
-        mediaReadRepository,
-      });
-
-      if (Option.isNone(context)) {
-        return;
-      }
-      const contextValue: DownloadReconciliationContext = context.value;
-
-      if (contextValue.row.isBatch) {
-        const handledBatch = yield* reconcileBatchDownloadEffect(contextValue);
-        if (handledBatch) {
-          return;
-        }
-      }
-
-      yield* reconcileSingleDownloadEffect(contextValue);
-    },
-  );
-
-  const reconcileDownloadByIdEffect = Effect.fn("DownloadReconcile.reconcileDownloadById")(
-    function* (id: number) {
-      const row = yield* repo.loadDownloadById(id);
-
-      if (!row) {
-        return yield* new OperationsNotFoundError({
-          message: "Download not found",
-        });
-      }
-
-      const contentPath = row.contentPath ?? row.savePath;
-
-      if (!contentPath || !row.infoHash) {
-        return yield* new OperationsConflictError({
-          message: "Download has no reconciliable content path",
-        });
-      }
-
-      yield* reconcileCompletedTorrentEffect(row.infoHash, contentPath ?? undefined);
-      return undefined;
-    },
-  );
-
-  return {
-    maybeCleanupImportedTorrent,
-    reconcileCompletedTorrentEffect,
-    reconcileDownloadByIdEffect,
-  } satisfies {
-    readonly maybeCleanupImportedTorrent: MaybeCleanupImportedTorrent;
-    readonly reconcileCompletedTorrentEffect: (
-      infoHash: string,
-      contentPath: string | undefined,
-    ) => Effect.Effect<void, ReconcileCompletedError>;
-    readonly reconcileDownloadByIdEffect: (id: number) => Effect.Effect<void, ReconcileByIdError>;
-  };
-}

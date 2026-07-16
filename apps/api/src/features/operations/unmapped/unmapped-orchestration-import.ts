@@ -81,6 +81,7 @@ export const cleanupPreviousMediaRootFolderAfterImport = Effect.fn(
   }
 });
 
+/** Test factory — production uses UnmappedImportService.Default. */
 export function makeUnmappedImportWorkflow(input: {
   fs: FileSystemShape;
   getLibraryPath: (
@@ -242,6 +243,13 @@ export function makeUnmappedImportWorkflow(input: {
 export class UnmappedImportService extends Effect.Service<UnmappedImportService>()(
   "@bakarr/api/UnmappedImportService",
   {
+    // FS + media + runtime config provided by ops feature layer.
+    dependencies: [
+      MediaReadRepository.Default,
+      MediaUnitRepository.Default,
+      SystemConfigRepository.Default,
+      SystemLogRepository.Default,
+    ],
     effect: Effect.gen(function* () {
       const fs = yield* FileSystem;
       const mediaReadRepository = yield* MediaReadRepository;
@@ -272,7 +280,6 @@ export class UnmappedImportService extends Effect.Service<UnmappedImportService>
         systemLogRepository,
       });
     }),
-    dependencies: [SystemConfigRepository.Default, SystemLogRepository.Default],
   },
 ) {}
 

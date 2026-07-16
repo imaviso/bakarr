@@ -189,15 +189,15 @@ rg -n "animeLiveLayer|animeEnrollment" apps/api/src
 
 ## Progress
 
-| #   | Status                                                                                                                                     |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1   | **done** — catalog slim: export-only download read; RSS add-only; rename-preview-only library read; routes→repos for list/history/progress |
-| 2   | **done** — OperationsProfileRepository deleted; loadQualityProfile / loadReleaseRules on system profile repos                              |
-| 3 | **done** — non-tx reads/logs off Download; MediaRead.loadUnitsByNumbers; SystemLog append; finalizeDownloadImport keeps multi-table tx |
-| 4   | pending                                                                                                                                    |
-| 5   | pending                                                                                                                                    |
-| 6   | pending                                                                                                                                    |
-| 7   | pending                                                                                                                                    |
-| 8   | pending                                                                                                                                    |
-| 9   | pending                                                                                                                                    |
-| 10  | pending                                                                                                                                    |
+| #   | Status                                                                                                                                                                                                      |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **done** — catalog slim: export-only download read; RSS add-only; rename-preview-only library read; routes→repos for list/history/progress                                                                  |
+| 2   | **done** — OperationsProfileRepository deleted; loadQualityProfile / loadReleaseRules on system profile repos                                                                                               |
+| 3   | **done** — non-tx reads/logs off Download; MediaRead.loadUnitsByNumbers; SystemLog append; finalizeDownloadImport keeps multi-table tx                                                                      |
+| 4   | **partial** — kill makeDownloadCompletedTorrentReconciliation; inline rss worker; complete leaf deps (Progress+EventBus); unmapped/rss make\* remain test factories only; full Default trees deferred to #5 |
+| 5   | pending                                                                                                                                                                                                     |
+| 6   | pending                                                                                                                                                                                                     |
+| 7   | pending                                                                                                                                                                                                     |
+| 8   | pending                                                                                                                                                                                                     |
+| 9   | pending                                                                                                                                                                                                     |
+| 10  | pending                                                                                                                                                                                                     |

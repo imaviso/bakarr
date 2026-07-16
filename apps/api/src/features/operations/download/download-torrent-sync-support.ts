@@ -42,6 +42,7 @@ export interface DownloadTorrentSyncSupportShape {
 export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSyncService>()(
   "@bakarr/api/DownloadTorrentSyncService",
   {
+    // Reconciliation/progress/torrent/config provided by ops feature layer.
     dependencies: [DownloadRepository.Default, EventBus.Default, MediaReadRepository.Default],
     effect: Effect.gen(function* () {
       const syncRepo = yield* DownloadRepository;

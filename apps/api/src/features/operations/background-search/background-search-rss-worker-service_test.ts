@@ -1,17 +1,20 @@
-import { Cause, Effect, Exit, Stream } from "effect";
+import { Cause, Effect, Exit, Layer, Stream } from "effect";
 import { eq } from "drizzle-orm";
 
 import type { AppDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
 import { EventBus, type EventBusShape } from "@/features/events/event-bus.ts";
 import { SearchBackgroundMissingService } from "@/features/operations/background-search/background-search-missing-support.ts";
-import { makeBackgroundSearchRssWorkerService } from "@/features/operations/background-search/background-search-rss-worker-service.ts";
+import { BackgroundSearchRssWorkerService } from "@/features/operations/background-search/background-search-rss-worker-service.ts";
 import { SearchBackgroundRssService } from "@/features/operations/background-search/background-search-rss-support.ts";
 import { InfrastructureError } from "@/features/errors.ts";
 import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { makeBackgroundJobRepository } from "@/features/system/repository/background-job-repository.ts";
+import {
+  BackgroundJobRepository,
+  makeBackgroundJobRepository,
+} from "@/features/system/repository/background-job-repository.ts";
 import { assert, describe, it } from "@effect/vitest";
 
 describe("BackgroundSearchRssWorkerService", () => {
@@ -231,15 +234,22 @@ const runWorkerScenario = Effect.fn("BackgroundSearchRssWorkerServiceTest.runWor
       missingService: input.missingService,
       rssService: input.rssService,
     });
+    const layer = BackgroundSearchRssWorkerService.DefaultWithoutDependencies.pipe(
+      Layer.provide(
+        Layer.mergeAll(
+          Layer.succeed(BackgroundJobRepository, makeBackgroundJobRepository(input.db)),
+          Layer.succeed(EventBus, deps.eventBus),
+          Layer.succeed(OperationsProgress, deps.progress),
+          Layer.succeed(SearchBackgroundMissingService, deps.missingService),
+          Layer.succeed(SearchBackgroundRssService, deps.rssService),
+        ),
+      ),
+    );
     const exit = yield* Effect.exit(
-      makeBackgroundSearchRssWorkerService({
-        backgroundJobRepository: makeBackgroundJobRepository(input.db),
-        eventBus: deps.eventBus,
-        missingService: deps.missingService,
-        nowIso: () => Effect.succeed("2024-01-01T00:00:00.000Z"),
-        progress: deps.progress,
-        rssService: deps.rssService,
-      }).runRssWorker(),
+      Effect.gen(function* () {
+        const worker = yield* BackgroundSearchRssWorkerService;
+        yield* worker.runRssWorker();
+      }).pipe(Effect.provide(layer)),
     );
 
     return {

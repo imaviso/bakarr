@@ -37,6 +37,7 @@ export interface DownloadTorrentActionServiceShape {
 export class DownloadTorrentActionService extends Effect.Service<DownloadTorrentActionService>()(
   "@bakarr/api/DownloadTorrentActionService",
   {
+    // Progress + torrent client provided by ops feature layer.
     dependencies: [DownloadRepository.Default, EventBus.Default],
     effect: Effect.gen(function* () {
       const actionRepo = yield* DownloadRepository;

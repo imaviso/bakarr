@@ -37,10 +37,11 @@ export interface DownloadTriggerServiceShape {
 export class DownloadTriggerService extends Effect.Service<DownloadTriggerService>()(
   "@bakarr/api/DownloadTriggerService",
   {
+    // Progress + torrent client provided by ops feature layer.
     dependencies: [
       DownloadRepository.Default,
-      EventBus.Default,
       DownloadTriggerCoordinator.Default,
+      EventBus.Default,
       MediaReadRepository.Default,
       SystemLogRepository.Default,
     ],

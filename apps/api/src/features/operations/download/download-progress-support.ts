@@ -90,7 +90,7 @@ export class DownloadProgressSupport extends Effect.Service<DownloadProgressSupp
         publishDownloadProgress,
       } satisfies DownloadProgressSupportShape;
     }),
-    dependencies: [DownloadRepository.Default],
+    dependencies: [DownloadRepository.Default, EventBus.Default],
   },
 ) {}
 
