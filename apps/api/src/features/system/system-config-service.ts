@@ -63,6 +63,7 @@ export class SystemConfigService extends Effect.Service<SystemConfigService>()(
   "@bakarr/api/SystemConfigService",
   {
     effect: makeSystemConfigService(),
+    dependencies: [SystemConfigRepository.Default, QualityProfileRepository.Default],
   },
 ) {}
 

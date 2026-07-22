@@ -11,11 +11,15 @@ import { downloadEvents, downloads, systemLogs } from "@/db/schema.ts";
 import {
   listDownloadEvents as listDownloadEventsPage,
   listDownloadHistory as listDownloadHistoryPage,
+  listRecentDownloadEventRows as listRecentDownloadEventRowsPage,
   loadDownloadEventExportHeader as loadDownloadEventExportHeaderPage,
+  loadDownloadEventPresentationContexts,
+  loadDownloadStatusStats as loadDownloadStatusStatsPage,
   streamDownloadEvents as streamDownloadEventsPage,
   type DownloadEventExportHeader,
   type DownloadEventExportQuery,
   type DownloadEventListQuery,
+  type DownloadStatusStats,
 } from "@/features/operations/repository/download-catalog-read.ts";
 import { loadDownloadPresentationContexts } from "@/features/operations/repository/download-catalog-read.ts";
 import {
@@ -25,6 +29,10 @@ import {
   type DownloadEventRecordInput,
   updateDownloadStatusRow,
 } from "@/features/operations/repository/download-row-codec.ts";
+import type {
+  DownloadEventPresentationContext,
+  DownloadEventRowLike,
+} from "@/features/operations/download/download-event-presentations.ts";
 import type { DownloadPresentationContext } from "@/features/operations/repository/types.ts";
 import { StoredDataError } from "@/features/errors.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
@@ -33,8 +41,8 @@ export type {
   DownloadEventExportHeader,
   DownloadEventExportQuery,
   DownloadEventListQuery,
+  DownloadStatusStats,
 } from "@/features/operations/repository/download-catalog-read.ts";
-export { loadDownloadEventPresentationContexts } from "@/features/operations/repository/download-catalog-read.ts";
 export {
   decodeDownloadSourceMetadata,
   encodeDownloadEventMetadata,
@@ -132,6 +140,9 @@ export interface DownloadRepositoryShape {
   readonly listDownloadsByMediaId: (
     mediaId: number,
   ) => Effect.Effect<readonly DownloadRow[], DatabaseError>;
+  readonly listRecentDownloadEventRows: (
+    limit: number,
+  ) => Effect.Effect<readonly (typeof downloadEvents.$inferSelect)[], DatabaseError>;
   readonly loadDownloadById: (id: number) => Effect.Effect<DownloadRow | undefined, DatabaseError>;
   readonly loadDownloadByInfoHash: (
     infoHash: string,
@@ -140,6 +151,13 @@ export interface DownloadRepositoryShape {
     input: DownloadEventExportQuery | undefined,
     generatedAt: string,
   ) => Effect.Effect<DownloadEventExportHeader, DatabaseError>;
+  readonly loadDownloadStatusStats: () => Effect.Effect<DownloadStatusStats, DatabaseError>;
+  readonly loadEventPresentationContexts: (
+    rows: readonly DownloadEventRowLike[],
+  ) => Effect.Effect<
+    Map<number, DownloadEventPresentationContext>,
+    DatabaseError | StoredDataError
+  >;
   readonly loadPresentationContexts: (
     rows: readonly DownloadRow[],
   ) => Effect.Effect<Map<number, DownloadPresentationContext>, DatabaseError | StoredDataError>;
@@ -197,10 +215,13 @@ function makeDownloadRepositoryShape(db: AppDatabase): DownloadRepositoryShape {
     listDownloadHistory: (input) => listDownloadHistoryPage(db, input),
     listDownloadsByInfoHashes: (infoHashes) => listDownloadsByInfoHashes(db, infoHashes),
     listDownloadsByMediaId: (mediaId) => listDownloadsByMediaId(db, mediaId),
+    listRecentDownloadEventRows: (limit) => listRecentDownloadEventRowsPage(db, limit),
     loadDownloadById: (id) => loadDownloadById(db, id),
     loadDownloadByInfoHash: (infoHash) => loadDownloadByInfoHash(db, infoHash),
     loadDownloadEventExportHeader: (input, generatedAt) =>
       loadDownloadEventExportHeaderPage(db, input, generatedAt),
+    loadDownloadStatusStats: () => loadDownloadStatusStatsPage(db),
+    loadEventPresentationContexts: (rows) => loadDownloadEventPresentationContexts(db, rows),
     loadPresentationContexts: (rows) => loadPresentationContexts(db, rows),
     streamDownloadEvents: (input) => streamDownloadEventsPage(db, input),
     lookupDownloadByInfoHash: (infoHash) => lookupDownloadByInfoHash(db, infoHash),

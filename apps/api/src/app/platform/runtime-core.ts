@@ -49,7 +49,7 @@ export function makeAppPlatformCoreRuntimeLayer(
     observabilityConfigLayer,
   ).pipe(Layer.provide(configProviderLayer));
   const runtimeLayer = AppRuntime.Default.pipe(Layer.provide(httpAndRuntimeLayer));
-  const externalCallLayer = ExternalCallLive.pipe(Layer.provide(httpAndRuntimeLayer));
+  const externalCallLayer = ExternalCallLive;
   const databaseLayer = DatabaseLayerLive.pipe(
     Layer.provide(configLayer),
     Layer.provide(NodeContext.layer),

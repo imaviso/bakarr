@@ -24,17 +24,19 @@ import {
   upsertSystemConfigRow,
 } from "@/features/system/repository/system-config-repository.ts";
 import {
-  countActiveDownloads,
   countMediaRows,
-  countCompletedDownloads,
   countDownloadedEpisodeRows,
   countEpisodeRows,
-  countFailedDownloads,
-  countImportedDownloads,
-  countQueuedDownloads,
   countRssFeedRows,
   countUpToDateMediaRows,
 } from "@/features/system/repository/stats-repository.ts";
+import {
+  countQueuedDownloads,
+  countInProgressDownloads,
+  countFailedDownloads,
+  countCompletedDownloads,
+  countImportedDownloads,
+} from "@/test/download-stats-helpers.ts";
 import { loadSystemLogPage } from "@/features/system/repository/log-repository.ts";
 import {
   decodeUnmappedFolderMatchRow,
@@ -360,7 +362,7 @@ it.scoped("system repository query helpers filter logs and count system state", 
         assert.deepStrictEqual(errorRow.eventType, "downloads.error");
 
         assert.deepStrictEqual(yield* countQueuedDownloads(db), 1);
-        assert.deepStrictEqual(yield* countActiveDownloads(db), 1);
+        assert.deepStrictEqual(yield* countInProgressDownloads(db), 1);
         assert.deepStrictEqual(yield* countFailedDownloads(db), 1);
         assert.deepStrictEqual(yield* countCompletedDownloads(db), 1);
         assert.deepStrictEqual(yield* countImportedDownloads(db), 1);

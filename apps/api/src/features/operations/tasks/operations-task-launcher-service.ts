@@ -138,7 +138,10 @@ const makeOperationsTaskLauncherService = Effect.fn("OperationsTaskLauncherServi
 
 export class OperationsTaskLauncherService extends Effect.Service<OperationsTaskLauncherService>()(
   "@bakarr/api/OperationsTaskLauncherService",
-  { scoped: makeOperationsTaskLauncherService() },
+  {
+    scoped: makeOperationsTaskLauncherService(),
+    dependencies: [OperationsTaskWriteService.Default],
+  },
 ) {}
 
 export const OperationsTaskLauncherServiceLive = OperationsTaskLauncherService.Default;

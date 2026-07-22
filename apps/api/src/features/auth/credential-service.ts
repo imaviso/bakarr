@@ -132,6 +132,12 @@ export class AuthCredentialService extends Effect.Service<AuthCredentialService>
   "@bakarr/api/AuthCredentialService",
   {
     effect: makeAuthCredentialService(),
+    dependencies: [
+      AuthUserRepository.Default,
+      PasswordCrypto.Default,
+      RandomService.Default,
+      TokenHasher.Default,
+    ],
   },
 ) {}
 

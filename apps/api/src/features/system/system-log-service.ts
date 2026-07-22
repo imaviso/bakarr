@@ -97,6 +97,7 @@ export class SystemLogService extends Effect.Service<SystemLogService>()(
   "@bakarr/api/SystemLogService",
   {
     effect: makeSystemLogService(),
+    dependencies: [SystemLogRepository.Default],
   },
 ) {}
 

@@ -2,10 +2,7 @@ import { Cause, Deferred, Effect, Exit, Fiber, Layer } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 import { StoredConfigMissingError } from "@/features/system/errors.ts";
-import {
-  RuntimeConfigSnapshotService,
-  RuntimeConfigSnapshotServiceLive,
-} from "@/features/system/runtime-config-snapshot-service.ts";
+import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { SystemConfigService } from "@/features/system/system-config-service.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
 import { assert, it } from "@effect/vitest";
@@ -15,7 +12,7 @@ it.effect("RuntimeConfigSnapshotService caches loaded config", () =>
     let calls = 0;
     const config = makeTestConfig("./runtime-config-cache.sqlite");
 
-    const layer = RuntimeConfigSnapshotServiceLive.pipe(
+    const layer = RuntimeConfigSnapshotService.DefaultWithoutDependencies.pipe(
       Layer.provide(
         Layer.succeed(
           SystemConfigService,
@@ -45,7 +42,7 @@ it.effect("RuntimeConfigSnapshotService returns replaced config without loading"
     const persisted = makeTestConfig("./runtime-config-persisted.sqlite");
     const replaced = makeTestConfig("./runtime-config-replaced.sqlite");
 
-    const layer = RuntimeConfigSnapshotServiceLive.pipe(
+    const layer = RuntimeConfigSnapshotService.DefaultWithoutDependencies.pipe(
       Layer.provide(
         Layer.succeed(
           SystemConfigService,
@@ -82,7 +79,7 @@ it.effect(
       const persisted = makeTestConfig("./runtime-config-persisted.sqlite");
       const replaced = makeTestConfig("./runtime-config-replaced.sqlite");
 
-      const layer = RuntimeConfigSnapshotServiceLive.pipe(
+      const layer = RuntimeConfigSnapshotService.DefaultWithoutDependencies.pipe(
         Layer.provide(
           Layer.succeed(
             SystemConfigService,
@@ -118,7 +115,7 @@ it.effect("RuntimeConfigSnapshotService forwards SystemConfigService failures", 
   Effect.gen(function* () {
     const missing = new StoredConfigMissingError({ message: "missing config" });
 
-    const layer = RuntimeConfigSnapshotServiceLive.pipe(
+    const layer = RuntimeConfigSnapshotService.DefaultWithoutDependencies.pipe(
       Layer.provide(
         Layer.succeed(
           SystemConfigService,
@@ -154,7 +151,7 @@ it.effect("RuntimeConfigSnapshotService retries after a failed load", () =>
     const recovered = makeTestConfig("./runtime-config-recovered.sqlite");
     const missing = new StoredConfigMissingError({ message: "missing config" });
 
-    const layer = RuntimeConfigSnapshotServiceLive.pipe(
+    const layer = RuntimeConfigSnapshotService.DefaultWithoutDependencies.pipe(
       Layer.provide(
         Layer.succeed(
           SystemConfigService,

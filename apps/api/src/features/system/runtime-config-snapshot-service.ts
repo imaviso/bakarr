@@ -67,6 +67,7 @@ export class RuntimeConfigSnapshotService extends Effect.Service<RuntimeConfigSn
   "@bakarr/api/RuntimeConfigSnapshotService",
   {
     effect: makeRuntimeConfigSnapshotService(),
+    dependencies: [SystemConfigService.Default],
   },
 ) {}
 

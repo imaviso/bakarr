@@ -119,7 +119,7 @@ and optional linked media. Supports coalescing concurrent requests.
 
 ## Persistence Seams
 
-- `DownloadRepository` owns Download aggregate SQL (lifecycle, sync, trigger, presentation, events, catalog history/event reads + export stream)
+- `DownloadRepository` owns Download aggregate SQL (lifecycle, sync, trigger, presentation, events, catalog history/event reads + export stream, status stats aggregate, recent event rows, event presentation contexts)
 - `MediaUnitRepository` owns unit write paths (upsert, map, clear, probe cache, backfill, schedule/metadata sync)
 - `MediaRepository` owns Media row R/W + unit reads (list/count, progress, wanted/calendar, mapped units, settings, insert aggregate, delete, monitored ids)
 - `RssFeedRepository` owns RSS feed table SQL (list/insert/toggle/delete/lastChecked)
@@ -127,6 +127,7 @@ and optional linked media. Supports coalescing concurrent requests.
 - `AniDbUnitCacheRepository` owns AniDB episode cache table
 - `SystemLogRepository` owns system log append/page/export stream SQL
 - `BackgroundJobRepository` owns background job status upsert SQL
+- `SystemStatsRepository` is a dashboard read-model — owns cross-aggregate aggregate SQL (`loadSystemLibraryStatsAggregate` touches media+mediaUnits+rssFeeds+downloads in one query by design); media/unit/rss/job/log count helpers stay here pending full decomposition
 - Drizzle stays behind `Effect.Service` repository contracts (ADR-0001)
 - Slice repos by aggregate, not caller workflow (ADR-0004)
 - Pure codecs live next to system profiles

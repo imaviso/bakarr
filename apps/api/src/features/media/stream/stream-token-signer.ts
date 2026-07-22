@@ -83,6 +83,7 @@ export class StreamTokenSigner extends Effect.Service<StreamTokenSigner>()(
   "@bakarr/api/StreamTokenSigner",
   {
     effect: makeStreamTokenSigner(),
+    dependencies: [RandomService.Default],
   },
 ) {}
 

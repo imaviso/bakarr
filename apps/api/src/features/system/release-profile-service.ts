@@ -76,6 +76,7 @@ export class ReleaseProfileService extends Effect.Service<ReleaseProfileService>
   "@bakarr/api/ReleaseProfileService",
   {
     effect: makeReleaseProfileService(),
+    dependencies: [ReleaseProfileRepository.Default, SystemLogRepository.Default],
   },
 ) {}
 

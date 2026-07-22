@@ -28,6 +28,43 @@ type DownloadRow = typeof downloads.$inferSelect;
 const SQLITE_IN_LIST_CHUNK_SIZE = 900;
 const CHUNK_LOAD_CONCURRENCY = 4;
 
+export interface DownloadStatusStats {
+  readonly queuedDownloads: number;
+  readonly activeDownloads: number;
+  readonly failedDownloads: number;
+  readonly importedDownloads: number;
+}
+
+export const loadDownloadStatusStats = Effect.fn("DownloadRepository.loadDownloadStatusStats")(
+  function* (db: AppDatabase) {
+    const row = yield* tryDatabasePromise("Failed to load download status stats", () =>
+      db.get<DownloadStatusStats>(sql`
+        select
+          coalesce(sum(case when ${downloads.status} = 'queued' then 1 else 0 end), 0) as queuedDownloads,
+          coalesce(sum(case when ${downloads.status} in ('downloading', 'paused') then 1 else 0 end), 0) as activeDownloads,
+          coalesce(sum(case when ${downloads.status} = 'error' then 1 else 0 end), 0) as failedDownloads,
+          coalesce(sum(case when ${downloads.status} = 'imported' then 1 else 0 end), 0) as importedDownloads
+        from ${downloads}
+      `),
+    );
+
+    return {
+      queuedDownloads: row?.queuedDownloads ?? 0,
+      activeDownloads: row?.activeDownloads ?? 0,
+      failedDownloads: row?.failedDownloads ?? 0,
+      importedDownloads: row?.importedDownloads ?? 0,
+    } as const;
+  },
+);
+
+export const listRecentDownloadEventRows = Effect.fn(
+  "DownloadRepository.listRecentDownloadEventRows",
+)(function* (db: AppDatabase, limit: number) {
+  return yield* tryDatabasePromise("Failed to list recent download events", () =>
+    db.select().from(downloadEvents).orderBy(desc(downloadEvents.id)).limit(limit),
+  );
+});
+
 export const loadDownloadEventPresentationContexts = Effect.fn(
   "DownloadRepository.loadDownloadEventPresentationContexts",
 )(function* (db: AppDatabase, rows: readonly DownloadEventRowLike[]) {

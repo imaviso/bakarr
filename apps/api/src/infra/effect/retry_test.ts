@@ -3,9 +3,9 @@ import { Effect, Either, Fiber, Layer, TestClock } from "effect";
 
 import {
   ExternalCallError,
-  ExternalCallPolicyLive,
+  ExternalCallPolicy,
+  ExternalCallSemaphores,
   makeExternalCall,
-  makeExternalCallSemaphoresLive,
 } from "@/infra/effect/retry.ts";
 
 class TestFailureError extends Error {
@@ -13,8 +13,8 @@ class TestFailureError extends Error {
 }
 
 const TestExternalCallLayer = Layer.mergeAll(
-  ExternalCallPolicyLive,
-  makeExternalCallSemaphoresLive(),
+  ExternalCallPolicy.Default,
+  ExternalCallSemaphores.Default,
 );
 
 it.effect("tryExternal retries transient failures", () =>

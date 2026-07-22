@@ -49,6 +49,7 @@ export class BackgroundJobStatusService extends Effect.Service<BackgroundJobStat
   "@bakarr/api/BackgroundJobStatusService",
   {
     effect: makeBackgroundJobStatusService(),
+    dependencies: [SystemStatsRepository.Default],
   },
 ) {}
 

@@ -1,35 +1,9 @@
-import { and, count, desc, eq, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, sql } from "drizzle-orm";
 import { Effect } from "effect";
 
 import { AppDrizzleDatabase, type AppDatabase } from "@/db/database.ts";
-import {
-  media,
-  backgroundJobs,
-  downloadEvents,
-  downloads,
-  mediaUnits,
-  rssFeeds,
-  systemLogs,
-} from "@/db/schema.ts";
+import { media, backgroundJobs, downloads, mediaUnits, rssFeeds, systemLogs } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
-import type { DownloadEventRowLike } from "@/features/operations/download/download-event-presentations.ts";
-import { loadDownloadEventPresentationContexts as loadStoredDownloadEventPresentationContexts } from "@/features/operations/repository/download-repository.ts";
-
-const countDownloadsWhere = Effect.fn("SystemStatsRepository.countDownloadsWhere")(function* (
-  db: AppDatabase,
-  condition: SQL,
-) {
-  const countRows = yield* tryDatabasePromise("Failed to count downloads", () =>
-    db.select({ value: count() }).from(downloads).where(condition),
-  );
-  const countRow = countRows[0];
-
-  if (!countRow) {
-    return 0;
-  }
-
-  return countRow.value;
-});
 
 function requireSingleRow<T>(rows: ReadonlyArray<T>, fallback: T): T {
   return rows[0] ?? fallback;
@@ -38,15 +12,6 @@ function requireSingleRow<T>(rows: ReadonlyArray<T>, fallback: T): T {
 export interface SystemStatsRepositoryShape {
   readonly listBackgroundJobRows: () => ReturnType<typeof listBackgroundJobRows>;
   readonly listRecentSystemLogRows: (limit: number) => ReturnType<typeof listRecentSystemLogRows>;
-  readonly listRecentDownloadEventRows: (
-    limit: number,
-  ) => ReturnType<typeof listRecentDownloadEventRows>;
-  readonly loadDownloadEventPresentationContexts: (
-    rows: readonly DownloadEventRowLike[],
-  ) => ReturnType<typeof loadStoredDownloadEventPresentationContexts>;
-  readonly loadSystemDownloadStatsAggregate: () => ReturnType<
-    typeof loadSystemDownloadStatsAggregate
-  >;
   readonly loadSystemLibraryStatsAggregate: () => ReturnType<
     typeof loadSystemLibraryStatsAggregate
   >;
@@ -62,36 +27,6 @@ export class SystemStatsRepository extends Effect.Service<SystemStatsRepository>
     dependencies: [AppDrizzleDatabase.Default],
   },
 ) {}
-
-export const countQueuedDownloads = Effect.fn("SystemStatsRepository.countQueuedDownloads")(
-  function* (db: AppDatabase) {
-    return yield* countDownloadsWhere(db, eq(downloads.status, "queued"));
-  },
-);
-
-export const countActiveDownloads = Effect.fn("SystemStatsRepository.countActiveDownloads")(
-  function* (db: AppDatabase) {
-    return yield* countDownloadsWhere(db, sql`${downloads.status} in ('downloading', 'paused')`);
-  },
-);
-
-export const countFailedDownloads = Effect.fn("SystemStatsRepository.countFailedDownloads")(
-  function* (db: AppDatabase) {
-    return yield* countDownloadsWhere(db, eq(downloads.status, "error"));
-  },
-);
-
-export const countImportedDownloads = Effect.fn("SystemStatsRepository.countImportedDownloads")(
-  function* (db: AppDatabase) {
-    return yield* countDownloadsWhere(db, eq(downloads.status, "imported"));
-  },
-);
-
-export const countCompletedDownloads = Effect.fn("SystemStatsRepository.countCompletedDownloads")(
-  function* (db: AppDatabase) {
-    return yield* countDownloadsWhere(db, eq(downloads.status, "completed"));
-  },
-);
 
 export const countMediaRows = Effect.fn("SystemStatsRepository.countMediaRows")(function* (
   db: AppDatabase,
@@ -178,13 +113,6 @@ interface SystemLibraryStatsAggregateRow {
   readonly upToDateAnime: number;
 }
 
-interface SystemDownloadStatsAggregateRow {
-  readonly activeDownloads: number;
-  readonly failedDownloads: number;
-  readonly importedDownloads: number;
-  readonly queuedDownloads: number;
-}
-
 export const loadSystemLibraryStatsAggregate = Effect.fn(
   "SystemStatsRepository.loadSystemLibraryStatsAggregate",
 )(function* (db: AppDatabase) {
@@ -224,28 +152,6 @@ export const loadSystemLibraryStatsAggregate = Effect.fn(
   } as const;
 });
 
-export const loadSystemDownloadStatsAggregate = Effect.fn(
-  "SystemStatsRepository.loadSystemDownloadStatsAggregate",
-)(function* (db: AppDatabase) {
-  const row = yield* tryDatabasePromise("Failed to load system download stats", () =>
-    db.get<SystemDownloadStatsAggregateRow>(sql`
-      select
-        coalesce(sum(case when ${downloads.status} = 'queued' then 1 else 0 end), 0) as queuedDownloads,
-        coalesce(sum(case when ${downloads.status} in ('downloading', 'paused') then 1 else 0 end), 0) as activeDownloads,
-        coalesce(sum(case when ${downloads.status} = 'error' then 1 else 0 end), 0) as failedDownloads,
-        coalesce(sum(case when ${downloads.status} = 'imported' then 1 else 0 end), 0) as importedDownloads
-      from ${downloads}
-    `),
-  );
-
-  return {
-    activeDownloads: row?.activeDownloads ?? 0,
-    failedDownloads: row?.failedDownloads ?? 0,
-    importedDownloads: row?.importedDownloads ?? 0,
-    queuedDownloads: row?.queuedDownloads ?? 0,
-  } as const;
-});
-
 export const listBackgroundJobRows = Effect.fn("SystemStatsRepository.listBackgroundJobRows")(
   function* (db: AppDatabase) {
     return yield* tryDatabasePromise("Failed to list background jobs", () =>
@@ -262,22 +168,10 @@ export const listRecentSystemLogRows = Effect.fn("SystemStatsRepository.listRece
   },
 );
 
-export const listRecentDownloadEventRows = Effect.fn(
-  "SystemStatsRepository.listRecentDownloadEventRows",
-)(function* (db: AppDatabase, limit: number) {
-  return yield* tryDatabasePromise("Failed to list download events", () =>
-    db.select().from(downloadEvents).orderBy(desc(downloadEvents.id)).limit(limit),
-  );
-});
-
 function makeSystemStatsRepositoryShape(db: AppDatabase): SystemStatsRepositoryShape {
   return {
     listBackgroundJobRows: () => listBackgroundJobRows(db),
-    listRecentDownloadEventRows: (limit) => listRecentDownloadEventRows(db, limit),
     listRecentSystemLogRows: (limit) => listRecentSystemLogRows(db, limit),
-    loadDownloadEventPresentationContexts: (rows) =>
-      loadStoredDownloadEventPresentationContexts(db, rows),
-    loadSystemDownloadStatsAggregate: () => loadSystemDownloadStatsAggregate(db),
     loadSystemLibraryStatsAggregate: () => loadSystemLibraryStatsAggregate(db),
   } satisfies SystemStatsRepositoryShape;
 }

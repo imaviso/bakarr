@@ -9,7 +9,6 @@ import { makeTestConfig } from "@/test/config-fixture.ts";
 import {
   redactConfigSecrets,
   SystemConfigService,
-  SystemConfigServiceLive,
 } from "@/features/system/system-config-service.ts";
 import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
 import { SystemConfigRepository } from "@/features/system/repository/system-config-repository.ts";
@@ -52,7 +51,9 @@ describe("SystemConfigService", () => {
             SystemConfigRepository.DefaultWithoutDependencies,
             QualityProfileRepository.DefaultWithoutDependencies,
           ).pipe(Layer.provide(Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db))));
-          const layer = SystemConfigServiceLive.pipe(Layer.provide(repositoryLayer));
+          const layer = SystemConfigService.DefaultWithoutDependencies.pipe(
+            Layer.provide(repositoryLayer),
+          );
 
           const exit = yield* Effect.exit(
             Effect.flatMap(SystemConfigService, (service) => service.getConfig()).pipe(

@@ -6,6 +6,7 @@ import { ReleaseProfileRepository } from "@/features/system/repository/release-p
 import { SystemConfigRepository } from "@/features/system/repository/system-config-repository.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 import { SystemStatsRepository } from "@/features/system/repository/stats-repository.ts";
+import { DownloadRepository } from "@/features/operations/repository/download-repository.ts";
 import { BackgroundJobStatusServiceLive } from "@/features/system/background-job-status-service.ts";
 import { ImageAssetServiceLive } from "@/features/system/image-asset-service.ts";
 import { QualityProfileServiceLive } from "@/features/system/quality-profile-service.ts";
@@ -26,11 +27,9 @@ export function makeSystemConfigLayers<ROut, E, RIn>(
     SystemConfigRepository.Default,
     QualityProfileRepository.Default,
   ).pipe(Layer.provide(runtimeSupportLayer));
-  const systemConfigLayer = SystemConfigServiceLive.pipe(
-    Layer.provide(systemConfigRepositoryLayer),
-  );
+  const systemConfigLayer = SystemConfigServiceLive.pipe(Layer.provide(runtimeSupportLayer));
   const runtimeConfigSnapshotLayer = RuntimeConfigSnapshotServiceLive.pipe(
-    Layer.provide(systemConfigLayer),
+    Layer.provide(runtimeSupportLayer),
   );
 
   return {
@@ -79,6 +78,9 @@ export function makeSystemFeatureLayer<
     input.runtimeSupportLayer,
     input.backgroundControllerLayer,
   );
+  const downloadRepositoryLayer = DownloadRepository.Default.pipe(
+    Layer.provide(input.runtimeSupportLayer),
+  );
   const backgroundJobStatusLayer = BackgroundJobStatusServiceLive.pipe(
     Layer.provide(Layer.mergeAll(runtimeWithBackgroundControllerLayer, pureSystemRepos)),
   );
@@ -86,6 +88,7 @@ export function makeSystemFeatureLayer<
     input.runtimeSupportLayer,
     pureSystemRepos,
     backgroundJobStatusLayer,
+    downloadRepositoryLayer,
   );
   const systemReadLayer = SystemReadServiceLive.pipe(
     Layer.provide(runtimeWithBackgroundJobStatusLayer),

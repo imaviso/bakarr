@@ -4,6 +4,7 @@ import { AppRuntime } from "@/app/runtime.ts";
 import { AppConfig } from "@/config/schema.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import { toDownloadEvent } from "@/features/operations/download/download-event-presentations.ts";
+import { DownloadRepository } from "@/features/operations/repository/download-repository.ts";
 import {
   type BackgroundJobStatusError,
   BackgroundJobStatusService,
@@ -52,6 +53,7 @@ const makeSystemReadService = Effect.fn("SystemReadService.make")(function* () {
   const runtime = yield* AppRuntime;
   const diskSpaceInspector = yield* DiskSpaceInspector;
   const backgroundJobStatusService = yield* BackgroundJobStatusService;
+  const downloadRepository = yield* DownloadRepository;
   const systemStatsRepository = yield* SystemStatsRepository;
   const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
 
@@ -72,11 +74,10 @@ const makeSystemReadService = Effect.fn("SystemReadService.make")(function* () {
   });
 
   const getDashboard = Effect.fn("SystemReadService.getDashboard")(function* () {
-    const downloadStats = yield* systemStatsRepository.loadSystemDownloadStatsAggregate();
+    const downloadStats = yield* downloadRepository.loadDownloadStatusStats();
     const snapshot = yield* backgroundJobStatusService.getSnapshot();
-    const events = yield* systemStatsRepository.listRecentDownloadEventRows(12);
-    const eventContexts =
-      yield* systemStatsRepository.loadDownloadEventPresentationContexts(events);
+    const events = yield* downloadRepository.listRecentDownloadEventRows(12);
+    const eventContexts = yield* downloadRepository.loadEventPresentationContexts(events);
     const recentDownloadEvents = yield* Effect.forEach(events, (row) =>
       toDownloadEvent(row, eventContexts.get(row.id)),
     );
@@ -121,7 +122,7 @@ const makeSystemReadService = Effect.fn("SystemReadService.make")(function* () {
       anidbConfig.password.trim().length > 0;
     const storagePath = selectStoragePath(currentConfig, appConfig.databaseFile);
     const diskSpace = yield* diskSpaceInspector.getDiskSpaceSafe(storagePath);
-    const downloadStats = yield* systemStatsRepository.loadSystemDownloadStatsAggregate();
+    const downloadStats = yield* downloadRepository.loadDownloadStatusStats();
     const snapshot = yield* backgroundJobStatusService.getSnapshot();
     const rssJob = findBackgroundJobStatus(snapshot.jobs, "rss");
     const scanJob = findBackgroundJobStatus(snapshot.jobs, "library_scan");

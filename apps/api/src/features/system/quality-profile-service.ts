@@ -94,6 +94,7 @@ export class QualityProfileService extends Effect.Service<QualityProfileService>
   "@bakarr/api/QualityProfileService",
   {
     effect: makeQualityProfileService(),
+    dependencies: [QualityProfileRepository.Default, SystemLogRepository.Default],
   },
 ) {}
 
