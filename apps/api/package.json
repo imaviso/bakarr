@@ -18,26 +18,26 @@
   },
   "dependencies": {
     "@bakarr/shared": "workspace:*",
-    "@effect/experimental": "^0.60.0",
-    "@effect/opentelemetry": "^0.63.0",
-    "@effect/platform": "^0.96.2",
-    "@effect/platform-node": "^0.106.0",
-    "@effect/sql": "^0.51.1",
-    "@effect/sql-drizzle": "^0.50.0",
-    "@effect/sql-sqlite-node": "^0.52.0",
+    "@effect/experimental": "^0.61.0",
+    "@effect/opentelemetry": "^0.64.0",
+    "@effect/platform": "^0.97.0",
+    "@effect/platform-node": "^0.108.0",
+    "@effect/sql": "^0.52.0",
+    "@effect/sql-drizzle": "^0.51.0",
+    "@effect/sql-sqlite-node": "^0.53.0",
     "@opentelemetry/api": "^1.9.1",
-    "better-sqlite3": "^12.11.1",
+    "better-sqlite3": "^13.0.1",
     "drizzle-orm": "^0.45.2",
-    "effect": "^3.21.4",
-    "fast-xml-parser": "^5.9.3",
+    "effect": "^3.22.0",
+    "fast-xml-parser": "^5.10.1",
     "ipaddr.js": "^2.4.0"
   },
   "devDependencies": {
-    "@effect/vitest": "^0.29.0",
-    "@types/node": "25.5.0",
+    "@effect/vitest": "^0.30.0",
+    "@types/node": "26.1.1",
     "drizzle-kit": "^0.31.10",
-    "rolldown": "^1.1.4",
-    "tsx": "^4.23.0",
-    "typescript": "^6.0.3"
+    "rolldown": "^1.2.0",
+    "tsx": "^4.23.1",
+    "typescript": "^7.0.2"
   }
 }
