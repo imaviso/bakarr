@@ -63,6 +63,7 @@ const makeSystemBootstrapService = Effect.fn("SystemBootstrapService.make")(func
 export class SystemBootstrapService extends Effect.Service<SystemBootstrapService>()(
   "@bakarr/api/SystemBootstrapService",
   {
+    dependencies: [SystemConfigRepository.Default],
     effect: makeSystemBootstrapService(),
   },
 ) {}

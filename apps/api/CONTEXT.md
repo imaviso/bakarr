@@ -111,6 +111,7 @@ and optional linked media. Supports coalescing concurrent requests.
 - Effect-TS for all concurrency, DI, error handling, and schema validation
 - Drizzle ORM for typed SQL queries
 - Layer-based DI with `Effect.Service` plus explicit app-layer composition
+- `Effect.Service` `dependencies:` list pure leaves (repositories, crypto, random); stateful singletons and platform services are provided once at the lifecycle layer and `yield*`ed from context
 - HTTP routes are thin adapters that call feature services
 - Feature services are domain modules with explicit dependencies via tags
 - Background workers run in scoped fibers under a controller

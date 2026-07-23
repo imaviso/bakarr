@@ -211,6 +211,7 @@ const makeMediaReaderService = Effect.fn("MediaReaderService.make")(function* ()
 export class MediaReaderService extends Effect.Service<MediaReaderService>()(
   "@bakarr/api/MediaReaderService",
   {
+    dependencies: [MediaRepository.Default],
     effect: makeMediaReaderService(),
   },
 ) {}

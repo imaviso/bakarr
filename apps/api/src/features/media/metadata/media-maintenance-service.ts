@@ -106,6 +106,11 @@ const makeMediaMaintenanceService = Effect.fn("MediaMaintenanceService.make")(fu
 export class MediaMaintenanceService extends Effect.Service<MediaMaintenanceService>()(
   "@bakarr/api/MediaMaintenanceService",
   {
+    dependencies: [
+      MediaRepository.Default,
+      MediaUnitRepository.Default,
+      SystemLogRepository.Default,
+    ],
     effect: makeMediaMaintenanceService(),
   },
 ) {}

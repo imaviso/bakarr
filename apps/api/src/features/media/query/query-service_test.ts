@@ -3,7 +3,7 @@ import { Effect, Layer, Option, TestClock } from "effect";
 
 import { brandMediaId, type MediaSearchResult } from "@packages/shared/index.ts";
 import * as schema from "@/db/schema.ts";
-import { MediaQueryService, MediaQueryServiceLive } from "@/features/media/query/query-service.ts";
+import { MediaQueryService } from "@/features/media/query/query-service.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
 import { MediaSeasonalProviderService } from "@/features/media/query/media-seasonal-provider-service.ts";
 import { AppDrizzleDatabase } from "@/db/database.ts";
@@ -82,7 +82,9 @@ describe("MediaQueryService.listSeasonalMedia", () => {
             Layer.succeed(SeasonalMediaCacheRepository, makeSeasonalMediaCacheRepository(db)),
           );
 
-          const queryServiceLayer = MediaQueryServiceLive.pipe(Layer.provide(baseLayer));
+          const queryServiceLayer = MediaQueryService.DefaultWithoutDependencies.pipe(
+            Layer.provide(baseLayer),
+          );
 
           const listSeasonalMedia = (input: {
             season: "spring";
@@ -144,7 +146,7 @@ describe("MediaQueryService.listSeasonalMedia", () => {
             }),
           );
 
-          const layer = MediaQueryServiceLive.pipe(
+          const layer = MediaQueryService.DefaultWithoutDependencies.pipe(
             Layer.provide(
               Layer.mergeAll(
                 providerLayer,
@@ -228,7 +230,7 @@ describe("MediaQueryService.listSeasonalMedia", () => {
             }),
           );
 
-          const layer = MediaQueryServiceLive.pipe(
+          const layer = MediaQueryService.DefaultWithoutDependencies.pipe(
             Layer.provide(
               Layer.mergeAll(
                 providerLayer,
@@ -285,7 +287,7 @@ describe("MediaQueryService.searchMedia", () => {
       run: (db) =>
         Effect.gen(function* () {
           yield* TestClock.setTime(new Date("2025-04-01T10:00:00.000Z").getTime());
-          const layer = MediaQueryServiceLive.pipe(
+          const layer = MediaQueryService.DefaultWithoutDependencies.pipe(
             Layer.provide(
               Layer.mergeAll(
                 Layer.succeed(

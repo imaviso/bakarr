@@ -101,6 +101,11 @@ const makeSystemConfigUpdateService = Effect.fn("SystemConfigUpdateService.make"
 export class SystemConfigUpdateService extends Effect.Service<SystemConfigUpdateService>()(
   "@bakarr/api/SystemConfigUpdateService",
   {
+    dependencies: [
+      QualityProfileRepository.Default,
+      SystemConfigRepository.Default,
+      SystemLogRepository.Default,
+    ],
     effect: makeSystemConfigUpdateService(),
   },
 ) {}

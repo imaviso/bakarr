@@ -227,7 +227,14 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
 
 export class UnmappedControlService extends Effect.Service<UnmappedControlService>()(
   "@bakarr/api/UnmappedControlService",
-  { effect: makeUnmappedControlService() },
+  {
+    dependencies: [
+      MediaRepository.Default,
+      SystemLogRepository.Default,
+      SystemUnmappedRepository.Default,
+    ],
+    effect: makeUnmappedControlService(),
+  },
 ) {}
 
 export const UnmappedControlServiceLive = UnmappedControlService.Default;

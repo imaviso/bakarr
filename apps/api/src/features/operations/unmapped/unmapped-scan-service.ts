@@ -438,7 +438,15 @@ function resolveScannerMatchStatus(input: {
 
 export class UnmappedScanService extends Effect.Service<UnmappedScanService>()(
   "@bakarr/api/UnmappedScanService",
-  { effect: makeUnmappedScanService() },
+  {
+    dependencies: [
+      BackgroundJobRepository.Default,
+      MediaRepository.Default,
+      SystemLogRepository.Default,
+      SystemUnmappedRepository.Default,
+    ],
+    effect: makeUnmappedScanService(),
+  },
 ) {}
 
 export const UnmappedScanServiceLive = UnmappedScanService.Default;

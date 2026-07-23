@@ -206,6 +206,12 @@ const makeAuthSessionService = Effect.fn("AuthSessionService.make")(function* ()
 export class AuthSessionService extends Effect.Service<AuthSessionService>()(
   "@bakarr/api/AuthSessionService",
   {
+    dependencies: [
+      AuthUserRepository.Default,
+      PasswordCrypto.Default,
+      RandomService.Default,
+      TokenHasher.Default,
+    ],
     effect: makeAuthSessionService(),
   },
 ) {}

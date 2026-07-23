@@ -9,10 +9,7 @@ import { AppDrizzleDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
 import { AppConfig } from "@/config/schema.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
-import {
-  MediaReaderService,
-  MediaReaderServiceLive,
-} from "@/features/media/reader/media-reader-service.ts";
+import { MediaReaderService } from "@/features/media/reader/media-reader-service.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { makeTestFileSystemEffect } from "@/test/filesystem-test.ts";
 import { makeCommandExecutorStub } from "@/test/stubs.ts";
@@ -41,7 +38,7 @@ it.scoped("MediaReaderService exposes cbz archive pages and image bytes", () =>
         );
         yield* seedMediaUnit(appDb, libraryRoot, filePath);
 
-        const readerLayer = MediaReaderServiceLive.pipe(
+        const readerLayer = MediaReaderService.DefaultWithoutDependencies.pipe(
           Layer.provide(
             Layer.mergeAll(
               Layer.succeed(AppConfig, {
@@ -120,7 +117,7 @@ it.scoped("MediaReaderService shares archive loads across concurrent readers", (
         );
         yield* seedMediaUnit(appDb, libraryRoot, filePath);
 
-        const readerLayer = MediaReaderServiceLive.pipe(
+        const readerLayer = MediaReaderService.DefaultWithoutDependencies.pipe(
           Layer.provide(
             Layer.mergeAll(
               Layer.succeed(AppConfig, {

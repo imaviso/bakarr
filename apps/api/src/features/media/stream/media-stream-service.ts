@@ -150,6 +150,7 @@ const makeMediaStreamService = Effect.fn("MediaStreamService.make")(function* ()
 export class MediaStreamService extends Effect.Service<MediaStreamService>()(
   "@bakarr/api/MediaStreamService",
   {
+    dependencies: [MediaRepository.Default],
     effect: makeMediaStreamService(),
   },
 ) {}

@@ -12,10 +12,7 @@ import { makeTestConfig } from "@/test/config-fixture.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { assert, describe, it } from "@effect/vitest";
 import { decodeStoredConfigRow } from "@/features/system/config-codec.ts";
-import {
-  SystemConfigUpdateService,
-  SystemConfigUpdateServiceLive,
-} from "@/features/system/system-config-update-service.ts";
+import { SystemConfigUpdateService } from "@/features/system/system-config-update-service.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import {
   loadSystemConfigRow,
@@ -221,7 +218,7 @@ function makeSystemConfigUpdateTestLayer(input: {
     ),
   );
 
-  return SystemConfigUpdateServiceLive.pipe(
+  return SystemConfigUpdateService.DefaultWithoutDependencies.pipe(
     Layer.provide(
       Layer.mergeAll(
         baseLayer,

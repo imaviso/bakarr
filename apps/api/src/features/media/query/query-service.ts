@@ -178,6 +178,7 @@ const makeMediaQueryService = Effect.fn("MediaQueryService.make")(function* () {
 export class MediaQueryService extends Effect.Service<MediaQueryService>()(
   "@bakarr/api/MediaQueryService",
   {
+    dependencies: [MediaRepository.Default, SeasonalMediaCacheRepository.Default],
     effect: makeMediaQueryService(),
   },
 ) {}

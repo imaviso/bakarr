@@ -87,6 +87,7 @@ export class DownloadReconciliationService extends Effect.Service<DownloadReconc
               ),
             ),
           );
+        return;
       });
 
       const reconcileCompletedTorrentEffect = Effect.fn(
@@ -136,17 +137,19 @@ export class DownloadReconciliationService extends Effect.Service<DownloadReconc
         const row = yield* repo.loadDownloadById(id);
 
         if (!row) {
-          return yield* new OperationsNotFoundError({
+          yield* new OperationsNotFoundError({
             message: "Download not found",
           });
+          return;
         }
 
         const contentPath = row.contentPath ?? row.savePath;
 
         if (!contentPath || !row.infoHash) {
-          return yield* new OperationsConflictError({
+          yield* new OperationsConflictError({
             message: "Download has no reconciliable content path",
           });
+          return;
         }
 
         yield* reconcileCompletedTorrentEffect(row.infoHash, contentPath);

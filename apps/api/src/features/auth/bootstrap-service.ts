@@ -84,6 +84,12 @@ const makeAuthBootstrapService = Effect.fn("AuthBootstrapService.make")(function
 export class AuthBootstrapService extends Effect.Service<AuthBootstrapService>()(
   "@bakarr/api/AuthBootstrapService",
   {
+    dependencies: [
+      AuthUserRepository.Default,
+      PasswordCrypto.Default,
+      RandomService.Default,
+      TokenHasher.Default,
+    ],
     effect: makeAuthBootstrapService(),
   },
 ) {}
