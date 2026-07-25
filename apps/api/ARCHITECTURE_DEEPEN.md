@@ -1,6 +1,6 @@
 # API architecture deepen plan
 
-Status: **Active** (post residual ADR-0001/0002/0004).
+Status: **Complete** (all candidates done).
 
 Do not re-litigate residual free-SQL drain. Prefer clean breaks. Effect idioms:
 local `EFFECT_GUIDE.md` + `/home/yunyun/Dev/effect` (`Effect.Service` + complete
