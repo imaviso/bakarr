@@ -12,8 +12,7 @@ import { ConfigCoreSchema } from "@/features/system/config-schema.ts";
 import { makeDefaultConfig } from "@/features/system/defaults.ts";
 import { loadUnmappedFolderSnapshot } from "@/features/operations/unmapped/unmapped-scan-snapshot-support.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
-import { makeSystemUnmappedRepository } from "@/features/system/repository/unmapped-repository.ts";
-import { makeMediaRepository } from "@/features/media/shared/media-repository.ts";
+import { makeMediaRepository, makeSystemUnmappedRepository } from "@/test/repository-factories.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { withFileSystemSandboxEffect, writeTextFile } from "@/test/filesystem-test.ts";
 import {

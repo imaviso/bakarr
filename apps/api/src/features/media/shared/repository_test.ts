@@ -15,8 +15,7 @@ import { qualityProfileExistsEffect } from "@/features/media/shared/profile-supp
 
 import { buildMissingEpisodeRows } from "@/features/media/units/media-schedule-repository.ts";
 import { MAX_INFERRED_EPISODE_NUMBER } from "@/features/media/units/unit-backfill-policy.ts";
-import { makeMediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
-import { makeMediaRepository } from "@/features/media/shared/media-repository.ts";
+import { makeMediaRepository, makeMediaUnitRepository, makeQualityProfileRepository, makeSystemConfigRepository } from "@/test/repository-factories.ts";
 import { inferAiredAt } from "@/domain/media/derivations.ts";
 import { markSearchResultsAlreadyInLibraryEffect } from "@/features/media/query/search-results.ts";
 import {
@@ -24,8 +23,6 @@ import {
   getConfiguredLibraryPathEffect,
   resolveMediaRootFolderEffect,
 } from "@/features/media/shared/config-support.ts";
-import { makeQualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
-import { makeSystemConfigRepository } from "@/features/system/repository/system-config-repository.ts";
 
 it.scoped("upsertUnit prevents duplicate media episode rows", () =>
   withSqliteTestDbEffect({

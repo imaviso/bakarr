@@ -6,7 +6,7 @@ import * as schema from "@/db/schema.ts";
 import { media, mediaUnits } from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
-import { makeMediaRepository } from "@/features/media/shared/media-repository.ts";
+import { makeMediaRepository } from "@/test/repository-factories.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";
 
 type TestDatabase = SqliteRemoteDatabase<typeof schema>;

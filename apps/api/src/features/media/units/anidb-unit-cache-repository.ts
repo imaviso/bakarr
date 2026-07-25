@@ -45,16 +45,13 @@ export class AniDbUnitCacheRepository extends Effect.Service<AniDbUnitCacheRepos
   },
 ) {}
 
-function makeAniDbUnitCacheRepositoryShape(db: AppDatabase): AniDbUnitCacheRepositoryShape {
+export function makeAniDbUnitCacheRepositoryShape(db: AppDatabase): AniDbUnitCacheRepositoryShape {
   return {
     load: (mediaId) => loadAniDbEpisodeCache(db, mediaId),
     upsert: (input) => upsertAniDbEpisodeCache(db, input),
   };
 }
 
-export function makeAniDbUnitCacheRepository(db: AppDatabase): AniDbUnitCacheRepository {
-  return AniDbUnitCacheRepository.make(makeAniDbUnitCacheRepositoryShape(db));
-}
 
 const loadAniDbEpisodeCache = Effect.fn("AniDbUnitCacheRepository.load")(function* (
   db: AppDatabase,

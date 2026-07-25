@@ -2,7 +2,7 @@ import { assert, it } from "@effect/vitest";
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
-import { makeMediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
+import { makeMediaUnitRepository } from "@/test/repository-factories.ts";
 import * as schema from "@/db/schema.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";

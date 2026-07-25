@@ -56,11 +56,8 @@ export class BackgroundJobRepository extends Effect.Service<BackgroundJobReposit
   },
 ) {}
 
-export function makeBackgroundJobRepository(db: AppDatabase): BackgroundJobRepository {
-  return BackgroundJobRepository.make(makeBackgroundJobRepositoryShape(db));
-}
 
-function makeBackgroundJobRepositoryShape(db: AppDatabase): BackgroundJobRepositoryShape {
+export function makeBackgroundJobRepositoryShape(db: AppDatabase): BackgroundJobRepositoryShape {
   return {
     loadByName: (name) => loadByName(db, name),
     markStarted: (name, nowIso) => markStarted(db, name, nowIso),

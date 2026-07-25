@@ -171,7 +171,7 @@ export class MediaRepository extends Effect.Service<MediaRepository>()(
   },
 ) {}
 
-function makeMediaRepositoryShape(db: AppDatabase): MediaRepositoryShape {
+export function makeMediaRepositoryShape(db: AppDatabase): MediaRepositoryShape {
   return {
     countMedia: (input) => countMediaEffect(db, input),
     findExistingMediaIds: (mediaIds) => findExistingMediaIdsEffect(db, mediaIds),
@@ -208,9 +208,6 @@ function makeMediaRepositoryShape(db: AppDatabase): MediaRepositoryShape {
   } satisfies MediaRepositoryShape;
 }
 
-export function makeMediaRepository(db: AppDatabase): MediaRepository {
-  return MediaRepository.make(makeMediaRepositoryShape(db));
-}
 
 const getMediaRowEffect = Effect.fn("MediaRepository.getMediaRow")(function* (
   db: AppDatabase,

@@ -168,7 +168,7 @@ export const listRecentSystemLogRows = Effect.fn("SystemStatsRepository.listRece
   },
 );
 
-function makeSystemStatsRepositoryShape(db: AppDatabase): SystemStatsRepositoryShape {
+export function makeSystemStatsRepositoryShape(db: AppDatabase): SystemStatsRepositoryShape {
   return {
     listBackgroundJobRows: () => listBackgroundJobRows(db),
     listRecentSystemLogRows: (limit) => listRecentSystemLogRows(db, limit),
@@ -176,6 +176,3 @@ function makeSystemStatsRepositoryShape(db: AppDatabase): SystemStatsRepositoryS
   } satisfies SystemStatsRepositoryShape;
 }
 
-export function makeSystemStatsRepository(db: AppDatabase): SystemStatsRepository {
-  return SystemStatsRepository.make(makeSystemStatsRepositoryShape(db));
-}

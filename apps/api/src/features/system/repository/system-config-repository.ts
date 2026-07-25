@@ -119,7 +119,7 @@ export const ensureBootstrapSystemState = Effect.fn(
   );
 });
 
-function makeSystemConfigRepositoryShape(db: AppDatabase): SystemConfigRepositoryShape {
+export function makeSystemConfigRepositoryShape(db: AppDatabase): SystemConfigRepositoryShape {
   return {
     ensureBootstrapSystemState: (coreInput, profileRows) =>
       ensureBootstrapSystemState(db, coreInput, profileRows),
@@ -131,6 +131,3 @@ function makeSystemConfigRepositoryShape(db: AppDatabase): SystemConfigRepositor
   } satisfies SystemConfigRepositoryShape;
 }
 
-export function makeSystemConfigRepository(db: AppDatabase): SystemConfigRepository {
-  return SystemConfigRepository.make(makeSystemConfigRepositoryShape(db));
-}

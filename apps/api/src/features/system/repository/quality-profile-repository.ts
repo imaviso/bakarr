@@ -164,7 +164,7 @@ export const deleteQualityProfileRow = Effect.fn(
   );
 });
 
-function makeQualityProfileRepositoryShape(db: AppDatabase): QualityProfileRepositoryShape {
+export function makeQualityProfileRepositoryShape(db: AppDatabase): QualityProfileRepositoryShape {
   return {
     countMediaUsingProfile: (profileName) => countMediaUsingProfile(db, profileName),
     deleteQualityProfileRow: (name) => deleteQualityProfileRow(db, name),
@@ -181,6 +181,3 @@ function makeQualityProfileRepositoryShape(db: AppDatabase): QualityProfileRepos
   } satisfies QualityProfileRepositoryShape;
 }
 
-export function makeQualityProfileRepository(db: AppDatabase): QualityProfileRepository {
-  return QualityProfileRepository.make(makeQualityProfileRepositoryShape(db));
-}

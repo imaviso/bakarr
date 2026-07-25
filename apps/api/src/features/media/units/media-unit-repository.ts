@@ -146,7 +146,7 @@ export class MediaUnitRepository extends Effect.Service<MediaUnitRepository>()(
   },
 ) {}
 
-function makeMediaUnitRepositoryShape(db: AppDatabase): MediaUnitRepositoryShape {
+export function makeMediaUnitRepositoryShape(db: AppDatabase): MediaUnitRepositoryShape {
   return {
     upsertUnit: (mediaId, unitNumber, patch) => upsertUnit(db, mediaId, unitNumber, patch),
     clearUnitMapping: (mediaId, unitNumber) => clearUnitMapping(db, mediaId, unitNumber),
@@ -206,9 +206,6 @@ function makeMediaUnitRepositoryShape(db: AppDatabase): MediaUnitRepositoryShape
   } satisfies MediaUnitRepositoryShape;
 }
 
-export function makeMediaUnitRepository(db: AppDatabase): MediaUnitRepository {
-  return MediaUnitRepository.make(makeMediaUnitRepositoryShape(db));
-}
 
 const upsertUnit = Effect.fn("MediaUnitRepository.upsertUnit")(function* (
   db: AppDatabase,

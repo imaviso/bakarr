@@ -20,8 +20,7 @@ import {
 import { listEpisodesEffect } from "@/features/media/query/media-query-units.ts";
 import { annotateMediaSearchResultsForQuery } from "@/features/media/query/media-search-annotation.ts";
 import { listMediaFilesEffect } from "@/features/media/files/media-file-list.ts";
-import { makeMediaRepository } from "@/features/media/shared/media-repository.ts";
-import { makeMediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
+import { makeMediaRepository, makeMediaUnitRepository } from "@/test/repository-factories.ts";
 import type { AnimeMetadata } from "@/features/media/metadata/anilist-model.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
 

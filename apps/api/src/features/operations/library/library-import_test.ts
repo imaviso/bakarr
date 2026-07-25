@@ -16,7 +16,7 @@ import { media } from "@/db/schema.ts";
 import { StoredDataError } from "@/features/errors.ts";
 import { encodeConfigCore, toConfigCore } from "@/features/system/config-codec.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
-import { makeMediaRepository } from "@/features/media/shared/media-repository.ts";
+import { makeMediaRepository } from "@/test/repository-factories.ts";
 
 it("analyzeScannedFile strips release noise and extracts metadata", () => {
   const result = analyzeScannedFile({

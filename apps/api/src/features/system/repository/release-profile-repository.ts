@@ -91,7 +91,7 @@ export const loadReleaseRules = Effect.fn("ReleaseProfileRepository.loadReleaseR
   return decodedRules.flat() as readonly ReleaseProfileRule[];
 });
 
-function makeReleaseProfileRepositoryShape(db: AppDatabase): ReleaseProfileRepositoryShape {
+export function makeReleaseProfileRepositoryShape(db: AppDatabase): ReleaseProfileRepositoryShape {
   return {
     deleteReleaseProfileRow: (id) => deleteReleaseProfileRow(db, id),
     insertReleaseProfileRow: (row) => insertReleaseProfileRow(db, row),
@@ -101,6 +101,3 @@ function makeReleaseProfileRepositoryShape(db: AppDatabase): ReleaseProfileRepos
   } satisfies ReleaseProfileRepositoryShape;
 }
 
-export function makeReleaseProfileRepository(db: AppDatabase): ReleaseProfileRepository {
-  return ReleaseProfileRepository.make(makeReleaseProfileRepositoryShape(db));
-}

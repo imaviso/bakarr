@@ -177,7 +177,7 @@ export const decodeUnmappedFolderMatchRow = Effect.fn(
   );
 });
 
-function makeSystemUnmappedRepositoryShape(db: AppDatabase): SystemUnmappedRepositoryShape {
+export function makeSystemUnmappedRepositoryShape(db: AppDatabase): SystemUnmappedRepositoryShape {
   return {
     deleteMatchRowsNotInPaths: (paths) => deleteUnmappedFolderMatchRowsNotInPaths(db, paths),
     listMatchRows: () => listUnmappedFolderMatchRows(db),
@@ -186,6 +186,3 @@ function makeSystemUnmappedRepositoryShape(db: AppDatabase): SystemUnmappedRepos
   } satisfies SystemUnmappedRepositoryShape;
 }
 
-export function makeSystemUnmappedRepository(db: AppDatabase): SystemUnmappedRepository {
-  return SystemUnmappedRepository.make(makeSystemUnmappedRepositoryShape(db));
-}

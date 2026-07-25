@@ -39,11 +39,8 @@ export class SeasonalMediaCacheRepository extends Effect.Service<SeasonalMediaCa
   },
 ) {}
 
-export function makeSeasonalMediaCacheRepository(db: AppDatabase): SeasonalMediaCacheRepository {
-  return SeasonalMediaCacheRepository.make(makeSeasonalMediaCacheRepositoryShape(db));
-}
 
-function makeSeasonalMediaCacheRepositoryShape(db: AppDatabase): SeasonalMediaCacheRepositoryShape {
+export function makeSeasonalMediaCacheRepositoryShape(db: AppDatabase): SeasonalMediaCacheRepositoryShape {
   return {
     read: (cacheKey, nowMs) => readSeasonalMediaCacheEffect(db, cacheKey, nowMs),
     readStale: (cacheKey) => readStaleSeasonalMediaCacheEffect(db, cacheKey),

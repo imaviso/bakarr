@@ -4,7 +4,7 @@ import { Effect, TestClock } from "effect";
 import * as schema from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { makeMediaRepository } from "@/features/media/shared/media-repository.ts";
+import { makeMediaRepository } from "@/test/repository-factories.ts";
 
 it.scoped("listWantedMissing includes non-media units without air dates", () =>
   withSqliteTestDbEffect({

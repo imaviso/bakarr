@@ -13,8 +13,7 @@ import {
   checkMediaExistsEffect,
 } from "@/features/media/add/media-add-validation.ts";
 import { MediaConflictError, MediaNotFoundError } from "@/features/media/errors.ts";
-import { makeMediaRepository } from "@/features/media/shared/media-repository.ts";
-import { makeQualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
+import { makeMediaRepository, makeQualityProfileRepository } from "@/test/repository-factories.ts";
 
 type TestDatabase = SqliteRemoteDatabase<typeof schema>;
 

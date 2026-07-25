@@ -8,7 +8,7 @@ import { appConfig, sessions, systemLogs, users } from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 
-import { makeAuthUserRepository } from "@/features/auth/user-repository.ts";
+import { makeAuthUserRepository } from "@/test/repository-factories.ts";
 
 type TestDatabase = SqliteRemoteDatabase<typeof schema>;
 

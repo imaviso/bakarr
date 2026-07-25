@@ -10,7 +10,7 @@ import {
 import type { AppDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
 import { listSeasonalMediaEffect } from "@/features/media/query/media-query-seasonal.ts";
-import { makeMediaRepository } from "@/features/media/shared/media-repository.ts";
+import { makeMediaRepository } from "@/test/repository-factories.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 
 describe("listSeasonalMediaEffect", () => {

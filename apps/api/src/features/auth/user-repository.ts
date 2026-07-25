@@ -76,13 +76,13 @@ export class AuthUserRepository extends Effect.Service<AuthUserRepository>()(
   {
     effect: Effect.gen(function* () {
       const db = yield* AppDrizzleDatabase;
-      return makeAuthUserRepository(db);
+      return makeAuthUserRepositoryShape(db);
     }),
     dependencies: [AppDrizzleDatabase.Default],
   },
 ) {}
 
-export function makeAuthUserRepository(db: AppDatabase): AuthUserRepositoryShape {
+export function makeAuthUserRepositoryShape(db: AppDatabase): AuthUserRepositoryShape {
   const findUserByUsername = Effect.fn("AuthUserRepository.findUserByUsername")(function* (
     username: string,
   ) {

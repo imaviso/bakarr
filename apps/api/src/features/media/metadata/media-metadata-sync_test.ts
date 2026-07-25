@@ -19,8 +19,7 @@ import {
 } from "@/features/media/shared/decode-support.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { makeMediaRepository } from "@/features/media/shared/media-repository.ts";
-import { makeSystemLogRepository } from "@/features/system/repository/log-repository.ts";
+import { makeMediaRepository, makeSystemLogRepository } from "@/test/repository-factories.ts";
 
 it.scoped("syncMediaMetadataEffect stores locally cached image paths", () =>
   withSqliteTestDbEffect({

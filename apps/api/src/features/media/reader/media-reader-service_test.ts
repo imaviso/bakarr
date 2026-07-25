@@ -13,7 +13,8 @@ import { MediaReaderService } from "@/features/media/reader/media-reader-service
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { makeTestFileSystemEffect } from "@/test/filesystem-test.ts";
 import { makeCommandExecutorStub } from "@/test/stubs.ts";
-import { makeMediaRepository, MediaRepository } from "@/features/media/shared/media-repository.ts";
+import { MediaRepository } from "@/features/media/shared/media-repository.ts";
+import { makeMediaRepository } from "@/test/repository-factories.ts";
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();

@@ -17,7 +17,7 @@ import {
   decodeDownloadSourceMetadata,
   encodeDownloadSourceMetadata,
 } from "@/features/operations/repository/download-row-codec.ts";
-import { makeMediaRepository } from "@/features/media/shared/media-repository.ts";
+import { makeMediaRepository } from "@/test/repository-factories.ts";
 import { loadQualityProfile } from "@/features/system/repository/quality-profile-repository.ts";
 import { loadReleaseRules } from "@/features/system/repository/release-profile-repository.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";

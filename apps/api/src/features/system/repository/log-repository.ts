@@ -58,11 +58,8 @@ export class SystemLogRepository extends Effect.Service<SystemLogRepository>()(
   },
 ) {}
 
-export function makeSystemLogRepository(db: AppDatabase): SystemLogRepository {
-  return SystemLogRepository.make(makeSystemLogRepositoryShape(db));
-}
 
-function makeSystemLogRepositoryShape(db: AppDatabase): SystemLogRepositoryShape {
+export function makeSystemLogRepositoryShape(db: AppDatabase): SystemLogRepositoryShape {
   return {
     appendLog: (eventType, level, message, nowIso) =>
       appendSystemLog(db, eventType, level, message, nowIso),

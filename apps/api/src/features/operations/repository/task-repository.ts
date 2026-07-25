@@ -254,7 +254,7 @@ export const listTaskRows = Effect.fn("OperationsTaskRepository.listTaskRows")(f
   });
 });
 
-function makeOperationsTaskRepositoryShape(db: AppDatabase): OperationsTaskRepositoryShape {
+export function makeOperationsTaskRepositoryShape(db: AppDatabase): OperationsTaskRepositoryShape {
   return {
     completeFailedTaskRow: (input) => completeFailedTaskRow(db, input),
     completeSucceededTaskRow: (input) => completeSucceededTaskRow(db, input),
@@ -266,6 +266,3 @@ function makeOperationsTaskRepositoryShape(db: AppDatabase): OperationsTaskRepos
   } satisfies OperationsTaskRepositoryShape;
 }
 
-export function makeOperationsTaskRepository(db: AppDatabase): OperationsTaskRepository {
-  return OperationsTaskRepository.make(makeOperationsTaskRepositoryShape(db));
-}

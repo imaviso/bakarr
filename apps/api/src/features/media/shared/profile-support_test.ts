@@ -6,7 +6,7 @@ import { qualityProfiles } from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { qualityProfileExistsEffect } from "@/features/media/shared/profile-support.ts";
-import { makeQualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
+import { makeQualityProfileRepository } from "@/test/repository-factories.ts";
 
 it.scoped("qualityProfileExistsEffect returns true for existing profile", () =>
   withSqliteTestDbEffect({

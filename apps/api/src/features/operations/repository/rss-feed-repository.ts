@@ -35,7 +35,7 @@ export class RssFeedRepository extends Effect.Service<RssFeedRepository>()(
   },
 ) {}
 
-function makeRssFeedRepositoryShape(db: AppDatabase): RssFeedRepositoryShape {
+export function makeRssFeedRepositoryShape(db: AppDatabase): RssFeedRepositoryShape {
   return {
     deleteById: (id) => deleteById(db, id),
     insertFeed: (input) => insertFeed(db, input),
@@ -47,9 +47,6 @@ function makeRssFeedRepositoryShape(db: AppDatabase): RssFeedRepositoryShape {
   } satisfies RssFeedRepositoryShape;
 }
 
-export function makeRssFeedRepository(db: AppDatabase): RssFeedRepository {
-  return RssFeedRepository.make(makeRssFeedRepositoryShape(db));
-}
 
 const listAll = Effect.fn("RssFeedRepository.listAll")(function* (db: AppDatabase) {
   const rows = yield* tryDatabasePromise("Failed to list RSS feeds", () =>

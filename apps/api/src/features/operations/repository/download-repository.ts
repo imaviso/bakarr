@@ -201,7 +201,7 @@ export class DownloadRepository extends Effect.Service<DownloadRepository>()(
   },
 ) {}
 
-function makeDownloadRepositoryShape(db: AppDatabase): DownloadRepositoryShape {
+export function makeDownloadRepositoryShape(db: AppDatabase): DownloadRepositoryShape {
   return {
     bulkUpdateTorrentSyncRows: (chunk) => bulkUpdateTorrentSyncRows(db, chunk),
     deleteDownloadRow: (id) => deleteDownloadRow(db, id, "Failed to remove download"),
@@ -233,9 +233,6 @@ function makeDownloadRepositoryShape(db: AppDatabase): DownloadRepositoryShape {
   } satisfies DownloadRepositoryShape;
 }
 
-export function makeDownloadRepository(db: AppDatabase): DownloadRepository {
-  return DownloadRepository.make(makeDownloadRepositoryShape(db));
-}
 
 const bulkUpdateTorrentSyncRows = Effect.fn("DownloadRepository.bulkUpdateTorrentSyncRows")(
   function* (db: AppDatabase, chunk: readonly TorrentSyncUpdate[]) {

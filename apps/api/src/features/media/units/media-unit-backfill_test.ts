@@ -5,7 +5,7 @@ import { Effect } from "effect";
 import type { AppDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
 import { media, mediaUnits } from "@/db/schema.ts";
-import { makeMediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
+import { makeMediaUnitRepository } from "@/test/repository-factories.ts";
 import { MAX_INFERRED_EPISODE_NUMBER } from "@/features/media/units/unit-backfill-policy.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";

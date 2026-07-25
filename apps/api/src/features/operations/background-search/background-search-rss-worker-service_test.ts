@@ -11,10 +11,8 @@ import { InfrastructureError } from "@/features/errors.ts";
 import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import {
-  BackgroundJobRepository,
-  makeBackgroundJobRepository,
-} from "@/features/system/repository/background-job-repository.ts";
+import { BackgroundJobRepository } from "@/features/system/repository/background-job-repository.ts";
+import { makeBackgroundJobRepository } from "@/test/repository-factories.ts";
 import { assert, describe, it } from "@effect/vitest";
 
 describe("BackgroundSearchRssWorkerService", () => {
