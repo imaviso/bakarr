@@ -23,7 +23,7 @@ it.effect("markJobFailureOrFailWithError wraps failed mark with JobFailurePersis
     );
     assert.deepStrictEqual(exit._tag, "Failure");
     if (exit._tag === "Failure") {
-      const failure = Cause.failureOption(exit.cause);
+      const failure = Cause.findErrorOption(exit.cause);
       assert.deepStrictEqual(failure._tag, "Some");
       if (failure._tag === "Some") {
         assert.ok(failure.value instanceof JobFailurePersistenceError);
@@ -60,7 +60,7 @@ it.effect("markJobFailureOrFailWithCause wraps failed mark with cause", () =>
     );
     assert.deepStrictEqual(exit._tag, "Failure");
     if (exit._tag === "Failure") {
-      const failure = Cause.failureOption(exit.cause);
+      const failure = Cause.findErrorOption(exit.cause);
       assert.deepStrictEqual(failure._tag, "Some");
       if (failure._tag === "Some") {
         assert.ok(failure.value instanceof JobFailurePersistenceError);

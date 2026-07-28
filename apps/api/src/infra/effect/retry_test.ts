@@ -1,5 +1,6 @@
 import { assert, it } from "@effect/vitest";
-import { Effect, Either, Fiber, Layer, TestClock } from "effect";
+import { Effect, Result, Fiber, Layer } from "effect";
+import { TestClock } from "effect/testing";
 
 import {
   ExternalCallError,
@@ -13,8 +14,8 @@ class TestFailureError extends Error {
 }
 
 const TestExternalCallLayer = Layer.mergeAll(
-  ExternalCallPolicy.Default,
-  ExternalCallSemaphores.Default,
+  ExternalCallPolicy.layer,
+  ExternalCallSemaphores.layer,
 );
 
 it.effect("tryExternal retries transient failures", () =>
@@ -32,7 +33,7 @@ it.effect("tryExternal retries transient failures", () =>
 
         return Promise.resolve("ok");
       })
-      .pipe(Effect.fork);
+      .pipe(Effect.forkChild);
 
     yield* TestClock.adjust("1 second");
 
@@ -55,14 +56,14 @@ it.effect("tryExternal wraps timeout failures as ExternalCallError", () =>
 
         return "never";
       })
-      .pipe(Effect.either, Effect.fork);
+      .pipe(Effect.result, Effect.forkChild);
 
     yield* TestClock.adjust("31 seconds");
 
     const result = yield* Fiber.join(fiber);
 
-    assert.ok(Either.isLeft(result));
-    assert.ok(result.left instanceof ExternalCallError);
+    assert.ok(Result.isFailure(result));
+    assert.ok(result.failure instanceof ExternalCallError);
   }).pipe(Effect.provide(TestExternalCallLayer)),
 );
 
@@ -76,14 +77,14 @@ it.effect("tryExternalEffect does not retry non-idempotent failures", () =>
         "test.non-idempotent",
         Effect.sync(() => {
           attempts += 1;
-        }).pipe(Effect.zipRight(Effect.fail(new TestFailureError()))),
+        }).pipe(Effect.andThen(Effect.fail(new TestFailureError()))),
         { idempotent: false },
       )
-      .pipe(Effect.either);
+      .pipe(Effect.result);
 
-    assert.ok(Either.isLeft(result));
-    assert.ok(result.left instanceof ExternalCallError);
-    assert.deepStrictEqual(result.left.operation, "test.non-idempotent");
+    assert.ok(Result.isFailure(result));
+    assert.ok(result.failure instanceof ExternalCallError);
+    assert.deepStrictEqual(result.failure.operation, "test.non-idempotent");
     assert.deepStrictEqual(attempts, 1);
   }).pipe(Effect.provide(TestExternalCallLayer)),
 );
@@ -99,7 +100,7 @@ it.effect("tryExternalEffect retries only when isRetryableError returns true", (
         Effect.sync(() => {
           attempts += 1;
         }).pipe(
-          Effect.zipRight(
+          Effect.andThen(
             Effect.fail(
               new ExternalCallError({
                 cause: new Error("hard fail"),
@@ -111,9 +112,9 @@ it.effect("tryExternalEffect retries only when isRetryableError returns true", (
         ),
         { isRetryableError: () => false },
       )
-      .pipe(Effect.either);
+      .pipe(Effect.result);
 
-    assert.ok(Either.isLeft(result));
+    assert.ok(Result.isFailure(result));
     assert.deepStrictEqual(attempts, 1);
   }).pipe(Effect.provide(TestExternalCallLayer)),
 );

@@ -1,4 +1,4 @@
-import { FileSystem as PlatformFileSystem, Path as PlatformPath } from "@effect/platform";
+import { Context, FileSystem as PlatformFileSystem, Path as PlatformPath } from "effect";
 import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem";
 import * as NodePath from "@effect/platform-node/NodePath";
 import { Effect, Layer, Option, Schema, Scope, Stream } from "effect";
@@ -10,8 +10,8 @@ export {
   sanitizePathSegmentEffect,
 } from "@/infra/filesystem/path-policy.ts";
 
-export class FileSystemError extends Schema.TaggedError<FileSystemError>()("FileSystemError", {
-  cause: Schema.Defect,
+export class FileSystemError extends Schema.TaggedErrorClass<FileSystemError>()("FileSystemError", {
+  cause: Schema.Defect(),
   message: Schema.String,
   path: Schema.String,
 }) {}
@@ -94,13 +94,16 @@ const UNKNOWN_FILE_TYPE_FLAGS = {
   isSymlink: false,
 } as const;
 
-export class FileSystem extends Effect.Service<FileSystem>()("@bakarr/api/FileSystem", {
-  effect: Effect.gen(function* () {
+export class FileSystem extends Context.Service<FileSystem>()(
+  "@bakarr/api/FileSystem",
+  { make: Effect.gen(function* () {
     const platformFs = yield* PlatformFileSystem.FileSystem;
     const pathService = yield* PlatformPath.Path;
     return makeFileSystem(platformFs, pathService);
-  }),
-}) {}
+  }) },
+) {
+  static readonly layer = Layer.effect(FileSystem, FileSystem.make);
+}
 
 function wrap<A, R>(
   path: string | URL,
@@ -132,7 +135,7 @@ function toOpenFlag(options: OpenFileOptions): PlatformFileSystem.OpenFlag {
 
 function toMkdirOptions(
   options?: MkdirOptions,
-): PlatformFileSystem.MakeDirectoryOptions | undefined {
+): NonNullable<Parameters<PlatformFileSystem.FileSystem["makeDirectory"]>[1]> | undefined {
   if (!options) return undefined;
   return {
     ...(options.recursive !== undefined ? { recursive: options.recursive } : {}),
@@ -140,7 +143,9 @@ function toMkdirOptions(
   };
 }
 
-function toRemoveOptions(options?: RemoveOptions): PlatformFileSystem.RemoveOptions | undefined {
+function toRemoveOptions(
+  options?: RemoveOptions,
+): NonNullable<Parameters<PlatformFileSystem.FileSystem["remove"]>[1]> | undefined {
   if (!options) return undefined;
   return {
     force: true,
@@ -296,16 +301,16 @@ function makeFileSystem(
   };
 }
 
-export const FileSystemLive = FileSystem.Default.pipe(
+export const FileSystemLive = FileSystem.layer.pipe(
   Layer.provide(Layer.mergeAll(NodeFileSystem.layer, NodePath.layer)),
 );
 
-export const FileSystemNoop = FileSystem.Default.pipe(
+export const FileSystemNoop = FileSystem.layer.pipe(
   Layer.provide(Layer.mergeAll(PlatformFileSystem.layerNoop({}), NodePath.layer)),
 );
 
 export function makeFileSystemNoopLayer(overrides: Partial<PlatformFileSystem.FileSystem>) {
-  return FileSystem.Default.pipe(
+  return FileSystem.layer.pipe(
     Layer.provide(Layer.mergeAll(PlatformFileSystem.layerNoop(overrides), NodePath.layer)),
   );
 }

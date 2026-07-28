@@ -1,13 +1,13 @@
-import { Cause, Context, Duration, Effect, Layer, Ref, Schedule, Schema } from "effect";
+import { Cause, Config, Context, Duration, Effect, Layer, Ref, Schedule, Schema, Semaphore } from "effect";
 
 import { currentTimeNanos } from "@/infra/time.ts";
 import { PositiveIntFromStringSchema } from "@/domain/domain-schema.ts";
 import { compactLogAnnotations, durationMsSince, errorLogAnnotations } from "@/infra/logging.ts";
 
-export class ExternalCallError extends Schema.TaggedError<ExternalCallError>()(
+export class ExternalCallError extends Schema.TaggedErrorClass<ExternalCallError>()(
   "ExternalCallError",
   {
-    cause: Schema.Defect,
+    cause: Schema.Defect(),
     message: Schema.String,
     operation: Schema.String,
   },
@@ -28,7 +28,7 @@ type ExternalCallPool = "default" | "media" | "qbit";
 
 export interface ExternalCallPolicyShape {
   readonly retryDelaysMs: readonly number[];
-  readonly timeout: Duration.DurationInput;
+  readonly timeout: Duration.Input;
   readonly resolvePool: (operation: string) => ExternalCallPool;
 }
 
@@ -52,10 +52,7 @@ export interface ExternalCallShape {
   ) => Effect.Effect<A, ExternalCallError, R>;
 }
 
-export class ExternalCall extends Context.Tag("@bakarr/api/ExternalCall")<
-  ExternalCall,
-  ExternalCallShape
->() {}
+export class ExternalCall extends Context.Service<ExternalCall, ExternalCallShape>()("@bakarr/api/ExternalCall") {}
 
 function resolveExternalCallPool(operation: string): ExternalCallPool {
   if (operation.startsWith("qbit.")) {
@@ -74,17 +71,17 @@ function resolveExternalCallPool(operation: string): ExternalCallPool {
   return "default";
 }
 
-export class ExternalCallPolicy extends Effect.Service<ExternalCallPolicy>()(
+export class ExternalCallPolicy extends Context.Service<ExternalCallPolicy>()(
   "@bakarr/api/ExternalCallPolicy",
-  {
-    sync: () =>
+  { make: Effect.sync(() =>
       ({
         resolvePool: resolveExternalCallPool,
         retryDelaysMs: EXTERNAL_RETRY_DELAYS_MS,
         timeout: DEFAULT_EXTERNAL_CALL_TIMEOUT,
-      }) satisfies ExternalCallPolicyShape,
-  },
-) {}
+      }) satisfies ExternalCallPolicyShape) },
+) {
+  static readonly layer = Layer.effect(ExternalCallPolicy, ExternalCallPolicy.make);
+}
 
 export const makeExternalCallSemaphores = Effect.fn("ExternalCall.makeExternalCallSemaphores")(
   function* () {
@@ -102,9 +99,9 @@ export const makeExternalCallSemaphores = Effect.fn("ExternalCall.makeExternalCa
     );
 
     const semaphores = {
-      default: yield* Effect.makeSemaphore(defaultConcurrency),
-      media: yield* Effect.makeSemaphore(mediaConcurrency),
-      qbit: yield* Effect.makeSemaphore(qbitConcurrency),
+      default: yield* Semaphore.make(defaultConcurrency),
+      media: yield* Semaphore.make(mediaConcurrency),
+      qbit: yield* Semaphore.make(qbitConcurrency),
     } as const;
 
     return {
@@ -114,12 +111,12 @@ export const makeExternalCallSemaphores = Effect.fn("ExternalCall.makeExternalCa
   },
 );
 
-export class ExternalCallSemaphores extends Effect.Service<ExternalCallSemaphores>()(
+export class ExternalCallSemaphores extends Context.Service<ExternalCallSemaphores>()(
   "@bakarr/api/ExternalCallSemaphores",
-  {
-    scoped: makeExternalCallSemaphores(),
-  },
-) {}
+  { make: makeExternalCallSemaphores() },
+) {
+  static readonly layer = Layer.effect(ExternalCallSemaphores, ExternalCallSemaphores.make);
+}
 
 export const makeExternalCall = Effect.fn("ExternalCall.makeExternalCall")(function* () {
   const policy = yield* ExternalCallPolicy;
@@ -149,8 +146,10 @@ export const makeExternalCall = Effect.fn("ExternalCall.makeExternalCall")(funct
         });
 
         const retrySchedule = Schedule.recurs(policy.retryDelaysMs.length).pipe(
-          Schedule.addDelay((retryCount) => policy.retryDelaysMs[retryCount] ?? 0),
-          Schedule.checkEffect((error: ExternalCallError) =>
+          Schedule.addDelay(({ output }) =>
+            Effect.succeed(policy.retryDelaysMs[output] ?? 0),
+          ),
+          Schedule.while(({ input: error }: Schedule.Metadata<number, ExternalCallError>) =>
             Effect.gen(function* () {
               const attemptsUsed = yield* Ref.get(attemptsUsedRef);
 
@@ -194,7 +193,7 @@ export const makeExternalCall = Effect.fn("ExternalCall.makeExternalCall")(funct
               ),
             ),
           ),
-          Effect.tapErrorCause((cause) =>
+          Effect.tapCause((cause) =>
             Ref.get(attemptsUsedRef).pipe(
               Effect.flatMap((attemptsUsed) =>
                 currentTimeNanos.pipe(
@@ -241,12 +240,12 @@ export const makeExternalCall = Effect.fn("ExternalCall.makeExternalCall")(funct
 });
 
 export const ExternalCallLive = Layer.effect(ExternalCall, makeExternalCall()).pipe(
-  Layer.provide(Layer.mergeAll(ExternalCallPolicy.Default, ExternalCallSemaphores.Default)),
+  Layer.provide(Layer.mergeAll(ExternalCallPolicy.layer, ExternalCallSemaphores.layer)),
 );
 
 const readExternalConcurrency = (key: string, fallback: number) =>
-  Schema.Config(key, PositiveIntFromStringSchema).pipe(
-    Effect.catchAll(() => Effect.succeed(fallback)),
+  Config.schema(PositiveIntFromStringSchema, key).pipe(
+    Effect.catch(() => Effect.succeed(fallback)),
   );
 
 function toExternalCallError(operation: string, cause: unknown) {

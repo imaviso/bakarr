@@ -1,4 +1,4 @@
-import { Deferred, Effect, Ref } from "effect";
+import { Deferred, Effect, Ref, Semaphore } from "effect";
 
 /**
  * Single-flight runner.
@@ -19,7 +19,7 @@ export const makeSingleFlightEffectRunner = Effect.fn(
   ): Effect.Effect<SingleFlightEffectRunner<A, E, R>, never, R> =>
     Effect.gen(function* () {
       const currentRunRef = yield* Ref.make<Deferred.Deferred<A, E> | null>(null);
-      const stateSemaphore = yield* Effect.makeSemaphore(1);
+      const stateSemaphore = yield* Semaphore.make(1);
 
       const clearCurrentRun = stateSemaphore.withPermits(1)(Ref.set(currentRunRef, null));
 

@@ -1,4 +1,4 @@
-import { FileSystem as PlatformFileSystem } from "@effect/platform";
+import { FileSystem as PlatformFileSystem } from "effect";
 import { Brand, Cause, Effect } from "effect";
 
 import { assert, it } from "@effect/vitest";
@@ -45,7 +45,7 @@ it.effect("sanitizePathSegment rejects traversal and nested path inputs", () =>
       const exit = yield* Effect.exit(sanitizePathSegmentEffect(value));
       assert.deepStrictEqual(exit._tag, "Failure");
       if (exit._tag === "Failure") {
-        const failure = Cause.failureOption(exit.cause);
+        const failure = Cause.findErrorOption(exit.cause);
         assert.deepStrictEqual(failure._tag, "Some");
         if (failure._tag === "Some") {
           assert.ok(failure.value instanceof PathSegmentError);
@@ -73,7 +73,7 @@ it.effect("sanitizePathSegmentEffect rejects traversal inputs with typed errors"
     assert.deepStrictEqual(exit._tag, "Failure");
 
     if (exit._tag === "Failure") {
-      const failure = Cause.failureOption(exit.cause);
+      const failure = Cause.findErrorOption(exit.cause);
       assert.deepStrictEqual(failure._tag, "Some");
 
       if (failure._tag === "Some") {
@@ -101,12 +101,12 @@ it.effect("openFile.seek rejects unsupported seek modes with typed errors", () =
     assert.deepStrictEqual(exit._tag, "Failure");
 
     if (exit._tag === "Failure") {
-      const defect = Cause.dieOption(exit.cause);
-      assert.deepStrictEqual(defect._tag, "Some");
+      const defect = Cause.findDefect(exit.cause);
+      assert.deepStrictEqual(defect._tag, "Success");
 
-      if (defect._tag === "Some") {
-        assert.ok(defect.value instanceof Error);
-        assert.deepStrictEqual(defect.value.message, "Unsupported seek mode: 2");
+      if (defect._tag === "Success") {
+        assert.ok(defect.success instanceof Error);
+        assert.deepStrictEqual(defect.success.message, "Unsupported seek mode: 2");
       }
     }
   }),
@@ -118,13 +118,13 @@ function makeFakePlatformFile(): PlatformFileSystem.File {
   return {
     [PlatformFileSystem.FileTypeId]: PlatformFileSystem.FileTypeId,
     fd: descriptor,
-    read: () => Effect.dieMessage("unexpected read call"),
-    readAlloc: () => Effect.dieMessage("unexpected readAlloc call"),
-    seek: () => Effect.dieMessage("unexpected seek call"),
-    stat: Effect.dieMessage("unexpected stat call"),
+    read: () => Effect.die(new Error("unexpected read call")),
+    readAlloc: () => Effect.die(new Error("unexpected readAlloc call")),
+    seek: () => Effect.die(new Error("unexpected seek call")),
+    stat: Effect.die(new Error("unexpected stat call")),
     sync: Effect.void,
-    truncate: () => Effect.dieMessage("unexpected truncate call"),
-    write: () => Effect.dieMessage("unexpected write call"),
-    writeAll: () => Effect.dieMessage("unexpected writeAll call"),
+    truncate: () => Effect.die(new Error("unexpected truncate call")),
+    write: () => Effect.die(new Error("unexpected write call")),
+    writeAll: () => Effect.die(new Error("unexpected writeAll call")),
   };
 }

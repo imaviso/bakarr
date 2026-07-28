@@ -1,9 +1,9 @@
-import { Otlp } from "@effect/opentelemetry";
+import * as Otlp from "effect/unstable/observability/Otlp";
 import { Duration, Effect, Layer, Redacted } from "effect";
 
 import { ObservabilityConfig } from "@/config/observability.ts";
 
-export const TelemetryLayer = Layer.unwrapEffect(
+export const TelemetryLayer = Layer.unwrap(
   Effect.gen(function* () {
     const config = yield* ObservabilityConfig;
 

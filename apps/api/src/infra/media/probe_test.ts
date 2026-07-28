@@ -1,6 +1,6 @@
 import { assert, it } from "@effect/vitest";
-import { CommandExecutor } from "@effect/platform";
-import * as PlatformError from "@effect/platform/Error";
+import { ChildProcessSpawner } from "effect/unstable/process";
+import * as PlatformError from "effect/PlatformError";
 import { Cause, Effect, Exit, Layer, Logger } from "effect";
 
 import {
@@ -56,7 +56,7 @@ it.effect("parseFfprobeJson returns typed failure for invalid output", () =>
 
     assert.deepStrictEqual(Exit.isFailure(exit), true);
     if (Exit.isFailure(exit)) {
-      const failure = Cause.failureOption(exit.cause);
+      const failure = Cause.findErrorOption(exit.cause);
       assert.deepStrictEqual(failure._tag, "Some");
       if (failure._tag === "Some") {
         assert.deepStrictEqual(failure.value._tag, "MediaProbeFailure");
@@ -137,7 +137,7 @@ it.effect("MediaProbe enforces global ffprobe concurrency limit", () =>
         maxActive = active;
       }
 
-      return Effect.async<string>((resume) => {
+      return Effect.callback<string>((resume) => {
         let completed = false;
         const timeout = setTimeout(() => {
           completed = true;
@@ -167,7 +167,7 @@ it.effect("MediaProbe enforces global ffprobe concurrency limit", () =>
     ).pipe(
       Effect.provide(
         MediaProbeLive.pipe(
-          Layer.provide(Layer.succeed(CommandExecutor.CommandExecutor, commandExecutorStub)),
+          Layer.provide(Layer.succeed(ChildProcessSpawner.ChildProcessSpawner, commandExecutorStub)),
         ),
       ),
     );
@@ -181,12 +181,12 @@ it.effect("MediaProbe fails startup when ffprobe version check fails", () =>
     const commandExecutorStub = makeCommandExecutorStub((command) =>
       commandArgs(command).includes("-version")
         ? Effect.fail(
-            new PlatformError.SystemError({
+            PlatformError.systemError({
+              _tag: "Unknown",
               cause: new Error("ffprobe not installed"),
               description: "ffprobe not installed",
               method: "string",
               module: "Command",
-              reason: "Unknown",
             }),
           )
         : Effect.succeed('{"streams":[]}'),
@@ -198,7 +198,7 @@ it.effect("MediaProbe fails startup when ffprobe version check fails", () =>
       ).pipe(
         Effect.provide(
           MediaProbeLive.pipe(
-            Layer.provide(Layer.succeed(CommandExecutor.CommandExecutor, commandExecutorStub)),
+            Layer.provide(Layer.succeed(ChildProcessSpawner.ChildProcessSpawner, commandExecutorStub)),
           ),
         ),
       ),
@@ -217,9 +217,9 @@ it.effect("MediaProbe returns a typed failure when ffprobe output is invalid", (
     const logger = Logger.make<unknown, void>(({ message }) => {
       messages.push(String(message));
     });
-    const loggerLayer = Logger.replace(Logger.defaultLogger, logger);
+    const loggerLayer = Logger.layer([logger]);
 
-    const result = yield* Effect.either(
+    const result = yield* Effect.result(
       Effect.flatMap(MediaProbe, (mediaProbe) =>
         mediaProbe.probeVideoFile("/tmp/invalid.mkv"),
       ).pipe(
@@ -229,7 +229,7 @@ it.effect("MediaProbe returns a typed failure when ffprobe output is invalid", (
             MediaProbeLive.pipe(
               Layer.provide(
                 Layer.succeed(
-                  CommandExecutor.CommandExecutor,
+                  ChildProcessSpawner.ChildProcessSpawner,
                   makeCommandExecutorStub((command) =>
                     commandArgs(command).includes("-version")
                       ? Effect.succeed("ffprobe version test")
@@ -244,8 +244,8 @@ it.effect("MediaProbe returns a typed failure when ffprobe output is invalid", (
     );
 
     assert.deepStrictEqual(result._tag, "Left");
-    if (result._tag === "Left") {
-      assert.deepStrictEqual(result.left._tag, "MediaProbeFailure");
+    if (result._tag === "Failure") {
+      assert.deepStrictEqual(result.failure._tag, "MediaProbeFailure");
     }
     assert.deepStrictEqual(
       messages.some((message) => message.includes("ffprobe output was invalid")),

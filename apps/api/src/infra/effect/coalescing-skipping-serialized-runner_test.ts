@@ -32,7 +32,7 @@ it.effect("SkippingSerializedEffectRunner skips overlapping calls", () =>
         return 42;
       }),
     );
-    const firstTrigger = yield* Effect.fork(runner.trigger);
+    const firstTrigger = yield* Effect.forkChild(runner.trigger);
     yield* Deferred.await(firstRunStarted);
 
     const secondResult = yield* runner.trigger;

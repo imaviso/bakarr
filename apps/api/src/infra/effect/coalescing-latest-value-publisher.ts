@@ -1,4 +1,4 @@
-import { Deferred, Effect, Exit, Ref, Scope } from "effect";
+import { Deferred, Effect, Exit, Ref, Scope, Semaphore } from "effect";
 
 /**
  * Latest-value coalescing publisher.
@@ -26,7 +26,7 @@ export const makeLatestValuePublisher = Effect.fn("EffectCoalescing.makeLatestVa
   ): Effect.Effect<LatestValuePublisher<A, E, R>, never, Scope.Scope> =>
     Effect.gen(function* () {
       const scope = yield* Scope.make();
-      const semaphore = yield* Effect.makeSemaphore(1);
+      const semaphore = yield* Semaphore.make(1);
       const state = yield* Ref.make<{
         readonly completion: Deferred.Deferred<void, E> | null;
         readonly latest: A | undefined;

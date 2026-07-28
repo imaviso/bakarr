@@ -1,4 +1,4 @@
-import { Config as EffectConfig, Context, Effect, Layer, Redacted, Schema } from "effect";
+import { Config, Context, Effect, Layer, Redacted, Schema } from "effect";
 
 import { AppConfig } from "@/config/schema.ts";
 import { PositiveIntSchema } from "@/domain/domain-schema.ts";
@@ -41,7 +41,7 @@ export interface ObservabilityConfigOverrides {
   readonly victoriaMetricsUrl?: string | null;
 }
 
-const PositiveIntConfigSchema = Schema.NumberFromString.pipe(Schema.compose(PositiveIntSchema));
+const PositiveIntConfigSchema = Schema.NumberFromString.pipe(Schema.decodeTo(PositiveIntSchema));
 
 export function makeDefaultObservabilityConfig(appVersion: string) {
   return new ObservabilityConfigModel({
@@ -62,10 +62,7 @@ export function makeDefaultObservabilityConfig(appVersion: string) {
   });
 }
 
-export class ObservabilityConfig extends Context.Tag("@bakarr/api/ObservabilityConfig")<
-  ObservabilityConfig,
-  ObservabilityConfigShape
->() {
+export class ObservabilityConfig extends Context.Service<ObservabilityConfig, ObservabilityConfigShape>()("@bakarr/api/ObservabilityConfig") {
   static Live = ObservabilityConfig.layerWithOverrides();
 
   static layer = ObservabilityConfig.Live;
@@ -80,80 +77,80 @@ export class ObservabilityConfig extends Context.Tag("@bakarr/api/ObservabilityC
         const otlpEndpoint =
           overrides.otlpEndpoint !== undefined
             ? overrides.otlpEndpoint
-            : yield* Schema.Config("OTEL_EXPORTER_OTLP_ENDPOINT", Schema.String).pipe(
-                EffectConfig.withDefault(defaults.otlpEndpoint),
+            : yield* Config.schema(Schema.String, "OTEL_EXPORTER_OTLP_ENDPOINT").pipe(
+                Config.withDefault(defaults.otlpEndpoint),
               );
         const serviceName =
           overrides.serviceName ??
-          (yield* Schema.Config("OTEL_SERVICE_NAME", Schema.String).pipe(
-            EffectConfig.withDefault(defaults.serviceName),
+          (yield* Config.schema(Schema.String, "OTEL_SERVICE_NAME").pipe(
+            Config.withDefault(defaults.serviceName),
           ));
         const serviceVersion =
           overrides.serviceVersion ??
-          (yield* Schema.Config("OTEL_SERVICE_VERSION", Schema.String).pipe(
-            EffectConfig.withDefault(defaults.serviceVersion),
+          (yield* Config.schema(Schema.String, "OTEL_SERVICE_VERSION").pipe(
+            Config.withDefault(defaults.serviceVersion),
           ));
         const deploymentEnvironment =
           overrides.deploymentEnvironment !== undefined
             ? overrides.deploymentEnvironment
-            : yield* Schema.Config("OTEL_DEPLOYMENT_ENVIRONMENT", Schema.String).pipe(
-                EffectConfig.withDefault(defaults.deploymentEnvironment),
+            : yield* Config.schema(Schema.String, "OTEL_DEPLOYMENT_ENVIRONMENT").pipe(
+                Config.withDefault(defaults.deploymentEnvironment),
               );
         const resourceAttributes =
           overrides.resourceAttributes ??
-          (yield* Schema.Config("OTEL_RESOURCE_ATTRIBUTES", Schema.String).pipe(
-            EffectConfig.withDefault(defaults.resourceAttributes),
+          (yield* Config.schema(Schema.String, "OTEL_RESOURCE_ATTRIBUTES").pipe(
+            Config.withDefault(defaults.resourceAttributes),
           ));
         const grafanaUrl =
           overrides.grafanaUrl !== undefined
             ? overrides.grafanaUrl
-            : yield* Schema.Config("BAKARR_GRAFANA_URL", Schema.String).pipe(
-                EffectConfig.withDefault(defaults.grafanaUrl),
+            : yield* Config.schema(Schema.String, "BAKARR_GRAFANA_URL").pipe(
+                Config.withDefault(defaults.grafanaUrl),
               );
         const victoriaMetricsUrl =
           overrides.victoriaMetricsUrl !== undefined
             ? overrides.victoriaMetricsUrl
-            : yield* Schema.Config("BAKARR_VICTORIAMETRICS_URL", Schema.String).pipe(
-                EffectConfig.withDefault(defaults.victoriaMetricsUrl),
+            : yield* Config.schema(Schema.String, "BAKARR_VICTORIAMETRICS_URL").pipe(
+                Config.withDefault(defaults.victoriaMetricsUrl),
               );
         const tempoUrl =
           overrides.tempoUrl !== undefined
             ? overrides.tempoUrl
-            : yield* Schema.Config("BAKARR_TEMPO_URL", Schema.String).pipe(
-                EffectConfig.withDefault(defaults.tempoUrl),
+            : yield* Config.schema(Schema.String, "BAKARR_TEMPO_URL").pipe(
+                Config.withDefault(defaults.tempoUrl),
               );
         const lokiUrl =
           overrides.lokiUrl !== undefined
             ? overrides.lokiUrl
-            : yield* Schema.Config("BAKARR_LOKI_URL", Schema.String).pipe(
-                EffectConfig.withDefault(defaults.lokiUrl),
+            : yield* Config.schema(Schema.String, "BAKARR_LOKI_URL").pipe(
+                Config.withDefault(defaults.lokiUrl),
               );
         const otlpHeaders =
           overrides.otlpHeaders === undefined
-            ? yield* Schema.Config(
+            ? yield* Config.schema(
+                Schema.RedactedFromValue(Schema.String),
                 "OTEL_EXPORTER_OTLP_HEADERS",
-                Schema.Redacted(Schema.String),
-              ).pipe(EffectConfig.withDefault(defaults.otlpHeaders))
+              ).pipe(Config.withDefault(defaults.otlpHeaders))
             : Redacted.make(overrides.otlpHeaders);
         const metricsExportIntervalMs =
           overrides.metricsExportIntervalMs ??
-          (yield* Schema.Config("OTEL_METRICS_EXPORT_INTERVAL_MS", PositiveIntConfigSchema).pipe(
-            EffectConfig.withDefault(defaults.metricsExportIntervalMs),
+          (yield* Config.schema(PositiveIntConfigSchema, "OTEL_METRICS_EXPORT_INTERVAL_MS").pipe(
+            Config.withDefault(defaults.metricsExportIntervalMs),
           ));
         const tracerExportIntervalMs =
           overrides.tracerExportIntervalMs ??
-          (yield* Schema.Config("OTEL_TRACES_EXPORT_INTERVAL_MS", PositiveIntConfigSchema).pipe(
-            EffectConfig.withDefault(defaults.tracerExportIntervalMs),
+          (yield* Config.schema(PositiveIntConfigSchema, "OTEL_TRACES_EXPORT_INTERVAL_MS").pipe(
+            Config.withDefault(defaults.tracerExportIntervalMs),
           ));
         const shutdownTimeoutMs =
           overrides.shutdownTimeoutMs ??
-          (yield* Schema.Config("OTEL_SHUTDOWN_TIMEOUT_MS", PositiveIntConfigSchema).pipe(
-            EffectConfig.withDefault(defaults.shutdownTimeoutMs),
+          (yield* Config.schema(PositiveIntConfigSchema, "OTEL_SHUTDOWN_TIMEOUT_MS").pipe(
+            Config.withDefault(defaults.shutdownTimeoutMs),
           ));
         const metricsRequireAuth =
           overrides.metricsRequireAuth ??
-          (yield* Schema.Config("BAKARR_METRICS_REQUIRE_AUTH", Schema.BooleanFromString).pipe(
-            EffectConfig.withDefault(defaults.metricsRequireAuth),
+          (yield* Config.boolean("BAKARR_METRICS_REQUIRE_AUTH").pipe(
+            Config.withDefault(defaults.metricsRequireAuth),
           ));
 
         return new ObservabilityConfigModel({

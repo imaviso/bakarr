@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import { bytesToHex } from "@/infra/hex.ts";
 
@@ -7,16 +7,19 @@ export interface RandomServiceShape {
   readonly randomUuid: Effect.Effect<string>;
 }
 
-export class RandomService extends Effect.Service<RandomService>()("@bakarr/lib/RandomService", {
-  sync: () => ({
+export class RandomService extends Context.Service<RandomService>()(
+  "@bakarr/lib/RandomService",
+  { make: Effect.sync(() => ({
     randomBytes: Effect.fn("RandomService.randomBytes")(
       (bytes: number): Effect.Effect<Uint8Array> => Effect.sync(() => randomBytesSync(bytes)),
     ),
     randomUuid: Effect.fn("RandomService.randomUuid")(
       (): Effect.Effect<string> => Effect.sync(() => crypto.randomUUID()),
     )(),
-  }),
-}) {}
+  })) },
+) {
+  static readonly layer = Layer.effect(RandomService, RandomService.make);
+}
 
 export function hexFromBytes(data: Uint8Array): string {
   return bytesToHex(data);

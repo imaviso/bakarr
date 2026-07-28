@@ -1,7 +1,7 @@
 import { win32 as Win32Path } from "node:path";
-import { Effect, Either, Schema } from "effect";
+import { Effect, Result, Schema } from "effect";
 
-export class PathSegmentError extends Schema.TaggedError<PathSegmentError>()("PathSegmentError", {
+export class PathSegmentError extends Schema.TaggedErrorClass<PathSegmentError>()("PathSegmentError", {
   message: Schema.String,
   segment: Schema.String,
 }) {}
@@ -41,7 +41,7 @@ const sanitizePathSegmentEither = (value: string) => {
     trimmed.includes("/") ||
     trimmed.includes("\\")
   ) {
-    return Either.left(
+    return Result.fail(
       new PathSegmentError({
         message: "Invalid path segment",
         segment: value,
@@ -49,18 +49,18 @@ const sanitizePathSegmentEither = (value: string) => {
     );
   }
 
-  return Either.right(trimmed);
+  return Result.succeed(trimmed);
 };
 
 export const sanitizePathSegmentEffect = Effect.fn("FileSystem.sanitizePathSegmentEffect")(
   function* (value: string) {
     const result = sanitizePathSegmentEither(value);
 
-    if (Either.isLeft(result)) {
-      return yield* result.left;
+    if (Result.isFailure(result)) {
+      return yield* result.failure;
     }
 
-    return result.right;
+    return result.success;
   },
 );
 

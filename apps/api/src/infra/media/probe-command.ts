@@ -1,16 +1,16 @@
-import { Command, CommandExecutor } from "@effect/platform";
+import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 import { Effect, Schema } from "effect";
 
-export class MediaProbeFailure extends Schema.TaggedError<MediaProbeFailure>()(
+export class MediaProbeFailure extends Schema.TaggedErrorClass<MediaProbeFailure>()(
   "MediaProbeFailure",
   {
-    cause: Schema.optional(Schema.Defect),
+    cause: Schema.optional(Schema.Defect()),
     message: Schema.String,
   },
 ) {}
 
-class FFProbeError extends Schema.TaggedError<FFProbeError>()("FFProbeError", {
-  cause: Schema.Defect,
+class FFProbeError extends Schema.TaggedErrorClass<FFProbeError>()("FFProbeError", {
+  cause: Schema.Defect(),
   message: Schema.String,
 }) {}
 
@@ -22,12 +22,12 @@ export type MediaProbeCommandOutput = Schema.Schema.Type<typeof MediaProbeComman
 
 export function runFfprobeCommand(
   executeString: (
-    command: Parameters<CommandExecutor.CommandExecutor["string"]>[0],
+    command: ChildProcess.Command,
   ) => Effect.Effect<string, unknown>,
   args: readonly string[],
   timeoutMs: number,
 ): Effect.Effect<MediaProbeCommandOutput, MediaProbeFailure> {
-  return Effect.suspend(() => executeString(Command.make("ffprobe", ...args))).pipe(
+  return Effect.suspend(() => executeString(ChildProcess.make("ffprobe", [...args]))).pipe(
     Effect.map((stdout) => ({ stdout }) satisfies MediaProbeCommandOutput),
     Effect.mapError(
       (cause) =>
@@ -36,13 +36,15 @@ export function runFfprobeCommand(
           message: "ffprobe command failed",
         }),
     ),
-    Effect.timeoutFail({
+    Effect.timeoutOrElse({
       duration: `${timeoutMs} millis`,
-      onTimeout: () =>
-        new FFProbeError({
+      orElse: () =>
+        Effect.fail(
+          new FFProbeError({
           cause: "Timeout",
           message: `ffprobe timed out after ${timeoutMs}ms`,
         }),
+        ),
     }),
     Effect.catchTag("FFProbeError", (error) =>
       Effect.logWarning("ffprobe command failed").pipe(
@@ -50,7 +52,7 @@ export function runFfprobeCommand(
           args: args.join(" "),
           error: error.message,
         }),
-        Effect.zipRight(
+        Effect.andThen(
           Effect.fail(new MediaProbeFailure({ cause: error.cause, message: error.message })),
         ),
       ),
@@ -59,7 +61,7 @@ export function runFfprobeCommand(
 }
 
 export function runFfprobeCommandWith(
-  executor: CommandExecutor.CommandExecutor,
+  executor: ChildProcessSpawner.ChildProcessSpawner["Service"],
   args: readonly string[],
   timeoutMs: number,
 ) {

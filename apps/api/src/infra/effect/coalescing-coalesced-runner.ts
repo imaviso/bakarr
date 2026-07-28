@@ -1,4 +1,4 @@
-import { Deferred, Effect, Ref, Scope } from "effect";
+import { Deferred, Effect, Ref, Scope, Semaphore } from "effect";
 
 /**
  * Coalesced runner.
@@ -17,7 +17,7 @@ export const makeCoalescedEffectRunner = Effect.fn("EffectCoalescing.makeCoalesc
     effect: Effect.Effect<void, E, R>,
   ): Effect.Effect<CoalescedEffectRunner<E, R>, never, R | Scope.Scope> =>
     Effect.gen(function* () {
-      const semaphore = yield* Effect.makeSemaphore(1);
+      const semaphore = yield* Semaphore.make(1);
       const state = yield* Ref.make<{
         readonly completion: Deferred.Deferred<void, E> | null;
         readonly pending: boolean;

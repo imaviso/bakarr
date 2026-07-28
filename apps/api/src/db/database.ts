@@ -1,17 +1,15 @@
-import * as SqliteDrizzle from "@effect/sql-drizzle/Sqlite";
+import * as SQLiteNodeDrizzle from "drizzle-orm/effect-sqlite-node";
 import * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
-import * as SqlClient from "@effect/sql/SqlClient";
-import { Effect, Layer, Schema } from "effect";
-import type { SqliteRemoteDatabase } from "drizzle-orm/sqlite-proxy";
+import * as SqlClient from "effect/unstable/sql/SqlClient";
+import { Context, Effect, Layer, Schema } from "effect";
 
 import { AppConfig } from "@/config/schema.ts";
 import { isSqliteBusyLock, isSqliteUniqueConstraint } from "@/db/sqlite-errors.ts";
-import * as schema from "@/db/schema.ts";
 
-export type AppDatabase = SqliteRemoteDatabase<typeof schema>;
+export type AppDatabase = SQLiteNodeDrizzle.EffectSQLiteNodeDatabase;
 
-export class DatabaseError extends Schema.TaggedError<DatabaseError>()("DatabaseError", {
-  cause: Schema.Defect,
+export class DatabaseError extends Schema.TaggedErrorClass<DatabaseError>()("DatabaseError", {
+  cause: Schema.Defect(),
   message: Schema.String,
 }) {
   isUniqueConstraint(): boolean {
@@ -69,20 +67,20 @@ export const setAndVerifyPragmas = Effect.fn("Database.setAndVerifyPragmas")(fun
   const busyTimeoutValue = toSqlitePragmaValue(firstRowValue(busyTimeout[0]));
 
   if (journalModeValue.toLowerCase() !== "wal") {
-    return yield* Effect.dieMessage(
-      `SQLite startup invariant failed: journal_mode expected wal but received ${journalModeValue || "<empty>"}`,
+    return yield* Effect.die(
+      new Error(`SQLite startup invariant failed: journal_mode expected wal but received ${journalModeValue || "<empty>"}`),
     );
   }
 
   if (foreignKeysValue !== "1") {
-    return yield* Effect.dieMessage(
-      `SQLite startup invariant failed: foreign_keys expected 1 but received ${foreignKeysValue || "<empty>"}`,
+    return yield* Effect.die(
+      new Error(`SQLite startup invariant failed: foreign_keys expected 1 but received ${foreignKeysValue || "<empty>"}`),
     );
   }
 
   if (busyTimeoutValue !== String(SQLITE_BUSY_TIMEOUT_MS)) {
-    return yield* Effect.dieMessage(
-      `SQLite startup invariant failed: busy_timeout expected ${SQLITE_BUSY_TIMEOUT_MS} but received ${busyTimeoutValue || "<empty>"}`,
+    return yield* Effect.die(
+      new Error(`SQLite startup invariant failed: busy_timeout expected ${SQLITE_BUSY_TIMEOUT_MS} but received ${busyTimeoutValue || "<empty>"}`),
     );
   }
 
@@ -110,32 +108,33 @@ const makeAppDrizzleDatabase = Effect.fn("AppDrizzleDatabase.make")(function* ()
 
   yield* setAndVerifyPragmas(client);
 
-  return yield* SqliteDrizzle.make<typeof schema>({ schema });
+  return yield* SQLiteNodeDrizzle.makeWithDefaults();
 });
 
-export const DatabaseSqlClientLive = Layer.unwrapEffect(
+export const DatabaseSqlClientLive = Layer.unwrap(
   Effect.gen(function* () {
     const config = yield* AppConfig;
 
     return NodeSqliteClient.layer({
       filename: config.databaseFile,
-    }).pipe(Layer.mapError(sqliteSetupError));
+    });
   }),
 );
 
-export class AppDrizzleDatabase extends Effect.Service<AppDrizzleDatabase>()(
+export class AppDrizzleDatabase extends Context.Service<AppDrizzleDatabase>()(
   "@bakarr/api/AppDrizzleDatabase",
-  {
-    scoped: makeAppDrizzleDatabase(),
-    dependencies: [DatabaseSqlClientLive],
-  },
-) {}
+  { make: makeAppDrizzleDatabase() },
+) {
+  static readonly layer = Layer.effect(AppDrizzleDatabase, AppDrizzleDatabase.make).pipe(Layer.provide([DatabaseSqlClientLive]));
+}
 
-export class AppSqlClient extends Effect.Service<AppSqlClient>()("@bakarr/api/AppSqlClient", {
-  effect: Effect.gen(function* () {
+export class AppSqlClient extends Context.Service<AppSqlClient>()(
+  "@bakarr/api/AppSqlClient",
+  { make: Effect.gen(function* () {
     return yield* SqlClient.SqlClient;
-  }),
-  dependencies: [DatabaseSqlClientLive],
-}) {}
+  }) },
+) {
+  static readonly layer = Layer.effect(AppSqlClient, AppSqlClient.make).pipe(Layer.provide([DatabaseSqlClientLive]));
+}
 
-export const DatabaseLayerLive = Layer.mergeAll(AppDrizzleDatabase.Default, AppSqlClient.Default);
+export const DatabaseLayerLive = Layer.mergeAll(AppDrizzleDatabase.layer, AppSqlClient.layer);

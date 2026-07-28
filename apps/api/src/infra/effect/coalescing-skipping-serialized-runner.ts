@@ -1,4 +1,4 @@
-import { Effect, Option, Ref } from "effect";
+import { Effect, Option, Ref, Semaphore } from "effect";
 
 /**
  * Skipping serialized runner.
@@ -18,7 +18,7 @@ export const makeSkippingSerializedEffectRunner = Effect.fn(
     effect: Effect.Effect<A, E, R>,
   ): Effect.Effect<SkippingSerializedEffectRunner<A, E, R>, never, R> =>
     Effect.gen(function* () {
-      const semaphore = yield* Effect.makeSemaphore(1);
+      const semaphore = yield* Semaphore.make(1);
       const runningRef = yield* Ref.make(false);
 
       const trigger = Effect.uninterruptibleMask((restore) =>

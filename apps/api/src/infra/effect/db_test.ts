@@ -1,22 +1,23 @@
 import { assert, it } from "@effect/vitest";
-import { Effect, Either, Fiber, TestClock } from "effect";
+import { Effect, Result, Fiber } from "effect";
+import { TestClock } from "effect/testing";
 
 import { DatabaseError } from "@/db/database.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { tryDatabase } from "@/infra/effect/db.ts";
 
-it.effect("tryDatabasePromise retries SQLITE_BUSY failures until success", () =>
+it.effect("tryDatabase retries SQLITE_BUSY failures until success", () =>
   Effect.gen(function* () {
     let attempts = 0;
 
-    const fiber = yield* tryDatabasePromise("db failed", async () => {
-      attempts += 1;
+    const fiber = yield* tryDatabase("db failed", () =>
+      Effect.suspend(() => {
+        attempts += 1;
 
-      if (attempts < 3) {
-        throw new Error("database is locked");
-      }
-
-      return "ok";
-    }).pipe(Effect.fork);
+        return attempts < 3
+          ? Effect.fail(new Error("database is locked"))
+          : Effect.succeed("ok");
+      }),
+    ).pipe(Effect.forkChild);
 
     yield* TestClock.adjust("100 millis");
 
@@ -27,18 +28,20 @@ it.effect("tryDatabasePromise retries SQLITE_BUSY failures until success", () =>
   }),
 );
 
-it.effect("tryDatabasePromise stops immediately for non-busy failures", () =>
+it.effect("tryDatabase stops immediately for non-busy failures", () =>
   Effect.gen(function* () {
     let attempts = 0;
 
-    const result = yield* tryDatabasePromise("db failed", async () => {
-      attempts += 1;
-      throw new Error("constraint failed");
-    }).pipe(Effect.either);
+    const result = yield* tryDatabase("db failed", () =>
+      Effect.suspend(() => {
+        attempts += 1;
+        return Effect.fail(new Error("constraint failed"));
+      }),
+    ).pipe(Effect.result);
 
-    assert.ok(Either.isLeft(result));
-    assert.ok(result.left instanceof DatabaseError);
-    assert.deepStrictEqual(result.left.message, "db failed");
+    assert.ok(Result.isFailure(result));
+    assert.ok(result.failure instanceof DatabaseError);
+    assert.deepStrictEqual(result.failure.message, "db failed");
     assert.deepStrictEqual(attempts, 1);
   }),
 );

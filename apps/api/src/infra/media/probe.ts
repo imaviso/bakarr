@@ -1,5 +1,5 @@
-import { CommandExecutor } from "@effect/platform";
-import { Effect, Either, ParseResult, Schema } from "effect";
+import { ChildProcessSpawner } from "effect/unstable/process";
+import { Context, Effect, Layer, Result, Schema, SchemaIssue, SchemaTransformation, Semaphore } from "effect";
 
 import { MediaProbeFailure, runFfprobeCommandWith } from "@/infra/media/probe-command.ts";
 
@@ -52,7 +52,7 @@ class FFProbeOutputSchema extends Schema.Class<FFProbeOutputSchema>("FFProbeOutp
   streams: Schema.Array(FFProbeStreamSchema),
   format: Schema.optional(FFProbeFormatSchema),
 }) {}
-const FFProbeOutputJsonSchema = Schema.parseJson(FFProbeOutputSchema);
+const FFProbeOutputJsonSchema = Schema.fromJsonString(FFProbeOutputSchema);
 
 const VIDEO_CODEC_LABELS: Record<string, string> = {
   av1: "AV1",
@@ -166,73 +166,74 @@ const normalizeDurationSeconds = (value?: string) => {
   return Math.round(parsed);
 };
 
-const ProbedMediaMetadataFromFFProbeOutputSchema = Schema.transform(
-  FFProbeOutputSchema,
-  Schema.NullOr(ProbedMediaMetadataSchema),
-  {
-    decode: (output) => {
-      const { streams } = output;
-      const videoStream = streams.find((s) => s.codec_type === "video");
-      const audioStream = streams.find((s) => s.codec_type === "audio");
-      const { format } = output;
+const ProbedMediaMetadataFromFFProbeOutputSchema = FFProbeOutputSchema.pipe(
+  Schema.decodeTo(
+    Schema.NullOr(ProbedMediaMetadataSchema),
+    SchemaTransformation.transform({
+      decode: (output) => {
+        const { streams } = output;
+        const videoStream = streams.find((s) => s.codec_type === "video");
+        const audioStream = streams.find((s) => s.codec_type === "audio");
+        const { format } = output;
 
-      const metadata = {
-        duration_seconds: normalizeDurationSeconds(videoStream?.duration ?? format?.duration),
-        resolution: normalizeResolution(
-          videoStream
-            ? {
-                ...(videoStream.width !== undefined ? { width: videoStream.width } : {}),
-                ...(videoStream.height !== undefined ? { height: videoStream.height } : {}),
-              }
-            : undefined,
-        ),
-        video_codec: normalizeVideoCodec(videoStream?.codec_name),
-        audio_codec: normalizeAudioCodec(audioStream?.codec_name),
-        audio_channels: normalizeAudioChannels({
-          ...(audioStream?.channels !== undefined ? { channels: audioStream.channels } : {}),
-          ...(audioStream?.channel_layout !== undefined
-            ? { channel_layout: audioStream.channel_layout }
-            : {}),
-        }),
-      } satisfies ProbedMediaMetadata;
-
-      return metadata.duration_seconds ||
-        metadata.resolution ||
-        metadata.video_codec ||
-        metadata.audio_codec ||
-        metadata.audio_channels
-        ? metadata
-        : null;
-    },
-    encode: (metadata) =>
-      metadata === null
-        ? { streams: [] }
-        : {
-            format: metadata.duration_seconds
-              ? { duration: String(metadata.duration_seconds) }
+        const metadata: ProbedMediaMetadata = {
+          duration_seconds: normalizeDurationSeconds(videoStream?.duration ?? format?.duration),
+          resolution: normalizeResolution(
+            videoStream
+              ? {
+                  ...(videoStream.width !== undefined ? { width: videoStream.width } : {}),
+                  ...(videoStream.height !== undefined ? { height: videoStream.height } : {}),
+                }
               : undefined,
-            streams: [
-              {
-                channel_layout: metadata.audio_channels,
-                channels: undefined,
-                codec_name: metadata.audio_codec,
-                codec_type: "audio",
-                duration: metadata.duration_seconds ? String(metadata.duration_seconds) : undefined,
-                height: undefined,
-                width: undefined,
-              },
-              {
-                channel_layout: undefined,
-                channels: undefined,
-                codec_name: metadata.video_codec,
-                codec_type: "video",
-                duration: metadata.duration_seconds ? String(metadata.duration_seconds) : undefined,
-                height: metadata.resolution ? Number.parseInt(metadata.resolution, 10) : undefined,
-                width: undefined,
-              },
-            ],
-          },
-  },
+          ),
+          video_codec: normalizeVideoCodec(videoStream?.codec_name),
+          audio_codec: normalizeAudioCodec(audioStream?.codec_name),
+          audio_channels: normalizeAudioChannels({
+            ...(audioStream?.channels !== undefined ? { channels: audioStream.channels } : {}),
+            ...(audioStream?.channel_layout !== undefined
+              ? { channel_layout: audioStream.channel_layout }
+              : {}),
+          }),
+        };
+
+        return metadata.duration_seconds ||
+          metadata.resolution ||
+          metadata.video_codec ||
+          metadata.audio_codec ||
+          metadata.audio_channels
+          ? metadata
+          : null;
+      },
+      encode: (metadata) =>
+        metadata === null
+          ? { streams: [] }
+          : {
+              format: metadata.duration_seconds
+                ? { duration: String(metadata.duration_seconds) }
+                : undefined,
+              streams: [
+                {
+                  channel_layout: metadata.audio_channels,
+                  channels: undefined,
+                  codec_name: metadata.audio_codec,
+                  codec_type: "audio",
+                  duration: metadata.duration_seconds ? String(metadata.duration_seconds) : undefined,
+                  height: undefined,
+                  width: undefined,
+                },
+                {
+                  channel_layout: undefined,
+                  channels: undefined,
+                  codec_name: metadata.video_codec,
+                  codec_type: "video",
+                  duration: metadata.duration_seconds ? String(metadata.duration_seconds) : undefined,
+                  height: metadata.resolution ? Number.parseInt(metadata.resolution, 10) : undefined,
+                  width: undefined,
+                },
+              ],
+            },
+    }),
+  ),
 );
 
 export interface MediaProbeShape {
@@ -284,14 +285,14 @@ export function mergeProbedMediaMetadata<
 
 export const probeMediaMetadataOrUndefined = Effect.fn("MediaProbe.probeMediaMetadataOrUndefined")(
   function* (mediaProbe: MediaProbeShape, path: string) {
-    const probeResult = yield* Effect.either(mediaProbe.probeVideoFile(path));
+    const probeResult = yield* Effect.result(mediaProbe.probeVideoFile(path));
 
-    if (Either.isLeft(probeResult)) {
+    if (Result.isFailure(probeResult)) {
       return undefined;
     }
 
-    return probeResult.right._tag === "MediaProbeMetadataFound"
-      ? probeResult.right.metadata
+    return probeResult.success._tag === "MediaProbeMetadataFound"
+      ? probeResult.success.metadata
       : undefined;
   },
 );
@@ -304,7 +305,7 @@ export const parseFfprobeJson = Effect.fn("MediaProbe.parseFfprobeJson")(
 function decodeFfprobeOutput(
   input: unknown,
 ): Effect.Effect<Schema.Schema.Type<typeof FFProbeOutputSchema>, MediaProbeFailure> {
-  return Schema.decodeUnknown(FFProbeOutputJsonSchema)(input).pipe(
+  return Schema.decodeUnknownEffect(FFProbeOutputJsonSchema)(input).pipe(
     Effect.mapError(
       (cause) =>
         new MediaProbeFailure({
@@ -318,7 +319,7 @@ function decodeFfprobeOutput(
 function normalizeFfprobeDecodedOutput(
   output: Schema.Schema.Type<typeof FFProbeOutputSchema>,
 ): Effect.Effect<MediaProbeMetadataFound | MediaProbeNoMetadata, MediaProbeFailure> {
-  return Schema.decodeUnknown(ProbedMediaMetadataFromFFProbeOutputSchema)(output).pipe(
+  return Schema.decodeUnknownEffect(ProbedMediaMetadataFromFFProbeOutputSchema)(output).pipe(
     Effect.map((metadata) =>
       metadata ? new MediaProbeMetadataFound({ metadata }) : new MediaProbeNoMetadata({}),
     ),
@@ -338,8 +339,8 @@ export {
 } from "@/infra/media/probe-command.ts";
 
 function logProbeFailure(path: string, failure: MediaProbeFailure): Effect.Effect<void> {
-  const parseError = ParseResult.isParseError(failure.cause)
-    ? ParseResult.TreeFormatter.formatErrorSync(failure.cause)
+  const parseError = Schema.isSchemaError(failure.cause)
+    ? SchemaIssue.makeFormatterDefault()(failure.cause.issue)
     : undefined;
 
   return yieldLog(path, failure.message, parseError);
@@ -356,8 +357,8 @@ function yieldLog(
 }
 
 const makeMediaProbe = (
-  ffprobeSemaphore: Effect.Semaphore,
-  executor: CommandExecutor.CommandExecutor,
+  ffprobeSemaphore: Semaphore.Semaphore,
+  executor: ChildProcessSpawner.ChildProcessSpawner["Service"],
 ): MediaProbeShape => {
   const probeVideoFile = Effect.fn("MediaProbe.probeVideoFile")(function* (path: string) {
     const output = yield* ffprobeSemaphore.withPermits(1)(
@@ -378,26 +379,29 @@ const makeMediaProbe = (
   return { probeVideoFile };
 };
 
-export class MediaProbe extends Effect.Service<MediaProbe>()("@bakarr/api/MediaProbe", {
-  effect: Effect.gen(function* () {
-    const ffprobeSemaphore = yield* Effect.makeSemaphore(FFPROBE_CONCURRENCY_LIMIT);
-    const executor = yield* CommandExecutor.CommandExecutor;
+export class MediaProbe extends Context.Service<MediaProbe>()(
+  "@bakarr/api/MediaProbe",
+  { make: Effect.gen(function* () {
+    const ffprobeSemaphore = yield* Semaphore.make(FFPROBE_CONCURRENCY_LIMIT);
+    const executor = yield* ChildProcessSpawner.ChildProcessSpawner;
 
     const availability = yield* runFfprobeCommandWith(
       executor,
       ["-version"],
       FFPROBE_VERSION_TIMEOUT_MS,
-    ).pipe(Effect.either);
+    ).pipe(Effect.result);
 
-    if (Either.isLeft(availability)) {
+    if (Result.isFailure(availability)) {
       yield* Effect.logWarning("ffprobe unavailable").pipe(
-        Effect.annotateLogs({ message: availability.left.message }),
+        Effect.annotateLogs({ message: availability.failure.message }),
       );
-      return yield* Effect.die(availability.left.cause ?? new Error(availability.left.message));
+      return yield* Effect.die(availability.failure.cause ?? new Error(availability.failure.message));
     }
 
     return makeMediaProbe(ffprobeSemaphore, executor);
-  }),
-}) {}
+  }) },
+) {
+  static readonly layer = Layer.effect(MediaProbe, MediaProbe.make);
+}
 
-export const MediaProbeLive = MediaProbe.Default;
+export const MediaProbeLive = MediaProbe.layer;

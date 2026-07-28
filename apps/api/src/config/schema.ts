@@ -3,7 +3,7 @@ import { Config, Context, Effect, Layer, Option, Schema } from "effect";
 import { PositiveIntSchema } from "@/domain/domain-schema.ts";
 import { randomHex } from "@/infra/random.ts";
 
-const PortSchema = Schema.Number.pipe(Schema.int(), Schema.between(1, 65_535));
+const PortSchema = Schema.Number.pipe(Schema.check(Schema.isInt()), Schema.check(Schema.isBetween({ minimum: 1, maximum: 65_535 })));
 
 export class AppConfigModel extends Schema.Class<AppConfigModel>("AppConfigModel")({
   appVersion: Schema.String,
@@ -40,9 +40,9 @@ export interface BootstrapConfigOverrides {
   readonly bootstrapUsername?: string;
 }
 
-const PortConfigSchema = Schema.NumberFromString.pipe(Schema.compose(PortSchema));
+const PortConfigSchema = Schema.NumberFromString.pipe(Schema.decodeTo(PortSchema));
 
-const PositiveIntConfigSchema = Schema.NumberFromString.pipe(Schema.compose(PositiveIntSchema));
+const PositiveIntConfigSchema = Schema.NumberFromString.pipe(Schema.decodeTo(PositiveIntSchema));
 
 const GENERATED_BOOTSTRAP_PASSWORD_BYTES = 18;
 
@@ -65,7 +65,7 @@ export function makeDefaultBootstrapConfig(): BootstrapConfigShape {
   });
 }
 
-export class AppConfig extends Context.Tag("@bakarr/api/AppConfig")<AppConfig, AppConfigShape>() {
+export class AppConfig extends Context.Service<AppConfig, AppConfigShape>()("@bakarr/api/AppConfig") {
   static Live = AppConfig.layerWithOverrides();
 
   static layer = AppConfig.Live;
@@ -78,30 +78,30 @@ export class AppConfig extends Context.Tag("@bakarr/api/AppConfig")<AppConfig, A
 
         const appVersion =
           overrides.appVersion ??
-          (yield* Schema.Config("BAKARR_APP_VERSION", Schema.String).pipe(
+          (yield* Config.schema(Schema.String, "BAKARR_APP_VERSION").pipe(
             Config.withDefault(defaults.appVersion),
           ));
         const databaseFile =
           overrides.databaseFile ??
-          (yield* Schema.Config("DATABASE_FILE", Schema.String).pipe(
+          (yield* Config.schema(Schema.String, "DATABASE_FILE").pipe(
             Config.withDefault(defaults.databaseFile),
           ));
         const port =
           overrides.port ??
-          (yield* Schema.Config("PORT", PortConfigSchema).pipe(Config.withDefault(defaults.port)));
+          (yield* Config.schema(PortConfigSchema, "PORT").pipe(Config.withDefault(defaults.port)));
         const sessionCookieName =
           overrides.sessionCookieName ??
-          (yield* Schema.Config("SESSION_COOKIE_NAME", Schema.String).pipe(
+          (yield* Config.schema(Schema.String, "SESSION_COOKIE_NAME").pipe(
             Config.withDefault(defaults.sessionCookieName),
           ));
         const sessionCookieSecure =
           overrides.sessionCookieSecure ??
-          (yield* Schema.Config("SESSION_COOKIE_SECURE", Schema.BooleanFromString).pipe(
+          (yield* Config.boolean("SESSION_COOKIE_SECURE").pipe(
             Config.withDefault(defaults.sessionCookieSecure),
           ));
         const sessionDurationDays =
           overrides.sessionDurationDays ??
-          (yield* Schema.Config("SESSION_DURATION_DAYS", PositiveIntConfigSchema).pipe(
+          (yield* Config.schema(PositiveIntConfigSchema, "SESSION_DURATION_DAYS").pipe(
             Config.withDefault(defaults.sessionDurationDays),
           ));
 
@@ -118,10 +118,7 @@ export class AppConfig extends Context.Tag("@bakarr/api/AppConfig")<AppConfig, A
   }
 }
 
-export class BootstrapConfig extends Context.Tag("@bakarr/api/BootstrapConfig")<
-  BootstrapConfig,
-  BootstrapConfigShape
->() {
+export class BootstrapConfig extends Context.Service<BootstrapConfig, BootstrapConfigShape>()("@bakarr/api/BootstrapConfig") {
   static Live = BootstrapConfig.layerWithOverrides();
 
   static layer = BootstrapConfig.Live;
@@ -134,13 +131,13 @@ export class BootstrapConfig extends Context.Tag("@bakarr/api/BootstrapConfig")<
         const bootstrapPasswordFromEnv =
           overrides.bootstrapPassword !== undefined
             ? Option.some(overrides.bootstrapPassword)
-            : yield* Config.option(Schema.Config("BAKARR_BOOTSTRAP_PASSWORD", Schema.String));
+            : yield* Config.option(Config.schema(Schema.String, "BAKARR_BOOTSTRAP_PASSWORD"));
         const bootstrapPassword = Option.isSome(bootstrapPasswordFromEnv)
           ? bootstrapPasswordFromEnv.value
           : yield* randomHex(GENERATED_BOOTSTRAP_PASSWORD_BYTES);
         const bootstrapUsername =
           overrides.bootstrapUsername ??
-          (yield* Schema.Config("BAKARR_BOOTSTRAP_USERNAME", Schema.String).pipe(
+          (yield* Config.schema(Schema.String, "BAKARR_BOOTSTRAP_USERNAME").pipe(
             Config.withDefault(defaults.bootstrapUsername),
           ));
 

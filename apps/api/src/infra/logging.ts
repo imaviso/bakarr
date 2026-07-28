@@ -1,4 +1,4 @@
-import { Effect, Layer, Logger, LogLevel, Ref } from "effect";
+import { Context, Effect, Layer, LogLevel, Logger, Ref } from "effect";
 
 export function compactLogAnnotations(
   annotations: Record<string, unknown>,
@@ -37,12 +37,12 @@ export function errorLogAnnotations(error: unknown): Record<string, unknown> {
 }
 
 const LOG_LEVELS = {
-  debug: LogLevel.Debug,
-  error: LogLevel.Error,
-  info: LogLevel.Info,
-  trace: LogLevel.Trace,
-  warn: LogLevel.Warning,
-} as const;
+  debug: "Debug",
+  error: "Error",
+  info: "Info",
+  trace: "Trace",
+  warn: "Warn",
+} as const satisfies Record<string, LogLevel.LogLevel>;
 
 const LOG_LEVEL_ALIASES: Record<string, LogLevel.LogLevel> = {
   debug: LOG_LEVELS.debug,
@@ -65,41 +65,44 @@ export interface RuntimeLogSinkShape {
   }) => Effect.Effect<void>;
 }
 
-export class RuntimeLogLevelState extends Effect.Service<RuntimeLogLevelState>()(
+export class RuntimeLogLevelState extends Context.Service<RuntimeLogLevelState>()(
   "@bakarr/api/RuntimeLogLevelState",
-  {
-    effect: Effect.gen(function* () {
-      const ref = yield* Ref.make(LogLevel.Info);
+  { make: Effect.gen(function* () {
+      const ref = yield* Ref.make<LogLevel.LogLevel>("Info");
 
       return {
         get: Ref.get(ref),
         set: (level) => Ref.set(ref, parseRuntimeLogLevel(level)),
       } satisfies RuntimeLogLevelStateShape;
-    }),
-  },
-) {}
+    }) },
+) {
+  static readonly layer = Layer.effect(RuntimeLogLevelState, RuntimeLogLevelState.make);
+}
 
-export class RuntimeLogSink extends Effect.Service<RuntimeLogSink>()("@bakarr/api/RuntimeLogSink", {
-  succeed: {
+export class RuntimeLogSink extends Context.Service<RuntimeLogSink>()(
+  "@bakarr/api/RuntimeLogSink",
+  { make: Effect.succeed({
     write: ({ level, line }) =>
       Effect.sync(() => {
-        if (level.ordinal >= LogLevel.Error.ordinal) {
+        if (LogLevel.isGreaterThanOrEqualTo(level, "Error")) {
           console.error(line);
           return;
         }
 
-        if (level.ordinal >= LogLevel.Warning.ordinal) {
+        if (LogLevel.isGreaterThanOrEqualTo(level, "Warn")) {
           console.warn(line);
           return;
         }
 
         console.log(line);
       }),
-  } satisfies RuntimeLogSinkShape,
-}) {}
+  } satisfies RuntimeLogSinkShape) },
+) {
+  static readonly layer = Layer.effect(RuntimeLogSink, RuntimeLogSink.make);
+}
 
-export const RuntimeLogLevelStateLive = RuntimeLogLevelState.Default;
-export const RuntimeLogSinkLive = RuntimeLogSink.Default;
+export const RuntimeLogLevelStateLive = RuntimeLogLevelState.layer;
+export const RuntimeLogSinkLive = RuntimeLogSink.layer;
 
 export const setRuntimeLogLevel = Effect.fn("Logging.setRuntimeLogLevel")(function* (
   level: string | undefined,
@@ -112,28 +115,27 @@ const makeRuntimeLoggerLayer = Effect.fn("Logging.makeRuntimeLoggerLayer")(funct
   const state = yield* RuntimeLogLevelState;
   const sink = yield* RuntimeLogSink;
 
-  return Logger.replace(
-    Logger.defaultLogger,
-    Logger.make<unknown, void>((options) =>
-      Effect.gen(function* () {
-        const runtimeLogLevel = yield* state.get;
+  return Logger.layer([
+    Logger.make<unknown, void>((options) => {
+      const runtimeLogLevel = Effect.runSync(state.get);
 
-        if (options.logLevel.ordinal < runtimeLogLevel.ordinal) {
-          return;
-        }
+      if (!LogLevel.isGreaterThanOrEqualTo(options.logLevel, runtimeLogLevel)) {
+        return;
+      }
 
-        const line = Logger.jsonLogger.log(options);
+      const line = Logger.formatJson.log(options);
 
-        yield* sink.write({
+      Effect.runSync(
+        sink.write({
           level: options.logLevel,
           line,
-        });
-      }),
-    ),
-  );
+        }),
+      );
+    }),
+  ]);
 });
 
-const RuntimeLoggerLive = Layer.unwrapEffect(makeRuntimeLoggerLayer());
+const RuntimeLoggerLive = Layer.unwrap(makeRuntimeLoggerLayer());
 
 const RuntimeLoggerDependenciesLive = Layer.mergeAll(RuntimeLogLevelStateLive, RuntimeLogSinkLive);
 

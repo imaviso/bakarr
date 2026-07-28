@@ -14,14 +14,14 @@ export function markJobFailureOrFailWithError<M>(input: {
   readonly logAnnotations?: Readonly<Record<string, unknown>>;
 }) {
   return input.markFailed.pipe(
-    Effect.catchAllCause((markFailureCause) =>
+    Effect.catchCause((markFailureCause) =>
       Effect.logError(input.logMessage).pipe(
         Effect.annotateLogs({
           job: input.job,
           mark_job_failed_cause: Cause.pretty(markFailureCause),
           ...input.logAnnotations,
         }),
-        Effect.zipRight(
+        Effect.andThen(
           Effect.fail(
             new JobFailurePersistenceError({
               job: input.job,
@@ -43,14 +43,14 @@ export function markJobFailureOrFailWithCause<E, M>(input: {
   readonly logAnnotations?: Readonly<Record<string, unknown>>;
 }) {
   return input.markFailed.pipe(
-    Effect.catchAllCause((markFailureCause) =>
+    Effect.catchCause((markFailureCause) =>
       Effect.logError(input.logMessage).pipe(
         Effect.annotateLogs({
           job: input.job,
           mark_job_failed_cause: Cause.pretty(markFailureCause),
           ...input.logAnnotations,
         }),
-        Effect.zipRight(
+        Effect.andThen(
           Effect.fail(
             new JobFailurePersistenceError({
               job: input.job,

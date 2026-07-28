@@ -1,17 +1,14 @@
-import { Effect, Metric, MetricBoundaries, Schema } from "effect";
+import { Effect, Metric, Schema } from "effect";
 
 import type { BackgroundWorkerName } from "@/background/worker-model.ts";
 
-const histogramBoundaries = MetricBoundaries.fromIterable([
-  5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000,
-]);
+const histogramBoundaries = [5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000];
 
 export const httpMetrics = {
-  requestDuration: Metric.histogram(
-    "bakarr_http_request_duration_ms",
-    histogramBoundaries,
-    "HTTP request duration in milliseconds",
-  ),
+  requestDuration: Metric.histogram("bakarr_http_request_duration_ms", {
+    boundaries: histogramBoundaries,
+    description: "HTTP request duration in milliseconds",
+  }),
   requestsTotal: Metric.counter("bakarr_http_requests_total", {
     description: "Total HTTP requests handled by route",
     incremental: true,
@@ -22,11 +19,10 @@ export const backgroundMetrics = {
   daemonRunning: Metric.gauge("bakarr_background_worker_daemon_running", {
     description: "Whether a background worker daemon is active",
   }),
-  runDuration: Metric.histogram(
-    "bakarr_background_worker_run_duration_ms",
-    histogramBoundaries,
-    "Background worker run duration in milliseconds",
-  ),
+  runDuration: Metric.histogram("bakarr_background_worker_run_duration_ms", {
+    boundaries: histogramBoundaries,
+    description: "Background worker run duration in milliseconds",
+  }),
   runRunning: Metric.gauge("bakarr_background_worker_run_running", {
     description: "Whether a background worker run is currently active",
   }),
@@ -113,45 +109,33 @@ export function preRegisterBackgroundWorkerMetrics(workers: readonly BackgroundW
   );
 }
 
-export function renderBakarrPrometheusMetrics(
-  snapshot: ReadonlyArray<{
-    readonly metricKey: {
-      readonly name: string;
-      readonly tags: ReadonlyArray<{ readonly key: string; readonly value: string }>;
-    };
-    readonly metricState: unknown;
-  }>,
-) {
+export function renderBakarrPrometheusMetrics(snapshot: ReadonlyArray<Metric.Metric.Snapshot>) {
   const metricLines: string[] = [];
   const seenTypes = new Set<string>();
 
-  for (const pair of sortMetricPairs(filterBakarrMetrics(snapshot))) {
-    renderMetricPair(pair, metricLines, seenTypes);
+  for (const item of sortMetricSnapshots(filterBakarrMetrics(snapshot))) {
+    renderMetricSnapshot(item, metricLines, seenTypes);
   }
 
   return metricLines;
 }
 
-type MetricPair = {
-  readonly metricKey: {
-    readonly name: string;
-    readonly tags: ReadonlyArray<{ readonly key: string; readonly value: string }>;
-  };
-  readonly metricState: unknown;
-};
-
-function filterBakarrMetrics(snapshot: ReadonlyArray<MetricPair>) {
-  return snapshot.filter((item) => item.metricKey.name.startsWith("bakarr_"));
+function filterBakarrMetrics(snapshot: ReadonlyArray<Metric.Metric.Snapshot>) {
+  return snapshot.filter((item) => item.id.startsWith("bakarr_"));
 }
 
-function sortMetricPairs(snapshot: ReadonlyArray<MetricPair>) {
-  return [...snapshot].toSorted(compareMetricPairs);
+function sortMetricSnapshots(snapshot: ReadonlyArray<Metric.Metric.Snapshot>) {
+  return [...snapshot].toSorted(compareMetricSnapshots);
 }
 
-function renderMetricPair(pair: MetricPair, metricLines: string[], seenTypes: Set<string>) {
-  const metricName = pair.metricKey.name;
-  const tags = normalizeTags(pair.metricKey.tags);
-  const state = pair.metricState;
+function renderMetricSnapshot(
+  item: Metric.Metric.Snapshot,
+  metricLines: string[],
+  seenTypes: Set<string>,
+) {
+  const metricName = item.id;
+  const tags = normalizeTags(item.attributes);
+  const state = item.state;
 
   if (isHistogramState(state)) {
     ensureMetricType(metricLines, seenTypes, metricName, "histogram");
@@ -206,70 +190,53 @@ function renderHistogramMetricLines(
   return lines;
 }
 
-function withHttpTags<Type, In, Out>(
-  metric: Metric.Metric<Type, In, Out>,
+function withHttpTags<Input, State>(
+  metric: Metric.Metric<Input, State>,
   input: {
     readonly method: string;
     readonly route: string;
     readonly status: number;
   },
 ) {
-  return Metric.tagged(
-    Metric.tagged(
-      Metric.tagged(metric, "method", input.method.toUpperCase()),
-      "route",
-      input.route,
-    ),
-    "status",
-    String(input.status),
-  );
+  return Metric.withAttributes(metric, {
+    method: input.method.toUpperCase(),
+    route: input.route,
+    status: String(input.status),
+  });
 }
 
-function withWorkerTag<Type, In, Out>(
-  metric: Metric.Metric<Type, In, Out>,
+function withWorkerTag<Input, State>(
+  metric: Metric.Metric<Input, State>,
   worker: BackgroundWorkerName,
 ) {
-  return Metric.tagged(metric, "worker", worker);
+  return Metric.withAttributes(metric, { worker });
 }
 
-function withWorkerStatusTags<Type, In, Out>(
-  metric: Metric.Metric<Type, In, Out>,
+function withWorkerStatusTags<Input, State>(
+  metric: Metric.Metric<Input, State>,
   input: {
     readonly status: "failure" | "skipped" | "success";
     readonly worker: BackgroundWorkerName;
   },
 ) {
-  return Metric.tagged(Metric.tagged(metric, "worker", input.worker), "status", input.status);
+  return Metric.withAttributes(metric, { status: input.status, worker: input.worker });
 }
 
-function compareMetricPairs(
-  left: {
-    readonly metricKey: {
-      readonly name: string;
-      readonly tags: ReadonlyArray<{ readonly key: string; readonly value: string }>;
-    };
-  },
-  right: {
-    readonly metricKey: {
-      readonly name: string;
-      readonly tags: ReadonlyArray<{ readonly key: string; readonly value: string }>;
-    };
-  },
-) {
-  const nameOrder = left.metricKey.name.localeCompare(right.metricKey.name);
+function compareMetricSnapshots(left: Metric.Metric.Snapshot, right: Metric.Metric.Snapshot) {
+  const nameOrder = left.id.localeCompare(right.id);
 
   if (nameOrder !== 0) {
     return nameOrder;
   }
 
-  return JSON.stringify(normalizeTags(left.metricKey.tags)).localeCompare(
-    JSON.stringify(normalizeTags(right.metricKey.tags)),
+  return JSON.stringify(normalizeTags(left.attributes)).localeCompare(
+    JSON.stringify(normalizeTags(right.attributes)),
   );
 }
 
-function normalizeTags(tags: ReadonlyArray<{ readonly key: string; readonly value: string }>) {
-  return [...tags]
-    .map((tag) => [tag.key, tag.value] as const)
+function normalizeTags(attributes: Metric.Metric.AttributeSet | undefined) {
+  return Object.entries(attributes ?? {})
+    .map(([key, value]) => [key, value] as const)
     .toSorted(([left], [right]) => left.localeCompare(right));
 }
 
@@ -298,17 +265,17 @@ function formatNumber(value: number | bigint) {
 }
 
 const HistogramStateSchema = Schema.Struct({
-  buckets: Schema.Array(Schema.Tuple(Schema.Number, Schema.Number)),
+  buckets: Schema.Array(Schema.Tuple([Schema.Number, Schema.Number])),
   count: Schema.Number,
   sum: Schema.Number,
 });
 
 const GaugeStateSchema = Schema.Struct({
-  value: Schema.Union(Schema.Number, Schema.BigInt),
+  value: Schema.Union([Schema.Number, Schema.BigInt]),
 });
 
 const CounterStateSchema = Schema.Struct({
-  count: Schema.Union(Schema.Number, Schema.BigInt),
+  count: Schema.Union([Schema.Number, Schema.BigInt]),
 });
 
 const isHistogramState = Schema.is(HistogramStateSchema);
