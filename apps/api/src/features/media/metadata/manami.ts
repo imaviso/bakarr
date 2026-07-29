@@ -1,9 +1,9 @@
-import * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
 import { HttpClient } from "effect/unstable/http";
 import { Context, Effect, Layer, Option } from "effect";
 
 import { brandMediaId, type MediaSearchResult } from "@packages/shared/index.ts";
 import { AppConfig } from "@/config/schema.ts";
+import { AppSqlClient } from "@/db/database.ts";
 import {
   refreshSqliteCacheIfNeeded,
   resolveManamiCachePaths,
@@ -17,7 +17,6 @@ export {
   MANAMI_CACHE_DIR_NAME,
   MANAMI_CACHE_META_FILE,
   MANAMI_CACHE_REFRESH_INTERVAL_MS,
-  MANAMI_CACHE_SQLITE_FILE,
   MANAMI_DATASET_URL,
 } from "@/features/media/metadata/manami-cache.ts";
 
@@ -68,47 +67,11 @@ interface LookupIdRow {
   readonly value: number;
 }
 
-export const ManamiSqliteClientLive = Layer.unwrap(
-  Effect.gen(function* () {
-    const appConfig = yield* AppConfig;
-    const fs = yield* FileSystem;
-    const cachePaths = resolveManamiCachePaths(appConfig.databaseFile);
-
-    yield* fs.mkdir(cachePaths.directory, { recursive: true }).pipe(
-      Effect.mapError((cause) =>
-        ExternalCallError.make({
-          cause,
-          message: "Manami cache directory creation failed",
-          operation: "manami.dataset.cache.mkdir",
-        }),
-      ),
-    );
-
-    return Layer.fromBuild((memoMap, scope) =>
-      Layer.buildWithMemoMap(
-        NodeSqliteClient.layer({
-          filename: cachePaths.sqliteFile,
-        }),
-        memoMap,
-        scope,
-      ).pipe(
-        Effect.mapError((cause) =>
-          ExternalCallError.make({
-            cause,
-            message: "Manami sqlite open failed",
-            operation: "manami.sqlite.open",
-          }),
-        ),
-      ),
-    );
-  }),
-);
-
 const makeManamiClient = Effect.fn("ManamiClient.make")(function* () {
-  const sqliteClient = yield* NodeSqliteClient.SqliteClient;
+  const sql = yield* AppSqlClient;
 
   const getByAniListId = Effect.fn("ManamiClient.getByAniListId")(function* (anilistId: number) {
-    return yield* sqliteClient
+    return yield* sql
       .unsafe<LookupRow>(
         `
           SELECT title, english_title, native_title
@@ -131,7 +94,7 @@ const makeManamiClient = Effect.fn("ManamiClient.make")(function* () {
   });
 
   const getByMalId = Effect.fn("ManamiClient.getByMalId")(function* (malId: number) {
-    return yield* sqliteClient
+    return yield* sql
       .unsafe<LookupRow>(
         `
           SELECT
@@ -161,7 +124,7 @@ const makeManamiClient = Effect.fn("ManamiClient.make")(function* () {
   const resolveMalIdFromAniListId = Effect.fn("ManamiClient.resolveMalIdFromAniListId")(function* (
     anilistId: number,
   ) {
-    return yield* sqliteClient
+    return yield* sql
       .unsafe<LookupIdRow>(
         `
             SELECT mal_id AS value
@@ -187,7 +150,7 @@ const makeManamiClient = Effect.fn("ManamiClient.make")(function* () {
   const resolveAniListIdFromMalId = Effect.fn("ManamiClient.resolveAniListIdFromMalId")(function* (
     malId: number,
   ) {
-    return yield* sqliteClient
+    return yield* sql
       .unsafe<LookupIdRow>(
         `
             SELECT anilist_id AS value
@@ -220,7 +183,7 @@ const makeManamiClient = Effect.fn("ManamiClient.make")(function* () {
     }
 
     const resolvedLimit = Math.max(1, Math.min(50, Math.floor(limit)));
-    return yield* sqliteClient
+    return yield* sql
       .unsafe<SearchRow>(
         `
           SELECT anilist_id, title, english_title, native_title, synonyms
@@ -266,10 +229,10 @@ const makeManamiCacheRefreshClient = Effect.fn("ManamiCacheRefreshClient.make")(
   const client = yield* HttpClient.HttpClient;
   const externalCall = yield* ExternalCall;
   const fs = yield* FileSystem;
-  const sqliteClient = yield* NodeSqliteClient.SqliteClient;
+  const sql = yield* AppSqlClient;
   const cachePaths = resolveManamiCachePaths(appConfig.databaseFile);
   const refreshRunner = yield* makeSingleFlightEffectRunner(
-    refreshSqliteCacheIfNeeded(client, externalCall, fs, sqliteClient, cachePaths),
+    refreshSqliteCacheIfNeeded(client, externalCall, fs, sql, cachePaths),
   );
 
   const refreshCacheIfNeeded = Effect.fn("ManamiCacheRefreshClient.refreshCacheIfNeeded")(
@@ -293,7 +256,7 @@ const ManamiCacheRefreshClientLayer = ManamiCacheRefreshClient.layer;
 export const ManamiClientLive = Layer.mergeAll(
   ManamiLookupClientLayer,
   ManamiCacheRefreshClientLayer,
-).pipe(Layer.provide(ManamiSqliteClientLive));
+);
 
 function toLookupEntry(row: LookupRow | undefined): ManamiLookupEntry | undefined {
   if (row === undefined) {

@@ -1,4 +1,4 @@
-import * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
+import * as SqlClient from "effect/unstable/sql/SqlClient";
 import { HttpClient, HttpClientRequest } from "effect/unstable/http";
 import { dirname, join, resolve } from "node:path";
 import { Effect, Option, Schema } from "effect";
@@ -18,7 +18,6 @@ export const MANAMI_DATASET_URL =
 
 export const MANAMI_CACHE_DIR_NAME = "cache";
 export const MANAMI_CACHE_DATASET_FILE = "manami-anime-offline-database-minified.json";
-export const MANAMI_CACHE_SQLITE_FILE = "manami-anime-offline-database.sqlite";
 export const MANAMI_CACHE_META_FILE = "manami-anime-offline-database-meta.json";
 export const MANAMI_CACHE_REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
@@ -39,7 +38,6 @@ export interface ManamiCachePaths {
   readonly datasetFile: string;
   readonly directory: string;
   readonly metaFile: string;
-  readonly sqliteFile: string;
 }
 
 type CacheState =
@@ -53,11 +51,11 @@ export const refreshSqliteCacheIfNeeded = Effect.fn("ManamiCache.refreshSqliteCa
     client: HttpClient.HttpClient,
     externalCall: ExternalCallShape,
     fs: FileSystemShape,
-    sqliteClient: NodeSqliteClient.SqliteClient,
+    sql: SqlClient.SqlClient,
     paths: ManamiCachePaths,
   ) {
     const now = yield* currentTimeMillis;
-    const cacheState = yield* inspectSqliteCacheState(fs, sqliteClient, paths, now);
+    const cacheState = yield* inspectSqliteCacheState(fs, sql, paths, now);
 
     if (cacheState._tag === "Fresh") {
       return false;
@@ -65,7 +63,7 @@ export const refreshSqliteCacheIfNeeded = Effect.fn("ManamiCache.refreshSqliteCa
 
     if (cacheState._tag === "InvalidSqlite") {
       const rebuildResult = yield* readDatasetFromCache(fs, paths).pipe(
-        Effect.flatMap((dataset) => buildLookupSqliteCache(sqliteClient, dataset)),
+        Effect.flatMap((dataset) => buildLookupSqliteCache(sql, dataset)),
         Effect.result,
       );
 
@@ -76,7 +74,7 @@ export const refreshSqliteCacheIfNeeded = Effect.fn("ManamiCache.refreshSqliteCa
 
     const dataset = yield* downloadManamiDataset(client, externalCall);
     yield* writeDatasetToCache(fs, paths, dataset);
-    yield* buildLookupSqliteCache(sqliteClient, dataset);
+    yield* buildLookupSqliteCache(sql, dataset);
     yield* writeCacheMeta(fs, paths, now);
     return true;
   },
@@ -90,23 +88,17 @@ export function resolveManamiCachePaths(databaseFile: string): ManamiCachePaths 
     datasetFile: join(directory, MANAMI_CACHE_DATASET_FILE),
     directory,
     metaFile: join(directory, MANAMI_CACHE_META_FILE),
-    sqliteFile: join(directory, MANAMI_CACHE_SQLITE_FILE),
   };
 }
 
 const inspectSqliteCacheState: (
   fs: FileSystemShape,
-  sqliteClient: NodeSqliteClient.SqliteClient,
+  sql: SqlClient.SqlClient,
   paths: ManamiCachePaths,
   now: number,
 ) => Effect.Effect<CacheState, ExternalCallError> = Effect.fn(
   "ManamiCache.inspectSqliteCacheState",
-)(function* (
-  fs: FileSystemShape,
-  sqliteClient: NodeSqliteClient.SqliteClient,
-  paths: ManamiCachePaths,
-  now: number,
-) {
+)(function* (fs: FileSystemShape, sql: SqlClient.SqlClient, paths: ManamiCachePaths, now: number) {
   const maybeMeta = yield* readCacheMeta(fs, paths);
 
   if (Option.isNone(maybeMeta)) {
@@ -117,7 +109,7 @@ const inspectSqliteCacheState: (
     return { _tag: "Stale" } as const;
   }
 
-  const hasLookupSchema = yield* hasLookupSqliteSchema(sqliteClient).pipe(Effect.result);
+  const hasLookupSchema = yield* hasLookupSqliteSchema(sql).pipe(Effect.result);
 
   if (hasLookupSchema._tag === "Failure") {
     return { _tag: "InvalidSqlite" } as const;
@@ -296,36 +288,11 @@ const downloadManamiDataset = Effect.fn("ManamiCache.downloadDataset")(function*
 });
 
 const buildLookupSqliteCache = Effect.fn("ManamiCache.buildLookupSqliteCache")(
-  (
-    sqliteClient: NodeSqliteClient.SqliteClient,
-    dataset: ManamiDataset,
-  ): Effect.Effect<void, ExternalCallError> =>
-    sqliteClient
+  (sql: SqlClient.SqlClient, dataset: ManamiDataset): Effect.Effect<void, ExternalCallError> =>
+    sql
       .withTransaction(
         Effect.gen(function* () {
-          yield* sqliteClient
-            .unsafe("DROP TABLE IF EXISTS manami_anilist_lookup")
-            .withoutTransform.pipe(
-              Effect.mapError((cause) =>
-                ExternalCallError.make({
-                  cause,
-                  message: "Manami sqlite schema setup failed",
-                  operation: "manami.sqlite.cache.schema",
-                }),
-              ),
-            );
-          yield* sqliteClient
-            .unsafe("DROP TABLE IF EXISTS manami_mal_lookup")
-            .withoutTransform.pipe(
-              Effect.mapError((cause) =>
-                ExternalCallError.make({
-                  cause,
-                  message: "Manami sqlite schema setup failed",
-                  operation: "manami.sqlite.cache.schema",
-                }),
-              ),
-            );
-          yield* sqliteClient.unsafe("DROP TABLE IF EXISTS manami_search").withoutTransform.pipe(
+          yield* sql.unsafe("DROP TABLE IF EXISTS manami_anilist_lookup").withoutTransform.pipe(
             Effect.mapError((cause) =>
               ExternalCallError.make({
                 cause,
@@ -334,9 +301,27 @@ const buildLookupSqliteCache = Effect.fn("ManamiCache.buildLookupSqliteCache")(
               }),
             ),
           );
-          yield* sqliteClient
+          yield* sql.unsafe("DROP TABLE IF EXISTS manami_mal_lookup").withoutTransform.pipe(
+            Effect.mapError((cause) =>
+              ExternalCallError.make({
+                cause,
+                message: "Manami sqlite schema setup failed",
+                operation: "manami.sqlite.cache.schema",
+              }),
+            ),
+          );
+          yield* sql.unsafe("DROP TABLE IF EXISTS manami_search").withoutTransform.pipe(
+            Effect.mapError((cause) =>
+              ExternalCallError.make({
+                cause,
+                message: "Manami sqlite schema setup failed",
+                operation: "manami.sqlite.cache.schema",
+              }),
+            ),
+          );
+          yield* sql
             .unsafe(
-              "CREATE TABLE manami_anilist_lookup (anilist_id INTEGER PRIMARY KEY NOT NULL, mal_id INTEGER, title TEXT NOT NULL, english_title TEXT, native_title TEXT)",
+              "CREATE TABLE IF NOT EXISTS manami_anilist_lookup (anilist_id INTEGER PRIMARY KEY NOT NULL, mal_id INTEGER, title TEXT NOT NULL, english_title TEXT, native_title TEXT)",
             )
             .withoutTransform.pipe(
               Effect.mapError((cause) =>
@@ -347,9 +332,9 @@ const buildLookupSqliteCache = Effect.fn("ManamiCache.buildLookupSqliteCache")(
                 }),
               ),
             );
-          yield* sqliteClient
+          yield* sql
             .unsafe(
-              "CREATE TABLE manami_mal_lookup (mal_id INTEGER PRIMARY KEY NOT NULL, anilist_id INTEGER, title TEXT NOT NULL, english_title TEXT, native_title TEXT)",
+              "CREATE TABLE IF NOT EXISTS manami_mal_lookup (mal_id INTEGER PRIMARY KEY NOT NULL, anilist_id INTEGER, title TEXT NOT NULL, english_title TEXT, native_title TEXT)",
             )
             .withoutTransform.pipe(
               Effect.mapError((cause) =>
@@ -360,9 +345,9 @@ const buildLookupSqliteCache = Effect.fn("ManamiCache.buildLookupSqliteCache")(
                 }),
               ),
             );
-          yield* sqliteClient
+          yield* sql
             .unsafe(
-              "CREATE VIRTUAL TABLE manami_search USING fts5(anilist_id UNINDEXED, mal_id UNINDEXED, title, english_title, native_title, synonyms)",
+              "CREATE VIRTUAL TABLE IF NOT EXISTS manami_search USING fts5(anilist_id UNINDEXED, mal_id UNINDEXED, title, english_title, native_title, synonyms)",
             )
             .withoutTransform.pipe(
               Effect.mapError((cause) =>
@@ -389,7 +374,7 @@ const buildLookupSqliteCache = Effect.fn("ManamiCache.buildLookupSqliteCache")(
                 const synonyms = normalizeSynonyms(entry.synonyms).join("\n");
 
                 if (aniListId !== undefined) {
-                  yield* sqliteClient
+                  yield* sql
                     .unsafe(
                       "INSERT INTO manami_anilist_lookup (anilist_id, mal_id, title, english_title, native_title) VALUES (?, ?, ?, ?, ?) ON CONFLICT(anilist_id) DO UPDATE SET mal_id = COALESCE(manami_anilist_lookup.mal_id, excluded.mal_id)",
                       [
@@ -412,7 +397,7 @@ const buildLookupSqliteCache = Effect.fn("ManamiCache.buildLookupSqliteCache")(
                 }
 
                 if (malId !== undefined) {
-                  yield* sqliteClient
+                  yield* sql
                     .unsafe(
                       "INSERT INTO manami_mal_lookup (mal_id, anilist_id, title, english_title, native_title) VALUES (?, ?, ?, ?, ?) ON CONFLICT(mal_id) DO UPDATE SET anilist_id = COALESCE(manami_mal_lookup.anilist_id, excluded.anilist_id)",
                       [
@@ -435,7 +420,7 @@ const buildLookupSqliteCache = Effect.fn("ManamiCache.buildLookupSqliteCache")(
                 }
 
                 if (aniListId !== undefined) {
-                  yield* sqliteClient
+                  yield* sql
                     .unsafe(
                       "INSERT INTO manami_search (anilist_id, mal_id, title, english_title, native_title, synonyms) VALUES (?, ?, ?, ?, ?, ?)",
                       [
@@ -476,8 +461,8 @@ const buildLookupSqliteCache = Effect.fn("ManamiCache.buildLookupSqliteCache")(
 );
 
 const hasLookupSqliteSchema = Effect.fn("ManamiCache.hasLookupSqliteSchema")(
-  (sqliteClient: NodeSqliteClient.SqliteClient): Effect.Effect<boolean, ExternalCallError> =>
-    sqliteClient
+  (sql: SqlClient.SqlClient): Effect.Effect<boolean, ExternalCallError> =>
+    sql
       .unsafe<{ name: string }>(
         "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('manami_anilist_lookup', 'manami_mal_lookup', 'manami_search')",
       )

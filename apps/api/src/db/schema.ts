@@ -283,6 +283,22 @@ export const libraryRoots = sqliteTable("library_roots", {
   path: text("path").notNull().unique(),
 });
 
+export const manamiAnilistLookup = sqliteTable("manami_anilist_lookup", {
+  anilistId: integer("anilist_id").primaryKey(),
+  malId: integer("mal_id"),
+  title: text("title").notNull(),
+  englishTitle: text("english_title"),
+  nativeTitle: text("native_title"),
+});
+
+export const manamiMalLookup = sqliteTable("manami_mal_lookup", {
+  malId: integer("mal_id").primaryKey(),
+  anilistId: integer("anilist_id"),
+  title: text("title").notNull(),
+  englishTitle: text("english_title"),
+  nativeTitle: text("native_title"),
+});
+
 export type UserRow = typeof users.$inferSelect;
 export type MediaRow = typeof media.$inferSelect;
 export type MediaUnitRow = typeof mediaUnits.$inferSelect;
@@ -296,6 +312,8 @@ export type DownloadRow = typeof downloads.$inferSelect;
 export type BackgroundJobRow = typeof backgroundJobs.$inferSelect;
 export type DownloadEventRow = typeof downloadEvents.$inferSelect;
 export type LibraryRoot = typeof libraryRoots.$inferSelect;
+export type ManamiAnilistLookupRow = typeof manamiAnilistLookup.$inferSelect;
+export type ManamiMalLookupRow = typeof manamiMalLookup.$inferSelect;
 export type UnmappedFolderMatchRow = typeof unmappedFolderMatches.$inferSelect;
 export type SeasonalAnimeCacheRow = typeof seasonalAnimeCache.$inferSelect;
 export type OperationsTaskRow = typeof operationsTasks.$inferSelect;

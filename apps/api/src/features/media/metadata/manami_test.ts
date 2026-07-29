@@ -4,12 +4,12 @@ import { Effect, Result, Layer, Option, Schema } from "effect";
 import { TestClock } from "effect/testing";
 
 import { AppConfig } from "@/config/schema.ts";
+import { AppSqlClient } from "@/db/database.ts";
 import {
   MANAMI_CACHE_DIR_NAME,
   MANAMI_CACHE_DATASET_FILE,
   MANAMI_CACHE_META_FILE,
   MANAMI_CACHE_REFRESH_INTERVAL_MS,
-  MANAMI_CACHE_SQLITE_FILE,
   ManamiCacheRefreshClient,
   ManamiClient,
   ManamiClientLive,
@@ -306,8 +306,6 @@ it.effect("ManamiClient rebuilds invalid sqlite cache from local dataset", () =>
     Effect.gen(function* () {
       const clockNow = MANAMI_CACHE_REFRESH_INTERVAL_MS / 2;
       yield* writeCachedDataset(fs, root, SYNTHETIC_DATASET, clockNow - 1);
-      const cacheDir = `${root}/${MANAMI_CACHE_DIR_NAME}`;
-      yield* fs.writeFile(`${cacheDir}/${MANAMI_CACHE_SQLITE_FILE}`, new Uint8Array());
 
       let requestCount = 0;
       yield* TestClock.setTime(clockNow);
@@ -441,15 +439,19 @@ function makeManamiClientLayer(input: {
   readonly httpClient: HttpClient.HttpClient;
   readonly root: string;
 }) {
+  const databaseFile = `${input.root}/bakarr.sqlite`;
+  const configLayer = AppConfig.layerWithOverrides({ databaseFile });
+  const appSqlLayer = AppSqlClient.layer.pipe(Layer.provide(configLayer));
   const externalCallLayer = ExternalCallLive;
 
   return ManamiClientLive.pipe(
     Layer.provide(
       Layer.mergeAll(
-        AppConfig.layerWithOverrides({ databaseFile: `${input.root}/bakarr.sqlite` }),
+        configLayer,
         externalCallLayer,
         Layer.succeed(FileSystem, input.fs),
         Layer.succeed(HttpClient.HttpClient, input.httpClient),
+        appSqlLayer,
       ),
     ),
   );
