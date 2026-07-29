@@ -1,5 +1,5 @@
 import { assert, it } from "@effect/vitest";
-import { Schema } from "effect";
+import { Schema, SchemaIssue } from "effect";
 import {
   ApiKeyLoginRequestSchema,
   ChangePasswordRequestSchema,
@@ -94,25 +94,43 @@ function makeValidConfig() {
 }
 
 it("ConfigSchema rejects malformed config fields with localized paths", () => {
-  const result = Schema.decodeUnknownEither(ConfigSchema)({
-    ...makeValidConfig(),
-    downloads: {
-      ...makeValidConfig().downloads,
-      remote_path_mappings: [["/remote/only"]],
+  const result = Schema.decodeUnknownResult(ConfigSchema)(
+    {
+      ...makeValidConfig(),
+      downloads: {
+        ...makeValidConfig().downloads,
+        remote_path_mappings: [["/remote/only"]],
+      },
+      library: {
+        ...makeValidConfig().library,
+        import_mode: "link",
+        preferred_title: "kana",
+      },
     },
-    library: {
-      ...makeValidConfig().library,
-      import_mode: "link",
-      preferred_title: "kana",
-    },
-  });
+    { errors: "all" },
+  );
 
-  assert.deepStrictEqual(result._tag, "Left");
+  assert.deepStrictEqual(result._tag, "Failure");
 
-  if (result._tag === "Left") {
-    assert.match(result.left.message, /remote_path_mappings/);
-    assert.match(result.left.message, /import_mode/);
-    assert.match(result.left.message, /preferred_title/);
+  if (result._tag === "Failure") {
+    const paths = SchemaIssue.makeFormatterStandardSchemaV1()(result.failure.issue).issues.map(
+      (issue) =>
+        issue.path
+          ?.map((p) => (typeof p === "object" && p !== null ? String(p.key) : String(p)))
+          .join("."),
+    );
+    assert.ok(
+      paths.some((path) => path?.includes("remote_path_mappings")),
+      `expected a remote_path_mappings issue, got ${JSON.stringify(paths)}`,
+    );
+    assert.ok(
+      paths.some((path) => path?.includes("import_mode")),
+      `expected an import_mode issue, got ${JSON.stringify(paths)}`,
+    );
+    assert.ok(
+      paths.some((path) => path?.includes("preferred_title")),
+      `expected a preferred_title issue, got ${JSON.stringify(paths)}`,
+    );
   }
 });
 
@@ -124,24 +142,24 @@ it("formatValidationErrorMessage formats schema errors as concise path summaries
       import_mode: "Copy",
     },
   };
-  const result = Schema.decodeUnknownEither(ConfigSchema)(input);
+  const result = Schema.decodeUnknownResult(ConfigSchema)(input);
 
-  assert.deepStrictEqual(result._tag, "Left");
+  assert.deepStrictEqual(result._tag, "Failure");
 
-  if (result._tag === "Left") {
+  if (result._tag === "Failure") {
     const message = formatValidationErrorMessage(
       "Invalid request body for system config",
-      result.left,
+      result.failure,
     );
     assert.match(message, /system config/);
     assert.match(message, /library\.import_mode/);
-    assert.match(message, /actual "Copy"/);
+    assert.match(message, /got "Copy"/);
     assert.deepStrictEqual(message.includes("readonly downloads"), false);
   }
 });
 
 it("SearchDownloadBodySchema rejects non-positive and fractional identifiers", () => {
-  const result = Schema.decodeUnknownEither(SearchDownloadBodySchema)(
+  const result = Schema.decodeUnknownResult(SearchDownloadBodySchema)(
     {
       media_id: 0,
       unit_number: 1.5,
@@ -154,11 +172,11 @@ it("SearchDownloadBodySchema rejects non-positive and fractional identifiers", (
     { errors: "all" },
   );
 
-  assert.deepStrictEqual(result._tag, "Left");
+  assert.deepStrictEqual(result._tag, "Failure");
 
-  if (result._tag === "Left") {
-    assert.match(result.left.message, /media_id/);
-    assert.match(result.left.message, /unit_number/);
+  if (result._tag === "Failure") {
+    assert.match(result.failure.message, /media_id/);
+    assert.match(result.failure.message, /unit_number/);
   }
 });
 
@@ -166,24 +184,24 @@ it("auth request schemas reject oversized credentials and malformed API keys", (
   const oversized = "x".repeat(257);
 
   assert.deepStrictEqual(
-    Schema.decodeUnknownEither(LoginRequestSchema)({ password: oversized, username: "admin" })._tag,
-    "Left",
+    Schema.decodeUnknownResult(LoginRequestSchema)({ password: oversized, username: "admin" })._tag,
+    "Failure",
   );
   assert.deepStrictEqual(
-    Schema.decodeUnknownEither(ChangePasswordRequestSchema)({
+    Schema.decodeUnknownResult(ChangePasswordRequestSchema)({
       current_password: "adminadmin",
       new_password: oversized,
     })._tag,
-    "Left",
+    "Failure",
   );
   assert.deepStrictEqual(
-    Schema.decodeUnknownEither(ApiKeyLoginRequestSchema)({ api_key: "not hex" })._tag,
-    "Left",
+    Schema.decodeUnknownResult(ApiKeyLoginRequestSchema)({ api_key: "not hex" })._tag,
+    "Failure",
   );
 });
 
 it("SearchDownloadBodySchema accepts structured release context", () => {
-  const result = Schema.decodeUnknownEither(SearchDownloadBodySchema)({
+  const result = Schema.decodeUnknownResult(SearchDownloadBodySchema)({
     media_id: 1,
     unit_number: 2,
     magnet: "magnet:?xt=urn:btih:test",
@@ -211,11 +229,11 @@ it("SearchDownloadBodySchema accepts structured release context", () => {
     title: "[SubsPlease] Show - 02 (1080p)",
   });
 
-  assert.deepStrictEqual(result._tag, "Right");
+  assert.deepStrictEqual(result._tag, "Success");
 });
 
 it("AddMediaInputSchema and ImportFilesBodySchema require positive integer ids", () => {
-  const addMedia = Schema.decodeUnknownEither(AddMediaInputSchema)(
+  const addMedia = Schema.decodeUnknownResult(AddMediaInputSchema)(
     {
       id: -3,
       monitor_and_search: false,
@@ -228,7 +246,7 @@ it("AddMediaInputSchema and ImportFilesBodySchema require positive integer ids",
     { errors: "all" },
   );
 
-  const importFiles = Schema.decodeUnknownEither(ImportFilesBodySchema)(
+  const importFiles = Schema.decodeUnknownResult(ImportFilesBodySchema)(
     {
       files: [
         {
@@ -241,21 +259,21 @@ it("AddMediaInputSchema and ImportFilesBodySchema require positive integer ids",
     { errors: "all" },
   );
 
-  assert.deepStrictEqual(addMedia._tag, "Left");
-  assert.deepStrictEqual(importFiles._tag, "Left");
+  assert.deepStrictEqual(addMedia._tag, "Failure");
+  assert.deepStrictEqual(importFiles._tag, "Failure");
 
-  if (addMedia._tag === "Left") {
-    assert.match(addMedia.left.message, /id/);
-    assert.match(addMedia.left.message, /release_profile_ids/);
+  if (addMedia._tag === "Failure") {
+    assert.match(addMedia.failure.message, /id/);
+    assert.match(addMedia.failure.message, /release_profile_ids/);
   }
 
-  if (importFiles._tag === "Left") {
-    assert.match(importFiles.left.message, /unit_number/);
+  if (importFiles._tag === "Failure") {
+    assert.match(importFiles.failure.message, /unit_number/);
   }
 });
 
 it("ImportFilesBodySchema accepts source metadata for naming reuse", () => {
-  const importFiles = Schema.decodeUnknownEither(ImportFilesBodySchema)({
+  const importFiles = Schema.decodeUnknownResult(ImportFilesBodySchema)({
     files: [
       {
         media_id: 2,
@@ -275,11 +293,11 @@ it("ImportFilesBodySchema accepts source metadata for naming reuse", () => {
     ],
   });
 
-  assert.deepStrictEqual(importFiles._tag, "Right");
+  assert.deepStrictEqual(importFiles._tag, "Success");
 });
 
 it("DownloadEventsQuerySchema accepts filtered query params", () => {
-  const query = Schema.decodeUnknownEither(DownloadEventsQuerySchema)({
+  const query = Schema.decodeUnknownResult(DownloadEventsQuerySchema)({
     media_id: "20",
     cursor: "400",
     direction: "next",
@@ -291,11 +309,11 @@ it("DownloadEventsQuerySchema accepts filtered query params", () => {
     status: "imported",
   });
 
-  assert.deepStrictEqual(query._tag, "Right");
+  assert.deepStrictEqual(query._tag, "Success");
 });
 
 it("DownloadEventsExportQuerySchema accepts export query params", () => {
-  const query = Schema.decodeUnknownEither(DownloadEventsExportQuerySchema)({
+  const query = Schema.decodeUnknownResult(DownloadEventsExportQuerySchema)({
     media_id: "20",
     download_id: "4",
     end_date: "2026-03-18T23:59:59",
@@ -307,19 +325,19 @@ it("DownloadEventsExportQuerySchema accepts export query params", () => {
     status: "imported",
   });
 
-  assert.deepStrictEqual(query._tag, "Right");
+  assert.deepStrictEqual(query._tag, "Success");
 });
 
 it("SystemLogsQuerySchema rejects unsupported log levels", () => {
-  const query = Schema.decodeUnknownEither(SystemLogsQuerySchema)({
+  const query = Schema.decodeUnknownResult(SystemLogsQuerySchema)({
     level: "verbose",
   });
 
-  assert.deepStrictEqual(query._tag, "Left");
+  assert.deepStrictEqual(query._tag, "Failure");
 });
 
 it("AddMediaInputSchema accepts existing-root flag", () => {
-  const addMedia = Schema.decodeUnknownEither(AddMediaInputSchema)({
+  const addMedia = Schema.decodeUnknownResult(AddMediaInputSchema)({
     id: 20,
     monitor_and_search: false,
     monitored: true,
@@ -329,79 +347,79 @@ it("AddMediaInputSchema accepts existing-root flag", () => {
     use_existing_root: true,
   });
 
-  assert.deepStrictEqual(addMedia._tag, "Right");
+  assert.deepStrictEqual(addMedia._tag, "Success");
 });
 
 it("AddRssFeedBodySchema accepts http(s) RSS URLs", () => {
-  const httpsResult = Schema.decodeUnknownEither(AddRssFeedBodySchema)({
+  const httpsResult = Schema.decodeUnknownResult(AddRssFeedBodySchema)({
     media_id: 20,
     url: "https://example.com/feed.xml",
   });
-  const httpResult = Schema.decodeUnknownEither(AddRssFeedBodySchema)({
+  const httpResult = Schema.decodeUnknownResult(AddRssFeedBodySchema)({
     media_id: 20,
     url: "http://example.com/feed.xml",
   });
 
-  assert.deepStrictEqual(httpsResult._tag, "Right");
-  assert.deepStrictEqual(httpResult._tag, "Right");
+  assert.deepStrictEqual(httpsResult._tag, "Success");
+  assert.deepStrictEqual(httpResult._tag, "Success");
 });
 
 it("boundary request schemas reject malformed URL, path, and date inputs", () => {
-  const rssFeed = Schema.decodeUnknownEither(AddRssFeedBodySchema)({
+  const rssFeed = Schema.decodeUnknownResult(AddRssFeedBodySchema)({
     media_id: 20,
     url: "ftp://example.com/feed",
   });
-  const browse = Schema.decodeUnknownEither(BrowseQuerySchema)({
+  const browse = Schema.decodeUnknownResult(BrowseQuerySchema)({
     path: "relative/path",
   });
-  const unmappedImport = Schema.decodeUnknownEither(ImportUnmappedFolderBodySchema)({
+  const unmappedImport = Schema.decodeUnknownResult(ImportUnmappedFolderBodySchema)({
     media_id: 20,
     folder_name: "../escape",
   });
-  const calendar = Schema.decodeUnknownEither(CalendarQuerySchema)({
+  const calendar = Schema.decodeUnknownResult(CalendarQuerySchema)({
     start: "not-a-date",
   });
-  const systemLogExport = Schema.decodeUnknownEither(SystemLogExportQuerySchema)({
+  const systemLogExport = Schema.decodeUnknownResult(SystemLogExportQuerySchema)({
     start_date: "2026-03-18 00:00:00",
   });
 
-  assert.deepStrictEqual(rssFeed._tag, "Left");
-  assert.deepStrictEqual(browse._tag, "Left");
-  assert.deepStrictEqual(unmappedImport._tag, "Left");
-  assert.deepStrictEqual(calendar._tag, "Left");
-  assert.deepStrictEqual(systemLogExport._tag, "Left");
+  assert.deepStrictEqual(rssFeed._tag, "Failure");
+  assert.deepStrictEqual(browse._tag, "Failure");
+  assert.deepStrictEqual(unmappedImport._tag, "Failure");
+  assert.deepStrictEqual(calendar._tag, "Failure");
+  assert.deepStrictEqual(systemLogExport._tag, "Failure");
 });
 
 it("BulkUnitMappingsBodySchema accepts empty file_path as unmap signal", () => {
-  const unmapOnly = Schema.decodeUnknownEither(BulkUnitMappingsBodySchema)({
+  const unmapOnly = Schema.decodeUnknownResult(BulkUnitMappingsBodySchema)({
     mappings: [{ unit_number: 1, file_path: "" }],
   });
-  const mixed = Schema.decodeUnknownEither(BulkUnitMappingsBodySchema)({
+  const mixed = Schema.decodeUnknownResult(BulkUnitMappingsBodySchema)({
     mappings: [
       { unit_number: 1, file_path: "" },
       { unit_number: 2, file_path: "/library/Naruto - 02.mkv" },
     ],
   });
 
-  assert.deepStrictEqual(unmapOnly._tag, "Right");
-  assert.deepStrictEqual(mixed._tag, "Right");
-  if (mixed._tag === "Right") {
-    assert.strictEqual(mixed.right.mappings.length, 2);
-    assert.strictEqual(mixed.right.mappings[0]?.file_path, "");
-    assert.strictEqual(mixed.right.mappings[1]?.file_path, "/library/Naruto - 02.mkv");
+  assert.deepStrictEqual(unmapOnly._tag, "Success");
+  assert.deepStrictEqual(mixed._tag, "Success");
+  if (mixed._tag === "Success") {
+    assert.strictEqual(mixed.success.mappings.length, 2);
+    assert.strictEqual(mixed.success.mappings[0]?.file_path, "");
+    assert.strictEqual(mixed.success.mappings[1]?.file_path, "/library/Naruto - 02.mkv");
   }
 });
 
 it("BulkUnitMappingsBodySchema rejects non-positive unit_number", () => {
-  const result = Schema.decodeUnknownEither(BulkUnitMappingsBodySchema)({
+  const result = Schema.decodeUnknownResult(BulkUnitMappingsBodySchema)({
     mappings: [{ unit_number: 0, file_path: "" }],
   });
 
-  assert.deepStrictEqual(result._tag, "Left");
+  assert.deepStrictEqual(result._tag, "Failure");
 });
 
 it("BulkUnitMappingsBodySchema rejects missing mappings array", () => {
-  const result = Schema.decodeUnknownEither(BulkUnitMappingsBodySchema)({});
+  const result = Schema.decodeUnknownResult(BulkUnitMappingsBodySchema)({});
 
-  assert.deepStrictEqual(result._tag, "Left");
+  assert.deepStrictEqual(result._tag, "Failure");
 });

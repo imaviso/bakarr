@@ -63,7 +63,7 @@ describe("LibraryBrowseService", () => {
       assert.deepStrictEqual(exit._tag, "Failure");
 
       if (Exit.isFailure(exit)) {
-        const failure = Cause.failureOption(exit.cause);
+        const failure = Cause.findErrorOption(exit.cause);
         assert.deepStrictEqual(failure._tag, "Some");
         if (failure._tag === "Some") {
           assert.deepStrictEqual(failure.value._tag, "DomainPathError");
@@ -102,7 +102,7 @@ function browseEffect(fs: FileSystemShape, input: { readonly path?: string }) {
       LibraryBrowseServiceLive.pipe(
         Layer.provide(
           Layer.mergeAll(
-            Layer.succeed(FileSystem, FileSystem.make(fs)),
+            Layer.succeed(FileSystem, fs),
             Layer.succeed(
               RuntimeConfigSnapshotService,
               makeRuntimeConfigSnapshotStub(
@@ -130,9 +130,9 @@ function makeBrowseFileSystem(overrides: Partial<FileSystemShape>) {
   return {
     copyFile: () => Effect.void,
     mkdir: () => Effect.void,
-    openFile: () => Effect.dieMessage("not used in test"),
+    openFile: () => Effect.die(new Error("not used in test")),
     readDir: () => Effect.succeed([]),
-    readFile: () => Effect.dieMessage("not used in test"),
+    readFile: () => Effect.die(new Error("not used in test")),
     realPath: () => Effect.succeed("/allowed/library"),
     remove: () => Effect.void,
     rename: () => Effect.void,

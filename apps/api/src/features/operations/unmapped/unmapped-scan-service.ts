@@ -1,4 +1,4 @@
-import { Cause, Effect } from "effect";
+import { Cause, Context, Effect, Layer } from "effect";
 
 import { MEDIA_KIND_VALUES, type ScannerState } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
@@ -163,7 +163,7 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
     matchingFolder: ScannerState["folders"][number],
     animeRows: ReadonlyArray<typeof media.$inferSelect>,
   ) {
-    const matchResult = yield* Effect.either(
+    const matchResult = yield* Effect.result(
       matchSingleUnmappedFolder({
         aniList,
         animeRows,
@@ -173,8 +173,8 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
       }),
     );
 
-    if (matchResult._tag === "Left") {
-      const errorMessage = toUnmappedMatchErrorMessage(matchResult.left);
+    if (matchResult._tag === "Failure") {
+      const errorMessage = toUnmappedMatchErrorMessage(matchResult.failure);
       const now = yield* nowIso();
       const failedFolder = markUnmappedFolderFailed(matchingFolder, errorMessage, now);
 
@@ -187,11 +187,11 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
     }
 
     const now = yield* nowIso();
-    yield* systemUnmappedRepository.upsertMatchRows([matchResult.right], now);
+    yield* systemUnmappedRepository.upsertMatchRows([matchResult.success], now);
 
     return {
       _tag: "Matched" as const,
-      folder: matchResult.right,
+      folder: matchResult.success,
     } satisfies UnmappedMatchResult;
   });
 
@@ -204,7 +204,7 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
       markFailed: backgroundJobRepository.markFailed("unmapped_scan", error, nowIso),
     }).pipe(
       Effect.catchTag("JobFailurePersistenceError", () => Effect.void),
-      Effect.zipRight(Effect.fail(error)),
+      Effect.andThen(Effect.fail(error)),
     );
 
   const failInfrastructureAfterMarkingJobFailure = (cause: Cause.Cause<unknown>) => {
@@ -221,7 +221,7 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
       markFailed: backgroundJobRepository.markFailed("unmapped_scan", cause, nowIso),
     }).pipe(
       Effect.catchTag("JobFailurePersistenceError", () => Effect.void),
-      Effect.zipRight(Effect.fail(infrastructureError)),
+      Effect.andThen(Effect.fail(infrastructureError)),
     );
   };
 
@@ -298,7 +298,7 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
     Effect.catchTag("DatabaseError", failAfterMarkingJobFailure),
     Effect.catchTag("DomainPathError", failAfterMarkingJobFailure),
     Effect.catchTag("StoredDataError", failAfterMarkingJobFailure),
-    Effect.catchAllCause(failInfrastructureAfterMarkingJobFailure),
+    Effect.catchCause(failInfrastructureAfterMarkingJobFailure),
   );
 
   const unmappedScanLoop = Effect.fn("UnmappedScanService.unmappedScanLoop")(function* () {
@@ -332,10 +332,10 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
           yield* eventBus.publish({ type: "ScanStarted" });
 
           const loop = unmappedScanLoop().pipe(
-            Effect.catchAllCause((cause) =>
+            Effect.catchCause((cause) =>
               Effect.logError("Unmapped scan loop failed").pipe(
                 Effect.annotateLogs({ error: Cause.pretty(cause) }),
-                Effect.zipRight(Effect.failCause(cause)),
+                Effect.andThen(Effect.failCause(cause)),
               ),
             ),
             Effect.ensuring(eventBus.publish({ type: "ScanFinished" })),
@@ -436,17 +436,18 @@ function resolveScannerMatchStatus(input: {
   return "idle";
 }
 
-export class UnmappedScanService extends Effect.Service<UnmappedScanService>()(
+export class UnmappedScanService extends Context.Service<UnmappedScanService>()(
   "@bakarr/api/UnmappedScanService",
-  {
-    dependencies: [
-      BackgroundJobRepository.Default,
-      MediaRepository.Default,
-      SystemLogRepository.Default,
-      SystemUnmappedRepository.Default,
-    ],
-    effect: makeUnmappedScanService(),
-  },
-) {}
+  { make: makeUnmappedScanService() },
+) {
+  static readonly layer = Layer.effect(UnmappedScanService, UnmappedScanService.make).pipe(
+    Layer.provide([
+      BackgroundJobRepository.layer,
+      MediaRepository.layer,
+      SystemLogRepository.layer,
+      SystemUnmappedRepository.layer,
+    ]),
+  );
+}
 
-export const UnmappedScanServiceLive = UnmappedScanService.Default;
+export const UnmappedScanServiceLive = UnmappedScanService.layer;

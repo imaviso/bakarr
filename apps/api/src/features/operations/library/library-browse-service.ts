@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import {
   FileSystem,
@@ -123,12 +123,14 @@ const makeLibraryBrowseService = Effect.fn("LibraryBrowseService.make")(function
   return { browse } satisfies LibraryBrowseServiceShape;
 });
 
-export class LibraryBrowseService extends Effect.Service<LibraryBrowseService>()(
+export class LibraryBrowseService extends Context.Service<LibraryBrowseService>()(
   "@bakarr/api/LibraryBrowseService",
-  { effect: makeLibraryBrowseService() },
-) {}
+  { make: makeLibraryBrowseService() },
+) {
+  static readonly layer = Layer.effect(LibraryBrowseService, LibraryBrowseService.make);
+}
 
-export const LibraryBrowseServiceLive = LibraryBrowseService.Default;
+export const LibraryBrowseServiceLive = LibraryBrowseService.layer;
 
 // ---------------------------------------------------------------------------
 // Internal filesystem browse helper

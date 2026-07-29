@@ -1,4 +1,4 @@
-import { Effect, Stream } from "effect";
+import { Context, Effect, Layer, Stream } from "effect";
 
 import { DatabaseError } from "@/db/database.ts";
 import {
@@ -54,19 +54,19 @@ export const cleanupPreviousMediaRootFolderAfterImport = Effect.fn(
     return;
   }
 
-  const previousEntries = yield* Effect.either(fs.readDir(previousRootFolder));
+  const previousEntries = yield* Effect.result(fs.readDir(previousRootFolder));
 
-  if (previousEntries._tag === "Left") {
+  if (previousEntries._tag === "Failure") {
     yield* Effect.logWarning("Skipped previous media folder cleanup after import").pipe(
       Effect.annotateLogs({
-        error: String(previousEntries.left),
+        error: String(previousEntries.failure),
         folder_path: previousRootFolder,
       }),
     );
     return;
   }
 
-  if (previousEntries.right.length === 0) {
+  if (previousEntries.success.length === 0) {
     yield* fs.remove(previousRootFolder, { recursive: true }).pipe(
       Effect.catchTag("FileSystemError", (fsError) =>
         Effect.logWarning("Failed to remove empty media folder after import").pipe(
@@ -174,7 +174,7 @@ function buildUnmappedImportWorkflow(input: {
               }),
           ),
         ),
-        [] as EpisodeImportMapping[],
+        () => [] as EpisodeImportMapping[],
         (acc, file) => {
           const classification = classifyMediaArtifact(file.path, file.name);
           if (classification.kind === "extra" || classification.kind === "sample") {
@@ -239,17 +239,10 @@ function buildUnmappedImportWorkflow(input: {
   } satisfies UnmappedImportWorkflowShape;
 }
 
-export class UnmappedImportService extends Effect.Service<UnmappedImportService>()(
+export class UnmappedImportService extends Context.Service<UnmappedImportService>()(
   "@bakarr/api/UnmappedImportService",
   {
-    // FS + media + runtime config provided by ops feature layer.
-    dependencies: [
-      MediaRepository.Default,
-      MediaUnitRepository.Default,
-      SystemConfigRepository.Default,
-      SystemLogRepository.Default,
-    ],
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const fs = yield* FileSystem;
       const mediaRepository = yield* MediaRepository;
       const mediaUnitRepository = yield* MediaUnitRepository;
@@ -280,9 +273,18 @@ export class UnmappedImportService extends Effect.Service<UnmappedImportService>
       });
     }),
   },
-) {}
+) {
+  static readonly layer = Layer.effect(UnmappedImportService, UnmappedImportService.make).pipe(
+    Layer.provide([
+      MediaRepository.layer,
+      MediaUnitRepository.layer,
+      SystemConfigRepository.layer,
+      SystemLogRepository.layer,
+    ]),
+  );
+}
 
-export const UnmappedImportServiceLive = UnmappedImportService.Default;
+export const UnmappedImportServiceLive = UnmappedImportService.layer;
 
-/** Test factory — production uses UnmappedImportService.Default. */
+/** Test factory — production uses UnmappedImportService.layer. */
 export const makeUnmappedImportWorkflow = buildUnmappedImportWorkflow;

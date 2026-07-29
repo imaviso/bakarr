@@ -1,4 +1,4 @@
-import { Effect, Metric } from "effect";
+import { Context, Effect, Layer, Metric } from "effect";
 
 import { renderBakarrPrometheusMetrics } from "@/infra/metrics.ts";
 import {
@@ -74,11 +74,14 @@ const makeSystemRuntimeMetricsService = Effect.fn("SystemRuntimeMetricsService.m
   };
 });
 
-export class SystemRuntimeMetricsService extends Effect.Service<SystemRuntimeMetricsService>()(
+export class SystemRuntimeMetricsService extends Context.Service<SystemRuntimeMetricsService>()(
   "@bakarr/api/SystemRuntimeMetricsService",
-  {
-    effect: makeSystemRuntimeMetricsService(),
-  },
-) {}
+  { make: makeSystemRuntimeMetricsService() },
+) {
+  static readonly layer = Layer.effect(
+    SystemRuntimeMetricsService,
+    SystemRuntimeMetricsService.make,
+  );
+}
 
-export const SystemRuntimeMetricsServiceLive = SystemRuntimeMetricsService.Default;
+export const SystemRuntimeMetricsServiceLive = SystemRuntimeMetricsService.layer;

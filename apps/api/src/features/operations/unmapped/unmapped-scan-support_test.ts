@@ -5,13 +5,12 @@ import {
   type MediaSearchResult,
   type UnmappedFolder,
 } from "@packages/shared/index.ts";
-import * as schema from "@/db/schema.ts";
 import { appConfig } from "@/db/schema.ts";
 import { encodeConfigCore } from "@/features/system/config-codec.ts";
 import { ConfigCoreSchema } from "@/features/system/config-schema.ts";
 import { makeDefaultConfig } from "@/features/system/defaults.ts";
 import { loadUnmappedFolderSnapshot } from "@/features/operations/unmapped/unmapped-scan-snapshot-support.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { tryDatabase } from "@/infra/effect/db.ts";
 import { makeMediaRepository, makeSystemUnmappedRepository } from "@/test/repository-factories.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { withFileSystemSandboxEffect, writeTextFile } from "@/test/filesystem-test.ts";
@@ -33,7 +32,7 @@ function makeFolder(input: Partial<UnmappedFolder> & Pick<UnmappedFolder, "match
   } satisfies UnmappedFolder;
 }
 
-it.scoped("loadUnmappedFolderVideoSize sums nested video files", () =>
+it.effect("loadUnmappedFolderVideoSize sums nested video files", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const seasonDir = `${root}/Season 1`;
@@ -49,7 +48,7 @@ it.scoped("loadUnmappedFolderVideoSize sums nested video files", () =>
   ),
 );
 
-it.scoped("loadUnmappedFolderVideoSize fails when folder is inaccessible", () =>
+it.effect("loadUnmappedFolderVideoSize fails when folder is inaccessible", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const exit = yield* Effect.exit(loadUnmappedFolderVideoSize(fs, `${root}/missing`));
@@ -59,10 +58,9 @@ it.scoped("loadUnmappedFolderVideoSize fails when folder is inaccessible", () =>
   ),
 );
 
-it.scoped("loadUnmappedFolderSnapshot scans anime, manga, and light novel roots", () =>
+it.effect("loadUnmappedFolderSnapshot scans anime, manga, and light novel roots", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     withSqliteTestDbEffect({
-      schema,
       run: (db, databaseFile) =>
         Effect.gen(function* () {
           const animeRoot = `${root}/anime`;
@@ -73,8 +71,8 @@ it.scoped("loadUnmappedFolderSnapshot scans anime, manga, and light novel roots"
           yield* fs.mkdir(`${lightNovelRoot}/Light Novel Folder`, { recursive: true });
 
           const defaults = makeDefaultConfig(databaseFile);
-          const encodedDefaults = yield* Schema.encode(ConfigCoreSchema)(defaults);
-          const decodedConfig = yield* Schema.decodeUnknown(ConfigCoreSchema)({
+          const encodedDefaults = yield* Schema.encodeEffect(ConfigCoreSchema)(defaults);
+          const decodedConfig = yield* Schema.decodeUnknownEffect(ConfigCoreSchema)({
             ...encodedDefaults,
             library: {
               ...encodedDefaults.library,
@@ -85,7 +83,7 @@ it.scoped("loadUnmappedFolderSnapshot scans anime, manga, and light novel roots"
           });
           const configData = yield* encodeConfigCore(decodedConfig);
 
-          yield* tryDatabasePromise("Failed to seed appConfig for unmapped scan test", () =>
+          yield* tryDatabase("Failed to seed appConfig for unmapped scan test", () =>
             db.insert(appConfig).values({
               id: 1,
               data: configData,

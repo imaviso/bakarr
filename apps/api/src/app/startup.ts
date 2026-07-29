@@ -1,4 +1,4 @@
-import { HttpServer } from "@effect/platform";
+import { HttpServer } from "effect/unstable/http";
 import { Effect } from "effect";
 
 import { BackgroundWorkerController } from "@/background/controller-core.ts";

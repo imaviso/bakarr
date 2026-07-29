@@ -21,20 +21,20 @@ import { SystemConfigRepository } from "@/features/system/repository/system-conf
  * construction. Do not re-merge inside media/ops feature layers.
  */
 export const PureDbLeaves = Layer.mergeAll(
-  BackgroundJobRepository.Default,
-  DownloadRepository.Default,
-  MediaRepository.Default,
-  MediaUnitRepository.Default,
-  AniDbUnitCacheRepository.Default,
-  SeasonalMediaCacheRepository.Default,
-  LibraryRootsRepository.Default,
-  OperationsTaskRepository.Default,
-  RssFeedRepository.Default,
-  SystemLogRepository.Default,
-  SystemUnmappedRepository.Default,
-  QualityProfileRepository.Default,
-  ReleaseProfileRepository.Default,
-  SystemConfigRepository.Default,
+  BackgroundJobRepository.layer,
+  DownloadRepository.layer,
+  MediaRepository.layer,
+  MediaUnitRepository.layer,
+  AniDbUnitCacheRepository.layer,
+  SeasonalMediaCacheRepository.layer,
+  LibraryRootsRepository.layer,
+  OperationsTaskRepository.layer,
+  RssFeedRepository.layer,
+  SystemLogRepository.layer,
+  SystemUnmappedRepository.layer,
+  QualityProfileRepository.layer,
+  ReleaseProfileRepository.layer,
+  SystemConfigRepository.layer,
 );
 
 export function providePureDbLeaves<ROut, E, RIn>(runtimeSupportLayer: Layer.Layer<ROut, E, RIn>) {

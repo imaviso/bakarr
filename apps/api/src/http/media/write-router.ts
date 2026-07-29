@@ -1,4 +1,4 @@
-import { HttpRouter } from "@effect/platform";
+import { HttpRouter } from "effect/unstable/http";
 import { Effect, Schema } from "effect";
 
 import { MediaFileService } from "@/features/media/files/media-file-service.ts";
@@ -39,8 +39,9 @@ import {
 
 const acceptedOperationResponse = schemaAcceptedResponse(AsyncOperationAcceptedSchema);
 
-export const mediaWriteRouter = HttpRouter.empty.pipe(
-  HttpRouter.post(
+export const mediaWriteRoutes = [
+  HttpRouter.route(
+    "POST",
     "/media",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -50,7 +51,8 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(MediaSchema),
     ),
   ),
-  HttpRouter.del(
+  HttpRouter.route(
+    "DELETE",
     "/media/:id",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -60,7 +62,8 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
       successResponse,
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.route(
+    "POST",
     "/media/:id/monitor",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -71,7 +74,8 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
       successResponse,
     ),
   ),
-  HttpRouter.put(
+  HttpRouter.route(
+    "PUT",
     "/media/:id/path",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -82,7 +86,8 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
       successResponse,
     ),
   ),
-  HttpRouter.put(
+  HttpRouter.route(
+    "PUT",
     "/media/:id/profile",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -93,7 +98,8 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
       successResponse,
     ),
   ),
-  HttpRouter.put(
+  HttpRouter.route(
+    "PUT",
     "/media/:id/release-profiles",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -109,7 +115,8 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
       successResponse,
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.route(
+    "POST",
     "/media/:id/units/refresh",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -128,7 +135,8 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
       acceptedOperationResponse,
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.route(
+    "POST",
     "/media/:id/units/scan",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -160,7 +168,8 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
       acceptedOperationResponse,
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.route(
+    "GET",
     "/media/:id/units/scan/tasks",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -173,7 +182,8 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(Schema.Array(OperationTaskSchema)),
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.route(
+    "GET",
     "/media/:id/units/scan/tasks/:taskId",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -197,7 +207,8 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(OperationTaskSchema),
     ),
   ),
-  HttpRouter.del(
+  HttpRouter.route(
+    "DELETE",
     "/media/:id/units/:unitNumber/file",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -207,7 +218,8 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
       successResponse,
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.route(
+    "POST",
     "/media/:id/units/:unitNumber/map",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -218,7 +230,8 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
       successResponse,
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.route(
+    "POST",
     "/media/:id/units/map/bulk",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -232,7 +245,8 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
       successResponse,
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.route(
+    "POST",
     "/media/:id/rename",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -242,4 +256,4 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(RenameResultSchema),
     ),
   ),
-);
+];

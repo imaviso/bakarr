@@ -3,7 +3,7 @@
  * Public access: DownloadRepository methods / re-exports only.
  */
 import { and, asc, desc, eq, gt, gte, inArray, lt, lte, or, sql, type SQL } from "drizzle-orm";
-import { Chunk, Effect, Option, Stream } from "effect";
+import { Effect, Option, Stream } from "effect";
 
 import type {
   DownloadEvent,
@@ -21,7 +21,7 @@ import {
 import { decodeOptionalNumberList } from "@/features/system/profile-codec.ts";
 import { StoredDataError } from "@/features/errors.ts";
 import type { DownloadPresentationContext } from "@/features/operations/repository/types.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { tryDatabase } from "@/infra/effect/db.ts";
 
 type DownloadRow = typeof downloads.$inferSelect;
 
@@ -37,7 +37,7 @@ export interface DownloadStatusStats {
 
 export const loadDownloadStatusStats = Effect.fn("DownloadRepository.loadDownloadStatusStats")(
   function* (db: AppDatabase) {
-    const row = yield* tryDatabasePromise("Failed to load download status stats", () =>
+    const row = yield* tryDatabase("Failed to load download status stats", () =>
       db.get<DownloadStatusStats>(sql`
         select
           coalesce(sum(case when ${downloads.status} = 'queued' then 1 else 0 end), 0) as queuedDownloads,
@@ -60,7 +60,7 @@ export const loadDownloadStatusStats = Effect.fn("DownloadRepository.loadDownloa
 export const listRecentDownloadEventRows = Effect.fn(
   "DownloadRepository.listRecentDownloadEventRows",
 )(function* (db: AppDatabase, limit: number) {
-  return yield* tryDatabasePromise("Failed to list recent download events", () =>
+  return yield* tryDatabase("Failed to list recent download events", () =>
     db.select().from(downloadEvents).orderBy(desc(downloadEvents.id)).limit(limit),
   );
 });
@@ -82,7 +82,7 @@ export const loadDownloadEventPresentationContexts = Effect.fn(
   ];
 
   const animeRows = yield* loadRowsByChunk(animeIds, (chunk) =>
-    tryDatabasePromise("Failed to load download event presentation contexts", () =>
+    tryDatabase("Failed to load download event presentation contexts", () =>
       db
         .select({
           coverImage: media.coverImage,
@@ -97,7 +97,7 @@ export const loadDownloadEventPresentationContexts = Effect.fn(
   const animeById = new Map(animeRows.map((row) => [row.id, row] as const));
 
   const downloadRows = yield* loadRowsByChunk(downloadIds, (chunk) =>
-    tryDatabasePromise("Failed to load download event presentation contexts", () =>
+    tryDatabase("Failed to load download event presentation contexts", () =>
       db
         .select({
           id: downloads.id,
@@ -174,7 +174,7 @@ export const loadDownloadPresentationContexts = Effect.fn(
       : sql`0 = 1`;
 
   const presentationRows = yield* loadRowsByChunk(animeIds, (chunk) =>
-    tryDatabasePromise("Failed to load download presentation contexts", () =>
+    tryDatabase("Failed to load download presentation contexts", () =>
       db
         .select({
           coverImage: media.coverImage,
@@ -300,7 +300,7 @@ export const listDownloadHistory = Effect.fn("DownloadRepository.listDownloadHis
     .from(downloads)
     .orderBy(desc(downloads.id))
     .limit(limit + 1);
-  const rows = yield* tryDatabasePromise("Failed to list download history", () =>
+  const rows = yield* tryDatabase("Failed to list download history", () =>
     cursorId ? query.where(lt(downloads.id, cursorId)) : query,
   );
   const hasMore = rows.length > limit;
@@ -309,7 +309,7 @@ export const listDownloadHistory = Effect.fn("DownloadRepository.listDownloadHis
   const mappedRows = yield* Effect.forEach(pageRows, (row) =>
     toDownload(row, contexts.get(row.id)),
   );
-  const countRows = yield* tryDatabasePromise("Failed to count download history", () =>
+  const countRows = yield* tryDatabase("Failed to count download history", () =>
     db.select({ count: sql<number>`count(*)` }).from(downloads),
   );
   const total = countRows[0]?.count ?? 0;
@@ -346,10 +346,10 @@ export const listDownloadEvents = Effect.fn("DownloadRepository.listDownloadEven
     .from(downloadEvents)
     .orderBy(queryInput.direction === "prev" ? asc(downloadEvents.id) : desc(downloadEvents.id))
     .limit(limit + 1);
-  const rows = yield* tryDatabasePromise("Failed to load download events", () =>
+  const rows = yield* tryDatabase("Failed to load download events", () =>
     conditions.length > 0 ? query.where(and(...conditions)) : query,
   );
-  const totalRows = yield* tryDatabasePromise("Failed to count download events", () => {
+  const totalRows = yield* tryDatabase("Failed to count download events", () => {
     const totalQuery = db.select({ count: sql<number>`count(*)` }).from(downloadEvents);
     return baseConditions.length > 0 ? totalQuery.where(and(...baseConditions)) : totalQuery;
   });
@@ -384,7 +384,7 @@ export const loadDownloadEventExportHeader = Effect.fn(
   "DownloadRepository.loadDownloadEventExportHeader",
 )(function* (db: AppDatabase, queryInput: DownloadEventExportQuery = {}, generatedAt: string) {
   const plan = buildDownloadEventExportPlan(queryInput);
-  const totalRows = yield* tryDatabasePromise("Failed to count download events", () => {
+  const totalRows = yield* tryDatabase("Failed to count download events", () => {
     const totalQuery = db.select({ count: sql<number>`count(*)` }).from(downloadEvents);
     return plan.baseConditions.length > 0
       ? totalQuery.where(and(...plan.baseConditions))
@@ -409,55 +409,53 @@ export function streamDownloadEvents(
   const plan = buildDownloadEventExportPlan(queryInput);
   const pageSize = 500;
 
-  return Stream.unfoldChunkEffect(
-    { emitted: 0, cursor: undefined as number | undefined },
-    (state) =>
-      Effect.gen(function* () {
-        const remaining = plan.limit - state.emitted;
-        if (remaining <= 0) {
-          return Option.none<readonly [Chunk.Chunk<DownloadEvent>, typeof state]>();
-        }
+  return Stream.paginate({ emitted: 0, cursor: undefined as number | undefined }, (state) =>
+    Effect.gen(function* () {
+      const remaining = plan.limit - state.emitted;
+      if (remaining <= 0) {
+        return [[], Option.none()] as const;
+      }
 
-        let cursorCondition: SQL | undefined;
+      let cursorCondition: SQL | undefined;
 
-        if (state.cursor !== undefined) {
-          cursorCondition =
-            plan.order === "asc"
-              ? gt(downloadEvents.id, state.cursor)
-              : lt(downloadEvents.id, state.cursor);
-        }
-        const conditions = cursorCondition
-          ? [...plan.baseConditions, cursorCondition]
-          : [...plan.baseConditions];
+      if (state.cursor !== undefined) {
+        cursorCondition =
+          plan.order === "asc"
+            ? gt(downloadEvents.id, state.cursor)
+            : lt(downloadEvents.id, state.cursor);
+      }
+      const conditions = cursorCondition
+        ? [...plan.baseConditions, cursorCondition]
+        : [...plan.baseConditions];
 
-        const rows = yield* tryDatabasePromise("Failed to stream download events", () => {
-          const query = db
-            .select()
-            .from(downloadEvents)
-            .orderBy(plan.order === "asc" ? asc(downloadEvents.id) : desc(downloadEvents.id))
-            .limit(Math.min(pageSize, remaining));
+      const rows = yield* tryDatabase("Failed to stream download events", () => {
+        const query = db
+          .select()
+          .from(downloadEvents)
+          .orderBy(plan.order === "asc" ? asc(downloadEvents.id) : desc(downloadEvents.id))
+          .limit(Math.min(pageSize, remaining));
 
-          return conditions.length > 0 ? query.where(and(...conditions)) : query;
-        });
+        return conditions.length > 0 ? query.where(and(...conditions)) : query;
+      });
 
-        if (rows.length === 0) {
-          return Option.none<readonly [Chunk.Chunk<DownloadEvent>, typeof state]>();
-        }
+      if (rows.length === 0) {
+        return [[], Option.none()] as const;
+      }
 
-        const contexts = yield* loadDownloadEventPresentationContexts(db, rows);
-        const events = yield* Effect.forEach(rows, (row) =>
-          toDownloadEvent(row, contexts.get(row.id)),
-        );
-        const lastId = rows[rows.length - 1]?.id;
+      const contexts = yield* loadDownloadEventPresentationContexts(db, rows);
+      const events = yield* Effect.forEach(rows, (row) =>
+        toDownloadEvent(row, contexts.get(row.id)),
+      );
+      const lastId = rows[rows.length - 1]?.id;
 
-        return Option.some([
-          Chunk.fromIterable(events),
-          {
-            emitted: state.emitted + events.length,
-            cursor: lastId,
-          },
-        ] as const);
-      }),
+      return [
+        events,
+        Option.some({
+          emitted: state.emitted + events.length,
+          cursor: lastId,
+        }),
+      ] as const;
+    }),
   );
 }
 
@@ -489,7 +487,7 @@ function buildDownloadEventConditions(queryInput: DownloadEventFilterQuery): SQL
 
 const hasAdjacentDownloadEvent = Effect.fn("DownloadRepository.hasAdjacentDownloadEvent")(
   function* (db: AppDatabase, baseConditions: readonly SQL[], cursorCondition: SQL) {
-    const rows = yield* tryDatabasePromise("Failed to load download events", () =>
+    const rows = yield* tryDatabase("Failed to load download events", () =>
       db
         .select({ id: downloadEvents.id })
         .from(downloadEvents)

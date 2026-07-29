@@ -36,7 +36,13 @@ export function isCrossFilesystemError(error: { cause?: unknown }): boolean {
 /** Check if a platform SystemError itself is a NotFound branch. */
 export function isSystemNotFoundError(error: unknown): boolean {
   return (
-    typeof error === "object" && error !== null && "reason" in error && error.reason === "NotFound"
+    typeof error === "object" &&
+    error !== null &&
+    "reason" in error &&
+    typeof error.reason === "object" &&
+    error.reason !== null &&
+    "_tag" in error.reason &&
+    error.reason._tag === "NotFound"
   );
 }
 

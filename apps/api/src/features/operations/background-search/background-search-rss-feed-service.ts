@@ -1,4 +1,4 @@
-import { Effect, Option } from "effect";
+import { Context, Effect, Layer, Option } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 import { DatabaseError } from "@/db/database.ts";
@@ -32,10 +32,10 @@ export interface BackgroundSearchRssFeedServiceShape {
   ) => Effect.Effect<number, BackgroundSearchRssFeedError>;
 }
 
-export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSearchRssFeedService>()(
+export class BackgroundSearchRssFeedService extends Context.Service<BackgroundSearchRssFeedService>()(
   "@bakarr/api/BackgroundSearchRssFeedService",
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const rssClient = yield* RssClient;
       const queueService = yield* BackgroundSearchQueueService;
       const mediaRepository = yield* MediaRepository;
@@ -220,15 +220,12 @@ export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSea
 
       return { processFeed } satisfies BackgroundSearchRssFeedServiceShape;
     }),
-    // RssClient + queue provided by ops feature layer.
-    dependencies: [
-      DownloadRepository.Default,
-      MediaRepository.Default,
-      QualityProfileRepository.Default,
-      ReleaseProfileRepository.Default,
-      RssFeedRepository.Default,
-    ],
   },
-) {}
+) {
+  static readonly layer = Layer.effect(
+    BackgroundSearchRssFeedService,
+    BackgroundSearchRssFeedService.make,
+  );
+}
 
-export const BackgroundSearchRssFeedServiceLive = BackgroundSearchRssFeedService.Default;
+export const BackgroundSearchRssFeedServiceLive = BackgroundSearchRssFeedService.layer;

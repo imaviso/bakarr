@@ -1,4 +1,4 @@
-import { Terminal } from "@effect/platform";
+import { Terminal } from "effect";
 import { Effect, Logger } from "effect";
 
 import { assert, it } from "@effect/vitest";
@@ -15,15 +15,17 @@ it.effect("announceBootstrapCredentials logs a fallback message when terminal di
       password: "secret-pass",
       username: "demo",
     }).pipe(
-      Effect.provideService(Terminal.Terminal, {
-        columns: Effect.succeed(80),
-        display: () => Effect.die(new Error("tty write failed")),
-        isTTY: Effect.succeed(true),
-        readInput: Effect.dieMessage("unused"),
-        readLine: Effect.dieMessage("unused"),
-        rows: Effect.succeed(24),
-      }),
-      Effect.provide(Logger.replace(Logger.defaultLogger, logger)),
+      Effect.provideService(
+        Terminal.Terminal,
+        Terminal.make({
+          columns: Effect.succeed(80),
+          display: () => Effect.die(new Error("tty write failed")),
+          readInput: Effect.die(new Error("unused")),
+          readLine: Effect.die(new Error("unused")),
+          rows: Effect.succeed(24),
+        }),
+      ),
+      Effect.provide(Logger.layer([logger])),
     );
 
     assert.deepStrictEqual(

@@ -1,4 +1,4 @@
-import { DateTime, Effect } from "effect";
+import { Context, DateTime, Effect, Layer } from "effect";
 
 import { DatabaseError } from "@/db/database.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
@@ -175,12 +175,17 @@ const makeMediaQueryService = Effect.fn("MediaQueryService.make")(function* () {
   return service;
 });
 
-export class MediaQueryService extends Effect.Service<MediaQueryService>()(
+export class MediaQueryService extends Context.Service<MediaQueryService>()(
   "@bakarr/api/MediaQueryService",
-  {
-    dependencies: [MediaRepository.Default, SeasonalMediaCacheRepository.Default],
-    effect: makeMediaQueryService(),
-  },
-) {}
+  { make: makeMediaQueryService() },
+) {
+  static readonly layerWithoutDependencies = Layer.effect(
+    MediaQueryService,
+    MediaQueryService.make,
+  );
+  static readonly layer = MediaQueryService.layerWithoutDependencies.pipe(
+    Layer.provide([MediaRepository.layer, SeasonalMediaCacheRepository.layer]),
+  );
+}
 
-export const MediaQueryServiceLive = MediaQueryService.Default;
+export const MediaQueryServiceLive = MediaQueryService.layer;

@@ -27,7 +27,7 @@ import {
   StoredDataError,
 } from "@/features/errors.ts";
 
-const CommonRouteErrorSchema = Schema.Union(
+const CommonRouteErrorSchema = Schema.Union([
   AuthErrorSchema,
   DatabaseError,
   DomainConflictError,
@@ -41,7 +41,7 @@ const CommonRouteErrorSchema = Schema.Union(
   StoredDataError,
   TokenHasherError,
   WorkerTimeoutError,
-);
+]);
 
 const serviceUnavailable = fixedStatus("External service unavailable", 503);
 

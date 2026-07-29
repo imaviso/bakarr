@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-export class ImportFileError extends Schema.TaggedError<ImportFileError>()("ImportFileError", {
+export class ImportFileError extends Schema.TaggedErrorClass<ImportFileError>()("ImportFileError", {
   message: Schema.String,
-  cause: Schema.optional(Schema.Defect),
+  cause: Schema.optional(Schema.Defect()),
 }) {}

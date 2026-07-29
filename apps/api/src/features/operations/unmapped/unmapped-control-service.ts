@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import type { DatabaseError } from "@/db/database.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
@@ -225,16 +225,17 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
   } satisfies UnmappedControlServiceShape;
 });
 
-export class UnmappedControlService extends Effect.Service<UnmappedControlService>()(
+export class UnmappedControlService extends Context.Service<UnmappedControlService>()(
   "@bakarr/api/UnmappedControlService",
-  {
-    dependencies: [
-      MediaRepository.Default,
-      SystemLogRepository.Default,
-      SystemUnmappedRepository.Default,
-    ],
-    effect: makeUnmappedControlService(),
-  },
-) {}
+  { make: makeUnmappedControlService() },
+) {
+  static readonly layer = Layer.effect(UnmappedControlService, UnmappedControlService.make).pipe(
+    Layer.provide([
+      MediaRepository.layer,
+      SystemLogRepository.layer,
+      SystemUnmappedRepository.layer,
+    ]),
+  );
+}
 
-export const UnmappedControlServiceLive = UnmappedControlService.Default;
+export const UnmappedControlServiceLive = UnmappedControlService.layer;

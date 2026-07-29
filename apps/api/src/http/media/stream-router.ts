@@ -1,4 +1,4 @@
-import { HttpServerRequest, HttpServerResponse, HttpRouter } from "@effect/platform";
+import { HttpServerRequest, HttpServerResponse, HttpRouter } from "effect/unstable/http";
 import { Effect } from "effect";
 
 import { MediaStreamService } from "@/features/media/stream/media-stream-service.ts";
@@ -14,8 +14,9 @@ import {
   routeResponse,
 } from "@/http/shared/router-helpers.ts";
 
-export const mediaStreamRouter = HttpRouter.empty.pipe(
-  HttpRouter.get(
+export const mediaStreamRoutes = [
+  HttpRouter.route(
+    "GET",
     "/stream/:id/:unitNumber",
     routeResponse(
       Effect.gen(function* () {
@@ -73,7 +74,7 @@ export const mediaStreamRouter = HttpRouter.empty.pipe(
       Effect.succeed,
     ),
   ),
-);
+];
 
 function inlineContentDisposition(fileName: string) {
   const asciiOnly = fileName.replace(/[^\x20-\x7E]/g, "_");

@@ -13,9 +13,7 @@ it.effect("tryDatabase retries SQLITE_BUSY failures until success", () =>
       Effect.suspend(() => {
         attempts += 1;
 
-        return attempts < 3
-          ? Effect.fail(new Error("database is locked"))
-          : Effect.succeed("ok");
+        return attempts < 3 ? Effect.fail(new Error("database is locked")) : Effect.succeed("ok");
       }),
     ).pipe(Effect.forkChild);
 

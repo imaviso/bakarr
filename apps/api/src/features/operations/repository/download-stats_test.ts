@@ -1,10 +1,9 @@
 import { assert, it } from "@effect/vitest";
 import { Effect } from "effect";
 
-import * as schema from "@/db/schema.ts";
 import { media, downloads } from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { tryDatabase } from "@/infra/effect/db.ts";
 import {
   countQueuedDownloads,
   countInProgressDownloads,
@@ -14,11 +13,11 @@ import {
 } from "@/test/download-stats-helpers.ts";
 import { loadDownloadStatusStats } from "@/features/operations/repository/download-catalog-read.ts";
 
-it.scoped("countQueuedDownloads and countInProgressDownloads count by status", () =>
+it.effect("countQueuedDownloads and countInProgressDownloads count by status", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        yield* tryDatabasePromise("Failed to seed media for count test", () =>
+        yield* tryDatabase("Failed to seed media for count test", () =>
           db.insert(media).values([
             {
               addedAt: "2025-01-01T00:00:00.000Z",
@@ -48,7 +47,7 @@ it.scoped("countQueuedDownloads and countInProgressDownloads count by status", (
             },
           ]),
         );
-        yield* tryDatabasePromise("Failed to seed downloads", () =>
+        yield* tryDatabase("Failed to seed downloads", () =>
           db.insert(downloads).values([
             {
               addedAt: "2025-01-01T00:00:00.000Z",
@@ -131,15 +130,14 @@ it.scoped("countQueuedDownloads and countInProgressDownloads count by status", (
         assert.deepStrictEqual(yield* countInProgressDownloads(db), 1);
         assert.deepStrictEqual(yield* countCompletedDownloads(db), 1);
       }),
-    schema,
   }),
 );
 
-it.scoped("loadDownloadStatusStats aggregates download status counts", () =>
+it.effect("loadDownloadStatusStats aggregates download status counts", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        yield* tryDatabasePromise("Failed to seed media for count test", () =>
+        yield* tryDatabase("Failed to seed media for count test", () =>
           db.insert(media).values([
             {
               addedAt: "2025-01-01T00:00:00.000Z",
@@ -182,7 +180,7 @@ it.scoped("loadDownloadStatusStats aggregates download status counts", () =>
             },
           ]),
         );
-        yield* tryDatabasePromise("Failed to seed downloads", () =>
+        yield* tryDatabase("Failed to seed downloads", () =>
           db.insert(downloads).values([
             {
               addedAt: "2025-01-01T00:00:00.000Z",
@@ -268,15 +266,14 @@ it.scoped("loadDownloadStatusStats aggregates download status counts", () =>
         assert.deepStrictEqual(stats.failedDownloads, 1);
         assert.deepStrictEqual(stats.importedDownloads, 0);
       }),
-    schema,
   }),
 );
 
-it.scoped("countFailedDownloads and countImportedDownloads count by status", () =>
+it.effect("countFailedDownloads and countImportedDownloads count by status", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        yield* tryDatabasePromise("Failed to seed media for count test", () =>
+        yield* tryDatabase("Failed to seed media for count test", () =>
           db.insert(media).values({
             addedAt: "2025-01-01T00:00:00.000Z",
             unitCount: 12,
@@ -291,7 +288,7 @@ it.scoped("countFailedDownloads and countImportedDownloads count by status", () 
             titleRomaji: "X",
           }),
         );
-        yield* tryDatabasePromise("Failed to seed downloads", () =>
+        yield* tryDatabase("Failed to seed downloads", () =>
           db.insert(downloads).values([
             {
               addedAt: "2025-01-01T00:00:00.000Z",
@@ -348,6 +345,5 @@ it.scoped("countFailedDownloads and countImportedDownloads count by status", () 
         assert.deepStrictEqual(yield* countFailedDownloads(db), 1);
         assert.deepStrictEqual(yield* countImportedDownloads(db), 1);
       }),
-    schema,
   }),
 );

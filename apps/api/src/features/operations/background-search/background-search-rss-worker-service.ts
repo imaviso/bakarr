@@ -1,4 +1,4 @@
-import { Cause, Effect } from "effect";
+import { Cause, Context, Effect, Layer } from "effect";
 
 import { DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
@@ -25,12 +25,10 @@ const mapWorkerError = (error: unknown): BackgroundSearchRssWorkerError =>
         cause: error,
       });
 
-export class BackgroundSearchRssWorkerService extends Effect.Service<BackgroundSearchRssWorkerService>()(
+export class BackgroundSearchRssWorkerService extends Context.Service<BackgroundSearchRssWorkerService>()(
   "@bakarr/api/BackgroundSearchRssWorkerService",
   {
-    // Nested search services still incomplete Defaults — outer ops layer provides them.
-    dependencies: [BackgroundJobRepository.Default],
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const backgroundJobRepository = yield* BackgroundJobRepository;
       const eventBus = yield* EventBus;
       const progress = yield* OperationsProgress;
@@ -47,7 +45,7 @@ export class BackgroundSearchRssWorkerService extends Effect.Service<BackgroundS
           markFailed: backgroundJobRepository.markFailed("rss", cause, nowIso),
         }).pipe(
           Effect.catchTag("JobFailurePersistenceError", () => Effect.void),
-          Effect.zipRight(Effect.failCause(cause)),
+          Effect.andThen(Effect.failCause(cause)),
         );
 
       const runRssWorker = Effect.fn("BackgroundSearchRssWorkerService.runRssWorker")(function* () {
@@ -71,12 +69,20 @@ export class BackgroundSearchRssWorkerService extends Effect.Service<BackgroundS
             payload: { new_items: result.newItems, total_feeds: result.totalFeeds },
           });
           yield* progress.publishDownloadProgress().pipe(Effect.mapError(mapWorkerError));
-        }).pipe(Effect.catchAllCause(markFailureAndRethrowCause));
+        }).pipe(Effect.catchCause(markFailureAndRethrowCause));
       });
 
       return { runRssWorker } satisfies BackgroundSearchRssWorkerServiceShape;
     }),
   },
-) {}
+) {
+  static readonly layerWithoutDependencies = Layer.effect(
+    BackgroundSearchRssWorkerService,
+    BackgroundSearchRssWorkerService.make,
+  );
+  static readonly layer = BackgroundSearchRssWorkerService.layerWithoutDependencies.pipe(
+    Layer.provide([BackgroundJobRepository.layer]),
+  );
+}
 
-export const BackgroundSearchRssWorkerServiceLive = BackgroundSearchRssWorkerService.Default;
+export const BackgroundSearchRssWorkerServiceLive = BackgroundSearchRssWorkerService.layer;

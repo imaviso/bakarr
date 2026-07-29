@@ -1,4 +1,4 @@
-import { HttpRouter } from "@effect/platform";
+import { HttpRouter } from "effect/unstable/http";
 import { Effect, Schema } from "effect";
 import {
   AsyncOperationAcceptedSchema,
@@ -36,8 +36,9 @@ import { SearchUnitParamsSchema } from "@/http/shared/common-request-schemas.ts"
 
 const acceptedOperationResponse = schemaAcceptedResponse(AsyncOperationAcceptedSchema);
 
-export const searchRouter = HttpRouter.empty.pipe(
-  HttpRouter.get(
+export const searchRoutes = [
+  HttpRouter.route(
+    "GET",
     "/wanted/missing",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -48,7 +49,8 @@ export const searchRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(Schema.Array(MissingUnitSchema)),
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.route(
+    "GET",
     "/calendar",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -64,7 +66,8 @@ export const searchRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(Schema.Array(CalendarEventSchema)),
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.route(
+    "GET",
     "/search/releases",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -79,7 +82,8 @@ export const searchRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(SearchResultsSchema),
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.route(
+    "GET",
     "/search/units/:mediaId/:unitNumber",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -89,7 +93,8 @@ export const searchRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(Schema.Array(UnitSearchResultSchema)),
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.route(
+    "POST",
     "/search/download",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -106,7 +111,8 @@ export const searchRouter = HttpRouter.empty.pipe(
       successResponse,
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.route(
+    "POST",
     "/downloads/search-missing",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -141,4 +147,4 @@ export const searchRouter = HttpRouter.empty.pipe(
       acceptedOperationResponse,
     ),
   ),
-);
+];

@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { brandMediaId, type ImportResult } from "@packages/shared/index.ts";
 
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
@@ -49,10 +49,10 @@ export const writeLibraryImportFile = Effect.fn("Operations.writeLibraryImportFi
               message: "Failed to import episode files atomically",
             }),
         ),
-        Effect.either,
+        Effect.result,
       );
 
-    if (Either.isLeft(dbResult)) {
+    if (Result.isFailure(dbResult)) {
       const rollbackEffect =
         plan.importMode === "move"
           ? fs.rename(plan.destination, plan.resolvedSource)
@@ -70,7 +70,7 @@ export const writeLibraryImportFile = Effect.fn("Operations.writeLibraryImportFi
         ),
       );
 
-      return yield* dbResult.left;
+      return yield* dbResult.failure;
     }
 
     return {

@@ -25,9 +25,9 @@ export const resolveUnitFileEffect = Effect.fn("MediaFileRead.resolveUnitFileEff
       return new UnitFileUnmapped();
     }
 
-    const animeRootResult = yield* Effect.either(input.fs.realPath(animeRow.rootFolder));
+    const animeRootResult = yield* Effect.result(input.fs.realPath(animeRow.rootFolder));
 
-    if (animeRootResult._tag === "Left") {
+    if (animeRootResult._tag === "Failure") {
       yield* Effect.logDebug("Media root folder not accessible").pipe(
         Effect.annotateLogs({
           mediaId: input.mediaId,
@@ -40,9 +40,9 @@ export const resolveUnitFileEffect = Effect.fn("MediaFileRead.resolveUnitFileEff
       });
     }
 
-    const filePathResult = yield* Effect.either(input.fs.realPath(episodeRow.filePath));
+    const filePathResult = yield* Effect.result(input.fs.realPath(episodeRow.filePath));
 
-    if (filePathResult._tag === "Left") {
+    if (filePathResult._tag === "Failure") {
       yield* Effect.logDebug("MediaUnit file path not accessible").pipe(
         Effect.annotateLogs({
           mediaId: input.mediaId,
@@ -55,19 +55,19 @@ export const resolveUnitFileEffect = Effect.fn("MediaFileRead.resolveUnitFileEff
       });
     }
 
-    const filePath = filePathResult.right;
+    const filePath = filePathResult.success;
 
-    if (!isWithinPathRoot(filePath, animeRootResult.right)) {
+    if (!isWithinPathRoot(filePath, animeRootResult.success)) {
       yield* Effect.logDebug("MediaUnit file outside media root").pipe(
         Effect.annotateLogs({
           mediaId: input.mediaId,
           unitNumber: input.unitNumber,
           filePath,
-          animeRoot: animeRootResult.right,
+          animeRoot: animeRootResult.success,
         }),
       );
       return new UnitFileOutsideRoot({
-        animeRoot: animeRootResult.right,
+        animeRoot: animeRootResult.success,
         filePath,
       });
     }

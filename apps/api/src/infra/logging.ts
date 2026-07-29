@@ -67,36 +67,40 @@ export interface RuntimeLogSinkShape {
 
 export class RuntimeLogLevelState extends Context.Service<RuntimeLogLevelState>()(
   "@bakarr/api/RuntimeLogLevelState",
-  { make: Effect.gen(function* () {
+  {
+    make: Effect.gen(function* () {
       const ref = yield* Ref.make<LogLevel.LogLevel>("Info");
 
       return {
         get: Ref.get(ref),
         set: (level) => Ref.set(ref, parseRuntimeLogLevel(level)),
       } satisfies RuntimeLogLevelStateShape;
-    }) },
+    }),
+  },
 ) {
   static readonly layer = Layer.effect(RuntimeLogLevelState, RuntimeLogLevelState.make);
 }
 
 export class RuntimeLogSink extends Context.Service<RuntimeLogSink>()(
   "@bakarr/api/RuntimeLogSink",
-  { make: Effect.succeed({
-    write: ({ level, line }) =>
-      Effect.sync(() => {
-        if (LogLevel.isGreaterThanOrEqualTo(level, "Error")) {
-          console.error(line);
-          return;
-        }
+  {
+    make: Effect.succeed({
+      write: ({ level, line }) =>
+        Effect.sync(() => {
+          if (LogLevel.isGreaterThanOrEqualTo(level, "Error")) {
+            console.error(line);
+            return;
+          }
 
-        if (LogLevel.isGreaterThanOrEqualTo(level, "Warn")) {
-          console.warn(line);
-          return;
-        }
+          if (LogLevel.isGreaterThanOrEqualTo(level, "Warn")) {
+            console.warn(line);
+            return;
+          }
 
-        console.log(line);
-      }),
-  } satisfies RuntimeLogSinkShape) },
+          console.log(line);
+        }),
+    } satisfies RuntimeLogSinkShape),
+  },
 ) {
   static readonly layer = Layer.effect(RuntimeLogSink, RuntimeLogSink.make);
 }

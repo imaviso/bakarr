@@ -9,7 +9,7 @@ import { usePageTitle } from "~/domain/page-title";
 export const Route = createFileRoute("/_layout/logs")({
   validateSearch: parseLogsSearch,
   loader: ({ context: { queryClient }, location }) => {
-    const search = parseLogsSearch(location.search as Record<string, unknown>);
+    const search = parseLogsSearch(location.search);
 
     const level = search["level"] || undefined;
     const eventType = search["eventType"] || undefined;

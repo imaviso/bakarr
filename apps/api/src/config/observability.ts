@@ -62,7 +62,10 @@ export function makeDefaultObservabilityConfig(appVersion: string) {
   });
 }
 
-export class ObservabilityConfig extends Context.Service<ObservabilityConfig, ObservabilityConfigShape>()("@bakarr/api/ObservabilityConfig") {
+export class ObservabilityConfig extends Context.Service<
+  ObservabilityConfig,
+  ObservabilityConfigShape
+>()("@bakarr/api/ObservabilityConfig") {
   static Live = ObservabilityConfig.layerWithOverrides();
 
   static layer = ObservabilityConfig.Live;

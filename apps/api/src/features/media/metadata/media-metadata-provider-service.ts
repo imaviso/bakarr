@@ -1,4 +1,4 @@
-import { Effect, Option } from "effect";
+import { Context, Effect, Layer, Option } from "effect";
 
 import type { MediaKind } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
@@ -170,14 +170,17 @@ const makeMediaMetadataProviderService = Effect.fn("MediaMetadataProviderService
   },
 );
 
-export class MediaMetadataProviderService extends Effect.Service<MediaMetadataProviderService>()(
+export class MediaMetadataProviderService extends Context.Service<MediaMetadataProviderService>()(
   "@bakarr/api/MediaMetadataProviderService",
-  {
-    effect: makeMediaMetadataProviderService(),
-  },
-) {}
+  { make: makeMediaMetadataProviderService() },
+) {
+  static readonly layer = Layer.effect(
+    MediaMetadataProviderService,
+    MediaMetadataProviderService.make,
+  );
+}
 
-export const MediaMetadataProviderServiceLive = MediaMetadataProviderService.Default;
+export const MediaMetadataProviderServiceLive = MediaMetadataProviderService.layer;
 
 const toFreshLookupResult = Effect.fn("MediaMetadataProviderService.toFreshLookupResult")(
   function* (
@@ -297,7 +300,7 @@ function optionalExternalMetadataLookup<A>(
   annotations: ExternalMetadataLookupAnnotations,
 ): Effect.Effect<Option.Option<A>> {
   return effect.pipe(
-    Effect.catchAll((error) =>
+    Effect.catch((error) =>
       Effect.logWarning(`${annotations.provider} lookup degraded`).pipe(
         Effect.annotateLogs({
           ...annotations,

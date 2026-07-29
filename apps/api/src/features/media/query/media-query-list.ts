@@ -70,7 +70,7 @@ export const listMediaEffect = Effect.fn("MediaQueryList.listMediaEffect")(funct
   const animeProgressRows: Media[] = [];
   for (let index = 0; index < animeRows.length; index++) {
     if (index > 0 && index % DTO_PROGRESS_YIELD_INTERVAL === 0) {
-      yield* Effect.yieldNow();
+      yield* Effect.yieldNow;
     }
 
     const row = animeRows[index];

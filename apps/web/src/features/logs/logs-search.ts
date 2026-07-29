@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import { Effect, Schema } from "effect";
 import {
   createDownloadEventsSearchDefaults,
   createDownloadEventsSearchSchema,
@@ -21,10 +21,18 @@ const baseEventsSchema = createDownloadEventsSearchSchema(
 
 const LogsSearchSchema = Schema.Struct({
   ...baseEventsSchema.fields,
-  endDate: Schema.optionalWith(Schema.String, { default: () => LOGS_FILTER_DEFAULTS.endDate }),
-  eventType: Schema.optionalWith(Schema.String, { default: () => LOGS_FILTER_DEFAULTS.eventType }),
-  level: Schema.optionalWith(Schema.String, { default: () => LOGS_FILTER_DEFAULTS.level }),
-  startDate: Schema.optionalWith(Schema.String, { default: () => LOGS_FILTER_DEFAULTS.startDate }),
+  endDate: Schema.String.pipe(
+    Schema.withDecodingDefaultType(Effect.succeed(LOGS_FILTER_DEFAULTS.endDate)),
+  ),
+  eventType: Schema.String.pipe(
+    Schema.withDecodingDefaultType(Effect.succeed(LOGS_FILTER_DEFAULTS.eventType)),
+  ),
+  level: Schema.String.pipe(
+    Schema.withDecodingDefaultType(Effect.succeed(LOGS_FILTER_DEFAULTS.level)),
+  ),
+  startDate: Schema.String.pipe(
+    Schema.withDecodingDefaultType(Effect.succeed(LOGS_FILTER_DEFAULTS.startDate)),
+  ),
 });
 
 export const logsSearchDefaults = {

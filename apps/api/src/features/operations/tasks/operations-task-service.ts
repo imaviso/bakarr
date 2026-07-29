@@ -1,4 +1,4 @@
-import { Effect, Option, Schema } from "effect";
+import { Context, Effect, Layer, Option, Schema } from "effect";
 
 import type {
   AsyncOperationAccepted,
@@ -78,7 +78,7 @@ export const decodeTaskPayload = Effect.fn("OperationsTaskService.decodeTaskPayl
   ): Effect.Effect<OperationTaskPayload | null, InfrastructureError> =>
     value === undefined || value === null || value.length === 0
       ? Effect.succeed(null)
-      : Schema.decodeUnknown(Schema.parseJson(OperationTaskPayloadSchema))(value).pipe(
+      : Schema.decodeUnknownEffect(Schema.fromJsonString(OperationTaskPayloadSchema))(value).pipe(
           Effect.mapError(
             (cause) =>
               new InfrastructureError({
@@ -93,7 +93,7 @@ export const encodeTaskPayload = Effect.fn("OperationsTaskService.encodeTaskPayl
   (payload: OperationTaskPayload | undefined): Effect.Effect<string, InfrastructureError> =>
     payload === undefined
       ? Effect.succeed("")
-      : Schema.encodeUnknown(Schema.parseJson(OperationTaskPayloadSchema))(payload).pipe(
+      : Schema.encodeUnknownEffect(Schema.fromJsonString(OperationTaskPayloadSchema))(payload).pipe(
           Effect.mapError(
             (cause) =>
               new InfrastructureError({
@@ -119,7 +119,7 @@ const toOperationsTask = Effect.fn("OperationsTaskService.toOperationsTask")(fun
   readonly payload: string | null;
 }) {
   const payload = yield* decodeTaskPayload(row.payload);
-  return yield* Schema.decodeUnknown(OperationTaskSchema)({
+  return yield* Schema.decodeUnknownEffect(OperationTaskSchema)({
     id: row.id,
     task_key: row.taskKey,
     status: row.status,
@@ -169,7 +169,7 @@ const makeOperationsTaskWriteService = Effect.fn("OperationsTaskWriteService.mak
       task_key: input.taskKey,
     };
 
-    const decodedAccepted = yield* Schema.decodeUnknown(AsyncOperationAcceptedSchema)(
+    const decodedAccepted = yield* Schema.decodeUnknownEffect(AsyncOperationAcceptedSchema)(
       accepted,
     ).pipe(
       Effect.mapError(
@@ -285,7 +285,7 @@ const makeOperationsTaskReadService = Effect.fn("OperationsTaskReadService.make"
     readonly offset?: number;
     readonly taskKey?: OperationsTaskKey;
   }) {
-    const query = yield* Schema.decodeUnknown(OperationsTaskQuery)(input ?? {}).pipe(
+    const query = yield* Schema.decodeUnknownEffect(OperationsTaskQuery)(input ?? {}).pipe(
       Effect.mapError(
         (cause) =>
           new InfrastructureError({
@@ -312,25 +312,35 @@ const makeOperationsTaskReadService = Effect.fn("OperationsTaskReadService.make"
   } satisfies OperationsTaskReadServiceShape;
 });
 
-export class OperationsTaskWriteService extends Effect.Service<OperationsTaskWriteService>()(
+export class OperationsTaskWriteService extends Context.Service<OperationsTaskWriteService>()(
   "@bakarr/api/OperationsTaskWriteService",
-  {
-    dependencies: [OperationsTaskRepository.Default],
-    effect: makeOperationsTaskWriteService(),
-  },
-) {}
+  { make: makeOperationsTaskWriteService() },
+) {
+  static readonly layerWithoutDependencies = Layer.effect(
+    OperationsTaskWriteService,
+    OperationsTaskWriteService.make,
+  );
+  static readonly layer = OperationsTaskWriteService.layerWithoutDependencies.pipe(
+    Layer.provide([OperationsTaskRepository.layer]),
+  );
+}
 
-export const OperationsTaskWriteServiceLive = OperationsTaskWriteService.Default;
+export const OperationsTaskWriteServiceLive = OperationsTaskWriteService.layer;
 
-export class OperationsTaskReadService extends Effect.Service<OperationsTaskReadService>()(
+export class OperationsTaskReadService extends Context.Service<OperationsTaskReadService>()(
   "@bakarr/api/OperationsTaskReadService",
-  {
-    dependencies: [OperationsTaskRepository.Default],
-    effect: makeOperationsTaskReadService(),
-  },
-) {}
+  { make: makeOperationsTaskReadService() },
+) {
+  static readonly layerWithoutDependencies = Layer.effect(
+    OperationsTaskReadService,
+    OperationsTaskReadService.make,
+  );
+  static readonly layer = OperationsTaskReadService.layerWithoutDependencies.pipe(
+    Layer.provide([OperationsTaskRepository.layer]),
+  );
+}
 
-export const OperationsTaskReadServiceLive = OperationsTaskReadService.Default;
+export const OperationsTaskReadServiceLive = OperationsTaskReadService.layer;
 
 export const decodeOperationsTaskQuery = Effect.fn(
   "OperationsTaskService.decodeOperationsTaskQuery",
@@ -340,12 +350,12 @@ export const decodeOperationsTaskQuery = Effect.fn(
   readonly offset?: number | undefined;
   readonly task_key?: string | undefined;
 }) {
-  const taskKeyOption = Option.fromNullable(input.task_key);
+  const taskKeyOption = Option.fromNullishOr(input.task_key);
 
   const decodedTaskKey = Option.isNone(taskKeyOption)
     ? Option.none<OperationsTaskKey>()
     : Option.some(
-        yield* Schema.decodeUnknown(OperationTaskKeySchema)(taskKeyOption.value).pipe(
+        yield* Schema.decodeUnknownEffect(OperationTaskKeySchema)(taskKeyOption.value).pipe(
           Effect.mapError(
             (cause) =>
               new InfrastructureError({

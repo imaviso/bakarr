@@ -1,5 +1,5 @@
 import { assert, it } from "@effect/vitest";
-import { Effect, Either, Option } from "effect";
+import { Effect, Result, Option } from "effect";
 
 import { makeDefaultAppConfig } from "@/config/schema.ts";
 import type { Config, QualityProfile } from "@packages/shared/index.ts";
@@ -547,11 +547,14 @@ it.effect("invalid quality profile size labels fail validation", () =>
     const result = yield* validateQualityProfileSizeLabels({
       ...baseProfile,
       min_size: "not-a-size",
-    }).pipe(Effect.either);
+    }).pipe(Effect.result);
 
-    assert.deepStrictEqual(Either.isLeft(result), true);
-    if (Either.isLeft(result)) {
-      assert.deepStrictEqual(result.left.message, "Invalid quality profile size label: not-a-size");
+    assert.deepStrictEqual(Result.isFailure(result), true);
+    if (Result.isFailure(result)) {
+      assert.deepStrictEqual(
+        result.failure.message,
+        "Invalid quality profile size label: not-a-size",
+      );
     }
   }),
 );
@@ -562,12 +565,12 @@ it.effect("quality profile min_size cannot exceed max_size", () =>
       ...baseProfile,
       max_size: "1 GiB",
       min_size: "2 GiB",
-    }).pipe(Effect.either);
+    }).pipe(Effect.result);
 
-    assert.deepStrictEqual(Either.isLeft(result), true);
-    if (Either.isLeft(result)) {
+    assert.deepStrictEqual(Result.isFailure(result), true);
+    if (Result.isFailure(result)) {
       assert.deepStrictEqual(
-        result.left.message,
+        result.failure.message,
         "Quality profile min_size cannot exceed max_size",
       );
     }

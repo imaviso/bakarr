@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 import { brandMediaId } from "@packages/shared/index.ts";
 
 import { DatabaseError } from "@/db/database.ts";
@@ -34,18 +34,10 @@ export interface DownloadTriggerServiceShape {
   >;
 }
 
-export class DownloadTriggerService extends Effect.Service<DownloadTriggerService>()(
+export class DownloadTriggerService extends Context.Service<DownloadTriggerService>()(
   "@bakarr/api/DownloadTriggerService",
   {
-    // Progress + torrent client provided by ops feature layer.
-    dependencies: [
-      DownloadRepository.Default,
-      DownloadTriggerCoordinator.Default,
-      EventBus.Default,
-      MediaRepository.Default,
-      SystemLogRepository.Default,
-    ],
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const triggerRepo = yield* DownloadRepository;
       const eventBus = yield* EventBus;
       const torrentClientService = yield* TorrentClientService;
@@ -136,6 +128,16 @@ export class DownloadTriggerService extends Effect.Service<DownloadTriggerServic
       } satisfies DownloadTriggerServiceShape;
     }),
   },
-) {}
+) {
+  static readonly layer = Layer.effect(DownloadTriggerService, DownloadTriggerService.make).pipe(
+    Layer.provide([
+      DownloadRepository.layer,
+      DownloadTriggerCoordinator.layer,
+      EventBus.layer,
+      MediaRepository.layer,
+      SystemLogRepository.layer,
+    ]),
+  );
+}
 
-export const DownloadTriggerServiceLive = DownloadTriggerService.Default;
+export const DownloadTriggerServiceLive = DownloadTriggerService.layer;

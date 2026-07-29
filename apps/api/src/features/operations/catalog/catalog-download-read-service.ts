@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import type { DatabaseError } from "@/db/database.ts";
 import {
@@ -32,10 +32,10 @@ export interface CatalogDownloadReadServiceShape {
   ) => Effect.Effect<DownloadEventCsvExportStreamShape, ReadError>;
 }
 
-export class CatalogDownloadReadService extends Effect.Service<CatalogDownloadReadService>()(
+export class CatalogDownloadReadService extends Context.Service<CatalogDownloadReadService>()(
   "@bakarr/api/CatalogDownloadReadService",
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const downloadRepository = yield* DownloadRepository;
       const nowIso = currentNowIso;
 
@@ -69,8 +69,12 @@ export class CatalogDownloadReadService extends Effect.Service<CatalogDownloadRe
         streamDownloadEventsExportJson,
       } satisfies CatalogDownloadReadServiceShape;
     }),
-    dependencies: [DownloadRepository.Default],
   },
-) {}
+) {
+  static readonly layer = Layer.effect(
+    CatalogDownloadReadService,
+    CatalogDownloadReadService.make,
+  ).pipe(Layer.provide([DownloadRepository.layer]));
+}
 
-export const CatalogDownloadReadServiceLive = CatalogDownloadReadService.Default;
+export const CatalogDownloadReadServiceLive = CatalogDownloadReadService.layer;

@@ -11,21 +11,20 @@ import {
 } from "@/features/operations/tasks/operations-task-service.ts";
 import { EventBusNoopLive } from "@/features/events/event-bus.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import * as schema from "@/db/schema.ts";
 import { OperationsTaskRepository } from "@/features/operations/repository/task-repository.ts";
 
 describe("OperationsTaskService", () => {
-  it.scoped("creates and fetches tasks", () =>
+  it.effect("creates and fetches tasks", () =>
     withSqliteTestDbEffect({
       run: (db) =>
         Effect.gen(function* () {
-          const databaseLayer = Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db));
-          const repositoryLayer = OperationsTaskRepository.DefaultWithoutDependencies.pipe(
+          const databaseLayer = Layer.succeed(AppDrizzleDatabase, db);
+          const repositoryLayer = OperationsTaskRepository.layerWithoutDependencies.pipe(
             Layer.provide(databaseLayer),
           );
           const serviceLayer = Layer.mergeAll(
-            OperationsTaskReadService.DefaultWithoutDependencies,
-            OperationsTaskWriteService.DefaultWithoutDependencies,
+            OperationsTaskReadService.layerWithoutDependencies,
+            OperationsTaskWriteService.layerWithoutDependencies,
           ).pipe(Layer.provide(Layer.mergeAll(repositoryLayer, EventBusNoopLive)));
 
           const accepted = yield* Effect.flatMap(OperationsTaskWriteService, (service) =>
@@ -53,7 +52,6 @@ describe("OperationsTaskService", () => {
           assert.deepStrictEqual(task.status, "queued");
           assert.deepStrictEqual(task.media_id, 11);
         }),
-      schema,
     }),
   );
 
@@ -110,8 +108,8 @@ describe("OperationsTaskService", () => {
     Effect.gen(function* () {
       const payload = { imported: 5, failed: 0 };
       const result = yield* encodeTaskPayload(payload);
-      const parsed = yield* Schema.decodeUnknown(
-        Schema.parseJson(Schema.Struct({ imported: Schema.Number, failed: Schema.Number })),
+      const parsed = yield* Schema.decodeUnknownEffect(
+        Schema.fromJsonString(Schema.Struct({ imported: Schema.Number, failed: Schema.Number })),
       )(result);
       assert.deepStrictEqual(parsed, payload);
     }),

@@ -1,10 +1,11 @@
-import { HttpServerRequest, HttpServerResponse } from "@effect/platform";
+import { HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
 import { Duration, Effect, Option } from "effect";
 import { LoginResponseSchema, type LoginResponse } from "@packages/shared/index.ts";
 
 import { AppConfig } from "@/config/schema.ts";
 import { AuthForbiddenError, AuthUnauthorizedError } from "@/features/auth/errors.ts";
 import { AuthSessionService } from "@/features/auth/session-service.ts";
+import { encodeSchemaJsonResponse } from "@/http/shared/router-helpers.ts";
 
 function extractApiKeyFromHeaders(headers: Readonly<Record<string, string | undefined>>) {
   const headerApiKey = headers["x-api-key"];
@@ -44,9 +45,9 @@ export const persistSessionResponse = Effect.fn("Http.persistSessionResponse")(f
   body: LoginResponse,
 ) {
   const config = yield* AppConfig;
-  const response = yield* HttpServerResponse.schemaJson(LoginResponseSchema)(body);
+  const response = yield* encodeSchemaJsonResponse(LoginResponseSchema, body);
 
-  return HttpServerResponse.unsafeSetCookie(response, config.sessionCookieName, token, {
+  return HttpServerResponse.setCookieUnsafe(response, config.sessionCookieName, token, {
     httpOnly: true,
     maxAge: Duration.days(config.sessionDurationDays),
     path: "/",

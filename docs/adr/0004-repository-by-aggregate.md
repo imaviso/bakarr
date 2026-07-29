@@ -52,9 +52,7 @@ call graph.
        dependencies: [AppDrizzleDatabase.Default],
        effect: Effect.gen(function* () {
          const db = yield* AppDrizzleDatabase;
-         return {
-           /* domain ops, R = never */
-         };
+         return {/* domain ops, R = never */};
        }),
      },
    ) {}

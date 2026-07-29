@@ -1,4 +1,4 @@
-import { CommandExecutor } from "@effect/platform";
+import { ChildProcessSpawner } from "effect/unstable/process";
 import { Layer } from "effect";
 
 import {
@@ -24,7 +24,7 @@ import { MediaProbeLive } from "@/infra/media/probe.ts";
 
 export type ApiLifecycleOptions = AppPlatformRuntimeOptions &
   AppExternalClientLayerOptions & {
-    readonly commandExecutorLayer?: Layer.Layer<CommandExecutor.CommandExecutor>;
+    readonly commandExecutorLayer?: Layer.Layer<ChildProcessSpawner.ChildProcessSpawner>;
   };
 
 export function makeApiLifecycleLayers(

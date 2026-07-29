@@ -15,10 +15,10 @@ export function qbitPasswordValue(config: QBitConfig): string {
   return Redacted.value(config.password);
 }
 
-export class QBitTorrentClientError extends Schema.TaggedError<QBitTorrentClientError>()(
+export class QBitTorrentClientError extends Schema.TaggedErrorClass<QBitTorrentClientError>()(
   "QBitTorrentClientError",
   {
-    cause: Schema.optional(Schema.Defect),
+    cause: Schema.optional(Schema.Defect()),
     message: Schema.String,
   },
 ) {}

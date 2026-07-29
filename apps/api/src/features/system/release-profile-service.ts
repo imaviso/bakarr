@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import {
@@ -72,12 +72,13 @@ const makeReleaseProfileService = Effect.fn("ReleaseProfileService.make")(functi
   };
 });
 
-export class ReleaseProfileService extends Effect.Service<ReleaseProfileService>()(
+export class ReleaseProfileService extends Context.Service<ReleaseProfileService>()(
   "@bakarr/api/ReleaseProfileService",
-  {
-    effect: makeReleaseProfileService(),
-    dependencies: [ReleaseProfileRepository.Default, SystemLogRepository.Default],
-  },
-) {}
+  { make: makeReleaseProfileService() },
+) {
+  static readonly layer = Layer.effect(ReleaseProfileService, ReleaseProfileService.make).pipe(
+    Layer.provide([ReleaseProfileRepository.layer, SystemLogRepository.layer]),
+  );
+}
 
-export const ReleaseProfileServiceLive = ReleaseProfileService.Default;
+export const ReleaseProfileServiceLive = ReleaseProfileService.layer;

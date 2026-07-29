@@ -8,12 +8,16 @@ import { makeUnmappedImportWorkflow } from "@/features/operations/unmapped/unmap
 import { assert, it } from "@effect/vitest";
 import { makeTestFileSystemEffect, writeTextFile } from "@/test/filesystem-test.ts";
 import { withSqliteRawClientEffect, withSqliteTestDbEffect } from "@/test/database-test.ts";
-import * as schema from "@/db/schema.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
-import { makeMediaRepository, makeMediaUnitRepository, makeSystemConfigRepository, makeSystemLogRepository } from "@/test/repository-factories.ts";
+import {
+  makeMediaRepository,
+  makeMediaUnitRepository,
+  makeSystemConfigRepository,
+  makeSystemLogRepository,
+} from "@/test/repository-factories.ts";
 import { getLibraryPathForMediaKind } from "@/features/media/shared/config-support.ts";
 
-it.scoped("unmapped import rolls back when a later insert fails", () =>
+it.effect("unmapped import rolls back when a later insert fails", () =>
   withSqliteTestDbEffect({
     run: (db, databaseFile) =>
       Effect.gen(function* () {
@@ -31,23 +35,19 @@ it.scoped("unmapped import rolls back when a later insert fails", () =>
         }));
         const encodedConfig = yield* encodeConfigCore(yield* toConfigCore(testConfig));
 
-        yield* Effect.tryPromise(() =>
-          appDb.insert(appConfig).values({
-            id: 1,
-            data: encodedConfig,
-            updatedAt: "2024-01-01T00:00:00.000Z",
-          }),
-        );
+        yield* appDb.insert(appConfig).values({
+          id: 1,
+          data: encodedConfig,
+          updatedAt: "2024-01-01T00:00:00.000Z",
+        });
 
-        yield* Effect.tryPromise(() =>
-          appDb.insert(media).values(
-            makeMediaRow({
-              id: 20,
-              profileName: "Default",
-              rootFolder: "/library/Old Show",
-              titleRomaji: "Old Show",
-            }),
-          ),
+        yield* appDb.insert(media).values(
+          makeMediaRow({
+            id: 20,
+            profileName: "Default",
+            rootFolder: "/library/Old Show",
+            titleRomaji: "Old Show",
+          }),
         );
 
         const importRoot = `${libraryRoot}/incoming`;
@@ -84,9 +84,7 @@ it.scoped("unmapped import rolls back when a later insert fails", () =>
 
         assert.deepStrictEqual(exit._tag, "Failure");
 
-        const [animeRow] = yield* Effect.tryPromise(() =>
-          appDb.select().from(media).where(eq(media.id, 20)).limit(1),
-        );
+        const [animeRow] = yield* appDb.select().from(media).where(eq(media.id, 20)).limit(1);
         assert.deepStrictEqual(animeRow !== undefined, true);
         if (!animeRow) {
           return;
@@ -94,12 +92,12 @@ it.scoped("unmapped import rolls back when a later insert fails", () =>
         assert.deepStrictEqual(animeRow.profileName, "Default");
         assert.deepStrictEqual(animeRow.rootFolder, "/library/Old Show");
 
-        const episodeRows = yield* Effect.tryPromise(() =>
-          appDb.select().from(mediaUnits).where(eq(mediaUnits.mediaId, 20)),
-        );
+        const episodeRows = yield* appDb
+          .select()
+          .from(mediaUnits)
+          .where(eq(mediaUnits.mediaId, 20));
         assert.deepStrictEqual(episodeRows.length, 0);
       }),
-    schema,
   }),
 );
 

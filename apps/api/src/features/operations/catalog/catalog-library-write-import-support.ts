@@ -50,12 +50,13 @@ export const importLibraryFiles = Effect.fn("Operations.importLibraryFiles")((
         mediaProbe,
         runtimeConfig,
         file,
-      }).pipe(Effect.either);
+      }).pipe(Effect.result);
 
-      if (planned._tag === "Left") {
+      if (planned._tag === "Failure") {
         failedFiles.push({
           source_path: file.source_path,
-          error: planned.left instanceof Error ? planned.left.message : String(planned.left),
+          error:
+            planned.failure instanceof Error ? planned.failure.message : String(planned.failure),
         });
         continue;
       }
@@ -63,17 +64,18 @@ export const importLibraryFiles = Effect.fn("Operations.importLibraryFiles")((
       const imported = yield* writeLibraryImportFile({
         mediaUnitRepository,
         fs,
-        plan: planned.right,
-      }).pipe(Effect.either);
-      if (imported._tag === "Left") {
+        plan: planned.success,
+      }).pipe(Effect.result);
+      if (imported._tag === "Failure") {
         failedFiles.push({
           source_path: file.source_path,
-          error: imported.left instanceof Error ? imported.left.message : String(imported.left),
+          error:
+            imported.failure instanceof Error ? imported.failure.message : String(imported.failure),
         });
         continue;
       }
 
-      importedFiles.push(imported.right);
+      importedFiles.push(imported.success);
     }
 
     yield* eventBus.publish({

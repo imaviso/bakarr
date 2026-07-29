@@ -6,7 +6,9 @@ import { Context, Effect, Layer, Schema } from "effect";
 import { AppConfig } from "@/config/schema.ts";
 import { isSqliteBusyLock, isSqliteUniqueConstraint } from "@/db/sqlite-errors.ts";
 
-export type AppDatabase = SQLiteNodeDrizzle.EffectSQLiteNodeDatabase;
+export type AppDatabase = SQLiteNodeDrizzle.EffectSQLiteNodeDatabase & {
+  readonly $client: SqlClient.SqlClient;
+};
 
 export class DatabaseError extends Schema.TaggedErrorClass<DatabaseError>()("DatabaseError", {
   cause: Schema.Defect(),
@@ -68,19 +70,25 @@ export const setAndVerifyPragmas = Effect.fn("Database.setAndVerifyPragmas")(fun
 
   if (journalModeValue.toLowerCase() !== "wal") {
     return yield* Effect.die(
-      new Error(`SQLite startup invariant failed: journal_mode expected wal but received ${journalModeValue || "<empty>"}`),
+      new Error(
+        `SQLite startup invariant failed: journal_mode expected wal but received ${journalModeValue || "<empty>"}`,
+      ),
     );
   }
 
   if (foreignKeysValue !== "1") {
     return yield* Effect.die(
-      new Error(`SQLite startup invariant failed: foreign_keys expected 1 but received ${foreignKeysValue || "<empty>"}`),
+      new Error(
+        `SQLite startup invariant failed: foreign_keys expected 1 but received ${foreignKeysValue || "<empty>"}`,
+      ),
     );
   }
 
   if (busyTimeoutValue !== String(SQLITE_BUSY_TIMEOUT_MS)) {
     return yield* Effect.die(
-      new Error(`SQLite startup invariant failed: busy_timeout expected ${SQLITE_BUSY_TIMEOUT_MS} but received ${busyTimeoutValue || "<empty>"}`),
+      new Error(
+        `SQLite startup invariant failed: busy_timeout expected ${SQLITE_BUSY_TIMEOUT_MS} but received ${busyTimeoutValue || "<empty>"}`,
+      ),
     );
   }
 
@@ -108,7 +116,8 @@ const makeAppDrizzleDatabase = Effect.fn("AppDrizzleDatabase.make")(function* ()
 
   yield* setAndVerifyPragmas(client);
 
-  return yield* SQLiteNodeDrizzle.makeWithDefaults();
+  // oxlint-disable-next-line no-unnecessary-type-assertion
+  return (yield* SQLiteNodeDrizzle.makeWithDefaults()) as AppDatabase;
 });
 
 export const DatabaseSqlClientLive = Layer.unwrap(
@@ -125,16 +134,19 @@ export class AppDrizzleDatabase extends Context.Service<AppDrizzleDatabase>()(
   "@bakarr/api/AppDrizzleDatabase",
   { make: makeAppDrizzleDatabase() },
 ) {
-  static readonly layer = Layer.effect(AppDrizzleDatabase, AppDrizzleDatabase.make).pipe(Layer.provide([DatabaseSqlClientLive]));
+  static readonly layer = Layer.effect(AppDrizzleDatabase, AppDrizzleDatabase.make).pipe(
+    Layer.provide([DatabaseSqlClientLive]),
+  );
 }
 
-export class AppSqlClient extends Context.Service<AppSqlClient>()(
-  "@bakarr/api/AppSqlClient",
-  { make: Effect.gen(function* () {
+export class AppSqlClient extends Context.Service<AppSqlClient>()("@bakarr/api/AppSqlClient", {
+  make: Effect.gen(function* () {
     return yield* SqlClient.SqlClient;
-  }) },
-) {
-  static readonly layer = Layer.effect(AppSqlClient, AppSqlClient.make).pipe(Layer.provide([DatabaseSqlClientLive]));
+  }),
+}) {
+  static readonly layer = Layer.effect(AppSqlClient, AppSqlClient.make).pipe(
+    Layer.provide([DatabaseSqlClientLive]),
+  );
 }
 
 export const DatabaseLayerLive = Layer.mergeAll(AppDrizzleDatabase.layer, AppSqlClient.layer);

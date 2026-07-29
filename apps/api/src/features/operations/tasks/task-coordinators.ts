@@ -1,4 +1,4 @@
-import { Effect, Exit, Scope } from "effect";
+import { Context, Effect, Exit, Layer, Scope, Semaphore } from "effect";
 
 import { makeSerializedFlagCoordinator } from "@/infra/effect/coalescing-serialized-flag-coordinator.ts";
 
@@ -11,7 +11,7 @@ export interface DownloadTriggerCoordinatorShape {
 const makeDownloadTriggerCoordinator = Effect.fn(
   "RuntimeCoordinator.makeDownloadTriggerCoordinator",
 )(function* () {
-  const semaphore = yield* Effect.makeSemaphore(1);
+  const semaphore = yield* Semaphore.make(1);
   const runExclusiveDownloadTrigger = Effect.fn(
     "DownloadTriggerCoordinator.runExclusiveDownloadTrigger",
   )(<A, E>(operation: Effect.Effect<A, E>) => semaphore.withPermits(1)(operation));
@@ -21,12 +21,14 @@ const makeDownloadTriggerCoordinator = Effect.fn(
   } satisfies DownloadTriggerCoordinatorShape;
 });
 
-export class DownloadTriggerCoordinator extends Effect.Service<DownloadTriggerCoordinator>()(
+export class DownloadTriggerCoordinator extends Context.Service<DownloadTriggerCoordinator>()(
   "@bakarr/api/DownloadTriggerCoordinator",
-  { effect: makeDownloadTriggerCoordinator() },
-) {}
+  { make: makeDownloadTriggerCoordinator() },
+) {
+  static readonly layer = Layer.effect(DownloadTriggerCoordinator, DownloadTriggerCoordinator.make);
+}
 
-export const DownloadTriggerCoordinatorLive = DownloadTriggerCoordinator.Default;
+export const DownloadTriggerCoordinatorLive = DownloadTriggerCoordinator.layer;
 
 export interface UnmappedScanCoordinatorShape {
   readonly completeUnmappedScan: () => Effect.Effect<void>;
@@ -102,9 +104,11 @@ const makeUnmappedScanCoordinator = Effect.fn("RuntimeCoordinator.makeUnmappedSc
   },
 );
 
-export class UnmappedScanCoordinator extends Effect.Service<UnmappedScanCoordinator>()(
+export class UnmappedScanCoordinator extends Context.Service<UnmappedScanCoordinator>()(
   "@bakarr/api/UnmappedScanCoordinator",
-  { scoped: makeUnmappedScanCoordinator() },
-) {}
+  { make: makeUnmappedScanCoordinator() },
+) {
+  static readonly layer = Layer.effect(UnmappedScanCoordinator, UnmappedScanCoordinator.make);
+}
 
-export const UnmappedScanCoordinatorLive = UnmappedScanCoordinator.Default;
+export const UnmappedScanCoordinatorLive = UnmappedScanCoordinator.layer;

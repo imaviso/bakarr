@@ -1,29 +1,32 @@
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 import { asc } from "drizzle-orm";
 
 import { AppDrizzleDatabase, type AppDatabase } from "@/db/database.ts";
 import { libraryRoots } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { tryDatabase } from "@/infra/effect/db.ts";
 
 export interface LibraryRootsRepositoryShape {
   readonly listLibraryRoots: () => ReturnType<typeof listLibraryRoots>;
 }
 
-export class LibraryRootsRepository extends Effect.Service<LibraryRootsRepository>()(
+export class LibraryRootsRepository extends Context.Service<LibraryRootsRepository>()(
   "@bakarr/api/LibraryRootsRepository",
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const db = yield* AppDrizzleDatabase;
       return makeLibraryRootsRepositoryShape(db);
     }),
-    dependencies: [AppDrizzleDatabase.Default],
   },
-) {}
+) {
+  static readonly layer = Layer.effect(LibraryRootsRepository, LibraryRootsRepository.make).pipe(
+    Layer.provide([AppDrizzleDatabase.layer]),
+  );
+}
 
 export const listLibraryRoots = Effect.fn("LibraryRootsRepository.listLibraryRoots")(function* (
   db: AppDatabase,
 ) {
-  const rows = yield* tryDatabasePromise("Failed to load library roots", () =>
+  const rows = yield* tryDatabase("Failed to load library roots", () =>
     db
       .select({
         id: libraryRoots.id,

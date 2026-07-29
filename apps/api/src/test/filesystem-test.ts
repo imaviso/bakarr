@@ -1,4 +1,4 @@
-import { FileSystem as PlatformFileSystem } from "@effect/platform";
+import { FileSystem as PlatformFileSystem } from "effect";
 import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem";
 import { Effect, Scope } from "effect";
 
@@ -26,7 +26,7 @@ export const makeNoopTestFileSystemWithOverridesEffect = Effect.fn(
   "Test.makeNoopTestFileSystemWithOverridesEffect",
 )(function* (overrides: Partial<FileSystemShape>) {
   const base = yield* makeNoopTestFileSystemEffect({});
-  return FileSystem.make(Object.assign({}, base, overrides));
+  return FileSystem.of(Object.assign({}, base, overrides));
 });
 
 export const withFileSystemSandboxEffect = Effect.fn("Test.withFileSystemSandboxEffect")(function* <
@@ -55,6 +55,6 @@ export function readTextFile(fs: FileSystemShape, path: string) {
 export function exists(fs: FileSystemShape, path: string) {
   return fs.stat(path).pipe(
     Effect.as(true),
-    Effect.catchAll(() => Effect.succeed(false)),
+    Effect.catch(() => Effect.succeed(false)),
   );
 }

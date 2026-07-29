@@ -1,4 +1,4 @@
-import { HttpRouter } from "@effect/platform";
+import { HttpRouter } from "effect/unstable/http";
 import { Effect, Schema } from "effect";
 import {
   AsyncOperationAcceptedSchema,
@@ -48,15 +48,17 @@ import {
 
 const acceptedOperationResponse = schemaAcceptedResponse(AsyncOperationAcceptedSchema);
 
-export const libraryRouter = HttpRouter.empty.pipe(
-  HttpRouter.get(
+export const libraryRoutes = [
+  HttpRouter.route(
+    "GET",
     "/library/unmapped",
     authedRouteResponse(
       Effect.flatMap(UnmappedScanService, (service) => service.getUnmappedFolders()),
       schemaJsonResponse(ScannerStateSchema),
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.route(
+    "GET",
     "/library/browse",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -72,7 +74,8 @@ export const libraryRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(BrowseResultSchema),
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.route(
+    "POST",
     "/library/unmapped/scan",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -94,7 +97,8 @@ export const libraryRouter = HttpRouter.empty.pipe(
       acceptedOperationResponse,
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.route(
+    "POST",
     "/library/unmapped/control",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -107,7 +111,8 @@ export const libraryRouter = HttpRouter.empty.pipe(
       successResponse,
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.route(
+    "POST",
     "/library/unmapped/control/bulk",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -120,7 +125,8 @@ export const libraryRouter = HttpRouter.empty.pipe(
       successResponse,
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.route(
+    "POST",
     "/library/unmapped/import",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -137,7 +143,8 @@ export const libraryRouter = HttpRouter.empty.pipe(
       successResponse,
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.route(
+    "POST",
     "/library/import/scan",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -153,7 +160,8 @@ export const libraryRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(ScanResultSchema),
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.route(
+    "POST",
     "/library/import/selection",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -174,7 +182,8 @@ export const libraryRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(ImportCandidateSelectionResultSchema),
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.route(
+    "POST",
     "/library/import",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -232,7 +241,8 @@ export const libraryRouter = HttpRouter.empty.pipe(
       acceptedOperationResponse,
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.route(
+    "GET",
     "/library/import/tasks",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -252,7 +262,8 @@ export const libraryRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(Schema.Array(OperationTaskSchema)),
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.route(
+    "GET",
     "/library/import/tasks/:taskId",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -270,4 +281,4 @@ export const libraryRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(OperationTaskSchema),
     ),
   ),
-);
+];

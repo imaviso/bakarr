@@ -1,18 +1,17 @@
 import { assert, it } from "@effect/vitest";
 import { Effect } from "effect";
 
-import * as schema from "@/db/schema.ts";
 import { qualityProfiles } from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { tryDatabase } from "@/infra/effect/db.ts";
 import { qualityProfileExistsEffect } from "@/features/media/shared/profile-support.ts";
 import { makeQualityProfileRepository } from "@/test/repository-factories.ts";
 
-it.scoped("qualityProfileExistsEffect returns true for existing profile", () =>
+it.effect("qualityProfileExistsEffect returns true for existing profile", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        yield* tryDatabasePromise("Failed to seed quality profile 'HD'", () =>
+        yield* tryDatabase("Failed to seed quality profile 'HD'", () =>
           db.insert(qualityProfiles).values({
             allowedQualities: "[]",
             cutoff: "1080p",
@@ -26,11 +25,10 @@ it.scoped("qualityProfileExistsEffect returns true for existing profile", () =>
         const exists = yield* qualityProfileExistsEffect(makeQualityProfileRepository(db), "HD");
         assert.deepStrictEqual(exists, true);
       }),
-    schema,
   }),
 );
 
-it.scoped("qualityProfileExistsEffect returns false for non-existent profile", () =>
+it.effect("qualityProfileExistsEffect returns false for non-existent profile", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -40,15 +38,14 @@ it.scoped("qualityProfileExistsEffect returns false for non-existent profile", (
         );
         assert.deepStrictEqual(exists, false);
       }),
-    schema,
   }),
 );
 
-it.scoped("qualityProfileExistsEffect is case sensitive", () =>
+it.effect("qualityProfileExistsEffect is case sensitive", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        yield* tryDatabasePromise("Failed to seed quality profile 'Default'", () =>
+        yield* tryDatabase("Failed to seed quality profile 'Default'", () =>
           db.insert(qualityProfiles).values({
             allowedQualities: "[]",
             cutoff: "1080p",
@@ -65,6 +62,5 @@ it.scoped("qualityProfileExistsEffect is case sensitive", () =>
         );
         assert.deepStrictEqual(exists, false);
       }),
-    schema,
   }),
 );

@@ -1,4 +1,4 @@
-import { Effect, Ref } from "effect";
+import { Context, Effect, Layer, Ref } from "effect";
 
 import { DatabaseError } from "@/db/database.ts";
 import { BackgroundSearchRssFeedService } from "@/features/operations/background-search/background-search-rss-feed-service.ts";
@@ -15,10 +15,10 @@ export interface SearchBackgroundRssServiceShape {
   >;
 }
 
-export class SearchBackgroundRssService extends Effect.Service<SearchBackgroundRssService>()(
+export class SearchBackgroundRssService extends Context.Service<SearchBackgroundRssService>()(
   "@bakarr/api/SearchBackgroundRssService",
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const progress = yield* OperationsProgress;
       const rssFeedService = yield* BackgroundSearchRssFeedService;
       const rssFeedRepository = yield* RssFeedRepository;
@@ -61,7 +61,7 @@ export class SearchBackgroundRssService extends Effect.Service<SearchBackgroundR
                   cause: error,
                 }),
           ),
-          Effect.catchAllDefect((defect) =>
+          Effect.catchDefect((defect) =>
             Effect.fail(
               new InfrastructureError({
                 message: "Failed to run RSS check",
@@ -74,8 +74,12 @@ export class SearchBackgroundRssService extends Effect.Service<SearchBackgroundR
 
       return { runRssCheck } satisfies SearchBackgroundRssServiceShape;
     }),
-    dependencies: [RssFeedRepository.Default],
   },
-) {}
+) {
+  static readonly layer = Layer.effect(
+    SearchBackgroundRssService,
+    SearchBackgroundRssService.make,
+  ).pipe(Layer.provide([RssFeedRepository.layer]));
+}
 
-export const SearchBackgroundRssServiceLive = SearchBackgroundRssService.Default;
+export const SearchBackgroundRssServiceLive = SearchBackgroundRssService.layer;

@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import { AppConfig } from "@/config/schema.ts";
 import { DatabaseError } from "@/db/database.ts";
@@ -49,10 +49,10 @@ const makeSystemBootstrapService = Effect.fn("SystemBootstrapService.make")(func
     const storedConfig = yield* systemConfigRepository.loadSystemConfigRow();
 
     if (storedConfig) {
-      const decoded = yield* decodeConfigCore(storedConfig.data).pipe(Effect.either);
+      const decoded = yield* decodeConfigCore(storedConfig.data).pipe(Effect.result);
 
-      if (decoded._tag === "Right") {
-        yield* applyRuntimeLogLevelFromConfig(runtimeLogLevelState, decoded.right);
+      if (decoded._tag === "Success") {
+        yield* applyRuntimeLogLevelFromConfig(runtimeLogLevelState, decoded.success);
       }
     }
   });
@@ -60,12 +60,13 @@ const makeSystemBootstrapService = Effect.fn("SystemBootstrapService.make")(func
   return { ensureInitialized };
 });
 
-export class SystemBootstrapService extends Effect.Service<SystemBootstrapService>()(
+export class SystemBootstrapService extends Context.Service<SystemBootstrapService>()(
   "@bakarr/api/SystemBootstrapService",
-  {
-    dependencies: [SystemConfigRepository.Default],
-    effect: makeSystemBootstrapService(),
-  },
-) {}
+  { make: makeSystemBootstrapService() },
+) {
+  static readonly layer = Layer.effect(SystemBootstrapService, SystemBootstrapService.make).pipe(
+    Layer.provide([SystemConfigRepository.layer]),
+  );
+}
 
-export const SystemBootstrapServiceLive = SystemBootstrapService.Default;
+export const SystemBootstrapServiceLive = SystemBootstrapService.layer;

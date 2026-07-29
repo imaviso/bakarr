@@ -3,7 +3,7 @@ import { Schema } from "effect";
 import type { RouteErrorResponse } from "@/http/shared/route-types.ts";
 
 export function mapTaggedRouteError<A extends { readonly _tag: string }, I, R>(
-  schema: Schema.Schema<A, I, R>,
+  schema: Schema.Codec<A, I, R, R>,
   map: (error: A) => RouteErrorResponse,
 ) {
   const isRouteError = Schema.is(schema);

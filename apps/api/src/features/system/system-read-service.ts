@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import { AppRuntime } from "@/app/runtime.ts";
 import { AppConfig } from "@/config/schema.ts";
@@ -165,12 +165,13 @@ const makeSystemReadService = Effect.fn("SystemReadService.make")(function* () {
   return service;
 });
 
-export class SystemReadService extends Effect.Service<SystemReadService>()(
+export class SystemReadService extends Context.Service<SystemReadService>()(
   "@bakarr/api/SystemReadService",
-  {
-    dependencies: [DownloadRepository.Default, SystemStatsRepository.Default],
-    effect: makeSystemReadService(),
-  },
-) {}
+  { make: makeSystemReadService() },
+) {
+  static readonly layer = Layer.effect(SystemReadService, SystemReadService.make).pipe(
+    Layer.provide([DownloadRepository.layer, SystemStatsRepository.layer]),
+  );
+}
 
-export const SystemReadServiceLive = SystemReadService.Default;
+export const SystemReadServiceLive = SystemReadService.layer;

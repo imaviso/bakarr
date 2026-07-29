@@ -1,5 +1,5 @@
-import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
-import { Cause, Effect, Option, ParseResult, Schema } from "effect";
+import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
+import { Cause, Effect, Option, Schema } from "effect";
 
 import { mapRouteError } from "@/http/shared/route-errors/index.ts";
 import { requireViewerFromHttpRequest } from "@/http/shared/route-auth.ts";
@@ -10,13 +10,13 @@ import {
 import type { RouteErrorResponse } from "@/http/shared/route-types.ts";
 import type { AuthUser } from "@packages/shared/index.ts";
 
-export const decodeJsonBodyWithLabel = <A, I, R>(schema: Schema.Schema<A, I, R>, label: string) =>
+export const decodeJsonBodyWithLabel = <A, I, R>(schema: Schema.Codec<A, I, R, R>, label: string) =>
   HttpServerRequest.schemaBodyJson(schema).pipe(
     Effect.mapError((error) => mapLabeledBodyDecodeError(label, error)),
   );
 
 export const decodeOptionalJsonBodyWithLabel = <A, I, R>(
-  schema: Schema.Schema<A, I, R>,
+  schema: Schema.Codec<A, I, R, R>,
   label: string,
   emptyBodyValue: A,
 ) =>
@@ -28,13 +28,13 @@ export const decodeOptionalJsonBodyWithLabel = <A, I, R>(
       return emptyBodyValue;
     }
 
-    return yield* Schema.decode(Schema.parseJson(schema))(text).pipe(
+    return yield* Schema.decodeEffect(Schema.fromJsonString(schema))(text).pipe(
       Effect.mapError((error) => mapLabeledBodyDecodeError(label, error)),
     );
   });
 
 export const decodePathParams = <A, I extends Readonly<Record<string, string | undefined>>, R>(
-  schema: Schema.Schema<A, I, R>,
+  schema: Schema.Codec<A, I, R, R>,
 ) =>
   HttpRouter.schemaPathParams(schema).pipe(
     Effect.mapError((error) => mapParseValidationError(error, "Invalid path parameters")),
@@ -45,7 +45,7 @@ export const decodeQuery = <
   I extends Readonly<Record<string, string | ReadonlyArray<string> | undefined>>,
   R,
 >(
-  schema: Schema.Schema<A, I, R>,
+  schema: Schema.Codec<A, I, R, R>,
 ) =>
   HttpServerRequest.schemaSearchParams(schema).pipe(
     Effect.mapError((error) => mapParseValidationError(error, "Invalid query parameters")),
@@ -56,7 +56,7 @@ export const decodeQueryWithLabel = <
   I extends Readonly<Record<string, string | ReadonlyArray<string> | undefined>>,
   R,
 >(
-  schema: Schema.Schema<A, I, R>,
+  schema: Schema.Codec<A, I, R, R>,
   label: string,
 ) =>
   HttpServerRequest.schemaSearchParams(schema).pipe(
@@ -76,9 +76,9 @@ export const routeResponse = <A, E, R, E2, R2>(
 
     return yield* effect.pipe(
       Effect.flatMap(onSuccess),
-      Effect.catchAllCause((cause) =>
+      Effect.catchCause((cause) =>
         Effect.gen(function* () {
-          const failure = Cause.failureOption(cause);
+          const failure = Cause.findErrorOption(cause);
           const mapped = Option.match(failure, {
             onNone: (): RouteErrorResponse => ({ message: "Unexpected server error", status: 500 }),
             onSome: (error) => mapError(error),
@@ -112,8 +112,24 @@ export const routeResponse = <A, E, R, E2, R2>(
     );
   });
 
-export const schemaJsonResponse = <A, I, R>(schema: Schema.Schema<A, I, R>) =>
-  HttpServerResponse.schemaJson(schema);
+/**
+ * Encodes a value to JSON like v3's `HttpServerResponse.schemaJson` did:
+ * `undefined`-valued optional fields are omitted from the wire, not emitted as
+ * `null` (v4's `schemaJson` uses `toCodecJson`, which maps undefined → null).
+ */
+export const encodeSchemaJsonResponse = <A, I, R>(
+  schema: Schema.Codec<A, I, R, R>,
+  value: A,
+  options?: Parameters<typeof HttpServerResponse.json>[1],
+) =>
+  Effect.flatMap(Schema.encodeEffect(schema)(value), (encoded) =>
+    HttpServerResponse.json(encoded, options),
+  );
+
+export const schemaJsonResponse = <A, I, R>(schema: Schema.Codec<A, I, R, R>) => {
+  const encodeResponse = (value: A) => encodeSchemaJsonResponse(schema, value);
+  return encodeResponse;
+};
 
 const SuccessResponseSchema = Schema.Struct({
   data: Schema.Null,
@@ -121,12 +137,13 @@ const SuccessResponseSchema = Schema.Struct({
 });
 
 export const successResponse = () =>
-  HttpServerResponse.schemaJson(SuccessResponseSchema)({ data: null, success: true });
+  encodeSchemaJsonResponse(SuccessResponseSchema, { data: null, success: true });
 
 export const schemaAcceptedResponse =
-  <A, I, R>(schema: Schema.Schema<A, I, R>) =>
+  <A, I, R>(schema: Schema.Codec<A, I, R, R>) =>
   (value: A) =>
-    HttpServerResponse.schemaJson(Schema.Struct({ data: schema, success: Schema.Literal(true) }))(
+    encodeSchemaJsonResponse(
+      Schema.Struct({ data: schema, success: Schema.Literal(true) }),
       { data: value, success: true },
       { status: 202 },
     );
@@ -140,10 +157,10 @@ export const authedRouteResponse = <A, E, R, E2, R2>(
   effect: Effect.Effect<A, E, R>,
   onSuccess: (value: A) => Effect.Effect<HttpServerResponse.HttpServerResponse, E2, R2>,
   mapError: (error: unknown) => RouteErrorResponse = mapRouteError,
-) => routeResponse(Effect.zipRight(requireViewerFromHttpRequest(), effect), onSuccess, mapError);
+) => routeResponse(Effect.andThen(requireViewerFromHttpRequest(), effect), onSuccess, mapError);
 
 function mapParseValidationError(error: unknown, message: string) {
-  if (!ParseResult.isParseError(error)) {
+  if (!Schema.isSchemaError(error)) {
     return error;
   }
 
@@ -159,7 +176,12 @@ function mapLabeledBodyDecodeError(label: string, error: unknown) {
     typeof error === "object" &&
     error !== null &&
     "_tag" in error &&
-    error._tag === "RequestError"
+    error._tag === "HttpServerError" &&
+    "reason" in error &&
+    typeof error.reason === "object" &&
+    error.reason !== null &&
+    "_tag" in error.reason &&
+    error.reason._tag === "RequestParseError"
   ) {
     return RequestValidationError.make({
       cause: error,
@@ -168,7 +190,7 @@ function mapLabeledBodyDecodeError(label: string, error: unknown) {
     });
   }
 
-  if (ParseResult.isParseError(error)) {
+  if (Schema.isSchemaError(error)) {
     return RequestValidationError.make({
       cause: error,
       message: formatValidationErrorMessage(`Invalid request body for ${label}`, error),

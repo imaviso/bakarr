@@ -7,17 +7,16 @@ export interface RandomServiceShape {
   readonly randomUuid: Effect.Effect<string>;
 }
 
-export class RandomService extends Context.Service<RandomService>()(
-  "@bakarr/lib/RandomService",
-  { make: Effect.sync(() => ({
+export class RandomService extends Context.Service<RandomService>()("@bakarr/lib/RandomService", {
+  make: Effect.sync(() => ({
     randomBytes: Effect.fn("RandomService.randomBytes")(
       (bytes: number): Effect.Effect<Uint8Array> => Effect.sync(() => randomBytesSync(bytes)),
     ),
     randomUuid: Effect.fn("RandomService.randomUuid")(
       (): Effect.Effect<string> => Effect.sync(() => crypto.randomUUID()),
     )(),
-  })) },
-) {
+  })),
+}) {
   static readonly layer = Layer.effect(RandomService, RandomService.make);
 }
 

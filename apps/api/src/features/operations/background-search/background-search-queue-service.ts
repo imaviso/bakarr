@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import type { DownloadAction } from "@packages/shared/index.ts";
 import { DatabaseError } from "@/db/database.ts";
@@ -41,10 +41,10 @@ export interface BackgroundSearchQueueServiceShape {
   >;
 }
 
-export class BackgroundSearchQueueService extends Effect.Service<BackgroundSearchQueueService>()(
+export class BackgroundSearchQueueService extends Context.Service<BackgroundSearchQueueService>()(
   "@bakarr/api/BackgroundSearchQueueService",
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const downloadRepository = yield* DownloadRepository;
       const torrentClientService = yield* TorrentClientService;
       const downloadTriggerCoordinator = yield* DownloadTriggerCoordinator;
@@ -176,8 +176,12 @@ export class BackgroundSearchQueueService extends Effect.Service<BackgroundSearc
         queueReleaseIfEligible,
       } satisfies BackgroundSearchQueueServiceShape;
     }),
-    dependencies: [DownloadRepository.Default, DownloadTriggerCoordinator.Default],
   },
-) {}
+) {
+  static readonly layer = Layer.effect(
+    BackgroundSearchQueueService,
+    BackgroundSearchQueueService.make,
+  ).pipe(Layer.provide([DownloadRepository.layer, DownloadTriggerCoordinator.layer]));
+}
 
-export const BackgroundSearchQueueServiceLive = BackgroundSearchQueueService.Default;
+export const BackgroundSearchQueueServiceLive = BackgroundSearchQueueService.layer;

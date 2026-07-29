@@ -1,5 +1,5 @@
-import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
-import { Effect, Option, Schema } from "effect";
+import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/unstable/http";
+import { Context, Effect, Layer, Option, Schema } from "effect";
 import type { MediaSeason } from "@packages/shared/index.ts";
 
 import {
@@ -79,7 +79,7 @@ const makeJikanClient = Effect.fn("JikanClient.make")(function* () {
     );
 
     const entries = yield* Effect.forEach(payload.data, (entry) =>
-      Schema.decodeUnknown(JikanSeasonalEntryFromDetailSchema)(entry).pipe(
+      Schema.decodeUnknownEffect(JikanSeasonalEntryFromDetailSchema)(entry).pipe(
         Effect.mapError((cause) =>
           ExternalCallError.make({
             cause,
@@ -96,11 +96,13 @@ const makeJikanClient = Effect.fn("JikanClient.make")(function* () {
   return { getAnimeByMalId, getSeasonalAnime } satisfies JikanClientShape;
 });
 
-export class JikanClient extends Effect.Service<JikanClient>()("@bakarr/api/JikanClient", {
-  effect: makeJikanClient(),
-}) {}
+export class JikanClient extends Context.Service<JikanClient>()("@bakarr/api/JikanClient", {
+  make: makeJikanClient(),
+}) {
+  static readonly layer = Layer.effect(JikanClient, JikanClient.make);
+}
 
-export const JikanClientLive = JikanClient.Default;
+export const JikanClientLive = JikanClient.layer;
 
 const fetchDetail = Effect.fn("JikanClient.fetchDetail")(function* (
   client: HttpClient.HttpClient,
@@ -161,7 +163,7 @@ const decodeFullDetail = Effect.fn("JikanClient.decodeFullDetail")(function* (
     ),
   );
 
-  const normalized = yield* Schema.decodeUnknown(JikanNormalizedAnimeFromFullSchema)(
+  const normalized = yield* Schema.decodeUnknownEffect(JikanNormalizedAnimeFromFullSchema)(
     payload.data,
   ).pipe(
     Effect.mapError((cause) =>
@@ -191,7 +193,7 @@ const decodeBasicDetail = Effect.fn("JikanClient.decodeBasicDetail")(function* (
     ),
   );
 
-  const normalized = yield* Schema.decodeUnknown(JikanNormalizedAnimeFromDetailSchema)(
+  const normalized = yield* Schema.decodeUnknownEffect(JikanNormalizedAnimeFromDetailSchema)(
     payload.data,
   ).pipe(
     Effect.mapError((cause) =>

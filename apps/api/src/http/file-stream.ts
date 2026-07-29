@@ -1,4 +1,4 @@
-import { Chunk, Effect, Option, Stream } from "effect";
+import { Effect, Option, Stream } from "effect";
 
 import { FileSystemError, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 
@@ -22,9 +22,9 @@ export function createFileChunkStream(
   const range = options?.range;
   const initialRange = range ?? { end: Number.MAX_SAFE_INTEGER, start: 0 };
 
-  return Stream.unwrapScoped(
+  return Stream.unwrap(
     Effect.map(fs.openFile(path, { read: true }), (file) =>
-      Stream.paginateChunkEffect(initialRange, (current) =>
+      Stream.paginate(initialRange, (current) =>
         Effect.gen(function* () {
           const requestedLength = range
             ? Math.min(chunkSize, current.end - current.start + 1)
@@ -35,14 +35,14 @@ export function createFileChunkStream(
           const read = yield* file.read(buffer);
 
           if (Option.isNone(read) || read.value === 0) {
-            return [Chunk.empty<Uint8Array>(), Option.none<FileByteRange>()] as const;
+            return [[], Option.none<FileByteRange>()] as const;
           }
 
           const bytesRead = read.value;
           const nextStart = current.start + bytesRead;
 
           return [
-            Chunk.of(buffer.subarray(0, bytesRead)),
+            [buffer.subarray(0, bytesRead)],
             range && nextStart > current.end
               ? Option.none<FileByteRange>()
               : Option.some({

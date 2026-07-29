@@ -3,7 +3,6 @@ import { Cause, Effect, Exit, Schema } from "effect";
 import { brandMediaId } from "@packages/shared/index.ts";
 import { ConfigCoreSchema } from "@/features/system/config-schema.ts";
 
-import * as schema from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import {
   media,
@@ -14,7 +13,7 @@ import {
   systemLogs,
   unmappedFolderMatches,
 } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { tryDatabase } from "@/infra/effect/db.ts";
 import { StoredUnmappedFolderCorruptError } from "@/features/system/errors.ts";
 import { encodeConfigCore } from "@/features/system/config-codec.ts";
 import { makeDefaultConfig } from "@/features/system/defaults.ts";
@@ -45,7 +44,7 @@ import {
   upsertUnmappedFolderMatchRows,
 } from "@/features/system/repository/unmapped-repository.ts";
 
-it.scoped("system repository config helpers insert and upsert config rows", () =>
+it.effect("system repository config helpers insert and upsert config rows", () =>
   withSqliteTestDbEffect({
     run: (db, databaseFile) =>
       Effect.gen(function* () {
@@ -58,7 +57,7 @@ it.scoped("system repository config helpers insert and upsert config rows", () =
         const initial = yield* loadSystemConfigRow(db);
         assert.deepStrictEqual(initial?.id, 1);
 
-        const updatedEncoded = yield* Schema.encode(ConfigCoreSchema)(
+        const updatedEncoded = yield* Schema.encodeEffect(ConfigCoreSchema)(
           makeDefaultConfig(databaseFile),
         );
         const updatedData = yield* encodeConfigCore({
@@ -75,15 +74,14 @@ it.scoped("system repository config helpers insert and upsert config rows", () =
         assert.deepStrictEqual(updated?.updatedAt, "2024-01-02T00:00:00.000Z");
         assert.deepStrictEqual(updated?.data.includes("/new-library/anime"), true);
       }),
-    schema,
   }),
 );
 
-it.scoped("system repository query helpers filter logs and count system state", () =>
+it.effect("system repository query helpers filter logs and count system state", () =>
   withSqliteTestDbEffect({
     run: (db, _databaseFile) =>
       Effect.gen(function* () {
-        yield* tryDatabasePromise("Failed to seed systemLogs for repository test", () =>
+        yield* tryDatabase("Failed to seed systemLogs for repository test", () =>
           db.insert(systemLogs).values([
             {
               eventType: "library.scan.started",
@@ -108,7 +106,7 @@ it.scoped("system repository query helpers filter logs and count system state", 
             },
           ]),
         );
-        yield* tryDatabasePromise("Failed to seed media for repository test", () =>
+        yield* tryDatabase("Failed to seed media for repository test", () =>
           db.insert(media).values({
             id: 20,
             malId: null,
@@ -137,7 +135,7 @@ it.scoped("system repository query helpers filter logs and count system state", 
             releaseProfileIds: "[]",
           }),
         );
-        yield* tryDatabasePromise("Failed to seed mediaUnits for query helpers test", () =>
+        yield* tryDatabase("Failed to seed mediaUnits for query helpers test", () =>
           db.insert(mediaUnits).values([
             {
               mediaId: 20,
@@ -157,7 +155,7 @@ it.scoped("system repository query helpers filter logs and count system state", 
             },
           ]),
         );
-        yield* tryDatabasePromise("Failed to seed downloads for query helpers test", () =>
+        yield* tryDatabase("Failed to seed downloads for query helpers test", () =>
           db.insert(downloads).values([
             {
               mediaId: 20,
@@ -301,7 +299,7 @@ it.scoped("system repository query helpers filter logs and count system state", 
             },
           ]),
         );
-        yield* tryDatabasePromise("Failed to seed backgroundJobs for query helpers test", () =>
+        yield* tryDatabase("Failed to seed backgroundJobs for query helpers test", () =>
           db.insert(backgroundJobs).values([
             {
               name: "rss",
@@ -323,7 +321,7 @@ it.scoped("system repository query helpers filter logs and count system state", 
             },
           ]),
         );
-        yield* tryDatabasePromise("Failed to seed rssFeed for query helpers test", () =>
+        yield* tryDatabase("Failed to seed rssFeed for query helpers test", () =>
           db.insert(rssFeeds).values({
             mediaId: 20,
             url: "https://example.com/rss.xml",
@@ -371,15 +369,14 @@ it.scoped("system repository query helpers filter logs and count system state", 
         assert.deepStrictEqual(yield* countDownloadedEpisodeRows(db), 1);
         assert.deepStrictEqual(yield* countRssFeedRows(db), 1);
       }),
-    schema,
   }),
 );
 
-it.scoped("countUpToDateMediaRows counts monitored media with complete downloads", () =>
+it.effect("countUpToDateMediaRows counts monitored media with complete downloads", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        yield* tryDatabasePromise("Failed to seed media for countUpToDateMediaRows test", () =>
+        yield* tryDatabase("Failed to seed media for countUpToDateMediaRows test", () =>
           db.insert(media).values([
             {
               addedAt: "2024-01-01T00:00:00.000Z",
@@ -470,7 +467,7 @@ it.scoped("countUpToDateMediaRows counts monitored media with complete downloads
             },
           ]),
         );
-        yield* tryDatabasePromise("Failed to seed mediaUnits for countUpToDateMediaRows test", () =>
+        yield* tryDatabase("Failed to seed mediaUnits for countUpToDateMediaRows test", () =>
           db.insert(mediaUnits).values([
             {
               mediaId: 21,
@@ -589,11 +586,10 @@ it.scoped("countUpToDateMediaRows counts monitored media with complete downloads
 
         assert.deepStrictEqual(yield* countUpToDateMediaRows(db), 1);
       }),
-    schema,
   }),
 );
 
-it.scoped("unmapped folder match rows persist cached suggestions", () =>
+it.effect("unmapped folder match rows persist cached suggestions", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -631,15 +627,14 @@ it.scoped("unmapped folder match rows persist cached suggestions", () =>
         assert.deepStrictEqual(decoded.suggested_matches[0]?.id, 20);
         assert.deepStrictEqual(decoded.suggested_matches[0]?.match_confidence, 0.97);
       }),
-    schema,
   }),
 );
 
-it.scoped("decodeUnmappedFolderMatchRow fails for corrupt stored suggestions", () =>
+it.effect("decodeUnmappedFolderMatchRow fails for corrupt stored suggestions", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        yield* tryDatabasePromise("Failed to seed corrupt unmappedFolderMatch", () =>
+        yield* tryDatabase("Failed to seed corrupt unmappedFolderMatch", () =>
           db.insert(unmappedFolderMatches).values({
             lastMatchedAt: null,
             lastMatchError: null,
@@ -658,18 +653,17 @@ it.scoped("decodeUnmappedFolderMatchRow fails for corrupt stored suggestions", (
 
         assert.deepStrictEqual(Exit.isFailure(exit), true);
         if (Exit.isFailure(exit)) {
-          const failure = Cause.failureOption(exit.cause);
+          const failure = Cause.findErrorOption(exit.cause);
           assert.deepStrictEqual(failure._tag, "Some");
           if (failure._tag === "Some") {
             assert.deepStrictEqual(failure.value instanceof StoredUnmappedFolderCorruptError, true);
           }
         }
       }),
-    schema,
   }),
 );
 
-it.scoped("loadUnmappedFolderMatchRow returns a row by folder path", () =>
+it.effect("loadUnmappedFolderMatchRow returns a row by folder path", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -692,6 +686,5 @@ it.scoped("loadUnmappedFolderMatchRow returns a row by folder path", () =>
         assert.deepStrictEqual(row?.path, "/library/Naruto Archive");
         assert.deepStrictEqual(row?.matchStatus, "paused");
       }),
-    schema,
   }),
 );

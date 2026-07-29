@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import * as Cron from "effect/Cron";
 
 import type { Config } from "@packages/shared/index.ts";
@@ -21,7 +21,7 @@ export const validateConfigUpdate = Effect.fn("ConfigUpdateValidation.validateCo
     if (input.nextConfig.scheduler.enabled && cronExpression) {
       const parsedCron = Cron.parse(cronExpression);
 
-      if (Either.isLeft(parsedCron)) {
+      if (Result.isFailure(parsedCron)) {
         return yield* new ConfigValidationError({
           message: "Invalid scheduler cron expression",
         });

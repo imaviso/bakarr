@@ -1,9 +1,9 @@
 import { eq } from "drizzle-orm";
-import { Effect, Option } from "effect";
+import { Context, Effect, Layer, Option } from "effect";
 
 import { AppDrizzleDatabase, type AppDatabase, type DatabaseError } from "@/db/database.ts";
 import { appConfig, qualityProfiles } from "@/db/schema.ts";
-import { queryFirst, tryDatabasePromise } from "@/infra/effect/db.ts";
+import { queryFirst, tryDatabase } from "@/infra/effect/db.ts";
 
 export interface SystemConfigRepositoryShape {
   readonly loadSystemConfigRow: () => Effect.Effect<
@@ -26,16 +26,23 @@ export interface SystemConfigRepositoryShape {
   ) => Effect.Effect<void, DatabaseError>;
 }
 
-export class SystemConfigRepository extends Effect.Service<SystemConfigRepository>()(
+export class SystemConfigRepository extends Context.Service<SystemConfigRepository>()(
   "@bakarr/api/SystemConfigRepository",
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const db = yield* AppDrizzleDatabase;
       return makeSystemConfigRepositoryShape(db);
     }),
-    dependencies: [AppDrizzleDatabase.Default],
   },
-) {}
+) {
+  static readonly layerWithoutDependencies = Layer.effect(
+    SystemConfigRepository,
+    SystemConfigRepository.make,
+  );
+  static readonly layer = SystemConfigRepository.layerWithoutDependencies.pipe(
+    Layer.provide([AppDrizzleDatabase.layer]),
+  );
+}
 
 export const loadSystemConfigRow = Effect.fn("SystemConfigRepository.loadSystemConfigRow")(
   function* (db: AppDatabase) {
@@ -49,15 +56,13 @@ export const loadSystemConfigRow = Effect.fn("SystemConfigRepository.loadSystemC
 
 export const insertSystemConfigRow = Effect.fn("SystemConfigRepository.insertSystemConfigRow")(
   function* (db: AppDatabase, input: typeof appConfig.$inferInsert) {
-    yield* tryDatabasePromise("Failed to insert system config", () =>
-      db.insert(appConfig).values(input),
-    );
+    yield* tryDatabase("Failed to insert system config", () => db.insert(appConfig).values(input));
   },
 );
 
 export const upsertSystemConfigRow = Effect.fn("SystemConfigRepository.upsertSystemConfigRow")(
   function* (db: AppDatabase, input: typeof appConfig.$inferInsert) {
-    yield* tryDatabasePromise("Failed to upsert system config", () =>
+    yield* tryDatabase("Failed to upsert system config", () =>
       db
         .insert(appConfig)
         .values(input)
@@ -76,22 +81,24 @@ export const updateSystemConfigAtomic = Effect.fn(
   coreInput: typeof appConfig.$inferInsert,
   profileRows: readonly (typeof qualityProfiles.$inferInsert)[],
 ) {
-  yield* tryDatabasePromise("Failed to update system config", () =>
-    db.transaction(async (tx) => {
-      await tx
-        .insert(appConfig)
-        .values(coreInput)
-        .onConflictDoUpdate({
-          target: appConfig.id,
-          set: { data: coreInput.data, updatedAt: coreInput.updatedAt },
-        });
+  yield* tryDatabase("Failed to update system config", () =>
+    db.transaction((tx) =>
+      Effect.gen(function* () {
+        yield* tx
+          .insert(appConfig)
+          .values(coreInput)
+          .onConflictDoUpdate({
+            target: appConfig.id,
+            set: { data: coreInput.data, updatedAt: coreInput.updatedAt },
+          });
 
-      await tx.delete(qualityProfiles);
+        yield* tx.delete(qualityProfiles);
 
-      if (profileRows.length > 0) {
-        await tx.insert(qualityProfiles).values([...profileRows]);
-      }
-    }),
+        if (profileRows.length > 0) {
+          yield* tx.insert(qualityProfiles).values([...profileRows]);
+        }
+      }),
+    ),
   );
 });
 
@@ -102,20 +109,22 @@ export const ensureBootstrapSystemState = Effect.fn(
   coreInput: typeof appConfig.$inferInsert,
   profileRows: readonly (typeof qualityProfiles.$inferInsert)[],
 ) {
-  yield* tryDatabasePromise("Failed to ensure bootstrap system state", () =>
-    db.transaction(async (tx) => {
-      const configRows = await tx.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1);
+  yield* tryDatabase("Failed to ensure bootstrap system state", () =>
+    db.transaction((tx) =>
+      Effect.gen(function* () {
+        const configRows = yield* tx.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1);
 
-      if (configRows.length === 0) {
-        await tx.insert(appConfig).values(coreInput);
-      }
+        if (configRows.length === 0) {
+          yield* tx.insert(appConfig).values(coreInput);
+        }
 
-      const existingProfiles = await tx.select().from(qualityProfiles).limit(1);
+        const existingProfiles = yield* tx.select().from(qualityProfiles).limit(1);
 
-      if (existingProfiles.length === 0) {
-        await tx.insert(qualityProfiles).values([...profileRows]);
-      }
-    }),
+        if (existingProfiles.length === 0) {
+          yield* tx.insert(qualityProfiles).values([...profileRows]);
+        }
+      }),
+    ),
   );
 });
 
@@ -130,4 +139,3 @@ export function makeSystemConfigRepositoryShape(db: AppDatabase): SystemConfigRe
     upsertSystemConfigRow: (input) => upsertSystemConfigRow(db, input),
   } satisfies SystemConfigRepositoryShape;
 }
-

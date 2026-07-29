@@ -1,4 +1,4 @@
-import { HttpServerResponse } from "@effect/platform";
+import { HttpServerResponse } from "effect/unstable/http";
 import { Effect } from "effect";
 
 import { createEmbeddedWebResponse, type EmbeddedWebAsset } from "@/http/shared/embedded-web.ts";

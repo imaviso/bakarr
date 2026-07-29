@@ -32,7 +32,7 @@ compatibility layers.
 - Build one main effect or launched layer, then provide the full app layer once
   near the entrypoint.
 - Put teardown in scoped effects or layers with `Effect.acquireRelease(...)`,
-  `Layer.scoped(...)`, or `Layer.launch(...)`.
+  `Layer.effect(...)`, or `Layer.launch(...)`.
 - Avoid `Effect.runPromise(...)` and `Effect.runSync(...)` in normal app wiring;
   keep them for scripts, tests, or very small adapter edges.
 
@@ -76,14 +76,15 @@ compatibility layers.
 
 ## Services And Layers
 
-- Prefer `Effect.Service<Self>()` as the default for service contracts —
-  bundles Tag, Layer, and optional accessors in one declaration (since Effect
-  3.9.0).
-- Use `Context.Tag("@bakarr/ServiceName")<...>()` only when you need a
-  standalone contract (no bundled layer) or multiple different layer
+- Prefer `Context.Service<Self>()` as the default for service contracts —
+  bundles Tag, Layer, and optional accessors in one declaration.
+  Use the `{ make: Effect }` option to include a factory and auto-generated
+  `layerWithoutDependencies`.
+- Use `Context.Service<Self, Shape>()(key)` (no `make`) only when you need a
+  standalone contract with no bundled factory or multiple different layer
   implementations for the same tag.
-- Use `Context.GenericTag(...)` only for simple local tags where a class adds no
-  value.
+- Use `Context.Reference(key, { defaultValue })` for simple local service keys
+  with a default value where a class adds no value.
 - Keep service members `readonly`.
 - Keep service APIs small and usually `R = never`; satisfy dependencies while
   building the layer, not in every method signature.
@@ -91,9 +92,13 @@ compatibility layers.
   services against those contracts.
 - Name canonical layers clearly: `Live`, `Default`, `Test`, `layer`,
   `testLayer`, and similar.
-- Compose with `Layer.effect(...)`, `Layer.succeed(...)`, `Layer.sync(...)`,
-  `Layer.scoped(...)`, `Layer.unwrapEffect(...)`, `Layer.provide(...)`, and
+- `Layer.effect(...)`, `Layer.succeed(...)`, `Layer.sync(...)`,
+  `Layer.unwrap(...)`, `Layer.provide(...)`, and
   `Layer.provideMerge(...)`.
+
+  `Layer.effect` handles both plain and scoped acquisition in v4 (replaces
+  the old `Layer.scoped`).
+
 - If a parameterized or resourceful layer is reused, create it once and reuse
   the constant so memoization works.
 - Prefer a single `AppLayer` at the boundary over scattered
@@ -102,7 +107,7 @@ compatibility layers.
 ## Resources And Concurrency
 
 - Model lifecycles with `Effect.acquireRelease(...)`, `Scope`, and
-  `Layer.scoped(...)`.
+  `Layer.effect(...)`.
 - Use `Fiber`, `Queue`, `PubSub`, `Semaphore`, and `Ref` only when they make the
   coordination model simpler.
 - Keep raw platform and Promise APIs at the edge.
@@ -114,7 +119,7 @@ compatibility layers.
 
 - Use `Schema.Class` for named domain records and entities.
 - Use `Schema.TaggedClass` plus `Schema.Union` for closed success variants.
-- Use `Schema.TaggedError` for failures that cross boundaries.
+- Use `Schema.TaggedErrorClass` for failures that cross boundaries.
 - Use `Schema.Struct` for small local payloads or derived shapes.
 - Derive related payload schemas from canonical ones when possible instead of
   duplicating fields.
@@ -128,18 +133,18 @@ compatibility layers.
 
 ## Branching And Errors
 
-- Prefer `Option` and `Either` over nullable return values or throwing for
+- Prefer `Option` and `Result` over nullable return values or throwing for
   expected domain outcomes.
 - Use typed errors only when callers can recover or branch meaningfully.
 - Prefer `Data.TaggedError` for internal domain failures that do not need schema
   transport.
-- Prefer `Schema.TaggedError` for errors that cross boundaries, appear in APIs,
-  or need encoding, decoding, or annotations.
-- Preserve original external causes in a `cause` field; use `Schema.Defect`
+- Prefer `Schema.TaggedErrorClass` for errors that cross boundaries, appear
+  in APIs, or need encoding, decoding, or annotations.
+- Preserve original external causes in a `cause` field; use `Schema.Defect()`
   inside schema-backed errors when the defect itself must cross a boundary.
 - Recover specifically with `Effect.catchTag(...)` or `Effect.catchTags(...)`.
 - When debugging or translating failures, preserve full causes with
-  `Effect.sandbox(...)`, `Effect.tapErrorCause(...)`, or `Cause` utilities
+  `Effect.sandbox(...)`, `Effect.tapCause(...)`, or `Cause` utilities
   instead of flattening them too early.
 - Use `Match.valueTags(...)` for closed `_tag` unions when exhaustiveness helps.
 - Avoid broad recovery that hides domain intent.
@@ -149,8 +154,8 @@ compatibility layers.
 
 ## Config
 
-- Model config declaratively with `Schema.Config(...)` or `Config.all(...)`.
-- Prefer `Schema.Config("KEY", Schema)` when validation can be expressed as a
+- Model config declaratively with `Config.schema(...)` or `Config.all(...)`.
+- Prefer `Config.schema(schema, "KEY")` when validation can be expressed as a
   schema.
 - Expose config through a service or layer instead of reading environment values
   inside business logic.
@@ -240,11 +245,10 @@ compatibility layers.
 ### Service Tag And Layer
 
 ```ts
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 
-class Users extends Effect.Service<Users>()("@bakarr/Users", {
-  accessors: true,
-  effect: Effect.gen(function* () {
+class Users extends Context.Service<Users>()("@bakarr/Users", {
+  make: Effect.gen(function* () {
     const client = yield* ExternalClient;
     return {
       findById: Effect.fn("Users.findById")(function* (id: UserId) {
@@ -252,14 +256,17 @@ class Users extends Effect.Service<Users>()("@bakarr/Users", {
       }),
     };
   }),
-  dependencies: [ExternalClient.Default],
-}) {}
+}) {
+  static readonly Default = Layer.effect(Users, Users.make).pipe(
+    Layer.provide([ExternalClient.Default]),
+  );
+}
 ```
 
 ### Schema Record And Derived Payload
 
 ```ts
-import * as Schema from "effect/Schema";
+import { Schema, Struct } from "effect";
 
 class User extends Schema.Class<User>("User")({
   id: UserId,
@@ -267,7 +274,7 @@ class User extends Schema.Class<User>("User")({
   createdAt: Schema.DateTimeUtc,
 }) {}
 
-const CreateUser = Schema.Struct(User.fields).pipe(Schema.omit("id", "createdAt"));
+const CreateUser = Schema.Struct(User.fields).pipe(Struct.omit(["id", "createdAt"]));
 ```
 
 ### Tagged Error Split
@@ -280,32 +287,32 @@ class UserNotFound extends Data.TaggedError("UserNotFound")<{
   readonly userId: UserId;
 }> {}
 
-class ApiDecodeError extends Schema.TaggedError<ApiDecodeError>()("ApiDecodeError", {
+class ApiDecodeError extends Schema.TaggedErrorClass<ApiDecodeError>()("ApiDecodeError", {
   message: Schema.String,
-  cause: Schema.optional(Schema.Defect),
+  cause: Schema.optional(Schema.Defect()),
 }) {}
 ```
 
 ### Config Service
 
 ```ts
-import { Context, Effect, Layer, Redacted, Schema } from "effect";
+import { Config, Context, Effect, Layer, Redacted, Schema } from "effect";
 
 const Port = Schema.NumberFromString.pipe(Schema.int(), Schema.between(1, 65535));
 
-class ApiConfig extends Context.Tag("@bakarr/ApiConfig")<
+class ApiConfig extends Context.Service<
   ApiConfig,
   {
     readonly port: number;
     readonly databaseUrl: Redacted.Redacted;
   }
->() {
+>()("@bakarr/ApiConfig") {
   static readonly layer = Layer.effect(
     ApiConfig,
     Effect.gen(function* () {
-      const port = yield* Schema.Config("PORT", Port);
-      const databaseUrl = yield* Schema.Config("DATABASE_URL", Schema.Redacted(Schema.String));
-      return ApiConfig.of({ port, databaseUrl });
+      const port = yield* Config.schema(Port, "PORT");
+      const databaseUrl = yield* Config.schema(Schema.Redacted(Schema.String), "DATABASE_URL");
+      return { port, databaseUrl };
     }),
   );
 }
@@ -343,11 +350,12 @@ describe("job", () => {
 
 ## Representative Effect Repo References
 
-- Runtime boundary: `packages/sql-clickhouse/examples/basic.ts`
-- Node.js HTTP client service: `packages/platform-node/examples/http-client.ts`
-- Service ergonomics: `packages/effect/test/Effect/service.test.ts`
-- `Effect.fn` behavior: `packages/effect/test/Effect/fn.test.ts`
-- Config providers: `packages/platform-node/test/PlatformConfigProvider.test.ts`
-- Schema records and tagged classes: `packages/platform-node/test/HttpApi.test.ts`
+- Runtime boundary: `packages/platform-node/src/NodeRuntime.ts`
+- Node.js HTTP client: `packages/platform-node/test/NodeHttpClient.test.ts`
+- Service and layer ergonomics: `packages/effect/test/Layer.test.ts`
+- `Effect.fn` behavior: `packages/effect/test/Effect.test.ts`
+- Config providers: `packages/effect/test/Config.test.ts`
+- Schema classes and tagged errors: `packages/effect/test/Data.test.ts`
+- HttpApi patterns: `packages/effect/test/unstable/httpapi/HttpApi.test.ts`
 - Test helpers and `TestClock`: `packages/vitest/test/index.test.ts`
-- Span naming and attributes: `packages/workflow/src/Workflow.ts`
+- Span naming and attributes: `packages/effect/src/unstable/workflow/Workflow.ts`

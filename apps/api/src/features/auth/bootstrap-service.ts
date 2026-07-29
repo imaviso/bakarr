@@ -1,4 +1,4 @@
-import { Effect, Option } from "effect";
+import { Context, Effect, Layer, Option } from "effect";
 
 import { BootstrapConfig } from "@/config/schema.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
@@ -81,17 +81,18 @@ const makeAuthBootstrapService = Effect.fn("AuthBootstrapService.make")(function
   return { ensureBootstrapUser };
 });
 
-export class AuthBootstrapService extends Effect.Service<AuthBootstrapService>()(
+export class AuthBootstrapService extends Context.Service<AuthBootstrapService>()(
   "@bakarr/api/AuthBootstrapService",
-  {
-    dependencies: [
-      AuthUserRepository.Default,
-      PasswordCrypto.Default,
-      RandomService.Default,
-      TokenHasher.Default,
-    ],
-    effect: makeAuthBootstrapService(),
-  },
-) {}
+  { make: makeAuthBootstrapService() },
+) {
+  static readonly layer = Layer.effect(AuthBootstrapService, AuthBootstrapService.make).pipe(
+    Layer.provide([
+      AuthUserRepository.layer,
+      PasswordCrypto.layer,
+      RandomService.layer,
+      TokenHasher.layer,
+    ]),
+  );
+}
 
-export const AuthBootstrapServiceLive = AuthBootstrapService.Default;
+export const AuthBootstrapServiceLive = AuthBootstrapService.layer;

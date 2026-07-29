@@ -66,7 +66,7 @@ function toFilterStates(searchState: LogsSearchState): FilterState[] {
 }
 
 export function useLogsFilters(options: UseLogsFiltersOptions) {
-  const parsedSearch = parseLogsSearch(options.search as Record<string, unknown>);
+  const parsedSearch = parseLogsSearch(options.search);
   const filterStates = toFilterStates(parsedSearch);
 
   const logsParams: LogsFilterParams = {

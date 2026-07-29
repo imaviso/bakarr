@@ -91,7 +91,7 @@ it.effect("config codec round-trips config core without mutating arrays", () =>
 it.effect("config codec strips removed download preference fields from legacy config", () =>
   Effect.gen(function* () {
     const decoded = yield* decodeConfigCore(
-      yield* Schema.encode(Schema.parseJson(Schema.Unknown))({
+      yield* Schema.encodeEffect(Schema.fromJsonString(Schema.Unknown))({
         downloads: {
           create_media_folders: true,
           max_size_gb: 8,
@@ -235,7 +235,7 @@ it.effect("stored config row decoder fails with typed errors for missing and cor
     const missingExit = yield* Effect.exit(decodeStoredConfigRow(undefined));
     assert.deepStrictEqual(Exit.isFailure(missingExit), true);
     if (Exit.isFailure(missingExit)) {
-      const failure = Cause.failureOption(missingExit.cause);
+      const failure = Cause.findErrorOption(missingExit.cause);
       assert.deepStrictEqual(failure._tag, "Some");
       if (failure._tag === "Some") {
         assert.deepStrictEqual(failure.value._tag, "StoredConfigMissingError");
@@ -245,7 +245,7 @@ it.effect("stored config row decoder fails with typed errors for missing and cor
     const corruptExit = yield* Effect.exit(decodeStoredConfigRow({ data: "{not-json" }));
     assert.deepStrictEqual(Exit.isFailure(corruptExit), true);
     if (Exit.isFailure(corruptExit)) {
-      const failure = Cause.failureOption(corruptExit.cause);
+      const failure = Cause.findErrorOption(corruptExit.cause);
       assert.deepStrictEqual(failure._tag, "Some");
       if (failure._tag === "Some") {
         assert.deepStrictEqual(failure.value._tag, "StoredConfigCorruptError");

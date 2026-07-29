@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 
 import { brandMediaId, type Config } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
@@ -51,7 +51,7 @@ export const renameLibraryFiles = Effect.fn("Operations.renameLibraryFiles")((
               message: `Failed to rename file ${item.current_path}`,
             }),
         ),
-        Effect.zipRight(
+        Effect.andThen(
           mediaUnitRepository.updateUnitFilePaths(mediaId, unitNumbers, item.new_path).pipe(
             Effect.catchTag("DatabaseError", (error) =>
               fs.rename(item.new_path, item.current_path).pipe(
@@ -65,18 +65,20 @@ export const renameLibraryFiles = Effect.fn("Operations.renameLibraryFiles")((
                     Effect.asVoid,
                   ),
                 ),
-                Effect.zipRight(Effect.fail(error)),
+                Effect.andThen(Effect.fail(error)),
               ),
             ),
           ),
         ),
-        Effect.either,
+        Effect.result,
       );
 
-      if (Either.isRight(result)) {
+      if (Result.isSuccess(result)) {
         renamed += 1;
       } else {
-        failures.push(result.left instanceof Error ? result.left.message : String(result.left));
+        failures.push(
+          result.failure instanceof Error ? result.failure.message : String(result.failure),
+        );
       }
     }
 

@@ -20,16 +20,13 @@ import {
 const ExternalCallTestLayer = ExternalCallLive;
 
 function makeDnsLayer(mock: (name: string, type: "A" | "AAAA") => Promise<string[]>) {
-  return Layer.succeed(
-    DnsResolver,
-    DnsResolver.make({
-      resolve: (hostname, recordType) =>
-        Effect.tryPromise({
-          try: () => mock(hostname, recordType),
-          catch: (cause) => new DnsLookupError({ cause, hostname, recordType }),
-        }),
-    }),
-  );
+  return Layer.succeed(DnsResolver, {
+    resolve: (hostname, recordType) =>
+      Effect.tryPromise({
+        try: () => mock(hostname, recordType),
+        catch: (cause) => new DnsLookupError({ cause, hostname, recordType }),
+      }),
+  });
 }
 
 function makeNotFoundError() {
@@ -43,7 +40,7 @@ function rssLayer(
   execute: (url: string) => Effect.Effect<Response, unknown>,
   dnsMock: (name: string, type: "A" | "AAAA") => Promise<string[]>,
 ) {
-  const transport = RssTransport.make({
+  const transport: typeof RssTransport.Service = {
     execute: (target) =>
       execute(target.parsedUrl.href).pipe(
         Effect.mapError((cause) =>
@@ -71,7 +68,7 @@ function rssLayer(
           ),
         ),
       ),
-  });
+  };
 
   return RssClientLive.pipe(
     Layer.provide(
@@ -660,7 +657,7 @@ it.effect("RssClient fails when an RSS item is missing required release fields",
   }),
 );
 
-it.scoped("RssClient handles redirects manually when the transport returns 302 responses", () =>
+it.effect("RssClient handles redirects manually when the transport returns 302 responses", () =>
   Effect.gen(function* () {
     const calls: string[] = [];
 
@@ -674,27 +671,24 @@ it.scoped("RssClient handles redirects manually when the transport returns 302 r
               Layer.provide(
                 Layer.mergeAll(
                   ExternalCallTestLayer,
-                  Layer.succeed(
-                    RssTransport,
-                    RssTransport.make({
-                      execute: (target) => {
-                        calls.push(target.parsedUrl.href);
+                  Layer.succeed(RssTransport, {
+                    execute: (target) => {
+                      calls.push(target.parsedUrl.href);
 
-                        return Effect.succeed({
-                          body: new Uint8Array(),
-                          headers: new Headers(
-                            target.parsedUrl.href.includes("feeds.example")
-                              ? {
-                                  "content-type": "application/rss+xml",
-                                  location: "http://192.168.1.100/private.xml",
-                                }
-                              : { "content-type": "application/rss+xml" },
-                          ),
-                          status: target.parsedUrl.href.includes("feeds.example") ? 302 : 200,
-                        });
-                      },
-                    }),
-                  ),
+                      return Effect.succeed({
+                        body: new Uint8Array(),
+                        headers: new Headers(
+                          target.parsedUrl.href.includes("feeds.example")
+                            ? {
+                                "content-type": "application/rss+xml",
+                                location: "http://192.168.1.100/private.xml",
+                              }
+                            : { "content-type": "application/rss+xml" },
+                        ),
+                        status: target.parsedUrl.href.includes("feeds.example") ? 302 : 200,
+                      });
+                    },
+                  }),
                   makeDnsLayer(() => Promise.resolve(["93.184.216.34"])),
                 ),
               ),
@@ -729,7 +723,7 @@ function assertRssFailure(
 ) {
   assert.deepStrictEqual(Exit.isFailure(exit), true);
   if (Exit.isFailure(exit)) {
-    const failure = Cause.failureOption(exit.cause);
+    const failure = Cause.findErrorOption(exit.cause);
     assert.deepStrictEqual(failure._tag, "Some");
     if (failure._tag === "Some") {
       assert.deepStrictEqual(failure.value instanceof expected, true);

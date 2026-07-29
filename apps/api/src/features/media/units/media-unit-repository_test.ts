@@ -1,18 +1,17 @@
 import { assert, it } from "@effect/vitest";
 import { eq } from "drizzle-orm";
-import type { SqliteRemoteDatabase } from "drizzle-orm/sqlite-proxy";
+import type { AppDatabase } from "@/db/database.ts";
 import { Effect } from "effect";
 
-import * as schema from "@/db/schema.ts";
 import { media, mediaUnits } from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { tryDatabase } from "@/infra/effect/db.ts";
 import { makeMediaUnitRepository } from "@/test/repository-factories.ts";
 
-type TestDatabase = SqliteRemoteDatabase<typeof schema>;
+type TestDatabase = AppDatabase;
 
 function seedAnime(db: TestDatabase) {
-  return tryDatabasePromise("Failed to seed test anime", () =>
+  return tryDatabase("Failed to seed test anime", () =>
     db
       .insert(media)
       .values({
@@ -33,7 +32,7 @@ function seedAnime(db: TestDatabase) {
   );
 }
 
-it.scoped("clearUnitMapping clears episode file fields", () =>
+it.effect("clearUnitMapping clears episode file fields", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -48,7 +47,7 @@ it.scoped("clearUnitMapping clears episode file fields", () =>
 
         yield* units.clearUnitMapping(1, 3);
 
-        const rows = yield* tryDatabasePromise("Failed to query mediaUnits for assertion", () =>
+        const rows = yield* tryDatabase("Failed to query mediaUnits for assertion", () =>
           db.select().from(mediaUnits).where(eq(mediaUnits.id, 1)),
         );
         assert.deepStrictEqual(rows[0]?.downloaded, false);
@@ -56,11 +55,10 @@ it.scoped("clearUnitMapping clears episode file fields", () =>
         assert.deepStrictEqual(rows[0]?.resolution, null);
         assert.deepStrictEqual(rows[0]?.videoCodec, null);
       }),
-    schema,
   }),
 );
 
-it.scoped("upsertUnit updates existing episode on conflict", () =>
+it.effect("upsertUnit updates existing episode on conflict", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -78,7 +76,7 @@ it.scoped("upsertUnit updates existing episode on conflict", () =>
           resolution: "720p",
         });
 
-        const rows = yield* tryDatabasePromise("Failed to query mediaUnits for assertion", () =>
+        const rows = yield* tryDatabase("Failed to query mediaUnits for assertion", () =>
           db.select().from(mediaUnits).where(eq(mediaUnits.id, 1)),
         );
         assert.deepStrictEqual(rows.length, 1);
@@ -86,11 +84,10 @@ it.scoped("upsertUnit updates existing episode on conflict", () =>
         assert.deepStrictEqual(rows[0]?.title, "Updated");
         assert.deepStrictEqual(rows[0]?.resolution, "720p");
       }),
-    schema,
   }),
 );
 
-it.scoped("upsertUnit does not overwrite unspecified fields on conflict", () =>
+it.effect("upsertUnit does not overwrite unspecified fields on conflict", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -105,7 +102,7 @@ it.scoped("upsertUnit does not overwrite unspecified fields on conflict", () =>
           title: "New Title",
         });
 
-        const rows = yield* tryDatabasePromise("Failed to query mediaUnits for assertion", () =>
+        const rows = yield* tryDatabase("Failed to query mediaUnits for assertion", () =>
           db.select().from(mediaUnits).where(eq(mediaUnits.id, 1)),
         );
         assert.deepStrictEqual(rows.length, 1);
@@ -113,6 +110,5 @@ it.scoped("upsertUnit does not overwrite unspecified fields on conflict", () =>
         assert.deepStrictEqual(rows[0]?.title, "New Title");
         assert.deepStrictEqual(rows[0]?.filePath, "/library/Show/Show - 04.mkv");
       }),
-    schema,
   }),
 );

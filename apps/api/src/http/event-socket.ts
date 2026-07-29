@@ -2,10 +2,10 @@ import { Effect, Schema } from "effect";
 
 import { encodeNotificationEventWire, type NotificationEvent } from "@packages/shared/index.ts";
 
-export class NotificationEventEncodeError extends Schema.TaggedError<NotificationEventEncodeError>()(
+export class NotificationEventEncodeError extends Schema.TaggedErrorClass<NotificationEventEncodeError>()(
   "NotificationEventEncodeError",
   {
-    cause: Schema.optional(Schema.Defect),
+    cause: Schema.optional(Schema.Defect()),
     message: Schema.String,
   },
 ) {}

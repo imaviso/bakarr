@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import type { DatabaseError } from "@/db/database.ts";
 import { MediaImageCacheService } from "@/features/media/metadata/media-image-cache-service.ts";
@@ -76,19 +76,19 @@ const makeMediaEnrollmentService = Effect.fn("MediaEnrollmentService.make")(func
   return { enroll };
 });
 
-export class MediaEnrollmentService extends Effect.Service<MediaEnrollmentService>()(
+export class MediaEnrollmentService extends Context.Service<MediaEnrollmentService>()(
   "@bakarr/api/MediaEnrollmentService",
-  {
-    // Metadata/FS/task/search provided by domain subgraph at lifecycle.
-    dependencies: [
-      EventBus.Default,
-      MediaRepository.Default,
-      MediaUnitRepository.Default,
-      QualityProfileRepository.Default,
-      SystemConfigRepository.Default,
-    ],
-    effect: makeMediaEnrollmentService(),
-  },
-) {}
+  { make: makeMediaEnrollmentService() },
+) {
+  static readonly layer = Layer.effect(MediaEnrollmentService, MediaEnrollmentService.make).pipe(
+    Layer.provide([
+      EventBus.layer,
+      MediaRepository.layer,
+      MediaUnitRepository.layer,
+      QualityProfileRepository.layer,
+      SystemConfigRepository.layer,
+    ]),
+  );
+}
 
-export const MediaEnrollmentServiceLive = MediaEnrollmentService.Default;
+export const MediaEnrollmentServiceLive = MediaEnrollmentService.layer;

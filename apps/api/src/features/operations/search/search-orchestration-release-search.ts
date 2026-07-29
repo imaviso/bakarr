@@ -1,4 +1,4 @@
-import { Effect, Either, Option, Schema } from "effect";
+import { Context, Effect, Layer, Option, Result, Schema } from "effect";
 
 import type { Config, SearchResults } from "@packages/shared/index.ts";
 import { DatabaseError } from "@/db/database.ts";
@@ -48,7 +48,7 @@ type SearchNyaaReleases = (
 ) => Effect.Effect<readonly ParsedRelease[], SearchReleaseSourceError>;
 type UnitSearchCategory = string | undefined;
 
-const AnimeSynonymsJsonSchema = Schema.parseJson(Schema.Array(Schema.String));
+const AnimeSynonymsJsonSchema = Schema.fromJsonString(Schema.Array(Schema.String));
 
 export interface SearchReleaseServiceShape {
   readonly enrichSeaDexReleases: (
@@ -131,8 +131,8 @@ function decodeAnimeSynonyms(value: string | null) {
     return [];
   }
 
-  const result = Schema.decodeUnknownEither(AnimeSynonymsJsonSchema)(value);
-  return Either.isRight(result) ? result.right.filter((entry) => entry.trim().length > 0) : [];
+  const result = Schema.decodeUnknownResult(AnimeSynonymsJsonSchema)(value);
+  return Result.isSuccess(result) ? result.success.filter((entry) => entry.trim().length > 0) : [];
 }
 
 function normalizeSearchAlias(value: string) {
@@ -289,10 +289,10 @@ function resolveSearchCategoryForMediaKind(
   return mapSearchCategoryForMediaKind(category, config.nyaa.default_category || "1_2", mediaKind);
 }
 
-export class SearchReleaseService extends Effect.Service<SearchReleaseService>()(
+export class SearchReleaseService extends Context.Service<SearchReleaseService>()(
   "@bakarr/api/SearchReleaseService",
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const rssClient = yield* RssClient;
       const seadexClient = yield* SeaDexClient;
       const mediaRepository = yield* MediaRepository;
@@ -340,7 +340,7 @@ export class SearchReleaseService extends Effect.Service<SearchReleaseService>()
               ),
             ),
           ),
-          Effect.catchAll(() => Effect.succeed(Option.none())),
+          Effect.catch(() => Effect.succeed(Option.none())),
         );
 
         if (Option.isNone(entry) || entry.value.releases.length === 0) {
@@ -421,8 +421,15 @@ export class SearchReleaseService extends Effect.Service<SearchReleaseService>()
         searchReleases,
       } satisfies SearchReleaseServiceShape;
     }),
-    dependencies: [MediaRepository.Default],
   },
-) {}
+) {
+  static readonly layerWithoutDependencies = Layer.effect(
+    SearchReleaseService,
+    SearchReleaseService.make,
+  );
+  static readonly layer = SearchReleaseService.layerWithoutDependencies.pipe(
+    Layer.provide([MediaRepository.layer]),
+  );
+}
 
-export const SearchReleaseServiceLive = SearchReleaseService.Default;
+export const SearchReleaseServiceLive = SearchReleaseService.layer;

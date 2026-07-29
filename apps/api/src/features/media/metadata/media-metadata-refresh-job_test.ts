@@ -3,18 +3,20 @@ import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
-import * as schema from "@/db/schema.ts";
 import { media, backgroundJobs, systemLogs } from "@/db/schema.ts";
 import type { AnimeMetadata } from "@/features/media/metadata/anilist-model.ts";
 import { refreshMetadataForMonitoredMediaEffect } from "@/features/media/metadata/media-metadata-refresh-job.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
-import { MediaImageCacheService } from "@/features/media/metadata/media-image-cache-service.ts";
-import { MediaMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { tryDatabase } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { makeBackgroundJobRepository, makeMediaRepository, makeMediaUnitRepository, makeSystemLogRepository } from "@/test/repository-factories.ts";
+import {
+  makeBackgroundJobRepository,
+  makeMediaRepository,
+  makeMediaUnitRepository,
+  makeSystemLogRepository,
+} from "@/test/repository-factories.ts";
 
-it.scoped(
+it.effect(
   "refreshMetadataForMonitoredMediaEffect skips per-media external failures and completes",
   () =>
     withSqliteTestDbEffect({
@@ -26,10 +28,10 @@ it.scoped(
           yield* insertAnimeRow(appDb, 802);
 
           const result = yield* refreshMetadataForMonitoredMediaEffect({
-            imageCacheService: MediaImageCacheService.make({
+            imageCacheService: {
               cacheMetadataImages: () => Effect.succeed({}),
-            }),
-            metadataProvider: MediaMetadataProviderService.make({
+            },
+            metadataProvider: {
               getAnimeMetadataById: (id: number) =>
                 id === 801
                   ? Effect.fail(
@@ -47,7 +49,7 @@ it.scoped(
                       },
                       metadata: makeMetadata(id),
                     }),
-            }),
+            },
             backgroundJobRepository: makeBackgroundJobRepository(appDb),
             mediaRepository: makeMediaRepository(appDb),
             mediaUnitRepository: makeMediaUnitRepository(appDb),
@@ -56,7 +58,7 @@ it.scoped(
             refreshConcurrency: 2,
           });
 
-          const [jobRow] = yield* tryDatabasePromise(
+          const [jobRow] = yield* tryDatabase(
             "Failed to query backgroundJobs for refresh assertion",
             () =>
               appDb
@@ -64,7 +66,7 @@ it.scoped(
                 .from(backgroundJobs)
                 .where(eq(backgroundJobs.name, "metadata_refresh")),
           );
-          const allLogs = yield* tryDatabasePromise(
+          const allLogs = yield* tryDatabase(
             "Failed to query systemLogs for refresh assertion",
             () => appDb.select().from(systemLogs),
           );
@@ -80,11 +82,10 @@ it.scoped(
             false,
           );
         }),
-      schema,
     }),
 );
 
-it.scoped(
+it.effect(
   "refreshMetadataForMonitoredMediaEffect preserves ExternalCallError type for top-level failures",
   () =>
     withSqliteTestDbEffect({
@@ -114,24 +115,24 @@ it.scoped(
           })();
 
           const result = yield* refreshMetadataForMonitoredMediaEffect({
-            imageCacheService: MediaImageCacheService.make({
+            imageCacheService: {
               cacheMetadataImages: () => Effect.succeed({}),
-            }),
-            metadataProvider: MediaMetadataProviderService.make({
+            },
+            metadataProvider: {
               getAnimeMetadataById: () =>
                 Effect.succeed({
                   _tag: "NotFound",
                 }),
-            }),
+            },
             backgroundJobRepository: makeBackgroundJobRepository(appDb),
             mediaRepository: makeMediaRepository(appDb),
             mediaUnitRepository: makeMediaUnitRepository(appDb),
             systemLogRepository: makeSystemLogRepository(appDb),
             nowIso,
             refreshConcurrency: 1,
-          }).pipe(Effect.either);
+          }).pipe(Effect.result);
 
-          const [jobRow] = yield* tryDatabasePromise(
+          const [jobRow] = yield* tryDatabase(
             "Failed to query backgroundJobs for top-level failure assertion",
             () =>
               appDb
@@ -140,9 +141,9 @@ it.scoped(
                 .where(eq(backgroundJobs.name, "metadata_refresh")),
           );
 
-          assert.deepStrictEqual(result._tag, "Left");
-          if (result._tag === "Left") {
-            const left = result.left as unknown;
+          assert.deepStrictEqual(result._tag, "Failure");
+          if (result._tag === "Failure") {
+            const left = result.failure as unknown;
             assert.deepStrictEqual(left instanceof ExternalCallError, true);
             if (left instanceof ExternalCallError) {
               assert.deepStrictEqual(left.operation, "system.now_iso");
@@ -151,12 +152,11 @@ it.scoped(
           assert.deepStrictEqual(jobRow?.lastStatus, "failed");
           assert.deepStrictEqual(jobRow?.lastMessage, "ExternalCallError: clock unavailable");
         }),
-      schema,
     }),
 );
 
 const insertAnimeRow = Effect.fn("Test.insertAnimeRow")(function* (db: AppDatabase, id: number) {
-  yield* tryDatabasePromise("Failed to insert test anime row for refresh job", () =>
+  yield* tryDatabase("Failed to insert test anime row for refresh job", () =>
     db.insert(media).values({
       id,
       titleRomaji: `Media ${id}`,

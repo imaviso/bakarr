@@ -1,13 +1,13 @@
-import { HttpClient, HttpClientResponse } from "@effect/platform";
+import { HttpClient, HttpClientResponse } from "effect/unstable/http";
 import { assert, it } from "@effect/vitest";
-import { Effect, Either, Layer, Option } from "effect";
+import { Effect, Result, Layer, Option } from "effect";
 
 import { JikanClient, JikanClientLive } from "@/features/media/metadata/jikan.ts";
 import { ExternalCallError, ExternalCallLive } from "@/infra/effect/retry.ts";
 
 const ExternalCallTestLayer = ExternalCallLive;
 
-it.scoped("JikanClient maps full detail with recommendations", () =>
+it.effect("JikanClient maps full detail with recommendations", () =>
   Effect.gen(function* () {
     let requestCount = 0;
 
@@ -124,7 +124,7 @@ it.scoped("JikanClient maps full detail with recommendations", () =>
   }),
 );
 
-it.scoped("JikanClient falls back to basic detail when full endpoint missing", () =>
+it.effect("JikanClient falls back to basic detail when full endpoint missing", () =>
   Effect.gen(function* () {
     const requests: string[] = [];
 
@@ -220,7 +220,7 @@ it.scoped("JikanClient falls back to basic detail when full endpoint missing", (
   }),
 );
 
-it.scoped("JikanClient falls back to basic detail when full detail decode fails", () =>
+it.effect("JikanClient falls back to basic detail when full detail decode fails", () =>
   Effect.gen(function* () {
     const requests: string[] = [];
 
@@ -285,7 +285,7 @@ it.scoped("JikanClient falls back to basic detail when full detail decode fails"
   }),
 );
 
-it.scoped("JikanClient returns none when both detail endpoints missing", () =>
+it.effect("JikanClient returns none when both detail endpoints missing", () =>
   Effect.gen(function* () {
     const clientLayer = JikanClientLive.pipe(
       Layer.provide(
@@ -317,7 +317,7 @@ it.scoped("JikanClient returns none when both detail endpoints missing", () =>
   }),
 );
 
-it.scoped("JikanClient maps detail decode failures with operation name", () =>
+it.effect("JikanClient maps detail decode failures with operation name", () =>
   Effect.gen(function* () {
     const clientLayer = JikanClientLive.pipe(
       Layer.provide(
@@ -360,16 +360,16 @@ it.scoped("JikanClient maps detail decode failures with operation name", () =>
 
     const result = yield* Effect.flatMap(JikanClient, (client) => client.getAnimeByMalId(7)).pipe(
       Effect.provide(clientLayer),
-      Effect.either,
+      Effect.result,
     );
 
-    assert.ok(Either.isLeft(result));
-    assert.ok(result.left instanceof ExternalCallError);
-    assert.deepStrictEqual(result.left.operation, "jikan.detail.json");
+    assert.ok(Result.isFailure(result));
+    assert.ok(result.failure instanceof ExternalCallError);
+    assert.deepStrictEqual(result.failure.operation, "jikan.detail.json");
   }),
 );
 
-it.scoped("JikanClient ignores missing recommendations endpoint", () =>
+it.effect("JikanClient ignores missing recommendations endpoint", () =>
   Effect.gen(function* () {
     const clientLayer = JikanClientLive.pipe(
       Layer.provide(
@@ -414,7 +414,7 @@ it.scoped("JikanClient ignores missing recommendations endpoint", () =>
   }),
 );
 
-it.scoped("JikanClient ignores failing recommendations endpoint", () =>
+it.effect("JikanClient ignores failing recommendations endpoint", () =>
   Effect.gen(function* () {
     const clientLayer = JikanClientLive.pipe(
       Layer.provide(
@@ -470,7 +470,7 @@ it.scoped("JikanClient ignores failing recommendations endpoint", () =>
   }),
 );
 
-it.scoped("JikanClient decodes seasonal media response and applies limit", () =>
+it.effect("JikanClient decodes seasonal media response and applies limit", () =>
   Effect.gen(function* () {
     const clientLayer = JikanClientLive.pipe(
       Layer.provide(
@@ -531,7 +531,7 @@ it.scoped("JikanClient decodes seasonal media response and applies limit", () =>
   }),
 );
 
-it.scoped("JikanClient getSeasonalAnime returns empty array on 404", () =>
+it.effect("JikanClient getSeasonalAnime returns empty array on 404", () =>
   Effect.gen(function* () {
     const clientLayer = JikanClientLive.pipe(
       Layer.provide(

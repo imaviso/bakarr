@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import type { SystemLogsResponse } from "@packages/shared/index.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
@@ -93,12 +93,13 @@ const makeSystemLogService = Effect.fn("SystemLogService.make")(function* () {
   };
 });
 
-export class SystemLogService extends Effect.Service<SystemLogService>()(
+export class SystemLogService extends Context.Service<SystemLogService>()(
   "@bakarr/api/SystemLogService",
-  {
-    effect: makeSystemLogService(),
-    dependencies: [SystemLogRepository.Default],
-  },
-) {}
+  { make: makeSystemLogService() },
+) {
+  static readonly layer = Layer.effect(SystemLogService, SystemLogService.make).pipe(
+    Layer.provide([SystemLogRepository.layer]),
+  );
+}
 
-export const SystemLogServiceLive = SystemLogService.Default;
+export const SystemLogServiceLive = SystemLogService.layer;

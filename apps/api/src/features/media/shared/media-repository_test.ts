@@ -1,18 +1,17 @@
 import { assert, it } from "@effect/vitest";
-import type { SqliteRemoteDatabase } from "drizzle-orm/sqlite-proxy";
+import type { AppDatabase } from "@/db/database.ts";
 import { Cause, Effect, Exit, Option } from "effect";
 
-import * as schema from "@/db/schema.ts";
 import { media, mediaUnits } from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { tryDatabase } from "@/infra/effect/db.ts";
 import { makeMediaRepository } from "@/test/repository-factories.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";
 
-type TestDatabase = SqliteRemoteDatabase<typeof schema>;
+type TestDatabase = AppDatabase;
 
 function seedAnime(db: TestDatabase) {
-  return tryDatabasePromise("Failed to seed test anime for read repository", () =>
+  return tryDatabase("Failed to seed test anime for read repository", () =>
     db
       .insert(media)
       .values({
@@ -34,7 +33,7 @@ function seedAnime(db: TestDatabase) {
 }
 
 function seedEpisode(db: TestDatabase, mediaId: number, epNum: number) {
-  return tryDatabasePromise("Failed to seed test episode", () =>
+  return tryDatabase("Failed to seed test episode", () =>
     db
       .insert(mediaUnits)
       .values({
@@ -49,7 +48,7 @@ function seedEpisode(db: TestDatabase, mediaId: number, epNum: number) {
   );
 }
 
-it.scoped("getMediaRowEffect returns row by id", () =>
+it.effect("getMediaRowEffect returns row by id", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -59,11 +58,10 @@ it.scoped("getMediaRowEffect returns row by id", () =>
         assert.deepStrictEqual(row.titleRomaji, "Naruto");
         assert.deepStrictEqual(row.unitCount, 12);
       }),
-    schema,
   }),
 );
 
-it.scoped("getMediaRowEffect fails with MediaNotFoundError for missing id", () =>
+it.effect("getMediaRowEffect fails with MediaNotFoundError for missing id", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -71,17 +69,16 @@ it.scoped("getMediaRowEffect fails with MediaNotFoundError for missing id", () =
         const exit = yield* Effect.exit(repository.getMediaRow(999));
         assert.deepStrictEqual(Exit.isFailure(exit), true);
         if (Exit.isFailure(exit)) {
-          const failure = Cause.failureOption(exit.cause);
+          const failure = Cause.findErrorOption(exit.cause);
           assert.ok(Option.isSome(failure));
           assert.ok(failure.value instanceof MediaNotFoundError);
           assert.deepStrictEqual(failure.value.message, "Media not found");
         }
       }),
-    schema,
   }),
 );
 
-it.scoped("requireMediaExistsEffect succeeds when media exists", () =>
+it.effect("requireMediaExistsEffect succeeds when media exists", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -90,11 +87,10 @@ it.scoped("requireMediaExistsEffect succeeds when media exists", () =>
         const exit = yield* Effect.exit(repository.requireMediaExists(1));
         assert.deepStrictEqual(exit._tag, "Success");
       }),
-    schema,
   }),
 );
 
-it.scoped("getUnitRowEffect returns episode by media and number", () =>
+it.effect("getUnitRowEffect returns episode by media and number", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -105,11 +101,10 @@ it.scoped("getUnitRowEffect returns episode by media and number", () =>
         assert.deepStrictEqual(row.number, 5);
         assert.deepStrictEqual(row.title, "MediaUnit 5");
       }),
-    schema,
   }),
 );
 
-it.scoped("getUnitRowEffect fails for non-existent episode", () =>
+it.effect("getUnitRowEffect fails for non-existent episode", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -118,17 +113,16 @@ it.scoped("getUnitRowEffect fails for non-existent episode", () =>
         const exit = yield* Effect.exit(repository.getUnitRow(1, 99));
         assert.deepStrictEqual(Exit.isFailure(exit), true);
         if (Exit.isFailure(exit)) {
-          const failure = Cause.failureOption(exit.cause);
+          const failure = Cause.findErrorOption(exit.cause);
           assert.ok(Option.isSome(failure));
           assert.ok(failure.value instanceof MediaNotFoundError);
           assert.deepStrictEqual(failure.value.message, "MediaUnit not found");
         }
       }),
-    schema,
   }),
 );
 
-it.scoped("findMediaRootFolderOwnerEffect finds exact root match", () =>
+it.effect("findMediaRootFolderOwnerEffect finds exact root match", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -138,11 +132,10 @@ it.scoped("findMediaRootFolderOwnerEffect finds exact root match", () =>
         assert.ok(owner !== null);
         assert.deepStrictEqual(owner.titleRomaji, "Naruto");
       }),
-    schema,
   }),
 );
 
-it.scoped("findMediaRootFolderOwnerEffect finds by child path match", () =>
+it.effect("findMediaRootFolderOwnerEffect finds by child path match", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -152,11 +145,10 @@ it.scoped("findMediaRootFolderOwnerEffect finds by child path match", () =>
         assert.ok(owner !== null);
         assert.deepStrictEqual(owner.titleRomaji, "Naruto");
       }),
-    schema,
   }),
 );
 
-it.scoped("findMediaRootFolderOwnerEffect returns null for no match", () =>
+it.effect("findMediaRootFolderOwnerEffect returns null for no match", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -164,6 +156,5 @@ it.scoped("findMediaRootFolderOwnerEffect returns null for no match", () =>
         const owner = yield* repository.findMediaRootFolderOwner("/library/Unknown");
         assert.deepStrictEqual(owner, null);
       }),
-    schema,
   }),
 );

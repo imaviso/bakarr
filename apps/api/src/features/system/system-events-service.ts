@@ -1,4 +1,4 @@
-import { Effect, Stream } from "effect";
+import { Context, Effect, Layer, Stream } from "effect";
 
 import type { DownloadStatus, NotificationEvent } from "@packages/shared/index.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
@@ -10,7 +10,7 @@ const makeSystemEventsService = Effect.fn("SystemEventsService.make")(function* 
 
   const buildEventsStream = () =>
     eventBus.withSubscriptionStream((subscription) =>
-      Stream.unwrapScoped(
+      Stream.unwrap(
         Effect.gen(function* () {
           const downloads: readonly DownloadStatus[] =
             yield* downloadProgress.getDownloadProgressBootstrap();
@@ -24,14 +24,14 @@ const makeSystemEventsService = Effect.fn("SystemEventsService.make")(function* 
   return { buildEventsStream };
 });
 
-export class SystemEventsService extends Effect.Service<SystemEventsService>()(
+export class SystemEventsService extends Context.Service<SystemEventsService>()(
   "@bakarr/api/SystemEventsService",
-  {
-    effect: makeSystemEventsService(),
-  },
-) {}
+  { make: makeSystemEventsService() },
+) {
+  static readonly layer = Layer.effect(SystemEventsService, SystemEventsService.make);
+}
 
-export const SystemEventsServiceLive = SystemEventsService.Default;
+export const SystemEventsServiceLive = SystemEventsService.layer;
 
 function buildDownloadProgressEventStream(
   downloads: readonly DownloadStatus[],

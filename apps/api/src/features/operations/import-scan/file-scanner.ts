@@ -1,4 +1,4 @@
-import { Chunk, Effect, Option, Stream } from "effect";
+import { Effect, Option, Stream } from "effect";
 import {
   FileSystemError,
   type DirEntry,
@@ -26,12 +26,12 @@ export function scanVideoFilesStream(
   fs: FileSystemShape,
   path: string,
 ): Stream.Stream<ScannedVideoFile, FileSystemError> {
-  return Stream.unfoldChunkEffect({ stack: [path], visited: new Set<string>() }, (state) =>
+  return Stream.paginate({ stack: [path], visited: new Set<string>() }, (state) =>
     Effect.gen(function* () {
       const current = state.stack.pop();
 
       if (current === undefined) {
-        return Option.none();
+        return [[], Option.none()] as const;
       }
 
       const readDirectoryEffect: Effect.Effect<DirEntry[], FileSystemError> = fs.readDirStream
@@ -109,7 +109,7 @@ export function scanVideoFilesStream(
         ...fileResults,
       ];
 
-      return Option.some([Chunk.fromIterable(files), state] as const);
+      return [files, Option.some(state)] as const;
     }),
   ).pipe(Stream.withSpan("Operations.scanVideoFilesStream"));
 }

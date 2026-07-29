@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 import { DatabaseError } from "@/db/database.ts";
@@ -59,15 +59,20 @@ const makeSystemConfigService = Effect.fn("SystemConfigService.make")(function* 
   return { getConfig } satisfies SystemConfigServiceShape;
 });
 
-export class SystemConfigService extends Effect.Service<SystemConfigService>()(
+export class SystemConfigService extends Context.Service<SystemConfigService>()(
   "@bakarr/api/SystemConfigService",
-  {
-    effect: makeSystemConfigService(),
-    dependencies: [SystemConfigRepository.Default, QualityProfileRepository.Default],
-  },
-) {}
+  { make: makeSystemConfigService() },
+) {
+  static readonly layerWithoutDependencies = Layer.effect(
+    SystemConfigService,
+    SystemConfigService.make,
+  );
+  static readonly layer = SystemConfigService.layerWithoutDependencies.pipe(
+    Layer.provide([SystemConfigRepository.layer, QualityProfileRepository.layer]),
+  );
+}
 
-export const SystemConfigServiceLive = SystemConfigService.Default;
+export const SystemConfigServiceLive = SystemConfigService.layer;
 
 export function redactConfigSecrets(config: Config): Config {
   return {

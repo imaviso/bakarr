@@ -70,15 +70,15 @@ const ApiErrorSchema = Schema.Struct({
   error: Schema.optional(Schema.String),
   message: Schema.optional(Schema.String),
 });
-const ApiErrorJsonSchema = Schema.parseJson(ApiErrorSchema);
+const ApiErrorJsonSchema = Schema.fromJsonString(ApiErrorSchema);
 
 export function normalizeApiErrorMessage(message: string) {
   const trimmed = message.trim();
 
   if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
-    const result = Schema.decodeUnknownEither(ApiErrorJsonSchema)(trimmed);
-    if (result._tag === "Right") {
-      const decoded = result.right;
+    const result = Schema.decodeUnknownResult(ApiErrorJsonSchema)(trimmed);
+    if (result._tag === "Success") {
+      const decoded = result.success;
       const error = decoded.error?.trim();
       if (error) {
         return error;

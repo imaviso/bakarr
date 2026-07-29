@@ -39,9 +39,7 @@ class FooRepository extends Effect.Service<FooRepository>()("@bakarr/api/FooRepo
   dependencies: [AppDrizzleDatabase.Default],
   effect: Effect.gen(function* () {
     const db = yield* AppDrizzleDatabase;
-    return {
-      /* R = never methods */
-    };
+    return {/* R = never methods */};
   }),
 }) {}
 ```

@@ -2,10 +2,12 @@ import { Effect, Schema } from "effect";
 import { MediaDiscoveryEntrySchema } from "@packages/shared/index.ts";
 import { StoredDataError } from "@/features/errors.ts";
 
-const AnimeDiscoveryEntryListJsonSchema = Schema.parseJson(Schema.Array(MediaDiscoveryEntrySchema));
-const AnimeSynonymsJsonSchema = Schema.parseJson(Schema.Array(Schema.String));
-const StringListJsonSchema = Schema.parseJson(Schema.Array(Schema.String));
-const NumberListJsonSchema = Schema.parseJson(Schema.Array(Schema.Number));
+const AnimeDiscoveryEntryListJsonSchema = Schema.fromJsonString(
+  Schema.Array(MediaDiscoveryEntrySchema),
+);
+const AnimeSynonymsJsonSchema = Schema.fromJsonString(Schema.Array(Schema.String));
+const StringListJsonSchema = Schema.fromJsonString(Schema.Array(Schema.String));
+const NumberListJsonSchema = Schema.fromJsonString(Schema.Array(Schema.Number));
 
 export const decodeStoredStringListEffect = Effect.fn(
   "MediaDecodeSupport.decodeStoredStringListEffect",
@@ -14,7 +16,7 @@ export const decodeStoredStringListEffect = Effect.fn(
     return [];
   }
 
-  return yield* Schema.decodeUnknown(StringListJsonSchema)(value).pipe(
+  return yield* Schema.decodeUnknownEffect(StringListJsonSchema)(value).pipe(
     Effect.map((decoded) => [...decoded]),
     Effect.mapError(
       (cause) =>
@@ -33,7 +35,7 @@ export const decodeStoredNumberListEffect = Effect.fn(
     return [];
   }
 
-  return yield* Schema.decodeUnknown(NumberListJsonSchema)(value).pipe(
+  return yield* Schema.decodeUnknownEffect(NumberListJsonSchema)(value).pipe(
     Effect.map((decoded) => [...decoded]),
     Effect.mapError(
       (cause) =>
@@ -52,7 +54,7 @@ export const decodeStoredDiscoveryEntriesEffect = Effect.fn(
     return undefined;
   }
 
-  return yield* Schema.decodeUnknown(AnimeDiscoveryEntryListJsonSchema)(value).pipe(
+  return yield* Schema.decodeUnknownEffect(AnimeDiscoveryEntryListJsonSchema)(value).pipe(
     Effect.map((decoded) => [...decoded]),
     Effect.mapError(
       (cause) =>
@@ -71,7 +73,7 @@ export const decodeStoredSynonymsEffect = Effect.fn(
     return undefined;
   }
 
-  return yield* Schema.decodeUnknown(AnimeSynonymsJsonSchema)(value).pipe(
+  return yield* Schema.decodeUnknownEffect(AnimeSynonymsJsonSchema)(value).pipe(
     Effect.map((decoded) => {
       const filtered = decoded.filter((entry) => entry.length > 0);
       return filtered.length > 0 ? filtered : undefined;

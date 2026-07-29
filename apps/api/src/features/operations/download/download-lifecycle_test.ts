@@ -26,7 +26,7 @@ it("parseMagnetInfoHash extracts btih from magnet links", () => {
   assert.deepStrictEqual(parseMagnetInfoHash(undefined), Option.none());
 });
 
-it.scoped("resolveCompletedContentPath prefers matching episode files inside directories", () =>
+it.effect("resolveCompletedContentPath prefers matching episode files inside directories", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const dir = `${root}/completed`;
@@ -42,7 +42,7 @@ it.scoped("resolveCompletedContentPath prefers matching episode files inside dir
   ),
 );
 
-it.scoped("resolveCompletedContentPath matches daily files by expected air date", () =>
+it.effect("resolveCompletedContentPath matches daily files by expected air date", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const dir = `${root}/daily`;
@@ -62,7 +62,7 @@ it.scoped("resolveCompletedContentPath matches daily files by expected air date"
   ),
 );
 
-it.scoped("resolveCompletedContentPath falls back to a lone generic video file", () =>
+it.effect("resolveCompletedContentPath falls back to a lone generic video file", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const dir = `${root}/generic`;
@@ -75,7 +75,7 @@ it.scoped("resolveCompletedContentPath falls back to a lone generic video file",
   ),
 );
 
-it.scoped("resolveBatchContentPaths collects video files from completed batch directories", () =>
+it.effect("resolveBatchContentPaths collects video files from completed batch directories", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const dir = `${root}/batch-dir`;
@@ -92,7 +92,7 @@ it.scoped("resolveBatchContentPaths collects video files from completed batch di
   ),
 );
 
-it.scoped(
+it.effect(
   "resolveBatchContentPaths returns a single file for batch torrents stored as one file",
   () =>
     withFileSystemSandboxEffect(({ fs, root }) =>
@@ -234,7 +234,7 @@ it.effect(
       const exit = yield* Effect.exit(parseCoveredUnitsEffect("not-json"));
       assert.deepStrictEqual(Exit.isFailure(exit), true);
       if (Exit.isFailure(exit)) {
-        const failure = Cause.failureOption(exit.cause);
+        const failure = Cause.findErrorOption(exit.cause);
         assert.deepStrictEqual(failure._tag, "Some");
         if (failure._tag === "Some") {
           assert.deepStrictEqual(failure.value instanceof StoredDataError, true);
@@ -255,7 +255,7 @@ it("applyRemotePathMappings returns multiple matching candidates and skips inval
   );
 });
 
-it.scoped(
+it.effect(
   "resolveAccessibleDownloadPath uses mapped local paths when remote path is unavailable",
   () =>
     withFileSystemSandboxEffect(({ fs, root }) =>

@@ -1,4 +1,4 @@
-import { Effect, Either, Option } from "effect";
+import { Effect, Result, Option } from "effect";
 import ipaddr from "ipaddr.js";
 
 import { DnsResolver, isDnsNoRecordError } from "@/infra/dns-resolver.ts";
@@ -49,13 +49,13 @@ export const resolvePinnedRequestTarget = Effect.fn("RssClient.resolvePinnedRequ
           cause,
           message: "RSS feed URL format is invalid",
         }),
-    ).pipe(Effect.either);
+    ).pipe(Effect.result);
 
-    if (Either.isLeft(parsedUrlResult)) {
-      return yield* parsedUrlResult.left;
+    if (Result.isFailure(parsedUrlResult)) {
+      return yield* parsedUrlResult.failure;
     }
 
-    const parsedUrl = parsedUrlResult.right;
+    const parsedUrl = parsedUrlResult.success;
 
     if (!isAllowedPort(parsedUrl.port)) {
       return yield* new RssFeedRejectedError({
@@ -113,12 +113,12 @@ export const validateUrlForSsrf = Effect.fn("RssClient.validateUrlForSsrf")(func
   urlString: string,
   dns: typeof DnsResolver.Service,
 ) {
-  const resolvedTarget = yield* Effect.either(resolvePinnedRequestTarget(urlString, dns));
+  const resolvedTarget = yield* Effect.result(resolvePinnedRequestTarget(urlString, dns));
 
-  if (Either.isLeft(resolvedTarget)) {
+  if (Result.isFailure(resolvedTarget)) {
     return {
       _tag: "Rejected" as const,
-      reason: resolvedTarget.left.message,
+      reason: resolvedTarget.failure.message,
     };
   }
 
@@ -131,15 +131,15 @@ const resolveFeedAddresses = Effect.fn("RssClient.resolveFeedAddresses")(functio
 ) {
   const [aLookup, aaaaLookup] = yield* Effect.all(
     [
-      dns.resolve(hostname, "A").pipe(Effect.either),
-      dns.resolve(hostname, "AAAA").pipe(Effect.either),
+      dns.resolve(hostname, "A").pipe(Effect.result),
+      dns.resolve(hostname, "AAAA").pipe(Effect.result),
     ],
     { concurrency: 2 },
   );
 
   if (
-    (Either.isLeft(aLookup) && !isDnsNoRecordError(aLookup.left.cause)) ||
-    (Either.isLeft(aaaaLookup) && !isDnsNoRecordError(aaaaLookup.left.cause))
+    (Result.isFailure(aLookup) && !isDnsNoRecordError(aLookup.failure.cause)) ||
+    (Result.isFailure(aaaaLookup) && !isDnsNoRecordError(aaaaLookup.failure.cause))
   ) {
     return yield* new RssFeedRejectedError({
       message: `DNS resolution failed for ${hostname}`,
@@ -148,11 +148,11 @@ const resolveFeedAddresses = Effect.fn("RssClient.resolveFeedAddresses")(functio
 
   const addresses: string[] = [];
 
-  if (Either.isRight(aLookup)) {
-    addresses.push(...aLookup.right);
+  if (Result.isSuccess(aLookup)) {
+    addresses.push(...aLookup.success);
   }
-  if (Either.isRight(aaaaLookup)) {
-    addresses.push(...aaaaLookup.right);
+  if (Result.isSuccess(aaaaLookup)) {
+    addresses.push(...aaaaLookup.success);
   }
 
   return addresses;

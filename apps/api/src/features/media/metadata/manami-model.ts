@@ -1,13 +1,13 @@
 import { Schema } from "effect";
 
 const HttpUrlStringSchema = Schema.String.pipe(
-  Schema.minLength(1),
-  Schema.pattern(/^https?:\/\/[^\s]+$/),
+  Schema.check(Schema.isMinLength(1)),
+  Schema.check(Schema.isPattern(/^https?:\/\/[^\s]+$/)),
 );
 
 const DatasetDateStringSchema = Schema.String.pipe(
-  Schema.minLength(1),
-  Schema.pattern(/^\d{4}-\d{2}-\d{2}$/),
+  Schema.check(Schema.isMinLength(1)),
+  Schema.check(Schema.isPattern(/^\d{4}-\d{2}-\d{2}$/)),
 );
 
 export const ManamiAnimeEntrySchema = Schema.Struct({

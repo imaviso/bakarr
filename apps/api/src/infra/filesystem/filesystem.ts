@@ -94,14 +94,13 @@ const UNKNOWN_FILE_TYPE_FLAGS = {
   isSymlink: false,
 } as const;
 
-export class FileSystem extends Context.Service<FileSystem>()(
-  "@bakarr/api/FileSystem",
-  { make: Effect.gen(function* () {
+export class FileSystem extends Context.Service<FileSystem>()("@bakarr/api/FileSystem", {
+  make: Effect.gen(function* () {
     const platformFs = yield* PlatformFileSystem.FileSystem;
     const pathService = yield* PlatformPath.Path;
     return makeFileSystem(platformFs, pathService);
-  }) },
-) {
+  }),
+}) {
   static readonly layer = Layer.effect(FileSystem, FileSystem.make);
 }
 

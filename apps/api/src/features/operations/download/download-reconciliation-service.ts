@@ -1,4 +1,4 @@
-import { Cause, Effect, Option } from "effect";
+import { Cause, Context, Effect, Layer, Option } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
@@ -37,18 +37,10 @@ export interface DownloadReconciliationServiceShape {
   readonly reconcileDownloadByIdEffect: (id: number) => Effect.Effect<void, ReconcileByIdError>;
 }
 
-export class DownloadReconciliationService extends Effect.Service<DownloadReconciliationService>()(
+export class DownloadReconciliationService extends Context.Service<DownloadReconciliationService>()(
   "@bakarr/api/DownloadReconciliationService",
   {
-    // Platform/FS/torrent/progress provided by ops feature layer; list pure leaves only.
-    dependencies: [
-      DownloadRepository.Default,
-      EventBus.Default,
-      MediaRepository.Default,
-      MediaUnitRepository.Default,
-      RandomService.Default,
-    ],
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const repo = yield* DownloadRepository;
       const eventBus = yield* EventBus;
       const fs = yield* FileSystem;
@@ -78,7 +70,7 @@ export class DownloadReconciliationService extends Effect.Service<DownloadReconc
                 ? Effect.logDebug("Skipped qBittorrent cleanup because it is disabled")
                 : Effect.void,
             ),
-            Effect.catchAllCause((cause) =>
+            Effect.catchCause((cause) =>
               Effect.logWarning("Failed to delete imported torrent from qBittorrent").pipe(
                 Effect.annotateLogs({
                   infoHash,
@@ -164,6 +156,19 @@ export class DownloadReconciliationService extends Effect.Service<DownloadReconc
       } satisfies DownloadReconciliationServiceShape;
     }),
   },
-) {}
+) {
+  static readonly layer = Layer.effect(
+    DownloadReconciliationService,
+    DownloadReconciliationService.make,
+  ).pipe(
+    Layer.provide([
+      DownloadRepository.layer,
+      EventBus.layer,
+      MediaRepository.layer,
+      MediaUnitRepository.layer,
+      RandomService.layer,
+    ]),
+  );
+}
 
-export const DownloadReconciliationServiceLive = DownloadReconciliationService.Default;
+export const DownloadReconciliationServiceLive = DownloadReconciliationService.layer;

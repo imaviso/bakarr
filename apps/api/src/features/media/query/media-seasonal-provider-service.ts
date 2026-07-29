@@ -1,4 +1,4 @@
-import { Effect, Option } from "effect";
+import { Context, Effect, Layer, Option } from "effect";
 
 import { brandMediaId, type MediaSearchResult, type MediaSeason } from "@packages/shared/index.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
@@ -81,27 +81,27 @@ const makeMediaSeasonalProviderService = Effect.fn("MediaSeasonalProviderService
             year: input.year,
             limit: input.limit,
           })
-          .pipe(Effect.either);
+          .pipe(Effect.result);
 
-        if (anilistAttempt._tag === "Right") {
+        if (anilistAttempt._tag === "Success") {
           return {
             degraded: false,
-            hasMore: anilistAttempt.right.length === input.limit,
+            hasMore: anilistAttempt.success.length === input.limit,
             provider: "anilist" as const,
-            results: anilistAttempt.right,
+            results: anilistAttempt.success,
             season: input.season,
             year: input.year,
           } satisfies MediaSeasonalResult;
         }
 
-        if (!shouldFallbackToJikan(anilistAttempt.left)) {
-          return yield* anilistAttempt.left;
+        if (!shouldFallbackToJikan(anilistAttempt.failure)) {
+          return yield* anilistAttempt.failure;
         }
 
         yield* Effect.logWarning("AniList seasonal request failed; using Jikan fallback").pipe(
           Effect.annotateLogs({
-            causeTag: anilistAttempt.left._tag,
-            operation: anilistAttempt.left.operation,
+            causeTag: anilistAttempt.failure._tag,
+            operation: anilistAttempt.failure.operation,
             season: input.season,
             year: input.year,
           }),
@@ -116,7 +116,7 @@ const makeMediaSeasonalProviderService = Effect.fn("MediaSeasonalProviderService
 
         const mappedEntries = yield* Effect.forEach(jikanEntries, (entry) =>
           manami.resolveAniListIdFromMalId(entry.malId).pipe(
-            Effect.catchAll((error) =>
+            Effect.catch((error) =>
               Effect.logWarning("Manami seasonal mapping degraded").pipe(
                 Effect.annotateLogs({
                   malId: entry.malId,
@@ -155,11 +155,14 @@ const makeMediaSeasonalProviderService = Effect.fn("MediaSeasonalProviderService
   },
 );
 
-export class MediaSeasonalProviderService extends Effect.Service<MediaSeasonalProviderService>()(
+export class MediaSeasonalProviderService extends Context.Service<MediaSeasonalProviderService>()(
   "@bakarr/api/MediaSeasonalProviderService",
-  {
-    effect: makeMediaSeasonalProviderService(),
-  },
-) {}
+  { make: makeMediaSeasonalProviderService() },
+) {
+  static readonly layer = Layer.effect(
+    MediaSeasonalProviderService,
+    MediaSeasonalProviderService.make,
+  );
+}
 
-export const MediaSeasonalProviderServiceLive = MediaSeasonalProviderService.Default;
+export const MediaSeasonalProviderServiceLive = MediaSeasonalProviderService.layer;

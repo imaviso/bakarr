@@ -1,5 +1,5 @@
 import { assert, it } from "@effect/vitest";
-import { HttpClient, HttpClientError, HttpClientResponse } from "@effect/platform";
+import { HttpClient, HttpClientError, HttpClientResponse } from "effect/unstable/http";
 import { Cause, Effect, Exit } from "effect";
 
 import { exists, withFileSystemSandboxEffect } from "@/test/filesystem-test.ts";
@@ -9,7 +9,7 @@ import {
   ImageTooLargeError,
 } from "@/features/media/metadata/image-cache.ts";
 
-it.scoped("cacheMediaMetadataImages uses provided HttpClient for remote images", () =>
+it.effect("cacheMediaMetadataImages uses provided HttpClient for remote images", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const imageBytes = Uint8Array.from([137, 80, 78, 71]);
@@ -33,7 +33,7 @@ it.scoped("cacheMediaMetadataImages uses provided HttpClient for remote images",
   ),
 );
 
-it.scoped("cacheMediaMetadataImages saves cover and banner files locally", () =>
+it.effect("cacheMediaMetadataImages saves cover and banner files locally", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const dataUrl = "data:image/png;base64,iVBORw0KGgo=";
@@ -50,7 +50,7 @@ it.scoped("cacheMediaMetadataImages saves cover and banner files locally", () =>
   ),
 );
 
-it.scoped("cacheMediaMetadataImages fails on unsupported image types", () =>
+it.effect("cacheMediaMetadataImages fails on unsupported image types", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const coverUrl = "https://example.com/cover";
@@ -76,7 +76,7 @@ it.scoped("cacheMediaMetadataImages fails on unsupported image types", () =>
 
       assert.deepStrictEqual(Exit.isFailure(result), true);
       if (Exit.isFailure(result)) {
-        const failure = Cause.failureOption(result.cause);
+        const failure = Cause.findErrorOption(result.cause);
         assert.deepStrictEqual(failure._tag, "Some");
         if (failure._tag === "Some" && failure.value instanceof ImageCacheError) {
           assert.deepStrictEqual(failure.value.message, "Unsupported image type");
@@ -88,7 +88,7 @@ it.scoped("cacheMediaMetadataImages fails on unsupported image types", () =>
   ),
 );
 
-it.scoped("cacheMediaMetadataImages fails oversized images by Content-Length", () =>
+it.effect("cacheMediaMetadataImages fails oversized images by Content-Length", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const coverUrl = "https://example.com/huge.png";
@@ -115,7 +115,7 @@ it.scoped("cacheMediaMetadataImages fails oversized images by Content-Length", (
 
       assert.deepStrictEqual(Exit.isFailure(result), true);
       if (Exit.isFailure(result)) {
-        const failure = Cause.failureOption(result.cause);
+        const failure = Cause.findErrorOption(result.cause);
         assert.deepStrictEqual(failure._tag, "Some");
         if (failure._tag === "Some" && failure.value instanceof ImageTooLargeError) {
           assert.deepStrictEqual(failure.value.contentLength, 15000000);
@@ -126,7 +126,7 @@ it.scoped("cacheMediaMetadataImages fails oversized images by Content-Length", (
   ),
 );
 
-it.scoped("cacheMediaMetadataImages fails oversized images by streamed bytes", () =>
+it.effect("cacheMediaMetadataImages fails oversized images by streamed bytes", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const largeBody = new Uint8Array(11 * 1024 * 1024);
@@ -157,7 +157,7 @@ it.scoped("cacheMediaMetadataImages fails oversized images by streamed bytes", (
 
       assert.deepStrictEqual(Exit.isFailure(result), true);
       if (Exit.isFailure(result)) {
-        const failure = Cause.failureOption(result.cause);
+        const failure = Cause.findErrorOption(result.cause);
         assert.deepStrictEqual(failure._tag, "Some");
         if (failure._tag === "Some" && failure.value instanceof ImageTooLargeError) {
           assert.deepStrictEqual(failure.value.contentLength, undefined);
@@ -184,11 +184,12 @@ function makeImageHttpClient(
         return HttpClientResponse.fromWeb(request, response);
       },
       catch: (cause) =>
-        new HttpClientError.RequestError({
-          request,
-          reason: "Transport",
-          cause,
-          description: "image client request failed",
+        new HttpClientError.HttpClientError({
+          reason: new HttpClientError.TransportError({
+            request,
+            cause,
+            description: "image client request failed",
+          }),
         }),
     }),
   );

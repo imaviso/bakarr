@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import type { QualityProfile } from "@packages/shared/index.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
@@ -90,12 +90,13 @@ const makeQualityProfileService = Effect.fn("QualityProfileService.make")(functi
   };
 });
 
-export class QualityProfileService extends Effect.Service<QualityProfileService>()(
+export class QualityProfileService extends Context.Service<QualityProfileService>()(
   "@bakarr/api/QualityProfileService",
-  {
-    effect: makeQualityProfileService(),
-    dependencies: [QualityProfileRepository.Default, SystemLogRepository.Default],
-  },
-) {}
+  { make: makeQualityProfileService() },
+) {
+  static readonly layer = Layer.effect(QualityProfileService, QualityProfileService.make).pipe(
+    Layer.provide([QualityProfileRepository.layer, SystemLogRepository.layer]),
+  );
+}
 
-export const QualityProfileServiceLive = QualityProfileService.Default;
+export const QualityProfileServiceLive = QualityProfileService.layer;

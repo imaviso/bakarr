@@ -4,7 +4,7 @@ import { Effect } from "effect";
 import { collectVideoFiles, collectVolumeFiles } from "@/features/media/files/files.ts";
 import { withFileSystemSandboxEffect, writeTextFile } from "@/test/filesystem-test.ts";
 
-it.scoped("collectVolumeFiles discovers cbz/pdf/epub files recursively", () =>
+it.effect("collectVolumeFiles discovers cbz/pdf/epub files recursively", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const mangaRoot = `${root}/manga`;
@@ -25,7 +25,7 @@ it.scoped("collectVolumeFiles discovers cbz/pdf/epub files recursively", () =>
   ),
 );
 
-it.scoped("collectVideoFiles discovers video files recursively", () =>
+it.effect("collectVideoFiles discovers video files recursively", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const animeRoot = `${root}/media`;
@@ -43,7 +43,7 @@ it.scoped("collectVideoFiles discovers video files recursively", () =>
   ),
 );
 
-it.scoped("collectVideoFiles ignores non-video files", () =>
+it.effect("collectVideoFiles ignores non-video files", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const animeRoot = `${root}/media`;
@@ -59,7 +59,7 @@ it.scoped("collectVideoFiles ignores non-video files", () =>
   ),
 );
 
-it.scoped("collectVideoFiles handles a mix of video types", () =>
+it.effect("collectVideoFiles handles a mix of video types", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const animeRoot = `${root}/media`;
@@ -76,7 +76,7 @@ it.scoped("collectVideoFiles handles a mix of video types", () =>
   ),
 );
 
-it.scoped("collectVideoFiles returns sorted by name", () =>
+it.effect("collectVideoFiles returns sorted by name", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const animeRoot = `${root}/media`;
@@ -94,7 +94,7 @@ it.scoped("collectVideoFiles returns sorted by name", () =>
   ),
 );
 
-it.scoped("collectVideoFiles handles missing root folder by failing", () =>
+it.effect("collectVideoFiles handles missing root folder by failing", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const exit = yield* Effect.exit(collectVideoFiles(fs, `${root}/nonexistent`));

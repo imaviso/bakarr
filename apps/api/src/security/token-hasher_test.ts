@@ -8,14 +8,14 @@ it.effect("TokenHasher produces stable SHA-256 hex digests", () =>
     const token = "bakarr-session-token";
 
     const first = yield* Effect.flatMap(TokenHasher, (hasher) => hasher.hashToken(token)).pipe(
-      Effect.provide(TokenHasher.Default),
+      Effect.provide(TokenHasher.layer),
     );
     const second = yield* Effect.flatMap(TokenHasher, (hasher) => hasher.hashToken(token)).pipe(
-      Effect.provide(TokenHasher.Default),
+      Effect.provide(TokenHasher.layer),
     );
     const different = yield* Effect.flatMap(TokenHasher, (hasher) =>
       hasher.hashToken("bakarr-session-token-2"),
-    ).pipe(Effect.provide(TokenHasher.Default));
+    ).pipe(Effect.provide(TokenHasher.layer));
 
     assert.deepStrictEqual(first, second);
     assert.deepStrictEqual(first.length, 64);

@@ -1,8 +1,8 @@
 import { assert, describe, it } from "@effect/vitest";
-import { Effect, Layer, Option, TestClock } from "effect";
+import { Effect, Layer, Option } from "effect";
+import { TestClock } from "effect/testing";
 
 import { brandMediaId, type MediaSearchResult } from "@packages/shared/index.ts";
-import * as schema from "@/db/schema.ts";
 import { MediaQueryService } from "@/features/media/query/query-service.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
 import { MediaSeasonalProviderService } from "@/features/media/query/media-seasonal-provider-service.ts";
@@ -11,7 +11,10 @@ import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
 import { ManamiClient } from "@/features/media/metadata/manami.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
-import { makeMediaRepository, makeSeasonalMediaCacheRepository } from "@/test/repository-factories.ts";
+import {
+  makeMediaRepository,
+  makeSeasonalMediaCacheRepository,
+} from "@/test/repository-factories.ts";
 import { SeasonalMediaCacheRepository } from "@/features/media/query/seasonal-media-cache-repository.ts";
 
 function makeSeasonalResult(input: {
@@ -32,55 +35,46 @@ function makeSeasonalResult(input: {
 }
 
 describe("MediaQueryService.listSeasonalMedia", () => {
-  it.scoped("uses db cache within ttl and skips provider call", () =>
+  it.effect("uses db cache within ttl and skips provider call", () =>
     withSqliteTestDbEffect({
       run: (db) =>
         Effect.gen(function* () {
           let providerCalls = 0;
 
-          const providerLayer = Layer.succeed(
-            MediaSeasonalProviderService,
-            MediaSeasonalProviderService.make({
-              getSeasonalAnime: () => {
-                providerCalls += 1;
-                return Effect.succeed({
-                  degraded: false,
-                  hasMore: false,
-                  provider: "anilist" as const,
-                  results: [makeSeasonalResult({ id: 42, title: "Cached Spring" })],
-                  season: "spring" as const,
-                  year: 2025,
-                });
-              },
-            }),
-          );
+          const providerLayer = Layer.succeed(MediaSeasonalProviderService, {
+            getSeasonalAnime: () => {
+              providerCalls += 1;
+              return Effect.succeed({
+                degraded: false,
+                hasMore: false,
+                provider: "anilist" as const,
+                results: [makeSeasonalResult({ id: 42, title: "Cached Spring" })],
+                season: "spring" as const,
+                year: 2025,
+              });
+            },
+          });
 
           const baseLayer = Layer.mergeAll(
             providerLayer,
-            Layer.succeed(
-              AniListClient,
-              AniListClient.make({
-                getAnimeMetadataById: () => Effect.succeed(Option.none()),
-                getSeasonalAnime: () => Effect.succeed([]),
-                searchAnimeMetadata: () => Effect.succeed([]),
-              }),
-            ),
-            Layer.succeed(
-              ManamiClient,
-              ManamiClient.make({
-                getByAniListId: () => Effect.succeed(Option.none()),
-                getByMalId: () => Effect.succeed(Option.none()),
-                resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
-                resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-                searchMedia: () => Effect.succeed([]),
-              }),
-            ),
-            Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db)),
+            Layer.succeed(AniListClient, {
+              getAnimeMetadataById: () => Effect.succeed(Option.none()),
+              getSeasonalAnime: () => Effect.succeed([]),
+              searchAnimeMetadata: () => Effect.succeed([]),
+            }),
+            Layer.succeed(ManamiClient, {
+              getByAniListId: () => Effect.succeed(Option.none()),
+              getByMalId: () => Effect.succeed(Option.none()),
+              resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
+              resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
+              searchMedia: () => Effect.succeed([]),
+            }),
+            Layer.succeed(AppDrizzleDatabase, db),
             Layer.succeed(MediaRepository, makeMediaRepository(db)),
             Layer.succeed(SeasonalMediaCacheRepository, makeSeasonalMediaCacheRepository(db)),
           );
 
-          const queryServiceLayer = MediaQueryService.DefaultWithoutDependencies.pipe(
+          const queryServiceLayer = MediaQueryService.layerWithoutDependencies.pipe(
             Layer.provide(baseLayer),
           );
 
@@ -116,57 +110,47 @@ describe("MediaQueryService.listSeasonalMedia", () => {
           assert.deepStrictEqual(second.results.length, 1);
           assert.deepStrictEqual(providerCalls, 1);
         }),
-      schema,
     }),
   );
 
-  it.scoped("re-fetches when ttl expires", () =>
+  it.effect("re-fetches when ttl expires", () =>
     withSqliteTestDbEffect({
       run: (db) =>
         Effect.gen(function* () {
           yield* TestClock.setTime(new Date("2025-04-01T10:00:00.000Z").getTime());
           let providerCalls = 0;
 
-          const providerLayer = Layer.succeed(
-            MediaSeasonalProviderService,
-            MediaSeasonalProviderService.make({
-              getSeasonalAnime: () => {
-                providerCalls += 1;
-                return Effect.succeed({
-                  degraded: false,
-                  hasMore: false,
-                  provider: "anilist" as const,
-                  results: [makeSeasonalResult({ id: 7, title: `Fetch ${providerCalls}` })],
-                  season: "spring" as const,
-                  year: 2025,
-                });
-              },
-            }),
-          );
+          const providerLayer = Layer.succeed(MediaSeasonalProviderService, {
+            getSeasonalAnime: () => {
+              providerCalls += 1;
+              return Effect.succeed({
+                degraded: false,
+                hasMore: false,
+                provider: "anilist" as const,
+                results: [makeSeasonalResult({ id: 7, title: `Fetch ${providerCalls}` })],
+                season: "spring" as const,
+                year: 2025,
+              });
+            },
+          });
 
-          const layer = MediaQueryService.DefaultWithoutDependencies.pipe(
+          const layer = MediaQueryService.layerWithoutDependencies.pipe(
             Layer.provide(
               Layer.mergeAll(
                 providerLayer,
-                Layer.succeed(
-                  AniListClient,
-                  AniListClient.make({
-                    getAnimeMetadataById: () => Effect.succeed(Option.none()),
-                    getSeasonalAnime: () => Effect.succeed([]),
-                    searchAnimeMetadata: () => Effect.succeed([]),
-                  }),
-                ),
-                Layer.succeed(
-                  ManamiClient,
-                  ManamiClient.make({
-                    getByAniListId: () => Effect.succeed(Option.none()),
-                    getByMalId: () => Effect.succeed(Option.none()),
-                    resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
-                    resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-                    searchMedia: () => Effect.succeed([]),
-                  }),
-                ),
-                Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db)),
+                Layer.succeed(AniListClient, {
+                  getAnimeMetadataById: () => Effect.succeed(Option.none()),
+                  getSeasonalAnime: () => Effect.succeed([]),
+                  searchAnimeMetadata: () => Effect.succeed([]),
+                }),
+                Layer.succeed(ManamiClient, {
+                  getByAniListId: () => Effect.succeed(Option.none()),
+                  getByMalId: () => Effect.succeed(Option.none()),
+                  resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
+                  resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
+                  searchMedia: () => Effect.succeed([]),
+                }),
+                Layer.succeed(AppDrizzleDatabase, db),
                 Layer.succeed(MediaRepository, makeMediaRepository(db)),
                 Layer.succeed(SeasonalMediaCacheRepository, makeSeasonalMediaCacheRepository(db)),
               ),
@@ -189,68 +173,58 @@ describe("MediaQueryService.listSeasonalMedia", () => {
           assert.deepStrictEqual(providerCalls, 2);
           assert.deepStrictEqual(refreshed.results[0]?.title.romaji, "Fetch 2");
         }),
-      schema,
     }),
   );
 
-  it.scoped("returns stale cache as degraded when provider fails after ttl", () =>
+  it.effect("returns stale cache as degraded when provider fails after ttl", () =>
     withSqliteTestDbEffect({
       run: (db) =>
         Effect.gen(function* () {
           yield* TestClock.setTime(new Date("2025-04-01T10:00:00.000Z").getTime());
           let providerCalls = 0;
 
-          const providerLayer = Layer.succeed(
-            MediaSeasonalProviderService,
-            MediaSeasonalProviderService.make({
-              getSeasonalAnime: () => {
-                providerCalls += 1;
+          const providerLayer = Layer.succeed(MediaSeasonalProviderService, {
+            getSeasonalAnime: () => {
+              providerCalls += 1;
 
-                if (providerCalls === 1) {
-                  return Effect.succeed({
-                    degraded: false,
-                    hasMore: false,
-                    provider: "anilist" as const,
-                    results: [makeSeasonalResult({ id: 9, title: "Stale Spring" })],
-                    season: "spring" as const,
-                    year: 2025,
-                  });
-                }
+              if (providerCalls === 1) {
+                return Effect.succeed({
+                  degraded: false,
+                  hasMore: false,
+                  provider: "anilist" as const,
+                  results: [makeSeasonalResult({ id: 9, title: "Stale Spring" })],
+                  season: "spring" as const,
+                  year: 2025,
+                });
+              }
 
-                return Effect.fail(
-                  ExternalCallError.make({
-                    cause: new Error("seasonal outage"),
-                    message: "Seasonal provider failed",
-                    operation: "anilist.seasonal",
-                  }),
-                );
-              },
-            }),
-          );
+              return Effect.fail(
+                ExternalCallError.make({
+                  cause: new Error("seasonal outage"),
+                  message: "Seasonal provider failed",
+                  operation: "anilist.seasonal",
+                }),
+              );
+            },
+          });
 
-          const layer = MediaQueryService.DefaultWithoutDependencies.pipe(
+          const layer = MediaQueryService.layerWithoutDependencies.pipe(
             Layer.provide(
               Layer.mergeAll(
                 providerLayer,
-                Layer.succeed(
-                  AniListClient,
-                  AniListClient.make({
-                    getAnimeMetadataById: () => Effect.succeed(Option.none()),
-                    getSeasonalAnime: () => Effect.succeed([]),
-                    searchAnimeMetadata: () => Effect.succeed([]),
-                  }),
-                ),
-                Layer.succeed(
-                  ManamiClient,
-                  ManamiClient.make({
-                    getByAniListId: () => Effect.succeed(Option.none()),
-                    getByMalId: () => Effect.succeed(Option.none()),
-                    resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
-                    resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-                    searchMedia: () => Effect.succeed([]),
-                  }),
-                ),
-                Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db)),
+                Layer.succeed(AniListClient, {
+                  getAnimeMetadataById: () => Effect.succeed(Option.none()),
+                  getSeasonalAnime: () => Effect.succeed([]),
+                  searchAnimeMetadata: () => Effect.succeed([]),
+                }),
+                Layer.succeed(ManamiClient, {
+                  getByAniListId: () => Effect.succeed(Option.none()),
+                  getByMalId: () => Effect.succeed(Option.none()),
+                  resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
+                  resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
+                  searchMedia: () => Effect.succeed([]),
+                }),
+                Layer.succeed(AppDrizzleDatabase, db),
                 Layer.succeed(MediaRepository, makeMediaRepository(db)),
                 Layer.succeed(SeasonalMediaCacheRepository, makeSeasonalMediaCacheRepository(db)),
               ),
@@ -274,68 +248,58 @@ describe("MediaQueryService.listSeasonalMedia", () => {
           assert.deepStrictEqual(stale.provider, "anilist");
           assert.deepStrictEqual(stale.results[0]?.title.romaji, "Stale Spring");
         }),
-      schema,
     }),
   );
 });
 
 describe("MediaQueryService.searchMedia", () => {
-  it.scoped("falls back to Manami local search when AniList search fails", () =>
+  it.effect("falls back to Manami local search when AniList search fails", () =>
     withSqliteTestDbEffect({
       run: (db) =>
         Effect.gen(function* () {
           yield* TestClock.setTime(new Date("2025-04-01T10:00:00.000Z").getTime());
-          const layer = MediaQueryService.DefaultWithoutDependencies.pipe(
+          const layer = MediaQueryService.layerWithoutDependencies.pipe(
             Layer.provide(
               Layer.mergeAll(
-                Layer.succeed(
-                  MediaSeasonalProviderService,
-                  MediaSeasonalProviderService.make({
-                    getSeasonalAnime: () =>
-                      Effect.succeed({
-                        degraded: false,
-                        hasMore: false,
-                        provider: "anilist" as const,
-                        results: [],
-                        season: "spring" as const,
-                        year: 2025,
+                Layer.succeed(MediaSeasonalProviderService, {
+                  getSeasonalAnime: () =>
+                    Effect.succeed({
+                      degraded: false,
+                      hasMore: false,
+                      provider: "anilist" as const,
+                      results: [],
+                      season: "spring" as const,
+                      year: 2025,
+                    }),
+                }),
+                Layer.succeed(AniListClient, {
+                  getAnimeMetadataById: () => Effect.succeed(Option.none()),
+                  getSeasonalAnime: () => Effect.succeed([]),
+                  searchAnimeMetadata: () =>
+                    Effect.fail(
+                      ExternalCallError.make({
+                        cause: new Error("rate limited"),
+                        message: "AniList search failed",
+                        operation: "anilist.search.response",
                       }),
-                  }),
-                ),
-                Layer.succeed(
-                  AniListClient,
-                  AniListClient.make({
-                    getAnimeMetadataById: () => Effect.succeed(Option.none()),
-                    getSeasonalAnime: () => Effect.succeed([]),
-                    searchAnimeMetadata: () =>
-                      Effect.fail(
-                        ExternalCallError.make({
-                          cause: new Error("rate limited"),
-                          message: "AniList search failed",
-                          operation: "anilist.search.response",
-                        }),
-                      ),
-                  }),
-                ),
-                Layer.succeed(
-                  ManamiClient,
-                  ManamiClient.make({
-                    getByAniListId: () => Effect.succeed(Option.none()),
-                    getByMalId: () => Effect.succeed(Option.none()),
-                    resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
-                    resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-                    searchMedia: () =>
-                      Effect.succeed([
-                        {
-                          already_in_library: false,
-                          id: brandMediaId(1001),
-                          synonyms: ["Alpha Alias"],
-                          title: { english: "Alpha", romaji: "Alpha" },
-                        },
-                      ]),
-                  }),
-                ),
-                Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db)),
+                    ),
+                }),
+                Layer.succeed(ManamiClient, {
+                  getByAniListId: () => Effect.succeed(Option.none()),
+                  getByMalId: () => Effect.succeed(Option.none()),
+                  resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
+                  resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
+                  searchMedia: () =>
+                    Effect.succeed([
+                      {
+                        already_in_library: false,
+                        id: brandMediaId(1001),
+                        synonyms: ["Alpha Alias"],
+                        title: { english: "Alpha", romaji: "Alpha" },
+                      },
+                    ]),
+                }),
+                Layer.succeed(AppDrizzleDatabase, db),
                 Layer.succeed(MediaRepository, makeMediaRepository(db)),
                 Layer.succeed(SeasonalMediaCacheRepository, makeSeasonalMediaCacheRepository(db)),
               ),
@@ -352,7 +316,6 @@ describe("MediaQueryService.searchMedia", () => {
           );
           assert.deepStrictEqual(result.results[0]?.match_confidence, 1);
         }),
-      schema,
     }),
   );
 });

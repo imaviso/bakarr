@@ -1,43 +1,57 @@
-import { Schema } from "effect";
+import { Schema, SchemaTransformation } from "effect";
 import { getCurrentSeasonWindow } from "~/domain/seasonal-navigation";
 
 export const DEFAULT_SEASON_WINDOW = getCurrentSeasonWindow();
 
-const TabSchema = Schema.transform(Schema.String, Schema.Literal("search", "seasonal"), {
-  decode: (s) => (s === "seasonal" ? "seasonal" : "search"),
-  encode: (s) => s,
-});
-
-const SeasonSchema = Schema.transform(
-  Schema.String,
-  Schema.Literal("winter", "spring", "summer", "fall"),
-  {
-    decode: (s) => {
-      if (s === "winter" || s === "spring" || s === "summer" || s === "fall") return s;
-      return DEFAULT_SEASON_WINDOW.season;
-    },
-    encode: (s) => s,
-  },
+const TabSchema = Schema.String.pipe(
+  Schema.decodeTo(
+    Schema.Literals(["search", "seasonal"]),
+    SchemaTransformation.transform({
+      decode: (s) => (s === "seasonal" ? "seasonal" : "search"),
+      encode: (s) => s,
+    }),
+  ),
 );
 
-const YearSchema = Schema.transform(Schema.Union(Schema.String, Schema.Number), Schema.Number, {
-  decode: (value) => {
-    const n = typeof value === "number" ? value : Number(value);
-    return Number.isInteger(n) ? n : DEFAULT_SEASON_WINDOW.year;
-  },
-  encode: (n) => n,
-});
+const SeasonSchema = Schema.String.pipe(
+  Schema.decodeTo(
+    Schema.Literals(["winter", "spring", "summer", "fall"]),
+    SchemaTransformation.transform({
+      decode: (s) => {
+        if (s === "winter" || s === "spring" || s === "summer" || s === "fall") return s;
+        return DEFAULT_SEASON_WINDOW.season;
+      },
+      encode: (s) => s,
+    }),
+  ),
+);
 
-const IdSchema = Schema.Union(Schema.Number, Schema.NumberFromString).pipe(Schema.int());
+const YearSchema = Schema.Union([Schema.String, Schema.Number]).pipe(
+  Schema.decodeTo(
+    Schema.Number,
+    SchemaTransformation.transform({
+      decode: (value) => {
+        const n = typeof value === "number" ? value : Number(value);
+        return Number.isInteger(n) ? n : DEFAULT_SEASON_WINDOW.year;
+      },
+      encode: (n) => n,
+    }),
+  ),
+);
 
-const MediaKindSchema = Schema.transform(
-  Schema.String,
-  Schema.Literal("anime", "manga", "light_novel"),
-  {
-    decode: (value) =>
-      value === "manga" || value === "light_novel" || value === "anime" ? value : "anime",
-    encode: (value) => value,
-  },
+const IdSchema = Schema.Union([Schema.Number, Schema.NumberFromString]).pipe(
+  Schema.check(Schema.isInt()),
+);
+
+const MediaKindSchema = Schema.String.pipe(
+  Schema.decodeTo(
+    Schema.Literals(["anime", "manga", "light_novel"]),
+    SchemaTransformation.transform({
+      decode: (value) =>
+        value === "manga" || value === "light_novel" || value === "anime" ? value : "anime",
+      encode: (value) => value,
+    }),
+  ),
 );
 
 export const addAnimeSearchSchema = Schema.Struct({

@@ -20,24 +20,21 @@ it.effect("TorrentClientService allows trusted-local qBittorrent without passwor
         trusted_local: true,
       },
     };
-    const serviceLayer = TorrentClientService.Default.pipe(
+    const serviceLayer = TorrentClientService.layer.pipe(
       Layer.provide(
         Layer.mergeAll(
           Layer.succeed(RuntimeConfigSnapshotService, makeRuntimeConfigSnapshotStub(testConfig)),
-          Layer.succeed(
-            QBitTorrentClient,
-            QBitTorrentClient.make({
-              addTorrentUrl: () => Effect.void,
-              deleteTorrent: () => Effect.void,
-              listTorrentContents: () => Effect.succeed([]),
-              listTorrents: (qbitConfig) => {
-                capturedPassword = Redacted.value(qbitConfig.password);
-                return Effect.succeed([]);
-              },
-              pauseTorrent: () => Effect.void,
-              resumeTorrent: () => Effect.void,
-            }),
-          ),
+          Layer.succeed(QBitTorrentClient, {
+            addTorrentUrl: () => Effect.void,
+            deleteTorrent: () => Effect.void,
+            listTorrentContents: () => Effect.succeed([]),
+            listTorrents: (qbitConfig) => {
+              capturedPassword = Redacted.value(qbitConfig.password);
+              return Effect.succeed([]);
+            },
+            pauseTorrent: () => Effect.void,
+            resumeTorrent: () => Effect.void,
+          }),
         ),
       ),
     );

@@ -1,4 +1,4 @@
-import { Effect, Redacted } from "effect";
+import { Context, Effect, Layer, Redacted } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 import {
@@ -61,10 +61,10 @@ export interface TorrentClientServiceShape {
   ) => Effect.Effect<{ readonly _tag: "Disabled" | "Resumed" }, TorrentClientServiceError>;
 }
 
-export class TorrentClientService extends Effect.Service<TorrentClientService>()(
+export class TorrentClientService extends Context.Service<TorrentClientService>()(
   "@bakarr/api/TorrentClientService",
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const qbitClient = yield* QBitTorrentClient;
       const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
 
@@ -168,9 +168,11 @@ export class TorrentClientService extends Effect.Service<TorrentClientService>()
       } satisfies TorrentClientServiceShape;
     }),
   },
-) {}
+) {
+  static readonly layer = Layer.effect(TorrentClientService, TorrentClientService.make);
+}
 
-export const TorrentClientServiceLive = TorrentClientService.Default;
+export const TorrentClientServiceLive = TorrentClientService.layer;
 
 const maybeQBitConfig = (config: Config) => {
   if (!config.qbittorrent.enabled) {

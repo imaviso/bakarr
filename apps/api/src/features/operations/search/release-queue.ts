@@ -52,7 +52,7 @@ export const queueParsedReleaseDownload = Effect.fn("ReleaseQueue.queueParsedRel
 
     const encodedSourceMetadata = yield* encodeDownloadSourceMetadata(input.sourceMetadata);
 
-    const insertResult = yield* Effect.either(
+    const insertResult = yield* Effect.result(
       input.downloadRepository.insertQueuedDownloadRow({
         addedAt: now,
         coveredUnits: input.coveredUnits,
@@ -70,8 +70,8 @@ export const queueParsedReleaseDownload = Effect.fn("ReleaseQueue.queueParsedRel
       }),
     );
 
-    if (insertResult._tag === "Left") {
-      const dbError = insertResult.left;
+    if (insertResult._tag === "Failure") {
+      const dbError = insertResult.failure;
 
       if (dbError instanceof DatabaseError && dbError.isUniqueConstraint()) {
         return { _tag: "skipped" } as const;
@@ -80,19 +80,19 @@ export const queueParsedReleaseDownload = Effect.fn("ReleaseQueue.queueParsedRel
       return yield* dbError;
     }
 
-    const insertedId = insertResult.right;
+    const insertedId = insertResult.success;
     let status = "queued";
 
-    const qbitResult = yield* Effect.either(
+    const qbitResult = yield* Effect.result(
       input.torrentClientService.addTorrentUrlIfEnabled(input.item.magnet),
     );
 
-    if (qbitResult._tag === "Left") {
+    if (qbitResult._tag === "Failure") {
       yield* input.downloadRepository.deleteDownloadRow(insertedId);
-      return yield* mapQBitError(input.contextMessage)(qbitResult.left);
+      return yield* mapQBitError(input.contextMessage)(qbitResult.failure);
     }
 
-    if (qbitResult.right._tag === "Added") {
+    if (qbitResult.success._tag === "Added") {
       status = "downloading";
       yield* input.downloadRepository.updateDownloadStatusRow({
         id: insertedId,

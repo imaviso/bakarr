@@ -1,4 +1,4 @@
-import { HttpRouter, HttpServerResponse } from "@effect/platform";
+import { HttpRouter, HttpServerResponse } from "effect/unstable/http";
 import { Cause, Effect, Option } from "effect";
 
 import { ObservabilityConfig } from "@/config/observability.ts";
@@ -23,7 +23,7 @@ const renderMetricsWithHttpMetrics = Effect.gen(function* () {
   const service = yield* SystemRuntimeMetricsService;
   const startedAt = yield* currentTimeNanos;
   const exit = yield* Effect.exit(
-    Effect.zipRight(enforceMetricsAuthIfConfigured, service.renderPrometheusMetrics()),
+    Effect.andThen(enforceMetricsAuthIfConfigured, service.renderPrometheusMetrics()),
   );
   const finishedAt = yield* currentTimeNanos;
   const durationMs = Number((finishedAt - startedAt) / 1_000_000n);
@@ -44,14 +44,15 @@ const renderMetricsWithHttpMetrics = Effect.gen(function* () {
 });
 
 function statusFromFailureCause(cause: Cause.Cause<unknown>) {
-  return Option.match(Cause.failureOption(cause), {
+  return Option.match(Cause.findErrorOption(cause), {
     onNone: () => 500,
     onSome: (error) => mapRouteError(error).status,
   });
 }
 
-export const systemMetricsRouter = HttpRouter.empty.pipe(
-  HttpRouter.get(
+export const systemMetricsRoutes = [
+  HttpRouter.route(
+    "GET",
     METRICS_ROUTE,
     routeResponse(
       renderMetricsWithHttpMetrics,
@@ -64,4 +65,4 @@ export const systemMetricsRouter = HttpRouter.empty.pipe(
       mapRouteError,
     ),
   ),
-);
+];

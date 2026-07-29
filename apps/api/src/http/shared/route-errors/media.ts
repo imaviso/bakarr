@@ -18,7 +18,7 @@ import {
   messageStatus,
 } from "@/http/shared/route-errors/helpers.ts";
 
-const MediaRouteErrorSchema = Schema.Union(
+const MediaRouteErrorSchema = Schema.Union([
   AniDbRuntimeConfigError,
   ImageCacheError,
   MediaConflictError,
@@ -26,7 +26,7 @@ const MediaRouteErrorSchema = Schema.Union(
   ReaderAccessError,
   StreamAccessError,
   StreamRangeError,
-);
+]);
 
 type MediaRouteError = Schema.Schema.Type<typeof MediaRouteErrorSchema>;
 

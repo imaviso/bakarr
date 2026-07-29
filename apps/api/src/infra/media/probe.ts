@@ -1,5 +1,14 @@
 import { ChildProcessSpawner } from "effect/unstable/process";
-import { Context, Effect, Layer, Result, Schema, SchemaIssue, SchemaTransformation, Semaphore } from "effect";
+import {
+  Context,
+  Effect,
+  Layer,
+  Result,
+  Schema,
+  SchemaIssue,
+  SchemaTransformation,
+  Semaphore,
+} from "effect";
 
 import { MediaProbeFailure, runFfprobeCommandWith } from "@/infra/media/probe-command.ts";
 
@@ -217,7 +226,9 @@ const ProbedMediaMetadataFromFFProbeOutputSchema = FFProbeOutputSchema.pipe(
                   channels: undefined,
                   codec_name: metadata.audio_codec,
                   codec_type: "audio",
-                  duration: metadata.duration_seconds ? String(metadata.duration_seconds) : undefined,
+                  duration: metadata.duration_seconds
+                    ? String(metadata.duration_seconds)
+                    : undefined,
                   height: undefined,
                   width: undefined,
                 },
@@ -226,8 +237,12 @@ const ProbedMediaMetadataFromFFProbeOutputSchema = FFProbeOutputSchema.pipe(
                   channels: undefined,
                   codec_name: metadata.video_codec,
                   codec_type: "video",
-                  duration: metadata.duration_seconds ? String(metadata.duration_seconds) : undefined,
-                  height: metadata.resolution ? Number.parseInt(metadata.resolution, 10) : undefined,
+                  duration: metadata.duration_seconds
+                    ? String(metadata.duration_seconds)
+                    : undefined,
+                  height: metadata.resolution
+                    ? Number.parseInt(metadata.resolution, 10)
+                    : undefined,
                   width: undefined,
                 },
               ],
@@ -379,9 +394,8 @@ const makeMediaProbe = (
   return { probeVideoFile };
 };
 
-export class MediaProbe extends Context.Service<MediaProbe>()(
-  "@bakarr/api/MediaProbe",
-  { make: Effect.gen(function* () {
+export class MediaProbe extends Context.Service<MediaProbe>()("@bakarr/api/MediaProbe", {
+  make: Effect.gen(function* () {
     const ffprobeSemaphore = yield* Semaphore.make(FFPROBE_CONCURRENCY_LIMIT);
     const executor = yield* ChildProcessSpawner.ChildProcessSpawner;
 
@@ -395,12 +409,14 @@ export class MediaProbe extends Context.Service<MediaProbe>()(
       yield* Effect.logWarning("ffprobe unavailable").pipe(
         Effect.annotateLogs({ message: availability.failure.message }),
       );
-      return yield* Effect.die(availability.failure.cause ?? new Error(availability.failure.message));
+      return yield* Effect.die(
+        availability.failure.cause ?? new Error(availability.failure.message),
+      );
     }
 
     return makeMediaProbe(ffprobeSemaphore, executor);
-  }) },
-) {
+  }),
+}) {
   static readonly layer = Layer.effect(MediaProbe, MediaProbe.make);
 }
 

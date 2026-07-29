@@ -18,7 +18,7 @@ import {
   messageStatus,
 } from "@/http/shared/route-errors/helpers.ts";
 
-const OperationsRouteErrorSchema = Schema.Union(
+const OperationsRouteErrorSchema = Schema.Union([
   RssFeedParseError,
   RssFeedRejectedError,
   RssFeedTooLargeError,
@@ -28,7 +28,7 @@ const OperationsRouteErrorSchema = Schema.Union(
   ImportFileError,
   FileSystemError,
   UpsertUnitFileError,
-);
+]);
 
 type OperationsRouteError = Schema.Schema.Type<typeof OperationsRouteErrorSchema>;
 

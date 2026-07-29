@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import type { DatabaseError } from "@/db/database.ts";
 import { FileSystem, isWithinPathRoot } from "@/infra/filesystem/filesystem.ts";
@@ -152,11 +152,11 @@ const makeImageAssetService = Effect.fn("ImageAssetService.make")(function* () {
   return { resolveImageAsset } satisfies ImageAssetServiceShape;
 });
 
-export class ImageAssetService extends Effect.Service<ImageAssetService>()(
+export class ImageAssetService extends Context.Service<ImageAssetService>()(
   "@bakarr/api/ImageAssetService",
-  {
-    effect: makeImageAssetService(),
-  },
-) {}
+  { make: makeImageAssetService() },
+) {
+  static readonly layer = Layer.effect(ImageAssetService, ImageAssetService.make);
+}
 
-export const ImageAssetServiceLive = ImageAssetService.Default;
+export const ImageAssetServiceLive = ImageAssetService.layer;

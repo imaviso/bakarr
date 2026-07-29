@@ -12,7 +12,7 @@ export function useSystemSettingsForm(options: UseSystemSettingsFormOptions) {
   return useForm({
     defaultValues: options.defaultValues,
     validators: {
-      onChange: Schema.standardSchemaV1(ConfigSchema),
+      onChange: Schema.toStandardSchemaV1(ConfigSchema),
     },
     onSubmit: ({ value }) => {
       options.onSubmit(value);

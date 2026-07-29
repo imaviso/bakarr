@@ -5,17 +5,17 @@ import { Effect } from "effect";
 import { makeMediaUnitRepository } from "@/test/repository-factories.ts";
 import * as schema from "@/db/schema.ts";
 import type { AppDatabase } from "@/db/database.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { tryDatabase } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 
-it.scoped("upsertUnitFiles inserts multiple mediaUnits atomically", () =>
+it.effect("upsertUnitFiles inserts multiple mediaUnits atomically", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
         const units = makeMediaUnitRepository(appDb);
 
-        yield* tryDatabasePromise("Failed test database setup", () =>
+        yield* tryDatabase("Failed test database setup", () =>
           appDb.insert(schema.media).values({
             id: 1,
             titleRomaji: "Test Show",
@@ -33,7 +33,7 @@ it.scoped("upsertUnitFiles inserts multiple mediaUnits atomically", () =>
 
         yield* units.upsertUnitFiles(1, [1, 2, 3], "/test/episode.mkv");
 
-        const rows = yield* tryDatabasePromise("Failed test database assertion", () =>
+        const rows = yield* tryDatabase("Failed test database assertion", () =>
           appDb.select().from(schema.mediaUnits).where(eq(schema.mediaUnits.mediaId, 1)),
         );
         assert.deepStrictEqual(rows.length, 3);
@@ -45,18 +45,17 @@ it.scoped("upsertUnitFiles inserts multiple mediaUnits atomically", () =>
           assert.deepStrictEqual(row.filePath, "/test/episode.mkv");
         }
       }),
-    schema,
   }),
 );
 
-it.scoped("upsertUnitFiles updates existing mediaUnits", () =>
+it.effect("upsertUnitFiles updates existing mediaUnits", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
         const units = makeMediaUnitRepository(appDb);
 
-        yield* tryDatabasePromise("Failed test database setup", () =>
+        yield* tryDatabase("Failed test database setup", () =>
           appDb.insert(schema.media).values({
             id: 1,
             titleRomaji: "Test Show",
@@ -72,7 +71,7 @@ it.scoped("upsertUnitFiles updates existing mediaUnits", () =>
           }),
         );
 
-        yield* tryDatabasePromise("Failed test database setup", () =>
+        yield* tryDatabase("Failed test database setup", () =>
           appDb.insert(schema.mediaUnits).values([
             { mediaId: 1, number: 1, downloaded: false, filePath: null },
             { mediaId: 1, number: 2, downloaded: true, filePath: "/old.mkv" },
@@ -81,7 +80,7 @@ it.scoped("upsertUnitFiles updates existing mediaUnits", () =>
 
         yield* units.upsertUnitFiles(1, [1, 2], "/new.mkv");
 
-        const rows = yield* tryDatabasePromise("Failed test database assertion", () =>
+        const rows = yield* tryDatabase("Failed test database assertion", () =>
           appDb
             .select()
             .from(schema.mediaUnits)
@@ -101,18 +100,17 @@ it.scoped("upsertUnitFiles updates existing mediaUnits", () =>
         assert.deepStrictEqual(secondRow.downloaded, true);
         assert.deepStrictEqual(secondRow.filePath, "/new.mkv");
       }),
-    schema,
   }),
 );
 
-it.scoped("upsertUnitFiles handles empty episode list", () =>
+it.effect("upsertUnitFiles handles empty episode list", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
         const units = makeMediaUnitRepository(appDb);
 
-        yield* tryDatabasePromise("Failed test database setup", () =>
+        yield* tryDatabase("Failed test database setup", () =>
           appDb.insert(schema.media).values({
             id: 1,
             titleRomaji: "Test Show",
@@ -130,11 +128,10 @@ it.scoped("upsertUnitFiles handles empty episode list", () =>
 
         yield* units.upsertUnitFiles(1, [], "/test/episode.mkv");
 
-        const rows = yield* tryDatabasePromise("Failed test database assertion", () =>
+        const rows = yield* tryDatabase("Failed test database assertion", () =>
           appDb.select().from(schema.mediaUnits),
         );
         assert.deepStrictEqual(rows.length, 0);
       }),
-    schema,
   }),
 );

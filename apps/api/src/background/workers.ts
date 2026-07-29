@@ -19,7 +19,7 @@ import { currentTimeNanos } from "@/infra/time.ts";
 import { makeSkippingSerializedEffectRunner } from "@/infra/effect/coalescing-skipping-serialized-runner.ts";
 import { compactLogAnnotations, durationMsSince, errorLogAnnotations } from "@/infra/logging.ts";
 
-export class WorkerTimeoutError extends Schema.TaggedError<WorkerTimeoutError>()(
+export class WorkerTimeoutError extends Schema.TaggedErrorClass<WorkerTimeoutError>()(
   "WorkerTimeoutError",
   {
     workerName: Schema.String,
@@ -70,12 +70,12 @@ export function makeBackgroundWorkerPolicy(): BackgroundWorkerPolicy {
       return undefined;
     }
 
-    if (Cause.isInterruptedOnly(exit.cause)) {
+    if (Cause.hasInterruptsOnly(exit.cause)) {
       yield* resetFailureCount(workerName);
       return undefined;
     }
 
-    if (Cause.isDie(exit.cause)) {
+    if (Cause.hasDies(exit.cause)) {
       return yield* Effect.failCause(exit.cause);
     }
 
@@ -156,14 +156,16 @@ export const withLockEffectOrFail = Effect.fn("Background.withLockEffectOrFail")
 ) {
   const effectiveTimeout = timeoutMs ?? BACKGROUND_WORKER_TIMEOUT_MS[workerName];
   const taskWithTimeout = task.pipe(
-    Effect.timeoutFail({
+    Effect.timeoutOrElse({
       duration: `${effectiveTimeout} millis`,
-      onTimeout: () =>
-        new WorkerTimeoutError({
-          workerName,
-          timeoutMs: effectiveTimeout,
-          message: `Worker timed out after ${effectiveTimeout}ms`,
-        }),
+      orElse: () =>
+        Effect.fail(
+          new WorkerTimeoutError({
+            workerName,
+            timeoutMs: effectiveTimeout,
+            message: `Worker timed out after ${effectiveTimeout}ms`,
+          }),
+        ),
     }),
   );
 
@@ -180,7 +182,7 @@ export const withLockEffectOrFail = Effect.fn("Background.withLockEffectOrFail")
       return undefined;
     }
 
-    if (Cause.isInterruptedOnly(exit.cause)) {
+    if (Cause.hasInterruptsOnly(exit.cause)) {
       yield* monitor.markRunInterrupted(workerName);
       return undefined;
     }
@@ -229,7 +231,7 @@ export const withLockEffectOrFail = Effect.fn("Background.withLockEffectOrFail")
 });
 
 function getWorkerTimeoutError(cause: Cause.Cause<unknown>) {
-  const failure = Cause.failureOption(cause);
+  const failure = Cause.findErrorOption(cause);
 
   if (Option.isSome(failure) && failure.value instanceof WorkerTimeoutError) {
     return Option.some(failure.value);
@@ -274,6 +276,6 @@ export function repeatWorker(
       : task.pipe(Effect.repeat(Schedule.spaced(`${options.intervalMs} millis`)), Effect.asVoid);
 
   return initialDelay > 0
-    ? Effect.sleep(`${initialDelay} millis`).pipe(Effect.zipRight(repeatedTask), Effect.asVoid)
+    ? Effect.sleep(`${initialDelay} millis`).pipe(Effect.andThen(repeatedTask), Effect.asVoid)
     : repeatedTask;
 }

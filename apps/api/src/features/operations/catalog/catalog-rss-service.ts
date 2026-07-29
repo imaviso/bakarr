@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import type { RssFeed } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
@@ -17,10 +17,10 @@ export interface CatalogRssServiceShape {
   }) => Effect.Effect<RssFeed, DatabaseError | MediaNotFoundError>;
 }
 
-export class CatalogRssService extends Effect.Service<CatalogRssService>()(
+export class CatalogRssService extends Context.Service<CatalogRssService>()(
   "@bakarr/api/CatalogRssService",
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const mediaRepository = yield* MediaRepository;
       const rssFeedRepository = yield* RssFeedRepository;
       const systemLogRepository = yield* SystemLogRepository;
@@ -54,8 +54,11 @@ export class CatalogRssService extends Effect.Service<CatalogRssService>()(
         addRssFeed,
       } satisfies CatalogRssServiceShape;
     }),
-    dependencies: [MediaRepository.Default, RssFeedRepository.Default, SystemLogRepository.Default],
   },
-) {}
+) {
+  static readonly layer = Layer.effect(CatalogRssService, CatalogRssService.make).pipe(
+    Layer.provide([MediaRepository.layer, RssFeedRepository.layer, SystemLogRepository.layer]),
+  );
+}
 
-export const CatalogRssServiceLive = CatalogRssService.Default;
+export const CatalogRssServiceLive = CatalogRssService.layer;

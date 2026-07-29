@@ -1,6 +1,6 @@
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
-import { Effect, Schema } from "effect";
+import { Context, Effect, Layer, Schema } from "effect";
 
 import { MAX_RSS_BYTES } from "@/features/operations/rss/rss-limits.ts";
 import type { PinnedRequestTarget } from "@/features/operations/rss/rss-client-ssrf.ts";
@@ -12,15 +12,15 @@ export interface RssTransportResponse {
   readonly status: number;
 }
 
-export class RssTransportError extends Schema.TaggedError<RssTransportError>()(
+export class RssTransportError extends Schema.TaggedErrorClass<RssTransportError>()(
   "RssTransportError",
   {
-    cause: Schema.Defect,
+    cause: Schema.Defect(),
     message: Schema.String,
   },
 ) {}
 
-export class RssTransportPayloadTooLargeError extends Schema.TaggedError<RssTransportPayloadTooLargeError>()(
+export class RssTransportPayloadTooLargeError extends Schema.TaggedErrorClass<RssTransportPayloadTooLargeError>()(
   "RssTransportPayloadTooLargeError",
   {
     actualBytes: Schema.Number,
@@ -35,8 +35,8 @@ export interface RssTransportShape {
   ) => Effect.Effect<RssTransportResponse, RssTransportError | RssTransportPayloadTooLargeError>;
 }
 
-export class RssTransport extends Effect.Service<RssTransport>()("@bakarr/api/RssTransport", {
-  sync: () => {
+export class RssTransport extends Context.Service<RssTransport>()("@bakarr/api/RssTransport", {
+  make: Effect.sync(() => {
     const execute = Effect.fn("RssTransport.execute")(function* (target: PinnedRequestTarget) {
       return yield* Effect.tryPromise({
         try: (signal) =>
@@ -59,10 +59,12 @@ export class RssTransport extends Effect.Service<RssTransport>()("@bakarr/api/Rs
     });
 
     return { execute } satisfies RssTransportShape;
-  },
-}) {}
+  }),
+}) {
+  static readonly layer = Layer.effect(RssTransport, RssTransport.make);
+}
 
-export const RssTransportLive = RssTransport.Default;
+export const RssTransportLive = RssTransport.layer;
 
 interface RssTransportRequestConfig {
   readonly headers: Record<string, string>;

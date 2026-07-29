@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import { Schema, SchemaTransformation, Struct } from "effect";
 import { PositiveIntSchema } from "@/domain/domain-schema.ts";
 import {
   ConfigSchema as SharedConfigSchema,
@@ -31,13 +31,14 @@ export {
   StringListSchema,
 };
 
-export const NumberListSchema = Schema.transform(
-  Schema.Array(PositiveIntSchema),
-  Schema.Array(PositiveIntSchema),
-  {
-    decode: (values) => [...new Set(values)].toSorted((left, right) => left - right),
-    encode: (values) => [...new Set(values)].toSorted((left, right) => left - right),
-  },
+export const NumberListSchema = Schema.Array(PositiveIntSchema).pipe(
+  Schema.decodeTo(
+    Schema.Array(PositiveIntSchema),
+    SchemaTransformation.transform<readonly number[], readonly number[]>({
+      decode: (values) => [...new Set(values)].toSorted((left, right) => left - right),
+      encode: (values) => [...new Set(values)].toSorted((left, right) => left - right),
+    }),
+  ),
 );
 
 export const ReleaseProfileRulesSchema = Schema.Array(ReleaseProfileRuleSchema);
@@ -64,6 +65,6 @@ export class UpdateReleaseProfileSchema extends Schema.Class<UpdateReleaseProfil
 
 export type UpdateReleaseProfileInput = Schema.Schema.Type<typeof UpdateReleaseProfileSchema>;
 
-export const ConfigCoreSchema = SharedConfigSchema.pipe(Schema.omit("profiles"));
+export const ConfigCoreSchema = SharedConfigSchema.mapFields(Struct.omit(["profiles"]));
 
 export const ConfigSchema = SharedConfigSchema;

@@ -1,4 +1,4 @@
-import { Config as EffectConfig, Effect, Schema } from "effect";
+import { Config as EffectConfig, Effect } from "effect";
 
 import { PositiveIntFromStringSchema } from "@/domain/domain-schema.ts";
 import { makeSingleFlightEffectRunner } from "@/infra/effect/coalescing-single-flight-runner.ts";
@@ -20,9 +20,9 @@ export const makeMetadataRefreshRunner = Effect.fn("MediaMetadataRefresh.makeRun
   const mediaRepository = yield* MediaRepository;
   const mediaUnitRepository = yield* MediaUnitRepository;
   const systemLogRepository = yield* SystemLogRepository;
-  const refreshConcurrency = yield* Schema.Config(
-    "BAKARR_METADATA_REFRESH_CONCURRENCY",
+  const refreshConcurrency = yield* EffectConfig.schema(
     PositiveIntFromStringSchema,
+    "BAKARR_METADATA_REFRESH_CONCURRENCY",
   ).pipe(EffectConfig.withDefault(DEFAULT_METADATA_REFRESH_CONCURRENCY));
 
   return yield* makeSingleFlightEffectRunner(

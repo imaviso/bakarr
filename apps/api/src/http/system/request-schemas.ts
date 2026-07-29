@@ -8,10 +8,12 @@ import {
 } from "@/features/system/config-schema.ts";
 import { IsoDateTimeStringSchema } from "@/http/shared/common-request-schemas.ts";
 
-const ResourceNameStringSchema = Schema.String.pipe(Schema.minLength(1));
-const SystemLogEventTypeStringSchema = Schema.String.pipe(Schema.minLength(1));
-const SystemLogExportEventTypeStringSchema = Schema.String.pipe(Schema.minLength(1));
-const SystemLogLevelSchema = Schema.Literal("error", "info", "success", "warn");
+const ResourceNameStringSchema = Schema.String.pipe(Schema.check(Schema.isMinLength(1)));
+const SystemLogEventTypeStringSchema = Schema.String.pipe(Schema.check(Schema.isMinLength(1)));
+const SystemLogExportEventTypeStringSchema = Schema.String.pipe(
+  Schema.check(Schema.isMinLength(1)),
+);
+const SystemLogLevelSchema = Schema.Literals(["error", "info", "success", "warn"]);
 
 export {
   ConfigSchema,
@@ -30,7 +32,12 @@ export class SystemLogsQuerySchema extends Schema.Class<SystemLogsQuerySchema>(
   end_date: Schema.optional(IsoDateTimeStringSchema),
   event_type: Schema.optional(SystemLogEventTypeStringSchema),
   level: Schema.optional(SystemLogLevelSchema),
-  page: Schema.optional(Schema.NumberFromString.pipe(Schema.int(), Schema.positive())),
+  page: Schema.optional(
+    Schema.NumberFromString.pipe(
+      Schema.check(Schema.isInt()),
+      Schema.check(Schema.isGreaterThan(0)),
+    ),
+  ),
   start_date: Schema.optional(IsoDateTimeStringSchema),
 }) {}
 
@@ -39,7 +46,7 @@ export class SystemLogExportQuerySchema extends Schema.Class<SystemLogExportQuer
 )({
   end_date: Schema.optional(IsoDateTimeStringSchema),
   event_type: Schema.optional(SystemLogExportEventTypeStringSchema),
-  format: Schema.optional(Schema.Literal("csv", "json")),
+  format: Schema.optional(Schema.Literals(["csv", "json"])),
   level: Schema.optional(SystemLogLevelSchema),
   start_date: Schema.optional(IsoDateTimeStringSchema),
 }) {}

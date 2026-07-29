@@ -1,6 +1,7 @@
 import { assert, it } from "@effect/vitest";
-import { HttpClient, HttpClientError, HttpClientResponse } from "@effect/platform";
-import { Cause, Deferred, Effect, Exit, Fiber, Layer, Redacted, TestClock } from "effect";
+import { HttpClient, HttpClientError, HttpClientResponse } from "effect/unstable/http";
+import { Cause, Deferred, Effect, Exit, Fiber, Layer, Redacted } from "effect";
+import { TestClock } from "effect/testing";
 
 import { ExternalCallLive } from "@/infra/effect/retry.ts";
 import {
@@ -49,7 +50,7 @@ it("mapQBitState defaults unrecognised states to queued", () => {
 
 const ExternalCallWithLiveClock = ExternalCallLive;
 
-it.scoped("QBitTorrentClient uses provided HttpClient", () =>
+it.effect("QBitTorrentClient uses provided HttpClient", () =>
   Effect.gen(function* () {
     let requestCount = 0;
 
@@ -304,11 +305,12 @@ it.effect(
 
                   if (cookie.includes("SID=abc123")) {
                     return Effect.fail(
-                      new HttpClientError.RequestError({
-                        request,
-                        reason: "Transport",
-                        cause: new Error("network failed after 403 retries"),
-                        description: "network failed after 403 retries",
+                      new HttpClientError.HttpClientError({
+                        reason: new HttpClientError.TransportError({
+                          request,
+                          cause: new Error("network failed after 403 retries"),
+                          description: "network failed after 403 retries",
+                        }),
                       }),
                     );
                   }
@@ -342,7 +344,7 @@ it.effect(
       yield* Effect.flatMap(QBitTorrentClient, (client) =>
         Effect.gen(function* () {
           yield* client.listTorrents(config);
-          const secondCall = yield* client.listTorrents(config).pipe(Effect.exit, Effect.fork);
+          const secondCall = yield* client.listTorrents(config).pipe(Effect.exit, Effect.forkChild);
 
           yield* TestClock.adjust("31 seconds");
 
@@ -351,7 +353,7 @@ it.effect(
           assert.deepStrictEqual(loginCalls, ["abc123"]);
           assert.deepStrictEqual(Exit.isFailure(secondExit), true);
           if (Exit.isFailure(secondExit)) {
-            const failure = Cause.failureOption(secondExit.cause);
+            const failure = Cause.findErrorOption(secondExit.cause);
             assert.deepStrictEqual(failure._tag, "Some");
             if (failure._tag === "Some") {
               assert.deepStrictEqual(failure.value._tag, "ExternalCallError");
@@ -419,8 +421,8 @@ it.effect("QBitTorrentClient shares in-flight login across concurrent requests",
 
     const effect = Effect.flatMap(QBitTorrentClient, (client) =>
       Effect.gen(function* () {
-        const first = yield* Effect.fork(client.listTorrents(config));
-        const second = yield* Effect.fork(client.listTorrents(config));
+        const first = yield* Effect.forkChild(client.listTorrents(config));
+        const second = yield* Effect.forkChild(client.listTorrents(config));
 
         yield* Deferred.succeed(releaseLogin, void 0);
 

@@ -1,10 +1,9 @@
 import { assert, it } from "@effect/vitest";
 import { Effect } from "effect";
 
-import * as schema from "@/db/schema.ts";
 import { media, mediaUnits, downloads, rssFeeds } from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { tryDatabase } from "@/infra/effect/db.ts";
 import {
   countMediaRows,
   countMonitoredMediaRows,
@@ -17,22 +16,21 @@ import {
 } from "@/features/system/repository/stats-repository.ts";
 import { loadSystemLogPage } from "@/features/system/repository/log-repository.ts";
 
-it.scoped("countMediaRows returns 0 for empty table", () =>
+it.effect("countMediaRows returns 0 for empty table", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const count = yield* countMediaRows(db);
         assert.deepStrictEqual(count, 0);
       }),
-    schema,
   }),
 );
 
-it.scoped("countMediaRows counts inserted rows", () =>
+it.effect("countMediaRows counts inserted rows", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        yield* tryDatabasePromise("Failed to seed media for count test", () =>
+        yield* tryDatabase("Failed to seed media for count test", () =>
           db.insert(media).values([
             {
               addedAt: "2025-01-01T00:00:00.000Z",
@@ -65,15 +63,14 @@ it.scoped("countMediaRows counts inserted rows", () =>
         assert.deepStrictEqual(yield* countMediaRows(db), 2);
         assert.deepStrictEqual(yield* countMonitoredMediaRows(db), 1);
       }),
-    schema,
   }),
 );
 
-it.scoped("countEpisodeRows and countDownloadedEpisodeRows count correctly", () =>
+it.effect("countEpisodeRows and countDownloadedEpisodeRows count correctly", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        yield* tryDatabasePromise("Failed to seed media row", () =>
+        yield* tryDatabase("Failed to seed media row", () =>
           db.insert(media).values({
             addedAt: "2025-01-01T00:00:00.000Z",
             unitCount: 12,
@@ -88,7 +85,7 @@ it.scoped("countEpisodeRows and countDownloadedEpisodeRows count correctly", () 
             titleRomaji: "A",
           }),
         );
-        yield* tryDatabasePromise("Failed to seed mediaUnits", () =>
+        yield* tryDatabase("Failed to seed mediaUnits", () =>
           db.insert(mediaUnits).values([
             {
               mediaId: 1,
@@ -112,15 +109,14 @@ it.scoped("countEpisodeRows and countDownloadedEpisodeRows count correctly", () 
         assert.deepStrictEqual(yield* countEpisodeRows(db), 3);
         assert.deepStrictEqual(yield* countDownloadedEpisodeRows(db), 2);
       }),
-    schema,
   }),
 );
 
-it.scoped("countRssFeedRows counts feeds", () =>
+it.effect("countRssFeedRows counts feeds", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        yield* tryDatabasePromise("Failed to seed media row", () =>
+        yield* tryDatabase("Failed to seed media row", () =>
           db.insert(media).values({
             addedAt: "2025-01-01T00:00:00.000Z",
             unitCount: 12,
@@ -135,7 +131,7 @@ it.scoped("countRssFeedRows counts feeds", () =>
             titleRomaji: "A",
           }),
         );
-        yield* tryDatabasePromise("Failed to seed rssFeeds", () =>
+        yield* tryDatabase("Failed to seed rssFeeds", () =>
           db.insert(rssFeeds).values({
             mediaId: 1,
             createdAt: "2025-01-01T00:00:00.000Z",
@@ -145,15 +141,14 @@ it.scoped("countRssFeedRows counts feeds", () =>
         );
         assert.deepStrictEqual(yield* countRssFeedRows(db), 1);
       }),
-    schema,
   }),
 );
 
-it.scoped("loadSystemLibraryStatsAggregate aggregates all library stats", () =>
+it.effect("loadSystemLibraryStatsAggregate aggregates all library stats", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        yield* tryDatabasePromise("Failed to seed media row", () =>
+        yield* tryDatabase("Failed to seed media row", () =>
           db.insert(media).values({
             addedAt: "2025-01-01T00:00:00.000Z",
             unitCount: 2,
@@ -168,7 +163,7 @@ it.scoped("loadSystemLibraryStatsAggregate aggregates all library stats", () =>
             titleRomaji: "A",
           }),
         );
-        yield* tryDatabasePromise("Failed to seed mediaUnits", () =>
+        yield* tryDatabase("Failed to seed mediaUnits", () =>
           db.insert(mediaUnits).values([
             {
               mediaId: 1,
@@ -188,7 +183,7 @@ it.scoped("loadSystemLibraryStatsAggregate aggregates all library stats", () =>
             },
           ]),
         );
-        yield* tryDatabasePromise("Failed to seed download row", () =>
+        yield* tryDatabase("Failed to seed download row", () =>
           db.insert(downloads).values({
             addedAt: "2025-01-01T00:00:00.000Z",
             mediaId: 1,
@@ -225,33 +220,30 @@ it.scoped("loadSystemLibraryStatsAggregate aggregates all library stats", () =>
         assert.deepStrictEqual(stats.completedDownloads, 1);
         assert.deepStrictEqual(stats.upToDateAnime, 1);
       }),
-    schema,
   }),
 );
 
-it.scoped("listBackgroundJobRows returns empty when no jobs", () =>
+it.effect("listBackgroundJobRows returns empty when no jobs", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const rows = yield* listBackgroundJobRows(db);
         assert.deepStrictEqual(rows, []);
       }),
-    schema,
   }),
 );
 
-it.scoped("listRecentSystemLogRows returns empty when no logs", () =>
+it.effect("listRecentSystemLogRows returns empty when no logs", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const rows = yield* listRecentSystemLogRows(db, 10);
         assert.deepStrictEqual(rows, []);
       }),
-    schema,
   }),
 );
 
-it.scoped("loadSystemLogPage returns paginated results", () =>
+it.effect("loadSystemLogPage returns paginated results", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -259,6 +251,5 @@ it.scoped("loadSystemLogPage returns paginated results", () =>
         assert.deepStrictEqual(total, 0);
         assert.deepStrictEqual(rows, []);
       }),
-    schema,
   }),
 );

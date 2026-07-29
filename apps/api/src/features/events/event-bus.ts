@@ -1,4 +1,4 @@
-import { Effect, Layer, PubSub, Queue, Stream } from "effect";
+import { Context, Effect, Layer, PubSub, Stream } from "effect";
 
 import type { NotificationEvent } from "@packages/shared/index.ts";
 
@@ -24,15 +24,17 @@ export interface EventBusShape {
   ) => Stream.Stream<A, E>;
 }
 
-export class EventBus extends Effect.Service<EventBus>()("@bakarr/api/EventBus", {
-  scoped: Effect.gen(function* () {
+export class EventBus extends Context.Service<EventBus>()("@bakarr/api/EventBus", {
+  make: Effect.gen(function* () {
     const pubsub = yield* PubSub.sliding<NotificationEvent>({
       capacity: DEFAULT_EVENT_BUS_CAPACITY,
     });
     yield* Effect.addFinalizer(() => PubSub.shutdown(pubsub));
     return makeEventBusFromPubSub(pubsub);
   }),
-}) {}
+}) {
+  static readonly layer = Layer.effect(EventBus, EventBus.make);
+}
 
 const makeEventBusFromPubSub = (pubsub: PubSub.PubSub<NotificationEvent>) =>
   ({
@@ -48,19 +50,18 @@ const makeEventBusFromPubSub = (pubsub: PubSub.PubSub<NotificationEvent>) =>
     withSubscriptionStream: <A, E>(
       use: (subscription: EventSubscription) => Stream.Stream<A, E>,
     ): Stream.Stream<A, E> =>
-      Stream.unwrapScoped(
+      Stream.unwrap(
         Effect.gen(function* () {
-          const subscriptionQueue = yield* PubSub.subscribe(pubsub);
+          const subscription = yield* PubSub.subscribe(pubsub);
           const takeBufferedOnce = yield* Effect.cached(
-            Queue.takeAll(subscriptionQueue).pipe(
-              Effect.map((events) => Array.from(events)),
+            PubSub.takeUpTo(subscription, Number.POSITIVE_INFINITY).pipe(
               Effect.withSpan("EventBus.takeBufferedOnce"),
             ),
           );
 
           return use({
             takeBufferedOnce,
-            stream: Stream.fromQueue(subscriptionQueue, { shutdown: false }),
+            stream: Stream.fromSubscription(subscription),
           });
         }),
       ),
@@ -71,19 +72,16 @@ export const makeEventBus = Effect.fn("Events.makeEventBus")(
     Effect.gen(function* () {
       const capacity = options.capacity ?? DEFAULT_EVENT_BUS_CAPACITY;
       const pubsub = yield* PubSub.sliding<NotificationEvent>({ capacity });
-      return EventBus.make(makeEventBusFromPubSub(pubsub));
+      return makeEventBusFromPubSub(pubsub);
     }),
 );
 
-export const EventBusNoopLive = Layer.succeed(
-  EventBus,
-  EventBus.make({
-    publish: () => Effect.void,
-    publishInfo: () => Effect.void,
-    withSubscriptionStream: <A, E>(use: (subscription: EventSubscription) => Stream.Stream<A, E>) =>
-      use({
-        takeBufferedOnce: Effect.succeed([]),
-        stream: Stream.empty,
-      }),
-  }),
-);
+export const EventBusNoopLive = Layer.succeed(EventBus, {
+  publish: () => Effect.void,
+  publishInfo: () => Effect.void,
+  withSubscriptionStream: <A, E>(use: (subscription: EventSubscription) => Stream.Stream<A, E>) =>
+    use({
+      takeBufferedOnce: Effect.succeed([]),
+      stream: Stream.empty,
+    }),
+});

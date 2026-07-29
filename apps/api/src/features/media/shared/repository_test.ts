@@ -3,9 +3,8 @@ import { eq } from "drizzle-orm";
 import { Cause, Effect, Exit } from "effect";
 import { brandMediaId } from "@packages/shared/index.ts";
 
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { tryDatabase } from "@/infra/effect/db.ts";
 
-import * as schema from "@/db/schema.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { media, appConfig, mediaUnits, qualityProfiles, systemLogs } from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
@@ -15,7 +14,12 @@ import { qualityProfileExistsEffect } from "@/features/media/shared/profile-supp
 
 import { buildMissingEpisodeRows } from "@/features/media/units/media-schedule-repository.ts";
 import { MAX_INFERRED_EPISODE_NUMBER } from "@/features/media/units/unit-backfill-policy.ts";
-import { makeMediaRepository, makeMediaUnitRepository, makeQualityProfileRepository, makeSystemConfigRepository } from "@/test/repository-factories.ts";
+import {
+  makeMediaRepository,
+  makeMediaUnitRepository,
+  makeQualityProfileRepository,
+  makeSystemConfigRepository,
+} from "@/test/repository-factories.ts";
 import { inferAiredAt } from "@/domain/media/derivations.ts";
 import { markSearchResultsAlreadyInLibraryEffect } from "@/features/media/query/search-results.ts";
 import {
@@ -24,7 +28,7 @@ import {
   resolveMediaRootFolderEffect,
 } from "@/features/media/shared/config-support.ts";
 
-it.scoped("upsertUnit prevents duplicate media episode rows", () =>
+it.effect("upsertUnit prevents duplicate media episode rows", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -41,23 +45,22 @@ it.scoped("upsertUnit prevents duplicate media episode rows", () =>
           title: "MediaUnit 1 updated",
         });
 
-        const rows = yield* tryDatabasePromise("Failed to query mediaUnits", () =>
+        const rows = yield* tryDatabase("Failed to query mediaUnits", () =>
           db.select().from(mediaUnits).where(eq(mediaUnits.mediaId, 1)),
         );
         assert.deepStrictEqual(rows.length, 1);
         assert.deepStrictEqual(rows[0]?.number, 1);
         assert.deepStrictEqual(rows[0]?.title, "MediaUnit 1 updated");
       }),
-    schema,
   }),
 );
 
-it.scoped("ensureUnits rejects duplicate episode inserts for same media", () =>
+it.effect("ensureUnits rejects duplicate episode inserts for same media", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         yield* insertMediaEffect(db, 2, 1);
-        yield* tryDatabasePromise("Failed to seed mediaUnit for duplicate test", () =>
+        yield* tryDatabase("Failed to seed mediaUnit for duplicate test", () =>
           db.insert(mediaUnits).values({
             audioChannels: null,
             audioCodec: null,
@@ -88,7 +91,7 @@ it.scoped("ensureUnits rejects duplicate episode inserts for same media", () =>
         );
 
         const duplicateInsert = yield* Effect.exit(
-          tryDatabasePromise("Expected duplicate insert to fail", () =>
+          tryDatabase("Expected duplicate insert to fail", () =>
             db.insert(mediaUnits).values({
               audioChannels: null,
               audioCodec: null,
@@ -109,11 +112,10 @@ it.scoped("ensureUnits rejects duplicate episode inserts for same media", () =>
         );
         assert.deepStrictEqual(duplicateInsert._tag, "Failure");
       }),
-    schema,
   }),
 );
 
-it.scoped("insertAnimeAggregateAtomic rolls back media inserts when a later write fails", () =>
+it.effect("insertAnimeAggregateAtomic rolls back media inserts when a later write fails", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -190,15 +192,14 @@ it.scoped("insertAnimeAggregateAtomic rolls back media inserts when a later writ
         );
         assert.deepStrictEqual(exit._tag, "Failure");
 
-        const animeRows = yield* tryDatabasePromise(
-          "Failed to query media for rollback assertion",
-          () => db.select().from(media).where(eq(media.id, 77)),
+        const animeRows = yield* tryDatabase("Failed to query media for rollback assertion", () =>
+          db.select().from(media).where(eq(media.id, 77)),
         );
-        const episodeRows = yield* tryDatabasePromise(
+        const episodeRows = yield* tryDatabase(
           "Failed to query mediaUnits for rollback assertion",
           () => db.select().from(mediaUnits).where(eq(mediaUnits.mediaId, 77)),
         );
-        const logRows = yield* tryDatabasePromise(
+        const logRows = yield* tryDatabase(
           "Failed to query systemLogs for rollback assertion",
           () => db.select().from(systemLogs).where(eq(systemLogs.message, "This should fail")),
         );
@@ -207,7 +208,6 @@ it.scoped("insertAnimeAggregateAtomic rolls back media inserts when a later writ
         assert.deepStrictEqual(episodeRows.length, 0);
         assert.deepStrictEqual(logRows.length, 0);
       }),
-    schema,
   }),
 );
 
@@ -324,7 +324,7 @@ it("inferAiredAt prefers AniList future schedule over heuristics", () => {
   assert.deepStrictEqual(airedAt, "2024-03-20T12:00:00.000Z");
 });
 
-it.scoped("syncUnitMetadata applies AniDB episode titles and dates", () =>
+it.effect("syncUnitMetadata applies AniDB episode titles and dates", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -349,20 +349,18 @@ it.scoped("syncUnitMetadata applies AniDB episode titles and dates", () =>
           },
         ]);
 
-        const rows = yield* tryDatabasePromise(
-          "Failed to query mediaUnits for sync assertion",
-          () => db.select().from(mediaUnits).where(eq(mediaUnits.mediaId, 25)),
+        const rows = yield* tryDatabase("Failed to query mediaUnits for sync assertion", () =>
+          db.select().from(mediaUnits).where(eq(mediaUnits.mediaId, 25)),
         );
         const first = rows.find((row) => row.number === 1);
 
         assert.deepStrictEqual(first?.title, "Opening Move");
         assert.deepStrictEqual(first?.aired, "2024-01-02T00:00:00.000Z");
       }),
-    schema,
   }),
 );
 
-it.scoped("resolveAnimeRootFolder can preserve an existing folder root", () =>
+it.effect("resolveAnimeRootFolder can preserve an existing folder root", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -375,15 +373,14 @@ it.scoped("resolveAnimeRootFolder can preserve an existing folder root", () =>
 
         assert.deepStrictEqual(rootFolder, "/library/Naruto Fansub");
       }),
-    schema,
   }),
 );
 
-it.scoped("media repository helpers fail explicitly on corrupt stored config", () =>
+it.effect("media repository helpers fail explicitly on corrupt stored config", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        yield* tryDatabasePromise("Failed to seed corrupt appConfig for error test", () =>
+        yield* tryDatabase("Failed to seed corrupt appConfig for error test", () =>
           db.insert(appConfig).values({
             id: 1,
             data: "{not-json",
@@ -397,7 +394,7 @@ it.scoped("media repository helpers fail explicitly on corrupt stored config", (
         );
         assert.deepStrictEqual(Exit.isFailure(rootFolderExit), true);
         if (Exit.isFailure(rootFolderExit)) {
-          const failure = Cause.failureOption(rootFolderExit.cause);
+          const failure = Cause.findErrorOption(rootFolderExit.cause);
           assert.deepStrictEqual(failure._tag, "Some");
           if (failure._tag === "Some") {
             assert.deepStrictEqual(failure.value._tag, "StoredDataError");
@@ -409,18 +406,17 @@ it.scoped("media repository helpers fail explicitly on corrupt stored config", (
         );
         assert.deepStrictEqual(Exit.isFailure(imagesPathExit), true);
         if (Exit.isFailure(imagesPathExit)) {
-          const failure = Cause.failureOption(imagesPathExit.cause);
+          const failure = Cause.findErrorOption(imagesPathExit.cause);
           assert.deepStrictEqual(failure._tag, "Some");
           if (failure._tag === "Some") {
             assert.deepStrictEqual(failure.value._tag, "StoredDataError");
           }
         }
       }),
-    schema,
   }),
 );
 
-it.scoped("media repository helpers use stored config when available", () =>
+it.effect("media repository helpers use stored config when available", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -445,7 +441,7 @@ it.scoped("media repository helpers use stored config when available", () =>
           Effect.flatMap((core) => encodeConfigCore(core)),
         );
 
-        yield* tryDatabasePromise("Failed to seed appConfig for config test", () =>
+        yield* tryDatabase("Failed to seed appConfig for config test", () =>
           db.insert(appConfig).values({
             id: 1,
             data: encodedConfig,
@@ -467,11 +463,10 @@ it.scoped("media repository helpers use stored config when available", () =>
           "/media-library",
         );
       }),
-    schema,
   }),
 );
 
-it.scoped("qualityProfileExistsEffect checks stored quality profile rows", () =>
+it.effect("qualityProfileExistsEffect checks stored quality profile rows", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -481,7 +476,7 @@ it.scoped("qualityProfileExistsEffect checks stored quality profile rows", () =>
           false,
         );
 
-        yield* tryDatabasePromise("Failed to seed quality profile", () =>
+        yield* tryDatabase("Failed to seed quality profile", () =>
           db.insert(qualityProfiles).values({
             allowedQualities: "1080p",
             cutoff: "720p",
@@ -498,11 +493,10 @@ it.scoped("qualityProfileExistsEffect checks stored quality profile rows", () =>
           true,
         );
       }),
-    schema,
   }),
 );
 
-it.scoped("markSearchResultsAlreadyInLibrary annotates local matches", () =>
+it.effect("markSearchResultsAlreadyInLibrary annotates local matches", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -550,11 +544,10 @@ it.scoped("markSearchResultsAlreadyInLibrary annotates local matches", () =>
         assert.deepStrictEqual(results[0]?.already_in_library, true);
         assert.deepStrictEqual(results[1]?.already_in_library, false);
       }),
-    schema,
   }),
 );
 
-it.scoped("findMediaRootFolderOwner returns the mapped media for a root", () =>
+it.effect("findMediaRootFolderOwner returns the mapped media for a root", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -565,11 +558,10 @@ it.scoped("findMediaRootFolderOwner returns the mapped media for a root", () =>
         assert.deepStrictEqual(owner?.id, 20);
         assert.deepStrictEqual(owner?.titleRomaji, "Show 20");
       }),
-    schema,
   }),
 );
 
-it.scoped("findMediaRootFolderOwner handles trailing slash parents", () =>
+it.effect("findMediaRootFolderOwner handles trailing slash parents", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -580,24 +572,22 @@ it.scoped("findMediaRootFolderOwner handles trailing slash parents", () =>
 
         assert.deepStrictEqual(owner?.id, 21);
       }),
-    schema,
   }),
 );
 
-it.scoped("media root-folder triggers reject overlapping roots", () =>
+it.effect("media root-folder triggers reject overlapping roots", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         yield* insertMediaWithRootEffect(db, 30, 12, "/library/Naruto/");
 
         const overlappingInsert = yield* Effect.exit(
-          tryDatabasePromise("Expected overlapping root insert to fail", () =>
+          tryDatabase("Expected overlapping root insert to fail", () =>
             insertAnimeWithRoot(db, 31, 12, "/library/Naruto/Season 1"),
           ),
         );
         assert.deepStrictEqual(overlappingInsert._tag, "Failure");
       }),
-    schema,
   }),
 );
 
@@ -606,26 +596,21 @@ const insertMediaEffect = Effect.fn("MediaRepositoryTest.insertMediaEffect")(fun
   id: number,
   unitCount: number,
 ) {
-  yield* tryDatabasePromise("Failed to insert test anime", () =>
+  yield* tryDatabase("Failed to insert test anime", () =>
     insertAnimeWithRoot(db, id, unitCount, `/library/Show-${id}`),
   );
 });
 
 const insertMediaWithRootEffect = Effect.fn("MediaRepositoryTest.insertMediaWithRootEffect")(
   function* (db: AppDatabase, id: number, unitCount: number, rootFolder: string) {
-    yield* tryDatabasePromise("Failed to insert test anime with root", () =>
+    yield* tryDatabase("Failed to insert test anime with root", () =>
       insertAnimeWithRoot(db, id, unitCount, rootFolder),
     );
   },
 );
 
-async function insertAnimeWithRoot(
-  db: AppDatabase,
-  id: number,
-  unitCount: number,
-  rootFolder: string,
-) {
-  await db.insert(media).values({
+function insertAnimeWithRoot(db: AppDatabase, id: number, unitCount: number, rootFolder: string) {
+  return db.insert(media).values({
     id,
     malId: null,
     titleRomaji: `Show ${id}`,

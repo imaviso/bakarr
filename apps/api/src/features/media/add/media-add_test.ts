@@ -4,23 +4,25 @@ import { Effect, Schema } from "effect";
 import { brandMediaId } from "@packages/shared/index.ts";
 
 import type { AppDatabase } from "@/db/database.ts";
-import * as schema from "@/db/schema.ts";
 import { media, qualityProfiles } from "@/db/schema.ts";
 import { AddMediaInput } from "@/features/media/add/add-media-input.ts";
 import { addMediaEffect } from "@/features/media/add/media-add.ts";
 import type { AnimeMetadata } from "@/features/media/metadata/anilist-model.ts";
-import { MediaImageCacheService } from "@/features/media/metadata/media-image-cache-service.ts";
-import { MediaMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
 import {
   decodeStoredDiscoveryEntriesEffect,
   decodeStoredSynonymsEffect,
 } from "@/features/media/shared/decode-support.ts";
 import { FileSystemError, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { tryDatabase } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { makeMediaRepository, makeMediaUnitRepository, makeQualityProfileRepository, makeSystemConfigRepository } from "@/test/repository-factories.ts";
+import {
+  makeMediaRepository,
+  makeMediaUnitRepository,
+  makeQualityProfileRepository,
+  makeSystemConfigRepository,
+} from "@/test/repository-factories.ts";
 
-it.scoped("addMediaEffect persists MAL backfill and mapped relation metadata", () =>
+it.effect("addMediaEffect persists MAL backfill and mapped relation metadata", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -43,7 +45,7 @@ it.scoped("addMediaEffect persists MAL backfill and mapped relation metadata", (
         };
 
         const events: Array<{ type: string; message?: string }> = [];
-        const animeInput = yield* Schema.decodeUnknown(AddMediaInput)({
+        const animeInput = yield* Schema.decodeUnknownEffect(AddMediaInput)({
           id: mediaId,
           monitor_and_search: false,
           monitored: true,
@@ -54,7 +56,7 @@ it.scoped("addMediaEffect persists MAL backfill and mapped relation metadata", (
         });
 
         yield* addMediaEffect({
-          metadataProvider: MediaMetadataProviderService.make({
+          metadataProvider: {
             getAnimeMetadataById: () =>
               Effect.succeed({
                 _tag: "Found",
@@ -64,7 +66,7 @@ it.scoped("addMediaEffect persists MAL backfill and mapped relation metadata", (
                 },
                 metadata,
               }),
-          }),
+          },
           animeInput,
           eventPublisher: {
             publish: (event) =>
@@ -77,13 +79,13 @@ it.scoped("addMediaEffect persists MAL backfill and mapped relation metadata", (
               }),
           },
           fs: makeFileSystemStub(),
-          imageCacheService: MediaImageCacheService.make({
+          imageCacheService: {
             cacheMetadataImages: () =>
               Effect.succeed({
                 bannerImage: "/api/images/media/601/banner.jpg",
                 coverImage: "/api/images/media/601/cover.jpg",
               }),
-          }),
+          },
           mediaRepository: makeMediaRepository(appDb),
           mediaUnitRepository: makeMediaUnitRepository(appDb),
           qualityProfileRepository: makeQualityProfileRepository(appDb),
@@ -91,7 +93,7 @@ it.scoped("addMediaEffect persists MAL backfill and mapped relation metadata", (
           nowIso: () => Effect.succeed("2026-04-11T00:00:00.000Z"),
         });
 
-        const [row] = yield* tryDatabasePromise("Failed to query media for add assertion", () =>
+        const [row] = yield* tryDatabase("Failed to query media for add assertion", () =>
           appDb.select().from(media).where(eq(media.id, mediaId)),
         );
         assert(row);
@@ -117,11 +119,10 @@ it.scoped("addMediaEffect persists MAL backfill and mapped relation metadata", (
           },
         ]);
       }),
-    schema,
   }),
 );
 
-it.scoped("addMediaEffect infers light novel media kind when request omits it", () =>
+it.effect("addMediaEffect infers light novel media kind when request omits it", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -130,7 +131,7 @@ it.scoped("addMediaEffect infers light novel media kind when request omits it", 
 
         yield* insertQualityProfileEffect(appDb, "Default");
 
-        const animeInput = yield* Schema.decodeUnknown(AddMediaInput)({
+        const animeInput = yield* Schema.decodeUnknownEffect(AddMediaInput)({
           id: mediaId,
           monitor_and_search: false,
           monitored: true,
@@ -141,7 +142,7 @@ it.scoped("addMediaEffect infers light novel media kind when request omits it", 
         });
 
         yield* addMediaEffect({
-          metadataProvider: MediaMetadataProviderService.make({
+          metadataProvider: {
             getAnimeMetadataById: () =>
               Effect.succeed({
                 _tag: "Found",
@@ -151,13 +152,13 @@ it.scoped("addMediaEffect infers light novel media kind when request omits it", 
                 },
                 metadata: { ...makeMetadata(mediaId), format: "NOVEL", unitCount: 6 },
               }),
-          }),
+          },
           animeInput,
           eventPublisher: { publish: () => Effect.void },
           fs: makeFileSystemStub(),
-          imageCacheService: MediaImageCacheService.make({
+          imageCacheService: {
             cacheMetadataImages: () => Effect.succeed({}),
-          }),
+          },
           mediaRepository: makeMediaRepository(appDb),
           mediaUnitRepository: makeMediaUnitRepository(appDb),
           qualityProfileRepository: makeQualityProfileRepository(appDb),
@@ -165,13 +166,12 @@ it.scoped("addMediaEffect infers light novel media kind when request omits it", 
           nowIso: () => Effect.succeed("2026-04-11T00:00:00.000Z"),
         });
 
-        const [row] = yield* tryDatabasePromise("Failed to query media for add assertion", () =>
+        const [row] = yield* tryDatabase("Failed to query media for add assertion", () =>
           appDb.select().from(media).where(eq(media.id, mediaId)),
         );
         assert(row);
         assert.deepStrictEqual(row.mediaKind, "light_novel");
       }),
-    schema,
   }),
 );
 
@@ -179,7 +179,7 @@ const insertQualityProfileEffect = Effect.fn("Test.insertQualityProfile")(functi
   db: AppDatabase,
   name: string,
 ) {
-  yield* tryDatabasePromise("Failed to insert quality profile for media add test", () =>
+  yield* tryDatabase("Failed to insert quality profile for media add test", () =>
     db.insert(qualityProfiles).values({
       allowedQualities: "1080p",
       cutoff: "720p",

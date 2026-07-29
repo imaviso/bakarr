@@ -167,7 +167,9 @@ it.effect("MediaProbe enforces global ffprobe concurrency limit", () =>
     ).pipe(
       Effect.provide(
         MediaProbeLive.pipe(
-          Layer.provide(Layer.succeed(ChildProcessSpawner.ChildProcessSpawner, commandExecutorStub)),
+          Layer.provide(
+            Layer.succeed(ChildProcessSpawner.ChildProcessSpawner, commandExecutorStub),
+          ),
         ),
       ),
     );
@@ -198,7 +200,9 @@ it.effect("MediaProbe fails startup when ffprobe version check fails", () =>
       ).pipe(
         Effect.provide(
           MediaProbeLive.pipe(
-            Layer.provide(Layer.succeed(ChildProcessSpawner.ChildProcessSpawner, commandExecutorStub)),
+            Layer.provide(
+              Layer.succeed(ChildProcessSpawner.ChildProcessSpawner, commandExecutorStub),
+            ),
           ),
         ),
       ),
@@ -243,7 +247,7 @@ it.effect("MediaProbe returns a typed failure when ffprobe output is invalid", (
       ),
     );
 
-    assert.deepStrictEqual(result._tag, "Left");
+    assert.deepStrictEqual(result._tag, "Failure");
     if (result._tag === "Failure") {
       assert.deepStrictEqual(result.failure._tag, "MediaProbeFailure");
     }

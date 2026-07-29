@@ -1,4 +1,4 @@
-import { Effect, Option } from "effect";
+import { Context, Effect, Layer, Option } from "effect";
 
 import {
   brandUserId,
@@ -203,20 +203,21 @@ const makeAuthSessionService = Effect.fn("AuthSessionService.make")(function* ()
   } satisfies AuthSessionServiceShape;
 });
 
-export class AuthSessionService extends Effect.Service<AuthSessionService>()(
+export class AuthSessionService extends Context.Service<AuthSessionService>()(
   "@bakarr/api/AuthSessionService",
-  {
-    dependencies: [
-      AuthUserRepository.Default,
-      PasswordCrypto.Default,
-      RandomService.Default,
-      TokenHasher.Default,
-    ],
-    effect: makeAuthSessionService(),
-  },
-) {}
+  { make: makeAuthSessionService() },
+) {
+  static readonly layer = Layer.effect(AuthSessionService, AuthSessionService.make).pipe(
+    Layer.provide([
+      AuthUserRepository.layer,
+      PasswordCrypto.layer,
+      RandomService.layer,
+      TokenHasher.layer,
+    ]),
+  );
+}
 
-export const AuthSessionServiceLive = AuthSessionService.Default;
+export const AuthSessionServiceLive = AuthSessionService.layer;
 
 function toLoginResult(userRow: typeof users.$inferSelect, token: string) {
   return {

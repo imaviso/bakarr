@@ -1,4 +1,4 @@
-import { Effect, Ref } from "effect";
+import { Context, Effect, Layer, Ref } from "effect";
 
 import type { DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
@@ -46,7 +46,7 @@ function makeCatalogLibraryScanSupport(input: {
       markFailed: input.backgroundJobRepository.markFailed("library_scan", cause, nowIso),
     }).pipe(
       Effect.catchTag("JobFailurePersistenceError", () => Effect.void),
-      Effect.zipRight(Effect.fail(cause)),
+      Effect.andThen(Effect.fail(cause)),
     );
 
   const runLibraryScan = Effect.fn("CatalogLibraryScan.runLibraryScan")(
@@ -106,10 +106,10 @@ function makeCatalogLibraryScanSupport(input: {
   return { runLibraryScan };
 }
 
-export class CatalogLibraryScanService extends Effect.Service<CatalogLibraryScanService>()(
+export class CatalogLibraryScanService extends Context.Service<CatalogLibraryScanService>()(
   "@bakarr/api/CatalogLibraryScanService",
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const backgroundJobRepository = yield* BackgroundJobRepository;
       const eventBus = yield* EventBus;
       const fs = yield* FileSystem;
@@ -127,14 +127,9 @@ export class CatalogLibraryScanService extends Effect.Service<CatalogLibraryScan
         publishLibraryScanProgress: progress.publishLibraryScanProgress,
       });
     }),
-    // FS + OperationsProgress provided by ops feature layer.
-    dependencies: [
-      BackgroundJobRepository.Default,
-      EventBus.Default,
-      MediaRepository.Default,
-      MediaUnitRepository.Default,
-    ],
   },
-) {}
+) {
+  static readonly layer = Layer.effect(CatalogLibraryScanService, CatalogLibraryScanService.make);
+}
 
-export const CatalogLibraryScanServiceLive = CatalogLibraryScanService.Default;
+export const CatalogLibraryScanServiceLive = CatalogLibraryScanService.layer;

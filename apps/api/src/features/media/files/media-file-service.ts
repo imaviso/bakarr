@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import type { VideoFile } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
@@ -129,16 +129,13 @@ const makeMediaFileService = Effect.fn("MediaFileService.make")(function* () {
   } satisfies MediaFileServiceShape;
 });
 
-export class MediaFileService extends Effect.Service<MediaFileService>()(
+export class MediaFileService extends Context.Service<MediaFileService>()(
   "@bakarr/api/MediaFileService",
-  {
-    effect: makeMediaFileService(),
-    dependencies: [
-      MediaRepository.Default,
-      MediaUnitRepository.Default,
-      SystemLogRepository.Default,
-    ],
-  },
-) {}
+  { make: makeMediaFileService() },
+) {
+  static readonly layer = Layer.effect(MediaFileService, MediaFileService.make).pipe(
+    Layer.provide([MediaRepository.layer, MediaUnitRepository.layer, SystemLogRepository.layer]),
+  );
+}
 
-export const MediaFileServiceLive = MediaFileService.Default;
+export const MediaFileServiceLive = MediaFileService.layer;

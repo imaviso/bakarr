@@ -1,10 +1,13 @@
 import { win32 as Win32Path } from "node:path";
 import { Effect, Result, Schema } from "effect";
 
-export class PathSegmentError extends Schema.TaggedErrorClass<PathSegmentError>()("PathSegmentError", {
-  message: Schema.String,
-  segment: Schema.String,
-}) {}
+export class PathSegmentError extends Schema.TaggedErrorClass<PathSegmentError>()(
+  "PathSegmentError",
+  {
+    message: Schema.String,
+    segment: Schema.String,
+  },
+) {}
 
 export function isWithinPathRoot(path: string, root: string) {
   const resolvedPath = Win32Path.resolve(path.replace(/[\\/]+/g, "/"));

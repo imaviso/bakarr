@@ -1,4 +1,4 @@
-import { Cause, Effect, Option, Queue, Ref } from "effect";
+import { Cause, Context, Effect, Layer, Option, Queue, Ref } from "effect";
 
 import type { DatabaseError } from "@/db/database.ts";
 import { AniDbClient } from "@/features/media/metadata/anidb.ts";
@@ -92,7 +92,7 @@ const makeMediaMetadataEnrichmentService = Effect.fn("MediaMetadataEnrichmentSer
     yield* Queue.take(queue).pipe(
       Effect.flatMap((request) =>
         runAniDbRefresh(request).pipe(
-          Effect.catchAllCause((cause) =>
+          Effect.catchCause((cause) =>
             Effect.logWarning("AniDB background refresh failed").pipe(
               Effect.annotateLogs({
                 mediaId: request.mediaId,
@@ -189,16 +189,20 @@ const makeMediaMetadataEnrichmentService = Effect.fn("MediaMetadataEnrichmentSer
   },
 );
 
-export class MediaMetadataEnrichmentService extends Effect.Service<MediaMetadataEnrichmentService>()(
+export class MediaMetadataEnrichmentService extends Context.Service<MediaMetadataEnrichmentService>()(
   "@bakarr/api/MediaMetadataEnrichmentService",
-  {
-    scoped: makeMediaMetadataEnrichmentService(),
-    dependencies: [
-      AniDbUnitCacheRepository.Default,
-      MediaRepository.Default,
-      MediaUnitRepository.Default,
-    ],
-  },
-) {}
+  { make: makeMediaMetadataEnrichmentService() },
+) {
+  static readonly layer = Layer.effect(
+    MediaMetadataEnrichmentService,
+    MediaMetadataEnrichmentService.make,
+  ).pipe(
+    Layer.provide([
+      AniDbUnitCacheRepository.layer,
+      MediaRepository.layer,
+      MediaUnitRepository.layer,
+    ]),
+  );
+}
 
-export const MediaMetadataEnrichmentServiceLive = MediaMetadataEnrichmentService.Default;
+export const MediaMetadataEnrichmentServiceLive = MediaMetadataEnrichmentService.layer;

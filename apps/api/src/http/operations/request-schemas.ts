@@ -23,31 +23,33 @@ import {
   IsoDateTimeStringSchema,
 } from "@/http/shared/common-request-schemas.ts";
 
-const RssFeedNameStringSchema = Schema.String.pipe(Schema.minLength(1));
-const ProfileNameStringSchema = Schema.String.pipe(Schema.minLength(1));
-const SearchQueryStringSchema = Schema.String.pipe(Schema.minLength(1));
-const SearchCategoryStringSchema = Schema.Literal(...SEARCH_RELEASE_CATEGORY_OPTIONS);
-const SearchFilterStringSchema = Schema.Literal(...SEARCH_RELEASE_FILTER_OPTIONS);
-const DownloadCursorStringSchema = Schema.String.pipe(Schema.minLength(1));
-const DownloadEventTypeStringSchema = Schema.String.pipe(Schema.minLength(1));
-const DownloadEventStatusStringSchema = Schema.String.pipe(Schema.minLength(1));
-const MagnetLinkStringSchema = Schema.String.pipe(Schema.minLength(1));
-const ReleaseTitleStringSchema = Schema.String.pipe(Schema.minLength(1));
+const RssFeedNameStringSchema = Schema.String.pipe(Schema.check(Schema.isMinLength(1)));
+const ProfileNameStringSchema = Schema.String.pipe(Schema.check(Schema.isMinLength(1)));
+const SearchQueryStringSchema = Schema.String.pipe(Schema.check(Schema.isMinLength(1)));
+const SearchCategoryStringSchema = Schema.Literals(SEARCH_RELEASE_CATEGORY_OPTIONS);
+const SearchFilterStringSchema = Schema.Literals(SEARCH_RELEASE_FILTER_OPTIONS);
+const DownloadCursorStringSchema = Schema.String.pipe(Schema.check(Schema.isMinLength(1)));
+const DownloadEventTypeStringSchema = Schema.String.pipe(Schema.check(Schema.isMinLength(1)));
+const DownloadEventStatusStringSchema = Schema.String.pipe(Schema.check(Schema.isMinLength(1)));
+const MagnetLinkStringSchema = Schema.String.pipe(Schema.check(Schema.isMinLength(1)));
+const ReleaseTitleStringSchema = Schema.String.pipe(Schema.check(Schema.isMinLength(1)));
 
-const BrowsePathStringSchema = Schema.Union(
+const BrowsePathStringSchema = Schema.Union([
   Schema.Literal("."),
   AbsoluteFilesystemPathStringSchema,
-);
+]);
 
 const FolderNameStringSchema = Schema.String.pipe(
-  Schema.minLength(1),
-  Schema.filter(
-    (value) =>
-      value !== "." &&
-      value !== ".." &&
-      !value.includes("/") &&
-      !value.includes("\\") &&
-      !value.includes("\u0000"),
+  Schema.check(Schema.isMinLength(1)),
+  Schema.check(
+    Schema.makeFilter(
+      (value) =>
+        value !== "." &&
+        value !== ".." &&
+        !value.includes("/") &&
+        !value.includes("\\") &&
+        !value.includes("\u0000"),
+    ),
   ),
 );
 
@@ -68,7 +70,7 @@ export class BrowseQuerySchema extends Schema.Class<BrowseQuerySchema>("BrowseQu
 export class BulkControlUnmappedFoldersBodySchema extends Schema.Class<BulkControlUnmappedFoldersBodySchema>(
   "BulkControlUnmappedFoldersBodySchema",
 )({
-  action: Schema.Literal("pause_queued", "resume_paused", "reset_failed", "retry_failed"),
+  action: Schema.Literals(["pause_queued", "resume_paused", "reset_failed", "retry_failed"]),
 }) {}
 
 export class CalendarQuerySchema extends Schema.Class<CalendarQuerySchema>("CalendarQuerySchema")({
@@ -79,14 +81,14 @@ export class CalendarQuerySchema extends Schema.Class<CalendarQuerySchema>("Cale
 export class ControlUnmappedFolderBodySchema extends Schema.Class<ControlUnmappedFolderBodySchema>(
   "ControlUnmappedFolderBodySchema",
 )({
-  action: Schema.Literal("pause", "resume", "reset", "refresh"),
+  action: Schema.Literals(["pause", "resume", "reset", "refresh"]),
   path: AbsoluteFilesystemPathStringSchema,
 }) {}
 
 export class DeleteDownloadQuerySchema extends Schema.Class<DeleteDownloadQuerySchema>(
   "DeleteDownloadQuerySchema",
 )({
-  delete_files: Schema.optional(Schema.Literal("false", "true")),
+  delete_files: Schema.optional(Schema.Literals(["false", "true"])),
 }) {}
 
 export class DownloadEventsQuerySchema extends Schema.Class<DownloadEventsQuerySchema>(
@@ -95,7 +97,7 @@ export class DownloadEventsQuerySchema extends Schema.Class<DownloadEventsQueryS
   media_id: Schema.optional(MediaIdFromStringSchema),
   cursor: Schema.optional(DownloadCursorStringSchema),
   download_id: Schema.optional(DownloadIdFromStringSchema),
-  direction: Schema.optional(Schema.Literal("next", "prev")),
+  direction: Schema.optional(Schema.Literals(["next", "prev"])),
   end_date: Schema.optional(IsoDateTimeStringSchema),
   event_type: Schema.optional(DownloadEventTypeStringSchema),
   limit: Schema.optional(PositiveIntFromStringSchema),
@@ -110,9 +112,9 @@ export class DownloadEventsExportQuerySchema extends Schema.Class<DownloadEvents
   download_id: Schema.optional(DownloadIdFromStringSchema),
   end_date: Schema.optional(IsoDateTimeStringSchema),
   event_type: Schema.optional(DownloadEventTypeStringSchema),
-  format: Schema.optional(Schema.Literal("csv", "json")),
+  format: Schema.optional(Schema.Literals(["csv", "json"])),
   limit: Schema.optional(PositiveIntFromStringSchema),
-  order: Schema.optional(Schema.Literal("asc", "desc")),
+  order: Schema.optional(Schema.Literals(["asc", "desc"])),
   start_date: Schema.optional(IsoDateTimeStringSchema),
   status: Schema.optional(DownloadEventStatusStringSchema),
 }) {}

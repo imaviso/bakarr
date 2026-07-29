@@ -1,4 +1,4 @@
-import { Effect, Either, Option } from "effect";
+import { Effect, Result, Option } from "effect";
 
 import type { DownloadAction, UnitSearchResult, QualityProfile } from "@packages/shared/index.ts";
 
@@ -11,18 +11,18 @@ export const validateQualityProfileSizeLabels = Effect.fn(
 )(function* (profile: QualityProfile) {
   const minSizeBytesResult = parseSizeLabelToBytes(profile.min_size);
 
-  if (Either.isLeft(minSizeBytesResult)) {
-    return yield* minSizeBytesResult.left;
+  if (Result.isFailure(minSizeBytesResult)) {
+    return yield* minSizeBytesResult.failure;
   }
 
   const maxSizeBytesResult = parseSizeLabelToBytes(profile.max_size);
 
-  if (Either.isLeft(maxSizeBytesResult)) {
-    return yield* maxSizeBytesResult.left;
+  if (Result.isFailure(maxSizeBytesResult)) {
+    return yield* maxSizeBytesResult.failure;
   }
 
-  const minSizeOption = minSizeBytesResult.right;
-  const maxSizeOption = maxSizeBytesResult.right;
+  const minSizeOption = minSizeBytesResult.success;
+  const maxSizeOption = maxSizeBytesResult.success;
 
   if (
     Option.isSome(minSizeOption) &&

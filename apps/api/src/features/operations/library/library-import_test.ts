@@ -1,7 +1,6 @@
 import { assert, it } from "@effect/vitest";
 import { Cause, Effect, Exit } from "effect";
 
-import * as schema from "@/db/schema.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { appConfig, mediaUnits } from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
@@ -134,7 +133,7 @@ it("analyzeScannedFile marks unknown files as needing manual mapping", () => {
   assert.deepStrictEqual(parsed.warnings, ["No reliable episode identity found in filename"]);
 });
 
-it.scoped("buildRenamePreview fills naming tokens from existing file metadata", () =>
+it.effect("buildRenamePreview fills naming tokens from existing file metadata", () =>
   withSqliteTestDbEffect({
     run: (db, databaseFile) =>
       Effect.gen(function* () {
@@ -148,35 +147,29 @@ it.scoped("buildRenamePreview fills naming tokens from existing file metadata", 
         }));
         const encodedConfig = yield* encodeConfigCore(yield* toConfigCore(testConfig));
 
-        yield* Effect.tryPromise(() =>
-          appDb.insert(appConfig).values({
-            id: 1,
-            data: encodedConfig,
-            updatedAt: "2024-01-01T00:00:00.000Z",
+        yield* appDb.insert(appConfig).values({
+          id: 1,
+          data: encodedConfig,
+          updatedAt: "2024-01-01T00:00:00.000Z",
+        });
+
+        yield* appDb.insert(media).values(
+          makeMediaRow({
+            unitCount: 11,
+            rootFolder,
+            startDate: "2012-01-08",
+            titleRomaji: "Nisemonogatari",
           }),
         );
 
-        yield* Effect.tryPromise(() =>
-          appDb.insert(media).values(
-            makeMediaRow({
-              unitCount: 11,
-              rootFolder,
-              startDate: "2012-01-08",
-              titleRomaji: "Nisemonogatari",
-            }),
-          ),
-        );
-
-        yield* Effect.tryPromise(() =>
-          appDb.insert(mediaUnits).values({
-            aired: null,
-            mediaId: 1,
-            downloaded: true,
-            filePath: `${rootFolder}/Season 1/Nisemonogatari - S01E01 - Karen Bee, Part 1 -[1920x1080]-[hevc]-[aac][MTBB].mkv`,
-            number: 1,
-            title: null,
-          }),
-        );
+        yield* appDb.insert(mediaUnits).values({
+          aired: null,
+          mediaId: 1,
+          downloaded: true,
+          filePath: `${rootFolder}/Season 1/Nisemonogatari - S01E01 - Karen Bee, Part 1 -[1920x1080]-[hevc]-[aac][MTBB].mkv`,
+          number: 1,
+          title: null,
+        });
 
         const preview = yield* buildRenamePreview(1, testConfig, makeMediaRepository(appDb));
         const firstPreview = preview[0];
@@ -193,11 +186,10 @@ it.scoped("buildRenamePreview fills naming tokens from existing file metadata", 
         assert.deepStrictEqual(firstPreview.metadata_snapshot?.title_source, "preferred_romaji");
         assert.deepStrictEqual(firstPreview.metadata_snapshot?.video_codec, "HEVC");
       }),
-    schema,
   }),
 );
 
-it.scoped("buildRenamePreview respects preferred English title and movie naming format", () =>
+it.effect("buildRenamePreview respects preferred English title and movie naming format", () =>
   withSqliteTestDbEffect({
     run: (db, databaseFile) =>
       Effect.gen(function* () {
@@ -212,37 +204,31 @@ it.scoped("buildRenamePreview respects preferred English title and movie naming 
         }));
         const encodedConfig = yield* encodeConfigCore(yield* toConfigCore(testConfig));
 
-        yield* Effect.tryPromise(() =>
-          appDb.insert(appConfig).values({
-            id: 1,
-            data: encodedConfig,
-            updatedAt: "2024-01-01T00:00:00.000Z",
+        yield* appDb.insert(appConfig).values({
+          id: 1,
+          data: encodedConfig,
+          updatedAt: "2024-01-01T00:00:00.000Z",
+        });
+
+        yield* appDb.insert(media).values(
+          makeMediaRow({
+            format: "MOVIE",
+            rootFolder: "/mnt/media2/Movies/Kimi no Na wa.",
+            startDate: "2016-08-26",
+            titleEnglish: "Your Name.",
+            titleNative: "君の名は。",
+            titleRomaji: "Kimi no Na wa.",
           }),
         );
 
-        yield* Effect.tryPromise(() =>
-          appDb.insert(media).values(
-            makeMediaRow({
-              format: "MOVIE",
-              rootFolder: "/mnt/media2/Movies/Kimi no Na wa.",
-              startDate: "2016-08-26",
-              titleEnglish: "Your Name.",
-              titleNative: "君の名は。",
-              titleRomaji: "Kimi no Na wa.",
-            }),
-          ),
-        );
-
-        yield* Effect.tryPromise(() =>
-          appDb.insert(mediaUnits).values({
-            aired: null,
-            mediaId: 1,
-            downloaded: true,
-            filePath: "/mnt/media2/Movies/Kimi no Na wa./movie-source-file.mkv",
-            number: 1,
-            title: null,
-          }),
-        );
+        yield* appDb.insert(mediaUnits).values({
+          aired: null,
+          mediaId: 1,
+          downloaded: true,
+          filePath: "/mnt/media2/Movies/Kimi no Na wa./movie-source-file.mkv",
+          number: 1,
+          title: null,
+        });
 
         const preview = yield* buildRenamePreview(1, testConfig, makeMediaRepository(appDb));
         const firstPreview = preview[0];
@@ -254,11 +240,10 @@ it.scoped("buildRenamePreview respects preferred English title and movie naming 
         assert.deepStrictEqual(firstPreview.metadata_snapshot?.title, "Your Name.");
         assert.deepStrictEqual(firstPreview.metadata_snapshot?.title_source, "preferred_english");
       }),
-    schema,
   }),
 );
 
-it.scoped("buildRenamePreview reports fallback when season metadata is missing", () =>
+it.effect("buildRenamePreview reports fallback when season metadata is missing", () =>
   withSqliteTestDbEffect({
     run: (db, databaseFile) =>
       Effect.gen(function* () {
@@ -270,33 +255,27 @@ it.scoped("buildRenamePreview reports fallback when season metadata is missing",
         }));
         const encodedConfig = yield* encodeConfigCore(yield* toConfigCore(testConfig));
 
-        yield* Effect.tryPromise(() =>
-          appDb.insert(appConfig).values({
-            id: 1,
-            data: encodedConfig,
-            updatedAt: "2024-01-01T00:00:00.000Z",
+        yield* appDb.insert(appConfig).values({
+          id: 1,
+          data: encodedConfig,
+          updatedAt: "2024-01-01T00:00:00.000Z",
+        });
+
+        yield* appDb.insert(media).values(
+          makeMediaRow({
+            rootFolder: "/library/Show",
+            titleRomaji: "Show",
           }),
         );
 
-        yield* Effect.tryPromise(() =>
-          appDb.insert(media).values(
-            makeMediaRow({
-              rootFolder: "/library/Show",
-              titleRomaji: "Show",
-            }),
-          ),
-        );
-
-        yield* Effect.tryPromise(() =>
-          appDb.insert(mediaUnits).values({
-            aired: null,
-            mediaId: 1,
-            downloaded: true,
-            filePath: "/downloads/Show - 01.mkv",
-            number: 1,
-            title: null,
-          }),
-        );
+        yield* appDb.insert(mediaUnits).values({
+          aired: null,
+          mediaId: 1,
+          downloaded: true,
+          filePath: "/downloads/Show - 01.mkv",
+          number: 1,
+          title: null,
+        });
 
         const preview = yield* buildRenamePreview(1, testConfig, makeMediaRepository(appDb));
         const firstPreview = preview[0];
@@ -308,7 +287,6 @@ it.scoped("buildRenamePreview reports fallback when season metadata is missing",
         assert.deepStrictEqual(firstPreview.warnings?.length, 2);
         assert.deepStrictEqual(firstPreview.metadata_snapshot?.source_identity?.label, "01");
       }),
-    schema,
   }),
 );
 
@@ -411,7 +389,7 @@ it.effect("toMediaSearchCandidate fails for corrupt stored genres", () =>
 
     assert.deepStrictEqual(Exit.isFailure(exit), true);
     if (Exit.isFailure(exit)) {
-      const failure = Cause.failureOption(exit.cause);
+      const failure = Cause.findErrorOption(exit.cause);
       assert.deepStrictEqual(failure._tag, "Some");
       if (failure._tag === "Some") {
         assert.deepStrictEqual(failure.value instanceof StoredDataError, true);

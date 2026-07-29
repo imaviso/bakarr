@@ -6,6 +6,7 @@ import { brandMediaId, type MediaSearchResult } from "@packages/shared/index.ts"
 import * as schema from "@/db/schema.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
+import { tryDatabase } from "@/infra/effect/db.ts";
 import { deriveEpisodeTimelineMetadata } from "@/domain/media/derivations.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { MediaProbeMetadataFound } from "@/infra/media/probe.ts";
@@ -77,7 +78,7 @@ it("deriveEpisodeTimelineMetadata marks future and aired mediaUnits", () => {
   });
 });
 
-it.scoped("listEpisodesEffect fills missing media metadata from ffprobe", () =>
+it.effect("listEpisodesEffect fills missing media metadata from ffprobe", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       withFileSystemSandboxEffect(({ root, fs }) =>
@@ -86,7 +87,7 @@ it.scoped("listEpisodesEffect fills missing media metadata from ffprobe", () =>
           const filePath = `${root}/MediaUnit 1.mkv`;
           yield* writeTextFile(fs, filePath, "test");
 
-          yield* Effect.tryPromise(() =>
+          yield* tryDatabase("Failed to insert test media row", () =>
             appDb.insert(schema.media).values({
               addedAt: "2024-01-01T00:00:00.000Z",
               unitCount: 1,
@@ -102,7 +103,7 @@ it.scoped("listEpisodesEffect fills missing media metadata from ffprobe", () =>
               titleRomaji: "Test Show",
             }),
           );
-          yield* Effect.tryPromise(() =>
+          yield* tryDatabase("Failed to insert test mediaUnits row", () =>
             appDb.insert(schema.mediaUnits).values({
               aired: "2024-01-01T00:00:00.000Z",
               mediaId: 1,
@@ -133,11 +134,10 @@ it.scoped("listEpisodesEffect fills missing media metadata from ffprobe", () =>
           assert.deepStrictEqual(result[0]?.file_size, 4);
         }),
       ),
-    schema,
   }),
 );
 
-it.scoped("listMediaFilesEffect caches probed metadata to episode rows", () =>
+it.effect("listMediaFilesEffect caches probed metadata to episode rows", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       withFileSystemSandboxEffect(({ root, fs }) =>
@@ -146,7 +146,7 @@ it.scoped("listMediaFilesEffect caches probed metadata to episode rows", () =>
           const filePath = `${root}/MediaUnit 1.mkv`;
           yield* writeTextFile(fs, filePath, "test");
 
-          yield* Effect.tryPromise(() =>
+          yield* tryDatabase("Failed to insert test media row", () =>
             appDb.insert(schema.media).values({
               addedAt: "2024-01-01T00:00:00.000Z",
               unitCount: 1,
@@ -163,7 +163,7 @@ it.scoped("listMediaFilesEffect caches probed metadata to episode rows", () =>
             }),
           );
 
-          yield* Effect.tryPromise(() =>
+          yield* tryDatabase("Failed to insert test mediaUnits row", () =>
             appDb.insert(schema.mediaUnits).values({
               aired: "2024-01-01T00:00:00.000Z",
               mediaId: 101,
@@ -201,7 +201,7 @@ it.scoped("listMediaFilesEffect caches probed metadata to episode rows", () =>
             mediaProbe,
           });
 
-          const episodeRows = yield* Effect.tryPromise(() =>
+          const episodeRows = yield* tryDatabase("Failed to query rows for test assertion", () =>
             appDb.select().from(schema.mediaUnits).where(eq(schema.mediaUnits.mediaId, 101)),
           );
           const [row] = episodeRows;
@@ -233,11 +233,10 @@ it.scoped("listMediaFilesEffect caches probed metadata to episode rows", () =>
           assert.deepStrictEqual(probeCalls, 1);
         }),
       ),
-    schema,
   }),
 );
 
-it.scoped("getMediaByAnilistIdEffect returns related and recommended metadata", () =>
+it.effect("getMediaByAnilistIdEffect returns related and recommended metadata", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -275,16 +274,15 @@ it.scoped("getMediaByAnilistIdEffect returns related and recommended metadata", 
         assert.deepStrictEqual(result.recommended_media?.[0]?.title.english, "Recommendation");
         assert.deepStrictEqual(result.synonyms, ["Stub Alias"]);
       }),
-    schema,
   }),
 );
 
-it.scoped("getMediaEffect returns discovery metadata from database storage", () =>
+it.effect("getMediaEffect returns discovery metadata from database storage", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
-        yield* Effect.tryPromise(() =>
+        yield* tryDatabase("Failed to insert test media row", () =>
           appDb.insert(schema.media).values({
             addedAt: "2024-01-01T00:00:00.000Z",
             unitCount: 1,
@@ -305,7 +303,7 @@ it.scoped("getMediaEffect returns discovery metadata from database storage", () 
             titleRomaji: "Stub Show",
           }),
         );
-        yield* Effect.tryPromise(() =>
+        yield* tryDatabase("Failed to insert test mediaUnits row", () =>
           appDb.insert(schema.mediaUnits).values({
             mediaId: 80,
             downloaded: false,
@@ -322,16 +320,15 @@ it.scoped("getMediaEffect returns discovery metadata from database storage", () 
         assert.deepStrictEqual(result.recommended_media?.[0]?.title.english, "Recommended Show");
         assert.deepStrictEqual(result.synonyms, ["Alias One", "Alias Two"]);
       }),
-    schema,
   }),
 );
 
-it.scoped("getMediaEffect uses stored discovery metadata from database", () =>
+it.effect("getMediaEffect uses stored discovery metadata from database", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
-        yield* Effect.tryPromise(() =>
+        yield* tryDatabase("Failed to insert test media row", () =>
           appDb.insert(schema.media).values({
             addedAt: "2024-01-01T00:00:00.000Z",
             unitCount: 1,
@@ -352,7 +349,7 @@ it.scoped("getMediaEffect uses stored discovery metadata from database", () =>
             titleRomaji: "Stored Show",
           }),
         );
-        yield* Effect.tryPromise(() =>
+        yield* tryDatabase("Failed to insert test mediaUnits row", () =>
           appDb.insert(schema.mediaUnits).values({
             mediaId: 90,
             downloaded: false,
@@ -372,18 +369,17 @@ it.scoped("getMediaEffect uses stored discovery metadata from database", () =>
         assert.deepStrictEqual(result.recommended_media?.length, 1);
         assert.deepStrictEqual(result.recommended_media?.[0]?.id, 92);
       }),
-    schema,
   }),
 );
 
-it.scoped("searchMediaEffect fails when AniList search fails", () =>
+it.effect("searchMediaEffect fails when AniList search fails", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
         const result = yield* Effect.exit(
           searchMediaEffect({
-            aniList: AniListClient.make({
+            aniList: {
               getAnimeMetadataById: () => Effect.succeed(Option.none()),
               searchAnimeMetadata: () =>
                 Effect.fail(
@@ -394,7 +390,7 @@ it.scoped("searchMediaEffect fails when AniList search fails", () =>
                   }),
                 ),
               getSeasonalAnime: () => Effect.succeed([]),
-            }),
+            },
             mediaRepository: makeMediaRepository(appDb),
             query: "bake",
           }),
@@ -402,7 +398,7 @@ it.scoped("searchMediaEffect fails when AniList search fails", () =>
 
         assert.deepStrictEqual(Exit.isFailure(result), true);
         if (Exit.isFailure(result)) {
-          const failure = Cause.failureOption(result.cause);
+          const failure = Cause.findErrorOption(result.cause);
           assert.deepStrictEqual(failure._tag, "Some");
           if (failure._tag === "Some") {
             assert.deepStrictEqual(failure.value instanceof ExternalCallError, true);
@@ -410,17 +406,16 @@ it.scoped("searchMediaEffect fails when AniList search fails", () =>
           }
         }
       }),
-    schema,
   }),
 );
 
-it.scoped("searchMediaEffect reports non-degraded when AniList search succeeds", () =>
+it.effect("searchMediaEffect reports non-degraded when AniList search succeeds", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
         const result = yield* searchMediaEffect({
-          aniList: AniListClient.make({
+          aniList: {
             getAnimeMetadataById: () => Effect.succeed(Option.none()),
             searchAnimeMetadata: () =>
               Effect.succeed([
@@ -431,7 +426,7 @@ it.scoped("searchMediaEffect reports non-degraded when AniList search succeeds",
                 } satisfies MediaSearchResult,
               ]),
             getSeasonalAnime: () => Effect.succeed([]),
-          }),
+          },
           mediaRepository: makeMediaRepository(appDb),
           query: "bake",
         });
@@ -440,21 +435,20 @@ it.scoped("searchMediaEffect reports non-degraded when AniList search succeeds",
         assert.deepStrictEqual(result.results.length, 1);
         assert.deepStrictEqual(result.results[0]?.id, 202);
       }),
-    schema,
   }),
 );
 
-it.scoped("searchMediaEffect falls back to Manami when AniList returns no results", () =>
+it.effect("searchMediaEffect falls back to Manami when AniList returns no results", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
         const result = yield* searchMediaEffect({
-          aniList: AniListClient.make({
+          aniList: {
             getAnimeMetadataById: () => Effect.succeed(Option.none()),
             searchAnimeMetadata: () => Effect.succeed([]),
             getSeasonalAnime: () => Effect.succeed([]),
-          }),
+          },
           mediaRepository: makeMediaRepository(appDb),
           manami: {
             searchMedia: () =>
@@ -474,25 +468,24 @@ it.scoped("searchMediaEffect falls back to Manami when AniList returns no result
         assert.deepStrictEqual(result.results[0]?.id, 20);
         assert.deepStrictEqual(result.results[0]?.match_confidence, 1);
       }),
-    schema,
   }),
 );
 
-function makeAniListStub(metadata: AnimeMetadata) {
-  return AniListClient.make({
+function makeAniListStub(metadata: AnimeMetadata): AniListClient["Service"] {
+  return {
     getAnimeMetadataById: () => Effect.succeed(Option.some(metadata)),
     searchAnimeMetadata: () => Effect.succeed([]),
     getSeasonalAnime: () => Effect.succeed([]),
-  });
+  };
 }
 
-it.scoped("listMediaEffect returns paginated results with defaults", () =>
+it.effect("listMediaEffect returns paginated results with defaults", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
         for (let i = 1; i <= 5; i++) {
-          yield* Effect.tryPromise(() =>
+          yield* tryDatabase("Failed to insert test media row", () =>
             appDb.insert(schema.media).values({
               id: i,
               titleRomaji: `Show ${i}`,
@@ -517,17 +510,16 @@ it.scoped("listMediaEffect returns paginated results with defaults", () =>
         assert.deepStrictEqual(result.items.length, 5);
         assert.deepStrictEqual(result.has_more, false);
       }),
-    schema,
   }),
 );
 
-it.scoped("listMediaEffect respects limit and offset", () =>
+it.effect("listMediaEffect respects limit and offset", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
         for (let i = 1; i <= 10; i++) {
-          yield* Effect.tryPromise(() =>
+          yield* tryDatabase("Failed to insert test media row", () =>
             appDb.insert(schema.media).values({
               id: i,
               titleRomaji: `Show ${i}`,
@@ -575,16 +567,15 @@ it.scoped("listMediaEffect respects limit and offset", () =>
         assert.deepStrictEqual(page4First.id, 10);
         assert.deepStrictEqual(page4.has_more, false);
       }),
-    schema,
   }),
 );
 
-it.scoped("listMediaEffect caps limit at 500", () =>
+it.effect("listMediaEffect caps limit at 500", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
-        yield* Effect.tryPromise(() =>
+        yield* tryDatabase("Failed to insert test media row", () =>
           appDb.insert(schema.media).values({
             id: 1,
             titleRomaji: "Show",
@@ -603,16 +594,15 @@ it.scoped("listMediaEffect caps limit at 500", () =>
         const result = yield* listMediaEffect(makeMediaRepository(appDb), { limit: 1000 });
         assert.deepStrictEqual(result.limit, 500);
       }),
-    schema,
   }),
 );
 
-it.scoped("listMediaEffect floors limit at 1", () =>
+it.effect("listMediaEffect floors limit at 1", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
-        yield* Effect.tryPromise(() =>
+        yield* tryDatabase("Failed to insert test media row", () =>
           appDb.insert(schema.media).values({
             id: 1,
             titleRomaji: "Show",
@@ -631,16 +621,15 @@ it.scoped("listMediaEffect floors limit at 1", () =>
         const result = yield* listMediaEffect(makeMediaRepository(appDb), { limit: 0 });
         assert.deepStrictEqual(result.limit, 1);
       }),
-    schema,
   }),
 );
 
-it.scoped("listMediaEffect floors negative offset at 0", () =>
+it.effect("listMediaEffect floors negative offset at 0", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
-        yield* Effect.tryPromise(() =>
+        yield* tryDatabase("Failed to insert test media row", () =>
           appDb.insert(schema.media).values({
             id: 1,
             titleRomaji: "Show",
@@ -659,16 +648,15 @@ it.scoped("listMediaEffect floors negative offset at 0", () =>
         const result = yield* listMediaEffect(makeMediaRepository(appDb), { offset: -10 });
         assert.deepStrictEqual(result.offset, 0);
       }),
-    schema,
   }),
 );
 
-it.scoped("listMediaEffect aggregates episode download counts", () =>
+it.effect("listMediaEffect aggregates episode download counts", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
-        yield* Effect.tryPromise(() =>
+        yield* tryDatabase("Failed to insert test media row", () =>
           appDb.insert(schema.media).values({
             id: 1,
             titleRomaji: "Show",
@@ -685,7 +673,7 @@ it.scoped("listMediaEffect aggregates episode download counts", () =>
           }),
         );
 
-        yield* Effect.tryPromise(() =>
+        yield* tryDatabase("Failed to insert test mediaUnits row", () =>
           appDb.insert(schema.mediaUnits).values([
             { mediaId: 1, number: 1, downloaded: true, filePath: "/ep1.mkv" },
             { mediaId: 1, number: 2, downloaded: true, filePath: "/ep2.mkv" },
@@ -699,16 +687,15 @@ it.scoped("listMediaEffect aggregates episode download counts", () =>
         assert.deepStrictEqual(result.items.length, 1);
         assert.deepStrictEqual(firstItem.progress.downloaded, 2);
       }),
-    schema,
   }),
 );
 
-it.scoped("listMediaEffect filters by monitored status", () =>
+it.effect("listMediaEffect filters by monitored status", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
-        yield* Effect.tryPromise(() =>
+        yield* tryDatabase("Failed to insert test media row", () =>
           appDb.insert(schema.media).values([
             {
               id: 1,
@@ -759,16 +746,15 @@ it.scoped("listMediaEffect filters by monitored status", () =>
         assert.deepStrictEqual(unmonitoredOnly.total, 1);
         assert.deepStrictEqual(unmonitoredFirst.id, 2);
       }),
-    schema,
   }),
 );
 
-it.scoped("listMediaEffect includes progress and metadata fields needed by list UI", () =>
+it.effect("listMediaEffect includes progress and metadata fields needed by list UI", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
-        yield* Effect.tryPromise(() =>
+        yield* tryDatabase("Failed to insert test media row", () =>
           appDb.insert(schema.media).values({
             id: 10,
             titleRomaji: "Detailed Show",
@@ -786,7 +772,7 @@ it.scoped("listMediaEffect includes progress and metadata fields needed by list 
           }),
         );
 
-        yield* Effect.tryPromise(() =>
+        yield* tryDatabase("Failed to insert test mediaUnits row", () =>
           appDb.insert(schema.mediaUnits).values([
             { mediaId: 10, number: 1, downloaded: true, filePath: "/ep1.mkv" },
             { mediaId: 10, number: 2, downloaded: false, filePath: null },
@@ -811,16 +797,15 @@ it.scoped("listMediaEffect includes progress and metadata fields needed by list 
         assert.deepStrictEqual(media.release_profile_ids, [1, 2]);
         assert.deepStrictEqual(media.genres, ["Action"]);
       }),
-    schema,
   }),
 );
 
-it.scoped("listMediaEffect fails when stored media JSON metadata is corrupt", () =>
+it.effect("listMediaEffect fails when stored media JSON metadata is corrupt", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
-        yield* Effect.tryPromise(() =>
+        yield* tryDatabase("Failed to insert test media row", () =>
           appDb.insert(schema.media).values({
             id: 10,
             titleRomaji: "Broken Show",
@@ -839,7 +824,7 @@ it.scoped("listMediaEffect fails when stored media JSON metadata is corrupt", ()
         const result = yield* Effect.exit(listMediaEffect(makeMediaRepository(appDb)));
         assert.deepStrictEqual(Exit.isFailure(result), true);
         if (Exit.isFailure(result)) {
-          const failure = Cause.failureOption(result.cause);
+          const failure = Cause.findErrorOption(result.cause);
           assert.deepStrictEqual(failure._tag, "Some");
           if (failure._tag === "Some") {
             assert.deepStrictEqual(failure.value instanceof StoredDataError, true);
@@ -847,6 +832,5 @@ it.scoped("listMediaEffect fails when stored media JSON metadata is corrupt", ()
           }
         }
       }),
-    schema,
   }),
 );

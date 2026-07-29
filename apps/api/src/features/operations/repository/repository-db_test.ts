@@ -1,10 +1,9 @@
 import { assert, it } from "@effect/vitest";
 import { Cause, Effect, Option, Schema } from "effect";
 
-import * as schema from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { media, appConfig, mediaUnits, qualityProfiles, releaseProfiles } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { tryDatabase } from "@/infra/effect/db.ts";
 import { encodeConfigCore } from "@/features/system/config-codec.ts";
 import {
   encodeNumberList,
@@ -22,13 +21,13 @@ import { loadQualityProfile } from "@/features/system/repository/quality-profile
 import { loadReleaseRules } from "@/features/system/repository/release-profile-repository.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";
 
-it.scoped("operations repository helpers load profile settings", () =>
+it.effect("operations repository helpers load profile settings", () =>
   withSqliteTestDbEffect({
     run: (db, databaseFile) =>
       Effect.gen(function* () {
         const defaults = makeDefaultConfig(databaseFile);
-        const encodedDefaults = yield* Schema.encode(ConfigCoreSchema)(defaults);
-        const decodedConfig = yield* Schema.decodeUnknown(ConfigCoreSchema)({
+        const encodedDefaults = yield* Schema.encodeEffect(ConfigCoreSchema)(defaults);
+        const decodedConfig = yield* Schema.decodeUnknownEffect(ConfigCoreSchema)({
           ...encodedDefaults,
           library: {
             ...encodedDefaults.library,
@@ -49,14 +48,14 @@ it.scoped("operations repository helpers load profile settings", () =>
           upgrade_allowed: true,
         });
 
-        yield* tryDatabasePromise("Failed to seed appConfig for operations test", () =>
+        yield* tryDatabase("Failed to seed appConfig for operations test", () =>
           db.insert(appConfig).values({
             id: 1,
             data: configData,
             updatedAt: "2024-01-01T00:00:00.000Z",
           }),
         );
-        yield* tryDatabasePromise("Failed to seed qualityProfiles for operations test", () =>
+        yield* tryDatabase("Failed to seed qualityProfiles for operations test", () =>
           db.insert(qualityProfiles).values(qualityProfileRow),
         );
 
@@ -69,11 +68,10 @@ it.scoped("operations repository helpers load profile settings", () =>
         const fallbackProfile = yield* loadQualityProfile(db, "Missing");
         assert.deepStrictEqual(fallbackProfile, Option.none());
       }),
-    schema,
   }),
 );
 
-it.scoped("operations repository helpers load media release rules and episode state", () =>
+it.effect("operations repository helpers load media release rules and episode state", () =>
   withSqliteTestDbEffect({
     run: (db, _databaseFile) =>
       Effect.gen(function* () {
@@ -88,7 +86,7 @@ it.scoped("operations repository helpers load media release rules and episode st
           { rule_type: "must_not", score: 0, term: "Dub" },
         ]);
 
-        yield* tryDatabasePromise("Failed to seed media for release rules test", () =>
+        yield* tryDatabase("Failed to seed media for release rules test", () =>
           db.insert(media).values({
             id: 20,
             malId: null,
@@ -117,7 +115,7 @@ it.scoped("operations repository helpers load media release rules and episode st
             releaseProfileIds,
           }),
         );
-        yield* tryDatabasePromise("Failed to seed releaseProfiles for release rules test", () =>
+        yield* tryDatabase("Failed to seed releaseProfiles for release rules test", () =>
           db.insert(releaseProfiles).values([
             {
               id: 1,
@@ -142,7 +140,7 @@ it.scoped("operations repository helpers load media release rules and episode st
             },
           ]),
         );
-        yield* tryDatabasePromise("Failed to seed mediaUnits for release rules test", () =>
+        yield* tryDatabase("Failed to seed mediaUnits for release rules test", () =>
           db.insert(mediaUnits).values({
             mediaId: 20,
             number: 1,
@@ -176,14 +174,13 @@ it.scoped("operations repository helpers load media release rules and episode st
         const notFoundExit = yield* Effect.exit(mediaRepository.getMediaRow(999));
         assert.deepStrictEqual(notFoundExit._tag, "Failure");
         if (notFoundExit._tag === "Failure") {
-          const failure = Cause.failureOption(notFoundExit.cause);
+          const failure = Cause.findErrorOption(notFoundExit.cause);
           assert.deepStrictEqual(failure._tag, "Some");
           if (failure._tag === "Some") {
             assert.deepStrictEqual(failure.value instanceof MediaNotFoundError, true);
           }
         }
       }),
-    schema,
   }),
 );
 
@@ -231,7 +228,7 @@ it.effect("operations repository metadata decoders fail for corrupt stored JSON"
 
     assert.deepStrictEqual(exit._tag, "Failure");
     if (exit._tag === "Failure") {
-      const failure = Cause.failureOption(exit.cause);
+      const failure = Cause.findErrorOption(exit.cause);
       assert.deepStrictEqual(failure._tag === "None", false);
       if (failure._tag === "Some") {
         assert.deepStrictEqual(failure.value._tag, "StoredDataError");

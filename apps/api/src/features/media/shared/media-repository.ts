@@ -1,11 +1,11 @@
 import { and, asc, count, eq, inArray, ne, or, sql } from "drizzle-orm";
-import { Effect, Option } from "effect";
+import { Context, Effect, Layer, Option } from "effect";
 
 import { brandMediaId, type CalendarEvent, type MissingUnit } from "@packages/shared/index.ts";
 import { AppDrizzleDatabase, type AppDatabase, type DatabaseError } from "@/db/database.ts";
 import { media, mediaUnits, systemLogs } from "@/db/schema.ts";
 import { deriveEpisodeTimelineMetadata } from "@/domain/media/derivations.ts";
-import { queryFirst, tryDatabasePromise } from "@/infra/effect/db.ts";
+import { queryFirst, tryDatabase } from "@/infra/effect/db.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";
 
 export interface MediaUnitProgressStat {
@@ -160,16 +160,19 @@ export interface MediaRepositoryShape {
   readonly listMonitoredMediaIds: () => Effect.Effect<readonly number[], DatabaseError>;
 }
 
-export class MediaRepository extends Effect.Service<MediaRepository>()(
+export class MediaRepository extends Context.Service<MediaRepository>()(
   "@bakarr/api/MediaRepository",
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const db = yield* AppDrizzleDatabase;
       return makeMediaRepositoryShape(db);
     }),
-    dependencies: [AppDrizzleDatabase.Default],
   },
-) {}
+) {
+  static readonly layer = Layer.effect(MediaRepository, MediaRepository.make).pipe(
+    Layer.provide([AppDrizzleDatabase.layer]),
+  );
+}
 
 export function makeMediaRepositoryShape(db: AppDatabase): MediaRepositoryShape {
   return {
@@ -207,7 +210,6 @@ export function makeMediaRepositoryShape(db: AppDatabase): MediaRepositoryShape 
     updateRootFolder: (mediaId, rootFolder) => updateRootFolderEffect(db, mediaId, rootFolder),
   } satisfies MediaRepositoryShape;
 }
-
 
 const getMediaRowEffect = Effect.fn("MediaRepository.getMediaRow")(function* (
   db: AppDatabase,
@@ -270,7 +272,7 @@ const loadCurrentUnitStateEffect = Effect.fn("MediaRepository.loadCurrentUnitSta
 
 const findMediaByExactRootFolderEffect = Effect.fn("MediaRepository.findMediaByExactRootFolder")(
   function* (db: AppDatabase, rootFolder: string) {
-    const rows = yield* tryDatabasePromise("Failed to find media by root folder", () =>
+    const rows = yield* tryDatabase("Failed to find media by root folder", () =>
       db
         .select({ id: media.id, titleRomaji: media.titleRomaji })
         .from(media)
@@ -284,7 +286,7 @@ const findMediaByExactRootFolderEffect = Effect.fn("MediaRepository.findMediaByE
 const findMediaRootFolderOwnerEffect = Effect.fn("MediaRepository.findMediaRootFolderOwner")(
   function* (db: AppDatabase, rootFolder: string) {
     const normalized = normalizeRootFolder(rootFolder);
-    const rows = yield* tryDatabasePromise("Failed to find media root folder owner", () =>
+    const rows = yield* tryDatabase("Failed to find media root folder owner", () =>
       db
         .select({
           id: media.id,
@@ -313,7 +315,7 @@ const listWantedMissingEffect = Effect.fn("MediaRepository.listWantedMissing")(f
   nowIso: string,
 ) {
   const now = new Date(nowIso).toISOString();
-  const rows = yield* tryDatabasePromise("Failed to load wanted mediaUnits", () =>
+  const rows = yield* tryDatabase("Failed to load wanted mediaUnits", () =>
     db
       .select({
         mediaId: media.id,
@@ -397,7 +399,7 @@ const listMissingUnitSearchRowsEffect = Effect.fn("MediaRepository.listMissingUn
         : eq(mediaUnits.mediaId, input.mediaId),
     ];
 
-    return yield* tryDatabasePromise("Failed to queue missing-unit search", () =>
+    return yield* tryDatabase("Failed to queue missing-unit search", () =>
       db
         .select()
         .from(mediaUnits)
@@ -416,7 +418,7 @@ const listCalendarEventsEffect = Effect.fn("MediaRepository.listCalendarEvents")
   now: Date,
 ) {
   const nowIsoValue = now.toISOString();
-  const rows = yield* tryDatabasePromise("Failed to load calendar events", () =>
+  const rows = yield* tryDatabase("Failed to load calendar events", () =>
     db
       .select()
       .from(mediaUnits)
@@ -453,7 +455,7 @@ const listMappedUnitRowsEffect = Effect.fn("MediaRepository.listMappedUnitRows")
   db: AppDatabase,
   mediaId: number,
 ) {
-  return yield* tryDatabasePromise("Failed to load mediaUnits for rename preview", () =>
+  return yield* tryDatabase("Failed to load mediaUnits for rename preview", () =>
     db
       .select()
       .from(mediaUnits)
@@ -492,7 +494,7 @@ const listImportScanMappedUnitsEffect = Effect.fn("MediaRepository.listImportSca
       return [] as const;
     }
 
-    return yield* tryDatabasePromise("Failed to scan import path", () =>
+    return yield* tryDatabase("Failed to scan import path", () =>
       db
         .select({
           media_id: mediaUnits.mediaId,
@@ -518,7 +520,7 @@ const listScopedUnitRowsEffect = Effect.fn("MediaRepository.listScopedUnitRows")
     return [] as const;
   }
 
-  return yield* tryDatabasePromise("Failed to scan import path", () =>
+  return yield* tryDatabase("Failed to scan import path", () =>
     db
       .select({
         aired: mediaUnits.aired,
@@ -540,7 +542,7 @@ const mediaExistsEffect = Effect.fn("MediaRepository.mediaExists")(function* (
   db: AppDatabase,
   mediaId: number,
 ) {
-  const rows = yield* tryDatabasePromise("Failed to check library status", () =>
+  const rows = yield* tryDatabase("Failed to check library status", () =>
     db.select({ id: media.id }).from(media).where(eq(media.id, mediaId)).limit(1),
   );
   return rows.length > 0;
@@ -553,7 +555,7 @@ const findExistingMediaIdsEffect = Effect.fn("MediaRepository.findExistingMediaI
   if (mediaIds.length === 0) {
     return new Set<number>();
   }
-  const rows = yield* tryDatabasePromise("Failed to mark search results in library", () =>
+  const rows = yield* tryDatabase("Failed to mark search results in library", () =>
     db
       .select({ id: media.id })
       .from(media)
@@ -565,7 +567,7 @@ const findExistingMediaIdsEffect = Effect.fn("MediaRepository.findExistingMediaI
 const listAllMediaRowsEffect = Effect.fn("MediaRepository.listAllMediaRows")(function* (
   db: AppDatabase,
 ) {
-  return yield* tryDatabasePromise("Failed to list all media", () =>
+  return yield* tryDatabase("Failed to list all media", () =>
     db.select().from(media).orderBy(media.id),
   );
 });
@@ -576,7 +578,7 @@ const listMediaRowsEffect = Effect.fn("MediaRepository.listMediaRows")(function*
 ) {
   const monitoredCondition =
     input.monitored !== undefined ? eq(media.monitored, input.monitored) : undefined;
-  return yield* tryDatabasePromise("Failed to list media", () => {
+  return yield* tryDatabase("Failed to list media", () => {
     const baseQuery = db.select().from(media);
     const query = monitoredCondition ? baseQuery.where(monitoredCondition) : baseQuery;
     return query.orderBy(media.id).limit(input.limit).offset(input.offset);
@@ -589,7 +591,7 @@ const countMediaEffect = Effect.fn("MediaRepository.countMedia")(function* (
 ) {
   const monitoredCondition =
     input.monitored !== undefined ? eq(media.monitored, input.monitored) : undefined;
-  const rows = yield* tryDatabasePromise("Failed to count media", () => {
+  const rows = yield* tryDatabase("Failed to count media", () => {
     const countQuery = db.select({ count: count() }).from(media);
     return monitoredCondition ? countQuery.where(monitoredCondition) : countQuery;
   });
@@ -600,14 +602,14 @@ const listUnitRowsByMediaIdEffect = Effect.fn("MediaRepository.listUnitRowsByMed
   db: AppDatabase,
   mediaId: number,
 ) {
-  return yield* tryDatabasePromise("Failed to load media", () =>
+  return yield* tryDatabase("Failed to load media", () =>
     db.select().from(mediaUnits).where(eq(mediaUnits.mediaId, mediaId)),
   );
 });
 
 const listUnitRowsWithMediaKindEffect = Effect.fn("MediaRepository.listUnitRowsWithMediaKind")(
   function* (db: AppDatabase, mediaId: number) {
-    return yield* tryDatabasePromise("Failed to list mediaUnits", () =>
+    return yield* tryDatabase("Failed to list mediaUnits", () =>
       db
         .select({ episode: mediaUnits, mediaKind: media.mediaKind })
         .from(mediaUnits)
@@ -624,7 +626,7 @@ const listUnitProgressStatsEffect = Effect.fn("MediaRepository.listUnitProgressS
   if (mediaIds.length === 0) {
     return [] as readonly MediaUnitProgressStat[];
   }
-  return yield* tryDatabasePromise("Failed to list media", () =>
+  return yield* tryDatabase("Failed to list media", () =>
     db
       .select({
         mediaId: mediaUnits.mediaId,
@@ -646,7 +648,7 @@ const listMissingUnitNumbersEffect = Effect.fn("MediaRepository.listMissingUnitN
   if (mediaIds.length === 0) {
     return [] as readonly { readonly mediaId: number; readonly number: number }[];
   }
-  return yield* tryDatabasePromise("Failed to list media", () =>
+  return yield* tryDatabase("Failed to list media", () =>
     db
       .select({
         mediaId: mediaUnits.mediaId,
@@ -666,7 +668,7 @@ const loadUnitsByNumbersEffect = Effect.fn("MediaRepository.loadUnitsByNumbers")
     return [] as readonly (typeof mediaUnits.$inferSelect)[];
   }
 
-  return yield* tryDatabasePromise("Failed to load media units", () =>
+  return yield* tryDatabase("Failed to load media units", () =>
     db
       .select()
       .from(mediaUnits)
@@ -679,7 +681,7 @@ const updateMonitoredEffect = Effect.fn("MediaRepository.updateMonitored")(funct
   mediaId: number,
   monitored: boolean,
 ) {
-  yield* tryDatabasePromise("Failed to update media", () =>
+  yield* tryDatabase("Failed to update media", () =>
     db.update(media).set({ monitored }).where(eq(media.id, mediaId)),
   );
 });
@@ -689,7 +691,7 @@ const updateRootFolderEffect = Effect.fn("MediaRepository.updateRootFolder")(fun
   mediaId: number,
   rootFolder: string,
 ) {
-  yield* tryDatabasePromise("Failed to update media path", () =>
+  yield* tryDatabase("Failed to update media path", () =>
     db.update(media).set({ rootFolder }).where(eq(media.id, mediaId)),
   );
 });
@@ -699,14 +701,14 @@ const updateProfileNameEffect = Effect.fn("MediaRepository.updateProfileName")(f
   mediaId: number,
   profileName: string,
 ) {
-  yield* tryDatabasePromise("Failed to update media", () =>
+  yield* tryDatabase("Failed to update media", () =>
     db.update(media).set({ profileName }).where(eq(media.id, mediaId)),
   );
 });
 
 const updateReleaseProfileIdsEffect = Effect.fn("MediaRepository.updateReleaseProfileIds")(
   function* (db: AppDatabase, mediaId: number, releaseProfileIds: string) {
-    yield* tryDatabasePromise("Failed to update media", () =>
+    yield* tryDatabase("Failed to update media", () =>
       db.update(media).set({ releaseProfileIds }).where(eq(media.id, mediaId)),
     );
   },
@@ -720,16 +722,18 @@ const insertMediaAggregateEffect = Effect.fn("MediaRepository.insertMediaAggrega
     readonly log: typeof systemLogs.$inferInsert;
   },
 ) {
-  yield* tryDatabasePromise("Failed to insert media aggregate", () =>
-    db.transaction(async (tx) => {
-      await tx.insert(media).values(input.mediaRow);
+  yield* tryDatabase("Failed to insert media aggregate", () =>
+    db.transaction((tx) =>
+      Effect.gen(function* () {
+        yield* tx.insert(media).values(input.mediaRow);
 
-      if (input.unitRows.length > 0) {
-        await tx.insert(mediaUnits).values([...input.unitRows]);
-      }
+        if (input.unitRows.length > 0) {
+          yield* tx.insert(mediaUnits).values([...input.unitRows]);
+        }
 
-      await tx.insert(systemLogs).values(input.log);
-    }),
+        yield* tx.insert(systemLogs).values(input.log);
+      }),
+    ),
   );
 });
 
@@ -738,7 +742,7 @@ const updateMediaRowEffect = Effect.fn("MediaRepository.updateMediaRow")(functio
   mediaId: number,
   row: typeof media.$inferInsert | Partial<typeof media.$inferInsert>,
 ) {
-  yield* tryDatabasePromise("Failed to update media", () =>
+  yield* tryDatabase("Failed to update media", () =>
     db.update(media).set(row).where(eq(media.id, mediaId)),
   );
 });
@@ -747,15 +751,13 @@ const deleteMediaEffect = Effect.fn("MediaRepository.deleteMedia")(function* (
   db: AppDatabase,
   mediaId: number,
 ) {
-  yield* tryDatabasePromise("Failed to delete media", () =>
-    db.delete(media).where(eq(media.id, mediaId)),
-  );
+  yield* tryDatabase("Failed to delete media", () => db.delete(media).where(eq(media.id, mediaId)));
 });
 
 const listMonitoredMediaIdsEffect = Effect.fn("MediaRepository.listMonitoredMediaIds")(function* (
   db: AppDatabase,
 ) {
-  const rows = yield* tryDatabasePromise("Failed to list monitored media ids", () =>
+  const rows = yield* tryDatabase("Failed to list monitored media ids", () =>
     db.select({ id: media.id }).from(media).where(eq(media.monitored, true)),
   );
   return rows.map((row) => row.id);

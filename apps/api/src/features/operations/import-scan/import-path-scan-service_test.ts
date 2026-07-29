@@ -1,8 +1,7 @@
 import { Cause, Effect, Exit, Layer } from "effect";
 
 import { assert, describe, it } from "@effect/vitest";
-import { AppDrizzleDatabase } from "@/db/database.ts";
-import * as schema from "@/db/schema.ts";
+import { AppDrizzleDatabase, type AppDatabase } from "@/db/database.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
 import { ImportPathScanService } from "@/features/operations/import-scan/import-path-scan-service.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
@@ -14,9 +13,8 @@ import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 
 describe("ImportPathScanService", () => {
-  it.scoped("rejects paths outside library, recycle, and downloads roots", () =>
+  it.effect("rejects paths outside library, recycle, and downloads roots", () =>
     withSqliteTestDbEffect({
-      schema,
       run: (db) =>
         Effect.gen(function* () {
           const fs = makeScanFileSystem({
@@ -24,7 +22,7 @@ describe("ImportPathScanService", () => {
           });
 
           const exit = yield* Effect.exit(
-            scanImportPathEffect(fs, AppDrizzleDatabase.make(db), {
+            scanImportPathEffect(fs, db, {
               path: "/outside/imports",
             }),
           );
@@ -32,7 +30,7 @@ describe("ImportPathScanService", () => {
           assert.deepStrictEqual(exit._tag, "Failure");
 
           if (Exit.isFailure(exit)) {
-            const failure = Cause.failureOption(exit.cause);
+            const failure = Cause.findErrorOption(exit.cause);
             assert.deepStrictEqual(failure._tag, "Some");
 
             if (failure._tag === "Some") {
@@ -50,7 +48,7 @@ describe("ImportPathScanService", () => {
 
 function scanImportPathEffect(
   fs: FileSystemShape,
-  database: AppDrizzleDatabase,
+  database: AppDatabase,
   input: {
     readonly mediaId?: number;
     readonly limit?: number;
@@ -59,60 +57,51 @@ function scanImportPathEffect(
 ) {
   return Effect.flatMap(ImportPathScanService, (service) => service.scanImportPath(input)).pipe(
     Effect.provide(
-      ImportPathScanService.DefaultWithoutDependencies.pipe(
+      ImportPathScanService.layerWithoutDependencies.pipe(
         Layer.provide(
           Layer.mergeAll(
             Layer.succeed(AppDrizzleDatabase, database),
-            Layer.succeed(
-              AniListClient,
-              AniListClient.make({
-                getAnimeMetadataById: () => Effect.dieMessage("not used in test"),
-                searchAnimeMetadata: () => Effect.dieMessage("not used in test"),
-                getSeasonalAnime: () => Effect.dieMessage("not used in test"),
-              }),
-            ),
-            Layer.succeed(FileSystem, FileSystem.make(fs)),
-            Layer.succeed(
-              MediaProbe,
-              MediaProbe.make({
-                probeVideoFile: () => Effect.dieMessage("not used in test"),
-              }),
-            ),
-            Layer.succeed(
-              MediaRepository,
-              MediaRepository.make({
-                countMedia: () => Effect.dieMessage("not used in test"),
-                findExistingMediaIds: () => Effect.dieMessage("not used in test"),
-                findMediaRootFolderOwner: () => Effect.dieMessage("not used in test"),
-                getMediaRow: () => Effect.dieMessage("not used in test"),
-                getUnitRow: () => Effect.dieMessage("not used in test"),
-                listCalendarEvents: () => Effect.dieMessage("not used in test"),
-                listMappedUnitRows: () => Effect.dieMessage("not used in test"),
-                listMediaRows: () => Effect.dieMessage("not used in test"),
-                listMissingUnitNumbers: () => Effect.dieMessage("not used in test"),
-                listUnitProgressStats: () => Effect.dieMessage("not used in test"),
-                listUnitRowsByMediaId: () => Effect.dieMessage("not used in test"),
-                listUnitRowsWithMediaKind: () => Effect.dieMessage("not used in test"),
-                listWantedMissing: () => Effect.dieMessage("not used in test"),
-                loadCurrentUnitState: () => Effect.dieMessage("not used in test"),
-                mediaExists: () => Effect.dieMessage("not used in test"),
-                listAllMediaRows: () => Effect.dieMessage("not used in test"),
-                listImportScanMappedUnits: () => Effect.dieMessage("not used in test"),
-                listScopedUnitRows: () => Effect.dieMessage("not used in test"),
-                listMissingUnitSearchRows: () => Effect.dieMessage("not used in test"),
-                loadUnitsByNumbers: () => Effect.dieMessage("not used in test"),
-                findMediaByExactRootFolder: () => Effect.dieMessage("not used in test"),
-                requireMediaExists: () => Effect.dieMessage("not used in test"),
-                deleteMedia: () => Effect.dieMessage("not used in test"),
-                insertMediaAggregate: () => Effect.dieMessage("not used in test"),
-                listMonitoredMediaIds: () => Effect.dieMessage("not used in test"),
-                updateMediaRow: () => Effect.dieMessage("not used in test"),
-                updateMonitored: () => Effect.dieMessage("not used in test"),
-                updateProfileName: () => Effect.dieMessage("not used in test"),
-                updateReleaseProfileIds: () => Effect.dieMessage("not used in test"),
-                updateRootFolder: () => Effect.dieMessage("not used in test"),
-              }),
-            ),
+            Layer.succeed(AniListClient, {
+              getAnimeMetadataById: () => Effect.die(new Error("not used in test")),
+              searchAnimeMetadata: () => Effect.die(new Error("not used in test")),
+              getSeasonalAnime: () => Effect.die(new Error("not used in test")),
+            }),
+            Layer.succeed(FileSystem, fs),
+            Layer.succeed(MediaProbe, {
+              probeVideoFile: () => Effect.die(new Error("not used in test")),
+            }),
+            Layer.succeed(MediaRepository, {
+              countMedia: () => Effect.die(new Error("not used in test")),
+              findExistingMediaIds: () => Effect.die(new Error("not used in test")),
+              findMediaRootFolderOwner: () => Effect.die(new Error("not used in test")),
+              getMediaRow: () => Effect.die(new Error("not used in test")),
+              getUnitRow: () => Effect.die(new Error("not used in test")),
+              listCalendarEvents: () => Effect.die(new Error("not used in test")),
+              listMappedUnitRows: () => Effect.die(new Error("not used in test")),
+              listMediaRows: () => Effect.die(new Error("not used in test")),
+              listMissingUnitNumbers: () => Effect.die(new Error("not used in test")),
+              listUnitProgressStats: () => Effect.die(new Error("not used in test")),
+              listUnitRowsByMediaId: () => Effect.die(new Error("not used in test")),
+              listUnitRowsWithMediaKind: () => Effect.die(new Error("not used in test")),
+              listWantedMissing: () => Effect.die(new Error("not used in test")),
+              loadCurrentUnitState: () => Effect.die(new Error("not used in test")),
+              mediaExists: () => Effect.die(new Error("not used in test")),
+              listAllMediaRows: () => Effect.die(new Error("not used in test")),
+              listImportScanMappedUnits: () => Effect.die(new Error("not used in test")),
+              listScopedUnitRows: () => Effect.die(new Error("not used in test")),
+              listMissingUnitSearchRows: () => Effect.die(new Error("not used in test")),
+              loadUnitsByNumbers: () => Effect.die(new Error("not used in test")),
+              findMediaByExactRootFolder: () => Effect.die(new Error("not used in test")),
+              requireMediaExists: () => Effect.die(new Error("not used in test")),
+              deleteMedia: () => Effect.die(new Error("not used in test")),
+              insertMediaAggregate: () => Effect.die(new Error("not used in test")),
+              listMonitoredMediaIds: () => Effect.die(new Error("not used in test")),
+              updateMediaRow: () => Effect.die(new Error("not used in test")),
+              updateMonitored: () => Effect.die(new Error("not used in test")),
+              updateProfileName: () => Effect.die(new Error("not used in test")),
+              updateReleaseProfileIds: () => Effect.die(new Error("not used in test")),
+              updateRootFolder: () => Effect.die(new Error("not used in test")),
+            }),
             Layer.succeed(
               RuntimeConfigSnapshotService,
               makeRuntimeConfigSnapshotStub(
@@ -140,13 +129,13 @@ function makeScanFileSystem(overrides: Partial<FileSystemShape>) {
   return {
     copyFile: () => Effect.void,
     mkdir: () => Effect.void,
-    openFile: () => Effect.dieMessage("not used in test"),
+    openFile: () => Effect.die(new Error("not used in test")),
     readDir: () => Effect.succeed([]),
-    readFile: () => Effect.dieMessage("not used in test"),
+    readFile: () => Effect.die(new Error("not used in test")),
     realPath: () => Effect.succeed("/allowed/library"),
     remove: () => Effect.void,
     rename: () => Effect.void,
-    stat: () => Effect.dieMessage("not used in test"),
+    stat: () => Effect.die(new Error("not used in test")),
     writeFile: () => Effect.void,
     ...overrides,
   } satisfies FileSystemShape;

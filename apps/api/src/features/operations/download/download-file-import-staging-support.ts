@@ -13,7 +13,7 @@ export const stageSourceIntoTempFile = Effect.fn("Operations.stageSourceIntoTemp
     readonly sourcePath: string;
     readonly tempDestination: string;
   }) {
-    const stageResult = yield* Effect.either(
+    const stageResult = yield* Effect.result(
       input.importMode === "copy"
         ? input.fs.copyFile(input.sourcePath, input.tempDestination)
         : input.fs
@@ -27,24 +27,24 @@ export const stageSourceIntoTempFile = Effect.fn("Operations.stageSourceIntoTemp
             ),
     );
 
-    if (stageResult._tag === "Right") {
+    if (stageResult._tag === "Success") {
       return;
     }
 
-    const cleanupResult = yield* Effect.either(
+    const cleanupResult = yield* Effect.result(
       removeStagedTempFileStrict(input.fs, input.tempDestination),
     );
 
-    if (cleanupResult._tag === "Left") {
+    if (cleanupResult._tag === "Failure") {
       return yield* new ImportFileError({
         message: `Failed to ${input.importMode} file to temp destination and cleanup temp file`,
-        cause: Cause.sequential(Cause.fail(stageResult.left), Cause.fail(cleanupResult.left)),
+        cause: Cause.combine(Cause.fail(stageResult.failure), Cause.fail(cleanupResult.failure)),
       });
     }
 
     return yield* new ImportFileError({
       message: `Failed to ${input.importMode} file to temp destination`,
-      cause: stageResult.left,
+      cause: stageResult.failure,
     });
   },
 );
@@ -69,21 +69,21 @@ const stageMoveAcrossFilesystems = Effect.fn("Operations.stageMoveAcrossFilesyst
   tempDestination: string,
 ) {
   yield* fs.copyFile(sourcePath, tempDestination);
-  const removeResult = yield* Effect.either(fs.remove(sourcePath));
+  const removeResult = yield* Effect.result(fs.remove(sourcePath));
 
-  if (removeResult._tag === "Right") {
+  if (removeResult._tag === "Success") {
     return;
   }
 
-  const cleanupResult = yield* Effect.either(removeStagedTempFileStrict(fs, tempDestination));
+  const cleanupResult = yield* Effect.result(removeStagedTempFileStrict(fs, tempDestination));
 
-  if (cleanupResult._tag === "Left") {
+  if (cleanupResult._tag === "Failure") {
     return yield* Effect.failCause(
-      Cause.sequential(Cause.fail(removeResult.left), Cause.fail(cleanupResult.left)),
+      Cause.combine(Cause.fail(removeResult.failure), Cause.fail(cleanupResult.failure)),
     );
   }
 
-  return yield* removeResult.left;
+  return yield* removeResult.failure;
 });
 
 function removeStagedTempFileStrict(fs: FileSystemShape, tempDestination: string) {

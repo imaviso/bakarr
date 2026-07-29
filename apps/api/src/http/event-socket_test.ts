@@ -13,10 +13,10 @@ it.effect("encodeNotificationEventJson serializes valid notification events", ()
 
     const decoded = decodeNotificationEventWire(encoded);
 
-    assert.deepStrictEqual(decoded._tag, "Right");
+    assert.deepStrictEqual(decoded._tag, "Success");
 
-    if (decoded._tag === "Right") {
-      assert.deepStrictEqual(decoded.right, {
+    if (decoded._tag === "Success") {
+      assert.deepStrictEqual(decoded.success, {
         payload: { message: "hello" },
         type: "Info",
       });

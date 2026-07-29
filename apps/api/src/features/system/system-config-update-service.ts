@@ -1,4 +1,4 @@
-import { Effect, Option } from "effect";
+import { Context, Effect, Layer, Option } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 import { AppConfig } from "@/config/schema.ts";
@@ -74,7 +74,7 @@ const makeSystemConfigUpdateService = Effect.fn("SystemConfigUpdateService.make"
       activateConfig: (value) =>
         runtimeControl
           .reload(value)
-          .pipe(Effect.zipRight(runtimeConfigSnapshot.replaceRuntimeConfig(value))),
+          .pipe(Effect.andThen(runtimeConfigSnapshot.replaceRuntimeConfig(value))),
       nextConfig: normalizedConfig,
       nextState,
       persistState: (state) =>
@@ -98,19 +98,24 @@ const makeSystemConfigUpdateService = Effect.fn("SystemConfigUpdateService.make"
   return { updateConfig } satisfies SystemConfigUpdateServiceShape;
 });
 
-export class SystemConfigUpdateService extends Effect.Service<SystemConfigUpdateService>()(
+export class SystemConfigUpdateService extends Context.Service<SystemConfigUpdateService>()(
   "@bakarr/api/SystemConfigUpdateService",
-  {
-    dependencies: [
-      QualityProfileRepository.Default,
-      SystemConfigRepository.Default,
-      SystemLogRepository.Default,
-    ],
-    effect: makeSystemConfigUpdateService(),
-  },
-) {}
+  { make: makeSystemConfigUpdateService() },
+) {
+  static readonly layerWithoutDependencies = Layer.effect(
+    SystemConfigUpdateService,
+    SystemConfigUpdateService.make,
+  );
+  static readonly layer = SystemConfigUpdateService.layerWithoutDependencies.pipe(
+    Layer.provide([
+      QualityProfileRepository.layer,
+      SystemConfigRepository.layer,
+      SystemLogRepository.layer,
+    ]),
+  );
+}
 
-export const SystemConfigUpdateServiceLive = SystemConfigUpdateService.Default;
+export const SystemConfigUpdateServiceLive = SystemConfigUpdateService.layer;
 
 const preserveStoredPasswords = Effect.fn("SystemConfigUpdateService.preserveStoredPasswords")(
   function* (input: {

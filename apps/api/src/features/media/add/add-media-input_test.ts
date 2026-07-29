@@ -4,7 +4,7 @@ import { Schema } from "effect";
 import { AddMediaInput } from "@/features/media/add/add-media-input.ts";
 
 it("AddMediaInput decodes valid payload", () => {
-  const result = Schema.decodeUnknownEither(AddMediaInput)({
+  const result = Schema.decodeUnknownResult(AddMediaInput)({
     id: 42,
     monitor_and_search: true,
     monitored: true,
@@ -12,16 +12,16 @@ it("AddMediaInput decodes valid payload", () => {
     release_profile_ids: [1, 2],
     root_folder: "/library/Media",
   });
-  assert.ok(result._tag === "Right");
-  if (result._tag === "Right") {
-    assert.deepStrictEqual(result.right.id, 42);
-    assert.deepStrictEqual(result.right.monitor_and_search, true);
-    assert.deepStrictEqual(result.right.root_folder, "/library/Media");
+  assert.ok(result._tag === "Success");
+  if (result._tag === "Success") {
+    assert.deepStrictEqual(result.success.id, 42);
+    assert.deepStrictEqual(result.success.monitor_and_search, true);
+    assert.deepStrictEqual(result.success.root_folder, "/library/Media");
   }
 });
 
 it("AddMediaInput rejects negative ids", () => {
-  const result = Schema.decodeUnknownEither(AddMediaInput)({
+  const result = Schema.decodeUnknownResult(AddMediaInput)({
     id: -1,
     monitor_and_search: true,
     monitored: true,
@@ -29,16 +29,16 @@ it("AddMediaInput rejects negative ids", () => {
     release_profile_ids: [],
     root_folder: "/lib",
   });
-  assert.deepStrictEqual(result._tag, "Left");
+  assert.deepStrictEqual(result._tag, "Failure");
 });
 
 it("AddMediaInput rejects missing required fields", () => {
-  const result = Schema.decodeUnknownEither(AddMediaInput)({});
-  assert.deepStrictEqual(result._tag, "Left");
+  const result = Schema.decodeUnknownResult(AddMediaInput)({});
+  assert.deepStrictEqual(result._tag, "Failure");
 });
 
 it("AddMediaInput accepts use_existing_root option", () => {
-  const result = Schema.decodeUnknownEither(AddMediaInput)({
+  const result = Schema.decodeUnknownResult(AddMediaInput)({
     id: 5,
     monitor_and_search: false,
     monitored: true,
@@ -47,8 +47,8 @@ it("AddMediaInput accepts use_existing_root option", () => {
     root_folder: "/lib",
     use_existing_root: true,
   });
-  assert.ok(result._tag === "Right");
-  if (result._tag === "Right") {
-    assert.deepStrictEqual(result.right.use_existing_root, true);
+  assert.ok(result._tag === "Success");
+  if (result._tag === "Success") {
+    assert.deepStrictEqual(result.success.use_existing_root, true);
   }
 });

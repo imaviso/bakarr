@@ -1,6 +1,6 @@
 import * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
-import { HttpClient } from "@effect/platform";
-import { Effect, Layer, Option } from "effect";
+import { HttpClient } from "effect/unstable/http";
+import { Context, Effect, Layer, Option } from "effect";
 
 import { brandMediaId, type MediaSearchResult } from "@packages/shared/index.ts";
 import { AppConfig } from "@/config/schema.ts";
@@ -68,7 +68,7 @@ interface LookupIdRow {
   readonly value: number;
 }
 
-export const ManamiSqliteClientLive = Layer.unwrapEffect(
+export const ManamiSqliteClientLive = Layer.unwrap(
   Effect.gen(function* () {
     const appConfig = yield* AppConfig;
     const fs = yield* FileSystem;
@@ -84,15 +84,21 @@ export const ManamiSqliteClientLive = Layer.unwrapEffect(
       ),
     );
 
-    return NodeSqliteClient.layer({
-      filename: cachePaths.sqliteFile,
-    }).pipe(
-      Layer.mapError((cause) =>
-        ExternalCallError.make({
-          cause,
-          message: "Manami sqlite open failed",
-          operation: "manami.sqlite.open",
+    return Layer.fromBuild((memoMap, scope) =>
+      Layer.buildWithMemoMap(
+        NodeSqliteClient.layer({
+          filename: cachePaths.sqliteFile,
         }),
+        memoMap,
+        scope,
+      ).pipe(
+        Effect.mapError((cause) =>
+          ExternalCallError.make({
+            cause,
+            message: "Manami sqlite open failed",
+            operation: "manami.sqlite.open",
+          }),
+        ),
       ),
     );
   }),
@@ -113,7 +119,7 @@ const makeManamiClient = Effect.fn("ManamiClient.make")(function* () {
         [anilistId],
       )
       .withoutTransform.pipe(
-        Effect.map((rows) => Option.fromNullable(toLookupEntry(rows[0]))),
+        Effect.map((rows) => Option.fromNullishOr(toLookupEntry(rows[0]))),
         Effect.mapError((cause) =>
           ExternalCallError.make({
             cause,
@@ -141,7 +147,7 @@ const makeManamiClient = Effect.fn("ManamiClient.make")(function* () {
         [malId],
       )
       .withoutTransform.pipe(
-        Effect.map((rows) => Option.fromNullable(toLookupEntry(rows[0]))),
+        Effect.map((rows) => Option.fromNullishOr(toLookupEntry(rows[0]))),
         Effect.mapError((cause) =>
           ExternalCallError.make({
             cause,
@@ -167,7 +173,7 @@ const makeManamiClient = Effect.fn("ManamiClient.make")(function* () {
         [anilistId],
       )
       .withoutTransform.pipe(
-        Effect.map((rows) => Option.fromNullable(rows[0]?.value)),
+        Effect.map((rows) => Option.fromNullishOr(rows[0]?.value)),
         Effect.mapError((cause) =>
           ExternalCallError.make({
             cause,
@@ -193,7 +199,7 @@ const makeManamiClient = Effect.fn("ManamiClient.make")(function* () {
         [malId],
       )
       .withoutTransform.pipe(
-        Effect.map((rows) => Option.fromNullable(rows[0]?.value)),
+        Effect.map((rows) => Option.fromNullishOr(rows[0]?.value)),
         Effect.mapError((cause) =>
           ExternalCallError.make({
             cause,
@@ -247,11 +253,13 @@ const makeManamiClient = Effect.fn("ManamiClient.make")(function* () {
   } satisfies ManamiClientShape;
 });
 
-export class ManamiClient extends Effect.Service<ManamiClient>()("@bakarr/api/ManamiClient", {
-  effect: makeManamiClient(),
-}) {}
+export class ManamiClient extends Context.Service<ManamiClient>()("@bakarr/api/ManamiClient", {
+  make: makeManamiClient(),
+}) {
+  static readonly layer = Layer.effect(ManamiClient, ManamiClient.make);
+}
 
-const ManamiLookupClientLayer = ManamiClient.Default;
+const ManamiLookupClientLayer = ManamiClient.layer;
 
 const makeManamiCacheRefreshClient = Effect.fn("ManamiCacheRefreshClient.make")(function* () {
   const appConfig = yield* AppConfig;
@@ -273,14 +281,14 @@ const makeManamiCacheRefreshClient = Effect.fn("ManamiCacheRefreshClient.make")(
   return { refreshCacheIfNeeded } satisfies ManamiCacheRefreshClientShape;
 });
 
-export class ManamiCacheRefreshClient extends Effect.Service<ManamiCacheRefreshClient>()(
+export class ManamiCacheRefreshClient extends Context.Service<ManamiCacheRefreshClient>()(
   "@bakarr/api/ManamiCacheRefreshClient",
-  {
-    scoped: makeManamiCacheRefreshClient(),
-  },
-) {}
+  { make: makeManamiCacheRefreshClient() },
+) {
+  static readonly layer = Layer.effect(ManamiCacheRefreshClient, ManamiCacheRefreshClient.make);
+}
 
-const ManamiCacheRefreshClientLayer = ManamiCacheRefreshClient.Default;
+const ManamiCacheRefreshClientLayer = ManamiCacheRefreshClient.layer;
 
 export const ManamiClientLive = Layer.mergeAll(
   ManamiLookupClientLayer,

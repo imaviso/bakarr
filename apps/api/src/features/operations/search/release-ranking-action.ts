@@ -5,7 +5,7 @@ import type {
   QualityProfile,
   ReleaseProfileRule,
 } from "@packages/shared/index.ts";
-import { Either, Option } from "effect";
+import { Result, Option } from "effect";
 
 import {
   cutoffQuality,
@@ -92,17 +92,17 @@ export function decideDownloadAction(
 
 function evaluateSizeGuard(profile: QualityProfile, releaseSizeBytes: number) {
   const minSizeBytes = parseSizeLabelToBytes(profile.min_size);
-  if (Either.isLeft(minSizeBytes)) {
+  if (Result.isFailure(minSizeBytes)) {
     return { _tag: "Pass" as const };
   }
 
   const maxSizeBytes = parseSizeLabelToBytes(profile.max_size);
-  if (Either.isLeft(maxSizeBytes)) {
+  if (Result.isFailure(maxSizeBytes)) {
     return { _tag: "Pass" as const };
   }
 
-  const minBytesValue = minSizeBytes.right;
-  const maxBytesValue = maxSizeBytes.right;
+  const minBytesValue = minSizeBytes.success;
+  const maxBytesValue = maxSizeBytes.success;
   const min = Option.isSome(minBytesValue) ? minBytesValue.value : null;
   const max = Option.isSome(maxBytesValue) ? maxBytesValue.value : null;
 

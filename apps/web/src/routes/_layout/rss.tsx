@@ -183,8 +183,12 @@ function FeedCard(props: {
 }
 
 const AddFeedSchema = Schema.Struct({
-  media_id: Schema.Number.pipe(Schema.greaterThan(0, { message: () => "Select an anime" })),
-  url: Schema.String.pipe(Schema.pattern(/^https?:\/\/.+/, { message: () => "Enter a valid URL" })),
+  media_id: Schema.Number.pipe(
+    Schema.check(Schema.isGreaterThan(0, { message: "Select an anime" })),
+  ),
+  url: Schema.String.pipe(
+    Schema.check(Schema.isPattern(/^https?:\/\/.+/, { message: "Enter a valid URL" })),
+  ),
   name: Schema.String,
 });
 
@@ -199,7 +203,7 @@ function AddFeedForm(props: { onCancel: () => void; onSuccess: () => void }) {
       name: "",
     },
     validators: {
-      onChange: Schema.standardSchemaV1(AddFeedSchema),
+      onChange: Schema.toStandardSchemaV1(AddFeedSchema),
     },
     onSubmit: async ({ value }) => {
       await addFeed.mutateAsync({

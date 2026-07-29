@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import { Schema, SchemaTransformation } from "effect";
 
 const JikanTitleVariantSchema = Schema.Struct({
   title: Schema.String,
@@ -239,183 +239,185 @@ export function normalizeJikanRecommendations(
   });
 }
 
-export const JikanNormalizedAnimeFromFullSchema = Schema.transform(
-  JikanAnimeDetailFullSchema,
-  JikanNormalizedAnimeSchema,
-  {
-    decode: (data) => normalizeJikanAnime(data),
-    encode: (normalized) => ({
-      aired: {
-        from: normalized.startDate,
-        string: undefined,
-        to: normalized.endDate,
-      },
-      airing: normalized.airing,
-      approved: normalized.approved,
-      background: normalized.background,
-      broadcast: {
-        day: normalized.broadcast.day,
-        string: normalized.broadcast.raw,
-        time: normalized.broadcast.time,
-        timezone: normalized.broadcast.timezone,
-      },
-      demographics: normalized.demographics.map((name) => ({ mal_id: 0, name })),
-      duration: normalized.duration,
-      mediaUnits: normalized.unitCount,
-      explicit_genres: normalized.explicitGenres.map((name) => ({ mal_id: 0, name })),
-      favorites: normalized.favorites,
-      genres: normalized.genres.map((name) => ({ mal_id: 0, name })),
-      images: {
-        jpg: normalized.images.jpg
-          ? {
-              image_url: normalized.images.jpg.imageUrl,
-              large_image_url: normalized.images.jpg.largeImageUrl,
-              small_image_url: normalized.images.jpg.smallImageUrl,
-            }
-          : undefined,
-        webp: normalized.images.webp
-          ? {
-              image_url: normalized.images.webp.imageUrl,
-              large_image_url: normalized.images.webp.largeImageUrl,
-              small_image_url: normalized.images.webp.smallImageUrl,
-            }
-          : undefined,
-      },
-      licensors: normalized.licensors.map((entry) => ({
-        mal_id: entry.malId,
-        name: entry.name,
-        type: entry.type,
-        url: entry.url,
-      })),
-      mal_id: normalized.malId,
-      members: normalized.members,
-      popularity: normalized.popularity,
-      producers: normalized.producers.map((entry) => ({
-        mal_id: entry.malId,
-        name: entry.name,
-        type: entry.type,
-        url: entry.url,
-      })),
-      rank: normalized.rank,
-      rating: normalized.rating,
-      relations: normalized.relations.map((relation) => ({
-        entry: [
-          {
-            mal_id: relation.malId,
-            name: relation.title,
-            type: "media",
-            url: relation.url,
-          },
-        ],
-        relation: relation.relation,
-      })),
-      score: normalized.score,
-      scored_by: normalized.scoredBy,
-      season: normalized.season,
-      source: normalized.source,
-      status: normalized.status,
-      studios: normalized.studios.map((name) => ({ mal_id: 0, name })),
-      synopsis: normalized.synopsis,
-      themes: normalized.themes.map((name) => ({ mal_id: 0, name })),
-      title: normalized.title.romaji,
-      title_english: normalized.title.english,
-      title_japanese: normalized.title.native,
-      title_synonyms: normalized.titleVariants,
-      titles: normalized.titleVariants.map((title) => ({ title, type: "Synonym" })),
-      trailer: {
-        embed_url: normalized.trailer.embedUrl,
-        url: normalized.trailer.url,
-        youtube_id: normalized.trailer.youtubeId,
-      },
-      type: normalized.format,
-      url: normalized.url,
-      year: normalized.year,
+export const JikanNormalizedAnimeFromFullSchema = JikanAnimeDetailFullSchema.pipe(
+  Schema.decodeTo(
+    JikanNormalizedAnimeSchema,
+    SchemaTransformation.transform({
+      decode: (data) => normalizeJikanAnime(data),
+      encode: (normalized) => ({
+        aired: {
+          from: normalized.startDate,
+          string: undefined,
+          to: normalized.endDate,
+        },
+        airing: normalized.airing,
+        approved: normalized.approved,
+        background: normalized.background,
+        broadcast: {
+          day: normalized.broadcast.day,
+          string: normalized.broadcast.raw,
+          time: normalized.broadcast.time,
+          timezone: normalized.broadcast.timezone,
+        },
+        demographics: normalized.demographics.map((name) => ({ mal_id: 0, name })),
+        duration: normalized.duration,
+        mediaUnits: normalized.unitCount,
+        explicit_genres: normalized.explicitGenres.map((name) => ({ mal_id: 0, name })),
+        favorites: normalized.favorites,
+        genres: normalized.genres.map((name) => ({ mal_id: 0, name })),
+        images: {
+          jpg: normalized.images.jpg
+            ? {
+                image_url: normalized.images.jpg.imageUrl,
+                large_image_url: normalized.images.jpg.largeImageUrl,
+                small_image_url: normalized.images.jpg.smallImageUrl,
+              }
+            : undefined,
+          webp: normalized.images.webp
+            ? {
+                image_url: normalized.images.webp.imageUrl,
+                large_image_url: normalized.images.webp.largeImageUrl,
+                small_image_url: normalized.images.webp.smallImageUrl,
+              }
+            : undefined,
+        },
+        licensors: normalized.licensors.map((entry) => ({
+          mal_id: entry.malId,
+          name: entry.name,
+          type: entry.type,
+          url: entry.url,
+        })),
+        mal_id: normalized.malId,
+        members: normalized.members,
+        popularity: normalized.popularity,
+        producers: normalized.producers.map((entry) => ({
+          mal_id: entry.malId,
+          name: entry.name,
+          type: entry.type,
+          url: entry.url,
+        })),
+        rank: normalized.rank,
+        rating: normalized.rating,
+        relations: normalized.relations.map((relation) => ({
+          entry: [
+            {
+              mal_id: relation.malId,
+              name: relation.title,
+              type: "media",
+              url: relation.url,
+            },
+          ],
+          relation: relation.relation,
+        })),
+        score: normalized.score,
+        scored_by: normalized.scoredBy,
+        season: normalized.season,
+        source: normalized.source,
+        status: normalized.status,
+        studios: normalized.studios.map((name) => ({ mal_id: 0, name })),
+        synopsis: normalized.synopsis,
+        themes: normalized.themes.map((name) => ({ mal_id: 0, name })),
+        title: normalized.title.romaji,
+        title_english: normalized.title.english,
+        title_japanese: normalized.title.native,
+        title_synonyms: normalized.titleVariants,
+        titles: normalized.titleVariants.map((title) => ({ title, type: "Synonym" })),
+        trailer: {
+          embed_url: normalized.trailer.embedUrl,
+          url: normalized.trailer.url,
+          youtube_id: normalized.trailer.youtubeId,
+        },
+        type: normalized.format,
+        url: normalized.url,
+        year: normalized.year,
+      }),
     }),
-  },
+  ),
 );
 
-export const JikanNormalizedAnimeFromDetailSchema = Schema.transform(
-  JikanAnimeDetailSchema,
-  JikanNormalizedAnimeSchema,
-  {
-    decode: (data) => normalizeJikanAnime(data),
-    encode: (normalized) => ({
-      aired: {
-        from: normalized.startDate,
-        string: undefined,
-        to: normalized.endDate,
-      },
-      airing: normalized.airing,
-      approved: normalized.approved,
-      background: normalized.background,
-      broadcast: {
-        day: normalized.broadcast.day,
-        string: normalized.broadcast.raw,
-        time: normalized.broadcast.time,
-        timezone: normalized.broadcast.timezone,
-      },
-      demographics: normalized.demographics.map((name) => ({ mal_id: 0, name })),
-      duration: normalized.duration,
-      mediaUnits: normalized.unitCount,
-      explicit_genres: normalized.explicitGenres.map((name) => ({ mal_id: 0, name })),
-      favorites: normalized.favorites,
-      genres: normalized.genres.map((name) => ({ mal_id: 0, name })),
-      images: {
-        jpg: normalized.images.jpg
-          ? {
-              image_url: normalized.images.jpg.imageUrl,
-              large_image_url: normalized.images.jpg.largeImageUrl,
-              small_image_url: normalized.images.jpg.smallImageUrl,
-            }
-          : undefined,
-        webp: normalized.images.webp
-          ? {
-              image_url: normalized.images.webp.imageUrl,
-              large_image_url: normalized.images.webp.largeImageUrl,
-              small_image_url: normalized.images.webp.smallImageUrl,
-            }
-          : undefined,
-      },
-      licensors: normalized.licensors.map((entry) => ({
-        mal_id: entry.malId,
-        name: entry.name,
-        type: entry.type,
-        url: entry.url,
-      })),
-      mal_id: normalized.malId,
-      members: normalized.members,
-      popularity: normalized.popularity,
-      producers: normalized.producers.map((entry) => ({
-        mal_id: entry.malId,
-        name: entry.name,
-        type: entry.type,
-        url: entry.url,
-      })),
-      rank: normalized.rank,
-      rating: normalized.rating,
-      score: normalized.score,
-      scored_by: normalized.scoredBy,
-      season: normalized.season,
-      source: normalized.source,
-      status: normalized.status,
-      studios: normalized.studios.map((name) => ({ mal_id: 0, name })),
-      synopsis: normalized.synopsis,
-      themes: normalized.themes.map((name) => ({ mal_id: 0, name })),
-      title: normalized.title.romaji,
-      title_english: normalized.title.english,
-      title_japanese: normalized.title.native,
-      title_synonyms: normalized.titleVariants,
-      titles: normalized.titleVariants.map((title) => ({ title, type: "Synonym" })),
-      trailer: {
-        embed_url: normalized.trailer.embedUrl,
-        url: normalized.trailer.url,
-        youtube_id: normalized.trailer.youtubeId,
-      },
-      type: normalized.format,
-      url: normalized.url,
-      year: normalized.year,
+export const JikanNormalizedAnimeFromDetailSchema = JikanAnimeDetailSchema.pipe(
+  Schema.decodeTo(
+    JikanNormalizedAnimeSchema,
+    SchemaTransformation.transform({
+      decode: (data) => normalizeJikanAnime(data),
+      encode: (normalized) => ({
+        aired: {
+          from: normalized.startDate,
+          string: undefined,
+          to: normalized.endDate,
+        },
+        airing: normalized.airing,
+        approved: normalized.approved,
+        background: normalized.background,
+        broadcast: {
+          day: normalized.broadcast.day,
+          string: normalized.broadcast.raw,
+          time: normalized.broadcast.time,
+          timezone: normalized.broadcast.timezone,
+        },
+        demographics: normalized.demographics.map((name) => ({ mal_id: 0, name })),
+        duration: normalized.duration,
+        mediaUnits: normalized.unitCount,
+        explicit_genres: normalized.explicitGenres.map((name) => ({ mal_id: 0, name })),
+        favorites: normalized.favorites,
+        genres: normalized.genres.map((name) => ({ mal_id: 0, name })),
+        images: {
+          jpg: normalized.images.jpg
+            ? {
+                image_url: normalized.images.jpg.imageUrl,
+                large_image_url: normalized.images.jpg.largeImageUrl,
+                small_image_url: normalized.images.jpg.smallImageUrl,
+              }
+            : undefined,
+          webp: normalized.images.webp
+            ? {
+                image_url: normalized.images.webp.imageUrl,
+                large_image_url: normalized.images.webp.largeImageUrl,
+                small_image_url: normalized.images.webp.smallImageUrl,
+              }
+            : undefined,
+        },
+        licensors: normalized.licensors.map((entry) => ({
+          mal_id: entry.malId,
+          name: entry.name,
+          type: entry.type,
+          url: entry.url,
+        })),
+        mal_id: normalized.malId,
+        members: normalized.members,
+        popularity: normalized.popularity,
+        producers: normalized.producers.map((entry) => ({
+          mal_id: entry.malId,
+          name: entry.name,
+          type: entry.type,
+          url: entry.url,
+        })),
+        rank: normalized.rank,
+        rating: normalized.rating,
+        score: normalized.score,
+        scored_by: normalized.scoredBy,
+        season: normalized.season,
+        source: normalized.source,
+        status: normalized.status,
+        studios: normalized.studios.map((name) => ({ mal_id: 0, name })),
+        synopsis: normalized.synopsis,
+        themes: normalized.themes.map((name) => ({ mal_id: 0, name })),
+        title: normalized.title.romaji,
+        title_english: normalized.title.english,
+        title_japanese: normalized.title.native,
+        title_synonyms: normalized.titleVariants,
+        titles: normalized.titleVariants.map((title) => ({ title, type: "Synonym" })),
+        trailer: {
+          embed_url: normalized.trailer.embedUrl,
+          url: normalized.trailer.url,
+          youtube_id: normalized.trailer.youtubeId,
+        },
+        type: normalized.format,
+        url: normalized.url,
+        year: normalized.year,
+      }),
     }),
-  },
+  ),
 );
 
 type JikanAnimeInput =
@@ -642,57 +644,58 @@ export type JikanNormalizedSeasonalEntry = Schema.Schema.Type<
   typeof JikanNormalizedSeasonalEntrySchema
 >;
 
-export const JikanSeasonalEntryFromDetailSchema = Schema.transform(
-  JikanAnimeDetailBaseSchema,
-  JikanNormalizedSeasonalEntrySchema,
-  {
-    decode: (data) => normalizeJikanSeasonalEntry(data),
-    encode: (entry) => ({
-      aired: entry.seasonYear
-        ? { from: `${entry.seasonYear}-01-01`, string: undefined, to: undefined }
-        : undefined,
-      airing: undefined,
-      approved: undefined,
-      background: undefined,
-      broadcast: undefined,
-      demographics: undefined,
-      duration: undefined,
-      mediaUnits: entry.unitCount,
-      explicit_genres: undefined,
-      favorites: undefined,
-      genres: entry.genres?.map((name) => ({ mal_id: 0, name })),
-      images: entry.coverImage
-        ? {
-            jpg: { image_url: entry.coverImage },
-            webp: undefined,
-          }
-        : undefined,
-      licensors: undefined,
-      mal_id: entry.malId,
-      members: undefined,
-      popularity: undefined,
-      producers: undefined,
-      rank: undefined,
-      rating: undefined,
-      score: undefined,
-      scored_by: undefined,
-      season: entry.season,
-      source: undefined,
-      status: entry.status,
-      studios: undefined,
-      synopsis: undefined,
-      themes: undefined,
-      title: entry.title.romaji,
-      title_english: entry.title.english,
-      title_japanese: entry.title.native,
-      title_synonyms: undefined,
-      titles: undefined,
-      trailer: undefined,
-      type: entry.format,
-      url: undefined,
-      year: entry.seasonYear ?? entry.startYear,
+export const JikanSeasonalEntryFromDetailSchema = JikanAnimeDetailBaseSchema.pipe(
+  Schema.decodeTo(
+    JikanNormalizedSeasonalEntrySchema,
+    SchemaTransformation.transform({
+      decode: (data) => normalizeJikanSeasonalEntry(data),
+      encode: (entry) => ({
+        aired: entry.seasonYear
+          ? { from: `${entry.seasonYear}-01-01`, string: undefined, to: undefined }
+          : undefined,
+        airing: undefined,
+        approved: undefined,
+        background: undefined,
+        broadcast: undefined,
+        demographics: undefined,
+        duration: undefined,
+        mediaUnits: entry.unitCount,
+        explicit_genres: undefined,
+        favorites: undefined,
+        genres: entry.genres?.map((name) => ({ mal_id: 0, name })),
+        images: entry.coverImage
+          ? {
+              jpg: { image_url: entry.coverImage },
+              webp: undefined,
+            }
+          : undefined,
+        licensors: undefined,
+        mal_id: entry.malId,
+        members: undefined,
+        popularity: undefined,
+        producers: undefined,
+        rank: undefined,
+        rating: undefined,
+        score: undefined,
+        scored_by: undefined,
+        season: entry.season,
+        source: undefined,
+        status: entry.status,
+        studios: undefined,
+        synopsis: undefined,
+        themes: undefined,
+        title: entry.title.romaji,
+        title_english: entry.title.english,
+        title_japanese: entry.title.native,
+        title_synonyms: undefined,
+        titles: undefined,
+        trailer: undefined,
+        type: entry.format,
+        url: undefined,
+        year: entry.seasonYear ?? entry.startYear,
+      }),
     }),
-  },
+  ),
 );
 
 function normalizeJikanSeasonalEntry(

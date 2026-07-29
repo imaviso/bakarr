@@ -1,4 +1,4 @@
-import { Effect, Option } from "effect";
+import { Context, Effect, Layer, Option } from "effect";
 import { brandMediaId } from "@packages/shared/index.ts";
 
 import type { DatabaseError } from "@/db/database.ts";
@@ -103,16 +103,13 @@ const makeMediaMaintenanceService = Effect.fn("MediaMaintenanceService.make")(fu
   } satisfies MediaMaintenanceServiceShape;
 });
 
-export class MediaMaintenanceService extends Effect.Service<MediaMaintenanceService>()(
+export class MediaMaintenanceService extends Context.Service<MediaMaintenanceService>()(
   "@bakarr/api/MediaMaintenanceService",
-  {
-    dependencies: [
-      MediaRepository.Default,
-      MediaUnitRepository.Default,
-      SystemLogRepository.Default,
-    ],
-    effect: makeMediaMaintenanceService(),
-  },
-) {}
+  { make: makeMediaMaintenanceService() },
+) {
+  static readonly layer = Layer.effect(MediaMaintenanceService, MediaMaintenanceService.make).pipe(
+    Layer.provide([MediaRepository.layer, MediaUnitRepository.layer, SystemLogRepository.layer]),
+  );
+}
 
-export const MediaMaintenanceServiceLive = MediaMaintenanceService.Default;
+export const MediaMaintenanceServiceLive = MediaMaintenanceService.layer;

@@ -1,12 +1,12 @@
-import { Effect, Option, Schema } from "effect";
+import { Context, Effect, Layer, Option, Schema } from "effect";
 
 import { bytesToHex, hexToBytes } from "@/infra/hex.ts";
 import { RandomService } from "@/infra/random.ts";
 
-export class StreamTokenSignerError extends Schema.TaggedError<StreamTokenSignerError>()(
+export class StreamTokenSignerError extends Schema.TaggedErrorClass<StreamTokenSignerError>()(
   "StreamTokenSignerError",
   {
-    cause: Schema.optional(Schema.Defect),
+    cause: Schema.optional(Schema.Defect()),
     message: Schema.String,
   },
 ) {}
@@ -79,15 +79,16 @@ const makeStreamTokenSigner = Effect.fn("StreamTokenSigner.make")(function* () {
   return { sign, verify };
 });
 
-export class StreamTokenSigner extends Effect.Service<StreamTokenSigner>()(
+export class StreamTokenSigner extends Context.Service<StreamTokenSigner>()(
   "@bakarr/api/StreamTokenSigner",
-  {
-    effect: makeStreamTokenSigner(),
-    dependencies: [RandomService.Default],
-  },
-) {}
+  { make: makeStreamTokenSigner() },
+) {
+  static readonly layer = Layer.effect(StreamTokenSigner, StreamTokenSigner.make).pipe(
+    Layer.provide([RandomService.layer]),
+  );
+}
 
-export const StreamTokenSignerLive = StreamTokenSigner.Default;
+export const StreamTokenSignerLive = StreamTokenSigner.layer;
 
 function toPayload(input: {
   readonly mediaId: number;

@@ -1,9 +1,9 @@
 import { and, eq, gt } from "drizzle-orm";
-import { Effect, Option } from "effect";
+import { Context, Effect, Layer, Option } from "effect";
 
 import { AppDrizzleDatabase, type AppDatabase, type DatabaseError } from "@/db/database.ts";
 import { appConfig, sessions, systemLogs, users } from "@/db/schema.ts";
-import { queryFirst, tryDatabasePromise } from "@/infra/effect/db.ts";
+import { queryFirst, tryDatabase } from "@/infra/effect/db.ts";
 
 export type AuthUserRow = typeof users.$inferSelect;
 
@@ -71,16 +71,19 @@ export interface AuthUserRepositoryShape {
   }) => Effect.Effect<void, DatabaseError>;
 }
 
-export class AuthUserRepository extends Effect.Service<AuthUserRepository>()(
+export class AuthUserRepository extends Context.Service<AuthUserRepository>()(
   "@bakarr/api/AuthUserRepository",
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const db = yield* AppDrizzleDatabase;
       return makeAuthUserRepositoryShape(db);
     }),
-    dependencies: [AppDrizzleDatabase.Default],
   },
-) {}
+) {
+  static readonly layer = Layer.effect(AuthUserRepository, AuthUserRepository.make).pipe(
+    Layer.provide([AppDrizzleDatabase.layer]),
+  );
+}
 
 export function makeAuthUserRepositoryShape(db: AppDatabase): AuthUserRepositoryShape {
   const findUserByUsername = Effect.fn("AuthUserRepository.findUserByUsername")(function* (
@@ -120,27 +123,29 @@ export function makeAuthUserRepositoryShape(db: AppDatabase): AuthUserRepository
       readonly userId: number;
       readonly username: string;
     }) {
-      yield* tryDatabasePromise("Failed to update password", () =>
-        db.transaction(async (tx) => {
-          await tx
-            .update(users)
-            .set({
-              apiKey: input.apiKeyHash,
-              mustChangePassword: false,
-              passwordHash: input.passwordHash,
-              updatedAt: input.changedAt,
-            })
-            .where(eq(users.id, input.userId));
-          await tx.delete(sessions).where(eq(sessions.userId, input.userId));
-          await tx.update(appConfig).set({ bootstrapPassword: null }).where(eq(appConfig.id, 1));
-          await tx.insert(systemLogs).values({
-            createdAt: input.changedAt,
-            details: null,
-            eventType: "auth.password.changed",
-            level: "success",
-            message: `${input.username} changed their password`,
-          });
-        }),
+      yield* tryDatabase("Failed to update password", () =>
+        db.transaction((tx) =>
+          Effect.gen(function* () {
+            yield* tx
+              .update(users)
+              .set({
+                apiKey: input.apiKeyHash,
+                mustChangePassword: false,
+                passwordHash: input.passwordHash,
+                updatedAt: input.changedAt,
+              })
+              .where(eq(users.id, input.userId));
+            yield* tx.delete(sessions).where(eq(sessions.userId, input.userId));
+            yield* tx.update(appConfig).set({ bootstrapPassword: null }).where(eq(appConfig.id, 1));
+            yield* tx.insert(systemLogs).values({
+              createdAt: input.changedAt,
+              details: null,
+              eventType: "auth.password.changed",
+              level: "success",
+              message: `${input.username} changed their password`,
+            });
+          }),
+        ),
       );
     },
   );
@@ -152,24 +157,26 @@ export function makeAuthUserRepositoryShape(db: AppDatabase): AuthUserRepository
       readonly userId: number;
       readonly username: string;
     }) {
-      yield* tryDatabasePromise("Failed to regenerate API key", () =>
-        db.transaction(async (tx) => {
-          await tx
-            .update(users)
-            .set({
-              apiKey: input.apiKeyHash,
-              updatedAt: input.regeneratedAt,
-            })
-            .where(eq(users.id, input.userId));
-          await tx.delete(sessions).where(eq(sessions.userId, input.userId));
-          await tx.insert(systemLogs).values({
-            createdAt: input.regeneratedAt,
-            details: null,
-            eventType: "auth.api_key.regenerated",
-            level: "success",
-            message: `${input.username} regenerated an API key`,
-          });
-        }),
+      yield* tryDatabase("Failed to regenerate API key", () =>
+        db.transaction((tx) =>
+          Effect.gen(function* () {
+            yield* tx
+              .update(users)
+              .set({
+                apiKey: input.apiKeyHash,
+                updatedAt: input.regeneratedAt,
+              })
+              .where(eq(users.id, input.userId));
+            yield* tx.delete(sessions).where(eq(sessions.userId, input.userId));
+            yield* tx.insert(systemLogs).values({
+              createdAt: input.regeneratedAt,
+              details: null,
+              eventType: "auth.api_key.regenerated",
+              level: "success",
+              message: `${input.username} regenerated an API key`,
+            });
+          }),
+        ),
       );
     },
   );
@@ -181,7 +188,7 @@ export function makeAuthUserRepositoryShape(db: AppDatabase): AuthUserRepository
       readonly passwordHash: string;
       readonly username: string;
     }) {
-      yield* tryDatabasePromise("Failed to ensure bootstrap user", () =>
+      yield* tryDatabase("Failed to ensure bootstrap user", () =>
         db
           .insert(users)
           .values({
@@ -203,7 +210,7 @@ export function makeAuthUserRepositoryShape(db: AppDatabase): AuthUserRepository
     readonly tokenHash: string;
     readonly userId: number;
   }) {
-    yield* tryDatabasePromise("Failed to create session", () =>
+    yield* tryDatabase("Failed to create session", () =>
       db.insert(sessions).values({
         createdAt: input.createdAt,
         expiresAt: input.expiresAt,
@@ -249,7 +256,7 @@ export function makeAuthUserRepositoryShape(db: AppDatabase): AuthUserRepository
     readonly lastSeenAt: string;
     readonly tokenHash: string;
   }) {
-    yield* tryDatabasePromise("Failed to resolve the current user", () =>
+    yield* tryDatabase("Failed to resolve the current user", () =>
       db
         .update(sessions)
         .set({
@@ -263,7 +270,7 @@ export function makeAuthUserRepositoryShape(db: AppDatabase): AuthUserRepository
   const deleteSession = Effect.fn("AuthUserRepository.deleteSession")(function* (
     tokenHash: string,
   ) {
-    yield* tryDatabasePromise("Failed to clear the active session", () =>
+    yield* tryDatabase("Failed to clear the active session", () =>
       db.delete(sessions).where(eq(sessions.token, tokenHash)),
     );
   });
@@ -275,7 +282,7 @@ export function makeAuthUserRepositoryShape(db: AppDatabase): AuthUserRepository
     readonly level: string;
     readonly message: string;
   }) {
-    yield* tryDatabasePromise("Failed to write log", () =>
+    yield* tryDatabase("Failed to write log", () =>
       db.insert(systemLogs).values({
         createdAt: input.createdAt,
         details: input.details ?? null,

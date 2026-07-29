@@ -1,15 +1,18 @@
 import { Schema } from "effect";
 
-export const PositiveIntSchema = Schema.Number.pipe(Schema.int(), Schema.greaterThan(0));
+export const PositiveIntSchema = Schema.Number.pipe(
+  Schema.check(Schema.isInt()),
+  Schema.check(Schema.isGreaterThan(0)),
+);
 
 export const PositiveIntFromStringSchema = Schema.NumberFromString.pipe(
-  Schema.int(),
-  Schema.greaterThan(0),
+  Schema.check(Schema.isInt()),
+  Schema.check(Schema.isGreaterThan(0)),
 );
 
 export const NonNegativeIntFromStringSchema = Schema.NumberFromString.pipe(
-  Schema.int(),
-  Schema.nonNegative(),
+  Schema.check(Schema.isInt()),
+  Schema.check(Schema.isGreaterThanOrEqualTo(0)),
 );
 
 export const MediaIdSchema = PositiveIntSchema.pipe(Schema.brand("MediaId"));

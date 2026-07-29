@@ -1,5 +1,5 @@
 import { assert, it } from "@effect/vitest";
-import { HttpServerRequest, HttpServerResponse } from "@effect/platform";
+import { HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
 import { Effect, Logger } from "effect";
 
 import { DatabaseError } from "@/db/database.ts";
@@ -206,7 +206,7 @@ it.effect("route responses log mapped client errors below error level", () =>
   Effect.gen(function* () {
     const logs: Array<{ level: string; message: string }> = [];
     const logger = Logger.make<unknown, void>(({ logLevel, message }) => {
-      logs.push({ level: logLevel.label, message: String(message) });
+      logs.push({ level: logLevel, message: String(message) });
     });
     const request = HttpServerRequest.fromWeb(new Request("http://localhost/api/auth/me"));
 
@@ -216,7 +216,7 @@ it.effect("route responses log mapped client errors below error level", () =>
       mapRouteError,
     ).pipe(
       Effect.provideService(HttpServerRequest.HttpServerRequest, request),
-      Effect.provide(Logger.replace(Logger.defaultLogger, logger)),
+      Effect.provide(Logger.layer([logger])),
     );
 
     assert.deepStrictEqual(HttpServerResponse.toWeb(response).status, 401);

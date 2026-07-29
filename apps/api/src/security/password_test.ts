@@ -10,7 +10,7 @@ it.effect("verifyPassword fails when the stored hash structure is malformed", ()
     assert.deepStrictEqual(exit._tag, "Failure");
 
     if (exit._tag === "Failure") {
-      const failure = Cause.failureOption(exit.cause);
+      const failure = Cause.findErrorOption(exit.cause);
       assert.deepStrictEqual(failure._tag, "Some");
 
       if (failure._tag === "Some") {
@@ -30,7 +30,7 @@ it.effect("verifyPassword fails when the stored hash hex is invalid", () =>
     assert.deepStrictEqual(exit._tag, "Failure");
 
     if (exit._tag === "Failure") {
-      const failure = Cause.failureOption(exit.cause);
+      const failure = Cause.findErrorOption(exit.cause);
       assert.deepStrictEqual(failure._tag, "Some");
 
       if (failure._tag === "Some") {

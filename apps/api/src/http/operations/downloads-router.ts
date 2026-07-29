@@ -1,4 +1,4 @@
-import { HttpRouter } from "@effect/platform";
+import { HttpRouter } from "effect/unstable/http";
 import { Effect, Schema } from "effect";
 import {
   AsyncOperationAcceptedSchema,
@@ -7,7 +7,7 @@ import {
   DownloadStatusSchema,
 } from "@packages/shared/index.ts";
 
-import { HttpServerResponse } from "@effect/platform";
+import { HttpServerResponse } from "effect/unstable/http";
 import { CatalogDownloadReadService } from "@/features/operations/catalog/catalog-download-read-service.ts";
 import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
 import { DownloadReconciliationService } from "@/features/operations/download/download-reconciliation-service.ts";
@@ -32,15 +32,17 @@ import {
   successResponse,
 } from "@/http/shared/router-helpers.ts";
 
-export const downloadsRouter = HttpRouter.empty.pipe(
-  HttpRouter.get(
+export const downloadsRoutes = [
+  HttpRouter.route(
+    "GET",
     "/downloads/queue",
     authedRouteResponse(
       Effect.flatMap(OperationsProgress, (service) => service.getDownloadProgress()),
       schemaJsonResponse(Schema.Array(DownloadStatusSchema)),
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.route(
+    "GET",
     "/downloads/history",
     authedRouteResponse(
       Effect.flatMap(DownloadRepository, (repo) =>
@@ -49,7 +51,8 @@ export const downloadsRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(Schema.Array(DownloadSchema)),
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.route(
+    "GET",
     "/downloads/events",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -61,7 +64,8 @@ export const downloadsRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(DownloadEventsPageSchema),
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.route(
+    "GET",
     "/downloads/events/export",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -94,26 +98,31 @@ export const downloadsRouter = HttpRouter.empty.pipe(
         const exportHeaders = buildDownloadExportHeaders(header);
 
         if (format === "csv") {
-          return HttpServerResponse.stream(result.stream, {
-            contentType: "text/csv; charset=utf-8",
-            headers: {
-              ...exportHeaders,
-              "Content-Disposition": `attachment; filename="bakarr-download-events.csv"`,
-            },
-          });
+          return Effect.succeed(
+            HttpServerResponse.stream(result.stream, {
+              contentType: "text/csv; charset=utf-8",
+              headers: {
+                ...exportHeaders,
+                "Content-Disposition": `attachment; filename="bakarr-download-events.csv"`,
+              },
+            }),
+          );
         }
 
-        return HttpServerResponse.stream(result.stream, {
-          contentType: "application/json; charset=utf-8",
-          headers: {
-            ...exportHeaders,
-            "Content-Disposition": `attachment; filename="bakarr-download-events.json"`,
-          },
-        });
+        return Effect.succeed(
+          HttpServerResponse.stream(result.stream, {
+            contentType: "application/json; charset=utf-8",
+            headers: {
+              ...exportHeaders,
+              "Content-Disposition": `attachment; filename="bakarr-download-events.json"`,
+            },
+          }),
+        );
       },
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.route(
+    "POST",
     "/downloads/:id/pause",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -123,7 +132,8 @@ export const downloadsRouter = HttpRouter.empty.pipe(
       successResponse,
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.route(
+    "POST",
     "/downloads/:id/resume",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -133,7 +143,8 @@ export const downloadsRouter = HttpRouter.empty.pipe(
       successResponse,
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.route(
+    "POST",
     "/downloads/:id/retry",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -143,7 +154,8 @@ export const downloadsRouter = HttpRouter.empty.pipe(
       successResponse,
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.route(
+    "POST",
     "/downloads/:id/reconcile",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -153,7 +165,8 @@ export const downloadsRouter = HttpRouter.empty.pipe(
       successResponse,
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.route(
+    "POST",
     "/downloads/sync",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -170,7 +183,8 @@ export const downloadsRouter = HttpRouter.empty.pipe(
       schemaAcceptedResponse(AsyncOperationAcceptedSchema),
     ),
   ),
-  HttpRouter.del(
+  HttpRouter.route(
+    "DELETE",
     "/downloads/:id",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -185,7 +199,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
       successResponse,
     ),
   ),
-);
+];
 
 export function buildDownloadExportHeaders(header: {
   readonly exported: number;

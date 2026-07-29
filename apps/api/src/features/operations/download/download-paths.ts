@@ -43,11 +43,11 @@ export const resolveCompletedContentPath = Effect.fn("Operations.resolveComplete
 
     const scanState = yield* Stream.runFold(
       scanVideoFilesStream(fs, contentPath),
-      {
+      () => ({
         candidateCount: 0,
         firstCandidatePath: Option.none<string>(),
         matchingPath: Option.none<string>(),
-      },
+      }),
       (state, file) => {
         const classification = classifyMediaArtifact(file.path, file.name);
 
@@ -106,7 +106,7 @@ export const resolveBatchContentPaths = Effect.fn("Operations.resolveBatchConten
 
   return yield* Stream.runFold(
     scanVideoFilesStream(fs, contentPath),
-    [] as string[],
+    () => [] as string[],
     (acc, file) => {
       const classification = classifyMediaArtifact(file.path, file.name);
       return classification.kind === "extra" || classification.kind === "sample"

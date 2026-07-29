@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import { Effect, Schema, SchemaTransformation } from "effect";
 
 export type DownloadEventsDirection = "next" | "prev";
 
@@ -85,36 +85,39 @@ export function createDownloadEventsSearchSchema(
   keys: DownloadEventsSearchKeys,
   defaults = createDownloadEventsSearchDefaults(keys),
 ) {
-  const DirectionSchema = Schema.transform(Schema.String, Schema.Literal("next", "prev"), {
-    decode: (direction) => toDownloadEventsDirection(direction),
-    encode: (direction) => direction,
-  });
+  const DirectionSchema = Schema.String.pipe(
+    Schema.decodeTo(
+      Schema.Literals(["next", "prev"]),
+      SchemaTransformation.transform({
+        decode: (direction) => toDownloadEventsDirection(direction),
+        encode: (direction) => direction,
+      }),
+    ),
+  );
 
   return Schema.Struct({
-    [keys.mediaId]: Schema.optionalWith(Schema.String, {
-      default: () => defaults[keys.mediaId] ?? "",
-    }),
-    [keys.cursor]: Schema.optionalWith(Schema.String, {
-      default: () => defaults[keys.cursor] ?? "",
-    }),
-    [keys.direction]: Schema.optionalWith(DirectionSchema, {
-      default: () => "next",
-    }),
-    [keys.downloadId]: Schema.optionalWith(Schema.String, {
-      default: () => defaults[keys.downloadId] ?? "",
-    }),
-    [keys.endDate]: Schema.optionalWith(Schema.String, {
-      default: () => defaults[keys.endDate] ?? "",
-    }),
-    [keys.eventType]: Schema.optionalWith(Schema.String, {
-      default: () => defaults[keys.eventType] ?? "",
-    }),
-    [keys.startDate]: Schema.optionalWith(Schema.String, {
-      default: () => defaults[keys.startDate] ?? "",
-    }),
-    [keys.status]: Schema.optionalWith(Schema.String, {
-      default: () => defaults[keys.status] ?? "",
-    }),
+    [keys.mediaId]: Schema.String.pipe(
+      Schema.withDecodingDefaultType(Effect.succeed(defaults[keys.mediaId] ?? "")),
+    ),
+    [keys.cursor]: Schema.String.pipe(
+      Schema.withDecodingDefaultType(Effect.succeed(defaults[keys.cursor] ?? "")),
+    ),
+    [keys.direction]: DirectionSchema.pipe(Schema.withDecodingDefaultType(Effect.succeed("next"))),
+    [keys.downloadId]: Schema.String.pipe(
+      Schema.withDecodingDefaultType(Effect.succeed(defaults[keys.downloadId] ?? "")),
+    ),
+    [keys.endDate]: Schema.String.pipe(
+      Schema.withDecodingDefaultType(Effect.succeed(defaults[keys.endDate] ?? "")),
+    ),
+    [keys.eventType]: Schema.String.pipe(
+      Schema.withDecodingDefaultType(Effect.succeed(defaults[keys.eventType] ?? "")),
+    ),
+    [keys.startDate]: Schema.String.pipe(
+      Schema.withDecodingDefaultType(Effect.succeed(defaults[keys.startDate] ?? "")),
+    ),
+    [keys.status]: Schema.String.pipe(
+      Schema.withDecodingDefaultType(Effect.succeed(defaults[keys.status] ?? "")),
+    ),
   });
 }
 
@@ -128,7 +131,7 @@ export function parseDownloadEventsSearch(
   return {
     ...defaults,
     ...parsed,
-  } as Record<string, string>;
+  };
 }
 
 export function createDownloadEventsCursorPatch(

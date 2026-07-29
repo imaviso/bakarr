@@ -1,5 +1,5 @@
-import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
-import { Effect, Option, Schema } from "effect";
+import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/unstable/http";
+import { Context, Effect, Layer, Option, Schema } from "effect";
 
 import { ExternalCall, ExternalCallError } from "@/infra/effect/retry.ts";
 
@@ -9,8 +9,8 @@ interface SeaDexClientShape {
   ) => Effect.Effect<Option.Option<SeaDexEntry>, ExternalCallError>;
 }
 
-export class SeaDexClient extends Effect.Service<SeaDexClient>()("@bakarr/api/SeaDexClient", {
-  effect: Effect.gen(function* () {
+export class SeaDexClient extends Context.Service<SeaDexClient>()("@bakarr/api/SeaDexClient", {
+  make: Effect.gen(function* () {
     const client = yield* HttpClient.HttpClient;
     const externalCall = yield* ExternalCall;
 
@@ -86,9 +86,11 @@ export class SeaDexClient extends Effect.Service<SeaDexClient>()("@bakarr/api/Se
       getEntryByAniListId,
     } satisfies SeaDexClientShape;
   }),
-}) {}
+}) {
+  static readonly layer = Layer.effect(SeaDexClient, SeaDexClient.make);
+}
 
-export const SeaDexClientLive = SeaDexClient.Default;
+export const SeaDexClientLive = SeaDexClient.layer;
 
 const SEADEX_API_BASE = "https://releases.moe/api/collections";
 class SeaDexTorrentSchema extends Schema.Class<SeaDexTorrentSchema>("SeaDexTorrentSchema")({

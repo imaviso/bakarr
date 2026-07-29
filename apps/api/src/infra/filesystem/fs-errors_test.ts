@@ -11,8 +11,8 @@ describe("isNotFoundError", () => {
 
   it("detects Effect SystemError not-found causes", () => {
     const cause = {
-      _tag: "SystemError",
-      reason: "NotFound",
+      _tag: "PlatformError",
+      reason: { _tag: "NotFound" },
     };
 
     assert.deepStrictEqual(isNotFoundError({ cause }), true);

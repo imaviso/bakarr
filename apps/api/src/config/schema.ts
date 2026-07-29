@@ -3,7 +3,10 @@ import { Config, Context, Effect, Layer, Option, Schema } from "effect";
 import { PositiveIntSchema } from "@/domain/domain-schema.ts";
 import { randomHex } from "@/infra/random.ts";
 
-const PortSchema = Schema.Number.pipe(Schema.check(Schema.isInt()), Schema.check(Schema.isBetween({ minimum: 1, maximum: 65_535 })));
+const PortSchema = Schema.Number.pipe(
+  Schema.check(Schema.isInt()),
+  Schema.check(Schema.isBetween({ minimum: 1, maximum: 65_535 })),
+);
 
 export class AppConfigModel extends Schema.Class<AppConfigModel>("AppConfigModel")({
   appVersion: Schema.String,
@@ -65,7 +68,9 @@ export function makeDefaultBootstrapConfig(): BootstrapConfigShape {
   });
 }
 
-export class AppConfig extends Context.Service<AppConfig, AppConfigShape>()("@bakarr/api/AppConfig") {
+export class AppConfig extends Context.Service<AppConfig, AppConfigShape>()(
+  "@bakarr/api/AppConfig",
+) {
   static Live = AppConfig.layerWithOverrides();
 
   static layer = AppConfig.Live;
@@ -118,7 +123,9 @@ export class AppConfig extends Context.Service<AppConfig, AppConfigShape>()("@ba
   }
 }
 
-export class BootstrapConfig extends Context.Service<BootstrapConfig, BootstrapConfigShape>()("@bakarr/api/BootstrapConfig") {
+export class BootstrapConfig extends Context.Service<BootstrapConfig, BootstrapConfigShape>()(
+  "@bakarr/api/BootstrapConfig",
+) {
   static Live = BootstrapConfig.layerWithOverrides();
 
   static layer = BootstrapConfig.Live;

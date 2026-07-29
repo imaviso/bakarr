@@ -1,15 +1,15 @@
-import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
-import { Effect } from "effect";
+import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
+import { Effect, Layer } from "effect";
 
 import { embeddedWebAssets } from "@/generated/embedded-web-assets.ts";
-import { mediaRouter } from "@/http/media/router.ts";
-import { authRouter } from "@/http/auth/router.ts";
+import { mediaRoutes } from "@/http/media/router.ts";
+import { authRoutes } from "@/http/auth/router.ts";
 import { createEmbeddedWebResponse, type EmbeddedWebAsset } from "@/http/shared/embedded-web.ts";
-import { downloadsRouter } from "@/http/operations/downloads-router.ts";
-import { libraryRouter } from "@/http/operations/library-router.ts";
-import { rssRouter } from "@/http/operations/rss-router.ts";
-import { searchRouter } from "@/http/operations/search-router.ts";
-import { systemRouter } from "@/http/system/router.ts";
+import { downloadsRoutes } from "@/http/operations/downloads-router.ts";
+import { libraryRoutes } from "@/http/operations/library-router.ts";
+import { rssRoutes } from "@/http/operations/rss-router.ts";
+import { searchRoutes } from "@/http/operations/search-router.ts";
+import { systemRoutes } from "@/http/system/router.ts";
 
 export function createHttpApp(
   options: {
@@ -17,34 +17,29 @@ export function createHttpApp(
   } = {},
 ) {
   const staticWebAssets = options.staticWebAssets ?? embeddedWebAssets;
-  const operationsRouter = HttpRouter.concatAll(
-    downloadsRouter,
-    rssRouter,
-    libraryRouter,
-    searchRouter,
-  );
-  const apiRouter = HttpRouter.empty.pipe(
-    HttpRouter.concat(HttpRouter.prefixAll(authRouter, "/api/auth")),
-    HttpRouter.concat(HttpRouter.prefixAll(mediaRouter, "/api")),
-    HttpRouter.concat(HttpRouter.prefixAll(operationsRouter, "/api")),
-    HttpRouter.concat(systemRouter),
+  const operationsRoutes = [...downloadsRoutes, ...rssRoutes, ...libraryRoutes, ...searchRoutes];
+
+  const fallbackRoute = HttpRouter.route(
+    "GET",
+    "*",
+    Effect.gen(function* () {
+      const request = yield* HttpServerRequest.HttpServerRequest;
+      const url = new URL(request.url, "http://bakarr.local");
+
+      return createHttpAppFallbackResponse({
+        assets: staticWebAssets,
+        method: request.method,
+        pathname: url.pathname,
+      });
+    }),
   );
 
-  return apiRouter.pipe(
-    HttpRouter.get(
-      "*",
-      Effect.gen(function* () {
-        const request = yield* HttpServerRequest.HttpServerRequest;
-        const url = new URL(request.url, "http://bakarr.local");
-
-        return createHttpAppFallbackResponse({
-          assets: staticWebAssets,
-          method: request.method,
-          pathname: url.pathname,
-        });
-      }),
+  return HttpRouter.toHttpEffect(
+    Layer.mergeAll(
+      HttpRouter.addAll(authRoutes, { prefix: "/api/auth" }),
+      HttpRouter.addAll([...mediaRoutes, ...operationsRoutes], { prefix: "/api" }),
+      HttpRouter.addAll([...systemRoutes, fallbackRoute]),
     ),
-    HttpRouter.toHttpApp,
   );
 }
 

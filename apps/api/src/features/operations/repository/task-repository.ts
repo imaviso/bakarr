@@ -1,10 +1,10 @@
 import { and, desc, eq, notInArray } from "drizzle-orm";
-import { Effect, Schema } from "effect";
+import { Context, Effect, Layer, Schema } from "effect";
 
 import { OperationTaskKeySchema } from "@packages/shared/index.ts";
 import { AppDrizzleDatabase, DatabaseError, type AppDatabase } from "@/db/database.ts";
 import { operationsTasks } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { tryDatabase } from "@/infra/effect/db.ts";
 
 export type OperationsTaskKey = Schema.Schema.Type<typeof OperationTaskKeySchema>;
 
@@ -59,16 +59,23 @@ export interface OperationsTaskRepositoryShape {
   }) => Effect.Effect<void, DatabaseError>;
 }
 
-export class OperationsTaskRepository extends Effect.Service<OperationsTaskRepository>()(
+export class OperationsTaskRepository extends Context.Service<OperationsTaskRepository>()(
   "@bakarr/api/OperationsTaskRepository",
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const db = yield* AppDrizzleDatabase;
       return makeOperationsTaskRepositoryShape(db);
     }),
-    dependencies: [AppDrizzleDatabase.Default],
   },
-) {}
+) {
+  static readonly layerWithoutDependencies = Layer.effect(
+    OperationsTaskRepository,
+    OperationsTaskRepository.make,
+  );
+  static readonly layer = OperationsTaskRepository.layerWithoutDependencies.pipe(
+    Layer.provide([AppDrizzleDatabase.layer]),
+  );
+}
 
 export const createTaskRow = Effect.fn("OperationsTaskRepository.createTaskRow")(function* (
   db: AppDatabase,
@@ -79,7 +86,7 @@ export const createTaskRow = Effect.fn("OperationsTaskRepository.createTaskRow")
     readonly taskKey: OperationsTaskKey;
   },
 ) {
-  const rows = yield* tryDatabasePromise("Failed to create operations task", () =>
+  const rows = yield* tryDatabase("Failed to create operations task", () =>
     db
       .insert(operationsTasks)
       .values({
@@ -115,7 +122,7 @@ export const markRunningTaskRow = Effect.fn("OperationsTaskRepository.markRunnin
     db: AppDatabase,
     input: { readonly message: string; readonly startedAt: string; readonly taskId: number },
   ) {
-    yield* tryDatabasePromise("Failed to mark operations task running", () =>
+    yield* tryDatabase("Failed to mark operations task running", () =>
       db
         .update(operationsTasks)
         .set({
@@ -142,7 +149,7 @@ export const updateTaskProgressRow = Effect.fn("OperationsTaskRepository.updateT
       readonly updatedAt: string;
     },
   ) {
-    yield* tryDatabasePromise("Failed to update operations task progress", () =>
+    yield* tryDatabase("Failed to update operations task progress", () =>
       db
         .update(operationsTasks)
         .set({
@@ -170,7 +177,7 @@ export const completeSucceededTaskRow = Effect.fn(
     readonly taskId: number;
   },
 ) {
-  yield* tryDatabasePromise("Failed to mark operations task succeeded", () =>
+  yield* tryDatabase("Failed to mark operations task succeeded", () =>
     db
       .update(operationsTasks)
       .set({
@@ -196,7 +203,7 @@ export const completeFailedTaskRow = Effect.fn("OperationsTaskRepository.complet
       readonly taskId: number;
     },
   ) {
-    yield* tryDatabasePromise("Failed to mark operations task failed", () =>
+    yield* tryDatabase("Failed to mark operations task failed", () =>
       db
         .update(operationsTasks)
         .set({
@@ -215,7 +222,7 @@ export const loadTaskRow = Effect.fn("OperationsTaskRepository.loadTaskRow")(fun
   db: AppDatabase,
   taskId: number,
 ) {
-  const rows = yield* tryDatabasePromise("Failed to load operations task", () =>
+  const rows = yield* tryDatabase("Failed to load operations task", () =>
     db.select().from(operationsTasks).where(eq(operationsTasks.id, taskId)).limit(1),
   );
   return rows[0];
@@ -243,7 +250,7 @@ export const listTaskRows = Effect.fn("OperationsTaskRepository.listTaskRows")(f
         ? conditions[0]
         : and(...conditions);
 
-  return yield* tryDatabasePromise("Failed to list operations tasks", () => {
+  return yield* tryDatabase("Failed to list operations tasks", () => {
     const stmt = db
       .select()
       .from(operationsTasks)
@@ -265,4 +272,3 @@ export function makeOperationsTaskRepositoryShape(db: AppDatabase): OperationsTa
     updateTaskProgressRow: (input) => updateTaskProgressRow(db, input),
   } satisfies OperationsTaskRepositoryShape;
 }
-

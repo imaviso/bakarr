@@ -1,17 +1,17 @@
 import { Cause, Effect, Exit, Option, Schema } from "effect";
 import { getAuthHeaders } from "~/app/auth-state";
 
-export class ApiClientError extends Schema.TaggedError<ApiClientError>()("ApiClientError", {
+export class ApiClientError extends Schema.TaggedErrorClass<ApiClientError>()("ApiClientError", {
   message: Schema.String,
   status: Schema.optional(Schema.Number),
 }) {}
 
-export class ApiDecodeError extends Schema.TaggedError<ApiDecodeError>()("ApiDecodeError", {
-  cause: Schema.optional(Schema.Defect),
+export class ApiDecodeError extends Schema.TaggedErrorClass<ApiDecodeError>()("ApiDecodeError", {
+  cause: Schema.optional(Schema.Defect()),
   message: Schema.String,
 }) {}
 
-export class ApiUnauthorizedError extends Schema.TaggedError<ApiUnauthorizedError>()(
+export class ApiUnauthorizedError extends Schema.TaggedErrorClass<ApiUnauthorizedError>()(
   "ApiUnauthorizedError",
   { message: Schema.String },
 ) {}
@@ -25,7 +25,7 @@ export async function runApiEffect<A, E>(effect: Effect.Effect<A, E>): Promise<A
 
   if (Exit.isSuccess(exit)) return exit.value;
 
-  const failure = Cause.failureOption(exit.cause);
+  const failure = Cause.findErrorOption(exit.cause);
   if (Option.isSome(failure)) throw failure.value;
 
   throw Cause.pretty(exit.cause);
@@ -129,7 +129,7 @@ export const fetchResponse = Effect.fn("ApiClient.fetchResponse")(
 );
 
 export const fetchJson = <A, I>(
-  schema: Schema.Schema<A, I>,
+  schema: Schema.Codec<A, I>,
   endpoint: string,
   options?: ApiRequestOptions,
   signal?: AbortSignal,
@@ -145,7 +145,7 @@ export const fetchJson = <A, I>(
         }),
     });
 
-    return yield* Schema.decodeUnknown(schema)(json).pipe(
+    return yield* Schema.decodeUnknownEffect(schema)(json).pipe(
       Effect.mapError(
         (cause) => new ApiDecodeError({ message: "Schema validation failed", cause }),
       ),

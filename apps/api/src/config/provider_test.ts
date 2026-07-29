@@ -1,7 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
 import { Config, ConfigProvider, Effect, FileSystem, Layer, PlatformError } from "effect";
 
-const dotEnvAddLayer = ConfigProvider.layerAdd(ConfigProvider.fromDotEnv({ path: ".env" }));
+import { dotEnvAddLayer } from "@/config/provider.ts";
 
 describe("PlatformConfigProvider", () => {
   const ExampleConfig = Config.all({
@@ -15,10 +15,7 @@ describe("PlatformConfigProvider", () => {
       const fileSystem = FileSystem.layerNoop({
         readFileString: () => Effect.succeed("VALUE=hello\nNUMBER=69"),
       });
-      const layer = dotEnvAddLayer.pipe(
-        Layer.provide(fileSystem),
-        Layer.provide(baseProvider),
-      );
+      const layer = dotEnvAddLayer.pipe(Layer.provide(fileSystem), Layer.provide(baseProvider));
 
       const result = yield* ExampleConfig.pipe(Effect.provide(layer));
 
@@ -32,10 +29,7 @@ describe("PlatformConfigProvider", () => {
       const fileSystem = FileSystem.layerNoop({
         readFileString: () => Effect.succeed("VALUE=dotenv\nNUMBER=69"),
       });
-      const layer = dotEnvAddLayer.pipe(
-        Layer.provide(fileSystem),
-        Layer.provide(baseProvider),
-      );
+      const layer = dotEnvAddLayer.pipe(Layer.provide(fileSystem), Layer.provide(baseProvider));
 
       const result = yield* ExampleConfig.pipe(Effect.provide(layer));
 
@@ -59,10 +53,7 @@ describe("PlatformConfigProvider", () => {
             }),
           ),
       });
-      const layer = dotEnvAddLayer.pipe(
-        Layer.provide(fileSystem),
-        Layer.provide(baseProvider),
-      );
+      const layer = dotEnvAddLayer.pipe(Layer.provide(fileSystem), Layer.provide(baseProvider));
 
       const result = yield* ExampleConfig.pipe(Effect.provide(layer));
 

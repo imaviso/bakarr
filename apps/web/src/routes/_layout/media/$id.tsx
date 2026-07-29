@@ -26,7 +26,7 @@ const AnimeDetailsDialogsLazy = lazy(() =>
   })),
 );
 
-const IdParamSchema = Schema.NumberFromString.pipe(Schema.int());
+const IdParamSchema = Schema.NumberFromString.pipe(Schema.check(Schema.isInt()));
 
 export const Route = createFileRoute("/_layout/media/$id")({
   loader: async ({ context: { queryClient }, params }) => {

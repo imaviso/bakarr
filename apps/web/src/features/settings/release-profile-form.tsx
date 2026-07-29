@@ -18,14 +18,16 @@ import { useCreateReleaseProfileMutation, useUpdateReleaseProfileMutation } from
 import type { ReleaseProfile } from "~/api/contracts";
 
 const ReleaseProfileSchema = Schema.Struct({
-  name: Schema.String.pipe(Schema.minLength(1, { message: () => "Name is required" })),
+  name: Schema.String.pipe(Schema.check(Schema.isMinLength(1, { message: "Name is required" }))),
   enabled: Schema.Boolean,
   is_global: Schema.Boolean,
   rules: Schema.mutable(
     Schema.Array(
       Schema.Struct({
-        term: Schema.String.pipe(Schema.minLength(1, { message: () => "Term is required" })),
-        rule_type: Schema.Literal("preferred", "must", "must_not"),
+        term: Schema.String.pipe(
+          Schema.check(Schema.isMinLength(1, { message: "Term is required" })),
+        ),
+        rule_type: Schema.Literals(["preferred", "must", "must_not"]),
         score: Schema.Number,
       }),
     ),
@@ -58,7 +60,7 @@ export function ReleaseProfileForm(props: {
       rules: props.profile?.rules || [],
     },
     validators: {
-      onChange: Schema.standardSchemaV1(ReleaseProfileSchema),
+      onChange: Schema.toStandardSchemaV1(ReleaseProfileSchema),
     },
     onSubmit: async ({ value }) => {
       if (isEditing && props.profile) {

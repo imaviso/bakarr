@@ -9,8 +9,8 @@ export function useSocketEvents() {
   useEffect(() => {
     const unsubscribe = subscribeSocketMessages((event) => {
       const decoded = decodeNotificationEventWire(event.data);
-      if (decoded._tag === "Right") {
-        handleSocketEvent(queryClient, decoded.right);
+      if (decoded._tag === "Success") {
+        handleSocketEvent(queryClient, decoded.success);
       }
     });
 

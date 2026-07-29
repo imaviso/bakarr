@@ -1,4 +1,4 @@
-import { HttpRouter, HttpServerResponse } from "@effect/platform";
+import { HttpRouter, HttpServerResponse } from "effect/unstable/http";
 import { Effect } from "effect";
 import { SystemLogsResponseSchema } from "@packages/shared/index.ts";
 
@@ -16,8 +16,9 @@ import {
   successResponse,
 } from "@/http/shared/router-helpers.ts";
 
-export const logsRouter = HttpRouter.empty.pipe(
-  HttpRouter.get(
+export const logsRoutes = [
+  HttpRouter.route(
+    "GET",
     "/api/system/logs",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -27,14 +28,16 @@ export const logsRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(SystemLogsResponseSchema),
     ),
   ),
-  HttpRouter.del(
+  HttpRouter.route(
+    "DELETE",
     "/api/system/logs",
     authedRouteResponse(
       Effect.flatMap(SystemLogService, (service) => service.clearLogs()),
       successResponse,
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.route(
+    "GET",
     "/api/system/logs/export",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -54,26 +57,30 @@ export const logsRouter = HttpRouter.empty.pipe(
         const exportHeaders = buildSystemLogExportHeaders(exported.header);
 
         if (format === "csv") {
-          return HttpServerResponse.stream(exported.stream, {
-            contentType: "text/csv; charset=utf-8",
-            headers: {
-              ...exportHeaders,
-              "Content-Disposition": `attachment; filename="bakarr-logs.csv"`,
-            },
-          });
+          return Effect.succeed(
+            HttpServerResponse.stream(exported.stream, {
+              contentType: "text/csv; charset=utf-8",
+              headers: {
+                ...exportHeaders,
+                "Content-Disposition": `attachment; filename="bakarr-logs.csv"`,
+              },
+            }),
+          );
         }
 
-        return HttpServerResponse.stream(exported.stream, {
-          contentType: "application/json; charset=utf-8",
-          headers: {
-            ...exportHeaders,
-            "Content-Disposition": `attachment; filename="bakarr-logs.json"`,
-          },
-        });
+        return Effect.succeed(
+          HttpServerResponse.stream(exported.stream, {
+            contentType: "application/json; charset=utf-8",
+            headers: {
+              ...exportHeaders,
+              "Content-Disposition": `attachment; filename="bakarr-logs.json"`,
+            },
+          }),
+        );
       },
     ),
   ),
-);
+];
 
 function buildSystemLogExportHeaders(header: {
   readonly exported: number;

@@ -22,7 +22,7 @@ import {
 
 const internalServerError = fixedStatus("Internal server error", 500);
 
-const SystemRouteErrorSchema = Schema.Union(
+const SystemRouteErrorSchema = Schema.Union([
   ConfigValidationError,
   DiskSpaceError,
   ImageAssetAccessError,
@@ -33,7 +33,7 @@ const SystemRouteErrorSchema = Schema.Union(
   StoredUnmappedFolderCorruptError,
   SystemConflictError,
   SystemNotFoundError,
-);
+]);
 
 type SystemRouteError = Schema.Schema.Type<typeof SystemRouteErrorSchema>;
 

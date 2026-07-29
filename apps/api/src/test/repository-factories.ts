@@ -31,46 +31,46 @@ import { SystemUnmappedRepository } from "@/features/system/repository/unmapped-
 import { makeSystemUnmappedRepositoryShape } from "@/features/system/repository/unmapped-repository.ts";
 
 export const makeAuthUserRepository = (db: AppDatabase) =>
-  AuthUserRepository.make(makeAuthUserRepositoryShape(db));
+  AuthUserRepository.of(makeAuthUserRepositoryShape(db));
 
 export const makeMediaRepository = (db: AppDatabase) =>
-  MediaRepository.make(makeMediaRepositoryShape(db));
+  MediaRepository.of(makeMediaRepositoryShape(db));
 
 export const makeMediaUnitRepository = (db: AppDatabase) =>
-  MediaUnitRepository.make(makeMediaUnitRepositoryShape(db));
+  MediaUnitRepository.of(makeMediaUnitRepositoryShape(db));
 
 export const makeAniDbUnitCacheRepository = (db: AppDatabase) =>
-  AniDbUnitCacheRepository.make(makeAniDbUnitCacheRepositoryShape(db));
+  AniDbUnitCacheRepository.of(makeAniDbUnitCacheRepositoryShape(db));
 
 export const makeSeasonalMediaCacheRepository = (db: AppDatabase) =>
-  SeasonalMediaCacheRepository.make(makeSeasonalMediaCacheRepositoryShape(db));
+  SeasonalMediaCacheRepository.of(makeSeasonalMediaCacheRepositoryShape(db));
 
 export const makeDownloadRepository = (db: AppDatabase) =>
-  DownloadRepository.make(makeDownloadRepositoryShape(db));
+  DownloadRepository.of(makeDownloadRepositoryShape(db));
 
 export const makeOperationsTaskRepository = (db: AppDatabase) =>
-  OperationsTaskRepository.make(makeOperationsTaskRepositoryShape(db));
+  OperationsTaskRepository.of(makeOperationsTaskRepositoryShape(db));
 
 export const makeRssFeedRepository = (db: AppDatabase) =>
-  RssFeedRepository.make(makeRssFeedRepositoryShape(db));
+  RssFeedRepository.of(makeRssFeedRepositoryShape(db));
 
 export const makeBackgroundJobRepository = (db: AppDatabase) =>
-  BackgroundJobRepository.make(makeBackgroundJobRepositoryShape(db));
+  BackgroundJobRepository.of(makeBackgroundJobRepositoryShape(db));
 
 export const makeSystemLogRepository = (db: AppDatabase) =>
-  SystemLogRepository.make(makeSystemLogRepositoryShape(db));
+  SystemLogRepository.of(makeSystemLogRepositoryShape(db));
 
 export const makeQualityProfileRepository = (db: AppDatabase) =>
-  QualityProfileRepository.make(makeQualityProfileRepositoryShape(db));
+  QualityProfileRepository.of(makeQualityProfileRepositoryShape(db));
 
 export const makeReleaseProfileRepository = (db: AppDatabase) =>
-  ReleaseProfileRepository.make(makeReleaseProfileRepositoryShape(db));
+  ReleaseProfileRepository.of(makeReleaseProfileRepositoryShape(db));
 
 export const makeSystemConfigRepository = (db: AppDatabase) =>
-  SystemConfigRepository.make(makeSystemConfigRepositoryShape(db));
+  SystemConfigRepository.of(makeSystemConfigRepositoryShape(db));
 
 export const makeSystemStatsRepository = (db: AppDatabase) =>
-  SystemStatsRepository.make(makeSystemStatsRepositoryShape(db));
+  SystemStatsRepository.of(makeSystemStatsRepositoryShape(db));
 
 export const makeSystemUnmappedRepository = (db: AppDatabase) =>
-  SystemUnmappedRepository.make(makeSystemUnmappedRepositoryShape(db));
+  SystemUnmappedRepository.of(makeSystemUnmappedRepositoryShape(db));

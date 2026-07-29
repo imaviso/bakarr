@@ -1,10 +1,10 @@
 import { eq } from "drizzle-orm";
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import type { ReleaseProfileRule } from "@packages/shared/index.ts";
 import { AppDrizzleDatabase, DatabaseError, type AppDatabase } from "@/db/database.ts";
 import { releaseProfiles } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { tryDatabase } from "@/infra/effect/db.ts";
 import { decodeNumberList, decodeReleaseProfileRules } from "@/features/system/profile-codec.ts";
 import type { StoredConfigCorruptError } from "@/features/system/errors.ts";
 
@@ -23,20 +23,24 @@ export interface ReleaseProfileRepositoryShape {
   ) => ReturnType<typeof updateReleaseProfileRow>;
 }
 
-export class ReleaseProfileRepository extends Effect.Service<ReleaseProfileRepository>()(
+export class ReleaseProfileRepository extends Context.Service<ReleaseProfileRepository>()(
   "@bakarr/api/ReleaseProfileRepository",
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const db = yield* AppDrizzleDatabase;
       return makeReleaseProfileRepositoryShape(db);
     }),
-    dependencies: [AppDrizzleDatabase.Default],
   },
-) {}
+) {
+  static readonly layer = Layer.effect(
+    ReleaseProfileRepository,
+    ReleaseProfileRepository.make,
+  ).pipe(Layer.provide([AppDrizzleDatabase.layer]));
+}
 
 export const listReleaseProfileRows = Effect.fn("ReleaseProfileRepository.listReleaseProfileRows")(
   function* (db: AppDatabase) {
-    return yield* tryDatabasePromise("Failed to list release profiles", () =>
+    return yield* tryDatabase("Failed to list release profiles", () =>
       db.select().from(releaseProfiles).orderBy(releaseProfiles.id),
     );
   },
@@ -45,7 +49,7 @@ export const listReleaseProfileRows = Effect.fn("ReleaseProfileRepository.listRe
 export const insertReleaseProfileRow = Effect.fn(
   "ReleaseProfileRepository.insertReleaseProfileRow",
 )(function* (db: AppDatabase, row: typeof releaseProfiles.$inferInsert) {
-  const rows = yield* tryDatabasePromise("Failed to insert release profile", () =>
+  const rows = yield* tryDatabase("Failed to insert release profile", () =>
     db.insert(releaseProfiles).values(row).returning(),
   );
 
@@ -64,7 +68,7 @@ export const insertReleaseProfileRow = Effect.fn(
 export const updateReleaseProfileRow = Effect.fn(
   "ReleaseProfileRepository.updateReleaseProfileRow",
 )(function* (db: AppDatabase, id: number, row: Partial<typeof releaseProfiles.$inferInsert>) {
-  yield* tryDatabasePromise("Failed to update release profile", () =>
+  yield* tryDatabase("Failed to update release profile", () =>
     db.update(releaseProfiles).set(row).where(eq(releaseProfiles.id, id)),
   );
 });
@@ -72,7 +76,7 @@ export const updateReleaseProfileRow = Effect.fn(
 export const deleteReleaseProfileRow = Effect.fn(
   "ReleaseProfileRepository.deleteReleaseProfileRow",
 )(function* (db: AppDatabase, id: number) {
-  yield* tryDatabasePromise("Failed to delete release profile", () =>
+  yield* tryDatabase("Failed to delete release profile", () =>
     db.delete(releaseProfiles).where(eq(releaseProfiles.id, id)),
   );
 });
@@ -88,7 +92,7 @@ export const loadReleaseRules = Effect.fn("ReleaseProfileRepository.loadReleaseR
     (row) => decodeReleaseProfileRules(row.rules),
   );
 
-  return decodedRules.flat() as readonly ReleaseProfileRule[];
+  return decodedRules.flat();
 });
 
 export function makeReleaseProfileRepositoryShape(db: AppDatabase): ReleaseProfileRepositoryShape {
@@ -100,4 +104,3 @@ export function makeReleaseProfileRepositoryShape(db: AppDatabase): ReleaseProfi
     updateReleaseProfileRow: (id, row) => updateReleaseProfileRow(db, id, row),
   } satisfies ReleaseProfileRepositoryShape;
 }
-

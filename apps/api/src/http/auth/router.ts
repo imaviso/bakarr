@@ -1,4 +1,4 @@
-import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
+import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
 import { Effect } from "effect";
 
 import {
@@ -21,8 +21,9 @@ import {
 import { persistSessionResponse } from "@/http/shared/route-auth.ts";
 import { mapRouteError } from "@/http/shared/route-errors/index.ts";
 
-export const authRouter = HttpRouter.empty.pipe(
-  HttpRouter.post(
+export const authRoutes = [
+  HttpRouter.route(
+    "POST",
     "/login",
     routeResponse(
       Effect.gen(function* () {
@@ -34,7 +35,8 @@ export const authRouter = HttpRouter.empty.pipe(
       mapRouteError,
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.route(
+    "POST",
     "/login/api-key",
     routeResponse(
       Effect.gen(function* () {
@@ -46,7 +48,8 @@ export const authRouter = HttpRouter.empty.pipe(
       mapRouteError,
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.route(
+    "POST",
     "/logout",
     routeResponse(
       Effect.gen(function* () {
@@ -61,7 +64,7 @@ export const authRouter = HttpRouter.empty.pipe(
           const config = yield* AppConfig;
           const response = yield* successResponse();
 
-          return HttpServerResponse.expireCookie(response, config.sessionCookieName, {
+          return HttpServerResponse.expireCookieUnsafe(response, config.sessionCookieName, {
             httpOnly: true,
             path: "/",
             sameSite: "lax",
@@ -71,7 +74,8 @@ export const authRouter = HttpRouter.empty.pipe(
       mapRouteError,
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.route(
+    "GET",
     "/me",
     routeResponse(
       withAuthViewer((viewer) => Effect.succeed(viewer), { allowPasswordChangeRequired: true }),
@@ -79,7 +83,8 @@ export const authRouter = HttpRouter.empty.pipe(
       mapRouteError,
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.route(
+    "GET",
     "/api-key",
     routeResponse(
       withAuthViewer((viewer) =>
@@ -92,7 +97,8 @@ export const authRouter = HttpRouter.empty.pipe(
       mapRouteError,
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.route(
+    "POST",
     "/api-key/regenerate",
     routeResponse(
       withAuthViewer((viewer) =>
@@ -105,7 +111,8 @@ export const authRouter = HttpRouter.empty.pipe(
       mapRouteError,
     ),
   ),
-  HttpRouter.put(
+  HttpRouter.route(
+    "PUT",
     "/password",
     routeResponse(
       withAuthViewer(
@@ -124,4 +131,4 @@ export const authRouter = HttpRouter.empty.pipe(
       mapRouteError,
     ),
   ),
-);
+];

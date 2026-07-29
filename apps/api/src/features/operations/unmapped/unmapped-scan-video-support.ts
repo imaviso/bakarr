@@ -9,7 +9,7 @@ export const loadUnmappedFolderVideoSize = Effect.fn(
 )(function* (fs: FileSystemShape, path: string) {
   return yield* Stream.runFold(
     scanVideoFilesStream(fs, path),
-    0,
+    () => 0,
     (total, file) => total + file.size,
   ).pipe(
     Effect.mapError(

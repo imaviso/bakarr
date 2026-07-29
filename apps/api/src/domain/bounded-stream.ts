@@ -1,6 +1,6 @@
 import { Effect, Schema, Stream } from "effect";
 
-export class StreamPayloadTooLargeError extends Schema.TaggedError<StreamPayloadTooLargeError>()(
+export class StreamPayloadTooLargeError extends Schema.TaggedErrorClass<StreamPayloadTooLargeError>()(
   "StreamPayloadTooLargeError",
   { actualBytes: Schema.Number, maxBytes: Schema.Number },
 ) {}

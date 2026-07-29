@@ -1,6 +1,6 @@
-import { Command, CommandExecutor } from "@effect/platform";
+import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 import { createHash } from "node:crypto";
-import { Effect } from "effect";
+import { Effect, Semaphore } from "effect";
 
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { ReaderAccessError } from "@/features/media/reader/media-reader-errors.ts";
@@ -24,7 +24,7 @@ export function pdfCacheDirectory(input: {
 }
 
 export const getPdfPageCount = Effect.fn("MediaReader.getPdfPageCount")(function* (
-  executor: CommandExecutor.CommandExecutor,
+  executor: ChildProcessSpawner.ChildProcessSpawner["Service"],
   filePath: string,
 ) {
   const output = yield* runPdfCommand({
@@ -50,11 +50,11 @@ export const getPdfPageCount = Effect.fn("MediaReader.getPdfPageCount")(function
 export const renderPdfPageToCache = Effect.fn("MediaReader.renderPdfPageToCache")(
   function* (input: {
     readonly cacheDirectory: string;
-    readonly executor: CommandExecutor.CommandExecutor;
+    readonly executor: ChildProcessSpawner.ChildProcessSpawner["Service"];
     readonly filePath: string;
     readonly fs: FileSystemShape;
     readonly pageNumber: number;
-    readonly renderSemaphore: Effect.Semaphore;
+    readonly renderSemaphore: Semaphore.Semaphore;
   }) {
     return yield* input.renderSemaphore.withPermits(1)(
       Effect.gen(function* () {
@@ -112,21 +112,23 @@ export const renderPdfPageToCache = Effect.fn("MediaReader.renderPdfPageToCache"
 function runPdfCommand(input: {
   readonly args: readonly string[];
   readonly command: string;
-  readonly executor: CommandExecutor.CommandExecutor;
+  readonly executor: ChildProcessSpawner.ChildProcessSpawner["Service"];
   readonly failureMessage: string;
   readonly timeoutMs: number;
 }) {
   return Effect.suspend(() =>
-    input.executor.string(Command.make(input.command, ...input.args)),
+    input.executor.string(ChildProcess.make(input.command, [...input.args])),
   ).pipe(
-    Effect.timeoutFail({
+    Effect.timeoutOrElse({
       duration: `${input.timeoutMs} millis`,
-      onTimeout: () =>
-        new ReaderAccessError({
-          cause: "Timeout",
-          message: `${input.failureMessage}: command timed out`,
-          status: 500,
-        }),
+      orElse: () =>
+        Effect.fail(
+          new ReaderAccessError({
+            cause: "Timeout",
+            message: `${input.failureMessage}: command timed out`,
+            status: 500,
+          }),
+        ),
     }),
     Effect.mapError((cause) =>
       cause instanceof ReaderAccessError
@@ -143,6 +145,6 @@ function runPdfCommand(input: {
 function pathExists(fs: FileSystemShape, path: string) {
   return fs.stat(path).pipe(
     Effect.as(true),
-    Effect.catchAll(() => Effect.succeed(false)),
+    Effect.catch(() => Effect.succeed(false)),
   );
 }

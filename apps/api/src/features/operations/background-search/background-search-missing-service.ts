@@ -1,4 +1,4 @@
-import { Effect, Option } from "effect";
+import { Context, Effect, Layer, Option } from "effect";
 
 import {
   brandMediaId,
@@ -29,10 +29,10 @@ export interface SearchBackgroundMissingServiceShape {
   ) => Effect.Effect<void, DatabaseError | InfrastructureError>;
 }
 
-export class SearchBackgroundMissingService extends Effect.Service<SearchBackgroundMissingService>()(
+export class SearchBackgroundMissingService extends Context.Service<SearchBackgroundMissingService>()(
   "@bakarr/api/SearchBackgroundMissingService",
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const eventBus = yield* EventBus;
       const progress = yield* OperationsProgress;
       const searchReleaseService = yield* SearchReleaseService;
@@ -214,15 +214,12 @@ export class SearchBackgroundMissingService extends Effect.Service<SearchBackgro
 
       return { triggerSearchMissing } satisfies SearchBackgroundMissingServiceShape;
     }),
-    // Progress/SearchRelease/Queue/RuntimeConfig provided by ops feature layer.
-    dependencies: [
-      EventBus.Default,
-      MediaRepository.Default,
-      MediaUnitRepository.Default,
-      QualityProfileRepository.Default,
-      ReleaseProfileRepository.Default,
-    ],
   },
-) {}
+) {
+  static readonly layer = Layer.effect(
+    SearchBackgroundMissingService,
+    SearchBackgroundMissingService.make,
+  );
+}
 
-export const SearchBackgroundMissingServiceLive = SearchBackgroundMissingService.Default;
+export const SearchBackgroundMissingServiceLive = SearchBackgroundMissingService.layer;

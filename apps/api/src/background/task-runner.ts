@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import { withLockEffectOrFail } from "@/background/workers.ts";
 import { BackgroundWorkerMonitor } from "@/background/monitor.ts";
@@ -112,11 +112,11 @@ const makeBackgroundTaskRunner = Effect.fn("BackgroundTaskRunner.make")(function
   } satisfies BackgroundTaskRunnerShape;
 });
 
-export class BackgroundTaskRunner extends Effect.Service<BackgroundTaskRunner>()(
+export class BackgroundTaskRunner extends Context.Service<BackgroundTaskRunner>()(
   "@bakarr/api/BackgroundTaskRunner",
-  {
-    effect: makeBackgroundTaskRunner(),
-  },
-) {}
+  { make: makeBackgroundTaskRunner() },
+) {
+  static readonly layer = Layer.effect(BackgroundTaskRunner, BackgroundTaskRunner.make);
+}
 
-export const BackgroundTaskRunnerLive = BackgroundTaskRunner.Default;
+export const BackgroundTaskRunnerLive = BackgroundTaskRunner.layer;

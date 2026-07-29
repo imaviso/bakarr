@@ -14,9 +14,8 @@ export interface DnsResolverShape {
   ) => Effect.Effect<readonly string[], DnsLookupError>;
 }
 
-export class DnsResolver extends Context.Service<DnsResolver>()(
-  "@bakarr/api/DnsResolver",
-  { make: Effect.sync(() => ({
+export class DnsResolver extends Context.Service<DnsResolver>()("@bakarr/api/DnsResolver", {
+  make: Effect.sync(() => ({
     resolve: Effect.fn("DnsResolver.resolve")(function* (
       hostname: string,
       recordType: "A" | "AAAA",
@@ -26,8 +25,8 @@ export class DnsResolver extends Context.Service<DnsResolver>()(
         catch: (cause) => new DnsLookupError({ cause, hostname, recordType }),
       });
     }),
-  })) },
-) {
+  })),
+}) {
   static readonly layer = Layer.effect(DnsResolver, DnsResolver.make);
 }
 

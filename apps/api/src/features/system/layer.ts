@@ -24,8 +24,8 @@ export function makeSystemConfigLayers<ROut, E, RIn>(
   runtimeSupportLayer: Layer.Layer<ROut, E, RIn>,
 ) {
   const systemConfigRepositoryLayer = Layer.mergeAll(
-    SystemConfigRepository.Default,
-    QualityProfileRepository.Default,
+    SystemConfigRepository.layer,
+    QualityProfileRepository.layer,
   ).pipe(Layer.provide(runtimeSupportLayer));
   const systemConfigLayer = SystemConfigServiceLive.pipe(Layer.provide(runtimeSupportLayer));
   const runtimeConfigSnapshotLayer = RuntimeConfigSnapshotServiceLive.pipe(
@@ -67,18 +67,18 @@ export function makeSystemFeatureLayer<
   >;
 }) {
   const pureSystemRepos = Layer.mergeAll(
-    BackgroundJobRepository.Default,
-    QualityProfileRepository.Default,
-    SystemStatsRepository.Default,
-    SystemLogRepository.Default,
-    ReleaseProfileRepository.Default,
+    BackgroundJobRepository.layer,
+    QualityProfileRepository.layer,
+    SystemStatsRepository.layer,
+    SystemLogRepository.layer,
+    ReleaseProfileRepository.layer,
   ).pipe(Layer.provide(input.runtimeSupportLayer));
 
   const runtimeWithBackgroundControllerLayer = Layer.mergeAll(
     input.runtimeSupportLayer,
     input.backgroundControllerLayer,
   );
-  const downloadRepositoryLayer = DownloadRepository.Default.pipe(
+  const downloadRepositoryLayer = DownloadRepository.layer.pipe(
     Layer.provide(input.runtimeSupportLayer),
   );
   const backgroundJobStatusLayer = BackgroundJobStatusServiceLive.pipe(

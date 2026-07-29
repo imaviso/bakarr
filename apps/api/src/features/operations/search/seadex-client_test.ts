@@ -1,6 +1,6 @@
 import { assert, it } from "@effect/vitest";
-import { HttpClient, HttpClientResponse } from "@effect/platform";
-import { Effect, Either, Layer, Option } from "effect";
+import { HttpClient, HttpClientResponse } from "effect/unstable/http";
+import { Effect, Result, Layer, Option } from "effect";
 
 import { ExternalCallError, ExternalCallLive } from "@/infra/effect/retry.ts";
 import { SeaDexClient, SeaDexClientLive } from "@/features/operations/search/seadex-client.ts";
@@ -62,7 +62,7 @@ it.effect("SeaDexClient wraps schema mismatches as ExternalCallError", () =>
     const result = yield* Effect.flatMap(SeaDexClient, (client) =>
       client.getEntryByAniListId(20),
     ).pipe(
-      Effect.either,
+      Effect.result,
       Effect.provide(
         makeSeaDexLayer({
           items: [
@@ -78,10 +78,10 @@ it.effect("SeaDexClient wraps schema mismatches as ExternalCallError", () =>
       ),
     );
 
-    assert.deepStrictEqual(Either.isLeft(result), true);
-    if (Either.isLeft(result)) {
-      assert.deepStrictEqual(result.left instanceof ExternalCallError, true);
-      assert.deepStrictEqual(result.left.message, "SeaDex response decode failed");
+    assert.deepStrictEqual(Result.isFailure(result), true);
+    if (Result.isFailure(result)) {
+      assert.deepStrictEqual(result.failure instanceof ExternalCallError, true);
+      assert.deepStrictEqual(result.failure.message, "SeaDex response decode failed");
     }
   }),
 );

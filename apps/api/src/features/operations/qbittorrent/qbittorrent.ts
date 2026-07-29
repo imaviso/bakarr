@@ -1,5 +1,5 @@
-import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
-import { Deferred, Effect, Ref, Schema } from "effect";
+import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/unstable/http";
+import { Context, Deferred, Effect, Layer, Ref, Schema } from "effect";
 
 import { ExternalCall, ExternalCallError } from "@/infra/effect/retry.ts";
 import {
@@ -44,10 +44,10 @@ interface QBitTorrentClientShape {
   ) => Effect.Effect<void, ExternalCallError | QBitTorrentClientError>;
 }
 
-export class QBitTorrentClient extends Effect.Service<QBitTorrentClient>()(
+export class QBitTorrentClient extends Context.Service<QBitTorrentClient>()(
   "@bakarr/api/QBitTorrentClient",
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const client = yield* HttpClient.HttpClient;
       const externalCall = yield* ExternalCall;
       const sessionsRef = yield* Ref.make<Map<string, SessionEntry>>(new Map());
@@ -195,9 +195,11 @@ export class QBitTorrentClient extends Effect.Service<QBitTorrentClient>()(
       } satisfies QBitTorrentClientShape;
     }),
   },
-) {}
+) {
+  static readonly layer = Layer.effect(QBitTorrentClient, QBitTorrentClient.make);
+}
 
-export const QBitTorrentClientLive = QBitTorrentClient.Default;
+export const QBitTorrentClientLive = QBitTorrentClient.layer;
 
 class QBitTorrentSchema extends Schema.Class<QBitTorrentSchema>("QBitTorrentSchema")({
   added_on: Schema.optional(Schema.Number),

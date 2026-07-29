@@ -1,17 +1,17 @@
 import { assert, it } from "@effect/vitest";
-import { Effect, TestClock } from "effect";
+import { Effect } from "effect";
+import { TestClock } from "effect/testing";
 
 import * as schema from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { tryDatabase } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { makeMediaRepository } from "@/test/repository-factories.ts";
 
-it.scoped("listWantedMissing includes non-media units without air dates", () =>
+it.effect("listWantedMissing includes non-media units without air dates", () =>
   withSqliteTestDbEffect({
-    schema,
     run: (db) =>
       Effect.gen(function* () {
-        yield* tryDatabasePromise("Failed to seed media for catalog test", () =>
+        yield* tryDatabase("Failed to seed media for catalog test", () =>
           db
             .insert(schema.media)
             .values([
@@ -19,7 +19,7 @@ it.scoped("listWantedMissing includes non-media units without air dates", () =>
               animeRow({ id: 2, mediaKind: "manga", titleRomaji: "Manga" }),
             ]),
         );
-        yield* tryDatabasePromise("Failed to seed mediaUnits for catalog test", () =>
+        yield* tryDatabase("Failed to seed mediaUnits for catalog test", () =>
           db.insert(schema.mediaUnits).values([
             { aired: "2025-01-01T00:00:00.000Z", mediaId: 1, downloaded: false, number: 1 },
             { aired: null, mediaId: 2, downloaded: false, number: 1 },

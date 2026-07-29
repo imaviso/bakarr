@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import { brandMediaId, type MediaSearchResult, type ScanResult } from "@packages/shared/index.ts";
 import { DatabaseError } from "@/db/database.ts";
@@ -244,10 +244,10 @@ export interface ImportPathScanServiceShape {
   >;
 }
 
-export class ImportPathScanService extends Effect.Service<ImportPathScanService>()(
+export class ImportPathScanService extends Context.Service<ImportPathScanService>()(
   "@bakarr/api/ImportPathScanService",
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const aniList = yield* AniListClient;
       const fs = yield* FileSystem;
       const mediaProbe = yield* MediaProbe;
@@ -328,8 +328,15 @@ export class ImportPathScanService extends Effect.Service<ImportPathScanService>
 
       return { scanImportPath } satisfies ImportPathScanServiceShape;
     }),
-    dependencies: [MediaRepository.Default],
   },
-) {}
+) {
+  static readonly layerWithoutDependencies = Layer.effect(
+    ImportPathScanService,
+    ImportPathScanService.make,
+  );
+  static readonly layer = ImportPathScanService.layerWithoutDependencies.pipe(
+    Layer.provide([MediaRepository.layer]),
+  );
+}
 
-export const ImportPathScanServiceLive = ImportPathScanService.Default;
+export const ImportPathScanServiceLive = ImportPathScanService.layer;

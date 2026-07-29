@@ -11,6 +11,7 @@ import type { AppDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
 import { listSeasonalMediaEffect } from "@/features/media/query/media-query-seasonal.ts";
 import { makeMediaRepository } from "@/test/repository-factories.ts";
+import { tryDatabase } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 
 describe("listSeasonalMediaEffect", () => {
@@ -20,7 +21,7 @@ describe("listSeasonalMediaEffect", () => {
         Effect.gen(function* () {
           const appDb: AppDatabase = db;
 
-          yield* Effect.tryPromise(() =>
+          yield* tryDatabase("Failed to insert test media row", () =>
             appDb.insert(schema.media).values({
               addedAt: "2024-01-01T00:00:00.000Z",
               unitCount: 12,
@@ -89,7 +90,6 @@ describe("listSeasonalMediaEffect", () => {
           assert.deepStrictEqual(result.results[0]?.already_in_library, true);
           assert.deepStrictEqual(result.results[1]?.already_in_library, false);
         }),
-      schema,
     }));
 
   it("respects explicit season/year/limit", () =>
@@ -139,7 +139,6 @@ describe("listSeasonalMediaEffect", () => {
           assert.deepStrictEqual(result.results.length, 1);
           assert.deepStrictEqual(result.results[0]?.id, 10);
         }),
-      schema,
     }));
 });
 

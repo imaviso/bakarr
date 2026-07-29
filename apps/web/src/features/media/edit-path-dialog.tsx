@@ -15,7 +15,7 @@ import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 
 const EditPathSchema = Schema.Struct({
-  path: Schema.String.pipe(Schema.minLength(1)),
+  path: Schema.String.pipe(Schema.check(Schema.isMinLength(1))),
   rescan: Schema.Boolean,
 });
 
@@ -35,7 +35,7 @@ export function EditPathDialog(props: EditPathDialogProps) {
       rescan: true,
     },
     validators: {
-      onChange: Schema.standardSchemaV1(EditPathSchema),
+      onChange: Schema.toStandardSchemaV1(EditPathSchema),
     },
     onSubmit: async ({ value }) => {
       await props.updatePath({ id: props.mediaId, path: value.path, rescan: value.rescan });

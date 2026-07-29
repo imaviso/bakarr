@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import { DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
@@ -34,12 +34,10 @@ export interface DownloadTorrentActionServiceShape {
   readonly retryDownloadById: (id: number) => Effect.Effect<void, TorrentActionError>;
 }
 
-export class DownloadTorrentActionService extends Effect.Service<DownloadTorrentActionService>()(
+export class DownloadTorrentActionService extends Context.Service<DownloadTorrentActionService>()(
   "@bakarr/api/DownloadTorrentActionService",
   {
-    // Progress + torrent client provided by ops feature layer.
-    dependencies: [DownloadRepository.Default, EventBus.Default],
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const actionRepo = yield* DownloadRepository;
       const eventBus = yield* EventBus;
       const progress = yield* OperationsProgress;
@@ -185,6 +183,11 @@ export class DownloadTorrentActionService extends Effect.Service<DownloadTorrent
       } satisfies DownloadTorrentActionServiceShape;
     }),
   },
-) {}
+) {
+  static readonly layer = Layer.effect(
+    DownloadTorrentActionService,
+    DownloadTorrentActionService.make,
+  ).pipe(Layer.provide([DownloadRepository.layer, EventBus.layer]));
+}
 
-export const DownloadTorrentActionServiceLive = DownloadTorrentActionService.Default;
+export const DownloadTorrentActionServiceLive = DownloadTorrentActionService.layer;

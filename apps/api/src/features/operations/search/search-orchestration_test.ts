@@ -1,6 +1,5 @@
 import { Effect, Layer, Option } from "effect";
 
-import * as dbSchema from "@/db/schema.ts";
 import { media } from "@/db/schema.ts";
 import { assert, it } from "@effect/vitest";
 import { makeTestConfig } from "@/test/config-fixture.ts";
@@ -22,19 +21,16 @@ function withSearchReleaseService(input: {
   readonly rssClient: typeof RssClient.Service;
   readonly seadexClient: typeof SeaDexClient.Service;
 }) {
-  const layer = SearchReleaseService.DefaultWithoutDependencies.pipe(
+  const layer = SearchReleaseService.layerWithoutDependencies.pipe(
     Layer.provide(
       Layer.mergeAll(
         Layer.succeed(RssClient, input.rssClient),
         Layer.succeed(SeaDexClient, input.seadexClient),
         Layer.succeed(MediaRepository, makeMediaRepository(input.db)),
-        Layer.succeed(
-          RuntimeConfigSnapshotService,
-          RuntimeConfigSnapshotService.make({
-            getRuntimeConfig: () => Effect.succeed(input.config),
-            replaceRuntimeConfig: () => Effect.void,
-          }),
-        ),
+        Layer.succeed(RuntimeConfigSnapshotService, {
+          getRuntimeConfig: () => Effect.succeed(input.config),
+          replaceRuntimeConfig: () => Effect.void,
+        }),
       ),
     ),
   );
@@ -44,7 +40,7 @@ function withSearchReleaseService(input: {
   }).pipe(Effect.provide(layer));
 }
 
-it.scoped("searchUnitReleases returns unenriched releases when SeaDex enrichment fails", () =>
+it.effect("searchUnitReleases returns unenriched releases when SeaDex enrichment fails", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -53,10 +49,10 @@ it.scoped("searchUnitReleases returns unenriched releases when SeaDex enrichment
         const searchReleaseService = yield* withSearchReleaseService({
           config,
           db,
-          rssClient: RssClient.make({
+          rssClient: {
             fetchItems: () => Effect.succeed([release]),
-          }),
-          seadexClient: SeaDexClient.make({
+          },
+          seadexClient: {
             getEntryByAniListId: () =>
               Effect.fail(
                 new ExternalCallError({
@@ -65,7 +61,7 @@ it.scoped("searchUnitReleases returns unenriched releases when SeaDex enrichment
                   operation: "seadex.getEntryByAniListId",
                 }),
               ),
-          }),
+          },
         });
 
         const releases = yield* searchReleaseService.searchUnitReleases(makeMediaRow(), 1, config);
@@ -73,11 +69,10 @@ it.scoped("searchUnitReleases returns unenriched releases when SeaDex enrichment
         assert.deepStrictEqual(releases, [release]);
         assert.deepStrictEqual(releases[0]?.isSeaDex, false);
       }),
-    schema: dbSchema,
   }),
 );
 
-it.scoped("searchUnitReleases tries season episode query variants", () =>
+it.effect("searchUnitReleases tries season episode query variants", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -86,7 +81,7 @@ it.scoped("searchUnitReleases tries season episode query variants", () =>
         const searchReleaseService = yield* withSearchReleaseService({
           config,
           db,
-          rssClient: RssClient.make({
+          rssClient: {
             fetchItems: (url: string) => {
               const query = new URL(url).searchParams.get("q") ?? "";
               requestedQueries.push(query);
@@ -102,7 +97,7 @@ it.scoped("searchUnitReleases tries season episode query variants", () =>
                   : [],
               );
             },
-          }),
+          },
           seadexClient: makeSeaDexNoneClient(),
         });
 
@@ -120,11 +115,10 @@ it.scoped("searchUnitReleases tries season episode query variants", () =>
           ],
         );
       }),
-    schema: dbSchema,
   }),
 );
 
-it.scoped("searchUnitReleases searches stored synonyms and normalized aliases", () =>
+it.effect("searchUnitReleases searches stored synonyms and normalized aliases", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -133,7 +127,7 @@ it.scoped("searchUnitReleases searches stored synonyms and normalized aliases", 
         const searchReleaseService = yield* withSearchReleaseService({
           config,
           db,
-          rssClient: RssClient.make({
+          rssClient: {
             fetchItems: (url: string) => {
               const query = new URL(url).searchParams.get("q") ?? "";
               requestedQueries.push(query);
@@ -148,7 +142,7 @@ it.scoped("searchUnitReleases searches stored synonyms and normalized aliases", 
                   : [],
               );
             },
-          }),
+          },
           seadexClient: makeSeaDexNoneClient(),
         });
 
@@ -167,11 +161,10 @@ it.scoped("searchUnitReleases searches stored synonyms and normalized aliases", 
           ["[ToonsHub] Fangkai Nage Nuwu S01E08 1080p CR WEB-DL AAC2.0 H.264"],
         );
       }),
-    schema: dbSchema,
   }),
 );
 
-it.scoped("searchUnitReleases falls back to broad title search and keeps requested episode", () =>
+it.effect("searchUnitReleases falls back to broad title search and keeps requested episode", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -180,7 +173,7 @@ it.scoped("searchUnitReleases falls back to broad title search and keeps request
         const searchReleaseService = yield* withSearchReleaseService({
           config,
           db,
-          rssClient: RssClient.make({
+          rssClient: {
             fetchItems: (url: string) => {
               const query = new URL(url).searchParams.get("q") ?? "";
               requestedQueries.push(query);
@@ -200,7 +193,7 @@ it.scoped("searchUnitReleases falls back to broad title search and keeps request
                   : [],
               );
             },
-          }),
+          },
           seadexClient: makeSeaDexNoneClient(),
         });
 
@@ -216,11 +209,10 @@ it.scoped("searchUnitReleases falls back to broad title search and keeps request
           ["[SubsPlease] Release that Witch - 08 (1080p)"],
         );
       }),
-    schema: dbSchema,
   }),
 );
 
-it.scoped("searchUnitReleases uses Nyaa literature category for manga", () =>
+it.effect("searchUnitReleases uses Nyaa literature category for manga", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -229,7 +221,7 @@ it.scoped("searchUnitReleases uses Nyaa literature category for manga", () =>
         const searchReleaseService = yield* withSearchReleaseService({
           config,
           db,
-          rssClient: RssClient.make({
+          rssClient: {
             fetchItems: (url: string) => {
               const parsedUrl = new URL(url);
               requestedCategories.push(parsedUrl.searchParams.get("c") ?? "");
@@ -244,7 +236,7 @@ it.scoped("searchUnitReleases uses Nyaa literature category for manga", () =>
                   : [],
               );
             },
-          }),
+          },
           seadexClient: makeSeaDexNoneClient(),
         });
 
@@ -266,7 +258,6 @@ it.scoped("searchUnitReleases uses Nyaa literature category for manga", () =>
           ["[Group] Witch Hat Atelier Vol 02 [English]"],
         );
       }),
-    schema: dbSchema,
   }),
 );
 
@@ -335,7 +326,7 @@ function makeRelease(input: Partial<ParsedRelease> = {}): ParsedRelease {
 }
 
 function makeSeaDexNoneClient() {
-  return SeaDexClient.make({
+  return {
     getEntryByAniListId: () => Effect.succeed(Option.none()),
-  });
+  } satisfies typeof SeaDexClient.Service;
 }

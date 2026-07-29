@@ -61,7 +61,7 @@ const AddAnimeDialogLazy = lazy(() =>
 export const Route = createFileRoute("/_layout/media/add")({
   validateSearch: parseAddMediaSearch,
   loader: ({ context: { queryClient }, location }) => {
-    const search = parseAddMediaSearch(location.search as Record<string, unknown>);
+    const search = parseAddMediaSearch(location.search);
 
     void queryClient.prefetchQuery(mediaListQueryOptions());
 

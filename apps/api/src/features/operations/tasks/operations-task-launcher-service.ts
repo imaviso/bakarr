@@ -1,4 +1,4 @@
-import { Cause, Effect, Queue } from "effect";
+import { Cause, Context, Effect, Layer, Queue } from "effect";
 
 import type { AsyncOperationAccepted, OperationTaskPayload } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
@@ -44,7 +44,7 @@ const makeOperationsTaskLauncherService = Effect.fn("OperationsTaskLauncherServi
     const runQueuedTask = Effect.fn("OperationsTaskLauncherService.runQueuedTask")(
       (taskEffect: Effect.Effect<void, DatabaseError | InfrastructureError>) =>
         taskEffect.pipe(
-          Effect.catchAllCause((cause) =>
+          Effect.catchCause((cause) =>
             Effect.logError("Operations task launcher worker failed").pipe(
               Effect.annotateLogs({
                 cause: Cause.pretty(cause),
@@ -97,7 +97,7 @@ const makeOperationsTaskLauncherService = Effect.fn("OperationsTaskLauncherServi
               taskId,
             });
           }).pipe(
-            Effect.catchAllCause((cause) => {
+            Effect.catchCause((cause) => {
               const error = Cause.squash(cause);
 
               return Effect.logError("Operations task failed").pipe(
@@ -112,7 +112,7 @@ const makeOperationsTaskLauncherService = Effect.fn("OperationsTaskLauncherServi
                     taskKey: input.taskKey,
                   }),
                 ),
-                Effect.zipRight(
+                Effect.andThen(
                   tasks.completeFailedTask({
                     error,
                     message: input.failureMessage,
@@ -136,12 +136,14 @@ const makeOperationsTaskLauncherService = Effect.fn("OperationsTaskLauncherServi
   },
 );
 
-export class OperationsTaskLauncherService extends Effect.Service<OperationsTaskLauncherService>()(
+export class OperationsTaskLauncherService extends Context.Service<OperationsTaskLauncherService>()(
   "@bakarr/api/OperationsTaskLauncherService",
-  {
-    scoped: makeOperationsTaskLauncherService(),
-    dependencies: [OperationsTaskWriteService.Default],
-  },
-) {}
+  { make: makeOperationsTaskLauncherService() },
+) {
+  static readonly layer = Layer.effect(
+    OperationsTaskLauncherService,
+    OperationsTaskLauncherService.make,
+  ).pipe(Layer.provide([OperationsTaskWriteService.layer]));
+}
 
-export const OperationsTaskLauncherServiceLive = OperationsTaskLauncherService.Default;
+export const OperationsTaskLauncherServiceLive = OperationsTaskLauncherService.layer;

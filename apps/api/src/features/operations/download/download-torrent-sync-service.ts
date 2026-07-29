@@ -1,4 +1,4 @@
-import { Effect, Option } from "effect";
+import { Context, Effect, Layer, Option } from "effect";
 
 import type { Config, DownloadSourceMetadata } from "@packages/shared/index.ts";
 import type { downloads } from "@/db/schema.ts";
@@ -49,12 +49,10 @@ const mapSyncError = (error: unknown): DownloadTorrentSyncError =>
         cause: error,
       });
 
-export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSyncService>()(
+export class DownloadTorrentSyncService extends Context.Service<DownloadTorrentSyncService>()(
   "@bakarr/api/DownloadTorrentSyncService",
   {
-    // Reconciliation/progress/torrent/config provided by ops feature layer.
-    dependencies: [DownloadRepository.Default, EventBus.Default, MediaRepository.Default],
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const syncRepo = yield* DownloadRepository;
       const mediaRepository = yield* MediaRepository;
       const torrentClientService = yield* TorrentClientService;
@@ -75,20 +73,20 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
       }) {
         const contentsResult = yield* torrentClientService
           .listTorrentContentsIfEnabled(refineInput.infoHash)
-          .pipe(Effect.either);
+          .pipe(Effect.result);
 
-        if (contentsResult._tag === "Left") {
+        if (contentsResult._tag === "Failure") {
           yield* Effect.logDebug("Failed to inspect qBittorrent file list").pipe(
             Effect.annotateLogs({
               downloadId: refineInput.downloadId,
-              error: String(contentsResult.left),
+              error: String(contentsResult.failure),
               infoHash: refineInput.infoHash,
             }),
           );
           return;
         }
 
-        if (contentsResult.right._tag === "Disabled") {
+        if (contentsResult.success._tag === "Disabled") {
           return;
         }
 
@@ -96,7 +94,7 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
           .getMediaRow(refineInput.mediaId)
           .pipe(Effect.option);
         const inferredEpisodes = inferCoveredUnitsFromTorrentContents({
-          files: contentsResult.right.files,
+          files: contentsResult.success.files,
           parseVolumeNumbers: Option.match(mediaRowOption, {
             onNone: () => true,
             onSome: (row) => row.mediaKind !== "anime",
@@ -167,7 +165,7 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
             Effect.gen(function* () {
               const existing = existingDownloadsMap.get(row.hash);
               if (!existing || existing.status === row.nextStatus) {
-                return null as DownloadEventRecordInput | null;
+                return null;
               }
 
               const coveredUnits = yield* parseCoveredUnitsEffect(existing.coveredUnits);
@@ -184,7 +182,7 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
                 },
                 message: `${existing.torrentName} moved to ${row.nextStatus}`,
                 toStatus: row.nextStatus,
-              } satisfies DownloadEventRecordInput as DownloadEventRecordInput | null;
+              } satisfies DownloadEventRecordInput;
             }),
         );
 
@@ -197,20 +195,20 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
             const runtimeConfig = yield* runtimeConfigSnapshot.getRuntimeConfig();
             const torrentsResult = yield* torrentClientService
               .listTorrentsIfEnabled()
-              .pipe(Effect.either);
+              .pipe(Effect.result);
 
-            if (torrentsResult._tag === "Left") {
+            if (torrentsResult._tag === "Failure") {
               yield* Effect.logWarning("qBittorrent unreachable, skipping download sync").pipe(
-                Effect.annotateLogs({ error: String(torrentsResult.left) }),
+                Effect.annotateLogs({ error: String(torrentsResult.failure) }),
               );
               return;
             }
 
-            if (torrentsResult.right._tag === "Disabled") {
+            if (torrentsResult.success._tag === "Disabled") {
               return;
             }
 
-            const torrents = torrentsResult.right.torrents;
+            const torrents = torrentsResult.success.torrents;
 
             if (torrents.length === 0) {
               return;
@@ -323,6 +321,11 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
       } satisfies DownloadTorrentSyncServiceShape;
     }),
   },
-) {}
+) {
+  static readonly layer = Layer.effect(
+    DownloadTorrentSyncService,
+    DownloadTorrentSyncService.make,
+  ).pipe(Layer.provide([DownloadRepository.layer, EventBus.layer, MediaRepository.layer]));
+}
 
-export const DownloadTorrentSyncServiceLive = DownloadTorrentSyncService.Default;
+export const DownloadTorrentSyncServiceLive = DownloadTorrentSyncService.layer;

@@ -1,4 +1,5 @@
-import { HttpRouter, HttpServerRequest, HttpServerResponse, Socket } from "@effect/platform";
+import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
+import { Socket } from "effect/unstable/socket";
 import { Effect, Stream } from "effect";
 
 import type { NotificationEvent } from "@packages/shared/index.ts";
@@ -26,20 +27,21 @@ export const buildSystemEventsResponse = Effect.fn("Http.buildSystemEventsRespon
     Stream.timeout(EVENT_SOCKET_IDLE_TIMEOUT),
     Stream.pipeThroughChannel(HttpServerRequest.upgradeChannel()),
     Stream.runDrain,
-    Effect.catchAll((error) => (isExpectedSocketClose(error) ? Effect.void : Effect.fail(error))),
+    Effect.catch((error) => (isExpectedSocketClose(error) ? Effect.void : Effect.fail(error))),
     Effect.as(HttpServerResponse.empty()),
   );
 });
 
-export const systemEventsRouter = HttpRouter.empty.pipe(
-  HttpRouter.get(
+export const systemEventsRoutes = [
+  HttpRouter.route(
+    "GET",
     "/api/events",
     authedRouteResponse(
       Effect.map(SystemEventsService, (service) => service.buildEventsStream()),
       buildSystemEventsResponse,
     ),
   ),
-);
+];
 
 function encodeNotificationEventStream<E>(events: Stream.Stream<NotificationEvent, E>) {
   return events.pipe(
@@ -68,5 +70,9 @@ function isWebSocketUpgradeRequest(request: HttpServerRequest.HttpServerRequest)
 }
 
 function isExpectedSocketClose(error: unknown) {
-  return Socket.SocketCloseError.is(error) && (error.code === 1000 || error.code === 1001);
+  return (
+    Socket.SocketError.is(error) &&
+    error.reason._tag === "SocketCloseError" &&
+    (error.reason.code === 1000 || error.reason.code === 1001)
+  );
 }

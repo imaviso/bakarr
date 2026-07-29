@@ -4,12 +4,13 @@ import { Effect } from "effect";
 import type { AppDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
+import { tryDatabase } from "@/infra/effect/db.ts";
 import { withFileSystemSandboxEffect, writeTextFile } from "@/test/filesystem-test.ts";
 import { resolveUnitFileEffect } from "@/features/media/files/media-file-read.ts";
 import { makeMediaRepository } from "@/test/repository-factories.ts";
 
 const insertAnime = Effect.fn("Test.insertAnime")(function* (db: AppDatabase, rootFolder: string) {
-  yield* Effect.tryPromise(() =>
+  yield* tryDatabase("Failed to insert test media row", () =>
     db.insert(schema.media).values({
       addedAt: "2024-01-01T00:00:00Z",
       format: "TV",
@@ -26,7 +27,7 @@ const insertAnime = Effect.fn("Test.insertAnime")(function* (db: AppDatabase, ro
   );
 });
 
-it.scoped("resolveUnitFileEffect returns resolved file when mapping is valid", () =>
+it.effect("resolveUnitFileEffect returns resolved file when mapping is valid", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       withFileSystemSandboxEffect(({ fs, root }) =>
@@ -35,7 +36,7 @@ it.scoped("resolveUnitFileEffect returns resolved file when mapping is valid", (
           const filePath = `${root}/MediaUnit 1.mkv`;
           yield* writeTextFile(fs, filePath, "video");
           yield* insertAnime(appDb, root);
-          yield* Effect.tryPromise(() =>
+          yield* tryDatabase("Failed to insert test mediaUnits row", () =>
             appDb.insert(schema.mediaUnits).values({
               mediaId: 1,
               downloaded: true,
@@ -58,18 +59,17 @@ it.scoped("resolveUnitFileEffect returns resolved file when mapping is valid", (
           }
         }),
       ),
-    schema,
   }),
 );
 
-it.scoped("resolveUnitFileEffect returns unmapped state when no file path is stored", () =>
+it.effect("resolveUnitFileEffect returns unmapped state when no file path is stored", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       withFileSystemSandboxEffect(({ fs, root }) =>
         Effect.gen(function* () {
           const appDb: AppDatabase = db;
           yield* insertAnime(appDb, root);
-          yield* Effect.tryPromise(() =>
+          yield* tryDatabase("Failed to insert test mediaUnits row", () =>
             appDb.insert(schema.mediaUnits).values({
               mediaId: 1,
               downloaded: false,
@@ -88,11 +88,10 @@ it.scoped("resolveUnitFileEffect returns unmapped state when no file path is sto
           assert.deepStrictEqual(result._tag, "UnitFileUnmapped");
         }),
       ),
-    schema,
   }),
 );
 
-it.scoped("resolveUnitFileEffect returns missing state when mapped file is inaccessible", () =>
+it.effect("resolveUnitFileEffect returns missing state when mapped file is inaccessible", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       withFileSystemSandboxEffect(({ fs, root }) =>
@@ -100,7 +99,7 @@ it.scoped("resolveUnitFileEffect returns missing state when mapped file is inacc
           const appDb: AppDatabase = db;
           const filePath = `${root}/Missing MediaUnit.mkv`;
           yield* insertAnime(appDb, root);
-          yield* Effect.tryPromise(() =>
+          yield* tryDatabase("Failed to insert test mediaUnits row", () =>
             appDb.insert(schema.mediaUnits).values({
               mediaId: 1,
               downloaded: true,
@@ -119,11 +118,10 @@ it.scoped("resolveUnitFileEffect returns missing state when mapped file is inacc
           assert.deepStrictEqual(result._tag, "UnitFileMissing");
         }),
       ),
-    schema,
   }),
 );
 
-it.scoped(
+it.effect(
   "resolveUnitFileEffect returns root inaccessible state when media root is inaccessible",
   () =>
     withSqliteTestDbEffect({
@@ -134,7 +132,7 @@ it.scoped(
             const filePath = `${root}/MediaUnit 1.mkv`;
             yield* writeTextFile(fs, filePath, "video");
             yield* insertAnime(appDb, `${root}/missing-root`);
-            yield* Effect.tryPromise(() =>
+            yield* tryDatabase("Failed to insert test mediaUnits row", () =>
               appDb.insert(schema.mediaUnits).values({
                 mediaId: 1,
                 downloaded: true,
@@ -153,11 +151,10 @@ it.scoped(
             assert.deepStrictEqual(result._tag, "UnitFileRootInaccessible");
           }),
         ),
-      schema,
     }),
 );
 
-it.scoped("resolveUnitFileEffect returns outside-root state when mapping escapes media root", () =>
+it.effect("resolveUnitFileEffect returns outside-root state when mapping escapes media root", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       withFileSystemSandboxEffect(({ fs, root }) =>
@@ -172,7 +169,7 @@ it.scoped("resolveUnitFileEffect returns outside-root state when mapping escapes
           yield* writeTextFile(fs, filePath, "video");
 
           yield* insertAnime(appDb, animeRoot);
-          yield* Effect.tryPromise(() =>
+          yield* tryDatabase("Failed to insert test mediaUnits row", () =>
             appDb.insert(schema.mediaUnits).values({
               mediaId: 1,
               downloaded: true,
@@ -191,6 +188,5 @@ it.scoped("resolveUnitFileEffect returns outside-root state when mapping escapes
           assert.deepStrictEqual(result._tag, "UnitFileOutsideRoot");
         }),
       ),
-    schema,
   }),
 );

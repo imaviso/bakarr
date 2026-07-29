@@ -1,4 +1,4 @@
-import { HttpServer } from "@effect/platform";
+import { HttpServer } from "effect/unstable/http";
 import * as NodeHttpServer from "@effect/platform-node/NodeHttpServer";
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
 import { Effect, Layer } from "effect";
@@ -33,7 +33,7 @@ const mainProgram = Effect.gen(function* () {
 
   const serverLayer = Layer.mergeAll(
     HttpServer.serve(httpApp),
-    Layer.scopedDiscard(logServerListening(config)),
+    Layer.effectDiscard(logServerListening(config)),
   ).pipe(
     Layer.provide(
       NodeHttpServer.layer(

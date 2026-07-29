@@ -38,11 +38,11 @@ export const replaceDestinationWithStagedFile = Effect.fn(
     ),
   );
 
-  const commitResult = yield* Effect.either(
+  const commitResult = yield* Effect.result(
     input.fs.rename(input.tempDestination, input.destination),
   );
 
-  if (commitResult._tag === "Right") {
+  if (commitResult._tag === "Success") {
     yield* input.fs.remove(input.backupDestination).pipe(
       Effect.catchTag("FileSystemError", (error) =>
         Effect.logWarning("Failed to remove backup file after successful import").pipe(
@@ -57,28 +57,28 @@ export const replaceDestinationWithStagedFile = Effect.fn(
     return;
   }
 
-  const restoreResult = yield* Effect.either(
+  const restoreResult = yield* Effect.result(
     input.fs.rename(input.backupDestination, input.destination),
   );
 
-  if (restoreResult._tag === "Left") {
+  if (restoreResult._tag === "Failure") {
     yield* Effect.logError("Failed to restore backup after rename failure").pipe(
       Effect.annotateLogs({
         backup_path: input.backupDestination,
         destination_path: input.destination,
-        error: String(restoreResult.left),
+        error: String(restoreResult.failure),
       }),
     );
 
     return yield* new ImportFileError({
       message: "Failed to rename temp file to destination and restore backup",
-      cause: Cause.sequential(Cause.fail(commitResult.left), Cause.fail(restoreResult.left)),
+      cause: Cause.combine(Cause.fail(commitResult.failure), Cause.fail(restoreResult.failure)),
     });
   }
 
   return yield* new ImportFileError({
     message: "Failed to rename temp file to destination",
-    cause: commitResult.left,
+    cause: commitResult.failure,
   });
 });
 

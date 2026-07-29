@@ -1,5 +1,5 @@
-import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
-import { Deferred, Effect, Either, Ref } from "effect";
+import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/unstable/http";
+import { Deferred, Effect, Result, Ref } from "effect";
 
 import { currentTimeMillis } from "@/infra/time.ts";
 import { ExternalCallError, type ExternalCallShape } from "@/infra/effect/retry.ts";
@@ -136,11 +136,11 @@ export function withSessionCache(
     const cached = sessions.get(sessionKey);
 
     if (cached && now - cached.createdAt < SESSION_TTL_MS) {
-      const response = yield* Effect.either(operation(cached.cookie));
+      const response = yield* Effect.result(operation(cached.cookie));
 
-      if (Either.isRight(response)) {
-        if (!isUnauthorizedStatus(response.right.status)) {
-          return response.right;
+      if (Result.isSuccess(response)) {
+        if (!isUnauthorizedStatus(response.success.status)) {
+          return response.success;
         }
 
         yield* Ref.update(sessionsRef, (map) => {
@@ -149,18 +149,18 @@ export function withSessionCache(
           return next;
         });
       } else {
-        return yield* response.left;
+        return yield* response.failure;
       }
     }
 
-    const newCookie = yield* Effect.either(acquireFreshSessionCookie(config, sessionKey));
+    const newCookie = yield* Effect.result(acquireFreshSessionCookie(config, sessionKey));
 
-    if (Either.isRight(newCookie)) {
-      return yield* operation(newCookie.right);
+    if (Result.isSuccess(newCookie)) {
+      return yield* operation(newCookie.success);
     }
 
-    if (!isAuthenticationFailure(newCookie.left)) {
-      return yield* newCookie.left;
+    if (!isAuthenticationFailure(newCookie.failure)) {
+      return yield* newCookie.failure;
     }
 
     const response = yield* operation("");

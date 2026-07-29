@@ -1,5 +1,5 @@
 import { desc, eq, inArray, sql, type SQL } from "drizzle-orm";
-import { Effect, type Stream } from "effect";
+import { Context, Effect, Layer, type Stream } from "effect";
 
 import type {
   DownloadEvent,
@@ -35,7 +35,7 @@ import type {
 } from "@/features/operations/download/download-event-presentations.ts";
 import type { DownloadPresentationContext } from "@/features/operations/repository/types.ts";
 import { StoredDataError } from "@/features/errors.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { tryDatabase } from "@/infra/effect/db.ts";
 
 export type {
   DownloadEventExportHeader,
@@ -190,16 +190,19 @@ export interface DownloadRepositoryShape {
   }) => Effect.Effect<void, DatabaseError>;
 }
 
-export class DownloadRepository extends Effect.Service<DownloadRepository>()(
+export class DownloadRepository extends Context.Service<DownloadRepository>()(
   "@bakarr/api/DownloadRepository",
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const db = yield* AppDrizzleDatabase;
       return makeDownloadRepositoryShape(db);
     }),
-    dependencies: [AppDrizzleDatabase.Default],
   },
-) {}
+) {
+  static readonly layer = Layer.effect(DownloadRepository, DownloadRepository.make).pipe(
+    Layer.provide([AppDrizzleDatabase.layer]),
+  );
+}
 
 export function makeDownloadRepositoryShape(db: AppDatabase): DownloadRepositoryShape {
   return {
@@ -233,10 +236,9 @@ export function makeDownloadRepositoryShape(db: AppDatabase): DownloadRepository
   } satisfies DownloadRepositoryShape;
 }
 
-
 const bulkUpdateTorrentSyncRows = Effect.fn("DownloadRepository.bulkUpdateTorrentSyncRows")(
   function* (db: AppDatabase, chunk: readonly TorrentSyncUpdate[]) {
-    yield* tryDatabasePromise("Failed to sync downloads with qBittorrent", () =>
+    yield* tryDatabase("Failed to sync downloads with qBittorrent", () =>
       db
         .update(downloads)
         .set({
@@ -318,35 +320,37 @@ const finalizeDownloadImport = Effect.fn("DownloadRepository.finalizeDownloadImp
     readonly logMessage: string;
   },
 ) {
-  yield* tryDatabasePromise("Failed to reconcile completed download", async () => {
-    await db.transaction(async (tx) => {
-      await tx
-        .update(downloads)
-        .set({ externalState: "imported", progress: 100, status: "imported" })
-        .where(eq(downloads.id, input.downloadId));
-      await tx
-        .update(downloads)
-        .set({ reconciledAt: input.now })
-        .where(eq(downloads.id, input.downloadId));
-      await tx.insert(downloadEvents).values({
-        mediaId: input.mediaId,
-        createdAt: input.now,
-        downloadId: input.downloadId,
-        eventType: input.eventType,
-        fromStatus: input.fromStatus,
-        message: input.eventMessage,
-        metadata: input.eventMetadata,
-        toStatus: "imported",
-      });
-      await tx.insert(systemLogs).values({
-        createdAt: input.now,
-        details: null,
-        eventType: input.logEventType,
-        level: "success",
-        message: input.logMessage,
-      });
-    });
-  });
+  yield* tryDatabase("Failed to reconcile completed download", () =>
+    db.transaction((tx) =>
+      Effect.gen(function* () {
+        yield* tx
+          .update(downloads)
+          .set({ externalState: "imported", progress: 100, status: "imported" })
+          .where(eq(downloads.id, input.downloadId));
+        yield* tx
+          .update(downloads)
+          .set({ reconciledAt: input.now })
+          .where(eq(downloads.id, input.downloadId));
+        yield* tx.insert(downloadEvents).values({
+          mediaId: input.mediaId,
+          createdAt: input.now,
+          downloadId: input.downloadId,
+          eventType: input.eventType,
+          fromStatus: input.fromStatus,
+          message: input.eventMessage,
+          metadata: input.eventMetadata,
+          toStatus: "imported",
+        });
+        yield* tx.insert(systemLogs).values({
+          createdAt: input.now,
+          details: null,
+          eventType: input.logEventType,
+          level: "success",
+          message: input.logMessage,
+        });
+      }),
+    ),
+  );
 });
 
 const insertQueuedDownloadRow = Effect.fn("DownloadRepository.insertQueuedDownloadRow")(function* (
@@ -367,7 +371,7 @@ const insertQueuedDownloadRow = Effect.fn("DownloadRepository.insertQueuedDownlo
     readonly unitNumber: number;
   },
 ) {
-  const rows = yield* tryDatabasePromise("Failed to trigger download", () =>
+  const rows = yield* tryDatabase("Failed to trigger download", () =>
     db
       .insert(downloads)
       .values({
@@ -414,7 +418,7 @@ const listActiveDownloadRows = Effect.fn("DownloadRepository.listActiveDownloadR
   db: AppDatabase,
   limit?: number,
 ) {
-  return yield* tryDatabasePromise("Failed to load download progress snapshot", () => {
+  return yield* tryDatabase("Failed to load download progress snapshot", () => {
     const query = db
       .select()
       .from(downloads)
@@ -427,7 +431,7 @@ const listActiveDownloadRows = Effect.fn("DownloadRepository.listActiveDownloadR
 const countActiveDownloads = Effect.fn("DownloadRepository.countActiveDownloads")(function* (
   db: AppDatabase,
 ) {
-  const countRows = yield* tryDatabasePromise("Failed to count active downloads", () =>
+  const countRows = yield* tryDatabase("Failed to count active downloads", () =>
     db
       .select({ count: sql<number>`count(*)` })
       .from(downloads)
@@ -438,7 +442,7 @@ const countActiveDownloads = Effect.fn("DownloadRepository.countActiveDownloads"
 
 const listDownloadsByInfoHashes = Effect.fn("DownloadRepository.listDownloadsByInfoHashes")(
   function* (db: AppDatabase, infoHashes: readonly string[]) {
-    return yield* tryDatabasePromise("Failed to sync downloads with qBittorrent", () =>
+    return yield* tryDatabase("Failed to sync downloads with qBittorrent", () =>
       db
         .select()
         .from(downloads)
@@ -451,7 +455,7 @@ const listDownloadsByMediaId = Effect.fn("DownloadRepository.listDownloadsByMedi
   db: AppDatabase,
   mediaId: number,
 ) {
-  return yield* tryDatabasePromise("Failed to check overlapping download", () =>
+  return yield* tryDatabase("Failed to check overlapping download", () =>
     db.select().from(downloads).where(eq(downloads.mediaId, mediaId)),
   );
 });
@@ -460,7 +464,7 @@ const loadDownloadById = Effect.fn("DownloadRepository.loadDownloadById")(functi
   db: AppDatabase,
   id: number,
 ) {
-  const rows = yield* tryDatabasePromise("Failed to load download", () =>
+  const rows = yield* tryDatabase("Failed to load download", () =>
     db.select().from(downloads).where(eq(downloads.id, id)).limit(1),
   );
   return rows[0];
@@ -470,7 +474,7 @@ const loadDownloadByInfoHash = Effect.fn("DownloadRepository.loadDownloadByInfoH
   db: AppDatabase,
   infoHash: string,
 ) {
-  const rows = yield* tryDatabasePromise("Failed to reconcile completed download", () =>
+  const rows = yield* tryDatabase("Failed to reconcile completed download", () =>
     db.select().from(downloads).where(eq(downloads.infoHash, infoHash)).limit(1),
   );
   return rows[0];
@@ -484,7 +488,7 @@ const loadPresentationContexts = Effect.fn("DownloadRepository.loadPresentationC
 
 const lookupDownloadByInfoHash = Effect.fn("DownloadRepository.lookupDownloadByInfoHash")(
   function* (db: AppDatabase, infoHash: string) {
-    const rows = yield* tryDatabasePromise("Failed to check overlapping download", () =>
+    const rows = yield* tryDatabase("Failed to check overlapping download", () =>
       db
         .select({
           id: downloads.id,
@@ -502,18 +506,20 @@ const markDownloadReconciled = Effect.fn("DownloadRepository.markDownloadReconci
   db: AppDatabase,
   input: { readonly downloadId: number; readonly now: string },
 ) {
-  yield* tryDatabasePromise("Failed to reconcile completed download", async () => {
-    await db.transaction(async (tx) => {
-      await tx
-        .update(downloads)
-        .set({ externalState: "imported", progress: 100, status: "imported" })
-        .where(eq(downloads.id, input.downloadId));
-      await tx
-        .update(downloads)
-        .set({ reconciledAt: input.now })
-        .where(eq(downloads.id, input.downloadId));
-    });
-  });
+  yield* tryDatabase("Failed to reconcile completed download", () =>
+    db.transaction((tx) =>
+      Effect.gen(function* () {
+        yield* tx
+          .update(downloads)
+          .set({ externalState: "imported", progress: 100, status: "imported" })
+          .where(eq(downloads.id, input.downloadId));
+        yield* tx
+          .update(downloads)
+          .set({ reconciledAt: input.now })
+          .where(eq(downloads.id, input.downloadId));
+      }),
+    ),
+  );
 });
 
 const updateDownloadCoveredUnits = Effect.fn("DownloadRepository.updateDownloadCoveredUnits")(
@@ -526,7 +532,7 @@ const updateDownloadCoveredUnits = Effect.fn("DownloadRepository.updateDownloadC
       readonly unitNumber: number;
     },
   ) {
-    yield* tryDatabasePromise("Failed to sync downloads with qBittorrent", () =>
+    yield* tryDatabase("Failed to sync downloads with qBittorrent", () =>
       db
         .update(downloads)
         .set({
@@ -548,7 +554,7 @@ const updateDownloadRetryRow = Effect.fn("DownloadRepository.updateDownloadRetry
     readonly status: string;
   },
 ) {
-  yield* tryDatabasePromise("Failed to retry download", () =>
+  yield* tryDatabase("Failed to retry download", () =>
     db
       .update(downloads)
       .set({

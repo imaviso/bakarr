@@ -1,9 +1,9 @@
 import { and, count, desc, eq, sql } from "drizzle-orm";
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import { AppDrizzleDatabase, type AppDatabase } from "@/db/database.ts";
 import { media, backgroundJobs, downloads, mediaUnits, rssFeeds, systemLogs } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { tryDatabase } from "@/infra/effect/db.ts";
 
 function requireSingleRow<T>(rows: ReadonlyArray<T>, fallback: T): T {
   return rows[0] ?? fallback;
@@ -17,21 +17,24 @@ export interface SystemStatsRepositoryShape {
   >;
 }
 
-export class SystemStatsRepository extends Effect.Service<SystemStatsRepository>()(
+export class SystemStatsRepository extends Context.Service<SystemStatsRepository>()(
   "@bakarr/api/SystemStatsRepository",
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const db = yield* AppDrizzleDatabase;
       return makeSystemStatsRepositoryShape(db);
     }),
-    dependencies: [AppDrizzleDatabase.Default],
   },
-) {}
+) {
+  static readonly layer = Layer.effect(SystemStatsRepository, SystemStatsRepository.make).pipe(
+    Layer.provide([AppDrizzleDatabase.layer]),
+  );
+}
 
 export const countMediaRows = Effect.fn("SystemStatsRepository.countMediaRows")(function* (
   db: AppDatabase,
 ) {
-  const countRows = yield* tryDatabasePromise("Failed to count media", () =>
+  const countRows = yield* tryDatabase("Failed to count media", () =>
     db.select({ value: count() }).from(media),
   );
   const countRow = requireSingleRow(countRows, { value: 0 });
@@ -40,7 +43,7 @@ export const countMediaRows = Effect.fn("SystemStatsRepository.countMediaRows")(
 
 export const countMonitoredMediaRows = Effect.fn("SystemStatsRepository.countMonitoredMediaRows")(
   function* (db: AppDatabase) {
-    const countRows = yield* tryDatabasePromise("Failed to count media", () =>
+    const countRows = yield* tryDatabase("Failed to count media", () =>
       db.select({ value: count() }).from(media).where(eq(media.monitored, true)),
     );
     const countRow = requireSingleRow(countRows, { value: 0 });
@@ -51,7 +54,7 @@ export const countMonitoredMediaRows = Effect.fn("SystemStatsRepository.countMon
 export const countEpisodeRows = Effect.fn("SystemStatsRepository.countEpisodeRows")(function* (
   db: AppDatabase,
 ) {
-  const countRows = yield* tryDatabasePromise("Failed to count mediaUnits", () =>
+  const countRows = yield* tryDatabase("Failed to count mediaUnits", () =>
     db.select({ value: count() }).from(mediaUnits),
   );
   const countRow = requireSingleRow(countRows, { value: 0 });
@@ -61,7 +64,7 @@ export const countEpisodeRows = Effect.fn("SystemStatsRepository.countEpisodeRow
 export const countDownloadedEpisodeRows = Effect.fn(
   "SystemStatsRepository.countDownloadedEpisodeRows",
 )(function* (db: AppDatabase) {
-  const countRows = yield* tryDatabasePromise("Failed to count mediaUnits", () =>
+  const countRows = yield* tryDatabase("Failed to count mediaUnits", () =>
     db.select({ value: count() }).from(mediaUnits).where(eq(mediaUnits.downloaded, true)),
   );
   const countRow = requireSingleRow(countRows, { value: 0 });
@@ -70,7 +73,7 @@ export const countDownloadedEpisodeRows = Effect.fn(
 
 export const countUpToDateMediaRows = Effect.fn("SystemStatsRepository.countUpToDateMediaRows")(
   function* (db: AppDatabase) {
-    const rows = yield* tryDatabasePromise("Failed to count up-to-date media", () =>
+    const rows = yield* tryDatabase("Failed to count up-to-date media", () =>
       db
         .select({
           downloadedCount: sql<number>`coalesce(sum(case when ${mediaUnits.downloaded} and ${mediaUnits.number} <= ${media.unitCount} then 1 else 0 end), 0)`,
@@ -96,7 +99,7 @@ export const countUpToDateMediaRows = Effect.fn("SystemStatsRepository.countUpTo
 export const countRssFeedRows = Effect.fn("SystemStatsRepository.countRssFeedRows")(function* (
   db: AppDatabase,
 ) {
-  const countRows = yield* tryDatabasePromise("Failed to count RSS feeds", () =>
+  const countRows = yield* tryDatabase("Failed to count RSS feeds", () =>
     db.select({ value: count() }).from(rssFeeds),
   );
   const countRow = requireSingleRow(countRows, { value: 0 });
@@ -116,7 +119,7 @@ interface SystemLibraryStatsAggregateRow {
 export const loadSystemLibraryStatsAggregate = Effect.fn(
   "SystemStatsRepository.loadSystemLibraryStatsAggregate",
 )(function* (db: AppDatabase) {
-  const row = yield* tryDatabasePromise("Failed to load system library stats", () =>
+  const row = yield* tryDatabase("Failed to load system library stats", () =>
     db.get<SystemLibraryStatsAggregateRow>(sql`
       select
         (select count(*) from ${media}) as totalAnime,
@@ -154,7 +157,7 @@ export const loadSystemLibraryStatsAggregate = Effect.fn(
 
 export const listBackgroundJobRows = Effect.fn("SystemStatsRepository.listBackgroundJobRows")(
   function* (db: AppDatabase) {
-    return yield* tryDatabasePromise("Failed to list background jobs", () =>
+    return yield* tryDatabase("Failed to list background jobs", () =>
       db.select().from(backgroundJobs).orderBy(backgroundJobs.name),
     );
   },
@@ -162,7 +165,7 @@ export const listBackgroundJobRows = Effect.fn("SystemStatsRepository.listBackgr
 
 export const listRecentSystemLogRows = Effect.fn("SystemStatsRepository.listRecentSystemLogRows")(
   function* (db: AppDatabase, limit: number) {
-    return yield* tryDatabasePromise("Failed to list system logs", () =>
+    return yield* tryDatabase("Failed to list system logs", () =>
       db.select().from(systemLogs).orderBy(desc(systemLogs.id)).limit(limit),
     );
   },
@@ -175,4 +178,3 @@ export function makeSystemStatsRepositoryShape(db: AppDatabase): SystemStatsRepo
     loadSystemLibraryStatsAggregate: () => loadSystemLibraryStatsAggregate(db),
   } satisfies SystemStatsRepositoryShape;
 }
-

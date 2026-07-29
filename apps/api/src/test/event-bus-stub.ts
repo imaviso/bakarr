@@ -5,7 +5,7 @@ import { EventBus } from "@/features/events/event-bus.ts";
 export function makeUnusedEventBusLayer(message: string) {
   return Layer.succeed(
     EventBus,
-    EventBus.make({
+    EventBus.of({
       publish: () => Effect.void,
       publishInfo: () => Effect.void,
       withSubscriptionStream: () => Stream.die(message),

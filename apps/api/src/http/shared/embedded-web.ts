@@ -1,4 +1,4 @@
-import { HttpServerResponse } from "@effect/platform";
+import { HttpServerResponse } from "effect/unstable/http";
 
 export interface EmbeddedWebAsset {
   readonly body: Uint8Array;

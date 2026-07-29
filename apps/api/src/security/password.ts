@@ -1,4 +1,4 @@
-import { Effect, Option, Schema } from "effect";
+import { Context, Effect, Layer, Option, Schema } from "effect";
 import { timingSafeEqual as nodeTimingSafeEqual } from "node:crypto";
 
 import { bytesToHex, hexToBytes } from "@/infra/hex.ts";
@@ -23,8 +23,8 @@ interface PasswordCryptoPrimitives {
   ) => Promise<CryptoKey>;
 }
 
-export class PasswordError extends Schema.TaggedError<PasswordError>()("PasswordError", {
-  cause: Schema.optional(Schema.Defect),
+export class PasswordError extends Schema.TaggedErrorClass<PasswordError>()("PasswordError", {
+  cause: Schema.optional(Schema.Defect()),
   message: Schema.String,
 }) {}
 
@@ -55,10 +55,12 @@ export const WebPasswordCrypto: PasswordCryptoShape = {
   randomBytes: randomBytesWith(webPasswordCryptoPrimitives),
 };
 
-export class PasswordCrypto extends Effect.Service<PasswordCrypto>()(
+export class PasswordCrypto extends Context.Service<PasswordCrypto>()(
   "@bakarr/security/PasswordCrypto",
-  { succeed: WebPasswordCrypto },
-) {}
+  { make: Effect.succeed(WebPasswordCrypto) },
+) {
+  static readonly layer = Layer.effect(PasswordCrypto, PasswordCrypto.make);
+}
 
 function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   const buffer = new ArrayBuffer(bytes.length);

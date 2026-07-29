@@ -21,7 +21,7 @@ export {
   type AnalyzedFile,
 } from "@/features/operations/library/library-import-analysis-support.ts";
 
-const AnimeGenresJsonSchema = Schema.parseJson(Schema.Array(Schema.String));
+const AnimeGenresJsonSchema = Schema.fromJsonString(Schema.Array(Schema.String));
 
 const decodeMediaGenres = Effect.fn("Operations.decodeMediaGenres")(function* (
   value: string | null,
@@ -30,7 +30,7 @@ const decodeMediaGenres = Effect.fn("Operations.decodeMediaGenres")(function* (
     return undefined;
   }
 
-  return yield* Schema.decodeUnknown(AnimeGenresJsonSchema)(value).pipe(
+  return yield* Schema.decodeUnknownEffect(AnimeGenresJsonSchema)(value).pipe(
     Effect.map((decoded) => [...decoded]),
     Effect.mapError(
       (cause) =>

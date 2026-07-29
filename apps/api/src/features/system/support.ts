@@ -1,5 +1,5 @@
 import * as Cron from "effect/Cron";
-import { Either } from "effect";
+import { Result } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 
@@ -64,7 +64,7 @@ function describeJobSchedule(config: Config, name: string) {
     const expression = config.scheduler.cron_expression?.trim();
     if (expression) {
       const parsed = Cron.parse(expression);
-      if (Either.isRight(parsed)) {
+      if (Result.isSuccess(parsed)) {
         return { mode: "cron" as const, value: expression };
       }
     }

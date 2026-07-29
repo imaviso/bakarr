@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { Effect, Option, Schema } from "effect";
+import { Context, Effect, Layer, Option, Schema } from "effect";
 
 import { AppDrizzleDatabase, type AppDatabase, type DatabaseError } from "@/db/database.ts";
 import { anidbEpisodeCache } from "@/db/schema.ts";
@@ -8,14 +8,16 @@ import {
   type AnimeMetadataEpisode,
 } from "@/features/media/metadata/anilist-model.ts";
 import { StoredDataError } from "@/features/errors.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { tryDatabase } from "@/infra/effect/db.ts";
 
-const AniDbEpisodeCachePayloadJsonSchema = Schema.parseJson(
+const AniDbEpisodeCachePayloadJsonSchema = Schema.fromJsonString(
   Schema.Array(AnimeMetadataEpisodeSchema),
 );
 
-const decodeAniDbEpisodeCachePayload = Schema.decodeUnknown(AniDbEpisodeCachePayloadJsonSchema);
-const encodeAniDbEpisodeCachePayload = Schema.encode(AniDbEpisodeCachePayloadJsonSchema);
+const decodeAniDbEpisodeCachePayload = Schema.decodeUnknownEffect(
+  AniDbEpisodeCachePayloadJsonSchema,
+);
+const encodeAniDbEpisodeCachePayload = Schema.encodeEffect(AniDbEpisodeCachePayloadJsonSchema);
 
 export interface AniDbEpisodeCacheRecord {
   readonly mediaId: number;
@@ -34,16 +36,20 @@ export interface AniDbUnitCacheRepositoryShape {
   }) => Effect.Effect<void, DatabaseError | StoredDataError>;
 }
 
-export class AniDbUnitCacheRepository extends Effect.Service<AniDbUnitCacheRepository>()(
+export class AniDbUnitCacheRepository extends Context.Service<AniDbUnitCacheRepository>()(
   "@bakarr/api/AniDbUnitCacheRepository",
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const db = yield* AppDrizzleDatabase;
       return makeAniDbUnitCacheRepositoryShape(db);
     }),
-    dependencies: [AppDrizzleDatabase.Default],
   },
-) {}
+) {
+  static readonly layer = Layer.effect(
+    AniDbUnitCacheRepository,
+    AniDbUnitCacheRepository.make,
+  ).pipe(Layer.provide([AppDrizzleDatabase.layer]));
+}
 
 export function makeAniDbUnitCacheRepositoryShape(db: AppDatabase): AniDbUnitCacheRepositoryShape {
   return {
@@ -52,12 +58,11 @@ export function makeAniDbUnitCacheRepositoryShape(db: AppDatabase): AniDbUnitCac
   };
 }
 
-
 const loadAniDbEpisodeCache = Effect.fn("AniDbUnitCacheRepository.load")(function* (
   db: AppDatabase,
   mediaId: number,
 ) {
-  const rows = yield* tryDatabasePromise("Failed to load AniDB episode cache", () =>
+  const rows = yield* tryDatabase("Failed to load AniDB episode cache", () =>
     db
       .select({
         mediaId: anidbEpisodeCache.mediaId,
@@ -110,7 +115,7 @@ const upsertAniDbEpisodeCache = Effect.fn("AniDbUnitCacheRepository.upsert")(fun
     ),
   );
 
-  yield* tryDatabasePromise("Failed to upsert AniDB episode cache", () =>
+  yield* tryDatabase("Failed to upsert AniDB episode cache", () =>
     db
       .insert(anidbEpisodeCache)
       .values({

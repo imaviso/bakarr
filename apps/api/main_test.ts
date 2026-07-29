@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import * as SqliteClient from "@effect/sql-sqlite-node/SqliteClient";
 import { it } from "@effect/vitest";
-import { CommandExecutor, FileSystem as PlatformFileSystem } from "@effect/platform";
+import { ChildProcessSpawner } from "effect/unstable/process";
+import { FileSystem as PlatformFileSystem } from "effect";
 import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem";
-import { HttpApp } from "@effect/platform";
+import { HttpBody, HttpEffect, HttpServerError, HttpServerResponse } from "effect/unstable/http";
 import * as Context from "effect/Context";
 import { Effect, Layer, ManagedRuntime, Option, Schema, Stream } from "effect";
 import * as Exit from "effect/Exit";
@@ -87,7 +88,7 @@ function itWithTestContext(
   run: (ctx: TestContext) => PromiseLike<void> | void,
   options?: TestContextOptions,
 ) {
-  return it.scoped(name, () => {
+  return it.effect(name, () => {
     const input = {
       ...(options === undefined ? {} : { options }),
       run: (ctx: TestContext) => Effect.promise(() => Promise.resolve(run(ctx))),
@@ -265,46 +266,40 @@ itWithTestContext("search releases enriches SeaDex metadata using AniList ID", a
   });
 });
 
-it.scoped("search releases can match SeaDex by Nyaa URL when info hash is unavailable", () => {
-  const seadexLayer = Layer.succeed(
-    SeaDexClient,
-    SeaDexClient.make({
-      getEntryByAniListId: (_aniListId: number) =>
-        Effect.succeed(
-          Option.some({
-            alID: 20,
-            comparison: "https://releases.moe/compare/naruto-url",
-            incomplete: false,
-            notes: "Matched by Nyaa URL fallback.",
-            releases: [
-              {
-                dualAudio: false,
-                groupedUrl: "https://releases.moe/collections/naruto-url",
-                infoHash: undefined,
-                isBest: false,
-                releaseGroup: "OtherGroup",
-                tags: ["Alt"],
-                tracker: "Nyaa",
-                url: "https://nyaa.si/download/7891011.torrent",
-              },
-            ],
-          }),
-        ),
-    }),
-  );
-  const rssLayer = Layer.succeed(
-    RssClient,
-    RssClient.make({
-      fetchItems: (_url: string) =>
-        Effect.succeed([
-          makeTestRelease("[MysteryGroup] Naruto - 01 (1080p)", {
-            group: "MysteryGroup",
-            infoHash: "",
-            viewUrl: "https://nyaa.si/view/7891011",
-          }),
-        ]),
-    }),
-  );
+it.effect("search releases can match SeaDex by Nyaa URL when info hash is unavailable", () => {
+  const seadexLayer = Layer.succeed(SeaDexClient, {
+    getEntryByAniListId: (_aniListId: number) =>
+      Effect.succeed(
+        Option.some({
+          alID: 20,
+          comparison: "https://releases.moe/compare/naruto-url",
+          incomplete: false,
+          notes: "Matched by Nyaa URL fallback.",
+          releases: [
+            {
+              dualAudio: false,
+              groupedUrl: "https://releases.moe/collections/naruto-url",
+              infoHash: undefined,
+              isBest: false,
+              releaseGroup: "OtherGroup",
+              tags: ["Alt"],
+              tracker: "Nyaa",
+              url: "https://nyaa.si/download/7891011.torrent",
+            },
+          ],
+        }),
+      ),
+  });
+  const rssLayer = Layer.succeed(RssClient, {
+    fetchItems: (_url: string) =>
+      Effect.succeed([
+        makeTestRelease("[MysteryGroup] Naruto - 01 (1080p)", {
+          group: "MysteryGroup",
+          infoHash: "",
+          viewUrl: "https://nyaa.si/view/7891011",
+        }),
+      ]),
+  });
   return withTestContextEffect({
     options: { rssLayer, seadexLayer },
     run: (ctx) =>
@@ -353,51 +348,45 @@ it.scoped("search releases can match SeaDex by Nyaa URL when info hash is unavai
   });
 });
 
-it.scoped("search releases only marks matching groups as SeaDex in fallback matching", () => {
-  const seadexLayer = Layer.succeed(
-    SeaDexClient,
-    SeaDexClient.make({
-      getEntryByAniListId: (_aniListId: number) =>
-        Effect.succeed(
-          Option.some({
-            alID: 20,
-            comparison: "https://releases.moe/compare/yofukashi",
-            incomplete: false,
-            notes: "Okay-Subs is the recommended release.",
-            releases: [
-              {
-                dualAudio: false,
-                groupedUrl: "https://releases.moe/collections/yofukashi",
-                infoHash: undefined,
-                isBest: true,
-                releaseGroup: "Okay-Subs",
-                tags: ["Best"],
-                tracker: "Nyaa",
-                url: "https://nyaa.si/view/999999",
-              },
-            ],
-          }),
-        ),
-    }),
-  );
-  const rssLayer = Layer.succeed(
-    RssClient,
-    RssClient.make({
-      fetchItems: (_url: string) =>
-        Effect.succeed([
-          makeTestRelease("[Okay-Subs] Yofukashi no Uta S2 - 12 [1080p]", {
-            group: "Okay-Subs",
-            infoHash: "",
-            viewUrl: "https://nyaa.si/view/111111",
-          }),
-          makeTestRelease("[EMBER] Yofukashi no Uta S2 - 12 [1080p]", {
-            group: "EMBER",
-            infoHash: "",
-            viewUrl: "https://nyaa.si/view/222222",
-          }),
-        ]),
-    }),
-  );
+it.effect("search releases only marks matching groups as SeaDex in fallback matching", () => {
+  const seadexLayer = Layer.succeed(SeaDexClient, {
+    getEntryByAniListId: (_aniListId: number) =>
+      Effect.succeed(
+        Option.some({
+          alID: 20,
+          comparison: "https://releases.moe/compare/yofukashi",
+          incomplete: false,
+          notes: "Okay-Subs is the recommended release.",
+          releases: [
+            {
+              dualAudio: false,
+              groupedUrl: "https://releases.moe/collections/yofukashi",
+              infoHash: undefined,
+              isBest: true,
+              releaseGroup: "Okay-Subs",
+              tags: ["Best"],
+              tracker: "Nyaa",
+              url: "https://nyaa.si/view/999999",
+            },
+          ],
+        }),
+      ),
+  });
+  const rssLayer = Layer.succeed(RssClient, {
+    fetchItems: (_url: string) =>
+      Effect.succeed([
+        makeTestRelease("[Okay-Subs] Yofukashi no Uta S2 - 12 [1080p]", {
+          group: "Okay-Subs",
+          infoHash: "",
+          viewUrl: "https://nyaa.si/view/111111",
+        }),
+        makeTestRelease("[EMBER] Yofukashi no Uta S2 - 12 [1080p]", {
+          group: "EMBER",
+          infoHash: "",
+          viewUrl: "https://nyaa.si/view/222222",
+        }),
+      ]),
+  });
   return withTestContextEffect({
     options: { rssLayer, seadexLayer },
     run: (ctx) =>
@@ -1674,7 +1663,7 @@ itWithTestContext(
   },
 );
 
-it.scoped("download sync auto-imports paused seeding torrents", () =>
+it.effect("download sync auto-imports paused seeding torrents", () =>
   withTempDirEffect((animeRoot) =>
     withTempDirEffect((completedRoot) =>
       Effect.gen(function* () {
@@ -1682,41 +1671,38 @@ it.scoped("download sync auto-imports paused seeding torrents", () =>
         const completedFile = `${completedRoot}/Naruto - 01.mkv`;
         yield* Effect.promise(() => writeTextFile(completedFile, "completed-download"));
 
-        const qbitLayer = Layer.succeed(
-          QBitTorrentClient,
-          QBitTorrentClient.make({
-            addTorrentUrl: () => Effect.void,
-            deleteTorrent: () => Effect.void,
-            listTorrentContents: () =>
-              Effect.succeed([
-                {
-                  index: 0,
-                  is_seed: true,
-                  name: "Naruto - 01.mkv",
-                  priority: 1,
-                  progress: 1,
-                  size: 524_288_000,
-                },
-              ]),
-            listTorrents: () =>
-              Effect.succeed([
-                {
-                  content_path: completedFile,
-                  downloaded: 524_288_000,
-                  dlspeed: 0,
-                  eta: 0,
-                  hash: magnetHash,
-                  name: "Naruto - 01",
-                  progress: 1,
-                  save_path: completedRoot,
-                  size: 524_288_000,
-                  state: "pausedUP",
-                },
-              ] satisfies QBitTorrent[]),
-            pauseTorrent: () => Effect.void,
-            resumeTorrent: () => Effect.void,
-          }),
-        );
+        const qbitLayer = Layer.succeed(QBitTorrentClient, {
+          addTorrentUrl: () => Effect.void,
+          deleteTorrent: () => Effect.void,
+          listTorrentContents: () =>
+            Effect.succeed([
+              {
+                index: 0,
+                is_seed: true,
+                name: "Naruto - 01.mkv",
+                priority: 1,
+                progress: 1,
+                size: 524_288_000,
+              },
+            ]),
+          listTorrents: () =>
+            Effect.succeed([
+              {
+                content_path: completedFile,
+                downloaded: 524_288_000,
+                dlspeed: 0,
+                eta: 0,
+                hash: magnetHash,
+                name: "Naruto - 01",
+                progress: 1,
+                save_path: completedRoot,
+                size: 524_288_000,
+                state: "pausedUP",
+              },
+            ] satisfies QBitTorrent[]),
+          pauseTorrent: () => Effect.void,
+          resumeTorrent: () => Effect.void,
+        });
 
         yield* withTestContextEffect({
           options: { qbitLayer },
@@ -1817,59 +1803,56 @@ it.scoped("download sync auto-imports paused seeding torrents", () =>
   ),
 );
 
-it.scoped("download sync refines season-pack coverage from qBittorrent file list", () => {
+it.effect("download sync refines season-pack coverage from qBittorrent file list", () => {
   const magnetHash = "feedfeedfeedfeedfeedfeedfeedfeedfeedfeed";
-  const qbitLayer = Layer.succeed(
-    QBitTorrentClient,
-    QBitTorrentClient.make({
-      addTorrentUrl: () => Effect.void,
-      deleteTorrent: () => Effect.void,
-      listTorrentContents: () =>
-        Effect.succeed([
-          {
-            index: 0,
-            is_seed: false,
-            name: "Season 01/Chainsaw Man - 01.mkv",
-            priority: 1,
-            progress: 0.2,
-            size: 100,
-          },
-          {
-            index: 1,
-            is_seed: false,
-            name: "Season 01/Chainsaw Man - 02.mkv",
-            priority: 1,
-            progress: 0.2,
-            size: 100,
-          },
-          {
-            index: 2,
-            is_seed: false,
-            name: "Season 01/NCOP.mkv",
-            priority: 1,
-            progress: 0.2,
-            size: 100,
-          },
-        ]),
-      listTorrents: () =>
-        Effect.succeed([
-          {
-            content_path: undefined,
-            downloaded: 0,
-            dlspeed: 1,
-            eta: 99,
-            hash: magnetHash,
-            name: "Chainsaw Man S01",
-            progress: 0.2,
-            save_path: "/downloads/chainsaw-man-s01",
-            size: 300,
-            state: "downloading",
-          },
-        ]),
-      pauseTorrent: () => Effect.void,
-      resumeTorrent: () => Effect.void,
-    }),
-  );
+  const qbitLayer = Layer.succeed(QBitTorrentClient, {
+    addTorrentUrl: () => Effect.void,
+    deleteTorrent: () => Effect.void,
+    listTorrentContents: () =>
+      Effect.succeed([
+        {
+          index: 0,
+          is_seed: false,
+          name: "Season 01/Chainsaw Man - 01.mkv",
+          priority: 1,
+          progress: 0.2,
+          size: 100,
+        },
+        {
+          index: 1,
+          is_seed: false,
+          name: "Season 01/Chainsaw Man - 02.mkv",
+          priority: 1,
+          progress: 0.2,
+          size: 100,
+        },
+        {
+          index: 2,
+          is_seed: false,
+          name: "Season 01/NCOP.mkv",
+          priority: 1,
+          progress: 0.2,
+          size: 100,
+        },
+      ]),
+    listTorrents: () =>
+      Effect.succeed([
+        {
+          content_path: undefined,
+          downloaded: 0,
+          dlspeed: 1,
+          eta: 99,
+          hash: magnetHash,
+          name: "Chainsaw Man S01",
+          progress: 0.2,
+          save_path: "/downloads/chainsaw-man-s01",
+          size: 300,
+          state: "downloading",
+        },
+      ]),
+    pauseTorrent: () => Effect.void,
+    resumeTorrent: () => Effect.void,
+  });
 
   return withTestContextEffect({
     options: { qbitLayer },
@@ -2503,7 +2486,7 @@ itWithTestContext("validation errors return 400 for malformed or invalid request
   assert.deepStrictEqual(invalidBodyResponse["status"], 400);
   assert.match(
     await invalidBodyResponse.text(),
-    /^Invalid request body for create quality profile: .*: is missing(?:; .*: is missing)*$/,
+    /^Invalid request body for create quality profile: .*: Missing key(?:; .*: Missing key)*$/,
   );
 
   const invalidQueryResponse = await ctx.app.request("/api/system/logs?page=0", {
@@ -2512,7 +2495,7 @@ itWithTestContext("validation errors return 400 for malformed or invalid request
   assert.deepStrictEqual(invalidQueryResponse["status"], 400);
   assert.match(
     await invalidQueryResponse.text(),
-    /^Invalid query parameters for system logs: page: Expected a positive number, actual 0; page: Expected undefined, actual "0"$/,
+    /^Invalid query parameters for system logs: page: Expected a value greater than 0, got 0$/,
   );
 });
 
@@ -4292,40 +4275,37 @@ function normalizeForSearch(s: string): string {
     .replace(/season\s*iii\b/gi, "season3");
 }
 
-const testAniListLayer = Layer.succeed(
-  AniListClient,
-  AniListClient.make({
-    searchAnimeMetadata: (query: string) => {
-      const results: MediaSearchResult[] = [];
-      const normalizedQuery = normalizeForSearch(query);
-      for (const [id, meta] of TEST_ANIME_METADATA) {
-        const normalizedRomaji = normalizeForSearch(meta.title.romaji);
-        const normalizedEnglish = meta.title.english ? normalizeForSearch(meta.title.english) : "";
-        if (
-          normalizedRomaji.includes(normalizedQuery) ||
-          normalizedQuery.includes(normalizedRomaji) ||
-          (normalizedEnglish &&
-            (normalizedEnglish.includes(normalizedQuery) ||
-              normalizedQuery.includes(normalizedEnglish)))
-        ) {
-          results.push({
-            already_in_library: false,
-            cover_image: undefined,
-            unit_count: meta.unitCount,
-            format: meta.format,
-            id: brandMediaId(id),
-            status: meta["status"],
-            title: meta.title,
-          });
-        }
+const testAniListLayer = Layer.succeed(AniListClient, {
+  searchAnimeMetadata: (query: string) => {
+    const results: MediaSearchResult[] = [];
+    const normalizedQuery = normalizeForSearch(query);
+    for (const [id, meta] of TEST_ANIME_METADATA) {
+      const normalizedRomaji = normalizeForSearch(meta.title.romaji);
+      const normalizedEnglish = meta.title.english ? normalizeForSearch(meta.title.english) : "";
+      if (
+        normalizedRomaji.includes(normalizedQuery) ||
+        normalizedQuery.includes(normalizedRomaji) ||
+        (normalizedEnglish &&
+          (normalizedEnglish.includes(normalizedQuery) ||
+            normalizedQuery.includes(normalizedEnglish)))
+      ) {
+        results.push({
+          already_in_library: false,
+          cover_image: undefined,
+          unit_count: meta.unitCount,
+          format: meta.format,
+          id: brandMediaId(id),
+          status: meta["status"],
+          title: meta.title,
+        });
       }
-      return Effect.succeed(results);
-    },
-    getAnimeMetadataById: (id: number) =>
-      Effect.succeed(Option.fromNullable(TEST_ANIME_METADATA.get(id))),
-    getSeasonalAnime: () => Effect.succeed([]),
-  }),
-);
+    }
+    return Effect.succeed(results);
+  },
+  getAnimeMetadataById: (id: number) =>
+    Effect.succeed(Option.fromNullishOr(TEST_ANIME_METADATA.get(id))),
+  getSeasonalAnime: () => Effect.succeed([]),
+});
 
 function deterministicHex(input: string): string {
   let hash = 0;
@@ -4381,58 +4361,43 @@ const TEST_SEADEX_ENTRIES = new Map<number, SeaDexEntry>([
   ],
 ]);
 
-const testRssLayer = Layer.succeed(
-  RssClient,
-  RssClient.make({
-    fetchItems: (url: string) => {
-      const query = decodeURIComponent(url).toLowerCase();
-      const releases: ParsedRelease[] = [];
-      if (query.includes("naruto")) {
-        releases.push(makeTestRelease(NARUTO_RELEASE_TITLE));
-      }
-      if (query.includes("hunter")) {
-        releases.push(
-          makeTestRelease("[SubsPlease] Hunter x Hunter (2011) - 02 (1080p) [DEF456].mkv"),
-        );
-      }
-      return Effect.succeed(releases);
-    },
-  }),
-);
+const testRssLayer = Layer.succeed(RssClient, {
+  fetchItems: (url: string) => {
+    const query = decodeURIComponent(url).toLowerCase();
+    const releases: ParsedRelease[] = [];
+    if (query.includes("naruto")) {
+      releases.push(makeTestRelease(NARUTO_RELEASE_TITLE));
+    }
+    if (query.includes("hunter")) {
+      releases.push(
+        makeTestRelease("[SubsPlease] Hunter x Hunter (2011) - 02 (1080p) [DEF456].mkv"),
+      );
+    }
+    return Effect.succeed(releases);
+  },
+});
 
-const testSeaDexLayer = Layer.succeed(
-  SeaDexClient,
-  SeaDexClient.make({
-    getEntryByAniListId: (aniListId: number) =>
-      Effect.succeed(Option.fromNullable(TEST_SEADEX_ENTRIES.get(aniListId))),
-  }),
-);
+const testSeaDexLayer = Layer.succeed(SeaDexClient, {
+  getEntryByAniListId: (aniListId: number) =>
+    Effect.succeed(Option.fromNullishOr(TEST_SEADEX_ENTRIES.get(aniListId))),
+});
 
-const testJikanLayer = Layer.succeed(
-  JikanClient,
-  JikanClient.make({
-    getAnimeByMalId: () => Effect.succeed(Option.none()),
-    getSeasonalAnime: () => Effect.succeed([]),
-  }),
-);
+const testJikanLayer = Layer.succeed(JikanClient, {
+  getAnimeByMalId: () => Effect.succeed(Option.none()),
+  getSeasonalAnime: () => Effect.succeed([]),
+});
 
 const testManamiLayer = Layer.mergeAll(
-  Layer.succeed(
-    ManamiClient,
-    ManamiClient.make({
-      getByAniListId: () => Effect.succeed(Option.none()),
-      getByMalId: () => Effect.succeed(Option.none()),
-      resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
-      resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-      searchMedia: () => Effect.succeed([]),
-    }),
-  ),
-  Layer.succeed(
-    ManamiCacheRefreshClient,
-    ManamiCacheRefreshClient.make({
-      refreshCacheIfNeeded: () => Effect.succeed(false),
-    }),
-  ),
+  Layer.succeed(ManamiClient, {
+    getByAniListId: () => Effect.succeed(Option.none()),
+    getByMalId: () => Effect.succeed(Option.none()),
+    resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
+    resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
+    searchMedia: () => Effect.succeed([]),
+  }),
+  Layer.succeed(ManamiCacheRefreshClient, {
+    refreshCacheIfNeeded: () => Effect.succeed(false),
+  }),
 );
 
 async function createTestContextForDatabaseFile(
@@ -4461,7 +4426,7 @@ async function createTestContextForDatabaseFile(
       {
         aniListLayer: testAniListLayer,
         commandExecutorLayer: Layer.succeed(
-          CommandExecutor.CommandExecutor,
+          ChildProcessSpawner.ChildProcessSpawner,
           makeCommandExecutorStub((command) => {
             const name = commandName(command);
             const args = commandArgs(command);
@@ -4490,8 +4455,18 @@ async function createTestContextForDatabaseFile(
     ).appLayer,
   );
   await runtime.runPromise(bootstrapProgram());
-  const httpApp = await runtime.runPromise(createHttpApp());
-  const webHandler = HttpApp.toWebHandlerRuntime(await runtime.runtime())(httpApp);
+  const httpApp = await runtime.runPromise(Effect.scoped(createHttpApp()));
+  // context() widens to Context<R> which doesn't structurally absorb the route
+  // requirements; the runtime context genuinely contains all services.
+  const webHandler = HttpEffect.toWebHandlerWith(
+    (await runtime.context()) as Context.Context<never>,
+  )(
+    // oxlint-disable-next-line no-unsafe-type-assertion
+    httpApp as Effect.Effect<
+      HttpServerResponse.HttpServerResponse,
+      HttpBody.HttpBodyError | HttpServerError.HttpServerError
+    >,
+  );
   const app = {
     request: (input: string | URL | Request, init?: RequestInit) => {
       if (typeof input === "string" && input.includes("/../")) {
@@ -4577,20 +4552,19 @@ async function createTestContextForDatabaseFile(
 
 function makeCommandExecutorStub(
   runAsString: (
-    command: Parameters<CommandExecutor.CommandExecutor["string"]>[0],
+    command: Parameters<ChildProcessSpawner.ChildProcessSpawner["Service"]["string"]>[0],
   ) => Effect.Effect<string>,
-): CommandExecutor.CommandExecutor {
+): ChildProcessSpawner.ChildProcessSpawner["Service"] {
   return {
-    [CommandExecutor.TypeId]: CommandExecutor.TypeId,
     exitCode: () => Effect.die("exitCode not implemented for test"),
-    lines: (command, _encoding) =>
+    lines: (command) =>
       runAsString(command).pipe(
         Effect.map((value) => value.split(/\r?\n/).filter((line) => line.length > 0)),
       ),
-    start: () => Effect.die("start not implemented for test"),
-    stream: () => Stream.dieMessage("stream not implemented for test"),
-    streamLines: () => Stream.dieMessage("streamLines not implemented for test"),
-    string: (command, _encoding) => runAsString(command),
+    spawn: () => Effect.die("spawn not implemented for test"),
+    streamString: () => Stream.die(new Error("streamString not implemented for test")),
+    streamLines: () => Stream.die(new Error("streamLines not implemented for test")),
+    string: (command) => runAsString(command),
   };
 }
 

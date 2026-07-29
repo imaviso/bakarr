@@ -53,23 +53,23 @@ export const persistAndActivateConfig = Effect.fn(
   yield* input.persistState(input.nextState);
   yield* recordEvent("config.persisted");
 
-  const activationResult = yield* Effect.either(input.activateConfig(input.nextConfig));
+  const activationResult = yield* Effect.result(input.activateConfig(input.nextConfig));
 
-  if (activationResult._tag === "Right") {
+  if (activationResult._tag === "Success") {
     yield* recordEvent("config.activated");
     return;
   }
 
-  yield* recordEvent("config.activation_failed", activationResult.left);
+  yield* recordEvent("config.activation_failed", activationResult.failure);
 
-  const rollbackResult = yield* Effect.either(input.persistState(input.previousState));
+  const rollbackResult = yield* Effect.result(input.persistState(input.previousState));
 
-  if (rollbackResult._tag === "Left") {
-    yield* recordEvent("config.rollback_failed", rollbackResult.left);
-    return yield* rollbackResult.left;
+  if (rollbackResult._tag === "Failure") {
+    yield* recordEvent("config.rollback_failed", rollbackResult.failure);
+    return yield* rollbackResult.failure;
   }
 
-  return yield* Effect.fail(activationResult.left);
+  return yield* Effect.fail(activationResult.failure);
 });
 
 function defaultRecordConfigActivationEvent(event: ConfigActivationEvent, error?: unknown) {

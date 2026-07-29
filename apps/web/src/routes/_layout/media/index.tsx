@@ -12,7 +12,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useDebouncedValue } from "@tanstack/react-pacer";
 import { Suspense, lazy } from "react";
-import { Schema } from "effect";
+import { Schema, SchemaTransformation } from "effect";
 import { AnimeListSkeleton } from "~/features/media/media-list-skeleton";
 import { EmptyState } from "~/components/shared/empty-state";
 import { GeneralError } from "~/components/shared/general-error";
@@ -48,19 +48,26 @@ const AnimeListViewLazy = lazy(() =>
   })),
 );
 
-const MonitorFilterSchema = Schema.transform(
-  Schema.String,
-  Schema.Literal("all", "monitored", "unmonitored"),
-  {
-    decode: (s) => (s === "monitored" ? "monitored" : s === "unmonitored" ? "unmonitored" : "all"),
-    encode: (s) => s,
-  },
+const MonitorFilterSchema = Schema.String.pipe(
+  Schema.decodeTo(
+    Schema.Literals(["all", "monitored", "unmonitored"]),
+    SchemaTransformation.transform({
+      decode: (s) =>
+        s === "monitored" ? "monitored" : s === "unmonitored" ? "unmonitored" : "all",
+      encode: (s) => s,
+    }),
+  ),
 );
 
-const ViewModeSchema = Schema.transform(Schema.String, Schema.Literal("grid", "list"), {
-  decode: (s) => (s === "list" ? "list" : "grid"),
-  encode: (s) => s,
-});
+const ViewModeSchema = Schema.String.pipe(
+  Schema.decodeTo(
+    Schema.Literals(["grid", "list"]),
+    SchemaTransformation.transform({
+      decode: (s) => (s === "list" ? "list" : "grid"),
+      encode: (s) => s,
+    }),
+  ),
+);
 
 const DEFAULT_ANIME_SEARCH = {
   filter: "all",
@@ -81,7 +88,7 @@ const AnimeSearchSchema = Schema.Struct({
 });
 
 export const Route = createFileRoute("/_layout/media/")({
-  validateSearch: Schema.standardSchemaV1(AnimeSearchSchema),
+  validateSearch: Schema.toStandardSchemaV1(AnimeSearchSchema),
   loader: async ({ context: { queryClient } }) => {
     await Promise.all([
       queryClient.ensureQueryData(mediaListQueryOptions()),

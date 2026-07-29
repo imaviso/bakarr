@@ -21,9 +21,7 @@ export const MediaProbeCommandOutputSchema = Schema.Struct({
 export type MediaProbeCommandOutput = Schema.Schema.Type<typeof MediaProbeCommandOutputSchema>;
 
 export function runFfprobeCommand(
-  executeString: (
-    command: ChildProcess.Command,
-  ) => Effect.Effect<string, unknown>,
+  executeString: (command: ChildProcess.Command) => Effect.Effect<string, unknown>,
   args: readonly string[],
   timeoutMs: number,
 ): Effect.Effect<MediaProbeCommandOutput, MediaProbeFailure> {
@@ -41,9 +39,9 @@ export function runFfprobeCommand(
       orElse: () =>
         Effect.fail(
           new FFProbeError({
-          cause: "Timeout",
-          message: `ffprobe timed out after ${timeoutMs}ms`,
-        }),
+            cause: "Timeout",
+            message: `ffprobe timed out after ${timeoutMs}ms`,
+          }),
         ),
     }),
     Effect.catchTag("FFProbeError", (error) =>
@@ -65,5 +63,5 @@ export function runFfprobeCommandWith(
   args: readonly string[],
   timeoutMs: number,
 ) {
-  return runFfprobeCommand(executor.string, args, timeoutMs);
+  return runFfprobeCommand((command) => executor.string(command), args, timeoutMs);
 }

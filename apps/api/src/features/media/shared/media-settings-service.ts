@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import type { DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
@@ -173,17 +173,18 @@ const makeMediaSettingsService = Effect.fn("MediaSettingsService.make")(function
   } satisfies MediaSettingsServiceShape;
 });
 
-export class MediaSettingsService extends Effect.Service<MediaSettingsService>()(
+export class MediaSettingsService extends Context.Service<MediaSettingsService>()(
   "@bakarr/api/MediaSettingsService",
-  {
-    effect: makeMediaSettingsService(),
-    dependencies: [
-      MediaRepository.Default,
-      QualityProfileRepository.Default,
-      SystemConfigRepository.Default,
-      SystemLogRepository.Default,
-    ],
-  },
-) {}
+  { make: makeMediaSettingsService() },
+) {
+  static readonly layer = Layer.effect(MediaSettingsService, MediaSettingsService.make).pipe(
+    Layer.provide([
+      MediaRepository.layer,
+      QualityProfileRepository.layer,
+      SystemConfigRepository.layer,
+      SystemLogRepository.layer,
+    ]),
+  );
+}
 
-export const MediaSettingsServiceLive = MediaSettingsService.Default;
+export const MediaSettingsServiceLive = MediaSettingsService.layer;

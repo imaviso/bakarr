@@ -1,10 +1,9 @@
-import * as SqlClient from "@effect/sql/SqlClient";
-import * as SqliteDrizzle from "@effect/sql-drizzle/Sqlite";
+import * as SqlClient from "effect/unstable/sql/SqlClient";
 import * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
-import type { SqliteRemoteDatabase } from "drizzle-orm/sqlite-proxy";
+import * as SQLiteNodeDrizzle from "drizzle-orm/effect-sqlite-node";
 import { Effect } from "effect";
 
-import { setAndVerifyPragmas } from "@/db/database.ts";
+import { setAndVerifyPragmas, type AppDatabase } from "@/db/database.ts";
 import { runEmbeddedDrizzleMigrations } from "@/db/migrate.ts";
 import { withFileSystemSandboxEffect } from "@/test/filesystem-test.ts";
 
@@ -34,17 +33,15 @@ export const withSqliteRawClientEffect = Effect.fn("Test.withSqliteRawClientEffe
 });
 
 export const withSqliteTestDbEffect = Effect.fn("Test.withSqliteTestDbEffect")(function* <
-  TSchema extends Record<string, unknown>,
   A,
   E,
   R,
 >(input: {
   readonly run: (
-    db: SqliteRemoteDatabase<TSchema>,
+    db: AppDatabase,
     databaseFile: string,
     client: NodeSqliteClient.SqliteClient,
   ) => Effect.Effect<A, E, R>;
-  readonly schema: TSchema;
 }) {
   return yield* withFileSystemSandboxEffect(({ root }) =>
     Effect.scoped(
@@ -54,8 +51,8 @@ export const withSqliteTestDbEffect = Effect.fn("Test.withSqliteTestDbEffect")(f
           databaseFile,
           run: (client) =>
             Effect.gen(function* () {
-              const db = yield* SqliteDrizzle.make<TSchema>({ schema: input.schema }).pipe(
-                Effect.provideService(SqlClient.SqlClient, client),
+              const db = yield* SQLiteNodeDrizzle.makeWithDefaults().pipe(
+                Effect.provideService(NodeSqliteClient.SqliteClient, client),
               );
 
               yield* setAndVerifyPragmas(client);

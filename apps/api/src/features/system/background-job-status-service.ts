@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import type { BackgroundJobStatus } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
@@ -45,12 +45,14 @@ const makeBackgroundJobStatusService = Effect.fn("BackgroundJobStatusService.mak
   } satisfies BackgroundJobStatusServiceShape;
 });
 
-export class BackgroundJobStatusService extends Effect.Service<BackgroundJobStatusService>()(
+export class BackgroundJobStatusService extends Context.Service<BackgroundJobStatusService>()(
   "@bakarr/api/BackgroundJobStatusService",
-  {
-    effect: makeBackgroundJobStatusService(),
-    dependencies: [SystemStatsRepository.Default],
-  },
-) {}
+  { make: makeBackgroundJobStatusService() },
+) {
+  static readonly layer = Layer.effect(
+    BackgroundJobStatusService,
+    BackgroundJobStatusService.make,
+  ).pipe(Layer.provide([SystemStatsRepository.layer]));
+}
 
-export const BackgroundJobStatusServiceLive = BackgroundJobStatusService.Default;
+export const BackgroundJobStatusServiceLive = BackgroundJobStatusService.layer;

@@ -1,4 +1,4 @@
-import { HttpClient } from "@effect/platform";
+import { HttpClient } from "effect/unstable/http";
 import { Effect, Option, Schema } from "effect";
 
 import { collectBoundedBytes } from "@/domain/bounded-stream.ts";
@@ -13,15 +13,15 @@ export interface CachedMediaImages {
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
-export class ImageCacheError extends Schema.TaggedError<ImageCacheError>()("ImageCacheError", {
-  cause: Schema.Defect,
+export class ImageCacheError extends Schema.TaggedErrorClass<ImageCacheError>()("ImageCacheError", {
+  cause: Schema.Defect(),
   message: Schema.String,
 }) {}
 
-export class ImageTooLargeError extends Schema.TaggedError<ImageTooLargeError>()(
+export class ImageTooLargeError extends Schema.TaggedErrorClass<ImageTooLargeError>()(
   "ImageTooLargeError",
   {
-    cause: Schema.optional(Schema.Defect),
+    cause: Schema.optional(Schema.Defect()),
     contentLength: Schema.optional(Schema.Number),
     maxBytes: Schema.Number,
   },

@@ -1,4 +1,4 @@
-import { Effect, Option } from "effect";
+import { Context, Effect, Layer, Option } from "effect";
 
 import type { UnitSearchResult } from "@packages/shared/index.ts";
 import { media } from "@/db/schema.ts";
@@ -42,10 +42,10 @@ export interface SearchUnitServiceShape {
   ) => Effect.Effect<UnitSearchResult[], SearchUnitError>;
 }
 
-export class SearchUnitService extends Effect.Service<SearchUnitService>()(
+export class SearchUnitService extends Context.Service<SearchUnitService>()(
   "@bakarr/api/SearchUnitService",
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const mediaRepository = yield* MediaRepository;
       const qualityProfileRepository = yield* QualityProfileRepository;
       const releaseProfileRepository = yield* ReleaseProfileRepository;
@@ -91,20 +91,16 @@ export class SearchUnitService extends Effect.Service<SearchUnitService>()(
               unitKind: animeRow.mediaKind === "anime" ? "episode" : "volume",
             }),
           )
-          .toSorted(compareUnitSearchResults) as UnitSearchResult[];
+          .toSorted(compareUnitSearchResults);
       });
 
       return {
         searchUnit,
       } satisfies SearchUnitServiceShape;
     }),
-    // SearchRelease + RuntimeConfig provided by ops feature layer (incomplete Defaults).
-    dependencies: [
-      MediaRepository.Default,
-      QualityProfileRepository.Default,
-      ReleaseProfileRepository.Default,
-    ],
   },
-) {}
+) {
+  static readonly layer = Layer.effect(SearchUnitService, SearchUnitService.make);
+}
 
-export const SearchUnitServiceLive = SearchUnitService.Default;
+export const SearchUnitServiceLive = SearchUnitService.layer;

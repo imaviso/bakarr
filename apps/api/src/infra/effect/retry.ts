@@ -1,4 +1,15 @@
-import { Cause, Config, Context, Duration, Effect, Layer, Ref, Schedule, Schema, Semaphore } from "effect";
+import {
+  Cause,
+  Config,
+  Context,
+  Duration,
+  Effect,
+  Layer,
+  Ref,
+  Schedule,
+  Schema,
+  Semaphore,
+} from "effect";
 
 import { currentTimeNanos } from "@/infra/time.ts";
 import { PositiveIntFromStringSchema } from "@/domain/domain-schema.ts";
@@ -52,7 +63,9 @@ export interface ExternalCallShape {
   ) => Effect.Effect<A, ExternalCallError, R>;
 }
 
-export class ExternalCall extends Context.Service<ExternalCall, ExternalCallShape>()("@bakarr/api/ExternalCall") {}
+export class ExternalCall extends Context.Service<ExternalCall, ExternalCallShape>()(
+  "@bakarr/api/ExternalCall",
+) {}
 
 function resolveExternalCallPool(operation: string): ExternalCallPool {
   if (operation.startsWith("qbit.")) {
@@ -73,12 +86,16 @@ function resolveExternalCallPool(operation: string): ExternalCallPool {
 
 export class ExternalCallPolicy extends Context.Service<ExternalCallPolicy>()(
   "@bakarr/api/ExternalCallPolicy",
-  { make: Effect.sync(() =>
-      ({
-        resolvePool: resolveExternalCallPool,
-        retryDelaysMs: EXTERNAL_RETRY_DELAYS_MS,
-        timeout: DEFAULT_EXTERNAL_CALL_TIMEOUT,
-      }) satisfies ExternalCallPolicyShape) },
+  {
+    make: Effect.sync(
+      () =>
+        ({
+          resolvePool: resolveExternalCallPool,
+          retryDelaysMs: EXTERNAL_RETRY_DELAYS_MS,
+          timeout: DEFAULT_EXTERNAL_CALL_TIMEOUT,
+        }) satisfies ExternalCallPolicyShape,
+    ),
+  },
 ) {
   static readonly layer = Layer.effect(ExternalCallPolicy, ExternalCallPolicy.make);
 }
@@ -146,9 +163,7 @@ export const makeExternalCall = Effect.fn("ExternalCall.makeExternalCall")(funct
         });
 
         const retrySchedule = Schedule.recurs(policy.retryDelaysMs.length).pipe(
-          Schedule.addDelay(({ output }) =>
-            Effect.succeed(policy.retryDelaysMs[output] ?? 0),
-          ),
+          Schedule.addDelay(({ output }) => Effect.succeed(policy.retryDelaysMs[output] ?? 0)),
           Schedule.while(({ input: error }: Schedule.Metadata<number, ExternalCallError>) =>
             Effect.gen(function* () {
               const attemptsUsed = yield* Ref.get(attemptsUsedRef);

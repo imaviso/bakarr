@@ -1,4 +1,4 @@
-import { Effect, Scope } from "effect";
+import { Context, Effect, Layer, Scope } from "effect";
 
 import type { DownloadStatus } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
@@ -50,11 +50,10 @@ export interface OperationsProgressShape {
   }) => Effect.Effect<void>;
 }
 
-export class OperationsProgress extends Effect.Service<OperationsProgress>()(
+export class OperationsProgress extends Context.Service<OperationsProgress>()(
   "@bakarr/api/OperationsProgress",
   {
-    dependencies: [DownloadRepository.Default, EventBus.Default],
-    scoped: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       yield* Scope.Scope;
       const eventBus = yield* EventBus;
       const downloadRepository = yield* DownloadRepository;
@@ -110,6 +109,10 @@ export class OperationsProgress extends Effect.Service<OperationsProgress>()(
       } satisfies OperationsProgressShape;
     }),
   },
-) {}
+) {
+  static readonly layer = Layer.effect(OperationsProgress, OperationsProgress.make).pipe(
+    Layer.provide([DownloadRepository.layer, EventBus.layer]),
+  );
+}
 
-export const OperationsProgressLive = OperationsProgress.Default;
+export const OperationsProgressLive = OperationsProgress.layer;

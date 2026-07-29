@@ -10,7 +10,7 @@ export const BACKGROUND_WORKER_NAMES = [
 
 export const BACKGROUND_JOB_NAMES = [...BACKGROUND_WORKER_NAMES, "unmapped_scan"] as const;
 
-export const BackgroundWorkerNameSchema = Schema.Literal(...BACKGROUND_WORKER_NAMES);
+export const BackgroundWorkerNameSchema = Schema.Literals(BACKGROUND_WORKER_NAMES);
 
 export type BackgroundWorkerName = Schema.Schema.Type<typeof BackgroundWorkerNameSchema>;
 

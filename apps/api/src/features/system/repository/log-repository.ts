@@ -1,10 +1,10 @@
 import { and, count, desc, lt, sql } from "drizzle-orm";
-import { Chunk, Effect, Option, Stream } from "effect";
+import { Context, Effect, Layer, Option, Stream } from "effect";
 
 import type { SystemLog } from "@packages/shared/index.ts";
 import { AppDrizzleDatabase, type AppDatabase, type DatabaseError } from "@/db/database.ts";
 import { systemLogs } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { tryDatabase } from "@/infra/effect/db.ts";
 import {
   buildSystemLogConditions,
   encodeLogExportCsvStream,
@@ -47,17 +47,19 @@ export interface SystemLogRepositoryShape {
   ) => Stream.Stream<Uint8Array, DatabaseError>;
 }
 
-export class SystemLogRepository extends Effect.Service<SystemLogRepository>()(
+export class SystemLogRepository extends Context.Service<SystemLogRepository>()(
   "@bakarr/api/SystemLogRepository",
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const db = yield* AppDrizzleDatabase;
       return makeSystemLogRepositoryShape(db);
     }),
-    dependencies: [AppDrizzleDatabase.Default],
   },
-) {}
-
+) {
+  static readonly layer = Layer.effect(SystemLogRepository, SystemLogRepository.make).pipe(
+    Layer.provide([AppDrizzleDatabase.layer]),
+  );
+}
 
 export function makeSystemLogRepositoryShape(db: AppDatabase): SystemLogRepositoryShape {
   return {
@@ -79,7 +81,7 @@ const appendSystemLog = Effect.fn("SystemLogRepository.appendLog")(function* <E>
   nowIso: NowIso<E>,
 ) {
   const now = yield* nowIso();
-  yield* tryDatabasePromise("Failed to append system log", () =>
+  yield* tryDatabase("Failed to append system log", () =>
     db.insert(systemLogs).values({
       createdAt: now,
       details: null,
@@ -91,7 +93,7 @@ const appendSystemLog = Effect.fn("SystemLogRepository.appendLog")(function* <E>
 });
 
 const clearSystemLogRows = Effect.fn("SystemLogRepository.clearLogs")(function* (db: AppDatabase) {
-  yield* tryDatabasePromise("Failed to clear system logs", () => db.delete(systemLogs));
+  yield* tryDatabase("Failed to clear system logs", () => db.delete(systemLogs));
 });
 
 export const loadSystemLogPage = Effect.fn("SystemLogRepository.loadPage")(function* (
@@ -108,11 +110,11 @@ export const loadSystemLogPage = Effect.fn("SystemLogRepository.loadPage")(funct
     .limit(input.pageSize)
     .offset((input.page - 1) * input.pageSize);
 
-  const totalRows = yield* tryDatabasePromise("Failed to load system logs", () =>
+  const totalRows = yield* tryDatabase("Failed to load system logs", () =>
     whereClause ? countQuery.where(whereClause) : countQuery,
   );
   const total = totalRows[0]?.value ?? 0;
-  const rows = yield* tryDatabasePromise("Failed to load system logs", () =>
+  const rows = yield* tryDatabase("Failed to load system logs", () =>
     whereClause ? rowsQuery.where(whereClause) : rowsQuery,
   );
 
@@ -125,7 +127,7 @@ const loadSystemLogExportHeader = Effect.fn("SystemLogRepository.loadExportHeade
   nowIso: NowIso,
 ) {
   const countQuery = db.select({ value: sql<number>`count(*)` }).from(systemLogs);
-  const countRows = yield* tryDatabasePromise("Failed to load system logs", () =>
+  const countRows = yield* tryDatabase("Failed to load system logs", () =>
     plan.conditions.length > 0 ? countQuery.where(and(...plan.conditions)) : countQuery,
   );
   const total = countRows[0]?.value ?? 0;
@@ -143,40 +145,38 @@ function streamSystemLogs(
   db: AppDatabase,
   plan: SystemLogExportPlan,
 ): Stream.Stream<SystemLog, DatabaseError> {
-  return Stream.unfoldChunkEffect(
-    { emitted: 0, cursor: undefined as number | undefined },
-    (state) =>
-      Effect.gen(function* () {
-        const remaining = plan.limit - state.emitted;
-        if (remaining <= 0) {
-          return Option.none<readonly [Chunk.Chunk<SystemLog>, typeof state]>();
-        }
+  return Stream.paginate({ emitted: 0, cursor: undefined as number | undefined }, (state) =>
+    Effect.gen(function* () {
+      const remaining = plan.limit - state.emitted;
+      if (remaining <= 0) {
+        return [[], Option.none()] as const;
+      }
 
-        const cursorCondition =
-          state.cursor === undefined ? undefined : lt(systemLogs.id, state.cursor);
-        const conditions = cursorCondition
-          ? [...plan.conditions, cursorCondition]
-          : [...plan.conditions];
-        const query = db
-          .select()
-          .from(systemLogs)
-          .orderBy(desc(systemLogs.id))
-          .limit(Math.min(EXPORT_PAGE_SIZE, remaining));
-        const rows = yield* tryDatabasePromise("Failed to load system logs", () =>
-          conditions.length > 0 ? query.where(and(...conditions)) : query,
-        );
+      const cursorCondition =
+        state.cursor === undefined ? undefined : lt(systemLogs.id, state.cursor);
+      const conditions = cursorCondition
+        ? [...plan.conditions, cursorCondition]
+        : [...plan.conditions];
+      const query = db
+        .select()
+        .from(systemLogs)
+        .orderBy(desc(systemLogs.id))
+        .limit(Math.min(EXPORT_PAGE_SIZE, remaining));
+      const rows = yield* tryDatabase("Failed to load system logs", () =>
+        conditions.length > 0 ? query.where(and(...conditions)) : query,
+      );
 
-        if (rows.length === 0) {
-          return Option.none<readonly [Chunk.Chunk<SystemLog>, typeof state]>();
-        }
+      if (rows.length === 0) {
+        return [[], Option.none()] as const;
+      }
 
-        return Option.some([
-          Chunk.fromIterable(rows.map(toSystemLog)),
-          {
-            emitted: state.emitted + rows.length,
-            cursor: rows[rows.length - 1]?.id,
-          },
-        ] as const);
-      }),
+      return [
+        rows.map(toSystemLog),
+        Option.some({
+          emitted: state.emitted + rows.length,
+          cursor: rows[rows.length - 1]?.id,
+        }),
+      ] as const;
+    }),
   );
 }

@@ -1,4 +1,4 @@
-import { HttpRouter } from "@effect/platform";
+import { HttpRouter } from "effect/unstable/http";
 import { Effect } from "effect";
 import { AsyncOperationAcceptedSchema } from "@packages/shared/index.ts";
 
@@ -8,8 +8,9 @@ import { authedRouteResponse, schemaAcceptedResponse } from "@/http/shared/route
 
 const acceptedOperationResponse = schemaAcceptedResponse(AsyncOperationAcceptedSchema);
 
-export const systemTasksRouter = HttpRouter.empty.pipe(
-  HttpRouter.post(
+export const systemTasksRoutes = [
+  HttpRouter.route(
+    "POST",
     "/api/system/tasks/scan",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -26,7 +27,8 @@ export const systemTasksRouter = HttpRouter.empty.pipe(
       acceptedOperationResponse,
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.route(
+    "POST",
     "/api/system/tasks/rss",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -43,7 +45,8 @@ export const systemTasksRouter = HttpRouter.empty.pipe(
       acceptedOperationResponse,
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.route(
+    "POST",
     "/api/system/tasks/metadata-refresh",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -60,4 +63,4 @@ export const systemTasksRouter = HttpRouter.empty.pipe(
       acceptedOperationResponse,
     ),
   ),
-);
+];

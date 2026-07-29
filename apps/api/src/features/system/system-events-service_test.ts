@@ -9,7 +9,7 @@ import {
   SystemEventsServiceLive,
 } from "@/features/system/system-events-service.ts";
 
-it.scoped("SystemEventsService does not lose buffered events during stream bootstrap", () =>
+it.effect("SystemEventsService does not lose buffered events during stream bootstrap", () =>
   Effect.gen(function* () {
     const eventBus = yield* makeEventBus();
     const latestDownloads = [sampleDownload("downloading")];
@@ -18,26 +18,23 @@ it.scoped("SystemEventsService does not lose buffered events during stream boots
       Layer.provide(
         Layer.mergeAll(
           Layer.succeed(EventBus, eventBus),
-          Layer.succeed(
-            OperationsProgress,
-            OperationsProgress.make({
-              getDownloadProgress: () => Effect.succeed(snapshotDownloads),
-              getDownloadProgressBootstrap: () =>
-                Effect.gen(function* () {
-                  yield* eventBus.publish({ type: "Info", payload: { message: "bootstrapping" } });
-                  yield* eventBus.publish({
-                    type: "DownloadProgress",
-                    payload: { downloads: latestDownloads },
-                  });
-                  return snapshotDownloads;
-                }),
-              getDownloadRuntimeSummary: () => Effect.succeed({ active_count: 1 }),
-              publishDownloadProgress: () => Effect.void,
-              publishDownloadProgressNow: () => Effect.void,
-              publishLibraryScanProgress: () => Effect.void,
-              publishRssCheckProgress: () => Effect.void,
-            }),
-          ),
+          Layer.succeed(OperationsProgress, {
+            getDownloadProgress: () => Effect.succeed(snapshotDownloads),
+            getDownloadProgressBootstrap: () =>
+              Effect.gen(function* () {
+                yield* eventBus.publish({ type: "Info", payload: { message: "bootstrapping" } });
+                yield* eventBus.publish({
+                  type: "DownloadProgress",
+                  payload: { downloads: latestDownloads },
+                });
+                return snapshotDownloads;
+              }),
+            getDownloadRuntimeSummary: () => Effect.succeed({ active_count: 1 }),
+            publishDownloadProgress: () => Effect.void,
+            publishDownloadProgressNow: () => Effect.void,
+            publishLibraryScanProgress: () => Effect.void,
+            publishRssCheckProgress: () => Effect.void,
+          }),
         ),
       ),
     );

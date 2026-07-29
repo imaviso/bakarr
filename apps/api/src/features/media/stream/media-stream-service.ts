@@ -1,4 +1,4 @@
-import { Effect, Match } from "effect";
+import { Context, Effect, Layer, Match } from "effect";
 
 import type { DatabaseError } from "@/db/database.ts";
 import { currentTimeMillis } from "@/infra/time.ts";
@@ -147,15 +147,16 @@ const makeMediaStreamService = Effect.fn("MediaStreamService.make")(function* ()
   } satisfies MediaStreamServiceShape;
 });
 
-export class MediaStreamService extends Effect.Service<MediaStreamService>()(
+export class MediaStreamService extends Context.Service<MediaStreamService>()(
   "@bakarr/api/MediaStreamService",
-  {
-    dependencies: [MediaRepository.Default],
-    effect: makeMediaStreamService(),
-  },
-) {}
+  { make: makeMediaStreamService() },
+) {
+  static readonly layer = Layer.effect(MediaStreamService, MediaStreamService.make).pipe(
+    Layer.provide([MediaRepository.layer]),
+  );
+}
 
-export const MediaStreamServiceLive = MediaStreamService.Default;
+export const MediaStreamServiceLive = MediaStreamService.layer;
 
 function buildStreamPath(
   mediaId: number,

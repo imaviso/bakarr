@@ -2,7 +2,7 @@ import { Effect } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
 import { appConfig, qualityProfiles } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { tryDatabase } from "@/infra/effect/db.ts";
 
 export const updateSystemConfigAtomic = Effect.fn(
   "SystemConfigTransactionRepository.updateSystemConfigAtomic",
@@ -11,21 +11,23 @@ export const updateSystemConfigAtomic = Effect.fn(
   coreInput: typeof appConfig.$inferInsert,
   profileRows: readonly (typeof qualityProfiles.$inferInsert)[],
 ) {
-  yield* tryDatabasePromise("Failed to update system config", () =>
-    db.transaction(async (tx) => {
-      await tx
-        .insert(appConfig)
-        .values(coreInput)
-        .onConflictDoUpdate({
-          target: appConfig.id,
-          set: { data: coreInput.data, updatedAt: coreInput.updatedAt },
-        });
+  yield* tryDatabase("Failed to update system config", () =>
+    db.transaction((tx) =>
+      Effect.gen(function* () {
+        yield* tx
+          .insert(appConfig)
+          .values(coreInput)
+          .onConflictDoUpdate({
+            target: appConfig.id,
+            set: { data: coreInput.data, updatedAt: coreInput.updatedAt },
+          });
 
-      await tx.delete(qualityProfiles);
+        yield* tx.delete(qualityProfiles);
 
-      if (profileRows.length > 0) {
-        await tx.insert(qualityProfiles).values([...profileRows]);
-      }
-    }),
+        if (profileRows.length > 0) {
+          yield* tx.insert(qualityProfiles).values([...profileRows]);
+        }
+      }),
+    ),
   );
 });

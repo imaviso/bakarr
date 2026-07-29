@@ -3,21 +3,20 @@ import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
-import * as schema from "@/db/schema.ts";
 import { media, mediaUnits } from "@/db/schema.ts";
 import { makeMediaUnitRepository } from "@/test/repository-factories.ts";
 import { MAX_INFERRED_EPISODE_NUMBER } from "@/features/media/units/unit-backfill-policy.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { tryDatabase } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 
-it.scoped("backfillFromNextAiring inserts previous missing mediaUnits", () =>
+it.effect("backfillFromNextAiring inserts previous missing mediaUnits", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
         const units = makeMediaUnitRepository(appDb);
 
-        yield* tryDatabasePromise("Failed to seed media for backfill test", () =>
+        yield* tryDatabase("Failed to seed media for backfill test", () =>
           appDb.insert(media).values({
             id: 991,
             titleRomaji: "Backfill Show",
@@ -35,7 +34,7 @@ it.scoped("backfillFromNextAiring inserts previous missing mediaUnits", () =>
           }),
         );
 
-        yield* tryDatabasePromise("Failed to seed media for backfill test", () =>
+        yield* tryDatabase("Failed to seed media for backfill test", () =>
           appDb.insert(mediaUnits).values({
             mediaId: 991,
             number: 2,
@@ -50,14 +49,12 @@ it.scoped("backfillFromNextAiring inserts previous missing mediaUnits", () =>
           monitoredOnly: true,
         });
 
-        const rows = yield* tryDatabasePromise(
-          "Failed to query mediaUnits for backfill assertion",
-          () =>
-            appDb
-              .select()
-              .from(mediaUnits)
-              .where(eq(mediaUnits.mediaId, 991))
-              .orderBy(mediaUnits.number),
+        const rows = yield* tryDatabase("Failed to query mediaUnits for backfill assertion", () =>
+          appDb
+            .select()
+            .from(mediaUnits)
+            .where(eq(mediaUnits.mediaId, 991))
+            .orderBy(mediaUnits.number),
         );
 
         assert.deepStrictEqual(
@@ -68,18 +65,17 @@ it.scoped("backfillFromNextAiring inserts previous missing mediaUnits", () =>
           ],
         );
       }),
-    schema,
   }),
 );
 
-it.scoped("backfillFromNextAiring scopes to mediaId when provided", () =>
+it.effect("backfillFromNextAiring scopes to mediaId when provided", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
         const units = makeMediaUnitRepository(appDb);
 
-        yield* tryDatabasePromise("Failed to seed media for backfill test", () =>
+        yield* tryDatabase("Failed to seed media for backfill test", () =>
           appDb.insert(media).values([
             {
               id: 991,
@@ -119,29 +115,26 @@ it.scoped("backfillFromNextAiring scopes to mediaId when provided", () =>
           monitoredOnly: false,
         });
 
-        const rows = yield* tryDatabasePromise(
-          "Failed to query mediaUnits for backfill assertion",
-          () =>
-            appDb
-              .select({ mediaId: mediaUnits.mediaId, number: mediaUnits.number })
-              .from(mediaUnits)
-              .orderBy(mediaUnits.mediaId, mediaUnits.number),
+        const rows = yield* tryDatabase("Failed to query mediaUnits for backfill assertion", () =>
+          appDb
+            .select({ mediaId: mediaUnits.mediaId, number: mediaUnits.number })
+            .from(mediaUnits)
+            .orderBy(mediaUnits.mediaId, mediaUnits.number),
         );
 
         assert.deepStrictEqual(rows, [{ mediaId: 991, number: 1 }]);
       }),
-    schema,
   }),
 );
 
-it.scoped("backfillFromNextAiring caps inferred rows", () =>
+it.effect("backfillFromNextAiring caps inferred rows", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
         const units = makeMediaUnitRepository(appDb);
 
-        yield* tryDatabasePromise("Failed to seed media for backfill test", () =>
+        yield* tryDatabase("Failed to seed media for backfill test", () =>
           appDb.insert(media).values({
             id: 993,
             titleRomaji: "Backfill Long Show",
@@ -163,20 +156,17 @@ it.scoped("backfillFromNextAiring caps inferred rows", () =>
           monitoredOnly: true,
         });
 
-        const rows = yield* tryDatabasePromise(
-          "Failed to query mediaUnits for backfill assertion",
-          () =>
-            appDb
-              .select({ number: mediaUnits.number })
-              .from(mediaUnits)
-              .where(eq(mediaUnits.mediaId, 993))
-              .orderBy(mediaUnits.number),
+        const rows = yield* tryDatabase("Failed to query mediaUnits for backfill assertion", () =>
+          appDb
+            .select({ number: mediaUnits.number })
+            .from(mediaUnits)
+            .where(eq(mediaUnits.mediaId, 993))
+            .orderBy(mediaUnits.number),
         );
 
         assert.deepStrictEqual(rows.length, MAX_INFERRED_EPISODE_NUMBER);
         assert.deepStrictEqual(rows[0]?.number, 1);
         assert.deepStrictEqual(rows[rows.length - 1]?.number, MAX_INFERRED_EPISODE_NUMBER);
       }),
-    schema,
   }),
 );

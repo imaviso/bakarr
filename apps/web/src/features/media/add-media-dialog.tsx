@@ -47,9 +47,11 @@ import { cn } from "~/infra/utils";
 
 const AddAnimeSchema = Schema.Struct({
   root_folder: Schema.String.pipe(
-    Schema.minLength(1, { message: () => "Root folder is required" }),
+    Schema.check(Schema.isMinLength(1, { message: "Root folder is required" })),
   ),
-  profile_name: Schema.String.pipe(Schema.minLength(1, { message: () => "Profile is required" })),
+  profile_name: Schema.String.pipe(
+    Schema.check(Schema.isMinLength(1, { message: "Profile is required" })),
+  ),
   monitor: Schema.Boolean,
   search_now: Schema.Boolean,
   release_profile_ids: Schema.mutable(Schema.Array(Schema.Number)),
@@ -269,7 +271,7 @@ function AddAnimeForm(props: AddAnimeFormProps) {
     // No effects needed. Data is passed as stable props.
     defaultValues,
     validators: {
-      onChange: Schema.standardSchemaV1(AddAnimeSchema),
+      onChange: Schema.toStandardSchemaV1(AddAnimeSchema),
     },
     onSubmit: async ({ value }) => {
       await addAnimeMutation.mutateAsync({

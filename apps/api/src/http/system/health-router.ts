@@ -1,4 +1,4 @@
-import { HttpRouter, HttpServerResponse } from "@effect/platform";
+import { HttpRouter } from "effect/unstable/http";
 import { Effect, Schema } from "effect";
 
 import {
@@ -9,6 +9,7 @@ import {
 import { SystemReadService } from "@/features/system/system-read-service.ts";
 import {
   authedRouteResponse,
+  encodeSchemaJsonResponse,
   routeResponse,
   schemaJsonResponse,
 } from "@/http/shared/router-helpers.ts";
@@ -21,16 +22,19 @@ const LiveResponseSchema = Schema.Struct({ status: Schema.Literal("alive") });
 
 const notReadyResponse = { checks: { database: false }, ready: false } as const;
 
-export const healthRouter = HttpRouter.empty.pipe(
-  HttpRouter.get(
+export const healthRoutes = [
+  HttpRouter.route(
+    "GET",
     "/health",
-    HttpServerResponse.schemaJson(HealthStatusSchema)({ status: "ok" } satisfies HealthStatus),
+    encodeSchemaJsonResponse(HealthStatusSchema, { status: "ok" } satisfies HealthStatus),
   ),
-  HttpRouter.get(
+  HttpRouter.route(
+    "GET",
     "/api/system/health/live",
-    HttpServerResponse.schemaJson(LiveResponseSchema)({ status: "alive" }),
+    encodeSchemaJsonResponse(LiveResponseSchema, { status: "alive" }),
   ),
-  HttpRouter.get(
+  HttpRouter.route(
+    "GET",
     "/api/system/health/ready",
     routeResponse(
       Effect.gen(function* () {
@@ -47,12 +51,13 @@ export const healthRouter = HttpRouter.empty.pipe(
         }),
       ),
       (value: { readonly checks: { readonly database: boolean }; readonly ready: boolean }) =>
-        HttpServerResponse.schemaJson(ReadyResponseSchema)(value, {
+        encodeSchemaJsonResponse(ReadyResponseSchema, value, {
           status: value.ready ? 200 : 503,
         }),
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.route(
+    "GET",
     "/api/system/status",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -62,4 +67,4 @@ export const healthRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(SystemStatusSchema),
     ),
   ),
-);
+];

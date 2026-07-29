@@ -192,7 +192,7 @@ export const insertQueuedDownload = Effect.fn("Operations.insertQueuedDownload")
 }) {
   const encodedSourceMetadata = yield* encodeDownloadSourceMetadata(input.plan.sourceMetadata);
 
-  const insertResult = yield* Effect.either(
+  const insertResult = yield* Effect.result(
     input.triggerRepo.insertQueuedDownloadRow({
       addedAt: input.plan.now,
       coveredUnits: input.plan.coveredUnits,
@@ -209,8 +209,8 @@ export const insertQueuedDownload = Effect.fn("Operations.insertQueuedDownload")
     }),
   );
 
-  if (insertResult._tag === "Left") {
-    const insertError = insertResult.left;
+  if (insertResult._tag === "Failure") {
+    const insertError = insertResult.failure;
     if (insertError instanceof DatabaseError && insertError.isUniqueConstraint()) {
       return yield* new OperationsConflictError({
         message: "Download already exists",
@@ -219,7 +219,7 @@ export const insertQueuedDownload = Effect.fn("Operations.insertQueuedDownload")
     return yield* insertError;
   }
 
-  return insertResult.right;
+  return insertResult.success;
 });
 
 export const addMagnetToQueuedDownload = Effect.fn("Operations.addMagnetToQueuedDownload")(
@@ -229,21 +229,21 @@ export const addMagnetToQueuedDownload = Effect.fn("Operations.addMagnetToQueued
     readonly magnet: string;
     readonly torrentClientService: typeof TorrentClientService.Service;
   }) {
-    const qbitResult = yield* Effect.either(
+    const qbitResult = yield* Effect.result(
       input.torrentClientService.addTorrentUrlIfEnabled(input.magnet),
     );
 
-    if (qbitResult._tag === "Left") {
-      const cleanupResult = yield* Effect.either(
+    if (qbitResult._tag === "Failure") {
+      const cleanupResult = yield* Effect.result(
         input.triggerRepo.deleteDownloadRow(input.insertedId),
       );
 
-      if (cleanupResult._tag === "Left") {
+      if (cleanupResult._tag === "Failure") {
         yield* Effect.logWarning(
           "Failed to clean up queued download after qBittorrent add failure",
         ).pipe(
           Effect.annotateLogs({
-            cleanupError: cleanupResult.left.message,
+            cleanupError: cleanupResult.failure.message,
             downloadId: input.insertedId,
           }),
         );
@@ -251,11 +251,11 @@ export const addMagnetToQueuedDownload = Effect.fn("Operations.addMagnetToQueued
 
       return yield* new InfrastructureError({
         message: "Failed to trigger download",
-        cause: qbitResult.left,
+        cause: qbitResult.failure,
       });
     }
 
-    if (qbitResult.right._tag === "Added") {
+    if (qbitResult.success._tag === "Added") {
       yield* input.triggerRepo.updateDownloadStatusRow({
         externalState: "downloading",
         id: input.insertedId,

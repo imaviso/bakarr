@@ -1,9 +1,9 @@
 import { eq, sql } from "drizzle-orm";
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import { AppDrizzleDatabase, type AppDatabase, type DatabaseError } from "@/db/database.ts";
 import { backgroundJobs } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { tryDatabase } from "@/infra/effect/db.ts";
 import { formatJobFailureMessage } from "@/infra/job-status.ts";
 
 type NowIso<E = never> = () => Effect.Effect<string, E>;
@@ -45,17 +45,19 @@ export interface BackgroundJobRepositoryShape {
   ) => Effect.Effect<void, DatabaseError | E>;
 }
 
-export class BackgroundJobRepository extends Effect.Service<BackgroundJobRepository>()(
+export class BackgroundJobRepository extends Context.Service<BackgroundJobRepository>()(
   "@bakarr/api/BackgroundJobRepository",
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const db = yield* AppDrizzleDatabase;
       return makeBackgroundJobRepositoryShape(db);
     }),
-    dependencies: [AppDrizzleDatabase.Default],
   },
-) {}
-
+) {
+  static readonly layer = Layer.effect(BackgroundJobRepository, BackgroundJobRepository.make).pipe(
+    Layer.provide([AppDrizzleDatabase.layer]),
+  );
+}
 
 export function makeBackgroundJobRepositoryShape(db: AppDatabase): BackgroundJobRepositoryShape {
   return {
@@ -72,7 +74,7 @@ const loadByName = Effect.fn("BackgroundJobRepository.loadByName")(function* (
   db: AppDatabase,
   name: string,
 ) {
-  const rows = yield* tryDatabasePromise("Failed to load background job", () =>
+  const rows = yield* tryDatabase("Failed to load background job", () =>
     db.select().from(backgroundJobs).where(eq(backgroundJobs.name, name)).limit(1),
   );
   return rows[0];
@@ -179,7 +181,7 @@ const upsertJobStatus = Effect.fn("BackgroundJobRepository.upsertJobStatus")(fun
     ...(input.incrementRunCount ? { runCount: sql`${backgroundJobs.runCount} + 1` } : {}),
   };
 
-  yield* tryDatabasePromise(input.errorMessage, () =>
+  yield* tryDatabase(input.errorMessage, () =>
     db.insert(backgroundJobs).values(insertValues).onConflictDoUpdate({
       target: backgroundJobs.name,
       set: updateValues,

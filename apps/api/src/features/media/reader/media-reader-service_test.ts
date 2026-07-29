@@ -1,4 +1,4 @@
-import { CommandExecutor } from "@effect/platform";
+import { ChildProcessSpawner } from "effect/unstable/process";
 import { dirname } from "node:path";
 import { TextEncoder } from "node:util";
 import { Deferred, Effect, Fiber, Layer } from "effect";
@@ -19,9 +19,8 @@ import { makeMediaRepository } from "@/test/repository-factories.ts";
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 
-it.scoped("MediaReaderService exposes cbz archive pages and image bytes", () =>
+it.effect("MediaReaderService exposes cbz archive pages and image bytes", () =>
   withSqliteTestDbEffect({
-    schema,
     run: (db, databaseFile) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
@@ -39,7 +38,7 @@ it.scoped("MediaReaderService exposes cbz archive pages and image bytes", () =>
         );
         yield* seedMediaUnit(appDb, libraryRoot, filePath);
 
-        const readerLayer = MediaReaderService.DefaultWithoutDependencies.pipe(
+        const readerLayer = MediaReaderService.layerWithoutDependencies.pipe(
           Layer.provide(
             Layer.mergeAll(
               Layer.succeed(AppConfig, {
@@ -51,12 +50,12 @@ it.scoped("MediaReaderService exposes cbz archive pages and image bytes", () =>
                 sessionDurationDays: 30,
               }),
               Layer.succeed(
-                CommandExecutor.CommandExecutor,
+                ChildProcessSpawner.ChildProcessSpawner,
                 makeCommandExecutorStub(() => Effect.succeed("")),
               ),
-              Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(appDb)),
+              Layer.succeed(AppDrizzleDatabase, appDb),
               Layer.succeed(MediaRepository, makeMediaRepository(appDb)),
-              Layer.succeed(FileSystem, FileSystem.make(fs)),
+              Layer.succeed(FileSystem, fs),
             ),
           ),
         );
@@ -80,9 +79,8 @@ it.scoped("MediaReaderService exposes cbz archive pages and image bytes", () =>
   }),
 );
 
-it.scoped("MediaReaderService shares archive loads across concurrent readers", () =>
+it.effect("MediaReaderService shares archive loads across concurrent readers", () =>
   withSqliteTestDbEffect({
-    schema,
     run: (db, databaseFile) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
@@ -92,21 +90,19 @@ it.scoped("MediaReaderService shares archive loads across concurrent readers", (
         let readCalls = 0;
         const libraryRoot = `${dirname(databaseFile)}/library`;
         const filePath = `${libraryRoot}/Volume 1.cbz`;
-        const fs = FileSystem.make(
-          Object.assign({}, baseFs, {
-            readFile: (path: string | URL) =>
-              Effect.gen(function* () {
-                readCalls += 1;
+        const fs = Object.assign({}, baseFs, {
+          readFile: (path: string | URL) =>
+            Effect.gen(function* () {
+              readCalls += 1;
 
-                if (readCalls === 1) {
-                  yield* Deferred.succeed(readStarted, void 0);
-                }
+              if (readCalls === 1) {
+                yield* Deferred.succeed(readStarted, void 0);
+              }
 
-                yield* Deferred.await(releaseRead);
-                return yield* baseFs.readFile(path);
-              }),
-          }),
-        );
+              yield* Deferred.await(releaseRead);
+              return yield* baseFs.readFile(path);
+            }),
+        });
 
         yield* baseFs.mkdir(libraryRoot, { recursive: true });
         yield* baseFs.writeFile(
@@ -118,7 +114,7 @@ it.scoped("MediaReaderService shares archive loads across concurrent readers", (
         );
         yield* seedMediaUnit(appDb, libraryRoot, filePath);
 
-        const readerLayer = MediaReaderService.DefaultWithoutDependencies.pipe(
+        const readerLayer = MediaReaderService.layerWithoutDependencies.pipe(
           Layer.provide(
             Layer.mergeAll(
               Layer.succeed(AppConfig, {
@@ -130,10 +126,10 @@ it.scoped("MediaReaderService shares archive loads across concurrent readers", (
                 sessionDurationDays: 30,
               }),
               Layer.succeed(
-                CommandExecutor.CommandExecutor,
+                ChildProcessSpawner.ChildProcessSpawner,
                 makeCommandExecutorStub(() => Effect.succeed("")),
               ),
-              Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(appDb)),
+              Layer.succeed(AppDrizzleDatabase, appDb),
               Layer.succeed(MediaRepository, makeMediaRepository(appDb)),
               Layer.succeed(FileSystem, fs),
             ),
@@ -142,9 +138,9 @@ it.scoped("MediaReaderService shares archive loads across concurrent readers", (
 
         const result = yield* Effect.gen(function* () {
           const reader = yield* MediaReaderService;
-          const first = yield* Effect.fork(reader.listPages(1, 1));
+          const first = yield* Effect.forkChild(reader.listPages(1, 1));
           yield* Deferred.await(readStarted);
-          const second = yield* Effect.fork(reader.listPages(1, 1));
+          const second = yield* Effect.forkChild(reader.listPages(1, 1));
           yield* Deferred.succeed(releaseRead, void 0);
 
           return {
@@ -162,30 +158,32 @@ it.scoped("MediaReaderService shares archive loads across concurrent readers", (
   }),
 );
 
-function seedMediaUnit(db: AppDatabase, rootFolder: string, filePath: string) {
-  return Effect.tryPromise(async () => {
-    await db.insert(schema.media).values({
-      addedAt: "2024-01-01T00:00:00Z",
-      format: "MANGA",
-      genres: "[]",
-      id: 1,
-      mediaKind: "manga",
-      monitored: true,
-      profileName: "Default",
-      releaseProfileIds: "[]",
-      rootFolder,
-      status: "FINISHED",
-      studios: "[]",
-      titleRomaji: "Test Manga",
-    });
-    await db.insert(schema.mediaUnits).values({
-      downloaded: true,
-      filePath,
-      mediaId: 1,
-      number: 1,
-    });
+const seedMediaUnit = Effect.fn("Test.seedMediaUnit")(function* (
+  db: AppDatabase,
+  rootFolder: string,
+  filePath: string,
+) {
+  yield* db.insert(schema.media).values({
+    addedAt: "2024-01-01T00:00:00Z",
+    format: "MANGA",
+    genres: "[]",
+    id: 1,
+    mediaKind: "manga",
+    monitored: true,
+    profileName: "Default",
+    releaseProfileIds: "[]",
+    rootFolder,
+    status: "FINISHED",
+    studios: "[]",
+    titleRomaji: "Test Manga",
   });
-}
+  yield* db.insert(schema.mediaUnits).values({
+    downloaded: true,
+    filePath,
+    mediaId: 1,
+    number: 1,
+  });
+});
 
 interface StoredZipEntry {
   readonly path: string;

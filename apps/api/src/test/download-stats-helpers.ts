@@ -3,13 +3,13 @@ import { Effect } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
 import { downloads } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { tryDatabase } from "@/infra/effect/db.ts";
 
 const countDownloadsWhere = Effect.fn("DownloadStatsHelpers.countDownloadsWhere")(function* (
   db: AppDatabase,
   condition: SQL,
 ) {
-  const countRows = yield* tryDatabasePromise("Failed to count downloads", () =>
+  const countRows = yield* tryDatabase("Failed to count downloads", () =>
     db
       .select({ value: sql<number>`count(*)` })
       .from(downloads)

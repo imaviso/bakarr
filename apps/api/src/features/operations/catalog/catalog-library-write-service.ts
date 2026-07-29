@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import type { ImportResult, RenameResult } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
@@ -25,10 +25,10 @@ export interface CatalogLibraryWriteServiceShape {
   ) => Effect.Effect<RenameResult, DatabaseError | MediaNotFoundError | RuntimeConfigSnapshotError>;
 }
 
-export class CatalogLibraryWriteService extends Effect.Service<CatalogLibraryWriteService>()(
+export class CatalogLibraryWriteService extends Context.Service<CatalogLibraryWriteService>()(
   "@bakarr/api/CatalogLibraryWriteService",
   {
-    effect: Effect.gen(function* () {
+    make: Effect.gen(function* () {
       const eventBus = yield* EventBus;
       const fs = yield* FileSystem;
       const mediaRepository = yield* MediaRepository;
@@ -68,9 +68,9 @@ export class CatalogLibraryWriteService extends Effect.Service<CatalogLibraryWri
         renameFiles,
       } satisfies CatalogLibraryWriteServiceShape;
     }),
-    // FS + EventBus + RuntimeConfig provided by ops feature layer.
-    dependencies: [EventBus.Default, MediaRepository.Default, MediaUnitRepository.Default],
   },
-) {}
+) {
+  static readonly layer = Layer.effect(CatalogLibraryWriteService, CatalogLibraryWriteService.make);
+}
 
-export const CatalogLibraryWriteServiceLive = CatalogLibraryWriteService.Default;
+export const CatalogLibraryWriteServiceLive = CatalogLibraryWriteService.layer;

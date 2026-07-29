@@ -1,5 +1,5 @@
 import * as Cron from "effect/Cron";
-import { Either, Schema } from "effect";
+import { Result, Schema } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 import type { BackgroundWorkerName } from "@/background/worker-model.ts";
@@ -63,7 +63,7 @@ function resolveRssCronExpression(config: Config): string | null {
     return null;
   }
 
-  return Either.isRight(Cron.parse(cronExpression)) ? cronExpression : null;
+  return Result.isSuccess(Cron.parse(cronExpression)) ? cronExpression : null;
 }
 
 function toPositiveMilliseconds(value: number, unitMs: number): number | null {
