@@ -2,15 +2,12 @@
   lib,
   stdenv,
   nodejs_latest,
-  node-gyp,
   pnpm,
   fetchPnpmDeps,
   pnpmConfigHook,
   cacert,
   ffmpeg,
   poppler-utils,
-  python3,
-  pkg-config,
   makeWrapper,
   writableTmpDirAsHomeHook,
   src ? ../.,
@@ -44,7 +41,7 @@ stdenv.mkDerivation (finalAttrs: {
     inherit (finalAttrs) pname version src;
     pnpm = pnpm;
     fetcherVersion = 4;
-    hash = "sha256-HlSsgvzTMhnWSuzX53Q1GANWRcorF3IhLyLzABqv2Hc=";
+    hash = "sha256-deR6/g7dplqH+6BSl3nSHrlvyX4pdbPt9CpLRhi66EA=";
     pnpmInstallFlags = ["--config.minimum-release-age=0"];
   };
 
@@ -52,9 +49,6 @@ stdenv.mkDerivation (finalAttrs: {
     nodejs_latest
     pnpm
     pnpmConfigHook
-    python3
-    pkg-config
-    node-gyp
     makeWrapper
     writableTmpDirAsHomeHook
   ];
@@ -69,15 +63,6 @@ stdenv.mkDerivation (finalAttrs: {
   buildPhase = ''
     runHook preBuild
 
-    # Rebuild better-sqlite3 against nodejs_latest. nixpkgs node-gyp wrapper
-    # hardcodes npm_config_nodedir to pkgs.nodejs (not latest) — bypass it.
-    env -u npm_config_nodedir \
-      ${nodejs_latest}/bin/node ${node-gyp}/lib/node_modules/node-gyp/bin/node-gyp.js \
-        rebuild --release \
-        --directory=apps/api/node_modules/better-sqlite3 \
-        --nodedir="${nodejs_latest}" \
-        --python="$(command -v python3)"
-
     pnpm --filter @bakarr/web build
     pnpm --filter @bakarr/api build
 
@@ -89,10 +74,6 @@ stdenv.mkDerivation (finalAttrs: {
 
     mkdir -p $out/share/bakarr
     cp -R apps/api/build $out/share/bakarr/api
-    mkdir -p $out/share/bakarr/node_modules
-    cp -RL apps/api/node_modules/better-sqlite3 $out/share/bakarr/node_modules/better-sqlite3
-    cp -RL node_modules/.pnpm/bindings@*/node_modules/bindings $out/share/bakarr/node_modules/bindings
-    cp -RL node_modules/.pnpm/file-uri-to-path@*/node_modules/file-uri-to-path $out/share/bakarr/node_modules/file-uri-to-path
 
     mkdir -p $out/bin
     makeWrapper ${nodejs_latest}/bin/node $out/bin/bakarr-api \

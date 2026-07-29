@@ -47,9 +47,6 @@ importers:
       '@opentelemetry/api':
         specifier: ^1.9.1
         version: 1.9.1
-      better-sqlite3:
-        specifier: ^13.0.1
-        version: 13.0.1
       drizzle-orm:
         specifier: 1.0.0-rc.4
         version: 1.0.0-rc.4(@effect/sql-sqlite-node@4.0.0-beta.102(effect@4.0.0-beta.102))(@opentelemetry/api@1.9.1)(better-sqlite3@13.0.1)(effect@4.0.0-beta.102)(zod@4.4.3)
@@ -5910,6 +5907,7 @@ snapshots:
   better-sqlite3@13.0.1:
     dependencies:
       node-addon-api: 8.9.0
+    optional: true
 
   body-parser@2.3.0:
     dependencies:
@@ -6911,7 +6909,8 @@ snapshots:
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
 
-  node-addon-api@8.9.0: {}
+  node-addon-api@8.9.0:
+    optional: true
 
   node-gyp-build-optional-packages@5.2.2:
     dependencies:
