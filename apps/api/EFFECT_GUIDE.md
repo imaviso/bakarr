@@ -83,6 +83,13 @@ compatibility layers.
 - Use `Context.Service<Self, Shape>()(key)` (no `make`) only when you need a
   standalone contract with no bundled factory or multiple different layer
   implementations for the same tag.
+- Define the service interface inline in the `Context.Service` declaration.
+  Do not retain a standalone `FooShape` or `FooServiceShape` interface/type
+  unless the interface is genuinely reusable across modules.
+- Use `Foo.of({ ... })` on the tag for object-literal service construction in
+  tests and simple stubs.
+- Production `make` must acquire deps via `yield* Foo` (the tag), not accept
+  `Foo["Service"]` as a constructor param. Test harnesses are excepted.
 - Use `Context.Reference(key, { defaultValue })` for simple local service keys
   with a default value where a class adds no value.
 - Keep service members `readonly`.
@@ -92,13 +99,13 @@ compatibility layers.
   services against those contracts.
 - Name canonical layers clearly: `Live`, `Default`, `Test`, `layer`,
   `testLayer`, and similar.
-- `Layer.effect(...)`, `Layer.succeed(...)`, `Layer.sync(...)`,
-  `Layer.unwrap(...)`, `Layer.provide(...)`, and
-  `Layer.provideMerge(...)`.
+- Compose with `Layer.effect(...)`, `Layer.succeed(...)`, `Layer.sync(...)`,
+  `Layer.effectDiscard(...)`, `Layer.unwrap(...)`, `Layer.provide(...)`,
+  and `Layer.provideMerge(...)`.
 
   `Layer.effect` handles both plain and scoped acquisition in v4 (replaces
-  the old `Layer.scoped`).
-
+  the old `Layer.scoped`). `Layer.effectDiscard` is for side-effect-only
+  layers that own no service output (background work, resource lifecycle).
 - If a parameterized or resourceful layer is reused, create it once and reuse
   the constant so memoization works.
 - Prefer a single `AppLayer` at the boundary over scattered
@@ -108,12 +115,23 @@ compatibility layers.
 
 - Model lifecycles with `Effect.acquireRelease(...)`, `Scope`, and
   `Layer.effect(...)`.
+- Use `Effect.acquireUseRelease(...)` for request-scoped resources (acquire,
+  use, release in one call).
+- Use `Effect.forkScoped` for background worker fibers so they die when the
+  layer scope closes. Pair with `Effect.addFinalizer` for teardown (flush,
+  stop, etc.).
+- Use `Scope.make("sequential")` + `Effect.addFinalizer(() => Scope.close(scope, Exit.void))`
+  for grouped sub-scope management when a service owns a cluster of fibers
+  that must die together but separate from the outer scope.
 - Use `Fiber`, `Queue`, `PubSub`, `Semaphore`, and `Ref` only when they make the
   coordination model simpler.
 - Keep raw platform and Promise APIs at the edge.
 - Wrap long-lived infrastructure behind services so cancellation and shutdown
   stay uniform.
 - Prefer scoped constructors over manual start and stop bookkeeping.
+- Do not create per-feature managed runtimes or Atom runtimes to smuggle the
+  same owned resource into multiple consumers. Compose the resource once in
+  an application-owned layer.
 
 ## Data Modeling
 
@@ -219,6 +237,77 @@ compatibility layers.
 - Wrap existing Promise code at the boundary first; move inward only when the
   domain benefits from typed errors, structured concurrency, or testability.
 
+## Layer Composition (v4)
+
+In v4, `Layer.provide` shares a `MemoMap` across calls within the same build,
+so duplicate `Layer.provide(baseRuntime)` calls do NOT rebuild `baseRuntime`
+multiple times. However, each `fromBuild` (which backs `Layer.effect`,
+`Layer.mergeAll`, `Layer.provide`, `Layer.succeed`) still forks a scope via
+`Scope.forkUnsafe(scope)`. On success the scope stays open for the app
+lifetime. With hundreds of layers and provides, this creates many long-lived
+scope objects.
+
+### Preferred composition: `Layer.provideMerge` anchor chain
+
+Chain services on a shared base layer using `Layer.provideMerge`. This
+provides the dependency AND merges its outputs into the result, keeping all
+services available downstream:
+
+```ts
+// Good — anchor chain, each provideMerge builds once against shared context
+const AppLayer = BaseRuntime.pipe(
+  Layer.provideMerge(ServiceALive),
+  Layer.provideMerge(ServiceBLive),
+  Layer.provideMerge(ServiceCLive),
+);
+```
+
+### Avoid: `Layer.provide` per-service in a `Layer.mergeAll`
+
+```ts
+// Bad — N provide calls, each forks a scope; mergeAll requires R=never
+const a = ServiceALive.pipe(Layer.provide(baseRuntime));
+const b = ServiceBLive.pipe(Layer.provide(baseRuntime));
+return Layer.mergeAll(a, b, c); // a, b, c must have R=never
+```
+
+### `Layer.mergeAll` constraints
+
+- Requires each input layer to have `R = never` (all dependencies satisfied
+  upstream).
+- Keeps merges small (3-9 entries). A flat ~200-argument call can exceed tsc's
+  variadic inference and silently drop tail layers.
+- Use `Layer.unwrap(Effect.gen(...))` for config-dependent layer assembly.
+
+### `Layer.provide` vs `Layer.provideMerge`
+
+- `Layer.provide`: feeds a dependency; the dependency's outputs do NOT bubble
+  up into the result.
+- `Layer.provideMerge`: feeds a dependency AND merges its outputs into the
+  result. Use when downstream layers need the dependency's services.
+- `Layer.provideSome`: not used in practice.
+
+### Test layer pattern
+
+```ts
+const TestLayer = Layer.empty.pipe(
+  Layer.provideMerge(ServiceA.layer),
+  Layer.provideMerge(NodeServices.layer),
+);
+```
+
+### Background workers
+
+- Use `Effect.forkScoped` so worker fibers die when the layer scope closes.
+- Pair with `Effect.addFinalizer` for teardown (flush, stop, etc.).
+- Use `Effect.acquireRelease` for owned resources (PubSub, Queue, etc.).
+
+### Policy: no per-feature managed runtimes
+
+Compose shared resources once in an application-owned layer. Do not create
+per-feature managed runtimes to smuggle the same owned resource into multiple
+consumers.
+
 ## Review Checklist
 
 - Main workflows use `Effect.gen(...)` unless another form is clearly better.
@@ -233,34 +322,63 @@ compatibility layers.
 ## Avoid By Default
 
 - Scattered `Effect.provide(...)` through orchestration code.
+- `Layer.provide(baseRuntime)` called per-service in a `Layer.mergeAll` — use
+  `Layer.provideMerge` anchor chains instead.
 - Manual DI, singletons, or hidden globals instead of tags and layers.
 - Throwing exceptions for expected control flow.
 - Untyped DTOs or untyped error payloads at boundaries.
 - Raw `JSON.parse(...)` or env reads in business logic.
 - Clever point-free pipelines when direct sequential code is clearer.
 - Advanced abstractions before there is a concrete need.
+- Per-feature managed runtimes or per-feature `Effect.runPromise` in domain
+  code.
 
 ## Copyable Patterns
 
 ### Service Tag And Layer
 
+With bundled `make` (factory + auto-generated `layerWithoutDependencies`):
+
 ```ts
 import { Context, Effect, Layer } from "effect";
 
-class Users extends Context.Service<Users>()("@bakarr/Users", {
-  make: Effect.gen(function* () {
-    const client = yield* ExternalClient;
-    return {
-      findById: Effect.fn("Users.findById")(function* (id: UserId) {
-        return yield* client.findUser(id);
-      }),
-    };
-  }),
-}) {
+class Users extends Context.Service<Users>()(
+  "@bakarr/Users",
+  {
+    make: Effect.gen(function* () {
+      const client = yield* ExternalClient;
+      return {
+        findById: Effect.fn("Users.findById")(function* (id: UserId) {
+          return yield* client.findUser(id);
+        }),
+      };
+    }),
+  },
+) {
   static readonly Default = Layer.effect(Users, Users.make).pipe(
     Layer.provide([ExternalClient.Default]),
   );
 }
+```
+
+With inline shape (standalone contract, separate layer):
+
+```ts
+class AuthService extends Context.Service<AuthService, {
+  readonly login: (user: string, pass: string) => Effect.Effect<Session, AuthError>;
+  readonly logout: (token: string) => Effect.Effect<void>;
+}>()("@bakarr/AuthService") {}
+
+export const layer = Layer.effect(AuthService, Effect.gen(function* () { ... }));
+```
+
+Object-literal construction via `Foo.of(...)` (tests, stubs):
+
+```ts
+const stub = Layer.succeed(AuthService, AuthService.of({
+  login: () => Effect.die("not implemented"),
+  logout: () => Effect.void,
+}));
 ```
 
 ### Schema Record And Derived Payload
@@ -318,6 +436,51 @@ class ApiConfig extends Context.Service<
 }
 ```
 
+### Config-Dependent Layer Assembly
+
+```ts
+import { Effect, Layer } from "effect";
+
+// Layer.unwrap for config-dependent layer choice
+const SqliteLayer = Layer.unwrap(
+  Effect.gen(function* () {
+    const config = yield* AppConfig;
+    return config.readonly ? ReadonlySqlite.layer : ReadWriteSqlite.layer;
+  }),
+);
+
+// Effect.fn with Layer.unwrap as second argument
+const makeRuntimeSqliteLayer = Effect.fn("makeRuntimeSqliteLayer")(
+  function* (config: SqliteConfig) {
+    const runtime = process.versions.bun !== undefined ? "bun" : "node";
+    const loader = defaultSqliteClientLoaders[runtime];
+    return loader.layer(config);
+  },
+  Layer.unwrap,
+);
+```
+
+### Feature Layer Composition
+
+```ts
+import { Layer } from "effect";
+
+// Anchor chain — provideMerge each feature on the shared base
+export const FeatureLayer = BaseRuntime.pipe(
+  Layer.provideMerge(RepositoryLive),
+  Layer.provideMerge(ServiceALive),
+  Layer.provideMerge(ServiceBLive),
+  Layer.provideMerge(ServiceCLive),
+);
+
+// Aggregator pattern — Layer.empty anchor for pure merge groups
+export const AggregatedLayer = Layer.empty.pipe(
+  Layer.provideMerge(SubFeatureALive),
+  Layer.provideMerge(SubFeatureBLive),
+  Layer.provideMerge(SubFeatureCLive),
+);
+```
+
 ### Promise Client Wrapper
 
 ```ts
@@ -350,6 +513,7 @@ describe("job", () => {
 
 ## Representative Effect Repo References
 
+- Layer composition and v4 idioms: `~/Dev/t3code/apps/server/src/server.ts`
 - Runtime boundary: `packages/platform-node/src/NodeRuntime.ts`
 - Node.js HTTP client: `packages/platform-node/test/NodeHttpClient.test.ts`
 - Service and layer ergonomics: `packages/effect/test/Layer.test.ts`
