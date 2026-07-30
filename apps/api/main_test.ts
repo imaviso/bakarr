@@ -14,8 +14,9 @@ import {
   brandMediaId,
   OperationTaskSchema,
 } from "@packages/shared/index.ts";
-import { mkdir, rm, stat, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { bootstrapProgram } from "./src/app/startup.ts";
 import { makeApiLifecycleLayers } from "./src/app/lifecycle-layers.ts";
 import { createHttpApp } from "./src/http/http-app.ts";
@@ -30,6 +31,7 @@ import {
 import { RssClient } from "./src/features/operations/rss/rss-client.ts";
 import type { ParsedRelease } from "./src/features/operations/rss/rss-client-parse.ts";
 import { SeaDexClient, type SeaDexEntry } from "./src/features/operations/search/seadex-client.ts";
+import { PasswordCrypto, PasswordError, WebPasswordCrypto } from "./src/security/password.ts";
 import type { MediaSearchResult } from "../../packages/shared/src/index.ts";
 
 declare global {
@@ -4408,6 +4410,29 @@ const testSeaDexLayer = Layer.succeed(
   }),
 );
 
+// Integration tests exercise auth flows, not KDF strength: derive with a single
+// iteration so 310k-iteration PBKDF2 does not dominate suite runtime.
+const testPasswordCryptoLayer = Layer.succeed(
+  PasswordCrypto,
+  PasswordCrypto.make({
+    ...WebPasswordCrypto,
+    deriveBits: (keyMaterial, salt, _iterations) =>
+      Effect.tryPromise({
+        try: () =>
+          crypto.subtle.deriveBits(
+            { hash: "SHA-256", iterations: 1, name: "PBKDF2", salt },
+            keyMaterial,
+            256,
+          ),
+        catch: (cause) =>
+          new PasswordError({
+            cause,
+            message: "Failed to derive password hash",
+          }),
+      }).pipe(Effect.map((bits) => new Uint8Array(bits))),
+  }),
+);
+
 const testJikanLayer = Layer.succeed(
   JikanClient,
   JikanClient.make({
@@ -4435,6 +4460,148 @@ const testManamiLayer = Layer.mergeAll(
   ),
 );
 
+function makeTestAppLayer(
+  databaseFile: string,
+  options?: {
+    bootstrapPassword?: string;
+    jikanLayer?: Layer.Layer<JikanClient>;
+    manamiLayer?: Layer.Layer<ManamiCacheRefreshClient | ManamiClient>;
+    metricsRequireAuth?: boolean;
+    qbitLayer?: Layer.Layer<QBitTorrentClient>;
+    rssLayer?: Layer.Layer<RssClient>;
+    seadexLayer?: Layer.Layer<SeaDexClient>;
+  },
+) {
+  return makeApiLifecycleLayers(
+    {
+      bootstrapPassword: options?.bootstrapPassword ?? TEST_PASSWORD,
+      bootstrapUsername: "admin",
+      databaseFile,
+      ...(options?.metricsRequireAuth === undefined
+        ? {}
+        : { metricsRequireAuth: options.metricsRequireAuth }),
+      port: 9999,
+    },
+    {
+      aniListLayer: testAniListLayer,
+      commandExecutorLayer: Layer.succeed(
+        CommandExecutor.CommandExecutor,
+        makeCommandExecutorStub((command) => {
+          const name = commandName(command);
+          const args = commandArgs(command);
+
+          if (name === "df") {
+            return Effect.succeed(
+              "Filesystem 1024-blocks Used Available Capacity Mounted on\n/dev/test 1000 250 750 25% /tmp",
+            );
+          }
+
+          if (name === "ffprobe") {
+            return Effect.succeed(
+              args.includes("-version") ? "ffprobe version test" : '{"streams":[]}',
+            );
+          }
+
+          return Effect.die(new Error(`unexpected command in test runtime: ${String(name)}`));
+        }),
+      ),
+      ...(options?.qbitLayer ? { qbitLayer: options.qbitLayer } : {}),
+      jikanLayer: options?.jikanLayer ?? testJikanLayer,
+      manamiLayer: options?.manamiLayer ?? testManamiLayer,
+      passwordCryptoLayer: testPasswordCryptoLayer,
+      rssLayer: options?.rssLayer ?? testRssLayer,
+      seadexLayer: options?.seadexLayer ?? testSeaDexLayer,
+    },
+  ).appLayer;
+}
+
+// Migrations + bootstrap are the per-test fixed cost: run them once into a
+// template database and copy it per test instead of rebuilding from scratch.
+let templateDatabaseFilePromise: Promise<string> | undefined;
+
+function getTemplateDatabaseFile() {
+  templateDatabaseFilePromise ??= createTemplateDatabaseFile();
+  return templateDatabaseFilePromise;
+}
+
+async function createTemplateDatabaseFile() {
+  const templateDir = await mkdtemp(join(tmpdir(), "bakarr-api-test-template-"));
+  const databaseFile = join(templateDir, "template.sqlite");
+  const runtime = ManagedRuntime.make(
+    makeTestAppLayer(databaseFile, { bootstrapPassword: "admin" }),
+  );
+
+  try {
+    await runtime.runPromise(bootstrapProgram());
+    const httpApp = await runtime.runPromise(createHttpApp());
+    const webHandler = HttpApp.toWebHandlerRuntime(await runtime.runtime())(httpApp);
+    const request = (input: string, init?: RequestInit) =>
+      webHandler(new Request(new URL(input, "http://bakarr.local").toString(), init));
+
+    const bootstrapLoginResponse = await request("/api/auth/login", {
+      body: JSON.stringify({ password: "admin", username: "admin" }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+    });
+    const bootstrapSessionCookie = bootstrapLoginResponse.headers.get("set-cookie");
+    assert(bootstrapSessionCookie);
+
+    const changePasswordResponse = await request("/api/auth/password", {
+      body: JSON.stringify({ current_password: "admin", new_password: TEST_PASSWORD }),
+      headers: {
+        Cookie: bootstrapSessionCookie,
+        "Content-Type": "application/json",
+      },
+      method: "PUT",
+    });
+    assert.deepStrictEqual(changePasswordResponse.status, 200);
+
+    const loginResponse = await request("/api/auth/login", {
+      body: JSON.stringify({ password: TEST_PASSWORD, username: "admin" }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+    });
+    const sessionCookie = loginResponse.headers.get("set-cookie");
+    assert(sessionCookie);
+
+    const currentConfigResponse = await request("/api/system/config", {
+      headers: { Cookie: sessionCookie },
+    });
+    const currentConfig = await currentConfigResponse.json();
+
+    const updateConfigResponse = await request("/api/system/config", {
+      body: JSON.stringify({
+        ...currentConfig,
+        library: {
+          ...currentConfig.library,
+          anime_path: tmpdir(),
+        },
+      }),
+      headers: {
+        Cookie: sessionCookie,
+        "Content-Type": "application/json",
+      },
+      method: "PUT",
+    });
+    assert.deepStrictEqual(updateConfigResponse.status, 200);
+  } finally {
+    await runtime.dispose();
+  }
+
+  // Copying the template only works once the WAL is checkpointed away.
+  for (const sidecar of [`${databaseFile}-wal`, `${databaseFile}-shm`]) {
+    let exists = true;
+    try {
+      await stat(sidecar);
+    } catch {
+      exists = false;
+    }
+    assert.deepStrictEqual(exists, false, `template database sidecar still present: ${sidecar}`);
+  }
+
+  return databaseFile;
+}
+
 async function createTestContextForDatabaseFile(
   databaseFile: string,
   options?: {
@@ -4447,48 +4614,24 @@ async function createTestContextForDatabaseFile(
     skipInitialPasswordChange?: boolean;
   },
 ) {
-  const runtime = ManagedRuntime.make(
-    makeApiLifecycleLayers(
-      {
-        bootstrapPassword: "admin",
-        bootstrapUsername: "admin",
-        databaseFile,
-        ...(options?.metricsRequireAuth === undefined
-          ? {}
-          : { metricsRequireAuth: options.metricsRequireAuth }),
-        port: 9999,
-      },
-      {
-        aniListLayer: testAniListLayer,
-        commandExecutorLayer: Layer.succeed(
-          CommandExecutor.CommandExecutor,
-          makeCommandExecutorStub((command) => {
-            const name = commandName(command);
-            const args = commandArgs(command);
+  if (options?.skipInitialPasswordChange === true) {
+    return await createLegacyBootstrapTestContext(databaseFile, options);
+  }
 
-            if (name === "df") {
-              return Effect.succeed(
-                "Filesystem 1024-blocks Used Available Capacity Mounted on\n/dev/test 1000 250 750 25% /tmp",
-              );
-            }
+  await copyFile(await getTemplateDatabaseFile(), databaseFile);
 
-            if (name === "ffprobe") {
-              return Effect.succeed(
-                args.includes("-version") ? "ffprobe version test" : '{"streams":[]}',
-              );
-            }
+  // The template stores its own database_path; point the copy at its own file.
+  const configClient = createClient({ url: `file:${databaseFile}` });
+  try {
+    await configClient.execute({
+      sql: "update app_config set data = json_set(data, '$.general.database_path', ?) where id = 1",
+      args: [databaseFile],
+    });
+  } finally {
+    configClient.close();
+  }
 
-            return Effect.die(new Error(`unexpected command in test runtime: ${String(name)}`));
-          }),
-        ),
-        ...(options?.qbitLayer ? { qbitLayer: options.qbitLayer } : {}),
-        jikanLayer: options?.jikanLayer ?? testJikanLayer,
-        manamiLayer: options?.manamiLayer ?? testManamiLayer,
-        rssLayer: options?.rssLayer ?? testRssLayer,
-        seadexLayer: options?.seadexLayer ?? testSeaDexLayer,
-      },
-    ).appLayer,
-  );
+  const runtime = ManagedRuntime.make(makeTestAppLayer(databaseFile, options));
   await runtime.runPromise(bootstrapProgram());
   const httpApp = await runtime.runPromise(createHttpApp());
   const webHandler = HttpApp.toWebHandlerRuntime(await runtime.runtime())(httpApp);
@@ -4512,59 +4655,53 @@ async function createTestContextForDatabaseFile(
     },
   };
 
-  const bootstrapLoginResponse = await app.request("/api/auth/login", {
-    body: JSON.stringify({ password: "admin", username: "admin" }),
-    headers: { "Content-Type": "application/json" },
-    method: "POST",
-  });
-  const bootstrapSessionCookie = bootstrapLoginResponse.headers.get("set-cookie");
+  return {
+    app,
+    databaseFile,
+    dispose: async () => {
+      await runtime.dispose();
+    },
+  };
+}
 
-  assert(bootstrapSessionCookie);
+// Full bootstrap path for the one test that exercises the initial admin/admin
+// credentials and the forced password change.
+async function createLegacyBootstrapTestContext(
+  databaseFile: string,
+  options?: {
+    jikanLayer?: Layer.Layer<JikanClient>;
+    manamiLayer?: Layer.Layer<ManamiCacheRefreshClient | ManamiClient>;
+    metricsRequireAuth?: boolean;
+    qbitLayer?: Layer.Layer<QBitTorrentClient>;
+    rssLayer?: Layer.Layer<RssClient>;
+    seadexLayer?: Layer.Layer<SeaDexClient>;
+  },
+) {
+  const runtime = ManagedRuntime.make(
+    makeTestAppLayer(databaseFile, { ...options, bootstrapPassword: "admin" }),
+  );
+  await runtime.runPromise(bootstrapProgram());
+  const httpApp = await runtime.runPromise(createHttpApp());
+  const webHandler = HttpApp.toWebHandlerRuntime(await runtime.runtime())(httpApp);
+  const app = {
+    request: (input: string | URL | Request, init?: RequestInit) => {
+      if (typeof input === "string" && input.includes("/../")) {
+        return Promise.resolve(new Response("Not Found", { status: 404 }));
+      }
 
-  let setupSessionCookie = bootstrapSessionCookie;
+      const request =
+        input instanceof Request
+          ? input
+          : new Request(
+              input instanceof URL
+                ? input.toString()
+                : new URL(input.replaceAll("/../", "/%2E%2E/"), "http://bakarr.local").toString(),
+              init,
+            );
 
-  if (options?.skipInitialPasswordChange !== true) {
-    const changePasswordResponse = await app.request("/api/auth/password", {
-      body: JSON.stringify({ current_password: "admin", new_password: TEST_PASSWORD }),
-      headers: {
-        Cookie: bootstrapSessionCookie,
-        "Content-Type": "application/json",
-      },
-      method: "PUT",
-    });
-    assert.deepStrictEqual(changePasswordResponse.status, 200);
-
-    const setupLoginResponse = await app.request("/api/auth/login", {
-      body: JSON.stringify({ password: TEST_PASSWORD, username: "admin" }),
-      headers: { "Content-Type": "application/json" },
-      method: "POST",
-    });
-    const nextSetupSessionCookie = setupLoginResponse.headers.get("set-cookie");
-    assert(nextSetupSessionCookie);
-    setupSessionCookie = nextSetupSessionCookie;
-  }
-
-  if (options?.skipInitialPasswordChange !== true) {
-    const currentConfigResponse = await app.request("/api/system/config", {
-      headers: { Cookie: setupSessionCookie },
-    });
-    const currentConfig = await currentConfigResponse.json();
-
-    await app.request("/api/system/config", {
-      body: JSON.stringify({
-        ...currentConfig,
-        library: {
-          ...currentConfig.library,
-          anime_path: tmpdir(),
-        },
-      }),
-      headers: {
-        Cookie: setupSessionCookie,
-        "Content-Type": "application/json",
-      },
-      method: "PUT",
-    });
-  }
+      return webHandler(request);
+    },
+  };
 
   return {
     app,

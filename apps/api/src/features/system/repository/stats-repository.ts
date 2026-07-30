@@ -175,4 +175,3 @@ export function makeSystemStatsRepositoryShape(db: AppDatabase): SystemStatsRepo
     loadSystemLibraryStatsAggregate: () => loadSystemLibraryStatsAggregate(db),
   } satisfies SystemStatsRepositoryShape;
 }
-

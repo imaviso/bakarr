@@ -130,4 +130,3 @@ export function makeSystemConfigRepositoryShape(db: AppDatabase): SystemConfigRe
     upsertSystemConfigRow: (input) => upsertSystemConfigRow(db, input),
   } satisfies SystemConfigRepositoryShape;
 }
-

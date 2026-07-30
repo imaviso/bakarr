@@ -265,4 +265,3 @@ export function makeOperationsTaskRepositoryShape(db: AppDatabase): OperationsTa
     updateTaskProgressRow: (input) => updateTaskProgressRow(db, input),
   } satisfies OperationsTaskRepositoryShape;
 }
-

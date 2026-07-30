@@ -185,4 +185,3 @@ export function makeSystemUnmappedRepositoryShape(db: AppDatabase): SystemUnmapp
     upsertMatchRows: (folders, updatedAt) => upsertUnmappedFolderMatchRows(db, folders, updatedAt),
   } satisfies SystemUnmappedRepositoryShape;
 }
-

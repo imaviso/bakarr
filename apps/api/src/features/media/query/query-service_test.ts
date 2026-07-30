@@ -11,7 +11,10 @@ import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
 import { ManamiClient } from "@/features/media/metadata/manami.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
-import { makeMediaRepository, makeSeasonalMediaCacheRepository } from "@/test/repository-factories.ts";
+import {
+  makeMediaRepository,
+  makeSeasonalMediaCacheRepository,
+} from "@/test/repository-factories.ts";
 import { SeasonalMediaCacheRepository } from "@/features/media/query/seasonal-media-cache-repository.ts";
 
 function makeSeasonalResult(input: {

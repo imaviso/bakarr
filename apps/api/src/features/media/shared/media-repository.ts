@@ -208,7 +208,6 @@ export function makeMediaRepositoryShape(db: AppDatabase): MediaRepositoryShape 
   } satisfies MediaRepositoryShape;
 }
 
-
 const getMediaRowEffect = Effect.fn("MediaRepository.getMediaRow")(function* (
   db: AppDatabase,
   mediaId: number,

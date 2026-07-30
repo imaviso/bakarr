@@ -167,7 +167,7 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
             Effect.gen(function* () {
               const existing = existingDownloadsMap.get(row.hash);
               if (!existing || existing.status === row.nextStatus) {
-                return null as DownloadEventRecordInput | null;
+                return null;
               }
 
               const coveredUnits = yield* parseCoveredUnitsEffect(existing.coveredUnits);
@@ -184,7 +184,7 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
                 },
                 message: `${existing.torrentName} moved to ${row.nextStatus}`,
                 toStatus: row.nextStatus,
-              } satisfies DownloadEventRecordInput as DownloadEventRecordInput | null;
+              } satisfies DownloadEventRecordInput;
             }),
         );
 

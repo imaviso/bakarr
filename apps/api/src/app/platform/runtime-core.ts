@@ -24,6 +24,7 @@ import { TokenHasher } from "@/security/token-hasher.ts";
 
 export interface AppPlatformRuntimeOptions {
   readonly configProvider?: ConfigProvider.ConfigProvider;
+  readonly passwordCryptoLayer?: Layer.Layer<PasswordCrypto>;
 }
 
 export function makeAppPlatformCoreRuntimeLayer(
@@ -75,7 +76,7 @@ export function makeAppPlatformCoreRuntimeLayer(
     eventBusLayer,
     backgroundMonitorLayer,
     FileSystemLive,
-    PasswordCrypto.Default,
+    options?.passwordCryptoLayer ?? PasswordCrypto.Default,
     TokenHasher.Default,
   );
 

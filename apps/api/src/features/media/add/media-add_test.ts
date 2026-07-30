@@ -18,7 +18,12 @@ import {
 import { FileSystemError, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { makeMediaRepository, makeMediaUnitRepository, makeQualityProfileRepository, makeSystemConfigRepository } from "@/test/repository-factories.ts";
+import {
+  makeMediaRepository,
+  makeMediaUnitRepository,
+  makeQualityProfileRepository,
+  makeSystemConfigRepository,
+} from "@/test/repository-factories.ts";
 
 it.scoped("addMediaEffect persists MAL backfill and mapped relation metadata", () =>
   withSqliteTestDbEffect({

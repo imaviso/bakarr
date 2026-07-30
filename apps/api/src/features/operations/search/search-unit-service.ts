@@ -91,7 +91,7 @@ export class SearchUnitService extends Effect.Service<SearchUnitService>()(
               unitKind: animeRow.mediaKind === "anime" ? "episode" : "volume",
             }),
           )
-          .toSorted(compareUnitSearchResults) as UnitSearchResult[];
+          .toSorted(compareUnitSearchResults);
       });
 
       return {

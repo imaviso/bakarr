@@ -47,7 +47,6 @@ export function makeRssFeedRepositoryShape(db: AppDatabase): RssFeedRepositorySh
   } satisfies RssFeedRepositoryShape;
 }
 
-
 const listAll = Effect.fn("RssFeedRepository.listAll")(function* (db: AppDatabase) {
   const rows = yield* tryDatabasePromise("Failed to list RSS feeds", () =>
     db.select().from(rssFeeds).orderBy(desc(rssFeeds.id)),

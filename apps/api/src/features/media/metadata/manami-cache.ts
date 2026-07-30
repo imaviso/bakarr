@@ -1,5 +1,5 @@
 import * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
-import { HttpClient, HttpClientRequest } from "@effect/platform";
+import { Headers, HttpClient, HttpClientRequest } from "@effect/platform";
 import { dirname, join, resolve } from "node:path";
 import { Effect, Option, Schema } from "effect";
 
@@ -27,7 +27,11 @@ const textDecoder = new TextDecoder();
 
 const ManamiCacheMetaSchema = Schema.Struct({
   fetchedAtMs: Schema.Number.pipe(Schema.int(), Schema.nonNegative()),
+  etag: Schema.optional(Schema.String),
+  lastModified: Schema.optional(Schema.String),
 });
+
+type ManamiCacheMeta = Schema.Schema.Type<typeof ManamiCacheMetaSchema>;
 
 const ManamiDatasetJsonSchema = Schema.parseJson(ManamiDatasetSchema);
 const ManamiCacheMetaJsonSchema = Schema.parseJson(ManamiCacheMetaSchema);
@@ -39,11 +43,19 @@ export interface ManamiCachePaths {
   readonly sqliteFile: string;
 }
 
-type CacheState =
-  | { readonly _tag: "Fresh" }
-  | { readonly _tag: "InvalidSqlite" }
-  | { readonly _tag: "MissingMeta" }
-  | { readonly _tag: "Stale" };
+interface CacheValidators {
+  readonly etag?: string | undefined;
+  readonly lastModified?: string | undefined;
+}
+
+type DownloadResult =
+  | { readonly _tag: "NotModified" }
+  | {
+      readonly _tag: "Downloaded";
+      readonly dataset: ManamiDataset;
+      readonly etag?: string | undefined;
+      readonly lastModified?: string | undefined;
+    };
 
 export const refreshSqliteCacheIfNeeded = Effect.fn("ManamiCache.refreshSqliteCacheIfNeeded")(
   function* (
@@ -54,30 +66,93 @@ export const refreshSqliteCacheIfNeeded = Effect.fn("ManamiCache.refreshSqliteCa
     paths: ManamiCachePaths,
   ) {
     const now = yield* currentTimeMillis;
-    const cacheState = yield* inspectSqliteCacheState(fs, sqliteClient, paths, now);
+    const meta = yield* readCacheMeta(fs, paths).pipe(Effect.map(Option.getOrUndefined));
+    const metaFresh =
+      meta !== undefined && now - meta.fetchedAtMs < MANAMI_CACHE_REFRESH_INTERVAL_MS;
+    const sqliteValid = yield* hasLookupSqliteSchema(sqliteClient).pipe(
+      Effect.catchAll(() => Effect.succeed(false)),
+    );
 
-    if (cacheState._tag === "Fresh") {
+    if (metaFresh && sqliteValid) {
       return false;
     }
 
-    if (cacheState._tag === "InvalidSqlite") {
-      const rebuildResult = yield* readDatasetFromCache(fs, paths).pipe(
-        Effect.flatMap((dataset) => buildLookupSqliteCache(sqliteClient, dataset)),
-        Effect.either,
-      );
-
-      if (rebuildResult._tag === "Right") {
+    if (metaFresh) {
+      // Meta fresh but sqlite broken: rebuild from the cached dataset first.
+      const rebuilt = yield* rebuildFromCachedDataset(fs, sqliteClient, paths).pipe(Effect.either);
+      if (rebuilt._tag === "Right") {
         return true;
       }
+      // Cached dataset unusable too: fall through to an unconditional download.
+      yield* downloadAndPersist();
+      return true;
     }
 
-    const dataset = yield* downloadManamiDataset(client, externalCall);
-    yield* writeDatasetToCache(fs, paths, dataset);
-    yield* buildLookupSqliteCache(sqliteClient, dataset);
-    yield* writeCacheMeta(fs, paths, now);
+    // Stale or missing meta: revalidate against upstream before downloading.
+    const condition: CacheValidators | undefined =
+      meta === undefined ? undefined : { etag: meta.etag, lastModified: meta.lastModified };
+    const downloaded = yield* downloadManamiDataset(client, externalCall, condition);
+
+    if (downloaded._tag === "NotModified") {
+      if (!sqliteValid) {
+        const rebuilt = yield* rebuildFromCachedDataset(fs, sqliteClient, paths).pipe(
+          Effect.either,
+        );
+        if (rebuilt._tag === "Left") {
+          // 304 but local cache unusable: fetch the full dataset unconditionally.
+          yield* downloadAndPersist();
+          return true;
+        }
+      }
+
+      yield* writeCacheMeta(fs, paths, {
+        fetchedAtMs: now,
+        ...(meta?.etag === undefined ? {} : { etag: meta.etag }),
+        ...(meta?.lastModified === undefined ? {} : { lastModified: meta.lastModified }),
+      });
+      return !sqliteValid;
+    }
+
+    yield* persistDownloadedDataset(downloaded);
     return true;
+
+    function downloadAndPersist() {
+      return Effect.gen(function* () {
+        const result = yield* downloadManamiDataset(client, externalCall);
+        if (result._tag === "NotModified") {
+          return yield* Effect.dieMessage(
+            "manami dataset download returned 304 without conditional validators",
+          );
+        }
+        yield* persistDownloadedDataset(result);
+        return undefined;
+      });
+    }
+
+    function persistDownloadedDataset(
+      result: Extract<DownloadResult, { readonly _tag: "Downloaded" }>,
+    ) {
+      return Effect.gen(function* () {
+        yield* writeDatasetToCache(fs, paths, result.dataset);
+        yield* buildLookupSqliteCache(sqliteClient, result.dataset);
+        yield* writeCacheMeta(fs, paths, {
+          fetchedAtMs: now,
+          ...(result.etag === undefined ? {} : { etag: result.etag }),
+          ...(result.lastModified === undefined ? {} : { lastModified: result.lastModified }),
+        });
+      });
+    }
   },
 );
+
+const rebuildFromCachedDataset = Effect.fn("ManamiCache.rebuildFromCachedDataset")(function* (
+  fs: FileSystemShape,
+  sqliteClient: NodeSqliteClient.SqliteClient,
+  paths: ManamiCachePaths,
+) {
+  const dataset = yield* readDatasetFromCache(fs, paths);
+  yield* buildLookupSqliteCache(sqliteClient, dataset);
+});
 
 export function resolveManamiCachePaths(databaseFile: string): ManamiCachePaths {
   const root = dirname(resolve(databaseFile));
@@ -90,42 +165,6 @@ export function resolveManamiCachePaths(databaseFile: string): ManamiCachePaths 
     sqliteFile: join(directory, MANAMI_CACHE_SQLITE_FILE),
   };
 }
-
-const inspectSqliteCacheState: (
-  fs: FileSystemShape,
-  sqliteClient: NodeSqliteClient.SqliteClient,
-  paths: ManamiCachePaths,
-  now: number,
-) => Effect.Effect<CacheState, ExternalCallError> = Effect.fn(
-  "ManamiCache.inspectSqliteCacheState",
-)(function* (
-  fs: FileSystemShape,
-  sqliteClient: NodeSqliteClient.SqliteClient,
-  paths: ManamiCachePaths,
-  now: number,
-) {
-  const maybeMeta = yield* readCacheMeta(fs, paths);
-
-  if (Option.isNone(maybeMeta)) {
-    return { _tag: "MissingMeta" } as const;
-  }
-
-  if (now - maybeMeta.value.fetchedAtMs >= MANAMI_CACHE_REFRESH_INTERVAL_MS) {
-    return { _tag: "Stale" } as const;
-  }
-
-  const hasLookupSchema = yield* hasLookupSqliteSchema(sqliteClient).pipe(Effect.either);
-
-  if (hasLookupSchema._tag === "Left") {
-    return { _tag: "InvalidSqlite" } as const;
-  }
-
-  if (!hasLookupSchema.right) {
-    return { _tag: "InvalidSqlite" } as const;
-  }
-
-  return { _tag: "Fresh" } as const;
-});
 
 const readCacheMeta = Effect.fn("ManamiCache.readCacheMeta")(function* (
   fs: FileSystemShape,
@@ -230,9 +269,9 @@ const writeDatasetToCache = Effect.fn("ManamiCache.writeDatasetToCache")(functio
 const writeCacheMeta = Effect.fn("ManamiCache.writeCacheMeta")(function* (
   fs: FileSystemShape,
   paths: ManamiCachePaths,
-  fetchedAtMs: number,
+  meta: ManamiCacheMeta,
 ) {
-  const metaJson = yield* Schema.encode(ManamiCacheMetaJsonSchema)({ fetchedAtMs }).pipe(
+  const metaJson = yield* Schema.encode(ManamiCacheMetaJsonSchema)(meta).pipe(
     Effect.mapError((cause) =>
       ExternalCallError.make({
         cause,
@@ -256,12 +295,24 @@ const writeCacheMeta = Effect.fn("ManamiCache.writeCacheMeta")(function* (
 const downloadManamiDataset = Effect.fn("ManamiCache.downloadDataset")(function* (
   client: HttpClient.HttpClient,
   externalCall: ExternalCallShape,
+  condition?: CacheValidators,
 ) {
-  const request = HttpClientRequest.get(MANAMI_DATASET_URL);
+  const request = HttpClientRequest.get(MANAMI_DATASET_URL).pipe(
+    HttpClientRequest.setHeaders({
+      ...(condition?.etag === undefined ? {} : { "If-None-Match": condition.etag }),
+      ...(condition?.lastModified === undefined
+        ? {}
+        : { "If-Modified-Since": condition.lastModified }),
+    }),
+  );
   const response = yield* externalCall.tryExternalEffect(
     "manami.dataset.download",
     client.execute(request),
   );
+
+  if (response.status === 304) {
+    return { _tag: "NotModified" } as const;
+  }
 
   if (response.status < 200 || response.status >= 300) {
     return yield* ExternalCallError.make({
@@ -281,7 +332,7 @@ const downloadManamiDataset = Effect.fn("ManamiCache.downloadDataset")(function*
     ),
   );
 
-  return yield* Schema.decode(ManamiDatasetJsonSchema)(datasetJson).pipe(
+  const dataset = yield* Schema.decode(ManamiDatasetJsonSchema)(datasetJson).pipe(
     Effect.mapError((cause) =>
       ExternalCallError.make({
         cause,
@@ -290,6 +341,16 @@ const downloadManamiDataset = Effect.fn("ManamiCache.downloadDataset")(function*
       }),
     ),
   );
+
+  const etag = Headers.get(response.headers, "etag");
+  const lastModified = Headers.get(response.headers, "last-modified");
+
+  return {
+    _tag: "Downloaded",
+    dataset,
+    ...(Option.isSome(etag) ? { etag: etag.value } : {}),
+    ...(Option.isSome(lastModified) ? { lastModified: lastModified.value } : {}),
+  } as const;
 });
 
 const buildLookupSqliteCache = Effect.fn("ManamiCache.buildLookupSqliteCache")(

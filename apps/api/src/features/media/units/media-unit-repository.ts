@@ -206,7 +206,6 @@ export function makeMediaUnitRepositoryShape(db: AppDatabase): MediaUnitReposito
   } satisfies MediaUnitRepositoryShape;
 }
 
-
 const upsertUnit = Effect.fn("MediaUnitRepository.upsertUnit")(function* (
   db: AppDatabase,
   mediaId: number,

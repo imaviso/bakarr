@@ -52,7 +52,6 @@ export function makeAniDbUnitCacheRepositoryShape(db: AppDatabase): AniDbUnitCac
   };
 }
 
-
 const loadAniDbEpisodeCache = Effect.fn("AniDbUnitCacheRepository.load")(function* (
   db: AppDatabase,
   mediaId: number,

@@ -180,4 +180,3 @@ export function makeQualityProfileRepositoryShape(db: AppDatabase): QualityProfi
     updateQualityProfileRow: (name, row) => updateQualityProfileRow(db, name, row),
   } satisfies QualityProfileRepositoryShape;
 }
-

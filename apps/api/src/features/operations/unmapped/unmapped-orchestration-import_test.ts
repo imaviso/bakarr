@@ -10,7 +10,12 @@ import { makeTestFileSystemEffect, writeTextFile } from "@/test/filesystem-test.
 import { withSqliteRawClientEffect, withSqliteTestDbEffect } from "@/test/database-test.ts";
 import * as schema from "@/db/schema.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
-import { makeMediaRepository, makeMediaUnitRepository, makeSystemConfigRepository, makeSystemLogRepository } from "@/test/repository-factories.ts";
+import {
+  makeMediaRepository,
+  makeMediaUnitRepository,
+  makeSystemConfigRepository,
+  makeSystemLogRepository,
+} from "@/test/repository-factories.ts";
 import { getLibraryPathForMediaKind } from "@/features/media/shared/config-support.ts";
 
 it.scoped("unmapped import rolls back when a later insert fails", () =>

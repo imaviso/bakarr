@@ -12,7 +12,12 @@ import { MediaImageCacheService } from "@/features/media/metadata/media-image-ca
 import { MediaMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { makeBackgroundJobRepository, makeMediaRepository, makeMediaUnitRepository, makeSystemLogRepository } from "@/test/repository-factories.ts";
+import {
+  makeBackgroundJobRepository,
+  makeMediaRepository,
+  makeMediaUnitRepository,
+  makeSystemLogRepository,
+} from "@/test/repository-factories.ts";
 
 it.scoped(
   "refreshMetadataForMonitoredMediaEffect skips per-media external failures and completes",

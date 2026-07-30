@@ -233,7 +233,6 @@ export function makeDownloadRepositoryShape(db: AppDatabase): DownloadRepository
   } satisfies DownloadRepositoryShape;
 }
 
-
 const bulkUpdateTorrentSyncRows = Effect.fn("DownloadRepository.bulkUpdateTorrentSyncRows")(
   function* (db: AppDatabase, chunk: readonly TorrentSyncUpdate[]) {
     yield* tryDatabasePromise("Failed to sync downloads with qBittorrent", () =>

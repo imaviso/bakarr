@@ -1,5 +1,4 @@
 import { useForm } from "@tanstack/react-form";
-import { Schema } from "effect";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
@@ -21,13 +20,6 @@ import {
 } from "~/components/ui/select";
 import { Label } from "~/components/ui/label";
 import type { QualityProfile, ReleaseProfile } from "~/api/contracts";
-
-const EditProfileSchema = Schema.Struct({
-  profile: Schema.String,
-  releaseProfileIds: Schema.mutable(Schema.Array(Schema.Number)),
-});
-
-type EditProfileFormData = Schema.Schema.Type<typeof EditProfileSchema>;
 
 interface EditProfileDialogProps {
   open: boolean;
@@ -56,7 +48,7 @@ function EditProfileDialogContent(props: EditProfileDialogProps) {
     defaultValues: {
       profile: props.currentProfile,
       releaseProfileIds: props.currentReleaseProfileIds,
-    } as EditProfileFormData,
+    },
     onSubmit: async ({ value }) => {
       const operations: Promise<unknown>[] = [];
 

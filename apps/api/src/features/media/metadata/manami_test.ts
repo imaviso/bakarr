@@ -435,6 +435,162 @@ it.scoped("ManamiClient refreshes stale sqlite cache", () =>
   ),
 );
 
+it.scoped("ManamiClient revalidates stale cache with conditional request headers", () =>
+  withFileSystemSandboxEffect(({ fs, root }) =>
+    Effect.gen(function* () {
+      const seenHeaders: Array<Record<string, string | null>> = [];
+      let requestCount = 0;
+      const clientLayer = makeManamiClientLayer({
+        fs,
+        httpClient: HttpClient.make((request) =>
+          Effect.sync(() => {
+            requestCount += 1;
+            seenHeaders.push({
+              ifModifiedSince: request.headers["if-modified-since"] ?? null,
+              ifNoneMatch: request.headers["if-none-match"] ?? null,
+            });
+
+            if (requestCount === 1) {
+              return HttpClientResponse.fromWeb(
+                request,
+                Response.json(SYNTHETIC_DATASET, {
+                  headers: {
+                    etag: '"dataset-v1"',
+                    "last-modified": "Wed, 01 Jan 2026 00:00:00 GMT",
+                  },
+                  status: 200,
+                }),
+              );
+            }
+
+            return HttpClientResponse.fromWeb(request, new Response(null, { status: 304 }));
+          }),
+        ),
+        root,
+      });
+
+      const result = yield* Effect.gen(function* () {
+        const client = yield* ManamiClient;
+        const refreshClient = yield* ManamiCacheRefreshClient;
+
+        yield* TestClock.setTime(0);
+        const firstRefresh = yield* refreshClient.refreshCacheIfNeeded();
+
+        yield* TestClock.adjust(MANAMI_CACHE_REFRESH_INTERVAL_MS + 1);
+        const secondRefresh = yield* refreshClient.refreshCacheIfNeeded();
+        const lookupAfterRevalidation = yield* client.getByAniListId(1001);
+
+        const thirdRefresh = yield* refreshClient.refreshCacheIfNeeded();
+
+        return { firstRefresh, lookupAfterRevalidation, secondRefresh, thirdRefresh } as const;
+      }).pipe(Effect.provide(clientLayer));
+
+      assert.deepStrictEqual(result.firstRefresh, true);
+      assert.deepStrictEqual(result.secondRefresh, false);
+      assert.deepStrictEqual(result.thirdRefresh, false);
+      assert.deepStrictEqual(
+        result.lookupAfterRevalidation.pipe(Option.map((entry) => entry.title)),
+        Option.some("Alpha"),
+      );
+      assert.deepStrictEqual(requestCount, 2);
+      assert.deepStrictEqual(seenHeaders[0], { ifModifiedSince: null, ifNoneMatch: null });
+      assert.deepStrictEqual(seenHeaders[1], {
+        ifModifiedSince: "Wed, 01 Jan 2026 00:00:00 GMT",
+        ifNoneMatch: '"dataset-v1"',
+      });
+    }),
+  ),
+);
+
+it.scoped("ManamiClient rebuilds broken sqlite when stale cache revalidates as not modified", () =>
+  withFileSystemSandboxEffect(({ fs, root }) =>
+    Effect.gen(function* () {
+      const staleDataset = {
+        ...SYNTHETIC_DATASET,
+        data: [{ sources: ["https://anilist.co/anime/1001/Old-Title"], title: "Old Title" }],
+      };
+      yield* writeCachedDataset(fs, root, staleDataset, 0, { etag: '"dataset-v1"' });
+      const cacheDir = `${root}/${MANAMI_CACHE_DIR_NAME}`;
+      yield* fs.writeFile(`${cacheDir}/${MANAMI_CACHE_SQLITE_FILE}`, new Uint8Array());
+
+      const seenIfNoneMatch: Array<string | null> = [];
+      yield* TestClock.setTime(MANAMI_CACHE_REFRESH_INTERVAL_MS * 2);
+      const clientLayer = makeManamiClientLayer({
+        fs,
+        httpClient: HttpClient.make((request) =>
+          Effect.sync(() => {
+            seenIfNoneMatch.push(request.headers["if-none-match"] ?? null);
+            return HttpClientResponse.fromWeb(request, new Response(null, { status: 304 }));
+          }),
+        ),
+        root,
+      });
+
+      const result = yield* Effect.gen(function* () {
+        const client = yield* ManamiClient;
+        const refreshClient = yield* ManamiCacheRefreshClient;
+
+        const refreshed = yield* refreshClient.refreshCacheIfNeeded();
+        const lookup = yield* client.getByAniListId(1001);
+        return { lookup, refreshed } as const;
+      }).pipe(Effect.provide(clientLayer));
+
+      assert.deepStrictEqual(result.refreshed, true);
+      assert.deepStrictEqual(
+        result.lookup.pipe(Option.map((entry) => entry.title)),
+        Option.some("Old Title"),
+      );
+      assert.deepStrictEqual(seenIfNoneMatch, ['"dataset-v1"']);
+    }),
+  ),
+);
+
+it.scoped("ManamiClient redownloads unconditionally when 304 cache is unusable", () =>
+  withFileSystemSandboxEffect(({ fs, root }) =>
+    Effect.gen(function* () {
+      yield* writeCachedDataset(fs, root, SYNTHETIC_DATASET, 0, { etag: '"dataset-v1"' });
+      const cacheDir = `${root}/${MANAMI_CACHE_DIR_NAME}`;
+      yield* fs.writeFile(`${cacheDir}/${MANAMI_CACHE_SQLITE_FILE}`, new Uint8Array());
+      yield* fs.writeFile(`${cacheDir}/${MANAMI_CACHE_DATASET_FILE}`, textEncoder.encode("{"));
+
+      const seenIfNoneMatch: Array<string | null> = [];
+      yield* TestClock.setTime(MANAMI_CACHE_REFRESH_INTERVAL_MS * 2);
+      const clientLayer = makeManamiClientLayer({
+        fs,
+        httpClient: HttpClient.make((request) =>
+          Effect.sync(() => {
+            seenIfNoneMatch.push(request.headers["if-none-match"] ?? null);
+            if (seenIfNoneMatch.length === 1) {
+              return HttpClientResponse.fromWeb(request, new Response(null, { status: 304 }));
+            }
+            return HttpClientResponse.fromWeb(
+              request,
+              Response.json(SYNTHETIC_DATASET, { status: 200 }),
+            );
+          }),
+        ),
+        root,
+      });
+
+      const result = yield* Effect.gen(function* () {
+        const client = yield* ManamiClient;
+        const refreshClient = yield* ManamiCacheRefreshClient;
+
+        const refreshed = yield* refreshClient.refreshCacheIfNeeded();
+        const lookup = yield* client.getByAniListId(1001);
+        return { lookup, refreshed } as const;
+      }).pipe(Effect.provide(clientLayer));
+
+      assert.deepStrictEqual(result.refreshed, true);
+      assert.deepStrictEqual(
+        result.lookup.pipe(Option.map((entry) => entry.title)),
+        Option.some("Alpha"),
+      );
+      assert.deepStrictEqual(seenIfNoneMatch, ['"dataset-v1"', null]);
+    }),
+  ),
+);
+
 function makeManamiClientLayer(input: {
   readonly fs: FileSystemShape;
   readonly httpClient: HttpClient.HttpClient;
@@ -459,15 +615,22 @@ const writeCachedDataset = Effect.fn("Test.writeCachedDataset")(function* (
   root: string,
   dataset: Schema.Schema.Type<typeof ManamiDatasetSchema>,
   fetchedAtMs: number,
+  validators?: { readonly etag?: string; readonly lastModified?: string },
 ) {
   const datasetJson = yield* Schema.encode(Schema.parseJson(ManamiDatasetSchema))(dataset);
   const metaJson = yield* Schema.encode(
     Schema.parseJson(
       Schema.Struct({
         fetchedAtMs: Schema.Number.pipe(Schema.int(), Schema.nonNegative()),
+        etag: Schema.optional(Schema.String),
+        lastModified: Schema.optional(Schema.String),
       }),
     ),
-  )({ fetchedAtMs });
+  )({
+    fetchedAtMs,
+    ...(validators?.etag === undefined ? {} : { etag: validators.etag }),
+    ...(validators?.lastModified === undefined ? {} : { lastModified: validators.lastModified }),
+  });
   const cacheDir = `${root}/${MANAMI_CACHE_DIR_NAME}`;
   yield* fs.mkdir(cacheDir, { recursive: true });
   yield* fs.writeFile(`${cacheDir}/${MANAMI_CACHE_DATASET_FILE}`, textEncoder.encode(datasetJson));

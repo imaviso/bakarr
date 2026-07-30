@@ -128,7 +128,7 @@ export function parseDownloadEventsSearch(
   return {
     ...defaults,
     ...parsed,
-  } as Record<string, string>;
+  };
 }
 
 export function createDownloadEventsCursorPatch(
