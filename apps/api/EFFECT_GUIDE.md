@@ -1,17 +1,15 @@
 # Bakarr API Effect Principles
 
-Keep `apps/api` aligned with the local `effect-ts` skill, the upstream
-code-style docs, and the idioms used in `/home/yunyun/Dev/effect` source, examples, and
-tests.
+Keep `apps/api` aligned with the idioms used in `/home/yunyun/Dev/effect`
+source, examples, and tests, and with the upstream code-style docs.
 
 This repo is pre-release alpha, so prefer current Effect patterns over
 compatibility layers.
 
 ## Reference Order
 
-- Start with the local `effect-ts` skill and its bundled references.
-- Check `~/effect` source, examples, and tests for the pattern most often
-  used in practice.
+- Check `/home/yunyun/Dev/effect` source, examples, and tests for the pattern
+  most often used in practice.
 - Use the upstream code-style docs as the tie-breaker for style questions such
   as generators, pipelines, dual APIs, pattern matching, and branded types.
 - If docs and code diverge, prefer repo code for API shape and wiring, and docs
@@ -79,6 +77,8 @@ compatibility layers.
 - Prefer `Effect.Service<Self>()` as the default for service contracts —
   bundles Tag, Layer, and optional accessors in one declaration (since Effect
   3.9.0).
+- `Effect.Service` also supports `sync`, `succeed`, and `scoped` constructors,
+  and exposes `DefaultWithoutDependencies` when `dependencies` are declared.
 - Use `Context.Tag("@bakarr/ServiceName")<...>()` only when you need a
   standalone contract (no bundled layer) or multiple different layer
   implementations for the same tag.
@@ -103,8 +103,8 @@ compatibility layers.
 
 - Model lifecycles with `Effect.acquireRelease(...)`, `Scope`, and
   `Layer.scoped(...)`.
-- Use `Fiber`, `Queue`, `PubSub`, `Semaphore`, and `Ref` only when they make the
-  coordination model simpler.
+- Use `Fiber`, `Queue`, `PubSub`, `Effect.makeSemaphore`, and `Ref` only when
+  they make the coordination model simpler.
 - Keep raw platform and Promise APIs at the edge.
 - Wrap long-lived infrastructure behind services so cancellation and shutdown
   stay uniform.
