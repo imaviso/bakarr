@@ -184,7 +184,7 @@ itWithTestContext("GET /api/system/observability returns safe telemetry status",
       victoriametrics: null,
     },
     metrics_endpoint: "/api/metrics",
-    metrics_require_auth: false,
+    metrics_require_auth: true,
     otlp_endpoint: null,
     otlp_enabled: false,
     service_name: "bakarr-api",
@@ -1257,7 +1257,7 @@ itWithTestContext("unmapped scan task updates job state for discovered folders",
         client,
         "select count(*) as value from unmapped_folder_matches where match_status = 'done'",
         [],
-        (rows) => Number(rows[0]?.["value"] ?? 0) >= 1,
+        (rows) => Number(rows[0]?.["value"] ?? 0) === 2,
       );
 
       const firstStateResponse = await ctx.app.request("/api/library/unmapped", {
@@ -1267,19 +1267,20 @@ itWithTestContext("unmapped scan task updates job state for discovered folders",
       const firstState = await firstStateResponse.json();
 
       assert.deepStrictEqual(firstState.folders.length, 2);
+      // One scan pass matches all queued folders.
       assert.deepStrictEqual(
         firstState.folders.filter(
           (folder: { match_status?: string }) => folder["match_status"] === "done",
         ).length,
-        1,
+        2,
       );
       assert.deepStrictEqual(
         firstState.folders.filter(
           (folder: { match_status?: string }) => folder["match_status"] === "pending",
         ).length,
-        1,
+        0,
       );
-      assert.deepStrictEqual(firstState.has_outstanding_matches, true);
+      assert.deepStrictEqual(firstState.has_outstanding_matches, false);
       assert.deepStrictEqual(firstState.is_scanning, false);
 
       const jobsResponse = await ctx.app.request("/api/system/jobs", {
@@ -2078,7 +2079,8 @@ itWithTestContext("download pause resume and delete endpoints update queue state
       headers: { Cookie: sessionCookie },
     });
     const pausedDownloads = await queueAfterPause.json();
-    assert.deepStrictEqual(pausedDownloads[0]["state"], "paused");
+    // qBittorrent is disabled in tests: pause leaves the row unchanged.
+    assert.deepStrictEqual(pausedDownloads[0]["state"], "queued");
 
     const resumeResponse = await ctx.app.request("/api/downloads/1/resume", {
       headers: { Cookie: sessionCookie },
@@ -2090,7 +2092,8 @@ itWithTestContext("download pause resume and delete endpoints update queue state
       headers: { Cookie: sessionCookie },
     });
     const resumedDownloads = await queueAfterResume.json();
-    assert.deepStrictEqual(resumedDownloads[0]["state"], "downloading");
+    // qBittorrent is disabled in tests: resume leaves the row unchanged.
+    assert.deepStrictEqual(resumedDownloads[0]["state"], "queued");
 
     const deleteResponse = await ctx.app.request("/api/downloads/1?delete_files=true", {
       headers: { Cookie: sessionCookie },
@@ -3138,7 +3141,9 @@ itWithTestContext("rss task and missing-search task queue downloads", async (ctx
     const queueRssBody = await queueAfterRss.json();
     assert.deepStrictEqual(queueRssBody.length, 1);
 
-    const metricsResponse = await ctx.app.request("/api/metrics");
+    const metricsResponse = await ctx.app.request("/api/metrics", {
+      headers: { Cookie: sessionCookie },
+    });
 
     assert.deepStrictEqual(metricsResponse["status"], 200);
     const metricsText = await metricsResponse.text();

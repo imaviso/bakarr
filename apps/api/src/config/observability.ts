@@ -49,7 +49,7 @@ export function makeDefaultObservabilityConfig(appVersion: string) {
     grafanaUrl: null,
     lokiUrl: null,
     metricsExportIntervalMs: 60_000,
-    metricsRequireAuth: false,
+    metricsRequireAuth: true,
     otlpEndpoint: null,
     otlpHeaders: Redacted.make(""),
     resourceAttributes: "",

@@ -8,62 +8,9 @@ import {
   MediaProbe,
   MediaProbeLive,
   mergeProbedMediaMetadata,
-  parseFfprobeJson,
   shouldProbeMediaMetadata,
 } from "@/infra/media/probe.ts";
 import { commandArgs, makeCommandExecutorStub } from "@/test/stubs.ts";
-
-it.effect("parseFfprobeJson extracts canonical media metadata", () =>
-  Effect.gen(function* () {
-    const result = yield* parseFfprobeJson(
-      JSON.stringify({
-        format: {
-          duration: "1440.4",
-        },
-        streams: [
-          {
-            codec_name: "hevc",
-            codec_type: "video",
-            height: 1080,
-            width: 1920,
-          },
-          {
-            channel_layout: "stereo",
-            channels: 2,
-            codec_name: "aac",
-            codec_type: "audio",
-          },
-        ],
-      }),
-    );
-
-    assert.deepStrictEqual(result._tag, "MediaProbeMetadataFound");
-    if (result._tag === "MediaProbeMetadataFound") {
-      assert.deepStrictEqual(result.metadata, {
-        audio_channels: "2.0",
-        audio_codec: "AAC",
-        duration_seconds: 1440,
-        resolution: "1080p",
-        video_codec: "HEVC",
-      });
-    }
-  }),
-);
-
-it.effect("parseFfprobeJson returns typed failure for invalid output", () =>
-  Effect.gen(function* () {
-    const exit = yield* Effect.exit(parseFfprobeJson('{"streams":"bad"}'));
-
-    assert.deepStrictEqual(Exit.isFailure(exit), true);
-    if (Exit.isFailure(exit)) {
-      const failure = Cause.failureOption(exit.cause);
-      assert.deepStrictEqual(failure._tag, "Some");
-      if (failure._tag === "Some") {
-        assert.deepStrictEqual(failure.value._tag, "MediaProbeFailure");
-      }
-    }
-  }),
-);
 
 it("mergeProbedMediaMetadata fills only missing fields", () => {
   assert.deepStrictEqual(
@@ -176,7 +123,7 @@ it.effect("MediaProbe enforces global ffprobe concurrency limit", () =>
   }),
 );
 
-it.effect("MediaProbe fails startup when ffprobe version check fails", () =>
+it.effect("MediaProbe probe fails per call when ffprobe is unavailable", () =>
   Effect.gen(function* () {
     const commandExecutorStub = makeCommandExecutorStub((command) =>
       commandArgs(command).includes("-version")
@@ -206,7 +153,7 @@ it.effect("MediaProbe fails startup when ffprobe version check fails", () =>
 
     assert.deepStrictEqual(Exit.isFailure(exit), true);
     if (Exit.isFailure(exit)) {
-      assert.deepStrictEqual(Cause.pretty(exit.cause).includes("ffprobe not installed"), true);
+      assert.deepStrictEqual(Cause.pretty(exit.cause).includes("ffprobe unavailable"), true);
     }
   }),
 );

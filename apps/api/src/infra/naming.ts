@@ -18,7 +18,7 @@
  * - {season}             - Season number (zero-padded to 2 digits)
  * - {season:02}          - Season number (zero-padded to 2 digits)
  * - {year}               - Release year (e.g. "2012")
- * - {group}              - Release group name
+ * - {group}              - Release group name (sanitized for filesystem)
  * - {resolution}         - Video resolution (e.g. "1080p")
  * - {quality}            - Quality source (e.g. "HDTV", "WEB-DL", "BluRay")
  * - {video_codec}        - Video codec (e.g. "x265", "H.264")
@@ -118,7 +118,7 @@ export function renderUnitFilename(format: string, input: NamingInput): string {
 
   result = result.replace(TOKEN_PATTERNS.year, input.year ? String(input.year) : "");
 
-  result = result.replace(TOKEN_PATTERNS.group, input.group ?? "");
+  result = result.replace(TOKEN_PATTERNS.group, input.group ? sanitizeFilename(input.group) : "");
 
   result = result.replace(TOKEN_PATTERNS.resolution, input.resolution ?? "");
 

@@ -1,5 +1,5 @@
 import { resolve4, resolve6 } from "node:dns/promises";
-import { Effect, Layer, Schema } from "effect";
+import { Effect, Schema } from "effect";
 
 export class DnsLookupError extends Schema.TaggedError<DnsLookupError>()("DnsLookupError", {
   cause: Schema.Defect,
@@ -29,13 +29,6 @@ export class DnsResolver extends Effect.Service<DnsResolver>()("@bakarr/api/DnsR
 }) {}
 
 export const DnsResolverLive = DnsResolver.Default;
-
-export const DnsResolverNoop = Layer.succeed(
-  DnsResolver,
-  DnsResolver.make({
-    resolve: () => Effect.succeed([]),
-  }),
-);
 
 /** Classify a DNS lookup failure as a "no record" condition vs real error. */
 export function isDnsNoRecordError(cause: unknown): boolean {

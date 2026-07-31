@@ -47,7 +47,7 @@ const makeMediaStreamService = Effect.fn("MediaStreamService.make")(function* ()
           new StreamAccessError({
             cause,
             message: "Failed to sign stream URL",
-            status: 400,
+            status: 500,
           }),
       ),
     );

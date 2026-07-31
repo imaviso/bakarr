@@ -1,14 +1,15 @@
 export function escapeCsv(value: string) {
-  const escaped = value.replaceAll('"', '""');
-  if (
-    escaped.startsWith("=") ||
-    escaped.startsWith("+") ||
-    escaped.startsWith("-") ||
-    escaped.startsWith("@")
-  ) {
-    return `"'${escaped}"`;
+  const guarded = /^[=+\-@]/.test(value) ? `'${value}` : value;
+  if (/[",\n]/.test(guarded)) {
+    return `"${guarded.replaceAll('"', '""')}"`;
   }
-  return `"${escaped}"`;
+  return guarded;
+}
+
+export function inlineContentDisposition(fileName: string) {
+  const asciiOnly = fileName.replace(/[^\x20-\x7E]/g, "_");
+  const sanitized = asciiOnly.replace(/[\r\n]/g, "_").replace(/["\\]/g, "_");
+  return `inline; filename="${sanitized}"; filename*=UTF-8''${encodeURIComponent(fileName)}`;
 }
 
 const contentTypeByExtension = new Map<string, string>([

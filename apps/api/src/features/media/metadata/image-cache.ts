@@ -12,6 +12,7 @@ export interface CachedMediaImages {
 }
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+const IMAGE_DOWNLOAD_TIMEOUT = "30 seconds";
 
 export class ImageCacheError extends Schema.TaggedError<ImageCacheError>()("ImageCacheError", {
   cause: Schema.Defect,
@@ -93,7 +94,7 @@ const cacheMediaImage = Effect.fn("MediaImageCache.cacheMediaImage")(function* (
   return `/api/images/media/${mediaId}/${filename}`;
 });
 
-const CACHED_IMAGE_EXTENSIONS = ["jpg", "png", "webp", "gif", "svg"] as const;
+const CACHED_IMAGE_EXTENSIONS = ["jpg", "png", "webp", "gif"] as const;
 
 const findCachedImagePath = Effect.fn("MediaService.findCachedImagePath")(function* (
   fs: FileSystemShape,
@@ -119,58 +120,63 @@ const findCachedImagePath = Effect.fn("MediaService.findCachedImagePath")(functi
   return undefined;
 });
 
-const downloadImage = Effect.fn("MediaService.downloadImage")(function* (
-  client: HttpClient.HttpClient,
-  url: string,
-) {
-  const response = yield* client
-    .get(url)
-    .pipe(
-      Effect.mapError(
-        (cause) => new ImageCacheError({ cause, message: "Failed to download image" }),
+const downloadImage = Effect.fn("MediaService.downloadImage")(
+  (client: HttpClient.HttpClient, url: string) =>
+    Effect.gen(function* () {
+      const response = yield* client
+        .get(url)
+        .pipe(
+          Effect.mapError(
+            (cause) => new ImageCacheError({ cause, message: "Failed to download image" }),
+          ),
+        );
+
+      if (response.status < 200 || response.status >= 300) {
+        return yield* new ImageCacheError({
+          cause: response,
+          message: `Image download failed with status ${response.status}`,
+        });
+      }
+
+      const contentLength = response.headers["content-length"];
+      if (contentLength) {
+        const length = Number.parseInt(contentLength, 10);
+        if (!Number.isNaN(length) && length > MAX_IMAGE_BYTES) {
+          return yield* new ImageTooLargeError({
+            contentLength: length,
+            maxBytes: MAX_IMAGE_BYTES,
+          });
+        }
+      }
+
+      const bytes = yield* collectBoundedBytes(response.stream, MAX_IMAGE_BYTES).pipe(
+        Effect.mapError(
+          (cause) =>
+            new ImageTooLargeError({
+              cause,
+              contentLength: undefined,
+              maxBytes: MAX_IMAGE_BYTES,
+            }),
+        ),
+      );
+
+      const extension = inferImageExtension(url, response.headers["content-type"] ?? null);
+
+      if (!extension) {
+        return yield* new ImageCacheError({
+          cause: response,
+          message: "Unsupported image type",
+        });
+      }
+
+      return { bytes, extension };
+    }).pipe(
+      Effect.timeout(IMAGE_DOWNLOAD_TIMEOUT),
+      Effect.catchTag("TimeoutException", (cause) =>
+        Effect.fail(new ImageCacheError({ cause, message: "Image download timed out" })),
       ),
-    );
-
-  if (response.status < 200 || response.status >= 300) {
-    return yield* new ImageCacheError({
-      cause: response,
-      message: `Image download failed with status ${response.status}`,
-    });
-  }
-
-  const contentLength = response.headers["content-length"];
-  if (contentLength) {
-    const length = Number.parseInt(contentLength, 10);
-    if (!Number.isNaN(length) && length > MAX_IMAGE_BYTES) {
-      return yield* new ImageTooLargeError({
-        contentLength: length,
-        maxBytes: MAX_IMAGE_BYTES,
-      });
-    }
-  }
-
-  const bytes = yield* collectBoundedBytes(response.stream, MAX_IMAGE_BYTES).pipe(
-    Effect.mapError(
-      (cause) =>
-        new ImageTooLargeError({
-          cause,
-          contentLength: undefined,
-          maxBytes: MAX_IMAGE_BYTES,
-        }),
     ),
-  );
-
-  const extension = inferImageExtension(url, response.headers["content-type"] ?? null);
-
-  if (!extension) {
-    return yield* new ImageCacheError({
-      cause: response,
-      message: "Unsupported image type",
-    });
-  }
-
-  return { bytes, extension };
-});
+);
 
 function inferImageExtension(url: string, contentType: string | null): string | undefined {
   const [mediaType] = contentType?.split(";") ?? [];
@@ -185,8 +191,6 @@ function inferImageExtension(url: string, contentType: string | null): string | 
       return "webp";
     case "image/gif":
       return "gif";
-    case "image/svg+xml":
-      return "svg";
   }
 
   return Option.getOrElse(
@@ -197,7 +201,6 @@ function inferImageExtension(url: string, contentType: string | null): string | 
       if (pathname.endsWith(".png")) return "png";
       if (pathname.endsWith(".webp")) return "webp";
       if (pathname.endsWith(".gif")) return "gif";
-      if (pathname.endsWith(".svg")) return "svg";
 
       return undefined;
     })(),

@@ -258,6 +258,74 @@ it.effect("QBitTorrentClient sends qBittorrent add options", () =>
   }),
 );
 
+it.effect("QBitTorrentClient fails add when qBittorrent answers 'Fails.' with HTTP 200", () =>
+  Effect.gen(function* () {
+    const exit = yield* Effect.exit(
+      Effect.flatMap(QBitTorrentClient, (client) =>
+        client.addTorrentUrl(
+          {
+            baseUrl: "https://qbit.example",
+            password: Redacted.make("secret"),
+            username: "demo",
+          },
+          "magnet:?xt=urn:btih:abc123",
+        ),
+      ).pipe(
+        Effect.provide(
+          QBitTorrentClientLive.pipe(
+            Layer.provide(
+              Layer.mergeAll(
+                ExternalCallWithLiveClock,
+                Layer.succeed(
+                  HttpClient.HttpClient,
+                  HttpClient.make((request, url) => {
+                    if (url.pathname === "/api/v2/auth/login") {
+                      return Effect.succeed(
+                        HttpClientResponse.fromWeb(
+                          request,
+                          new Response("Ok.", {
+                            headers: { "set-cookie": "SID=abc123; HttpOnly" },
+                            status: 200,
+                          }),
+                        ),
+                      );
+                    }
+
+                    if (url.pathname === "/api/v2/torrents/add") {
+                      return Effect.succeed(
+                        HttpClientResponse.fromWeb(
+                          request,
+                          new Response("Fails.", { status: 200 }),
+                        ),
+                      );
+                    }
+
+                    return Effect.succeed(
+                      HttpClientResponse.fromWeb(
+                        request,
+                        new Response("not found", { status: 404 }),
+                      ),
+                    );
+                  }),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    assert.deepStrictEqual(Exit.isFailure(exit), true);
+    if (Exit.isFailure(exit)) {
+      const failure = Cause.failureOption(exit.cause);
+      assert.deepStrictEqual(failure._tag, "Some");
+      if (failure._tag === "Some") {
+        assert.deepStrictEqual(failure.value._tag, "QBitTorrentClientError");
+      }
+    }
+  }),
+);
+
 it.effect(
   "QBitTorrentClient does not re-authenticate cached sessions for unrelated transport failures",
   () =>

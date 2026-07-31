@@ -1,7 +1,6 @@
 import { assert, it } from "@effect/vitest";
-import { Cause, Effect, Exit, Schema } from "effect";
+import { Cause, Effect, Exit } from "effect";
 import { brandMediaId } from "@packages/shared/index.ts";
-import { ConfigCoreSchema } from "@/features/system/config-schema.ts";
 
 import * as schema from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
@@ -16,13 +15,6 @@ import {
 } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { StoredUnmappedFolderCorruptError } from "@/features/system/errors.ts";
-import { encodeConfigCore } from "@/features/system/config-codec.ts";
-import { makeDefaultConfig } from "@/features/system/defaults.ts";
-import {
-  insertSystemConfigRow,
-  loadSystemConfigRow,
-  upsertSystemConfigRow,
-} from "@/features/system/repository/system-config-repository.ts";
 import {
   countMediaRows,
   countDownloadedEpisodeRows,
@@ -44,40 +36,6 @@ import {
   loadUnmappedFolderMatchRow,
   upsertUnmappedFolderMatchRows,
 } from "@/features/system/repository/unmapped-repository.ts";
-
-it.scoped("system repository config helpers insert and upsert config rows", () =>
-  withSqliteTestDbEffect({
-    run: (db, databaseFile) =>
-      Effect.gen(function* () {
-        yield* insertSystemConfigRow(db, {
-          id: 1,
-          data: yield* encodeConfigCore(makeDefaultConfig(databaseFile)),
-          updatedAt: "2024-01-01T00:00:00.000Z",
-        });
-
-        const initial = yield* loadSystemConfigRow(db);
-        assert.deepStrictEqual(initial?.id, 1);
-
-        const updatedEncoded = yield* Schema.encode(ConfigCoreSchema)(
-          makeDefaultConfig(databaseFile),
-        );
-        const updatedData = yield* encodeConfigCore({
-          ...updatedEncoded,
-          library: { ...updatedEncoded.library, anime_path: "/new-library/anime" },
-        });
-        yield* upsertSystemConfigRow(db, {
-          id: 1,
-          data: updatedData,
-          updatedAt: "2024-01-02T00:00:00.000Z",
-        });
-
-        const updated = yield* loadSystemConfigRow(db);
-        assert.deepStrictEqual(updated?.updatedAt, "2024-01-02T00:00:00.000Z");
-        assert.deepStrictEqual(updated?.data.includes("/new-library/anime"), true);
-      }),
-    schema,
-  }),
-);
 
 it.scoped("system repository query helpers filter logs and count system state", () =>
   withSqliteTestDbEffect({

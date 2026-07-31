@@ -117,9 +117,11 @@ export function encodeLogExportCsvStream(
 }
 
 function escapeCsv(value: string): string {
-  if (/[",\n]/.test(value)) {
-    return `"${value.replace(/"/g, '""')}"`;
+  const safeValue = /^[=+\-@]/.test(value) ? `'${value}` : value;
+
+  if (/[",\n]/.test(safeValue)) {
+    return `"${safeValue.replace(/"/g, '""')}"`;
   }
 
-  return value;
+  return safeValue;
 }

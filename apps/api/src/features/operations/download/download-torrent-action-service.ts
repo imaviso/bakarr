@@ -60,9 +60,21 @@ export class DownloadTorrentActionService extends Effect.Service<DownloadTorrent
 
         if (row.infoHash) {
           if (action === "pause") {
-            yield* torrentClientService.pauseTorrentIfEnabled(row.infoHash).pipe(Effect.asVoid);
+            const pauseResult = yield* torrentClientService.pauseTorrentIfEnabled(row.infoHash);
+            if (pauseResult._tag === "Disabled") {
+              yield* Effect.logDebug("Skipped pause because qBittorrent is disabled").pipe(
+                Effect.annotateLogs({ downloadId: id }),
+              );
+              return undefined;
+            }
           } else if (action === "resume") {
-            yield* torrentClientService.resumeTorrentIfEnabled(row.infoHash).pipe(Effect.asVoid);
+            const resumeResult = yield* torrentClientService.resumeTorrentIfEnabled(row.infoHash);
+            if (resumeResult._tag === "Disabled") {
+              yield* Effect.logDebug("Skipped resume because qBittorrent is disabled").pipe(
+                Effect.annotateLogs({ downloadId: id }),
+              );
+              return undefined;
+            }
           } else {
             yield* torrentClientService
               .deleteTorrentIfEnabled(row.infoHash, deleteFiles)
@@ -92,7 +104,7 @@ export class DownloadTorrentActionService extends Effect.Service<DownloadTorrent
           );
           yield* actionRepo.deleteDownloadRow(id);
         } else {
-          const nextStatus = action === "pause" ? "paused" : "downloading";
+          const nextStatus = action === "pause" ? "paused" : row.status;
           yield* actionRepo.updateDownloadStatusRow({
             id,
             externalState: action,

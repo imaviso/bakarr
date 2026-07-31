@@ -431,7 +431,7 @@ it.effect("BackgroundWorkerController reload spawns new workers and stops old", 
   }),
 );
 
-it.effect("BackgroundWorkerController reload swaps workers after the new scope starts", () =>
+it.effect("BackgroundWorkerController reload stops old workers before spawning new scope", () =>
   Effect.gen(function* () {
     const events: string[] = [];
     let handleId = 0;
@@ -449,11 +449,11 @@ it.effect("BackgroundWorkerController reload swaps workers after the new scope s
     yield* controller.start(baseConfig);
     yield* controller.reload(baseConfig);
 
-    assert.deepStrictEqual(events, ["spawn-1", "spawn-2", "stop-1"]);
+    assert.deepStrictEqual(events, ["spawn-1", "stop-1", "spawn-2"]);
   }),
 );
 
-it.effect("BackgroundWorkerController keeps existing workers when reload spawn fails", () =>
+it.effect("BackgroundWorkerController stops workers when reload spawn fails", () =>
   Effect.gen(function* () {
     const stoppedHandles: number[] = [];
     let spawnCallCount = 0;
@@ -475,9 +475,9 @@ it.effect("BackgroundWorkerController keeps existing workers when reload spawn f
     const exitResult = yield* Effect.exit(controller.reload(baseConfig));
     assert.deepStrictEqual(exitResult._tag, "Failure");
 
-    assert.deepStrictEqual(stoppedHandles.length, 0);
+    assert.deepStrictEqual(stoppedHandles.length, 1);
     const started = yield* controller.isStarted();
-    assert.deepStrictEqual(started, true);
+    assert.deepStrictEqual(started, false);
   }),
 );
 

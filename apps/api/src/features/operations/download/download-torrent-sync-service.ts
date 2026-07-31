@@ -62,6 +62,7 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
       const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
       const eventBus = yield* EventBus;
       const progress = yield* OperationsProgress;
+      const syncSemaphore = yield* Effect.makeSemaphore(1);
 
       const refineBatchCoverageFromTorrentFiles = Effect.fn(
         "TorrentSync.refineBatchCoverageFromTorrentFiles",
@@ -314,7 +315,7 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
           );
           yield* progress.publishDownloadProgressNow();
           yield* eventBus.publishInfo("Download sync finished");
-        }).pipe(Effect.mapError(mapSyncError));
+        }).pipe(syncSemaphore.withPermits(1), Effect.mapError(mapSyncError));
       });
 
       return {

@@ -66,12 +66,14 @@ export const makeBackgroundWorkerController = Effect.fn(
   const reload = Effect.fn("BackgroundWorkerController.reload")(function* (config: Config) {
     yield* lifecycleSemaphore.withPermits(1)(
       Effect.gen(function* () {
-        const scope = yield* spawnWorkerScope(config);
-        const current = yield* Ref.getAndSet(scopeRef, scope);
+        const current = yield* Ref.getAndSet(scopeRef, null);
 
         if (current !== null) {
           yield* Scope.close(current, Exit.succeed(void 0));
         }
+
+        const scope = yield* spawnWorkerScope(config);
+        yield* Ref.set(scopeRef, scope);
       }),
     );
   });

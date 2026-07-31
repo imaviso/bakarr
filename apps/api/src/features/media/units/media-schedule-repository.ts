@@ -35,10 +35,6 @@ export function buildMissingEpisodeRows(input: {
     const existing = existingByNumber.get(number);
 
     if (existing) {
-      if (input.resetMissingOnly && existing.downloaded) {
-        return [];
-      }
-
       return [];
     }
 

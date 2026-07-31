@@ -4,6 +4,19 @@ import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { isWithinPathRoot } from "@/infra/filesystem/filesystem.ts";
 import { DomainPathError } from "@/features/errors.ts";
 
+const VIDEO_UNIT_FILE_EXTENSIONS = [".mkv", ".mp4", ".avi", ".mov", ".webm"] as const;
+const VOLUME_UNIT_FILE_EXTENSIONS = [".cbz", ".cbr", ".pdf", ".epub"] as const;
+
+/**
+ * Canonical media file extensions — the same set the rescan collectors
+ * (`collectVideoFiles` / `collectVolumeFiles`) discover. Unit file mapping
+ * must reject anything else, otherwise the next rescan silently un-maps it.
+ */
+export const UNIT_FILE_EXTENSIONS: ReadonlySet<string> = new Set([
+  ...VIDEO_UNIT_FILE_EXTENSIONS,
+  ...VOLUME_UNIT_FILE_EXTENSIONS,
+]);
+
 export const loadMediaRoot = Effect.fn("MediaFilePathPolicy.loadMediaRoot")(function* (
   fs: FileSystemShape,
   rootFolder: string,
@@ -42,6 +55,23 @@ export const validateUnitFilePath = Effect.fn("MediaFilePathPolicy.validateUnitF
       });
     }
 
+    if (!hasUnitFileExtension(resolvedPath)) {
+      return yield* new DomainPathError({
+        message: "File type is not a supported media file",
+      });
+    }
+
     return resolvedPath;
   },
 );
+
+function hasUnitFileExtension(filePath: string) {
+  const lowerFilePath = filePath.toLowerCase();
+  for (const extension of UNIT_FILE_EXTENSIONS) {
+    if (lowerFilePath.endsWith(extension)) {
+      return true;
+    }
+  }
+
+  return false;
+}

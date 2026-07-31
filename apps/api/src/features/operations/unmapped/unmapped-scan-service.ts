@@ -236,64 +236,72 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
         folders.map((folder) => folder.path),
       );
 
-      const nextTarget = queuedFolders.find(isUnmappedFolderQueuedForMatch);
+      const targets = queuedFolders.filter(isUnmappedFolderQueuedForMatch);
 
-      if (!nextTarget) {
+      if (targets.length === 0) {
         yield* backgroundJobRepository.markSucceeded(
           "unmapped_scan",
           `Processed ${queuedFolders.length} unmapped folder(s)`,
           nowIso,
         );
 
-        return { folderCount: queuedFolders.length };
+        return { folderCount: queuedFolders.length, hasQueuedTargets: false };
       }
 
-      yield* backgroundJobRepository.updateProgress(
-        "unmapped_scan",
-        countCompletedUnmappedMatches(queuedFolders) + 1,
-        queuedFolders.length,
-        nowIso,
-        `Matching ${nextTarget.name}`,
-      );
+      let completedCount = countCompletedUnmappedMatches(queuedFolders);
 
-      const matchingFolder = markUnmappedFolderMatching(nextTarget);
-      yield* systemUnmappedRepository.upsertMatchRows([matchingFolder], yield* nowIso());
-
-      const matchResult = yield* matchAndPersistUnmappedFolder(matchingFolder, snapshot.animeRows);
-
-      if (matchResult._tag === "Failed") {
-        const failedFolder = matchResult.folder;
-        yield* backgroundJobRepository.markFailed(
+      for (const target of targets) {
+        completedCount += 1;
+        yield* backgroundJobRepository.updateProgress(
           "unmapped_scan",
-          failedFolder.last_match_error ?? `Failed to match ${nextTarget.name}`,
+          completedCount,
+          queuedFolders.length,
           nowIso,
+          `Matching ${target.name}`,
         );
 
+        const matchingFolder = markUnmappedFolderMatching(target);
+        yield* systemUnmappedRepository.upsertMatchRows([matchingFolder], yield* nowIso());
+
+        const matchResult = yield* matchAndPersistUnmappedFolder(
+          matchingFolder,
+          snapshot.animeRows,
+        );
+
+        if (matchResult._tag === "Failed") {
+          const failedFolder = matchResult.folder;
+          yield* backgroundJobRepository.markFailed(
+            "unmapped_scan",
+            failedFolder.last_match_error ?? `Failed to match ${target.name}`,
+            nowIso,
+          );
+
+          yield* systemLogRepository.appendLog(
+            "library.unmapped.scan",
+            "warn",
+            `Failed to match unmapped folder ${target.name}: ${
+              failedFolder.last_match_error ?? "Unknown error"
+            }`,
+            nowIso,
+          );
+
+          return { folderCount: queuedFolders.length, hasQueuedTargets: true };
+        }
+
+        yield* backgroundJobRepository.markSucceeded(
+          "unmapped_scan",
+          `Processed ${target.name} (${queuedFolders.length} unmapped folder(s) total)`,
+          nowIso,
+        );
         yield* systemLogRepository.appendLog(
           "library.unmapped.scan",
-          "warn",
-          `Failed to match unmapped folder ${nextTarget.name}: ${
-            failedFolder.last_match_error ?? "Unknown error"
-          }`,
+          "info",
+          `Matched unmapped folder ${target.name}`,
           nowIso,
         );
-
-        return { folderCount: queuedFolders.length };
       }
 
-      yield* backgroundJobRepository.markSucceeded(
-        "unmapped_scan",
-        `Processed ${nextTarget.name} (${queuedFolders.length} unmapped folder(s) total)`,
-        nowIso,
-      );
-      yield* systemLogRepository.appendLog(
-        "library.unmapped.scan",
-        "info",
-        `Matched unmapped folder ${nextTarget.name}`,
-        nowIso,
-      );
-
-      return { folderCount: queuedFolders.length };
+      return { folderCount: queuedFolders.length, hasQueuedTargets: true };
     },
     Effect.catchTag("DatabaseError", failAfterMarkingJobFailure),
     Effect.catchTag("DomainPathError", failAfterMarkingJobFailure),
@@ -303,11 +311,9 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
 
   const unmappedScanLoop = Effect.fn("UnmappedScanService.unmappedScanLoop")(function* () {
     while (true) {
-      yield* runUnmappedScanPass();
+      const { hasQueuedTargets } = yield* runUnmappedScanPass();
 
-      const { queuedFolders: remainingQueuedFolders } = yield* loadQueuedUnmappedFolders();
-
-      if (!remainingQueuedFolders.some(isUnmappedFolderQueuedForMatch)) {
+      if (!hasQueuedTargets) {
         return;
       }
 

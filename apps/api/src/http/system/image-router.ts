@@ -19,7 +19,7 @@ export const systemImageRouter = HttpRouter.empty.pipe(
         Effect.succeed(
           HttpServerResponse.uint8Array(Uint8Array.from(bytes), {
             contentType: contentType(filePath),
-            headers: { "Cache-Control": "public, max-age=31536000, immutable" },
+            headers: { "Cache-Control": "private, max-age=31536000, immutable" },
           }),
         ),
     ),

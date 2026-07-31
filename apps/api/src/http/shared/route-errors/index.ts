@@ -3,6 +3,7 @@ import { Match, Schema } from "effect";
 import type { RouteErrorResponse } from "@/http/shared/route-types.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { WorkerTimeoutError } from "@/background/workers.ts";
+import { StreamPayloadTooLargeError } from "@/domain/bounded-stream.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
 import { PasswordError } from "@/security/password.ts";
 import { TokenHasherError } from "@/security/token-hasher.ts";
@@ -39,6 +40,7 @@ const CommonRouteErrorSchema = Schema.Union(
   PasswordError,
   RequestValidationError,
   StoredDataError,
+  StreamPayloadTooLargeError,
   TokenHasherError,
   WorkerTimeoutError,
 );
@@ -92,6 +94,10 @@ const taggedCommonRouteErrorMappers = {
   StoredDataError: (error: StoredDataError): RouteErrorResponse => ({
     message: error.message,
     status: 500,
+  }),
+  StreamPayloadTooLargeError: (error: StreamPayloadTooLargeError): RouteErrorResponse => ({
+    message: `Request body exceeds the ${error.maxBytes} byte limit`,
+    status: 413,
   }),
   TokenHasherError: authCryptoFailure,
   WorkerTimeoutError: internalServerError,

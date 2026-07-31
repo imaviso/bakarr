@@ -1,4 +1,4 @@
-import { Effect, Option } from "effect";
+import { Effect, Exit, Option } from "effect";
 import { brandMediaId } from "@packages/shared/index.ts";
 
 import type { DatabaseError } from "@/db/database.ts";
@@ -58,33 +58,44 @@ const makeMediaMaintenanceService = Effect.fn("MediaMaintenanceService.make")(fu
       payload: { media_id: brandMediaId(mediaId), title: startAnimeRow.titleRomaji },
     });
 
-    const { animeRow, metadata, nextAnimeRow } = yield* syncMediaMetadataEffect({
-      imageCacheService,
-      metadataProvider,
-      mediaId,
-      eventPublisher: Option.some(eventBus),
-      mediaRepository,
-      systemLogRepository,
-      nowIso,
-    });
+    yield* Effect.gen(function* () {
+      const { animeRow, metadata, nextAnimeRow } = yield* syncMediaMetadataEffect({
+        imageCacheService,
+        metadataProvider,
+        mediaId,
+        eventPublisher: Option.some(eventBus),
+        mediaRepository,
+        systemLogRepository,
+        nowIso,
+      });
 
-    yield* mediaUnitRepository.syncUnitSchedule(
-      mediaId,
-      nextAnimeRow,
-      metadata?.futureAiringSchedule,
-      nowIso,
+      yield* mediaUnitRepository.syncUnitSchedule(
+        mediaId,
+        nextAnimeRow,
+        metadata?.futureAiringSchedule,
+        nowIso,
+      );
+      yield* mediaUnitRepository.syncUnitMetadata(mediaId, metadata?.mediaUnits);
+      yield* systemLogRepository.appendLog(
+        "media.mediaUnits.refreshed",
+        "success",
+        `Refreshed mediaUnits for ${animeRow.titleRomaji}`,
+        nowIso,
+      );
+      yield* eventBus.publish({
+        type: "RefreshFinished",
+        payload: { media_id: brandMediaId(mediaId), title: animeRow.titleRomaji },
+      });
+    }).pipe(
+      Effect.onExit((exit) =>
+        Exit.isSuccess(exit)
+          ? Effect.void
+          : eventBus.publish({
+              type: "RefreshFinished",
+              payload: { media_id: brandMediaId(mediaId), title: startAnimeRow.titleRomaji },
+            }),
+      ),
     );
-    yield* mediaUnitRepository.syncUnitMetadata(mediaId, metadata?.mediaUnits);
-    yield* systemLogRepository.appendLog(
-      "media.mediaUnits.refreshed",
-      "success",
-      `Refreshed mediaUnits for ${animeRow.titleRomaji}`,
-      nowIso,
-    );
-    yield* eventBus.publish({
-      type: "RefreshFinished",
-      payload: { media_id: brandMediaId(mediaId), title: animeRow.titleRomaji },
-    });
   });
 
   const refreshMetadataForMonitoredMedia = Effect.fn(

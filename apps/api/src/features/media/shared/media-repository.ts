@@ -283,6 +283,7 @@ const findMediaByExactRootFolderEffect = Effect.fn("MediaRepository.findMediaByE
 const findMediaRootFolderOwnerEffect = Effect.fn("MediaRepository.findMediaRootFolderOwner")(
   function* (db: AppDatabase, rootFolder: string) {
     const normalized = normalizeRootFolder(rootFolder);
+    const normalizedRootFolder = sql`CASE WHEN ${media.rootFolder} = '/' THEN '/' ELSE rtrim(${media.rootFolder}, '/') END`;
     const rows = yield* tryDatabasePromise("Failed to find media root folder owner", () =>
       db
         .select({
@@ -290,7 +291,14 @@ const findMediaRootFolderOwnerEffect = Effect.fn("MediaRepository.findMediaRootF
           rootFolder: media.rootFolder,
           titleRomaji: media.titleRomaji,
         })
-        .from(media),
+        .from(media)
+        .where(
+          or(
+            sql`${normalizedRootFolder} = ${normalized}`,
+            sql`instr(${normalized}, ${normalizedRootFolder} || '/') = 1`,
+            sql`instr(${normalizedRootFolder}, ${normalized} || '/') = 1`,
+          ),
+        ),
     );
 
     return (

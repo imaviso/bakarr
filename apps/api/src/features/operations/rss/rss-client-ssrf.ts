@@ -125,6 +125,51 @@ export const validateUrlForSsrf = Effect.fn("RssClient.validateUrlForSsrf")(func
   return { _tag: "Accepted" as const };
 });
 
+/**
+ * Creation-time feed URL guard: format, scheme, port, and static hostname checks only.
+ * DNS resolution stays at fetch time — it is unsuitable when persisting a feed.
+ */
+export const validateFeedUrlStatic = Effect.fn("RssClient.validateFeedUrlStatic")(function* (
+  urlString: string,
+) {
+  const parsedUrl = yield* parseUrlEffect(
+    urlString,
+    (cause) =>
+      new RssFeedRejectedError({
+        cause,
+        message: "RSS feed URL is invalid",
+      }),
+  );
+
+  if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+    return yield* new RssFeedRejectedError({
+      message: `RSS feed URL uses a disallowed protocol: ${parsedUrl.protocol}`,
+    });
+  }
+
+  if (!isAllowedPort(parsedUrl.port)) {
+    return yield* new RssFeedRejectedError({
+      message: `Port ${parsedUrl.port} not allowed`,
+    });
+  }
+
+  const hostname = normalizeHostname(parsedUrl.hostname);
+
+  if (isBlockedHostname(hostname)) {
+    return yield* new RssFeedRejectedError({
+      message: `Hostname ${hostname} is blocked`,
+    });
+  }
+
+  if (isIpLiteral(hostname)) {
+    return yield* new RssFeedRejectedError({
+      message: `IP-literal feed URLs are not allowed: ${hostname}`,
+    });
+  }
+
+  return undefined;
+});
+
 const resolveFeedAddresses = Effect.fn("RssClient.resolveFeedAddresses")(function* (
   hostname: string,
   dns: typeof DnsResolver.Service,

@@ -1,6 +1,7 @@
 import { FileSystem as PlatformFileSystem, Path as PlatformPath } from "@effect/platform";
 import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem";
 import * as NodePath from "@effect/platform-node/NodePath";
+import { lstat as nodeLstat } from "node:fs/promises";
 import { Effect, Layer, Option, Schema, Scope, Stream } from "effect";
 
 export {
@@ -34,9 +35,6 @@ export interface DirEntry {
 export interface OpenFileOptions {
   readonly read?: boolean;
   readonly write?: boolean;
-  readonly append?: boolean;
-  readonly create?: boolean;
-  readonly truncate?: boolean;
 }
 
 export interface MkdirOptions {
@@ -49,7 +47,6 @@ export interface RemoveOptions {
 }
 
 export interface FileHandle {
-  readonly close: () => void;
   readonly read: (buffer: Uint8Array) => Effect.Effect<Option.Option<number>, FileSystemError>;
   readonly seek: (offset: number, mode: number) => Effect.Effect<void, FileSystemError>;
 }
@@ -81,6 +78,25 @@ export interface FileSystemShape {
 }
 
 const DIRECTORY_STAT_CONCURRENCY = 16;
+
+// Type directory entries with lstat: platform stat follows symlinks, so
+// SymbolicLink would never surface and symlinked dirs would be walked as
+// plain directories without a cycle guard.
+function lstatDirEntry(path: string, name: string): Effect.Effect<DirEntry, FileSystemError> {
+  return Effect.tryPromise({
+    try: async () => {
+      const stats = await nodeLstat(path);
+      return {
+        isDirectory: stats.isDirectory(),
+        isFile: stats.isFile(),
+        isSymlink: stats.isSymbolicLink(),
+        name,
+        size: stats.size,
+      } satisfies DirEntry;
+    },
+    catch: (cause) => new FileSystemError({ cause, message: "Failed to read directory", path }),
+  });
+}
 
 const FILE_TYPE_FLAGS = {
   Directory: { isDirectory: true, isFile: false, isSymlink: false },
@@ -114,20 +130,12 @@ function wrap<A, R>(
 
 function toOpenFlag(options: OpenFileOptions): PlatformFileSystem.OpenFlag {
   const read = options.read ?? true;
-  const write = options.write ?? false;
-  const append = options.append ?? false;
-  const create = options.create ?? false;
-  const truncate = options.truncate ?? false;
 
-  if (append) {
-    return read ? "a+" : "a";
-  }
-
-  if (!write) {
+  if (!options.write) {
     return "r";
   }
 
-  return truncate || create ? (read ? "w+" : "w") : read ? "r+" : "w";
+  return read ? "w+" : "w";
 }
 
 function toMkdirOptions(
@@ -157,16 +165,6 @@ function toFileInfo(info: PlatformFileSystem.File.Info): FileInfo {
   };
 }
 
-function toDirEntry(name: string, info: PlatformFileSystem.File.Info): DirEntry {
-  const typeFlags = toFileTypeFlags(info.type);
-
-  return {
-    ...typeFlags,
-    name,
-    size: Number(info.size),
-  };
-}
-
 function toFileTypeFlags(type: string) {
   switch (type) {
     case "Directory":
@@ -182,9 +180,6 @@ function toFileTypeFlags(type: string) {
 
 function toOpenFileHandle(file: PlatformFileSystem.File, path: string | URL): FileHandle {
   return {
-    close: () => {
-      // Closed by scope.
-    },
     read: (buffer: Uint8Array) =>
       wrap(path, "Failed to read file", file.read(buffer)).pipe(
         Effect.map((size) => {
@@ -229,10 +224,7 @@ function makeFileSystem(
             Effect.flatMap((names) =>
               Effect.forEach(
                 names,
-                (name) =>
-                  Effect.scoped(platformFs.stat(pathService.join(resolvedPath, name))).pipe(
-                    Effect.map((info) => toDirEntry(name, info)),
-                  ),
+                (name) => lstatDirEntry(pathService.join(resolvedPath, name), name),
                 { concurrency: DIRECTORY_STAT_CONCURRENCY },
               ),
             ),
@@ -251,13 +243,7 @@ function makeFileSystem(
       ).pipe(
         Stream.flatMap(({ names, resolvedPath }) =>
           Stream.fromIterable(names).pipe(
-            Stream.mapEffect((name) =>
-              wrap(
-                pathService.join(resolvedPath, name),
-                "Failed to read directory",
-                Effect.scoped(platformFs.stat(pathService.join(resolvedPath, name))),
-              ).pipe(Effect.map((info) => toDirEntry(name, info))),
-            ),
+            Stream.mapEffect((name) => lstatDirEntry(pathService.join(resolvedPath, name), name)),
           ),
         ),
       ),
@@ -298,10 +284,6 @@ function makeFileSystem(
 
 export const FileSystemLive = FileSystem.Default.pipe(
   Layer.provide(Layer.mergeAll(NodeFileSystem.layer, NodePath.layer)),
-);
-
-export const FileSystemNoop = FileSystem.Default.pipe(
-  Layer.provide(Layer.mergeAll(PlatformFileSystem.layerNoop({}), NodePath.layer)),
 );
 
 export function makeFileSystemNoopLayer(overrides: Partial<PlatformFileSystem.FileSystem>) {

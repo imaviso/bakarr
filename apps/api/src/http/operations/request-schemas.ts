@@ -31,7 +31,12 @@ const SearchFilterStringSchema = Schema.Literal(...SEARCH_RELEASE_FILTER_OPTIONS
 const DownloadCursorStringSchema = Schema.String.pipe(Schema.minLength(1));
 const DownloadEventTypeStringSchema = Schema.String.pipe(Schema.minLength(1));
 const DownloadEventStatusStringSchema = Schema.String.pipe(Schema.minLength(1));
-const MagnetLinkStringSchema = Schema.String.pipe(Schema.minLength(1));
+const MagnetLinkStringSchema = Schema.String.pipe(
+  Schema.minLength(1),
+  Schema.pattern(/^magnet:\?/i, {
+    message: () => "Expected a magnet link starting with magnet:?",
+  }),
+);
 const ReleaseTitleStringSchema = Schema.String.pipe(Schema.minLength(1));
 
 const BrowsePathStringSchema = Schema.Union(
@@ -247,5 +252,5 @@ export class SearchReleasesQuerySchema extends Schema.Class<SearchReleasesQueryS
 export class WantedMissingQuerySchema extends Schema.Class<WantedMissingQuerySchema>(
   "WantedMissingQuerySchema",
 )({
-  limit: Schema.optional(PositiveIntFromStringSchema),
+  limit: Schema.optional(PositiveIntFromStringSchema.pipe(Schema.lessThanOrEqualTo(500))),
 }) {}

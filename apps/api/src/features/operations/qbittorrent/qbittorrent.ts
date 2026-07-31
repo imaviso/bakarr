@@ -86,6 +86,21 @@ export class QBitTorrentClient extends Effect.Service<QBitTorrentClient>()(
         );
 
         yield* ensureOk(response, `qBittorrent add failed with status ${response.status}`);
+
+        const text = yield* response.text.pipe(
+          Effect.mapError((cause) =>
+            QBitTorrentClientError.make({
+              cause,
+              message: "Failed to read qBittorrent add response",
+            }),
+          ),
+        );
+
+        if (text.trim() !== "Ok.") {
+          yield* QBitTorrentClientError.make({
+            message: "qBittorrent rejected the torrent add request",
+          });
+        }
       });
 
       const listTorrents = Effect.fn("QBitTorrentClient.listTorrents")(function* (

@@ -33,6 +33,8 @@ const ZIP_MAX_COMMENT_LENGTH = 0xffff;
 const ZIP_STORED_METHOD = 0;
 const ZIP_DEFLATE_METHOD = 8;
 const ZIP_ENCRYPTED_FLAG = 1;
+// Zip-bomb ceiling: refuse to decompress a single archive page beyond 64 MiB.
+const MAX_PAGE_BYTES = 64 * 1024 * 1024;
 
 const textDecoder = new TextDecoder("utf-8");
 const naturalPathCollator = new Intl.Collator(undefined, {
@@ -133,8 +135,16 @@ export const readZipEntryBytes = Effect.fn("MediaReader.readZipEntryBytes")(func
     });
   }
 
+  if (entry.uncompressedSize > MAX_PAGE_BYTES) {
+    return yield* new ReaderAccessError({
+      message: "Archive page exceeds the maximum supported size",
+      status: 400,
+    });
+  }
+
   return yield* Effect.try({
-    try: () => Uint8Array.from(inflateRawSync(Buffer.from(compressed))),
+    try: () =>
+      Uint8Array.from(inflateRawSync(Buffer.from(compressed), { maxOutputLength: MAX_PAGE_BYTES })),
     catch: (cause) =>
       new ReaderAccessError({
         cause,
@@ -301,7 +311,7 @@ function readZipEntryTextSync(archive: ZipArchive, path: string): string | undef
     const bytes =
       entry.compressionMethod === ZIP_STORED_METHOD
         ? compressed
-        : inflateRawSync(Buffer.from(compressed));
+        : inflateRawSync(Buffer.from(compressed), { maxOutputLength: MAX_PAGE_BYTES });
 
     return textDecoder.decode(bytes);
   } catch {

@@ -82,6 +82,8 @@ type ReaderPageSource =
 const ARCHIVE_EXTENSIONS = new Set([".cbz", ".zip"]);
 const EPUB_EXTENSIONS = new Set([".epub"]);
 const PDF_EXTENSIONS = new Set([".pdf"]);
+// Archives are read fully into memory, so refuse anything beyond 2 GiB.
+const MAX_ARCHIVE_BYTES = 2 * 1024 * 1024 * 1024;
 const ARCHIVE_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const ARCHIVE_CACHE_SWEEP_INTERVAL_MS = 30_000; // 30 seconds
 const naturalPathCollator = new Intl.Collator(undefined, {
@@ -90,31 +92,31 @@ const naturalPathCollator = new Intl.Collator(undefined, {
 });
 
 /**
- * In-memory archive cache with fixed TTL. Entries expire 10 minutes after
+ * In-memory cache with fixed TTL. Entries expire 10 minutes after
  * insertion — no touch-on-access, so large archives won't live forever
  * even under active reading. A background daemon fiber sweeps expired
  * entries every 30 seconds.
  */
-class ArchiveCache {
-  readonly #entries = new Map<string, { archive: ZipArchive; expiresAt: number }>();
+class TtlCache<V> {
+  readonly #entries = new Map<string, { value: V; expiresAt: number }>();
   readonly #ttlMs: number;
 
   constructor(ttlMs: number) {
     this.#ttlMs = ttlMs;
   }
 
-  get(key: string): ZipArchive | undefined {
+  get(key: string): V | undefined {
     const entry = this.#entries.get(key);
     if (!entry) return undefined;
     if (Date.now() > entry.expiresAt) {
       this.#entries.delete(key);
       return undefined;
     }
-    return entry.archive;
+    return entry.value;
   }
 
-  set(key: string, archive: ZipArchive): void {
-    this.#entries.set(key, { archive, expiresAt: Date.now() + this.#ttlMs });
+  set(key: string, value: V): void {
+    this.#entries.set(key, { value, expiresAt: Date.now() + this.#ttlMs });
   }
 
   sweep(): void {
@@ -133,7 +135,8 @@ const makeMediaReaderService = Effect.fn("MediaReaderService.make")(function* ()
   const executor = yield* CommandExecutor.CommandExecutor;
   const config = yield* AppConfig;
   const cacheRoot = join(dirname(resolve(config.databaseFile)), "reader-cache");
-  const archiveCache = new ArchiveCache(ARCHIVE_CACHE_TTL_MS);
+  const archiveCache = new TtlCache<ZipArchive>(ARCHIVE_CACHE_TTL_MS);
+  const pageSourcesCache = new TtlCache<readonly ReaderPageSource[]>(ARCHIVE_CACHE_TTL_MS);
   const getPdfRenderSemaphore = yield* Effect.cachedFunction((_cacheDirectory: string) =>
     Effect.makeSemaphore(1),
   );
@@ -141,11 +144,16 @@ const makeMediaReaderService = Effect.fn("MediaReaderService.make")(function* ()
     Effect.makeSemaphore(1),
   );
 
-  // Background fiber that sweeps expired archive cache entries
+  // Background fiber that sweeps expired cache entries
   yield* Effect.forkDaemon(
     Effect.forever(
       Effect.sleep(ARCHIVE_CACHE_SWEEP_INTERVAL_MS).pipe(
-        Effect.tap(() => Effect.sync(() => archiveCache.sweep())),
+        Effect.tap(() =>
+          Effect.sync(() => {
+            archiveCache.sweep();
+            pageSourcesCache.sweep();
+          }),
+        ),
       ),
     ),
   );
@@ -166,6 +174,7 @@ const makeMediaReaderService = Effect.fn("MediaReaderService.make")(function* ()
       cacheRoot,
       executor,
       fs,
+      pageSourcesCache,
       unitFile,
     });
 
@@ -191,6 +200,7 @@ const makeMediaReaderService = Effect.fn("MediaReaderService.make")(function* ()
       cacheRoot,
       executor,
       fs,
+      pageSourcesCache,
       unitFile,
     });
     const source = sources[pageNumber - 1];
@@ -276,85 +286,114 @@ const resolveReaderUnitFile = Effect.fn("MediaReader.resolveReaderUnitFile")(fun
 });
 
 const listReadablePageSources = Effect.fn("MediaReader.listReadablePageSources")(function* (input: {
-  readonly archiveCache: ArchiveCache;
+  readonly archiveCache: TtlCache<ZipArchive>;
   readonly getArchiveLoadSemaphore: (cacheKey: string) => Effect.Effect<Effect.Semaphore>;
   readonly cacheRoot: string;
   readonly executor: CommandExecutor.CommandExecutor;
   readonly fs: FileSystemShape;
+  readonly pageSourcesCache: TtlCache<readonly ReaderPageSource[]>;
   readonly unitFile: ReaderUnitFile;
 }) {
-  if (input.unitFile.isDirectory) {
-    return yield* listDirectoryImagePages(input.fs, input.unitFile.filePath);
+  const cacheKey = `${input.unitFile.filePath}:${input.unitFile.fileSize}`;
+  const cached = input.pageSourcesCache.get(cacheKey);
+  if (cached) {
+    return cached;
   }
 
-  if (!input.unitFile.isFile) {
-    return yield* new ReaderAccessError({
-      message: "MediaUnit path is not a readable file or directory",
-      status: 415,
-    });
-  }
-
-  const mediaType = imageMediaType(input.unitFile.fileName);
-  if (mediaType) {
-    return [
-      {
-        _tag: "ImageFilePage",
-        fileName: input.unitFile.fileName,
-        filePath: input.unitFile.filePath,
-        mediaType,
-      } satisfies ReaderPageSource,
-    ];
-  }
-
-  if (hasExtension(input.unitFile.fileName, ARCHIVE_EXTENSIONS)) {
-    return yield* listArchivePages({
-      archiveCache: input.archiveCache,
-      getArchiveLoadSemaphore: input.getArchiveLoadSemaphore,
-      format: "zip",
-      fs: input.fs,
-      unitFile: input.unitFile,
-    });
-  }
-
-  if (hasExtension(input.unitFile.fileName, EPUB_EXTENSIONS)) {
-    return yield* listArchivePages({
-      archiveCache: input.archiveCache,
-      getArchiveLoadSemaphore: input.getArchiveLoadSemaphore,
-      format: "epub",
-      fs: input.fs,
-      unitFile: input.unitFile,
-    });
-  }
-
-  if (hasExtension(input.unitFile.fileName, PDF_EXTENSIONS)) {
-    const pageCount = yield* getPdfPageCount(input.executor, input.unitFile.filePath);
-    return Array.from({ length: pageCount }, (_, index) => ({
-      _tag: "PdfPage" as const,
-      cacheDirectory: pdfCacheDirectory({
-        cacheRoot: input.cacheRoot,
-        filePath: input.unitFile.filePath,
-        fileSize: input.unitFile.fileSize,
-      }),
-      fileName: `page-${index + 1}.jpg`,
-      filePath: input.unitFile.filePath,
-      mediaType: "image/jpeg" as const,
-      pageNumber: index + 1,
-    }));
-  }
-
-  return yield* new ReaderAccessError({
-    message: "MediaUnit file type is not readable as pages",
-    status: 415,
-  });
+  const sources = yield* deriveReadablePageSources(input);
+  input.pageSourcesCache.set(cacheKey, sources);
+  return sources;
 });
 
+const deriveReadablePageSources = Effect.fn("MediaReader.deriveReadablePageSources")(
+  function* (input: {
+    readonly archiveCache: TtlCache<ZipArchive>;
+    readonly getArchiveLoadSemaphore: (cacheKey: string) => Effect.Effect<Effect.Semaphore>;
+    readonly cacheRoot: string;
+    readonly executor: CommandExecutor.CommandExecutor;
+    readonly fs: FileSystemShape;
+    readonly unitFile: ReaderUnitFile;
+  }) {
+    if (input.unitFile.isDirectory) {
+      return yield* listDirectoryImagePages(input.fs, input.unitFile.filePath);
+    }
+
+    if (!input.unitFile.isFile) {
+      return yield* new ReaderAccessError({
+        message: "MediaUnit path is not a readable file or directory",
+        status: 415,
+      });
+    }
+
+    const mediaType = imageMediaType(input.unitFile.fileName);
+    if (mediaType) {
+      return [
+        {
+          _tag: "ImageFilePage",
+          fileName: input.unitFile.fileName,
+          filePath: input.unitFile.filePath,
+          mediaType,
+        } satisfies ReaderPageSource,
+      ];
+    }
+
+    if (hasExtension(input.unitFile.fileName, ARCHIVE_EXTENSIONS)) {
+      return yield* listArchivePages({
+        archiveCache: input.archiveCache,
+        getArchiveLoadSemaphore: input.getArchiveLoadSemaphore,
+        format: "zip",
+        fs: input.fs,
+        unitFile: input.unitFile,
+      });
+    }
+
+    if (hasExtension(input.unitFile.fileName, EPUB_EXTENSIONS)) {
+      return yield* listArchivePages({
+        archiveCache: input.archiveCache,
+        getArchiveLoadSemaphore: input.getArchiveLoadSemaphore,
+        format: "epub",
+        fs: input.fs,
+        unitFile: input.unitFile,
+      });
+    }
+
+    if (hasExtension(input.unitFile.fileName, PDF_EXTENSIONS)) {
+      const pageCount = yield* getPdfPageCount(input.executor, input.unitFile.filePath);
+      return Array.from({ length: pageCount }, (_, index) => ({
+        _tag: "PdfPage" as const,
+        cacheDirectory: pdfCacheDirectory({
+          cacheRoot: input.cacheRoot,
+          filePath: input.unitFile.filePath,
+          fileSize: input.unitFile.fileSize,
+        }),
+        fileName: `page-${index + 1}.jpg`,
+        filePath: input.unitFile.filePath,
+        mediaType: "image/jpeg" as const,
+        pageNumber: index + 1,
+      }));
+    }
+
+    return yield* new ReaderAccessError({
+      message: "MediaUnit file type is not readable as pages",
+      status: 415,
+    });
+  },
+);
+
 const listArchivePages = Effect.fn("MediaReader.listArchivePages")(function* (input: {
-  readonly archiveCache: ArchiveCache;
+  readonly archiveCache: TtlCache<ZipArchive>;
   readonly getArchiveLoadSemaphore: (cacheKey: string) => Effect.Effect<Effect.Semaphore>;
   readonly format: "epub" | "zip";
   readonly fs: FileSystemShape;
   readonly unitFile: ReaderUnitFile;
 }) {
+  if (input.unitFile.fileSize > MAX_ARCHIVE_BYTES) {
+    return yield* new ReaderAccessError({
+      message: "Archive file exceeds the maximum supported size",
+      status: 400,
+    });
+  }
+
   const cacheKey = `${input.unitFile.filePath}:${input.unitFile.fileSize}`;
   const archive = yield* Effect.sync(() => input.archiveCache.get(cacheKey)).pipe(
     Effect.flatMap((cached) =>

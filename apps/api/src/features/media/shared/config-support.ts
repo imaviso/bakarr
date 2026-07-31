@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { absurd, Effect } from "effect";
 
 import { decodeConfigCore, decodeImagePath } from "@/features/system/config-codec.ts";
 import { makeDefaultConfig } from "@/features/system/defaults.ts";
@@ -95,7 +95,7 @@ export function getLibraryPathForMediaKind(
     light_novel_path: string;
   },
   mediaKind: MediaKind,
-) {
+): string {
   switch (mediaKind) {
     case "anime":
       return library.anime_path.trim() || "./library/anime";
@@ -103,9 +103,9 @@ export function getLibraryPathForMediaKind(
       return library.manga_path.trim() || "./library/manga";
     case "light_novel":
       return library.light_novel_path.trim() || "./library/light-novels";
+    default:
+      return absurd(mediaKind);
   }
-
-  return library.anime_path.trim() || "./library/anime";
 }
 
 export function getConfiguredLibraryPaths(library: {

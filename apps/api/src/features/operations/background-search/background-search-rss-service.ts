@@ -1,4 +1,4 @@
-import { Effect, Ref } from "effect";
+import { Effect, Either, Ref } from "effect";
 
 import { DatabaseError } from "@/db/database.ts";
 import { BackgroundSearchRssFeedService } from "@/features/operations/background-search/background-search-rss-feed-service.ts";
@@ -43,10 +43,36 @@ export class SearchBackgroundRssService extends Effect.Service<SearchBackgroundR
             return yield* rssFeedService.processFeed(feed, runtimeConfig);
           });
 
-          const feedNewItemCounts = yield* Effect.forEach(feeds, processRssFeed, {
-            concurrency: 4,
-          });
-          const newItems = feedNewItemCounts.reduce((total, count) => total + count, 0);
+          const feedResults = yield* Effect.forEach(
+            feeds,
+            (feed) =>
+              processRssFeed(feed).pipe(
+                Effect.tapError((error) =>
+                  Effect.logWarning("RSS feed check failed; continuing with remaining feeds").pipe(
+                    Effect.annotateLogs({
+                      error: String(error),
+                      feedId: feed.id,
+                      feedName: feed.name ?? feed.url,
+                    }),
+                  ),
+                ),
+                Effect.either,
+              ),
+            { concurrency: 4 },
+          );
+
+          const failedCount = feedResults.filter(Either.isLeft).length;
+          if (feeds.length > 0 && failedCount === feeds.length) {
+            return yield* new InfrastructureError({
+              message: "All RSS feeds failed to process",
+              cause: feedResults.find(Either.isLeft)?.left,
+            });
+          }
+
+          const newItems = feedResults.reduce(
+            (total, result) => (Either.isRight(result) ? total + result.right : total),
+            0,
+          );
 
           return { newItems, totalFeeds: feeds.length } as const;
         }).pipe(

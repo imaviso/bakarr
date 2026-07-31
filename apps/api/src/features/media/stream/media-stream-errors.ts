@@ -11,6 +11,6 @@ export class StreamAccessError extends Schema.TaggedError<StreamAccessError>()(
   {
     cause: Schema.optional(Schema.Defect),
     message: Schema.String,
-    status: Schema.Literal(400, 403, 404),
+    status: Schema.Literal(400, 403, 404, 500),
   },
 ) {}

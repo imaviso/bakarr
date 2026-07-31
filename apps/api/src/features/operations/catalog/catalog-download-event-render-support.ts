@@ -4,6 +4,7 @@ import type { DownloadEvent } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import type { StoredDataError } from "@/features/errors.ts";
 import type { DownloadEventExportHeader } from "@/features/operations/repository/download-repository.ts";
+import { escapeCsv } from "@/http/shared/route-fs.ts";
 
 export interface DownloadEventExportStreamShape {
   readonly header: DownloadEventExportHeader;
@@ -67,12 +68,4 @@ export function renderDownloadEventsExportCsv(
   );
 
   return Stream.concat(Stream.fromIterable([csvHeader]), rows);
-}
-
-function escapeCsv(value: string): string {
-  if (/[",\n]/.test(value)) {
-    return `"${value.replace(/"/g, '""')}"`;
-  }
-
-  return value;
 }

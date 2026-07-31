@@ -17,8 +17,9 @@ export const scanMediaLibraryRow = Effect.fn("CatalogScanRow.scanMediaLibraryRow
 ) {
   return yield* scanVideoFilesStream(fs, animeRow.rootFolder).pipe(
     Stream.mapError(
-      () =>
+      (cause) =>
         new DomainPathError({
+          cause,
           message: `Media library folder is inaccessible: ${animeRow.rootFolder}`,
         }),
     ),

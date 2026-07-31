@@ -3,8 +3,6 @@ import { Either } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 
-import { BACKGROUND_JOB_NAMES } from "@/background/worker-model.ts";
-
 export function normalizeLevel(level: string): "info" | "warn" | "error" | "success" {
   if (level === "warn" || level === "error" || level === "success") {
     return level;
@@ -45,10 +43,6 @@ export function toBackgroundJobStatus(
     schedule_mode: schedule.mode,
     schedule_value: schedule.value,
   };
-}
-
-export function backgroundJobNames(rows: ReadonlyArray<{ name: string }>): string[] {
-  return [...new Set([...BACKGROUND_JOB_NAMES, ...rows.map((row) => row.name)])].toSorted();
 }
 
 function describeJobSchedule(config: Config, name: string) {

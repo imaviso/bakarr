@@ -534,7 +534,10 @@ const ensureUnits = Effect.fn("MediaUnitRepository.ensureUnits")(function* <E>(
   }
 
   yield* tryDatabasePromise("Failed to ensure mediaUnits", () =>
-    db.insert(mediaUnits).values(missingRows),
+    db
+      .insert(mediaUnits)
+      .values(missingRows)
+      .onConflictDoNothing({ target: [mediaUnits.mediaId, mediaUnits.number] }),
   );
 });
 
@@ -562,6 +565,8 @@ const updateUnitAirDates = Effect.fn("MediaUnitRepository.updateUnitAirDates")(f
   );
   const now = yield* nowIso();
 
+  const updates: { readonly id: number; readonly aired: string | null }[] = [];
+
   for (const row of existingRows) {
     if (
       (!unitCount || unitCount <= 0) &&
@@ -584,10 +589,23 @@ const updateUnitAirDates = Effect.fn("MediaUnitRepository.updateUnitAirDates")(f
       continue;
     }
 
-    yield* tryDatabasePromise("Failed to update media episode air dates", () =>
-      db.update(mediaUnits).set({ aired: inferred }).where(eq(mediaUnits.id, row.id)),
-    );
+    updates.push({ id: row.id, aired: inferred });
   }
+
+  if (updates.length === 0) {
+    return;
+  }
+
+  yield* tryDatabasePromise("Failed to update media episode air dates", () =>
+    db.transaction(async (tx) => {
+      for (const update of updates) {
+        await tx
+          .update(mediaUnits)
+          .set({ aired: update.aired })
+          .where(eq(mediaUnits.id, update.id));
+      }
+    }),
+  );
 });
 
 const syncUnitMetadata = Effect.fn("MediaUnitRepository.syncUnitMetadata")(function* (

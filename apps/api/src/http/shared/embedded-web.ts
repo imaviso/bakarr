@@ -16,7 +16,10 @@ export function createEmbeddedWebResponse(input: {
   }
 
   const normalized = input.pathname === "/" ? "index.html" : input.pathname.slice(1);
-  const requestedAsset = normalized.length === 0 ? undefined : input.assets[normalized];
+  const requestedAsset =
+    normalized.length > 0 && Object.hasOwn(input.assets, normalized)
+      ? input.assets[normalized]
+      : undefined;
 
   if (requestedAsset) {
     return createAssetResponse({

@@ -11,7 +11,9 @@ import {
 } from "@/infra/media/probe.ts";
 import { DomainPathError } from "@/features/errors.ts";
 import type { MediaNotFoundError } from "@/features/media/errors.ts";
+import { getConfiguredLibraryPaths } from "@/features/media/shared/config-support.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
+import { isWithinPathRoot } from "@/infra/filesystem/filesystem.ts";
 import { buildUnitFilenamePlan } from "@/features/operations/library/naming-canonical-support.ts";
 import type { UnitFilenamePlan } from "@/features/operations/library/naming-types.ts";
 import {
@@ -62,6 +64,24 @@ export const buildLibraryImportPlan = Effect.fn("Operations.buildLibraryImportPl
       ),
     );
 
+    const allowedPrefixes = [
+      ...new Set(
+        [
+          ...getConfiguredLibraryPaths(runtimeConfig.library),
+          runtimeConfig.library.recycle_path,
+          runtimeConfig.downloads.root_path,
+        ]
+          .map((path) => path.trim())
+          .filter((path) => path.length > 0),
+      ),
+    ];
+
+    if (!allowedPrefixes.some((prefix) => isWithinPathRoot(resolvedSource, prefix))) {
+      return yield* new DomainPathError({
+        message: "Import source path must be inside library, recycle, or downloads root",
+      });
+    }
+
     const animeRow = yield* mediaRepository.getMediaRow(file.media_id);
     const importMode = runtimeConfig.library.import_mode;
     const namingSettings = {
@@ -76,8 +96,9 @@ export const buildLibraryImportPlan = Effect.fn("Operations.buildLibraryImportPl
     const episodeRows = unitRows
       .filter((row) => episodeNumbersForQuery.has(row.number))
       .map((row) => ({ aired: row.aired, title: row.title }));
-    const extension = file.source_path.includes(".")
-      ? file.source_path.slice(file.source_path.lastIndexOf("."))
+    const sourceBaseName = file.source_path.split(/[\\/]/).pop() ?? file.source_path;
+    const extension = sourceBaseName.includes(".")
+      ? sourceBaseName.slice(sourceBaseName.lastIndexOf("."))
       : ".mkv";
     const initialNamingPlan = buildUnitFilenamePlan({
       animeRow,
@@ -110,6 +131,12 @@ export const buildLibraryImportPlan = Effect.fn("Operations.buildLibraryImportPl
         })
       : initialNamingPlan;
     const destination = `${animeRow.rootFolder.replace(/\/$/, "")}/${namingPlan.baseName}${extension}`;
+
+    if (!isWithinPathRoot(destination, animeRow.rootFolder)) {
+      return yield* new DomainPathError({
+        message: `Resolved destination escapes the media root folder: ${destination}`,
+      });
+    }
 
     return {
       allEpisodeNumbers,

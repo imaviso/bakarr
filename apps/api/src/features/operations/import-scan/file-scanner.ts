@@ -1,6 +1,7 @@
 import { Chunk, Effect, Option, Stream } from "effect";
 import {
   FileSystemError,
+  isWithinPathRoot,
   type DirEntry,
   type FileSystemShape,
 } from "@/infra/filesystem/filesystem.ts";
@@ -26,91 +27,98 @@ export function scanVideoFilesStream(
   fs: FileSystemShape,
   path: string,
 ): Stream.Stream<ScannedVideoFile, FileSystemError> {
-  return Stream.unfoldChunkEffect({ stack: [path], visited: new Set<string>() }, (state) =>
-    Effect.gen(function* () {
-      const current = state.stack.pop();
+  return Stream.unfoldChunkEffect(
+    { stack: [path], visited: new Set<string>(), root: path },
+    (state) =>
+      Effect.gen(function* () {
+        const current = state.stack.pop();
 
-      if (current === undefined) {
-        return Option.none();
-      }
-
-      const readDirectoryEffect: Effect.Effect<DirEntry[], FileSystemError> = fs.readDirStream
-        ? Stream.runCollect(fs.readDirStream(current)).pipe(
-            Effect.map((chunk) => Array.from(chunk)),
-          )
-        : fs.readDir(current);
-
-      const entries = yield* readDirectoryEffect;
-
-      const symlinkEntries: DirEntry[] = [];
-      const fileEntries: DirEntry[] = [];
-      const dirEntries: DirEntry[] = [];
-
-      for (const entry of entries) {
-        if (entry.isSymlink) {
-          symlinkEntries.push(entry);
-        } else if (entry.isDirectory) {
-          dirEntries.push(entry);
-        } else if (entry.isFile && isSupportedImportFile(entry.name)) {
-          fileEntries.push(entry);
+        if (current === undefined) {
+          return Option.none();
         }
-      }
 
-      for (const entry of dirEntries) {
-        state.stack.push(`${current.replace(/\/$/, "")}/${entry.name}`);
-      }
+        const readDirectoryEffect: Effect.Effect<DirEntry[], FileSystemError> = fs.readDirStream
+          ? Stream.runCollect(fs.readDirStream(current)).pipe(
+              Effect.map((chunk) => Array.from(chunk)),
+            )
+          : fs.readDir(current);
 
-      const processSymlink = (entry: DirEntry) =>
-        Effect.gen(function* () {
-          const fullPath = `${current.replace(/\/$/, "")}/${entry.name}`;
-          const realPath = yield* fs.realPath(fullPath);
+        const entries = yield* readDirectoryEffect;
 
-          if (state.visited.has(realPath)) {
+        const symlinkEntries: DirEntry[] = [];
+        const fileEntries: DirEntry[] = [];
+        const dirEntries: DirEntry[] = [];
+
+        for (const entry of entries) {
+          if (entry.isSymlink) {
+            symlinkEntries.push(entry);
+          } else if (entry.isDirectory) {
+            dirEntries.push(entry);
+          } else if (entry.isFile && isSupportedImportFile(entry.name)) {
+            fileEntries.push(entry);
+          }
+        }
+
+        for (const entry of dirEntries) {
+          state.stack.push(`${current.replace(/\/$/, "")}/${entry.name}`);
+        }
+
+        const processSymlink = (entry: DirEntry) =>
+          Effect.gen(function* () {
+            const fullPath = `${current.replace(/\/$/, "")}/${entry.name}`;
+            const realPath = yield* fs.realPath(fullPath);
+
+            // Skip symlink targets that escape the scan root.
+            if (!isWithinPathRoot(realPath, state.root)) {
+              return Option.none<ScannedVideoFile>();
+            }
+
+            if (state.visited.has(realPath)) {
+              return Option.none<ScannedVideoFile>();
+            }
+
+            state.visited.add(realPath);
+
+            const realInfo = yield* fs.stat(realPath);
+
+            if (realInfo.isDirectory) {
+              state.stack.push(realPath);
+              return Option.none<ScannedVideoFile>();
+            }
+
+            if (realInfo.isFile && isSupportedImportFile(entry.name)) {
+              return Option.some({
+                name: entry.name,
+                path: fullPath,
+                size: realInfo.size,
+              } satisfies ScannedVideoFile);
+            }
+
             return Option.none<ScannedVideoFile>();
-          }
+          });
 
-          state.visited.add(realPath);
+        const processFile = (entry: DirEntry) =>
+          Effect.succeed({
+            name: entry.name,
+            path: `${current.replace(/\/$/, "")}/${entry.name}`,
+            size: entry.size,
+          } satisfies ScannedVideoFile);
 
-          const realInfo = yield* fs.stat(realPath);
-
-          if (realInfo.isDirectory) {
-            state.stack.push(realPath);
-            return Option.none<ScannedVideoFile>();
-          }
-
-          if (realInfo.isFile && isSupportedImportFile(entry.name)) {
-            return Option.some({
-              name: entry.name,
-              path: fullPath,
-              size: realInfo.size,
-            } satisfies ScannedVideoFile);
-          }
-
-          return Option.none<ScannedVideoFile>();
+        const symlinkResults = yield* Effect.forEach(symlinkEntries, processSymlink, {
+          concurrency: SCAN_STAT_CONCURRENCY,
         });
 
-      const processFile = (entry: DirEntry) =>
-        Effect.succeed({
-          name: entry.name,
-          path: `${current.replace(/\/$/, "")}/${entry.name}`,
-          size: entry.size,
-        } satisfies ScannedVideoFile);
+        const fileResults = yield* Effect.forEach(fileEntries, processFile, {
+          concurrency: SCAN_STAT_CONCURRENCY,
+        });
 
-      const symlinkResults = yield* Effect.forEach(symlinkEntries, processSymlink, {
-        concurrency: SCAN_STAT_CONCURRENCY,
-      });
+        const files: ScannedVideoFile[] = [
+          ...symlinkResults.flatMap((result) => (Option.isSome(result) ? [result.value] : [])),
+          ...fileResults,
+        ];
 
-      const fileResults = yield* Effect.forEach(fileEntries, processFile, {
-        concurrency: SCAN_STAT_CONCURRENCY,
-      });
-
-      const files: ScannedVideoFile[] = [
-        ...symlinkResults.flatMap((result) => (Option.isSome(result) ? [result.value] : [])),
-        ...fileResults,
-      ];
-
-      return Option.some([Chunk.fromIterable(files), state] as const);
-    }),
+        return Option.some([Chunk.fromIterable(files), state] as const);
+      }),
   ).pipe(Stream.withSpan("Operations.scanVideoFilesStream"));
 }
 

@@ -4,7 +4,9 @@ import type { RssFeed } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
+import { RssFeedRejectedError } from "@/features/operations/errors.ts";
 import { RssFeedRepository } from "@/features/operations/repository/rss-feed-repository.ts";
+import { validateFeedUrlStatic } from "@/features/operations/rss/rss-client-ssrf.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 
@@ -14,7 +16,7 @@ export interface CatalogRssServiceShape {
     media_id: number;
     url: string;
     name?: string;
-  }) => Effect.Effect<RssFeed, DatabaseError | MediaNotFoundError>;
+  }) => Effect.Effect<RssFeed, DatabaseError | MediaNotFoundError | RssFeedRejectedError>;
 }
 
 export class CatalogRssService extends Effect.Service<CatalogRssService>()(
@@ -31,6 +33,8 @@ export class CatalogRssService extends Effect.Service<CatalogRssService>()(
         url: string;
         name?: string;
       }) {
+        yield* validateFeedUrlStatic(rssInput.url);
+
         yield* mediaRepository.getMediaRow(rssInput.media_id);
         const now = yield* nowIso();
         const feed = yield* rssFeedRepository.insertFeed({

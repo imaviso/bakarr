@@ -2,7 +2,9 @@ import { Effect } from "effect";
 
 import type { DownloadSourceMetadata, PreferredTitle } from "@packages/shared/index.ts";
 import { media } from "@/db/schema.ts";
+import { DomainPathError } from "@/features/errors.ts";
 import { buildUnitFilenamePlan } from "@/features/operations/library/naming-canonical-support.ts";
+import { isWithinPathRoot } from "@/infra/filesystem/filesystem.ts";
 import type { ProbedMediaMetadata } from "@/infra/media/probe.ts";
 
 export interface DownloadFileImportPlan {
@@ -26,8 +28,9 @@ export const buildDownloadFileImportPlan = Effect.fn("Operations.buildDownloadFi
       readonly season?: number;
     };
   }) {
-    const extension = input.sourcePath.includes(".")
-      ? input.sourcePath.slice(input.sourcePath.lastIndexOf("."))
+    const sourceBaseName = input.sourcePath.split(/[\\/]/).pop() ?? input.sourcePath;
+    const extension = sourceBaseName.includes(".")
+      ? sourceBaseName.slice(sourceBaseName.lastIndexOf("."))
       : ".mkv";
     const namingFormat = input.options.namingFormat ?? "{title} - {episode_segment}";
     const namingPlan = buildUnitFilenamePlan({
@@ -48,6 +51,13 @@ export const buildDownloadFileImportPlan = Effect.fn("Operations.buildDownloadFi
       ...(input.options.season === undefined ? {} : { season: input.options.season }),
     });
     const destination = `${input.animeRow.rootFolder.replace(/\/$/, "")}/${namingPlan.baseName}${extension}`;
+
+    if (!isWithinPathRoot(destination, input.animeRow.rootFolder)) {
+      return yield* new DomainPathError({
+        message: `Resolved destination escapes the media root folder: ${destination}`,
+      });
+    }
+
     const tempSuffix = yield* input.randomUuid();
     const backupSuffix = yield* input.randomUuid();
 

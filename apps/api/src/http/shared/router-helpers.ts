@@ -1,6 +1,7 @@
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { Cause, Effect, Option, ParseResult, Schema } from "effect";
 
+import { collectBoundedText, StreamPayloadTooLargeError } from "@/domain/bounded-stream.ts";
 import { mapRouteError } from "@/http/shared/route-errors/index.ts";
 import { requireViewerFromHttpRequest } from "@/http/shared/route-auth.ts";
 import {
@@ -10,10 +11,10 @@ import {
 import type { RouteErrorResponse } from "@/http/shared/route-types.ts";
 import type { AuthUser } from "@packages/shared/index.ts";
 
+export const MAX_JSON_BODY_BYTES = 1_048_576;
+
 export const decodeJsonBodyWithLabel = <A, I, R>(schema: Schema.Schema<A, I, R>, label: string) =>
-  HttpServerRequest.schemaBodyJson(schema).pipe(
-    Effect.mapError((error) => mapLabeledBodyDecodeError(label, error)),
-  );
+  readBoundedRequestText.pipe(Effect.flatMap((text) => decodeJsonText(schema, label, text)));
 
 export const decodeOptionalJsonBodyWithLabel = <A, I, R>(
   schema: Schema.Schema<A, I, R>,
@@ -21,16 +22,45 @@ export const decodeOptionalJsonBodyWithLabel = <A, I, R>(
   emptyBodyValue: A,
 ) =>
   Effect.gen(function* () {
-    const request = yield* HttpServerRequest.HttpServerRequest;
-    const text = yield* request.text;
+    const text = yield* readBoundedRequestText;
 
     if (text.trim().length === 0) {
       return emptyBodyValue;
     }
 
-    return yield* Schema.decode(Schema.parseJson(schema))(text).pipe(
+    return yield* decodeJsonText(schema, label, text);
+  });
+
+const readBoundedRequestText = Effect.gen(function* () {
+  const request = yield* HttpServerRequest.HttpServerRequest;
+  const contentLength = request.headers["content-length"];
+
+  if (contentLength !== undefined && Number(contentLength) > MAX_JSON_BODY_BYTES) {
+    return yield* new StreamPayloadTooLargeError({
+      actualBytes: Number(contentLength),
+      maxBytes: MAX_JSON_BODY_BYTES,
+    });
+  }
+
+  return yield* collectBoundedText(request.stream, MAX_JSON_BODY_BYTES);
+});
+
+const decodeJsonText = <A, I, R>(schema: Schema.Schema<A, I, R>, label: string, text: string) =>
+  Effect.flatMap(parseJsonText(text, label), (json) =>
+    Schema.decodeUnknown(schema)(json).pipe(
       Effect.mapError((error) => mapLabeledBodyDecodeError(label, error)),
-    );
+    ),
+  );
+
+const parseJsonText = (text: string, label: string) =>
+  Effect.try({
+    try: () => JSON.parse(text) as unknown,
+    catch: (cause) =>
+      RequestValidationError.make({
+        cause,
+        message: `Invalid JSON for ${label}`,
+        status: 400,
+      }),
   });
 
 export const decodePathParams = <A, I extends Readonly<Record<string, string | undefined>>, R>(
@@ -155,19 +185,6 @@ function mapParseValidationError(error: unknown, message: string) {
 }
 
 function mapLabeledBodyDecodeError(label: string, error: unknown) {
-  if (
-    typeof error === "object" &&
-    error !== null &&
-    "_tag" in error &&
-    error._tag === "RequestError"
-  ) {
-    return RequestValidationError.make({
-      cause: error,
-      message: `Invalid JSON for ${label}`,
-      status: 400,
-    });
-  }
-
   if (ParseResult.isParseError(error)) {
     return RequestValidationError.make({
       cause: error,

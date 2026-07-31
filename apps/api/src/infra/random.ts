@@ -18,13 +18,9 @@ export class RandomService extends Effect.Service<RandomService>()("@bakarr/lib/
   }),
 }) {}
 
-export function hexFromBytes(data: Uint8Array): string {
-  return bytesToHex(data);
-}
-
 export const randomHexFrom = Effect.fn("Random.randomHexFrom")(
   (random: RandomServiceShape, bytes: number): Effect.Effect<string> =>
-    Effect.map(random.randomBytes(bytes), hexFromBytes),
+    Effect.map(random.randomBytes(bytes), bytesToHex),
 );
 
 /**
@@ -44,7 +40,7 @@ export const randomBytes = Effect.fn("Random.randomBytes")(
  */
 export function randomHexSync(bytes: number): string {
   const data = randomBytesSync(bytes);
-  return hexFromBytes(data);
+  return bytesToHex(data);
 }
 
 export function randomBytesSync(bytes: number): Uint8Array {

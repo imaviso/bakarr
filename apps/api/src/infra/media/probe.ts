@@ -296,11 +296,6 @@ export const probeMediaMetadataOrUndefined = Effect.fn("MediaProbe.probeMediaMet
   },
 );
 
-export const parseFfprobeJson = Effect.fn("MediaProbe.parseFfprobeJson")(
-  (json: string): Effect.Effect<MediaProbeResult, MediaProbeFailure> =>
-    decodeFfprobeOutput(json).pipe(Effect.flatMap(normalizeFfprobeDecodedOutput)),
-);
-
 function decodeFfprobeOutput(
   input: unknown,
 ): Effect.Effect<Schema.Schema.Type<typeof FFProbeOutputSchema>, MediaProbeFailure> {
@@ -390,10 +385,20 @@ export class MediaProbe extends Effect.Service<MediaProbe>()("@bakarr/api/MediaP
     ).pipe(Effect.either);
 
     if (Either.isLeft(availability)) {
-      yield* Effect.logWarning("ffprobe unavailable").pipe(
-        Effect.annotateLogs({ message: availability.left.message }),
+      const unavailable = availability.left;
+      yield* Effect.logWarning("ffprobe unavailable; media probing disabled").pipe(
+        Effect.annotateLogs({ message: unavailable.message }),
       );
-      return yield* Effect.die(availability.left.cause ?? new Error(availability.left.message));
+      return {
+        probeVideoFile: Effect.fn("MediaProbe.probeVideoFile")((_path: string) =>
+          Effect.fail(
+            new MediaProbeFailure({
+              cause: unavailable.cause,
+              message: `ffprobe unavailable: ${unavailable.message}`,
+            }),
+          ),
+        ),
+      } satisfies MediaProbeShape;
     }
 
     return makeMediaProbe(ffprobeSemaphore, executor);

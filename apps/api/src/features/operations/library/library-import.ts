@@ -75,7 +75,8 @@ export const buildRenamePreview = Effect.fn("LibraryImport.buildRenamePreview")(
       continue;
     }
 
-    const extension = filePath.includes(".") ? filePath.slice(filePath.lastIndexOf(".")) : ".mkv";
+    const fileName = filePath.split(/[\\/]/).at(-1) ?? filePath;
+    const extension = fileName.includes(".") ? fileName.slice(fileName.lastIndexOf(".")) : ".mkv";
     const plan = buildUnitFilenamePlan({
       animeRow,
       unitNumbers,

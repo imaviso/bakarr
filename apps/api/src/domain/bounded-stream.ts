@@ -8,22 +8,16 @@ export class StreamPayloadTooLargeError extends Schema.TaggedError<StreamPayload
 /**
  * Collect a binary stream into a single `Uint8Array`, failing with
  * `StreamPayloadTooLargeError` if the accumulated bytes exceed `maxBytes`.
+ * Upstream stream errors pass through unchanged.
  */
-export const collectBoundedBytes = Effect.fn("BoundedStream.collectBoundedBytes")((
-  stream: Stream.Stream<Uint8Array, unknown>,
+export const collectBoundedBytes = Effect.fn("BoundedStream.collectBoundedBytes")(<E>(
+  stream: Stream.Stream<Uint8Array, E>,
   maxBytes: number,
-): Effect.Effect<Uint8Array, StreamPayloadTooLargeError> => {
+): Effect.Effect<Uint8Array, StreamPayloadTooLargeError | E> => {
   const chunks: Uint8Array[] = [];
   let totalBytes = 0;
 
   return stream.pipe(
-    Stream.mapError(
-      () =>
-        new StreamPayloadTooLargeError({
-          actualBytes: totalBytes,
-          maxBytes,
-        }),
-    ),
     Stream.runForEach((chunk) => {
       totalBytes += chunk.byteLength;
       if (totalBytes > maxBytes) {
@@ -56,23 +50,17 @@ export const collectBoundedBytes = Effect.fn("BoundedStream.collectBoundedBytes"
 /**
  * Collect a binary stream into a decoded text string, failing with
  * `StreamPayloadTooLargeError` if the accumulated bytes exceed `maxBytes`.
+ * Upstream stream errors pass through unchanged.
  */
-export const collectBoundedText = Effect.fn("BoundedStream.collectBoundedText")((
-  stream: Stream.Stream<Uint8Array, unknown>,
+export const collectBoundedText = Effect.fn("BoundedStream.collectBoundedText")(<E>(
+  stream: Stream.Stream<Uint8Array, E>,
   maxBytes: number,
-): Effect.Effect<string, StreamPayloadTooLargeError> => {
+): Effect.Effect<string, StreamPayloadTooLargeError | E> => {
   const decoder = new TextDecoder();
   let totalBytes = 0;
   let text = "";
 
   return stream.pipe(
-    Stream.mapError(
-      () =>
-        new StreamPayloadTooLargeError({
-          actualBytes: totalBytes,
-          maxBytes,
-        }),
-    ),
     Stream.runForEach((chunk) => {
       totalBytes += chunk.byteLength;
       if (totalBytes > maxBytes) {

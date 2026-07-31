@@ -75,18 +75,19 @@ export function makeBackgroundWorkerPolicy(): BackgroundWorkerPolicy {
       return undefined;
     }
 
-    if (Cause.isDie(exit.cause)) {
-      return yield* Effect.failCause(exit.cause);
-    }
-
+    const isDefect = Cause.isDie(exit.cause);
     const backoffMs = yield* nextFailureBackoffMs(workerName);
 
-    yield* Effect.logWarning("background worker run failed; keeping daemon alive").pipe(
+    yield* (
+      isDefect
+        ? Effect.logError("background worker run defect; restarting worker loop")
+        : Effect.logWarning("background worker run failed; keeping daemon alive")
+    ).pipe(
       Effect.annotateLogs(
         compactLogAnnotations({
           backoffMs,
           component: "background",
-          event: "background.worker.run.failed",
+          event: isDefect ? "background.worker.run.defect" : "background.worker.run.failed",
           workerName,
           error: Cause.pretty(exit.cause),
         }),

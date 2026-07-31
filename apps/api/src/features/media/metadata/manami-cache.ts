@@ -432,91 +432,84 @@ const buildLookupSqliteCache = Effect.fn("ManamiCache.buildLookupSqliteCache")(
               ),
             );
 
-          yield* Effect.forEach(
-            dataset.data,
-            (entry) =>
-              Effect.gen(function* () {
-                const aniListId = firstParsedId(entry.sources, parseAniListIdFromSource);
-                const malId = firstParsedId(entry.sources, parseMalIdFromSource);
+          const anilistRows: (readonly [
+            number,
+            number | null,
+            string,
+            string | null,
+            string | null,
+          ])[] = [];
+          const malRows: (readonly [
+            number,
+            number | null,
+            string,
+            string | null,
+            string | null,
+          ])[] = [];
+          const searchRows: (readonly [
+            number,
+            number | null,
+            string,
+            string | null,
+            string | null,
+            string,
+          ])[] = [];
 
-                if (aniListId === undefined && malId === undefined) {
-                  return;
-                }
+          for (const entry of dataset.data) {
+            const aniListId = firstParsedId(entry.sources, parseAniListIdFromSource);
+            const malId = firstParsedId(entry.sources, parseMalIdFromSource);
 
-                const fallback = deriveTitleFallback(entry.title, entry.synonyms);
-                const synonyms = normalizeSynonyms(entry.synonyms).join("\n");
+            if (aniListId === undefined && malId === undefined) {
+              continue;
+            }
 
-                if (aniListId !== undefined) {
-                  yield* sqliteClient
-                    .unsafe(
-                      "INSERT INTO manami_anilist_lookup (anilist_id, mal_id, title, english_title, native_title) VALUES (?, ?, ?, ?, ?) ON CONFLICT(anilist_id) DO UPDATE SET mal_id = COALESCE(manami_anilist_lookup.mal_id, excluded.mal_id)",
-                      [
-                        aniListId,
-                        malId ?? null,
-                        entry.title,
-                        fallback.englishTitle ?? null,
-                        fallback.nativeTitle ?? null,
-                      ],
-                    )
-                    .withoutTransform.pipe(
-                      Effect.mapError((cause) =>
-                        ExternalCallError.make({
-                          cause,
-                          message: "Manami sqlite anilist row insert failed",
-                          operation: "manami.sqlite.cache.insert_anilist",
-                        }),
-                      ),
-                    );
-                }
+            const fallback = deriveTitleFallback(entry.title, entry.synonyms);
+            const englishTitle = fallback.englishTitle ?? null;
+            const nativeTitle = fallback.nativeTitle ?? null;
 
-                if (malId !== undefined) {
-                  yield* sqliteClient
-                    .unsafe(
-                      "INSERT INTO manami_mal_lookup (mal_id, anilist_id, title, english_title, native_title) VALUES (?, ?, ?, ?, ?) ON CONFLICT(mal_id) DO UPDATE SET anilist_id = COALESCE(manami_mal_lookup.anilist_id, excluded.anilist_id)",
-                      [
-                        malId,
-                        aniListId ?? null,
-                        entry.title,
-                        fallback.englishTitle ?? null,
-                        fallback.nativeTitle ?? null,
-                      ],
-                    )
-                    .withoutTransform.pipe(
-                      Effect.mapError((cause) =>
-                        ExternalCallError.make({
-                          cause,
-                          message: "Manami sqlite mal row insert failed",
-                          operation: "manami.sqlite.cache.insert_mal",
-                        }),
-                      ),
-                    );
-                }
+            if (aniListId !== undefined) {
+              anilistRows.push([aniListId, malId ?? null, entry.title, englishTitle, nativeTitle]);
+            }
 
-                if (aniListId !== undefined) {
-                  yield* sqliteClient
-                    .unsafe(
-                      "INSERT INTO manami_search (anilist_id, mal_id, title, english_title, native_title, synonyms) VALUES (?, ?, ?, ?, ?, ?)",
-                      [
-                        aniListId,
-                        malId ?? null,
-                        entry.title,
-                        fallback.englishTitle ?? null,
-                        fallback.nativeTitle ?? null,
-                        synonyms,
-                      ],
-                    )
-                    .withoutTransform.pipe(
-                      Effect.mapError((cause) =>
-                        ExternalCallError.make({
-                          cause,
-                          message: "Manami sqlite search row insert failed",
-                          operation: "manami.sqlite.cache.insert_search",
-                        }),
-                      ),
-                    );
-                }
-              }),
-            { discard: true },
+            if (malId !== undefined) {
+              malRows.push([malId, aniListId ?? null, entry.title, englishTitle, nativeTitle]);
+            }
+
+            if (aniListId !== undefined) {
+              searchRows.push([
+                aniListId,
+                malId ?? null,
+                entry.title,
+                englishTitle,
+                nativeTitle,
+                normalizeSynonyms(entry.synonyms).join("\n"),
+              ]);
+            }
+          }
+
+          yield* insertRowsInBatches(
+            sqliteClient,
+            anilistRows,
+            (rowCount) =>
+              `INSERT INTO manami_anilist_lookup (anilist_id, mal_id, title, english_title, native_title) VALUES ${valuePlaceholders(rowCount, 5)} ON CONFLICT(anilist_id) DO UPDATE SET mal_id = COALESCE(manami_anilist_lookup.mal_id, excluded.mal_id)`,
+            "Manami sqlite anilist row insert failed",
+            "manami.sqlite.cache.insert_anilist",
+          );
+          yield* insertRowsInBatches(
+            sqliteClient,
+            malRows,
+            (rowCount) =>
+              `INSERT INTO manami_mal_lookup (mal_id, anilist_id, title, english_title, native_title) VALUES ${valuePlaceholders(rowCount, 5)} ON CONFLICT(mal_id) DO UPDATE SET anilist_id = COALESCE(manami_mal_lookup.anilist_id, excluded.anilist_id)`,
+            "Manami sqlite mal row insert failed",
+            "manami.sqlite.cache.insert_mal",
+          );
+          yield* insertRowsInBatches(
+            sqliteClient,
+            searchRows,
+            (rowCount) =>
+              `INSERT INTO manami_search (anilist_id, mal_id, title, english_title, native_title, synonyms) VALUES ${valuePlaceholders(rowCount, 6)}`,
+            "Manami sqlite search row insert failed",
+            "manami.sqlite.cache.insert_search",
           );
         }),
       )
@@ -550,6 +543,45 @@ const hasLookupSqliteSchema = Effect.fn("ManamiCache.hasLookupSqliteSchema")(
         ),
       ),
 );
+
+const MANAMI_INSERT_BATCH_SIZE = 500;
+
+const insertRowsInBatches = (
+  sqliteClient: NodeSqliteClient.SqliteClient,
+  rows: ReadonlyArray<ReadonlyArray<string | number | null>>,
+  buildStatement: (rowCount: number) => string,
+  message: string,
+  operation: string,
+): Effect.Effect<void, ExternalCallError> =>
+  Effect.forEach(
+    chunkArray(rows, MANAMI_INSERT_BATCH_SIZE),
+    (chunk) =>
+      sqliteClient.unsafe(buildStatement(chunk.length), chunk.flat()).withoutTransform.pipe(
+        Effect.mapError((cause) =>
+          ExternalCallError.make({
+            cause,
+            message,
+            operation,
+          }),
+        ),
+      ),
+    { discard: true },
+  );
+
+function chunkArray<T>(rows: ReadonlyArray<T>, size: number): T[][] {
+  const chunks: T[][] = [];
+
+  for (let index = 0; index < rows.length; index += size) {
+    chunks.push(rows.slice(index, index + size));
+  }
+
+  return chunks;
+}
+
+function valuePlaceholders(rowCount: number, columnCount: number) {
+  const row = `(${Array.from({ length: columnCount }, () => "?").join(", ")})`;
+  return Array.from({ length: rowCount }, () => row).join(", ");
+}
 
 function normalizeSynonyms(values: ReadonlyArray<string> | undefined) {
   const output: string[] = [];

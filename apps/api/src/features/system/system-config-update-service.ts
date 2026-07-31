@@ -40,59 +40,64 @@ const makeSystemConfigUpdateService = Effect.fn("SystemConfigUpdateService.make"
   const systemLogRepository = yield* SystemLogRepository;
   const eventBus = yield* EventBus;
   const nowIso = currentNowIso;
+  const updateSemaphore = yield* Effect.makeSemaphore(1);
 
   const updateConfig = Effect.fn("SystemConfigUpdateService.updateConfig")(function* (
     nextConfig: Config,
   ) {
-    const existingProfileRows = yield* qualityProfileRepository.listQualityProfileRows();
-    const previousConfigRow = yield* systemConfigRepository.loadSystemConfigRow();
-    const effectiveConfig = yield* preserveStoredPasswords({
-      appDatabaseFile: appConfig.databaseFile,
-      nextConfig,
-      previousConfigRow,
-    });
-    const normalizedConfig = yield* normalizeConfig(effectiveConfig);
-    yield* validateConfigUpdate({
-      countMediaUsingProfile: (profileName) =>
-        qualityProfileRepository.countMediaUsingProfile(profileName),
-      existingProfileRows,
-      nextConfig: normalizedConfig,
-    });
+    return yield* updateSemaphore.withPermits(1)(
+      Effect.gen(function* () {
+        const existingProfileRows = yield* qualityProfileRepository.listQualityProfileRows();
+        const previousConfigRow = yield* systemConfigRepository.loadSystemConfigRow();
+        const effectiveConfig = yield* preserveStoredPasswords({
+          appDatabaseFile: appConfig.databaseFile,
+          nextConfig,
+          previousConfigRow,
+        });
+        const normalizedConfig = yield* normalizeConfig(effectiveConfig);
+        yield* validateConfigUpdate({
+          countMediaUsingProfile: (profileName) =>
+            qualityProfileRepository.countMediaUsingProfile(profileName),
+          existingProfileRows,
+          nextConfig: normalizedConfig,
+        });
 
-    const updatedAt = yield* nowIso();
-    const normalizedCore = yield* toConfigCore(normalizedConfig);
-    const { nextState, previousState } = yield* buildPersistedConfigStates({
-      appDatabaseFile: appConfig.databaseFile,
-      existingProfileRows,
-      normalizedConfig,
-      normalizedCore,
-      previousConfigRow,
-      updatedAt,
-    });
+        const updatedAt = yield* nowIso();
+        const normalizedCore = yield* toConfigCore(normalizedConfig);
+        const { nextState, previousState } = yield* buildPersistedConfigStates({
+          appDatabaseFile: appConfig.databaseFile,
+          existingProfileRows,
+          normalizedConfig,
+          normalizedCore,
+          previousConfigRow,
+          updatedAt,
+        });
 
-    yield* persistAndActivateConfig({
-      activateConfig: (value) =>
-        runtimeControl
-          .reload(value)
-          .pipe(Effect.zipRight(runtimeConfigSnapshot.replaceRuntimeConfig(value))),
-      nextConfig: normalizedConfig,
-      nextState,
-      persistState: (state) =>
-        systemConfigRepository.updateSystemConfigAtomic(state.coreRow, state.profileRows),
-      previousState,
-    });
+        yield* persistAndActivateConfig({
+          activateConfig: (value) =>
+            runtimeControl
+              .reload(value)
+              .pipe(Effect.zipRight(runtimeConfigSnapshot.replaceRuntimeConfig(value))),
+          nextConfig: normalizedConfig,
+          nextState,
+          persistState: (state) =>
+            systemConfigRepository.updateSystemConfigAtomic(state.coreRow, state.profileRows),
+          previousState,
+        });
 
-    yield* applyRuntimeLogLevelFromConfig(runtimeLogLevelState, normalizedConfig);
+        yield* applyRuntimeLogLevelFromConfig(runtimeLogLevelState, normalizedConfig);
 
-    yield* systemLogRepository.appendLog(
-      "system.config.updated",
-      "success",
-      "System configuration updated",
-      nowIso,
+        yield* systemLogRepository.appendLog(
+          "system.config.updated",
+          "success",
+          "System configuration updated",
+          nowIso,
+        );
+        yield* eventBus.publishInfo("System configuration updated");
+
+        return normalizedConfig;
+      }),
     );
-    yield* eventBus.publishInfo("System configuration updated");
-
-    return normalizedConfig;
   });
 
   return { updateConfig } satisfies SystemConfigUpdateServiceShape;

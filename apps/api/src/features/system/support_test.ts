@@ -1,26 +1,12 @@
 import { assert, it } from "@effect/vitest";
 
 import { makeTestConfig } from "@/test/config-fixture.ts";
-import {
-  backgroundJobNames,
-  normalizeLevel,
-  toBackgroundJobStatus,
-} from "@/features/system/support.ts";
+import { normalizeLevel, toBackgroundJobStatus } from "@/features/system/support.ts";
 
-it("system support normalizes levels and deduplicates job names", () => {
+it("system support normalizes levels", () => {
   assert.deepStrictEqual(normalizeLevel("warn"), "warn");
   assert.deepStrictEqual(normalizeLevel("success"), "success");
   assert.deepStrictEqual(normalizeLevel("debug"), "info");
-
-  assert.deepStrictEqual(backgroundJobNames([{ name: "rss" }, { name: "custom" }]), [
-    "custom",
-    "download_sync",
-    "library_scan",
-    "manami_refresh",
-    "metadata_refresh",
-    "rss",
-    "unmapped_scan",
-  ]);
 });
 
 it("system support derives background job schedule modes", () => {

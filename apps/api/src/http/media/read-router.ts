@@ -28,6 +28,7 @@ import {
   StreamUrlQuerySchema,
 } from "@/http/media/request-schemas.ts";
 import { IdParamsSchema } from "@/http/shared/common-request-schemas.ts";
+import { inlineContentDisposition } from "@/http/shared/route-fs.ts";
 import {
   authedRouteResponse,
   decodePathParams,
@@ -130,7 +131,7 @@ export const mediaReadRouter = HttpRouter.empty.pipe(
             contentType: page.mediaType,
             headers: {
               "Cache-Control": "private, max-age=86400",
-              "Content-Disposition": inlineImageContentDisposition(page.fileName),
+              "Content-Disposition": inlineContentDisposition(page.fileName),
             },
           }),
         ),
@@ -178,9 +179,3 @@ export const mediaReadRouter = HttpRouter.empty.pipe(
     ),
   ),
 );
-
-function inlineImageContentDisposition(fileName: string) {
-  const asciiOnly = fileName.replace(/[^\x20-\x7E]/g, "_");
-  const sanitized = asciiOnly.replace(/[\r\n]/g, "_").replace(/["\\]/g, "_");
-  return `inline; filename="${sanitized}"; filename*=UTF-8''${encodeURIComponent(fileName)}`;
-}
