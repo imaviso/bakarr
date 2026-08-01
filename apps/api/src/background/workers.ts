@@ -14,9 +14,9 @@ import {
   BACKGROUND_WORKER_NAMES,
   BACKGROUND_WORKER_TIMEOUT_MS,
   type BackgroundWorkerName,
-} from "@/background/worker-model.ts";
+} from "@/domain/worker-model.ts";
 import { currentTimeNanos } from "@/infra/time.ts";
-import { makeSkippingSerializedEffectRunner } from "@/infra/effect/coalescing-skipping-serialized-runner.ts";
+import { makeSerializedDropEffectRunner } from "@/infra/effect/serialized-runner.ts";
 import { compactLogAnnotations, durationMsSince, errorLogAnnotations } from "@/infra/logging.ts";
 
 export class WorkerTimeoutError extends Schema.TaggedError<WorkerTimeoutError>()(
@@ -218,7 +218,7 @@ export const withLockEffectOrFail = Effect.fn("Background.withLockEffectOrFail")
     return yield* Effect.failCause(exit.cause);
   });
 
-  return yield* makeSkippingSerializedEffectRunner(monitoredTask).pipe(
+  return yield* makeSerializedDropEffectRunner(monitoredTask).pipe(
     Effect.map((runner) =>
       runner.trigger.pipe(
         Effect.flatMap((result) =>

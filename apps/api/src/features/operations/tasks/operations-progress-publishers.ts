@@ -1,8 +1,8 @@
 import { Effect } from "effect";
 
 import { type DatabaseError } from "@/db/database.ts";
-import { makeCoalescedEffectRunner } from "@/infra/effect/coalescing-coalesced-runner.ts";
 import { makeLatestValuePublisher } from "@/infra/effect/coalescing-latest-value-publisher.ts";
+import { makeSerializedDrainEffectRunner } from "@/infra/effect/serialized-runner.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import type { StoredDataError } from "@/features/errors.ts";
 
@@ -12,7 +12,7 @@ export const makeOperationsProgressPublishers = Effect.fn(
   eventBus: typeof EventBus.Service;
   publishDownloadProgressEffect: Effect.Effect<void, DatabaseError | StoredDataError>;
 }) {
-  const coalescedDownloadProgressPublisher = yield* makeCoalescedEffectRunner(
+  const coalescedDownloadProgressPublisher = yield* makeSerializedDrainEffectRunner(
     input.publishDownloadProgressEffect,
   );
   const libraryScanProgressPublisher = yield* makeLatestValuePublisher((scanned: number) =>

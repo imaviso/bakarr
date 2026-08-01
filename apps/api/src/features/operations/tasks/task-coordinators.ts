@@ -1,32 +1,15 @@
-import { Effect, Exit, Scope } from "effect";
+import { Effect, Exit, Ref, Scope } from "effect";
 
-import { makeSerializedFlagCoordinator } from "@/infra/effect/coalescing-serialized-flag-coordinator.ts";
-
-export interface DownloadTriggerCoordinatorShape {
-  readonly runExclusiveDownloadTrigger: <A, E>(
-    operation: Effect.Effect<A, E>,
-  ) => Effect.Effect<A, E>;
-}
-
-const makeDownloadTriggerCoordinator = Effect.fn(
-  "RuntimeCoordinator.makeDownloadTriggerCoordinator",
-)(function* () {
-  const semaphore = yield* Effect.makeSemaphore(1);
-  const runExclusiveDownloadTrigger = Effect.fn(
-    "DownloadTriggerCoordinator.runExclusiveDownloadTrigger",
-  )(<A, E>(operation: Effect.Effect<A, E>) => semaphore.withPermits(1)(operation));
-
-  return {
-    runExclusiveDownloadTrigger,
-  } satisfies DownloadTriggerCoordinatorShape;
-});
-
-export class DownloadTriggerCoordinator extends Effect.Service<DownloadTriggerCoordinator>()(
-  "@bakarr/api/DownloadTriggerCoordinator",
-  { effect: makeDownloadTriggerCoordinator() },
+/**
+ * Shared gate that serializes download trigger and background-search queue operations
+ * across the services that write queued downloads.
+ */
+export class DownloadTriggerGate extends Effect.Service<DownloadTriggerGate>()(
+  "@bakarr/api/DownloadTriggerGate",
+  { effect: Effect.makeSemaphore(1) },
 ) {}
 
-export const DownloadTriggerCoordinatorLive = DownloadTriggerCoordinator.Default;
+export const DownloadTriggerGateLive = DownloadTriggerGate.Default;
 
 export interface UnmappedScanCoordinatorShape {
   readonly completeUnmappedScan: () => Effect.Effect<void>;
@@ -46,19 +29,26 @@ export interface UnmappedScanCoordinatorShape {
 
 const makeUnmappedScanCoordinator = Effect.fn("RuntimeCoordinator.makeUnmappedScanCoordinator")(
   function* () {
-    const coordinator = yield* makeSerializedFlagCoordinator();
+    const runningRef = yield* Ref.make(false);
     const scope = yield* Scope.make();
 
     yield* Effect.addFinalizer(() => Scope.close(scope, Exit.void));
 
+    const finish = Ref.set(runningRef, false).pipe(
+      Effect.withSpan("UnmappedScanCoordinator.finish"),
+    );
+    const tryStartAndMarkRunning = Ref.modify(runningRef, (running) =>
+      running ? ([false, true] as const) : ([true, true] as const),
+    ).pipe(Effect.withSpan("UnmappedScanCoordinator.tryStartAndMarkRunning"));
+
     const completeUnmappedScan = Effect.fn("UnmappedScanCoordinator.completeUnmappedScan")(
-      () => coordinator.finish,
+      () => finish,
     );
     const forkUnmappedScanLoop = Effect.fn("UnmappedScanCoordinator.forkUnmappedScanLoop")(
       <A, E>(loop: Effect.Effect<A, E>) => Effect.forkIn(scope)(loop).pipe(Effect.asVoid),
     );
     const tryBeginUnmappedScan = Effect.fn("UnmappedScanCoordinator.tryBeginUnmappedScan")(
-      () => coordinator.tryStartAndMarkRunning,
+      () => tryStartAndMarkRunning,
     );
     const withUnmappedScanLease = Effect.fn("UnmappedScanCoordinator.withUnmappedScanLease")(
       <A, E>(input: {
@@ -72,7 +62,7 @@ const makeUnmappedScanCoordinator = Effect.fn("RuntimeCoordinator.makeUnmappedSc
         readonly whenBusy: Effect.Effect<A, E>;
       }) =>
         Effect.gen(function* () {
-          const acquired = yield* coordinator.tryStartAndMarkRunning;
+          const acquired = yield* tryStartAndMarkRunning;
 
           if (!acquired) {
             return yield* input.whenBusy;
@@ -82,13 +72,13 @@ const makeUnmappedScanCoordinator = Effect.fn("RuntimeCoordinator.makeUnmappedSc
 
           if (Exit.isSuccess(exit)) {
             if (!exit.value.keepLease) {
-              yield* coordinator.finish;
+              yield* finish;
             }
 
             return exit.value.value;
           }
 
-          yield* coordinator.finish;
+          yield* finish;
           return yield* Effect.failCause(exit.cause);
         }),
     );

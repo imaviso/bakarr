@@ -1,7 +1,7 @@
 import { Config as EffectConfig, Effect, Schema } from "effect";
 
 import { PositiveIntFromStringSchema } from "@/domain/domain-schema.ts";
-import { makeSingleFlightEffectRunner } from "@/infra/effect/coalescing-single-flight-runner.ts";
+import { makeSerializedShareEffectRunner } from "@/infra/effect/serialized-runner.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { MediaImageCacheService } from "@/features/media/metadata/media-image-cache-service.ts";
 import { MediaMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
@@ -25,7 +25,7 @@ export const makeMetadataRefreshRunner = Effect.fn("MediaMetadataRefresh.makeRun
     PositiveIntFromStringSchema,
   ).pipe(EffectConfig.withDefault(DEFAULT_METADATA_REFRESH_CONCURRENCY));
 
-  return yield* makeSingleFlightEffectRunner(
+  return yield* makeSerializedShareEffectRunner(
     refreshMetadataForMonitoredMediaEffect({
       imageCacheService,
       metadataProvider,

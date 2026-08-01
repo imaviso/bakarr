@@ -6,10 +6,12 @@ import { buildBackgroundSchedule } from "@/background/schedule.ts";
 import { makeBackgroundWorkerController } from "@/background/controller-core.ts";
 import { makeBackgroundWorkerMonitor } from "@/background/monitor.ts";
 import { repeatWorker, withLockEffectOrFail } from "@/background/workers.ts";
-import { BACKGROUND_WORKER_TIMEOUT_MS } from "@/background/worker-model.ts";
-import { makeCoalescedEffectRunner } from "@/infra/effect/coalescing-coalesced-runner.ts";
+import { BACKGROUND_WORKER_TIMEOUT_MS } from "@/domain/worker-model.ts";
 import { makeLatestValuePublisher } from "@/infra/effect/coalescing-latest-value-publisher.ts";
-import { makeSkippingSerializedEffectRunner } from "@/infra/effect/coalescing-skipping-serialized-runner.ts";
+import {
+  makeSerializedDrainEffectRunner,
+  makeSerializedDropEffectRunner,
+} from "@/infra/effect/serialized-runner.ts";
 
 const baseConfig: Config = {
   downloads: {
@@ -591,7 +593,7 @@ it.scoped("coalesced effect runner batches concurrent triggers into one follow-u
     const releaseSecondRun = yield* Deferred.make<void>();
     const runCount = yield* Effect.sync(() => ({ value: 0 }));
 
-    const runner = yield* makeCoalescedEffectRunner(
+    const runner = yield* makeSerializedDrainEffectRunner(
       Effect.gen(function* () {
         runCount.value += 1;
 
@@ -664,7 +666,7 @@ it.effect("skipping serialized runner drops overlapping trigger attempts", () =>
     const releaseFirstRun = yield* Deferred.make<void>();
     const runCount = yield* Effect.sync(() => ({ value: 0 }));
 
-    const runner = yield* makeSkippingSerializedEffectRunner(
+    const runner = yield* makeSerializedDropEffectRunner(
       Effect.gen(function* () {
         runCount.value += 1;
         yield* Deferred.succeed(firstRunStarted, void 0);
