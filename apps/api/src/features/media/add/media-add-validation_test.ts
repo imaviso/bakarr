@@ -9,7 +9,6 @@ import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import {
   checkProfileExistsEffect,
   checkRootFolderNotOwnedEffect,
-  fetchPersistedEpisodeRowsEffect,
   checkMediaExistsEffect,
 } from "@/features/media/add/media-add-validation.ts";
 import { MediaConflictError, MediaNotFoundError } from "@/features/media/errors.ts";
@@ -149,12 +148,12 @@ it.scoped("checkRootFolderNotOwnedEffect succeeds for unmapped folder", () =>
   }),
 );
 
-it.scoped("fetchPersistedEpisodeRowsEffect returns empty when no mediaUnits", () =>
+it.scoped("listUnitRowsByMediaId returns empty when no mediaUnits", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         yield* seedAnime(db);
-        const rows = yield* fetchPersistedEpisodeRowsEffect(makeMediaRepository(db), 1);
+        const rows = yield* makeMediaRepository(db).listUnitRowsByMediaId(1);
         assert.deepStrictEqual(rows, []);
       }),
     schema,

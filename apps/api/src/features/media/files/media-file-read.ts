@@ -4,11 +4,8 @@ import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { isWithinPathRoot } from "@/infra/filesystem/filesystem.ts";
 import type { MediaRepositoryShape } from "@/features/media/shared/media-repository.ts";
 import {
+  UnitFileResolveError,
   UnitFileResolved,
-  UnitFileUnmapped,
-  UnitFileRootInaccessible,
-  UnitFileMissing,
-  UnitFileOutsideRoot,
 } from "@/features/media/files/media-file-resolution.ts";
 
 export const resolveUnitFileEffect = Effect.fn("MediaFileRead.resolveUnitFileEffect")(
@@ -22,7 +19,12 @@ export const resolveUnitFileEffect = Effect.fn("MediaFileRead.resolveUnitFileEff
     const episodeRow = yield* input.mediaRepository.getUnitRow(input.mediaId, input.unitNumber);
 
     if (!episodeRow.filePath) {
-      return new UnitFileUnmapped();
+      return yield* new UnitFileResolveError({
+        mediaId: input.mediaId,
+        message: "MediaUnit file not found",
+        reason: "unmapped",
+        unitNumber: input.unitNumber,
+      });
     }
 
     const animeRootResult = yield* Effect.either(input.fs.realPath(animeRow.rootFolder));
@@ -35,8 +37,12 @@ export const resolveUnitFileEffect = Effect.fn("MediaFileRead.resolveUnitFileEff
           rootFolder: animeRow.rootFolder,
         }),
       );
-      return new UnitFileRootInaccessible({
+      return yield* new UnitFileResolveError({
+        mediaId: input.mediaId,
+        message: "Media root folder is inaccessible",
+        reason: "root-inaccessible",
         rootFolder: animeRow.rootFolder,
+        unitNumber: input.unitNumber,
       });
     }
 
@@ -50,8 +56,12 @@ export const resolveUnitFileEffect = Effect.fn("MediaFileRead.resolveUnitFileEff
           filePath: episodeRow.filePath,
         }),
       );
-      return new UnitFileMissing({
+      return yield* new UnitFileResolveError({
         filePath: episodeRow.filePath,
+        mediaId: input.mediaId,
+        message: "MediaUnit file not found",
+        reason: "missing",
+        unitNumber: input.unitNumber,
       });
     }
 
@@ -66,9 +76,13 @@ export const resolveUnitFileEffect = Effect.fn("MediaFileRead.resolveUnitFileEff
           animeRoot: animeRootResult.right,
         }),
       );
-      return new UnitFileOutsideRoot({
-        animeRoot: animeRootResult.right,
+      return yield* new UnitFileResolveError({
         filePath,
+        mediaId: input.mediaId,
+        message: "MediaUnit file mapping is invalid",
+        reason: "outside-root",
+        rootFolder: animeRootResult.right,
+        unitNumber: input.unitNumber,
       });
     }
 

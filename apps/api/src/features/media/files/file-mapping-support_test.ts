@@ -78,14 +78,19 @@ it.scoped("resolveUnitFileEffect returns unmapped state when no file path is sto
             }),
           );
 
-          const result = yield* resolveUnitFileEffect({
-            mediaId: 1,
-            mediaRepository: makeMediaRepository(appDb),
-            unitNumber: 1,
-            fs,
-          });
+          const result = yield* Effect.either(
+            resolveUnitFileEffect({
+              mediaId: 1,
+              mediaRepository: makeMediaRepository(appDb),
+              unitNumber: 1,
+              fs,
+            }),
+          );
 
-          assert.deepStrictEqual(result._tag, "UnitFileUnmapped");
+          assert.deepStrictEqual(result._tag, "Left");
+          if (result._tag === "Left" && result.left._tag === "UnitFileResolveError") {
+            assert.deepStrictEqual(result.left.reason, "unmapped");
+          }
         }),
       ),
     schema,
@@ -109,14 +114,19 @@ it.scoped("resolveUnitFileEffect returns missing state when mapped file is inacc
             }),
           );
 
-          const result = yield* resolveUnitFileEffect({
-            mediaId: 1,
-            mediaRepository: makeMediaRepository(appDb),
-            unitNumber: 1,
-            fs,
-          });
+          const result = yield* Effect.either(
+            resolveUnitFileEffect({
+              mediaId: 1,
+              mediaRepository: makeMediaRepository(appDb),
+              unitNumber: 1,
+              fs,
+            }),
+          );
 
-          assert.deepStrictEqual(result._tag, "UnitFileMissing");
+          assert.deepStrictEqual(result._tag, "Left");
+          if (result._tag === "Left" && result.left._tag === "UnitFileResolveError") {
+            assert.deepStrictEqual(result.left.reason, "missing");
+          }
         }),
       ),
     schema,
@@ -143,14 +153,19 @@ it.scoped(
               }),
             );
 
-            const result = yield* resolveUnitFileEffect({
-              mediaId: 1,
-              mediaRepository: makeMediaRepository(appDb),
-              unitNumber: 1,
-              fs,
-            });
+            const result = yield* Effect.either(
+              resolveUnitFileEffect({
+                mediaId: 1,
+                mediaRepository: makeMediaRepository(appDb),
+                unitNumber: 1,
+                fs,
+              }),
+            );
 
-            assert.deepStrictEqual(result._tag, "UnitFileRootInaccessible");
+            assert.deepStrictEqual(result._tag, "Left");
+            if (result._tag === "Left" && result.left._tag === "UnitFileResolveError") {
+              assert.deepStrictEqual(result.left.reason, "root-inaccessible");
+            }
           }),
         ),
       schema,
@@ -181,14 +196,19 @@ it.scoped("resolveUnitFileEffect returns outside-root state when mapping escapes
             }),
           );
 
-          const result = yield* resolveUnitFileEffect({
-            mediaId: 1,
-            mediaRepository: makeMediaRepository(appDb),
-            unitNumber: 1,
-            fs,
-          });
+          const result = yield* Effect.either(
+            resolveUnitFileEffect({
+              mediaId: 1,
+              mediaRepository: makeMediaRepository(appDb),
+              unitNumber: 1,
+              fs,
+            }),
+          );
 
-          assert.deepStrictEqual(result._tag, "UnitFileOutsideRoot");
+          assert.deepStrictEqual(result._tag, "Left");
+          if (result._tag === "Left" && result.left._tag === "UnitFileResolveError") {
+            assert.deepStrictEqual(result.left.reason, "outside-root");
+          }
         }),
       ),
     schema,

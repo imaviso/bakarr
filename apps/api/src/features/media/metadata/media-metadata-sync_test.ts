@@ -6,7 +6,7 @@ import { brandMediaId } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
 import { media } from "@/db/schema.ts";
-import type { AnimeMetadata } from "@/features/media/metadata/anilist-model.ts";
+import type { AnimeMetadata } from "@/features/media/metadata/metadata-model.ts";
 import {
   ImageCacheError,
   MediaImageCacheService,
@@ -63,6 +63,8 @@ it.scoped("syncMediaMetadataEffect stores locally cached image paths", () =>
                 },
                 metadata,
               }),
+            getSeasonalAnime: () => Effect.dieMessage("not used in test"),
+            searchMedia: () => Effect.dieMessage("not used in test"),
           }),
           mediaId,
           eventPublisher: Option.none(),
@@ -122,6 +124,8 @@ it.scoped("syncMediaMetadataEffect keeps existing image paths if caching fails",
                 },
                 metadata: makeMetadata(mediaId),
               }),
+            getSeasonalAnime: () => Effect.dieMessage("not used in test"),
+            searchMedia: () => Effect.dieMessage("not used in test"),
           }),
           mediaId,
           eventPublisher: Option.none(),
@@ -201,6 +205,8 @@ it.scoped("syncMediaMetadataEffect persists enrichment metadata fields from prov
                 },
                 metadata,
               }),
+            getSeasonalAnime: () => Effect.dieMessage("not used in test"),
+            searchMedia: () => Effect.dieMessage("not used in test"),
           }),
           mediaId,
           eventPublisher: Option.none(),

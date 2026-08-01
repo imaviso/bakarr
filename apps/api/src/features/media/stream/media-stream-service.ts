@@ -1,4 +1,4 @@
-import { Effect, Match } from "effect";
+import { Effect } from "effect";
 
 import type { DatabaseError } from "@/db/database.ts";
 import { currentTimeMillis } from "@/infra/time.ts";
@@ -91,35 +91,20 @@ const makeMediaStreamService = Effect.fn("MediaStreamService.make")(function* ()
         });
       }
 
-      const resolvedUnitFile = yield* resolveUnitFileEffect({
+      const unitFile = yield* resolveUnitFileEffect({
         mediaId: input.mediaId,
         mediaRepository,
         unitNumber: input.unitNumber,
         fs,
-      });
-
-      const unitFile = yield* Match.value(resolvedUnitFile).pipe(
-        Match.tag("UnitFileUnmapped", "UnitFileMissing", () =>
-          Effect.fail(new StreamAccessError({ message: "MediaUnit file not found", status: 404 })),
-        ),
-        Match.tag("UnitFileRootInaccessible", () =>
-          Effect.fail(
+      }).pipe(
+        Effect.catchTag(
+          "UnitFileResolveError",
+          (error) =>
             new StreamAccessError({
-              message: "Media root folder is inaccessible",
+              message: error.message,
               status: 404,
             }),
-          ),
         ),
-        Match.tag("UnitFileOutsideRoot", () =>
-          Effect.fail(
-            new StreamAccessError({
-              message: "MediaUnit file mapping is invalid",
-              status: 404,
-            }),
-          ),
-        ),
-        Match.tag("UnitFileResolved", (file) => Effect.succeed(file)),
-        Match.exhaustive,
       );
 
       const fileInfo = yield* fs.stat(unitFile.filePath).pipe(
@@ -150,7 +135,7 @@ const makeMediaStreamService = Effect.fn("MediaStreamService.make")(function* ()
 export class MediaStreamService extends Effect.Service<MediaStreamService>()(
   "@bakarr/api/MediaStreamService",
   {
-    dependencies: [MediaRepository.Default],
+    dependencies: [MediaRepository.Default, StreamTokenSigner.Default],
     effect: makeMediaStreamService(),
   },
 ) {}

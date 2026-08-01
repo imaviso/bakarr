@@ -15,6 +15,66 @@ import {
 } from "@/features/media/shared/decode-support.ts";
 import { decodeMediaKind } from "@/features/media/shared/media-kind.ts";
 
+export type MediaDtoProgress = Media["progress"];
+
+/**
+ * Detail-path progress: derive from the full persisted episode rows.
+ * `missing` is the complement of downloaded units within [1, total].
+ */
+export function deriveDetailProgress(
+  episodeRows: readonly (typeof mediaUnits.$inferSelect)[],
+  total: number | undefined,
+): MediaDtoProgress {
+  const downloadedUnits = episodeRows
+    .filter((episode) => episode.downloaded)
+    .map((episode) => episode.number)
+    .toSorted((left, right) => left - right);
+  const missing = total
+    ? range(1, total).filter((number) => !downloadedUnits.includes(number))
+    : [];
+  const downloadedPercent = deriveDownloadedPercent(downloadedUnits.length, total);
+  const latestDownloadedUnit = deriveLatestDownloadedEpisode(downloadedUnits);
+
+  return {
+    downloaded: downloadedUnits.length,
+    downloaded_percent: downloadedPercent,
+    is_up_to_date: total ? missing.length === 0 : undefined,
+    latest_downloaded_unit: latestDownloadedUnit,
+    missing,
+    next_missing_unit: missing[0],
+    total,
+  };
+}
+
+/**
+ * List-path progress: derive from pre-aggregated episode stats and the aired
+ * (missing) unit numbers. `missingNumbers` are clamped to [1, total].
+ */
+export function deriveListProgress(input: {
+  readonly downloaded: number;
+  readonly latestDownloadedUnit?: number;
+  readonly missingNumbers: readonly number[];
+  readonly total: number | undefined;
+}): MediaDtoProgress {
+  const { downloaded, latestDownloadedUnit, missingNumbers, total } = input;
+  const missing = total
+    ? [...missingNumbers]
+        .filter((number) => number >= 1 && number <= total)
+        .toSorted((left, right) => left - right)
+    : [];
+  const downloadedPercent = deriveDownloadedPercent(downloaded, total);
+
+  return {
+    downloaded,
+    downloaded_percent: downloadedPercent,
+    is_up_to_date: total ? missing.length === 0 : undefined,
+    latest_downloaded_unit: latestDownloadedUnit,
+    missing,
+    next_missing_unit: missing[0],
+    total,
+  };
+}
+
 interface AnimeDiscoveryMetadata {
   recommended_media?: MediaDiscoveryEntry[];
   related_media?: MediaDiscoveryEntry[];
@@ -33,21 +93,18 @@ function deriveDownloadedPercent(downloaded: number, total?: number) {
   return Math.min(100, Math.round((downloaded / total) * 100));
 }
 
+/**
+ * Canonical media DTO mapper. `progress` is computed by the caller via
+ * `deriveDetailProgress` (detail paths) or `deriveListProgress` (list paths).
+ * Pass `synonymsAsEmptyList` to decode synonyms as `[]` on empty storage
+ * (list path) instead of `undefined` (detail path).
+ */
 export const toMediaDto = Effect.fn("MediaDto.toMediaDto")(function* (
   row: typeof media.$inferSelect,
-  episodeRows: readonly (typeof mediaUnits.$inferSelect)[],
+  progress: MediaDtoProgress,
   discovery?: AnimeDiscoveryMetadata,
+  options?: { readonly synonymsAsEmptyList?: boolean },
 ) {
-  const downloadedUnits = episodeRows
-    .filter((episode) => episode.downloaded)
-    .map((episode) => episode.number)
-    .toSorted((left, right) => left - right);
-  const total = row.unitCount ?? undefined;
-  const missing = total
-    ? range(1, total).filter((number) => !downloadedUnits.includes(number))
-    : [];
-  const downloadedPercent = deriveDownloadedPercent(downloadedUnits.length, total);
-  const latestDownloadedUnit = deriveLatestDownloadedEpisode(downloadedUnits);
   const season = deriveAnimeSeason(row.startDate);
   const seasonYear = row.startYear ?? extractYearFromDate(row.startDate);
   const genres = yield* decodeStoredStringListEffect(row.genres, "genres");
@@ -63,7 +120,11 @@ export const toMediaDto = Effect.fn("MediaDto.toMediaDto")(function* (
   const relatedMedia =
     discovery?.related_media ??
     (yield* decodeStoredDiscoveryEntriesEffect(row.relatedMedia, "relatedMedia"));
-  const synonyms = discovery?.synonyms ?? (yield* decodeStoredSynonymsEffect(row.synonyms));
+  const synonyms =
+    discovery?.synonyms ??
+    (options?.synonymsAsEmptyList
+      ? yield* decodeStoredStringListEffect(row.synonyms, "synonyms")
+      : yield* decodeStoredSynonymsEffect(row.synonyms));
 
   return {
     added_at: row.addedAt,
@@ -93,15 +154,7 @@ export const toMediaDto = Effect.fn("MediaDto.toMediaDto")(function* (
         : undefined,
     recommended_media: recommendedMedia,
     profile_name: row.profileName,
-    progress: {
-      downloaded: downloadedUnits.length,
-      downloaded_percent: downloadedPercent,
-      is_up_to_date: total ? missing.length === 0 : undefined,
-      latest_downloaded_unit: latestDownloadedUnit,
-      missing,
-      next_missing_unit: missing[0],
-      total,
-    },
+    progress,
     release_profile_ids: releaseProfileIds.map(brandReleaseProfileId),
     root_folder: row.rootFolder,
     rank: row.rank ?? undefined,

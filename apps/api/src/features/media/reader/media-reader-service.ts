@@ -1,6 +1,6 @@
 import { CommandExecutor } from "@effect/platform";
 import { dirname, join, resolve } from "node:path";
-import { Effect, Match } from "effect";
+import { Effect } from "effect";
 import type { ReaderPage, ReaderPagesResponse } from "@packages/shared/index.ts";
 
 import type { DatabaseError } from "@/db/database.ts";
@@ -234,35 +234,20 @@ const resolveReaderUnitFile = Effect.fn("MediaReader.resolveReaderUnitFile")(fun
   readonly mediaId: number;
   readonly unitNumber: number;
 }) {
-  const resolvedUnitFile = yield* resolveUnitFileEffect({
+  const unitFile = yield* resolveUnitFileEffect({
     fs: input.fs,
     mediaId: input.mediaId,
     mediaRepository: input.mediaRepository,
     unitNumber: input.unitNumber,
-  });
-
-  const unitFile = yield* Match.value(resolvedUnitFile).pipe(
-    Match.tag("UnitFileUnmapped", "UnitFileMissing", () =>
-      Effect.fail(new ReaderAccessError({ message: "MediaUnit file not found", status: 404 })),
-    ),
-    Match.tag("UnitFileRootInaccessible", () =>
-      Effect.fail(
+  }).pipe(
+    Effect.catchTag(
+      "UnitFileResolveError",
+      (error) =>
         new ReaderAccessError({
-          message: "Media root folder is inaccessible",
+          message: error.message,
           status: 404,
         }),
-      ),
     ),
-    Match.tag("UnitFileOutsideRoot", () =>
-      Effect.fail(
-        new ReaderAccessError({
-          message: "MediaUnit file mapping is invalid",
-          status: 404,
-        }),
-      ),
-    ),
-    Match.tag("UnitFileResolved", (file) => Effect.succeed(file)),
-    Match.exhaustive,
   );
 
   const fileInfo = yield* input.fs.stat(unitFile.filePath).pipe(

@@ -1,11 +1,8 @@
 import { assert, it } from "@effect/vitest";
 
 import {
+  UnitFileResolveError,
   UnitFileResolved,
-  UnitFileUnmapped,
-  UnitFileRootInaccessible,
-  UnitFileMissing,
-  UnitFileOutsideRoot,
 } from "@/features/media/files/media-file-resolution.ts";
 
 it("UnitFileResolved constructs with fileName and filePath", () => {
@@ -14,26 +11,45 @@ it("UnitFileResolved constructs with fileName and filePath", () => {
   assert.deepStrictEqual(resolved.fileName, "ep.mkv");
 });
 
-it("UnitFileUnmapped constructs with no fields", () => {
-  const unmapped = new UnitFileUnmapped({});
-  assert.deepStrictEqual(unmapped._tag, "UnitFileUnmapped");
+it("UnitFileResolveError constructs unmapped with media and unit context", () => {
+  const error = new UnitFileResolveError({
+    mediaId: 1,
+    message: "MediaUnit file not found",
+    reason: "unmapped",
+    unitNumber: 2,
+  });
+  assert.deepStrictEqual(error._tag, "UnitFileResolveError");
+  assert.deepStrictEqual(error.reason, "unmapped");
+  assert.deepStrictEqual(error.message, "MediaUnit file not found");
+  assert.deepStrictEqual(error.mediaId, 1);
+  assert.deepStrictEqual(error.unitNumber, 2);
+  assert.deepStrictEqual(error.filePath, undefined);
+  assert.deepStrictEqual(error.rootFolder, undefined);
 });
 
-it("UnitFileRootInaccessible holds rootFolder", () => {
-  const err = new UnitFileRootInaccessible({ rootFolder: "/lib" });
-  assert.deepStrictEqual(err._tag, "UnitFileRootInaccessible");
-  assert.deepStrictEqual(err.rootFolder, "/lib");
+it("UnitFileResolveError holds optional filePath and rootFolder", () => {
+  const error = new UnitFileResolveError({
+    filePath: "/other/ep.mkv",
+    mediaId: 1,
+    message: "MediaUnit file mapping is invalid",
+    reason: "outside-root",
+    rootFolder: "/lib",
+    unitNumber: 2,
+  });
+  assert.deepStrictEqual(error.reason, "outside-root");
+  assert.deepStrictEqual(error.filePath, "/other/ep.mkv");
+  assert.deepStrictEqual(error.rootFolder, "/lib");
 });
 
-it("UnitFileMissing holds filePath", () => {
-  const err = new UnitFileMissing({ filePath: "/lib/ep.mkv" });
-  assert.deepStrictEqual(err._tag, "UnitFileMissing");
-  assert.deepStrictEqual(err.filePath, "/lib/ep.mkv");
-});
-
-it("UnitFileOutsideRoot holds animeRoot and filePath", () => {
-  const err = new UnitFileOutsideRoot({ animeRoot: "/lib", filePath: "/other/ep.mkv" });
-  assert.deepStrictEqual(err._tag, "UnitFileOutsideRoot");
-  assert.deepStrictEqual(err.animeRoot, "/lib");
-  assert.deepStrictEqual(err.filePath, "/other/ep.mkv");
+it("UnitFileResolveError reason is limited to the four failure modes", () => {
+  const reasons = ["unmapped", "missing", "root-inaccessible", "outside-root"] as const;
+  for (const reason of reasons) {
+    const error = new UnitFileResolveError({
+      mediaId: 1,
+      message: "x",
+      reason,
+      unitNumber: 1,
+    });
+    assert.deepStrictEqual(error.reason, reason);
+  }
 });

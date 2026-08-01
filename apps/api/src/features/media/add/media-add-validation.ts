@@ -55,9 +55,3 @@ export const checkRootFolderNotOwnedEffect = Effect.fn(
 
   return undefined;
 });
-
-export const fetchPersistedEpisodeRowsEffect = Effect.fn(
-  "MediaAddValidation.fetchPersistedEpisodeRows",
-)(function* (mediaRepository: MediaRepositoryShape, mediaId: number) {
-  return yield* mediaRepository.listUnitRowsByMediaId(mediaId);
-});

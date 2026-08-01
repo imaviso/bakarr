@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, Option } from "effect";
 
 import type { DatabaseError } from "@/db/database.ts";
 import { MediaImageCacheService } from "@/features/media/metadata/media-image-cache-service.ts";
@@ -15,12 +15,26 @@ import {
   MediaConflictError,
   MediaNotFoundError,
 } from "@/features/media/errors.ts";
-import { addMediaEffect } from "@/features/media/add/media-add.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
 import { SystemConfigRepository } from "@/features/system/repository/system-config-repository.ts";
-import type { ExternalCallError } from "@/infra/effect/retry.ts";
+import { ExternalCallError } from "@/infra/effect/retry.ts";
+import { encodeNumberList, encodeStringList } from "@/features/system/profile-codec.ts";
+import {
+  encodeAnimeDiscoveryEntries,
+  encodeAnimeSynonyms,
+} from "@/features/media/metadata/discovery-metadata-codec.ts";
+import { toMediaDto, deriveDetailProgress } from "@/features/media/shared/dto.ts";
+import { buildMissingEpisodeRows } from "@/features/media/units/media-schedule-repository.ts";
+import { resolveMediaRootFolderEffect } from "@/features/media/shared/config-support.ts";
+import {
+  checkMediaExistsEffect,
+  checkProfileExistsEffect,
+  checkRootFolderNotOwnedEffect,
+  requireMediaMetadataEffect,
+} from "@/features/media/add/media-add-validation.ts";
+import { mediaKindFromAniListFormat } from "@/features/media/shared/media-kind.ts";
 
 export type MediaEnrollmentError =
   | DatabaseError
@@ -45,18 +59,161 @@ const makeMediaEnrollmentService = Effect.fn("MediaEnrollmentService.make")(func
   const taskLauncher = yield* OperationsTaskLauncherService;
 
   const enroll = Effect.fn("MediaEnrollmentService.enroll")(function* (input: AddMediaInput) {
-    const media = yield* addMediaEffect({
-      metadataProvider,
-      animeInput: input,
-      eventPublisher: eventBus,
-      fs,
-      imageCacheService,
-      mediaRepository,
-      mediaUnitRepository,
-      qualityProfileRepository,
+    yield* checkMediaExistsEffect(mediaRepository, input.id);
+
+    const requestedMediaKind = input.media_kind;
+    const metadataLookup = yield* metadataProvider.getAnimeMetadataById(
+      input.id,
+      requestedMediaKind,
+    );
+    const validMetadata = yield* requireMediaMetadataEffect(
+      metadataLookup._tag === "NotFound" ? Option.none() : Option.some(metadataLookup.metadata),
+    );
+    const mediaKind = requestedMediaKind ?? mediaKindFromAniListFormat(validMetadata.format);
+
+    yield* checkProfileExistsEffect(qualityProfileRepository, input.profile_name);
+
+    const rootFolder = yield* resolveMediaRootFolderEffect(
       systemConfigRepository,
-      nowIso: currentNowIso,
+      input.root_folder,
+      validMetadata.title.romaji,
+      input.use_existing_root === undefined
+        ? { mediaKind }
+        : { mediaKind, useExistingRoot: input.use_existing_root },
+    );
+
+    yield* checkRootFolderNotOwnedEffect(mediaRepository, rootFolder);
+
+    yield* fs.mkdir(rootFolder, { recursive: true }).pipe(
+      Effect.mapError(
+        (cause) =>
+          new DomainPathError({
+            cause,
+            message: "Failed to create or access the media root folder",
+          }),
+      ),
+    );
+
+    const cachedImages = yield* imageCacheService
+      .cacheMetadataImages({
+        mediaId: validMetadata.id,
+        ...(validMetadata.bannerImage === undefined
+          ? {}
+          : { bannerImage: validMetadata.bannerImage }),
+        ...(validMetadata.coverImage === undefined ? {} : { coverImage: validMetadata.coverImage }),
+      })
+      .pipe(
+        Effect.mapError((cause) =>
+          ExternalCallError.make({
+            cause,
+            message: "Failed to cache media metadata images",
+            operation: "media.image-cache",
+          }),
+        ),
+      );
+
+    const createdAt = yield* currentNowIso();
+
+    const mediaRow = {
+      addedAt: createdAt,
+      background: validMetadata.background ?? null,
+      bannerImage: cachedImages.bannerImage ?? null,
+      coverImage: cachedImages.coverImage ?? null,
+      description: validMetadata.description ?? null,
+      duration: validMetadata.duration ?? null,
+      endDate: validMetadata.endDate ?? null,
+      endYear: validMetadata.endYear ?? null,
+      unitCount: validMetadata.unitCount ?? null,
+      favorites: validMetadata.favorites ?? null,
+      format: validMetadata.format,
+      genres: yield* encodeStringList(validMetadata.genres ?? []).pipe(
+        Effect.mapError(
+          (cause) =>
+            new StoredDataError({
+              cause,
+              message: "Media genres metadata is invalid",
+            }),
+        ),
+      ),
+      id: validMetadata.id,
+      malId: validMetadata.malId ?? null,
+      mediaKind,
+      members: validMetadata.members ?? null,
+      monitored: input.monitored,
+      nextAiringAt: validMetadata.nextAiringUnit?.airingAt ?? null,
+      nextAiringUnit: validMetadata.nextAiringUnit?.episode ?? null,
+      popularity: validMetadata.popularity ?? null,
+      profileName: input.profile_name,
+      rank: validMetadata.rank ?? null,
+      rating: validMetadata.rating ?? null,
+      releaseProfileIds: yield* encodeNumberList(input.release_profile_ids).pipe(
+        Effect.mapError(
+          (cause) =>
+            new StoredDataError({
+              cause,
+              message: "Media release profile ids are invalid",
+            }),
+        ),
+      ),
+      rootFolder,
+      score: validMetadata.score ?? null,
+      source: validMetadata.source ?? null,
+      startDate: validMetadata.startDate ?? null,
+      startYear: validMetadata.startYear ?? null,
+      status: validMetadata.status,
+      studios: yield* encodeStringList(validMetadata.studios ?? []).pipe(
+        Effect.mapError(
+          (cause) =>
+            new StoredDataError({
+              cause,
+              message: "Media studios metadata is invalid",
+            }),
+        ),
+      ),
+      synonyms: yield* encodeAnimeSynonyms(validMetadata.synonyms),
+      relatedMedia: yield* encodeAnimeDiscoveryEntries(validMetadata.relatedMedia),
+      recommendedMedia: yield* encodeAnimeDiscoveryEntries(validMetadata.recommendedMedia),
+      titleEnglish: validMetadata.title.english ?? null,
+      titleNative: validMetadata.title.native ?? null,
+      titleRomaji: validMetadata.title.romaji,
+    };
+
+    const unitRows = buildMissingEpisodeRows({
+      mediaId: mediaRow.id,
+      unitCount: validMetadata.unitCount,
+      endDate: validMetadata.endDate ?? undefined,
+      existingRows: [],
+      futureAiringSchedule: validMetadata.futureAiringSchedule,
+      nowIso: createdAt,
+      resetMissingOnly: true,
+      startDate: validMetadata.startDate ?? undefined,
+      status: validMetadata.status,
     });
+
+    yield* mediaRepository.insertMediaAggregate({
+      mediaRow,
+      unitRows,
+      log: {
+        createdAt,
+        details: null,
+        eventType: "media.created",
+        level: "success",
+        message: `Added ${mediaRow.titleRomaji} to library`,
+      },
+    });
+
+    yield* mediaUnitRepository.syncUnitMetadata(mediaRow.id, validMetadata.mediaUnits);
+
+    yield* eventBus.publish({
+      type: "Info",
+      payload: { message: `Added ${mediaRow.titleRomaji} to library` },
+    });
+
+    const persistedEpisodeRows = yield* mediaRepository.listUnitRowsByMediaId(mediaRow.id);
+    const media = yield* toMediaDto(
+      mediaRow,
+      deriveDetailProgress(persistedEpisodeRows, mediaRow.unitCount ?? undefined),
+    );
 
     if (input.monitor_and_search) {
       yield* taskLauncher.launch({
@@ -79,12 +236,16 @@ const makeMediaEnrollmentService = Effect.fn("MediaEnrollmentService.make")(func
 export class MediaEnrollmentService extends Effect.Service<MediaEnrollmentService>()(
   "@bakarr/api/MediaEnrollmentService",
   {
-    // Metadata/FS/task/search provided by domain subgraph at lifecycle.
+    // Filesystem + RuntimeConfigSnapshotService come from the lifecycle layer.
     dependencies: [
       EventBus.Default,
+      MediaImageCacheService.Default,
+      MediaMetadataProviderService.Default,
       MediaRepository.Default,
       MediaUnitRepository.Default,
+      OperationsTaskLauncherService.Default,
       QualityProfileRepository.Default,
+      SearchBackgroundMissingService.Default,
       SystemConfigRepository.Default,
     ],
     effect: makeMediaEnrollmentService(),

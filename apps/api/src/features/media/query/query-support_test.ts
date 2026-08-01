@@ -1,28 +1,86 @@
 import { assert, it } from "@effect/vitest";
 import { eq } from "drizzle-orm";
-import { Cause, Effect, Exit, Option } from "effect";
+import { Cause, Effect, Exit, Layer, Option, TestClock } from "effect";
 
 import { brandMediaId, type MediaSearchResult } from "@packages/shared/index.ts";
 import * as schema from "@/db/schema.ts";
-import type { AppDatabase } from "@/db/database.ts";
+import { AppDrizzleDatabase, type AppDatabase } from "@/db/database.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
 import { deriveEpisodeTimelineMetadata } from "@/domain/media/derivations.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { MediaProbeMetadataFound } from "@/infra/media/probe.ts";
 import { withFileSystemSandboxEffect, writeTextFile } from "@/test/filesystem-test.ts";
 import { StoredDataError } from "@/features/errors.ts";
-import { listMediaEffect } from "@/features/media/query/media-query-list.ts";
-import { getMediaEffect } from "@/features/media/query/media-query-get.ts";
-import {
-  searchMediaEffect,
-  getMediaByAnilistIdEffect,
-} from "@/features/media/query/media-query-search.ts";
-import { listEpisodesEffect } from "@/features/media/query/media-query-units.ts";
 import { annotateMediaSearchResultsForQuery } from "@/features/media/query/media-search-annotation.ts";
-import { listMediaFilesEffect } from "@/features/media/files/media-file-list.ts";
-import { makeMediaRepository, makeMediaUnitRepository } from "@/test/repository-factories.ts";
+import { MediaFileService } from "@/features/media/files/media-file-service.ts";
+import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
+import { FileSystem } from "@/infra/filesystem/filesystem.ts";
+import { MediaProbe } from "@/infra/media/probe.ts";
+import { makeUnusedEventBusLayer } from "@/test/event-bus-stub.ts";
+import {
+  makeMediaRepository,
+  makeMediaUnitRepository,
+  makeSeasonalMediaCacheRepository,
+  makeSystemLogRepository,
+} from "@/test/repository-factories.ts";
 import type { AnimeMetadata } from "@/features/media/metadata/anilist-model.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
+import { ManamiClient } from "@/features/media/metadata/manami.ts";
+import { MediaSeasonalProviderService } from "@/features/media/query/media-seasonal-provider-service.ts";
+import { MediaQueryService } from "@/features/media/query/query-service.ts";
+import { MediaRepository } from "@/features/media/shared/media-repository.ts";
+import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
+import { SeasonalMediaCacheRepository } from "@/features/media/query/seasonal-media-cache-repository.ts";
+import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
+
+function makeQueryServiceLayer(
+  db: AppDatabase,
+  stubs: {
+    readonly aniList?: typeof AniListClient.Service;
+    readonly manami?: typeof ManamiClient.Service;
+  } = {},
+) {
+  const providerService = MediaSeasonalProviderService.make({
+    getSeasonalAnime: () =>
+      Effect.succeed({
+        degraded: false,
+        hasMore: false,
+        provider: "anilist" as const,
+        results: [],
+        season: "spring" as const,
+        year: 2025,
+      }),
+  });
+  const aniList =
+    stubs.aniList ??
+    AniListClient.make({
+      getAnimeMetadataById: () => Effect.succeed(Option.none()),
+      getSeasonalAnime: () => Effect.succeed([]),
+      searchAnimeMetadata: () => Effect.succeed([]),
+    });
+  const manami =
+    stubs.manami ??
+    ManamiClient.make({
+      getByAniListId: () => Effect.succeed(Option.none()),
+      getByMalId: () => Effect.succeed(Option.none()),
+      resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
+      resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
+      searchMedia: () => Effect.succeed([]),
+    });
+
+  return MediaQueryService.DefaultWithoutDependencies.pipe(
+    Layer.provide(
+      Layer.mergeAll(
+        Layer.succeed(MediaSeasonalProviderService, providerService),
+        Layer.succeed(AniListClient, aniList),
+        Layer.succeed(ManamiClient, manami),
+        Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db)),
+        Layer.succeed(MediaRepository, makeMediaRepository(db)),
+        Layer.succeed(SeasonalMediaCacheRepository, makeSeasonalMediaCacheRepository(db)),
+      ),
+    ),
+  );
+}
 
 it("annotateMediaSearchResultsForQuery adds confidence and reasons", () => {
   const results = annotateMediaSearchResultsForQuery("Naruto", [
@@ -77,7 +135,7 @@ it("deriveEpisodeTimelineMetadata marks future and aired mediaUnits", () => {
   });
 });
 
-it.scoped("listEpisodesEffect fills missing media metadata from ffprobe", () =>
+it.scoped("MediaQueryService.listEpisodes returns stored episode probe metadata", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       withFileSystemSandboxEffect(({ root, fs }) =>
@@ -119,11 +177,12 @@ it.scoped("listEpisodesEffect fills missing media metadata from ffprobe", () =>
             }),
           );
 
-          const result = yield* listEpisodesEffect({
-            mediaId: 1,
-            mediaRepository: makeMediaRepository(appDb),
-            now: new Date("2024-01-02T00:00:00.000Z"),
-          });
+          yield* TestClock.setTime(new Date("2024-01-02T00:00:00.000Z").getTime());
+          const service = yield* MediaQueryService.pipe(
+            Effect.provide(makeQueryServiceLayer(appDb)),
+          );
+
+          const result = yield* service.listEpisodes(1);
 
           assert.deepStrictEqual(result[0]?.resolution, "1080p");
           assert.deepStrictEqual(result[0]?.video_codec, "HEVC");
@@ -137,7 +196,7 @@ it.scoped("listEpisodesEffect fills missing media metadata from ffprobe", () =>
   }),
 );
 
-it.scoped("listMediaFilesEffect caches probed metadata to episode rows", () =>
+it.scoped("MediaFileService.listFiles caches probed metadata to episode rows", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       withFileSystemSandboxEffect(({ root, fs }) =>
@@ -176,7 +235,7 @@ it.scoped("listMediaFilesEffect caches probed metadata to episode rows", () =>
           );
 
           let probeCalls = 0;
-          const mediaProbe = {
+          const mediaProbe = MediaProbe.make({
             probeVideoFile: (_path: string) => {
               probeCalls += 1;
               return Effect.succeed(
@@ -191,15 +250,35 @@ it.scoped("listMediaFilesEffect caches probed metadata to episode rows", () =>
                 }),
               );
             },
-          };
-
-          const first = yield* listMediaFilesEffect({
-            mediaId: 101,
-            fs,
-            mediaRepository: makeMediaRepository(appDb),
-            mediaUnitRepository: makeMediaUnitRepository(appDb),
-            mediaProbe,
           });
+
+          const layer = MediaFileService.DefaultWithoutDependencies.pipe(
+            Layer.provide(
+              Layer.mergeAll(
+                makeUnusedEventBusLayer("not used in test"),
+                Layer.succeed(FileSystem, FileSystem.make(fs)),
+                Layer.succeed(MediaProbe, mediaProbe),
+                Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(appDb)),
+                Layer.succeed(MediaRepository, makeMediaRepository(appDb)),
+                Layer.succeed(MediaUnitRepository, makeMediaUnitRepository(appDb)),
+                Layer.succeed(SystemLogRepository, makeSystemLogRepository(appDb)),
+                Layer.succeed(
+                  OperationsTaskLauncherService,
+                  OperationsTaskLauncherService.make({
+                    launch: () => Effect.dieMessage("not used in test"),
+                  }),
+                ),
+              ),
+            ),
+          );
+
+          const listFiles = (mediaId: number) =>
+            Effect.gen(function* () {
+              const service = yield* MediaFileService;
+              return yield* service.listFiles(mediaId);
+            }).pipe(Effect.provide(layer));
+
+          const first = yield* listFiles(101);
 
           const episodeRows = yield* Effect.tryPromise(() =>
             appDb.select().from(schema.mediaUnits).where(eq(schema.mediaUnits.mediaId, 101)),
@@ -217,13 +296,7 @@ it.scoped("listMediaFilesEffect caches probed metadata to episode rows", () =>
           assert.deepStrictEqual(row?.audioChannels, "2.0");
           assert.deepStrictEqual(row?.durationSeconds, 1440);
 
-          const second = yield* listMediaFilesEffect({
-            mediaId: 101,
-            fs,
-            mediaRepository: makeMediaRepository(appDb),
-            mediaUnitRepository: makeMediaUnitRepository(appDb),
-            mediaProbe,
-          });
+          const second = yield* listFiles(101);
 
           assert.deepStrictEqual(second[0]?.resolution, "1080p");
           assert.deepStrictEqual(second[0]?.video_codec, "HEVC");
@@ -237,39 +310,43 @@ it.scoped("listMediaFilesEffect caches probed metadata to episode rows", () =>
   }),
 );
 
-it.scoped("getMediaByAnilistIdEffect returns related and recommended metadata", () =>
+it.scoped("MediaQueryService.getMediaByAnilistId returns related and recommended metadata", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
-        const result = yield* getMediaByAnilistIdEffect({
-          aniList: makeAniListStub({
-            bannerImage: "https://example.com/banner.png",
-            coverImage: "https://example.com/cover.png",
-            format: "TV",
-            id: brandMediaId(55),
-            recommendedMedia: [
-              {
-                id: brandMediaId(77),
-                title: { english: "Recommendation", romaji: "Recommendation" },
-              },
-            ],
-            relatedMedia: [
-              {
-                id: brandMediaId(56),
-                relation_type: "SEQUEL",
-                title: { english: "Sequel", romaji: "Sequel" },
-              },
-            ],
-            startDate: "2024-04-03",
-            startYear: 2024,
-            status: "RELEASING",
-            synonyms: ["Stub Alias"],
-            title: { english: "Stub Show", romaji: "Stub Show" },
-          }),
-          mediaRepository: makeMediaRepository(appDb),
-          id: 55,
-        });
+        const service = yield* MediaQueryService.pipe(
+          Effect.provide(
+            makeQueryServiceLayer(appDb, {
+              aniList: makeAniListStub({
+                bannerImage: "https://example.com/banner.png",
+                coverImage: "https://example.com/cover.png",
+                format: "TV",
+                id: brandMediaId(55),
+                recommendedMedia: [
+                  {
+                    id: brandMediaId(77),
+                    title: { english: "Recommendation", romaji: "Recommendation" },
+                  },
+                ],
+                relatedMedia: [
+                  {
+                    id: brandMediaId(56),
+                    relation_type: "SEQUEL",
+                    title: { english: "Sequel", romaji: "Sequel" },
+                  },
+                ],
+                startDate: "2024-04-03",
+                startYear: 2024,
+                status: "RELEASING",
+                synonyms: ["Stub Alias"],
+                title: { english: "Stub Show", romaji: "Stub Show" },
+              }),
+            }),
+          ),
+        );
+
+        const result = yield* service.getMediaByAnilistId(55);
 
         assert.deepStrictEqual(result.related_media?.[0]?.relation_type, "SEQUEL");
         assert.deepStrictEqual(result.recommended_media?.[0]?.title.english, "Recommendation");
@@ -279,7 +356,7 @@ it.scoped("getMediaByAnilistIdEffect returns related and recommended metadata", 
   }),
 );
 
-it.scoped("getMediaEffect returns discovery metadata from database storage", () =>
+it.scoped("MediaQueryService.getMedia returns discovery metadata from database storage", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -313,10 +390,8 @@ it.scoped("getMediaEffect returns discovery metadata from database storage", () 
           }),
         );
 
-        const result = yield* getMediaEffect({
-          id: 80,
-          mediaRepository: makeMediaRepository(appDb),
-        });
+        const service = yield* MediaQueryService.pipe(Effect.provide(makeQueryServiceLayer(appDb)));
+        const result = yield* service.getMedia(80);
 
         assert.deepStrictEqual(result.related_media?.[0]?.relation_type, "PREQUEL");
         assert.deepStrictEqual(result.recommended_media?.[0]?.title.english, "Recommended Show");
@@ -326,7 +401,7 @@ it.scoped("getMediaEffect returns discovery metadata from database storage", () 
   }),
 );
 
-it.scoped("getMediaEffect uses stored discovery metadata from database", () =>
+it.scoped("MediaQueryService.getMedia uses stored discovery metadata from database", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -360,10 +435,8 @@ it.scoped("getMediaEffect uses stored discovery metadata from database", () =>
           }),
         );
 
-        const result = yield* getMediaEffect({
-          id: 90,
-          mediaRepository: makeMediaRepository(appDb),
-        });
+        const service = yield* MediaQueryService.pipe(Effect.provide(makeQueryServiceLayer(appDb)));
+        const result = yield* service.getMedia(90);
 
         assert.deepStrictEqual(result.id, 90);
         assert.deepStrictEqual(result.synonyms, ["Alt Title", "Another Name"]);
@@ -376,65 +449,70 @@ it.scoped("getMediaEffect uses stored discovery metadata from database", () =>
   }),
 );
 
-it.scoped("searchMediaEffect fails when AniList search fails", () =>
+it.scoped("MediaQueryService.searchMedia falls back to Manami when AniList search fails", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
         const result = yield* Effect.exit(
-          searchMediaEffect({
-            aniList: AniListClient.make({
-              getAnimeMetadataById: () => Effect.succeed(Option.none()),
-              searchAnimeMetadata: () =>
-                Effect.fail(
-                  new ExternalCallError({
-                    cause: new Error("rate limited"),
-                    message: "AniList search failed",
-                    operation: "anilist.search.response",
+          Effect.gen(function* () {
+            const service = yield* MediaQueryService.pipe(
+              Effect.provide(
+                makeQueryServiceLayer(appDb, {
+                  aniList: AniListClient.make({
+                    getAnimeMetadataById: () => Effect.succeed(Option.none()),
+                    searchAnimeMetadata: () =>
+                      Effect.fail(
+                        new ExternalCallError({
+                          cause: new Error("rate limited"),
+                          message: "AniList search failed",
+                          operation: "anilist.search.response",
+                        }),
+                      ),
+                    getSeasonalAnime: () => Effect.succeed([]),
                   }),
-                ),
-              getSeasonalAnime: () => Effect.succeed([]),
-            }),
-            mediaRepository: makeMediaRepository(appDb),
-            query: "bake",
+                }),
+              ),
+            );
+            return yield* service.searchMedia("bake");
           }),
         );
 
-        assert.deepStrictEqual(Exit.isFailure(result), true);
-        if (Exit.isFailure(result)) {
-          const failure = Cause.failureOption(result.cause);
-          assert.deepStrictEqual(failure._tag, "Some");
-          if (failure._tag === "Some") {
-            assert.deepStrictEqual(failure.value instanceof ExternalCallError, true);
-            assert.deepStrictEqual(failure.value.message, "AniList search failed");
-          }
+        assert.deepStrictEqual(Exit.isSuccess(result), true);
+        if (Exit.isSuccess(result)) {
+          assert.deepStrictEqual(result.value.degraded, true);
+          assert.deepStrictEqual(result.value.results.length, 0);
         }
       }),
     schema,
   }),
 );
 
-it.scoped("searchMediaEffect reports non-degraded when AniList search succeeds", () =>
+it.scoped("MediaQueryService.searchMedia reports non-degraded when AniList search succeeds", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
-        const result = yield* searchMediaEffect({
-          aniList: AniListClient.make({
-            getAnimeMetadataById: () => Effect.succeed(Option.none()),
-            searchAnimeMetadata: () =>
-              Effect.succeed([
-                {
-                  already_in_library: false,
-                  id: brandMediaId(202),
-                  title: { romaji: "Bakemonogatari" },
-                } satisfies MediaSearchResult,
-              ]),
-            getSeasonalAnime: () => Effect.succeed([]),
-          }),
-          mediaRepository: makeMediaRepository(appDb),
-          query: "bake",
-        });
+        const service = yield* MediaQueryService.pipe(
+          Effect.provide(
+            makeQueryServiceLayer(appDb, {
+              aniList: AniListClient.make({
+                getAnimeMetadataById: () => Effect.succeed(Option.none()),
+                searchAnimeMetadata: () =>
+                  Effect.succeed([
+                    {
+                      already_in_library: false,
+                      id: brandMediaId(202),
+                      title: { romaji: "Bakemonogatari" },
+                    } satisfies MediaSearchResult,
+                  ]),
+                getSeasonalAnime: () => Effect.succeed([]),
+              }),
+            }),
+          ),
+        );
+
+        const result = yield* service.searchMedia("bake");
 
         assert.deepStrictEqual(result.degraded, false);
         assert.deepStrictEqual(result.results.length, 1);
@@ -444,38 +522,48 @@ it.scoped("searchMediaEffect reports non-degraded when AniList search succeeds",
   }),
 );
 
-it.scoped("searchMediaEffect falls back to Manami when AniList returns no results", () =>
-  withSqliteTestDbEffect({
-    run: (db) =>
-      Effect.gen(function* () {
-        const appDb: AppDatabase = db;
-        const result = yield* searchMediaEffect({
-          aniList: AniListClient.make({
-            getAnimeMetadataById: () => Effect.succeed(Option.none()),
-            searchAnimeMetadata: () => Effect.succeed([]),
-            getSeasonalAnime: () => Effect.succeed([]),
-          }),
-          mediaRepository: makeMediaRepository(appDb),
-          manami: {
-            searchMedia: () =>
-              Effect.succeed([
-                {
-                  already_in_library: false,
-                  id: brandMediaId(20),
-                  title: { english: "Naruto", romaji: "NARUTO" },
-                } satisfies MediaSearchResult,
-              ]),
-          },
-          query: "Naruto",
-        });
+it.scoped(
+  "MediaQueryService.searchMedia falls back to Manami when AniList returns no results",
+  () =>
+    withSqliteTestDbEffect({
+      run: (db) =>
+        Effect.gen(function* () {
+          const appDb: AppDatabase = db;
+          const service = yield* MediaQueryService.pipe(
+            Effect.provide(
+              makeQueryServiceLayer(appDb, {
+                aniList: AniListClient.make({
+                  getAnimeMetadataById: () => Effect.succeed(Option.none()),
+                  searchAnimeMetadata: () => Effect.succeed([]),
+                  getSeasonalAnime: () => Effect.succeed([]),
+                }),
+                manami: ManamiClient.make({
+                  getByAniListId: () => Effect.succeed(Option.none()),
+                  getByMalId: () => Effect.succeed(Option.none()),
+                  resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
+                  resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
+                  searchMedia: () =>
+                    Effect.succeed([
+                      {
+                        already_in_library: false,
+                        id: brandMediaId(20),
+                        title: { english: "Naruto", romaji: "NARUTO" },
+                      } satisfies MediaSearchResult,
+                    ]),
+                }),
+              }),
+            ),
+          );
 
-        assert.deepStrictEqual(result.degraded, true);
-        assert.deepStrictEqual(result.results.length, 1);
-        assert.deepStrictEqual(result.results[0]?.id, 20);
-        assert.deepStrictEqual(result.results[0]?.match_confidence, 1);
-      }),
-    schema,
-  }),
+          const result = yield* service.searchMedia("Naruto");
+
+          assert.deepStrictEqual(result.degraded, true);
+          assert.deepStrictEqual(result.results.length, 1);
+          assert.deepStrictEqual(result.results[0]?.id, 20);
+          assert.deepStrictEqual(result.results[0]?.match_confidence, 1);
+        }),
+      schema,
+    }),
 );
 
 function makeAniListStub(metadata: AnimeMetadata) {
@@ -486,7 +574,7 @@ function makeAniListStub(metadata: AnimeMetadata) {
   });
 }
 
-it.scoped("listMediaEffect returns paginated results with defaults", () =>
+it.scoped("MediaQueryService.listMedia returns paginated results with defaults", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -509,7 +597,8 @@ it.scoped("listMediaEffect returns paginated results with defaults", () =>
           );
         }
 
-        const result = yield* listMediaEffect(makeMediaRepository(appDb));
+        const service = yield* MediaQueryService.pipe(Effect.provide(makeQueryServiceLayer(appDb)));
+        const result = yield* service.listMedia();
 
         assert.deepStrictEqual(result.total, 5);
         assert.deepStrictEqual(result.offset, 0);
@@ -521,7 +610,7 @@ it.scoped("listMediaEffect returns paginated results with defaults", () =>
   }),
 );
 
-it.scoped("listMediaEffect respects limit and offset", () =>
+it.scoped("MediaQueryService.listMedia respects limit and offset", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -544,10 +633,9 @@ it.scoped("listMediaEffect respects limit and offset", () =>
           );
         }
 
-        const page1 = yield* listMediaEffect(makeMediaRepository(appDb), {
-          limit: 3,
-          offset: 0,
-        });
+        const service = yield* MediaQueryService.pipe(Effect.provide(makeQueryServiceLayer(appDb)));
+
+        const page1 = yield* service.listMedia({ limit: 3, offset: 0 });
         const page1First = page1.items[0];
         assert(page1First);
         assert.deepStrictEqual(page1.items.length, 3);
@@ -555,20 +643,14 @@ it.scoped("listMediaEffect respects limit and offset", () =>
         assert.deepStrictEqual(page1.has_more, true);
         assert.deepStrictEqual(page1.total, 10);
 
-        const page2 = yield* listMediaEffect(makeMediaRepository(appDb), {
-          limit: 3,
-          offset: 3,
-        });
+        const page2 = yield* service.listMedia({ limit: 3, offset: 3 });
         const page2First = page2.items[0];
         assert(page2First);
         assert.deepStrictEqual(page2.items.length, 3);
         assert.deepStrictEqual(page2First.id, 4);
         assert.deepStrictEqual(page2.has_more, true);
 
-        const page4 = yield* listMediaEffect(makeMediaRepository(appDb), {
-          limit: 3,
-          offset: 9,
-        });
+        const page4 = yield* service.listMedia({ limit: 3, offset: 9 });
         const page4First = page4.items[0];
         assert(page4First);
         assert.deepStrictEqual(page4.items.length, 1);
@@ -579,7 +661,7 @@ it.scoped("listMediaEffect respects limit and offset", () =>
   }),
 );
 
-it.scoped("listMediaEffect caps limit at 500", () =>
+it.scoped("MediaQueryService.listMedia caps limit at 500", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -600,14 +682,15 @@ it.scoped("listMediaEffect caps limit at 500", () =>
           }),
         );
 
-        const result = yield* listMediaEffect(makeMediaRepository(appDb), { limit: 1000 });
+        const service = yield* MediaQueryService.pipe(Effect.provide(makeQueryServiceLayer(appDb)));
+        const result = yield* service.listMedia({ limit: 1000 });
         assert.deepStrictEqual(result.limit, 500);
       }),
     schema,
   }),
 );
 
-it.scoped("listMediaEffect floors limit at 1", () =>
+it.scoped("MediaQueryService.listMedia floors limit at 1", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -628,14 +711,15 @@ it.scoped("listMediaEffect floors limit at 1", () =>
           }),
         );
 
-        const result = yield* listMediaEffect(makeMediaRepository(appDb), { limit: 0 });
+        const service = yield* MediaQueryService.pipe(Effect.provide(makeQueryServiceLayer(appDb)));
+        const result = yield* service.listMedia({ limit: 0 });
         assert.deepStrictEqual(result.limit, 1);
       }),
     schema,
   }),
 );
 
-it.scoped("listMediaEffect floors negative offset at 0", () =>
+it.scoped("MediaQueryService.listMedia floors negative offset at 0", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -656,14 +740,15 @@ it.scoped("listMediaEffect floors negative offset at 0", () =>
           }),
         );
 
-        const result = yield* listMediaEffect(makeMediaRepository(appDb), { offset: -10 });
+        const service = yield* MediaQueryService.pipe(Effect.provide(makeQueryServiceLayer(appDb)));
+        const result = yield* service.listMedia({ offset: -10 });
         assert.deepStrictEqual(result.offset, 0);
       }),
     schema,
   }),
 );
 
-it.scoped("listMediaEffect aggregates episode download counts", () =>
+it.scoped("MediaQueryService.listMedia aggregates episode download counts", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -693,7 +778,8 @@ it.scoped("listMediaEffect aggregates episode download counts", () =>
           ]),
         );
 
-        const result = yield* listMediaEffect(makeMediaRepository(appDb));
+        const service = yield* MediaQueryService.pipe(Effect.provide(makeQueryServiceLayer(appDb)));
+        const result = yield* service.listMedia();
         const firstItem = result.items[0];
         assert(firstItem);
         assert.deepStrictEqual(result.items.length, 1);
@@ -703,7 +789,7 @@ it.scoped("listMediaEffect aggregates episode download counts", () =>
   }),
 );
 
-it.scoped("listMediaEffect filters by monitored status", () =>
+it.scoped("MediaQueryService.listMedia filters by monitored status", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -739,21 +825,19 @@ it.scoped("listMediaEffect filters by monitored status", () =>
           ]),
         );
 
-        const allResults = yield* listMediaEffect(makeMediaRepository(appDb));
+        const service = yield* MediaQueryService.pipe(Effect.provide(makeQueryServiceLayer(appDb)));
+
+        const allResults = yield* service.listMedia();
         assert.deepStrictEqual(allResults.total, 2);
         assert.deepStrictEqual(allResults.items.length, 2);
 
-        const monitoredOnly = yield* listMediaEffect(makeMediaRepository(appDb), {
-          monitored: true,
-        });
+        const monitoredOnly = yield* service.listMedia({ monitored: true });
         const monitoredFirst = monitoredOnly.items[0];
         assert(monitoredFirst);
         assert.deepStrictEqual(monitoredOnly.total, 1);
         assert.deepStrictEqual(monitoredFirst.id, 1);
 
-        const unmonitoredOnly = yield* listMediaEffect(makeMediaRepository(appDb), {
-          monitored: false,
-        });
+        const unmonitoredOnly = yield* service.listMedia({ monitored: false });
         const unmonitoredFirst = unmonitoredOnly.items[0];
         assert(unmonitoredFirst);
         assert.deepStrictEqual(unmonitoredOnly.total, 1);
@@ -763,59 +847,64 @@ it.scoped("listMediaEffect filters by monitored status", () =>
   }),
 );
 
-it.scoped("listMediaEffect includes progress and metadata fields needed by list UI", () =>
-  withSqliteTestDbEffect({
-    run: (db) =>
-      Effect.gen(function* () {
-        const appDb: AppDatabase = db;
-        yield* Effect.tryPromise(() =>
-          appDb.insert(schema.media).values({
-            id: 10,
-            titleRomaji: "Detailed Show",
-            rootFolder: "/test/10",
-            format: "TV",
-            status: "RELEASING",
-            genres: '["Action"]',
-            studios: '["Studio A"]',
-            score: 87,
-            profileName: "Default",
-            releaseProfileIds: "[1,2]",
-            addedAt: "2024-01-01T00:00:00Z",
-            monitored: true,
-            unitCount: 3,
-          }),
-        );
+it.scoped(
+  "MediaQueryService.listMedia includes progress and metadata fields needed by list UI",
+  () =>
+    withSqliteTestDbEffect({
+      run: (db) =>
+        Effect.gen(function* () {
+          const appDb: AppDatabase = db;
+          yield* Effect.tryPromise(() =>
+            appDb.insert(schema.media).values({
+              id: 10,
+              titleRomaji: "Detailed Show",
+              rootFolder: "/test/10",
+              format: "TV",
+              status: "RELEASING",
+              genres: '["Action"]',
+              studios: '["Studio A"]',
+              score: 87,
+              profileName: "Default",
+              releaseProfileIds: "[1,2]",
+              addedAt: "2024-01-01T00:00:00Z",
+              monitored: true,
+              unitCount: 3,
+            }),
+          );
 
-        yield* Effect.tryPromise(() =>
-          appDb.insert(schema.mediaUnits).values([
-            { mediaId: 10, number: 1, downloaded: true, filePath: "/ep1.mkv" },
-            { mediaId: 10, number: 2, downloaded: false, filePath: null },
-            { mediaId: 10, number: 3, downloaded: false, filePath: null },
-          ]),
-        );
+          yield* Effect.tryPromise(() =>
+            appDb.insert(schema.mediaUnits).values([
+              { mediaId: 10, number: 1, downloaded: true, filePath: "/ep1.mkv" },
+              { mediaId: 10, number: 2, downloaded: false, filePath: null },
+              { mediaId: 10, number: 3, downloaded: false, filePath: null },
+            ]),
+          );
 
-        const result = yield* listMediaEffect(makeMediaRepository(appDb));
-        assert.deepStrictEqual(result.items.length, 1);
+          const service = yield* MediaQueryService.pipe(
+            Effect.provide(makeQueryServiceLayer(appDb)),
+          );
+          const result = yield* service.listMedia();
+          assert.deepStrictEqual(result.items.length, 1);
 
-        const media = result.items[0];
-        assert(media);
-        assert.deepStrictEqual(media.progress.downloaded, 1);
-        assert.deepStrictEqual(media.progress.total, 3);
-        assert.deepStrictEqual(media.progress.downloaded_percent, 33);
-        assert.deepStrictEqual(media.progress.is_up_to_date, false);
-        assert.deepStrictEqual(media.progress.latest_downloaded_unit, 1);
-        assert.deepStrictEqual(media.progress.next_missing_unit, 2);
-        assert.deepStrictEqual(media.progress.missing, [2, 3]);
-        assert.deepStrictEqual(media.score, 87);
-        assert.deepStrictEqual(media.studios, ["Studio A"]);
-        assert.deepStrictEqual(media.release_profile_ids, [1, 2]);
-        assert.deepStrictEqual(media.genres, ["Action"]);
-      }),
-    schema,
-  }),
+          const media = result.items[0];
+          assert(media);
+          assert.deepStrictEqual(media.progress.downloaded, 1);
+          assert.deepStrictEqual(media.progress.total, 3);
+          assert.deepStrictEqual(media.progress.downloaded_percent, 33);
+          assert.deepStrictEqual(media.progress.is_up_to_date, false);
+          assert.deepStrictEqual(media.progress.latest_downloaded_unit, 1);
+          assert.deepStrictEqual(media.progress.next_missing_unit, 2);
+          assert.deepStrictEqual(media.progress.missing, [2, 3]);
+          assert.deepStrictEqual(media.score, 87);
+          assert.deepStrictEqual(media.studios, ["Studio A"]);
+          assert.deepStrictEqual(media.release_profile_ids, [1, 2]);
+          assert.deepStrictEqual(media.genres, ["Action"]);
+        }),
+      schema,
+    }),
 );
 
-it.scoped("listMediaEffect fails when stored media JSON metadata is corrupt", () =>
+it.scoped("MediaQueryService.listMedia fails when stored media JSON metadata is corrupt", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
@@ -836,7 +925,14 @@ it.scoped("listMediaEffect fails when stored media JSON metadata is corrupt", ()
           }),
         );
 
-        const result = yield* Effect.exit(listMediaEffect(makeMediaRepository(appDb)));
+        const result = yield* Effect.exit(
+          Effect.gen(function* () {
+            const service = yield* MediaQueryService.pipe(
+              Effect.provide(makeQueryServiceLayer(appDb)),
+            );
+            return yield* service.listMedia();
+          }),
+        );
         assert.deepStrictEqual(Exit.isFailure(result), true);
         if (Exit.isFailure(result)) {
           const failure = Cause.failureOption(result.cause);

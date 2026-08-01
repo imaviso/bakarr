@@ -5,31 +5,14 @@ export class UnitFileResolved extends Schema.TaggedClass<UnitFileResolved>()("Un
   filePath: Schema.String,
 }) {}
 
-export class UnitFileUnmapped extends Schema.TaggedClass<UnitFileUnmapped>()(
-  "UnitFileUnmapped",
-  {},
-) {}
-
-export class UnitFileRootInaccessible extends Schema.TaggedClass<UnitFileRootInaccessible>()(
-  "UnitFileRootInaccessible",
-  { rootFolder: Schema.String },
-) {}
-
-export class UnitFileMissing extends Schema.TaggedClass<UnitFileMissing>()("UnitFileMissing", {
-  filePath: Schema.String,
-}) {}
-
-export class UnitFileOutsideRoot extends Schema.TaggedClass<UnitFileOutsideRoot>()(
-  "UnitFileOutsideRoot",
+export class UnitFileResolveError extends Schema.TaggedError<UnitFileResolveError>()(
+  "UnitFileResolveError",
   {
-    animeRoot: Schema.String,
-    filePath: Schema.String,
+    filePath: Schema.optional(Schema.String),
+    mediaId: Schema.Number,
+    message: Schema.String,
+    reason: Schema.Literal("unmapped", "missing", "root-inaccessible", "outside-root"),
+    rootFolder: Schema.optional(Schema.String),
+    unitNumber: Schema.Number,
   },
 ) {}
-
-export type UnitFileResolution =
-  | UnitFileResolved
-  | UnitFileUnmapped
-  | UnitFileRootInaccessible
-  | UnitFileMissing
-  | UnitFileOutsideRoot;
