@@ -5,6 +5,7 @@ import {
   type DirEntry,
   type FileSystemShape,
 } from "@/infra/filesystem/filesystem.ts";
+import { UNIT_FILE_EXTENSIONS } from "@/features/media/files/media-file-path-policy.ts";
 
 const SCAN_STAT_CONCURRENCY = 16;
 
@@ -123,7 +124,12 @@ export function scanVideoFilesStream(
 }
 
 export function isSupportedImportFile(name: string) {
-  return [".mkv", ".mp4", ".avi", ".mov", ".webm", ".cbz", ".cbr", ".pdf", ".epub"].some((ext) =>
-    name.toLowerCase().endsWith(ext),
-  );
+  const lower = name.toLowerCase();
+  for (const extension of UNIT_FILE_EXTENSIONS) {
+    if (lower.endsWith(extension)) {
+      return true;
+    }
+  }
+
+  return false;
 }

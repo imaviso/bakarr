@@ -4,9 +4,10 @@ import { isNotFoundError } from "@/infra/filesystem/fs-errors.ts";
 import { Effect } from "effect";
 import { classifyMediaArtifact, parseFileSourceIdentity } from "@/infra/media/identity/identity.ts";
 import { parseVolumeNumbersFromTitle } from "@/features/operations/search/release-volume.ts";
-
-const VIDEO_EXTENSIONS = [".mkv", ".mp4", ".avi", ".mov", ".webm"];
-const VOLUME_EXTENSIONS = [".cbz", ".cbr", ".pdf", ".epub"];
+import {
+  VOLUME_UNIT_FILE_EXTENSIONS,
+  VIDEO_UNIT_FILE_EXTENSIONS,
+} from "@/features/media/files/media-file-path-policy.ts";
 
 function parseEpisodeNumber(
   name: string,
@@ -45,14 +46,14 @@ export const collectVideoFiles = Effect.fn("MediaService.collectVideoFiles")(fun
   fs: FileSystemShape,
   rootFolder: string,
 ) {
-  return yield* collectMediaFiles(fs, rootFolder, VIDEO_EXTENSIONS);
+  return yield* collectMediaFiles(fs, rootFolder, VIDEO_UNIT_FILE_EXTENSIONS);
 });
 
 export const collectVolumeFiles = Effect.fn("MediaService.collectVolumeFiles")(function* (
   fs: FileSystemShape,
   rootFolder: string,
 ) {
-  return yield* collectMediaFiles(fs, rootFolder, VOLUME_EXTENSIONS);
+  return yield* collectMediaFiles(fs, rootFolder, VOLUME_UNIT_FILE_EXTENSIONS);
 });
 
 const collectMediaFiles = Effect.fn("MediaService.collectMediaFiles")(function* (
@@ -101,7 +102,11 @@ const collectMediaFiles = Effect.fn("MediaService.collectMediaFiles")(function* 
       }
 
       entries.push({
-        unit_number: parseEpisodeNumber(entry.name, fullPath, extensions === VOLUME_EXTENSIONS),
+        unit_number: parseEpisodeNumber(
+          entry.name,
+          fullPath,
+          extensions === VOLUME_UNIT_FILE_EXTENSIONS,
+        ),
         name: entry.name,
         path: fullPath,
         size: entry.size,

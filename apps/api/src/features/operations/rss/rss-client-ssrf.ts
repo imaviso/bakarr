@@ -24,10 +24,6 @@ const ALLOWED_PORTS = new Set(["80", "443", ""]);
 const BLOCKED_HOSTNAME_SUFFIXES = [".local", ".internal", ".localhost", ".localdomain"];
 const BLOCKED_HOSTNAMES = new Set(["localhost", "ip6-localhost", "ip6-loopback"]);
 
-export type UrlValidationResult =
-  | { readonly _tag: "Accepted" }
-  | { readonly _tag: "Rejected"; readonly reason: string };
-
 export type PinnedRequestTarget =
   | {
       readonly _tag: "Pinned";
@@ -108,22 +104,6 @@ export const resolvePinnedRequestTarget = Effect.fn("RssClient.resolvePinnedRequ
     } satisfies PinnedRequestTarget;
   },
 );
-
-export const validateUrlForSsrf = Effect.fn("RssClient.validateUrlForSsrf")(function* (
-  urlString: string,
-  dns: typeof DnsResolver.Service,
-) {
-  const resolvedTarget = yield* Effect.either(resolvePinnedRequestTarget(urlString, dns));
-
-  if (Either.isLeft(resolvedTarget)) {
-    return {
-      _tag: "Rejected" as const,
-      reason: resolvedTarget.left.message,
-    };
-  }
-
-  return { _tag: "Accepted" as const };
-});
 
 /**
  * Creation-time feed URL guard: format, scheme, port, and static hostname checks only.

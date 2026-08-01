@@ -5,6 +5,7 @@ import { brandSystemLogId, type SystemLog } from "@packages/shared/index.ts";
 import { systemLogs } from "@/db/schema.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import { normalizeLevel } from "@/features/system/support.ts";
+import { escapeCsv } from "@/http/shared/route-fs.ts";
 
 const EXPORT_LIMIT = 10_000;
 const textEncoder = new TextEncoder();
@@ -114,14 +115,4 @@ export function encodeLogExportCsvStream(
   );
 
   return Stream.concat(Stream.fromIterable([csvHeader]), body);
-}
-
-function escapeCsv(value: string): string {
-  const safeValue = /^[=+\-@]/.test(value) ? `'${value}` : value;
-
-  if (/[",\n]/.test(safeValue)) {
-    return `"${safeValue.replace(/"/g, '""')}"`;
-  }
-
-  return safeValue;
 }
