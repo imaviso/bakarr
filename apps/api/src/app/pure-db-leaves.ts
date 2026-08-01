@@ -1,5 +1,6 @@
 import { Layer } from "effect";
 
+import { AuthUserRepository } from "@/features/auth/user-repository.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import { AniDbUnitCacheRepository } from "@/features/media/units/anidb-unit-cache-repository.ts";
@@ -13,14 +14,20 @@ import { SystemLogRepository } from "@/features/system/repository/log-repository
 import { SystemUnmappedRepository } from "@/features/system/repository/unmapped-repository.ts";
 import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
 import { ReleaseProfileRepository } from "@/features/system/repository/release-profile-repository.ts";
+import { SystemStatsRepository } from "@/features/system/repository/stats-repository.ts";
 import { SystemConfigRepository } from "@/features/system/repository/system-config-repository.ts";
 
 /**
- * Leaf repos whose only infra dep is AppDrizzleDatabase (via runtime).
- * Provide once at lifecycle (`makeApiLifecycleLayers`); pass into feature layers for
- * construction. Do not re-merge inside media/ops feature layers.
+ * Leaf repos whose only infra dep is AppDrizzleDatabase (ADR-0001 point 4).
+ * This is the single production provision site for every repository tag:
+ * merged once into the app layer, and embedded (as the same canonical
+ * `.Default` objects) in the `dependencies:` of consuming services, so the
+ * layer memo map builds one instance per tag. Feature layers must not
+ * re-provide repositories; `DefaultWithoutDependencies` remains the
+ * test-only override seam.
  */
 export const PureDbLeaves = Layer.mergeAll(
+  AuthUserRepository.Default,
   BackgroundJobRepository.Default,
   DownloadRepository.Default,
   MediaRepository.Default,
@@ -31,12 +38,9 @@ export const PureDbLeaves = Layer.mergeAll(
   OperationsTaskRepository.Default,
   RssFeedRepository.Default,
   SystemLogRepository.Default,
+  SystemStatsRepository.Default,
   SystemUnmappedRepository.Default,
   QualityProfileRepository.Default,
   ReleaseProfileRepository.Default,
   SystemConfigRepository.Default,
 );
-
-export function providePureDbLeaves<ROut, E, RIn>(runtimeSupportLayer: Layer.Layer<ROut, E, RIn>) {
-  return PureDbLeaves.pipe(Layer.provide(runtimeSupportLayer));
-}

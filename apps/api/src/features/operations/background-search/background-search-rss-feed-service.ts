@@ -220,8 +220,9 @@ export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSea
 
       return { processFeed } satisfies BackgroundSearchRssFeedServiceShape;
     }),
-    // RssClient + queue provided by ops feature layer.
+    // RssClient + RuntimeConfigSnapshotService come from the lifecycle layer.
     dependencies: [
+      BackgroundSearchQueueService.Default,
       DownloadRepository.Default,
       MediaRepository.Default,
       QualityProfileRepository.Default,

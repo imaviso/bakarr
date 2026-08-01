@@ -228,10 +228,12 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
 export class UnmappedControlService extends Effect.Service<UnmappedControlService>()(
   "@bakarr/api/UnmappedControlService",
   {
+    // RuntimeConfigSnapshotService comes from the lifecycle layer.
     dependencies: [
       MediaRepository.Default,
       SystemLogRepository.Default,
       SystemUnmappedRepository.Default,
+      UnmappedScanService.Default,
     ],
     effect: makeUnmappedControlService(),
   },

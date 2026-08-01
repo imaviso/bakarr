@@ -1,5 +1,6 @@
 import { Layer } from "effect";
 
+import { MediaEnrollmentServiceLive } from "@/features/media/add/media-enrollment-service.ts";
 import { MediaFileServiceLive } from "@/features/media/files/media-file-service.ts";
 import { MediaImageCacheServiceLive } from "@/features/media/metadata/media-image-cache-service.ts";
 import { MediaMaintenanceServiceLive } from "@/features/media/metadata/media-maintenance-service.ts";
@@ -12,36 +13,29 @@ import { MediaStreamServiceLive } from "@/features/media/stream/media-stream-ser
 import { MediaQueryServiceLive } from "@/features/media/query/query-service.ts";
 import { StreamTokenSignerLive } from "@/features/media/stream/stream-token-signer.ts";
 
-export function makeMediaFeatureLayer<ROut, E, RIn, LeavesOut, LeavesE, LeavesIn>(
-  runtimeSupportLayer: Layer.Layer<ROut, E, RIn>,
-  pureDbLeaves: Layer.Layer<LeavesOut, LeavesE, LeavesIn>,
-) {
-  const mediaServicesRuntime = Layer.mergeAll(runtimeSupportLayer, pureDbLeaves);
-
-  const mediaImageCacheLayer = MediaImageCacheServiceLive;
-  const mediaMetadataEnrichmentLayer = MediaMetadataEnrichmentServiceLive;
-  const mediaMetadataProviderLayer = MediaMetadataProviderServiceLive.pipe(
-    Layer.provide(mediaMetadataEnrichmentLayer),
-  );
-  const mediaMaintenanceLayer = MediaMaintenanceServiceLive.pipe(
-    Layer.provide(Layer.mergeAll(mediaMetadataProviderLayer, mediaImageCacheLayer)),
-  );
-  const mediaStreamTokenSignerLayer = StreamTokenSignerLive;
-  const mediaStreamLayer = MediaStreamServiceLive.pipe(Layer.provide(mediaStreamTokenSignerLayer));
-  const mediaSeasonalProviderLayer = MediaSeasonalProviderServiceLive;
-
-  return Layer.mergeAll(
-    mediaImageCacheLayer,
-    MediaQueryServiceLive,
-    MediaFileServiceLive,
-    MediaReaderServiceLive,
-    mediaMaintenanceLayer.pipe(
-      Layer.provide(Layer.mergeAll(mediaMetadataProviderLayer, mediaImageCacheLayer)),
-    ),
-    mediaMetadataEnrichmentLayer,
-    mediaMetadataProviderLayer,
-    MediaSettingsServiceLive,
-    mediaStreamTokenSignerLayer,
-    mediaStreamLayer,
-  ).pipe(Layer.provideMerge(mediaSeasonalProviderLayer), Layer.provide(mediaServicesRuntime));
-}
+/**
+ * Media feature root.
+ *
+ * Declarative merge of self-contained `Effect.Service` Defaults: each service
+ * declares its domain dependencies in its own `dependencies:` array (including
+ * cross-service edges such as provider -> enrichment and maintenance ->
+ * provider/image-cache), so no per-service `Layer.provide` chains live here.
+ * Residual context requirements (metadata clients, AppConfig, EventBus,
+ * MediaProbe + RuntimeConfigSnapshotService) are covered once by the lifecycle
+ * layer's single `Layer.provide` over the merged feature graph — see
+ * app/lifecycle-layers.ts.
+ */
+export const MediaFeatureLayer = Layer.mergeAll(
+  MediaEnrollmentServiceLive,
+  MediaFileServiceLive,
+  MediaImageCacheServiceLive,
+  MediaMaintenanceServiceLive,
+  MediaMetadataEnrichmentServiceLive,
+  MediaMetadataProviderServiceLive,
+  MediaSeasonalProviderServiceLive,
+  MediaQueryServiceLive,
+  MediaReaderServiceLive,
+  MediaSettingsServiceLive,
+  MediaStreamServiceLive,
+  StreamTokenSignerLive,
+);

@@ -9,17 +9,19 @@ import {
   makeAppPlatformCoreRuntimeLayer,
   type AppPlatformRuntimeOptions,
 } from "@/app/platform/runtime-core.ts";
-import { providePureDbLeaves } from "@/app/pure-db-leaves.ts";
+import { PureDbLeaves } from "@/app/pure-db-leaves.ts";
 import type { AppConfigOverrides, BootstrapConfigOverrides } from "@/config/schema.ts";
 import type { ObservabilityConfigOverrides } from "@/config/observability.ts";
 import { BackgroundWorkerControllerLive } from "@/background/controller-core.ts";
 import { BackgroundTaskRunnerLive } from "@/background/task-runner.ts";
-import { MediaEnrollmentServiceLive } from "@/features/media/add/media-enrollment-service.ts";
-import { makeMediaFeatureLayer } from "@/features/media/layer.ts";
-import { makeAuthFeatureLayer } from "@/features/auth/layer.ts";
-import { makeOperationsFeatureLayer } from "@/features/operations/layer.ts";
+import { MediaFeatureLayer } from "@/features/media/layer.ts";
+import { AuthFeatureLayer } from "@/features/auth/layer.ts";
+import { OperationsFeatureLayer } from "@/features/operations/layer.ts";
+import { SystemFeatureLayer } from "@/features/system/layer.ts";
+import { OperationsProgressLive } from "@/features/operations/tasks/operations-progress-service.ts";
+import { TorrentClientServiceLive } from "@/features/operations/qbittorrent/torrent-client-service.ts";
 import { DiskSpaceInspectorLive } from "@/features/system/disk-space.ts";
-import { makeSystemConfigLayers, makeSystemFeatureLayer } from "@/features/system/layer.ts";
+import { RuntimeConfigSnapshotServiceLive } from "@/features/system/runtime-config-snapshot-service.ts";
 import { MediaProbeLive } from "@/infra/media/probe.ts";
 
 export type ApiLifecycleOptions = AppPlatformRuntimeOptions &
@@ -27,6 +29,34 @@ export type ApiLifecycleOptions = AppPlatformRuntimeOptions &
     readonly commandExecutorLayer?: Layer.Layer<CommandExecutor.CommandExecutor>;
   };
 
+/**
+ * Application layer assembly.
+ *
+ * Flat structure, assembled once:
+ *
+ * 1. `platformRuntimeLayer` — platform core (config, db, logging, telemetry,
+ *    event bus, crypto) + optional command executor override.
+ * 2. `runtimeConfigSnapshotLayer` — stateful singleton (config cache Ref +
+ *    load semaphore). Built before external clients because provider clients
+ *    read runtime config at construction; merged into `runtimeSupportLayer`.
+ * 3. `runtimeSupportLayer` — everything feature services may legitimately
+ *    `yield*` without embedding: platform/config tags, external clients,
+ *    MediaProbe/DiskSpaceInspector + the runtime config snapshot.
+ * 4. `pureDbLeaves` — the single production provision of every repository
+ *    (ADR-0001): each is a self-contained `.Default` built once here.
+ * 5. Stateful singleton staircase (below) — the one place that cannot be plain
+ *    `mergeAll(Default, ...)` entries. Each owns cross-feature mutable
+ *    coordination state (coalesced progress publishers with semaphores/Refs,
+ *    torrent client folding, background worker lifecycle) and some depend on
+ *    sibling singletons at construction time, so wrappers fix the providing
+ *    environment explicitly. These wrapped consts are the canonical instances:
+ *    feature services never embed or merge the raw `.Default` of these five,
+ *    so the layer memo map builds each exactly once.
+ * 6. Feature roots (features/<x>/layer.ts) are declarative mergeAll lists of
+ *    self-contained service Defaults; ONE `Layer.provide` here covers their
+ *    residual context requirements (clients, config/platform tags + the
+ *    singletons above). Feature graphs never hand-wire each other.
+ */
 export function makeApiLifecycleLayers(
   overrides: AppConfigOverrides & BootstrapConfigOverrides & ObservabilityConfigOverrides = {},
   options?: ApiLifecycleOptions,
@@ -36,8 +66,9 @@ export function makeApiLifecycleLayers(
     ? Layer.mergeAll(platformCoreLayer, options.commandExecutorLayer)
     : platformCoreLayer;
 
-  const { runtimeConfigSnapshotLayer, systemConfigLayer, systemConfigRepositoryLayer } =
-    makeSystemConfigLayers(platformRuntimeLayer);
+  const runtimeConfigSnapshotLayer = RuntimeConfigSnapshotServiceLive.pipe(
+    Layer.provide(platformRuntimeLayer),
+  );
   const configRuntimeLayer = Layer.mergeAll(platformRuntimeLayer, runtimeConfigSnapshotLayer);
 
   const externalClientLayer = makeAppExternalClientLayer(options).pipe(
@@ -48,69 +79,51 @@ export function makeApiLifecycleLayers(
   const infrastructureLayer = Layer.mergeAll(MediaProbeLive, DiskSpaceInspectorLive).pipe(
     Layer.provide(platformExternalLayer),
   );
-  const platformLayer = Layer.mergeAll(platformExternalLayer, infrastructureLayer);
   const runtimeSupportLayer = Layer.mergeAll(
-    platformLayer,
-    systemConfigLayer,
+    platformExternalLayer,
+    infrastructureLayer,
     runtimeConfigSnapshotLayer,
   );
 
-  // PureDbLeaves provided once — feature layers receive it for construction only.
-  const pureDbLeaves = providePureDbLeaves(runtimeSupportLayer);
+  const pureDbLeaves = PureDbLeaves.pipe(Layer.provide(runtimeSupportLayer));
 
-  const mediaFeatureLayer = makeMediaFeatureLayer(runtimeSupportLayer, pureDbLeaves);
-  const operationsLayer = makeOperationsFeatureLayer(runtimeSupportLayer, pureDbLeaves);
-  const appDomainSubgraphLayer = Layer.mergeAll(mediaFeatureLayer, operationsLayer);
-
+  // --- Stateful singleton staircase (see header comment, point 5) ---
+  const operationsProgressLayer = OperationsProgressLive.pipe(Layer.provide(runtimeSupportLayer));
+  const torrentClientLayer = TorrentClientServiceLive.pipe(Layer.provide(runtimeSupportLayer));
+  // Task-runner transitively embeds services that yield OperationsProgress +
+  // TorrentClientService (e.g. sync -> reconciliation), so both must be visible
+  // at construction time.
   const backgroundTaskRunnerLayer = BackgroundTaskRunnerLive.pipe(
-    Layer.provide(Layer.mergeAll(appDomainSubgraphLayer, runtimeSupportLayer)),
+    Layer.provide(Layer.mergeAll(runtimeSupportLayer, operationsProgressLayer, torrentClientLayer)),
   );
   const backgroundControllerLayer = BackgroundWorkerControllerLive.pipe(
-    Layer.provide(Layer.mergeAll(backgroundTaskRunnerLayer, runtimeSupportLayer)),
+    Layer.provide(
+      Layer.mergeAll(
+        runtimeSupportLayer,
+        operationsProgressLayer,
+        torrentClientLayer,
+        backgroundTaskRunnerLayer,
+      ),
+    ),
   );
-  const runtimeWorkerSubgraphLayer = Layer.mergeAll(
+
+  const appSupportLayer = Layer.mergeAll(
+    runtimeSupportLayer,
+    pureDbLeaves,
+    operationsProgressLayer,
+    torrentClientLayer,
     backgroundTaskRunnerLayer,
     backgroundControllerLayer,
   );
 
-  const { repositoriesLayer: systemRepositoriesLayer, systemLayer } = makeSystemFeatureLayer({
-    backgroundControllerLayer,
-    operationsLayer,
-    runtimeSupportLayer,
-    systemConfigLayer,
-    systemConfigRepositoryLayer,
-  });
+  const featureGraphLayer = Layer.mergeAll(
+    AuthFeatureLayer,
+    MediaFeatureLayer,
+    OperationsFeatureLayer,
+    SystemFeatureLayer,
+  ).pipe(Layer.provide(appSupportLayer));
 
-  const authLayer = makeAuthFeatureLayer(runtimeSupportLayer);
-
-  // Enrollment bridges media + ops (missing-search + task launcher live in ops layer).
-  const mediaEnrollmentLayer = MediaEnrollmentServiceLive.pipe(
-    Layer.provide(appDomainSubgraphLayer),
-  );
-
-  const appFeatureBaseLayer = Layer.mergeAll(
-    appDomainSubgraphLayer,
-    runtimeWorkerSubgraphLayer,
-    authLayer,
-    systemLayer,
-    mediaEnrollmentLayer,
-  );
-
-  const appLayer = Layer.mergeAll(
-    runtimeSupportLayer,
-    pureDbLeaves,
-    systemRepositoriesLayer,
-    appFeatureBaseLayer.pipe(
-      Layer.provide(
-        Layer.mergeAll(
-          runtimeSupportLayer,
-          systemConfigRepositoryLayer,
-          systemRepositoriesLayer,
-          pureDbLeaves,
-        ),
-      ),
-    ),
-  );
+  const appLayer = Layer.mergeAll(appSupportLayer, featureGraphLayer);
 
   return {
     appLayer,

@@ -77,6 +77,7 @@ const makeSystemRuntimeMetricsService = Effect.fn("SystemRuntimeMetricsService.m
 export class SystemRuntimeMetricsService extends Effect.Service<SystemRuntimeMetricsService>()(
   "@bakarr/api/SystemRuntimeMetricsService",
   {
+    dependencies: [SystemReadService.Default],
     effect: makeSystemRuntimeMetricsService(),
   },
 ) {}

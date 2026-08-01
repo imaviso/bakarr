@@ -9,28 +9,28 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as LoginRouteImport } from './routes/login'
 import { Route as LayoutRouteImport } from './routes/_layout'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as LayoutIndexRouteImport } from './routes/_layout/index'
-import { Route as LayoutWantedRouteImport } from './routes/_layout/wanted'
-import { Route as LayoutSettingsRouteImport } from './routes/_layout/settings'
-import { Route as LayoutRssRouteImport } from './routes/_layout/rss'
-import { Route as LayoutLogsRouteImport } from './routes/_layout/logs'
-import { Route as LayoutDownloadsRouteImport } from './routes/_layout/downloads'
 import { Route as LayoutCalendarRouteImport } from './routes/_layout/calendar'
+import { Route as LayoutDownloadsRouteImport } from './routes/_layout/downloads'
+import { Route as LayoutLogsRouteImport } from './routes/_layout/logs'
+import { Route as LayoutRssRouteImport } from './routes/_layout/rss'
+import { Route as LayoutSettingsRouteImport } from './routes/_layout/settings'
+import { Route as LayoutWantedRouteImport } from './routes/_layout/wanted'
 import { Route as LayoutMediaIndexRouteImport } from './routes/_layout/media/index'
-import { Route as LayoutMediaScanRouteImport } from './routes/_layout/media/scan'
-import { Route as LayoutMediaImportRouteImport } from './routes/_layout/media/import'
-import { Route as LayoutMediaAddRouteImport } from './routes/_layout/media/add'
 import { Route as LayoutMediaIdRouteImport } from './routes/_layout/media/$id'
+import { Route as LayoutMediaAddRouteImport } from './routes/_layout/media/add'
+import { Route as LayoutMediaImportRouteImport } from './routes/_layout/media/import'
+import { Route as LayoutMediaScanRouteImport } from './routes/_layout/media/scan'
 
+const LayoutRoute = LayoutRouteImport.update({
+  id: '/_layout',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LayoutRoute = LayoutRouteImport.update({
-  id: '/_layout',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LayoutIndexRoute = LayoutIndexRouteImport.update({
@@ -38,24 +38,9 @@ const LayoutIndexRoute = LayoutIndexRouteImport.update({
   path: '/',
   getParentRoute: () => LayoutRoute,
 } as any)
-const LayoutWantedRoute = LayoutWantedRouteImport.update({
-  id: '/wanted',
-  path: '/wanted',
-  getParentRoute: () => LayoutRoute,
-} as any)
-const LayoutSettingsRoute = LayoutSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => LayoutRoute,
-} as any)
-const LayoutRssRoute = LayoutRssRouteImport.update({
-  id: '/rss',
-  path: '/rss',
-  getParentRoute: () => LayoutRoute,
-} as any)
-const LayoutLogsRoute = LayoutLogsRouteImport.update({
-  id: '/logs',
-  path: '/logs',
+const LayoutCalendarRoute = LayoutCalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
   getParentRoute: () => LayoutRoute,
 } as any)
 const LayoutDownloadsRoute = LayoutDownloadsRouteImport.update({
@@ -63,9 +48,24 @@ const LayoutDownloadsRoute = LayoutDownloadsRouteImport.update({
   path: '/downloads',
   getParentRoute: () => LayoutRoute,
 } as any)
-const LayoutCalendarRoute = LayoutCalendarRouteImport.update({
-  id: '/calendar',
-  path: '/calendar',
+const LayoutLogsRoute = LayoutLogsRouteImport.update({
+  id: '/logs',
+  path: '/logs',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutRssRoute = LayoutRssRouteImport.update({
+  id: '/rss',
+  path: '/rss',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutSettingsRoute = LayoutSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutWantedRoute = LayoutWantedRouteImport.update({
+  id: '/wanted',
+  path: '/wanted',
   getParentRoute: () => LayoutRoute,
 } as any)
 const LayoutMediaIndexRoute = LayoutMediaIndexRouteImport.update({
@@ -73,14 +73,9 @@ const LayoutMediaIndexRoute = LayoutMediaIndexRouteImport.update({
   path: '/media/',
   getParentRoute: () => LayoutRoute,
 } as any)
-const LayoutMediaScanRoute = LayoutMediaScanRouteImport.update({
-  id: '/media/scan',
-  path: '/media/scan',
-  getParentRoute: () => LayoutRoute,
-} as any)
-const LayoutMediaImportRoute = LayoutMediaImportRouteImport.update({
-  id: '/media/import',
-  path: '/media/import',
+const LayoutMediaIdRoute = LayoutMediaIdRouteImport.update({
+  id: '/media/$id',
+  path: '/media/$id',
   getParentRoute: () => LayoutRoute,
 } as any)
 const LayoutMediaAddRoute = LayoutMediaAddRouteImport.update({
@@ -88,9 +83,14 @@ const LayoutMediaAddRoute = LayoutMediaAddRouteImport.update({
   path: '/media/add',
   getParentRoute: () => LayoutRoute,
 } as any)
-const LayoutMediaIdRoute = LayoutMediaIdRouteImport.update({
-  id: '/media/$id',
-  path: '/media/$id',
+const LayoutMediaImportRoute = LayoutMediaImportRouteImport.update({
+  id: '/media/import',
+  path: '/media/import',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutMediaScanRoute = LayoutMediaScanRouteImport.update({
+  id: '/media/scan',
+  path: '/media/scan',
   getParentRoute: () => LayoutRoute,
 } as any)
 
@@ -197,18 +197,18 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/_layout': {
       id: '/_layout'
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof LayoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_layout/': {
@@ -218,32 +218,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutIndexRouteImport
       parentRoute: typeof LayoutRoute
     }
-    '/_layout/wanted': {
-      id: '/_layout/wanted'
-      path: '/wanted'
-      fullPath: '/wanted'
-      preLoaderRoute: typeof LayoutWantedRouteImport
-      parentRoute: typeof LayoutRoute
-    }
-    '/_layout/settings': {
-      id: '/_layout/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof LayoutSettingsRouteImport
-      parentRoute: typeof LayoutRoute
-    }
-    '/_layout/rss': {
-      id: '/_layout/rss'
-      path: '/rss'
-      fullPath: '/rss'
-      preLoaderRoute: typeof LayoutRssRouteImport
-      parentRoute: typeof LayoutRoute
-    }
-    '/_layout/logs': {
-      id: '/_layout/logs'
-      path: '/logs'
-      fullPath: '/logs'
-      preLoaderRoute: typeof LayoutLogsRouteImport
+    '/_layout/calendar': {
+      id: '/_layout/calendar'
+      path: '/calendar'
+      fullPath: '/calendar'
+      preLoaderRoute: typeof LayoutCalendarRouteImport
       parentRoute: typeof LayoutRoute
     }
     '/_layout/downloads': {
@@ -253,11 +232,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutDownloadsRouteImport
       parentRoute: typeof LayoutRoute
     }
-    '/_layout/calendar': {
-      id: '/_layout/calendar'
-      path: '/calendar'
-      fullPath: '/calendar'
-      preLoaderRoute: typeof LayoutCalendarRouteImport
+    '/_layout/logs': {
+      id: '/_layout/logs'
+      path: '/logs'
+      fullPath: '/logs'
+      preLoaderRoute: typeof LayoutLogsRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/rss': {
+      id: '/_layout/rss'
+      path: '/rss'
+      fullPath: '/rss'
+      preLoaderRoute: typeof LayoutRssRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/settings': {
+      id: '/_layout/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof LayoutSettingsRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/wanted': {
+      id: '/_layout/wanted'
+      path: '/wanted'
+      fullPath: '/wanted'
+      preLoaderRoute: typeof LayoutWantedRouteImport
       parentRoute: typeof LayoutRoute
     }
     '/_layout/media/': {
@@ -267,18 +267,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutMediaIndexRouteImport
       parentRoute: typeof LayoutRoute
     }
-    '/_layout/media/scan': {
-      id: '/_layout/media/scan'
-      path: '/media/scan'
-      fullPath: '/media/scan'
-      preLoaderRoute: typeof LayoutMediaScanRouteImport
-      parentRoute: typeof LayoutRoute
-    }
-    '/_layout/media/import': {
-      id: '/_layout/media/import'
-      path: '/media/import'
-      fullPath: '/media/import'
-      preLoaderRoute: typeof LayoutMediaImportRouteImport
+    '/_layout/media/$id': {
+      id: '/_layout/media/$id'
+      path: '/media/$id'
+      fullPath: '/media/$id'
+      preLoaderRoute: typeof LayoutMediaIdRouteImport
       parentRoute: typeof LayoutRoute
     }
     '/_layout/media/add': {
@@ -288,11 +281,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutMediaAddRouteImport
       parentRoute: typeof LayoutRoute
     }
-    '/_layout/media/$id': {
-      id: '/_layout/media/$id'
-      path: '/media/$id'
-      fullPath: '/media/$id'
-      preLoaderRoute: typeof LayoutMediaIdRouteImport
+    '/_layout/media/import': {
+      id: '/_layout/media/import'
+      path: '/media/import'
+      fullPath: '/media/import'
+      preLoaderRoute: typeof LayoutMediaImportRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/media/scan': {
+      id: '/_layout/media/scan'
+      path: '/media/scan'
+      fullPath: '/media/scan'
+      preLoaderRoute: typeof LayoutMediaScanRouteImport
       parentRoute: typeof LayoutRoute
     }
   }

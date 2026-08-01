@@ -1,17 +1,9 @@
 import { Layer } from "effect";
 
-import { BackgroundJobRepository } from "@/features/system/repository/background-job-repository.ts";
-import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
-import { ReleaseProfileRepository } from "@/features/system/repository/release-profile-repository.ts";
-import { SystemConfigRepository } from "@/features/system/repository/system-config-repository.ts";
-import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
-import { SystemStatsRepository } from "@/features/system/repository/stats-repository.ts";
-import { DownloadRepository } from "@/features/operations/repository/download-repository.ts";
 import { BackgroundJobStatusServiceLive } from "@/features/system/background-job-status-service.ts";
 import { ImageAssetServiceLive } from "@/features/system/image-asset-service.ts";
 import { QualityProfileServiceLive } from "@/features/system/quality-profile-service.ts";
 import { ReleaseProfileServiceLive } from "@/features/system/release-profile-service.ts";
-import { RuntimeConfigSnapshotServiceLive } from "@/features/system/runtime-config-snapshot-service.ts";
 import { SystemBootstrapServiceLive } from "@/features/system/system-bootstrap-service.ts";
 import { SystemConfigServiceLive } from "@/features/system/system-config-service.ts";
 import { SystemConfigUpdateServiceLive } from "@/features/system/system-config-update-service.ts";
@@ -20,113 +12,33 @@ import { SystemLogServiceLive } from "@/features/system/system-log-service.ts";
 import { SystemReadServiceLive } from "@/features/system/system-read-service.ts";
 import { SystemRuntimeMetricsServiceLive } from "@/features/system/system-runtime-metrics-service.ts";
 
-export function makeSystemConfigLayers<ROut, E, RIn>(
-  runtimeSupportLayer: Layer.Layer<ROut, E, RIn>,
-) {
-  const systemConfigRepositoryLayer = Layer.mergeAll(
-    SystemConfigRepository.Default,
-    QualityProfileRepository.Default,
-  ).pipe(Layer.provide(runtimeSupportLayer));
-  const systemConfigLayer = SystemConfigServiceLive.pipe(Layer.provide(runtimeSupportLayer));
-  const runtimeConfigSnapshotLayer = RuntimeConfigSnapshotServiceLive.pipe(
-    Layer.provide(runtimeSupportLayer),
-  );
-
-  return {
-    runtimeConfigSnapshotLayer,
-    systemConfigLayer,
-    systemConfigRepositoryLayer,
-  } as const;
-}
-
-export function makeSystemFeatureLayer<
-  RuntimeOut,
-  RuntimeError,
-  RuntimeIn,
-  BackgroundOut,
-  BackgroundError,
-  BackgroundIn,
-  OperationsOut,
-  OpsE,
-  OperationsIn,
-  SystemConfigOut,
-  SystemConfigError,
-  SystemConfigIn,
-  SystemConfigRepositoryOut,
-  SystemConfigRepositoryError,
-  SystemConfigRepositoryIn,
->(input: {
-  readonly backgroundControllerLayer: Layer.Layer<BackgroundOut, BackgroundError, BackgroundIn>;
-  readonly operationsLayer: Layer.Layer<OperationsOut, OpsE, OperationsIn>;
-  readonly runtimeSupportLayer: Layer.Layer<RuntimeOut, RuntimeError, RuntimeIn>;
-  readonly systemConfigLayer: Layer.Layer<SystemConfigOut, SystemConfigError, SystemConfigIn>;
-  readonly systemConfigRepositoryLayer: Layer.Layer<
-    SystemConfigRepositoryOut,
-    SystemConfigRepositoryError,
-    SystemConfigRepositoryIn
-  >;
-}) {
-  const pureSystemRepos = Layer.mergeAll(
-    BackgroundJobRepository.Default,
-    QualityProfileRepository.Default,
-    SystemStatsRepository.Default,
-    SystemLogRepository.Default,
-    ReleaseProfileRepository.Default,
-  ).pipe(Layer.provide(input.runtimeSupportLayer));
-
-  const runtimeWithBackgroundControllerLayer = Layer.mergeAll(
-    input.runtimeSupportLayer,
-    input.backgroundControllerLayer,
-  );
-  const downloadRepositoryLayer = DownloadRepository.Default.pipe(
-    Layer.provide(input.runtimeSupportLayer),
-  );
-  const backgroundJobStatusLayer = BackgroundJobStatusServiceLive.pipe(
-    Layer.provide(Layer.mergeAll(runtimeWithBackgroundControllerLayer, pureSystemRepos)),
-  );
-  const runtimeWithBackgroundJobStatusLayer = Layer.mergeAll(
-    input.runtimeSupportLayer,
-    pureSystemRepos,
-    backgroundJobStatusLayer,
-    downloadRepositoryLayer,
-  );
-  const systemReadLayer = SystemReadServiceLive.pipe(
-    Layer.provide(runtimeWithBackgroundJobStatusLayer),
-  );
-  const systemRuntimeMetricsLayer = SystemRuntimeMetricsServiceLive.pipe(
-    Layer.provide(Layer.mergeAll(systemReadLayer, input.runtimeSupportLayer)),
-  );
-
-  const systemLayer = Layer.mergeAll(
-    SystemBootstrapServiceLive.pipe(
-      Layer.provide(Layer.mergeAll(input.runtimeSupportLayer, input.systemConfigRepositoryLayer)),
-    ),
-    ImageAssetServiceLive.pipe(Layer.provide(input.runtimeSupportLayer)),
-    QualityProfileServiceLive.pipe(
-      Layer.provide(Layer.mergeAll(input.runtimeSupportLayer, pureSystemRepos)),
-    ),
-    ReleaseProfileServiceLive.pipe(
-      Layer.provide(Layer.mergeAll(input.runtimeSupportLayer, pureSystemRepos)),
-    ),
-    SystemLogServiceLive.pipe(
-      Layer.provide(Layer.mergeAll(input.runtimeSupportLayer, pureSystemRepos)),
-    ),
-    backgroundJobStatusLayer,
-    systemReadLayer,
-    systemRuntimeMetricsLayer,
-    SystemConfigUpdateServiceLive.pipe(
-      Layer.provide(Layer.mergeAll(runtimeWithBackgroundControllerLayer, pureSystemRepos)),
-    ),
-    SystemEventsServiceLive.pipe(
-      Layer.provide(Layer.mergeAll(input.runtimeSupportLayer, input.operationsLayer)),
-    ),
-  );
-
-  const repositoriesLayer = pureSystemRepos;
-
-  return {
-    repositoriesLayer,
-    runtimeWithBackgroundControllerLayer,
-    systemLayer,
-  } as const;
-}
+/**
+ * System feature root.
+ *
+ * Declarative merge of self-contained `Effect.Service` Defaults: each service
+ * declares its domain dependencies in its own `dependencies:` array, so no
+ * per-service `Layer.provide` chains live here. Residual context requirements
+ * (AppConfig, AppRuntime, DiskSpaceInspector, BackgroundWorkerMonitor,
+ * RuntimeLogLevelState, EventBus, BackgroundWorkerController, OperationsProgress
+ * + RuntimeConfigSnapshotService) are covered once by the lifecycle layer's
+ * single `Layer.provide` over the merged feature graph — see
+ * app/lifecycle-layers.ts.
+ *
+ * Leaf repositories (SystemConfigRepository, QualityProfileRepository, ...) are
+ * NOT re-provided here: each lives exactly once in app/pure-db-leaves.ts per
+ * ADR-0001 (services also embed the same canonical `.Default` objects, so the
+ * layer memo map shares that single provision).
+ */
+export const SystemFeatureLayer = Layer.mergeAll(
+  BackgroundJobStatusServiceLive,
+  ImageAssetServiceLive,
+  QualityProfileServiceLive,
+  ReleaseProfileServiceLive,
+  SystemBootstrapServiceLive,
+  SystemConfigServiceLive,
+  SystemConfigUpdateServiceLive,
+  SystemEventsServiceLive,
+  SystemLogServiceLive,
+  SystemReadServiceLive,
+  SystemRuntimeMetricsServiceLive,
+);

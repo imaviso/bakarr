@@ -3,17 +3,18 @@ import { Layer } from "effect";
 import { AuthBootstrapServiceLive } from "@/features/auth/bootstrap-service.ts";
 import { AuthCredentialServiceLive } from "@/features/auth/credential-service.ts";
 import { AuthSessionServiceLive } from "@/features/auth/session-service.ts";
-import { AuthUserRepository } from "@/features/auth/user-repository.ts";
 
-export function makeAuthFeatureLayer<ROut, E, RIn>(runtimeSupportLayer: Layer.Layer<ROut, E, RIn>) {
-  const authUserRepositoryLayer = AuthUserRepository.Default.pipe(
-    Layer.provide(runtimeSupportLayer),
-  );
-
-  return Layer.mergeAll(
-    authUserRepositoryLayer,
-    AuthBootstrapServiceLive,
-    AuthCredentialServiceLive,
-    AuthSessionServiceLive,
-  ).pipe(Layer.provide(Layer.mergeAll(runtimeSupportLayer, authUserRepositoryLayer)));
-}
+/**
+ * Auth feature root.
+ *
+ * Declarative merge of self-contained `Effect.Service` Defaults: each service
+ * already declares AuthUserRepository + crypto/random dependencies in its own
+ * `dependencies:` array. AuthUserRepository itself is a pure-db leaf provided
+ * once in app/pure-db-leaves.ts per ADR-0001. AppConfig/BootstrapConfig and
+ * EventBus come from the lifecycle layer — see app/lifecycle-layers.ts.
+ */
+export const AuthFeatureLayer = Layer.mergeAll(
+  AuthBootstrapServiceLive,
+  AuthCredentialServiceLive,
+  AuthSessionServiceLive,
+);

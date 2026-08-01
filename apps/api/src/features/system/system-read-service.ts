@@ -168,7 +168,13 @@ const makeSystemReadService = Effect.fn("SystemReadService.make")(function* () {
 export class SystemReadService extends Effect.Service<SystemReadService>()(
   "@bakarr/api/SystemReadService",
   {
-    dependencies: [DownloadRepository.Default, SystemStatsRepository.Default],
+    // AppConfig, AppRuntime, DiskSpaceInspector + RuntimeConfigSnapshotService
+    // come from the lifecycle layer.
+    dependencies: [
+      BackgroundJobStatusService.Default,
+      DownloadRepository.Default,
+      SystemStatsRepository.Default,
+    ],
     effect: makeSystemReadService(),
   },
 ) {}
