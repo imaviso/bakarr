@@ -18,7 +18,7 @@ import { MediaQueryService } from "@/features/media/query/query-service.ts";
 import { MediaStreamService } from "@/features/media/stream/media-stream-service.ts";
 import { MediaReaderService } from "@/features/media/reader/media-reader-service.ts";
 import { CatalogLibraryReadService } from "@/features/operations/catalog/catalog-library-read-service.ts";
-import { RssFeedRepository } from "@/features/operations/repository/rss-feed-repository.ts";
+import { CatalogRssService } from "@/features/operations/catalog/catalog-rss-service.ts";
 import {
   ListMediaQuerySchema,
   MediaUnitPageParamsSchema,
@@ -152,7 +152,7 @@ export const mediaReadRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        return yield* (yield* RssFeedRepository).listByMediaId(params.id);
+        return yield* (yield* CatalogRssService).listRssFeedsByMediaId(params.id);
       }),
       schemaJsonResponse(Schema.Array(RssFeedSchema)),
     ),

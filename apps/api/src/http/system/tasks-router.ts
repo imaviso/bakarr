@@ -3,7 +3,6 @@ import { Effect } from "effect";
 import { AsyncOperationAcceptedSchema } from "@packages/shared/index.ts";
 
 import { BackgroundTaskRunner } from "@/background/task-runner.ts";
-import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
 import { authedRouteResponse, schemaAcceptedResponse } from "@/http/shared/router-helpers.ts";
 
 const acceptedOperationResponse = schemaAcceptedResponse(AsyncOperationAcceptedSchema);
@@ -12,51 +11,21 @@ export const systemTasksRouter = HttpRouter.empty.pipe(
   HttpRouter.post(
     "/api/system/tasks/scan",
     authedRouteResponse(
-      Effect.gen(function* () {
-        const runner = yield* BackgroundTaskRunner;
-        return yield* (yield* OperationsTaskLauncherService).launch({
-          failureMessage: "Manual system scan task failed",
-          operation: () => runner.runLibraryScanWorkerTask(),
-          queuedMessage: "Queued manual system scan task",
-          runningMessage: "Running manual system scan task",
-          successMessage: () => "Manual system scan task finished",
-          taskKey: "system_task_scan_manual",
-        });
-      }),
+      Effect.flatMap(BackgroundTaskRunner, (runner) => runner.startLibraryScan()),
       acceptedOperationResponse,
     ),
   ),
   HttpRouter.post(
     "/api/system/tasks/rss",
     authedRouteResponse(
-      Effect.gen(function* () {
-        const runner = yield* BackgroundTaskRunner;
-        return yield* (yield* OperationsTaskLauncherService).launch({
-          failureMessage: "Manual RSS task failed",
-          operation: () => runner.runRssWorkerTask(),
-          queuedMessage: "Queued manual RSS task",
-          runningMessage: "Running manual RSS task",
-          successMessage: () => "Manual RSS task finished",
-          taskKey: "system_task_rss_manual",
-        });
-      }),
+      Effect.flatMap(BackgroundTaskRunner, (runner) => runner.startRssProcessing()),
       acceptedOperationResponse,
     ),
   ),
   HttpRouter.post(
     "/api/system/tasks/metadata-refresh",
     authedRouteResponse(
-      Effect.gen(function* () {
-        const runner = yield* BackgroundTaskRunner;
-        return yield* (yield* OperationsTaskLauncherService).launch({
-          failureMessage: "Manual metadata refresh task failed",
-          operation: () => runner.runMetadataRefreshWorkerTask(),
-          queuedMessage: "Queued manual metadata refresh task",
-          runningMessage: "Running manual metadata refresh task",
-          successMessage: () => "Manual metadata refresh task finished",
-          taskKey: "system_task_metadata_refresh_manual",
-        });
-      }),
+      Effect.flatMap(BackgroundTaskRunner, (runner) => runner.startMetadataRefresh()),
       acceptedOperationResponse,
     ),
   ),

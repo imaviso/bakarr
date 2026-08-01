@@ -19,7 +19,6 @@ import {
   withAuthViewer,
 } from "@/http/shared/router-helpers.ts";
 import { persistSessionResponse } from "@/http/shared/route-auth.ts";
-import { mapRouteError } from "@/http/shared/route-errors/index.ts";
 
 export const authRouter = HttpRouter.empty.pipe(
   HttpRouter.post(
@@ -31,7 +30,6 @@ export const authRouter = HttpRouter.empty.pipe(
         return yield* auth.login(body);
       }),
       (value) => persistSessionResponse(value.token, value.response),
-      mapRouteError,
     ),
   ),
   HttpRouter.post(
@@ -43,7 +41,6 @@ export const authRouter = HttpRouter.empty.pipe(
         return yield* auth.loginWithApiKey(body);
       }),
       (value) => persistSessionResponse(value.token, value.response),
-      mapRouteError,
     ),
   ),
   HttpRouter.post(
@@ -68,7 +65,6 @@ export const authRouter = HttpRouter.empty.pipe(
             secure: config.sessionCookieSecure,
           });
         }),
-      mapRouteError,
     ),
   ),
   HttpRouter.get(
@@ -76,7 +72,6 @@ export const authRouter = HttpRouter.empty.pipe(
     routeResponse(
       withAuthViewer((viewer) => Effect.succeed(viewer), { allowPasswordChangeRequired: true }),
       schemaJsonResponse(AuthUserSchema),
-      mapRouteError,
     ),
   ),
   HttpRouter.get(
@@ -89,7 +84,6 @@ export const authRouter = HttpRouter.empty.pipe(
         }),
       ),
       schemaJsonResponse(ApiKeyResponseSchema),
-      mapRouteError,
     ),
   ),
   HttpRouter.post(
@@ -102,7 +96,6 @@ export const authRouter = HttpRouter.empty.pipe(
         }),
       ),
       schemaJsonResponse(ApiKeyResponseSchema),
-      mapRouteError,
     ),
   ),
   HttpRouter.put(
@@ -121,7 +114,6 @@ export const authRouter = HttpRouter.empty.pipe(
         { allowPasswordChangeRequired: true },
       ),
       successResponse,
-      mapRouteError,
     ),
   ),
 );

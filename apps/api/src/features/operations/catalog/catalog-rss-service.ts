@@ -10,13 +10,16 @@ import { validateFeedUrlStatic } from "@/features/operations/rss/rss-client-ssrf
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 
-/** Multi-repo RSS create only — list/delete/toggle use RssFeedRepository. */
 export interface CatalogRssServiceShape {
   readonly addRssFeed: (input: {
     media_id: number;
     url: string;
     name?: string;
   }) => Effect.Effect<RssFeed, DatabaseError | MediaNotFoundError | RssFeedRejectedError>;
+  readonly deleteRssFeed: (id: number) => Effect.Effect<void, DatabaseError>;
+  readonly listRssFeeds: () => Effect.Effect<RssFeed[], DatabaseError>;
+  readonly listRssFeedsByMediaId: (mediaId: number) => Effect.Effect<RssFeed[], DatabaseError>;
+  readonly setRssFeedEnabled: (id: number, enabled: boolean) => Effect.Effect<void, DatabaseError>;
 }
 
 export class CatalogRssService extends Effect.Service<CatalogRssService>()(
@@ -54,8 +57,33 @@ export class CatalogRssService extends Effect.Service<CatalogRssService>()(
         return feed;
       });
 
+      const deleteRssFeed = Effect.fn("CatalogRssService.deleteRssFeed")(function* (id: number) {
+        yield* rssFeedRepository.deleteById(id);
+      });
+
+      const listRssFeeds = Effect.fn("CatalogRssService.listRssFeeds")(function* () {
+        return yield* rssFeedRepository.listAll();
+      });
+
+      const listRssFeedsByMediaId = Effect.fn("CatalogRssService.listRssFeedsByMediaId")(function* (
+        mediaId: number,
+      ) {
+        return yield* rssFeedRepository.listByMediaId(mediaId);
+      });
+
+      const setRssFeedEnabled = Effect.fn("CatalogRssService.setRssFeedEnabled")(function* (
+        id: number,
+        enabled: boolean,
+      ) {
+        yield* rssFeedRepository.setEnabled(id, enabled);
+      });
+
       return {
         addRssFeed,
+        deleteRssFeed,
+        listRssFeeds,
+        listRssFeedsByMediaId,
+        setRssFeedEnabled,
       } satisfies CatalogRssServiceShape;
     }),
     dependencies: [MediaRepository.Default, RssFeedRepository.Default, SystemLogRepository.Default],

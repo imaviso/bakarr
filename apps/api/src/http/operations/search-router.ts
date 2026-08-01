@@ -10,10 +10,9 @@ import {
 
 import { DownloadTriggerService } from "@/features/operations/download/download-trigger-service.ts";
 import { SearchBackgroundMissingService } from "@/features/operations/background-search/background-search-missing-service.ts";
-import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
 import { SearchUnitService } from "@/features/operations/search/search-unit-service.ts";
 import { SearchReleaseService } from "@/features/operations/search/search-orchestration-release-search.ts";
-import { MediaRepository } from "@/features/media/shared/media-repository.ts";
+import { MediaQueryService } from "@/features/media/query/query-service.ts";
 import { nowIso } from "@/infra/time.ts";
 import {
   CalendarQuerySchema,
@@ -42,8 +41,7 @@ export const searchRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const query = yield* decodeQueryWithLabel(WantedMissingQuerySchema, "wanted missing");
-        const now = yield* nowIso();
-        return yield* (yield* MediaRepository).listWantedMissing(query.limit ?? 50, now);
+        return yield* (yield* MediaQueryService).listWantedMissing(query.limit ?? 50);
       }),
       schemaJsonResponse(Schema.Array(MissingUnitSchema)),
     ),
@@ -54,11 +52,9 @@ export const searchRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const query = yield* decodeQueryWithLabel(CalendarQuerySchema, "calendar");
         const nowIsoValue = yield* nowIso();
-        const now = new Date(nowIsoValue);
-        return yield* (yield* MediaRepository).listCalendarEvents(
+        return yield* (yield* MediaQueryService).listCalendarEvents(
           query.start ?? nowIsoValue,
           query.end ?? nowIsoValue,
-          now,
         );
       }),
       schemaJsonResponse(Schema.Array(CalendarEventSchema)),
@@ -115,28 +111,7 @@ export const searchRouter = HttpRouter.empty.pipe(
           "search missing downloads",
           new SearchMissingBodySchema({}),
         );
-        const searchBackgroundMissingService = yield* SearchBackgroundMissingService;
-        return yield* (yield* OperationsTaskLauncherService).launch({
-          ...(body.media_id === undefined ? {} : { mediaId: body.media_id }),
-          failureMessage:
-            body.media_id === undefined
-              ? "Missing-unit search failed"
-              : `Missing-unit search failed for media ${body.media_id}`,
-          operation: () => searchBackgroundMissingService.triggerSearchMissing(body.media_id),
-          queuedMessage:
-            body.media_id === undefined
-              ? "Queued missing-unit search for monitored media"
-              : `Queued missing-unit search for media ${body.media_id}`,
-          runningMessage:
-            body.media_id === undefined
-              ? "Searching missing mediaUnits for monitored media"
-              : `Searching missing mediaUnits for media ${body.media_id}`,
-          successMessage: () =>
-            body.media_id === undefined
-              ? "Finished missing-unit search for monitored media"
-              : `Finished missing-unit search for media ${body.media_id}`,
-          taskKey: "downloads_search_missing_manual",
-        });
+        return yield* (yield* SearchBackgroundMissingService).startMissingUnitSearch(body.media_id);
       }),
       acceptedOperationResponse,
     ),

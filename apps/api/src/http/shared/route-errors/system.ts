@@ -1,5 +1,6 @@
 import { Match, Schema } from "effect";
 
+import { DatabaseError } from "@/db/database.ts";
 import { DiskSpaceError } from "@/features/system/disk-space.ts";
 import {
   ConfigValidationError,
@@ -57,3 +58,18 @@ const systemRouteErrorMappers: {
 export const mapSystemRouteError = mapTaggedRouteError(SystemRouteErrorSchema, (error) =>
   Match.valueTags(error, systemRouteErrorMappers),
 );
+
+/**
+ * Readiness-probe classification: failures that mean "not ready" (503 body)
+ * rather than a generic error response. Includes the shared DatabaseError by
+ * readiness-probe design.
+ */
+const ReadinessDegradedErrorSchema = Schema.Union(
+  ConfigValidationError,
+  DatabaseError,
+  DiskSpaceError,
+  StoredConfigCorruptError,
+  StoredConfigMissingError,
+);
+
+export const isReadinessDegradedError = Schema.is(ReadinessDegradedErrorSchema);

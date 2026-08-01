@@ -9,12 +9,9 @@ import {
 
 import { HttpServerResponse } from "@effect/platform";
 import { CatalogDownloadReadService } from "@/features/operations/catalog/catalog-download-read-service.ts";
-import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
 import { DownloadReconciliationService } from "@/features/operations/download/download-reconciliation-service.ts";
 import { DownloadTorrentActionService } from "@/features/operations/download/download-torrent-action-service.ts";
 import { DownloadTorrentSyncService } from "@/features/operations/download/download-torrent-sync-service.ts";
-import { DownloadRepository } from "@/features/operations/repository/download-repository.ts";
-import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
 import { IdParamsSchema } from "@/http/shared/common-request-schemas.ts";
 import {
   DeleteDownloadQuerySchema,
@@ -36,16 +33,14 @@ export const downloadsRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
     "/downloads/queue",
     authedRouteResponse(
-      Effect.flatMap(OperationsProgress, (service) => service.getDownloadProgress()),
+      Effect.flatMap(CatalogDownloadReadService, (service) => service.listDownloadQueue()),
       schemaJsonResponse(Schema.Array(DownloadStatusSchema)),
     ),
   ),
   HttpRouter.get(
     "/downloads/history",
     authedRouteResponse(
-      Effect.flatMap(DownloadRepository, (repo) =>
-        repo.listDownloadHistory().pipe(Effect.map((page) => page.downloads)),
-      ),
+      Effect.flatMap(CatalogDownloadReadService, (service) => service.listDownloadHistory()),
       schemaJsonResponse(Schema.Array(DownloadSchema)),
     ),
   ),
@@ -54,7 +49,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const query = yield* decodeQueryWithLabel(DownloadEventsQuerySchema, "download events");
-        return yield* (yield* DownloadRepository).listDownloadEvents(
+        return yield* (yield* CatalogDownloadReadService).listDownloadEvents(
           toDownloadEventsQueryParams(query),
         );
       }),
@@ -156,17 +151,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
   HttpRouter.post(
     "/downloads/sync",
     authedRouteResponse(
-      Effect.gen(function* () {
-        const torrentSync = yield* DownloadTorrentSyncService;
-        return yield* (yield* OperationsTaskLauncherService).launch({
-          failureMessage: "Manual download sync failed",
-          operation: () => torrentSync.syncDownloads(),
-          queuedMessage: "Queued manual download sync",
-          runningMessage: "Running manual download sync",
-          successMessage: () => "Manual download sync finished",
-          taskKey: "downloads_sync_manual",
-        });
-      }),
+      Effect.flatMap(DownloadTorrentSyncService, (service) => service.startDownloadSync()),
       schemaAcceptedResponse(AsyncOperationAcceptedSchema),
     ),
   ),

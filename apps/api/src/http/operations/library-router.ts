@@ -1,5 +1,5 @@
 import { HttpRouter } from "@effect/platform";
-import { Effect, Schema } from "effect";
+import { Effect, Option, Schema } from "effect";
 import {
   AsyncOperationAcceptedSchema,
   BrowseResultSchema,
@@ -13,11 +13,9 @@ import { LibraryBrowseService } from "@/features/operations/library/library-brow
 import { CatalogLibraryWriteService } from "@/features/operations/catalog/catalog-library-write-service.ts";
 import { OperationsNotFoundError } from "@/features/operations/errors.ts";
 import { ImportPathScanService } from "@/features/operations/import-scan/import-path-scan-service.ts";
-import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
 import { UnmappedControlService } from "@/features/operations/unmapped/unmapped-control-service.ts";
 import { UnmappedImportService } from "@/features/operations/unmapped/unmapped-orchestration-import.ts";
 import { UnmappedScanService } from "@/features/operations/unmapped/unmapped-scan-service.ts";
-import { applyImportCandidateSelection } from "@/features/operations/import-scan/import-selection-support.ts";
 import {
   BulkControlUnmappedFoldersBodySchema,
   BrowseQuerySchema,
@@ -39,7 +37,6 @@ import {
 import {
   decodeOperationsTaskQuery,
   OperationsTaskReadService,
-  OperationsTaskWriteService,
 } from "@/features/operations/tasks/operations-task-service.ts";
 import {
   OperationsTaskIdParamsSchema,
@@ -75,22 +72,7 @@ export const libraryRouter = HttpRouter.empty.pipe(
   HttpRouter.post(
     "/library/unmapped/scan",
     authedRouteResponse(
-      Effect.gen(function* () {
-        const service = yield* UnmappedScanService;
-        return yield* (yield* OperationsTaskLauncherService).launch({
-          failureMessage: "Manual unmapped-folder scan failed",
-          operation: () => service.runUnmappedScan(),
-          queuedMessage: "Queued manual unmapped-folder scan",
-          runningMessage: "Running manual unmapped-folder scan",
-          successMessage: (result: { readonly folderCount: number }) =>
-            `Manual unmapped-folder scan finished (${result.folderCount} folder(s))`,
-          successProgress: (result: { readonly folderCount: number }) => ({
-            progressCurrent: result.folderCount,
-            progressTotal: result.folderCount,
-          }),
-          taskKey: "unmapped_scan_manual",
-        });
-      }),
+      Effect.flatMap(UnmappedScanService, (service) => service.startUnmappedScan()),
       acceptedOperationResponse,
     ),
   ),
@@ -162,7 +144,7 @@ export const libraryRouter = HttpRouter.empty.pipe(
           "build import selection",
         );
 
-        return applyImportCandidateSelection({
+        return yield* (yield* ImportPathScanService).applyImportCandidateSelection({
           candidate_id: body.candidate_id,
           candidate_title: body.candidate_title,
           ...(body.force_select === undefined ? {} : { force_select: body.force_select }),
@@ -187,47 +169,8 @@ export const libraryRouter = HttpRouter.empty.pipe(
             { source_path: file.source_path },
           ),
         );
-        const mediaId = files[0]?.media_id;
 
-        const taskLauncher = yield* OperationsTaskLauncherService;
-        const catalogLibraryWrite = yield* CatalogLibraryWriteService;
-        const operationsTaskService = yield* OperationsTaskWriteService;
-
-        return yield* taskLauncher.launch({
-          ...(mediaId === undefined ? {} : { mediaId }),
-          failureMessage: `Library import failed for ${files.length} file(s)`,
-          operation: (taskId) =>
-            Effect.gen(function* () {
-              const result = yield* catalogLibraryWrite.importFiles(files);
-              yield* operationsTaskService.updateTaskProgress({
-                message: `Imported ${result.imported} file(s), ${result.failed} failed`,
-                progressCurrent: result.imported + result.failed,
-                progressTotal: result.imported + result.failed,
-                taskId,
-              });
-              return result;
-            }),
-          queuedMessage: `Queued library import for ${files.length} file(s)`,
-          runningMessage: `Importing ${files.length} file(s) into library`,
-          successMessage: (result: { readonly imported: number; readonly failed: number }) =>
-            `Library import finished (${result.imported} imported, ${result.failed} failed)`,
-          successProgress: (result: { readonly imported: number; readonly failed: number }) => ({
-            progressCurrent: result.imported + result.failed,
-            progressTotal: result.imported + result.failed,
-          }),
-          successPayload: (result: { readonly imported: number; readonly failed: number }) => ({
-            ...(mediaId === undefined ? {} : { media_id: mediaId }),
-            failed: result.failed,
-            imported: result.imported,
-            total: result.imported + result.failed,
-          }),
-          failurePayload: () => ({
-            ...(mediaId === undefined ? {} : { media_id: mediaId }),
-            failed: files.length,
-            total: files.length,
-          }),
-          taskKey: "library_import",
-        });
+        return yield* (yield* CatalogLibraryWriteService).startLibraryImport(files);
       }),
       acceptedOperationResponse,
     ),
@@ -257,15 +200,18 @@ export const libraryRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(OperationsTaskIdParamsSchema);
-        const task = yield* (yield* OperationsTaskReadService).getTask(params.taskId);
+        const task = yield* (yield* OperationsTaskReadService).getTaskForTaskKey({
+          taskId: params.taskId,
+          taskKey: "library_import",
+        });
 
-        if (task.task_key !== "library_import") {
+        if (Option.isNone(task)) {
           return yield* new OperationsNotFoundError({
             message: `Library import task ${params.taskId} not found`,
           });
         }
 
-        return task;
+        return task.value;
       }),
       schemaJsonResponse(OperationTaskSchema),
     ),

@@ -1,17 +1,15 @@
 import { HttpRouter } from "@effect/platform";
-import { Effect, Schema } from "effect";
+import { Effect, Option, Schema } from "effect";
 
 import { MediaFileService } from "@/features/media/files/media-file-service.ts";
 import { MediaEnrollmentService } from "@/features/media/add/media-enrollment-service.ts";
 import { MediaMaintenanceService } from "@/features/media/metadata/media-maintenance-service.ts";
 import { MediaSettingsService } from "@/features/media/shared/media-settings-service.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";
-import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
 import { OperationsTaskReadService } from "@/features/operations/tasks/operations-task-service.ts";
 import { CatalogLibraryWriteService } from "@/features/operations/catalog/catalog-library-write-service.ts";
 import {
   AsyncOperationAcceptedSchema,
-  brandMediaId,
   MediaSchema,
   OperationTaskSchema,
   RenameResultSchema,
@@ -114,16 +112,7 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        const animeMaintenanceService = yield* MediaMaintenanceService;
-        return yield* (yield* OperationsTaskLauncherService).launch({
-          mediaId: params.id,
-          failureMessage: `MediaUnit metadata refresh failed for media ${params.id}`,
-          operation: () => animeMaintenanceService.refreshEpisodes(params.id),
-          queuedMessage: `Queued episode metadata refresh for media ${params.id}`,
-          runningMessage: `Refreshing episode metadata for media ${params.id}`,
-          successMessage: () => `Finished episode metadata refresh for media ${params.id}`,
-          taskKey: "media_refresh_units_manual",
-        });
+        return yield* (yield* MediaMaintenanceService).startUnitsRefresh(params.id);
       }),
       acceptedOperationResponse,
     ),
@@ -133,29 +122,7 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        const animeFileService = yield* MediaFileService;
-        return yield* (yield* OperationsTaskLauncherService).launch({
-          mediaId: params.id,
-          failureMessage: `Folder scan failed for media ${params.id}`,
-          operation: () => animeFileService.scanFolder(params.id),
-          queuedMessage: `Queued folder scan for media ${params.id}`,
-          runningMessage: `Scanning folder for media ${params.id}`,
-          successMessage: (result: { readonly found: number; readonly total: number }) =>
-            `Folder scan completed for media ${params.id}: found ${result.found} files`,
-          successProgress: (result: { readonly found: number; readonly total: number }) => ({
-            progressCurrent: result.found,
-            progressTotal: result.total,
-          }),
-          successPayload: (result: { readonly found: number; readonly total: number }) => ({
-            media_id: brandMediaId(params.id),
-            found: result.found,
-            total: result.total,
-          }),
-          failurePayload: () => ({
-            media_id: brandMediaId(params.id),
-          }),
-          taskKey: "media_scan_folder",
-        });
+        return yield* (yield* MediaFileService).startMediaFolderScan(params.id);
       }),
       acceptedOperationResponse,
     ),
@@ -178,21 +145,19 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(MediaOperationsTaskIdParamsSchema);
-        const task = yield* (yield* OperationsTaskReadService).getTask(params.taskId);
+        const task = yield* (yield* OperationsTaskReadService).getTaskForTaskKey({
+          mediaId: params.id,
+          taskId: params.taskId,
+          taskKey: "media_scan_folder",
+        });
 
-        if (task.task_key !== "media_scan_folder") {
+        if (Option.isNone(task)) {
           return yield* new MediaNotFoundError({
             message: `Media scan task ${params.taskId} not found`,
           });
         }
 
-        if (task.media_id !== undefined && task.media_id !== params.id) {
-          return yield* new MediaNotFoundError({
-            message: `Media scan task ${params.taskId} not found`,
-          });
-        }
-
-        return task;
+        return task.value;
       }),
       schemaJsonResponse(OperationTaskSchema),
     ),

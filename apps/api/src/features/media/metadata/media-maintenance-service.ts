@@ -1,5 +1,6 @@
 import { Effect, Exit, Option } from "effect";
 import { brandMediaId } from "@packages/shared/index.ts";
+import type { AsyncOperationAccepted } from "@packages/shared/index.ts";
 
 import type { DatabaseError } from "@/db/database.ts";
 import { MediaMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
@@ -10,10 +11,12 @@ import { MediaUnitRepository } from "@/features/media/units/media-unit-repositor
 import { AniDbRuntimeConfigError, MediaNotFoundError } from "@/features/media/errors.ts";
 import { makeMetadataRefreshRunner } from "@/features/media/metadata/metadata-refresh.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
+import { BackgroundJobRepository } from "@/features/system/repository/background-job-repository.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import type { ExternalCallError } from "@/infra/effect/retry.ts";
-import type { StoredDataError } from "@/features/errors.ts";
+import type { InfrastructureError, StoredDataError } from "@/features/errors.ts";
+import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
 
 export interface MediaMaintenanceServiceShape {
   readonly deleteMedia: (id: number) => Effect.Effect<void, DatabaseError>;
@@ -31,6 +34,9 @@ export interface MediaMaintenanceServiceShape {
     { refreshed: number },
     DatabaseError | ExternalCallError
   >;
+  readonly startUnitsRefresh: (
+    mediaId: number,
+  ) => Effect.Effect<AsyncOperationAccepted, DatabaseError | InfrastructureError>;
 }
 
 const makeMediaMaintenanceService = Effect.fn("MediaMaintenanceService.make")(function* () {
@@ -40,6 +46,7 @@ const makeMediaMaintenanceService = Effect.fn("MediaMaintenanceService.make")(fu
   const mediaRepository = yield* MediaRepository;
   const mediaUnitRepository = yield* MediaUnitRepository;
   const systemLogRepository = yield* SystemLogRepository;
+  const taskLauncher = yield* OperationsTaskLauncherService;
   const nowIso = currentNowIso;
   const metadataRefreshRunner = yield* makeMetadataRefreshRunner();
 
@@ -107,19 +114,39 @@ const makeMediaMaintenanceService = Effect.fn("MediaMaintenanceService.make")(fu
     return result;
   });
 
+  const startUnitsRefresh = Effect.fn("MediaMaintenanceService.startUnitsRefresh")(function* (
+    mediaId: number,
+  ) {
+    return yield* taskLauncher.launch({
+      mediaId,
+      failureMessage: `MediaUnit metadata refresh failed for media ${mediaId}`,
+      operation: () => refreshEpisodes(mediaId),
+      queuedMessage: `Queued episode metadata refresh for media ${mediaId}`,
+      runningMessage: `Refreshing episode metadata for media ${mediaId}`,
+      successMessage: () => `Finished episode metadata refresh for media ${mediaId}`,
+      taskKey: "media_refresh_units_manual",
+    });
+  });
+
   return {
     deleteMedia,
     refreshEpisodes,
     refreshMetadataForMonitoredMedia,
+    startUnitsRefresh,
   } satisfies MediaMaintenanceServiceShape;
 });
 
 export class MediaMaintenanceService extends Effect.Service<MediaMaintenanceService>()(
   "@bakarr/api/MediaMaintenanceService",
   {
+    // EventBus comes from the lifecycle layer.
     dependencies: [
+      BackgroundJobRepository.Default,
+      MediaImageCacheService.Default,
+      MediaMetadataProviderService.Default,
       MediaRepository.Default,
       MediaUnitRepository.Default,
+      OperationsTaskLauncherService.Default,
       SystemLogRepository.Default,
     ],
     effect: makeMediaMaintenanceService(),

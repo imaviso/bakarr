@@ -2,6 +2,7 @@ import { Effect, Option } from "effect";
 
 import {
   brandMediaId,
+  type AsyncOperationAccepted,
   type QualityProfile,
   type ReleaseProfileRule,
 } from "@packages/shared/index.ts";
@@ -18,12 +19,16 @@ import { BackgroundSearchQueueService } from "@/features/operations/background-s
 import { DomainInputError, InfrastructureError } from "@/features/errors.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
+import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
 import { SearchReleaseService } from "@/features/operations/search/search-orchestration-release-search.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
 import { ReleaseProfileRepository } from "@/features/system/repository/release-profile-repository.ts";
 
 export interface SearchBackgroundMissingServiceShape {
+  readonly startMissingUnitSearch: (
+    mediaId?: number,
+  ) => Effect.Effect<AsyncOperationAccepted, DatabaseError | InfrastructureError>;
   readonly triggerSearchMissing: (
     mediaId?: number,
   ) => Effect.Effect<void, DatabaseError | InfrastructureError>;
@@ -42,6 +47,7 @@ export class SearchBackgroundMissingService extends Effect.Service<SearchBackgro
       const qualityProfileRepository = yield* QualityProfileRepository;
       const releaseProfileRepository = yield* ReleaseProfileRepository;
       const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
+      const taskLauncher = yield* OperationsTaskLauncherService;
       const nowIso = currentNowIso;
 
       const requireQualityProfile = Effect.fn("BackgroundSearchMissing.requireQualityProfile")(
@@ -212,15 +218,47 @@ export class SearchBackgroundMissingService extends Effect.Service<SearchBackgro
         },
       );
 
-      return { triggerSearchMissing } satisfies SearchBackgroundMissingServiceShape;
+      const startMissingUnitSearch = Effect.fn("BackgroundSearchMissing.startMissingUnitSearch")(
+        function* (mediaId?: number) {
+          return yield* taskLauncher.launch({
+            ...(mediaId === undefined ? {} : { mediaId }),
+            failureMessage:
+              mediaId === undefined
+                ? "Missing-unit search failed"
+                : `Missing-unit search failed for media ${mediaId}`,
+            operation: () => triggerSearchMissing(mediaId),
+            queuedMessage:
+              mediaId === undefined
+                ? "Queued missing-unit search for monitored media"
+                : `Queued missing-unit search for media ${mediaId}`,
+            runningMessage:
+              mediaId === undefined
+                ? "Searching missing mediaUnits for monitored media"
+                : `Searching missing mediaUnits for media ${mediaId}`,
+            successMessage: () =>
+              mediaId === undefined
+                ? "Finished missing-unit search for monitored media"
+                : `Finished missing-unit search for media ${mediaId}`,
+            taskKey: "downloads_search_missing_manual",
+          });
+        },
+      );
+
+      return {
+        startMissingUnitSearch,
+        triggerSearchMissing,
+      } satisfies SearchBackgroundMissingServiceShape;
     }),
-    // Progress/SearchRelease/Queue/RuntimeConfig provided by ops feature layer.
+    // OperationsProgress + RuntimeConfigSnapshotService come from the lifecycle layer.
     dependencies: [
+      BackgroundSearchQueueService.Default,
       EventBus.Default,
       MediaRepository.Default,
       MediaUnitRepository.Default,
+      OperationsTaskLauncherService.Default,
       QualityProfileRepository.Default,
       ReleaseProfileRepository.Default,
+      SearchReleaseService.Default,
     ],
   },
 ) {}

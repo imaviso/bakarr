@@ -63,6 +63,18 @@ export interface OperationsTaskReadServiceShape {
   readonly getTask: (
     taskId: number,
   ) => Effect.Effect<OperationTask, DatabaseError | InfrastructureError | OperationsNotFoundError>;
+  /**
+   * Task-key (+ optional media) ownership check: `Option.none` when the task is
+   * not owned by the given task key scope.
+   */
+  readonly getTaskForTaskKey: (input: {
+    readonly taskId: number;
+    readonly taskKey: OperationsTaskKey;
+    readonly mediaId?: number;
+  }) => Effect.Effect<
+    Option.Option<OperationTask>,
+    DatabaseError | InfrastructureError | OperationsNotFoundError
+  >;
   readonly listTasks: (input?: {
     readonly mediaId?: number;
     readonly excludeTaskKeys?: readonly OperationsTaskKey[];
@@ -278,6 +290,30 @@ const makeOperationsTaskReadService = Effect.fn("OperationsTaskReadService.make"
     return yield* toOperationsTask(row);
   });
 
+  const getTaskForTaskKey = Effect.fn("OperationsTaskReadService.getTaskForTaskKey")(
+    function* (input: {
+      readonly taskId: number;
+      readonly taskKey: OperationsTaskKey;
+      readonly mediaId?: number;
+    }) {
+      const task = yield* getTask(input.taskId);
+
+      if (task.task_key !== input.taskKey) {
+        return Option.none<OperationTask>();
+      }
+
+      if (
+        input.mediaId !== undefined &&
+        task.media_id !== undefined &&
+        task.media_id !== input.mediaId
+      ) {
+        return Option.none<OperationTask>();
+      }
+
+      return Option.some(task);
+    },
+  );
+
   const listTasks = Effect.fn("OperationsTaskReadService.listTasks")(function* (input?: {
     readonly mediaId?: number;
     readonly excludeTaskKeys?: readonly OperationsTaskKey[];
@@ -308,6 +344,7 @@ const makeOperationsTaskReadService = Effect.fn("OperationsTaskReadService.make"
 
   return {
     getTask,
+    getTaskForTaskKey,
     listTasks,
   } satisfies OperationsTaskReadServiceShape;
 });

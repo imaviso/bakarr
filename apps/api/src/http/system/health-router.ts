@@ -12,6 +12,7 @@ import {
   routeResponse,
   schemaJsonResponse,
 } from "@/http/shared/router-helpers.ts";
+import { isReadinessDegradedError } from "@/http/shared/route-errors/system.ts";
 
 const ReadyResponseSchema = Schema.Struct({
   checks: Schema.Struct({ database: Schema.Boolean }),
@@ -38,13 +39,7 @@ export const healthRouter = HttpRouter.empty.pipe(
         return yield* service.getSystemStatus();
       }).pipe(
         Effect.map(() => ({ checks: { database: true }, ready: true }) as const),
-        Effect.catchTags({
-          ConfigValidationError: () => Effect.succeed(notReadyResponse),
-          DatabaseError: () => Effect.succeed(notReadyResponse),
-          DiskSpaceError: () => Effect.succeed(notReadyResponse),
-          StoredConfigCorruptError: () => Effect.succeed(notReadyResponse),
-          StoredConfigMissingError: () => Effect.succeed(notReadyResponse),
-        }),
+        Effect.catchIf(isReadinessDegradedError, () => Effect.succeed(notReadyResponse)),
       ),
       (value: { readonly checks: { readonly database: boolean }; readonly ready: boolean }) =>
         HttpServerResponse.schemaJson(ReadyResponseSchema)(value, {

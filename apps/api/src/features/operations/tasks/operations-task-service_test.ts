@@ -1,5 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
-import { Effect, Layer, Schema } from "effect";
+import { Effect, Layer, Option, Schema } from "effect";
 
 import { AppDrizzleDatabase } from "@/db/database.ts";
 import {
@@ -52,6 +52,75 @@ describe("OperationsTaskService", () => {
           assert.deepStrictEqual(task.task_key, "library_import");
           assert.deepStrictEqual(task.status, "queued");
           assert.deepStrictEqual(task.media_id, 11);
+        }),
+      schema,
+    }),
+  );
+
+  it.scoped("getTaskForTaskKey enforces task-key and media ownership", () =>
+    withSqliteTestDbEffect({
+      run: (db) =>
+        Effect.gen(function* () {
+          const databaseLayer = Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db));
+          const repositoryLayer = OperationsTaskRepository.DefaultWithoutDependencies.pipe(
+            Layer.provide(databaseLayer),
+          );
+          const serviceLayer = Layer.mergeAll(
+            OperationsTaskReadService.DefaultWithoutDependencies,
+            OperationsTaskWriteService.DefaultWithoutDependencies,
+          ).pipe(Layer.provide(Layer.mergeAll(repositoryLayer, EventBusNoopLive)));
+
+          const writeTask = (input: {
+            mediaId?: number;
+            taskKey: "library_import" | "media_scan_folder";
+          }) =>
+            Effect.flatMap(OperationsTaskWriteService, (service) =>
+              service.createTask({
+                ...(input.mediaId === undefined ? {} : { mediaId: input.mediaId }),
+                message: "Queued test task",
+                taskKey: input.taskKey,
+              }),
+            ).pipe(Effect.provide(serviceLayer));
+
+          const scanTask = yield* writeTask({ mediaId: 7, taskKey: "media_scan_folder" });
+          const globalTask = yield* writeTask({ taskKey: "library_import" });
+
+          const getOwned = (input: {
+            mediaId?: number;
+            taskId: number;
+            taskKey: "library_import" | "media_scan_folder";
+          }) =>
+            Effect.flatMap(OperationsTaskReadService, (service) =>
+              service.getTaskForTaskKey(input),
+            ).pipe(Effect.provide(serviceLayer));
+
+          const owned = yield* getOwned({
+            mediaId: 7,
+            taskId: scanTask.task_id,
+            taskKey: "media_scan_folder",
+          });
+          assert.deepStrictEqual(Option.isSome(owned), true);
+
+          const wrongKey = yield* getOwned({
+            mediaId: 7,
+            taskId: scanTask.task_id,
+            taskKey: "library_import",
+          });
+          assert.deepStrictEqual(Option.isNone(wrongKey), true);
+
+          const wrongMedia = yield* getOwned({
+            mediaId: 8,
+            taskId: scanTask.task_id,
+            taskKey: "media_scan_folder",
+          });
+          assert.deepStrictEqual(Option.isNone(wrongMedia), true);
+
+          const globalOwned = yield* getOwned({
+            mediaId: 8,
+            taskId: globalTask.task_id,
+            taskKey: "library_import",
+          });
+          assert.deepStrictEqual(Option.isSome(globalOwned), true);
         }),
       schema,
     }),
