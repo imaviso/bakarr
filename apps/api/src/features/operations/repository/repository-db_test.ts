@@ -1,9 +1,17 @@
 import { assert, it } from "@effect/vitest";
+import { eq } from "drizzle-orm";
 import { Cause, Effect, Option, Schema } from "effect";
 
 import * as schema from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { media, appConfig, mediaUnits, qualityProfiles, releaseProfiles } from "@/db/schema.ts";
+import {
+  downloads,
+  media,
+  appConfig,
+  mediaUnits,
+  qualityProfiles,
+  releaseProfiles,
+} from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { encodeConfigCore } from "@/features/system/config-codec.ts";
 import {
@@ -17,7 +25,7 @@ import {
   decodeDownloadSourceMetadata,
   encodeDownloadSourceMetadata,
 } from "@/features/operations/repository/download-row-codec.ts";
-import { makeMediaRepository } from "@/test/repository-factories.ts";
+import { makeDownloadRepository, makeMediaRepository } from "@/test/repository-factories.ts";
 import { loadQualityProfile } from "@/features/system/repository/quality-profile-repository.ts";
 import { loadReleaseRules } from "@/features/system/repository/release-profile-repository.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";
@@ -239,3 +247,103 @@ it.effect("operations repository metadata decoders fail for corrupt stored JSON"
     }
   }),
 );
+
+it.scoped("DownloadRepository claim and release download reconciliation", () =>
+  withSqliteTestDbEffect({
+    run: (db, _databaseFile) =>
+      Effect.gen(function* () {
+        yield* tryDatabasePromise("Failed to seed media for claim test", () =>
+          db.insert(media).values(makeClaimMediaRow()),
+        );
+
+        const repo = makeDownloadRepository(db);
+        const loadRow = (id: number) =>
+          tryDatabasePromise("Failed to load download for claim test", () =>
+            db.select().from(downloads).where(eq(downloads.id, id)).limit(1),
+          );
+        const insertDownload = (overrides: Partial<typeof downloads.$inferInsert>) =>
+          tryDatabasePromise("Failed to seed download for claim test", () =>
+            db
+              .insert(downloads)
+              .values({
+                addedAt: "2024-01-01T00:00:00.000Z",
+                mediaId: 1,
+                mediaTitle: "Naruto",
+                torrentName: "Naruto - 01",
+                unitNumber: 1,
+                status: "completed",
+                ...overrides,
+              })
+              .returning({ id: downloads.id }),
+          ).pipe(Effect.map((rows) => rows[0]!.id));
+
+        const id = yield* insertDownload({ infoHash: "hash-one" });
+
+        // claim acquires an unclaimed download
+        assert.deepStrictEqual(
+          yield* repo.claimDownloadReconciliation("hash-one", "token-a"),
+          true,
+        );
+        assert.deepStrictEqual((yield* loadRow(id))[0]?.reconciledAt, "token-a");
+
+        // a second concurrent claim is refused and keeps the original token
+        assert.deepStrictEqual(
+          yield* repo.claimDownloadReconciliation("hash-one", "token-b"),
+          false,
+        );
+        assert.deepStrictEqual((yield* loadRow(id))[0]?.reconciledAt, "token-a");
+
+        // unknown info hashes cannot be claimed
+        assert.deepStrictEqual(
+          yield* repo.claimDownloadReconciliation("missing-hash", "token-c"),
+          false,
+        );
+
+        // release is a no-op for a stale token, resets only the matching token
+        yield* repo.releaseDownloadReconciliationClaim({ downloadId: id, claimToken: "token-b" });
+        assert.deepStrictEqual((yield* loadRow(id))[0]?.reconciledAt, "token-a");
+        yield* repo.releaseDownloadReconciliationClaim({ downloadId: id, claimToken: "token-a" });
+        assert.deepStrictEqual((yield* loadRow(id))[0]?.reconciledAt, null);
+
+        // claim -> release -> re-claim works (retry cycle leaves no stale token)
+        assert.deepStrictEqual(
+          yield* repo.claimDownloadReconciliation("hash-one", "token-d"),
+          true,
+        );
+        yield* repo.releaseDownloadReconciliationClaim({ downloadId: id, claimToken: "token-d" });
+        assert.deepStrictEqual(
+          yield* repo.claimDownloadReconciliation("hash-one", "token-d"),
+          true,
+        );
+
+        // finalize overwrites the token with a timestamp; release is then a no-op
+        yield* repo.markDownloadReconciled({ downloadId: id, now: "2024-02-01T00:00:00.000Z" });
+        yield* repo.releaseDownloadReconciliationClaim({ downloadId: id, claimToken: "token-d" });
+        assert.deepStrictEqual((yield* loadRow(id))[0]?.reconciledAt, "2024-02-01T00:00:00.000Z");
+
+        // a finalized download can no longer be claimed
+        assert.deepStrictEqual(
+          yield* repo.claimDownloadReconciliation("hash-one", "token-e"),
+          false,
+        );
+      }),
+    schema,
+  }),
+);
+
+function makeClaimMediaRow(): typeof media.$inferInsert {
+  return {
+    addedAt: "2024-01-01T00:00:00.000Z",
+    format: "TV",
+    genres: "[]",
+    id: 1,
+    mediaKind: "anime",
+    monitored: true,
+    profileName: "Default",
+    releaseProfileIds: "[]",
+    rootFolder: "/library/Naruto",
+    status: "RELEASING",
+    studios: "[]",
+    titleRomaji: "Naruto",
+  };
+}

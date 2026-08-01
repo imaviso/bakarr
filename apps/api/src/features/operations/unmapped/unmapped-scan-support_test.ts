@@ -14,13 +14,12 @@ import { loadUnmappedFolderSnapshot } from "@/features/operations/unmapped/unmap
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { makeMediaRepository, makeSystemUnmappedRepository } from "@/test/repository-factories.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { withFileSystemSandboxEffect, writeTextFile } from "@/test/filesystem-test.ts";
+import { withFileSystemSandboxEffect } from "@/test/filesystem-test.ts";
 import {
   countCompletedUnmappedMatches,
   ensureFolderMatchStatus,
   prepareUnmappedFoldersForScan,
 } from "@/features/operations/unmapped/unmapped-folder-list-support.ts";
-import { loadUnmappedFolderVideoSize } from "@/features/operations/unmapped/unmapped-scan-video-support.ts";
 
 function makeFolder(input: Partial<UnmappedFolder> & Pick<UnmappedFolder, "match_status">) {
   return {
@@ -32,32 +31,6 @@ function makeFolder(input: Partial<UnmappedFolder> & Pick<UnmappedFolder, "match
     ...input,
   } satisfies UnmappedFolder;
 }
-
-it.scoped("loadUnmappedFolderVideoSize sums nested video files", () =>
-  withFileSystemSandboxEffect(({ fs, root }) =>
-    Effect.gen(function* () {
-      const seasonDir = `${root}/Season 1`;
-      yield* fs.mkdir(seasonDir, { recursive: true });
-      yield* fs.writeFile(`${seasonDir}/episode-01.mkv`, new Uint8Array(10));
-      yield* fs.writeFile(`${seasonDir}/episode-02.mp4`, new Uint8Array(15));
-      yield* writeTextFile(fs, `${seasonDir}/readme.txt`, "ignore me");
-
-      const size = yield* loadUnmappedFolderVideoSize(fs, root);
-
-      assert.deepStrictEqual(size, 25);
-    }),
-  ),
-);
-
-it.scoped("loadUnmappedFolderVideoSize fails when folder is inaccessible", () =>
-  withFileSystemSandboxEffect(({ fs, root }) =>
-    Effect.gen(function* () {
-      const exit = yield* Effect.exit(loadUnmappedFolderVideoSize(fs, `${root}/missing`));
-
-      assert.deepStrictEqual(exit._tag, "Failure");
-    }),
-  ),
-);
 
 it.scoped("loadUnmappedFolderSnapshot scans anime, manga, and light novel roots", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>

@@ -1,4 +1,4 @@
-import { desc, eq, inArray, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
 import { Effect, type Stream } from "effect";
 
 import type {
@@ -87,6 +87,17 @@ export interface DownloadRepositoryShape {
   readonly bulkUpdateTorrentSyncRows: (
     chunk: readonly TorrentSyncUpdate[],
   ) => Effect.Effect<void, DatabaseError>;
+  /**
+   * Atomic claim: only one concurrent reconcile may import a given download.
+   * Sets `reconciledAt` to the token only when it is currently NULL; returns
+   * whether the claim was acquired. The token marks an in-flight claim;
+   * finalization overwrites it with a timestamp, so a leftover token always
+   * means the claim must be released for retry.
+   */
+  readonly claimDownloadReconciliation: (
+    infoHash: string,
+    claimToken: string,
+  ) => Effect.Effect<boolean, DatabaseError>;
   readonly deleteDownloadRow: (id: number) => Effect.Effect<void, DatabaseError>;
   /** Atomic import write: downloads + download_events + system_logs (lifecycle tx). */
   readonly finalizeDownloadImport: (input: {
@@ -171,6 +182,15 @@ export interface DownloadRepositoryShape {
     readonly downloadId: number;
     readonly now: string;
   }) => Effect.Effect<void, DatabaseError>;
+  /**
+   * Compensating release for `claimDownloadReconciliation`: resets
+   * `reconciledAt` to NULL only when it still equals the token, so a finalize
+   * that already overwrote the token with a timestamp is left untouched.
+   */
+  readonly releaseDownloadReconciliationClaim: (input: {
+    readonly claimToken: string;
+    readonly downloadId: number;
+  }) => Effect.Effect<void, DatabaseError>;
   readonly updateDownloadCoveredUnits: (input: {
     readonly coveredUnits: string | null;
     readonly downloadId: number;
@@ -204,6 +224,8 @@ export class DownloadRepository extends Effect.Service<DownloadRepository>()(
 export function makeDownloadRepositoryShape(db: AppDatabase): DownloadRepositoryShape {
   return {
     bulkUpdateTorrentSyncRows: (chunk) => bulkUpdateTorrentSyncRows(db, chunk),
+    claimDownloadReconciliation: (infoHash, claimToken) =>
+      claimDownloadReconciliation(db, infoHash, claimToken),
     deleteDownloadRow: (id) => deleteDownloadRow(db, id, "Failed to remove download"),
     finalizeDownloadImport: (input) => finalizeDownloadImport(db, input),
     insertDownloadEvent: (input, createdAt) => insertDownloadEventRow(db, input, createdAt),
@@ -226,6 +248,7 @@ export function makeDownloadRepositoryShape(db: AppDatabase): DownloadRepository
     streamDownloadEvents: (input) => streamDownloadEventsPage(db, input),
     lookupDownloadByInfoHash: (infoHash) => lookupDownloadByInfoHash(db, infoHash),
     markDownloadReconciled: (input) => markDownloadReconciled(db, input),
+    releaseDownloadReconciliationClaim: (input) => releaseDownloadReconciliationClaim(db, input),
     updateDownloadCoveredUnits: (input) => updateDownloadCoveredUnits(db, input),
     updateDownloadRetryRow: (input) => updateDownloadRetryRow(db, input),
     updateDownloadStatusRow: (input) =>
@@ -513,6 +536,30 @@ const markDownloadReconciled = Effect.fn("DownloadRepository.markDownloadReconci
         .where(eq(downloads.id, input.downloadId));
     });
   });
+});
+
+const claimDownloadReconciliation = Effect.fn("DownloadRepository.claimDownloadReconciliation")(
+  function* (db: AppDatabase, infoHash: string, claimToken: string) {
+    const claimedRows = yield* tryDatabasePromise("Failed to claim download reconciliation", () =>
+      db
+        .update(downloads)
+        .set({ reconciledAt: claimToken })
+        .where(and(eq(downloads.infoHash, infoHash), isNull(downloads.reconciledAt)))
+        .returning({ id: downloads.id }),
+    );
+    return claimedRows.length > 0;
+  },
+);
+
+const releaseDownloadReconciliationClaim = Effect.fn(
+  "DownloadRepository.releaseDownloadReconciliationClaim",
+)(function* (db: AppDatabase, input: { readonly claimToken: string; readonly downloadId: number }) {
+  yield* tryDatabasePromise("Failed to release download reconciliation claim", () =>
+    db
+      .update(downloads)
+      .set({ reconciledAt: null })
+      .where(and(eq(downloads.id, input.downloadId), eq(downloads.reconciledAt, input.claimToken))),
+  );
 });
 
 const updateDownloadCoveredUnits = Effect.fn("DownloadRepository.updateDownloadCoveredUnits")(

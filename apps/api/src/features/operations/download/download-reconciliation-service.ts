@@ -1,11 +1,7 @@
 import { Cause, Effect, Option } from "effect";
-import { and, eq, isNull } from "drizzle-orm";
 
 import type { Config } from "@packages/shared/index.ts";
-import { AppDrizzleDatabase } from "@/db/database.ts";
-import { downloads } from "@/db/schema.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { MediaProbe } from "@/infra/media/probe.ts";
@@ -46,7 +42,6 @@ export class DownloadReconciliationService extends Effect.Service<DownloadReconc
   {
     // Platform/FS/torrent/progress provided by ops feature layer; list pure leaves only.
     dependencies: [
-      AppDrizzleDatabase.Default,
       DownloadRepository.Default,
       EventBus.Default,
       MediaRepository.Default,
@@ -54,7 +49,6 @@ export class DownloadReconciliationService extends Effect.Service<DownloadReconc
       RandomService.Default,
     ],
     effect: Effect.gen(function* () {
-      const db = yield* AppDrizzleDatabase;
       const repo = yield* DownloadRepository;
       const eventBus = yield* EventBus;
       const fs = yield* FileSystem;
@@ -99,30 +93,6 @@ export class DownloadReconciliationService extends Effect.Service<DownloadReconc
       // Atomic claim: only one concurrent reconcile may import a given download.
       // The token marks an in-flight claim; finalization overwrites it with a timestamp,
       // so a leftover token always means the claim must be released for retry.
-      const claimDownloadReconcile = Effect.fn("DownloadReconcile.claimDownloadReconcile")(
-        function* (infoHash: string, claimToken: string) {
-          const claimedRows = yield* tryDatabasePromise(
-            "Failed to claim download reconciliation",
-            () =>
-              db
-                .update(downloads)
-                .set({ reconciledAt: claimToken })
-                .where(and(eq(downloads.infoHash, infoHash), isNull(downloads.reconciledAt)))
-                .returning({ id: downloads.id }),
-          );
-
-          return claimedRows.length > 0;
-        },
-      );
-
-      const releaseDownloadReconcileClaim = (downloadId: number, claimToken: string) =>
-        tryDatabasePromise("Failed to release download reconciliation claim", () =>
-          db
-            .update(downloads)
-            .set({ reconciledAt: null })
-            .where(and(eq(downloads.id, downloadId), eq(downloads.reconciledAt, claimToken))),
-        ).pipe(Effect.ignoreLogged);
-
       const reconcileCompletedTorrentEffect = Effect.fn(
         "DownloadReconcile.reconcileCompletedTorrent",
       )(function* (infoHash: string, contentPath: string | undefined) {
@@ -136,7 +106,7 @@ export class DownloadReconciliationService extends Effect.Service<DownloadReconc
         }
 
         const claimToken = yield* randomUuid();
-        const claimed = yield* claimDownloadReconcile(infoHash, claimToken);
+        const claimed = yield* repo.claimDownloadReconciliation(infoHash, claimToken);
         if (!claimed) {
           return;
         }
@@ -169,7 +139,13 @@ export class DownloadReconciliationService extends Effect.Service<DownloadReconc
           }
 
           yield* reconcileSingleDownloadEffect(context.value);
-        }).pipe(Effect.onExit(() => releaseDownloadReconcileClaim(row.id, claimToken)));
+        }).pipe(
+          Effect.onExit(() =>
+            repo
+              .releaseDownloadReconciliationClaim({ downloadId: row.id, claimToken })
+              .pipe(Effect.ignoreLogged),
+          ),
+        );
       });
 
       const reconcileDownloadByIdEffect = Effect.fn(
