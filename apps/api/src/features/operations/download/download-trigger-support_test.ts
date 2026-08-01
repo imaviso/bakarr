@@ -1,10 +1,8 @@
 import { assert, it } from "@effect/vitest";
 import { brandQualityId } from "@packages/shared/index.ts";
 
-import {
-  resolveTriggerDownloadCoveragePlan,
-  deriveTriggerDecisionReason,
-} from "@/features/operations/download/download-trigger-support.ts";
+import { deriveTriggerDecisionReason } from "@/features/operations/download/download-trigger-support.ts";
+import { resolveDownloadCoveragePlan } from "@/features/operations/download/download-queue-support.ts";
 
 it("deriveTriggerDecisionReason formats upgrade action reason", () => {
   const reason = deriveTriggerDecisionReason({
@@ -96,8 +94,8 @@ it("deriveTriggerDecisionReason formats manual grab with trusted flag", () => {
   );
 });
 
-it("resolveTriggerDownloadCoveragePlan defers unknown season-pack coverage", () => {
-  const plan = resolveTriggerDownloadCoveragePlan({
+it("resolveDownloadCoveragePlan defers unknown season-pack coverage", () => {
+  const plan = resolveDownloadCoveragePlan({
     explicitUnitNumber: 1,
     mediaKind: "anime",
     missingUnits: [1, 2, 3, 4],
@@ -111,8 +109,8 @@ it("resolveTriggerDownloadCoveragePlan defers unknown season-pack coverage", () 
   assert.deepStrictEqual(plan.inferredCoveredEpisodes, []);
 });
 
-it("resolveTriggerDownloadCoveragePlan keeps explicit episode ranges as covered units", () => {
-  const plan = resolveTriggerDownloadCoveragePlan({
+it("resolveDownloadCoveragePlan keeps explicit episode ranges as covered units", () => {
+  const plan = resolveDownloadCoveragePlan({
     mediaKind: "anime",
     missingUnits: [1, 2, 3, 4],
     title: "[SubsPlease] Show - S01E02-E04 [1080p WEB-DL]",

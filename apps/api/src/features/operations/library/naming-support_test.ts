@@ -6,22 +6,21 @@ import {
   buildUnitFilenamePlan,
 } from "@/features/operations/library/naming-canonical-support.ts";
 import {
-  buildDownloadSelectionMetadata,
-  buildDownloadSourceMetadataFromRelease,
   buildEpisodeNamingInputFromPath,
-  mergeDownloadSourceMetadata,
   selectMediaYearForNaming,
 } from "@/features/operations/library/naming-metadata-support.ts";
+import {
+  buildDownloadSelectionMetadata,
+  buildDownloadSourceMetadataFromRelease,
+  mergeDownloadSourceMetadata,
+} from "@/features/operations/library/naming-source-metadata-support.ts";
 import {
   inspectNamingFormat,
   resolveFilenameRenderPlan,
   selectNamingFormat,
   validateNamingMetadata,
 } from "@/features/operations/library/naming-format-support.ts";
-import {
-  selectMediaTitleForNaming,
-  selectMediaTitleForNamingDetails,
-} from "@/features/operations/library/naming-title-support.ts";
+import { selectMediaTitleForNamingDetails } from "@/features/operations/library/naming-title-support.ts";
 
 it("buildEpisodeNamingInputFromPath extracts local filename metadata for rename tokens", () => {
   const input = buildEpisodeNamingInputFromPath({
@@ -55,9 +54,9 @@ it("buildEpisodeNamingInputFromPath keeps stored episode title over filename fal
   assert.deepStrictEqual(input.unitTitle, "Canonical MediaUnit Title");
 });
 
-it("selectMediaTitleForNaming honors preferred title with fallback", () => {
+it("selectMediaTitleForNamingDetails honors preferred title with fallback", () => {
   assert.deepStrictEqual(
-    selectMediaTitleForNaming(
+    selectMediaTitleForNamingDetails(
       {
         titleEnglish: "English Title",
         titleNative: "Native Title",
@@ -65,11 +64,14 @@ it("selectMediaTitleForNaming honors preferred title with fallback", () => {
       },
       "english",
     ),
-    "English Title",
+    {
+      source: "preferred_english",
+      title: "English Title",
+    },
   );
 
   assert.deepStrictEqual(
-    selectMediaTitleForNaming(
+    selectMediaTitleForNamingDetails(
       {
         titleEnglish: null,
         titleNative: "Native Title",
@@ -77,11 +79,14 @@ it("selectMediaTitleForNaming honors preferred title with fallback", () => {
       },
       "english",
     ),
-    "Romaji Title",
+    {
+      source: "fallback_romaji",
+      title: "Romaji Title",
+    },
   );
 
   assert.deepStrictEqual(
-    selectMediaTitleForNaming(
+    selectMediaTitleForNamingDetails(
       {
         titleEnglish: "English Title",
         titleNative: "Native Title",
@@ -89,7 +94,10 @@ it("selectMediaTitleForNaming honors preferred title with fallback", () => {
       },
       "native",
     ),
-    "Native Title",
+    {
+      source: "preferred_native",
+      title: "Native Title",
+    },
   );
 });
 

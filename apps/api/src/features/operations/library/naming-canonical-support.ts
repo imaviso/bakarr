@@ -15,7 +15,10 @@ import {
   buildEpisodeNamingInputFromPath,
   selectMediaYearForNaming,
 } from "@/features/operations/library/naming-metadata-support.ts";
-import { resolveFilenameRenderPlan } from "@/features/operations/library/naming-format-support.ts";
+import {
+  resolveFallbackNamingFormat,
+  resolveFilenameRenderPlan,
+} from "@/features/operations/library/naming-format-support.ts";
 import { selectMediaTitleForNamingDetails } from "@/features/operations/library/naming-title-support.ts";
 import type {
   CanonicalEpisodeNamingInput,
@@ -107,7 +110,7 @@ export function buildUnitFilenamePlan(input: {
   };
   unitNumbers: readonly number[];
   filePath: string;
-  namingFormat: string;
+  namingFormat?: string;
   preferredTitle: PreferredTitle;
   season?: number;
   episodeRows?: readonly { title?: string | null; aired?: string | null }[];
@@ -133,11 +136,19 @@ export function buildUnitFilenamePlan(input: {
     ...(input.animeRow.rootFolder === undefined ? {} : { rootFolder: input.animeRow.rootFolder }),
     ...(input.season === undefined ? {} : { season: input.season }),
   });
-  const renderPlan = resolveFilenameRenderPlan({
-    animeFormat: input.animeRow.format,
-    format: input.namingFormat,
-    metadata: canonical.namingInput,
-  });
+  const renderPlan =
+    input.namingFormat === undefined
+      ? {
+          fallbackUsed: true,
+          formatUsed: resolveFallbackNamingFormat(input.animeRow.format, canonical.namingInput),
+          missingFields: [] as readonly string[],
+          warnings: [] as readonly string[],
+        }
+      : resolveFilenameRenderPlan({
+          animeFormat: input.animeRow.format,
+          format: input.namingFormat,
+          metadata: canonical.namingInput,
+        });
 
   return {
     baseName: renderUnitFilename(renderPlan.formatUsed, canonical.namingInput),

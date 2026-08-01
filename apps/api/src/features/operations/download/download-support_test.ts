@@ -13,7 +13,7 @@ import { makeTestConfig } from "@/test/config-fixture.ts";
 import {
   importDownloadedFile,
   ImportFileError,
-} from "@/features/operations/download/download-file-import-support.ts";
+} from "@/features/operations/download/library-file-write-support.ts";
 
 function shouldReconcileCompletedDownloads(config: ReturnType<typeof makeTestConfig> | null) {
   return config?.downloads.reconcile_completed_downloads ?? true;

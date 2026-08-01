@@ -2,17 +2,6 @@ import type { PreferredTitle } from "@packages/shared/index.ts";
 
 import type { SelectedMediaTitleForNaming } from "@/features/operations/library/naming-types.ts";
 
-export function selectMediaTitleForNaming(
-  animeRow: {
-    titleRomaji: string;
-    titleEnglish?: string | null;
-    titleNative?: string | null;
-  },
-  preferredTitle: PreferredTitle,
-): string {
-  return selectMediaTitleForNamingDetails(animeRow, preferredTitle).title;
-}
-
 export function selectMediaTitleForNamingDetails(
   animeRow: {
     titleRomaji: string;

@@ -1,6 +1,10 @@
 import { Effect, Option } from "effect";
 
-import type { Config, DownloadSourceMetadata } from "@packages/shared/index.ts";
+import type {
+  AsyncOperationAccepted,
+  Config,
+  DownloadSourceMetadata,
+} from "@packages/shared/index.ts";
 import type { downloads } from "@/db/schema.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import {
@@ -9,6 +13,7 @@ import {
   toCoveredUnitsJson,
 } from "@/features/operations/download/download-coverage.ts";
 import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
+import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
 import {
   decodeDownloadSourceMetadata,
   type DownloadEventRecordInput,
@@ -37,6 +42,10 @@ const TORRENT_SYNC_UPDATE_CHUNK_SIZE = 50;
 export type DownloadTorrentSyncError = DatabaseError | InfrastructureError;
 
 export interface DownloadTorrentSyncServiceShape {
+  readonly startDownloadSync: () => Effect.Effect<
+    AsyncOperationAccepted,
+    DatabaseError | InfrastructureError
+  >;
   readonly syncDownloads: () => Effect.Effect<void, DownloadTorrentSyncError>;
   readonly syncDownloadsWithQBitEffect: () => Effect.Effect<void, DownloadTorrentSyncError>;
 }
@@ -52,8 +61,14 @@ const mapSyncError = (error: unknown): DownloadTorrentSyncError =>
 export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSyncService>()(
   "@bakarr/api/DownloadTorrentSyncService",
   {
-    // Reconciliation/progress/torrent/config provided by ops feature layer.
-    dependencies: [DownloadRepository.Default, EventBus.Default, MediaRepository.Default],
+    // Progress/torrent/config snapshot come from the lifecycle layer.
+    dependencies: [
+      DownloadReconciliationService.Default,
+      DownloadRepository.Default,
+      EventBus.Default,
+      MediaRepository.Default,
+      OperationsTaskLauncherService.Default,
+    ],
     effect: Effect.gen(function* () {
       const syncRepo = yield* DownloadRepository;
       const mediaRepository = yield* MediaRepository;
@@ -62,6 +77,7 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
       const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
       const eventBus = yield* EventBus;
       const progress = yield* OperationsProgress;
+      const taskLauncher = yield* OperationsTaskLauncherService;
       const syncSemaphore = yield* Effect.makeSemaphore(1);
 
       const refineBatchCoverageFromTorrentFiles = Effect.fn(
@@ -318,7 +334,21 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
         }).pipe(syncSemaphore.withPermits(1), Effect.mapError(mapSyncError));
       });
 
+      const startDownloadSync = Effect.fn("DownloadTorrentSyncService.startDownloadSync")(
+        function* () {
+          return yield* taskLauncher.launch({
+            failureMessage: "Manual download sync failed",
+            operation: () => syncDownloads(),
+            queuedMessage: "Queued manual download sync",
+            runningMessage: "Running manual download sync",
+            successMessage: () => "Manual download sync finished",
+            taskKey: "downloads_sync_manual",
+          });
+        },
+      );
+
       return {
+        startDownloadSync,
         syncDownloads,
         syncDownloadsWithQBitEffect,
       } satisfies DownloadTorrentSyncServiceShape;

@@ -7,7 +7,7 @@ import { EventBus } from "@/features/events/event-bus.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import type { MediaUnitRepositoryShape } from "@/features/media/units/media-unit-repository.ts";
 import { buildLibraryImportPlan } from "@/features/operations/catalog/catalog-library-write-import-plan-support.ts";
-import { writeLibraryImportFile } from "@/features/operations/catalog/catalog-library-write-import-file-support.ts";
+import { writeLibraryImportFile } from "@/features/operations/download/library-file-write-support.ts";
 
 export interface LibraryImportFileInput {
   readonly source_path: string;

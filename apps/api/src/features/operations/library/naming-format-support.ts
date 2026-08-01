@@ -112,7 +112,7 @@ export function hasMissingLocalMediaNamingFields(missingFields: readonly string[
   return missingFields.some((field) => PROBEABLE_NAMING_FIELDS.has(field));
 }
 
-function resolveFallbackNamingFormat(animeFormat: string, metadata: NamingInput): string {
+export function resolveFallbackNamingFormat(animeFormat: string, metadata: NamingInput): string {
   if (animeFormat === "MOVIE") {
     return metadata.year ? "{title} ({year})" : "{title}";
   }

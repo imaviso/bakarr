@@ -4,22 +4,15 @@ import type { Config, DownloadSourceMetadata, ImportMode } from "@packages/share
 import type { DatabaseError } from "@/db/database.ts";
 import { media } from "@/db/schema.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
-import {
-  probeMediaMetadataOrUndefined,
-  type MediaProbeShape,
-  type ProbedMediaMetadata,
-} from "@/infra/media/probe.ts";
+import type { MediaProbeShape, ProbedMediaMetadata } from "@/infra/media/probe.ts";
 import { DomainPathError } from "@/features/errors.ts";
 import type { MediaNotFoundError } from "@/features/media/errors.ts";
 import { getConfiguredLibraryPaths } from "@/features/media/shared/config-support.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { isWithinPathRoot } from "@/infra/filesystem/filesystem.ts";
-import { buildUnitFilenamePlan } from "@/features/operations/library/naming-canonical-support.ts";
+import { buildLibraryFileWritePlan } from "@/features/operations/download/library-file-write-support.ts";
+import { selectNamingFormat } from "@/features/operations/library/naming-format-support.ts";
 import type { UnitFilenamePlan } from "@/features/operations/library/naming-types.ts";
-import {
-  hasMissingLocalMediaNamingFields,
-  selectNamingFormat,
-} from "@/features/operations/library/naming-format-support.ts";
 
 export interface BuildLibraryImportPlanInput {
   readonly fs: FileSystemShape;
@@ -96,56 +89,27 @@ export const buildLibraryImportPlan = Effect.fn("Operations.buildLibraryImportPl
     const episodeRows = unitRows
       .filter((row) => episodeNumbersForQuery.has(row.number))
       .map((row) => ({ aired: row.aired, title: row.title }));
-    const sourceBaseName = file.source_path.split(/[\\/]/).pop() ?? file.source_path;
-    const extension = sourceBaseName.includes(".")
-      ? sourceBaseName.slice(sourceBaseName.lastIndexOf("."))
-      : ".mkv";
-    const initialNamingPlan = buildUnitFilenamePlan({
+    const fileWritePlan = yield* buildLibraryFileWritePlan({
       animeRow,
       ...(file.source_metadata === undefined
         ? {}
         : { downloadSourceMetadata: file.source_metadata }),
-      unitNumbers: allEpisodeNumbers,
       episodeRows,
-      filePath: file.source_path,
+      mediaProbe,
       namingFormat,
       preferredTitle: namingSettings.preferredTitle,
       ...(file.season === undefined ? {} : { season: file.season }),
+      sourcePath: file.source_path,
+      unitNumbers: allEpisodeNumbers,
     });
-    const localMediaMetadata = hasMissingLocalMediaNamingFields(initialNamingPlan.missingFields)
-      ? yield* probeMediaMetadataOrUndefined(mediaProbe, file.source_path)
-      : undefined;
-    const namingPlan = localMediaMetadata
-      ? buildUnitFilenamePlan({
-          animeRow,
-          ...(file.source_metadata === undefined
-            ? {}
-            : { downloadSourceMetadata: file.source_metadata }),
-          unitNumbers: allEpisodeNumbers,
-          episodeRows,
-          filePath: file.source_path,
-          localMediaMetadata,
-          namingFormat,
-          preferredTitle: namingSettings.preferredTitle,
-          ...(file.season === undefined ? {} : { season: file.season }),
-        })
-      : initialNamingPlan;
-    const destination = `${animeRow.rootFolder.replace(/\/$/, "")}/${namingPlan.baseName}${extension}`;
-
-    if (!isWithinPathRoot(destination, animeRow.rootFolder)) {
-      return yield* new DomainPathError({
-        message: `Resolved destination escapes the media root folder: ${destination}`,
-      });
-    }
 
     return {
       allEpisodeNumbers,
       animeRow,
-      destination,
+      destination: fileWritePlan.destination,
       importMode,
       unitNumber: file.unit_number,
-      ...(localMediaMetadata === undefined ? {} : { localMediaMetadata }),
-      namingPlan,
+      namingPlan: fileWritePlan.namingPlan,
       resolvedSource,
       ...(file.source_metadata === undefined ? {} : { sourceMetadata: file.source_metadata }),
       sourcePath: file.source_path,

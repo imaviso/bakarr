@@ -7,19 +7,15 @@ import {
   buildDownloadSelectionMetadata,
   buildDownloadSourceMetadataFromRelease,
   mergeDownloadSourceMetadata,
-} from "@/features/operations/library/naming-metadata-support.ts";
+} from "@/features/operations/library/naming-source-metadata-support.ts";
 import {
-  hasOverlappingDownload,
-  inferCoveredUnitNumbers,
-  parseCoveredUnitsEffect,
-  toCoveredUnitsJson,
-} from "@/features/operations/download/download-coverage.ts";
-import { parseReleaseName } from "@/features/operations/search/release-ranking.ts";
-import { parseVolumeNumbersFromTitle } from "@/features/operations/search/release-volume.ts";
-import { queueParsedReleaseDownload } from "@/features/operations/search/release-queue.ts";
+  resolveDownloadCoveragePlan,
+  queueDownload,
+} from "@/features/operations/download/download-queue-support.ts";
+import { toCoveredUnitsJson } from "@/features/operations/download/download-coverage.ts";
 import type { ParsedRelease } from "@/features/operations/rss/rss-client-parse.ts";
 import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
-import { DownloadTriggerCoordinator } from "@/features/operations/tasks/task-coordinators.ts";
+import { DownloadTriggerGate } from "@/features/operations/tasks/task-coordinators.ts";
 import { DownloadRepository } from "@/features/operations/repository/download-repository.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { InfrastructureError } from "@/features/errors.ts";
@@ -47,7 +43,7 @@ export class BackgroundSearchQueueService extends Effect.Service<BackgroundSearc
     effect: Effect.gen(function* () {
       const downloadRepository = yield* DownloadRepository;
       const torrentClientService = yield* TorrentClientService;
-      const downloadTriggerCoordinator = yield* DownloadTriggerCoordinator;
+      const downloadTriggerGate = yield* DownloadTriggerGate;
       const nowIso = currentNowIso;
 
       const queueReleaseIfEligible = Effect.fn(
@@ -63,105 +59,15 @@ export class BackgroundSearchQueueService extends Effect.Service<BackgroundSearc
         item: ParsedRelease;
         missingUnits: readonly number[];
       }) {
-        const parsedRelease = parseReleaseName(input.item.title);
-        const explicitUnitNumbers =
-          input.animeRow.mediaKind === "anime"
-            ? parsedRelease.unitNumbers
-            : parseVolumeNumbersFromTitle(input.item.title);
-        const isBatch =
-          input.animeRow.mediaKind === "anime"
-            ? parsedRelease.isBatch
-            : explicitUnitNumbers.length > 1;
-
-        const coveredUnits = yield* toCoveredUnitsJson(
-          inferCoveredUnitNumbers({
-            explicitEpisodes: explicitUnitNumbers,
-            isBatch,
-            totalUnits: input.animeRow.unitCount,
-            missingUnits: input.missingUnits,
-            requestedEpisode: input.unitNumber,
-          }),
-        ).pipe(
-          Effect.mapError(
-            (cause) =>
-              new InfrastructureError({
-                message: "Failed to queue background release",
-                cause,
-              }),
-          ),
-        );
-
-        const queueEffect = Effect.gen(function* () {
-          const parsedCoveredEpisodes = yield* parseCoveredUnitsEffect(coveredUnits);
-          const overlapping = yield* hasOverlappingDownload(
-            downloadRepository,
-            input.animeRow.id,
-            input.item.infoHash,
-            parsedCoveredEpisodes,
-          );
-
-          if (overlapping) {
-            return { _tag: "skipped" } as const;
-          }
-
-          yield* queueParsedReleaseDownload({
-            animeRow: input.animeRow,
-            contextMessage: input.contextMessage,
-            coveredUnits,
-            downloadRepository,
-            unitNumber: input.unitNumber,
-            eventMessage: input.eventMessage,
-            eventType: input.eventType,
-            isBatch,
-            item: input.item,
-            nowIso,
-            sourceMetadata: mergeDownloadSourceMetadata(
-              buildDownloadSourceMetadataFromRelease({
-                ...buildDownloadSelectionMetadata(input.action),
-                ...(input.decisionReason === undefined
-                  ? {}
-                  : { decisionReason: input.decisionReason }),
-                ...(input.item.group === undefined ? {} : { group: input.item.group }),
-                indexer: "Nyaa",
-                isSeadex: input.item.isSeaDex,
-                isSeadexBest: input.item.isSeaDexBest,
-                remake: input.item.remake,
-                ...(input.item.seaDexComparison === undefined
-                  ? {}
-                  : { seadexComparison: input.item.seaDexComparison }),
-                ...(input.item.seaDexDualAudio === undefined
-                  ? {}
-                  : { seadexDualAudio: input.item.seaDexDualAudio }),
-                ...(input.item.seaDexNotes === undefined
-                  ? {}
-                  : { seadexNotes: input.item.seaDexNotes }),
-                ...(input.item.seaDexReleaseGroup === undefined
-                  ? {}
-                  : { seadexReleaseGroup: input.item.seaDexReleaseGroup }),
-                ...(input.item.seaDexTags === undefined
-                  ? {}
-                  : { seadexTags: input.item.seaDexTags }),
-                ...(input.item.viewUrl === undefined ? {} : { sourceUrl: input.item.viewUrl }),
-                title: input.item.title,
-                trusted: input.item.trusted,
-              }),
-            ),
-            torrentClientService,
-          }).pipe(
-            Effect.mapError((cause) =>
-              cause instanceof DatabaseError || cause instanceof InfrastructureError
-                ? cause
-                : new InfrastructureError({
-                    message: "Failed to queue background release",
-                    cause,
-                  }),
-            ),
-          );
-
-          return { _tag: "queued" } as const;
+        const coveragePlan = resolveDownloadCoveragePlan({
+          explicitUnitNumber: input.unitNumber,
+          mediaKind: input.animeRow.mediaKind,
+          missingUnits: input.missingUnits,
+          title: input.item.title,
+          totalUnits: input.animeRow.unitCount,
         });
 
-        return yield* downloadTriggerCoordinator.runExclusiveDownloadTrigger(queueEffect).pipe(
+        const coveredUnits = yield* toCoveredUnitsJson(coveragePlan.inferredCoveredEpisodes).pipe(
           Effect.mapError(
             (cause) =>
               new InfrastructureError({
@@ -170,13 +76,71 @@ export class BackgroundSearchQueueService extends Effect.Service<BackgroundSearc
               }),
           ),
         );
+
+        const queueEffect = queueDownload({
+          downloadRepository,
+          torrentClientService,
+          nowIso,
+          animeRow: input.animeRow,
+          title: input.item.title,
+          magnet: input.item.magnet,
+          infoHash: input.item.infoHash,
+          unitNumber: coveragePlan.requestedEpisode ?? input.unitNumber,
+          isBatch: coveragePlan.effectiveIsBatch,
+          coveredUnitsJson: coveredUnits,
+          sourceMetadata: mergeDownloadSourceMetadata(
+            buildDownloadSourceMetadataFromRelease({
+              ...buildDownloadSelectionMetadata(input.action),
+              ...(input.decisionReason === undefined
+                ? {}
+                : { decisionReason: input.decisionReason }),
+              ...(input.item.group === undefined ? {} : { group: input.item.group }),
+              indexer: "Nyaa",
+              isSeadex: input.item.isSeaDex,
+              isSeadexBest: input.item.isSeaDexBest,
+              remake: input.item.remake,
+              ...(input.item.seaDexComparison === undefined
+                ? {}
+                : { seadexComparison: input.item.seaDexComparison }),
+              ...(input.item.seaDexDualAudio === undefined
+                ? {}
+                : { seadexDualAudio: input.item.seaDexDualAudio }),
+              ...(input.item.seaDexNotes === undefined
+                ? {}
+                : { seadexNotes: input.item.seaDexNotes }),
+              ...(input.item.seaDexReleaseGroup === undefined
+                ? {}
+                : { seadexReleaseGroup: input.item.seaDexReleaseGroup }),
+              ...(input.item.seaDexTags === undefined ? {} : { seadexTags: input.item.seaDexTags }),
+              ...(input.item.viewUrl === undefined ? {} : { sourceUrl: input.item.viewUrl }),
+              title: input.item.title,
+              trusted: input.item.trusted,
+            }),
+          ),
+          ...(input.item.group === undefined ? {} : { group: input.item.group }),
+          totalBytes: input.item.sizeBytes,
+          event: { type: input.eventType, message: input.eventMessage },
+          conflictPolicy: "skip",
+        });
+
+        return yield* downloadTriggerGate
+          .withPermits(1)(queueEffect)
+          .pipe(
+            Effect.mapError(
+              (cause) =>
+                new InfrastructureError({
+                  message: "Failed to queue background release",
+                  cause,
+                }),
+            ),
+          );
       });
 
       return {
         queueReleaseIfEligible,
       } satisfies BackgroundSearchQueueServiceShape;
     }),
-    dependencies: [DownloadRepository.Default, DownloadTriggerCoordinator.Default],
+    dependencies: [DownloadRepository.Default, DownloadTriggerGate.Default],
   },
 ) {}
 
