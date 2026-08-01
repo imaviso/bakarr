@@ -100,7 +100,8 @@ export class SearchBackgroundRssService extends Effect.Service<SearchBackgroundR
 
       return { runRssCheck } satisfies SearchBackgroundRssServiceShape;
     }),
-    dependencies: [RssFeedRepository.Default],
+    // OperationsProgress + RuntimeConfigSnapshotService come from the lifecycle layer.
+    dependencies: [BackgroundSearchRssFeedService.Default, RssFeedRepository.Default],
   },
 ) {}
 

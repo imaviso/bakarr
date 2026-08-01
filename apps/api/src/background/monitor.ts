@@ -8,7 +8,7 @@ import {
   BackgroundWorkerStatsModel,
   initialBackgroundWorkerSnapshot,
   updateWorkerInSnapshot,
-} from "@/background/worker-model.ts";
+} from "@/domain/worker-model.ts";
 import { nowIso } from "@/infra/time.ts";
 import {
   preRegisterBackgroundWorkerMetrics,

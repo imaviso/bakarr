@@ -11,8 +11,8 @@ import { InfrastructureError } from "@/features/errors.ts";
 import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { BackgroundJobRepository } from "@/features/system/repository/background-job-repository.ts";
-import { makeBackgroundJobRepository } from "@/test/repository-factories.ts";
+import { BackgroundJobRunner } from "@/background/background-job-runner.ts";
+import { makeBackgroundJobRunner } from "@/test/repository-factories.ts";
 import { assert, describe, it } from "@effect/vitest";
 
 describe("BackgroundSearchRssWorkerService", () => {
@@ -25,6 +25,7 @@ describe("BackgroundSearchRssWorkerService", () => {
             calls,
             db,
             missingService: SearchBackgroundMissingService.make({
+              startMissingUnitSearch: () => Effect.dieMessage("not used in test"),
               triggerSearchMissing: () =>
                 Effect.sync(() => {
                   calls.push("missing");
@@ -74,6 +75,7 @@ describe("BackgroundSearchRssWorkerService", () => {
             calls,
             db,
             missingService: SearchBackgroundMissingService.make({
+              startMissingUnitSearch: () => Effect.dieMessage("not used in test"),
               triggerSearchMissing: () =>
                 Effect.gen(function* () {
                   calls.push("missing");
@@ -133,6 +135,7 @@ describe("BackgroundSearchRssWorkerService", () => {
             calls,
             db,
             missingService: SearchBackgroundMissingService.make({
+              startMissingUnitSearch: () => Effect.dieMessage("not used in test"),
               triggerSearchMissing: () =>
                 Effect.sync(() => {
                   calls.push("missing");
@@ -239,7 +242,7 @@ const runWorkerScenario = Effect.fn("BackgroundSearchRssWorkerServiceTest.runWor
     const layer = BackgroundSearchRssWorkerService.DefaultWithoutDependencies.pipe(
       Layer.provide(
         Layer.mergeAll(
-          Layer.succeed(BackgroundJobRepository, makeBackgroundJobRepository(input.db)),
+          Layer.succeed(BackgroundJobRunner, makeBackgroundJobRunner(input.db)),
           Layer.succeed(EventBus, deps.eventBus),
           Layer.succeed(OperationsProgress, deps.progress),
           Layer.succeed(SearchBackgroundMissingService, deps.missingService),

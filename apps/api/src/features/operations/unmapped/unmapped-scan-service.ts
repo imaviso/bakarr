@@ -1,6 +1,10 @@
 import { Cause, Effect } from "effect";
 
-import { MEDIA_KIND_VALUES, type ScannerState } from "@packages/shared/index.ts";
+import {
+  MEDIA_KIND_VALUES,
+  type AsyncOperationAccepted,
+  type ScannerState,
+} from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import { media } from "@/db/schema.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
@@ -22,14 +26,14 @@ import { loadUnmappedFolderSnapshot } from "@/features/operations/unmapped/unmap
 import { matchSingleUnmappedFolder } from "@/features/operations/unmapped/unmapped-scan-match-support.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
-import { markJobFailureOrFailWithError } from "@/infra/job-failure-support.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
-import { BackgroundJobRepository } from "@/features/system/repository/background-job-repository.ts";
+import { BackgroundJobRunner } from "@/background/background-job-runner.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 import { SystemUnmappedRepository } from "@/features/system/repository/unmapped-repository.ts";
 import { UnmappedScanCoordinator } from "@/features/operations/tasks/task-coordinators.ts";
+import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
 
 export interface UnmappedScanServiceShape {
   readonly getUnmappedFolders: () => Effect.Effect<
@@ -43,6 +47,10 @@ export interface UnmappedScanServiceShape {
   readonly runUnmappedScan: () => Effect.Effect<
     { folderCount: number },
     DatabaseError | DomainPathError | InfrastructureError | StoredDataError
+  >;
+  readonly startUnmappedScan: () => Effect.Effect<
+    AsyncOperationAccepted,
+    DatabaseError | InfrastructureError
   >;
 }
 
@@ -72,13 +80,14 @@ type UnmappedMatchResult = UnmappedMatchResultFailed | UnmappedMatchResultMatche
 
 const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* () {
   const aniList = yield* AniListClient;
-  const backgroundJobRepository = yield* BackgroundJobRepository;
+  const backgroundJobRunner = yield* BackgroundJobRunner;
   const eventBus = yield* EventBus;
   const fs = yield* FileSystem;
   const mediaRepository = yield* MediaRepository;
   const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
   const systemLogRepository = yield* SystemLogRepository;
   const systemUnmappedRepository = yield* SystemUnmappedRepository;
+  const taskLauncher = yield* OperationsTaskLauncherService;
   const unmappedScanCoordinator = yield* UnmappedScanCoordinator;
   const nowIso = currentNowIso;
 
@@ -131,7 +140,7 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
 
   const getUnmappedFolders = Effect.fn("UnmappedScanService.getUnmappedFolders")(function* () {
     const { folders, snapshot } = yield* loadMergedUnmappedFolders();
-    const job = yield* backgroundJobRepository.loadByName("unmapped_scan");
+    const job = yield* backgroundJobRunner.loadByName("unmapped_scan");
 
     const newFolders = folders.filter((folder) => !snapshot.cachedByPath.has(folder.path));
     const now = yield* nowIso();
@@ -196,16 +205,9 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
   });
 
   const failAfterMarkingJobFailure = (error: DatabaseError | DomainPathError | StoredDataError) =>
-    markJobFailureOrFailWithError({
-      error,
-      job: "unmapped_scan",
-      logAnnotations: { run_failure: error.message },
-      logMessage: "Failed to record unmapped scan job failure",
-      markFailed: backgroundJobRepository.markFailed("unmapped_scan", error, nowIso),
-    }).pipe(
-      Effect.catchTag("JobFailurePersistenceError", () => Effect.void),
-      Effect.zipRight(Effect.fail(error)),
-    );
+    backgroundJobRunner
+      .markFailed("unmapped_scan", error)
+      .pipe(Effect.zipRight(Effect.fail(error)));
 
   const failInfrastructureAfterMarkingJobFailure = (cause: Cause.Cause<unknown>) => {
     const infrastructureError = new InfrastructureError({
@@ -213,21 +215,14 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
       cause,
     });
 
-    return markJobFailureOrFailWithError({
-      error: infrastructureError,
-      job: "unmapped_scan",
-      logAnnotations: { run_failure_cause: Cause.pretty(cause) },
-      logMessage: "Failed to record unmapped scan infrastructure failure",
-      markFailed: backgroundJobRepository.markFailed("unmapped_scan", cause, nowIso),
-    }).pipe(
-      Effect.catchTag("JobFailurePersistenceError", () => Effect.void),
-      Effect.zipRight(Effect.fail(infrastructureError)),
-    );
+    return backgroundJobRunner
+      .markFailed("unmapped_scan", cause)
+      .pipe(Effect.zipRight(Effect.fail(infrastructureError)));
   };
 
   const runUnmappedScanPass = Effect.fn("UnmappedScanService.runUnmappedScanPass")(
     function* () {
-      yield* backgroundJobRepository.markStarted("unmapped_scan", nowIso);
+      yield* backgroundJobRunner.markStarted("unmapped_scan");
 
       const { folders, queuedFolders, snapshot } = yield* loadQueuedUnmappedFolders();
 
@@ -239,10 +234,9 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
       const targets = queuedFolders.filter(isUnmappedFolderQueuedForMatch);
 
       if (targets.length === 0) {
-        yield* backgroundJobRepository.markSucceeded(
+        yield* backgroundJobRunner.markSucceeded(
           "unmapped_scan",
           `Processed ${queuedFolders.length} unmapped folder(s)`,
-          nowIso,
         );
 
         return { folderCount: queuedFolders.length, hasQueuedTargets: false };
@@ -252,11 +246,10 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
 
       for (const target of targets) {
         completedCount += 1;
-        yield* backgroundJobRepository.updateProgress(
+        yield* backgroundJobRunner.updateProgress(
           "unmapped_scan",
           completedCount,
           queuedFolders.length,
-          nowIso,
           `Matching ${target.name}`,
         );
 
@@ -270,10 +263,9 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
 
         if (matchResult._tag === "Failed") {
           const failedFolder = matchResult.folder;
-          yield* backgroundJobRepository.markFailed(
+          yield* backgroundJobRunner.markFailed(
             "unmapped_scan",
             failedFolder.last_match_error ?? `Failed to match ${target.name}`,
-            nowIso,
           );
 
           yield* systemLogRepository.appendLog(
@@ -288,10 +280,9 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
           return { folderCount: queuedFolders.length, hasQueuedTargets: true };
         }
 
-        yield* backgroundJobRepository.markSucceeded(
+        yield* backgroundJobRunner.markSucceeded(
           "unmapped_scan",
           `Processed ${target.name} (${queuedFolders.length} unmapped folder(s) total)`,
-          nowIso,
         );
         yield* systemLogRepository.appendLog(
           "library.unmapped.scan",
@@ -364,10 +355,27 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
     return yield* startUnmappedScanLoop();
   });
 
+  const startUnmappedScan = Effect.fn("UnmappedScanService.startUnmappedScan")(function* () {
+    return yield* taskLauncher.launch({
+      failureMessage: "Manual unmapped-folder scan failed",
+      operation: () => runUnmappedScan(),
+      queuedMessage: "Queued manual unmapped-folder scan",
+      runningMessage: "Running manual unmapped-folder scan",
+      successMessage: (result) =>
+        `Manual unmapped-folder scan finished (${result.folderCount} folder(s))`,
+      successProgress: (result) => ({
+        progressCurrent: result.folderCount,
+        progressTotal: result.folderCount,
+      }),
+      taskKey: "unmapped_scan_manual",
+    });
+  });
+
   return {
     getUnmappedFolders,
     matchAndPersistUnmappedFolder,
     runUnmappedScan,
+    startUnmappedScan,
   } satisfies UnmappedScanServiceShape;
 });
 
@@ -445,11 +453,14 @@ function resolveScannerMatchStatus(input: {
 export class UnmappedScanService extends Effect.Service<UnmappedScanService>()(
   "@bakarr/api/UnmappedScanService",
   {
+    // AniListClient + RuntimeConfigSnapshotService come from the lifecycle layer.
     dependencies: [
-      BackgroundJobRepository.Default,
+      BackgroundJobRunner.Default,
       MediaRepository.Default,
+      OperationsTaskLauncherService.Default,
       SystemLogRepository.Default,
       SystemUnmappedRepository.Default,
+      UnmappedScanCoordinator.Default,
     ],
     effect: makeUnmappedScanService(),
   },

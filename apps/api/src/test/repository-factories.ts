@@ -17,6 +17,8 @@ import { RssFeedRepository } from "@/features/operations/repository/rss-feed-rep
 import { makeRssFeedRepositoryShape } from "@/features/operations/repository/rss-feed-repository.ts";
 import { BackgroundJobRepository } from "@/features/system/repository/background-job-repository.ts";
 import { makeBackgroundJobRepositoryShape } from "@/features/system/repository/background-job-repository.ts";
+import { BackgroundJobRunner } from "@/background/background-job-runner.ts";
+import { makeBackgroundJobRunnerShape } from "@/background/background-job-runner.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 import { makeSystemLogRepositoryShape } from "@/features/system/repository/log-repository.ts";
 import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
@@ -56,6 +58,9 @@ export const makeRssFeedRepository = (db: AppDatabase) =>
 
 export const makeBackgroundJobRepository = (db: AppDatabase) =>
   BackgroundJobRepository.make(makeBackgroundJobRepositoryShape(db));
+
+export const makeBackgroundJobRunner = (db: AppDatabase) =>
+  BackgroundJobRunner.make(makeBackgroundJobRunnerShape(makeBackgroundJobRepositoryShape(db)));
 
 export const makeSystemLogRepository = (db: AppDatabase) =>
   SystemLogRepository.make(makeSystemLogRepositoryShape(db));

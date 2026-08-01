@@ -5,7 +5,7 @@ import {
   BACKGROUND_WORKER_NAMES,
   type BackgroundWorkerName,
   type BackgroundWorkerSnapshot,
-} from "@/background/worker-model.ts";
+} from "@/domain/worker-model.ts";
 import { toBackgroundJobStatus } from "@/features/system/support.ts";
 
 export const BackgroundJobHistoryRowSchema = Schema.Struct({
@@ -44,24 +44,37 @@ export function composeBackgroundJobStatus(
   const base = toBackgroundJobStatus(config, row, name);
   const live = isBackgroundWorkerName(name) ? liveSnapshot[name] : undefined;
 
-  if (!live) {
+  if (!live || !hasMonitorRunHistory(live)) {
     return base;
   }
 
   const lastRunAt = maxIsoTimestamp(base.last_run_at, live.lastStartedAt);
   const lastSuccessAt = maxIsoTimestamp(base.last_success_at, live.lastSucceededAt);
-  const latestStatusEvent = latestStatusCandidate(base, live);
+  const runCount = row?.runCount ?? live.successCount + live.failureCount + live.skipCount;
+
+  if (live.runRunning) {
+    return {
+      ...base,
+      is_running: true,
+      last_message: base.last_message,
+      last_run_at: lastRunAt,
+      last_status: "running",
+      last_success_at: lastSuccessAt,
+      run_count: runCount,
+    } satisfies BackgroundJobStatus;
+  }
+
+  // Not running: latest monitor event wins over journal history.
+  const latestEvent = latestMonitorEvent(live);
 
   return {
     ...base,
-    is_running: live.runRunning,
-    last_message: live.runRunning
-      ? base.last_message
-      : (latestStatusEvent.message ?? base.last_message),
+    is_running: false,
+    last_message: latestEvent?.message ?? base.last_message,
     last_run_at: lastRunAt,
-    last_status: live.runRunning ? "running" : (latestStatusEvent.status ?? base.last_status),
+    last_status: latestEvent?.status ?? base.last_status,
     last_success_at: lastSuccessAt,
-    run_count: row?.runCount ?? live.successCount + live.failureCount + live.skipCount,
+    run_count: runCount,
   } satisfies BackgroundJobStatus;
 }
 
@@ -77,10 +90,9 @@ function isBackgroundWorkerName(name: string): name is BackgroundWorkerName {
   return BACKGROUND_WORKER_NAMES.some((workerName) => workerName === name);
 }
 
-function latestStatusCandidate(
-  base: BackgroundJobStatus,
+function latestMonitorEvent(
   live: BackgroundWorkerSnapshot[BackgroundWorkerName],
-) {
+): { message: string | undefined; status: string } | undefined {
   type Candidate = {
     at: string;
     message: string | undefined;
@@ -88,13 +100,6 @@ function latestStatusCandidate(
   };
 
   const candidates = [
-    base.last_run_at && base.last_status && (live.runRunning || base.last_status !== "running")
-      ? {
-          at: base.last_run_at,
-          message: base.last_message,
-          status: base.last_status,
-        }
-      : undefined,
     live.lastFailedAt
       ? {
           at: live.lastFailedAt,
@@ -111,12 +116,11 @@ function latestStatusCandidate(
       : undefined,
   ].filter((candidate): candidate is Candidate => candidate !== undefined);
 
-  return (
-    candidates.toSorted((left, right) => right.at.localeCompare(left.at))[0] ?? {
-      message: undefined,
-      status: undefined,
-    }
-  );
+  return candidates.toSorted((left, right) => right.at.localeCompare(left.at))[0];
+}
+
+function hasMonitorRunHistory(live: BackgroundWorkerSnapshot[BackgroundWorkerName]) {
+  return live.lastFailedAt !== null || live.lastStartedAt !== null || live.lastSucceededAt !== null;
 }
 
 function maxIsoTimestamp(left: string | null | undefined, right: string | null | undefined) {
