@@ -2,6 +2,7 @@ import { Effect } from "effect";
 
 import type { ScannerState } from "@packages/shared/index.ts";
 import type { AniListClient } from "@/features/media/metadata/anilist.ts";
+import { toMediaSearchResult } from "@/features/media/metadata/media-metadata-provider-service.ts";
 import { markSearchResultsAlreadyInLibraryEffect } from "@/features/media/query/search-results.ts";
 import type { MediaRepositoryShape } from "@/features/media/shared/media-repository.ts";
 import { mergeLocalFolderMatch } from "@/features/operations/unmapped/unmapped-folder-match-support.ts";
@@ -24,7 +25,10 @@ export const matchSingleUnmappedFolder = Effect.fn("UnmappedScanMatch.matchSingl
     const mediaKind = input.folder.media_kind ?? "anime";
     const suggestions = yield* Effect.forEach(
       queries,
-      (query) => input.aniList.searchAnimeMetadata(query, mediaKind),
+      (query) =>
+        input.aniList
+          .searchAnimeMetadata(query, mediaKind)
+          .pipe(Effect.map((results) => results.map(toMediaSearchResult))),
       { concurrency: 1 },
     ).pipe(Effect.map((resultSets) => resultSets.find((results) => results.length > 0) ?? []));
 

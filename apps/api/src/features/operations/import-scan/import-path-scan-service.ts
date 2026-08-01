@@ -1,9 +1,15 @@
 import { Effect } from "effect";
 
 import { brandMediaId, type MediaSearchResult, type ScanResult } from "@packages/shared/index.ts";
+import type {
+  ImportCandidateSelectionRequest,
+  ImportCandidateSelectionResult,
+} from "@packages/shared/index.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { summarizeEpisodeCoverage } from "@/domain/media/derivations.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
+import { ManamiClient } from "@/features/media/metadata/manami.ts";
+import { searchMediaWithFallback } from "@/features/media/metadata/media-metadata-provider-service.ts";
 import { getConfiguredLibraryPaths } from "@/features/media/shared/config-support.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { DomainInputError, DomainPathError, InfrastructureError } from "@/features/errors.ts";
@@ -26,6 +32,7 @@ import {
   findBestLocalMediaMatch,
   scoreMediaRowMatch,
 } from "@/features/operations/library/library-import-analysis-support.ts";
+import { applyImportCandidateSelection } from "@/features/operations/import-scan/import-selection-support.ts";
 import { toMediaSearchCandidate } from "@/features/operations/library/library-import.ts";
 import type { NamingSettings } from "@/features/operations/repository/types.ts";
 import {
@@ -42,6 +49,7 @@ import { MediaProbe, type MediaProbeShape } from "@/infra/media/probe.ts";
 const scanImportPathEffect = Effect.fn("ImportPathScanService.scanImportPathEffect")(
   function* (input: {
     aniList: typeof AniListClient.Service;
+    manami: typeof ManamiClient.Service;
     mediaId?: number;
     fs: FileSystemShape;
     limit?: number;
@@ -114,9 +122,14 @@ const scanImportPathEffect = Effect.fn("ImportPathScanService.scanImportPathEffe
       ].slice(0, 8);
 
       for (const parsedTitle of parsedTitles) {
-        const remoteCandidates = yield* input.aniList.searchAnimeMetadata(parsedTitle);
+        const remoteSearch = yield* searchMediaWithFallback({
+          aniList: input.aniList,
+          manami: input.manami,
+          mediaKind: "anime",
+          query: parsedTitle,
+        });
 
-        for (const candidate of remoteCandidates.slice(0, 5)) {
+        for (const candidate of remoteSearch.results.slice(0, 5)) {
           candidateMap.set(candidate.id, candidate);
         }
       }
@@ -234,6 +247,9 @@ const scanImportPathEffect = Effect.fn("ImportPathScanService.scanImportPathEffe
 );
 
 export interface ImportPathScanServiceShape {
+  readonly applyImportCandidateSelection: (
+    input: ImportCandidateSelectionRequest,
+  ) => Effect.Effect<ImportCandidateSelectionResult>;
   readonly scanImportPath: (input: {
     readonly mediaId?: number;
     readonly limit?: number;
@@ -249,6 +265,7 @@ export class ImportPathScanService extends Effect.Service<ImportPathScanService>
   {
     effect: Effect.gen(function* () {
       const aniList = yield* AniListClient;
+      const manami = yield* ManamiClient;
       const fs = yield* FileSystem;
       const mediaProbe = yield* MediaProbe;
       const mediaRepository = yield* MediaRepository;
@@ -301,6 +318,7 @@ export class ImportPathScanService extends Effect.Service<ImportPathScanService>
 
         return yield* scanImportPathEffect({
           aniList,
+          manami,
           ...(input.mediaId === undefined ? {} : { mediaId: input.mediaId }),
           fs,
           ...(input.limit === undefined ? {} : { limit: input.limit }),
@@ -326,7 +344,15 @@ export class ImportPathScanService extends Effect.Service<ImportPathScanService>
         );
       });
 
-      return { scanImportPath } satisfies ImportPathScanServiceShape;
+      const applySelection = Effect.fn("ImportPathScanService.applyImportCandidateSelection")(
+        (input: ImportCandidateSelectionRequest) =>
+          Effect.sync(() => applyImportCandidateSelection(input)),
+      );
+
+      return {
+        applyImportCandidateSelection: applySelection,
+        scanImportPath,
+      } satisfies ImportPathScanServiceShape;
     }),
     dependencies: [MediaRepository.Default],
   },

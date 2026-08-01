@@ -4,7 +4,7 @@ import type { DatabaseError } from "@/db/database.ts";
 import { AniDbClient } from "@/features/media/metadata/anidb.ts";
 import { AniDbUnitCacheRepository } from "@/features/media/units/anidb-unit-cache-repository.ts";
 import type { AniDbEpisodeLookupInput } from "@/features/media/metadata/anidb-protocol.ts";
-import type { AnimeMetadataEpisode } from "@/features/media/metadata/anilist-model.ts";
+import type { AnimeMetadataEpisode } from "@/features/media/metadata/metadata-model.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import type { StoredDataError } from "@/features/errors.ts";

@@ -5,6 +5,9 @@ import { collectBoundedBytes } from "@/domain/bounded-stream.ts";
 
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { isNotFoundError } from "@/infra/filesystem/fs-errors.ts";
+import { ImageCacheError } from "@/features/media/metadata/media-image-cache-service.ts";
+
+export { ImageCacheError };
 
 export interface CachedMediaImages {
   readonly bannerImage?: string | undefined;
@@ -13,11 +16,6 @@ export interface CachedMediaImages {
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const IMAGE_DOWNLOAD_TIMEOUT = "30 seconds";
-
-export class ImageCacheError extends Schema.TaggedError<ImageCacheError>()("ImageCacheError", {
-  cause: Schema.Defect,
-  message: Schema.String,
-}) {}
 
 export class ImageTooLargeError extends Schema.TaggedError<ImageTooLargeError>()(
   "ImageTooLargeError",
@@ -86,7 +84,7 @@ const cacheMediaImage = Effect.fn("MediaImageCache.cacheMediaImage")(function* (
     return cachedPath;
   }
 
-  const download = yield* downloadImage(client, url);
+  const download = yield* downloadImage(client, url, mediaId);
   const filename = `${kind}.${download.extension}`;
 
   yield* fs.writeFile(`${baseDir}/${filename}`, download.bytes);
@@ -121,18 +119,19 @@ const findCachedImagePath = Effect.fn("MediaService.findCachedImagePath")(functi
 });
 
 const downloadImage = Effect.fn("MediaService.downloadImage")(
-  (client: HttpClient.HttpClient, url: string) =>
+  (client: HttpClient.HttpClient, url: string, mediaId: number) =>
     Effect.gen(function* () {
       const response = yield* client
         .get(url)
         .pipe(
           Effect.mapError(
-            (cause) => new ImageCacheError({ cause, message: "Failed to download image" }),
+            (cause) => new ImageCacheError({ mediaId, cause, message: "Failed to download image" }),
           ),
         );
 
       if (response.status < 200 || response.status >= 300) {
         return yield* new ImageCacheError({
+          mediaId,
           cause: response,
           message: `Image download failed with status ${response.status}`,
         });
@@ -164,6 +163,7 @@ const downloadImage = Effect.fn("MediaService.downloadImage")(
 
       if (!extension) {
         return yield* new ImageCacheError({
+          mediaId,
           cause: response,
           message: "Unsupported image type",
         });
@@ -173,7 +173,7 @@ const downloadImage = Effect.fn("MediaService.downloadImage")(
     }).pipe(
       Effect.timeout(IMAGE_DOWNLOAD_TIMEOUT),
       Effect.catchTag("TimeoutException", (cause) =>
-        Effect.fail(new ImageCacheError({ cause, message: "Image download timed out" })),
+        Effect.fail(new ImageCacheError({ mediaId, cause, message: "Image download timed out" })),
       ),
     ),
 );

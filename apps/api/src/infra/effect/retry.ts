@@ -4,18 +4,32 @@ import { currentTimeNanos } from "@/infra/time.ts";
 import { PositiveIntFromStringSchema } from "@/domain/domain-schema.ts";
 import { compactLogAnnotations, durationMsSince, errorLogAnnotations } from "@/infra/logging.ts";
 
+export const EXTERNAL_CALL_PROVIDERS = [
+  "anilist",
+  "jikan",
+  "manami",
+  "anidb",
+  "qbit",
+  "rss",
+  "seadex",
+] as const;
+
+export type ExternalCallProvider = (typeof EXTERNAL_CALL_PROVIDERS)[number];
+
 export class ExternalCallError extends Schema.TaggedError<ExternalCallError>()(
   "ExternalCallError",
   {
     cause: Schema.Defect,
     message: Schema.String,
     operation: Schema.String,
+    provider: Schema.optional(Schema.Literal(...EXTERNAL_CALL_PROVIDERS)),
   },
 ) {}
 
 export interface ExternalCallOptions {
   readonly idempotent?: boolean;
   readonly isRetryableError?: (error: ExternalCallError) => boolean;
+  readonly provider?: ExternalCallProvider;
 }
 
 const EXTERNAL_RETRY_DELAYS_MS = [200, 400] as const;
@@ -29,7 +43,7 @@ type ExternalCallPool = "default" | "media" | "qbit";
 export interface ExternalCallPolicyShape {
   readonly retryDelaysMs: readonly number[];
   readonly timeout: Duration.DurationInput;
-  readonly resolvePool: (operation: string) => ExternalCallPool;
+  readonly resolvePool: (operation: string, provider?: ExternalCallProvider) => ExternalCallPool;
 }
 
 export interface ExternalCallSemaphoresShape {
@@ -57,7 +71,27 @@ export class ExternalCall extends Context.Tag("@bakarr/api/ExternalCall")<
   ExternalCallShape
 >() {}
 
-function resolveExternalCallPool(operation: string): ExternalCallPool {
+function resolveExternalCallPool(
+  operation: string,
+  provider?: ExternalCallProvider,
+): ExternalCallPool {
+  if (provider !== undefined) {
+    if (provider === "qbit") {
+      return "qbit";
+    }
+
+    if (
+      provider === "anilist" ||
+      provider === "jikan" ||
+      provider === "manami" ||
+      provider === "anidb"
+    ) {
+      return "media";
+    }
+
+    return "default";
+  }
+
   if (operation.startsWith("qbit.")) {
     return "qbit";
   }
@@ -133,7 +167,7 @@ export const makeExternalCall = Effect.fn("ExternalCall.makeExternalCall")(funct
         const allowRetry = options?.idempotent !== false;
         const isRetryable = options?.isRetryableError ?? (() => true);
         const maxAttempts = allowRetry ? policy.retryDelaysMs.length + 1 : 1;
-        const pool = policy.resolvePool(operation);
+        const pool = policy.resolvePool(operation, options?.provider);
 
         const performAttempt = Effect.gen(function* () {
           yield* Ref.update(attemptsUsedRef, (attemptsUsed) => attemptsUsed + 1);
@@ -143,7 +177,7 @@ export const makeExternalCall = Effect.fn("ExternalCall.makeExternalCall")(funct
             effect.pipe(
               Effect.timeout(policy.timeout),
               Effect.scoped,
-              Effect.mapError((cause) => toExternalCallError(operation, cause)),
+              Effect.mapError((cause) => toExternalCallError(operation, cause, options?.provider)),
             ),
           );
         });
@@ -249,12 +283,13 @@ const readExternalConcurrency = (key: string, fallback: number) =>
     Effect.catchAll(() => Effect.succeed(fallback)),
   );
 
-function toExternalCallError(operation: string, cause: unknown) {
+function toExternalCallError(operation: string, cause: unknown, provider?: ExternalCallProvider) {
   return cause instanceof ExternalCallError
     ? cause
     : ExternalCallError.make({
         cause,
         message: `External call failed: ${operation}`,
         operation,
+        ...(provider === undefined ? {} : { provider }),
       });
 }

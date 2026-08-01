@@ -1,75 +1,23 @@
 import { Schema } from "effect";
 
-import {
-  MediaDiscoveryEntrySchema,
-  MediaSearchResultSchema,
-  brandMediaId,
-  type MediaDiscoveryEntry,
-  type MediaKind,
-} from "@packages/shared/index.ts";
+import { brandMediaId, type MediaDiscoveryEntry, type MediaKind } from "@packages/shared/index.ts";
 import { deriveAnimeSeason } from "@/domain/media/date-utils.ts";
 import { mediaKindFromAniListFormat } from "@/features/media/shared/media-kind.ts";
 
-const AnimeMetadataTitleSchema = Schema.Struct({
-  english: Schema.optional(Schema.String),
-  native: Schema.optional(Schema.String),
-  romaji: Schema.String,
-});
+import {
+  AnimeMetadataSchema,
+  AnimeMetadataEpisodeSchema,
+  ProviderMediaSearchResultSchema,
+  type AnimeMetadata,
+  type AnimeMetadataEpisode,
+} from "@/features/media/metadata/metadata-model.ts";
 
-const AnimeDateStringSchema = Schema.String.pipe(
-  Schema.pattern(/^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?)?$/),
-);
-const AnimePositiveIntSchema = Schema.Number.pipe(Schema.int(), Schema.positive());
-const AnimeNonNegativeIntSchema = Schema.Number.pipe(Schema.int(), Schema.nonNegative());
-const AnimeScoreSchema = Schema.Number.pipe(Schema.between(0, 100));
-
-const AnimeMetadataAiringScheduleItemSchema = Schema.Struct({
-  airingAt: AnimeDateStringSchema,
-  episode: AnimePositiveIntSchema,
-});
-
-export const AnimeMetadataEpisodeSchema = Schema.Struct({
-  aired: Schema.optional(AnimeDateStringSchema),
-  durationSeconds: Schema.optional(AnimePositiveIntSchema),
-  number: AnimePositiveIntSchema,
-  title: Schema.optional(Schema.String),
-});
-
-export const AnimeMetadataSchema = Schema.Struct({
-  background: Schema.optional(Schema.String),
-  bannerImage: Schema.optional(Schema.String),
-  coverImage: Schema.optional(Schema.String),
-  description: Schema.optional(Schema.String),
-  duration: Schema.optional(Schema.String),
-  endDate: Schema.optional(AnimeDateStringSchema),
-  endYear: Schema.optional(AnimeNonNegativeIntSchema),
-  mediaUnits: Schema.optional(Schema.Array(AnimeMetadataEpisodeSchema)),
-  unitCount: Schema.optional(AnimeNonNegativeIntSchema),
-  favorites: Schema.optional(AnimeNonNegativeIntSchema),
-  format: Schema.String,
-  futureAiringSchedule: Schema.optional(Schema.Array(AnimeMetadataAiringScheduleItemSchema)),
-  genres: Schema.optional(Schema.Array(Schema.String)),
-  id: AnimePositiveIntSchema,
-  malId: Schema.optional(AnimePositiveIntSchema),
-  members: Schema.optional(AnimeNonNegativeIntSchema),
-  nextAiringUnit: Schema.optional(AnimeMetadataAiringScheduleItemSchema),
-  popularity: Schema.optional(AnimePositiveIntSchema),
-  rank: Schema.optional(AnimePositiveIntSchema),
-  rating: Schema.optional(Schema.String),
-  recommendedMedia: Schema.optional(Schema.Array(MediaDiscoveryEntrySchema)),
-  relatedMedia: Schema.optional(Schema.Array(MediaDiscoveryEntrySchema)),
-  score: Schema.optional(AnimeScoreSchema),
-  source: Schema.optional(Schema.String),
-  startDate: Schema.optional(AnimeDateStringSchema),
-  startYear: Schema.optional(AnimeNonNegativeIntSchema),
-  status: Schema.String,
-  studios: Schema.optional(Schema.Array(Schema.String)),
-  synonyms: Schema.optional(Schema.Array(Schema.String)),
-  title: AnimeMetadataTitleSchema,
-});
-
-export type AnimeMetadata = Schema.Schema.Type<typeof AnimeMetadataSchema>;
-export type AnimeMetadataEpisode = Schema.Schema.Type<typeof AnimeMetadataEpisodeSchema>;
+export {
+  AnimeMetadataSchema,
+  AnimeMetadataEpisodeSchema,
+  type AnimeMetadata,
+  type AnimeMetadataEpisode,
+};
 
 const AniListTitleSchema = Schema.Struct({
   english: Schema.optional(Schema.NullOr(Schema.String)),
@@ -249,7 +197,7 @@ export const AniListDetailPayloadSchema = Schema.Struct({
 
 export const AnimeSearchResultFromAniListSchema = Schema.transform(
   AniListSearchMediaSchema,
-  MediaSearchResultSchema,
+  ProviderMediaSearchResultSchema,
   {
     decode: (entry) => ({
       already_in_library: false,

@@ -1,15 +1,18 @@
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
 import { Effect, Option, Schema } from "effect";
 
-import type { MediaSearchResult, MediaSeason, MediaKind } from "@packages/shared/index.ts";
+import type { MediaSeason, MediaKind } from "@packages/shared/index.ts";
 import { ExternalCall, ExternalCallError, type ExternalCallShape } from "@/infra/effect/retry.ts";
+import type {
+  AnimeMetadata,
+  ProviderMediaSearchResult,
+} from "@/features/media/metadata/metadata-model.ts";
 import {
   AnimeMetadataFromAniListSchema,
   AnimeSearchResultFromAniListSchema,
   AniListDetailPayloadSchema,
   AniListSearchPayloadSchema,
   AniListSeasonalPayloadSchema,
-  type AnimeMetadata,
 } from "@/features/media/metadata/anilist-model.ts";
 
 const ANILIST_URL = "https://graphql.anilist.co";
@@ -323,7 +326,7 @@ interface AniListClientShape {
   readonly searchAnimeMetadata: (
     query: string,
     mediaKind?: MediaKind,
-  ) => Effect.Effect<MediaSearchResult[], ExternalCallError>;
+  ) => Effect.Effect<ProviderMediaSearchResult[], ExternalCallError>;
   readonly getAnimeMetadataById: (
     id: number,
     mediaKind?: MediaKind,
@@ -333,7 +336,7 @@ interface AniListClientShape {
     year: number;
     limit: number;
     page?: number;
-  }) => Effect.Effect<MediaSearchResult[], ExternalCallError>;
+  }) => Effect.Effect<ProviderMediaSearchResult[], ExternalCallError>;
 }
 
 const makeAniListClient = Effect.fn("AniListClient.make")(function* () {

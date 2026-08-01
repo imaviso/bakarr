@@ -1,7 +1,7 @@
 import { assert, it } from "@effect/vitest";
 import { brandMediaId } from "@packages/shared/index.ts";
 
-import type { AnimeMetadata } from "@/features/media/metadata/anilist-model.ts";
+import type { AnimeMetadata } from "@/features/media/metadata/metadata-model.ts";
 import type { JikanNormalizedAnime } from "@/features/media/metadata/jikan-model.ts";
 import {
   convertJikanRecommendationsToDiscoveryEntries,

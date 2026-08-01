@@ -2,13 +2,13 @@ import * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
 import { HttpClient } from "@effect/platform";
 import { Effect, Layer, Option } from "effect";
 
-import { brandMediaId, type MediaSearchResult } from "@packages/shared/index.ts";
 import { AppConfig } from "@/config/schema.ts";
 import {
   refreshSqliteCacheIfNeeded,
   resolveManamiCachePaths,
 } from "@/features/media/metadata/manami-cache.ts";
-import { makeSingleFlightEffectRunner } from "@/infra/effect/coalescing-single-flight-runner.ts";
+import type { ProviderMediaSearchResult } from "@/features/media/metadata/metadata-model.ts";
+import { makeSerializedShareEffectRunner } from "@/infra/effect/serialized-runner.ts";
 import { ExternalCall, ExternalCallError } from "@/infra/effect/retry.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 
@@ -43,7 +43,7 @@ interface ManamiClientShape {
   readonly searchMedia: (
     query: string,
     limit: number,
-  ) => Effect.Effect<ReadonlyArray<MediaSearchResult>, ExternalCallError>;
+  ) => Effect.Effect<ReadonlyArray<ProviderMediaSearchResult>, ExternalCallError>;
 }
 
 interface ManamiCacheRefreshClientShape {
@@ -260,7 +260,7 @@ const makeManamiCacheRefreshClient = Effect.fn("ManamiCacheRefreshClient.make")(
   const fs = yield* FileSystem;
   const sqliteClient = yield* NodeSqliteClient.SqliteClient;
   const cachePaths = resolveManamiCachePaths(appConfig.databaseFile);
-  const refreshRunner = yield* makeSingleFlightEffectRunner(
+  const refreshRunner = yield* makeSerializedShareEffectRunner(
     refreshSqliteCacheIfNeeded(client, externalCall, fs, sqliteClient, cachePaths),
   );
 
@@ -299,7 +299,7 @@ function toLookupEntry(row: LookupRow | undefined): ManamiLookupEntry | undefine
   };
 }
 
-function toSearchResult(row: SearchRow): MediaSearchResult {
+function toSearchResult(row: SearchRow): ProviderMediaSearchResult {
   const synonyms = row.synonyms
     .split("\n")
     .map((value) => value.trim())
@@ -307,14 +307,14 @@ function toSearchResult(row: SearchRow): MediaSearchResult {
 
   return {
     already_in_library: false,
-    id: brandMediaId(row.anilist_id),
+    id: row.anilist_id,
     ...(synonyms.length === 0 ? {} : { synonyms }),
     title: {
       ...(row.english_title === null ? {} : { english: row.english_title }),
       ...(row.native_title === null ? {} : { native: row.native_title }),
       romaji: row.title,
     },
-  } satisfies MediaSearchResult;
+  } satisfies ProviderMediaSearchResult;
 }
 
 function toFtsQuery(query: string) {

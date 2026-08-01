@@ -3,13 +3,10 @@ import { brandMediaId } from "@packages/shared/index.ts";
 
 import { assert, it } from "@effect/vitest";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
-import type { AnimeMetadata } from "@/features/media/metadata/anilist-model.ts";
+import type { AnimeMetadata } from "@/features/media/metadata/metadata-model.ts";
 import { MediaMetadataEnrichmentService } from "@/features/media/metadata/media-metadata-enrichment-service.ts";
 import type { AniDbRefreshRequest } from "@/features/media/metadata/media-metadata-enrichment-service.ts";
-import {
-  MediaMetadataProviderService,
-  MediaMetadataProviderServiceLive,
-} from "@/features/media/metadata/media-metadata-provider-service.ts";
+import { MediaMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
 import { JikanClient } from "@/features/media/metadata/jikan.ts";
 import type { JikanNormalizedAnime } from "@/features/media/metadata/jikan-model.ts";
 import { ManamiClient, type ManamiLookupEntry } from "@/features/media/metadata/manami.ts";
@@ -513,7 +510,11 @@ function makeProviderLayer(input: {
     ),
   );
 
-  return MediaMetadataProviderServiceLive.pipe(Layer.provideMerge(dependenciesLayer));
+  // DefaultWithoutDependencies: the provider's own `.Default` embeds
+  // MediaMetadataEnrichmentService.Default; the enrichment stub below must win.
+  return MediaMetadataProviderService.DefaultWithoutDependencies.pipe(
+    Layer.provideMerge(dependenciesLayer),
+  );
 }
 
 function makeMetadata(id: number, overrides?: Partial<AnimeMetadata>): AnimeMetadata {

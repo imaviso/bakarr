@@ -5,7 +5,7 @@ import { Effect } from "effect";
 import type { AppDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
 import { media, backgroundJobs, systemLogs } from "@/db/schema.ts";
-import type { AnimeMetadata } from "@/features/media/metadata/anilist-model.ts";
+import type { AnimeMetadata } from "@/features/media/metadata/metadata-model.ts";
 import { refreshMetadataForMonitoredMediaEffect } from "@/features/media/metadata/media-metadata-refresh-job.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
 import { MediaImageCacheService } from "@/features/media/metadata/media-image-cache-service.ts";
@@ -52,6 +52,8 @@ it.scoped(
                       },
                       metadata: makeMetadata(id),
                     }),
+              getSeasonalAnime: () => Effect.dieMessage("not used in test"),
+              searchMedia: () => Effect.dieMessage("not used in test"),
             }),
             backgroundJobRepository: makeBackgroundJobRepository(appDb),
             mediaRepository: makeMediaRepository(appDb),
@@ -127,6 +129,8 @@ it.scoped(
                 Effect.succeed({
                   _tag: "NotFound",
                 }),
+              getSeasonalAnime: () => Effect.dieMessage("not used in test"),
+              searchMedia: () => Effect.dieMessage("not used in test"),
             }),
             backgroundJobRepository: makeBackgroundJobRepository(appDb),
             mediaRepository: makeMediaRepository(appDb),
