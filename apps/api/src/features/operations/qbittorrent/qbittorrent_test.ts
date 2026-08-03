@@ -327,6 +327,232 @@ it.effect("QBitTorrentClient fails add when qBittorrent answers 'Fails.' with HT
 );
 
 it.effect(
+  "QBitTorrentClient succeeds add when qBittorrent answers JSON with HTTP 200 (v4.6+)",
+  () =>
+    Effect.gen(function* () {
+      const exit = yield* Effect.exit(
+        Effect.flatMap(QBitTorrentClient, (client) =>
+          client.addTorrentUrl(
+            {
+              baseUrl: "https://qbit.example",
+              password: Redacted.make("secret"),
+              username: "demo",
+            },
+            "magnet:?xt=urn:btih:abc123",
+          ),
+        ).pipe(
+          Effect.provide(
+            QBitTorrentClientLive.pipe(
+              Layer.provide(
+                Layer.mergeAll(
+                  ExternalCallWithLiveClock,
+                  Layer.succeed(
+                    HttpClient.HttpClient,
+                    HttpClient.make((request, url) => {
+                      if (url.pathname === "/api/v2/auth/login") {
+                        return Effect.succeed(
+                          HttpClientResponse.fromWeb(
+                            request,
+                            new Response("Ok.", {
+                              headers: { "set-cookie": "SID=abc123; HttpOnly" },
+                              status: 200,
+                            }),
+                          ),
+                        );
+                      }
+
+                      if (url.pathname === "/api/v2/torrents/add") {
+                        return Effect.succeed(
+                          HttpClientResponse.fromWeb(
+                            request,
+                            new Response(
+                              JSON.stringify({
+                                added_torrent_ids: ["abc123"],
+                                failure_count: 0,
+                                pending_count: 0,
+                                success_count: 1,
+                              }),
+                              { status: 200 },
+                            ),
+                          ),
+                        );
+                      }
+
+                      return Effect.succeed(
+                        HttpClientResponse.fromWeb(
+                          request,
+                          new Response("not found", { status: 404 }),
+                        ),
+                      );
+                    }),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      assert.deepStrictEqual(Exit.isSuccess(exit), true);
+    }),
+);
+
+it.effect("QBitTorrentClient accepts qBittorrent 5.x login (HTTP 204 empty body)", () =>
+  Effect.gen(function* () {
+    const requestPaths: string[] = [];
+    const torrents = yield* Effect.flatMap(QBitTorrentClient, (client) =>
+      client.listTorrents({
+        baseUrl: "https://qbit.example",
+        password: Redacted.make("secret"),
+        username: "demo",
+      }),
+    ).pipe(
+      Effect.provide(
+        QBitTorrentClientLive.pipe(
+          Layer.provide(
+            Layer.mergeAll(
+              ExternalCallWithLiveClock,
+              Layer.succeed(
+                HttpClient.HttpClient,
+                HttpClient.make((request, url) => {
+                  requestPaths.push(url.pathname);
+
+                  if (url.pathname === "/api/v2/auth/login") {
+                    return Effect.succeed(
+                      HttpClientResponse.fromWeb(
+                        request,
+                        new Response(null, {
+                          headers: { "set-cookie": "SID=abc123; HttpOnly" },
+                          status: 204,
+                        }),
+                      ),
+                    );
+                  }
+
+                  if (url.pathname === "/api/v2/torrents/info") {
+                    return Effect.succeed(
+                      HttpClientResponse.fromWeb(
+                        request,
+                        new Response("[]", {
+                          headers: { "content-type": "application/json" },
+                          status: 200,
+                        }),
+                      ),
+                    );
+                  }
+
+                  return Effect.succeed(
+                    HttpClientResponse.fromWeb(request, new Response("not found", { status: 404 })),
+                  );
+                }),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    assert.deepStrictEqual(torrents, []);
+    assert.deepStrictEqual(requestPaths, ["/api/v2/auth/login", "/api/v2/torrents/info"]);
+  }),
+);
+
+it.effect(
+  "QBitTorrentClient pause/resume use stop/start and fall back to legacy pause/resume on 404",
+  () =>
+    Effect.gen(function* () {
+      const requestPaths: string[] = [];
+      const legacyMode = { value: true };
+
+      const makeClient = () =>
+        HttpClient.make((request, url) => {
+          requestPaths.push(url.pathname);
+
+          if (url.pathname === "/api/v2/auth/login") {
+            return Effect.succeed(
+              HttpClientResponse.fromWeb(
+                request,
+                new Response("Ok.", {
+                  headers: { "set-cookie": "SID=abc123; HttpOnly" },
+                  status: 200,
+                }),
+              ),
+            );
+          }
+
+          if (
+            url.pathname === "/api/v2/torrents/stop" ||
+            url.pathname === "/api/v2/torrents/start"
+          ) {
+            return Effect.succeed(
+              HttpClientResponse.fromWeb(request, new Response("not found", { status: 404 })),
+            );
+          }
+
+          if (
+            url.pathname === "/api/v2/torrents/pause" ||
+            url.pathname === "/api/v2/torrents/resume"
+          ) {
+            legacyMode.value = false;
+            return Effect.succeed(
+              HttpClientResponse.fromWeb(request, new Response(null, { status: 200 })),
+            );
+          }
+
+          return Effect.succeed(
+            HttpClientResponse.fromWeb(request, new Response("not found", { status: 404 })),
+          );
+        });
+
+      const config = {
+        baseUrl: "https://qbit.example",
+        password: Redacted.make("secret"),
+        username: "demo",
+      } as const;
+
+      yield* Effect.flatMap(QBitTorrentClient, (client) =>
+        client.pauseTorrent(config, "abc123"),
+      ).pipe(
+        Effect.provide(
+          QBitTorrentClientLive.pipe(
+            Layer.provide(
+              Layer.mergeAll(
+                ExternalCallWithLiveClock,
+                Layer.succeed(HttpClient.HttpClient, makeClient()),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      yield* Effect.flatMap(QBitTorrentClient, (client) =>
+        client.resumeTorrent(config, "abc123"),
+      ).pipe(
+        Effect.provide(
+          QBitTorrentClientLive.pipe(
+            Layer.provide(
+              Layer.mergeAll(
+                ExternalCallWithLiveClock,
+                Layer.succeed(HttpClient.HttpClient, makeClient()),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      assert.deepStrictEqual(legacyMode.value, false);
+      assert.deepStrictEqual(requestPaths, [
+        "/api/v2/auth/login",
+        "/api/v2/torrents/stop",
+        "/api/v2/torrents/pause",
+        "/api/v2/auth/login",
+        "/api/v2/torrents/start",
+        "/api/v2/torrents/resume",
+      ]);
+    }),
+);
+
+it.effect(
   "QBitTorrentClient does not re-authenticate cached sessions for unrelated transport failures",
   () =>
     Effect.gen(function* () {

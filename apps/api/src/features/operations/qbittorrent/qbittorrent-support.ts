@@ -205,7 +205,18 @@ export const makeLogin = (execute: ExecuteQBitRequest) =>
       ),
     );
 
-    if (response.status < 200 || response.status >= 300 || !text.includes("Ok")) {
+    if (response.status < 200 || response.status >= 300) {
+      return yield* QBitTorrentClientError.make({
+        message: "qBittorrent authentication failed",
+      });
+    }
+
+    // qBittorrent < 4.6 answers plain "Ok."; qBittorrent >= 5.0 answers HTTP
+    // 204 with an empty body. Both are successful logins.
+    const isOkText = text.includes("Ok");
+    const isModernEmptyLogin = response.status === 204 && text.trim().length === 0;
+
+    if (!isOkText && !isModernEmptyLogin) {
       return yield* QBitTorrentClientError.make({
         message: "qBittorrent authentication failed",
       });
@@ -229,25 +240,45 @@ export const makeLogin = (execute: ExecuteQBitRequest) =>
     return sessionCookie;
   });
 
-export const makePostHashesAction = (withSession: WithCachedSession, execute: ExecuteQBitRequest) =>
-  Effect.fn("QBitTorrentClient.postHashesAction")(function* (
+/**
+ * qBittorrent >= 5.0 renamed `/torrents/pause|resume` to `/torrents/stop|start`.
+ * Try the modern path first and fall back to the legacy path on 404 so both
+ * major versions work.
+ */
+export const makePostHashesActionWithFallback = (
+  withSession: WithCachedSession,
+  execute: ExecuteQBitRequest,
+) =>
+  Effect.fn("QBitTorrentClient.postHashesActionWithFallback")(function* (
     config: QBitConfig,
-    path: string,
+    modernPath: string,
+    legacyPath: string,
     hash: string,
   ) {
-    const response = yield* withSession(config, (cookie) =>
-      execute(
-        "qbit.postHashesAction",
-        authorizedRequest(
-          config,
-          cookie,
-          HttpClientRequest.post(resolveUrl(config.baseUrl, path)).pipe(
-            HttpClientRequest.bodyUrlParams({ hashes: hash }),
+    const post = (path: string) =>
+      withSession(config, (cookie) =>
+        execute(
+          "qbit.postHashesAction",
+          authorizedRequest(
+            config,
+            cookie,
+            HttpClientRequest.post(resolveUrl(config.baseUrl, path)).pipe(
+              HttpClientRequest.bodyUrlParams({ hashes: hash }),
+            ),
           ),
+          { idempotent: false },
         ),
-        { idempotent: false },
-      ),
-    );
+      );
+
+    const response = yield* post(modernPath);
+    if (response.status === 404) {
+      const legacyResponse = yield* post(legacyPath);
+      yield* ensureOk(
+        legacyResponse,
+        `qBittorrent action failed with status ${legacyResponse.status}`,
+      );
+      return;
+    }
 
     yield* ensureOk(response, `qBittorrent action failed with status ${response.status}`);
   });

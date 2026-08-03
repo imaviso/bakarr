@@ -7,7 +7,7 @@ import {
   ensureOk,
   makeExecute,
   makeLogin,
-  makePostHashesAction,
+  makePostHashesActionWithFallback,
   resolveUrl,
   type SessionEntry,
   withSessionCache,
@@ -58,7 +58,7 @@ export class QBitTorrentClient extends Effect.Service<QBitTorrentClient>()(
       const execute = makeExecute(client, externalCall.tryExternalEffect);
       const login = makeLogin(execute);
       const withSession = withSessionCache(sessionsRef, sessionLoginRef, login);
-      const postHashesAction = makePostHashesAction(withSession, execute);
+      const postHashesActionWithFallback = makePostHashesActionWithFallback(withSession, execute);
 
       const addTorrentUrl = Effect.fn("QBitTorrentClient.addTorrentUrl")(function* (
         config: QBitConfig,
@@ -87,6 +87,9 @@ export class QBitTorrentClient extends Effect.Service<QBitTorrentClient>()(
 
         yield* ensureOk(response, `qBittorrent add failed with status ${response.status}`);
 
+        // qBittorrent < 4.6 answers plain "Ok." / "Fails."; qBittorrent >= 4.6
+        // answers JSON `{"added_torrent_ids":[...], "failure_count":N, ...}`.
+        // A 2xx with JSON is a successful add even though it is not "Ok.".
         const text = yield* response.text.pipe(
           Effect.mapError((cause) =>
             QBitTorrentClientError.make({
@@ -96,7 +99,8 @@ export class QBitTorrentClient extends Effect.Service<QBitTorrentClient>()(
           ),
         );
 
-        if (text.trim() !== "Ok.") {
+        const trimmed = text.trim();
+        if (trimmed !== "Ok." && !trimmed.startsWith("{")) {
           yield* QBitTorrentClientError.make({
             message: "qBittorrent rejected the torrent add request",
           });
@@ -165,14 +169,24 @@ export class QBitTorrentClient extends Effect.Service<QBitTorrentClient>()(
         config: QBitConfig,
         hash: string,
       ) {
-        yield* postHashesAction(config, "/api/v2/torrents/pause", hash);
+        yield* postHashesActionWithFallback(
+          config,
+          "/api/v2/torrents/stop",
+          "/api/v2/torrents/pause",
+          hash,
+        );
       });
 
       const resumeTorrent = Effect.fn("QBitTorrentClient.resumeTorrent")(function* (
         config: QBitConfig,
         hash: string,
       ) {
-        yield* postHashesAction(config, "/api/v2/torrents/resume", hash);
+        yield* postHashesActionWithFallback(
+          config,
+          "/api/v2/torrents/start",
+          "/api/v2/torrents/resume",
+          hash,
+        );
       });
 
       const deleteTorrent = Effect.fn("QBitTorrentClient.deleteTorrent")(function* (
