@@ -194,7 +194,10 @@ function SettingsMobileSelect({
 
   return (
     <div className="md:hidden">
-      <Select items={ALL_ITEMS} value={activeTab} onValueChange={onTabChange}>
+      <Select
+        selectedKey={activeTab}
+        onSelectionChange={(key) => onTabChange(key === null ? null : String(key))}
+      >
         <SelectTrigger className="w-full">
           <SelectValue>
             {activeItem && (
@@ -210,7 +213,7 @@ function SettingsMobileSelect({
             <SelectGroup key={group.label}>
               <SelectLabel>{group.label}</SelectLabel>
               {group.items.map((item) => (
-                <SelectItem key={item.value} value={item.value}>
+                <SelectItem key={item.value} id={item.value} textValue={item.label}>
                   <span className="flex items-center gap-2">
                     <item.icon className="h-4 w-4 shrink-0" />
                     {item.label}

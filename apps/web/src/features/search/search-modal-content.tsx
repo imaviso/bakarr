@@ -8,12 +8,7 @@ import {
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { errorMessage } from "~/api/effect/errors";
-import {
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "~/components/ui/dialog";
+import { DialogDescription, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -43,7 +38,7 @@ interface SearchModalContentProps {
 export function SearchModalContent(props: SearchModalContentProps) {
   const unitLabel = mediaUnitLabel(props.unitKind);
   return (
-    <DialogContent className="sm:max-w-7xl w-full max-h-[85vh] flex flex-col">
+    <div className="flex flex-col gap-4 sm:max-w-7xl w-full max-h-[85vh]">
       <DialogHeader>
         <DialogTitle>Manual Search</DialogTitle>
         <DialogDescription>
@@ -109,7 +104,7 @@ export function SearchModalContent(props: SearchModalContentProps) {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => {
+                  onPress={() => {
                     void props.state.searchQuery.refetch();
                   }}
                   className="mt-2"
@@ -126,7 +121,7 @@ export function SearchModalContent(props: SearchModalContentProps) {
           </div>
         )}
       </div>
-    </DialogContent>
+    </div>
   );
 }
 
@@ -205,8 +200,8 @@ function SearchReleaseRow(props: {
               action.Upgrade && "bg-info hover:bg-info text-info-foreground",
               isRejected && "text-muted-foreground border",
             )}
-            onClick={() => props.onDownload(props.release)}
-            disabled={props.isDownloading}
+            onPress={() => props.onDownload(props.release)}
+            isDisabled={props.isDownloading}
           >
             {props.isDownloading ? (
               <PlugIcon className="h-3 w-3 animate-spin" />

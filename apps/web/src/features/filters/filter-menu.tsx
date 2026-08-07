@@ -1,11 +1,6 @@
 import { PlusIcon } from "@phosphor-icons/react";
 import { Button } from "~/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "~/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuItem, DropdownMenuTrigger } from "~/components/ui/dropdown-menu";
 import { useFilterContext } from "./filter-context";
 
 export function FilterMenu() {
@@ -16,22 +11,19 @@ export function FilterMenu() {
   );
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={<Button variant="outline" size="sm" />}
-        disabled={availableColumns.length === 0}
-      >
+    <DropdownMenuTrigger>
+      <Button variant="outline" size="sm" isDisabled={availableColumns.length === 0}>
         <PlusIcon className="h-4 w-4 mr-2" />
         Add Filter
-      </DropdownMenuTrigger>
-      <DropdownMenuContent>
+      </Button>
+      <DropdownMenu>
         {availableColumns.map((column) => (
-          <DropdownMenuItem key={column.id} onClick={() => ctx.addFilter(column.id)}>
+          <DropdownMenuItem key={column.id} onAction={() => ctx.addFilter(column.id)}>
             {column.icon && <span className="mr-2">{column.icon}</span>}
             {column.label}
           </DropdownMenuItem>
         ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </DropdownMenu>
+    </DropdownMenuTrigger>
   );
 }

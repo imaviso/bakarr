@@ -1,32 +1,35 @@
 "use client";
 
+import { useTheme } from "next-themes";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
-import { useTheme } from "~/components/shared/theme-provider";
 import {
   CheckCircleIcon,
   InfoIcon,
+  SpinnerIcon,
   WarningIcon,
   XCircleIcon,
-  SpinnerIcon,
 } from "@phosphor-icons/react";
 
-type CSSVariables = React.CSSProperties & Record<`--${string}`, string | number | undefined>;
+function toSonnerTheme(theme: string | undefined): "light" | "dark" | "system" {
+  return theme === "light" || theme === "dark" || theme === "system" ? theme : "system";
+}
 
-const toasterStyle: CSSVariables = {
+type CSSVarStyle = React.CSSProperties & Record<`--${string}`, string>;
+
+const toasterStyle: CSSVarStyle = {
   "--normal-bg": "var(--popover)",
   "--normal-text": "var(--popover-foreground)",
   "--normal-border": "var(--border)",
-  "--border-radius": "0px",
+  "--border-radius": "var(--radius)",
 };
 
-const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme } = useTheme();
-  const toasterTheme: ToasterProps["theme"] =
-    theme === "dark" || theme === "light" ? theme : "system";
+const Toaster = ({ toastOptions, theme: _theme, ...props }: ToasterProps) => {
+  const { theme = "system" } = useTheme();
 
   return (
     <Sonner
-      theme={toasterTheme}
+      {...props}
+      theme={toSonnerTheme(theme)}
       className="toaster group"
       icons={{
         success: <CheckCircleIcon className="size-4" />,
@@ -40,8 +43,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
         classNames: {
           toast: "cn-toast",
         },
+        ...toastOptions,
       }}
-      {...props}
     />
   );
 };

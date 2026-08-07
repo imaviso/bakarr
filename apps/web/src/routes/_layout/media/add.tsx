@@ -148,9 +148,8 @@ function AddAnimePage() {
           />
         </div>
         <Select
-          items={mediaKindItems}
-          value={mediaKind}
-          onValueChange={(value) =>
+          selectedKey={mediaKind}
+          onSelectionChange={(value) =>
             updateSearch({
               id: undefined,
               media_kind:
@@ -164,7 +163,7 @@ function AddAnimePage() {
           <SelectContent>
             <SelectGroup>
               {mediaKindItems.map((item) => (
-                <SelectItem key={item.value} value={item.value}>
+                <SelectItem key={item.value} id={item.value} textValue={item.label}>
                   {item.label}
                 </SelectItem>
               ))}
@@ -174,22 +173,22 @@ function AddAnimePage() {
       </PageHeader>
 
       <Tabs
-        value={activeTab}
-        onValueChange={handleTabChange}
+        selectedKey={activeTab}
+        onSelectionChange={(key) => handleTabChange(String(key))}
         className="flex flex-1 min-h-0 flex-col"
       >
         <TabsList className="w-full justify-start">
-          <TabsTrigger value="search" className="gap-1.5">
+          <TabsTrigger id="search" className="gap-1.5">
             <MagnifyingGlassIcon className="h-4 w-4" />
             Search
           </TabsTrigger>
-          <TabsTrigger value="seasonal" disabled={mediaKind !== "anime"}>
+          <TabsTrigger id="seasonal" isDisabled={mediaKind !== "anime"}>
             <TelevisionIcon className="h-4 w-4" />
             Seasonal
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="search" className="mt-6 flex flex-1 min-h-0 flex-col">
+        <TabsContent id="search" className="mt-6 flex flex-1 min-h-0 flex-col">
           <SearchResults
             active={activeTab === "search"}
             canSearch={canSearch}
@@ -202,7 +201,7 @@ function AddAnimePage() {
             onSelectAnime={handleSelectAnime}
           />
         </TabsContent>
-        <TabsContent value="seasonal" className="mt-6 flex flex-1 min-h-0 flex-col">
+        <TabsContent id="seasonal" className="mt-6 flex flex-1 min-h-0 flex-col">
           {activeTab === "seasonal" && (
             <Suspense fallback={null}>
               <SeasonalAnimeSectionLazy

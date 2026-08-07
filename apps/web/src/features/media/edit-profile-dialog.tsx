@@ -4,7 +4,6 @@ import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -37,7 +36,7 @@ interface EditProfileDialogProps {
 
 export function EditProfileDialog(props: EditProfileDialogProps) {
   return (
-    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
+    <Dialog isOpen={props.open} onOpenChange={props.onOpenChange}>
       {props.open && <EditProfileDialogContent {...props} />}
     </Dialog>
   );
@@ -81,7 +80,7 @@ function EditProfileDialogContent(props: EditProfileDialogProps) {
   });
 
   return (
-    <DialogContent>
+    <>
       <DialogHeader>
         <DialogTitle>Edit Profiles</DialogTitle>
         <DialogDescription>
@@ -94,21 +93,20 @@ function EditProfileDialogContent(props: EditProfileDialogProps) {
             <div className="space-y-2">
               <Label htmlFor="profile-select">Quality Profile</Label>
               <Select
-                items={props.profiles.map((p) => ({ value: p.name, label: p.name }))}
-                value={field.state.value}
-                onValueChange={(value) => {
+                selectedKey={field.state.value}
+                onSelectionChange={(value) => {
                   if (value !== null) {
-                    field.handleChange(value);
+                    field.handleChange(String(value));
                   }
                 }}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select profile..." />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
                     {props.profiles.map((profile) => (
-                      <SelectItem key={profile.name} value={profile.name}>
+                      <SelectItem key={profile.name} id={profile.name} textValue={profile.name}>
                         {profile.name}
                       </SelectItem>
                     ))}
@@ -130,8 +128,8 @@ function EditProfileDialogContent(props: EditProfileDialogProps) {
                       <div key={releaseProfile.id} className="flex items-center space-x-2">
                         <Checkbox
                           id={`rp-edit-${releaseProfile.id}`}
-                          checked={field.state.value.includes(releaseProfile.id)}
-                          onCheckedChange={(checked) => {
+                          isSelected={field.state.value.includes(releaseProfile.id)}
+                          onChange={(checked) => {
                             const currentIds = field.state.value;
                             if (checked) {
                               field.handleChange([...currentIds, releaseProfile.id]);
@@ -181,12 +179,12 @@ function EditProfileDialogContent(props: EditProfileDialogProps) {
         </div>
 
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => props.onOpenChange(false)}>
+          <Button type="button" variant="outline" onPress={() => props.onOpenChange(false)}>
             Cancel
           </Button>
           <Button
             type="submit"
-            disabled={
+            isDisabled={
               form.state.isSubmitting || props.isUpdatingProfile || props.isUpdatingReleaseProfiles
             }
           >
@@ -196,6 +194,6 @@ function EditProfileDialogContent(props: EditProfileDialogProps) {
           </Button>
         </DialogFooter>
       </form>
-    </DialogContent>
+    </>
   );
 }

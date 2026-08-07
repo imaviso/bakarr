@@ -31,22 +31,32 @@ export function SystemSettingsGeneralApplicationSection(
         {(field) => (
           <SettingRow label="Log Level" description="Control verbosity of application logs">
             <Select
-              value={field.state.value}
-              onValueChange={(value) => {
+              selectedKey={field.state.value}
+              onSelectionChange={(value) => {
                 if (value !== null) {
-                  field.handleChange(value);
+                  field.handleChange(String(value));
                 }
               }}
             >
               <SelectTrigger className="w-32">
-                <SelectValue placeholder="Select..." />
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="error">error</SelectItem>
-                <SelectItem value="warn">warn</SelectItem>
-                <SelectItem value="info">info</SelectItem>
-                <SelectItem value="debug">debug</SelectItem>
-                <SelectItem value="trace">trace</SelectItem>
+                <SelectItem id="error" textValue="error">
+                  error
+                </SelectItem>
+                <SelectItem id="warn" textValue="warn">
+                  warn
+                </SelectItem>
+                <SelectItem id="info" textValue="info">
+                  info
+                </SelectItem>
+                <SelectItem id="debug" textValue="debug">
+                  debug
+                </SelectItem>
+                <SelectItem id="trace" textValue="trace">
+                  trace
+                </SelectItem>
               </SelectContent>
             </Select>
           </SettingRow>
@@ -115,8 +125,8 @@ export function SystemSettingsGeneralApplicationSection(
             description="Hide noisy retry logs from qBittorrent/Network"
           >
             <Switch
-              checked={field.state.value}
-              onCheckedChange={(checked) => field.handleChange(checked)}
+              isSelected={field.state.value}
+              onChange={(checked) => field.handleChange(checked)}
             />
           </SettingRow>
         )}

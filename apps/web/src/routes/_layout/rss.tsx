@@ -22,7 +22,6 @@ import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
-  AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
@@ -72,7 +71,7 @@ function RssPage() {
   return (
     <PageShell>
       <PageHeader title="RSS Feeds">
-        <Button size="sm" onClick={() => setIsAdding(true)} disabled={isAdding}>
+        <Button size="sm" onPress={() => setIsAdding(true)} isDisabled={isAdding}>
           <PlusIcon className="h-4 w-4" />
           Add Feed
         </Button>
@@ -133,7 +132,7 @@ function FeedCard(props: {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <p className="font-medium truncate">{props.feed.name || "Unnamed Feed"}</p>
-            <Badge variant={props.feed.enabled ? "success" : "secondary"}>
+            <Badge variant={props.feed.enabled ? "outline" : "secondary"}>
               {props.feed.enabled ? "Active" : "Paused"}
             </Badge>
           </div>
@@ -150,15 +149,16 @@ function FeedCard(props: {
             )}
           </div>
         </div>
-        <AlertDialog>
-          <AlertDialogTrigger
-            render={<Button size="icon" variant="ghost" />}
+        <AlertDialogTrigger>
+          <Button
+            size="icon"
+            variant="ghost"
             className="relative after:absolute after:-inset-2 w-8 h-8 text-muted-foreground hover:text-destructive"
             aria-label="Delete feed"
           >
             <TrashIcon className="h-4 w-4" />
-          </AlertDialogTrigger>
-          <AlertDialogContent>
+          </Button>
+          <AlertDialog>
             <AlertDialogHeader>
               <AlertDialogTitle>Delete RSS Feed</AlertDialogTitle>
               <AlertDialogDescription>
@@ -170,13 +170,13 @@ function FeedCard(props: {
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                onClick={props.onDelete}
+                onPress={props.onDelete}
               >
                 Delete
               </AlertDialogAction>
             </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+          </AlertDialog>
+        </AlertDialogTrigger>
       </CardContent>
     </Card>
   );
@@ -224,15 +224,15 @@ function AddFeedForm(props: { onCancel: () => void; onSuccess: () => void }) {
               <div className="space-y-1">
                 <Label htmlFor={field.name}>Media</Label>
                 <Select
-                  value={field.state.value > 0 ? String(field.state.value) : undefined}
-                  onValueChange={(value) => field.handleChange(Number(value))}
+                  {...(field.state.value > 0 ? { selectedKey: String(field.state.value) } : {})}
+                  onSelectionChange={(value) => field.handleChange(Number(value))}
                 >
                   <SelectTrigger id={field.name} aria-label="Media" className="w-full">
-                    <SelectValue placeholder="Select media..." />
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {animeList.map((media) => (
-                      <SelectItem key={media.id} value={String(media.id)}>
+                      <SelectItem key={media.id} id={String(media.id)} textValue={String(media.id)}>
                         {media.title.english || media.title.romaji}
                       </SelectItem>
                     ))}
@@ -281,12 +281,12 @@ function AddFeedForm(props: { onCancel: () => void; onSuccess: () => void }) {
           </form.Field>
 
           <div className="flex gap-2 justify-end pt-2">
-            <Button type="button" variant="ghost" onClick={props.onCancel}>
+            <Button type="button" variant="ghost" onPress={props.onCancel}>
               Cancel
             </Button>
             <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
               {(state) => (
-                <Button type="submit" disabled={!state[0] || addFeed.isPending}>
+                <Button type="submit" isDisabled={!state[0] || addFeed.isPending}>
                   {state[1] || addFeed.isPending ? "Adding..." : "Add Feed"}
                 </Button>
               )}

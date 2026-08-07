@@ -9,7 +9,7 @@ import {
   CommandList,
 } from "~/components/ui/command";
 import { Button } from "~/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
+import { Popover, PopoverTrigger } from "~/components/ui/popover";
 import { formatTimeZoneLabel, getTimeZoneOptions } from "~/domain/timezones";
 import { cn } from "~/infra/utils";
 
@@ -25,14 +25,11 @@ export function TimezonePicker(props: TimezonePickerProps) {
   const selectedValue = props.value?.trim() || "system";
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger
-        render={<Button variant="outline" />}
-        className={cn("w-56 justify-between font-normal", props.className)}
-      >
+    <PopoverTrigger isOpen={open} onOpenChange={setOpen}>
+      <Button variant="outline" className={cn("w-56 justify-between font-normal", props.className)}>
         <span className="truncate">{formatTimeZoneLabel(selectedValue)}</span>
-      </PopoverTrigger>
-      <PopoverContent className="w-[320px] p-0">
+      </Button>
+      <Popover className="w-[320px] p-0">
         <Command>
           <CommandInput placeholder="Search timezone..." />
           <CommandList>
@@ -41,8 +38,9 @@ export function TimezonePicker(props: TimezonePickerProps) {
               {options.map((option) => (
                 <CommandItem
                   key={option.value}
-                  value={`${option.value} ${option.label} ${option.note ?? ""}`}
-                  onSelect={() => {
+                  id={option.value}
+                  textValue={`${option.value} ${option.label} ${option.note ?? ""}`}
+                  onAction={() => {
                     props.onChange(option.value);
                     setOpen(false);
                   }}
@@ -64,7 +62,7 @@ export function TimezonePicker(props: TimezonePickerProps) {
             </CommandGroup>
           </CommandList>
         </Command>
-      </PopoverContent>
-    </Popover>
+      </Popover>
+    </PopoverTrigger>
   );
 }

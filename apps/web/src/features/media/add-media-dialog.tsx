@@ -15,7 +15,6 @@ import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -84,143 +83,145 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
   ].filter((chip): chip is string => Boolean(chip));
 
   return (
-    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-      <DialogContent className="w-[100vw-2rem] max-w-none sm:max-w-none max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-3">
-            {props.media.cover_image ? (
-              <img
-                src={props.media.cover_image}
-                alt={props.media.title.romaji}
-                className="w-12 h-16 object-cover rounded-none"
-              />
-            ) : (
-              <div className="w-12 h-16 bg-muted rounded-none flex items-center justify-center">
-                <TelevisionIcon className="h-6 w-6 text-muted-foreground" />
+    <Dialog
+      isOpen={props.open}
+      onOpenChange={props.onOpenChange}
+      className="w-[100vw-2rem] max-w-none sm:max-w-none max-h-[85vh] overflow-y-auto"
+    >
+      <DialogHeader>
+        <DialogTitle className="flex items-center gap-3">
+          {props.media.cover_image ? (
+            <img
+              src={props.media.cover_image}
+              alt={props.media.title.romaji}
+              className="w-12 h-16 object-cover rounded-none"
+            />
+          ) : (
+            <div className="w-12 h-16 bg-muted rounded-none flex items-center justify-center">
+              <TelevisionIcon className="h-6 w-6 text-muted-foreground" />
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <div className="truncate">{props.media.title.romaji}</div>
+            {props.media.title.english && (
+              <div className="text-sm text-muted-foreground font-normal truncate">
+                {props.media.title.english}
               </div>
             )}
-            <div className="flex-1 min-w-0">
-              <div className="truncate">{props.media.title.romaji}</div>
-              {props.media.title.english && (
-                <div className="text-sm text-muted-foreground font-normal truncate">
-                  {props.media.title.english}
-                </div>
-              )}
-              {metadataChips.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {metadataChips.map((chip) => (
-                    <Badge
-                      key={chip}
-                      variant="outline"
-                      className="inline-flex items-center gap-1 rounded-none font-normal text-muted-foreground max-w-full"
-                    >
-                      {(chip.includes("/") || /^\d{4}$/.test(chip)) && (
-                        <CalendarIcon className="h-3 w-3 shrink-0" />
-                      )}
-                      <span className="truncate">{chip}</span>
-                    </Badge>
-                  ))}
-                </div>
-              )}
-              {props.media.genres && props.media.genres.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {props.media.genres.slice(0, 3).map((genre) => (
-                    <Badge
-                      key={genre}
-                      variant="outline"
-                      className="rounded-none font-normal text-muted-foreground max-w-full"
-                    >
-                      <span className="truncate min-w-0">{genre}</span>
-                    </Badge>
-                  ))}
-                </div>
-              )}
-              {props.media.synonyms && props.media.synonyms.length > 0 && (
-                <div className="mt-2 text-[11px] text-muted-foreground line-clamp-2">
-                  Also known as {props.media.synonyms.slice(0, 3).join(" • ")}
-                </div>
-              )}
-              {props.media.related_media && props.media.related_media.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {props.media.related_media.slice(0, 2).map((related) => (
-                    <Badge
-                      key={discoveryPreviewKey(related, "related")}
-                      variant="outline"
-                      className="rounded-none font-normal text-muted-foreground max-w-full"
-                    >
-                      <span className="truncate min-w-0">
-                        {[
-                          animeDisplayTitle(related),
-                          ...animeDiscoverySubtitle({
-                            format: related.format,
-                            relation_type: related.relation_type,
-                            season: related.season,
-                            season_year: related.season_year,
-                            start_year: related.start_year,
-                            status: related.status,
-                          }),
-                        ]
-                          .filter(Boolean)
-                          .join(" - ")}
-                      </span>
-                    </Badge>
-                  ))}
-                </div>
-              )}
-              {props.media.recommended_media && props.media.recommended_media.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {props.media.recommended_media.slice(0, 2).map((recommended) => (
-                    <Badge
-                      key={discoveryPreviewKey(recommended, "recommended")}
-                      variant="outline"
-                      className="rounded-none font-normal text-muted-foreground max-w-full"
-                    >
-                      <span className="truncate min-w-0">
-                        {[
-                          animeDisplayTitle(recommended),
-                          ...animeDiscoverySubtitle({
-                            format: recommended.format,
-                            relation_type: recommended.relation_type,
-                            season: recommended.season,
-                            season_year: recommended.season_year,
-                            start_year: recommended.start_year,
-                            status: recommended.status,
-                          }),
-                        ]
-                          .filter(Boolean)
-                          .join(" - ")}
-                      </span>
-                    </Badge>
-                  ))}
-                </div>
-              )}
-              {props.media.match_reason && (
-                <div className="mt-2 text-[11px] text-muted-foreground line-clamp-2">
-                  {props.media.match_reason}
-                </div>
-              )}
-            </div>
-          </DialogTitle>
-          <DialogDescription className="whitespace-pre-line line-clamp-4 mt-2">
-            {props.media.description?.trim()
-              ? cleanSynopsis(props.media.description)
-              : `Configure how this ${mediaKindLabel(props.media.media_kind)} should be added to your library.`}
-          </DialogDescription>
-        </DialogHeader>
+            {metadataChips.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {metadataChips.map((chip) => (
+                  <Badge
+                    key={chip}
+                    variant="outline"
+                    className="inline-flex items-center gap-1 rounded-none font-normal text-muted-foreground max-w-full"
+                  >
+                    {(chip.includes("/") || /^\d{4}$/.test(chip)) && (
+                      <CalendarIcon className="h-3 w-3 shrink-0" />
+                    )}
+                    <span className="truncate">{chip}</span>
+                  </Badge>
+                ))}
+              </div>
+            )}
+            {props.media.genres && props.media.genres.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {props.media.genres.slice(0, 3).map((genre) => (
+                  <Badge
+                    key={genre}
+                    variant="outline"
+                    className="rounded-none font-normal text-muted-foreground max-w-full"
+                  >
+                    <span className="truncate min-w-0">{genre}</span>
+                  </Badge>
+                ))}
+              </div>
+            )}
+            {props.media.synonyms && props.media.synonyms.length > 0 && (
+              <div className="mt-2 text-[11px] text-muted-foreground line-clamp-2">
+                Also known as {props.media.synonyms.slice(0, 3).join(" • ")}
+              </div>
+            )}
+            {props.media.related_media && props.media.related_media.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {props.media.related_media.slice(0, 2).map((related) => (
+                  <Badge
+                    key={discoveryPreviewKey(related, "related")}
+                    variant="outline"
+                    className="rounded-none font-normal text-muted-foreground max-w-full"
+                  >
+                    <span className="truncate min-w-0">
+                      {[
+                        animeDisplayTitle(related),
+                        ...animeDiscoverySubtitle({
+                          format: related.format,
+                          relation_type: related.relation_type,
+                          season: related.season,
+                          season_year: related.season_year,
+                          start_year: related.start_year,
+                          status: related.status,
+                        }),
+                      ]
+                        .filter(Boolean)
+                        .join(" - ")}
+                    </span>
+                  </Badge>
+                ))}
+              </div>
+            )}
+            {props.media.recommended_media && props.media.recommended_media.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {props.media.recommended_media.slice(0, 2).map((recommended) => (
+                  <Badge
+                    key={discoveryPreviewKey(recommended, "recommended")}
+                    variant="outline"
+                    className="rounded-none font-normal text-muted-foreground max-w-full"
+                  >
+                    <span className="truncate min-w-0">
+                      {[
+                        animeDisplayTitle(recommended),
+                        ...animeDiscoverySubtitle({
+                          format: recommended.format,
+                          relation_type: recommended.relation_type,
+                          season: recommended.season,
+                          season_year: recommended.season_year,
+                          start_year: recommended.start_year,
+                          status: recommended.status,
+                        }),
+                      ]
+                        .filter(Boolean)
+                        .join(" - ")}
+                    </span>
+                  </Badge>
+                ))}
+              </div>
+            )}
+            {props.media.match_reason && (
+              <div className="mt-2 text-[11px] text-muted-foreground line-clamp-2">
+                {props.media.match_reason}
+              </div>
+            )}
+          </div>
+        </DialogTitle>
+        <DialogDescription className="whitespace-pre-line line-clamp-4 mt-2">
+          {props.media.description?.trim()
+            ? cleanSynopsis(props.media.description)
+            : `Configure how this ${mediaKindLabel(props.media.media_kind)} should be added to your library.`}
+        </DialogDescription>
+      </DialogHeader>
 
-        <AddAnimeForm
-          media={props.media}
-          rootFolder={libraryPathForMediaKind(config.library, props.media.media_kind)}
-          defaultProfile={profiles[0]?.name || ""}
-          releaseProfiles={releaseProfiles}
-          profiles={profiles}
-          onSuccess={() => {
-            props.onSuccess?.();
-            props.onOpenChange(false);
-          }}
-          onCancel={() => props.onOpenChange(false)}
-        />
-      </DialogContent>
+      <AddAnimeForm
+        media={props.media}
+        rootFolder={libraryPathForMediaKind(config.library, props.media.media_kind)}
+        defaultProfile={profiles[0]?.name || ""}
+        releaseProfiles={releaseProfiles}
+        profiles={profiles}
+        onSuccess={() => {
+          props.onSuccess?.();
+          props.onOpenChange(false);
+        }}
+        onCancel={() => props.onOpenChange(false)}
+      />
     </Dialog>
   );
 }
@@ -313,21 +314,20 @@ function AddAnimeForm(props: AddAnimeFormProps) {
           <div className="space-y-2">
             <Label htmlFor="quality-profile-select">Quality Profile</Label>
             <Select
-              items={props.profiles.map((p) => ({ value: p.name, label: p.name }))}
-              value={field.state.value}
-              onValueChange={(value) => {
+              selectedKey={field.state.value}
+              onSelectionChange={(value) => {
                 if (value !== null) {
-                  field.handleChange(value);
+                  field.handleChange(String(value));
                 }
               }}
             >
               <SelectTrigger id="quality-profile-select">
-                <SelectValue placeholder="Select profile" />
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
                   {props.profiles.map((profile) => (
-                    <SelectItem key={profile.name} value={profile.name}>
+                    <SelectItem key={profile.name} id={profile.name} textValue={profile.name}>
                       {profile.name}
                     </SelectItem>
                   ))}
@@ -358,8 +358,8 @@ function AddAnimeForm(props: AddAnimeFormProps) {
                     >
                       <Checkbox
                         id={checkboxId}
-                        checked={isSelected}
-                        onCheckedChange={(checked) => {
+                        isSelected={isSelected}
+                        onChange={(checked) => {
                           if (checked) {
                             field.pushValue(profile.id);
                           } else {
@@ -383,8 +383,8 @@ function AddAnimeForm(props: AddAnimeFormProps) {
             <Label htmlFor="monitor-checkbox" className="flex items-center gap-2 cursor-pointer">
               <Checkbox
                 id="monitor-checkbox"
-                checked={field.state.value}
-                onCheckedChange={field.handleChange}
+                isSelected={field.state.value}
+                onChange={field.handleChange}
               />
               <span className="text-sm">Monitor for new {unitLabelPlural}</span>
             </Label>
@@ -396,8 +396,8 @@ function AddAnimeForm(props: AddAnimeFormProps) {
             <Label htmlFor="search-now-checkbox" className="flex items-center gap-2 cursor-pointer">
               <Checkbox
                 id="search-now-checkbox"
-                checked={field.state.value}
-                onCheckedChange={field.handleChange}
+                isSelected={field.state.value}
+                onChange={field.handleChange}
               />
               <span className="text-sm">Search for {unitLabelPlural} now</span>
             </Label>
@@ -406,21 +406,23 @@ function AddAnimeForm(props: AddAnimeFormProps) {
       </div>
 
       {props.media.already_in_library && (
-        <Alert variant="warning">
+        <Alert variant="destructive">
           <CheckIcon className="h-4 w-4" />
           <AlertDescription>This {mediaLabel} is already in your library</AlertDescription>
         </Alert>
       )}
 
       <DialogFooter>
-        <Button type="button" variant="ghost" onClick={props.onCancel}>
+        <Button type="button" variant="ghost" onPress={props.onCancel}>
           Cancel
         </Button>
         <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
           {([canSubmit]) => (
             <Button
               type="submit"
-              disabled={!canSubmit || addAnimeMutation.isPending || props.media.already_in_library}
+              isDisabled={Boolean(
+                !canSubmit || addAnimeMutation.isPending || props.media.already_in_library,
+              )}
             >
               {!addAnimeMutation.isPending ? (
                 <>

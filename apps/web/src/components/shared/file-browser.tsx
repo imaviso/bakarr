@@ -119,8 +119,7 @@ export function FileBrowser(props: FileBrowserProps) {
         <Button
           variant="ghost"
           size="icon"
-          onClick={handleGoHome}
-          title="Go to root"
+          onPress={handleGoHome}
           aria-label="Go to root directory"
         >
           <HouseIcon className="h-4 w-4" />
@@ -128,9 +127,8 @@ export function FileBrowser(props: FileBrowserProps) {
         <Button
           variant="ghost"
           size="icon"
-          onClick={handleGoUp}
-          disabled={!browserQuery.data?.parent_path}
-          title="Go up"
+          onPress={handleGoUp}
+          isDisabled={!browserQuery.data?.parent_path}
           aria-label="Go up one directory"
         >
           <ArrowUpIcon className="h-4 w-4" />
@@ -147,8 +145,8 @@ export function FileBrowser(props: FileBrowserProps) {
         <Button
           variant="secondary"
           size="sm"
-          onClick={handleManualNavigate}
-          disabled={browserQuery.isFetching}
+          onPress={handleManualNavigate}
+          isDisabled={browserQuery.isFetching}
         >
           {browserQuery.isFetching ? <SpinnerIcon className="h-4 w-4 animate-spin" /> : "Go"}
         </Button>
@@ -239,18 +237,18 @@ export function FileBrowser(props: FileBrowserProps) {
             <Button
               variant="ghost"
               size="icon"
-              disabled={pageOffset === 0}
+              isDisabled={pageOffset === 0}
               aria-label="Previous page"
-              onClick={() => setPageOffset((prev) => Math.max(0, prev - BROWSE_PAGE_SIZE))}
+              onPress={() => setPageOffset((prev) => Math.max(0, prev - BROWSE_PAGE_SIZE))}
             >
               <CaretLeftIcon className="h-3.5 w-3.5" />
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              disabled={!pageInfo.hasMore}
+              isDisabled={!pageInfo.hasMore}
               aria-label="Next page"
-              onClick={() => setPageOffset((prev) => prev + BROWSE_PAGE_SIZE)}
+              onPress={() => setPageOffset((prev) => prev + BROWSE_PAGE_SIZE)}
             >
               <CaretRightIcon className="h-3.5 w-3.5" />
             </Button>

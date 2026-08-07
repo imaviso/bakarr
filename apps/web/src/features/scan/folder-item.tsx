@@ -13,7 +13,6 @@ import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
-  AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
@@ -183,18 +182,22 @@ export function FolderItem(props: {
                     Quality profile for the new media
                   </span>
                   <Select
-                    value={state.selectedProfile?.name ?? undefined}
-                    onValueChange={(value) => state.setSelectedProfileName(value ?? "")}
+                    selectedKey={state.selectedProfile?.name ?? null}
+                    onSelectionChange={(value) => {
+                      if (value !== null) {
+                        state.setSelectedProfileName(String(value));
+                      }
+                    }}
                   >
                     <SelectTrigger
                       aria-label="Quality profile for the new media"
                       className="h-9 bg-background"
                     >
-                      <SelectValue placeholder="Select profile..." />
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       {(state.profilesQuery.data ?? []).map((profile) => (
-                        <SelectItem key={profile.name} value={profile.name}>
+                        <SelectItem key={profile.name} id={profile.name} textValue={profile.name}>
                           {profile.name}
                         </SelectItem>
                       ))}
@@ -216,12 +219,12 @@ export function FolderItem(props: {
           <Button
             size="sm"
             variant="outline"
-            disabled={
+            isDisabled={
               state.isControlling ||
               props.folder.match_status === "matching" ||
               props.folder.match_status === "paused"
             }
-            onClick={() => state.handleControl("pause")}
+            onPress={() => state.handleControl("pause")}
             className="justify-start"
           >
             <PauseIcon className="mr-2 h-4 w-4" />
@@ -230,8 +233,8 @@ export function FolderItem(props: {
           <Button
             size="sm"
             variant="outline"
-            disabled={state.isControlling || props.folder.match_status !== "paused"}
-            onClick={() => state.handleControl("resume")}
+            isDisabled={state.isControlling || props.folder.match_status !== "paused"}
+            onPress={() => state.handleControl("resume")}
             className="justify-start"
           >
             <PlayIcon className="mr-2 h-4 w-4" />
@@ -240,8 +243,8 @@ export function FolderItem(props: {
           <Button
             size="sm"
             variant="outline"
-            disabled={state.isControlling || props.folder.match_status === "matching"}
-            onClick={() => state.handleControl("refresh")}
+            isDisabled={state.isControlling || props.folder.match_status === "matching"}
+            onPress={() => state.handleControl("refresh")}
             className="justify-start"
           >
             <ArrowClockwiseIcon
@@ -252,8 +255,8 @@ export function FolderItem(props: {
           <Button
             size="sm"
             variant="outline"
-            disabled={state.isControlling || props.folder.match_status === "matching"}
-            onClick={() => state.setResetConfirmOpen(true)}
+            isDisabled={state.isControlling || props.folder.match_status === "matching"}
+            onPress={() => state.setResetConfirmOpen(true)}
             className="justify-start"
           >
             <TrashIcon className="mr-2 h-4 w-4" />
@@ -261,28 +264,26 @@ export function FolderItem(props: {
           </Button>
         </div>
 
-        <AlertDialog open={state.resetConfirmOpen} onOpenChange={state.setResetConfirmOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Reset match for {props.folder.name}?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This clears the cached error state and suggested matches for this folder, then
-                queues it for a fresh background match.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                onClick={() => {
-                  state.handleControl("reset");
-                  state.setResetConfirmOpen(false);
-                }}
-              >
-                Reset match
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
+        <AlertDialog isOpen={state.resetConfirmOpen} onOpenChange={state.setResetConfirmOpen}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset match for {props.folder.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This clears the cached error state and suggested matches for this folder, then queues
+              it for a fresh background match.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onPress={() => {
+                state.handleControl("reset");
+                state.setResetConfirmOpen(false);
+              }}
+            >
+              Reset match
+            </AlertDialogAction>
+          </AlertDialogFooter>
         </AlertDialog>
 
         <Button
@@ -290,7 +291,7 @@ export function FolderItem(props: {
           variant="ghost"
           size="sm"
           className="justify-start"
-          onClick={() =>
+          onPress={() =>
             props.onOpenManualMatch?.({
               folder: props.folder,
               onSelect: (anime) => {
@@ -305,8 +306,8 @@ export function FolderItem(props: {
 
         <Button
           size="sm"
-          disabled={!state.selectedAnime || state.isImporting}
-          onClick={() => state.handleImport()}
+          isDisabled={!state.selectedAnime || state.isImporting}
+          onPress={() => state.handleImport()}
           className="justify-start"
         >
           {state.isImporting ? (

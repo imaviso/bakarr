@@ -12,13 +12,12 @@ import {
 import { Button } from "~/components/ui/button";
 import {
   DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
 import { TableCell, TableRow } from "~/components/ui/table";
-import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
+import { Tooltip, TooltipTrigger } from "~/components/ui/tooltip";
 import type {
   AnimeEpisodeDialogState,
   AnimeSearchModalState,
@@ -77,24 +76,20 @@ export function EpisodeTableRow(props: EpisodeTableRowProps) {
       <TableCell className="text-right">
         <div className="flex justify-end pr-2">
           {episode.downloaded ? (
-            <Tooltip>
-              <TooltipTrigger aria-label="Downloaded">
-                <CheckCircleIcon className="h-4 w-4 text-success" />
-              </TooltipTrigger>
-              <TooltipContent>Downloaded - {episode.file_path?.split("/").pop()}</TooltipContent>
-            </Tooltip>
+            <TooltipTrigger aria-label="Downloaded">
+              <CheckCircleIcon className="h-4 w-4 text-success" />
+              <Tooltip>Downloaded - {episode.file_path?.split("/").pop()}</Tooltip>
+            </TooltipTrigger>
           ) : (
-            <Tooltip>
-              <TooltipTrigger aria-label={isAired(episode.aired) ? "Missing" : "Upcoming"}>
-                <XIcon
-                  className={cn(
-                    "h-4 w-4",
-                    isAired(episode.aired) ? "text-warning" : "text-muted-foreground",
-                  )}
-                />
-              </TooltipTrigger>
-              <TooltipContent>{isAired(episode.aired) ? "Missing" : "Upcoming"}</TooltipContent>
-            </Tooltip>
+            <TooltipTrigger aria-label={isAired(episode.aired) ? "Missing" : "Upcoming"}>
+              <XIcon
+                className={cn(
+                  "h-4 w-4",
+                  isAired(episode.aired) ? "text-warning" : "text-muted-foreground",
+                )}
+              />
+              <Tooltip>{isAired(episode.aired) ? "Missing" : "Upcoming"}</Tooltip>
+            </TooltipTrigger>
           )}
         </div>
       </TableCell>
@@ -108,16 +103,17 @@ export function EpisodeTableRow(props: EpisodeTableRowProps) {
         )}
       </TableCell>
       <TableCell>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={<Button variant="ghost" size="icon" />}
+        <DropdownMenuTrigger>
+          <Button
+            variant="ghost"
+            size="icon"
             aria-label={`Actions for ${unitLabel.toLowerCase()} ${episode.number}`}
             className="relative after:absolute after:-inset-2 h-8 w-8 text-muted-foreground hover:text-foreground"
           >
             <DotsThreeIcon className="h-4 w-4" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <DropdownMenuItem onClick={() => props.onOpenSearchModal(searchModalState)}>
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuItem onAction={() => props.onOpenSearchModal(searchModalState)}>
               {episode.downloaded ? (
                 <>
                   <ArrowClockwiseIcon className="h-4 w-4 mr-2" />
@@ -132,7 +128,7 @@ export function EpisodeTableRow(props: EpisodeTableRowProps) {
             </DropdownMenuItem>
 
             {!episode.downloaded && (
-              <DropdownMenuItem onClick={() => props.onOpenMappingDialog(mappingDialogState)}>
+              <DropdownMenuItem onAction={() => props.onOpenMappingDialog(mappingDialogState)}>
                 <LinkIcon className="h-4 w-4 mr-2" />
                 Manual Map
               </DropdownMenuItem>
@@ -143,27 +139,24 @@ export function EpisodeTableRow(props: EpisodeTableRowProps) {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-destructive focus:text-destructive"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    props.onOpenDeleteDialog(deleteDialogState);
-                  }}
+                  onAction={() => props.onOpenDeleteDialog(deleteDialogState)}
                 >
                   <TrashIcon className="h-4 w-4 mr-2" />
                   Delete File
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => props.onPlayInMpv(episode.number)}>
+                <DropdownMenuItem onAction={() => props.onPlayInMpv(episode.number)}>
                   <PlayIcon className="h-4 w-4 mr-2" />
                   Play in MPV
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => props.onCopyStreamLink(episode.number)}>
+                <DropdownMenuItem onAction={() => props.onCopyStreamLink(episode.number)}>
                   <CopyIcon className="h-4 w-4 mr-2" />
                   Copy Stream Link
                 </DropdownMenuItem>
               </>
             )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+          </DropdownMenu>
+        </DropdownMenuTrigger>
       </TableCell>
     </TableRow>
   );

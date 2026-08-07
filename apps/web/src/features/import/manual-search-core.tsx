@@ -73,10 +73,10 @@ export function ManualSearchCore(props: ManualSearchCoreProps) {
           )}
         </div>
         <Select
-          value={mediaKind}
-          onValueChange={(value) => {
+          selectedKey={mediaKind}
+          onSelectionChange={(value) => {
             if (value !== null) {
-              setMediaKind(toMediaKind(value));
+              setMediaKind(toMediaKind(String(value)));
             }
           }}
         >
@@ -84,9 +84,15 @@ export function ManualSearchCore(props: ManualSearchCoreProps) {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="anime">Anime</SelectItem>
-            <SelectItem value="manga">Manga</SelectItem>
-            <SelectItem value="light_novel">Light novel</SelectItem>
+            <SelectItem id="anime" textValue="anime">
+              Anime
+            </SelectItem>
+            <SelectItem id="manga" textValue="manga">
+              Manga
+            </SelectItem>
+            <SelectItem id="light_novel" textValue="light_novel">
+              Light novel
+            </SelectItem>
           </SelectContent>
         </Select>
       </div>

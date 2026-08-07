@@ -22,7 +22,6 @@ import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
-  AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
@@ -31,12 +30,7 @@ import {
 } from "~/components/ui/alert-dialog";
 import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "~/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuItem, DropdownMenuTrigger } from "~/components/ui/dropdown-menu";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Switch } from "~/components/ui/switch";
 import { Label } from "~/components/ui/label";
@@ -55,8 +49,8 @@ export function LogsView(props: LogsViewProps) {
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-2">
             <Switch
-              checked={props.state.autoRefresh}
-              onCheckedChange={props.state.setAutoRefresh}
+              isSelected={props.state.autoRefresh}
+              onChange={props.state.setAutoRefresh}
               id="auto-refresh"
             />
             <Label htmlFor="auto-refresh">Auto-Refresh</Label>
@@ -64,8 +58,8 @@ export function LogsView(props: LogsViewProps) {
           <Button
             variant="outline"
             size="sm"
-            onClick={props.state.refreshAll}
-            disabled={props.state.logsQuery.isRefetching}
+            onPress={props.state.refreshAll}
+            isDisabled={props.state.logsQuery.isRefetching}
           >
             <ArrowClockwiseIcon
               className={cn("h-4 w-4", props.state.logsQuery.isRefetching && "animate-spin")}
@@ -73,29 +67,29 @@ export function LogsView(props: LogsViewProps) {
             Refresh
           </Button>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
+          <DropdownMenuTrigger>
+            <Button variant="outline" size="sm">
               <DownloadIcon className="h-4 w-4" />
               Export
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => props.state.exportLogs("json")}>
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuItem onAction={() => props.state.exportLogs("json")}>
                 <BracketsCurlyIcon className="h-4 w-4 mr-2" />
                 Export as JSON
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => props.state.exportLogs("csv")}>
+              <DropdownMenuItem onAction={() => props.state.exportLogs("csv")}>
                 <TableIcon className="h-4 w-4 mr-2" />
                 Export as CSV
               </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            </DropdownMenu>
+          </DropdownMenuTrigger>
 
-          <AlertDialog>
-            <AlertDialogTrigger render={<Button variant="destructive" size="sm" />}>
+          <AlertDialogTrigger>
+            <Button variant="destructive" size="sm">
               <TrashIcon className="h-4 w-4" />
               Clear Logs
-            </AlertDialogTrigger>
-            <AlertDialogContent>
+            </Button>
+            <AlertDialog>
               <AlertDialogHeader>
                 <AlertDialogTitle>Clear All Logs?</AlertDialogTitle>
                 <AlertDialogDescription>
@@ -107,13 +101,13 @@ export function LogsView(props: LogsViewProps) {
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction
                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  onClick={props.state.clearLogsWithToast}
+                  onPress={props.state.clearLogsWithToast}
                 >
                   Clear Logs
                 </AlertDialogAction>
               </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+            </AlertDialog>
+          </AlertDialogTrigger>
         </div>
       </PageHeader>
 

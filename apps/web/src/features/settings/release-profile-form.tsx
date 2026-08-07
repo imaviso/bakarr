@@ -121,8 +121,8 @@ export function ReleaseProfileForm(props: {
                   <div className="flex items-center gap-2">
                     <Switch
                       id={field.name}
-                      checked={field.state.value}
-                      onCheckedChange={(checked) => field.handleChange(checked)}
+                      isSelected={field.state.value}
+                      onChange={(checked) => field.handleChange(checked)}
                     />
                     <label
                       htmlFor={field.name}
@@ -141,8 +141,8 @@ export function ReleaseProfileForm(props: {
                   <div className="flex items-center gap-2">
                     <Switch
                       id={field.name}
-                      checked={field.state.value}
-                      onCheckedChange={(checked) => field.handleChange(checked)}
+                      isSelected={field.state.value}
+                      onChange={(checked) => field.handleChange(checked)}
                     />
                     <label
                       htmlFor={field.name}
@@ -170,7 +170,7 @@ export function ReleaseProfileForm(props: {
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => {
+                    onPress={() => {
                       ruleRowIdsRef.current.push(createRuleRowId(ruleRowIdCounterRef));
                       field.pushValue({
                         term: "",
@@ -209,20 +209,30 @@ export function ReleaseProfileForm(props: {
                         {(typeField) => (
                           <div className="w-[140px]">
                             <Select
-                              value={typeField.state.value}
-                              onValueChange={(value) => {
-                                if (value !== null) {
+                              selectedKey={typeField.state.value}
+                              onSelectionChange={(value) => {
+                                if (
+                                  value === "must" ||
+                                  value === "must_not" ||
+                                  value === "preferred"
+                                ) {
                                   typeField.handleChange(value);
                                 }
                               }}
                             >
                               <SelectTrigger>
-                                <SelectValue placeholder="Rule type" />
+                                <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="preferred">Preferred</SelectItem>
-                                <SelectItem value="must">Must Contain</SelectItem>
-                                <SelectItem value="must_not">Must Not Contain</SelectItem>
+                                <SelectItem id="preferred" textValue="Preferred">
+                                  Preferred
+                                </SelectItem>
+                                <SelectItem id="must" textValue="Must Contain">
+                                  Must Contain
+                                </SelectItem>
+                                <SelectItem id="must_not" textValue="Must Not Contain">
+                                  Must Not Contain
+                                </SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
@@ -252,7 +262,7 @@ export function ReleaseProfileForm(props: {
                         variant="ghost"
                         size="icon"
                         className="mt-0.5 text-muted-foreground hover:text-destructive"
-                        onClick={() => {
+                        onPress={() => {
                           ruleRowIdsRef.current.splice(index, 1);
                           field.removeValue(index);
                         }}
@@ -274,14 +284,14 @@ export function ReleaseProfileForm(props: {
           </div>
 
           <div className="flex gap-2 justify-end pt-4">
-            <Button type="button" variant="ghost" onClick={props.onCancel}>
+            <Button type="button" variant="ghost" onPress={props.onCancel}>
               Cancel
             </Button>
             <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
               {([canSubmit, isSubmitting]) => (
                 <Button
                   type="submit"
-                  disabled={!canSubmit || createProfile.isPending || updateProfile.isPending}
+                  isDisabled={!canSubmit || createProfile.isPending || updateProfile.isPending}
                 >
                   {isSubmitting ? "Saving..." : isEditing ? "Update" : "Create"}
                 </Button>

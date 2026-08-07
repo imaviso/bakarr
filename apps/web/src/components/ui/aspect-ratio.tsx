@@ -1,13 +1,13 @@
-import { cn } from "@/infra/utils";
+import { cn } from "@/lib/utils";
 
-type CSSVariables = React.CSSProperties & Record<`--${string}`, string | number | undefined>;
+type AspectRatioStyle = React.CSSProperties & Record<`--${string}`, number>;
 
 function AspectRatio({
   ratio,
   className,
   ...props
 }: React.ComponentProps<"div"> & { ratio: number }) {
-  const style: CSSVariables = { "--ratio": ratio };
+  const style: AspectRatioStyle = { "--ratio": ratio };
 
   return (
     <div

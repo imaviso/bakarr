@@ -124,8 +124,10 @@ export function AppSidebar() {
                     tooltip={item.title}
                     isActive={isActivePath(location.pathname, item.url)}
                     className="h-9 transition-colors"
-                    onClick={() => router.navigate({ to: item.url })}
-                    aria-current={isActivePath(location.pathname, item.url) ? "page" : undefined}
+                    onPress={() => router.navigate({ to: item.url })}
+                    {...(isActivePath(location.pathname, item.url)
+                      ? { "aria-current": "page" as const }
+                      : {})}
                   >
                     <item.icon className="h-4 w-4 shrink-0" />
                     <span>{item.title}</span>
@@ -152,8 +154,10 @@ export function AppSidebar() {
                     tooltip={item.title}
                     isActive={isActivePath(location.pathname, item.url)}
                     className="h-9 transition-colors"
-                    onClick={() => router.navigate({ to: item.url })}
-                    aria-current={isActivePath(location.pathname, item.url) ? "page" : undefined}
+                    onPress={() => router.navigate({ to: item.url })}
+                    {...(isActivePath(location.pathname, item.url)
+                      ? { "aria-current": "page" as const }
+                      : {})}
                   >
                     <item.icon className="h-4 w-4 shrink-0" />
                     <span>{item.title}</span>

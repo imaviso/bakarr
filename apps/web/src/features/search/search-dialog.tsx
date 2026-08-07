@@ -2,8 +2,9 @@ import type { ReactNode } from "react";
 import type { MediaKind } from "~/api/contracts";
 import { SearchDialogContent } from "~/features/search/search-dialog-content";
 import { useSearchDialogState } from "~/features/search/search-dialog-state";
-import { Dialog, DialogTrigger } from "~/components/ui/dialog";
-import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
+import { Dialog } from "~/components/ui/dialog";
+import { Tooltip, TooltipTrigger } from "~/components/ui/tooltip";
+import { DialogTrigger } from "react-aria-components";
 
 interface SearchDialogProps {
   trigger?: ReactNode;
@@ -24,41 +25,40 @@ export function SearchDialog(props: SearchDialogProps) {
   };
 
   return (
-    <Dialog open={state.open} onOpenChange={handleOpenChange}>
-      {props.trigger && (
-        <DialogTrigger render={<div className="contents" />}>
-          {props.tooltip ? (
-            <Tooltip>
-              <TooltipTrigger>{props.trigger}</TooltipTrigger>
-              <TooltipContent>{props.tooltip}</TooltipContent>
-            </Tooltip>
-          ) : (
-            props.trigger
-          )}
-        </DialogTrigger>
-      )}
+    <DialogTrigger isOpen={state.open} onOpenChange={handleOpenChange}>
+      {props.trigger &&
+        (props.tooltip ? (
+          <TooltipTrigger>
+            {props.trigger}
+            <Tooltip>{props.tooltip}</Tooltip>
+          </TooltipTrigger>
+        ) : (
+          props.trigger
+        ))}
 
-      <SearchDialogContent
-        mediaId={props.mediaId}
-        mediaKind={props.mediaKind}
-        open={state.open}
-        setOpen={state.setOpen}
-        query={state.query}
-        setQuery={state.setQuery}
-        debouncedQuery={state.debouncedQuery}
-        category={state.category}
-        setCategory={(value) => {
-          if (value) {
-            state.setCategory(value);
-          }
-        }}
-        filter={state.filter}
-        setFilter={(value) => {
-          if (value) {
-            state.setFilter(value);
-          }
-        }}
-      />
-    </Dialog>
+      <Dialog>
+        <SearchDialogContent
+          mediaId={props.mediaId}
+          mediaKind={props.mediaKind}
+          open={state.open}
+          setOpen={state.setOpen}
+          query={state.query}
+          setQuery={state.setQuery}
+          debouncedQuery={state.debouncedQuery}
+          category={state.category}
+          setCategory={(value) => {
+            if (value) {
+              state.setCategory(value);
+            }
+          }}
+          filter={state.filter}
+          setFilter={(value) => {
+            if (value) {
+              state.setFilter(value);
+            }
+          }}
+        />
+      </Dialog>
+    </DialogTrigger>
   );
 }

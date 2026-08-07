@@ -1,6 +1,6 @@
 import * as React from "react";
 
-import { cn } from "@/infra/utils";
+import { cn } from "@/lib/utils";
 import { CaretDownIcon } from "@phosphor-icons/react";
 
 type NativeSelectProps = Omit<React.ComponentProps<"select">, "size"> & {
@@ -36,7 +36,7 @@ function NativeSelectOption({ className, ...props }: React.ComponentProps<"optio
   return (
     <option
       data-slot="native-select-option"
-      className={cn("bg-popover text-popover-foreground", className)}
+      className={cn("bg-[Canvas] text-[CanvasText]", className)}
       {...props}
     />
   );
@@ -46,7 +46,7 @@ function NativeSelectOptGroup({ className, ...props }: React.ComponentProps<"opt
   return (
     <optgroup
       data-slot="native-select-optgroup"
-      className={cn("bg-popover text-popover-foreground", className)}
+      className={cn("bg-[Canvas] text-[CanvasText]", className)}
       {...props}
     />
   );

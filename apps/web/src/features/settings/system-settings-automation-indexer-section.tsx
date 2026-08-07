@@ -73,8 +73,8 @@ export function SystemSettingsAutomationIndexerSection(
         {(field) => (
           <SettingRow label="Filter Remakes" description="Exclude remakes from search results">
             <Switch
-              checked={field.state.value}
-              onCheckedChange={(checked) => field.handleChange(checked)}
+              isSelected={field.state.value}
+              onChange={(checked) => field.handleChange(checked)}
             />
           </SettingRow>
         )}

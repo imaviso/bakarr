@@ -167,16 +167,16 @@ export function SystemStatus() {
           <Button
             variant="outline"
             size="sm"
-            onClick={handleScan}
-            disabled={scanMutation.isPending || isScanTaskRunning}
+            onPress={handleScan}
+            isDisabled={scanMutation.isPending || isScanTaskRunning}
           >
             Scan Lib
           </Button>
           <Button
             variant="outline"
             size="sm"
-            onClick={handleRss}
-            disabled={rssMutation.isPending || isRssTaskRunning}
+            onPress={handleRss}
+            isDisabled={rssMutation.isPending || isRssTaskRunning}
           >
             Check RSS
           </Button>

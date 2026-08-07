@@ -9,12 +9,7 @@ import { PageHeader } from "~/app/layout/page-header";
 import { PageShell } from "~/app/layout/page-shell";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "~/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuItem, DropdownMenuTrigger } from "~/components/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -116,8 +111,8 @@ function WantedPage() {
         <Button
           variant="default"
           size="sm"
-          onClick={handleSearchAll}
-          disabled={searchMissing.isPending || isSearchMissingRunning || data.length === 0}
+          onPress={handleSearchAll}
+          isDisabled={searchMissing.isPending || isSearchMissingRunning || data.length === 0}
         >
           <MagnifyingGlassIcon className="mr-2 h-4 w-4" />
           {searchMissing.isPending || isSearchMissingRunning ? "Searching..." : "Search All"}
@@ -274,7 +269,7 @@ function WantedRow(props: {
             {unitLabel} {props.item.unit_number.toString().padStart(2, "0")}
           </Badge>
           {statusLabel && (
-            <Badge variant={props.item.airing_status === "aired" ? "warning" : "info"}>
+            <Badge variant={props.item.airing_status === "aired" ? "outline" : "secondary"}>
               {statusLabel}
             </Badge>
           )}
@@ -287,21 +282,22 @@ function WantedRow(props: {
         {formatAiringDateWithPreferences(props.item.aired, props.airingPreferences) || "-"}
       </TableCell>
       <TableCell>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={<Button variant="ghost" size="icon" />}
+        <DropdownMenuTrigger>
+          <Button
+            variant="ghost"
+            size="icon"
             className="relative after:absolute after:-inset-2 h-8 w-8"
             aria-label={`${unitLabel} options`}
           >
             <DotsThreeIcon className="h-4 w-4" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <DropdownMenuItem onClick={props.onSearch}>
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuItem onAction={props.onSearch}>
               <MagnifyingGlassIcon className="mr-2 h-4 w-4" />
               Search
             </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+          </DropdownMenu>
+        </DropdownMenuTrigger>
       </TableCell>
     </TableRow>
   );

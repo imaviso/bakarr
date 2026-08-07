@@ -79,8 +79,9 @@ function SearchResults(props: {
           {filteredRoutes.map((route) => (
             <CommandItem
               key={route.url}
-              value={`nav-${route.url}`}
-              onSelect={() => props.onSelect(route.url)}
+              id={`nav-${route.url}`}
+              textValue={`nav-${route.url} ${route.title}`}
+              onAction={() => props.onSelect(route.url)}
             >
               <route.icon className="size-4 shrink-0 text-muted-foreground" />
               <span>{route.title}</span>
@@ -97,8 +98,9 @@ function SearchResults(props: {
             {filteredLibrary.map((media) => (
               <CommandItem
                 key={media.id}
-                value={`library-${media.id}`}
-                onSelect={() => props.onSelect(`/media/${media.id}`)}
+                id={`library-${media.id}`}
+                textValue={`library-${media.id} ${media.title.romaji} ${media.title.english ?? ""}`}
+                onAction={() => props.onSelect(`/media/${media.id}`)}
               >
                 {media.cover_image ? (
                   <img
@@ -180,11 +182,11 @@ export function CommandPalette() {
       </button>
 
       <CommandDialog open={open} onOpenChange={setOpen}>
-        <Command shouldFilter={false}>
+        <Command filter={() => true}>
           <CommandInput
             placeholder="Search library or navigate..."
             value={inputValue}
-            onValueChange={setInputValue}
+            onChange={(event) => setInputValue(event.currentTarget.value)}
           />
           <SearchResults inputValue={inputValue} animeList={animeList} onSelect={handleSelect} />
         </Command>

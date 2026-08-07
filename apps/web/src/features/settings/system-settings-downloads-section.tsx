@@ -34,8 +34,8 @@ export function SystemSettingsDownloadsSection(props: SystemSettingsDownloadsSec
             description="Connect to qBittorrent for downloading"
           >
             <Switch
-              checked={field.state.value}
-              onCheckedChange={(checked) => field.handleChange(checked)}
+              isSelected={field.state.value}
+              onChange={(checked) => field.handleChange(checked)}
             />
           </SettingRow>
         )}
@@ -179,8 +179,8 @@ export function SystemSettingsDownloadsSection(props: SystemSettingsDownloadsSec
             description="Group downloaded files by title before import"
           >
             <Switch
-              checked={field.state.value}
-              onCheckedChange={(checked) => field.handleChange(checked)}
+              isSelected={field.state.value}
+              onChange={(checked) => field.handleChange(checked)}
             />
           </SettingRow>
         )}
@@ -193,8 +193,8 @@ export function SystemSettingsDownloadsSection(props: SystemSettingsDownloadsSec
             description="Automatically import finished qBittorrent downloads"
           >
             <Switch
-              checked={field.state.value ?? true}
-              onCheckedChange={(checked) => field.handleChange(checked)}
+              isSelected={field.state.value ?? true}
+              onChange={(checked) => field.handleChange(checked)}
             />
           </SettingRow>
         )}
@@ -207,8 +207,8 @@ export function SystemSettingsDownloadsSection(props: SystemSettingsDownloadsSec
             description="Delete torrent from qBittorrent after import"
           >
             <Switch
-              checked={field.state.value ?? true}
-              onCheckedChange={(checked) => field.handleChange(checked)}
+              isSelected={field.state.value ?? true}
+              onChange={(checked) => field.handleChange(checked)}
             />
           </SettingRow>
         )}
@@ -221,8 +221,8 @@ export function SystemSettingsDownloadsSection(props: SystemSettingsDownloadsSec
             description="Remove downloaded data when torrent cleanup runs"
           >
             <Switch
-              checked={field.state.value ?? false}
-              onCheckedChange={(checked) => field.handleChange(checked)}
+              isSelected={field.state.value ?? false}
+              onChange={(checked) => field.handleChange(checked)}
             />
           </SettingRow>
         )}

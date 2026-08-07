@@ -21,20 +21,13 @@ import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
-  AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from "~/components/ui/alert-dialog";
 import { Button } from "~/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "~/components/ui/dialog";
+import { Dialog, DialogDescription, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 import {
   useBulkControlUnmappedFoldersMutation,
   useScanLibraryMutation,
@@ -241,8 +234,8 @@ function ScanPageHeader(props: ScanPageHeaderProps) {
             <Button
               variant="outline"
               size="sm"
-              disabled={props.isRescanning}
-              onClick={props.onRescan}
+              isDisabled={props.isRescanning}
+              onPress={props.onRescan}
             >
               <ArrowClockwiseIcon
                 className={cn("mr-2 h-4 w-4", props.isRescanning && "animate-spin")}
@@ -252,8 +245,8 @@ function ScanPageHeader(props: ScanPageHeaderProps) {
             <Button
               variant="outline"
               size="sm"
-              disabled={props.bulkControlPending || props.counts.queued === 0}
-              onClick={props.onPauseQueued}
+              isDisabled={props.bulkControlPending || props.counts.queued === 0}
+              onPress={props.onPauseQueued}
             >
               <PauseIcon className="mr-2 h-4 w-4" />
               Pause Queued
@@ -261,8 +254,8 @@ function ScanPageHeader(props: ScanPageHeaderProps) {
             <Button
               variant="outline"
               size="sm"
-              disabled={props.bulkControlPending || props.counts.paused === 0}
-              onClick={props.onResumePaused}
+              isDisabled={props.bulkControlPending || props.counts.paused === 0}
+              onPress={props.onResumePaused}
             >
               <PlayIcon className="mr-2 h-4 w-4" />
               Start Paused
@@ -270,8 +263,8 @@ function ScanPageHeader(props: ScanPageHeaderProps) {
             <Button
               variant="outline"
               size="sm"
-              disabled={props.bulkControlPending || props.counts.failed === 0}
-              onClick={props.onRetryFailed}
+              isDisabled={props.bulkControlPending || props.counts.failed === 0}
+              onPress={props.onRetryFailed}
             >
               <ArrowClockwiseIcon className="mr-2 h-4 w-4" />
               Retry Failed
@@ -279,13 +272,13 @@ function ScanPageHeader(props: ScanPageHeaderProps) {
             <Button
               variant="outline"
               size="sm"
-              disabled={props.bulkControlPending || props.counts.failed === 0}
-              onClick={props.onResetFailed}
+              isDisabled={props.bulkControlPending || props.counts.failed === 0}
+              onPress={props.onResetFailed}
             >
               <TrashIcon className="mr-2 h-4 w-4" />
               Reset Failed
             </Button>
-            <Button variant="ghost" size="sm" onClick={props.onBack}>
+            <Button variant="ghost" size="sm" onPress={props.onBack}>
               Back
             </Button>
           </div>
@@ -316,60 +309,55 @@ function ScanDialogs(props: ScanDialogsProps) {
   return (
     <>
       <AlertDialog
-        open={props.confirmBulkAction !== null}
+        isOpen={props.confirmBulkAction !== null}
         onOpenChange={(open) => {
           if (!open) {
             props.onCancelBulkAction();
           }
         }}
       >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{props.confirmBulkMeta?.title ?? ""}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {props.confirmBulkMeta?.description ?? ""}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className={
-                props.confirmBulkAction === "reset_failed"
-                  ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  : undefined
-              }
-              onClick={props.onConfirmBulkAction}
-            >
-              {props.confirmBulkMeta?.actionLabel ?? "Confirm"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{props.confirmBulkMeta?.title ?? ""}</AlertDialogTitle>
+          <AlertDialogDescription>
+            {props.confirmBulkMeta?.description ?? ""}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            {...(props.confirmBulkAction === "reset_failed"
+              ? {
+                  className: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+                }
+              : {})}
+            onPress={props.onConfirmBulkAction}
+          >
+            {props.confirmBulkMeta?.actionLabel ?? "Confirm"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
       </AlertDialog>
 
       <Dialog
-        open={props.manualMatchDialog !== null}
+        isOpen={props.manualMatchDialog !== null}
         onOpenChange={(open) => {
           if (!open) {
             props.onCloseManualMatch();
           }
         }}
+        className="sm:max-w-md"
       >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Match folder to anime</DialogTitle>
-            <DialogDescription>
-              Search for the anime to associate with{" "}
-              <span className="font-mono text-xs">
-                {props.manualMatchDialog?.folder.name ?? ""}
-              </span>
-            </DialogDescription>
-          </DialogHeader>
-          <ManualMatchSearch
-            key={props.manualMatchDialog?.folder.path ?? "closed"}
-            initialMediaKind={props.manualMatchDialog?.folder.media_kind}
-            onSelect={props.onManualMatchSelect}
-          />
-        </DialogContent>
+        <DialogHeader>
+          <DialogTitle>Match folder to anime</DialogTitle>
+          <DialogDescription>
+            Search for the anime to associate with{" "}
+            <span className="font-mono text-xs">{props.manualMatchDialog?.folder.name ?? ""}</span>
+          </DialogDescription>
+        </DialogHeader>
+        <ManualMatchSearch
+          key={props.manualMatchDialog?.folder.path ?? "closed"}
+          initialMediaKind={props.manualMatchDialog?.folder.media_kind}
+          onSelect={props.onManualMatchSelect}
+        />
       </Dialog>
     </>
   );

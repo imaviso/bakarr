@@ -15,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
-import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
+import { Tooltip, TooltipTrigger } from "~/components/ui/tooltip";
 import type { Media } from "~/api/contracts";
 import { useDeleteMediaMutation } from "~/api/media-mutations";
 import {
@@ -236,9 +236,9 @@ export function AnimeGridView(props: AnimeLibraryViewProps) {
                           {media.profile_name}
                         </Badge>
                       </div>
-                      <Tooltip>
-                        <TooltipTrigger
-                          render={<Button variant="ghost" />}
+                      <TooltipTrigger>
+                        <Button
+                          variant="ghost"
                           className="p-1 -mr-1 h-auto hover:bg-muted transition-colors rounded-full"
                         >
                           <div className="flex items-center gap-1.5">
@@ -251,11 +251,9 @@ export function AnimeGridView(props: AnimeLibraryViewProps) {
                               )}
                             />
                           </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          {media.monitored ? "Monitored" : "Unmonitored"}
-                        </TooltipContent>
-                      </Tooltip>
+                        </Button>
+                        <Tooltip>{media.monitored ? "Monitored" : "Unmonitored"}</Tooltip>
+                      </TooltipTrigger>
                     </div>
                   </div>
                 </Card>

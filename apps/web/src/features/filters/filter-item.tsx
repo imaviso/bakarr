@@ -78,20 +78,19 @@ export function FilterItem(props: FilterItemProps) {
       <div className="text-sm font-medium text-muted-foreground px-2">{column?.label}</div>
 
       <Select
-        items={operatorOptions}
-        value={props.filter.operator}
-        onValueChange={(value) => {
+        selectedKey={props.filter.operator}
+        onSelectionChange={(value) => {
           const matchedOperator = operatorOptions.find((option) => option.value === value)?.value;
           handleOperatorChange(matchedOperator ?? null);
         }}
       >
         <SelectTrigger className="w-[140px] h-8 px-2 bg-background focus:ring-0 focus:ring-offset-0 border-muted-foreground/20">
-          <SelectValue placeholder="Select operator" />
+          <SelectValue />
         </SelectTrigger>
         <SelectContent>
           <SelectGroup>
             {operatorOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
+              <SelectItem key={option.value} id={option.value} textValue={option.value}>
                 {option.label}
               </SelectItem>
             ))}
@@ -111,17 +110,16 @@ export function FilterItem(props: FilterItemProps) {
         />
       ) : (
         <Select
-          items={column?.options ?? []}
-          value={selectedValue}
-          onValueChange={(value) => handleValueChange(value ?? null)}
+          {...(selectedValue !== undefined ? { selectedKey: selectedValue } : {})}
+          onSelectionChange={(value) => handleValueChange(value === null ? null : String(value))}
         >
           <SelectTrigger className="w-[160px] h-8 px-2 bg-background focus:ring-0 focus:ring-offset-0 border-muted-foreground/20">
-            <SelectValue placeholder="Select value" />
+            <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectGroup>
               {(column?.options ?? []).map((option) => (
-                <SelectItem key={option.value} value={option.value}>
+                <SelectItem key={option.value} id={option.value} textValue={option.label}>
                   {option.icon && <span className="mr-2">{option.icon}</span>}
                   {option.label}
                 </SelectItem>
@@ -135,7 +133,7 @@ export function FilterItem(props: FilterItemProps) {
         variant="ghost"
         size="icon"
         className="h-6 w-6 ml-1 text-muted-foreground hover:text-foreground"
-        onClick={() => ctx.removeFilter(props.filter.id)}
+        onPress={() => ctx.removeFilter(props.filter.id)}
         aria-label="Remove filter"
       >
         <XIcon className="h-3 w-3" />

@@ -18,12 +18,11 @@ import {
 } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import { Button, buttonVariants } from "~/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
+import { Tooltip, TooltipTrigger } from "~/components/ui/tooltip";
 import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
-  AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
@@ -49,10 +48,10 @@ function StatusIcon({ status }: { status: string }) {
     <ActivityIcon className="w-4 h-4 text-muted-foreground" />
   );
   return (
-    <Tooltip>
-      <TooltipTrigger aria-label={status}>{icon}</TooltipTrigger>
-      <TooltipContent>{status}</TooltipContent>
-    </Tooltip>
+    <TooltipTrigger aria-label={status}>
+      {icon}
+      <Tooltip>{status}</Tooltip>
+    </TooltipTrigger>
   );
 }
 
@@ -134,34 +133,36 @@ export function MediaDetailsHeader(props: MediaDetailsHeaderProps) {
         </div>
 
         <div className="flex items-center gap-2 overflow-x-auto pb-2 -mb-2 no-scrollbar md:flex-wrap md:overflow-visible md:pb-0 md:mb-0">
-          <Tooltip>
-            <TooltipTrigger
-              render={<Button variant={props.isMonitored ? "default" : "outline"} size="sm" />}
-              onClick={props.onToggleMonitor}
-              disabled={props.isToggleMonitorPending}
+          <TooltipTrigger>
+            <Button
+              variant={props.isMonitored ? "default" : "outline"}
+              size="sm"
+              onPress={props.onToggleMonitor}
+              isDisabled={props.isToggleMonitorPending}
               className={cn("shrink-0", !props.isMonitored && "text-muted-foreground bg-muted")}
             >
               <BookmarkIcon className={cn("h-4 w-4", props.isMonitored && "fill-current")} />
-            </TooltipTrigger>
-            <TooltipContent>
+            </Button>
+            <Tooltip>
               {props.isMonitored ? `Unmonitor ${mediaLabel}` : `Monitor ${mediaLabel}`}
-            </TooltipContent>
-          </Tooltip>
+            </Tooltip>
+          </TooltipTrigger>
 
-          <Tooltip>
-            <TooltipTrigger
-              render={<Button variant="outline" size="sm" />}
-              onClick={props.onRefreshEpisodes}
-              disabled={props.isRefreshPending}
+          <TooltipTrigger>
+            <Button
+              variant="outline"
+              size="sm"
+              onPress={props.onRefreshEpisodes}
+              isDisabled={props.isRefreshPending}
               className="shrink-0"
             >
               <ArrowClockwiseIcon
                 className={cn("lg:mr-2 h-4 w-4", props.isRefreshPending && "animate-spin")}
               />
               <span className="hidden lg:inline">Refresh</span>
-            </TooltipTrigger>
-            <TooltipContent>Refresh Metadata</TooltipContent>
-          </Tooltip>
+            </Button>
+            <Tooltip>Refresh Metadata</Tooltip>
+          </TooltipTrigger>
 
           <SearchDialog
             mediaId={props.mediaId}
@@ -176,47 +177,45 @@ export function MediaDetailsHeader(props: MediaDetailsHeaderProps) {
             }
           />
 
-          <Tooltip>
-            <TooltipTrigger
-              render={<Button variant="outline" size="sm" />}
-              onClick={props.onSearchMissing}
-              disabled={
+          <TooltipTrigger>
+            <Button
+              variant="outline"
+              size="sm"
+              onPress={props.onSearchMissing}
+              isDisabled={
                 props.isSearchMissingPending || !props.isMonitored || props.missingCount === 0
               }
               className="shrink-0"
             >
               <MagnifyingGlassIcon className="lg:mr-2 h-4 w-4" />
               <span className="hidden lg:inline">Search Missing</span>
-            </TooltipTrigger>
-            <TooltipContent>Search Missing {unitLabelPlural}</TooltipContent>
-          </Tooltip>
+            </Button>
+            <Tooltip>Search Missing {unitLabelPlural}</Tooltip>
+          </TooltipTrigger>
 
-          <Tooltip>
-            <TooltipTrigger
-              render={<Button variant="outline" size="sm" />}
-              onClick={props.onScanFolder}
-              disabled={props.isScanFolderPending}
+          <TooltipTrigger>
+            <Button
+              variant="outline"
+              size="sm"
+              onPress={props.onScanFolder}
+              isDisabled={props.isScanFolderPending}
               className="shrink-0"
             >
               <FileArrowDownIcon
                 className={cn("lg:mr-2 h-4 w-4", props.isScanFolderPending && "animate-spin")}
               />
               <span className="hidden lg:inline">Scan Folder</span>
-            </TooltipTrigger>
-            <TooltipContent>Scan Folder</TooltipContent>
-          </Tooltip>
+            </Button>
+            <Tooltip>Scan Folder</Tooltip>
+          </TooltipTrigger>
 
-          <Tooltip>
-            <TooltipTrigger
-              render={<Button variant="outline" size="sm" />}
-              onClick={props.onRenameFiles}
-              className="shrink-0"
-            >
+          <TooltipTrigger>
+            <Button variant="outline" size="sm" onPress={props.onRenameFiles} className="shrink-0">
               <TextTIcon className="lg:mr-2 h-4 w-4" />
               <span className="hidden lg:inline">Rename</span>
-            </TooltipTrigger>
-            <TooltipContent>Rename Files</TooltipContent>
-          </Tooltip>
+            </Button>
+            <Tooltip>Rename Files</Tooltip>
+          </TooltipTrigger>
 
           <Link to="/media/import" search={{ mediaId: props.mediaId }} className="shrink-0">
             <Button variant="outline" size="sm">
@@ -225,17 +224,18 @@ export function MediaDetailsHeader(props: MediaDetailsHeaderProps) {
             </Button>
           </Link>
 
-          <Tooltip>
-            <TooltipTrigger
-              render={<Button variant="outline" size="sm" />}
-              onClick={props.onOpenBulkMapping}
+          <TooltipTrigger>
+            <Button
+              variant="outline"
+              size="sm"
+              onPress={props.onOpenBulkMapping}
               className="shrink-0"
             >
               <LinkIcon className="lg:mr-2 h-4 w-4" />
               <span className="hidden lg:inline">Map {unitLabelPlural}</span>
-            </TooltipTrigger>
-            <TooltipContent>Manual Map {unitLabelPlural}</TooltipContent>
-          </Tooltip>
+            </Button>
+            <Tooltip>Manual Map {unitLabelPlural}</Tooltip>
+          </TooltipTrigger>
 
           <Link
             to="/logs"
@@ -248,23 +248,19 @@ export function MediaDetailsHeader(props: MediaDetailsHeaderProps) {
             </Button>
           </Link>
 
-          <AlertDialog>
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <AlertDialogTrigger
-                    render={
-                      <Button variant="ghost" size="icon" aria-label={`Delete ${mediaLabel}`} />
-                    }
-                  />
-                }
+          <AlertDialogTrigger>
+            <TooltipTrigger>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={`Delete ${mediaLabel}`}
                 className="text-muted-foreground hover:text-destructive shrink-0"
               >
                 <TrashIcon className="h-4 w-4" />
-              </TooltipTrigger>
-              <TooltipContent>Delete {mediaLabel}</TooltipContent>
-            </Tooltip>
-            <AlertDialogContent>
+              </Button>
+              <Tooltip>Delete {mediaLabel}</Tooltip>
+            </TooltipTrigger>
+            <AlertDialog>
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete {mediaLabel}?</AlertDialogTitle>
                 <AlertDialogDescription>
@@ -275,14 +271,14 @@ export function MediaDetailsHeader(props: MediaDetailsHeaderProps) {
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction
-                  onClick={props.onDeleteMedia}
+                  onPress={props.onDeleteMedia}
                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 >
                   Delete
                 </AlertDialogAction>
               </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+            </AlertDialog>
+          </AlertDialogTrigger>
         </div>
       </div>
     </>

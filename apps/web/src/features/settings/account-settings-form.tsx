@@ -172,7 +172,7 @@ export function AccountSettingsForm() {
                         variant="ghost"
                         size="icon"
                         className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                        onClick={() =>
+                        onPress={() =>
                           setVisibility((prev) => ({
                             ...prev,
                             currentPassword: !prev.currentPassword,
@@ -270,7 +270,7 @@ export function AccountSettingsForm() {
 
               <passwordForm.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
                 {(state) => (
-                  <Button type="submit" disabled={!state[0] || changePassword.isPending}>
+                  <Button type="submit" isDisabled={!state[0] || changePassword.isPending}>
                     {state[1] || changePassword.isPending ? "Changing..." : "Change Password"}
                   </Button>
                 )}
@@ -306,8 +306,7 @@ export function AccountSettingsForm() {
                     variant="ghost"
                     size="icon"
                     className="relative after:absolute after:-inset-2 h-7 w-7"
-                    onClick={() => setVisibility((prev) => ({ ...prev, apiKey: !prev.apiKey }))}
-                    title={visibility.apiKey ? "Hide API key" : "Show API key"}
+                    onPress={() => setVisibility((prev) => ({ ...prev, apiKey: !prev.apiKey }))}
                     aria-label={visibility.apiKey ? "Hide API key" : "Show API key"}
                   >
                     {visibility.apiKey ? (
@@ -321,9 +320,8 @@ export function AccountSettingsForm() {
                     variant="ghost"
                     size="icon"
                     className="relative after:absolute after:-inset-2 h-7 w-7"
-                    onClick={copyApiKey}
-                    disabled={!currentApiKey}
-                    title="Copy API key"
+                    onPress={copyApiKey}
+                    isDisabled={!currentApiKey}
                     aria-label="Copy API key"
                   >
                     <CopyIcon className="h-4 w-4 text-muted-foreground" />
@@ -338,11 +336,11 @@ export function AccountSettingsForm() {
             </p>
 
             <AlertDialog>
-              <AlertDialogTrigger
-                render={<Button variant="outline" disabled={regenerateApiKey.isPending} />}
-              >
-                <ArrowClockwiseIcon className="mr-2 h-4 w-4" />
-                {regenerateApiKey.isPending ? "Regenerating..." : "Regenerate API Key"}
+              <AlertDialogTrigger>
+                <Button variant="outline" isDisabled={regenerateApiKey.isPending}>
+                  <ArrowClockwiseIcon className="mr-2 h-4 w-4" />
+                  {regenerateApiKey.isPending ? "Regenerating..." : "Regenerate API Key"}
+                </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
@@ -354,7 +352,7 @@ export function AccountSettingsForm() {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleRegenerateApiKey}>Regenerate</AlertDialogAction>
+                  <AlertDialogAction onPress={handleRegenerateApiKey}>Regenerate</AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>

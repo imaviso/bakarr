@@ -36,7 +36,7 @@ function ReleaseProfileCard(props: ReleaseProfileCardProps) {
               {props.profile.name}
               <div className="flex items-center gap-1.5">
                 {props.profile.enabled ? (
-                  <Badge variant="success">Enabled</Badge>
+                  <Badge variant="secondary">Enabled</Badge>
                 ) : (
                   <Badge variant="outline" className="text-muted-foreground">
                     Disabled
@@ -63,12 +63,15 @@ function ReleaseProfileCard(props: ReleaseProfileCardProps) {
               <PencilSimpleIcon className="h-4 w-4" />
             </Button>
             <AlertDialog>
-              <AlertDialogTrigger
-                render={<Button variant="ghost" size="icon" />}
-                className="relative after:absolute after:-inset-2 h-8 w-8 text-muted-foreground hover:text-destructive"
-                aria-label="Delete release profile"
-              >
-                <TrashIcon className="h-4 w-4" />
+              <AlertDialogTrigger>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="relative after:absolute after:-inset-2 h-8 w-8 text-muted-foreground hover:text-destructive"
+                  aria-label="Delete release profile"
+                >
+                  <TrashIcon className="h-4 w-4" />
+                </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
@@ -82,7 +85,7 @@ function ReleaseProfileCard(props: ReleaseProfileCardProps) {
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                   <AlertDialogAction
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    onClick={() => props.onDelete(props.profile.id)}
+                    onPress={() => props.onDelete(props.profile.id)}
                   >
                     Delete
                   </AlertDialogAction>
@@ -159,7 +162,7 @@ export function ReleaseProfilesTab() {
                 Global scoring and filtering rules for releases (Groups, Tags)
               </p>
             </div>
-            <Button onClick={() => setIsCreating(true)} disabled={isCreating} size="sm">
+            <Button onPress={() => setIsCreating(true)} isDisabled={isCreating} size="sm">
               <PlusIcon className="mr-2 h-4 w-4" />
               Add Profile
             </Button>
@@ -172,7 +175,7 @@ export function ReleaseProfilesTab() {
               description="Create a profile to prefer certain groups or filter releases"
               className="bg-transparent border-dashed"
             >
-              <Button onClick={() => setIsCreating(true)}>
+              <Button onPress={() => setIsCreating(true)}>
                 <PlusIcon className="mr-2 h-4 w-4" />
                 Create Profile
               </Button>

@@ -23,7 +23,7 @@ interface DownloadsEventsTabProps {
 
 export function DownloadsEventsTab(props: DownloadsEventsTabProps) {
   return (
-    <TabsContent value="events" className="flex-1 mt-0 min-h-0 overflow-hidden flex flex-col">
+    <TabsContent id="events" className="flex-1 mt-0 min-h-0 overflow-hidden flex flex-col">
       <div className="p-4 border-b border-border space-y-3">
         <DownloadEventsFilters
           eventTypeSelectId="events-event-type"
@@ -36,7 +36,7 @@ export function DownloadsEventsTab(props: DownloadsEventsTabProps) {
         />
       </div>
       {props.lastDownloadEventsExport?.truncated && (
-        <Alert variant="warning" className="mx-4 mt-4 text-xs">
+        <Alert className="mx-4 mt-4 text-xs">
           <AlertDescription>
             Last export was truncated: exported {props.lastDownloadEventsExport?.exported} of{" "}
             {props.lastDownloadEventsExport?.total} events ({props.lastDownloadEventsExport?.limit}
@@ -58,15 +58,15 @@ export function DownloadsEventsTab(props: DownloadsEventsTabProps) {
       <div className="p-4 border-t border-border flex justify-end gap-2">
         <Button
           variant="outline"
-          onClick={props.goToPreviousEventsPage}
-          disabled={!props.canGoToPreviousEventsPage}
+          onPress={props.goToPreviousEventsPage}
+          isDisabled={!props.canGoToPreviousEventsPage}
         >
           Previous
         </Button>
         <Button
           variant="outline"
-          onClick={props.goToNextEventsPage}
-          disabled={!props.canGoToNextEventsPage}
+          onPress={props.goToNextEventsPage}
+          isDisabled={!props.canGoToNextEventsPage}
         >
           Next
         </Button>

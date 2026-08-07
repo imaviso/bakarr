@@ -7,7 +7,7 @@ import {
 import { ReleaseMetadataSummary } from "~/features/downloads/release-metadata-summary";
 import type { ReleaseFlag } from "~/domain/release/metadata";
 import type { ReleaseConfidenceMetadata } from "~/domain/release/selection";
-import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
+import { Tooltip, TooltipTrigger } from "~/components/ui/tooltip";
 import { cn } from "~/infra/utils";
 
 interface ReleasePrimaryCellProps {
@@ -52,9 +52,9 @@ export function ReleasePrimaryCell(props: ReleasePrimaryCellProps) {
               {props.title}
             </a>
           </TooltipTrigger>
-          <TooltipContent className="max-w-[400px]">
+          <Tooltip className="max-w-[400px]">
             <p className="break-words font-normal">{props.title}</p>
-          </TooltipContent>
+          </Tooltip>
         </Tooltip>
       ) : (
         <a href={props.sourceUrl} target="_blank" rel="noopener noreferrer" className={titleClass}>

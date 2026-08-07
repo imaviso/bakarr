@@ -11,9 +11,9 @@ import {
 } from "@phosphor-icons/react";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
-import { DialogContent, DialogTitle } from "~/components/ui/dialog";
+import { DialogTitle } from "~/components/ui/dialog";
 import { Label } from "~/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
+import { Popover, PopoverTrigger } from "~/components/ui/popover";
 import { Input } from "~/components/ui/input";
 import {
   Select,
@@ -74,7 +74,7 @@ export function SearchDialogContent(props: SearchDialogContentProps) {
   const unitLabel = mediaUnitLabel(unitKind);
 
   return (
-    <DialogContent className="sm:max-w-7xl w-full h-[85vh] flex flex-col p-0 gap-0 border-none sm:rounded-none bg-background overflow-hidden">
+    <div className="flex flex-col gap-0 sm:max-w-7xl w-full h-[85vh] p-0 border-none sm:rounded-none bg-background overflow-hidden">
       <DialogTitle className="sr-only">Search Releases</DialogTitle>
 
       <div className="flex flex-col border-b border-border">
@@ -90,18 +90,17 @@ export function SearchDialogContent(props: SearchDialogContentProps) {
 
         <div className="flex items-center gap-2 px-4 pb-3 overflow-x-auto">
           <Select
-            items={categoryItems}
-            value={props.category}
-            onValueChange={(value) => props.setCategory(value)}
+            selectedKey={props.category}
+            onSelectionChange={(value) => props.setCategory(String(value))}
           >
             <SelectTrigger className="h-7 w-auto min-w-[130px] text-xs bg-muted border-transparent hover:bg-muted focus:ring-0 gap-2 rounded-none shadow-none px-2.5">
               <span className="text-muted-foreground">Category:</span>
-              <SelectValue placeholder="Category" />
+              <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
                 {categoryItems.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
+                  <SelectItem key={item.value} id={item.value} textValue={item.value}>
                     {item.label}
                   </SelectItem>
                 ))}
@@ -110,18 +109,17 @@ export function SearchDialogContent(props: SearchDialogContentProps) {
           </Select>
 
           <Select
-            items={filterItems}
-            value={props.filter}
-            onValueChange={(value) => props.setFilter(value)}
+            selectedKey={props.filter}
+            onSelectionChange={(value) => props.setFilter(String(value))}
           >
             <SelectTrigger className="h-7 w-auto min-w-[120px] text-xs bg-muted border-transparent hover:bg-muted focus:ring-0 gap-2 rounded-none shadow-none px-2.5">
               <FunnelIcon className="h-3 w-3 text-muted-foreground" />
-              <SelectValue placeholder="Filter" />
+              <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
                 {filterItems.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
+                  <SelectItem key={item.value} id={item.value} textValue={item.value}>
                     {item.label}
                   </SelectItem>
                 ))}
@@ -159,7 +157,7 @@ export function SearchDialogContent(props: SearchDialogContentProps) {
           <WarningIcon className="h-3 w-3 text-warning" /> Remake
         </span>
       </div>
-    </DialogContent>
+    </div>
   );
 }
 
@@ -410,18 +408,16 @@ function ReleaseRow(props: {
         {formatSearchResultAge(props.result.pub_date)}
       </TableCell>
       <TableCell className="py-2.5 pr-4">
-        <Popover open={state.popoverOpen} onOpenChange={state.setPopoverOpen}>
-          <PopoverTrigger render={<div />}>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="relative after:absolute after:-inset-2 h-7 w-7 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity hover:bg-primary/10 hover:text-primary"
-              aria-label="Download release"
-            >
-              <DownloadIcon className="h-4 w-4" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-72 p-3">
+        <PopoverTrigger isOpen={state.popoverOpen} onOpenChange={state.setPopoverOpen}>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="relative after:absolute after:-inset-2 h-7 w-7 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity hover:bg-primary/10 hover:text-primary"
+            aria-label="Download release"
+          >
+            <DownloadIcon className="h-4 w-4" />
+          </Button>
+          <Popover className="w-72 p-3">
             <div className="space-y-3">
               <div className="space-y-1">
                 <h4 className="text-xs font-medium text-foreground">Confirm Download</h4>
@@ -441,8 +437,8 @@ function ReleaseRow(props: {
               <div className="flex items-center gap-2">
                 <Checkbox
                   id={batchCheckboxId}
-                  checked={state.isBatch}
-                  onCheckedChange={state.setIsBatch}
+                  isSelected={state.isBatch}
+                  onChange={state.setIsBatch}
                 />
                 <Label htmlFor={batchCheckboxId} className="text-xs">
                   Batch or pack (multiple {props.unitLabel.toLowerCase()}s)
@@ -475,8 +471,8 @@ function ReleaseRow(props: {
                 </div>
                 <Button
                   size="sm"
-                  onClick={state.handleGrab}
-                  disabled={
+                  onPress={state.handleGrab}
+                  isDisabled={
                     state.grabMutation.isPending || (!state.isBatch && !state.episodeNumberInput)
                   }
                   className="h-7 px-3 text-xs"
@@ -489,8 +485,8 @@ function ReleaseRow(props: {
                 </Button>
               </div>
             </div>
-          </PopoverContent>
-        </Popover>
+          </Popover>
+        </PopoverTrigger>
       </TableCell>
     </TableRow>
   );

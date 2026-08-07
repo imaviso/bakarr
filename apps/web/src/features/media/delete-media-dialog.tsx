@@ -3,7 +3,6 @@ import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
-  AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
@@ -22,9 +21,9 @@ export function DeleteAnimeDialog(props: DeleteAnimeDialogProps) {
   const mediaLabel = props.mediaLabel ?? "Media";
 
   return (
-    <AlertDialog>
-      <AlertDialogTrigger render={<div />}>{props.trigger}</AlertDialogTrigger>
-      <AlertDialogContent>
+    <AlertDialogTrigger>
+      {props.trigger}
+      <AlertDialog>
         <AlertDialogHeader>
           <AlertDialogTitle>Delete {mediaLabel}</AlertDialogTitle>
           <AlertDialogDescription>
@@ -33,9 +32,9 @@ export function DeleteAnimeDialog(props: DeleteAnimeDialogProps) {
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={props.onConfirm}>Delete</AlertDialogAction>
+          <AlertDialogAction onPress={props.onConfirm}>Delete</AlertDialogAction>
         </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+      </AlertDialog>
+    </AlertDialogTrigger>
   );
 }

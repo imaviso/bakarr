@@ -34,10 +34,10 @@ export function DownloadsView(props: DownloadsViewProps) {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => {
+            onPress={() => {
               props.state.triggerSyncDownloads();
             }}
-            disabled={props.state.syncDownloads.isPending}
+            isDisabled={props.state.syncDownloads.isPending}
           >
             <ArrowClockwiseIcon className="h-4 w-4" />
             Sync
@@ -45,10 +45,10 @@ export function DownloadsView(props: DownloadsViewProps) {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => {
+            onPress={() => {
               props.state.triggerSearchMissing();
             }}
-            disabled={props.state.searchMissing.isPending}
+            isDisabled={props.state.searchMissing.isPending}
           >
             <MagnifyingGlassIcon className="h-4 w-4" />
             Search Missing
@@ -57,12 +57,12 @@ export function DownloadsView(props: DownloadsViewProps) {
       </PageHeader>
 
       <Tabs
-        value={props.searchTab}
-        onValueChange={(value) => props.state.handleTabChange(value)}
+        selectedKey={props.searchTab}
+        onSelectionChange={(value) => props.state.handleTabChange(String(value))}
         className="flex min-h-0 flex-1 flex-col"
       >
         <TabsList variant="line" className="w-full justify-start gap-6">
-          <TabsTrigger value="queue">
+          <TabsTrigger id="queue">
             Queue
             {props.state.queueCount > 0 && (
               <Badge variant="secondary" className="ml-2 h-5 min-w-[1.25rem] px-1.5">
@@ -70,8 +70,8 @@ export function DownloadsView(props: DownloadsViewProps) {
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="history">History</TabsTrigger>
-          <TabsTrigger value="events">Events</TabsTrigger>
+          <TabsTrigger id="history">History</TabsTrigger>
+          <TabsTrigger id="events">Events</TabsTrigger>
         </TabsList>
 
         <DownloadsQueueTab queue={props.state.queue} />

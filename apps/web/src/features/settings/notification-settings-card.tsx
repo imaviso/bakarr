@@ -55,8 +55,8 @@ export function NotificationSettingsCard() {
             type="button"
             variant="outline"
             size="sm"
-            disabled={allEnabled}
-            onClick={() => setAllPreferences(true)}
+            isDisabled={allEnabled}
+            onPress={() => setAllPreferences(true)}
           >
             Enable all
           </Button>
@@ -64,8 +64,8 @@ export function NotificationSettingsCard() {
             type="button"
             variant="outline"
             size="sm"
-            disabled={!NOTIFICATION_PREFERENCE_KEYS.some((key) => preferences[key])}
-            onClick={() => setAllPreferences(false)}
+            isDisabled={!NOTIFICATION_PREFERENCE_KEYS.some((key) => preferences[key])}
+            onPress={() => setAllPreferences(false)}
           >
             Disable all
           </Button>
@@ -83,8 +83,8 @@ export function NotificationSettingsCard() {
                 </p>
               </div>
               <Switch
-                checked={preferences[key]}
-                onCheckedChange={(checked) => updatePreference(key, checked)}
+                isSelected={preferences[key]}
+                onChange={(checked) => updatePreference(key, checked)}
               />
             </div>
           ))}

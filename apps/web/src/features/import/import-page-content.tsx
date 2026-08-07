@@ -20,14 +20,7 @@ import { CandidateCard, FileRow, ManualSearch } from "~/features/import";
 import { importSteps, type ImportPageState } from "~/features/import/import-page-state";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "~/components/ui/dialog";
+import { Dialog, DialogDescription, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
@@ -162,32 +155,36 @@ function ImportScanStep(props: { state: ImportPageState }) {
 
       <div className="flex-1 px-8 py-6 overflow-hidden flex flex-col min-h-0">
         <Tabs
-          value={props.state.flow.inputMode}
-          onValueChange={props.state.setInputMode}
+          selectedKey={props.state.flow.inputMode}
+          onSelectionChange={(key) => props.state.setInputMode(key === null ? null : String(key))}
           className="flex-1 flex flex-col min-h-0 overflow-hidden"
         >
           <TabsList className="w-fit">
-            <TabsTrigger value="browser" className="gap-2">
+            <TabsTrigger id="browser" className="gap-2">
               <TreeStructureIcon className="h-4 w-4" />
               Browse
             </TabsTrigger>
-            <TabsTrigger value="manual" className="gap-2">
+            <TabsTrigger id="manual" className="gap-2">
               <TextTIcon className="h-4 w-4" />
               Manual Path
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="browser" className="flex-1 mt-6 min-h-0 overflow-hidden">
+          <TabsContent id="browser" className="flex-1 mt-6 min-h-0 overflow-hidden">
             <div className="h-full border rounded-none overflow-hidden bg-background">
               {props.state.allowedRoots.length > 0 && (
                 <div className="border-b bg-muted px-3 py-2">
                   <Tabs
-                    value={props.state.activeBrowseRoot?.key ?? ""}
-                    onValueChange={props.state.selectBrowseRoot}
+                    {...(props.state.activeBrowseRoot?.key
+                      ? { selectedKey: props.state.activeBrowseRoot.key }
+                      : {})}
+                    onSelectionChange={(key) =>
+                      props.state.selectBrowseRoot(key === null ? null : String(key))
+                    }
                   >
                     <TabsList className="h-8 w-fit">
                       {props.state.allowedRoots.map((root) => (
-                        <TabsTrigger key={root.key} value={root.key} className="px-3 text-xs">
+                        <TabsTrigger key={root.key} id={root.key} className="px-3 text-xs">
                           {root.label}
                         </TabsTrigger>
                       ))}
@@ -217,7 +214,7 @@ function ImportScanStep(props: { state: ImportPageState }) {
             </div>
           </TabsContent>
 
-          <TabsContent value="manual" className="flex-1 mt-6 min-h-0 overflow-auto">
+          <TabsContent id="manual" className="flex-1 mt-6 min-h-0 overflow-auto">
             <section
               aria-label="Drop zone for folder import"
               className={cn(
@@ -275,8 +272,8 @@ function ImportScanStep(props: { state: ImportPageState }) {
             )}
           </div>
           <Button
-            onClick={props.state.flow.handleScan}
-            disabled={!props.state.flow.path || props.state.flow.scanMutation.isPending}
+            onPress={props.state.flow.handleScan}
+            isDisabled={!props.state.flow.path || props.state.flow.scanMutation.isPending}
           >
             {props.state.flow.scanMutation.isPending ? (
               <>
@@ -331,29 +328,31 @@ function ImportReviewStep(props: { state: ImportPageState }) {
               Suggested Series
             </h3>
             <Dialog
-              open={props.state.flow.isSearchOpen}
+              isOpen={props.state.flow.isSearchOpen}
               onOpenChange={props.state.flow.setIsSearchOpen}
+              className="sm:max-w-[500px]"
             >
-              <DialogTrigger
-                render={<Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" />}
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs gap-1.5"
+                onPress={() => props.state.flow.setIsSearchOpen(true)}
               >
                 <PlusIcon className="h-3.5 w-3.5" />
                 Add Series
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[500px]">
-                <DialogHeader>
-                  <DialogTitle>Search Media</DialogTitle>
-                  <DialogDescription>
-                    Search for the series to match your files against.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="py-4">
-                  <ManualSearch
-                    onSelect={props.state.flow.handleManualAdd}
-                    existingIds={props.state.candidateIds}
-                  />
-                </div>
-              </DialogContent>
+              </Button>
+              <DialogHeader>
+                <DialogTitle>Search Media</DialogTitle>
+                <DialogDescription>
+                  Search for the series to match your files against.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="py-4">
+                <ManualSearch
+                  onSelect={props.state.flow.handleManualAdd}
+                  existingIds={props.state.candidateIds}
+                />
+              </div>
             </Dialog>
           </div>
 
@@ -426,13 +425,13 @@ function ImportReviewStep(props: { state: ImportPageState }) {
 
       <div className="px-8 py-4 border-t bg-muted">
         <div className="flex items-center justify-between">
-          <Button variant="ghost" onClick={() => props.state.flow.setStep("scan")}>
+          <Button variant="ghost" onPress={() => props.state.flow.setStep("scan")}>
             <ArrowLeftIcon className="mr-2 h-4 w-4" />
             Back
           </Button>
           <Button
-            onClick={props.state.flow.handleImport}
-            disabled={
+            onPress={props.state.flow.handleImport}
+            isDisabled={
               props.state.flow.selectedFiles.size === 0 || props.state.flow.importMutation.isPending
             }
           >

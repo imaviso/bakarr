@@ -7,7 +7,6 @@ import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
-  AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
@@ -53,29 +52,27 @@ export function AnimeDetailsDialogs() {
       />
 
       <AlertDialog
-        open={ctx.deleteEpisodeState.open}
+        isOpen={ctx.deleteEpisodeState.open}
         onOpenChange={ctx.onDeleteEpisodeDialogOpenChange}
       >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              Delete {mediaUnitLabel(ctx.deleteEpisodeState.unitKind)}{" "}
-              {ctx.deleteEpisodeState.unitNumber}?
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              This will delete the file from disk. This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={ctx.onConfirmDeleteEpisode}
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            Delete {mediaUnitLabel(ctx.deleteEpisodeState.unitKind)}{" "}
+            {ctx.deleteEpisodeState.unitNumber}?
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            This will delete the file from disk. This action cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            onPress={ctx.onConfirmDeleteEpisode}
+          >
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
       </AlertDialog>
 
       <EditPathDialog

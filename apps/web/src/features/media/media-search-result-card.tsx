@@ -53,8 +53,8 @@ export function MediaSearchResultCard(props: MediaSearchResultCardProps) {
             size="sm"
             variant={props.added ? "secondary" : "default"}
             className="w-full gap-2"
-            disabled={props.added}
-            onClick={() => props.onSelect(props.media)}
+            isDisabled={props.added}
+            onPress={() => props.onSelect(props.media)}
           >
             {props.added ? (
               <>

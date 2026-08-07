@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useForm } from "@tanstack/react-form";
 import { Schema } from "effect";
 import { Button } from "~/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
+import { Popover, PopoverTrigger } from "~/components/ui/popover";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 
@@ -50,18 +50,19 @@ export function EditMappingPopover(props: EditMappingPopoverProps) {
   };
 
   return (
-    <Popover open={open} onOpenChange={handleOpenChange}>
-      <PopoverTrigger
-        render={<Button variant="secondary" size="sm" />}
+    <PopoverTrigger isOpen={open} onOpenChange={handleOpenChange}>
+      <Button
+        variant="secondary"
+        size="sm"
         className="h-6 px-2 text-xs font-mono gap-1.5 hover:bg-secondary/80"
-        disabled={props.disabled}
+        isDisabled={Boolean(props.disabled)}
       >
         <span>
           S{props.season ?? 1} E{props.episode}
         </span>
         <PencilSimpleIcon className="h-3 w-3 opacity-50" />
-      </PopoverTrigger>
-      <PopoverContent className="w-64 p-4">
+      </Button>
+      <Popover className="w-64 p-4">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <h4 className="font-medium leading-none">Edit Mapping</h4>
@@ -113,7 +114,7 @@ export function EditMappingPopover(props: EditMappingPopoverProps) {
             </Button>
           </div>
         </form>
-      </PopoverContent>
-    </Popover>
+      </Popover>
+    </PopoverTrigger>
   );
 }

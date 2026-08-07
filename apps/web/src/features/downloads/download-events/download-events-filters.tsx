@@ -1,10 +1,5 @@
 import { DownloadIcon, TableIcon, BracketsCurlyIcon } from "@phosphor-icons/react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "~/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuItem, DropdownMenuTrigger } from "~/components/ui/dropdown-menu";
 import { Button } from "~/components/ui/button";
 import {
   Select,
@@ -72,17 +67,18 @@ export function DownloadEventsFilters(props: DownloadEventsFiltersProps) {
             Event Type
           </label>
           <Select
-            items={DOWNLOAD_EVENT_TYPE_FILTER_OPTIONS.map((o) => ({ value: o, label: o }))}
-            value={props.value.eventType}
-            onValueChange={(value) => props.onFieldChange("eventType", value ?? "")}
+            selectedKey={props.value.eventType}
+            onSelectionChange={(value) =>
+              props.onFieldChange("eventType", value === null ? "" : String(value))
+            }
           >
             <SelectTrigger id={props.eventTypeSelectId}>
-              <SelectValue placeholder="all" />
+              <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
                 {DOWNLOAD_EVENT_TYPE_FILTER_OPTIONS.map((option) => (
-                  <SelectItem key={option} value={option}>
+                  <SelectItem key={option} id={option} textValue={option}>
                     {option}
                   </SelectItem>
                 ))}
@@ -91,22 +87,22 @@ export function DownloadEventsFilters(props: DownloadEventsFiltersProps) {
           </Select>
         </div>
         <div className="flex items-end gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger render={<Button variant="outline" />}>
+          <DropdownMenuTrigger>
+            <Button variant="outline">
               <DownloadIcon className="h-4 w-4" />
               Export
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => props.onExport("json")}>
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuItem onAction={() => props.onExport("json")}>
                 <BracketsCurlyIcon className="h-4 w-4 mr-2" />
                 Export as JSON
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => props.onExport("csv")}>
+              <DropdownMenuItem onAction={() => props.onExport("csv")}>
                 <TableIcon className="h-4 w-4 mr-2" />
                 Export as CSV
               </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            </DropdownMenu>
+          </DropdownMenuTrigger>
         </div>
       </div>
 
@@ -142,37 +138,41 @@ export function DownloadEventsFilters(props: DownloadEventsFiltersProps) {
           <Button
             variant={props.activePreset === 24 ? "default" : "outline"}
             size="sm"
-            onClick={() => props.onApplyPreset(24)}
+            onPress={() => props.onApplyPreset(24)}
           >
             24h
           </Button>
           <Button
             variant={props.activePreset === 168 ? "default" : "outline"}
             size="sm"
-            onClick={() => props.onApplyPreset(24 * 7)}
+            onPress={() => props.onApplyPreset(24 * 7)}
           >
             7d
           </Button>
           <Button
             variant={props.activePreset === 720 ? "default" : "outline"}
             size="sm"
-            onClick={() => props.onApplyPreset(24 * 30)}
+            onPress={() => props.onApplyPreset(24 * 30)}
           >
             30d
           </Button>
-          <Button variant="outline" onClick={props.onClear}>
+          <Button variant="outline" onPress={props.onClear}>
             {props.clearLabel ?? "Clear Filters"}
           </Button>
           {props.showPagination && props.onPrevious && props.onNext && (
             <>
               <Button
                 variant="outline"
-                onClick={props.onPrevious}
-                disabled={props.previousDisabled}
+                onPress={props.onPrevious}
+                isDisabled={Boolean(props.previousDisabled)}
               >
                 Previous
               </Button>
-              <Button variant="outline" onClick={props.onNext} disabled={props.nextDisabled}>
+              <Button
+                variant="outline"
+                onPress={props.onNext}
+                isDisabled={Boolean(props.nextDisabled)}
+              >
                 Next
               </Button>
             </>

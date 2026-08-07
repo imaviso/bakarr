@@ -31,30 +31,30 @@ export function AnimeEpisodesPanel(props: AnimeEpisodesPanelProps) {
   const unitLabelPlural = mediaUnitLabel(unitKind, 2);
 
   return (
-    <Tabs defaultValue="grid" className="w-full">
+    <Tabs defaultSelectedKey="grid" className="w-full">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-base">{unitLabelPlural}</CardTitle>
           <TabsList>
-            <TabsTrigger value="grid">
+            <TabsTrigger id="grid">
               <SquaresFourIcon className="h-4 w-4 mr-2" />
               Grid
             </TabsTrigger>
-            <TabsTrigger value="table">
+            <TabsTrigger id="table">
               <ListIcon className="h-4 w-4 mr-2" />
               Table
             </TabsTrigger>
           </TabsList>
         </CardHeader>
         <CardContent>
-          <TabsContent value="grid">
+          <TabsContent id="grid">
             {!hasEpisodes && (
               <EmptyState
                 compact
                 title={`No ${unitLabelPlural.toLowerCase()} found`}
                 className="border-dashed"
               >
-                <Button variant="link" onClick={props.onRefreshMetadata}>
+                <Button variant="link" onPress={props.onRefreshMetadata}>
                   Refresh metadata
                 </Button>
               </EmptyState>
@@ -98,7 +98,7 @@ export function AnimeEpisodesPanel(props: AnimeEpisodesPanelProps) {
             )}
           </TabsContent>
 
-          <TabsContent value="table">
+          <TabsContent id="table">
             <div className="border rounded-none overflow-auto max-h-[600px] min-w-0">
               <Table className="min-w-0">
                 <TableHeader className="sticky top-0 bg-card z-10 border-b">

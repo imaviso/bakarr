@@ -3,7 +3,7 @@ import type { ObservabilityStatus } from "@bakarr/shared";
 
 import { useObservabilityStatusQuery } from "~/api/system-config";
 import { Badge } from "~/components/ui/badge";
-import { Button } from "~/components/ui/button";
+import { LinkButton } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
 import { SettingRow, SettingSection } from "~/features/settings/form-controls";
 
@@ -56,7 +56,7 @@ export function ObservabilitySettingsPanel() {
               Dashboards and long-term analysis stay in Grafana.
             </p>
           </div>
-          <Badge variant={data.otlp_enabled ? "success" : "secondary"}>
+          <Badge variant={data.otlp_enabled ? "outline" : "secondary"}>
             {data.otlp_enabled ? "OTLP enabled" : "OTLP disabled"}
           </Badge>
         </div>
@@ -88,7 +88,7 @@ export function ObservabilitySettingsPanel() {
           <ReadOnlyValue value={data.metrics_endpoint} />
         </SettingRow>
         <SettingRow label="Scraper auth" description="Whether /api/metrics requires Bakarr auth">
-          <Badge variant={data.metrics_require_auth ? "warning" : "success"}>
+          <Badge variant={data.metrics_require_auth ? "secondary" : "outline"}>
             <LockIcon className="size-3" />
             {data.metrics_require_auth ? "Required" : "Open"}
           </Badge>
@@ -104,14 +104,10 @@ export function ObservabilitySettingsPanel() {
         ) : (
           links.map(({ key, value }) => (
             <SettingRow key={key} label={LINK_LABELS[key]}>
-              <Button
-                variant="outline"
-                size="sm"
-                render={<a href={value} target="_blank" rel="noreferrer" />}
-              >
+              <LinkButton variant="outline" size="sm" href={value} target="_blank" rel="noreferrer">
                 Open
                 <ArrowSquareOutIcon className="size-3.5" />
-              </Button>
+              </LinkButton>
             </SettingRow>
           ))
         )}

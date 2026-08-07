@@ -83,9 +83,12 @@ export function SizeInput(props: {
           className="flex-1"
         />
         <Select
-          value={displayUnit}
-          onValueChange={(value) => {
-            const parsedUnit = parseSizeUnit(value);
+          selectedKey={displayUnit}
+          onSelectionChange={(value) => {
+            if (value === null) {
+              return;
+            }
+            const parsedUnit = parseSizeUnit(String(value));
             if (parsedUnit === undefined) {
               return;
             }
@@ -97,8 +100,12 @@ export function SizeInput(props: {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="MB">MB</SelectItem>
-            <SelectItem value="GB">GB</SelectItem>
+            <SelectItem id="MB" textValue="MB">
+              MB
+            </SelectItem>
+            <SelectItem id="GB" textValue="GB">
+              GB
+            </SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -162,7 +169,7 @@ export function FiniteNumberInput(props: {
         props.onChange(parsed);
         setText(String(parsed));
       }}
-      className={props.className}
+      {...(props.className === undefined ? {} : { className: props.className })}
     />
   );
 }
@@ -233,10 +240,10 @@ export function StringListEditor(props: {
 
   return (
     <Textarea
-      className={props.className}
+      {...(props.className === undefined ? {} : { className: props.className })}
       value={isFocused ? text : formatted}
       rows={props.rows ?? 4}
-      placeholder={props.placeholder}
+      {...(props.placeholder === undefined ? {} : { placeholder: props.placeholder })}
       onFocus={() => {
         setIsFocused(true);
         setText(formatted);
@@ -288,10 +295,10 @@ export function PathMappingsEditor(props: {
 
   return (
     <Textarea
-      className={props.className}
+      {...(props.className === undefined ? {} : { className: props.className })}
       value={isFocused ? text : formatted}
       rows={props.rows ?? 4}
-      placeholder={props.placeholder}
+      {...(props.placeholder === undefined ? {} : { placeholder: props.placeholder })}
       onFocus={() => {
         setIsFocused(true);
         setText(formatted);

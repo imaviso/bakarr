@@ -71,12 +71,15 @@ function QualityProfileCard(props: QualityProfileCardProps) {
               <PencilSimpleIcon className="h-4 w-4" />
             </Button>
             <AlertDialog>
-              <AlertDialogTrigger
-                render={<Button variant="ghost" size="icon" />}
-                className="relative after:absolute after:-inset-2 h-8 w-8 text-muted-foreground hover:text-destructive"
-                aria-label="Delete profile"
-              >
-                <TrashIcon className="h-4 w-4" />
+              <AlertDialogTrigger>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="relative after:absolute after:-inset-2 h-8 w-8 text-muted-foreground hover:text-destructive"
+                  aria-label="Delete profile"
+                >
+                  <TrashIcon className="h-4 w-4" />
+                </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
@@ -90,7 +93,7 @@ function QualityProfileCard(props: QualityProfileCardProps) {
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                   <AlertDialogAction
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    onClick={() => props.onDelete(props.profile.name)}
+                    onPress={() => props.onDelete(props.profile.name)}
                   >
                     Delete
                   </AlertDialogAction>
@@ -117,16 +120,16 @@ function QualityProfileCard(props: QualityProfileCardProps) {
         <div className="flex gap-4 mt-4 text-sm items-center text-muted-foreground">
           <span className="flex items-center gap-2">
             <Switch
-              checked={props.profile.upgrade_allowed}
-              disabled
+              isSelected={props.profile.upgrade_allowed}
+              isDisabled
               className="pointer-events-none"
             />
             <span className={props.profile.upgrade_allowed ? "text-foreground" : ""}>Upgrades</span>
           </span>
           <span className="flex items-center gap-2">
             <Switch
-              checked={props.profile.seadex_preferred}
-              disabled
+              isSelected={props.profile.seadex_preferred}
+              isDisabled
               className="pointer-events-none"
             />
             <span className={props.profile.seadex_preferred ? "text-foreground" : ""}>SeaDex</span>
@@ -171,7 +174,7 @@ export function QualityProfilesTab() {
                 Configure quality profiles for automatic downloads
               </p>
             </div>
-            <Button onClick={() => setIsCreating(true)} disabled={isCreating} size="sm">
+            <Button onPress={() => setIsCreating(true)} isDisabled={isCreating} size="sm">
               <PlusIcon className="mr-2 h-4 w-4" />
               Add Profile
             </Button>
@@ -184,7 +187,7 @@ export function QualityProfilesTab() {
               description="Create a profile to define download quality settings"
               className="bg-transparent border-dashed"
             >
-              <Button onClick={() => setIsCreating(true)}>
+              <Button onPress={() => setIsCreating(true)}>
                 <PlusIcon className="mr-2 h-4 w-4" />
                 Create Profile
               </Button>

@@ -1,7 +1,7 @@
 import { CheckIcon, FileIcon } from "@phosphor-icons/react";
 import { MediaDiscoveryRow } from "~/features/media/media-discovery";
 import { Badge } from "~/components/ui/badge";
-import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
+import { Tooltip, TooltipTrigger } from "~/components/ui/tooltip";
 import type { MediaSearchResult } from "~/api/contracts";
 import { animeDisplayTitle, animeSearchSubtitle } from "~/domain/media/metadata";
 import { cn } from "~/infra/utils";
@@ -53,19 +53,17 @@ export function CandidateCard(props: CandidateCardProps) {
         </div>
 
         <div className="min-w-0 flex-1 space-y-1">
-          <Tooltip>
-            <TooltipTrigger render={<span />}>
-              <span className="block line-clamp-2 text-sm font-medium leading-tight">
-                {animeDisplayTitle(props.candidate)}
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>
+          <TooltipTrigger>
+            <span className="block line-clamp-2 text-sm font-medium leading-tight">
+              {animeDisplayTitle(props.candidate)}
+            </span>
+            <Tooltip>
               <p>{animeDisplayTitle(props.candidate)}</p>
-            </TooltipContent>
-          </Tooltip>
+            </Tooltip>
+          </TooltipTrigger>
 
           <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-            {!props.isLocal && <Badge variant="info">New</Badge>}
+            {!props.isLocal && <Badge>New</Badge>}
             {props.isManual && (
               <Badge
                 variant="secondary"

@@ -134,19 +134,21 @@ export function ProfileForm(props: {
                   Cutoff Quality
                 </label>
                 <Select
-                  value={qualityNames.includes(field.state.value) ? field.state.value : undefined}
-                  onValueChange={(value) => {
+                  {...(qualityNames.includes(field.state.value)
+                    ? { selectedKey: field.state.value }
+                    : {})}
+                  onSelectionChange={(value) => {
                     if (value !== null) {
-                      field.handleChange(value);
+                      field.handleChange(String(value));
                     }
                   }}
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select cutoff..." />
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {qualityNames.map((quality) => (
-                      <SelectItem key={quality} value={quality}>
+                      <SelectItem key={quality} id={quality} textValue={quality}>
                         {quality}
                       </SelectItem>
                     ))}
@@ -215,8 +217,8 @@ export function ProfileForm(props: {
                 <div className="flex items-center gap-2">
                   <Switch
                     id={field.name}
-                    checked={field.state.value}
-                    onCheckedChange={(checked) => field.handleChange(checked)}
+                    isSelected={field.state.value}
+                    onChange={(checked) => field.handleChange(checked)}
                   />
                   <label
                     htmlFor={field.name}
@@ -233,8 +235,8 @@ export function ProfileForm(props: {
                 <div className="flex items-center gap-2">
                   <Switch
                     id={field.name}
-                    checked={field.state.value}
-                    onCheckedChange={(checked) => field.handleChange(checked)}
+                    isSelected={field.state.value}
+                    onChange={(checked) => field.handleChange(checked)}
                   />
                   <label
                     htmlFor={field.name}
@@ -248,14 +250,14 @@ export function ProfileForm(props: {
           </div>
 
           <div className="flex gap-2 justify-end pt-2">
-            <Button type="button" variant="ghost" onClick={props.onCancel}>
+            <Button type="button" variant="ghost" onPress={props.onCancel}>
               Cancel
             </Button>
             <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
               {([canSubmit, isSubmitting]) => (
                 <Button
                   type="submit"
-                  disabled={!canSubmit || createProfile.isPending || updateProfile.isPending}
+                  isDisabled={!canSubmit || createProfile.isPending || updateProfile.isPending}
                 >
                   {isSubmitting ? "Saving..." : isEditing ? "Update" : "Create"}
                 </Button>

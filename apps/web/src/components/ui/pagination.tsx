@@ -1,7 +1,7 @@
 import * as React from "react";
 
-import { cn } from "@/infra/utils";
-import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { LinkButton } from "@/components/ui/button";
 import { CaretLeftIcon, CaretRightIcon, DotsThreeIcon } from "@phosphor-icons/react";
 
 function Pagination({ className, ...props }: React.ComponentProps<"nav">) {
@@ -32,24 +32,18 @@ function PaginationItem({ ...props }: React.ComponentProps<"li">) {
 
 type PaginationLinkProps = {
   isActive?: boolean;
-} & Pick<React.ComponentProps<typeof Button>, "size"> &
-  React.ComponentProps<"a">;
+} & Omit<React.ComponentProps<typeof LinkButton>, "variant">;
 
 function PaginationLink({ className, isActive, size = "icon", ...props }: PaginationLinkProps) {
   return (
-    <Button
+    <LinkButton
       variant={isActive ? "outline" : "ghost"}
       size={size}
       className={cn(className)}
-      nativeButton={false}
-      render={
-        <a
-          aria-current={isActive ? "page" : undefined}
-          data-slot="pagination-link"
-          data-active={isActive}
-          {...props}
-        />
-      }
+      aria-current={isActive ? "page" : undefined}
+      data-slot="pagination-link"
+      data-active={isActive}
+      {...props}
     />
   );
 }
@@ -66,7 +60,7 @@ function PaginationPrevious({
       className={cn("pl-1.5!", className)}
       {...props}
     >
-      <CaretLeftIcon data-icon="inline-start" />
+      <CaretLeftIcon data-icon="inline-start" className="" />
       <span className="hidden sm:block">{text}</span>
     </PaginationLink>
   );
@@ -85,7 +79,7 @@ function PaginationNext({
       {...props}
     >
       <span className="hidden sm:block">{text}</span>
-      <CaretRightIcon data-icon="inline-end" />
+      <CaretRightIcon data-icon="inline-end" className="" />
     </PaginationLink>
   );
 }

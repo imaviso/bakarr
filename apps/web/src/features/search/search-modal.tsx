@@ -21,7 +21,7 @@ export function SearchModal(props: SearchModalProps) {
   });
 
   return (
-    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
+    <Dialog isOpen={props.open} onOpenChange={props.onOpenChange}>
       <SearchModalContent
         unitNumber={props.unitNumber}
         unitTitle={props.unitTitle}

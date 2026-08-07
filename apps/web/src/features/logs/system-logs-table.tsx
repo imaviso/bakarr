@@ -174,7 +174,7 @@ export function SystemLogsTable(props: SystemLogsTableProps) {
                                 variant="ghost"
                                 size="icon"
                                 className="relative after:absolute after:-inset-2 h-8 w-8 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
-                                onClick={() => onSelectLog(log)}
+                                onPress={() => onSelectLog(log)}
                                 aria-label="View details"
                               >
                                 <EyeIcon className="h-4 w-4" />
@@ -315,8 +315,8 @@ function CardShell(props: {
           <Button
             variant="ghost"
             size="sm"
-            onClick={props.onFetchNextPage}
-            disabled={props.isFetchingNextPage}
+            onPress={props.onFetchNextPage}
+            isDisabled={props.isFetchingNextPage}
           >
             {props.isFetchingNextPage ? (
               <>

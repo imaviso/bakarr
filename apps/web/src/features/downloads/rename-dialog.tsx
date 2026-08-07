@@ -5,7 +5,6 @@ import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -85,141 +84,143 @@ export function RenameDialog(props: RenameDialogProps) {
   };
 
   return (
-    <Dialog open={props.open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-7xl max-h-[80vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>Rename Episodes</DialogTitle>
-          <DialogDescription>
-            Preview changes before applying renames. This will move/rename files according to your
-            library settings.
-          </DialogDescription>
-        </DialogHeader>
+    <Dialog
+      isOpen={props.open}
+      onOpenChange={handleOpenChange}
+      className="sm:max-w-7xl max-h-[80vh] flex flex-col"
+    >
+      <DialogHeader>
+        <DialogTitle>Rename Episodes</DialogTitle>
+        <DialogDescription>
+          Preview changes before applying renames. This will move/rename files according to your
+          library settings.
+        </DialogDescription>
+      </DialogHeader>
 
-        <div className="flex-1 overflow-auto min-h-[300px]">
-          {previewQuery.isLoading ? (
-            <div
-              className="flex items-center justify-center h-full"
-              role="status"
-              aria-label="Loading preview"
-            >
-              <SpinnerIcon className="h-8 w-8 animate-spin" />
-              <span className="sr-only">Loading...</span>
-            </div>
-          ) : (
-            <>
-              {previewQuery.isError && (
-                <Alert variant="destructive">
-                  <WarningIcon className="h-4 w-4" />
-                  <AlertTitle>Failed to load preview</AlertTitle>
-                  <AlertDescription>
-                    {previewQuery.error?.message ?? "An unknown error occurred."}
-                  </AlertDescription>
-                </Alert>
-              )}
-              {executeRename.isError && (
-                <Alert variant="destructive">
-                  <WarningIcon className="h-4 w-4" />
-                  <AlertTitle>Rename failed</AlertTitle>
-                  <AlertDescription>
-                    {executeRename.error?.message ?? "An unknown error occurred."}
-                  </AlertDescription>
-                </Alert>
-              )}
-              {executeRename.data ? (
-                <div className="space-y-4" aria-live="polite">
-                  {(executeRename.data.failed ?? 0) > 0 && (
-                    <Alert variant="destructive">
-                      <WarningIcon className="h-4 w-4" />
-                      <AlertTitle>Errors Occurred</AlertTitle>
-                      <AlertDescription>
-                        <ul className="list-disc pl-4 mt-2">
-                          {(executeRename.data.failures || []).map((failure) => (
-                            <li key={failure}>{failure}</li>
-                          ))}
-                        </ul>
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                  <div className="flex flex-col items-center justify-center py-8 text-center">
-                    <CheckIcon className="h-16 w-16 text-success mb-4" />
-                    <h3 className="text-xl font-medium">Rename Complete</h3>
-                    <p className="text-muted-foreground">
-                      {executeRename.data.renamed === 0
-                        ? "No files needed renaming."
-                        : `Successfully renamed ${executeRename.data.renamed} files.`}
-                    </p>
-                  </div>
+      <div className="flex-1 overflow-auto min-h-[300px]">
+        {previewQuery.isLoading ? (
+          <div
+            className="flex items-center justify-center h-full"
+            role="status"
+            aria-label="Loading preview"
+          >
+            <SpinnerIcon className="h-8 w-8 animate-spin" />
+            <span className="sr-only">Loading...</span>
+          </div>
+        ) : (
+          <>
+            {previewQuery.isError && (
+              <Alert variant="destructive">
+                <WarningIcon className="h-4 w-4" />
+                <AlertTitle>Failed to load preview</AlertTitle>
+                <AlertDescription>
+                  {previewQuery.error?.message ?? "An unknown error occurred."}
+                </AlertDescription>
+              </Alert>
+            )}
+            {executeRename.isError && (
+              <Alert variant="destructive">
+                <WarningIcon className="h-4 w-4" />
+                <AlertTitle>Rename failed</AlertTitle>
+                <AlertDescription>
+                  {executeRename.error?.message ?? "An unknown error occurred."}
+                </AlertDescription>
+              </Alert>
+            )}
+            {executeRename.data ? (
+              <div className="space-y-4" aria-live="polite">
+                {(executeRename.data.failed ?? 0) > 0 && (
+                  <Alert variant="destructive">
+                    <WarningIcon className="h-4 w-4" />
+                    <AlertTitle>Errors Occurred</AlertTitle>
+                    <AlertDescription>
+                      <ul className="list-disc pl-4 mt-2">
+                        {(executeRename.data.failures || []).map((failure) => (
+                          <li key={failure}>{failure}</li>
+                        ))}
+                      </ul>
+                    </AlertDescription>
+                  </Alert>
+                )}
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <CheckIcon className="h-16 w-16 text-success mb-4" />
+                  <h3 className="text-xl font-medium">Rename Complete</h3>
+                  <p className="text-muted-foreground">
+                    {executeRename.data.renamed === 0
+                      ? "No files needed renaming."
+                      : `Successfully renamed ${executeRename.data.renamed} files.`}
+                  </p>
                 </div>
-              ) : (
-                <>
-                  {!previewQuery.isError && previewQuery.data && previewQuery.data.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <Table aria-label="Rename preview" className="min-w-[900px]">
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead scope="col" className="w-[80px]">
-                              MediaUnit
-                            </TableHead>
-                            <TableHead scope="col" className="w-[30%]">
-                              Current Filename
-                            </TableHead>
-                            <TableHead scope="col" className="w-[30%]">
-                              New Filename
-                            </TableHead>
-                            <TableHead scope="col" className="min-w-[280px]">
-                              Notes
-                            </TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {previewQuery.data.map((item) => (
-                            <TableRow key={`${item.current_path}-${item.new_filename}`}>
-                              <TableCell>{item.unit_number}</TableCell>
-                              <TableCell className="font-mono text-sm break-all text-muted-foreground">
-                                {item.current_path.split("/").pop()}
-                              </TableCell>
-                              <TableCell className="font-mono text-sm break-all text-success dark:text-success">
-                                {item.new_filename}
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex flex-col gap-1.5">
-                                  <div className="flex flex-wrap gap-1">
-                                    {item.fallback_used && (
-                                      <Badge variant="outline" className="h-5 rounded-none text-xs">
-                                        Fallback
-                                      </Badge>
-                                    )}
-                                    {item.format_used && (
-                                      <Badge
-                                        variant="secondary"
-                                        className="h-5 rounded-none text-xs font-mono"
-                                      >
-                                        {item.format_used}
-                                      </Badge>
-                                    )}
-                                  </div>
-                                  {(item.warnings?.length ||
-                                    item.missing_fields?.length ||
-                                    item.metadata_snapshot) && (
-                                    <div className="space-y-1 text-xs text-muted-foreground">
-                                      {item.metadata_snapshot && (
-                                        <div className="space-y-1">
-                                          <div className="flex flex-wrap gap-1">
-                                            {formatTitleSourceLabel(
-                                              item.metadata_snapshot.title_source,
-                                            ) && (
-                                              <Badge
-                                                variant="secondary"
-                                                className="h-5 rounded-none text-xs"
-                                              >
-                                                {formatTitleSourceLabel(
-                                                  item.metadata_snapshot.title_source,
-                                                )}
-                                              </Badge>
-                                            )}
-                                            {renamePreviewSnapshotBadges(
-                                              item.metadata_snapshot,
-                                            ).map((value) => (
+              </div>
+            ) : (
+              <>
+                {!previewQuery.isError && previewQuery.data && previewQuery.data.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <Table aria-label="Rename preview" className="min-w-[900px]">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead scope="col" className="w-[80px]">
+                            MediaUnit
+                          </TableHead>
+                          <TableHead scope="col" className="w-[30%]">
+                            Current Filename
+                          </TableHead>
+                          <TableHead scope="col" className="w-[30%]">
+                            New Filename
+                          </TableHead>
+                          <TableHead scope="col" className="min-w-[280px]">
+                            Notes
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {previewQuery.data.map((item) => (
+                          <TableRow key={`${item.current_path}-${item.new_filename}`}>
+                            <TableCell>{item.unit_number}</TableCell>
+                            <TableCell className="font-mono text-sm break-all text-muted-foreground">
+                              {item.current_path.split("/").pop()}
+                            </TableCell>
+                            <TableCell className="font-mono text-sm break-all text-success dark:text-success">
+                              {item.new_filename}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-col gap-1.5">
+                                <div className="flex flex-wrap gap-1">
+                                  {item.fallback_used && (
+                                    <Badge variant="outline" className="h-5 rounded-none text-xs">
+                                      Fallback
+                                    </Badge>
+                                  )}
+                                  {item.format_used && (
+                                    <Badge
+                                      variant="secondary"
+                                      className="h-5 rounded-none text-xs font-mono"
+                                    >
+                                      {item.format_used}
+                                    </Badge>
+                                  )}
+                                </div>
+                                {(item.warnings?.length ||
+                                  item.missing_fields?.length ||
+                                  item.metadata_snapshot) && (
+                                  <div className="space-y-1 text-xs text-muted-foreground">
+                                    {item.metadata_snapshot && (
+                                      <div className="space-y-1">
+                                        <div className="flex flex-wrap gap-1">
+                                          {formatTitleSourceLabel(
+                                            item.metadata_snapshot.title_source,
+                                          ) && (
+                                            <Badge
+                                              variant="secondary"
+                                              className="h-5 rounded-none text-xs"
+                                            >
+                                              {formatTitleSourceLabel(
+                                                item.metadata_snapshot.title_source,
+                                              )}
+                                            </Badge>
+                                          )}
+                                          {renamePreviewSnapshotBadges(item.metadata_snapshot).map(
+                                            (value) => (
                                               <Badge
                                                 key={value}
                                                 variant="outline"
@@ -227,89 +228,87 @@ export function RenameDialog(props: RenameDialogProps) {
                                               >
                                                 {value}
                                               </Badge>
-                                            ))}
+                                            ),
+                                          )}
+                                        </div>
+                                        {item.metadata_snapshot.unit_title && (
+                                          <div className="flex items-start gap-1">
+                                            <InfoIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                            <span>
+                                              MediaUnit title: {item.metadata_snapshot.unit_title}
+                                            </span>
                                           </div>
-                                          {item.metadata_snapshot.unit_title && (
-                                            <div className="flex items-start gap-1">
-                                              <InfoIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                                              <span>
-                                                MediaUnit title: {item.metadata_snapshot.unit_title}
-                                              </span>
-                                            </div>
-                                          )}
-                                          {item.metadata_snapshot.air_date && (
-                                            <div className="flex items-start gap-1">
-                                              <InfoIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                                              <span>
-                                                Air date: {item.metadata_snapshot.air_date}
-                                              </span>
-                                            </div>
-                                          )}
-                                        </div>
-                                      )}
-                                      {(item.warnings || []).map((warning) => (
-                                        <div key={warning} className="flex items-start gap-1">
-                                          <WarningIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
-                                          <span>{warning}</span>
-                                        </div>
-                                      ))}
-                                      {(item.missing_fields || []).map((field) => (
-                                        <div key={field} className="flex items-start gap-1">
-                                          <InfoIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                                          <span>Missing `{field}`</span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
+                                        )}
+                                        {item.metadata_snapshot.air_date && (
+                                          <div className="flex items-start gap-1">
+                                            <InfoIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                            <span>Air date: {item.metadata_snapshot.air_date}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                    {(item.warnings || []).map((warning) => (
+                                      <div key={warning} className="flex items-start gap-1">
+                                        <WarningIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
+                                        <span>{warning}</span>
+                                      </div>
+                                    ))}
+                                    {(item.missing_fields || []).map((field) => (
+                                      <div key={field} className="flex items-start gap-1">
+                                        <InfoIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                        <span>Missing `{field}`</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  !previewQuery.isError && (
+                    <div className="flex items-center justify-center h-full text-muted-foreground">
+                      No files need renaming.
                     </div>
-                  ) : (
-                    !previewQuery.isError && (
-                      <div className="flex items-center justify-center h-full text-muted-foreground">
-                        No files need renaming.
-                      </div>
-                    )
-                  )}
-                </>
-              )}
-            </>
-          )}
-        </div>
+                  )
+                )}
+              </>
+            )}
+          </>
+        )}
+      </div>
 
-        <DialogFooter>
-          {executeRename.data ? (
-            <Button onClick={() => props.onOpenChange(false)}>Close</Button>
-          ) : (
-            <>
-              <Button variant="outline" onClick={() => props.onOpenChange(false)}>
-                Cancel
-              </Button>
-              <Button
-                onClick={handleRename}
-                disabled={
-                  executeRename.isPending ||
-                  previewQuery.isError ||
-                  !previewQuery.data ||
-                  previewQuery.data.length === 0
-                }
-                aria-busy={executeRename.isPending}
-              >
-                {executeRename.isPending && <SpinnerIcon className="mr-2 h-4 w-4 animate-spin" />}
-                {executeRename.isPending
-                  ? "Renaming…"
-                  : previewCount > 0
-                    ? `Rename ${previewCount} Files`
-                    : "Rename Files"}
-              </Button>
-            </>
-          )}
-        </DialogFooter>
-      </DialogContent>
+      <DialogFooter>
+        {executeRename.data ? (
+          <Button onPress={() => props.onOpenChange(false)}>Close</Button>
+        ) : (
+          <>
+            <Button variant="outline" onPress={() => props.onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button
+              onPress={handleRename}
+              isDisabled={
+                executeRename.isPending ||
+                previewQuery.isError ||
+                !previewQuery.data ||
+                previewQuery.data.length === 0
+              }
+              aria-busy={executeRename.isPending}
+            >
+              {executeRename.isPending && <SpinnerIcon className="mr-2 h-4 w-4 animate-spin" />}
+              {executeRename.isPending
+                ? "Renaming…"
+                : previewCount > 0
+                  ? `Rename ${previewCount} Files`
+                  : "Rename Files"}
+            </Button>
+          </>
+        )}
+      </DialogFooter>
     </Dialog>
   );
 }

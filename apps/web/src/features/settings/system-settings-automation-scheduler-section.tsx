@@ -16,8 +16,8 @@ export function SystemSettingsAutomationSchedulerSection(
         {(field) => (
           <SettingRow label="Enable Scheduler" description="Run automated background tasks">
             <Switch
-              checked={field.state.value}
-              onCheckedChange={(checked) => field.handleChange(checked)}
+              isSelected={field.state.value}
+              onChange={(checked) => field.handleChange(checked)}
             />
           </SettingRow>
         )}

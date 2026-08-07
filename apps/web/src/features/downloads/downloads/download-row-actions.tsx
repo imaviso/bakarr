@@ -74,8 +74,8 @@ export function ActiveDownloadActions(props: ActiveDownloadActionsProps) {
           size="icon"
           className="relative after:absolute after:-inset-2 h-7 w-7"
           aria-label="Resume download"
-          onClick={handleResume}
-          disabled={!props.downloadId || resumeDownload.isPending}
+          onPress={handleResume}
+          isDisabled={!props.downloadId || resumeDownload.isPending}
         >
           <PlayIcon className="h-4 w-4" />
         </Button>
@@ -86,8 +86,8 @@ export function ActiveDownloadActions(props: ActiveDownloadActionsProps) {
             size="icon"
             className="relative after:absolute after:-inset-2 h-7 w-7"
             aria-label="Pause download"
-            onClick={handlePause}
-            disabled={!props.downloadId || pauseDownload.isPending}
+            onPress={handlePause}
+            isDisabled={!props.downloadId || pauseDownload.isPending}
           >
             <PauseIcon className="h-4 w-4" />
           </Button>
@@ -106,8 +106,8 @@ export function ActiveDownloadActions(props: ActiveDownloadActionsProps) {
           size="icon"
           className="relative after:absolute after:-inset-2 h-7 w-7"
           aria-label="Retry download"
-          onClick={handleRetry}
-          disabled={!props.downloadId || retryDownload.isPending}
+          onPress={handleRetry}
+          isDisabled={!props.downloadId || retryDownload.isPending}
         >
           <ArrowClockwiseIcon className="h-4 w-4" />
         </Button>
@@ -118,8 +118,8 @@ export function ActiveDownloadActions(props: ActiveDownloadActionsProps) {
           size="icon"
           className="relative after:absolute after:-inset-2 h-7 w-7 text-destructive hover:text-destructive"
           aria-label="Remove download"
-          onClick={handleDelete}
-          disabled={!props.downloadId || deleteDownload.isPending}
+          onPress={handleDelete}
+          isDisabled={!props.downloadId || deleteDownload.isPending}
         >
           <TrashIcon className="h-4 w-4" />
         </Button>
@@ -171,8 +171,8 @@ export function HistoryDownloadActions(props: HistoryDownloadActionsProps) {
           size="icon"
           className="relative after:absolute after:-inset-2 h-7 w-7"
           aria-label="Mark as reconciled"
-          onClick={handleReconcile}
-          disabled={reconcileDownload.isPending}
+          onPress={handleReconcile}
+          isDisabled={reconcileDownload.isPending}
         >
           <CheckIcon className="h-4 w-4" />
         </Button>
@@ -183,8 +183,8 @@ export function HistoryDownloadActions(props: HistoryDownloadActionsProps) {
           size="icon"
           className="relative after:absolute after:-inset-2 h-7 w-7"
           aria-label="Retry download"
-          onClick={handleRetry}
-          disabled={retryDownload.isPending}
+          onPress={handleRetry}
+          isDisabled={retryDownload.isPending}
         >
           <ArrowClockwiseIcon className="h-4 w-4" />
         </Button>
@@ -195,8 +195,8 @@ export function HistoryDownloadActions(props: HistoryDownloadActionsProps) {
           size="icon"
           className="relative after:absolute after:-inset-2 h-7 w-7"
           aria-label="Remove download"
-          onClick={handleDelete}
-          disabled={deleteDownload.isPending}
+          onPress={handleDelete}
+          isDisabled={deleteDownload.isPending}
         >
           <TrashIcon className="h-4 w-4" />
         </Button>

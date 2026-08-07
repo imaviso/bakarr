@@ -219,7 +219,7 @@ function LoginPage() {
                   <Button
                     type="submit"
                     className="w-full"
-                    disabled={
+                    isDisabled={
                       !state.canSubmit || loginMutation.isPending || apiKeyLoginMutation.isPending
                     }
                   >
@@ -266,7 +266,7 @@ function LoginPage() {
                     type="submit"
                     variant="secondary"
                     className="w-full"
-                    disabled={
+                    isDisabled={
                       !state.canSubmit || loginMutation.isPending || apiKeyLoginMutation.isPending
                     }
                   >

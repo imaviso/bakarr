@@ -50,10 +50,10 @@ export function FileRow(props: FileRowProps) {
     >
       <div className="flex items-center gap-4 min-w-0">
         <Checkbox
-          checked={props.isSelected}
-          disabled={!hasMatch}
+          isSelected={props.isSelected}
+          isDisabled={!hasMatch}
           aria-label={`Select ${props.file.filename}`}
-          onCheckedChange={(checked) => {
+          onChange={(checked) => {
             const id = matchedAnimeId;
             if (checked && id) {
               props.onToggle(id);
@@ -101,7 +101,7 @@ export function FileRow(props: FileRowProps) {
                   Already mapped
                 </Badge>
               )}
-              {props.file.unit_conflict && <Badge variant="warning">Duplicate episode</Badge>}
+              {props.file.unit_conflict && <Badge variant="outline">Duplicate episode</Badge>}
             </div>
           )}
           {props.file.match_reason && (
@@ -205,17 +205,20 @@ export function FileRow(props: FileRowProps) {
             disabled={!props.isSelected}
             onSave={props.onMappingChange}
           />
-          {props.file.needs_manual_mapping && <Badge variant="warning">Manual</Badge>}
+          {props.file.needs_manual_mapping && <Badge variant="outline">Manual</Badge>}
         </div>
         <div className="flex items-center gap-2 shrink-0 w-64">
           {hasMatch ? (
             <>
               <CheckIcon className="h-4 w-4 text-success shrink-0" />
               <Select
-                value={String(props.selectedAnimeId || matchedAnimeId)}
-                onValueChange={(value) => {
+                selectedKey={String(props.selectedAnimeId || matchedAnimeId)}
+                onSelectionChange={(value) => {
+                  if (value === null) {
+                    return;
+                  }
                   const newId = props.animeOptions.find(
-                    (option) => String(option.id) === value,
+                    (option) => String(option.id) === String(value),
                   )?.id;
                   if (newId !== undefined) {
                     props.onAnimeChange(newId);
@@ -226,11 +229,15 @@ export function FileRow(props: FileRowProps) {
                 }}
               >
                 <SelectTrigger className="h-8 text-xs flex-1">
-                  <SelectValue placeholder={`ID: ${props.selectedAnimeId || matchedAnimeId}`} />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {props.animeOptions.map((option) => (
-                    <SelectItem key={option.id} value={String(option.id)}>
+                    <SelectItem
+                      key={option.id}
+                      id={String(option.id)}
+                      textValue={option.title.english || option.title.romaji}
+                    >
                       <span className="flex items-center gap-2">
                         {option.title.english || option.title.romaji}
                         {option.source === "candidate" && (
@@ -248,10 +255,13 @@ export function FileRow(props: FileRowProps) {
             <>
               <WarningIcon className="h-4 w-4 text-warning shrink-0" />
               <Select
-                value=""
-                onValueChange={(value) => {
+                selectedKey={null}
+                onSelectionChange={(value) => {
+                  if (value === null) {
+                    return;
+                  }
                   const newId = props.animeOptions.find(
-                    (option) => String(option.id) === value,
+                    (option) => String(option.id) === String(value),
                   )?.id;
                   if (newId !== undefined) {
                     props.onToggle(newId);
@@ -259,11 +269,15 @@ export function FileRow(props: FileRowProps) {
                 }}
               >
                 <SelectTrigger className="h-8 text-xs flex-1">
-                  <SelectValue placeholder="Select media..." />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {props.animeOptions.map((option) => (
-                    <SelectItem key={option.id} value={String(option.id)}>
+                    <SelectItem
+                      key={option.id}
+                      id={String(option.id)}
+                      textValue={option.title.english || option.title.romaji}
+                    >
                       <span className="flex items-center gap-2">
                         {option.title.english || option.title.romaji}
                         {option.source === "candidate" && (

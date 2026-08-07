@@ -96,7 +96,7 @@ function SystemForm(props: {
           {([canSubmit]) => (
             <Button
               type="submit"
-              disabled={!canSubmit || props.isSaving}
+              isDisabled={!canSubmit || Boolean(props.isSaving)}
               className="w-full sm:w-auto"
             >
               {props.isSaving ? "Saving..." : "Save Changes"}

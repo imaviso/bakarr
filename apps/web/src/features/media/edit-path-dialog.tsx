@@ -5,7 +5,6 @@ import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -59,54 +58,48 @@ export function EditPathDialog(props: EditPathDialogProps) {
   };
 
   return (
-    <Dialog open={props.open} onOpenChange={handleOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Edit Root Path</DialogTitle>
-          <DialogDescription>Change the folder path for this media.</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="edit-path-input">Path</Label>
-            <form.Field name="path">
-              {(field) => (
-                <Input
-                  id="edit-path-input"
-                  value={field.state.value}
-                  onBlur={field.handleBlur}
-                  onChange={(event) => field.handleChange(event.currentTarget.value)}
-                  placeholder="/path/to/media"
-                />
-              )}
-            </form.Field>
-          </div>
-          <form.Field name="rescan">
+    <Dialog isOpen={props.open} onOpenChange={handleOpenChange}>
+      <DialogHeader>
+        <DialogTitle>Edit Root Path</DialogTitle>
+        <DialogDescription>Change the folder path for this media.</DialogDescription>
+      </DialogHeader>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="edit-path-input">Path</Label>
+          <form.Field name="path">
             {(field) => (
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="rescan"
-                  checked={field.state.value}
-                  onCheckedChange={field.handleChange}
-                />
-                <label
-                  htmlFor="rescan"
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  Rescan folder after update
-                </label>
-              </div>
+              <Input
+                id="edit-path-input"
+                value={field.state.value}
+                onBlur={field.handleBlur}
+                onChange={(event) => field.handleChange(event.currentTarget.value)}
+                placeholder="/path/to/media"
+              />
             )}
           </form.Field>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => props.onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={props.isPending}>
-              {props.isPending ? "Updating..." : "Save"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
+        </div>
+        <form.Field name="rescan">
+          {(field) => (
+            <div className="flex items-center space-x-2">
+              <Checkbox id="rescan" isSelected={field.state.value} onChange={field.handleChange} />
+              <label
+                htmlFor="rescan"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                Rescan folder after update
+              </label>
+            </div>
+          )}
+        </form.Field>
+        <DialogFooter>
+          <Button type="button" variant="outline" onPress={() => props.onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button type="submit" isDisabled={props.isPending}>
+            {props.isPending ? "Updating..." : "Save"}
+          </Button>
+        </DialogFooter>
+      </form>
     </Dialog>
   );
 }

@@ -3,7 +3,6 @@ import { ArrowClockwiseIcon } from "@phosphor-icons/react";
 import { Button } from "~/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -87,84 +86,89 @@ export function BulkMappingDialog(props: BulkMappingDialogProps) {
   };
 
   return (
-    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-      <DialogContent className="sm:max-w-[800px] max-h-[90vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>Bulk Manual Mapping</DialogTitle>
-          <DialogDescription>
-            Map files to episodes manually. Showing all episodes and files.
-          </DialogDescription>
-        </DialogHeader>
+    <Dialog
+      isOpen={props.open}
+      onOpenChange={props.onOpenChange}
+      className="sm:max-w-[800px] max-h-[90vh] flex flex-col"
+    >
+      <DialogHeader>
+        <DialogTitle>Bulk Manual Mapping</DialogTitle>
+        <DialogDescription>
+          Map files to episodes manually. Showing all episodes and files.
+        </DialogDescription>
+      </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto py-4">
-          {filesQuery.data ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead scope="col" className="w-[80px]">
-                    MediaUnit
-                  </TableHead>
-                  <TableHead scope="col">File to Map</TableHead>
+      <div className="flex-1 overflow-y-auto py-4">
+        {filesQuery.data ? (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead scope="col" className="w-[80px]">
+                  MediaUnit
+                </TableHead>
+                <TableHead scope="col">File to Map</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {allEpisodes.map((episode) => (
+                <TableRow key={episode.number}>
+                  <TableCell className="font-medium">Ep {episode.number}</TableCell>
+                  <TableCell>
+                    <Select
+                      selectedKey={mappings[episode.number] ?? episode.file_path ?? null}
+                      onSelectionChange={(value) => {
+                        if (value !== null) {
+                          handleMap(episode.number, String(value));
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="w-full text-xs h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectItem id="" textValue="(Unmap / No File)">
+                            (Unmap / No File)
+                          </SelectItem>
+                          {files.map((file) => {
+                            const itemSize = (file.size / 1024 / 1024).toFixed(1);
+                            return (
+                              <SelectItem
+                                key={file.path}
+                                id={file.path}
+                                textValue={`${file.name} (${itemSize} MB)${file.unit_number !== null ? ` [Ep ${file.unit_number}]` : ""}`}
+                              >
+                                {file.name} ({itemSize} MB)
+                                {file.unit_number !== null ? ` [Ep ${file.unit_number}]` : ""}
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {allEpisodes.map((episode) => (
-                  <TableRow key={episode.number}>
-                    <TableCell className="font-medium">Ep {episode.number}</TableCell>
-                    <TableCell>
-                      <Select
-                        items={[
-                          { value: "", label: "(Unmap / No File)" },
-                          ...files.map((file) => ({
-                            value: file.path,
-                            label: `${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)${file.unit_number !== null ? ` [Ep ${file.unit_number}]` : ""}`,
-                          })),
-                        ]}
-                        value={mappings[episode.number] ?? episode.file_path ?? ""}
-                        onValueChange={(value) => handleMap(episode.number, value ?? "")}
-                      >
-                        <SelectTrigger className="w-full text-xs h-8">
-                          <SelectValue placeholder="Select file..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectGroup>
-                            <SelectItem value="">(Unmap / No File)</SelectItem>
-                            {files.map((file) => {
-                              const itemSize = (file.size / 1024 / 1024).toFixed(1);
-                              return (
-                                <SelectItem key={file.path} value={file.path}>
-                                  {file.name} ({itemSize} MB)
-                                  {file.unit_number !== null ? ` [Ep ${file.unit_number}]` : ""}
-                                </SelectItem>
-                              );
-                            })}
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <div className="flex justify-center py-8">
-              <ArrowClockwiseIcon className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          )}
-        </div>
+              ))}
+            </TableBody>
+          </Table>
+        ) : (
+          <div className="flex justify-center py-8">
+            <ArrowClockwiseIcon className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        )}
+      </div>
 
-        <DialogFooter className="mt-4">
-          <Button variant="outline" onClick={() => props.onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={Object.keys(mappings).length === 0 || bulkMapMutation.isPending}
-          >
-            {bulkMapMutation.isPending ? "Mapping..." : "Save Mappings"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
+      <DialogFooter className="mt-4">
+        <Button variant="outline" onPress={() => props.onOpenChange(false)}>
+          Cancel
+        </Button>
+        <Button
+          onPress={handleSubmit}
+          isDisabled={Object.keys(mappings).length === 0 || bulkMapMutation.isPending}
+        >
+          {bulkMapMutation.isPending ? "Mapping..." : "Save Mappings"}
+        </Button>
+      </DialogFooter>
     </Dialog>
   );
 }
@@ -197,90 +201,88 @@ export function ManualMappingDialog(props: ManualMappingDialogProps) {
   };
 
   return (
-    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
-        <DialogHeader>
-          <DialogTitle>Manual Mapping - MediaUnit {props.unitNumber}</DialogTitle>
-          <DialogDescription>
-            Select a file from the media directory to map to this media unit.
-          </DialogDescription>
-        </DialogHeader>
+    <Dialog isOpen={props.open} onOpenChange={props.onOpenChange} className="sm:max-w-[600px]">
+      <DialogHeader>
+        <DialogTitle>Manual Mapping - MediaUnit {props.unitNumber}</DialogTitle>
+        <DialogDescription>
+          Select a file from the media directory to map to this media unit.
+        </DialogDescription>
+      </DialogHeader>
 
-        <div className="py-4">
-          {files ? (
-            <div className="border rounded-none max-h-[300px] overflow-y-auto">
-              {files.length === 0 && (
-                <div className="p-4 text-center text-sm text-muted-foreground">
-                  No video files found in the media directory.
-                </div>
-              )}
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead scope="col" className="w-[30px]" />
-                    <TableHead scope="col">Filename</TableHead>
-                    <TableHead scope="col" className="w-[100px] text-right">
-                      Size
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {files.map((file) => (
-                    <TableRow
-                      key={file.path}
-                      className={cn(
-                        "cursor-pointer hover:bg-muted focus:bg-muted focus:outline-none",
-                        selectedFile === file.path && "bg-muted",
-                      )}
-                      onClick={() => setSelectedFile(file.path)}
-                      tabIndex={0}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          setSelectedFile(file.path);
-                        }
-                      }}
-                    >
-                      <TableCell>
-                        <div
-                          className={cn(
-                            "h-4 w-4 rounded-full border border-primary",
-                            selectedFile === file.path && "bg-primary",
-                          )}
-                        />
-                      </TableCell>
-                      <TableCell className="font-mono text-xs break-all">
-                        {file.name}
-                        {file.unit_number && (
-                          <span className="ml-2 text-muted-foreground italic">
-                            (Mapped to Ep {file.unit_number})
-                          </span>
+      <div className="py-4">
+        {files ? (
+          <div className="border rounded-none max-h-[300px] overflow-y-auto">
+            {files.length === 0 && (
+              <div className="p-4 text-center text-sm text-muted-foreground">
+                No video files found in the media directory.
+              </div>
+            )}
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead scope="col" className="w-[30px]" />
+                  <TableHead scope="col">Filename</TableHead>
+                  <TableHead scope="col" className="w-[100px] text-right">
+                    Size
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {files.map((file) => (
+                  <TableRow
+                    key={file.path}
+                    className={cn(
+                      "cursor-pointer hover:bg-muted focus:bg-muted focus:outline-none",
+                      selectedFile === file.path && "bg-muted",
+                    )}
+                    onClick={() => setSelectedFile(file.path)}
+                    tabIndex={0}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setSelectedFile(file.path);
+                      }
+                    }}
+                  >
+                    <TableCell>
+                      <div
+                        className={cn(
+                          "h-4 w-4 rounded-full border border-primary",
+                          selectedFile === file.path && "bg-primary",
                         )}
-                      </TableCell>
-                      <TableCell className="text-right text-xs">
-                        {(file.size / 1024 / 1024).toFixed(1)} MB
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          ) : (
-            <div className="flex justify-center py-8">
-              <ArrowClockwiseIcon className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          )}
-        </div>
+                      />
+                    </TableCell>
+                    <TableCell className="font-mono text-xs break-all">
+                      {file.name}
+                      {file.unit_number && (
+                        <span className="ml-2 text-muted-foreground italic">
+                          (Mapped to Ep {file.unit_number})
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right text-xs">
+                      {(file.size / 1024 / 1024).toFixed(1)} MB
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        ) : (
+          <div className="flex justify-center py-8">
+            <ArrowClockwiseIcon className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        )}
+      </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => props.onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit} disabled={!selectedFile || mapMutation.isPending}>
-            {mapMutation.isPending ? "Mapping..." : "Map File"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
+      <DialogFooter>
+        <Button variant="outline" onPress={() => props.onOpenChange(false)}>
+          Cancel
+        </Button>
+        <Button onPress={handleSubmit} isDisabled={!selectedFile || mapMutation.isPending}>
+          {mapMutation.isPending ? "Mapping..." : "Map File"}
+        </Button>
+      </DialogFooter>
     </Dialog>
   );
 }

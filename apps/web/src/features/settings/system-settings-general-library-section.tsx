@@ -102,19 +102,20 @@ export function SystemSettingsGeneralLibrarySection(
             description="How files are moved from downloads to library"
           >
             <Select
-              value={field.state.value}
-              onValueChange={(value) => {
-                if (value !== null) {
-                  field.handleChange(value);
+              selectedKey={field.state.value}
+              onSelectionChange={(value) => {
+                const mode = String(value);
+                if (mode === "copy" || mode === "move") {
+                  field.handleChange(mode);
                 }
               }}
             >
               <SelectTrigger className="w-32">
-                <SelectValue placeholder="Select..." />
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {IMPORT_MODE_OPTIONS.map((option) => (
-                  <SelectItem key={option} value={option}>
+                  <SelectItem key={option} id={option} textValue={importModeLabel(option)}>
                     {importModeLabel(option)}
                   </SelectItem>
                 ))}
@@ -131,19 +132,20 @@ export function SystemSettingsGeneralLibrarySection(
             description="Title language for folder and file naming"
           >
             <Select
-              value={field.state.value}
-              onValueChange={(value) => {
-                if (value !== null) {
-                  field.handleChange(value);
+              selectedKey={field.state.value}
+              onSelectionChange={(value) => {
+                const title = String(value);
+                if (title === "romaji" || title === "english" || title === "native") {
+                  field.handleChange(title);
                 }
               }}
             >
               <SelectTrigger className="w-32">
-                <SelectValue placeholder="Select..." />
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {PREFERRED_TITLE_OPTIONS.map((option) => (
-                  <SelectItem key={option} value={option}>
+                  <SelectItem key={option} id={option} textValue={preferredTitleLabel(option)}>
                     {preferredTitleLabel(option)}
                   </SelectItem>
                 ))}

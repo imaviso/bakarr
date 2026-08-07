@@ -28,7 +28,7 @@ export function DownloadsQueueTab(props: DownloadsQueueTabProps) {
   const queuePaddingBottom = lastItem ? queueVirtualizer.getTotalSize() - lastItem.end : 0;
 
   return (
-    <TabsContent value="queue" className="flex-1 mt-0 min-h-0 overflow-hidden flex flex-col">
+    <TabsContent id="queue" className="flex-1 mt-0 min-h-0 overflow-hidden flex flex-col">
       <div ref={queueScrollRef} className="h-full min-h-0 w-full flex-1 overflow-auto">
         <Table className="table-fixed w-full min-w-0">
           <TableHeader className="sticky top-0 bg-card z-10 border-b">

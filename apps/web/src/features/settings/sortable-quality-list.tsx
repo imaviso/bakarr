@@ -79,7 +79,7 @@ export function SortableQualityList(props: SortableQualityListProps) {
               variant="ghost"
               size="icon"
               className="h-6 w-6 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-              onClick={() => removeQuality(quality)}
+              onPress={() => removeQuality(quality)}
               aria-label={`Remove ${quality}`}
             >
               <XIcon className="h-3.5 w-3.5" />
@@ -94,19 +94,19 @@ export function SortableQualityList(props: SortableQualityListProps) {
       </ul>
 
       <Select
-        value={null}
-        onValueChange={(value) => {
-          if (value) {
-            addQuality(value);
+        selectedKey={null}
+        onSelectionChange={(value) => {
+          if (value !== null) {
+            addQuality(String(value));
           }
         }}
       >
         <SelectTrigger className="w-full">
-          <SelectValue placeholder="Add Quality..." />
+          <SelectValue />
         </SelectTrigger>
         <SelectContent>
           {unusedQualities.map((quality) => (
-            <SelectItem key={quality} value={quality}>
+            <SelectItem key={quality} id={quality} textValue={quality}>
               {quality}
             </SelectItem>
           ))}

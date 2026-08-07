@@ -76,8 +76,8 @@ export function SystemSettingsAutomationMetadataSection(
             description="Use AniDB UDP API to enrich AniList metadata with episode titles and dates"
           >
             <Switch
-              checked={Boolean(field.state.value)}
-              onCheckedChange={(checked) => field.handleChange(checked)}
+              isSelected={Boolean(field.state.value)}
+              onChange={(checked) => field.handleChange(checked)}
             />
           </SettingRow>
         )}

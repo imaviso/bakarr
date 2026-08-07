@@ -19,13 +19,7 @@ import { GeneralError } from "~/components/shared/general-error";
 import { PageHeader } from "~/app/layout/page-header";
 import { PageShell } from "~/app/layout/page-shell";
 import { Button, buttonVariants } from "~/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from "~/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuItem, DropdownMenuTrigger } from "~/components/ui/dropdown-menu";
 import { Input } from "~/components/ui/input";
 import { Separator } from "~/components/ui/separator";
 
@@ -170,28 +164,27 @@ function AnimeIndexPage() {
           />
         </div>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={<Button variant="outline" size="icon" />}
-            aria-label="Filter by status"
-          >
+        <DropdownMenuTrigger>
+          <Button variant="outline" size="icon" aria-label="Filter by status">
             <FunnelIcon className="h-4 w-4" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <DropdownMenuRadioGroup
-              value={filter}
-              onValueChange={(value) => {
-                if (isMonitorFilter(value)) {
+          </Button>
+          <DropdownMenu
+            selectionMode="single"
+            selectedKeys={[filter]}
+            onSelectionChange={(keys) => {
+              for (const value of keys) {
+                if (typeof value === "string" && isMonitorFilter(value)) {
                   updateFilter(value);
                 }
-              }}
-            >
-              <DropdownMenuRadioItem value="all">All Media</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="monitored">Monitored</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="unmonitored">Unmonitored</DropdownMenuRadioItem>
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
+                break;
+              }
+            }}
+          >
+            <DropdownMenuItem id="all">All Media</DropdownMenuItem>
+            <DropdownMenuItem id="monitored">Monitored</DropdownMenuItem>
+            <DropdownMenuItem id="unmonitored">Unmonitored</DropdownMenuItem>
+          </DropdownMenu>
+        </DropdownMenuTrigger>
 
         <Separator orientation="vertical" className="h-6" />
 
