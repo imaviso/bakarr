@@ -344,18 +344,21 @@ const deriveReadablePageSources = Effect.fn("MediaReader.deriveReadablePageSourc
 
     if (hasExtension(input.unitFile.fileName, PDF_EXTENSIONS)) {
       const pageCount = yield* getPdfPageCount(input.executor, input.unitFile.filePath);
-      return Array.from({ length: pageCount }, (_, index) => ({
-        _tag: "PdfPage" as const,
-        cacheDirectory: pdfCacheDirectory({
-          cacheRoot: input.cacheRoot,
+      return Array.from(
+        { length: pageCount },
+        (_, index): ReaderPageSource => ({
+          _tag: "PdfPage",
+          cacheDirectory: pdfCacheDirectory({
+            cacheRoot: input.cacheRoot,
+            filePath: input.unitFile.filePath,
+            fileSize: input.unitFile.fileSize,
+          }),
+          fileName: `page-${index + 1}.jpg`,
           filePath: input.unitFile.filePath,
-          fileSize: input.unitFile.fileSize,
+          mediaType: "image/jpeg",
+          pageNumber: index + 1,
         }),
-        fileName: `page-${index + 1}.jpg`,
-        filePath: input.unitFile.filePath,
-        mediaType: "image/jpeg" as const,
-        pageNumber: index + 1,
-      }));
+      );
     }
 
     return yield* new ReaderAccessError({
@@ -415,12 +418,12 @@ const listArchivePages = Effect.fn("MediaReader.listArchivePages")(function* (in
           ),
     ),
   );
-  const pages = listArchiveImagePages(archive, input.format).flatMap((page) => {
+  const pages = listArchiveImagePages(archive, input.format).flatMap((page): ReaderPageSource[] => {
     const entry = findZipEntry(archive, page.path);
     return entry
       ? [
           {
-            _tag: "ArchivePage" as const,
+            _tag: "ArchivePage",
             archive,
             entry,
             fileName: page.path.split("/").at(-1) ?? page.path,

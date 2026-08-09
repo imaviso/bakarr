@@ -1,3 +1,4 @@
+// oxlint-disable oxc/no-async-await -- async/await required by transaction callbacks, test callbacks, and tryPromise wrappers
 import { CommandExecutor } from "@effect/platform";
 import { dirname } from "node:path";
 import { TextEncoder } from "node:util";

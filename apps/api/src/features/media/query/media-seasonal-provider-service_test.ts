@@ -2,7 +2,7 @@ import { Effect, Layer, Option } from "effect";
 
 import { assert, describe, it } from "@effect/vitest";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
-import { brandMediaId, type MediaSearchResult, type MediaSeason } from "@packages/shared/index.ts";
+import { brandMediaId, type MediaSearchResult } from "@packages/shared/index.ts";
 import {
   MediaSeasonalProviderService,
   MediaSeasonalProviderServiceLive,
@@ -59,13 +59,13 @@ describe("MediaSeasonalProviderService", () => {
   it.effect("returns anilist results on success", () => {
     const anilistResults: Array<MediaSearchResult> = [
       makeAniListSearchResult(1, {
-        season: "spring" as MediaSeason,
+        season: "spring",
         season_year: 2025,
         start_year: 2025,
         title: { romaji: "Spring Media 1" },
       }),
       makeAniListSearchResult(2, {
-        season: "spring" as MediaSeason,
+        season: "spring",
         season_year: 2025,
         start_year: 2025,
         title: { romaji: "Spring Media 2" },

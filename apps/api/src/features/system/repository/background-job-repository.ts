@@ -1,3 +1,4 @@
+// oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 import { eq, sql } from "drizzle-orm";
 import { Effect } from "effect";
 

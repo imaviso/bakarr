@@ -141,7 +141,7 @@ export const loadSystemLibraryStatsAggregate = Effect.fn(
     `),
   );
 
-  return {
+  const stats: SystemLibraryStatsAggregateRow = {
     completedDownloads: row?.completedDownloads ?? 0,
     downloadedUnits: row?.downloadedUnits ?? 0,
     monitoredAnime: row?.monitoredAnime ?? 0,
@@ -149,7 +149,8 @@ export const loadSystemLibraryStatsAggregate = Effect.fn(
     totalRssFeeds: row?.totalRssFeeds ?? 0,
     totalUnits: row?.totalUnits ?? 0,
     upToDateAnime: row?.upToDateAnime ?? 0,
-  } as const;
+  };
+  return stats;
 });
 
 export const listBackgroundJobRows = Effect.fn("SystemStatsRepository.listBackgroundJobRows")(

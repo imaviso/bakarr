@@ -1,3 +1,4 @@
+// oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 import { Effect } from "effect";
 
 import type { DatabaseError } from "@/db/database.ts";
@@ -39,7 +40,14 @@ export interface ImageAssetServiceShape {
   >;
 }
 
-const SUPPORTED_IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"] as const;
+const SUPPORTED_IMAGE_EXTENSIONS: readonly string[] = [
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".webp",
+  ".gif",
+  ".svg",
+];
 const MAX_IMAGE_ASSET_BYTES = 8 * 1024 * 1024;
 
 function isSupportedImageExtension(path: string): boolean {

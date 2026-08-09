@@ -174,7 +174,7 @@ function buildUnmappedImportWorkflow(input: {
               }),
           ),
         ),
-        [] as EpisodeImportMapping[],
+        Array<EpisodeImportMapping>(),
         (acc, file) => {
           const classification = classifyMediaArtifact(file.path, file.name);
           if (classification.kind === "extra" || classification.kind === "sample") {

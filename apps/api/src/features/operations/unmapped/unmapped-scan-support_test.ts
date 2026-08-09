@@ -93,9 +93,9 @@ it.scoped("loadUnmappedFolderSnapshot scans anime, manga, and light novel roots"
 );
 
 it("ensureFolderMatchStatus preserves cached size and source media kind", () => {
-  const folder = {
-    match_status: "pending" as const,
-    media_kind: "manga" as const,
+  const folder: UnmappedFolder = {
+    match_status: "pending",
+    media_kind: "manga",
     name: "Series",
     path: "/library/Series",
     search_queries: ["Series"],

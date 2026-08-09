@@ -9,7 +9,7 @@ it("StreamRangeError has status 416", () => {
   const error = new StreamRangeError({
     fileSize: 1024,
     message: "range not satisfiable",
-    status: 416 as const,
+    status: 416,
   });
   assert.deepStrictEqual(error._tag, "StreamRangeError");
   assert.deepStrictEqual(error.status, 416);

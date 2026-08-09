@@ -391,7 +391,7 @@ const callAniList = <A, I>(
   externalCall: ExternalCallShape,
   operation: string,
   query: string,
-  variables: Record<string, unknown>,
+  variables: Readonly<Record<string, string | number | boolean | undefined>>,
   schema: Schema.Schema<A, I>,
 ): Effect.Effect<A, ExternalCallError> =>
   Effect.gen(function* () {

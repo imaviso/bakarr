@@ -27,7 +27,7 @@ export function composeBackgroundJobStatuses(
   liveSnapshot: BackgroundWorkerSnapshot,
   rows: ReadonlyArray<BackgroundJobHistoryRow>,
 ): BackgroundJobStatus[] {
-  const rowsByName = new Map(rows.map((row) => [row.name, row] as const));
+  const rowsByName = new Map(rows.map((row): [string, BackgroundJobHistoryRow] => [row.name, row]));
   const names = [...new Set([...BACKGROUND_JOB_NAMES, ...rows.map((row) => row.name)])].toSorted();
 
   return names.map((name) =>

@@ -22,6 +22,7 @@ import {
 import { selectMediaTitleForNamingDetails } from "@/features/operations/library/naming-title-support.ts";
 import type {
   CanonicalEpisodeNamingInput,
+  ResolvedNamingPlan,
   UnitFilenamePlan,
 } from "@/features/operations/library/naming-types.ts";
 
@@ -136,13 +137,13 @@ export function buildUnitFilenamePlan(input: {
     ...(input.animeRow.rootFolder === undefined ? {} : { rootFolder: input.animeRow.rootFolder }),
     ...(input.season === undefined ? {} : { season: input.season }),
   });
-  const renderPlan =
+  const renderPlan: ResolvedNamingPlan =
     input.namingFormat === undefined
       ? {
           fallbackUsed: true,
           formatUsed: resolveFallbackNamingFormat(input.animeRow.format, canonical.namingInput),
-          missingFields: [] as readonly string[],
-          warnings: [] as readonly string[],
+          missingFields: [],
+          warnings: [],
         }
       : resolveFilenameRenderPlan({
           animeFormat: input.animeRow.format,
@@ -163,9 +164,9 @@ export function buildUnitFilenamePlan(input: {
 function deriveCanonicalInputWarnings(
   unitNumbers: readonly number[],
   episodeRows?: readonly { title?: string | null; aired?: string | null }[],
-) {
+): string[] {
   if (unitNumbers.length <= 1) {
-    return [] as string[];
+    return [];
   }
 
   const warnings: string[] = [];

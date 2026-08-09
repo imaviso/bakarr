@@ -29,7 +29,7 @@ const QUALITY_ID = {
   WEBRIP_720P: 15,
   WEBDL_540P: 16,
   UNKNOWN: 99,
-} as const;
+};
 
 const QUALITY_DEFS: ReadonlyArray<Quality & { readonly sourceKind: QualitySource }> = [
   makeQuality(QUALITY_ID.BLURAY_2160P_REMUX, "BluRay 2160p Remux", "remux", 2160, 1, "BluRayRemux"),
@@ -156,7 +156,7 @@ function makeQuality(
     resolution,
     source,
     sourceKind,
-  } as const satisfies Quality & { readonly sourceKind: QualitySource };
+  } satisfies Quality & { readonly sourceKind: QualitySource };
 }
 
 const SOURCE_MARKERS = [

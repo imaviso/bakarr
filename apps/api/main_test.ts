@@ -1,3 +1,4 @@
+// oxlint-disable oxc/no-async-await -- async/await required by transaction callbacks, test callbacks, and tryPromise wrappers
 import assert from "node:assert/strict";
 import * as SqliteClient from "@effect/sql-sqlite-node/SqliteClient";
 import { it } from "@effect/vitest";
@@ -36,6 +37,7 @@ import type { MediaSearchResult } from "../../packages/shared/src/index.ts";
 
 declare global {
   interface Response {
+    // oxlint-disable-next-line typescript/no-explicit-any -- mirrors the DOM Response.json<T = any> signature
     json<T = any>(): Promise<T>;
   }
 }
@@ -4775,8 +4777,8 @@ function createClient(input: { readonly url: string }) {
       Effect.runSync(Scope.close(scope, Exit.succeed(undefined)));
     },
     async execute(
-      sqlOrStatement: { readonly args?: ReadonlyArray<unknown>; readonly sql: string } | string,
-      args: ReadonlyArray<unknown> = [],
+      sqlOrStatement: { readonly args?: ReadonlyArray<SqlValue>; readonly sql: string } | string,
+      args: ReadonlyArray<SqlValue> = [],
     ) {
       const statement =
         typeof sqlOrStatement === "string"
@@ -4792,7 +4794,14 @@ function createClient(input: { readonly url: string }) {
   };
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+interface SqlRow {
+  readonly [column: string]: string | number | null;
+}
+
+type SqlValue = string | number | null;
+
+// oxlint-disable-next-line typescript/no-restricted-types -- type guards must accept unknown
+function isRecord(value: unknown): value is SqlRow {
   return typeof value === "object" && value !== null;
 }
 
@@ -4803,8 +4812,8 @@ function toDatabaseFile(url: string) {
 async function waitForSql(
   client: ReturnType<typeof createClient>,
   sql: string,
-  args: ReadonlyArray<unknown> | undefined,
-  predicate: (rows: Array<Record<string, unknown>>) => boolean,
+  args: ReadonlyArray<SqlValue> | undefined,
+  predicate: (rows: Array<SqlRow>) => boolean,
   timeoutMs = 5000,
 ) {
   const deadline = Date.now() + timeoutMs;
@@ -4827,11 +4836,16 @@ async function waitForSql(
   throw new Error(`Timed out waiting for SQL condition: ${sql}`);
 }
 
+const AcceptedOperationEnvelopeSchema = Schema.Struct({
+  data: AsyncOperationAcceptedSchema,
+  success: Schema.Boolean,
+});
+
 async function expectAcceptedTaskResponse(response: Response) {
   assert.deepStrictEqual(response["status"], 202);
-  const raw: Record<string, unknown> = await response.json();
-  assert.deepStrictEqual(raw["success"], true);
-  const accepted = Schema.decodeUnknownSync(AsyncOperationAcceptedSchema)(raw["data"]);
+  const envelope = Schema.decodeUnknownSync(AcceptedOperationEnvelopeSchema)(await response.json());
+  assert.deepStrictEqual(envelope.success, true);
+  const accepted = envelope.data;
   assert.deepStrictEqual(accepted.status, "queued");
   assert.deepStrictEqual(typeof accepted.task_id, "number");
 

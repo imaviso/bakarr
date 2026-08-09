@@ -45,9 +45,9 @@ function makeQueryServiceLayer(
       Effect.succeed({
         degraded: false,
         hasMore: false,
-        provider: "anilist" as const,
+        provider: "anilist",
         results: [],
-        season: "spring" as const,
+        season: "spring",
         year: 2025,
       }),
   });

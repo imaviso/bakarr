@@ -45,69 +45,75 @@ export function toBackgroundJobStatus(
   };
 }
 
-function describeJobSchedule(config: Config, name: string) {
+function describeJobSchedule(
+  config: Config,
+  name: string,
+): {
+  readonly mode: "interval" | "cron" | "disabled" | "manual";
+  readonly value: string | undefined;
+} {
   if (name === "download_sync") {
-    return { mode: "interval" as const, value: "15s" };
+    return { mode: "interval", value: "15s" };
   }
 
   if (name === "rss") {
     if (!config.scheduler.enabled) {
-      return { mode: "disabled" as const, value: undefined };
+      return { mode: "disabled", value: undefined };
     }
 
     const expression = config.scheduler.cron_expression?.trim();
     if (expression) {
       const parsed = Cron.parse(expression);
       if (Either.isRight(parsed)) {
-        return { mode: "cron" as const, value: expression };
+        return { mode: "cron", value: expression };
       }
     }
 
     if (config.scheduler.check_interval_minutes > 0) {
       return {
-        mode: "interval" as const,
+        mode: "interval",
         value: `${config.scheduler.check_interval_minutes}m`,
       };
     }
 
-    return { mode: "disabled" as const, value: undefined };
+    return { mode: "disabled", value: undefined };
   }
 
   if (name === "library_scan") {
     if (config.library.auto_scan_interval_hours > 0) {
       return {
-        mode: "interval" as const,
+        mode: "interval",
         value: `${config.library.auto_scan_interval_hours}h`,
       };
     }
 
-    return { mode: "disabled" as const, value: undefined };
+    return { mode: "disabled", value: undefined };
   }
 
   if (name === "metadata_refresh") {
     if (!config.scheduler.enabled) {
-      return { mode: "disabled" as const, value: undefined };
+      return { mode: "disabled", value: undefined };
     }
 
     if (config.scheduler.metadata_refresh_hours > 0) {
       return {
-        mode: "interval" as const,
+        mode: "interval",
         value: `${config.scheduler.metadata_refresh_hours}h`,
       };
     }
 
-    return { mode: "disabled" as const, value: undefined };
+    return { mode: "disabled", value: undefined };
   }
 
   if (name === "manami_refresh") {
     return config.scheduler.enabled
-      ? { mode: "interval" as const, value: "24h" }
-      : { mode: "disabled" as const, value: undefined };
+      ? { mode: "interval", value: "24h" }
+      : { mode: "disabled", value: undefined };
   }
 
   if (name === "unmapped_scan") {
-    return { mode: "manual" as const, value: undefined };
+    return { mode: "manual", value: undefined };
   }
 
-  return { mode: "manual" as const, value: undefined };
+  return { mode: "manual", value: undefined };
 }

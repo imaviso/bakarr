@@ -61,7 +61,7 @@ export function resolveDownloadCoveragePlan(input: {
   if (!requestedEpisode) {
     return {
       effectiveIsBatch,
-      inferredCoveredEpisodes: [] as readonly number[],
+      inferredCoveredEpisodes: [],
       inferredUnits,
       requestedEpisode,
     };
@@ -123,7 +123,7 @@ export const queueDownload = Effect.fn("Operations.queueDownload")(function* (in
           message: "An in-flight download already covers these mediaUnits",
         });
       }
-      return { _tag: "skipped" } as const;
+      return { _tag: "skipped" } satisfies QueueDownloadOutcome;
     }
   }
 
@@ -157,7 +157,7 @@ export const queueDownload = Effect.fn("Operations.queueDownload")(function* (in
       if (input.conflictPolicy === "fail-with-conflict") {
         return yield* new OperationsConflictError({ message: "Download already exists" });
       }
-      return { _tag: "skipped" } as const;
+      return { _tag: "skipped" } satisfies QueueDownloadOutcome;
     }
 
     return yield* insertError;
@@ -217,5 +217,5 @@ export const queueDownload = Effect.fn("Operations.queueDownload")(function* (in
     now,
   );
 
-  return { _tag: "queued", id: insertedId, status } as const;
+  return { _tag: "queued", id: insertedId, status } satisfies QueueDownloadOutcome;
 });

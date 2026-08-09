@@ -1,13 +1,22 @@
+// oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 import { assert, it } from "@effect/vitest";
 import { buildDownloadExportHeaders } from "@/http/operations/downloads-router.ts";
 
 it("download events export response adds export metadata headers", () => {
-  const page = {
+  const page: {
+    events: readonly unknown[];
+    exported: number;
+    generated_at: string;
+    limit: number;
+    order: "asc" | "desc";
+    total: number;
+    truncated: boolean;
+  } = {
     events: [],
     exported: 3,
     generated_at: "2026-03-27T00:00:00.000Z",
     limit: 50,
-    order: "desc" as const,
+    order: "desc",
     total: 12,
     truncated: true,
   };

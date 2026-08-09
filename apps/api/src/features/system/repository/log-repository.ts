@@ -142,40 +142,43 @@ function streamSystemLogs(
   db: AppDatabase,
   plan: SystemLogExportPlan,
 ): Stream.Stream<SystemLog, DatabaseError> {
-  return Stream.unfoldChunkEffect(
-    { emitted: 0, cursor: undefined as number | undefined },
-    (state) =>
-      Effect.gen(function* () {
-        const remaining = plan.limit - state.emitted;
-        if (remaining <= 0) {
-          return Option.none<readonly [Chunk.Chunk<SystemLog>, typeof state]>();
-        }
+  const initialCursor: {
+    emitted: number;
+    cursor: number | undefined;
+  } = { emitted: 0, cursor: undefined };
 
-        const cursorCondition =
-          state.cursor === undefined ? undefined : lt(systemLogs.id, state.cursor);
-        const conditions = cursorCondition
-          ? [...plan.conditions, cursorCondition]
-          : [...plan.conditions];
-        const query = db
-          .select()
-          .from(systemLogs)
-          .orderBy(desc(systemLogs.id))
-          .limit(Math.min(EXPORT_PAGE_SIZE, remaining));
-        const rows = yield* tryDatabasePromise("Failed to load system logs", () =>
-          conditions.length > 0 ? query.where(and(...conditions)) : query,
-        );
+  return Stream.unfoldChunkEffect(initialCursor, (state) =>
+    Effect.gen(function* () {
+      const remaining = plan.limit - state.emitted;
+      if (remaining <= 0) {
+        return Option.none<readonly [Chunk.Chunk<SystemLog>, typeof state]>();
+      }
 
-        if (rows.length === 0) {
-          return Option.none<readonly [Chunk.Chunk<SystemLog>, typeof state]>();
-        }
+      const cursorCondition =
+        state.cursor === undefined ? undefined : lt(systemLogs.id, state.cursor);
+      const conditions = cursorCondition
+        ? [...plan.conditions, cursorCondition]
+        : [...plan.conditions];
+      const query = db
+        .select()
+        .from(systemLogs)
+        .orderBy(desc(systemLogs.id))
+        .limit(Math.min(EXPORT_PAGE_SIZE, remaining));
+      const rows = yield* tryDatabasePromise("Failed to load system logs", () =>
+        conditions.length > 0 ? query.where(and(...conditions)) : query,
+      );
 
-        return Option.some([
-          Chunk.fromIterable(rows.map(toSystemLog)),
-          {
-            emitted: state.emitted + rows.length,
-            cursor: rows[rows.length - 1]?.id,
-          },
-        ] as const);
-      }),
+      if (rows.length === 0) {
+        return Option.none<readonly [Chunk.Chunk<SystemLog>, typeof state]>();
+      }
+
+      return Option.some<readonly [Chunk.Chunk<SystemLog>, typeof state]>([
+        Chunk.fromIterable(rows.map(toSystemLog)),
+        {
+          emitted: state.emitted + rows.length,
+          cursor: rows[rows.length - 1]?.id,
+        },
+      ]);
+    }),
   );
 }

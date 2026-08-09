@@ -12,7 +12,7 @@ import {
   ensureFolderMatchStatus,
   listUnmappedFolderEntries,
 } from "@/features/operations/unmapped/unmapped-folder-list-support.ts";
-import type { MediaKind } from "@packages/shared/index.ts";
+import type { MediaKind, UnmappedFolder } from "@packages/shared/index.ts";
 import type { MediaRepository } from "@/features/media/shared/media-repository.ts";
 
 export interface ConfigLibraryRoot {
@@ -44,7 +44,9 @@ export const loadUnmappedFolderSnapshot = Effect.fn(
       ),
     ),
   );
-  const cachedByPath = new Map(decodedRows.map((decoded) => [decoded.path, decoded] as const));
+  const cachedByPath = new Map(
+    decodedRows.map((decoded): [string, UnmappedFolder] => [decoded.path, decoded]),
+  );
   const folders = yield* Effect.flatMap(
     Effect.forEach(roots, ({ mediaKind, path: root }) =>
       input.fs.readDir(root).pipe(

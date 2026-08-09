@@ -120,7 +120,7 @@ const makeMediaMetadataEnrichmentService = Effect.fn("MediaMetadataEnrichmentSer
         if (Option.isNone(cacheEntryOption)) {
           return {
             _tag: "Missing",
-          } as const satisfies MediaMetadataEnrichmentCacheState;
+          } satisfies MediaMetadataEnrichmentCacheState;
         }
 
         const cacheEntry = cacheEntryOption.value;
@@ -134,28 +134,31 @@ const makeMediaMetadataEnrichmentService = Effect.fn("MediaMetadataEnrichmentSer
           return {
             _tag: "Stale",
             updatedAt: cacheEntry.updatedAt,
-          } as const satisfies MediaMetadataEnrichmentCacheState;
+          } satisfies MediaMetadataEnrichmentCacheState;
         }
 
         return {
           _tag: "Fresh",
           mediaUnits: cacheEntry.mediaUnits,
           updatedAt: cacheEntry.updatedAt,
-        } as const satisfies MediaMetadataEnrichmentCacheState;
+        } satisfies MediaMetadataEnrichmentCacheState;
       },
     );
 
     const requestAniDbRefresh = Effect.fn("MediaMetadataEnrichmentService.requestAniDbRefresh")(
       function* (request: AniDbRefreshRequest) {
-        const shouldQueue = yield* Ref.modify(queuedAnimeIdsRef, (queuedAnimeIds) => {
-          if (queuedAnimeIds.has(request.mediaId)) {
-            return [false, queuedAnimeIds] as const;
-          }
+        const shouldQueue = yield* Ref.modify(
+          queuedAnimeIdsRef,
+          (queuedAnimeIds): [boolean, Set<number>] => {
+            if (queuedAnimeIds.has(request.mediaId)) {
+              return [false, queuedAnimeIds];
+            }
 
-          const nextQueuedAnimeIds = new Set(queuedAnimeIds);
-          nextQueuedAnimeIds.add(request.mediaId);
-          return [true, nextQueuedAnimeIds] as const;
-        });
+            const nextQueuedAnimeIds = new Set(queuedAnimeIds);
+            nextQueuedAnimeIds.add(request.mediaId);
+            return [true, nextQueuedAnimeIds];
+          },
+        );
 
         if (!shouldQueue) {
           return;

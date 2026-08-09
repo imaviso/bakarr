@@ -20,7 +20,10 @@ const ReadyResponseSchema = Schema.Struct({
 });
 const LiveResponseSchema = Schema.Struct({ status: Schema.Literal("alive") });
 
-const notReadyResponse = { checks: { database: false }, ready: false } as const;
+const notReadyResponse: {
+  readonly checks: { readonly database: boolean };
+  readonly ready: boolean;
+} = { checks: { database: false }, ready: false };
 
 export const healthRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
@@ -38,7 +41,7 @@ export const healthRouter = HttpRouter.empty.pipe(
         const service = yield* SystemReadService;
         return yield* service.getSystemStatus();
       }).pipe(
-        Effect.map(() => ({ checks: { database: true }, ready: true }) as const),
+        Effect.map(() => ({ checks: { database: true }, ready: true })),
         Effect.catchIf(isReadinessDegradedError, () => Effect.succeed(notReadyResponse)),
       ),
       (value: { readonly checks: { readonly database: boolean }; readonly ready: boolean }) =>

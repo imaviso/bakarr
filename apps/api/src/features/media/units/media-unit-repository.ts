@@ -1,3 +1,4 @@
+// oxlint-disable oxc/no-async-await -- drizzle transaction callbacks require async/await
 import { and, eq, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import { Effect, Schema } from "effect";
 

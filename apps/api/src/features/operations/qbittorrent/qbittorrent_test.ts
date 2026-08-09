@@ -508,7 +508,7 @@ it.effect(
         baseUrl: "https://qbit.example",
         password: Redacted.make("secret"),
         username: "demo",
-      } as const;
+      };
 
       yield* Effect.flatMap(QBitTorrentClient, (client) =>
         client.pauseTorrent(config, "abc123"),

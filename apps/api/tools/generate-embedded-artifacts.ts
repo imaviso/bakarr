@@ -1,3 +1,4 @@
+// oxlint-disable oxc/no-async-await -- async/await required by transaction callbacks, test callbacks, and tryPromise wrappers
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -28,14 +29,16 @@ await writeFile(
 
 async function renderEmbeddedMigrationModule(filePaths: readonly string[]) {
   const entries = await Promise.all(
-    [...filePaths].toSorted().map(async (filePath) => {
-      const relativePath = toPosixPath(path.relative(drizzleRoot, filePath));
-      const migrationName = relativePath.replace(/\.sql$/u, "");
-      const sql = await readFile(filePath, "utf8");
-      const statements = splitMigrationStatements(sql);
+    [...filePaths]
+      .toSorted()
+      .map(async (filePath): Promise<readonly [string, readonly string[]]> => {
+        const relativePath = toPosixPath(path.relative(drizzleRoot, filePath));
+        const migrationName = relativePath.replace(/\.sql$/u, "");
+        const sql = await readFile(filePath, "utf8");
+        const statements = splitMigrationStatements(sql);
 
-      return [migrationName, statements] as const;
-    }),
+        return [migrationName, statements];
+      }),
   );
 
   const lines = [

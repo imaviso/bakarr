@@ -178,7 +178,7 @@ it.scoped("ManamiClient refreshes once and serves sqlite lookups", () =>
         );
         const secondLookup = yield* client.getByAniListId(1003);
 
-        return { concurrent, secondLookup } as const;
+        return { concurrent, secondLookup };
       }).pipe(Effect.provide(clientLayer));
 
       const [byAniList, byMal, malFromAniList, aniListFromMal] = result.concurrent;
@@ -482,7 +482,7 @@ it.scoped("ManamiClient revalidates stale cache with conditional request headers
 
         const thirdRefresh = yield* refreshClient.refreshCacheIfNeeded();
 
-        return { firstRefresh, lookupAfterRevalidation, secondRefresh, thirdRefresh } as const;
+        return { firstRefresh, lookupAfterRevalidation, secondRefresh, thirdRefresh };
       }).pipe(Effect.provide(clientLayer));
 
       assert.deepStrictEqual(result.firstRefresh, true);
@@ -532,7 +532,7 @@ it.scoped("ManamiClient rebuilds broken sqlite when stale cache revalidates as n
 
         const refreshed = yield* refreshClient.refreshCacheIfNeeded();
         const lookup = yield* client.getByAniListId(1001);
-        return { lookup, refreshed } as const;
+        return { lookup, refreshed };
       }).pipe(Effect.provide(clientLayer));
 
       assert.deepStrictEqual(result.refreshed, true);
@@ -578,7 +578,7 @@ it.scoped("ManamiClient redownloads unconditionally when 304 cache is unusable",
 
         const refreshed = yield* refreshClient.refreshCacheIfNeeded();
         const lookup = yield* client.getByAniListId(1001);
-        return { lookup, refreshed } as const;
+        return { lookup, refreshed };
       }).pipe(Effect.provide(clientLayer));
 
       assert.deepStrictEqual(result.refreshed, true);

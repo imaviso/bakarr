@@ -74,7 +74,12 @@ export class SearchBackgroundRssService extends Effect.Service<SearchBackgroundR
             0,
           );
 
-          return { newItems, totalFeeds: feeds.length } as const;
+          const result: { readonly newItems: number; readonly totalFeeds: number } = {
+            newItems,
+            totalFeeds: feeds.length,
+          };
+
+          return result;
         }).pipe(
           Effect.withSpan("operations.rss.check"),
           Effect.mapError((error) =>

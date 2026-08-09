@@ -17,7 +17,7 @@ const TOKEN_FIELD_MAP = {
   title: "title",
   video_codec: "videoCodec",
   year: "year",
-} as const satisfies Record<string, keyof NamingInput>;
+} satisfies Record<string, keyof NamingInput>;
 
 type NamingToken = keyof typeof TOKEN_FIELD_MAP;
 

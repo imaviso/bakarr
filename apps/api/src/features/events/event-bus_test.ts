@@ -1,6 +1,7 @@
 import { assert, it } from "@effect/vitest";
 import { Deferred, Effect, Exit, Fiber, Stream, TestClock } from "effect";
 
+import type { NotificationEvent } from "@packages/shared/index.ts";
 import { type EventSubscription, makeEventBus } from "@/features/events/event-bus.ts";
 
 it.scoped("event bus fans out events to active subscribers", () =>
@@ -14,7 +15,7 @@ it.scoped("event bus fans out events to active subscribers", () =>
     const secondStream = eventBus.withSubscriptionStream((subscription: EventSubscription) =>
       Stream.unwrap(Deferred.succeed(secondReady, void 0).pipe(Effect.as(subscription.stream))),
     );
-    const event = { type: "Info", payload: { message: "hello" } } as const;
+    const event: NotificationEvent = { type: "Info", payload: { message: "hello" } };
 
     const firstFiber = yield* Effect.fork(takeNextEvent(firstStream));
     const secondFiber = yield* Effect.fork(takeNextEvent(secondStream));
@@ -127,7 +128,7 @@ it.scoped("event bus does not replay events published before subscription", () =
     const fiber = yield* Effect.fork(Stream.runCollect(stream.pipe(Stream.take(1))));
     yield* Deferred.await(ready);
 
-    const liveEvent = { type: "Info", payload: { message: "live" } } as const;
+    const liveEvent: NotificationEvent = { type: "Info", payload: { message: "live" } };
     yield* eventBus.publish(liveEvent);
 
     const events = yield* Fiber.join(fiber);
@@ -142,7 +143,10 @@ it.scoped("event bus buffers events published during subscription bootstrap", ()
     const subscribed = yield* Deferred.make<void>();
     const releaseBootstrap = yield* Deferred.make<void>();
     const bufferedTaken = yield* Deferred.make<void>();
-    const bootstrapEvent = { type: "Info", payload: { message: "bootstrap" } } as const;
+    const bootstrapEvent: NotificationEvent = {
+      type: "Info",
+      payload: { message: "bootstrap" },
+    };
 
     const stream = eventBus.withSubscriptionStream((subscription: EventSubscription) =>
       Stream.unwrapScoped(
@@ -163,7 +167,7 @@ it.scoped("event bus buffers events published during subscription bootstrap", ()
     yield* Deferred.succeed(releaseBootstrap, void 0);
     yield* Deferred.await(bufferedTaken);
 
-    const liveEvent = { type: "Info", payload: { message: "live" } } as const;
+    const liveEvent: NotificationEvent = { type: "Info", payload: { message: "live" } };
     yield* eventBus.publish(liveEvent);
 
     const events = yield* Fiber.join(fiber);

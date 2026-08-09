@@ -3,7 +3,7 @@ import { Effect } from "effect";
 import type { Config } from "@packages/shared/index.ts";
 import { ConfigValidationError } from "@/features/system/errors.ts";
 
-export const DEFAULT_ANIDB_METADATA_CONFIG = {
+export const DEFAULT_ANIDB_METADATA_CONFIG: AniDbMetadataConfig = {
   client: "bakarr",
   client_version: 1,
   enabled: false,
@@ -11,7 +11,7 @@ export const DEFAULT_ANIDB_METADATA_CONFIG = {
   local_port: 45553,
   password: null,
   username: null,
-} as const;
+};
 
 export const normalizeMetadataProvidersConfig = Effect.fn(
   "SystemConfig.normalizeMetadataProvidersConfig",

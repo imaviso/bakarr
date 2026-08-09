@@ -1,14 +1,17 @@
 import { Schema } from "effect";
 
-export const BACKGROUND_WORKER_NAMES = [
+export const BACKGROUND_WORKER_NAMES: readonly [
   "download_sync",
   "rss",
   "library_scan",
   "metadata_refresh",
   "manami_refresh",
-] as const;
+] = ["download_sync", "rss", "library_scan", "metadata_refresh", "manami_refresh"];
 
-export const BACKGROUND_JOB_NAMES = [...BACKGROUND_WORKER_NAMES, "unmapped_scan"] as const;
+export const BACKGROUND_JOB_NAMES: readonly [...BackgroundWorkerName[], "unmapped_scan"] = [
+  ...BACKGROUND_WORKER_NAMES,
+  "unmapped_scan",
+];
 
 export type BackgroundJobName = (typeof BACKGROUND_JOB_NAMES)[number];
 
@@ -22,7 +25,7 @@ export const BACKGROUND_WORKER_TIMEOUT_MS = {
   manami_refresh: 300_000,
   metadata_refresh: 60_000,
   rss: 120_000,
-} as const satisfies Record<BackgroundWorkerName, number>;
+} satisfies Record<BackgroundWorkerName, number>;
 
 export class BackgroundWorkerStatsModel extends Schema.Class<BackgroundWorkerStatsModel>(
   "BackgroundWorkerStatsModel",

@@ -33,32 +33,32 @@ type TorrentClientConfigState =
       readonly config: QBitConfig;
     };
 
+type QBitDisabledResult = { readonly _tag: "Disabled" };
+
 export interface TorrentClientServiceShape {
   readonly addTorrentUrlIfEnabled: (
     url: string,
-  ) => Effect.Effect<{ readonly _tag: "Disabled" | "Added" }, TorrentClientServiceError>;
+  ) => Effect.Effect<QBitDisabledResult | { readonly _tag: "Added" }, TorrentClientServiceError>;
   readonly deleteTorrentIfEnabled: (
     hash: string,
     deleteFiles: boolean,
-  ) => Effect.Effect<{ readonly _tag: "Deleted" | "Disabled" }, TorrentClientServiceError>;
+  ) => Effect.Effect<QBitDisabledResult | { readonly _tag: "Deleted" }, TorrentClientServiceError>;
   readonly listTorrentContentsIfEnabled: (
     hash: string,
   ) => Effect.Effect<
-    | { readonly _tag: "Disabled" }
-    | { readonly _tag: "Found"; readonly files: readonly QBitTorrentFile[] },
+    QBitDisabledResult | { readonly _tag: "Found"; readonly files: readonly QBitTorrentFile[] },
     TorrentClientServiceError
   >;
   readonly listTorrentsIfEnabled: () => Effect.Effect<
-    | { readonly _tag: "Disabled" }
-    | { readonly _tag: "Found"; readonly torrents: readonly QBitTorrent[] },
+    QBitDisabledResult | { readonly _tag: "Found"; readonly torrents: readonly QBitTorrent[] },
     TorrentClientServiceError
   >;
   readonly pauseTorrentIfEnabled: (
     hash: string,
-  ) => Effect.Effect<{ readonly _tag: "Disabled" | "Paused" }, TorrentClientServiceError>;
+  ) => Effect.Effect<QBitDisabledResult | { readonly _tag: "Paused" }, TorrentClientServiceError>;
   readonly resumeTorrentIfEnabled: (
     hash: string,
-  ) => Effect.Effect<{ readonly _tag: "Disabled" | "Resumed" }, TorrentClientServiceError>;
+  ) => Effect.Effect<QBitDisabledResult | { readonly _tag: "Resumed" }, TorrentClientServiceError>;
 }
 
 export class TorrentClientService extends Effect.Service<TorrentClientService>()(
@@ -86,7 +86,8 @@ export class TorrentClientService extends Effect.Service<TorrentClientService>()
       ) {
         const qbitConfig = yield* resolveConfig();
         if (qbitConfig._tag === "Disabled") {
-          return { _tag: "Disabled" } as const;
+          const disabled: QBitDisabledResult = { _tag: "Disabled" };
+          return disabled;
         }
 
         return yield* run(qbitConfig.config);
@@ -94,24 +95,32 @@ export class TorrentClientService extends Effect.Service<TorrentClientService>()
 
       const addTorrentUrlIfEnabled = Effect.fn("TorrentClientService.addTorrentUrlIfEnabled")(
         function* (url: string) {
-          return yield* withQBitConfig((config) =>
-            qbitClient.addTorrentUrl(config, url).pipe(Effect.as({ _tag: "Added" } as const)),
+          return yield* withQBitConfig(
+            (
+              config,
+            ): Effect.Effect<
+              { readonly _tag: "Added" },
+              ExternalCallError | QBitTorrentClientError
+            > => qbitClient.addTorrentUrl(config, url).pipe(Effect.as({ _tag: "Added" })),
           );
         },
       );
 
       const listTorrentsIfEnabled = Effect.fn("TorrentClientService.listTorrentsIfEnabled")(
         function* () {
-          return yield* withQBitConfig((config) =>
-            qbitClient.listTorrents(config).pipe(
-              Effect.map(
-                (torrents) =>
-                  ({
-                    _tag: "Found",
-                    torrents,
-                  }) as const,
+          return yield* withQBitConfig(
+            (
+              config,
+            ): Effect.Effect<
+              { readonly _tag: "Found"; readonly torrents: readonly QBitTorrent[] },
+              ExternalCallError | QBitTorrentClientError
+            > =>
+              qbitClient.listTorrents(config).pipe(
+                Effect.map((torrents) => ({
+                  _tag: "Found",
+                  torrents,
+                })),
               ),
-            ),
           );
         },
       );
@@ -119,41 +128,60 @@ export class TorrentClientService extends Effect.Service<TorrentClientService>()
       const listTorrentContentsIfEnabled = Effect.fn(
         "TorrentClientService.listTorrentContentsIfEnabled",
       )(function* (hash: string) {
-        return yield* withQBitConfig((config) =>
-          qbitClient.listTorrentContents(config, hash).pipe(
-            Effect.map(
-              (files) =>
-                ({
-                  _tag: "Found",
-                  files,
-                }) as const,
+        return yield* withQBitConfig(
+          (
+            config,
+          ): Effect.Effect<
+            { readonly _tag: "Found"; readonly files: readonly QBitTorrentFile[] },
+            ExternalCallError | QBitTorrentClientError
+          > =>
+            qbitClient.listTorrentContents(config, hash).pipe(
+              Effect.map((files) => ({
+                _tag: "Found",
+                files,
+              })),
             ),
-          ),
         );
       });
 
       const pauseTorrentIfEnabled = Effect.fn("TorrentClientService.pauseTorrentIfEnabled")(
         function* (hash: string) {
-          return yield* withQBitConfig((config) =>
-            qbitClient.pauseTorrent(config, hash).pipe(Effect.as({ _tag: "Paused" } as const)),
+          return yield* withQBitConfig(
+            (
+              config,
+            ): Effect.Effect<
+              { readonly _tag: "Paused" },
+              ExternalCallError | QBitTorrentClientError
+            > => qbitClient.pauseTorrent(config, hash).pipe(Effect.as({ _tag: "Paused" })),
           );
         },
       );
 
       const resumeTorrentIfEnabled = Effect.fn("TorrentClientService.resumeTorrentIfEnabled")(
         function* (hash: string) {
-          return yield* withQBitConfig((config) =>
-            qbitClient.resumeTorrent(config, hash).pipe(Effect.as({ _tag: "Resumed" } as const)),
+          return yield* withQBitConfig(
+            (
+              config,
+            ): Effect.Effect<
+              { readonly _tag: "Resumed" },
+              ExternalCallError | QBitTorrentClientError
+            > => qbitClient.resumeTorrent(config, hash).pipe(Effect.as({ _tag: "Resumed" })),
           );
         },
       );
 
       const deleteTorrentIfEnabled = Effect.fn("TorrentClientService.deleteTorrentIfEnabled")(
         function* (hash: string, deleteFiles: boolean) {
-          return yield* withQBitConfig((config) =>
-            qbitClient
-              .deleteTorrent(config, hash, deleteFiles)
-              .pipe(Effect.as({ _tag: "Deleted" } as const)),
+          return yield* withQBitConfig(
+            (
+              config,
+            ): Effect.Effect<
+              { readonly _tag: "Deleted" },
+              ExternalCallError | QBitTorrentClientError
+            > =>
+              qbitClient
+                .deleteTorrent(config, hash, deleteFiles)
+                .pipe(Effect.as({ _tag: "Deleted" })),
           );
         },
       );
@@ -172,16 +200,18 @@ export class TorrentClientService extends Effect.Service<TorrentClientService>()
 
 export const TorrentClientServiceLive = TorrentClientService.Default;
 
-const maybeQBitConfig = (config: Config) => {
+const maybeQBitConfig = (
+  config: Config,
+): TorrentClientConfigState | { readonly _tag: "InvalidConfig"; readonly reason: string } => {
   if (!config.qbittorrent.enabled) {
-    return { _tag: "Disabled" } as const;
+    return { _tag: "Disabled" };
   }
 
   if (!config.qbittorrent.password && config.qbittorrent.trusted_local !== true) {
     return {
       _tag: "InvalidConfig",
       reason: "qBittorrent is enabled but password is missing",
-    } as const;
+    };
   }
 
   return {
@@ -194,5 +224,5 @@ const maybeQBitConfig = (config: Config) => {
       savePath: config.qbittorrent.save_path || undefined,
       username: config.qbittorrent.username,
     }),
-  } as const;
+  };
 };

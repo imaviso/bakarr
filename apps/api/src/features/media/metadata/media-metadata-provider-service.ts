@@ -120,7 +120,7 @@ export const seasonalWithFallback = Effect.fn("MediaMetadata.seasonalWithFallbac
       return {
         degraded: false,
         hasMore: anilistAttempt.right.length === input.limit,
-        provider: "anilist" as const,
+        provider: "anilist",
         results: anilistAttempt.right.map(toMediaSearchResult),
         season: input.season,
         year: input.year,
@@ -159,7 +159,10 @@ export const seasonalWithFallback = Effect.fn("MediaMetadata.seasonalWithFallbac
             Effect.as(Option.none<number>()),
           ),
         ),
-        Effect.map((anilistIdOption) => [entry, anilistIdOption] as const),
+        Effect.map((anilistIdOption): [typeof entry, Option.Option<number>] => [
+          entry,
+          anilistIdOption,
+        ]),
       ),
     );
 
@@ -176,7 +179,7 @@ export const seasonalWithFallback = Effect.fn("MediaMetadata.seasonalWithFallbac
     return {
       degraded: true,
       hasMore: jikanEntries.length === input.limit,
-      provider: "jikan_fallback" as const,
+      provider: "jikan_fallback",
       results,
       season: input.season,
       year: input.year,
@@ -296,7 +299,7 @@ const makeMediaMetadataProviderService = Effect.fn("MediaMetadataProviderService
         const metadata = yield* aniList.getAnimeMetadataById(id, mediaKind);
 
         if (Option.isNone(metadata)) {
-          return { _tag: "NotFound" } as const satisfies MediaMetadataLookupResult;
+          return { _tag: "NotFound" } satisfies MediaMetadataLookupResult;
         }
 
         const baseMetadata = metadata.value;
@@ -309,7 +312,7 @@ const makeMediaMetadataProviderService = Effect.fn("MediaMetadataProviderService
               reason: { _tag: "AniDbNoEpisodeMetadata" },
             },
             metadata: baseMetadata,
-          } as const satisfies MediaMetadataLookupResult;
+          } satisfies MediaMetadataLookupResult;
         }
 
         const manamiMetadata = yield* optionalExternalMetadataLookup(
@@ -372,7 +375,7 @@ const makeMediaMetadataProviderService = Effect.fn("MediaMetadataProviderService
           title: mergedMetadata.title,
         });
 
-        const result = {
+        const result: MediaMetadataLookupResult = {
           _tag: "Found",
           enrichment: {
             _tag: "Degraded",
@@ -382,7 +385,7 @@ const makeMediaMetadataProviderService = Effect.fn("MediaMetadataProviderService
             },
           },
           metadata: mergedMetadata,
-        } as const satisfies MediaMetadataLookupResult;
+        };
 
         yield* logEnrichmentResult(mergedMetadata.id, result.enrichment);
         return result;
@@ -439,7 +442,7 @@ const toFreshLookupResult = Effect.fn("MediaMetadataProviderService.toFreshLooku
     const mergedEpisodes = mergeLookupEpisodes(baseMetadata, cacheState);
 
     if (cacheState.mediaUnits.length === 0) {
-      const result = {
+      const result: MediaMetadataLookupResult = {
         _tag: "Found",
         enrichment: {
           _tag: "Degraded",
@@ -448,7 +451,7 @@ const toFreshLookupResult = Effect.fn("MediaMetadataProviderService.toFreshLooku
           },
         },
         metadata: baseMetadata,
-      } as const satisfies MediaMetadataLookupResult;
+      };
 
       yield* logEnrichmentResult(baseMetadata.id, result.enrichment);
       return result;
@@ -465,7 +468,7 @@ const toFreshLookupResult = Effect.fn("MediaMetadataProviderService.toFreshLooku
         ...baseMetadata,
         mediaUnits: mergedEpisodes,
       },
-    } as const satisfies MediaMetadataLookupResult;
+    } satisfies MediaMetadataLookupResult;
   },
 );
 
@@ -528,7 +531,7 @@ const resolveMalToAniListIdMap = Effect.fn("MediaMetadataProviderService.resolve
           malId,
           lookup: "resolveAniListIdFromMalId",
           provider: "Manami",
-        }).pipe(Effect.map((mediaId) => [malId, mediaId] as const)),
+        }).pipe(Effect.map((mediaId): [number, Option.Option<number>] => [malId, mediaId])),
       { concurrency: 4 },
     );
 

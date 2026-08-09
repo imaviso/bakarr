@@ -1,3 +1,5 @@
+// oxlint-disable oxc/no-async-await -- async/await required by transaction callbacks, test callbacks, and tryPromise wrappers
+// oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 import { FileSystem as PlatformFileSystem, Path as PlatformPath } from "@effect/platform";
 import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem";
 import * as NodePath from "@effect/platform-node/NodePath";
@@ -102,13 +104,13 @@ const FILE_TYPE_FLAGS = {
   Directory: { isDirectory: true, isFile: false, isSymlink: false },
   File: { isDirectory: false, isFile: true, isSymlink: false },
   SymbolicLink: { isDirectory: false, isFile: false, isSymlink: true },
-} as const;
+};
 
 const UNKNOWN_FILE_TYPE_FLAGS = {
   isDirectory: false,
   isFile: false,
   isSymlink: false,
-} as const;
+};
 
 export class FileSystem extends Effect.Service<FileSystem>()("@bakarr/api/FileSystem", {
   effect: Effect.gen(function* () {

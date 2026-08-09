@@ -1,4 +1,5 @@
 // oxlint-disable typescript-eslint/consistent-return
+// oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 import { Effect, Schema } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";

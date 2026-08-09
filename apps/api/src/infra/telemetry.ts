@@ -48,7 +48,7 @@ export function parseKeyValueList(value: string): Record<string, string> {
     .split(",")
     .map((entry) => entry.trim())
     .filter((entry) => entry.length > 0)
-    .flatMap((entry) => {
+    .flatMap((entry): readonly (readonly [string, string])[] => {
       const separatorIndex = entry.indexOf("=");
 
       if (separatorIndex <= 0) {
@@ -58,7 +58,7 @@ export function parseKeyValueList(value: string): Record<string, string> {
       const key = entry.slice(0, separatorIndex).trim();
       const parsedValue = entry.slice(separatorIndex + 1).trim();
 
-      return key.length === 0 ? [] : [[key, parsedValue] as const];
+      return key.length === 0 ? [] : [[key, parsedValue]];
     });
 
   return Object.fromEntries(entries);

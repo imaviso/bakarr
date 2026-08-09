@@ -21,11 +21,11 @@ export function buildMissingEpisodeRows(input: {
   nowIso?: string;
   resetMissingOnly: boolean;
   existingRows: readonly (typeof mediaUnits.$inferSelect)[];
-}) {
+}): (typeof mediaUnits.$inferInsert)[] {
   const unitNumbers = resolveEpisodeNumbers(input.unitCount, input.futureAiringSchedule);
 
   if (unitNumbers.length === 0) {
-    return [] as (typeof mediaUnits.$inferInsert)[];
+    return [];
   }
 
   const existingByNumber = new Map(input.existingRows.map((row) => [row.number, row]));
@@ -62,13 +62,13 @@ export function buildMissingEpisodeRows(input: {
 function resolveEpisodeNumbers(
   unitCount: number | undefined,
   futureAiringSchedule: ReadonlyArray<FutureAiringScheduleEntry> | undefined,
-) {
+): number[] {
   if (unitCount && unitCount > 0) {
     return range(1, unitCount);
   }
 
   if (!Array.isArray(futureAiringSchedule) || futureAiringSchedule.length === 0) {
-    return [] as number[];
+    return [];
   }
 
   const scheduleEpisodeNumbers = [
@@ -83,7 +83,7 @@ function resolveEpisodeNumbers(
   const upperBound = clampInferredEpisodeUpperBound(maxScheduled);
 
   if (upperBound === undefined) {
-    return [] as number[];
+    return [];
   }
 
   return range(1, upperBound);

@@ -27,6 +27,10 @@ export interface SerializedDropEffectRunner<A, E, R = never> {
   readonly trigger: Effect.Effect<Option.Option<A>, E, R>;
 }
 
+type TriggerStart<A, E> =
+  | { readonly completion: Deferred.Deferred<A, E>; readonly shouldStart: false }
+  | { readonly completion: Deferred.Deferred<A, E>; readonly shouldStart: true };
+
 export const makeSerializedDrainEffectRunner = Effect.fn(
   "EffectCoalescing.makeSerializedDrainEffectRunner",
 )(
@@ -149,7 +153,11 @@ const makeDrainOrShareEffectRunner = Effect.fn("EffectCoalescing.makeSerializedE
                   yield* Ref.set(state, { ...current, pending: true });
                 }
 
-                return { completion: current.completion, shouldStart: false } as const;
+                const existing: TriggerStart<A, E> = {
+                  completion: current.completion,
+                  shouldStart: false,
+                };
+                return existing;
               }
 
               const completion = yield* Deferred.make<A, E>();
@@ -160,7 +168,8 @@ const makeDrainOrShareEffectRunner = Effect.fn("EffectCoalescing.makeSerializedE
                 running: true,
               });
 
-              return { completion, shouldStart: true } as const;
+              const fresh: TriggerStart<A, E> = { completion, shouldStart: true };
+              return fresh;
             }),
           );
 

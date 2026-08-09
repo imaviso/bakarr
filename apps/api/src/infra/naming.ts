@@ -63,7 +63,7 @@ const TOKEN_PATTERNS = {
   title: /\{title\}/g,
   videoCodec: /\{video_codec\}/g,
   year: /\{year\}/g,
-} as const;
+};
 
 const CLEANUP_PATTERNS = {
   duplicateDashSeparator: /(?:\s*-\s*){2,}/g,
@@ -72,7 +72,7 @@ const CLEANUP_PATTERNS = {
   leadingDashSeparator: /^\s*-\s+/g,
   multiWhitespace: /\s{2,}/g,
   trailingDashSeparator: /\s+-\s*$/g,
-} as const;
+};
 
 const WRAPPED_SEGMENT_PATTERNS: Record<"(" | "[", RegExp> = {
   "(": /\(([^)]*)\)/g,

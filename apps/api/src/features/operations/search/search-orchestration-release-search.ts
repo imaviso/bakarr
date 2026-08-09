@@ -165,7 +165,7 @@ function getUnitReleaseRejectionReason(
   item: ParsedRelease,
   unitNumber: number,
   seenInfoHashes: ReadonlySet<string>,
-) {
+): "episode_mismatch" | "duplicate_info_hash" | null {
   const parsedRelease = parseReleaseName(item.title);
 
   if (
@@ -173,11 +173,11 @@ function getUnitReleaseRejectionReason(
     !parsedRelease.unitNumbers.includes(unitNumber) &&
     !parsedRelease.isBatch
   ) {
-    return "episode_mismatch" as const;
+    return "episode_mismatch";
   }
 
   if (seenInfoHashes.has(item.infoHash)) {
-    return "duplicate_info_hash" as const;
+    return "duplicate_info_hash";
   }
 
   return null;
@@ -187,15 +187,15 @@ function getVolumeReleaseRejectionReason(
   item: ParsedRelease,
   volumeNumber: number,
   seenInfoHashes: ReadonlySet<string>,
-) {
+): "volume_mismatch" | "duplicate_info_hash" | null {
   const volumes = parseVolumeNumbersFromTitle(item.title);
 
   if (volumes.length > 0 && !volumes.includes(volumeNumber)) {
-    return "volume_mismatch" as const;
+    return "volume_mismatch";
   }
 
   if (seenInfoHashes.has(item.infoHash)) {
-    return "duplicate_info_hash" as const;
+    return "duplicate_info_hash";
   }
 
   return null;
@@ -240,7 +240,7 @@ function collectUnitSearchReleases(
       queries,
       (query) =>
         seenInfoHashes.size >= 10
-          ? Effect.succeed([] as readonly ParsedRelease[])
+          ? Effect.succeed<readonly ParsedRelease[]>([])
           : searchNyaaReleases(query, config, category).pipe(
               Effect.tap((items) =>
                 Effect.logDebug("MediaUnit search query completed").pipe(

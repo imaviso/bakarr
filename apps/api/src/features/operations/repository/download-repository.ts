@@ -1,3 +1,4 @@
+// oxlint-disable oxc/no-async-await -- async/await required by transaction callbacks, test callbacks, and tryPromise wrappers
 import { and, desc, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
 import { Effect, type Stream } from "effect";
 

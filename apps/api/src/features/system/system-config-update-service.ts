@@ -30,6 +30,10 @@ export interface SystemConfigUpdateServiceShape {
   ) => Effect.Effect<Config, DatabaseError | ConfigValidationError | StoredConfigCorruptError>;
 }
 
+type PreservedPasswordState =
+  | { readonly _tag: "Stored"; readonly storedConfig: ConfigCore }
+  | { readonly _tag: "Corrupt" };
+
 const makeSystemConfigUpdateService = Effect.fn("SystemConfigUpdateService.make")(function* () {
   const appConfig = yield* AppConfig;
   const qualityProfileRepository = yield* QualityProfileRepository;
@@ -129,16 +133,18 @@ const preserveStoredPasswords = Effect.fn("SystemConfigUpdateService.preserveSto
         }
       | undefined;
   }) {
-    const storedConfigResult = yield* decodeStoredConfigRow(input.previousConfigRow).pipe(
-      Effect.map((storedConfig) => ({ _tag: "Stored" as const, storedConfig })),
+    const storedConfigResult: PreservedPasswordState = yield* decodeStoredConfigRow(
+      input.previousConfigRow,
+    ).pipe(
+      Effect.map((storedConfig): PreservedPasswordState => ({ _tag: "Stored", storedConfig })),
       Effect.catchTag("StoredConfigMissingError", () =>
-        Effect.succeed({
-          _tag: "Stored" as const,
+        Effect.succeed<PreservedPasswordState>({
+          _tag: "Stored",
           storedConfig: makeDefaultConfig(input.appDatabaseFile) satisfies ConfigCore,
         }),
       ),
       Effect.catchTag("StoredConfigCorruptError", () =>
-        Effect.succeed({ _tag: "Corrupt" as const }),
+        Effect.succeed<PreservedPasswordState>({ _tag: "Corrupt" }),
       ),
     );
 

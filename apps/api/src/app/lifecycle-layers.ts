@@ -127,5 +127,5 @@ export function makeApiLifecycleLayers(
 
   return {
     appLayer,
-  } as const;
+  };
 }

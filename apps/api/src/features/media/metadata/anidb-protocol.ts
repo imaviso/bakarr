@@ -140,9 +140,13 @@ export function buildTitleCandidates(
 ) {
   const candidates: ReadonlyArray<AniDbTitleCandidate> = [
     { source: "romaji", value: title.romaji },
-    ...(title.english === undefined ? [] : [{ source: "english", value: title.english } as const]),
-    ...(title.native === undefined ? [] : [{ source: "native", value: title.native } as const]),
-    ...(synonyms ?? []).map((value) => ({ source: "synonym", value }) as const),
+    ...(title.english === undefined
+      ? []
+      : [{ source: "english", value: title.english } satisfies AniDbTitleCandidate]),
+    ...(title.native === undefined
+      ? []
+      : [{ source: "native", value: title.native } satisfies AniDbTitleCandidate]),
+    ...(synonyms ?? []).map((value): AniDbTitleCandidate => ({ source: "synonym", value })),
   ];
 
   const dedupedCandidates = new Map<string, AniDbTitleCandidate>();

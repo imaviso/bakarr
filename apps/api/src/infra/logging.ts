@@ -1,3 +1,4 @@
+// oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 import { Effect, Layer, Logger, LogLevel, Ref } from "effect";
 
 export function compactLogAnnotations(
@@ -36,13 +37,13 @@ export function errorLogAnnotations(error: unknown): Record<string, unknown> {
   });
 }
 
-const LOG_LEVELS = {
+const LOG_LEVELS: Record<"debug" | "error" | "info" | "trace" | "warn", LogLevel.LogLevel> = {
   debug: LogLevel.Debug,
   error: LogLevel.Error,
   info: LogLevel.Info,
   trace: LogLevel.Trace,
   warn: LogLevel.Warning,
-} as const;
+};
 
 const LOG_LEVEL_ALIASES: Record<string, LogLevel.LogLevel> = {
   debug: LOG_LEVELS.debug,

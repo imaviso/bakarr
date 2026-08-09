@@ -9,6 +9,7 @@
     "apps/api/src/generated"
   ],
   "plugins": ["eslint", "oxc", "react", "unicorn", "typescript", "import"],
+  "jsPlugins": ["./lint-plugin.js"],
   "categories": {
     "correctness": "warn",
     "suspicious": "warn",
@@ -19,5 +20,24 @@
     "react-in-jsx-scope": "off",
     "eslint/no-shadow": "off",
     "eslint/no-await-in-loop": "off"
-  }
+  },
+  "overrides": [
+    {
+      "files": ["**/apps/api/**"],
+      "rules": {
+        "typescript/no-explicit-any": "warn",
+        "oxc/no-async-await": "warn",
+        "bakarr/no-as-casts": "warn",
+        "typescript/no-restricted-types": [
+          "warn",
+          {
+            "types": {
+              "unknown": "Avoid using `unknown`; use a specific type.",
+              "Record<string, unknown>": "Avoid `Record<string, unknown>`; define an explicit shape or index-signature interface."
+            }
+          }
+        ]
+      }
+    }
+  ]
 }

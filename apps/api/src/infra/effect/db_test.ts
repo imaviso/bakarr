@@ -1,3 +1,4 @@
+// oxlint-disable oxc/no-async-await -- async/await required by transaction callbacks, test callbacks, and tryPromise wrappers
 import { assert, it } from "@effect/vitest";
 import { Effect, Either, Fiber, TestClock } from "effect";
 

@@ -1,3 +1,4 @@
+// oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { Effect, Schema } from "effect";
@@ -262,12 +263,14 @@ export function formatRssTransportFailureMessage(cause: unknown): string {
   return "RSS transport request failed";
 }
 
+type ErrorWithStringFields = Error & {
+  readonly code?: unknown;
+  readonly hostname?: unknown;
+  readonly syscall?: unknown;
+};
+
 function readErrorStringField(error: Error, key: "code" | "hostname" | "syscall") {
-  const extended = error as Error & {
-    readonly code?: unknown;
-    readonly hostname?: unknown;
-    readonly syscall?: unknown;
-  };
+  const extended: ErrorWithStringFields = error;
 
   if (!(key in extended)) {
     return undefined;

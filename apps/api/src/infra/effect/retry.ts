@@ -1,10 +1,11 @@
+// oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 import { Cause, Context, Duration, Effect, Layer, Ref, Schedule, Schema } from "effect";
 
 import { currentTimeNanos } from "@/infra/time.ts";
 import { PositiveIntFromStringSchema } from "@/domain/domain-schema.ts";
 import { compactLogAnnotations, durationMsSince, errorLogAnnotations } from "@/infra/logging.ts";
 
-export const EXTERNAL_CALL_PROVIDERS = [
+export const EXTERNAL_CALL_PROVIDERS: readonly [
   "anilist",
   "jikan",
   "manami",
@@ -12,7 +13,7 @@ export const EXTERNAL_CALL_PROVIDERS = [
   "qbit",
   "rss",
   "seadex",
-] as const;
+] = ["anilist", "jikan", "manami", "anidb", "qbit", "rss", "seadex"];
 
 export type ExternalCallProvider = (typeof EXTERNAL_CALL_PROVIDERS)[number];
 
@@ -32,7 +33,7 @@ export interface ExternalCallOptions {
   readonly provider?: ExternalCallProvider;
 }
 
-const EXTERNAL_RETRY_DELAYS_MS = [200, 400] as const;
+const EXTERNAL_RETRY_DELAYS_MS: readonly number[] = [200, 400];
 const DEFAULT_EXTERNAL_CALL_CONCURRENCY = 8;
 const DEFAULT_MEDIA_EXTERNAL_CALL_CONCURRENCY = 4;
 const DEFAULT_QBIT_EXTERNAL_CALL_CONCURRENCY = 2;
@@ -139,7 +140,7 @@ export const makeExternalCallSemaphores = Effect.fn("ExternalCall.makeExternalCa
       default: yield* Effect.makeSemaphore(defaultConcurrency),
       media: yield* Effect.makeSemaphore(mediaConcurrency),
       qbit: yield* Effect.makeSemaphore(qbitConcurrency),
-    } as const;
+    } satisfies Record<ExternalCallPool, Effect.Semaphore>;
 
     return {
       withPermits: <A, E, R>(pool: ExternalCallPool, effect: Effect.Effect<A, E, R>) =>

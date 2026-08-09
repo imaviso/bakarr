@@ -1,4 +1,5 @@
-import type { MediaKind, ScannerState } from "@packages/shared/index.ts";
+// oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
+import type { MediaKind, ScannerState, UnmappedFolder } from "@packages/shared/index.ts";
 import type { DirEntry } from "@/infra/filesystem/filesystem.ts";
 import {
   buildUnmappedFolderSearchQueries,
@@ -12,7 +13,7 @@ export function listUnmappedFolderEntries(
   entries: readonly DirEntry[],
   mappedRoots: ReadonlySet<string>,
   mediaKind: MediaKind,
-) {
+): UnmappedFolder[] {
   return entries.flatMap((entry) => {
     if (!entry.isDirectory) {
       return [];
@@ -26,7 +27,7 @@ export function listUnmappedFolderEntries(
 
     return [
       {
-        match_status: "pending" as const,
+        match_status: "pending",
         media_kind: mediaKind,
         name: entry.name,
         path: fullPath,

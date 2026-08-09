@@ -546,8 +546,7 @@ const makeImportRoots = Effect.fn("Test.makeImportRoots")(function* (
 });
 
 function makeFsError(path: string, code: string, message: string) {
-  const cause = new Error(message) as Error & { code?: string };
-  cause.code = code;
+  const cause = Object.assign(new Error(message), { code });
 
   return new FileSystemError({
     cause,

@@ -1,3 +1,4 @@
+// oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 import * as SqliteDrizzle from "@effect/sql-drizzle/Sqlite";
 import * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
 import * as SqlClient from "@effect/sql/SqlClient";
@@ -31,7 +32,10 @@ export function isBusySqliteCause(cause: unknown): boolean {
 interface SqlitePragmaClient {
   readonly unsafe: (
     statement: string,
-  ) => Effect.Effect<ReadonlyArray<Record<string, unknown>>, unknown>;
+  ) => Effect.Effect<
+    ReadonlyArray<{ readonly [column: string]: string | number | bigint | boolean }>,
+    unknown
+  >;
 }
 
 const sqliteSetupError = (cause: unknown) =>
@@ -89,7 +93,7 @@ export const setAndVerifyPragmas = Effect.fn("Database.setAndVerifyPragmas")(fun
   return undefined;
 });
 
-function toSqlitePragmaValue(value: unknown) {
+function toSqlitePragmaValue(value: string | number | bigint | boolean | undefined): string {
   if (typeof value === "string") {
     return value;
   }
@@ -101,7 +105,9 @@ function toSqlitePragmaValue(value: unknown) {
   return "";
 }
 
-function firstRowValue(row: Record<string, unknown> | undefined) {
+function firstRowValue(
+  row: { readonly [column: string]: string | number | bigint | boolean } | undefined,
+) {
   return row ? Object.values(row)[0] : undefined;
 }
 

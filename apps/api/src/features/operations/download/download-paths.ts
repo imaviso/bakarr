@@ -106,7 +106,7 @@ export const resolveBatchContentPaths = Effect.fn("Operations.resolveBatchConten
 
   return yield* Stream.runFold(
     scanVideoFilesStream(fs, contentPath),
-    [] as string[],
+    Array<string>(),
     (acc, file) => {
       const classification = classifyMediaArtifact(file.path, file.name);
       return classification.kind === "extra" || classification.kind === "sample"

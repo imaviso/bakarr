@@ -35,7 +35,7 @@ describe("BackgroundSearchRssWorkerService", () => {
               runRssCheck: () =>
                 Effect.sync(() => {
                   calls.push("rss");
-                  return { newItems: 3, totalFeeds: 2 } as const;
+                  return { newItems: 3, totalFeeds: 2 };
                 }),
             }),
           });
@@ -89,7 +89,7 @@ describe("BackgroundSearchRssWorkerService", () => {
               runRssCheck: () =>
                 Effect.sync(() => {
                   calls.push("rss");
-                  return { newItems: 2, totalFeeds: 1 } as const;
+                  return { newItems: 2, totalFeeds: 1 };
                 }),
             }),
           });
@@ -261,6 +261,6 @@ const runWorkerScenario = Effect.fn("BackgroundSearchRssWorkerServiceTest.runWor
       calls: input.calls,
       events,
       exit,
-    } as const;
+    };
   },
 );

@@ -151,7 +151,7 @@ it.scoped(
 
           assert.deepStrictEqual(result._tag, "Left");
           if (result._tag === "Left") {
-            const left = result.left as unknown;
+            const left = result.left;
             assert.deepStrictEqual(left instanceof ExternalCallError, true);
             if (left instanceof ExternalCallError) {
               assert.deepStrictEqual(left.operation, "system.now_iso");

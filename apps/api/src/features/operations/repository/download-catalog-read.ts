@@ -53,7 +53,7 @@ export const loadDownloadStatusStats = Effect.fn("DownloadRepository.loadDownloa
       activeDownloads: row?.activeDownloads ?? 0,
       failedDownloads: row?.failedDownloads ?? 0,
       importedDownloads: row?.importedDownloads ?? 0,
-    } as const;
+    };
   },
 );
 
@@ -94,7 +94,9 @@ export const loadDownloadEventPresentationContexts = Effect.fn(
         .where(inArray(media.id, chunk)),
     ),
   );
-  const animeById = new Map(animeRows.map((row) => [row.id, row] as const));
+  const animeById = new Map(
+    animeRows.map((row): [number, (typeof animeRows)[number]] => [row.id, row]),
+  );
 
   const downloadRows = yield* loadRowsByChunk(downloadIds, (chunk) =>
     tryDatabasePromise("Failed to load download event presentation contexts", () =>
@@ -107,10 +109,12 @@ export const loadDownloadEventPresentationContexts = Effect.fn(
         .where(inArray(downloads.id, chunk)),
     ),
   );
-  const downloadById = new Map(downloadRows.map((row) => [row.id, row] as const));
+  const downloadById = new Map(
+    downloadRows.map((row): [number, (typeof downloadRows)[number]] => [row.id, row]),
+  );
 
   return new Map(
-    rows.map((row) => {
+    rows.map((row): [number, DownloadEventPresentationContext] => {
       const animeRow = row.mediaId !== null ? animeById.get(row.mediaId) : undefined;
       const downloadRow = row.downloadId !== null ? downloadById.get(row.downloadId) : undefined;
 
@@ -121,7 +125,7 @@ export const loadDownloadEventPresentationContexts = Effect.fn(
           mediaTitle: animeRow?.titleEnglish ?? animeRow?.titleRomaji,
           torrentName: downloadRow?.torrentName ?? undefined,
         },
-      ] as const;
+      ];
     }),
   );
 });
@@ -133,7 +137,7 @@ const loadRowsByChunk = Effect.fn("DownloadRepository.loadRowsByChunk")(
   ): Effect.Effect<readonly TRow[], DatabaseError> =>
     Effect.gen(function* () {
       if (ids.length === 0) {
-        return [] as TRow[];
+        return Array<TRow>();
       }
 
       const chunks: (readonly TId[])[] = [];
@@ -198,26 +202,28 @@ export const loadDownloadPresentationContexts = Effect.fn(
     }
   }
 
-  const contexts = yield* Effect.forEach(rows, (row) =>
-    Effect.gen(function* () {
-      const coveredUnits = (yield* decodeCoveredEpisodes(row.coveredUnits)) ?? [];
-      const unitNumbers = coveredUnits.length > 0 ? coveredUnits : [row.unitNumber];
-      const rowCanShowImportedPath = row.status === "imported" || row.reconciledAt !== null;
-      const importedPath = rowCanShowImportedPath
-        ? (unitNumbers
-            .map((unitNumber) => importedPathByEpisode.get(`${row.mediaId}:${unitNumber}`))
-            .find((value): value is string => typeof value === "string") ??
-          (row.reconciledAt ? (row.contentPath ?? row.savePath ?? undefined) : undefined))
-        : undefined;
+  const contexts = yield* Effect.forEach(
+    rows,
+    (row): Effect.Effect<[number, DownloadPresentationContext], StoredDataError> =>
+      Effect.gen(function* () {
+        const coveredUnits = (yield* decodeCoveredEpisodes(row.coveredUnits)) ?? [];
+        const unitNumbers = coveredUnits.length > 0 ? coveredUnits : [row.unitNumber];
+        const rowCanShowImportedPath = row.status === "imported" || row.reconciledAt !== null;
+        const importedPath = rowCanShowImportedPath
+          ? (unitNumbers
+              .map((unitNumber) => importedPathByEpisode.get(`${row.mediaId}:${unitNumber}`))
+              .find((value): value is string => typeof value === "string") ??
+            (row.reconciledAt ? (row.contentPath ?? row.savePath ?? undefined) : undefined))
+          : undefined;
 
-      return [
-        row.id,
-        {
-          mediaImage: animeImageById.get(row.mediaId),
-          importedPath,
-        },
-      ] as const;
-    }),
+        return [
+          row.id,
+          {
+            mediaImage: animeImageById.get(row.mediaId),
+            importedPath,
+          },
+        ];
+      }),
   );
 
   return new Map(contexts);
@@ -408,56 +414,58 @@ export function streamDownloadEvents(
 ): Stream.Stream<DownloadEvent, DatabaseError | StoredDataError> {
   const plan = buildDownloadEventExportPlan(queryInput);
   const pageSize = 500;
+  const initialCursorState: { emitted: number; cursor: number | undefined } = {
+    emitted: 0,
+    cursor: undefined,
+  };
 
-  return Stream.unfoldChunkEffect(
-    { emitted: 0, cursor: undefined as number | undefined },
-    (state) =>
-      Effect.gen(function* () {
-        const remaining = plan.limit - state.emitted;
-        if (remaining <= 0) {
-          return Option.none<readonly [Chunk.Chunk<DownloadEvent>, typeof state]>();
-        }
+  return Stream.unfoldChunkEffect(initialCursorState, (state) =>
+    Effect.gen(function* () {
+      const remaining = plan.limit - state.emitted;
+      if (remaining <= 0) {
+        return Option.none<readonly [Chunk.Chunk<DownloadEvent>, typeof state]>();
+      }
 
-        let cursorCondition: SQL | undefined;
+      let cursorCondition: SQL | undefined;
 
-        if (state.cursor !== undefined) {
-          cursorCondition =
-            plan.order === "asc"
-              ? gt(downloadEvents.id, state.cursor)
-              : lt(downloadEvents.id, state.cursor);
-        }
-        const conditions = cursorCondition
-          ? [...plan.baseConditions, cursorCondition]
-          : [...plan.baseConditions];
+      if (state.cursor !== undefined) {
+        cursorCondition =
+          plan.order === "asc"
+            ? gt(downloadEvents.id, state.cursor)
+            : lt(downloadEvents.id, state.cursor);
+      }
+      const conditions = cursorCondition
+        ? [...plan.baseConditions, cursorCondition]
+        : [...plan.baseConditions];
 
-        const rows = yield* tryDatabasePromise("Failed to stream download events", () => {
-          const query = db
-            .select()
-            .from(downloadEvents)
-            .orderBy(plan.order === "asc" ? asc(downloadEvents.id) : desc(downloadEvents.id))
-            .limit(Math.min(pageSize, remaining));
+      const rows = yield* tryDatabasePromise("Failed to stream download events", () => {
+        const query = db
+          .select()
+          .from(downloadEvents)
+          .orderBy(plan.order === "asc" ? asc(downloadEvents.id) : desc(downloadEvents.id))
+          .limit(Math.min(pageSize, remaining));
 
-          return conditions.length > 0 ? query.where(and(...conditions)) : query;
-        });
+        return conditions.length > 0 ? query.where(and(...conditions)) : query;
+      });
 
-        if (rows.length === 0) {
-          return Option.none<readonly [Chunk.Chunk<DownloadEvent>, typeof state]>();
-        }
+      if (rows.length === 0) {
+        return Option.none<readonly [Chunk.Chunk<DownloadEvent>, typeof state]>();
+      }
 
-        const contexts = yield* loadDownloadEventPresentationContexts(db, rows);
-        const events = yield* Effect.forEach(rows, (row) =>
-          toDownloadEvent(row, contexts.get(row.id)),
-        );
-        const lastId = rows[rows.length - 1]?.id;
+      const contexts = yield* loadDownloadEventPresentationContexts(db, rows);
+      const events = yield* Effect.forEach(rows, (row) =>
+        toDownloadEvent(row, contexts.get(row.id)),
+      );
+      const lastId = rows[rows.length - 1]?.id;
 
-        return Option.some([
-          Chunk.fromIterable(events),
-          {
-            emitted: state.emitted + events.length,
-            cursor: lastId,
-          },
-        ] as const);
-      }),
+      return Option.some<readonly [Chunk.Chunk<DownloadEvent>, typeof state]>([
+        Chunk.fromIterable(events),
+        {
+          emitted: state.emitted + events.length,
+          cursor: lastId,
+        },
+      ]);
+    }),
   );
 }
 

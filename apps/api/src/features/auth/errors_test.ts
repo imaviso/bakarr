@@ -5,6 +5,7 @@ import {
   AuthForbiddenError,
   AuthNotFoundError,
   AuthUnauthorizedError,
+  type AuthError,
 } from "@/features/auth/errors.ts";
 
 it("auth errors construct with message and tag", () => {
@@ -14,12 +15,16 @@ it("auth errors construct with message and tag", () => {
 });
 
 it("auth errors expose separate tags for route mapping", () => {
-  for (const [ErrorClass, tag] of [
+  const errorTagPairs: ReadonlyArray<
+    [new (input: { readonly message: string }) => AuthError, string]
+  > = [
     [AuthBadRequestError, "AuthBadRequestError"],
     [AuthUnauthorizedError, "AuthUnauthorizedError"],
     [AuthForbiddenError, "AuthForbiddenError"],
     [AuthNotFoundError, "AuthNotFoundError"],
-  ] as const) {
+  ];
+
+  for (const [ErrorClass, tag] of errorTagPairs) {
     const error = new ErrorClass({ message: "test" });
     assert.deepStrictEqual(error._tag, tag);
   }

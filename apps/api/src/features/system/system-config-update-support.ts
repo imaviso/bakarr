@@ -56,8 +56,12 @@ export const buildPersistedConfigStates = Effect.fn(
     profileRows: nextProfileRows,
   };
 
-  return {
+  const states: {
+    nextState: PersistedSystemConfigState;
+    previousState: PersistedSystemConfigState;
+  } = {
     nextState,
     previousState,
-  } as const;
+  };
+  return states;
 });

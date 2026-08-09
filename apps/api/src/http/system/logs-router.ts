@@ -44,11 +44,11 @@ export const logsRouter = HttpRouter.empty.pipe(
 
         if ((query.format ?? "json") === "csv") {
           const exported = yield* service.streamLogExportCsv(input);
-          return { format: "csv" as const, exported };
+          return { format: "csv", exported };
         }
 
         const exported = yield* service.streamLogExportJson(input);
-        return { format: "json" as const, exported };
+        return { format: "json", exported };
       }),
       ({ format, exported }) => {
         const exportHeaders = buildSystemLogExportHeaders(exported.header);

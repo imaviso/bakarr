@@ -1,3 +1,4 @@
+// oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 import { Match, Schema } from "effect";
 
 import type { RouteErrorResponse } from "@/http/shared/route-types.ts";
@@ -45,12 +46,18 @@ const CommonRouteErrorSchema = Schema.Union(
   WorkerTimeoutError,
 );
 
+type CommonRouteError = Schema.Schema.Type<typeof CommonRouteErrorSchema>;
+
 const serviceUnavailable = fixedStatus("External service unavailable", 503);
 
 const authCryptoFailure = fixedStatus("Authentication crypto failed", 500);
 const internalServerError = fixedStatus("Internal server error", 500);
 
-const taggedCommonRouteErrorMappers = {
+const taggedCommonRouteErrorMappers: {
+  [K in CommonRouteError["_tag"]]: (
+    error: Extract<CommonRouteError, { _tag: K }>,
+  ) => RouteErrorResponse;
+} = {
   AuthBadRequestError: (error: AuthBadRequestError): RouteErrorResponse => ({
     message: error.message,
     status: 400,
@@ -101,7 +108,7 @@ const taggedCommonRouteErrorMappers = {
   }),
   TokenHasherError: authCryptoFailure,
   WorkerTimeoutError: internalServerError,
-} as const;
+};
 
 const mapCommonRouteError = mapTaggedRouteError(CommonRouteErrorSchema, (error) =>
   Match.valueTags(error, taggedCommonRouteErrorMappers),

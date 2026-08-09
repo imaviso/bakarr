@@ -1,3 +1,4 @@
+// oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 import { Cause, Effect, Queue } from "effect";
 
 import type { AsyncOperationAccepted, OperationTaskPayload } from "@packages/shared/index.ts";

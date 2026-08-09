@@ -1,4 +1,4 @@
-import type { PreferredTitle } from "@packages/shared/index.ts";
+import type { NamingTitleSource, PreferredTitle } from "@packages/shared/index.ts";
 
 import type { SelectedMediaTitleForNaming } from "@/features/operations/library/naming-types.ts";
 
@@ -36,27 +36,27 @@ function resolveOrderedAnimeTitles(
     titleNative?: string | null;
   },
   preferredTitle: PreferredTitle,
-) {
+): readonly { source: NamingTitleSource; value: string | null | undefined }[] {
   if (preferredTitle === "english") {
     return [
-      { source: "preferred_english" as const, value: animeRow.titleEnglish },
-      { source: "fallback_romaji" as const, value: animeRow.titleRomaji },
-      { source: "fallback_native" as const, value: animeRow.titleNative },
+      { source: "preferred_english", value: animeRow.titleEnglish },
+      { source: "fallback_romaji", value: animeRow.titleRomaji },
+      { source: "fallback_native", value: animeRow.titleNative },
     ];
   }
 
   if (preferredTitle === "native") {
     return [
-      { source: "preferred_native" as const, value: animeRow.titleNative },
-      { source: "fallback_romaji" as const, value: animeRow.titleRomaji },
-      { source: "fallback_english" as const, value: animeRow.titleEnglish },
+      { source: "preferred_native", value: animeRow.titleNative },
+      { source: "fallback_romaji", value: animeRow.titleRomaji },
+      { source: "fallback_english", value: animeRow.titleEnglish },
     ];
   }
 
   return [
-    { source: "preferred_romaji" as const, value: animeRow.titleRomaji },
-    { source: "fallback_english" as const, value: animeRow.titleEnglish },
-    { source: "fallback_native" as const, value: animeRow.titleNative },
+    { source: "preferred_romaji", value: animeRow.titleRomaji },
+    { source: "fallback_english", value: animeRow.titleEnglish },
+    { source: "fallback_native", value: animeRow.titleNative },
   ];
 }
 

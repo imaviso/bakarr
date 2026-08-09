@@ -176,7 +176,10 @@ const makeAniDbClient = Effect.fn("AniDbClient.make")(function* () {
     );
 
     if (Option.isNone(runtimeConfig)) {
-      return { _tag: "AniDbLookupSkipped", reason: "runtime_config_unavailable" } as const;
+      return {
+        _tag: "AniDbLookupSkipped",
+        reason: "runtime_config_unavailable",
+      } satisfies AniDbEpisodeLookupResult;
     }
 
     const config = resolveAniDbRuntimeConfig(runtimeConfig.value);
@@ -184,11 +187,14 @@ const makeAniDbClient = Effect.fn("AniDbClient.make")(function* () {
     const unitCount = normalizeEpisodeCount(input.unitCount, config.episodeLimit);
 
     if (!config.enabled) {
-      return { _tag: "AniDbLookupSkipped", reason: "disabled" } as const;
+      return { _tag: "AniDbLookupSkipped", reason: "disabled" } satisfies AniDbEpisodeLookupResult;
     }
 
     if (!config.username || !config.password) {
-      return { _tag: "AniDbLookupSkipped", reason: "missing_credentials" } as const;
+      return {
+        _tag: "AniDbLookupSkipped",
+        reason: "missing_credentials",
+      } satisfies AniDbEpisodeLookupResult;
     }
 
     const username = config.username;
@@ -197,7 +203,10 @@ const makeAniDbClient = Effect.fn("AniDbClient.make")(function* () {
     const titleCandidates = buildTitleCandidates(input.title, input.synonyms);
 
     if (titleCandidates.length === 0) {
-      return { _tag: "AniDbLookupSkipped", reason: "missing_title_candidates" } as const;
+      return {
+        _tag: "AniDbLookupSkipped",
+        reason: "missing_title_candidates",
+      } satisfies AniDbEpisodeLookupResult;
     }
 
     return yield* requestSemaphore.withPermits(1)(
@@ -287,7 +296,7 @@ const fetchAniDbEpisodesEffect = Effect.fn("AniDbClient.fetchEpisodes")(function
     return {
       _tag: "AniDbLookupSkipped",
       reason: "title_not_found",
-    } as const satisfies AniDbEpisodeLookupResult;
+    } satisfies AniDbEpisodeLookupResult;
   }
 
   const reachedEndRef = yield* Ref.make(false);
@@ -332,7 +341,7 @@ const fetchAniDbEpisodesEffect = Effect.fn("AniDbClient.fetchEpisodes")(function
   return {
     _tag: "AniDbLookupSuccess",
     mediaUnits,
-  } as const satisfies AniDbEpisodeLookupResult;
+  } satisfies AniDbEpisodeLookupResult;
 });
 
 const resolveAnimeIdEffect = Effect.fn("AniDbClient.resolveAnimeId")(function* (input: {

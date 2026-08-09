@@ -20,6 +20,15 @@ export interface LatestValuePublisher<A, E, R = never> {
   readonly shutdown: Effect.Effect<void>;
 }
 
+type CoalescingStep<A, E> =
+  | { readonly type: "done" }
+  | { readonly type: "complete"; readonly completion: Deferred.Deferred<void, E> }
+  | {
+      readonly type: "publish";
+      readonly completion: Deferred.Deferred<void, E>;
+      readonly value: A;
+    };
+
 export const makeLatestValuePublisher = Effect.fn("EffectCoalescing.makeLatestValuePublisher")(
   <A, E, R>(
     publish: (value: A) => Effect.Effect<void, E, R>,
@@ -41,7 +50,8 @@ export const makeLatestValuePublisher = Effect.fn("EffectCoalescing.makeLatestVa
                 const current = yield* Ref.get(state);
 
                 if (current.completion === null) {
-                  return { type: "done" } as const;
+                  const done: CoalescingStep<A, E> = { type: "done" };
+                  return done;
                 }
 
                 if (current.latest === undefined) {
@@ -51,10 +61,11 @@ export const makeLatestValuePublisher = Effect.fn("EffectCoalescing.makeLatestVa
                     running: false,
                   });
 
-                  return {
+                  const complete: CoalescingStep<A, E> = {
                     type: "complete",
                     completion: current.completion,
-                  } as const;
+                  };
+                  return complete;
                 }
 
                 yield* Ref.set(state, {
@@ -63,11 +74,12 @@ export const makeLatestValuePublisher = Effect.fn("EffectCoalescing.makeLatestVa
                   running: true,
                 });
 
-                return {
+                const publishStep: CoalescingStep<A, E> = {
                   type: "publish",
                   completion: current.completion,
                   value: current.latest,
-                } as const;
+                };
+                return publishStep;
               }),
             );
 

@@ -1,3 +1,4 @@
+// oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 import { assert, it } from "@effect/vitest";
 import { HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { Effect, Logger } from "effect";
@@ -160,7 +161,7 @@ it("route errors maps known tagged errors to expected responses", () => {
       }),
       expected: { message: "Internal server error", status: 500 },
     },
-  ] as const;
+  ];
 
   for (const testCase of cases) {
     assert.deepStrictEqual(mapRouteError(testCase.error), testCase.expected);

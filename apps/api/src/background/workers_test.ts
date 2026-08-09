@@ -1,3 +1,4 @@
+// oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 import { assert, it } from "@effect/vitest";
 import { Deferred, Effect, Fiber, Logger, Metric, Ref, Scope, TestClock } from "effect";
 

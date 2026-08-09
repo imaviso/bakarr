@@ -1,3 +1,4 @@
+// oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 import { Effect, Metric, MetricBoundaries, Schema } from "effect";
 
 import type { BackgroundWorkerName } from "@/domain/worker-model.ts";
@@ -16,7 +17,7 @@ export const httpMetrics = {
     description: "Total HTTP requests handled by route",
     incremental: true,
   }),
-} as const;
+};
 
 export const backgroundMetrics = {
   daemonRunning: Metric.gauge("bakarr_background_worker_daemon_running", {
@@ -34,7 +35,7 @@ export const backgroundMetrics = {
     description: "Total background worker runs by outcome",
     incremental: true,
   }),
-} as const;
+};
 
 export const recordHttpRequestMetrics = Effect.fn("Metrics.recordHttpRequest")(function* (input: {
   readonly durationMs: number;
@@ -269,7 +270,7 @@ function compareMetricPairs(
 
 function normalizeTags(tags: ReadonlyArray<{ readonly key: string; readonly value: string }>) {
   return [...tags]
-    .map((tag) => [tag.key, tag.value] as const)
+    .map((tag): readonly [string, string] => [tag.key, tag.value])
     .toSorted(([left], [right]) => left.localeCompare(right));
 }
 

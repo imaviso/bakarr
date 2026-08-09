@@ -19,6 +19,7 @@ extra abstractions, no future proofing, no defensive code. Avoid one-line wrappe
 - Use typescript-magician skill when encountering type-issues.
 - Use and strictly follow react skill.
 - Use shared contracts from `packages/shared` when touching API/UI boundaries
+- Use Effect Schema instead of manually validate things
 
 ## Commands
 

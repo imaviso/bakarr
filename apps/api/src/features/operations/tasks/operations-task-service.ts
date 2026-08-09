@@ -1,3 +1,4 @@
+// oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 import { Effect, Option, Schema } from "effect";
 
 import type {
@@ -393,10 +394,17 @@ export const decodeOperationsTaskQuery = Effect.fn(
         ),
       );
 
-  return {
+  const result: {
+    readonly mediaId?: number;
+    readonly limit?: number;
+    readonly offset?: number;
+    readonly taskKey?: OperationsTaskKey;
+  } = {
     ...(input.media_id === undefined ? {} : { mediaId: input.media_id }),
     ...(input.limit === undefined ? {} : { limit: input.limit }),
     ...(input.offset === undefined ? {} : { offset: input.offset }),
     ...(Option.isSome(decodedTaskKey) ? { taskKey: decodedTaskKey.value } : {}),
-  } as const;
+  };
+
+  return result;
 });

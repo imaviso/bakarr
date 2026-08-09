@@ -34,17 +34,17 @@ it("SystemNotFoundError constructs", () => {
 });
 
 it("ImageAssetNotFoundError has status 404", () => {
-  const error = new ImageAssetNotFoundError({ message: "not found", status: 404 as const });
+  const error = new ImageAssetNotFoundError({ message: "not found", status: 404 });
   assert.deepStrictEqual(error.status, 404);
 });
 
 it("ImageAssetTooLargeError has status 413", () => {
-  const error = new ImageAssetTooLargeError({ message: "too large", status: 413 as const });
+  const error = new ImageAssetTooLargeError({ message: "too large", status: 413 });
   assert.deepStrictEqual(error.status, 413);
 });
 
 it("ImageAssetAccessError has status 500", () => {
-  const error = new ImageAssetAccessError({ message: "access error", status: 500 as const });
+  const error = new ImageAssetAccessError({ message: "access error", status: 500 });
   assert.deepStrictEqual(error.status, 500);
 });
 

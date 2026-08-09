@@ -54,9 +54,9 @@ describe("MediaQueryService.listSeasonalMedia", () => {
                 return Effect.succeed({
                   degraded: false,
                   hasMore: false,
-                  provider: "anilist" as const,
+                  provider: "anilist",
                   results: [makeSeasonalResult({ id: 42, title: "Cached Spring" })],
-                  season: "spring" as const,
+                  season: "spring",
                   year: 2025,
                 });
               },
@@ -143,9 +143,9 @@ describe("MediaQueryService.listSeasonalMedia", () => {
                 return Effect.succeed({
                   degraded: false,
                   hasMore: false,
-                  provider: "anilist" as const,
+                  provider: "anilist",
                   results: [makeSeasonalResult({ id: 7, title: `Fetch ${providerCalls}` })],
-                  season: "spring" as const,
+                  season: "spring",
                   year: 2025,
                 });
               },
@@ -218,9 +218,9 @@ describe("MediaQueryService.listSeasonalMedia", () => {
                   return Effect.succeed({
                     degraded: false,
                     hasMore: false,
-                    provider: "anilist" as const,
+                    provider: "anilist",
                     results: [makeSeasonalResult({ id: 9, title: "Stale Spring" })],
-                    season: "spring" as const,
+                    season: "spring",
                     year: 2025,
                   });
                 }
@@ -319,7 +319,7 @@ describe("MediaQueryService.listSeasonalMedia", () => {
               Effect.succeed({
                 degraded: false,
                 hasMore: true,
-                provider: "anilist" as const,
+                provider: "anilist",
                 results: [
                   {
                     already_in_library: false,
@@ -400,7 +400,7 @@ describe("MediaQueryService.listSeasonalMedia", () => {
               Effect.succeed({
                 degraded: true,
                 hasMore: false,
-                provider: "jikan_fallback" as const,
+                provider: "jikan_fallback",
                 results: [
                   {
                     already_in_library: false,
@@ -513,9 +513,9 @@ describe("MediaQueryService.searchMedia", () => {
                       Effect.succeed({
                         degraded: false,
                         hasMore: false,
-                        provider: "anilist" as const,
+                        provider: "anilist",
                         results: [],
-                        season: "spring" as const,
+                        season: "spring",
                         year: 2025,
                       }),
                   }),

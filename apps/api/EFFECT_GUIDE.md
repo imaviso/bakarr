@@ -53,7 +53,9 @@ compatibility layers.
 - Use `.pipe(...)` for cross-cutting composition such as providing layers,
   retries, timeouts, spans, logging, and small local transforms.
 - Use `Effect.fn("Name")` for exported reusable effectful operations and service
-  methods, including nullary thunks.
+  methods, including nullary thunks. Leave generator bodies un-annotated; the
+  generator return is the success value, not an `Effect.Effect<...>` (see
+  Lint-Guided Typing).
 - Use `Effect.fnUntraced(...)` only when tracing should be skipped or when a
   pipeline needs access to the original arguments.
 - Prefer explicit sequential code over clever combinator chains in business
@@ -125,6 +127,77 @@ compatibility layers.
   `Schema.parseJson`, and `Schema.encode`.
 - Prefer schema-backed constructors over loose object literals once a type is
   part of the domain.
+
+## Lint-Guided Typing
+
+Three type-level rules are enforced by oxlint (see `.oxlintrc.json`,
+`lint-plugin.js`) and are part of the house style:
+
+- `bakarr/no-as-casts` bans all `as`, including `as const`.
+- `oxc/no-async-await` bans the `async` keyword (not `await` expressions).
+- `typescript/no-restricted-types` bans `unknown` and
+  `Record<string, unknown>`.
+
+Prefer real type-level fixes over disables. Disables are reserved for
+genuinely necessary constructs and follow the repo convention
+(`// oxlint-disable-next-line <rule> -- reason` or a file header).
+
+Preferred replacements, in order:
+
+1. **Return type annotations** instead of `as const` / `[] as Type[]`:
+   ```ts
+   function deriveAnimeSeason(date?: string): "winter" | "spring" | "summer" | "fall" | undefined;
+   ```
+2. **Callback tuple annotations** instead of `[k, v] as const` in
+   `.map` / `Effect.map` / `Ref.modify` / `Array.from`:
+   ```ts
+   new Map(rows.map((row): [number, Row] => [row.id, row]));
+   ```
+3. **`satisfies`** instead of `as const satisfies` when the value flows into a
+   contextually typed slot; annotate the const otherwise:
+   ```ts
+   const result: SomeUnion = { _tag: "x", ... }
+   ```
+4. **`Array<Type>()`** instead of `[] as Type[]` in generic `Effect.gen`
+   returns.
+5. **Typed intermediates** for union members returned from `Effect.fn`
+   generators:
+   ```ts
+   const skipped: QueueResult = { _tag: "skipped" };
+   return skipped;
+   ```
+6. **Bounded unions** where the domain allows, e.g. SQL bind params as
+   `type SqlValue = string | number | null`, or index-signature interfaces
+   instead of `Record<string, unknown>`:
+   ```ts
+   interface SqlRow {
+     readonly [column: string]: string | number | null;
+   }
+   ```
+7. **Effect Schema** for hand-rolled JSON/response validation — decode the
+   whole payload instead of `const raw: Record<string, unknown> = await
+response.json()`:
+   ```ts
+   const envelope = Schema.decodeUnknownSync(EnvelopeSchema)(await response.json());
+   ```
+
+### `unknown` at boundaries is honest
+
+`unknown` stays correct where the value genuinely can be anything:
+`Effect.tryPromise` catch callbacks (`error: unknown`, exactly as upstream
+types them), `Cause.Cause<unknown>`, error `cause` fields,
+`Logger.make<unknown, void>`, and `Effect.Effect<A, unknown>` interop. Those
+sites carry a file-header disable with a reason (`apps/api/src/infra/logging.ts`,
+`apps/api/src/db/database.ts`). Do not narrow them to a wrong type.
+
+### `Effect.fn` generator returns take the success value, not an Effect
+
+`Effect.fn` types generators as `(...args) => Generator<Eff, AEff, never>`
+where `AEff` is the plain success value (see `fn.Gen` in the upstream
+`Effect.ts`). Do not annotate the generator's return with
+`Effect.Effect<...>` — it errors. Leave generators un-annotated and use typed
+intermediates (fix #5). Upstream's own `fn.test.ts` only annotates the
+non-generator form (`(): Effect.Effect<void> => ...`).
 
 ## Branching And Errors
 
@@ -224,6 +297,15 @@ compatibility layers.
 - Dependencies are introduced with tags and layers, then provided once near the
   entrypoint.
 - Tests use `@effect/vitest` patterns and explicit layers.
+- No `as` casts (`as const`, `as Type[]`, `as unknown`) — use return
+  annotations, tuple-annotated callbacks, `satisfies`, or typed intermediates
+  instead.
+- No `async` keyword in app code; `db.transaction(async ...)`,
+  `Effect.tryPromise({ try: async ... })`, and test callbacks are the
+  recognized exceptions.
+- No `unknown` or `Record<string, unknown>` in domain types; `unknown` is
+  reserved for error/cause boundaries and carries a documented disable.
+- `pnpm lint` reports zero warnings for `apps/api`.
 
 ## Avoid By Default
 
@@ -234,6 +316,8 @@ compatibility layers.
 - Raw `JSON.parse(...)` or env reads in business logic.
 - Clever point-free pipelines when direct sequential code is clearer.
 - Advanced abstractions before there is a concrete need.
+- `as` casts, `async` keywords, `unknown`, and `Record<string, unknown>`
+  without a documented boundary reason.
 
 ## Copyable Patterns
 
@@ -321,6 +405,29 @@ const run = <A>(f: (signal: AbortSignal) => Promise<A>): Effect.Effect<A, Extern
     try: (signal) => f(signal),
     catch: (cause) => new ExternalError({ cause }),
   });
+```
+
+### Discriminated Union Return From An Effect.fn Generator
+
+Annotate a named union type, then return typed intermediates instead of
+`as const`:
+
+```ts
+type QueueResult =
+  | { readonly _tag: "queued"; readonly id: number }
+  | { readonly _tag: "skipped" };
+
+const queueDownload = Effect.fn("Operations.queueDownload")(function* (...) {
+  // ...
+  const skipped: QueueResult = { _tag: "skipped" };
+  return skipped;
+});
+```
+
+### Tuple Map Entry Without A Cast
+
+```ts
+const byId = new Map(rows.map((row): [number, Row] => [row.id, row]));
 ```
 
 ### Effect Test With TestClock

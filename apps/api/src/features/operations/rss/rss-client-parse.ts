@@ -1,3 +1,4 @@
+// oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 import { ParseResult, Schema, Effect, Option, Stream } from "effect";
 import { XMLParser } from "fast-xml-parser";
 

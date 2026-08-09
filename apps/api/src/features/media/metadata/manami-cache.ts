@@ -311,7 +311,8 @@ const downloadManamiDataset = Effect.fn("ManamiCache.downloadDataset")(function*
   );
 
   if (response.status === 304) {
-    return { _tag: "NotModified" } as const;
+    const result: DownloadResult = { _tag: "NotModified" };
+    return result;
   }
 
   if (response.status < 200 || response.status >= 300) {
@@ -345,12 +346,13 @@ const downloadManamiDataset = Effect.fn("ManamiCache.downloadDataset")(function*
   const etag = Headers.get(response.headers, "etag");
   const lastModified = Headers.get(response.headers, "last-modified");
 
-  return {
+  const result: DownloadResult = {
     _tag: "Downloaded",
     dataset,
     ...(Option.isSome(etag) ? { etag: etag.value } : {}),
     ...(Option.isSome(lastModified) ? { lastModified: lastModified.value } : {}),
-  } as const;
+  };
+  return result;
 });
 
 const buildLookupSqliteCache = Effect.fn("ManamiCache.buildLookupSqliteCache")(

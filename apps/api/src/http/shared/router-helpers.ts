@@ -1,3 +1,4 @@
+// oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { Cause, Effect, Option, ParseResult, Schema } from "effect";
 
@@ -54,7 +55,7 @@ const decodeJsonText = <A, I, R>(schema: Schema.Schema<A, I, R>, label: string, 
 
 const parseJsonText = (text: string, label: string) =>
   Effect.try({
-    try: () => JSON.parse(text) as unknown,
+    try: () => JSON.parse(text),
     catch: (cause) =>
       RequestValidationError.make({
         cause,

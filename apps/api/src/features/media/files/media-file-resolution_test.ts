@@ -42,7 +42,12 @@ it("UnitFileResolveError holds optional filePath and rootFolder", () => {
 });
 
 it("UnitFileResolveError reason is limited to the four failure modes", () => {
-  const reasons = ["unmapped", "missing", "root-inaccessible", "outside-root"] as const;
+  const reasons: readonly ["unmapped", "missing", "root-inaccessible", "outside-root"] = [
+    "unmapped",
+    "missing",
+    "root-inaccessible",
+    "outside-root",
+  ];
   for (const reason of reasons) {
     const error = new UnitFileResolveError({
       mediaId: 1,

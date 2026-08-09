@@ -1,3 +1,4 @@
+// oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 import { Command, CommandExecutor } from "@effect/platform";
 import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";

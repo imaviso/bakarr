@@ -74,12 +74,12 @@ export function withSessionCache(
               const existing = map.get(sessionKey);
 
               if (existing) {
-                return [{ deferred: existing, leader: false }, map] as const;
+                return [{ deferred: existing, leader: false }, map];
               }
 
               const next = new Map(map);
               next.set(sessionKey, deferred);
-              return [{ deferred, leader: true }, next] as const;
+              return [{ deferred, leader: true }, next];
             },
           );
 

@@ -70,7 +70,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
         if ((query.format ?? "json") === "csv") {
           const streamed = yield* service.streamDownloadEventsExportCsv(input);
           return {
-            format: "csv" as const,
+            format: "csv",
             header: streamed.header,
             stream: streamed.stream,
           };
@@ -79,7 +79,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
         const streamed = yield* service.streamDownloadEventsExportJson(input);
 
         return {
-          format: "json" as const,
+          format: "json",
           header: streamed.header,
           stream: streamed.stream,
         };

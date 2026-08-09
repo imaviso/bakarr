@@ -97,7 +97,19 @@ const scanImportPathEffect = Effect.fn("ImportPathScanService.scanImportPathEffe
       mediaRepository: input.mediaRepository,
     });
     const episodeRowsByAnimeEpisode = new Map(
-      scopedEpisodeRows.map((row) => [`${row.mediaId}:${row.number}`, row] as const),
+      scopedEpisodeRows.map(
+        (
+          row,
+        ): [
+          string,
+          {
+            readonly aired: string | null;
+            readonly mediaId: number;
+            readonly number: number;
+            readonly title: string | null;
+          },
+        ] => [`${row.mediaId}:${row.number}`, row],
+      ),
     );
 
     const candidateMap = new Map<number, MediaSearchResult>();

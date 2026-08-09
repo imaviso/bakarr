@@ -35,13 +35,17 @@ export function createFileChunkStream(
           const read = yield* file.read(buffer);
 
           if (Option.isNone(read) || read.value === 0) {
-            return [Chunk.empty<Uint8Array>(), Option.none<FileByteRange>()] as const;
+            const done: readonly [Chunk.Chunk<Uint8Array>, Option.Option<FileByteRange>] = [
+              Chunk.empty<Uint8Array>(),
+              Option.none<FileByteRange>(),
+            ];
+            return done;
           }
 
           const bytesRead = read.value;
           const nextStart = current.start + bytesRead;
 
-          return [
+          const next: readonly [Chunk.Chunk<Uint8Array>, Option.Option<FileByteRange>] = [
             Chunk.of(buffer.subarray(0, bytesRead)),
             range && nextStart > current.end
               ? Option.none<FileByteRange>()
@@ -49,7 +53,8 @@ export function createFileChunkStream(
                   ...current,
                   start: nextStart,
                 }),
-          ] as const;
+          ];
+          return next;
         }),
       ),
     ),

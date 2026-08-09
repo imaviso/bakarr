@@ -34,6 +34,7 @@ export const withSqliteRawClientEffect = Effect.fn("Test.withSqliteRawClientEffe
 });
 
 export const withSqliteTestDbEffect = Effect.fn("Test.withSqliteTestDbEffect")(function* <
+  // oxlint-disable-next-line typescript/no-restricted-types -- drizzle requires Record<string, unknown> for schema maps
   TSchema extends Record<string, unknown>,
   A,
   E,

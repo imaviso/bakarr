@@ -1,3 +1,4 @@
+// oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 import { Cause, Effect } from "effect";
 
 import {
@@ -190,7 +191,7 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
       yield* systemUnmappedRepository.upsertMatchRows([failedFolder], now);
 
       return {
-        _tag: "Failed" as const,
+        _tag: "Failed",
         folder: failedFolder,
       } satisfies UnmappedMatchResult;
     }
@@ -199,7 +200,7 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
     yield* systemUnmappedRepository.upsertMatchRows([matchResult.right], now);
 
     return {
-      _tag: "Matched" as const,
+      _tag: "Matched",
       folder: matchResult.right,
     } satisfies UnmappedMatchResult;
   });
@@ -323,7 +324,7 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
             return {
               keepLease: false,
               value: { folderCount: 0 },
-            } as const;
+            };
           }
 
           yield* eventBus.publish({ type: "ScanStarted" });
@@ -344,7 +345,7 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
           return {
             keepLease: true,
             value: { folderCount },
-          } as const;
+          };
         }),
         whenBusy: Effect.succeed({ folderCount: 0 }),
       });

@@ -2,19 +2,17 @@ import { HttpServerRequest, HttpServerResponse, Socket } from "@effect/platform"
 import { Effect, Stream } from "effect";
 
 import { assert, it } from "@effect/vitest";
+import type { NotificationEvent } from "@packages/shared/index.ts";
 import { buildSystemEventsResponse } from "@/http/system/events-router.ts";
+
+const infoEvent: NotificationEvent = { payload: { message: "hello" }, type: "Info" };
 
 it.effect("events router returns NDJSON response without websocket upgrade headers", () =>
   Effect.gen(function* () {
     const request = HttpServerRequest.fromWeb(new Request("http://bakarr.local/api/events"));
-    const response = yield* buildSystemEventsResponse(
-      Stream.fromIterable([
-        {
-          payload: { message: "hello" },
-          type: "Info" as const,
-        },
-      ]),
-    ).pipe(Effect.provideService(HttpServerRequest.HttpServerRequest, request));
+    const response = yield* buildSystemEventsResponse(Stream.fromIterable([infoEvent])).pipe(
+      Effect.provideService(HttpServerRequest.HttpServerRequest, request),
+    );
 
     assert.deepStrictEqual(response.status, 200);
     assert.deepStrictEqual(response.headers["content-type"], "application/x-ndjson");
@@ -37,14 +35,9 @@ it.effect("events router websocket branch fails when upgrade support is unavaila
     );
 
     const exit = yield* Effect.exit(
-      buildSystemEventsResponse(
-        Stream.fromIterable([
-          {
-            payload: { message: "hello" },
-            type: "Info" as const,
-          },
-        ]),
-      ).pipe(Effect.provideService(HttpServerRequest.HttpServerRequest, request)),
+      buildSystemEventsResponse(Stream.fromIterable([infoEvent])).pipe(
+        Effect.provideService(HttpServerRequest.HttpServerRequest, request),
+      ),
     );
 
     assert.deepStrictEqual(exit._tag, "Failure");

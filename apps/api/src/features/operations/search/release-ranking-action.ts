@@ -90,15 +90,23 @@ export function decideDownloadAction(
   return reject("no quality improvement");
 }
 
-function evaluateSizeGuard(profile: QualityProfile, releaseSizeBytes: number) {
+type SizeGuardResult =
+  | { readonly _tag: "Pass" }
+  | { readonly _tag: "Reject"; readonly reason: string };
+
+type RuleGuardResult =
+  | { readonly _tag: "Pass" }
+  | { readonly _tag: "Reject"; readonly action: DownloadAction };
+
+function evaluateSizeGuard(profile: QualityProfile, releaseSizeBytes: number): SizeGuardResult {
   const minSizeBytes = parseSizeLabelToBytes(profile.min_size);
   if (Either.isLeft(minSizeBytes)) {
-    return { _tag: "Pass" as const };
+    return { _tag: "Pass" };
   }
 
   const maxSizeBytes = parseSizeLabelToBytes(profile.max_size);
   if (Either.isLeft(maxSizeBytes)) {
-    return { _tag: "Pass" as const };
+    return { _tag: "Pass" };
   }
 
   const minBytesValue = minSizeBytes.right;
@@ -107,32 +115,32 @@ function evaluateSizeGuard(profile: QualityProfile, releaseSizeBytes: number) {
   const max = Option.isSome(maxBytesValue) ? maxBytesValue.value : null;
 
   if (min !== null && releaseSizeBytes < min) {
-    return { _tag: "Reject" as const, reason: "size too small" };
+    return { _tag: "Reject", reason: "size too small" };
   }
 
   if (max !== null && releaseSizeBytes > max) {
-    return { _tag: "Reject" as const, reason: "size too big" };
+    return { _tag: "Reject", reason: "size too big" };
   }
 
-  return { _tag: "Pass" as const };
+  return { _tag: "Pass" };
 }
 
-function evaluateRuleGuard(rules: readonly ReleaseProfileRule[], title: string) {
+function evaluateRuleGuard(rules: readonly ReleaseProfileRule[], title: string): RuleGuardResult {
   const titleLower = title.toLowerCase();
 
   for (const rule of rules) {
     const term = rule.term.toLowerCase();
 
     if (rule.rule_type === "must" && !titleLower.includes(term)) {
-      return { _tag: "Reject" as const, action: reject(`Missing required term: ${rule.term}`) };
+      return { _tag: "Reject", action: reject(`Missing required term: ${rule.term}`) };
     }
 
     if (rule.rule_type === "must_not" && titleLower.includes(term)) {
-      return { _tag: "Reject" as const, action: reject(`Contains forbidden term: ${rule.term}`) };
+      return { _tag: "Reject", action: reject(`Contains forbidden term: ${rule.term}`) };
     }
   }
 
-  return { _tag: "Pass" as const };
+  return { _tag: "Pass" };
 }
 
 function assessCurrentUnit(

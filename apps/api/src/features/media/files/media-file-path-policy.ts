@@ -4,8 +4,14 @@ import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { isWithinPathRoot } from "@/infra/filesystem/filesystem.ts";
 import { DomainPathError } from "@/features/errors.ts";
 
-export const VIDEO_UNIT_FILE_EXTENSIONS = [".mkv", ".mp4", ".avi", ".mov", ".webm"] as const;
-export const VOLUME_UNIT_FILE_EXTENSIONS = [".cbz", ".cbr", ".pdf", ".epub"] as const;
+export const VIDEO_UNIT_FILE_EXTENSIONS: readonly string[] = [
+  ".mkv",
+  ".mp4",
+  ".avi",
+  ".mov",
+  ".webm",
+];
+export const VOLUME_UNIT_FILE_EXTENSIONS: readonly string[] = [".cbz", ".cbr", ".pdf", ".epub"];
 
 /**
  * Canonical media file extensions — the same set the rescan collectors

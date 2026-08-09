@@ -9,6 +9,12 @@ import { UNIT_FILE_EXTENSIONS } from "@/features/media/files/media-file-path-pol
 
 const SCAN_STAT_CONCURRENCY = 16;
 
+type ScanDirectoryState = {
+  stack: string[];
+  visited: Set<string>;
+  root: string;
+};
+
 export interface ScannedVideoFile {
   readonly name: string;
   readonly path: string;
@@ -30,7 +36,7 @@ export function scanVideoFilesStream(
 ): Stream.Stream<ScannedVideoFile, FileSystemError> {
   return Stream.unfoldChunkEffect(
     { stack: [path], visited: new Set<string>(), root: path },
-    (state) =>
+    (state: ScanDirectoryState) =>
       Effect.gen(function* () {
         const current = state.stack.pop();
 
@@ -118,7 +124,10 @@ export function scanVideoFilesStream(
           ...fileResults,
         ];
 
-        return Option.some([Chunk.fromIterable(files), state] as const);
+        return Option.some<[Chunk.Chunk<ScannedVideoFile>, ScanDirectoryState]>([
+          Chunk.fromIterable(files),
+          state,
+        ]);
       }),
   ).pipe(Stream.withSpan("Operations.scanVideoFilesStream"));
 }

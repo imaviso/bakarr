@@ -1,3 +1,4 @@
+// oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 import { HttpClient } from "@effect/platform";
 import { Effect, Option, Schema } from "effect";
 
@@ -92,7 +93,7 @@ const cacheMediaImage = Effect.fn("MediaImageCache.cacheMediaImage")(function* (
   return `/api/images/media/${mediaId}/${filename}`;
 });
 
-const CACHED_IMAGE_EXTENSIONS = ["jpg", "png", "webp", "gif"] as const;
+const CACHED_IMAGE_EXTENSIONS: readonly string[] = ["jpg", "png", "webp", "gif"];
 
 const findCachedImagePath = Effect.fn("MediaService.findCachedImagePath")(function* (
   fs: FileSystemShape,

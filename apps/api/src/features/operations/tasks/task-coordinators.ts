@@ -37,8 +37,8 @@ const makeUnmappedScanCoordinator = Effect.fn("RuntimeCoordinator.makeUnmappedSc
     const finish = Ref.set(runningRef, false).pipe(
       Effect.withSpan("UnmappedScanCoordinator.finish"),
     );
-    const tryStartAndMarkRunning = Ref.modify(runningRef, (running) =>
-      running ? ([false, true] as const) : ([true, true] as const),
+    const tryStartAndMarkRunning = Ref.modify(runningRef, (running): [boolean, boolean] =>
+      running ? [false, true] : [true, true],
     ).pipe(Effect.withSpan("UnmappedScanCoordinator.tryStartAndMarkRunning"));
 
     const completeUnmappedScan = Effect.fn("UnmappedScanCoordinator.completeUnmappedScan")(

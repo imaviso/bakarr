@@ -1,3 +1,4 @@
+// oxlint-disable oxc/no-async-await -- async/await required by transaction callbacks, test callbacks, and tryPromise wrappers
 import { and, asc, count, eq, inArray, ne, or, sql } from "drizzle-orm";
 import { Effect, Option } from "effect";
 
@@ -481,7 +482,7 @@ const listImportScanMappedUnitsEffect = Effect.fn("MediaRepository.listImportSca
       input.paths.length === 0 &&
       (input.mediaIds.length === 0 || input.unitNumbers.length === 0)
     ) {
-      return [] as const;
+      return [];
     }
 
     const byPath =
@@ -496,7 +497,7 @@ const listImportScanMappedUnitsEffect = Effect.fn("MediaRepository.listImportSca
     const whereClause = byPath && byMediaUnit ? or(byPath, byMediaUnit) : (byPath ?? byMediaUnit);
 
     if (!whereClause) {
-      return [] as const;
+      return [];
     }
 
     return yield* tryDatabasePromise("Failed to scan import path", () =>
@@ -522,7 +523,7 @@ const listScopedUnitRowsEffect = Effect.fn("MediaRepository.listScopedUnitRows")
   },
 ) {
   if (input.mediaIds.length === 0 || input.unitNumbers.length === 0) {
-    return [] as const;
+    return [];
   }
 
   return yield* tryDatabasePromise("Failed to scan import path", () =>
@@ -629,7 +630,7 @@ const listUnitProgressStatsEffect = Effect.fn("MediaRepository.listUnitProgressS
   mediaIds: readonly number[],
 ) {
   if (mediaIds.length === 0) {
-    return [] as readonly MediaUnitProgressStat[];
+    return [];
   }
   return yield* tryDatabasePromise("Failed to list media", () =>
     db
@@ -651,7 +652,7 @@ const listMissingUnitNumbersEffect = Effect.fn("MediaRepository.listMissingUnitN
   mediaIds: readonly number[],
 ) {
   if (mediaIds.length === 0) {
-    return [] as readonly { readonly mediaId: number; readonly number: number }[];
+    return [];
   }
   return yield* tryDatabasePromise("Failed to list media", () =>
     db
@@ -670,7 +671,7 @@ const loadUnitsByNumbersEffect = Effect.fn("MediaRepository.loadUnitsByNumbers")
   numbers: readonly number[],
 ) {
   if (numbers.length === 0) {
-    return [] as readonly (typeof mediaUnits.$inferSelect)[];
+    return [];
   }
 
   return yield* tryDatabasePromise("Failed to load media units", () =>

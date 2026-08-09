@@ -1,7 +1,11 @@
 import { assert, it } from "@effect/vitest";
 import { Effect } from "effect";
 
-import { brandMediaId, type MediaSearchResult } from "@packages/shared/index.ts";
+import {
+  brandMediaId,
+  type MediaSearchResult,
+  type UnmappedFolder,
+} from "@packages/shared/index.ts";
 
 import {
   buildUnmappedFolderSearchQueries,
@@ -91,14 +95,14 @@ it.effect(
 );
 
 it("unmapped folder helpers track matching status transitions", () => {
-  const base = {
-    match_status: "pending" as const,
+  const base: UnmappedFolder = {
+    match_status: "pending",
     match_attempts: 0,
     name: "Naruto Archive",
     path: "/library/Naruto Archive",
     search_queries: ["Naruto Archive"],
     size: 0,
-    suggested_matches: [] as MediaSearchResult[],
+    suggested_matches: [],
   };
 
   const matching = markUnmappedFolderMatching(base);
@@ -133,11 +137,11 @@ it("unmapped folder helpers track matching status transitions", () => {
 });
 
 it("unmapped folder helpers support pause and reset controls", () => {
-  const base = {
+  const base: UnmappedFolder = {
     last_match_error: "rate limited",
     last_matched_at: "2024-01-01T00:00:00.000Z",
     match_attempts: 2,
-    match_status: "failed" as const,
+    match_status: "failed",
     name: "Naruto Archive",
     path: "/library/Naruto Archive",
     search_queries: ["Naruto Archive"],
@@ -148,7 +152,7 @@ it("unmapped folder helpers support pause and reset controls", () => {
         id: brandMediaId(20),
         title: { romaji: "Naruto" },
       },
-    ] satisfies MediaSearchResult[],
+    ],
   };
 
   const paused = markUnmappedFolderPaused(base);
@@ -166,13 +170,21 @@ it("unmapped folder helpers support pause and reset controls", () => {
 });
 
 it("unmapped folder retry helpers stop after three failed attempts", () => {
-  const retryable = {
+  const retryable: UnmappedFolder = {
     match_attempts: 2,
-    match_status: "failed" as const,
+    match_status: "failed",
+    name: "",
+    path: "",
+    size: 0,
+    suggested_matches: [],
   };
-  const exhausted = {
+  const exhausted: UnmappedFolder = {
     match_attempts: 3,
-    match_status: "failed" as const,
+    match_status: "failed",
+    name: "",
+    path: "",
+    size: 0,
+    suggested_matches: [],
   };
 
   assert.deepStrictEqual(hasUnmappedFolderRetryAttemptsRemaining(retryable), true);
