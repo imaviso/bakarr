@@ -1,4 +1,4 @@
-import { Effect, Option } from "effect";
+import { DateTime, Duration, Effect, Option } from "effect";
 
 import {
   brandUserId,
@@ -10,7 +10,7 @@ import {
 import { AppConfig } from "@/config/schema.ts";
 import { DatabaseError } from "@/db/database.ts";
 import type { users } from "@/db/schema.ts";
-import { currentTimeMillis, nowIso as currentNowIso } from "@/infra/time.ts";
+import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { randomHexFrom, RandomService } from "@/infra/random.ts";
 import { PasswordCrypto, verifyPassword } from "@/security/password.ts";
 import { TokenHasher, type TokenHasherError } from "@/security/token-hasher.ts";
@@ -48,8 +48,7 @@ export interface AuthSessionServiceShape {
   ) => Effect.Effect<void, DatabaseError | TokenHasherError>;
 }
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-const SESSION_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+const SESSION_REFRESH_INTERVAL = Duration.minutes(5);
 
 const makeAuthSessionService = Effect.fn("AuthSessionService.make")(function* () {
   const usersRepository = yield* AuthUserRepository;
@@ -62,8 +61,8 @@ const makeAuthSessionService = Effect.fn("AuthSessionService.make")(function* ()
   const hashToken = tokenHasher.hashToken;
 
   const expiresAtIso = Effect.fn("AuthSessionService.expiresAtIso")(function* () {
-    const now = yield* currentTimeMillis;
-    return nowPlusDurationIso(now, config.sessionDurationDays * DAY_MS);
+    const now = yield* DateTime.now;
+    return DateTime.formatIso(DateTime.add(now, { days: config.sessionDurationDays }));
   });
 
   const createSession = Effect.fn("AuthSessionService.createSession")(function* (userId: number) {
@@ -153,12 +152,12 @@ const makeAuthSessionService = Effect.fn("AuthSessionService.make")(function* ()
 
       if (Option.isSome(result)) {
         const row = result.value;
-        const nowMillis = yield* currentTimeMillis;
-        const lastSeenAtMillis = isoToMillis(row.lastSeenAt);
-        const needsRefresh =
-          Number.isFinite(nowMillis) &&
-          Number.isFinite(lastSeenAtMillis) &&
-          nowMillis - lastSeenAtMillis >= SESSION_REFRESH_INTERVAL_MS;
+        const now = yield* DateTime.now;
+        const lastSeenAt = DateTime.unsafeFromDate(new Date(row.lastSeenAt));
+        const needsRefresh = Duration.greaterThanOrEqualTo(
+          DateTime.distanceDuration(now, lastSeenAt),
+          SESSION_REFRESH_INTERVAL,
+        );
 
         if (needsRefresh) {
           const expiresAt = yield* expiresAtIso();
@@ -229,14 +228,6 @@ function toLoginResult(userRow: typeof users.$inferSelect, token: string) {
     token,
     user: toAuthUser(userRow),
   };
-}
-
-function nowPlusDurationIso(nowMillis: number, durationMillis: number): string {
-  return new Date(nowMillis + durationMillis).toISOString();
-}
-
-function isoToMillis(value: string): number {
-  return Date.parse(value);
 }
 
 function toAuthUser(

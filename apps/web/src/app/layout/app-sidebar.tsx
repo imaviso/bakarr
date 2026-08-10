@@ -10,6 +10,7 @@ import {
   GearIcon,
 } from "@phosphor-icons/react";
 import { useLocation, useRouter } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { CommandPalette } from "~/app/layout/command-palette";
 import { ModeToggle } from "~/components/shared/mode-toggle";
 import { SectionLabel } from "~/components/shared/section-label";
@@ -84,6 +85,7 @@ export function AppSidebar() {
   const { logout } = useAuth();
   const location = useLocation();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { state } = useSidebar();
 
   const isCollapsed = state === "collapsed";
@@ -179,6 +181,11 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={() => {
+                // Clear the query cache (auth state + all server data) and
+                // navigate in-router; avoids a full-page reload that resets
+                // the React tree.
+                queryClient.clear();
+                void router.navigate({ to: "/login", search: { redirect: "" } });
                 void logout();
               }}
               tooltip="Sign out"

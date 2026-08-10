@@ -1,5 +1,5 @@
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
-import { Deferred, Effect, Ref, Schema } from "effect";
+import { Deferred, Effect, HashMap, Ref, Schema } from "effect";
 
 import { ExternalCall, ExternalCallError } from "@/infra/effect/retry.ts";
 import {
@@ -50,10 +50,13 @@ export class QBitTorrentClient extends Effect.Service<QBitTorrentClient>()(
     effect: Effect.gen(function* () {
       const client = yield* HttpClient.HttpClient;
       const externalCall = yield* ExternalCall;
-      const sessionsRef = yield* Ref.make<Map<string, SessionEntry>>(new Map());
+      const sessionsRef = yield* Ref.make<HashMap.HashMap<string, SessionEntry>>(HashMap.empty());
       const sessionLoginRef = yield* Ref.make<
-        Map<string, Deferred.Deferred<string, ExternalCallError | QBitTorrentClientError>>
-      >(new Map());
+        HashMap.HashMap<
+          string,
+          Deferred.Deferred<string, ExternalCallError | QBitTorrentClientError>
+        >
+      >(HashMap.empty());
 
       const execute = makeExecute(client, externalCall.tryExternalEffect);
       const login = makeLogin(execute);

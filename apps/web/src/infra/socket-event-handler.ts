@@ -9,6 +9,8 @@ import {
   readNotificationPreferences,
 } from "~/domain/notification-preferences";
 
+export { decodeNotificationEventWire };
+
 const EVENT_TOAST_ID: Partial<Record<NotificationEvent["type"], string>> = {
   DownloadFinished: "ops.download",
   DownloadStarted: "ops.download",
@@ -47,336 +49,22 @@ function updateJobStatus(
   return nextJobs;
 }
 
-export { decodeNotificationEventWire };
-
-interface HandlerContext {
-  toastId: string | undefined;
-  toastOptions: { id: string } | undefined;
-  notificationsEnabled: boolean;
-}
-
-type EventHandler<T extends NotificationEvent = NotificationEvent> = (
-  queryClient: QueryClient,
-  event: T,
-  ctx: HandlerContext,
-) => void;
-
-const handlers = new Map<NotificationEvent["type"], EventHandler[]>();
-
-function isEventType<T extends NotificationEvent["type"]>(
-  event: NotificationEvent,
-  type: T,
-): event is Extract<NotificationEvent, { type: T }> {
-  return event.type === type;
-}
-
-function on<T extends NotificationEvent["type"]>(
-  type: T,
-  ...fns: EventHandler<Extract<NotificationEvent, { type: T }>>[]
-) {
-  const existing = handlers.get(type) ?? [];
-  const wrapped = fns.map<EventHandler>((fn) => (queryClient, event, ctx) => {
-    if (!isEventType(event, type)) return;
-    fn(queryClient, event, ctx);
-  });
-  handlers.set(type, [...existing, ...wrapped]);
-}
-
-// --- Toast handlers ---
-
-on("ScanStarted", (_qc, _evt, ctx) => {
-  if (ctx.notificationsEnabled) toast.info("Library scan started");
-});
-
-on("ScanFinished", (_qc, _evt, ctx) => {
-  if (ctx.notificationsEnabled) toast.success("Library scan finished");
-});
-
-on("DownloadStarted", (_qc, evt, ctx) => {
-  if (!ctx.notificationsEnabled) return;
-  const copy = getNotificationToastCopy(evt);
-  toast.loading(copy?.message ?? `Download started: ${evt.payload.title}`, {
-    description: copy?.description,
-    ...ctx.toastOptions,
-  });
-});
-
-on("DownloadFinished", (_qc, evt, ctx) => {
-  if (ctx.toastId) toast.dismiss(ctx.toastId);
-  if (ctx.notificationsEnabled) {
-    const copy = getNotificationToastCopy(evt);
-    toast.success(copy?.message ?? `Download finished: ${evt.payload.title}`, {
-      description: copy?.description,
-    });
-  }
-});
-
-on("RefreshStarted", (_qc, evt, ctx) => {
-  if (ctx.notificationsEnabled) {
-    toast.loading(`Refreshing metadata for ${evt.payload.title}`, ctx.toastOptions);
-  }
-});
-
-on("RefreshFinished", (_qc, evt, ctx) => {
-  if (ctx.toastId) toast.dismiss(ctx.toastId);
-  if (ctx.notificationsEnabled) {
-    toast.success(`Metadata refreshed for ${evt.payload.title}`);
-  }
-});
-
-on("SearchMissingStarted", (_qc, evt, ctx) => {
-  if (ctx.notificationsEnabled) {
-    toast.loading(`Searching missing units for ${evt.payload.title}`, ctx.toastOptions);
-  }
-});
-
-on("SearchMissingFinished", (_qc, evt, ctx) => {
-  if (ctx.toastId) toast.dismiss(ctx.toastId);
-  if (ctx.notificationsEnabled) {
-    toast.success(`Search complete for ${evt.payload.title}. Found ${evt.payload.count} releases.`);
-  }
-});
-
-on("ScanFolderStarted", (_qc, evt, ctx) => {
-  if (ctx.notificationsEnabled) {
-    toast.loading(`Scanning folder for ${evt.payload.title}`, ctx.toastOptions);
-  }
-});
-
-on("ScanFolderFinished", (_qc, evt, ctx) => {
-  if (ctx.toastId) toast.dismiss(ctx.toastId);
-  if (ctx.notificationsEnabled) {
-    toast.success(
-      `Folder scan complete for ${evt.payload.title}. Found ${evt.payload.found} files.`,
-    );
-  }
-});
-
-on("RenameStarted", (_qc, evt, ctx) => {
-  if (ctx.notificationsEnabled) {
-    toast.loading(`Renaming files for ${evt.payload.title}`, ctx.toastOptions);
-  }
-});
-
-on("RenameFinished", (_qc, evt, ctx) => {
-  if (ctx.toastId) toast.dismiss(ctx.toastId);
-  if (ctx.notificationsEnabled) {
-    toast.success(
-      `Renaming complete for ${evt.payload.title}. Renamed ${evt.payload.count} files.`,
-    );
-  }
-});
-
-on("ImportStarted", (_qc, evt, ctx) => {
-  if (ctx.notificationsEnabled) {
-    toast.loading(`Importing ${evt.payload.count} files...`, ctx.toastOptions);
-  }
-});
-
-on("ImportFinished", (_qc, evt, ctx) => {
-  if (ctx.toastId) toast.dismiss(ctx.toastId);
-  if (ctx.notificationsEnabled) {
-    const copy = getNotificationToastCopy(evt);
-    toast.success(
-      copy?.message ??
-        `Import finished. Imported ${evt.payload.imported}, Failed ${evt.payload.failed}`,
-      {
-        description: copy?.description,
-      },
-    );
-  }
-});
-
-on("LibraryScanStarted", (_qc, _evt, ctx) => {
-  if (ctx.notificationsEnabled) {
-    toast.loading("Library file scan started", ctx.toastOptions);
-  }
-});
-
-on("LibraryScanFinished", (_qc, evt, ctx) => {
-  if (ctx.toastId) toast.dismiss(ctx.toastId);
-  if (ctx.notificationsEnabled) {
-    toast.success(
-      `Library file scan finished. Scanned ${evt.payload.scanned}, Matched ${evt.payload.matched}`,
-    );
-  }
-});
-
-on("RssCheckStarted", (_qc, _evt, ctx) => {
-  if (ctx.notificationsEnabled) {
-    toast.loading("RSS check started", ctx.toastOptions);
-  }
-});
-
-on("RssCheckFinished", (_qc, evt, ctx) => {
-  if (ctx.toastId) toast.dismiss(ctx.toastId);
-  if (ctx.notificationsEnabled) {
-    toast.success(`RSS check finished. Found ${evt.payload.new_items} new items.`);
-  }
-});
-
-on("PasswordChanged", (_qc, _evt, ctx) => {
-  if (ctx.notificationsEnabled) toast.success("Password changed successfully");
-});
-
-on("ApiKeyRegenerated", (_qc, _evt, ctx) => {
-  if (ctx.notificationsEnabled) toast.success("API key regenerated successfully");
-});
-
-on("Error", (_qc, evt, ctx) => {
-  if (ctx.notificationsEnabled) toast.error(evt.payload.message);
-});
-
-on("Info", (_qc, evt, ctx) => {
-  if (ctx.notificationsEnabled) toast.info(evt.payload.message);
-});
-
-// --- Cache invalidation handlers ---
-
-on("DownloadFinished", (qc, evt) => {
+function invalidateLibraryActivity(qc: QueryClient) {
   void qc.invalidateQueries({ queryKey: animeKeys.all });
   void qc.invalidateQueries({ queryKey: animeKeys.downloads.all });
   void qc.invalidateQueries({ queryKey: animeKeys.library.activity() });
   void qc.invalidateQueries({ queryKey: animeKeys.system.status() });
-  if (evt.payload.media_id) {
-    void qc.invalidateQueries({ queryKey: animeKeys.detail(evt.payload.media_id) });
-  }
-});
+}
 
-on("RefreshFinished", (qc, evt) => {
-  void qc.invalidateQueries({ queryKey: animeKeys.all });
-  if (evt.payload.media_id) {
-    void qc.invalidateQueries({ queryKey: animeKeys.detail(evt.payload.media_id) });
-    void qc.invalidateQueries({ queryKey: animeKeys.units(evt.payload.media_id) });
-  }
-});
-
-on("ScanFolderFinished", (qc, evt) => {
-  if (evt.payload.media_id) {
-    void qc.invalidateQueries({ queryKey: animeKeys.units(evt.payload.media_id) });
-    void qc.invalidateQueries({ queryKey: animeKeys.detail(evt.payload.media_id) });
-  }
-  void qc.invalidateQueries({ queryKey: animeKeys.all });
-});
-
-on("RenameFinished", (qc, evt) => {
-  if (evt.payload.media_id) {
-    void qc.invalidateQueries({ queryKey: animeKeys.units(evt.payload.media_id) });
-  }
-});
-
-on("ImportFinished", (qc) => {
-  void qc.invalidateQueries({ queryKey: animeKeys.all });
-  void qc.invalidateQueries({ queryKey: animeKeys.downloads.all });
-  void qc.invalidateQueries({ queryKey: animeKeys.library.activity() });
-  void qc.invalidateQueries({ queryKey: animeKeys.system.status() });
-});
-
-on("LibraryScanFinished", (qc) => {
-  void qc.invalidateQueries({ queryKey: animeKeys.system.jobs() });
-  void qc.invalidateQueries({ queryKey: animeKeys.library.unmapped() });
-});
-
-on("RssCheckFinished", (qc) => {
-  void qc.invalidateQueries({ queryKey: animeKeys.system.jobs() });
-  void qc.invalidateQueries({ queryKey: animeKeys.system.status() });
-});
-
-on("ApiKeyRegenerated", (qc) => {
-  void qc.invalidateQueries({ queryKey: animeKeys.auth.apiKey() });
-});
-
-// --- Job status handlers ---
-
-on("LibraryScanStarted", (qc) => {
+function markJobRunning(qc: QueryClient, jobName: string) {
   qc.setQueryData<BackgroundJobStatus[]>(animeKeys.system.jobs(), (previousJobs) =>
-    updateJobStatus(previousJobs, "unmapped_scan", (job) => ({
+    updateJobStatus(previousJobs, jobName, (job) => ({
       ...job,
       is_running: true,
       last_status: "running",
     })),
   );
-});
-
-on("LibraryScanFinished", (qc, evt) => {
-  qc.setQueryData<BackgroundJobStatus[]>(animeKeys.system.jobs(), (previousJobs) =>
-    updateJobStatus(previousJobs, "unmapped_scan", (job) => ({
-      ...job,
-      is_running: false,
-      last_message: `Scanned ${evt.payload.scanned}, matched ${evt.payload.matched}`,
-      last_status: "ok",
-      progress_current: evt.payload.scanned,
-      progress_total: evt.payload.scanned,
-    })),
-  );
-});
-
-on("RssCheckStarted", (qc) => {
-  qc.setQueryData<BackgroundJobStatus[]>(animeKeys.system.jobs(), (previousJobs) =>
-    updateJobStatus(previousJobs, "rss_check", (job) => ({
-      ...job,
-      is_running: true,
-      last_status: "running",
-    })),
-  );
-});
-
-on("RssCheckFinished", (qc, evt) => {
-  qc.setQueryData<BackgroundJobStatus[]>(animeKeys.system.jobs(), (previousJobs) =>
-    updateJobStatus(previousJobs, "rss_check", (job) => ({
-      ...job,
-      is_running: false,
-      last_message: `Found ${evt.payload.new_items} new items`,
-      last_status: "ok",
-    })),
-  );
-});
-
-on("LibraryScanProgress", (qc, evt) => {
-  qc.setQueryData<BackgroundJobStatus[]>(animeKeys.system.jobs(), (previousJobs) =>
-    updateJobStatus(previousJobs, "unmapped_scan", (job) => ({
-      ...job,
-      is_running: true,
-      progress_current: evt.payload.scanned,
-      progress_total:
-        typeof job.progress_total === "number"
-          ? Math.max(job.progress_total, evt.payload.scanned)
-          : evt.payload.scanned,
-    })),
-  );
-});
-
-on("RssCheckProgress", (qc, evt) => {
-  qc.setQueryData<BackgroundJobStatus[]>(animeKeys.system.jobs(), (previousJobs) =>
-    updateJobStatus(previousJobs, "rss_check", (job) => ({
-      ...job,
-      is_running: true,
-      last_message: `Checking ${evt.payload.feed_name}`,
-      progress_current: evt.payload.current,
-      progress_total: evt.payload.total,
-    })),
-  );
-});
-
-on("DownloadProgress", (qc, evt) => {
-  qc.setQueryData<DownloadStatus[]>(animeKeys.downloads.queue(), evt.payload.downloads);
-  qc.setQueryData<SystemStatus>(animeKeys.system.status(), (previousStatus) => {
-    if (!previousStatus) {
-      return previousStatus;
-    }
-    return {
-      ...previousStatus,
-      pending_downloads: evt.payload.downloads.length,
-    };
-  });
-});
-
-on("SystemStatus", (qc, evt) => {
-  qc.setQueryData<SystemStatus>(animeKeys.system.status(), evt.payload);
-});
-
-// ScanProgress is intentionally a no-op
-on("ScanProgress", () => {});
+}
 
 export function handleSocketEvent(queryClient: QueryClient, event: NotificationEvent) {
   const toastId = EVENT_TOAST_ID[event.type];
@@ -385,11 +73,258 @@ export function handleSocketEvent(queryClient: QueryClient, event: NotificationE
   const notificationsEnabled =
     toastPreferenceKey === null || readNotificationPreferences()[toastPreferenceKey];
 
-  const fns = handlers.get(event.type);
-  if (!fns) return;
+  const qc = queryClient;
 
-  const ctx: HandlerContext = { toastId, toastOptions, notificationsEnabled };
-  for (const fn of fns) {
-    fn(queryClient, event, ctx);
+  switch (event.type) {
+    case "ScanStarted":
+      if (notificationsEnabled) toast.info("Library scan started");
+      break;
+
+    case "ScanFinished":
+      if (notificationsEnabled) toast.success("Library scan finished");
+      break;
+
+    case "DownloadStarted": {
+      if (notificationsEnabled) {
+        const copy = getNotificationToastCopy(event);
+        toast.loading(copy?.message ?? `Download started: ${event.payload.title}`, {
+          description: copy?.description,
+          ...toastOptions,
+        });
+      }
+      break;
+    }
+
+    case "DownloadFinished": {
+      if (toastId) toast.dismiss(toastId);
+      if (notificationsEnabled) {
+        const copy = getNotificationToastCopy(event);
+        toast.success(copy?.message ?? `Download finished: ${event.payload.title}`, {
+          description: copy?.description,
+        });
+      }
+      invalidateLibraryActivity(qc);
+      if (event.payload.media_id) {
+        void qc.invalidateQueries({ queryKey: animeKeys.detail(event.payload.media_id) });
+      }
+      break;
+    }
+
+    case "RefreshStarted":
+      if (notificationsEnabled) {
+        toast.loading(`Refreshing metadata for ${event.payload.title}`, toastOptions);
+      }
+      break;
+
+    case "RefreshFinished": {
+      if (toastId) toast.dismiss(toastId);
+      if (notificationsEnabled) {
+        toast.success(`Metadata refreshed for ${event.payload.title}`);
+      }
+      void qc.invalidateQueries({ queryKey: animeKeys.all });
+      if (event.payload.media_id) {
+        void qc.invalidateQueries({ queryKey: animeKeys.detail(event.payload.media_id) });
+        void qc.invalidateQueries({ queryKey: animeKeys.units(event.payload.media_id) });
+      }
+      break;
+    }
+
+    case "SearchMissingStarted":
+      if (notificationsEnabled) {
+        toast.loading(`Searching missing units for ${event.payload.title}`, toastOptions);
+      }
+      break;
+
+    case "SearchMissingFinished": {
+      if (toastId) toast.dismiss(toastId);
+      if (notificationsEnabled) {
+        toast.success(
+          `Search complete for ${event.payload.title}. Found ${event.payload.count} releases.`,
+        );
+      }
+      break;
+    }
+
+    case "ScanFolderStarted":
+      if (notificationsEnabled) {
+        toast.loading(`Scanning folder for ${event.payload.title}`, toastOptions);
+      }
+      break;
+
+    case "ScanFolderFinished": {
+      if (toastId) toast.dismiss(toastId);
+      if (notificationsEnabled) {
+        toast.success(
+          `Folder scan complete for ${event.payload.title}. Found ${event.payload.found} files.`,
+        );
+      }
+      if (event.payload.media_id) {
+        void qc.invalidateQueries({ queryKey: animeKeys.units(event.payload.media_id) });
+        void qc.invalidateQueries({ queryKey: animeKeys.detail(event.payload.media_id) });
+      }
+      void qc.invalidateQueries({ queryKey: animeKeys.all });
+      break;
+    }
+
+    case "RenameStarted":
+      if (notificationsEnabled) {
+        toast.loading(`Renaming files for ${event.payload.title}`, toastOptions);
+      }
+      break;
+
+    case "RenameFinished": {
+      if (toastId) toast.dismiss(toastId);
+      if (notificationsEnabled) {
+        toast.success(
+          `Renaming complete for ${event.payload.title}. Renamed ${event.payload.count} files.`,
+        );
+      }
+      if (event.payload.media_id) {
+        void qc.invalidateQueries({ queryKey: animeKeys.units(event.payload.media_id) });
+      }
+      break;
+    }
+
+    case "ImportStarted":
+      if (notificationsEnabled) {
+        toast.loading(`Importing ${event.payload.count} files...`, toastOptions);
+      }
+      break;
+
+    case "ImportFinished": {
+      if (toastId) toast.dismiss(toastId);
+      if (notificationsEnabled) {
+        const copy = getNotificationToastCopy(event);
+        toast.success(
+          copy?.message ??
+            `Import finished. Imported ${event.payload.imported}, Failed ${event.payload.failed}`,
+          {
+            description: copy?.description,
+          },
+        );
+      }
+      invalidateLibraryActivity(qc);
+      break;
+    }
+
+    case "LibraryScanStarted":
+      if (notificationsEnabled) {
+        toast.loading("Library file scan started", toastOptions);
+      }
+      markJobRunning(qc, "unmapped_scan");
+      break;
+
+    case "LibraryScanFinished": {
+      if (toastId) toast.dismiss(toastId);
+      if (notificationsEnabled) {
+        toast.success(
+          `Library file scan finished. Scanned ${event.payload.scanned}, Matched ${event.payload.matched}`,
+        );
+      }
+      qc.setQueryData<BackgroundJobStatus[]>(animeKeys.system.jobs(), (previousJobs) =>
+        updateJobStatus(previousJobs, "unmapped_scan", (job) => ({
+          ...job,
+          is_running: false,
+          last_message: `Scanned ${event.payload.scanned}, matched ${event.payload.matched}`,
+          last_status: "ok",
+          progress_current: event.payload.scanned,
+          progress_total: event.payload.scanned,
+        })),
+      );
+      void qc.invalidateQueries({ queryKey: animeKeys.system.jobs() });
+      void qc.invalidateQueries({ queryKey: animeKeys.library.unmapped() });
+      break;
+    }
+
+    case "RssCheckStarted":
+      if (notificationsEnabled) {
+        toast.loading("RSS check started", toastOptions);
+      }
+      markJobRunning(qc, "rss_check");
+      break;
+
+    case "RssCheckFinished": {
+      if (toastId) toast.dismiss(toastId);
+      if (notificationsEnabled) {
+        toast.success(`RSS check finished. Found ${event.payload.new_items} new items.`);
+      }
+      qc.setQueryData<BackgroundJobStatus[]>(animeKeys.system.jobs(), (previousJobs) =>
+        updateJobStatus(previousJobs, "rss_check", (job) => ({
+          ...job,
+          is_running: false,
+          last_message: `Found ${event.payload.new_items} new items`,
+          last_status: "ok",
+        })),
+      );
+      void qc.invalidateQueries({ queryKey: animeKeys.system.jobs() });
+      void qc.invalidateQueries({ queryKey: animeKeys.system.status() });
+      break;
+    }
+
+    case "PasswordChanged":
+      if (notificationsEnabled) toast.success("Password changed successfully");
+      break;
+
+    case "ApiKeyRegenerated":
+      if (notificationsEnabled) toast.success("API key regenerated successfully");
+      void qc.invalidateQueries({ queryKey: animeKeys.auth.apiKey() });
+      break;
+
+    case "Error":
+      if (notificationsEnabled) toast.error(event.payload.message);
+      break;
+
+    case "Info":
+      if (notificationsEnabled) toast.info(event.payload.message);
+      break;
+
+    case "LibraryScanProgress": {
+      qc.setQueryData<BackgroundJobStatus[]>(animeKeys.system.jobs(), (previousJobs) =>
+        updateJobStatus(previousJobs, "unmapped_scan", (job) => ({
+          ...job,
+          is_running: true,
+          progress_current: event.payload.scanned,
+          progress_total:
+            typeof job.progress_total === "number"
+              ? Math.max(job.progress_total, event.payload.scanned)
+              : event.payload.scanned,
+        })),
+      );
+      break;
+    }
+
+    case "RssCheckProgress": {
+      qc.setQueryData<BackgroundJobStatus[]>(animeKeys.system.jobs(), (previousJobs) =>
+        updateJobStatus(previousJobs, "rss_check", (job) => ({
+          ...job,
+          is_running: true,
+          last_message: `Checking ${event.payload.feed_name}`,
+          progress_current: event.payload.current,
+          progress_total: event.payload.total,
+        })),
+      );
+      break;
+    }
+
+    case "DownloadProgress":
+      qc.setQueryData<DownloadStatus[]>(animeKeys.downloads.queue(), event.payload.downloads);
+      qc.setQueryData<SystemStatus>(animeKeys.system.status(), (previousStatus) => {
+        if (!previousStatus) {
+          return previousStatus;
+        }
+        return {
+          ...previousStatus,
+          pending_downloads: event.payload.downloads.length,
+        };
+      });
+      break;
+
+    case "SystemStatus":
+      qc.setQueryData<SystemStatus>(animeKeys.system.status(), event.payload);
+      break;
+
+    // ScanProgress is intentionally a no-op.
+    case "ScanProgress":
+      break;
   }
 }

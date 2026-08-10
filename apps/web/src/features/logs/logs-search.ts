@@ -40,8 +40,5 @@ export interface LogsSearchState extends Record<string, string> {
 }
 
 export function parseLogsSearch(search: Record<string, unknown>): LogsSearchState {
-  return {
-    ...logsSearchDefaults,
-    ...Schema.decodeUnknownSync(LogsSearchSchema)(search),
-  };
+  return Schema.decodeUnknownSync(LogsSearchSchema)(search);
 }

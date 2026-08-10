@@ -1,178 +1,95 @@
-import { Deferred, Effect, Exit, Ref, Scope } from "effect";
+import { Deferred, Effect, Fiber, Queue, Ref } from "effect";
 
 /**
  * Latest-value coalescing publisher.
  *
- * State machine:
- * - `idle`: no completion deferred and no running publish loop.
- * - `publishing`: a publish is running and newer offered values replace `latest`.
- * - `completing`: flush waits on the current completion deferred until the loop drains.
- *
  * Semantics:
  * - Multiple `offer` calls while publishing coalesce to the most recent value.
  * - `flush` waits for the currently active publish cycle to settle.
- * - `shutdown` closes the runner scope and interrupts any forked loop.
+ * - `shutdown` interrupts the publish fiber and closes the queue.
+ *
+ * Built on Effect's `Queue.sliding(1)` + a single worker fiber: a sliding queue
+ * of capacity 1 keeps only the newest pending value, and the worker drains it.
+ * Each publish cycle completes a `Deferred`; `flush` awaits the current cycle's
+ * `Deferred`, so it observes the publish settling — not the worker fiber.
  */
 
-export interface LatestValuePublisher<A, E, R = never> {
+export interface LatestValuePublisher<A, E> {
   readonly flush: Effect.Effect<void, E>;
-  readonly offer: (value: A) => Effect.Effect<void, never, R>;
+  readonly offer: (value: A) => Effect.Effect<void>;
   readonly shutdown: Effect.Effect<void>;
 }
 
-type CoalescingStep<A, E> =
-  | { readonly type: "done" }
-  | { readonly type: "complete"; readonly completion: Deferred.Deferred<void, E> }
-  | {
-      readonly type: "publish";
-      readonly completion: Deferred.Deferred<void, E>;
-      readonly value: A;
-    };
-
 export const makeLatestValuePublisher = Effect.fn("EffectCoalescing.makeLatestValuePublisher")(
-  <A, E, R>(
-    publish: (value: A) => Effect.Effect<void, E, R>,
-  ): Effect.Effect<LatestValuePublisher<A, E, R>, never, Scope.Scope> =>
+  <A, E>(
+    publish: (value: A) => Effect.Effect<void, E>,
+  ): Effect.Effect<LatestValuePublisher<A, E>> =>
     Effect.gen(function* () {
-      const scope = yield* Scope.make();
-      const semaphore = yield* Effect.makeSemaphore(1);
-      const state = yield* Ref.make<{
-        readonly completion: Deferred.Deferred<void, E> | null;
-        readonly latest: A | undefined;
-        readonly running: boolean;
-      }>({ completion: null, latest: undefined, running: false });
+      const queue = yield* Queue.sliding<A>(1);
+      const cycle = yield* Ref.make<Deferred.Deferred<void, E> | null>(null);
+      const workerRef = yield* Ref.make<Fiber.Fiber<void, E> | null>(null);
 
-      const runLoop: Effect.Effect<void, never, R> = Effect.uninterruptibleMask((restore) =>
+      const runCycle = (value: A): Effect.Effect<void, E> =>
         Effect.gen(function* () {
-          while (true) {
-            const step = yield* semaphore.withPermits(1)(
-              Effect.gen(function* () {
-                const current = yield* Ref.get(state);
-
-                if (current.completion === null) {
-                  const done: CoalescingStep<A, E> = { type: "done" };
-                  return done;
-                }
-
-                if (current.latest === undefined) {
-                  yield* Ref.set(state, {
-                    completion: null,
-                    latest: undefined,
-                    running: false,
-                  });
-
-                  const complete: CoalescingStep<A, E> = {
-                    type: "complete",
-                    completion: current.completion,
-                  };
-                  return complete;
-                }
-
-                yield* Ref.set(state, {
-                  completion: current.completion,
-                  latest: undefined,
-                  running: true,
-                });
-
-                const publishStep: CoalescingStep<A, E> = {
-                  type: "publish",
-                  completion: current.completion,
-                  value: current.latest,
-                };
-                return publishStep;
-              }),
-            );
-
-            if (step.type === "done") {
-              return;
-            }
-
-            if (step.type === "complete") {
-              yield* Deferred.succeed(step.completion, void 0);
-              return;
-            }
-
-            const exit = yield* Effect.exit(restore(publish(step.value)));
-
-            if (exit._tag === "Failure") {
-              yield* semaphore.withPermits(1)(
-                Ref.set(state, {
-                  completion: null,
-                  latest: undefined,
-                  running: false,
-                }),
-              );
-              yield* Deferred.failCause(step.completion, exit.cause);
-              return;
-            }
+          const completion = yield* Ref.get(cycle);
+          if (completion === null) {
+            return;
           }
+
+          const exit = yield* Effect.exit(publish(value));
+
+          if (exit._tag === "Failure") {
+            yield* Deferred.failCause(completion, exit.cause);
+            return;
+          }
+
+          yield* Deferred.succeed(completion, void 0);
+        });
+
+      const ensureWorker = Effect.gen(function* () {
+        const existing = yield* Ref.get(workerRef);
+        if (existing !== null) {
+          return;
+        }
+
+        const worker = Effect.gen(function* () {
+          while (true) {
+            const value = yield* Queue.take(queue);
+            yield* runCycle(value);
+          }
+        });
+
+        const fiber = yield* Effect.fork(worker);
+        yield* Ref.set(workerRef, fiber);
+      });
+
+      const offer = Effect.fn("LatestValuePublisher.offer")((value: A) =>
+        Effect.gen(function* () {
+          const existing = yield* Ref.get(cycle);
+          if (existing === null) {
+            yield* Ref.set(cycle, yield* Deferred.make<void, E>());
+          }
+
+          yield* Queue.offer(queue, value);
+          yield* ensureWorker;
         }),
       );
 
-      const offer = Effect.fn("LatestValuePublisher.offer")(
-        (value: A): Effect.Effect<void, never, R> =>
-          Effect.gen(function* () {
-            yield* semaphore.withPermits(1)(
-              Effect.gen(function* () {
-                const current = yield* Ref.get(state);
-
-                if (current.completion !== null) {
-                  yield* Ref.set(state, {
-                    completion: current.completion,
-                    latest: value,
-                    running: current.running,
-                  });
-                  return;
-                }
-
-                const completion = yield* Deferred.make<void, E>();
-
-                yield* Ref.set(state, {
-                  completion,
-                  latest: value,
-                  running: false,
-                });
-              }),
-            );
-
-            const shouldStart = yield* semaphore.withPermits(1)(
-              Effect.gen(function* () {
-                const current = yield* Ref.get(state);
-
-                if (current.completion === null || current.running) {
-                  return false;
-                }
-
-                yield* Ref.set(state, {
-                  completion: current.completion,
-                  latest: current.latest,
-                  running: true,
-                });
-
-                return true;
-              }),
-            );
-
-            if (shouldStart) {
-              yield* Effect.forkIn(scope)(runLoop);
-            }
-          }),
-      );
-
       const flush = Effect.gen(function* () {
-        const completion = yield* semaphore
-          .withPermits(1)(Ref.get(state))
-          .pipe(Effect.map((current) => current.completion));
-
+        const completion = yield* Ref.get(cycle);
         if (completion !== null) {
           yield* Deferred.await(completion);
         }
       }).pipe(Effect.withSpan("LatestValuePublisher.flush"));
 
-      const shutdown = Scope.close(scope, Exit.succeed(void 0)).pipe(
-        Effect.withSpan("LatestValuePublisher.shutdown"),
-      );
+      const shutdown = Effect.gen(function* () {
+        const fiber = yield* Ref.get(workerRef);
+        if (fiber !== null) {
+          yield* Fiber.interrupt(fiber);
+          yield* Ref.set(workerRef, null);
+        }
+      });
 
-      return { flush, offer, shutdown } satisfies LatestValuePublisher<A, E, R>;
+      return { flush, offer, shutdown } satisfies LatestValuePublisher<A, E>;
     }),
 );

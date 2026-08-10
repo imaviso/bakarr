@@ -1,7 +1,7 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 import { createSocket, type Socket } from "node:dgram";
 
-import { Data, Effect } from "effect";
+import { Cause, Data, Effect } from "effect";
 
 import { ExternalCallError } from "@/infra/effect/retry.ts";
 
@@ -73,15 +73,10 @@ export const sendAndReceiveAniDbPacketEffect = Effect.fn("AniDbClient.sendAndRec
   function* (socket: Socket, command: string) {
     return yield* Effect.async<string, AniDbSocketPacketError>((resume) => {
       let done = false;
-      let timer: ReturnType<typeof setTimeout> | undefined;
 
       const cleanup = () => {
         socket.off("message", onMessage);
         socket.off("error", onError);
-        if (timer !== undefined) {
-          clearTimeout(timer);
-          timer = undefined;
-        }
       };
 
       const settleFailure = (cause: unknown) => {
@@ -117,9 +112,6 @@ export const sendAndReceiveAniDbPacketEffect = Effect.fn("AniDbClient.sendAndRec
 
       socket.once("message", onMessage);
       socket.once("error", onError);
-      timer = setTimeout(() => {
-        settleFailure(new Error("AniDB UDP response timed out"));
-      }, ANIDB_PACKET_TIMEOUT_MS);
 
       socket.send(Buffer.from(command, "utf8"), ANIDB_PORT, ANIDB_HOST, (cause) => {
         if (cause) {
@@ -128,6 +120,18 @@ export const sendAndReceiveAniDbPacketEffect = Effect.fn("AniDbClient.sendAndRec
       });
 
       return Effect.sync(cleanup);
-    });
+    }).pipe(
+      // Interruption-safe timeout: the async boundary owns the socket listeners,
+      // and `Effect.timeout` interrupts the inner effect so cleanup runs.
+      Effect.timeout(`${ANIDB_PACKET_TIMEOUT_MS} millis`),
+      Effect.mapError((cause) =>
+        cause instanceof Cause.TimeoutException
+          ? new AniDbSocketPacketError({
+              cause,
+              message: "AniDB UDP response timed out",
+            })
+          : cause,
+      ),
+    );
   },
 );

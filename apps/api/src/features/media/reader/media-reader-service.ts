@@ -1,6 +1,6 @@
 import { CommandExecutor } from "@effect/platform";
 import { dirname, join, resolve } from "node:path";
-import { Effect } from "effect";
+import { Cache, Effect } from "effect";
 import type { ReaderPage, ReaderPagesResponse } from "@packages/shared/index.ts";
 
 import type { DatabaseError } from "@/db/database.ts";
@@ -84,49 +84,28 @@ const EPUB_EXTENSIONS = new Set([".epub"]);
 const PDF_EXTENSIONS = new Set([".pdf"]);
 // Archives are read fully into memory, so refuse anything beyond 2 GiB.
 const MAX_ARCHIVE_BYTES = 2 * 1024 * 1024 * 1024;
-const ARCHIVE_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
-const ARCHIVE_CACHE_SWEEP_INTERVAL_MS = 30_000; // 30 seconds
+const ARCHIVE_CACHE_CAPACITY = 16;
+const ARCHIVE_CACHE_TTL = "10 minutes";
 const naturalPathCollator = new Intl.Collator(undefined, {
   numeric: true,
   sensitivity: "base",
 });
 
-/**
- * In-memory cache with fixed TTL. Entries expire 10 minutes after
- * insertion — no touch-on-access, so large archives won't live forever
- * even under active reading. A background daemon fiber sweeps expired
- * entries every 30 seconds.
- */
-class TtlCache<V> {
-  readonly #entries = new Map<string, { value: V; expiresAt: number }>();
-  readonly #ttlMs: number;
+/** Cache key for a unit file: path + size + name (a file that changes size is a different file). */
+function unitFileCacheKey(unitFile: ReaderUnitFile) {
+  return `${unitFile.filePath}:${unitFile.fileSize}:${unitFile.fileName}`;
+}
 
-  constructor(ttlMs: number) {
-    this.#ttlMs = ttlMs;
-  }
-
-  get(key: string): V | undefined {
-    const entry = this.#entries.get(key);
-    if (!entry) return undefined;
-    if (Date.now() > entry.expiresAt) {
-      this.#entries.delete(key);
-      return undefined;
-    }
-    return entry.value;
-  }
-
-  set(key: string, value: V): void {
-    this.#entries.set(key, { value, expiresAt: Date.now() + this.#ttlMs });
-  }
-
-  sweep(): void {
-    const now = Date.now();
-    for (const [key, entry] of this.#entries) {
-      if (now > entry.expiresAt) {
-        this.#entries.delete(key);
-      }
-    }
-  }
+function cacheKeyFile(cacheKey: string): ReaderUnitFile {
+  const firstSeparator = cacheKey.indexOf(":");
+  const lastSeparator = cacheKey.lastIndexOf(":");
+  return {
+    fileName: cacheKey.slice(lastSeparator + 1),
+    filePath: cacheKey.slice(0, firstSeparator),
+    fileSize: Number(cacheKey.slice(firstSeparator + 1, lastSeparator)),
+    isDirectory: false,
+    isFile: true,
+  };
 }
 
 const makeMediaReaderService = Effect.fn("MediaReaderService.make")(function* () {
@@ -135,27 +114,44 @@ const makeMediaReaderService = Effect.fn("MediaReaderService.make")(function* ()
   const executor = yield* CommandExecutor.CommandExecutor;
   const config = yield* AppConfig;
   const cacheRoot = join(dirname(resolve(config.databaseFile)), "reader-cache");
-  const archiveCache = new TtlCache<ZipArchive>(ARCHIVE_CACHE_TTL_MS);
-  const pageSourcesCache = new TtlCache<readonly ReaderPageSource[]>(ARCHIVE_CACHE_TTL_MS);
+  // Effect Cache: per-key lookup dedup (concurrent lookups of the same key share
+  // one in-flight load) and automatic TTL eviction — no sweep daemon needed.
+  const archiveCache = yield* Cache.make<string, ZipArchive, ReaderAccessError>({
+    capacity: ARCHIVE_CACHE_CAPACITY,
+    timeToLive: ARCHIVE_CACHE_TTL,
+    lookup: (cacheKey) => {
+      const file = cacheKeyFile(cacheKey);
+      return fs.readFile(file.filePath).pipe(
+        Effect.mapError(
+          (cause) =>
+            new ReaderAccessError({
+              cause,
+              message: "Failed to read archive file",
+              status: 404,
+            }),
+        ),
+        Effect.flatMap((bytes) => parseZipArchive(bytes, file.filePath)),
+      );
+    },
+  });
+  const pageSourcesCache = yield* Cache.make<
+    string,
+    readonly ReaderPageSource[],
+    ReaderAccessError
+  >({
+    capacity: ARCHIVE_CACHE_CAPACITY,
+    timeToLive: ARCHIVE_CACHE_TTL,
+    lookup: (cacheKey) =>
+      deriveReadablePageSources({
+        archiveCache,
+        cacheRoot,
+        executor,
+        fs,
+        unitFile: cacheKeyFile(cacheKey),
+      }),
+  });
   const getPdfRenderSemaphore = yield* Effect.cachedFunction((_cacheDirectory: string) =>
     Effect.makeSemaphore(1),
-  );
-  const getArchiveLoadSemaphore = yield* Effect.cachedFunction((_cacheKey: string) =>
-    Effect.makeSemaphore(1),
-  );
-
-  // Background fiber that sweeps expired cache entries
-  yield* Effect.forkDaemon(
-    Effect.forever(
-      Effect.sleep(ARCHIVE_CACHE_SWEEP_INTERVAL_MS).pipe(
-        Effect.tap(() =>
-          Effect.sync(() => {
-            archiveCache.sweep();
-            pageSourcesCache.sweep();
-          }),
-        ),
-      ),
-    ),
   );
 
   const listPages = Effect.fn("MediaReaderService.listPages")(function* (
@@ -168,15 +164,7 @@ const makeMediaReaderService = Effect.fn("MediaReaderService.make")(function* ()
       mediaRepository,
       unitNumber,
     });
-    const sources = yield* listReadablePageSources({
-      archiveCache,
-      getArchiveLoadSemaphore,
-      cacheRoot,
-      executor,
-      fs,
-      pageSourcesCache,
-      unitFile,
-    });
+    const sources = yield* pageSourcesCache.get(unitFileCacheKey(unitFile));
 
     return {
       pages: sources.map((source, index) => toReaderPage(mediaId, unitNumber, source, index)),
@@ -194,15 +182,7 @@ const makeMediaReaderService = Effect.fn("MediaReaderService.make")(function* ()
       mediaRepository,
       unitNumber,
     });
-    const sources = yield* listReadablePageSources({
-      archiveCache,
-      getArchiveLoadSemaphore,
-      cacheRoot,
-      executor,
-      fs,
-      pageSourcesCache,
-      unitFile,
-    });
+    const sources = yield* pageSourcesCache.get(unitFileCacheKey(unitFile));
     const source = sources[pageNumber - 1];
 
     if (!source) {
@@ -270,30 +250,9 @@ const resolveReaderUnitFile = Effect.fn("MediaReader.resolveReaderUnitFile")(fun
   } satisfies ReaderUnitFile;
 });
 
-const listReadablePageSources = Effect.fn("MediaReader.listReadablePageSources")(function* (input: {
-  readonly archiveCache: TtlCache<ZipArchive>;
-  readonly getArchiveLoadSemaphore: (cacheKey: string) => Effect.Effect<Effect.Semaphore>;
-  readonly cacheRoot: string;
-  readonly executor: CommandExecutor.CommandExecutor;
-  readonly fs: FileSystemShape;
-  readonly pageSourcesCache: TtlCache<readonly ReaderPageSource[]>;
-  readonly unitFile: ReaderUnitFile;
-}) {
-  const cacheKey = `${input.unitFile.filePath}:${input.unitFile.fileSize}`;
-  const cached = input.pageSourcesCache.get(cacheKey);
-  if (cached) {
-    return cached;
-  }
-
-  const sources = yield* deriveReadablePageSources(input);
-  input.pageSourcesCache.set(cacheKey, sources);
-  return sources;
-});
-
 const deriveReadablePageSources = Effect.fn("MediaReader.deriveReadablePageSources")(
   function* (input: {
-    readonly archiveCache: TtlCache<ZipArchive>;
-    readonly getArchiveLoadSemaphore: (cacheKey: string) => Effect.Effect<Effect.Semaphore>;
+    readonly archiveCache: Cache.Cache<string, ZipArchive, ReaderAccessError>;
     readonly cacheRoot: string;
     readonly executor: CommandExecutor.CommandExecutor;
     readonly fs: FileSystemShape;
@@ -325,7 +284,6 @@ const deriveReadablePageSources = Effect.fn("MediaReader.deriveReadablePageSourc
     if (hasExtension(input.unitFile.fileName, ARCHIVE_EXTENSIONS)) {
       return yield* listArchivePages({
         archiveCache: input.archiveCache,
-        getArchiveLoadSemaphore: input.getArchiveLoadSemaphore,
         format: "zip",
         fs: input.fs,
         unitFile: input.unitFile,
@@ -335,7 +293,6 @@ const deriveReadablePageSources = Effect.fn("MediaReader.deriveReadablePageSourc
     if (hasExtension(input.unitFile.fileName, EPUB_EXTENSIONS)) {
       return yield* listArchivePages({
         archiveCache: input.archiveCache,
-        getArchiveLoadSemaphore: input.getArchiveLoadSemaphore,
         format: "epub",
         fs: input.fs,
         unitFile: input.unitFile,
@@ -369,8 +326,7 @@ const deriveReadablePageSources = Effect.fn("MediaReader.deriveReadablePageSourc
 );
 
 const listArchivePages = Effect.fn("MediaReader.listArchivePages")(function* (input: {
-  readonly archiveCache: TtlCache<ZipArchive>;
-  readonly getArchiveLoadSemaphore: (cacheKey: string) => Effect.Effect<Effect.Semaphore>;
+  readonly archiveCache: Cache.Cache<string, ZipArchive, ReaderAccessError>;
   readonly format: "epub" | "zip";
   readonly fs: FileSystemShape;
   readonly unitFile: ReaderUnitFile;
@@ -382,42 +338,8 @@ const listArchivePages = Effect.fn("MediaReader.listArchivePages")(function* (in
     });
   }
 
-  const cacheKey = `${input.unitFile.filePath}:${input.unitFile.fileSize}`;
-  const archive = yield* Effect.sync(() => input.archiveCache.get(cacheKey)).pipe(
-    Effect.flatMap((cached) =>
-      cached
-        ? Effect.succeed(cached)
-        : input.getArchiveLoadSemaphore(cacheKey).pipe(
-            Effect.flatMap((sem) =>
-              sem.withPermits(1)(
-                // Double-check after acquiring to avoid redundant load
-                Effect.sync(() => input.archiveCache.get(cacheKey)).pipe(
-                  Effect.flatMap((recheck) =>
-                    recheck
-                      ? Effect.succeed(recheck)
-                      : input.fs.readFile(input.unitFile.filePath).pipe(
-                          Effect.mapError(
-                            (cause) =>
-                              new ReaderAccessError({
-                                cause,
-                                message: "Failed to read archive file",
-                                status: 404,
-                              }),
-                          ),
-                          Effect.flatMap((bytes) =>
-                            parseZipArchive(bytes, input.unitFile.filePath),
-                          ),
-                          Effect.tap((parsed) =>
-                            Effect.sync(() => input.archiveCache.set(cacheKey, parsed)),
-                          ),
-                        ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-    ),
-  );
+  // Cache.get dedups concurrent lookups of the same key (one in-flight load).
+  const archive = yield* input.archiveCache.get(unitFileCacheKey(input.unitFile));
   const pages = listArchiveImagePages(archive, input.format).flatMap((page): ReaderPageSource[] => {
     const entry = findZipEntry(archive, page.path);
     return entry

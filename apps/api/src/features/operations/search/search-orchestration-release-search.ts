@@ -340,7 +340,9 @@ export class SearchReleaseService extends Effect.Service<SearchReleaseService>()
               ),
             ),
           ),
-          Effect.catchAll(() => Effect.succeed(Option.none())),
+          // Enrichment is best-effort: an external-call failure degrades to
+          // un-enriched releases, but defects must not be swallowed.
+          Effect.catchTag("ExternalCallError", () => Effect.succeed(Option.none())),
         );
 
         if (Option.isNone(entry) || entry.value.releases.length === 0) {

@@ -302,15 +302,23 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
   );
 
   const unmappedScanLoop = Effect.fn("UnmappedScanService.unmappedScanLoop")(function* () {
-    while (true) {
-      const { hasQueuedTargets } = yield* runUnmappedScanPass();
+    // Iterate while queued targets remain, pausing 3s between passes.
+    yield* Effect.iterate(
+      { folderCount: 0, hasQueuedTargets: true },
+      {
+        while: (state) => state.hasQueuedTargets,
+        body: () =>
+          Effect.gen(function* () {
+            const next = yield* runUnmappedScanPass();
 
-      if (!hasQueuedTargets) {
-        return;
-      }
+            if (next.hasQueuedTargets) {
+              yield* Effect.sleep("3 seconds");
+            }
 
-      yield* Effect.sleep("3 seconds");
-    }
+            return next;
+          }),
+      },
+    );
   });
 
   const startUnmappedScanLoop = Effect.fn("UnmappedScanService.startUnmappedScanLoop")(

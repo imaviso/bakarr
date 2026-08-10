@@ -1,5 +1,5 @@
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
-import { Deferred, Effect, Either, Ref } from "effect";
+import { Deferred, Effect, Either, HashMap, Option, Ref } from "effect";
 
 import { currentTimeMillis } from "@/infra/time.ts";
 import { ExternalCallError, type ExternalCallShape } from "@/infra/effect/retry.ts";
@@ -44,9 +44,9 @@ export function getSessionKey(config: QBitConfig): string {
 }
 
 export function withSessionCache(
-  sessionsRef: Ref.Ref<Map<string, SessionEntry>>,
+  sessionsRef: Ref.Ref<HashMap.HashMap<string, SessionEntry>>,
   sessionLoginRef: Ref.Ref<
-    Map<string, Deferred.Deferred<string, ExternalCallError | QBitTorrentClientError>>
+    HashMap.HashMap<string, Deferred.Deferred<string, ExternalCallError | QBitTorrentClientError>>
   >,
   login: (config: QBitConfig) => Effect.Effect<string, ExternalCallError | QBitTorrentClientError>,
 ) {
@@ -69,17 +69,18 @@ export function withSessionCache(
               map,
             ): readonly [
               LoginGate,
-              Map<string, Deferred.Deferred<string, ExternalCallError | QBitTorrentClientError>>,
+              HashMap.HashMap<
+                string,
+                Deferred.Deferred<string, ExternalCallError | QBitTorrentClientError>
+              >,
             ] => {
-              const existing = map.get(sessionKey);
+              const existing = HashMap.get(map, sessionKey);
 
-              if (existing) {
-                return [{ deferred: existing, leader: false }, map];
+              if (Option.isSome(existing)) {
+                return [{ deferred: existing.value, leader: false }, map];
               }
 
-              const next = new Map(map);
-              next.set(sessionKey, deferred);
-              return [{ deferred, leader: true }, next];
+              return [{ deferred, leader: true }, HashMap.set(map, sessionKey, deferred)];
             },
           );
 
@@ -92,27 +93,17 @@ export function withSessionCache(
           if (loginExit._tag === "Success") {
             const createdAt = yield* restore(currentTimeMillis);
 
-            yield* Ref.update(sessionsRef, (map) => {
-              const next = new Map(map);
-              next.set(sessionKey, { cookie: loginExit.value, createdAt });
-              return next;
-            });
+            yield* Ref.update(sessionsRef, (map) =>
+              HashMap.set(map, sessionKey, { cookie: loginExit.value, createdAt }),
+            );
             yield* Deferred.succeed(gate.deferred, loginExit.value);
-            yield* Ref.update(sessionLoginRef, (map) => {
-              const next = new Map(map);
-              next.delete(sessionKey);
-              return next;
-            });
+            yield* Ref.update(sessionLoginRef, (map) => HashMap.remove(map, sessionKey));
 
             return loginExit.value;
           }
 
           yield* Deferred.failCause(gate.deferred, loginExit.cause);
-          yield* Ref.update(sessionLoginRef, (map) => {
-            const next = new Map(map);
-            next.delete(sessionKey);
-            return next;
-          });
+          yield* Ref.update(sessionLoginRef, (map) => HashMap.remove(map, sessionKey));
 
           return yield* Effect.failCause(loginExit.cause);
         }),
@@ -133,21 +124,17 @@ export function withSessionCache(
     const now = yield* currentTimeMillis;
 
     const sessions = yield* Ref.get(sessionsRef);
-    const cached = sessions.get(sessionKey);
+    const cachedOption = HashMap.get(sessions, sessionKey);
 
-    if (cached && now - cached.createdAt < SESSION_TTL_MS) {
-      const response = yield* Effect.either(operation(cached.cookie));
+    if (Option.isSome(cachedOption) && now - cachedOption.value.createdAt < SESSION_TTL_MS) {
+      const response = yield* Effect.either(operation(cachedOption.value.cookie));
 
       if (Either.isRight(response)) {
         if (!isUnauthorizedStatus(response.right.status)) {
           return response.right;
         }
 
-        yield* Ref.update(sessionsRef, (map) => {
-          const next = new Map(map);
-          next.delete(sessionKey);
-          return next;
-        });
+        yield* Ref.update(sessionsRef, (map) => HashMap.remove(map, sessionKey));
       } else {
         return yield* response.left;
       }
@@ -167,11 +154,9 @@ export function withSessionCache(
 
     if (!isUnauthorizedStatus(response.status)) {
       const createdAt = yield* currentTimeMillis;
-      yield* Ref.update(sessionsRef, (map) => {
-        const next = new Map(map);
-        next.set(sessionKey, { cookie: "", createdAt });
-        return next;
-      });
+      yield* Ref.update(sessionsRef, (map) =>
+        HashMap.set(map, sessionKey, { cookie: "", createdAt }),
+      );
     }
 
     return response;
