@@ -1,6 +1,6 @@
 import { inflateRawSync } from "node:zlib";
 import { posix } from "node:path";
-import { Effect } from "effect";
+import { Effect, Option } from "effect";
 
 import { ReaderAccessError } from "@/features/media/reader/media-reader-errors.ts";
 
@@ -494,11 +494,9 @@ function decodeXmlText(value: string) {
 }
 
 function safeDecodeUriComponent(value: string) {
-  try {
-    return decodeURIComponent(value);
-  } catch {
-    return value;
-  }
+  return Option.liftThrowable(() => decodeURIComponent(value))().pipe(
+    Option.getOrElse(() => value),
+  );
 }
 
 function readUint16(view: DataView, offset: number) {

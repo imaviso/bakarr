@@ -1,4 +1,3 @@
-import { differenceInDays, format, isValid, parseISO } from "date-fns";
 import { useMemo, useState } from "react";
 import { useDebouncedValue } from "@tanstack/react-pacer";
 import { useGrabReleaseMutation } from "~/api/media-mutations";
@@ -18,17 +17,6 @@ export const CATEGORY_LABELS: Record<string, string> = SEARCH_RELEASE_CATEGORY_L
 export const FILTER_LABELS: Record<string, string> = SEARCH_RELEASE_FILTER_LABELS;
 
 const SEARCH_DEBOUNCE_MS = 250;
-
-export function formatSearchResultAge(dateStr: string) {
-  const date = parseISO(dateStr);
-  const now = new Date();
-  const diffDays = differenceInDays(now, date);
-
-  if (diffDays === 0) return "Today";
-  if (diffDays === 1) return "Yesterday";
-  if (diffDays < 30) return `${diffDays}d ago`;
-  return isValid(date) ? format(date, "MMM d, yy") : dateStr;
-}
 
 export function useSearchDialogState(defaultQuery: string, mediaKind: MediaKind) {
   const [open, setOpen] = useState(false);

@@ -39,13 +39,8 @@ export interface RssTransportShape {
 export class RssTransport extends Effect.Service<RssTransport>()("@bakarr/api/RssTransport", {
   sync: () => {
     const execute = Effect.fn("RssTransport.execute")(function* (target: PinnedRequestTarget) {
-      return yield* Effect.tryPromise({
-        try: (signal) =>
-          runPinnedHttpRequest({
-            signal,
-            target,
-          }),
-        catch: (cause) =>
+      return yield* runPinnedHttpRequest({ target }).pipe(
+        Effect.mapError((cause) =>
           cause instanceof StreamPayloadTooLargeError
             ? new RssTransportPayloadTooLargeError({
                 actualBytes: cause.actualBytes,
@@ -56,7 +51,8 @@ export class RssTransport extends Effect.Service<RssTransport>()("@bakarr/api/Rs
                 cause,
                 message: formatRssTransportFailureMessage(cause),
               }),
-      });
+        ),
+      );
     });
 
     return { execute } satisfies RssTransportShape;
@@ -77,14 +73,13 @@ interface RssTransportRequestConfig {
 }
 
 const runPinnedHttpRequest = (input: {
-  readonly signal?: AbortSignal;
   readonly target: PinnedRequestTarget;
-}): Promise<RssTransportResponse> => {
-  const parsedUrl = input.target.parsedUrl;
-  const requestImpl = parsedUrl.protocol === "https:" ? httpsRequest : httpRequest;
-  const requestConfig = buildRssTransportRequestConfig(input.target);
+}): Effect.Effect<RssTransportResponse, Error> =>
+  Effect.async<RssTransportResponse, Error>((resume) => {
+    const parsedUrl = input.target.parsedUrl;
+    const requestImpl = parsedUrl.protocol === "https:" ? httpsRequest : httpRequest;
+    const requestConfig = buildRssTransportRequestConfig(input.target);
 
-  return new Promise<RssTransportResponse>((resolve, reject) => {
     const request = requestImpl(
       {
         headers: requestConfig.headers,
@@ -121,19 +116,25 @@ const runPinnedHttpRequest = (input: {
           return;
         }
 
+        const settleResponse = () => {
+          resume(
+            Effect.succeed({
+              body: new Uint8Array(0),
+              headers: new Headers(
+                Object.entries(normalizeNodeHeaders(response.headers)).filter(
+                  (entry): entry is [string, string] => entry[1] !== undefined,
+                ),
+              ),
+              status: response.statusCode ?? 500,
+            }),
+          );
+        };
+
         if (
           response.statusCode !== undefined &&
           (response.statusCode < 200 || response.statusCode >= 300)
         ) {
-          resolve({
-            body: new Uint8Array(0),
-            headers: new Headers(
-              Object.entries(normalizeNodeHeaders(response.headers)).filter(
-                (entry): entry is [string, string] => entry[1] !== undefined,
-              ),
-            ),
-            status: response.statusCode,
-          });
+          settleResponse();
           response.resume();
           return;
         }
@@ -158,29 +159,32 @@ const runPinnedHttpRequest = (input: {
             offset += chunk.length;
           }
 
-          resolve({
-            body,
-            headers: new Headers(
-              Object.entries(normalizeNodeHeaders(response.headers)).filter(
-                (entry): entry is [string, string] => entry[1] !== undefined,
+          resume(
+            Effect.succeed({
+              body,
+              headers: new Headers(
+                Object.entries(normalizeNodeHeaders(response.headers)).filter(
+                  (entry): entry is [string, string] => entry[1] !== undefined,
+                ),
               ),
-            ),
-            status: response.statusCode ?? 500,
-          });
+              status: response.statusCode ?? 500,
+            }),
+          );
         });
-        response.on("error", reject);
+        response.on("error", (cause) => resume(Effect.fail(toError(cause))));
       },
     );
 
-    request.on("error", reject);
-    if (input.signal) {
-      const abort = () => request.destroy(new Error("RSS request aborted"));
-      input.signal.addEventListener("abort", abort, { once: true });
-      request.on("close", () => input.signal?.removeEventListener("abort", abort));
-    }
+    request.on("error", (cause) => resume(Effect.fail(toError(cause))));
     request.end();
+
+    // Interruption cleanup: destroy the socket so the request is aborted.
+    return Effect.sync(() => request.destroy(new Error("RSS request aborted")));
   });
-};
+
+function toError(cause: unknown): Error {
+  return cause instanceof Error ? cause : new Error(String(cause));
+}
 
 function buildRssTransportRequestConfig(target: PinnedRequestTarget): RssTransportRequestConfig {
   const parsedUrl = target.parsedUrl;

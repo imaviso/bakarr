@@ -5,7 +5,7 @@ import type { FormEvent } from "react";
 import { toast } from "sonner";
 import { Schema } from "effect";
 import { Button } from "~/components/ui/button";
-import { errorMessage } from "~/api/effect/errors";
+import { errorMessage, formatFieldErrors } from "~/api/effect/errors";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
@@ -51,20 +51,6 @@ const ApiKeySchema = Schema.Struct({
     Schema.pattern(/^[a-fA-F0-9]+$/, { message: () => "API key must be hexadecimal" }),
   ),
 });
-
-function getFieldErrorMessage(error: unknown): string {
-  if (typeof error === "string") return error;
-  if (error && typeof error === "object" && "message" in error) {
-    const message = error.message;
-    return typeof message === "string" ? message : "Invalid field value";
-  }
-  if (typeof error === "number" || typeof error === "boolean") return String(error);
-  return "Invalid field value";
-}
-
-function formatFieldErrors(errors: readonly unknown[]) {
-  return errors.map(getFieldErrorMessage).join(", ");
-}
 
 function LoginPage() {
   const { syncAuthenticatedUser } = useAuth();

@@ -1,5 +1,5 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
-import { Effect, Layer, Logger, LogLevel, Ref } from "effect";
+import { Effect, Layer, Logger, LogLevel, Option, Ref } from "effect";
 
 export function compactLogAnnotations(
   annotations: Record<string, unknown>,
@@ -163,17 +163,17 @@ function formatUnknown(value: unknown): string | undefined {
     return `${value.name}: ${value.message}`;
   }
 
-  try {
-    return JSON.stringify(value);
-  } catch {
-    if (typeof value === "object" && value !== null) {
-      return Object.prototype.toString.call(value);
-    }
+  return Option.liftThrowable(() => JSON.stringify(value))().pipe(
+    Option.getOrElse(() => {
+      if (typeof value === "object" && value !== null) {
+        return Object.prototype.toString.call(value);
+      }
 
-    if (typeof value === "number" || typeof value === "bigint" || typeof value === "boolean") {
-      return String(value);
-    }
+      if (typeof value === "number" || typeof value === "bigint" || typeof value === "boolean") {
+        return String(value);
+      }
 
-    return typeof value;
-  }
+      return typeof value;
+    }),
+  );
 }

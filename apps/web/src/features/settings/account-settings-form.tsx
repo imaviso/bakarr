@@ -30,7 +30,7 @@ import { NotificationSettingsCard } from "~/features/settings/notification-setti
 import { SectionLabel } from "~/components/shared/section-label";
 import { useChangePasswordMutation, useRegenerateApiKeyMutation } from "~/api/auth";
 import { useAuth } from "~/app/auth";
-import { errorMessage } from "~/api/effect/errors";
+import { errorMessage, firstFieldErrorMessage } from "~/api/effect/errors";
 import { copyToClipboard } from "~/infra/utils";
 
 const ChangePasswordSchema = Schema.Struct({
@@ -46,18 +46,6 @@ const ChangePasswordSchema = Schema.Struct({
     Schema.minLength(1, { message: () => "Please confirm your password" }),
   ),
 });
-
-function getFirstErrorMessage(errors: readonly unknown[]): string | undefined {
-  const first = errors[0];
-  if (!first) return undefined;
-  if (typeof first === "string") return first;
-  if (typeof first === "object" && "message" in first) {
-    const message = first.message;
-    return typeof message === "string" ? message : "Invalid field value";
-  }
-  if (typeof first === "number" || typeof first === "boolean") return String(first);
-  return undefined;
-}
 
 export function AccountSettingsForm() {
   const { auth, clearAuthState, replaceApiKey } = useAuth();
@@ -187,9 +175,9 @@ export function AccountSettingsForm() {
                         )}
                       </Button>
                     </div>
-                    {getFirstErrorMessage(field.state.meta.errors) && (
+                    {firstFieldErrorMessage(field.state.meta.errors) && (
                       <div className="text-[0.8rem] text-destructive">
-                        {getFirstErrorMessage(field.state.meta.errors)}
+                        {firstFieldErrorMessage(field.state.meta.errors)}
                       </div>
                     )}
                   </div>
@@ -226,9 +214,9 @@ export function AccountSettingsForm() {
                         )}
                       </Button>
                     </div>
-                    {getFirstErrorMessage(field.state.meta.errors) && (
+                    {firstFieldErrorMessage(field.state.meta.errors) && (
                       <div className="text-[0.8rem] text-destructive">
-                        {getFirstErrorMessage(field.state.meta.errors)}
+                        {firstFieldErrorMessage(field.state.meta.errors)}
                       </div>
                     )}
                   </div>
@@ -259,9 +247,9 @@ export function AccountSettingsForm() {
                       type="password"
                       autoComplete="new-password"
                     />
-                    {getFirstErrorMessage(field.state.meta.errors) && (
+                    {firstFieldErrorMessage(field.state.meta.errors) && (
                       <div className="text-[0.8rem] text-destructive">
-                        {getFirstErrorMessage(field.state.meta.errors)}
+                        {firstFieldErrorMessage(field.state.meta.errors)}
                       </div>
                     )}
                   </div>

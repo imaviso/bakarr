@@ -1,5 +1,7 @@
 export { ConfigSchema } from "@bakarr/shared";
 
+import { formatUiTimestamp } from "~/domain/date-time";
+
 export const IMPORT_MODE_OPTIONS = ["copy", "move"] as const;
 export const PREFERRED_TITLE_OPTIONS = ["romaji", "english", "native"] as const;
 
@@ -20,13 +22,7 @@ export function preferredTitleLabel(value: string) {
 
 export function formatLastRun(dateStr?: string | null) {
   if (!dateStr) return "Never";
-  try {
-    const date = new Date(`${dateStr.replace(" ", "T")}Z`);
-    if (Number.isNaN(date.getTime())) return dateStr;
-    return date.toLocaleString();
-  } catch {
-    return dateStr;
-  }
+  return formatUiTimestamp(dateStr);
 }
 
 export type ConfigSettingsMode = "general" | "automation";

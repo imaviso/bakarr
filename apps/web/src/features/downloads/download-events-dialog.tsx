@@ -1,20 +1,16 @@
 import { useState } from "react";
-import { toast } from "sonner";
 import { WarningIcon, EyeIcon, TableIcon, BracketsCurlyIcon } from "@phosphor-icons/react";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
 import { Dialog, DialogDescription, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 import { DownloadEventDetailsDialog } from "~/features/downloads/download-event-details-dialog";
-import {
-  useDownloadEventsExportMutation,
-  useDownloadEventsQuery,
-} from "~/api/system-download-events";
+import { useDownloadEventsQuery } from "~/api/system-download-events";
 import type {
   DownloadEvent,
+  DownloadEventsExportInput,
   DownloadEventsFilterInput,
-  DownloadEventsExportResult,
 } from "~/api/contracts";
-import { errorMessage } from "~/api/effect/errors";
+import { useDownloadEventsExport } from "~/features/downloads/use-download-events-export";
 import { DownloadEventsFeed } from "~/features/downloads/download-events/download-events-feed";
 
 interface DownloadEventsDialogProps {
@@ -40,9 +36,6 @@ interface Pagination {
 export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
   const [open, setOpen] = useState(false);
   const [pagination, setPagination] = useState<Pagination>({ direction: "next" });
-  const [lastExportResult, setLastExportResult] = useState<DownloadEventsExportResult | undefined>(
-    undefined,
-  );
   const [selectedEvent, setSelectedEvent] = useState<DownloadEvent | null>(null);
   const queryInput: DownloadEventsFilterInput = {
     direction: pagination.direction,
@@ -53,8 +46,8 @@ export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
     ...(props.eventType === undefined ? {} : { eventType: props.eventType }),
   };
   const query = useDownloadEventsQuery(queryInput, { enabled: open });
-  const exportDownloadEvents = useDownloadEventsExportMutation();
-  const exportBaseInput = {
+  const { exportDownloadEvents, lastExport } = useDownloadEventsExport();
+  const exportBaseInput: DownloadEventsExportInput = {
     ...(props.mediaId === undefined ? {} : { mediaId: props.mediaId }),
     ...(props.downloadId === undefined ? {} : { downloadId: props.downloadId }),
     ...(props.eventType === undefined ? {} : { eventType: props.eventType }),
@@ -62,21 +55,7 @@ export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
     order: "desc" as const,
   };
   const openExport = (format: "json" | "csv") => {
-    const exportPromise = exportDownloadEvents
-      .mutateAsync({ filter: exportBaseInput, format })
-      .then((result) => {
-        setLastExportResult(result);
-        return result;
-      });
-
-    toast.promise(exportPromise, {
-      error: (error) => errorMessage(error, "Failed to export download events"),
-      loading: `Exporting ${format.toUpperCase()} download events...`,
-      success: (result) =>
-        result.truncated
-          ? `Exported ${result.exported} of ${result.total} events (truncated at ${result.limit})`
-          : `Exported ${result.exported} download events`,
-    });
+    exportDownloadEvents(format, exportBaseInput);
   };
 
   const events = query.data?.events ?? [];
@@ -84,7 +63,6 @@ export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
       setPagination({ direction: "next" });
-      setLastExportResult(undefined);
     } else {
       setSelectedEvent(null);
     }
@@ -131,12 +109,12 @@ export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
               Export CSV
             </Button>
           </div>
-          {lastExportResult?.truncated && (
+          {lastExport?.truncated && (
             <Alert className="text-xs">
               <WarningIcon className="h-4 w-4 shrink-0" />
               <AlertDescription>
-                Last export was truncated: exported {lastExportResult?.exported} of{" "}
-                {lastExportResult?.total} events (limit {lastExportResult?.limit}).
+                Last export was truncated: exported {lastExport?.exported} of {lastExport?.total}{" "}
+                events (limit {lastExport?.limit}).
               </AlertDescription>
             </Alert>
           )}

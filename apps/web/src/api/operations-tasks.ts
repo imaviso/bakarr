@@ -84,7 +84,7 @@ export function useSystemTaskQuery(taskId: number | undefined) {
   return useQuery({
     queryKey:
       taskId === undefined
-        ? [...animeKeys.system.tasks.all(), "pending"]
+        ? animeKeys.system.tasks.pending
         : animeKeys.system.tasks.byId(taskId),
     queryFn:
       taskId === undefined
@@ -148,7 +148,7 @@ export function useLibraryImportTaskQuery(taskId: number | undefined) {
   return useQuery({
     queryKey:
       taskId === undefined
-        ? [...animeKeys.library.importTasks.all(), "pending"]
+        ? animeKeys.library.importTasks.pending
         : animeKeys.library.importTasks.byId(taskId),
     queryFn:
       taskId === undefined
@@ -190,7 +190,7 @@ export function useAnimeScanTasksQuery(mediaId: number | undefined) {
   return useQuery({
     queryKey:
       mediaId === undefined
-        ? (["media", "detail", "scan-tasks", "pending"] as const)
+        ? animeKeys.unitScanTasks.pending
         : animeKeys.unitScanTasks.all(mediaId),
     queryFn:
       mediaId === undefined
@@ -238,7 +238,7 @@ export function useAnimeScanTaskQuery(input: {
   return useQuery({
     queryKey:
       input.mediaId === undefined || input.taskId === undefined
-        ? (["media", "detail", "scan-tasks", "pending"] as const)
+        ? animeKeys.unitScanTasks.pending
         : animeKeys.unitScanTasks.byId(input.mediaId, input.taskId),
     queryFn:
       input.mediaId === undefined || input.taskId === undefined

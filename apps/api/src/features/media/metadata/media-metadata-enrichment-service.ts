@@ -1,4 +1,4 @@
-import { Cause, Effect, Option, Queue, Ref } from "effect";
+import { Cause, DateTime, Duration, Effect, HashSet, Option, Queue, Ref } from "effect";
 
 import type { DatabaseError } from "@/db/database.ts";
 import { AniDbClient } from "@/features/media/metadata/anidb.ts";
@@ -9,9 +9,9 @@ import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import type { StoredDataError } from "@/features/errors.ts";
 import { AniDbRuntimeConfigError } from "@/features/media/errors.ts";
-import { currentTimeMillis, nowIso as currentNowIso } from "@/infra/time.ts";
+import { nowIso as currentNowIso } from "@/infra/time.ts";
 
-const ANIDB_CACHE_STALE_AFTER_MS = 6 * 60 * 60 * 1000;
+const ANIDB_CACHE_STALE_AFTER = Duration.hours(6);
 const ANIDB_REFRESH_QUEUE_CAPACITY = 256;
 
 export interface AniDbRefreshRequest extends AniDbEpisodeLookupInput {
@@ -52,7 +52,7 @@ const makeMediaMetadataEnrichmentService = Effect.fn("MediaMetadataEnrichmentSer
       Queue.dropping<AniDbRefreshRequest>(ANIDB_REFRESH_QUEUE_CAPACITY),
       Queue.shutdown,
     );
-    const queuedAnimeIdsRef = yield* Ref.make(new Set<number>());
+    const queuedAnimeIdsRef = yield* Ref.make(HashSet.empty<number>());
 
     const runAniDbRefresh = Effect.fn("MediaMetadataEnrichmentService.runAniDbRefresh")(function* (
       request: AniDbRefreshRequest,
@@ -101,11 +101,9 @@ const makeMediaMetadataEnrichmentService = Effect.fn("MediaMetadataEnrichmentSer
             ),
           ),
           Effect.ensuring(
-            Ref.update(queuedAnimeIdsRef, (queuedAnimeIds) => {
-              const nextQueuedAnimeIds = new Set(queuedAnimeIds);
-              nextQueuedAnimeIds.delete(request.mediaId);
-              return nextQueuedAnimeIds;
-            }),
+            Ref.update(queuedAnimeIdsRef, (queuedAnimeIds) =>
+              HashSet.remove(queuedAnimeIds, request.mediaId),
+            ),
           ),
         ),
       ),
@@ -124,13 +122,11 @@ const makeMediaMetadataEnrichmentService = Effect.fn("MediaMetadataEnrichmentSer
         }
 
         const cacheEntry = cacheEntryOption.value;
-        const nowMillis = yield* currentTimeMillis;
-        const updatedAtMillis = Date.parse(cacheEntry.updatedAt);
+        const now = yield* DateTime.now;
+        const updatedAt = DateTime.unsafeFromDate(new Date(cacheEntry.updatedAt));
+        const staleFor = DateTime.distanceDuration(now, updatedAt);
 
-        if (
-          !Number.isFinite(updatedAtMillis) ||
-          nowMillis - updatedAtMillis > ANIDB_CACHE_STALE_AFTER_MS
-        ) {
+        if (Duration.greaterThan(staleFor, ANIDB_CACHE_STALE_AFTER)) {
           return {
             _tag: "Stale",
             updatedAt: cacheEntry.updatedAt,
@@ -149,14 +145,12 @@ const makeMediaMetadataEnrichmentService = Effect.fn("MediaMetadataEnrichmentSer
       function* (request: AniDbRefreshRequest) {
         const shouldQueue = yield* Ref.modify(
           queuedAnimeIdsRef,
-          (queuedAnimeIds): [boolean, Set<number>] => {
-            if (queuedAnimeIds.has(request.mediaId)) {
+          (queuedAnimeIds): [boolean, HashSet.HashSet<number>] => {
+            if (HashSet.has(queuedAnimeIds, request.mediaId)) {
               return [false, queuedAnimeIds];
             }
 
-            const nextQueuedAnimeIds = new Set(queuedAnimeIds);
-            nextQueuedAnimeIds.add(request.mediaId);
-            return [true, nextQueuedAnimeIds];
+            return [true, HashSet.add(queuedAnimeIds, request.mediaId)];
           },
         );
 
@@ -170,11 +164,9 @@ const makeMediaMetadataEnrichmentService = Effect.fn("MediaMetadataEnrichmentSer
           return;
         }
 
-        yield* Ref.update(queuedAnimeIdsRef, (queuedAnimeIds) => {
-          const nextQueuedAnimeIds = new Set(queuedAnimeIds);
-          nextQueuedAnimeIds.delete(request.mediaId);
-          return nextQueuedAnimeIds;
-        });
+        yield* Ref.update(queuedAnimeIdsRef, (queuedAnimeIds) =>
+          HashSet.remove(queuedAnimeIds, request.mediaId),
+        );
 
         yield* Effect.logWarning("AniDB refresh queue full; dropped request").pipe(
           Effect.annotateLogs({

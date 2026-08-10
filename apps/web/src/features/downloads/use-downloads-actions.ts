@@ -1,15 +1,12 @@
-import { useState } from "react";
-import { toast } from "sonner";
 import { useSearchMissingMutation, useSyncDownloadsMutation } from "~/api/system-downloads";
-import { useDownloadEventsExportMutation } from "~/api/system-download-events";
-import type { DownloadEventsExportInput, DownloadEventsExportResult } from "~/api/contracts";
-import { errorMessage } from "~/api/effect/errors";
+import type { DownloadEventsExportInput } from "~/api/contracts";
 import {
   createDownloadEventsCursorPatch,
   DOWNLOADS_EVENTS_SEARCH_KEYS,
 } from "~/domain/download/events-search";
 import { toDownloadsTab } from "~/features/downloads/downloads-search";
 import type { DownloadsSearchPatch } from "~/features/downloads/downloads-search";
+import { useDownloadEventsExport } from "~/features/downloads/use-download-events-export";
 
 interface UseDownloadsActionsOptions {
   updateSearch: (patch: DownloadsSearchPatch) => void;
@@ -21,29 +18,12 @@ interface UseDownloadsActionsOptions {
 }
 
 export function useDownloadsActions(options: UseDownloadsActionsOptions) {
-  const [lastDownloadEventsExport, setLastDownloadEventsExport] = useState<
-    DownloadEventsExportResult | undefined
-  >(undefined);
+  const { exportDownloadEvents, lastExport } = useDownloadEventsExport();
   const searchMissing = useSearchMissingMutation();
   const syncDownloads = useSyncDownloadsMutation();
-  const exportDownloadEvents = useDownloadEventsExportMutation();
 
   const handleDownloadEventsExport = (format: "json" | "csv") => {
-    const exportPromise = exportDownloadEvents
-      .mutateAsync({ filter: options.eventsExportInput, format })
-      .then((result) => {
-        setLastDownloadEventsExport(result);
-        return result;
-      });
-
-    toast.promise(exportPromise, {
-      error: (error) => errorMessage(error, "Failed to export download events"),
-      loading: `Exporting ${format.toUpperCase()} download events...`,
-      success: (result) =>
-        result.truncated
-          ? `Exported ${result.exported} of ${result.total} events (truncated at ${result.limit})`
-          : `Exported ${result.exported} download events`,
-    });
+    exportDownloadEvents(format, options.eventsExportInput);
   };
 
   const goToPreviousEventsPage = () => {
@@ -83,7 +63,7 @@ export function useDownloadsActions(options: UseDownloadsActionsOptions) {
     goToPreviousEventsPage,
     handleDownloadEventsExport,
     handleTabChange,
-    lastDownloadEventsExport,
+    lastDownloadEventsExport: lastExport,
     searchMissing,
     triggerSearchMissing,
     syncDownloads,

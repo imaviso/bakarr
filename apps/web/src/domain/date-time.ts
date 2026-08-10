@@ -1,4 +1,4 @@
-import { format, isAfter, isValid, parseISO } from "date-fns";
+import { differenceInDays, format, isAfter, isValid, parseISO } from "date-fns";
 
 export function isAired(airedDate?: string): boolean {
   if (!airedDate) return false;
@@ -32,4 +32,15 @@ export function formatDateTime(value: string): string {
 export function formatTime(value: string): string {
   const date = parseISO(value);
   return isValid(date) ? format(date, "h:mm a") : value;
+}
+
+export function formatSearchResultAge(dateStr: string): string {
+  const date = parseISO(dateStr);
+  const now = new Date();
+  const diffDays = differenceInDays(now, date);
+
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 30) return `${diffDays}d ago`;
+  return isValid(date) ? format(date, "MMM d, yy") : dateStr;
 }

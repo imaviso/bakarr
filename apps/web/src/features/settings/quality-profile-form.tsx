@@ -1,6 +1,7 @@
 import { useForm } from "@tanstack/react-form";
 import { Schema } from "effect";
 import { SortableQualityList } from "~/features/settings/sortable-quality-list";
+import { fieldErrorMessage } from "~/api/effect/errors";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
@@ -45,14 +46,6 @@ function validateSizeField({ value }: { value: unknown }): string | undefined {
   const result = Schema.decodeUnknownEither(SizeFieldSchema)(value);
   if (result._tag === "Right") return undefined;
   return "Must be format like '500 MB' or '2.5 GB'";
-}
-
-function getFieldErrorMessage(error: unknown): string {
-  if (typeof error === "string") return error;
-  if (error && typeof error === "object" && "message" in error) {
-    return String(error.message);
-  }
-  return String(error);
 }
 
 export function ProfileForm(props: {
@@ -187,7 +180,7 @@ export function ProfileForm(props: {
                   onChange={(value) => field.handleChange(value)}
                   {...(field.state.meta.errors[0] === undefined
                     ? {}
-                    : { error: getFieldErrorMessage(field.state.meta.errors[0]) })}
+                    : { error: fieldErrorMessage(field.state.meta.errors[0] ?? undefined) })}
                 />
               )}
             </form.Field>
@@ -205,7 +198,7 @@ export function ProfileForm(props: {
                   onChange={(value) => field.handleChange(value)}
                   {...(field.state.meta.errors[0] === undefined
                     ? {}
-                    : { error: getFieldErrorMessage(field.state.meta.errors[0]) })}
+                    : { error: fieldErrorMessage(field.state.meta.errors[0] ?? undefined) })}
                 />
               )}
             </form.Field>

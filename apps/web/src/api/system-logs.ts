@@ -19,11 +19,7 @@ export function infiniteLogsQueryOptions(
   refetchInterval: number | false = false,
 ) {
   return infiniteQueryOptions({
-    queryKey: [
-      ...animeKeys.system.logs(1, level, eventType, startDate, endDate).slice(0, 2),
-      "infinite",
-      { level, eventType, startDate, endDate },
-    ] as const,
+    queryKey: animeKeys.system.logsInfinite({ level, eventType, startDate, endDate }),
     queryFn: ({ pageParam, signal }) => {
       const params = new URLSearchParams({ page: pageParam.toString() });
       if (level) params.append("level", level);

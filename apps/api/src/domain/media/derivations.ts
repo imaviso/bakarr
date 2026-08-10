@@ -1,3 +1,5 @@
+import { DateTime, Option } from "effect";
+
 import type { MediaSearchResult, MediaUnit } from "@packages/shared/index.ts";
 
 export function deriveEpisodeTimelineMetadata(
@@ -87,24 +89,30 @@ export function inferAiredAt(
     return status === "FINISHED" ? (fallbackNowIso ?? null) : null;
   }
 
-  const start = new Date(`${startDate}T00:00:00Z`);
+  const startOption = DateTime.make(new Date(`${startDate}T00:00:00Z`));
 
-  if (Number.isNaN(start.getTime())) {
+  if (Option.isNone(startOption)) {
     return status === "FINISHED" ? (fallbackNowIso ?? null) : null;
   }
 
-  if (status === "FINISHED" && endDate && unitCount && unitCount > 1) {
-    const end = new Date(`${endDate}T00:00:00Z`);
+  const start = startOption.value;
 
-    if (!Number.isNaN(end.getTime())) {
-      const spanMs = Math.max(end.getTime() - start.getTime(), 0);
+  if (status === "FINISHED" && endDate && unitCount && unitCount > 1) {
+    const endOption = DateTime.make(new Date(`${endDate}T00:00:00Z`));
+
+    if (Option.isSome(endOption)) {
+      const spanMs = Math.max(
+        DateTime.distance(start, endOption.value),
+        0,
+      );
       const intervalMs = unitCount > 1 ? Math.floor(spanMs / (unitCount - 1)) : 0;
-      return new Date(start.getTime() + intervalMs * (unitNumber - 1)).toISOString();
+      return DateTime.formatIso(
+        DateTime.add(start, { millis: intervalMs * (unitNumber - 1) }),
+      );
     }
   }
 
-  const weeklyMs = 7 * 24 * 60 * 60 * 1000;
-  return new Date(start.getTime() + weeklyMs * (unitNumber - 1)).toISOString();
+  return DateTime.formatIso(DateTime.add(start, { weeks: unitNumber - 1 }));
 }
 
 function inferFromNearestScheduledEpisode(
@@ -117,15 +125,15 @@ function inferFromNearestScheduledEpisode(
 
   let nearest:
     | {
-        readonly airingAt: number;
+        readonly airingAt: DateTime.DateTime;
         readonly episode: number;
       }
     | undefined;
 
   for (const [scheduledEpisode, scheduledAiringAt] of futureAiringSchedule) {
-    const scheduledTime = Date.parse(scheduledAiringAt);
+    const scheduledTimeOption = DateTime.make(scheduledAiringAt);
 
-    if (!Number.isFinite(scheduledTime)) {
+    if (Option.isNone(scheduledTimeOption)) {
       continue;
     }
 
@@ -134,7 +142,7 @@ function inferFromNearestScheduledEpisode(
       Math.abs(scheduledEpisode - unitNumber) < Math.abs(nearest.episode - unitNumber)
     ) {
       nearest = {
-        airingAt: scheduledTime,
+        airingAt: scheduledTimeOption.value,
         episode: scheduledEpisode,
       };
     }
@@ -144,9 +152,8 @@ function inferFromNearestScheduledEpisode(
     return null;
   }
 
-  const weeklyMs = 7 * 24 * 60 * 60 * 1000;
   const offset = unitNumber - nearest.episode;
-  return new Date(nearest.airingAt + offset * weeklyMs).toISOString();
+  return DateTime.formatIso(DateTime.add(nearest.airingAt, { weeks: offset }));
 }
 
 export function scoreAnimeSearchResultMatch(

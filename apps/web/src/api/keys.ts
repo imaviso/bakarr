@@ -8,6 +8,7 @@ export const animeKeys = {
     all: (mediaId: number) => ["media", "detail", mediaId, "scan-tasks"] as const,
     byId: (mediaId: number, taskId: number) =>
       ["media", "detail", mediaId, "scan-tasks", taskId] as const,
+    pending: ["media", "detail", "scan-tasks", "pending"] as const,
   },
   units: (id: number) => ["media", "detail", id, "units"] as const,
   files: (id: number) => ["media", "detail", id, "files"] as const,
@@ -33,11 +34,27 @@ export const animeKeys = {
       input?.limit ?? null,
       input?.page ?? null,
     ] as const,
+  seasonalInfinite: (input?: {
+    season?: MediaSeason | undefined;
+    year?: number | undefined;
+    limit?: number | undefined;
+  }) =>
+    [
+      "media",
+      "seasonal",
+      "infinite",
+      {
+        season: input?.season ?? null,
+        year: input?.year ?? null,
+        limit: input?.limit ?? 25,
+      },
+    ] as const,
   library: {
     all: ["library"] as const,
     importTasks: {
       all: () => ["library", "import", "tasks"] as const,
       byId: (taskId: number) => ["library", "import", "tasks", taskId] as const,
+      pending: ["library", "import", "tasks", "pending"] as const,
     },
     stats: () => ["library", "stats"] as const,
     activity: () => ["library", "activity"] as const,
@@ -89,6 +106,7 @@ export const animeKeys = {
     tasks: {
       all: () => ["system", "tasks"] as const,
       byId: (taskId: number) => ["system", "tasks", taskId] as const,
+      pending: ["system", "tasks", "pending"] as const,
     },
     jobs: () => ["system", "jobs"] as const,
     status: () => ["system", "status"] as const,
@@ -99,5 +117,22 @@ export const animeKeys = {
       startDate?: string,
       endDate?: string,
     ) => ["system", "logs", { page, level, eventType, startDate, endDate }] as const,
+    logsInfinite: (input?: {
+      level?: string | undefined;
+      eventType?: string | undefined;
+      startDate?: string | undefined;
+      endDate?: string | undefined;
+    }) =>
+      [
+        "system",
+        "logs",
+        "infinite",
+        {
+          level: input?.level,
+          eventType: input?.eventType,
+          startDate: input?.startDate,
+          endDate: input?.endDate,
+        },
+      ] as const,
   },
 } as const satisfies Record<string, unknown>;

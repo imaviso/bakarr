@@ -1,14 +1,12 @@
 import { useState } from "react";
-import { toast } from "sonner";
-import type { DownloadEvent, DownloadEventsExportResult, SystemLog } from "~/api/contracts";
+import type { DownloadEvent, SystemLog } from "~/api/contracts";
 import { useClearLogsMutation, getExportLogsUrl } from "~/api/system-logs";
-import { useDownloadEventsExportMutation } from "~/api/system-download-events";
-import { errorMessage } from "~/api/effect/errors";
 import {
   createDownloadEventsCursorPatch,
   LOGS_DOWNLOAD_EVENTS_SEARCH_KEYS,
 } from "~/domain/download/events-search";
 import type { DownloadEventsExportInput } from "~/api/contracts";
+import { useDownloadEventsExport } from "~/features/downloads/use-download-events-export";
 import type { LogsFilterParams } from "~/features/logs/use-logs-filters";
 
 interface UseLogsActionsOptions {
@@ -22,12 +20,9 @@ interface UseLogsActionsOptions {
 
 export function useLogsActions(options: UseLogsActionsOptions) {
   const clearLogs = useClearLogsMutation();
-  const [lastDownloadEventsExport, setLastDownloadEventsExport] = useState<
-    DownloadEventsExportResult | undefined
-  >(undefined);
+  const { exportDownloadEvents, lastExport } = useDownloadEventsExport();
   const [selectedDownloadEvent, setSelectedDownloadEvent] = useState<DownloadEvent | null>(null);
   const [selectedLog, setSelectedLog] = useState<SystemLog | null>(null);
-  const exportDownloadEventsMutation = useDownloadEventsExportMutation();
 
   const clearLogsWithToast = () => clearLogs.mutate();
 
@@ -47,25 +42,11 @@ export function useLogsActions(options: UseLogsActionsOptions) {
     }
   };
 
-  const exportDownloadEvents = (input: {
+  const exportDownloadEventsWithToast = (input: {
     format: "json" | "csv";
     exportInput: DownloadEventsExportInput;
   }) => {
-    const exportPromise = exportDownloadEventsMutation
-      .mutateAsync({ filter: input.exportInput, format: input.format })
-      .then((result) => {
-        setLastDownloadEventsExport(result);
-        return result;
-      });
-
-    toast.promise(exportPromise, {
-      error: (error) => errorMessage(error, "Failed to export download events"),
-      loading: `Exporting ${input.format.toUpperCase()} download events...`,
-      success: (result) =>
-        result.truncated
-          ? `Exported ${result.exported} of ${result.total} events (truncated at ${result.limit})`
-          : `Exported ${result.exported} download events`,
-    });
+    exportDownloadEvents(input.format, input.exportInput);
   };
 
   const goToPreviousDownloadEventsPage = () => {
@@ -91,11 +72,11 @@ export function useLogsActions(options: UseLogsActionsOptions) {
   return {
     clearLogs,
     clearLogsWithToast,
-    exportDownloadEvents,
+    exportDownloadEvents: exportDownloadEventsWithToast,
     exportLogs,
     goToNextDownloadEventsPage,
     goToPreviousDownloadEventsPage,
-    lastDownloadEventsExport,
+    lastDownloadEventsExport: lastExport,
     selectedDownloadEvent,
     selectedLog,
     setSelectedDownloadEvent,

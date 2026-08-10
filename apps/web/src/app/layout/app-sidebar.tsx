@@ -82,7 +82,7 @@ function isActivePath(pathname: string, url: string) {
 }
 
 export function AppSidebar() {
-  const { logout } = useAuth();
+  const { logoutLocal } = useAuth();
   const location = useLocation();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -181,12 +181,12 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={() => {
-                // Clear the query cache (auth state + all server data) and
-                // navigate in-router; avoids a full-page reload that resets
-                // the React tree.
-                queryClient.clear();
-                void router.navigate({ to: "/login", search: { redirect: "" } });
-                void logout();
+                // Sign out locally (server + auth store), clear the query cache,
+                // and navigate in-router — no full-page reload.
+                void logoutLocal().then(() => {
+                  queryClient.clear();
+                  void router.navigate({ to: "/login", search: { redirect: "" } });
+                });
               }}
               tooltip="Sign out"
               className="h-9 transition-colors"

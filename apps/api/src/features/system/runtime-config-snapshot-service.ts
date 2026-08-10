@@ -39,6 +39,8 @@ const makeRuntimeConfigSnapshotService = Effect.fn("RuntimeConfigSnapshotService
 
             const loaded = yield* systemConfigService.getConfig();
 
+            // A concurrent `replaceRuntimeConfig` wins over the just-loaded
+            // value (lost-update guard).
             return yield* Ref.modify(
               configRef,
               (current): readonly [Config, Option.Option<Config>] =>

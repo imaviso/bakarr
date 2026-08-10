@@ -1,5 +1,7 @@
 import type { ObservabilityStatus } from "@bakarr/shared";
 
+import { Option } from "effect";
+import { parseUrlOption } from "@/infra/url.ts";
 import type { ObservabilityConfigShape } from "@/config/observability.ts";
 
 export const METRICS_ENDPOINT = "/api/metrics";
@@ -27,10 +29,5 @@ export function formatSafeEndpoint(value: string | null): string | null {
     return null;
   }
 
-  try {
-    const url = new URL(value);
-    return url.origin;
-  } catch {
-    return null;
-  }
+  return Option.map(parseUrlOption(value), (url) => url.origin).pipe(Option.getOrNull);
 }

@@ -108,7 +108,7 @@ export const logoutAniDbEffect = Effect.fn("AniDbClient.logout")(function* (
 const waitForPacketWindowEffect = Effect.fn("AniDbClient.waitForPacketWindow")(function* (
   lastPacketAtRef: Ref.Ref<number>,
 ) {
-  const now = Number((yield* Clock.currentTimeNanos) / 1_000_000n);
+  const now = yield* Clock.currentTimeMillis;
   const lastPacketAt = yield* Ref.get(lastPacketAtRef);
   const elapsed = now - lastPacketAt;
 
@@ -116,7 +116,7 @@ const waitForPacketWindowEffect = Effect.fn("AniDbClient.waitForPacketWindow")(f
     yield* Effect.sleep(`${ANIDB_MIN_PACKET_INTERVAL_MS - elapsed} millis`);
   }
 
-  const nextPacketAt = Number((yield* Clock.currentTimeNanos) / 1_000_000n);
+  const nextPacketAt = yield* Clock.currentTimeMillis;
   yield* Ref.set(lastPacketAtRef, nextPacketAt);
 });
 

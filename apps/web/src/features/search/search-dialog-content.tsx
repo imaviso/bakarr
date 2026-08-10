@@ -43,10 +43,10 @@ import {
 import {
   CATEGORY_LABELS,
   FILTER_LABELS,
-  formatSearchResultAge,
   useSearchDialogReleaseRowState,
   useSearchDialogResultsState,
 } from "~/features/search/search-dialog-state";
+import { formatSearchResultAge } from "~/domain/date-time";
 import type { NyaaSearchResult } from "~/api/contracts";
 
 const categoryItems = Object.entries(CATEGORY_LABELS).map(([value, label]) => ({ value, label }));

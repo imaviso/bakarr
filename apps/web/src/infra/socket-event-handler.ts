@@ -44,8 +44,13 @@ function updateJobStatus(
     return previousJobs;
   }
 
+  const target = previousJobs[targetIndex];
+  if (target === undefined) {
+    return previousJobs;
+  }
+
   const nextJobs = [...previousJobs];
-  nextJobs[targetIndex] = updater(nextJobs[targetIndex]!);
+  nextJobs[targetIndex] = updater(target);
   return nextJobs;
 }
 

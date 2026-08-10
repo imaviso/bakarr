@@ -69,14 +69,21 @@ export async function clearServerSession() {
 }
 
 export async function logout() {
-  try {
-    await clearServerSession();
-  } catch {
+  await clearServerSession().catch(() => {
     // Local sign-out should still happen if the server is temporarily unreachable.
-  }
+  });
 
   clearAuthState();
   globalThis.location.href = "/login";
+}
+
+/** Sign out without navigation — callers owning the navigation (router) use this. */
+export async function logoutLocal() {
+  await clearServerSession().catch(() => {
+    // Local sign-out should still happen if the server is temporarily unreachable.
+  });
+
+  clearAuthState();
 }
 
 export function getAuthHeaders(): HeadersInit {

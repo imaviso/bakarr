@@ -1,11 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useReducer, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { decodeNotificationEventWire } from "@bakarr/shared";
-import { getAuthState } from "~/app/auth-state";
+import { useAuth } from "~/app/auth";
 import { handleSocketEvent } from "~/infra/socket-event-handler";
 
 const RECONNECT_DELAY_MS = 5000;
-const UNAUTHENTICATED_POLL_MS = 1000;
 
 function buildWsUrl(): string {
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -26,31 +25,25 @@ function decodeSocketPayload(data: unknown, textDecoder: TextDecoder): string | 
 
 export function useSocketEvents() {
   const queryClient = useQueryClient();
+  const { auth } = useAuth();
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const textDecoderRef = useRef<TextDecoder | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(() => getAuthState().isAuthenticated);
+  const isAuthenticated = auth.isAuthenticated;
+  // Bumped to force the effect to re-run (reconnect) after a dropped socket.
+  const [, forceReconnect] = useReducer((count: number) => count + 1, 0);
 
   useEffect(() => {
     if (!isAuthenticated) {
-      // No session yet: poll auth state so a login reconnects.
-      const interval = setInterval(() => {
-        if (getAuthState().isAuthenticated) {
-          setIsAuthenticated(true);
-        }
-      }, UNAUTHENTICATED_POLL_MS);
-      return () => clearInterval(interval);
+      return undefined;
     }
 
     const socket = new WebSocket(buildWsUrl());
     socket.binaryType = "arraybuffer";
-    if (textDecoderRef.current === null) {
-      textDecoderRef.current = new TextDecoder();
-    }
+    const textDecoder = new TextDecoder();
     socketRef.current = socket;
 
     const onMessage = (event: MessageEvent) => {
-      const payload = decodeSocketPayload(event.data, textDecoderRef.current!);
+      const payload = decodeSocketPayload(event.data, textDecoder);
       if (payload === undefined) {
         return;
       }
@@ -71,10 +64,7 @@ export function useSocketEvents() {
       if (socketRef.current === socket) {
         socketRef.current = null;
       }
-      reconnectTimerRef.current = setTimeout(
-        () => setIsAuthenticated(getAuthState().isAuthenticated),
-        RECONNECT_DELAY_MS,
-      );
+      reconnectTimerRef.current = setTimeout(forceReconnect, RECONNECT_DELAY_MS);
     };
 
     socket.addEventListener("message", onMessage);
@@ -97,5 +87,5 @@ export function useSocketEvents() {
         reconnectTimerRef.current = null;
       }
     };
-  }, [isAuthenticated, queryClient]);
+  }, [isAuthenticated, queryClient, forceReconnect]);
 }

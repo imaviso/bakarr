@@ -1,5 +1,5 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
-import { Cause, Effect, Option } from "effect";
+import { Cause, Effect, Option, Ref } from "effect";
 
 import { DatabaseError } from "@/db/database.ts";
 import { MediaImageCacheService } from "@/features/media/metadata/media-image-cache-service.ts";
@@ -115,8 +115,8 @@ export const refreshMetadataForMonitoredMediaEffect = Effect.fn(
 
   return yield* Effect.gen(function* () {
     const monitoredMediaIds = yield* input.mediaRepository.listMonitoredMediaIds();
-    let refreshed = 0;
-    let skippedExternal = 0;
+    const refreshedRef = yield* Ref.make(0);
+    const skippedExternalRef = yield* Ref.make(0);
 
     yield* Effect.forEach(
       monitoredMediaIds,
@@ -139,7 +139,7 @@ export const refreshMetadataForMonitoredMediaEffect = Effect.fn(
             nowIso,
           );
           yield* input.mediaUnitRepository.syncUnitMetadata(mediaId, metadata?.mediaUnits);
-          refreshed += 1;
+          yield* Ref.update(refreshedRef, (refreshed) => refreshed + 1);
         }).pipe(
           Effect.catchTag("ExternalCallError", (error) =>
             Effect.logWarning(
@@ -149,16 +149,15 @@ export const refreshMetadataForMonitoredMediaEffect = Effect.fn(
                 mediaId,
                 externalOperation: error.operation,
               }),
-              Effect.tap(() =>
-                Effect.sync(() => {
-                  skippedExternal += 1;
-                }),
-              ),
+              Effect.tap(() => Ref.update(skippedExternalRef, (skipped) => skipped + 1)),
             ),
           ),
         ),
       { concurrency: input.refreshConcurrency, discard: true },
     );
+
+    const refreshed = yield* Ref.get(refreshedRef);
+    const skippedExternal = yield* Ref.get(skippedExternalRef);
 
     const message =
       skippedExternal === 0
