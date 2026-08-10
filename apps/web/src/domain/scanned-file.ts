@@ -1,3 +1,7 @@
+import { formatDurationSeconds } from "~/domain/format";
+
+export { formatDurationSeconds, formatFileSize } from "~/domain/format";
+
 type MediaMetadataInput = {
   audio_channels?: string | undefined;
   audio_codec?: string | undefined;
@@ -44,38 +48,6 @@ export function mediaMetadataBadges(input: MediaMetadataInput) {
     audio || undefined,
     input.group,
   ].filter((value): value is string => typeof value === "string" && value.length > 0);
-}
-
-export function formatDurationSeconds(value?: number) {
-  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
-    return undefined;
-  }
-
-  const hours = Math.floor(value / 3600);
-  const minutes = Math.floor((value % 3600) / 60);
-  const seconds = value % 60;
-
-  if (hours > 0) {
-    return `${hours}h ${minutes}m`;
-  }
-
-  if (minutes > 0) {
-    return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
-  }
-
-  return `${seconds}s`;
-}
-
-export function formatFileSize(size?: number) {
-  if (typeof size !== "number" || !Number.isFinite(size) || size <= 0) {
-    return undefined;
-  }
-
-  if (size >= 1024 * 1024 * 1024) {
-    return `${(size / 1024 / 1024 / 1024).toFixed(1)} GB`;
-  }
-
-  return `${(size / 1024 / 1024).toFixed(1)} MB`;
 }
 
 export function formatMatchConfidence(value?: number) {

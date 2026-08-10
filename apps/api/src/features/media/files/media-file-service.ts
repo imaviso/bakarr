@@ -462,7 +462,7 @@ const makeMediaFileService = Effect.fn("MediaFileService.make")(function* () {
         return;
       }
 
-      yield* fs.remove(filePath).pipe(
+      yield* fs.remove(resolvedPath).pipe(
         Effect.mapError(
           (cause) =>
             new DomainPathError({

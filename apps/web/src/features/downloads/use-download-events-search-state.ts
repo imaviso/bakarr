@@ -1,5 +1,6 @@
 import type { DownloadEventsFilterValue } from "~/features/downloads/download-events/download-events-filters";
 import { formatDateTimeLocalInput, getDateRangePresetHours } from "~/domain/date-presets";
+import { subHours } from "date-fns";
 import type { DownloadEventsSearchKeys } from "~/domain/download/events-search";
 import { createDownloadEventsSearchDefaults } from "~/domain/download/events-search";
 import {
@@ -67,7 +68,7 @@ export function useDownloadEventsSearchState(options: UseDownloadEventsSearchSta
 
   const applyDateRangePreset = (hours: number) => {
     const end = new Date();
-    const start = new Date(end.getTime() - hours * 60 * 60 * 1000);
+    const start = subHours(end, hours);
 
     options.updateSearch(
       patchWithCursorReset({

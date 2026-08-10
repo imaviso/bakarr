@@ -101,14 +101,9 @@ export function inferAiredAt(
     const endOption = DateTime.make(new Date(`${endDate}T00:00:00Z`));
 
     if (Option.isSome(endOption)) {
-      const spanMs = Math.max(
-        DateTime.distance(start, endOption.value),
-        0,
-      );
+      const spanMs = Math.max(DateTime.distance(start, endOption.value), 0);
       const intervalMs = unitCount > 1 ? Math.floor(spanMs / (unitCount - 1)) : 0;
-      return DateTime.formatIso(
-        DateTime.add(start, { millis: intervalMs * (unitNumber - 1) }),
-      );
+      return DateTime.formatIso(DateTime.add(start, { millis: intervalMs * (unitNumber - 1) }));
     }
   }
 

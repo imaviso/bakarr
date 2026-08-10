@@ -1,9 +1,7 @@
 import type { MediaSeason } from "~/api/contracts";
+import { resolveSeasonWindowFromDate, type MediaSeasonWindow } from "@bakarr/shared";
 
-export interface SeasonWindow {
-  season: MediaSeason;
-  year: number;
-}
+export type SeasonWindow = MediaSeasonWindow;
 
 const SEASONS: readonly MediaSeason[] = ["winter", "spring", "summer", "fall"] as const;
 
@@ -16,15 +14,7 @@ const SEASON_LABELS: Record<MediaSeason, string> = {
 
 /** Returns the season window for the given date (defaults to now). */
 export function getCurrentSeasonWindow(now?: Date): SeasonWindow {
-  const current = now ?? new Date();
-  const month = current.getMonth() + 1;
-  const season: MediaSeason =
-    month <= 2 || month === 12 ? "winter" : month <= 5 ? "spring" : month <= 8 ? "summer" : "fall";
-
-  return {
-    season,
-    year: month === 12 ? current.getFullYear() + 1 : current.getFullYear(),
-  };
+  return resolveSeasonWindowFromDate(now ?? new Date());
 }
 
 /** Shift a season window by `delta` seasons (positive = forward, negative = backward).

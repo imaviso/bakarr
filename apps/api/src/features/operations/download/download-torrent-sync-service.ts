@@ -38,6 +38,7 @@ function shouldReconcileCompletedDownloads(config: Config | null) {
 }
 
 const TORRENT_SYNC_UPDATE_CHUNK_SIZE = 50;
+const TORRENT_CONTENTS_REFINE_CONCURRENCY = 4;
 
 /** Job-edge union — reconcile domain tags collapsed for background sync. */
 export type DownloadTorrentSyncError = DatabaseError | InfrastructureError;
@@ -285,22 +286,55 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
             const statusEvents = yield* buildStatusChangeEvents(updateRows, existingDownloadsMap);
             yield* syncRepo.insertDownloadEvents(statusEvents, syncNow);
 
+            const batchRefinementRows = updateRows.flatMap(
+              (
+                updateRow,
+              ): {
+                readonly downloadId: number;
+                readonly existingCoveredEpisodes: string | null;
+                readonly infoHash: string;
+                readonly mediaId: number;
+                readonly rawSourceMetadata: string | null;
+                readonly torrentName: string;
+              }[] => {
+                const existing = existingDownloadsMap.get(updateRow.hash);
+                const preservedImported = Boolean(existing?.reconciledAt);
+
+                if (!existing || !existing.isBatch || preservedImported) {
+                  return [];
+                }
+
+                return [
+                  {
+                    downloadId: existing.id,
+                    existingCoveredEpisodes: existing.coveredUnits,
+                    infoHash: updateRow.hash,
+                    mediaId: existing.mediaId,
+                    rawSourceMetadata: existing.sourceMetadata,
+                    torrentName: updateRow.torrentName,
+                  },
+                ];
+              },
+            );
+
+            yield* Effect.forEach(
+              batchRefinementRows,
+              (row) =>
+                Effect.gen(function* () {
+                  const sourceMetadata = yield* decodeDownloadSourceMetadata(row.rawSourceMetadata);
+                  yield* refineBatchCoverageFromTorrentFiles({
+                    mediaId: row.mediaId,
+                    downloadId: row.downloadId,
+                    existingCoveredEpisodes: row.existingCoveredEpisodes,
+                    infoHash: row.infoHash,
+                    ...(sourceMetadata ? { sourceMetadata } : {}),
+                    torrentName: row.torrentName,
+                  });
+                }),
+              { concurrency: TORRENT_CONTENTS_REFINE_CONCURRENCY, discard: true },
+            );
+
             for (const updateRow of updateRows) {
-              const existing = existingDownloadsMap.get(updateRow.hash);
-              const preservedImported = Boolean(existing?.reconciledAt);
-
-              if (existing && existing.isBatch && !preservedImported) {
-                const sourceMetadata = yield* decodeDownloadSourceMetadata(existing.sourceMetadata);
-                yield* refineBatchCoverageFromTorrentFiles({
-                  mediaId: existing.mediaId,
-                  downloadId: existing.id,
-                  existingCoveredEpisodes: existing.coveredUnits,
-                  infoHash: updateRow.hash,
-                  torrentName: updateRow.torrentName,
-                  ...(sourceMetadata ? { sourceMetadata } : {}),
-                });
-              }
-
               if (
                 updateRow.status === "completed" &&
                 shouldReconcileCompletedDownloads(runtimeConfig)

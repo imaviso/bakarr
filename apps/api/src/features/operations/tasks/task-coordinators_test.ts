@@ -6,20 +6,26 @@ import {
   UnmappedScanCoordinatorLive,
 } from "@/features/operations/tasks/task-coordinators.ts";
 
+const tryBegin = (coordinator: typeof UnmappedScanCoordinator.Service) =>
+  coordinator.withUnmappedScanLease({
+    whenAcquired: Effect.succeed({ keepLease: true, value: true }),
+    whenBusy: Effect.succeed(false),
+  });
+
 describe("UnmappedScanCoordinator", () => {
-  it.scoped("tryBeginUnmappedScan returns true first time", () =>
+  it.scoped("acquires the lease when free", () =>
     Effect.gen(function* () {
       const coordinator = yield* UnmappedScanCoordinator;
-      const started = yield* coordinator.tryBeginUnmappedScan();
+      const started = yield* tryBegin(coordinator);
       assert.deepStrictEqual(started, true);
     }).pipe(Effect.provide(UnmappedScanCoordinatorLive)),
   );
 
-  it.scoped("tryBeginUnmappedScan returns false while running", () =>
+  it.scoped("returns busy while the lease is held", () =>
     Effect.gen(function* () {
       const coordinator = yield* UnmappedScanCoordinator;
-      yield* coordinator.tryBeginUnmappedScan();
-      const started = yield* coordinator.tryBeginUnmappedScan();
+      yield* tryBegin(coordinator);
+      const started = yield* tryBegin(coordinator);
       assert.deepStrictEqual(started, false);
     }).pipe(Effect.provide(UnmappedScanCoordinatorLive)),
   );
@@ -27,9 +33,9 @@ describe("UnmappedScanCoordinator", () => {
   it.scoped("completeUnmappedScan allows re-start", () =>
     Effect.gen(function* () {
       const coordinator = yield* UnmappedScanCoordinator;
-      yield* coordinator.tryBeginUnmappedScan();
+      yield* tryBegin(coordinator);
       yield* coordinator.completeUnmappedScan();
-      const restarted = yield* coordinator.tryBeginUnmappedScan();
+      const restarted = yield* tryBegin(coordinator);
       assert.deepStrictEqual(restarted, true);
     }).pipe(Effect.provide(UnmappedScanCoordinatorLive)),
   );
@@ -38,7 +44,7 @@ describe("UnmappedScanCoordinator", () => {
     Effect.gen(function* () {
       const coordinator = yield* UnmappedScanCoordinator;
       yield* coordinator.completeUnmappedScan();
-      const started = yield* coordinator.tryBeginUnmappedScan();
+      const started = yield* tryBegin(coordinator);
       assert.deepStrictEqual(started, true);
     }).pipe(Effect.provide(UnmappedScanCoordinatorLive)),
   );
@@ -57,7 +63,7 @@ describe("UnmappedScanCoordinator", () => {
   it.scoped("withUnmappedScanLease runs whenBusy while a scan holds the lease", () =>
     Effect.gen(function* () {
       const coordinator = yield* UnmappedScanCoordinator;
-      yield* coordinator.tryBeginUnmappedScan();
+      yield* tryBegin(coordinator);
       const result = yield* coordinator.withUnmappedScanLease({
         whenAcquired: Effect.succeed({ value: 7 }),
         whenBusy: Effect.succeed(0),
@@ -73,7 +79,7 @@ describe("UnmappedScanCoordinator", () => {
         whenAcquired: Effect.succeed({ value: 1 }),
         whenBusy: Effect.succeed(0),
       });
-      const started = yield* coordinator.tryBeginUnmappedScan();
+      const started = yield* tryBegin(coordinator);
       assert.deepStrictEqual(started, true);
     }).pipe(Effect.provide(UnmappedScanCoordinatorLive)),
   );
@@ -85,7 +91,7 @@ describe("UnmappedScanCoordinator", () => {
         whenAcquired: Effect.succeed({ keepLease: true, value: 1 }),
         whenBusy: Effect.succeed(0),
       });
-      const started = yield* coordinator.tryBeginUnmappedScan();
+      const started = yield* tryBegin(coordinator);
       assert.deepStrictEqual(started, false);
     }).pipe(Effect.provide(UnmappedScanCoordinatorLive)),
   );
@@ -100,7 +106,7 @@ describe("UnmappedScanCoordinator", () => {
         }),
       );
       assert.deepStrictEqual(exit._tag, "Failure");
-      const started = yield* coordinator.tryBeginUnmappedScan();
+      const started = yield* tryBegin(coordinator);
       assert.deepStrictEqual(started, true);
     }).pipe(Effect.provide(UnmappedScanCoordinatorLive)),
   );

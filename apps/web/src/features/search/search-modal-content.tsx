@@ -26,6 +26,7 @@ import { mediaUnitLabel } from "~/domain/media-unit";
 import { getReleaseConfidence } from "~/domain/release/selection";
 import { actionReasonFromDownloadAction } from "~/domain/release/grab";
 import { cn } from "~/infra/utils";
+import { formatBytes } from "~/domain/format";
 import type { SearchModalState } from "~/features/search/search-modal-state";
 
 interface SearchModalContentProps {
@@ -176,7 +177,9 @@ function SearchReleaseRow(props: {
         />
       </TableCell>
       <TableCell className="text-xs">{props.release.indexer}</TableCell>
-      <TableCell className="text-xs font-mono">{formatSize(props.release.size)}</TableCell>
+      <TableCell className="text-xs font-mono">
+        {props.release.size !== undefined ? formatBytes(props.release.size) : "N/A"}
+      </TableCell>
       <TableCell className="text-xs">
         <ReleasePeersCell
           seeders={props.release.seeders}
@@ -222,19 +225,4 @@ function SearchReleaseRow(props: {
       </TableCell>
     </TableRow>
   );
-}
-
-function formatSize(bytes: number) {
-  if (bytes === 0) return "N/A";
-
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  let size = bytes;
-  let unitIndex = 0;
-
-  while (size >= 1024 && unitIndex < units.length - 1) {
-    size /= 1024;
-    unitIndex++;
-  }
-
-  return `${size.toFixed(1)} ${units[unitIndex]}`;
 }

@@ -83,9 +83,7 @@ export function systemTaskQueryOptions(taskId: number) {
 export function useSystemTaskQuery(taskId: number | undefined) {
   return useQuery({
     queryKey:
-      taskId === undefined
-        ? animeKeys.system.tasks.pending
-        : animeKeys.system.tasks.byId(taskId),
+      taskId === undefined ? animeKeys.system.tasks.pending : animeKeys.system.tasks.byId(taskId),
     queryFn:
       taskId === undefined
         ? skipToken

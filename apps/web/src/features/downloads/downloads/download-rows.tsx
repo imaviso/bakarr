@@ -21,29 +21,7 @@ import {
 import { getDownloadStatusPresentation } from "~/domain/download/status";
 import { formatSelectionDetail } from "~/domain/release/selection";
 import { formatDateTime } from "~/domain/date-time";
-
-function formatSpeed(bytesPerSec: number): string {
-  if (bytesPerSec === 0) {
-    return "0 B/s";
-  }
-
-  const k = 1024;
-  const sizes = ["B/s", "KB/s", "MB/s", "GB/s"];
-  const i = Math.floor(Math.log(bytesPerSec) / Math.log(k));
-  return `${parseFloat((bytesPerSec / k ** i).toFixed(1))} ${sizes[i]}`;
-}
-
-function formatEta(seconds: number): string {
-  if (seconds === 8640000) return "∞";
-  if (seconds <= 0) return "Done";
-
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ${minutes % 60}m`;
-  return `${Math.floor(hours / 24)}d ${hours % 24}h`;
-}
+import { formatEta, formatSpeed } from "~/domain/format";
 
 function DownloadStatusIcon(props: { status?: string | undefined }) {
   const presentation = getDownloadStatusPresentation(props.status);

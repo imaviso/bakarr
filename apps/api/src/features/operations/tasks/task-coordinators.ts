@@ -14,7 +14,6 @@ export const DownloadTriggerGateLive = DownloadTriggerGate.Default;
 export interface UnmappedScanCoordinatorShape {
   readonly completeUnmappedScan: () => Effect.Effect<void>;
   readonly forkUnmappedScanLoop: <A, E>(loop: Effect.Effect<A, E>) => Effect.Effect<void>;
-  readonly tryBeginUnmappedScan: () => Effect.Effect<boolean>;
   readonly withUnmappedScanLease: <A, E>(input: {
     readonly whenAcquired: Effect.Effect<
       {
@@ -46,9 +45,6 @@ const makeUnmappedScanCoordinator = Effect.fn("RuntimeCoordinator.makeUnmappedSc
     );
     const forkUnmappedScanLoop = Effect.fn("UnmappedScanCoordinator.forkUnmappedScanLoop")(
       <A, E>(loop: Effect.Effect<A, E>) => Effect.forkIn(scope)(loop).pipe(Effect.asVoid),
-    );
-    const tryBeginUnmappedScan = Effect.fn("UnmappedScanCoordinator.tryBeginUnmappedScan")(
-      () => tryStartAndMarkRunning,
     );
     const withUnmappedScanLease = Effect.fn("UnmappedScanCoordinator.withUnmappedScanLease")(
       <A, E>(input: {
@@ -86,7 +82,6 @@ const makeUnmappedScanCoordinator = Effect.fn("RuntimeCoordinator.makeUnmappedSc
     return {
       completeUnmappedScan,
       forkUnmappedScanLoop,
-      tryBeginUnmappedScan,
       withUnmappedScanLease,
     } satisfies UnmappedScanCoordinatorShape;
   },

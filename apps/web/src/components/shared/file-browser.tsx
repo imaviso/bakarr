@@ -17,6 +17,7 @@ import { errorMessage } from "~/api/effect/errors";
 import { useBrowsePathQuery } from "~/api/system-library";
 import { EmptyState } from "~/components/shared/empty-state";
 import { cn } from "~/infra/utils";
+import { formatBytes } from "~/domain/format";
 
 const BROWSE_PAGE_SIZE = 100;
 
@@ -275,16 +276,6 @@ interface FileEntryProps {
   directoryOnly: boolean;
 }
 
-function formatSize(bytes?: number) {
-  if (!bytes) return "";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) {
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  }
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-}
-
 function FileEntry(props: FileEntryProps) {
   return (
     <button
@@ -309,7 +300,7 @@ function FileEntry(props: FileEntryProps) {
       <span className="text-sm truncate flex-1">{props.entry.name}</span>
       {!props.entry.is_directory && props.entry.size && (
         <span className="text-xs text-muted-foreground shrink-0">
-          {formatSize(props.entry.size)}
+          {props.entry.size !== undefined ? formatBytes(props.entry.size) : ""}
         </span>
       )}
       {props.entry.is_directory && (

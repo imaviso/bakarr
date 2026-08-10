@@ -16,12 +16,10 @@ export function useDownloadEventsExport() {
   const [lastExport, setLastExport] = useState<DownloadEventsExportResult | undefined>(undefined);
 
   const exportDownloadEvents = (format: "json" | "csv", filter: DownloadEventsExportInput) => {
-    const exportPromise = exportMutation
-      .mutateAsync({ filter, format })
-      .then((result) => {
-        setLastExport(result);
-        return result;
-      });
+    const exportPromise = exportMutation.mutateAsync({ filter, format }).then((result) => {
+      setLastExport(result);
+      return result;
+    });
 
     toast.promise(exportPromise, {
       error: (error) => errorMessage(error, "Failed to export download events"),

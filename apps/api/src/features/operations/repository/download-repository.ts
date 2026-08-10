@@ -6,6 +6,7 @@ import type {
   DownloadEvent,
   DownloadEventsPage,
   DownloadHistoryPage,
+  DownloadSourceMetadata,
 } from "@packages/shared/index.ts";
 import { AppDrizzleDatabase, DatabaseError, type AppDatabase } from "@/db/database.ts";
 import { downloadEvents, downloads, systemLogs } from "@/db/schema.ts";
@@ -27,6 +28,7 @@ import {
   deleteDownloadRow,
   insertDownloadEventRow,
   insertDownloadEventRows,
+  toDownloadEventInsert,
   type DownloadEventRecordInput,
   updateDownloadStatusRow,
 } from "@/features/operations/repository/download-row-codec.ts";
@@ -112,6 +114,26 @@ export interface DownloadRepositoryShape {
     readonly logEventType: string;
     readonly logMessage: string;
   }) => Effect.Effect<void, DatabaseError>;
+  /**
+   * Atomic queue-finalize write: status update + queued event in one
+   * transaction, so a queued row never observes a status without its event.
+   * Called after the qBittorrent add succeeded (or was skipped) and the row
+   * insert already happened.
+   */
+  readonly finalizeQueuedDownloadTx: (input: {
+    readonly downloadId: number;
+    readonly eventType: string;
+    readonly eventMessage: string;
+    readonly eventMetadata: string | null;
+    readonly eventMetadataJson: {
+      readonly covered_units?: readonly number[];
+      readonly source_metadata?: DownloadSourceMetadata;
+    };
+    readonly externalState: string;
+    readonly mediaId: number;
+    readonly now: string;
+    readonly status: string;
+  }) => Effect.Effect<void, DatabaseError | StoredDataError>;
   readonly insertDownloadEvent: (
     input: DownloadEventRecordInput,
     createdAt: string,
@@ -229,6 +251,7 @@ export function makeDownloadRepositoryShape(db: AppDatabase): DownloadRepository
       claimDownloadReconciliation(db, infoHash, claimToken),
     deleteDownloadRow: (id) => deleteDownloadRow(db, id, "Failed to remove download"),
     finalizeDownloadImport: (input) => finalizeDownloadImport(db, input),
+    finalizeQueuedDownloadTx: (input) => finalizeQueuedDownloadTx(db, input),
     insertDownloadEvent: (input, createdAt) => insertDownloadEventRow(db, input, createdAt),
     insertDownloadEvents: (inputs, createdAt) => insertDownloadEventRows(db, inputs, createdAt),
     insertQueuedDownloadRow: (input) => insertQueuedDownloadRow(db, input),
@@ -371,6 +394,49 @@ const finalizeDownloadImport = Effect.fn("DownloadRepository.finalizeDownloadImp
     });
   });
 });
+
+const finalizeQueuedDownloadTx = Effect.fn("DownloadRepository.finalizeQueuedDownloadTx")(
+  function* (
+    db: AppDatabase,
+    input: {
+      readonly downloadId: number;
+      readonly eventType: string;
+      readonly eventMessage: string;
+      readonly eventMetadata: string | null;
+      readonly eventMetadataJson: {
+        readonly covered_units?: readonly number[];
+        readonly source_metadata?: DownloadSourceMetadata;
+      };
+      readonly externalState: string;
+      readonly mediaId: number;
+      readonly now: string;
+      readonly status: string;
+    },
+  ) {
+    const eventRow = yield* toDownloadEventInsert(
+      {
+        mediaId: input.mediaId,
+        downloadId: input.downloadId,
+        eventType: input.eventType,
+        message: input.eventMessage,
+        metadata: input.eventMetadata,
+        metadataJson: input.eventMetadataJson,
+        toStatus: input.status,
+      },
+      input.now,
+    );
+
+    yield* tryDatabasePromise("Failed to finalize queued download", async () => {
+      await db.transaction(async (tx) => {
+        await tx
+          .update(downloads)
+          .set({ externalState: input.externalState, status: input.status })
+          .where(eq(downloads.id, input.downloadId));
+        await tx.insert(downloadEvents).values(eventRow);
+      });
+    });
+  },
+);
 
 const insertQueuedDownloadRow = Effect.fn("DownloadRepository.insertQueuedDownloadRow")(function* (
   db: AppDatabase,

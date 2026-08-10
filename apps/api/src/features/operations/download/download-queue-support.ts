@@ -194,28 +194,22 @@ export const queueDownload = Effect.fn("Operations.queueDownload")(function* (in
 
   if (qbitResult.right._tag === "Added") {
     status = "downloading";
-    yield* input.downloadRepository.updateDownloadStatusRow({
-      id: insertedId,
-      externalState: "downloading",
-      status: "downloading",
-    });
   }
 
-  yield* input.downloadRepository.insertDownloadEvent(
-    {
-      mediaId: input.animeRow.id,
-      downloadId: insertedId,
-      eventType: input.event.type,
-      message: input.event.message,
-      metadata: input.coveredUnitsJson,
-      metadataJson: {
-        covered_units: coveredEpisodeNumbers,
-        source_metadata: input.sourceMetadata,
-      },
-      toStatus: status,
+  yield* input.downloadRepository.finalizeQueuedDownloadTx({
+    downloadId: insertedId,
+    eventType: input.event.type,
+    eventMessage: input.event.message,
+    eventMetadata: input.coveredUnitsJson,
+    eventMetadataJson: {
+      covered_units: coveredEpisodeNumbers,
+      source_metadata: input.sourceMetadata,
     },
+    externalState: status,
+    mediaId: input.animeRow.id,
     now,
-  );
+    status,
+  });
 
   return { _tag: "queued", id: insertedId, status } satisfies QueueDownloadOutcome;
 });

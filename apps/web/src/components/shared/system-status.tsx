@@ -5,13 +5,6 @@ import {
   DownloadIcon,
   ArrowClockwiseIcon,
 } from "@phosphor-icons/react";
-import {
-  differenceInDays,
-  differenceInHours,
-  differenceInMinutes,
-  isValid,
-  parseISO,
-} from "date-fns";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { useSystemTaskQuery, isTaskActive } from "~/api/operations-tasks";
@@ -20,40 +13,7 @@ import {
   useTriggerRssCheckMutation,
   useTriggerScanMutation,
 } from "~/api/system-config";
-
-function formatBytes(bytes: number) {
-  if (bytes === 0) return "0 B";
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB", "TB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}`;
-}
-
-function formatUptime(seconds: number) {
-  const d = Math.floor(seconds / (3600 * 24));
-  const h = Math.floor((seconds % (3600 * 24)) / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-
-  const parts = [];
-  if (d > 0) parts.push(`${d}d`);
-  if (h > 0) parts.push(`${h}h`);
-  if (m > 0 || parts.length === 0) parts.push(`${m}m`);
-  return parts.join(" ");
-}
-
-function formatRelativeTime(dateStr: string | null | undefined) {
-  if (!dateStr) return "Never";
-  const date = parseISO(dateStr);
-  if (!isValid(date)) return "Never";
-
-  const now = new Date();
-  const mins = differenceInMinutes(now, date);
-  if (mins < 1) return "Just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = differenceInHours(now, date);
-  if (hours < 24) return `${hours}h ago`;
-  return `${differenceInDays(now, date)}d ago`;
-}
+import { formatBytes, formatDurationCompact, formatRelativeTime } from "~/domain/format";
 
 function formatProviderStatus(
   name: string,
@@ -95,7 +55,7 @@ export function SystemStatus() {
         <CardContent>
           <div className="text-2xl font-bold">{status.data ? status.data.version : "-"}</div>
           <p className="text-xs text-muted-foreground">
-            Uptime: {status.data ? formatUptime(status.data.uptime) : "-"}
+            Uptime: {status.data ? formatDurationCompact(status.data.uptime) : "-"}
           </p>
         </CardContent>
       </Card>
