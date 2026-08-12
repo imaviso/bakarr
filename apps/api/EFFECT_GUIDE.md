@@ -25,8 +25,13 @@ compatibility layers.
 
 ## Runtime Entry Points
 
-- Use platform `runMain` only at executable boundaries.
-- In `apps/api`, prefer `NodeRuntime.runMain(...)`.
+- Use `NodeRuntime.runMain(...)` as the single executable entry point for
+  long-running applications and servers.
+- `runMain` installs signal handling and interrupts all fibers on exit, so
+  `Effect.addFinalizer(...)` and other teardown placed in the main effect runs
+  on CTRL+C. Match the platform runtime to the runtime the app actually runs
+  on: `NodeRuntime.runMain` (Node.js), `BunRuntime.runMain` (Bun),
+  `BrowserRuntime.runMain` (browser).
 - Build one main effect or launched layer, then provide the full app layer once
   near the entrypoint.
 - Put teardown in scoped effects or layers with `Effect.acquireRelease(...)`,
@@ -64,6 +69,10 @@ compatibility layers.
   calls.
 - Use plain `if` or `switch` for simple branching; use `Match` when
   exhaustiveness or richer pattern matching improves clarity.
+- Avoid tacit (point-free) calls: write `Effect.map((x) => fn(x))`, never
+  `Effect.map(fn)`, and avoid `flow(...)` from `effect/Function`. Tacit calls
+  can erase generics on overloaded functions, weaken type inference, and blur
+  stack traces.
 
 ## Dual APIs And Pipelines
 
@@ -127,6 +136,33 @@ compatibility layers.
   `Schema.parseJson`, and `Schema.encode`.
 - Prefer schema-backed constructors over loose object literals once a type is
   part of the domain.
+
+## Branded Types
+
+- Use `Brand.nominal<T>()` for branded types that need no runtime validation
+  (e.g. IDs) — it only adds a type tag at compile time.
+- Use `Brand.refined<T>(predicate, errorFn)` when a value must be validated
+  (e.g. `Int`, `Positive`); it throws a `Brand.BrandErrors` on failure.
+- Combine independent brands with `Brand.all(...)` and recover the combined
+  type with `Brand.Brand.FromConstructor<typeof C>`.
+- Keep brands on meaningful domain values, not just IDs — emails, URLs, slugs,
+  ports, counts, percentages, and timestamps are candidates.
+- Construct branded values through the brand constructor, never by direct
+  assignment, so the brand invariant is actually enforced.
+
+## Pattern Matching
+
+- Use `Match.value(...)` for matching a specific value, `Match.type<T>()` for
+  matching by type.
+- Use `Match.when(...)`, `Match.not(...)`, and `Match.tag(...)` to define
+  patterns; `Match.tag` keys on the conventional `_tag` field of a
+  discriminated union.
+- Complete matches with `Match.exhaustive` when all cases are covered (the
+  compiler errors on a gap), `Match.orElse` for a fallback, `Match.option` /
+  `Match.either` to wrap the result, and `Match.withReturnType<T>()` (first in
+  the pipeline) to enforce a consistent branch return type.
+- Use `Match.valueTags(...)` for closed `_tag` unions when exhaustiveness helps
+  (already the house style for route error mappers).
 
 ## Lint-Guided Typing
 
@@ -292,6 +328,8 @@ non-generator form (`(): Effect.Effect<void> => ...`).
 - Main workflows use `Effect.gen(...)` unless another form is clearly better.
 - Exported reusable effects and service methods use `Effect.fn(...)` when the
   name adds value to traces and call sites.
+- No tacit/point-free calls (`Effect.map(fn)`, `flow(...)`); callbacks are
+  written explicitly.
 - Boundary data is schema-validated; no unchecked JSON or env parsing leaks in.
 - Recoverable failures are typed; unrecoverable failures stay defects.
 - Dependencies are introduced with tags and layers, then provided once near the
@@ -320,6 +358,25 @@ non-generator form (`(): Effect.Effect<void> => ...`).
   without a documented boundary reason.
 
 ## Copyable Patterns
+
+### runMain Entry Point With Graceful Teardown
+
+```ts
+import { Console, Effect, Schedule } from "effect";
+import { NodeRuntime } from "@effect/platform-node";
+
+const program = Effect.addFinalizer(() => Console.log("Application is about to exit!")).pipe(
+  Effect.andThen(Console.log("Application started!")),
+  Effect.andThen(
+    Effect.repeat(Console.log("still alive..."), {
+      schedule: Schedule.spaced("1 second"),
+    }),
+  ),
+  Effect.scoped,
+);
+
+NodeRuntime.runMain(program);
+```
 
 ### Service Tag And Layer
 
@@ -428,6 +485,36 @@ const queueDownload = Effect.fn("Operations.queueDownload")(function* (...) {
 
 ```ts
 const byId = new Map(rows.map((row): [number, Row] => [row.id, row]));
+```
+
+### Refined Brand
+
+```ts
+import { Brand } from "effect";
+
+type Int = number & Brand.Brand<"Int">;
+const Int = Brand.refined<Int>(
+  (n) => Number.isInteger(n),
+  (n) => Brand.error(`Expected ${n} to be an integer`),
+);
+```
+
+### Pattern Matching With `Match`
+
+```ts
+import { Match } from "effect";
+
+type Event =
+  | { readonly _tag: "fetch" }
+  | { readonly _tag: "success"; readonly data: string }
+  | { readonly _tag: "error"; readonly error: Error };
+
+const describe = Match.type<Event>().pipe(
+  Match.tag("fetch", () => "fetching"),
+  Match.tag("success", (e) => `got ${e.data}`),
+  Match.tag("error", (e) => `failed: ${e.error.message}`),
+  Match.exhaustive,
+);
 ```
 
 ### Effect Test With TestClock
