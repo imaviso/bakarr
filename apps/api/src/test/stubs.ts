@@ -1,6 +1,6 @@
 import { CommandExecutor } from "@effect/platform";
 import type { PlatformError } from "@effect/platform/Error";
-import { Effect, Stream } from "effect";
+import { Effect, Predicate, Stream } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
@@ -26,7 +26,7 @@ export function makeCommandExecutorStub<E extends PlatformError = never>(
 }
 
 export function commandArgs(command: Parameters<CommandExecutor.CommandExecutor["string"]>[0]) {
-  if (typeof command === "object" && command !== null && "args" in command) {
+  if (Predicate.hasProperty(command, "args")) {
     const { args } = command;
     return Array.isArray(args)
       ? args.filter((value): value is string => typeof value === "string")
@@ -37,7 +37,7 @@ export function commandArgs(command: Parameters<CommandExecutor.CommandExecutor[
 }
 
 export function commandName(command: Parameters<CommandExecutor.CommandExecutor["string"]>[0]) {
-  if (typeof command === "object" && command !== null && "command" in command) {
+  if (Predicate.hasProperty(command, "command")) {
     return typeof command.command === "string" ? command.command : undefined;
   }
 

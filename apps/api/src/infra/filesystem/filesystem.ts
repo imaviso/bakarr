@@ -256,7 +256,7 @@ function makeFileSystem(
     stat: (path) =>
       Effect.flatMap(resolvePath(pathService, path), (resolvedPath) =>
         wrap(path, "Failed to stat path", Effect.scoped(platformFs.stat(resolvedPath))),
-      ).pipe(Effect.map(toFileInfo)),
+      ).pipe(Effect.map((info) => toFileInfo(info))),
     mkdir: (path, options) =>
       Effect.flatMap(resolvePath(pathService, path), (resolvedPath) =>
         wrap(

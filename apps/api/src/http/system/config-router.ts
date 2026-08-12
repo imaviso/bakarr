@@ -30,7 +30,7 @@ export const configRouter = HttpRouter.empty.pipe(
     "/api/system/config",
     authedRouteResponse(
       Effect.flatMap(SystemConfigService, (service) =>
-        service.getConfig().pipe(Effect.map(redactConfigSecrets)),
+        service.getConfig().pipe(Effect.map((config) => redactConfigSecrets(config))),
       ),
       schemaJsonResponse(ConfigSchema),
     ),
@@ -42,7 +42,7 @@ export const configRouter = HttpRouter.empty.pipe(
         const body = yield* decodeJsonBodyWithLabel(ConfigSchema, "update system config");
         return yield* (yield* SystemConfigUpdateService)
           .updateConfig(body)
-          .pipe(Effect.map(redactConfigSecrets));
+          .pipe(Effect.map((config) => redactConfigSecrets(config)));
       }),
       schemaJsonResponse(ConfigSchema),
     ),

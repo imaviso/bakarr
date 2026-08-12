@@ -165,7 +165,7 @@ export { scanVideoFiles };
 
 const statMaybe = Effect.fn("Operations.statMaybe")(function* (fs: FileSystemShape, path: string) {
   return yield* fs.stat(path).pipe(
-    Effect.map(Option.some),
+    Effect.map((info) => Option.some(info)),
     Effect.catchTag("FileSystemError", (error) =>
       isNotFoundError(error) ? Effect.succeed(Option.none()) : Effect.fail(error),
     ),

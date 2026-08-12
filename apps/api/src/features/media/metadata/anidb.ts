@@ -165,7 +165,7 @@ const makeAniDbClient = Effect.fn("AniDbClient.make")(function* () {
     "AniDbClient.getEpisodeMetadata",
   )(function* (input: AniDbEpisodeLookupInput) {
     const runtimeConfig = yield* runtimeConfigSnapshot.getRuntimeConfig().pipe(
-      Effect.map(Option.some),
+      Effect.map((config) => Option.some(config)),
       Effect.catchTag("StoredConfigMissingError", () => Effect.succeed(Option.none())),
       Effect.catchTag("StoredConfigCorruptError", (error) =>
         failRuntimeConfigLoad(error, "stored config is corrupt"),

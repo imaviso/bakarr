@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { Predicate } from "effect";
 import { cva } from "class-variance-authority";
 import {
   composeRenderProps,
@@ -121,7 +122,7 @@ function ContextMenuTrigger({
 }
 
 function isPlainPopoverContext(ctx: unknown): ctx is React.ComponentProps<typeof PopoverPrimitive> {
-  return typeof ctx === "object" && ctx !== null && !("slots" in ctx) && "triggerRef" in ctx;
+  return Predicate.hasProperty(ctx, "triggerRef") && !Predicate.hasProperty(ctx, "slots");
 }
 
 function ContextMenuPopoverProvider({

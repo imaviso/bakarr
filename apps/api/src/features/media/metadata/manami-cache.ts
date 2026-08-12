@@ -66,7 +66,9 @@ export const refreshSqliteCacheIfNeeded = Effect.fn("ManamiCache.refreshSqliteCa
     paths: ManamiCachePaths,
   ) {
     const now = yield* currentTimeMillis;
-    const meta = yield* readCacheMeta(fs, paths).pipe(Effect.map(Option.getOrUndefined));
+    const meta = yield* readCacheMeta(fs, paths).pipe(
+      Effect.map((option) => Option.getOrUndefined(option)),
+    );
     const metaFresh =
       meta !== undefined && now - meta.fetchedAtMs < MANAMI_CACHE_REFRESH_INTERVAL_MS;
     const sqliteValid = yield* hasLookupSqliteSchema(sqliteClient).pipe(
@@ -171,7 +173,7 @@ const readCacheMeta = Effect.fn("ManamiCache.readCacheMeta")(function* (
   paths: ManamiCachePaths,
 ) {
   const bytes = yield* fs.readFile(paths.metaFile).pipe(
-    Effect.map(Option.some),
+    Effect.map((bytes) => Option.some(bytes)),
     Effect.catchAll((error) => {
       if (isNotFoundError(error)) {
         return Effect.succeed(Option.none<Uint8Array>());

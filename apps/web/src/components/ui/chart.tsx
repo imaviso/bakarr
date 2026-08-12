@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import * as RechartsPrimitive from "recharts";
+import { Predicate } from "effect";
 import type { TooltipValueType } from "recharts";
 
 import { cn } from "@/lib/utils";
@@ -313,16 +314,12 @@ function ChartLegendContent({
   );
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
 function getPayloadConfigFromPayload(config: ChartConfig, payload: unknown, key: string) {
-  if (!isRecord(payload)) {
+  if (!Predicate.isRecord(payload)) {
     return undefined;
   }
 
-  const payloadPayload = isRecord(payload["payload"]) ? payload["payload"] : undefined;
+  const payloadPayload = Predicate.isRecord(payload["payload"]) ? payload["payload"] : undefined;
 
   let configLabelKey: string = key;
 

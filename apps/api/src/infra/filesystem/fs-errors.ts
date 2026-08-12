@@ -4,6 +4,7 @@
  * Feature modules should import from here instead of inspecting
  * platform error codes directly.
  */
+import { Predicate } from "effect";
 
 /** Check if an error wraps a "not found" platform error (ENOENT / Deno NotFound). */
 export function isNotFoundError(error: { cause?: unknown }): boolean {
@@ -18,7 +19,7 @@ export function isNotFoundError(error: { cause?: unknown }): boolean {
     return code === "ENOENT" || code === "NotFound";
   }
 
-  if (typeof cause === "object" && cause !== null && "cause" in cause) {
+  if (Predicate.hasProperty(cause, "cause")) {
     return isNotFoundError({ cause: cause.cause });
   }
 
@@ -36,9 +37,7 @@ export function isCrossFilesystemError(error: { cause?: unknown }): boolean {
 
 /** Check if a platform SystemError itself is a NotFound branch. */
 export function isSystemNotFoundError(error: unknown): boolean {
-  return (
-    typeof error === "object" && error !== null && "reason" in error && error.reason === "NotFound"
-  );
+  return Predicate.hasProperty(error, "reason") && error.reason === "NotFound";
 }
 
 function getErrorCode(error: Error): string | undefined {

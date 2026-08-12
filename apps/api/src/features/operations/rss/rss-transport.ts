@@ -1,7 +1,7 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
-import { Effect, Schema } from "effect";
+import { Effect, Predicate, Schema } from "effect";
 
 import { MAX_RSS_BYTES } from "@/features/operations/rss/rss-limits.ts";
 import type { PinnedRequestTarget } from "@/features/operations/rss/rss-client-ssrf.ts";
@@ -218,8 +218,7 @@ function makePinnedLookup(pinnedTarget: Extract<PinnedRequestTarget, { _tag: "Pi
     }
 
     const options = lookupArgs[1];
-    const shouldReturnAll =
-      typeof options === "object" && options !== null && "all" in options && options.all === true;
+    const shouldReturnAll = Predicate.hasProperty(options, "all") && options.all === true;
 
     if (shouldReturnAll) {
       callback(null, [

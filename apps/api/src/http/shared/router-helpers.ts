@@ -1,6 +1,6 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
-import { Cause, Effect, Option, ParseResult, Schema } from "effect";
+import { Cause, Effect, Option, ParseResult, Predicate, Schema } from "effect";
 
 import { collectBoundedText, StreamPayloadTooLargeError } from "@/domain/bounded-stream.ts";
 import { mapRouteError } from "@/http/shared/route-errors/index.ts";
@@ -106,7 +106,7 @@ export const routeResponse = <A, E, R, E2, R2>(
     const url = new URL(request.url, "http://bakarr.local");
 
     return yield* effect.pipe(
-      Effect.flatMap(onSuccess),
+      Effect.flatMap((value) => onSuccess(value)),
       Effect.catchAllCause((cause) =>
         Effect.gen(function* () {
           const failure = Cause.failureOption(cause);
@@ -198,7 +198,7 @@ function mapLabeledBodyDecodeError(label: string, error: unknown) {
 }
 
 function describeRouteFailure(error: unknown): string {
-  if (typeof error === "object" && error !== null && "_tag" in error) {
+  if (Predicate.hasProperty(error, "_tag")) {
     return String(error._tag);
   }
 

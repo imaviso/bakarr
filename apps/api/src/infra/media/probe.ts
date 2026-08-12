@@ -366,7 +366,7 @@ const makeMediaProbe = (
     const stdout = output.stdout;
 
     return yield* decodeFfprobeOutput(stdout).pipe(
-      Effect.flatMap(normalizeFfprobeDecodedOutput),
+      Effect.flatMap((decoded) => normalizeFfprobeDecodedOutput(decoded)),
       Effect.tapError((failure) => logProbeFailure(path, failure)),
     );
   });

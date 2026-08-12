@@ -6,7 +6,7 @@ import { CommandExecutor, FileSystem as PlatformFileSystem } from "@effect/platf
 import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem";
 import { HttpApp } from "@effect/platform";
 import * as Context from "effect/Context";
-import { Effect, Layer, ManagedRuntime, Option, Schema, Stream } from "effect";
+import { Effect, Layer, ManagedRuntime, Option, Predicate, Schema, Stream } from "effect";
 import * as Exit from "effect/Exit";
 import * as EffectLayer from "effect/Layer";
 import * as Scope from "effect/Scope";
@@ -3830,8 +3830,8 @@ itWithTestContext("batch reconcile marks already-imported episodes as reconciled
           "select status, reconciled_at as reconciledAt from downloads where id = 1",
         );
         const row = result.rows[0];
-        assert.deepStrictEqual(isRecord(row), true);
-        if (!isRecord(row)) {
+        assert.deepStrictEqual(isSqlRow(row), true);
+        if (!isSqlRow(row)) {
           return;
         }
         assert.deepStrictEqual(row["status"], "imported");
@@ -4789,7 +4789,7 @@ function createClient(input: { readonly url: string }) {
         client.unsafe(statement.sql, statement.args).withoutTransform,
       );
 
-      return { rows: rows.filter(isRecord) };
+      return { rows: rows.filter(isSqlRow) };
     },
   };
 }
@@ -4801,8 +4801,13 @@ interface SqlRow {
 type SqlValue = string | number | null;
 
 // oxlint-disable-next-line typescript/no-restricted-types -- type guards must accept unknown
-function isRecord(value: unknown): value is SqlRow {
-  return typeof value === "object" && value !== null;
+function isSqlRow(value: unknown): value is SqlRow {
+  return (
+    Predicate.isRecord(value) &&
+    Object.values(value).every(
+      (entry) => entry === null || typeof entry === "string" || typeof entry === "number",
+    )
+  );
 }
 
 function toDatabaseFile(url: string) {

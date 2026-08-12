@@ -57,7 +57,10 @@ const makeOperationsTaskLauncherService = Effect.fn("OperationsTaskLauncherServi
         ),
     );
 
-    const workerLoop = Queue.take(taskQueue).pipe(Effect.flatMap(runQueuedTask), Effect.forever);
+    const workerLoop = Queue.take(taskQueue).pipe(
+      Effect.flatMap((task) => runQueuedTask(task)),
+      Effect.forever,
+    );
 
     yield* Effect.forEach(
       Array.from({ length: OPERATIONS_TASK_WORKER_CONCURRENCY }),
