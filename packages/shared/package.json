@@ -6,7 +6,15 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "vitest run"
+  },
   "dependencies": {
     "effect": "^3.22.0"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
   }
 }
