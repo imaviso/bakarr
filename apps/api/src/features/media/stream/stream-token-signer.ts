@@ -1,6 +1,5 @@
-import { Effect, Option, Schema } from "effect";
+import { Either, Effect, Encoding, Schema } from "effect";
 
-import { bytesToHex, hexToBytes } from "@/infra/hex.ts";
 import { RandomService } from "@/infra/random.ts";
 
 export class StreamTokenSignerError extends Schema.TaggedError<StreamTokenSignerError>()(
@@ -44,7 +43,7 @@ const makeStreamTokenSigner = Effect.fn("StreamTokenSigner.make")(function* () {
         }),
     });
 
-    return bytesToHex(new Uint8Array(signature));
+    return Encoding.encodeHex(new Uint8Array(signature));
   });
 
   const verify = Effect.fn("StreamTokenSigner.verify")(function* (input: {
@@ -58,12 +57,12 @@ const makeStreamTokenSigner = Effect.fn("StreamTokenSigner.make")(function* () {
       return false;
     }
 
-    const signatureBytes = hexToBytes(input.signatureHex);
-    if (Option.isNone(signatureBytes) || signatureBytes.value.length !== 32) {
+    const signatureBytes = Encoding.decodeHex(input.signatureHex);
+    if (Either.isLeft(signatureBytes) || signatureBytes.right.length !== 32) {
       return false;
     }
 
-    const signatureBuffer = Uint8Array.from(signatureBytes.value);
+    const signatureBuffer = Uint8Array.from(signatureBytes.right);
 
     return yield* Effect.tryPromise({
       try: () =>

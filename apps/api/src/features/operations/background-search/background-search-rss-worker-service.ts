@@ -48,16 +48,22 @@ export class BackgroundSearchRssWorkerService extends Effect.Service<BackgroundS
               yield* Effect.annotateCurrentSpan("job", "rss");
               yield* eventBus.publish({ type: "RssCheckStarted" });
 
-              const result = yield* rssService.runRssCheck().pipe(Effect.mapError(mapWorkerError));
+              const result = yield* rssService
+                .runRssCheck()
+                .pipe(Effect.mapError((error) => mapWorkerError(error)));
               yield* Effect.annotateCurrentSpan("totalFeeds", result.totalFeeds);
               yield* Effect.annotateCurrentSpan("newItems", result.newItems);
-              yield* missingService.triggerSearchMissing().pipe(Effect.mapError(mapWorkerError));
+              yield* missingService
+                .triggerSearchMissing()
+                .pipe(Effect.mapError((error) => mapWorkerError(error)));
 
               yield* eventBus.publish({
                 type: "RssCheckFinished",
                 payload: { new_items: result.newItems, total_feeds: result.totalFeeds },
               });
-              yield* progress.publishDownloadProgress().pipe(Effect.mapError(mapWorkerError));
+              yield* progress
+                .publishDownloadProgress()
+                .pipe(Effect.mapError((error) => mapWorkerError(error)));
 
               return result;
             }),

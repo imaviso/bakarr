@@ -1,5 +1,5 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
-import { Effect, Option } from "effect";
+import { Effect, Duration, Option } from "effect";
 
 import type {
   AsyncOperationAccepted,
@@ -26,7 +26,6 @@ import {
 import { mapQBitState } from "@/features/operations/qbittorrent/qbittorrent.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
-import { durationMsSince } from "@/infra/logging.ts";
 import { currentTimeNanos, nowIso as currentNowIso } from "@/infra/time.ts";
 import { DownloadReconciliationService } from "@/features/operations/download/download-reconciliation-service.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
@@ -345,28 +344,35 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
                 );
               }
             }
-          }).pipe(Effect.mapError(mapSyncError));
+          }).pipe(Effect.mapError((error) => mapSyncError(error)));
         },
       );
 
       const syncDownloads = Effect.fn("TorrentSync.syncDownloads")(function* () {
         return yield* Effect.gen(function* () {
-          const startedAt = yield* currentTimeNanos;
+          const [duration, exit] = yield* syncDownloadsWithQBitEffect().pipe(
+            Effect.exit,
+            Effect.timedWith(currentTimeNanos),
+          );
 
-          yield* syncDownloadsWithQBitEffect();
-
-          const finishedAt = yield* currentTimeNanos;
+          if (exit._tag === "Failure") {
+            return yield* Effect.failCause(exit.cause);
+          }
 
           yield* Effect.logDebug("download state sync completed").pipe(
             Effect.annotateLogs({
               component: "downloads",
-              durationMs: durationMsSince(startedAt, finishedAt),
+              durationMs: Duration.toMillis(duration),
               syncTrigger: "downloads.manual_sync",
             }),
           );
           yield* progress.publishDownloadProgressNow();
           yield* eventBus.publishInfo("Download sync finished");
-        }).pipe(syncSemaphore.withPermits(1), Effect.mapError(mapSyncError));
+          return undefined;
+        }).pipe(
+          syncSemaphore.withPermits(1),
+          Effect.mapError((e) => mapSyncError(e)),
+        );
       });
 
       const startDownloadSync = Effect.fn("DownloadTorrentSyncService.startDownloadSync")(

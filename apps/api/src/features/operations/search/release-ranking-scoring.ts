@@ -2,6 +2,7 @@ import type { Config, ReleaseProfileRule } from "@packages/shared/index.ts";
 
 import { parseReleaseName } from "@/features/operations/search/release-ranking-parse.ts";
 import type { RankedRelease } from "@/features/operations/search/release-ranking-types.ts";
+import { escapeRegex } from "@/infra/text.ts";
 
 export function calculateReleaseScore(
   release: RankedRelease,
@@ -71,8 +72,4 @@ function seaDexScoreAdjustment(release: RankedRelease): number {
 
 function seaDexNotesMentionGroup(notes: string, group: string) {
   return new RegExp(`\\b${escapeRegex(group)}\\b`, "i").test(notes);
-}
-
-function escapeRegex(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

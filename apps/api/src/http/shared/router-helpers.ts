@@ -54,15 +54,15 @@ const decodeJsonText = <A, I, R>(schema: Schema.Schema<A, I, R>, label: string, 
   );
 
 const parseJsonText = (text: string, label: string) =>
-  Effect.try({
-    try: () => JSON.parse(text),
-    catch: (cause) =>
+  Schema.decodeUnknown(Schema.parseJson(Schema.Unknown))(text).pipe(
+    Effect.mapError((cause) =>
       RequestValidationError.make({
         cause,
         message: `Invalid JSON for ${label}`,
         status: 400,
       }),
-  });
+    ),
+  );
 
 export const decodePathParams = <A, I extends Readonly<Record<string, string | undefined>>, R>(
   schema: Schema.Schema<A, I, R>,

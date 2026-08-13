@@ -6,6 +6,7 @@ import type { ReaderPage, ReaderPagesResponse } from "@packages/shared/index.ts"
 import type { DatabaseError } from "@/db/database.ts";
 import { AppConfig } from "@/config/schema.ts";
 import { FileSystem, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
+import { pathBasename } from "@/infra/path.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";
 import { resolveUnitFileEffect } from "@/features/media/files/media-file-read.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
@@ -348,7 +349,7 @@ const listArchivePages = Effect.fn("MediaReader.listArchivePages")(function* (in
             _tag: "ArchivePage",
             archive,
             entry,
-            fileName: page.path.split("/").at(-1) ?? page.path,
+            fileName: pathBasename(page.path),
             mediaType: page.mediaType,
           },
         ]

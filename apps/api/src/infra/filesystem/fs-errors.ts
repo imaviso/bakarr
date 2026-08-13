@@ -6,6 +6,8 @@
  */
 import { Predicate } from "effect";
 
+import { getErrorCode } from "@/infra/error-code.ts";
+
 /** Check if an error wraps a "not found" platform error (ENOENT / Deno NotFound). */
 export function isNotFoundError(error: { cause?: unknown }): boolean {
   const { cause } = error;
@@ -38,13 +40,4 @@ export function isCrossFilesystemError(error: { cause?: unknown }): boolean {
 /** Check if a platform SystemError itself is a NotFound branch. */
 export function isSystemNotFoundError(error: unknown): boolean {
   return Predicate.hasProperty(error, "reason") && error.reason === "NotFound";
-}
-
-function getErrorCode(error: Error): string | undefined {
-  if (!("code" in error)) {
-    return undefined;
-  }
-
-  const code = error.code;
-  return typeof code === "string" ? code : undefined;
 }

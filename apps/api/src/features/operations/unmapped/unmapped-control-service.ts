@@ -72,7 +72,9 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
   const decodeStoredFolder = Effect.fn("UnmappedControlService.decodeStoredFolder")(function* (
     row: Parameters<typeof decodeUnmappedFolderMatchRow>[0],
   ) {
-    return yield* decodeUnmappedFolderMatchRow(row).pipe(Effect.mapError(toStoredDataError));
+    return yield* decodeUnmappedFolderMatchRow(row).pipe(
+      Effect.mapError((error) => toStoredDataError(error)),
+    );
   });
 
   const loadCurrentFolder = Effect.fn("UnmappedControlService.loadCurrentFolder")(function* (

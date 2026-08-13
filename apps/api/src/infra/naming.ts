@@ -28,6 +28,7 @@
 
 import { sanitizeFilename } from "@/infra/filesystem/filesystem.ts";
 import { formatEpisodeSegment } from "@/infra/media/identity/identity.ts";
+import { escapeRegex } from "@/infra/text.ts";
 import type { ParsedUnitIdentity } from "@packages/shared/index.ts";
 
 export interface NamingInput {
@@ -187,8 +188,4 @@ function normalizeQualityForFormat(input: {
     .trim();
 
   return stripped.length > 0 ? stripped : undefined;
-}
-
-function escapeRegex(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

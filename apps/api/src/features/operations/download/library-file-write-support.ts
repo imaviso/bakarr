@@ -13,6 +13,7 @@ import { DomainPathError, InfrastructureError } from "@/features/errors.ts";
 import { ImportFileError } from "@/features/operations/download/download-file-import-errors.ts";
 import { isCrossFilesystemError, isNotFoundError } from "@/infra/filesystem/fs-errors.ts";
 import { isWithinPathRoot, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
+import { pathExtension } from "@/infra/path.ts";
 import {
   probeMediaMetadataOrUndefined,
   type MediaProbeShape,
@@ -53,10 +54,7 @@ export interface BuildLibraryFileWritePlanInput {
 
 export const buildLibraryFileWritePlan = Effect.fn("Operations.buildLibraryFileWritePlan")(
   function* (input: BuildLibraryFileWritePlanInput) {
-    const sourceBaseName = input.sourcePath.split(/[\\/]/).pop() ?? input.sourcePath;
-    const extension = sourceBaseName.includes(".")
-      ? sourceBaseName.slice(sourceBaseName.lastIndexOf("."))
-      : ".mkv";
+    const extension = pathExtension(input.sourcePath, ".mkv");
     const preferredTitle = input.preferredTitle ?? "romaji";
     let namingPlan = buildNamingPlan(input, preferredTitle, input.localMediaMetadata);
 

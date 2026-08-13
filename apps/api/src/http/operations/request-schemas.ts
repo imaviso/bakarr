@@ -202,6 +202,18 @@ export class ImportFilesBodySchema extends Schema.Class<ImportFilesBodySchema>(
   files: Schema.Array(ImportFilesItem),
 }) {}
 
+export type ImportFilesBodyInput = Schema.Schema.Type<typeof ImportFilesBodySchema>;
+
+export function toLibraryImportFileInputs(body: ImportFilesBodyInput) {
+  return body.files.map((file) => ({
+    media_id: file.media_id,
+    source_path: file.source_path,
+    unit_number: file.unit_number,
+    ...(file.unit_numbers === undefined ? {} : { unit_numbers: file.unit_numbers }),
+    ...(file.season === undefined ? {} : { season: file.season }),
+  }));
+}
+
 export class ImportUnmappedFolderBodySchema extends Schema.Class<ImportUnmappedFolderBodySchema>(
   "ImportUnmappedFolderBodySchema",
 )({

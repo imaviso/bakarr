@@ -423,7 +423,7 @@ type JikanAnimeInput =
   | Schema.Schema.Type<typeof JikanAnimeDetailFullSchema>;
 
 function normalizeJikanAnime(data: JikanAnimeInput): JikanNormalizedAnime {
-  const relations = "relations" in data ? data.relations : undefined;
+  const relations = Schema.is(JikanAnimeDetailFullSchema)(data) ? data.relations : undefined;
   const genreNames = normalizeEntryNames(data.genres);
   const explicitGenres = normalizeEntryNames(data.explicit_genres);
   const themes = normalizeEntryNames(data.themes);

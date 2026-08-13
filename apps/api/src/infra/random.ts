@@ -1,6 +1,4 @@
-import { Effect } from "effect";
-
-import { bytesToHex } from "@/infra/hex.ts";
+import { Effect, Encoding } from "effect";
 
 export interface RandomServiceShape {
   readonly randomBytes: (bytes: number) => Effect.Effect<Uint8Array>;
@@ -20,7 +18,7 @@ export class RandomService extends Effect.Service<RandomService>()("@bakarr/lib/
 
 export const randomHexFrom = Effect.fn("Random.randomHexFrom")(
   (random: RandomServiceShape, bytes: number): Effect.Effect<string> =>
-    Effect.map(random.randomBytes(bytes), bytesToHex),
+    Effect.map(random.randomBytes(bytes), (data) => Encoding.encodeHex(data)),
 );
 
 /**
@@ -40,7 +38,7 @@ export const randomBytes = Effect.fn("Random.randomBytes")(
  */
 export function randomHexSync(bytes: number): string {
   const data = randomBytesSync(bytes);
-  return bytesToHex(data);
+  return Encoding.encodeHex(data);
 }
 
 export function randomBytesSync(bytes: number): Uint8Array {

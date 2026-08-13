@@ -1,8 +1,9 @@
-import { HttpRouter, HttpServerResponse } from "@effect/platform";
+import { HttpRouter } from "@effect/platform";
 import { Effect } from "effect";
 import { SystemLogsResponseSchema } from "@packages/shared/index.ts";
 
 import { SystemLogService } from "@/features/system/system-log-service.ts";
+import { buildExportHeaders, buildExportStreamResponse } from "@/http/shared/export-responses.ts";
 import {
   SystemLogExportQuerySchema,
   SystemLogsQuerySchema,
@@ -44,49 +45,21 @@ export const logsRouter = HttpRouter.empty.pipe(
 
         if ((query.format ?? "json") === "csv") {
           const exported = yield* service.streamLogExportCsv(input);
-          return { format: "csv", exported };
+          const result: { format: "csv"; exported: typeof exported } = { format: "csv", exported };
+          return result;
         }
 
         const exported = yield* service.streamLogExportJson(input);
-        return { format: "json", exported };
+        const result: { format: "json"; exported: typeof exported } = { format: "json", exported };
+        return result;
       }),
-      ({ format, exported }) => {
-        const exportHeaders = buildSystemLogExportHeaders(exported.header);
-
-        if (format === "csv") {
-          return HttpServerResponse.stream(exported.stream, {
-            contentType: "text/csv; charset=utf-8",
-            headers: {
-              ...exportHeaders,
-              "Content-Disposition": `attachment; filename="bakarr-logs.csv"`,
-            },
-          });
-        }
-
-        return HttpServerResponse.stream(exported.stream, {
-          contentType: "application/json; charset=utf-8",
-          headers: {
-            ...exportHeaders,
-            "Content-Disposition": `attachment; filename="bakarr-logs.json"`,
-          },
-        });
-      },
+      ({ format, exported }) =>
+        buildExportStreamResponse(
+          format,
+          exported.stream,
+          format === "csv" ? "bakarr-logs.csv" : "bakarr-logs.json",
+          buildExportHeaders(exported.header, "logs"),
+        ),
     ),
   ),
 );
-
-function buildSystemLogExportHeaders(header: {
-  readonly exported: number;
-  readonly generated_at: string;
-  readonly limit: number;
-  readonly total: number;
-  readonly truncated: boolean;
-}) {
-  return {
-    "X-Bakarr-Export-Limit": String(header.limit),
-    "X-Bakarr-Export-Truncated": String(header.truncated),
-    "X-Bakarr-Exported-Logs": String(header.exported),
-    "X-Bakarr-Generated-At": header.generated_at,
-    "X-Bakarr-Total-Logs": String(header.total),
-  };
-}

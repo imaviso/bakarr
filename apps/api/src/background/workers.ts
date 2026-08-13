@@ -1,5 +1,5 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
-import { Cause, Effect, Option, Schedule, Schema } from "effect";
+import { Cause, Duration, Effect, Option, Schedule, Schema } from "effect";
 import { Exit } from "effect";
 import type { Scope } from "effect";
 
@@ -18,7 +18,7 @@ import {
 } from "@/domain/worker-model.ts";
 import { currentTimeNanos } from "@/infra/time.ts";
 import { makeSerializedDropEffectRunner } from "@/infra/effect/serialized-runner.ts";
-import { compactLogAnnotations, durationMsSince, errorLogAnnotations } from "@/infra/logging.ts";
+import { compactLogAnnotations, errorLogAnnotations } from "@/infra/logging.ts";
 
 export class WorkerTimeoutError extends Schema.TaggedError<WorkerTimeoutError>()(
   "WorkerTimeoutError",
@@ -170,12 +170,12 @@ export const withLockEffectOrFail = Effect.fn("Background.withLockEffectOrFail")
   );
 
   const monitoredTask = Effect.gen(function* () {
-    const startedAt = yield* currentTimeNanos;
     yield* monitor.markRunStarted(workerName);
 
-    const exit = yield* Effect.exit(taskWithTimeout);
-    const finishedAt = yield* currentTimeNanos;
-    const durationMs = durationMsSince(startedAt, finishedAt);
+    const [duration, exit] = yield* Effect.timedWith(currentTimeNanos)(
+      Effect.exit(taskWithTimeout),
+    );
+    const durationMs = Duration.toMillis(duration);
 
     if (exit._tag === "Success") {
       yield* monitor.markRunSucceeded(workerName, durationMs);

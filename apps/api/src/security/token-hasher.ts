@@ -1,6 +1,4 @@
-import { Effect, Schema } from "effect";
-
-import { bytesToHex } from "@/infra/hex.ts";
+import { Effect, Encoding, Schema } from "effect";
 
 export class TokenHasherError extends Schema.TaggedError<TokenHasherError>()("TokenHasherError", {
   cause: Schema.optional(Schema.Defect),
@@ -24,7 +22,7 @@ const hashToken = Effect.fn("TokenHasher.hashToken")(function* (token: string) {
       }),
   });
 
-  return bytesToHex(new Uint8Array(hashBuffer));
+  return Encoding.encodeHex(new Uint8Array(hashBuffer));
 });
 
 export class TokenHasher extends Effect.Service<TokenHasher>()("@bakarr/security/TokenHasher", {

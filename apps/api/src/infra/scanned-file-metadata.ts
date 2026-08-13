@@ -1,5 +1,8 @@
 import type { ParsedUnitIdentity as SharedParsedEpisodeIdentity } from "@packages/shared/index.ts";
 
+import { escapeRegex } from "@/infra/text.ts";
+import { pathBasename, stripExtension } from "@/infra/path.ts";
+
 export interface ScannedFileMetadata {
   readonly air_date?: string;
   readonly audio_channels?: string;
@@ -70,7 +73,7 @@ export function extractEpisodeTitleFromPath(input: {
     return undefined;
   }
 
-  const extensionless = stripExtension(basename(input.filePath)).replace(/^\[[^\]]+\]\s*/, "");
+  const extensionless = stripExtension(pathBasename(input.filePath)).replace(/^\[[^\]]+\]\s*/, "");
   const labelIndex = extensionless.toLowerCase().indexOf(input.sourceIdentity.label.toLowerCase());
 
   if (labelIndex < 0) {
@@ -277,14 +280,6 @@ export function normalizeAirDate(value?: string | null) {
   return match?.[1] ?? trimmed;
 }
 
-function basename(value: string) {
-  return value.split("/").pop() ?? value;
-}
-
-function stripExtension(value: string) {
-  return value.replace(/\.[^.]+$/, "");
-}
-
 const METADATA_TAG_PATTERNS: readonly RegExp[] = [
   /\b\d{3,4}p\b/i,
   /\b\d{3,4}x\d{3,4}\b/i,
@@ -304,8 +299,4 @@ function looksLikeMetadataTag(value: string): boolean {
   }
 
   return METADATA_TAG_PATTERNS.some((pattern) => pattern.test(lower));
-}
-
-function escapeRegex(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

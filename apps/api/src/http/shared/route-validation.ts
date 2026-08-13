@@ -1,5 +1,5 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
-import { ParseResult, Schema } from "effect";
+import { ParseResult, Predicate, Schema } from "effect";
 
 export class RequestValidationError extends Schema.TaggedError<RequestValidationError>()(
   "RequestValidationError",
@@ -28,9 +28,8 @@ export function formatValidationErrorMessage(message: string, error: unknown) {
   }
 
   if (
-    typeof error === "object" &&
-    error !== null &&
-    "message" in error &&
+    Predicate.isRecord(error) &&
+    Predicate.hasProperty(error, "message") &&
     typeof error.message === "string"
   ) {
     return `${message}: ${error.message}`;

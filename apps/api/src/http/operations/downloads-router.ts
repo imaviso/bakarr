@@ -7,12 +7,12 @@ import {
   DownloadStatusSchema,
 } from "@packages/shared/index.ts";
 
-import { HttpServerResponse } from "@effect/platform";
 import { CatalogDownloadReadService } from "@/features/operations/catalog/catalog-download-read-service.ts";
 import { DownloadReconciliationService } from "@/features/operations/download/download-reconciliation-service.ts";
 import { DownloadTorrentActionService } from "@/features/operations/download/download-torrent-action-service.ts";
 import { DownloadTorrentSyncService } from "@/features/operations/download/download-torrent-sync-service.ts";
 import { IdParamsSchema } from "@/http/shared/common-request-schemas.ts";
+import { buildExportHeaders, buildExportStreamResponse } from "@/http/shared/export-responses.ts";
 import {
   DeleteDownloadQuerySchema,
   DownloadEventsExportQuerySchema,
@@ -69,43 +69,37 @@ export const downloadsRouter = HttpRouter.empty.pipe(
 
         if ((query.format ?? "json") === "csv") {
           const streamed = yield* service.streamDownloadEventsExportCsv(input);
-          return {
+          const result: {
+            format: "csv";
+            header: typeof streamed.header;
+            stream: typeof streamed.stream;
+          } = {
             format: "csv",
             header: streamed.header,
             stream: streamed.stream,
           };
+          return result;
         }
 
         const streamed = yield* service.streamDownloadEventsExportJson(input);
-
-        return {
+        const result: {
+          format: "json";
+          header: typeof streamed.header;
+          stream: typeof streamed.stream;
+        } = {
           format: "json",
           header: streamed.header,
           stream: streamed.stream,
         };
+        return result;
       }),
-      (result) => {
-        const { format, header } = result;
-        const exportHeaders = buildDownloadExportHeaders(header);
-
-        if (format === "csv") {
-          return HttpServerResponse.stream(result.stream, {
-            contentType: "text/csv; charset=utf-8",
-            headers: {
-              ...exportHeaders,
-              "Content-Disposition": `attachment; filename="bakarr-download-events.csv"`,
-            },
-          });
-        }
-
-        return HttpServerResponse.stream(result.stream, {
-          contentType: "application/json; charset=utf-8",
-          headers: {
-            ...exportHeaders,
-            "Content-Disposition": `attachment; filename="bakarr-download-events.json"`,
-          },
-        });
-      },
+      (result) =>
+        buildExportStreamResponse(
+          result.format,
+          result.stream,
+          result.format === "csv" ? "bakarr-download-events.csv" : "bakarr-download-events.json",
+          buildExportHeaders(result.header, "events"),
+        ),
     ),
   ),
   HttpRouter.post(
@@ -171,21 +165,3 @@ export const downloadsRouter = HttpRouter.empty.pipe(
     ),
   ),
 );
-
-export function buildDownloadExportHeaders(header: {
-  readonly exported: number;
-  readonly generated_at: string;
-  readonly limit: number;
-  readonly order: string;
-  readonly total: number;
-  readonly truncated: boolean;
-}) {
-  return {
-    "X-Bakarr-Export-Limit": String(header.limit),
-    "X-Bakarr-Export-Order": header.order,
-    "X-Bakarr-Export-Truncated": String(header.truncated),
-    "X-Bakarr-Exported-Events": String(header.exported),
-    "X-Bakarr-Generated-At": header.generated_at,
-    "X-Bakarr-Total-Events": String(header.total),
-  };
-}

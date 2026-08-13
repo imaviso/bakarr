@@ -2,6 +2,8 @@
 import { resolve4, resolve6 } from "node:dns/promises";
 import { Effect, Schema } from "effect";
 
+import { getErrorCode } from "@/infra/error-code.ts";
+
 export class DnsLookupError extends Schema.TaggedError<DnsLookupError>()("DnsLookupError", {
   cause: Schema.Defect,
   hostname: Schema.String,
@@ -50,13 +52,4 @@ export function isDnsNoRecordError(cause: unknown): boolean {
     message.includes("enodata") ||
     message.includes("enotfound")
   );
-}
-
-function getErrorCode(error: Error): string | undefined {
-  if (!("code" in error)) {
-    return undefined;
-  }
-
-  const code = error.code;
-  return typeof code === "string" ? code : undefined;
 }

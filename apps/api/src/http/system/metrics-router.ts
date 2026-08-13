@@ -1,6 +1,6 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 import { HttpRouter, HttpServerResponse } from "@effect/platform";
-import { Cause, Effect, Option } from "effect";
+import { Cause, Duration, Effect, Option } from "effect";
 
 import { ObservabilityConfig } from "@/config/observability.ts";
 import { SystemRuntimeMetricsService } from "@/features/system/system-runtime-metrics-service.ts";
@@ -22,12 +22,10 @@ const enforceMetricsAuthIfConfigured = Effect.gen(function* () {
 
 const renderMetricsWithHttpMetrics = Effect.gen(function* () {
   const service = yield* SystemRuntimeMetricsService;
-  const startedAt = yield* currentTimeNanos;
-  const exit = yield* Effect.exit(
-    Effect.zipRight(enforceMetricsAuthIfConfigured, service.renderPrometheusMetrics()),
+  const [duration, exit] = yield* Effect.timedWith(currentTimeNanos)(
+    Effect.exit(Effect.zipRight(enforceMetricsAuthIfConfigured, service.renderPrometheusMetrics())),
   );
-  const finishedAt = yield* currentTimeNanos;
-  const durationMs = Number((finishedAt - startedAt) / 1_000_000n);
+  const durationMs = Duration.toMillis(duration);
   const status = exit._tag === "Success" ? 200 : statusFromFailureCause(exit.cause);
 
   yield* recordHttpRequestMetrics({

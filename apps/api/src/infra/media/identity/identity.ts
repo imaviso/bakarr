@@ -27,6 +27,7 @@ import {
   extractTitleBeforeNumber,
   stripExtension,
 } from "@/infra/media/identity/file-helpers.ts";
+import { pathBasename } from "@/infra/path.ts";
 import { normalizeSourceText } from "@/infra/media/identity/normalize.ts";
 
 import { parseAbsoluteIdentity } from "@/infra/media/identity/absolute.ts";
@@ -56,7 +57,7 @@ export {
  * filename alone is ambiguous.
  */
 export function parseFileSourceIdentity(path: string, context?: PathParseContext): ParsedMediaFile {
-  const filename = path.split("/").pop() ?? path;
+  const filename = pathBasename(path);
   const normalizedFilename = normalizeSourceText(filename);
   const extensionless = stripExtension(normalizedFilename);
 

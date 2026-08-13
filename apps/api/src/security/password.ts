@@ -1,7 +1,5 @@
-import { Effect, Option, Schema } from "effect";
+import { Effect, Either, Encoding, Schema } from "effect";
 import { timingSafeEqual as nodeTimingSafeEqual } from "node:crypto";
-
-import { bytesToHex, hexToBytes } from "@/infra/hex.ts";
 
 const PASSWORD_SCHEME = "pbkdf2_sha256";
 const ITERATIONS = 310_000;
@@ -61,9 +59,7 @@ export class PasswordCrypto extends Effect.Service<PasswordCrypto>()(
 ) {}
 
 function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
-  const buffer = new ArrayBuffer(bytes.length);
-  new Uint8Array(buffer).set(bytes);
-  return buffer;
+  return Uint8Array.from(bytes).buffer;
 }
 
 function timingSafeEqual(left: Uint8Array, right: Uint8Array): boolean {
@@ -75,13 +71,13 @@ function timingSafeEqual(left: Uint8Array, right: Uint8Array): boolean {
 }
 
 const parseHex = Effect.fn("Password.parseHex")(function* (value: string, message: string) {
-  const decoded = hexToBytes(value);
+  const decoded = Encoding.decodeHex(value);
 
-  if (Option.isNone(decoded)) {
+  if (Either.isLeft(decoded)) {
     return yield* new PasswordError({ message });
   }
 
-  return decoded.value;
+  return decoded.right;
 });
 
 const parseStoredHash = Effect.fn("Password.parseStoredHash")(function* (storedHash: string) {
@@ -121,7 +117,12 @@ export const hashPassword = Effect.fn("Password.hash")(function* (
   const keyMaterial = yield* crypto.deriveKeyMaterial(password);
   const hash = yield* crypto.deriveBits(keyMaterial, toArrayBuffer(salt), ITERATIONS);
 
-  return [PASSWORD_SCHEME, String(ITERATIONS), bytesToHex(salt), bytesToHex(hash)].join("$");
+  return [
+    PASSWORD_SCHEME,
+    String(ITERATIONS),
+    Encoding.encodeHex(salt),
+    Encoding.encodeHex(hash),
+  ].join("$");
 });
 
 export const verifyPassword = Effect.fn("Password.verify")(function* (

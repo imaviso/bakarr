@@ -1,5 +1,5 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
-import { Effect } from "effect";
+import { Effect, Predicate } from "effect";
 
 import type { DatabaseError } from "@/db/database.ts";
 import { FileSystem, isWithinPathRoot } from "@/infra/filesystem/filesystem.ts";
@@ -68,9 +68,8 @@ const accessError = (message: string, cause?: unknown) =>
 
 function hasFileSystemErrorCode(cause: unknown, codes: readonly string[]) {
   return (
-    typeof cause === "object" &&
-    cause !== null &&
-    "code" in cause &&
+    Predicate.isRecord(cause) &&
+    Predicate.hasProperty(cause, "code") &&
     typeof cause.code === "string" &&
     codes.includes(cause.code)
   );

@@ -1,4 +1,5 @@
 import { parseResolutionLabel } from "@/infra/media/resolution.ts";
+import { stripExtension } from "@/infra/path.ts";
 import type { ParsedMediaFile, PathParseContext } from "@/infra/media/identity/types.ts";
 
 const EXTRA_KEYWORDS = new Set([
@@ -254,9 +255,7 @@ export function extractResolution(value: string): string | undefined {
   return parseResolutionLabel(value);
 }
 
-export function stripExtension(filename: string): string {
-  return filename.replace(/\.[^.]+$/, "");
-}
+export { stripExtension } from "@/infra/path.ts";
 
 function extractSequelHint(folderName: string): string | undefined {
   const lower = folderName.toLowerCase().trim();

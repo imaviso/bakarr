@@ -1,6 +1,6 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 import { assert, it } from "@effect/vitest";
-import { buildDownloadExportHeaders } from "@/http/operations/downloads-router.ts";
+import { buildExportHeaders } from "@/http/shared/export-responses.ts";
 
 it("download events export response adds export metadata headers", () => {
   const page: {
@@ -21,7 +21,7 @@ it("download events export response adds export metadata headers", () => {
     truncated: true,
   };
 
-  const headers = buildDownloadExportHeaders(page);
+  const headers = buildExportHeaders(page, "events");
 
   assert.deepStrictEqual(headers["X-Bakarr-Exported-Events"], "3");
   assert.deepStrictEqual(headers["X-Bakarr-Export-Limit"], "50");

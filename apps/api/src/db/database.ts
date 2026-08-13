@@ -48,7 +48,7 @@ const executeSql = Effect.fn("Database.executeSql")(function* (
   client: SqlitePragmaClient,
   statement: string,
 ) {
-  return yield* client.unsafe(statement).pipe(Effect.mapError(sqliteSetupError));
+  return yield* client.unsafe(statement).pipe(Effect.mapError((cause) => sqliteSetupError(cause)));
 });
 
 const SQLITE_BUSY_TIMEOUT_MS = 5_000;
@@ -125,7 +125,7 @@ export const DatabaseSqlClientLive = Layer.unwrapEffect(
 
     return NodeSqliteClient.layer({
       filename: config.databaseFile,
-    }).pipe(Layer.mapError(sqliteSetupError));
+    }).pipe(Layer.mapError((cause) => sqliteSetupError(cause)));
   }),
 );
 

@@ -14,6 +14,7 @@ import type {
 } from "@/features/media/units/media-unit-repository.ts";
 import { classifyMediaArtifact } from "@/infra/media/identity/identity.ts";
 import { probeMediaMetadataOrUndefined, type MediaProbeShape } from "@/infra/media/probe.ts";
+import { pathBasename } from "@/infra/path.ts";
 import type { FileSystemError, FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { buildUnitFilenamePlan } from "@/features/operations/library/naming-canonical-support.ts";
 import {
@@ -186,7 +187,7 @@ export const reconcileBatchDownloadEffect = Effect.fn("DownloadReconcile.reconci
     const allRelevantEpisodes = new Set<number>();
 
     for (const path of batchPaths) {
-      const fileName = path.substring(path.lastIndexOf("/") + 1);
+      const fileName = pathBasename(path);
       const classification = classifyMediaArtifact(path, fileName);
       if (classification.kind === "extra" || classification.kind === "sample") {
         continue;

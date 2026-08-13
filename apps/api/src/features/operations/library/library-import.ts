@@ -11,6 +11,7 @@ import { buildUnitFilenamePlan } from "@/features/operations/library/naming-cano
 import { selectNamingFormat } from "@/features/operations/library/naming-format-support.ts";
 import { StoredDataError } from "@/features/errors.ts";
 import { deriveAnimeSeason, extractYearFromDate } from "@/domain/media/date-utils.ts";
+import { pathExtension } from "@/infra/path.ts";
 import type { MediaRepositoryShape } from "@/features/media/shared/media-repository.ts";
 
 export {
@@ -75,8 +76,7 @@ export const buildRenamePreview = Effect.fn("LibraryImport.buildRenamePreview")(
       continue;
     }
 
-    const fileName = filePath.split(/[\\/]/).at(-1) ?? filePath;
-    const extension = fileName.includes(".") ? fileName.slice(fileName.lastIndexOf(".")) : ".mkv";
+    const extension = pathExtension(filePath, ".mkv");
     const plan = buildUnitFilenamePlan({
       animeRow,
       unitNumbers,

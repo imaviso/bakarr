@@ -3,7 +3,7 @@ import { Cause, Context, Duration, Effect, Layer, Schedule, Schema } from "effec
 
 import { currentTimeNanos } from "@/infra/time.ts";
 import { PositiveIntFromStringSchema } from "@/domain/domain-schema.ts";
-import { compactLogAnnotations, durationMsSince, errorLogAnnotations } from "@/infra/logging.ts";
+import { compactLogAnnotations, errorLogAnnotations } from "@/infra/logging.ts";
 
 export const EXTERNAL_CALL_PROVIDERS: readonly [
   "anilist",
@@ -163,7 +163,6 @@ export const makeExternalCall = Effect.fn("ExternalCall.makeExternalCall")(funct
   const tryExternalEffect = Effect.fn("ExternalCall.tryExternalEffect")(
     <A, E, R>(operation: string, effect: Effect.Effect<A, E, R>, options?: ExternalCallOptions) =>
       Effect.gen(function* () {
-        const startedAt = yield* currentTimeNanos;
         const allowRetry = options?.idempotent !== false;
         const isRetryable = options?.isRetryableError ?? (() => true);
         const maxAttempts = allowRetry ? policy.retryDelaysMs.length + 1 : 1;
@@ -203,36 +202,32 @@ export const makeExternalCall = Effect.fn("ExternalCall.makeExternalCall")(funct
           ),
         );
 
-        return yield* performAttempt.pipe(
+        const [duration, exit] = yield* performAttempt.pipe(
           Effect.retry(retrySchedule),
-          Effect.tap(() =>
-            currentTimeNanos.pipe(
-              Effect.flatMap((finishedAt) =>
-                Effect.logDebug("external call completed").pipe(
-                  Effect.annotateLogs({
-                    durationMs: durationMsSince(startedAt, finishedAt),
-                    maxAttempts,
-                  }),
-                ),
-              ),
-            ),
-          ),
-          Effect.tapErrorCause((cause) =>
-            currentTimeNanos.pipe(
-              Effect.flatMap((finishedAt) =>
-                Effect.logError("external call failed").pipe(
-                  Effect.annotateLogs(
-                    compactLogAnnotations({
-                      durationMs: durationMsSince(startedAt, finishedAt),
-                      maxAttempts,
-                      ...errorLogAnnotations(Cause.squash(cause)),
-                    }),
-                  ),
-                ),
-              ),
-            ),
+          Effect.exit,
+          Effect.timedWith(currentTimeNanos),
+        );
+
+        if (exit._tag === "Success") {
+          yield* Effect.logDebug("external call completed").pipe(
+            Effect.annotateLogs({
+              durationMs: Duration.toMillis(duration),
+              maxAttempts,
+            }),
+          );
+          return exit.value;
+        }
+
+        yield* Effect.logError("external call failed").pipe(
+          Effect.annotateLogs(
+            compactLogAnnotations({
+              durationMs: Duration.toMillis(duration),
+              maxAttempts,
+              ...errorLogAnnotations(Cause.squash(exit.cause)),
+            }),
           ),
         );
+        return yield* Effect.failCause(exit.cause);
       }),
   );
 

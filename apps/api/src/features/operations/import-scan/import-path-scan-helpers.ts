@@ -18,6 +18,7 @@ import {
   type AnalyzedFile,
 } from "@/features/operations/library/library-import-analysis-support.ts";
 import { buildUnitFilenamePlan } from "@/features/operations/library/naming-canonical-support.ts";
+import { pathExtension } from "@/infra/path.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import {
   mergeProbedMediaMetadata,
@@ -296,8 +297,7 @@ export function buildScannedFileNamingPlan(input: {
 }
 
 function extensionFromPath(path: string) {
-  const fileName = path.split(/[\\/]/).at(-1) ?? path;
-  return fileName.includes(".") ? fileName.slice(fileName.lastIndexOf(".")) : ".mkv";
+  return pathExtension(path, ".mkv");
 }
 
 export interface DiscoverImportScanFilesResult {

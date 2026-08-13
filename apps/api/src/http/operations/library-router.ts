@@ -24,6 +24,7 @@ import {
   ImportFilesBodySchema,
   ImportUnmappedFolderBodySchema,
   ScanImportPathBodySchema,
+  toLibraryImportFileInputs,
 } from "@/http/operations/request-schemas.ts";
 import {
   authedRouteResponse,
@@ -161,16 +162,10 @@ export const libraryRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const body = yield* decodeJsonBodyWithLabel(ImportFilesBodySchema, "import files");
-        const files = body.files.map((file) =>
-          Object.assign(
-            { media_id: file.media_id, unit_number: file.unit_number },
-            file.unit_numbers === undefined ? {} : { unit_numbers: file.unit_numbers },
-            file.season === undefined ? {} : { season: file.season },
-            { source_path: file.source_path },
-          ),
-        );
 
-        return yield* (yield* CatalogLibraryWriteService).startLibraryImport(files);
+        return yield* (yield* CatalogLibraryWriteService).startLibraryImport(
+          toLibraryImportFileInputs(body),
+        );
       }),
       acceptedOperationResponse,
     ),
