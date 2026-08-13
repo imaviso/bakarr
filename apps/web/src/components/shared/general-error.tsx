@@ -18,8 +18,11 @@ export function GeneralError(props: GeneralErrorProps) {
           <span className="text-foreground">bakarr</span> render --route
         </div>
 
-        <div className="w-full border-l-2 border-l-destructive bg-card pl-3 font-mono text-xs">
-          <div className="text-destructive">error[E_RUNTIME]: an unexpected exception occurred</div>
+        <div className="w-full border border-destructive/40 bg-destructive/5 px-3 py-2 font-mono text-xs">
+          <div className="flex items-baseline gap-2 text-destructive">
+            <span aria-hidden="true">!</span>
+            <span>error[E_RUNTIME]: an unexpected exception occurred</span>
+          </div>
           <div className="mt-1 text-muted-foreground">
             try refreshing the page or come back later
           </div>

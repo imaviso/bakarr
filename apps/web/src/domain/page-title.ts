@@ -9,7 +9,7 @@ const APP_NAME = "Bakarr";
 export function usePageTitle(title: string | undefined) {
   useLayoutEffect(() => {
     const prev = document.title;
-    document.title = title ? `${title} — ${APP_NAME}` : APP_NAME;
+    document.title = title ? `${title} · ${APP_NAME}` : APP_NAME;
     return () => {
       document.title = prev;
     };

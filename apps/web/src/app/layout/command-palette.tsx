@@ -170,7 +170,7 @@ export function CommandPalette() {
         onClick={() => setOpen(true)}
         aria-label="Search library or navigate"
         className={cn(
-          "flex w-full items-center gap-2 overflow-hidden rounded-none border border-border bg-muted px-2 py-1.5 text-left text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors",
+          "flex w-full items-center gap-2 overflow-hidden rounded-none border border-border bg-muted px-2 py-1.5 text-left text-xs text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring transition-colors",
           "group-data-[collapsible=icon]:!size-9 group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:bg-transparent",
         )}
       >

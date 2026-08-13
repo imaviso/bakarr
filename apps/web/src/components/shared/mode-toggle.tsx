@@ -10,7 +10,7 @@ export function ModeToggle() {
     <DropdownMenuTrigger>
       <button
         type="button"
-        className="flex w-full items-center gap-3 overflow-hidden rounded-none px-3 py-2 text-left text-sm text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground group-data-[collapsible=icon]:!size-9 group-data-[collapsible=icon]:!p-2"
+        className="flex w-full items-center gap-3 overflow-hidden rounded-none px-3 py-2 text-left text-sm text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring group-data-[collapsible=icon]:!size-9 group-data-[collapsible=icon]:!p-2"
       >
         <div className="relative h-4 w-4 shrink-0">
           <Sun className="absolute inset-0 h-4 w-4 rotate-0 scale-100 transition-transform dark:-rotate-90 dark:scale-0" />

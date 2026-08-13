@@ -1,6 +1,5 @@
 "use client";
 
-import { useTheme } from "next-themes";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
 import {
   CheckCircleIcon,
@@ -9,6 +8,7 @@ import {
   WarningIcon,
   XCircleIcon,
 } from "@phosphor-icons/react";
+import { useTheme } from "~/components/shared/theme-provider";
 
 function toSonnerTheme(theme: string | undefined): "light" | "dark" | "system" {
   return theme === "light" || theme === "dark" || theme === "system" ? theme : "system";
@@ -24,7 +24,7 @@ const toasterStyle: CSSVarStyle = {
 };
 
 const Toaster = ({ toastOptions, theme: _theme, ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme();
+  const { theme } = useTheme();
 
   return (
     <Sonner

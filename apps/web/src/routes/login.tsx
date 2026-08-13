@@ -6,9 +6,10 @@ import { toast } from "sonner";
 import { Schema } from "effect";
 import { Button } from "~/components/ui/button";
 import { errorMessage, formatFieldErrors } from "~/api/effect/errors";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader } from "~/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
+import { Separator } from "~/components/ui/separator";
 import { useApiKeyLoginMutation, useLoginMutation } from "~/api/auth";
 import { useAuth } from "~/app/auth";
 
@@ -138,7 +139,13 @@ function LoginPage() {
     <main className="h-dvh overflow-y-auto bg-background p-4">
       <div className="flex min-h-full items-center justify-center">
         <Card className="w-full max-w-[400px] p-2 bg-card">
-          <CardHeader className="text-center pb-6 mb-4">
+          <CardHeader className="text-center pb-4 mb-2">
+            <div
+              aria-hidden="true"
+              className="mx-auto mb-3 flex h-8 w-8 items-center justify-center bg-primary font-mono text-sm font-bold text-primary-foreground"
+            >
+              ▎
+            </div>
             <h1 className="text-2xl font-medium tracking-tight text-foreground">Bakarr</h1>
             <CardDescription className="text-sm text-muted-foreground mt-1">
               Sign in to your account
@@ -194,7 +201,7 @@ function LoginPage() {
                 )}
               </form.Field>
             </CardContent>
-            <CardFooter className="pt-4">
+            <div className="px-(--card-spacing) pt-4">
               <form.Subscribe
                 selector={(state) => ({
                   isSubmitting: state.isSubmitting,
@@ -213,14 +220,20 @@ function LoginPage() {
                   </Button>
                 )}
               </form.Subscribe>
-            </CardFooter>
+            </div>
           </form>
+          <div className="relative mx-6" role="separator" aria-orientation="horizontal">
+            <Separator className="bg-border" />
+            <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 font-mono text-[0.65rem] uppercase tracking-widest text-muted-foreground">
+              or
+            </span>
+          </div>
           <form onSubmit={submitApiKeyForm}>
-            <div className="px-6 pb-6 pt-1 space-y-2">
+            <div className="px-6 pb-6 pt-2 space-y-2">
               <apiKeyForm.Field name="apiKey">
                 {(field) => (
                   <div className="space-y-2">
-                    <Label htmlFor="api-key">Or sign in with API key</Label>
+                    <Label htmlFor="api-key">API key</Label>
                     <Input
                       id="api-key"
                       type="password"

@@ -12,8 +12,11 @@ export function NotFound() {
           <span className="text-foreground">cat</span> {location.pathname}
         </div>
 
-        <div className="w-full border-l-2 border-l-warning bg-card pl-3 font-mono text-xs">
-          <div className="text-warning">404: no such file or directory</div>
+        <div className="w-full border border-warning/40 bg-warning/5 px-3 py-2 font-mono text-xs">
+          <div className="flex items-baseline gap-2 text-warning">
+            <span aria-hidden="true">!</span>
+            <span>404: no such file or directory</span>
+          </div>
           <div className="mt-1 text-muted-foreground">check the url or navigate back home</div>
         </div>
 
