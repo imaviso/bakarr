@@ -1,16 +1,16 @@
 import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Effect, Schema } from "effect";
+import { Schema } from "effect";
 import { AsyncOperationAcceptedSchema, DownloadSchema, DownloadStatusSchema } from "@bakarr/shared";
 import { API_BASE } from "~/api/constants";
-import { fetchJson, fetchUnit } from "~/api/effect/api-client";
+import { fetchJson, fetchUnit, runApiEffect } from "~/api/effect/api-client";
 import { animeKeys } from "./keys";
 
 export function downloadQueueQueryOptions() {
   return queryOptions({
     queryKey: animeKeys.downloads.queue(),
     queryFn: ({ signal }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(
           Schema.mutable(Schema.Array(DownloadStatusSchema)),
           `${API_BASE}/downloads/queue`,
@@ -30,7 +30,7 @@ export function downloadHistoryQueryOptions() {
   return queryOptions({
     queryKey: animeKeys.downloads.history(),
     queryFn: ({ signal }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(
           Schema.mutable(Schema.Array(DownloadSchema)),
           `${API_BASE}/downloads/history`,
@@ -50,7 +50,7 @@ export function useSearchMissingMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (mediaId?: number) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(AsyncOperationAcceptedSchema, `${API_BASE}/downloads/search-missing`, {
           method: "POST",
           body: { media_id: mediaId },
@@ -76,7 +76,7 @@ export function usePauseDownloadMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (downloadId: number) =>
-      Effect.runPromise(fetchUnit(`${API_BASE}/downloads/${downloadId}/pause`, { method: "POST" })),
+      runApiEffect(fetchUnit(`${API_BASE}/downloads/${downloadId}/pause`, { method: "POST" })),
     onSuccess: () => {
       invalidateDownloadQueries(queryClient);
     },
@@ -87,7 +87,7 @@ export function useResumeDownloadMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (downloadId: number) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchUnit(`${API_BASE}/downloads/${downloadId}/resume`, {
           method: "POST",
         }),
@@ -102,7 +102,7 @@ export function useRetryDownloadMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (downloadId: number) =>
-      Effect.runPromise(fetchUnit(`${API_BASE}/downloads/${downloadId}/retry`, { method: "POST" })),
+      runApiEffect(fetchUnit(`${API_BASE}/downloads/${downloadId}/retry`, { method: "POST" })),
     onSuccess: () => {
       invalidateDownloadQueries(queryClient);
     },
@@ -113,7 +113,7 @@ export function useDeleteDownloadMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: { downloadId: number; deleteFiles?: boolean }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchUnit(
           `${API_BASE}/downloads/${input.downloadId}?delete_files=${
             input.deleteFiles ? "true" : "false"
@@ -131,7 +131,7 @@ export function useSyncDownloadsMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(AsyncOperationAcceptedSchema, `${API_BASE}/downloads/sync`, { method: "POST" }),
       ),
     onSuccess: (accepted) => {
@@ -149,7 +149,7 @@ export function useReconcileDownloadMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (downloadId: number) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchUnit(`${API_BASE}/downloads/${downloadId}/reconcile`, {
           method: "POST",
         }),

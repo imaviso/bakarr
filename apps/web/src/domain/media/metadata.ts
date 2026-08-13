@@ -1,5 +1,6 @@
-import { format, isAfter, isValid, parseISO } from "date-fns";
+import { format, isValid, parseISO } from "date-fns";
 import type { Media, MediaSearchResult, Config } from "~/api/contracts";
+import { isAired } from "~/domain/date-time";
 
 type AnimeDateContext = {
   season?: Media["season"];
@@ -127,12 +128,7 @@ export function formatNextAiringUnit(
 }
 
 export function hasEpisodeAired(airedDate?: string, now = new Date()) {
-  if (!airedDate) {
-    return false;
-  }
-
-  const aired = parseISO(airedDate);
-  return isValid(aired) && !isAfter(aired, now);
+  return isAired(airedDate, now);
 }
 
 export function formatEpisodeStatusTooltip(input: {

@@ -17,9 +17,9 @@ import {
   SearchResultsSchema,
   VideoFileSchema,
 } from "@bakarr/shared";
-import { Effect, Schema } from "effect";
+import { Schema } from "effect";
 import { API_BASE } from "~/api/constants";
-import { fetchJson } from "~/api/effect/api-client";
+import { fetchJson, runApiEffect } from "~/api/effect/api-client";
 import { animeKeys } from "./keys";
 
 export function mediaListQueryOptions() {
@@ -31,7 +31,7 @@ export function mediaListQueryOptions() {
       let offset = 0;
 
       while (true) {
-        const page = await Effect.runPromise(
+        const page = await runApiEffect(
           fetchJson(
             MediaListResponseSchema,
             `${API_BASE}/media?limit=${pageLimit}&offset=${offset}`,
@@ -66,7 +66,7 @@ export function mediaDetailsQueryOptions(id: number) {
   return queryOptions({
     queryKey: animeKeys.detail(id),
     queryFn: ({ signal }) =>
-      Effect.runPromise(fetchJson(MediaSchema, `${API_BASE}/media/${id}`, undefined, signal)),
+      runApiEffect(fetchJson(MediaSchema, `${API_BASE}/media/${id}`, undefined, signal)),
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 }
@@ -82,7 +82,7 @@ export function unitsQueryOptions(mediaId: number) {
   return queryOptions({
     queryKey: animeKeys.units(mediaId),
     queryFn: ({ signal }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(
           Schema.Array(MediaUnitSchema),
           `${API_BASE}/media/${mediaId}/units`,
@@ -105,7 +105,7 @@ export function listFilesQueryOptions(mediaId: number) {
   return queryOptions({
     queryKey: animeKeys.files(mediaId),
     queryFn: ({ signal }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(
           Schema.Array(VideoFileSchema),
           `${API_BASE}/media/${mediaId}/files`,
@@ -128,7 +128,7 @@ export function mediaSearchQueryOptions(query: string, mediaKind: MediaKind = "a
   return queryOptions({
     queryKey: animeKeys.search.query(`${mediaKind}:${query}`),
     queryFn: ({ signal }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(
           MediaSearchResponseSchema,
           `${API_BASE}/media/search?q=${encodeURIComponent(query)}&media_kind=${mediaKind}`,
@@ -153,7 +153,7 @@ export function unitSearchQueryOptions(mediaId: number, unitNumber: number) {
   return queryOptions({
     queryKey: animeKeys.search.units(mediaId, unitNumber),
     queryFn: ({ signal }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(
           Schema.Array(UnitSearchResultSchema),
           `${API_BASE}/search/units/${mediaId}/${unitNumber}`,
@@ -195,7 +195,7 @@ export function nyaaSearchQueryOptions(
       }
       if (options.category) params.append("category", options.category);
       if (options.filter) params.append("filter", options.filter);
-      return Effect.runPromise(
+      return runApiEffect(
         fetchJson(
           SearchResultsSchema,
           `${API_BASE}/search/releases?${params.toString()}`,
@@ -233,7 +233,7 @@ export function mediaByAnilistIdQueryOptions(id: number, mediaKind: MediaKind = 
   return queryOptions({
     queryKey: animeKeys.anilist(id, mediaKind),
     queryFn: ({ signal }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(
           MediaSearchResultSchema,
           `${API_BASE}/media/anilist/${id}?media_kind=${mediaKind}`,
@@ -272,7 +272,7 @@ export function seasonalMediaQueryOptions(input?: {
   return queryOptions({
     queryKey: animeKeys.seasonal({ season, year, limit, page }),
     queryFn: ({ signal }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(
           SeasonalMediaResponseSchema,
           `${API_BASE}/media/seasonal?${params.toString()}`,
@@ -312,7 +312,7 @@ export function seasonalMediaInfiniteQueryOptions(input?: {
       if (year !== undefined) params.append("year", String(year));
       params.append("limit", String(limit));
       params.append("page", String(pageParam));
-      return Effect.runPromise(
+      return runApiEffect(
         fetchJson(
           SeasonalMediaResponseSchema,
           `${API_BASE}/media/seasonal?${params.toString()}`,

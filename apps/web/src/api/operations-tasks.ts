@@ -2,8 +2,8 @@ import { queryOptions, skipToken, useQuery } from "@tanstack/react-query";
 import type { OperationTask, OperationTaskKey } from "./contracts";
 import { OperationTaskSchema } from "@bakarr/shared";
 import { API_BASE } from "~/api/constants";
-import { fetchJson } from "~/api/effect/api-client";
-import { Effect, Schema } from "effect";
+import { fetchJson, runApiEffect } from "~/api/effect/api-client";
+import { Schema } from "effect";
 import { animeKeys } from "./keys";
 
 const ACTIVE_TASK_STATUSES = new Set(["queued", "running"]);
@@ -45,7 +45,7 @@ export function systemTasksQueryOptions(input?: {
   return queryOptions({
     queryKey: [...animeKeys.system.tasks.all(), input ?? {}] as const,
     queryFn: ({ signal }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(
           Schema.Array(OperationTaskSchema),
           `${API_BASE}/system/tasks${buildTaskQueryParams({
@@ -73,7 +73,7 @@ export function systemTaskQueryOptions(taskId: number) {
   return queryOptions({
     queryKey: animeKeys.system.tasks.byId(taskId),
     queryFn: ({ signal }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(OperationTaskSchema, `${API_BASE}/system/tasks/${taskId}`, undefined, signal),
       ),
     refetchInterval: (query) => operationTaskPollInterval(query.state.data),
@@ -88,7 +88,7 @@ export function useSystemTaskQuery(taskId: number | undefined) {
       taskId === undefined
         ? skipToken
         : ({ signal }) =>
-            Effect.runPromise(
+            runApiEffect(
               fetchJson(
                 OperationTaskSchema,
                 `${API_BASE}/system/tasks/${taskId}`,
@@ -105,7 +105,7 @@ export function libraryImportTasksQueryOptions(input?: { readonly mediaId?: numb
   return queryOptions({
     queryKey: [...animeKeys.library.importTasks.all(), input ?? {}] as const,
     queryFn: ({ signal }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(
           Schema.Array(OperationTaskSchema),
           `${API_BASE}/library/import/tasks${buildTaskQueryParams(
@@ -130,7 +130,7 @@ export function libraryImportTaskQueryOptions(taskId: number) {
   return queryOptions({
     queryKey: animeKeys.library.importTasks.byId(taskId),
     queryFn: ({ signal }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(
           OperationTaskSchema,
           `${API_BASE}/library/import/tasks/${taskId}`,
@@ -152,7 +152,7 @@ export function useLibraryImportTaskQuery(taskId: number | undefined) {
       taskId === undefined
         ? skipToken
         : ({ signal }) =>
-            Effect.runPromise(
+            runApiEffect(
               fetchJson(
                 OperationTaskSchema,
                 `${API_BASE}/library/import/tasks/${taskId}`,
@@ -169,7 +169,7 @@ export function animeScanTasksQueryOptions(mediaId: number) {
   return queryOptions({
     queryKey: animeKeys.unitScanTasks.all(mediaId),
     queryFn: ({ signal }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(
           Schema.Array(OperationTaskSchema),
           `${API_BASE}/media/${mediaId}/units/scan/tasks`,
@@ -194,7 +194,7 @@ export function useAnimeScanTasksQuery(mediaId: number | undefined) {
       mediaId === undefined
         ? skipToken
         : ({ signal }) =>
-            Effect.runPromise(
+            runApiEffect(
               fetchJson(
                 Schema.Array(OperationTaskSchema),
                 `${API_BASE}/media/${mediaId}/units/scan/tasks`,
@@ -217,7 +217,7 @@ export function animeScanTaskQueryOptions(input: {
   return queryOptions({
     queryKey: animeKeys.unitScanTasks.byId(input.mediaId, input.taskId),
     queryFn: ({ signal }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(
           OperationTaskSchema,
           `${API_BASE}/media/${input.mediaId}/units/scan/tasks/${input.taskId}`,
@@ -242,7 +242,7 @@ export function useAnimeScanTaskQuery(input: {
       input.mediaId === undefined || input.taskId === undefined
         ? skipToken
         : ({ signal }) =>
-            Effect.runPromise(
+            runApiEffect(
               fetchJson(
                 OperationTaskSchema,
                 `${API_BASE}/media/${input.mediaId}/units/scan/tasks/${input.taskId}`,

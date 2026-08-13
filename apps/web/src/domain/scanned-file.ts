@@ -1,4 +1,5 @@
-import { formatDurationSeconds } from "~/domain/format";
+import { clampConfidencePercent, formatDurationSeconds } from "~/domain/format";
+import type { RenamePreviewItem } from "~/api/contracts";
 
 export { formatDurationSeconds, formatFileSize } from "~/domain/format";
 
@@ -51,12 +52,8 @@ export function mediaMetadataBadges(input: MediaMetadataInput) {
 }
 
 export function formatMatchConfidence(value?: number) {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return undefined;
-  }
-
-  const clamped = Math.max(0, Math.min(1, value));
-  return `${Math.round(clamped * 100)}% match`;
+  const percent = clampConfidencePercent(value);
+  return percent === undefined ? undefined : `${percent}% match`;
 }
 
 export function formatEpisodeNumberList(numbers?: readonly number[]) {
@@ -143,7 +140,9 @@ export function formatNamingTitleSource(value?: NamingMetadataSnapshot["title_so
   }
 }
 
-export function namingMetadataBadges(snapshot?: NamingMetadataSnapshot) {
+export function namingMetadataBadges(
+  snapshot?: NamingMetadataSnapshot | RenamePreviewItem["metadata_snapshot"],
+) {
   if (!snapshot) {
     return [];
   }
@@ -152,7 +151,7 @@ export function namingMetadataBadges(snapshot?: NamingMetadataSnapshot) {
     snapshot.source_identity?.label,
     snapshot.season !== undefined ? `Season ${snapshot.season}` : undefined,
     snapshot.year !== undefined ? String(snapshot.year) : undefined,
-    formatDurationSeconds(snapshot.duration_seconds),
+    "duration_seconds" in snapshot ? formatDurationSeconds(snapshot.duration_seconds) : undefined,
     snapshot.group,
     [snapshot.quality, snapshot.resolution].filter(Boolean).join(" ") || undefined,
     snapshot.video_codec,

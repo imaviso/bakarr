@@ -1,4 +1,5 @@
 import { API_BASE } from "~/api/constants";
+import { fetchUnit, runApiEffect } from "~/api/effect/api-client";
 
 export interface AuthState {
   readonly username?: string | undefined;
@@ -62,10 +63,7 @@ function normalizeApiKey(apiKey?: string): string | undefined {
 }
 
 export async function clearServerSession() {
-  await fetch(`${API_BASE}/auth/logout`, {
-    method: "POST",
-    credentials: "include",
-  });
+  await runApiEffect(fetchUnit(`${API_BASE}/auth/logout`, { method: "POST" }));
 }
 
 export async function logout() {

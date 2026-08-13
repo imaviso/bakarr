@@ -143,10 +143,10 @@ export function SystemLogsTable(props: SystemLogsTableProps) {
                               variant="outline"
                               className={cn(
                                 "text-xs capitalize pl-1 pr-2 py-0.5",
-                                getLevelColorClass(log.level),
+                                getLevelStyle(log.level).className,
                               )}
                             >
-                              {getLevelIcon(log.level)}
+                              {getLevelStyle(log.level).icon}
                               {log.level}
                             </Badge>
                           </TableCell>
@@ -333,32 +333,30 @@ function CardShell(props: {
   );
 }
 
-function getLevelColorClass(level: string) {
-  switch (level.toLowerCase()) {
-    case "error":
-      return "bg-error/15 text-error hover:bg-error/25 border-error/20";
-    case "warn":
-      return "bg-warning/15 text-warning hover:bg-warning/25 border-warning/20";
-    case "success":
-      return "bg-success/15 text-success hover:bg-success/25 border-success/20";
-    case "info":
-      return "bg-info/15 text-info hover:bg-info/25 border-info/20";
-    default:
-      return "";
-  }
-}
+const LEVEL_STYLES: Record<string, { readonly className: string; readonly icon: ReactNode }> = {
+  error: {
+    className: "bg-error/15 text-error hover:bg-error/25 border-error/20",
+    icon: <WarningCircleIcon className="h-3.5 w-3.5 mr-1" />,
+  },
+  warn: {
+    className: "bg-warning/15 text-warning hover:bg-warning/25 border-warning/20",
+    icon: <WarningIcon className="h-3.5 w-3.5 mr-1" />,
+  },
+  success: {
+    className: "bg-success/15 text-success hover:bg-success/25 border-success/20",
+    icon: <CheckIcon className="h-3.5 w-3.5 mr-1" />,
+  },
+  info: {
+    className: "bg-info/15 text-info hover:bg-info/25 border-info/20",
+    icon: <InfoIcon className="h-3.5 w-3.5 mr-1" />,
+  },
+};
 
-function getLevelIcon(level: string) {
-  switch (level.toLowerCase()) {
-    case "error":
-      return <WarningCircleIcon className="h-3.5 w-3.5 mr-1" />;
-    case "warn":
-      return <WarningIcon className="h-3.5 w-3.5 mr-1" />;
-    case "success":
-      return <CheckIcon className="h-3.5 w-3.5 mr-1" />;
-    case "info":
-      return <InfoIcon className="h-3.5 w-3.5 mr-1" />;
-    default:
-      return <InfoIcon className="h-3.5 w-3.5 mr-1" />;
-  }
+function getLevelStyle(level: string) {
+  return (
+    LEVEL_STYLES[level.toLowerCase()] ?? {
+      className: "",
+      icon: <InfoIcon className="h-3.5 w-3.5 mr-1" />,
+    }
+  );
 }

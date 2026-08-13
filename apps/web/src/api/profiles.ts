@@ -6,15 +6,15 @@ import type {
 } from "./contracts";
 import { QualityProfileSchema, QualitySchema, ReleaseProfileSchema } from "@bakarr/shared";
 import { API_BASE } from "~/api/constants";
-import { fetchJson, fetchUnit } from "~/api/effect/api-client";
-import { Effect, Schema } from "effect";
+import { fetchJson, fetchUnit, runApiEffect } from "~/api/effect/api-client";
+import { Schema } from "effect";
 import { animeKeys } from "./keys";
 
 export function profilesQueryOptions() {
   return queryOptions({
     queryKey: animeKeys.profiles.all,
     queryFn: ({ signal }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(Schema.Array(QualityProfileSchema), `${API_BASE}/profiles`, undefined, signal),
       ),
     staleTime: Infinity,
@@ -29,7 +29,7 @@ export function qualitiesQueryOptions() {
   return queryOptions({
     queryKey: animeKeys.profiles.qualities(),
     queryFn: ({ signal }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(Schema.Array(QualitySchema), `${API_BASE}/profiles/qualities`, undefined, signal),
       ),
     staleTime: Infinity,
@@ -44,7 +44,7 @@ export function releaseProfilesQueryOptions() {
   return queryOptions({
     queryKey: animeKeys.releaseProfiles,
     queryFn: ({ signal }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(
           Schema.Array(ReleaseProfileSchema),
           `${API_BASE}/release-profiles`,
@@ -67,7 +67,7 @@ export function useCreateProfileMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: QualityProfile) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(QualityProfileSchema, `${API_BASE}/profiles`, {
           method: "POST",
           body: data,
@@ -83,7 +83,7 @@ export function useUpdateProfileMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ name, profile }: { name: string; profile: QualityProfile }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(QualityProfileSchema, `${API_BASE}/profiles/${encodeURIComponent(name)}`, {
           method: "PUT",
           body: profile,
@@ -99,7 +99,7 @@ export function useDeleteProfileMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (name: string) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchUnit(`${API_BASE}/profiles/${encodeURIComponent(name)}`, { method: "DELETE" }),
       ),
     onSuccess: () => {
@@ -112,7 +112,7 @@ export function useCreateReleaseProfileMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: ReleaseProfileCreateRequest) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(ReleaseProfileSchema, `${API_BASE}/release-profiles`, {
           method: "POST",
           body: data,
@@ -128,7 +128,7 @@ export function useUpdateReleaseProfileMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, data }: { id: number; data: ReleaseProfileUpdateRequest }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchUnit(`${API_BASE}/release-profiles/${id}`, {
           method: "PUT",
           body: data,
@@ -144,7 +144,7 @@ export function useDeleteReleaseProfileMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: number) =>
-      Effect.runPromise(fetchUnit(`${API_BASE}/release-profiles/${id}`, { method: "DELETE" })),
+      runApiEffect(fetchUnit(`${API_BASE}/release-profiles/${id}`, { method: "DELETE" })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: animeKeys.releaseProfiles });
     },

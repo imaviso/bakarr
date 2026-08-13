@@ -2,16 +2,15 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { AddAnimeRequest, Media, SearchDownloadRequest } from "./contracts";
 import { MediaSchema, AsyncOperationAcceptedSchema } from "@bakarr/shared";
-import { Effect } from "effect";
 import { API_BASE } from "~/api/constants";
-import { fetchJson, fetchUnit } from "~/api/effect/api-client";
+import { fetchJson, fetchUnit, runApiEffect } from "~/api/effect/api-client";
 import { animeKeys } from "./keys";
 
 export function useAddMediaMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: AddAnimeRequest) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(MediaSchema, `${API_BASE}/media`, {
           method: "POST",
           body: data,
@@ -31,7 +30,7 @@ export function useDeleteMediaMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: number) =>
-      Effect.runPromise(fetchUnit(`${API_BASE}/media/${id}`, { method: "DELETE" })),
+      runApiEffect(fetchUnit(`${API_BASE}/media/${id}`, { method: "DELETE" })),
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
       void queryClient.invalidateQueries({ queryKey: animeKeys.system.status() });
@@ -43,7 +42,7 @@ export function useToggleMonitorMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, monitored }: { id: number; monitored: boolean }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchUnit(`${API_BASE}/media/${id}/monitor`, {
           method: "POST",
           body: { monitored },
@@ -91,7 +90,7 @@ export function useUpdateMediaPathMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, path, rescan }: { id: number; path: string; rescan?: boolean }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchUnit(`${API_BASE}/media/${id}/path`, {
           method: "PUT",
           body: { path, rescan },
@@ -123,7 +122,7 @@ export function useUpdateMediaProfileMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, profileName }: { id: number; profileName: string }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchUnit(`${API_BASE}/media/${id}/profile`, {
           method: "PUT",
           body: { profile_name: profileName },
@@ -155,7 +154,7 @@ export function useUpdateMediaReleaseProfilesMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, releaseProfileIds }: { id: number; releaseProfileIds: number[] }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchUnit(`${API_BASE}/media/${id}/release-profiles`, {
           method: "PUT",
           body: { release_profile_ids: releaseProfileIds },
@@ -171,7 +170,7 @@ export function useRefreshUnitsMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (mediaId: number) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(AsyncOperationAcceptedSchema, `${API_BASE}/media/${mediaId}/units/refresh`, {
           method: "POST",
         }),
@@ -195,7 +194,7 @@ export function useScanFolderMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (mediaId: number) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(AsyncOperationAcceptedSchema, `${API_BASE}/media/${mediaId}/units/scan`, {
           method: "POST",
         }),
@@ -219,7 +218,7 @@ export function useDeleteUnitFileMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ mediaId, unitNumber }: { mediaId: number; unitNumber: number }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchUnit(`${API_BASE}/media/${mediaId}/units/${unitNumber}/file`, {
           method: "DELETE",
         }),
@@ -242,7 +241,7 @@ export function useMapUnitMutation() {
       unitNumber: number;
       filePath: string;
     }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchUnit(`${API_BASE}/media/${mediaId}/units/${unitNumber}/map`, {
           method: "POST",
           body: { file_path: filePath },
@@ -265,7 +264,7 @@ export function useBulkMapUnitsMutation() {
       mediaId: number;
       mappings: { unit_number: number; file_path: string }[];
     }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchUnit(`${API_BASE}/media/${mediaId}/units/map/bulk`, {
           method: "POST",
           body: { mappings },
@@ -282,7 +281,7 @@ export function useGrabReleaseMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: SearchDownloadRequest) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchUnit(`${API_BASE}/search/download`, {
           method: "POST",
           body: data,

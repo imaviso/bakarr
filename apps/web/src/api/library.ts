@@ -1,17 +1,15 @@
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { ActivityItemSchema, LibraryStatsSchema } from "@bakarr/shared";
 import { API_BASE } from "~/api/constants";
-import { fetchJson } from "~/api/effect/api-client";
-import { Effect, Schema } from "effect";
+import { fetchJson, runApiEffect } from "~/api/effect/api-client";
+import { Schema } from "effect";
 import { animeKeys } from "./keys";
 
 export function libraryStatsQueryOptions() {
   return queryOptions({
     queryKey: animeKeys.library.stats(),
     queryFn: ({ signal }) =>
-      Effect.runPromise(
-        fetchJson(LibraryStatsSchema, `${API_BASE}/library/stats`, undefined, signal),
-      ),
+      runApiEffect(fetchJson(LibraryStatsSchema, `${API_BASE}/library/stats`, undefined, signal)),
     staleTime: 1000 * 60, // 1 minute
   });
 }
@@ -24,7 +22,7 @@ export function activityQueryOptions() {
   return queryOptions({
     queryKey: animeKeys.library.activity(),
     queryFn: ({ signal }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(
           Schema.Array(ActivityItemSchema),
           `${API_BASE}/library/activity`,

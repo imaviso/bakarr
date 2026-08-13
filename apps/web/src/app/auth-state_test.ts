@@ -41,8 +41,11 @@ it("clearServerSession calls the logout endpoint with credentials", async () => 
 
   await clearServerSession();
 
-  expect(fetchMock).toHaveBeenCalledWith("/api/auth/logout", {
-    method: "POST",
-    credentials: "include",
-  });
+  expect(fetchMock).toHaveBeenCalledWith(
+    "/api/auth/logout",
+    expect.objectContaining({
+      method: "POST",
+      credentials: "include",
+    }),
+  );
 });

@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import { Predicate, Schema } from "effect";
 import { ApiClientError, ApiDecodeError, ApiUnauthorizedError } from "~/api/effect/api-client";
 
 export class ClipboardWriteError extends Schema.TaggedError<ClipboardWriteError>()(
@@ -44,7 +44,7 @@ export function errorMessage(error: unknown, fallback: string): string {
  */
 export function fieldErrorMessage(error: unknown): string {
   if (typeof error === "string") return error;
-  if (error && typeof error === "object" && "message" in error) {
+  if (Predicate.isRecord(error) && Predicate.hasProperty(error, "message")) {
     const message = error.message;
     return typeof message === "string" ? message : "Invalid field value";
   }

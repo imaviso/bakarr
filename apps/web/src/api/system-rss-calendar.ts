@@ -1,16 +1,16 @@
 import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CalendarEvent, RssFeedCreateRequest } from "./contracts";
-import { Effect, Schema } from "effect";
+import { Schema } from "effect";
 import { CalendarEventSchema, RssFeedSchema } from "@bakarr/shared";
 import { API_BASE } from "~/api/constants";
-import { fetchJson, fetchUnit } from "~/api/effect/api-client";
+import { fetchJson, fetchUnit, runApiEffect } from "~/api/effect/api-client";
 import { animeKeys } from "./keys";
 
 export function rssFeedsQueryOptions() {
   return queryOptions({
     queryKey: animeKeys.rss.all,
     queryFn: ({ signal }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(
           Schema.mutable(Schema.Array(RssFeedSchema)),
           `${API_BASE}/rss`,
@@ -30,7 +30,7 @@ export function animeRssFeedsQueryOptions(mediaId: number) {
   return queryOptions({
     queryKey: animeKeys.rss.media(mediaId),
     queryFn: ({ signal }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(
           Schema.mutable(Schema.Array(RssFeedSchema)),
           `${API_BASE}/media/${mediaId}/rss`,
@@ -53,7 +53,7 @@ export function useAddRssFeedMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: RssFeedCreateRequest) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(RssFeedSchema, `${API_BASE}/rss`, {
           method: "POST",
           body: data,
@@ -69,7 +69,7 @@ export function useDeleteRssFeedMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: number) =>
-      Effect.runPromise(fetchUnit(`${API_BASE}/rss/${id}`, { method: "DELETE" })),
+      runApiEffect(fetchUnit(`${API_BASE}/rss/${id}`, { method: "DELETE" })),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: animeKeys.rss.all });
     },
@@ -80,7 +80,7 @@ export function useToggleRssFeedMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, enabled }: { id: number; enabled: boolean }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchUnit(`${API_BASE}/rss/${id}/toggle`, {
           method: "PUT",
           body: { enabled },
@@ -96,7 +96,7 @@ export function calendarQueryOptions(start: Date, end: Date) {
   return queryOptions({
     queryKey: animeKeys.calendar(start.toISOString(), end.toISOString()),
     queryFn: ({ signal }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(
           Schema.mutable(Schema.Array(CalendarEventSchema)),
           `${API_BASE}/calendar?start=${start.toISOString()}&end=${end.toISOString()}`,

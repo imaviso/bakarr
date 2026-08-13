@@ -1,9 +1,9 @@
 import { differenceInDays, format, isAfter, isValid, parseISO } from "date-fns";
 
-export function isAired(airedDate?: string): boolean {
+export function isAired(airedDate?: string, now = new Date()): boolean {
   if (!airedDate) return false;
   const aired = parseISO(airedDate);
-  return isValid(aired) && !isAfter(aired, new Date());
+  return isValid(aired) && !isAfter(aired, now);
 }
 
 export function formatUiTimestamp(value: string): string {

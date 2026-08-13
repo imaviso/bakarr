@@ -19,44 +19,7 @@ import {
   TableRow,
 } from "~/components/ui/table";
 import { useExecuteRenameMutation, useRenamePreviewQuery } from "~/api/auth";
-import type { RenamePreviewItem } from "~/api/contracts";
-
-function formatTitleSourceLabel(
-  source?: NonNullable<RenamePreviewItem["metadata_snapshot"]>["title_source"],
-) {
-  switch (source) {
-    case "preferred_english":
-      return "Preferred English";
-    case "preferred_native":
-      return "Preferred Native";
-    case "preferred_romaji":
-      return "Preferred Romaji";
-    case "fallback_english":
-      return "Fallback English";
-    case "fallback_native":
-      return "Fallback Native";
-    case "fallback_romaji":
-      return "Fallback Romaji";
-    default:
-      return undefined;
-  }
-}
-
-function renamePreviewSnapshotBadges(snapshot?: RenamePreviewItem["metadata_snapshot"]) {
-  if (!snapshot) {
-    return [];
-  }
-
-  return [
-    snapshot.source_identity?.label,
-    snapshot.season !== undefined ? `Season ${snapshot.season}` : undefined,
-    snapshot.year !== undefined ? String(snapshot.year) : undefined,
-    snapshot.group,
-    [snapshot.quality, snapshot.resolution].filter(Boolean).join(" ") || undefined,
-    snapshot.video_codec,
-    [snapshot.audio_codec, snapshot.audio_channels].filter(Boolean).join(" ") || undefined,
-  ].filter((value): value is string => value !== undefined && value.length > 0);
-}
+import { formatNamingTitleSource, namingMetadataBadges } from "~/domain/scanned-file";
 
 interface RenameDialogProps {
   mediaId: number;
@@ -207,19 +170,19 @@ export function RenameDialog(props: RenameDialogProps) {
                                     {item.metadata_snapshot && (
                                       <div className="space-y-1">
                                         <div className="flex flex-wrap gap-1">
-                                          {formatTitleSourceLabel(
+                                          {formatNamingTitleSource(
                                             item.metadata_snapshot.title_source,
                                           ) && (
                                             <Badge
                                               variant="secondary"
                                               className="h-5 rounded-none text-xs"
                                             >
-                                              {formatTitleSourceLabel(
+                                              {formatNamingTitleSource(
                                                 item.metadata_snapshot.title_source,
                                               )}
                                             </Badge>
                                           )}
-                                          {renamePreviewSnapshotBadges(item.metadata_snapshot).map(
+                                          {namingMetadataBadges(item.metadata_snapshot).map(
                                             (value) => (
                                               <Badge
                                                 key={value}

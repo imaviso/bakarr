@@ -7,7 +7,7 @@ import {
 } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { Config } from "./contracts";
-import { Effect, Schema } from "effect";
+import { Schema } from "effect";
 import {
   AsyncOperationAcceptedSchema,
   BackgroundJobStatusSchema,
@@ -17,14 +17,14 @@ import {
   SystemStatusSchema,
 } from "@bakarr/shared";
 import { API_BASE } from "~/api/constants";
-import { fetchJson, fetchUnit } from "~/api/effect/api-client";
+import { fetchJson, fetchUnit, runApiEffect } from "~/api/effect/api-client";
 import { animeKeys } from "./keys";
 
 export function systemConfigQueryOptions() {
   return queryOptions({
     queryKey: animeKeys.system.config(),
     queryFn: ({ signal }) =>
-      Effect.runPromise(fetchJson(ConfigSchema, `${API_BASE}/system/config`, undefined, signal)),
+      runApiEffect(fetchJson(ConfigSchema, `${API_BASE}/system/config`, undefined, signal)),
     staleTime: Infinity,
     placeholderData: keepPreviousData,
   });
@@ -41,7 +41,7 @@ export function useUpdateSystemConfigMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: Config) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchUnit(`${API_BASE}/system/config`, {
           method: "PUT",
           body: data,
@@ -57,9 +57,7 @@ export function systemStatusQueryOptions() {
   return queryOptions({
     queryKey: animeKeys.system.status(),
     queryFn: ({ signal }) =>
-      Effect.runPromise(
-        fetchJson(SystemStatusSchema, `${API_BASE}/system/status`, undefined, signal),
-      ),
+      runApiEffect(fetchJson(SystemStatusSchema, `${API_BASE}/system/status`, undefined, signal)),
     refetchInterval: 30000,
   });
 }
@@ -72,7 +70,7 @@ export function useTriggerScanMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(AsyncOperationAcceptedSchema, `${API_BASE}/system/tasks/scan`, {
           method: "POST",
         }),
@@ -93,7 +91,7 @@ export function useTriggerRssCheckMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(AsyncOperationAcceptedSchema, `${API_BASE}/system/tasks/rss`, { method: "POST" }),
       ),
     onSuccess: (accepted) => {
@@ -112,7 +110,7 @@ export function useTriggerMetadataRefreshMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(AsyncOperationAcceptedSchema, `${API_BASE}/system/tasks/metadata-refresh`, {
           method: "POST",
         }),
@@ -133,7 +131,7 @@ export function systemJobsQueryOptions() {
   return queryOptions({
     queryKey: animeKeys.system.jobs(),
     queryFn: ({ signal }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(
           Schema.mutable(Schema.Array(BackgroundJobStatusSchema)),
           `${API_BASE}/system/jobs`,
@@ -163,7 +161,7 @@ export function systemDashboardQueryOptions() {
   return queryOptions({
     queryKey: animeKeys.system.dashboard(),
     queryFn: ({ signal }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(OpsDashboardSchema, `${API_BASE}/system/dashboard`, undefined, signal),
       ),
     staleTime: 1000 * 10,
@@ -183,7 +181,7 @@ export function observabilityStatusQueryOptions() {
   return queryOptions({
     queryKey: animeKeys.system.observability(),
     queryFn: ({ signal }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(ObservabilityStatusSchema, `${API_BASE}/system/observability`, undefined, signal),
       ),
     staleTime: 1000 * 30,

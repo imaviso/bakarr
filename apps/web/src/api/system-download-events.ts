@@ -12,6 +12,7 @@ import { DownloadEventsExportError } from "~/api/effect/errors";
 import {
   fetchJson,
   fetchResponse,
+  runApiEffect,
   type ApiClientError,
   type ApiUnauthorizedError,
 } from "~/api/effect/api-client";
@@ -79,7 +80,7 @@ export function downloadEventsQueryOptionsWithFilters(input: DownloadEventsFilte
   return queryOptions({
     queryKey: animeKeys.downloads.events(input),
     queryFn: ({ signal }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(
           DownloadEventsPageSchema,
           `${API_BASE}/downloads/events${params.size > 0 ? `?${params.toString()}` : ""}`,
@@ -152,7 +153,7 @@ function parseContentDispositionFilename(headerValue: string | null): string | u
 export function useDownloadEventsExportMutation() {
   return useMutation({
     mutationFn: (input: { filter: DownloadEventsExportInput; format: "json" | "csv" }) =>
-      Effect.runPromise(exportDownloadEvents(input.filter, input.format)),
+      runApiEffect(exportDownloadEvents(input.filter, input.format)),
   });
 }
 

@@ -13,7 +13,6 @@ import type {
   UnmappedFolderControlRequest,
   UnmappedFolderImportRequest,
 } from "./contracts";
-import { Effect } from "effect";
 import {
   AsyncOperationAcceptedSchema,
   BrowseResultSchema,
@@ -22,14 +21,14 @@ import {
   ScannerStateSchema,
 } from "@bakarr/shared";
 import { API_BASE } from "~/api/constants";
-import { fetchJson, fetchUnit } from "~/api/effect/api-client";
+import { fetchJson, fetchUnit, runApiEffect } from "~/api/effect/api-client";
 import { animeKeys } from "./keys";
 
 export function unmappedFoldersQueryOptions() {
   return queryOptions({
     queryKey: animeKeys.library.unmapped(),
     queryFn: ({ signal }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(ScannerStateSchema, `${API_BASE}/library/unmapped`, undefined, signal),
       ),
     refetchInterval: (query) =>
@@ -45,7 +44,7 @@ export function useScanLibraryMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(AsyncOperationAcceptedSchema, `${API_BASE}/library/unmapped/scan`, {
           method: "POST",
         }),
@@ -68,7 +67,7 @@ export function useControlUnmappedFolderMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: UnmappedFolderControlRequest) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchUnit(`${API_BASE}/library/unmapped/control`, {
           method: "POST",
           body: data,
@@ -85,7 +84,7 @@ export function useBulkControlUnmappedFoldersMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: BulkUnmappedFolderControlRequest) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchUnit(`${API_BASE}/library/unmapped/control/bulk`, {
           method: "POST",
           body: data,
@@ -102,7 +101,7 @@ export function useImportUnmappedFolderMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: UnmappedFolderImportRequest) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchUnit(`${API_BASE}/library/unmapped/import`, {
           method: "POST",
           body: data,
@@ -125,7 +124,7 @@ export function useImportUnmappedFolderMutation() {
 export function useScanImportPathMutation() {
   return useMutation({
     mutationFn: (data: { path: string; media_id?: number }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(ScanResultSchema, `${API_BASE}/library/import/scan`, {
           method: "POST",
           body: data,
@@ -138,7 +137,7 @@ export function useImportFilesMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (files: ImportFileRequest[]) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(AsyncOperationAcceptedSchema, `${API_BASE}/library/import`, {
           method: "POST",
           body: { files },
@@ -162,7 +161,7 @@ export function useImportFilesMutation() {
 export function useImportCandidateSelectionMutation() {
   return useMutation({
     mutationFn: (data: ImportCandidateSelectionRequest) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(ImportCandidateSelectionResultSchema, `${API_BASE}/library/import/selection`, {
           method: "POST",
           body: data,
@@ -183,7 +182,7 @@ export function browsePathQueryOptions(
   return queryOptions({
     queryKey: animeKeys.browse(path, pagination?.offset, pagination?.limit),
     queryFn: ({ signal }) =>
-      Effect.runPromise(
+      runApiEffect(
         fetchJson(
           BrowseResultSchema,
           `${API_BASE}/library/browse?${params.toString()}`,

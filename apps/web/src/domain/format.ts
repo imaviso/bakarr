@@ -9,6 +9,14 @@ import {
 const BYTE_UNITS = ["B", "KB", "MB", "GB", "TB"] as const;
 const SPEED_UNITS = ["B/s", "KB/s", "MB/s", "GB/s"] as const;
 
+export function clampConfidencePercent(value?: number): number | undefined {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return undefined;
+  }
+
+  return Math.round(Math.max(0, Math.min(1, value)) * 100);
+}
+
 /**
  * Format a byte count with binary units (e.g. "1.5 MB").
  * Preserves the `system-status` behavior: 2 decimals, "0 B" for zero.
