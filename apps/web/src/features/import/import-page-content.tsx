@@ -88,21 +88,20 @@ function ImportTopBar(props: { state: ImportPageState }) {
         <div className="flex items-center gap-2">
           {importSteps.map((stepConfig, index) => (
             <div key={stepConfig.id} className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
+              <Button
+                onPress={() => {
                   if (index < props.state.currentStepIndex) {
                     props.state.flow.setStep(stepConfig.id);
                   }
                 }}
-                disabled={index > props.state.currentStepIndex}
+                isDisabled={index > props.state.currentStepIndex}
                 className={cn(
-                  "flex items-center gap-2 px-3 py-1.5 rounded-none text-sm font-medium transition-colors",
+                  "h-8 gap-2 px-3 text-sm font-medium",
                   props.state.flow.step === stepConfig.id
-                    ? "bg-primary text-primary-foreground"
+                    ? "bg-primary text-primary-foreground hover:bg-primary/80"
                     : index < props.state.currentStepIndex
-                      ? "text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"
-                      : "text-muted-foreground cursor-not-allowed",
+                      ? "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      : "text-muted-foreground",
                 )}
               >
                 <span
@@ -122,7 +121,7 @@ function ImportTopBar(props: { state: ImportPageState }) {
                   )}
                 </span>
                 {stepConfig.label}
-              </button>
+              </Button>
               {index < importSteps.length - 1 && (
                 <div
                   className={cn(

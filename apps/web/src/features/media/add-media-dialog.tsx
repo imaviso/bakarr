@@ -346,29 +346,24 @@ function AddAnimeForm(props: AddAnimeFormProps) {
               <div className="flex flex-wrap gap-2">
                 {props.releaseProfiles.map((profile) => {
                   const isSelected = field.state.value.includes(profile.id);
-                  const checkboxId = `release-profile-${profile.id}`;
                   return (
-                    <label
+                    <Checkbox
                       key={profile.id}
-                      htmlFor={checkboxId}
+                      isSelected={isSelected}
+                      onChange={(checked) => {
+                        if (checked) {
+                          field.pushValue(profile.id);
+                        } else {
+                          field.removeValue(field.state.value.indexOf(profile.id));
+                        }
+                      }}
                       className={cn(
-                        "flex items-center gap-2 px-3 py-2 rounded-none border cursor-pointer transition-colors",
-                        isSelected ? "bg-primary/10 border-primary/30" : "hover:bg-accent",
+                        "flex cursor-pointer items-center gap-2 rounded-none border px-3 py-2 text-sm transition-colors",
+                        isSelected ? "border-primary/30 bg-primary/10" : "hover:bg-accent",
                       )}
                     >
-                      <Checkbox
-                        id={checkboxId}
-                        isSelected={isSelected}
-                        onChange={(checked) => {
-                          if (checked) {
-                            field.pushValue(profile.id);
-                          } else {
-                            field.removeValue(field.state.value.indexOf(profile.id));
-                          }
-                        }}
-                      />
-                      <span className="text-sm">{profile.name}</span>
-                    </label>
+                      {profile.name}
+                    </Checkbox>
                   );
                 })}
               </div>
@@ -380,27 +375,25 @@ function AddAnimeForm(props: AddAnimeFormProps) {
       <div className="flex items-center gap-6">
         <form.Field name="monitor">
           {(field) => (
-            <Label htmlFor="monitor-checkbox" className="flex items-center gap-2 cursor-pointer">
-              <Checkbox
-                id="monitor-checkbox"
-                isSelected={field.state.value}
-                onChange={field.handleChange}
-              />
-              <span className="text-sm">Monitor for new {unitLabelPlural}</span>
-            </Label>
+            <Checkbox
+              isSelected={field.state.value}
+              onChange={field.handleChange}
+              className="flex cursor-pointer items-center gap-2 text-sm"
+            >
+              Monitor for new {unitLabelPlural}
+            </Checkbox>
           )}
         </form.Field>
 
         <form.Field name="search_now">
           {(field) => (
-            <Label htmlFor="search-now-checkbox" className="flex items-center gap-2 cursor-pointer">
-              <Checkbox
-                id="search-now-checkbox"
-                isSelected={field.state.value}
-                onChange={field.handleChange}
-              />
-              <span className="text-sm">Search for {unitLabelPlural} now</span>
-            </Label>
+            <Checkbox
+              isSelected={field.state.value}
+              onChange={field.handleChange}
+              className="flex cursor-pointer items-center gap-2 text-sm"
+            >
+              Search for {unitLabelPlural} now
+            </Checkbox>
           )}
         </form.Field>
       </div>

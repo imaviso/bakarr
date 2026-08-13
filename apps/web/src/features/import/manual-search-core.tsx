@@ -10,6 +10,7 @@ import { useMemo, useRef, useState } from "react";
 import { useDebouncedValue } from "@tanstack/react-pacer";
 import { MediaDiscoveryRow } from "~/features/media/media-discovery";
 import { Badge } from "~/components/ui/badge";
+import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import {
   Select,
@@ -116,15 +117,15 @@ export function ManualSearchCore(props: ManualSearchCoreProps) {
               {searchResults.map((media) => {
                 const isAdded = props.existingIds?.has(media.id) ?? false;
                 return (
-                  <button
+                  <Button
                     key={media.id}
-                    type="button"
-                    disabled={props.disableSelectionForAdded && isAdded}
-                    onClick={() => props.onSelect(media)}
+                    variant="ghost"
+                    onPress={() => props.onSelect(media)}
+                    isDisabled={props.disableSelectionForAdded && isAdded}
                     className={cn(
-                      "w-full flex items-center gap-3 p-3 text-left transition-colors",
+                      "h-auto w-full items-center gap-3 rounded-none p-3 text-left font-normal",
                       props.disableSelectionForAdded && isAdded
-                        ? "opacity-50 cursor-not-allowed bg-muted"
+                        ? "bg-muted text-muted-foreground"
                         : "hover:bg-muted",
                     )}
                   >
@@ -227,7 +228,7 @@ export function ManualSearchCore(props: ManualSearchCoreProps) {
                     {props.addedIndicator === "badge" && media.already_in_library && (
                       <Badge variant="secondary">In library</Badge>
                     )}
-                  </button>
+                  </Button>
                 );
               })}
             </div>

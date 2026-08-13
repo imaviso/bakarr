@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Input } from "~/components/ui/input";
+import { Label } from "~/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -55,12 +56,12 @@ export function SizeInput(props: {
 
   return (
     <div className="flex flex-col gap-1.5">
-      <label
+      <Label
         htmlFor={inputId}
         className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
       >
         {props.label}
-      </label>
+      </Label>
       <div className="flex gap-2">
         <Input
           id={inputId}

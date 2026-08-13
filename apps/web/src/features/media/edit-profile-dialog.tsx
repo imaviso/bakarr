@@ -125,43 +125,36 @@ function EditProfileDialogContent(props: EditProfileDialogProps) {
                 {props.releaseProfiles.length > 0 ? (
                   <>
                     {props.releaseProfiles.map((releaseProfile) => (
-                      <div key={releaseProfile.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`rp-edit-${releaseProfile.id}`}
-                          isSelected={field.state.value.includes(releaseProfile.id)}
-                          onChange={(checked) => {
-                            const currentIds = field.state.value;
-                            if (checked) {
-                              field.handleChange([...currentIds, releaseProfile.id]);
-                            } else {
-                              field.handleChange(
-                                currentIds.filter((id) => id !== releaseProfile.id),
-                              );
-                            }
-                          }}
-                        />
-                        <label
-                          htmlFor={`rp-edit-${releaseProfile.id}`}
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1 flex items-center justify-between"
-                        >
-                          <span>{releaseProfile.name}</span>
-                          <div className="flex gap-2">
-                            {releaseProfile.is_global && (
-                              <Badge variant="outline" className="text-xs h-4 px-1">
-                                Global
-                              </Badge>
-                            )}
-                            {!releaseProfile.enabled && (
-                              <Badge
-                                variant="outline"
-                                className="text-xs h-4 px-1 text-muted-foreground"
-                              >
-                                Disabled
-                              </Badge>
-                            )}
-                          </div>
-                        </label>
-                      </div>
+                      <Checkbox
+                        key={releaseProfile.id}
+                        isSelected={field.state.value.includes(releaseProfile.id)}
+                        onChange={(checked) => {
+                          const currentIds = field.state.value;
+                          if (checked) {
+                            field.handleChange([...currentIds, releaseProfile.id]);
+                          } else {
+                            field.handleChange(currentIds.filter((id) => id !== releaseProfile.id));
+                          }
+                        }}
+                        className="flex flex-1 cursor-pointer items-center justify-between space-x-2 text-sm font-medium leading-none"
+                      >
+                        <span>{releaseProfile.name}</span>
+                        <div className="flex gap-2">
+                          {releaseProfile.is_global && (
+                            <Badge variant="outline" className="h-4 px-1 text-xs">
+                              Global
+                            </Badge>
+                          )}
+                          {!releaseProfile.enabled && (
+                            <Badge
+                              variant="outline"
+                              className="h-4 px-1 text-xs text-muted-foreground"
+                            >
+                              Disabled
+                            </Badge>
+                          )}
+                        </div>
+                      </Checkbox>
                     ))}
                   </>
                 ) : (

@@ -14,7 +14,7 @@ function Checkbox({ className, children, ...props }: CheckboxProps) {
     <CheckboxPrimitive
       data-slot="checkbox"
       className={cn(
-        "peer relative flex size-4 shrink-0 items-center justify-center rounded-none border border-input transition-colors outline-none group-has-disabled/field:opacity-50 after:absolute after:-inset-x-3 after:-inset-y-2 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-1 aria-invalid:ring-destructive/20 aria-invalid:aria-checked:border-primary data-focus-visible:border-ring data-focus-visible:ring-1 data-focus-visible:ring-ring/50 data-invalid:border-destructive data-invalid:ring-1 data-invalid:ring-destructive/20 data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50 dark:bg-input/30 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 dark:data-invalid:border-destructive/50 dark:data-invalid:ring-destructive/40 data-checked:border-primary data-checked:bg-primary data-checked:text-primary-foreground dark:data-checked:bg-primary data-selected:border-primary data-selected:bg-primary data-selected:text-primary-foreground data-invalid:data-selected:border-primary dark:data-selected:bg-primary",
+        "group/checkbox peer relative flex cursor-pointer items-center gap-2 rounded-none outline-none select-none data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50",
         className,
       )}
       {...props}
@@ -23,9 +23,15 @@ function Checkbox({ className, children, ...props }: CheckboxProps) {
         <>
           <span
             data-slot="checkbox-indicator"
-            className="grid place-content-center text-current transition-none [&>svg]:size-3.5"
+            className={cn(
+              "relative grid size-4 shrink-0 place-content-center rounded-none border border-input bg-transparent text-current transition-colors after:absolute after:-inset-x-3 after:-inset-y-2 dark:bg-input/30",
+              "group-data-focus-visible/checkbox:border-ring group-data-focus-visible/checkbox:ring-1 group-data-focus-visible/checkbox:ring-ring/50",
+              "group-data-invalid/checkbox:border-destructive group-data-invalid/checkbox:ring-1 group-data-invalid/checkbox:ring-destructive/20 dark:group-data-invalid/checkbox:border-destructive/50 dark:group-data-invalid/checkbox:ring-destructive/40",
+              (isSelected || isIndeterminate) &&
+                "border-primary bg-primary text-primary-foreground dark:bg-primary dark:group-data-invalid/checkbox:border-primary",
+            )}
           >
-            {(isSelected || isIndeterminate) && <CheckIcon />}
+            {(isSelected || isIndeterminate) && <CheckIcon className="size-3.5" />}
           </span>
           {children}
         </>

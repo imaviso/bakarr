@@ -1,5 +1,6 @@
 import { Laptop, Moon, Sun } from "@phosphor-icons/react";
 import { useTheme } from "~/components/shared/theme-provider";
+import { Button } from "~/components/ui/button";
 
 import { DropdownMenu, DropdownMenuItem, DropdownMenuTrigger } from "~/components/ui/dropdown-menu";
 
@@ -8,9 +9,9 @@ export function ModeToggle() {
 
   return (
     <DropdownMenuTrigger>
-      <button
-        type="button"
-        className="flex w-full items-center gap-3 overflow-hidden rounded-none px-3 py-2 text-left text-sm text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring group-data-[collapsible=icon]:!size-9 group-data-[collapsible=icon]:!p-2"
+      <Button
+        variant="ghost"
+        className="h-9 w-full justify-start gap-3 rounded-none px-3 text-left text-sm text-muted-foreground hover:bg-accent hover:text-foreground group-data-[collapsible=icon]:!size-9 group-data-[collapsible=icon]:!p-2 group-data-[collapsible=icon]:justify-center"
       >
         <div className="relative h-4 w-4 shrink-0">
           <Sun className="absolute inset-0 h-4 w-4 rotate-0 scale-100 transition-transform dark:-rotate-90 dark:scale-0" />
@@ -18,7 +19,7 @@ export function ModeToggle() {
         </div>
         <span className="truncate group-data-[collapsible=icon]:hidden">Theme ({theme})</span>
         <span className="sr-only">Toggle theme</span>
-      </button>
+      </Button>
       <DropdownMenu>
         <DropdownMenuItem onAction={() => setTheme("light")}>
           <Sun className="mr-2 size-4" />

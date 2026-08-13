@@ -80,15 +80,13 @@ export function EditPathDialog(props: EditPathDialogProps) {
         </div>
         <form.Field name="rescan">
           {(field) => (
-            <div className="flex items-center space-x-2">
-              <Checkbox id="rescan" isSelected={field.state.value} onChange={field.handleChange} />
-              <label
-                htmlFor="rescan"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                Rescan folder after update
-              </label>
-            </div>
+            <Checkbox
+              isSelected={field.state.value}
+              onChange={field.handleChange}
+              className="text-sm font-medium leading-none"
+            >
+              Rescan folder after update
+            </Checkbox>
           )}
         </form.Field>
         <DialogFooter>

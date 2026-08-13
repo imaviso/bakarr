@@ -63,9 +63,9 @@ export function DownloadEventsFilters(props: DownloadEventsFiltersProps) {
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium" htmlFor={props.eventTypeSelectId}>
+          <Label className="text-sm font-medium" htmlFor={props.eventTypeSelectId}>
             Event Type
-          </label>
+          </Label>
           <Select
             selectedKey={props.value.eventType}
             onSelectionChange={(value) =>

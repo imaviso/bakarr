@@ -120,12 +120,12 @@ export function ProfileForm(props: {
           <form.Field name="cutoff">
             {(field) => (
               <div className="flex flex-col gap-1">
-                <label
+                <Label
                   className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                   htmlFor={field.name}
                 >
                   Cutoff Quality
-                </label>
+                </Label>
                 <Select
                   {...(qualityNames.includes(field.state.value)
                     ? { selectedKey: field.state.value }
@@ -213,12 +213,12 @@ export function ProfileForm(props: {
                     isSelected={field.state.value}
                     onChange={(checked) => field.handleChange(checked)}
                   />
-                  <label
+                  <Label
                     htmlFor={field.name}
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex items-center gap-2"
+                    className="flex cursor-pointer items-center gap-2 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                   >
                     Allow Upgrades
-                  </label>
+                  </Label>
                 </div>
               )}
             </form.Field>
@@ -231,12 +231,12 @@ export function ProfileForm(props: {
                     isSelected={field.state.value}
                     onChange={(checked) => field.handleChange(checked)}
                   />
-                  <label
+                  <Label
                     htmlFor={field.name}
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex items-center gap-2"
+                    className="flex cursor-pointer items-center gap-2 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                   >
                     Prefer SeaDex
-                  </label>
+                  </Label>
                 </div>
               )}
             </form.Field>

@@ -12,6 +12,7 @@ import { useState } from "react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Skeleton } from "~/components/ui/skeleton";
+import { Tooltip, TooltipTrigger } from "~/components/ui/tooltip";
 import type { BrowseEntry } from "~/api/contracts";
 import { errorMessage } from "~/api/effect/errors";
 import { useBrowsePathQuery } from "~/api/system-library";
@@ -156,29 +157,29 @@ export function FileBrowser(props: FileBrowserProps) {
       {/* Breadcrumb trail */}
       {breadcrumbs.length > 0 && (
         <div className="flex items-center gap-1 px-3 py-1.5 border-b text-xs text-muted-foreground overflow-x-auto shrink-0">
-          <button
-            type="button"
-            onClick={handleGoHome}
-            className="hover:text-foreground transition-colors shrink-0"
+          <Button
+            variant="link"
+            onPress={handleGoHome}
+            className="h-auto shrink-0 p-0 font-normal text-muted-foreground hover:text-foreground"
           >
             /
-          </button>
+          </Button>
           {breadcrumbs.map((part, index) => {
             const partPath = `/${breadcrumbs.slice(0, index + 1).join("/")}`;
             const isLast = index === breadcrumbs.length - 1;
             return (
               <span key={partPath} className="flex items-center gap-1 shrink-0">
                 <CaretRightIcon className="h-3 w-3" />
-                <button
-                  type="button"
-                  onClick={() => handleNavigate(partPath)}
+                <Button
+                  variant="link"
+                  onPress={() => handleNavigate(partPath)}
                   className={cn(
-                    "hover:text-foreground transition-colors truncate max-w-32",
-                    isLast && "text-foreground font-medium",
+                    "h-auto max-w-32 truncate p-0 font-normal text-muted-foreground hover:text-foreground",
+                    isLast && "font-medium text-foreground",
                   )}
                 >
                   {part}
-                </button>
+                </Button>
               </span>
             );
           })}
@@ -278,34 +279,38 @@ interface FileEntryProps {
 
 function FileEntry(props: FileEntryProps) {
   return (
-    <button
-      type="button"
-      className={cn(
-        "flex items-center gap-2 px-2 py-1.5 rounded-none cursor-pointer transition-colors group w-full text-left",
-        props.isSelected ? "bg-primary/10 text-primary" : "hover:bg-muted",
-      )}
-      onClick={props.onSelect}
-      onDoubleClick={props.onNavigate}
-      title={props.entry.is_directory ? "Double-click to open, click to select" : props.entry.path}
-    >
-      {props.entry.is_directory ? (
-        props.isSelected ? (
-          <FolderOpenIcon className="h-4 w-4 text-primary shrink-0" />
+    <TooltipTrigger>
+      <Button
+        variant="ghost"
+        onPress={props.onSelect}
+        onDoubleClick={props.onNavigate}
+        className={cn(
+          "flex h-auto w-full items-center gap-2 rounded-none px-2 py-1.5 text-left font-normal",
+          props.isSelected ? "bg-primary/10 text-primary" : "hover:bg-muted",
+        )}
+      >
+        {props.entry.is_directory ? (
+          props.isSelected ? (
+            <FolderOpenIcon className="h-4 w-4 text-primary shrink-0" />
+          ) : (
+            <FolderIcon className="h-4 w-4 text-muted-foreground group-hover/button:text-foreground shrink-0" />
+          )
         ) : (
-          <FolderIcon className="h-4 w-4 text-muted-foreground group-hover:text-foreground shrink-0" />
-        )
-      ) : (
-        <FileIcon className="h-4 w-4 text-muted-foreground shrink-0" />
-      )}
-      <span className="text-sm truncate flex-1">{props.entry.name}</span>
-      {!props.entry.is_directory && props.entry.size && (
-        <span className="text-xs text-muted-foreground shrink-0">
-          {props.entry.size !== undefined ? formatBytes(props.entry.size) : ""}
-        </span>
-      )}
-      {props.entry.is_directory && (
-        <CaretRightIcon className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-      )}
-    </button>
+          <FileIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+        )}
+        <span className="text-sm truncate flex-1">{props.entry.name}</span>
+        {!props.entry.is_directory && props.entry.size && (
+          <span className="text-xs text-muted-foreground shrink-0">
+            {props.entry.size !== undefined ? formatBytes(props.entry.size) : ""}
+          </span>
+        )}
+        {props.entry.is_directory && (
+          <CaretRightIcon className="h-3 w-3 text-muted-foreground opacity-0 group-hover/button:opacity-100 transition-opacity shrink-0" />
+        )}
+      </Button>
+      <Tooltip>
+        {props.entry.is_directory ? "Double-click to open, click to select" : props.entry.path}
+      </Tooltip>
+    </TooltipTrigger>
   );
 }

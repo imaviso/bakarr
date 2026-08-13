@@ -24,6 +24,7 @@ import {
 } from "~/components/ui/command";
 
 import { Kbd } from "~/components/ui/kbd";
+import { Button } from "~/components/ui/button";
 import { useMediaListQuery } from "~/api/media";
 import { animeSearchSubtitle } from "~/domain/media/metadata";
 import { cn } from "~/infra/utils";
@@ -165,12 +166,12 @@ export function CommandPalette() {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
+      <Button
+        variant="ghost"
+        onPress={() => setOpen(true)}
         aria-label="Search library or navigate"
         className={cn(
-          "flex w-full items-center gap-2 overflow-hidden rounded-none border border-border bg-muted px-2 py-1.5 text-left text-xs text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring transition-colors",
+          "h-9 w-full justify-start gap-2 overflow-hidden rounded-none border border-border bg-muted px-2 py-1.5 text-left text-xs font-normal text-muted-foreground hover:bg-accent hover:text-foreground",
           "group-data-[collapsible=icon]:!size-9 group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:bg-transparent",
         )}
       >
@@ -179,7 +180,7 @@ export function CommandPalette() {
         <Kbd className="ml-auto group-data-[collapsible=icon]:hidden">
           <CommandIcon className="h-2.5 w-2.5" />K
         </Kbd>
-      </button>
+      </Button>
 
       <CommandDialog open={open} onOpenChange={setOpen}>
         <Command filter={() => true}>

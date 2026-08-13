@@ -124,12 +124,12 @@ export function ReleaseProfileForm(props: {
                       isSelected={field.state.value}
                       onChange={(checked) => field.handleChange(checked)}
                     />
-                    <label
+                    <Label
                       htmlFor={field.name}
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                      className="cursor-pointer text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                     >
                       Enabled
-                    </label>
+                    </Label>
                   </div>
                 </div>
               )}
@@ -144,12 +144,12 @@ export function ReleaseProfileForm(props: {
                       isSelected={field.state.value}
                       onChange={(checked) => field.handleChange(checked)}
                     />
-                    <label
+                    <Label
                       htmlFor={field.name}
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                      className="cursor-pointer text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                     >
                       Global
-                    </label>
+                    </Label>
                   </div>
                 </div>
               )}

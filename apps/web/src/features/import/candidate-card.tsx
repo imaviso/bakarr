@@ -1,6 +1,7 @@
 import { CheckIcon, FileIcon } from "@phosphor-icons/react";
 import { MediaDiscoveryRow } from "~/features/media/media-discovery";
 import { Badge } from "~/components/ui/badge";
+import { Toggle } from "~/components/ui/toggle";
 import { Tooltip, TooltipTrigger } from "~/components/ui/tooltip";
 import type { MediaSearchResult } from "~/api/contracts";
 import { animeDisplayTitle, animeSearchSubtitle } from "~/domain/media/metadata";
@@ -27,11 +28,10 @@ export function CandidateCard(props: CandidateCardProps) {
         props.className,
       )}
     >
-      <button
-        type="button"
-        className="flex w-full gap-3 p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
-        onClick={props.onToggle}
-        aria-pressed={props.isSelected}
+      <Toggle
+        isSelected={props.isSelected}
+        onChange={props.onToggle}
+        className="h-auto w-full gap-3 rounded-none p-3 text-left font-normal hover:bg-transparent"
       >
         <div className="relative h-16 w-12 shrink-0 overflow-hidden bg-muted">
           {props.candidate.cover_image ? (
@@ -101,7 +101,7 @@ export function CandidateCard(props: CandidateCardProps) {
             </p>
           ) : null}
         </div>
-      </button>
+      </Toggle>
 
       {props.candidate.related_media?.length || props.candidate.recommended_media?.length ? (
         <div className="space-y-1 border-t border-border bg-muted px-3 py-2">
