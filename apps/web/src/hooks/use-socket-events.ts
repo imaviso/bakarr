@@ -64,7 +64,14 @@ export function useSocketEvents() {
       if (socketRef.current === socket) {
         socketRef.current = null;
       }
-      reconnectTimerRef.current = setTimeout(forceReconnect, RECONNECT_DELAY_MS);
+      if (reconnectTimerRef.current !== null) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+      reconnectTimerRef.current = setTimeout(() => {
+        reconnectTimerRef.current = null;
+        forceReconnect();
+      }, RECONNECT_DELAY_MS);
     };
 
     socket.addEventListener("message", onMessage);

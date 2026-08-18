@@ -56,14 +56,8 @@ export function SeasonalAnimeSection(props: SeasonalAnimeSectionProps) {
     estimateSize,
     overscan: 4,
     getScrollElement,
+    enabled: props.active,
   });
-
-  useEffect(() => {
-    if (!props.active) {
-      return;
-    }
-    rowVirtualizer.measure();
-  }, [props.active, rowVirtualizer]);
 
   useEffect(() => {
     const el = nodeRef.current;
@@ -72,7 +66,7 @@ export function SeasonalAnimeSection(props: SeasonalAnimeSectionProps) {
     }
     rowVirtualizer.scrollToOffset(0);
     rowVirtualizer.measure();
-  }, [props.seasonWindow.season, props.seasonWindow.year, rowVirtualizer, nodeRef]);
+  }, [props.seasonWindow.season, props.seasonWindow.year, rowVirtualizer, nodeRef, props.active]);
 
   const virtualRows = rowVirtualizer.getVirtualItems();
 

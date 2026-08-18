@@ -304,15 +304,8 @@ function SearchResults(props: SearchResultsProps) {
     estimateSize: () => estimateRowSize,
     overscan: 4,
     getScrollElement: () => nodeRef.current,
+    enabled: props.active,
   });
-
-  useEffect(() => {
-    if (!props.active) {
-      return;
-    }
-
-    rowVirtualizer.measure();
-  }, [props.active, rowVirtualizer]);
 
   useEffect(() => {
     const el = nodeRef.current;
@@ -322,7 +315,7 @@ function SearchResults(props: SearchResultsProps) {
 
     rowVirtualizer.scrollToOffset(0);
     rowVirtualizer.measure();
-  }, [props.debouncedQuery, rowVirtualizer, nodeRef]);
+  }, [props.debouncedQuery, rowVirtualizer, nodeRef, props.active]);
 
   const virtualRows = rowVirtualizer.getVirtualItems();
 

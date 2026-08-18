@@ -265,9 +265,7 @@ export function LogsView(props: LogsViewProps) {
             hasNextPage={props.state.logsQuery.hasNextPage}
             isFetchingNextPage={props.state.logsQuery.isFetchingNextPage}
             formatTimestamp={formatLogTimestamp}
-            onFetchNextPage={() => {
-              void props.state.logsQuery.fetchNextPage();
-            }}
+            onFetchNextPage={props.state.logsQuery.fetchNextPage}
             onSelectLog={props.state.setSelectedLog}
           />
         </Card>
