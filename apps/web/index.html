@@ -5,6 +5,25 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Bakarr</title>
+    <script>
+      // Apply the persisted theme before first paint to avoid a light/dark flash.
+      (function () {
+        try {
+          var stored = localStorage.getItem("bakarr-ui-theme");
+          var theme = stored === "dark" || stored === "light" ? stored : null;
+          var resolved = theme
+            ? theme
+            : window.matchMedia("(prefers-color-scheme: dark)").matches
+              ? "dark"
+              : "light";
+          var root = document.documentElement;
+          root.classList.add(resolved);
+          root.style.colorScheme = resolved;
+        } catch (e) {
+          // localStorage unavailable (private mode / disabled) — default to light.
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

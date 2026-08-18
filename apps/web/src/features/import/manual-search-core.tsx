@@ -63,6 +63,7 @@ export function ManualSearchCore(props: ManualSearchCoreProps) {
           <MagnifyingGlassIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             ref={searchInputRef}
+            autoFocus={props.autoFocusInput}
             value={query}
             onChange={(event) => setQuery(event.currentTarget.value)}
             placeholder={`Search for ${mediaKindLabel(mediaKind)}...`}

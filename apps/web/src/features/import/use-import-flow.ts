@@ -335,10 +335,26 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
     dispatch({ type: "updateFileMapping", file, season, episode });
   }, []);
 
+  const setInputMode = useCallback((mode: "browser" | "manual") => {
+    dispatch({ type: "setInputMode", mode });
+  }, []);
+
+  const setIsSearchOpen = useCallback((value: boolean) => {
+    dispatch({ type: "setIsSearchOpen", value });
+  }, []);
+
+  const setPath = useCallback((path: string) => {
+    dispatch({ type: "setPath", path });
+  }, []);
+
+  const setStep = useCallback((step: Step) => {
+    dispatch({ type: "setStep", step });
+  }, []);
+
   const dropzoneHandlers = createImportDropzoneHandlers({
-    setInputMode: (mode) => dispatch({ type: "setInputMode", mode }),
+    setInputMode,
     setIsDragOver: (value) => dispatch({ type: "setIsDragOver", value }),
-    setPath: (path) => dispatch({ type: "setPath", path }),
+    setPath,
   });
 
   return {
@@ -368,10 +384,10 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
     scannedFiles,
     selectedCandidateIds: state.selectedCandidateIds,
     selectedFiles: state.selectedFiles,
-    setInputMode: (mode: "browser" | "manual") => dispatch({ type: "setInputMode", mode }),
-    setIsSearchOpen: (value: boolean) => dispatch({ type: "setIsSearchOpen", value }),
-    setPath: (path: string) => dispatch({ type: "setPath", path }),
-    setStep: (step: Step) => dispatch({ type: "setStep", step }),
+    setInputMode,
+    setIsSearchOpen,
+    setPath,
+    setStep,
     skippedFiles,
     step: state.step,
     toggleCandidate,

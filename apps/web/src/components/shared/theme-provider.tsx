@@ -38,8 +38,17 @@ function isTheme(value: string | null): value is Theme {
   return THEME_VALUES.has(value);
 }
 
-function getSystemThemeSnapshot() {
+function resolveInitialTheme(storageKey: string, defaultTheme: Theme): Theme {
+  const storedTheme = localStorage.getItem(storageKey);
+  return isTheme(storedTheme) ? storedTheme : defaultTheme;
+}
+
+function resolveSystemTheme(): ResolvedTheme {
   return window.matchMedia(COLOR_SCHEME_QUERY).matches ? "dark" : "light";
+}
+
+function getSystemThemeSnapshot() {
+  return resolveSystemTheme();
 }
 
 function subscribeSystemTheme(callback: () => void) {
@@ -105,13 +114,9 @@ export function ThemeProvider({
   disableTransitionOnChange = true,
   ...props
 }: ThemeProviderProps) {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    const storedTheme = localStorage.getItem(storageKey);
-    if (isTheme(storedTheme)) {
-      return storedTheme;
-    }
-    return defaultTheme;
-  });
+  const [theme, setThemeState] = useState<Theme>(() =>
+    resolveInitialTheme(storageKey, defaultTheme),
+  );
 
   const setTheme = useCallback(
     (nextTheme: Theme) => {
@@ -144,6 +149,17 @@ export function ThemeProvider({
 
   const themeRef = useRef(theme);
   themeRef.current = theme;
+
+  // If the initial theme is "system", the inline bootstrap script can't know the
+  // user's preference yet (matchMedia is async-ready at parse time but the script
+  // resolves it synchronously). Re-apply once the system theme is known to keep
+  // the DOM in sync with the resolved value.
+  useEffect(() => {
+    if (theme !== "system") {
+      return;
+    }
+    applyTheme(systemTheme);
+  }, [theme, systemTheme, applyTheme]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
