@@ -23,6 +23,10 @@ import { buildPersistedConfigStates } from "@/features/system/system-config-upda
 import { makeDefaultConfig } from "@/features/system/defaults.ts";
 import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
 import { SystemConfigRepository } from "@/features/system/repository/system-config-repository.ts";
+import {
+  applyPasswordPreservation,
+  validateCorruptStatePasswords,
+} from "@/features/system/config-password-policy.ts";
 
 export interface SystemConfigUpdateServiceShape {
   readonly updateConfig: (
@@ -149,87 +153,16 @@ const preserveStoredPasswords = Effect.fn("SystemConfigUpdateService.preserveSto
     );
 
     if (storedConfigResult._tag === "Corrupt") {
-      if (
-        input.nextConfig.qbittorrent.enabled &&
-        Option.isNone(toNonEmptyPasswordOption(input.nextConfig.qbittorrent.password))
-      ) {
+      const corruptValidation = validateCorruptStatePasswords(input.nextConfig);
+      if (Option.isSome(corruptValidation)) {
         return yield* new StoredConfigCorruptError({
-          cause: new Error(
-            "Stored configuration is corrupt. Re-enter the qBittorrent password before saving repaired config.",
-          ),
-          message:
-            "Stored configuration is corrupt. Re-enter the qBittorrent password before saving repaired config.",
+          cause: new Error(corruptValidation.value.message),
+          message: corruptValidation.value.message,
         });
       }
-
-      if (
-        input.nextConfig.metadata?.anidb.enabled &&
-        Option.isNone(toNonEmptyPasswordOption(input.nextConfig.metadata.anidb.password))
-      ) {
-        return yield* new StoredConfigCorruptError({
-          cause: new Error(
-            "Stored configuration is corrupt. Re-enter the AniDB password before saving repaired config.",
-          ),
-          message:
-            "Stored configuration is corrupt. Re-enter the AniDB password before saving repaired config.",
-        });
-      }
-
       return input.nextConfig;
     }
 
-    let nextConfig = input.nextConfig;
-    const storedQBitPassword = toNonEmptyPasswordOption(
-      storedConfigResult.storedConfig.qbittorrent.password,
-    );
-
-    if (
-      nextConfig.qbittorrent.enabled &&
-      Option.isNone(toNonEmptyPasswordOption(nextConfig.qbittorrent.password)) &&
-      Option.isSome(storedQBitPassword)
-    ) {
-      nextConfig = {
-        ...nextConfig,
-        qbittorrent: {
-          ...nextConfig.qbittorrent,
-          password: storedQBitPassword.value,
-        },
-      };
-    }
-
-    if (!nextConfig.metadata?.anidb) {
-      return nextConfig;
-    }
-
-    const storedAniDbPassword = toNonEmptyPasswordOption(
-      storedConfigResult.storedConfig.metadata?.anidb?.password,
-    );
-
-    if (
-      nextConfig.metadata.anidb.enabled &&
-      Option.isNone(toNonEmptyPasswordOption(nextConfig.metadata.anidb.password)) &&
-      Option.isSome(storedAniDbPassword)
-    ) {
-      return {
-        ...nextConfig,
-        metadata: {
-          ...nextConfig.metadata,
-          anidb: {
-            ...nextConfig.metadata.anidb,
-            password: storedAniDbPassword.value,
-          },
-        },
-      };
-    }
-
-    return nextConfig;
+    return applyPasswordPreservation(storedConfigResult.storedConfig, input.nextConfig);
   },
 );
-
-function toNonEmptyPasswordOption(value: string | null | undefined): Option.Option<string> {
-  if (value === null || value === undefined) {
-    return Option.none();
-  }
-
-  return value.trim().length > 0 ? Option.some(value) : Option.none();
-}

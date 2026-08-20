@@ -113,6 +113,7 @@ export class DownloadReconciliationService extends Effect.Service<DownloadReconc
 
         yield* Effect.gen(function* () {
           const context = yield* loadDownloadReconciliationContext({
+            claimToken,
             repo,
             mediaUnitRepository,
             eventBus,

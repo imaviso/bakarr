@@ -52,6 +52,7 @@ type MaybeCleanupImportedTorrent = (
 ) => Effect.Effect<void>;
 
 type DownloadReconciliationContext = {
+  readonly claimToken: string;
   readonly repo: typeof DownloadRepository.Service;
   readonly mediaRepository: typeof MediaRepository.Service;
   readonly mediaUnitRepository: MediaUnitRepositoryShape;
@@ -98,6 +99,7 @@ export const loadDownloadReconciliationContext = Effect.fn(
 )(function* (
   input: Pick<
     DownloadReconciliationContext,
+    | "claimToken"
     | "repo"
     | "mediaUnitRepository"
     | "fs"
@@ -135,6 +137,7 @@ export const loadDownloadReconciliationContext = Effect.fn(
   }
 
   return Option.some({
+    claimToken: input.claimToken,
     repo: input.repo,
     mediaRepository: input.mediaRepository,
     mediaUnitRepository: input.mediaUnitRepository,
@@ -346,6 +349,7 @@ export const reconcileBatchDownloadEffect = Effect.fn("DownloadReconcile.reconci
     });
 
     yield* input.repo.finalizeDownloadImport({
+      claimToken: input.claimToken,
       downloadId: input.row.id,
       fromStatus: input.row.status,
       now: batchNow,
@@ -394,6 +398,7 @@ export const reconcileSingleDownloadEffect = Effect.fn(
   if (existingEpisode?.downloaded && existingEpisode?.filePath) {
     const alreadyImportedNow = yield* input.nowIso();
     yield* input.repo.markDownloadReconciled({
+      claimToken: input.claimToken,
       downloadId: input.row.id,
       now: alreadyImportedNow,
     });
@@ -476,6 +481,7 @@ export const reconcileSingleDownloadEffect = Effect.fn(
   });
 
   yield* input.repo.finalizeDownloadImport({
+    claimToken: input.claimToken,
     downloadId: input.row.id,
     fromStatus: input.row.status,
     now: singleNow,

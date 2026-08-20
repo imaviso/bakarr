@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Duration, Effect, Schema } from "effect";
 
 import type { DatabaseError } from "@/db/database.ts";
 import { currentTimeMillis } from "@/infra/time.ts";
@@ -9,7 +9,18 @@ import { resolveUnitFileEffect } from "@/features/media/files/media-file-read.ts
 import { StreamTokenSigner } from "@/features/media/stream/stream-token-signer.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 
-const STREAM_EXPIRY_MS = 6 * 60 * 60 * 1000;
+const StreamExpirySecondsSchema = Schema.NumberFromString.pipe(
+  Schema.int(),
+  Schema.between(60, 86400),
+);
+
+export const resolveStreamExpiryMs = Effect.fn("MediaStream.resolveStreamExpiryMs")(function* () {
+  const seconds = yield* Schema.Config(
+    "BAKARR_STREAM_EXPIRY_SECONDS",
+    StreamExpirySecondsSchema,
+  ).pipe(Effect.orElseSucceed(() => Duration.toSeconds(Duration.hours(6))));
+  return Duration.toMillis(Duration.seconds(seconds));
+});
 
 export interface ResolvedStreamFile {
   readonly fileName: string;
@@ -40,7 +51,8 @@ const makeMediaStreamService = Effect.fn("MediaStreamService.make")(function* ()
     unitNumber: number,
   ) {
     const now = yield* currentTimeMillis;
-    const expiresAt = now + STREAM_EXPIRY_MS;
+    const expiryMs = yield* resolveStreamExpiryMs();
+    const expiresAt = now + expiryMs;
     const signature = yield* signer.sign({ mediaId, unitNumber, expiresAt }).pipe(
       Effect.mapError(
         (cause) =>

@@ -102,8 +102,9 @@ export interface DownloadRepositoryShape {
     claimToken: string,
   ) => Effect.Effect<boolean, DatabaseError>;
   readonly deleteDownloadRow: (id: number) => Effect.Effect<void, DatabaseError>;
-  /** Atomic import write: downloads + download_events + system_logs (lifecycle tx). */
+  /** Atomic import write: downloads + download_events + system_logs (lifecycle tx). Guarded by claim token. */
   readonly finalizeDownloadImport: (input: {
+    readonly claimToken: string;
     readonly downloadId: number;
     readonly fromStatus: string;
     readonly now: string;
@@ -202,6 +203,7 @@ export interface DownloadRepositoryShape {
     infoHash: string,
   ) => Effect.Effect<{ id: number; status: string } | undefined, DatabaseError>;
   readonly markDownloadReconciled: (input: {
+    readonly claimToken?: string;
     readonly downloadId: number;
     readonly now: string;
   }) => Effect.Effect<void, DatabaseError>;
@@ -353,6 +355,7 @@ const bulkUpdateTorrentSyncRows = Effect.fn("DownloadRepository.bulkUpdateTorren
 const finalizeDownloadImport = Effect.fn("DownloadRepository.finalizeDownloadImport")(function* (
   db: AppDatabase,
   input: {
+    readonly claimToken: string;
     readonly downloadId: number;
     readonly fromStatus: string;
     readonly now: string;
@@ -366,14 +369,23 @@ const finalizeDownloadImport = Effect.fn("DownloadRepository.finalizeDownloadImp
 ) {
   yield* tryDatabasePromise("Failed to reconcile completed download", async () => {
     await db.transaction(async (tx) => {
-      await tx
+      const updated = await tx
         .update(downloads)
-        .set({ externalState: "imported", progress: 100, status: "imported" })
-        .where(eq(downloads.id, input.downloadId));
-      await tx
-        .update(downloads)
-        .set({ reconciledAt: input.now })
-        .where(eq(downloads.id, input.downloadId));
+        .set({
+          externalState: "imported",
+          progress: 100,
+          status: "imported",
+          reconciledAt: input.now,
+        })
+        .where(
+          and(eq(downloads.id, input.downloadId), eq(downloads.reconciledAt, input.claimToken)),
+        )
+        .returning({ id: downloads.id });
+      if (updated.length === 0) {
+        throw new Error(
+          `Download ${input.downloadId} finalize failed: claim token mismatch or already finalized`,
+        );
+      }
       await tx.insert(downloadEvents).values({
         mediaId: input.mediaId,
         createdAt: input.now,
@@ -589,17 +601,38 @@ const lookupDownloadByInfoHash = Effect.fn("DownloadRepository.lookupDownloadByI
 
 const markDownloadReconciled = Effect.fn("DownloadRepository.markDownloadReconciled")(function* (
   db: AppDatabase,
-  input: { readonly downloadId: number; readonly now: string },
+  input: { readonly claimToken?: string; readonly downloadId: number; readonly now: string },
 ) {
   yield* tryDatabasePromise("Failed to reconcile completed download", async () => {
     await db.transaction(async (tx) => {
+      if (input.claimToken !== undefined) {
+        const updated = await tx
+          .update(downloads)
+          .set({
+            externalState: "imported",
+            progress: 100,
+            status: "imported",
+            reconciledAt: input.now,
+          })
+          .where(
+            and(eq(downloads.id, input.downloadId), eq(downloads.reconciledAt, input.claimToken)),
+          )
+          .returning({ id: downloads.id });
+        if (updated.length === 0) {
+          throw new Error(
+            `Download ${input.downloadId} mark reconciled failed: claim token mismatch`,
+          );
+        }
+        return;
+      }
       await tx
         .update(downloads)
-        .set({ externalState: "imported", progress: 100, status: "imported" })
-        .where(eq(downloads.id, input.downloadId));
-      await tx
-        .update(downloads)
-        .set({ reconciledAt: input.now })
+        .set({
+          externalState: "imported",
+          progress: 100,
+          status: "imported",
+          reconciledAt: input.now,
+        })
         .where(eq(downloads.id, input.downloadId));
     });
   });

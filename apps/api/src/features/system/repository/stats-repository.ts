@@ -176,3 +176,8 @@ export function makeSystemStatsRepositoryShape(db: AppDatabase): SystemStatsRepo
     loadSystemLibraryStatsAggregate: () => loadSystemLibraryStatsAggregate(db),
   } satisfies SystemStatsRepositoryShape;
 }
+
+/** Dashboard read-model alias — prefer SystemDashboardRepository naming for new code. */
+export const SystemDashboardRepository = SystemStatsRepository;
+export type SystemDashboardRepositoryShape = SystemStatsRepositoryShape;
+export const makeSystemDashboardRepositoryShape = makeSystemStatsRepositoryShape;
